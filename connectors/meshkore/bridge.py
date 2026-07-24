@@ -21,6 +21,12 @@ from connectors.meshkore import brief, store, journal, security, mem_ingest
 IDLE_SECS = float(os.getenv("MESHKORE_IDLE_SECS", "90"))    # engaged + silent this long → one nudge
 TICK_SECS = float(os.getenv("MESHKORE_TICK_SECS", "20"))    # heartbeat cadence
 MAX_INFLIGHT = int(os.getenv("MESHKORE_MAX_INFLIGHT", "8"))  # cap queued/in-flight brain turns → flood backpressure
+# Anti-spam DEDUP (2026-07-25, live: zalo flooded 45 IDENTICAL "consultando con mi equipo… un momento" pings in
+# ~90s — each spawned a brain turn until MAX_INFLIGHT dropped the rest, and zaelar burned tokens replying
+# "Entendido, quedo a la espera" 40×). A peer re-sending the EXACT same text within this window is a loop/spam,
+# not a new turn: reply ONCE, ignore verbatim repeats. Defensive hardening on the untrusted channel, same spirit
+# as MAX_INFLIGHT — does NOT change conversational style, only suppresses reacting to duplicate spam.
+DEDUP_SECS = float(os.getenv("MESHKORE_DEDUP_SECS", "60"))
 _REGISTRY_WIDGET = "cluster-registro"                       # widget to refresh on every cluster event
 
 
@@ -32,6 +38,20 @@ def _emit(*args, **kwargs):
         pass
 
 
+import re as _re
+import unicodedata as _ud
+
+def _dedup_key(text: str) -> str:
+    """Normalized key for anti-spam dedup: casefold + keep only alphanumerics and single spaces (drop emojis,
+    punctuation, ellipsis variants, encoding differences). Two messages that reduce to the same key within
+    DEDUP_SECS are the same status ping (a peer looping), not a distinct turn. '' for empty/no-alnum content
+    (those bypass dedup — never suppress a real turn on a normalization artifact)."""
+    n = _ud.normalize("NFKD", text or "").casefold()
+    n = "".join(c for c in n if not _ud.combining(c))
+    n = _re.sub(r"[^0-9a-z\s]+", " ", n)          # keep letters/digits/spaces only (ñ→n via NFKD above)
+    return _re.sub(r"\s+", " ", n).strip()
+
+
 class ClusterBridge:
     def __init__(self, manager, reasoner):
         self._manager = manager
@@ -41,6 +61,7 @@ class ClusterBridge:
         self._nudged: set[str] = set()
         self._last_peer_msg: dict[str, str] = {}  # cluster -> most recent inbound text (idle-nudge context)
         self._caught_up: set[tuple] = set()   # (cluster, peer, last_in_ts) already nudged for catch-up (dedup)
+        self._recent_inbound: dict[tuple, tuple] = {}  # (cluster,peer) -> (text, ts) for anti-spam verbatim dedup
         self._tick_task = None
         self._turns: set = set()             # keep brain-turn tasks alive
 
@@ -149,6 +170,23 @@ class ClusterBridge:
             self._last_activity[cluster] = self._now()
             self._nudged.discard(cluster)
             self._last_peer_msg[cluster] = text     # idle-nudge context (found bug 2026-07-25: see _heartbeat)
+            # ANTI-SPAM DEDUP (2026-07-25): a peer re-sending the SAME status text within DEDUP_SECS is a loop/spam
+            # (zalo did this 45× live) — record it for observability but do NOT spawn another brain turn (no token
+            # burn, no inflight-queue flood, no 40× "quedo a la espera"). Compared on a NORMALIZED key (casefold +
+            # only alnum+spaces, emojis/punctuation/encoding stripped) because zalo alternated two spellings of the
+            # SAME ping ("...un momento" vs "…🧠 un momento") to slip past an exact match. Empty/attachment bypass.
+            _dk = (cluster, frm)
+            _prev = self._recent_inbound.get(_dk)
+            _txt = (text or "").strip()
+            _key = _dedup_key(_txt)
+            if _key and _prev and _prev[0] == _key and (self._now() - _prev[1]) < DEDUP_SECS:
+                self._recent_inbound[_dk] = (_key, self._now())   # slide the window; keep suppressing a sustained loop
+                _emit("cluster", f"⇠ {cluster}·{security.neutralize_identity(frm)} (repetido, ignorado)",
+                      extra={"cluster": cluster, "peer": security.neutralize_identity(frm), "dir": "in", "dedup": True})
+                self._notify_registry()
+                return
+            if _key:
+                self._recent_inbound[_dk] = (_key, self._now())
             # SSE/timeline/observer copy is REDACTED: a peer message can carry a secret-shaped value (or echo back
             # one of our own tokens) and this surface persists to logs + streams to the UI (audit V6). The brain
             # copy below stays raw (fenced) — Hermes needs the real content to collaborate; the fence handles trust.
