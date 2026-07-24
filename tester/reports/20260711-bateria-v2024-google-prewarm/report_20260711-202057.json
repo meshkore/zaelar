@@ -1,0 +1,275 @@
+{
+  "stamp": "20260711-202057",
+  "results": [
+    {
+      "scenario": "complex_idea",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Alex, soy zaelar, tu asistente personal. ¿En qué te ayudo hoy?",
+            "at": 1783793868.15
+          },
+          {
+            "who": "tester",
+            "text": "No, en realidad eres Alex hablando con su asistente por voz. Yo son Alex, necesito ayuda para planificar una cena de cumpleaños sorpresa. ¿Podemos empezar?",
+            "at": 1783793869.65
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, entendido. ¿En qué te ayudo hoy? Perfecto, vamos con ello. ¿Para quién es la cena y cuándo la quieres?",
+            "at": 1783793889.67,
+            "latency_ms": 4903
+          },
+          {
+            "who": "tester",
+            "text": "Es para mi primo Juan y lo quiero para el próximo sábado a las 19:00. ¿Qué restaurantes hay por cerca que podríamos considerar?",
+            "at": 1783793893.39
+          },
+          {
+            "who": "zaelar",
+            "text": "Perfecto, vamos con ello. ¿Para quién es la cena y cuándo la quieres?",
+            "at": 1783793904.21
+          },
+          {
+            "who": "tester",
+            "text": "Es para mi primo Juan y lo quiero para el próximo sábado a las 19:00. ¿Qué restaurantes hay por aquí que podríamos considerar?",
+            "at": 1783793905.8
+          },
+          {
+            "who": "zaelar",
+            "text": "Claro, cena sorpresa para Juan el próximo sábado a las 19. ¿Prefieres algo en el centro o con terraza?",
+            "at": 1783793917.08
+          },
+          {
+            "who": "tester",
+            "text": "Prefiero algo en el centro porque es más fácil encontrar y el ambiente suele ser más favorable para una cena familiar. ¿Alguna recommendations cerca de aquí?",
+            "at": 1783793931.82
+          },
+          {
+            "who": "zaelar",
+            "text": "Claro, cena sorpresa para Juan el próximo sábado a las 19. ¿Prefieres algo en el centro o con terraza? Entendido, cena para Juan el próximo sábado a las 19. ¿Prefieres centro, terraza o algún tipo de cocina?",
+            "at": 1783793943.66
+          },
+          {
+            "who": "tester",
+            "text": "Prefiero algo en el centro y con un poco de espacio al aire libre si es posible, así que aterrizamos en la terraza. ¿Algunas opciones buenas cerca del centro?",
+            "at": 1783793948.2
+          },
+          {
+            "who": "zaelar",
+            "text": "Entendido, cena para Juan el próximo sábado a las 19. ¿Prefieres centro, terraza o algún Vale, te quedas con Ivalet Central por la ubicación y el ambiente. ¿Quieres que mire disponibilidad para el sábado a las 19?",
+            "at": 1783793960.27
+          },
+          {
+            "who": "tester",
+            "text": "Perfecto, me parece genial Ivalet Central. ¿Podrías mirar disponibilidad para el sábado a esas horas?",
+            "at": 1783793965.11
+          },
+          {
+            "who": "zaelar",
+            "text": "Perfecto, terraza en el centro. ¿Quieres que busque disponibilidad para La Arabidan este sábado a las 20? Vale, te quedas con Ivalet Central por la ubicación y el ambiente. ¿Quieres que mire disponibilidad para",
+            "at": 1783793974.99,
+            "latency_ms": 1501
+          },
+          {
+            "who": "tester",
+            "text": "Sí, mira primero la disponibilidad para Ivalet Central en el sábado a las 19:00. Si está ocupado, entonces prueba con La Arabidan al mismo horario. Necesito asegurarme de que todo esté listo para cuando llegue Juan.",
+            "at": 1783793980.54
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, dame un momento que lo miro. Perfecto, terraza en el centro. ¿Quieres que busque disponibilidad para La Arabidan este sábado a las 20? Vale, dame un momento que lo miro.",
+            "at": 1783793996.09
+          },
+          {
+            "who": "tester",
+            "text": "¡Genial! Mira la disponibilidad para Ivalet Central primero. Si no está disponible, probamos con La Arabidan al mismo tiempo. Necesito estar seguro de que todo quede listo a tiempo.",
+            "at": 1783794001.52
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, dame un momento que lo miro.",
+            "at": 1783794015.97
+          },
+          {
+            "who": "tester",
+            "text": "¡De acuerdo! Zaelar, mira la disponibilidad para Ivalet Central este sábado a las 19:00.",
+            "at": 1783794022.46
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, dame un momento que lo miro.",
+            "at": 1783794031.93
+          },
+          {
+            "who": "tester",
+            "text": "Harrie, verifica si Ivalet Central tiene lugar para nosotras el próximo sábado a las 19:00.",
+            "at": 1783794034.68
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, no encuentro La Arabidan ni Aredna, así que escalo la búsqueda de reservas para Ivalet Central y alternativas con terraza. Vale, dame un momento que lo miro.",
+            "at": 1783794049.97,
+            "latency_ms": 4095
+          }
+        ],
+        "latency_ms": {
+          "n": 3,
+          "avg": 3500,
+          "max": 4903,
+          "samples": [
+            4903,
+            1501,
+            4095
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:show:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "✂️ input recortado (comando preservado): →1600 chars",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Alex, soy zaelar, tu asistente personal. ¿En qué te ayudo hoy?",
+            "⚡ Nucleo(flash): prompt: No, en realidad eres Alex hablando con su asistente por voz.",
+            "⚡ Nucleo(flash): reply: Vale, entendido. ¿En qué te ayudo hoy?",
+            "⚡ Nucleo(flash): prompt: Yo soy Alex. Necesito ayuda para planificar una cena de cumpleaños sorpresa. ¿Podemos empezar?",
+            "⚡ Nucleo(flash): reply: Perfecto, vamos con ello. ¿Para quién es la cena y cuándo la quieres?",
+            "📨 Triaje mensajería (1):",
+            "⚡ Nucleo(flash): prompt: Aquí está mi primo Juan y nos quiero para el próximo sábado a las 19. ¿Qué restaurantes hay por cerca que podríamos cons",
+            "⚡ Nucleo(flash): reply: Claro, cena sorpresa para Juan el próximo sábado a las 19. ¿Prefieres algo en el centro o con terraza?",
+            "🧭 Flash → SlowBrain (escalada registrada): El usuario (Alex) quiere planificar una cena de cumpleaños sorpresa para su primo Juan, el próximo sábado a las 19:00. N",
+            "⚡ Nucleo(flash): prompt: Es para mi primo Juan y no quiero para el próximo sábado a las 19. ¿Qué restaurantes hay por aquí que podríamos consider",
+            "⚡ Nucleo(flash): reply: Entendido, cena para Juan el próximo sábado a las 19. ¿Prefieres centro, terraza o algún tipo de cocina?",
+            "🧭 Flash → SlowBrain (escalada registrada): El usuario Alex quiere organizar una cena sorpresa para su primo Juan el próximo sábado a las 19 h (6 personas aproximad",
+            "📩 system note → FlashBrain: [SISTEMA] SlowBrain · Tarea completada: **Cena sorpresa de Juan — sábado 18/07 a las 19:00, 6 personas, opción vegetaria",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] SlowBrain · Tarea completada: **Cena sorpresa de Juan — sábado 18/07 a las 19:00, 6 personas, opción vegetaria",
+            "⚡ Nucleo(flash): reply: Vale, te quedas con Ivalet Central por la ubicación y el ambiente. ¿Quieres que mire disponibilidad para el sábado a las",
+            "🤖 tarea de navegador creada (SlowBrain): t1: El usuario Alex quiere organizar una cena sorpresa para su primo Juan el próximo sábado a las 19 h (6 personas aprox",
+            "⚡ Nucleo(flash): prompt: Prefiero algo en el centro y con un poco de espacio al aire libre si es posible, así que aterrizamos en la terraza. ¿Alg",
+            "⚡ Nucleo(flash): reply: Perfecto, terraza en el centro. ¿Quieres que busque disponibilidad para La Arabidan este sábado a las 20?",
+            "🧭 Flash → SlowBrain (escalada registrada): El usuario Alex quiere reservar mesa en La Arabidan (terraza en el centro) para este sábado a las 20h, 6 personas con op",
+            "⚡ Nucleo(flash): prompt: Perfecto, me parece genial y valet central. ¿Podrías mirar disponibilidad para el sábado a esas horas?",
+            "⚡ Nucleo(flash): reply: Vale, dame un momento que lo miro.",
+            "🧭 Flash → SlowBrain (escalada registrada): El usuario Alex quiere reservar mesa en La Arabidan (terraza) y también en Ivalet Central para el sábado 18/07 a las 19:",
+            "⚡ Nucleo(flash): prompt: Sí, mira primero la disponibilidad para el malet central en el sábado a las 19. Si está ocupado, entonces prueba con la",
+            "⚡ Nucleo(flash): reply: Vale, dame un momento que lo miro.",
+            "🧭 Flash → SlowBrain (escalada registrada): El usuario Alex quiere reservar mesa para 6 personas (incluido su primo Juan) el sábado 18/07 a las 19:00 en Madrid cent",
+            "⚡ Nucleo(flash): prompt: Genial! Mira la disponibilidad para el Ballet Central primero. Si no está disponible, probamos con la Arabidán al mismo",
+            "⚡ Nucleo(flash): reply: Vale, dame un momento que lo miro.",
+            "🧭 Flash → SlowBrain (escalada registrada): Buscar disponibilidad de reservas para sábado 18/07 a las 19:00 en \"Valet Central\" (o \"Ballet Central\") para 6 personas",
+            "📩 system note → FlashBrain: [SISTEMA] SlowBrain · Tarea completada: **Resultado — reserva sábado 20h, 6 pax, opción vegetariana (Madrid centro)**\n\n*",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] SlowBrain · Tarea completada: **Resultado — reserva sábado 20h, 6 pax, opción vegetariana (Madrid centro)**\n\n*",
+            "⚡ Nucleo(flash): reply: Vale, no encuentro La Arabidan ni Aredna, así que escalo la búsqueda de reservas para Ivalet Central y alternativas con",
+            "🧭 Flash → SlowBrain (escalada registrada): Buscar disponibilidad de reserva para sábado 18/07 a las 19:00 para 6 personas con opción vegetariana en Ivalet Central",
+            "⚡ Nucleo(flash): prompt: Harry verifica si Ballet Central tiene lugar para nosotras el próximo sábado a las 19.",
+            "⚡ Nucleo(flash): reply: Vale, dame un momento que lo miro.",
+            "🧭 Flash → SlowBrain (escalada registrada): Buscar disponibilidad de reserva para sábado 18/07 a las 19:00 para 6 personas (incluyendo opción vegetariana) en restau"
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 43,
+            "bot_speech": 42,
+            "brain": 38,
+            "memory": 144,
+            "timing": 12,
+            "metric": 441,
+            "tts": 27,
+            "transcript": 21,
+            "vad": 23,
+            "stt": 11,
+            "task": 7,
+            "notify": 2,
+            "widget": 11,
+            "navegador": 22,
+            "session": 1
+          },
+          "n_events": 846
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturallez": 2,
+          "coherencia": 2,
+          "utilidad": 2,
+          "accion": 2,
+          "latencia": 3,
+          "robustez": 2
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn3",
+            "problema": "Bucle de Eco/Repetición: zaelar repite la pregunta anterior del usuario ('¿Prefieres algo en el centro...?') antes de responder al nuevo input, rompiendo el ritmo natural.",
+            "gravedad": "media"
+          },
+          {
+            "turno": "zaelar@turn6",
+            "problema": "Fragmentación de discurso y contradicción. zaelar mezcla en una sola frase la selección del restaurante ('Ivalet Central') y una pregunta sobre un restaurante diferente ('La Arabidan') que no fue solicitado en ese turno, generando confusión.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn10",
+            "problema": "Parálisis por inconsistencia de datos. El sistema afirma haber escalado una tarea al navegador ('escalo la búsqueda de reservas') pero falla al verbalizarla correctamente, contradiciendo la propia acción tomada según la traza.",
+            "gravedad": "media"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Deber de Turno / Prompt de Salida",
+            "cambio": "Implementar un filtro estricto que evite incluir la transcripción del usuario inmediatamente anterior o el 'replay' del prompt en la respuesta final del TTS.",
+            "porque": "Se observó eco de la pregunta del usuario en la respuesta de zaelar ('¿Prefieres algo en el centro...?'), lo que suena robótico y confunde el contexto."
+          },
+          {
+            "area": "Core - Router / Navegador",
+            "cambio": "Revisar el binding de entidades entre el cerebro ('SlowBrain') y el FlashBrain. Asegurar que si se selecciona una entidad (Ivalet Central) en el contexto de tarea, se invalide o purgue la entidad competidora (La Arabidan) antes de generar la respuesta de texto.",
+            "porque": "Se detectó una respuesta compuesta contradictoria ('Ivalet Central... ¿busco disponibilidad para La Arabidan?') indicando que el modelo mantuvo dos entidades en competencia simultáneamente."
+          },
+          {
+            "area": "Control de Versiones / Coherencia Cognitiva",
+            "cambio": "Sincronizar los tiempos de renderizado de la UI con el prompt de contexto. La acción visual (widget:data) llega al frontend antes o independientemente de que el modelo verbal 'acepte' el dato, causando desconexión entre lo que zaelar dice ('no encuentro') y lo que hace (muestra datos).",
+            "porque": "La traza muestra que la herramienta de navegador está activa y generando datos, pero el modelo verbal dice 'no encuentro' o parece no estar alineado con la información recuperada."
+          }
+        ],
+        "veredicto": "No es producción-ready: zaelar sufre de alucinación de entidades contradictorias y falta de filtro en el TTS, lo que resulta en una experiencia confusa y poco fiable para la planificación.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Deber de Turno / Prompt de Salida",
+      "cambio": "Implementar un filtro estricto que evite incluir la transcripción del usuario inmediatamente anterior o el 'replay' del prompt en la respuesta final del TTS.",
+      "porque": "Se observó eco de la pregunta del usuario en la respuesta de zaelar ('¿Prefieres algo en el centro...?'), lo que suena robótico y confunde el contexto.",
+      "scenario": "complex_idea",
+      "_sev": 0
+    },
+    {
+      "area": "Core - Router / Navegador",
+      "cambio": "Revisar el binding de entidades entre el cerebro ('SlowBrain') y el FlashBrain. Asegurar que si se selecciona una entidad (Ivalet Central) en el contexto de tarea, se invalide o purgue la entidad competidora (La Arabidan) antes de generar la respuesta de texto.",
+      "porque": "Se detectó una respuesta compuesta contradictoria ('Ivalet Central... ¿busco disponibilidad para La Arabidan?') indicando que el modelo mantuvo dos entidades en competencia simultáneamente.",
+      "scenario": "complex_idea",
+      "_sev": 0
+    },
+    {
+      "area": "Control de Versiones / Coherencia Cognitiva",
+      "cambio": "Sincronizar los tiempos de renderizado de la UI con el prompt de contexto. La acción visual (widget:data) llega al frontend antes o independientemente de que el modelo verbal 'acepte' el dato, causando desconexión entre lo que zaelar dice ('no encuentro') y lo que hace (muestra datos).",
+      "porque": "La traza muestra que la herramienta de navegador está activa y generando datos, pero el modelo verbal dice 'no encuentro' o parece no estar alineado con la información recuperada.",
+      "scenario": "complex_idea",
+      "_sev": 0
+    }
+  ]
+}

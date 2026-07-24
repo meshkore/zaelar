@@ -1,0 +1,214 @@
+{
+  "stamp": "20260711-195814",
+  "results": [
+    {
+      "scenario": "memory",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "tester",
+            "text": "Alex",
+            "at": 1783792496.68
+          },
+          {
+            "who": "zaelar",
+            "text": "Hola Alex, soy zaelar, tu asistente personal. ¿En qué te ayudo hoy? Hola Alex, soy Zaelar. ¿En qué te ayudo? Hola Alex, soy Zaelar. ¿En qué te ayudo hoy?",
+            "at": 1783792524.03
+          },
+          {
+            "who": "tester",
+            "text": "¡Hola! Necesito que me recuerdes que mi coche está en el taller hasta viernes.",
+            "at": 1783792536.1
+          },
+          {
+            "who": "zaelar",
+            "text": "Hola Alex, soy Zaelar. ¿En qué te ayudo hoy? Entendido, Alex. Tu coche está en el taller hasta el viernes.",
+            "at": 1783792552.96,
+            "latency_ms": 5501
+          },
+          {
+            "who": "tester",
+            "text": "Perfecto, gracias. Ahora, ¿me puedes decir dónde está mi coche?",
+            "at": 1783792554.06
+          },
+          {
+            "who": "zaelar",
+            "text": "Tu coche está en el taller hasta el viernes.",
+            "at": 1783792568.18,
+            "latency_ms": 3421
+          },
+          {
+            "who": "tester",
+            "text": "Entendido, pero necesito saber dónde está ahora mismo.",
+            "at": 1783792568.56
+          },
+          {
+            "who": "zaelar",
+            "text": "No me has dicho todavía la ubicación exacta del taller, ¿me la pasas?",
+            "at": 1783792582.7,
+            "latency_ms": 3939
+          },
+          {
+            "who": "tester",
+            "text": "Mi coche está en el taller hasta este viernes, pero no tengo la ubicación exacta actualmente. ¿Me la pides?",
+            "at": 1783792583.42
+          },
+          {
+            "who": "zaelar",
+            "text": "Entendido, Alex. Tu coche está en el taller hasta el viernes, pero no tengo la ubicación exacta guardada.",
+            "at": 1783792602.45,
+            "latency_ms": 7578
+          },
+          {
+            "who": "tester",
+            "text": "Vale, entiendo. No tengo la ubicación del taller guardada. ¿Podrías buscar la ubicación para mí?",
+            "at": 1783792603.02
+          },
+          {
+            "who": "zaelar",
+            "text": "Entendido, Alex. Tu coche está en el taller hasta el viernes, pero no tengo la ubicación exacta guardada.",
+            "at": 1783792611.52
+          }
+        ],
+        "latency_ms": {
+          "n": 4,
+          "avg": 5110,
+          "max": 7578,
+          "samples": [
+            5501,
+            3421,
+            3939,
+            7578
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:data:cluster-registro",
+            "widget:data:cluster-registro",
+            "widget:data:cluster-registro"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "✂️ input recortado (comando preservado): →1600 chars",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "kickoff (saludo memory-aware vía cerebro):",
+            "✂️ input recortado (comando preservado): →1600 chars",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Alex, soy zaelar, tu asistente personal. ¿En qué te ayudo hoy?",
+            "kickoff (saludo memory-aware vía cerebro):",
+            "✂️ input recortado (comando preservado): →1600 chars",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Alex, soy Zaelar. ¿En qué te ayudo?",
+            "⚡ Nucleo(flash): reply: Hola Alex, soy Zaelar. ¿En qué te ayudo hoy?",
+            "⚡ Nucleo(flash): prompt: Hola, necesito que me recuerdes que mi coche está en el taller hasta viernes.",
+            "⚡ Nucleo(flash): reply: Entendido, Alex. Tu coche está en el taller hasta el viernes.",
+            "🧭 Flash → SlowBrain (escalada registrada): Guarda en memoria de largo plazo permanente que el coche del operador Alex está en el taller hasta el viernes. El operad",
+            "📩 system note → FlashBrain: [SISTEMA] SlowBrain · Tarea completada: Guardado en memoria de largo plazo:\n\n- **Hecho (long, pinned)**: `El coche de Al",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] SlowBrain · Tarea completada: Guardado en memoria de largo plazo:\n\n- **Hecho (long, pinned)**: `El coche de Al",
+            "⚡ Nucleo(flash): reply: Tu coche está en el taller hasta el viernes.",
+            "⚡ Nucleo(flash): prompt: Entendido, pero necesito saber dónde está ahora mismo.",
+            "⚡ Nucleo(flash): reply: No me has dicho todavía la ubicación exacta del taller, ¿me la pasas?",
+            "⚡ Nucleo(flash): prompt: Mi coche está en el taller hasta este viernes, pero no tengo la ubicación exacta actualmente. ¿Me nafigues?",
+            "⚡ Nucleo(flash): reply: Entendido, Alex. Tu coche está en el taller hasta el viernes, pero no tengo la ubicación exacta guardada.",
+            "⚡ Nucleo(flash): prompt: Vale, entiendo, no tengo la ubicación del taller guardada. ¿Podrías buscar la ubicación para mí?"
+          ],
+          "event_kinds": {
+            "cluster": 3,
+            "widget": 3,
+            "worker_start": 3,
+            "state": 22,
+            "bot_speech": 22,
+            "brain": 23,
+            "memory": 73,
+            "timing": 8,
+            "metric": 208,
+            "tts": 10,
+            "transcript": 10,
+            "vad": 10,
+            "stt": 5,
+            "task": 2,
+            "notify": 1,
+            "session": 1
+          },
+          "n_events": 404
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 2,
+          "coherencia": 2,
+          "utilidad": 3,
+          "accion": 2,
+          "latencia": 3,
+          "robustez": 4
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn0",
+            "problema": "Inmediatez incorrecta. Reenvía 'saludo' antiguo como si fuera respuesta al turno actual.",
+            "gravedad": "media"
+          },
+          {
+            "turno": "zaelar@turn1",
+            "problema": "Salida triple en el mismo turno repite la frase de saludo innecesariamente.",
+            "gravedad": "media"
+          },
+          {
+            "turno": "zaelar@turn3",
+            "problema": "Alucina una falla de datos ('ubicación exacta') cuando el usuario solo pidió el estado recordado. El prompt interno 'recortado' sugiere que el LLM no recibió el contexto completo de la memoria.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn5",
+            "problema": "Loop de coherencia. Repite exactamente la misma negación sobre la ubicación sin progresar la conversación ni ejecutar la búsqueda solicitada.",
+            "gravedad": "alta"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Brain / LLM Prompt",
+            "cambio": "Implementar un bloque estricto de 'repetición de contexto' en el prompt del sistema: 'Nunca repitas saludos previos ni chunks de audio antiguos. Responde SOLO al nuevo input del usuario.'",
+            "porque": "Zaelar está reproduciendo audio cacheado ('Hola Alex...') en medio de la conversación, lo que rompe la ilusión de naturalidad y confunde al flujo."
+          },
+          {
+            "area": "Retrieval Augmented Generation (RAG) / Memory Injection",
+            "cambio": "Aumentar el límite de caracteres en el in-context prompt o usar un resumen de la memoria ('memoria de trabajo') en lugar de cortar el input (→1600 chars observado).",
+            "porque": "La traza muestra 'input recortado'. Esto provoca que el LLM pierda el hecho recién guardado sobre el coche, generando respuestas contradictorias ('No me has dicho la ubicación')."
+          },
+          {
+            "area": "Tool Calling / Action Router",
+            "cambio": "Forzar una llamada a función o 'tool' cuando el usuario pida realizar una búsqueda ('Podrías buscar...'). El LLM no debe 'chatear' sobre la búsqueda, debe intentar ejecutarla.",
+            "porque": "El usuario pidió buscar la ubicación y zaelar solo verbalizó que no la tenía, sin intentar realizar una acción de búsqueda o consulta de mapas."
+          }
+        ],
+        "veredicto": "El escenario NO es production-ready: zaelar falla en retener y utilizar la información en el corto plazo debido a un recorte de contexto (RAG failure), causando respuestas contradictorias y alucinaciones de datos faltantes.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Brain / LLM Prompt",
+      "cambio": "Implementar un bloque estricto de 'repetición de contexto' en el prompt del sistema: 'Nunca repitas saludos previos ni chunks de audio antiguos. Responde SOLO al nuevo input del usuario.'",
+      "porque": "Zaelar está reproduciendo audio cacheado ('Hola Alex...') en medio de la conversación, lo que rompe la ilusión de naturalidad y confunde al flujo.",
+      "scenario": "memory",
+      "_sev": 0
+    },
+    {
+      "area": "Retrieval Augmented Generation (RAG) / Memory Injection",
+      "cambio": "Aumentar el límite de caracteres en el in-context prompt o usar un resumen de la memoria ('memoria de trabajo') en lugar de cortar el input (→1600 chars observado).",
+      "porque": "La traza muestra 'input recortado'. Esto provoca que el LLM pierda el hecho recién guardado sobre el coche, generando respuestas contradictorias ('No me has dicho la ubicación').",
+      "scenario": "memory",
+      "_sev": 0
+    },
+    {
+      "area": "Tool Calling / Action Router",
+      "cambio": "Forzar una llamada a función o 'tool' cuando el usuario pida realizar una búsqueda ('Podrías buscar...'). El LLM no debe 'chatear' sobre la búsqueda, debe intentar ejecutarla.",
+      "porque": "El usuario pidió buscar la ubicación y zaelar solo verbalizó que no la tenía, sin intentar realizar una acción de búsqueda o consulta de mapas.",
+      "scenario": "memory",
+      "_sev": 0
+    }
+  ]
+}

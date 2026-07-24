@@ -1,0 +1,15 @@
+{
+  "view_data_shape": {
+    "channel": "str",
+    "cmd_seq": "int",
+    "last_cmd": "str",
+    "latest": "bool",
+    "muted": "bool",
+    "paused": "bool",
+    "published": "str",
+    "title": "str",
+    "url": "str",
+    "videoId": "str",
+    "volume": "int"
+  }
+}

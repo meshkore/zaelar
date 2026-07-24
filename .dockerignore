@@ -1,0 +1,20 @@
+.venv
+.env
+logs
+harness/runs
+harness/last_run.log
+harness/rerun.log
+**/__pycache__
+*.pyc
+.pytest_cache
+.ruff_cache
+.mypy_cache
+
+# Runtime-generated per-install state (gitignored too) — a cloud image must boot CLEAN for every
+# new tenant/demo session, never with the operator's own personal memory/config baked in. Found
+# 2026-07-23 (INI-018 T1): the image was shipping the operator's real memory.db + config/*.json.
+memory/_data
+widgets/_data/*/
+config/*.json
+.meshkore/credentials
+.meshkore/logs

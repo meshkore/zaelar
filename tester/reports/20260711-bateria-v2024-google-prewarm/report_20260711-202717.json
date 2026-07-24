@@ -1,0 +1,220 @@
+{
+  "stamp": "20260711-202717",
+  "results": [
+    {
+      "scenario": "navegador_coche",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Alex, soy zaelar. ¿Qué necesitas hoy?",
+            "at": 1783794344.8
+          },
+          {
+            "who": "tester",
+            "text": "No, yo soy Alex. ¿Puedes buscarme un coche de segunda mano por menos de 5000 euros y con menos de 250.000 kilómetros en Wallapop o coches.net? Estoy cerca de ti.",
+            "at": 1783794350.57
+          },
+          {
+            "who": "zaelar",
+            "text": "Hola Alex, soy zaelar. ¿Qué necesitas hoy?",
+            "at": 1783794364.94
+          },
+          {
+            "who": "tester",
+            "text": "Búscanos un coche de segunda mano por menos de 5000 euros y con menos de 250.000 kilómetros en Wallapop o coches.net, por favor. Estoy cerca de ti.",
+            "at": 1783794370.87
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, te escalo la búsqueda de coches de segunda mano.",
+            "at": 1783794384.88
+          },
+          {
+            "who": "tester",
+            "text": "Genial, gracias. Espero que me las arregles bien.",
+            "at": 1783794386.69
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, dame un momento que lo miro. Perfecto, lo tengo en marcha.",
+            "at": 1783794401.67,
+            "latency_ms": 6869
+          },
+          {
+            "who": "tester",
+            "text": "Perfecto, espero que encuentres algo bueno para mí.",
+            "at": 1783794402.02
+          },
+          {
+            "who": "zaelar",
+            "text": "Me pongo con ello.",
+            "at": 1783794414.99,
+            "latency_ms": 5004
+          },
+          {
+            "who": "tester",
+            "text": "Ok, toma tu tiempo. Estaré aquí cuando necesites ayuda más.",
+            "at": 1783794415.72
+          },
+          {
+            "who": "zaelar",
+            "text": "Gracias, te aviso en cuanto tenga algo.",
+            "at": 1783794429.25,
+            "latency_ms": 3769
+          }
+        ],
+        "latency_ms": {
+          "n": 3,
+          "avg": 5214,
+          "max": 6869,
+          "samples": [
+            6869,
+            5004,
+            3769
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:data:navegador::t2",
+            "widget:data:navegador::t3",
+            "widget:show:navegador::t4",
+            "widget:data:navegador::t4",
+            "widget:data:navegador::t2",
+            "widget:data:navegador::t4",
+            "widget:data:navegador::t4",
+            "widget:data:navegador::t4",
+            "widget:show:navegador::t4",
+            "widget:data:navegador::t4",
+            "widget:data:navegador::t4",
+            "widget:show:navegador::t4",
+            "widget:data:navegador::t4",
+            "widget:data:navegador::t3",
+            "widget:data:navegador::t2",
+            "widget:data:navegador::t4",
+            "widget:show:navegador::t4",
+            "widget:data:navegador::t4",
+            "widget:data:navegador::t2",
+            "widget:data:navegador::t3",
+            "widget:data:navegador::t4"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "✂️ input recortado (comando preservado): →1600 chars",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Alex, soy zaelar. ¿Qué necesitas hoy?",
+            "⚡ Nucleo(flash): prompt: No, yo soy Alex. Puedes buscarme un coche de segunda mano por menos de 5 000 euros y con menos de 250 kilómetros en Guan",
+            "⚡ Nucleo(flash): reply: Vale, te escalo la búsqueda de coches de segunda mano.",
+            "🤖 tarea de navegador creada (SlowBrain): t4: Busca un coche de segunda mano por menos de 5.000 euros y con menos de 250 km en Guanapó o coches.net, para el opera",
+            "🧭 Flash → SlowBrain (escalada registrada): Busca un coche de segunda mano por menos de 5.000 euros y con menos de 250 km en Guanapó o coches.net, para el operador",
+            "⚡ Nucleo(flash): prompt: Bústranos un coche de segunda mano por menos de 500 euros y con menos de 250 kilómetros en Guarapop o coches.net, por fa",
+            "⚡ Nucleo(flash): reply: Vale, dame un momento que lo miro.",
+            "🧭 Flash → SlowBrain (escalada registrada): El operador quiere buscar un coche de segunda mano por menos de 500 euros y con menos de 250 km en Wallapop o coches.net",
+            "⚡ Nucleo(flash): prompt: Genial, gracias. Te espero que me la salves bien.",
+            "⚡ Nucleo(flash): reply: Perfecto, lo tengo en marcha.",
+            "🧭 Flash → SlowBrain (escalada registrada): Busca coches de segunda mano por menos de 500 euros y con menos de 250 km en Wallapop o coches.net. El operador está cer",
+            "⚡ Nucleo(flash): prompt: Perfecto. Espero que encuentres algo bueno para mí.",
+            "⚡ Nucleo(flash): reply: Me pongo con ello.",
+            "🧭 Flash → SlowBrain (escalada registrada): Busca coches de segunda mano por menos de 500 euros con menos de 250 km en Wallapop o coches.net cerca de la ubicación d",
+            "⚡ Nucleo(flash): prompt: Ok, toma tu tiempo. Estaré aquí cuando necesites ayuda más.",
+            "⚡ Nucleo(flash): reply: Gracias, te aviso en cuanto tenga algo."
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 18,
+            "bot_speech": 18,
+            "brain": 19,
+            "metric": 203,
+            "timing": 6,
+            "memory": 55,
+            "widget": 21,
+            "navegador": 32,
+            "tts": 7,
+            "transcript": 10,
+            "vad": 10,
+            "stt": 5,
+            "task": 8,
+            "session": 1
+          },
+          "n_events": 414
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 3,
+          "coherencia": 4,
+          "utilidad": 3,
+          "accion": 3,
+          "latencia": 2,
+          "robustez": 4
+        },
+        "overall": 3,
+        "findings": [
+          {
+            "turno": "zaelar@turn3",
+            "problema": "El usuario dio una instrucción de navegación clara ('búscanos un coche...'). El sistema reconoció la tarea pero respondió genéricamente ('Vale, dame un momento') sin aportar información sobre qué estaba haciendo ni mostrar resultados visuales.",
+            "gravedad": "media"
+          },
+          {
+            "turno": "zaelar@general_trace",
+            "problema": "La traza muestra una actividad de widgets intensa ('widget:data', 'widget:show:navegador') durante los segundos siguientes, sin embargo, el usuario no recibió feedback visual ni verbal del progreso. El bot se limita a decir 'Lo tengo en marcha' sin mostrar el canvas con el navegador al usuario.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "latencia",
+            "problema": "Las métricas muestran una latencia media de ~5.2s y una máxima de ~6.8s. Esto es demasiado lento para un asistente de voz que pretende ser ágil, especialmente en turnos cortos de confirmación.",
+            "gravedad": "media"
+          },
+          {
+            "turno": "zaelar@brain",
+            "problema": "Se observan errores de interpretación de parámetros críticos en la traza del cerebro ('500 euros' en lugar de '5000 euros'). Esto afecta la utilidad real del resultado, aunque la acción de buscar se haya ejecutado.",
+            "gravedad": "alta"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Brain / LLM Prompt (Extraction)",
+            "cambio": "Refinar el prompt de extracción de entidades para insistir en la precisión numérica (miles vs unidades) y evitar 'recortes' de ceros significativos.",
+            "porque": "El SlowBrain interpretó '5000 euros' como '500 euros', lo que invalida la búsqueda real del usuario."
+          },
+          {
+            "area": "Frontend / Canvas Integration",
+            "cambio": "Cuando se inicie una tarea de navegador (SlowBrain), forzar la emisión de un evento 'canvas:show' o 'automate_web:show' concurrente con la respuesta verbal 'Lo tengo en marcha'.",
+            "porque": "La traza indica actividad de widgets ('widget:show:navegador') pero no hay confirmación visual explícita, haciendo que la experiencia se sienta rota entre lo que se dice y lo que se ve."
+          },
+          {
+            "area": "Voice / Turn Latency (TTI)",
+            "cambio": "Implementar detección de finalización de frase (VAD) más agresiva o streaming de TTS para los turnos de confirmación cortos (Okay, Vale, Genial).",
+            "porque": "Latencias de casi 7 segundos en una respuesta de confirmación destruyen la sensación de naturalidad y fluidez."
+          }
+        ],
+        "veredicto": "El escenario NO es production-ready; aunque el sistema escala y ejecuta la tarea, falla en la precisión de los datos (precio mal interpretado), tiene latencias inaceptables para el flujo de voz y carece de feedback visual efectivo para el usuario.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Brain / LLM Prompt (Extraction)",
+      "cambio": "Refinar el prompt de extracción de entidades para insistir en la precisión numérica (miles vs unidades) y evitar 'recortes' de ceros significativos.",
+      "porque": "El SlowBrain interpretó '5000 euros' como '500 euros', lo que invalida la búsqueda real del usuario.",
+      "scenario": "navegador_coche",
+      "_sev": 0
+    },
+    {
+      "area": "Frontend / Canvas Integration",
+      "cambio": "Cuando se inicie una tarea de navegador (SlowBrain), forzar la emisión de un evento 'canvas:show' o 'automate_web:show' concurrente con la respuesta verbal 'Lo tengo en marcha'.",
+      "porque": "La traza indica actividad de widgets ('widget:show:navegador') pero no hay confirmación visual explícita, haciendo que la experiencia se sienta rota entre lo que se dice y lo que se ve.",
+      "scenario": "navegador_coche",
+      "_sev": 0
+    },
+    {
+      "area": "Voice / Turn Latency (TTI)",
+      "cambio": "Implementar detección de finalización de frase (VAD) más agresiva o streaming de TTS para los turnos de confirmación cortos (Okay, Vale, Genial).",
+      "porque": "Latencias de casi 7 segundos en una respuesta de confirmación destruyen la sensación de naturalidad y fluidez.",
+      "scenario": "navegador_coche",
+      "_sev": 0
+    }
+  ]
+}

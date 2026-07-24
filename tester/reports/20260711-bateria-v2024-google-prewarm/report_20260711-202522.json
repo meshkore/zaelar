@@ -1,0 +1,230 @@
+{
+  "stamp": "20260711-202522",
+  "results": [
+    {
+      "scenario": "navegador_moto",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Alex, soy zaelar. ¿En qué te ayudo hoy?",
+            "at": 1783794233.38
+          },
+          {
+            "who": "tester",
+            "text": "Alex aquí. Estoy buscando una moto de segunda mano en el marketplace cerca de mí. Busca una naked less than 3000 euros y que esté cerca. Dale bien buenas opciones.",
+            "at": 1783794235.41
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, te abro el navegador para buscar motos de enduro de 300 cc por menos de 5.000 euros cerca de ti. Vale, dame un momento que lo miro.",
+            "at": 1783794260.0,
+            "latency_ms": 6258
+          },
+          {
+            "who": "tester",
+            "text": "Perfecto, gracias. Tardas un momento, no te apures.",
+            "at": 1783794262.15
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, dame un momento que lo miro.",
+            "at": 1783794274.7,
+            "latency_ms": 3157
+          },
+          {
+            "who": "tester",
+            "text": "Entendido, tómate tu tiempo. Estoy aquí cuando quieras seguir hablando.",
+            "at": 1783794275.2
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, dame un momento que lo miro.",
+            "at": 1783794288.1,
+            "latency_ms": 3252
+          },
+          {
+            "who": "tester",
+            "text": "Mirando... ya estás de vuelta. ¿Qué tal las opciones?",
+            "at": 1783794288.53
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, dame un momento que lo miro.",
+            "at": 1783794300.33,
+            "latency_ms": 3767
+          },
+          {
+            "who": "tester",
+            "text": "Mirando... ya estás de vuelta. ¿Has encontrado algo interesante?",
+            "at": 1783794302.0
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, dame un momento que lo miro.",
+            "at": 1783794315.24,
+            "latency_ms": 3930
+          }
+        ],
+        "latency_ms": {
+          "n": 5,
+          "avg": 4073,
+          "max": 6258,
+          "samples": [
+            6258,
+            3157,
+            3252,
+            3767,
+            3930
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:data:navegador::t2",
+            "widget:data:navegador::t2",
+            "widget:data:navegador::t2",
+            "widget:close:results",
+            "widget:data:navegador::t2",
+            "widget:data:navegador::t2",
+            "widget:show:navegador::t2",
+            "widget:data:navegador::t2",
+            "widget:show:navegador::t2",
+            "widget:data:navegador::t2",
+            "widget:data:navegador::t2",
+            "widget:show:navegador::t3",
+            "widget:data:navegador::t3",
+            "widget:data:navegador::t2",
+            "widget:data:navegador::t3",
+            "widget:data:navegador::t3",
+            "widget:data:navegador::t3",
+            "widget:show:navegador::t3",
+            "widget:data:navegador::t3",
+            "widget:data:navegador::t2",
+            "widget:data:navegador::t3",
+            "widget:show:navegador::t3",
+            "widget:data:navegador::t3",
+            "widget:data:navegador::t2",
+            "widget:data:navegador::t3",
+            "widget:show:navegador::t3",
+            "widget:data:navegador::t3"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "✂️ input recortado (comando preservado): →1600 chars",
+            "📩 system note → FlashBrain: [SISTEMA] SlowBrain · Tarea completada: He aquí un listado concreto de opciones con terraza en el centro de Madrid para",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] SlowBrain · Tarea completada: He aquí un listado concreto de opciones con terraza en el centro de Madrid para",
+            "⚡ Nucleo(flash): reply: Hola Alex, soy zaelar. ¿En qué te ayudo hoy?",
+            "⚡ Nucleo(flash): prompt: Alex aquí. Está buscando una moto de segunda mano en el marketplace cerca de mí.",
+            "⚡ Nucleo(flash): reply: Vale, te abro el navegador para buscar motos de enduro de 300 cc por menos de 5.000 euros cerca de ti.",
+            "🧭 Flash → SlowBrain (escalada registrada): El operador quiere buscar una moto de enduro de 300 cc, cuatro tiempos, por menos de 5.000 euros cerca de su ubicación e",
+            "⚡ Nucleo(flash): prompt: Busca una en la que les dan 3 000 euros y que esté cerca. Dale bien buenas opciones.",
+            "⚡ Nucleo(flash): reply: Vale, dame un momento que lo miro.",
+            "🧭 Flash → SlowBrain (escalada registrada): El usuario quiere buscar motos de enduro de 300 cc, cuatro tiempos, por menos de 5.000 euros cerca de su ubicación actua",
+            "⚡ Nucleo(flash): prompt: Perfecto. Gracias. Tardas un momento. No te apures.",
+            "⚡ Nucleo(flash): reply: Vale, dame un momento que lo miro.",
+            "🤖 tarea de navegador creada (SlowBrain): t3: Busca motos de enduro de 300 cc, cuatro tiempos, de segunda mano por menos de 5.000 euros cerca de la ubicación del",
+            "🧭 Flash → SlowBrain (escalada registrada): Busca motos de enduro de 300 cc, cuatro tiempos, de segunda mano por menos de 5.000 euros cerca de la ubicación del oper",
+            "⚡ Nucleo(flash): prompt: Entendido. Tómate tu tiempo. Estoy aquí cuando quieras seguir hablando.",
+            "⚡ Nucleo(flash): reply: Vale, dame un momento que lo miro.",
+            "🧭 Flash → SlowBrain (escalada registrada): El operador quiere buscar una moto de enduro de 300 cc, cuatro tiempos, de segunda mano, por menos de 5.000 euros cerca",
+            "⚡ Nucleo(flash): prompt: Mirando ya estás de vuelta. ¿Qué tal las opciones?",
+            "⚡ Nucleo(flash): reply: Vale, dame un momento que lo miro.",
+            "🧭 Flash → SlowBrain (escalada registrada): El usuario Alex busca moto de enduro de 300 cc, cuatro tiempos, por menos de 5.000 euros, cerca de su ubicación, en mark",
+            "⚡ Nucleo(flash): prompt: Mirando, ya estás de vuelta. ¿Has encontrado algo interesante?",
+            "⚡ Nucleo(flash): reply: Vale, dame un momento que lo miro.",
+            "🧭 Flash → SlowBrain (escalada registrada): El operador quiere buscar motos de enduro de 300 cc, cuatro tiempos, por menos de 5.000 euros cerca de su ubicación, esp"
+          ],
+          "event_kinds": {
+            "widget": 27,
+            "task": 13,
+            "memory": 62,
+            "navegador": 32,
+            "worker_start": 1,
+            "state": 21,
+            "bot_speech": 21,
+            "brain": 24,
+            "metric": 201,
+            "timing": 7,
+            "tts": 7,
+            "transcript": 12,
+            "vad": 12,
+            "stt": 6,
+            "session": 1
+          },
+          "n_events": 447
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 1,
+          "coherencia": 1,
+          "utilidad": 2,
+          "accion": 1,
+          "latencia": 3,
+          "robustez": 3
+        },
+        "overall": 1,
+        "findings": [
+          {
+            "turno": "zaelar@turn3",
+            "problema": "El asistente repite la misma frase 'Vale, dame un momento que lo miro' como bucle infinito ante inputs de确认 (confirmación) del usuario. No procesa el estado de la tarea ni tiene variación lingüística.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Alucinación de parámetros: el usuario pidió 'naked' y '3000 euros', pero el sistema transmite y busca 'enduro de 300cc' y '5000 euros'.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn_all",
+            "problema": "Fallo de Acción Crítica: la traza muestra eventos de widget (show/close) pero la TAREA de navegador (t3) nunca se marca como completada ni se entrega el resultado async. El FlashBrain ignora los eventos de estado del SlowBrain.",
+            "gravedad": "alta"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Cerebro (Event Routing / FlashBrain)",
+            "cambio": "Implementar un 'listener' de eventos del canal 'task' o 'worker' para que el FlashBrain deje de enviar prompts de filler cuando el worker está activo y consuma el resultado final.",
+            "porque": "El FlashBrain está ciego al estado del SlowBrain, lo que causa el bucle de respuestas repetitivas y la incapacidad de leer el listado encontrado."
+          },
+          {
+            "area": "Cerebro (Extraction / Prompt Engineering)",
+            "cambio": "Reforzar la extracción de entidades (slot filling) con estricta adherencia al vocabulario del usuario (naked -> naked bike) o validación de rangos numéricos (3000 vs 5000).",
+            "porque": "El sistema reinterpretó erróneamente la solicitud ('naked' -> 'enduro', '3000' -> '5000'), inviabilizando la búsqueda correcta."
+          },
+          {
+            "area": "Voice / TTS (Prompting)",
+            "cambio": "Diseñar una gramática de espera dinámica: 'Estoy cargando las opciones...', 'Analizando precios...', 'Un segundo más...'.",
+            "porque": "La repetición literal de 'Vale, dame un momento que lo miro' destruye la naturalidad y la percepción de inteligencia."
+          }
+        ],
+        "veredicto": "El escenario es un fracaso crítico: el asistente ignora los parámetros clave, entra en un bucle verbal robótico y nunca entrega los resultados de la búsqueda debido a una desconexión total entre el cerebro de voz y el motor de tareas.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Cerebro (Event Routing / FlashBrain)",
+      "cambio": "Implementar un 'listener' de eventos del canal 'task' o 'worker' para que el FlashBrain deje de enviar prompts de filler cuando el worker está activo y consuma el resultado final.",
+      "porque": "El FlashBrain está ciego al estado del SlowBrain, lo que causa el bucle de respuestas repetitivas y la incapacidad de leer el listado encontrado.",
+      "scenario": "navegador_moto",
+      "_sev": 0
+    },
+    {
+      "area": "Cerebro (Extraction / Prompt Engineering)",
+      "cambio": "Reforzar la extracción de entidades (slot filling) con estricta adherencia al vocabulario del usuario (naked -> naked bike) o validación de rangos numéricos (3000 vs 5000).",
+      "porque": "El sistema reinterpretó erróneamente la solicitud ('naked' -> 'enduro', '3000' -> '5000'), inviabilizando la búsqueda correcta.",
+      "scenario": "navegador_moto",
+      "_sev": 0
+    },
+    {
+      "area": "Voice / TTS (Prompting)",
+      "cambio": "Diseñar una gramática de espera dinámica: 'Estoy cargando las opciones...', 'Analizando precios...', 'Un segundo más...'.",
+      "porque": "La repetición literal de 'Vale, dame un momento que lo miro' destruye la naturalidad y la percepción de inteligencia.",
+      "scenario": "navegador_moto",
+      "_sev": 0
+    }
+  ]
+}

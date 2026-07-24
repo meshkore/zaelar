@@ -1,0 +1,13 @@
+{
+  "view_data_shape": {
+    "completed": "int",
+    "cycle": "int",
+    "durations": "dict",
+    "long_every": "int",
+    "phase": "str",
+    "phase_label": "str",
+    "remaining": "int",
+    "running": "bool",
+    "total": "int"
+  }
+}

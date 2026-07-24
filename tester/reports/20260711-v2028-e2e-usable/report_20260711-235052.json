@@ -1,0 +1,146 @@
+{
+  "stamp": "20260711-235052",
+  "results": [
+    {
+      "scenario": "websocket",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Alex, soy zaelar, tu asistente de voz. ¿Qué necesitas?",
+            "at": 1783806602.34
+          },
+          {
+            "who": "tester",
+            "text": "No, yo soy Alex y utilizo a Zaelar. ¿Puedes decirme si el canal del cluster MeshKore está abierto y si hay alguien conectado?",
+            "at": 1783806605.47
+          },
+          {
+            "who": "zaelar",
+            "text": "Claro Alex. Voy a revisar el estado del canal del cluster MeshPort.",
+            "at": 1783806621.94,
+            "latency_ms": 3241
+          },
+          {
+            "who": "tester",
+            "text": "Perfecto, espera un momento por favor.",
+            "at": 1783806622.91
+          },
+          {
+            "who": "zaelar",
+            "text": "Entendido, te espero.",
+            "at": 1783806632.55,
+            "latency_ms": 2028
+          },
+          {
+            "who": "tester",
+            "text": "Ya está Zaelar, ¿qué me dices?",
+            "at": 1783806632.94
+          },
+          {
+            "who": "zaelar",
+            "text": "No tengo acceso directo al estado del cluster MeshPort en este momento; ¿quieres que lo delegue al cerebro lento para que lo revise?",
+            "at": 1783806645.85,
+            "latency_ms": 3529
+          }
+        ],
+        "latency_ms": {
+          "n": 3,
+          "avg": 2933,
+          "max": 3529,
+          "samples": [
+            3241,
+            2028,
+            3529
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:show:cluster-registro"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Alex, soy zaelar, tu asistente de voz. ¿Qué necesitas?",
+            "⚡ Nucleo(flash): prompt: Yo soy Alex y utilizo Halby. ¿Puedes decirme si el canal del cluster MeshPort está abierto y si hay alguien conectado?",
+            "⚡ Nucleo(flash): reply: Claro Alex. Voy a revisar el estado del canal del cluster MeshPort.",
+            "⚡ Nucleo(flash): prompt: Perfecto, espera un momento por favor.",
+            "⚡ Nucleo(flash): reply: Entendido, te espero.",
+            "⚡ Nucleo(flash): prompt: ¿Qué me dices?",
+            "⚡ Nucleo(flash): reply: No tengo acceso directo al estado del cluster MeshPort en este momento; ¿quieres que lo delegue al cerebro lento para qu"
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 13,
+            "bot_speech": 13,
+            "brain": 9,
+            "memory": 42,
+            "timing": 4,
+            "metric": 115,
+            "tts": 5,
+            "transcript": 7,
+            "vad": 6,
+            "stt": 3,
+            "widget": 1,
+            "session": 1
+          },
+          "n_events": 220
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 4,
+          "coherencia": 4,
+          "utilidad": 2,
+          "accion": 1,
+          "latencia": 2,
+          "robustez": 5
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn4",
+            "problema": "Fallo de cumplimiento del objetivo: Zaelar rechaza la consulta argumentando 'falta de acceso directo' e intenta delegar al 'cerebro lento'. Esto indica que el endpoint de WebSocket o la función de tool `cluster-registro` no están disponibles/invocados en el contexto rápido.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Elevada latencia de respuesta (3.2s) para una tarea simple de identificación de intención y posible invocación de herramienta, afectando la sensación de vivacidad.",
+            "gravedad": "media"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Tool calling / Function registry",
+            "cambio": "Asegurar que la función de consulta al cluster MeshKore (WebSocket) esté disponible en el registro de herramientas del 'Cerebro Flash' (Nucleo) y no solo en el cerebro lento.",
+            "porque": "Zaelar falló al responder que no tenía acceso directo para consultar el estado, lo cual indica que el tool necesario para cumplir el escenario no está resuelto en la capa rápida."
+          },
+          {
+            "area": "Memory/Knowledge Base (KB)",
+            "cambio": "Actualizar la memoria o prompt del sistema para aclarar la capacidad de estado del cluster (online/offline) si no se dispone de tool en tiempo real.",
+            "porque": "Si no se puede conectar al WebSocket, Zaelar debería inferir o recuperar el estado estático desde su KB en lugar de consultar un 'cerebro lento' o confesar ignorancia, para mantener la utilidad."
+          }
+        ],
+        "veredicto": "El escenario NO es production-ready porque zaelar falló en el objetivo principal: no informó del estado del cluster (acción = 1), y en su lugar hizo una pregunta al usuario que desvía la tarea.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Tool calling / Function registry",
+      "cambio": "Asegurar que la función de consulta al cluster MeshKore (WebSocket) esté disponible en el registro de herramientas del 'Cerebro Flash' (Nucleo) y no solo en el cerebro lento.",
+      "porque": "Zaelar falló al responder que no tenía acceso directo para consultar el estado, lo cual indica que el tool necesario para cumplir el escenario no está resuelto en la capa rápida.",
+      "scenario": "websocket",
+      "_sev": 0
+    },
+    {
+      "area": "Memory/Knowledge Base (KB)",
+      "cambio": "Actualizar la memoria o prompt del sistema para aclarar la capacidad de estado del cluster (online/offline) si no se dispone de tool en tiempo real.",
+      "porque": "Si no se puede conectar al WebSocket, Zaelar debería inferir o recuperar el estado estático desde su KB en lugar de consultar un 'cerebro lento' o confesar ignorancia, para mantener la utilidad.",
+      "scenario": "websocket",
+      "_sev": 0
+    }
+  ]
+}

@@ -1,0 +1,187 @@
+{
+  "stamp": "20260723-012206",
+  "results": [
+    {
+      "scenario": "search",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Ricardo, soy Zaelar, tu asistente. Tienes un par de mensajes nuevos en WhatsApp que te importan.",
+            "at": 1784762478.6
+          },
+          {
+            "who": "tester",
+            "text": "Hola, soy Ricart. ¿Podrías buscar quién ganó la última carrera de Fórmula 1?",
+            "at": 1784762479.8
+          },
+          {
+            "who": "zaelar",
+            "text": "Hola Ricardo, soy Zaelar, tu asistente. Tienes un par de mensajes nuevos en WhatsApp que te importan.",
+            "at": 1784762487.4
+          },
+          {
+            "who": "tester",
+            "text": "No, no era eso. Quería que buscaras quién ganó la última carrera de Fórmula 1.",
+            "at": 1784762488.79
+          },
+          {
+            "who": "zaelar",
+            "text": "Te busco quién ganó la última carrera de Fórmula 1.La última carrera de Fórmula 1 en 2024 fue en Abu Dabi, donde Lando Norris ganó la carrera y McLaren logró su primer campeonato de constructores desde 1998. La temporada terminó con Max Verstappen campeón mundial de pilotos por cuarto año consecutivo. Tienes razón, busco ahora el resultado de la última carrera de Fórmula 1.La última carrera de la temporada 2024 de Fórmula 1 fue el Gran Premio de Abu Dabi, que ganó Lando Norris con McLaren, asegurando además el primer campeonato de constructores para el equipo británico desde 1998.",
+            "at": 1784762507.29,
+            "latency_ms": 7989
+          },
+          {
+            "who": "tester",
+            "text": "Perfecto, gracias. Entonces Lando Norris ganó la última carrera y McLaren también ganó el campeonato de constructores. Adiós.",
+            "at": 1784762508.46
+          },
+          {
+            "who": "zaelar",
+            "text": "Déjame que mire… Tienes razón, busco ahora el resultado de la última carrera de Fórmula 1.La",
+            "at": 1784762520.59
+          }
+        ],
+        "latency_ms": {
+          "n": 1,
+          "avg": 7989,
+          "max": 7989,
+          "samples": [
+            7989
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:show:mensajeria"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "🌱 ventana sembrada desde memoria:",
+            "📩 system note → FlashBrain: [SISTEMA] WhatsApp: 1 mensaje(s) nuevo(s) que le importan al operador: Gonza: Esto es para mi sister pero creo que os lo",
+            "📩 system note → FlashBrain: [SISTEMA] WhatsApp: 1 mensaje(s) nuevo(s) que le importan al operador: Rakel Karó: No era mi intención hacerte sentir ma",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] WhatsApp: 1 mensaje(s) nuevo(s) que le importan al operador: Gonza: Esto es para mi sister pero creo que os lo",
+            "🔁 break-loop: nudge anti-repetición inyectado:",
+            "⚡ Nucleo(flash): reply: Hola Ricardo, soy Zaelar, tu asistente. Tienes un par de mensajes nuevos en WhatsApp que te importan.",
+            "📩 system note → FlashBrain: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: He mostrado el mensaje de WhatsApp que me has indica",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: He mostrado el mensaje de WhatsApp que me has indica",
+            "💬 relleno de espera (lead-in): Mmm…",
+            "🔎 búsqueda web: última carrera Fórmula 1 ganador 2024",
+            "⚡ Nucleo(flash): reply: Te busco quién ganó la última carrera de Fórmula 1.La última carrera de Fórmula 1 en 2024 fue en Abu Dabi, donde Lando N",
+            "⚡ Nucleo(flash): prompt: No, no era eso. Diría que buscaras quién ganó la última carrera de Fórmula 1.",
+            "💬 relleno de espera (lead-in): Déjame que mire…",
+            "🔎 búsqueda web: última carrera Fórmula 1 ganador 2024",
+            "⚡ Nucleo(flash): reply: Tienes razón, busco ahora el resultado de la última carrera de Fórmula 1.La última carrera de la temporada 2024 de Fórmu",
+            "⚡ Nucleo(flash): prompt: Perfecto, gracias. Entonces, Lando Norris ganó la última carrera y Karen también ganó el campeonato de constructores. Ad",
+            "💬 relleno de espera (lead-in): Pues…",
+            "✂️ turno cancelado (barge-in/overlap):"
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 12,
+            "bot_speech": 12,
+            "pulse": 50,
+            "brain": 19,
+            "trace": 4,
+            "perf": 10,
+            "memory": 20,
+            "timing": 4,
+            "widget": 1,
+            "metric": 13,
+            "susurro": 6,
+            "tts": 3,
+            "background": 2,
+            "transcript": 5,
+            "vad": 6,
+            "stt": 3,
+            "search": 2,
+            "session": 1
+          },
+          "n_events": 174
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 2,
+          "coherencia": 1,
+          "utilidad": 2,
+          "accion": 2,
+          "latencia": 1,
+          "robustez": 2
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Alucinación masiva y 'word salad'. Zaelar repite el mismo párrafo dos veces con leves variaciones ('Lando Norris ganó...' vs 'busco ahora el resultado...'). Incluye una contradicción factual grave: dice 'McLaren... campeonato de constructores' (Correcto) pero luego dice 'Karen [halla] ganó el campeonato' (Inventado/Nonsense).",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn0",
+            "problema": "No recuperó del canal 'chat/paste' la corrección del tester. Ignoró la inyección de texto y repitió el saludo inicial.",
+            "gravedad": "media"
+          },
+          {
+            "turno": "latencia",
+            "problema": "Latencia de ~8 segundos (7989ms) es inaceptablemente alta para una búsqueda rápida (V2-022). Mata la fluidez conversacional.",
+            "gravedad": "alta"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Brain LLM / Nucleo(flash)",
+            "cambio": "Implementar un filtro estricto de 'deduplicación de subsentencias' antes de enviar el prompt a TTS.",
+            "porque": "El modelo generó dos variaciones de la misma respuesta ('La última carrera fue...' y 'Tienes razón, busco ahora...') y las concatenó, resultando en una repetición robótica y confusa."
+          },
+          {
+            "area": "Data-channel / Input Router",
+            "cambio": "Priorizar la entrada de texto (paste/chat) sobre el estado de 'saludo memory-aware' si se recibe durante el kickoff.",
+            "porque": "Zaelar ignoró la corrección por texto del tester en el turno 0 y repitió el saludo de memoria, demostrando falta de integración multicanal en tiempo real."
+          },
+          {
+            "area": "RAG / Knowledge Base (F1 facts)",
+            "cambio": "Validar factualidad del último año deportivo en el contexto recuperado para evitar alucinaciones de nombres (ej. 'Karen' en lugar de 'McLaren' o 'Norris').",
+            "porque": "El asistente inventó un nombre ('Karen') relacionado con el campeonato, lo que destruye la confianza en la información proporcionada."
+          },
+          {
+            "area": "Search Tool / Performance",
+            "cambio": "Reducir timeout o implementar 'streaming search' para cortar la latencia a <3000ms para búsquedas simples.",
+            "porque": "8 segundos de silencio para una búsqueda factual 'light' hacen que la experiencia se sienta rota."
+          }
+        ],
+        "veredicto": "No es production-ready: la latencia es prohibitiva (8s) y la respuesta sufre de severos problemas de estabilidad (alucinaciones y repetición).",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Brain LLM / Nucleo(flash)",
+      "cambio": "Implementar un filtro estricto de 'deduplicación de subsentencias' antes de enviar el prompt a TTS.",
+      "porque": "El modelo generó dos variaciones de la misma respuesta ('La última carrera fue...' y 'Tienes razón, busco ahora...') y las concatenó, resultando en una repetición robótica y confusa.",
+      "scenario": "search",
+      "_sev": 0
+    },
+    {
+      "area": "Data-channel / Input Router",
+      "cambio": "Priorizar la entrada de texto (paste/chat) sobre el estado de 'saludo memory-aware' si se recibe durante el kickoff.",
+      "porque": "Zaelar ignoró la corrección por texto del tester en el turno 0 y repitió el saludo de memoria, demostrando falta de integración multicanal en tiempo real.",
+      "scenario": "search",
+      "_sev": 0
+    },
+    {
+      "area": "RAG / Knowledge Base (F1 facts)",
+      "cambio": "Validar factualidad del último año deportivo en el contexto recuperado para evitar alucinaciones de nombres (ej. 'Karen' en lugar de 'McLaren' o 'Norris').",
+      "porque": "El asistente inventó un nombre ('Karen') relacionado con el campeonato, lo que destruye la confianza en la información proporcionada.",
+      "scenario": "search",
+      "_sev": 0
+    },
+    {
+      "area": "Search Tool / Performance",
+      "cambio": "Reducir timeout o implementar 'streaming search' para cortar la latencia a <3000ms para búsquedas simples.",
+      "porque": "8 segundos de silencio para una búsqueda factual 'light' hacen que la experiencia se sienta rota.",
+      "scenario": "search",
+      "_sev": 0
+    }
+  ]
+}

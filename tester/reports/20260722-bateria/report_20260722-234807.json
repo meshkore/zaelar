@@ -1,0 +1,198 @@
+{
+  "stamp": "20260722-234807",
+  "results": [
+    {
+      "scenario": "widget",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Ricard, soy Zaelar, tu asistente. ¿Qué necesitas?",
+            "at": 1784756840.87
+          },
+          {
+            "who": "tester",
+            "text": "Hola, soy Ricart. ¿Puedes mostrarme el reloj en la pantalla?",
+            "at": 1784756841.82
+          },
+          {
+            "who": "zaelar",
+            "text": "Claro, te lo muestro ahora. Déjame que mire… Claro, te lo muestro ahora.",
+            "at": 1784756853.23,
+            "latency_ms": 4231
+          },
+          {
+            "who": "tester",
+            "text": "Vale, gracias. Ahora, ¿puedes mostrarme el clima?",
+            "at": 1784756854.17
+          },
+          {
+            "who": "zaelar",
+            "text": "Claro, te lo muestro ahora.",
+            "at": 1784756860.65
+          },
+          {
+            "who": "tester",
+            "text": "Perfecto, gracias.",
+            "at": 1784756861.41
+          },
+          {
+            "who": "zaelar",
+            "text": "Claro, te abro la mensajería. De nada, Ricard. ¿Hay algo más que necesites? Pues… De nada, Ricard. ¿Hay algo más que necesites?",
+            "at": 1784756870.35,
+            "latency_ms": 2931
+          },
+          {
+            "who": "tester",
+            "text": "No, eso está bien por ahora. ¡Gracias!",
+            "at": 1784756871.2
+          },
+          {
+            "who": "zaelar",
+            "text": "¿Hay algo más que necesites?",
+            "at": 1784756876.82
+          },
+          {
+            "who": "tester",
+            "text": "No, ya está todo. Adiós.",
+            "at": 1784756877.73
+          },
+          {
+            "who": "zaelar",
+            "text": "Perfecto, aquí ando si me necesitas. A ver… Perfecto,",
+            "at": 1784756882.13
+          }
+        ],
+        "latency_ms": {
+          "n": 2,
+          "avg": 3581,
+          "max": 4231,
+          "samples": [
+            4231,
+            2931
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:show:clock",
+            "widget:show:mensajeria"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "🌱 ventana sembrada desde memoria:",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Ricard, soy Zaelar, tu asistente. ¿Qué necesitas?",
+            "⚡ Nucleo(flash): prompt: Hola, soy Ricard. ¿Puedes mostrarme el reloj en la pantalla?",
+            "💬 relleno de espera (lead-in): Déjame que mire…",
+            "⚡ Nucleo(flash): reply: Claro, te lo muestro ahora.",
+            "📩 system note → FlashBrain: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: Ricard, ya te he mostrado el reloj en la pantalla pa",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: Ricard, ya te he mostrado el reloj en la pantalla pa",
+            "💬 relleno de espera (lead-in): Mmm…",
+            "⚡ Nucleo(flash): reply: Claro, te abro la mensajería.",
+            "⚡ Nucleo(flash): prompt: Perfecto, gracias.",
+            "💬 relleno de espera (lead-in): Pues…",
+            "⚡ Nucleo(flash): reply: De nada, Ricard. ¿Hay algo más que necesites?",
+            "⚡ Nucleo(flash): prompt: Pero eso está bien por ahora.",
+            "💬 relleno de espera (lead-in): A ver…",
+            "⚡ Nucleo(flash): reply: Perfecto, aquí ando si me necesitas.",
+            "⚡ Nucleo(flash): prompt: No, ya está todo. Adiós.",
+            "💬 relleno de espera (lead-in): Déjame que mire…",
+            "✂️ turno cancelado (barge-in/overlap):"
+          ],
+          "event_kinds": {
+            "pulse": 51,
+            "worker_start": 1,
+            "state": 18,
+            "bot_speech": 18,
+            "brain": 20,
+            "trace": 6,
+            "perf": 13,
+            "memory": 28,
+            "timing": 6,
+            "metric": 22,
+            "tts": 5,
+            "background": 2,
+            "transcript": 9,
+            "vad": 12,
+            "stt": 6,
+            "widget": 2,
+            "susurro": 6,
+            "session": 1
+          },
+          "n_events": 226
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 2,
+          "coherencia": 3,
+          "utilidad": 2,
+          "accion": 1,
+          "latencia": 2,
+          "robustez": 4
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn3",
+            "problema": "El usuario pidió el clima (weather), pero zaelar activó 'widget:show:mensajeria'. Falló la extracción de entidad/disparo de acción.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Repetición de la frase 'Claro, te lo muestro ahora' en el audio final, indicando falta de filtrado de 'lead-in' o concatenación de chunks.",
+            "gravedad": "media"
+          },
+          {
+            "turno": "zaelar@turn3",
+            "problema": "El cerebro inyecta un 'system note' confuso sobre el reloj, zaelar responde con 'Mmm...' y finalmente ejecuta 'mensajería'. Alucinación de acción.",
+            "gravedad": "alta"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "brain/nlu",
+            "cambio": "Aislar el mapeo de entidades 'clima/weather' a la acción 'widget:show:weather'. Verificar why 'mensajería' se dispara (¿ambigüedad o 'sensibilidad' excesiva?).",
+            "porque": "Hubo una falla total de objetivo: pedir 'clima' resultó en abrir la mensajería. El NLU o el tool-calling fallaron."
+          },
+          {
+            "area": "tts/audio orchestration",
+            "cambio": "Implementar un filtro estricto en la capa de síntesis para suprimir la salida de audio de los rellenos de espera ('Mmm...', 'Pues...', 'A ver...') cuando la respuesta final real ya ha llegado.",
+            "porque": "Los audios de relleno se están oyendo físicamente (transcript) añadiendo ruido y sintiéndose como tics nerviosos o errores de sincronización."
+          },
+          {
+            "area": "brain/memory",
+            "cambio": "Ajustar el prompt del cerebro para que los 'susurros' (system notes) no sugieran reparar la acción anterior (ej. 'ya te he mostrado el reloj') si el usuario ha cambiado de tema.",
+            "porque": "El 'system note' sobre el reloj distrajo a zaelar en el turno 3, provocando un galimatías verbal y possibly la ejecución errónea."
+          }
+        ],
+        "veredicto": "El escenario NO es production-ready debido a una falla crítica en la ejecución de la acción solicitada (falló widget de clima por mensajería) y pobre calidad audioverbal (repeticiones).",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "brain/nlu",
+      "cambio": "Aislar el mapeo de entidades 'clima/weather' a la acción 'widget:show:weather'. Verificar why 'mensajería' se dispara (¿ambigüedad o 'sensibilidad' excesiva?).",
+      "porque": "Hubo una falla total de objetivo: pedir 'clima' resultó en abrir la mensajería. El NLU o el tool-calling fallaron.",
+      "scenario": "widget",
+      "_sev": 0
+    },
+    {
+      "area": "tts/audio orchestration",
+      "cambio": "Implementar un filtro estricto en la capa de síntesis para suprimir la salida de audio de los rellenos de espera ('Mmm...', 'Pues...', 'A ver...') cuando la respuesta final real ya ha llegado.",
+      "porque": "Los audios de relleno se están oyendo físicamente (transcript) añadiendo ruido y sintiéndose como tics nerviosos o errores de sincronización.",
+      "scenario": "widget",
+      "_sev": 0
+    },
+    {
+      "area": "brain/memory",
+      "cambio": "Ajustar el prompt del cerebro para que los 'susurros' (system notes) no sugieran reparar la acción anterior (ej. 'ya te he mostrado el reloj') si el usuario ha cambiado de tema.",
+      "porque": "El 'system note' sobre el reloj distrajo a zaelar en el turno 3, provocando un galimatías verbal y possibly la ejecución errónea.",
+      "scenario": "widget",
+      "_sev": 0
+    }
+  ]
+}

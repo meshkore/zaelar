@@ -1,0 +1,157 @@
+{
+  "stamp": "20260722-235404",
+  "results": [
+    {
+      "scenario": "chat",
+      "channel": "chat",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Ricardo, encantado de ayudarte. ¿Qué necesitas?",
+            "at": 1784757225.22
+          },
+          {
+            "who": "tester",
+            "text": "Hola, soy Ricart. ¿Me puedes decir qué hora es?",
+            "at": 1784757228.58
+          },
+          {
+            "who": "zaelar",
+            "text": "A ver, a ver,",
+            "at": 1784757234.43,
+            "latency_ms": 3202
+          },
+          {
+            "who": "tester",
+            "text": "¿Me la puedes dar?",
+            "at": 1784757235.3
+          },
+          {
+            "who": "zaelar",
+            "text": "Claro, te la paso.Todavía no tienes una bóveda de secretos. ¿Quieres que la creemos para guardar tus contraseñas cifradas?",
+            "at": 1784757239.17
+          }
+        ],
+        "latency_ms": {
+          "n": 1,
+          "avg": 3202,
+          "max": 3202,
+          "samples": [
+            3202
+          ]
+        },
+        "trace": {
+          "frontend_actions": [],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "🌱 ventana sembrada desde memoria:",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Ricardo, encantado de ayudarte. ¿Qué necesitas?",
+            "📥 chat/paste recibido: Hola, soy Ricart. ¿Me puedes decir qué hora es?",
+            "⚡ Nucleo(flash): prompt: Hola, soy Ricart. ¿Me puedes decir qué hora es?",
+            "💬 relleno de espera (lead-in): A ver, a ver…",
+            "Cerebro rápido caído — turno degradado.: flash layer error",
+            "📥 chat/paste recibido: ¿Me la puedes dar?",
+            "⚡ Nucleo(flash): prompt: ¿Me la puedes dar?",
+            "💬 relleno de espera (lead-in): Un segundo…",
+            "🔐 reveal_secret: contraseña de Netflix",
+            "⚡ Nucleo(flash): reply: Claro, te la paso.Todavía no tienes una bóveda de secretos. ¿Quieres que la creemos para guardar tus contraseñas cifrada"
+          ],
+          "event_kinds": {
+            "task": 6,
+            "pulse": 24,
+            "worker_start": 1,
+            "state": 8,
+            "bot_speech": 8,
+            "memory": 24,
+            "brain": 12,
+            "trace": 3,
+            "perf": 9,
+            "timing": 3,
+            "metric": 6,
+            "susurro": 6,
+            "tts": 3,
+            "transcript": 2,
+            "background": 1,
+            "alert": 1,
+            "error": 1,
+            "secret": 1,
+            "session": 1
+          },
+          "n_events": 120
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 2,
+          "coherencia": 1,
+          "utilidad": 1,
+          "accion": 1,
+          "latencia": 2,
+          "robustez": 3
+        },
+        "overall": 1,
+        "findings": [
+          {
+            "turno": "zaelar@turn2",
+            "problema": "The LLM ignores the explicit request for the time ('qué hora es') and instead hallucinates a request for a Netflix password, triggering a 'reveal_secret' action that was never requested.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn2",
+            "problema": "The final verbal response ('Claro, te la paso...') conflates a supposed secret transfer with a sales pitch for a vault, completely unrelated to the user's input.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn3",
+            "problema": "Conversation fails to recover. Instead of answering '¿Me la puedes dar?' (referring to the time), zaelar confirms passing a non-existent secret.",
+            "gravedad": "media"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "brain/prompting (Nucleo)",
+            "cambio": "Implement strict grounding in the prompt: 'Check user intent before executing any tool/reveal. If user asks for TIME, do NOT trigger secret retrieval.'",
+            "porque": "The model is currently bypassing logic to retrieve secrets based on false triggers or unrelated context."
+          },
+          {
+            "area": "tool calling/reveal_secret logic",
+            "cambio": "Add a guard-rail or validation step that requires a specific intent (e.g., 'give me password') before triggering a 'reveal_secret' event or 'reveal_secret' trace.",
+            "porque": "The 'reveal_secret: contraseña de Netflix' event fired autonomously without user prompting, indicating a leak/hallucination in the tool execution layer."
+          },
+          {
+            "area": "chat/paste handler context",
+            "cambio": "Ensure text injected via data-channel is treated as a direct command and is not overruled by aggressive memory retrieval or RAG (e.g., 'Ricart' memory might be poisoning the context).",
+            "porque": "The chat input was ignored in favor of a hallucinated script about passwords."
+          }
+        ],
+        "veredicto": "El escenario es un fallo crítico de funcionalidad: zaelar ignoró la pregunta del usuario ('hora'), alucinó una petición de contraseñas y reveló un secreto ('Netflix') sin permiso; el mayor bloqueo es la falta de control en la ejecución de herramientas.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "brain/prompting (Nucleo)",
+      "cambio": "Implement strict grounding in the prompt: 'Check user intent before executing any tool/reveal. If user asks for TIME, do NOT trigger secret retrieval.'",
+      "porque": "The model is currently bypassing logic to retrieve secrets based on false triggers or unrelated context.",
+      "scenario": "chat",
+      "_sev": 0
+    },
+    {
+      "area": "tool calling/reveal_secret logic",
+      "cambio": "Add a guard-rail or validation step that requires a specific intent (e.g., 'give me password') before triggering a 'reveal_secret' event or 'reveal_secret' trace.",
+      "porque": "The 'reveal_secret: contraseña de Netflix' event fired autonomously without user prompting, indicating a leak/hallucination in the tool execution layer.",
+      "scenario": "chat",
+      "_sev": 0
+    },
+    {
+      "area": "chat/paste handler context",
+      "cambio": "Ensure text injected via data-channel is treated as a direct command and is not overruled by aggressive memory retrieval or RAG (e.g., 'Ricart' memory might be poisoning the context).",
+      "porque": "The chat input was ignored in favor of a hallucinated script about passwords.",
+      "scenario": "chat",
+      "_sev": 0
+    }
+  ]
+}

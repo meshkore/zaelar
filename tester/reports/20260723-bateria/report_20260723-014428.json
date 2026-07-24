@@ -1,0 +1,250 @@
+{
+  "stamp": "20260723-014428",
+  "results": [
+    {
+      "scenario": "reserva_web",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Gicard, soy Zaelar. La búsqueda de motos enduro se ha topado con un problema técnico — no he podido acceder a los datos con garantías. Dame un momento, voy a relanzarla de verdad para traerte resultados fiables.",
+            "at": 1784763778.37
+          },
+          {
+            "who": "tester",
+            "text": "Soy Ricart. Está bien, espero un momento.",
+            "at": 1784763779.27
+          },
+          {
+            "who": "zaelar",
+            "text": "Gicard, soy Zaelar. La búsqueda de motos enduro se ha topado con un problema técnico —",
+            "at": 1784763785.65
+          },
+          {
+            "who": "tester",
+            "text": "Soy Ricart. A ver, ¿puedes intentar de nuevo buscar las motos enduro? También, si hay una opción para filtrar por precio o por marca, estaría genial.",
+            "at": 1784763787.01
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, Hikar. Entendido — me pongo con ello ahora mismo y te traigo los resultados en cuanto los tenga. Vale, a ver… Vale, Hikar. Entendido",
+            "at": 1784763799.58
+          },
+          {
+            "who": "tester",
+            "text": "Soy Ricart. Mientras tanto, ¿me puedes decir qué hora es? También me gustaría saber el clima para hoy.",
+            "at": 1784763800.54
+          },
+          {
+            "who": "zaelar",
+            "text": "Claro, Ricard. Voy a relanzar la búsqueda con más detalle — me fijaré en precio, marca y que sean aptas para principiante. Te aviso en cuanto tenga opciones reales de la zona. A ver qué tenemos… Hola de nuevo, Gicard — soy Zaelar. Sigo listo para ayudarte con lo de la cena y con esa búsqueda pendiente, dime cuando quieras seguir.",
+            "at": 1784763809.6,
+            "latency_ms": 1415
+          },
+          {
+            "who": "tester",
+            "text": "Soy Ricart. Perfecto, espero los resultados. También quería preguntarte, ¿puedes apuntar en mi agenda que tengo que pasar la ITV del coche? Me gustaría que lo hicieras por la web, lo más pronto posible.",
+            "at": 1784763810.74
+          },
+          {
+            "who": "zaelar",
+            "text": "Espera… Son las",
+            "at": 1784763825.69
+          },
+          {
+            "who": "tester",
+            "text": "Soy Ricart. Espera, ¿qué hora es ahora? También, la ITV del coche, por favor, intenta conseguir una cita para esta semana, lo más pronto que puedas. Necesito que lo hagas directamente en la web.",
+            "at": 1784763827.11
+          },
+          {
+            "who": "zaelar",
+            "text": "Perfecto, Ricardo. Te apunto la ITME en tu agenda — pero eso de pasarla por la web no se hace así; tienes que ir al taller en persona. ¿Quieres que te añada una cita en tu agenda para que no se te olvide, o prefieres que te ayude a reservar turno en algún taller específico de Bilbao? Déjame ver… Perfecto,",
+            "at": 1784763841.92
+          },
+          {
+            "who": "tester",
+            "text": "Soy Ricart. No, necesito que lo reserves tú en la web. Busca un taller en Bilbao que tenga cita para esta semana, por favor.",
+            "at": 1784763843.01
+          },
+          {
+            "who": "zaelar",
+            "text": "Entendido, Ricardo. Me pongo a buscar un taller en Bilbao con disponibilidad esta semana para pasar la ITV y te reservo cita.",
+            "at": 1784763859.4,
+            "latency_ms": 3787
+          }
+        ],
+        "latency_ms": {
+          "n": 2,
+          "avg": 2601,
+          "max": 3787,
+          "samples": [
+            1415,
+            3787
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:data:navegador::t3",
+            "widget:show:navegador::t3",
+            "widget:data:navegador::t3",
+            "widget:data:navegador::t3",
+            "widget:show:navegador::t4",
+            "widget:data:navegador::t4",
+            "widget:data:navegador::t4",
+            "widget:data:navegador::t3",
+            "widget:data:navegador::t4",
+            "widget:data:navegador::t3",
+            "widget:data:navegador::t4"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "🌱 ventana sembrada desde memoria:",
+            "📩 system note → FlashBrain: [SISTEMA] Brain worker · Tarea completada: No he podido completar la búsqueda con garantías, y prefiero decírtelo claro",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] Brain worker · Tarea completada: No he podido completar la búsqueda con garantías, y prefiero decírtelo claro",
+            "🧭 escalada por backstop (prometió crear/gestionar sin escalar): [SISTEMA] Brain worker · Tarea completada: No he podido completar la búsqueda co",
+            "⚡ Nucleo(flash): reply: Gicard, soy Zaelar. La búsqueda de motos enduro se ha topado con un problema técnico — no he podido acceder a los datos",
+            "🧭 Flash → Brain Worker (escalada registrada): [SISTEMA] Brain worker · Tarea completada: No he podido completar la búsqueda con garantías, y prefiero decírtelo claro",
+            "⚡ Nucleo(flash): prompt: Soy Hikar. Está bien, espera un momento.",
+            "💬 relleno de espera (lead-in): Vale, a ver…",
+            "⚡ Nucleo(flash): reply: Vale, Hikar. Entendido — me pongo con ello ahora mismo y te traigo los resultados en cuanto los tenga.",
+            "↪️ refinamiento → inyección a worker vivo (no relanza): Busca en Wallapop motos de segunda mano tipo enduro, 300-400 cc, 4 tiempos, aptas para principiante, por menos de 6.000",
+            "📩 system note → FlashBrain: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: No he encontrado resultados fiables de motos de endu",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: No he encontrado resultados fiables de motos de endu",
+            "💬 relleno de espera (lead-in): A ver qué tenemos…",
+            "⚡ Nucleo(flash): reply: Claro, Ricard. Voy a relanzar la búsqueda con más detalle — me fijaré en precio, marca y que sean aptas para principiant",
+            "📩 system note → FlashBrain: [SISTEMA] Brain worker · Tarea completada: Hola de nuevo, Gicard — soy Zaelar. Sigo listo para ayudarte con lo de la cen",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] Brain worker · Tarea completada: Hola de nuevo, Gicard — soy Zaelar. Sigo listo para ayudarte con lo de la cen",
+            "💬 relleno de espera (lead-in): Espera…",
+            "Cerebro rápido caído — turno degradado.: flash layer error",
+            "⚡ Nucleo(flash): prompt: ¡Soy Ricardo! ¡Perfecto! ¡Espera los resultados! También quería preguntarte, ¿puedes apuntar en mi agenda que tengo que",
+            "💬 relleno de espera (lead-in): Déjame ver…",
+            "⚡ Nucleo(flash): reply: Perfecto, Ricardo. Te apunto la ITME en tu agenda — pero eso de pasarla por la web no se hace así; tienes que ir al tall",
+            "⚡ Nucleo(flash): prompt: Saje Cart. Espera, ¿qué hora es ahora? También, light TV del coche, por favor. Intenta conseguir una cita para esta sema",
+            "💬 relleno de espera (lead-in): Déjame que mire…",
+            "Cerebro rápido caído — turno degradado.: flash layer error",
+            "⚡ Nucleo(flash): prompt: Soy Ricardo. No, necesito que lo reserves tú en la web. Busca un taller en Bilbao que tenga cita para esta semana, por f",
+            "💬 relleno de espera (lead-in): Veamos…",
+            "⚡ Nucleo(flash): reply: Entendido, Ricardo. Me pongo a buscar un taller en Bilbao con disponibilidad esta semana para pasar la ITV y te reservo",
+            "🧭 Flash → Brain Worker (escalada registrada): Busca talleres de ITV en Bilbao con disponibilidad esta semana (del 23 al 29 de julio de 2026), elige uno con cita dispo"
+          ],
+          "event_kinds": {
+            "worker_start": 3,
+            "state": 28,
+            "bot_speech": 28,
+            "pulse": 88,
+            "brain": 27,
+            "trace": 7,
+            "perf": 36,
+            "timing": 7,
+            "memory": 63,
+            "search": 5,
+            "metric": 27,
+            "tts": 9,
+            "widget": 11,
+            "task": 7,
+            "vad": 12,
+            "stt": 6,
+            "transcript": 13,
+            "navegador": 23,
+            "susurro": 9,
+            "background": 4,
+            "notify": 1,
+            "alert": 2,
+            "error": 2,
+            "ui": 1,
+            "session": 1
+          },
+          "n_events": 420
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturaltez": 2,
+          "coherencia": 2,
+          "utilidad": 1,
+          "accion": 1,
+          "latencia": 3,
+          "robustez": 3
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@t4",
+            "problema": "Negación de capacidad y fallo de inferencia. El usuario pidió explícitamente que el sistema hiciera la gestión web. zaelar interpretó esto como un apunte en la agenda y rechazó la ejecución web alegando falsamente que 'no se hace así' y que hay que ir 'en persona', contraviniendo la normativa de ITV y el escenario.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@t4",
+            "problema": "Incoherencia en el plan de acción. Tras negarse a hacer la web, ofrece contradictoriamente 'reservar turno en algún taller específico' (que implica web) y luego pregunta 'o prefieres agenda', mostrando un loop de indecisión.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@t5",
+            "problema": "Ejecución simulada (Fake Action). zaelar dice 'Me pongo a buscar... y te reservo cita' pero no genera evento de escalada (slowbrain/worker) ni eventos de navegador (snapshot/navigate) reales. Solo hay eventos 'widget:show' vacíos sin carga de datos posterior.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@varios",
+            "problema": "Confusión de identidad. Saluda y se refiere al usuario como 'Gicard' y 'Hikar' cuando el usuario se ha identificado como 'Ricard'. Muestra una desconexión con el contexto inmediato.",
+            "gravedad": "media"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Brain / RAG (Conocimiento del dominio)",
+            "cambio": "Incorporar knowledge chunk explícito sobre procesos de ITV (reserva previa obligatoria web) e instrucciones de preferencia de usuario (ej. 'si usuario pide reserva, prioriza slowbrain').",
+            "porque": "El asistente inventó restricciones ('hay que ir en persona') y falló al entender la solicitud de ejecución web como un simple apunte de agenda."
+          },
+          {
+            "area": "Router / Trigger de Escala",
+            "cambio": "Refinar el 'intent classifier' para que las frases 'reserva por web', 'hazlo tú', 'coge cita' disparen obligatoriamente `escalate_to_slowbrain` + `tool_use_browser`.",
+            "porque": "El objetivo del escenario (acción web) se falló por completo al no escalarse y no activarse el worker de navegación."
+          },
+          {
+            "area": "Estrategia de respuesta (Buscador vs Web)",
+            "cambio": "Prohibir respuestas textuales de 'cómo hacer cosas' si la intención es acción. Forzar un handshake: 'Voy a entrar en la web...' y lanzar el navegador.",
+            "porque": "Zaelar ofreció explicaciones y alternativas (agenda) en lugar de ejecutar la tarea demandada, reduciendo la utilidad a cero."
+          },
+          {
+            "area": "Memory / Entity Resolution",
+            "cambio": "Aumentar el peso de las últimas intervenciones del usuario en el prompt de contexto para fijar el nombre correcto (Ricart) frente a alucinaciones de memoria antigua (Gicard/Hikar).",
+            "porque": "Llamar al usuario por nombres incorrectos degrada la naturalidad y la confianza en el sistema."
+          }
+        ],
+        "veredicto": "El escenario NO es production-ready porque zaelar falló el objetivo principal (reserva web) al no escalar la tarea, inventar restricciones falsas y simular una acción que no ejecutó técnicamente.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Brain / RAG (Conocimiento del dominio)",
+      "cambio": "Incorporar knowledge chunk explícito sobre procesos de ITV (reserva previa obligatoria web) e instrucciones de preferencia de usuario (ej. 'si usuario pide reserva, prioriza slowbrain').",
+      "porque": "El asistente inventó restricciones ('hay que ir en persona') y falló al entender la solicitud de ejecución web como un simple apunte de agenda.",
+      "scenario": "reserva_web",
+      "_sev": 0
+    },
+    {
+      "area": "Router / Trigger de Escala",
+      "cambio": "Refinar el 'intent classifier' para que las frases 'reserva por web', 'hazlo tú', 'coge cita' disparen obligatoriamente `escalate_to_slowbrain` + `tool_use_browser`.",
+      "porque": "El objetivo del escenario (acción web) se falló por completo al no escalarse y no activarse el worker de navegación.",
+      "scenario": "reserva_web",
+      "_sev": 0
+    },
+    {
+      "area": "Estrategia de respuesta (Buscador vs Web)",
+      "cambio": "Prohibir respuestas textuales de 'cómo hacer cosas' si la intención es acción. Forzar un handshake: 'Voy a entrar en la web...' y lanzar el navegador.",
+      "porque": "Zaelar ofreció explicaciones y alternativas (agenda) en lugar de ejecutar la tarea demandada, reduciendo la utilidad a cero.",
+      "scenario": "reserva_web",
+      "_sev": 0
+    },
+    {
+      "area": "Memory / Entity Resolution",
+      "cambio": "Aumentar el peso de las últimas intervenciones del usuario en el prompt de contexto para fijar el nombre correcto (Ricart) frente a alucinaciones de memoria antigua (Gicard/Hikar).",
+      "porque": "Llamar al usuario por nombres incorrectos degrada la naturalidad y la confianza en el sistema.",
+      "scenario": "reserva_web",
+      "_sev": 0
+    }
+  ]
+}

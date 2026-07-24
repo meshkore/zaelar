@@ -1,0 +1,17 @@
+{
+  "id": "cancela-reserva-locator",
+  "version": "0.1.0",
+  "title": "Cancelación de reserva",
+  "description": "Sigue el estado de la cancelación de una reserva/cita identificada por su localizador (p. ej. una cita ITV en Itevelesa): mientras el cerebro la cancela DE VERDAD en el sistema del proveedor, este widget es el ESPEJO que refleja el resultado real (pendiente → cancelada / error). No cancela nada por sí mismo.",
+  "whenToUse": "Cuando el operador pide cancelar una reserva/cita con un localizador (ITV, Itevelesa, cita previa) y quiere ver el estado de esa cancelación en pantalla.",
+  "keywords": ["itv", "itevelesa", "localizador", "cancela la cita", "cancela la reserva", "cancelar cita", "cancelar reserva", "cita previa", "cancelación", "reserva cancelada"],
+  "entry": "widget.js",
+  "usage": "add_reservation registra/actualiza una reserva a seguir por su localizador (locator+provider). mark_cancelled y mark_failed las usa el propio cerebro para REFLEJAR el resultado tras intentar cancelarla de verdad en el sistema del proveedor (navegador/worker) — nunca marques cancelada sin haberlo confirmado en la realidad; si el worker guardó una captura de pantalla como prueba, pásala en el payload como 'screenshot' (nombre de fichero en el data_dir del widget). view_screenshot abre esa captura en el visor de imágenes del propio sistema operativo (no en el widget) para que el operador la vea de verdad. remove quita una reserva de la lista de seguimiento.",
+  "actions": {
+    "add_reservation": {"desc": "registra o actualiza una reserva a seguir por su localizador", "payload": {"locator": "38179633", "provider": "Itevelesa", "note": "ITV coche 1234ABC", "date": "2026-07-25"}},
+    "mark_cancelled": {"desc": "refleja que la cancelación ya se confirmó de verdad en el sistema del proveedor, con captura opcional como prueba", "payload": {"locator": "38179633", "screenshot": "shot-38179633.png"}},
+    "mark_failed": {"desc": "refleja que el intento de cancelación real ha fallado, con el motivo y captura opcional como prueba", "payload": {"locator": "38179633", "reason": "el localizador no existe", "screenshot": "shot-38179633.png"}},
+    "view_screenshot": {"desc": "abre la captura guardada de la reserva en el visor de imágenes del sistema operativo, para que el operador la vea realmente", "payload": {"locator": "38179633"}},
+    "remove": {"desc": "quita una reserva de la lista de seguimiento (no la cancela)", "payload": {"locator": "38179633"}, "confirm": true}
+  }
+}

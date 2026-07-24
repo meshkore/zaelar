@@ -1,0 +1,121 @@
+{
+  "stamp": "20260711-234838",
+  "results": [
+    {
+      "scenario": "paste",
+      "channel": "paste",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Buenas tardes Alex, ¿qué tal?",
+            "at": 1783806482.79
+          },
+          {
+            "who": "tester",
+            "text": "Te pego una nota, resúmemela en una línea: Buenas tardes, ¿cómo estás? ¿Necesitas que te ayude con algo hoy? Además hoy saqué al perro, pagué dos facturas y reservé un vuelo a Lisboa para el mes que viene.",
+            "at": 1783806489.17
+          },
+          {
+            "who": "zaelar",
+            "text": "Resumen: saludas, preguntas si necesito ayuda y mencionas que sacaste al perro, pagaste dos facturas y reservaste un vuelo a Lisboa.",
+            "at": 1783806500.86,
+            "latency_ms": 4838
+          },
+          {
+            "who": "tester",
+            "text": "Te pego una nota, resúmemela en una línea: Vaya, suena como una tarde intensa. He saludado, he preguntado si necesitabas algo, he sacado al perro de pasear, he pagado las facturas y he reservado un vuelo a Lisboa. ¿Necesitas que se añada o cambie algo en esa lista? Además hoy saqué al perro, pagué dos facturas y reservé un vuelo a Lisboa para el mes que viene.",
+            "at": 1783806512.06
+          },
+          {
+            "who": "zaelar",
+            "text": "Resumen: saludas, preguntas si necesito ayuda y mencionas que sacaste al perro, pagaste dos facturas y reservaste un vuelo a Lisboa.",
+            "at": 1783806513.94
+          }
+        ],
+        "latency_ms": {
+          "n": 1,
+          "avg": 4838,
+          "max": 4838,
+          "samples": [
+            4838
+          ]
+        },
+        "trace": {
+          "frontend_actions": [],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Buenas tardes Alex, ¿qué tal?",
+            "📥 chat/paste recibido: Te pego una nota, resúmemela en una línea: Buenas tardes, ¿cómo estás? ¿Necesitas que te ayude con algo hoy? Además hoy",
+            "⚡ Nucleo(flash): prompt: Te pego una nota, resúmemela en una línea: Buenas tardes, ¿cómo estás? ¿Necesitas que te ayude con algo hoy? Además hoy",
+            "⚡ Nucleo(flash): reply: Resumen: saludas, preguntas si necesito ayuda y mencionas que sacaste al perro, pagaste dos facturas y reservaste un vue",
+            "📥 chat/paste recibido: Te pego una nota, resúmemela en una línea: Vaya, suena como una tarde intensa. He saludado, he preguntado si necesitabas",
+            "⚡ Nucleo(flash): prompt: Te pego una nota, resúmemela en una línea: Vaya, suena como una tarde intensa. He saludado, he preguntado si necesitabas"
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 9,
+            "bot_speech": 9,
+            "brain": 8,
+            "memory": 26,
+            "timing": 3,
+            "metric": 78,
+            "tts": 2,
+            "transcript": 2,
+            "session": 1
+          },
+          "n_events": 139
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 3,
+          "coherencia": 3,
+          "utilidad": 5,
+          "accion": 5,
+          "latencia": 5,
+          "robustez": 4
+        },
+        "overall": 4,
+        "findings": [
+          {
+            "turno": "zaelar@turn2",
+            "problema": "El bot repite el mismo resumen palabra por palabra en el turno 2 que ya había dado en el turno 1, a pesar de que el usuario inyectó un texto 'paste' ligeramente diferente en el segundo turno. Muestra falta de atención al nuevo contenido y generación de respuesta robótica.",
+            "gravedad": "media"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "brain/llm_prompting",
+            "cambio": "Añadir una instrucción explícita en el sistema prompt para 'no repetir la respuesta anterior si el usuario realiza una nueva consulta o inyección de texto' y forzar la comparación entre el contexto actual y el anterior antes de responder.",
+            "porque": "Zaelar falló en distinguir el segundo 'paste' (que añadía matices sobre 'tarde intensa') y repitió mecánicamente el resumen anterior, rompiendo la ilusión de conversación natural y coherente."
+          },
+          {
+            "area": "memory/context_management",
+            "cambio": "Implementar un chequeo de novedad (novelty check) antes de generar la respuesta: si el input del usuario (paste) es diferente al turno anterior (aunque sea similar), el sistema debe treatarlo como un nuevo resumen, no como un eco.",
+            "porque": "La robustez ante ligeras variaciones en el texto 'pegado' debe ser alta; currently, the system seems to collapse similar inputs into the same cached response pattern."
+          }
+        ],
+        "veredicto": "El escenario es funcionalmente aceptable (el path de paste y resumen funciona) pero no es production-ready debido a la falta de discriminación contextual ante inputs consecutivos similares; el #1 blocker es la rigidez conversacional que produce repeticiones robóticas.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "brain/llm_prompting",
+      "cambio": "Añadir una instrucción explícita en el sistema prompt para 'no repetir la respuesta anterior si el usuario realiza una nueva consulta o inyección de texto' y forzar la comparación entre el contexto actual y el anterior antes de responder.",
+      "porque": "Zaelar falló en distinguir el segundo 'paste' (que añadía matices sobre 'tarde intensa') y repitió mecánicamente el resumen anterior, rompiendo la ilusión de conversación natural y coherente.",
+      "scenario": "paste",
+      "_sev": 1
+    },
+    {
+      "area": "memory/context_management",
+      "cambio": "Implementar un chequeo de novedad (novelty check) antes de generar la respuesta: si el input del usuario (paste) es diferente al turno anterior (aunque sea similar), el sistema debe treatarlo como un nuevo resumen, no como un eco.",
+      "porque": "La robustez ante ligeras variaciones en el texto 'pegado' debe ser alta; currently, the system seems to collapse similar inputs into the same cached response pattern.",
+      "scenario": "paste",
+      "_sev": 1
+    }
+  ]
+}

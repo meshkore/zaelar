@@ -1,0 +1,10 @@
+{
+  "view_data_shape": {
+    "cols": "int",
+    "controls": "str",
+    "hint": "str",
+    "rows": "int",
+    "tick_ms": "int",
+    "title": "str"
+  }
+}

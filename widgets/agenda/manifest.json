@@ -1,0 +1,20 @@
+{
+  "id": "agenda",
+  "version": "0.1.0",
+  "title": "Agenda del día",
+  "description": "Tu agenda viva del día con rol de coach de productividad: franja activa por reloj, tarea en curso con contador, y nudges hacia tu objetivo global.",
+  "whenToUse": "Cuando el usuario pide su agenda, su día, qué hacer ahora, a qué ponerse, su planning o coaching de productividad.",
+  "keywords": ["agenda", "día", "dia", "plan", "planning", "qué hago", "que hago", "a qué me pongo", "a que me pongo", "ahora qué", "tarea", "tareas", "foco", "coach", "productividad", "schedule", "my day", "agenda del día", "objetivos", "hoy"],
+  "entry": "widget.js",
+  "dataSchemaRef": "schema:DB",
+  "usage": "Añade citas con add_meeting, cancélalas con cancel_meeting (título + fecha opcional) y gestiona el estado de una tarea con done/snooze/not_now/drop (necesitan su taskId). Todas son data-ops instantáneas menos drop_project, que descarta un proyecto entero y pide confirmación.",
+  "actions": {
+    "add_meeting": {"desc": "añade una cita/reunión al día", "payload": {"title": "string", "date": "YYYY-MM-DD (hoy si se omite)", "startTime": "HH:MM", "endTime": "HH:MM"}},
+    "cancel_meeting": {"desc": "cancela/elimina una cita ya agendada", "payload": {"title": "string", "date": "YYYY-MM-DD (opcional, filtra por fecha)"}},
+    "done": {"desc": "marca una tarea como hecha", "payload": {"taskId": "string"}},
+    "drop": {"desc": "quita/descarta una tarea (no la marca hecha)", "payload": {"taskId": "string"}},
+    "snooze": {"desc": "aplaza una tarea a otro momento", "payload": {"taskId": "string"}},
+    "not_now": {"desc": "el operador la evita ahora (señal de coaching, no la quita)", "payload": {"taskId": "string"}},
+    "drop_project": {"desc": "congela un proyecto entero y descarta sus tareas pendientes", "payload": {"projectId": "string"}, "confirm": true}
+  }
+}

@@ -1,0 +1,2015 @@
+#
+# NUCLEO brain (zaelar v2 «Colmena») as a LiveKit LLM provider (EPIC-v2-colmena, V2-004).
+#
+# El FlashBrain (código PROPIO, `nucleo/flash/`) enchufado al motor de voz por la MISMA costura que `duo`: el
+# LLMStream lee el último turno del ChatContext, corre el FlashBrain y emite ChatChunk YA LIMPIADOS (pasan por
+# strip_tags→side-effects→speech). El contrato agnóstico del motor se conserva.
+#
+# Diferencia con `duo`: NO hay Hermes. La memoria de arranque y el contexto salen de la memoria central propia
+# (`memory/`, inyectada en el prompt por `nucleo/flash/prompt.py`). El escalado va a `nucleo/flash/escalate.py`
+# (STUB en V2-004: registra + publica en el bus; el SlowBrain real llega en V2-006/V2-007). La degradación NO
+# cae a Hermes — habla una frase de reserva.
+#
+# Se activa con BRAIN=nucleo (opt-in, en paralelo a duo/hermes; cero regresión hasta el cutover de V2-009).
+#
+from __future__ import annotations
+
+import asyncio
+import os
+import time
+
+from loguru import logger
+from livekit.agents import DEFAULT_API_CONNECT_OPTIONS, llm, utils
+from livekit.agents.llm import ChatChunk, ChoiceDelta
+
+from .. import registry
+
+_WINDOW_MAX = 10
+_TAG_TASKS: set = set()
+
+
+def _last_user_text(chat_ctx) -> str:
+    """Último turno de usuario del ChatContext (el FlashBrain compone su propia ventana + memoria)."""
+    try:
+        items = list(chat_ctx.items)
+    except Exception:
+        items = []
+    for it in reversed(items):
+        if getattr(it, "role", None) != "user":
+            continue
+        txt = getattr(it, "text_content", None)
+        if txt:
+            return str(txt).strip()
+        content = getattr(it, "content", None)
+        if isinstance(content, list):
+            return " ".join(c for c in content if isinstance(c, str)).strip()
+        return str(content or "").strip()
+    return ""
+
+
+def _spawn(coro, label: str) -> None:
+    task = asyncio.create_task(coro)
+    _TAG_TASKS.add(task)
+    task.add_done_callback(lambda t: _TAG_TASKS.discard(t))
+
+
+@registry.register("nucleo")
+def build(model: str = "") -> llm.LLM:
+    return NucleoLLM()
+
+
+class NucleoLLM(llm.LLM):
+    def __init__(self) -> None:
+        super().__init__()
+        self._window: list[dict] = []      # ventana de diálogo corta del FlashBrain
+        self._seeded = False               # ¿ya sembrada la ventana desde memoria? (circuito de corto plazo)
+        self._directive = ""               # preferencia de estilo fijada esta sesión (set_style_directive)
+        self._last_spoken = ""             # última frase que DIJO zaelar (anti-eco, FASE 2)
+        self._last_spoke_at = 0.0          # cuándo la dijo (epoch s) → ventana de eco
+        self._last_dataop = None           # (wid, action, payload, ts) última data-op EJECUTADA — guard anti
+        #                                    context-bleed (round headless V2-038 #1: re-emisión cross-turno)
+        self._turn_count = 0                # turnos conversacionales completados esta sesión (INI-018 T6, demo cap)
+        self._session_started_at = time.time()  # arranque de la sesión (INI-018 T6, demo TTL)
+
+    @property
+    def label(self) -> str:
+        return "zaelar.nucleo"
+
+    @property
+    def model(self) -> str:
+        return "nucleo-flash"
+
+    def set_briefing(self, text: str) -> None:
+        """Compat con el entrypoint (duo lo usa). En nucleo la memoria de arranque sale de `memory.state()` en el
+        prompt cada turno, así que aquí no hace falta — se acepta y se ignora para no romper una llamada genérica."""
+        return None
+
+    def chat(self, *, chat_ctx, tools=None, conn_options=DEFAULT_API_CONNECT_OPTIONS,
+             parallel_tool_calls=None, tool_choice=None, extra_kwargs=None) -> llm.LLMStream:
+        return NucleoLLMStream(self, chat_ctx=chat_ctx, tools=tools or [], conn_options=conn_options)
+
+
+class NucleoLLMStream(llm.LLMStream):
+    async def _run(self) -> None:
+        brain: NucleoLLM = self._llm  # type: ignore[assignment]
+        try:
+            from voice.observer import emit
+        except Exception:
+            emit = lambda *a, **k: None
+
+        text = _last_user_text(self._chat_ctx)
+        if not text:
+            emit("brain", "⚠️ Nucleo triggered but no user text in context")
+            return
+
+        # GATE DE ATENCIÓN (V2-015): el micro está SIEMPRE abierto — un turno que no va DIRIGIDO a zaelar no
+        # produce acción ni respuesta (solo se registra como `ambient`, visible en /debug). El kickoff
+        # ("I just connected") y el chat/paste (marcados `note_directed()` en agent.py) sí van dirigidos.
+        from voice import attention
+        first_turn = "I just connected" in text
+
+        # TRAZABILIDAD (V2-044): cada frase del operador nace con un trace id — ANTES del gate, así los descartes
+        # (ambient/eco/interrupción dura) también quedan encadenados a su frase y son evaluables. Todo lo que este
+        # turno derive (tools, tags, rails, escaladas, memoria) hereda el id por ContextVar (create_task/to_thread).
+        try:
+            from voice import trace as _trace
+            _trace.begin(text, origin="kickoff" if first_turn else "turno")
+        except Exception:
+            pass
+
+        # T136 — interrupción DURA: "cierra los widgets / para / silencio" se atiende SIEMPRE (salta el gate)
+        # y se ejecuta de forma DETERMINISTA, nunca enterrada en un turno gigante. Fue el bug real (el `close`
+        # quedó fuera del recorte de un turno de 14k chars).
+        if not first_turn:
+            hard = attention.hard_interrupt(text)
+            if hard:
+                # V2-038 precedencia (§v3·M): un STOP corto ("para eso", "para el widget") con Brain Workers VIVOS y
+                # referencia a TRABAJO NO es callar el TTS — es PARAR UN WORKER. No retornamos aquí: el turno sigue y
+                # el modelo llama stop_worker (con backstop determinista post-stream). Sin workers, es stop de TTS.
+                _worker_stop = False
+                if hard == "stop":
+                    try:
+                        from nucleo import dispatch as _d0
+                        from nucleo.flash import router as _router0
+                        _worker_stop = _d0.has_active() and _router0.looks_like_stop_work(text)
+                    except Exception:
+                        _worker_stop = False
+                    # MÚSICA (bug 2026-07-16): con música SONANDO, "para / para la música" PARA la música — no solo
+                    # calla el TTS. El barge-in de LiveKit corta la VOZ de zaelar, NO el stream de música (widget/
+                    # Spotify) → sin esto había que decirlo dos veces. Determinista, off-loop; el run vivo del rail
+                    # `music.playing`/`music.search` indica que suena/se busca (µs, en RAM). Precedencia: parar un
+                    # WORKER manda (si aplica); si no, parar la música.
+                    if not _worker_stop:
+                        try:
+                            from nucleo import rails as _rails0
+                            if _rails0.get("music.playing") or _rails0.get("music.search"):
+                                from connectors import music as _music0
+                                await asyncio.to_thread(_music0.control, "stop")
+                                _rails0.resolve("music.playing")
+                                _rails0.resolve("music.search")
+                                emit("music", "🎵 stop (interrupción dura · música viva)", text=text[:80],
+                                     role="system", extra={"reason": "hard_interrupt"})
+                        except Exception:
+                            pass
+                if not _worker_stop:
+                    emit("ambient", "✋ interrupción dura atendida", text=text[:160], role="user",
+                         extra={"cmd": hard, "reason": "hard_interrupt"})
+                    if hard == "close":
+                        emit("widget", "close", extra={"src": "flash"})   # cerrar TODOS los widgets, ya
+                    return                                   # 'stop' → el barge-in ya cortó el TTS; no respondemos
+
+        # SUPRESIÓN DE ECO (FASE 2, 2026-07-14): con el micro SIEMPRE abierto y sin AEC perfecto, el mic capta el
+        # TTS de zaelar y el STT lo transcribe como si fuera el operador → zaelar "se responde a sí mismo" (las
+        # respuestas ZOMBIE / la frase del tiempo re-emitida del test). Si el turno se PARECE MUCHO a lo que zaelar
+        # ACABA de decir y cae dentro de la ventana de eco, lo descartamos (determinista, no depende del LLM).
+        # Observabilidad: evento `ambient` con reason=echo → visible en /debug para medir cuánto eco hay.
+        # V2-038 §v3·N: si un Brain Worker ESPERA respuesta, el turno inmediato (a menudo monosilábico: "enduro")
+        # queda EXENTO de la supresión de eco — si no, "sí"/una palabra contenida en lo último dicho se descartaría
+        # y la respuesta al worker moriría.
+        _ask_waiting = False
+        if not first_turn:
+            try:
+                from nucleo import worker_api as _wapi0
+                _ask_waiting = _wapi0.has_pending_ask()
+            except Exception:
+                _ask_waiting = False
+        if not first_turn and brain._last_spoken and not _ask_waiting:
+            _echo_win = float(os.getenv("ZAELAR_ECHO_WINDOW_S", "12"))
+            _gap = time.time() - brain._last_spoke_at
+            if _gap < _echo_win:
+                try:
+                    from nucleo.flash import dialog as _dlg
+                    _is_echo = _dlg.similar(text, brain._last_spoken, thr=0.82)
+                except Exception:
+                    _is_echo = False
+                if _is_echo:
+                    emit("ambient", "🔇 eco descartado (zaelar se oyó a sí mismo)", text=text[:160], role="user",
+                         extra={"reason": "echo", "gap_s": round(_gap, 1), "cat": "flash"})
+                    return
+
+        # T134 — un turno no dirigido no se atiende (ni siquiera drena notas: se preservan para el próximo).
+        # El kickoff (saludo de zaelar) NO abre la ventana a propósito: es zaelar quien habla, no el operador
+        # dirigiéndose a él — así, si la sesión arranca en mitad de una reunión, no hay un hueco inicial en el
+        # que la voz ambiente se cuele como dirigida y auto-extienda la ventana. El operador abre la conversación
+        # con la wake-word ("zaelar") y a partir de ahí la ventana la mantiene viva (o chat/paste, ya marcados).
+        if not first_turn:
+            verdict = attention.evaluate(text)
+            if not verdict.directed:
+                emit("ambient", "🙉 ambiente — no dirigido a zaelar", text=text[:200], role="user",
+                     extra={"mode": attention.mode(), "reason": verdict.reason})
+                return
+            attention.note_directed()   # refresca la ventana de conversación activa
+
+        # V2-013: el "corazón" (agente de memoria) clasifica en background lo que dijo el operador y, si es
+        # perfil (nombre/ubicación/trato/hardware/coche) o deseo durable, lo lleva a `state`/`long` sin
+        # bloquear el turno. Fire-and-forget: regex µs + escritura por la cola async → cero coste en TTFB.
+        try:
+            from nucleo import memory_agent as _mem_agent
+            asyncio.create_task(_mem_agent.ingest_utterance(text, role="operator"))
+        except Exception:
+            pass
+
+        # CIRCUITO DE CORTO PLAZO (B, 2026-07-14): la ventana de diálogo vive en RAM y arranca VACÍA en cada
+        # instancia del brain (reinicio/reconexión) → el FlashBrain perdía "de qué hablábamos". La SEMBRAMOS una
+        # sola vez desde el buffer conversacional persistente (`memory.recent_window`, lectura directa µs, sin LLM
+        # ni retriever) → el PRIMER turno tras reconectar ya está situado. Cero coste de tokens en régimen normal
+        # (la ventana ya está capada a _WINDOW_MAX). Best-effort.
+        if not brain._seeded:
+            brain._seeded = True
+            if not brain._window:
+                try:
+                    from memory import api as _memory
+                    _seed = _memory.recent_window(limit=int(os.getenv("ZAELAR_WINDOW_SEED", "6")))
+                    if _seed:
+                        brain._window[:0] = _seed
+                        emit("brain", "🌱 ventana sembrada desde memoria", role="system",
+                             extra={"turns": len(_seed)})
+                except Exception:
+                    pass
+
+        # LATENCY GUARD + T135: acota lo que ve la capa rápida (turnos-parrafada) PRESERVANDO un comando
+        # explícito — nunca truncar a ciegas los últimos N chars (así se perdía el "cierra los widgets").
+        _max_in = int(os.getenv("ZAELAR_FAST_MAX_INPUT", "1600"))
+        text, _clipped = attention.clamp_input(text, _max_in)
+        if _clipped:
+            emit("brain", "✂️ input recortado (comando preservado)", text=f"→{_max_in} chars")
+        if first_turn:
+            text = ("Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi "
+                    "nombre, úsalo y NO preguntes quién soy; si no, preséntate en una línea y pregúntame el nombre. "
+                    "Luego para.")
+
+        # Notas del sistema (resultados async, subidas de fichero…) — se anteponen al turno.
+        try:
+            from voice import brain_notes
+            notes = brain_notes.drain()
+        except Exception:
+            notes = []
+        if notes:
+            for n in notes:
+                emit("brain", "📩 system note → FlashBrain", text=n, role="system")
+            text = "\n".join(notes) + "\n\n" + text
+
+        from nucleo.flash import dialog as _dialog
+        from nucleo.flash import escalate as _escalate_mod
+        from nucleo.flash import frontend as _frontend
+        from nucleo.flash.fast_client import FastClient, spec_from_config
+        from nucleo.flash.prompt import build_flash_system
+        from nucleo.flash import router as _router
+
+        spec = spec_from_config()
+        emit("brain", "⚡ Nucleo(flash): prompt", text=text, role="user",
+             extra={"engine": spec.provider, "model": spec.model})
+
+        timings: dict = {}
+        _t_prompt = time.time()
+        # RECALL semántico BAJO DEMANDA y FUERA del event loop (T115+T116): `compose_recall` hace embeddings HTTP
+        # a Ollama — meterlo en el loop, cada turno, era la regresión de V2-004. Ahora (a) solo se dispara cuando
+        # el turno PIDE recordar algo (`needs_recall`, heurística ligera) — la charla normal ni toca el retriever,
+        # así que cierra en ~1s; y (b) cuando se dispara, corre en un hilo (`to_thread`) → el event loop nunca se
+        # para. El bloque de estado (nombre/trato/…) sale SIEMPRE del caché (T114); el resto del prompt es de ms.
+        from nucleo.flash import prompt as _prompt_mod
+        recall_block = ""
+        recall_ids: list = []
+        timings["recall_fired"] = _prompt_mod.needs_recall(text)
+        if timings["recall_fired"]:
+            # TIME-BOX del recall (regla dura "nunca lento"): el retriever suele cerrar en ~0.4-1.5s, pero en el
+            # turno vivo puede dispararse a 4s+ (recarga del modelo de embedding tras un desalojo por el CORAZÓN
+            # qwen2.5:14b, o contención de Metal con STT/TTS). El recall está en el CAMINO CRÍTICO del turno (su
+            # bloque alimenta el prompt), así que un pico lo paga el usuario en tiempo real. Lo acotamos: si no
+            # cierra dentro del presupuesto, el turno SIGUE SIN el bloque durable — el ESTADO (nombre/misión/
+            # conversación reciente) YA va en el prompt desde el caché (µs), así que la degradación es suave, no
+            # amnesia total. Presupuesto configurable (ZAELAR_RECALL_BUDGET_MS, def 800). 2026-07-13: bajado de
+            # 2000→800 tras medir en la sesión manual que el embedding en frío (desalojo por el CORAZÓN) hacía
+            # timeout SIEMPRE a 2000ms → +2s tirados por turno. Con 800ms, caliente entra (round-trip ~50-150ms) y
+            # en frío corta rápido (pierde 0.8s, no 2s). El fix DE RAÍZ (residencia de embeddinggemma) va por el
+            # workflow de memoria.
+            _budget = float(os.getenv("ZAELAR_RECALL_BUDGET_MS", "800")) / 1000.0
+            try:
+                recall_block, recall_ids = await asyncio.wait_for(
+                    asyncio.to_thread(_prompt_mod.compose_recall, text, timings), timeout=_budget)
+            except asyncio.TimeoutError:
+                timings["recall_timeout"] = True
+                logger.info(f"nucleo recall over budget ({_budget:.1f}s) — turno sigue sin recall durable")
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"nucleo recall skipped (voice continues): {e}")
+        # 2º PASE DE CORTO PLAZO (C, 2026-07-14): si el turno referencia la interacción RECIENTE ("de qué
+        # hablábamos", "lo que te dije antes", "repite eso"), inyectamos el buffer conversacional AMPLIADO
+        # (verbatim, más turnos que la ventana normal). Lectura DIRECTA µs, pero la corremos igualmente en un
+        # hilo por consistencia con V2-011 (nunca I/O de memoria en el event loop). El prompt por defecto NO lo
+        # lleva → cero tokens extra en charla normal; solo se carga bajo demanda.
+        recent_block = ""
+        timings["recent_fired"] = _prompt_mod.needs_recent(text)
+        if timings["recent_fired"]:
+            try:
+                recent_block = await asyncio.wait_for(
+                    asyncio.to_thread(_prompt_mod.compose_recent_block), timeout=0.5)
+            except Exception:
+                recent_block = ""
+        system, _used_ids = build_flash_system(
+            directive=brain._directive, recall_block=recall_block, recent_block=recent_block, timings=timings)
+        # BREAK-LOOP (V2-032): si el cerebro llevaba ≥2 respuestas casi idénticas, añade una instrucción que le
+        # OBLIGA a cambiar de estrategia — corta el bucle de repetición/negación (bloqueante #1 del informe).
+        _nudge = _dialog.loop_nudge(brain._window)
+        if _nudge:
+            system += _nudge
+            emit("brain", "🔁 break-loop: nudge anti-repetición inyectado", role="system")
+        timings["prompt_ms"] = round((time.time() - _t_prompt) * 1000, 1)
+        emit("timing", "⏱ turn breakdown (prompt build)", extra=timings)
+
+        # OBSERVABILIDAD DE MEMORIA (V2-014 Task 2): una fila por CAPA leída este turno, con módulo=memory,
+        # capa (state/short/slow), la petición y el resultado (nº de tarjetas/chars) + su tiempo. Alimenta la
+        # columna ◷ de logs; las tarjetas del mapa las sigue iluminando el pulso `memory.query`/`memory.updated`.
+        try:
+            from nucleo.flash import memory_cache as _mc
+            ms = _mc.stats()
+            emit("memory", "estado", role="system",
+                 text=(f"perfil del operador → {ms.get('state_fields', 0)} campos" if ms.get("has_state")
+                       else "perfil del operador → vacío (sin poblar)"),
+                 extra={"layer": "state", "mem_ms": timings.get("mem_state_ms")})
+            emit("memory", "corto", role="system",
+                 text=f"working set entero → {ms.get('short_count', 0)} tarjetas · {ms.get('short_chars', 0)} chars",
+                 extra={"layer": "short", "mem_ms": timings.get("mem_state_ms")})
+            if timings.get("recall_fired"):
+                emit("memory", "recall", role="system",
+                     text=f"«{text[:60]}» → {len(recall_ids)} tarjetas del largo plazo",
+                     extra={"layer": "slow", "mem_ms": timings.get("mem_query_ms")})
+        except Exception:
+            pass
+        messages = [{"role": "system", "content": system}]
+        messages += _dialog.prune_window(brain._window)[-_WINDOW_MAX:]   # colapsa turnos gemelos (anti-degeneración)
+        messages.append({"role": "user", "content": text})
+
+        from voice import speech
+        from voice.tag_protocol import strip_tags
+
+        t0 = time.time()
+        # FASE 3: foto de CONTENCIÓN al arrancar el LLM del turno (¿estaba el CORAZÓN/embed/rerank ocupando la
+        # máquina?). Se adjunta al `reply` → correlacionamos si el TTFT sube bajo carga local. TTFT es CLOUD, así
+        # que si sube con carga LOCAL activa, es contención de CPU/event-loop, no de GPU.
+        try:
+            from voice import observer as _obs
+            _busy_at_start = _obs.busy_snapshot()
+        except Exception:
+            _busy_at_start = {}
+        buf, spoken, first_ms = "", [], None
+        escalate_req = {"v": None}
+        search_req = {"v": None}
+        recall_req = {"v": None}         # V2-056: el modelo pidió RECORDAR (tool recall) — se resuelve tras el stream
+        reveal_req = {"v": None}         # V2-060: el operador pidió un SECRETO (reveal_secret) — valor OUT-OF-BAND
+        music_req = {"v": None, "followup": None}  # V2-041: {'query','action'}; 'followup' = 2ª acción de CONTROL
+                                          # (volumen/pausa) pedida EN EL MISMO turno que un play/queue (bug real
+                                          # 2026-07-23: "pon música de Queen y súbele el volumen" decía las DOS
+                                          # cosas pero solo ejecutaba la 1ª — la 2ª se tiraba en silencio)
+        style_fired = {"v": False}       # V2-046 A1: se fijó/retiró una user rule → ack si el modelo no habló
+        acted = {"widget": False}
+        confirm_state = {"handled": False}
+        clarify = {"msg": None}          # V2-026: pregunta a decir si una referencia a un item no se resolvió
+        data_done = {"v": False}         # V2-026: se despachó una data-op FAST → ack hablado si el modelo no habló
+        worker_acted = {"v": None}       # V2-038: 'inject'|'stop'|'answer' si se dirigió a un Brain Worker vivo
+        _shown_ids: set = set()          # ids ya mostrados ESTE turno → dedup de [[show]] duplicado
+        # ¿había una confirmación de borrado en el aire al empezar el turno? Solo entonces interpretamos un
+        # "sí/no" suelto como respuesta a ELLA (red determinista, por si el modelo no llama a la tool).
+        try:
+            from widgets import confirm as _confirm_mod
+            had_pending_confirm = bool(_confirm_mod.pending())
+        except Exception:
+            had_pending_confirm = False
+        # V2-029: escaladas YA en vuelo al EMPEZAR el turno — para (a) deduplicar si el operador insiste con la
+        # MISMA petición mientras el SlowBrain trabaja (no abrir tareas ni entregas duplicadas) y (b) variar el
+        # filler ("sigo con ello" en vez de repetir el mismo "dame un momento" turno a turno).
+        # V2-038 §v3·G: la FUENTE DE VERDAD de "qué hay en marcha" es el registro RAM de dispatch (no escalate._tasks).
+        try:
+            from nucleo import dispatch as _disp0
+            _prev_pending = _disp0.pending_summaries()
+        except Exception:
+            try:
+                _prev_pending = _escalate_mod.pending()
+            except Exception:
+                _prev_pending = []
+
+        def _tag_emit(action: str, extra: dict) -> None:
+            if action in ("deep",):
+                # legacy Hermes escalation tag — el cerebro v2 no lo enseña; si aparece, se trata como escalada.
+                if escalate_req["v"] is None:
+                    escalate_req["v"] = (extra.get("request") or "").strip() or text
+                return
+            if action in ("json_leak_dropped",):
+                from voice.tag_protocol import parse_json
+                leaked = parse_json(extra.get("text") or "")
+                if isinstance(leaked, dict) and isinstance(leaked.get("name"), str):
+                    a = leaked.get("arguments")
+                    if isinstance(a, str):
+                        a = parse_json(a) or {}
+                    _on_tool_call(leaked["name"], a if isinstance(a, dict) else {})
+                elif isinstance(leaked, dict) and leaked.get("request"):
+                    _on_tool_call("escalate_to_slowbrain", leaked)
+                elif isinstance(leaked, dict) and leaked.get("directive"):
+                    _on_tool_call("set_style_directive", leaked)
+                else:
+                    if escalate_req["v"] is None:
+                        escalate_req["v"] = text
+                return
+            if action in ("unknown_tag_dropped",):
+                logger.warning(f"unknown_tag_dropped: {(extra.get('text') or '')[:120]!r}")
+                return
+            if action == "widget.data":
+                # Camino de RESERVA (V2-026): el tag inline sigue soportado, pero el camino PRINCIPAL de las
+                # data-ops es la tool `widget_data` (function-calling, fiable). Ambos convergen en _apply_widget_data.
+                data = extra.get("data") or {}
+                _apply_widget_data(str(extra.get("id") or ""), str(data.get("action") or ""),
+                                   data.get("payload") or {})
+                return
+            if action == "delete":
+                # BORRAR es cosa del FlashBrain (rápido, determinista) PERO con confirmación (V2-017). Si el
+                # modelo emitió el tag en vez de la tool, lo tratamos igual: abre la confirmación (overlay Sí/No
+                # en la tarjeta), nunca borra directo.
+                _request_delete_confirm(extra.get("id") or "", text)
+                acted["widget"] = True
+                return
+            if action in ("create", "modify", "push"):
+                # Boundary duro: crear/modificar/entregar datos a un widget → SlowBrain (escribe código), nunca el
+                # Flash. Borrar NO entra aquí (es determinista y lo hace el Flash tras confirmar, arriba).
+                logger.warning(f"nucleo(flash) intentó [[{action}]] — bloqueado, escalando")
+                if escalate_req["v"] is None:
+                    escalate_req["v"] = text
+                return
+            if action.startswith("cluster."):
+                try:
+                    from connectors import meshkore
+                    _spawn(meshkore.dispatch_tag(action, extra), "cluster")
+                except Exception:
+                    pass
+                return
+            if action.startswith("architect."):
+                try:
+                    from connectors import architect
+                    _spawn(architect.dispatch_tag(action, extra), "architect")
+                except Exception:
+                    pass
+                return
+            if action.startswith("msg."):
+                try:
+                    from connectors import messaging
+                    _spawn(messaging.dispatch_tag(action, extra), "messaging")
+                except Exception:
+                    pass
+                return
+            if action in ("cron.create", "cron.cancel"):
+                # Proactividad PROPIA (V2-005): re-cableado al scheduler del loop orquestador (NO al cron de
+                # Hermes, que muere en V2-009). Persistido en memory.journal; lo dispara nucleo/loop.py.
+                try:
+                    from nucleo import scheduler as _sched
+                    d = extra.get("data") or {}
+                    if action == "cron.create":
+                        r = _sched.create(
+                            (d.get("prompt") or d.get("task") or "").strip(),
+                            (d.get("schedule") or d.get("when") or "").strip(),
+                            name=(d.get("name") or "").strip(), repeat=str(d.get("repeat") or ""))
+                        emit("brain", "⏰ tarea programada" if r.get("ok") else "⚠️ schedule no reconocido",
+                             text=r.get("display") or "", role="system", extra={"ok": bool(r.get("ok"))})
+                    else:
+                        _sched.cancel(extra.get("name") or d.get("name") or "")
+                        emit("brain", "🗑️ tarea cancelada", role="system")
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(f"nucleo cron {action} failed: {e}")
+                return
+            # show / close / move → acción de canvas.
+            # GUARD anti-clutter (2026-07-12): el modelo tiende a emitir [[show:navegador]] al pedir una búsqueda,
+            # abriendo el navegador VACÍO ("Nuevo navegador") ADEMÁS de la tarjeta de la tarea → dos/tres cajas de
+            # navegador en pantalla. La búsqueda se ve en SU tarjeta (navegador::tN, la abre la tarea sola); el
+            # navegador "a pelo" no es una superficie que el operador pida. Lo ignoramos (no rompe: la tarjeta manda).
+            if action == "show" and str(extra.get("id") or "").strip().lower() == "navegador":
+                emit("brain", "🚫 [[show:navegador]] ignorado (la tarjeta de la tarea es la superficie)", role="system")
+                return
+            # El modelo a veces emite [[show:X]] cuando el operador solo PREGUNTA por un widget ("¿por qué abriste
+            # proyectos?") → abría un widget espurio en mitad de otra conversación (bug 2026-07-12). Una pregunta
+            # META sobre una acción pasada NO es una orden de mostrar → ignora el show del modelo.
+            if action == "show" and _is_meta_widget_question(_norm_nfkd(text)):
+                emit("brain", "🚫 show ignorado (pregunta META sobre un widget, no una orden)",
+                     text=str(extra.get("id") or ""), role="system")
+                return
+            # DEDUP de show por id en el MISMO turno (test post-P1/P2: el modelo emitía [[show:X]] dos veces →
+            # doble evento). desktop.show ya es idempotente (reusa la tarjeta), pero no floodeamos el bus/SSE.
+            if action == "show":
+                _sid = str(extra.get("id") or "").strip().lower()
+                if _sid and _sid in _shown_ids:
+                    return
+                _shown_ids.add(_sid)
+            acted["widget"] = True
+            if action == "close":
+                acted["closed"] = True                   # el backstop de cierre corto no re-cierra (ver post-stream)
+            extra["src"] = "flash"                       # V2-039: procedencia — esta orden viene del FlashBrain
+            emit("widget", action, extra=extra)
+
+        def _request_delete_confirm(widget_id: str, turn_text: str) -> None:
+            """FlashBrain pide BORRAR un widget → abre la CONFIRMACIÓN (overlay Sí/No en la tarjeta); el borrado
+            real solo ocurre al confirmar. Resuelve el id flojito contra el catálogo (el modelo/STT no siempre
+            dan el id exacto)."""
+            try:
+                from widgets import confirm as _confirm
+                wid = (widget_id or "").strip().lower()
+                if not wid or not _identify_is_widget(wid):
+                    wid = _identify(widget_id or turn_text) or wid
+                if not wid:
+                    emit("brain", "⚠️ borrar: no identifiqué el widget", text=widget_id or turn_text[:80])
+                    return
+                # GUARD cerrar≠borrar (V2-045, invariante V2-017): el modelo a veces llama a delete_widget para
+                # 'CIERRA el widget de X' (cerrar es reversible, borrar es PARA SIEMPRE). Si el turno dice cerrar y
+                # NO dice borrar, es un CLOSE → no abrir confirmación de borrado. Determinista (no depende del LLM).
+                from nucleo.flash import router as _router
+                if _router.looks_like_close(turn_text):
+                    emit("widget", "close", extra={"id": wid, "src": "flash"})
+                    emit("brain", "🙈 cerrar (no borrar) — guard cerrar≠borrar", text=wid, role="system")
+                    acted["widget"] = True
+                    acted["closed"] = True
+                    return
+                _confirm.request("delete", wid, "¿Seguro que quieres que borre este widget?")
+                confirm_state["opened"] = f"¿Seguro que quieres que borre el widget «{wid}»?"
+                emit("brain", "🗑️ confirmación de borrado pedida", text=wid, role="system")
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"delete confirm request falló: {e}")
+
+        def _request_data_confirm(widget_id: str, action_name: str, payload: dict) -> None:
+            """El FlashBrain quiere ejecutar una data-op IRREVERSIBLE (`confirm:true` en el manifest, V2-025) →
+            abre la CONFIRMACIÓN (overlay Sí/No en la tarjeta) guardando la MUTACIÓN; solo al decir "sí" se
+            despacha por `apply_action` — jamás se escala a código. Espejo de `_request_delete_confirm`."""
+            try:
+                from widgets import confirm as _confirm
+                wid = (widget_id or "").strip().lower()
+                if not wid:
+                    return
+                # COPY HUMANO (2026-07-15): antes el overlay decía «¿Confirmas «drop_project»?» — jerga interna que
+                # el operador leyó como "borra el widget entero". La confirmación debe exponer el ALCANCE REAL en
+                # lenguaje natural (qué HACE la acción + sobre QUÉ item), leído del manifest, para que el operador
+                # vea si es más de lo que pidió (aquí: un PROYECTO entero, no la tarea que nombró). Genérico.
+                q = _human_confirm_question(wid, (action_name or "").strip(), payload or {})
+                _confirm.request("data", wid, q,
+                                 op={"action": (action_name or "").strip(), "payload": payload or {}})
+                confirm_state["opened"] = q
+                emit("brain", "⚠️ confirmación de acción irreversible pedida", text=f"{wid}:{action_name}",
+                     role="system")
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"data confirm request falló: {e}")
+
+        def _request_cluster_confirm(name: str, cluster_id: str, token: str, handle: str | None) -> None:
+            """V2-064, bug 2026-07-23: la sola DESCRIPCIÓN de la tool ('solo si el operador te lo pide') NO bastó —
+            un bloque de texto pegado que se limitaba a MENCIONAR un cluster_id/token (sin que el operador pidiera
+            nada aparte) hizo que el modelo llamara a `connect_cluster` igual, y encima confabuló "ya estoy
+            conectado". Abrir un socket real a un cluster desconocido no puede depender de que el modelo pequeño
+            distinga una orden de un texto que solo la menciona — así que, como con borrar un widget o una data-op
+            irreversible, se pide confirmación DETERMINISTA (overlay Sí/No en la tarjeta `cluster-registro`, que ya
+            tiene que estar abierta) antes de tocar la red. Sin un «sí» explícito del operador, nada se conecta."""
+            try:
+                from widgets import confirm as _confirm
+                q = (f"¿Conectar al cluster MeshKore «{name}» (cluster_id {cluster_id[:10]}…)? Solo si tú me lo "
+                     f"acabas de pedir — no por algo que hayas pegado o reenviado.")
+                _confirm.request("data", "cluster-registro", q,
+                                 op={"action": "connect_cluster",
+                                     "payload": {"name": name, "cluster_id": cluster_id, "token": token, "handle": handle}})
+                confirm_state["opened"] = q
+                emit("brain", "🛰 confirmación de conexión a cluster pedida", text=name, role="system")
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"cluster confirm request falló: {e}")
+
+        def _resolve_confirm(ok: bool) -> bool:
+            """Resuelve la confirmación pendiente en este loop (job-thread). Si `ok`, EJECUTA lo confirmado:
+            un BORRADO de widget (determinista, memoria incluida) o una DATA-OP irreversible (despacho por
+            `apply_action`, NUNCA código). Devuelve True si había algo que resolver."""
+            try:
+                from widgets import confirm as _confirm, lifecycle as _lifecycle
+                p = _confirm.resolve("", ok)
+                if p is None:
+                    return False
+                if not ok:
+                    emit("brain", "↩️ acción cancelada", text=p.get("widget_id", ""), role="system")
+                elif p.get("action") == "data" and isinstance(p.get("op"), dict) \
+                        and p["op"].get("action") == "connect_cluster":
+                    try:
+                        from connectors import meshkore as _mk
+                        _pl = p["op"].get("payload") or {}
+                        _spawn(_mk.dispatch_tag("cluster.connect", {"data": _pl}), "cluster")
+                        emit("brain", "🛰 conectando cluster MeshKore (confirmado)", text=_pl.get("name", ""),
+                             role="system")
+                    except Exception:
+                        pass
+                elif p.get("action") == "data" and isinstance(p.get("op"), dict):
+                    try:
+                        import widgets
+                        _spawn(widgets.dispatch_tag("widget.data", {"id": p["widget_id"], "data": p["op"]}),
+                               "widget-data-confirmed")
+                        emit("brain", "✅ acción irreversible confirmada", role="system",
+                             text=f"{p['widget_id']}:{p['op'].get('action')}")
+                    except Exception:
+                        pass
+                elif p.get("action") == "delete":
+                    _spawn(_lifecycle.delete_widget(p["widget_id"], "flash"), "widget-delete")
+                    emit("brain", "🗑️ widget borrado (confirmado)", text=p["widget_id"], role="system")
+                acted["widget"] = True
+                return True
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"confirm resolve falló: {e}")
+                return False
+
+        def _apply_widget_data(wid: str, action_name: str, payload: dict) -> None:
+            """Ejecuta una data-op según su modo (V2-025): FAST → despacha ya (apply_action / mailbox del owner);
+            CONFIRM → abre confirmación con la mutación guardada (se ejecuta al decir "sí"); ESCALATE/None (acción
+            no declarada o vía de escape) → escala al SlowBrain. Punto de convergencia de la tool y el tag."""
+            from widgets import actions as _wactions
+            wid = (wid or "").strip().lower()
+            action_name = (action_name or "").strip()
+            mode = _frontend.action_mode(wid, action_name)
+            if mode == _wactions.FAST:
+                # GUARD anti context-bleed (round headless V2-038 #1): el modelo a veces RE-emite la data-op del
+                # turno ANTERIOR junto a la acción de ESTE ("borra el reloj" arrastró el add_meeting del dentista
+                # → cita DUPLICADA). Una mutación IDÉNTICA a la recién ejecutada (<120s), cuyo contenido el turno
+                # actual NI MENCIONA, es arrastre → se ignora. Determinista: "apunta otra vez lo del dentista" SÍ
+                # menciona el contenido → pasa.
+                _last = brain._last_dataop
+                if _last and _last[0] == wid and _last[1] == action_name and _last[2] == (payload or {}) \
+                        and (time.time() - _last[3]) < 120 \
+                        and _word_overlap(" ".join(str(v) for v in (payload or {}).values()), text) == 0:
+                    emit("brain", "🛡️ data-op del turno anterior re-emitida — ignorada (context-bleed)",
+                         text=f"{wid}:{action_name}", role="system")
+                    return
+                acted["widget"] = True
+                data_done["v"] = True
+                brain._last_dataop = (wid, action_name, dict(payload or {}), time.time())
+                try:
+                    from widgets import provenance as _prov
+                    _prov.note(wid, "flash")             # V2-039: el cambio de datos que viene = ordenado por FlashBrain
+                except Exception:
+                    pass
+                try:
+                    import widgets
+                    _spawn(widgets.dispatch_tag("widget.data",
+                                                {"id": wid, "data": {"action": action_name, "payload": payload or {}}}),
+                           "widget-data")
+                except Exception:
+                    pass
+            elif mode == _wactions.CONFIRM:
+                acted["widget"] = True
+                _request_data_confirm(wid, action_name, payload or {})
+            else:
+                logger.warning(f"nucleo(flash) widget.data {mode or 'no-declarada'} ({wid}:{action_name}) — escalando")
+                if escalate_req["v"] is None:
+                    escalate_req["v"] = text
+
+        def _handle_widget_data_tool(args: dict) -> None:
+            """Tool `widget_data` (V2-026, camino PRINCIPAL de las data-ops): resuelve el widget y la REFERENCIA a
+            item en lenguaje natural a un id REAL (nunca inventado), y despacha por `_apply_widget_data`. Si la
+            referencia es ambigua o no existe, PREGUNTA en vez de actuar sobre el item equivocado."""
+            from widgets import refs, runtime
+            wid = (args.get("widget_id") or "").strip().lower()
+            action_name = (args.get("action") or "").strip()
+            ref = (args.get("item") or "").strip()
+            payload = args.get("payload") if isinstance(args.get("payload"), dict) else {}
+            if wid and runtime.get(wid) is None:            # id flojito del modelo → resuélvelo contra el catálogo
+                wid = _identify(wid) or _identify(ref) or _identify(text) or wid
+            if not wid or not action_name:
+                return
+            # GUARD (2026-07-16): un "abre/muéstrame el widget X" PURO (sin verbo de cambio) NUNCA debe ejecutar un
+            # data-op — el modelo cuela una acción inventada ('unhide') o incluso ALUCINA un add_meeting ("abre la
+            # agenda" → añadía "Reunión con Axa Seguros"). Se redirige a MOSTRAR la tarjeta (misma ruta que [[show]]).
+            from nucleo.flash import router as _router
+            if _router.is_pure_show_request(text) and runtime.get(wid) is not None:
+                emit("brain", "🪟 'abrir/mostrar' puro → show (no data-op inventada)", text=wid, role="system")
+                _tag_emit("show", {"id": wid})
+                return
+            # GUARD cerrar≠data-op (sesión 22:40 2026-07-16, espejo del guard cerrar≠borrar): «Vale, ciérralo» →
+            # el modelo ejecutó `widget_data(youtube, mute)` (una data-op DECLARADA) en vez de emitir [[close]] →
+            # el vídeo quedó MUTEADO, no cerrado, y el operador tuvo que corregir. Una orden CORTA que es
+            # claramente CERRAR (verbo de cerrar, sin verbo de borrar, ≤5 palabras — sin más sustancia que el
+            # pronombre/el widget) se redirige DETERMINISTA a la tag de canvas. Una frase larga con "cierra"
+            # dentro ("cierra la sesión de spotify del widget") NO entra aquí (pasa a su data-op normal).
+            if (_router.looks_like_close(text) and len(text.split()) <= 5
+                    and runtime.get(wid) is not None):
+                emit("brain", "🙈 orden corta de CERRAR → close (no data-op)", text=f"{wid} (era {action_name})",
+                     role="system")
+                _tag_emit("close", {"id": wid})
+                return
+            if _frontend.action_mode(wid, action_name) is None:   # acción no declarada → ¿verbo de canvas o escala?
+                # GUARD frontera CANVAS vs DATOS (diag sesiones-largas 2026-07-15): a profundidad, el modelo a
+                # veces cuela el SHOW/CLOSE como pseudo data-op (`widget_data(clock, action="show")` ante
+                # "muéstrame un reloj"). Antes se curaba por el DESVÍO no-declarada→escalate→show-guard (frágil y
+                # caro); ahora se mapea DIRECTO a la tag de canvas — misma ruta que [[show]]/[[close]] (dedup,
+                # guards anti-clutter/meta, ack "nunca mudo"). Solo si el widget existe de verdad.
+                _cv = _frontend.canvas_verb(action_name)
+                if _cv and runtime.get(wid) is not None:
+                    emit("brain", "🪟 widget_data con verbo de CANVAS → tag determinista",
+                         text=f"{wid}:{action_name}→{_cv}", role="system")
+                    _tag_emit(_cv, {"id": wid})
+                    return
+                if escalate_req["v"] is None:
+                    escalate_req["v"] = text
+                return
+            res = refs.resolve(wid, action_name, ref, payload)
+            # GUARD mis-ruteo por VERBO (2026-07-21, caso «hay que cancelarlo» tras «¿qué día tengo la ITV?»): el modelo
+            # enganchó el verbo ("cancelar") con una data-op (agenda.drop) de un widget que NO está ABIERTO NI el
+            # operador NOMBRÓ; el objeto era un PRONOMBRE SUELTO ("lo") cuyo antecedente vive en la CONVERSACIÓN, no en
+            # ese widget. Cuando el item no ancla (pronombre suelto o no resuelve) Y el widget no está en pantalla NI se
+            # nombra en el turno → el destino es erróneo: escalamos el turno CRUDO → el worker recibe la ventana
+            # reciente verbatim (la ITV) y lo resuelve con contexto, en vez de operar/clarificar items de un widget
+            # cerrado. NOTA: NO cubre el caso EXPLÍCITO con item que sí casa ("cancela la cita de la ITV" cuando la
+            # agenda tiene ese appointment) — eso exige entender que es una acción del mundo real (capa de inteligencia,
+            # ver V2-061); aquí solo se ataja el mis-ruteo por pronombre/ítem-ausente.
+            # BUG real (maratón de testing 2026-07-22): `looks_like_bare_ref("")` es True por diseño (ref vacía =
+            # "bare"), así que esta guarda disparaba en TODA acción de CREAR (add_meeting…) que nunca lleva `ref` —
+            # escalaba "añade una cita con el dentista mañana" cada vez que la agenda no estaba ya abierta en
+            # pantalla, aunque `res.ok` fuera True (refs.resolve ya distingue "nada que resolver" para estas
+            # acciones). Solo tiene sentido mirar `ref` cuando la acción REALMENTE apunta a un item existente.
+            _needs_item = bool(refs.id_field_for_action(wid, action_name))
+            if (not res.ok or (_needs_item and _router.looks_like_bare_ref(ref))):
+                try:
+                    from memory import api as _memapi
+                    _openw = set((_memapi.state() or {}).get("open_widgets") or [])
+                except Exception:
+                    _openw = set()
+                if wid not in _openw and _identify(text) != wid:
+                    emit("brain", "🧭 data-op en widget ausente/no-nombrado (pronombre/ítem sin anclar) → escala con contexto",
+                         role="system", text=f"{wid}:{action_name}:{ref or '∅'}",
+                         extra={"needs": res.needs, "bare": _router.looks_like_bare_ref(ref), "open": sorted(_openw)})
+                    acted["widget"] = True
+                    if escalate_req["v"] is None:
+                        escalate_req["v"] = text
+                    return
+            if not res.ok:
+                acted["widget"] = True                      # lo ATENDIMOS (preguntando) — no caer a escalate/fallback
+                cands = ", ".join(res.candidates[:3])
+                clarify["msg"] = (f"¿Cuál exactamente? Tengo {cands}." if cands
+                                  else "No tengo claro a cuál te refieres, ¿me lo concretas?")
+                emit("brain", "❓ referencia de item sin resolver", role="system",
+                     text=f"{wid}:{action_name}:{ref or '∅'}", extra={"needs": res.needs, "cands": res.candidates[:4]})
+                return
+            _apply_widget_data(wid, action_name, res.payload)
+
+        _tool_fired: set = set()
+
+        def _word_overlap(a: str, b: str) -> int:
+            wa = {w for w in (a or "").lower().split() if len(w) > 3}
+            wb = {w for w in (b or "").lower().split() if len(w) > 3}
+            return len(wa & wb)
+
+        def _on_tool_call(name: str, args: dict) -> None:
+            if name == "widget_data":
+                # UNA data-op por turno: el modelo pequeño a veces emite VARIAS widget_data en un mismo turno
+                # (enumera acciones ante "muéstrame la agenda" → done/drop/snooze…, o DUPLICA un add_meeting → cita
+                # doble). Solo la PRIMERA se ejecuta (mismo criterio "1 acción/turno" que escalate/search).
+                if "widget_data" in _tool_fired:
+                    return
+                _tool_fired.add("widget_data")
+                _handle_widget_data_tool(args)
+            elif name == "escalate_to_slowbrain":
+                req = (args.get("request") or "").strip() or text
+                if escalate_req["v"] is None:
+                    escalate_req["v"] = req
+            elif name == "web_search":
+                q = (args.get("query") or "").strip() or text
+                # TURN-BLEED: el modelo a veces re-emite la búsqueda del turno ANTERIOR junto a la de este (visto:
+                # "precio bitcoin" colado en el turno "¿cuándo es el eclipse?"). Nos quedamos con la query que MÁS
+                # se parece al turno ACTUAL, no con la primera (que puede ser la vieja) → no buscamos lo que no es.
+                if search_req["v"] is None or _word_overlap(q, text) > _word_overlap(search_req["v"], text):
+                    search_req["v"] = q
+            elif name == "recall":
+                # V2-056: el MODELO decide recordar (V2-022 aplicado a la memoria). Se resuelve tras el stream,
+                # fuera del event loop; la heurística needs_recall queda como prefetch.
+                if recall_req["v"] is None:
+                    recall_req["v"] = (args.get("query") or "").strip() or text
+            elif name == "reveal_secret":
+                # V2-060: el operador pide un SECRETO guardado. Se resuelve tras el stream; el valor NUNCA entra en
+                # un prompt del modelo → el provider lo entrega OUT-OF-BAND (voz/pantalla). Aquí solo se captura QUÉ.
+                if reveal_req["v"] is None:
+                    reveal_req["v"] = (args.get("label") or "").strip() or text
+            elif name == "play_music":
+                # V2-041: una acción de música por turno. Ruta LIGERA como web_search: se resuelve tras el stream,
+                # FUERA del event loop.
+                _mq = {"query": (args.get("query") or "").strip(),
+                       "action": (args.get("action") or "play").strip().lower()}
+                if music_req["v"] is None:
+                    music_req["v"] = _mq
+                else:
+                    # COLAPSO determinista de VARIAS play_music en un turno (V2-047 F4, sesión 23:15: el modelo
+                    # no-razonador emite play Y queue a la vez para «luego pon X» → si gana el 'play' reproduce en
+                    # vez de encolar). Con música YA sonando, un `queue` MANDA sobre un `play` (añades, no
+                    # reemplazas); sin nada sonando, se queda la primera. Sobre el ESTADO del rail + la acción que
+                    # el propio modelo eligió — no una tabla de palabras.
+                    try:
+                        from nucleo import rails as _rails_m
+                        _playing = _rails_m.get("music.playing") is not None
+                    except Exception:
+                        _playing = False
+                    if _playing and _mq["action"] == "queue" and music_req["v"].get("action") != "queue":
+                        music_req["v"] = _mq
+                    # BUG real 2026-07-23: "pon música de Queen y súbele el volumen al máximo" — el modelo emite
+                    # play(Queen) + volume_up en el MISMO turno; antes la 2ª se tiraba en silencio mientras el
+                    # modelo SÍ decía "subo el volumen" (confabulación: la voz prometía algo que el código no
+                    # hacía). Una 2ª llamada de CONTROL puro (sin query, verbo de ajuste) tras un play/queue NO se
+                    # descarta: se guarda como `followup` y se ejecuta EN SECUENCIA tras el play (abajo).
+                    elif (not _mq["query"] and _mq["action"] in
+                          ("volume_up", "volume_down", "pause", "resume", "stop", "next", "previous")):
+                        music_req["followup"] = _mq
+            elif name == "play_video":
+                # V2-045: VÍDEO = widget youtube (VER), hermano de play_music (OÍR). Tool de 1ª clase para que el
+                # modelo discrimine tool-vs-tool (la prosa no bastaba con Haiku: el vídeo caía en play_music). La
+                # EJECUTA el provider: muestra el widget youtube + data-op `load` con la query (el widget busca y
+                # reproduce el vídeo real). Una por turno. El ack "nunca mudo" lo cubre data_done/acted (abajo).
+                if "play_video" not in _tool_fired:
+                    _tool_fired.add("play_video")
+                    _vq = (args.get("query") or "").strip()
+                    emit("widget", "show", extra={"id": "youtube", "src": "flash"})
+                    _apply_widget_data("youtube", "load", {"query": _vq} if _vq else {})
+                    emit("brain", "▶️ vídeo → widget youtube", text=_vq[:80], role="system")
+            elif name == "show_widget":
+                # MOSTRAR un widget (incl. JUEGOS) como TOOL de 1ª clase — más fiable que el tag [[show]] cuando la
+                # palabra colisiona con play_music/play_video ('juega al snake'). Converge en la MISMA ruta de canvas
+                # ([[show:id]], dedup/idempotente). Resuelve el id: exacto del catálogo o fuzzy con runtime.identify.
+                if "show_widget" not in _tool_fired:
+                    _tool_fired.add("show_widget")
+                    _wid = (args.get("widget_id") or "").strip()
+                    # GUARD: CREAR un widget nuevo NO es show → escala al generador (el modelo elige show_widget para
+                    # 'créame un widget de X' e `identify` devuelve un widget EXISTENTE equivocado). Backstop determinista.
+                    if _router.looks_like_create_widget(text):
+                        if escalate_req["v"] is None:
+                            escalate_req["v"] = text
+                        emit("brain", "🏗️ show_widget→CREATE: se escala al generador (no es un show)", role="system")
+                    else:
+                        from widgets import runtime
+                        _rid = ""
+                        try:
+                            if _wid and runtime.get(_wid) is not None:      # id exacto del catálogo
+                                _rid = _wid
+                            else:                                            # nombre natural → id REAL del catálogo
+                                _m = (runtime.identify(_wid or text) or {}).get("match") or ""
+                                _rid = _m if (_m and runtime.get(_m) is not None) else ""
+                        except Exception:
+                            _rid = _wid if runtime.get(_wid) is not None else ""
+                        if _rid:
+                            _tag_emit("show", {"id": _rid})
+                            emit("brain", "🪟 show_widget → canvas", text=_rid, role="system")
+                        elif escalate_req["v"] is None:
+                            # el widget pedido NO existe en el catálogo → probablemente hay que CREARLO → escala
+                            escalate_req["v"] = text
+                            emit("brain", "🏗️ show_widget sin match en catálogo → escala (posible CREATE)", role="system")
+            elif name == "fullscreen_widget":
+                # BUG real 2026-07-23: "ponme el vídeo a pantalla completa" no tenía tool → el modelo confabulaba
+                # éxito o inventaba una data-op falsa. Espejo de show_widget: resuelve el id (exacto o fuzzy) y
+                # emite la tag de CANVAS `fullscreen` (nunca una data-op — esto es tamaño en pantalla, no datos).
+                if "fullscreen_widget" not in _tool_fired:
+                    _tool_fired.add("fullscreen_widget")
+                    from widgets import runtime as _rt_fs
+                    _wid = (args.get("widget_id") or "").strip()
+                    _rid = ""
+                    try:
+                        if _wid and _rt_fs.get(_wid) is not None:
+                            _rid = _wid
+                        else:
+                            _m = (_rt_fs.identify(_wid or text) or {}).get("match") or ""
+                            _rid = _m if (_m and _rt_fs.get(_m) is not None) else ""
+                    except Exception:
+                        _rid = _wid if _rt_fs.get(_wid) is not None else ""
+                    if _rid:
+                        _tag_emit("show", {"id": _rid})     # por si no estaba abierto todavía
+                        _tag_emit("fullscreen", {"id": _rid})
+                        emit("brain", "⛶ fullscreen_widget → canvas", text=_rid, role="system")
+            elif name == "reply_message":
+                # V2-051: responder un mensaje del buzón. Converge en la data-op `reply` de `mensajeria`
+                # (confirm:true) → el gate CONFIRM lee el borrador y pide OK antes de ENVIAR. Una por turno.
+                if "reply_message" not in _tool_fired:
+                    _tool_fired.add("reply_message")
+                    try:
+                        _n = int(args.get("n"))
+                    except (TypeError, ValueError):
+                        _n = None
+                    _rtext = (args.get("text") or "").strip()
+                    if _n is not None and _rtext:
+                        _apply_widget_data("mensajeria", "reply", {"n": _n, "text": _rtext})
+                    else:
+                        clarify["msg"] = "¿A qué mensaje respondo y qué le digo?"
+            elif name == "delete_widget":
+                _request_delete_confirm((args.get("widget_id") or "").strip(), text)
+            elif name == "confirm_widget_delete":
+                confirm_state["handled"] = _resolve_confirm(bool(args.get("confirmed")))
+            elif name == "set_style_directive":
+                # V2-046 A1: la regla se aplica YA (directiva de sesión, capa inmediata — intacto) y PERSISTE como
+                # USER RULE en el ESTADO (state.rules, off-loop → viaja en compose_state §B en cada prompt, µs).
+                # El sentido añadir/retirar lo decide un guard determinista sobre el turno, no el LLM. Fuera el
+                # anti-patrón viejo de "lanza un worker para guardarla".
+                directive = (args.get("directive") or "").strip()
+                if directive:
+                    style_fired["v"] = True
+
+                    async def _persist_rule(d: str, removal: bool) -> None:
+                        try:
+                            from memory import api as _mem
+                            if removal:
+                                _, gone = await asyncio.to_thread(_mem.remove_user_rule, d)
+                                emit("brain", "🧬 user rule retirada" if gone else "🧬 user rule: sin match para retirar",
+                                     text=(gone or d)[:100], role="system")
+                            else:
+                                await asyncio.to_thread(_mem.add_user_rule, d)
+                                emit("brain", "🧬 user rule guardada (persiste)", text=d[:100], role="system")
+                        except Exception as e:  # noqa: BLE001
+                            logger.warning(f"user rule no persistida (voz sigue): {e}")
+
+                    if _router.looks_like_rule_removal(text):
+                        brain._directive = ""            # la capa inmediata también suelta la regla retirada
+                        _spawn(_persist_rule(directive, True), "user-rule")
+                    else:
+                        brain._directive = directive
+                        emit("brain", "🎯 directiva de estilo fijada", text=directive, role="system")
+                        _spawn(_persist_rule(directive, False), "user-rule")
+            elif name == "authenticate_web":
+                # Guard DETERMINISTA (V2-022): si además de entrar hay una TAREA ("entra en mi Gmail y BÓRRAME…"),
+                # no es un login → es una tarea con sesión → escala al navegador (que resuelve el login como parte
+                # de la tarea). authenticate_web es SOLO para login puro ("conéctame a Wallapop").
+                _site = (args.get("site") or "").strip()
+                if _router.is_music_service(_site, text):
+                    # INVARIANTE (2026-07-16): un servicio de MÚSICA (Spotify) se conecta en el widget `musica`
+                    # (su tarjeta OAuth), NUNCA por el navegador. El routing de Haiku insiste en authenticate_web
+                    # para "conéctame a mi cuenta de Spotify" pese a la descripción → el guard lo redirige aquí.
+                    emit("widget", "show", extra={"id": "musica", "src": "flash"})
+                    emit("brain", "🎵 conectar música → tarjeta del widget musica (no navegador)", text=_site or text[:60], role="system")
+                elif _router.is_messaging_service(_site, text):
+                    # INVARIANTE (V2-045, espejo del guard de música): WhatsApp/Telegram se VINCULAN por QR DENTRO
+                    # del widget `mensajeria`, NUNCA por login de navegador. 'conéctame/abre WhatsApp' → mostrar el
+                    # widget (ahí está el QR), no abrir un Chromium en whatsapp.com.
+                    emit("widget", "show", extra={"id": "mensajeria", "src": "flash"})
+                    emit("brain", "💬 conectar mensajería → QR del widget mensajeria (no navegador)", text=_site or text[:60], role="system")
+                elif _router.looks_like_web_task(text):
+                    if escalate_req["v"] is None:
+                        escalate_req["v"] = text
+                    emit("brain", "🔐→🧭 login+tarea → escalado (no solo auth)", role="system")
+                else:
+                    _start_web_auth(_site or _router.login_site(text))
+            elif name == "login_done":
+                _finish_web_auth()
+            elif name == "connect_cluster":
+                # V2-064: la tubería real (bridge.dispatch/dispatch_tag) ya existía — lo que faltaba era esta tool
+                # PARA que el FlashBrain pudiera invocarla. No conecta directo: pide confirmación determinista
+                # primero (ver _request_cluster_confirm) — la descripción de la tool sola no bastó para que el
+                # modelo distinguiera una orden real de un texto pegado que solo mencionaba un cluster_id/token.
+                _ccid = (args.get("cluster_id") or "").strip()
+                _ctok = (args.get("token") or "").strip()
+                if _ccid and _ctok:
+                    _cname = (args.get("name") or "meshcore").strip() or "meshcore"
+                    _chandle = (args.get("handle") or "").strip() or None
+                    _request_cluster_confirm(_cname, _ccid, _ctok, _chandle)
+            elif name == "send_to_worker":
+                # V2-038 (↓): refina/amplía un worker vivo → INYECTA (no relanza). Fire-and-forget marshalado al
+                # loop del server (§v3·O: nunca await de una op de worker en el turno).
+                which = (args.get("which") or "").strip()
+                msg = (args.get("message") or "").strip()
+                if msg:
+                    try:
+                        from nucleo import dispatch as _d
+                        _d.inject_soon(which or "todo", msg)
+                        worker_acted["v"] = "inject"
+                        emit("brain", "↪️ inyección a worker", text=f"{which}: {msg}"[:120], role="system")
+                    except Exception as e:  # noqa: BLE001
+                        logger.warning(f"send_to_worker falló: {e}")
+            elif name == "stop_worker":
+                which = (args.get("which") or "").strip()
+                try:
+                    from nucleo import dispatch as _d
+                    # GUARD matar-TODO (sesión 23:15 2026-07-16, T49): ante «si solo es una tarea» el modelo llamó
+                    # stop_worker(todo) y mató las DOS sesiones vivas — incluida la de la ITV que SÍ trabajaba
+                    # (el operador se quejaba de VENTANAS duplicadas, no de procesos). Matar es irreversible →
+                    # "todo" con VARIAS tareas de objetivos DISTINTOS exige que el operador lo haya dicho de
+                    # verdad (todo/todas/ambos… en su turno, es/en); si no, se resuelve a la sesión que CASE con
+                    # el texto (`resolve_sessions`) y, sin match claro, NO se mata nada (se pregunta).
+                    import re as _re_stop
+                    _w = which or "todo"
+                    if _w == "todo":
+                        _live = _d.pending_summaries()
+                        _goals = {(s.get("request") or "")[:60] for s in _live}
+                        _says_all = bool(_re_stop.search(r"\b(todo|todos|todas|ambos|ambas|all|both|everything)\b",
+                                                         _norm_nfkd(text)))
+                        if len(_goals) > 1 and not _says_all:
+                            _match = _d.resolve_sessions(text)
+                            if len(_match) == 1:
+                                _w = _match[0]
+                            else:
+                                clarify["msg"] = ("Tengo varias tareas en marcha distintas — ¿cuál paro exactamente?")
+                                worker_acted["v"] = "stop"      # atendido (preguntando), sin matar a ciegas
+                                emit("brain", "🛑 stop_worker(todo) RETENIDO (varias tareas distintas, sin 'todo' "
+                                     "explícito)", text=text[:100], role="system")
+                                return
+                    tids = _d.cancel_soon(_w)
+                    worker_acted["v"] = "stop"
+                    emit("brain", "🛑 stop worker", text=f"{_w} → {tids}"[:120], role="system")
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(f"stop_worker falló: {e}")
+            elif name == "answer_worker":
+                ans = (args.get("answer") or "").strip()
+                if ans:
+                    try:
+                        from nucleo import worker_api as _wapi
+                        if _wapi.answer_active_soon(ans):
+                            worker_acted["v"] = "answer"
+                            emit("brain", "💬 respuesta a worker", text=ans[:120], role="system")
+                    except Exception as e:  # noqa: BLE001
+                        logger.warning(f"answer_worker falló: {e}")
+
+        def _finish_web_auth() -> None:
+            """El operador dijo por voz que ya inició sesión → encola `auth_done` a la tarea que esperaba login
+            (mismo desenlace que el botón «Ya he iniciado sesión» de la tarjeta). Operator-only por construcción."""
+            try:
+                from nucleo.flash import procs
+                from widgets.navegador import tasks as navtasks
+                tid = navtasks.login_waiting_id()
+                if not tid:
+                    emit("brain", "⚠️ login_done sin login pendiente", role="system")
+                    return
+                procs.dispatch("navegador", "auth_done", {"task_id": tid})
+                emit("brain", "🔓 login confirmado por voz", text=tid, role="system")
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"login_done falló: {e}")
+
+        def _start_web_auth(site: str) -> bool:
+            """Abre la ventana REAL del navegador para que el operador inicie sesión en `site` (operator-only por
+            construcción: es un tool del FlashBrain, y el canal de cluster no tiene tools). Crea la tarjeta de la
+            tarea, la muestra y encola `authenticate` al owner del navegador. El owner relanza headed y, al terminar
+            (auth_done), vuelve a headless con la sesión en el perfil. NUNCA tecleamos credenciales aquí.
+            Bug 2026-07-23: sin `site` (el backstop no reconoció ningún sitio en el texto) esto abría SIEMPRE
+            wallapop.com por defecto — un login a un sitio que nadie pidió. Sin sitio reconocido, no hay NADA que
+            abrir: no adivinamos. Devuelve False (no se abrió nada) para que el llamador no cante "login por
+            fallback" sobre una acción que no ocurrió."""
+            if not site:
+                return False
+            try:
+                from nucleo.flash import procs
+                from widgets.navegador import tasks as navtasks
+                s = site
+                nav_url = s if s.startswith("http") else f"https://{s.lstrip('/')}"
+                task_id = navtasks.create(f"Iniciar sesión · {s}", title=f"Login · {s}")
+                emit("widget", "show", extra={"id": navtasks.inst_id(task_id), "src": "flash"})
+                procs.dispatch("navegador", "authenticate", {"task_id": task_id, "url": nav_url})
+                emit("brain", "🔐 abriendo ventana de inicio de sesión", text=s, role="system")
+                return True
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"authenticate_web falló: {e}")
+                return False
+
+        def take(final: bool) -> str:
+            nonlocal buf
+            out, buf = strip_tags(buf, _tag_emit, final)
+            return out
+
+        def send(txt: str):
+            nonlocal first_ms
+            if not txt:
+                return
+            if first_ms is None:
+                first_ms = round((time.time() - t0) * 1000)
+            spoken.append(txt)
+            # ANTI-ECO (FASE 2): recuerda lo ÚLTIMO que zaelar dice + cuándo, para descartar el eco que el mic
+            # recaptura como turno del operador. Se actualiza en CADA salida de voz (respuesta, filler, degradado).
+            brain._last_spoken = "".join(spoken)
+            brain._last_spoke_at = time.time()
+            self._event_ch.send_nowait(
+                ChatChunk(id=utils.shortuuid(), delta=ChoiceDelta(role="assistant", content=txt))
+            )
+
+        # COMANDO DE CONFIG DE SEGURIDAD (V2-060 F2): «no me digas los secretos por voz» / «modo máxima seguridad» /
+        # «puedes leérmelos por voz» = USER RULE DURA — se aplica DETERMINISTA (persiste en state.security) y se
+        # confirma, sin pasar por el modelo (el FlashBrain sigue no-razonador). Short-circuit como el degradado.
+        if not first_turn:
+            try:
+                from nucleo.flash import vault_rules as _vrules
+                _cfg_cmd = _vrules.detect(text)
+            except Exception:
+                _cfg_cmd = None
+            if _cfg_cmd is not None:
+                _cfg_line = _vrules.apply(_cfg_cmd)
+                emit("secret", "config", role="system", extra={"key": _cfg_cmd[0], "value": _cfg_cmd[1]})
+                send(speech.sanitize(_cfg_line, drop_metadata=False))
+                return
+
+        # GUARDAR UN SECRETO (V2-060, fix 2026-07-21): si el operador DICE un secreto (contraseña/IBAN/…), el valor
+        # NO puede pasar por el modelo → se intercepta DETERMINISTA aquí (como el comando de config): se CIFRA en la
+        # bóveda y se confirma EN el turno, sin que el no-razonador rehúse («no puedo guardar contraseñas»). El
+        # auto-vaulting de la ingesta es la red de fondo; esto es la RESPUESTA hablada. El valor jamás llega al LLM.
+        if not first_turn:
+            try:
+                from memory import secrets as _secrets0
+                _sec_found = _secrets0.detect(text)
+            except Exception:
+                _sec_found = []
+            if _sec_found:
+                from voice.engine.core import langs as _lg0
+                _L0 = _lg0.current_language()
+                try:
+                    from memory import vault as _vault0
+                    _has_vault = _vault0.exists()
+                except Exception:
+                    _vault0, _has_vault = None, False
+                if _has_vault:
+                    _saved = 0
+                    for _d in _sec_found:
+                        try:
+                            await asyncio.to_thread(_vault0.store_secret, _d.label, _d.value,
+                                                    slot=_d.slot, sensitivity=_d.sensitivity)
+                            _saved += 1
+                        except Exception as _e:  # noqa: BLE001
+                            logger.warning(f"guardar secreto {_d.label!r} falló: {_e}")
+                    emit("secret", "saved", role="system",
+                         extra={"n": _saved, "labels": [d.label for d in _sec_found]})
+                    send(speech.sanitize(_L0.secret_saved, drop_metadata=False))
+                else:
+                    emit("secret", "no_vault", role="system")   # el frontend abre el modal de crear bóveda
+                    send(speech.sanitize(_L0.secret_need_vault, drop_metadata=False))
+                return
+
+        # DEMO CAP (INI-018 T6): apagado en self-host/cloud normal (sin las env vars, `enabled()` es False, cero
+        # coste por turno). En el perfil demo, corta ANTES de llamar al modelo — nunca un fallo silencioso, siempre
+        # una frase clara + cierre real de la sesión (mismo patrón determinista que los short-circuits de arriba).
+        if not first_turn:
+            from nucleo import demo_limits as _demo
+            if _demo.enabled():
+                _reason = _demo.check(brain._turn_count, brain._session_started_at)
+                if _reason:
+                    from voice.engine.core import langs as _lg1
+                    emit("session", "demo limit reached", role="system", extra={"reason": _reason})
+                    send(speech.sanitize(_lg1.current_language().demo_ended, drop_metadata=False))
+                    _demo.request_close(_reason)
+                    return
+
+        errored = False
+        err_text = ""
+        llm_metrics: dict = {}   # totalizadores de tamaño/tokens/latencia del modelo (observabilidad, FASE 0)
+        # SET CONTEXTUAL DE TOOLS (V2-035): omite las situacionales que no aplican este turno (confirmar-borrado sin
+        # borrado en el aire, login-hecho sin login en curso) → prompt más corto y menos ruido de decisión.
+        try:
+            from widgets.navegador import tasks as _nt
+            _auth_pending = bool(_nt.login_waiting_id())
+        except Exception:
+            _auth_pending = False
+        # V2-038: ofrece send/stop_worker solo si hay Brain Workers vivos, y answer_worker solo si alguno espera.
+        try:
+            from nucleo import dispatch as _dispatch, worker_api as _wapi
+            _has_workers = _dispatch.has_active()
+            _ask_pending = _wapi.has_pending_ask()
+        except Exception:
+            _has_workers = _ask_pending = False
+        # V2-064: connect_cluster solo con el widget cluster-registro delante del operador.
+        try:
+            from memory import api as _memapi0
+            _cluster_open = "cluster-registro" in set((_memapi0.state() or {}).get("open_widgets") or [])
+        except Exception:
+            _cluster_open = False
+        _tool_ctx = _router.tool_context(confirm_pending=had_pending_confirm, auth_pending=_auth_pending,
+                                         has_workers=_has_workers, ask_pending=_ask_pending,
+                                         cluster_widget_open=_cluster_open)
+        _turn_tools = _router.tools(_tool_ctx)
+        # KICKOFF = saludo PURO, sin tools (fix 2026-07-19): el texto del kickoff ("Salúdame en 1-2 frases, cálido y
+        # breve…") lo interpretaba el modelo como `set_style_directive` → guardaba una regla y respondía "Hecho." en
+        # vez de saludar. El saludo no necesita ninguna tool → no las ofrecemos y no hay nada que mis-rutear.
+        if first_turn:
+            _turn_tools = []
+        llm_metrics["n_tools_offered"] = len(_turn_tools)
+        # LEAD-IN FILLER (naturalidad, 2026-07-19): el TTFT del modelo (~1.1s medido) deja un silencio que no parece
+        # charla. Si a los ~ZAELAR_FILLER_MS ms NO ha empezado la respuesta REAL, soltamos UN sonido de pensar neutro
+        # y variado ("a ver…", "mmm…") en paralelo — rellena SOLO los turnos que tardan de verdad; las respuestas
+        # rápidas salen limpias. Voz-only (el probe no monta esto). Kill-switch ZAELAR_FILLER_MS=0.
+        _real_started = {"v": False}
+        _filler_spoken = {"v": False}
+        try:
+            _filler_ms = int(os.getenv("ZAELAR_FILLER_MS", "600"))
+        except Exception:
+            _filler_ms = 600
+
+        async def _lead_in_filler():
+            try:
+                await asyncio.sleep(_filler_ms / 1000.0)
+                if _real_started["v"]:
+                    return
+                from voice.engine.core import langs as _lgm
+                _ph = _lgm.pick_filler(getattr(brain, "_last_filler", ""))
+                if _ph and not _real_started["v"]:
+                    brain._last_filler = _ph
+                    _filler_spoken["v"] = True
+                    # habla el filler SIN contar como contenido del modelo: NO toca `spoken`/`first_ms` (el TTFT real
+                    # y la respuesta real quedan intactos), pero SÍ actualiza el anti-eco (el mic no lo recaptura).
+                    brain._last_spoken = _ph
+                    brain._last_spoke_at = time.time()
+                    self._event_ch.send_nowait(
+                        ChatChunk(id=utils.shortuuid(), delta=ChoiceDelta(role="assistant", content=_ph + " ")))
+                    emit("brain", "💬 relleno de espera (lead-in)", text=_ph, role="system",
+                         extra={"cat": "flash", "after_ms": _filler_ms})
+            except asyncio.CancelledError:
+                pass
+            except Exception:
+                pass
+
+        # NO en el kickoff: el saludo lo inicia zaelar (nadie espera) → un "Pues…" antes de saludar suena raro.
+        _filler_task = asyncio.create_task(_lead_in_filler()) if (_filler_ms > 0 and not first_turn) else None
+        try:
+            async for delta in FastClient().stream(messages, spec=spec, tools=_turn_tools,
+                                                    on_tool_call=_on_tool_call, metrics=llm_metrics):
+                if delta and not _real_started["v"]:
+                    _real_started["v"] = True          # primer token REAL → corta el timer del filler
+                    if _filler_task:
+                        _filler_task.cancel()
+                buf += delta
+                send(speech.inline(take(False)))
+            send(speech.sanitize(take(True), drop_metadata=False))
+        except asyncio.CancelledError:
+            # BARGE-IN / turno superpuesto: el stream se cancela. NO reinyectamos la respuesta parcial a la ventana
+            # (el `raise` salta el append de más abajo) → sin respuestas zombie. Observamos el solapamiento (FASE 2):
+            # cuánto se generó antes de cortar, para medir cuánta latencia/tokens se tiran por turnos pisados.
+            emit("brain", "✂️ turno cancelado (barge-in/overlap)", role="system",
+                 extra={"cat": "flash", "partial_chars": len("".join(spoken)),
+                        "ttft_ms": first_ms, "cut_after_ms": round((time.time() - t0) * 1000)})
+            raise  # barge-in
+        except Exception as e:
+            errored = True
+            err_text = str(e)
+            logger.warning(f"nucleo fast brain error (not spoken raw): {e}")
+        finally:
+            # el stream terminó (ok/tool-only/error): corta el timer del filler para que no suelte uno tardío
+            if _filler_task and not _filler_task.done():
+                _filler_task.cancel()
+
+        if errored:
+            # DEGRADED: sin Hermes al que caer — frase de reserva segura (nunca el error crudo, nunca mudo).
+            # CLASIFICA el error (V2-043): SIN SALDO/cuota (credit) · credencial (auth) · caída (outage) — así el
+            # diálogo de estado muestra la alerta REAL en vez de un genérico "no responde". Fail-open a "error".
+            try:
+                from voice import health_state, llm_health
+                kind = llm_health.classify(err_text) or "error"
+                health_state.record("llm", kind, err_text[:200] or "flash brain down")
+            except Exception:
+                pass
+            emit("alert", "Cerebro rápido caído — turno degradado.", text="flash layer error")
+            emit("error", "nucleo flash brain error")
+            send("Uf, se me ha ido un momento. ¿Me lo repites?")
+            return
+
+        spoken_text = "".join(spoken).strip()
+
+        # GUARD DETERMINISTA de SHOW puro (V2-023, ampliado 2026-07-14). "muéstrame el de mensajería" / "abre la
+        # agenda" / "muéstrame el widget de fútbol": si el modelo rápido ESCALÓ (→ widget basura) o disparó
+        # web_search (las palabras-tema «fútbol/resultados» ceban la búsqueda, hallazgo del test post-P1/P2) una
+        # petición que en realidad es MOSTRAR un widget que YA EXISTE, lo resolvemos aquí: `_show_guard_target`
+        # exige verbo de show + NO-crear + que `runtime.identify` (fuzzy por keywords, GENÉRICO) case un widget
+        # real → override determinista de la tool espuria. Solo si no hubo ya una data-op efectiva.
+        # Solo si el modelo emitió una tool ESPURIA (escalate/search) para lo que en realidad es MOSTRAR un widget
+        # existente. (Se probó ampliarlo a CHARLA en el mar de testing 2026-07-19, pero los verbos 'pon/ver' del
+        # guard colisionan con 'pon música'/'va a poner el tiempo'/'a ver si…' → hijack de web/deep/música. La cola
+        # de show-promesa-en-charla la captura el Susurro, no un guard sobre-amplio.)
+        if (escalate_req["v"] is not None or search_req["v"] is not None) and not acted["widget"]:
+            _guard_wid = _show_guard_target(text)
+            if _guard_wid:
+                _was_search = search_req["v"] is not None
+                escalate_req["v"] = None
+                search_req["v"] = None
+                acted["widget"] = True
+                emit("widget", "show", extra={"id": _guard_wid, "src": "flash"})
+                emit("brain", "🪟 show por guard determinista (tool espuria evitada)",
+                     text=f"{_guard_wid} ({'search' if _was_search else 'escalate'}→show)", role="system")
+                if not spoken_text:
+                    try:
+                        from voice.engine.core import langs as _langs
+                        spoken_text = _langs.current_language().show_ack
+                    except Exception:
+                        spoken_text = "Aquí lo tienes."
+                    send(speech.sanitize(spoken_text, drop_metadata=False))
+
+        # BACKSTOP PROMESA-SIN-ACCIÓN UNIFICADO 2026-07-19 (mar de testing): ante fraseo CORTÉS/subjuntivo
+        # («¿podrías…?», «deberías…», «sería genial que hicieras…», «me haría falta…») el modelo CHARLA una promesa
+        # («me pongo con ello», «te lo abro», «voy a poner…») SIN llamar a la tool → causa nº1 de "dice que lo hace y
+        # no lo hace". Gated por la promesa en la RESPUESTA (zaelar se comprometió) → re-derivamos la intención con
+        # los clasificadores DETERMINISTAS. GENERALIZA sobre todas las conjugaciones (no se parchea verbo a verbo).
+        # GUARD MARKETPLACE → NAVEGAR + MODIFICAR-WIDGET → GENERADOR (V2-057 2026-07-21): dos modos de fallo FIABLES
+        # del no-razonador. (a) un marketplace NOMBRADO + intención de buscar exige ENTRAR y navegar (worker), no un
+        # dato puntual de web_search. (b) cambiar el CÓDIGO/aspecto de un widget (color/columna/estilo) es trabajo
+        # del generador, no una data-op ni un "no puedo". En ambos, si el turno no escaló ni tocó otra tool, escala.
+        if (escalate_req["v"] is None and not acted["widget"] and not data_done["v"] and not music_req["v"]
+                and (_router.looks_like_marketplace_nav(text) or _router.looks_like_modify_widget(text))):
+            if search_req["v"] is not None:
+                search_req["v"] = None
+            escalate_req["v"] = text
+            emit("brain", "🧭 escalada por guard (marketplace→navegar / modificar-widget→generador)",
+                 text=text[:80], role="system")
+
+        _no_tool = (not acted["widget"] and not data_done["v"] and not music_req["v"] and not worker_acted["v"]
+                    and escalate_req["v"] is None and search_req["v"] is None)
+        if _no_tool and spoken_text and _router.promises_action(spoken_text):
+            if _router.looks_like_create_widget(text) or _router.looks_like_escalate_task(text):
+                # crear widget (o sinónimo: panel/gadget) = código → escala; marketplace/informe = navegador → escala
+                escalate_req["v"] = text
+                emit("brain", "🧭 escalada por backstop (prometió crear/gestionar sin escalar)", text=text[:80], role="system")
+            elif _router.looks_like_show_strict(text):    # abrir/mostrar/enseñar un widget existente → show
+                _pw = _identify(text)
+                if _pw:
+                    acted["widget"] = True
+                    emit("widget", "show", extra={"id": _pw, "src": "flash"})
+                    emit("brain", "🪟 show por backstop de promesa (prometió mostrar sin tool)", text=_pw, role="system")
+            elif _router.promises_music(spoken_text):     # 'voy a poner algo de rock' sin tool → reproduce
+                music_req["v"] = {"query": text, "action": "play"}
+                emit("brain", "🎵 música por backstop de promesa (prometió poner música sin tool)", text=text[:80], role="system")
+
+        # BACKSTOP DETERMINISTA de CIERRE corto (sesión 22:40 2026-07-16): «Vale, ciérralo» → el modelo respondió
+        # "Listo, cerrado" SIN emitir [[close]] ni tool alguna — la tarjeta quedó abierta y el operador tuvo que
+        # repetirlo (T10 muteó, luego "no se está cerrando nada"). Orden CORTA que es claramente CERRAR (verbo de
+        # cerrar, sin verbo de borrar, ≤5 palabras — `looks_like_close`, mismo guard que cerrar≠borrar) y el turno
+        # NO cerró nada → cerramos AQUÍ: el widget que nombre el texto, o el ÚNICO abierto. Con varios abiertos y
+        # sin nombre no adivinamos ("cierra todo" ya lo cubre `hard_interrupt`). Post-stream (la voz ya salió):
+        # la lectura µs de `state.open_widgets` no toca la latencia del turno.
+        # AMPLIADO (sesión absurda 2026-07-19): «Cierra el widget de música. Has puesto un videoclip…» (>5 palabras,
+        # con queja) NO cazó el guard corto → el modelo ESCALÓ, y una escalada de "cerrar" cayó en el worker de
+        # MODIFICAR código («modificando el widget musica…»), que giró 3 min leyendo fuentes mientras zaelar repetía
+        # "sigo procesando el cierre" e ignoraba "ya está cerrado". Cerrar un widget NUNCA es tarea de código
+        # (V2-017). Por eso: si hay verbo de CERRAR (sin borrar/crear) Y se NOMBRA un widget ABIERTO concreto,
+        # cerramos AQUÍ aunque el turno sea largo, y CANCELAMOS cualquier escalada que el modelo haya pedido.
+        # guardas contra verbos AMPLIOS ('apaga/quita'): si el turno ya disparó MÚSICA ('apaga la música'=stop
+        # audio) o una data-op ('quita la tarea X'), NO cerramos el widget además (evita doble-acción).
+        # BUG real 2026-07-23: "quita la pantalla completa" (verbo amplio 'quita' + turno corto + 1 solo widget
+        # abierto) disparaba ESTE backstop y CERRABA el widget entero — el operador solo quería salir de
+        # fullscreen. `fullscreen_widget` YA resolvió la intención real este turno; no lo pisa un cierre espurio
+        # (mismo criterio que música/data-op de arriba: una acción real explícita gana sobre el backstop genérico).
+        if (not acted.get("closed")) and _router.looks_like_close(text) \
+                and not _router.looks_like_create_widget(text) \
+                and not music_req["v"] and not data_done["v"] \
+                and "fullscreen_widget" not in _tool_fired:
+            try:
+                from memory import api as _memapi
+                _openw = list((_memapi.state() or {}).get("open_widgets") or [])
+            except Exception:
+                _openw = []
+            _cw = None
+            try:
+                from widgets import runtime as _rt_close
+                # los ABIERTOS desempatan ("cierra el vídeo": vídeo empata navegador↔youtube; gana el abierto)
+                _idc = _rt_close.identify(text, open_ids=_openw) or {}
+                # NOMBRE resuelto y NO ambiguo = cerramos aunque el turno sea largo (señal fuerte: cerrar + widget
+                # nombrado). No exigimos que esté en open_widgets: el frontend puede no haberlo reportado y cerrar
+                # uno ya cerrado es no-op inofensivo; el valor real es CANCELAR la escalada espuria.
+                if not _idc.get("ambiguous"):
+                    _cw = _idc.get("match")
+            except Exception:
+                _cw = None
+            # sin nombre resuelto: solo el caso corto genérico ("ciérralo") con un único widget abierto.
+            if not _cw and len(text.split()) <= 5 and len(_openw) == 1:
+                _cw = _openw[0]
+            if _cw:
+                acted["widget"] = True
+                acted["closed"] = True
+                emit("widget", "close", extra={"id": _cw, "src": "flash"})
+                emit("brain", "🙈 close por backstop (cerrar widget nombrado sin [[close]])",
+                     text=_cw, role="system")
+                # cerrar un widget NO es tarea de worker → cancela la escalada espuria (evita el bucle de 3 min)
+                if escalate_req["v"] is not None:
+                    escalate_req["v"] = None
+                    emit("brain", "🚫 escalada de cierre cancelada (cerrar ≠ tarea de código)", role="system")
+
+        # REVELAR UN SECRETO (V2-060): el operador pidió un secreto guardado (reveal_secret). El valor se descifra
+        # FUERA del event loop y se entrega OUT-OF-BAND: NUNCA entra en un prompt del modelo NI en el observer/logs.
+        # En F1b zaelar IDENTIFICA el secreto y confirma/pide passphrase por voz (SIN el valor); el valor lo sirve la
+        # API `/api/vault/reveal` (loopback) al frontend/tester. (Lectura del valor POR VOZ con redacción = F2.)
+        if reveal_req["v"] is not None and escalate_req["v"] is None:
+            _lblq = reveal_req["v"]
+            emit("brain", "🔐 reveal_secret", text=_lblq, role="system")
+            try:
+                from nucleo.flash import vault_flow as _vf
+                rv = await asyncio.to_thread(_vf.reveal, _lblq)
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"reveal_secret falló (voz sigue): {e}")
+                rv = {"status": "error"}
+            from voice.engine.core import langs as _lgv
+            _L = _lgv.current_language()
+            _st = rv.get("status")
+            if _st == "ok":
+                # UI: muestra el valor (el frontend lo pide a /api/vault/reveal). El observer NO lleva el valor.
+                # (claves `slabel`/`mid` — NO `label`, que pisaría el label del evento en observer.emit)
+                emit("secret", "reveal", role="system",
+                     extra={"slabel": rv["label"], "mid": rv.get("memory_id")})
+                # F2: modo cómodo (default, el operador lo pidió) → lo DICE por voz; user rule dura
+                # `secrets_voice=False` («no me digas los secretos por voz») → solo pantalla.
+                try:
+                    from memory import state as _stsec
+                    _voice_ok = bool(_stsec.security_flag("secrets_voice", True))
+                except Exception:
+                    _voice_ok = True
+                _line = (_L.secret_reveal.format(label=rv["label"], value=rv["value"]) if _voice_ok
+                         else _L.secret_shown.format(label=rv["label"]))
+            elif _st == "locked":
+                emit("secret", "locked", role="system",
+                     extra={"slabel": rv.get("label"), "mid": rv.get("memory_id")})   # → el frontend abre el modal
+                _line = _L.secret_locked
+            elif _st == "no_vault":
+                emit("secret", "no_vault", role="system")
+                _line = _L.secret_no_vault
+            elif _st == "not_found":
+                _cands = rv.get("candidates") or []
+                _line = _L.secret_not_found + (f" Tengo: {', '.join(_cands)}." if _cands else "")
+            else:   # empty | error
+                _line = _L.secret_not_found
+            buf = ""   # descarta restos de tags del 1er pase
+            send(speech.sanitize(_line, drop_metadata=False))
+            spoken_text = "".join(spoken).strip()
+
+        # RECALL DE MEMORIA por tool (V2-056): ruta LIGERA hermana de web_search — memory.query FUERA del event
+        # loop (to_thread, V2-011) + 2º pase con los recuerdos (el modelo que el turno ya paga). Solo si el turno
+        # no escaló (el worker recibe su propio dossier) ni buscó (una sola respuesta compuesta por turno).
+        if recall_req["v"] is not None and escalate_req["v"] is None and search_req["v"] is None \
+                and reveal_req["v"] is None:
+            rquery = recall_req["v"]
+            emit("brain", "🧠 recall por tool", text=rquery, role="system")
+            _t_r = time.time()
+            try:
+                rblock, _rids = await asyncio.to_thread(_prompt_mod.compose_recall, rquery)
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"recall tool falló (voz sigue): {e}")
+                rblock = ""
+            emit("memory", "recall (tool del modelo)", role="system", text=rquery,
+                 extra={"layer": "long", "chars": len(rblock or ""),
+                        "mem_ms": round((time.time() - _t_r) * 1000)})
+            sys2r = (
+                _prompt_mod._lang_lock()
+                + "\nNecesitabas RECORDAR cosas del operador para este turno; aquí están tus recuerdos "
+                "relevantes. Responde a su petición en 1-3 frases HABLADAS y naturales usando SOLO lo que dan de "
+                "sí los recuerdos y la conversación; si falta algo, dilo con naturalidad y pregunta lo que "
+                "necesites. JAMÁS menciones «memoria», «recuerdos guardados» ni capas internas — hablas como "
+                "quien simplemente se acuerda.\n\n"
+                f"PETICIÓN DEL OPERADOR: {text}\n\nLO QUE SABES DE ÉL:\n{rblock or '(nada relevante guardado)'}"
+            )
+            buf = ""   # descarta restos de tags del 1º pase
+            try:
+                async for delta in FastClient().stream(
+                        [{"role": "system", "content": sys2r}, {"role": "user", "content": text}],
+                        spec=spec, max_tokens=260):
+                    buf += delta
+                    send(speech.inline(take(False)))
+                send(speech.sanitize(take(True), drop_metadata=False))
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"recall compose falló (voz sigue): {e}")
+            spoken_text = "".join(spoken).strip()
+
+        # BÚSQUEDA WEB FACTUAL (V2-022): ruta LIGERA — se resuelve EN ESTE turno (NO es el navegador pesado del
+        # SlowBrain). La búsqueda es I/O de red → FUERA del event loop (to_thread). La EXTRACCIÓN reusa el MISMO
+        # modelo rápido que el turno ya paga (coste marginal ≈0): 2º pase con los snippets como contexto →
+        # respuesta hablada. Proveedor por capas (calidad primero): respuesta-IA (Perplexity/Tavily) → snippets
+        # (Brave) → gratis (DDG). Compartido con el SlowBrain. Ver nucleo/websearch.py.
+        if search_req["v"] is not None and reveal_req["v"] is None:
+            query = search_req["v"]
+            emit("brain", "🔎 búsqueda web", text=query, role="system")
+            _t_s = time.time()
+            try:
+                from nucleo import websearch as _ws
+                res = await asyncio.to_thread(_ws.search, query)
+                ctx = _ws.format_results(res)
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"web_search falló (voz sigue): {e}")
+                res, ctx = {"source": "none", "results": []}, ""
+            emit("search", "🔎 resultados web", text=query, role="system",
+                 extra={"source": res.get("source"), "ai": bool(res.get("ai")),
+                        "n": len(res.get("results", [])), "ms": round((time.time() - _t_s) * 1000)})
+            _hoy = time.strftime("%A %d %b %Y (%Y-%m-%d)")
+            sys2 = (
+                _prompt_mod._lang_lock()
+                + f"\nHOY es {_hoy}. El operador preguntó algo que requería BUSCAR en la web. Con estos RESULTADOS, "
+                "responde a su pregunta en 1-2 frases HABLADAS: natural, sin markdown, sin emojis, sin leer URLs ni "
+                "números de fuente. Si la pregunta es SENSIBLE A LA FECHA (el tiempo, una cotización, un resultado, "
+                "algo «de hoy/ahora»): da el dato VIGENTE anclado a HOY y de aquí en adelante (nunca uno caducado; "
+                "el tiempo, de ahora en adelante, no el de ayer), y si procede menciona el día. Si los resultados "
+                "NO contienen la respuesta clara o no son de la fecha correcta, dilo con naturalidad y ofrécete a "
+                "mirarlo a fondo — NO inventes datos que no estén en los resultados.\n\n"
+                f"PREGUNTA: {query}\n\nRESULTADOS DE BÚSQUEDA:\n{ctx or '(sin resultados)'}"
+            )
+            buf = ""   # descarta cualquier resto de tags del 1º pase antes de componer la respuesta
+            try:
+                async for delta in FastClient().stream(
+                        [{"role": "system", "content": sys2}, {"role": "user", "content": query}],
+                        spec=spec, max_tokens=240):
+                    buf += delta
+                    send(speech.inline(take(False)))
+                send(speech.sanitize(take(True), drop_metadata=False))
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"web_search compose falló (voz sigue): {e}")
+            spoken_text = "".join(spoken).strip()
+
+        # MÚSICA (V2-041/V2-042): ruta LIGERA como web_search, ahora con la CADENA resolver→validar→actuar
+        # (`nucleo/flash/music_flow`): intento directo → si no_track, websearch (Chromium CALIENTE del prewarm) +
+        # 2º pase del modelo que el turno ya paga (extractor 'Artista - Título') → reintento. El estado del intento
+        # vive en las ACTIVIDADES (buscando / sonando / sin_resolver AISLADA con intentos → el turno siguiente la
+        # continúa con más datos) y cada reproducción se vuelca a memoria (source="music" → gustos/historial).
+        # Todo el I/O va FUERA del event loop (to_thread, V2-011). Se dice el mensaje si (a) falló, (b) el modelo
+        # no habló (nunca mudo), o (c) la cadena RESOLVIÓ otra cosa que lo dicho (validación por anuncio).
+        if music_req["v"] is not None:
+            mq = music_req["v"]
+            emit("brain", "🎵 música", text=f"{mq.get('action')} {mq.get('query')}".strip(), role="system")
+            _t_m = time.time()
+
+            async def _extract(sys2: str, user2: str) -> str:
+                """2º pase INTERNO (no se habla): mismo modelo del turno, respuesta corta y estricta."""
+                out: list[str] = []
+                async for d in FastClient().stream([{"role": "system", "content": sys2},
+                                                    {"role": "user", "content": user2}],
+                                                   spec=spec, max_tokens=40):
+                    out.append(d)
+                return "".join(out)
+
+            try:
+                from nucleo.flash import music_flow as _mflow
+                res = await _mflow.run(mq.get("action") or "play", mq.get("query") or "", extract=_extract)
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"play_music falló (voz sigue): {e}")
+                res = None
+            # Ejecuta el FOLLOWUP de control (volumen/pausa) tras un play/queue OK — en SECUENCIA, nunca antes
+            # (bug real 2026-07-23, ver comentario en el collapse de arriba). Fail-open: si falla, el play ya
+            # dicho/hecho no se deshace; solo no se aplica el ajuste.
+            if music_req.get("followup") and bool(getattr(res, "ok", False)):
+                try:
+                    await _mflow.run(music_req["followup"]["action"], "", extract=None)
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(f"play_music followup falló: {e}")
+            ok = bool(getattr(res, "ok", False))
+            msg = (getattr(res, "message", "") or "").strip()
+            _extra = getattr(res, "extra", {}) or {}
+            _resolved = bool(_extra.get("resolved_from"))
+            emit("music", "🎵 acción de música", text=mq.get("query") or mq.get("action"), role="system",
+                 extra={"provider": getattr(res, "provider", ""), "action": mq.get("action"),
+                        "ok": ok, "reason": getattr(res, "reason", ""), "surface": _extra.get("surface", ""),
+                        "resolved_from": _extra.get("resolved_from", ""),
+                        "ms": round((time.time() - _t_m) * 1000)})
+            # Audio EN EL NAVEGADOR (fallback YouTube): la reproducción vive en el widget `musica` → hay que
+            # MOSTRARLO para que su iframe oculto se monte y suene (Spotify no lo necesita: suena en el dispositivo).
+            if ok and _extra.get("surface") == "widget" and _extra.get("widget"):
+                emit("widget", "show", extra={"id": _extra["widget"], "src": "flash"})
+            # No re-anunciar un no-op (F5): si la reproducción fue "ya suena eso", el modelo ya habló; no encajes
+            # el "ya está sonando" salvo que el modelo callara.
+            _is_noop = bool(_extra.get("noop"))
+            if msg and (not ok or not spoken_text or _resolved) and not (_is_noop and spoken_text):
+                _clean = speech.sanitize(msg, drop_metadata=False)
+                # HIGIENE (V2-047 F11, sesión 23:15 «…sin pausa.Con esta fuente gratis…»): el msg del conector se
+                # concatenaba al texto del modelo SIN separador → dos frases pegadas. Si ya hay locución y no cierra
+                # con espacio/puntuación, antepón un separador.
+                if spoken_text and _clean and spoken_text[-1:] not in " \n.,;:!?¡¿—-":
+                    _clean = " " + _clean
+                elif spoken_text and _clean and not _clean[:1].isspace():
+                    _clean = " " + _clean
+                send(_clean)
+                spoken_text = "".join(spoken).strip()
+
+        # RED DETERMINISTA de confirmación (V2-017): si había un borrado pendiente y el modelo NO lo resolvió por
+        # tool, pero el operador dijo claramente sí/no → resuélvelo igual (no depende del LLM, como hard_interrupt).
+        if had_pending_confirm and not confirm_state["handled"]:
+            try:
+                from widgets import confirm as _confirm_mod
+                verdict = _confirm_mod.classify_reply(text)
+                if verdict:
+                    _resolve_confirm(verdict == "yes")
+            except Exception:
+                pass
+
+        # RED DETERMINISTA V2-038 (§v3·M): precedencia confirm > ask-activo > stop-worker. Si un worker ESPERABA
+        # respuesta y el modelo NO llamó answer_worker → enruta el turno como la respuesta (el estado ya lo marcaba).
+        # SOLO una "respuesta libre CORTA" (§v3·M): si el turno YA disparó otra acción (widget/búsqueda/escalada/
+        # data-op), es largo, o hay un login pendiente (rango superior en la precedencia), NO se lo tragamos como
+        # respuesta al worker — el modelo siempre puede enrutar explícito con answer_worker.
+        # PRECEDENCIA (2026-07-17, ronda 3): si un worker ESPERA respuesta, un turno corto ES esa respuesta —
+        # AUNQUE el modelo haya mis-ruteado a escalate (gpt-4o-mini escaló "sí, el jueves para dos" en vez de
+        # answer_worker). Coincide con la doctrina del propio prompt (_flash_layer: "lo que diga el operador es esa
+        # respuesta"). Se responde al worker Y se CANCELA la escalada espuria (no abrir una tarea nueva). No aplica
+        # si el turno disparó otra acción clara (widget/data/confirm/auth) o es largo (posible tarea nueva genuina).
+        if _ask_waiting and worker_acted["v"] != "answer" and not had_pending_confirm \
+                and search_req["v"] is None and not acted["widget"] \
+                and not data_done["v"] and not _auth_pending and len(text) <= 140:
+            try:
+                from nucleo import worker_api as _wapi2
+                if _wapi2.answer_active_soon(text):
+                    worker_acted["v"] = "answer"
+                    escalate_req["v"] = None        # respondía al worker, no pedía tarea nueva → no escalar
+                    if not spoken_text:
+                        spoken_text = "Vale, se lo digo."
+                        send(speech.sanitize(spoken_text, drop_metadata=False))
+            except Exception:
+                pass
+        # Backstop de PARADA: hay workers vivos, el operador pidió parar trabajo y el modelo NO llamó stop_worker.
+        if worker_acted["v"] not in ("stop",) and escalate_req["v"] is None:
+            try:
+                from nucleo import dispatch as _disp2
+                if _disp2.has_active() and _router.looks_like_stop_work(text):
+                    tids = _disp2.cancel_soon(text)
+                    if tids:
+                        worker_acted["v"] = "stop"
+                        emit("brain", "🛑 stop worker (backstop determinista)", text=str(tids), role="system")
+                        # Un kill SIEMPRE se anuncia por voz (demo 2026-07-14: se mató el worker del widget en
+                        # silencio mientras la voz decía "no te he entendido" — incoherente). Si el modelo ya
+                        # habló otra cosa, se AÑADE la frase; nunca un kill mudo.
+                        _ack = "Vale, lo paro." if not spoken_text else " He parado esa tarea."
+                        send(speech.sanitize(_ack, drop_metadata=False))
+                        spoken_text = (spoken_text + _ack) if spoken_text else _ack.strip()
+            except Exception:
+                pass
+
+        # Confirmación abierta este turno sin que el modelo formulara la pregunta → la decimos nosotros (nunca
+        # mudo; el overlay Sí/No ya está en la tarjeta). Cubre borrado y data-op irreversible (V2-025).
+        if confirm_state.get("opened") and not spoken_text and escalate_req["v"] is None \
+                and search_req["v"] is None:
+            spoken_text = confirm_state["opened"]
+            send(speech.sanitize(spoken_text, drop_metadata=False))
+
+        # Referencia a item sin resolver (V2-026) → preguntamos SIEMPRE, aunque el modelo ya haya dicho algo.
+        # Bug real (maratón de testing 2026-07-22): la condición exigía `not spoken_text` — si el turno NO
+        # resolvió a qué item se refería (agenda:done:"comprar pan" cuando esa tarea nunca se creó) pero el
+        # modelo YA había soltado una frase confiada ("Entendido, marca la tarea como hecha"), esa frase
+        # FALSA ganaba y la pregunta real ("¿cuál? no lo tengo claro") nunca llegaba a hablarse — la señal
+        # determinista de "no sé a qué te refieres" quedaba silenciada por la propia alucinación del modelo,
+        # justo el "nunca mudo" que el comentario original quería garantizar. `clarify["msg"]` solo se fija
+        # cuando la referencia genuinamente NO resolvió — es un hecho duro, nunca debe perder frente a lo que
+        # el modelo diga por su cuenta.
+        if clarify["msg"] and escalate_req["v"] is None and search_req["v"] is None:
+            spoken_text = clarify["msg"]
+            send(speech.sanitize(spoken_text, drop_metadata=False))
+
+        # Data-op despachada por tool sin frase hablada (el modelo fue directo a la tool) → ack corto (no mudo).
+        # V2-038 (test post-P1/P2): dos data-ops seguidas con el MISMO "Hecho." disparaban el loop-detector — se
+        # elige una variante que NO repita el último ack hablado (funcional consecutivo = se dice distinto).
+        if data_done["v"] and not spoken_text and escalate_req["v"] is None and search_req["v"] is None:
+            try:
+                from voice.engine.core import langs as _langs
+                _lg = _langs.current_language()
+                _acks = list(getattr(_lg, "data_acks", None) or (_lg.data_ack,))
+                _last = _dialog.sanitize_reply(brain._last_spoken or "").strip().lower()
+                spoken_text = next((a for a in _acks if a.strip().lower() != _last), _acks[0])
+            except Exception:
+                spoken_text = "Hecho."
+            send(speech.sanitize(spoken_text, drop_metadata=False))
+
+        # Regla de usuario fijada/retirada SIN frase hablada → ack corto (V2-046 A1, visto en el probe: la
+        # RETIRADA dejaba el turno MUDO). Nunca mudo al aceptar/quitar una regla.
+        if style_fired["v"] and not spoken_text and escalate_req["v"] is None and search_req["v"] is None:
+            try:
+                from voice.engine.core import langs as _langs
+                spoken_text = _langs.current_language().data_ack
+            except Exception:
+                spoken_text = "Vale, lo tengo."
+            send(speech.sanitize(spoken_text, drop_metadata=False))
+
+        # SHOW/CLOSE de canvas por tag SIN frase hablada → ack corto (bug 2026-07-13: el modelo emitía [[show:agenda]]
+        # sin decir nada → turno MUDO; el operador no oía NI veía nada y creía que estaba roto). Nunca mudo al abrir/
+        # cerrar un widget.
+        if acted["widget"] and not spoken_text and escalate_req["v"] is None and search_req["v"] is None \
+                and not confirm_state.get("opened") and not clarify["msg"]:
+            try:
+                from voice.engine.core import langs as _langs
+                spoken_text = _langs.current_language().show_ack
+            except Exception:
+                spoken_text = "Aquí lo tienes."
+            send(speech.sanitize(spoken_text, drop_metadata=False))
+
+        # Escalada sin texto hablado en el mismo turno → frase de espera neutral (no mudo). V2-029: si YA había una
+        # tarea de fondo en curso al empezar el turno, VARÍA la frase ("sigo con ello") en vez de repetir la misma.
+        if escalate_req["v"] is not None and not spoken_text:
+            # el lead-in ("a ver…") NO cuenta como contenido → aquí sí decimos la frase de espera CON sentido
+            # ("vale, dame un momento que lo miro"): juntas suenan naturales ("a ver… vale, dame un momento").
+            try:
+                from voice.engine.core import langs
+                _lg = langs.current_language()
+                spoken_text = _lg.filler_still_working if _prev_pending else _lg.filler_holding
+            except Exception:
+                spoken_text = "Sigo con ello." if _prev_pending else "Vale, dame un momento."
+            send(speech.sanitize(spoken_text, drop_metadata=False))
+
+        brain._window.append({"role": "user", "content": text})
+        if spoken_text:
+            # Guarda la respuesta SANEADA (anti-degeneración V2-032): si el modelo empalmó/repitió, no reinyectamos
+            # esa basura al turno siguiente → cortamos el bucle de realimentación que degrada al modelo pequeño.
+            brain._window.append({"role": "assistant", "content": _dialog.sanitize_reply(spoken_text)})
+        del brain._window[:-_WINDOW_MAX]
+        if not first_turn:
+            brain._turn_count += 1   # INI-018 T6: solo turnos conversacionales reales cuentan para el cap demo
+
+        # GATE de los FALLBACKS deterministas: el safety-net de widget y el login-fallback son SOLO para PURA CHARLA
+        # en la que el modelo se olvidó de emitir la tag. Si el turno YA se resolvió por CUALQUIER tool (música,
+        # vídeo, data-op, escalada, búsqueda, worker, estilo, confirm), NO deben re-adivinar nada — ese doble-disparo
+        # abría un widget que nadie pidió (bug 17-jul: «necesito que PONgas a Bruce Springsteen» → play_music OK,
+        # pero el safety-net corrió igual, el regex `\bpon` casó "pongas" e `_identify` fuzzy-casó ruido → show:clock
+        # espurio). music/video no marcaban acted["widget"], por eso hay que mirar TODAS las señales de tool.
+        _tool_handled = bool(
+            acted["widget"] or data_done["v"] or worker_acted["v"] or style_fired["v"]
+            or escalate_req["v"] is not None or search_req["v"] is not None
+            or music_req["v"] is not None or "play_video" in _tool_fired
+            or confirm_state.get("opened") or confirm_state.get("handled"))
+
+        # SAFETY NET (PRIMERO): el modelo a veces DICE que abre/cierra un widget sin emitir la tag → la emitimos
+        # nosotros. Va ANTES del login-fallback a propósito (V2-023): "abre mensajería y dime si WhatsApp está
+        # conectado" es un SHOW de widget, NUNCA un login — así el login-fallback no roba un turno de widget.
+        if not _tool_handled:
+            if _widget_fallback(text, emit):
+                acted["widget"] = True
+
+        # LOGIN FALLBACK (V2-022): "conéctame a X" / "inicia sesión en mi Y" que el modelo NO accionó (se despistó
+        # y solo charló) → abrimos el login igualmente (determinista, espejo del guard auth-vs-tarea). Solo si no
+        # hubo ya otra acción de widget (el safety-net de arriba ya resolvió un show/close) y NO es una tarea.
+        _login_started = False
+        if not _tool_handled and not acted["widget"]:
+            try:
+                from nucleo.flash import router as _router
+                if _router.looks_like_login_request(text) and _start_web_auth(_router.login_site(text)):
+                    _login_started = True
+                    emit("brain", "🔐 login por fallback (el modelo no disparó la tool)", text=text[:80], role="system")
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"login fallback skipped: {e}")
+
+        # BUFFER CONVERSACIONAL de CORTO (V2-013 T131): guardamos el par turno↔respuesta como working set EFÍMERO
+        # (`kind='conv'`, TTL corto, importancia baja) — alimenta la ruta de lectura entera de CORTO (T146,
+        # `recent_short`) para que el FlashBrain vea "de qué hablábamos", pero NO es un recuerdo durable. El
+        # CORAZÓN que DESTILA lo memorable (nombre, hechos, preferencias) es `memory_agent.ingest_utterance`
+        # (arriba, off-hot-path). El consolidador (V2-019) poda este buffer por TTL. Reemplaza el write crudo 0.3
+        # a ciegas que inflaba la memoria. Best-effort: la memoria no está en el camino crítico de tiempo real.
+        # V2-049: se escribe TAMBIÉN en los turnos que ESCALAN (antes se excluían con `escalate_req is None`) — así
+        # el turno que LANZA la tarea (y el dato que el operador soltó en él: matrícula, email…) entra en
+        # `recent_window` y el worker lo VE en su bloque de CONVERSACIÓN RECIENTE. Ese hueco hacía que el worker
+        # investigara sin el dato y lo re-preguntara (bug ITV 17-jul). Si escaló sin hablar, guardamos igual el
+        # turno del operador (con lo que dijera zaelar, aunque sea un filler).
+        if spoken_text or escalate_req["v"] is not None:
+            try:
+                from memory import api as memory
+                _a = spoken_text or "(me pongo con ello)"
+                memory.write(f"Operador: {text[:200]} · zaelar: {_a[:200]}",
+                             kind="conv", level="short", importance=0.2, ttl_days=2.0,
+                             # u/a estructurados → `memory.recent_window` reconstruye la ventana verbatim sin
+                             # parsear el string (circuito de corto plazo, 2026-07-14).
+                             meta={"source": "conv", "u": text[:400], "a": _a[:400]})
+            except Exception:
+                pass
+
+        try:
+            from voice import health_state
+            health_state.clear("llm")
+        except Exception:
+            pass
+        # OBSERVABILIDAD DEL MODELO (FASE 0): TTFT + latencia + TOTALIZADORES de tamaño (chars/tokens de entrada y
+        # salida) + cold/warm. Con esto distinguimos «lento por el modelo» de «lento por prompt gigante» y «frío por
+        # cold-start». El desglose de QUÉ infla el prompt (system/memoria/reciente/recall/recursos) va en `timings`.
+        _fast_ms = round((time.time() - t0) * 1000)
+        _reply_extra = {
+            "ttft_ms": first_ms, "fast_ms": _fast_ms,
+            "gen_ms": llm_metrics.get("total_ms"),
+            "prompt_ms": timings.get("prompt_ms"), "mem_state_ms": timings.get("mem_state_ms"),
+            "mem_query_ms": timings.get("mem_query_ms"), "briefs_ms": timings.get("briefs_ms"),
+            "live_ms": timings.get("live_ms"),
+            # TOTALIZADORES de tamaño (premisa del operador)
+            "prompt_chars": llm_metrics.get("prompt_chars"), "system_chars": llm_metrics.get("system_chars"),
+            "prompt_tokens": llm_metrics.get("prompt_tokens", llm_metrics.get("prompt_tokens_est")),
+            "completion_tokens": llm_metrics.get("completion_tokens", llm_metrics.get("completion_tokens_est")),
+            "completion_chars": llm_metrics.get("completion_chars"),
+            "n_tools": llm_metrics.get("n_tools"), "tools_chars": llm_metrics.get("tools_chars"),
+            "n_msgs": llm_metrics.get("n_msgs"), "usage_source": llm_metrics.get("usage_source"),
+            # desglose de QUÉ hace grande el prompt (chars por bloque)
+            "sz_memory": timings.get("sz_memory"), "sz_recent": timings.get("sz_recent"),
+            "sz_recall": timings.get("sz_recall"), "sz_resources": timings.get("sz_resources"),
+            "sz_live": timings.get("sz_live"), "window_msgs": len(brain._window),
+            # cold-start (FASE 1)
+            "cold_estimate": llm_metrics.get("cold_estimate"), "gap_since_last_s": llm_metrics.get("gap_since_last_s"),
+            # tokens/seg (throughput del modelo, independiente del tamaño)
+            "tok_per_s": (round((llm_metrics.get("completion_tokens") or llm_metrics.get("completion_tokens_est") or 0)
+                                / max(0.001, (llm_metrics.get("total_ms") or 0) / 1000.0), 1)
+                          if llm_metrics.get("total_ms") else None),
+            "escalated": bool(escalate_req["v"] is not None),
+            "searched": bool(search_req["v"] is not None),
+            "recent_fired": timings.get("recent_fired"), "recall_fired": timings.get("recall_fired"),
+            # FASE 3: contención local activa al arrancar el turno (para correlacionar con el TTFT)
+            "busy_at_start": _busy_at_start or None, "contended": bool(_busy_at_start),
+            "engine": spec.provider, "model": spec.model,
+        }
+        emit("brain", "⚡ Nucleo(flash): reply", text=spoken_text, role="assistant", extra=_reply_extra)
+
+        # CAPTURA FORENSE del turno (V2-040): prompt + ventana + tools + decisión, en categoría `system` (fichero,
+        # no floodea el visor) — para diagnosticar a futuro cosas como la re-escalada en un turno ambiente.
+        try:
+            emit_turn = getattr(__import__("voice.observer", fromlist=["turn_detail"]), "turn_detail")
+            emit_turn(system=system, window=_dialog.prune_window(brain._window)[-_WINDOW_MAX:], tools=_turn_tools,
+                      user=text, decision={
+                          "escalated": bool(escalate_req["v"] is not None), "escalate_req": (escalate_req["v"] or "")[:200],
+                          "searched": bool(search_req["v"] is not None), "widget_acted": acted["widget"],
+                          "worker_acted": worker_acted["v"], "data_done": data_done["v"],
+                          "confirm_opened": bool(confirm_state.get("opened")), "clarify": bool(clarify["msg"]),
+                          "shown_ids": sorted(_shown_ids)},
+                      extra={"turn_ms": _reply_extra.get("total_ms")})
+        except Exception:
+            pass
+
+        # Escala DESPUÉS de que el texto del turno rápido va camino de TTS. NO escala si ya se dirigió a un worker
+        # vivo (inject/stop/answer) este turno.
+        if escalate_req["v"] is not None and not worker_acted["v"]:
+            req = escalate_req["v"] or text
+            # V2-038 §v3·G: si una tarea MUY parecida ya está EN CURSO, esto es un REFINAMIENTO → se INYECTA a esa
+            # sesión (no se descarta como antes, ni se abre otra). Reemplaza el dedup-descartar de V2-029.
+            if _similar_pending(req, _prev_pending):
+                try:
+                    from nucleo import dispatch as _disp3
+                    _disp3.inject_soon(req, req)
+                    emit("brain", "↪️ refinamiento → inyección a worker vivo (no relanza)", text=req, role="system")
+                except Exception:
+                    emit("brain", "🧭 escalada duplicada ignorada", text=req, role="system")
+            else:
+                _escalate_mod.escalate_to_slowbrain(req, context={"src": "voice"})
+                emit("brain", "🧭 Flash → Brain Worker (escalada registrada)", text=req, role="system")
+
+        # TELEMETRÍA compromiso-sin-acción (V2-047 F3, sesión 23:15 ITV T22: «Me pongo con ello ahora mismo» con
+        # decisión VACÍA — el modelo prometió y NO llamó a ninguna tool; el operador esperó 6 min). NO cambia el
+        # comportamiento: solo emite un evento MEDIBLE (categoría flash) para cuantificar cuántas veces pasa con el
+        # chain-suite. Si resulta frecuente, la Fase 2 añade un backstop; de momento, VISIBILIDAD. Señal, no tabla
+        # de decisión: una promesa en 1ª persona ("me pongo/lo hago/ahora mismo/te lo reservo/arranco") + CERO
+        # acción efectiva este turno.
+        _did_act = bool(acted["widget"] or data_done["v"] or worker_acted["v"] or escalate_req["v"] is not None
+                        or search_req["v"] is not None or music_req["v"] is not None or confirm_state.get("opened")
+                        or clarify.get("msg"))
+        if spoken_text and not _did_act:
+            import re as _re_prom
+            _committed = bool(_re_prom.search(
+                r"\b(me pongo con|me pongo a|ahora mismo|lo hago|lo hago ya|te lo (?:reservo|busco|"
+                r"miro|preparo|hago|gestiono)|arranco|voy (?:con|a por|alla|alli|ya)|me meto en|"
+                r"enseguida|me encargo|lo pongo en marcha|voy alla|entro (?:en|a) la web)\b",
+                _norm_nfkd(spoken_text)))
+            if _committed:
+                emit("brain", "⚠️ promesa sin acción (dijo que lo haría, no disparó tool)", text=spoken_text[:120],
+                     role="system", extra={"cat": "flash", "kind_diag": "promise_no_tool"})
+                # BACKSTOP V2-049 (arregla «¿por qué te has parado?», sesión ITV): si PROMETIÓ hacer una GESTIÓN WEB
+                # y NO llamó a ninguna tool, la escalada la forzamos NOSOTROS — determinista, espejo del
+                # login-fallback. Sin esto el operador oye "me pongo con ello" y no pasa NADA (el modelo rápido no
+                # dispara `escalate_to_slowbrain` de forma fiable). Solo para tareas web reales (verbo de gestión),
+                # nunca para charla; respeta el dedup/inject (no abre una 2ª sesión de lo mismo).
+                try:
+                    from nucleo.flash import router as _r_bk
+                    if _r_bk.looks_like_web_task(text):
+                        if _similar_pending(text, _prev_pending):
+                            from nucleo import dispatch as _disp_bk
+                            _disp_bk.inject_soon(text, text)
+                            emit("brain", "↪️ promesa→inyección a worker vivo (backstop)", text=text[:120], role="system")
+                        else:
+                            _escalate_mod.escalate_to_slowbrain(text, context={"src": "voice", "kind": "web"})
+                            emit("brain", "🧭 promesa→escalada FORZADA (backstop web)", text=text[:120], role="system")
+                except Exception as _e_bk:  # noqa: BLE001
+                    logger.warning(f"backstop promesa-web falló: {_e_bk}")
+
+
+def _similar_pending(req: str, pendings: list[dict]) -> bool:
+    """True si `req` se parece mucho a una escalada YA en vuelo (Jaccard de palabras de contenido ≥0.5) — el
+    operador insiste/refina la MISMA petición mientras el SlowBrain trabaja (V2-029). Evita tareas y entregas
+    duplicadas. Dos peticiones distintas (moto vs piso) NO se funden."""
+    import re as _re
+    import unicodedata as _ud
+
+    def _w(s: str) -> set:
+        n = "".join(c for c in _ud.normalize("NFKD", s or "") if not _ud.combining(c)).lower()
+        return {t for t in _re.findall(r"\w+", n) if len(t) >= 4}
+
+    g = _w(req)
+    if not g:
+        return False
+    for p in (pendings or []):
+        o = _w(p.get("request", ""))
+        union = len(g | o)
+        if union and len(g & o) / union >= 0.5:
+            return True
+    return False
+
+
+def _action_is_negated(n: str) -> bool:
+    """True si la frase NIEGA la acción de widget ("no necesito que abras nada", "no me muestres", "no cierres
+    nada", "don't open") — para que el fallback NO dispare un show/close cuando el operador dice EXPLÍCITAMENTE que
+    no lo haga (bug V2-023: "no necesito que abras nada" contenía "abras" → abría mensajería igual). Ventana corta
+    (≤18 chars entre la negación y el verbo) para no pisar compuestos legítimos tipo "no quiero la agenda,
+    muéstrame el reloj"."""
+    import re as _re
+    return bool(_re.search(
+        r"(?:\b(?:no|sin|tampoco|nunca|ni)\b|don'?t|do not|no need|without)[^.?!¿]{0,18}\b"
+        r"(?:abr|muestr|ensen|pon|saca|sube|cierr|cerr|quit|elimin|escond|ocult|close|hide|open|show)", n))
+
+
+def _norm_nfkd(s: str) -> str:
+    """Minúsculas sin acentos (para los guards deterministas de canvas)."""
+    import unicodedata as _ud
+    return "".join(c for c in _ud.normalize("NFKD", s or "") if not _ud.combining(c)).lower()
+
+
+def _is_meta_widget_question(n: str) -> bool:
+    """True si la frase PREGUNTA/COMENTA sobre una acción de widget YA ocurrida ("¿por qué has abierto el widget de
+    proyectos?", "¿por qué se abrió eso?", "no deberías haber abierto nada") en vez de ORDENAR una — para que NUNCA
+    se dispare un show/close por mencionar un widget en una queja o pregunta META (bug de la sesión 2026-07-12: el
+    operador preguntando "¿por qué abriste X?" hacía que zaelar ABRIERA X). `n` ya viene normalizado (sin acentos).
+    NO pisa una orden educada tipo "¿me muestras la agenda?" (no lleva 'por qué' ni verbo en pasado)."""
+    import re as _re
+    # "por qué" + verbo de canvas → pregunta sobre el porqué de una acción, no una orden
+    if _re.search(r"\bpor ?que\b|porque\b", n) and _re.search(
+            r"\b(abr|abri|abrio|abierto|mostr|ensen|saca|cerr|cerro|abriste|se abrio)", n):
+        return True
+    # verbo de canvas en PASADO/participio (acción ya ejecutada, se habla DE ella)
+    return bool(_re.search(
+        r"\b(abriste|abrio|abrido|abierto|has abierto|habias abierto|deberias haber (abierto|mostrado)|"
+        r"mostraste|ensenaste|cerraste|cerro|se abrio|se cerro|has mostrado|has cerrado|se ha abierto)\b", n))
+
+
+def _widget_fallback(text: str, emit) -> bool:
+    """Si la frase es una orden clara de mostrar/cerrar un widget conocido y el modelo no emitió la tag, la
+    emitimos nosotros (idempotente). Reutiliza el identificador de `widgets/runtime`. Devuelve True si ACTUÓ
+    (para que el llamante marque acted["widget"] y el login-fallback no robe el turno — V2-023)."""
+    import re as _re
+    import unicodedata as _ud
+    n = "".join(c for c in _ud.normalize("NFKD", text or "") if not _ud.combining(c)).lower()
+    if _action_is_negated(n):   # "no necesito que abras nada" → no dispares ningún widget
+        return False
+    if _is_meta_widget_question(n):   # "¿por qué abriste X?" es una PREGUNTA, no una orden
+        return False
+    try:
+        if _re.search(r"\b(quit|cierr|cerr|elimin|escond|ocult|limpi|despej|close|hide|clear)", n):
+            if _re.search(r"\b(todo|todos|todas|all|widgets|tarjetas|la pantalla|el escritorio)", n):
+                emit("widget", "close", extra={"src": "flash"})
+                return True
+            wid = _identify(text)
+            if wid:
+                emit("widget", "close", extra={"id": wid, "src": "flash"})
+                return True
+        elif _re.search(r"\b(abr|muestr|ensen|pon|saca|sube)|quiero ver|ver mi", n):
+            wid = _identify(text)
+            if wid:
+                emit("widget", "show", extra={"id": wid, "src": "flash"})
+                return True
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"widget fallback skipped: {e}")
+    return False
+
+
+def _human_confirm_question(wid: str, action: str, payload: dict) -> str:
+    """Texto HUMANO de una confirmación de data-op irreversible (overlay + voz). Expone el ALCANCE real leído del
+    MANIFEST — qué HACE la acción (`desc`) y sobre QUÉ item (etiqueta resuelta) — para que el operador vea si es
+    MÁS de lo que pidió (p.ej. un PROYECTO entero en vez de una tarea). Genérico: sirve a cualquier widget. Fallback
+    prudente si no hay manifest/desc."""
+    # V2-051: RESPONDER un mensaje → la confirmación LEE el borrador (destinatario + texto), no la jerga de la
+    # acción. Así el operador oye exactamente qué se va a enviar antes de decir sí.
+    if wid == "mensajeria" and action == "reply":
+        body = str((payload or {}).get("text") or "").strip()
+        draft = (body[:180] + "…") if len(body) > 180 else body
+        who = ""
+        try:
+            from widgets.mensajeria import data as _md
+            v = _md.view_data()
+            n = (payload or {}).get("n")
+            if v.get("active_chat"):
+                hit = next((it for it in v.get("active_items", []) if it.get("n") == n), None)
+                who = (hit or {}).get("from") or ""
+            else:
+                hit = next((c for c in v.get("chats", []) if c.get("n") == n), None)
+                who = (hit or {}).get("name") or ""
+        except Exception:
+            pass
+        dest = f" a {who}" if who else ""
+        return f"Voy a responder{dest}: «{draft}». ¿Lo envío?"
+
+    desc = ""
+    label = ""
+    try:
+        from widgets import refs, runtime
+        spec = ((runtime.get(wid) or {}).get("actions") or {}).get(action) or {}
+        desc = str(spec.get("desc") or "").strip().rstrip(".")
+        field = refs.id_field_for_action(wid, action)
+        if field:
+            label = refs.label_for(wid, field, (payload or {}).get(field, ""))
+    except Exception:
+        pass
+    tail = f" («{label}»)" if label else ""
+    if desc:                                  # el desc del manifest viene conjugado → se cita, no se prefija
+        return f"Ojo, esto es permanente: «{desc}»{tail}. ¿Lo confirmo?"
+    return f"Ojo, la acción «{action}»{tail} es permanente. ¿La confirmo?"
+
+
+def _show_guard_target(text: str) -> str | None:
+    """Si la frase es una orden clara de MOSTRAR un widget EXISTENTE y NO pide crear uno nuevo, devuelve su id;
+    si no, None. Guard DETERMINISTA (V2-023, no depende del LLM) para que una escalada ERRÓNEA de "muéstrame el de
+    mensajería" nunca genere un widget basura — espejo del guard de LOGIN. Con verbo de crear ("créame otro reloj")
+    devuelve None → deja escalar a un CREATE legítimo."""
+    import re as _re
+    import unicodedata as _ud
+    n = "".join(c for c in _ud.normalize("NFKD", text or "") if not _ud.combining(c)).lower()
+    if _action_is_negated(n):   # "no necesito que abras nada" → no es una orden de mostrar
+        return None
+    if _re.search(r"\b(crea|crear|cree|haz|hacer|genera|generar|nuev|construy|dise|monta|make|create|build|new)", n):
+        return None
+    if not _re.search(r"\b(abr|muestr|ensen|pon|saca|sube)|quiero ver|ver mi|ense", n):
+        return None
+    return _identify(text)
+
+
+def _identify(text: str) -> str | None:
+    try:
+        from widgets import runtime
+        return (runtime.identify(text) or {}).get("match")
+    except Exception:
+        return None
+
+
+def _identify_is_widget(wid: str) -> bool:
+    """¿`wid` es un id EXACTO del catálogo? (para decidir si hay que resolverlo flojito antes de borrar)."""
+    try:
+        from widgets import runtime
+        return runtime.get(wid) is not None
+    except Exception:
+        return False

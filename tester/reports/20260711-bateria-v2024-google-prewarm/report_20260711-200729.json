@@ -1,0 +1,165 @@
+{
+  "stamp": "20260711-200729",
+  "results": [
+    {
+      "scenario": "busqueda_web",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Alex, soy zaelar. ¿En qué te ayudo?",
+            "at": 1783793202.48
+          },
+          {
+            "who": "tester",
+            "text": "No, no es necesario que hables así. Soy Alex y uso a Zaelar como mi asistente personal. ¿Puedes decirme el tiempo que hará mañana en Tarragona?",
+            "at": 1783793205.72
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, Annex. ¿En qué te ayudo? Déjame que lo mire.Mañana en Tarragona se espera un día mayormente nublado con una temperatura de unos 30 °C.",
+            "at": 1783793229.46,
+            "latency_ms": 7340
+          },
+          {
+            "who": "tester",
+            "text": "Perfecto, eso es exactamente la información que necesitaba. Gracias Zaelar. Adiós.",
+            "at": 1783793230.0
+          },
+          {
+            "who": "zaelar",
+            "text": "Déjame que lo mire.Mañana en Tarragona se espera un día mayormente nublado con una temperatura de unos 30 °C.",
+            "at": 1783793238.6
+          }
+        ],
+        "latency_ms": {
+          "n": 1,
+          "avg": 7340,
+          "max": 7340,
+          "samples": [
+            7340
+          ]
+        },
+        "trace": {
+          "frontend_actions": [],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "✂️ input recortado (comando preservado): →1600 chars",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Alex, soy zaelar. ¿En qué te ayudo?",
+            "⚡ Nucleo(flash): prompt: Pero no es necesario que ames así. Soy Annex y uso a Harvey como mi asistente personal.",
+            "⚡ Nucleo(flash): reply: Vale, Annex. ¿En qué te ayudo?",
+            "⚡ Nucleo(flash): prompt: ¿Puedes decirme el tiempo que hará mañana en Tarragona?",
+            "🔎 búsqueda web: tiempo mañana Tarragona",
+            "⚡ Nucleo(flash): reply: Déjame que lo mire.Mañana en Tarragona se espera un día mayormente nublado con una temperatura de unos 30 °C.",
+            "⚡ Nucleo(flash): prompt: Perfecto, esa es exactamente la información que necesitaba. Gracias, Hamid. Adiós."
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 11,
+            "bot_speech": 11,
+            "brain": 10,
+            "memory": 38,
+            "timing": 4,
+            "metric": 97,
+            "tts": 3,
+            "transcript": 5,
+            "vad": 6,
+            "stt": 3,
+            "search": 1,
+            "session": 1
+          },
+          "n_events": 191
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 2,
+          "coherencia": 2,
+          "utilidad": 4,
+          "accion": 4,
+          "latencia": 2,
+          "robustez": 2
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn1",
+            "problema": "No recupera el nombre 'Alex' de la memoria a pesar de que el saludo inicial indica que debe ser 'memory-aware'. Saluda genérico.",
+            "gravedad": "media"
+          },
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Alucina el nombre 'Annex' (posible interpretación de 'Alex' + ruido) y repite la pregunta '¿En qué te ayudo?' innecesariamente.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Eco verbal: El texto 'Déjame que lo mire' se habla en el turno 2, pero la traza de TTS/Turno lo envuelve todo, provocando que la respuesta final (turn 3) repita literalmente el relleno.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn3",
+            "problema": "Repetition Loop. Repite idénticamente la respuesta meteorológica anterior como si fuera nueva, sin reconocer que el usuario ya dijo 'Perfecto, eso es...'.",
+            "gravedad": "alta"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "persona / cerebro (prompt system)",
+            "cambio": "Instrucción explícita para evitar re-preguntar '¿En qué te ayudo?' si el usuario acaba de dar una orden o información inmediatamente después.",
+            "porque": "Zaelar rompe el flujo natural preguntando cómo ayudar cuando ya se le pidió algo (la información del tiempo)."
+          },
+          {
+            "area": "brain memory",
+            "cambio": "Forzar inyección del nombre de usuario en el contexto del prompt del sistema desde el primer turno si existe en memoria.",
+            "porque": "El saludo inicial promete usar el nombre, pero falla en recuperarlo ('Alex' → 'Hola Alex')."
+          },
+          {
+            "area": "turn endpointing / dialogue manager",
+            "cambio": "Implementar 'bypass de relleno' o separación de eventos de pensamiento (thought) vs respuesta final (speech) para que el usuario no oiga el texto de relleno si la respuesta llega inmediatamente después, o descartar turnos si el usuario ya ha confirmado.",
+            "porque": "El eco de 'Déjame que lo mire' y la repetición del turno 3 indican que el sistema no está sincronizando el estado de la conversación con el feedback del usuario."
+          },
+          {
+            "area": "core (nucleo)",
+            "cambio": "Lógica de detección de cierre: si el usuario dice 'Perfecto/Gracias/Adiós', el sistema debe terminar la interacción y no regurgitar la última respuesta generada.",
+            "porque": "Zaelar repite la información del tiempo después de que el usuario ya despidió, mostrando falta de comprensión del cierre."
+          }
+        ],
+        "veredicto": "No es production-ready: aunque busca bien, la repetición de respuestas y la falta de memoria de contexto (nombre) lo hacen sonar roto y molesto.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "persona / cerebro (prompt system)",
+      "cambio": "Instrucción explícita para evitar re-preguntar '¿En qué te ayudo?' si el usuario acaba de dar una orden o información inmediatamente después.",
+      "porque": "Zaelar rompe el flujo natural preguntando cómo ayudar cuando ya se le pidió algo (la información del tiempo).",
+      "scenario": "busqueda_web",
+      "_sev": 0
+    },
+    {
+      "area": "brain memory",
+      "cambio": "Forzar inyección del nombre de usuario en el contexto del prompt del sistema desde el primer turno si existe en memoria.",
+      "porque": "El saludo inicial promete usar el nombre, pero falla en recuperarlo ('Alex' → 'Hola Alex').",
+      "scenario": "busqueda_web",
+      "_sev": 0
+    },
+    {
+      "area": "turn endpointing / dialogue manager",
+      "cambio": "Implementar 'bypass de relleno' o separación de eventos de pensamiento (thought) vs respuesta final (speech) para que el usuario no oiga el texto de relleno si la respuesta llega inmediatamente después, o descartar turnos si el usuario ya ha confirmado.",
+      "porque": "El eco de 'Déjame que lo mire' y la repetición del turno 3 indican que el sistema no está sincronizando el estado de la conversación con el feedback del usuario.",
+      "scenario": "busqueda_web",
+      "_sev": 0
+    },
+    {
+      "area": "core (nucleo)",
+      "cambio": "Lógica de detección de cierre: si el usuario dice 'Perfecto/Gracias/Adiós', el sistema debe terminar la interacción y no regurgitar la última respuesta generada.",
+      "porque": "Zaelar repite la información del tiempo después de que el usuario ya despidió, mostrando falta de comprensión del cierre.",
+      "scenario": "busqueda_web",
+      "_sev": 0
+    }
+  ]
+}

@@ -1,0 +1,200 @@
+{
+  "stamp": "20260722-234527",
+  "results": [
+    {
+      "scenario": "agenda",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Ricard, soy Zaelar, tu asistente por voz. ¿Qué necesitas?",
+            "at": 1784756589.0
+          },
+          {
+            "who": "tester",
+            "text": "Hola, soy Ricart. ¿Qué tengo en mi agenda hoy?",
+            "at": 1784756590.0
+          },
+          {
+            "who": "zaelar",
+            "text": "Tienes un día bastante ocupado. Empiezas a las 9 con la revisión de obligaciones de empresa, luego está el bloque fuerte de MeshKore hasta las 11:30. Después un descanso breve y el calendario de posts de Reddit hasta las 12:45. A las 15:00 tienes la revisión de CryptoKnight, y terminas con ejercicio a las 17:15.",
+            "at": 1784756600.69,
+            "latency_ms": 3936
+          },
+          {
+            "who": "tester",
+            "text": "Vale, gracias. Podrías añadir una cita con el dentista para mañana a las 5 de la tarde, por favor.",
+            "at": 1784756601.66
+          },
+          {
+            "who": "zaelar",
+            "text": "Veamos… Tienes un día bastante ocupado. Empiezas a las 9 con la revisión de obligaciones",
+            "at": 1784756609.88
+          },
+          {
+            "who": "tester",
+            "text": "No, no, eso ya lo sé. Solo añade la cita con el dentista, por favor.",
+            "at": 1784756611.32
+          },
+          {
+            "who": "zaelar",
+            "text": "Claro, te añado la cita con el dentista mañana a las 5 de la tarde. A ver, a",
+            "at": 1784756618.93
+          },
+          {
+            "who": "tester",
+            "text": "¿Está ya añadida la cita?",
+            "at": 1784756619.73
+          },
+          {
+            "who": "zaelar",
+            "text": "",
+            "at": 1784756651.81
+          },
+          {
+            "who": "tester",
+            "text": "¿Me confirmas si la cita con el dentista está en la agenda?",
+            "at": 1784756652.74
+          },
+          {
+            "who": "zaelar",
+            "text": "",
+            "at": 1784756686.46
+          },
+          {
+            "who": "tester",
+            "text": "¿Podrías revisar si la cita con el dentista está añadida?",
+            "at": 1784756687.34
+          },
+          {
+            "who": "zaelar",
+            "text": "",
+            "at": 1784756721.46
+          }
+        ],
+        "latency_ms": {
+          "n": 1,
+          "avg": 3936,
+          "max": 3936,
+          "samples": [
+            3936
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:data:agenda"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "🌱 ventana sembrada desde memoria:",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Ricard, soy Zaelar, tu asistente por voz. ¿Qué necesitas?",
+            "⚡ Nucleo(flash): prompt: Hola soy Ricard, ¿qué tengo en mi agenda hoy?",
+            "💬 relleno de espera (lead-in): Veamos…",
+            "⚡ Nucleo(flash): reply: Tienes un día bastante ocupado. Empiezas a las 9 con la revisión de obligaciones de empresa, luego está el bloque fuerte",
+            "⚡ Nucleo(flash): prompt: Vale, gracias. ¿Podrías añadir una cita con el dentista para mañana a las 5 de la tarde, por favor?",
+            "💬 relleno de espera (lead-in): A ver, a ver…",
+            "⚡ Nucleo(flash): reply: Claro, te añado la cita con el dentista mañana a las 5 de la tarde.",
+            "📩 system note → FlashBrain: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: Ricard, voy a reservar la cita con el dentista para",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: Ricard, voy a reservar la cita con el dentista para",
+            "💬 relleno de espera (lead-in): Pues…",
+            "✂️ turno cancelado (barge-in/overlap):"
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 14,
+            "bot_speech": 14,
+            "pulse": 41,
+            "brain": 14,
+            "trace": 4,
+            "perf": 15,
+            "memory": 28,
+            "timing": 4,
+            "metric": 13,
+            "tts": 3,
+            "transcript": 6,
+            "vad": 6,
+            "background": 1,
+            "stt": 3,
+            "susurro": 6,
+            "widget": 1,
+            "task": 2,
+            "session": 1
+          },
+          "n_events": 177
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 3,
+          "coherencia": 1,
+          "utilidad": 1,
+          "accion": 1,
+          "latencia": 1,
+          "robustez": 1
+        },
+        "overall": 1,
+        "findings": [
+          {
+            "turno": "zaelar@turn4",
+            "problema": "Repite información del turno anterior (agenda de hoy) en lugar de procesar la nueva solicitud (añadir cita), indicando alucinación o pérdida de contexto inmediata.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn6",
+            "problema": "Muerte total del sistema. Tras aceptar la cita verbalmente, el bot no responde a 3 intentos de confirmación del usuario, sugiriendo un crash en el pipeline de STT o un fallo de VAD post-TTS.",
+            "gravedad": "crítica"
+          },
+          {
+            "turno": "system_trace",
+            "problema": "Discrepancia fatal entre Traza y Transcripción: la traza muestra que zaelar procesó un 'susurro' del sistema y detuvo la generación de audio, pero el resultado final fue un timeout. El control de flujo roto.",
+            "gravedad": "alta"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Turn Endpointing / VAD",
+            "cambio": "Ajustar sensibilidad de VAD y reactivación del canal de escucha (listening mode) inmediatamente después de TTS.",
+            "porque": "El bot entró en un estado catatónico (timeout) tras terminar de hablar; probablemente el STT/VAD nunca se reactivó para recibir las preguntas del usuario."
+          },
+          {
+            "area": "Brain / Prompt Engineering (Contexto)",
+            "cambio": "Introducir un check estricto de 'historial reciente' para prevenir repetición de información ya entregada en el turno inmediatamente anterior.",
+            "porque": "Zaelar repitió la agenda completa cuando se le pidió añadir una cita, demostrando falta de atención al flujo conversacional actual."
+          },
+          {
+            "area": "System Architecture (Susurros/Interruptions)",
+            "cambio": "Rediseñar la inyección de notas de sistema ('susurros') para no interrumpir o bloquear la generación de respuesta principal.",
+            "porque": "La traza muestra un 'susurro' del sistema llegando al mismo tiempo que la respuesta de acción ('A ver, a ver...'), lo que causó una cancelación del turno y podría haber colgado el cerebro."
+          }
+        ],
+        "veredicto": "El escenario es un FAIL rotundo por muerte del bot y falta de ejecución; el #1 blocker es el fallo crítico de escucha/reactividad que provoca los timeouts (VAD/STT Pipeline).",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Turn Endpointing / VAD",
+      "cambio": "Ajustar sensibilidad de VAD y reactivación del canal de escucha (listening mode) inmediatamente después de TTS.",
+      "porque": "El bot entró en un estado catatónico (timeout) tras terminar de hablar; probablemente el STT/VAD nunca se reactivó para recibir las preguntas del usuario.",
+      "scenario": "agenda",
+      "_sev": 0
+    },
+    {
+      "area": "Brain / Prompt Engineering (Contexto)",
+      "cambio": "Introducir un check estricto de 'historial reciente' para prevenir repetición de información ya entregada en el turno inmediatamente anterior.",
+      "porque": "Zaelar repitió la agenda completa cuando se le pidió añadir una cita, demostrando falta de atención al flujo conversacional actual.",
+      "scenario": "agenda",
+      "_sev": 0
+    },
+    {
+      "area": "System Architecture (Susurros/Interruptions)",
+      "cambio": "Rediseñar la inyección de notas de sistema ('susurros') para no interrumpir o bloquear la generación de respuesta principal.",
+      "porque": "La traza muestra un 'susurro' del sistema llegando al mismo tiempo que la respuesta de acción ('A ver, a ver...'), lo que causó una cancelación del turno y podría haber colgado el cerebro.",
+      "scenario": "agenda",
+      "_sev": 0
+    }
+  ]
+}

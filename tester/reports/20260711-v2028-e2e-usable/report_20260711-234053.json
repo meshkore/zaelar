@@ -1,0 +1,179 @@
+{
+  "stamp": "20260711-234053",
+  "results": [
+    {
+      "scenario": "mensajeria",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Alex, soy zaelar, tu asistente personal. ¿En qué te ayudo?",
+            "at": 1783805934.65
+          },
+          {
+            "who": "tester",
+            "text": "No, no eres Zaelar, eres Alex hablando con su asistente personal Zaelar. Por favor, responde en castellano como indicaste. ¿Zaelar, cuántos mensajes importantes tengo y están conectados WhatsApp y Telegram? Adelante con el widget de mensajería, por favor.",
+            "at": 1783805939.51
+          },
+          {
+            "who": "zaelar",
+            "text": "Entendido, soy Harvey a tu servicio. ¿En qué te ayudo? Te muestro ahora el widget de mensajería para que veas los mensajes importantes y el estado de WhatsApp y Telegram.",
+            "at": 1783805968.01,
+            "latency_ms": 4197
+          },
+          {
+            "who": "tester",
+            "text": "No, no soy Harvey, soy Alex pidiendo a Zaelar que abra el widget de mensajería y me diga cuántos mensajes importantes tengo así como si WhatsApp y Telegram están conectados.",
+            "at": 1783805969.14
+          },
+          {
+            "who": "zaelar",
+            "text": "y el estado de WhatsApp y Telegram.",
+            "at": 1783805982.18
+          },
+          {
+            "who": "tester",
+            "text": "Harvey, abre el widget de mensajería y dime cuántos mensajes importantes tengo. ¿Están conectados WhatsApp y Telegram?",
+            "at": 1783805985.18
+          },
+          {
+            "who": "zaelar",
+            "text": "Hecho. No tengo claro a cuál te refieres, ¿me lo concretas?",
+            "at": 1783805999.69,
+            "latency_ms": 2168
+          },
+          {
+            "who": "tester",
+            "text": "Sí, necesito que abras el widget de mensajería y me digas cuántos mensajes importantes tengo pendientes. Además, verifica si WhatsApp y Telegram están conectados en mi cuenta.",
+            "at": 1783806000.88
+          },
+          {
+            "who": "zaelar",
+            "text": "",
+            "at": 1783806042.0
+          }
+        ],
+        "latency_ms": {
+          "n": 2,
+          "avg": 3182,
+          "max": 4197,
+          "samples": [
+            4197,
+            2168
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:show:mensajeria",
+            "widget:show:mensajeria",
+            "widget:show:mensajeria",
+            "widget:show:mensajeria"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Alex, soy zaelar, tu asistente personal. ¿En qué te ayudo?",
+            "⚡ Nucleo(flash): prompt: No, no eres Harvey. Eres Alex hablando con su asistente personal Harvey.",
+            "⚡ Nucleo(flash): reply: Entendido, soy Harvey a tu servicio. ¿En qué te ayudo?",
+            "⚡ Nucleo(flash): prompt: Por favor, responde en castellano como indicaste. Harvey, ¿cuántos mensajes importantes tengo y están conectados WhatsAp",
+            "⚡ Nucleo(flash): reply: Te muestro ahora el widget de mensajería para que veas los mensajes importantes y el estado de WhatsApp y Telegram.",
+            "⚡ Nucleo(flash): prompt: No, no soy Harvey. Soy Alex, pidiendo a Harvey que abra el widget de mensajería y me diga cuántos mensajes importantes t",
+            "⚡ Nucleo(flash): reply: Hecho.",
+            "⚡ Nucleo(flash): prompt: Harvey abre el widget de mensajería y dime cuántos mensajes importantes tengo. ¿Están conectados WhatsApp y Telegram?",
+            "❓ referencia de item sin resolver: mensajeria:unhide:∅",
+            "⚡ Nucleo(flash): reply: No tengo claro a cuál te refieres, ¿me lo concretas?",
+            "⚡ Nucleo(flash): prompt: Sí, necesito que abras el widget de mensajería y me digas cuántos mensajes importantes tengo tenientes. Además, verifica",
+            "⚡ Nucleo(flash): reply:"
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 18,
+            "bot_speech": 18,
+            "brain": 14,
+            "memory": 65,
+            "timing": 6,
+            "metric": 248,
+            "tts": 6,
+            "transcript": 9,
+            "vad": 10,
+            "stt": 5,
+            "widget": 4,
+            "session": 1
+          },
+          "n_events": 405
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 2,
+          "coherencia": 2,
+          "utilidad": 2,
+          "accion": 2,
+          "latencia": 3,
+          "robustez": 2
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Alucinación de identidad y repetición de prompt. El bot acepta ser 'Harvey' y repite el rolloff del audio anterior ('y el estado de...'), mostrando incoherencia contextual.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn3",
+            "problema": "Fallo de referencia (Item Unresolved). A pesar de conocer el widget, el cerebro falla al resolver la referencia 'mensajeria:unhide' y pide aclaraciones, rompiendo el flujo.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn4",
+            "problema": "Timeout/No reply. El sistema falla en generar una respuesta final ante una reiteración clara de la instrucción.",
+            "gravedad": "alta"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Cerebro (Prompt de Sistema / Persona)",
+            "cambio": "Bloquear estrictamente cambios de nombre. Instrucción: 'Tu nombre es zaelar. Si el usuario te llama de otra forma, corrige cortésmente pero NO adoptes ese nombre.'",
+            "porque": "El asistente aceptó ser llamado 'Harvey' y confundió el contexto, demostrando falta de 'personalidad fija'."
+          },
+          {
+            "area": "Cerebro (Resolución de Referencias / Tooling)",
+            "cambio": "Mapear el concepto 'widget de mensajería' directamente al tag 'widget:show:mensajeria' en el paso de herramienta/function calling, evitando llamadas genéricas tipo 'mensajeria:unhide' que fallan si el ID no es numérico.",
+            "porque": "La traza muestra 'referencia de item sin resolver: mensajeria:unhide:∅'. El bot no encontró la acción correcta a pesar de nombrarla."
+          },
+          {
+            "area": "Frontend/Canvas",
+            "cambio": "Implementar debouncing o lógica de estado para mostrar el widget. Si el widget ya está visible, no enviar múltiples eventos 'widget:show' seguidos.",
+            "porque": "La traza registra 4 acciones redundantes 'widget:show:mensajeria', lo que indica un bucle o falta de sincronización de estado."
+          }
+        ],
+        "veredicto": "El escenario NO es production-ready. El bot no logra completar la tarea de forma estable debido a un fallo crítico en la resolución de la acción (referencia sin resolver) y una latencia excesiva en los turnos de recovery.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Cerebro (Prompt de Sistema / Persona)",
+      "cambio": "Bloquear estrictamente cambios de nombre. Instrucción: 'Tu nombre es zaelar. Si el usuario te llama de otra forma, corrige cortésmente pero NO adoptes ese nombre.'",
+      "porque": "El asistente aceptó ser llamado 'Harvey' y confundió el contexto, demostrando falta de 'personalidad fija'.",
+      "scenario": "mensajeria",
+      "_sev": 0
+    },
+    {
+      "area": "Cerebro (Resolución de Referencias / Tooling)",
+      "cambio": "Mapear el concepto 'widget de mensajería' directamente al tag 'widget:show:mensajeria' en el paso de herramienta/function calling, evitando llamadas genéricas tipo 'mensajeria:unhide' que fallan si el ID no es numérico.",
+      "porque": "La traza muestra 'referencia de item sin resolver: mensajeria:unhide:∅'. El bot no encontró la acción correcta a pesar de nombrarla.",
+      "scenario": "mensajeria",
+      "_sev": 0
+    },
+    {
+      "area": "Frontend/Canvas",
+      "cambio": "Implementar debouncing o lógica de estado para mostrar el widget. Si el widget ya está visible, no enviar múltiples eventos 'widget:show' seguidos.",
+      "porque": "La traza registra 4 acciones redundantes 'widget:show:mensajeria', lo que indica un bucle o falta de sincronización de estado.",
+      "scenario": "mensajeria",
+      "_sev": 0
+    }
+  ]
+}

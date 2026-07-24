@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# Zaelar launcher (macOS / Linux). Self-contained: everything lives under this folder.
+#   ./zaelar            first run: check + setup + start.  After that: start.
+#   ./zaelar doctor     check requirements
+#   ./zaelar setup      create local .venv and install dependencies
+#   ./zaelar start      run Zaelar (http://localhost:43917)
+#   ./zaelar update     git pull + re-setup
+set -euo pipefail
+cd "$(dirname "$0")"
+
+# Prefer a Python known to have wheels for every pinned dependency (some, e.g. the Apple-Silicon TTS
+# phonemizer, don't yet ship builds for the newest interpreter the day it's released) — try 3.12/3.11/3.13
+# first, only falling back to whatever generic python3 is on PATH.
+PY=""
+for c in python3.12 python3.11 python3.13 python3; do
+  if command -v "$c" >/dev/null 2>&1; then PY="$(command -v "$c")"; break; fi
+done
+need_python() {
+  if [ -z "$PY" ]; then
+    echo "Zaelar needs Python 3.11+."
+    case "$(uname -s)" in
+      Darwin) echo "Install it with:  brew install python@3.12   (or from https://python.org/downloads)";;
+      *)      echo "Install it from your package manager or https://python.org/downloads";;
+    esac
+    exit 1
+  fi
+}
+
+doctor() { need_python; "$PY" scripts/doctor.py; }
+
+setup() {
+  need_python
+  "$PY" scripts/doctor.py || { echo "Fix the requirements above and re-run ./zaelar setup"; exit 1; }
+  [ -d .venv ] || { echo "Creating self-contained environment (.venv)…"; "$PY" -m venv .venv; }
+  # shellcheck disable=SC1091
+  . .venv/bin/activate
+  python -m pip install --upgrade pip >/dev/null
+  echo "Installing dependencies…"; python -m pip install -r requirements.txt
+  echo "Setup complete.  Start with:  ./zaelar start"
+}
+
+start() {
+  [ -d .venv ] || setup
+  export PORT="${ZAELAR_PORT:-43917}"
+  echo "Starting Zaelar → http://localhost:${PORT}"
+  # Delegates to the real stack: native LiveKit media server (auto-installed if missing, no Docker) +
+  # the web server with the embedded voice agent (BRAIN=nucleo). Same path as `make run`.
+  exec bash scripts/run-livekit.sh
+}
+
+case "${1:-start}" in
+  doctor) doctor;;
+  setup)  setup;;
+  start|"") start;;
+  update) git pull --ff-only && setup;;
+  *) echo "usage: ./zaelar [doctor|setup|start|update]"; exit 1;;
+esac

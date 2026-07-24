@@ -1,0 +1,232 @@
+{
+  "stamp": "20260711-200620",
+  "results": [
+    {
+      "scenario": "search",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Alex, soy Zaelar. ¿En qué te ayudo? Hola Alex, soy Zaelar. ¿En qué te ayudo hoy? Hola Alex, soy zaelar. ¿En qué te ayudo hoy? Hola Alex, soy Zaelar. ¿En qué te ayudo?",
+            "at": 1783793078.0
+          },
+          {
+            "who": "tester",
+            "text": "No, eso no es necesario. Hola, soy Alex. Quiero saber quién ganó la última carrera de F1.",
+            "at": 1783793080.98
+          },
+          {
+            "who": "zaelar",
+            "text": "Hola Alex, soy zaelar. ¿En qué te ayudo hoy? No encuentro en los resultados la información clara sobre quién ganó la última carrera de Fórmula 1. ¿Quieres que busque más detalles?",
+            "at": 1783793106.8,
+            "latency_ms": 14438
+          },
+          {
+            "who": "tester",
+            "text": "No, eso no es necesario. Hola, soy Alex. Quiero saber quién ganó la última carrera de F1.",
+            "at": 1783793109.35
+          },
+          {
+            "who": "zaelar",
+            "text": "No encuentro en los resultados la información clara sobre quién ganó la última carrera de Fórmula 1. ¿Quieres que busque más detalles?",
+            "at": 1783793118.02
+          },
+          {
+            "who": "tester",
+            "text": "No, lo siento, pero necesito que me des esa información directamente. Hola, Alex, ¿sabes quién ganó la última carrera de F1?",
+            "at": 1783793122.66
+          },
+          {
+            "who": "zaelar",
+            "text": "El último ganador de una carrera de MotoGP fue Marc Márquez en la República Checa. El último ganador de una carrera",
+            "at": 1783793134.19
+          },
+          {
+            "who": "tester",
+            "text": "No, eso no es lo que busco. Hola, sabes quién ganó la última carrera de F1, ¿verdad?",
+            "at": 1783793136.89
+          },
+          {
+            "who": "zaelar",
+            "text": "No encuentro en los resultados la información clara sobre quién ganó la última carrera de Fórmula 1. ¿Quieres que lo busque?Según los resultados, Lando Norris es el campeón actual de Fórmula 1, pero no aparece quién ganó la última carrera. ¿Quieres que busque más detalles sobre eso? No, aún no me has dicho el ganador de esa carrera. ¿Me lo cuentas tú?",
+            "at": 1783793154.88,
+            "latency_ms": 4670
+          },
+          {
+            "who": "tester",
+            "text": "No, eso no es necesario. Hola Alex, ¿sabes quién ganó la última carrera de F1?",
+            "at": 1783793155.96
+          },
+          {
+            "who": "zaelar",
+            "text": "No, aún no me has contado quién ganó la última carrera de F1. ¿Me lo dices tú?",
+            "at": 1783793173.37,
+            "latency_ms": 3593
+          }
+        ],
+        "latency_ms": {
+          "n": 3,
+          "avg": 7567,
+          "max": 14438,
+          "samples": [
+            14438,
+            4670,
+            3593
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:data:mensajeria",
+            "widget:data:cluster-registro"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "✂️ input recortado (comando preservado): →1600 chars",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "kickoff (saludo memory-aware vía cerebro):",
+            "✂️ input recortado (comando preservado): →1600 chars",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "kickoff (saludo memory-aware vía cerebro):",
+            "kickoff (saludo memory-aware vía cerebro):",
+            "✂️ input recortado (comando preservado): →1600 chars",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "✂️ input recortado (comando preservado): →1600 chars",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Alex, soy Zaelar. ¿En qué te ayudo?",
+            "⚡ Nucleo(flash): reply: Hola Alex, soy Zaelar. ¿En qué te ayudo hoy?",
+            "⚡ Nucleo(flash): reply: Hola Alex, soy zaelar. ¿En qué te ayudo hoy?",
+            "⚡ Nucleo(flash): reply: Hola Alex, soy zaelar. ¿En qué te ayudo hoy?",
+            "kickoff (saludo memory-aware vía cerebro):",
+            "✂️ input recortado (comando preservado): →1600 chars",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Alex, soy Zaelar. ¿En qué te ayudo?",
+            "kickoff (saludo memory-aware vía cerebro):",
+            "✂️ input recortado (comando preservado): →1600 chars",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Alex, soy zaelar. ¿En qué te ayudo hoy?",
+            "⚡ Nucleo(flash): prompt: No, eso no es necesario. Hola, soy Alex. Quiero saber quién ganó la última carrera de F1.",
+            "🔎 búsqueda web: última carrera de Fórmula 1 ganador",
+            "⚡ Nucleo(flash): reply: No encuentro en los resultados la información clara sobre quién ganó la última carrera de Fórmula 1. ¿Quieres que busque",
+            "⚡ Nucleo(flash): prompt: No, eso no es necesario. Hola, soy Alex. Quiero saber quién ganó la última carrera de C1.",
+            "🔎 búsqueda web: último ganador carrera MotoGP o C1",
+            "⚡ Nucleo(flash): reply: El último ganador de una carrera de MotoGP fue Marc Márquez en la República Checa.",
+            "⚡ Nucleo(flash): prompt: No, lo siento, pero necesito que me des esa información directamente.",
+            "⚡ Nucleo(flash): prompt: Hola Alex, ¿sabes quién ganó la última carrera de F1?",
+            "🔎 búsqueda web: último ganador carrera Fórmula 1",
+            "⚡ Nucleo(flash): reply: No encuentro en los resultados la información clara sobre quién ganó la última carrera de Fórmula 1. ¿Quieres que lo bus",
+            "⚡ Nucleo(flash): prompt: No, eso no es lo que busco. Hola, sabes que he entrado la última carrera de F1, ¿verdad?",
+            "⚡ Nucleo(flash): reply: No, aún no me has dicho el ganador de esa carrera. ¿Me lo cuentas tú?",
+            "⚡ Nucleo(flash): prompt: No, eso no es necesario. Hola, Arendt. ¿Sabes quién ganó una última cajera de F1?",
+            "⚡ Nucleo(flash): reply: No, aún no me has contado quién ganó la última carrera de F1. ¿Me lo dices tú?"
+          ],
+          "event_kinds": {
+            "worker_start": 6,
+            "state": 31,
+            "bot_speech": 25,
+            "brain": 38,
+            "memory": 137,
+            "timing": 12,
+            "metric": 225,
+            "tts": 18,
+            "widget": 2,
+            "cluster": 1,
+            "session": 2,
+            "vad": 12,
+            "stt": 6,
+            "transcript": 10,
+            "search": 3
+          },
+          "n_events": 528
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 2,
+          "coherencia": 2,
+          "utilidad": 1,
+          "accion": 1,
+          "latencia": 2,
+          "robustez": 1
+        },
+        "overall": 1,
+        "findings": [
+          {
+            "turno": "zaelar@turn1",
+            "problema": "Bucle de saludo repetitivo (4 iteraciones). Sugiere inestabilidad en el loop de voz-audio o TTS chattiness.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn3",
+            "problema": "Invocación incorrecta de la herramienta de búsqueda (MotoGP vs F1). Falta de grounding semántico.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn4",
+            "problema": "Alucinación de hecho y contradicción inmediata. Primero afirma no saberlo, luego inventa que es Norris, luego pregunta al usuario.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn5",
+            "problema": "Pérdida total de agencia. El asistente le pide al usuario el dato que debió buscar (¿Me lo dices tú?).",
+            "gravedad": "alta"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Tool Grounding / Search Prompting",
+            "cambio": "Inyectar la consulta *exacta* del usuario ('última carrera de F1') en el prompt del sistema de búsqueda (RAG) y desconfiar de resultados que no coinciden con las palabras clave principales.",
+            "porque": "Zaelar ejecutó una búsqueda pero trajo resultados de MotoGP o datos de campeonato irrelevantes en lugar de la última carrera."
+          },
+          {
+            "area": "Brain Logic (Confidence Threshold)",
+            "cambio": "Implementar una verificación post-búsqueda: si el top-k de resultados no menciona explícitamente 'ganador' y el nombre de un evento coincidente, NO responder con un dato inventado; forzar una búsqueda profunda (deep search) o admitir ignorancia.",
+            "porque": "Zaelar inventó 'Lando Norris' como campeón actual (falso y fuera de contexto) y pidió ayuda al usuario en lugar de intentar una búsqueda alternativa."
+          },
+          {
+            "area": "Frontend/Cerebro Event Loop",
+            "cambio": "Investigar el event queue que generó los 4 turnos de saludo repetidos. ¿Es un re-bounce del STT o un TTS fragmentation loop? Debe suprimirse.",
+            "porque": "El inicio de la conversación muestra una transcripción idéntica repetida 4 veces, indicando un fallo en el control de flujo de turno."
+          },
+          {
+            "area": "LLM Context/Persona",
+            "cambio": "Instruir al modelo para que NUNCA le pida al usuario la información que él debe buscar (break character).",
+            "porque": "En el último turno, Zaelar le pregunta al usuario '¿Me lo dices tú?', anulando su utilidad como asistente de búsqueda."
+          }
+        ],
+        "veredicto": "No es production-ready: el asistente falla el objetivo principal (no encuentra el dato, inventa y se rinde), presenta latencias inhumanas (14s) y muestra una inestabilidad severa en el primer turno.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Tool Grounding / Search Prompting",
+      "cambio": "Inyectar la consulta *exacta* del usuario ('última carrera de F1') en el prompt del sistema de búsqueda (RAG) y desconfiar de resultados que no coinciden con las palabras clave principales.",
+      "porque": "Zaelar ejecutó una búsqueda pero trajo resultados de MotoGP o datos de campeonato irrelevantes en lugar de la última carrera.",
+      "scenario": "search",
+      "_sev": 0
+    },
+    {
+      "area": "Brain Logic (Confidence Threshold)",
+      "cambio": "Implementar una verificación post-búsqueda: si el top-k de resultados no menciona explícitamente 'ganador' y el nombre de un evento coincidente, NO responder con un dato inventado; forzar una búsqueda profunda (deep search) o admitir ignorancia.",
+      "porque": "Zaelar inventó 'Lando Norris' como campeón actual (falso y fuera de contexto) y pidió ayuda al usuario en lugar de intentar una búsqueda alternativa.",
+      "scenario": "search",
+      "_sev": 0
+    },
+    {
+      "area": "Frontend/Cerebro Event Loop",
+      "cambio": "Investigar el event queue que generó los 4 turnos de saludo repetidos. ¿Es un re-bounce del STT o un TTS fragmentation loop? Debe suprimirse.",
+      "porque": "El inicio de la conversación muestra una transcripción idéntica repetida 4 veces, indicando un fallo en el control de flujo de turno.",
+      "scenario": "search",
+      "_sev": 0
+    },
+    {
+      "area": "LLM Context/Persona",
+      "cambio": "Instruir al modelo para que NUNCA le pida al usuario la información que él debe buscar (break character).",
+      "porque": "En el último turno, Zaelar le pregunta al usuario '¿Me lo dices tú?', anulando su utilidad como asistente de búsqueda.",
+      "scenario": "search",
+      "_sev": 0
+    }
+  ]
+}

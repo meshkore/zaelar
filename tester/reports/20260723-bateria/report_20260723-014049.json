@@ -1,0 +1,201 @@
+{
+  "stamp": "20260723-014049",
+  "results": [
+    {
+      "scenario": "navegador_coche",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "¡Hola Ricard! Soy Zaelar, tu asistente por voz. ¿Qué necesitas?",
+            "at": 1784763578.48
+          },
+          {
+            "who": "tester",
+            "text": "Hola, soy Ricart. Quiero que busques un coche de segunda mano en Wallapop por menos de 5000 euros y con menos de 250.000 kilómetros, cerca de mí.",
+            "at": 1784763579.76
+          },
+          {
+            "who": "zaelar",
+            "text": "¡Hola Ricard! Soy Zaelar, tu asistente por voz. ¿Qué necesitas?",
+            "at": 1784763592.31
+          },
+          {
+            "who": "tester",
+            "text": "Hola, soy Ricart. Necesito que busques un coche de segunda mano en coches.net, que cueste menos de 5000 euros y tenga menos de 250.000 kilómetros. Fíjate en las mejores opciones que encuentres cerca de mí.",
+            "at": 1784763593.59
+          },
+          {
+            "who": "zaelar",
+            "text": "Sigo con ello; te aviso en cuanto lo tenga. Vale, a ver… Sigo con ello;",
+            "at": 1784763610.03
+          },
+          {
+            "who": "tester",
+            "text": "Está bien, espero tu respuesta.",
+            "at": 1784763610.99
+          },
+          {
+            "who": "zaelar",
+            "text": "Me pongo a buscar en coches.net — coches de segunda mano por menos de 500 euros, menos de 250 km y enfocados en la zona de Talemid. Te aviso en cuanto tenga las mejores opciones. Déjame que mire… Me pongo",
+            "at": 1784763616.12
+          },
+          {
+            "who": "tester",
+            "text": "Vale, estoy pendiente.",
+            "at": 1784763618.04
+          },
+          {
+            "who": "zaelar",
+            "text": "Perfecto, Ricardo. Tengo tres búsquedas en marcha ahora: la moto Naked en Wannapop, el coche en Guarapó y el de coches.net en Talemid. Te iré avisando conforme lleguen los resultados. Mmm… Perfecto, Ricardo. Tengo tres búsquedas en marcha",
+            "at": 1784763622.64
+          },
+          {
+            "who": "tester",
+            "text": "Genial, espero los resultados. Mientras tanto, ¿me puedes decir qué tiempo hace hoy aquí? Quiero saber si necesito llevar paraguas.",
+            "at": 1784763623.89
+          },
+          {
+            "who": "zaelar",
+            "text": "Entendido. Déjalo en mi mano, que te aviso cuando haya novedades. En Bilbao hoy hace 29 grados y está soleado, así que tendrás un día bastante agradable.",
+            "at": 1784763642.65,
+            "latency_ms": 7232
+          }
+        ],
+        "latency_ms": {
+          "n": 1,
+          "avg": 7232,
+          "max": 7232,
+          "samples": [
+            7232
+          ]
+        },
+        "trace": {
+          "frontend_actions": [],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "🌱 ventana sembrada desde memoria:",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: ¡Hola Ricard! Soy Zaelar, tu asistente por voz. ¿Qué necesitas?",
+            "⚡ Nucleo(flash): prompt: Hola, soy Rical. Quiero que busques un coche de segunda mano en Guarapó por menos de 5,000 euros y con menos de los 150",
+            "💬 relleno de espera (lead-in): Vale, a ver…",
+            "⚡ Nucleo(flash): reply: Sigo con ello; te aviso en cuanto lo tenga.",
+            "🧭 Flash → Brain Worker (escalada registrada): Busca en Guarapó coches de segunda mano con menos de 5.000 euros, menos de 150 kilómetros recorridos, cerca de Bilbao (u",
+            "⚡ Nucleo(flash): prompt: Hola, soy Ricard. Necesito que busques un coche de segunda mano en coches.net que cueste menos de 500 euros y tenga meno",
+            "💬 relleno de espera (lead-in): Déjame que mire…",
+            "⚡ Nucleo(flash): reply: Me pongo a buscar en coches.net — coches de segunda mano por menos de 500 euros, menos de 250 km y enfocados en la zona",
+            "🧭 Flash → Brain Worker (escalada registrada): Busca en coches.net coches de segunda mano por menos de 500 euros, con menos de 250 kilómetros de recorrido, en la zona",
+            "⚡ Nucleo(flash): prompt: Está bien, espero tu respuesta.",
+            "💬 relleno de espera (lead-in): Mmm…",
+            "⚡ Nucleo(flash): reply: Perfecto, Ricardo. Tengo tres búsquedas en marcha ahora: la moto Naked en Wannapop, el coche en Guarapó y el de coches.n",
+            "⚡ Nucleo(flash): prompt: Vale, estoy pendiente.",
+            "💬 relleno de espera (lead-in): Déjame ver…",
+            "⚡ Nucleo(flash): reply: Entendido. Déjalo en mi mano, que te aviso cuando haya novedades.",
+            "⚡ Nucleo(flash): prompt: Genial, espero los resultados. Mientras tanto, me puedes decir qué tiempo hace hoy aquí. ¿Qué no sabéis si necesito llev",
+            "💬 relleno de espera (lead-in): A ver qué tenemos…",
+            "🔎 búsqueda web: tiempo Bilbao hoy",
+            "⚡ Nucleo(flash): reply: En Bilbao hoy hace 29 grados y está soleado, así que tendrás un día bastante agradable."
+          ],
+          "event_kinds": {
+            "worker_start": 3,
+            "state": 21,
+            "bot_speech": 21,
+            "pulse": 71,
+            "brain": 22,
+            "trace": 6,
+            "perf": 23,
+            "memory": 40,
+            "timing": 6,
+            "metric": 22,
+            "susurro": 10,
+            "tts": 6,
+            "transcript": 10,
+            "vad": 10,
+            "search": 5,
+            "background": 2,
+            "stt": 5,
+            "task": 6,
+            "session": 1
+          },
+          "n_events": 290
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturallez": 3,
+          "coherencia": 2,
+          "utilidad": 2,
+          "accion": 1,
+          "latencia": 2,
+          "robustez": 2
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn4",
+            "problema": "Alucinación de precios parciales. Zaelar deserializa incorrectamente '5.000' como '500' o '5.000' como '5000' en diferentes turnos. Dice 'menos de 500 euros' y 'menos de 250 km' cuando el usuario pidió 5.000€/250.000km.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn6",
+            "problema": "Fallo de escalada (Action Failure). Pese a confirmar verbalmente que se pone a buscar ('Me pongo a buscar...'), la traza de frontend muestra 'NINGUNA' y no se registra evento de navegador/automate_web. Zael ignora la instrucción del protocolo de escalar.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn5",
+            "problema": "Alucinación de estado. Confirma 'tres búsquedas en marcha' inventando tareas previas (moto Naked, coche en Guarapó) no solicitadas, indicando pérdida de contexto o contaminación de memoria.",
+            "gravedad": "media"
+          },
+          {
+            "turno": "General",
+            "problema": "Latencia >7s hace la conversación poco fluida y la 'calidez' del saludo inicial se pierde por el tiempo de reacción.",
+            "gravedad": "baja"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "SlowBrain / Web Navigation",
+            "cambio": "Forzar la ejecución de la función de herramienta 'run_automation' cuando se detecte intención de compra/búsqueda externa y validar que el evento 'automate_web' se dispara.",
+            "porque": "El asistente confirmó que haría la acción pero el frontend indica que nunca se inició. Existe un gap entre la intención verbal y la ejecución técnica."
+          },
+          {
+            "area": "LLM Context / Prompting",
+            "cambio": "Mejorar el parser de números y entidades en el prompt del sistema para distinguir correctamente entre magnitudes (x1000 vs x1) y evitar truncar '5.000' a '500'.",
+            "porque": "Detectar mal los parámetros críticos (precio/km) convierte la búsqueda en inútil. El usuario pidió coches baratos, no juguetes."
+          },
+          {
+            "area": "Latencia / Arquitectura",
+            "cambio": "Revisar el pipeline de 'Flash → TTS' para interrumpir el 'lead-in' o generar el audio más rápido; 7.2s para un saludo es excesivo.",
+            "porque": "Una latencia de 7 segundos en el primer turno rompe la inmersión y hace que el bot parezca 'tonto' o congelado."
+          }
+        ],
+        "veredicto": "El escenario NO es producción-ready; el bloqueo crítico (#1) es la incapacidad total de ejecutar la acción de navegación (fallo de integración), seguido de la degradación severa de los datos de la búsqueda (alucinación de precios).",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "SlowBrain / Web Navigation",
+      "cambio": "Forzar la ejecución de la función de herramienta 'run_automation' cuando se detecte intención de compra/búsqueda externa y validar que el evento 'automate_web' se dispara.",
+      "porque": "El asistente confirmó que haría la acción pero el frontend indica que nunca se inició. Existe un gap entre la intención verbal y la ejecución técnica.",
+      "scenario": "navegador_coche",
+      "_sev": 0
+    },
+    {
+      "area": "LLM Context / Prompting",
+      "cambio": "Mejorar el parser de números y entidades en el prompt del sistema para distinguir correctamente entre magnitudes (x1000 vs x1) y evitar truncar '5.000' a '500'.",
+      "porque": "Detectar mal los parámetros críticos (precio/km) convierte la búsqueda en inútil. El usuario pidió coches baratos, no juguetes.",
+      "scenario": "navegador_coche",
+      "_sev": 0
+    },
+    {
+      "area": "Latencia / Arquitectura",
+      "cambio": "Revisar el pipeline de 'Flash → TTS' para interrumpir el 'lead-in' o generar el audio más rápido; 7.2s para un saludo es excesivo.",
+      "porque": "Una latencia de 7 segundos en el primer turno rompe la inmersión y hace que el bot parezca 'tonto' o congelado.",
+      "scenario": "navegador_coche",
+      "_sev": 0
+    }
+  ]
+}

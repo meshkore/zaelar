@@ -1,0 +1,174 @@
+{
+  "stamp": "20260711-233831",
+  "results": [
+    {
+      "scenario": "busqueda_web",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Alex, aquí estoy. ¿En qué te ayudo?",
+            "at": 1783805812.44
+          },
+          {
+            "who": "tester",
+            "text": "Bueno, hoy no nos ayudamos tanto, mejor dime qué tiempo hará mañana en Tarragona y ya está.",
+            "at": 1783805818.03
+          },
+          {
+            "who": "zaelar",
+            "text": "Mañana 12 de julio de 2026 en Tarragona se espera una temperatura de 30 grados con el cielo mayormente nublado.",
+            "at": 1783805833.6,
+            "latency_ms": 4363
+          },
+          {
+            "who": "tester",
+            "text": "¡Perfecto, Zaelar! ¿Podrías mostrarme la预报明天塔拉戈纳的天气情况？今天是2026年7月12日，预计气温最高将达到30度，天空大部分时间都会有云。",
+            "at": 1783805835.18
+          },
+          {
+            "who": "zaelar",
+            "text": "Mañana 12 de julio de 2026 en Tarragona se espera una temperatura de 30 grados con el cielo mayormente nublado. Perdona Alex, el audio ha salido un poco raro; ¿puedes repetírmelo por favor? Claro Alex, ¿quieres que abra la agenda?",
+            "at": 1783805877.28
+          },
+          {
+            "who": "tester",
+            "text": "No, no es necesario abrir la agenda. Zaelar, ¿me puedes decir qué tiempo hará mañana en Tarragona?",
+            "at": 1783805884.88
+          },
+          {
+            "who": "zaelar",
+            "text": "Perdona Alex, el audio ha salido un poco raro; ¿puedes repetírmelo por favor?",
+            "at": 1783805893.21
+          },
+          {
+            "who": "tester",
+            "text": "Sí, claro. Zaelar, dime qué tiempo hará mañana 12 de julio de 2026 en Tarragona.",
+            "at": 1783805897.2
+          },
+          {
+            "who": "zaelar",
+            "text": "Mañana por la mañana en Tarragona se espera una temperatura de unos 26 grados con nubes dispersas. Mañana por la mañana en Tarragona",
+            "at": 1783805905.78
+          }
+        ],
+        "latency_ms": {
+          "n": 1,
+          "avg": 4363,
+          "max": 4363,
+          "samples": [
+            4363
+          ]
+        },
+        "trace": {
+          "frontend_actions": [],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Alex, aquí estoy. ¿En qué te ayudo?",
+            "⚡ Nucleo(flash): prompt: Bueno, hoy ya los ayudamos tanto. Mejor dime qué tiempo hará mañana en Tarragola y ya está.",
+            "🔎 búsqueda web: previsión del tiempo Tarragona mañana 12 julio 2026",
+            "⚡ Nucleo(flash): reply: Mañana 12 de julio de 2026 en Tarragona se espera una temperatura de 30 grados con el cielo mayormente nublado.",
+            "⚡ Nucleo(flash): prompt: Perfecto Harvey. ¿Podrías mostrarme Na yubau minti amta na em ti ma tam?",
+            "⚡ Nucleo(flash): reply: Perdona Alex, el audio ha salido un poco raro; ¿puedes repetírmelo por favor?",
+            "⚡ Nucleo(flash): prompt: Gen, Ti, Kim.",
+            "⚡ Nucleo(flash): reply: Claro Alex, ¿quieres que abra la agenda?",
+            "⚡ Nucleo(flash): prompt: Quen, ging.",
+            "⚡ Nucleo(flash): prompt: Sian, si, do, dos, hi, chi, ji, yu, su, gao, yang, da, da, de, da, da, chi, chi, kyan, kom, yu, yu, fen, xi, yang, du, y",
+            "⚡ Nucleo(flash): reply: Perdona Alex, el audio ha salido un poco raro; ¿puedes repetírmelo por favor?",
+            "⚡ Nucleo(flash): prompt: No, no es necesario abrir la agenda. Harvey, ¿me puedes decir qué tiempo a la mañana en Tarragona?",
+            "⚡ Nucleo(flash): reply: Mañana por la mañana en Tarragona se espera una temperatura de unos 26 grados con nubes dispersas.",
+            "⚡ Nucleo(flash): prompt: Sí, claro. Harvey, dime qué tiempo hará mañana 12 de julio de 2026 en Tarragona."
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 22,
+            "bot_speech": 22,
+            "brain": 16,
+            "memory": 63,
+            "timing": 8,
+            "metric": 224,
+            "tts": 5,
+            "transcript": 11,
+            "vad": 14,
+            "stt": 7,
+            "search": 1,
+            "session": 1
+          },
+          "n_events": 395
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 4,
+          "coherencia": 1,
+          "utilidad": 3,
+          "accion": 5,
+          "latencia": 3,
+          "robustez": 1
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn4",
+            "problema": "El bot ignora el comando explícito del usuario 'No, no es necesario abrir la agenda' e insiste en preguntar si debe abrirla inmediatamente después.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn5",
+            "problema": "Repeticiones sintácticas ('Mañana por la mañana... Mañana por la mañana...') revelan un fallo de estabilidad en la generación del discurso final.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn3",
+            "problema": "Falsa disfluencia consistente. El audio es ruidoso ('transcript'), pero el texto interno (prompt) es claro. El sistema inyecta 'Perdona Alex, el audio ha salido un poco raro' como patrón prefijado en lugar de reaccionar a una señal real de calidad.",
+            "gravedad": "media"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "brain (contexto local)",
+            "cambio": "Implementar un bloque lógico de 'prohibición de inercia': si el usuario rechaza una acción (ej. 'No es necesario X'), bloquear cualquier intento del bot de sugerir X en los próximos 2 turnos.",
+            "porque": "El usuario rechazó la agenda y el bot la ofreció de nuevo inmediatamente, mostrando falta de escucha activa."
+          },
+          {
+            "area": "tts/post-proceso",
+            "cambio": "Aumentar la ventana de verificación de duplicación en el pipeline de TTS para cortar audio si se detectan frases idénticas consecutivas.",
+            "porque": "Se observó una repetición word-by-word ('Mañana por la mañana...') que degrada la experiencia."
+          },
+          {
+            "area": "nucleo (prompt system/persona)",
+            "cambio": "Eliminar la instrucción o 'trigger' que fuerza la frase 'Perdona Alex, el audio ha salido un poco raro' cuando el transcript de entrada es legible. Usar solo métricas de confianza reales.",
+            "porque": "La elucubración ruidosa del tester se transcribió como texto claro en el 'prompt' del cerebro, pero el bot lanzó la excusa de audio raro de todas formas, sintiéndose robótico."
+          }
+        ],
+        "veredicto": "No es producción-ready por fallos críticos en robustez y coherencia; el #1 bloqueador es la incapacidad para respetar la negativa del usuario (ignora el 'No' sobre la agenda).",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "brain (contexto local)",
+      "cambio": "Implementar un bloque lógico de 'prohibición de inercia': si el usuario rechaza una acción (ej. 'No es necesario X'), bloquear cualquier intento del bot de sugerir X en los próximos 2 turnos.",
+      "porque": "El usuario rechazó la agenda y el bot la ofreció de nuevo inmediatamente, mostrando falta de escucha activa.",
+      "scenario": "busqueda_web",
+      "_sev": 0
+    },
+    {
+      "area": "tts/post-proceso",
+      "cambio": "Aumentar la ventana de verificación de duplicación en el pipeline de TTS para cortar audio si se detectan frases idénticas consecutivas.",
+      "porque": "Se observó una repetición word-by-word ('Mañana por la mañana...') que degrada la experiencia.",
+      "scenario": "busqueda_web",
+      "_sev": 0
+    },
+    {
+      "area": "nucleo (prompt system/persona)",
+      "cambio": "Eliminar la instrucción o 'trigger' que fuerza la frase 'Perdona Alex, el audio ha salido un poco raro' cuando el transcript de entrada es legible. Usar solo métricas de confianza reales.",
+      "porque": "La elucubración ruidosa del tester se transcribió como texto claro en el 'prompt' del cerebro, pero el bot lanzó la excusa de audio raro de todas formas, sintiéndose robótico.",
+      "scenario": "busqueda_web",
+      "_sev": 0
+    }
+  ]
+}

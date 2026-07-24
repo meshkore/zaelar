@@ -1,0 +1,10 @@
+{
+  "view_data_shape": {
+    "date": "str",
+    "days": "list",
+    "location": "str",
+    "now": "str",
+    "range": "dict",
+    "source": "str"
+  }
+}

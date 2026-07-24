@@ -1,0 +1,341 @@
+"""nucleo/flash/fast_client.py — cliente del modelo RÁPIDO no-razonador del FlashBrain (V2-004 · T60).
+
+Puerto propio de `brains/duo/fast_client.py` (que muere con Hermes en V2-009), con la diferencia CLAVE del
+cerebro v2:
+
+  - **Modelo POR INVOCACIÓN** (regla dura del proyecto): el modelo/base_url/api_key/provider se pasan en CADA
+    `stream()` dentro de un `ModelSpec`, NUNCA se leen de una env global de modelo — así dos sesiones concurrentes
+    pueden usar modelos distintos sin pisarse. `spec_from_config()` compone el spec por defecto desde `config/v2`
+    (que la UI gestiona), pero el llamador es libre de pasar otro.
+  - **NO-razonador**: thinking siempre OFF. Un razonador no cierra el turno a tiempo → la voz se queda muda.
+  - Interfaz OpenAI-compatible con **tool-calling real** (escalado y control van por function-calling, no por
+    listas de palabras clave — agnóstico del idioma). Streaming de `delta.content` + acumulación de
+    `delta.tool_calls`, con `on_tool_call(name, args)` disparado una vez por llamada completa.
+  - **Degradación**: `stream()` propaga el error de transporte/proveedor; el provider de voz (`nucleo.py`) lo
+    captura y responde una frase de reserva — NUNCA se queda mudo ni habla el error crudo.
+"""
+from __future__ import annotations
+
+import os
+import time
+from dataclasses import dataclass
+from typing import Any, AsyncIterator
+
+from loguru import logger
+
+# UA de navegador: AIMLAPI está tras Cloudflare y 403ea el User-Agent por defecto del SDK OpenAI (403/1010
+# intermitente, visto en producción). Se falsea SOLO en el endpoint de AIMLAPI (sin efecto en Ollama/otros).
+_BROWSER_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+_DEFAULT_MAX_TOKENS = 200
+
+
+def _keepalive_expiry() -> float:
+    """Segundos que el pool HTTP mantiene VIVA una conexión ociosa (FASE 1 cold-start). httpx por defecto la cierra
+    a los ~5s → el prewarm no llega al 1er turno. La subimos mucho (def 30 min). Configurable `FAST_HTTP_KEEPALIVE_S`.
+    La MISMA cifra alimenta la heurística `cold_estimate` (gap > keepalive ⇒ conexión probablemente fría)."""
+    try:
+        return float(os.getenv("FAST_HTTP_KEEPALIVE_S", "1800"))
+    except Exception:
+        return 1800.0
+
+
+def _http_client():
+    """Cliente httpx con keepalive LARGO + pool, para que la conexión TLS prewarmeada sobreviva al 1er turno y
+    entre turnos (FASE 1). Best-effort: si httpx no admite la firma, devuelve None → AsyncOpenAI usa su default."""
+    try:
+        import httpx
+        ka = _keepalive_expiry()
+        limits = httpx.Limits(max_keepalive_connections=8, max_connections=16, keepalive_expiry=ka)
+        return httpx.AsyncClient(limits=limits, timeout=httpx.Timeout(60.0, connect=10.0))
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"http_client keepalive setup skipped (usando default httpx): {e}")
+        return None
+
+
+@dataclass(frozen=True)
+class ModelSpec:
+    """Selección de modelo POR INVOCACIÓN. Nunca una env global de modelo."""
+    model: str
+    base_url: str | None = None
+    api_key: str | None = None
+    provider: str = "aimlapi"     # 'ollama' (local) | 'aimlapi' (nube) | …
+
+    def is_local(self) -> bool:
+        """True cuando apunta a un endpoint local (Ollama) — sin nube, sin coste por token."""
+        if self.provider == "ollama":
+            return True
+        u = (self.base_url or "").lower()
+        return "11434" in u or "localhost" in u or "127.0.0.1" in u
+
+    def resolved_base_url(self) -> str:
+        if self.base_url:
+            return self.base_url
+        if self.is_local():
+            return "http://localhost:11434/v1"
+        return "https://api.aimlapi.com/v1"
+
+    def resolved_api_key(self) -> str:
+        if self.api_key:
+            return self.api_key
+        if self.is_local():
+            return "ollama"        # Ollama acepta cualquier no-vacío
+        # Nube sin key explícita → credencial DESDE EL ENTORNO (fallback power-user). La KEY es una credencial,
+        # no una selección de modelo, así que leerla del env NO viola "modelo por invocación". Contrato heredado:
+        # FAST_API_KEY explícita → si no, AIMLAPI_KEY (endpoint aimlapi) / GEMINI_API_KEY (endpoint gemini).
+        import os
+        fast = os.getenv("FAST_API_KEY")
+        if fast:
+            return fast
+        if self._is_aimlapi():
+            return os.getenv("AIMLAPI_KEY", "")
+        if self._is_gemini():
+            return os.getenv("GEMINI_API_KEY", "")
+        if self._is_xai():
+            return os.getenv("XAI_API_KEY", "")     # xAI DIRECTO (api.x.ai) — capa rápida sin proxy AIMLAPI
+        if self._is_groq():
+            return os.getenv("GROQ_API_KEY", "")
+        if self._is_openai():
+            return os.getenv("OPENAI_API_KEY", "")   # OpenAI DIRECTO (api.openai.com) — p.ej. gpt-4o-mini
+        if self._is_mistral():
+            return os.getenv("MISTRAL_API_KEY", "")  # Mistral DIRECTO (api.mistral.ai) — p.ej. mistral-small-latest
+        return ""
+
+    def _is_aimlapi(self) -> bool:
+        return "aimlapi" in self.resolved_base_url().lower()
+
+    def _is_openai(self) -> bool:
+        return "api.openai.com" in self.resolved_base_url().lower()
+
+    def _is_mistral(self) -> bool:
+        return "mistral.ai" in self.resolved_base_url().lower()
+
+    def _is_xai(self) -> bool:
+        return "x.ai" in self.resolved_base_url().lower()
+
+    def _is_groq(self) -> bool:
+        return "groq.com" in self.resolved_base_url().lower()
+
+    def _is_gemini(self) -> bool:
+        u = self.resolved_base_url().lower()
+        return "googleapis" in u or "generativelanguage" in u
+
+    def reasoning_effort(self) -> str:
+        """``reasoning_effort='none'`` desactiva el thinking de GEMINI (su extensión). Es GEMINI-específico:
+        AIMLAPI/DeepSeek/Ollama lo RECHAZAN (400). Se manda SOLO a Gemini; en el resto se omite."""
+        return "none" if self._is_gemini() else ""
+
+
+def spec_from_config() -> ModelSpec:
+    """Compone el `ModelSpec` por defecto desde `config/v2` (gestionado por la UI; env = fallback power-user).
+    El llamador puede ignorarlo y pasar su propio spec (modelo por invocación)."""
+    try:
+        from config import v2 as _v2
+        cfg = _v2.fast_model_spec()
+        return ModelSpec(
+            model=cfg.get("model") or "x-ai/grok-4-fast-non-reasoning",
+            base_url=cfg.get("base_url") or None,
+            api_key=cfg.get("api_key") or None,
+            provider=cfg.get("provider") or "aimlapi",
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"fast spec_from_config fallback (usando defaults): {e}")
+        return ModelSpec(model="x-ai/grok-4-fast-non-reasoning", provider="aimlapi")
+
+
+def available(spec: ModelSpec | None = None) -> bool:
+    """True si hay credencial utilizable para este spec (local siempre; nube exige api_key)."""
+    spec = spec or spec_from_config()
+    return bool(spec.resolved_api_key())
+
+
+def est_tokens(chars: int) -> int:
+    """Estimación barata de tokens desde nº de chars (~4 chars/token, es/en). NO exacta, pero suficiente para
+    distinguir «prompt de 100 tokens» de «prompt de 50k» — el eje que pide el operador para saber si la latencia
+    es del MODELO o del TAMAÑO del prompt. Si el proveedor devuelve `usage` real, ese manda (ver `stream`)."""
+    return int(round((chars or 0) / 4.0))
+
+
+class FastClient:
+    """Cliente streaming del modelo rápido. STATELESS respecto al modelo: cada `stream()` recibe su `ModelSpec`.
+    Los clientes AsyncOpenAI subyacentes se cachean por (base_url, api_key, ua) para reusar conexiones."""
+
+    # timestamp de la ÚLTIMA llamada por client-key → heurística cold/warm (gap > keepalive ⇒ conexión probablemente
+    # fría, se re-hace TLS). Observabilidad del cold-start (FASE 1). Class-level: compartido por todas las instancias.
+    _last_call_at: dict[tuple, float] = {}
+
+    _clients: dict[tuple, Any] = {}
+
+    def _client_key(self, spec: ModelSpec) -> tuple:
+        key = spec.resolved_api_key()
+        if not key:
+            raise RuntimeError(f"sin api_key para el modelo rápido ({spec.model} @ {spec.resolved_base_url()})")
+        base = spec.resolved_base_url()
+        ua = _BROWSER_UA if spec._is_aimlapi() else ""
+        return (base, key, ua)
+
+    def _client_for(self, spec: ModelSpec):
+        # import perezoso: una key ausente no debe reventar el import del paquete/setup de sesión.
+        from openai import AsyncOpenAI
+
+        ck = self._client_key(spec)
+        base, _key, ua = ck
+        cli = FastClient._clients.get(ck)
+        if cli is None:
+            headers = {"User-Agent": ua} if ua else None
+            # FASE 1 (cold-start): el cliente HTTP mantiene la conexión TLS VIVA mucho más que el default de httpx
+            # (~5s). Sin esto, el prewarm calienta la conexión al arrancar pero CADUCA antes del 1er turno → se
+            # re-hace TLS+handshake = los ~3.8s del 1er turno frío. Con keepalive largo, la conexión prewarmeada
+            # sobrevive hasta el 1er turno y ENTRE turnos → el modelo caliente (~1.2s) se percibe siempre.
+            okw = dict(api_key=_key, base_url=base, default_headers=headers)
+            _hc = _http_client()
+            if _hc is not None:
+                okw["http_client"] = _hc
+            cli = AsyncOpenAI(**okw)
+            FastClient._clients[ck] = cli
+        return cli
+
+    async def stream(
+        self,
+        messages: list[dict],
+        *,
+        spec: ModelSpec | None = None,
+        tools: list[dict] | None = None,
+        on_tool_call=None,
+        max_tokens: int | None = None,
+        metrics: dict | None = None,
+        **kwargs: Any,
+    ) -> AsyncIterator[str]:
+        """Generador async: emite el texto de cada chunk según llega (para empujarlo a TTS al instante). Lanza
+        ante error de transporte/proveedor (el llamador habla una reserva limpia — nunca el error crudo).
+
+        Si se pasan `tools` (funciones OpenAI-compatible), se ofrecen con `tool_choice='auto'`; los
+        `delta.tool_calls` se acumulan por índice y, al terminar el stream, `on_tool_call(name, args_dict)` se
+        dispara una vez por llamada completa (best-effort: una con JSON inválido se salta, nunca lanza)."""
+        spec = spec or spec_from_config()
+        extra_body: dict[str, Any] = {}
+        r = spec.reasoning_effort()
+        if r:
+            extra_body["reasoning_effort"] = r
+        if spec.is_local():
+            # Mantén el modelo local caliente durante toda la sesión (evita recargas de ~60s tras un hueco).
+            extra_body["keep_alive"] = "30m"
+        call_kwargs = dict(
+            model=spec.model,
+            messages=messages,
+            max_tokens=max_tokens or _DEFAULT_MAX_TOKENS,
+            stream=True,
+        )
+        if extra_body:
+            call_kwargs["extra_body"] = extra_body
+        if tools:
+            call_kwargs["tools"] = tools
+            call_kwargs["tool_choice"] = "auto"
+        call_kwargs.update(kwargs)
+
+        # ── TOTALIZADORES DE TAMAÑO (observabilidad, premisa del operador) ──────────────────────────────────
+        # Chars EXACTOS del input (mensajes + esquemas de tools) + tokens ESTIMADOS. Distingue «lento por el
+        # modelo» de «lento por prompt gigante». Todo en `metrics` (best-effort; nunca rompe el turno).
+        m = metrics if metrics is not None else {}
+        try:
+            import json as _json
+            prompt_chars = sum(len(str(msg.get("content") or "")) for msg in messages)
+            sys_chars = sum(len(str(msg.get("content") or "")) for msg in messages if msg.get("role") == "system")
+            tools_chars = len(_json.dumps(tools)) if tools else 0
+            ck = self._client_key(spec)
+            now = time.time()
+            last = FastClient._last_call_at.get(ck)
+            gap_s = (now - last) if last else None
+            # keepalive del pool (FASE 1); si el gap lo supera, la conexión estaba probablemente FRÍA (TLS de nuevo).
+            _ka = _keepalive_expiry()
+            m.update({
+                "model": spec.model, "provider": spec.provider,
+                "prompt_chars": prompt_chars, "system_chars": sys_chars,
+                "n_msgs": len(messages), "n_tools": len(tools) if tools else 0, "tools_chars": tools_chars,
+                "prompt_tokens_est": est_tokens(prompt_chars + tools_chars),
+                "gap_since_last_s": round(gap_s, 1) if gap_s is not None else None,
+                "cold_estimate": (gap_s is None) or (gap_s > _ka),
+            })
+            FastClient._last_call_at[ck] = now
+        except Exception:
+            pass
+
+        stream = await self._client_for(spec).chat.completions.create(**call_kwargs)
+        calls: dict[int, dict] = {}
+        _completion_chars = 0
+        _usage = None
+        _t_start = time.time()
+        try:
+            # try/finally (no "recorre y luego dispara"): el consumidor puede `return` desde DENTRO de su propio
+            # `async for` (p. ej. deriva de idioma) → cierra este generador con GeneratorExit a mitad. Sin el
+            # finally, una tool call ya acumulada se perdería en silencio (bug real corregido en duo 2026-07-08).
+            async for chunk in stream:
+                # `usage` REAL si el proveedor lo incluye en algún chunk (muchos lo mandan en el último). No lo
+                # PEDIMOS con stream_options (riesgo de 400 en proxies que no lo soportan) — lo leemos si viene.
+                _u = getattr(chunk, "usage", None)
+                if _u is not None:
+                    _usage = _u
+                try:
+                    delta = chunk.choices[0].delta
+                except (IndexError, AttributeError):
+                    continue
+                text = getattr(delta, "content", None) or ""
+                if text:
+                    _completion_chars += len(text)
+                    yield text
+                for tc in (getattr(delta, "tool_calls", None) or []):
+                    slot = calls.setdefault(getattr(tc, "index", 0), {"name": "", "arguments": ""})
+                    fn = getattr(tc, "function", None)
+                    if fn and getattr(fn, "name", None):
+                        slot["name"] = fn.name
+                    if fn and getattr(fn, "arguments", None):
+                        slot["arguments"] += fn.arguments
+        finally:
+            # cierre de TOTALIZADORES: chars de salida + tokens (reales del proveedor si vinieron, si no estimados)
+            # + tiempo total. El TTFT lo mide el llamador (primer yield). Best-effort.
+            try:
+                m["completion_chars"] = _completion_chars
+                m["completion_tokens_est"] = est_tokens(_completion_chars)
+                m["total_ms"] = round((time.time() - _t_start) * 1000, 1)
+                if _usage is not None:
+                    pt = getattr(_usage, "prompt_tokens", None)
+                    ctk = getattr(_usage, "completion_tokens", None)
+                    tt = getattr(_usage, "total_tokens", None)
+                    if pt is not None:
+                        m["prompt_tokens"] = pt
+                    if ctk is not None:
+                        m["completion_tokens"] = ctk
+                    if tt is not None:
+                        m["total_tokens"] = tt
+                    m["usage_source"] = "provider"
+                else:
+                    m["usage_source"] = "estimate"
+            except Exception:
+                pass
+            # ENERGY METERING (INI-018, 2026-07-24) — no-op everywhere except a demo Machine (see
+            # nucleo/energy_meter.py). Uses REAL provider usage when available, falls back to the
+            # char-based estimate already computed above (m["*_tokens_est"]) otherwise — some real
+            # signal beats none for a cost meter, even if provider usage never arrived this call.
+            try:
+                from nucleo import energy_meter as _energy
+                _energy.report_llm_usage(
+                    base_url=spec.resolved_base_url(),
+                    prompt_tokens=m.get("prompt_tokens", m.get("prompt_tokens_est")),
+                    completion_tokens=m.get("completion_tokens", m.get("completion_tokens_est")),
+                )
+            except Exception:
+                pass
+            if on_tool_call and calls:
+                import json
+                for call in calls.values():
+                    if not call["name"]:
+                        continue
+                    try:
+                        args = json.loads(call["arguments"] or "{}")
+                    except Exception:
+                        logger.warning(f"tool call {call['name']} con argumentos no parseables: {call['arguments']!r}")
+                        continue
+                    on_tool_call(call["name"], args if isinstance(args, dict) else {})
+
+    def describe(self, spec: ModelSpec | None = None) -> str:
+        spec = spec or spec_from_config()
+        return f"{spec.model} @ {spec.resolved_base_url()} (reasoning={spec.reasoning_effort() or 'default'})"

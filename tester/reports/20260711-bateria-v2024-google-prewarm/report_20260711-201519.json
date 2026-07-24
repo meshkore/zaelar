@@ -1,0 +1,151 @@
+{
+  "stamp": "20260711-201519",
+  "results": [
+    {
+      "scenario": "mensajeria",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Annex, soy zaelar. ¿En qué te ayudo hoy?",
+            "at": 1783793271.25
+          },
+          {
+            "who": "tester",
+            "text": "No me llames Annex, por favor. Soy Alex. Pídele a zaelar que abra el widget de mensajería y muéstrame cuántos mensajes importantes tengo y si WhatsApp y Telegram están conectados.",
+            "at": 1783793272.79
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale Alex, te abro Mensajería ahora mismo. Te muestro el widget «mensajeria». Tienes un mensaje en WhatsApp de Rakel Karó.",
+            "at": 1783793634.32
+          },
+          {
+            "who": "tester",
+            "text": "Mmm, ¿y con Telegram? Necesito saber si está conectado también.",
+            "at": 1783793638.23
+          },
+          {
+            "who": "zaelar",
+            "text": "Ya está abierto el widget de mensajería. WhatsApp y Telegram están conectados, y tienes un mensaje nuevo de Rakel Karó que te importa.",
+            "at": 1783793669.74
+          },
+          {
+            "who": "tester",
+            "text": "Perfecto, gracias zaelar. Veo que tanto WhatsApp como Telegram están conectados. Ya sabía que las apps estaban sincronizadas pero bueno, a veces hay que comprobarlo. Adiós.",
+            "at": 1783793674.54
+          },
+          {
+            "who": "zaelar",
+            "text": "De nada Alex, hasta luego.",
+            "at": 1783793712.62
+          }
+        ],
+        "latency_ms": {
+          "n": 0,
+          "avg": null,
+          "max": null,
+          "samples": []
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:show:mensajeria",
+            "widget:show:mensajeria",
+            "widget:data:mensajeria",
+            "widget:data:mensajeria",
+            "widget:data:mensajeria",
+            "widget:show:mensajeria"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "✂️ input recortado (comando preservado): →1600 chars",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Annex, soy zaelar. ¿En qué te ayudo hoy?",
+            "⚡ Nucleo(flash): prompt: No me llames Anix, por favor. Soy Alex. Píbele a Harmay que abra el widget de mensajería y muéstrame cuántos mensajes im",
+            "⚡ Nucleo(flash): reply: Vale Alex, te abro Mensajería ahora mismo.",
+            "🧭 Flash → SlowBrain (escalada registrada): El operador se llama Alex (no Annex). Pide que se muestre el widget de mensajería y que se informe cuántos mensajes impo",
+            "📨 Triaje mensajería (1):",
+            "📩 system note → FlashBrain: [SISTEMA] SlowBrain · Tarea completada: Te muestro el widget «mensajeria».",
+            "📩 system note → FlashBrain: [SISTEMA] WhatsApp: 1 mensaje(s) nuevo(s) que le importan al operador: Rakel Karó: Está bien. Están en el widget 'mensaj",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] SlowBrain · Tarea completada: Te muestro el widget «mensajeria».\n[SISTEMA] WhatsApp: 1 mensaje(s) nuevo(s) que",
+            "⚡ Nucleo(flash): reply: Ya está abierto el widget de mensajería. WhatsApp y Telegram están conectados, y tienes un mensaje nuevo de Rakel Karó q",
+            "⚡ Nucleo(flash): prompt: Perfecto, gracias al B. Veo que tanto WhatsApp como Telegram están conectados. Ya sabía que las apps estaban sincronizad",
+            "⚡ Nucleo(flash): reply: De nada Alex, hasta luego."
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 19,
+            "bot_speech": 18,
+            "brain": 14,
+            "memory": 45,
+            "timing": 4,
+            "metric": 260,
+            "tts": 8,
+            "transcript": 9,
+            "vad": 6,
+            "stt": 3,
+            "widget": 6,
+            "task": 2,
+            "notify": 2,
+            "session": 5
+          },
+          "n_events": 402
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalnez": 4,
+          "coherencia": 4,
+          "utilidad": 5,
+          "accion": 1,
+          "latencia": 5,
+          "robustez": 5
+        },
+        "overall": 4,
+        "findings": [
+          {
+            "turno": "zaelar@turn2",
+            "problema": "CRITICAL BUG V2-023: El sistema invoca `widget:show:mensajeria` 3 veces en la traza por petición, lo que indica un fallo de renderizado (probablemente se están creando widgets duplicados en lugar de reutilizar la instancia única existente).",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn3",
+            "problema": "Exceso de eventos `widget:show` consecutivos (trace shows 6 eventos totales en la sesión, muchos redundantes). Indica falta de validación de estado previo antes de ejecutar la acción.",
+            "gravedad": "media"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Frontend / Canvas Router",
+            "cambio": "Implementar un singleton check en el router de widgets. Antes de ejecutar `widget:show`, verificar si `mensajeria` ya está en el DOM. Si existe, solo ejecutar `focus` o `update`, nunca `create/clone`.",
+            "porque": "La traza muestra múltiples `widget:show:mensajeria` seguidos. Esto sugiere que se están instanciando múltiples widgets duplicados en lugar de reutilizar el componente existente."
+          },
+          {
+            "area": "Brain / Prompt Engineering",
+            "cambio": "Añadir una instrucción estricta en el prompt de sistema: 'Previene la repetición de acciones. No invoques `widget:show` si el contexto inmediato indica que acabas de mostrarlo.'",
+            "porque": "Aunque el frontend debe bloquear el duplicate, el 'cerebro' tampoco debería estar enviando 3 comandos de 'show' seguidos para el mismo widget."
+          }
+        ],
+        "veredicto": "El escenario es funcionalmente correcto en cuanto a información y respuesta, pero NO es production-ready debido al fallo crítico de renderizado (duplicación de widgets) observado en la traza.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Frontend / Canvas Router",
+      "cambio": "Implementar un singleton check en el router de widgets. Antes de ejecutar `widget:show`, verificar si `mensajeria` ya está en el DOM. Si existe, solo ejecutar `focus` o `update`, nunca `create/clone`.",
+      "porque": "La traza muestra múltiples `widget:show:mensajeria` seguidos. Esto sugiere que se están instanciando múltiples widgets duplicados en lugar de reutilizar el componente existente.",
+      "scenario": "mensajeria",
+      "_sev": 0
+    },
+    {
+      "area": "Brain / Prompt Engineering",
+      "cambio": "Añadir una instrucción estricta en el prompt de sistema: 'Previene la repetición de acciones. No invoques `widget:show` si el contexto inmediato indica que acabas de mostrarlo.'",
+      "porque": "Aunque el frontend debe bloquear el duplicate, el 'cerebro' tampoco debería estar enviando 3 comandos de 'show' seguidos para el mismo widget.",
+      "scenario": "mensajeria",
+      "_sev": 0
+    }
+  ]
+}

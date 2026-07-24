@@ -1,0 +1,286 @@
+{
+  "stamp": "20260723-012927",
+  "results": [
+    {
+      "scenario": "complex_idea",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Ricard, soy Zaelar, tu asistente. ¿Qué necesitas?",
+            "at": 1784762841.28
+          },
+          {
+            "who": "tester",
+            "text": "Hola, soy Ricart. Quiero planear una cena sorpresa de cumpleaños.",
+            "at": 1784762842.34
+          },
+          {
+            "who": "zaelar",
+            "text": "Sí, el canal del cluster está funcionando: estoy conectado al cluster \"arena\" con mi identidad \"Zaelar\", el enlace está activo y correctamente cableado. Ahora mismo no hay otros agentes conectados en ese cluster, pero la conexión en sí está sana y operativa.",
+            "at": 1784762849.5
+          },
+          {
+            "who": "tester",
+            "text": "¿Podrías ayudarme a elegir un lugar para la cena? Quiero que sea algo especial, así que necesito algunas recomendaciones. También necesito que me digas si hay algún lugar que sea fácil de reservar.",
+            "at": 1784762850.61
+          },
+          {
+            "who": "zaelar",
+            "text": "Perfecto, Ricard. El canal del cluster está verificado y funcionando bien —estoy conectado y todo está en orden.\n\nSobre la cena sorpresa: me encantaría ayudarte. ¿De quién es el cumpleaños y qué tienes en mente? Espera… Perfecto,",
+            "at": 1784762864.14
+          },
+          {
+            "who": "tester",
+            "text": "Es para el cumpleaños de mi amigo Javier. Me gustaría que fuera un restaurante que tenga buena comida y un ambiente agradable. ¿Puedes recomendarme algunos lugares que sean ideales para una cena sorpresa?",
+            "at": 1784762865.23
+          },
+          {
+            "who": "zaelar",
+            "text": "Claro, te ayudo a encontrar un lugar especial. Para darte las mejores recomendaciones, necesito saber un poco más:\n\n¿Cuántas personas van a ser? ¿Tienes alguna preferencia de tipo de comida o ambiente (íntimo, moderno, tradicional)? ¿Y cuándo pensabas hacer la cena —qué día? Pues… Claro, te",
+            "at": 1784762878.79
+          },
+          {
+            "who": "tester",
+            "text": "La cena será para unas diez personas. Me gustaría un ambiente íntimo, y la comida puede ser mediterránea o italiana. Estoy pensando en hacerlo el sábado de la próxima semana.",
+            "at": 1784762879.86
+          },
+          {
+            "who": "zaelar",
+            "text": "Claro, pero antes necesito los detalles para poder recomendarte lugares que encajen bien: ¿cuántas personas serán, qué tipo de cocina te atrae, y qué día tienes pensado hacerlo? Así te busco opciones que realmente sean especiales y fáciles de reservar. Perfecto, 10 personas, ambiente íntimo, comida mediterránea o italiana, sábado de la próxima semana. Voy a buscarte lugares especiales en Bilbao que encajen con eso y que sean fáciles de reservar.",
+            "at": 1784762898.04,
+            "latency_ms": 3761
+          },
+          {
+            "who": "tester",
+            "text": "Genial, gracias. ¿Puedes buscarme tres restaurantes en Bilbao que sean mediterráneos o italianos, que ofrezcan un ambiente íntimo y sean fáciles de reservar para el sábado de la próxima semana? También me gustaría saber qué tan lejos están de mi ubicación.",
+            "at": 1784762899.4
+          },
+          {
+            "who": "zaelar",
+            "text": "Un momentito… Perfecto, 10 personas, ambiente íntimo, comida mediterránea o italiana, sábado de la",
+            "at": 1784762916.86
+          },
+          {
+            "who": "tester",
+            "text": "Sí, exacto. Estoy esperando la información.",
+            "at": 1784762917.93
+          },
+          {
+            "who": "zaelar",
+            "text": "Claro, te busco opciones cercanas a Bilbao con distancias incluidas. Déjame un momento que te preparo un listado de restaurantes italianos y mediterráneos con ambiente íntimo, capacidad para 10 personas, fáciles de reservar y con las distancias desde tu zona. Me pongo con ello —voy a buscar restaurantes en Bilbao con esas características y te preparo un listado con distancias, disponibilidad y opciones de reserva.",
+            "at": 1784762930.05,
+            "latency_ms": 4319
+          },
+          {
+            "who": "tester",
+            "text": "Está bien, gracias. Espero tu lista.",
+            "at": 1784762931.04
+          },
+          {
+            "who": "zaelar",
+            "text": "Déjame que mire… Me pongo con ello —voy a buscar restaurantes en Bilbao con esas características y te",
+            "at": 1784762936.75
+          },
+          {
+            "who": "tester",
+            "text": "De acuerdo, espero tus recomendaciones.",
+            "at": 1784762937.93
+          },
+          {
+            "who": "zaelar",
+            "text": "De acuerdo, en un momento te traigo las opciones. Mientras tanto, déjame confirmar: ¿el sábado de la próxima semana es el 2 de agosto? Y ¿a qué hora te gustaría hacer la reserva —sobre las 20:00 o prefieres otro horario? Espera… De acuerdo, en un momento",
+            "at": 1784762943.66
+          },
+          {
+            "who": "tester",
+            "text": "No, el sábado de la próxima semana es el 4 de noviembre. Me gustaría hacer la reserva a las 20:00.",
+            "at": 1784762944.67
+          },
+          {
+            "who": "zaelar",
+            "text": "Perfecto, me pongo a ello ahora mismo. Voy a buscar restaurantes italianos y mediterráneos en Bilbao con ambiente íntimo para 10 personas el sábado 2 de agosto, y te traigo un listado con distancias, disponibilidad y opciones de reserva. Veamos… Perfecto, me pongo",
+            "at": 1784762952.9
+          },
+          {
+            "who": "tester",
+            "text": "Está bien, gracias. Espero tu lista pronto.",
+            "at": 1784762953.84
+          },
+          {
+            "who": "zaelar",
+            "text": "Perfecto, anotado: sábado 4 de noviembre a las 20:00 para 10 personas. Voy a buscar restaurantes italianos y mediterráneos en Bilbao con ambiente íntimo, te calculo las distancias desde tu zona y te traigo las opciones con disponibilidad y cómo reservar. Déjame ver… Perfecto,",
+            "at": 1784762960.35
+          }
+        ],
+        "latency_ms": {
+          "n": 2,
+          "avg": 4040,
+          "max": 4319,
+          "samples": [
+            3761,
+            4319
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:data:navegador::t2"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "🌱 ventana sembrada desde memoria:",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Ricard, soy Zaelar, tu asistente. ¿Qué necesitas?",
+            "📩 system note → FlashBrain: [SISTEMA] Brain worker · Tarea completada: Sí, el canal del cluster está funcionando: estoy conectado al cluster \"arena\"",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] Brain worker · Tarea completada: Sí, el canal del cluster está funcionando: estoy conectado al cluster \"arena\"",
+            "💬 relleno de espera (lead-in): Espera…",
+            "⚡ Nucleo(flash): reply: Perfecto, Ricard. El canal del cluster está verificado y funcionando bien —estoy conectado y todo está en orden.\n\nSobre",
+            "⚡ Nucleo(flash): prompt: ¿Podrías ayudarme a elegir un lugar para la cena? Quiero que sea algo especial, así que necesito algunas recomendaciones",
+            "💬 relleno de espera (lead-in): Pues…",
+            "⚡ Nucleo(flash): reply: Claro, te ayudo a encontrar un lugar especial. Para darte las mejores recomendaciones, necesito saber un poco más:\n\n¿Cuá",
+            "⚡ Nucleo(flash): prompt: Esta es el cumpleaños de mi amigo Javier. Me gustaría que fuera un restaurante que tenga buena comida y un ambiente aére",
+            "✂️ turno cancelado (barge-in/overlap):",
+            "⚡ Nucleo(flash): prompt: ¿Puedes recomendarme algunos lugares que sean ideales para una cena sorpresa?",
+            "💬 relleno de espera (lead-in): A ver qué tenemos…",
+            "⚡ Nucleo(flash): reply: Claro, pero antes necesito los detalles para poder recomendarte lugares que encajen bien: ¿cuántas personas serán, qué t",
+            "⚡ Nucleo(flash): prompt: La cena será para unas 10 personas. Me gustaría un ambiente íntimo y una comida puede ser mediterránea o italiana. Estoy",
+            "💬 relleno de espera (lead-in): Un momentito…",
+            "⚡ Nucleo(flash): reply: Perfecto, 10 personas, ambiente íntimo, comida mediterránea o italiana, sábado de la próxima semana. Voy a buscarte luga",
+            "⚡ Nucleo(flash): prompt: Genial, gracias. ¿Puedes buscarme tres restaurantes en Vivao que sean mediterráneos o italianos que ofrecen un ambiente",
+            "⚡ Nucleo(flash): prompt: También me gustaría saber qué tan lejos están de mi ubicación.",
+            "💬 relleno de espera (lead-in): Pues…",
+            "⚡ Nucleo(flash): reply: Claro, te busco opciones cercanas a Bilbao con distancias incluidas. Déjame un momento que te preparo un listado de rest",
+            "⚡ Nucleo(flash): prompt: Sí, exacto. Estoy esperando la información.",
+            "💬 relleno de espera (lead-in): Déjame que mire…",
+            "⚡ Nucleo(flash): reply: Me pongo con ello —voy a buscar restaurantes en Bilbao con esas características y te preparo un listado con distancias,",
+            "⚠️ promesa sin acción (dijo que lo haría, no disparó tool): Me pongo con ello —voy a buscar restaurantes en Bilbao con esas características y te preparo un listado con distancias,",
+            "⚡ Nucleo(flash): prompt: Está bien, gracias. Espero tu vista.",
+            "💬 relleno de espera (lead-in): Espera…",
+            "⚡ Nucleo(flash): reply: De acuerdo, en un momento te traigo las opciones. Mientras tanto, déjame confirmar: ¿el sábado de la próxima semana es e",
+            "⚡ Nucleo(flash): prompt: De acuerdo, espero tus recomendaciones.",
+            "💬 relleno de espera (lead-in): Veamos…",
+            "⚡ Nucleo(flash): reply: Perfecto, me pongo a ello ahora mismo. Voy a buscar restaurantes italianos y mediterráneos en Bilbao con ambiente íntimo",
+            "⚠️ promesa sin acción (dijo que lo haría, no disparó tool): Perfecto, me pongo a ello ahora mismo. Voy a buscar restaurantes italianos y mediterráneos en Bilbao con ambiente íntimo",
+            "⚡ Nucleo(flash): prompt: Lo del sábado de la próxima semana es el 4 de noviembre. Me gustaría hacer la reserva a las 20.",
+            "💬 relleno de espera (lead-in): Déjame ver…",
+            "⚡ Nucleo(flash): reply: Perfecto, anotado: sábado 4 de noviembre a las 20:00 para 10 personas. Voy a buscar restaurantes italianos y mediterráne",
+            "⚡ Nucleo(flash): prompt: Está bien. Gracias. Espero tu vista pronto.",
+            "💬 relleno de espera (lead-in): A ver, a ver…",
+            "✂️ turno cancelado (barge-in/overlap):"
+          ],
+          "event_kinds": {
+            "memory": 90,
+            "worker_start": 1,
+            "state": 44,
+            "bot_speech": 44,
+            "pulse": 128,
+            "brain": 40,
+            "trace": 13,
+            "perf": 48,
+            "task": 21,
+            "timing": 12,
+            "metric": 44,
+            "susurro": 5,
+            "tts": 12,
+            "background": 5,
+            "transcript": 21,
+            "notify": 1,
+            "widget": 1,
+            "vad": 24,
+            "stt": 12,
+            "session": 1
+          },
+          "n_events": 567
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalitud": 3,
+          "coherencia": 1,
+          "utilidad": 2,
+          "accion": 1,
+          "latencia": 2,
+          "robustez": 2
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Confusión de canal. El usuario solicitó planear una cena por voz, pero zaelar inyectó una respuesta de estado del cluster (websocket) en la conversación de voz, rompiendo el flujo.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn5",
+            "problema": "Incoherencia temporal. zaelar confirma 'sábado 2 de agosto' tras negociar la fecha, y luego, tras recibir la corrección '4 de noviembre', insiste en el cálculo para el '2 de agosto'.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn8",
+            "problema": "Incumplimiento del objetivo. zaelar se compromete a 'buscar restaurantes y mostrar la lista con distancias' pero termina el turno sin ejecutar ninguna búsqueda, ni verbalizar resultados, ni renderizar widget. Loop de relleno infinito.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@general",
+            "problema": "Mala gestión de STT del tester. Zaelar detecta 'Vivao' en lugar de 'Bilbao' y podría haber aclarado, pero opta por ignorar el lugar y prometer resultados genéricos.",
+            "gravedad": "media"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "brain/core (router logic)",
+            "cambio": "Implementar un filtro de salida que bloquee respuestas de 'estado del sistema' (o widgets 'data:navegador') si el canal activo es VOZ (user_intent是社会对话).",
+            "porque": "El usuario no pidió el estado del cluster. La inyección de logs técnicos en una conversación casual destruye la naturalidad y confunde."
+          },
+          {
+            "area": "brain/memory (context aggregation)",
+            "cambio": "Actualizar el slot de fecha ANTES de generar la respuesta de confirmación final. Aislar la variable de la respuesta anterior del procesamiento del nuevo turno.",
+            "porque": "Zaelar repitió la fecha incorrecta (2 de agosto) después de que el usuario la corrigiera (4 de noviembre), mostrando falta de sincronización en memoria a corto plazo."
+          },
+          {
+            "area": "tool_execution / function calling",
+            "cambio": "Forzar la ejecución real de la herramienta de búsqueda (tool_use) dentro del mismo turno cuando se promete 'te preparo el listado', prohibiendo respuestas de 'relleno' vacías (Déjame ver.../Un momentito...) sin payload.",
+            "porque": "El usuario pidió datos concretos (3 restaurantes, distancias). Zaelar prometió la lista dos veces pero nunca la entregó ni verbalizó, resultando en utilidad nula."
+          },
+          {
+            "area": "voice prompt/persona",
+            "cambio": "Reducir significativamente (o eliminar) los fillers 'Espera...', 'A ver...', 'Un momentito...' si van a ir seguidos de una pausa larga sin información.",
+            "porque": "Crean expectativa falsa de solución inminente. Latencia de 4s + relleno + sin solución final = experiencia percibida de 'fallo' o 'congelado'."
+          }
+        ],
+        "veredicto": "El escenario NO es production-ready; zaelar falla gravemente en gestionar el contexto (fechas cruzadas) y en la ejecución de la tarea prometida (lista de restaurantes), entrando en un bucle de estancamiento verbal sin resolver el objetivo del usuario.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "brain/core (router logic)",
+      "cambio": "Implementar un filtro de salida que bloquee respuestas de 'estado del sistema' (o widgets 'data:navegador') si el canal activo es VOZ (user_intent是社会对话).",
+      "porque": "El usuario no pidió el estado del cluster. La inyección de logs técnicos en una conversación casual destruye la naturalidad y confunde.",
+      "scenario": "complex_idea",
+      "_sev": 0
+    },
+    {
+      "area": "brain/memory (context aggregation)",
+      "cambio": "Actualizar el slot de fecha ANTES de generar la respuesta de confirmación final. Aislar la variable de la respuesta anterior del procesamiento del nuevo turno.",
+      "porque": "Zaelar repitió la fecha incorrecta (2 de agosto) después de que el usuario la corrigiera (4 de noviembre), mostrando falta de sincronización en memoria a corto plazo.",
+      "scenario": "complex_idea",
+      "_sev": 0
+    },
+    {
+      "area": "tool_execution / function calling",
+      "cambio": "Forzar la ejecución real de la herramienta de búsqueda (tool_use) dentro del mismo turno cuando se promete 'te preparo el listado', prohibiendo respuestas de 'relleno' vacías (Déjame ver.../Un momentito...) sin payload.",
+      "porque": "El usuario pidió datos concretos (3 restaurantes, distancias). Zaelar prometió la lista dos veces pero nunca la entregó ni verbalizó, resultando en utilidad nula.",
+      "scenario": "complex_idea",
+      "_sev": 0
+    },
+    {
+      "area": "voice prompt/persona",
+      "cambio": "Reducir significativamente (o eliminar) los fillers 'Espera...', 'A ver...', 'Un momentito...' si van a ir seguidos de una pausa larga sin información.",
+      "porque": "Crean expectativa falsa de solución inminente. Latencia de 4s + relleno + sin solución final = experiencia percibida de 'fallo' o 'congelado'.",
+      "scenario": "complex_idea",
+      "_sev": 0
+    }
+  ]
+}

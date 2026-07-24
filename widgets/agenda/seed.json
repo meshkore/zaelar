@@ -1,0 +1,19 @@
+{
+  "mission": "Llegar a cerrar un proyecto facturable o invertible poniéndole foco. Mientras tanto, quitar de encima las cosas pequeñas que bloquean ese foco, sin abrir frentes nuevos hasta cerrar los anteriores.",
+  "user": {"workStart": "09:00", "workEnd": "18:00", "lunchStart": "14:00", "lunchEnd": "15:00", "energy": "medium", "wantsExercise": true, "notes": ""},
+  "projects": [
+    {"id": "empresa", "name": "Empresa", "objective": "Operación / obligaciones al día", "status": "active", "expectedValue": 4000, "hoursRemaining": 40, "moneyInvested": 0, "monthlyCost": 0, "successProbability": 0.95, "priority": 1, "marketingPending": [], "devPending": []},
+    {"id": "meshkore", "name": "MeshKore", "objective": "Estándar + plataforma IA", "status": "active", "expectedValue": 20000, "hoursRemaining": 120, "moneyInvested": 0, "monthlyCost": 200, "successProbability": 0.45, "priority": 1, "targetDate": "2026-09-30", "devPending": ["daemon estable", "onboarding CLI"], "marketingPending": ["landing", "lanzamiento HN/Reddit"]},
+    {"id": "cryptoknight", "name": "CryptoKnight", "objective": "Producto cripto con ingresos recurrentes", "status": "active", "expectedValue": 15000, "hoursRemaining": 90, "moneyInvested": 0, "monthlyCost": 150, "successProbability": 0.30, "priority": 2, "targetDate": "2026-10-31", "devPending": ["auditoría"], "marketingPending": []},
+    {"id": "mkt_reddit", "name": "Marketing Reddit", "objective": "Captación orgánica (depende de MeshKore)", "status": "active", "expectedValue": 6000, "hoursRemaining": 30, "moneyInvested": 0, "monthlyCost": 0, "successProbability": 0.50, "priority": 3, "dependencies": ["meshkore"], "marketingPending": [], "devPending": []}
+  ],
+  "tasks": [
+    {"id": "t_empresa", "projectId": "empresa", "title": "Revisar obligaciones de empresa", "status": "todo", "estimateMinutes": 30, "energy": "low", "priority": 1, "deep": false},
+    {"id": "t_daemon", "projectId": "meshkore", "title": "Estabilizar el daemon de MeshKore", "status": "todo", "estimateMinutes": 120, "energy": "high", "priority": 1, "deep": true},
+    {"id": "t_reddit", "projectId": "mkt_reddit", "title": "Calendario de posts de Reddit", "status": "todo", "estimateMinutes": 60, "energy": "medium", "priority": 3, "deep": false},
+    {"id": "t_crypto", "projectId": "cryptoknight", "title": "Revisión de CryptoKnight", "status": "todo", "estimateMinutes": 60, "energy": "high", "priority": 2, "deep": true, "fixed": true, "startTime": "15:00"}
+  ],
+  "ideas": [{"id": "i_news", "title": "Newsletter semanal de IA aplicada", "status": "incubating"}],
+  "meetings": [],
+  "recurring": []
+}

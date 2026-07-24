@@ -1,0 +1,202 @@
+{
+  "stamp": "20260711-190555",
+  "results": [
+    {
+      "scenario": "navegador_coche",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Alex, soy zaelar y estoy aquí para ayudarte con lo que necesites. ¿En qué te echo una mano?",
+            "at": 1783789459.41
+          },
+          {
+            "who": "tester",
+            "text": "¡No, no eres Zaelar! Soy Alex y quiero que busques un coche de segunda mano por menos de 5000 euros con menos de 250.000 kilómetros cerca mío en Wallapop o coches.net.",
+            "at": 1783789465.46
+          },
+          {
+            "who": "zaelar",
+            "text": "¿En qué te echo una mano?",
+            "at": 1783789480.81
+          },
+          {
+            "who": "tester",
+            "text": "Quiero que busques un coche de segunda mano por menos de 5000 euros, con menos de 250.000 kilómetros, cerca mío en Wallapop o coches.net. Hazme las mejores opciones.",
+            "at": 1783789487.05
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, te abro el navegador para buscar coches de segunda mano en Wallapop y Coches.net por menos de 500 euros cerca de Guarapop.",
+            "at": 1783789503.68
+          },
+          {
+            "who": "tester",
+            "text": "Perfecto, gracias Zaelar. Mientras buscas, ¿me puedes decir qué tiempo hicimos ayer?",
+            "at": 1783789506.69
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, te abro el navegador para buscar coches Vale, dame un momento que lo miro.",
+            "at": 1783789515.21
+          },
+          {
+            "who": "tester",
+            "text": "Claro, tómate tu tiempo. Ya me avisas cuando tengas algo para mí.",
+            "at": 1783789516.97
+          },
+          {
+            "who": "zaelar",
+            "text": "No encontré en los resultados la temperatura máxima y mínima de ayer en Soria, ¿quieres que lo busque con más detalle? Perfecto. Te aviso cuando tenga algo.",
+            "at": 1783789530.8,
+            "latency_ms": 4133
+          },
+          {
+            "who": "tester",
+            "text": "Gracias Zaelar, espero las mejores opciones para mi búsqueda del coche.",
+            "at": 1783789533.93
+          },
+          {
+            "who": "zaelar",
+            "text": "Perfecto. Te aviso cuando tenga algo.",
+            "at": 1783789548.58,
+            "latency_ms": 4860
+          }
+        ],
+        "latency_ms": {
+          "n": 2,
+          "avg": 4496,
+          "max": 4860,
+          "samples": [
+            4133,
+            4860
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:data:navegador::t4",
+            "widget:show:navegador::t5",
+            "widget:data:navegador::t5",
+            "widget:data:navegador::t5",
+            "widget:data:navegador::t5",
+            "widget:data:navegador::t5",
+            "widget:data:navegador::t4",
+            "widget:show:navegador::t5",
+            "widget:data:navegador::t5",
+            "widget:data:navegador::t5"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "✂️ input recortado (comando preservado): →1600 chars",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Alex, soy zaelar y estoy aquí para ayudarte con lo que necesites. ¿En qué te echo una mano?",
+            "⚡ Nucleo(flash): prompt: No, no eres Harvey. Soy Alex y quiero que busques un coche de segunda mano por menos de 500 euros con menos de 250 kilóm",
+            "⚡ Nucleo(flash): reply: Vale, te abro el navegador para buscar coches de segunda mano en Wallapop y Coches.net por menos de 500 euros cerca de G",
+            "🤖 tarea de navegador creada (SlowBrain): t5: El usuario Alex quiere buscar coches de segunda mano por menos de 500 euros con menos de 250 km cerca de Guarapop, e",
+            "🧭 Flash → SlowBrain (escalada registrada): El usuario Alex quiere buscar coches de segunda mano por menos de 500 euros con menos de 250 km cerca de Guarapop, en Wa",
+            "⚡ Nucleo(flash): prompt: Quiero que busques un coche de segunda mano por menos de 500 euros con menos de 250 kilómetros cerca mío en Volapop o co",
+            "⚡ Nucleo(flash): reply: Vale, dame un momento que lo miro.",
+            "🧭 Flash → SlowBrain (escalada registrada): El operador quiere buscar coches de segunda mano por menos de 500 euros con menos de 250 km cerca de su ubicación (Guara",
+            "⚡ Nucleo(flash): prompt: Perfecto, gracias Harvey. Mientras buscas, ¿me puedes decir qué tiempo hicimos ayer?",
+            "🔎 búsqueda web: temperatura máxima y mínima ayer en Soria España",
+            "⚡ Nucleo(flash): reply: No encontré en los resultados la temperatura máxima y mínima de ayer en Soria, ¿quieres que lo busque con más detalle?",
+            "⚡ Nucleo(flash): prompt: Claro, tómate tu tiempo. Ya me avisas cuando tengas algo para mí.",
+            "⚡ Nucleo(flash): reply: Perfecto. Te aviso cuando tenga algo.",
+            "⚡ Nucleo(flash): prompt: Das ist Harvey, es pero las mejores opciones para mi búsqueda de coche.",
+            "⚡ Nucleo(flash): reply: Perfecto. Te aviso cuando tenga algo."
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 20,
+            "bot_speech": 19,
+            "brain": 18,
+            "memory": 58,
+            "timing": 6,
+            "metric": 217,
+            "tts": 7,
+            "transcript": 9,
+            "navegador": 9,
+            "widget": 10,
+            "vad": 11,
+            "stt": 5,
+            "task": 4,
+            "search": 1,
+            "session": 1
+          },
+          "n_events": 396
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalitud": 2,
+          "coherencia": 2,
+          "utilidad": 2,
+          "accion": 4,
+          "latencia": 3,
+          "robustez": 3
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn3",
+            "problema": "Repite literalmente el comienzo de la frase anterior ('Vale, te abro el navegador para buscar coches...'). Suena a eco y rompe la naturalidad.",
+            "gravedad": "media"
+          },
+          {
+            "turno": "zaelar@turn4",
+            "problema": "Introduce una alucinación de contexto ('...en Soria'). El usuario no mencionó Soria. Esto reduce la confianza en el seguimiento del contexto.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Transcribe mal los parámetros críticos de la tarea: '500 euros' (usuario: 5000) y 'Guarapop/Volapop' (usuario: Wallapop). El SlowBrain hereda datos corruptos.",
+            "gravedad": "alta"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Brain / LLM System Prompt (Constraint)",
+            "cambio": "Implementar una validación negativa estricta: si la respuesta verbal comienza repitiendo exactamente la respuesta anterior >5 palabras, recalcular o truncar.",
+            "porque": "Se observó repetición literal de frases anteriores (eco) en el turno 3."
+          },
+          {
+            "area": "Nucleo (Flash) - Context Handling",
+            "cambio": "Añadir un checkpoint de entidad geográfica: solo inyectar ubicación (ej. Soria) si ha sido explícitamente mencionada o derivada de la memoria/permanente, no asumir por contexto.",
+            "porque": "El bot inventó 'Soria' sin que el usuario la mencionara, causando una búsqueda incorrecta del tiempo."
+          },
+          {
+            "area": "Nucleo (Flash) - Parameter Confirmation",
+            "cambio": "Añadir un paso de 'Parafraseo Numérico' antes de escalar al SlowBrain: forzar al LLM a repetir los números y precios clave detectados en una frase de confirmación para verificar la coherencia antes de ejecutar.",
+            "porque": "La comprensión de '5000 euros' degeneró en '500 euros' y 'Wallapop' en 'Guarapop', corrompiendo la tarea objetivo."
+          }
+        ],
+        "veredicto": "El escenario NO es production-ready debido a errores graves en la extracción de entidades (parámetros de la búsqueda) que invalidan el resultado de la tarea, aunque la infraestructura de navegación (acción) funciona correctamente.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Brain / LLM System Prompt (Constraint)",
+      "cambio": "Implementar una validación negativa estricta: si la respuesta verbal comienza repitiendo exactamente la respuesta anterior >5 palabras, recalcular o truncar.",
+      "porque": "Se observó repetición literal de frases anteriores (eco) en el turno 3.",
+      "scenario": "navegador_coche",
+      "_sev": 0
+    },
+    {
+      "area": "Nucleo (Flash) - Context Handling",
+      "cambio": "Añadir un checkpoint de entidad geográfica: solo inyectar ubicación (ej. Soria) si ha sido explícitamente mencionada o derivada de la memoria/permanente, no asumir por contexto.",
+      "porque": "El bot inventó 'Soria' sin que el usuario la mencionara, causando una búsqueda incorrecta del tiempo.",
+      "scenario": "navegador_coche",
+      "_sev": 0
+    },
+    {
+      "area": "Nucleo (Flash) - Parameter Confirmation",
+      "cambio": "Añadir un paso de 'Parafraseo Numérico' antes de escalar al SlowBrain: forzar al LLM a repetir los números y precios clave detectados en una frase de confirmación para verificar la coherencia antes de ejecutar.",
+      "porque": "La comprensión de '5000 euros' degeneró en '500 euros' y 'Wallapop' en 'Guarapop', corrompiendo la tarea objetivo.",
+      "scenario": "navegador_coche",
+      "_sev": 0
+    }
+  ]
+}

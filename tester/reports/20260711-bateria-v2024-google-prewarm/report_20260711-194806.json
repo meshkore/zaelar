@@ -1,0 +1,208 @@
+{
+  "stamp": "20260711-194806",
+  "results": [
+    {
+      "scenario": "conversation",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Alex, soy zaelar. ¿En qué te ayudo hoy?",
+            "at": 1783791920.22
+          },
+          {
+            "who": "tester",
+            "text": "¡No, no eres Zaelar! Soy Alex hablando con mi asistente Zaelar. Podrías decirme la hora y ya nos vamos mejorando.",
+            "at": 1783791936.76
+          },
+          {
+            "who": "zaelar",
+            "text": "Hola Alex, soy zaelar. ¿En qué te ayudo hoy? Entendido. ¿En qué te ayudo?",
+            "at": 1783791947.42
+          },
+          {
+            "who": "tester",
+            "text": "Hola, Zaelar, dime la hora que me la cuentes.",
+            "at": 1783791948.5
+          },
+          {
+            "who": "zaelar",
+            "text": "Claro, Alex. ¿En qué te ayudo? Son las 19:45. ¿Quieres que abra el reloj?",
+            "at": 1783791963.66,
+            "latency_ms": 4147
+          },
+          {
+            "who": "tester",
+            "text": "Perfecto, Zaelar, muestra el reloj por favor.",
+            "at": 1783791964.61
+          },
+          {
+            "who": "zaelar",
+            "text": "Son las diecinueve cuarenta y cinco, quieres que abra el reloj.",
+            "at": 1783791971.24
+          },
+          {
+            "who": "tester",
+            "text": "¡Mira! Ya está el reloj. ¿Y para el finde, qué tienes planeado?",
+            "at": 1783791973.53
+          },
+          {
+            "who": "zaelar",
+            "text": "No tengo ningún widget llamado genoc. ¿Quieres que abra el reloj o la agenda? No tengo ningún widget llamado genoc. ¿Quieres que No tengo nada programado para ti aún. ¿Quieres que abra la agenda para ver el día?",
+            "at": 1783791983.83,
+            "latency_ms": 3753
+          },
+          {
+            "who": "tester",
+            "text": "Vale, vamos a la agenda entonces. ¿Qué tienes para este finde?",
+            "at": 1783791985.38
+          },
+          {
+            "who": "zaelar",
+            "text": "No tengo nada programado para ti aún. ¿Quieres que abra la agenda para ver el",
+            "at": 1783791993.28
+          },
+          {
+            "who": "tester",
+            "text": "Perfecto, Zaelar, abre la agenda para ver mi fin de semana. Tal vez tenga algo planeado.",
+            "at": 1783791996.26
+          },
+          {
+            "who": "zaelar",
+            "text": "No reconozco heina ni film. ¿Quieres que abra la agenda?",
+            "at": 1783792004.2
+          }
+        ],
+        "latency_ms": {
+          "n": 2,
+          "avg": 3950,
+          "max": 4147,
+          "samples": [
+            4147,
+            3753
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:data:cluster-registro",
+            "widget:data:cluster-registro",
+            "widget:data:cluster-registro"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "✂️ input recortado (comando preservado): →1600 chars",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Alex, soy zaelar. ¿En qué te ayudo hoy?",
+            "⚡ Nucleo(flash): prompt: No, no eres Harvey.",
+            "⚡ Nucleo(flash): reply: Entendido. ¿En qué te ayudo?",
+            "⚡ Nucleo(flash): prompt: Soy Alex hablando con mi asistente Harvey. Podrías decírmela ahora y ya nos vamos mejorando.",
+            "⚡ Nucleo(flash): reply: Claro, Alex. ¿En qué te ayudo?",
+            "⚡ Nucleo(flash): prompt: Hola Harvey, dime la hora que me la cuentes.",
+            "⚡ Nucleo(flash): reply: Son las 19:45. ¿Quieres que abra el reloj?",
+            "⚡ Nucleo(flash): prompt: Perfecto, Harvey. Mostra el genoc, por favor.",
+            "⚡ Nucleo(flash): reply: No tengo ningún widget llamado genoc. ¿Quieres que abra el reloj o la agenda?",
+            "⚡ Nucleo(flash): prompt: Mira, ya está el reloj.",
+            "⚡ Nucleo(flash): prompt: Y para el fin de ¿Qué tienes planeado?",
+            "⚡ Nucleo(flash): reply: No tengo nada programado para ti aún. ¿Quieres que abra la agenda para ver el día?",
+            "⚡ Nucleo(flash): prompt: Vale, vamos a la heina entonces. ¿Qué tienes para este film?",
+            "⚡ Nucleo(flash): reply: No reconozco heina ni film. ¿Quieres que abra la agenda?",
+            "⚡ Nucleo(flash): prompt: Perfecto, Harvey. Abre la agenda para ver mi fin de semana. Tal vez tenga algo planeado."
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 28,
+            "bot_speech": 28,
+            "brain": 18,
+            "cluster": 3,
+            "widget": 3,
+            "metric": 212,
+            "memory": 76,
+            "timing": 9,
+            "tts": 11,
+            "transcript": 14,
+            "vad": 16,
+            "stt": 8,
+            "session": 1
+          },
+          "n_events": 428
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 2,
+          "coherencia": 2,
+          "utilidad": 2,
+          "accion": 2,
+          "latencia": 2,
+          "robustez": 1
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn3",
+            "problema": "Contaminación del output. El sistema repite el saludo inicial ('Hola Alex...') antes de responder a la pregunta actual.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn6",
+            "problema": "Fallo crítico en tokenización/intención. El input contiene ruido STT ('genoc') y zaelar se bloquea repitiendo la negación del widget inexistente en loop, ignorando el contexto de que el reloj ya está visible.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn9",
+            "problema": "Confusión de contexto. El usuario pregunta por planes del finde (contexto conversacional) y zaelar responde literalmente a errores de transcripción ('heina', 'film') sin atar cabos con la 'agenda' mencionada antes.",
+            "gravedad": "media"
+          },
+          {
+            "turno": "zaelar@turn7",
+            "problema": "Inestabilidad de generación (Sentence breaking). La respuesta se corta ('No tengo nada...') y se concatena con la repetición anterior del fallo del widget 'genoc'.",
+            "gravedad": "alta"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Prompting / Nucleo (Flash)",
+            "cambio": "Añadir una instrucción explícita de 'borrado de historial de output' o 'no repetir saludos previos' entre turnos.",
+            "porque": "Se observa contaminación de turnos anteriores (repetición de 'Hola Alex' y de frases sobre widgets fallidos) en las respuestas actuales."
+          },
+          {
+            "area": "Brain Memory / Contexto Semántico",
+            "cambio": "Aumentar el 'weight' o prioridad de la memoria conversacional reciente sobre la literalidad del último transcript de STT cuando este contiene palabras desconocidas.",
+            "porque": "Ante 'genoc' o 'heina', el asistente abandona el flujo natural (hablar del finde/reloj) para entrar en un bucle de error sobre entidades inexistentes, demostrando falta de robustez semántica."
+          },
+          {
+            "area": "Interrupción / VAD",
+            "cambio": "Implementar 'barge-in' early o detener la generación de TTS si el usuario empieza a hablar durante la latencia de 4s.",
+            "porque": "La latencia media es de casi 4 segundos, lo cual es excesivo para una charla informal; el usuario intenta corregir pero zaelar ya está procesando una respuesta obsoleta."
+          }
+        ],
+        "veredicto": "El escenario NO es production-ready: el asistente muestra una falta crítica de fluidez y memoria a corto plazo, repitiendo saludos y bloqueándose ante errores de transcripción menores.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Prompting / Nucleo (Flash)",
+      "cambio": "Añadir una instrucción explícita de 'borrado de historial de output' o 'no repetir saludos previos' entre turnos.",
+      "porque": "Se observa contaminación de turnos anteriores (repetición de 'Hola Alex' y de frases sobre widgets fallidos) en las respuestas actuales.",
+      "scenario": "conversation",
+      "_sev": 0
+    },
+    {
+      "area": "Brain Memory / Contexto Semántico",
+      "cambio": "Aumentar el 'weight' o prioridad de la memoria conversacional reciente sobre la literalidad del último transcript de STT cuando este contiene palabras desconocidas.",
+      "porque": "Ante 'genoc' o 'heina', el asistente abandona el flujo natural (hablar del finde/reloj) para entrar en un bucle de error sobre entidades inexistentes, demostrando falta de robustez semántica.",
+      "scenario": "conversation",
+      "_sev": 0
+    },
+    {
+      "area": "Interrupción / VAD",
+      "cambio": "Implementar 'barge-in' early o detener la generación de TTS si el usuario empieza a hablar durante la latencia de 4s.",
+      "porque": "La latencia media es de casi 4 segundos, lo cual es excesivo para una charla informal; el usuario intenta corregir pero zaelar ya está procesando una respuesta obsoleta.",
+      "scenario": "conversation",
+      "_sev": 0
+    }
+  ]
+}

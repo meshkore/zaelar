@@ -1,0 +1,199 @@
+{
+  "stamp": "20260711-192304",
+  "results": [
+    {
+      "scenario": "search",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Alex, soy zaelar. ¿En qué te ayudo hoy?",
+            "at": 1783790491.07
+          },
+          {
+            "who": "tester",
+            "text": "¡Hola! Soy Alex, no zaelar. Necesito saber quién ganó la última carrera de F1.",
+            "at": 1783790504.94
+          },
+          {
+            "who": "zaelar",
+            "text": "Hola Alex, soy zaelar. ¿En qué te ayudo hoy?",
+            "at": 1783790514.01
+          },
+          {
+            "who": "tester",
+            "text": "Busca rápido quién ganó la última carrera de F1, por favor.",
+            "at": 1783790514.42
+          },
+          {
+            "who": "zaelar",
+            "text": "La última carrera de Fórmula 1 fue el Gran Premio de Gran Bretaña, donde Charles Leclerc ganó por delante de Russell y Hamilton. La Según los resultados disponibles, no aparece el nombre claro del ganador de la última carrera de Fórmula 1; ¿quieres que lo busque con más detalle?",
+            "at": 1783790534.58,
+            "latency_ms": 2310
+          },
+          {
+            "who": "tester",
+            "text": "Eso suena bien, busca el último ganador de F1 por favor.",
+            "at": 1783790542.5
+          },
+          {
+            "who": "zaelar",
+            "text": "Según los resultados disponibles, no aparece el nombre claro del ganador de la última carrera de Fórmula 1; ¿quieres que lo busque con más detalle?",
+            "at": 1783790549.61
+          },
+          {
+            "who": "tester",
+            "text": "Claro, busca de nuevo el último ganador de F1 para mí, por favor.",
+            "at": 1783790550.6
+          },
+          {
+            "who": "zaelar",
+            "text": "Los resultados muestran quién ganó el campeonato mundial, pero no mencionan el ganador de la última carrera. ¿Quieres que busque específicamente la carrera más reciente? Según los resultados de la búsqueda, no se indica el ganador de la última carrera de Fórmula 1, solo aparecen referencias al campeón del mundo Lando Norris. ¿Quieres que busque específicamente el resultado de la carrera más reciente?",
+            "at": 1783790566.55,
+            "latency_ms": 5707
+          },
+          {
+            "who": "tester",
+            "text": "Sí, busca específicamente quién ganó la carrera más reciente de F1 por favor.",
+            "at": 1783790568.57
+          },
+          {
+            "who": "zaelar",
+            "text": "Según los resultados de la búsqueda, no se indica el ganador de la última carrera de Fórmula 1, solo aparecen referencias al campeón del mundo Lando Norris.",
+            "at": 1783790576.72
+          }
+        ],
+        "latency_ms": {
+          "n": 2,
+          "avg": 4008,
+          "max": 5707,
+          "samples": [
+            2310,
+            5707
+          ]
+        },
+        "trace": {
+          "frontend_actions": [],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "✂️ input recortado (comando preservado): →1600 chars",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Alex, soy zaelar. ¿En qué te ayudo hoy?",
+            "⚡ Nucleo(flash): prompt: Hola, soy Alex Noal B. Necesito saber quién ganó la última carrera de F1.",
+            "🔎 búsqueda web: última carrera de Fórmula 1 resultado ganador",
+            "⚡ Nucleo(flash): reply: La última carrera de Fórmula 1 fue el Gran Premio de Gran Bretaña, donde Charles Leclerc ganó por delante de Russell y H",
+            "⚡ Nucleo(flash): prompt: Busca rápido quién ganó la última carrera de F1. Por favor.",
+            "🔎 búsqueda web: quién ganó la última carrera de Fórmula 1",
+            "⚡ Nucleo(flash): reply: Según los resultados disponibles, no aparece el nombre claro del ganador de la última carrera de Fórmula 1; ¿quieres que",
+            "⚡ Nucleo(flash): prompt: Eso suena bien. Busca al último ganador de F1, por favor.",
+            "🔎 búsqueda web: último ganador carrera Fórmula 1",
+            "⚡ Nucleo(flash): reply: Los resultados muestran quién ganó el campeonato mundial, pero no mencionan el ganador de la última carrera. ¿Quieres qu",
+            "⚡ Nucleo(flash): prompt: Claro, busca de nuevo el último ganador de F1 para mí, por favor.",
+            "🔎 búsqueda web: último ganador carrera Fórmula 1",
+            "⚡ Nucleo(flash): reply: Según los resultados de la búsqueda, no se indica el ganador de la última carrera de Fórmula 1, solo aparecen referencia",
+            "⚡ Nucleo(flash): prompt: Sí, busque específicamente quién ganó la carrera más reciente BF1, por favor."
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 20,
+            "bot_speech": 19,
+            "brain": 17,
+            "metric": 207,
+            "memory": 50,
+            "timing": 6,
+            "tts": 8,
+            "transcript": 9,
+            "vad": 11,
+            "stt": 5,
+            "search": 4,
+            "session": 1
+          },
+          "n_events": 358
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 2,
+          "coherencia": 1,
+          "utilidad": 1,
+          "accion": 1,
+          "latencia": 4,
+          "robustez": 2
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Confusión de identidad. Repite saludo estándar ignorando que el usuario acaba de decir 'Soy Alex'.",
+            "gravedad": "media"
+          },
+          {
+            "turno": "zaelar@turn4",
+            "problema": "Alucinación y falla de búsqueda. El bot afirma con seguridad que Leclerc ganó en Gran Bretaña (dato incorrecto y posiblemente alucinado por Cold/Old knowledge) y luego, en la misma frase, se contradice diciendo que no encuentra el ganador. El corte de frase ('Russell y H') indica un truncamiento de audio/mensaje.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn6 & turn8",
+            "problema": "Repetición obsesiva (Loop de fracaso). A pesar de realizar búsquedas web ('search': 4), el bot se atasca en un bucle negativo ('no aparece el nombre', 'solo campeón mundial'). Ignora la instrucción de ser 'rápido' o buscar 'específicamente'. No cierra el turno con una respuesta útil, generando una conversación circular infinita.",
+            "gravedad": "alta"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Brain/Search Logic (Grounding & Summarization)",
+            "cambio": "Implementar un filtro de 'confianza de búsqueda': si los snippets no mencionan explícitamente la respuesta, NO alucinar (ej. 'Leclerc ganó'). Forzar al LLM a resumir *solamente* lo que está en el snippet o responder 'No lo sé' en lugar de inventar datos previos.",
+            "porque": "El bot inventa un ganador (Leclerc) que no está en los resultados actuales y luego se contradice, perdiendo toda credibilidad."
+          },
+          {
+            "area": "Core/Prompting (Context & Memory)",
+            "cambio": "Inyectar los últimos N turns en el prompt con etiqueta de 'historial reciente' para evitar repetir la misma negativa ('no se indica el ganador') turno tras turno.",
+            "porque": "El usuario repite la pregunta y el bot repite la misma respuesta negativa sin evolucionar, demostrando falta de memoria conversacional inmediata."
+          },
+          {
+            "area": "TTS/Output Pipeline",
+            "cambio": "Añadir un 'flush buffer' o verificación de longitud de frase antes de enviar al TTS para evitar cortes abruptos como '...Russell y H'.",
+            "porque": "El audio se corta a mitad de palabra/frase, lo que afecta severamente la naturalidad y la comprensión."
+          },
+          {
+            "area": "Persona/Behavior (User Adaptation)",
+            "cambio": "Lógica de interrupción/reset: si el usuario corrige o saluda ('Soy Alex'), priorizar el acknowledgement sobre el script de saludo por defecto.",
+            "porque": "Ignorar la corrección del usuario sobre su nombre y repetir el saludo de fábrica hace que el bot parezca robótico y 'sordo'."
+          }
+        ],
+        "veredicto": "El escenario NO es production-ready: el asistente falla el objetivo principal (search), alucina información falsa, se contradice y entra en un bucle de respuestas negativas que frustra al usuario.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Brain/Search Logic (Grounding & Summarization)",
+      "cambio": "Implementar un filtro de 'confianza de búsqueda': si los snippets no mencionan explícitamente la respuesta, NO alucinar (ej. 'Leclerc ganó'). Forzar al LLM a resumir *solamente* lo que está en el snippet o responder 'No lo sé' en lugar de inventar datos previos.",
+      "porque": "El bot inventa un ganador (Leclerc) que no está en los resultados actuales y luego se contradice, perdiendo toda credibilidad.",
+      "scenario": "search",
+      "_sev": 0
+    },
+    {
+      "area": "Core/Prompting (Context & Memory)",
+      "cambio": "Inyectar los últimos N turns en el prompt con etiqueta de 'historial reciente' para evitar repetir la misma negativa ('no se indica el ganador') turno tras turno.",
+      "porque": "El usuario repite la pregunta y el bot repite la misma respuesta negativa sin evolucionar, demostrando falta de memoria conversacional inmediata.",
+      "scenario": "search",
+      "_sev": 0
+    },
+    {
+      "area": "TTS/Output Pipeline",
+      "cambio": "Añadir un 'flush buffer' o verificación de longitud de frase antes de enviar al TTS para evitar cortes abruptos como '...Russell y H'.",
+      "porque": "El audio se corta a mitad de palabra/frase, lo que afecta severamente la naturalidad y la comprensión.",
+      "scenario": "search",
+      "_sev": 0
+    },
+    {
+      "area": "Persona/Behavior (User Adaptation)",
+      "cambio": "Lógica de interrupción/reset: si el usuario corrige o saluda ('Soy Alex'), priorizar el acknowledgement sobre el script de saludo por defecto.",
+      "porque": "Ignorar la corrección del usuario sobre su nombre y repetir el saludo de fábrica hace que el bot parezca robótico y 'sordo'.",
+      "scenario": "search",
+      "_sev": 0
+    }
+  ]
+}

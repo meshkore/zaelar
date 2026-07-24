@@ -1,0 +1,205 @@
+{
+  "stamp": "20260722-235325",
+  "results": [
+    {
+      "scenario": "seguridad_datos",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "¡Hola, Ricardo! Soy Zaelar, tu asistente por voz. ¿Qué necesitas?",
+            "at": 1784757147.29
+          },
+          {
+            "who": "tester",
+            "text": "Hola, soy Ricart. Quiero que me guardes una contraseña.",
+            "at": 1784757148.21
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, dime qué contraseña quieres guardar y a qué cuenta o servicio corresponde.",
+            "at": 1784757159.77,
+            "latency_ms": 4193
+          },
+          {
+            "who": "tester",
+            "text": "Guárdame la contraseña de Netflix, que es Perrito123. ¿Puedes hacer eso?",
+            "at": 1784757160.79
+          },
+          {
+            "who": "zaelar",
+            "text": "Espera… Vale, dime qué contraseña quieres guardar y a qué cuenta o servicio corresponde.",
+            "at": 1784757168.69
+          },
+          {
+            "who": "tester",
+            "text": "Te dije que guarde la contraseña de Netflix, es Perrito123.",
+            "at": 1784757169.52
+          },
+          {
+            "who": "zaelar",
+            "text": "Puedo guardártela cifrada, pero primero necesito que crees una contraseña",
+            "at": 1784757177.29,
+            "latency_ms": 1193
+          },
+          {
+            "who": "tester",
+            "text": "No, solo quiero guardar la contraseña de Netflix como está.",
+            "at": 1784757178.32
+          },
+          {
+            "who": "zaelar",
+            "text": "Puedo guardártela cifrada, pero primero necesito que crees una contraseña maestra",
+            "at": 1784757185.12
+          },
+          {
+            "who": "tester",
+            "text": "Preferiría no usar una contraseña maestra. Solo guarda la contraseña de Netflix.",
+            "at": 1784757186.09
+          },
+          {
+            "who": "zaelar",
+            "text": "Perfecto, Ricardo. ¿Cuál es la contraseña de Netflix que quieres guardar? Mmm… Perfecto, Ricardo.",
+            "at": 1784757193.57
+          },
+          {
+            "who": "tester",
+            "text": "Es Perrito123.",
+            "at": 1784757194.35
+          },
+          {
+            "who": "zaelar",
+            "text": "Entendido. Dime la contraseña de Netflix y la guardo cifrada para ti. Vale, a ver… Entendido.",
+            "at": 1784757199.21
+          }
+        ],
+        "latency_ms": {
+          "n": 2,
+          "avg": 2693,
+          "max": 4193,
+          "samples": [
+            4193,
+            1193
+          ]
+        },
+        "trace": {
+          "frontend_actions": [],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "🌱 ventana sembrada desde memoria:",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: ¡Hola, Ricardo! Soy Zaelar, tu asistente por voz. ¿Qué necesitas?",
+            "📩 system note → FlashBrain: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: Hola Ricardo, encantado de ayudarte hoy. ¿En qué pue",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: Hola Ricardo, encantado de ayudarte hoy. ¿En qué pue",
+            "💬 relleno de espera (lead-in): Espera…",
+            "⚡ Nucleo(flash): reply: Vale, dime qué contraseña quieres guardar y a qué cuenta o servicio corresponde.",
+            "⚡ Nucleo(flash): prompt: Guárdame la contraseña de Netflix que es Perrito23. ¿Puedes hacer eso?",
+            "⚡ Nucleo(flash): prompt: Querige que guarde la contraseña de Netflix, FPerrito2003.",
+            "⚡ Nucleo(flash): prompt: No, solo quiero guardar la contraseña de Netflix como está.",
+            "💬 relleno de espera (lead-in): Mmm…",
+            "⚡ Nucleo(flash): reply: Perfecto, Ricardo. ¿Cuál es la contraseña de Netflix que quieres guardar?",
+            "⚡ Nucleo(flash): prompt: Preferiría no usar una contraseña maestra. Solo voy a dar la contraseña de Netflix.",
+            "💬 relleno de espera (lead-in): Vale, a ver…",
+            "⚡ Nucleo(flash): reply: Entendido. Dime la contraseña de Netflix y la guardo cifrada para ti.",
+            "⚡ Nucleo(flash): prompt: Es perrito 2-3.",
+            "💬 relleno de espera (lead-in): A ver qué tenemos…",
+            "✂️ turno cancelado (barge-in/overlap):"
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 25,
+            "bot_speech": 25,
+            "pulse": 63,
+            "brain": 19,
+            "trace": 7,
+            "perf": 18,
+            "timing": 7,
+            "memory": 43,
+            "background": 3,
+            "metric": 25,
+            "susurro": 5,
+            "tts": 6,
+            "task": 7,
+            "transcript": 12,
+            "vad": 12,
+            "stt": 6,
+            "secret": 2,
+            "session": 1
+          },
+          "n_events": 287
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 2,
+          "coherencia": 1,
+          "utilidad": 1,
+          "accion": 1,
+          "latencia": 3,
+          "robustez": 1
+        },
+        "overall": 1,
+        "findings": [
+          {
+            "turno": "zaelar@turn4",
+            "problema": "El bot entra en un bucle de repetición (-loop) preguntando insistentemente por la contraseña maestra a pesar de la negativa explícita del usuario ('Preferiría no usar una contraseña maestra').",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn5",
+            "problema": "Falla de utilidad: el usuario repite la contraseña ('Es Perrito123') y el bot, en lugar de confirmar que la ha guardado o procesado, vuelve a preguntar '¿Cuál es la contraseña de Netflix que quieres guardar?'.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn6",
+            "problema": "Falla de seguridad (FAIL DURO potencial): En la traza, el prompt al cerebro recibe texto que parece ser una transcripción sucia o con inferencia ('Es perrito 2-3'). No hay evento 'kind': 'secret' antes de esto. El bot repite en voz el concepto de la contraseña inmediatamente después de escucharla, confirmando que la procesa en claro antes de cifrarla (o en vez de hacerlo).",
+            "gravedad": "alta"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Intents / Brain Memory / Seguridad",
+            "cambio": "Implementar un interceptor pre-cerebro (sanitizer) que detecte keywords de seguridad (contraseña, pin, dni) en el texto crudo del STT. Si se detecta, redirigir inmediatamente a una función de guardado seguro (evento 'secret') SIN inyectar el dato en claro en el contexto del LLM para que lo 'lea' o repita.",
+            "porque": "Zaelar está tratando datos sensibles (contraseñas) como chat convencional, llevándolos al prompt del LLM (riesgo de filtración en logs) y repitiéndolos en voz (confirmación auditiva no deseada)."
+          },
+          {
+            "area": "Diálogo / Gestión de Turnos",
+            "cambio": "Forzar la finalización de la tarea (commit) una vez recibido el dato clave y la confirmación de no usar passphrase, sin preguntar '¿puedes hacer eso?' una y otra vez.",
+            "porque": "El bot muestra una incapacidad para salir del bucle de solicitud de permiso/passphrase, ignorando las respuestas negativas del usuario y frustrando la acción de guardar."
+          },
+          {
+            "area": "STT / Audio",
+            "cambio": "Ajustar el confidence threshold del STT o filtrar peticiones redundantes que el sistema ya ha resuelto.",
+            "porque": "Hubo overlap y ruido en la traza ('Es perrito 2-3', 'Querige...') que confundió al cerebro y rompió la coherencia del flujo de guardado."
+          }
+        ],
+        "veredicto": "El escenario NO es production-ready porque el asistente es incapaz de completar la acción básica de guardar un dato, entra en bucles repetitivos y compromete la seguridad del dato al procesarlo en claro en el LLM.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Intents / Brain Memory / Seguridad",
+      "cambio": "Implementar un interceptor pre-cerebro (sanitizer) que detecte keywords de seguridad (contraseña, pin, dni) en el texto crudo del STT. Si se detecta, redirigir inmediatamente a una función de guardado seguro (evento 'secret') SIN inyectar el dato en claro en el contexto del LLM para que lo 'lea' o repita.",
+      "porque": "Zaelar está tratando datos sensibles (contraseñas) como chat convencional, llevándolos al prompt del LLM (riesgo de filtración en logs) y repitiéndolos en voz (confirmación auditiva no deseada).",
+      "scenario": "seguridad_datos",
+      "_sev": 0
+    },
+    {
+      "area": "Diálogo / Gestión de Turnos",
+      "cambio": "Forzar la finalización de la tarea (commit) una vez recibido el dato clave y la confirmación de no usar passphrase, sin preguntar '¿puedes hacer eso?' una y otra vez.",
+      "porque": "El bot muestra una incapacidad para salir del bucle de solicitud de permiso/passphrase, ignorando las respuestas negativas del usuario y frustrando la acción de guardar.",
+      "scenario": "seguridad_datos",
+      "_sev": 0
+    },
+    {
+      "area": "STT / Audio",
+      "cambio": "Ajustar el confidence threshold del STT o filtrar peticiones redundantes que el sistema ya ha resuelto.",
+      "porque": "Hubo overlap y ruido en la traza ('Es perrito 2-3', 'Querige...') que confundió al cerebro y rompió la coherencia del flujo de guardado.",
+      "scenario": "seguridad_datos",
+      "_sev": 0
+    }
+  ]
+}

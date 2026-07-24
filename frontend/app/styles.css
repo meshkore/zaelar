@@ -1,0 +1,825 @@
+/* zaelar interface styles — ported verbatim from the original inline <style>.
+   Component-scoped chrome for the widget desktop lives in app/widgets/desktop.js
+   (it injects its own <style> once, on first use).
+
+   THEME: dark is the default (screen brightness at night was the whole point of this pass).
+   [data-theme="light"] on <html> overrides the palette below. app/services/theme.js sets that
+   attribute + persists the choice; app/core/store.js holds the `theme` signal.
+
+   ONE variable namespace for colors/surfaces: `--hb-*`. There is no separate internal-vs-widget
+   split — the app chrome below and every widget's widget.js (see widgets/AGENTS.md) read the SAME
+   variables, so there's a single place to reason about the palette. `--canvas`/`--canvas-glow`/
+   `--chrome-line`/`--mono`/`--sans`/`--banner-h` stay unprefixed: they're app-shell structure, not
+   part of the widget color contract. */
+:root{
+  --canvas:#0a0f16; --canvas-glow:#111a24; --chrome-line:#1d2735;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --banner-h:0px;   /* height of the update banner when visible (0 when hidden) — top controls shift down by this */
+
+  --hb-bg:#141d29; --hb-bg-soft:#101720; --hb-bg-a:rgba(14,20,28,.82);
+  --hb-bubble:#1b2530; --hb-hover:#1c2733;
+  --hb-ink:#e8edf5; --hb-muted:#93a1b6; --hb-muted-2:#64758c; --hb-line:#232e3d; --hb-neutral:#3a4a5c;
+  --hb-accent:#3D6FE0; --hb-accent2:#16B8A6; --hb-risk:#e5484d; --hb-risk-soft:rgba(229,72,77,.16);
+  /* semantic status colors (2026-07-22 frontend pass): ok/warn share the risk/accent pattern — ONE value across
+     themes, not overridden per-theme (same as --hb-risk/--hb-accent already were). Consolidates 4+ ad hoc hex
+     greens/ambers that used to be typed per-component (StatusPanel dots, MemoryMap pulses, DebugPanel latency). */
+  --hb-ok:#1f9d55; --hb-warn:#c98a00;
+  --hb-shadow-1:0 8px 30px rgba(0,0,0,.45); --hb-shadow-2:0 20px 60px rgba(0,0,0,.55);
+  --hb-warn-bg:#2a2013; --hb-warn-border:#5c4420; --hb-warn-ink:#e8b673;
+  /* dark "console" surface for log-like views that deliberately stay dark regardless of theme (a terminal/log
+     reads the same in light or dark mode by convention) — shared by the Hermes update log and DebugPanel. */
+  --hb-console-bg:#0d1622; --hb-console-line:#1d2735; --hb-console-ink:#e8edf5; --hb-console-muted:#8ba0bc;
+  --hb-update:#f59e0b; --hb-update2:#f97316;
+}
+:root[data-theme="light"]{
+  --canvas:#f7f9fc; --canvas-glow:#ffffff;
+
+  --hb-bg:#fff; --hb-bg-soft:#fbfdff; --hb-bg-a:rgba(255,255,255,.82);
+  --hb-bubble:#f1f4f9; --hb-hover:#eef3f9;
+  --hb-ink:#0d1622; --hb-muted:#5f6b7c; --hb-muted-2:#9aa7b8; --hb-line:#e3e8f0; --hb-neutral:#c2ccda;
+  --hb-risk-soft:#fff5f5;
+  --hb-shadow-1:0 8px 30px rgba(13,22,34,.12); --hb-shadow-2:0 20px 60px rgba(13,22,34,.22);
+  --hb-warn-bg:#fff7ed; --hb-warn-border:#fed7aa; --hb-warn-ink:#9a5b1b;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;font-family:var(--sans);overflow:hidden;-webkit-text-size-adjust:100%;color:var(--hb-ink);background:var(--canvas)}
+.canvas{position:fixed;inset:0;background:radial-gradient(60% 50% at 50% 45%, var(--canvas-glow), var(--canvas) 70%)}
+.canvas::before{content:"";position:absolute;inset:0;opacity:.5;pointer-events:none;
+  background-image:radial-gradient(var(--hb-line) 1px,transparent 1px);background-size:26px 26px}
+
+/* while a box is being dragged, KILL any transition so it tracks the pointer 1:1 (no elastic/rope lag) */
+.hb-dragging{transition:none!important}
+/* ---------- DRAGGABLE camera unit (default top-left) ---------- */
+.me{position:fixed;top:calc(16px + var(--banner-h));left:18px;z-index:9000;display:flex;flex-direction:column;gap:8px;width:212px;transition:top .2s}
+.cam{position:relative;width:212px;height:150px;border-radius:14px;overflow:hidden;background:#04070b;
+     border:1px solid var(--chrome-line);box-shadow:0 8px 24px rgba(13,22,34,.15)}
+video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1);display:block}
+.camph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#3a4757;font-size:12px}
+.drag{position:absolute;top:6px;left:6px;width:26px;height:26px;border-radius:7px;border:none;cursor:grab;z-index:4;
+      background:rgba(3,5,8,.55);color:#cdd6e3;display:flex;align-items:center;justify-content:center;touch-action:none}
+.drag:active{cursor:grabbing}
+.min{position:absolute;top:6px;right:6px;width:26px;height:26px;border-radius:7px;border:none;cursor:pointer;
+     background:rgba(3,5,8,.55);color:#fff;font-size:14px;display:flex;align-items:center;justify-content:center}
+/* voice spectrum OVERLAID inside the camera square (Google-Meet style), pinned to the bottom edge */
+canvas#viz{position:absolute;left:0;right:0;bottom:0;width:100%;height:30px;display:block;pointer-events:none;z-index:3;
+      background:linear-gradient(to top,rgba(3,5,8,.55),transparent)}
+/* camera OFF: keep the SAME square, show a crossed-camera icon centred (do NOT shrink the box) */
+.camoff{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;z-index:2;
+      color:#3a4757;background:#04070b}
+/* control row under the camera: mic + camera toggles, then the chat toggle set apart */
+.ctrl{display:flex;align-items:center;gap:6px;width:212px;margin-top:2px}
+.ctrl-sp{flex:1 1 auto}                                                   /* spacer: pushes the chat toggle to the right */
+.mtog{position:relative;flex:0 0 auto;width:34px;height:34px;border-radius:9px;border:1px solid var(--hb-line);
+      background:var(--hb-bg);color:var(--hb-muted);cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:none}
+.mtog:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
+.mtog.off{color:var(--hb-risk);border-color:rgba(229,72,77,.55);background:var(--hb-risk-soft)}
+.mtog.off::after{content:"";position:absolute;left:4px;right:4px;top:calc(50% - 1px);height:2.5px;border-radius:2px;background:var(--hb-risk);transform:rotate(-45deg)}
+.mtog.chat.active{color:#fff;border-color:transparent;background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2))}
+.spk{font-family:var(--mono);font-size:10px;letter-spacing:.04em;color:var(--hb-muted);cursor:pointer;display:none;
+     padding:2px 2px;user-select:none}
+.spk.show{display:block} .spk b{color:var(--hb-accent2)} .spk.other b{color:var(--hb-risk)}
+
+/* ---------- CHAT WALL: text channel to the agent (toggled by the chat icon) ---------- */
+.chatwall{position:fixed;top:232px;left:18px;z-index:9001;width:320px;height:min(60vh,520px);
+     min-width:260px;min-height:200px;max-width:96vw;max-height:100vh;
+     background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:16px;
+     box-shadow:var(--hb-shadow-2);display:none;flex-direction:column;overflow:hidden}
+.chatwall.open{display:flex}
+/* DOCK a columna lateral full-height (arrastrar el header al borde izq/der). El resto = canvas vacío.
+   top/bottom:0 (no height:100vh) = full-height ROBUSTO en cualquier navegador; !important gana a los inline flotantes. */
+.chatwall.docked{top:0!important;bottom:0!important;height:auto!important;max-height:none!important;border-radius:0}
+.chatwall.docked.dock-left{border-radius:0 16px 16px 0;border-left:none}
+.chatwall.docked.dock-right{border-radius:16px 0 0 16px;border-right:none}
+/* handles de redimensionado (8: bordes + esquinas), reutilizables (lib/resizable.js) */
+.hb-rz{position:absolute;z-index:6}
+.hb-rz-n{top:0;left:12px;right:12px;height:7px;cursor:ns-resize}
+.hb-rz-s{bottom:0;left:12px;right:12px;height:7px;cursor:ns-resize}
+.hb-rz-e{right:0;top:12px;bottom:12px;width:7px;cursor:ew-resize}
+.hb-rz-w{left:0;top:12px;bottom:12px;width:7px;cursor:ew-resize}
+.hb-rz-ne{top:0;right:0;width:14px;height:14px;cursor:nesw-resize}
+.hb-rz-nw{top:0;left:0;width:14px;height:14px;cursor:nwse-resize}
+.hb-rz-se{bottom:0;right:0;width:14px;height:14px;cursor:nwse-resize}
+.hb-rz-sw{bottom:0;left:0;width:14px;height:14px;cursor:nesw-resize}
+/* docked → solo el borde INTERIOR redimensiona (el ancho de la columna); ocultar el resto */
+.chatwall.docked .hb-rz{display:none}
+.chatwall.docked.dock-left .hb-rz-e{display:block}
+.chatwall.docked.dock-right .hb-rz-w{display:block}
+/* previsualización del dock mientras arrastras al borde */
+.hb-dock-preview{position:fixed;top:0;height:100vh;width:340px;z-index:9000;display:none;pointer-events:none;
+     background:linear-gradient(var(--hb-accent),var(--hb-accent2));opacity:.16;border:2px dashed var(--hb-accent)}
+.hb-dock-preview.left{left:0;border-left:none} .hb-dock-preview.right{right:0;border-right:none}
+/* RESERVA DE ESPACIO del chat acoplado (V2-062): el escritorio (canvas, widgets, cámara, orbe, paneles) se DESPLAZA
+   a la zona libre en vez de quedar tapado — mismo patrón que --dbg-w del DebugPanel. Solo activo con el chat ABIERTO
+   y acoplado (las clases las pone/quita ChatWall). */
+:root{ --chatdock-l:0px; --chatdock-r:0px; }
+/* #desk = TODO el escritorio como una unidad (fondo, widgets, cámara, orbe, TopBar, estado). El `transform` lo hace
+   BLOQUE CONTENEDOR → sus hijos position:fixed se recolocan relativos a #desk y se desplazan JUNTOS al encogerlo
+   (incluidos orbe/cámara con posición inline arrastrada, que el offset por-elemento NO podía mover). left/right =
+   la reserva del chat acoplado. Undocked (0/0) = idéntico a pantalla completa. */
+#desk{position:fixed;top:0;bottom:0;left:var(--chatdock-l);right:var(--chatdock-r);transform:translate3d(0,0,0)}
+/* los paneles/overlays van FUERA de #desk (top-right) → apártalos del dock derecho a mano */
+body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--chatdock-r))}
+.cw-head{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--hb-line);cursor:grab;touch-action:none;user-select:none}
+.cw-head:active{cursor:grabbing}
+.cw-title{font-weight:700;font-size:14px;color:var(--hb-ink)}
+.cw-x{margin-left:auto}
+.cw-list{flex:1 1 auto;overflow-y:auto;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.cw-list:empty::after{content:"Escribe o pega (Ctrl/Cmd+V) para hablar con el agente por texto.";color:var(--hb-muted-2);font-size:12px}
+.cw-msg{max-width:85%;padding:8px 11px;border-radius:13px;font-size:13px;line-height:1.35;white-space:pre-wrap;word-break:break-word}
+.cw-msg.you{align-self:flex-end;background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2));color:#fff;border-bottom-right-radius:4px}
+.cw-msg.agent{align-self:flex-start;background:var(--hb-bubble);color:var(--hb-ink);border-bottom-left-radius:4px}
+.cw-msg.sys{align-self:center;background:transparent;border:1px dashed var(--hb-line);color:var(--hb-muted-2);font-style:italic;font-size:11.5px;padding:5px 10px}
+.cw-input{display:flex;align-items:flex-end;gap:8px;padding:10px 12px;border-top:1px solid var(--hb-line)}
+.cw-input textarea{flex:1 1 auto;resize:none;max-height:120px;border:1px solid var(--hb-line);border-radius:10px;
+     padding:8px 10px;font-size:13px;font-family:var(--sans);color:var(--hb-ink);background:var(--hb-bg);outline:none}
+.cw-input textarea:focus{border-color:var(--hb-accent)}
+.cw-send{flex:0 0 auto;width:36px;height:36px;border-radius:10px;border:none;cursor:pointer;color:#fff;
+     background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2));display:flex;align-items:center;justify-content:center}
+
+/* ---------- TOP-RIGHT: A · D · Reset · Power (power far right) ---------- */
+.tr{position:fixed;top:calc(16px + var(--banner-h));right:18px;z-index:20;display:flex;align-items:center;gap:8px;transition:top .2s}
+.ic{width:34px;height:34px;border-radius:9px;border:1px solid var(--hb-line);background:var(--hb-bg);color:var(--hb-muted);
+    display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:15px;cursor:pointer}
+.ic svg{width:19px;height:19px}
+.ic:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
+/* shared UTILITY icon-button (2026-07-22 frontend pass): close/refresh/delete-style controls in panels/modals —
+   ChatWall/StatusPanel/CronPanel/MemoryMap/DebugPanel all converge here instead of 4 slightly-different sizes
+   (26/28/30px) with slightly-different radii (7/8/9px). `.ic` above stays the (deliberately bigger) TopBar size. */
+.hb-icbtn{width:30px;height:30px;border-radius:9px;border:1px solid var(--hb-line);background:var(--hb-bg);
+  color:var(--hb-muted);display:flex;align-items:center;justify-content:center;cursor:pointer}
+.hb-icbtn svg{width:16px;height:16px}
+.hb-icbtn:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
+.hb-icbtn.danger:hover,.hb-icbtn.hb-danger-hover:hover{border-color:var(--hb-risk);color:var(--hb-risk)}
+/* inline icon sizing for icon+text combos (panel/modal headers, text buttons) — one rule instead of every
+   component hand-tuning its own vertical-align/margin for the SVG it just dropped in next to a label. */
+.cw-title svg,.vault-title svg,.cfgm h3 svg,.cf-head h3 svg,.dbg-title svg,.hb-h-ic{width:15px;height:15px;vertical-align:-3px;margin-right:6px;flex:0 0 auto}
+.wiz-btn svg,.vault-b svg,.voicetest svg{width:14px;height:14px;vertical-align:-2px;margin-right:5px}
+.vault-x svg{width:16px;height:16px}
+.mm-btn{font-size:15px;line-height:1}
+.mm-chip.pin{display:inline-flex;align-items:center}
+.mm-chip.pin svg{width:9px;height:9px}
+.reset{border:1px solid var(--hb-line);background:var(--hb-bg);color:var(--hb-muted);border-radius:999px;padding:9px 15px;font-size:13px;cursor:pointer}
+
+/* ⚙ settings modal — follows the app theme (dark by default, [data-theme="light"] overrides) */
+.ovl{position:fixed;inset:0;background:rgba(0,0,0,.42);backdrop-filter:blur(3px);z-index:100001;display:none;align-items:flex-start;justify-content:center;padding:70px 16px}
+.ovl.on{display:flex}
+/* HARD reset confirmation dialog (V2, botón Reset) — modal deliberado, tema --hb-* */
+.rc-ovl{align-items:center}
+.rc-box{width:min(420px,100%);background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:16px;
+  padding:20px 20px 16px;box-shadow:var(--hb-shadow-2)}
+.rc-title{margin:0 0 8px;font-size:16px;color:var(--hb-ink)}
+.rc-body{margin:0 0 16px;font-size:13px;line-height:1.5;color:var(--hb-muted)}
+.rc-actions{display:flex;gap:10px;justify-content:flex-end}
+.rc-btn{border-radius:9px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid var(--hb-line)}
+.rc-no{background:var(--hb-bg);color:var(--hb-muted)}
+.rc-no:hover{border-color:var(--hb-accent);color:var(--hb-ink)}
+.rc-yes{background:var(--hb-risk);border-color:var(--hb-risk);color:#fff}
+.rc-yes:hover{filter:brightness(1.08)}
+/* Reset con checkboxes (V2-063) */
+.rc-check{display:flex;align-items:flex-start;gap:8px;font-size:12.5px;line-height:1.4;color:var(--hb-muted);
+  margin:0 0 10px;cursor:pointer}
+.rc-check input{margin-top:2px;flex:none;cursor:pointer}
+.rc-hint{margin:0 0 14px;font-size:11.5px;color:var(--hb-muted-2)}
+.cfgm{width:min(440px,100%);background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:16px;padding:18px 18px 14px;box-shadow:var(--hb-shadow-2)}
+.cfgm .mh{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.cfgm h3{margin:0;font-size:16px;color:var(--hb-ink)} .cfgm .x{margin-left:auto;background:var(--hb-bg);border:1px solid var(--hb-line);color:var(--hb-muted);border-radius:8px;padding:5px 10px;cursor:pointer}
+.cfgm .hint{color:var(--hb-muted-2);font-size:11.5px;margin:0 0 12px}
+.knob{margin:0 0 12px} .knob label{display:block;font-size:12.5px;color:var(--hb-ink);font-weight:600;margin-bottom:4px}
+.knob .note{color:var(--hb-muted-2);font-size:11px;margin-top:3px}
+.knob select,.knob input{width:100%;background:var(--hb-bg);border:1px solid var(--hb-line);color:var(--hb-ink);border-radius:9px;padding:8px 10px;font-size:13px;font-family:var(--sans)}
+.knob .chip{font-family:var(--mono);font-size:9px;padding:1px 6px;border-radius:999px;border:1px solid var(--hb-line);color:var(--hb-muted-2);margin-left:6px}
+.knob .voicerow{display:flex;gap:8px;align-items:stretch}
+.knob .voicerow select{flex:1 1 auto;min-width:0}
+.knob .voicetest{flex:0 0 auto;background:var(--hb-bg);border:1px solid var(--hb-line);color:var(--hb-accent2);border-radius:9px;padding:8px 12px;font-size:12.5px;font-weight:700;font-family:var(--sans);cursor:pointer;white-space:nowrap}
+.knob .voicetest:disabled{opacity:.55;cursor:default}
+.mfoot{display:flex;align-items:center;gap:12px;margin-top:4px}
+.mfoot button{background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2));border:none;color:#fff;font-weight:700;border-radius:9px;padding:9px 16px;font-size:13px;cursor:pointer}
+.mfoot .msg{font-size:11.5px;color:var(--hb-accent2)}
+/* Hermes update row inside the settings modal (mirror of the top banner) */
+.cfgm .updrow{align-items:center;gap:10px;justify-content:space-between;background:var(--hb-warn-bg);border:1px solid var(--hb-warn-border);border-radius:10px;padding:9px 12px;margin:0 0 12px}
+.cfgm .updrow .note{margin:0;color:var(--hb-warn-ink)}
+.cfgm .updrow-btn{flex:0 0 auto;background:linear-gradient(135deg,var(--hb-update),var(--hb-update2));border:none;color:#fff;font-weight:700;border-radius:8px;padding:7px 12px;font-size:12px;cursor:pointer}
+
+/* ── Wizard de primer arranque (V2-040): perfil local/cloud + huecos + credenciales. Tema --hb-* ── */
+.wizm{width:min(560px,100%)}
+.wiz-body{max-height:min(62vh,560px);overflow:auto}
+.wiz-hint{color:var(--hb-muted);font-size:12.5px;line-height:1.5;margin:0 0 12px}
+.wiz-sub{color:var(--hb-muted-2);font-size:11.5px;line-height:1.45}
+.wiz-cards{display:flex;gap:10px;flex-wrap:wrap}
+.wiz-card{flex:1 1 220px;border:1px solid var(--hb-line);border-radius:12px;padding:12px 12px 14px;background:var(--hb-bg-soft);display:flex;flex-direction:column;gap:6px}
+.wiz-card.rec{border-color:var(--hb-accent);box-shadow:0 0 0 1px var(--hb-accent) inset}
+.wiz-card-h{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--hb-ink)}
+.wiz-fix{font-family:var(--mono);font-size:10.5px;color:var(--hb-muted-2);margin-top:2px}
+.wiz-badge{font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;padding:1px 7px;border-radius:999px;background:var(--hb-accent);color:#fff}
+.wiz-badge.ok{background:transparent;border:1px solid var(--hb-accent2);color:var(--hb-accent2)}
+.wiz-rows{display:flex;flex-direction:column;gap:8px}
+.wiz-row{display:flex;align-items:center;gap:10px;justify-content:space-between;border:1px solid var(--hb-line);border-radius:10px;padding:9px 11px}
+.wiz-row.note{background:var(--hb-warn-bg);border-color:var(--hb-warn-border)}
+.wiz-row.note span{color:var(--hb-warn-ink);font-size:12px}
+.wiz-row-l{display:flex;flex-direction:column;gap:3px;min-width:0}
+.wiz-row-l>span{font-size:12.5px;color:var(--hb-ink)}
+.wiz-row-r{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.wiz-cmd{font-family:var(--mono);font-size:10.5px;color:var(--hb-muted-2);background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:6px;padding:2px 6px;overflow:auto;max-width:100%}
+.wiz-inp{width:150px;background:var(--hb-bg);border:1px solid var(--hb-line);color:var(--hb-ink);border-radius:8px;padding:6px 9px;font-size:12px;font-family:var(--sans)}
+.wiz-btn{background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2));border:none;color:#fff;font-weight:700;border-radius:9px;padding:7px 13px;font-size:12.5px;cursor:pointer;white-space:nowrap}
+.wiz-btn.ghost{background:var(--hb-bg);border:1px solid var(--hb-line);color:var(--hb-muted)}
+.wiz-btn:disabled{opacity:.55;cursor:default}
+.wiz-foot{display:flex;align-items:center;gap:10px;margin-top:14px}
+.wiz-foot .wiz-btn.done{margin-left:auto}
+.wiz-msg{font-size:11.5px;color:var(--hb-accent2)}
+.wiz-msg.err{color:var(--hb-risk)} .wiz-msg.okk{color:var(--hb-accent2)}
+
+/* ---------- BOTTOM-CENTRE: voice orb, no text ---------- */
+/* voice orb + activity rail: ALWAYS on top of everything (the spectrum is the overlay). Bottom-anchored so the
+   activity text grows UPWARD from the orb. Draggable (the orb itself is the handle) + position persisted. */
+.orbwrap{position:fixed;left:50%;bottom:8px;transform:translateX(-50%);z-index:100000;display:flex;flex-direction:column;align-items:center}
+/* OVAL VEIL behind the WHOLE eye cluster (icons + orb + ECG) — not just behind the orb canvas. Over a busy/bright
+   background (a video playing in a widget, e.g.) the frameless icons and the thin ECG line were themselves
+   nearly invisible, no matter how opaque the orb's own canvas fill was (operator 2026-07-22, 3rd pass: "no se ven
+   los iconos... la sombra tiene que ser mucho más grande, ovalada, más opaca"; 4th pass: the oval from that pass
+   was its own hard-edged shape, visibly bigger than the eye and with a crisp boundary right past the icons/pulse
+   — "tiene que ocupar EXACTAMENTE la forma del ojo... todos los bordes tienen que estar difuminados, no puedes
+   cerrar una línea perfecta por debajo de los iconos o del pulso"). Fix: sized to HUG the actual icon+orb+ECG
+   footprint (not oversized padding), and blurred with a real `filter` on the shape itself — not just a manually
+   -tuned gradient fade — so there is categorically no crisp edge anywhere along the perimeter (a Gaussian blur
+   has none by construction); `backdrop-filter` additionally blurs whatever peeks through the translucent rim.
+   z-index:-1 sinks it behind its siblings (icons/orb/ECG) within orbwrap's OWN stacking context — it does not
+   escape orbwrap's global z-index:100000, so it's still above every widget/video on the canvas.
+   5th pass (operator 2026-07-22): a plain `filter:blur` is SYMMETRIC around the shape's edge — it was eating
+   into the "must stay 100% opaque" zone just as much as it faded the outside.
+   6th pass: the gradient stops were percentages of the DEFAULT radial-gradient sizing, which is
+   `farthest-corner` — for a 370×230 box that corner is ~218px out, well past the ellipse's own visible edge
+   (185×115, since `border-radius:50%` clips the box to an inscribed ellipse). So the "100% = transparent" stop
+   never actually painted: everywhere INSIDE the visible clipped ellipse, the gradient hadn't finished fading yet
+   → the clip cut off a still-partially-opaque gradient, which is EXACTLY the hard, non-transparent edge the
+   operator kept seeing no matter how the stops were tuned. Fix: `closest-side` sizing makes 100% land exactly at
+   the ellipse's own horizontal/vertical semi-axis (the same boundary `border-radius:50%` clips to), so the fade
+   provably reaches true alpha-0 AT the visible edge, never before it's clipped. Two stops only (solid up to ~85%,
+   i.e. right at/~6px inside the eye's own footprint, then a single smooth ramp to fully transparent at 100%) —
+   "de sólido a cero" as ONE continuous fade across the whole outer margin, not a truncated band.
+   7th pass (operator 2026-07-22): (a) the fade needs to start right AT the icon/pulse arc, not a few px past
+   it — pulled the solid-to-fade stop in from 85%→76% so the ~24% remaining band (≈40px horizontally, ≈27px
+   vertically) is a visible, progressive fade the whole way out, not a short tail; (b) color was `--hb-bg` (the
+   WIDGET-panel tone, lighter than the page) — that's why it read as a lit-up patch even over the bare page. The
+   veil must be the SAME color as the page's own background (`--canvas`) so with nothing behind it it's
+   invisible; being OPAQUE and on top is what still shows the eye clearly once something else IS behind it.
+   8th pass (operator 2026-07-22): `backdrop-filter:blur` has its OWN hard geometric cutoff — it blurs whatever's
+   behind ONLY inside the element's shape, so even with a perfectly smooth opacity fade, the blurred-vs-sharp
+   boundary of the backdrop-filter itself still reads as a crisp outlined oval. Dropped it entirely — a pure
+   opacity fade (solid → true transparent, no blur of what's behind) is what actually "merges" with whatever's
+   underneath instead of looking cut out. */
+.orbveil{position:absolute;left:50%;bottom:-12px;transform:translateX(-50%);z-index:-1;pointer-events:none;
+  width:370px;height:230px;border-radius:50%;
+  background:radial-gradient(closest-side at center,var(--canvas) 0%,var(--canvas) 76%,transparent 100%)}
+@media(max-width:620px){ .orbveil{width:280px;height:180px} }
+canvas#orb{width:148px;height:148px;display:block;cursor:grab;touch-action:none}
+canvas#orb:active{cursor:grabbing}
+.vlabel{font-family:var(--mono);font-size:11px;color:var(--hb-muted-2);opacity:0;transition:opacity .25s;margin-bottom:2px;pointer-events:none}
+.vlabel.show{opacity:1}
+/* BOT MUTED: zaelar's voice output silenced (agent still running). Dim the orb — the 🔊/🔇 control lives below. */
+canvas#orb.muted{opacity:.5;filter:grayscale(.45)}
+
+/* orb core: RELATIVE anchor for the orb + its overlays. The orb sits here; the caption/mic-block float over it
+   without touching layout, so the orb never shifts when text appears. */
+.orbcore{position:relative;z-index:1;display:flex;align-items:center;justify-content:center}   /* above the ECG arc (V2-039) */
+
+/* LIVE CAPTIONS — zaelar's speech CRAWLS up from the orb (teleprompter, Star-Wars style) over a blurred dark
+   scrim. ABSOLUTE + bottom anchored ABOVE the whole icon crown (not just the orb) so it never steps on it — the
+   margin-bottom clears the tallest icon dive (operator 2026-07-22: "el texto me está pisando el ojo"). Grows
+   UPWARD: the newest line sits near the orb (biggest/clearest), each new line pushes the stack up and the older
+   ones shrink + fade as if receding into the distance, the top line fading out last. Max 3 lines. LIVE only. */
+.orbcap{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);margin-bottom:64px;
+  display:none;flex-direction:column;justify-content:flex-end;width:min(560px,88vw);max-height:120px;
+  overflow:hidden;padding:16px 18px 6px;border-radius:16px;pointer-events:none;perspective:320px;
+  background:linear-gradient(to top,var(--hb-bg-a) 0%,var(--hb-bg-a) 36%,transparent 100%);
+  -webkit-backdrop-filter:blur(9px);backdrop-filter:blur(9px);
+  -webkit-mask-image:linear-gradient(to top,#000 0%,#000 50%,transparent 100%);
+          mask-image:linear-gradient(to top,#000 0%,#000 50%,transparent 100%)}
+.orbcap.show{display:flex}
+.orbcap-inner{display:flex;flex-direction:column;justify-content:flex-end;width:100%;
+  transform:rotateX(16deg);transform-origin:50% 100%}
+/* one crawl line: enters collapsed + below + transparent → grows to full, pushing the stack up smoothly. UPPERCASE,
+   Star-Wars crawl: :nth-last-child counts from the newest (bottom, nearest the orb) — the newest line is biggest
+   and fully opaque, each one further back (older, higher up) is smaller/narrower/dimmer, like it's receding away. */
+.cl{font-size:20px;line-height:1.4;color:var(--hb-ink);text-align:center;font-weight:700;
+  text-transform:uppercase;letter-spacing:.6px;
+  text-shadow:0 1px 8px rgba(0,0,0,.4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  opacity:0;max-height:0;transform:translateY(10px) scale(1);
+  transition:max-height .5s ease,opacity .5s ease,transform .5s ease,font-size .5s ease,letter-spacing .5s ease}
+.cl.in{max-height:1.8em;transform:translateY(0) scale(1)}
+.cl.out{opacity:0;max-height:0;transform:translateY(-8px) scale(.7)}
+.cl.in:nth-last-child(1){opacity:1;font-size:20px;letter-spacing:.6px}
+.cl.in:nth-last-child(2){opacity:.55;font-size:15px;letter-spacing:.3px}
+.cl.in:nth-last-child(3){opacity:.28;font-size:12px;letter-spacing:.15px}
+
+/* THE EYE's UPPER LID (V2-039 «ojo», operator 2026-07-17) — 7 controls arched over the orb, mirroring the ECG's
+   lower lid below so the whole cluster reads as an EYE with the orb as iris: ⏰ · 🧠 · 🔊 · ⏻(CENTRE, apex) ·
+   📝 · ☾/☀ · 🤖. The centre rides the top of the sphere; the OUTER icons DIVE toward the corners (canthi) to
+   nearly meet the ECG's tips. Frameless icons: BLUE = on/open, pale GREY = off/closed. translateY per position
+   (nth-child) draws the lid on a circle matching the ECG's curvature (icons at x≈0/±45/±90/±135 → y offsets
+   0/6/27/70 on R≈150). Keep the orb + captions + ECG untouched (siblings). */
+.orbctl{display:flex;align-items:flex-start;gap:15px;margin-bottom:-4px;z-index:1}
+.orbic{background:transparent;border:none;padding:4px;outline:none;
+  color:var(--hb-muted-2);cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:color .15s,opacity .15s,transform .15s}
+.orbic svg{width:22px;height:22px}
+.orbic:hover{color:var(--hb-accent)}
+.orbic.on{color:var(--hb-accent)}
+.orbic.off{color:var(--hb-muted-2);opacity:.5}
+/* the UPPER LID **IS** THE ICONS (v4, operator 2026-07-22: "arriba van los iconos, no una raya"). Inner 5
+   (nth-child 2-6) sit ON the almond circle the ECG draws below (R=(S²+a²)/2a ≈ 2.5·orbRadius; icon x = 0/±45/±90
+   → y = R−√(R²−x²) = 0/6/23). The outer 2 (clock/robot) DON'T need to touch the ECG's tips — the orb's own edge
+   already anchors where the pulse starts/ends (ecg.js computes that from the orb rect, independent of these icons)
+   — so they're pulled back a bit short of the canthus (v5, operator 2026-07-22: matching 2nd-difference of the
+   inner curve instead of diving all the way to it) to close the gap between the 5-icon cluster and the 2 extremes. */
+.orbctl .orbic:nth-child(4){transform:translateY(0)}
+.orbctl .orbic:nth-child(3),.orbctl .orbic:nth-child(5){transform:translateY(6px)}
+.orbctl .orbic:nth-child(2){transform:translate(-5px,23px)}
+.orbctl .orbic:nth-child(6){transform:translate(5px,23px)}
+.orbctl .orbic:nth-child(1){transform:translate(-10px,50px)}
+.orbctl .orbic:nth-child(7){transform:translate(10px,50px)}
+.orbctl .orbic:nth-child(4):hover{transform:translateY(-2px)}
+.orbctl .orbic:nth-child(3):hover,.orbctl .orbic:nth-child(5):hover{transform:translateY(4px)}
+.orbctl .orbic:nth-child(2):hover{transform:translate(-5px,21px)}
+.orbctl .orbic:nth-child(6):hover{transform:translate(5px,21px)}
+.orbctl .orbic:nth-child(1):hover{transform:translate(-10px,48px)}
+.orbctl .orbic:nth-child(7):hover{transform:translate(10px,48px)}
+/* ELECTROCARDIOGRAM cradling the orb (V2-039) — zaelar's REAL heartbeat, driven by lib/ecg.js off store.pulse
+   (one QRS per orchestrator loop.tick, racing under load). The trace runs along a SEMICIRCULAR ARC under the orb
+   (mirror of the icon crown above; ecg.js computes the arc from #orb's live rect) with soft fade-off at both tips.
+   The canvas OVERLAPS the orb (negative margin, so the arc's shoulders can rise up its sides) and paints BENEATH
+   it (z-index 0 vs .orbcore 1). pointer-events:none so it never steals the orb drag. */
+.orbecg{position:relative;z-index:0;width:min(340px,94vw);height:120px;display:block;margin-top:-90px;opacity:.95;pointer-events:none}
+/* MIC BLOCKED indicator: a big "prohibido" ring + slash OVER the orb when the mic is muted/occupied by another app */
+.micblockcap{font-family:var(--mono);font-size:11px;color:var(--hb-risk);opacity:0;transition:opacity .2s;margin-bottom:4px;text-align:center;max-width:230px;pointer-events:none;font-weight:600}
+.micblockcap.show{opacity:1}
+.micblock{position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:148px;height:148px;display:none;align-items:center;justify-content:center;pointer-events:none;z-index:5}
+.micblock.show{display:flex}
+.micblock .ring{width:104px;height:104px;border-radius:50%;border:6px solid var(--hb-risk);position:relative;box-shadow:0 0 0 7px rgba(229,72,77,.12);animation:micpulse 1.4s ease-in-out infinite}
+.micblock .ring::after{content:"";position:absolute;top:calc(50% - 3px);left:-8px;right:-8px;height:6px;border-radius:3px;background:var(--hb-risk);transform:rotate(-45deg)}
+@keyframes micpulse{0%,100%{box-shadow:0 0 0 7px rgba(229,72,77,.12)}50%{box-shadow:0 0 0 11px rgba(229,72,77,.05)}}
+@media(max-width:620px){ .micblock{width:120px;height:120px} .micblock .ring{width:86px;height:86px} }
+/* ACTIVITY RAIL — what zaelar is doing right now (search/process), as text that grows up from the spectrum. */
+.activity{display:flex;flex-direction:column;justify-content:flex-end;width:min(440px,86vw);max-height:48vh;
+  overflow:hidden;margin-bottom:12px;pointer-events:auto;
+  -webkit-mask:linear-gradient(to top,#000 72%,transparent);mask:linear-gradient(to top,#000 72%,transparent)}
+.activity:empty{display:none}
+.hb-act{background:var(--hb-bg-a);backdrop-filter:blur(6px);border-radius:14px;padding:12px 14px;
+  box-shadow:var(--hb-shadow-1)}
+/* BACKGROUND-ACTIVITY HONEYCOMB (V2-039, operator 2026-07-17) — one dark HEXAGON per in-flight background task,
+   glued into a cluster that grows from the screen centre in random directions (never off-screen; geometry in
+   components/ActivityStrip.js). Each cell holds the current doing-text ("pensando…", "buscando en la web…") in a
+   very dark grey — an ambient "things are happening" lift over the canvas, NOT a notification. The layer mounts
+   right above .canvas and below .wstage (DOM order = paint order), so widgets/orb/everything paint OVER it.
+   Replaces the old liquid blobs flanking the orb (they collided with the orb/ECG and read as clutter).
+   Theme-aware: color-mix over --hb-ink works in dark AND light. */
+.hexbg{position:fixed;inset:0;pointer-events:none;overflow:hidden}
+.hexcell{position:absolute;opacity:0;transform:scale(.6);
+  transition:opacity .5s ease,transform .5s cubic-bezier(.2,.9,.3,1.2)}
+.hexcell.in{opacity:1;transform:scale(1);animation:hexbreathe 5.2s ease-in-out infinite}
+.hexcell.out{opacity:0;transform:scale(.78);animation:none}
+.hexcell svg{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hexcell polygon{fill:color-mix(in srgb,var(--hb-ink) 4%,transparent);
+  stroke:color-mix(in srgb,var(--hb-ink) 10%,transparent);stroke-width:1;vector-effect:non-scaling-stroke}
+.hextext{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:0 17%}
+.hextext .hextxt{font-family:var(--mono);font-size:11px;line-height:1.35;text-align:center;
+  color:var(--hb-muted-2);opacity:.6;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;
+  overflow:hidden}
+/* V2-038: un worker que ESPERA respuesta del operador — la celda se marca en ámbar tenue (el loop lo relata por voz). */
+.hexcell.asking polygon{stroke:color-mix(in srgb,var(--hb-risk) 38%,transparent)}
+.hexcell.asking .hextxt{color:var(--hb-warn-ink,var(--hb-ink));opacity:.85}
+@keyframes hexbreathe{0%,100%{opacity:.72}50%{opacity:1}}
+/* widget desktop styling lives in app/widgets/desktop.js (the independent canvas module) */
+.conn{position:fixed;left:20px;bottom:14px;z-index:20;font-family:var(--mono);font-size:11px;color:var(--hb-muted-2)}
+.conn b{color:var(--hb-muted)}
+/* (Proactive pushes no longer float a toast — they surface as a live caption over the orb + a chat-wall entry.) */
+/* CRON PANEL — manage zaelar's proactive tasks (native Hermes crons). */
+.cronpanel{position:fixed;top:64px;right:18px;z-index:9001;width:360px;max-width:92vw;height:min(64vh,560px);
+  background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:16px;box-shadow:var(--hb-shadow-2);
+  display:none;flex-direction:column;overflow:hidden}
+.cronpanel.open{display:flex}
+.cron-list{flex:1 1 auto;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.cron-empty{color:var(--hb-muted-2);font-size:12px;line-height:1.4;padding:6px 2px}
+.cron-row{display:flex;gap:8px;align-items:flex-start;border:1px solid var(--hb-line);border-radius:12px;padding:9px 11px}
+.cron-main{flex:1 1 auto;min-width:0}
+.cron-name{font-weight:700;font-size:13px;color:var(--hb-ink)}
+.cron-meta{font-family:var(--mono);font-size:10.5px;color:var(--hb-muted);margin-top:1px}
+.cron-prompt{font-size:12px;color:var(--hb-muted);margin-top:4px;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.cron-btns{display:flex;gap:5px;flex:0 0 auto}
+.cron-b.danger{color:var(--hb-risk);border-color:rgba(229,72,77,.4)}
+.cron-add{border-top:1px solid var(--hb-line);padding:10px 12px;display:flex;flex-direction:column;gap:7px}
+.cron-in{width:100%;border:1px solid var(--hb-line);border-radius:9px;padding:7px 9px;font-size:12.5px;font-family:var(--sans);background:var(--hb-bg);color:var(--hb-ink);resize:none}
+.cron-in:focus{border-color:var(--hb-accent);outline:none}
+.cron-create{background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2));color:#fff;border:none;border-radius:9px;padding:8px;font-size:13px;font-weight:600;cursor:pointer}
+@media(max-width:640px){ .cronpanel{left:12px;right:12px;width:auto;top:auto;bottom:12px;height:min(70vh,520px)} }
+/* STATUS — the ◉ toolbar icon colors by overall health; red BLINKS to grab attention. */
+.statusBtn{position:relative}
+.statusBtn.st-ok{color:var(--hb-ok);border-color:color-mix(in srgb,var(--hb-ok) 35%,transparent)}
+.statusBtn.st-warn{color:var(--hb-warn);border-color:color-mix(in srgb,var(--hb-warn) 40%,transparent)}
+.statusBtn.st-error{color:var(--hb-risk);border-color:color-mix(in srgb,var(--hb-risk) 55%,transparent);animation:stblink 1s steps(1) infinite}
+.statusBtn.st-unknown{color:var(--hb-muted-2)}
+@keyframes stblink{50%{color:#fff;background:var(--hb-risk);border-color:var(--hb-risk)}}
+/* STATUS PANEL — per-subsystem health, compact so the whole thing fits in one glance (no scroll). Two sections:
+   NÚCLEO (what you boot from the terminal) on top, SECUNDARIO (crons/widgets/cluster) below in a quieter style. */
+.statuspanel{position:fixed;top:94px;right:18px;z-index:9001;width:400px;max-width:94vw;height:auto;max-height:min(90vh,760px);
+  background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:16px;box-shadow:var(--hb-shadow-2);
+  display:none;flex-direction:column;overflow:hidden}
+.statuspanel.open{display:flex}
+/* header: only the 9-dot grip drags (like the camera unit); the rest of the head is not a drag surface */
+.statuspanel .cw-head{padding:9px 12px;cursor:default}
+.statuspanel .cw-title{font-size:15px;font-weight:800}
+.cw-grip{flex:0 0 auto;background:transparent;border:none;color:var(--hb-muted-2);cursor:grab;padding:3px;border-radius:6px;
+  display:inline-flex;align-items:center;touch-action:none;line-height:0}
+.cw-grip:hover{color:var(--hb-accent);background:var(--hb-hover)}
+.cw-grip:active{cursor:grabbing}
+.st-list{flex:1 1 auto;overflow-y:auto;padding:8px 12px 12px;display:flex;flex-direction:column;gap:5px}
+/* section header */
+.st-sec{font-size:10.5px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--hb-muted-2);padding:8px 4px 2px}
+.st-sec.st-sec-2{color:var(--hb-muted-2);border-top:1px dashed var(--hb-line);margin-top:4px;padding-top:9px}
+/* row */
+.st-row{display:flex;gap:10px;align-items:center;border:1px solid var(--hb-line);border-radius:10px;padding:7px 11px}
+.st-row.st-error{border-color:color-mix(in srgb,var(--hb-risk) 45%,transparent);background:color-mix(in srgb,var(--hb-risk) 8%,transparent)}
+.st-row.st-warn{border-color:color-mix(in srgb,var(--hb-warn) 40%,transparent);background:color-mix(in srgb,var(--hb-warn) 8%,transparent)}
+.st-row.st-ok{border-color:color-mix(in srgb,var(--hb-ok) 26%,transparent)}
+/* status dot: ONE mechanism (CSS background on a plain span), replacing the 🟢🟡🔴⚪ emoji glyphs — a color
+   emoji can't be recolored/reused by the token system and rendered inconsistently across platforms/fonts. */
+.st-dot{flex:0 0 auto;width:9px;height:9px;border-radius:50%;background:var(--hb-muted-2)}
+.st-dot.st-dot-ok{background:var(--hb-ok)}
+.st-dot.st-dot-warn{background:var(--hb-warn)}
+.st-dot.st-dot-error{background:var(--hb-risk)}
+.st-main{flex:1 1 auto;min-width:0}
+.st-name{font-weight:700;font-size:13.5px;color:var(--hb-ink);line-height:1.25}
+.st-detail{font-size:11.5px;color:var(--hb-muted);margin-top:1px;word-break:break-word;line-height:1.3}
+/* secondary rows: quieter + denser */
+.st-row.st-2{padding:5px 11px;border-color:transparent;background:var(--hb-bg-soft)}
+.st-row.st-2 .st-name{font-size:12.5px;font-weight:600}
+.st-row.st-2 .st-detail{font-size:11px}
+.st-row.st-2 .st-dot{width:7px;height:7px}
+@media(max-width:640px){ .statuspanel{left:12px;right:12px;width:auto;top:auto;bottom:12px;height:min(74vh,560px)} }
+
+/* ---------- MEMORY MAP (🧠) — full-screen visualizer of zaelar's central memory (V2-014) ----------
+   Three stacked LAYERS (ESTADO · CORTO · LARGO), each a band with a coloured left rail; every memory is a small
+   node card (tiny ~8px text + scoring + date + metadata), readable by ZOOM (wheel) + PAN (drag). Concept graph
+   drawn as SVG curves between nodes. All colours via --hb-* → repaints on theme toggle. */
+.memmap{position:fixed;inset:0;z-index:9500;background:var(--hb-bg);display:none;flex-direction:column}
+.memmap.open{display:flex}
+
+/* ── Área de configuración full-screen (⚙, V2-043) — menú lateral estilo Ajustes/Chrome: una sección
+   visible a la vez, panel de formulario fino a la derecha con filas agrupadas + botón de guardar. ── */
+.cfgfull{position:fixed;inset:0;z-index:9600;background:var(--hb-bg);display:none;flex-direction:column}
+.cfgfull.open{display:flex}
+.cf-shell{flex:1 1 auto;display:flex;flex-direction:column;min-height:0}
+.cf-head{flex:0 0 auto;display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--hb-line);background:var(--hb-bg-soft)}
+.cf-head h3{margin:0;font-size:16px;color:var(--hb-ink)}
+.cf-msg{flex:1 1 auto;color:var(--hb-muted);font-size:13px}
+.cf-x{background:var(--hb-bubble);color:var(--hb-ink);border:1px solid var(--hb-line);border-radius:8px;padding:7px 14px;cursor:pointer}
+.cf-x:hover{background:var(--hb-hover)}
+.cf-loading{color:var(--hb-muted);padding:20px}
+
+/* body = nav lateral + panel de contenido, lado a lado */
+.cf-body{flex:1 1 auto;display:flex;min-height:0;overflow:hidden}
+.cf-nav{flex:0 0 232px;overflow-y:auto;padding:14px 10px;display:flex;flex-direction:column;gap:2px;
+  border-right:1px solid var(--hb-line);background:var(--hb-bg-soft)}
+.cf-nav-item{display:flex;align-items:center;gap:11px;padding:10px 12px;border:0;border-radius:10px;
+  background:transparent;color:var(--hb-muted);font-size:13px;font-weight:600;text-align:left;cursor:pointer;
+  transition:background .15s ease,color .15s ease}
+.cf-nav-item svg{width:16px;height:16px;flex:0 0 auto}
+.cf-nav-item:hover{background:var(--hb-hover);color:var(--hb-ink)}
+.cf-nav-item.active{background:var(--hb-bubble);color:var(--hb-accent)}
+.cf-scroll{flex:1 1 auto;overflow-y:auto;padding:32px 36px}
+.cf-panel{max-width:640px;margin:0 auto}
+
+/* sección = título+subtítulo suelto encima de un grupo (tarjeta) con filas separadas por línea */
+.cf-panel-sec{display:flex;flex-direction:column;gap:14px}
+.cf-panel-head h4{margin:0 0 4px;font-size:19px;font-weight:700;color:var(--hb-ink)}
+.cf-panel-head p{margin:0;font-size:13px;color:var(--hb-muted-2);line-height:1.5}
+.cf-group{background:var(--hb-bg-soft);border:1px solid var(--hb-line);border-radius:14px;padding:4px 18px}
+
+/* fila de ajuste: etiqueta a la izquierda, control a la derecha (patrón Ajustes/Chrome) */
+.cf-row2{display:flex;align-items:center;gap:22px;padding:14px 0;border-bottom:1px solid var(--hb-line)}
+.cf-row2:last-of-type{border-bottom:none}
+.cf-row2-label{flex:1 1 auto;font-size:13px;font-weight:600;color:var(--hb-ink);min-width:0}
+.cf-row2-ctl{flex:0 0 auto;width:270px;display:flex;flex-direction:column;align-items:flex-end;gap:5px}
+.cf-row2-ctl input,.cf-row2-ctl select{background:var(--hb-bg);color:var(--hb-ink);border:1px solid var(--hb-line);
+  border-radius:8px;padding:8px 10px;font-size:13px;width:100%;transition:border-color .15s ease}
+.cf-row2-ctl input:focus,.cf-row2-ctl select:focus{outline:none;border-color:var(--hb-accent)}
+.cf-status{font-size:13px;color:var(--hb-ink);font-weight:600}
+.cf-hint{font-size:11px;color:var(--hb-muted-2);text-align:right}
+.cf-foot{margin-top:2px;display:flex;justify-content:flex-end}
+.cf-foot button{background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2));color:#fff;border:none;border-radius:9px;padding:9px 18px;font-size:13px;font-weight:600;cursor:pointer;transition:filter .15s ease}
+.cf-foot button:hover{filter:brightness(1.08)}
+.cf-foot button:disabled{opacity:.5;cursor:default}
+.cf-badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700}
+.cf-ok{background:rgba(22,184,166,.16);color:var(--hb-accent2)}
+.cf-warn{background:var(--hb-warn-bg);color:var(--hb-warn-ink)}
+.cf-error{background:var(--hb-risk-soft);color:var(--hb-risk)}
+.cf-off,.cf-unknown{background:var(--hb-bubble);color:var(--hb-muted-2)}
+.cf-apis{width:100%;border-collapse:collapse;font-size:12px}
+.cf-apis td{padding:8px 6px;border-bottom:1px solid var(--hb-line);vertical-align:middle}
+.cf-api-name{color:var(--hb-ink);font-weight:600}
+.cf-api-name span{display:block;font-weight:400;color:var(--hb-muted-2);font-size:11px}
+.cf-api-detail{color:var(--hb-muted);text-align:right;white-space:nowrap}
+.cf-bar{display:inline-block;width:60px;height:6px;border-radius:3px;background:var(--hb-line);vertical-align:middle;overflow:hidden}
+.cf-bar i{display:block;height:100%;background:var(--hb-accent)}
+.cf-api-error .cf-api-detail{color:var(--hb-risk)}
+.cf-api-warn .cf-api-detail{color:var(--hb-warn-ink)}
+@media(max-width:760px){
+  .cf-body{flex-direction:column}
+  .cf-nav{flex-direction:row;flex:0 0 auto;overflow-x:auto;border-right:none;border-bottom:1px solid var(--hb-line)}
+  .cf-nav-item span{display:none}
+  .cf-scroll{padding:20px}
+  .cf-row2{flex-direction:column;align-items:stretch;gap:6px}
+  .cf-row2-ctl{width:100%;align-items:stretch}
+  .cf-hint{text-align:left}
+}
+.mm-head{flex:0 0 auto;display:flex;align-items:center;gap:14px;padding:12px 16px;border-bottom:1px solid var(--hb-line);background:var(--hb-bg-soft)}
+.mm-brand{display:inline-flex;align-items:center;gap:9px;color:var(--hb-accent)}
+.mm-brand svg{width:22px;height:22px}
+.mm-brand b{color:var(--hb-ink);font-size:16px;font-weight:800;letter-spacing:.01em}
+.mm-counts{font-family:var(--mono);font-size:11.5px;color:var(--hb-muted)}
+/* view toggle: SLOTS (contenido tal como se guarda) ↔ CONCEPTOS (cómo se organiza) */
+.mm-modes{display:inline-flex;gap:2px;padding:2px;border:1px solid var(--hb-line);border-radius:10px;background:var(--hb-bg)}
+.mm-mode{border:0;background:transparent;color:var(--hb-muted);font-size:12px;font-weight:700;letter-spacing:.02em;
+  padding:5px 12px;border-radius:8px;cursor:pointer;transition:background .18s ease,color .18s ease}
+.mm-mode:hover{color:var(--hb-ink)}
+.mm-mode.on{background:var(--hb-accent);color:var(--hb-bg)}
+.mm-tools{margin-left:auto;display:flex;gap:6px}
+.mm-close:hover{border-color:var(--hb-risk);color:var(--hb-risk)}
+.mm-viewport{position:relative;flex:1 1 auto;overflow:hidden;cursor:grab;touch-action:none;
+  background-image:radial-gradient(var(--hb-line) 1px,transparent 1px);background-size:26px 26px}
+.mm-viewport.panning{cursor:grabbing}
+.mm-hint{position:absolute;left:14px;bottom:12px;z-index:3;font-family:var(--mono);font-size:11px;color:var(--hb-muted-2);
+  background:var(--hb-bg-a);padding:5px 9px;border-radius:8px;pointer-events:none;-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.mm-empty{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);z-index:3;max-width:360px;text-align:center;
+  color:var(--hb-muted);font-size:14px;line-height:1.5;display:none;pointer-events:none}
+.mm-world{position:absolute;left:0;top:0;transform-origin:0 0;will-change:transform}
+.mm-edges{position:absolute;left:0;top:0;overflow:visible;pointer-events:none}
+.mm-edge{fill:none;stroke:var(--hb-accent);opacity:.4}
+/* concept↔concept edge (CONCEPTOS view): thickness by shared-data weight */
+.mm-cedge{fill:none;stroke:var(--hb-accent);opacity:.32;stroke-linecap:round}
+.mm-nodes{position:absolute;left:0;top:0}
+/* layer column (ESTADO · CORTO · LARGO side by side, each its own block + top rail) */
+.mm-band{position:absolute;border:1px solid var(--hb-line);border-top:3px solid var(--hb-neutral);border-radius:12px;
+  background:var(--hb-bg-soft);opacity:.6;pointer-events:none}
+.mm-zlabel{position:absolute;left:14px;right:12px;top:11px;display:flex;flex-direction:column;gap:2px}
+.mm-zhead{display:flex;align-items:baseline;gap:9px}
+.mm-ztitle{font-size:13px;font-weight:800;letter-spacing:.09em;color:var(--hb-ink)}
+.mm-zcount{font-family:var(--mono);font-size:11px;color:var(--hb-muted);font-weight:700}
+.mm-zsub{font-size:11px;color:var(--hb-muted-2);line-height:1.3;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.mm-none{position:absolute;font-size:11px;color:var(--hb-muted-2);font-style:italic}
+/* memory node card */
+.mm-node{position:absolute;width:152px;height:98px;box-sizing:border-box;border:1px solid var(--hb-line);
+  border-radius:10px;background:var(--hb-bg);box-shadow:var(--hb-shadow-1);padding:7px 8px 6px;
+  display:flex;flex-direction:column;gap:3px;overflow:hidden;cursor:default;
+  transition:border-color .25s ease, box-shadow .25s ease}
+.mm-node.pinned{border-color:var(--hb-accent)}
+.mm-node.stale{opacity:.5;border-style:dashed}
+/* LIVE OBSERVABILITY tints (V2-014): a node lights up for ~4s when written / overwritten / read.
+   write=green · overwrite=amber · query=blue. Fade back via the base .mm-node transition. */
+.mm-node.pulse-new,.mm-cnode.pulse-new{border-color:var(--hb-ok);box-shadow:0 0 0 1px var(--hb-ok),0 0 16px color-mix(in srgb,var(--hb-ok) 55%,transparent);animation:mmPulse .5s ease-out}
+.mm-node.pulse-upd,.mm-cnode.pulse-upd{border-color:var(--hb-warn);box-shadow:0 0 0 1px var(--hb-warn),0 0 16px color-mix(in srgb,var(--hb-warn) 55%,transparent);animation:mmPulse .5s ease-out}
+.mm-node.pulse-qry,.mm-cnode.pulse-qry{border-color:var(--hb-accent);box-shadow:0 0 0 1px var(--hb-accent),0 0 16px color-mix(in srgb,var(--hb-accent) 55%,transparent);animation:mmPulse .5s ease-out}
+/* concept MAP node (CONCEPTOS view): a circle sized by data-count, the count printed inside; concepts wired
+   to each other by co-occurrence edges. NO content — the shape of the organization, one map per storage layer. */
+.mm-cnode{position:absolute;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:2px;border:2px solid var(--hb-accent2);border-radius:50%;background:var(--hb-bg-soft);
+  box-shadow:var(--hb-shadow-1);cursor:default;text-align:center;padding:4px;
+  transition:border-color .25s ease, box-shadow .25s ease, transform .25s ease}
+.mm-cnode:hover{transform:scale(1.06);border-color:var(--hb-accent);z-index:2}
+.mm-band.k-long ~ .mm-nodes .mm-cnode{border-color:var(--hb-accent)}
+.mm-cnname{font-size:11px;font-weight:800;color:var(--hb-ink);text-transform:capitalize;line-height:1.05;
+  max-width:100%;overflow:hidden;text-overflow:ellipsis;padding:0 4px}
+.mm-cncount{font-family:var(--mono);font-size:12px;font-weight:800;color:var(--hb-accent2)}
+@keyframes mmPulse{0%{transform:scale(1)}40%{transform:scale(1.05)}100%{transform:scale(1)}}
+.mm-tx{font-size:8px;line-height:1.32;color:var(--hb-ink);flex:1 1 auto;overflow:hidden;
+  display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;word-break:break-word}
+.mm-meta{display:flex;flex-wrap:wrap;gap:3px;align-items:center}
+.mm-chip{font-family:var(--mono);font-size:7.5px;line-height:1.4;padding:0 4px;border-radius:5px;
+  background:var(--hb-bubble);color:var(--hb-muted);border:1px solid var(--hb-line)}
+.mm-chip.kind{background:var(--hb-hover);color:var(--hb-ink);font-weight:700}
+.mm-chip.pin{border-color:var(--hb-accent);color:var(--hb-accent)}
+.mm-wbar{height:3px;border-radius:2px;background:var(--hb-line);overflow:hidden}
+.mm-wbar>i{display:block;height:100%;background:linear-gradient(90deg,var(--hb-accent2),var(--hb-accent))}
+.mm-date{font-family:var(--mono);font-size:7.5px;color:var(--hb-muted-2)}
+/* state node (label/value awareness) */
+.mm-node.state{height:98px;justify-content:center;gap:5px;background:var(--hb-bubble)}
+.mm-node.state.empty{opacity:.6;border-style:dashed}
+.mm-slabel{font-family:var(--mono);font-size:9px;letter-spacing:.05em;text-transform:uppercase;color:var(--hb-muted-2)}
+.mm-sval{font-size:12px;color:var(--hb-ink);font-weight:600;overflow:hidden;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;word-break:break-word}
+.alert{position:fixed;top:0;left:0;right:0;background:var(--hb-risk);color:#fff;padding:11px 16px;font-size:14px;text-align:center;z-index:60;cursor:pointer;display:none}
+.alert.show{display:block}
+@media (max-width:640px){ .me{width:150px} .cam{width:150px;height:112px} .ctrl{width:150px}
+  .orbwrap{bottom:84px} canvas#orb{width:120px;height:120px}
+  .chatwall{left:12px;right:12px;width:auto;max-width:none;top:auto;bottom:96px;height:min(56vh,440px)} }
+
+/* ---------- HERMES UPDATE BANNER + OVERLAY ---------- */
+/* the bar itself is a deliberate ATTENTION color (update available), tokenized (--hb-update/--hb-update2) instead
+   of duplicated raw hex — the card below is a LOG/console view, which stays dark by convention regardless of
+   theme (a terminal reads the same in light or dark mode), via the shared --hb-console-* tokens (2026-07-22). */
+.upd-bar{position:fixed;top:0;left:0;right:0;z-index:99998;
+  background:linear-gradient(90deg,var(--hb-update),var(--hb-update2));color:#fff;
+  padding:9px 18px;font-size:13px;display:none;align-items:center;gap:10px;
+  box-shadow:0 2px 14px color-mix(in srgb,var(--hb-update) 35%,transparent)}
+.upd-bar.on{display:flex}
+.upd-bar span{flex:1;font-weight:500}
+.upd-btn{background:#fff;color:#c2410c;border:none;border-radius:8px;
+  padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
+.upd-btn:hover{background:#fff7ed}
+.upd-x{background:transparent;border:none;color:rgba(255,255,255,.75);cursor:pointer;font-size:17px;padding:0 4px;line-height:1}
+/* z-index 100002: above the voice orb (100000) and the settings modal (100001) so the
+   blocked-UI overlay truly covers everything while Hermes is updating. */
+.upd-ovl{position:fixed;inset:0;z-index:100002;background:rgba(13,22,34,.78);
+  backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center}
+.upd-ovl.on{display:flex}
+.upd-card{background:var(--hb-console-bg);border:1px solid var(--hb-console-line);border-radius:18px;
+  padding:24px 28px;width:min(540px,92vw);display:flex;flex-direction:column;gap:14px;
+  box-shadow:0 32px 80px rgba(0,0,0,.6)}
+.upd-head{display:flex;align-items:center;gap:10px;color:var(--hb-console-ink);font-size:15px;font-weight:600}
+.upd-close{margin-left:auto;background:transparent;border:none;color:var(--hb-console-muted);
+  cursor:pointer;font-size:17px;line-height:1;display:none}
+.upd-close.on{display:block}
+.upd-log{overflow-y:auto;font-family:var(--mono);font-size:12px;color:var(--hb-console-muted);
+  min-height:100px;max-height:300px;line-height:1.75}
+.upd-log p{margin:0}
+.upd-log .ok{color:var(--hb-accent2)}
+.upd-log .err{color:var(--hb-risk)}
+.upd-spin{width:18px;height:18px;flex-shrink:0;border:2.5px solid var(--hb-console-line);
+  border-top-color:var(--hb-accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ---------- BOOT OVERLAY — «Colmena sináptica» splash while zaelar comes up on first load ----------
+   A full-screen canvas (components/boot-anim.js) where a neural constellation assembles itself in parts, one
+   cluster per boot phase, then implodes into the orb on "listo". z-index above EVERYTHING else (upd-ovl is
+   100002) — the first thing the user sees. Visible by default; `.gone` (set on store.bootReady) lifts the veil
+   as the mesh collapses. Themed via --hb-* (dark/light). See BootOverlay.js. */
+.boot-ovl{position:fixed;inset:0;z-index:100010;overflow:hidden;
+  background:radial-gradient(120% 90% at 50% 46%, var(--hb-bg-soft) 0%, var(--hb-bg) 70%);
+  opacity:1;transition:opacity .72s ease}
+.boot-ovl.gone{opacity:0;pointer-events:none}
+.boot-canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.boot-caption{position:absolute;left:50%;top:70%;transform:translateX(-50%);
+  color:var(--hb-muted);font-size:13px;font-weight:600;letter-spacing:.04em;
+  white-space:nowrap;transition:opacity .4s ease;text-shadow:0 1px 12px var(--hb-bg)}
+
+/* ---------- WIDGET KIT — optional shared primitives (widgets/AGENTS.md §Visual style) ----------
+   Global, `hbk-`-prefixed so they never collide with a widget's own scoped classes (`.hb-<id> …`).
+   A widget.js may use these instead of hand-rolling the same card/header/chip CSS every time — same
+   --hb-* tokens, so a widget can go from "structure only" to fully themed with almost no CSS of its
+   own. Fully optional: a widget can still write 100% custom CSS if the layout doesn't fit this shape. */
+.hbk-card{background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:14px;padding:14px 16px}
+.hbk-hd{display:flex;align-items:baseline;gap:10px;margin:0 0 10px}
+.hbk-hd b{font-size:15px;font-weight:600;color:var(--hb-ink)}
+.hbk-sub{font-size:12px;color:var(--hb-muted-2)}
+.hbk-sub.hbk-right{margin-left:auto;font-family:var(--mono)}
+.hbk-muted{color:var(--hb-muted)}
+.hbk-empty{color:var(--hb-muted-2);font-size:13px;padding:14px;text-align:center;border:1px dashed var(--hb-line);border-radius:10px}
+.hbk-chip{display:inline-flex;align-items:center;font-size:12px;border:1px solid var(--hb-line);border-radius:999px;padding:4px 10px;color:var(--hb-muted)}
+.hbk-btn{border:1px solid var(--hb-line);background:var(--hb-bg);color:var(--hb-muted);border-radius:9px;
+  padding:7px 12px;font-size:12.5px;font-family:var(--sans);cursor:pointer}
+.hbk-btn:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
+
+/* ============================================================================
+   DEBUG / OBSERVABILITY side-column (resizable). Toggled by ◷ (store.debugOpen).
+   When open, body.dbg-open + the --dbg-w offset SHRINK the fixed canvas layout so
+   the panel never overlaps zaelar's stage. See components/DebugPanel.js.
+   ============================================================================ */
+:root{ --dbg-w:0px; }
+.dbgpanel{position:fixed;top:0;right:0;height:100vh;z-index:99990;display:none;flex-direction:column;
+  background:var(--hb-bg);border-left:1px solid var(--hb-line);box-shadow:-10px 0 30px rgba(0,0,0,.30)}
+body.dbg-open .dbgpanel{display:flex}
+body.dbg-resizing{cursor:ew-resize;user-select:none}
+.dbg-resize{position:absolute;left:-4px;top:0;width:9px;height:100%;cursor:ew-resize;z-index:3}
+.dbg-resize:hover,body.dbg-resizing .dbg-resize{background:linear-gradient(90deg,transparent,rgba(61,111,224,.5))}
+.dbg-head{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--hb-line)}
+.dbg-title{font-weight:700;font-size:14px;color:var(--hb-ink);white-space:nowrap}
+.dbg-filter{flex:1;min-width:0;background:var(--hb-bg-soft);border:1px solid var(--hb-line);color:var(--hb-ink);
+  border-radius:8px;padding:6px 9px;font-size:12px;font-family:var(--sans)}
+.dbg-filter:focus{outline:none;border-color:var(--hb-accent)}
+.dbg-count{font-family:var(--mono);font-size:10.5px;color:var(--hb-muted-2);white-space:nowrap}
+.dbg-btn{flex:0 0 auto}
+/* V2-037: 2ª barra de filtros por categoría (chips toggle). System/Code se resalta como "amenaza de ruido". */
+.dbg-cats{flex:0 0 auto;display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px;border-bottom:1px solid var(--hb-line)}
+.dbg-cat{padding:3px 10px;border-radius:999px;border:1px solid var(--hb-line);background:var(--hb-bg);
+  color:var(--hb-muted);cursor:pointer;font-size:11px;line-height:1.4;white-space:nowrap}
+.dbg-cat:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
+.dbg-cat.on{border-color:var(--hb-accent);color:var(--hb-accent);background:color-mix(in srgb,var(--hb-accent) 14%,transparent)}
+.dbg-list{flex:1;overflow-y:auto;overflow-x:hidden;padding:4px 0 10px;font-family:var(--mono);font-size:11.5px;line-height:1.45;
+  /* query container: the ROW layout reacts to the PANEL width (resizable), not the viewport (V2 obs) */
+  container-type:inline-size;container-name:dbg}
+.dbg-row{display:grid;grid-template-columns:80px 46px 78px 80px 96px 1fr;gap:8px;padding:3px 12px 3px 9px;
+  border-bottom:1px solid var(--hb-line);border-left:3px solid var(--hb-neutral);align-items:baseline}
+/* `.dbg-row{display:grid}` (clase) ganaba al `[hidden]{display:none}` del navegador (empate de especificidad →
+   gana el autor) → row.hidden NO ocultaba nada y los chips (Pulse/System…) no filtraban. Esta regla lo restaura. */
+.dbg-row[hidden]{display:none}
+.dbg-t{color:var(--hb-muted-2);white-space:nowrap}
+/* latency (col 2, right after the time): plain colored number, not a chip/pill — a value to scan, not a tag */
+.dbg-lat{font-weight:700;text-align:right;white-space:nowrap;color:var(--hb-muted-2)}
+.dbg-lat.lat-good{color:var(--hb-ok)}
+.dbg-lat.lat-warn{color:var(--hb-warn-ink)}
+.dbg-lat.lat-bad{color:var(--hb-risk)}
+.dbg-k{color:var(--hb-muted);text-transform:uppercase;font-size:9.5px;letter-spacing:.04em;
+  border:1px solid var(--hb-line);border-radius:999px;padding:1px 6px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* model chip (col 4): deliberately flat/square, NOT a pill — reads as a different kind of tag than .dbg-k */
+.dbg-eng{font-family:var(--mono);font-size:9px;letter-spacing:.01em;font-weight:700;white-space:nowrap;
+  text-align:center;border-radius:4px;padding:1px 5px;overflow:hidden;text-overflow:ellipsis}
+.dbg-eng.eng-local{color:var(--hb-accent2);background:color-mix(in srgb, var(--hb-accent2) 16%, transparent)}
+.dbg-eng.eng-api{color:var(--hb-warn-ink);background:var(--hb-warn-bg)}
+/* memory layer chip (col 4 for MEMORY rows, V2-014 Task 2): state/short/long/slow */
+.dbg-eng.eng-mem{color:var(--hb-accent);background:color-mix(in srgb, var(--hb-accent) 16%, transparent);text-transform:uppercase}
+/* size/totalizer chip (col 5): in→out tokens (+tools, ❄️ cold) — distingue lento-por-modelo de lento-por-prompt */
+.dbg-sz{font-family:var(--mono);font-size:9px;font-weight:700;white-space:nowrap;text-align:center;border-radius:4px;
+  padding:1px 4px;overflow:hidden;text-overflow:ellipsis;color:var(--hb-muted);background:color-mix(in srgb, var(--hb-muted) 12%, transparent)}
+.dbg-sz.sz-big{color:var(--hb-warn-ink);background:var(--hb-warn-bg)}
+.dbg-msg{color:var(--hb-ink);word-break:break-word;overflow-wrap:anywhere}
+.dbg-msg b{color:var(--hb-accent);font-weight:600}
+.dbg-meta{color:var(--hb-muted);font-style:normal;opacity:.85}
+.dbg-x{color:var(--hb-warn-ink);font-weight:700}
+.dbg-btn.on{border-color:var(--hb-accent);color:var(--hb-accent)}
+/* per-kind accents (left bar + pill) — scan the stream at a glance */
+.dbg-row.k-transcript{border-left-color:var(--hb-accent2)} .dbg-row.k-transcript .dbg-k{color:var(--hb-accent2);border-color:var(--hb-accent2)}
+.dbg-row.k-widget{border-left-color:var(--hb-accent)} .dbg-row.k-widget .dbg-k{color:var(--hb-accent);border-color:var(--hb-accent)}
+.dbg-row.k-brain{border-left-color:#a78bfa} .dbg-row.k-brain .dbg-k{color:#a78bfa;border-color:#a78bfa}
+.dbg-row.k-bot_speech{border-left-color:var(--hb-accent2)}
+.dbg-row.k-tts{border-left-color:#5eead4}
+.dbg-row.k-log{border-left-color:var(--hb-neutral)} .dbg-row.k-log{opacity:.9}
+.dbg-row.k-state{border-left-color:var(--hb-muted-2)}
+.dbg-row.k-memory{border-left-color:var(--hb-accent)} .dbg-row.k-memory .dbg-k{color:var(--hb-accent);border-color:var(--hb-accent)}
+.dbg-row.k-cluster,.dbg-row.k-cron,.dbg-row.k-architect,.dbg-row.k-wa{border-left-color:var(--hb-warn-ink)}
+.dbg-row.k-cluster .dbg-k,.dbg-row.k-cron .dbg-k,.dbg-row.k-architect .dbg-k,.dbg-row.k-wa .dbg-k{color:var(--hb-warn-ink);border-color:var(--hb-warn-border)}
+.dbg-row.k-alert,.dbg-row.k-error{border-left-color:var(--hb-risk);background:var(--hb-risk-soft)}
+.dbg-row.k-alert .dbg-k,.dbg-row.k-error .dbg-k{color:var(--hb-risk);border-color:var(--hb-risk)}
+.dbg-row.k-worker_start{border-left-color:var(--hb-accent)} .dbg-row.k-worker_start .dbg-k{color:var(--hb-accent);border-color:var(--hb-accent)}
+.dbg-row.k-trace{border-left-color:#f0abfc;background:color-mix(in srgb, #f0abfc 6%, transparent)}   /* V2-044: raíz de trace en el log */
+.dbg-row.k-trace .dbg-k{color:#f0abfc;border-color:#f0abfc}
+
+/* ── TRAZABILIDAD (V2-044): chip de trace + vista Trazas (árbol frase → actor → eventos) ─────────────────── */
+.dbg-tr{display:inline-block;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.02em;
+  border:1px solid;border-radius:4px;padding:0 4px;margin-right:6px;cursor:pointer;white-space:nowrap;
+  vertical-align:1px}
+.dbg-tr:hover{filter:brightness(1.3)}
+.dbg-traces{padding:6px 8px 12px}
+.dbg-traces[hidden],.dbg-list[hidden]{display:none}          /* misma lección que .dbg-row[hidden] (especificidad) */
+.dbg-trace{margin:6px 0;border:1px solid var(--hb-line);border-radius:8px;background:color-mix(in srgb, var(--hb-ink) 3%, transparent)}
+.dbg-trace>summary{display:flex;align-items:baseline;gap:6px;padding:6px 9px;cursor:pointer;list-style:none;
+  border-left:3px solid #f0abfc;border-radius:8px 0 0 8px}
+.dbg-trace>summary::-webkit-details-marker{display:none}
+.dbg-trace[open]>summary{border-bottom:1px solid var(--hb-line)}
+.dbg-tro{flex:none}
+.dbg-trt{color:var(--hb-ink);font-weight:600;word-break:break-word;overflow-wrap:anywhere;min-width:0}
+.dbg-trn{margin-left:auto;flex:none;color:var(--hb-muted-2);font-size:9.5px}
+.dbg-trb{padding:2px 0 4px 10px}
+.dbg-span{margin:3px 0 3px 2px;border-left:2px solid var(--hb-line)}
+.dbg-span>summary{cursor:pointer;list-style:none;padding:2px 8px;color:var(--hb-accent);font-size:10px;
+  text-transform:uppercase;letter-spacing:.05em}
+.dbg-span>summary::-webkit-details-marker{display:none}
+.dbg-trrow{grid-template-columns:80px 78px 1fr}              /* fila compacta del árbol: hora · kind · mensaje */
+
+/* NARROW panel → clasificación arriba, mensaje debajo. Las 4 columnas fijas comen ~350px, así que hasta bien
+   pasado ese ancho el message (1fr) queda en un hilo (una palabra por línea). Umbral 560px (MUY por encima del
+   ancho por defecto de 460px, ver store.debugWidth) para que el panel por defecto YA salga apilado y legible; el
+   grid de 5 columnas solo vuelve al arrastrar la columna claramente ancha (>560px). */
+@container dbg (max-width: 560px){
+  .dbg-row{display:flex;flex-wrap:wrap;align-items:center;column-gap:8px;row-gap:4px}
+  .dbg-lat{text-align:left}
+  .dbg-lat:empty,.dbg-eng:empty,.dbg-sz:empty{display:none}   /* sin latencia/modelo/tamaño no dejan hueco */
+  .dbg-msg{flex:0 0 100%;width:100%}                    /* el mensaje ocupa su propia línea completa */
+}
+
+/* when the column is open, offset the fixed layout by its width so nothing hides under it */
+body.dbg-open .canvas{right:var(--dbg-w)}
+body.dbg-open .tr{right:calc(18px + var(--dbg-w))}
+body.dbg-open .statuspanel,body.dbg-open .cronpanel{right:calc(18px + var(--dbg-w))}
+body.dbg-open .orbwrap{left:calc(50% - var(--dbg-w) / 2)}
+
+/* ── Bóveda de secretos (V2-060): modal NATIVO centrado con backdrop ─────────────────────────────────────── */
+.vault-modal{position:fixed;inset:0;z-index:9600;display:none;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.5);backdrop-filter:blur(2px)}
+.vault-modal.open{display:flex}
+.vault-card{width:min(92vw,420px);background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:16px;
+  box-shadow:var(--hb-shadow-2);overflow:hidden;color:var(--hb-ink)}
+.vault-head{display:flex;align-items:center;gap:8px;padding:13px 16px;border-bottom:1px solid var(--hb-line)}
+.vault-title{font-weight:600;font-size:15px;flex:1}
+.vault-x{border:none;background:transparent;color:var(--hb-muted);cursor:pointer;font-size:16px;line-height:1;padding:4px}
+.vault-x:hover{color:var(--hb-ink)}
+.vault-body{padding:16px;display:flex;flex-direction:column;gap:10px}
+.vault-lead{margin:0 0 2px;color:var(--hb-muted);font-size:13px;line-height:1.4}
+.vault-in{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid var(--hb-line);border-radius:10px;
+  background:var(--hb-bg-soft);color:var(--hb-ink);font-size:14px;outline:none}
+.vault-in:focus{border-color:var(--hb-accent)}
+.vault-b{padding:10px 14px;border:none;border-radius:10px;background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2));
+  color:#fff;font-size:14px;font-weight:600;cursor:pointer}
+.vault-b:hover{filter:brightness(1.08)}
+.vault-b.ghost{background:transparent;border:1px solid var(--hb-line);color:var(--hb-ink);font-weight:500}
+.vault-b.ghost:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
+.vault-row{display:flex;gap:8px}
+.vault-row .vault-b{flex:1}
+.vault-secret{font-family:var(--mono,monospace);font-size:16px;padding:12px;border:1px dashed var(--hb-accent);
+  border-radius:10px;background:var(--hb-bg-soft);word-break:break-all;user-select:all}
+.vault-sep{margin-top:6px;padding-top:10px;border-top:1px solid var(--hb-line);font-size:12px;color:var(--hb-muted-2);
+  text-transform:uppercase;letter-spacing:.04em}
+.vault-msg{max-height:0;overflow:hidden;transition:max-height .2s;padding:0 16px;color:var(--hb-muted);font-size:13px}
+.vault-msg.show{max-height:60px;padding:0 16px 14px}

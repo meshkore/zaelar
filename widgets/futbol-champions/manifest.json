@@ -1,0 +1,9 @@
+{
+  "id": "futbol-champions",
+  "version": "0.1.0",
+  "title": "Champions League",
+  "description": "Últimos resultados de la UEFA Champions League: por cada partido, equipos local y visitante con su marcador. Datos de ejemplo estáticos si no hay fuente en vivo.",
+  "whenToUse": "Cuando el usuario pregunta por los resultados de la Champions League / Liga de Campeones (partidos, marcadores).",
+  "keywords": ["champions", "champions league", "liga de campeones", "uefa", "resultados champions", "marcador champions", "partidos champions"],
+  "entry": "widget.js"
+}

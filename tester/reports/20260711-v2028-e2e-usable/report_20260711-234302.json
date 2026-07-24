@@ -1,0 +1,183 @@
+{
+  "stamp": "20260711-234302",
+  "results": [
+    {
+      "scenario": "conectores",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "¡Hola Alex! Aquí estoy, listo para ayudarte con lo que necesites.",
+            "at": 1783806074.0
+          },
+          {
+            "who": "tester",
+            "text": "Hola, Zaelar. ¿Puedes checar qué conectores tengo activos y funcionando? Me preocupa que algo se haya caído en el proceso.",
+            "at": 1783806087.54
+          },
+          {
+            "who": "zaelar",
+            "text": "Entendido Alex, voy a verificar los conectores activos y su estado.",
+            "at": 1783806097.17
+          },
+          {
+            "who": "tester",
+            "text": "Perfecto. Gracias, espero que todo esté en orden.",
+            "at": 1783806102.94
+          },
+          {
+            "who": "zaelar",
+            "text": "Entendido, te ayudo a revisar el estado de los conectores ahora mismo. Entendido, te ayudo a revisar el estado de los conectores ahora Entendido Alex, hay un fallo de conexión con el architect de Harvey, voy a revisar los conectores que tienes activos. No he podido enviar el encargo al proyecto harvey.",
+            "at": 1783806114.82,
+            "latency_ms": 4353
+          },
+          {
+            "who": "tester",
+            "text": "Eso no lo esperaba. ¿Podrías comprobar si WhatsApp y Telegram también están funcionando correctamente? Necesito asegurarme de que todos mis canales principales estén en marcha.",
+            "at": 1783806122.01
+          },
+          {
+            "who": "zaelar",
+            "text": "Ent Entendido Alex, voy a comprobar el estado de WhatsApp y Telegram junto con los demás conectores.",
+            "at": 1783806135.16
+          },
+          {
+            "who": "tester",
+            "text": "Perfecto, gracias Zaelar. Espero que todo ande bien.",
+            "at": 1783806145.9
+          },
+          {
+            "who": "zaelar",
+            "text": "De acuerdo Alex, abriendo el widget de mensajería para que puedas revisar el estado.",
+            "at": 1783806175.73
+          }
+        ],
+        "latency_ms": {
+          "n": 1,
+          "avg": 4353,
+          "max": 4353,
+          "samples": [
+            4353
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:show:mensajeria",
+            "widget:show:mensajeria"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: ¡Hola Alex! Aquí estoy, listo para ayudarte con lo que necesites.",
+            "⚡ Nucleo(flash): prompt: Hola Harvey, ¿puedes checar qué conectores tengo activos y funcionando?",
+            "⚡ Nucleo(flash): reply: Entendido Alex, voy a verificar los conectores activos y su estado.",
+            "⚡ Nucleo(flash): prompt: Me preocupa que algo se haya caído en el proceso.",
+            "⚡ Nucleo(flash): reply: Entendido, te ayudo a revisar el estado de los conectores ahora mismo.",
+            "🏗️ Architect · ask → harvey: El operador Alex está preocupado porque cree que algún conector podría haberse caído durante un proceso. Necesito revisa",
+            "🧭 Flash → SlowBrain (escalada registrada): El operador Alex está preocupado porque cree que algún conector podría haberse caído durante un proceso. Necesito revisa",
+            "📩 system note → FlashBrain: [SISTEMA] FALLO al enviar el encargo al architect de 'harvey': Cannot connect to host 127.0.0.1:5573 ssl:default [Connec",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] FALLO al enviar el encargo al architect de 'harvey': Cannot connect to host 127.0.0.1:5573 ssl:default [Connec",
+            "⚡ Nucleo(flash): reply: Entendido Alex, hay un fallo de conexión con el architect de Harvey, voy a revisar los conectores que tienes activos.",
+            "🧭 Flash → SlowBrain (escalada registrada): Alex mencionó que le preocupa que algo se haya caído en el proceso y ahora aparece un error de conexión: \"FALLO al envia",
+            "📩 system note → FlashBrain: [SISTEMA] SlowBrain · Tarea sin completar: ¿Cuál de estos quieres, Reloj, Búsqueda / Tiempo?",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] SlowBrain · Tarea sin completar: ¿Cuál de estos quieres, Reloj, Búsqueda / Tiempo?\n\nEso no lo esperaba. ¿Podrí",
+            "⚡ Nucleo(flash): reply: Entendido Alex, voy a comprobar el estado de WhatsApp y Telegram junto con los demás conectores.",
+            "🧭 Flash → SlowBrain (escalada registrada): Alex quiere que compruebe qué conectores de mensajería (WhatsApp, Telegram y canal de mensajería) tiene activos y funcio",
+            "📩 system note → FlashBrain: [SISTEMA] SlowBrain · Tarea completada: Te muestro el widget «mensajeria».",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] SlowBrain · Tarea completada: Te muestro el widget «mensajeria».\n\nPerfecto. Gracias, Abby. Espero que todo and",
+            "⚡ Nucleo(flash): reply: De acuerdo Alex, abriendo el widget de mensajería para que puedas revisar el estado."
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 15,
+            "bot_speech": 15,
+            "brain": 20,
+            "metric": 234,
+            "memory": 54,
+            "timing": 6,
+            "tts": 5,
+            "transcript": 10,
+            "vad": 12,
+            "stt": 6,
+            "task": 6,
+            "notify": 3,
+            "widget": 2,
+            "session": 1
+          },
+          "n_events": 390
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 3,
+          "coherencia": 1,
+          "utilidad": 1,
+          "accion": 1,
+          "latencia": 3,
+          "robustez": 2
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Zaelar dice textualmente 'abriendo el widget' y el sistema registra el evento, pero la traza confirma que NO proporcionó la información verbal solicitada sobre el estado de WhatsApp/Telegram. El objetivo era *decir* si funcionan, no solo mostrar la UI.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn2",
+            "problema": "El cerebro (LLM) emite una respuesta fraccionada y repetida antes de declarar un fallo genérico de conexión. Esto revela una confusión interna al procesar el 'system note' del fallo del arquitecto.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn4",
+            "problema": "Falla la comprensión del objetivo específico. Ante una petición explícita de estado ('¿están funcionando?'), responde con una acción visual sin detalle verbal.",
+            "gravedad": "media"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Brain/Logic & Prompting",
+            "cambio": "Instruir al LLM para que, en escenarios de diagnóstico, SIEMPRE verbalice un resumen del estado antes o después de delegar a un widget. La acción visual debe complementar, no reemplazar, la respuesta verbal.",
+            "porque": "El usuario pidió saber si los conectores están funcionando (query), no solo ver un dashboard. Zaelar falló en el objetivo de 'lenguaje natural'."
+          },
+          {
+            "area": "Error Handling/Recovery",
+            "cambio": "Implementar un filtro de 'noise' para los system notes de conexión (127.0.0.1:5573). El LLM no debe intentar leerizar errores de socket crudos al usuario ni repetir el prompt de fallo en bucle.",
+            "porque": "La transcripción mostró repetición de texto ('Entendido... Entendido...') y exposición de errores técnicos irrelevantes al usuario."
+          },
+          {
+            "area": "Widget Orchestration",
+            "cambio": "Aislar la lógica del widget 'mensajeria'. Si la herramienta 'mensajeria' no devuelve datos estructurados de estado (online/offline) que el LLM pueda convertir en texto, debe considerarse una 'fallback tool' y no la respuesta principal.",
+            "porque": "Zaelar confió ciegamente en abrir el widget para cumplir la petición, resultando en una interacción poco inteligente."
+          }
+        ],
+        "veredicto": "No es production-ready: Zaelar falló en el objetivo principal de proporcionar información verbalmente y se ocultó detrás de un widget, además de mostrar signos de inestabilidad en el habla frente a errores internos.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Brain/Logic & Prompting",
+      "cambio": "Instruir al LLM para que, en escenarios de diagnóstico, SIEMPRE verbalice un resumen del estado antes o después de delegar a un widget. La acción visual debe complementar, no reemplazar, la respuesta verbal.",
+      "porque": "El usuario pidió saber si los conectores están funcionando (query), no solo ver un dashboard. Zaelar falló en el objetivo de 'lenguaje natural'.",
+      "scenario": "conectores",
+      "_sev": 0
+    },
+    {
+      "area": "Error Handling/Recovery",
+      "cambio": "Implementar un filtro de 'noise' para los system notes de conexión (127.0.0.1:5573). El LLM no debe intentar leerizar errores de socket crudos al usuario ni repetir el prompt de fallo en bucle.",
+      "porque": "La transcripción mostró repetición de texto ('Entendido... Entendido...') y exposición de errores técnicos irrelevantes al usuario.",
+      "scenario": "conectores",
+      "_sev": 0
+    },
+    {
+      "area": "Widget Orchestration",
+      "cambio": "Aislar la lógica del widget 'mensajeria'. Si la herramienta 'mensajeria' no devuelve datos estructurados de estado (online/offline) que el LLM pueda convertir en texto, debe considerarse una 'fallback tool' y no la respuesta principal.",
+      "porque": "Zaelar confió ciegamente en abrir el widget para cumplir la petición, resultando en una interacción poco inteligente.",
+      "scenario": "conectores",
+      "_sev": 0
+    }
+  ]
+}

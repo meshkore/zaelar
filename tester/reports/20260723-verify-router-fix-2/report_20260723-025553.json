@@ -1,0 +1,188 @@
+{
+  "stamp": "20260723-025553",
+  "results": [
+    {
+      "scenario": "musica_spotify_connect",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "¡Hola, Ricard! Soy Zaelar, tu asistente por voz. ¿Qué necesitas?",
+            "at": 1784768107.43
+          },
+          {
+            "who": "tester",
+            "text": "Hola, soy Ricart. Quiero vincular mi cuenta de Spotify.",
+            "at": 1784768108.67
+          },
+          {
+            "who": "zaelar",
+            "text": "Perfecto, te abro el widget de música ahora mismo para que conectes tu Spotify.",
+            "at": 1784768119.14,
+            "latency_ms": 3150
+          },
+          {
+            "who": "tester",
+            "text": "Vale, gracias. ¿Ya está listo para que me conecte?",
+            "at": 1784768119.98
+          },
+          {
+            "who": "zaelar",
+            "text": "A ver, a ver… Perfecto, te abro el widget de música ahora mismo para que conectes tu Spotify.",
+            "at": 1784768125.64
+          },
+          {
+            "who": "tester",
+            "text": "Sí, perfecto. ¿Cómo hago para conectarlo?",
+            "at": 1784768126.57
+          },
+          {
+            "who": "zaelar",
+            "text": "Estoy en ello, Ricard — déjame unos segundos que termino de prepararlo. Te abro el widget de música ahora — ahí tienes el botón para conectar tu Spotify, te guía paso a paso.",
+            "at": 1784768137.22,
+            "latency_ms": 3962
+          },
+          {
+            "who": "tester",
+            "text": "Genial, lo intentaré ahora.",
+            "at": 1784768138.05
+          },
+          {
+            "who": "zaelar",
+            "text": "A ver qué tenemos… Te abro el widget de música ahora — ahí tienes el botón para conectar tu Spotify,",
+            "at": 1784768143.31
+          }
+        ],
+        "latency_ms": {
+          "n": 2,
+          "avg": 3556,
+          "max": 3962,
+          "samples": [
+            3150,
+            3962
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:show:musica",
+            "widget:show:musica",
+            "widget:show:musica"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "🌱 ventana sembrada desde memoria:",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: ¡Hola, Ricard! Soy Zaelar, tu asistente por voz. ¿Qué necesitas?",
+            "⚡ Nucleo(flash): prompt: Hola, soy Ricard. Quiero vincular mi cuenta de Spotify.",
+            "💬 relleno de espera (lead-in): A ver, a ver…",
+            "⚡ Nucleo(flash): reply: Perfecto, te abro el widget de música ahora mismo para que conectes tu Spotify.",
+            "📩 system note → FlashBrain: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: Ricard, voy a ponerme ahora mismo a vincular tu cuen",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: Ricard, voy a ponerme ahora mismo a vincular tu cuen",
+            "💬 relleno de espera (lead-in): Déjame ver…",
+            "🪟 show por guard determinista (tool espuria evitada): musica (escalate→show)",
+            "⚡ Nucleo(flash): reply: Estoy en ello, Ricard — déjame unos segundos que termino de prepararlo.",
+            "⚡ Nucleo(flash): prompt: Sí, perfecto. ¿Cómo hago para conectarlo?",
+            "💬 relleno de espera (lead-in): A ver qué tenemos…",
+            "⚡ Nucleo(flash): reply: Te abro el widget de música ahora — ahí tienes el botón para conectar tu Spotify, te guía paso a paso.",
+            "⚡ Nucleo(flash): prompt: Genial, lo intentaré ahora.",
+            "💬 relleno de espera (lead-in): Espera…",
+            "✂️ turno cancelado (barge-in/overlap):"
+          ],
+          "event_kinds": {
+            "pulse": 48,
+            "worker_start": 1,
+            "state": 16,
+            "bot_speech": 16,
+            "brain": 18,
+            "trace": 5,
+            "perf": 14,
+            "timing": 5,
+            "memory": 29,
+            "metric": 17,
+            "background": 2,
+            "tts": 4,
+            "transcript": 7,
+            "vad": 8,
+            "stt": 4,
+            "widget": 3,
+            "susurro": 8,
+            "task": 2,
+            "session": 1
+          },
+          "n_events": 208
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturallez": 3,
+          "coherencia": 2,
+          "utilidad": 4,
+          "accion": 4,
+          "latencia": 2,
+          "robustez": 3
+        },
+        "overall": 3,
+        "findings": [
+          {
+            "turno": "zaelar@turn3",
+            "problema": "Repeticion bucle de verborrea. zaelar repite textualmente 'Perfecto, te abro el widget...' segundos después de haberlo dicho ya.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn4",
+            "problema": "Inconsistencia temporal. Dice 'Estoy en ello... termino de prepararlo' cuando ya habia ejecutado la accion (widget:show) en el turno anterior.",
+            "gravedad": "media"
+          },
+          {
+            "turno": "zaelar@turn5",
+            "problema": "Overlap/Interrupcion inacabada. Empieza frase y se cancela (barge-in/overlap) sin cerrar el discurso, dejando una sensacion de 'cuelgue' o corte brusco.",
+            "gravedad": "baja"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Brain/Dialogue Manager (State Context)",
+            "cambio": "Inyectar en el prompt del modelo una variable de contexto explícita tipo `$last_action_executed`.",
+            "porque": "El LLM estÃ¡ generando recompensa futura ('voy a abrir...') para una accion que ya ocurriÃ³ en el turno t-1, causando incoherencia temporal y repeticiones innecesarias."
+          },
+          {
+            "area": "Prompt Engineering (Persona)",
+            "cambio": "AÃ±adir constraint negativa estricta: 'Nunca repitas la misma frase de apertura usada en el turno inmediatamente anterior a menos que el usuario te pida que lo repitas'.",
+            "porque": "Se observÃ³ un bucle de repeticiÃ³n textual ('Perfecto, te abro...') que rompe la naturalidad."
+          },
+          {
+            "area": "Latency / Orchestrator",
+            "cambio": "Reducir el umbral de 'lead-in' (relleno) o agilizar el cold-start del nucleo para el primer turno tras silencio.",
+            "porque": "La latencia media es de 3.5s. Por encima de 3s la conversaciÃ³n se siente pesada ('thinking...' excesivo), aunque el uso de fillers ('A ver, a ver') intenta enmascararlo, no es suficiente para mantener la fluidez 'alive'."
+          }
+        ],
+        "veredicto": "El escenario es funcionalmente Ãºtil (logra el objetivo visual), pero NO es production-ready debido a la grave incoherencia conversacional y repeticiÃ³n que deshumaniza la experiencia; el bloqueo principal es la desincronizaciÃ³n entre el 'estado real' (acciones ejecutadas) y el 'estado conversacional' (lo que el bot cree que va a hacer).",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Brain/Dialogue Manager (State Context)",
+      "cambio": "Inyectar en el prompt del modelo una variable de contexto explícita tipo `$last_action_executed`.",
+      "porque": "El LLM estÃ¡ generando recompensa futura ('voy a abrir...') para una accion que ya ocurriÃ³ en el turno t-1, causando incoherencia temporal y repeticiones innecesarias.",
+      "scenario": "musica_spotify_connect",
+      "_sev": 0
+    },
+    {
+      "area": "Prompt Engineering (Persona)",
+      "cambio": "AÃ±adir constraint negativa estricta: 'Nunca repitas la misma frase de apertura usada en el turno inmediatamente anterior a menos que el usuario te pida que lo repitas'.",
+      "porque": "Se observÃ³ un bucle de repeticiÃ³n textual ('Perfecto, te abro...') que rompe la naturalidad.",
+      "scenario": "musica_spotify_connect",
+      "_sev": 0
+    },
+    {
+      "area": "Latency / Orchestrator",
+      "cambio": "Reducir el umbral de 'lead-in' (relleno) o agilizar el cold-start del nucleo para el primer turno tras silencio.",
+      "porque": "La latencia media es de 3.5s. Por encima de 3s la conversaciÃ³n se siente pesada ('thinking...' excesivo), aunque el uso de fillers ('A ver, a ver') intenta enmascararlo, no es suficiente para mantener la fluidez 'alive'.",
+      "scenario": "musica_spotify_connect",
+      "_sev": 0
+    }
+  ]
+}

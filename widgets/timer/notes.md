@@ -1,0 +1,3 @@
+- 2026-07-07: Creado por petición de Ricard: quiere poder poner un "horno" (temporizador) en la pantalla, grande y clarísimo, que cuente atrás. No necesita widget de horno real — solo un cronómetro visual.
+- UX: números enormes (72px+), sin segundos cuando quedan >5 min, segundos visibles cuando <5 min. Botón de pausa/reanudar/reiniciar. El brain puede fijar el tiempo mediante `apply_action("set", {"seconds": N, "label": "..."})`.
+- Almacena estado en store persistente para que sobreviva a refrescos del navegador.

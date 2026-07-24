@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# zaelar · pre-commit guardrail (V2-038, 2026-07-14)
+# Añadido antes del Gran Refactor de brain-workers: durante un cambio grande "se le puede ir la olla",
+# así que este hook impide COMMITEAR ficheros .py/.js con error de SINTAXIS (no ejecuta tests — es un
+# cortafuegos rápido, no una suite). Bypass consciente: `git commit --no-verify`.
+#
+# Instalación: scripts/install-hooks.sh  (copia este fichero a .git/hooks/pre-commit).
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+PY="$ROOT/.venv/bin/python"
+[ -x "$PY" ] || PY="$(command -v python3 || command -v python || echo python3)"
+
+# Ficheros STAGED (Added/Copied/Modified), excluyendo lo que no es nuestro.
+# NB: sin `mapfile` — el bash de macOS es 3.2. Bucle `while read` sobre líneas.
+fail=0
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  [ -f "$f" ] || continue
+  case "$f" in
+    *.py)
+      if ! "$PY" -m py_compile "$f" 2>/tmp/hb_hook_err; then
+        echo "❌ pre-commit: error de sintaxis en $f"; sed 's/^/     /' /tmp/hb_hook_err; fail=1
+      fi ;;
+    *.js)
+      if command -v node >/dev/null 2>&1; then
+        if ! node --check "$f" 2>/tmp/hb_hook_err; then
+          echo "❌ pre-commit: error de sintaxis en $f"; sed 's/^/     /' /tmp/hb_hook_err; fail=1
+        fi
+      fi ;;
+  esac
+done <<EOF
+$(git diff --cached --name-only --diff-filter=ACM | grep -Ev '(^|/)(\.venv|node_modules|vendor|_data|\.git)/' || true)
+EOF
+
+if [ "$fail" -ne 0 ]; then
+  echo ""
+  echo "🛑 Commit BLOQUEADO por sintaxis rota. Arréglalo, o fuerza con: git commit --no-verify"
+  exit 1
+fi
+exit 0

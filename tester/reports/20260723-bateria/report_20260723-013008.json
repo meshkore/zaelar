@@ -1,0 +1,173 @@
+{
+  "stamp": "20260723-013008",
+  "results": [
+    {
+      "scenario": "archivos",
+      "channel": "paste",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Ricard, soy Zaelar, tu asistente. ¿Qué necesitas ahora?",
+            "at": 1784762986.31
+          },
+          {
+            "who": "tester",
+            "text": "Te pego una nota, resúmemela en una línea: Hola, soy Ricart. Necesito que recuerdes que la reunión con Marta es el jueves 17 a las 11:30. Además hoy saqué al perro, pagué dos facturas y reservé un vuelo a Lisboa para el mes que viene.",
+            "at": 1784762989.86
+          },
+          {
+            "who": "zaelar",
+            "text": "Anotado: reunión con Marta el jueves 17 a las 11:30; hoy sacaste al perro, pagaste dos facturas y reservaste un vuelo a Lisboa para el próximo mes.",
+            "at": 1784762995.13,
+            "latency_ms": 2431
+          },
+          {
+            "who": "tester",
+            "text": "Te pego una nota, resúmemela en una línea: Genial, gracias. Ahora, ¿me puedes recordar cuándo es la reunión con Marta? Quiero asegurarme de que no se me pase. Además hoy saqué al perro, pagué dos facturas y reservé un vuelo a Lisboa para el mes que viene.",
+            "at": 1784762996.25
+          },
+          {
+            "who": "zaelar",
+            "text": "Anotado,",
+            "at": 1784762998.09
+          },
+          {
+            "who": "tester",
+            "text": "Te pego una nota, resúmemela en una línea: Perfecto, gracias. ¡Adiós! Además hoy saqué al perro, pagué dos facturas y reservé un vuelo a Lisboa para el mes que viene.",
+            "at": 1784762999.05
+          },
+          {
+            "who": "zaelar",
+            "text": "La reunión con Marta es el jueves 17 a las 11:30. Y voy a buscar los mejores lugares para tu cena sorpresa del 4 de noviembre — en un momento te doy las opciones con detalles y distancias. Perfecto, Ricard. Guardado: hoy sacaste al perro, pagaste dos facturas y reservaste un vuelo a Lisboa para el próximo mes.",
+            "at": 1784763001.86
+          }
+        ],
+        "latency_ms": {
+          "n": 1,
+          "avg": 2431,
+          "max": 2431,
+          "samples": [
+            2431
+          ]
+        },
+        "trace": {
+          "frontend_actions": [],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "🌱 ventana sembrada desde memoria:",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Ricard, soy Zaelar, tu asistente. ¿Qué necesitas ahora?",
+            "📥 chat/paste recibido: Te pego una nota, resúmemela en una línea: Hola, soy Ricart. Necesito que recuerdes que la reunión con Marta es el jueve",
+            "⚡ Nucleo(flash): prompt: Te pego una nota, resúmemela en una línea: Hola, soy Ricart. Necesito que recuerdes que la reunión con Marta es el jueve",
+            "💬 relleno de espera (lead-in): Déjame que mire…",
+            "⚡ Nucleo(flash): reply: Anotado: reunión con Marta el jueves 17 a las 11:30; hoy sacaste al perro, pagaste dos facturas y reservaste un vuelo a",
+            "📥 chat/paste recibido: Te pego una nota, resúmemela en una línea: Genial, gracias. Ahora, ¿me puedes recordar cuándo es la reunión con Marta? Q",
+            "📩 system note → FlashBrain: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: Estoy buscando los mejores lugares para tu cena sorp",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: Estoy buscando los mejores lugares para tu cena sorp",
+            "💬 relleno de espera (lead-in): Veamos…",
+            "📥 chat/paste recibido: Te pego una nota, resúmemela en una línea: Perfecto, gracias. ¡Adiós! Además hoy saqué al perro, pagué dos facturas y re",
+            "⚡ Nucleo(flash): prompt: Te pego una nota, resúmemela en una línea: Perfecto, gracias. ¡Adiós! Además hoy saqué al perro, pagué dos facturas y re",
+            "💬 relleno de espera (lead-in): A ver…",
+            "⚡ Nucleo(flash): reply: La reunión con Marta es el jueves 17 a las 11:30. Y voy a buscar los mejores lugares para tu cena sorpresa del 4 de novi",
+            "⚡ Nucleo(flash): reply: Perfecto, Ricard. Guardado: hoy sacaste al perro, pagaste dos facturas y reservaste un vuelo a Lisboa para el próximo me"
+          ],
+          "event_kinds": {
+            "worker_start": 2,
+            "state": 8,
+            "bot_speech": 8,
+            "brain": 17,
+            "trace": 4,
+            "pulse": 24,
+            "perf": 21,
+            "timing": 4,
+            "memory": 27,
+            "metric": 8,
+            "tts": 4,
+            "transcript": 2,
+            "task": 5,
+            "background": 1,
+            "susurro": 8,
+            "session": 1
+          },
+          "n_events": 144
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalitud": 2,
+          "coherencia": 1,
+          "utilidad": 1,
+          "accion": 5,
+          "latencia": 2,
+          "robustez": 1
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Alucinación severa de facts no mencionados ('cena sorpresa del 4 de noviembre'). Zaelar inventa información del contexto que no existe.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Incorporación de basura del contexto ('sacaste al perro, pagaste dos facturas') en la respuesta final, causando eco y pérdida de foco.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn3",
+            "problema": "Repetición patológica del texto del usuario ('Anotado, ...') y del contexto anterior como filler en lugar de procesar el 'adiós'.",
+            "gravedad": "media"
+          },
+          {
+            "turno": "general",
+            "problema": "El 'susurro' del sistema se está filtrando literalmente en la respuesta verbal ('Estoy buscando los mejores lugares...'), rompiendo la cuarta pared.",
+            "gravedad": "alta"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Brain/Prompting (Instrucciones de Sistema)",
+            "cambio": "Añadir una regla negativa explícita: 'NO repitas el texto pegado por el usuario ni el contenido de notas anteriores como filler. Responde únicamente a la intención específica del último turno.'",
+            "porque": "El bot está absorbiendo el ruido del contexto ('sacaste al perro...') y repitiéndolo, reduciendo la naturalidad y ensuciando la conversación."
+          },
+          {
+            "area": "FlashBrain/Memory Management",
+            "cambio": "Prohibir la alucinación de detalles en las respuestas. Si se recibe un 'susurro' system note que implica una acción futura (ej. buscar lugares), NO debe incluirse texto descriptivo de esa acción en la respuesta verbal hasta que la acción se haya completado y validado.",
+            "porque": "Zaelar inventó una 'cena sorpresa' que no estaba en el prompt ni en la memoria, probablemente confundido por el ruido o por el susurro interno."
+          },
+          {
+            "area": "Filtro de Output (Sanitización)",
+            "cambio": "Implementar un filtro que bloquee la salida de texto si coincide con etiquetas de sistema como '[SISTEMA]' o si el texto se genera inmediatamente después de un log de 'susurro' sin procesamiento.",
+            "porque": "El usuario escuchó literalmente el texto de instrucción interna ('Estoy buscando los mejores lugares...'), lo cual es un error crítico de experiencia."
+          }
+        ],
+        "veredicto": "El escenario NO es production-ready: aunque recuerda el dato clave (éxito parcial), el comportamiento es psicótico por alucinaciones, repeticiones de ruido y filtración de instrucciones internas.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Brain/Prompting (Instrucciones de Sistema)",
+      "cambio": "Añadir una regla negativa explícita: 'NO repitas el texto pegado por el usuario ni el contenido de notas anteriores como filler. Responde únicamente a la intención específica del último turno.'",
+      "porque": "El bot está absorbiendo el ruido del contexto ('sacaste al perro...') y repitiéndolo, reduciendo la naturalidad y ensuciando la conversación.",
+      "scenario": "archivos",
+      "_sev": 0
+    },
+    {
+      "area": "FlashBrain/Memory Management",
+      "cambio": "Prohibir la alucinación de detalles en las respuestas. Si se recibe un 'susurro' system note que implica una acción futura (ej. buscar lugares), NO debe incluirse texto descriptivo de esa acción en la respuesta verbal hasta que la acción se haya completado y validado.",
+      "porque": "Zaelar inventó una 'cena sorpresa' que no estaba en el prompt ni en la memoria, probablemente confundido por el ruido o por el susurro interno.",
+      "scenario": "archivos",
+      "_sev": 0
+    },
+    {
+      "area": "Filtro de Output (Sanitización)",
+      "cambio": "Implementar un filtro que bloquee la salida de texto si coincide con etiquetas de sistema como '[SISTEMA]' o si el texto se genera inmediatamente después de un log de 'susurro' sin procesamiento.",
+      "porque": "El usuario escuchó literalmente el texto de instrucción interna ('Estoy buscando los mejores lugares...'), lo cual es un error crítico de experiencia.",
+      "scenario": "archivos",
+      "_sev": 0
+    }
+  ]
+}

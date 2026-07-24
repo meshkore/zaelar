@@ -1,0 +1,14 @@
+# Informe de test — 2026-07-23 · verify-router-fix
+
+Batería de 5 escenarios. Rellenar: hallazgos (bug real vs ruido de STT vs rigidez del juez),
+arreglos, latencias antes/después, y para navegación el veredicto HUMANO de datos extraídos (✋).
+
+## Tabla de resultados
+```
+scenario                status  overall  nat  coh  uti  acc  lat  rob  veredicto
+navegador_moto          FAIL    2        2    1    1    1    4    3    El escenario NO es production-ready: Zaelar escala internamente pero falla en ejecutar la acción visual (abre el navegador), dejando al usuario en un bucle de c
+navegador_coche         FAIL    2        -    2    1    1    4    2    El escenario NO es production-ready debido a un fallo funcional crítico en la validación de datos (filtro de kilometraje roto) que hace que el resultado sea inú
+reserva_web             FAIL    2        -    2    3    1    2    3    No es production-ready para el canal voz: el 'hand-off' al navegador es simulado (trace sin snaps reales), falla en cambiar de contexto y se desconecta de la co
+musica_spotify_connect  FAIL    1        -    1    2    1    2    1    El escenario NO está listo para producción; el bloqueo mayor es la inestabilidad del 'cerebro rápido' que deriva en timeouts y alucinaciones verbales sobre la i
+navegador_una_tarea     FAIL    2        2    2    2    1    3    2    El escenario NO es production-ready porque el sistema falla en gestionar un único estado de contexto multiturno (crea múltiples navegadores t1/t2 en lugar de un
+```

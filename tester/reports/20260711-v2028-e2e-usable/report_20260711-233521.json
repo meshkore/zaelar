@@ -1,0 +1,221 @@
+{
+  "stamp": "20260711-233521",
+  "results": [
+    {
+      "scenario": "widget",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Alex, aquí estoy. ¿Qué necesitas?",
+            "at": 1783805576.32
+          },
+          {
+            "who": "tester",
+            "text": "Alex, ¿me mostras la hora por favor? Y mientras, ¿puedes buscar el tiempo que hace hoy?",
+            "at": 1783805578.35
+          },
+          {
+            "who": "zaelar",
+            "text": "En Soria hace 32 °C y está soleado.",
+            "at": 1783805594.87,
+            "latency_ms": 5188
+          },
+          {
+            "who": "tester",
+            "text": "Perfecto, ahora quiero ver la agenda de hoy.",
+            "at": 1783805595.26
+          },
+          {
+            "who": "zaelar",
+            "text": "",
+            "at": 1783805628.02
+          },
+          {
+            "who": "tester",
+            "text": "Did you get that? Zaelar, muestra mi agenda de hoy, por favor.",
+            "at": 1783805628.76
+          },
+          {
+            "who": "zaelar",
+            "text": "Entendido.",
+            "at": 1783805662.98
+          },
+          {
+            "who": "tester",
+            "text": "Mira, tengo una cita a las 3:00 p.m., recuerdo eso. Y si puedes agregar otra, a las 4:30 p.m., ¿de acuerdo?",
+            "at": 1783805664.19
+          },
+          {
+            "who": "zaelar",
+            "text": "Te muestro la agenda de hoy.",
+            "at": 1783805679.81,
+            "latency_ms": 2808
+          },
+          {
+            "who": "tester",
+            "text": "¡Genial! Ahora, ¿me la muestras en pantalla, por favor? Quiero verla bien.",
+            "at": 1783805681.94
+          },
+          {
+            "who": "zaelar",
+            "text": "Hecho.",
+            "at": 1783805713.51
+          }
+        ],
+        "latency_ms": {
+          "n": 2,
+          "avg": 3998,
+          "max": 5188,
+          "samples": [
+            5188,
+            2808
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:show:agenda",
+            "widget:data:agenda",
+            "widget:data:agenda",
+            "widget:show:agenda",
+            "widget:show:agenda",
+            "widget:show:agenda",
+            "widget:show:agenda",
+            "widget:data:agenda",
+            "widget:show:agenda",
+            "widget:data:agenda",
+            "widget:show:agenda"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "📩 system note → FlashBrain: [SISTEMA] SlowBrain · Tarea completada: Hecho. Guardado como hecho durable en memoria de largo plazo:\n\n- **Dato**: El co",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] SlowBrain · Tarea completada: Hecho. Guardado como hecho durable en memoria de largo plazo:\n\n- **Dato**: El co",
+            "⚡ Nucleo(flash): reply: Hola Alex, aquí estoy. ¿Qué necesitas?",
+            "⚡ Nucleo(flash): prompt: Alex, ¿me muestras ahora, por favor?",
+            "⚡ Nucleo(flash): reply:",
+            "⚡ Nucleo(flash): prompt: Y mientras puedes buscar el tiempo que hace hoy,",
+            "🔎 búsqueda web: tiempo actual Soria hoy",
+            "⚡ Nucleo(flash): reply: En Soria hace 32 °C y está soleado.",
+            "⚡ Nucleo(flash): prompt: Perfecto, ahora quiero ver la agenda de hoy.",
+            "⚡ Nucleo(flash): reply:",
+            "⚡ Nucleo(flash): prompt: ¿Lo entiendes?",
+            "⚡ Nucleo(flash): reply: Entendido.",
+            "⚡ Nucleo(flash): prompt: Harvey, muestra mi agenda de hoy, por favor.",
+            "⚡ Nucleo(flash): reply:",
+            "⚡ Nucleo(flash): prompt: Rita, vemos una cita a las 3 de la tarde, recuerdo eso. Y si puedes agregar otra a las 4.30 de la tarde, ¿de acuerdo?",
+            "⚡ Nucleo(flash): reply: Te muestro la agenda de hoy.",
+            "⚡ Nucleo(flash): prompt: ¡Genial! Ahora, me la muestras en pantalla, por favor.",
+            "⚡ Nucleo(flash): reply: Hecho.",
+            "⚡ Nucleo(flash): prompt: Quiero verla bien.",
+            "⚡ Nucleo(flash): reply:"
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 23,
+            "bot_speech": 22,
+            "brain": 21,
+            "memory": 76,
+            "timing": 9,
+            "metric": 309,
+            "tts": 5,
+            "transcript": 11,
+            "vad": 16,
+            "stt": 8,
+            "widget": 11,
+            "search": 1,
+            "session": 1
+          },
+          "n_events": 514
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturallez": 3,
+          "coherencia": 2,
+          "utilidad": 3,
+          "accion": 2,
+          "latencia": 2,
+          "robustez": 4
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn1",
+            "problema": "El usuario pidió explícitamente 'la hora' y 'el tiempo'. Zaelar ignoró el reloj por completo y solo atendió el tiempo, mostrando información irrelevante (Soria, 32°C) sin el widget visual asociado.",
+            "gravedad": "media"
+          },
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Silencio prolongado (timeout) tras una petición clara ('agenda de hoy'). Falta de feedback del sistema.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn3",
+            "problema": "Confirmación de recepción ('Entendido') sin ejecución. No hay evidencia de carga de datos ni visualización de la agenda.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn4",
+            "problema": "El usuario pide ver la agenda en pantalla. Zaelar responde 'Hecho' pero la traza muestra una tormenta de eventos de *agenda* consecutivos sin una visualización clara (widget:show:agenda no es un widget:canvas; parece un bucle o log de datos interno). No se visualizó el reloj ni el tiempo.",
+            "gravedad": "alta"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Brain/Prompting (Intent Fulfillment)",
+            "cambio": "Instruir al LLM para que procese TODAS las partes de una solicitud compuesta (AND lógico). Si el usuario pide A Y B, debe ejecutar ambos; si falla uno, notificarlo.",
+            "porque": "Zaelar ignoró la solicitud del reloj (reloj) en el primer turno, reduciendo la utilidad percibida."
+          },
+          {
+            "area": "Sistema de Acción de Widgets (Tool Use)",
+            "cambio": "Implementar confirmación estricta de renderizado: el LLM no debe decir 'Te muestro...' hasta recibir un evento de éxito del Frontend/Canvas. Diferenciar entre renderizar widget (Canvas) y enviar datos de texto (Chat).",
+            "porque": "Zaelar afirmó mostrar la agenda y el clima, pero la traza solo repite tags de datos/logs ('widget:data') sin una acción clara de 'canvas' o 'show' para el usuario."
+          },
+          {
+            "area": "Gestión de Timeouts y Endpointing",
+            "cambio": "Añadir un fallback 'latente' (non-verbal) o un 'beat' de procesamiento si la generación de texto tarda >2s, para evitar silencios absolutos que parecen desconexiones.",
+            "porque": "El silencio en el turno 2 rompe la fluidez y da sensación de sistema congelado."
+          },
+          {
+            "area": "Control de Reinicio de Contexto (STT/Brain)",
+            "cambio": "Revisar el VAD/Endpointing o el 'System Prompt' que induce el reinicio del contexto. El cerebro interpretó la solicitud del tiempo como una pregunta 'aislada' (prompt: '...tiempo que hace hoy,') perdiendo el contexto del reloj.",
+            "porque": "La traza sugiere que el cerebro cortó la frase del usuario para procesar solo el final, ignorando el inicio."
+          }
+        ],
+        "veredicto": "El escenario NO es producción-ready: el fallo principal es la falta de fiabilidad en la ejecución de acciones visuales (zaelar dice que hace cosas que el frontend no refleja correctamente) y la incapacidad de gestionar instrucciones compuestas.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Brain/Prompting (Intent Fulfillment)",
+      "cambio": "Instruir al LLM para que procese TODAS las partes de una solicitud compuesta (AND lógico). Si el usuario pide A Y B, debe ejecutar ambos; si falla uno, notificarlo.",
+      "porque": "Zaelar ignoró la solicitud del reloj (reloj) en el primer turno, reduciendo la utilidad percibida.",
+      "scenario": "widget",
+      "_sev": 0
+    },
+    {
+      "area": "Sistema de Acción de Widgets (Tool Use)",
+      "cambio": "Implementar confirmación estricta de renderizado: el LLM no debe decir 'Te muestro...' hasta recibir un evento de éxito del Frontend/Canvas. Diferenciar entre renderizar widget (Canvas) y enviar datos de texto (Chat).",
+      "porque": "Zaelar afirmó mostrar la agenda y el clima, pero la traza solo repite tags de datos/logs ('widget:data') sin una acción clara de 'canvas' o 'show' para el usuario.",
+      "scenario": "widget",
+      "_sev": 0
+    },
+    {
+      "area": "Gestión de Timeouts y Endpointing",
+      "cambio": "Añadir un fallback 'latente' (non-verbal) o un 'beat' de procesamiento si la generación de texto tarda >2s, para evitar silencios absolutos que parecen desconexiones.",
+      "porque": "El silencio en el turno 2 rompe la fluidez y da sensación de sistema congelado.",
+      "scenario": "widget",
+      "_sev": 0
+    },
+    {
+      "area": "Control de Reinicio de Contexto (STT/Brain)",
+      "cambio": "Revisar el VAD/Endpointing o el 'System Prompt' que induce el reinicio del contexto. El cerebro interpretó la solicitud del tiempo como una pregunta 'aislada' (prompt: '...tiempo que hace hoy,') perdiendo el contexto del reloj.",
+      "porque": "La traza sugiere que el cerebro cortó la frase del usuario para procesar solo el final, ignorando el inicio.",
+      "scenario": "widget",
+      "_sev": 0
+    }
+  ]
+}

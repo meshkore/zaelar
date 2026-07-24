@@ -1,0 +1,866 @@
+[
+  {
+    "model": "gpt-4.1-mini",
+    "endpoint": "https://api.openai.com/v1",
+    "score": 28.5,
+    "total": 29.0,
+    "pct": 98.3,
+    "p50_ms": 1126,
+    "detail": [
+      {
+        "case": "medico-multi",
+        "hits": "2/2",
+        "lang_pen": 0,
+        "ms": 1975,
+        "got": [
+          "Es alérgico a la penicilina.",
+          "Es alérgico al marisco."
+        ]
+      },
+      {
+        "case": "compra-precio",
+        "hits": "2/2",
+        "lang_pen": 0,
+        "ms": 1984,
+        "got": [
+          "Se ha comprado una bici eléctrica para ir al trabajo.",
+          "La bici eléctrica le costó 1800 euros."
+        ]
+      },
+      {
+        "case": "mudanza",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "ms": 1980,
+        "got": [
+          "Se ha mudado a Valencia con toda la familia."
+        ]
+      },
+      {
+        "case": "correccion",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "ms": 969,
+        "got": [
+          "La operadora se llama Ricart."
+        ]
+      },
+      {
+        "case": "compromiso",
+        "hits": "3/3",
+        "lang_pen": 0,
+        "ms": 2237,
+        "got": [
+          "La jefa de Ricart se llama Marta.",
+          "Marta pidió a Ricart el informe trimestral para el miércoles que viene."
+        ]
+      },
+      {
+        "case": "rutina",
+        "hits": "3/3",
+        "lang_pen": 0,
+        "ms": 1186,
+        "got": [
+          "Va al gimnasio todos los lunes y jueves a las siete de la mañana."
+        ]
+      },
+      {
+        "case": "reversion",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "ms": 992,
+        "got": [
+          "No bebe café desde enero."
+        ]
+      },
+      {
+        "case": "observacion",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "ms": 1250,
+        "got": [
+          "Rinde mucho mejor por las mañanas que por las tardes."
+        ]
+      },
+      {
+        "case": "parrafada-t181",
+        "hits": "3/3",
+        "lang_pen": 0.5,
+        "ms": 1531,
+        "got": [
+          "Ayer cenó con sus amigos habituales.",
+          "Ha comprado entradas para el concierto de Muse en Bilbao el 12 de septiembre."
+        ]
+      },
+      {
+        "case": "telegrafico",
+        "hits": "2/2",
+        "lang_pen": 0,
+        "ms": 1097,
+        "got": [
+          "El presupuesto máximo para sus vacaciones es 3000 euros."
+        ]
+      },
+      {
+        "case": "ingles",
+        "hits": "2/2",
+        "lang_pen": 0,
+        "ms": 1037,
+        "got": [
+          "La hija de Ricart, Emma, cumplirá 8 años el próximo mes."
+        ]
+      },
+      {
+        "case": "familia",
+        "hits": "4/4",
+        "lang_pen": 0,
+        "ms": 1155,
+        "got": [
+          "En su casa viven cinco personas: él, su mujer Marta, los gemelos Pau y Nil, y su madre."
+        ]
+      },
+      {
+        "case": "q-asistente",
+        "ok": true,
+        "ms": 593,
+        "got": "[]"
+      },
+      {
+        "case": "efimera",
+        "ok": true,
+        "ms": 484,
+        "got": "[]"
+      },
+      {
+        "case": "ack",
+        "ok": true,
+        "ms": 618,
+        "got": "[]"
+      },
+      {
+        "case": "comando",
+        "ok": true,
+        "ms": 677,
+        "got": "[]"
+      }
+    ]
+  },
+  {
+    "model": "claude-haiku-4.5",
+    "endpoint": "https://api.aimlapi.com/v1",
+    "score": 27.5,
+    "total": 29.0,
+    "pct": 94.8,
+    "p50_ms": 1482,
+    "detail": [
+      {
+        "case": "medico-multi",
+        "hits": "2/2",
+        "lang_pen": 0,
+        "ms": 2393,
+        "got": [
+          "Es alérgico a la penicilina.",
+          "Es alérgico al marisco."
+        ]
+      },
+      {
+        "case": "compra-precio",
+        "hits": "2/2",
+        "lang_pen": 0,
+        "ms": 1290,
+        "got": [
+          "Se ha comprado una bicicleta eléctrica para ir al trabajo por 1.800 euros."
+        ]
+      },
+      {
+        "case": "mudanza",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "ms": 2125,
+        "got": [
+          "Se ha mudado a Valencia con toda la familia."
+        ]
+      },
+      {
+        "case": "correccion",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "ms": 2435,
+        "got": [
+          "Se llama Ricart."
+        ]
+      },
+      {
+        "case": "compromiso",
+        "hits": "3/3",
+        "lang_pen": 0,
+        "ms": 1870,
+        "got": [
+          "Su jefa Marta le pidió que entregue el informe trimestral el miércoles que viene."
+        ]
+      },
+      {
+        "case": "rutina",
+        "hits": "3/3",
+        "lang_pen": 0,
+        "ms": 1531,
+        "got": [
+          "Va al gimnasio los lunes y jueves a las siete de la mañana."
+        ]
+      },
+      {
+        "case": "reversion",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "ms": 1431,
+        "got": [
+          "Dejó de beber café en enero."
+        ]
+      },
+      {
+        "case": "observacion",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "ms": 1445,
+        "got": [
+          "Rinde mucho mejor por las mañanas que por las tardes."
+        ]
+      },
+      {
+        "case": "parrafada-t181",
+        "hits": "3/3",
+        "lang_pen": 0,
+        "ms": 1798,
+        "got": [
+          "Compró entradas para el concierto de Muse en Bilbao el 12 de septiembre.",
+          "Le interesa la música en directo y los conciertos."
+        ]
+      },
+      {
+        "case": "telegrafico",
+        "hits": "2/2",
+        "lang_pen": 0.5,
+        "ms": 1421,
+        "got": [
+          "Presupuesto máximo para vacaciones: 3000 euros."
+        ]
+      },
+      {
+        "case": "ingles",
+        "hits": "2/2",
+        "lang_pen": 0,
+        "ms": 1520,
+        "got": [
+          "Su hija Emma cumple 8 años el próximo mes."
+        ]
+      },
+      {
+        "case": "familia",
+        "hits": "3/4",
+        "lang_pen": 0,
+        "ms": 1849,
+        "got": [
+          "Su mujer se llama Marta.",
+          "Tiene dos hijos gemelos: Pau y Nil.",
+          "Su madre vive con él."
+        ]
+      },
+      {
+        "case": "q-asistente",
+        "ok": true,
+        "ms": 1078,
+        "got": "[]"
+      },
+      {
+        "case": "efimera",
+        "ok": true,
+        "ms": 1156,
+        "got": "[]"
+      },
+      {
+        "case": "ack",
+        "ok": true,
+        "ms": 1234,
+        "got": "[]"
+      },
+      {
+        "case": "comando",
+        "ok": true,
+        "ms": 1180,
+        "got": "[]"
+      }
+    ]
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "endpoint": "https://api.aimlapi.com/v1",
+    "score": 28.0,
+    "total": 29.0,
+    "pct": 96.6,
+    "p50_ms": 3301,
+    "detail": [
+      {
+        "case": "medico-multi",
+        "hits": "2/2",
+        "lang_pen": 0,
+        "ms": 2908,
+        "got": [
+          "Es alérgico a la penicilina.",
+          "Es alérgico al marisco."
+        ]
+      },
+      {
+        "case": "compra-precio",
+        "hits": "2/2",
+        "lang_pen": 0,
+        "ms": 5209,
+        "got": [
+          "Se ha comprado una bicicleta eléctrica para ir al trabajo, que le costó 1.800 euros."
+        ]
+      },
+      {
+        "case": "mudanza",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "ms": 3892,
+        "got": [
+          "Vive en Valencia."
+        ]
+      },
+      {
+        "case": "correccion",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "ms": 3418,
+        "got": [
+          "El operador se llama Ricart."
+        ]
+      },
+      {
+        "case": "compromiso",
+        "hits": "3/3",
+        "lang_pen": 0,
+        "ms": 6229,
+        "got": [
+          "Su jefa se llama Marta.",
+          "Su jefa Marta le pidió el informe trimestral para el miércoles que viene."
+        ]
+      },
+      {
+        "case": "rutina",
+        "hits": "3/3",
+        "lang_pen": 0,
+        "ms": 3712,
+        "got": [
+          "Va al gimnasio todos los lunes y jueves a las siete de la mañana."
+        ]
+      },
+      {
+        "case": "reversion",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "ms": 3944,
+        "got": [
+          "No bebe café desde enero."
+        ]
+      },
+      {
+        "case": "observacion",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "ms": 4352,
+        "got": [
+          "Rinde mejor por las mañanas que por las tardes."
+        ]
+      },
+      {
+        "case": "parrafada-t181",
+        "hits": "3/3",
+        "lang_pen": 0,
+        "ms": 8022,
+        "got": [
+          "Ayer cenó con sus amigos de siempre.",
+          "Le interesan los conciertos y festivales de música.",
+          "Compró entradas para el concierto de Muse en Bilbao el 12 de septiembre.",
+          "Le interesa el grupo musical Muse."
+        ]
+      },
+      {
+        "case": "telegrafico",
+        "hits": "2/2",
+        "lang_pen": 0,
+        "ms": 3088,
+        "got": [
+          "Tiene un presupuesto máximo de 3000 euros para vacaciones."
+        ]
+      },
+      {
+        "case": "ingles",
+        "hits": "2/2",
+        "lang_pen": 0,
+        "ms": 3184,
+        "got": [
+          "Su hija Emma cumplirá 8 años el próximo mes."
+        ]
+      },
+      {
+        "case": "familia",
+        "hits": "3/4",
+        "lang_pen": 0,
+        "ms": 2819,
+        "got": [
+          "Tiene una mujer llamada Marta.",
+          "Tiene dos hijos gemelos llamados Pau y Nil.",
+          "Su madre vive con él."
+        ]
+      },
+      {
+        "case": "q-asistente",
+        "ok": true,
+        "ms": 1598,
+        "got": "[]"
+      },
+      {
+        "case": "efimera",
+        "ok": true,
+        "ms": 1516,
+        "got": "[]"
+      },
+      {
+        "case": "ack",
+        "ok": true,
+        "ms": 2189,
+        "got": "[]"
+      },
+      {
+        "case": "comando",
+        "ok": true,
+        "ms": 2253,
+        "got": "[]"
+      }
+    ]
+  },
+  {
+    "model": "deepseek-v4-flash",
+    "endpoint": "https://api.aimlapi.com/v1",
+    "score": 27.5,
+    "total": 29.0,
+    "pct": 94.8,
+    "p50_ms": 4030,
+    "detail": [
+      {
+        "case": "medico-multi",
+        "hits": "2/2",
+        "lang_pen": 0,
+        "ms": 7359,
+        "got": [
+          "Es alérgico a la penicilina y al marisco."
+        ]
+      },
+      {
+        "case": "compra-precio",
+        "hits": "2/2",
+        "lang_pen": 0,
+        "ms": 3749,
+        "got": [
+          "Se ha comprado una bicicleta eléctrica para ir al trabajo por 1.800 €."
+        ]
+      },
+      {
+        "case": "mudanza",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "ms": 10180,
+        "got": [
+          "Vive en Valencia.",
+          "Se mudó a Valencia con su familia."
+        ]
+      },
+      {
+        "case": "correccion",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "ms": 2279,
+        "got": [
+          "El operador se llama Ricart."
+        ]
+      },
+      {
+        "case": "compromiso",
+        "hits": "3/3",
+        "lang_pen": 0,
+        "ms": 6088,
+        "got": [
+          "Su jefa se llama Marta.",
+          "Le han encargado un informe trimestral para el miércoles que viene."
+        ]
+      },
+      {
+        "case": "rutina",
+        "hits": "3/3",
+        "lang_pen": 0,
+        "ms": 6494,
+        "got": [
+          "Va al gimnasio los lunes y jueves a las siete de la mañana.",
+          "Le interesa el gimnasio / el fitness."
+        ]
+      },
+      {
+        "case": "reversion",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "ms": 3946,
+        "got": [
+          "Dejó de beber café desde enero."
+        ]
+      },
+      {
+        "case": "observacion",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "ms": 3446,
+        "got": [
+          "Rinde mucho mejor por las mañanas que por las tardes."
+        ]
+      },
+      {
+        "case": "parrafada-t181",
+        "hits": "3/3",
+        "lang_pen": 0.5,
+        "ms": 14810,
+        "got": [
+          "Ayer cenó con su grupo habitual de amigos.",
+          "Compró entradas para el concierto de Muse en Bilbao el 12 de septiembre.",
+          "Le gusta la música de Muse.",
+          "Disfruta asistiendo a conciertos."
+        ]
+      },
+      {
+        "case": "telegrafico",
+        "hits": "2/2",
+        "lang_pen": 0,
+        "ms": 8334,
+        "got": [
+          "El operador tiene un presupuesto máximo de 3000€ para sus vacaciones.",
+          "Quiere irse de vacaciones con un presupuesto máximo de 3000€."
+        ]
+      },
+      {
+        "case": "ingles",
+        "hits": "2/2",
+        "lang_pen": 0,
+        "ms": 3749,
+        "got": [
+          "Su hija Emma cumple 8 años el próximo mes."
+        ]
+      },
+      {
+        "case": "familia",
+        "hits": "3/4",
+        "lang_pen": 0,
+        "ms": 4115,
+        "got": [
+          "Su familia se compone de su esposa Marta, sus hijos gemelos Pau y Nil, y su madre."
+        ]
+      },
+      {
+        "case": "q-asistente",
+        "ok": true,
+        "ms": 4124,
+        "got": "[]"
+      },
+      {
+        "case": "efimera",
+        "ok": true,
+        "ms": 1797,
+        "got": "[]"
+      },
+      {
+        "case": "ack",
+        "ok": true,
+        "ms": 1852,
+        "got": "[]"
+      },
+      {
+        "case": "comando",
+        "ok": true,
+        "ms": 2244,
+        "got": "[]"
+      }
+    ]
+  },
+  {
+    "model": "qwen3.5-flash",
+    "endpoint": "https://api.aimlapi.com/v1",
+    "score": 5.0,
+    "total": 29.0,
+    "pct": 17.2,
+    "p50_ms": 18719,
+    "detail": [
+      {
+        "case": "medico-multi",
+        "hits": "2/2",
+        "lang_pen": 0,
+        "ms": 4047,
+        "got": [
+          "Es alérgico a la penicilina y al marisco."
+        ]
+      },
+      {
+        "case": "compra-precio",
+        "hits": "0/2",
+        "lang_pen": 0,
+        "ms": 17898,
+        "got": "<None=fallo>"
+      },
+      {
+        "case": "mudanza",
+        "hits": "0/1",
+        "lang_pen": 0,
+        "ms": 30761,
+        "got": "<None=fallo>"
+      },
+      {
+        "case": "correccion",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "ms": 4071,
+        "got": [
+          "El operador se llama Ricart."
+        ]
+      },
+      {
+        "case": "compromiso",
+        "hits": "0/3",
+        "lang_pen": 0,
+        "ms": 45905,
+        "got": "<None=fallo>"
+      },
+      {
+        "case": "rutina",
+        "hits": "0/3",
+        "lang_pen": 0,
+        "ms": 15635,
+        "got": "<None=fallo>"
+      },
+      {
+        "case": "reversion",
+        "hits": "0/1",
+        "lang_pen": 0,
+        "ms": 28465,
+        "got": "<None=fallo>"
+      },
+      {
+        "case": "observacion",
+        "hits": "0/1",
+        "lang_pen": 0,
+        "ms": 18579,
+        "got": "<None=fallo>"
+      },
+      {
+        "case": "parrafada-t181",
+        "hits": "0/3",
+        "lang_pen": 0,
+        "ms": 18859,
+        "got": "<None=fallo>"
+      },
+      {
+        "case": "telegrafico",
+        "hits": "0/2",
+        "lang_pen": 0,
+        "ms": 20059,
+        "got": "<None=fallo>"
+      },
+      {
+        "case": "ingles",
+        "hits": "0/2",
+        "lang_pen": 0,
+        "ms": 24777,
+        "got": "<None=fallo>"
+      },
+      {
+        "case": "familia",
+        "hits": "0/4",
+        "lang_pen": 0,
+        "ms": 20693,
+        "got": "<None=fallo>"
+      },
+      {
+        "case": "q-asistente",
+        "ok": false,
+        "ms": 18954,
+        "got": "<None=fallo>"
+      },
+      {
+        "case": "efimera",
+        "ok": true,
+        "ms": 12287,
+        "got": "[]"
+      },
+      {
+        "case": "ack",
+        "ok": true,
+        "ms": 7094,
+        "got": "[]"
+      },
+      {
+        "case": "comando",
+        "ok": false,
+        "ms": 15986,
+        "got": "<None=fallo>"
+      }
+    ]
+  },
+  {
+    "model": "qwen2.5:7b-local",
+    "endpoint": "http://localhost:11434/v1",
+    "score": 25.0,
+    "total": 29.0,
+    "pct": 86.2,
+    "p50_ms": 2248,
+    "detail": [
+      {
+        "case": "medico-multi",
+        "hits": "2/2",
+        "lang_pen": 0,
+        "ms": 15521,
+        "got": [
+          "Es alérgico a la penicilina.",
+          "Es alérgico al marisco."
+        ]
+      },
+      {
+        "case": "compra-precio",
+        "hits": "2/2",
+        "lang_pen": 0,
+        "ms": 3889,
+        "got": [
+          "Se ha comprado una bici eléctrica para ir al trabajo.",
+          "La bici le costó 1.800 euros."
+        ]
+      },
+      {
+        "case": "mudanza",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "ms": 2246,
+        "got": [
+          "Vive en Valencia con toda la familia."
+        ]
+      },
+      {
+        "case": "correccion",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "ms": 2298,
+        "got": [
+          "No se llama Ricardo, se llama Ricart."
+        ]
+      },
+      {
+        "case": "compromiso",
+        "hits": "3/3",
+        "lang_pen": 0,
+        "ms": 4613,
+        "got": [
+          "Su jefa se llama Marta.",
+          "Tiene una cita para entregar el informe trimestral el miércoles que viene."
+        ]
+      },
+      {
+        "case": "rutina",
+        "hits": "3/3",
+        "lang_pen": 0,
+        "ms": 2250,
+        "got": [
+          "Va al gimnasio todos los lunes y jueves a las siete de la mañana."
+        ]
+      },
+      {
+        "case": "reversion",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "ms": 2157,
+        "got": [
+          "Ya no bebe café desde enero."
+        ]
+      },
+      {
+        "case": "observacion",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "ms": 2133,
+        "got": [
+          "Rinde mucho mejor por las mañanas que por las tardas."
+        ]
+      },
+      {
+        "case": "parrafada-t181",
+        "hits": "3/3",
+        "lang_pen": 0,
+        "ms": 4612,
+        "got": [
+          "El operador ha comprado entradas para un concierto de Muse en Bilbao el 12 de septiembre.",
+          "Le interesan los festivales y conciertos, pero piensa que ya no son lo que eran antes."
+        ]
+      },
+      {
+        "case": "telegrafico",
+        "hits": "2/2",
+        "lang_pen": 0,
+        "ms": 2422,
+        "got": [
+          "El presupuesto para las vacaciones es de 3000 euros máximo."
+        ]
+      },
+      {
+        "case": "ingles",
+        "hits": "2/2",
+        "lang_pen": 0,
+        "ms": 2133,
+        "got": [
+          "Su hija Emma cumple 8 años el próximo mes."
+        ]
+      },
+      {
+        "case": "familia",
+        "hits": "3/4",
+        "lang_pen": 0,
+        "ms": 2380,
+        "got": [
+          "Vive con su mujer Marta y sus hijos gemelos Pau y Nil."
+        ]
+      },
+      {
+        "case": "q-asistente",
+        "ok": false,
+        "ms": 1982,
+        "got": [
+          "El tiempo para mañana en Soria es relevante."
+        ]
+      },
+      {
+        "case": "efimera",
+        "ok": false,
+        "ms": 2019,
+        "got": [
+          "Prefiere que no le enseñe nada más ahora."
+        ]
+      },
+      {
+        "case": "ack",
+        "ok": true,
+        "ms": 301,
+        "got": "[]"
+      },
+      {
+        "case": "comando",
+        "ok": false,
+        "ms": 1864,
+        "got": [
+          "Prefiere música de los ochenta."
+        ]
+      }
+    ]
+  }
+]

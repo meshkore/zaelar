@@ -1,0 +1,219 @@
+{
+  "stamp": "20260711-235450",
+  "results": [
+    {
+      "scenario": "navegador_coche",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Alex, soy Harvey, tu asistente personal. ¿En qué te ayudo?",
+            "at": 1783806798.16
+          },
+          {
+            "who": "tester",
+            "text": "No, yo soy Alex y uso a Harvey como mi asistente personal. Ahora busca un coche de segunda mano por menos de 5000 euros con menos de 250.000 km cerca mío en Wallapop o coches.net.",
+            "at": 1783806803.39
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, dame un momento que lo miro.",
+            "at": 1783806824.91,
+            "latency_ms": 3377
+          },
+          {
+            "who": "tester",
+            "text": "Perfecto, gracias. Muy pronto me das las opciones mejores.",
+            "at": 1783806826.86
+          },
+          {
+            "who": "zaelar",
+            "text": "Entendido, en cuanto tenga las opciones te las muestro.",
+            "at": 1783806840.88,
+            "latency_ms": 4076
+          },
+          {
+            "who": "tester",
+            "text": "Genial, cuídate un rato mientras yo hago otras cosas.",
+            "at": 1783806841.34
+          },
+          {
+            "who": "zaelar",
+            "text": "Claro, aquí estaré cuando vuelvas.",
+            "at": 1783806851.6,
+            "latency_ms": 2580
+          },
+          {
+            "who": "tester",
+            "text": "Mira, ya tienes una hora libre y no sientes nada de aburrimiento. Cuanto antes me des las opciones mejor.",
+            "at": 1783806852.31
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, dame un momento que lo miro.",
+            "at": 1783806866.61,
+            "latency_ms": 3208
+          },
+          {
+            "who": "tester",
+            "text": "De acuerdo, tómate el tiempo que necesites. Estaré aquí cuando tengas algo para mostrarme.",
+            "at": 1783806870.75
+          },
+          {
+            "who": "zaelar",
+            "text": "Perfecto, te aviso en cuanto tenga las opciones.",
+            "at": 1783806884.5,
+            "latency_ms": 2821
+          }
+        ],
+        "latency_ms": {
+          "n": 5,
+          "avg": 3212,
+          "max": 4076,
+          "samples": [
+            3377,
+            4076,
+            2580,
+            3208,
+            2821
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:show:navegador::t2",
+            "widget:data:navegador::t2",
+            "widget:data:navegador::t2",
+            "widget:data:navegador::t2",
+            "widget:data:navegador::t2",
+            "widget:data:navegador::t1",
+            "widget:show:navegador::t2",
+            "widget:data:navegador::t2",
+            "widget:data:navegador::t2",
+            "widget:data:navegador::t2",
+            "widget:data:navegador::t2",
+            "widget:show:results",
+            "widget:show:navegador::t2",
+            "widget:data:navegador::t2",
+            "widget:data:navegador::t2",
+            "widget:show:navegador::t3",
+            "widget:data:navegador::t3",
+            "widget:data:navegador::t2",
+            "widget:data:navegador::t1"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Alex, soy Harvey, tu asistente personal. ¿En qué te ayudo?",
+            "⚡ Nucleo(flash): prompt: No, yo soy Alex y uso Harvey como mi asistente personal. Ahora busca un coche de segunda mano por menos de 5 000 euros c",
+            "⚡ Nucleo(flash): reply: Vale, dame un momento que lo miro.",
+            "🤖 tarea de navegador creada (SlowBrain): t2: El operador Alex quiere buscar un coche de segunda mano por menos de 5000 euros con menos de 250 km, en Wallapop o c",
+            "🧭 Flash → SlowBrain (escalada registrada): El operador Alex quiere buscar un coche de segunda mano por menos de 5000 euros con menos de 250 km, en Wallapop o coche",
+            "⚡ Nucleo(flash): prompt: Perfecto, gracias. Muy pronto me das las opciones mejores.",
+            "⚡ Nucleo(flash): reply: Entendido, en cuanto tenga las opciones te las muestro.",
+            "🧭 Flash → SlowBrain (escalada registrada): Buscar y comparar coches de segunda mano por menos de 5.000 € con menos de 250.000 km en Wallapop y coches.net cerca de",
+            "⚡ Nucleo(flash): prompt: Genial, cuida tu rato mientras yo hago otras cosas.",
+            "⚡ Nucleo(flash): reply: Claro, aquí estaré cuando vuelvas.",
+            "⚡ Nucleo(flash): prompt: Mira, ya tienes una hora libre y no sientes nada de aburrimiento. Cuanto antes me des las opciones mejor.",
+            "⚡ Nucleo(flash): reply: Vale, dame un momento que lo miro.",
+            "🧭 Flash → SlowBrain (escalada registrada): El operador quiere que busque un coche de segunda mano por menos de 5000 euros y menos de 250000 km en Wallapop o coches",
+            "⚡ Nucleo(flash): prompt: De acuerdo, tómate el tiempo que necesites. Estaré aquí cuando tengas algo para mostrarme.",
+            "⚡ Nucleo(flash): reply: Perfecto, te aviso en cuanto tenga las opciones.",
+            "🤖 tarea de navegador creada (SlowBrain): t3: El operador Alex quiere buscar un coche de segunda mano por menos de 5000 euros con menos de 250 km, preferiblemente",
+            "🧭 Flash → SlowBrain (escalada registrada): El operador Alex quiere buscar un coche de segunda mano por menos de 5000 euros con menos de 250 km, preferiblemente en"
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 19,
+            "bot_speech": 19,
+            "brain": 19,
+            "memory": 57,
+            "timing": 6,
+            "metric": 207,
+            "tts": 7,
+            "transcript": 11,
+            "widget": 21,
+            "navegador": 25,
+            "vad": 10,
+            "stt": 5,
+            "task": 7,
+            "session": 1
+          },
+          "n_events": 415
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 2,
+          "coherencia": 3,
+          "utilidad": 2,
+          "accion": 2,
+          "latencia": 4,
+          "robustez": 4
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Inicia una tarea de navegador (t2) pero luego cancela/ignora su estado visual para crear una nueva tarea duplicada (t3) en el turno 5 sin resolver la anterior, fragmentando la atención.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@general",
+            "problema": "El sistema manda 'widget:show:navegador::t2' (mostrar navegador) al frontend, lo cual es un fallo de diseño conceptual: debe mostrarse el navegador en 2º plano (automate_web), no invitar al usuario a mirarlo.",
+            "gravedad": "media"
+          },
+          {
+            "turno": "zaelar@turn5",
+            "problema": "Genera una nueva tarea (t3) en lugar de mantener/actualizar la ya iniciada (t2), sugiriendo que el 'SlowBrain' no tiene estado persistente o el Flash no consulta la lista de tareas activas.",
+            "gravedad": "alta"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "workflow/brain memory (tarea activa)",
+            "cambio": "Implementar un 'Task Manager' en Flash/SlowBrain que chequee si existe una tarea con el mismo 'intent' (buy_car) y 'status=pending' antes de lanzar una nueva.",
+            "porque": "Se observan tareas t2 y t3 para la misma petición, lo que indica duplicación de trabajo y pérdida de contexto de 'estoy trabajando en ello'."
+          },
+          {
+            "area": "navegador/frontend tags",
+            "cambio": "Usar la etiqueta 'widget:show:results' exclusivamente para el producto final; cambiar 'widget:show:navegador' por 'action:navigate_background' y omitir el renderizado visual al usuario.",
+            "porque": "El objetivo es trabajarlo en 2º plano; la traza muestra comandos de visualización del navegador que violan la premisa del escenario."
+          },
+          {
+            "area": "SLA de Prompts (RAG/Knowledge)",
+            "cambio": "Pasar el parámetro 'max_km=250.000' (no '250') y forzar el check de estrictitud numérica en el prompt del navegador.",
+            "porque": "La traza del SlowBrain indica 'menos de 250 km', un error de escala crítico que haría fallar la búsqueda real."
+          }
+        ],
+        "veredicto": "El escenario NO es production-ready: el sistema inicia el navegador pero incumple la lógica de 'tarea en segundo plano' (mostrando el navegador en lugar de ocultarlo) y sufre un fallo de estado crítico que le hace duplicar la tarea en lugar de gestionarla.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "workflow/brain memory (tarea activa)",
+      "cambio": "Implementar un 'Task Manager' en Flash/SlowBrain que chequee si existe una tarea con el mismo 'intent' (buy_car) y 'status=pending' antes de lanzar una nueva.",
+      "porque": "Se observan tareas t2 y t3 para la misma petición, lo que indica duplicación de trabajo y pérdida de contexto de 'estoy trabajando en ello'.",
+      "scenario": "navegador_coche",
+      "_sev": 0
+    },
+    {
+      "area": "navegador/frontend tags",
+      "cambio": "Usar la etiqueta 'widget:show:results' exclusivamente para el producto final; cambiar 'widget:show:navegador' por 'action:navigate_background' y omitir el renderizado visual al usuario.",
+      "porque": "El objetivo es trabajarlo en 2º plano; la traza muestra comandos de visualización del navegador que violan la premisa del escenario.",
+      "scenario": "navegador_coche",
+      "_sev": 0
+    },
+    {
+      "area": "SLA de Prompts (RAG/Knowledge)",
+      "cambio": "Pasar el parámetro 'max_km=250.000' (no '250') y forzar el check de estrictitud numérica en el prompt del navegador.",
+      "porque": "La traza del SlowBrain indica 'menos de 250 km', un error de escala crítico que haría fallar la búsqueda real.",
+      "scenario": "navegador_coche",
+      "_sev": 0
+    }
+  ]
+}

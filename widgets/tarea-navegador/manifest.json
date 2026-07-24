@@ -1,0 +1,15 @@
+{
+  "id": "tarea-navegador",
+  "version": "0.1.0",
+  "title": "Tarea navegador",
+  "description": "Panel vertical angosto (máx 200px) que muestra el navegador en miniatura arriba y 10–12 líneas de progreso de la tarea automática actual (búsquedas, automatizaciones web). Redimensionable. El cerebro empuja las líneas de progreso según avanza la tarea.",
+  "whenToUse": "Cuando el operador está haciendo una tarea automática en el navegador (buscar un producto, llenar un formulario, navegar una web paso a paso) y quiere ver el estado/progreso en un panel lateral sin ocupar toda la pantalla.",
+  "keywords": ["tarea navegador", "progreso navegador", "estado navegador", "progreso tarea", "automatización", "tarea automática", "barra estado", "panel lateral", "pasos navegador"],
+  "entry": "widget.js",
+  "actions": {
+    "push_lines": {"desc": "añade una o más líneas de progreso al panel", "payload": {"lines": "array de strings — las líneas a mostrar"}, "safe": true},
+    "set_title": {"desc": "cambia el título de la tarea actual", "payload": {"title": "string — nuevo título del panel"}, "safe": true},
+    "set_progress": {"desc": "cambia el contador de progreso", "payload": {"progress": "string — p.ej. '3/6' o '75%'"}, "safe": true},
+    "clear": {"desc": "limpia todas las líneas y pone el título por defecto", "payload": {}, "safe": true}
+  }
+}

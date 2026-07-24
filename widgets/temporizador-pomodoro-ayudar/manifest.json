@@ -1,0 +1,17 @@
+{
+  "id": "temporizador-pomodoro-ayudar",
+  "version": "0.1.0",
+  "title": "Pomodoro",
+  "description": "Temporizador Pomodoro para gestionar el tiempo de trabajo y descanso: sesiones de concentración de 25 min, descansos de 5 min y un descanso largo de 15 min tras 4 pomodoros. Cuenta atrás circular, contador de pomodoros completados y control por voz o botones.",
+  "whenToUse": "Cuando el operador quiere concentrarse por bloques con la técnica Pomodoro: iniciar/pausar/reiniciar una sesión de 25 minutos o saltar al descanso.",
+  "keywords": ["pomodoro", "temporizador pomodoro", "técnica pomodoro", "tecnica pomodoro", "concentración", "concentracion", "foco", "sesión de trabajo", "sesion de trabajo", "bloque de trabajo", "descanso corto", "cuenta atrás", "cuenta atras", "productividad", "25 minutos"],
+  "entry": "widget.js",
+  "usage": "Temporizador Pomodoro (25 min concentración / 5 min descanso corto / 15 min descanso largo cada 4). Usa start para iniciar o reanudar, pause para pausar, reset para reiniciar la fase actual a su duración completa, skip para saltar a la fase siguiente (concentración↔descanso). Ninguna acción lleva payload y todas son reversibles.",
+  "background": {"every": "30s"},
+  "actions": {
+    "start": {"desc": "Iniciar o reanudar el temporizador de la fase actual", "payload": {}},
+    "pause": {"desc": "Pausar el temporizador", "payload": {}},
+    "reset": {"desc": "Reiniciar la fase actual a su duración completa", "payload": {}},
+    "skip": {"desc": "Saltar a la fase siguiente (concentración ↔ descanso)", "payload": {}}
+  }
+}

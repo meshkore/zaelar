@@ -1,0 +1,216 @@
+{
+  "stamp": "20260711-232837",
+  "results": [
+    {
+      "scenario": "conversation",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Alex, soy zaelar, tu asistente de voz. ¿Qué necesitas ahora?",
+            "at": 1783805199.0
+          },
+          {
+            "who": "tester",
+            "text": "Perdona, no entendí bien, habla en español por favor. Soy Alex y estoy usando a Zaelar como mi asistente de voz. ¿Podrías decirme la hora?",
+            "at": 1783805212.86
+          },
+          {
+            "who": "zaelar",
+            "text": "¿Qué necesitas ahora?",
+            "at": 1783805223.86
+          },
+          {
+            "who": "tester",
+            "text": "Zaelareee, necesito saber qué hora es.",
+            "at": 1783805225.09
+          },
+          {
+            "who": "zaelar",
+            "text": "Hola Alex, soy zaelar, tu asistente personal. ¿Qué necesitas ahora?",
+            "at": 1783805254.69
+          },
+          {
+            "who": "tester",
+            "text": "Zaelare, necesito que me digas la hora por favor.",
+            "at": 1783805255.51
+          },
+          {
+            "who": "zaelar",
+            "text": "Son las 23:27.",
+            "at": 1783805267.18,
+            "latency_ms": 2215
+          },
+          {
+            "who": "tester",
+            "text": "¡Gracias! Y el fin de semana qué planes tengo…",
+            "at": 1783805268.12
+          },
+          {
+            "who": "zaelar",
+            "text": "Hoy es sábado 11 de julio.",
+            "at": 1783805278.33,
+            "latency_ms": 2658
+          },
+          {
+            "who": "tester",
+            "text": "Sábado 11 de julio, eso son dos cervezas para mí. ¿Qué tengo planeado para este finde?",
+            "at": 1783805279.05
+          },
+          {
+            "who": "zaelar",
+            "text": "Sí Alex, tienes la cena sorpresa de tu hermana este sábado a las 20:00 en La Arabidan y la cita con el Ballet Central a las 19:00.",
+            "at": 1783805295.01,
+            "latency_ms": 3807
+          },
+          {
+            "who": "tester",
+            "text": "¡Ah, perfecto! Entonces, ¿en La Arabidan a las 8 de la noche? Y también tengo esa cita con el Ballet Central, ¿no? A las 7 de la tarde. Gracias por recordármelo.",
+            "at": 1783805296.71
+          },
+          {
+            "who": "zaelar",
+            "text": "Sí Alex, tienes la cena sorpresa de tu hermana este sábado a las 20:00 en La Arabidan y la cita con el Ballet Central a las 19:00.",
+            "at": 1783805310.08
+          }
+        ],
+        "latency_ms": {
+          "n": 3,
+          "avg": 2893,
+          "max": 3807,
+          "samples": [
+            2215,
+            2658,
+            3807
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:show:clock",
+            "widget:show:clock"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Alex, soy zaelar, tu asistente de voz. ¿Qué necesitas ahora?",
+            "⚡ Nucleo(flash): prompt: Perdona, no entendí bien. Habla en español por favor. Soy Alex y estoy usando a Harvey como mi asistente de voz. ¿Podría",
+            "⚡ Nucleo(flash): reply: Hola Alex, soy zaelar, tu asistente personal. ¿Qué necesitas ahora?",
+            "⚡ Nucleo(flash): prompt: Harvey A. Necesito saber qué hora es.",
+            "⚡ Nucleo(flash): reply:",
+            "⚡ Nucleo(flash): prompt: Harry, necesito que me digas la hora, por favor.",
+            "⚡ Nucleo(flash): reply: Son las 23:27.",
+            "⚡ Nucleo(flash): prompt: Gracias y el fin de semana que palestengo.",
+            "⚡ Nucleo(flash): reply: Hoy es sábado 11 de julio.",
+            "⚡ Nucleo(flash): prompt: Fábado 11 de julio. Estas son dos cervezas para mí. ¿Te tengo planeado para este fin de...?",
+            "⚡ Nucleo(flash): reply: Sí Alex, tienes la cena sorpresa de tu hermana este sábado a las 20:00 en La Arabidan y la cita con el Ballet Central a",
+            "⚡ Nucleo(flash): prompt: Ah, perfecto. Entonces, en la rabinar a las 8 de la noche. Y también tengo esa cita con el vale central, ¿no? A las 7 de"
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 19,
+            "bot_speech": 19,
+            "brain": 14,
+            "metric": 256,
+            "memory": 68,
+            "timing": 7,
+            "tts": 7,
+            "transcript": 10,
+            "vad": 12,
+            "stt": 6,
+            "widget": 2,
+            "session": 1
+          },
+          "n_events": 422
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 3,
+          "coherencia": 2,
+          "utilidad": 4,
+          "accion": 2,
+          "latencia": 3,
+          "robustez": 2
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Zaelar ignora el comando explícito del usuario ('habla en español por favor') y repite su saludo estándar. Parece un bucle de recuperación de NLU fallido.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn4",
+            "problema": "Ante una corrección/insistencia del tester ('Zaelareee...'), Zaelar repite el saludo por tercera vez en lugar de procesar la petición latente.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn6",
+            "problema": "Pregunta por planes del finde, recibe un 'no' (o negación implícita en 'Eso son dos cervezas para mí' + ruido), y devuelve las citas tal cual. Falta gestión de rechazo/negación.",
+            "gravedad": "media"
+          },
+          {
+            "turno": "zaelar@turn7",
+            "problema": "Repite textualmente la información del turno anterior (Ballet Central/La Arabidan) aunque el usuario ya lo ha confirmado ('Gracias por recordármelo'). Conversación circular.",
+            "gravedad": "media"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "brain memory / conversational history",
+            "cambio": "Implementar un bloqueo lógico o 'debounce' en el cerebro para evitar que el saludo por defecto se ejecute si ya se ha saludado 2 veces en los últimos 60 segundos.",
+            "porque": "Zaelar repite el salvo 'Hola Alex, soy zaelar...' en bucle cuando hay ruido o confusiones, lo que percibe el usuario como un fallo de identidad o atención."
+          },
+          {
+            "area": "logic NLU / intent confidence",
+            "cambio": "Añadir una regla de 'comando de idioma' con máxima prioridad. Si se detecta 'no entiendo' + 'habla en [idioma]', forzar respuesta en ese idioma inmediatamente.",
+            "porque": "Zaelar ignoró explícitamente el pedido 'habla en español por favor', fallando el objetivo de ser un asistente útil."
+          },
+          {
+            "area": "prompt persona / few-shotting",
+            "cambio": "Incluir ejemplos de confirmación-distinta-de-repetición en el prompt del sistema. Si el usuario dice 'Gracias por la info', el bot debe responder con 'De nada' o cambiar de tema, no releer la info.",
+            "porque": "Zaelar repitió la lista de citas en el último turno aunque el usuario ya las había validado y agradecido, rompiendo la naturalidad."
+          },
+          {
+            "area": "interruption handling / turn endpointing",
+            "cambio": "Optimizar la detección del fin de turno (VAD/End-pointing) para reducir latencias por encima de 3500ms.",
+            "porque": "Una latencia media de 2.8s está en el límite; el pico de 3807ms hace que la conversación se sienta lenta y 'pensativa' para respuestas que deberían ser inmediatas."
+          }
+        ],
+        "veredicto": "El escenario NO está listo para producción: el asistente cae en bucles de saludo repetitivos ante ruido y demuestra falta de memoria contextual a corto plazo al repetir información ya validada por el usuario.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "brain memory / conversational history",
+      "cambio": "Implementar un bloqueo lógico o 'debounce' en el cerebro para evitar que el saludo por defecto se ejecute si ya se ha saludado 2 veces en los últimos 60 segundos.",
+      "porque": "Zaelar repite el salvo 'Hola Alex, soy zaelar...' en bucle cuando hay ruido o confusiones, lo que percibe el usuario como un fallo de identidad o atención.",
+      "scenario": "conversation",
+      "_sev": 0
+    },
+    {
+      "area": "logic NLU / intent confidence",
+      "cambio": "Añadir una regla de 'comando de idioma' con máxima prioridad. Si se detecta 'no entiendo' + 'habla en [idioma]', forzar respuesta en ese idioma inmediatamente.",
+      "porque": "Zaelar ignoró explícitamente el pedido 'habla en español por favor', fallando el objetivo de ser un asistente útil.",
+      "scenario": "conversation",
+      "_sev": 0
+    },
+    {
+      "area": "prompt persona / few-shotting",
+      "cambio": "Incluir ejemplos de confirmación-distinta-de-repetición en el prompt del sistema. Si el usuario dice 'Gracias por la info', el bot debe responder con 'De nada' o cambiar de tema, no releer la info.",
+      "porque": "Zaelar repitió la lista de citas en el último turno aunque el usuario ya las había validado y agradecido, rompiendo la naturalidad.",
+      "scenario": "conversation",
+      "_sev": 0
+    },
+    {
+      "area": "interruption handling / turn endpointing",
+      "cambio": "Optimizar la detección del fin de turno (VAD/End-pointing) para reducir latencias por encima de 3500ms.",
+      "porque": "Una latencia media de 2.8s está en el límite; el pico de 3807ms hace que la conversación se sienta lenta y 'pensativa' para respuestas que deberían ser inmediatas.",
+      "scenario": "conversation",
+      "_sev": 0
+    }
+  ]
+}

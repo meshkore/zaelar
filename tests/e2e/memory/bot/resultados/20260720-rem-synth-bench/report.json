@@ -1,0 +1,50 @@
+[
+  {
+    "model": "gpt-4.1-mini",
+    "score": 15.0,
+    "total": 15.0,
+    "pct": 100.0,
+    "p50_ms": 2341,
+    "notes": [
+      "musica: keys 3/3 form=ok | Le gusta la música en español de los años ochenta, especialmente artistas como Mocedades y Serrat, y disfruta ",
+      "salud: keys 3/3 form=ok | Es alérgico a la penicilina y al marisco, mantiene una rutina de gimnasio los lunes y jueves a las siete, ha d",
+      "familia: keys 3/3 form=ok | Vive en Soria con su mujer Marta, enfermera en el hospital local, sus gemelos Pau y Nil de 6 años, y su madre,"
+    ]
+  },
+  {
+    "model": "claude-haiku-4.5",
+    "score": 13.5,
+    "total": 15.0,
+    "pct": 90.0,
+    "p50_ms": 3120,
+    "notes": [
+      "musica: keys 3/3 form=ok | Disfruta de música en español de los ochenta (Mocedades, Serrat) y artistas contemporáneos como Muse; prefiere",
+      "salud: keys 2/3 form=ok | Tiene alergias confirmadas a penicilina y marisco; mantiene una rutina de ejercicio los lunes y jueves a las s",
+      "familia: keys 3/3 form=ok | Vive en Soria con su mujer Marta (enfermera en el hospital local), sus gemelos Pau y Nil de 6 años, y su madre"
+    ]
+  },
+  {
+    "model": "gemini-2.5-flash",
+    "score": 7.5,
+    "total": 15.0,
+    "pct": 50.0,
+    "p50_ms": 7321,
+    "notes": [
+      "musica: keys 3/3 form=ok | Le gusta la música de los ochenta en español, como Mocedades y Serrat, y la escucha mientras trabaja, prefirie",
+      "salud: keys 3/3 form=ok | Es alérgico a la penicilina y al marisco. Va al gimnasio los lunes y jueves a las siete, y dejó el café en ene",
+      "familia: keys 3/3 form=ok | Su familia incluye a su mujer Marta, que trabaja de enfermera en el hospital de Soria, sus gemelos Pau y Nil d"
+    ]
+  },
+  {
+    "model": "deepseek-v4-flash",
+    "score": 15.0,
+    "total": 15.0,
+    "pct": 100.0,
+    "p50_ms": 7410,
+    "notes": [
+      "musica: keys 3/3 form=ok | Escucha con frecuencia música en español de los ochenta (Mocedades, Serrat) y ha comprado entradas para el con",
+      "salud: keys 3/3 form=ok | Es alérgico a la penicilina y al marisco, acude al gimnasio los lunes y jueves a las siete, rinde mejor por la",
+      "familia: keys 3/3 form=ok | Su mujer Marta es enfermera en el hospital de Soria, tienen gemelos Pau y Nil de 6 años, su madre vive con ell"
+    ]
+  }
+]

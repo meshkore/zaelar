@@ -1,0 +1,25 @@
+{
+  "id": "navegador",
+  "kind": "backed",
+  "backend": {"owner": "owner.py"},
+  "version": "0.1.0",
+  "title": "Navegador",
+  "description": "Un navegador web dentro de zaelar. Abre cualquier página (Google, Wallapop, la RAE, una receta, una tienda), la renderiza en vivo mediante un Chromium propio, y reproduce vídeos de YouTube embebidos. Pensado para conducirse por voz y, más adelante, automatizar búsquedas dentro de una web.",
+  "whenToUse": "Cuando el operador quiere VER una página web o contenido de internet: buscar algo en Google, abrir una web concreta (Wallapop, la RAE, una receta, una tienda online), enseñarle una página, o ver/reproducir un vídeo de YouTube. La información del navegador está siempre al día (a diferencia de la memoria del modelo).",
+  "keywords": ["navegador", "navega", "web", "internet", "online", "google", "busca en internet", "buscar en internet", "buscar online", "abre la web", "abre la pagina", "abre la página", "pagina web", "página web", "muestrame la web", "muéstrame la página", "ensename la pagina", "enséñame la página", "wallapop", "amazon", "tienda", "rae", "real academia", "receta", "youtube", "video", "vídeo", "clip", "reproduce", "pon un video"],
+  "entry": "widget.js",
+  "actions": {
+    "open":    {"desc": "abre una URL o web en el navegador (si el texto no es una URL, busca en Google)", "payload": {"url": "string — URL o dominio, p.ej. wallapop.com"}, "safe": true},
+    "search":  {"desc": "busca en Google y muestra la página de resultados", "payload": {"q": "string — lo que se busca"}, "safe": true},
+    "youtube": {"desc": "busca y reproduce un vídeo de YouTube (o abre una URL/id de vídeo concreta)", "payload": {"q": "string — búsqueda del vídeo", "url": "string opcional — URL o id de 11 caracteres del vídeo"}, "safe": true},
+    "back":    {"desc": "vuelve a la página anterior", "payload": {}, "safe": true},
+    "forward": {"desc": "avanza a la página siguiente", "payload": {}, "safe": true},
+    "reload":  {"desc": "recarga la página actual", "payload": {}, "safe": true},
+    "close":   {"desc": "cierra la ventana del navegador (la sesión/logins se conservan para la próxima)", "payload": {}, "safe": true},
+    "scroll":  {"desc": "desplaza la página (dy>0 baja, dy<0 sube)", "payload": {"dy": "number — píxeles"}, "safe": true},
+    "click":   {"desc": "hace clic en unas coordenadas de la página (navegación dentro de la web)", "payload": {"x": "number", "y": "number"}, "escalate": true},
+    "type":    {"desc": "escribe texto en el elemento enfocado de la página", "payload": {"text": "string"}, "escalate": true},
+    "press":   {"desc": "pulsa una tecla en la página (Enter, Tab…)", "payload": {"key": "string — p.ej. Enter"}, "escalate": true},
+    "automate": {"desc": "cumple un objetivo navegando la web por sí solo (buscar, filtrar, entrar en resultados)", "payload": {"goal": "string — objetivo en lenguaje natural, p.ej. 'en Wallapop, motos de menos de 5000€ del 2020 en adelante'"}, "escalate": true}
+  }
+}

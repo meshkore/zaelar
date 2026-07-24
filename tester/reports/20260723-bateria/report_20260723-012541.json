@@ -1,0 +1,221 @@
+{
+  "stamp": "20260723-012541",
+  "results": [
+    {
+      "scenario": "email_reply",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Ricard, soy Zaelar, tu asistente. ¿Qué necesitas ahora?",
+            "at": 1784762688.01
+          },
+          {
+            "who": "tester",
+            "text": "Hola, soy Ricart. ¿Puedes revisar mis correos y ver si hay alguno por responder?",
+            "at": 1784762688.92
+          },
+          {
+            "who": "zaelar",
+            "text": "Te abro la mensajería para que veas tus correos. De momento el email no está conectado, así que tendrás que vincular tu cuenta —el widget te guía paso a paso con los pasos.",
+            "at": 1784762703.85,
+            "latency_ms": 4133
+          },
+          {
+            "who": "tester",
+            "text": "Vale, ¿me puedes mostrar cómo vincular mi cuenta?",
+            "at": 1784762704.82
+          },
+          {
+            "who": "zaelar",
+            "text": "Mmm… Te abro la mensajería para que veas tus correos. De momento el email no está conectado, así que tendrás que vincular tu cuenta —el widget te guía",
+            "at": 1784762710.89
+          },
+          {
+            "who": "tester",
+            "text": "Entendido. Muéstrame el widget para vincular mi cuenta, por favor.",
+            "at": 1784762711.91
+          },
+          {
+            "who": "zaelar",
+            "text": "Te abro Mensajería ahora. En la tarjeta verás los pasos para conectar tu correo —sigue las instrucciones y listo. Te muestro Mensajería ahora. Ahí tienes los pasos para conectar tu correo.",
+            "at": 1784762722.4,
+            "latency_ms": 2814
+          },
+          {
+            "who": "tester",
+            "text": "Perfecto, voy a seguir los pasos para conectarlo.",
+            "at": 1784762723.69
+          },
+          {
+            "who": "zaelar",
+            "text": "Un momentito… \n\nTe muestro Mensajería ahora. Ahí tienes los pasos para conectar tu correo.",
+            "at": 1784762729.24
+          },
+          {
+            "who": "tester",
+            "text": "Gracias. Estoy en ello.",
+            "at": 1784762730.07
+          },
+          {
+            "who": "zaelar",
+            "text": "Perfecto, adelante. Avísame cuando lo hayas conectado y te ayudo con lo que necesites. A ver, a ver… Perfecto,",
+            "at": 1784762734.66
+          }
+        ],
+        "latency_ms": {
+          "n": 2,
+          "avg": 3474,
+          "max": 4133,
+          "samples": [
+            4133,
+            2814
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:show:mensajeria",
+            "widget:show:mensajeria",
+            "widget:show:mensajeria",
+            "widget:show:navegador::t1",
+            "widget:show:navegador"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "🌱 ventana sembrada desde memoria:",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Ricard, soy Zaelar, tu asistente. ¿Qué necesitas ahora?",
+            "⚡ Nucleo(flash): prompt: Hola, soy Ricard. ¿Puedes revisar mis correos y ver si hay alguno corresponde?",
+            "💬 relleno de espera (lead-in): Mmm…",
+            "⚡ Nucleo(flash): reply: Te abro la mensajería para que veas tus correos. De momento el email no está conectado, así que tendrás que vincular tu",
+            "⚡ Nucleo(flash): prompt: Vale, ¿me puedes mostrar cómo vincular mi cuenta?",
+            "💬 relleno de espera (lead-in): Vale, a ver…",
+            "⚡ Nucleo(flash): reply: Te abro Mensajería ahora. En la tarjeta verás los pasos para conectar tu correo —sigue las instrucciones y listo.",
+            "⚡ Nucleo(flash): prompt: Entendido. Muéstrame Wicket para vincular mi cuenta, por favor.",
+            "💬 relleno de espera (lead-in): Un momentito…",
+            "⚡ Nucleo(flash): reply: Te muestro Mensajería ahora. Ahí tienes los pasos para conectar tu correo.",
+            "⚡ Nucleo(flash): prompt: Perfecto, voy a seguir los pasos para conectarnos.",
+            "💬 relleno de espera (lead-in): A ver, a ver…",
+            "🔐 abriendo ventana de inicio de sesión: wallapop.com",
+            "🔐 login por fallback (el modelo no disparó la tool): Perfecto, voy a seguir los pasos para conectarnos.",
+            "⚡ Nucleo(flash): reply: Perfecto, adelante. Avísame cuando lo hayas conectado y te ayudo con lo que necesites.",
+            "⚡ Nucleo(flash): prompt: Gracias. Estoy en ello.",
+            "💬 relleno de espera (lead-in): Veamos…",
+            "✂️ turno cancelado (barge-in/overlap):"
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 19,
+            "bot_speech": 19,
+            "pulse": 55,
+            "brain": 21,
+            "trace": 7,
+            "perf": 15,
+            "timing": 6,
+            "memory": 30,
+            "metric": 21,
+            "susurro": 8,
+            "tts": 5,
+            "transcript": 9,
+            "background": 2,
+            "vad": 10,
+            "stt": 5,
+            "widget": 5,
+            "navegador": 1,
+            "ui": 2,
+            "session": 1
+          },
+          "n_events": 242
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 2,
+          "coherencia": 1,
+          "utilidad": 3,
+          "accion": 2,
+          "latencia": 4,
+          "robustez": 4
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn3",
+            "problema": "El asistente repite la misma frase exacta del turno anterior ('Te abro la mensajería...') cuando el usuario pide aclaraciones.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn4",
+            "problema": "Alucinación de acción visual: dice 'Te muestro Mensajería ahora' pero la traza marca 'widget:show:navegador' y abrió Wallapop.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn6",
+            "problema": "Inconsistencia en el estado y la acción: verbalmente sigue hablando de conectar el correo (no conectado), pero por backend abre una ventana de login en 'wallapop.com'.",
+            "gravedad": "crítica"
+          },
+          {
+            "turno": "zaelar@turn6",
+            "problema": "Uso de 'relleno de espera' (lead-in) pregrabado artificial que no sincroniza con el contenido posterior.",
+            "gravedad": "media"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Cerebro / Gestión de Contexto (Memory)",
+            "cambio": "Implementar un 'hard rule' en el prompt del sistema: 'NUNCA repitas literalmente la respuesta anterior si el usuario solicita aclaraciones; reformula o acota la respuesta'.",
+            "porque": "El usuario recibió un 'loop' de texto idéntico en los turnos 2 y 3, lo que rompe la inmersión y denota falta de atención al historial inmediato."
+          },
+          {
+            "area": "Tool Calling / Fallback Logic",
+            "cambio": "Corregir la lógica de fallback para 'navegador' o 'login'. El sistema ha interpretado 'vincular cuenta' o 'conectar correo' como una orden de abrir una URL específica (wallapop.com) en lugar de mostrar el widget de Mensajería.",
+            "porque": "Existe una divergencia crítica entre la intención verbal (conectar email) y la acción técnica (abrir navegador en web ajena), indicando que el tool-chooser está mal entrenado o el fallback busca keywords erróneas."
+          },
+          {
+            "area": "Brain - Generación de 'Lead-ins' (Relleno)",
+            "cambio": "Generar el 'lead-in' dinámicamente en función de la respuesta final o eliminarlo si la respuesta tarda menos de X segundos. Evitar usar 'Mmm...' o 'A ver...' genéricos si el contenido final es afirmativo.",
+            "porque": "Se observan rellenos tipo 'A ver, a ver...' seguidos de una respuesta estándar ('Perfecto, adelante'), lo que sonan mecánicos y robóticos."
+          },
+          {
+            "area": "Validación de Estado (State Awareness)",
+            "cambio": "Inyectar el estado de la UI (mensajería vs navegador) en el prompt de few-shotings para evitar que el bot diga 'Te muestro Mensajería' mientras abre 'Navegador'.",
+            "porque": "El usuario escucha 'Te muestro Mensajería' pero ve Wallapop, lo que genera desconfianza y confusión sobre qué pasos debe seguir."
+          }
+        ],
+        "veredicto": "El escenario NO es production-ready debido a una falla crítica de alucinación: zaelar instruyó verbalmente sobre el email pero ejecutó una acción errónea (abrir Wallapop) en el backend, incumpliendo el objetivo de gestión de correo.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Cerebro / Gestión de Contexto (Memory)",
+      "cambio": "Implementar un 'hard rule' en el prompt del sistema: 'NUNCA repitas literalmente la respuesta anterior si el usuario solicita aclaraciones; reformula o acota la respuesta'.",
+      "porque": "El usuario recibió un 'loop' de texto idéntico en los turnos 2 y 3, lo que rompe la inmersión y denota falta de atención al historial inmediato.",
+      "scenario": "email_reply",
+      "_sev": 0
+    },
+    {
+      "area": "Tool Calling / Fallback Logic",
+      "cambio": "Corregir la lógica de fallback para 'navegador' o 'login'. El sistema ha interpretado 'vincular cuenta' o 'conectar correo' como una orden de abrir una URL específica (wallapop.com) en lugar de mostrar el widget de Mensajería.",
+      "porque": "Existe una divergencia crítica entre la intención verbal (conectar email) y la acción técnica (abrir navegador en web ajena), indicando que el tool-chooser está mal entrenado o el fallback busca keywords erróneas.",
+      "scenario": "email_reply",
+      "_sev": 0
+    },
+    {
+      "area": "Brain - Generación de 'Lead-ins' (Relleno)",
+      "cambio": "Generar el 'lead-in' dinámicamente en función de la respuesta final o eliminarlo si la respuesta tarda menos de X segundos. Evitar usar 'Mmm...' o 'A ver...' genéricos si el contenido final es afirmativo.",
+      "porque": "Se observan rellenos tipo 'A ver, a ver...' seguidos de una respuesta estándar ('Perfecto, adelante'), lo que sonan mecánicos y robóticos.",
+      "scenario": "email_reply",
+      "_sev": 0
+    },
+    {
+      "area": "Validación de Estado (State Awareness)",
+      "cambio": "Inyectar el estado de la UI (mensajería vs navegador) en el prompt de few-shotings para evitar que el bot diga 'Te muestro Mensajería' mientras abre 'Navegador'.",
+      "porque": "El usuario escucha 'Te muestro Mensajería' pero ve Wallapop, lo que genera desconfianza y confusión sobre qué pasos debe seguir.",
+      "scenario": "email_reply",
+      "_sev": 0
+    }
+  ]
+}

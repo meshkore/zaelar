@@ -1,0 +1,6 @@
+{
+  "view_data_shape": {
+    "pending": "int",
+    "reservations": "list"
+  }
+}

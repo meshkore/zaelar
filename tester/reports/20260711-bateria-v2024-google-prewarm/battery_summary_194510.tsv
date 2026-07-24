@@ -1,0 +1,15 @@
+scenario	status	overall	nat	coh	uti	acc	lat	rob	veredicto
+conversation	FAIL	2	2	2	2	2	2	1	El escenario NO es production-ready: el asistente muestra una falta crítica de fluidez y memoria a corto plazo, repitiendo saludos y bloqueándose ante errores d
+agenda	FAIL	2	2	2	2	2	2	1	El escenario NO es production-ready: el asistente muestra una falta crítica de fluidez y memoria a corto plazo, repitiendo saludos y bloqueándose ante errores d
+memory	FAIL	2	2	2	3	2	3	4	El escenario NO es production-ready: harbee falla en retener y utilizar la información en el corto plazo debido a un recorte de contexto (RAG failure), causando
+widget	FAIL	2	2	2	3	2	3	4	El escenario NO es production-ready: harbee falla en retener y utilizar la información en el corto plazo debido a un recorte de contexto (RAG failure), causando
+search	FAIL	1	2	2	1	1	2	1	No es production-ready: el asistente falla el objetivo principal (no encuentra el dato, inventa y se rinde), presenta latencias inhumanas (14s) y muestra una in
+busqueda_web	FAIL	2	2	2	4	4	2	2	No es production-ready: aunque busca bien, la repetición de respuestas y la falta de memoria de contexto (nombre) lo hacen sonar roto y molesto.
+mensajeria	PASS	4	-	4	5	1	5	5	El escenario es funcionalmente correcto en cuanto a información y respuesta, pero NO es production-ready debido al fallo crítico de renderizado (duplicación de 
+conectores	FAIL	2	-	2	4	2	2	3	El escenario NO es production-ready debido a la falta de fiabilidad en las respuestas y la desconexión entre lo que dice y lo que hace.
+complex_idea	FAIL	2	-	2	2	2	3	2	No es producción-ready: harbee sufre de alucinación de entidades contradictorias y falta de filtro en el TTS, lo que resulta en una experiencia confusa y poco f
+chat	PASS	5	5	5	5	5	5	5	El escenario es impecable: procesa correctamente el input inyectado por chat/paste con cero latencia apreciable, responde con naturalidad y coherencia, y cumple
+paste	FAIL	3	3	2	3	2	4	4	El escenario es funcionalmente aceptable (el resumen se genera), pero no es 'production-ready' debido a la incapacidad de harbee para filtrar el ruido dentro de
+websocket	FAIL	2	2	2	1	1	3	2	No es production-ready: el asistente falló estrepitosamente en el objetivo principal al alucinar un 'ballet' en lugar de un 'cluster' y nunca reportó el estado 
+navegador_moto	FAIL	1	1	1	2	1	3	3	El escenario es un fracaso crítico: el asistente ignora los parámetros clave, entra en un bucle verbal robótico y nunca entrega los resultados de la búsqueda de
+navegador_coche	FAIL	3	3	4	3	3	2	4	El escenario NO es production-ready; aunque el sistema escala y ejecuta la tarea, falla en la precisión de los datos (precio mal interpretado), tiene latencias 

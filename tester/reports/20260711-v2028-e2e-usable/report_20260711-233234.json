@@ -1,0 +1,224 @@
+{
+  "stamp": "20260711-233234",
+  "results": [
+    {
+      "scenario": "memory",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Felix, soy Zaelar, tu asistente personal. ¿Qué necesitas ahora?",
+            "at": 1783805477.41
+          },
+          {
+            "who": "tester",
+            "text": "No, espera. Soy Alex. Felix es mi amigo. Por favor, dime la hora.",
+            "at": 1783805479.15
+          },
+          {
+            "who": "zaelar",
+            "text": "Son las 23:31.",
+            "at": 1783805491.85,
+            "latency_ms": 2542
+          },
+          {
+            "who": "tester",
+            "text": "Genial, gracias. Recuerda que el coche está en el taller hasta el viernes.",
+            "at": 1783805493.41
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, dame un momento que lo miro.",
+            "at": 1783805505.57,
+            "latency_ms": 3079
+          },
+          {
+            "who": "tester",
+            "text": "Claro, tómalo todo el tiempo que necesites.",
+            "at": 1783805505.99
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, dame un momento que lo miro.",
+            "at": 1783805516.57,
+            "latency_ms": 2595
+          },
+          {
+            "who": "tester",
+            "text": "Por supuesto, toma tu tiempo.",
+            "at": 1783805517.21
+          },
+          {
+            "who": "zaelar",
+            "text": "Entendido, Alex. Tu coche está en el taller hasta el viernes. Hecho. El dato ya está guardado como píldora durable en memoria de largo plazo:\nAparece en el recall y el FlashBrain la ve en el ESTADO cuando toca. No hace falta reforzarla — ya está fijada.",
+            "at": 1783805528.56,
+            "latency_ms": 2694
+          },
+          {
+            "who": "tester",
+            "text": "Perfecto, Alex. Ahora, ¿sabes dónde está mi coche?",
+            "at": 1783805529.69
+          },
+          {
+            "who": "zaelar",
+            "text": "De hecho, el",
+            "at": 1783805535.82
+          },
+          {
+            "who": "tester",
+            "text": "Lo siento, no entendí eso bien. ¿Dónde está tu coche? ¿En el taller o ya está listo para usarlo?",
+            "at": 1783805539.17
+          },
+          {
+            "who": "zaelar",
+            "text": "Sí, Alex, tu coche está en el taller hasta el viernes. Sí, Alex, tu coche está en el taller hasta el",
+            "at": 1783805548.7
+          }
+        ],
+        "latency_ms": {
+          "n": 4,
+          "avg": 2728,
+          "max": 3079,
+          "samples": [
+            2542,
+            3079,
+            2595,
+            2694
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:show:clock"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Felix, soy Zaelar, tu asistente personal. ¿Qué necesitas ahora?",
+            "⚡ Nucleo(flash): prompt: No espeja, soy Alex, Fenix es mi amigo, por favor, dime la hora.",
+            "⚡ Nucleo(flash): reply: Son las 23:31.",
+            "⚡ Nucleo(flash): prompt: Genial, gracias. Recuerda que el coche está en el taller hasta el viernes.",
+            "⚡ Nucleo(flash): reply: Vale, dame un momento que lo miro.",
+            "🧭 Flash → SlowBrain (escalada registrada): Guarda en memoria de largo plazo permanente que el coche del operador Alex está en el taller hasta el viernes. El operad",
+            "⚡ Nucleo(flash): prompt: Claro, tómalo todo el tiempo que necesites.",
+            "⚡ Nucleo(flash): reply: Vale, dame un momento que lo miro.",
+            "🧭 Flash → SlowBrain (escalada registrada): Guarda en memoria de largo plazo permanente que el coche de Alex está en el taller hasta este viernes.",
+            "⚡ Nucleo(flash): prompt: Por su Faisto, toma tu tiempo.",
+            "⚡ Nucleo(flash): reply: Entendido, Alex. Tu coche está en el taller hasta el viernes.",
+            "🧭 Flash → SlowBrain (escalada registrada): Guarda en memoria de largo plazo permanente que el coche de Alex está en el taller hasta el viernes.",
+            "📩 system note → FlashBrain: [SISTEMA] SlowBrain · Tarea completada: Hecho. El dato ya está guardado como píldora durable en memoria de largo plazo:",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] SlowBrain · Tarea completada: Hecho. El dato ya está guardado como píldora durable en memoria de largo plazo:",
+            "⚡ Nucleo(flash): reply: Sí, Alex, tu coche está en el taller hasta el viernes.",
+            "📩 system note → FlashBrain: [SISTEMA] SlowBrain · Tarea completada: Hecho. Guardado como hecho durable en memoria de largo plazo:\n\n- **Dato**: El co",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] SlowBrain · Tarea completada: Hecho. Guardado como hecho durable en memoria de largo plazo:\n\n- **Dato**: El co"
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 24,
+            "bot_speech": 24,
+            "brain": 19,
+            "memory": 76,
+            "timing": 7,
+            "metric": 188,
+            "tts": 10,
+            "transcript": 14,
+            "vad": 14,
+            "stt": 7,
+            "widget": 1,
+            "task": 6,
+            "notify": 3,
+            "session": 1
+          },
+          "n_events": 395
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 2,
+          "coherencia": 1,
+          "utilidad": 3,
+          "accion": 4,
+          "latencia": 3,
+          "robustez": 2
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn2",
+            "problema": "El bot repite exactamente la misma frase 'Vale, dame un momento que lo miro' en dos turnos consecutivos.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn4",
+            "problema": "El sistema leyo un aviso del sistema interno ('SISTEMA: SlowBrain Tarea completada...') literalmente al usuario, rompiendo la cuarta pared.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn5",
+            "problema": "Respuesta truncada 'De hecho, el' que resulta en un cutoff de audio y requiere intervención del usuario.",
+            "gravedad": "media"
+          },
+          {
+            "turno": "zaelar@turn6",
+            "problema": "Repite la frase completa dos veces en el mismo turno: 'Sí, Alex, tu coche está en el taller hasta el viernes. Sí, Alex, tu coche está en el taller hasta el...'",
+            "gravedad": "alta"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Prompt del Cerebro/LLM (System Prompt)",
+            "cambio": "Añadir una directriz estricta para NO repetir frases idénticas de turnos anteriores (estilo 'ngram filtering' o 'no repetitive phrasing').",
+            "porque": "Zaelar repitió 'Vale, dame un momento que lo miro' y duplicó la respuesta final, sonando roto y robótico."
+          },
+          {
+            "area": "Filtro de Inyección de Contexto/FlashBrain",
+            "cambio": "Implementar un parser que elimine o reformule mensajes crudos del sistema (system notes/inner monologue) antes de que lleguen al prompt final de respuesta.",
+            "porque": "El bot leyó literalmente '[SISTEMA] SlowBrain · Tarea completada: Hecho. El dato ya está guardado...', lo cual es un 'leak' interno inaceptable para el usuario."
+          },
+          {
+            "area": "Gestión de Tarea Asíncrona (UI/UX)",
+            "cambio": "Cuando se escala a SlowBrain, enviar un TTS inmediato tipo 'Vale, lo apunto' y cerrar el turno, en lugar de mantener el canal abierto esperando.",
+            "porque": "La latencia acumulada (3079ms) y la incertidumbre hicieron que el usuario repitiera 'Claro, tómalo todo el tiempo', causando confusión y repeticiones del bot."
+          },
+          {
+            "area": "STT / Endpointing",
+            "cambio": "Revisar la sensibilidad de VAD o el tiempo de corte tras el primer 'De hecho, el'.",
+            "porque": "Hubo un cutoff evidente de audio (truncamiento) en la penúltima respuesta, lo que obligó al usuario a preguntar de nuevo."
+          }
+        ],
+        "veredicto": "El escenario NO es production-ready: aunque recordó el dato, el comportamiento está severamente degradado por repeticiones robóticas, filtración de logs internos y problemas de flujo de turno.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Prompt del Cerebro/LLM (System Prompt)",
+      "cambio": "Añadir una directriz estricta para NO repetir frases idénticas de turnos anteriores (estilo 'ngram filtering' o 'no repetitive phrasing').",
+      "porque": "Zaelar repitió 'Vale, dame un momento que lo miro' y duplicó la respuesta final, sonando roto y robótico.",
+      "scenario": "memory",
+      "_sev": 0
+    },
+    {
+      "area": "Filtro de Inyección de Contexto/FlashBrain",
+      "cambio": "Implementar un parser que elimine o reformule mensajes crudos del sistema (system notes/inner monologue) antes de que lleguen al prompt final de respuesta.",
+      "porque": "El bot leyó literalmente '[SISTEMA] SlowBrain · Tarea completada: Hecho. El dato ya está guardado...', lo cual es un 'leak' interno inaceptable para el usuario.",
+      "scenario": "memory",
+      "_sev": 0
+    },
+    {
+      "area": "Gestión de Tarea Asíncrona (UI/UX)",
+      "cambio": "Cuando se escala a SlowBrain, enviar un TTS inmediato tipo 'Vale, lo apunto' y cerrar el turno, en lugar de mantener el canal abierto esperando.",
+      "porque": "La latencia acumulada (3079ms) y la incertidumbre hicieron que el usuario repitiera 'Claro, tómalo todo el tiempo', causando confusión y repeticiones del bot.",
+      "scenario": "memory",
+      "_sev": 0
+    },
+    {
+      "area": "STT / Endpointing",
+      "cambio": "Revisar la sensibilidad de VAD o el tiempo de corte tras el primer 'De hecho, el'.",
+      "porque": "Hubo un cutoff evidente de audio (truncamiento) en la penúltima respuesta, lo que obligó al usuario a preguntar de nuevo.",
+      "scenario": "memory",
+      "_sev": 0
+    }
+  ]
+}

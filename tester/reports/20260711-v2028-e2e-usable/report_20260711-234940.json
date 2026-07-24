@@ -1,0 +1,141 @@
+{
+  "stamp": "20260711-234940",
+  "results": [
+    {
+      "scenario": "archivos",
+      "channel": "paste",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Alex, soy zaelar, tu asistente. ¿En qué te ayudo?",
+            "at": 1783806540.49
+          },
+          {
+            "who": "tester",
+            "text": "Te pego una nota, resúmemela en una línea: No, yo soy Alex yZaelar es mi asistente. ¿Podrías decirme cuál es el tiempo hoy? Además hoy saqué al perro, pagué dos facturas y reservé un vuelo a Lisboa para el mes que viene.",
+            "at": 1783806547.1
+          },
+          {
+            "who": "zaelar",
+            "text": "Resumen: Alex recuerda que Zaelar es su asistente y pregunta por el tiempo de hoy.",
+            "at": 1783806553.59,
+            "latency_ms": 2136
+          },
+          {
+            "who": "tester",
+            "text": "Te pego una nota, resúmemela en una línea: ¿Puedes decirme cómo está el tiempo hoy, Zaelar? Además hoy saqué al perro, pagué dos facturas y reservé un vuelo a Lisboa para el mes que viene.",
+            "at": 1783806563.58
+          },
+          {
+            "who": "zaelar",
+            "text": "Resumen: Alex recuerda que Zaelar es su asistente y pregunta por el tiempo de hoy.",
+            "at": 1783806565.37
+          },
+          {
+            "who": "tester",
+            "text": "Te pego una nota, resúmemela en una línea: ¿Podrías mostrarme el clima de hoy, Zaelar? Además hoy saqué al perro, pagué dos facturas y reservé un vuelo a Lisboa para el mes que viene.",
+            "at": 1783806571.82
+          },
+          {
+            "who": "zaelar",
+            "text": "Resumen: Alex pregunta por el tiempo de hoy y menciona que sacó al perro, pagó facturas y reservó vuelo a Lisboa.",
+            "at": 1783806574.81
+          }
+        ],
+        "latency_ms": {
+          "n": 1,
+          "avg": 2136,
+          "max": 2136,
+          "samples": [
+            2136
+          ]
+        },
+        "trace": {
+          "frontend_actions": [],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Alex, soy zaelar, tu asistente. ¿En qué te ayudo?",
+            "📥 chat/paste recibido: Te pego una nota, resúmemela en una línea: No, yo soy Alex yZaelar es mi asistente. ¿Podrías decirme cuál es el tiempo h",
+            "⚡ Nucleo(flash): prompt: Te pego una nota, resúmemela en una línea: No, yo soy Alex yZaelar es mi asistente. ¿Podrías decirme cuál es el tiempo h",
+            "⚡ Nucleo(flash): reply: Resumen: Alex recuerda que Zaelar es su asistente y pregunta por el tiempo de hoy.",
+            "📥 chat/paste recibido: Te pego una nota, resúmemela en una línea: ¿Puedes decirme cómo está el tiempo hoy, Zaelar? Además hoy saqué al perro, p",
+            "⚡ Nucleo(flash): prompt: Te pego una nota, resúmemela en una línea: ¿Puedes decirme cómo está el tiempo hoy, Zaelar? Además hoy saqué al perro, p",
+            "⚡ Nucleo(flash): reply: Resumen: Alex pregunta por el tiempo de hoy y menciona que sacó al perro, pagó facturas y reservó vuelo a Lisboa.",
+            "📥 chat/paste recibido: Te pego una nota, resúmemela en una línea: ¿Podrías mostrarme el clima de hoy, Zaelar? Además hoy saqué al perro, pagué",
+            "⚡ Nucleo(flash): prompt: Te pego una nota, resúmemela en una línea: ¿Podrías mostrarme el clima de hoy, Zaelar? Además hoy saqué al perro, pagué",
+            "🔎 búsqueda web: tiempo hoy Madrid"
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 11,
+            "bot_speech": 11,
+            "brain": 12,
+            "memory": 33,
+            "timing": 4,
+            "metric": 90,
+            "tts": 4,
+            "transcript": 3,
+            "search": 1,
+            "session": 1
+          },
+          "n_events": 171
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturallez": 3,
+          "coherencia": 4,
+          "utilidad": 4,
+          "accion": 1,
+          "latencia": 5,
+          "robustez": 4
+        },
+        "overall": 3,
+        "findings": [
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Fallo crítico de Retrieva: El asistente responde al texto inyectado pero 'olvida' la información inmediatamente después.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn4",
+            "problema": "Halucinación de memoria: Zaelar dice haber sacado al perro y pagado facturas (acciones pasadas del usuario que debía recordar), pero luego es incapaz de recuperarlas bajo demanda.",
+            "gravedad": "alta"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "brain memory / episodic retrieval",
+            "cambio": "Implementar un paso de 'commit' a memoria episódica post-procesamiento del paste, forzando el almacenamiento de entidades clave (hechos, fechas) antes de generar la respuesta verbal.",
+            "porque": "La traza muestra actividad de 'memory' pero los datos no persisten disponibles para turnos siguientes; el modelo prioriza la respuesta inmediata sobre el almacenamiento duradero."
+          },
+          {
+            "area": "brain / prompt engineering",
+            "cambio": "Ajustar el prompt del sistema para distinguir explícitamente entre 'Resumir' (tarea actual) y 'Registrar' (tarea implícita) al recibir entradas por chat/paste.",
+            "porque": "Zaelar actúa como un procesador de transmisiones 'fire-and-forget' (disparar y olvidar) en lugar de un asistente con estado de memoria a largo plazo."
+          }
+        ],
+        "veredicto": "No es production-ready para escenarios de memoria: el fallo en retención de datos pegados es un bloqueador absoluto para la utilidad prometida.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "brain memory / episodic retrieval",
+      "cambio": "Implementar un paso de 'commit' a memoria episódica post-procesamiento del paste, forzando el almacenamiento de entidades clave (hechos, fechas) antes de generar la respuesta verbal.",
+      "porque": "La traza muestra actividad de 'memory' pero los datos no persisten disponibles para turnos siguientes; el modelo prioriza la respuesta inmediata sobre el almacenamiento duradero.",
+      "scenario": "archivos",
+      "_sev": 0
+    },
+    {
+      "area": "brain / prompt engineering",
+      "cambio": "Ajustar el prompt del sistema para distinguir explícitamente entre 'Resumir' (tarea actual) y 'Registrar' (tarea implícita) al recibir entradas por chat/paste.",
+      "porque": "Zaelar actúa como un procesador de transmisiones 'fire-and-forget' (disparar y olvidar) en lugar de un asistente con estado de memoria a largo plazo.",
+      "scenario": "archivos",
+      "_sev": 0
+    }
+  ]
+}

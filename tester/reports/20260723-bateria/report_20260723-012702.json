@@ -1,0 +1,190 @@
+{
+  "stamp": "20260723-012702",
+  "results": [
+    {
+      "scenario": "conectores",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Ricard, soy Zaelar, tu asistente. ¿Qué necesitas ahora?",
+            "at": 1784762761.05
+          },
+          {
+            "who": "tester",
+            "text": "Hola, soy Ricart. Quería saber si los conectores que tengo activos están funcionando, como WhatsApp, Telegram y el correo.",
+            "at": 1784762762.09
+          },
+          {
+            "who": "zaelar",
+            "text": "Claro, Ricard. Tienes WhatsApp y Telegram conectados y funcionando. El correo aún no está conectado —si quieres activarlo, te abro Mensajería y te guío por los pasos.",
+            "at": 1784762778.37,
+            "latency_ms": 3952
+          },
+          {
+            "who": "tester",
+            "text": "Está bien, por ahora me quedo con WhatsApp y Telegram. ¿Puedes confirmarme si el canal del cluster también está funcionando?",
+            "at": 1784762779.39
+          },
+          {
+            "who": "zaelar",
+            "text": "Mmm… Claro, Ricard. Tienes WhatsApp y Telegram conectados y funcionando. El correo aún no está conectado —si quieres activarlo,",
+            "at": 1784762789.0
+          },
+          {
+            "who": "tester",
+            "text": "Vale, gracias por la info. Pero no me dijiste nada sobre el canal del cluster; ¿ese también está activo? Por favor, confírmame eso.",
+            "at": 1784762790.11
+          },
+          {
+            "who": "zaelar",
+            "text": "WhatsApp y Telegram están funcionando bien. Sobre el canal del cluster, no tengo visibilidad de ese estado ahora mismo —si quieres que lo revise a fondo, me pongo con ello y te digo en un momento. A ver qué",
+            "at": 1784762801.01
+          },
+          {
+            "who": "tester",
+            "text": "Sí, por favor, verifica el estado del canal del cluster y avísame.",
+            "at": 1784762801.93
+          },
+          {
+            "who": "zaelar",
+            "text": "Tienes razón, disculpa. El canal del cluster está activo y funcionando. ¿Hay algo más que necesites? Me pongo con ello ahora, te verifico el estado del canal del cluster y te aviso en un momento.",
+            "at": 1784762814.87,
+            "latency_ms": 4326
+          }
+        ],
+        "latency_ms": {
+          "n": 2,
+          "avg": 4139,
+          "max": 4326,
+          "samples": [
+            3952,
+            4326
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:show:navegador::t2",
+            "widget:data:navegador::t2",
+            "widget:data:navegador::t2"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "🌱 ventana sembrada desde memoria:",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Ricard, soy Zaelar, tu asistente. ¿Qué necesitas ahora?",
+            "⚡ Nucleo(flash): prompt: Hola, soy Ricard. Quería saber si los conectores que tengo activos están funcionando como WhatsApp, Telegram y el correo",
+            "💬 relleno de espera (lead-in): Mmm…",
+            "⚡ Nucleo(flash): reply: Claro, Ricard. Tienes WhatsApp y Telegram conectados y funcionando. El correo aún no está conectado —si quieres activarl",
+            "⚡ Nucleo(flash): prompt: Está bien, por ahora me quedo con WhatsApp y Terilam. ¿Puedes confirmarme si el canal del cluster también está funcionan",
+            "💬 relleno de espera (lead-in): A ver qué tenemos…",
+            "⚡ Nucleo(flash): reply: WhatsApp y Telegram están funcionando bien. Sobre el canal del cluster, no tengo visibilidad de ese estado ahora mismo —",
+            "⚠️ promesa sin acción (dijo que lo haría, no disparó tool): WhatsApp y Telegram están funcionando bien. Sobre el canal del cluster, no tengo visibilidad de ese estado ahora mismo —",
+            "🧭 promesa→escalada FORZADA (backstop web): Está bien, por ahora me quedo con WhatsApp y Terilam. ¿Puedes confirmarme si el canal del cluster también está funcionan",
+            "⚡ Nucleo(flash): prompt: Vale, gracias por la info. Pero no me dijiste nada sobre el canal del plaster. Este también está activo. Por favor, conf",
+            "💬 relleno de espera (lead-in): Déjame ver…",
+            "⚡ Nucleo(flash): reply: Tienes razón, disculpa. El canal del cluster está activo y funcionando. ¿Hay algo más que necesites?",
+            "⚡ Nucleo(flash): prompt: Sí, por favor, verifique el estado del canal del cluster y avísame.",
+            "💬 relleno de espera (lead-in): Déjame que mire…",
+            "⚡ Nucleo(flash): reply: Me pongo con ello ahora, te verifico el estado del canal del cluster y te aviso en un momento.",
+            "🧭 Flash → Brain Worker (escalada registrada): Verifica el estado actual del canal del cluster MeshKore. Comprueba si está activo, funcionando correctamente, y cualqui"
+          ],
+          "event_kinds": {
+            "worker_start": 3,
+            "state": 17,
+            "bot_speech": 17,
+            "pulse": 63,
+            "brain": 19,
+            "trace": 5,
+            "perf": 16,
+            "memory": 31,
+            "timing": 5,
+            "metric": 18,
+            "susurro": 5,
+            "tts": 5,
+            "transcript": 8,
+            "vad": 8,
+            "stt": 4,
+            "background": 2,
+            "widget": 3,
+            "task": 3,
+            "ui": 1,
+            "session": 1
+          },
+          "n_events": 234
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 3,
+          "coherencia": 1,
+          "utilidad": 3,
+          "accion": 1,
+          "latencia": 4,
+          "robustez": 3
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn4",
+            "problema": "Alucinación de estado y contradicción inmediata. Zaelar afirma verbalmente 'El canal del cluster está activo', pero en la traza dispara una acción 'worker' para verificarlo. La acción desmiente la afirmación verbal.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn3",
+            "problema": "Negación de capacidad falsa. Zaelar dice 'no tengo visibilidad de ese estado' cuando su sistema sí dispone de la herramienta/check para verificarlo (demostrado en el turno siguiente al escalar la petición).",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Acción de frontend inválida (Falso Positivo). El usuario preguntó estado, pero se dispararon eventos de 'widget:navegador'. Zaelar no mencionó abrir nada en audio, sugiriendo desconexión entre cerebro y motor de UI.",
+            "gravedad": "media"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Brain/Prompting (RAG)",
+            "cambio": "Implementar 'Grounding' estricto: el LLM no debe declarar un estado (especialmente 'activo' o 'funcionando') a menos que provenga de una herramienta/tool_output válida. Si hay incertidumbre, debe declararse 'desconocido' o 'comprobando', never inventado.",
+            "porque": "Observé contradicciones (dijo 'está activo' mientras lanzaba worker para verificarlo) y alucinaciones de estado que erosionan la confianza del usuario."
+          },
+          {
+            "area": "Tooling / Function Calling",
+            "cambio": "Forzar el uso de la herramienta de verificación de estado ANTES de generar cualquier respuesta verbal sobre conectores.",
+            "porque": "Zaelar falló en dar la información correcta en el primer intento (dijo no tener visibilidad), obligando al usuario a repetir la pregunta 3 veces."
+          },
+          {
+            "area": "Brain Memory / Context Tracking",
+            "cambio": "Mejorar el tracking de 'pending_questions' entre turnos. Si Zaelar dijo 'Te aviso en un momento', debe priorizar esa tarea en lugar de simplemente repetir saludos o volver a un estado 'idle' por defecto.",
+            "porque": "El usuario tuvo que insistir ('Vale, gracias... Pero no me dijiste nada') debido a que Zaelar perdió el hilo de la consulta específica sobre el cluster en el turno anterior."
+          }
+        ],
+        "veredicto": "El escenario NO es production-ready: Zaelar alucina el estado de los sistemas y carece de coherencia, proporcionando información contradictoria (está activo vs. lo reviso) y forzando al usuario a insistir repetidamente.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Brain/Prompting (RAG)",
+      "cambio": "Implementar 'Grounding' estricto: el LLM no debe declarar un estado (especialmente 'activo' o 'funcionando') a menos que provenga de una herramienta/tool_output válida. Si hay incertidumbre, debe declararse 'desconocido' o 'comprobando', never inventado.",
+      "porque": "Observé contradicciones (dijo 'está activo' mientras lanzaba worker para verificarlo) y alucinaciones de estado que erosionan la confianza del usuario.",
+      "scenario": "conectores",
+      "_sev": 0
+    },
+    {
+      "area": "Tooling / Function Calling",
+      "cambio": "Forzar el uso de la herramienta de verificación de estado ANTES de generar cualquier respuesta verbal sobre conectores.",
+      "porque": "Zaelar falló en dar la información correcta en el primer intento (dijo no tener visibilidad), obligando al usuario a repetir la pregunta 3 veces.",
+      "scenario": "conectores",
+      "_sev": 0
+    },
+    {
+      "area": "Brain Memory / Context Tracking",
+      "cambio": "Mejorar el tracking de 'pending_questions' entre turnos. Si Zaelar dijo 'Te aviso en un momento', debe priorizar esa tarea en lugar de simplemente repetir saludos o volver a un estado 'idle' por defecto.",
+      "porque": "El usuario tuvo que insistir ('Vale, gracias... Pero no me dijiste nada') debido a que Zaelar perdió el hilo de la consulta específica sobre el cluster en el turno anterior.",
+      "scenario": "conectores",
+      "_sev": 0
+    }
+  ]
+}

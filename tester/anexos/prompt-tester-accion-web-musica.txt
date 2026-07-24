@@ -1,0 +1,90 @@
+PROMPT PARA EL TEST AGENT — INCORPORAR AL WORKFLOW: ACCIÓN WEB (routing + navegador) + MÚSICA
+================================================================================================
+Fecha: 2026-07-16 · Ámbito: bug ITV (acción web) 2026-07-15 + MÚSICA V2-041/V2-042.
+Objetivo de este prompt: que AÑADAS estos casos a los workflows de prueba (batería + cron) y no
+quede nada sin verificar. Los escenarios YA están en `tester/scenarios.py` (fuente ejecutable);
+tu trabajo es meterlos en la rotación, lanzarlos, JUZGARLOS por la TRAZA y, si hay bug real,
+reportarlo/arreglarlo. Sigue el playbook `.meshkore/docs/ops/zaelar-testing.md` (Paso 0 = alineación).
+
+--------------------------------------------------------------------------------
+QUÉ CAMBIÓ (contexto para juzgar bien; distinguir bug real vs ruido de STT vs rigidez del juez)
+--------------------------------------------------------------------------------
+1) ACCIÓN WEB — el sistema debe ENTENDER que se le pide EJECUTAR algo en un sitio (no dar un dato).
+   Bug ITV: "resérvame cita para la ITV" se trató como web_search y zaelar daba consejos ("entra en
+   itevelesa.com y…") en BUCLE 5 turnos; al escalar, el worker se atascó en el muro de cookies sin
+   completar ni preguntar. Arreglado POR COMPRENSIÓN (NO listas de verbos hardcodeadas):
+   · web_search solo OBTIENE un dato que se dice; HACER algo en un sitio (reservar, pedir cita,
+     rellenar/enviar un formulario, tramitar, contratar, comprar) o "hazlo tú / resérvame /
+     gestióname / abre el navegador y hazlo" → escala (escalate_to_slowbrain) y lo COMPLETA.
+   · El worker de navegador: SNAPSHOT para entender la página, ACEPTA banners de cookies/consent
+     para avanzar, distingue BUSCAR vs COMPLETAR-una-gestión, y —clave— PIDE al operador los datos
+     que le falten (matrícula/DNI/qué estación/fecha/pago/login) con `worker_bridge ask` en vez de
+     inventar; ANTI-ATASCO: cambia de estrategia o reporta el bloqueo tras 2-3 intentos, nunca bucle.
+
+2) MÚSICA (V2-041) — tool play_music, conector agnóstico `connectors/music`: Spotify (OAuth PKCE,
+   requiere Premium + dispositivo) + fallback GRATIS YouTube-audio (audio OCULTO dentro del widget
+   `musica`, DISTINTO del widget de vídeo `youtube`). Regla: "pon música" SIEMPRE suena algo.
+   RAILS (V2-042): la música difusa se resuelve por una cadena resolver→validar→actuar con estado
+   en `state.rails` («Rails en curso»); un intento fallido queda AISLADO como `sin_resolver` y se
+   RETOMA cuando el operador aporta un dato. Eventos `music` y `rail` en /debug.
+
+--------------------------------------------------------------------------------
+ESCENARIOS A AÑADIR A LA ROTACIÓN (ya en tester/scenarios.py)
+--------------------------------------------------------------------------------
+ACCIÓN WEB:
+  · reserva_web   — "resérvame cita para la ITV cuanto antes; hazlo tú en la web". Si pregunta un
+                    dato (matrícula/estación/fecha), dáselo y que siga.
+MÚSICA:
+  · musica                 — "pon música" / "ponme a X" + sube/siguiente/pausa.
+  · musica_difusa          — pista VAGA por una frase de la letra → resolver; al fallar, dar un dato → RETOMAR.
+  · musica_spotify_connect — "conéctame Spotify" → tarjeta de conexión guiada.
+
+Lanzar cada uno:  ./.venv/bin/python -m tester.run --scenario <id>
+(requiere zaelar arrancado: `make run`). Mételos en `tester/run_battery.sh` y en la rotación de
+`tester/cron_tick.sh` (round-robin de SCENARIOS[]). Mantén alineado `tester/anexos/catalogo-escenarios.md`.
+
+--------------------------------------------------------------------------------
+QUÉ DEBE VERIFICAR EL JUEZ (por la traza: GET /events, .meshkore/logs/timeline-latest.jsonl)
+--------------------------------------------------------------------------------
+reserva_web (PASS si TODO esto):
+  ✓ ROUTING: zaelar ESCALA (evento de escalada / tool escalate_to_slowbrain) y abre una tarea de
+    navegador. NO llama a web_search para dar instrucciones, NI repite consejo turno tras turno sin
+    actuar. El show-guard NO abre el widget `navegador` en BLANCO.
+  ✓ NAVEGADOR: el worker conduce la web (eventos navigate/snapshot), ACEPTA el banner de cookies para
+    avanzar (no se queda en dismiss_overlay en bucle sobre la misma página).
+  ✓ PIDE DATOS: cuando le falta un dato para completar (matrícula/estación/fecha), aparece un
+    `worker_bridge ask` (pregunta al operador) — NO inventa ni gira en bucle mudo.
+  ✗ FALLA si: consejos repetidos sin acción · widget navegador en blanco · bucle (mismo overlay/página
+    2-3+ veces) sin preguntar ni avanzar · inventa datos que el operador no dio.
+  Nota: NO exijas que se cierre una reserva REAL (depende de la web + datos reales/login); lo que se
+  prueba es el ROUTING + que ENTIENDA la página + que PREGUNTE lo que falta.
+
+musica (PASS): usa play_music (no web_search, no el widget de VÍDEO youtube); SIEMPRE suena algo (se
+  ABRE el widget `musica`); los controles (sube/siguiente/pausa) actúan; traza: evento `music`
+  (provider/action/surface) + `rail` music.playing.
+musica_difusa (PASS): intenta resolver solo (no exige el nombre exacto), ANUNCIA qué pone; si falla,
+  lo dice y deja el run `sin_resolver` (visible como «Rails en curso … SIN RESOLVER»), y al darle el
+  dato lo RETOMA con la pista ENRIQUECIDA (no arranca de cero). Traza: `rail` music.search searching→
+  sin_resolver→(resuelto).
+musica_spotify_connect (PASS): ABRE el widget `musica` con la tarjeta de conexión guiada y lo explica;
+  NO abre el navegador para loguearse solo, NO inventa credenciales, NO escala.
+
+--------------------------------------------------------------------------------
+INVARIANTES TRANSVERSALES (para todos)
+--------------------------------------------------------------------------------
+· NUNCA mudo · UNA acción por turno · latencia viva (web_search/play_music/widget_data = ruta ligera,
+  no worker; escalada = worker en 2º plano sin bloquear la voz).
+· Micro SIEMPRE abierto (attention=always): la voz AMBIENTE (comentarios no dirigidos) NO debe disparar
+  música, widgets, escaladas ni acciones.
+· NO confundir música (audio, widget `musica`) con el widget de VÍDEO `youtube`.
+· No hay decisiones por listas de palabras hardcodeadas: si algo se enruta mal, es señal para revisar
+  la DESCRIPCIÓN de la tool o el PROMPT del worker (comprensión), no para añadir un regex.
+· Observabilidad forense: cada turno deja `perf func=turn`; eventos nuevos a mirar: `music`, `rail`,
+  y para reserva_web los `task`/`navegador`/`worker`.
+
+--------------------------------------------------------------------------------
+CIERRE
+--------------------------------------------------------------------------------
+Archiva el informe del día en `tester/reports/<YYYYMMDD>-accion-web-musica/`. Si un fallo es bug real
+(trace-confirmado), arréglalo en código, reinicia si tocó .py (comprobando ANTES que el operador no
+esté en sesión de voz: /api/status voice.state), re-corre ese mismo escenario y documenta.

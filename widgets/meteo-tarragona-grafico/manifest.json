@@ -1,0 +1,9 @@
+{
+  "id": "meteo-tarragona-grafico",
+  "version": "0.1.0",
+  "title": "Meteo Tarragona — 14 días (12h / 18h)",
+  "description": "Gráfico de previsión de temperatura en Tarragona para los próximos 14 días, con los valores a las 12 h y a las 18 h.",
+  "whenToUse": "Cuando el usuario pide la previsión de Tarragona a varios días, el gráfico de temperaturas, o cómo evolucionan los grados a mediodía y por la tarde durante las próximas dos semanas.",
+  "keywords": ["tarragona", "gráfico", "grafico", "previsión", "prevision", "14 días", "14 dias", "dos semanas", "mediodía", "mediodia", "12h", "18h", "tarde", "evolución", "evolucion", "temperaturas tarragona"],
+  "entry": "widget.js"
+}

@@ -1,0 +1,247 @@
+"""nucleo/scheduler.py — cron PROPIO del cerebro v2 (V2-005 · T71).
+
+Sustituye al **cron nativo de Hermes** (`brains/hermes/cron.py`, que muere con Hermes en V2-009). Las tareas
+programadas se **persisten en `memory.journal`** (continuidad tras reinicio) y las dispara el loop orquestador
+(`nucleo/loop.py`, ~1 Hz). No hay proceso ni binario externo: el disparo y la entrega viven en NUESTRO proceso.
+
+Formatos de `schedule` (mismos que enseñaba el brief de cron, agnósticos del idioma en el parser):
+  - **una vez, relativo**: `"30m"`, `"2h"`, `"1d"`, `"45s"` (también `"en 30m"`, `"in 2h"`, `"+1h"`).
+  - **recurrente por intervalo**: `"every 30m"`, `"cada 2h"`.
+  - **cron 5-campos**: `"0 9 * * *"` (min hora dom mes dow; soporta `* , - /`).
+
+El scheduler NO ejecuta un agente por tarea (Hermes lo hacía): entrega el `prompt` de la tarea por los raíles
+proactivos (voz + UI), que es lo que necesita un recordatorio. Una tarea con condición/razonamiento se escala
+al SlowBrain (V2-006/007); hasta entonces el prompt se entrega tal cual (recordatorio autocontenido).
+"""
+from __future__ import annotations
+
+import re
+import time
+
+from memory import journal as _journal
+
+_KIND = "scheduled"
+
+# Unidades de tiempo → segundos (parser agnóstico del idioma).
+_UNIT_S = {"s": 1, "sec": 1, "m": 60, "min": 60, "h": 3600, "hr": 3600, "d": 86400, "day": 86400}
+
+_RE_EVERY = re.compile(r"^(?:every|cada)\s+(\d+)\s*(s|sec|m|min|h|hr|d|day)s?$", re.I)
+_RE_ONCE = re.compile(r"^(?:in\s+|en\s+|\+)?(\d+)\s*(s|sec|m|min|h|hr|d|day)s?$", re.I)
+
+
+# ── parseo del schedule ──────────────────────────────────────────────────────────────────────────────────
+def parse_schedule(spec: str, now: float | None = None) -> dict | None:
+    """Devuelve un dict de schedule normalizado (con `next_run` en epoch) o None si no se reconoce."""
+    now = time.time() if now is None else now
+    s = (spec or "").strip()
+    if not s:
+        return None
+    m = _RE_EVERY.match(s)
+    if m:
+        iv = int(m.group(1)) * _UNIT_S[m.group(2).lower()]
+        if iv <= 0:
+            return None
+        return {"type": "interval", "interval_s": iv, "next_run": int(now + iv),
+                "display": f"cada {m.group(1)}{m.group(2).lower()}"}
+    m = _RE_ONCE.match(s)
+    if m:
+        iv = int(m.group(1)) * _UNIT_S[m.group(2).lower()]
+        if iv <= 0:
+            return None
+        return {"type": "once", "interval_s": iv, "next_run": int(now + iv),
+                "display": f"en {m.group(1)}{m.group(2).lower()}"}
+    if len(s.split()) == 5:
+        nr = next_cron(s, now)
+        if nr is not None:
+            return {"type": "cron", "cron": s, "next_run": int(nr), "display": s}
+    return None
+
+
+def _advance(sch: dict, fired_at: float) -> dict | None:
+    """Recalcula `next_run` tras un disparo. `once` → None (se cierra). Recurrente → siguiente ocurrencia."""
+    t = sch.get("type")
+    if t == "once":
+        return None
+    if t == "interval":
+        sch = dict(sch)
+        sch["next_run"] = int(fired_at + sch["interval_s"])
+        return sch
+    if t == "cron":
+        nr = next_cron(sch["cron"], fired_at)
+        if nr is None:
+            return None
+        sch = dict(sch)
+        sch["next_run"] = int(nr)
+        return sch
+    return None
+
+
+# ── cron 5-campos (min hora dom mes dow) ─────────────────────────────────────────────────────────────────
+_FIELD_BOUNDS = [(0, 59), (0, 23), (1, 31), (1, 12), (0, 6)]  # dow: 0=domingo
+
+
+def _parse_field(field: str, lo: int, hi: int) -> set[int] | None:
+    """Expande un campo cron a un conjunto de valores permitidos. None si es inválido."""
+    out: set[int] = set()
+    for part in field.split(","):
+        part = part.strip()
+        if not part:
+            return None
+        step = 1
+        if "/" in part:
+            base, _, st = part.partition("/")
+            if not st.isdigit() or int(st) <= 0:
+                return None
+            step = int(st)
+            part = base
+        if part in ("*", ""):
+            a, b = lo, hi
+        elif "-" in part:
+            aa, _, bb = part.partition("-")
+            if not (aa.isdigit() and bb.isdigit()):
+                return None
+            a, b = int(aa), int(bb)
+        elif part.isdigit():
+            a = b = int(part)
+        else:
+            return None
+        if a < lo or b > hi or a > b:
+            return None
+        out.update(range(a, b + 1, step))
+    return out or None
+
+
+def _cron_fields(expr: str):
+    parts = expr.split()
+    if len(parts) != 5:
+        return None
+    fields = []
+    for raw, (lo, hi) in zip(parts, _FIELD_BOUNDS):
+        f = _parse_field(raw, lo, hi)
+        if f is None:
+            return None
+        # ¿estaba restringido (no era comodín completo)?
+        restricted = raw.strip() != "*" and not raw.strip().startswith("*/")
+        fields.append((f, restricted, raw.strip()))
+    return fields
+
+
+def next_cron(expr: str, after: float) -> float | None:
+    """Siguiente epoch (>= after+60s, alineado al minuto) que casa la expresión cron. None si no casa en ~1 año
+    o la expresión es inválida. Búsqueda minuto a minuto (acotada) — barata para uso ocasional."""
+    fields = _cron_fields(expr)
+    if fields is None:
+        return None
+    (mins, _, _), (hours, _, _), (doms, dom_r, _), (months, _, _), (dows, dow_r, _) = fields
+    # arranca en el próximo minuto entero tras `after`.
+    t = (int(after) // 60 + 1) * 60
+    cap = t + 366 * 86400
+    while t <= cap:
+        lt = time.localtime(t)
+        # cron: si dom Y dow están restringidos, casa si CUALQUIERA de los dos casa (semántica estándar).
+        dow0 = lt.tm_wday  # lunes=0..domingo=6
+        cron_dow = (dow0 + 1) % 7  # cron: domingo=0..sábado=6
+        dom_ok = lt.tm_mday in doms
+        dow_ok = cron_dow in dows
+        day_ok = (dom_ok or dow_ok) if (dom_r and dow_r) else (dom_ok and dow_ok)
+        if lt.tm_min in mins and lt.tm_hour in hours and lt.tm_mon in months and day_ok:
+            return float(t)
+        t += 60
+    return None
+
+
+# ── CRUD de tareas programadas (respaldado por memory.journal) ───────────────────────────────────────────
+def create(prompt: str, schedule: str, name: str = "", repeat: str = "",
+           now: float | None = None) -> dict:
+    """Programa una tarea. Devuelve {'ok':bool,'id':int|None,'schedule':dict|None,'error':str|None,'display':str}."""
+    now = time.time() if now is None else now
+    # `repeat` heredado del brief de Hermes: si viene, fuerza recurrencia por intervalo.
+    spec = schedule
+    if repeat and not _RE_EVERY.match((schedule or "").strip()):
+        spec = f"every {repeat}"
+    sch = parse_schedule(spec, now=now)
+    if sch is None:
+        return {"ok": False, "id": None, "schedule": None,
+                "error": f"schedule no reconocido: {schedule!r}", "display": ""}
+    title = (name or prompt or "recordatorio").strip()[:120]
+    detail = {"kind": _KIND, "schedule": sch, "prompt": (prompt or "").strip(),
+              "name": (name or "").strip(), "fire_count": 0}
+    jid = _journal.add(title, status="pending", detail=detail)
+    return {"ok": True, "id": jid, "schedule": sch, "error": None, "display": sch.get("display", "")}
+
+
+def _scheduled(entries: list[dict]) -> list[dict]:
+    return [e for e in entries if (e.get("detail") or {}).get("kind") == _KIND]
+
+
+def list_jobs(active_only: bool = True) -> list[dict]:
+    """Tareas programadas en una vista amigable (para el brief del cerebro / verificación)."""
+    entries = _journal.list_entries(status="pending" if active_only else None)
+    out = []
+    for e in _scheduled(entries):
+        d = e["detail"]
+        sch = d.get("schedule") or {}
+        out.append({
+            "id": e["id"], "name": d.get("name") or e["title"], "prompt": d.get("prompt") or "",
+            "schedule": sch.get("display") or "", "type": sch.get("type"),
+            "next_run": sch.get("next_run"), "status": e["status"], "fire_count": d.get("fire_count", 0),
+        })
+    return out
+
+
+def for_brain() -> str:
+    """Brief de arranque para el cerebro: las tareas programadas activas (o vacío si no hay). Mismo papel que
+    tenía el brief de cron de Hermes en el kickoff — sin nada que enseñar, no añade ruido al prompt."""
+    jobs = list_jobs(active_only=True)
+    if not jobs:
+        return ""
+    lines = ["[SCHEDULED TASKS — your own reminders/proactive jobs; mention only if relevant]"]
+    for j in jobs[:12]:
+        when = j.get("schedule") or "?"
+        what = (j.get("name") or j.get("prompt") or "recordatorio").strip()
+        lines.append(f"  · {what} — {when}")
+    return "\n".join(lines)
+
+
+def due(now: float | None = None) -> list[dict]:
+    """Tareas programadas VENCIDAS (pending, next_run <= now). Devuelve las entradas de journal (con detail)."""
+    now = time.time() if now is None else now
+    out = []
+    for e in _scheduled(_journal.list_entries(status="pending")):
+        nr = (e["detail"].get("schedule") or {}).get("next_run")
+        if isinstance(nr, (int, float)) and nr <= now:
+            out.append(e)
+    return out
+
+
+def mark_fired(entry: dict, now: float | None = None) -> dict | None:
+    """Marca una tarea como disparada. Una-vez → status='done'. Recurrente → recalcula next_run (sigue pending).
+    Devuelve el schedule nuevo (o None si se cerró)."""
+    now = time.time() if now is None else now
+    d = dict(entry["detail"])
+    sch = d.get("schedule") or {}
+    d["fire_count"] = int(d.get("fire_count", 0)) + 1
+    d["last_fired"] = int(now)
+    nxt = _advance(sch, now)
+    if nxt is None:
+        d["schedule"] = sch
+        _journal.update(entry["id"], status="done", detail=d)
+        return None
+    d["schedule"] = nxt
+    _journal.update(entry["id"], status="pending", detail=d)
+    return nxt
+
+
+def cancel(ref: str) -> bool:
+    """Cancela una tarea por nombre (o id numérico). Devuelve True si canceló alguna."""
+    ref = (ref or "").strip()
+    if not ref:
+        return False
+    hit = False
+    for e in _scheduled(_journal.list_entries(status="pending")):
+        d = e["detail"]
+        if str(e["id"]) == ref or (d.get("name") or "").strip().lower() == ref.lower() \
+                or (e.get("title") or "").strip().lower() == ref.lower():
+            _journal.update(e["id"], status="done", detail=d)
+            hit = True
+    return hit

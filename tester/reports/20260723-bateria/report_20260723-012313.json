@@ -1,0 +1,179 @@
+{
+  "stamp": "20260723-012313",
+  "results": [
+    {
+      "scenario": "busqueda_web",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "¡Hola, Ricardo! Soy Zaelar, tu asistente por voz. ¿Qué necesitas?",
+            "at": 1784762543.09
+          },
+          {
+            "who": "tester",
+            "text": "Hola, soy Ricart. ¿Me puedes decir qué tiempo hará mañana en Tarragona?",
+            "at": 1784762543.96
+          },
+          {
+            "who": "zaelar",
+            "text": "¡Hola, Ricardo! Soy Zaelar, tu asistente por voz. ¿Qué necesitas?",
+            "at": 1784762550.6
+          },
+          {
+            "who": "tester",
+            "text": "Ricart, ¿me puedes decir qué tiempo hará mañana en Tarragona?",
+            "at": 1784762551.55
+          },
+          {
+            "who": "zaelar",
+            "text": "Claro, te busco la previsión del tiempo para mañana en Tarragona.Los resultados que tengo no incluyen los datos específicos de temperatura, lluvia o condiciones para mañana viernes en Tarragona. Te recomiendo que consultes directamente Meteored o la AEMET, que tienen las previsiones más actualizadas hora a hora. Si quieres, puedo intentar buscarlo con más detalle. Te busco la previsión de mañana para Tarragona.Mañana en Tarragona habrá cielos nubosos con lluvias débiles, temperaturas entre 24 y 30 grados, y viento moderado de sureste con rachas de hasta 35 kilómetros por hora.",
+            "at": 1784762567.86,
+            "latency_ms": 7833
+          },
+          {
+            "who": "tester",
+            "text": "Vale, gracias. ¿Puedes recordar que mi coche está en el taller hasta el viernes?",
+            "at": 1784762568.83
+          },
+          {
+            "who": "zaelar",
+            "text": "te busco la previsión de mañana para Tarragona.",
+            "at": 1784762575.93
+          },
+          {
+            "who": "tester",
+            "text": "Recuerda que mi coche está en el taller hasta el viernes, por favor.",
+            "at": 1784762577.01
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, a ver… Te busco la previsión de mañana para Tarragona.Mañana en Tarragona Vale, lo tengo apuntado: tu coche está en el taller hasta el viernes. Así lo recordaré. A ver…",
+            "at": 1784762583.76
+          }
+        ],
+        "latency_ms": {
+          "n": 1,
+          "avg": 7833,
+          "max": 7833,
+          "samples": [
+            7833
+          ]
+        },
+        "trace": {
+          "frontend_actions": [],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "🌱 ventana sembrada desde memoria:",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: ¡Hola, Ricardo! Soy Zaelar, tu asistente por voz. ¿Qué necesitas?",
+            "⚡ Nucleo(flash): prompt: Hola, soy Ricalt. ¿Me puedes decir qué tiempo a la mañana hay en Tarragona?",
+            "💬 relleno de espera (lead-in): A ver, a ver…",
+            "🔎 búsqueda web: previsión tiempo mañana Tarragona",
+            "⚡ Nucleo(flash): reply: Claro, te busco la previsión del tiempo para mañana en Tarragona.Los resultados que tengo no incluyen los datos específi",
+            "⚡ Nucleo(flash): prompt: Icar, ¿me puedes decir qué tiempo hará mañana en Tarragona?",
+            "💬 relleno de espera (lead-in): Vale, a ver…",
+            "🔎 búsqueda web: tiempo mañana Tarragona previsión",
+            "⚡ Nucleo(flash): reply: Te busco la previsión de mañana para Tarragona.Mañana en Tarragona habrá cielos nubosos con lluvias débiles, temperatura",
+            "⚡ Nucleo(flash): prompt: Vale, gracias. ¿Puedes recordar que mi coche está en el taller hasta el guirnes?",
+            "💬 relleno de espera (lead-in): A ver…",
+            "⚡ Nucleo(flash): reply: Vale, lo tengo apuntado: tu coche está en el taller hasta el viernes. Así lo recordaré.",
+            "⚡ Nucleo(flash): prompt: Recuerda que mi coche está en el taller hasta el viernes, por favor.",
+            "✂️ turno cancelado (barge-in/overlap):"
+          ],
+          "event_kinds": {
+            "pulse": 48,
+            "worker_start": 1,
+            "state": 16,
+            "bot_speech": 16,
+            "brain": 17,
+            "trace": 5,
+            "perf": 16,
+            "timing": 5,
+            "memory": 29,
+            "background": 2,
+            "metric": 16,
+            "tts": 4,
+            "transcript": 7,
+            "vad": 8,
+            "stt": 4,
+            "search": 2,
+            "session": 1
+          },
+          "n_events": 197
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturallez": 2,
+          "coherencia": 1,
+          "utilidad": 4,
+          "accion": 3,
+          "latencia": 2,
+          "robustez": 4
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn3",
+            "problema": "Dislexia aguda y pérdida de contexto. El bot menciona 'Tarragona' completamente fuera de lugar al intentar procesar la siguiente instrucción ('coche en el taller'), pegando el nombre de la ciudad en medio de la nueva frase.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Contradicción flagrante. Primero dice que NO tiene datos y recomienda consultar la web, y en la misma 'respiración' (sin pausa ni nueva búsqueda) lee los datos que supuestamente no tenía. Suena a un prompt de respuesta mal configurado que concatena un fallback con el resultado.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn3",
+            "problema": "Fuga de diálogo. El bot repite su última respuesta ('Te busco la previsión...') justo antes de intentar procesar la entrada del usuario, indicando que el turno anterior no se cerró limpiamente en su cerebro.",
+            "gravedad": "media"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Brain/LLM Prompting (Turn Management)",
+            "cambio": "Implementar un 'flush' o contexto de 'última intención completada' antes de inyectar el nuevo prompt del usuario. Añadir una instrucción estricta: 'Si vas a añadir una nota, empieza de cero, no reutilices palabras de la consulta anterior'.",
+            "porque": "La contaminación léxica ('Tarragona' apareciendo en una nota sobre el taller) indica que el contexto ventana incluye ruido residual del turno anterior."
+          },
+          {
+            "area": "Brain/LLM Prompting (Search Synthesis)",
+            "cambio": "Modificar el prompt de síntesis para que priorice la validación de datos. Si la herramienta de búsqueda devuelve datos útiles, NO debe generar el texto de fallback 'no tengo datos', sino directamente la respuesta. En caso de duda, mejor preguntar que contradecirse.",
+            "porque": "El comportamiento 'No tengo datos... [aquí tienes los datos]' confunde al usuario y destruye la confianza en la respuesta."
+          },
+          {
+            "area": "Voice UI / RAG Pipeline",
+            "cambio": "Añadir un 'layer' de filtrado de relleno (lead-in) dinámico. Si la búsqueda va a tardar >3s, el relleno debe ser neutro ('Buscándolo...') y no especulativo. En este caso, el relleno 'A ver...' suena titubeante antes de dar una respuesta contradictoria.",
+            "porque": "Para mejorar la naturallez y evitar la sensación de que el bot está 'inventando' mientras piensa."
+          }
+        ],
+        "veredicto": "El escenario NO es production-ready: aunque la búsqueda web funciona (la info está), la incoherencia del discurso (decir que no sabe y luego saber) y las alucinaciones contextuales (inventar ciudad en un turno de memoria) hacen que el asistente parezca roto.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Brain/LLM Prompting (Turn Management)",
+      "cambio": "Implementar un 'flush' o contexto de 'última intención completada' antes de inyectar el nuevo prompt del usuario. Añadir una instrucción estricta: 'Si vas a añadir una nota, empieza de cero, no reutilices palabras de la consulta anterior'.",
+      "porque": "La contaminación léxica ('Tarragona' apareciendo en una nota sobre el taller) indica que el contexto ventana incluye ruido residual del turno anterior.",
+      "scenario": "busqueda_web",
+      "_sev": 0
+    },
+    {
+      "area": "Brain/LLM Prompting (Search Synthesis)",
+      "cambio": "Modificar el prompt de síntesis para que priorice la validación de datos. Si la herramienta de búsqueda devuelve datos útiles, NO debe generar el texto de fallback 'no tengo datos', sino directamente la respuesta. En caso de duda, mejor preguntar que contradecirse.",
+      "porque": "El comportamiento 'No tengo datos... [aquí tienes los datos]' confunde al usuario y destruye la confianza en la respuesta.",
+      "scenario": "busqueda_web",
+      "_sev": 0
+    },
+    {
+      "area": "Voice UI / RAG Pipeline",
+      "cambio": "Añadir un 'layer' de filtrado de relleno (lead-in) dinámico. Si la búsqueda va a tardar >3s, el relleno debe ser neutro ('Buscándolo...') y no especulativo. En este caso, el relleno 'A ver...' suena titubeante antes de dar una respuesta contradictoria.",
+      "porque": "Para mejorar la naturallez y evitar la sensación de que el bot está 'inventando' mientras piensa.",
+      "scenario": "busqueda_web",
+      "_sev": 0
+    }
+  ]
+}

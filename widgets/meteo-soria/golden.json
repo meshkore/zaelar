@@ -1,0 +1,11 @@
+{
+  "view_data_shape": {
+    "current": "dict",
+    "date": "str",
+    "hours": "list",
+    "location": "str",
+    "now": "str",
+    "source": "str",
+    "summary": "dict"
+  }
+}

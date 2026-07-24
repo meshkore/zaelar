@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>zaelar · debug</title>
+<style>
+  :root{--bg:#070a0f;--panel:#0e131b;--line:#1d2735;--txt:#e7eef7;--muted:#8595a8;--dim:#5b6779;
+        --accent:#5B9DFF;--accent2:#2DD4BF;--risk:#ff5c6c;--warn:#F2B66B;
+        --mono:ui-monospace,SFMono-Regular,Menlo,monospace;--sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--txt);font-family:var(--sans)}
+  header{display:flex;align-items:center;gap:14px;padding:12px 18px;border-bottom:1px solid var(--line);
+         position:sticky;top:0;background:rgba(8,11,16,.85);backdrop-filter:blur(8px);z-index:5;flex-wrap:wrap}
+  .brand{font-weight:700;font-size:16px;display:flex;align-items:center;gap:9px}
+  .logo{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--accent),var(--accent2));
+        display:flex;align-items:center;justify-content:center;font-weight:800;color:#06202a}
+  .meta{font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .spacer{flex:1}
+  .ctl{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  select,button,a.btn{background:var(--panel);border:1px solid var(--line);color:var(--txt);border-radius:8px;
+        padding:7px 11px;font-size:13px;cursor:pointer;text-decoration:none}
+  button.on{border-color:var(--accent2);color:var(--accent2)}
+  .wrap{padding:0 14px 40px}
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{position:sticky;top:53px;text-align:left;color:var(--dim);font-family:var(--mono);font-size:10px;
+     letter-spacing:.1em;text-transform:uppercase;padding:8px 8px;background:var(--bg);border-bottom:1px solid var(--line)}
+  td{padding:6px 8px;border-bottom:1px solid #121a26;vertical-align:top}
+  td.t{font-family:var(--mono);color:var(--dim);white-space:nowrap}
+  td.k{font-family:var(--mono);font-size:11px}
+  .pill{padding:2px 7px;border-radius:999px;border:1px solid var(--line);font-size:10px;font-family:var(--mono);
+        letter-spacing:.06em}
+  .k-brain{color:var(--accent2);border-color:rgba(45,212,191,.4)}
+  .k-transcript,.k-user_speech{color:var(--accent);border-color:rgba(91,157,255,.4)}
+  .k-error{color:var(--risk);border-color:rgba(255,92,108,.5)}
+  .k-tts,.k-bot_speech{color:#c7b3ff;border-color:#2e2a45}
+  .k-session{color:var(--warn);border-color:rgba(242,182,107,.4)}
+  /* model chip: flat/square, NOT a pill — distinct from the k-* kind badges above */
+  .chip{font-family:var(--mono);font-size:9.5px;font-weight:700;border-radius:4px;padding:1px 5px}
+  .eng-local{color:var(--accent2);background:rgba(45,212,191,.14)}
+  .eng-api{color:var(--warn);background:rgba(242,182,107,.14)}
+  .txt{white-space:pre-wrap;word-break:break-word}
+  td.lat{font-family:var(--mono);font-weight:700;text-align:right;color:var(--dim)}
+  td.lat.lat-good{color:#3ecf8e}
+  td.lat.lat-warn{color:var(--warn)}
+  td.lat.lat-bad{color:var(--risk)}
+  .empty{color:var(--dim);text-align:center;padding:40px}
+  .role-user{color:var(--accent)} .role-assistant{color:var(--accent2)}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="logo">h</span>zaelar <span class="meta">· debug</span></div>
+  <span class="meta" id="sess">session —</span>
+  <div class="spacer"></div>
+  <div class="ctl">
+    <select id="kind">
+      <option value="">all kinds</option>
+      <option value="brain">brain</option>
+      <option value="transcript">transcript</option>
+      <option value="user_speech">user_speech</option>
+      <option value="bot_speech">bot_speech</option>
+      <option value="tts">tts</option>
+      <option value="llm">llm</option>
+      <option value="error">error</option>
+      <option value="session">session</option>
+    </select>
+    <button id="auto" class="on">⟳ live</button>
+    <a class="btn" href="/api/debug" target="_blank">raw JSON</a>
+    <a class="btn" href="/">← assistant</a>
+  </div>
+</header>
+<div class="wrap">
+  <table>
+    <thead><tr><th style="width:64px">t</th><th style="width:56px">lat</th><th style="width:100px">kind</th><th style="width:110px">model</th><th>event</th></tr></thead>
+    <tbody id="rows"><tr><td colspan="5" class="empty">Waiting for events… start a session in the assistant.</td></tr></tbody>
+  </table>
+</div>
+<script>
+const $=s=>document.querySelector(s);
+const esc=t=>String(t==null?"":t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+let auto=true;
+$("#auto").onclick=()=>{auto=!auto;$("#auto").classList.toggle("on",auto);if(auto)tick();};
+$("#kind").onchange=tick;
+function fmtT(ms){const s=(ms/1000);return s.toFixed(1)+"s";}
+// how long THIS operation took — same field priority as DebugPanel.js's latencyInfo(): a TOTAL-duration field
+// (brain/fast/deep/tts/stt/gen/architect/cluster/triage) before a partial one (ttft = first-token only).
+const LAT_FIELDS=["brain_ms","fast_ms","deep_ms","tts_ms","stt_ms","gen_ms","architect_ms","cluster_ms","triage_ms","ttft_ms"];
+function lat(e){
+  for(const f of LAT_FIELDS){const v=e[f];if(typeof v==="number"){
+    const cls=v<500?"lat-good":v<1000?"lat-warn":"lat-bad";
+    const txt=v<1000?v+"ms":(v/1000).toFixed(1)+"s";
+    return '<td class="lat '+cls+'" title="'+f+'">'+txt+'</td>';
+  }}
+  return '<td class="lat"></td>';
+}
+// which layer of the «Colmena» brain resolved the turn: FlashBrain (stamps its fast-model provider) vs
+// SlowBrain (escalation) — stamped by nucleo.py via emit(..., extra={"engine":...,"model":...}).
+function brainName(k,eng){return k==="brain"?(eng==="slowbrain"?"SlowBrain":eng?"Flash Brain":null):null;}
+function modelChip(e){if(!e.model)return "";const cls=(e.engine==="ollama"||e.engine==="local")?"eng-local":"eng-api";
+  return '<span class="chip '+cls+'" title="'+esc(e.model)+'">'+esc(e.model)+'</span>';}
+async function tick(){
+  try{
+    const k=$("#kind").value;
+    const d=await fetch("/api/debug"+(k?("?kind="+k):"")).then(r=>r.json());
+    $("#sess").textContent="session "+(d.session.session_id||"—")+" · "+d.session.events+" events";
+    const rows=d.events.map(e=>{
+      const role=e.role?(' <span class="role-'+e.role+'">['+e.role+']</span>'):"";
+      const txt=e.text?'<div class="txt">'+esc(e.text)+'</div>':"";
+      const bn=brainName(e.kind,e.engine);
+      return '<tr><td class="t">'+fmtT(e.rel_ms)+'</td>'+lat(e)+
+             '<td class="k"><span class="pill k-'+e.kind+'">'+esc(bn||e.kind)+'</span></td>'+
+             '<td class="k">'+modelChip(e)+'</td><td>'+esc(e.label)+role+txt+'</td></tr>';
+    }).join("");
+    $("#rows").innerHTML=rows||'<tr><td colspan="5" class="empty">No events yet.</td></tr>';
+    window.scrollTo(0,document.body.scrollHeight);
+  }catch(_){}
+  if(auto)setTimeout(tick,1500);
+}
+tick();
+</script>
+</body>
+</html>

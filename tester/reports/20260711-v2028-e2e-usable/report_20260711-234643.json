@@ -1,0 +1,276 @@
+{
+  "stamp": "20260711-234643",
+  "results": [
+    {
+      "scenario": "complex_idea",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Alex, aquí estoy. ¿Qué necesitas ahora?",
+            "at": 1783806202.34
+          },
+          {
+            "who": "tester",
+            "text": "¡Hola! Necesito ayuda para planear una cena de sorpresa.",
+            "at": 1783806203.95
+          },
+          {
+            "who": "zaelar",
+            "text": "¿Qué necesitas ahora?",
+            "at": 1783806210.01
+          },
+          {
+            "who": "tester",
+            "text": "Bueno, primero necesitaría saber cuándo es la fecha exacta del cumpleaños y a qué hora me gustaría invitar a la gente.",
+            "at": 1783806213.84
+          },
+          {
+            "who": "zaelar",
+            "text": "Claro, ¿qué es Marcela de Sorteza? ¿Una persona, un lugar o algo que hay que planear?",
+            "at": 1783806223.76
+          },
+          {
+            "who": "tester",
+            "text": "Es la persona para la cual quiero hacer la cena. ¿Sabes cuándo cumple años, Marcela de Sorteza?",
+            "at": 1783806226.62
+          },
+          {
+            "who": "zaelar",
+            "text": "Entendido. Para apuntar la cena sorpresa en tu agenda, dime la fecha y hora que prefieres. Entendido. Para apuntar la cena",
+            "at": 1783806235.0
+          },
+          {
+            "who": "tester",
+            "text": "¡Perfecto! La cena es el 15 de junio a las 19:00. Necesito que me añadas eso a mi agenda por favor.",
+            "at": 1783806238.37
+          },
+          {
+            "who": "zaelar",
+            "text": "No tengo esa información guardada. ¿Me dices la fecha del cumpleaños de Marcela de Sorteza? No tengo esa información guardada. ¿Me dices la fecha del cumpleaños",
+            "at": 1783806247.62
+          },
+          {
+            "who": "tester",
+            "text": "Claro, el cumpleaños de Marcela es el 12 de junio. Así que la cena será una semana después, justo en punto a las 19:00.",
+            "at": 1783806251.38
+          },
+          {
+            "who": "zaelar",
+            "text": "Hecho. No puedo darte una fecha de cumpleaños fiable para \"Marcela de Sorteza\".\nMotivos:\nNo es una figura pública identificable con búsqueda estándar: no hay ficha en Wikipedia, IMDb, redes verificadas ni prensa que asocie ese nombre a una fecha de nacimiento.\n\"Sorteza\" no coincide con ningún apellido común ni topónimo conocido; probablemente sea un contacto personal del operador (o una transcripción imprecisa del STT — posibles: \"Sortesa\", \"Ortega\", \"Forteza\", \"Sotelo\"…).\nInventar una fecha sería peor que no dar ninguna: es un dato duro que el operador va a usar para planear una cena sorpresa.\nRespuesta sugerida para el operador (en su idioma, tono cercano):\n\"No tengo la fecha de cumpleaños de Marcela apuntada y no la encuentro por ahí fuera — parece alguien de tu entorno, no una figura pública. ¿Me la dices tú y te la guardo? Así te aviso con tiempo y la uso para cuadrar la cena.\"\nSi el operador confirma el nombre y da la fecha, guardarla en memoria con slot=\"person:marcelasorteza.birthday\" (o el slug correcto que salga del nombre real) para no volver a preguntar.",
+            "at": 1783806261.68
+          },
+          {
+            "who": "tester",
+            "text": "¡Tienes razón! No puedo arriesgarme inventando una fecha de cumpleaños. Dale la fecha y la hora exactamente como los has recordado, por favor.",
+            "at": 1783806265.53
+          },
+          {
+            "who": "zaelar",
+            "text": "Hecho. La cena sorpresa para Marcela está apuntada en tu agenda para el 15 de junio a las 19.",
+            "at": 1783806289.49,
+            "latency_ms": 5563
+          },
+          {
+            "who": "tester",
+            "text": "¡Genial! Ahora necesito que me ayudes con la lista de invitados y el lugar donde celebrarla. ¿Tienes alguna sugerencia?",
+            "at": 1783806292.4
+          },
+          {
+            "who": "zaelar",
+            "text": "",
+            "at": 1783806330.1
+          },
+          {
+            "who": "tester",
+            "text": "Vamos, quédate en línea un momento más. Necesito saber si tienes alguna idea para la cena de sorpresa. ¿Alguno de tus lugares favoritos o algo que se te ocurra?",
+            "at": 1783806333.44
+          },
+          {
+            "who": "zaelar",
+            "text": "Claro, te puedo dar ideas de restaurantes o locales cercanos para la cena sorpresa; ¿te parece bien que te muestre la lista en pantalla?",
+            "at": 1783806354.42,
+            "latency_ms": 3615
+          },
+          {
+            "who": "tester",
+            "text": "Sí, por supuesto. Muestra esa lista en pantalla y déjame mirarlas un poco.",
+            "at": 1783806355.25
+          },
+          {
+            "who": "zaelar",
+            "text": "Claro, te puedo dar ideas de restaurantes o locales cercanos para la cena sorpresa; ¿te parece bien que te muestre la lista en pantalla?",
+            "at": 1783806362.15
+          },
+          {
+            "who": "tester",
+            "text": "¡Perfecto! Muestra esa lista en pantalla y déjame echar un vistazo.",
+            "at": 1783806365.18
+          },
+          {
+            "who": "zaelar",
+            "text": "Hecho.",
+            "at": 1783806395.71
+          }
+        ],
+        "latency_ms": {
+          "n": 2,
+          "avg": 4589,
+          "max": 5563,
+          "samples": [
+            5563,
+            3615
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:data:agenda",
+            "widget:data:agenda",
+            "widget:show:agenda",
+            "widget:show:agenda",
+            "widget:data:agenda",
+            "widget:show:results"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Alex, aquí estoy. ¿Qué necesitas ahora?",
+            "⚡ Nucleo(flash): prompt: Hola, necesito ayuda para planear Marcela de Sorteza.",
+            "⚡ Nucleo(flash): reply: Claro, ¿qué es Marcela de Sorteza? ¿Una persona, un lugar o algo que hay que planear?",
+            "⚡ Nucleo(flash): prompt: Bueno, primero les necesitaría saber cuándo es la fecha exacta del cumpleaños y a qué hora me gustaría invitar a la gent",
+            "⚡ Nucleo(flash): reply: Entendido. Para apuntar la cena sorpresa en tu agenda, dime la fecha y hora que prefieres.",
+            "⚡ Nucleo(flash): prompt: Es la persona para la cual quiero hacer la cena. ¿Sabes cuándo cumple años, Marcela de certeza?",
+            "⚡ Nucleo(flash): reply: No tengo esa información guardada. ¿Me dices la fecha del cumpleaños de Marcela de Sorteza?",
+            "🧭 Flash → SlowBrain (escalada registrada): El operador quiere saber la fecha de cumpleaños de Marcela de Sorteza. Busca esa información factual y actual (día y mes",
+            "⚡ Nucleo(flash): prompt: Perfecto. La cena es el 15 de junio a las 19. Necesito que me añadas eso a mi agenda, por favor.",
+            "⚡ Nucleo(flash): reply: Hecho.",
+            "📩 system note → FlashBrain: [SISTEMA] SlowBrain · Tarea completada: No puedo darte una fecha de cumpleaños fiable para \"Marcela de Sorteza\".\n\nMotivo",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] SlowBrain · Tarea completada: No puedo darte una fecha de cumpleaños fiable para \"Marcela de Sorteza\".\n\nMotivo",
+            "⚡ Nucleo(flash): reply: Hecho.",
+            "⚡ Nucleo(flash): prompt: Tienes razón. No puedo arriesgarme inventando la fecha de cumpleaños. Dale la fecha y la hora exactamente como los has r",
+            "⚡ Nucleo(flash): reply: La cena sorpresa para Marcela está apuntada en tu agenda para el 15 de junio a las 19.",
+            "⚡ Nucleo(flash): prompt: Genial. Ahora necesito que me ayudes con la lista de invitados y en lugar de celebrarla. ¿Tienes alguna sugerencia?",
+            "⚡ Nucleo(flash): reply:",
+            "⚡ Nucleo(flash): prompt: Vamos a quedar de niño un momento más. Necesito saber si tienes alguna idea para la cena de sorpresa. ¿Alguno de tus lug",
+            "⚡ Nucleo(flash): reply: Claro, te puedo dar ideas de restaurantes o locales cercanos para la cena sorpresa; ¿te parece bien que te muestre la li",
+            "⚡ Nucleo(flash): prompt: Y por supuesto, muestra esa lista en pantalla y déjame mirarlas un poco.",
+            "⚡ Nucleo(flash): reply: Hecho.",
+            "⚡ Nucleo(flash): prompt: Perfecto, muéstrense a Cristian Cantaglia y déjame echar un vistazo.",
+            "⚡ Nucleo(flash): reply:"
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 38,
+            "bot_speech": 38,
+            "brain": 25,
+            "memory": 109,
+            "timing": 11,
+            "metric": 437,
+            "tts": 20,
+            "transcript": 20,
+            "vad": 20,
+            "stt": 10,
+            "task": 2,
+            "widget": 6,
+            "notify": 1,
+            "session": 1
+          },
+          "n_events": 739
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturaltez": 3,
+          "coherencia": 2,
+          "utilidad": 3,
+          "accion": 2,
+          "latencia": 2,
+          "robustez": 4
+        },
+        "overall": 3,
+        "findings": [
+          {
+            "turno": "1783806223.76",
+            "problema": "Colapso de contexto semántico. A pesar de que el usuario dice 'primero necesitaría saber cuándo es la fecha...', el asistente ignora la intención de planificación y se bloquea preguntando qué es 'Marcela de Sorteza'.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "1783806235.0",
+            "problema": "Truncamiento de audio y repetición inmediata. Zaelar empieza a decir 'Entendido...' y se repite a sí mismo o falla en la síntesis.",
+            "gravedad": "media"
+          },
+          {
+            "turno": "1783806330.1",
+            "problema": "Timeout silencioso. Zaelar no genera respuesta verbal ni texto para la solicitud de lista de invitados/sugerencias, causando que el tester tenga que re-promptear.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "1783806362.15",
+            "problema": "Eco robótico. Zaelar repite la pregunta exacta del turno anterior ('¿te parece bien que te muestre la lista...?') como si el turno anterior no hubiera ocurrido.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "1783806395.71",
+            "problema": "Falso positivo visual. Dice 'Hecho' verbalmente, pero no hay evidencia en la traza de que mostrara resultados de restaurantes ni una lista; solo un evento genérico 'widget:show:results' previo sin contexto visual claro.",
+            "gravedad": "media"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "brain/prompts/context_handling",
+            "cambio": "Instruir al 'FlashBrain' para que NO interrumpa el flujo de planificación con preguntas de definición de entidades a menos que sea crítico. Priorizar la intención ('planear cena') sobre la ontología ('quién es Marcela').",
+            "porque": "El bot se detiene en preguntas obstruccionistas ('¿Qué es Marcela?') rompiendo el ritmo de la planificación colaborativa."
+          },
+          {
+            "area": "brain/coordination (flash vs slow)",
+            "cambio": "Implementar un 'bouncer' de respuesta. Si FlashBrain devuelve un reply vacío o nulo, el sistema debe lanzar una respuesta fallback genérica (ej. 'Estoy pensando en eso, un momento') en lugar de quedar en silencio.",
+            "porque": "El silencio/timeout en el turno 6 indica que el cerebro generó una respuesta vacía y el sistema no supo cómo recuperarse."
+          },
+          {
+            "area": "voice/orchestration",
+            "cambio": "Eliminar en la tubería de audio la segmentación redundante. Asegurar de que el TTS no reciba fragmentos duplicados del mismo prompt en la misma iteración.",
+            "porque": "Se observó repetición de frases ('Entendido... Entendido') indicando un fallo en el ensamblaje de la respuesta de audio."
+          },
+          {
+            "area": "natural language generation",
+            "cambio": "Prohibir explícitamente la repetición literal del último output del bot si el usuario no ha cambiado de tema significativamente o si el re-prompt es un 'nudge'.",
+            "porque": "El bot repitió la oferta de mostrar la lista en pantalla palabra por palabra tras un re-prompt, lo cual suena robótico y roto."
+          }
+        ],
+        "veredicto": "El escenario NO es production-ready debido a la inestabilidad en el flujo conversacional: zaelar suerra colapsos de contexto, timeouts silenciosos y repeticiones robóticas que rompen la ilusión de inteligencia.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "brain/prompts/context_handling",
+      "cambio": "Instruir al 'FlashBrain' para que NO interrumpa el flujo de planificación con preguntas de definición de entidades a menos que sea crítico. Priorizar la intención ('planear cena') sobre la ontología ('quién es Marcela').",
+      "porque": "El bot se detiene en preguntas obstruccionistas ('¿Qué es Marcela?') rompiendo el ritmo de la planificación colaborativa.",
+      "scenario": "complex_idea",
+      "_sev": 0
+    },
+    {
+      "area": "brain/coordination (flash vs slow)",
+      "cambio": "Implementar un 'bouncer' de respuesta. Si FlashBrain devuelve un reply vacío o nulo, el sistema debe lanzar una respuesta fallback genérica (ej. 'Estoy pensando en eso, un momento') en lugar de quedar en silencio.",
+      "porque": "El silencio/timeout en el turno 6 indica que el cerebro generó una respuesta vacía y el sistema no supo cómo recuperarse.",
+      "scenario": "complex_idea",
+      "_sev": 0
+    },
+    {
+      "area": "voice/orchestration",
+      "cambio": "Eliminar en la tubería de audio la segmentación redundante. Asegurar de que el TTS no reciba fragmentos duplicados del mismo prompt en la misma iteración.",
+      "porque": "Se observó repetición de frases ('Entendido... Entendido') indicando un fallo en el ensamblaje de la respuesta de audio.",
+      "scenario": "complex_idea",
+      "_sev": 0
+    },
+    {
+      "area": "natural language generation",
+      "cambio": "Prohibir explícitamente la repetición literal del último output del bot si el usuario no ha cambiado de tema significativamente o si el re-prompt es un 'nudge'.",
+      "porque": "El bot repitió la oferta de mostrar la lista en pantalla palabra por palabra tras un re-prompt, lo cual suena robótico y roto.",
+      "scenario": "complex_idea",
+      "_sev": 0
+    }
+  ]
+}

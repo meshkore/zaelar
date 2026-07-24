@@ -1,0 +1,12 @@
+{
+  "view_data_shape": {
+    "active": "NoneType",
+    "coaching": "list",
+    "date": "str",
+    "mission": "str",
+    "now": "str",
+    "plan": "dict",
+    "projects": "list",
+    "warnings": "list"
+  }
+}

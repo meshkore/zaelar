@@ -1,0 +1,216 @@
+{
+  "stamp": "20260723-025811",
+  "results": [
+    {
+      "scenario": "navegador_coche",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Ricard, soy Zaelar, tu asistente por voz. ¿Qué necesitas ahora?",
+            "at": 1784768216.77
+          },
+          {
+            "who": "tester",
+            "text": "Hola, soy Ricart. ¿Puedes buscarme un coche de segunda mano en Wallapop por menos de 5000 euros y menos de 250.000 kilómetros?",
+            "at": 1784768217.73
+          },
+          {
+            "who": "zaelar",
+            "text": "Claro, me pongo a buscar coches de segunda mano en Guadalajara por menos de 500 euros y menos de 250 km. Tardará un poco mientras lo preparo.",
+            "at": 1784768237.64,
+            "latency_ms": 5407
+          },
+          {
+            "who": "tester",
+            "text": "No, espera, menos de 5000 euros, por favor. Y asegúrate de que sea cerca de mí. Avísame cuando encuentres algunas opciones.",
+            "at": 1784768240.57
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, a ver… Claro, me pongo a buscar coches de segunda mano en Guadalajara por menos de 500 euros y menos de 250 km.",
+            "at": 1784768251.88
+          },
+          {
+            "who": "tester",
+            "text": "No, menos de 5000 euros y menos de 250.000 kilómetros. ¿Tienes algo ya?",
+            "at": 1784768252.85
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, sigo con ello —cambio el filtro a menos de 5.000 euros y me aseguro de que sean lo más cercanos a Bilbao. Te aviso cuando tenga resultados. Aún está en marcha la búsqueda — llevamos poco tiempo y el navegador sigue rastreando opciones. En cuanto encuentre coches que encajen con menos de 5.000 euros y menos de 250 km desde Bilbao, te lo muestro. Dame un momento más.",
+            "at": 1784768266.48,
+            "latency_ms": 3980
+          },
+          {
+            "who": "tester",
+            "text": "Está bien, espero. Avísame cuando tengas algo.",
+            "at": 1784768267.99
+          },
+          {
+            "who": "zaelar",
+            "text": "Espera… Aún está en marcha la búsqueda — llevamos poco tiempo y el navegador",
+            "at": 1784768273.87
+          },
+          {
+            "who": "tester",
+            "text": "Vale, sigue buscando. Estoy esperando.",
+            "at": 1784768274.65
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, Ricard. Sigo buscando y te aviso en cuanto tenga resultados con coches por menos de 5.000 euros y dentro de 250 km desde Bilbao. Déjame que mire… Vale, Ricard. Sigo buscando",
+            "at": 1784768280.52
+          }
+        ],
+        "latency_ms": {
+          "n": 2,
+          "avg": 4694,
+          "max": 5407,
+          "samples": [
+            5407,
+            3980
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:show:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "🌱 ventana sembrada desde memoria:",
+            "📩 system note → FlashBrain: [SISTEMA] Brain worker · Tarea sin completar: No pude modificar el widget «musica».",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] Brain worker · Tarea sin completar: No pude modificar el widget «musica».\n\nEs el primer turno. Salúdame en 1-2",
+            "⚡ Nucleo(flash): reply: Hola Ricard, soy Zaelar, tu asistente por voz. ¿Qué necesitas ahora?",
+            "⚡ Nucleo(flash): prompt: Hola soy Ricard, ¿puedes buscarme un coche de segunda malo en Guadalajara por menos de 500 euros y menos de 250 kilómetr",
+            "💬 relleno de espera (lead-in): Vale, a ver…",
+            "⚡ Nucleo(flash): reply: Claro, me pongo a buscar coches de segunda mano en Guadalajara por menos de 500 euros y menos de 250 km. Tardará un poco",
+            "🧭 Flash → Brain Worker (escalada registrada): Buscar coches de segunda mano en Guadalajara (España) por menos de 500 euros con menos de 250 kilómetros. Navegar market",
+            "⚡ Nucleo(flash): prompt: Pro, espera. Menos de 5,000 euros, por favor, y asegúrate de que sea cerca de mí. Avísame cuando encuentres algunas opci",
+            "💬 relleno de espera (lead-in): A ver qué tenemos…",
+            "↪️ inyección a worker: la búsqueda de coches: Actualiza los filtros: precio máximo 5.000 euros (no 500). Busca coches en Guadalajara, España, p",
+            "⚡ Nucleo(flash): reply: Vale, sigo con ello —cambio el filtro a menos de 5.000 euros y me aseguro de que sean lo más cercanos a Bilbao. Te aviso",
+            "⚡ Nucleo(flash): prompt: La o menos de 5,000 euros y menos de 250 kilómetros. ¿Tienes algo ya?",
+            "💬 relleno de espera (lead-in): Espera…",
+            "⚡ Nucleo(flash): reply: Aún está en marcha la búsqueda — llevamos poco tiempo y el navegador sigue rastreando opciones. En cuanto encuentre coch",
+            "⚡ Nucleo(flash): prompt: Está bien, Estelo. Avísame cuando tengas algo.",
+            "💬 relleno de espera (lead-in): Déjame que mire…",
+            "⚡ Nucleo(flash): reply: Vale, Ricard. Sigo buscando y te aviso en cuanto tenga resultados con coches por menos de 5.000 euros y dentro de 250 km",
+            "⚡ Nucleo(flash): prompt: Vale, sigue buscando. Estoy esperando.",
+            "💬 relleno de espera (lead-in): Espera…",
+            "✂️ turno cancelado (barge-in/overlap):"
+          ],
+          "event_kinds": {
+            "worker_start": 2,
+            "state": 20,
+            "bot_speech": 20,
+            "brain": 22,
+            "trace": 6,
+            "pulse": 73,
+            "perf": 19,
+            "timing": 6,
+            "memory": 35,
+            "metric": 21,
+            "susurro": 7,
+            "tts": 5,
+            "transcript": 9,
+            "vad": 10,
+            "background": 2,
+            "stt": 5,
+            "widget": 4,
+            "task": 2,
+            "navegador": 5,
+            "session": 1
+          },
+          "n_events": 274
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 3,
+          "coherencia": 2,
+          "utilidad": 2,
+          "accion": 1,
+          "latencia": 2,
+          "robustez": 2
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn1",
+            "problema": "Validación numérica pobre: acepta 500€ y 250km filtrados por STT sin recursar a la semántica 'menos de 5000', ignorando el sentido común.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Alucinación de ubicación: Cambia la ubicación del usuario (de Guadalajara a Bilbao) sin que el usuario lo haya solicitado, indicando inestabilidad en el contexto de geolocalización.",
+            "gravedad": "media"
+          },
+          {
+            "turno": "zaelar@general",
+            "problema": "Fallo de 'Accion': Se abre un widget visual para una tarea puramente en segundo plano (según el escenario) y la traza de eventos no registra la creación de una tarea `automate_web` o exploración de navegador real, solo actualizaciones de un widget vacío.",
+            "gravedad": "alta"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "slow_brain / parameter_extraction",
+            "cambio": "Implementa validación de 'sanidad numérica' (range checking) en el extractor de entidades antes de enviar la query al worker. Si el precio es < 1000€ o km < 1000 para un coche, forzar al LLM a re-escuchar o asumir un rango lógico por defecto (5000).",
+            "porque": "El sistema aceptó literalmente '500 euros' debido a un mal-hearing del STT, lo cual es un error evitable mediante heurística de dominio."
+          },
+          {
+            "area": "frontend/slow_brain_router",
+            "cambio": "Diferenciar la ruta de ejecución: Navegación en 2º plano NO debe disparar widget:show. Debe iniciar un background_task. Solo si el usuario pide 'ver en pantalla' se renderiza el widget.",
+            "porque": "El requerimiento explícito era trabajar en segundo plano. La aparición de un widget viola la instrucción del usuario y contamina la UI."
+          },
+          {
+            "area": "context_manager / memory",
+            "cambio": "Bloquear la actualización de entidades de ubicación (LUGAR) si no existe una触发 explícita (trigger) como 'cerca de [Ciudad]'. Aislar la variable 'ubicación_usuario'.",
+            "porque": "El bot inventó 'Bilbao' y cambió la ubicación de 'Guadalajara' sin causa aparente, rompiendo la coherencia de la búsqueda."
+          },
+          {
+            "area": "latency / tts_pipeline",
+            "cambio": "Reducir el umbral de latencia promedio (actual 4.7s). Optimizar la pre-carga de TTS o usar streams más agresivos para objetivos < 2.5s.",
+            "porque": "La latencia actual de casi 5 segundos hace que la interacción se sienta lenta y pesada, afectando negativamente la percepción de 'vida' del asistente."
+          }
+        ],
+        "veredicto": "El escenario NO está listo para producción: zaelar falló en el objetivo principal (trabajo en 2º plano sin UI) y mostró una grave falta de validación de sentido común al aceptar '500 euros' como presupuesto real.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "slow_brain / parameter_extraction",
+      "cambio": "Implementa validación de 'sanidad numérica' (range checking) en el extractor de entidades antes de enviar la query al worker. Si el precio es < 1000€ o km < 1000 para un coche, forzar al LLM a re-escuchar o asumir un rango lógico por defecto (5000).",
+      "porque": "El sistema aceptó literalmente '500 euros' debido a un mal-hearing del STT, lo cual es un error evitable mediante heurística de dominio.",
+      "scenario": "navegador_coche",
+      "_sev": 0
+    },
+    {
+      "area": "frontend/slow_brain_router",
+      "cambio": "Diferenciar la ruta de ejecución: Navegación en 2º plano NO debe disparar widget:show. Debe iniciar un background_task. Solo si el usuario pide 'ver en pantalla' se renderiza el widget.",
+      "porque": "El requerimiento explícito era trabajar en segundo plano. La aparición de un widget viola la instrucción del usuario y contamina la UI.",
+      "scenario": "navegador_coche",
+      "_sev": 0
+    },
+    {
+      "area": "context_manager / memory",
+      "cambio": "Bloquear la actualización de entidades de ubicación (LUGAR) si no existe una触发 explícita (trigger) como 'cerca de [Ciudad]'. Aislar la variable 'ubicación_usuario'.",
+      "porque": "El bot inventó 'Bilbao' y cambió la ubicación de 'Guadalajara' sin causa aparente, rompiendo la coherencia de la búsqueda.",
+      "scenario": "navegador_coche",
+      "_sev": 0
+    },
+    {
+      "area": "latency / tts_pipeline",
+      "cambio": "Reducir el umbral de latencia promedio (actual 4.7s). Optimizar la pre-carga de TTS o usar streams más agresivos para objetivos < 2.5s.",
+      "porque": "La latencia actual de casi 5 segundos hace que la interacción se sienta lenta y pesada, afectando negativamente la percepción de 'vida' del asistente.",
+      "scenario": "navegador_coche",
+      "_sev": 0
+    }
+  ]
+}

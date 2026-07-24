@@ -1,0 +1,233 @@
+{
+  "stamp": "20260723-013634",
+  "results": [
+    {
+      "scenario": "musica_difusa",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "¡Hola, Ricardo! Soy Zaelar, tu asistente por voz. ¿Qué necesitas ahora?",
+            "at": 1784763320.76
+          },
+          {
+            "who": "tester",
+            "text": "Hola, soy Ricart. Quería que me pusieras una canción que habla de volar.",
+            "at": 1784763321.95
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, Ricard. Te pongo una canción sobre volar ahora mismo.",
+            "at": 1784763334.03,
+            "latency_ms": 2309
+          },
+          {
+            "who": "tester",
+            "text": "No, espera, me refería a una que dice algo como \"volar contigo\".",
+            "at": 1784763335.02
+          },
+          {
+            "who": "zaelar",
+            "text": "A ver, a ver… Vale, Ricard. Te pongo una canción sobre volar ahora mismo.",
+            "at": 1784763341.96
+          },
+          {
+            "who": "tester",
+            "text": "No, no es eso. Es una que canta un chico y me parece que es en español.",
+            "at": 1784763342.95
+          },
+          {
+            "who": "zaelar",
+            "text": "Perfecto, te busco esa que dice volar contigo. Vale, te pongo una canción en español de un chico que habla de volar contigo.",
+            "at": 1784763355.86,
+            "latency_ms": 3922
+          },
+          {
+            "who": "tester",
+            "text": "No, no era exactamente eso. Tal vez te refieras a la que dice algo sobre \"cuando caiga la noche\".",
+            "at": 1784763357.2
+          },
+          {
+            "who": "zaelar",
+            "text": "Pues… Vale, te pongo una canción en español de un chico que habla de volar contigo.",
+            "at": 1784763365.54
+          },
+          {
+            "who": "tester",
+            "text": "No, espera, creo que no me entendiste. Es una canción que habla sobre la noche y ofrece volar lejos. ¿Podrías buscar eso?",
+            "at": 1784763366.84
+          },
+          {
+            "who": "zaelar",
+            "text": "Ah, entendido. Te busco esa que habla de volar cuando caiga la noche, cantada por un chico en español. Suena Alvaro Soler - Volar (Lyric Video). Veamos… Ah, entendido. Te busco",
+            "at": 1784763376.02
+          },
+          {
+            "who": "tester",
+            "text": "Es un poco diferente, pero creo que no es esa. Tal vez es \"Déjala que vuelva\", que también canta un chico y habla de la noche. ¿Te suena?",
+            "at": 1784763377.32
+          },
+          {
+            "who": "zaelar",
+            "text": "Entiendo, buscas una canción que habla de volar lejos durante la noche. Déjame que te la ponga. A ver, a ver… Entiendo,",
+            "at": 1784763388.3
+          }
+        ],
+        "latency_ms": {
+          "n": 2,
+          "avg": 3116,
+          "max": 3922,
+          "samples": [
+            2309,
+            3922
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:data:musica",
+            "widget:show:musica",
+            "widget:data:musica",
+            "widget:show:musica",
+            "widget:data:musica",
+            "widget:show:musica",
+            "widget:data:musica",
+            "widget:show:musica",
+            "widget:data:musica",
+            "widget:show:musica"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "🌱 ventana sembrada desde memoria:",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "🔁 break-loop: nudge anti-repetición inyectado:",
+            "⚡ Nucleo(flash): reply: ¡Hola, Ricardo! Soy Zaelar, tu asistente por voz. ¿Qué necesitas ahora?",
+            "⚡ Nucleo(flash): prompt: Hola, soy Ricard. Quería que me pusieras una canción que habla de volar.",
+            "💬 relleno de espera (lead-in): A ver, a ver…",
+            "🎵 música: play canción que habla de volar",
+            "⚡ Nucleo(flash): reply: Vale, Ricard. Te pongo una canción sobre volar ahora mismo.",
+            "⚡ Nucleo(flash): prompt: No, Estera, me refería a una que dice algo como volar contigo.",
+            "💬 relleno de espera (lead-in): A ver…",
+            "🎵 música: play volar contigo",
+            "⚡ Nucleo(flash): reply: Perfecto, te busco esa que dice volar contigo.",
+            "⚡ Nucleo(flash): prompt: No, no es eso. Es una que canta un chico y me parece que es en español.",
+            "💬 relleno de espera (lead-in): Pues…",
+            "🎵 música: play volar contigo español",
+            "⚡ Nucleo(flash): reply: Vale, te pongo una canción en español de un chico que habla de volar contigo.",
+            "📩 system note → FlashBrain: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: Ricardo, veo que no he acertado con la canción que q",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: Ricardo, veo que no he acertado con la canción que q",
+            "💬 relleno de espera (lead-in): Veamos…",
+            "🎵 música: play volar cuando caiga la noche español",
+            "⚡ Nucleo(flash): reply: Ah, entendido. Te busco esa que habla de volar cuando caiga la noche, cantada por un chico en español. Suena Alvaro Sole",
+            "⚡ Nucleo(flash): prompt: No, espera, creo que no me entendiste. Es una canción que ama sobre la noche y ofrece bonar lejos. ¿Podrías buscar eso?",
+            "💬 relleno de espera (lead-in): A ver, a ver…",
+            "🎵 música: play volar lejos noche español",
+            "⚡ Nucleo(flash): reply: Entiendo, buscas una canción que habla de volar lejos durante la noche. Déjame que te la ponga.",
+            "⚡ Nucleo(flash): prompt: Es un poco diferente, pero creo que no es esa.",
+            "✂️ turno cancelado (barge-in/overlap):",
+            "⚡ Nucleo(flash): prompt: Tal vez es Déjala que vuelva. Que también canta a un chico y habla de la noche. ¿Te suena?"
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 24,
+            "bot_speech": 24,
+            "brain": 29,
+            "trace": 8,
+            "pulse": 77,
+            "perf": 22,
+            "timing": 7,
+            "memory": 33,
+            "metric": 25,
+            "tts": 6,
+            "background": 3,
+            "transcript": 12,
+            "vad": 14,
+            "stt": 7,
+            "widget": 10,
+            "music.playing": 5,
+            "music": 5,
+            "susurro": 7,
+            "music.search": 2,
+            "session": 1
+          },
+          "n_events": 322
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 2,
+          "coherencia": 1,
+          "utilidad": 1,
+          "accion": 1,
+          "latencia": 3,
+          "robustez": 2
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Replicación compulsiva de la misma acción fallida ('play volar contigo') tras recibir feedback negativo explícito del usuario.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn3",
+            "problema": "Fallo crítico de memoria de turno: ignora la pistas 'chico' y 'español' proporcionadas en el turno anterior para aclarar la búsqueda.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "general",
+            "problema": "El asistente no efectúa una búsqueda web real ni identifica 'Artista - Título' a pesar de invocar el rail de música.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn4",
+            "problema": "Inyecta frases de relleno vacías ('A ver, a ver...') sin ofrecer una resolución nueva, indicando bucle de pensamiento.",
+            "gravedad": "media"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "brain memory / rail context injection",
+            "cambio": "El prompt del siguiente turno DEBE inyectar explícitamente las pistas del usuario (artista, idioma, año) como 'contexto acumulado' para el rail de música.",
+            "porque": "Zaelar olvidó inmediatamente que la canción era 'en español' y de un 'chico', reiniciando la búsqueda con la misma query difusa."
+          },
+          {
+            "area": "rail logic (music rail)",
+            "cambio": "Implementar una comprobación de satisfacción explícita: si el usuario dice 'No, no es eso', el rail debe cambiar de estado de 'play' a 'search_web' forzando la búsqueda del metadato faltante.",
+            "porque": "El asistente entró en un bucle tautológico intentando reproducir 'volar contigo' repetidamente sin enriquecer la búsqueda ni buscar en web."
+          },
+          {
+            "area": "prompt de sistema / relleno de espera",
+            "cambio": "Prohibir el uso de fillers de duda ('A ver, a ver...') salvo que vayan acompañados de una nueva hipótesis concreta o una pregunta aclaratoria.",
+            "porque": "El uso excesivo de rellenos sonó mecánico y antinatural, especialmente cuando no seguido de una acción útil."
+          }
+        ],
+        "veredicto": "El escenario falla estrepitosamente: Zaelar no recuerda la información clave de un turno a otro (chunking) e ignora las negativas del usuario, entrando en un bucle de 'play' fallido en lugar de escalar a búsqueda web con los nuevos datos.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "brain memory / rail context injection",
+      "cambio": "El prompt del siguiente turno DEBE inyectar explícitamente las pistas del usuario (artista, idioma, año) como 'contexto acumulado' para el rail de música.",
+      "porque": "Zaelar olvidó inmediatamente que la canción era 'en español' y de un 'chico', reiniciando la búsqueda con la misma query difusa.",
+      "scenario": "musica_difusa",
+      "_sev": 0
+    },
+    {
+      "area": "rail logic (music rail)",
+      "cambio": "Implementar una comprobación de satisfacción explícita: si el usuario dice 'No, no es eso', el rail debe cambiar de estado de 'play' a 'search_web' forzando la búsqueda del metadato faltante.",
+      "porque": "El asistente entró en un bucle tautológico intentando reproducir 'volar contigo' repetidamente sin enriquecer la búsqueda ni buscar en web.",
+      "scenario": "musica_difusa",
+      "_sev": 0
+    },
+    {
+      "area": "prompt de sistema / relleno de espera",
+      "cambio": "Prohibir el uso de fillers de duda ('A ver, a ver...') salvo que vayan acompañados de una nueva hipótesis concreta o una pregunta aclaratoria.",
+      "porque": "El uso excesivo de rellenos sonó mecánico y antinatural, especialmente cuando no seguido de una acción útil.",
+      "scenario": "musica_difusa",
+      "_sev": 0
+    }
+  ]
+}

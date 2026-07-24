@@ -1,0 +1,210 @@
+{
+  "stamp": "20260722-234702",
+  "results": [
+    {
+      "scenario": "memory",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "¡Hola Ricard! Soy Zaelar, tu asistente. ¿Qué necesitas?",
+            "at": 1784756747.91
+          },
+          {
+            "who": "tester",
+            "text": "Hola, soy Ricart. Quiero que recuerdes que mi coche está en el taller hasta el viernes.",
+            "at": 1784756748.91
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, lo tengo anotado: tu Mazda está en el taller hasta el viernes. Cuenta conmigo para recordártelo si lo necesitas.",
+            "at": 1784756761.1,
+            "latency_ms": 3887
+          },
+          {
+            "who": "tester",
+            "text": "Genial, gracias. ¿Me podrías decir qué tiempo va a hacer hoy? Quiero estar preparado para salir.",
+            "at": 1784756761.97
+          },
+          {
+            "who": "zaelar",
+            "text": "A ver… Vale, lo tengo anotado: tu Mazda está",
+            "at": 1784756771.01
+          },
+          {
+            "who": "tester",
+            "text": "Perdón, eso no es lo que te pedí. Quería saber el tiempo para hoy.",
+            "at": 1784756771.86
+          },
+          {
+            "who": "zaelar",
+            "text": "Entendido. ¿Hay algo específico que necesites preparar? Por ejemplo, ¿tienes que recoger el coche del taller el viernes, o hay algo más que deba estar listo? Espera… Entendido.",
+            "at": 1784756778.38
+          },
+          {
+            "who": "tester",
+            "text": "No, solo quería saber el clima de hoy. ¿Cuál es la previsión?",
+            "at": 1784756779.25
+          },
+          {
+            "who": "zaelar",
+            "text": "Tu día está bien estructurado. Empiezas a las 9 con la revisión de obligaciones de empresa, luego tienes dos horas y media para estabilizar el daemon de MeshKore. Después un descanso corto, seguido del calendario de posts de Reddit hasta las 12:45. Comida a las 14, y por la tarde revisas CryptoKnight a las 15. Terminas con ejercicio a las 17:15.",
+            "at": 1784756790.36,
+            "latency_ms": 3639
+          },
+          {
+            "who": "tester",
+            "text": "Eso suena bien, pero no era lo que pregunté. Solo quería saber cómo va a estar el tiempo hoy.",
+            "at": 1784756791.34
+          },
+          {
+            "who": "zaelar",
+            "text": "Déjame ver… Tu día está bien estructurado. Empiezas a las 9 con la revisión de obligaciones",
+            "at": 1784756799.72
+          },
+          {
+            "who": "tester",
+            "text": "Parece que no estás entendiendo mi pregunta. Solo quiero saber el clima para hoy, así que por favor, dime si va a llover o a hacer sol. Ah, y también, ¿puedes recordarme más tarde dónde está mi coche?",
+            "at": 1784756800.78
+          },
+          {
+            "who": "zaelar",
+            "text": "Tienes razón, disculpa. Te busco la previsión del tiempo para Bilbao ahora mismo.Los resultados que me devuelven no tienen los datos específicos de temperatura, lluvia o condiciones concretas para hoy en Bilbao. Te recomiendo que entres directamente en Meteored o en la AEMET, donde encontrarás la previsión detallada actualizada para hoy miércoles 22 de julio. Si quieres, puedo intentar buscarlo con más profundidad. Veamos… Tienes razón, disculpa. Te",
+            "at": 1784756817.04
+          }
+        ],
+        "latency_ms": {
+          "n": 2,
+          "avg": 3763,
+          "max": 3887,
+          "samples": [
+            3887,
+            3639
+          ]
+        },
+        "trace": {
+          "frontend_actions": [],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "🌱 ventana sembrada desde memoria:",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: ¡Hola Ricard! Soy Zaelar, tu asistente. ¿Qué necesitas?",
+            "⚡ Nucleo(flash): prompt: Hola, soy Ricard. Quiero que recuerdes que mi coche está en el taller hasta el viernes.",
+            "💬 relleno de espera (lead-in): A ver…",
+            "⚡ Nucleo(flash): reply: Vale, lo tengo anotado: tu Mazda está en el taller hasta el viernes. Cuenta conmigo para recordártelo si lo necesitas.",
+            "⚡ Nucleo(flash): prompt: Genial, gracias.",
+            "✂️ turno cancelado (barge-in/overlap):",
+            "⚡ Nucleo(flash): prompt: ¿Me podrías decir qué tiempo va a ser hoy?",
+            "⚡ Nucleo(flash): prompt: Quiero estar preparado para salir.",
+            "💬 relleno de espera (lead-in): Espera…",
+            "⚡ Nucleo(flash): reply: Entendido. ¿Hay algo específico que necesites preparar? Por ejemplo, ¿tienes que recoger el coche del taller el viernes,",
+            "⚡ Nucleo(flash): prompt: Perdón, eso no es lo que te pedí. Querías saber el tiempo para hoy.",
+            "💬 relleno de espera (lead-in): Un segundo…",
+            "🔎 búsqueda web: tiempo hoy Bilbao",
+            "⚡ Nucleo(flash): prompt: No, solo venía a saber el tema de hoy. ¿Cuál es la previsión?",
+            "💬 relleno de espera (lead-in): Déjame ver…",
+            "⚡ Nucleo(flash): reply: Tu día está bien estructurado. Empiezas a las 9 con la revisión de obligaciones de empresa, luego tienes dos horas y med",
+            "⚡ Nucleo(flash): prompt: Eso suena bien, pero no era lo que pregunté. Solo quería saber cómo va a estar el tiempo hoy.",
+            "💬 relleno de espera (lead-in): Veamos…",
+            "🔎 búsqueda web: previsión del tiempo Bilbao hoy",
+            "⚡ Nucleo(flash): reply: Tienes razón, disculpa. Te busco la previsión del tiempo para Bilbao ahora mismo.Los resultados que me devuelven no tien",
+            "⚡ Nucleo(flash): prompt: Parece que no estás entendiendo mi pregunta. Solo quiero saber el quima para hoy. Así que por favor, dime si va a llover",
+            "✂️ turno cancelado (barge-in/overlap):",
+            "⚡ Nucleo(flash): prompt: Ah, y también, ¿puedes recordarme más tarde dónde está mi coche?"
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 30,
+            "bot_speech": 30,
+            "pulse": 80,
+            "brain": 26,
+            "trace": 14,
+            "perf": 33,
+            "memory": 48,
+            "timing": 8,
+            "metric": 27,
+            "tts": 5,
+            "transcript": 14,
+            "background": 3,
+            "vad": 18,
+            "stt": 9,
+            "search": 2,
+            "session": 1
+          },
+          "n_events": 349
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 2,
+          "coherencia": 1,
+          "utilidad": 1,
+          "accion": 1,
+          "latencia": 2,
+          "robustez": 1
+        },
+        "overall": 1,
+        "findings": [
+          {
+            "turno": "zaelar@turn4",
+            "problema": "Context retrieval failure. User asks for weather, zaelar retrieves daily agenda (calendar). Confusing unrelated context.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn6",
+            "problema": "Looping/Repetition error. Repeats the start of the previous erroneous sentence ('Empiezas a las 9...') despite being interrupted/corrected.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn7",
+            "problema": "Memory hallucination. Claims to know user has a 'Mazda' when user only said 'coche' (generic car). Also fails to recall car location when prompted at the end.",
+            "gravedad": "alta"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "brain/memory",
+            "cambio": "Implement strict grounding for memory recall. Prevent hallucination of specific entities (e.g., 'Mazda') unless explicitly provided by the user.",
+            "porque": "User said 'coche', zaelar said 'Mazda'. This erodes trust immediately."
+          },
+          {
+            "area": "brain/llm/context",
+            "cambio": "Add a negative constraint in the system prompt: 'If the user asks for weather/external info, do NOT answer with personal calendar data unless explicitly asked.'",
+            "porque": "Zaelar persistently substituted the weather query with a schedule summary."
+          },
+          {
+            "area": "brain/llm/repair",
+            "cambio": "Enable full context reset or 'scratchpad' mode upon user repair phrases like 'No, eso no es lo que pedí'. Discard previous erroneous draft.",
+            "porque": "Zaelar repeated the exact same hallucinated phrase ('Empiezas a las 9...') after being corrected, indicating it was stuck on a bad draft."
+          }
+        ],
+        "veredicto": "No es production-ready: el asistente falla en recuperar la información correcta (tiempo vs calendario), alucina detalles inexistentes (Mazda) y muestra un bucle de repetición de errores que frustra al usuario.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "brain/memory",
+      "cambio": "Implement strict grounding for memory recall. Prevent hallucination of specific entities (e.g., 'Mazda') unless explicitly provided by the user.",
+      "porque": "User said 'coche', zaelar said 'Mazda'. This erodes trust immediately.",
+      "scenario": "memory",
+      "_sev": 0
+    },
+    {
+      "area": "brain/llm/context",
+      "cambio": "Add a negative constraint in the system prompt: 'If the user asks for weather/external info, do NOT answer with personal calendar data unless explicitly asked.'",
+      "porque": "Zaelar persistently substituted the weather query with a schedule summary.",
+      "scenario": "memory",
+      "_sev": 0
+    },
+    {
+      "area": "brain/llm/repair",
+      "cambio": "Enable full context reset or 'scratchpad' mode upon user repair phrases like 'No, eso no es lo que pedí'. Discard previous erroneous draft.",
+      "porque": "Zaelar repeated the exact same hallucinated phrase ('Empiezas a las 9...') after being corrected, indicating it was stuck on a bad draft.",
+      "scenario": "memory",
+      "_sev": 0
+    }
+  ]
+}

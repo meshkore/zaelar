@@ -1,0 +1,35 @@
+# Fly.io — zaelar voice assistant. Region cdg (Paris): same account/TURN as the working interview deploy.
+app = "zaelar"
+primary_region = "cdg"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  HOST = "0.0.0.0"
+  PORT = "8080"
+  DEPLOY_ENV = "fly·cdg"
+  # Non-secret config (English assistant). Keys + CF_TURN_* + WEBRTC_HOST go via `fly secrets set`.
+  ASSISTANT_LLM_MODEL = "gpt-4.1"
+  ASSISTANT_TTS_PROVIDER = "deepgram"
+  ASSISTANT_VOICE = "aura-2-thalia-en"
+  AUDIO_FILTER = "rnnoise"
+  LLM_MAX_TOKENS = "120"
+  USE_SMART_TURN = "0"
+  TURN_SILENCE_SECS = "0.6"
+  # Browser VAD is the turn authority; BARGE_IN_MS = sustained speech to interrupt the bot (short backchannel won't).
+  BARGE_IN_MS = "800"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"     # PARKED: scale to zero — wake only on an incoming request (no idle cost)
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = "shared-cpu-2x"          # 2 vCPU / 1GB; aiortc + VAD signalling
+  memory = "1gb"
+
+# WebRTC: signalling (offer/answer) + SSE over HTTPS work as-is. Media (UDP/ICE) needs TURN — provided by
+# Cloudflare TURN (CF_TURN_KEY_ID + CF_TURN_API_TOKEN secrets), essential for mobile/carrier-NAT.

@@ -1,0 +1,161 @@
+{
+  "stamp": "20260711-233631",
+  "results": [
+    {
+      "scenario": "search",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Alex, soy zaelar. ¿En qué te ayudo ahora?",
+            "at": 1783805741.99
+          },
+          {
+            "who": "tester",
+            "text": "Alex, por favor, busca quién ganó el último Gran Premio de F1.",
+            "at": 1783805743.72
+          },
+          {
+            "who": "zaelar",
+            "text": "¿En qué te ayudo ahora?",
+            "at": 1783805751.28
+          },
+          {
+            "who": "tester",
+            "text": "No, en realidad soy Alex y quiero saber quién ganó el último Gran Premio de F1, zaelar.",
+            "at": 1783805753.87
+          },
+          {
+            "who": "zaelar",
+            "text": "El último ganador del Gran Premio de Gran Bretaña de Fórmula 1 fue Lewis Hamilton, según los resultados disponibles. Alex, el último ganador del Gran Premio de Fórmula 1 fue Lewis Hamilton.",
+            "at": 1783805770.58,
+            "latency_ms": 2779
+          },
+          {
+            "who": "tester",
+            "text": "Genial, gracias zaelar. Ya lo sabía, pero me has confirmado la información. Bueno, hasta luego.",
+            "at": 1783805773.54
+          },
+          {
+            "who": "zaelar",
+            "text": "Hasta luego, Alex.",
+            "at": 1783805785.48,
+            "latency_ms": 2278
+          }
+        ],
+        "latency_ms": {
+          "n": 2,
+          "avg": 2528,
+          "max": 2779,
+          "samples": [
+            2779,
+            2278
+          ]
+        },
+        "trace": {
+          "frontend_actions": [],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Alex, soy zaelar. ¿En qué te ayudo ahora?",
+            "⚡ Nucleo(flash): prompt: Alex, por favor, busca a quien ganó el último Gran Premio BF1.",
+            "🔎 búsqueda web: último ganador Gran Premio BF1",
+            "⚡ Nucleo(flash): reply: El último ganador del Gran Premio de Gran Bretaña de Fórmula 1 fue Lewis Hamilton, según los resultados disponibles.",
+            "⚡ Nucleo(flash): prompt: No, en realidad soy Alex y quiero saber quién ganó el último gran premio de F1, Harvey.",
+            "⚡ Nucleo(flash): reply: Alex, el último ganador del Gran Premio de Fórmula 1 fue Lewis Hamilton.",
+            "📨 Triaje mensajería (1):",
+            "⚡ Nucleo(flash): prompt: Enia, gracias, Jarebe. Ya lo sabía, pero me has confirmado la información. Bueno, hasta luego.",
+            "⚡ Nucleo(flash): reply: Hasta luego, Alex."
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 12,
+            "bot_speech": 12,
+            "brain": 11,
+            "memory": 46,
+            "timing": 4,
+            "metric": 111,
+            "tts": 5,
+            "transcript": 6,
+            "vad": 6,
+            "stt": 3,
+            "search": 1,
+            "session": 1
+          },
+          "n_events": 219
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 3,
+          "coherencia": 2,
+          "utilidad": 3,
+          "accion": 2,
+          "latencia": 4,
+          "robustez": 3
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn1",
+            "problema": "Echo total del prompt. Zaelar repite la restricción del prompt 'NO preguntes q' como una pregunta literal.",
+            "gravedad": "media"
+          },
+          {
+            "turno": "zaelar@turn3",
+            "problema": "El STT transcribió 'BF1' (Burj Al Arab?) en lugar de 'F1', y zaelar procedió con una búsqueda web literalmente equivocada ('BF1') y alucinó el contexto de Gran Bretaña para forzar una respuesta de Hamilton.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn3",
+            "problema": "Afirmación de veracidad falsa. Zaelar cita 'resultados disponibles' y repite la respuesta alucinada tras la corrección del usuario en lugar de admitir error o ambigüedad.",
+            "gravedad": "alta"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "brain prompt/instructions",
+            "cambio": "Revisar el parsing de restricciones en el prompt de saludo para evitar que etiquetas de instrucción (como 'NO preguntes q') se filtre en el output final.",
+            "porque": "El asistente vocalizó literalmente parte de las instrucciones del sistema ('¿En qué te ayudo ahora?'), lo que rompe la inmersión."
+          },
+          {
+            "area": "brain prompt/context",
+            "cambio": "Añadir una capa de validación semántica pre-búsqueda: si el usuario pide 'F1' (dominio popular) y el STT dice 'BF1', el modelo debe inferir 'F1' antes de ejecutar la herramienta de búsqueda.",
+            "porque": "El STT escuchó 'BF1', lo que llevó a una búsqueda inútil y una respuesta inventada (Hamilton ganando el GP de Gran Bretaña sin que se preguntara por ese país)."
+          },
+          {
+            "area": "truthfulness/hallucination control",
+            "cambio": "Instruir al modelo para que, ante una discrepancia obvia entre la consulta y los resultados de búsqueda (o resultados nulos), confiese ignorancia en lugar de alucinar un dato probable.",
+            "porque": "Zaelar inventó el contexto del Gran Premio de Gran Bretaña y afirmó tener 'resultados disponibles' cuando, debido al error de búsqueda ('BF1'), probablemente no tenía datos reales."
+          }
+        ],
+        "veredicto": "No es production-ready: el asistente falló en recuperar la información real por culpa de un error de transcripción leve ('BF1' vs 'F1') y prefirió alucinar una respuesta concreta antes que admitir que no entendió la consulta o que la búsqueda falló.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "brain prompt/instructions",
+      "cambio": "Revisar el parsing de restricciones en el prompt de saludo para evitar que etiquetas de instrucción (como 'NO preguntes q') se filtre en el output final.",
+      "porque": "El asistente vocalizó literalmente parte de las instrucciones del sistema ('¿En qué te ayudo ahora?'), lo que rompe la inmersión.",
+      "scenario": "search",
+      "_sev": 0
+    },
+    {
+      "area": "brain prompt/context",
+      "cambio": "Añadir una capa de validación semántica pre-búsqueda: si el usuario pide 'F1' (dominio popular) y el STT dice 'BF1', el modelo debe inferir 'F1' antes de ejecutar la herramienta de búsqueda.",
+      "porque": "El STT escuchó 'BF1', lo que llevó a una búsqueda inútil y una respuesta inventada (Hamilton ganando el GP de Gran Bretaña sin que se preguntara por ese país).",
+      "scenario": "search",
+      "_sev": 0
+    },
+    {
+      "area": "truthfulness/hallucination control",
+      "cambio": "Instruir al modelo para que, ante una discrepancia obvia entre la consulta y los resultados de búsqueda (o resultados nulos), confiese ignorancia en lugar de alucinar un dato probable.",
+      "porque": "Zaelar inventó el contexto del Gran Premio de Gran Bretaña y afirmó tener 'resultados disponibles' cuando, debido al error de búsqueda ('BF1'), probablemente no tenía datos reales.",
+      "scenario": "search",
+      "_sev": 0
+    }
+  ]
+}

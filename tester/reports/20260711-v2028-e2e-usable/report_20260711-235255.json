@@ -1,0 +1,206 @@
+{
+  "stamp": "20260711-235255",
+  "results": [
+    {
+      "scenario": "navegador_moto",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Alex, soy zaelar y estoy aquí para ayudarte. ¿Qué necesitas?",
+            "at": 1783806676.15
+          },
+          {
+            "who": "tester",
+            "text": "No me llames así, soy Alex. Estoy buscando una moto de segunda mano cerca de mi casa por menos de 3000 euros, del tipo naked. Zaelar, busca opciones en marketplace para mí.",
+            "at": 1783806677.16
+          },
+          {
+            "who": "zaelar",
+            "text": "Entendido, Yangix. ¿Qué necesitas? Yangix, para buscar y comparar en Marketplace necesito delegar al cerebro lento. ¿Quieres que lo haga ahora?",
+            "at": 1783806700.01,
+            "latency_ms": 4469
+          },
+          {
+            "who": "tester",
+            "text": "No me llames Yangix, soy Alex. Pídele a Zaelar que busque una moto de segunda mano del tipo naked, por menos de 3000 euros y cerca de mi casa en un marketplace como Wallapop.",
+            "at": 1783806703.34
+          },
+          {
+            "who": "zaelar",
+            "text": "Yangix, para buscar y comparar en Marketplace necesito delegar al cerebro lento. ¿Quieres que lo haga ahora? Yangix, no soy Harvey, pero si quieres que busque una moto naked de segunda mano lo escalo ahora.",
+            "at": 1783806718.24
+          },
+          {
+            "who": "tester",
+            "text": "Alex pide a Zaelar que busque una moto de segunda mano del tipo naked por menos de 3000 euros y cerca de mi casa en un marketplace como Wallapop.",
+            "at": 1783806722.02
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, dame un momento que lo miro.",
+            "at": 1783806733.79
+          },
+          {
+            "who": "tester",
+            "text": "Zaelar, busca para mí una moto de segunda mano del tipo naked, por menos de 3000 euros y cerca de mi casa en Marketplace.",
+            "at": 1783806739.35
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, dame un momento que lo miro.",
+            "at": 1783806750.59
+          },
+          {
+            "who": "tester",
+            "text": "Zaelar, busca una moto de segunda mano del tipo naked, por menos de 3000 euros y cerca de mi casa en Wallapop o similares.",
+            "at": 1783806754.95
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, dame un momento que lo miro.",
+            "at": 1783806768.24
+          }
+        ],
+        "latency_ms": {
+          "n": 1,
+          "avg": 4469,
+          "max": 4469,
+          "samples": [
+            4469
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:show:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:show:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:show:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:show:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Alex, soy zaelar y estoy aquí para ayudarte. ¿Qué necesitas?",
+            "⚡ Nucleo(flash): prompt: No me llames así. Soy Yangix.",
+            "⚡ Nucleo(flash): reply: Entendido, Yangix. ¿Qué necesitas?",
+            "⚡ Nucleo(flash): prompt: Estoy buscando la moto de segunda mano cerca de mi taza por menos de 3,000 euros del tipo naked.",
+            "⚡ Nucleo(flash): prompt: Harvey, busca opciones en Marketplace para mí.",
+            "⚡ Nucleo(flash): reply: Yangix, para buscar y comparar en Marketplace necesito delegar al cerebro lento. ¿Quieres que lo haga ahora?",
+            "⚡ Nucleo(flash): prompt: ¿Cómo se llama Janjee? Soy Alex. Diga ya Harvey que busca una moto de segunda mano del tipo Naked.",
+            "⚡ Nucleo(flash): reply: Yangix, no soy Harvey, pero si quieres que busque una moto naked de segunda mano lo escalo ahora.",
+            "🤖 tarea de navegador creada (SlowBrain): t1: Yangix quiere que busque opciones de moto naked de segunda mano en marketplaces (Wallapop, Milanuncios, etc.). Neces",
+            "🧭 Flash → SlowBrain (escalada registrada): Yangix quiere que busque opciones de moto naked de segunda mano en marketplaces (Wallapop, Milanuncios, etc.). Necesita",
+            "⚡ Nucleo(flash): prompt: Por menos de 300 euros. Y cerca de mi casa en un marketplace como Wallapop.",
+            "⚡ Nucleo(flash): reply: Vale, dame un momento que lo miro.",
+            "🧭 Flash → SlowBrain (escalada registrada): Yangix quiere que busque opciones de moto naked de segunda mano por menos de 300 euros cerca de su casa en Wallapop u ot",
+            "⚡ Nucleo(flash): prompt: Alex pica a Harvey que busca una moto de segunda mano del tipo Naked por menos de 3,000 euros y cerca de mitad en un mar",
+            "⚡ Nucleo(flash): reply: Vale, dame un momento que lo miro.",
+            "🧭 Flash → SlowBrain (escalada registrada): El operador Yangix (que se presenta a veces como Alex) quiere que busques y compares motos naked de segunda mano por men",
+            "⚡ Nucleo(flash): prompt: Harvey, busca para mí una moto de segunda mano del tipo Naked por menos de 3 000 euros y sécale mi casa en Marketplace.",
+            "⚡ Nucleo(flash): reply: Vale, dame un momento que lo miro.",
+            "🧭 Flash → SlowBrain (escalada registrada): El operador (Alex, que se hace llamar Yangix) quiere que busques y compares motos Naked de segunda mano por menos de 300"
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 23,
+            "bot_speech": 23,
+            "brain": 21,
+            "memory": 74,
+            "timing": 8,
+            "metric": 228,
+            "tts": 8,
+            "transcript": 12,
+            "vad": 16,
+            "stt": 7,
+            "task": 8,
+            "widget": 14,
+            "navegador": 12,
+            "session": 1
+          },
+          "n_events": 456
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 2,
+          "coherencia": 2,
+          "utilidad": 3,
+          "accion": 1,
+          "latencia": 3,
+          "robustez": 2
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@1783806700.01",
+            "problema": "La latencia de 4.5s es lenta para una respuesta que requiere escalado. Pide permiso para ejecutar ('¿Quieres que lo haga ahora?'), rompiendo el flujo directo de la orden.",
+            "gravedad": "media"
+          },
+          {
+            "turno": "zaelar@global",
+            "problema": "Confusión recurrente de identidad (llama 'Yangix' o 'Harvey' al usuario y se autodenomina 'Zaelar' o 'Harvey'). Indica falta de grounding en la memoria o contaminación del prompt del sistema.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@global",
+            "problema": "El widget 'navegador' se está mostrando ('show') y enviando datos ('data') en cada turno, pero el objetivo era una tarjeta DE TAREA ('automate_web') en 2º plano. El sistema está renderizando la herramienta en lugar de ejecutarla como servicio backend.",
+            "gravedad": "alta"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "brain/memory (prompt de sistema/identidad)",
+            "cambio": "Filtrar estrictamente los nombres propios en el input y reforzar la identidad del asistente vs usuario en el prompt del sistema (System Prompt).",
+            "porque": "Se observan alucinaciones de nombre ('Yangix', 'Harvey') y confusión de roles que degradan la naturalidad y la confianza."
+          },
+          {
+            "area": "widget orchestration (frontend/router)",
+            "cambio": "Cambiar la etiqueta de 'widget:show:navegador' a 'card:show:task_automate_web' o similar. El navegador debe ser un worker invisible (SlowBrain), no un componente visual renderizado.",
+            "porque": "El requisito es que el navegador se abra en 'backed' y se visualice como una tarjeta de tarea, no como un widget interactivo de navegador visible."
+          },
+          {
+            "area": "voice flow (turn logic)",
+            "cambio": "Eliminar la pregunta de confirmación de delegación ('¿Quieres que lo haga ahora?'). Debe asumir que si el usuario pide buscar, se delega automáticamente.",
+            "porque": "Añade fricción innecesaria y aumenta la latencia percibida. El usuario ya dio la instrucción clara."
+          }
+        ],
+        "veredicto": "El escenario NO es production-ready: el fallo principal es el desajuste en la Arquitectura de Acción (se muestra un widget de navegador en lugar de ejecutar una tarea asíncrona) acompañado de una pobre gestión de la identidad del usuario.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "brain/memory (prompt de sistema/identidad)",
+      "cambio": "Filtrar estrictamente los nombres propios en el input y reforzar la identidad del asistente vs usuario en el prompt del sistema (System Prompt).",
+      "porque": "Se observan alucinaciones de nombre ('Yangix', 'Harvey') y confusión de roles que degradan la naturalidad y la confianza.",
+      "scenario": "navegador_moto",
+      "_sev": 0
+    },
+    {
+      "area": "widget orchestration (frontend/router)",
+      "cambio": "Cambiar la etiqueta de 'widget:show:navegador' a 'card:show:task_automate_web' o similar. El navegador debe ser un worker invisible (SlowBrain), no un componente visual renderizado.",
+      "porque": "El requisito es que el navegador se abra en 'backed' y se visualice como una tarjeta de tarea, no como un widget interactivo de navegador visible.",
+      "scenario": "navegador_moto",
+      "_sev": 0
+    },
+    {
+      "area": "voice flow (turn logic)",
+      "cambio": "Eliminar la pregunta de confirmación de delegación ('¿Quieres que lo haga ahora?'). Debe asumir que si el usuario pide buscar, se delega automáticamente.",
+      "porque": "Añade fricción innecesaria y aumenta la latencia percibida. El usuario ya dio la instrucción clara.",
+      "scenario": "navegador_moto",
+      "_sev": 0
+    }
+  ]
+}

@@ -1,0 +1,173 @@
+{
+  "stamp": "20260711-202331",
+  "results": [
+    {
+      "scenario": "websocket",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Alex. ¿En qué te ayudo hoy?",
+            "at": 1783794171.31
+          },
+          {
+            "who": "tester",
+            "text": "Alex, ¿puedes verificar si el canal del cluster está abierto y operativo, y si hay alguien conectado?",
+            "at": 1783794174.34
+          },
+          {
+            "who": "zaelar",
+            "text": "No encuentro el ballet central como restaurante en Madrid centro,",
+            "at": 1783794182.99
+          },
+          {
+            "who": "tester",
+            "text": "¿Podrías buscarme algún buen restaurante en el centro de Madrid entonces?",
+            "at": 1783794185.48
+          },
+          {
+            "who": "zaelar",
+            "text": "No encuentro \"Ivalet Central\" como restaurante existente en Madrid Vale, compruebo el clúster arena. Vale, compruebo",
+            "at": 1783794192.28
+          },
+          {
+            "who": "tester",
+            "text": "Estaré esperando tu respuesta sobre si el canal del cluster está abierto y si hay alguien conectado.",
+            "at": 1783794195.49
+          },
+          {
+            "who": "zaelar",
+            "text": "Lo intenté con «El usuario Alex quiere organizar una cena sorpresa para su p»: No completé el objetivo en 16 pasos. Último estado en pantalla. Claro, busco opciones de restaurantes en el centro de Madrid.",
+            "at": 1783794204.55
+          }
+        ],
+        "latency_ms": {
+          "n": 0,
+          "avg": null,
+          "max": null,
+          "samples": []
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "✂️ input recortado (comando preservado): →1600 chars",
+            "📩 system note → FlashBrain: [SISTEMA] SlowBrain · Tarea completada: No he podido confirmar disponibilidad ni reservar. Dos motivos duros:\n\n**1. Los",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] SlowBrain · Tarea completada: No he podido confirmar disponibilidad ni reservar. Dos motivos duros:\n\n**1. Los",
+            "⚡ Nucleo(flash): reply: Hola Alex. ¿En qué te ayudo hoy?",
+            "📩 system note → FlashBrain: [SISTEMA] SlowBrain · Tarea completada: No encuentro \"Ivalet Central\" como restaurante existente en Madrid centro — ni p",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] SlowBrain · Tarea completada: No encuentro \"Ivalet Central\" como restaurante existente en Madrid centro — ni p",
+            "⚡ Nucleo(flash): reply: Vale, compruebo el clúster arena.",
+            "📩 system note → FlashBrain: [SISTEMA] Navegador (tarea t1): no pude completar del todo «El usuario Alex quiere organizar una cena sorpresa para su p",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] Navegador (tarea t1): no pude completar del todo «El usuario Alex quiere organizar una cena sorpresa para su p",
+            "⚡ Nucleo(flash): reply: Claro, busco opciones de restaurantes en el centro de Madrid.",
+            "🧭 Flash → SlowBrain (escalada registrada): Buscar buenos restaurantes en el centro de Madrid para reservar el sábado 18/07 a las 19:00, para 6 personas con opción",
+            "⚡ Nucleo(flash): prompt: Estaré esperando tu respuesta sobre si el canal del clúster está abierto y si hay alguien conectado."
+          ],
+          "event_kinds": {
+            "navegador": 8,
+            "worker_start": 1,
+            "state": 19,
+            "bot_speech": 19,
+            "brain": 13,
+            "task": 2,
+            "notify": 2,
+            "memory": 43,
+            "metric": 106,
+            "timing": 4,
+            "widget": 6,
+            "tts": 13,
+            "transcript": 7,
+            "vad": 6,
+            "stt": 3,
+            "session": 1
+          },
+          "n_events": 253
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 2,
+          "coherencia": 2,
+          "utilidad": 1,
+          "accion": 1,
+          "latencia": 3,
+          "robustez": 2
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Alucinación semántica masiva: convierte 'cluster' en 'ballet/restaurant' y deriva la conversación sin cumplir el objetivo.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn3",
+            "problema": "Confirma comprensión ('Vale, compruebo el clúster arena') pero no ejecuta la acción backend ni reporta estado.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn4",
+            "problema": "Inyección de alucinación previa ('No completé el objetivo en 16 pasos') que rompe el contexto y no responde a la pregunta actual.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "final",
+            "problema": "Objetivo fallido: no se reportó el estado del WebSocket ni el número de usuarios conectados.",
+            "gravedad": "alta"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Brain LLM / Prompting System",
+            "cambio": "Ajustar el 'System Prompt' para añadir una instrucción estricta de tipo 'Check-Intent' para dominios críticos: si la consulta contiene palabras clave como 'cluster', 'websocket', 'estado', priorizar la consulta de estado sobre funciones de navegación o búsqueda general.",
+            "porque": "El asistente está prioritariamente enrutando peticiones de infraestructura hacia el navegador web (búsqueda de restaurantes) causando alucinaciones semánticas."
+          },
+          {
+            "area": "Tooling / Memory",
+            "cambio": "Aislar la herramienta 'ClusterStatus' para que no esté expuesta al ruido de tareas de 'SlowBrain' (Navegador). Asegurar que el reporte de estado sea sincrónico o tenga respuesta explícita antes de continuar.",
+            "porque": "La traza muestra que el cerebro escalopa tareas de navegador y no registra eventos de websocket, sugiriendo que la tool se perdió o se ignoró."
+          },
+          {
+            "area": "Robustez STT / Hyponym Resolution",
+            "cambio": "Implementar un filtro de validez fonética antes de ejecutar la búsqueda: 'ballet central' vs 'cluster' son fonéticamente cercanos pero semánticamente opuestos. El modelo debe validar contra el diccionario de dominios disponibles.",
+            "porque": "El STT confundió 'cluster' con 'ballet' y el asistente procedió con la búsqueda sin cuestionar la coherencia, desperdiciando el turno."
+          }
+        ],
+        "veredicto": "No es production-ready: el asistente falló estrepitosamente en el objetivo principal al alucinar un 'ballet' en lugar de un 'cluster' y nunca reportó el estado del WebSocket; el #1 blocker es la incapacidad del cerebro para distinguir entre ruido STT y comandos de sistema críticos.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Brain LLM / Prompting System",
+      "cambio": "Ajustar el 'System Prompt' para añadir una instrucción estricta de tipo 'Check-Intent' para dominios críticos: si la consulta contiene palabras clave como 'cluster', 'websocket', 'estado', priorizar la consulta de estado sobre funciones de navegación o búsqueda general.",
+      "porque": "El asistente está prioritariamente enrutando peticiones de infraestructura hacia el navegador web (búsqueda de restaurantes) causando alucinaciones semánticas.",
+      "scenario": "websocket",
+      "_sev": 0
+    },
+    {
+      "area": "Tooling / Memory",
+      "cambio": "Aislar la herramienta 'ClusterStatus' para que no esté expuesta al ruido de tareas de 'SlowBrain' (Navegador). Asegurar que el reporte de estado sea sincrónico o tenga respuesta explícita antes de continuar.",
+      "porque": "La traza muestra que el cerebro escalopa tareas de navegador y no registra eventos de websocket, sugiriendo que la tool se perdió o se ignoró.",
+      "scenario": "websocket",
+      "_sev": 0
+    },
+    {
+      "area": "Robustez STT / Hyponym Resolution",
+      "cambio": "Implementar un filtro de validez fonética antes de ejecutar la búsqueda: 'ballet central' vs 'cluster' son fonéticamente cercanos pero semánticamente opuestos. El modelo debe validar contra el diccionario de dominios disponibles.",
+      "porque": "El STT confundió 'cluster' con 'ballet' y el asistente procedió con la búsqueda sin cuestionar la coherencia, desperdiciando el turno.",
+      "scenario": "websocket",
+      "_sev": 0
+    }
+  ]
+}

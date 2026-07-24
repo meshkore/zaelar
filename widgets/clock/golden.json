@@ -1,0 +1,8 @@
+{
+  "view_data_shape": {
+    "date": "str",
+    "note": "str",
+    "now": "str",
+    "server_tz": "str"
+  }
+}
