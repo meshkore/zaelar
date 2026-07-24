@@ -16,6 +16,7 @@ import * as store from "../core/store.js?v=2";
 import * as session from "../services/session.js?v=2";
 import { makeResizable } from "../lib/resizable.js?v=1";
 import { CLOSE_ICON } from "../lib/icons.js?v=1";
+import { renderMarkdownLite } from "../lib/markdown-lite.js?v=1";
 
 const SEND_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>`;
 const FLOAT_KEY = "hb_chat_float", DOCK_KEY = "hb_chat_dock";
@@ -232,11 +233,24 @@ export function ChatWall() {
   window.addEventListener("resize", () => { if (dockSide) applyDock(dockSide, wallEl.offsetWidth); });
   setReserve();                                        // apply the reserved strip if we restored a docked state
 
-  // reactive message list: rebuild on every change, then pin to the latest message
+  // reactive message list: rebuild on every change, then pin to the latest message. Text is rendered through a
+  // dependency-free markdown-lite formatter (bold/code/lists) — most SlowBrain/cluster-peer output is markdown and
+  // used to show up as raw asterisks/dashes. Cluster peer turns (role:"peer") get their own bubble style + a small
+  // attribution label (who/cluster), since they used to share the "agent" bubble with zaelar's own replies.
   createEffect(() => {
     const msgs = store.chatMsgs(); if (!listEl) return;
-    listEl.replaceChildren(...msgs.map(m =>
-      h("div", { class: "cw-msg " + (m.role === "agent" ? "agent" : m.role === "sys" ? "sys" : "you") }, m.text)));
+    listEl.replaceChildren(...msgs.map(m => {
+      const cls = m.role === "peer" ? "peer" : m.role === "agent" ? "agent" : m.role === "sys" ? "sys" : "you";
+      const bubble = h("div", { class: "cw-msg " + cls });
+      if (m.role === "peer" && (m.dir === "in" || m.dir === "out")) {
+        const who = m.dir === "out" ? `🛰 → ${m.peer || "?"}` : `🛰 ${m.peer || "?"}`;
+        bubble.appendChild(h("div", { class: "cw-msg-from" }, m.cluster ? `${who} · ${m.cluster}` : who));
+      } else if (m.role === "peer") {
+        bubble.appendChild(h("div", { class: "cw-msg-from" }, "🛰"));
+      }
+      bubble.appendChild(raw(`<div class="cw-msg-body">${renderMarkdownLite(m.text)}</div>`));
+      return bubble;
+    }));
     listEl.scrollTop = listEl.scrollHeight;
   });
 

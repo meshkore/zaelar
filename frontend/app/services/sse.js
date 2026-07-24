@@ -101,18 +101,19 @@ export function openSSE(desktop) {
       // audio-synced transcription (session-lk.js), same as any turn. Here we just keep it in the chat wall as
       // history; pushAgentChat dedupes against the spoken transcript so it lands exactly once.
       store.pushAgentChat("🔔 " + d.text);
-    } else if (d.kind === "cluster") {                                            // MeshKore channel → same chat thread
+    } else if (d.kind === "cluster") {                                            // MeshKore channel → own visual role
       // Render the CONTENT, never raw JSON. Per §4 the payload was already reduced to .text (+ .media) upstream;
-      // here we just append any attachments as links so text+media show as one message.
+      // here we just append any attachments as links so text+media show as one message. Attribution (peer/cluster/
+      // direction) travels as METADATA on the chat message, not baked into the text — previously both zaelar's own
+      // replies and cluster peer turns used role:"agent", distinguished only by a "🛰" prefix in the raw string, so
+      // ChatWall couldn't render a peer turn differently (styling, markdown, who-said-it) from zaelar's own voice.
       const media = Array.isArray(d.media)
         ? " " + d.media.map(m => (m && m.url) ? `📎 ${m.url}` : `📎 ${(m && m.mime) || "adjunto"}`).join("  ")
         : "";
-      let line;
-      if (d.dir === "in") line = `🛰 ${d.cluster}·${d.peer}: ${d.text}${media}`;  // a peer agent spoke
-      else if (d.dir === "out") line = `🛰 → ${d.cluster}·${d.to}: ${d.text}${media}`;  // zaelar spoke to the cluster
-      else if (d.dir === "note") line = `🛰 ${d.text}`;                           // zaelar's aside to you
-      else line = `🛰 ${d.label || ""}`;                                          // join/leave/status/concluded
-      store.pushChat({ role: "agent", text: line });
+      if (d.dir === "in") store.pushChat({ role: "peer", text: d.text + media, cluster: d.cluster, peer: d.peer, dir: "in" });
+      else if (d.dir === "out") store.pushChat({ role: "peer", text: d.text + media, cluster: d.cluster, peer: d.to, dir: "out" });
+      else if (d.dir === "note") store.pushChat({ role: "peer", text: d.text, dir: "note" });        // zaelar's aside to you
+      else store.pushChat({ role: "peer", text: d.label || "", dir: "note" });                       // join/leave/status/concluded
     }
   };
 }
