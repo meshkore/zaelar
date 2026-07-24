@@ -34,7 +34,7 @@ export function openSSE(desktop) {
       else if (d.label === "create" && d.id) desktop.createWidget(d.id, d.spec);  // brain asked to BUILD a new widget
       else if (d.label === "modify" && d.id) desktop.modifyWidget(d.id, d.change);// brain asked to EDIT an existing widget
       else if (d.label === "delete" && d.id) desktop.onDeleted(d.id);             // backend ALREADY deleted (lifecycle) → close the card + drop the cached catalog
-      else if (d.label === "confirm" && d.id) desktop.showConfirm(d.id, { question: d.question });      // irreversible action (delete) → Sí/No overlay ON the card
+      else if (d.label === "confirm" && d.id) desktop.showConfirm(d.id, { question: d.question, action: d.action });      // irreversible action (delete/data) → Sí/No overlay ON the card
       else if (d.label === "confirm-cancel" && d.id) desktop.hideConfirm(d.id);   // confirmation resolved/cancelled elsewhere (voice/timeout)
       else if (d.label === "close") d.id ? desktop.close(d.id) : desktop.closeAll();
       else if (d.label === "move" && d.id) desktop.move(d.id, d.where);            // reposition on the canvas (izquierda/derecha/…)

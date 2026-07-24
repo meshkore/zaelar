@@ -14,11 +14,14 @@ LOGS = REPO_ROOT / ".meshkore" / "logs"
 TIMELINE = LOGS / "timeline-latest.jsonl"
 SESSIONS_DIR = LOGS / "sessions"
 MAX_TURNS = 400  # cap to keep the payload light
+# "Harvey" es un agente FANTASMA: variante fonética con la que el STT confunde la wake-word "zaelar"
+# (ver voice/attention.py) que quedó mal-atribuida como peer en el log — nunca fue un peer real del
+# cluster. Se filtra en el origen para que ni el registro ni la lista de peers lo muestren.
+PHANTOM_PEERS = {"harvey"}
 
 
-def _live_status(cluster: str) -> dict:
-    """Ask the in-process MeshKore control-plane for the REAL, current connection state (loopback-only
-    /api/meshkore/status, stdlib GET, 2s timeout). Never raises: unreachable → connected=False."""
+def _meshkore_clusters() -> list[dict]:
+    """Raw `/api/meshkore/status` clusters list (loopback, stdlib, 2s timeout). Never raises: unreachable → []."""
     try:
         port = os.environ.get("PORT", "43917")
         req = urllib.request.Request(
@@ -27,12 +30,32 @@ def _live_status(cluster: str) -> dict:
         )
         with urllib.request.urlopen(req, timeout=2) as r:
             payload = json.loads(r.read().decode("utf-8", "replace"))
-        for c in payload.get("clusters") or []:
-            if c.get("name") == cluster:
-                return {"reachable": True, "connected": bool(c.get("connected")), "online": c.get("online") or []}
-        return {"reachable": True, "connected": False, "online": []}
+        return payload.get("clusters") or []
     except Exception:
+        return []
+
+
+def _live_status(cluster: str) -> dict:
+    """Ask the in-process MeshKore control-plane for the REAL, current connection state of `cluster`."""
+    clusters = _meshkore_clusters()
+    if not clusters:
         return {"reachable": False, "connected": False, "online": []}
+    for c in clusters:
+        if c.get("name") == cluster:
+            return {"reachable": True, "connected": bool(c.get("connected")), "online": c.get("online") or []}
+    return {"reachable": True, "connected": False, "online": []}
+
+
+def _active_cluster_name() -> str:
+    """El nombre del cluster a usar cuando no hay uno explícito. Bug real 2026-07-25: antes caía a un
+    literal "arena" hardcodeado — el operador renombró/reemplazó ese cluster por otro (V2-064: connect_cluster
+    reemplaza, no acumula) y los envíos seguían apuntando al nombre VIEJO, muerto. FUENTE DE VERDAD = la conexión
+    REAL ahora mismo (`/api/meshkore/status`), nunca un nombre fijo. Vacío ("") si no hay ninguna conectada —
+    el llamador debe tratarlo como "no hay cluster", no adivinar."""
+    for c in _meshkore_clusters():
+        if c.get("connected"):
+            return c.get("name") or ""
+    return ""
 
 
 def _iter_lines(path: Path):
@@ -61,6 +84,8 @@ def _norm(ev: dict) -> dict | None:
         return None
     role = ev.get("role") or ""
     peer = ev.get("peer") or ev.get("to") or ""
+    if peer.strip().lower() in PHANTOM_PEERS:
+        return None
     who = "peer" if (direction == "in" or role == "peer") else ("zaelar" if direction == "out" or role == "assistant" else (role or "system"))
     t_ms = int(ev.get("t_ms") or 0)
     return {
@@ -107,8 +132,10 @@ def view_data(q: str = "") -> dict:
         turns = _collect()
         clusters = sorted({t["cluster"] for t in turns if t["cluster"]})
         peers = sorted({t["peer"] for t in turns if t["peer"]})
-        cluster_name = clusters[0] if clusters else "arena"
-        live = _live_status(cluster_name)
+        # FUENTE DE VERDAD = la conexión activa AHORA (nunca un nombre fijo ni "el último visto en el log" — un
+        # cluster reemplazado, V2-064, deja el log viejo apuntando a un nombre ya muerto).
+        cluster_name = _active_cluster_name() or (clusters[0] if clusters else "")
+        live = _live_status(cluster_name) if cluster_name else {"reachable": True, "connected": False, "online": []}
         return {
             "cluster": cluster_name,
             "clusters": clusters,
@@ -157,7 +184,11 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         if not text:
             out["send_error"] = "No hay texto que enviar."
             return out
-        result = _send_message(out.get("cluster") or "arena", text)
+        cluster_name = out.get("cluster") or ""
+        if not cluster_name:
+            out["send_error"] = "No hay ningún cluster MeshKore conectado ahora mismo."
+            return out
+        result = _send_message(cluster_name, text)
         out = view_data()
         if not result.get("ok"):
             out["send_error"] = result.get("error")
@@ -170,7 +201,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                 out.setdefault("turns", []).append({
                     "t_ms": int(time.time() * 1000),
                     "ts": time.strftime("%d %b %H:%M"),
-                    "cluster": out.get("cluster") or "arena",
+                    "cluster": cluster_name,
                     "peer": "",
                     "who": "zaelar",
                     "dir": "out",
