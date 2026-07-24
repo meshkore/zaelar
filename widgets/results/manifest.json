@@ -1,0 +1,9 @@
+{
+  "id": "results",
+  "version": "0.1.0",
+  "title": "Resultados",
+  "description": "Rejilla de resultados (1-2 columnas) para PRESENTAR EN EL ESCRITORIO lo que zaelar encuentra: búsquedas web, anuncios, productos, correos, archivos, mensajes de WhatsApp. NO busca por su cuenta: lo rellena el cerebro (Hermes) pasándole los datos por el protocolo [[push:results]]. Así el usuario ve todo aquí, nunca en un navegador externo.",
+  "whenToUse": "Para MOSTRAR los resultados de una búsqueda o consulta (motos/productos, correos, archivos, WhatsApp, cualquier listado) dentro de nuestra interfaz, en lugar de abrir el navegador u otra app.",
+  "keywords": ["resultados", "anuncios", "comprar", "precio", "opciones", "correos", "mails", "email", "archivos", "ficheros", "documentos", "whatsapp", "mensajes"],
+  "entry": "widget.js"
+}

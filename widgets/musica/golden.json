@@ -1,0 +1,18 @@
+{
+  "view_data_shape": {
+    "can_connect": "bool",
+    "connected": "bool",
+    "counts": "dict",
+    "default_available": "bool",
+    "mode": "str",
+    "now_playing": "NoneType",
+    "own_client_id_set": "bool",
+    "playlists": "list",
+    "provider": "str",
+    "recent": "list",
+    "redirect_uri": "str",
+    "top": "list",
+    "view": "dict",
+    "yt": "dict"
+  }
+}

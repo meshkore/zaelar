@@ -1,0 +1,10 @@
+{
+  "_comment": "EMPTY BY DESIGN. This is the state a BRAND-NEW account starts from, so every value here ships to every user and to the public repo. It carried the operator's real mission, working hours, four business projects with their expected revenue and probability of success, and their pending tasks — which meant every person who signed up opened the agenda and found someone else's business plan already in it. A widget's data is USER data that happens to be drawn as a widget; a fresh account owns nothing yet. Keep the SHAPE (the planner and widget.js read these keys) and leave the CONTENT empty. If you ever need example data, put it in a test fixture, never here.",
+  "mission": "",
+  "user": {"workStart": "09:00", "workEnd": "18:00", "lunchStart": "13:00", "lunchEnd": "14:00", "energy": "medium", "wantsExercise": false, "notes": ""},
+  "projects": [],
+  "tasks": [],
+  "ideas": [],
+  "meetings": [],
+  "recurring": []
+}

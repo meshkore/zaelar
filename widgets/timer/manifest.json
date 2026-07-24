@@ -1,0 +1,9 @@
+{
+  "id": "timer",
+  "version": "0.1.0",
+  "title": "Temporizador / Horno",
+  "description": "Cronómetro de cuenta atrás grande y clarísimo. Muestra segundos/minutos restantes, se puede pausar/reanudar/reiniciar desde el widget o por voz.",
+  "whenToUse": "Cuando el usuario pide un temporizador, cronómetro, cuenta atrás, horno, o quiere poner un tiempo en pantalla.",
+  "keywords": ["temporizador", "cronómetro", "horno", "cuenta atrás", "cuenta atras", "timer", "tiempo restante", "countdown"],
+  "entry": "widget.js"
+}

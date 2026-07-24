@@ -1,0 +1,7 @@
+{
+  "view_data_shape": {
+    "items": "list",
+    "subtitle": "str",
+    "title": "str"
+  }
+}

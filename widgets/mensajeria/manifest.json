@@ -1,0 +1,16 @@
+{
+  "id": "mensajeria",
+  "version": "0.6.0",
+  "kind": "backed",
+  "backend": {"owner": "owner.py", "gate": "nucleo"},
+  "title": "Mensajería",
+  "description": "Tu mensajería unificada (WhatsApp + Telegram + Email), ya triada: solo lo que va dirigido a ti o debes atender, en un solo sitio. WhatsApp/Telegram se vinculan por QR; el email por correo + contraseña de aplicación. Puedes responder un email por voz (con confirmación antes de enviar).",
+  "whenToUse": "Cuando el usuario pide ver sus mensajes, quién le ha escrito, qué debe responder, su WhatsApp/Telegram/correo, responder/contestar un email, o vincular/conectar WhatsApp, Telegram o el email.",
+  "keywords": ["mensajes", "mensajeria", "mensajería", "chats", "whatsapp", "wasap", "telegram", "email", "correo", "mail", "gmail", "outlook", "quién me ha escrito", "quien me ha escrito", "qué me han escrito", "qué debo responder", "responder", "contestar", "mis mensajes", "vincular whatsapp", "conectar whatsapp", "vincular telegram", "conectar telegram", "conectar email", "conectar correo", "qr", "silenciar", "ocultar", "muted"],
+  "actions": {
+    "hide": {"desc": "Silencia un canal entero: oculta todos sus mensajes actuales y futuros sin marcarlos como leídos en la app", "payload": {"n": "int (número del item en la lista)"}, "safe": true},
+    "unhide": {"desc": "Reactivar un canal silenciado para que sus mensajes vuelvan a aparecer", "payload": {"platform": "string (whatsapp|telegram|email)", "chatId": "int|string"}, "safe": true},
+    "reply": {"desc": "Enviar una respuesta al mensaje N (hoy email; se envía por su canal con el hilo correcto)", "payload": {"n": "int (número del mensaje/chat en la lista)", "text": "string (el texto a enviar)"}, "confirm": true, "usage": "Úsala vía la tool reply_message del cerebro, que pide confirmación antes de enviar. Enviar no se deshace."}
+  },
+  "entry": "widget.js"
+}

@@ -1,0 +1,86 @@
+.venv/
+.env
+logs/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+harness/runs/
+harness/last_run.log
+config/settings.json
+config/meshkore.json
+# connector config MANAGED FROM THE UI (INI-015): enable flags + credentials (Telegram api_id/api_hash) the user
+# enters in the messaging widget. Personal secrets → NEVER commit.
+config/connectors.json
+config/v2.json
+# `engine/.meshkore` es un SYMLINK a `../.meshkore` (raíz del monorepo local, ver engine/CLAUDE.md) — gestión
+# PRIVADA del proyecto entero (roadmap, credenciales de dev, logs). `engine/` es el repo PÚBLICO (petición
+# explícita del operador 2026-07-24: "no quiero que tenga esa carpeta de MeshKore dentro de engine, la única
+# carpeta que debe existir es la de la raíz"). Exclusión TOTAL — ni el symlink ni nada debajo aparece aquí nunca;
+# las reglas específicas de abajo quedan de rastro histórico (redundantes ahora, inofensivas).
+.meshkore
+.meshkore/timeline/
+.meshkore/logs/
+.meshkore/credentials/
+.meshkore/agents/
+.meshkore/snapshots/
+.meshkore/.runtime/
+
+# voice-lab-2 is its OWN git repo (reference engine for the LiveKit migration, INI-012) — not tracked here
+voice-lab-2/
+# local backup of prior voice-lab experiments
+.bkp/
+
+# MeshKore module diario ("diario de actuaciones") is DOCUMENTATION, not runtime logs — must be tracked
+# despite the broad `logs/` rule above (which still ignores root logs/, voice/logs/, .meshkore/logs/, …).
+!.meshkore/modules/**/logs/
+!.meshkore/modules/**/logs/**
+
+# widget generator in-flight job journal (runtime, ephemeral)
+widgets/_data/_jobs.json
+
+# v2 «Colmena» — memoria central + log durable del bus: un solo fichero SQLite local (gitignored)
+memory/_data/
+zaelar.db
+zaelar.db-wal
+zaelar.db-shm
+
+# voice tester run artifacts. tester/runs/ = SCRATCH en crudo (ignorado por completo). El histórico CURADO y
+# consultable vive en tester/reports/<YYYYMMDD>-<desc>/ (versionado) — ver .meshkore/docs/ops/zaelar-testing.md.
+tester/runs/
+tester/runs/*.wav
+tester/runs/*.log
+
+# WhatsApp connector (INI-014): npm-installed deps of the vendored bridge, and the
+# WhatsApp pairing session (personal credentials — NEVER commit) + triage state.
+connectors/whatsapp/bridge/node_modules/
+connectors/whatsapp/_session/
+connectors/whatsapp/_data/
+# Telegram connector (INI-015): userbot login session (personal credentials — NEVER commit).
+connectors/telegram/_session/
+# files/ module: flat inbox of whatever the operator pastes/drops onto the frontend — personal content, never commit.
+files/uploads/
+# el store del widget lleva CUERPOS de mensajes personales (triaje) → nunca al repo.
+widgets/_data/whatsapp.json
+widgets/_data/mensajeria.json
+# Tras la restructura del store (widgets/_data/<id>/state.json): cubre la ruta por-directorio de los datos
+# personales de mensajería (mensajes reales + churn en cada poll) — NUNCA se versionan.
+widgets/_data/mensajeria/
+widgets/_data/whatsapp/
+# navegador (widget backed): estado vivo + CAPTURAS de página (shot.png, ~0.5MB) que cambian en cada navegación
+# — efímero y con la navegación personal del operador; nunca al repo.
+widgets/_data/navegador/
+# tarea-navegador (widget backed) + cluster-registro: estado runtime (state.json) — datos, no código; nunca al repo.
+widgets/_data/tarea-navegador/
+widgets/_data/cluster-registro/
+# Regla GENERAL (2026-07-14): los DATOS runtime de CUALQUIER widget (widgets/_data/<id>/) nunca van al repo —
+# un widget nuevo no debe requerir tocar este fichero. (agenda/state.json estaba trackeado por accidente; el
+# reset de memoria lo borra y eso dejaba el árbol sucio.)
+widgets/_data/*/
+
+# temporales / benchmarks efímeros (no-core)
+scratchpad/
+
+# Zaelar self-contained runtime
+bin/

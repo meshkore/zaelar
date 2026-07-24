@@ -1,0 +1,11 @@
+{
+  "view_data_shape": {
+    "at": "str",
+    "conclusion": "str",
+    "kind": "str",
+    "location": "str",
+    "query": "str",
+    "result": "dict",
+    "sources": "list"
+  }
+}

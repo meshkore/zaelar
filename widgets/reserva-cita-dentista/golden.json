@@ -1,0 +1,9 @@
+{
+  "view_data_shape": {
+    "date": "str",
+    "now": "str",
+    "status": "str",
+    "time": "str",
+    "title": "str"
+  }
+}

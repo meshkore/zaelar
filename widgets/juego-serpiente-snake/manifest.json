@@ -1,0 +1,9 @@
+{
+  "id": "juego-serpiente-snake",
+  "version": "0.1.0",
+  "title": "Serpiente (Snake)",
+  "description": "Juego clásico de la serpiente, totalmente jugable dentro del canvas: rejilla, la serpiente crece al comer, game over al chocar con la pared o consigo misma, marcador de puntos y mejor puntuación. Se controla con las flechas del teclado. Widget autónomo y pasivo (todo el juego corre en el cliente).",
+  "whenToUse": "Cuando el usuario quiere jugar a la serpiente / snake, o pide un juego rápido para entretenerse.",
+  "keywords": ["serpiente", "snake", "juego serpiente", "jugar snake", "jugar serpiente"],
+  "entry": "widget.js"
+}

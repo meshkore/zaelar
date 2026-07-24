@@ -1,0 +1,10 @@
+{
+  "view_data_shape": {
+    "at": "str",
+    "cluster": "str",
+    "clusters": "list",
+    "count": "int",
+    "peers": "list",
+    "turns": "list"
+  }
+}

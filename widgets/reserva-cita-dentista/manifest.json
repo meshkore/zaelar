@@ -1,0 +1,14 @@
+{
+  "id": "reserva-cita-dentista",
+  "version": "0.1.0",
+  "title": "Cita con el Dentista",
+  "description": "Tarjeta de reserva para la cita con el dentista: título, fecha, hora y estado (pendiente/confirmada/cancelada).",
+  "whenToUse": "Cuando el operador pide reservar, cambiar o cancelar la cita con el dentista.",
+  "keywords": ["dentista", "cita dentista", "cita con el dentista", "dentist", "odontólogo", "odontologo", "revisión dental", "revision dental", "limpieza dental"],
+  "entry": "widget.js",
+  "usage": "reservar fija/actualiza la cita (acepta lenguaje natural: date='mañana', time='a las cinco'; title opcional, por defecto 'Dentista'). cancelar anula la reserva vigente y pide confirmación porque cancela un compromiso real.",
+  "actions": {
+    "reservar": {"desc": "reserva o actualiza la cita del dentista", "payload": {"date": "mañana / YYYY-MM-DD", "time": "17:00 / a las cinco", "title": "Dentista (opcional)"}},
+    "cancelar": {"desc": "cancela la cita reservada", "payload": {}, "confirm": true}
+  }
+}

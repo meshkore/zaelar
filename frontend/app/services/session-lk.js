@@ -1,0 +1,472 @@
+// ============================================================================
+// session-lk.js — the voice session ENGINE on LiveKit (INI-012).
+//
+// Drop-in replacement for session.js: SAME export surface (components import it
+// unchanged), but the transport is a LiveKit Room instead of a raw RTCPeer-
+// Connection. LiveKit owns streaming, turn-taking, VAD and barge-in server-side,
+// so the browser no longer runs Silero VAD or Web-Speech STT.
+//
+// What stays identical:
+//   • The reactive store contract (same signals: started/conn/latency/micLevel/…).
+//   • SSE (openSSE) for EVERY backend→UI event (widgets, bot_speech, transcript,
+//     alerts) — the agent worker is EMBEDDED in the web-server process, so
+//     voice.observer.emit reaches the same /events stream as before.
+//   • The mic analyser / orb visualiser: we still getUserMedia the mic locally
+//     (for the analyser) AND publish that same track to LiveKit.
+//   • Camera stays a LOCAL preview (not published), exactly as before.
+//
+// Loaded instead of session.js when the backend runs the LiveKit engine
+// (main.js picks the engine from /api/livekit). See INI-012.
+// ============================================================================
+import { Room, RoomEvent, LocalAudioTrack, ConnectionState } from "../../vendor/livekit-client.esm.js";
+import * as store from "../core/store.js?v=2";
+import * as audio from "./audio.js?v=2";
+import * as api from "./api.js?v=2";
+import { openSSE, closeSSE } from "./sse.js?v=2";
+import { clearDebugBuffer } from "./debugbus.js?v=2";
+import { startVisualizer } from "./visualizer.js?v=2";
+
+let room = null, stream = null, videoEl = null, botAudioEl = null;
+let started = false, starting = false;
+let micDeviceId = localStorage.getItem("zaelar_mic") || null;
+const audit = { silent: false };
+
+// ── Modo de CAPTURA del micro (acondicionamiento de la señal ANTES del STT) ──────────────────────────────────
+// El transcriptor (Whisper) no es el cuello de botella en un sitio ruidoso: lo que falla es la SEÑAL que le
+// llega. Chrome aplica su propio APM (echoCancellation/noiseSuppression) al pedir getUserMedia — su NS clásico es
+// débil con ruido no-estacionario (música) y, en macOS, PELEA con el "Aislamiento de voz" del sistema (que es ML,
+// mucho más fuerte, el mismo tipo de limpieza que hace SuperWhisper). Tres modos:
+//   • isolate → SOLO echoCancellation. Enciende el audio-unit de voice-processing de macOS (donde engancha el
+//               Aislamiento de voz del sistema) SIN el NS de Chrome encima → deja que macOS mande. DEFAULT en Mac.
+//   • full    → APM completo de Chrome (EC+NS+AGC). Mejor en Windows/Linux sin aislamiento a nivel de SO.
+//   • raw     → sin ningún procesado (diagnóstico / micro externo con su propio DSP).
+// OJO: la constraint `voiceIsolation` es de Safari/WebKit; Chrome la ignora en silencio → NO la usamos (era un
+// no-op que daba falsa sensación de aislamiento). En Chrome el aislamiento de voz se activa desde el SO
+// (Centro de control → Micrófono → Aislamiento de voz), no por getUserMedia.
+const _MIC_MODES = {
+  isolate: { echoCancellation: true,  noiseSuppression: false, autoGainControl: false },
+  full:    { echoCancellation: true,  noiseSuppression: true,  autoGainControl: true  },
+  raw:     { echoCancellation: false, noiseSuppression: false, autoGainControl: false },
+};
+const _isMac = /Mac|iP(hone|ad|od)/.test(navigator.platform || navigator.userAgent || "");
+function micMode() {
+  const sp = new URLSearchParams(location.search);
+  if (sp.get("raw") === "1") return "raw";
+  if (sp.get("aec") === "1" || sp.get("isolate") === "1") return "isolate";
+  if (sp.get("full") === "1") return "full";
+  const saved = localStorage.getItem("zaelar_micmode");
+  if (saved && _MIC_MODES[saved]) return saved;
+  return _isMac ? "isolate" : "full";   // Mac: deja mandar al Aislamiento de voz del SO
+}
+
+// ---- UNA SOLA SESIÓN DE VOZ VIVA POR MÁQUINA (2026-07-12): evita dos micros abiertos (dos pestañas/navegadores)
+// que vuelven loco el pipeline de eventos. El server es el árbitro (localhost = mismo ordenador). `SID` es único
+// POR PESTAÑA (sessionStorage: sobrevive a un reload de ESTA pestaña, distinto en otra). Si al arrancar el lock lo
+// tiene otra pestaña viva, NO abrimos el micro: mostramos el aviso y reintentamos solos cada 3s (cuando la otra se
+// cierre, el lock se libera y esta pestaña entra sola). Mientras vivimos, latimos cada 4s para conservar el lock. ----
+const SID = (() => {
+  let s = sessionStorage.getItem("zaelar_sid");
+  if (!s) { s = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2)); sessionStorage.setItem("zaelar_sid", s); }
+  return s;
+})();
+let _hb = null, _blockedRetry = null;
+function _startHeartbeat() {
+  if (_hb) return;
+  _hb = setInterval(() => {
+    api.sessionHeartbeat(SID).then((r) => {
+      if (r && r.ok === false && started) {   // perdimos la carrera (otra pestaña viva) → cede el paso, no dos micros
+        console.warn("session lock perdido — otra sesión tomó el control; cierro esta.");
+        stop();
+        store.setMicBlocked({ show: true, msg: "zaelar está activo en otra pestaña o navegador. Ciérralo para usarlo aquí." });
+      }
+    });
+  }, 4000);
+}
+function _stopHeartbeat() { if (_hb) { clearInterval(_hb); _hb = null; } }
+// Soltar el lock al cerrar la pestaña (sendBeacon sobrevive al unload) → otra pestaña puede entrar al instante.
+try { window.addEventListener("pagehide", () => api.sessionRelease(SID)); } catch (_) {}
+
+// ---- boot overlay: only the VERY FIRST boot blocks the UI; later reconnects (mic swap, auto-reconnect, voice
+// picker) never re-lock it. A safety timeout unblocks even if the agent's "ready" signal never arrives — a
+// stuck boot must never lock the UI out for good. ----
+let _everBooted = false, _bootTimer = null;
+function _unblockBoot() {
+  clearTimeout(_bootTimer); _bootTimer = null;
+  _everBooted = true;
+  store.setBootPhase("listo");   // last cluster lights up → the splash implodes into the orb (boot-anim.js)
+  store.setBootReady(true);
+}
+// Advance the boot phase ONLY during the very first boot (later reconnects never touch the splash). Ignores
+// out-of-order/unknown phases so a late backend milestone can't rewind the animation.
+function _bootPhase(p) {
+  if (_everBooted) return;
+  const cur = store.BOOT_PHASES.indexOf(store.bootPhase());
+  const nxt = store.BOOT_PHASES.indexOf(p);
+  if (nxt > cur) store.setBootPhase(p);
+}
+
+// injected by components/main on mount (same as session.js)
+export function attachVideo(el) { videoEl = el; }
+export function attachBotAudio(el) {
+  botAudioEl = el;
+  // PARIDAD icono↔audio — INVARIANTE AUTO-CORRECTIVA (bug de hidratación 2026-07-17): el `attachToElement` del
+  // vendor LiveKit hace `element.muted = false` en CADA attach — incluidos los RE-ATTACH INTERNOS al reemplazar el
+  // mediaStreamTrack (track nuevo del agente tras el arranque / reconexión), que corren SIN pasar por nuestro
+  // TrackSubscribed y SIN disparar 'playing' (reutiliza el mismo MediaStream → no hay reload). Resultado: icono
+  // "silenciado" (localStorage) pero la voz SONANDO tras un refresh. Como cualquier cambio de muted/volume dispara
+  // 'volumechange', re-asertamos ahí el estado del signal (guard anti-recursión: solo escribe si difiere) + cinturón
+  // de volume=0 (el vendor nunca toca volume en este path) + HIDRATACIÓN inmediata del estado persistido al montar.
+  const enforce = () => {
+    const want = store.botMuted();
+    if (el.muted !== want) el.muted = want;
+    if (want && el.volume !== 0) el.volume = 0;
+    else if (!want && el.volume === 0) el.volume = 1;
+  };
+  try {
+    el.addEventListener("volumechange", enforce);   // cualquier des-mute externo (vendor/startAudio) se revierte al instante
+    el.addEventListener("playing", enforce);
+    enforce();                                      // hidratación: el estado persistido se aplica YA, antes de sesión alguna
+  } catch (_) {}
+}
+// La voz arranca ACTIVA por defecto (icono activo, sonando). Tras un reset del agente se vuelve a este estado.
+export function unmuteVoice() {
+  store.setBotMuted(false);
+  try { localStorage.setItem("hb_bot_muted", "0"); } catch (_) {}
+  applyBotMute();
+}
+export function getStream() { return stream; }
+export function getDc() { return null; }         // no raw data channel; kept for interface compat
+export function getGate() { return null; }       // speaker-gate is server-side now
+export function getAudit() { return audit; }
+export function isActive() { return started; }
+
+// ---- mic / camera toggles ----
+export function applyMic() {
+  if (room && room.localParticipant) { try { room.localParticipant.setMicrophoneEnabled(!store.micMuted()); } catch (_) {} }
+  if (stream) stream.getAudioTracks().forEach(t => t.enabled = !store.micMuted());
+}
+export function applyCam() { if (stream) stream.getVideoTracks().forEach(t => t.enabled = !store.camOff()); }
+export function toggleMic() {
+  const next = !store.micMuted(); store.setMicMuted(next); localStorage.setItem("hb_mic_muted", next ? "1" : "0"); applyMic();
+}
+export function applyBotMute() {
+  if (!botAudioEl) return;
+  botAudioEl.muted = store.botMuted();
+  botAudioEl.volume = store.botMuted() ? 0 : 1;   // cinturón: volumen 0 silencia aunque el vendor des-mutee el elemento
+}
+export function toggleBotMute() {
+  const next = !store.botMuted(); store.setBotMuted(next); localStorage.setItem("hb_bot_muted", next ? "1" : "0");
+  applyBotMute();
+  store.setVoiceFlash({ text: next ? "🔇 silenciado (sigue en marcha)" : "🔊 con voz", show: true });
+  clearTimeout(toggleBotMute._t); toggleBotMute._t = setTimeout(() => store.setVoiceFlash(f => ({ ...f, show: false })), 1600);
+}
+export async function toggleCam() {
+  const next = !store.camOff(); store.setCamOff(next); localStorage.setItem("hb_cam_off", next ? "1" : "0");
+  if (!next && stream && stream.getVideoTracks().length === 0) {
+    try {
+      const vs = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: "user" } });
+      vs.getVideoTracks().forEach(t => stream.addTrack(t)); if (videoEl) videoEl.srcObject = stream;
+    } catch (e) { console.warn("camera unavailable:", e); }
+  }
+  applyCam();
+}
+
+async function populateMicPicker() {
+  try {
+    const devs = await navigator.mediaDevices.enumerateDevices();
+    const ins = devs.filter(d => d.kind === "audioinput");
+    const sel = document.getElementById("micsel"); if (!sel) return; sel.innerHTML = "";
+    const cur = stream && stream.getAudioTracks()[0] && stream.getAudioTracks()[0].getSettings().deviceId;
+    ins.forEach(d => { const o = document.createElement("option"); o.value = d.deviceId; o.textContent = d.label || ("micro " + d.deviceId.slice(0, 6)); if (d.deviceId === (micDeviceId || cur)) o.selected = true; sel.appendChild(o); });
+    sel.style.display = "inline-block";
+    sel.onchange = () => { micDeviceId = sel.value || null; localStorage.setItem("zaelar_mic", micDeviceId || ""); store.setConnState("cambiando micro…"); stop(); setTimeout(start, 350); };
+  } catch (e) { console.warn("enumerateDevices failed:", e); }
+}
+
+// Selector de modo de captura (junto al de micro). Cambiar reconecta (aplica al abrir getUserMedia).
+function populateMicModePicker() {
+  const sel = document.getElementById("micmode"); if (!sel) return;
+  const cur = micMode();
+  const opts = [
+    ["isolate", "🎙️ Aislamiento (macOS)"],
+    ["full", "🎙️ Filtro Chrome"],
+    ["raw", "🎙️ Crudo"],
+  ];
+  sel.innerHTML = "";
+  opts.forEach(([v, label]) => { const o = document.createElement("option"); o.value = v; o.textContent = label; if (v === cur) o.selected = true; sel.appendChild(o); });
+  sel.style.display = "inline-block";
+  sel.onchange = () => {
+    localStorage.setItem("zaelar_micmode", sel.value);
+    store.setConnState("cambiando captura…"); stop(); setTimeout(start, 350);
+  };
+}
+
+export async function start() {
+  if (started || starting) return; starting = true; store.setStarting(true); store.setConnState("requesting…");
+  audit.silent = false; store.setMicBlocked({ show: false, msg: "" });
+
+  // GATE de SESIÓN ÚNICA: antes de tocar el micro, pide ser la única sesión viva. Si otra pestaña/navegador la
+  // tiene, NO abrimos el micro (evita dos micros); avisamos y reintentamos solos hasta que la otra se cierre.
+  const acq = await api.sessionAcquire(SID);
+  if (acq && acq.ok === false) {
+    starting = false; store.setStarting(false); started = false; store.setStarted(false); store.setConnState("—");
+    store.setMicBlocked({ show: true, msg: "zaelar ya está abierto en otra pestaña o navegador. Ciérralo para usarlo aquí." });
+    if (_blockedRetry) clearTimeout(_blockedRetry);
+    _blockedRetry = setTimeout(() => { _blockedRetry = null; start(); }, 3000);
+    if (!_everBooted) _unblockBoot();   // no dejes la UI atrapada en el splash mientras está bloqueada
+    return;
+  }
+  if (_blockedRetry) { clearTimeout(_blockedRetry); _blockedRetry = null; }
+  if (!_everBooted) {
+    clearTimeout(_bootTimer);
+    // 60s: generous on purpose. A cold boot pays Hermes's briefing fetch (≤15s) PLUS the fast layer's own
+    // first-turn latency on a LOCAL Ollama model (measured 4-36s depending on how warm it is) — bailing early
+    // would unblock the UI before zaelar actually greets you, which reads as more broken, not less.
+    _bootTimer = setTimeout(() => { console.warn("boot overlay: safety timeout, unblocking anyway"); _unblockBoot(); }, 60000);
+  }
+  try {
+    await api.setVoiceConfig(store.voiceIdx());
+    // Local mic capture (for the analyser + to publish). El modo decide el acondicionamiento de la señal (ver arriba).
+    const mode = micMode();
+    const ad = { ..._MIC_MODES[mode], channelCount: 1 };
+    if (micDeviceId) ad.deviceId = { ideal: micDeviceId };
+    stream = await navigator.mediaDevices.getUserMedia({ audio: ad });
+    _bootPhase("voz");   // mic granted — the voice link is coming up (frontend-known milestone)
+    await populateMicPicker();
+    populateMicModePicker();
+    if (!store.camOff()) {
+      try { const vs = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: "user" } }); vs.getVideoTracks().forEach(t => stream.addTrack(t)); }
+      catch (e) { console.warn("camera unavailable (audio continues):", e); }
+    }
+    if (videoEl) videoEl.srcObject = stream;
+    started = true; store.setStarted(true);
+    audio.initMic(stream);   // AudioContext + mic analyser → orb visualiser + mic-level meter keep working
+
+    // --- LiveKit room ---
+    const { token, url } = await api.lkToken();
+    room = new Room({ adaptiveStream: false, dynacast: false });
+    room.on(RoomEvent.TrackSubscribed, (track) => {
+      // INSTRUMENTACIÓN (2026-07-23, "no suena nada" sin causa server-side aparente): el server confirma TTS
+      // real (TTSMetrics con audio>0) pero el operador no oye nada — hay que ver EXACTAMENTE dónde se rompe en el
+      // navegador, en el mismo stream de observabilidad (kind="client", /debug + timeline). No condiciona nada,
+      // solo reporta — best-effort, nunca puede romper la reproducción real.
+      try {
+        api.clientLog("🔈 TrackSubscribed", {
+          text: `kind=${track.kind} hasEl=${!!botAudioEl}`,
+          state: track.kind,
+        });
+      } catch (_) {}
+      if (track.kind !== "audio" || !botAudioEl) return;
+      try { track.attach(botAudioEl); } catch (e) {
+        try { api.clientLog("⚠️ track.attach() lanzó", { text: String((e && e.message) || e) }); } catch (_) {}
+      }
+      applyBotMute();   // el attach del vendor SIEMPRE des-mutea (attachToElement) → re-asertar muted+volume
+      try {
+        api.clientLog("🔈 bot audio: estado tras attach", {
+          text: `muted=${botAudioEl.muted} volume=${botAudioEl.volume} paused=${botAudioEl.paused} `
+              + `readyState=${botAudioEl.readyState} hasSrcObject=${!!botAudioEl.srcObject}`,
+          muted: botAudioEl.muted, state: localStorage.getItem("hb_bot_muted"),
+        });
+      } catch (_) {}
+      if (botAudioEl.play) botAudioEl.play().then(() => {
+        store.hideAlert();
+        try {
+          api.clientLog("🔈 play() OK", {
+            text: `muted=${botAudioEl.muted} volume=${botAudioEl.volume} paused=${botAudioEl.paused}`,
+          });
+        } catch (_) {}
+      }).catch((e) => {
+        // AQUÍ es donde una política de autoplay del navegador (Chrome exige gesto del usuario) bloquea el sonido
+        // en silencio para el operador — SIN esto no había forma de verlo desde el server.
+        try { api.clientLog("⚠️ play() RECHAZADO (posible bloqueo de autoplay)", { text: String((e && e.name) || e) + ": " + String((e && e.message) || "") }); } catch (_) {}
+        store.showAlert("Tap to enable zaelar's audio.", () => botAudioEl.play().catch(() => {}));
+      });
+      try { audio.attachBot(new MediaStream([track.mediaStreamTrack])); } catch (_) {}
+    });
+    room.on(RoomEvent.ConnectionStateChanged, (st) => {
+      if (st === ConnectionState.Connected) {
+        store.setConnState("connected", true); store.hideAlert();
+        // RECONCILIA el canvas: el servidor puede haberse reiniciado con la página abierta → su `open_widgets`
+        // quedó vacío/obsoleto mientras la pantalla seguía mostrando widgets, y NADIE lo re-empujaba hasta el
+        // siguiente cambio de canvas → el cerebro "no sabía" lo que el operador tenía delante (o creía haber
+        // abierto algo que no). El frontend es AUTORITATIVO: al (re)conectar re-reporta su set REAL de abiertos.
+        try { window.__zaelarDesktop && window.__zaelarDesktop._reportOpen(); } catch (_) {}
+        // RECONCILIA la síntesis de voz (bug 2026-07-23): setVoiceOutput() viaja por un dato "fire-and-forget"
+        // SIN ack — si el mensaje se perdió en una reconexión a medias, el server podía quedar con audio_enabled
+        // en False (modo chat) PARA SIEMPRE aunque el chat ya estuviera cerrado en el cliente ("no suena ni
+        // subtitula" con el chat cerrado). Al (re)conectar, el cliente es AUTORITATIVO: re-afirma el estado REAL
+        // deseado según si el chat está abierto AHORA — mismo patrón que la reconciliación del canvas de arriba.
+        setVoiceOutput(!store.chatOpen());
+      }
+      else if (st === ConnectionState.Reconnecting) store.setConnState("reconnecting…");
+      else if (st === ConnectionState.Disconnected) { store.setConnState("—"); if (started) store.setBotSpeaking(false); }
+      else store.setConnState(String(st));
+    });
+    room.on(RoomEvent.Disconnected, () => { if (started) autoReconnect(); });
+    // Debug-bus contract messages (topic "vl2", voice/engine/pipeline/instrument.py). During the FIRST boot the
+    // agent reports ordered milestones — {type:"boot", phase:"memoria"|"reflejo"} as each subsystem comes online —
+    // and finally {type:"ready"} = init done (voice live + memory composed + warm), emitted BEFORE zaelar greets.
+    room.on(RoomEvent.DataReceived, (payload, _participant, _kind, topic) => {
+      if (topic !== "vl2" || _everBooted) return;
+      try {
+        const m = JSON.parse(new TextDecoder().decode(payload));
+        if (m.type === "ready") _unblockBoot();
+        else if (m.type === "boot" && m.phase) _bootPhase(m.phase);
+      } catch (_) {}
+    });
+    // AUDIO-SYNCED CAPTIONS: LiveKit forwards the agent's transcription incrementally, paced to its audio playout
+    // (TextSynchronizer). Each segment carries a cumulative `text` + `final`. We feed the AGENT's (remote) segments
+    // to the live caption overlay — the operator's own STT (local participant) is handled via SSE, not here.
+    room.on(RoomEvent.TranscriptionReceived, (segments, participant) => {
+      if (participant && participant.isLocal) return;
+      for (const s of (segments || [])) store.pushCaptionSeg(s.id, s.text, s.final);
+    });
+
+    store.setConnState("connecting…");
+    await room.connect(url, token);
+    // Publish the mic track we already captured (so the analyser and the published audio are the SAME track).
+    const micTrack = stream.getAudioTracks()[0];
+    if (micTrack) await room.localParticipant.publishTrack(new LocalAudioTrack(micTrack));
+    applyMic(); applyCam();
+    openSSE(window.__zaelarDesktop);   // backend→UI events (widgets, bot_speech, transcript, alerts) — same as before
+    _startHeartbeat();                 // mantener el lock de sesión única mientras estamos vivos
+    starting = false; store.setStarting(false);
+  } catch (err) {
+    starting = false; store.setStarting(false); started = false; store.setStarted(false); store.setConnState("error"); console.error(err);
+    const n = err && err.name;
+    if (n === "NotReadableError" || n === "NotAllowedError" || n === "OverconstrainedError") {
+      store.setMicBlocked({ show: true, msg: n === "NotAllowedError" ? "🔇 Permiso de micrófono denegado" : "🔇 Micrófono ocupado por otra app" });
+    }
+    if (!_everBooted) _unblockBoot();   // a failed boot must never leave the UI locked — let the user retry
+    try { await stop(); } catch (_) {}
+  }
+}
+
+let _recTries = 0;
+function autoReconnect() {
+  if (!started) return;
+  if (_recTries >= 2) { store.showAlert("Lost the audio connection with zaelar.", () => { _recTries = 0; stop(); setTimeout(start, 300); }); return; }
+  _recTries++; store.setConnState("reconnecting…");
+  stop(); setTimeout(start, 800);
+}
+
+export async function stop() {
+  const a = botAudioEl;
+  try { if (a) { a.pause(); a.srcObject = null; a.removeAttribute("src"); a.load(); } } catch (_) {}
+  _stopHeartbeat();   // deja de renovar el lock; el TTL del server lo libera solo, o `pagehide` al cerrar la pestaña
+  started = false; starting = false; store.setStarted(false); store.setStarting(false);
+  try { if (room) await room.disconnect(); } catch (_) {} room = null;
+  closeSSE();
+  if (stream) { try { stream.getTracks().forEach(t => t.stop()); } catch (_) {} stream = null; }
+  store.setBotSpeaking(false); audio.dropBot();
+  store.setConnState("—"); store.setLatency("— ms");
+}
+
+export async function reset() { await stop(); try { await api.reset(); } catch (_) {} }
+
+// Bug real 2026-07-23 (reporte del operador con captura): resetHard/resetFull hacían `await stop()` ANTES de pedir
+// el reset al server — `stop()` cierra la conexión SSE de sse.js (la que enruta "widget close" → desktop.closeAll()),
+// así que cuando el server difundía el cierre YA no había nadie escuchando en ese canal. El panel de observabilidad
+// SÍ mostraba "close mensajeria"/"close cluster-registro" porque debugbus.js mantiene su PROPIA conexión SSE
+// independiente (para poder depurar incluso sin sesión de voz) — pero esa conexión solo alimenta el log, nunca
+// llama a desktop. Resultado: nada se cerraba en pantalla, el localStorage `hb_desktop` (que solo `closeAll()`
+// limpia) seguía intacto → un refresh restauraba los mismos widgets. Fix: limpiar escritorio + log EN EL CLIENTE,
+// de forma optimista y determinista, en vez de depender de un viaje de ida y vuelta por un canal que vamos a matar.
+function _clearCanvasAndLog() {
+  try { window.__zaelarDesktop && window.__zaelarDesktop.closeAll(); } catch (_) {}
+  try { clearDebugBuffer(); } catch (_) {}
+}
+
+// HARD reset (botón Reset, tras confirmación): para la voz, dispara el /reset/hard del server (congela el trabajo
+// en curso en la memoria de estado + registra la orden en corto + MATA los procesos de fondo) y limpia los blobs
+// de actividad del canvas en el cliente.
+export async function resetHard() {
+  _clearCanvasAndLog();
+  await stop();
+  try { await api.resetHard(); } catch (_) {}
+  try { store.setTasks([]); } catch (_) {}          // fuera las "nubes" de actividad de fondo del canvas
+  unmuteVoice();   // tras un RESET del agente, la voz arranca ACTIVA (icono activo) por defecto
+}
+// Reset CON CHECKBOXES (V2-063, diálogo del botón Reset): opts = {wipeMemory, wipeCredentials}. Si CUALQUIERA es
+// true el server SE REINICIA SOLO (SQLite/perfiles en uso) — no hay sesión a la que volver hasta que responda de
+// nuevo, así que en vez de re-`start()` (como resetHard) esperamos con un overlay y recargamos la página entera
+// cuando vuelva: más simple y robusto que intentar resucitar la Room de LiveKit a medio camino de un reinicio.
+export async function resetFull({ wipeMemory = false, wipeCredentials = false } = {}) {
+  _clearCanvasAndLog();
+  await stop();
+  let res = {};
+  try { res = await api.resetFull({ wipe_memory: wipeMemory, wipe_credentials: wipeCredentials }); } catch (_) {}
+  if (!res || !res.restarting) {
+    try { store.setTasks([]); } catch (_) {}
+    unmuteVoice();
+    return;
+  }
+  store.setRestarting(true);
+  const deadline = Date.now() + 45000;      // reinicio típico ~8-10s; generoso por si el arranque va lento
+  (async function poll() {
+    while (Date.now() < deadline) {
+      await new Promise(r => setTimeout(r, 1500));
+      try {
+        const r = await fetch("/api/status", { cache: "no-store" });
+        if (r.ok) { location.reload(); return; }
+      } catch (_) { /* server todavía caído — sigue esperando */ }
+    }
+    store.setRestarting(false);   // se acabó la paciencia: deja que el operador recargue a mano
+  })();
+}
+export function toggle() { (started || starting) ? stop() : start(); }
+export async function reconnect() {
+  if (!started && !starting) return start();
+  await stop();
+  await new Promise(r => setTimeout(r, 450));
+  return start();
+}
+
+// ---- text channel: publish a typed/pasted message; the embedded agent injects it as a user turn ----
+// NOTE (INI-012 remaining wiring): the agent entrypoint must subscribe to this data topic and call
+// session.generate_reply(user_input=text). Until then, chat text is delivered best-effort over the room data.
+export function sendText(text) {
+  const t = (text || "").trim(); if (!t) return false;
+  if (!room || room.state !== ConnectionState.Connected) { if (!started && !starting) start(); return true; }
+  try {
+    const payload = new TextEncoder().encode(JSON.stringify({ t: "zaelar-text", text: t }));
+    room.localParticipant.publishData(payload, { reliable: true, topic: "zaelar-text" });
+    return true;
+  } catch (_) { return false; }
+}
+
+// MODO CHAT = VOZ OFF (V2-054 T1.2): activa/desactiva la SÍNTESIS de voz del server (topic zaelar-voice).
+// Con audio OFF el pipeline de LiveKit NO invoca el TTS (rama text-only) → sin latencia ni coste de síntesis;
+// la respuesta sigue apareciendo en el ChatWall por SSE. Best-effort: si no hay sesión, no-op (al conectar el
+// efecto de ChatWall lo re-aplica).
+export function setVoiceOutput(enabled) {
+  if (!room || room.state !== ConnectionState.Connected) return false;
+  try {
+    const payload = new TextEncoder().encode(JSON.stringify({ t: "zaelar-voice", audio: enabled !== false }));
+    room.localParticipant.publishData(payload, { reliable: true, topic: "zaelar-voice" });
+    return true;
+  } catch (_) { return false; }
+}
+
+// ---- voice picker (tap the orb to cycle interlocutor; applies on reconnect) ----
+export async function loadVoices() { const d = await api.voices(); store.setVoices(d.voices || []); store.setVoiceIdx(d.current || 0); }
+function flashVoice() {
+  const v = store.voices(); if (!v.length) return;
+  store.setVoiceFlash({ text: "🗣 " + v[store.voiceIdx()], show: true });
+  clearTimeout(flashVoice._t); flashVoice._t = setTimeout(() => store.setVoiceFlash(f => ({ ...f, show: false })), 1800);
+}
+export async function cycleVoice() {
+  if (!store.voices().length) await loadVoices(); if (!store.voices().length) return;
+  store.setVoiceIdx((store.voiceIdx() + 1) % store.voices().length); flashVoice();
+  await api.setVoiceConfig(store.voiceIdx());
+  if (started) { await reset(); start(); }
+}
+
+// ---- speaker-gate is server-side now: these are no-ops kept for interface compatibility ----
+export function setGate(on) { store.setGateOn(on !== false); return "voice filter is server-side on the LiveKit engine"; }
+export function retrain() {}
+export function setOrb(s) { const v = s === "friendly" ? "friendly" : "pro"; store.setOrbStyle(v); localStorage.setItem("zaelar_orb", v); return "orb: " + v; }
+
+export function startVisuals({ orbCanvas, vizCanvas }) {
+  startVisualizer({ orbCanvas, vizCanvas, getStream, getGate, audit });
+}

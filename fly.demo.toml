@@ -1,0 +1,57 @@
+# Fly.io — Zaelar public DEMO app (INI-018). Separate from `fly.toml` (the old single-tenant
+# operator deploy, destroyed for cost, region cdg/Paris) on purpose — isolating the demo from any
+# future production app (INI-018 "Riesgos": confirmed by the operator 2026-07-24, region=iad/US
+# East, sizing=cheap-but-sufficient).
+#
+# This file only matters for the INITIAL `flyctl deploy` (creates the app, pushes the image to the
+# registry, brings up one verification machine). The actual per-VISITOR demo Machines are created
+# dynamically by cloud/infra/demo-session-worker/ via the Fly Machines API (ephemeral,
+# auto_destroy:true, NOT through this file) — see that Worker's src/index.js for their real config.
+app = "zaelar-demo"
+primary_region = "iad"   # Ashburn, Virginia — Fly's US East region
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  HOST = "0.0.0.0"
+  PORT = "8080"
+  DEPLOY_ENV = "fly·iad·demo"
+  # ZAELAR_PROFILE inherits the Dockerfile's default ("remote", fixed 2026-07-24 — see Dockerfile
+  # comment) — not overridden here.
+  #
+  # Explicit provider overrides (2026-07-24): the credential store (.meshkore/credentials/zaelar.env)
+  # only had ELEVENLABS_API_KEY + XAI_API_KEY at first (confirmed INI-018 T2) — NEITHER matches
+  # profile.py's "remote" defaults (voxtral/cartesia/aimlapi), which is what actually caused the
+  # very first deploy attempt's providers to silently fail prewarm. Point each component directly
+  # at what we actually have a key for, bypassing both profile layers' defaults:
+  ZAELAR_TTS = "elevenlabs"
+  FAST_PROVIDER = "xai"
+  FAST_BASE_URL = "https://api.x.ai/v1"
+  FAST_MODEL = "grok-4.20-0309-non-reasoning"   # current production FlashBrain model, per engine/CLAUDE.md
+  # STT (added 2026-07-24): MISTRAL_API_KEY was actually already present locally in engine/.env
+  # (just never copied into the canonical store checked by T2) — live-verified with a real API call
+  # before trusting it. `voxtral` IS the "remote" profile's own default STT, so this override is
+  # mostly documentation/explicitness (matching the pattern of the other overrides above), not a
+  # behavior change. `DEEPGRAM_API_KEY` is also present/verified if voxtral proves flaky in practice.
+  ZAELAR_STT = "voxtral"
+  #
+  # Demo caps (INI-018 T6) — baseline for the one verification machine this file brings up; real
+  # per-session Machines get their OWN values injected by the Worker at creation time.
+  ZAELAR_DEMO_MAX_TURNS = "20"
+  ZAELAR_DEMO_TTL_SECS = "900"
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = "stop"    # scale to zero — cost only while actually in use
+  auto_start_machines = true
+  min_machines_running = 0
+
+[[vm]]
+  size = "shared-cpu-1x"   # cheap-but-sufficient (operator, 2026-07-24) — half the CPU of the old
+  memory = "2gb"           # single-tenant fly.toml's shared-cpu-2x. Memory bumped 1gb→2gb 2026-07-24:
+                           # the FIRST deploy attempt at 1gb OOM-killed and crash-looped every ~75-90s
+                           # (fastembed/onnxruntime/livekit-agents footprint genuinely needs more than
+                           # 1gb) — verified via `flyctl logs`, not guessed. 2gb is still the cheap
+                           # dimension on Fly's pricing; cpus stayed at 1 (the actual cost lever).

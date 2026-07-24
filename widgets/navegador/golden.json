@@ -1,0 +1,15 @@
+{
+  "view_data_shape": {
+    "can_back": "bool",
+    "can_forward": "bool",
+    "error": "str",
+    "loading": "bool",
+    "mode": "str",
+    "rev": "int",
+    "title": "str",
+    "updated": "str",
+    "url": "str",
+    "youtube_id": "str",
+    "youtube_title": "str"
+  }
+}

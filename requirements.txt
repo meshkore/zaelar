@@ -1,0 +1,66 @@
+# Dependencias de zaelar (Python 3.12). Motor de voz: LiveKit Agents (INI-012 — Pipecat retirado).
+#
+# --- Motor de voz LiveKit ---------------------------------------------------------------------------------------
+livekit-agents[silero,turn-detector]>=1.6,<2   # AgentSession: streaming, turnos, VAD, barge-in, preemptive-gen
+livekit-plugins-openai                          # LLM OpenAI-compat (aimlapi/glm/local/direct) + STT/TTS OpenAI
+livekit-plugins-cartesia                        # TTS Sonic (remoto)
+livekit-plugins-elevenlabs                       # TTS ElevenLabs (cloud fiable, eleven_flash_v2_5 barato/multilingüe · V2-035)
+livekit-plugins-deepgram                        # STT nova-3 (alternativa)
+livekit-plugins-mistralai                       # STT Voxtral (default remoto)
+livekit-plugins-anthropic                       # LLM Claude (ramas async)
+livekit-plugins-google                          # LLM Gemini (cerebro rápido del duo)
+livekit-plugins-silero                          # VAD local (ambos perfiles)
+livekit-api                                     # firma de tokens JWT en el servidor web
+faster-whisper>=1.1                             # STT local: CPU (universal) + NVIDIA CUDA
+mlx-whisper>=0.4; sys_platform == "darwin" and platform_machine == "arm64"  # STT local Apple Silicon (Metal)
+psutil>=5.9                                     # detección de hardware (RAM) para core/accel.py
+# TTS local en Apple Silicon (Metal, ~0.3s al 1er audio). Non-Mac → Kokoro-FastAPI (Docker/CPU) o Cartesia.
+# Dep de sistema en Mac: `brew install espeak-ng` (G2P). El backend Metal cae a FastAPI si mlx-audio peta una frase.
+mlx-audio>=0.4; sys_platform == "darwin" and platform_machine == "arm64"
+misaki[en]>=0.9; sys_platform == "darwin" and platform_machine == "arm64"  # G2P inglés (num2words+spacy); es → espeak-ng
+phonemizer-fork>=3.3; sys_platform == "darwin" and platform_machine == "arm64"
+espeakng-loader>=0.2; sys_platform == "darwin" and platform_machine == "arm64"
+#
+# --- Web / infra (compartido) -----------------------------------------------------------------------------------
+fastapi==0.138.0
+uvicorn==0.34.0
+python-dotenv==1.2.2
+python-multipart==0.0.32          # subida de ficheros (UploadFile)
+loguru==0.7.3
+websockets                        # cliente WS async del conector MeshKore (versión la resuelve livekit)
+httpx                             # búsqueda web factual del FlashBrain (nucleo/flash/websearch.py, V2-022); versión la resuelve openai/livekit
+pypdf==6.13.3                     # extraer texto de PDF (informe profundo)
+#
+# --- Conectores de mensajería (INI-015) -------------------------------------------------------------------------
+# Telegram = userbot Telethon (cuenta personal, NO Bot API) → lee chats personales; puro Python in-process (sin
+# Node). segno = QR (data-URI PNG, pura Python) para el login por QR pintado en el widget. Solo se usan si
+# TG_ENABLED=1; el conector auto-instala si faltan (make install-telegram). WhatsApp usa su bridge Node vendorizado.
+telethon>=1.36                    # Telegram userbot (MTProto) — connectors/telegram/
+segno>=1.6                        # QR PNG puro-Python para el login por QR de Telegram
+#
+# --- Widget "navegador" (INI-016, primer widget kind:"backed") --------------------------------------------------
+# Navegador web dentro de zaelar: casi ninguna web se deja incrustar en un iframe (X-Frame-Options/CSP), así que
+# el navegador REAL es un Chromium headless en el servidor (widgets/navegador/owner.py) que navega, fotografía la
+# página y el widget muestra la captura. Tras instalar: `python -m playwright install chromium` (baja el binario).
+playwright>=1.61                  # Chromium headless para el widget navegador — widgets/navegador/
+#
+# --- Memoria central v2 «Colmena» (V2-002) ----------------------------------------------------------------------
+# Memoria tipo humana 100% LOCAL en un solo fichero SQLite (memory/_data/zaelar.db, WAL) — sin servidor ni broker.
+# sqlite-vec = extensión C de búsqueda vectorial por fuerza bruta (1-5 ms a decenas de miles de recuerdos), se
+# carga en el sqlite3 del venv (sqlite_vec.load(conn)); FTS5 (keyword) ya viene en la amalgama estándar de SQLite.
+sqlite-vec==0.1.9                 # vector store embebido (asg017) — memory/db.py
+# Embeddings LOCALES al insertar (sin coste por inserción, on-device, multilingüe → bueno para castellano):
+#   1) por defecto = embeddinggemma (768 dims) vía Ollama  → `ollama pull embeddinggemma` (fallback nomic-embed-text)
+#   2) fallback SIN server = fastembed (ONNX-Runtime, sin GPU) — descomentar si no hay Ollama en la máquina.
+# Ambos opcionales en runtime: memory/embeddings.py degrada a un embedding determinista local si ninguno está
+# disponible (los tests nunca dependen de red/infra). Ollama no es un paquete pip (servicio aparte).
+fastembed==0.8.0                  # (1) fallback de embeddings sin server + (2) RERANKER LOCAL cross-encoder
+#                                   ONNX/CPU (memory/rerank_local.py, TextCrossEncoder) — V2-030, cero GPU.
+#
+# --- Bóveda de secretos del operador (V2-060) -------------------------------------------------------------------
+# Cifrado E2E de secretos del usuario (passwords/IBAN/cripto/wallet): libsodium vía PyNaCl — sealed box (asimétrico,
+# la pública sella sin desbloqueo), Argon2id (KDF de la passphrase), SecretBox (envuelve la clave privada). Local y
+# nube. Passkeys (WebAuthn PRF) son del frontend (navegador), no una dep pip. memory/vault.py + memory/secrets.py.
+PyNaCl==1.6.2                     # crypto de la bóveda — sealed box + argon2id + secretbox
+# --- Testing ----------------------------------------------------------------------------------------------------
+pytest==9.1.1

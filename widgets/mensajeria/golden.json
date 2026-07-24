@@ -1,0 +1,8 @@
+{
+  "view_data_shape": {
+    "count": "int",
+    "items": "list",
+    "platforms": "dict",
+    "updated": "str"
+  }
+}

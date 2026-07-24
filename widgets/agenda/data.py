@@ -1,0 +1,241 @@
+#
+# Agenda widget — data layer (HANDOFF §9). loadData (seed on first run) · computePlan · applyAction.
+# Reads/writes ONLY the widget's isolated store ("widgets/_data/agenda.json") — no coupling to the voice core.
+#
+import json
+import os
+import re
+import time
+import unicodedata
+
+from .. import store
+from . import planner
+
+
+def _strip_accents(s: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFKD", s or "") if not unicodedata.combining(c))
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+WIDGET_ID = "agenda"
+
+
+def _seed() -> dict:
+    return json.load(open(os.path.join(HERE, "seed.json"), encoding="utf-8"))
+
+
+# Store schema version (lazy migration on read — see store.load). Bump when the shape of agenda.json changes
+# and handle the upgrade in _migrate(); old files upgrade the first time the new code reads them.
+DB_VERSION = 1
+
+
+def _migrate(db: dict, from_v: int) -> dict:
+    # v0 → v1: pre-versioning files are already the current shape; just adopt the version field.
+    return db
+
+
+def load_db() -> dict:
+    if not store.exists(WIDGET_ID):
+        store.save(WIDGET_ID, _seed())
+    return store.load(WIDGET_ID, _seed(), version=DB_VERSION, migrate=_migrate)
+
+
+def _today() -> str:
+    return time.strftime("%Y-%m-%d")
+
+
+def _now() -> str:
+    return time.strftime("%H:%M")
+
+
+def compute_plan(db: dict | None = None) -> dict:
+    # PURE: derive the day plan; do NOT persist on read (avoids read-modify-write races; GET stays idempotent).
+    return planner.plan_day(db or load_db(), date=_today(), now=_now())
+
+
+_WEEK_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
+
+
+def _horizon(db: dict, span: int = 7) -> list[dict]:
+    """Planes por-día para HOY .. HOY+span-1, así el widget ofrece un horizonte temporal (no solo hoy) y
+    conmuta de vista en cliente SIN otra petición (widget.js no puede hacer red). `plan_day` es PURA y barata."""
+    import time as _t
+    today = _today()
+    base = _t.mktime(_t.localtime())
+    out: list[dict] = []
+    for i in range(span):
+        d = _t.localtime(base + i * 86400)
+        date = _t.strftime("%Y-%m-%d", d)
+        plan = planner.plan_day(db, date=date, now=_now() if date == today else "")
+        label = "Hoy" if i == 0 else ("Mañana" if i == 1 else _WEEK_LABELS[d.tm_wday])
+        out.append({"date": date, "label": label, "weekday": _WEEK_LABELS[d.tm_wday], "plan": plan})
+    return out
+
+
+def view_data(q: str = "") -> dict:
+    """Everything the render needs: HORIZONTE de días (hoy + próximos, para las pestañas), el plan de hoy, el
+    bloque activo (live), projects, warnings/coaching."""
+    db = load_db()
+    days = _horizon(db)
+    plan = days[0]["plan"]
+    return {
+        "date": plan["date"], "now": _now(),
+        "mission": db.get("mission", ""),
+        "plan": plan,
+        "active": planner.active_block(plan, _now()),
+        "days": days, "todayIndex": 0,
+        "meetings": db.get("meetings", []),           # citas datadas → vista MES completa (calendario en cliente)
+        "projects": db.get("projects", []),
+        "warnings": plan.get("warnings", []),
+        "coaching": plan.get("coaching", []),
+    }
+
+
+def ref_index() -> list[dict]:
+    """Items que el cerebro puede referenciar por VOZ (V2-026): las tareas VIVAS (por su título) y los proyectos
+    ACTIVOS (por su nombre). `field` = la clave de payload que los identifica en las acciones (`taskId` para una
+    tarea, `projectId` para un proyecto) — así `widgets/refs.py` resuelve "la tarea del daemon" → "t_daemon" sin
+    que el modelo tenga que adivinar un id. Solo lo VIGENTE (una tarea hecha/descartada ya no se referencia)."""
+    db = load_db()
+    out: list[dict] = []
+    for t in db.get("tasks", []):
+        if t.get("status") in ("done", "dropped"):
+            continue
+        out.append({"id": t["id"], "label": t.get("title") or t["id"], "field": "taskId",
+                    "hint": (t.get("startTime") or "") + ("" if t.get("status") in (None, "todo") else f" {t['status']}")})
+    for p in db.get("projects", []):
+        if p.get("status") == "frozen":
+            continue
+        out.append({"id": p["id"], "label": p.get("name") or p["id"], "field": "projectId", "hint": "proyecto"})
+    return out
+
+
+# ── normalización de fechas/horas relativas del habla (V2-026) ────────────────────────────────────────────
+_WEEKDAYS = {"lunes": 0, "martes": 1, "miercoles": 2, "miércoles": 2, "jueves": 3, "viernes": 4,
+             "sabado": 5, "sábado": 5, "domingo": 6}
+
+
+def _resolve_date(raw: str) -> str:
+    """Convierte una fecha del habla ('mañana', 'hoy', 'pasado mañana', 'el viernes', o ya 'YYYY-MM-DD') a
+    'YYYY-MM-DD'. Default sensato: hoy. Así una cita 'mañana' queda bien puesta aunque el modelo no calcule la
+    fecha (era una causa del fallo: pedía la fecha por web_search en vez de apuntar la cita)."""
+    import time as _t
+    s = (raw or "").strip().lower()
+    if not s:
+        return _today()
+    if len(s) >= 8 and s[:4].isdigit() and "-" in s:      # ya viene como YYYY-MM-DD
+        return s[:10]
+    n = _strip_accents(s)
+    today = _t.localtime()
+    base = _t.mktime(today)
+    day = 86400
+    if "pasado manana" in n:
+        return _t.strftime("%Y-%m-%d", _t.localtime(base + 2 * day))
+    if "manana" in n:
+        return _t.strftime("%Y-%m-%d", _t.localtime(base + day))
+    if "hoy" in n:
+        return _today()
+    for name, wd in _WEEKDAYS.items():
+        nn = _strip_accents(name)
+        if nn in n:
+            delta = (wd - today.tm_wday) % 7
+            delta = delta or 7                             # "el lunes" = el PRÓXIMO lunes, no hoy
+            return _t.strftime("%Y-%m-%d", _t.localtime(base + delta * day))
+    return _today()
+
+
+def _resolve_time(raw: str, default: str = "17:00") -> str:
+    """Normaliza una hora del habla ('cinco', '5 de la tarde', '17h', '17:00') a 'HH:MM'. Asume tarde para 1–7
+    sin meridiano explícito por defecto (una cita se pide más de tarde que de madrugada)."""
+    s = (raw or "").strip().lower()
+    if not s:
+        return default
+    m = re.search(r"(\d{1,2})[:h\.](\d{2})", s)
+    if m:
+        return f"{int(m.group(1)):02d}:{m.group(2)}"
+    m = re.search(r"\b(\d{1,2})\b", s)
+    if m:
+        h = int(m.group(1))
+        pm = any(w in s for w in ("tarde", "noche", "pm"))
+        am = any(w in s for w in ("manana", "mañana", "madrugada", "am"))
+        if pm and h < 12:
+            h += 12
+        elif not am and 1 <= h <= 7:                       # "a las cinco" (sin am/pm) → tarde
+            h += 12
+        return f"{h % 24:02d}:00"
+    return default
+
+
+def apply_action(action: str, payload: dict | None = None) -> dict:
+    """Widget actions (HANDOFF §9.3): mark done / not now / snooze / drop / replan. Mutates the isolated store."""
+    payload = payload or {}
+    db = load_db()
+    tid = payload.get("taskId")
+    tasks = {t["id"]: t for t in db.get("tasks", [])}
+
+    if action == "done" and tid in tasks:
+        tasks[tid]["status"] = "done"; tasks[tid]["updatedAt"] = _today()
+    elif action == "not_now" and tid in tasks:                     # "ahora no me apetece" → avoidance++ (coaching)
+        tasks[tid]["avoidance"] = int(tasks[tid].get("avoidance", 0)) + 1
+    elif action == "snooze" and tid in tasks:
+        tasks[tid]["snoozedUntil"] = _today()
+    elif action == "drop" and tid in tasks:
+        tasks[tid]["status"] = "dropped"
+    elif action == "drop_project":
+        pid = payload.get("projectId")
+        for p in db.get("projects", []):
+            if p["id"] == pid:
+                p["status"] = "frozen"
+        for t in db.get("tasks", []):
+            if t.get("projectId") == pid and t.get("status") in (None, "todo", "in_progress"):
+                t["status"] = "dropped"
+    elif action == "add_meeting":
+        title = payload.get("title", "Cita")
+        # V2-026: normaliza fecha/hora del habla ('mañana a las cinco' → date=+1d, startTime='17:00'), así la cita
+        # queda bien puesta aunque el modelo no calcule la fecha él mismo.
+        start = _resolve_time(payload.get("startTime", ""), default="17:00")
+        date = _resolve_date(payload.get("date", ""))
+        end = payload.get("endTime", "")
+        if not re.match(r"^\d{1,2}[:h]\d{2}$|^\d{2}:\d{2}$", str(end)):
+            eh = (int(start[:2]) + 1) % 24                 # sin fin explícito → +1h
+            end = f"{eh:02d}:{start[3:5]}"
+        db.setdefault("meetings", []).append({
+            "title": title,
+            "date": date,
+            "startTime": start,
+            "endTime": end,
+        })
+    elif action == "cancel_meeting":
+        # Cancela la(s) cita(s) que casen por título (case-insensitive, sin acentos) + fecha opcional.
+        title = _strip_accents((payload.get("title") or "").strip().lower())
+        raw_date = payload.get("date", "")
+        date = _resolve_date(raw_date) if raw_date else ""
+        db["meetings"] = [
+            m for m in db.get("meetings", [])
+            if not (
+                (not title or title in _strip_accents(m.get("title", "").strip().lower()))
+                and (not date or m.get("date") == date)
+            )
+        ]
+    # 'replan' (and any action) just recomputes below
+    db["currentPlan"] = compute_plan(db)  # persist the updated plan too, not just the mutation
+    store.save(WIDGET_ID, db)   # persist the mutation; the plan is derived fresh in view_data()
+    return view_data()
+
+
+def coach_context() -> str:
+    """The 'memory seam' (HANDOFF §7 note): mission + workday + projects-by-priority + today's plan + free gaps,
+    rendered for the assistant to adopt the COACH role over the agenda."""
+    d = view_data()
+    db = load_db()
+    lines = [f"MISIÓN GLOBAL: {d['mission']}", "", "PROYECTOS (por prioridad):"]
+    for p in sorted(db.get("projects", []), key=lambda p: p.get("priority", 5)):
+        lines.append(f"- [{p.get('priority')}] {p['name']}: {p.get('objective','')} "
+                     f"(valor {p.get('expectedValue')}, prob {p.get('successProbability')}, {p.get('hoursRemaining')}h)")
+    lines.append("\nAGENDA DE HOY:")
+    for b in d["plan"]["blocks"]:
+        lines.append(f"  {b['start']}–{b['end']} · {b['label']} ({b['kind']})")
+    if d["active"]:
+        lines.append(f"\nAHORA ({d['now']}): {d['active']['label']} · quedan {d['active'].get('remaining_min','?')} min")
+    if d["warnings"]:
+        lines.append("\nNO CABE HOY: " + " | ".join(d["warnings"]))
+    return "\n".join(lines)

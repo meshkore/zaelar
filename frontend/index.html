@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"/>
+<meta name="theme-color" content="#0a0f16" id="themeColorMeta"/>
+<title>zaelar</title>
+<link rel="stylesheet" href="/static/app/styles.css?v=2"/>
+</head>
+<body>
+<!-- The interface is built entirely by the ES-module app under /static/app/.
+     index.html is just the bootstrap: styles + the vendored browser-VAD scripts
+     (they attach window.vad / window.ort) + the module entry point. -->
+<script src="/static/vad/ort.wasm.min.js"></script>
+<script src="/static/vad/vad.bundle.min.js"></script>
+<script type="module" src="/static/app/main.js?v=6"></script>
+</body>
+</html>
