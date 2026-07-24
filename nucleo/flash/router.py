@@ -552,7 +552,12 @@ TOOLS: list[dict] = [
                 "token no están claros en lo que dijo, PREGUNTA cuáles son antes de llamar a esta tool — nunca "
                 "inventes ni reutilices unos antiguos por error. IMPORTANTE: llamar a esta tool NO conecta nada "
                 "todavía — se abre una confirmación Sí/No en la tarjeta y solo se conecta si el operador confirma. "
-                "No digas 'ya está conectado' ni 'hecho' — como mucho di que vas a confirmarlo, o no digas nada."
+                "No digas 'ya está conectado' ni 'hecho' — como mucho di que vas a confirmarlo, o no digas nada. "
+                "NO ES PARA ENVIAR MENSAJES (bug real 2026-07-25: el operador pedía 'mándale un mensaje al cluster' "
+                "y esta tool saltaba por error, pidiendo reconectar algo que YA estaba conectado). Si el cluster ya "
+                "está conectado (míralo en tu ESTADO) y el operador quiere DECIR algo a un peer, usa "
+                "`widget_data(widget_id='cluster-registro', action='send', payload={'text': ...})` — nunca esta "
+                "tool para eso."
             ),
             "parameters": {
                 "type": "object",

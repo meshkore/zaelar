@@ -312,7 +312,7 @@ export class Desktop {
   // CONFIRM an irreversible action (delete) ON the card: bring the widget up so the user SEES which one, then
   // overlay a Sí/No. Host-level chrome — works for ANY widget without touching its widget.js. Buttons resolve via
   // POST /widgets/{id}/confirm; voice ("sí/no") resolves it backend-side, which fires confirm-cancel/delete here.
-  async showConfirm(rawId, {question=""}={}){
+  async showConfirm(rawId, {question="", action=""}={}){
     const rid = await this._resolve(rawId);
     if(!this.wins.has(rid)) await this.show(rid);                 // surface it so it's clear WHAT is being deleted
     const w = this.wins.get(rid); if(!w) return;
@@ -322,7 +322,14 @@ export class Desktop {
     const msg=document.createElement("div"); msg.className="hb-confirm-msg"; msg.textContent=question||"¿Borrar este widget para siempre?";
     const row=document.createElement("div"); row.className="hb-confirm-row";
     const no=document.createElement("button"); no.className="hb-confirm-no"; no.textContent="No";
-    const yes=document.createElement("button"); yes.className="hb-confirm-yes"; yes.textContent="Borrar";
+    const yes=document.createElement("button"); yes.className="hb-confirm-yes";
+    // Bug real 2026-07-25 (reporte del operador): el botón de confirmar decía SIEMPRE "Borrar", aunque la
+    // confirmación fuera de OTRA cosa (conectar a un cluster, enviar un mensaje…) — confuso y directamente
+    // engañoso ("¿Conectar al cluster...? Borrar" no tiene sentido). `action` = la CLASE que ya manda
+    // `widgets/confirm.py` ("delete" | "data") — "delete" sigue diciendo "Borrar" (comportamiento previo
+    // intacto); cualquier otra data-op (connect_cluster, send, o lo que declare cualquier widget futuro) usa
+    // un texto genérico correcto para TODAS, sin tener que enumerar cada acción posible.
+    yes.textContent = action === "delete" ? "Borrar" : "Sí, confirmar";
     no.onclick=()=>this._resolveConfirm(rid,false);
     yes.onclick=()=>this._resolveConfirm(rid,true);
     row.append(no,yes); ov.append(msg,row);

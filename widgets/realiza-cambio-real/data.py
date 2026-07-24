@@ -68,7 +68,7 @@ def _norm(ev: dict) -> dict | None:
     return {
         "t_ms": t_ms,
         "ts": time.strftime("%d %b %H:%M", time.localtime(t_ms / 1000.0)) if t_ms else "",
-        "cluster": ev.get("cluster") or "arena",
+        "cluster": ev.get("cluster") or "",
         "peer": peer,
         "who": who,
         "dir": direction or ("note" if role == "assistant" else ""),

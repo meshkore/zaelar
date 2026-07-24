@@ -2,9 +2,9 @@
   "id": "cluster-registro",
   "version": "0.1.0",
   "title": "Mesh for Cluster",
-  "description": "Registro íntegro de la colaboración en el cluster MeshKore 'arena': lee los últimos turnos kind='cluster' de los logs locales y muestra quién envió cada mensaje (zaelar/peer), dirección in/out, timestamp y texto. Lista scrollable, más reciente abajo.",
-  "whenToUse": "Cuando el usuario pide ver el registro / historial / bitácora del cluster MeshKore 'arena' o los mensajes que se han intercambiado con los peers.",
-  "keywords": ["cluster", "arena", "meshkore", "registro cluster", "historial cluster", "bitácora cluster", "mensajes cluster", "peers", "zalo"],
+  "description": "Registro íntegro de la colaboración en el cluster MeshKore ACTIVO (el nombre puede cambiar — no está atado a uno fijo): lee los últimos turnos kind='cluster' de los logs locales y muestra quién envió cada mensaje (zaelar/peer), dirección in/out, timestamp y texto. Lista scrollable, más reciente abajo.",
+  "whenToUse": "Cuando el usuario pide ver el registro / historial / bitácora del cluster MeshKore conectado (cualquiera que sea su nombre) o los mensajes que se han intercambiado con los peers.",
+  "keywords": ["cluster", "meshkore", "registro cluster", "historial cluster", "bitácora cluster", "mensajes cluster", "peers"],
   "entry": "widget.js",
   "usage": "El widget tiene un chat wall integrado: la acción 'send' (payload: {text}) envía un mensaje de texto al cluster MeshKore activo. Es la única data-op; pide confirmación antes de enviar por ser irreversible.",
   "actions": {
