@@ -14,7 +14,7 @@ import * as api from "./api.js?v=2";
 import { SpeakerGate } from "../lib/speaker-gate.js?v=2";
 import { startMicVAD, stopMicVAD } from "./vad.js?v=2";
 import { startBrowserSTT, stopBrowserSTT } from "./stt.js?v=2";
-import { openSSE, closeSSE } from "./sse.js?v=2";
+import { openSSE, closeSSE } from "./sse.js?v=3";
 import { startVisualizer } from "./visualizer.js?v=2";
 
 // ---- imperative runtime state (mirrors the old module-level globals) ----
