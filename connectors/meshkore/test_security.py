@@ -261,6 +261,7 @@ def _capture_bridge_prompt(ev):
     br._nudged = set()
     br._engaged = {ev.get("cluster", "?"): True}
     br._last_peer_msg = {}
+    br._recent_inbound = {}
 
     def _fake_turn(cluster, text, peer=None, peer_text=None):
         captured["prompt"] = text
@@ -374,7 +375,7 @@ def test_inbound_peer_text_redacted_on_sse_but_raw_for_brain(monkeypatch):
 
     br = bridge.ClusterBridge.__new__(bridge.ClusterBridge)
     br._manager = _Mgr()
-    br._last_activity = {}; br._nudged = set(); br._engaged = {"arena": True}; br._last_peer_msg = {}
+    br._last_activity = {}; br._nudged = set(); br._engaged = {"arena": True}; br._last_peer_msg = {}; br._recent_inbound = {}
     def _fake_turn(cluster, text, peer=None, peer_text=None): captured["prompt"] = text; return None
     br._brain_turn = _fake_turn
     br._spawn = lambda coro: None
@@ -386,6 +387,47 @@ def test_inbound_peer_text_redacted_on_sse_but_raw_for_brain(monkeypatch):
 
     assert "ghp_ABCDEFGHIJKLMNOPQRST1234567890" not in emitted["text"]   # redacted on the operator-facing surface
     assert "ghp_ABCDEFGHIJKLMNOPQRST1234567890" in captured["prompt"]     # raw (fenced) for the brain to collaborate
+
+
+# S-07b · anti-spam DEDUP (2026-07-25, live: zalo flooded 45 identical pings) — a verbatim repeat from the same
+# peer within DEDUP_SECS must NOT spawn a second brain turn (no token burn / no inflight flood).
+def test_inbound_verbatim_dedup_suppresses_brain_turn(monkeypatch):
+    from connectors.meshkore import bridge
+
+    monkeypatch.setattr(bridge, "_emit", lambda *a, **k: None)
+    monkeypatch.setattr(bridge, "DEDUP_SECS", 60.0)
+    turns = []
+
+    class _Mgr:
+        def get(self, cluster): return None
+
+    br = bridge.ClusterBridge.__new__(bridge.ClusterBridge)
+    br._manager = _Mgr()
+    br._last_activity = {}; br._nudged = set(); br._engaged = {"arena": True}
+    br._last_peer_msg = {}; br._recent_inbound = {}
+    br._brain_turn = lambda *a, **k: None
+    br._spawn = lambda coro: turns.append(1)
+    br._notify_registry = lambda: None
+    clk = {"t": 0.0}
+    br._now = lambda: clk["t"]
+
+    ev = {"kind": "message", "cluster": "arena", "from": "zalo", "payload": {"text": "un momento"}}
+    loop = asyncio.new_event_loop()
+    loop.run_until_complete(br.on_event(dict(ev)))          # 1ª vez → turno
+    clk["t"] = 5.0
+    loop.run_until_complete(br.on_event(dict(ev)))          # repetido a los 5s → SUPRIMIDO
+    clk["t"] = 8.0
+    loop.run_until_complete(br.on_event(dict(ev)))          # repetido otra vez → SUPRIMIDO
+    assert len(turns) == 1, f"esperaba 1 turno, hubo {len(turns)} (dedup no aplicó)"
+    # un mensaje DISTINTO del mismo peer sí dispara turno
+    clk["t"] = 9.0
+    loop.run_until_complete(br.on_event({"kind": "message", "cluster": "arena", "from": "zalo",
+                                         "payload": {"text": "otra cosa distinta"}}))
+    assert len(turns) == 2
+    # y pasado el window, el mismo texto vuelve a contar
+    clk["t"] = 200.0
+    loop.run_until_complete(br.on_event(dict(ev)))
+    assert len(turns) == 3
 
 
 # S-08 · V7/V8 — the untrusted-turn permission gate (Hermes ACP `_decide_permission`) is retired with Hermes
