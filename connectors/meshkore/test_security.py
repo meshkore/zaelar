@@ -260,6 +260,7 @@ def _capture_bridge_prompt(ev):
     br._last_activity = {}
     br._nudged = set()
     br._engaged = {ev.get("cluster", "?"): True}
+    br._last_peer_msg = {}
 
     def _fake_turn(cluster, text, peer=None, peer_text=None):
         captured["prompt"] = text
@@ -373,7 +374,7 @@ def test_inbound_peer_text_redacted_on_sse_but_raw_for_brain(monkeypatch):
 
     br = bridge.ClusterBridge.__new__(bridge.ClusterBridge)
     br._manager = _Mgr()
-    br._last_activity = {}; br._nudged = set(); br._engaged = {"arena": True}
+    br._last_activity = {}; br._nudged = set(); br._engaged = {"arena": True}; br._last_peer_msg = {}
     def _fake_turn(cluster, text, peer=None, peer_text=None): captured["prompt"] = text; return None
     br._brain_turn = _fake_turn
     br._spawn = lambda coro: None

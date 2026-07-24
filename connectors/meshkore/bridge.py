@@ -39,6 +39,7 @@ class ClusterBridge:
         self._engaged: dict[str, bool] = {}  # cluster -> has an open joint task
         self._last_activity: dict[str, float] = {}
         self._nudged: set[str] = set()
+        self._last_peer_msg: dict[str, str] = {}  # cluster -> most recent inbound text (idle-nudge context)
         self._tick_task = None
         self._turns: set = set()             # keep brain-turn tasks alive
 
@@ -122,6 +123,7 @@ class ClusterBridge:
                 text = str(payload) if payload is not None else ""
             self._last_activity[cluster] = self._now()
             self._nudged.discard(cluster)
+            self._last_peer_msg[cluster] = text     # idle-nudge context (found bug 2026-07-25: see _heartbeat)
             # SSE/timeline/observer copy is REDACTED: a peer message can carry a secret-shaped value (or echo back
             # one of our own tokens) and this surface persists to logs + streams to the UI (audit V6). The brain
             # copy below stays raw (fenced) — Hermes needs the real content to collaborate; the fence handles trust.
@@ -355,6 +357,21 @@ class ClusterBridge:
             logger.warning(f"MeshKore dispatch {action} failed: {e}")
             _emit("error", f"cluster {action} failed: {e}")
 
+    def _heartbeat_context(self, cluster: str) -> str:
+        """Best-effort 'what was the peer last saying' for the idle nudge below, so the reasoner isn't asked to
+        decide blind. Prefers the live in-process text from THIS run; falls back to the durable per-peer synthesis
+        (`mem_ingest`, survives a restart) — same untrusted-peer content the reasoner already sees on every
+        message turn, no new trust surface. Empty if genuinely nothing is known yet."""
+        last = self._last_peer_msg.get(cluster)
+        if last:
+            return last
+        client = self._manager.get(cluster)
+        for p in (client.online if client else []) or []:
+            s = mem_ingest.synthesis_for(cluster, p)
+            if s:
+                return s
+        return ""
+
     # ── heartbeat: nudge on idle-with-peers-present (human-like follow-up), never spam ──────────────────────
     async def _heartbeat(self):
         while True:
@@ -370,11 +387,21 @@ class ClusterBridge:
                     if now - self._last_activity.get(cluster, 0) < IDLE_SECS:
                         continue
                     self._nudged.add(cluster)                     # one nudge per idle stretch
+                    # BUG (found 2026-07-25, live journal): this prompt used to carry ZERO context — the reasoner
+                    # was asked to "decide: follow up, or conclude" with no idea what the peer last said, so a
+                    # peer's "one moment, checking with my team" got answered with [[cluster.done]] (conversation
+                    # closed while the peer was still actively working). Give it the last known message/topic so
+                    # it can tell "still working" from "actually gone quiet" instead of guessing blind.
+                    ctx = self._heartbeat_context(cluster)
+                    ctx_block = (f"\nThe peer's last known message/topic: {security.fence_untrusted(ctx)}"
+                                 if ctx else "")
                     self._spawn(self._brain_turn(
                         cluster,
-                        f"[cluster:{cluster} · heartbeat] no reply for a while and peers are online. Decide: send a "
-                        f"gentle follow-up, or — if you've reached a conclusion — state it and emit "
-                        f"[[cluster.done:{cluster}]]."))
+                        f"[cluster:{cluster} · heartbeat] no reply for a while and peers are online.{ctx_block}\n"
+                        f"If that shows the peer is still actively working (e.g. \"one moment\", \"checking with "
+                        f"my team\", \"give me a second\"), do NOT conclude — stay silent (no tags at all) and "
+                        f"keep waiting. Only send a gentle follow-up if genuinely stuck with no signal either way, "
+                        f"or emit [[cluster.done:{cluster}]] if the objective is truly finished."))
             except asyncio.CancelledError:
                 break
             except Exception as e:
