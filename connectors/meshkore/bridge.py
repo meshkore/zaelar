@@ -209,7 +209,7 @@ class ClusterBridge:
         except Exception as e:
             logger.warning(f"MeshKore brain turn failed: {e}")
             _emit("error", f"cluster brain turn failed: {e}")
-            return
+            return "", []
         cluster_ms = round((time.time() - t0) * 1000)
         spoken, sent = await self._route_reply(reply)
         # OBSERVACIÓN PASIVA cluster→memoria (V2-021 T170): solo en un turno de MENSAJE de un peer (no presence/
@@ -226,6 +226,7 @@ class ClusterBridge:
             # redact in case the brain echoed a token/secret back into its operator-facing aside.
             _emit("cluster", "🧠 zaelar", text=store.redact(spoken.strip()), role="assistant",
                   extra={"cluster": cluster, "dir": "note", "cluster_ms": cluster_ms})
+        return spoken, sent
 
     # A reply generated FROM a cluster turn is untrusted output: a peer could have prompt-injected the brain into
     # emitting a tag. So from this path we allow ONLY the collaboration primitives (talk to peers / conclude).
@@ -372,6 +373,33 @@ class ClusterBridge:
                 return s
         return ""
 
+    async def _heartbeat_nudge(self, cluster: str):
+        """Run the idle-nudge brain turn, then decide what 'nudged' should mean.
+
+        BUG (found live 2026-07-25, journal .meshkore/logs/meshkore.jsonl): the ORIGINAL heartbeat prompt carried
+        ZERO context — the reasoner was asked to "decide: follow up, or conclude" with no idea what the peer last
+        said, so a peer's "one moment, checking with my team" got answered with [[cluster.done]] (conversation
+        closed while the peer was still actively working). Fixed by feeding it the last known message/topic.
+
+        That fix uncovered a SECOND bug: `_nudged` used to be marked permanently on every heartbeat firing,
+        regardless of outcome — so once the reasoner (correctly) chose to stay silent and wait, the cluster went
+        quiet FOREVER (only a fresh inbound message clears `_nudged`). A single "still waiting" turn must not
+        permanently mute us if the peer never comes back. Only a REAL cluster.send or cluster.done should count
+        as "we already nudged" — silence re-arms the idle timer so we check again after another IDLE_SECS.
+        """
+        ctx = self._heartbeat_context(cluster)
+        ctx_block = f"\nThe peer's last known message/topic: {security.fence_untrusted(ctx)}" if ctx else ""
+        event_text = (
+            f"[cluster:{cluster} · heartbeat] no reply for a while and peers are online.{ctx_block}\n"
+            f"If that shows the peer is still actively working (e.g. \"one moment\", \"checking with my team\", "
+            f"\"give me a second\"), do NOT conclude — stay silent (no tags at all) and keep waiting. Only send a "
+            f"gentle follow-up if genuinely stuck with no signal either way, or emit [[cluster.done:{cluster}]] "
+            f"if the objective is truly finished.")
+        _, sent = await self._brain_turn(cluster, event_text)
+        if not sent and self._engaged.get(cluster):
+            self._last_activity[cluster] = self._now()   # re-arm: check again after another idle stretch
+            self._nudged.discard(cluster)
+
     # ── heartbeat: nudge on idle-with-peers-present (human-like follow-up), never spam ──────────────────────
     async def _heartbeat(self):
         while True:
@@ -386,22 +414,8 @@ class ClusterBridge:
                         continue
                     if now - self._last_activity.get(cluster, 0) < IDLE_SECS:
                         continue
-                    self._nudged.add(cluster)                     # one nudge per idle stretch
-                    # BUG (found 2026-07-25, live journal): this prompt used to carry ZERO context — the reasoner
-                    # was asked to "decide: follow up, or conclude" with no idea what the peer last said, so a
-                    # peer's "one moment, checking with my team" got answered with [[cluster.done]] (conversation
-                    # closed while the peer was still actively working). Give it the last known message/topic so
-                    # it can tell "still working" from "actually gone quiet" instead of guessing blind.
-                    ctx = self._heartbeat_context(cluster)
-                    ctx_block = (f"\nThe peer's last known message/topic: {security.fence_untrusted(ctx)}"
-                                 if ctx else "")
-                    self._spawn(self._brain_turn(
-                        cluster,
-                        f"[cluster:{cluster} · heartbeat] no reply for a while and peers are online.{ctx_block}\n"
-                        f"If that shows the peer is still actively working (e.g. \"one moment\", \"checking with "
-                        f"my team\", \"give me a second\"), do NOT conclude — stay silent (no tags at all) and "
-                        f"keep waiting. Only send a gentle follow-up if genuinely stuck with no signal either way, "
-                        f"or emit [[cluster.done:{cluster}]] if the objective is truly finished."))
+                    self._nudged.add(cluster)                     # suppress re-entry WHILE this turn is in flight
+                    self._spawn(self._heartbeat_nudge(cluster))
             except asyncio.CancelledError:
                 break
             except Exception as e:
