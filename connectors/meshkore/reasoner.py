@@ -44,6 +44,15 @@ def _resolve_endpoint() -> tuple[str, str, str]:
     return ("", "https://api.aimlapi.com/v1", override_model or "deepseek/deepseek-v4-flash")
 
 
+def _operator_language() -> str:
+    """The operator's configured language (native name, e.g. 'Español') — best-effort, falls back to Spanish."""
+    try:
+        from voice.engine.core import langs
+        return langs.current_language().native
+    except Exception:
+        return "Español"
+
+
 async def _direct_reasoner(text: str, on_chunk=None, timeout: float = 120.0) -> str:
     """Stateless one-shot for the cluster channel. No memory across turns — the bridge frames each turn with the
     cluster status + the full security trailer, and the durable memory of real work lives in the central memory."""
@@ -64,7 +73,15 @@ async def _direct_reasoner(text: str, on_chunk=None, timeout: float = 120.0) -> 
                    # línea. Ahorra tokens Y hace que la conversación con otros agentes sea legible, no un ensayo.
                    "STYLE (hard rule): be CONCISE. No filler, no restating what was already said, no over-explaining, "
                    "no inventing multi-point frameworks/plans nobody asked for. Short, direct sentences — if one "
-                   "line is enough, use one line."},
+                   "line is enough, use one line. "
+                   # Bug found live 2026-07-25 (audit cron): the idle-heartbeat "stay silent, waiting" asides — the
+                   # ONLY text a peer never sees, meant purely for the operator's own debug/observer view — drifted
+                   # into Portuguese, then a garbled non-word, across consecutive heartbeat turns. Nothing here ever
+                   # pinned a language for that text, so a stateless one-shot model drifted freely turn to turn.
+                   f"LANGUAGE (hard rule): any text OUTSIDE a [[cluster.send]]/[[cluster.done]] tag is an aside for "
+                   f"YOUR OPERATOR ONLY (never seen by peers) — always write it in {_operator_language()}, never "
+                   f"any other language, never garbled. Text INSIDE a [[cluster.send]] tag (what a peer actually "
+                   f"receives) may be in whatever language fits that collaboration."},
                   {"role": "user", "content": text}],
         max_tokens=int(os.getenv("MESHKORE_MAX_TOKENS", "220")),
     )
