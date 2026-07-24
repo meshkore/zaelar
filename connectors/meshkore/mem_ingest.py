@@ -153,6 +153,13 @@ def known_peer(cluster: str, peer: str) -> bool:
     return bool(_current_synthesis(cluster, peer))
 
 
+def synthesis_for(cluster: str, peer: str) -> str:
+    """Public read of the current durable synthesis for this peer — same quarantined (untrusted) content the
+    bridge already shows the reasoner on every message turn, just DURABLE (survives a server restart, unlike the
+    bridge's in-process `_last_peer_msg`). Used to give the idle heartbeat something to judge instead of nothing."""
+    return _current_synthesis(cluster, peer)
+
+
 def _current_synthesis(cluster: str, peer: str) -> str:
     """La síntesis VIGENTE de este peer (la única fila válida bajo el slot), sin el prefijo `[cluster] peer:`.
     Lee por el índice de fuente (supersede deja una sola fila válida por slot). Tolera BD vacía → ''."""
