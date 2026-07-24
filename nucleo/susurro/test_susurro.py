@@ -62,6 +62,10 @@ def test_risky_decision_v2061():
     assert not friction.risky_decision({"escalated": True, "widget_acted": True})
     assert not friction.risky_decision({})
     assert not friction.risky_decision(None)
+    # BUG 2026-07-25: un confirm-gate ABIERTO (widget_acted=true PERO confirm_opened=true) NO es riesgo — la
+    # acción está pendiente del Sí/No del operador, no ejecutada en falso. Susurro no debe re-rutearla a un worker.
+    assert not friction.risky_decision({"widget_acted": True, "confirm_opened": True})
+    assert not friction.risky_decision({"data_done": True, "confirm_opened": True})
 
 
 # ── catálogo ──────────────────────────────────────────────────────────────────────────────────────────────

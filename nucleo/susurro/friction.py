@@ -99,6 +99,14 @@ def risky_decision(decision: dict | None) -> str:
     d = decision if isinstance(decision, dict) else {}
     if d.get("escalated"):
         return ""       # ya tomó el camino pesado correcto — no es el patrón de riesgo
+    if d.get("confirm_opened"):
+        # BUG real (2026-07-25, sesión viva de Manolo): pedir "manda un mensaje a Zalo" ABRE el confirm-gate de la
+        # data-op `send` (widget_acted=true PERO confirm_opened=true) — la acción NO se ejecutó, está ESPERANDO el
+        # Sí/No del operador. Susurro lo leía como "acción consecuente sin escalar/no ejecutada" y lanzaba un
+        # worker_action que iba al GENERADOR de código y se ponía a MODIFICAR el widget para "enviar el mensaje".
+        # Un confirm-gate ABIERTO es justo lo contrario del patrón de riesgo V2-061 (reflejar en local algo real sin
+        # ejecutarlo y decir «hecho»): aquí no se dijo «hecho», se PREGUNTÓ, y se ejecutará al confirmar. No auditar.
+        return ""
     if d.get("widget_acted") or d.get("data_done"):
         return "acción de widget sin escalar (¿reflejo local de una acción real no ejecutada?)"
     return ""
