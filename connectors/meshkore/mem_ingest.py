@@ -143,6 +143,16 @@ def _merge_fallback(peer: str, prev: str, inbound: str, outbound: str) -> str:
     return merged
 
 
+def known_peer(cluster: str, peer: str) -> bool:
+    """True si YA hay una síntesis de intercambios previos con este peer en este cluster (memoria durable, no
+    estado de proceso) — V2-067, 2026-07-24: el operador pidió que zaelar se anuncie (nombre+capacidades) solo la
+    PRIMERA vez que se cruza con un peer; en reconexiones posteriores del mismo cluster sería absurdo repetirlo.
+    `False` = nunca hemos hablado (o memoria apagada/vacía) → toca presentarse."""
+    if not enabled():
+        return False
+    return bool(_current_synthesis(cluster, peer))
+
+
 def _current_synthesis(cluster: str, peer: str) -> str:
     """La síntesis VIGENTE de este peer (la única fila válida bajo el slot), sin el prefijo `[cluster] peer:`.
     Lee por el índice de fuente (supersede deja una sola fila válida por slot). Tolera BD vacía → ''."""
