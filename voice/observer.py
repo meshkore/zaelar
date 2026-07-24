@@ -8,9 +8,14 @@
 import json
 import os
 
-# Logging lives in the MeshKore standard location: .meshkore/logs/ (gitignored runtime dir).
+# Logging lives in the MeshKore standard location: .meshkore/logs/ (gitignored runtime dir). `ZAELAR_LOG_DIR`
+# overrides it (same test-isolation/headless knob as bus/log.py's ZAELAR_DB and nucleo/workspace.py's
+# ZAELAR_WORKSPACE): without it, behavior is byte-identical to before. The test suite sets it (root conftest.py)
+# so unit tests that call observer.emit() — e.g. bus/test_sse_observer.py's "error/boom/oops", the architect
+# tests — never append synthetic events to the LIVE timeline the running server/operator reads for real
+# post-mortems (found 2026-07-25: an audit flagged a test's "kind:error boom" as if it were a real incident).
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # voice/.. = repo root
-LOG_DIR = os.path.join(_REPO_ROOT, ".meshkore", "logs")
+LOG_DIR = os.getenv("ZAELAR_LOG_DIR") or os.path.join(_REPO_ROOT, ".meshkore", "logs")
 os.makedirs(LOG_DIR, exist_ok=True)
 
 _t0 = {"v": None}
