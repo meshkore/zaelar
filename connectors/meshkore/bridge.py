@@ -142,27 +142,39 @@ class ClusterBridge:
         elif t == "presence":
             ag, st = ev.get("agent"), ev.get("status")
             _emit("cluster", f"• {cluster}: {ag} {st}", extra={"cluster": cluster, "peer": ag, "status": st})
-            if st == "online" and self._engaged.get(cluster):
+            # V2-067 (petición del operador, 2026-07-24): NADA de datos/objetivo predefinido al conectar — el
+            # widget solo facilita la conexión; quien decide de qué hablar es el operador, con sus propias
+            # instrucciones. La ÚNICA cosa automática permitida es una presentación breve (nombre+capacidades) y
+            # SOLO la primera vez que se cruza con este peer (memoria durable vía mem_ingest.known_peer — reconectar
+            # con alguien ya conocido y volver a presentarse sería absurdo). Si hay una tarea activa de verdad
+            # (`self._engaged`), eso lo decide una instrucción explícita del operador, no este evento de presencia.
+            if st == "online" and not mem_ingest.known_peer(cluster, ag):
                 self._nudged.discard(cluster)
                 ag_s = security.neutralize_identity(ag)             # peer-chosen handle → neutralize before the prompt (V2)
                 self._spawn(self._brain_turn(
                     cluster,
-                    f"[cluster:{cluster} · event] agent '{ag_s}' just came online. Pick the collaboration back up "
-                    f"if you were waiting for them."))
+                    f"[cluster:{cluster} · event] agent '{ag_s}' just came online and you've never talked before. "
+                    f"Send a SHORT self-introduction ONLY — your name and a one-line generic description of your "
+                    f"capabilities. Do NOT propose an objective, a task, roles, or a collaboration format — just "
+                    f"say hello and stop."))
             self._notify_registry()
         elif t == "ready":
             online = ev.get("online") or []
             _emit("cluster", f"✓ joined {cluster}", extra={"cluster": cluster, "online": online})
-            # Just joined with peers already present → open the collaboration now (don't wait for a nudge). If the
-            # channel is empty we stay quiet; the presence-online handler below wakes us when the first peer joins.
-            if online and self._engaged.get(cluster):
+            # V2-067: mismo criterio que arriba — solo se presenta a los peers que NUNCA ha visto en este cluster,
+            # nunca abre una "colaboración" ni propone un objetivo por su cuenta. Si TODOS los presentes ya son
+            # conocidos, se queda callado (evita el "hola de nuevo" absurdo en cada reconexión).
+            unknown = [p for p in online if not mem_ingest.known_peer(cluster, p)]
+            if unknown:
                 self._last_activity[cluster] = self._now()
                 self._nudged.discard(cluster)
-                online_s = ", ".join(security.neutralize_identity(h) for h in online)   # peer handles → neutralize (V2)
+                unknown_s = ", ".join(security.neutralize_identity(h) for h in unknown)   # peer handles → neutralize (V2)
                 self._spawn(self._brain_turn(
                     cluster,
-                    f"[cluster:{cluster} · event] you're connected; agents online: {online_s}. Open the "
-                    f"collaboration on your objective now — send your opening proposal with [[cluster.send:{cluster}]]."))
+                    f"[cluster:{cluster} · event] you just connected; agent(s) online you've never talked to before: "
+                    f"{unknown_s}. Send a SHORT self-introduction ONLY — your name and a one-line generic "
+                    f"description of your capabilities. Do NOT propose an objective, a task, roles, or a "
+                    f"collaboration format — just say hello and stop."))
             self._notify_registry()
         elif t == "status":
             _emit("cluster", f"{cluster}: {ev.get('status')}", extra={"cluster": cluster, "status": ev.get("status")})
