@@ -40,6 +40,7 @@ class ClusterBridge:
         self._last_activity: dict[str, float] = {}
         self._nudged: set[str] = set()
         self._last_peer_msg: dict[str, str] = {}  # cluster -> most recent inbound text (idle-nudge context)
+        self._caught_up: set[tuple] = set()   # (cluster, peer, last_in_ts) already nudged for catch-up (dedup)
         self._tick_task = None
         self._turns: set = set()             # keep brain-turn tasks alive
 
@@ -71,6 +72,30 @@ class ClusterBridge:
             wstore.save(_REGISTRY_WIDGET, {"_tick": time.time_ns()})
         except Exception:
             pass
+
+    def _catch_up_context(self, cluster: str, peer: str) -> str | None:
+        """Was `peer`'s last MESSAGE to us ever answered? None if answered/never messaged/already nudged for
+        this exact message. Operator report (2026-07-25): 'I start this up 3 days later and there are messages
+        we never replied to' — a MeshKore cluster has NO server-side unread count (client.py: no message
+        history, relay-only), so catching up is OUR job, reconstructed from the durable journal (survives a
+        restart, unlike the /debug timeline). Deduped by exact message timestamp so a flaky reconnect loop
+        doesn't re-nudge for the SAME still-unanswered message every time; a genuinely NEW message gets a fresh
+        nudge (different timestamp)."""
+        try:
+            ex = journal.last_exchange(cluster, peer)
+        except Exception:
+            return None
+        ts = ex.get("last_in_ts")
+        if not ts:
+            return None
+        out_ts = ex.get("last_out_ts")
+        if out_ts is not None and out_ts >= ts:
+            return None                                    # ya contestado (o después)
+        key = (cluster, peer, ts)
+        if key in self._caught_up:
+            return None
+        self._caught_up.add(key)
+        return ex.get("last_in_text") or ""
 
     def _resolve_peer_cluster(self, handle: str) -> str | None:
         """Resolve a (possibly brain-confused) peer handle to the correct cluster name. Returns the cluster name
@@ -159,6 +184,20 @@ class ClusterBridge:
                     f"Send a SHORT self-introduction ONLY — your name and a one-line generic description of your "
                     f"capabilities. Do NOT propose an objective, a task, roles, or a collaboration format — just "
                     f"say hello and stop."))
+            elif st == "online":
+                # conocido → sin intro, pero puede tener un mensaje sin contestar de cuando estuvimos offline
+                # (petición del operador 2026-07-25: "hay mensajes que nos han mandado pero no hemos contestado").
+                pending = self._catch_up_context(cluster, ag)
+                if pending is not None:
+                    self._last_activity[cluster] = self._now()
+                    self._nudged.discard(cluster)
+                    ag_s = security.neutralize_identity(ag)
+                    self._spawn(self._brain_turn(
+                        cluster,
+                        f"[cluster:{cluster} · event] agent '{ag_s}' is back online. Their LAST message to you was "
+                        f"never answered (you were offline): {security.fence_untrusted(pending)}\nDecide: reply now "
+                        f"if it still needs one, or note it's stale/no longer relevant — your call.",
+                        peer=ag, peer_text=pending))
             self._notify_registry()
         elif t == "ready":
             online = ev.get("online") or []
@@ -177,6 +216,23 @@ class ClusterBridge:
                     f"{unknown_s}. Send a SHORT self-introduction ONLY — your name and a one-line generic "
                     f"description of your capabilities. Do NOT propose an objective, a task, roles, or a "
                     f"collaboration format — just say hello and stop."))
+            # CATCH-UP (petición del operador 2026-07-25): un peer YA CONOCIDO puede habernos escrito mientras
+            # estábamos desconectados (a veces días) — MeshKore no tiene historial de servidor (client.py: relay
+            # a quien esté conectado AHORA), así que si nadie retoma esos mensajes al reconectar, se pierden en
+            # silencio para siempre. Uno por peer conocido, cada uno con su propio contexto/trace.
+            for p in (peer for peer in online if peer not in unknown):
+                pending = self._catch_up_context(cluster, p)
+                if pending is None:
+                    continue
+                self._last_activity[cluster] = self._now()
+                self._nudged.discard(cluster)
+                p_s = security.neutralize_identity(p)
+                self._spawn(self._brain_turn(
+                    cluster,
+                    f"[cluster:{cluster} · event] you just (re)connected. Agent '{p_s}' messaged you while you "
+                    f"were offline and it was never answered: {security.fence_untrusted(pending)}\nDecide: reply "
+                    f"now if it still needs one, or note it's stale/no longer relevant — your call.",
+                    peer=p, peer_text=pending))
             self._notify_registry()
         elif t == "status":
             _emit("cluster", f"{cluster}: {ev.get('status')}", extra={"cluster": cluster, "status": ev.get("status")})

@@ -6,8 +6,8 @@
   "whenToUse": "Cuando el usuario pide ver el registro / historial / bitácora del cluster MeshKore conectado (cualquiera que sea su nombre) o los mensajes que se han intercambiado con los peers.",
   "keywords": ["cluster", "meshkore", "registro cluster", "historial cluster", "bitácora cluster", "mensajes cluster", "peers"],
   "entry": "widget.js",
-  "usage": "El widget tiene un chat wall integrado: la acción 'send' (payload: {text}) envía un mensaje de texto al cluster MeshKore activo. Es la única data-op; pide confirmación antes de enviar por ser irreversible.",
+  "usage": "El widget tiene un chat wall integrado: la acción 'send' (payload: {text, to}) envía un mensaje al cluster MeshKore activo. Si el operador NOMBRA un peer ('mándale a zalo…'), pon su handle EXACTO en `to` (mira 'Peers online' en tus recursos — nunca lo inventes ni cambies mayúsculas); si no nombra a nadie, omite `to` (broadcast a todos los peers presentes). Es la única data-op; pide confirmación antes de enviar por ser irreversible.",
   "actions": {
-    "send": {"desc": "envía un mensaje de texto al cluster MeshKore activo (chat wall del widget)", "payload": {"text": "string, el mensaje a enviar"}, "confirm": true}
+    "send": {"desc": "envía un mensaje de texto al cluster MeshKore activo, a un peer concreto o a todos si no se nombra ninguno", "payload": {"text": "string, el mensaje a enviar", "to": "string opcional, handle EXACTO de un peer online (vacío = broadcast a todos)"}, "confirm": true}
   }
 }

@@ -556,8 +556,9 @@ TOOLS: list[dict] = [
                 "NO ES PARA ENVIAR MENSAJES (bug real 2026-07-25: el operador pedía 'mándale un mensaje al cluster' "
                 "y esta tool saltaba por error, pidiendo reconectar algo que YA estaba conectado). Si el cluster ya "
                 "está conectado (míralo en tu ESTADO) y el operador quiere DECIR algo a un peer, usa "
-                "`widget_data(widget_id='cluster-registro', action='send', payload={'text': ...})` — nunca esta "
-                "tool para eso."
+                "`widget_data(widget_id='cluster-registro', action='send', payload={'text': ..., 'to': 'zalo'})` — "
+                "`to` = handle EXACTO si el operador NOMBRA a alguien concreto (nunca lo inventes); omítelo si no "
+                "nombra a nadie (manda a todos los presentes). Nunca esta tool para enviar."
             ),
             "parameters": {
                 "type": "object",

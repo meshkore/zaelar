@@ -151,12 +151,13 @@ def view_data(q: str = "") -> dict:
         return {"error": f"No he podido leer el registro del cluster: {e}", "turns": []}
 
 
-def _send_message(cluster: str, text: str) -> dict:
+def _send_message(cluster: str, text: str, to: str | None = None) -> dict:
     """POST an outbound message to the MeshKore cluster via the loopback control-plane
-    (same host/port/timeout convention as _live_status). Never raises."""
+    (same host/port/timeout convention as _live_status). `to` = exact peer handle, or None for a
+    cluster-wide broadcast. Never raises."""
     try:
         port = os.environ.get("PORT", "43917")
-        body = json.dumps({"name": cluster, "to": None, "text": text}).encode("utf-8")
+        body = json.dumps({"name": cluster, "to": to, "text": text}).encode("utf-8")
         req = urllib.request.Request(
             f"http://127.0.0.1:{port}/api/meshkore/send",
             data=body,
@@ -180,6 +181,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
     payload = payload or {}
     if action == "send":
         text = (payload.get("text") or "").strip()
+        to_raw = (payload.get("to") or "").strip()
         out = view_data()
         if not text:
             out["send_error"] = "No hay texto que enviar."
@@ -188,7 +190,22 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         if not cluster_name:
             out["send_error"] = "No hay ningún cluster MeshKore conectado ahora mismo."
             return out
-        result = _send_message(cluster_name, text)
+        # Bug real 2026-07-25: esta acción SIEMPRE mandaba `to: None` (broadcast) sin importar lo que pidiera el
+        # operador — con un solo peer online funcionaba "por accidente", con varios habría mandado el mensaje a
+        # TODOS aunque el operador nombrara uno concreto. Si da un nombre, resuélvelo contra los peers ONLINE
+        # (case-insensitive, sin inventar variantes) — nunca "quizá se entienda": si no está online AHORA, el
+        # protocolo no lo entrega (no hay historial de mensajes en MeshKore), así que es mejor decirlo claro que
+        # mandarlo al vacío en silencio.
+        to = None
+        if to_raw:
+            online = out.get("online_peers") or []
+            match = next((p for p in online if p.lower() == to_raw.lower()), None)
+            if not match:
+                out["send_error"] = (f"«{to_raw}» no está online en «{cluster_name}» ahora mismo — no se puede "
+                                      f"entregar. Peers online: {', '.join(online) or 'ninguno'}.")
+                return out
+            to = match
+        result = _send_message(cluster_name, text, to=to)
         out = view_data()
         if not result.get("ok"):
             out["send_error"] = result.get("error")
@@ -202,7 +219,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                     "t_ms": int(time.time() * 1000),
                     "ts": time.strftime("%d %b %H:%M"),
                     "cluster": cluster_name,
-                    "peer": "",
+                    "peer": to or "",
                     "who": "zaelar",
                     "dir": "out",
                     "text": text,
