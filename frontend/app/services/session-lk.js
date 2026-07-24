@@ -297,6 +297,7 @@ export async function start() {
         // subtitula" con el chat cerrado). Al (re)conectar, el cliente es AUTORITATIVO: re-afirma el estado REAL
         // deseado según si el chat está abierto AHORA — mismo patrón que la reconciliación del canvas de arriba.
         setVoiceOutput(!store.chatOpen());
+        _flushPendingText();
       }
       else if (st === ConnectionState.Reconnecting) store.setConnState("reconnecting…");
       else if (st === ConnectionState.Disconnected) { store.setConnState("—"); if (started) store.setBotSpeaking(false); }
@@ -425,14 +426,35 @@ export async function reconnect() {
 // ---- text channel: publish a typed/pasted message; the embedded agent injects it as a user turn ----
 // NOTE (INI-012 remaining wiring): the agent entrypoint must subscribe to this data topic and call
 // session.generate_reply(user_input=text). Until then, chat text is delivered best-effort over the room data.
-export function sendText(text) {
-  const t = (text || "").trim(); if (!t) return false;
-  if (!room || room.state !== ConnectionState.Connected) { if (!started && !starting) start(); return true; }
+//
+// Bug real 2026-07-24 (reporte del operador, con timeline confirmado): mandar un mensaje justo cuando la sala
+// aún no estaba en estado Connected (p.ej. recién reconectada) lo DESCARTABA en silencio — `sendText` devolvía
+// `true` igualmente, y `ChatWall.js::submitChat` lo añade al historial SIN comprobar el resultado → el mensaje
+// aparecía "enviado" en pantalla pero nunca llegaba al cerebro. Lo que respondía después (el saludo de kickoff)
+// no tenía relación alguna con lo que el operador había escrito. Fix: si no está conectado, se ENCOLA (no se
+// tira) y se entrega en cuanto la sala llega a Connected (`_flushPendingText`, enganchado en
+// RoomEvent.ConnectionStateChanged más arriba) — nunca más un mensaje visible-pero-fantasma.
+let _pendingText = [];
+function _flushPendingText() {
+  if (!_pendingText.length || !room || room.state !== ConnectionState.Connected) return;
+  const queued = _pendingText; _pendingText = [];
+  for (const t of queued) _publishText(t);
+}
+function _publishText(t) {
   try {
     const payload = new TextEncoder().encode(JSON.stringify({ t: "zaelar-text", text: t }));
     room.localParticipant.publishData(payload, { reliable: true, topic: "zaelar-text" });
     return true;
   } catch (_) { return false; }
+}
+export function sendText(text) {
+  const t = (text || "").trim(); if (!t) return false;
+  if (!room || room.state !== ConnectionState.Connected) {
+    _pendingText.push(t);
+    if (!started && !starting) start().catch(() => {});
+    return true;
+  }
+  return _publishText(t);
 }
 
 // MODO CHAT = VOZ OFF (V2-054 T1.2): activa/desactiva la SÍNTESIS de voz del server (topic zaelar-voice).
