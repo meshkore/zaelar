@@ -68,6 +68,8 @@ class ClusterBridge:
         self._repeat: dict[tuple, int] = {}          # (cluster,peer) -> nº de repeticiones consecutivas
         self._stall: dict[tuple, dict] = {}          # (cluster,peer) -> {"assertive_sent":bool, "alerted":bool}
         self._resource_alerted: set = set()          # (cluster,peer) ya avisados de explotación de recursos (V2-071)
+        self._peer_recent: dict[tuple, list] = {}     # (cluster,peer) -> últimos textos del peer (no-progreso, V2-073)
+        self._paced: dict[tuple, dict] = {}           # (cluster,peer) -> {"handback_sent":bool,"alerted":bool} (V2-073)
         self._tick_task = None
         self._turns: set = set()             # keep brain-turn tasks alive
 
@@ -245,6 +247,49 @@ class ClusterBridge:
             try:
                 capsule.meter(cluster, frm_lbl, received=len(text or ""),
                               offload=security.looks_like_offload(text or ""))
+            except Exception:
+                pass
+            # RITMO / NO-PROGRESO (V2-073): ¿el peer AVANZA o se está embuclando (casi-repetición / frases de
+            # bloqueo, variando la redacción para colarse por el guardia de repetición EXACTA)? Con el operador la
+            # conversación siempre fluye; con un agente externo de menos capacidad hay que PARAR y cederle el turno en
+            # vez de bombardearle. Determinista, solo en el canal agente-agente. Es el «criterio» humano en código.
+            try:
+                _recent = self._peer_recent.get(_dk, [])
+                _adv = capsule.advanced(_txt, _recent)
+                self._peer_recent[_dk] = (_recent + [_txt])[-5:]
+                if _adv:
+                    capsule.patch(cluster, frm_lbl, no_progress=0)
+                    self._paced.pop(_dk, None)                       # progreso real → salimos de pausa
+                else:
+                    _np = int(capsule.load(cluster, frm_lbl).get("no_progress") or 0) + 1
+                    capsule.patch(cluster, frm_lbl, no_progress=_np)
+                    _pv = capsule.stall_verdict(0, _np, m=capsule.PACE_HANDBACK_AT)
+                    _ps = self._paced.setdefault(_dk, {"handback_sent": False, "alerted": False})
+                    if _pv == "callar":                              # cedimos y sigue sin avanzar → callar + avisar 1×
+                        if not _ps["alerted"]:
+                            _ps["alerted"] = True
+                            _emit("error", f"cluster {cluster}: «{frm_lbl}» no avanza (se embucla sin seguir el "
+                                  f"hilo) — dejo de responder y me quedo a la espera. Probablemente un agente de "
+                                  f"menos capacidad; revisa si merece seguir con él.")
+                        _emit("cluster", f"⇠ {cluster}·{frm_lbl} (sin avance, en silencio)",
+                              extra={"cluster": cluster, "peer": frm_lbl, "dir": "in", "pace": "silent"})
+                        self._notify_registry()
+                        return
+                    if _pv == "asertivo" and not _ps["handback_sent"]:   # 1ª vez que no avanza lo suficiente → cede turno
+                        _ps["handback_sent"] = True
+                        _emit("cluster", f"⇠ {cluster}·{frm_lbl} (no avanza → cedo el turno)",
+                              extra={"cluster": cluster, "peer": frm_lbl, "dir": "in", "pace": "handback"})
+                        self._spawn(self._brain_turn(
+                            cluster,
+                            f"[cluster:{cluster} · message from agent '{frm_lbl}']\n{security.fence_untrusted(note)}\n"
+                            f"{capsule.PACE_HANDBACK}", peer=frm_lbl, peer_text=text))
+                        self._notify_registry()
+                        return
+                    if _ps["handback_sent"]:                          # ya cedimos y sigue igual → NO bombardear
+                        _emit("cluster", f"⇠ {cluster}·{frm_lbl} (sin avance, esperando)",
+                              extra={"cluster": cluster, "peer": frm_lbl, "dir": "in", "pace": "waiting"})
+                        self._notify_registry()
+                        return
             except Exception:
                 pass
             self._spawn(self._brain_turn(

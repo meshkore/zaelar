@@ -31,6 +31,7 @@ CIERRE = "cierre"      # tarea concluida o sin avance → cerrar con cortesía o
 # Umbrales de ATASCO (confirmados por el operador: cortar pronto, como un humano).
 STALL_REPEAT = 2       # el peer repite el MISMO mensaje (normalizado) esta veces → atasco
 STALL_NOPROGRESS = 4   # turnos sin avanzar el objetivo → atasco
+PACE_HANDBACK_AT = 3   # turnos del peer sin AVANZAR (casi-repetición/bloqueo) → cede el turno (V2-073); callar a 2×
 
 # Umbrales de BALANCE DE RECURSOS (V2-071): que un peer no nos endose el trabajo caro. Tolerantes a propósito —
 # a veces producimos más (un diagrama, una decisión); solo salta el desequilibrio SOSTENIDO con señal de offload.
@@ -128,6 +129,60 @@ def norm(text: str) -> str:
     n = "".join(c for c in n if not unicodedata.combining(c))
     n = re.sub(r"[^0-9a-z\s]+", " ", n)
     return re.sub(r"\s+", " ", n).strip()
+
+
+# ── NO-PROGRESO SEMÁNTICO (V2-073) — el criterio humano: «esto no fluye, el otro no me sigue» ────────────────────
+# El guardia de atasco V2-069 caza la repetición EXACTA. Pero un agente de menos capacidad se embucla VARIANDO la
+# redacción (zalo: «⛔ Estamos en fase Definición, no puedo discutir Diseño…» con mil variantes) → se cuela. Aquí
+# detectamos el no-progreso de verdad: (a) CASI-repetición (mismo mensaje reescrito) y (b) frases de BLOQUEO que no
+# avanzan. Determinista, barato. Solo para el canal agente-agente (con el operador la conversación siempre fluye).
+_STUCK_RE = re.compile(
+    r"(no puedo (avanzar|discutir|continuar|seguir|proceder|pasar)|"
+    r"estamos en fase|seguimos en (fase|la fase)|hasta que (cerremos|cierre|termine|acabe)|"
+    r"un momento|dame un momento|sigo esperando|sigo (en ello|con ello)|consultando|revisando con|"
+    r"todavia no|aun no (puedo|esta|tengo|he)|no (esta|estan) list|espera(me)?\b|a la espera|"
+    r"no puedo .{0,30} hasta|pendiente de|no autorizado a)")
+
+
+def looks_stuck(text: str) -> bool:
+    """¿El mensaje del peer es una frase de BLOQUEO que no avanza (compuerta de fase, 'un momento', 'no puedo
+    todavía')? Señal de que el otro no está siguiendo el hilo, no de progreso. Normaliza acentos."""
+    if not text:
+        return False
+    if "⛔" in text or "🚫" in text:
+        return True
+    return bool(_STUCK_RE.search(norm(text)))
+
+
+def near_repeat(text: str, recent: list[str], *, threshold: float = 0.8) -> bool:
+    """¿`text` es casi el MISMO mensaje que alguno reciente del peer (reescrito para esquivar el match exacto)?
+    CONTENCIÓN de tokens normalizados (|intersección| / |menor conjunto|) — robusta a que el peer añada relleno
+    distinto alrededor del mismo núcleo. Barato y sin dependencias."""
+    toks = set(norm(text).split())
+    if len(toks) < 3:                      # mensajes muy cortos: la casi-repetición no es fiable, no la juzgues
+        return False
+    for r in recent:
+        rt = set(norm(r).split())
+        if len(rt) < 3:
+            continue
+        contain = len(toks & rt) / min(len(toks), len(rt))
+        if contain >= threshold:
+            return True
+    return False
+
+
+def advanced(text: str, recent: list[str]) -> bool:
+    """¿El turno del peer APORTA algo (avanza) o es casi-repetición / frase de bloqueo? True = avanza."""
+    return not (looks_stuck(text) or near_repeat(text, recent))
+
+
+# Directiva de PAUSA (cesión de turno): cuando el otro no sigue el ritmo, se PARA — no se bombardea. Como un humano
+# que ve que su interlocutor no le sigue: deja de exponer ideas, propone parar y espera a que el otro esté listo.
+PACE_HANDBACK = (
+    "[RITMO] Este agente no está siguiendo el hilo: repite lo mismo con otras palabras o responde con frases de "
+    "bloqueo, sin avanzar. NO añadas más ideas ni detalle (le estás bombardeando). Manda UN mensaje CORTO: reconoce "
+    "que quizá has ido demasiado rápido, propón PARAR aquí y pídele que te avise cuando lo tenga claro o esté listo "
+    "para seguir. Nada más. Después te quedas a la espera.")
 
 
 def stall_verdict(repeat_count: int, no_progress: int,

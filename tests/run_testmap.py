@@ -123,6 +123,8 @@ DOMAINS: list[dict] = [
             "connectors/meshkore/test_resource.py"]},
         {"id": "6.6", "title": "Pacto de conversación agente-agente (reglas negociadas, V2-072)", "ch": PEER, "paths": [
             "connectors/meshkore/test_pact.py"]},
+        {"id": "6.7", "title": "Criterio de ritmo/no-progreso — pausar y ceder el turno (V2-073)", "ch": PEER, "paths": [
+            "connectors/meshkore/test_pace.py"]},
         {"id": "6.4", "title": "Conversación con peer (comportamiento)", "ch": PEER, "live": True,
             "cmd": "./.venv/bin/python tests/e2e/cluster/run_cluster_suite.py"},
     ]},
