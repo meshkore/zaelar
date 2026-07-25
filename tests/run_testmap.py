@@ -119,6 +119,8 @@ DOMAINS: list[dict] = [
         {"id": "6.2", "title": "Seguridad del canal", "ch": PEER, "paths": ["connectors/meshkore/test_security.py"]},
         {"id": "6.3", "title": "Ingesta cluster→memoria", "ch": PEER, "paths": [
             "connectors/meshkore/test_mem_ingest.py"]},
+        {"id": "6.5", "title": "Protección de recursos (balance/anti-offload, V2-071)", "ch": PEER, "paths": [
+            "connectors/meshkore/test_resource.py"]},
         {"id": "6.4", "title": "Conversación con peer (comportamiento)", "ch": PEER, "live": True,
             "cmd": "./.venv/bin/python tests/e2e/cluster/run_cluster_suite.py"},
     ]},

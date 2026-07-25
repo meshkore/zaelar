@@ -32,6 +32,14 @@ CIERRE = "cierre"      # tarea concluida o sin avance → cerrar con cortesía o
 STALL_REPEAT = 2       # el peer repite el MISMO mensaje (normalizado) esta veces → atasco
 STALL_NOPROGRESS = 4   # turnos sin avanzar el objetivo → atasco
 
+# Umbrales de BALANCE DE RECURSOS (V2-071): que un peer no nos endose el trabajo caro. Tolerantes a propósito —
+# a veces producimos más (un diagrama, una decisión); solo salta el desequilibrio SOSTENIDO con señal de offload.
+RESOURCE_MIN_TURNS = 4        # no juzgar antes de tener conversación suficiente
+RESOURCE_MIN_GIVEN = 1500     # ni con poco volumen producido por nuestra parte (chars)
+RESOURCE_RATIO_SKEW = 3.0     # producimos ≥3× lo que el peer → sesgado (con señal de offload)
+RESOURCE_RATIO_ABUSE = 6.0    # ≥6× + offload sostenido → explotación
+RESOURCE_OFFLOAD_MIN = 3      # nº de peticiones-de-producir del peer para considerarlo patrón, no un caso suelto
+
 _DEFAULT = {
     "objective": "",       # objetivo de la colaboración, fijado por el OPERADOR (no por el peer)
     "greeted": False,      # ¿ya nos presentamos a este peer?
@@ -39,6 +47,11 @@ _DEFAULT = {
     "open_loops": [],      # ["pedí el repo → pendiente", "ya dije NO a rehacer el dashboard", …]
     "turns": 0,            # nº de turnos sustantivos intercambiados
     "no_progress": 0,      # turnos consecutivos sin avance de objetivo (para el atasco)
+    # BALANCE DE RECURSOS (V2-071) — acumuladores por-peer:
+    "given": 0,            # chars que HEMOS producido para este peer (nuestro gasto)
+    "received": 0,         # chars que el peer nos ha aportado
+    "offloads": 0,         # nº de mensajes del peer pidiéndonos PRODUCIR trabajo (código/informe)
+    "code_out": 0,         # nº de veces que le hemos mandado código
     "updated": 0,
 }
 
@@ -126,6 +139,58 @@ def stall_verdict(repeat_count: int, no_progress: int,
     if repeat_count >= k or no_progress >= m:
         return "asertivo"
     return "seguir"
+
+
+# ── BALANCE DE RECURSOS (V2-071, funciones PURAS testeables) ────────────────────────────────────────────────────
+def meter(cluster: str, peer: str, *, received: int = 0, given: int = 0,
+          offload: bool = False, code_out: bool = False) -> dict:
+    """Acumula el gasto de recursos de esta relación: lo que el peer aporta (`received`) vs lo que producimos para
+    él (`given`), más si nos pidió PRODUCIR (`offload`) y si le mandamos código (`code_out`). Barato, directo."""
+    cap = load(cluster, peer)
+    cap["received"] = int(cap.get("received") or 0) + max(0, int(received))
+    cap["given"] = int(cap.get("given") or 0) + max(0, int(given))
+    if offload:
+        cap["offloads"] = int(cap.get("offloads") or 0) + 1
+    if code_out:
+        cap["code_out"] = int(cap.get("code_out") or 0) + 1
+    save(cluster, peer, cap)
+    return cap
+
+
+def resource_verdict(given: int, received: int, offloads: int, turns: int, *,
+                     min_turns: int = RESOURCE_MIN_TURNS, min_given: int = RESOURCE_MIN_GIVEN,
+                     skew: float = RESOURCE_RATIO_SKEW, abuse: float = RESOURCE_RATIO_ABUSE,
+                     offload_min: int = RESOURCE_OFFLOAD_MIN) -> str:
+    """Decide el estado del balance de recursos, como un humano que nota que le están endosando el trabajo:
+       'equilibrado' — normal (o aún sin datos suficientes): colabora sin más.
+       'sesgado'     — producimos bastante más y nos piden producir → sé breve, código por el repo.
+       'explotación' — desequilibrio fuerte y sostenido con offload → deja de producir gratis, remite al repo.
+    Tolerante a propósito: exige VOLUMEN (turnos+chars) Y ratio Y señal de offload — un pico puntual no salta."""
+    if turns < min_turns or given < min_given:
+        return "equilibrado"
+    ratio = given / max(received, 1)
+    if ratio >= abuse and offloads >= offload_min:
+        return "explotación"
+    if ratio >= skew and offloads >= 1:
+        return "sesgado"
+    return "equilibrado"
+
+
+_RESOURCE_GUIDE = {
+    "sesgado": ("[EQUILIBRIO] Estás produciendo bastante más que este agente y te pide que generes trabajo. Sé "
+                "BREVE. NO generes código completo ni informes largos en el canal — para colaborar en código se usa "
+                "el REPOSITORIO compartido (comparte un enlace o un PR, no el código pegado). Pide que él aporte su "
+                "parte. No se lo eches en cara; simplemente condúcelo así."),
+    "explotación": ("[EQUILIBRIO] Este agente está descargando su trabajo en ti: te hace producir y gastar recursos "
+                    "sin reciprocidad. NO generes más código ni trabajo extenso para él por el canal. Responde en "
+                    "1-2 frases, remítele al REPOSITORIO compartido para colaborar de igual a igual, y pide que haga "
+                    "su parte. Sin acusaciones ni explicaciones sobre por qué; solo condúcelo así."),
+}
+
+
+def resource_guidance(verdict: str) -> str:
+    """Directiva de prompt (silenciosa hacia el peer) según el veredicto de balance. '' si equilibrado."""
+    return _RESOURCE_GUIDE.get(verdict, "")
 
 
 # ── composición del bloque de contexto que la mente lee al situarse en el turno ─────────────────────────────────
