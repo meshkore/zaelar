@@ -131,6 +131,8 @@ DOMAINS: list[dict] = [
     {"id": "7", "name": "SERVER / OBSERVABILIDAD", "nodes": [
         {"id": "7.1", "title": "Bus de eventos y log", "ch": UNIT, "paths": ["bus/test_bus.py", "bus/test_log.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": ["bus/test_sse_observer.py"]},
+        {"id": "7.5", "title": "Sello de versión (instancia + observabilidad, V2-074)", "ch": UNIT, "paths": [
+            "tests/unit/test_version.py"]},
         {"id": "7.3", "title": "Chat por transporte LiveKit REAL", "ch": CHAT, "live": True,
             "cmd": "./.venv/bin/python tests/e2e/smoke/run_chat_over_livekit.py"},
         {"id": "7.4", "title": "Smoke INTEGRAL de salud", "ch": HTTP, "live": True,

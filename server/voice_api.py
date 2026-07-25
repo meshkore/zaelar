@@ -150,6 +150,17 @@ async def status():
     items.append({"key": "server", "label": "Servidor · FastAPI",
                   "state": "ok", "detail": f"en línea · puerto {os.getenv('PORT', '43917')}"})
 
+    # ── Versión (V2-074) — qué código corre en ESTA instancia (certeza de que el reinicio cargó lo nuevo) ─────────
+    try:
+        import version as _ver
+        _vi = _ver.info()
+        _up = _vi["uptime_s"]
+        _up_s = f"{_up // 3600}h {(_up % 3600) // 60}m" if _up >= 3600 else f"{_up // 60}m {_up % 60}s"
+        items.append({"key": "version", "label": "Versión", "state": "ok",
+                      "detail": f"{_vi['short']} · activa {_up_s}", "extra": _vi})
+    except Exception as e:  # noqa: BLE001
+        items.append({"key": "version", "label": "Versión", "state": "warn", "detail": f"desconocida ({e})"})
+
     # ── Cerebro «Colmena» ─────────────────────────────────────────────────────────────────────────────────────
     from config.v2 import active_brain
     brain = active_brain()

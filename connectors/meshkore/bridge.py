@@ -258,8 +258,14 @@ class ClusterBridge:
                 _adv = capsule.advanced(_txt, _recent)
                 self._peer_recent[_dk] = (_recent + [_txt])[-5:]
                 if _adv:
-                    capsule.patch(cluster, frm_lbl, no_progress=0)
-                    self._paced.pop(_dk, None)                       # progreso real → salimos de pausa
+                    # DECAER, no resetear (fix 2026-07-26): un peer embuclado intercala mensajes pseudo-sustantivos
+                    # que puntúan como "avanza" y RESETEABAN el contador a 0 → nunca llegaba al umbral en un bucle
+                    # MIXTO (caso real zalo). Decaer -1 hace que el no-progreso SOSTENIDO se acumule igual; solo salimos
+                    # de la pausa cuando el peer se recupera DE VERDAD (no_progress vuelve a 0).
+                    _np = max(0, int(capsule.load(cluster, frm_lbl).get("no_progress") or 0) - 1)
+                    capsule.patch(cluster, frm_lbl, no_progress=_np)
+                    if _np == 0:
+                        self._paced.pop(_dk, None)
                 else:
                     _np = int(capsule.load(cluster, frm_lbl).get("no_progress") or 0) + 1
                     capsule.patch(cluster, frm_lbl, no_progress=_np)

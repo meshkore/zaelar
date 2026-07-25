@@ -234,6 +234,14 @@ def emit(kind: str, label: str, text: str = "", role: str = "", extra: dict | No
     # extra={"cat": ...}; si no, se deriva del kind. System/Code (`system`) = eventos internos/perf, OFF por defecto.
     if "cat" not in ev:
         ev["cat"] = _CAT.get(kind, "main")
+    # SELLO DE VERSIÓN (V2-074): cada evento lleva la versión del código que lo generó ('2.74+sha') → en el timeline
+    # se ve qué versión produjo cada línea y se distinguen sesiones/reinicios. Constante en runtime (µs).
+    if "ver" not in ev:
+        try:
+            import version as _v
+            ev["ver"] = _v.short()
+        except Exception:
+            pass
     # TRAZABILIDAD (V2-044): sella cada evento con el trace id del estímulo que lo originó (frase del operador,
     # cron, probe…) + el `span` (actor: worker:N / rail:X / web:tN). Lo lleva el ContextVar de `voice/trace.py`
     # (viaja solo por create_task/to_thread; las costuras cross-loop adoptan a mano). Leerlo son ns — el hot path
