@@ -231,7 +231,9 @@ arranque `make run` → `python -m server`.
   configuración full-screen** (⚙, V2-043) se sirve por `server/config_api.py` (elige API/modelo por PIEZA) +
   `frontend/app/components/ConfigPanel.js`; sus alertas de saldo salen en el diálogo de estado (◉).
 - `connectors/` — conectores externos; `connectors/meshkore/` = canal nativo de clusters (3er I/O junto a voz+chat),
-  servido por un **reasoner STATELESS** sin tools; `connectors/architect/` = proveedor de código/proyectos sobre el
+  conducido por el **motor del FlashBrain en perfil UNTRUSTED** (V2-069: `brain.py` adapta el canal al motor →
+  `nucleo/flash/cluster.py`, tools off + system identidad-safe) con **cápsula** de conversación (`capsule.py`);
+  `connectors/architect/` = proveedor de código/proyectos sobre el
   daemon MeshKore compartido (tags `[[architect.*]]`, operator-only); `connectors/whatsapp/` = WhatsApp personal
   (bridge Baileys vendorizado); `connectors/telegram/` = Telegram personal (userbot Telethon); `connectors/email/` =
   **email personal** (V2-051, IMAP/SMTP **stdlib puro**, lógica vendorizada del adaptador de Hermes — leer+triar+
@@ -846,21 +848,40 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     X»; las tareas/búsquedas web se ESCALAN a automate) y `login_done`. Operator-only por construcción.
   - **Confirm-gate**: antes de una acción IRREVERSIBLE (`nucleo/danger.py` comprar/pagar/publicar/borrar) la tarea
     PARA y pide OK (feed+voz, timeout→no ejecuta). `automate`/`click`/`type` = `safe:false`.
-- **Canal nativo MeshKore** (`connectors/meshkore/`): 3er I/O (voz+chat+cluster), servido por un **reasoner
-  STATELESS** (`connectors/meshkore/reasoner.py`) **sin tools/terminal/ficheros**: un peer puede hacer que zaelar
-  razone y hable, nunca actuar. WIP — sin validar contra cluster real. La conversión stateless completa del canal y
-  el enrutado seguro de input no confiable al `CodeAgent` (deny-tools/sandbox) es trabajo de V2-010.
+- **«Una sola mente» — el FlashBrain conduce TODA conversación** (V2-069, 2026-07-25): hablar con el operador o con
+  otro agente es el MISMO acto → **un solo motor**, no piezas paralelas. El acto se modula por dos perillas: **QUIÉN**
+  (operador/agente → de ahí cae la CONFIANZA: tools y memoria permitidas) y **PROFUNDIDAD** (reflejo/razonar/actuar →
+  de ahí cae el modelo: rápido/razonador/worker; la voz pone el tope duro no-razonador, off-voz puede razonar). Los
+  procesos complejos (investigar/tools) NO son un sistema aparte: son la profundidad «actuar» del mismo acto (misma vía
+  de workers). **Perfil UNTRUSTED** (agente) = tools apagadas EN CÓDIGO + system identidad-safe (`build_cluster_system`
+  nunca toca `compose_state`) → la memoria/PII del operador es incorruptible por una charla de agente. El estado de
+  cada conversación vive en su **cápsula** (`connectors/meshkore/capsule.py`): memoria-de-relación scope-partido sobre
+  la MISMA memoria central (dossier + resumen + objetivo + bucles abiertos + FASE saludo→sondeo→trabajo→cierre +
+  detección de atasco), raíz=operador (confiable) vs peer=untrusted (cuarentena). La FASE mata la re-presentación (no
+  saludar en trabajo/sondeo); el **guardia de atasco** (bridge, umbrales 2/4) corta el bucle pronto (asertivo 1× →
+  callar + avisar al operador). Susurro hereda el canal por `turn.completed`. Detalle:
+  `.meshkore/roadmap/initiatives/V2-069-una-sola-mente.md`.
+- **Canal nativo MeshKore** (`connectors/meshkore/`): 3er I/O (voz+chat+cluster), conducido por el **MISMO motor del
+  FlashBrain en perfil UNTRUSTED** (V2-069 «una sola mente»): hablar con el operador o con un agente es el MISMO acto.
+  `connectors/meshkore/brain.py` adapta el canal al motor (resuelve el TIER de modelo off-voz, hoy GLM-5.2) y delega en
+  `nucleo/flash/cluster.py` (FastClient **no-streaming** `complete()` + `prompt.build_cluster_system` identidad-safe +
+  defensas de `dialog`, **tools APAGADAS en código**). Un peer puede hacer que zaelar razone y hable, nunca actuar. El
+  estado de la conversación vive en la **cápsula** (`connectors/meshkore/capsule.py`, memoria-de-relación scope-partido)
+  — ver la decisión clave «V2-069». El enrutado seguro de input no confiable al `CodeAgent` (deny-tools/sandbox) sigue
+  pendiente (V2-010).
 - **Seguridad del canal de cluster** (`connectors/meshkore/security.py` + `bridge.py`): el cluster habla con agentes
   externos **no confiables**. Controles DUROS, no solo prompts (detalle en `zaelar-security.md`):
-  - El **reasoner de cluster es STATELESS y sin tools** — no hay nada que denegar en ese path porque no tiene
-    superficie de tool/terminal/fichero. Postura fail-closed.
+  - El **canal lo conduce el motor del FlashBrain en perfil UNTRUSTED** (V2-069): **tools APAGADAS en código**
+    (`nucleo/flash/cluster.py` no ofrece ninguna) + system **identidad-safe** (`build_cluster_system` NUNCA llama a
+    `compose_state` → no filtra nombre/PII del operador ni el catálogo de widgets). No hay superficie de
+    tool/terminal/fichero que denegar. La frontera de seguridad es un **perfil de capacidades determinista** ligado
+    al trust del interlocutor. Postura fail-closed.
   - **Memoria del cluster = observación PASIVA, COMPRIMIDA y CUARENTENADA** (`connectors/meshkore/mem_ingest.py`,
     V2-021 T170): el bridge destila cada intercambio con un peer (entrante+saliente) en una **síntesis evolutiva
     por peer** (modelo LOCAL off-hot-path, fire-and-forget; fail-open acotado) guardada con
     `slot="cluster:<cluster>:<peer>"` + `trust="untrusted"` → NUNCA en el prompt pasivo ni en el recall; solo por
-    `recent_by_source` ("¿qué has hablado con Zalo?"). Esto **no** hace stateful al reasoner ni le da capacidades:
-    es un side-effect de observación. Contenido redactado (secretos) y handles neutralizados antes de persistir.
-    Apagable con `MESHKORE_MEMORY=0`.
+    `recent_by_source` ("¿qué has hablado con Zalo?"). Es la síntesis en prosa que nutre el DOSSIER de la cápsula
+    (V2-069). Contenido redactado (secretos) y handles neutralizados antes de persistir. Apagable con `MESHKORE_MEMORY=0`.
   - **Allowlist de tags en turno de cluster**: solo `cluster.send`/`cluster.done`; `connect`/`disconnect` son
     operator-only (bloqueados desde un turno de peer).
   - Entrada: peer envuelto en `⟦UNTRUSTED PEER MESSAGE⟧` (con neutralización de fence-escape) y `trailer()` **al
