@@ -194,6 +194,38 @@ class FastClient:
             FastClient._clients[ck] = cli
         return cli
 
+    async def complete(
+        self,
+        messages: list[dict],
+        *,
+        spec: ModelSpec | None = None,
+        max_tokens: int | None = None,
+    ) -> str:
+        """Llamada NO-streaming (devuelve el texto entero). Mismo cliente/keys/spec que `stream()` — es el MISMO
+        motor, solo sin trocear la salida. La usa el canal de cluster (V2-069): off-voz no necesita streaming, y un
+        tier RAZONADOR (GLM-5.2 vía AIMLAPI) NO emite deltas hasta terminar de pensar → con `stream=True` la llamada
+        parece colgarse (medido: >115s vs 3.4s sin stream). Lanza el error del proveedor igual que `stream`."""
+        spec = spec or spec_from_config()
+        extra_body: dict[str, Any] = {}
+        r = spec.reasoning_effort()
+        if r:
+            extra_body["reasoning_effort"] = r
+        if spec.is_local():
+            extra_body["keep_alive"] = "30m"
+        call_kwargs: dict[str, Any] = dict(
+            model=spec.model,
+            messages=messages,
+            max_tokens=max_tokens or _DEFAULT_MAX_TOKENS,
+            stream=False,
+        )
+        if extra_body:
+            call_kwargs["extra_body"] = extra_body
+        resp = await self._client_for(spec).chat.completions.create(**call_kwargs)
+        try:
+            return (resp.choices[0].message.content or "").strip()
+        except (IndexError, AttributeError):
+            return ""
+
     async def stream(
         self,
         messages: list[dict],
