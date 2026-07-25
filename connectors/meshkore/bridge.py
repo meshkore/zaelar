@@ -67,6 +67,7 @@ class ClusterBridge:
         # nuevo. Es la 1ª línea DETERMINISTA (corta el bucle a los 2-3, no a los 1.333); Susurro es la 2ª línea.
         self._repeat: dict[tuple, int] = {}          # (cluster,peer) -> nº de repeticiones consecutivas
         self._stall: dict[tuple, dict] = {}          # (cluster,peer) -> {"assertive_sent":bool, "alerted":bool}
+        self._resource_alerted: set = set()          # (cluster,peer) ya avisados de explotación de recursos (V2-071)
         self._tick_task = None
         self._turns: set = set()             # keep brain-turn tasks alive
 
@@ -239,6 +240,13 @@ class ClusterBridge:
             # header before it is our own trusted label). Our security rules get reasserted at the END in _brain_turn.
             # The handle itself is ALSO peer-chosen: neutralized above (peer_h) so a crafted handle can't forge a
             # fence-close + fake trailer in the trusted header (audit V2).
+            # BALANCE DE RECURSOS (V2-071): medimos lo que el peer APORTA y si nos pide PRODUCIR trabajo (offload).
+            # Es una señal por-peer que la cápsula acumula; el veredicto se calcula en _brain_turn antes de generar.
+            try:
+                capsule.meter(cluster, frm_lbl, received=len(text or ""),
+                              offload=security.looks_like_offload(text or ""))
+            except Exception:
+                pass
             self._spawn(self._brain_turn(
                 cluster, f"[cluster:{cluster} · message from agent '{frm_lbl}']\n{security.fence_untrusted(note)}",
                 peer=frm_lbl, peer_text=text))
@@ -341,11 +349,22 @@ class ClusterBridge:
         # peer concreto (heartbeat/ready global) se omite. Va ANTES del evento y ANTES del trailer (nuestro prompt
         # de seguridad sigue yendo el último).
         rel_block = ""
+        res_verdict = "equilibrado"
         if peer:
             try:
                 cap = capsule.load(cluster, peer)
                 cap["phase"] = capsule.derive_phase(cap)
                 rel_block = capsule.compose(cluster, peer, cap) + "\n\n"
+                # BALANCE DE RECURSOS (V2-071): ¿nos está endosando el trabajo caro? Si el balance está sesgado/en
+                # explotación, inyectamos una directiva SILENCIOSA (sé breve · código por el repo, no por el canal) —
+                # no se le comunica al peer, solo conducimos distinto. Va dentro del bloque de relación (antes del
+                # trailer de seguridad, que sigue yendo el último).
+                res_verdict = capsule.resource_verdict(
+                    int(cap.get("given") or 0), int(cap.get("received") or 0),
+                    int(cap.get("offloads") or 0), int(cap.get("turns") or 0))
+                guide = capsule.resource_guidance(res_verdict)
+                if guide:
+                    rel_block += guide + "\n\n"
             except Exception:
                 rel_block = ""
         # Security rule of thumb: OUR prompt goes LAST. The trailer (do-not-reveal + injection defense) is appended
@@ -375,6 +394,27 @@ class ClusterBridge:
                 cap["turns"] = int(cap.get("turns") or 0) + 1
                 cap["phase"] = capsule.derive_phase(cap)
                 capsule.save(cluster, peer, cap)
+            except Exception:
+                pass
+            # BALANCE DE RECURSOS (V2-071): medimos lo que HEMOS producido para este peer (nuestro gasto) + si le
+            # mandamos código. Si el balance está en EXPLOTACIÓN, avisamos al operador UNA vez (silencio hacia el
+            # peer) — es la detección que el operador pidió («que podamos detectar eso»).
+            try:
+                out_text = "\n".join(sent) or spoken or ""
+                capsule.meter(cluster, peer, given=len(out_text),
+                              code_out=("```" in out_text or "def " in out_text))
+                if res_verdict != "equilibrado":
+                    _emit("resource", f"⚖ {cluster}·{peer}: balance {res_verdict}",
+                          extra={"cluster": cluster, "peer": peer, "balance": res_verdict})
+                if res_verdict == "explotación":
+                    _dk = (cluster, peer)
+                    if _dk not in self._resource_alerted:
+                        self._resource_alerted.add(_dk)
+                        _emit("error", f"cluster {cluster}: «{peer}» está descargando trabajo en ti (gasta tus "
+                              f"recursos generando código/trabajo sin reciprocidad). He empezado a acortar y a "
+                              f"remitir al repositorio. Revisa si esta colaboración te compensa.")
+                elif res_verdict == "equilibrado":
+                    self._resource_alerted.discard((cluster, peer))   # rearmar el aviso si vuelve el patrón
             except Exception:
                 pass
         if spoken.strip():
@@ -480,6 +520,14 @@ class ClusterBridge:
                     journal.record({"chan": "out", "action": "cluster.send", "blocked": blocked, "cluster": name})
                     _emit("error", f"cluster {name}: outbound blocked — possible secret leak ({blocked}). Not sent.")
                     return
+                # GUARDIA DE RECURSOS (V2-071): un VOLCADO grande de código por el canal nunca es el patrón correcto
+                # (se colabora en código por el repositorio, no pegándolo en el chat — y es el mayor sumidero de
+                # tokens). Se sustituye por un puntero al repo, como se redacta un secreto. Siempre activo; un snippet
+                # pequeño pasa intacto.
+                text, code_stripped = security.guard_code_outbound(text)
+                if code_stripped:
+                    _emit("resource", f"⚖ {name}·{to or '*'}: volcado de código → puntero al repo",
+                          extra={"cluster": name, "to": to or "*", "dir": "out", "code_stripped": True})
                 # Attachments are ANOTHER outbound channel: a secret can ride in media[].url / b64. Scan them with
                 # the same policy or the text scan above is cosmetic (audit V3). A hard secret blocks the whole msg.
                 media, mblocked = security.scan_media_outbound(data.get("media"))

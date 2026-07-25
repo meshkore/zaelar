@@ -175,6 +175,77 @@ def scan_outbound(text: str) -> tuple[str, str | None]:
     return safe, None
 
 
+# ── PROTECCIÓN DE RECURSOS (V2-071) — que un peer no nos endose el trabajo CARO ─────────────────────────────────
+# El blindaje clásico impide que nos roben DATOS (PII/secretos) o nos INYECTEN. Falta un tercer robo: el de
+# RECURSOS. Un agente puede dirigirnos para que generemos su código/investigación/trabajo → gastamos NUESTROS tokens
+# y capacidades por él, sin reciprocidad. No hay que comunicárselo: se detecta el desequilibrio y se protege en
+# silencio. Dos primitivas deterministas (el balance/veredicto vive en la cápsula, es estado por-peer):
+#
+#   • looks_like_offload(text)   — ¿el peer nos está pidiendo PRODUCIR trabajo (generar/escribir/implementar código,
+#                                  informes…)? Señal que la cápsula acumula. Tolerante: es una señal, no un bloqueo.
+#   • guard_code_outbound(text)  — un VOLCADO grande de código por el canal nunca es el patrón correcto (se colabora
+#                                  en código por un REPOSITORIO, no pegándolo en el chat — y es el mayor sumidero de
+#                                  tokens). Lo sustituye por un puntero, como se redacta un secreto. Siempre activo.
+
+# Imperativos de PRODUCCIÓN (es/en): "genera/escribe/implementa/hazme/dame el código…". No es charla normal; es
+# pedir que fabriquemos algo. El texto se NORMALIZA (sin acentos, casefold) ANTES de matchear, así "genérame" /
+# "escríbeme" (con la tilde que salta al añadir el pronombre) casan igual que "genera"/"escribe". Acotado a verbos
+# de producir + sustantivos de artefacto para no saltar con charla normal (el veredicto además exige volumen+ratio).
+import unicodedata as _ud
+
+_OFFLOAD_RE = re.compile(
+    r"\b("
+    r"gener(a|as|ame|arme)|escrib(e|es|eme|ir)|escribeme|implement(a|as|ar|es)|"
+    r"program(a|as|ar|es|ame)|desarroll(a|as|ar|es)|codific(a|as|ar)|"
+    r"hazme|hazlo tu|haz tu|"
+    r"dame (el |la |los |las |un |una )?(codigo|funcion|script|clase|modulo|informe)|"
+    r"crea (el |la |un |una )?(codigo|funcion|script|clase|modulo|programa)|"
+    r"write (the |me |a |some )?(code|function|script|class|module|report)|"
+    r"implement (the |a |this)|generate (the |me |a |some )?(code|function|script|report)|"
+    r"build (me|the) |code (this|it) (up|for me)|do it (yourself|for me)|"
+    r"(la|el|the) (siguiente|next) (funcion|parte|paso|function|part|step)"
+    r")\b")
+
+
+def _strip_accents(s: str) -> str:
+    n = _ud.normalize("NFKD", (s or "").casefold())
+    return "".join(c for c in n if not _ud.combining(c))
+
+
+def looks_like_offload(text: str) -> bool:
+    """¿El mensaje del peer nos está pidiendo que PRODUZCAMOS trabajo (código/informe)? Señal para el balance
+    de recursos. Determinista, tolerante — es una SEÑAL que la cápsula acumula, no un bloqueo por sí sola."""
+    return bool(text) and bool(_OFFLOAD_RE.search(_strip_accents(text)))
+
+
+# Un bloque de código con vallas ```…``` que supere el umbral → puntero al repo. Umbrales GENEROSOS: un snippet
+# pequeño de ejemplo pasa; un volcado (una función/fichero entero) no. Configurable por env (power-user).
+_FENCE_BLOCK_RE = re.compile(r"```[^\n`]*\n(.*?)```", re.S)
+_CODE_MAX_CHARS = int(os.getenv("MESHKORE_CODE_MAX_CHARS", "800"))
+_CODE_MAX_LINES = int(os.getenv("MESHKORE_CODE_MAX_LINES", "15"))
+_CODE_POINTER = ("[code omitted — we collaborate on code through the shared repository (send a link or a PR), "
+                 "not by pasting it into the channel]")
+
+
+def guard_code_outbound(text: str) -> tuple[str, bool]:
+    """Sustituye VOLCADOS grandes de código (bloques con vallas por encima del umbral) por un puntero al repo.
+    Devuelve (texto, hubo_recorte). Siempre activo cuando el guard está on — un volcado de código por el canal
+    nunca es el patrón correcto (repo, no chat) y es el mayor gasto de tokens. Un snippet pequeño pasa intacto."""
+    if not text or not enabled():
+        return text or "", False
+    stripped = False
+
+    def _repl(m: re.Match) -> str:
+        nonlocal stripped
+        body = m.group(1) or ""
+        if len(body) > _CODE_MAX_CHARS or body.count("\n") + 1 > _CODE_MAX_LINES:
+            stripped = True
+            return _CODE_POINTER
+        return m.group(0)
+
+    return _FENCE_BLOCK_RE.sub(_repl, text), stripped
+
+
 def scan_media_outbound(media) -> tuple[list | None, str | None]:
     """Escanea el campo `media` de un reply de cluster con la MISMA política que el texto. Un adjunto es otro
     canal de salida: `url`/`mime` (y un `b64` embebido) pueden esconder un secreto → deben pasar el guard igual
