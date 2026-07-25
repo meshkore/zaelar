@@ -130,6 +130,23 @@ def test_capsule_block_is_injected(fresh_db, monkeypatch):
     assert "[RELACIÓN con el agente «zalo»" in seen[0]      # el bloque de relación se antepone al turno
 
 
+def test_cluster_done_marks_capsule_cierre(fresh_db, monkeypatch):
+    """V2-069: al concluir (cluster.done) la cápsula del peer pasa a fase CIERRE y se resetea el contador de atasco
+    (no arrastrar el episodio a una futura reanudación)."""
+    br, seen = _bridge(monkeypatch)
+    capsule.patch("meshcore", "zalo", greeted=True, objective="algo", phase=capsule.TRABAJO)
+    br._repeat[("meshcore", "zalo")] = 3
+    br._stall[("meshcore", "zalo")] = {"assertive_sent": True, "alerted": True}
+
+    async def run():
+        await br.dispatch("cluster.done", {"name": "meshcore"})
+
+    asyncio.run(run())
+    assert capsule.load("meshcore", "zalo")["phase"] == capsule.CIERRE
+    assert ("meshcore", "zalo") not in br._repeat
+    assert ("meshcore", "zalo") not in br._stall
+
+
 # ── IDENTIDAD-SAFE: el system del canal nunca filtra PII del operador ──────────────────────────────────────────
 def test_cluster_system_is_identity_safe(fresh_db):
     from memory import api as memory
