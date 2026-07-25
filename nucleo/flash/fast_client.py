@@ -16,6 +16,7 @@ cerebro v2:
 """
 from __future__ import annotations
 
+import asyncio
 import os
 import time
 from dataclasses import dataclass
@@ -27,6 +28,27 @@ from loguru import logger
 # intermitente, visto en producción). Se falsea SOLO en el endpoint de AIMLAPI (sin efecto en Ollama/otros).
 _BROWSER_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
 _DEFAULT_MAX_TOKENS = 200
+
+# Reintento en TRANSITORIOS (2026-07-25): AIMLAPI va tras Cloudflare y da `Connection error`/403/5xx intermitentes.
+# Un blip PUNTUAL en la fase de conexión NO debe tirar el turno (síntoma real: el chat del operador quedaba sin
+# respuesta o con "Uf, se me ha ido"). Reintentamos SOLO la fase de conexión (antes del primer token del stream) →
+# seguro (no se re-emite nada ya enviado). Configurable `FAST_CONNECT_RETRIES` (def 2 reintentos).
+_CONNECT_RETRIES = int(os.getenv("FAST_CONNECT_RETRIES", "2"))
+_RETRY_BACKOFF_S = float(os.getenv("FAST_RETRY_BACKOFF_S", "0.4"))
+
+
+def _is_transient(e: Exception) -> bool:
+    """¿El error es un blip transitorio de red/proveedor (merece reintento) y NO un error de la petición (4xx de
+    autenticación/cuota/entrada, que reintentar no arregla)?"""
+    name = type(e).__name__.lower()
+    if any(k in name for k in ("connection", "timeout", "apiconnection", "apitimeout", "internalserver")):
+        return True
+    s = str(e).lower()
+    if any(k in s for k in ("connection error", "timed out", "timeout", "temporarily", "bad gateway",
+                            "service unavailable", "502", "503", "504", "cloudflare", "reset by peer")):
+        return True
+    status = getattr(e, "status_code", None) or getattr(e, "status", None)
+    return status in (408, 429, 500, 502, 503, 504)
 
 
 def _keepalive_expiry() -> float:
@@ -220,7 +242,19 @@ class FastClient:
         )
         if extra_body:
             call_kwargs["extra_body"] = extra_body
-        resp = await self._client_for(spec).chat.completions.create(**call_kwargs)
+        # Reintento en transitorios (no-streaming → reintentar la llamada entera es seguro).
+        _attempt = 0
+        while True:
+            try:
+                resp = await self._client_for(spec).chat.completions.create(**call_kwargs)
+                break
+            except Exception as e:  # noqa: BLE001
+                if _attempt >= _CONNECT_RETRIES or not _is_transient(e):
+                    raise
+                _attempt += 1
+                logger.warning(f"fast_client.complete: blip transitorio ({type(e).__name__}), "
+                               f"reintento {_attempt}/{_CONNECT_RETRIES}")
+                await asyncio.sleep(_RETRY_BACKOFF_S * _attempt)
         try:
             return (resp.choices[0].message.content or "").strip()
         except (IndexError, AttributeError):
@@ -291,7 +325,19 @@ class FastClient:
         except Exception:
             pass
 
-        stream = await self._client_for(spec).chat.completions.create(**call_kwargs)
+        # Reintento SOLO de la fase de conexión (aún no se ha emitido ningún token) → seguro ante blips transitorios.
+        _attempt = 0
+        while True:
+            try:
+                stream = await self._client_for(spec).chat.completions.create(**call_kwargs)
+                break
+            except Exception as e:  # noqa: BLE001
+                if _attempt >= _CONNECT_RETRIES or not _is_transient(e):
+                    raise
+                _attempt += 1
+                logger.warning(f"fast_client: blip transitorio al conectar ({type(e).__name__}), "
+                               f"reintento {_attempt}/{_CONNECT_RETRIES}")
+                await asyncio.sleep(_RETRY_BACKOFF_S * _attempt)
         calls: dict[int, dict] = {}
         _completion_chars = 0
         _usage = None
