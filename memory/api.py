@@ -337,6 +337,25 @@ def kv_set(key: str, value) -> None:
         pass
 
 
+def kv_keys(prefix: str = "") -> list[str]:
+    """Todas las claves de sys_kv que empiezan por `prefix` (vacío = todas). Para el barrido de mantenimiento
+    (homeostasis) que evicta cápsulas muertas sin abrir la BD por su cuenta. El filtro por prefijo se hace en
+    Python (sys_kv es pequeño y `LIKE` trataría `_` como comodín). Tolera BD vacía → []."""
+    try:
+        rows = _db.get_db().query("SELECT key FROM sys_kv ORDER BY key")
+        return [r["key"] for r in rows if str(r["key"]).startswith(prefix)]
+    except Exception:
+        return []
+
+
+def kv_del(key: str) -> None:
+    """Borra una clave de sys_kv (idempotente). Usado por el mantenimiento para evictar estado muerto."""
+    try:
+        _db.get_db().execute("DELETE FROM sys_kv WHERE key=?", (key,))
+    except Exception:
+        pass
+
+
 # Claves del ESTADO que la sección B renderiza con su propia línea (no como "campo suelto"): no las vuelques dos veces.
 _STATE_RENDERED = {"assistant_name", "operator_name", "language", "treatment", "location", "recent", "topics",
                    "open_widgets", "activity", "sessions", "mission", "rails", "rules"}
