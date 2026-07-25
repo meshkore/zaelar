@@ -121,6 +121,8 @@ DOMAINS: list[dict] = [
             "connectors/meshkore/test_mem_ingest.py"]},
         {"id": "6.5", "title": "Protección de recursos (balance/anti-offload, V2-071)", "ch": PEER, "paths": [
             "connectors/meshkore/test_resource.py"]},
+        {"id": "6.6", "title": "Pacto de conversación agente-agente (reglas negociadas, V2-072)", "ch": PEER, "paths": [
+            "connectors/meshkore/test_pact.py"]},
         {"id": "6.4", "title": "Conversación con peer (comportamiento)", "ch": PEER, "live": True,
             "cmd": "./.venv/bin/python tests/e2e/cluster/run_cluster_suite.py"},
     ]},

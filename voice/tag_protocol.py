@@ -61,6 +61,7 @@ WIDGET_DATA_RE = re.compile(r"\[\[\s*widget\.data\s*:\s*([a-zA-Z0-9_-]+)\s*\]\](
 # MeshKore: block tags carry a JSON body; control tags are self-closing (optional :NAME).
 CX_CONNECT_RE = re.compile(r"\[\[\s*cluster\.connect\s*\]\](.*?)\[\[\s*/\s*cluster\.connect\s*\]\]", re.S | re.I)
 CX_SEND_RE    = re.compile(r"\[\[\s*cluster\.send\s*:\s*([a-zA-Z0-9_-]+)\s*\]\](.*?)\[\[\s*/\s*cluster\.send\s*\]\]", re.S | re.I)
+CX_PACT_RE    = re.compile(r"\[\[\s*cluster\.pact\s*:\s*([a-zA-Z0-9_-]+)\s*\]\](.*?)\[\[\s*/\s*cluster\.pact\s*\]\]", re.S | re.I)
 CX_CTRL_RE    = re.compile(r"\[\[\s*cluster\.(done|disconnect)\s*(?::\s*([a-zA-Z0-9_-]+))?\s*\]\]", re.I)
 # Native cron: create carries a JSON body; cancel is self-closing with an optional :NAME.
 CRON_CREATE_RE = re.compile(r"\[\[\s*cron\.create\s*\]\](.*?)\[\[\s*/\s*cron\.create\s*\]\]", re.S | re.I)
@@ -89,7 +90,7 @@ JSON_LEAK_RE = re.compile(r'\{\s*(?:"[^"{}]{1,60}"|[A-Za-z_][A-Za-z0-9_]{0,30})\
 # `[[/widget.data]]` closer ever arrived — silently breaking every widget mutation, cluster/cron/architect
 # dispatch, and duo's own escalation under normal token-by-token streaming (verified with a live repro).
 UNKNOWN_BRACKET_RE = re.compile(
-    r"\[\[(?!\s*(?:push|create|modify|resize|widget\.data|cluster\.connect|cluster\.send|cron\.create|"
+    r"\[\[(?!\s*(?:push|create|modify|resize|widget\.data|cluster\.connect|cluster\.send|cluster\.pact|cron\.create|"
     r"architect\.ask|architect\.new|deep)\b).*?\]\]",
     re.S | re.I,
 )
@@ -176,6 +177,13 @@ def strip_tags(buf: str, emit_fn, final: bool):
         if not m:
             break
         emit_fn("cluster.send", {"name": m.group(1).lower(), "data": parse_json(m.group(2)), "raw": (m.group(2) or "").strip()})
+        buf = buf[:m.start()] + buf[m.end():]
+    # cluster.pact (V2-072): reglas NEGOCIADAS de esta conversación agente-agente ({to?,cadence_s?,medium?,scope?,note?}).
+    while True:
+        m = CX_PACT_RE.search(buf)
+        if not m:
+            break
+        emit_fn("cluster.pact", {"name": m.group(1).lower(), "data": parse_json(m.group(2))})
         buf = buf[:m.start()] + buf[m.end():]
 
     # Remove complete cron.create blocks (JSON body → native Hermes cron; never spoken).
@@ -308,6 +316,7 @@ def strip_tags(buf: str, emit_fn, final: bool):
     for marker, closer in (("[[push", "[[/push]]"), ("[[create", "[[/create]]"), ("[[modify", "[[/modify]]"),
                            ("[[widget.data", "[[/widget.data]]"),
                            ("[[cluster.connect", "[[/cluster.connect]]"), ("[[cluster.send", "[[/cluster.send]]"),
+                           ("[[cluster.pact", "[[/cluster.pact]]"),
                            ("[[cron.create", "[[/cron.create]]"), ("[[deep", "[[/deep]]"),
                            ("[[resize", "[[/resize]]"),
                            ("[[architect.ask", "[[/architect.ask]]"), ("[[architect.new", "[[/architect.new]]")):

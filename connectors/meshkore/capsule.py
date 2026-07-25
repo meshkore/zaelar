@@ -52,6 +52,9 @@ _DEFAULT = {
     "received": 0,         # chars que el peer nos ha aportado
     "offloads": 0,         # nº de mensajes del peer pidiéndonos PRODUCIR trabajo (código/informe)
     "code_out": 0,         # nº de veces que le hemos mandado código
+    # PACTO DE CONVERSACIÓN (V2-072) — reglas NEGOCIADAS agente-agente para esta relación (3er nivel de reglas):
+    "pact": {},            # {cadence_s:int, medium:"repo|channel", scope:"chat|analysis|code", note:str, by:"peer|operator"}
+    "last_out_ts": 0.0,    # cuándo mandamos el último mensaje a este peer (para aplicar la cadencia)
     "updated": 0,
 }
 
@@ -191,6 +194,98 @@ _RESOURCE_GUIDE = {
 def resource_guidance(verdict: str) -> str:
     """Directiva de prompt (silenciosa hacia el peer) según el veredicto de balance. '' si equilibrado."""
     return _RESOURCE_GUIDE.get(verdict, "")
+
+
+# ── PACTO DE CONVERSACIÓN (V2-072) — el 3er nivel de reglas: NEGOCIADO agente-agente, por-relación ──────────────
+# Vocabulario CERRADO (seguridad: un pacto solo puede hacer que nos comportemos de forma más conservadora —cadencia,
+# medio, alcance—, nunca conceder capacidades; eso lo gobierna el nivel 1 duro). Los valores libres van en `note`,
+# siempre bajo el trailer de seguridad. Jerarquía: 1 sistema > 2 operador > 3 pacto — el `by` marca quién lo fijó
+# (un pacto del OPERADOR manda sobre lo negociado con el peer).
+PACT_MEDIUM = ("repo", "channel")            # dónde va el código: repositorio compartido vs pegado en el canal
+PACT_SCOPE = ("chat", "analysis", "code")    # hasta dónde llega la colaboración
+CADENCE_MIN_S = 0                             # sin límite inferior duro (0 = sin cadencia acordada)
+CADENCE_MAX_S = 600                           # tope sensato para un valor negociado (10 min)
+
+# Propuesta por defecto que la mente ofrece al SALUDAR a un agente nuevo (buena ciudadanía + ahorro mutuo de tokens).
+PACT_DEFAULT_PROPOSAL = (
+    "Propón brevemente unas normas de trabajo para esta colaboración (podéis ajustarlas luego): "
+    "(1) esperar su respuesta antes de mandar otro mensaje, sin ráfagas —ahorra tokens a ambos—; "
+    "(2) el código se comparte por un REPOSITORIO (enlace/PR), no pegado en los mensajes; "
+    "(3) acordad el alcance: solo charla/análisis, o también código. Si acepta, quedan pactadas.")
+
+
+def _clean_pact(raw: dict) -> dict:
+    """Sanea un pacto propuesto (del tag de la mente o del operador) al vocabulario CERRADO. Descarta lo que no
+    encaje — un pacto nunca concede capacidades, solo restringe nuestra conducta."""
+    out: dict = {}
+    if not isinstance(raw, dict):
+        return out
+    try:
+        c = int(raw.get("cadence_s"))
+        if c > 0:
+            out["cadence_s"] = max(CADENCE_MIN_S, min(CADENCE_MAX_S, c))
+    except (TypeError, ValueError):
+        pass
+    if raw.get("medium") in PACT_MEDIUM:
+        out["medium"] = raw["medium"]
+    if raw.get("scope") in PACT_SCOPE:
+        out["scope"] = raw["scope"]
+    note = str(raw.get("note") or "").strip()
+    if note:
+        out["note"] = note[:200]
+    return out
+
+
+def pact_set(cluster: str, peer: str, rules: dict, *, by: str = "peer") -> dict:
+    """Fija/actualiza (merge) el pacto de esta relación. `by='operator'` lo marca como puesto por el operador (manda
+    sobre lo negociado con el peer y no lo puede pisar un pacto posterior del peer)."""
+    cap = load(cluster, peer)
+    pact = dict(cap.get("pact") or {})
+    if pact.get("by") == "operator" and by != "operator":
+        return cap                      # un pacto del operador no lo pisa el peer (jerarquía nivel 2 > 3)
+    clean = _clean_pact(rules)
+    if not clean:
+        return cap
+    pact.update(clean)
+    pact["by"] = by
+    cap["pact"] = pact
+    save(cluster, peer, cap)
+    return cap
+
+
+def cadence_wait(cap: dict, now: float) -> float:
+    """Segundos que hay que ESPERAR antes de mandar otro mensaje a este peer según la cadencia pactada (0 = ya)."""
+    pact = cap.get("pact") or {}
+    c = int(pact.get("cadence_s") or 0)
+    if c <= 0:
+        return 0.0
+    elapsed = now - float(cap.get("last_out_ts") or 0)
+    return max(0.0, c - elapsed)
+
+
+def pact_compose(cap: dict) -> str:
+    """El bloque del PACTO para el prompt del turno: las normas acordadas que la mente debe respetar (nivel 3).
+    '' si no hay pacto. Es guía CONDUCTUAL, siempre por debajo del trailer de seguridad (nivel 1)."""
+    pact = cap.get("pact") or {}
+    if not pact:
+        return ""
+    who = "fijadas por tu operador (mándalas)" if pact.get("by") == "operator" else "acordadas con este agente"
+    parts = []
+    if pact.get("cadence_s"):
+        parts.append(f"espera a su respuesta antes de enviar otro mensaje (cadencia ~{pact['cadence_s']}s, sin ráfagas)")
+    if pact.get("medium") == "repo":
+        parts.append("el código se comparte por el REPOSITORIO (enlace/PR), NO pegado en los mensajes")
+    elif pact.get("medium") == "channel":
+        parts.append("el código puede ir en los mensajes")
+    if pact.get("scope"):
+        sc = {"chat": "solo charla", "analysis": "charla y análisis, sin producir código",
+              "code": "charla, análisis y código"}.get(pact["scope"], pact["scope"])
+        parts.append(f"alcance de la colaboración: {sc}")
+    if pact.get("note"):
+        parts.append(pact["note"])
+    if not parts:
+        return ""
+    return "[PACTO DE ESTA CONVERSACIÓN — normas " + who + ", respétalas]: " + " · ".join(parts)
 
 
 # ── composición del bloque de contexto que la mente lee al situarse en el turno ─────────────────────────────────

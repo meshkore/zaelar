@@ -266,9 +266,10 @@ class ClusterBridge:
                 self._spawn(self._brain_turn(
                     cluster,
                     f"[cluster:{cluster} · event] agent '{ag_s}' just came online and you've never talked before. "
-                    f"Send a SHORT self-introduction ONLY — your name and a one-line generic description of your "
-                    f"capabilities. Do NOT propose an objective, a task, roles, or a collaboration format — just "
-                    f"say hello and stop."))
+                    f"Send a SHORT self-introduction — your name and a one-line generic description of your "
+                    f"capabilities. Do NOT propose an objective or a specific task (that's the operator's call). "
+                    f"You MAY briefly propose WORKING NORMS for how you two communicate and, if it agrees, record "
+                    f"them with [[cluster.pact:{cluster}]]{{\"to\":\"{ag_s}\",...}}[[/cluster.pact]]. {capsule.PACT_DEFAULT_PROPOSAL}"))
                 capsule.patch(cluster, ag, greeted=True)   # V2-069: presentado → no repetirlo (fase avanza a sondeo)
             elif st == "online":
                 # conocido → sin intro, pero puede tener un mensaje sin contestar de cuando estuvimos offline
@@ -299,9 +300,11 @@ class ClusterBridge:
                 self._spawn(self._brain_turn(
                     cluster,
                     f"[cluster:{cluster} · event] you just connected; agent(s) online you've never talked to before: "
-                    f"{unknown_s}. Send a SHORT self-introduction ONLY — your name and a one-line generic "
-                    f"description of your capabilities. Do NOT propose an objective, a task, roles, or a "
-                    f"collaboration format — just say hello and stop."))
+                    f"{unknown_s}. Send a SHORT self-introduction — your name and a one-line generic "
+                    f"description of your capabilities. Do NOT propose an objective or a specific task (that's the "
+                    f"operator's call). You MAY briefly propose WORKING NORMS for how you communicate and, if they "
+                    f"agree, record them with [[cluster.pact:{cluster}]]{{\"to\":\"<agent>\",...}}[[/cluster.pact]]. "
+                    f"{capsule.PACT_DEFAULT_PROPOSAL}"))
                 for _p in unknown:
                     capsule.patch(cluster, _p, greeted=True)   # V2-069: presentado → fase avanza, no re-presentarse
             # CATCH-UP (petición del operador 2026-07-25): un peer YA CONOCIDO puede habernos escrito mientras
@@ -365,6 +368,12 @@ class ClusterBridge:
                 guide = capsule.resource_guidance(res_verdict)
                 if guide:
                     rel_block += guide + "\n\n"
+                # PACTO DE CONVERSACIÓN (V2-072, 3er nivel de reglas): las normas NEGOCIADAS con este agente
+                # (cadencia/medio/alcance) — la mente debe respetarlas. Van por debajo del trailer de seguridad
+                # (nivel 1) y de las reglas del operador (nivel 2), que un pacto no puede aflojar.
+                pact_block = capsule.pact_compose(cap)
+                if pact_block:
+                    rel_block += pact_block + "\n\n"
             except Exception:
                 rel_block = ""
         # Security rule of thumb: OUR prompt goes LAST. The trailer (do-not-reveal + injection defense) is appended
@@ -431,7 +440,7 @@ class ClusterBridge:
     # emitting a tag. So from this path we allow ONLY the collaboration primitives (talk to peers / conclude).
     # cluster.connect (join an attacker cluster, persisted) and cluster.disconnect (sever a real collaboration) are
     # operator-only — reachable from the voice path and REST, never from an inbound peer message. Least privilege.
-    _CLUSTER_TURN_ALLOWED = {"cluster.send", "cluster.done"}
+    _CLUSTER_TURN_ALLOWED = {"cluster.send", "cluster.done", "cluster.pact"}
 
     async def _route_reply(self, reply: str) -> tuple[str, list[str]]:
         """Strip [[cluster.*]] tags out of the reply, dispatch the ALLOWED ones, and return (remaining_text,
@@ -535,14 +544,50 @@ class ClusterBridge:
                     journal.record({"chan": "out", "action": "cluster.send", "blocked": mblocked, "cluster": name})
                     _emit("error", f"cluster {name}: outbound blocked — possible secret leak ({mblocked}). Not sent.")
                     return
+                # CADENCIA PACTADA (V2-072): si esta relación tiene una cadencia acordada, ESPERAMOS lo que falte
+                # antes de mandar otro mensaje — no ráfagas. Es el enforcement REAL de la queja de zalo (le
+                # bombardeábamos). Off la ruta de voz → dormir aquí no bloquea nada crítico. Tope defensivo.
+                if to:
+                    try:
+                        _ph = security.neutralize_identity(to)
+                        wait = capsule.cadence_wait(capsule.load(name, _ph), self._now())
+                        if wait > 0:
+                            _emit("cluster", f"⏳ {name}·{to}: cadencia pactada, espero {wait:.0f}s",
+                                  extra={"cluster": name, "to": to, "cadence_wait": round(wait, 1)})
+                            await asyncio.sleep(min(wait, capsule.CADENCE_MAX_S))
+                    except Exception:
+                        pass
                 await self._manager.send(name, to=to, text=text, media=media)
                 self._engaged[name] = True
                 self._last_activity[name] = self._now()
                 self._nudged.discard(name)
+                if to:                                   # sella cuándo mandamos, para la cadencia del próximo
+                    try:
+                        capsule.patch(name, security.neutralize_identity(to), last_out_ts=self._now())
+                    except Exception:
+                        pass
                 _emit("cluster", f"⇢ {name}·{to or '*'}", text=text, role="assistant",
                       extra={"cluster": name, "to": to or "*", "dir": "out"})
                 self._notify_registry()
                 return text        # what actually went to the peer (post-guard) → passive memory observation
+            elif action == "cluster.pact":
+                # PACTO DE CONVERSACIÓN (V2-072): la mente registra unas normas ACORDADAS con el peer (cadencia/
+                # medio/alcance). Se sanea al vocabulario cerrado y se guarda en la cápsula por-peer (by="peer" →
+                # un pacto del operador seguiría mandando sobre este). Nunca concede capacidades; solo restringe
+                # nuestra conducta. No sale nada al canal (el acuerdo en prosa ya lo dijo la mente en su cluster.send).
+                data = extra.get("data") or {}
+                if not self._manager.has(name):
+                    resolved = self._resolve_peer_cluster(name)
+                    name = resolved or name
+                to = data.get("to")
+                peer_h = security.neutralize_identity(to) if to else None
+                if peer_h:
+                    capsule.pact_set(name, peer_h, data, by="peer")
+                    _emit("cluster", f"🤝 {name}·{peer_h}: pacto actualizado",
+                          extra={"cluster": name, "peer": peer_h, "pact": capsule.load(name, peer_h).get("pact")})
+                else:
+                    _emit("error", "cluster.pact: falta 'to' (con qué agente se pacta) — ignorado.")
+                return
             elif action == "cluster.done":
                 name = extra.get("name") or ""
                 if not self._manager.has(name):
