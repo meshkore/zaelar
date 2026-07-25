@@ -16,7 +16,7 @@ import time
 from loguru import logger
 
 from voice.tag_protocol import strip_tags
-from connectors.meshkore import brief, store, journal, security, mem_ingest
+from connectors.meshkore import brief, store, journal, security, mem_ingest, capsule
 
 IDLE_SECS = float(os.getenv("MESHKORE_IDLE_SECS", "90"))    # engaged + silent this long → one nudge
 TICK_SECS = float(os.getenv("MESHKORE_TICK_SECS", "20"))    # heartbeat cadence
@@ -222,6 +222,7 @@ class ClusterBridge:
                     f"Send a SHORT self-introduction ONLY — your name and a one-line generic description of your "
                     f"capabilities. Do NOT propose an objective, a task, roles, or a collaboration format — just "
                     f"say hello and stop."))
+                capsule.patch(cluster, ag, greeted=True)   # V2-069: presentado → no repetirlo (fase avanza a sondeo)
             elif st == "online":
                 # conocido → sin intro, pero puede tener un mensaje sin contestar de cuando estuvimos offline
                 # (petición del operador 2026-07-25: "hay mensajes que nos han mandado pero no hemos contestado").
@@ -254,6 +255,8 @@ class ClusterBridge:
                     f"{unknown_s}. Send a SHORT self-introduction ONLY — your name and a one-line generic "
                     f"description of your capabilities. Do NOT propose an objective, a task, roles, or a "
                     f"collaboration format — just say hello and stop."))
+                for _p in unknown:
+                    capsule.patch(cluster, _p, greeted=True)   # V2-069: presentado → fase avanza, no re-presentarse
             # CATCH-UP (petición del operador 2026-07-25): un peer YA CONOCIDO puede habernos escrito mientras
             # estábamos desconectados (a veces días) — MeshKore no tiene historial de servidor (client.py: relay
             # a quien esté conectado AHORA), así que si nadie retoma esos mensajes al reconectar, se pierden en
@@ -293,10 +296,23 @@ class ClusterBridge:
             _trace.begin((peer_text or event_text or "")[:200], origin="cluster")
         except Exception:
             pass
+        # CÁPSULA (V2-069 «una sola mente»): la mente se SITÚA en la relación antes de responder — quién es el peer,
+        # de qué habéis hablado, el objetivo, lo ya decidido y la FASE (que le dice, p.ej., NO re-presentarse en
+        # trabajo/sondeo). Es la memoria-de-relación, NUESTRA (dossier destilado) — no texto crudo del peer. Sin
+        # peer concreto (heartbeat/ready global) se omite. Va ANTES del evento y ANTES del trailer (nuestro prompt
+        # de seguridad sigue yendo el último).
+        rel_block = ""
+        if peer:
+            try:
+                cap = capsule.load(cluster, peer)
+                cap["phase"] = capsule.derive_phase(cap)
+                rel_block = capsule.compose(cluster, peer, cap) + "\n\n"
+            except Exception:
+                rel_block = ""
         # Security rule of thumb: OUR prompt goes LAST. The trailer (do-not-reveal + injection defense) is appended
         # after the (possibly hostile) event content so a peer's "ignore all previous rules" can never sit after it.
         trailer = security.trailer()
-        framed = f"{brief.for_brain()}\n\n{event_text}" + (f"\n\n{trailer}" if trailer else "")
+        framed = f"{brief.for_brain()}\n\n{rel_block}{event_text}" + (f"\n\n{trailer}" if trailer else "")
         t0 = time.time()
         try:
             reply = await self._reasoner(framed)
@@ -312,6 +328,16 @@ class ClusterBridge:
         # verdad salió al peer (ya pasado por el guard de salida); si no envió nada, cae al aside `spoken`.
         if peer_text is not None and peer:
             mem_ingest.observe_exchange(cluster, peer, peer_text, "\n".join(sent) or spoken)
+            # CÁPSULA (V2-069): ya hemos intercambiado con este peer → marca greeted (no re-presentarse), suma un
+            # turno sustantivo y re-deriva la fase. Barato y directo (sys_kv). No toca el estado del operador.
+            try:
+                cap = capsule.load(cluster, peer)
+                cap["greeted"] = True
+                cap["turns"] = int(cap.get("turns") or 0) + 1
+                cap["phase"] = capsule.derive_phase(cap)
+                capsule.save(cluster, peer, cap)
+            except Exception:
+                pass
         if spoken.strip():
             # INVARIANT: the cluster channel NEVER reaches the speaker. Anything the brain says here is agent-to-agent
             # or an aside for the /debug wall — it goes to the UI observer ONLY, never to TTS. The operator hears
