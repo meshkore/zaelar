@@ -34,6 +34,7 @@ __all__ = [
     "start", "stop",
     "write", "write_now", "ingest_message", "reinforce", "pin", "unpin", "link", "forget", "unforget",
     "state", "set_state", "compose_state", "add_user_rule", "remove_user_rule",
+    "kv_get", "kv_set",
     "query", "recent_short", "recent_window", "recent_by_source", "by_concepts",
     "seconds_since_last_conv",
     "critical_facts", "salient_long", "map",
@@ -301,6 +302,39 @@ def set_state(fields: dict) -> dict:
     s = _state.patch(fields)
     _emit("memory.updated", {"op": "state"})
     return s
+
+
+# ── KV genérico (sys_kv) — estado ESTRUCTURADO scopeado que no es el ESTADO raíz del operador ────────────────
+# V2-069 «una sola mente»: la memoria-de-relación con cada agente (cápsula) necesita persistir un pequeño estado
+# ESTRUCTURADO por (cluster,peer) — objetivo, fase, bucles abiertos — SIN inflar el `state()` raíz (que es la
+# conciencia del operador) ni crear una tabla nueva. Reusa `sys_kv` (ya lo usan consolidator/rem). Es scope-partido:
+# la clave lleva el scope (`capsule:<cluster>:<peer>`), así el estado de una conversación con un agente vive junto a
+# todo lo demás pero AISLADO — nunca se mezcla con el estado del operador. Valor = JSON. µs, directo.
+def kv_get(key: str, default=None):
+    """Lee un valor JSON de sys_kv por clave scopeada. Tolera BD vacía/JSON corrupto → default."""
+    import json
+    try:
+        row = _db.get_db().query_one("SELECT value FROM sys_kv WHERE key=?", (key,))
+    except Exception:
+        return default
+    if row is None:
+        return default
+    try:
+        return json.loads(row["value"])
+    except Exception:
+        return default
+
+
+def kv_set(key: str, value) -> None:
+    """Escribe un valor JSON en sys_kv (upsert). Directo (no pasa por la cola: es estado de proceso, no una píldora)."""
+    import json
+    try:
+        _db.get_db().execute(
+            "INSERT INTO sys_kv (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+            (key, json.dumps(value, ensure_ascii=False)),
+        )
+    except Exception:
+        pass
 
 
 # Claves del ESTADO que la sección B renderiza con su propia línea (no como "campo suelto"): no las vuelques dos veces.
