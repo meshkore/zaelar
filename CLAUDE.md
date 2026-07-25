@@ -42,6 +42,7 @@ Los agentes DEBEN trabajar dentro de esta estructura — no crear `docs/` ni car
 | **Alignment review** | `.meshkore/docs/ops/zaelar-alignment-review.md` |
 | **Model/latency benchmarks** | `.meshkore/docs/ops/zaelar-model-benchmarks.md` |
 | **Testing playbook** | `.meshkore/docs/ops/zaelar-testing.md` |
+| **Monitorización de conversaciones de cluster** | `.meshkore/docs/ops/zaelar-cluster-conversation-monitoring.md` |
 | Observabilidad / debug | `.meshkore/docs/ops/zaelar-observability.md` |
 
 > Instalación / arranque para quien clona el repo: **[`README.md`](README.md)** en la raíz (multi-plataforma
