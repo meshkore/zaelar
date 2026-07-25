@@ -35,6 +35,7 @@ __all__ = [
     "write", "write_now", "ingest_message", "reinforce", "pin", "unpin", "link", "forget", "unforget",
     "state", "set_state", "compose_state", "add_user_rule", "remove_user_rule",
     "query", "recent_short", "recent_window", "recent_by_source", "by_concepts",
+    "seconds_since_last_conv",
     "critical_facts", "salient_long", "map",
     "load_episode", "register_episode", "write_episode", "list_episodes", "migrate_inbox",
     "consolidate", "DEFAULT_BUDGET_TOKENS",
@@ -728,6 +729,26 @@ def recent_window(limit: int = 6, max_chars: int = 1600) -> list[dict]:
         if a:
             out.append({"role": "assistant", "content": a})
     return out
+
+
+def seconds_since_last_conv() -> float | None:
+    """Segundos desde el ÚLTIMO turno conversacional (buffer corto `source='conv'`), o None si no hay ninguno.
+    Sirve para que el kickoff (voice/engine/pipeline/agent.py) distinga una sesión NUEVA de una RECONEXIÓN a una
+    conversación EN CURSO: si el operador habló hace un momento, reconectar NO debe re-saludar como si fuera el
+    primer turno (bug 2026-07-25: cada reconexión soltaba «Hola, ¿qué necesitas?» en mitad de la charla). Lectura
+    directa µs, tolera BD vacía."""
+    try:
+        db = _db.get_db()
+        row = db.query(
+            "SELECT MAX(created) AS c FROM memories WHERE level='short' AND valid=1 "
+            "AND json_extract(meta,'$.source')='conv'"
+        )
+        c = (row[0]["c"] if row else None)
+        if not c:
+            return None
+        return max(0.0, __import__("time").time() - float(c))
+    except Exception:
+        return None
 
 
 def critical_facts(limit: int = 8) -> list[str]:
