@@ -22,7 +22,7 @@ import { Room, RoomEvent, LocalAudioTrack, ConnectionState } from "../../vendor/
 import * as store from "../core/store.js?v=2";
 import * as audio from "./audio.js?v=2";
 import * as api from "./api.js?v=2";
-import { openSSE, closeSSE } from "./sse.js?v=3";
+import { openSSE, closeSSE } from "./sse.js?v=4";
 import { clearDebugBuffer } from "./debugbus.js?v=2";
 import { startVisualizer } from "./visualizer.js?v=2";
 

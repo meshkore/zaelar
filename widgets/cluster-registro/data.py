@@ -13,7 +13,8 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 LOGS = REPO_ROOT / ".meshkore" / "logs"
 TIMELINE = LOGS / "timeline-latest.jsonl"
 SESSIONS_DIR = LOGS / "sessions"
-MAX_TURNS = 400  # cap to keep the payload light
+MAX_TURNS = 50  # cap: solo los últimos 50 turnos (petición del operador 2026-07-25 — que el widget no se sature;
+                # el histórico completo sigue en los logs, esto es solo la ventana de RENDER del widget)
 # "Harvey" es un agente FANTASMA: variante fonética con la que el STT confunde la wake-word "zaelar"
 # (ver voice/attention.py) que quedó mal-atribuida como peer en el log — nunca fue un peer real del
 # cluster. Se filtra en el origen para que ni el registro ni la lista de peers lo muestren.
