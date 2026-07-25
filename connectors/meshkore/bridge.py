@@ -2,10 +2,10 @@
 # ClusterBridge — the seam between the MeshKore transport and the BRAIN.
 #
 # It does NOT think. It (1) turns every inbound cluster frame into a labelled brain input, (2) runs that through
-# the injected `reasoner` (the active brain, off the voice pipeline), (3) parses the reply's [[cluster.*]] tags
-# and routes them back to the manager, and (4) keeps a lightweight "engaged" flag per cluster so a heartbeat can
-# nudge the brain to follow up / conclude. All the decisions (what to say, when to wait, when to conclude) live
-# in the brain. The reasoner serializes with the voice turn via the shared Hermes turn_lock, so a cluster turn
+# the injected `brain` (the FlashBrain engine in untrusted profile, off the voice pipeline), (3) parses the reply's
+# [[cluster.*]] tags and routes them back to the manager, and (4) keeps a lightweight "engaged" flag per cluster so a
+# heartbeat can nudge the brain to follow up / conclude. All the decisions (what to say, when to wait, when to
+# conclude) live in the brain. The turn serializes with the voice turn via the shared turn_lock, so a cluster turn
 # never cuts off the operator mid-sentence.
 #
 import asyncio
@@ -53,9 +53,9 @@ def _dedup_key(text: str) -> str:
 
 
 class ClusterBridge:
-    def __init__(self, manager, reasoner):
+    def __init__(self, manager, brain):
         self._manager = manager
-        self._reasoner = reasoner            # async reasoner(text, on_chunk=None) -> str
+        self._brain = brain                  # async brain(text, on_chunk=None) -> str (motor FlashBrain, perfil untrusted)
         self._engaged: dict[str, bool] = {}  # cluster -> has an open joint task
         self._last_activity: dict[str, float] = {}
         self._nudged: set[str] = set()
@@ -350,7 +350,7 @@ class ClusterBridge:
         framed = f"{brief.for_brain()}\n\n{rel_block}{event_text}" + (f"\n\n{trailer}" if trailer else "")
         t0 = time.time()
         try:
-            reply = await self._reasoner(framed)
+            reply = await self._brain(framed)
         except Exception as e:
             logger.warning(f"MeshKore brain turn failed: {e}")
             _emit("error", f"cluster brain turn failed: {e}")
@@ -359,7 +359,7 @@ class ClusterBridge:
         spoken, sent = await self._route_reply(reply)
         # OBSERVACIÓN PASIVA cluster→memoria (V2-021 T170): solo en un turno de MENSAJE de un peer (no presence/
         # heartbeat). Destila entrante+saliente en una síntesis CUARENTENADA por peer, off-hot-path y
-        # fire-and-forget — el reasoner sigue stateless; esto no le da estado ni capacidades. `sent` = lo que de
+        # fire-and-forget — el canal no tiene tools; esto no le da capacidades. `sent` = lo que de
         # verdad salió al peer (ya pasado por el guard de salida); si no envió nada, cae al aside `spoken`.
         if peer_text is not None and peer:
             mem_ingest.observe_exchange(cluster, peer, peer_text, "\n".join(sent) or spoken)
@@ -514,9 +514,9 @@ class ClusterBridge:
             _emit("error", f"cluster {action} failed: {e}")
 
     def _heartbeat_context(self, cluster: str) -> str:
-        """Best-effort 'what was the peer last saying' for the idle nudge below, so the reasoner isn't asked to
+        """Best-effort 'what was the peer last saying' for the idle nudge below, so the brain isn't asked to
         decide blind. Prefers the live in-process text from THIS run; falls back to the durable per-peer synthesis
-        (`mem_ingest`, survives a restart) — same untrusted-peer content the reasoner already sees on every
+        (`mem_ingest`, survives a restart) — same untrusted-peer content the brain already sees on every
         message turn, no new trust surface. Empty if genuinely nothing is known yet."""
         last = self._last_peer_msg.get(cluster)
         if last:
@@ -532,12 +532,12 @@ class ClusterBridge:
         """Run the idle-nudge brain turn, then decide what 'nudged' should mean.
 
         BUG (found live 2026-07-25, journal .meshkore/logs/meshkore.jsonl): the ORIGINAL heartbeat prompt carried
-        ZERO context — the reasoner was asked to "decide: follow up, or conclude" with no idea what the peer last
+        ZERO context — the brain was asked to "decide: follow up, or conclude" with no idea what the peer last
         said, so a peer's "one moment, checking with my team" got answered with [[cluster.done]] (conversation
         closed while the peer was still actively working). Fixed by feeding it the last known message/topic.
 
         That fix uncovered a SECOND bug: `_nudged` used to be marked permanently on every heartbeat firing,
-        regardless of outcome — so once the reasoner (correctly) chose to stay silent and wait, the cluster went
+        regardless of outcome — so once the brain (correctly) chose to stay silent and wait, the cluster went
         quiet FOREVER (only a fresh inbound message clears `_nudged`). A single "still waiting" turn must not
         permanently mute us if the peer never comes back. Only a REAL cluster.send or cluster.done should count
         as "we already nudged" — silence re-arms the idle timer so we check again after another IDLE_SECS.
