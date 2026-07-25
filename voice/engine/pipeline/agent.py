@@ -504,8 +504,24 @@ async def entrypoint(ctx: JobContext) -> None:
     # MISMA sala; el segundo NO debe volver a saludar (el operador oía el saludo repetido). Determinista, por sala,
     # con ventana corta: si otro job ya saludó esta sala hace <8s, este se lo salta (la sesión sigue viva y atiende
     # turnos normalmente; solo se evita el saludo duplicado).
+    # CONTINUIDAD (bug 2026-07-25, operador: "le pongo un mensaje y me dice ¿qué necesitas?"): una RECONEXIÓN a una
+    # conversación EN CURSO no debe re-saludar. Cada reconexión de voz disparaba el kickoff de "primer turno,
+    # preséntate" en mitad de una charla de una hora → «Hola, ¿qué necesitas?» absurdo. Si el operador habló hace
+    # poco (buffer conv reciente), NO saludamos: sembramos contexto y esperamos su próximo turno en silencio.
+    _resume_window = float(os.getenv("ZAELAR_RESUME_WINDOW_S", "1800"))  # 30 min: reconexión = misma sesión
+    _last_conv_age = None
+    try:
+        from memory import api as _mem
+        _last_conv_age = _mem.seconds_since_last_conv()
+    except Exception:
+        _last_conv_age = None
     if _kickoff_recent(ctx.room.name):
         _emit("brain", "🚫 kickoff duplicado evitado (otra sesión ya saludó esta sala)", role="system")
+    elif _last_conv_age is not None and _last_conv_age < _resume_window:
+        # sesión EN CURSO: retomamos sin saludar (el operador sigue la conversación; no lo interrumpas con un hola)
+        _mark_kickoff(ctx.room.name)
+        _emit("brain", f"↩️ kickoff omitido — reconexión a sesión en curso (último turno hace {int(_last_conv_age)}s), "
+                       "retomando en silencio", role="system")
     else:
         _mark_kickoff(ctx.room.name)
         _emit("brain", "kickoff (saludo memory-aware vía cerebro)", role="system")
