@@ -161,6 +161,19 @@ def test_cluster_system_is_identity_safe(fresh_db):
     assert isinstance(op_sys, str) and len(op_sys) > len(sys_cluster) - 1  # el del operador lleva ESTADO además
 
 
+def test_full_cluster_framing_is_identity_safe(fresh_db):
+    """V2-069: TODO lo que ve el turno de cluster (system + brief del protocolo + bloque de cápsula) es
+    identidad-safe — ninguna de las tres piezas del framing filtra PII del operador a un peer no confiable."""
+    from memory import api as memory
+    from nucleo.flash.prompt import build_cluster_system
+    from connectors.meshkore import brief
+    memory.set_state({"operator_name": "Ricart", "treatment": "de tú", "location": "Soria"})
+    capsule.patch("meshcore", "zalo", greeted=True, objective="algo", phase=capsule.TRABAJO)
+    framed = build_cluster_system() + "\n" + brief.for_brain() + "\n" + capsule.compose("meshcore", "zalo")
+    for pii in ("Ricart", "Soria"):
+        assert pii not in framed, f"FUGA de PII del operador en el framing del turno de cluster: {pii}"
+
+
 # ── TOOLS OFF: invariante estructural del motor del canal ──────────────────────────────────────────────────────
 def test_channel_engine_offers_no_tools():
     import inspect
