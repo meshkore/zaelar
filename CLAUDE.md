@@ -580,18 +580,18 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 - **Routing de modelos — POR INVOCACIÓN** (`config/v2.py`, gestionado por la UI, persiste en `config/v2.json`):
   prioridad = **latencia** sin quedarnos sin inteligencia. Nunca una env global de modelo (concurrencia de sesiones):
   `config/v2.py` guarda los DEFAULTS y el cerebro los pasa en cada invocación.
-  - **FlashBrain** (sección `fast`): **producción actual = `grok-4.20-0309-non-reasoning` vía xAI DIRECTO** (nube,
-    de pago; NO-razonador; endpoint `https://api.x.ai/v1`, key `XAI_API_KEY` en el credential store). Se pasó a xAI
-    directo el **2026-07-15** porque el store NO tiene `AIMLAPI_KEY` (solo `XAI_API_KEY`/`GROQ_API_KEY`): el default
-    heredado (`anthropic/claude-haiku-4.5` vía AIMLAPI) dejaba el turno sin credencial → cada turno caía al fallback
-    "Uf, se me ha ido un momento". `nucleo/flash/fast_client.py::resolved_api_key()` resuelve la key **por endpoint**
-    (x.ai→`XAI_API_KEY`, groq.com→`GROQ_API_KEY`, aimlapi→`AIMLAPI_KEY`, gemini→`GEMINI_API_KEY`), así que basta con
-    apuntar `config/v2.json §fast` al proveedor cuya key esté en el store. **Alternativas** (cambiar por la UI o env
-    `FAST_PROVIDER`/`FAST_MODEL`/`FAST_BASE_URL`/`FAST_API_KEY`, aplica al reconectar): **Haiku 4.5 vía AIMLAPI** (el
-    A/B de V2-034 lo prefería a grok por fiabilidad de routing/introspección — **requiere meter `AIMLAPI_KEY` en el
-    store**; ⚠️ AIMLAPI está tras Cloudflare y 403ea intermitente → el cliente spoofa User-Agent de navegador);
-    **Groq** (`llama-3.3-70b-versatile`, muy rápido, `GROQ_API_KEY`); **local Ollama** (`qwen2.5:14b-instruct`,
-    gratis/sin red pero **patoso y LENTO** —medido ~19s/turno con contención de GPU→ NO usar como capa de voz). ⚠️ NO
+  - **FlashBrain** (sección `fast`): **producción actual = `anthropic/claude-haiku-4.5` vía AIMLAPI** (NO-razonador;
+    `AIMLAPI_KEY` presente en el store `tester.env` + `.env`). El A/B de V2-034 lo eligió por **fiabilidad de
+    routing/introspección**. ⚠️ AIMLAPI va tras Cloudflare y 403/blip-ea intermitente (el cliente spoofa User-Agent);
+    un blip puntual puede marcar el ◉ `llm` en rojo hasta el siguiente turno OK (health self-clears). **`grok
+    (xAI) está BANEADO en el FlashBrain**: el único rápido (`grok-4.20-0309-non-reasoning`) MIS-RUTEA —contesta
+    "Hecho"/`widget_data` a una PREGUNTA de memoria, causa de "conversaciones absurdas"—; los correctos (grok-4.3/4.5)
+    son razonadores → violan "voz=no-razonador". **NUNCA grok en la capa de voz** (canónico: `zaelar-model-benchmarks.md
+    §9/§13`). `nucleo/flash/fast_client.py::resolved_api_key()` resuelve la key **por endpoint** (aimlapi→`AIMLAPI_KEY`,
+    groq.com→`GROQ_API_KEY`, gemini→`GEMINI_API_KEY`). **Alternativas válidas** (UI/`config/v2.json §fast` o env
+    `FAST_PROVIDER`/`FAST_MODEL`/…): **Groq** (`llama-3.3-70b-versatile`, muy rápido, `GROQ_API_KEY`); **local Ollama**
+    (`qwen2.5:14b-instruct`, gratis/sin red pero **patoso y LENTO** —~19s/turno con contención de GPU→ NO como capa de
+    voz). ⚠️ NO
     usar `gemini-2.5-flash-LITE` (no invoca tools) ni ningún `*-reasoning`/`3.x-flash` (thinking ON).
   - **SlowBrain CodeAgent** (sección `code_agent`): `provider` `claude_code`/`codex`, con modelo por invocación y
     override por tipo de tarea (`model_memory`/`model_web`/`model_code`).
