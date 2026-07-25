@@ -62,6 +62,11 @@ class ClusterBridge:
         self._last_peer_msg: dict[str, str] = {}  # cluster -> most recent inbound text (idle-nudge context)
         self._caught_up: set[tuple] = set()   # (cluster, peer, last_in_ts) already nudged for catch-up (dedup)
         self._recent_inbound: dict[tuple, tuple] = {}  # (cluster,peer) -> (text, ts) for anti-spam verbatim dedup
+        # GUARDIA DE ATASCO (V2-069): repeticiones consecutivas del MISMO mensaje (normalizado) por peer + estado del
+        # episodio (¿ya mandamos el mensaje asertivo? ¿ya avisamos al operador?). Se resetea cuando llega contenido
+        # nuevo. Es la 1ª línea DETERMINISTA (corta el bucle a los 2-3, no a los 1.333); Susurro es la 2ª línea.
+        self._repeat: dict[tuple, int] = {}          # (cluster,peer) -> nº de repeticiones consecutivas
+        self._stall: dict[tuple, dict] = {}          # (cluster,peer) -> {"assertive_sent":bool, "alerted":bool}
         self._tick_task = None
         self._turns: set = set()             # keep brain-turn tasks alive
 
@@ -181,12 +186,42 @@ class ClusterBridge:
             _key = _dedup_key(_txt)
             if _key and _prev and _prev[0] == _key and (self._now() - _prev[1]) < DEDUP_SECS:
                 self._recent_inbound[_dk] = (_key, self._now())   # slide the window; keep suppressing a sustained loop
-                _emit("cluster", f"⇠ {cluster}·{security.neutralize_identity(frm)} (repetido, ignorado)",
-                      extra={"cluster": cluster, "peer": security.neutralize_identity(frm), "dir": "in", "dedup": True})
+                # GUARDIA DE ATASCO (V2-069): un repetido no es solo "ignorar" — es señal de bucle. Contamos las
+                # repeticiones y actuamos como un humano: a las 2 mandamos UN mensaje asertivo anclado al objetivo
+                # (una sola vez); si sigue, CALLAMOS y avisamos al operador UNA vez. Reemplaza el "ignorar y ya" que
+                # dejó que zalo repitiera "un momento" 1.333 veces sin que nadie rompiera el patrón.
+                self._repeat[_dk] = self._repeat.get(_dk, 0) + 1
+                st = self._stall.setdefault(_dk, {"assertive_sent": False, "alerted": False})
+                verdict = capsule.stall_verdict(self._repeat[_dk], 0)
+                frm_s0 = security.neutralize_identity(frm)
+                if verdict == "asertivo" and not st["assertive_sent"]:
+                    st["assertive_sent"] = True
+                    _emit("cluster", f"⇠ {cluster}·{frm_s0} (bucle → mensaje asertivo)",
+                          extra={"cluster": cluster, "peer": frm_s0, "dir": "in", "stall": "assertive"})
+                    self._spawn(self._brain_turn(
+                        cluster,
+                        f"[cluster:{cluster} · message from agent '{frm_s0}']\n{security.fence_untrusted(_txt)}\n"
+                        f"[SITUACIÓN] Este agente repite lo mismo y no avanzáis. Manda UN mensaje directo y breve, "
+                        f"anclado al objetivo: señala que seguís igual y pide el siguiente paso CONCRETO; si no hay "
+                        f"avance, di con cortesía que lo dejáis aquí. Nada de más cortesías ni de presentarte.",
+                        peer=frm_s0, peer_text=_txt))
+                elif verdict == "callar":
+                    if not st["alerted"]:
+                        st["alerted"] = True
+                        _emit("error", f"cluster {cluster}: «{frm_s0}» lleva {self._repeat[_dk]} repeticiones sin "
+                              f"avanzar — dejo de responder (bucle). Revisa si merece la pena seguir con este agente.")
+                    _emit("cluster", f"⇠ {cluster}·{frm_s0} (bucle, en silencio)",
+                          extra={"cluster": cluster, "peer": frm_s0, "dir": "in", "stall": "silent"})
+                else:
+                    _emit("cluster", f"⇠ {cluster}·{frm_s0} (repetido, ignorado)",
+                          extra={"cluster": cluster, "peer": frm_s0, "dir": "in", "dedup": True})
                 self._notify_registry()
                 return
             if _key:
                 self._recent_inbound[_dk] = (_key, self._now())
+                # contenido NUEVO → el episodio de bucle (si lo había) se cierra: resetea contadores/estado.
+                self._repeat[_dk] = 0
+                self._stall.pop(_dk, None)
             # SSE/timeline/observer copy is REDACTED: a peer message can carry a secret-shaped value (or echo back
             # one of our own tokens) and this surface persists to logs + streams to the UI (audit V6). The brain
             # copy below stays raw (fenced) — Hermes needs the real content to collaborate; the fence handles trust.
