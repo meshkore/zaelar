@@ -16,28 +16,36 @@ limpia por turno: el estado vive en la cápsula, no en el proceso.
 """
 from __future__ import annotations
 
+import asyncio
 import os
 
 from .fast_client import FastClient, ModelSpec
 from .prompt import build_cluster_system
 
+# Tope de tiempo del turno de cluster. Off-voz no hay presión de latencia de tiempo real, PERO el tier puede ser un
+# RAZONADOR (GLM-5.2) que a veces tarda mucho: sin tope, un turno colgaría la task del bridge indefinidamente. Cap
+# generoso pero acotado (igual que el reasoner viejo). Al saltar, lanza → el bridge lo captura y registra.
+_TIMEOUT = float(os.getenv("MESHKORE_TIMEOUT", "120"))
 
-async def reason(text: str, *, spec: ModelSpec, on_chunk=None) -> str:
-    """Un turno de cluster por el motor del FlashBrain, perfil untrusted. Devuelve el texto del modelo (el bridge
-    parsea sus [[cluster.*]] y aplica el guard de salida). NUNCA ofrece tools. Propaga el error del proveedor igual
-    que el motor de voz (el bridge lo captura y lo registra)."""
+
+async def _complete(text: str, spec: ModelSpec, max_tokens: int) -> str:
     from . import dialog
-
     messages = [
         {"role": "system", "content": build_cluster_system()},
         {"role": "user", "content": text},
     ]
+    # NO-streaming (FastClient.complete): off-voz no necesita trocear, y un tier razonador (GLM-5.2) no emite deltas
+    # hasta terminar → con stream se colgaría. No se pasan tools: perfil untrusted, un peer no hace actuar a zaelar.
+    out = await FastClient().complete(messages, spec=spec, max_tokens=max_tokens)
+    return dialog.sanitize_reply(out).strip()
+
+
+async def reason(text: str, *, spec: ModelSpec, on_chunk=None, timeout: float | None = None) -> str:
+    """Un turno de cluster por el motor del FlashBrain, perfil untrusted. Devuelve el texto del modelo (el bridge
+    parsea sus [[cluster.*]] y aplica el guard de salida). NUNCA ofrece tools. Acotado por `_TIMEOUT` (un tier
+    razonador lento no debe colgar la task). Propaga el error/timeout igual que el motor de voz (el bridge lo captura)."""
     max_tokens = int(os.getenv("MESHKORE_MAX_TOKENS", "220"))
-    buf = ""
-    # tools=None → el modelo NO recibe ninguna herramienta (perfil untrusted, forzado en código).
-    async for delta in FastClient().stream(messages, spec=spec, tools=None, max_tokens=max_tokens):
-        buf += delta
-    out = dialog.sanitize_reply(buf).strip()
+    out = await asyncio.wait_for(_complete(text, spec, max_tokens), timeout=timeout or _TIMEOUT)
     if on_chunk and out:
         on_chunk(out)
     return out
