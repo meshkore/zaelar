@@ -503,6 +503,16 @@ class ClusterBridge:
                         name = resolved
                 if self._manager.has(name):
                     self._engaged[name] = False
+                    # V2-069: la conversación con los peers de este cluster CONCLUYÓ → marca su cápsula en fase
+                    # CIERRE (estado fiel; el dossier durable ya lo mantiene mem_ingest, la cápsula es compacta sin
+                    # firehose). No es definitivo: un mensaje nuevo re-deriva la fase y re-engancha. Reset del
+                    # contador de atasco para no arrastrar el episodio a una futura reanudación.
+                    client = self._manager.get(name)
+                    for _p in (client.online if client else []) or []:
+                        _ph = security.neutralize_identity(_p)
+                        capsule.patch(name, _ph, phase=capsule.CIERRE)
+                        self._repeat.pop((name, _ph), None)
+                        self._stall.pop((name, _ph), None)
                     _emit("cluster", f"✔ {name}: task concluded", extra={"cluster": name})
                     self._notify_registry()
             elif action == "cluster.disconnect":
