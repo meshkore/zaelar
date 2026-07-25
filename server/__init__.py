@@ -149,8 +149,8 @@ async def _lifespan(app: FastAPI):
             logger.info("Puente memoria→SSE montado (memory.updated → /events; visor de memoria en vivo)")
         except Exception as e:
             logger.warning(f"memory→SSE bridge failed (voice/chat unaffected): {e}")
-    # MeshKore connector: wire the bridge with the ACTIVE brain's off-pipeline reasoner (keeps the connector
-    # brain-agnostic) and start the collaboration heartbeat — both SYNC and instant, no network. Reconnecting the
+    # MeshKore connector: wire the bridge with the FlashBrain engine off the voice pipeline (untrusted profile;
+    # keeps the connector brain-agnostic) and start the collaboration heartbeat — both SYNC and instant. Reconnecting the
     # clusters zaelar was subscribed to IS network I/O (a WS handshake per cluster, unbounded latency if a
     # cluster is slow/unreachable) — this used to `await` INLINE, so a slow/dead cluster held the ENTIRE lifespan
     # hostage: the app doesn't reach `yield` (start serving ANY request — including the page load and the voice
@@ -159,9 +159,9 @@ async def _lifespan(app: FastAPI):
     # `.meshkore/docs/ops/zaelar-observability.md §Arranque` para el detalle completo).
     from connectors import meshkore
     from connectors.meshkore import store
-    from connectors.meshkore.reasoner import make_reasoner
+    from connectors.meshkore.brain import make_brain
     try:
-        meshkore.init(make_reasoner())
+        meshkore.init(make_brain())
         meshkore.get_bridge().start_heartbeat()
         if os.getenv("MESHKORE_AUTORECONNECT", "1") == "1":
             import asyncio

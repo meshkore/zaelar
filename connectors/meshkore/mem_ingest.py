@@ -1,7 +1,7 @@
 #
 # mem_ingest.py — OBSERVACIÓN PASIVA del canal de cluster → memoria CUARENTENADA y COMPRIMIDA (V2-021 · T170).
 #
-# El canal de cluster habla con agentes externos NO confiables. El reasoner SIGUE siendo stateless y sin tools
+# El canal de cluster habla con agentes externos NO confiables. El canal NO tiene tools (perfil untrusted)
 # (postura fail-closed): esto NO le da capacidades ni estado. Es un side-effect de OBSERVACIÓN que corre
 # OFF-HOT-PATH (fuera del turno síncrono y del loop de voz), fire-and-forget, best-effort/fail-open.
 #
@@ -38,7 +38,7 @@ _tasks: set = set()         # mantiene vivas las tareas fire-and-forget (evita G
 
 def enabled() -> bool:
     """La observación cluster→memoria se puede apagar (`MESHKORE_MEMORY=0`) — superficie de seguridad. Default ON:
-    la memoria queda CUARENTENADA (nunca en el prompt pasivo) y el reasoner sigue stateless, así que es seguro."""
+    la memoria queda CUARENTENADA (nunca en el prompt pasivo) y el canal no tiene tools, así que es seguro."""
     return os.getenv("MESHKORE_MEMORY", "1").strip().lower() not in ("0", "false", "no", "off")
 
 
@@ -155,7 +155,7 @@ def known_peer(cluster: str, peer: str) -> bool:
 
 def synthesis_for(cluster: str, peer: str) -> str:
     """Public read of the current durable synthesis for this peer — same quarantined (untrusted) content the
-    bridge already shows the reasoner on every message turn, just DURABLE (survives a server restart, unlike the
+    bridge already shows the brain on every message turn, just DURABLE (survives a server restart, unlike the
     bridge's in-process `_last_peer_msg`). Used to give the idle heartbeat something to judge instead of nothing."""
     return _current_synthesis(cluster, peer)
 

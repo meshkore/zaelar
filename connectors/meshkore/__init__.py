@@ -5,7 +5,7 @@
 #
 # Wiring (server/__init__.py at startup):
 #     from connectors import meshkore
-#     meshkore.init(reasoner)               # reasoner = the active brain, off the voice pipeline
+#     meshkore.init(brain)                  # brain = the FlashBrain engine, off the voice pipeline (untrusted profile)
 #     meshkore.get_bridge().start_heartbeat()
 #
 # NOTE: the accessors are get_manager()/get_bridge(), NOT manager()/bridge() — the package also has manager.py
@@ -31,12 +31,12 @@ def get_bridge():
     return _bridge
 
 
-def init(reasoner):
-    """Wire the bridge with the active brain's reasoner and route all inbound cluster frames into it."""
+def init(brain):
+    """Wire the bridge with the FlashBrain engine (untrusted profile) and route all inbound cluster frames into it."""
     global _bridge
     from connectors.meshkore.bridge import ClusterBridge
     m = get_manager()
-    _bridge = ClusterBridge(m, reasoner)
+    _bridge = ClusterBridge(m, brain)
     m.set_sink(_bridge.on_event)
     return _bridge
 
