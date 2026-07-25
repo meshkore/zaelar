@@ -944,6 +944,19 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   operador) y la **CADENCIA se aplica de verdad** (throttle real en `cluster.send`: `capsule.cadence_wait` espera lo
   pactado antes de otro mensaje → arregla la queja de que bombardeábamos a zalo). Un pacto del OPERADOR (`by=operator`)
   no lo pisa el peer. Consultable (va en el prompt) y enmendable (el tag actualiza). Tests: `test_pact.py`, nodo 6.6.
+- **Criterio de RITMO / no-progreso — parar y ceder el turno** (V2-073, 2026-07-25; el «criterio humano» en código):
+  con el OPERADOR la conversación siempre debe FLUIR; con un **agente externo** de menos capacidad que se embucla o
+  nos hace perder el tiempo, hay que **valorar con criterio si fluye** y, si no, **PARAR** — no bombardear. El guardia
+  de atasco V2-069 caza la repetición EXACTA; un modelo flojo se embucla **variando la redacción** (caso real zalo:
+  «⛔ Estamos en fase Definición, no puedo discutir Diseño…» con mil variantes) y se cuela. **Detección determinista**
+  (`capsule.looks_stuck` frases de bloqueo es + ⛔; `capsule.near_repeat` casi-repetición por CONTENCIÓN de tokens;
+  `capsule.advanced` = ¿aporta o se embucla?). Cuando el peer no avanza N turnos (`PACE_HANDBACK_AT=3`), la mente
+  **cede el turno** con un mensaje breve (`capsule.PACE_HANDBACK`: «quizá voy muy rápido, paro, avísame cuando estés
+  listo/lo tengas») y luego **calla** (deja de iniciar) hasta que el peer aporte algo NUEVO de verdad + **avisa al
+  operador** (a 2×). Reset al primer avance real. En el bridge, determinista, SOLO canal agente-agente. **Dos capas**
+  (como homeostasis): esta (durable, en el agente) + un **cron cada minuto** que revisa con un modelo la CALIDAD
+  semántica (¿tiene sentido / desajuste de capacidad?) e interviene/avisa cuando el determinista no lo caza. Detalle:
+  `.meshkore/roadmap/initiatives/V2-073-criterio-ritmo-conversacion.md`. Tests: `test_pace.py`, nodo 6.7.
 - **Proveedor Architect** (`connectors/architect/`, doc en `zaelar-modules.md §Architect`): el daemon MeshKore
   compartido de la máquina (`https://127.0.0.1:5573` — zaelar NO arranca daemon) entra en el **catálogo de
   proveedores de código/agentes**, junto al Claude Code headless que programa widgets y al SlowBrain. El cerebro
