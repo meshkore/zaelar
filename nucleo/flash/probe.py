@@ -564,6 +564,25 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 _which = next((t["args"].get("which") for t in tool_calls if t["name"] == "stop_worker"), None)
                 _disp.cancel_soon(str(_which) if _which else text)   # resuelve which del modelo, o del texto (bulk→todas)
                 return_extra_exec = {"executed": "stop"}
+            elif action == "widget_data":
+                # EJECUCIÓN REAL de una data-op (2026-07-25): sin esto el probe validaba el ROUTING pero nunca
+                # ENVIABA — imposible reproducir e2e "manda a zalo …". Ahora, si la acción es FAST, se despacha por
+                # el MISMO camino que la voz (widgets.dispatch_tag → apply_action del widget). Para cluster-registro
+                # `send` eso llama a _send_message → REST /api/meshkore/send → entrega real + journal. CONFIRM no se
+                # auto-confirma (requiere el sí del operador); se reporta como pendiente.
+                _wd = next((t["args"] for t in tool_calls if t["name"] == "widget_data"), {}) or {}
+                _wid = (str(_wd.get("widget_id") or "")).strip().lower()
+                _act = (str(_wd.get("action") or "")).strip()
+                _pl = _wd.get("payload") if isinstance(_wd.get("payload"), dict) else {}
+                from nucleo.flash import frontend as _fe
+                from widgets import actions as _wa
+                _mode = _fe.action_mode(_wid, _act)
+                if _mode == _wa.FAST:
+                    import widgets as _w
+                    await _w.dispatch_tag("widget.data", {"id": _wid, "data": {"action": _act, "payload": _pl}})
+                    return_extra_exec = {"executed": "widget_data", "widget": _wid, "act": _act}
+                else:
+                    return_extra_exec = {"executed": "widget_data_skipped", "mode": str(_mode), "widget": _wid, "act": _act}
             else:
                 return_extra_exec = {}
         except Exception as e:  # noqa: BLE001
