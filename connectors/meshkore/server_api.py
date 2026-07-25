@@ -113,6 +113,22 @@ async def send(body: SendBody, _=Depends(_guard)):
         await meshkore.get_manager().send(body.name, to=body.to, text=text)
     except Exception as e:
         return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
+    # OBSERVABILIDAD (2026-07-25, petición del operador "verificar que se haya enviado"): la ruta REST/widget de
+    # envío NO dejaba rastro — solo journalizaba el bridge (`bridge.dispatch`), así que un "manda a zalo …" del
+    # operador salía SIN registro y era imposible confirmar qué/si se mandó. Registramos aquí el envío igual que
+    # el bridge (journal DURABLE + evento `cluster` en el timeline/UI), marcado `via:"rest"` para distinguir origen.
+    try:
+        from connectors.meshkore import journal
+        journal.record({"chan": "out", "action": "cluster.send", "via": "rest",
+                        "extra": {"name": body.name, "data": {"to": body.to, "text": text}}})
+    except Exception:
+        pass
+    try:
+        from voice.observer import emit as _emit
+        _emit("cluster", f"⇢ {body.name}·{body.to or '*'}", text=text, role="assistant",
+              extra={"cluster": body.name, "to": body.to or "*", "dir": "out", "via": "rest"})
+    except Exception:
+        pass
     return JSONResponse({"ok": True})
 
 
