@@ -305,6 +305,14 @@ async def _lifespan(app: FastAPI):
         supervisor.start()
     except Exception as e:
         logger.warning(f"messaging supervisor start failed (voice/chat unaffected): {e}")
+    # HOMEOSTASIS (V2-070): el LATIDO AUTÓNOMO — mantiene la MÁQUINA sana (recicla el motor LiveKit degradado cuando
+    # es seguro, rota logs, evicta cápsulas muertas). Hermano del cerebro, nunca parte de él; determinista, sin LLM;
+    # fail-open (un fallo aquí jamás toca voz/chat). Necesita `app` para reciclar el worker LiveKit embebido.
+    try:
+        from nucleo import homeostasis
+        homeostasis.start(app)
+    except Exception as e:
+        logger.warning(f"homeostasis start failed (voice/chat unaffected): {e}")
     try:
         yield
     finally:
@@ -321,6 +329,11 @@ async def _lifespan(app: FastAPI):
         try:
             from connectors.messaging import supervisor
             await supervisor.stop()
+        except Exception:
+            pass
+        try:
+            from nucleo import homeostasis
+            await homeostasis.stop()
         except Exception:
             pass
         try:
