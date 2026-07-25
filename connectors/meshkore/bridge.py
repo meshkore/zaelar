@@ -159,6 +159,11 @@ class ClusterBridge:
             client = self._manager.get(cluster)
             if client and frm == client.handle:
                 return                                            # ignore our own echoes
+            # Handle NEUTRALIZADO como clave ÚNICA del peer (V2-069): el handle lo elige el peer y puede variar
+            # (basura/fence-forge añadido). dedup, guardia de atasco y cápsula deben indexar por el MISMO handle
+            # saneado — si no, un handle variable fragmentaría la clave y esquivaría el dedup/atasco y partiría la
+            # memoria-de-relación en varias cápsulas. `neutralize_identity` colapsa esas variantes al mismo peer.
+            peer_h = security.neutralize_identity(frm)
             # Canonical §4 content: payload is a STRING → it's text; an OBJECT → read .text and .media[{mime,url|b64}].
             # No "type"/threading fields exist (presence/joins come as their OWN frames, not as message payloads).
             payload = ev.get("payload")
@@ -180,7 +185,7 @@ class ClusterBridge:
             # burn, no inflight-queue flood, no 40× "quedo a la espera"). Compared on a NORMALIZED key (casefold +
             # only alnum+spaces, emojis/punctuation/encoding stripped) because zalo alternated two spellings of the
             # SAME ping ("...un momento" vs "…🧠 un momento") to slip past an exact match. Empty/attachment bypass.
-            _dk = (cluster, frm)
+            _dk = (cluster, peer_h)
             _prev = self._recent_inbound.get(_dk)
             _txt = (text or "").strip()
             _key = _dedup_key(_txt)
@@ -193,7 +198,7 @@ class ClusterBridge:
                 self._repeat[_dk] = self._repeat.get(_dk, 0) + 1
                 st = self._stall.setdefault(_dk, {"assertive_sent": False, "alerted": False})
                 verdict = capsule.stall_verdict(self._repeat[_dk], 0)
-                frm_s0 = security.neutralize_identity(frm)
+                frm_s0 = peer_h
                 if verdict == "asertivo" and not st["assertive_sent"]:
                     st["assertive_sent"] = True
                     _emit("cluster", f"⇠ {cluster}·{frm_s0} (bucle → mensaje asertivo)",
@@ -225,18 +230,17 @@ class ClusterBridge:
             # SSE/timeline/observer copy is REDACTED: a peer message can carry a secret-shaped value (or echo back
             # one of our own tokens) and this surface persists to logs + streams to the UI (audit V6). The brain
             # copy below stays raw (fenced) — Hermes needs the real content to collaborate; the fence handles trust.
-            frm_lbl = security.neutralize_identity(frm)
+            frm_lbl = peer_h                                   # V2-069: clave única del peer (neutralizada arriba)
             _emit("cluster", f"⇠ {cluster}·{frm_lbl}", text=store.redact(text), role="peer",
                   extra={"cluster": cluster, "peer": frm_lbl, "dir": "in", "media": media})
             note = text + (f"\n[{len(media)} attachment(s): " + ", ".join(
                 (m.get("mime") or "file") + (" " + m["url"] if m.get("url") else "") for m in media) + "]" if media else "")
             # The peer's content is UNTRUSTED — fence it so the brain reads it as data, not instructions (the
             # header before it is our own trusted label). Our security rules get reasserted at the END in _brain_turn.
-            # The handle itself is ALSO peer-chosen: it sits OUTSIDE the fence in our label, so neutralize it or a
-            # crafted handle forges a fence-close + fake trailer right in the trusted header (audit V2).
-            frm_s = security.neutralize_identity(frm)
+            # The handle itself is ALSO peer-chosen: neutralized above (peer_h) so a crafted handle can't forge a
+            # fence-close + fake trailer in the trusted header (audit V2).
             self._spawn(self._brain_turn(
-                cluster, f"[cluster:{cluster} · message from agent '{frm_s}']\n{security.fence_untrusted(note)}",
+                cluster, f"[cluster:{cluster} · message from agent '{frm_lbl}']\n{security.fence_untrusted(note)}",
                 peer=frm_lbl, peer_text=text))
             self._notify_registry()
         elif t == "presence":
