@@ -20,6 +20,11 @@ from connectors.meshkore import capsule
     "sigo esperando la validación",
     "todavía no puedo avanzar con eso",
     "estamos en fase de definición",
+    # bloqueado-por-dependencia (revisión charla zalo↔Poli, 2026-07-26)
+    "Poli sigue caído (503). Sin materia prima de expertos, mi respuesta es incompleta.",
+    "Poli no respondió",
+    "Error: can't reach Poli — Network connection lost",
+    "Sin su input no puedo verificar cobertura ni avanzar con tuneo.",
 ])
 def test_looks_stuck_true(text):
     assert capsule.looks_stuck(text)

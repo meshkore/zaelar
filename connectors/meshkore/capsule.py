@@ -141,7 +141,11 @@ _STUCK_RE = re.compile(
     r"estamos en fase|seguimos en (fase|la fase)|hasta que (cerremos|cierre|termine|acabe)|"
     r"un momento|dame un momento|sigo esperando|sigo (en ello|con ello)|consultando|revisando con|"
     r"todavia no|aun no (puedo|esta|tengo|he)|no (esta|estan) list|espera(me)?\b|a la espera|"
-    r"no puedo .{0,30} hasta|pendiente de|no autorizado a)")
+    r"no puedo .{0,30} hasta|pendiente de|no autorizado a|"
+    # BLOQUEADO-POR-DEPENDENCIA (2026-07-26, revisión de la charla con zalo): el peer no avanza porque un tercero
+    # del que depende está caído (zalo↔Poli/expertos, 503). Es no-progreso igual que un bucle — hay que pausar.
+    r"no respondio|sigue caido|esta caido|503|connection lost|no puedo (dar|obtener) (una )?respuesta|"
+    r"respuesta (es )?incompleta|sin materia prima|no puedo verificar|no puedo responder)")
 
 
 def looks_stuck(text: str) -> bool:
