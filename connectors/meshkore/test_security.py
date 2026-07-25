@@ -261,7 +261,7 @@ def _capture_bridge_prompt(ev):
     br._nudged = set()
     br._engaged = {ev.get("cluster", "?"): True}
     br._last_peer_msg = {}
-    br._recent_inbound = {}
+    br._recent_inbound = {}; br._repeat = {}; br._stall = {}
 
     def _fake_turn(cluster, text, peer=None, peer_text=None):
         captured["prompt"] = text
@@ -375,7 +375,7 @@ def test_inbound_peer_text_redacted_on_sse_but_raw_for_brain(monkeypatch):
 
     br = bridge.ClusterBridge.__new__(bridge.ClusterBridge)
     br._manager = _Mgr()
-    br._last_activity = {}; br._nudged = set(); br._engaged = {"arena": True}; br._last_peer_msg = {}; br._recent_inbound = {}
+    br._last_activity = {}; br._nudged = set(); br._engaged = {"arena": True}; br._last_peer_msg = {}; br._recent_inbound = {}; br._repeat = {}; br._stall = {}
     def _fake_turn(cluster, text, peer=None, peer_text=None): captured["prompt"] = text; return None
     br._brain_turn = _fake_turn
     br._spawn = lambda coro: None
@@ -404,7 +404,7 @@ def test_inbound_verbatim_dedup_suppresses_brain_turn(monkeypatch):
     br = bridge.ClusterBridge.__new__(bridge.ClusterBridge)
     br._manager = _Mgr()
     br._last_activity = {}; br._nudged = set(); br._engaged = {"arena": True}
-    br._last_peer_msg = {}; br._recent_inbound = {}
+    br._last_peer_msg = {}; br._recent_inbound = {}; br._repeat = {}; br._stall = {}
     br._brain_turn = lambda *a, **k: None
     br._spawn = lambda coro: turns.append(1)
     br._notify_registry = lambda: None
@@ -415,18 +415,60 @@ def test_inbound_verbatim_dedup_suppresses_brain_turn(monkeypatch):
     loop = asyncio.new_event_loop()
     loop.run_until_complete(br.on_event(dict(ev)))          # 1ª vez → turno
     clk["t"] = 5.0
-    loop.run_until_complete(br.on_event(dict(ev)))          # repetido a los 5s → SUPRIMIDO
-    clk["t"] = 8.0
-    loop.run_until_complete(br.on_event(dict(ev)))          # repetido otra vez → SUPRIMIDO
+    loop.run_until_complete(br.on_event(dict(ev)))          # 1er repetido dentro del window → SUPRIMIDO (dedup)
     assert len(turns) == 1, f"esperaba 1 turno, hubo {len(turns)} (dedup no aplicó)"
-    # un mensaje DISTINTO del mismo peer sí dispara turno
+    # (a partir del 2º repetido entra el GUARDIA DE ATASCO — se prueba aparte). Un mensaje DISTINTO del mismo peer
+    # cierra el episodio y dispara turno.
     clk["t"] = 9.0
     loop.run_until_complete(br.on_event({"kind": "message", "cluster": "arena", "from": "zalo",
                                          "payload": {"text": "otra cosa distinta"}}))
     assert len(turns) == 2
-    # y pasado el window, el mismo texto vuelve a contar
+    # y pasado el window, el mismo texto vuelve a contar como turno nuevo
     clk["t"] = 200.0
     loop.run_until_complete(br.on_event(dict(ev)))
+    assert len(turns) == 3
+
+
+def test_stall_guard_escalates_repeat_to_assertive_then_silence(monkeypatch):
+    """V2-069 guardia de atasco: un peer que repite el MISMO mensaje escala normal → (suprimido) → 1 mensaje
+    ASERTIVO → silencio + 1 alerta al operador. Es lo que evitó el bucle real de zalo (1.333 'un momento')."""
+    import asyncio
+    from connectors.meshkore import bridge
+
+    errors = []
+    monkeypatch.setattr(bridge, "_emit",
+                        lambda kind, *a, **k: errors.append((kind, a[0] if a else "")))
+    monkeypatch.setattr(bridge, "DEDUP_SECS", 60.0)
+    turns = []
+
+    class _Mgr:
+        def get(self, cluster): return None
+
+    br = bridge.ClusterBridge.__new__(bridge.ClusterBridge)
+    br._manager = _Mgr()
+    br._last_activity = {}; br._nudged = set(); br._engaged = {"arena": True}
+    br._last_peer_msg = {}; br._recent_inbound = {}; br._repeat = {}; br._stall = {}
+    br._brain_turn = lambda *a, **k: None
+    br._spawn = lambda coro: turns.append(1)
+    br._notify_registry = lambda: None
+    clk = {"t": 0.0}
+    br._now = lambda: clk["t"]
+
+    ev = {"kind": "message", "cluster": "arena", "from": "zalo", "payload": {"text": "un momento"}}
+    loop = asyncio.new_event_loop()
+    # 1º = turno normal; repeticiones dentro del window escalan
+    for i in range(8):
+        loop.run_until_complete(br.on_event(dict(ev)))
+        clk["t"] += 3.0
+
+    # exactamente 2 turnos: el 1º normal + 1 asertivo (no uno por repetición)
+    assert len(turns) == 2, f"esperaba 2 turnos (normal + asertivo), hubo {len(turns)}"
+    # se avisó al operador UNA sola vez (kind error) al entrar en 'callar'
+    alerts = [e for e in errors if e[0] == "error"]
+    assert len(alerts) == 1, f"esperaba 1 alerta al operador, hubo {len(alerts)}"
+    # contenido nuevo cierra el episodio: vuelve a poder responder
+    loop.run_until_complete(br.on_event({"kind": "message", "cluster": "arena", "from": "zalo",
+                                         "payload": {"text": "vale, aquí va el plan concreto"}}))
     assert len(turns) == 3
 
 
