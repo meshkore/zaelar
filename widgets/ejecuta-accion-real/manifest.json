@@ -1,0 +1,18 @@
+{
+  "id": "ejecuta-accion-real",
+  "version": "0.1.0",
+  "title": "Acción real pendiente",
+  "description": "Sigue una acción del mundo real que el cerebro rápido no pudo completar por sí solo (cancelar, comprar, enviar…): la escala a un worker, muestra su progreso en vivo y la cierra verificada o fallida, reflejando el resultado real en el widget/memoria correspondiente.",
+  "whenToUse": "Cuando una orden implica una acción REAL fuera del sistema (cancelar/comprar/enviar/gestionar algo) que el cerebro rápido no puede ejecutar solo, o cuando el operador pregunta si ya se hizo de verdad / quiere ver el progreso de una acción pendiente.",
+  "keywords": ["acción real", "accion real", "acción pendiente", "accion pendiente", "ejecuta de verdad", "sin ejecutar", "no lo hiciste", "lo hiciste de verdad", "confirma que lo hiciste", "verifica que se hizo", "se completó de verdad", "se completo de verdad", "quedó sin hacer", "quedo sin hacer", "pendiente de verificar"],
+  "entry": "widget.js",
+  "usage": "Encola la acción real con queue cuando el rápido no pueda completarla (desc + target opcional). El worker que la ejecuta reporta avance con progress (note) y la cierra con verified (éxito, note opcional) o failed (reason). retry la vuelve a poner pendiente tras un fallo; dismiss la quita de la vista. Todas son data-ops instantáneas: solo REFLEJAN lo que ya ocurrió de verdad, no son irreversibles por sí mismas.",
+  "actions": {
+    "queue": {"desc": "registra una nueva acción real pendiente de ejecutar", "payload": {"desc": "string", "target": "string opcional (sitio/widget afectado)"}},
+    "progress": {"desc": "añade una nota de avance y marca la acción en curso", "payload": {"actionId": "string", "note": "string"}},
+    "verified": {"desc": "marca la acción como completada y verificada en la realidad", "payload": {"actionId": "string", "note": "string opcional"}},
+    "failed": {"desc": "marca la acción como fallida con el motivo", "payload": {"actionId": "string", "reason": "string"}},
+    "retry": {"desc": "vuelve a poner una acción fallida en pendiente", "payload": {"actionId": "string"}},
+    "dismiss": {"desc": "quita una acción de la vista", "payload": {"actionId": "string"}}
+  }
+}
