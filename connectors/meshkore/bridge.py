@@ -518,6 +518,12 @@ class ClusterBridge:
                     return
                 await self._manager.connect(name, creds["cluster_id"], creds["token"], creds.get("handle"))
                 store.save_cluster(name, creds["cluster_id"], creds["token"], creds.get("handle", "zaelar"))
+                # PERMISOS al conectar (V2-076): el operador puede conceder capacidades a ESTE cluster en el mismo
+                # acto de conectar (p.ej. code+repo). Por defecto (sin `perms`) el cluster queda en seguridad máxima.
+                if isinstance(data.get("perms"), dict):
+                    store.set_perms(name, data["perms"])
+                    _emit("cluster", f"🔐 {name}: permisos fijados por el operador",
+                          extra={"cluster": name, "perms": store.get_perms(name)})
                 # Connecting = there's an active objective on this cluster. Marking it engaged NOW means a peer
                 # arriving later (presence:online) wakes the brain to open the collaboration, even if we joined an
                 # empty channel and haven't sent anything yet. Cleared by [[cluster.done]]/[[cluster.disconnect]].
