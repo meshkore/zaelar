@@ -108,9 +108,11 @@ informe del día en `tester/reports/<YYYYMMDD>-<desc>/`** (histórico consultabl
 > automático del código** — es una foto seleccionada a mano. Si tocas topología/modelo/proveedor de forma
 > significativa, actualiza también los diagramas en `web/src/pages/technology/` como paso manual (no lo hace
 > ningún workflow todavía); la fuente de verdad DETALLADA sigue siendo `.meshkore/docs/architecture/` y este
-> `CLAUDE.md`. Los workflows `zaelar-docs-sync.md`, `zaelar-widgets-workflow.md`, `zaelar-memory-workflow.md` y
-> `zaelar-alignment-review.md` todavía referencian el `architecture.html` viejo — pendiente una pasada de limpieza
-> en esos docs (no hecha en este cambio; pregúntale al operador si quiere "pasa el protocolo" sobre ellos).
+> `CLAUDE.md`. Los workflows `zaelar-docs-sync.md`, `zaelar-widgets-workflow.md`, `zaelar-memory-workflow.md`,
+> `zaelar-alignment-review.md` **y `zaelar-audit-workflow.md`** (5º doc, confirmado en la auditoría 2026-07-26 —
+> faltaba en esta lista) todavía referencian el `architecture.html` viejo — pendiente una pasada de limpieza en
+> esos docs (no hecha en este cambio ni en la auditoría 2026-07-26, tal y como pide esta misma nota; pregúntale al
+> operador si quiere "pasa el protocolo" sobre ellos).
 
 ### Módulos declarados (`.meshkore/public/cluster.yaml`)
 
@@ -482,6 +484,11 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   siguiente; el probe también drena, paridad V2-053), `finding` (→ `.meshkore/logs/susurro/findings.jsonl` con
   dedup + topic `susurro.finding`, lo consume el dev-loop) y **`worker_action` (F2, V2-061): RE-RUTEA — dispara el
   worker correcto vía `escalate` cuando el rápido dejó sin ejecutar una acción real (dedup vs sesiones vivas)**.
+  **Incidente 2026-07-26 y fix:** `worker_action` re-escalaba en cadena vía el widget `ejecuta-accion-real` (un
+  turno posterior que solo relataba el progreso de una tarea YA escalada volvía a calificar como riesgo; el dedup
+  de texto no siempre lo atrapaba) → load 5.86, ahogó voz/chat. Susurro estuvo OFF hasta añadir un **circuit
+  breaker anti-bucle determinista** (`nucleo/susurro/apply.py`, tope de 3 `worker_action`/10min, avisa al operador
+  1× si se abre) — reactivado tras el fix, auditoría 2026-07-26.
   **Enchufado SOLO por el bus** (topic semántico
   **`turn.completed`** emitido por `observer.turn_detail`, punto ÚNICO voz+probe — audit de modularidad
   2026-07-17, doc `zaelar-modularity.md`), montado en el lifespan con **kill-switch de 1ª clase**
@@ -895,6 +902,11 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   estado de la conversación vive en la **cápsula** (`connectors/meshkore/capsule.py`, memoria-de-relación scope-partido)
   — ver la decisión clave «V2-069». El enrutado seguro de input no confiable al `CodeAgent` (deny-tools/sandbox) se
   construyó en V2-076 (dev worker acotado + sandbox), gated por el PERFIL DE PERMISOS del cluster (ver esa decisión).
+  **`nucleo/git_cli.py` re-verifica el `origin` REAL del directorio en CADA `commit`/`push`, no solo al `clone`**
+  (fix auditoría 2026-07-26 — antes solo comprobaba que existiera `.git`, un dir apuntado a cualquier repo pasaba).
+  **Gap conocido, no cerrado:** `nucleo/sandbox.py` (rlimits/env-scrubbed) existe pero NO está cableado al
+  subproceso interactivo del dev worker — su jail de Read/Write/Edit sigue siendo convención de prompt, no código;
+  tarea P1 en la iniciativa de remediación de la auditoría.
   - **CICLO DE VIDA / RECONEXIÓN — el conector gestiona el estado y REANUDA la conversación solo** (documentado
     2026-07-26, código ya existente): (1) **arranque** → el lifespan **auto-reconecta** a los clusters persistidos
     (`store.load_clusters` → `manager.connect` → `bridge.note_objective`, `server/__init__.py`); (2) **primer contacto**
@@ -907,7 +919,13 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     que pedirlo a mano**. Dedup `_caught_up` por `(cluster,peer,ts)` para no re-nudge en bucles de reconexión. Nota: el
     catch-up necesita que el peer esté PRESENTE (reconecte); con el peer offline no hay con quién reanudar (espera). El
     OBJETIVO lo fija SIEMPRE el operador y vive en `capsule.objective`; si un peer intenta redirigirlo, se mantiene o se
-    para (guard de propiedad-de-objetivo → notificar+permiso: PENDIENTE, gancho = veredicto `off_track` del evaluador V2-075).
+    para. **Guard de propiedad-de-objetivo para el DEV-WORKER: CONSTRUIDO (auditoría 2026-07-26)** —
+    `perms.gate_dev_by_objective` degrada `dev=False` si `capsule.objective` está vacío, aunque el permiso `code`
+    esté concedido (antes el permiso bastaba por sí solo — hallazgo P0, nada escribía `objective` nunca). Efecto
+    práctico: el dev-worker vía cluster queda INERTE hasta que exista un mecanismo para que el operador FIJE el
+    objetivo de una relación (no construido aún, ver iniciativa de remediación). El guard MÁS GENERAL —
+    notificar+pedir permiso ante CUALQUIER intento de un peer de redirigir la conversación (no solo hacia
+    dev-worker), enganchado al veredicto `off_track` del evaluador V2-075 — sigue PENDIENTE.
 - **Seguridad del canal de cluster** (`connectors/meshkore/security.py` + `bridge.py`): el cluster habla con agentes
   externos **no confiables**. Controles DUROS, no solo prompts (detalle en `zaelar-security.md`):
   - El **canal lo conduce el motor del FlashBrain en perfil UNTRUSTED** (V2-069): **tools APAGADAS en código**
@@ -936,7 +954,9 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     `code_out`, `capsule.meter`) + `capsule.resource_verdict()` (equilibrado/sesgado/explotación). Protección:
     directiva SILENCIOSA inyectada antes de generar (sé breve · **el código va por el REPOSITORIO, no por el canal**)
     + `security.guard_code_outbound()` (un VOLCADO grande de código → puntero al repo, como se redacta un secreto;
-    siempre activo, snippet pequeño pasa) + aviso al operador 1× en explotación + evento observer `resource` (la
+    siempre activo, snippet pequeño pasa; desde la auditoría 2026-07-26 **acumula por-destino** en una ventana
+    corta —`accum_key`, `MESHKORE_CODE_ACCUM_WINDOW_S`— para que fragmentar el volcado en varios mensajes pequeños
+    ya no esquive el umbral) + aviso al operador 1× en explotación + evento observer `resource` (la
     DETECCIÓN que pidió el operador). Env: `MESHKORE_CODE_MAX_CHARS`/`_LINES`. Detalle:
     `.meshkore/roadmap/initiatives/V2-071-proteccion-recursos-cluster.md`.
   - Plano de control REST `/api/meshkore/*`: **loopback-only** (o `MESHKORE_API_TOKEN`), anti DNS-rebind, y `/send`
