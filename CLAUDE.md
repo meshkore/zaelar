@@ -945,19 +945,21 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   operador) y la **CADENCIA se aplica de verdad** (throttle real en `cluster.send`: `capsule.cadence_wait` espera lo
   pactado antes de otro mensaje → arregla la queja de que bombardeábamos a zalo). Un pacto del OPERADOR (`by=operator`)
   no lo pisa el peer. Consultable (va en el prompt) y enmendable (el tag actualiza). Tests: `test_pact.py`, nodo 6.6.
-- **Criterio de RITMO / no-progreso — parar y ceder el turno** (V2-073, 2026-07-25; el «criterio humano» en código):
-  con el OPERADOR la conversación siempre debe FLUIR; con un **agente externo** de menos capacidad que se embucla o
-  nos hace perder el tiempo, hay que **valorar con criterio si fluye** y, si no, **PARAR** — no bombardear. El guardia
-  de atasco V2-069 caza la repetición EXACTA; un modelo flojo se embucla **variando la redacción** (caso real zalo:
-  «⛔ Estamos en fase Definición, no puedo discutir Diseño…» con mil variantes) y se cuela. **Detección determinista**
-  (`capsule.looks_stuck` frases de bloqueo es + ⛔; `capsule.near_repeat` casi-repetición por CONTENCIÓN de tokens;
-  `capsule.advanced` = ¿aporta o se embucla?). Cuando el peer no avanza N turnos (`PACE_HANDBACK_AT=3`), la mente
-  **cede el turno** con un mensaje breve (`capsule.PACE_HANDBACK`: «quizá voy muy rápido, paro, avísame cuando estés
-  listo/lo tengas») y luego **calla** (deja de iniciar) hasta que el peer aporte algo NUEVO de verdad + **avisa al
-  operador** (a 2×). Reset al primer avance real. En el bridge, determinista, SOLO canal agente-agente. **Dos capas**
-  (como homeostasis): esta (durable, en el agente) + un **cron cada minuto** que revisa con un modelo la CALIDAD
-  semántica (¿tiene sentido / desajuste de capacidad?) e interviene/avisa cuando el determinista no lo caza. Detalle:
-  `.meshkore/roadmap/initiatives/V2-073-criterio-ritmo-conversacion.md`. Tests: `test_pace.py`, nodo 6.7.
+- **Criterio de conversación por INTELIGENCIA — parar/ceder el turno cuando no fluye** (V2-073 → **rediseñado a
+  V2-075** por decisión del operador, 2026-07-26): con el OPERADOR la conversación siempre FLUYE; con un **agente
+  externo** que se embucla, no sigue el ritmo o nos hace perder el tiempo, hay que **valorar con criterio** y, si no
+  fluye, **PARAR** — no bombardear. **CLAVE (corrección de principio):** el juicio semántico de «esto no tiene
+  sentido / el otro no me sigue» **NO se hace con patrones hardcodeados** — un regex de frases («⛔», «no puedo», «503»)
+  solo se adapta a UN peer y falla con el siguiente; las formas de degenerar son infinitas. **Lo decide un MODELO**
+  (`connectors/meshkore/evaluator.py`): un evaluador INDEPENDIENTE (2ª perspectiva, read-only, catálogo CERRADO
+  `health`∈flowing/stuck/dead_end/imbalanced/off_track × `action`∈continue/concise/hand_back/pause, fail-open) que lee
+  la ventana reciente + métricas y juzga como un humano. SEGURO sobre contenido untrusted (sin tools; distinto de
+  Susurro+`worker_action`, diferido a V2-010). Corre **off-hot-path en el heartbeat** (throttle `MESHKORE_EVAL_SECS`,
+  solo charlas activas); el bridge **aplica** el veredicto (ceder turno con `capsule.PACE_HANDBACK` / pausar+avisar /
+  conciso). La **DECISIÓN es del modelo; el código ejecuta.** Lo DETERMINISTA queda solo para lo estructural y
+  genérico: repetición EXACTA (dedup, quema de tokens), `capsule.near_repeat` (casi-repetición, señal), ratio de
+  recursos, seguridad. Detalle: `.meshkore/roadmap/initiatives/V2-075-criterio-conversacion-inteligencia.md` (+ V2-073
+  histórico). Tests: `test_pace.py`, nodo 6.7.
 - **Sello de VERSIÓN — saber qué código corre y qué versión generó cada línea** (`version.py`, V2-074, 2026-07-26):
   tras varios reinicios con código nuevo no había forma de CONFIRMAR que la instancia viva y las líneas del timeline
   eran de la versión actualizada. `version.py` expone `VERSION` semántica (a mano) + **SHA corto de git** (cambia por
