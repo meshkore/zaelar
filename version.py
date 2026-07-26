@@ -12,7 +12,7 @@ import subprocess
 import time
 
 # Versión semántica del motor — súbela al cerrar un bloque de cambios notable (última: evaluador de conversación por modelo).
-VERSION = "2.75"
+VERSION = "2.76"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CACHE: dict = {}
