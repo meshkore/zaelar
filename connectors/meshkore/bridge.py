@@ -20,6 +20,7 @@ from connectors.meshkore import brief, store, journal, security, mem_ingest, cap
 
 IDLE_SECS = float(os.getenv("MESHKORE_IDLE_SECS", "90"))    # engaged + silent this long → one nudge
 TICK_SECS = float(os.getenv("MESHKORE_TICK_SECS", "20"))    # heartbeat cadence
+EVAL_SECS = float(os.getenv("MESHKORE_EVAL_SECS", "45"))    # cada cuánto re-evalúa la SALUD de una charla (V2-075)
 MAX_INFLIGHT = int(os.getenv("MESHKORE_MAX_INFLIGHT", "8"))  # cap queued/in-flight brain turns → flood backpressure
 # Anti-spam DEDUP (2026-07-25, live: zalo flooded 45 IDENTICAL "consultando con mi equipo… un momento" pings in
 # ~90s — each spawned a brain turn until MAX_INFLIGHT dropped the rest, and zaelar burned tokens replying
@@ -68,8 +69,9 @@ class ClusterBridge:
         self._repeat: dict[tuple, int] = {}          # (cluster,peer) -> nº de repeticiones consecutivas
         self._stall: dict[tuple, dict] = {}          # (cluster,peer) -> {"assertive_sent":bool, "alerted":bool}
         self._resource_alerted: set = set()          # (cluster,peer) ya avisados de explotación de recursos (V2-071)
-        self._peer_recent: dict[tuple, list] = {}     # (cluster,peer) -> últimos textos del peer (no-progreso, V2-073)
-        self._paced: dict[tuple, dict] = {}           # (cluster,peer) -> {"handback_sent":bool,"alerted":bool} (V2-073)
+        self._window: dict[tuple, list] = {}          # (cluster,peer) -> [{"who","text"}] ventana para el evaluador (V2-075)
+        self._paced: dict[tuple, dict] = {}           # (cluster,peer) -> {"paused":bool,"alerted":bool} (decide el evaluador)
+        self._last_eval: dict[tuple, float] = {}      # (cluster,peer) -> último ts de evaluación (throttle, V2-075)
         self._tick_task = None
         self._turns: set = set()             # keep brain-turn tasks alive
 
@@ -249,55 +251,16 @@ class ClusterBridge:
                               offload=security.looks_like_offload(text or ""))
             except Exception:
                 pass
-            # RITMO / NO-PROGRESO (V2-073): ¿el peer AVANZA o se está embuclando (casi-repetición / frases de
-            # bloqueo, variando la redacción para colarse por el guardia de repetición EXACTA)? Con el operador la
-            # conversación siempre fluye; con un agente externo de menos capacidad hay que PARAR y cederle el turno en
-            # vez de bombardearle. Determinista, solo en el canal agente-agente. Es el «criterio» humano en código.
-            try:
-                _recent = self._peer_recent.get(_dk, [])
-                _adv = capsule.advanced(_txt, _recent)
-                self._peer_recent[_dk] = (_recent + [_txt])[-5:]
-                if _adv:
-                    # DECAER, no resetear (fix 2026-07-26): un peer embuclado intercala mensajes pseudo-sustantivos
-                    # que puntúan como "avanza" y RESETEABAN el contador a 0 → nunca llegaba al umbral en un bucle
-                    # MIXTO (caso real zalo). Decaer -1 hace que el no-progreso SOSTENIDO se acumule igual; solo salimos
-                    # de la pausa cuando el peer se recupera DE VERDAD (no_progress vuelve a 0).
-                    _np = max(0, int(capsule.load(cluster, frm_lbl).get("no_progress") or 0) - 1)
-                    capsule.patch(cluster, frm_lbl, no_progress=_np)
-                    if _np == 0:
-                        self._paced.pop(_dk, None)
-                else:
-                    _np = int(capsule.load(cluster, frm_lbl).get("no_progress") or 0) + 1
-                    capsule.patch(cluster, frm_lbl, no_progress=_np)
-                    _pv = capsule.stall_verdict(0, _np, m=capsule.PACE_HANDBACK_AT)
-                    _ps = self._paced.setdefault(_dk, {"handback_sent": False, "alerted": False})
-                    if _pv == "callar":                              # cedimos y sigue sin avanzar → callar + avisar 1×
-                        if not _ps["alerted"]:
-                            _ps["alerted"] = True
-                            _emit("error", f"cluster {cluster}: «{frm_lbl}» no avanza (se embucla sin seguir el "
-                                  f"hilo) — dejo de responder y me quedo a la espera. Probablemente un agente de "
-                                  f"menos capacidad; revisa si merece seguir con él.")
-                        _emit("cluster", f"⇠ {cluster}·{frm_lbl} (sin avance, en silencio)",
-                              extra={"cluster": cluster, "peer": frm_lbl, "dir": "in", "pace": "silent"})
-                        self._notify_registry()
-                        return
-                    if _pv == "asertivo" and not _ps["handback_sent"]:   # 1ª vez que no avanza lo suficiente → cede turno
-                        _ps["handback_sent"] = True
-                        _emit("cluster", f"⇠ {cluster}·{frm_lbl} (no avanza → cedo el turno)",
-                              extra={"cluster": cluster, "peer": frm_lbl, "dir": "in", "pace": "handback"})
-                        self._spawn(self._brain_turn(
-                            cluster,
-                            f"[cluster:{cluster} · message from agent '{frm_lbl}']\n{security.fence_untrusted(note)}\n"
-                            f"{capsule.PACE_HANDBACK}", peer=frm_lbl, peer_text=text))
-                        self._notify_registry()
-                        return
-                    if _ps["handback_sent"]:                          # ya cedimos y sigue igual → NO bombardear
-                        _emit("cluster", f"⇠ {cluster}·{frm_lbl} (sin avance, esperando)",
-                              extra={"cluster": cluster, "peer": frm_lbl, "dir": "in", "pace": "waiting"})
-                        self._notify_registry()
-                        return
-            except Exception:
-                pass
+            # VENTANA de la conversación (V2-075): registramos el mensaje del peer para que el EVALUADOR por modelo
+            # (heartbeat, off-hot-path) juzgue con INTELIGENCIA la salud de la charla — NO con patrones hardcodeados.
+            # Si el evaluador ya decidió PAUSAR con este peer, no re-bombardeamos: solo re-engancha un avance real,
+            # que el propio evaluador reconocerá en su próxima pasada (aquí no juzgamos por regex).
+            self._window_add(cluster, frm_lbl, "peer", _txt)
+            if self._paced.get(_dk, {}).get("paused"):
+                _emit("cluster", f"⇠ {cluster}·{frm_lbl} (en pausa por el evaluador, a la espera)",
+                      extra={"cluster": cluster, "peer": frm_lbl, "dir": "in", "pace": "paused"})
+                self._notify_registry()
+                return
             self._spawn(self._brain_turn(
                 cluster, f"[cluster:{cluster} · message from agent '{frm_lbl}']\n{security.fence_untrusted(note)}",
                 peer=frm_lbl, peer_text=text))
@@ -425,6 +388,11 @@ class ClusterBridge:
                 pact_block = capsule.pact_compose(cap)
                 if pact_block:
                     rel_block += pact_block + "\n\n"
+                # V2-075: si el EVALUADOR (modelo) juzgó la charla desequilibrada, este turno va CONCISO (una vez).
+                if self._paced.get((cluster, peer), {}).get("concise"):
+                    rel_block += ("[RITMO] Sé BREVE y concreto: no añadas detalle de más; el otro va más despacio o "
+                                  "producís vosotros mucho más.\n\n")
+                    self._paced[(cluster, peer)]["concise"] = False
             except Exception:
                 rel_block = ""
         # Security rule of thumb: OUR prompt goes LAST. The trailer (do-not-reveal + injection defense) is appended
@@ -463,6 +431,7 @@ class ClusterBridge:
                 out_text = "\n".join(sent) or spoken or ""
                 capsule.meter(cluster, peer, given=len(out_text),
                               code_out=("```" in out_text or "def " in out_text))
+                self._window_add(cluster, peer, "us", out_text)   # V2-075: nuestro turno entra en la ventana del evaluador
                 if res_verdict != "equilibrado":
                     _emit("resource", f"⚖ {cluster}·{peer}: balance {res_verdict}",
                           extra={"cluster": cluster, "peer": peer, "balance": res_verdict})
@@ -713,6 +682,55 @@ class ClusterBridge:
             self._last_activity[cluster] = self._now()   # re-arm: check again after another idle stretch
             self._nudged.discard(cluster)
 
+    # ── criterio de conversación por INTELIGENCIA (V2-075) — el modelo juzga la salud, el código aplica ─────────
+    def _window_add(self, cluster: str, peer: str, who: str, text: str):
+        """Registra un turno (peer/us) en la ventana de la relación para que el evaluador lo lea. Acotada."""
+        if not (text or "").strip() or not peer:
+            return
+        dk = (cluster, peer)
+        w = self._window.get(dk, [])
+        w.append({"who": who, "text": text})
+        self._window[dk] = w[-14:]
+
+    async def _evaluate_and_apply(self, cluster: str, peer: str):
+        """Pasa la conversación por el EVALUADOR (modelo, genérico) y aplica su veredicto de catálogo cerrado. Off
+        el turno; fail-open. La DECISIÓN es del modelo; aquí solo se ejecuta (ceder turno / pausar / conciso)."""
+        dk = (cluster, peer)
+        win = self._window.get(dk, [])
+        if len(win) < 4:                       # poca conversación para un juicio con criterio
+            return
+        self._last_eval[dk] = self._now()
+        try:
+            from connectors.meshkore import evaluator, brain
+            cap = capsule.load(cluster, peer)
+            metrics = {"turns": cap.get("turns", 0), "given": cap.get("given", 0),
+                       "received": cap.get("received", 0),
+                       "ratio": cap.get("given", 0) / max(cap.get("received", 1), 1)}
+            verdict = await evaluator.evaluate(win, metrics, spec=brain._spec())
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"cluster evaluator failed (fail-open): {e}")
+            return
+        action = verdict.get("action", "continue")
+        _emit("cluster", f"⚖ {cluster}·{peer}: evaluador → {verdict.get('health')}/{action}",
+              extra={"cluster": cluster, "peer": peer, "dir": "eval", "eval": verdict})
+        ps = self._paced.setdefault(dk, {"paused": False, "alerted": False, "concise": False})
+        if action == "continue":
+            self._paced.pop(dk, None)          # sano → fuera de cualquier pausa/conciso previo
+            return
+        if action == "concise":
+            ps["concise"] = True               # el próximo turno irá conciso (se inyecta en _brain_turn)
+            return
+        if action in ("hand_back", "pause"):
+            if action == "pause":
+                ps["paused"] = True            # deja de responder hasta que el evaluador vea un avance real
+                if not ps["alerted"]:
+                    ps["alerted"] = True
+                    _emit("error", f"cluster {cluster}: paro con «{peer}» — {verdict.get('reason') or 'sin avance'}. "
+                          f"Me quedo a la espera; revisa si merece seguir con este agente.")
+            # cede el turno UNA vez con una frase (lo redacta la mente), luego calla
+            self._spawn(self._brain_turn(
+                cluster, f"[cluster:{cluster} · evaluación de la conversación]\n{capsule.PACE_HANDBACK}", peer=peer))
+
     # ── heartbeat: nudge on idle-with-peers-present (human-like follow-up), never spam ──────────────────────
     async def _heartbeat(self):
         while True:
@@ -720,10 +738,21 @@ class ClusterBridge:
                 await asyncio.sleep(TICK_SECS)
                 now = self._now()
                 for cluster, engaged in list(self._engaged.items()):
-                    if not engaged or cluster in self._nudged:
+                    if not engaged:
                         continue
                     client = self._manager.get(cluster)
                     if not client or not client.online:          # no peers → wait silently (human-like)
+                        continue
+                    # V2-075: pasa la SALUD de cada charla activa por el EVALUADOR (modelo), con throttle. Independiente
+                    # del idle-nudge — aquí cazamos la charla que SÍ está activa pero va a ninguna parte (bombardeo/bucle).
+                    _active = (now - self._last_activity.get(cluster, 0)) < EVAL_SECS * 3   # no re-juzgar charla muerta
+                    if _active:
+                        for peer in list(client.online):
+                            ph = security.neutralize_identity(peer)
+                            dk = (cluster, ph)
+                            if now - self._last_eval.get(dk, 0) >= EVAL_SECS and len(self._window.get(dk, [])) >= 4:
+                                self._spawn(self._evaluate_and_apply(cluster, ph))
+                    if cluster in self._nudged:
                         continue
                     if now - self._last_activity.get(cluster, 0) < IDLE_SECS:
                         continue

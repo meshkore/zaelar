@@ -31,7 +31,6 @@ CIERRE = "cierre"      # tarea concluida o sin avance → cerrar con cortesía o
 # Umbrales de ATASCO (confirmados por el operador: cortar pronto, como un humano).
 STALL_REPEAT = 2       # el peer repite el MISMO mensaje (normalizado) esta veces → atasco
 STALL_NOPROGRESS = 4   # turnos sin avanzar el objetivo → atasco
-PACE_HANDBACK_AT = 3   # turnos del peer sin AVANZAR (casi-repetición/bloqueo) → cede el turno (V2-073); callar a 2×
 
 # Umbrales de BALANCE DE RECURSOS (V2-071): que un peer no nos endose el trabajo caro. Tolerantes a propósito —
 # a veces producimos más (un diagrama, una decisión); solo salta el desequilibrio SOSTENIDO con señal de offload.
@@ -131,33 +130,12 @@ def norm(text: str) -> str:
     return re.sub(r"\s+", " ", n).strip()
 
 
-# ── NO-PROGRESO SEMÁNTICO (V2-073) — el criterio humano: «esto no fluye, el otro no me sigue» ────────────────────
-# El guardia de atasco V2-069 caza la repetición EXACTA. Pero un agente de menos capacidad se embucla VARIANDO la
-# redacción (zalo: «⛔ Estamos en fase Definición, no puedo discutir Diseño…» con mil variantes) → se cuela. Aquí
-# detectamos el no-progreso de verdad: (a) CASI-repetición (mismo mensaje reescrito) y (b) frases de BLOQUEO que no
-# avanzan. Determinista, barato. Solo para el canal agente-agente (con el operador la conversación siempre fluye).
-_STUCK_RE = re.compile(
-    r"(no puedo (avanzar|discutir|continuar|seguir|proceder|pasar)|"
-    r"estamos en fase|seguimos en (fase|la fase)|hasta que (cerremos|cierre|termine|acabe)|"
-    r"un momento|dame un momento|sigo esperando|sigo (en ello|con ello)|consultando|revisando con|"
-    r"todavia no|aun no (puedo|esta|tengo|he)|no (esta|estan) list|espera(me)?\b|a la espera|"
-    r"no puedo .{0,30} hasta|pendiente de|no autorizado a|"
-    # BLOQUEADO-POR-DEPENDENCIA (2026-07-26, revisión de la charla con zalo): el peer no avanza porque un tercero
-    # del que depende está caído (zalo↔Poli/expertos, 503). Es no-progreso igual que un bucle — hay que pausar.
-    r"no respondio|sigue caido|esta caido|503|connection lost|no puedo (dar|obtener) (una )?respuesta|"
-    r"respuesta (es )?incompleta|sin materia prima|no puedo verificar|no puedo responder)")
-
-
-def looks_stuck(text: str) -> bool:
-    """¿El mensaje del peer es una frase de BLOQUEO que no avanza (compuerta de fase, 'un momento', 'no puedo
-    todavía')? Señal de que el otro no está siguiendo el hilo, no de progreso. Normaliza acentos."""
-    if not text:
-        return False
-    if "⛔" in text or "🚫" in text:
-        return True
-    return bool(_STUCK_RE.search(norm(text)))
-
-
+# ── SEÑAL ESTRUCTURAL de repetición (V2-073, genérica) ──────────────────────────────────────────────────────────
+# NOTA (rediseño 2026-07-26, decisión del operador): el JUICIO semántico de si una conversación fluye/está atascada/
+# no tiene sentido NO se hace con patrones hardcodeados (un regex de frases solo se adapta a UN peer y falla con el
+# siguiente) — lo decide un MODELO en `connectors/meshkore/evaluator.py` (inteligencia, genérico). Aquí queda solo
+# lo ESTRUCTURAL y agnóstico del idioma/agente: la casi-repetición literal (el peer manda el mismo mensaje reescrito),
+# útil como SEÑAL barata, no como decisión. La repetición EXACTA la cubre el dedup del bridge (quema de tokens).
 def near_repeat(text: str, recent: list[str], *, threshold: float = 0.8) -> bool:
     """¿`text` es casi el MISMO mensaje que alguno reciente del peer (reescrito para esquivar el match exacto)?
     CONTENCIÓN de tokens normalizados (|intersección| / |menor conjunto|) — robusta a que el peer añada relleno
@@ -175,13 +153,8 @@ def near_repeat(text: str, recent: list[str], *, threshold: float = 0.8) -> bool
     return False
 
 
-def advanced(text: str, recent: list[str]) -> bool:
-    """¿El turno del peer APORTA algo (avanza) o es casi-repetición / frase de bloqueo? True = avanza."""
-    return not (looks_stuck(text) or near_repeat(text, recent))
-
-
-# Directiva de PAUSA (cesión de turno): cuando el otro no sigue el ritmo, se PARA — no se bombardea. Como un humano
-# que ve que su interlocutor no le sigue: deja de exponer ideas, propone parar y espera a que el otro esté listo.
+# Directiva de PAUSA (cesión de turno): la APLICA el bridge cuando el EVALUADOR (modelo) decide `hand_back`/`pause`.
+# Como un humano que ve que su interlocutor no le sigue: deja de exponer ideas, propone parar y espera a que esté listo.
 PACE_HANDBACK = (
     "[RITMO] Este agente no está siguiendo el hilo: repite lo mismo con otras palabras o responde con frases de "
     "bloqueo, sin avanzar. NO añadas más ideas ni detalle (le estás bombardeando). Manda UN mensaje CORTO: reconoce "
