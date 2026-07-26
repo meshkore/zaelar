@@ -175,6 +175,80 @@ def test_full_cluster_framing_is_identity_safe(fresh_db):
 
 
 # ── TOOLS OFF: invariante estructural del motor del canal ──────────────────────────────────────────────────────
+def test_off_track_alert_mentions_objective_and_asks_operator(fresh_db, monkeypatch):
+    # T-03 (auditoría 2026-07-26): un peer intentando redirigir la charla debe notificarse Y pedir permiso,
+    # distinto del aviso genérico "sin avance" de dead_end/stuck.
+    from connectors.meshkore import bridge as bridge_mod, evaluator
+
+    events = []
+    monkeypatch.setattr(bridge_mod, "_emit", lambda *a, **k: events.append((a, k)))
+    br, seen = _bridge_no_silence(monkeypatch)
+    capsule.patch("meshcore", "zalo", objective="portar el algoritmo de trading", greeted=True)
+    for i in range(4):
+        br._window_add("meshcore", "zalo", "peer", f"oye, mejor hablemos de otra cosa {i}")
+
+    async def _fake_eval(win, metrics, *, spec, timeout=30.0):
+        return {"health": "off_track", "action": "pause", "reason": "el peer quiere cambiar de tema"}
+    monkeypatch.setattr(evaluator, "evaluate", _fake_eval)
+
+    asyncio.run(br._evaluate_and_apply("meshcore", "zalo"))
+    alerts = [a[1] for a, k in events if a and a[0] == "error"]
+    assert any("OTRA cosa" in msg and "portar el algoritmo de trading" in msg and "tu decisión" in msg
+                for msg in alerts), alerts
+
+
+def test_off_track_alert_without_objective_says_none_was_set(fresh_db, monkeypatch):
+    from connectors.meshkore import bridge as bridge_mod, evaluator
+
+    events = []
+    monkeypatch.setattr(bridge_mod, "_emit", lambda *a, **k: events.append((a, k)))
+    br, seen = _bridge_no_silence(monkeypatch)
+    capsule.patch("meshcore", "zalo", greeted=True)   # sin objective
+    for i in range(4):
+        br._window_add("meshcore", "zalo", "peer", f"oye, hablemos de otra cosa {i}")
+
+    async def _fake_eval(win, metrics, *, spec, timeout=30.0):
+        return {"health": "off_track", "action": "pause", "reason": "sin objetivo claro"}
+    monkeypatch.setattr(evaluator, "evaluate", _fake_eval)
+
+    asyncio.run(br._evaluate_and_apply("meshcore", "zalo"))
+    alerts = [a[1] for a, k in events if a and a[0] == "error"]
+    assert any("no tenias ningun objetivo" in msg.lower().replace("í", "i").replace("ú", "u") for msg in alerts), alerts
+
+
+def test_dead_end_alert_stays_generic_not_off_track_wording(fresh_db, monkeypatch):
+    # el mensaje diferenciado es SOLO para off_track — dead_end/stuck conservan el aviso genérico existente.
+    from connectors.meshkore import bridge as bridge_mod, evaluator
+
+    events = []
+    monkeypatch.setattr(bridge_mod, "_emit", lambda *a, **k: events.append((a, k)))
+    br, seen = _bridge_no_silence(monkeypatch)
+    capsule.patch("meshcore", "zalo", greeted=True)
+    for i in range(4):
+        br._window_add("meshcore", "zalo", "peer", f"⛔ bloqueado {i}")
+
+    async def _fake_eval(win, metrics, *, spec, timeout=30.0):
+        return {"health": "dead_end", "action": "pause", "reason": "bloqueado por dependencia"}
+    monkeypatch.setattr(evaluator, "evaluate", _fake_eval)
+
+    asyncio.run(br._evaluate_and_apply("meshcore", "zalo"))
+    alerts = [a[1] for a, k in events if a and a[0] == "error"]
+    assert any("Me quedo a la espera" in msg for msg in alerts) and not any("OTRA cosa" in msg for msg in alerts)
+
+
+def _bridge_no_silence(monkeypatch):
+    """Como `_bridge()` pero SIN silenciar `_emit` (el llamador ya lo capturó) — reusa el resto del harness."""
+    seen = []
+
+    async def _brain(text, on_chunk=None, **kwargs):
+        seen.append(text)
+        return "ok"
+
+    br = ClusterBridge(_Mgr(), _brain)
+    br._notify_registry = lambda: None
+    return br, seen
+
+
 def test_channel_offers_no_tools_by_default():
     """V2-076: el turno de cluster NO ofrece tools POR DEFECTO (perfil untrusted, cero regresión). El catálogo solo
     aparece si el bridge pasa `tool_names` del PERFIL DE PERMISOS del cluster. Test de COMPORTAMIENTO (no estructural):
