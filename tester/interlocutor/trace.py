@@ -92,18 +92,28 @@ def frontend_actions(events: list[dict]) -> list[str]:
 def zaelar_texts(events: list[dict]) -> list[str]:
     """zaelar's OWN replies from the observability stream — the authoritative record of what zaelar SAID, immune to
     the tester's Deepgram STT dropping zaelar's audio (which caused false timeouts → false all-1s).
-    Two reliable sources: (a) `transcript` events (role assistant/bot); (b) the duo fast layer's reply event
-    (`kind=brain`, label '…reply', role=assistant) — emitted for EVERY completed duo turn, whereas
-    conversation_item_added (which drives the transcript event) does NOT always fire. Dedup consecutive repeats."""
-    out = []
+    Two reliable sources, NOT interchangeable: (a) `transcript` events (role assistant/bot) — the audio-based
+    ground truth, includes any filler phrase spoken before the composed reply; (b) the duo fast layer's reply event
+    (`kind=brain`, label '…reply', role=assistant) — emitted for EVERY completed duo turn, but captures ONLY the
+    composed text, never a preceding filler. When BOTH fire for the same turn they are NOT byte-identical (the
+    transcript is "filler + reply", the brain event is just "reply") — joining both double-counted the reply
+    (bug found in the 2026-07-26 audit: every filler-preceded turn showed as "reply … filler … reply" to the
+    judge). Fix: prefer transcript (truer to what was actually spoken) and use brain-reply only as a FALLBACK for
+    the turns where transcript never fires (conversation_item_added doesn't always fire) — never both at once."""
+    transcripts, brain_replies = [], []
     for e in events:
         k, role, lbl = e.get("kind"), e.get("role"), (e.get("label") or "")
-        is_transcript = (k == "transcript" and role in ("assistant", "bot"))
-        is_duo_reply = (k == "brain" and role == "assistant" and "reply" in lbl.lower())
-        if is_transcript or is_duo_reply:
-            t = (e.get("text") or "").strip()
-            if t and (not out or out[-1] != t):   # dedup consecutive identical (transcript + brain may both fire)
-                out.append(t)
+        t = (e.get("text") or "").strip()
+        if not t:
+            continue
+        if k == "transcript" and role in ("assistant", "bot"):
+            transcripts.append(t)
+        elif k == "brain" and role == "assistant" and "reply" in lbl.lower():
+            brain_replies.append(t)
+    out = []
+    for t in (transcripts or brain_replies):
+        if not out or out[-1] != t:   # dedup consecutive identical within the chosen source
+            out.append(t)
     return out
 
 
