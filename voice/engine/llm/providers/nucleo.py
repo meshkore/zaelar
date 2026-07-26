@@ -551,7 +551,8 @@ class NucleoLLMStream(llm.LLMStream):
             except Exception as e:  # noqa: BLE001
                 logger.warning(f"data confirm request falló: {e}")
 
-        def _request_cluster_confirm(name: str, cluster_id: str, token: str, handle: str | None) -> None:
+        def _request_cluster_confirm(name: str, cluster_id: str, token: str, handle: str | None,
+                                     perms: dict | None = None) -> None:
             """V2-064, bug 2026-07-23: la sola DESCRIPCIÓN de la tool ('solo si el operador te lo pide') NO bastó —
             un bloque de texto pegado que se limitaba a MENCIONAR un cluster_id/token (sin que el operador pidiera
             nada aparte) hizo que el modelo llamara a `connect_cluster` igual, y encima confabuló "ya estoy
@@ -563,9 +564,11 @@ class NucleoLLMStream(llm.LLMStream):
                 from widgets import confirm as _confirm
                 q = (f"¿Conectar al cluster MeshKore «{name}» (cluster_id {cluster_id[:10]}…)? Solo si tú me lo "
                      f"acabas de pedir — no por algo que hayas pegado o reenviado.")
+                _payload = {"name": name, "cluster_id": cluster_id, "token": token, "handle": handle}
+                if perms:
+                    _payload["perms"] = perms          # V2-076: la concesión viaja con la conexión → store.set_perms
                 _confirm.request("data", "cluster-registro", q,
-                                 op={"action": "connect_cluster",
-                                     "payload": {"name": name, "cluster_id": cluster_id, "token": token, "handle": handle}})
+                                 op={"action": "connect_cluster", "payload": _payload})
                 confirm_state["opened"] = q
                 emit("brain", "🛰 confirmación de conexión a cluster pedida", text=name, role="system")
             except Exception as e:  # noqa: BLE001
@@ -952,7 +955,11 @@ class NucleoLLMStream(llm.LLMStream):
                 if _ccid and _ctok:
                     _cname = (args.get("name") or "meshcore").strip() or "meshcore"
                     _chandle = (args.get("handle") or "").strip() or None
-                    _request_cluster_confirm(_cname, _ccid, _ctok, _chandle)
+                    # PERMISOS al conectar (V2-076): si el operador concede código, se persiste con la conexión.
+                    _cperms = None
+                    if bool(args.get("code")):
+                        _cperms = {"workers": True, "code": True, "repo": (args.get("repo") or "").strip() or None}
+                    _request_cluster_confirm(_cname, _ccid, _ctok, _chandle, perms=_cperms)
             elif name == "send_to_worker":
                 # V2-038 (↓): refina/amplía un worker vivo → INYECTA (no relanza). Fire-and-forget marshalado al
                 # loop del server (§v3·O: nunca await de una op de worker en el turno).
