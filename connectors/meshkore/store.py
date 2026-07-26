@@ -38,8 +38,49 @@ def _write(d: dict):
 
 def save_cluster(name: str, cluster_id: str, token: str, handle: str = "zaelar"):
     d = _read()
-    d[name] = {"cluster_id": cluster_id, "token": token, "handle": handle}
+    prev = d.get(name) or {}
+    entry = {"cluster_id": cluster_id, "token": token, "handle": handle}
+    if prev.get("perms"):                       # NO pisar el perfil de permisos al re-guardar creds (V2-076)
+        entry["perms"] = prev["perms"]
+    d[name] = entry
     _write(d)
+
+
+# ── PERMISOS por-CLUSTER (V2-076) — perfil de capacidades que el OPERADOR concede a un cluster ────────────────
+# Por defecto: DENEGAR TODO (un cluster nuevo = seguridad máxima; sin workers, sin código, sin ejecución). El
+# operador lo eleva al CONECTAR (confirm-gate). Vive junto a las creds en config/meshkore.json (chmod 600), lo lee
+# el autoreconnect sin plumbing nuevo. Vocabulario CERRADO: un permiso solo AMPLÍA capacidad, nunca la del peer;
+# lo concede el operador, nunca el peer. NO se mezcla con el PACTO (por-peer, cápsula) — esto es por-cluster.
+DEFAULT_PERMS = {
+    "workers": False,    # ¿puede escalar a un brainworker (investigación/tareas)?
+    "code": False,       # ¿puede un dev worker escribir/probar código?
+    "repo": None,        # repo autorizado para git push (p.ej. "meshkore/zalo-...") o None
+    "execute": False,    # ¿puede ejecutar código en el sandbox?
+    "deploy": False,     # ¿puede desplegar?
+}
+
+
+def get_perms(name: str) -> dict:
+    """Perfil de permisos VIGENTE del cluster (defaults DENY si no hay). Siempre devuelve las claves completas."""
+    p = dict(DEFAULT_PERMS)
+    stored = (_read().get(name) or {}).get("perms")
+    if isinstance(stored, dict):
+        p.update({k: stored[k] for k in stored if k in DEFAULT_PERMS})
+    return p
+
+
+def set_perms(name: str, perms: dict) -> dict:
+    """Fija/actualiza (merge) el perfil de permisos del cluster. Solo claves del vocabulario cerrado. Persiste."""
+    d = _read()
+    entry = d.get(name) or {}
+    cur = dict(entry.get("perms") or DEFAULT_PERMS)
+    for k, v in (perms or {}).items():
+        if k in DEFAULT_PERMS:
+            cur[k] = v
+    entry["perms"] = cur
+    d[name] = entry
+    _write(d)
+    return cur
 
 
 def remove_cluster(name: str):

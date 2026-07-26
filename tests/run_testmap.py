@@ -125,6 +125,8 @@ DOMAINS: list[dict] = [
             "connectors/meshkore/test_pact.py"]},
         {"id": "6.7", "title": "Criterio de conversación por INTELIGENCIA (evaluador modelo, genérico, V2-075)", "ch": PEER, "paths": [
             "connectors/meshkore/test_pace.py"]},
+        {"id": "6.8", "title": "Permisos por-cluster + contrato de catálogo (V2-076)", "ch": PEER, "paths": [
+            "connectors/meshkore/test_perms.py"]},
         {"id": "6.4", "title": "Conversación con peer (comportamiento)", "ch": PEER, "live": True,
             "cmd": "./.venv/bin/python tests/e2e/cluster/run_cluster_suite.py"},
     ]},
