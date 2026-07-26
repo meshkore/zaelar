@@ -9,7 +9,7 @@ def test_tools_are_openai_functions():
                      "widget_data", "delete_widget",
                      "confirm_widget_delete", "authenticate_web", "login_done", "web_search", "recall",
                      "reveal_secret", "play_music", "play_video", "reply_message", "connect_cluster",
-                     "send_to_worker", "stop_worker", "answer_worker"}
+                     "set_cluster_objective", "send_to_worker", "stop_worker", "answer_worker"}
     for t in router.tools():
         assert t["type"] == "function"
         assert "parameters" in t["function"]
@@ -32,6 +32,14 @@ def test_connect_cluster_is_situational():
     assert "connect_cluster" not in normal
     with_widget = {t["function"]["name"] for t in router.tools(router.tool_context(cluster_widget_open=True))}
     assert "connect_cluster" in with_widget
+
+
+def test_set_cluster_objective_is_situational():
+    # T-02 (auditoría 2026-07-26): mismo gate que connect_cluster — solo con el widget cluster-registro delante.
+    normal = {t["function"]["name"] for t in router.tools(router.tool_context())}
+    assert "set_cluster_objective" not in normal
+    with_widget = {t["function"]["name"] for t in router.tools(router.tool_context(cluster_widget_open=True))}
+    assert "set_cluster_objective" in with_widget
 
 
 def test_decide_worker_tools():
