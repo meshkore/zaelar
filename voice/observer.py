@@ -176,14 +176,17 @@ _write_q: "_queue.Queue" = _queue.Queue(maxsize=20000)
 def _writer_loop():
     while True:
         item = _write_q.get()
-        if item is None:
-            continue
-        path, line = item
         try:
-            with open(path, "a") as f:
-                f.write(line)
-        except Exception:
-            pass
+            if item is None:
+                continue
+            path, line = item
+            try:
+                with open(path, "a") as f:
+                    f.write(line)
+            except Exception:
+                pass
+        finally:
+            _write_q.task_done()   # enables Queue.join() — e.g. tests waiting for a drain before reading a file
 
 
 _writer_thread = _threading.Thread(target=_writer_loop, name="observer-writer", daemon=True)

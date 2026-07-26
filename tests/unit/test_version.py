@@ -28,6 +28,7 @@ def test_observer_stamps_version(tmp_path, monkeypatch):
     from voice import observer
     importlib.reload(observer)                          # relee LOG_DIR
     observer.emit("test", "hola", "mundo")
+    observer._write_q.join()                            # espera al writer OFF-THREAD (V2-035) antes de leer
     line = (tmp_path / "timeline-latest.jsonl").read_text().strip().splitlines()[-1]
     ev = json.loads(line)
     assert ev.get("ver") == version.short()
