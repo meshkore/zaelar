@@ -1,0 +1,7 @@
+{
+  "view_data_shape": {
+    "actions": "list",
+    "count": "int",
+    "pending": "int"
+  }
+}

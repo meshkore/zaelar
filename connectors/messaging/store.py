@@ -221,44 +221,6 @@ def requeue_pending_read(keys: list[dict]) -> dict:
     return save(db)
 
 
-# ── Canales silenciados ────────────────────────────────────────────────────
-def _mute_key(platform: str, chatId) -> tuple:
-    return (platform, str(chatId))
-
-
-def is_muted(db: dict, platform: str, chatId) -> bool:
-    """True si el canal (platform, chatId) está silenciado."""
-    key = _mute_key(platform, chatId)
-    return any(_mute_key(m.get("platform"), m.get("chatId")) == key
-               for m in db.get("muted_channels", []))
-
-
-def add_muted(platform: str, chatId, group: str = "") -> dict:
-    """Añade un canal a la lista de silenciados y elimina sus items sin marcar leído. Idempotente."""
-    db = load()
-    key = _mute_key(platform, chatId)
-    muted = db.get("muted_channels", [])
-    if not any(_mute_key(m.get("platform"), m.get("chatId")) == key for m in muted):
-        muted.append({"platform": platform, "chatId": chatId, "group": group})
-        db["muted_channels"] = muted
-    # Eliminar items de ese canal SIN marcar leído (el operador no quiere saber)
-    items = [it for it in db.get("items", [])
-             if _mute_key(it.get("platform"), it.get("chatId")) != key]
-    db["items"] = items
-    db["updated"] = _now()
-    return save(db)
-
-
-def remove_muted(platform: str, chatId) -> dict:
-    """Quita un canal de la lista de silenciados."""
-    db = load()
-    key = _mute_key(platform, chatId)
-    db["muted_channels"] = [m for m in db.get("muted_channels", [])
-                             if _mute_key(m.get("platform"), m.get("chatId")) != key]
-    db["updated"] = _now()
-    return save(db)
-
-
 # ── Acciones del operador (widget / voz) ────────────────────────────────────
 def remove_item(n: int, mark_read: bool = True) -> dict:
     """Quita el item número `n` (numeración por orden actual). Si mark_read, encola su clave (con platform) en
