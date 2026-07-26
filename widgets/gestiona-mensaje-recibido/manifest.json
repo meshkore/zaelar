@@ -1,0 +1,15 @@
+{
+  "id": "gestiona-mensaje-recibido",
+  "version": "0.1.0",
+  "title": "Mensaje de Gonza",
+  "description": "Seguimiento LOCAL del último mensaje de WhatsApp recibido de Gonza: apunta el estado (pendiente/procesado/respondido) y guarda un borrador de respuesta. NO envía nada por WhatsApp de verdad — para enviar de verdad usa el widget mensajeria (reply_message).",
+  "whenToUse": "Cuando llega o se menciona el mensaje nuevo de Gonza por WhatsApp y hay que apuntar si basta con darlo por atendido o qué se le quiere responder (borrador local, no un envío real).",
+  "usage": "Usa 'process' (payload vacío) para marcarlo como atendido sin responder. Usa 'reply' con payload {text} para GUARDAR localmente un borrador de respuesta (NO lo envía por WhatsApp — es solo una nota de seguimiento). 'reopen' (payload vacío) revierte a pendiente, totalmente reversible.",
+  "keywords": ["gonza", "mensaje de gonza", "whatsapp de gonza", "responder a gonza", "responde a gonza", "el mensaje de gonza", "contesta a gonza"],
+  "entry": "widget.js",
+  "actions": {
+    "process": {"desc": "Marca el mensaje de Gonza como atendido sin enviarle respuesta", "payload": {}},
+    "reply": {"desc": "Guarda localmente un borrador de respuesta a Gonza (NO lo envía por WhatsApp; es solo seguimiento)", "payload": {"text": "string (el borrador de respuesta, p.ej. 'Sí, me viene bien')"}},
+    "reopen": {"desc": "Vuelve a poner el mensaje en pendiente (deshace process/reply, totalmente reversible)", "payload": {}}
+  }
+}
