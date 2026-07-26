@@ -758,8 +758,23 @@ class ClusterBridge:
                 ps["paused"] = True            # deja de responder hasta que el evaluador vea un avance real
                 if not ps["alerted"]:
                     ps["alerted"] = True
-                    _emit("error", f"cluster {cluster}: paro con «{peer}» — {verdict.get('reason') or 'sin avance'}. "
-                          f"Me quedo a la espera; revisa si merece seguir con este agente.")
+                    # T-03 (auditoría 2026-07-26, remediación INI-020): guard GENERAL de propiedad-del-objetivo —
+                    # antes `off_track` se avisaba con el MISMO mensaje genérico que `dead_end` ("sin avance"), sin
+                    # distinguir "el otro no sigue" de "el otro me está llevando hacia OTRA cosa". Un peer que
+                    # intenta redirigir la colaboración es justo el caso que el operador quiere que se NOTIFIQUE
+                    # y se le PIDA permiso (no que el sistema decida solo, ni en silencio) — distinto del guard
+                    # estrecho de V2-076 (que solo protege el dev-worker); este cubre la conversación en general.
+                    if verdict.get("health") == "off_track":
+                        _obj = (cap.get("objective") or "").strip()
+                        _obj_txt = f"tu objetivo fijado con «{peer}» es «{_obj}»" if _obj else \
+                            f"no tenías ningún objetivo fijado con «{peer}»"
+                        _emit("error", f"cluster {cluster}: «{peer}» parece querer llevar la charla hacia OTRA "
+                              f"cosa ({_obj_txt}) — {verdict.get('reason') or 'sin motivo dado'}. Me paro y "
+                              f"espero tu decisión: ¿seguimos por ahí, fijo el objetivo con set_cluster_objective, "
+                              f"o le digo que no?")
+                    else:
+                        _emit("error", f"cluster {cluster}: paro con «{peer}» — {verdict.get('reason') or 'sin avance'}. "
+                              f"Me quedo a la espera; revisa si merece seguir con este agente.")
             # cede el turno UNA vez con una frase (lo redacta la mente), luego calla
             self._spawn(self._brain_turn(
                 cluster, f"[cluster:{cluster} · evaluación de la conversación]\n{capsule.PACE_HANDBACK}", peer=peer))
