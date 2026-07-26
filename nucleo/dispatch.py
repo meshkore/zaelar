@@ -26,6 +26,7 @@ from typing import Any
 
 from loguru import logger
 
+from nucleo import dev_worker_guard
 from nucleo.workers import WorkerSpec, get_backend
 from nucleo.workers.session import SessionRecord, WorkerSession
 
@@ -982,14 +983,27 @@ async def _run_session(task: "Task") -> None:
             if nav_tid:
                 env["ZAELAR_NAV_TASK"] = nav_tid       # las capturas/acciones de hbweb casan con ESTA tarjeta
         _dev = _dev_worker_params(task.context)     # V2-076: escalada de cluster con permiso de código
+        _dev_settings_path = ""
         if _dev:
             import tempfile as _tf
             _wd = _tf.mkdtemp(prefix="zaelar-dev-")   # cwd AISLADO para Read/Write/Edit (nunca el proyecto)
             env.update(_dev["env"])
+            # GUARD DE CONFINAMIENTO REAL (auditoría 2026-07-26, cierra el hallazgo "solo convención de prompt"):
+            # hook PreToolUse que deniega Read/Write/Edit/Glob/Grep fuera de `_wd` — fuera del propio workdir (no
+            # dentro: así el worker no puede tocar el fichero de settings que lo confina).
+            env["ZAELAR_DEV_WORKER_ROOT"] = _wd
+            _dev_settings_path = os.path.join(_tf.gettempdir(), f"zaelar-dev-settings-{key}.json")
+            try:
+                dev_worker_guard.write_settings_file(_dev_settings_path)
+            except Exception:
+                logger.warning(f"dispatch: no pude escribir el settings del guard de confinamiento para {key} "
+                               "(dev-worker seguirá sin ese jail; git_cli sigue acotado al repo autorizado)")
+                _dev_settings_path = ""
             spec = WorkerSpec(kind="dev", model=_model_for("code"), tools=_dev["tools"],
                               deny_tools=False, trusted=False, task_id=key,
                               token=rec_token(rec), parent_task_id=rec.parent_task_id, depth=rec.depth,
-                              env=env, cwd=_wd)
+                              env=env, cwd=_wd,
+                              extra_args=(["--settings", _dev_settings_path] if _dev_settings_path else []))
         else:
             spec = WorkerSpec(kind=kind, model=_model_for(kind), tools=_tools_for(kind, trusted),
                               deny_tools=(not trusted), trusted=trusted, task_id=key,
@@ -1023,6 +1037,19 @@ async def _run_session(task: "Task") -> None:
                     await _finalize_web(rec, keep_open=_resumable)
                 except Exception:
                     pass
+            if _dev:
+                # limpieza del workdir temporal + el settings del guard (auditoría 2026-07-26, T-07: antes no se
+                # borraban nunca — fuga de disco acumulativa con escaladas de código de cluster repetidas).
+                try:
+                    import shutil as _sh
+                    _sh.rmtree(_wd, ignore_errors=True)
+                except Exception:
+                    pass
+                if _dev_settings_path:
+                    try:
+                        os.remove(_dev_settings_path)
+                    except Exception:
+                        pass
             if kind == "web" and trusted:
                 gk = _goal_key(req)
                 if rec.ok or rec.status == "cancelled":

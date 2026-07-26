@@ -108,3 +108,48 @@ async def arun(code: str, **kwargs) -> dict:
     """Envoltura async (corre `run` fuera del event loop) para llamadores async como el dispatcher."""
     import asyncio
     return await asyncio.to_thread(run, code, **kwargs)
+
+
+# ── rlimits para el subproceso INTERACTIVO del dev-worker (auditoría 2026-07-26) ────────────────────────────────
+# `_rlimits()` de arriba está afinado para `run()` (script de UN turno, wall/CPU cortos): un dev-worker interactivo
+# (nucleo/workers/claude_session.py, sesión que puede durar minutos legítimamente) NO debe heredar ese CPU/wall
+# corto — su ciclo de vida ya lo gobierna dispatch.py (timeouts/cancelación propios), no un rlimit. Lo que SÍ tiene
+# sentido acotar sin límite de tiempo: memoria, nº de procesos y tamaño de fichero — defensa en profundidad contra
+# un runaway/fork-bomb, sin arriesgar matar a mitad una tarea real.
+_DEV_MEM_MB = int(os.getenv("ZAELAR_DEV_WORKER_MEM_MB", "2048"))
+_DEV_NPROC = int(os.getenv("ZAELAR_DEV_WORKER_NPROC", "128"))
+_DEV_FSIZE_MB = int(os.getenv("ZAELAR_DEV_WORKER_FSIZE_MB", "512"))
+
+
+def dev_worker_rlimits():
+    """preexec_fn para el subproceso del dev-worker. Mac/Linux only (Windows no tiene `resource` — mismo límite
+    honesto que `_rlimits()`). NO llama a `os.setsid()`: `claude_session.py` ya pasa `start_new_session=True`
+    (grupo propio para `killpg`); duplicarlo aquí podría chocar con eso.
+
+    LÍMITE HONESTO (verificado empíricamente, no falso-verde): en macOS/Darwin `resource.setrlimit(RLIMIT_AS, …)`
+    lanza `ValueError: current limit exceeds maximum limit` — Darwin NO soporta acotar el address-space de un
+    proceso así, y punto (no es "más laxo", es un no-op silencioso, atrapado por el `except` de abajo). El tope
+    de MEMORIA solo protege de verdad en Linux (producción cloud). `RLIMIT_NPROC` y `RLIMIT_FSIZE` SÍ se aplican
+    en ambos (verificado). La protección REAL contra exfiltración/lectura fuera del cwd en CUALQUIER plataforma
+    es el jail de rutas (`nucleo/dev_worker_guard.py`, hook PreToolUse), no este rlimit."""
+    try:
+        import resource
+    except Exception:
+        return None
+
+    def _apply():
+        try:
+            b = _DEV_MEM_MB * 1024 * 1024
+            resource.setrlimit(resource.RLIMIT_AS, (b, b))
+        except Exception:
+            pass
+        try:
+            resource.setrlimit(resource.RLIMIT_NPROC, (_DEV_NPROC, _DEV_NPROC))
+        except Exception:
+            pass
+        try:
+            b = _DEV_FSIZE_MB * 1024 * 1024
+            resource.setrlimit(resource.RLIMIT_FSIZE, (b, b))
+        except Exception:
+            pass
+    return _apply

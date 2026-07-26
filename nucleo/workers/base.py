@@ -70,6 +70,9 @@ class WorkerSpec:
     parent_task_id: str = ""               # cadena (act spawn)
     depth: int = 0                         # profundidad de cadena (acota fork-bomb)
     budget: dict = field(default_factory=dict)   # topes tokens/tiempo por worker (fallback a tiempo sin `usage`)
+    extra_args: list = field(default_factory=list)   # flags CLI crudos adicionales (p.ej. ["--settings", path] del
+                                            # guard de confinamiento del dev-worker, V2-076 auditoría 2026-07-26) —
+                                            # aditivo, agnóstico: un backend que no los soporta simplemente los ignora.
 
 
 class WorkerBackend(ABC):
