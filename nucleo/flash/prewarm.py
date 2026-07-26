@@ -15,8 +15,8 @@ from loguru import logger
 
 
 async def run() -> None:
-    """Fire-and-forget desde el lifespan: calienta FlashBrain + navegador de búsqueda + reranker en paralelo."""
-    await asyncio.gather(_warm_flash(), _warm_browser(), _warm_rerank())
+    """Fire-and-forget desde el lifespan: calienta FlashBrain + navegador de búsqueda + reranker + embeddings en paralelo."""
+    await asyncio.gather(_warm_flash(), _warm_browser(), _warm_rerank(), _warm_embed())
 
 
 async def _warm_flash() -> None:
@@ -102,3 +102,21 @@ async def _warm_rerank() -> None:
     except Exception as e:  # noqa: BLE001
         logger.warning(f"prewarm reranker saltado (recall caerá al orden del retriever): {e}")
         _emit_prewarm("rerank", 0, "?", note=f"saltado: {e}")
+
+
+async def _warm_embed() -> None:
+    """Carga el modelo de EMBEDDINGS (fastembed ONNX u Ollama) en un thread idle, para que la 1ª query de recall del
+    turno no pague la carga en frío (~2s medido con fastembed) — que por sí sola ya se come el presupuesto del
+    recall (`ZAELAR_RECALL_BUDGET_MS`, def 800ms) y causa `recall_timeout` en el primer intento de cada arranque
+    (hallazgo de la auditoría 2026-07-26: 14/14 recalls logueados en un día venían con `recall_timeout=true`).
+    Ollama con keep_alive ya se mantiene caliente solo; esta llamada solo tiene coste real la 1ª vez con fastembed."""
+    try:
+        from memory import embeddings
+        t0 = time.time()
+        await asyncio.to_thread(embeddings.embed, "ping")
+        ms = int((time.time() - t0) * 1000)
+        logger.info(f"prewarm embeddings OK ({embeddings.active_backend()}, {ms}ms) — recall listo en frío")
+        _emit_prewarm("embed", ms, embeddings.active_backend())
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"prewarm embeddings saltado (1er recall pagará la carga en frío): {e}")
+        _emit_prewarm("embed", 0, "?", note=f"saltado: {e}")
