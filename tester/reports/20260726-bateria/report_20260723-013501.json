@@ -1,0 +1,241 @@
+{
+  "stamp": "20260723-013501",
+  "results": [
+    {
+      "scenario": "musica",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Ricardo, soy Zaelar, tu asistente por voz. ¿Qué necesitas ahora? He creado el widget «personalizado-reproduzca-video».",
+            "at": 1784763228.22
+          },
+          {
+            "who": "tester",
+            "text": "Hola, soy Ricart. Pon música, por favor.",
+            "at": 1784763229.22
+          },
+          {
+            "who": "zaelar",
+            "text": "Enseguida, Ricard. No he encontrado «». Pues… Enseguida, Ricard. No he encontrado «».",
+            "at": 1784763241.45,
+            "latency_ms": 2895
+          },
+          {
+            "who": "tester",
+            "text": "Hmm, parece que no funcionó. ¿Puedes intentar de nuevo y poner música? Algo variado, por favor.",
+            "at": 1784763242.64
+          },
+          {
+            "who": "zaelar",
+            "text": "Tienes razón, déjame intentarlo de nuevo. Claro, voy con una selección variada ahora mismo.",
+            "at": 1784763258.69,
+            "latency_ms": 5262
+          },
+          {
+            "who": "tester",
+            "text": "Vale, gracias. Mientras tanto, ¿me puedes decir qué hora es? Quiero tener una idea de cuánto tiempo tengo antes de mi próxima cita.",
+            "at": 1784763259.77
+          },
+          {
+            "who": "zaelar",
+            "text": "Pues… Claro, voy con una selección variada ahora mismo.",
+            "at": 1784763269.96
+          },
+          {
+            "who": "tester",
+            "text": "¿Tienes algo de música ya?",
+            "at": 1784763270.91
+          },
+          {
+            "who": "zaelar",
+            "text": "Son las 01:34 de la madrugada. Tienes la cita con el médico mañana a las 9 de la mañana. Déjame ver… Son",
+            "at": 1784763275.57
+          },
+          {
+            "who": "tester",
+            "text": "Vale, gracias. Ya tengo un rato hasta esa cita. ¿Puedes poner la música ahora, por favor?",
+            "at": 1784763276.55
+          },
+          {
+            "who": "zaelar",
+            "text": "Veo que la música no se ha reproducido correctamente, ahora me encargo de solucionarlo de verdad. Claro, voy con una selección variada ahora mismo.",
+            "at": 1784763289.67,
+            "latency_ms": 4736
+          },
+          {
+            "who": "tester",
+            "text": "Está bien, espero a que la pongas.",
+            "at": 1784763290.65
+          },
+          {
+            "who": "zaelar",
+            "text": "Pues… Claro, voy con una selección variada ahora mismo. No pude modificar el widget «musica».",
+            "at": 1784763295.46
+          }
+        ],
+        "latency_ms": {
+          "n": 3,
+          "avg": 4298,
+          "max": 5262,
+          "samples": [
+            2895,
+            5262,
+            4736
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:show:musica",
+            "widget:data:musica",
+            "widget:show:musica",
+            "widget:data:musica",
+            "widget:show:musica",
+            "widget:show:clock",
+            "widget:show:clock",
+            "widget:data:musica",
+            "widget:show:musica",
+            "widget:data:musica",
+            "widget:show:musica"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "🌱 ventana sembrada desde memoria:",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Ricardo, soy Zaelar, tu asistente por voz. ¿Qué necesitas ahora?",
+            "📩 system note → FlashBrain: [SISTEMA] Brain worker · Tarea completada: He creado el widget «personalizado-reproduzca-video».",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] Brain worker · Tarea completada: He creado el widget «personalizado-reproduzca-video».\n\nHola, soy Ricard. Pon",
+            "💬 relleno de espera (lead-in): Pues…",
+            "🎵 música: play",
+            "⚡ Nucleo(flash): reply: Enseguida, Ricard. No he encontrado «».",
+            "⚡ Nucleo(flash): prompt: Hymn parece que no funcionó.",
+            "💬 relleno de espera (lead-in): Un segundo…",
+            "🎵 música: play Hymn",
+            "⚡ Nucleo(flash): reply: Tienes razón, déjame intentarlo de nuevo.",
+            "⚡ Nucleo(flash): prompt: ¿Puedes intentar de nuevo el poner música? Algo variado, por favor.",
+            "💬 relleno de espera (lead-in): Pues…",
+            "🎵 música: play variado mix clásicos",
+            "⚡ Nucleo(flash): reply: Claro, voy con una selección variada ahora mismo.",
+            "📩 system note → FlashBrain: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: Ricardo, veo que la música no se ha reproducido corr",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: Ricardo, veo que la música no se ha reproducido corr",
+            "💬 relleno de espera (lead-in): Déjame ver…",
+            "⚡ Nucleo(flash): reply: Son las 01:34 de la madrugada. Tienes la cita con el médico mañana a las 9 de la mañana.",
+            "⚡ Nucleo(flash): prompt: ¿Tienes algo de música ya?",
+            "💬 relleno de espera (lead-in): A ver…",
+            "🎵 música: play variado mix clásicos españoles",
+            "⚡ Nucleo(flash): reply: Veo que la música no se ha reproducido correctamente, ahora me encargo de solucionarlo de verdad.",
+            "⚡ Nucleo(flash): prompt: Vale, gracias. Ya tengo un trato hasta esa cita. ¿Puedes poner la música ahora, por favor?",
+            "💬 relleno de espera (lead-in): Pues…",
+            "🎵 música: play variado mix clásicos",
+            "⚡ Nucleo(flash): reply: Claro, voy con una selección variada ahora mismo.",
+            "📩 system note → FlashBrain: [SISTEMA] Brain worker · Tarea sin completar: No pude modificar el widget «musica».",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] Brain worker · Tarea sin completar: No pude modificar el widget «musica».\n\nEstá bien, espero que la pongas.",
+            "✂️ turno cancelado (barge-in/overlap):"
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 24,
+            "bot_speech": 24,
+            "pulse": 76,
+            "brain": 32,
+            "trace": 10,
+            "perf": 26,
+            "timing": 8,
+            "memory": 51,
+            "metric": 29,
+            "tts": 11,
+            "notify": 2,
+            "transcript": 14,
+            "task": 5,
+            "background": 3,
+            "vad": 14,
+            "stt": 7,
+            "music": 5,
+            "ui": 2,
+            "widget": 11,
+            "music.playing": 4,
+            "susurro": 7,
+            "session": 1
+          },
+          "n_events": 367
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 2,
+          "coherencia": 2,
+          "utilidad": 1,
+          "accion": 1,
+          "latencia": 2,
+          "robustez": 2
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn3",
+            "problema": "Fallo total en la ejecución: el widget 'musica' se mostró pero el audio no sonó (falta evento 'rail: music.playing' confirmatorio tras el 'widget:data').",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn3",
+            "problema": "Inconsistencia crítica en el feedback: Zaelar repite la misma frase prometedora ('Claro, voy con una selección variada...') tras haber fallado audiblemente, sintiéndose como un bucle de error enmascarado.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Latencia de 5.2s en un intento de recuperación es excesiva y rompe el ritmo de conversación.",
+            "gravedad": "media"
+          },
+          {
+            "turno": "global",
+            "problema": "Uso redundante de rellenos de espera ('Pues...', 'Déjame ver...') sin que la acción subsiguiente tenga éxito, causando frustración.",
+            "gravedad": "media"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Music Widget / Orchestration (Tool Output)",
+            "cambio": "Implementar un handshake obligatorio: la tool 'play_music' no debe devolver 'success' hasta que el evento de confirmación de audio se reciba en el cerebro.",
+            "porque": "La traza muestra 'widget:data' enviado, pero no confirmación de audio real. El cerebro asume éxito prematuramente ('Ahora mismo') y luego falla en silencio."
+          },
+          {
+            "area": "Cerebro / Prompting (Persona & Truthfulness)",
+            "cambio": "Prohibir las frases genéricas de 'voy a poner X' cuando el intent anterior falló explícitamente. Forzar al modelo a verbalizar el estado técnico real si el reintent no es inmediato.",
+            "porque": "Zaelar mintió repetidamente diciendo 'ahora mismo' mientras la música no sonaba, destruyendo la confianza."
+          },
+          {
+            "area": "Latency / Endpointer",
+            "cambio": "Ajustar la sensibilidad del VAD/endpointer para cortar turnos más rápido o iniciar TTS en streaming en cuanto la intención ('play_music') está clara, no esperar a finalizar la generación del texto completa.",
+            "porque": "La media de 4.3s (con picos de 5.2s) hace que la interacción se sienta muerta y reactiva en lugar de fluida."
+          }
+        ],
+        "veredicto": "El escenario NO es production-ready: el flujo de música está roto en el backend (widget visual sí, audio no) y el asistente miente al usuario sobre el éxito de la acción.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Music Widget / Orchestration (Tool Output)",
+      "cambio": "Implementar un handshake obligatorio: la tool 'play_music' no debe devolver 'success' hasta que el evento de confirmación de audio se reciba en el cerebro.",
+      "porque": "La traza muestra 'widget:data' enviado, pero no confirmación de audio real. El cerebro asume éxito prematuramente ('Ahora mismo') y luego falla en silencio.",
+      "scenario": "musica",
+      "_sev": 0
+    },
+    {
+      "area": "Cerebro / Prompting (Persona & Truthfulness)",
+      "cambio": "Prohibir las frases genéricas de 'voy a poner X' cuando el intent anterior falló explícitamente. Forzar al modelo a verbalizar el estado técnico real si el reintent no es inmediato.",
+      "porque": "Zaelar mintió repetidamente diciendo 'ahora mismo' mientras la música no sonaba, destruyendo la confianza.",
+      "scenario": "musica",
+      "_sev": 0
+    },
+    {
+      "area": "Latency / Endpointer",
+      "cambio": "Ajustar la sensibilidad del VAD/endpointer para cortar turnos más rápido o iniciar TTS en streaming en cuanto la intención ('play_music') está clara, no esperar a finalizar la generación del texto completa.",
+      "porque": "La media de 4.3s (con picos de 5.2s) hace que la interacción se sienta muerta y reactiva en lugar de fluida.",
+      "scenario": "musica",
+      "_sev": 0
+    }
+  ]
+}

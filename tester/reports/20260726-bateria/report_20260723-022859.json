@@ -1,0 +1,223 @@
+{
+  "stamp": "20260723-022859",
+  "results": [
+    {
+      "scenario": "navegador_coche",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "¡Hola, Ricardo! Soy Zaelar, tu asistente. ¿Qué necesitas?",
+            "at": 1784766487.61
+          },
+          {
+            "who": "tester",
+            "text": "Hola, soy Ricart. Necesito que busques un coche de segunda mano en Wallapop por menos de 5000 euros y con menos de 250.000 kilómetros, cerca de mí.",
+            "at": 1784766488.63
+          },
+          {
+            "who": "zaelar",
+            "text": "Entendido, Ricard. Te busco un coche de segunda mano por menos de 5.000 euros y menos de 250 kilómetros, cerca de Bilbao en Wallapop.",
+            "at": 1784766508.08,
+            "latency_ms": 2886
+          },
+          {
+            "who": "tester",
+            "text": "Perfecto, gracias.",
+            "at": 1784766508.8
+          },
+          {
+            "who": "zaelar",
+            "text": "Déjame ver… Entendido, Ricard. Te busco un coche de segunda mano por menos de 5.000 euros y menos",
+            "at": 1784766513.57
+          },
+          {
+            "who": "tester",
+            "text": "Parece que no escuchaste bien. Necesito que busques coches con menos de 250.000 kilómetros.",
+            "at": 1784766514.5
+          },
+          {
+            "who": "zaelar",
+            "text": "De nada, Ricard. Ya lo tengo en marcha. Te aviso cuando tenga los resultados. Un momentito…",
+            "at": 1784766522.42
+          },
+          {
+            "who": "tester",
+            "text": "Vale, espero.",
+            "at": 1784766523.11
+          },
+          {
+            "who": "zaelar",
+            "text": "Claro, Ricard. Sigo con ello, lo tengo en cuenta — menos de 250 kilómetros. Espera… Claro, Ricard. Sigo",
+            "at": 1784766527.25
+          },
+          {
+            "who": "tester",
+            "text": "Está bien, espero.",
+            "at": 1784766527.95
+          },
+          {
+            "who": "zaelar",
+            "text": "Perfecto. Te dejo trabajar. Cuando tenga algo te aviso. Un segundo… Perfecto.",
+            "at": 1784766531.49,
+            "latency_ms": 1537
+          }
+        ],
+        "latency_ms": {
+          "n": 2,
+          "avg": 2212,
+          "max": 2886,
+          "samples": [
+            2886,
+            1537
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:show:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "🌱 ventana sembrada desde memoria:",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: ¡Hola, Ricardo! Soy Zaelar, tu asistente. ¿Qué necesitas?",
+            "⚡ Nucleo(flash): prompt: Hola, soy Ricard. Necesito que busques un coche de segunda mano en Guanapop por menos de 5,000 euros y con menos de 250",
+            "💬 relleno de espera (lead-in): Déjame ver…",
+            "⚡ Nucleo(flash): reply: Entendido, Ricard. Te busco un coche de segunda mano por menos de 5.000 euros y menos de 250 kilómetros, cerca de Bilbao",
+            "🧭 Flash → Brain Worker (escalada registrada): Buscar coches de segunda mano en Wallapop cerca de Bilbao con los siguientes criterios: precio máximo 5.000 euros, kilom",
+            "⚡ Nucleo(flash): prompt: Perfecto, gracias.",
+            "💬 relleno de espera (lead-in): Un momentito…",
+            "⚡ Nucleo(flash): reply: De nada, Ricard. Ya lo tengo en marcha. Te aviso cuando tenga los resultados.",
+            "⚡ Nucleo(flash): prompt: Parece que me escuchaste bien. Necesito que busques coches con menos de 250 kilómetros.",
+            "💬 relleno de espera (lead-in): Espera…",
+            "⚡ Nucleo(flash): reply: Claro, Ricard. Sigo con ello, lo tengo en cuenta — menos de 250 kilómetros.",
+            "⚡ Nucleo(flash): prompt: Vale, espero.",
+            "💬 relleno de espera (lead-in): Un segundo…",
+            "⚡ Nucleo(flash): reply: Perfecto. Te dejo trabajar. Cuando tenga algo te aviso.",
+            "📩 system note → FlashBrain: [SISTEMA] Brain worker · Tarea completada: He mirado en Wallapop las motos disponibles en Bilbao y esto es lo que hay ah",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] Brain worker · Tarea completada: He mirado en Wallapop las motos disponibles en Bilbao y esto es lo que hay ah",
+            "💬 relleno de espera (lead-in): Déjame ver…",
+            "✂️ turno cancelado (barge-in/overlap):"
+          ],
+          "event_kinds": {
+            "worker_start": 2,
+            "state": 23,
+            "bot_speech": 23,
+            "pulse": 53,
+            "brain": 21,
+            "trace": 6,
+            "perf": 17,
+            "timing": 6,
+            "memory": 33,
+            "susurro": 1,
+            "metric": 21,
+            "tts": 6,
+            "transcript": 10,
+            "task": 4,
+            "vad": 10,
+            "search": 3,
+            "stt": 5,
+            "widget": 4,
+            "background": 1,
+            "ui": 1,
+            "navegador": 7,
+            "notify": 1,
+            "session": 1
+          },
+          "n_events": 259
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturallez": 3,
+          "coherencia": 2,
+          "utilidad": 1,
+          "accion": 1,
+          "latencia": 4,
+          "robustez": 2
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Alucinación numológica crítica: Trunca 250.000 km a 250 km.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn4",
+            "problema": "Fallo en actualización de estado. El usuario corrige '250.000 km', pero zaelar ignora la magnitud, reafirmando '250 km' y finalizando la tarea con parámetros erróneos.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "worker_end",
+            "problema": "El agente ejecuta una búsqueda de 'motos' en lugar de 'coches' (desajuste de dominio).",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "frontend_trace",
+            "problema": "Incoherencia UI: El sistema dispara 'navegador' (tarea en 2º plano), pero también emite eventos 'widget:show'. Esto rompe el requisito de 'sin widget nuevo'.",
+            "gravedad": "media"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Brain/Prompt Engineering (Validación)",
+            "cambio": "Implementar validación estricta de unidades y magnitudes en el 'Flash Brain' antes de confirmar la tarea al usuario. Regla: si km < 1000, inferir error o pedir confirmación.",
+            "porque": "Zaelar truncó 250.000 a 250, invalidando los resultados de la búsqueda (solo mostraría coches casi nuevos)."
+          },
+          {
+            "area": "Tool Calling / Function Selection",
+            "cambio": "Añadir un paso de desambiguación en la llamada a la herramienta web para verificar que la categoría de búsqueda (coches vs motos) coincide con la entidad principal del prompt.",
+            "porque": "El worker buscó 'motos' cuando la petición explícita era 'coches', indicando un 'slot-filling' incorrecto."
+          },
+          {
+            "area": "Planificador de Interfaz (UI Orchestrator)",
+            "cambio": "Segregar la lógica de renderizado: si la intención es 'automate_web' (navegador en 2º plano), suprimir la emisión de eventos 'widget:show'. El usuario solo debe recibir la confirmación oral.",
+            "porque": "La traza muestra conflictos: se inició el navegador pero también se ordenó mostrar un widget, violando la instrucción del escenario de trabajar en segundo plano."
+          },
+          {
+            "area": "Gestión de Contexto / Memory Update",
+            "cambio": "Forzar al 'Fast Brain' a re-escalar la tarea (o actualizar los parámetros del 'Slow Brain') si el usuario corrige un valor crítico (precio/km) inmediatamente después del turno inicial.",
+            "porque": "Aunque el usuario dijo '250.000 kilómetros', el sistema persistió en '250 kilómetros', indicando que la actualización del contexto no se propagó al worker."
+          }
+        ],
+        "veredicto": "El escenario NO es production-ready debido a un fallo funcional crítico en la validación de datos (filtro de kilometraje roto) que hace que el resultado sea inútil para el usuario.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Brain/Prompt Engineering (Validación)",
+      "cambio": "Implementar validación estricta de unidades y magnitudes en el 'Flash Brain' antes de confirmar la tarea al usuario. Regla: si km < 1000, inferir error o pedir confirmación.",
+      "porque": "Zaelar truncó 250.000 a 250, invalidando los resultados de la búsqueda (solo mostraría coches casi nuevos).",
+      "scenario": "navegador_coche",
+      "_sev": 0
+    },
+    {
+      "area": "Tool Calling / Function Selection",
+      "cambio": "Añadir un paso de desambiguación en la llamada a la herramienta web para verificar que la categoría de búsqueda (coches vs motos) coincide con la entidad principal del prompt.",
+      "porque": "El worker buscó 'motos' cuando la petición explícita era 'coches', indicando un 'slot-filling' incorrecto.",
+      "scenario": "navegador_coche",
+      "_sev": 0
+    },
+    {
+      "area": "Planificador de Interfaz (UI Orchestrator)",
+      "cambio": "Segregar la lógica de renderizado: si la intención es 'automate_web' (navegador en 2º plano), suprimir la emisión de eventos 'widget:show'. El usuario solo debe recibir la confirmación oral.",
+      "porque": "La traza muestra conflictos: se inició el navegador pero también se ordenó mostrar un widget, violando la instrucción del escenario de trabajar en segundo plano.",
+      "scenario": "navegador_coche",
+      "_sev": 0
+    },
+    {
+      "area": "Gestión de Contexto / Memory Update",
+      "cambio": "Forzar al 'Fast Brain' a re-escalar la tarea (o actualizar los parámetros del 'Slow Brain') si el usuario corrige un valor crítico (precio/km) inmediatamente después del turno inicial.",
+      "porque": "Aunque el usuario dijo '250.000 kilómetros', el sistema persistió en '250 kilómetros', indicando que la actualización del contexto no se propagó al worker.",
+      "scenario": "navegador_coche",
+      "_sev": 0
+    }
+  ]
+}

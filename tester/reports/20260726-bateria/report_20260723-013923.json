@@ -1,0 +1,224 @@
+{
+  "stamp": "20260723-013923",
+  "results": [
+    {
+      "scenario": "navegador_moto",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Ricard, soy Zaelar, tu asistente por voz. ¿Qué necesitas ahora?",
+            "at": 1784763492.7
+          },
+          {
+            "who": "tester",
+            "text": "Hola, soy Ricart. Quiero buscar en Wallapop una moto de segunda mano tipo naked, menos de 3000 euros y cerca de mí.",
+            "at": 1784763494.04
+          },
+          {
+            "who": "zaelar",
+            "text": "Entendido, Ricard. Te pongo a buscar en Guadapoc una moto de segunda mano tipo Neike, menos de 3.000 euros y con especificaciones ZTLMI. Déjame que lo haga.",
+            "at": 1784763510.86,
+            "latency_ms": 4149
+          },
+          {
+            "who": "tester",
+            "text": "No, espera, no es Guadapoc. Quiero que busques en Wallapop, por favor. Y asegúrate de que sea tipo naked, menos de 3000 euros y que esté cerca de mí.",
+            "at": 1784763512.18
+          },
+          {
+            "who": "zaelar",
+            "text": "Pues… Entendido, Ricard. Te pongo a buscar en Guadapoc una moto de segunda mano tipo Neike, menos de 3.000 euros y con No pude modificar el widget «musica».",
+            "at": 1784763526.11
+          },
+          {
+            "who": "tester",
+            "text": "No, no es Guadapoc, es Wallapop. ¿Puedes buscarlo de nuevo?",
+            "at": 1784763527.13
+          },
+          {
+            "who": "zaelar",
+            "text": "Perfecto, ajusto la búsqueda: moto tipo Naked, menos de 3.000 euros y cerca de Bilbao donde estás. Voy con ello. Claro, busco en Wannapop entonces. Deja que refine la búsqueda: moto tipo Naked, menos de 3.000 euros y cerca de Bilbao.",
+            "at": 1784763538.8,
+            "latency_ms": 3851
+          },
+          {
+            "who": "tester",
+            "text": "Sí, eso es. Busca en Wallapop, por favor.",
+            "at": 1784763539.83
+          },
+          {
+            "who": "zaelar",
+            "text": "Un segundo… Claro, busco en Wannapop entonces. Deja que refine la búsqueda: moto tipo Naked, menos de 3.000",
+            "at": 1784763546.31
+          },
+          {
+            "who": "tester",
+            "text": "No, busca en Wallapop, por favor. Quiero la moto tipo naked, menos de 3000 euros y cerca de mí.",
+            "at": 1784763547.23
+          },
+          {
+            "who": "zaelar",
+            "text": "Sigo con ello; te aviso en cuanto lo tenga. Mmm… Sigo con ello;",
+            "at": 1784763556.87
+          }
+        ],
+        "latency_ms": {
+          "n": 2,
+          "avg": 4000,
+          "max": 4149,
+          "samples": [
+            4149,
+            3851
+          ]
+        },
+        "trace": {
+          "frontend_actions": [],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "🌱 ventana sembrada desde memoria:",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Ricard, soy Zaelar, tu asistente por voz. ¿Qué necesitas ahora?",
+            "📩 system note → FlashBrain: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: Hola Ricardo, encantado de acompañarte hoy. ¿En qué",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: Hola Ricardo, encantado de acompañarte hoy. ¿En qué",
+            "💬 relleno de espera (lead-in): Pues…",
+            "⚡ Nucleo(flash): reply: Entendido, Ricard. Te pongo a buscar en Guadapoc una moto de segunda mano tipo Neike, menos de 3.000 euros y con especif",
+            "🧭 Flash → Brain Worker (escalada registrada): Busca en Guadapoc motos de segunda mano tipo Neike, menos de 3.000 euros, con especificaciones ZTLMI. Muestra los result",
+            "📩 system note → FlashBrain: [SISTEMA] Brain worker · Tarea sin completar: No pude modificar el widget «musica».",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] Brain worker · Tarea sin completar: No pude modificar el widget «musica».\n\nNo, espera, no es cualapo.",
+            "✂️ turno cancelado (barge-in/overlap):",
+            "⚡ Nucleo(flash): prompt: Quiero que busques en Wallapop, por favor.",
+            "💬 relleno de espera (lead-in): Espera…",
+            "✂️ turno cancelado (barge-in/overlap):",
+            "⚡ Nucleo(flash): prompt: Y asegúrate de que sea tipo Naked menos de 3,000 euros y que esté cerca de mí.",
+            "💬 relleno de espera (lead-in): Un momentito…",
+            "↪️ inyección a worker: la búsqueda de la moto: Refina la búsqueda: moto tipo Naked (no Neike), menos de 3.000 euros, cerca de Bilbao. Asegúrate",
+            "⚡ Nucleo(flash): reply: Perfecto, ajusto la búsqueda: moto tipo Naked, menos de 3.000 euros y cerca de Bilbao donde estás. Voy con ello.",
+            "⚡ Nucleo(flash): prompt: No, no es Wannapop. Es Wannapop. ¿Puedes buscarlo de nuevo?",
+            "💬 relleno de espera (lead-in): Un segundo…",
+            "↪️ inyección a worker: la búsqueda de la moto: Busca en Wannapop en lugar de Guadapoc. Mantén el resto igual: moto tipo Naked, menos de 3.000 e",
+            "⚡ Nucleo(flash): reply: Claro, busco en Wannapop entonces. Deja que refine la búsqueda: moto tipo Naked, menos de 3.000 euros y cerca de Bilbao.",
+            "⚡ Nucleo(flash): prompt: Sí, eso es. Busca en Wallapop, por favor.",
+            "💬 relleno de espera (lead-in): Mmm…",
+            "↪️ inyección a worker: la búsqueda de la moto: Cambia la búsqueda a Wallapop en lugar de Guadapoc. Busca motos tipo Naked, menos de 3.000 euros",
+            "🧭 escalada por guard (marketplace→navegar / modificar-widget→generador): Sí, eso es. Busca en Wallapop, por favor.",
+            "⚡ Nucleo(flash): reply: Sigo con ello; te aviso en cuanto lo tenga.",
+            "⚡ Nucleo(flash): prompt: No, busquen Wallapop, por favor. Quiero la moto tipo Nake, menos de 3,000 euros y cerca de mí.",
+            "✂️ turno cancelado (barge-in/overlap):"
+          ],
+          "event_kinds": {
+            "worker_start": 2,
+            "state": 26,
+            "bot_speech": 26,
+            "pulse": 74,
+            "brain": 30,
+            "trace": 8,
+            "perf": 22,
+            "timing": 8,
+            "memory": 48,
+            "metric": 25,
+            "susurro": 5,
+            "tts": 7,
+            "transcript": 12,
+            "vad": 14,
+            "background": 2,
+            "stt": 7,
+            "task": 5,
+            "notify": 1,
+            "session": 1,
+            "search": 1
+          },
+          "n_events": 324
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturallez": 2,
+          "coherencia": 1,
+          "utilidad": 1,
+          "accion": 1,
+          "latencia": 3,
+          "robustez": 1
+        },
+        "overall": 1,
+        "findings": [
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Halucinación de entidad (Guadapoc/Wallapop) y parámetros (Neike/ZTLMI). El STT del tester es 'Wallapop', zaelar repite 'Guadapoc'.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn3",
+            "problema": "Inyección de tóxico de sistema en la respuesta oral: 'No pude modificar el widget «musica»'. Rompe totalmente la inmersión.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "trace@global",
+            "problema": "No se ejecuta ninguna acción de frontend ('automate_web' o apertura de navegador). A pesar de anunciar 'Te pongo a buscar', el cerebro se limita a procesar texto sin invocar el tool de navegador.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn5",
+            "problema": "Fallo de robustez: Persiste en 'Wannapop' y repite bucles de confirmación ('Perfecto, ajusto...', 'Claro, busco...') sin progresar a la acción.",
+            "gravedad": "alta"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Filtrado de System Notes / LLM Context",
+            "cambio": "Implementar un 'sanitizer' de notas de sistema antes de inyectarlas en el prompt del FlashBrain. Bloquear mensajes crudos de error de widgets o tareas internas.",
+            "porque": "El usuario escuchó 'No pude modificar el widget «musica»', lo cual es información de depuración interna, no una respuesta de asistente."
+          },
+          {
+            "area": "Function Calling / Tool Mapping",
+            "cambio": "Forzar la ejecución de la herramienta 'automate_web' o 'browser_search' cuando se detecten keywords de marketplace (Wallapop, Milanuncios) y consulta de productos, no solo una consulta de memoria.",
+            "porque": "El escenario requería navegación real (abrir navegador en 2º plano). La traza muestra '0' acciones de frontend, por lo que zaelar mintió al decir 'Te pongo a buscar'."
+          },
+          {
+            "area": "Corrección de Entidades (NER)",
+            "cambio": "Aumentar la temperatura de decodificación o usar un modelo de re-rankeo para corregir 'Guadapoc' -> 'Wallapop' y 'Neike' -> 'Naked' cuando el contexto es claro.",
+            "porque": "Zaelar transformó erróneamente la entrada del usuario (Wallapop -> Guadapoc) y derivó en un bucle de corrección imposible."
+          },
+          {
+            "area": "Manejo de Turnos (Barge-in)",
+            "cambio": "Reducir la latencia de detección de interrupción (VAD) y procesamiento inmediato del nuevo input para cancelar la generación de audio anterior.",
+            "porque": "Zaelar sigue hablando y generando texto incluso cuando el usuario ya ha corregido el nombre del servicio, causando solapes y respuestas desfasadas."
+          }
+        ],
+        "veredicto": "El escenario NO es production-ready: el asistente es psicópata (miente sobre buscar), alucina nombres y expone logs de error internos al usuario.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Filtrado de System Notes / LLM Context",
+      "cambio": "Implementar un 'sanitizer' de notas de sistema antes de inyectarlas en el prompt del FlashBrain. Bloquear mensajes crudos de error de widgets o tareas internas.",
+      "porque": "El usuario escuchó 'No pude modificar el widget «musica»', lo cual es información de depuración interna, no una respuesta de asistente.",
+      "scenario": "navegador_moto",
+      "_sev": 0
+    },
+    {
+      "area": "Function Calling / Tool Mapping",
+      "cambio": "Forzar la ejecución de la herramienta 'automate_web' o 'browser_search' cuando se detecten keywords de marketplace (Wallapop, Milanuncios) y consulta de productos, no solo una consulta de memoria.",
+      "porque": "El escenario requería navegación real (abrir navegador en 2º plano). La traza muestra '0' acciones de frontend, por lo que zaelar mintió al decir 'Te pongo a buscar'.",
+      "scenario": "navegador_moto",
+      "_sev": 0
+    },
+    {
+      "area": "Corrección de Entidades (NER)",
+      "cambio": "Aumentar la temperatura de decodificación o usar un modelo de re-rankeo para corregir 'Guadapoc' -> 'Wallapop' y 'Neike' -> 'Naked' cuando el contexto es claro.",
+      "porque": "Zaelar transformó erróneamente la entrada del usuario (Wallapop -> Guadapoc) y derivó en un bucle de corrección imposible.",
+      "scenario": "navegador_moto",
+      "_sev": 0
+    },
+    {
+      "area": "Manejo de Turnos (Barge-in)",
+      "cambio": "Reducir la latencia de detección de interrupción (VAD) y procesamiento inmediato del nuevo input para cancelar la generación de audio anterior.",
+      "porque": "Zaelar sigue hablando y generando texto incluso cuando el usuario ya ha corregido el nombre del servicio, causando solapes y respuestas desfasadas.",
+      "scenario": "navegador_moto",
+      "_sev": 0
+    }
+  ]
+}

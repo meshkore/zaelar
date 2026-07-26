@@ -1,0 +1,260 @@
+{
+  "stamp": "20260723-014241",
+  "results": [
+    {
+      "scenario": "navegador_una_tarea",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Ricardo, encantado de acompañarte hoy. ¿En qué puedo ayudarte?",
+            "at": 1784763669.08
+          },
+          {
+            "who": "tester",
+            "text": "Hola, soy Ricart. Quiero que me busques una moto en Wallapop.",
+            "at": 1784763670.12
+          },
+          {
+            "who": "zaelar",
+            "text": "Perfecto, Gicard. Te lanzo ya la búsqueda de motos en Guarapop — ¿qué características te interesan? (tipo, presupuesto, kilómetros máximos, zona…)",
+            "at": 1784763681.81,
+            "latency_ms": 3707
+          },
+          {
+            "who": "tester",
+            "text": "Busco una moto de enduro, 300-400 cc, 4 tiempos, para principiante, y que cueste menos de 6000 euros.",
+            "at": 1784763682.97
+          },
+          {
+            "who": "zaelar",
+            "text": "Mmm… Perfecto, Gicard. Te lanzo ya la búsqueda de motos en Guarapop — ¿qué características te interesan? (tipo, ¡Hola de nuevo, Ricardo! Aquí sigo acompañándote — dime en qué te ayudo ahora.",
+            "at": 1784763694.02,
+            "latency_ms": 1559
+          },
+          {
+            "who": "tester",
+            "text": "Quiero que busques una moto de enduro, 300-400 cc, 4 tiempos, para principiante, y que cueste menos de 6000 euros.",
+            "at": 1784763696.36
+          },
+          {
+            "who": "zaelar",
+            "text": "Perfecto, Gicard. Te busco una moto de enduro 300-400cc, 4 tiempos, para principiante y por menos de 6.000 euros en Guarapop — voy con ello ahora. Veamos… Perfecto, Gicard. Te",
+            "at": 1784763708.93
+          },
+          {
+            "who": "tester",
+            "text": "¿Ya encontraste algo?",
+            "at": 1784763709.94
+          },
+          {
+            "who": "zaelar",
+            "text": "Entendido, Gicard. Te lanzo la búsqueda de una moto enduro 300-400cc, 4 tiempos, para principiante y por menos de 6.000 euros en Guarapop — dame un momento que te traigo los resultados. Pues… Entendido,",
+            "at": 1784763713.95
+          },
+          {
+            "who": "tester",
+            "text": "Está bien, tómate tu tiempo. Pero asegúrate de que los resultados sean solo de enduro, porque quiero centrarme en ese tipo de moto. ¿Ya tienes algo?",
+            "at": 1784763716.37
+          },
+          {
+            "who": "zaelar",
+            "text": "Aún estoy buscando los resultados en Guarapop, Gicard. Los workers que lancé hace poco siguen trabajando en ello — te lo muestro en cuanto tengan algo. Déjame que mire… Aún estoy buscando",
+            "at": 1784763726.55
+          },
+          {
+            "who": "tester",
+            "text": "Vale, pero asegúrate de que se enfoquen solo en las motos de enduro. Cuando encuentres algunas opciones, me gustaría que las analices una por una para poder decidir mejor. ¡Avísame cuando tengas algo!",
+            "at": 1784763727.85
+          },
+          {
+            "who": "zaelar",
+            "text": "Espera… Vale, Gicard. Le paso la instrucción ahora a los que están buscando para que se enfoquen solo en enduro — que filtren bien ese tipo.",
+            "at": 1784763742.73
+          },
+          {
+            "who": "tester",
+            "text": "Perfecto, gracias. Espero tus resultados.",
+            "at": 1784763743.55
+          },
+          {
+            "who": "zaelar",
+            "text": "Claro, Gicard. Cuando tenga los resultados de enduro te aviso sin falta. A ver, a",
+            "at": 1784763749.07
+          },
+          {
+            "who": "tester",
+            "text": "Está bien, espero a que me digas.",
+            "at": 1784763749.94
+          },
+          {
+            "who": "zaelar",
+            "text": "De acuerdo, Gicard. Estoy pendiente de los resultados — te lo confirmo en cuanto los tenga listos. Un momentito…",
+            "at": 1784763754.77
+          }
+        ],
+        "latency_ms": {
+          "n": 2,
+          "avg": 2633,
+          "max": 3707,
+          "samples": [
+            3707,
+            1559
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:show:navegador::t3",
+            "widget:data:navegador::t3",
+            "widget:show:navegador",
+            "widget:data:navegador::t3",
+            "widget:data:navegador::t3"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "🌱 ventana sembrada desde memoria:",
+            "📩 system note → FlashBrain: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: He corregido el nombre a Wannapop y voy a buscar all",
+            "📩 system note → FlashBrain: [SISTEMA] Brain worker · Tarea completada: He revisado Wallapop (no Guadapoc) buscando motos tipo naked de segunda mano",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: He corregido el nombre a Wannapop y voy a buscar all",
+            "🧭 escalada por guard (marketplace→navegar / modificar-widget→generador): [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: He corregido",
+            "⚡ Nucleo(flash): reply: Hola Ricardo, encantado de acompañarte hoy. ¿En qué puedo ayudarte?",
+            "🧭 Flash → Brain Worker (escalada registrada): [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: He corregido el nombre a Wannapop y voy a buscar all",
+            "⚡ Nucleo(flash): prompt: Hola, soy Gicard. Quiero que me busques una moto en Guarapop.",
+            "💬 relleno de espera (lead-in): Mmm…",
+            "⚡ Nucleo(flash): reply: Perfecto, Gicard. Te lanzo ya la búsqueda de motos en Guarapop — ¿qué características te interesan? (tipo, presupuesto,",
+            "📩 system note → FlashBrain: [SISTEMA] Brain worker · Tarea completada: ¡Hola de nuevo, Ricardo! Aquí sigo acompañándote — dime en qué te ayudo ahora",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] Brain worker · Tarea completada: ¡Hola de nuevo, Ricardo! Aquí sigo acompañándote — dime en qué te ayudo ahora",
+            "💬 relleno de espera (lead-in): Veamos…",
+            "⚡ Nucleo(flash): reply: Perfecto, Gicard. Te busco una moto de enduro 300-400cc, 4 tiempos, para principiante y por menos de 6.000 euros en Guar",
+            "🧭 Flash → Brain Worker (escalada registrada): Busca en Guarapop motos de segunda mano tipo enduro, 300-400 cc, 4 tiempos, aptas para principiante, por menos de 6.000",
+            "⚡ Nucleo(flash): prompt: Quiero que busques una moto de enduro 300 a 400 centímetros cúbicos 4 tiempos para principiante y que cueste menos de 6",
+            "💬 relleno de espera (lead-in): Pues…",
+            "⚡ Nucleo(flash): reply: Entendido, Gicard. Te lanzo la búsqueda de una moto enduro 300-400cc, 4 tiempos, para principiante y por menos de 6.000",
+            "↪️ refinamiento → inyección a worker vivo (no relanza): Busca en Guarapop motos de segunda mano tipo enduro, cilindrada 300-400cc, 4 tiempos, para principiante, por menos de 6.",
+            "⚡ Nucleo(flash): prompt: ¿Te encontraste algo?",
+            "💬 relleno de espera (lead-in): Déjame que mire…",
+            "⚡ Nucleo(flash): reply: Aún estoy buscando los resultados en Guarapop, Gicard. Los workers que lancé hace poco siguen trabajando en ello — te lo",
+            "⚡ Nucleo(flash): prompt: Está bien, tómate tu tiempo. Pero asegúrate de que los resultados sean sólo de enduro. Por ti quiero centrarme en ese ti",
+            "💬 relleno de espera (lead-in): Espera…",
+            "↪️ inyección a worker: la búsqueda de motos en Guarapop: Asegúrate de filtrar SOLO motos de tipo enduro — nada de naked, scooter, trail o depor",
+            "⚡ Nucleo(flash): reply:",
+            "⚡ Nucleo(flash): prompt: Vale, te lo aseguraba de que se enfoquen solo en las motos de enduro.",
+            "💬 relleno de espera (lead-in): Vale, a ver…",
+            "↪️ inyección a worker: la búsqueda de motos en Guarapop: Enfócate solo en motos de tipo enduro. Filtra y muestra solo anuncios de motos enduro",
+            "⚡ Nucleo(flash): reply: Vale, Gicard. Le paso la instrucción ahora a los que están buscando para que se enfoquen solo en enduro — que filtren bi",
+            "⚡ Nucleo(flash): prompt: Cuando encuentres algunas opciones, me gustaría que las analices una por una para poder decidir mejor.",
+            "⚡ Nucleo(flash): prompt: Avísame cuando tengas algo.",
+            "💬 relleno de espera (lead-in): A ver, a ver…",
+            "⚡ Nucleo(flash): reply: Claro, Gicard. Cuando tenga los resultados de enduro te aviso sin falta.",
+            "⚡ Nucleo(flash): prompt: Perfecto, gracias. Espero tus resultados.",
+            "💬 relleno de espera (lead-in): Un momentito…",
+            "⚡ Nucleo(flash): reply: De acuerdo, Gicard. Estoy pendiente de los resultados — te lo confirmo en cuanto los tenga listos.",
+            "⚡ Nucleo(flash): prompt: Está bien, espero a que me dirás.",
+            "💬 relleno de espera (lead-in): Déjame que mire…"
+          ],
+          "event_kinds": {
+            "pulse": 96,
+            "worker_start": 3,
+            "state": 40,
+            "bot_speech": 40,
+            "navegador": 8,
+            "brain": 41,
+            "trace": 12,
+            "perf": 37,
+            "memory": 77,
+            "timing": 10,
+            "metric": 38,
+            "tts": 10,
+            "task": 16,
+            "widget": 5,
+            "ui": 2,
+            "transcript": 19,
+            "vad": 20,
+            "stt": 10,
+            "background": 3,
+            "notify": 1,
+            "search": 6,
+            "session": 1
+          },
+          "n_events": 495
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 3,
+          "coherencia": 2,
+          "utilidad": 3,
+          "accion": 1,
+          "latencia": 2,
+          "robustez": 3
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn5",
+            "problema": "Hallazgo fatal: zaelar creó 'navegador::t3' a pesar de tener una búsqueda activa. Rompió la regla de 'UNA SOLA tarjeta'.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn5",
+            "problema": "Alucinación de inicio de sesión. Repite 'Hola Ricardo' y pierde el hilo de la búsqueda en curso.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Error de entidad: 'Guarapop' en lugar de Wallapop.",
+            "gravedad": "media"
+          },
+          {
+            "turno": "zaelar@turn7",
+            "problema": "Disparidad narrativa. Dice 'Te lanzo la búsqueda' cuando ya está lanzada, evidenciando falta de tracking del estado.",
+            "gravedad": "media"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "brain memory / orquestación de tareas (agent loop)",
+            "cambio": "Implementar 'persistence check': antes de lanzar worker/navegador, el cerebro debe consultar en memoria短期 si existe una tarea con el mismo intento/sujeto y reutilizar ese ID (refinar sobre t_existente).",
+            "porque": "El fallo crítico fue la creación de t3. El sistema reaccionó a la entrada del usuario como 'nueva petición' en lugar de 'modificación de petición existente', duplicando el recurso."
+          },
+          {
+            "area": "contexto de sesión (prompts del sistema)",
+            "cambio": "Aislar el saludo inicial del resto de la lógica del sistema. Prohibir el reinicio del saludo (turno 5) una vez iniciada la sesión de trabajo.",
+            "porque": "La reinserción del prompt '¡Hola de nuevo, Ricardo!' sugiere que el sistema perdió el contexto conversacional o interpretó el input como una nueva conexión."
+          },
+          {
+            "area": "control de versiones / base de conocimiento",
+            "cambio": "Forzar la corrección de entidades 'Wallapop' y 'Ricardo' en el primer paso de procesamiento (normalización), corrigiendo tanto el STT como el prompt del sistema.",
+            "porque": "El modelo consistently usa 'Guarapop' y 'Gicard', lo cual degrada la percepción de calidad y naturalidad."
+          }
+        ],
+        "veredicto": "No es producción-ready: el fallo en el manejo del estado (abrir múltiples navegadores y reiniciar la conversación) impide completar el objetivo del usuario.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "brain memory / orquestación de tareas (agent loop)",
+      "cambio": "Implementar 'persistence check': antes de lanzar worker/navegador, el cerebro debe consultar en memoria短期 si existe una tarea con el mismo intento/sujeto y reutilizar ese ID (refinar sobre t_existente).",
+      "porque": "El fallo crítico fue la creación de t3. El sistema reaccionó a la entrada del usuario como 'nueva petición' en lugar de 'modificación de petición existente', duplicando el recurso.",
+      "scenario": "navegador_una_tarea",
+      "_sev": 0
+    },
+    {
+      "area": "contexto de sesión (prompts del sistema)",
+      "cambio": "Aislar el saludo inicial del resto de la lógica del sistema. Prohibir el reinicio del saludo (turno 5) una vez iniciada la sesión de trabajo.",
+      "porque": "La reinserción del prompt '¡Hola de nuevo, Ricardo!' sugiere que el sistema perdió el contexto conversacional o interpretó el input como una nueva conexión.",
+      "scenario": "navegador_una_tarea",
+      "_sev": 0
+    },
+    {
+      "area": "control de versiones / base de conocimiento",
+      "cambio": "Forzar la corrección de entidades 'Wallapop' y 'Ricardo' en el primer paso de procesamiento (normalización), corrigiendo tanto el STT como el prompt del sistema.",
+      "porque": "El modelo consistently usa 'Guarapop' y 'Gicard', lo cual degrada la percepción de calidad y naturalidad.",
+      "scenario": "navegador_una_tarea",
+      "_sev": 0
+    }
+  ]
+}

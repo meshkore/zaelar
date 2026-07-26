@@ -1,0 +1,195 @@
+{
+  "stamp": "20260723-023202",
+  "results": [
+    {
+      "scenario": "musica_spotify_connect",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "¡Hola, Hikar! Soy Zaelar, tu asistente. ¿Qué necesitas?",
+            "at": 1784766645.05
+          },
+          {
+            "who": "tester",
+            "text": "Hola, soy Ricart. Quiero vincular mi cuenta de Spotify.",
+            "at": 1784766645.94
+          },
+          {
+            "who": "zaelar",
+            "text": "Veamos. Hola, Ficar.",
+            "at": 1784766658.13,
+            "latency_ms": 3162
+          },
+          {
+            "who": "tester",
+            "text": "No, soy Ricart. ¿Puedes intentar de nuevo? Quiero conectar mi Spotify.",
+            "at": 1784766659.02
+          },
+          {
+            "who": "zaelar",
+            "text": "Veamos… ¡Hola, Fikar! Te abro la sección de música para que vincules Spotify — ahí tienes todo paso",
+            "at": 1784766666.61
+          },
+          {
+            "who": "tester",
+            "text": "Se está confundiendo de nombre. Solo dime cómo vincular mi Spotify, por favor.",
+            "at": 1784766667.6
+          },
+          {
+            "who": "zaelar",
+            "text": "¡Hola, Ricard! Te abro Mensajería para que conectes tu Spotify — ahí tienes todos los pasos. A ver, a ver… ¡Hola, Ricard! Te",
+            "at": 1784766676.6
+          },
+          {
+            "who": "tester",
+            "text": "Soy Ricart, no Ricard. ¿Puedes indicarme cómo vincular mi cuenta de Spotify directamente? Quiero que esté listo para usar.",
+            "at": 1784766677.6
+          },
+          {
+            "who": "zaelar",
+            "text": "",
+            "at": 1784766716.03
+          }
+        ],
+        "latency_ms": {
+          "n": 1,
+          "avg": 3162,
+          "max": 3162,
+          "samples": [
+            3162
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:show:musica",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "🌱 ventana sembrada desde memoria:",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: ¡Hola, Hikar! Soy Zaelar, tu asistente. ¿Qué necesitas?",
+            "📩 system note → FlashBrain: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: Hola Hikar, ¿en qué puedo ayudarte hoy?",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: Hola Hikar, ¿en qué puedo ayudarte hoy?\n\nHola, soy F",
+            "💬 relleno de espera (lead-in): Veamos…",
+            "Cerebro rápido caído — turno degradado.: flash layer error",
+            "⚡ Nucleo(flash): prompt: Hola, soy Ricard. ¿Puedes intentar de nuevo? Quiero conectar mi Spotify.",
+            "💬 relleno de espera (lead-in): A ver, a ver…",
+            "⚡ Nucleo(flash): reply: ¡Hola, Ricard! Te abro Mensajería para que conectes tu Spotify — ahí tienes todos los pasos.",
+            "📩 system note → FlashBrain: [SISTEMA] Brain worker · Tarea completada: I've hit a wall: every command that needs network access (`curl`, `python3 -m",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] Brain worker · Tarea completada: I've hit a wall: every command that needs network access (`curl`, `python3 -m",
+            "⚡ Nucleo(flash): prompt: Soy Ricard, no Ricard. ¿Puedes indicarme cómo vincular mi cuenta al Spotify directamente? Quiero que esté listo para usa",
+            "💬 relleno de espera (lead-in): Pues…",
+            "Cerebro rápido caído — turno degradado.: flash layer error"
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 14,
+            "bot_speech": 14,
+            "brain": 14,
+            "trace": 5,
+            "pulse": 80,
+            "perf": 18,
+            "memory": 46,
+            "timing": 4,
+            "navegador": 38,
+            "metric": 15,
+            "susurro": 9,
+            "widget": 10,
+            "tts": 4,
+            "transcript": 8,
+            "vad": 10,
+            "task": 5,
+            "stt": 5,
+            "alert": 2,
+            "error": 2,
+            "background": 2,
+            "notify": 1,
+            "session": 1
+          },
+          "n_events": 308
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturallez": 2,
+          "coherencia": 1,
+          "utilidad": 2,
+          "accion": 1,
+          "latencia": 2,
+          "robustez": 1
+        },
+        "overall": 1,
+        "findings": [
+          {
+            "turno": "zaelar@turn3",
+            "problema": "Falla crítica en Exactitud y Acción: Zaelar afirma 'Te abro Mensajería' cuando la traza indica que se abrió el widget 'musica'. El alucina la herramienta visualizada.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Falla de Coherencia (Escalado/Looping): Zaelar ignora el 'no' del usuario y repite el saludo incorrecto en lugar de pivotar a la tarea.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn4",
+            "problema": "Robustez nula y timeout: Ante una corrección simple ('Soy Ricart'), el cerebro se bloquea (flash layer error), repite un saludo incorrecto y finaliza en timeout.",
+            "gravedad": "alta"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Brain/Prompting (Tool Reporting)",
+            "cambio": "Implementar restricción estricta para que Zaelar NO enumere verbalmente qué widget abre ('Te abro Mensajería') si no está seguro, o mejor aún, que describa lo que VE ('Te muestro la pantalla de música') en lugar de asumir la etiqueta interna.",
+            "porque": "El usuario oyó 'Mensajería' pero la traza dice 'musica'. La alucinación verbal de la etiqueta del widget destruye la confianza."
+          },
+          {
+            "area": "Brain/Prompting (Contexto y Memoria)",
+            "cambio": "Añadir un paso de 'normalización de entidad' antes de generar respuesta. Si el usuario corrige el nombre, priorizar la corrección explícita sobre la memoria cacheada.",
+            "porque": "Zaelar repitió nombres incorrectos (Hikar, Ficar, Ricard) pese a ser corregido explícitamente en el turno inmediato anterior."
+          },
+          {
+            "area": "Flash Layer / Fallback",
+            "cambio": "Revisar el manejo de errores del 'flash layer'. Un error en el cerebro rápido no debe derivar en un silencio total (timeout); debe activar una respuesta degradada genérica ('Lo siento, he tenido un pequeño problema técnico').",
+            "porque": "El último turno terminó en silencio absoluto (timeout) tras un error de cerebro, dejando la conversación muerta."
+          }
+        ],
+        "veredicto": "El escenario NO está listo para producción; el bloqueo mayor es la inestabilidad del 'cerebro rápido' que deriva en timeouts y alucinaciones verbales sobre la interfaz gráfica.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Brain/Prompting (Tool Reporting)",
+      "cambio": "Implementar restricción estricta para que Zaelar NO enumere verbalmente qué widget abre ('Te abro Mensajería') si no está seguro, o mejor aún, que describa lo que VE ('Te muestro la pantalla de música') en lugar de asumir la etiqueta interna.",
+      "porque": "El usuario oyó 'Mensajería' pero la traza dice 'musica'. La alucinación verbal de la etiqueta del widget destruye la confianza.",
+      "scenario": "musica_spotify_connect",
+      "_sev": 0
+    },
+    {
+      "area": "Brain/Prompting (Contexto y Memoria)",
+      "cambio": "Añadir un paso de 'normalización de entidad' antes de generar respuesta. Si el usuario corrige el nombre, priorizar la corrección explícita sobre la memoria cacheada.",
+      "porque": "Zaelar repitió nombres incorrectos (Hikar, Ficar, Ricard) pese a ser corregido explícitamente en el turno inmediato anterior.",
+      "scenario": "musica_spotify_connect",
+      "_sev": 0
+    },
+    {
+      "area": "Flash Layer / Fallback",
+      "cambio": "Revisar el manejo de errores del 'flash layer'. Un error en el cerebro rápido no debe derivar en un silencio total (timeout); debe activar una respuesta degradada genérica ('Lo siento, he tenido un pequeño problema técnico').",
+      "porque": "El último turno terminó en silencio absoluto (timeout) tras un error de cerebro, dejando la conversación muerta.",
+      "scenario": "musica_spotify_connect",
+      "_sev": 0
+    }
+  ]
+}

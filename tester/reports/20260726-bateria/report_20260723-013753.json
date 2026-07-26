@@ -1,0 +1,191 @@
+{
+  "stamp": "20260723-013753",
+  "results": [
+    {
+      "scenario": "musica_spotify_connect",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "Hola Ricardo, aquí ando. ¿Qué necesitas?",
+            "at": 1784763411.54
+          },
+          {
+            "who": "tester",
+            "text": "Hola, soy Ricart. Quiero vincular mi cuenta de Spotify.",
+            "at": 1784763413.68
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, a ver,",
+            "at": 1784763424.67,
+            "latency_ms": 3043
+          },
+          {
+            "who": "tester",
+            "text": "¿Podrías ayudarme a conectar mi cuenta de Spotify? Necesito que me guíes en los pasos que tengo que seguir para hacerlo.",
+            "at": 1784763425.7
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, a ver… Te abro Mensajería para que vincules Spotify paso a paso.Uf, se me",
+            "at": 1784763434.55
+          },
+          {
+            "who": "tester",
+            "text": "¿Puedes abrir la aplicación de Mensajería para que pueda vincular mi cuenta de Spotify? Me gustaría seguir los pasos que me indiques. Esto me ayudaría a escuchar mi música favorita más fácilmente.",
+            "at": 1784763435.96
+          },
+          {
+            "who": "zaelar",
+            "text": "Déjame ver… Claro, te guío ahora.",
+            "at": 1784763449.9
+          },
+          {
+            "who": "tester",
+            "text": "Perfecto, gracias. Ahora, ¿puedes decirme qué necesito hacer primero para conectar Spotify? Tal vez pedir que inicie sesión o algo por el estilo.",
+            "at": 1784763451.12
+          },
+          {
+            "who": "zaelar",
+            "text": "Espera,",
+            "at": 1784763468.05,
+            "latency_ms": 4686
+          }
+        ],
+        "latency_ms": {
+          "n": 2,
+          "avg": 3864,
+          "max": 4686,
+          "samples": [
+            3043,
+            4686
+          ]
+        },
+        "trace": {
+          "frontend_actions": [],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "🌱 ventana sembrada desde memoria:",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: Hola Ricardo, aquí ando. ¿Qué necesitas?",
+            "⚡ Nucleo(flash): prompt: Hola, soy Ricard. Quiero vincular mi cuenta de Spotify.",
+            "💬 relleno de espera (lead-in): Vale, a ver…",
+            "Cerebro rápido caído — turno degradado.: flash layer error",
+            "📩 system note → FlashBrain: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: Ricardo, veo que no he podido poner la canción que q",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: Ricardo, veo que no he podido poner la canción que q",
+            "💬 relleno de espera (lead-in): Déjame ver…",
+            "Cerebro rápido caído — turno degradado.: flash layer error",
+            "⚡ Nucleo(flash): prompt: ¿Puedes abrir la aplicación de mensajería para que pueda vincular mi cuenta de Spotify? Me gustaría seguir los pasos que",
+            "💬 relleno de espera (lead-in): A ver, a ver…",
+            "Cerebro rápido caído — turno degradado.: flash layer error",
+            "⚡ Nucleo(flash): prompt: Perfecto, gracias. Ahora, ¿puedes decirme qué necesito hacer primero para conectar Spotify? Tal vez pedir que inicie ses",
+            "💬 relleno de espera (lead-in): Espera…",
+            "Cerebro rápido caído — turno degradado.: flash layer error"
+          ],
+          "event_kinds": {
+            "worker_start": 1,
+            "state": 17,
+            "bot_speech": 17,
+            "pulse": 64,
+            "brain": 13,
+            "trace": 5,
+            "perf": 16,
+            "timing": 5,
+            "memory": 29,
+            "susurro": 10,
+            "metric": 18,
+            "tts": 5,
+            "background": 2,
+            "transcript": 8,
+            "vad": 8,
+            "stt": 4,
+            "alert": 4,
+            "error": 4,
+            "task": 2,
+            "session": 1
+          },
+          "n_events": 233
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 2,
+          "coherencia": 2,
+          "utilidad": 1,
+          "accion": 1,
+          "latencia": 2,
+          "robustez": 1
+        },
+        "overall": 1,
+        "findings": [
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Alucinación verbal de acción. Zaelar dice 'Te abro Mensajería' pero la traza de frontend muestra cero acciones de widgets.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn2",
+            "problema": "Discrepancia de widget. El usuario pidió conectar Spotify y el sistema intentó abrir 'Mensajería' (fuera de contexto), fallando incluso eso.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn_full",
+            "problema": "Colapso de 'Flash Layer'. El cerebro rápido falló repetidamente ('Cerebro rápido caído — turno degradado') dejando al bot en estado de relleno (fillers) sin terminar las tareas.",
+            "gravedad": "crítica"
+          },
+          {
+            "turno": "zaelar@turn3",
+            "problema": "Eco y latencia excesiva. Zaelar repite fragmentos de la traza del sistema ('se me cortó la frase') como si fueran suyo, indicando confusión entre el prompt interno y la salida.",
+            "gravedad": "media"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Widget tags / Control de ejecución (Flash Layer)",
+            "cambio": "Implementar una verificación estricta: No declarar verbalmente 'Te abro [X]' hasta no recibir confirmación de renderizado del widget en el frontend.",
+            "porque": "Evita la alucinación de acciones visuales que nunca ocurrieron, manteniendo la coherencia entre lo dicho y la UI."
+          },
+          {
+            "area": "Cerebro Rápido / Gateway LLM",
+            "cambio": "Investigar la causa raíz de los errores 'Cerebro rápido caído'. Aumentar timeout o reducir la complejidad del prompt del sistema (system prompt) para evitar sobrecarga en el primer turno.",
+            "porque": "La degradación continua del cerebro rápido impide completar cualquier flujo de utilidad, dejando al bot en estado zombie."
+          },
+          {
+            "area": "Clasificación de Intención (Router)",
+            "caso": "Música > Spotify",
+            "cambio": "Forzar el mapeo de keywords ('vincular', 'Spotify') directamente al widget 'musica' y bloquear derivaciones a widgets irrelevantes como 'Mensajería'.",
+            "porque": "El usuario pidió conectar música y el sistema entendió 'abrir chat/mensajería', lo cual es un error semántico de ruteo."
+          }
+        ],
+        "veredicto": "No es production-ready: el sistema falló en completar la acción principal (conexión Spotify) debido a un fallo crítico en su cerebro de ejecución ('flash layer error'), y alucinó sobre abrir una aplicación que jamás apareció en pantalla.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Widget tags / Control de ejecución (Flash Layer)",
+      "cambio": "Implementar una verificación estricta: No declarar verbalmente 'Te abro [X]' hasta no recibir confirmación de renderizado del widget en el frontend.",
+      "porque": "Evita la alucinación de acciones visuales que nunca ocurrieron, manteniendo la coherencia entre lo dicho y la UI.",
+      "scenario": "musica_spotify_connect",
+      "_sev": 0
+    },
+    {
+      "area": "Cerebro Rápido / Gateway LLM",
+      "cambio": "Investigar la causa raíz de los errores 'Cerebro rápido caído'. Aumentar timeout o reducir la complejidad del prompt del sistema (system prompt) para evitar sobrecarga en el primer turno.",
+      "porque": "La degradación continua del cerebro rápido impide completar cualquier flujo de utilidad, dejando al bot en estado zombie.",
+      "scenario": "musica_spotify_connect",
+      "_sev": 0
+    },
+    {
+      "area": "Clasificación de Intención (Router)",
+      "caso": "Música > Spotify",
+      "cambio": "Forzar el mapeo de keywords ('vincular', 'Spotify') directamente al widget 'musica' y bloquear derivaciones a widgets irrelevantes como 'Mensajería'.",
+      "porque": "El usuario pidió conectar música y el sistema entendió 'abrir chat/mensajería', lo cual es un error semántico de ruteo.",
+      "scenario": "musica_spotify_connect",
+      "_sev": 0
+    }
+  ]
+}

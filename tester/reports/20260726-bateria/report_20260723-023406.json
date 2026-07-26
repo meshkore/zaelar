@@ -1,0 +1,268 @@
+{
+  "stamp": "20260723-023406",
+  "results": [
+    {
+      "scenario": "navegador_una_tarea",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "¡Hola, Ricard! Soy Zaelar, tu asistente por voz. ¿Qué necesitas?",
+            "at": 1784766745.62
+          },
+          {
+            "who": "tester",
+            "text": "Hola, soy Ricart. Quiero que me busques una moto en Wallapop.",
+            "at": 1784766746.58
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, a ver,",
+            "at": 1784766757.77,
+            "latency_ms": 3562
+          },
+          {
+            "who": "tester",
+            "text": "Busca motos que estén en venta.",
+            "at": 1784766758.64
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, a ver… Te pongo a buscar motos en Wallapop ahora. ¿Qué criterios me das? —marca,",
+            "at": 1784766763.72
+          },
+          {
+            "who": "tester",
+            "text": "No, no me importa la marca. Solo necesito una moto de enduro, 300-400 cc, 4 tiempos, para principiantes, y que cueste menos de 6000 euros.",
+            "at": 1784766764.71
+          },
+          {
+            "who": "zaelar",
+            "text": "Sigo con ello; te aviso en cuanto lo tenga. Vale, a ver…",
+            "at": 1784766785.75,
+            "latency_ms": 4240
+          },
+          {
+            "who": "tester",
+            "text": "Perfecto, gracias. Espero tu aviso.",
+            "at": 1784766787.09
+          },
+          {
+            "who": "zaelar",
+            "text": "Entendido, Ricard. Refino la búsqueda: enduro, 300 a 400 cc, 4 tiempos, para principiantes y menos de 6.000 euros. Te aviso cuando tenga resultados.",
+            "at": 1784766798.74,
+            "latency_ms": 2831
+          },
+          {
+            "who": "tester",
+            "text": "Vale, espero los resultados.",
+            "at": 1784766799.54
+          },
+          {
+            "who": "zaelar",
+            "text": "Déjame ver… Entendido, Ricard. Refino la búsqueda: enduro, 300 a 400 cc, 4 tiempos, para principiantes y",
+            "at": 1784766804.49
+          },
+          {
+            "who": "tester",
+            "text": "Espera, ¿puedes mostrarme las motos que encontraste hasta ahora? Y asegúrate de que sean de enduro, por favor.",
+            "at": 1784766805.46
+          },
+          {
+            "who": "zaelar",
+            "text": "De acuerdo. Sigo buscando, te lo muestro en cuanto esté listo. A ver qué tenemos… De acuerdo. Sigo buscando,",
+            "at": 1784766814.23
+          },
+          {
+            "who": "tester",
+            "text": "Está bien, pero asegúrate de que la primera búsqueda incluya solo motos de enduro. Si encuentras algunas, me gustaría que las analices una por una para ver si cumplen con lo que busco. Cuando tengas algo, muéstramelo.",
+            "at": 1784766815.67
+          },
+          {
+            "who": "zaelar",
+            "text": "Anotado: que sean resistentes y duraderas. Sigo con la búsqueda. Pues… Anotado:",
+            "at": 1784766830.72
+          },
+          {
+            "who": "tester",
+            "text": "Asegúrate de que estén en buen estado. ¿Tienes alguna lista ya?",
+            "at": 1784766832.78
+          },
+          {
+            "who": "zaelar",
+            "text": "Claro, Ricard. Cuando tenga los resultados te los muestro en la pantalla. Veamos… Claro, Ricard. Cuando tenga",
+            "at": 1784766839.27
+          }
+        ],
+        "latency_ms": {
+          "n": 3,
+          "avg": 3544,
+          "max": 4240,
+          "samples": [
+            3562,
+            4240,
+            2831
+          ]
+        },
+        "trace": {
+          "frontend_actions": [
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:show:navegador::t2",
+            "widget:data:navegador::t2",
+            "widget:data:navegador::t2",
+            "widget:data:navegador::t2",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t1",
+            "widget:data:navegador::t2",
+            "widget:data:navegador::t1",
+            "widget:show:navegador",
+            "widget:data:navegador::t2"
+          ],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "🌱 ventana sembrada desde memoria:",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: ¡Hola, Ricard! Soy Zaelar, tu asistente por voz. ¿Qué necesitas?",
+            "📩 system note → FlashBrain: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: Ricard, ya estoy mostrando las opciones para conecta",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: Ricard, ya estoy mostrando las opciones para conecta",
+            "💬 relleno de espera (lead-in): Vale, a ver…",
+            "Cerebro rápido caído — turno degradado.: flash layer error",
+            "⚡ Nucleo(flash): prompt: Busca motos que estén en venta.",
+            "💬 relleno de espera (lead-in): Déjame ver…",
+            "⚡ Nucleo(flash): reply: Sigo con ello; te aviso en cuanto lo tenga.",
+            "🧭 Flash → Brain Worker (escalada registrada): Buscar motos de segunda mano en venta cerca de Bilbao en Wallapop. Mostrar resultados con precio, modelo, año y estado.",
+            "⚡ Nucleo(flash): prompt: Pero no me importa la marca.",
+            "✂️ turno cancelado (barge-in/overlap):",
+            "⚡ Nucleo(flash): prompt: Solo necesito la moto de enduro 300 a 400 centímetros cúbicos 4 tiempos para principiantes y que cueste menos de 6.000 e",
+            "💬 relleno de espera (lead-in): Vale, a ver…",
+            "↪️ inyección a worker: la búsqueda de motos: Refina la búsqueda: solo motos de enduro, 300 a 400 centímetros cúbicos, motor 4 tiempos, aptas pa",
+            "⚡ Nucleo(flash): reply:",
+            "⚡ Nucleo(flash): prompt: Perfecto, gracias. Espero tu aviso.",
+            "💬 relleno de espera (lead-in): Déjame ver…",
+            "↪️ inyección a worker: la búsqueda de motos: Refina la búsqueda: solo motos de enduro, cilindrada 300 a 400 cc, 4 tiempos, aptas para principia",
+            "⚡ Nucleo(flash): reply: Entendido, Ricard. Refino la búsqueda: enduro, 300 a 400 cc, 4 tiempos, para principiantes y menos de 6.000 euros. Te av",
+            "⚡ Nucleo(flash): prompt: Vale, espero los resultados.",
+            "💬 relleno de espera (lead-in): A ver qué tenemos…",
+            "⚡ Nucleo(flash): reply: De acuerdo. Sigo buscando, te lo muestro en cuanto esté listo.",
+            "⚡ Nucleo(flash): prompt: Espera, ¿puedes mostrarme las motos que encontraste hasta ahora?",
+            "⚡ Nucleo(flash): prompt: Y asegúrate de que se anden duro, por favor.",
+            "💬 relleno de espera (lead-in): Pues…",
+            "⚡ Nucleo(flash): reply: Anotado: que sean resistentes y duraderas. Sigo con la búsqueda.",
+            "⚡ Nucleo(flash): prompt: Está bien, pero asegúrate de que la primera búsqueda incluya solo motos de enduro. Si encuentras algunas, me gustaría qu",
+            "⚡ Nucleo(flash): prompt: Cuando tengas algo, muéstramelo.",
+            "💬 relleno de espera (lead-in): Veamos…",
+            "🪟 show por backstop de promesa (prometió mostrar sin tool): navegador",
+            "⚡ Nucleo(flash): reply: Claro, Ricard. Cuando tenga los resultados te los muestro en la pantalla.",
+            "📩 system note → FlashBrain: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: Ahora te muestro los resultados de las motos de endu",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: Ahora te muestro los resultados de las motos de endu"
+          ],
+          "event_kinds": {
+            "pulse": 104,
+            "worker_start": 2,
+            "state": 37,
+            "bot_speech": 37,
+            "brain": 35,
+            "trace": 12,
+            "perf": 35,
+            "navegador": 41,
+            "timing": 9,
+            "memory": 62,
+            "widget": 14,
+            "metric": 35,
+            "susurro": 13,
+            "tts": 8,
+            "transcript": 18,
+            "task": 10,
+            "vad": 22,
+            "background": 4,
+            "stt": 11,
+            "alert": 1,
+            "error": 1,
+            "ui": 1,
+            "session": 1
+          },
+          "n_events": 513
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 2,
+          "coherencia": 2,
+          "utilidad": 2,
+          "accion": 1,
+          "latencia": 3,
+          "robustez": 2
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@t5",
+            "problema": "El asistente ignora la corrección específica del usuario ('No, no me importa la marca. Solo...') y prosigue con una búsqueda genérica o confusa.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@t8",
+            "problema": "Discrepancia crítica entre promesa verbal ('Refino la búsqueda... Te aviso cuando tenga resultados') y realidad técnica ('widget:show:navegador::t2'). Crea una segunda tarea en lugar de modificar la primera.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@trace",
+            "problema": "La traza muestra saltos entre tareas (navegador::t1, navegador::t2) sin consolidar la información, indicando falta de estado unificado en el Worker.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@t11",
+            "problema": "El asistente se repite literalmente ('Refino la búsqueda... enduro... 4 tiempos...') y entra en un bucle de relleno ('Déjame ver...', 'Claro, Ricard...') sin avanzar hacia la visualización.",
+            "gravedad": "media"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Cerebro / Worker (State Management)",
+            "cambio": "Implementar un patrón de 'Update or Create' estricto para la tarea de navegador. Si el usuario aclara parámetros sobre un tema activo, el Worker debe emitir un evento de actualización sobre la EXISTENTE 'navegador::t1', nunca lanzar 'navegador::t2'.",
+            "porque": "El requisito principal ('REGLA DURA') es mantener UNA sola tarjeta. Actualmente crea instancias paralelas (t1, t2) fragmentando la atención y el contexto."
+          },
+          {
+            "area": "Prompting / Cerebro (Ingest)",
+            "cambio": "Instruir al 'Nucleo(flash)' para que priorice y reconozca explícitamente las negaciones/correcciones del usuario (ej. 'No, no me importa la marca') como comandos de REFINADO inmediato, no como nueva input independiente.",
+            "porque": "El usuario corrigió la búsqueda y el bot pareció obviarlo o procesarla tarde, provocando una búsqueda genérica inicial y fallando al objetivo de búsqueda filtrada."
+          },
+          {
+            "area": "Latencia / Performance",
+            "cambio": "Optimizar el 'Flash layer' y la ruta de completado para reducir latencias por encima de 3500ms.",
+            "porque": "Una media de 3.5s con picos de 4.2s ralentiza el flujo, haciendo que los rellenos de espera ('Vale, a ver...') se sientan lentos y exponiendo la percepción de 'pensamiento' artificial."
+          }
+        ],
+        "veredicto": "El escenario NO es production-ready porque el sistema falla en gestionar un único estado de contexto multiturno (crea múltiples navegadores t1/t2 en lugar de uno), lo que impide cumplir el objetivo principal.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Cerebro / Worker (State Management)",
+      "cambio": "Implementar un patrón de 'Update or Create' estricto para la tarea de navegador. Si el usuario aclara parámetros sobre un tema activo, el Worker debe emitir un evento de actualización sobre la EXISTENTE 'navegador::t1', nunca lanzar 'navegador::t2'.",
+      "porque": "El requisito principal ('REGLA DURA') es mantener UNA sola tarjeta. Actualmente crea instancias paralelas (t1, t2) fragmentando la atención y el contexto.",
+      "scenario": "navegador_una_tarea",
+      "_sev": 0
+    },
+    {
+      "area": "Prompting / Cerebro (Ingest)",
+      "cambio": "Instruir al 'Nucleo(flash)' para que priorice y reconozca explícitamente las negaciones/correcciones del usuario (ej. 'No, no me importa la marca') como comandos de REFINADO inmediato, no como nueva input independiente.",
+      "porque": "El usuario corrigió la búsqueda y el bot pareció obviarlo o procesarla tarde, provocando una búsqueda genérica inicial y fallando al objetivo de búsqueda filtrada.",
+      "scenario": "navegador_una_tarea",
+      "_sev": 0
+    },
+    {
+      "area": "Latencia / Performance",
+      "cambio": "Optimizar el 'Flash layer' y la ruta de completado para reducir latencias por encima de 3500ms.",
+      "porque": "Una media de 3.5s con picos de 4.2s ralentiza el flujo, haciendo que los rellenos de espera ('Vale, a ver...') se sientan lentos y exponiendo la percepción de 'pensamiento' artificial.",
+      "scenario": "navegador_una_tarea",
+      "_sev": 0
+    }
+  ]
+}

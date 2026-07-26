@@ -1,0 +1,221 @@
+{
+  "stamp": "20260723-022744",
+  "results": [
+    {
+      "scenario": "navegador_moto",
+      "channel": "voice",
+      "run": {
+        "transcript": [
+          {
+            "who": "zaelar",
+            "text": "¡Hola, Ricardo! Soy Zaelar, tu asistente. ¿Qué necesitas?",
+            "at": 1784766416.92
+          },
+          {
+            "who": "tester",
+            "text": "Hola, soy Ricart. Quiero que me busques opciones de motos naked de segunda mano.",
+            "at": 1784766417.85
+          },
+          {
+            "who": "zaelar",
+            "text": "Vale, dame un momento que lo miro. Pues… Vale, dame un momento que lo miro.",
+            "at": 1784766431.25,
+            "latency_ms": 3073
+          },
+          {
+            "who": "tester",
+            "text": "Claro, tómate tu tiempo.",
+            "at": 1784766432.08
+          },
+          {
+            "who": "zaelar",
+            "text": "Perfecto, Ricard. Estoy buscando motos Naked de segunda mano en Bilbao. Te las iré mostrando conforme las encuentre.",
+            "at": 1784766440.95,
+            "latency_ms": 2487
+          },
+          {
+            "who": "tester",
+            "text": "Bien, estoy atento.",
+            "at": 1784766441.97
+          },
+          {
+            "who": "zaelar",
+            "text": "Mmm… Perfecto, Ricard. Estoy buscando motos Naked de segunda mano en Bilbao. Te las iré mostrando conforme",
+            "at": 1784766445.94
+          },
+          {
+            "who": "tester",
+            "text": "Está bien, espero las opciones.",
+            "at": 1784766447.02
+          },
+          {
+            "who": "zaelar",
+            "text": "Entendido, Ricard. Sigo buscando las opciones. Te aviso cuando tenga resultados. Pues… Entendido,",
+            "at": 1784766451.71
+          },
+          {
+            "who": "tester",
+            "text": "Vale, espero tus noticias.",
+            "at": 1784766452.5
+          },
+          {
+            "who": "zaelar",
+            "text": "A ver qué tenemos… Perfecto, Ricard.",
+            "at": 1784766457.98
+          }
+        ],
+        "latency_ms": {
+          "n": 2,
+          "avg": 2780,
+          "max": 3073,
+          "samples": [
+            3073,
+            2487
+          ]
+        },
+        "trace": {
+          "frontend_actions": [],
+          "brain_trace": [
+            "kickoff (saludo memory-aware vía cerebro):",
+            "🌱 ventana sembrada desde memoria:",
+            "⚡ Nucleo(flash): prompt: Es el primer turno. Salúdame en 1-2 frases, cálido y breve; si por tu MEMORIA ya sabes mi nombre, úsalo y NO preguntes q",
+            "⚡ Nucleo(flash): reply: ¡Hola, Ricardo! Soy Zaelar, tu asistente. ¿Qué necesitas?",
+            "⚡ Nucleo(flash): prompt: Hola soy Ricard, quiero que me busques opciones de motos Naked de segunda mano.",
+            "💬 relleno de espera (lead-in): Pues…",
+            "⚡ Nucleo(flash): reply: Vale, dame un momento que lo miro.",
+            "🧭 Flash → Brain Worker (escalada registrada): Buscar motos Naked de segunda mano en Bilbao (ubicación del operador). El operador quiere ver opciones disponibles.",
+            "⚡ Nucleo(flash): prompt: Claro, tómate tu tiempo.",
+            "💬 relleno de espera (lead-in): Mmm…",
+            "⚡ Nucleo(flash): reply: Perfecto, Ricard. Estoy buscando motos Naked de segunda mano en Bilbao. Te las iré mostrando conforme las encuentre.",
+            "↪️ refinamiento → inyección a worker vivo (no relanza): Buscar motos Naked de segunda mano en Bilbao. Mostrar opciones disponibles con precio, modelo, año y estado.",
+            "⚡ Nucleo(flash): prompt: Bien, estoy atento.",
+            "💬 relleno de espera (lead-in): Pues…",
+            "⚡ Nucleo(flash): reply: Entendido, Ricard. Sigo buscando las opciones. Te aviso cuando tenga resultados.",
+            "⚡ Nucleo(flash): prompt: Está bien, estas son las opciones.",
+            "💬 relleno de espera (lead-in): A ver qué tenemos…",
+            "Cerebro rápido caído — turno degradado.: flash layer error",
+            "📩 system note → FlashBrain: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: Ricardo, ahora me pongo a buscar las motos Naked de",
+            "⚡ Nucleo(flash): prompt: [SISTEMA] (susurro) Repara con naturalidad en tu PRÓXIMA respuesta: Ricardo, ahora me pongo a buscar las motos Naked de",
+            "💬 relleno de espera (lead-in): Un segundo…",
+            "✂️ turno cancelado (barge-in/overlap):"
+          ],
+          "event_kinds": {
+            "pulse": 52,
+            "worker_start": 2,
+            "state": 21,
+            "bot_speech": 21,
+            "brain": 21,
+            "trace": 6,
+            "perf": 16,
+            "timing": 6,
+            "memory": 31,
+            "metric": 21,
+            "tts": 5,
+            "transcript": 10,
+            "background": 2,
+            "vad": 10,
+            "stt": 5,
+            "task": 5,
+            "alert": 1,
+            "error": 1,
+            "susurro": 6,
+            "session": 1
+          },
+          "n_events": 243
+        }
+      },
+      "verdict": {
+        "scores": {
+          "naturalidad": 2,
+          "coherencia": 1,
+          "utilidad": 1,
+          "accion": 1,
+          "latencia": 4,
+          "robustez": 3
+        },
+        "overall": 2,
+        "findings": [
+          {
+            "turno": "zaelar@turn_2/turn_3/turn_4",
+            "problema": "Reiteración obsesiva de la misma frase ('Perfecto, Ricard... Estoy buscando...') sin avance de información.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "trace_analysis",
+            "problema": "Falta total de ejecución: No se observa evento de apertura de navegador ni tarjeta 'automate_web' a pesar de la orden de escalada.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "trace_analysis",
+            "problema": "El 'Worker' lanzó la tarea pero el frontend ignoró la señal o falló el bridge.",
+            "gravedad": "alta"
+          },
+          {
+            "turno": "zaelar@turn_3",
+            "problema": "El usuario dice 'Estoy atento' y zaelar responde repitiendo la promesa de búsqueda, en lugar de 'Vale' o trabajar en silencio.",
+            "gravedad": "media"
+          },
+          {
+            "turno": "trace_analysis",
+            "problema": "Disparidad en los nombres: Transcript usa 'Ricart', Memoria usa 'Ricardo', Output usa 'Ricard'.",
+            "gravedad": "baja"
+          }
+        ],
+        "improvements": [
+          {
+            "area": "Frontend Bridge / Bus de Eventos",
+            "cambio": "Implementar listener reactiva en el frontend para el evento 'worker_start' o 'task:automate_web' que dispare la apertura del canvas.",
+            "porque": "El cerebro está escalando correctamente (se ve en la traza), pero la UI no reacciona. El bot dice que busca pero el canvas no se abre."
+          },
+          {
+            "area": "Orquestación de turnos / State Machine",
+            "cambio": "Añadir un flag 'task_in_progress' en el contexto. Si el usuario confirma ('Estoy atento'), el LLM debe emitir un ack corto (ej. 'Genial, te aviso') y pasar a modo de escucha pasiva.",
+            "porque": "Zaelar entra en bucle de confirmación porque cree que debe responder a cada input del usuario reiterando la tarea en lugar de dejar que el proceso asíncrono corra."
+          },
+          {
+            "area": "Memory / Entity Resolution",
+            "cambio": "Normalizar el nombre del usuario al inicio de sesión y forzar un único alias en el prompt del sistema.",
+            "porque": "El usuario se llama Ricart/Ricard y Zaelar le llama Ricardo, lo cual desencaja la naturalidad y denota pega de datos."
+          },
+          {
+            "area": "Manejo de Errores (Flash Brain)",
+            "cambio": "El 'susurro' del sistema que inyecta instrucciones de reparación no debería ser visible en la traza como un prompt inyectado si genera ruido; el modelo de repente responde a 'Ricardo' debido a esta inyección.",
+            "porque": "El sistema intenta reparar la respuesta cambiando el nombre al azar, lo que confunde la coherencia de la conversación."
+          }
+        ],
+        "veredicto": "El escenario NO es production-ready: Zaelar escala internamente pero falla en ejecutar la acción visual (abre el navegador), dejando al usuario en un bucle de conversación estéril sin ver resultados.",
+        "_judge_model": "glm-4.6"
+      }
+    }
+  ],
+  "improvements": [
+    {
+      "area": "Frontend Bridge / Bus de Eventos",
+      "cambio": "Implementar listener reactiva en el frontend para el evento 'worker_start' o 'task:automate_web' que dispare la apertura del canvas.",
+      "porque": "El cerebro está escalando correctamente (se ve en la traza), pero la UI no reacciona. El bot dice que busca pero el canvas no se abre.",
+      "scenario": "navegador_moto",
+      "_sev": 0
+    },
+    {
+      "area": "Orquestación de turnos / State Machine",
+      "cambio": "Añadir un flag 'task_in_progress' en el contexto. Si el usuario confirma ('Estoy atento'), el LLM debe emitir un ack corto (ej. 'Genial, te aviso') y pasar a modo de escucha pasiva.",
+      "porque": "Zaelar entra en bucle de confirmación porque cree que debe responder a cada input del usuario reiterando la tarea en lugar de dejar que el proceso asíncrono corra.",
+      "scenario": "navegador_moto",
+      "_sev": 0
+    },
+    {
+      "area": "Memory / Entity Resolution",
+      "cambio": "Normalizar el nombre del usuario al inicio de sesión y forzar un único alias en el prompt del sistema.",
+      "porque": "El usuario se llama Ricart/Ricard y Zaelar le llama Ricardo, lo cual desencaja la naturalidad y denota pega de datos.",
+      "scenario": "navegador_moto",
+      "_sev": 0
+    },
+    {
+      "area": "Manejo de Errores (Flash Brain)",
+      "cambio": "El 'susurro' del sistema que inyecta instrucciones de reparación no debería ser visible en la traza como un prompt inyectado si genera ruido; el modelo de repente responde a 'Ricardo' debido a esta inyección.",
+      "porque": "El sistema intenta reparar la respuesta cambiando el nombre al azar, lo que confunde la coherencia de la conversación.",
+      "scenario": "navegador_moto",
+      "_sev": 0
+    }
+  ]
+}
