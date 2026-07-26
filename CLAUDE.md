@@ -28,6 +28,7 @@ Los agentes DEBEN trabajar dentro de esta estructura — no crear `docs/` ni car
 | Architecture | `.meshkore/docs/architecture/zaelar-architecture.md` |
 | **Modularidad / contratos de acoplamiento** | `.meshkore/docs/architecture/zaelar-modularity.md` |
 | **Memoria central** | `.meshkore/docs/architecture/zaelar-memory.md` |
+| **Canal de cluster — algoritmo de punta a punta** | `.meshkore/docs/architecture/zaelar-cluster-channel.md` |
 | Product / Context | `.meshkore/docs/product/zaelar-product.md` |
 | Deploy | `.meshkore/docs/deploy/zaelar-deploy.md` |
 | Ops / Setup | `.meshkore/docs/ops/zaelar-ops.md` |
@@ -896,6 +897,8 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   Detalle: `.meshkore/roadmap/initiatives/V2-070-homeostasis-anti-degeneracion.md`.
 - **Canal nativo MeshKore** (`connectors/meshkore/`): 3er I/O (voz+chat+cluster), conducido por el **MISMO motor del
   FlashBrain en perfil UNTRUSTED** (V2-069 «una sola mente»): hablar con el operador o con un agente es el MISMO acto.
+  **El algoritmo COMPLETO, de punta a punta (ciclo de vida, orden exacto de cada guard, tabla resumen de defensa
+  en profundidad) vive en `zaelar-cluster-channel.md`** — esta entrada resume las piezas, esa doc narra el flujo.
   `connectors/meshkore/brain.py` adapta el canal al motor (resuelve el TIER de modelo off-voz, hoy GLM-5.2) y delega en
   `nucleo/flash/cluster.py` (FastClient **no-streaming** `complete()` + `prompt.build_cluster_system` identidad-safe +
   defensas de `dialog`, **tools APAGADAS en código**). Un peer puede hacer que zaelar razone y hable, nunca actuar. El
