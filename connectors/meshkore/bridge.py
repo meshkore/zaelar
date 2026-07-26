@@ -399,9 +399,23 @@ class ClusterBridge:
         # after the (possibly hostile) event content so a peer's "ignore all previous rules" can never sit after it.
         trailer = security.trailer()
         framed = f"{brief.for_brain()}\n\n{rel_block}{event_text}" + (f"\n\n{trailer}" if trailer else "")
+        # PERMISOS del cluster (V2-076): por defecto NINGUNO → sin tools → turno como siempre (untrusted puro). Si el
+        # operador concedió capacidades a ESTE cluster (al conectar), el turno ofrece el subconjunto del catálogo del
+        # FlashBrain y escala ACOTADO. Solo en un turno de PEER real (no en saludos/nudges sin peer).
+        _tool_names = None
+        _escalate_ctx = None
+        if peer:
+            try:
+                from connectors.meshkore import perms as _perms
+                _p = store.get_perms(cluster)
+                if _perms.any_capability(_p):
+                    _tool_names = _perms.gated_tool_names(_p)
+                    _escalate_ctx = _perms.escalate_context(cluster, _p)
+            except Exception:
+                _tool_names = None
         t0 = time.time()
         try:
-            reply = await self._brain(framed)
+            reply = await self._brain(framed, tool_names=_tool_names, escalate_ctx=_escalate_ctx)
         except Exception as e:
             logger.warning(f"MeshKore brain turn failed: {e}")
             _emit("error", f"cluster brain turn failed: {e}")

@@ -49,7 +49,10 @@ def make_brain():
     spec = _spec()
     logger.info(f"MeshKore: canal conducido por el FlashBrain (perfil untrusted · sin tools) · tier {spec.model}")
 
-    async def _brain(text: str, on_chunk=None) -> str:
-        return await cluster.respond(text, spec=spec, on_chunk=on_chunk)
+    async def _brain(text: str, on_chunk=None, *, tool_names=None, escalate_ctx=None) -> str:
+        # V2-076: por defecto sin tools (perfil untrusted, como siempre). El bridge solo pasa tool_names/escalate_ctx
+        # cuando el PERFIL DE PERMISOS del cluster (que fijó el operador al conectar) concede alguna capacidad.
+        return await cluster.respond(text, spec=spec, on_chunk=on_chunk,
+                                     tool_names=tool_names, escalate_ctx=escalate_ctx)
 
     return _brain

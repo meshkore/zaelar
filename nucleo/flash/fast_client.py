@@ -222,11 +222,19 @@ class FastClient:
         *,
         spec: ModelSpec | None = None,
         max_tokens: int | None = None,
+        tools: list[dict] | None = None,
+        on_tool_call=None,
     ) -> str:
         """Llamada NO-streaming (devuelve el texto entero). Mismo cliente/keys/spec que `stream()` — es el MISMO
         motor, solo sin trocear la salida. La usa el canal de cluster (V2-069): off-voz no necesita streaming, y un
         tier RAZONADOR (GLM-5.2 vía AIMLAPI) NO emite deltas hasta terminar de pensar → con `stream=True` la llamada
-        parece colgarse (medido: >115s vs 3.4s sin stream). Lanza el error del proveedor igual que `stream`."""
+        parece colgarse (medido: >115s vs 3.4s sin stream). Lanza el error del proveedor igual que `stream`.
+
+        Si se pasan `tools` (function-calling OpenAI-compatible, V2-076), se ofrecen con `tool_choice='auto'` y, al
+        volver, `on_tool_call(name, args_dict)` se dispara una vez por llamada del modelo (best-effort: una con JSON
+        inválido se salta, nunca lanza). Es el mismo mecanismo que `stream()` pero sin trocear — para que el turno de
+        cluster (que DEBE ir no-streaming por el reasoner) pueda REUSAR el catálogo del FlashBrain. Sin `tools` el
+        comportamiento es byte-idéntico a antes (cero regresión)."""
         spec = spec or spec_from_config()
         extra_body: dict[str, Any] = {}
         r = spec.reasoning_effort()
@@ -242,6 +250,9 @@ class FastClient:
         )
         if extra_body:
             call_kwargs["extra_body"] = extra_body
+        if tools:
+            call_kwargs["tools"] = tools
+            call_kwargs["tool_choice"] = "auto"
         # Reintento en transitorios (no-streaming → reintentar la llamada entera es seguro).
         _attempt = 0
         while True:
@@ -256,9 +267,19 @@ class FastClient:
                                f"reintento {_attempt}/{_CONNECT_RETRIES}")
                 await asyncio.sleep(_RETRY_BACKOFF_S * _attempt)
         try:
-            return (resp.choices[0].message.content or "").strip()
+            msg = resp.choices[0].message
         except (IndexError, AttributeError):
             return ""
+        if tools and on_tool_call:                       # function-calling no-streaming (V2-076)
+            import json as _json
+            for tc in (getattr(msg, "tool_calls", None) or []):
+                try:
+                    fn = tc.function
+                    args = _json.loads(fn.arguments or "{}") if isinstance(fn.arguments, str) else (fn.arguments or {})
+                    on_tool_call(fn.name, args if isinstance(args, dict) else {})
+                except Exception:                        # una tool-call malformada se salta, nunca tira el turno
+                    continue
+        return (getattr(msg, "content", None) or "").strip()
 
     async def stream(
         self,
