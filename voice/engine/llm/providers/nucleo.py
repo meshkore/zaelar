@@ -960,6 +960,28 @@ class NucleoLLMStream(llm.LLMStream):
                     if bool(args.get("code")):
                         _cperms = {"workers": True, "code": True, "repo": (args.get("repo") or "").strip() or None}
                     _request_cluster_confirm(_cname, _ccid, _ctok, _chandle, perms=_cperms)
+            elif name == "set_cluster_objective":
+                # T-02 (auditoría 2026-07-26): antes NADA escribía nunca capsule.objective — el guard
+                # `perms.gate_dev_by_objective` (V2-076) dejaba el dev-worker de CUALQUIER cluster con permiso
+                # 'code' permanentemente inerte por falta de una vía para fijarlo. Sin confirm-gate (a diferencia
+                # de connect_cluster): esto es solo bookkeeping declarativo del operador, no toca la red ni
+                # ejecuta nada — reversible llamando de nuevo con objective vacío.
+                _ocluster = (args.get("cluster") or "").strip()
+                _opeer = (args.get("peer") or "").strip()
+                _oobjective = (args.get("objective") or "").strip()
+                if _ocluster and _opeer:
+                    async def _persist_objective(cluster: str, peer: str, objective: str) -> None:
+                        try:
+                            from connectors.meshkore import capsule as _capsule
+                            await asyncio.to_thread(_capsule.patch, cluster, peer, objective=objective)
+                            emit("brain", ("🎯 objetivo de cluster fijado" if objective else
+                                          "🎯 objetivo de cluster borrado"),
+                                 text=f"{cluster}·{peer}: {objective}"[:160], role="system")
+                        except Exception as e:  # noqa: BLE001
+                            logger.warning(f"set_cluster_objective no persistido (voz sigue): {e}")
+                    _spawn(_persist_objective(_ocluster, _opeer, _oobjective), "cluster-objective")
+                else:
+                    clarify["msg"] = "¿Con qué agente y de qué cluster es ese objetivo?"
             elif name == "send_to_worker":
                 # V2-038 (↓): refina/amplía un worker vivo → INYECTA (no relanza). Fire-and-forget marshalado al
                 # loop del server (§v3·O: nunca await de una op de worker en el turno).
