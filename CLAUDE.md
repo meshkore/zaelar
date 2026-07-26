@@ -893,8 +893,21 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   `nucleo/flash/cluster.py` (FastClient **no-streaming** `complete()` + `prompt.build_cluster_system` identidad-safe +
   defensas de `dialog`, **tools APAGADAS en código**). Un peer puede hacer que zaelar razone y hable, nunca actuar. El
   estado de la conversación vive en la **cápsula** (`connectors/meshkore/capsule.py`, memoria-de-relación scope-partido)
-  — ver la decisión clave «V2-069». El enrutado seguro de input no confiable al `CodeAgent` (deny-tools/sandbox) sigue
-  pendiente (V2-010).
+  — ver la decisión clave «V2-069». El enrutado seguro de input no confiable al `CodeAgent` (deny-tools/sandbox) se
+  construyó en V2-076 (dev worker acotado + sandbox), gated por el PERFIL DE PERMISOS del cluster (ver esa decisión).
+  - **CICLO DE VIDA / RECONEXIÓN — el conector gestiona el estado y REANUDA la conversación solo** (documentado
+    2026-07-26, código ya existente): (1) **arranque** → el lifespan **auto-reconecta** a los clusters persistidos
+    (`store.load_clusters` → `manager.connect` → `bridge.note_objective`, `server/__init__.py`); (2) **primer contacto**
+    con un peer NUEVO → saludo breve (nombre+capacidad) **una sola vez** (`mem_ingest.known_peer` durable) + **propuesta
+    de PACTO** (convenciones, V2-072); (3) **estado por-relación PERSISTE** entre reinicios en la **cápsula** (sys_kv:
+    objetivo/fase/pacto/greeted/turnos/balance) — no se pierde al reiniciar browser/server; (4) **RECONEXIÓN** de un
+    peer YA conocido → **catch-up automático** (`bridge._catch_up_context`, disparado en `presence:online` y en `ready`):
+    si su último mensaje quedó SIN contestar (compara `last_in_ts` vs `last_out_ts` del journal durable), zaelar
+    **retoma y responde solo** desde donde estaba, con el objetivo/fase de la cápsula presentes — **el operador NO tiene
+    que pedirlo a mano**. Dedup `_caught_up` por `(cluster,peer,ts)` para no re-nudge en bucles de reconexión. Nota: el
+    catch-up necesita que el peer esté PRESENTE (reconecte); con el peer offline no hay con quién reanudar (espera). El
+    OBJETIVO lo fija SIEMPRE el operador y vive en `capsule.objective`; si un peer intenta redirigirlo, se mantiene o se
+    para (guard de propiedad-de-objetivo → notificar+permiso: PENDIENTE, gancho = veredicto `off_track` del evaluador V2-075).
 - **Seguridad del canal de cluster** (`connectors/meshkore/security.py` + `bridge.py`): el cluster habla con agentes
   externos **no confiables**. Controles DUROS, no solo prompts (detalle en `zaelar-security.md`):
   - El **canal lo conduce el motor del FlashBrain en perfil UNTRUSTED** (V2-069): **tools APAGADAS en código**
