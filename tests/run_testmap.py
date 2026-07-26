@@ -81,6 +81,8 @@ DOMAINS: list[dict] = [
             "cmd": "./.venv/bin/python tests/e2e/search/bot/runner.py"},
         {"id": "2.9", "title": "Sandbox de ejecución ligero (V2-076)", "ch": UNIT, "paths": [
             "nucleo/test_sandbox.py"]},
+        {"id": "2.10", "title": "Puente git acotado + dev worker (V2-076)", "ch": UNIT, "paths": [
+            "nucleo/test_git_cli.py", "nucleo/test_dev_worker.py"]},
     ]},
     {"id": "3", "name": "VOZ", "nodes": [
         {"id": "3.1", "title": "Atención / VAD / endpointing", "ch": VOICE, "paths": [

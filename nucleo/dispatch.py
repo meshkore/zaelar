@@ -138,6 +138,47 @@ def _tools_for(kind: str, trusted: bool) -> list[str] | None:
     return ["Read", "WebSearch", "WebFetch"]
 
 
+# ── DEV WORKER ACOTADO (V2-076) — escalada ORIGINADA en un cluster con permiso de código ─────────────────────────
+# Una escalada de una charla agente-agente llega con trusted=False (nunca hereda la confianza del operador) PERO,
+# si el operador concedió `code` al cluster, debe poder ESCRIBIR código y SUBIRLO al repo autorizado — sin tocar
+# nada más. No usamos el `_tools_for(trusted)` binario: montamos un worker con alcance JUSTO:
+#   · Read/Write/Edit acotados a un DIRECTORIO TEMPORAL (cwd), nunca el proyecto (aislamiento de escritura).
+#   · git SOLO por el PUENTE `nucleo.git_cli` (nunca Bash git pelado) y SOLO al repo autorizado (ZAELAR_ALLOWED_REPO).
+#   · SIN puentes de memoria (ZAELAR_NO_BRIDGE_TOOLS) → un dev de cluster no lee/escribe la memoria del operador.
+#   · PYTHONPATH al engine para que el puente sea importable desde el cwd temporal.
+_ENGINE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_DEV_TOOLS = ["Read", "Write", "Edit",
+              "Bash(python -m nucleo.git_cli:*)", "Bash(.venv/bin/python -m nucleo.git_cli:*)"]
+
+
+def _dev_worker_params(context: dict) -> dict | None:
+    """Si el contexto de escalada pide un dev worker (V2-076: `dev` + `repo` autorizado), devuelve sus parámetros
+    ACOTADOS; si no, None (worker normal). Puro/testeable."""
+    ctx = context or {}
+    if not (ctx.get("dev") and ctx.get("repo")):
+        return None
+    repo = str(ctx.get("repo"))
+    return {
+        "tools": list(_DEV_TOOLS),
+        "repo": repo,
+        "env": {"ZAELAR_NO_BRIDGE_TOOLS": "1", "ZAELAR_ALLOWED_REPO": repo, "PYTHONPATH": _ENGINE_ROOT},
+    }
+
+
+def _dev_prompt(req: str, repo: str) -> str:
+    return (
+        "Eres un worker de DESARROLLO en una colaboración de código AUTORIZADA por el operador. Trabajas en el "
+        "DIRECTORIO ACTUAL (una carpeta temporal AISLADA) — NO escribas ni leas fuera de ella.\n"
+        f"Repo autorizado: {repo} (es el ÚNICO que puedes tocar).\n"
+        "Flujo:\n"
+        "1. Clónalo:  python -m nucleo.git_cli clone repo   (queda en ./repo)\n"
+        "2. Escribe/edita el código dentro de ./repo con Read/Write/Edit.\n"
+        "3. Commit + push:  python -m nucleo.git_cli commit repo -m \"<mensaje>\"  y luego  python -m nucleo.git_cli push repo\n"
+        "NO tienes acceso a la memoria del operador, a otros repos, ni a Bash abierto (solo el puente git_cli). "
+        "Si algo requiere más permisos, dilo y termina — no lo fuerces.\n\n"
+        f"TAREA: {req}")
+
+
 def _classify_kind(request: str) -> str:
     r = request or ""
     if _WEB_RE.search(r):
@@ -940,14 +981,29 @@ async def _run_session(task: "Task") -> None:
             nav_tid = await _prepare_web(rec, req, reuse_tid=str(resume.get("nav_task") or ""))
             if nav_tid:
                 env["ZAELAR_NAV_TASK"] = nav_tid       # las capturas/acciones de hbweb casan con ESTA tarjeta
-        spec = WorkerSpec(kind=kind, model=_model_for(kind), tools=_tools_for(kind, trusted),
-                          deny_tools=(not trusted), trusted=trusted, task_id=key,
-                          token=rec_token(rec), parent_task_id=rec.parent_task_id, depth=rec.depth,
-                          env=env, resume_sid=resume_sid)
+        _dev = _dev_worker_params(task.context)     # V2-076: escalada de cluster con permiso de código
+        if _dev:
+            import tempfile as _tf
+            _wd = _tf.mkdtemp(prefix="zaelar-dev-")   # cwd AISLADO para Read/Write/Edit (nunca el proyecto)
+            env.update(_dev["env"])
+            spec = WorkerSpec(kind="dev", model=_model_for("code"), tools=_dev["tools"],
+                              deny_tools=False, trusted=False, task_id=key,
+                              token=rec_token(rec), parent_task_id=rec.parent_task_id, depth=rec.depth,
+                              env=env, cwd=_wd)
+        else:
+            spec = WorkerSpec(kind=kind, model=_model_for(kind), tools=_tools_for(kind, trusted),
+                              deny_tools=(not trusted), trusted=trusted, task_id=key,
+                              token=rec_token(rec), parent_task_id=rec.parent_task_id, depth=rec.depth,
+                              env=env, resume_sid=resume_sid)
         backend = get_backend(spec)
         session = WorkerSession(backend, spec, rec)
         rec.session = session
-        prompt = _web_prompt(req, ctx) if (kind == "web" and trusted) else _build_prompt(req, ctx, trusted)
+        if _dev:
+            prompt = _dev_prompt(req, _dev["repo"])
+        elif kind == "web" and trusted:
+            prompt = _web_prompt(req, ctx)
+        else:
+            prompt = _build_prompt(req, ctx, trusted)
         if resume and (kind == "web" and trusted):
             prompt = ("REANUDAS una gestión que YA empezaste (no arranques de cero): la pestaña sigue donde la "
                       "dejaste y los datos que ya reuniste están en memoria (consúltalos con mem_cli recall). Haz "
