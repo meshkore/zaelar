@@ -103,6 +103,41 @@ def test_queue_inline_when_not_started(fresh_db):
     assert memdb.get_db().query_one("SELECT COUNT(*) c FROM memories")["c"] == 1
 
 
+def test_semantic_dedup_skipped_on_uncalibrated_backend(monkeypatch, fresh_db):
+    # 0.45 is calibrated for 'ollama' (embeddinggemma) only (audit 2026-07-26: applying it to 'fastembed' merged
+    # unrelated facts — "Te quiero, ánimo con el libro." collapsed into an unrelated boiler-appointment note).
+    # hash/fastembed must fall back to exact/slot dedup, never semantic. Patched directly rather than via env var:
+    # config/v2.json's stored `embed_provider` outranks ZAELAR_EMBED_BACKEND (store > env, by design), so this repo's
+    # actual config state can make the env-var-only fixture above resolve to whatever is stored, not 'hash'.
+    monkeypatch.setattr(memwriter._emb, "active_backend", lambda: "fastembed")
+    assert memwriter._semantic_dedup_on() is False
+    monkeypatch.setattr(memwriter._emb, "active_backend", lambda: "hash")
+    assert memwriter._semantic_dedup_on() is False
+
+
+def test_semantic_dedup_active_on_calibrated_backend(monkeypatch, fresh_db):
+    monkeypatch.setattr(memwriter._emb, "active_backend", lambda: "ollama")
+    assert memwriter._semantic_dedup_on() is True
+
+
+def test_unrelated_facts_not_merged_on_uncalibrated_backend(monkeypatch, fresh_db):
+    # Same scenario that caused real data loss: force a semantic "hit" (as a miscalibrated threshold would) and
+    # verify insert_memory on an uncalibrated backend never even calls the dedup search, so two clearly unrelated
+    # durable facts always get their own rows instead of one silently swallowing the other.
+    monkeypatch.setattr(memwriter._emb, "active_backend", lambda: "fastembed")
+    monkeypatch.setattr(memwriter, "_find_semantic_dup", lambda db, vec: (_ for _ in ()).throw(
+        AssertionError("dedup search must not run on an uncalibrated backend")))
+    a = memwriter.insert_memory("Te quiero, ánimo con el libro.", level="mid", kind="msg")
+    b = memwriter.insert_memory("El técnico de la caldera viene el jueves por la mañana.", level="mid", kind="msg")
+    assert a != b
+    db = memdb.get_db()
+    # both facts must survive as their OWN valid row, verbatim — neither text lost/overwritten by the other
+    # (concept-node bookkeeping rows, e.g. "ocio", may also exist alongside these — that's unrelated backstop)
+    assert db.query_one("SELECT text FROM memories WHERE id=? AND valid=1", (a,))["text"] == "Te quiero, ánimo con el libro."
+    assert db.query_one("SELECT text FROM memories WHERE id=? AND valid=1", (b,))["text"] == \
+        "El técnico de la caldera viene el jueves por la mañana."
+
+
 def test_queue_bad_op_does_not_kill_consumer(fresh_db):
     async def run():
         q = MemoryQueue()
