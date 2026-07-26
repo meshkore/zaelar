@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "title": "Ejecución en el sistema real",
   "description": "Ejecuta de verdad, con efectos persistentes y verificables (no un mockup del widget), la incorporación de un nuevo agente que ha mencionado el operador — registro creado en disco, releído para comprobar su integridad, y activado — y refleja aquí el resultado REAL paso a paso.",
-  "whenToUse": "Cuando el operador pide incorporar/dar de alta/añadir un agente nuevo al sistema y hace falta EJECUTARLO de verdad (no solo actualizar un widget), cuando un alta quedó incompleta y hay que reintentarla, o cuando pregunta si esa incorporación llegó a hacerse de verdad.",
+  "whenToUse": "Cuando el operador pide incorporar/dar de alta/añadir un agente NUEVO al sistema y hace falta EJECUTARLO de verdad con verificación paso a paso (no solo actualizar un widget), cuando un alta quedó incompleta y hay que reintentarla, o cuando pregunta si esa incorporación llegó a hacerse de verdad. Este es el widget CANÓNICO para altas nuevas — para cambiar el estado o eliminar un agente YA incorporado, también sirve aquí (remove_agent) o en 'Registro de Agentes' (ejecuta-gestion-real), que es la vista de gestión del registro completo.",
   "keywords": ["incorpora el agente", "incorporar agente", "da de alta el agente", "dar de alta un agente", "alta de agente", "añade un agente", "agente nuevo", "nuevo agente", "ejecuta de verdad", "ejecución real", "sistema real", "registrar agente"],
   "entry": "widget.js",
   "background": "1m",

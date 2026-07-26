@@ -108,11 +108,11 @@ informe del día en `tester/reports/<YYYYMMDD>-<desc>/`** (histórico consultabl
 > automático del código** — es una foto seleccionada a mano. Si tocas topología/modelo/proveedor de forma
 > significativa, actualiza también los diagramas en `web/src/pages/technology/` como paso manual (no lo hace
 > ningún workflow todavía); la fuente de verdad DETALLADA sigue siendo `.meshkore/docs/architecture/` y este
-> `CLAUDE.md`. Los workflows `zaelar-docs-sync.md`, `zaelar-widgets-workflow.md`, `zaelar-memory-workflow.md`,
-> `zaelar-alignment-review.md` **y `zaelar-audit-workflow.md`** (5º doc, confirmado en la auditoría 2026-07-26 —
-> faltaba en esta lista) todavía referencian el `architecture.html` viejo — pendiente una pasada de limpieza en
-> esos docs (no hecha en este cambio ni en la auditoría 2026-07-26, tal y como pide esta misma nota; pregúntale al
-> operador si quiere "pasa el protocolo" sobre ellos).
+> `CLAUDE.md`. **Limpieza HECHA (2026-07-26, con autorización explícita del operador tras la auditoría):** los 5
+> workflows (`zaelar-docs-sync.md`, `zaelar-widgets-workflow.md`, `zaelar-memory-workflow.md`,
+> `zaelar-alignment-review.md`, `zaelar-audit-workflow.md`) ya apuntan a `web/src/pages/technology/*.astro` +
+> `web/src/lib/diagrams/*.ts` en vez del `architecture.html` retirado; las menciones que quedan son notas
+> históricas explícitas ("retirado el 2026-07-24"), no punteros activos a editar.
 
 ### Módulos declarados (`.meshkore/public/cluster.yaml`)
 

@@ -15,3 +15,10 @@
   revisa cualquier agente `activo` sin `remembered` (no solo los que veníamos reintentando) y lo vuelca en el
   siguiente ciclo — así toda gestión real ejecutada, inmediata o recuperada, queda en memoria como máximo 1m
   después, sin exponer voz/memoria síncrona en `apply_action`.
+- **FIX 2026-07-26 (auditoría, hallazgo P2 — solapamiento con `ejecuta-gestion-real`):** ambos widgets nacieron
+  del mismo concepto ("da de alta un agente") en sesiones separadas — sus keywords/`whenToUse` se pisaban y el
+  enrutado podía coger cualquiera de los dos. NO se fusionaron (stores separados, sin decisión del operador de
+  por medio para migrar datos). Diferenciados: **este** widget queda como el flujo CANÓNICO de alta de un agente
+  NUEVO (con verificación real paso a paso + reintento en background); `ejecuta-gestion-real` es la vista de
+  GESTIÓN de agentes ya conocidos (cambiar estado/consultar/eliminar), con un alta rápida manual como opción
+  secundaria sin la verificación de aquí.
