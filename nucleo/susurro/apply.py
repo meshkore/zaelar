@@ -20,6 +20,38 @@ FINDINGS_PATH = os.path.join(".meshkore", "logs", "susurro", "findings.jsonl")
 _RECENT_REQUESTS: deque = deque(maxlen=20)   # [(request, ts), …]
 _REQUEST_COOLDOWN_S = 300
 
+# GUARD ANTI-BUCLE (auditoría 2026-07-26, incidente 25/07: Susurro F2 ↔ el widget ejecuta-accion-real spawneó
+# code-workers en cadena, load 5.86, ahogó voz/chat). El dedup de arriba es solo similitud de TEXTO — un auditor
+# LLM que redacta "en una frase" cada vez puede variar lo suficiente para esquivarlo turno tras turno, mientras el
+# patrón semántico (widget-espejo de una acción ya escalada, re-marcado como riesgo por cada refresco posterior)
+# se repite indefinidamente. Este breaker es el freno DETERMINISTA de última instancia, independiente de si el
+# dedup de arriba acierta: un TOPE DURO de cuántos worker_action puede disparar Susurro en una ventana corta,
+# pase lo que pase. Si se alcanza, el circuito se ABRE (dev+seguridad primero: parar de gastar recursos, avisar
+# UNA vez al operador) y NINGÚN worker_action nuevo sale hasta que la ventana rote.
+_BREAKER_WINDOW_S = 600          # 10 min
+_BREAKER_MAX = 3                 # máx. worker_action lanzados en la ventana
+_worker_action_ts: deque = deque(maxlen=_BREAKER_MAX * 4)   # timestamps de escaladas OK
+_breaker_notified_at = 0.0
+_BREAKER_RENOTIFY_S = 1800       # no reavisar al operador más de una vez cada 30 min mientras siga abierto
+
+
+def _breaker_tripped(now: float) -> bool:
+    while _worker_action_ts and now - _worker_action_ts[0] > _BREAKER_WINDOW_S:
+        _worker_action_ts.popleft()
+    return len(_worker_action_ts) >= _BREAKER_MAX
+
+
+def _breaker_record(now: float) -> None:
+    _worker_action_ts.append(now)
+
+
+def breaker_reset() -> None:
+    """Para tests: limpia el estado del breaker Y el dedup de requests en RAM."""
+    global _breaker_notified_at
+    _worker_action_ts.clear()
+    _RECENT_REQUESTS.clear()
+    _breaker_notified_at = 0.0
+
 # Mismo dedup para repair_say: el auditor LLM puede repetir el MISMO diagnóstico (a veces equivocado) en
 # fricciones sucesivas no relacionadas — sin esto, la MISMA frase de reparación se re-inyecta en cada turno
 # siguiente e secuestra respuestas a preguntas que no tienen nada que ver (bug real 2026-07-22: "Ya veo el
@@ -95,8 +127,21 @@ def apply_corrections(corrections: list[dict], *, reason: str, trace: str = "",
             child = ""
             ok = False
             dup = ""
-            if req:
-                now = time.time()
+            breaker = False
+            now = time.time()
+            if req and _breaker_tripped(now):
+                breaker = True
+                global _breaker_notified_at
+                if now - _breaker_notified_at > _BREAKER_RENOTIFY_S:
+                    _breaker_notified_at = now
+                    try:
+                        from voice import brain_notes
+                        brain_notes.push(
+                            "[SISTEMA] (susurro) demasiadas auto-reparaciones seguidas — me detengo un rato "
+                            "para no saturar el sistema. Si sigue sin ir, dímelo directamente.")
+                    except Exception:
+                        pass
+            elif req:
                 try:
                     from nucleo.flash.dialog import similar
                 except Exception:
@@ -122,15 +167,17 @@ def apply_corrections(corrections: list[dict], *, reason: str, trace: str = "",
                         ok = bool(child)
                         if ok:
                             _RECENT_REQUESTS.append((req, now))
+                            _breaker_record(now)
                     except Exception:
                         ok = False
             rec = {"type": "worker_action", "ok": ok, "before": None, "after": req,
-                   "child": child, "dedup": bool(dup)}
-            _emit(("🚀 worker_action → escalada" if ok else
+                   "child": child, "dedup": bool(dup), "breaker": breaker}
+            _emit(("🛑 worker_action (circuito ABIERTO, no escala — anti-bucle)" if breaker else
+                   "🚀 worker_action → escalada" if ok else
                    ("🧵 worker_action (ya hay un worker vivo, no duplica)" if dup else
                     "⚠️ worker_action no lanzada")),
                   text=req, extra={"before": None, "after": req, "child": child,
-                                   "dup_of": dup, "ok": ok, "reason": reason})
+                                   "dup_of": dup, "ok": ok, "reason": reason, "breaker": breaker})
             applied.append(rec)
         elif t == "finding":
             if known is None:
