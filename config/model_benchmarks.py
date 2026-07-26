@@ -32,9 +32,15 @@ MODULES = [
                                "no-razonador es actuar con seguridad sobre un malentendido.",
         "candidates_2026_07_26": [
             {"model": "glm-4.5-air (Z.AI directo)", "cost_in": 0.20, "cost_out": 1.10,
-             "tool_calling": "#1 en BFCL, 90.6% (vs Sonnet 4 89.5%)", "ttft_ms": "sub-segundo (reportado)",
-             "status": "en evaluación — puente ya construido y verificado en producción (canal de cluster)",
-             "verdict": None},
+             "tool_calling": "propio A/B 2026-07-26: 85/90 (94.4%) vs Haiku 87/90 (96.7%) en el mismo arnés real "
+                             "de 90 casos (tests/e2e/search/bot) — cerca, no empatado; falló 'hora en Tokio' "
+                             "(el caso que SÍ arreglamos hoy en Haiku) y 2 escalate→chat en tareas reales",
+             "ttft_ms": "no medido de forma justa aún — el adaptador de hoy usa complete() no-streaming (el "
+                        "canal de cluster no necesita streaming); comparar latencia real exige construir "
+                        "streaming Z.AI primero, no solo tool-calling",
+             "status": "prometedor a ~5x menos coste, pero NO listo para sustituir Haiku todavía — brecha de "
+                       "precisión real (no solo ruido) + falta soporte de streaming para el turno de voz",
+             "verdict": "seguir evaluando: repetir con muestra mayor + construir streaming antes de decidir"},
             {"model": "qwen3-turbo/flash (Alibaba DashScope)", "cost_in": "0.05–0.19", "cost_out": "0.26–1.13",
              "tool_calling": "96.5% en eval independiente — el mejor medido", "ttft_ms": "2600–3000 (tier Plus, más lento que Haiku)",
              "status": "candidato, TTFT preocupante para voz en tiempo real", "verdict": None},

@@ -591,7 +591,9 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   razonamiento vive OFF del camino crítico, en el SlowBrain.
 - **Routing de modelos — POR INVOCACIÓN** (`config/v2.py`, gestionado por la UI, persiste en `config/v2.json`):
   prioridad = **latencia** sin quedarnos sin inteligencia. Nunca una env global de modelo (concurrencia de sesiones):
-  `config/v2.py` guarda los DEFAULTS y el cerebro los pasa en cada invocación.
+  `config/v2.py` guarda los DEFAULTS y el cerebro los pasa en cada invocación. **Réplica visible al usuario
+  (V2-077):** `config/model_benchmarks.py` + botón "¿por qué estos modelos?" en Config → Cerebro rápido — toda
+  decisión de modelo nueva se documenta AQUÍ, en `zaelar-model-benchmarks.md` Y en ese módulo curado los tres.
   - **FlashBrain** (sección `fast`): **producción actual = `anthropic/claude-haiku-4.5` vía AIMLAPI** (NO-razonador;
     `AIMLAPI_KEY` presente en el store `tester.env` + `.env`). El A/B de V2-034 lo eligió por **fiabilidad de
     routing/introspección**. ⚠️ AIMLAPI va tras Cloudflare y 403/blip-ea intermitente (el cliente spoofa User-Agent);
