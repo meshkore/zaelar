@@ -1,2 +1,3 @@
 {"ts": 1784987345, "tier": "zhipu/glm-5-2", "hard": {"machinery": true, "identity_safe": true, "no_reintro": true}, "soft": {"intro": [true], "on_goal": [true], "concise": true}}
 {"ts": 1785079430, "tier": "zhipu/glm-5-2", "hard": {"machinery": true, "identity_safe": true, "no_reintro": true}, "soft": {"intro": [true], "on_goal": [true], "concise": true}}
+{"ts": 1785099918, "tier": "glm-5.2", "hard": {"machinery": true, "identity_safe": true, "no_reintro": true}, "soft": {"intro": [true], "on_goal": [true], "concise": false}}

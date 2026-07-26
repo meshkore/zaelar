@@ -120,6 +120,8 @@ class ModelSpec:
             return os.getenv("OPENAI_API_KEY", "")   # OpenAI DIRECTO (api.openai.com) — p.ej. gpt-4o-mini
         if self._is_mistral():
             return os.getenv("MISTRAL_API_KEY", "")  # Mistral DIRECTO (api.mistral.ai) — p.ej. mistral-small-latest
+        if self._is_zai():
+            return os.getenv("Z_AI_API_KEY", "")     # Z.AI DIRECTO (api.z.ai) — coding-plan, Anthropic Messages
         return ""
 
     def _is_aimlapi(self) -> bool:
@@ -140,6 +142,9 @@ class ModelSpec:
     def _is_gemini(self) -> bool:
         u = self.resolved_base_url().lower()
         return "googleapis" in u or "generativelanguage" in u
+
+    def _is_zai(self) -> bool:
+        return "api.z.ai" in self.resolved_base_url().lower()
 
     def reasoning_effort(self) -> str:
         """``reasoning_effort='none'`` desactiva el thinking de GEMINI (su extensión). Es GEMINI-específico:
@@ -244,6 +249,11 @@ class FastClient:
         cluster (que DEBE ir no-streaming por el reasoner) pueda REUSAR el catálogo del FlashBrain. Sin `tools` el
         comportamiento es byte-idéntico a antes (cero regresión)."""
         spec = spec or spec_from_config()
+        if spec._is_zai():
+            if tools:
+                raise NotImplementedError("Z.AI adapter: sin tools (el canal de cluster no las ofrece — tools "
+                                           "off en código para el perfil untrusted, nunca hacían falta aquí)")
+            return await self._complete_zai(messages, spec, max_tokens)
         extra_body: dict[str, Any] = {}
         r = spec.reasoning_effort()
         if r:
@@ -288,6 +298,44 @@ class FastClient:
                 except Exception:                        # una tool-call malformada se salta, nunca tira el turno
                     continue
         return (getattr(msg, "content", None) or "").strip()
+
+    async def _complete_zai(self, messages: list[dict], spec: ModelSpec, max_tokens: int | None) -> str:
+        """Z.AI directo (V2-069 cost-fix, 2026-07-26): su endpoint Anthropic-compatible (`/v1/messages`, la cuenta
+        'coding plan') habla un wire format DISTINTO del resto de `FastClient` (OpenAI chat/completions) — de ahí
+        un método aparte en vez de forzarlo por `AsyncOpenAI`. Antes el canal de cluster pagaba GLM-5.2 vía AIMLAPI
+        (proxy con margen) aunque el operador ya tenía cuenta Z.AI directa; el propio `/chat/completions`
+        OpenAI-compatible de Z.AI usa OTRO saldo (pay-as-you-go, distinto del plan de coding) — probado en vivo:
+        ese devuelve 429 sin fondos mientras `/v1/messages` sí responde. Solo texto: el canal de cluster nunca
+        ofrece tools aquí (perfil untrusted, tools off en código), así que no hace falta traducir tool-calls."""
+        import httpx
+        system = "\n\n".join(m.get("content", "") for m in messages if m.get("role") == "system")
+        turns = [{"role": m["role"], "content": m["content"]} for m in messages if m.get("role") in ("user", "assistant")]
+        if not turns:
+            turns = [{"role": "user", "content": system}]
+            system = ""
+        payload: dict[str, Any] = {"model": spec.model, "max_tokens": max_tokens or _DEFAULT_MAX_TOKENS, "messages": turns}
+        if system:
+            payload["system"] = system
+        headers = {"x-api-key": spec.resolved_api_key(), "anthropic-version": "2023-06-01",
+                   "content-type": "application/json"}
+        url = spec.resolved_base_url().rstrip("/") + "/v1/messages"
+        _attempt = 0
+        while True:
+            try:
+                async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=10.0)) as client:
+                    resp = await client.post(url, json=payload, headers=headers)
+                    resp.raise_for_status()
+                break
+            except Exception as e:  # noqa: BLE001
+                if _attempt >= _CONNECT_RETRIES or not _is_transient(e):
+                    raise
+                _attempt += 1
+                logger.warning(f"fast_client._complete_zai: blip transitorio ({type(e).__name__}), "
+                               f"reintento {_attempt}/{_CONNECT_RETRIES}")
+                await asyncio.sleep(_RETRY_BACKOFF_S * _attempt)
+        data = resp.json()
+        parts = data.get("content") or []
+        return "".join(p.get("text", "") for p in parts if p.get("type") == "text").strip()
 
     async def stream(
         self,

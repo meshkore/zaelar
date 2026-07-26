@@ -16,30 +16,40 @@ import os
 from loguru import logger
 
 
-def _resolve_endpoint() -> tuple[str, str, str]:
-    """(api_key, base_url, model) del TIER de modelo del canal, tolerante a la credencial DISPONIBLE. Respeta los
-    overrides explícitos (LLM_API_KEY/LLM_BASE_URL + MESHKORE_MISSION_MODEL/LLM_MODEL); si no hay key de AIMLAPI, cae
-    a las mismas capas que el FlashBrain (xAI directo → Groq). Off-voz puede usar un modelo más fuerte — la regla
-    dura no-razonador es SOLO para el turno síncrono de voz."""
+def _resolve_endpoint() -> tuple[str, str, str, str]:
+    """(api_key, base_url, model, provider) del TIER de modelo del canal, tolerante a la credencial DISPONIBLE.
+
+    Z.AI DIRECTO tiene prioridad si hay `Z_AI_API_KEY` (fix de coste 2026-07-26, auditoría): el tier off-voz venía
+    corriendo GLM vía AIMLAPI como proxy — con margen — aunque el operador ya tiene cuenta Z.AI propia (su plan de
+    coding cubre exactamente este tráfico, probado en vivo). Respeta los overrides explícitos (LLM_API_KEY/
+    LLM_BASE_URL + MESHKORE_MISSION_MODEL/LLM_MODEL, que siguen apuntando a AIMLAPI por defecto); si no hay NINGUNA
+    key directa, cae a las mismas capas que el FlashBrain (xAI directo → Groq). Off-voz puede usar un modelo más
+    fuerte — la regla dura no-razonador es SOLO para el turno síncrono de voz."""
     override_model = os.getenv("MESHKORE_MISSION_MODEL") or os.getenv("ASSISTANT_LLM_MODEL") or os.getenv("LLM_MODEL")
+    if os.getenv("Z_AI_API_KEY") and not (os.getenv("LLM_API_KEY") or os.getenv("LLM_BASE_URL")):
+        # explicit LLM_API_KEY/LLM_BASE_URL overrides still win (operator picked a specific endpoint on purpose)
+        zai_model = os.getenv("MESHKORE_MISSION_MODEL_ZAI", "glm-5.2")   # el nombre PLANO de Z.AI, sin prefijo aimlapi
+        return (os.getenv("Z_AI_API_KEY"), "https://api.z.ai/api/anthropic", zai_model, "zai")
     base = os.getenv("LLM_BASE_URL")
     key = os.getenv("LLM_API_KEY")
     if key or base or os.getenv("AIMLAPI_KEY"):        # ruta AIMLAPI explícita/heredada
         return (key or os.getenv("AIMLAPI_KEY") or "",
                 base or "https://api.aimlapi.com/v1",
-                override_model or "deepseek/deepseek-v4-flash")
+                override_model or "deepseek/deepseek-v4-flash", "aimlapi")
     if os.getenv("XAI_API_KEY"):                       # xAI DIRECTO (sin proxy AIMLAPI)
-        return (os.getenv("XAI_API_KEY"), "https://api.x.ai/v1", override_model or "grok-4.20-0309-non-reasoning")
+        return (os.getenv("XAI_API_KEY"), "https://api.x.ai/v1",
+                override_model or "grok-4.20-0309-non-reasoning", "aimlapi")
     if os.getenv("GROQ_API_KEY"):
-        return (os.getenv("GROQ_API_KEY"), "https://api.groq.com/openai/v1", override_model or "llama-3.3-70b-versatile")
-    return ("", "https://api.aimlapi.com/v1", override_model or "deepseek/deepseek-v4-flash")
+        return (os.getenv("GROQ_API_KEY"), "https://api.groq.com/openai/v1",
+                override_model or "llama-3.3-70b-versatile", "aimlapi")
+    return ("", "https://api.aimlapi.com/v1", override_model or "deepseek/deepseek-v4-flash", "aimlapi")
 
 
 def _spec():
     """ModelSpec del canal desde `_resolve_endpoint()` (modelo POR INVOCACIÓN, nunca env global)."""
     from nucleo.flash.fast_client import ModelSpec
-    api_key, base_url, model = _resolve_endpoint()
-    return ModelSpec(model=model, base_url=base_url, api_key=api_key, provider="aimlapi")
+    api_key, base_url, model, provider = _resolve_endpoint()
+    return ModelSpec(model=model, base_url=base_url, api_key=api_key, provider=provider)
 
 
 def make_brain():
