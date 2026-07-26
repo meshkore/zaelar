@@ -79,6 +79,8 @@ DOMAINS: list[dict] = [
         {"id": "2.7", "title": "Susurro (auto-reparación)", "ch": UNIT, "paths": ["nucleo/susurro/test_susurro.py"]},
         {"id": "2.8", "title": "Búsqueda web (comportamiento)", "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/e2e/search/bot/runner.py"},
+        {"id": "2.9", "title": "Sandbox de ejecución ligero (V2-076)", "ch": UNIT, "paths": [
+            "nucleo/test_sandbox.py"]},
     ]},
     {"id": "3", "name": "VOZ", "nodes": [
         {"id": "3.1", "title": "Atención / VAD / endpointing", "ch": VOICE, "paths": [
