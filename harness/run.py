@@ -88,8 +88,6 @@ def run_conversation(persona: str, max_user_turns: int = MAX_USER_TURNS) -> dict
         print(f"  zaelar: {a}", flush=True)
         sim.hears(a)
 
-    if hermes is not None:
-        hermes.stop()
     metrics = {
         "assistant_turns": len(lat),
         "avg_reply_latency_s": round(sum(lat) / len(lat), 2) if lat else None,
