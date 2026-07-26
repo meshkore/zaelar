@@ -136,6 +136,7 @@ export const fetchTasks = async () => {
 // `memory.updated` SSE push (bridged from the bus in server/__init__.py) so the map refetches LIVE, no polling.
 // Configuración full-screen (V2-043): elegir API/modelo por pieza + resumen de APIs con saldo. Abierta por el ⚙.
 export const [configOpen, setConfigOpen] = createSignal(false); // config area overlay visible?
+export const [benchmarksOpen, setBenchmarksOpen] = createSignal(false); // benchmarks screen (opened FROM config)
 export const [apiSummary, setApiSummary] = createSignal([]);     // [{key,enables,set,state,detail,balance?}] — saldos
 export const [apiAlerts, setApiAlerts]   = createSignal([]);     // subconjunto warn/error para el diálogo de estado
 

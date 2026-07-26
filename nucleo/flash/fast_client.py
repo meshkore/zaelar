@@ -250,10 +250,7 @@ class FastClient:
         comportamiento es byte-idéntico a antes (cero regresión)."""
         spec = spec or spec_from_config()
         if spec._is_zai():
-            if tools:
-                raise NotImplementedError("Z.AI adapter: sin tools (el canal de cluster no las ofrece — tools "
-                                           "off en código para el perfil untrusted, nunca hacían falta aquí)")
-            return await self._complete_zai(messages, spec, max_tokens)
+            return await self._complete_zai(messages, spec, max_tokens, tools=tools, on_tool_call=on_tool_call)
         extra_body: dict[str, Any] = {}
         r = spec.reasoning_effort()
         if r:
@@ -299,14 +296,16 @@ class FastClient:
                     continue
         return (getattr(msg, "content", None) or "").strip()
 
-    async def _complete_zai(self, messages: list[dict], spec: ModelSpec, max_tokens: int | None) -> str:
+    async def _complete_zai(self, messages: list[dict], spec: ModelSpec, max_tokens: int | None, *,
+                            tools: list[dict] | None = None, on_tool_call=None) -> str:
         """Z.AI directo (V2-069 cost-fix, 2026-07-26): su endpoint Anthropic-compatible (`/v1/messages`, la cuenta
         'coding plan') habla un wire format DISTINTO del resto de `FastClient` (OpenAI chat/completions) — de ahí
         un método aparte en vez de forzarlo por `AsyncOpenAI`. Antes el canal de cluster pagaba GLM-5.2 vía AIMLAPI
         (proxy con margen) aunque el operador ya tenía cuenta Z.AI directa; el propio `/chat/completions`
         OpenAI-compatible de Z.AI usa OTRO saldo (pay-as-you-go, distinto del plan de coding) — probado en vivo:
-        ese devuelve 429 sin fondos mientras `/v1/messages` sí responde. Solo texto: el canal de cluster nunca
-        ofrece tools aquí (perfil untrusted, tools off en código), así que no hace falta traducir tool-calls."""
+        ese devuelve 429 sin fondos mientras `/v1/messages` sí responde. `tools` (OpenAI-compatible, V2-076) se
+        traduce al formato de tool-use de Anthropic — necesario para evaluar de verdad la fiabilidad de
+        tool-calling de un candidato (§v2077 A/B), no solo el canal de cluster que nunca las ofrece."""
         import httpx
         system = "\n\n".join(m.get("content", "") for m in messages if m.get("role") == "system")
         turns = [{"role": m["role"], "content": m["content"]} for m in messages if m.get("role") in ("user", "assistant")]
@@ -316,6 +315,13 @@ class FastClient:
         payload: dict[str, Any] = {"model": spec.model, "max_tokens": max_tokens or _DEFAULT_MAX_TOKENS, "messages": turns}
         if system:
             payload["system"] = system
+        if tools:
+            payload["tools"] = [
+                {"name": t["function"]["name"], "description": t["function"].get("description", ""),
+                 "input_schema": t["function"].get("parameters") or {"type": "object", "properties": {}}}
+                for t in tools if t.get("type") == "function" and t.get("function", {}).get("name")
+            ]
+            payload["tool_choice"] = {"type": "auto"}
         headers = {"x-api-key": spec.resolved_api_key(), "anthropic-version": "2023-06-01",
                    "content-type": "application/json"}
         url = spec.resolved_base_url().rstrip("/") + "/v1/messages"
@@ -335,6 +341,13 @@ class FastClient:
                 await asyncio.sleep(_RETRY_BACKOFF_S * _attempt)
         data = resp.json()
         parts = data.get("content") or []
+        if tools and on_tool_call:
+            for p in parts:
+                if p.get("type") == "tool_use" and p.get("name"):
+                    try:
+                        on_tool_call(p["name"], p.get("input") or {})
+                    except Exception:                    # una tool-call malformada se salta, nunca tira el turno
+                        continue
         return "".join(p.get("text", "") for p in parts if p.get("type") == "text").strip()
 
     async def stream(

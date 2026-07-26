@@ -76,7 +76,8 @@ export function ConfigPanel() {
       row("Modelo", `<input id="cf_fast_model" list="dl_fast_model" value="${esc(f.model)}"/><datalist id="dl_fast_model">${opt(models)}</datalist>`) +
       row("Base URL", `<input id="cf_fast_base_url" value="${esc(f.base_url)}" placeholder="${esc(cur.base_url || "")}"/>`) +
       `<div id="cf_fast_keyrow">${providerKeyRow(cur)}</div>` +
-      `<div class="cf-foot"><button class="cf-save" data-sec="fast">Guardar cerebro rápido</button></div>`);
+      `<div class="cf-foot"><button class="cf-save" data-sec="fast">Guardar cerebro rápido</button></div>` +
+      `<div class="cf-foot cf-foot-info"><button type="button" class="cf-benchmarks-btn">¿Quieres ver los benchmarks y el por qué usamos unos modelos u otros?</button></div>`);
   }
 
   function sec_code(c) {
@@ -185,6 +186,7 @@ export function ConfigPanel() {
     const bv = bodyEl.querySelector(".cf-save-voice"); if (bv) bv.onclick = () => saveVoice(bv);
     bodyEl.querySelectorAll(".cf-save-keys").forEach(b => b.onclick = () => saveKeys(b.dataset.envs.split(","), b));
     const rf = bodyEl.querySelector(".cf-refresh-apis"); if (rf) rf.onclick = () => refreshApis(rf);
+    const bb = bodyEl.querySelector(".cf-benchmarks-btn"); if (bb) bb.onclick = () => store.setBenchmarksOpen(true);
     const sc = bodyEl.querySelector(".cf-spotify"); if (sc) sc.onclick = () => connectSpotify(sc);
     const sd = bodyEl.querySelector(".cf-spotify-dis"); if (sd) sd.onclick = () => disconnectSpotify(sd);
   }

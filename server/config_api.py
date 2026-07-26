@@ -33,6 +33,9 @@ _PROVIDER_CATALOG = {
             {"id": "aimlapi", "label": "AIMLAPI (nube)", "base_url": "https://api.aimlapi.com/v1",
              "key_env": "AIMLAPI_KEY", "cloud": True,
              "models": ["anthropic/claude-haiku-4.5", "x-ai/grok-4-fast-non-reasoning", "deepseek/deepseek-v4-flash"]},
+            {"id": "zai", "label": "Z.AI (GLM, directo — en evaluación 2026-07-26)",
+             "base_url": "https://api.z.ai/api/anthropic", "key_env": "Z_AI_API_KEY", "cloud": True,
+             "models": ["glm-4.5-air", "glm-4.6", "glm-5.2"]},
             {"id": "groq", "label": "Groq (nube, rápido)", "base_url": "https://api.groq.com/openai/v1",
              "key_env": "GROQ_API_KEY", "cloud": True, "models": ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]},
             {"id": "openai", "label": "OpenAI (nube, tool-calling fiable)", "base_url": "https://api.openai.com/v1",
@@ -191,6 +194,17 @@ async def set_credential(payload: dict | None = None):
         return JSONResponse({"ok": True, "key": raw, "env": env_name, "set": bool(value)})
     except Exception as e:  # noqa: BLE001
         return JSONResponse({"ok": False, "error": str(e)[:160]}, status_code=500)
+
+
+@router.get("/api/config/benchmarks")
+async def get_benchmarks():
+    """Réplica CURADA (solo lectura) de las decisiones de modelo — de dónde sale cada elección, coste, latencia,
+    fiabilidad de tool-calling/alucinación, y qué candidatos se han evaluado. Ver `config/model_benchmarks.py`."""
+    try:
+        from config import model_benchmarks
+        return JSONResponse(model_benchmarks.snapshot())
+    except Exception as e:  # noqa: BLE001
+        return JSONResponse({"modules": [], "error": str(e)[:160]})
 
 
 @router.get("/api/config/apis")

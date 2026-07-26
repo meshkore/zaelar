@@ -21,6 +21,7 @@ import { CronPanel } from "./components/CronPanel.js?v=2";
 import { StatusPanel } from "./components/StatusPanel.js?v=2";
 import { TopBar } from "./components/TopBar.js?v=3";
 import { ConfigPanel } from "./components/ConfigPanel.js?v=1";
+import { BenchmarksPanel } from "./components/BenchmarksPanel.js?v=1";
 import { Orb } from "./components/Orb.js?v=3";
 import { ActivityStrip } from "./components/ActivityStrip.js?v=2";
 import { ConnStatus } from "./components/ConnStatus.js?v=2";
@@ -62,6 +63,7 @@ mount(CronPanel());
 mount(StatusPanel());
 mount(TopBar(), desk);
 mount(ConfigPanel());  // ⚙ área de configuración full-screen: API/modelo por pieza + voz + saldos (V2-043)
+mount(BenchmarksPanel());  // "¿por qué estos modelos?" — solo informativo, abierta desde el cerebro rápido (V2-077)
 mount(Orb(), desk);
 mount(ConnStatus(), desk);
 mount(DebugPanel());   // resizable observability side-column (◷ in the TopBar); shrinks the canvas when open
