@@ -45,7 +45,7 @@ def _bridge(monkeypatch):
     monkeypatch.setattr("connectors.meshkore.bridge._emit", lambda *a, **k: None)
     seen = []
 
-    async def _brain(text, on_chunk=None):
+    async def _brain(text, on_chunk=None, **kwargs):   # **kwargs: acepta tool_names/escalate_ctx (V2-076)
         seen.append(text)
         return "ok"                        # sin [[cluster.*]] → _route_reply no despacha nada
 
@@ -175,14 +175,29 @@ def test_full_cluster_framing_is_identity_safe(fresh_db):
 
 
 # ── TOOLS OFF: invariante estructural del motor del canal ──────────────────────────────────────────────────────
-def test_channel_engine_offers_no_tools():
-    import inspect
+def test_channel_offers_no_tools_by_default():
+    """V2-076: el turno de cluster NO ofrece tools POR DEFECTO (perfil untrusted, cero regresión). El catálogo solo
+    aparece si el bridge pasa `tool_names` del PERFIL DE PERMISOS del cluster. Test de COMPORTAMIENTO (no estructural):
+    con permiso cero, `complete` se llama SIN tools; el peer nunca se auto-concede nada."""
+    import asyncio
     from nucleo.flash import cluster
-    src = inspect.getsource(cluster)
-    # el canal usa FastClient.complete() — que NO tiene parámetro `tools`: estructuralmente no puede ofrecer ninguna.
-    assert ".complete(" in src, "el motor del canal debe usar FastClient.complete() (sin superficie de tools)"
-    assert ".stream(" not in src, "el canal no debe usar stream() (evita ofrecer tools y el cuelgue de un razonador)"
-    assert "router.TOOLS" not in src and "tool_context" not in src, "el canal NUNCA ofrece el catálogo de tools"
-    # y complete() no acepta tools (perfil untrusted forzado a nivel de API del cliente)
-    from nucleo.flash.fast_client import FastClient
-    assert "tools" not in inspect.signature(FastClient.complete).parameters
+    seen = {}
+
+    class _FC:
+        async def complete(self, messages, *, spec, max_tokens=220, tools=None, on_tool_call=None):
+            seen["tools"] = tools
+            return "ok"
+
+    orig = cluster.FastClient           # cluster.py hizo `from .fast_client import FastClient` → parchear ese nombre
+    cluster.FastClient = lambda: _FC()
+    try:
+        # sin tool_names (default) → NO se ofrece catálogo
+        asyncio.run(cluster.respond("hola", spec=object(), timeout=5))
+        assert seen["tools"] is None, "por defecto el turno de cluster NO ofrece tools"
+        # con tool_names (permisos concedidos por el operador) → se ofrece SOLO ese subconjunto del catálogo
+        asyncio.run(cluster.respond("hola", spec=object(), tool_names={"escalate_to_slowbrain"},
+                                    escalate_ctx={"trusted": False, "src": "cluster"}, timeout=5))
+        offered = {t["function"]["name"] for t in (seen["tools"] or [])}
+        assert offered == {"escalate_to_slowbrain"}, f"solo el subconjunto permitido, no más: {offered}"
+    finally:
+        cluster.FastClient = orig
