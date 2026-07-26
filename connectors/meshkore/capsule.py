@@ -56,6 +56,7 @@ _DEFAULT = {
     "pact": {},            # {cadence_s:int, medium:"repo|channel", scope:"chat|analysis|code", note:str, by:"peer|operator"}
     "last_out_ts": 0.0,    # cuándo mandamos el último mensaje a este peer (para aplicar la cadencia)
     "updated": 0,
+    "_objective_gate_notified": False,   # ya avisamos 1× que 'code' está concedido pero sin objetivo (V2-076 guard)
 }
 
 

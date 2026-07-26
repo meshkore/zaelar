@@ -411,6 +411,19 @@ class ClusterBridge:
                 if _perms.any_capability(_p):
                     _tool_names = _perms.gated_tool_names(_p)
                     _escalate_ctx = _perms.escalate_context(cluster, _p)
+                    # GUARD de PROPIEDAD DEL OBJETIVO (auditoría 2026-07-26, hallazgo P0 — antes CERO código pese a
+                    # estar documentado como invariante pendiente): el permiso 'code' concedido al cluster NO basta
+                    # por sí solo para disparar un dev-worker — hace falta que el OPERADOR haya fijado el OBJETIVO
+                    # de ESTA colaboración (capsule.objective, nunca escrito por el peer).
+                    _gated = _perms.gate_dev_by_objective(_escalate_ctx, cap.get("objective"))
+                    if _gated is not _escalate_ctx:
+                        _escalate_ctx = _gated
+                        if not cap.get("_objective_gate_notified"):
+                            cap["_objective_gate_notified"] = True
+                            capsule.save(cluster, peer, cap)
+                            _emit("resource", "🔒 permiso 'code' concedido pero SIN objetivo del operador — "
+                                              "dev-worker bloqueado hasta que se fije uno",
+                                  extra={"cluster": cluster, "peer": peer})
             except Exception:
                 _tool_names = None
         t0 = time.time()
@@ -573,7 +586,7 @@ class ClusterBridge:
                 # (se colabora en código por el repositorio, no pegándolo en el chat — y es el mayor sumidero de
                 # tokens). Se sustituye por un puntero al repo, como se redacta un secreto. Siempre activo; un snippet
                 # pequeño pasa intacto.
-                text, code_stripped = security.guard_code_outbound(text)
+                text, code_stripped = security.guard_code_outbound(text, accum_key=f"{name}:{to or '*'}")
                 if code_stripped:
                     _emit("resource", f"⚖ {name}·{to or '*'}: volcado de código → puntero al repo",
                           extra={"cluster": name, "to": to or "*", "dir": "out", "code_stripped": True})

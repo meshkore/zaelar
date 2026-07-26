@@ -26,6 +26,17 @@ def any_capability(perms: dict) -> bool:
     return bool(gated_tool_names(perms))
 
 
+def gate_dev_by_objective(ctx: dict, objective: str | None) -> dict:
+    """Guard de PROPIEDAD DEL OBJETIVO (auditoría 2026-07-26): el permiso `code` concedido a un cluster no basta
+    por sí solo para disparar un dev-worker — hace falta que el OPERADOR haya fijado el objetivo de la relación
+    (`capsule.objective`, que el peer nunca puede escribir). Sin objetivo, un peer con permiso `code` podría
+    dirigir unilateralmente la colaboración hacia cualquier tarea de código dentro del repo autorizado. Devuelve
+    el MISMO dict si no hay nada que degradar (permite comparar por identidad en el llamador)."""
+    if ctx and ctx.get("dev") and not (objective or "").strip():
+        return dict(ctx, dev=False)
+    return ctx
+
+
 def escalate_context(cluster: str, perms: dict) -> dict:
     """Contexto que viaja con una escalada ORIGINADA en un turno de cluster. NUNCA `trusted=True` (no es el operador):
     lleva las capacidades ACOTADAS que el perfil concede, para que `dispatch` monte un worker dev sandboxeado con el

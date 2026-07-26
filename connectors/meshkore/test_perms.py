@@ -63,3 +63,23 @@ def test_escalate_context_never_trusted():
     assert ctx["trusted"] is False                    # una escalada de cluster JAMÁS hereda la confianza del operador
     assert ctx["src"] == "cluster" and ctx["cluster"] == "meshcore"
     assert ctx["dev"] is True and ctx["repo"] == "meshkore/algo" and ctx["execute"] is True
+
+
+# ── guard de propiedad del objetivo (auditoría 2026-07-26, hallazgo P0) ────────────────────────────────────────
+def test_gate_dev_by_objective_blocks_without_objective():
+    ctx = perms.escalate_context("meshcore", {"code": True, "repo": "meshkore/algo"})
+    gated = perms.gate_dev_by_objective(ctx, "")
+    assert gated["dev"] is False and gated["repo"] == "meshkore/algo"    # resto de contexto intacto
+    assert perms.gate_dev_by_objective(ctx, None)["dev"] is False
+    assert perms.gate_dev_by_objective(ctx, "   ")["dev"] is False       # solo espacios = sin objetivo
+
+
+def test_gate_dev_by_objective_allows_with_objective():
+    ctx = perms.escalate_context("meshcore", {"code": True, "repo": "meshkore/algo"})
+    gated = perms.gate_dev_by_objective(ctx, "portar el algoritmo de trading a Python")
+    assert gated["dev"] is True and gated is ctx                        # sin objetivo que degradar → mismo dict
+
+
+def test_gate_dev_by_objective_noop_without_dev_permission():
+    ctx = perms.escalate_context("meshcore", {"workers": True})         # workers sin code → dev ya es False
+    assert perms.gate_dev_by_objective(ctx, "") is ctx                  # nada que degradar
