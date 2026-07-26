@@ -19,8 +19,12 @@ Contrato público:
 cross-loop que el viejo `observer` hacía con `put_nowait` a pelo). Los sinks se invocan síncronos en el
 hilo publicador — deben ser baratos y no bloquear (el de SQLite usa su propia conexión + lock).
 
-Topics iniciales (convención `dominio.suceso`, wildcard estilo fnmatch): `memory.updated`, `widget.*`,
-`brain.*`, `connector.msg`, `loop.tick`, `escalate.*`, `observer` (puente SSE del frontend).
+Topics REALES en producción (convención `dominio.suceso`, wildcard estilo fnmatch; verificado por grep 2026-07-26
+— corrige una lista aspiracional/stale que mencionaba `widget.*`/`brain.*`, que NUNCA existieron como topics):
+`memory.updated`, `connector.msg`/`connector.status`, `loop.tick`, `escalate.requested`, `turn.completed`
+(Susurro), `worker.stuck`/`worker.budget_kill`, `susurro.finding`, y `observer` — el puente SSE del frontend, que
+NO es un topic por-dominio: lleva TODOS los eventos del timeline (voz, widgets, brain, cluster…) con su `kind`
+como campo del payload (p.ej. `{"kind":"widget", ...}`), no como parte del nombre del topic.
 """
 import asyncio
 import fnmatch

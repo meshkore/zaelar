@@ -180,3 +180,18 @@ def test_spec_from_config_reads_v2(monkeypatch):
     assert spec.model == "qwen2.5:14b"
     assert spec.provider == "ollama"
     assert spec.is_local()
+
+
+def test_spec_from_config_fallback_is_never_grok(monkeypatch):
+    # auditoría 2026-07-26: el fallback (config sin modelo, o config.v2 rota) NUNCA debe caer en grok — está
+    # BANEADO en el FlashBrain (mis-rutea memoria→widget_data). Cubre ambas ramas: dict sin "model" y excepción.
+    monkeypatch.setattr("config.v2.fast_model_spec",
+                        lambda: {"provider": "aimlapi", "model": "", "base_url": "", "api_key": ""})
+    assert "grok" not in fc.spec_from_config().model.lower()
+
+    def _boom():
+        raise RuntimeError("config rota")
+    monkeypatch.setattr("config.v2.fast_model_spec", _boom)
+    spec = fc.spec_from_config()
+    assert "grok" not in spec.model.lower()
+    assert spec.model == fc._FALLBACK_MODEL

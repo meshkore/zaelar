@@ -147,6 +147,14 @@ class ModelSpec:
         return "none" if self._is_gemini() else ""
 
 
+
+# Fallback si `config/v2.json` no trae modelo (fresh install) o si leerlo revienta — auditoría 2026-07-26,
+# hallazgo P3: hasta este fix era `x-ai/grok-4-fast-non-reasoning`, un modelo BANEADO en el FlashBrain (CLAUDE.md
+# §fast: "grok mis-rutea memoria→widget_data, causa conversaciones absurdas") — justo el peor caso posible para un
+# fallback de emergencia. El default de producción real es `anthropic/claude-haiku-4.5` vía aimlapi.
+_FALLBACK_MODEL = "anthropic/claude-haiku-4.5"
+
+
 def spec_from_config() -> ModelSpec:
     """Compone el `ModelSpec` por defecto desde `config/v2` (gestionado por la UI; env = fallback power-user).
     El llamador puede ignorarlo y pasar su propio spec (modelo por invocación)."""
@@ -154,14 +162,14 @@ def spec_from_config() -> ModelSpec:
         from config import v2 as _v2
         cfg = _v2.fast_model_spec()
         return ModelSpec(
-            model=cfg.get("model") or "x-ai/grok-4-fast-non-reasoning",
+            model=cfg.get("model") or _FALLBACK_MODEL,
             base_url=cfg.get("base_url") or None,
             api_key=cfg.get("api_key") or None,
             provider=cfg.get("provider") or "aimlapi",
         )
     except Exception as e:  # noqa: BLE001
         logger.warning(f"fast spec_from_config fallback (usando defaults): {e}")
-        return ModelSpec(model="x-ai/grok-4-fast-non-reasoning", provider="aimlapi")
+        return ModelSpec(model=_FALLBACK_MODEL, provider="aimlapi")
 
 
 def available(spec: ModelSpec | None = None) -> bool:

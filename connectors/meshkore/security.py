@@ -41,11 +41,20 @@ _FENCE_CLOSE = "⟦/UNTRUSTED PEER MESSAGE⟧"
 # "[SECURITY" / "UNTRUSTED PEER MESSAGE" sentinels — so we neutralize those sentinels in the peer content before
 # fencing. Both open and close markers require ⟦/⟧, so stripping them alone already breaks any forged fence.
 import re as _re
+import unicodedata as _ud
 _ESCAPE_RE = _re.compile(r"[⟦⟧]|\[\s*SECURITY|/?\s*UNTRUSTED PEER MESSAGE", _re.I)
 
 
 def _neutralize(text: str) -> str:
-    return _ESCAPE_RE.sub("·", text or "")
+    # NFKC (auditoría 2026-07-26, hallazgo P2): fold compatibility-equivalent characters (fullwidth Latin,
+    # ligatures, etc.) BEFORE matching, so a peer can't spell "ＵＮＴＲＵＳＴＥＤ ＰＥＥＲ ＭＥＳＳＡＧＥ" or
+    # "［ＳＥＣＵＲＩＴＹ" in a compatibility variant to dodge the literal regex. Safe for normal text: NFKC
+    # round-trips accented Latin letters unchanged (é stays é) — it only folds compatibility forms, which never
+    # appear in ordinary chat. Does NOT merge cross-script homoglyphs (e.g. Cyrillic "А" vs Latin "A" are
+    # distinct codepoints, not compatibility-equivalent) — that class needs a confusables-skeleton table, out of
+    # scope here; the real trailer (appended LAST, §hierarchy) still wins regardless.
+    t = _ud.normalize("NFKC", text or "")
+    return _ESCAPE_RE.sub("·", t)
 
 
 # Peer-controlled IDENTITY strings (handles, cluster names, presence) are NOT free-text messages — they get
