@@ -214,17 +214,25 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                 if match:
                     platform, chat_id, group = match["platform"], match["chatId"], match["name"]
             if platform and chat_id is not None:
-                # Usa el store de connectors para mutar (misma db subyacente)
-                from connectors.messaging import store as msg_store
-                msg_store.add_muted(platform, chat_id, group)
+                key = (platform, str(chat_id))
+                muted = db.get("muted_channels", [])
+                if not any((m.get("platform"), str(m.get("chatId"))) == key for m in muted):
+                    muted.append({"platform": platform, "chatId": chat_id, "group": group})
+                    db["muted_channels"] = muted
+                db["items"] = [it for it in db.get("items", [])
+                               if (it.get("platform"), str(it.get("chatId"))) != key]
+                store.save(WIDGET_ID, db)
         return view_data()
 
     if action == "unhide":
         platform = payload.get("platform")
         chat_id = payload.get("chatId")
         if platform and chat_id is not None:
-            from connectors.messaging import store as msg_store
-            msg_store.remove_muted(platform, chat_id)
+            db = load_db()
+            key = (platform, str(chat_id))
+            db["muted_channels"] = [m for m in db.get("muted_channels", [])
+                                     if (m.get("platform"), str(m.get("chatId"))) != key]
+            store.save(WIDGET_ID, db)
         return view_data()
 
     # ── Abrir/cerrar el hilo de un chat — navegación pura, direccionable por clic o por voz

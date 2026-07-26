@@ -537,26 +537,35 @@ def _validate_actions_sync(man: dict, src: str) -> str | None:
     return None
 
 
-def _scan_data_py(src: str) -> str | None:
+# stdlib-only is the contract for GENERATED widgets (an LLM-authored data.py must never reach into `connectors/` —
+# that's the isolation invariant AGENTS.md/CLAUDE.md rely on). `musica` is the ONE hand-built, human-reviewed
+# exception: real playback control has no stdlib equivalent — it has to call connectors.music/connectors.spotify
+# directly (see its own data.py header). This allowlist is a hardcoded id, never a manifest field, precisely so a
+# generated widget can't grant itself the exemption.
+_STDLIB_EXEMPT = {"musica"}
+
+
+def _scan_data_py(src: str, wid: str = "") -> str | None:
     import ast
     import sys
-    stdlib = getattr(sys, "stdlib_module_names", set())
     try:
         tree = ast.parse(src)
     except Exception as e:
         return f"data.py does not parse: {e}"
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            for a in node.names:
-                top = a.name.split(".")[0]
-                if top not in stdlib and top != "widgets":
+    if wid not in _STDLIB_EXEMPT:
+        stdlib = getattr(sys, "stdlib_module_names", set())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Import):
+                for a in node.names:
+                    top = a.name.split(".")[0]
+                    if top not in stdlib and top != "widgets":
+                        return f"data.py imports non-stdlib '{top}' (data.py must be stdlib-only)"
+            elif isinstance(node, ast.ImportFrom):
+                if node.level and node.level > 0:
+                    continue                               # relative import (from .. import store) → allowed
+                top = (node.module or "").split(".")[0]
+                if top and top not in stdlib and top != "widgets":
                     return f"data.py imports non-stdlib '{top}' (data.py must be stdlib-only)"
-        elif isinstance(node, ast.ImportFrom):
-            if node.level and node.level > 0:
-                continue                                   # relative import (from .. import store) → allowed
-            top = (node.module or "").split(".")[0]
-            if top and top not in stdlib and top != "widgets":
-                return f"data.py imports non-stdlib '{top}' (data.py must be stdlib-only)"
     for rx in _SECRET_RX:
         if rx.search(src):
             return "data.py contains a hardcoded secret/credential"
@@ -599,7 +608,7 @@ def _validate(wid: str) -> tuple[bool, str]:
     data_src = ""
     if os.path.isfile(dp):
         data_src = open(dp, encoding="utf-8").read()
-        data_bad = _scan_data_py(data_src)              # stdlib-only + no hardcoded secrets
+        data_bad = _scan_data_py(data_src, wid)          # stdlib-only + no hardcoded secrets
         if data_bad:
             return False, data_bad
         sync_bad = _validate_actions_sync(man, data_src)   # declared actions ↔ apply_action must match (V2-025)
