@@ -532,6 +532,29 @@ canvas#orb.muted{opacity:.5;filter:grayscale(.45)}
 .cf-bar i{display:block;height:100%;background:var(--hb-accent)}
 .cf-api-error .cf-api-detail{color:var(--hb-risk)}
 .cf-api-warn .cf-api-detail{color:var(--hb-warn-ink)}
+.cf-foot-info{justify-content:flex-start;margin-top:10px}
+.cf-benchmarks-btn{background:transparent;border:1px dashed var(--hb-line);color:var(--hb-muted);border-radius:9px;
+  padding:8px 14px;font-size:12px;cursor:pointer;text-align:left;transition:border-color .15s ease,color .15s ease}
+.cf-benchmarks-btn:hover{border-color:var(--hb-accent);color:var(--hb-ink)}
+
+/* Benchmarks panel (V2-077) — informativo, reusa el shell/panel de cf- pero más ancho (lleva tablas) */
+.bp-panel{max-width:860px}
+.bp-intro{font-size:13px;color:var(--hb-muted-2);line-height:1.6;margin:0 0 22px}
+.bp-intro code{background:var(--hb-bg-soft);padding:1px 6px;border-radius:5px;font-size:12px}
+.bp-card{margin-bottom:26px}
+.bp-right{align-items:flex-end;text-align:right}
+.bp-model{font-size:13px;font-weight:600;color:var(--hb-ink)}
+.bp-why,.bp-hallu{font-size:12.5px;color:var(--hb-muted);line-height:1.5;font-weight:400;max-width:340px}
+.bp-hallu{color:var(--hb-warn-ink)}
+.bp-candtitle{font-size:12px;font-weight:700;color:var(--hb-muted-2);text-transform:uppercase;letter-spacing:.03em;margin:14px 0 8px}
+.bp-cand-table{width:100%;border-collapse:collapse;font-size:12px;background:var(--hb-bg-soft);border:1px solid var(--hb-line);border-radius:12px;overflow:hidden}
+.bp-cand-table th{text-align:left;padding:8px 10px;color:var(--hb-muted-2);font-weight:600;border-bottom:1px solid var(--hb-line);font-size:11px}
+.bp-cand-table td{padding:8px 10px;border-bottom:1px solid var(--hb-line);color:var(--hb-muted);vertical-align:top}
+.bp-cand-table tr:last-child td{border-bottom:none}
+.bp-cand-model{color:var(--hb-ink);font-weight:600}
+.bp-cand-status{font-size:11.5px}
+.bp-cand-rejected .bp-cand-status{color:var(--hb-risk)}
+.bp-cand-open .bp-cand-status{color:var(--hb-accent2)}
 @media(max-width:760px){
   .cf-body{flex-direction:column}
   .cf-nav{flex-direction:row;flex:0 0 auto;overflow-x:auto;border-right:none;border-bottom:1px solid var(--hb-line)}

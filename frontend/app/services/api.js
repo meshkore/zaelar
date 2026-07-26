@@ -106,3 +106,4 @@ export const saveConfigV2 = (section, patch) => postJSON("/api/config/v2", { sec
 export const saveConfigCredential = (key, value) => postJSON("/api/config/credential", { key, value }).then(json);
 export const getApiSummary = (refresh = false) =>
   fetch("/api/config/apis" + (refresh ? "?refresh=1" : ""), { cache: "no-store" }).then(json).catch(() => ({ apis: [], alerts: [] }));
+export const getBenchmarks = () => fetch("/api/config/benchmarks", { cache: "no-store" }).then(json);
