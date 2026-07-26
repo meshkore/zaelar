@@ -68,6 +68,51 @@ def test_no_code_untouched():
     assert security.guard_code_outbound(t) == (t, False)
 
 
+# ── acumulador anti-fragmentación (auditoría 2026-07-26, hallazgo P1) ──────────────────────────────────────────
+def test_fragmentation_bypasses_per_message_threshold_without_accum_key():
+    # Sin accum_key (comportamiento viejo, aún soportado): cada mensaje se juzga AISLADO — el bypass es posible.
+    small = "```py\n" + "\n".join(f"x{i}=1" for i in range(10)) + "\n```"   # bajo umbral por mensaje
+    for _ in range(5):
+        out, stripped = security.guard_code_outbound(small)
+        assert not stripped and "```" in out
+
+
+def test_fragmentation_trips_with_accum_key(monkeypatch):
+    key = "clusterX:peerY"
+    monkeypatch.setitem(security._code_accum, key, __import__("collections").deque())
+    # 3 líneas de 32 chars (98 en total) — bien bajo el umbral por-mensaje (800 chars / 15 líneas), pero
+    # acumulado tras varios fragmentos SUPERA el umbral de chars (fragmentación).
+    small = "```py\n" + "\n".join(["y" * 30 + "=1"] * 3) + "\n```"
+    results = [security.guard_code_outbound(small, accum_key=key)[1] for _ in range(12)]
+    assert not any(results[:8])              # 8×99=792 ≤ 800 → los primeros fragmentos, aislados, pasan
+    assert any(results[8:])                  # el acumulado supera 800 a partir de aquí → dispara
+    # y una vez disparado, ESTE mensaje concreto pierde su bloque de código:
+    out, stripped = security.guard_code_outbound(small, accum_key=key)
+    assert stripped and "```" not in out
+
+
+def test_fragmentation_accum_is_per_destination(monkeypatch):
+    monkeypatch.setattr(security, "_code_accum", {})
+    big_enough = "```py\n" + "\n".join(f"x{i}=1" for i in range(10)) + "\n```"
+    for _ in range(20):
+        security.guard_code_outbound(big_enough, accum_key="clusterA:peer1")
+    # un destino DISTINTO no hereda el acumulado del primero
+    out, stripped = security.guard_code_outbound(big_enough, accum_key="clusterA:peer2")
+    assert not stripped and "```" in out
+
+
+def test_fragmentation_window_expires(monkeypatch):
+    monkeypatch.setattr(security, "_code_accum", {})
+    monkeypatch.setattr(security, "_CODE_ACCUM_WINDOW_S", 0.05)
+    import time as _t
+    chunk = "```py\n" + "\n".join(f"x{i}=1" for i in range(10)) + "\n```"
+    for _ in range(20):
+        security.guard_code_outbound(chunk, accum_key="clusterA:peer1")
+    _t.sleep(0.1)   # la ventana expira → el acumulado se resetea solo
+    out, stripped = security.guard_code_outbound(chunk, accum_key="clusterA:peer1")
+    assert not stripped and "```" in out
+
+
 # ── resource_verdict (pura) ─────────────────────────────────────────────────────────────────────────────────────
 def test_verdict_equilibrado_low_volume():
     # pocos turnos → no se juzga aunque el ratio sea alto

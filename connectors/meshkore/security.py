@@ -17,10 +17,15 @@
 #     • Término de IDENTIDAD/modelo/arquitectura → se REDACTA a [redacted] y el resto sí sale.
 #
 # Postura ALTA por defecto (MESHKORE_SECURITY=strict). MESHKORE_SECURITY=off lo deja en passthrough (solo debug local).
-# El guard es brain-agnóstico y sin estado: el bridge lo invoca; el brain sigue decidiendo QUÉ decir.
+# El guard es brain-agnóstico y CASI sin estado: el bridge lo invoca; el brain sigue decidiendo QUÉ decir. La única
+# excepción es `guard_code_outbound` (ver abajo, fix auditoría 2026-07-26): mantiene un acumulador corto en RAM
+# por destino para cazar FRAGMENTACIÓN (varios mensajes con snippets pequeños que, sumados, esquivarían el umbral
+# por-mensaje) — volátil, no persistido, del mismo estilo que los contadores de flood/repeat de `bridge.py`.
 #
 import os
 import re
+import time
+from collections import deque
 
 # ── postura ───────────────────────────────────────────────────────────────────────────────────────────────────
 def enabled() -> bool:
@@ -227,18 +232,44 @@ _CODE_POINTER = ("[code omitted — we collaborate on code through the shared re
                  "not by pasting it into the channel]")
 
 
-def guard_code_outbound(text: str) -> tuple[str, bool]:
+# Acumulador de fragmentación (auditoría 2026-07-26, hallazgo P1): sin esto, `guard_code_outbound` juzgaba cada
+# mensaje AISLADO — un volcado grande partido en N mensajes de <umbral cada uno atravesaba el guard intacto en
+# cada fragmento, aunque el peer reconstruyera el fichero completo del otro lado. RAM-only, ventana corta, por
+# destino (`cluster:to`) — se resetea sola al expirar la ventana, no persiste entre reinicios (no hace falta:
+# es un freno de ráfaga, no un historial).
+_CODE_ACCUM_WINDOW_S = float(os.getenv("MESHKORE_CODE_ACCUM_WINDOW_S", "180"))
+_code_accum: dict[str, deque] = {}
+
+
+def _code_accum_total(key: str, chars: int, now: float) -> int:
+    dq = _code_accum.setdefault(key, deque())
+    while dq and now - dq[0][1] > _CODE_ACCUM_WINDOW_S:
+        dq.popleft()
+    if chars:
+        dq.append((chars, now))
+    return sum(c for c, _ in dq)
+
+
+def guard_code_outbound(text: str, *, accum_key: str | None = None) -> tuple[str, bool]:
     """Sustituye VOLCADOS grandes de código (bloques con vallas por encima del umbral) por un puntero al repo.
     Devuelve (texto, hubo_recorte). Siempre activo cuando el guard está on — un volcado de código por el canal
-    nunca es el patrón correcto (repo, no chat) y es el mayor gasto de tokens. Un snippet pequeño pasa intacto."""
+    nunca es el patrón correcto (repo, no chat) y es el mayor gasto de tokens. Un snippet pequeño pasa intacto,
+    A MENOS que `accum_key` (típicamente `f"{cluster}:{to}"`) acumule, en la ventana reciente, más código del que
+    el umbral permite de una vez — entonces TODOS los bloques de este mensaje se sustituyen también (freno a la
+    fragmentación: enviar el mismo volcado partido en trozos pequeños no debe esquivar el guard)."""
     if not text or not enabled():
         return text or "", False
+    force_all = False
+    if accum_key:
+        msg_chars = sum(len(b) for b in _FENCE_BLOCK_RE.findall(text))
+        if msg_chars and _code_accum_total(accum_key, msg_chars, time.time()) > _CODE_MAX_CHARS:
+            force_all = True
     stripped = False
 
     def _repl(m: re.Match) -> str:
         nonlocal stripped
         body = m.group(1) or ""
-        if len(body) > _CODE_MAX_CHARS or body.count("\n") + 1 > _CODE_MAX_LINES:
+        if force_all or len(body) > _CODE_MAX_CHARS or body.count("\n") + 1 > _CODE_MAX_LINES:
             stripped = True
             return _CODE_POINTER
         return m.group(0)
