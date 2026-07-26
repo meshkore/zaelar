@@ -138,6 +138,31 @@ def test_apply_worker_action_dispatches(monkeypatch):
     assert "ITV" in seen["req"]
 
 
+def test_apply_worker_action_breaker_trips_after_max(monkeypatch):
+    # Guard anti-bucle (auditoría 2026-07-26): tras _BREAKER_MAX escaladas OK en la ventana, el circuito se ABRE
+    # y NINGÚN worker_action nuevo sale, aunque el dedup de texto no lo hubiera pillado (requests distintos).
+    from nucleo import dispatch
+    from nucleo.flash import escalate
+    sus_apply.breaker_reset()
+    monkeypatch.setattr(dispatch, "active_sessions", lambda: [])
+    fired = {"n": 0}
+
+    def _go(req, **kw):
+        fired["n"] += 1
+        return 100 + fired["n"]
+    monkeypatch.setattr(escalate, "escalate_to_slowbrain", _go)
+    try:
+        reqs = ["cancela la cita de la ITV", "confirma el envío del paquete", "revisa el estado del pedido",
+                "verifica que se completó la reserva"]
+        recs = [sus_apply.apply_corrections(
+            [{"type": "worker_action", "request": r, "reason": "r"}], reason="riesgo")[0] for r in reqs]
+        assert fired["n"] == sus_apply._BREAKER_MAX             # solo las 3 primeras escalaron de verdad
+        assert all(r["ok"] for r in recs[:sus_apply._BREAKER_MAX])
+        assert recs[-1]["breaker"] is True and not recs[-1]["ok"] and not recs[-1]["dedup"]
+    finally:
+        sus_apply.breaker_reset()
+
+
 def test_apply_worker_action_dedup_vs_active(monkeypatch):
     # NO relanza si ya hay una sesión viva con un objetivo muy similar (dedup duro).
     from nucleo import dispatch
