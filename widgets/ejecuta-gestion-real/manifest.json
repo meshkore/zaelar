@@ -1,0 +1,15 @@
+{
+  "id": "ejecuta-gestion-real",
+  "version": "0.1.0",
+  "title": "Registro de Agentes",
+  "description": "Registro real de agentes del sistema: cuando aparece un agente nuevo lo da de alta, actualiza su estado o lo elimina, persistido en base de datos propia — no solo un cambio visual en pantalla.",
+  "whenToUse": "Cuando el operador pide registrar/dar de alta un agente nuevo en el sistema, cambiar el estado de un agente existente, o consultar/eliminar un agente ya registrado.",
+  "keywords": ["registro de agentes", "registrar agente", "da de alta un agente", "nuevo agente", "alta de agente", "gestión de agentes", "estado del agente", "elimina el agente", "borra el agente"],
+  "entry": "widget.js",
+  "usage": "register_agent da de alta un agente nuevo (name, role opcional) y lo persiste. update_status cambia el estado de un agente existente (agentId resuelto por nombre, status: activo/inactivo/error). remove_agent (irreversible) lo elimina definitivamente del registro.",
+  "actions": {
+    "register_agent": {"desc": "Da de alta un agente nuevo en el registro persistido", "payload": {"name": "string/ej. worker-web-3", "role": "string/ej. navegador"}},
+    "update_status": {"desc": "Actualiza el estado de un agente ya registrado", "payload": {"agentId": "string/ej. a_3f9c1b2a", "status": "string/ej. activo|inactivo|error"}},
+    "remove_agent": {"desc": "Elimina definitivamente un agente del registro", "payload": {"agentId": "string/ej. a_3f9c1b2a"}, "confirm": true}
+  }
+}

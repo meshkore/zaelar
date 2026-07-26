@@ -1,0 +1,16 @@
+{
+  "id": "ejecuta-sistema-real",
+  "version": "0.1.0",
+  "title": "Ejecución en el sistema real",
+  "description": "Ejecuta de verdad, con efectos persistentes y verificables (no un mockup del widget), la incorporación de un nuevo agente que ha mencionado el operador — registro creado en disco, releído para comprobar su integridad, y activado — y refleja aquí el resultado REAL paso a paso.",
+  "whenToUse": "Cuando el operador pide incorporar/dar de alta/añadir un agente nuevo al sistema y hace falta EJECUTARLO de verdad (no solo actualizar un widget), cuando un alta quedó incompleta y hay que reintentarla, o cuando pregunta si esa incorporación llegó a hacerse de verdad.",
+  "keywords": ["incorpora el agente", "incorporar agente", "da de alta el agente", "dar de alta un agente", "alta de agente", "añade un agente", "agente nuevo", "nuevo agente", "ejecuta de verdad", "ejecución real", "sistema real", "registrar agente"],
+  "entry": "widget.js",
+  "background": "1m",
+  "usage": "Cuando el operador diga que incorpores/des de alta a un agente nuevo, llama a onboard_agent con su nombre (y rol si lo dijo) — ESO ejecuta el alta real paso a paso (crea y verifica su registro en disco) en vez de solo pintar el widget. Si un alta quedó 'incompleto', usa retry con su agentId. remove_agent da de baja a un agente ya incorporado y pide confirmación por ser difícil de deshacer.",
+  "actions": {
+    "onboard_agent": {"desc": "ejecuta en el sistema real el alta de un agente nuevo (crea su registro, lo verifica y lo activa)", "payload": {"name": "string, p.ej. 'Aria'", "role": "string opcional, p.ej. 'soporte'"}},
+    "retry": {"desc": "reintenta la incorporación real de un agente que quedó incompleta", "payload": {"agentId": "string"}},
+    "remove_agent": {"desc": "da de baja (desactiva) a un agente ya incorporado del sistema real", "payload": {"agentId": "string"}, "confirm": true}
+  }
+}

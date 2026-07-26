@@ -20,3 +20,16 @@ def view_data(q: str = "") -> dict:
             {"title": "Marketing Reddit", "subtitle": "Side project"},
         ],
     }
+
+
+# "choose" lets the operator PICK one of the pushed items (e.g. an available product name from a real search the
+# brain ran and pushed via [[push:results]]). It intentionally does NOT call store.save(): the pushed list is
+# ephemeral (never lands in this file — see widget.js), so triggering the canvas's SSE refresh would just re-fetch
+# view_data()'s static fallback above and wipe the real list off-screen. The pick is applied instantly client-side
+# (widget.js) using this call's return value; this just echoes the choice back for the brain's turn to act on.
+def apply_action(action: str, payload: dict | None = None) -> dict:
+    payload = payload or {}
+    if action == "choose":
+        title = str(payload.get("title", "")).strip()
+        return {"ok": bool(title), "chosen": title}
+    return {"ok": False}
