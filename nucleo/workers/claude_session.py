@@ -109,6 +109,8 @@ class ClaudeCodeSession(WorkerBackend):
         cmd += ["--allowedTools", " ".join(tools)]
         if spec.model:
             cmd += ["--model", spec.model]
+        if spec.extra_args:
+            cmd += list(spec.extra_args)
 
         env = dict(os.environ)
         env["PATH"] = os.path.dirname(claude) + os.pathsep + env.get("PATH", "")
@@ -122,6 +124,15 @@ class ClaudeCodeSession(WorkerBackend):
 
         logger.info(f"worker[{self._task_id}]: ClaudeCodeSession start (model={spec.model or 'default'}, "
                     f"tools={len(tools)}, deny={spec.deny_tools}, cwd={cwd})")
+        preexec = None
+        if spec.kind == "dev" and os.name != "nt":
+            # topes de recursos (memoria/nproc/fsize, SIN límite de CPU/pared) — auditoría 2026-07-26, defensa en
+            # profundidad además del guard de confinamiento de rutas (--settings, ver spec.extra_args).
+            try:
+                from nucleo import sandbox as _sandbox
+                preexec = _sandbox.dev_worker_rlimits()
+            except Exception:
+                preexec = None
         try:
             self._proc = await asyncio.create_subprocess_exec(
                 *cmd, cwd=cwd, env=env,
@@ -130,6 +141,7 @@ class ClaudeCodeSession(WorkerBackend):
                 stderr=asyncio.subprocess.PIPE,
                 start_new_session=True,           # grupo propio → killpg (§v2·D)
                 limit=_STREAM_LIMIT,
+                preexec_fn=preexec,
             )
         except Exception as e:  # noqa: BLE001
             await self._q.put(self._ev("error", message=f"no se pudo arrancar el worker: {e}", fatal=True))
