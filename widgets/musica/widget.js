@@ -241,6 +241,7 @@ function playbackBar(data, ctx){
   ctrls.appendChild(mk("⏭", "next"));
   ctrls.appendChild(mk("🔉", "volume_down"));
   ctrls.appendChild(mk("🔊", "volume_up"));
+  if(np) ctrls.appendChild(mk("♥", "favorite_current"));
   bar.appendChild(ctrls);
   return bar;
 }
