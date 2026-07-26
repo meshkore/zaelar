@@ -48,6 +48,34 @@ def _repo_url(repo: str) -> str:
     return f"https://github.com/{repo}.git"
 
 
+def _origin_url(dir: str) -> str:
+    """URL real del remote `origin` de `dir` (o "" si no tiene/no es un repo). Sin timeout largo — solo lee config
+    local, no toca red."""
+    try:
+        p = subprocess.run(["git", "-C", dir, "remote", "get-url", "origin"],
+                            capture_output=True, text=True, timeout=10)
+    except Exception:
+        return ""
+    return (p.stdout or "").strip()
+
+
+def _verify_authorized_dir(dir: str, repo: str) -> str:
+    """'' si `dir` es realmente un clon del repo AUTORIZADO (origin coincide); si no, el motivo del rechazo.
+
+    CRÍTICO (auditoría 2026-07-26, hallazgo P0): antes de este check, `commit`/`push` solo comprobaban que
+    `dir/.git` existiera — nunca que su `origin` REAL fuera el repo autorizado. Un worker podía apuntar `dir` a
+    CUALQUIER repo git (incluido el propio repo del motor, o uno cuyo `origin` se hubiera reescrito tras el clone)
+    y `commit`/`push` lo aceptaban sin más. Esto revalida el vínculo en cada operación, no solo en el `clone`.
+    """
+    if not os.path.isdir(os.path.join(dir, ".git")):
+        return f"'{dir}' no es un repo git (clona primero)"
+    origin = _origin_url(dir)
+    expected = _repo_url(repo)
+    if origin != expected:
+        return f"'{dir}' NO es un clon del repo autorizado (origin='{origin or '(ninguno)'}', esperado='{expected}')"
+    return ""
+
+
 def cmd_clone(a) -> int:
     repo = _allowed_repo()
     if not repo:
@@ -59,8 +87,12 @@ def cmd_clone(a) -> int:
 
 
 def cmd_commit(a) -> int:
-    if not os.path.isdir(os.path.join(a.dir, ".git")):
-        return _fail(f"'{a.dir}' no es un repo git (clona primero)")
+    repo = _allowed_repo()
+    if not repo:
+        return _fail(f"no hay repo autorizado ({_ALLOWED_ENV} vacío)")
+    err = _verify_authorized_dir(a.dir, repo)
+    if err:
+        return _fail(err)
     _run(["git", "-C", a.dir, "add", "-A"])
     return _run(["git", "-C", a.dir, "commit", "-m", a.message or "update"])
 
@@ -69,9 +101,10 @@ def cmd_push(a) -> int:
     repo = _allowed_repo()
     if not repo:
         return _fail(f"no hay repo autorizado ({_ALLOWED_ENV} vacío)")
-    if not os.path.isdir(os.path.join(a.dir, ".git")):
-        return _fail(f"'{a.dir}' no es un repo git")
-    # push SOLO al origin (que apunta al repo autorizado por el clone); no se admite un remoto arbitrario.
+    err = _verify_authorized_dir(a.dir, repo)
+    if err:
+        return _fail(err)
+    # push SOLO al origin (RE-VERIFICADO arriba en cada llamada, no solo al clonar); no se admite un remoto arbitrario.
     return _run(["git", "-C", a.dir, "push", "origin", "HEAD"])
 
 
