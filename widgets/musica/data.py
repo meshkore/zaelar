@@ -154,6 +154,20 @@ def _track_from_payload(p: dict) -> "dict | None":
             "album": (p.get("album") or "").strip(), "art": "", "query": q, "uri": "", "videoId": ""}
 
 
+def _current_track(db: dict) -> "dict | None":
+    """La canción sonando AHORA (Spotify o YouTube-audio), para poder guardarla en una lista de favoritos."""
+    live = _live_fields(db)
+    np = live.get("now_playing")
+    if np and np.get("title"):
+        return {"title": np.get("title") or "", "artist": np.get("artist") or "",
+                "album": np.get("album") or "", "art": np.get("art") or "", "query": np.get("title") or ""}
+    yt = live.get("yt") or {}
+    if yt.get("videoId"):
+        return {"title": yt.get("title") or "Música", "artist": "", "album": "", "art": "",
+                "query": yt.get("title") or "", "videoId": yt.get("videoId")}
+    return None
+
+
 def _find_playlist(db: dict, ref) -> "dict | None":
     """Resuelve una referencia (id exacto o nombre en lenguaje natural) a la lista real. Nunca inventa."""
     ref = str(ref or "")
@@ -310,6 +324,25 @@ def apply_action(action: str, payload: dict = None) -> dict:
         db["view"] = {"kind": "playlist", "id": pl["id"]}
         _persist(db)
         return {"ok": True, "playlist": pl["id"], "removed": removed.get("title")}
+
+    if action == "favorite_current":
+        db = _load_db()
+        cur = _current_track(db)
+        if not cur:
+            return {"ok": False, "error": "nothing_playing"}
+        fav_name = "Favoritos de Manolo"
+        pl = _find_playlist(db, fav_name)
+        if pl is None:
+            pid = _slug(fav_name)
+            pl = {"id": pid, "name": fav_name, "art": "", "tracks": []}
+            db["playlists"].append(pl)
+        tracks = pl.setdefault("tracks", [])
+        key = _norm((cur.get("title") or "") + "|" + (cur.get("artist") or ""))
+        if not any(_norm((t.get("title") or "") + "|" + (t.get("artist") or "")) == key for t in tracks):
+            tracks.append(cur)
+        db["view"] = {"kind": "playlist", "id": pl["id"]}
+        _persist(db)
+        return {"ok": True, "playlist": pl["id"], "track": cur.get("title")}
 
     if action == "play_playlist":
         db = _load_db()

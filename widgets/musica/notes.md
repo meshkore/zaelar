@@ -24,3 +24,8 @@
     (play_music) NO pasa por apply_action → en Fase 1 no alimenta recientes; pendiente para fase de routing de voz.
   - Fases pendientes (V2-058): 2 = vistas álbum/artista/now-playing + navegación adaptativa; 3 = routing de voz
     (guía play_music lista/álbum/artista/crear/añadir + paridad probe/provider); 4 = curación por worker (set_tracks).
+- **favorite_current (2026-07-26):** nueva acción sin payload que guarda la canción sonando AHORA (Spotify o
+  YouTube-audio, vía `_current_track`) en la lista "Favoritos de Manolo" (la crea si no existe, dedup por
+  título+artista). Botón ♥ en la barra de reproducción (`playbackBar`, solo si hay `now_playing`). El nombre de la
+  lista queda hardcodeado — zaelar es single-operator, no hay concepto de "usuarios" múltiples; si se pide
+  generalizar a "el operador" en vez de un nombre fijo, hay que revisar esto.
