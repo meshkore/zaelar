@@ -28,11 +28,24 @@ REINFORCE_STEP = 0.1
 # 0.45 = umbral CONSERVADOR: fusiona solo paráfrasis muy próximas (evita el falso positivo que perdía info —
 # "Laura es mi jefa" vs "Laura me pidió el informe" NO deben fusionarse). Preferimos un casi-duplicado (inocuo) a
 # una fusión que pierde información. Configurable/desactivable (`MEM_DEDUP_MAX_DIST`/`MEM_SEMANTIC_DEDUP`).
+#
+# BACKEND-DEPENDIENTE (hallazgo auditoría 2026-07-26): el umbral 0.45 es la geometría de UN modelo (embeddinggemma)
+# — otro backend no comparte esa escala de distancias. Medido en vivo con `fastembed` (el backend ACTIVO hoy,
+# `config/v2.json §memory.embed_provider`): frases COMPLETAMENTE NO RELACIONADAS ("Te quiero, ánimo con el libro."
+# vs. "El técnico de la caldera viene el jueves por la mañana.") caían a distancia ≤0.45 y se FUSIONABAN — el
+# mensaje nuevo se perdía por completo, reforzando el viejo en su lugar. Justo la fusión-con-pérdida que el diseño
+# dice evitar. Sin una calibración propia por backend (mismo estudio que produjo 0.45/0.51/0.80 para
+# embeddinggemma), el dedup semántico solo se activa con el backend para el que SÍ está calibrado; con cualquier
+# otro cae a dedup EXACTO/por-slot (determinista, sin falsos positivos) — un casi-duplicado inocuo vale más que
+# perder un dato.
 SEMANTIC_DEDUP_MAX_DIST = float(os.getenv("MEM_DEDUP_MAX_DIST", "0.45"))
+_SEMANTIC_DEDUP_CALIBRATED_BACKENDS = {"ollama"}   # el único backend con el estudio de distancias detrás del umbral
 
 
 def _semantic_dedup_on() -> bool:
-    return os.getenv("MEM_SEMANTIC_DEDUP", "1").strip().lower() not in ("0", "false", "no", "off")
+    if os.getenv("MEM_SEMANTIC_DEDUP", "1").strip().lower() in ("0", "false", "no", "off"):
+        return False
+    return _emb.active_backend() in _SEMANTIC_DEDUP_CALIBRATED_BACKENDS
 
 
 _WS = re.compile(r"\s+")

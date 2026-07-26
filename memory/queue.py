@@ -16,6 +16,8 @@ import asyncio
 import threading
 from typing import Any
 
+from loguru import logger
+
 from . import writer as _writer
 
 
@@ -74,6 +76,12 @@ class MemoryQueue:
             except Exception as e:  # una escritura mala NUNCA tumba al consumidor
                 if fut is not None and not fut.done():
                     fut.get_loop().call_soon_threadsafe(fut.set_exception, e)
+                else:
+                    # SIN future (el caso normal: api.write() fire-and-forget) el error antes se perdía en
+                    # silencio — join() volvía como si la escritura hubiera ido bien mientras el dato se
+                    # perdía de verdad (hallazgo auditoría 2026-07-26). Lo logueamos SIEMPRE aunque nadie
+                    # espere el resultado — sigue sin tumbar al consumidor, pero ya no es invisible.
+                    logger.error(f"memory queue: escritura '{op}' falló y se descarta (fire-and-forget): {e}")
             finally:
                 self._q.task_done()
 
