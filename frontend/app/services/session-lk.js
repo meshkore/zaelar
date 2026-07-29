@@ -286,6 +286,8 @@ export async function start() {
     room.on(RoomEvent.ConnectionStateChanged, (st) => {
       if (st === ConnectionState.Connected) {
         store.setConnState("connected", true); store.hideAlert();
+        _recTries = 0;                                   // link is back → refresca el presupuesto de reintentos
+        if (_recTimer) { clearTimeout(_recTimer); _recTimer = null; }   // cancela cualquier reintento en cola
         // RECONCILIA el canvas: el servidor puede haberse reiniciado con la página abierta → su `open_widgets`
         // quedó vacío/obsoleto mientras la pantalla seguía mostrando widgets, y NADIE lo re-empujaba hasta el
         // siguiente cambio de canvas → el cerebro "no sabía" lo que el operador tenía delante (o creía haber
@@ -343,13 +345,35 @@ export async function start() {
   }
 }
 
-let _recTries = 0;
+// Auto-reconexión RESILIENTE a cambios de red (fix 2026-07-29). El detonante típico —moverse de wifi a hotspot o a
+// otra casa— puede tardar 5-15s en asentar (DHCP + asociación wifi), así que 2 intentos rápidos (lo de antes) SIEMPRE
+// fallaban y caían en "Lost connection". Ahora reintentamos con BACKOFF a lo largo de una ventana amplia (~40s),
+// mostrando el estado transitorio "reconectando…" (como Zoom/Meet — nunca "recarga la página"). La señalización va
+// por loopback (sobrevive al cambio de IP) y el server ya NO fija node-ip (ofrece la IP actual), así que un intento
+// hecho DESPUÉS de que la red asiente reconecta solo. Solo si la ventana entera se agota avisamos en la banda
+// superior (con reintento), y AUN así seguimos intentando en segundo plano. + escuchamos el evento `online` del
+// navegador para reconectar YA en cuanto vuelve la red, sin esperar al siguiente tick del backoff.
+let _recTries = 0, _recTimer = null;
+const _REC_BACKOFF = [1000, 2000, 3000, 5000, 8000, 8000, 8000, 8000];   // ~43s de ventana; cubre un cambio de red
 function autoReconnect() {
-  if (!started) return;
-  if (_recTries >= 2) { store.showAlert("Lost the audio connection with zaelar.", () => { _recTries = 0; stop(); setTimeout(start, 300); }); return; }
+  if (!started || _recTimer) return;                    // ya hay un reintento en cola → no solapar
+  const i = Math.min(_recTries, _REC_BACKOFF.length - 1);
+  if (_recTries >= _REC_BACKOFF.length) {               // ventana agotada → avisa (banda superior) pero SIGUE sola
+    store.showAlert("Se perdió la conexión de voz (¿cambió la red?). Reintentando sola…",
+      () => { _recTries = 0; if (_recTimer) { clearTimeout(_recTimer); _recTimer = null; } stop(); setTimeout(start, 300); });
+  }
   _recTries++; store.setConnState("reconnecting…");
-  stop(); setTimeout(start, 800);
+  stop();
+  _recTimer = setTimeout(() => { _recTimer = null; if (started) start(); }, _REC_BACKOFF[i]);
 }
+// La red volvió (cambio de wifi/hotspot completado) → si tenemos sesión, reconecta YA sin esperar al backoff.
+try {
+  window.addEventListener("online", () => {
+    if (!started) return;
+    _recTries = 0; if (_recTimer) { clearTimeout(_recTimer); _recTimer = null; }
+    store.setConnState("reconnecting…"); stop(); setTimeout(start, 500);
+  });
+} catch (_) {}
 
 export async function stop() {
   const a = botAudioEl;
