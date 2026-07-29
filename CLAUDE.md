@@ -1,11 +1,13 @@
 # zaelar
 
-> **`.meshkore/` en este repo es un SYMLINK a `../.meshkore`** (2026-07-22): la gestión del proyecto (roadmap,
-> iniciativas, docs canónicas, credenciales locales de dev, logs) vive en la RAÍZ del workspace `zaelar/` — ver
-> `../CLAUDE.md` — porque coordina `engine/`+`web/`+`cloud/` a la vez, no solo este subrepo. Todas las rutas
-> `.meshkore/...` de este documento siguen funcionando igual (mismo contenido, distinta ubicación física); solo
-> requiere el layout de monorepo local (`engine/` junto a sus hermanos bajo `zaelar/`) — un self-hoster que clona
-> `engine` en solitario no lo tiene ni lo necesita (configura sus credenciales por la UI, no por `.meshkore/`).
+> **`.meshkore/` es una CARPETA REAL de ESTE repo** (2026-07-28, antes era un symlink a `../.meshkore`). engine
+> es el repo PÚBLICO OSS y lleva SU propio `.meshkore/` con el contexto MeshKore Standard del MOTOR —
+> arquitectura, convenciones, módulos, seguridad, roadmap del motor, roles de agente (`team/`), `public/cluster.yaml`
+> y `STANDARD_VERSION`: quien clone el repo dice «carga el estándar MeshKore» y tiene todo el contexto y las tareas.
+> Lo que se ignora (`.gitignore`) es solo el estado runtime PRIVADO del self-hoster (`credentials/`, `logs/`,
+> `timeline/`, `snapshots/`, `.runtime/`, `agents/`) — sus propias claves/logs, nunca al repo.
+> **Lo que NO vive aquí:** la gestión de NEGOCIO/proyecto entero (cloud/GTM, `launch-readiness`, coordinación
+> engine+web+cloud) vive en `../.meshkore/` de la RAÍZ del workspace (repo aparte, privado) — ver `../CLAUDE.md`.
 
 Asistente personal por voz **multidioma** (por defecto **castellano**), siempre activo. Arquitectura: STT →
 **cerebro propio «Colmena»** → TTS, sobre **LiveKit Agents**. El cerebro (`nucleo/`), la memoria (`memory/`) y la
@@ -289,7 +291,17 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   SSE de `observer` y el loop de `nucleo/` (cron+consolidación) viven todos ahí. **Coordinación loop-agnóstica**: el
   `asyncio.Lock` no vale entre el loop del job-thread y el de uvicorn → la entrega cross-loop usa
   `call_soon_threadsafe` (`bus.emit_sync`). Requiere **servidor LiveKit** (binario nativo local `--dev`;
-  Cloud/self-hosted en prod).
+  Cloud/self-hosted en prod). **Resiliencia a cambios de red (fix 2026-07-29):** `run-livekit.sh` arranca
+  `livekit-server --dev --bind 127.0.0.1` **SIN `--node-ip`** — LiveKit/pion re-enumera las interfaces vivas y
+  reúne los host-candidates ICE con la IP ACTUAL en CADA conexión nueva, así que moverse de wifi a hotspot o a
+  otra casa se auto-sana (la conexión cae, el navegador reconecta, el server ofrece la IP nueva). Fijar `--node-ip`
+  al arranque (lo que se hacía) era JUSTO el bug: congelaba una IP que se quedaba obsoleta al cambiar de red →
+  `wait_pc_connection timed out` (3 caídas el 2026-07-28 al moverse entre redes). Verificado con headless-Chrome
+  (fake-mic) que ambas patas —navegador↔server y agente↔server— conectan sin pin. El caso loopback
+  (`--node-ip=127.0.0.1`) SÍ falla y por eso NO se usa (el agente embebido pion no reúne candidato loopback). La
+  señalización sigue privada en `--bind 127.0.0.1`. Escape hatch: `ZAELAR_LIVEKIT_NODE_IP=<ip>` restaura el pin.
+  **Producción real** (no local): LiveKit Cloud o coturn/Cloudflare TURN → candidato relay con IP estable
+  (independiente del nodo y del NAT del cliente); ver `zaelar-deploy.md`.
 - **Cerebro propio «Colmena» — FlashBrain ORQUESTADOR + workers Claude Code** (`nucleo/`, EPIC-v2-colmena, redseñado
   en **V2-036** 2026-07-13). El **FlashBrain** (`nucleo/flash/`) ocupa el slot del LLM del motor de voz (provider
   `nucleo`) y atiende cada turno en ~1s: charla, control de widgets, Q&A de estado desde el bloque de estado vivo, y
