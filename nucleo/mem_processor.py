@@ -39,7 +39,18 @@ import time
 from loguru import logger
 
 _MAX_INPUT = 600            # chars del turno que ve el procesador (destila, no necesita el turno entero)
-_TIMEOUT = float(os.getenv("MEM_PROCESSOR_TIMEOUT", "20"))   # s; off-hot-path pero acotado (release del slot)
+_TIMEOUT = float(os.getenv("MEM_PROCESSOR_TIMEOUT", "30"))   # s por INTENTO; off-hot-path pero acotado (release del slot)
+# REINTENTO ante fallo TRANSITORIO (auditoría 2026-07-29): un timeout/conexión/429/5xx de la API remota devolvía
+# None → fail-open a la heurística lossy → PÉRDIDA DURABLE de ese turno (un hecho que el modelo SÍ destila bien se
+# tiraba por un blip de red). Era la causa nº1 de los fallos "esperaba long, está []" del bot de memoria (medido:
+# ~25% de timeouts intermitentes en una tanda). Escribir es off-hot-path y la doctrina lo permite LENTO → reintentar
+# un blip antes de rendirse es correcto. Los 4xx de auth/bad-request NO se reintentan (fallan rápido, alertan).
+_RETRIES = max(0, int(os.getenv("MEM_PROCESSOR_RETRIES", "2")))           # reintentos (=> _RETRIES+1 intentos)
+_RETRY_BACKOFF = float(os.getenv("MEM_PROCESSOR_RETRY_BACKOFF", "1.5"))   # s base, escalado por intento
+
+
+class _PermanentError(RuntimeError):
+    """Error NO reintentable (4xx auth/bad-request): reintentar no ayuda → fail-open inmediato."""
 
 # CAP DE CONCURRENCIA (2026-07-14, fix del corte de voz): el CORAZÓN es un LLM LOCAL PESADO (GPU). En la sesión
 # manual 12:07-12:14 se disparaba en CADA turno sin límite → se APILABAN 15-29s en la GPU Metal (medido) →
@@ -399,19 +410,32 @@ async def process(text: str, *, state: dict | None = None) -> list[dict] | None:
         if _mb and local:
             _mb("corazon", True)
         try:
-            to = aiohttp.ClientTimeout(total=_TIMEOUT)
-            async with aiohttp.ClientSession(timeout=to) as s:
-                async with s.post(url, headers={"Authorization": f"Bearer {_key()}"}, json=payload) as r:
-                    if r.status != 200:
-                        body = (await r.text())[:200]
-                        raise RuntimeError(f"HTTP {r.status} de {url}: {body}")
-                    data = await r.json()
-            content = data["choices"][0]["message"]["content"]
-            atoms = _parse(content)
-            _mark_ok()
-        except Exception as e:  # noqa: BLE001
-            _mark_fail(f"{type(e).__name__}: {e}")
-            return None
+            atoms = None
+            for _attempt in range(_RETRIES + 1):
+                try:
+                    to = aiohttp.ClientTimeout(total=_TIMEOUT)
+                    async with aiohttp.ClientSession(timeout=to) as s:
+                        async with s.post(url, headers={"Authorization": f"Bearer {_key()}"}, json=payload) as r:
+                            if r.status != 200:
+                                body = (await r.text())[:200]
+                                # 4xx (salvo 429) = auth/bad-request: PERMANENTE, reintentar no ayuda → fail-open ya.
+                                if 400 <= r.status < 500 and r.status != 429:
+                                    raise _PermanentError(f"HTTP {r.status} de {url}: {body}")
+                                raise RuntimeError(f"HTTP {r.status} de {url}: {body}")
+                            data = await r.json()
+                    content = data["choices"][0]["message"]["content"]
+                    atoms = _parse(content)
+                    _mark_ok()
+                    break
+                except _PermanentError as e:
+                    _mark_fail(f"{e}")
+                    return None
+                except Exception as e:  # noqa: BLE001  (timeout / conexión / 429 / 5xx = TRANSITORIO → reintenta)
+                    if _attempt < _RETRIES:
+                        await asyncio.sleep(_RETRY_BACKOFF * (_attempt + 1))
+                        continue
+                    _mark_fail(f"{type(e).__name__}: {e}")
+                    return None
         finally:
             if _mb and local:
                 _mb("corazon", False)
