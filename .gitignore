@@ -14,18 +14,19 @@ config/meshkore.json
 # enters in the messaging widget. Personal secrets → NEVER commit.
 config/connectors.json
 config/v2.json
-# `engine/.meshkore` es un SYMLINK a `../.meshkore` (raíz del monorepo local, ver engine/CLAUDE.md) — gestión
-# PRIVADA del proyecto entero (roadmap, credenciales de dev, logs). `engine/` es el repo PÚBLICO (petición
-# explícita del operador 2026-07-24: "no quiero que tenga esa carpeta de MeshKore dentro de engine, la única
-# carpeta que debe existir es la de la raíz"). Exclusión TOTAL — ni el symlink ni nada debajo aparece aquí nunca;
-# las reglas específicas de abajo quedan de rastro histórico (redundantes ahora, inofensivas).
-.meshkore
-.meshkore/timeline/
-.meshkore/logs/
+# `engine/.meshkore/` es una CARPETA REAL (2026-07-28, revierte la decisión 2026-07-24 de excluirla entera).
+# engine es el repo PÚBLICO OSS y DEBE llevar su contexto MeshKore Standard — arquitectura, convenciones,
+# módulos, seguridad, roadmap del MOTOR, roles de agente (team/), public/cluster.yaml y STANDARD_VERSION —
+# para que quien clone diga «carga el estándar MeshKore» y tenga todo el contexto/tareas. La gestión de
+# NEGOCIO/proyecto (cloud/GTM, launch-readiness…) NO vive aquí: vive en `../.meshkore/` (raíz del workspace,
+# fuera de este repo). Lo único que se ignora = estado runtime PRIVADO del self-hoster, nunca al repo:
 .meshkore/credentials/
-.meshkore/agents/
+.meshkore/logs/
+.meshkore/timeline/
 .meshkore/snapshots/
+.meshkore/agents/
 .meshkore/.runtime/
+.meshkore/**/*.env
 
 # voice-lab-2 is its OWN git repo (reference engine for the LiveKit migration, INI-012) — not tracked here
 voice-lab-2/

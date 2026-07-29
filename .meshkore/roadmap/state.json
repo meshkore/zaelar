@@ -1,0 +1,3514 @@
+{
+  "$schema": "https://api.meshkore.com/v1/standard.json",
+  "cluster": {
+    "id": "zaelar",
+    "name": "zaelar",
+    "type": "dev"
+  },
+  "modules": [
+    {
+      "id": "voice",
+      "path": "voice/",
+      "description": "Voice engine (LiveKit Agents, INI-012) in voice/engine/ \u2014 AgentSession (streaming, turn-taking, VAD, barge-in, preemptive-gen), provider registry + profiles remote/local (STT voxtral/deepgram/whisper, TTS cartesia/kokoro, VAD silero, turn livekit), voices catalog. Runs EMBEDDED in the server process (AgentServer, job_executor_type=THREAD). LLM providers = nucleo (the \u00abColmena\u00bb FlashBrain, default) + baselines direct/local + raw vendors (voice/engine/llm/providers/{nucleo,direct,local,\u2026}.py). Top level = brain-agnostic contract kept pure: tag_protocol, speech, brain_notes, proactive, prompt, health_state, llm_health, observer (SSE)."
+    },
+    {
+      "id": "frontend",
+      "path": "frontend/",
+      "description": "Voice interface as a self-contained ES-module app (no build) \u2014 reactive core, services (LiveKit client via session-lk.js + vendored SDK in vendor/, audio/SSE), components, widget desktop. Solid-migration-ready. index.html is a thin bootstrap."
+    },
+    {
+      "id": "server",
+      "path": "server/",
+      "description": "FastAPI app + routers + module entrypoint (python -m server). Runs the LiveKit agent worker EMBEDDED in-process. HTTP: livekit_api (token + connect config + session.js swap), voice_api (voices/settings/status/events SSE), widgets, pages."
+    },
+    {
+      "id": "widgets",
+      "path": "widgets/",
+      "description": "Full-stack widgets (data.py + widget.js per folder), generator, catalog, runtime. Two kinds in manifest.json \u2014 `passive` (default) and `backed` (INI-016): a backed widget declares an owner.py (async start/stop/handle) run under widgets/supervisor.py in the server lifespan (mailbox + restart-with-backoff + disable after N fails, all traced via voice/observer.py); owner is the SOLE writer of its data dir, the face READs + ENQUEUEs (server_api._route_backed); generic GET /widgets/{id}/asset/{name} serves binary media. First backed widget = `navegador` \u2014 a real web browser inside zaelar (headless Chromium via Playwright: navigates the public web, screenshots the viewport, mounts YouTube embeds; needs `python -m playwright install chromium`). Also includes the hand-built `mensajeria` widget (INI-015) \u2014 the UNIFIED messaging surface (WhatsApp + Telegram + future email) backed by connectors/messaging: a single flat list by urgency with per-platform badges, per-platform connection cards with inline QR, controlled by voice ([[msg.*]]) and click. Replaced the former `whatsapp` widget. **V2-008:** `mensajeria` is now a `backed` widget with a `\"gate\":\"nucleo\"` (owner.py) \u2014 under BRAIN=nucleo the supervisor starts its owner (subscribes to the bus `connector.msg`/`connector.status`, triages IN the widget with its internal triage_agent = LOCAL model, dumps content to memory, publishes `msg.mark_read`); under duo/hermes the gate skips the owner and the widget behaves as the passive one of before (connectors write the store directly). The gate is a general backend mechanism (any backed widget can require a brain mode)."
+    },
+    {
+      "id": "config",
+      "path": "config/",
+      "description": "Runtime config MANAGED FROM THE UI (gitignored JSON the frontend writes; store wins over .env). settings.py/settings.json = \u2699 panel (STT/TTS/voice/language). connectors.py/connectors.json = connector enable flags + credentials (Telegram api_id/api_hash) entered in the messaging widget, with a redacted public view (secrets never returned to the frontend). Product invariant: install once, then everything from the interface \u2014 no .env editing by end users (INI-015; see zaelar-conventions.md \u00a7Configuration is UI-managed)."
+    },
+    {
+      "id": "connectors",
+      "path": "connectors/",
+      "description": "External service connectors. meshkore/ = native multi-cluster WebSocket I/O channel (a third input/output next to voice & chat) \u2014 brain-agnostic transport + a bridge that injects cluster messages into the brain and routes [[cluster.*]] tags out, with an event/heartbeat driver for autonomous agent-to-agent collaboration, and a security guard (meshkore/security.py) that fences untrusted peer input against prompt injection and blocks/redacts secrets & identity leaks on the way out. architect/ = Architect code/project provider \u2014 voice-driven remote control of the shared MeshKore daemon (list/create projects, async asks to each project's architect-master via [[architect.*]] tags; results return through proactive voice + [SISTEMA] brain notes; operator-only, token in .env). whatsapp/ = WhatsApp triage connector (INI-014, WIP) \u2014 VENDORED Baileys bridge from Hermes (connectors/whatsapp/bridge/, patched: mark-read endpoint + observe mode, update-safe vs `hermes update`) reads the operator's personal WhatsApp (QR-linked device); zaelar triages the stream with a LOCAL classifier (qwen2.5:3b via Ollama, nothing personal leaves the machine, remote fallback via WA_TRIAGE_MODEL), surfacing only what matters through proactive voice + [SISTEMA] notes and marking-read what was summarized. Classifier does NOT go through the Hermes agent (preserves the ACP voice invariant + privacy). Read-only + mark-read; auto-responder deferred (Fase 4). telegram/ = Telegram triage connector (INI-015) \u2014 a Telethon USERBOT (personal account, NOT the Bot API \u2192 it can read personal chats), linked by QR shown IN the canvas (generated with segno). Pure-Python in-process asyncio, NO Hermes dependency and NO vendored bridge (\"black-box lib\", unlike WhatsApp) \u2014 Hermes only ships the Bot API. Same read-only + mark-read (send_read_acknowledge) discipline. messaging/ = SHARED messaging layer both connectors build on: triage.py (the LOCAL platform-agnostic classifier, promoted from whatsapp \u2014 qwen2.5:3b via Ollama, nothing personal leaves the machine, remote fallback via MSG_TRIAGE_MODEL, never through the Hermes agent), store.py (the UNIFIED store widgets/_data/mensajeria.json \u2014 per-platform link state + one combined item list + a pending_read queue carrying each key's platform), notify.py (proactive voice + [SISTEMA] note, shared throttle), brief.py (the combined numbered brief the brain sees), and dispatch_tag ([[msg.*]] routes by item.platform). Both connectors write the unified store; the single `mensajeria` widget reads it. See .meshkore/docs/architecture/zaelar-hermes-federation.md. Future slots: LinkedIn, X, email. **V2-008 (reshape STATELESS, gated BRAIN=nucleo):** ingest.py adds the bus seam \u2014 under nucleo the connectors STOP triaging/storing and only PUBLISH `connector.msg` (incoming, dedup by messageId) + `connector.status` (link+QR), and drain `msg.mark_read` (a MarkReadInbox per platform); triage+store move INTO the `mensajeria` widget owner (backed). triage.py/store.py/notify.py stay in place as the still-live duo/hermes path and as the classifier/store implementation the widget delegates to \u2014 their physical retirement is deferred to the entierro (V2-009), per strangler-fig. meshkore/ (cluster channel) is NOT part of the personal-message inbox (peers \u2260 personal msgs; its stateless conversion, if wanted, belongs with the cluster-security work in V2-010)."
+    },
+    {
+      "id": "harness",
+      "path": "harness/",
+      "description": "Evaluation harness with persona-based test runs (text-level bot-vs-bot + judge)"
+    },
+    {
+      "id": "tester",
+      "path": "tester/",
+      "description": "Voice tester (INI-013) \u2014 a 2nd LiveKit participant that SPEAKS to zaelar (TTS) and LISTENS (STT), driving scenarios with a DeepSeek brain to detect things to improve (latency/turns/memory/agenda/widgets/robustness). Reuses the persona/judge/analyze/report logic of the prior sim candidate; transport is native LiveKit. Runnable/observable without a human mic. Dedicated key TESTER_AIMLAPI_KEY (never committed)."
+    },
+    {
+      "id": "bus",
+      "path": "bus/",
+      "description": "(v2 \u00b7 CONSTRUIDO V2-001) Sistema Nervioso \u2014 pub/sub de se\u00f1ales in-process (asyncio, generalizaci\u00f3n de voice/observer.py) con patrones fnmatch + emit_sync loop-agn\u00f3stico (call_soon_threadsafe, entrega cross-loop job-thread\u2194uvicorn). bus/log.py = log durable de eventos en SQLite (zaelar.db, tabla events, WAL) enganchado como sink. bus/sse.py = puente SSE al frontend: voice/observer.py re-expresado como suscriptor del topic `observer` (GET /events id\u00e9ntico). Transporte H\u00cdBRIDO (llamadas directas en la ruta caliente de voz + eventos para lo async/fan-out). NADA de Kafka/broker."
+    },
+    {
+      "id": "nucleo",
+      "path": "nucleo/",
+      "description": "(v2 \u00b7 CONSTRUIDO V2-004\u2192V2-008; **cerebro por defecto tras el entierro de Hermes, V2-009 \u00b7 BRAIN=nucleo**) Cerebro propio de dos velocidades que SUSTITUYE a brains/ (Hermes retirado). FlashBrain (nucleo/flash/ \u2014 c\u00f3digo propio reflejo, sub-segundo: router + cliente de modelo r\u00e1pido con modelo POR INVOCACI\u00d3N + gestor de frontend/widgets + lanzador de procesos + escalado; enchufado al motor de voz como provider livekit.agents.llm.LLM, cron.create/cancel \u2192 nucleo/scheduler). B\u00daSQUEDA WEB COMPARTIDA (nucleo/websearch.py, V2-022): primitivo propio model-agn\u00f3stico usado por AMBOS cerebros \u2014 el FlashBrain por la tool web_search (dato directo + s\u00edntesis, resuelto EN el turno, off-hot-path v\u00eda asyncio.to_thread) y el SlowBrain por WebSearch/WebFetch nativos del CodeAgent (dispatch._tools_for) para informes con datos actuales; proveedor POR CAPAS calidad-primero (respuesta-IA Perplexity/Tavily \u2192 snippets Brave \u2192 gratis DuckDuckGo, auto-upgrade por key); NAVEGAR un marketplace (Amazon/Wallapop) es otra cosa = el navegador (automate_web). Loop orquestador (nucleo/loop.py ~1 Hz + nucleo/scheduler.py cron PROPIO respaldado por memory.journal + nucleo/cron_api.py = /api/cron del panel \u23f0 + nucleo/sparks.py chispas doble-gate: tareas programadas + chispas + dispara el consolidador off-hot-path + reporta por voz+UI; SUSTITUYE al cron nativo de Hermes; montado en el lifespan con BRAIN=nucleo). SlowBrain (nucleo/agentes/ \u2014 interfaz CodeAgent + adaptador Claude Code headless `claude -p` + adaptador Codex + factor\u00eda get_agent() por config; nucleo/memory_agent.py \u2605 = agente de MEMORIA, \u00fanico escritor a memory/, compone contexto m\u00ednimo por heur\u00edstica+router LLM barato; nucleo/mem_processor.py \u2605 = el CORAZ\u00d3N de escritura (V2-013): LLM LOCAL qwen2.5:3b que DESTILA cada turno del operador en P\u00cdLDORAS curadas (dato can\u00f3nico + metadatos) y decide DESCARTAR/ESTADO/CORTO/LARGO + importancia din\u00e1mica + slot, off-hot-path, fail-open a la heur\u00edstica de memory_agent; nucleo/dispatch.py = dispatcher que compone prompt din\u00e1mico [contexto+tarea] \u2192 CodeAgent con modelo por invocaci\u00f3n, consume escalate.requested del bus y entrega por voz+UI). Endurecimiento (deny-tools para input no confiable hacia el CodeAgent) = V2-010."
+    },
+    {
+      "id": "memory",
+      "path": "memory/",
+      "description": "(v2 \u00b7 N\u00daCLEO CONSTRUIDO en V2-002; INTEGRADA en V2-003; CORAZ\u00d3N DE ESCRITURA en V2-013) Memoria central tipo humana, 100% local, un solo fichero SQLite zaelar.db (WAL, en memory/_data/) \u2014 substrato compartido que escriben FlashBrain, el agente de memoria y los widgets, y lee el retriever en la ruta caliente (ms). REGLA DE ORO (V2-013): LLM al ESCRIBIR (off-hot-path, el CORAZ\u00d3N nucleo/mem_processor.py = qwen2.5:3b local que DESTILA p\u00edldoras + decide d\u00f3nde/importancia/slot), queries DIRECTAS al LEER (sin LLM: state \u00b5s + recent_short entero + query RRF off-loop). Cada recuerdo es una P\u00cdLDORA = dato can\u00f3nico (text) + metadatos (schema v2: slot=clave can\u00f3nica del hecho singular \u2192 supersede/dedup EXACTO; meta=JSON libre). M\u00f3dulos: db/schema (tablas state\u00b7memories[+slot\u00b7meta]\u00b7vec_memories\u00b7fts_memories\u00b7edges\u00b7episodic\u00b7journal; SCHEMA_VERSION=2, migraci\u00f3n ALTER idempotente) \u00b7 queue+writer (\u00fanico escritor, embeddings al insertar) \u00b7 embeddings (embeddinggemma 768 v\u00eda Ollama, fallback fastembed, degradaci\u00f3n determinista) \u00b7 retriever (sqlite-vec vector + FTS5 keyword \u2192 RRF k=60 \u2192 score \u03b1\u00b7rel+\u03b2\u00b7rec+\u03b3\u00b7imp+\u03b4\u00b7uso \u2192 graph_expand) \u00b7 state (tabla fija, \u00b5s) \u00b7 graph (aristas) \u00b7 consolidator (decay Ebbinghaus + dedup + eviction por peso, pinned intocable) \u00b7 episodic (resumen buscable + carga lazy) \u00b7 api (fachada + se\u00f1al memory.updated por el bus). V2-003: ABSORBE el antiguo files/ como capa EPIS\u00d3DICA \u2014 los bytes pasan al data-dir de la memoria, POST /api/files/upload (ahora memory/server_api.py) llama a memory.write_episode (binario + resumen buscable, carga lazy; se retir\u00f3 la nota [SISTEMA] de ruta); migraci\u00f3n perezosa/idempotente/no-destructiva de files/uploads/ (memory.migrate_inbox en el lifespan); seed_from_hermes.py siembra el perfil del operador desde ~/.hermes (best-effort, solo-lectura); y los widgets escriben lo durable (mensajeria vuelca los mensajes entrantes como kind='msg'). El consumidor de la cola arranca en el lifespan (ZAELAR_MEMORY, def 1). Dise\u00f1o en .meshkore/docs/architecture/zaelar-memory.md."
+    }
+  ],
+  "roadmap": {
+    "tasks": [
+      {
+        "id": "T91",
+        "title": "Convertir whatsapp/telegram/meshkore en publicadores de connector.msg (leer + publicar; sin triaje/store)",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "connectors",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T90"
+        ],
+        "initiative": "V2-008",
+        "path": ".meshkore/modules/connectors/tasks/T91-connectors-publish.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T137",
+        "title": "Throttle del triaje de mensajer\u00eda (no inyectar en cada turno; agrupar) + no abrir widgets desde audio no dirigido",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "connectors",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [],
+        "initiative": "V2-015",
+        "path": ".meshkore/modules/connectors/tasks/T137-triage-throttle.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "fe04f7e"
+        ]
+      },
+      {
+        "id": "T94",
+        "title": "Volcar contenido de mensajes a memory.write (kind msg); estado de UI en el store del widget",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "connectors",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T93"
+        ],
+        "initiative": "V2-008",
+        "path": ".meshkore/modules/connectors/tasks/T94-msg-to-memory.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T92",
+        "title": "Retirar connectors/messaging/triage.py y store.py; doc-sync (federaci\u00f3n/m\u00f3dulos)",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "connectors",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T91"
+        ],
+        "initiative": "V2-008",
+        "path": ".meshkore/modules/connectors/tasks/T92-retire-triage-store.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T96",
+        "title": "cluster.yaml + zaelar-hermes-federation.md/zaelar-modules.md (conectores stateless, triaje en widget)",
+        "status": "done",
+        "priority": "low",
+        "owner": "ricart",
+        "category": "connectors",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T95"
+        ],
+        "initiative": "V2-008",
+        "path": ".meshkore/modules/connectors/tasks/T96-doc-sync-connectors.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T93",
+        "title": "widgets/mensajeria/owner.py \u2014 suscriptor de connector.msg + CodeAgent interno de triaje + mark_read por bus",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "connectors",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T92"
+        ],
+        "initiative": "V2-008",
+        "path": ".meshkore/modules/connectors/tasks/T93-mensajeria-owner-triage.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T95",
+        "title": "Aviso proactivo + [SISTEMA] solo de lo relevante (throttle heredado) + test",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "connectors",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T94"
+        ],
+        "initiative": "V2-008",
+        "path": ".meshkore/modules/connectors/tasks/T95-proactive-relevant.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T51",
+        "title": "memory/episodic.py \u2014 resumen embebido + carga lazy (esqueleto; bytes en V2-003)",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "memory",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T50"
+        ],
+        "initiative": "V2-002",
+        "path": ".meshkore/modules/memory/tasks/T51-episodic.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "56fb698"
+        ]
+      },
+      {
+        "id": "T53",
+        "title": "Mover files/uploads/ al data-dir de memoria epis\u00f3dica; migraci\u00f3n perezosa de lo existente",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "memory",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T52"
+        ],
+        "initiative": "V2-003",
+        "path": ".meshkore/modules/memory/tasks/T53-files-to-episodic.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T129",
+        "title": "API de lectura del mapa de memoria (read-only, no-cache): estado+corto+largo+edges+metadatos (scoring/fecha/kind/weight/access/pinned)",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "memory",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [],
+        "initiative": "V2-014",
+        "path": ".meshkore/modules/memory/tasks/T129-memory-map-api.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "49142b8"
+        ]
+      },
+      {
+        "id": "T52",
+        "title": "memory/api.py \u2014 fachada (write/query/state/reinforce/link) + se\u00f1al memory.updated por el bus + test roundtrip",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "memory",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T51"
+        ],
+        "initiative": "V2-002",
+        "path": ".meshkore/modules/memory/tasks/T52-api-facade.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "74b3bf9"
+        ]
+      },
+      {
+        "id": "T45",
+        "title": "memory/queue.py + memory/writer.py \u2014 \u00fanico escritor, embeddings locales al insertar + tests",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "memory",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T44"
+        ],
+        "initiative": "V2-002",
+        "path": ".meshkore/modules/memory/tasks/T45-queue-writer.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "57f97aa"
+        ]
+      },
+      {
+        "id": "T125",
+        "title": "Dedup SEM\u00c1NTICO al insertar \u2192 reforzar peso (embed+vec-search por significado; si existe reinforce, si no insert)",
+        "status": "next",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "memory",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T123"
+        ],
+        "initiative": "V2-013",
+        "path": ".meshkore/modules/memory/tasks/T125-consolidation.md",
+        "completed_at": null,
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T58",
+        "title": "Doc-sync: zaelar-modules.md \u2014 memoria absorbe files/ y los widgets escriben a memoria",
+        "status": "done",
+        "priority": "low",
+        "owner": "ricart",
+        "category": "memory",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T57"
+        ],
+        "initiative": "V2-003",
+        "path": ".meshkore/modules/memory/tasks/T58-doc-sync-modules.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T55",
+        "title": "Retirar el m\u00f3dulo files/ (o shim que delega en memoria) + quitar la nota [SISTEMA] de ruta",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "memory",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T54"
+        ],
+        "initiative": "V2-003",
+        "path": ".meshkore/modules/memory/tasks/T55-retire-files.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T56",
+        "title": "Importador memory/seed_from_hermes.py (one-shot, idempotente, solo-lectura de ~/.hermes) + test",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "memory",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T55"
+        ],
+        "initiative": "V2-003",
+        "path": ".meshkore/modules/memory/tasks/T56-seed-hermes.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T47",
+        "title": "memory/retriever.py \u2014 vec \u2225 fts \u2192 RRF \u2192 score ponderado \u2192 graph_expand + test de fusi\u00f3n y orden",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "memory",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T46"
+        ],
+        "initiative": "V2-002",
+        "path": ".meshkore/modules/memory/tasks/T47-retriever.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "a41ff30"
+        ]
+      },
+      {
+        "id": "T49",
+        "title": "memory/consolidator.py \u2014 compresi\u00f3n/dedup/conflictos/decay/eviction + tests (pinned nunca borrado)",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "memory",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T48"
+        ],
+        "initiative": "V2-002",
+        "path": ".meshkore/modules/memory/tasks/T49-consolidator.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "aa17b65"
+        ]
+      },
+      {
+        "id": "T59",
+        "title": "cluster.yaml: retirar files como m\u00f3dulo (su descripci\u00f3n pasa a memory)",
+        "status": "done",
+        "priority": "low",
+        "owner": "ricart",
+        "category": "memory",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T58"
+        ],
+        "initiative": "V2-003",
+        "path": ".meshkore/modules/memory/tasks/T59-cluster-retire-files.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T46",
+        "title": "Embeddings locales (Ollama embeddinggemma 768) con fallback fastembed + test de dimensi\u00f3n/idioma es",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "memory",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T45"
+        ],
+        "initiative": "V2-002",
+        "path": ".meshkore/modules/memory/tasks/T46-embeddings-local.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "ea05acd"
+        ]
+      },
+      {
+        "id": "T44",
+        "title": "memory/db.py + memory/schema.py \u2014 zaelar.db (WAL), cargar sqlite-vec, crear tablas + tests",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "memory",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T43"
+        ],
+        "initiative": "V2-002",
+        "path": ".meshkore/modules/memory/tasks/T44-db-schema.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "bf8645f"
+        ]
+      },
+      {
+        "id": "T124",
+        "title": "Estado como hechos FECHADOS (nombre/ubicaci\u00f3n/ordenador con fecha de alta); memory_cache sirve estado real; persiste entre sesiones",
+        "status": "next",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "memory",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T123"
+        ],
+        "initiative": "V2-013",
+        "path": ".meshkore/modules/memory/tasks/T124-state-maintenance.md",
+        "completed_at": null,
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T43",
+        "title": "requirements.txt: sqlite-vec==0.1.9 + embeddinggemma (Ollama) y fallback fastembed==0.8.0",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "memory",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T42"
+        ],
+        "initiative": "V2-002",
+        "path": ".meshkore/modules/memory/tasks/T43-deps-sqlite-vec.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "eff4383"
+        ]
+      },
+      {
+        "id": "T48",
+        "title": "memory/state.py \u2014 read/write de la tabla fija de estado + test (\u00b5s, sin b\u00fasqueda)",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "memory",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T47"
+        ],
+        "initiative": "V2-002",
+        "path": ".meshkore/modules/memory/tasks/T48-state.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "e0d5a01"
+        ]
+      },
+      {
+        "id": "T42",
+        "title": "Realinear paths a memory/ en el diagrama Memoria y en zaelar-memory.md (doc-sync, decisi\u00f3n top-level)",
+        "status": "done",
+        "priority": "low",
+        "owner": "ricart",
+        "category": "memory",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T41"
+        ],
+        "initiative": "V2-002",
+        "path": ".meshkore/modules/memory/tasks/T42-realign-paths-memory.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "4a8232b"
+        ]
+      },
+      {
+        "id": "T57",
+        "title": "mensajeria vuelca lo entrante a memory.write (kind msg) sin romper su store de UI",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "memory",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T56"
+        ],
+        "initiative": "V2-003",
+        "path": ".meshkore/modules/memory/tasks/T57-mensajeria-write.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T54",
+        "title": "Re-cablear POST /api/files/upload \u2192 memory.write_episode (bytes + resumen embebido) + test subida\u2192b\u00fasqueda",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "memory",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T53"
+        ],
+        "initiative": "V2-003",
+        "path": ".meshkore/modules/memory/tasks/T54-upload-rewire.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T127",
+        "title": "Aislamiento del tester (BD/namespace separada) + limpieza de la BD contaminada",
+        "status": "next",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "memory",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [],
+        "initiative": "V2-013",
+        "path": ".meshkore/modules/memory/tasks/T127-tester-isolation.md",
+        "completed_at": null,
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T126",
+        "title": "Grafo de conceptos: poblar edges al guardar (deporte\u2192p\u00e1del); el retriever expande por grafo",
+        "status": "next",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "memory",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T123"
+        ],
+        "initiative": "V2-013",
+        "path": ".meshkore/modules/memory/tasks/T126-concept-graph.md",
+        "completed_at": null,
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T50",
+        "title": "memory/graph.py \u2014 link/expand de aristas + test",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "memory",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T49"
+        ],
+        "initiative": "V2-002",
+        "path": ".meshkore/modules/memory/tasks/T50-graph.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "0964f62"
+        ]
+      },
+      {
+        "id": "T130",
+        "title": "Icono \ud83e\udde0 en la barra superior junto a Reset; abre el overlay del visualizador de memoria",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "frontend",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [],
+        "initiative": "V2-014",
+        "path": ".meshkore/modules/frontend/tasks/T130-brain-icon.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "348d5f2"
+        ]
+      },
+      {
+        "id": "T131",
+        "title": "Visualizador gr\u00e1fico: nubes/nodos por 3 capas (estado/corto/largo), texto ~8px ampliable, cada unidad con scoring/fecha/metadatos + aristas del grafo",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "frontend",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T129",
+          "T130"
+        ],
+        "initiative": "V2-014",
+        "path": ".meshkore/modules/frontend/tasks/T131-memory-visualizer.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "348d5f2"
+        ]
+      },
+      {
+        "id": "T132",
+        "title": "Tiempo real por SSE (sin polling): una memoria nueva aparece y se coloca en su capa/orden en vivo (bus/observer + memory.updated)",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "frontend",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T131"
+        ],
+        "initiative": "V2-014",
+        "path": ".meshkore/modules/frontend/tasks/T132-memory-realtime.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "49142b8"
+        ]
+      },
+      {
+        "id": "T121",
+        "title": "Frontend /debug: columna Agente + la columna de modelo muestra el modelo del agente; extensible a >1 agente",
+        "status": "next",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "frontend",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T119"
+        ],
+        "initiative": "V2-012",
+        "path": ".meshkore/modules/frontend/tasks/T121-debug-agent-column.md",
+        "completed_at": null,
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T139",
+        "title": "Icono \ud83e\udd16 (robot) bajo el orbe junto a \ud83d\udd0a/\ud83d\udcdd: toggle always\u2194wake-word, estado visual, aplica en vivo",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "frontend",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [],
+        "initiative": "V2-016",
+        "path": ".meshkore/modules/frontend/tasks/T139-robot-icon-toggle.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "2cd7617"
+        ]
+      },
+      {
+        "id": "T140",
+        "title": "Cambio de attention_mode en caliente + persistir en config/settings.json (sin reiniciar)",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "config",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T139"
+        ],
+        "initiative": "V2-016",
+        "path": ".meshkore/modules/config/tasks/T140-attention-live-mode.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "2cd7617"
+        ]
+      },
+      {
+        "id": "T38",
+        "title": "config/v2.py \u2014 esquema v2 aditivo + vista p\u00fablica redactada + tests",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "config",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T37"
+        ],
+        "initiative": "V2-001",
+        "path": ".meshkore/modules/config/tasks/T38-config-v2-additive.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "a04a22d"
+        ]
+      },
+      {
+        "id": "T35",
+        "title": "bus/log.py \u2014 log durable de eventos (tabla events) + tests",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "bus",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T34"
+        ],
+        "initiative": "V2-001",
+        "path": ".meshkore/modules/bus/tasks/T35-bus-log.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          3313948
+        ]
+      },
+      {
+        "id": "T34",
+        "title": "bus/__init__.py \u2014 pub/sub in-process + emit_sync loop-agn\u00f3stico + tests",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "bus",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [],
+        "initiative": "V2-001",
+        "path": ".meshkore/modules/bus/tasks/T34-bus-pubsub.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "ba913fc"
+        ]
+      },
+      {
+        "id": "T36",
+        "title": "bus/sse.py \u2014 re-expresar voice/observer.py sobre el bus (GET /events id\u00e9ntico)",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "bus",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T35"
+        ],
+        "initiative": "V2-001",
+        "path": ".meshkore/modules/bus/tasks/T36-bus-sse-observer.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "f3bd5d5"
+        ]
+      },
+      {
+        "id": "T104",
+        "title": "zaelar-hermes-federation.md \u2192 hist\u00f3rico; nota de que el bridge WhatsApp se conserva vendorizado",
+        "status": "done",
+        "priority": "low",
+        "owner": "ricart",
+        "category": "server",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T103"
+        ],
+        "initiative": "V2-009",
+        "path": ".meshkore/modules/server/tasks/T104-federation-historic.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T40",
+        "title": "Montar el bus en el lifespan de server/__init__.py (sin suscriptores nuevos)",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "server",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T39"
+        ],
+        "initiative": "V2-001",
+        "path": ".meshkore/modules/server/tasks/T40-mount-bus-lifespan.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "814ed21"
+        ]
+      },
+      {
+        "id": "T102",
+        "title": "Actualizar docs can\u00f3nicas (architecture, modules, product, conventions, security) al sistema v2",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "server",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T101"
+        ],
+        "initiative": "V2-009",
+        "path": ".meshkore/modules/server/tasks/T102-canonical-docs.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T99",
+        "title": "Retirar rutas /api/hermes/*, el banner de update y el polling del frontend; simplificar /api/brain",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "server",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T98"
+        ],
+        "initiative": "V2-009",
+        "path": ".meshkore/modules/server/tasks/T99-retire-hermes-routes.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T105",
+        "title": "Bump version a 1.0.0 en cluster.yaml; suite de tests completa verde",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "server",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T104"
+        ],
+        "initiative": "V2-009",
+        "path": ".meshkore/modules/server/tasks/T105-bump-version.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T97",
+        "title": "BRAIN=nucleo como default (make run); retirar run-duo/run-hermes/update-hermes/hermes-check",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "server",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T96"
+        ],
+        "initiative": "V2-009",
+        "path": ".meshkore/modules/server/tasks/T97-default-nucleo.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T103",
+        "title": "Diagrama /architecture: PROPUESTA \u2192 construido + fecha; sello \u00abActualizado:\u00bb",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "server",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T102"
+        ],
+        "initiative": "V2-009",
+        "path": ".meshkore/modules/server/tasks/T103-diagram-built.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T39",
+        "title": "Declarar bus, nucleo y memory en .meshkore/public/cluster.yaml",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "server",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T38"
+        ],
+        "initiative": "V2-001",
+        "path": ".meshkore/modules/server/tasks/T39-declare-modules.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "5a2a484"
+        ]
+      },
+      {
+        "id": "T41",
+        "title": "Verificar make run sin cambios de comportamiento (BRAIN actual intacto)",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "server",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T40"
+        ],
+        "initiative": "V2-001",
+        "path": ".meshkore/modules/server/tasks/T41-verify-boot.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T98",
+        "title": "Borrar brains/hermes/, brains/duo/, brains/reasoner.py y los providers hermes/duo; ajustar el registry",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "server",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T97"
+        ],
+        "initiative": "V2-009",
+        "path": ".meshkore/modules/server/tasks/T98-delete-brains.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T100",
+        "title": "Config v2 definitiva: fuera settings de Hermes/duo; STT/TTS/voz/idioma + routing fast/code-agent + flags",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "server",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T99"
+        ],
+        "initiative": "V2-009",
+        "path": ".meshkore/modules/server/tasks/T100-config-v2-final.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T101",
+        "title": "cluster.yaml (m\u00f3dulos v2; brains/files fuera) + CLAUDE.md + README.md",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "server",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T100"
+        ],
+        "initiative": "V2-009",
+        "path": ".meshkore/modules/server/tasks/T101-cluster-claude-readme.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T135",
+        "title": "Fin de turno acotado + preservaci\u00f3n de comando: cap longitud/silencio; al recortar priorizar el comando expl\u00edcito (no truncar un cierra/para)",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "voice",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T134"
+        ],
+        "initiative": "V2-015",
+        "path": ".meshkore/modules/voice/tasks/T135-turn-bound-command.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "efc6a3a"
+        ]
+      },
+      {
+        "id": "T138",
+        "title": "Verificaci\u00f3n con el tester (ambiente NO act\u00faa; dirigido s\u00ed) + se\u00f1al UI ambient/atendiendo + revisi\u00f3n de alineaci\u00f3n",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "voice",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T135",
+          "T136",
+          "T137"
+        ],
+        "initiative": "V2-015",
+        "path": ".meshkore/modules/voice/tasks/T138-verify-attention.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "addf5e7"
+        ]
+      },
+      {
+        "id": "T133",
+        "title": "Alineaci\u00f3n: docs (observability/modules) + diagrama /architecture (nueva vista) + revisi\u00f3n de alineaci\u00f3n",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "voice",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T132"
+        ],
+        "initiative": "V2-014",
+        "path": ".meshkore/modules/voice/tasks/T133-align-visualizer.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "3df39ea"
+        ]
+      },
+      {
+        "id": "T134",
+        "title": "Gate de atenci\u00f3n (ZAELAR_ATTENTION default smart): wake-word + ventana de conversaci\u00f3n; turno no dirigido \u2192 ambient, sin acci\u00f3n ni respuesta",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "voice",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [],
+        "initiative": "V2-015",
+        "path": ".meshkore/modules/voice/tasks/T134-attention-gate.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "efc6a3a",
+          "addf5e7"
+        ]
+      },
+      {
+        "id": "T141",
+        "title": "Detecci\u00f3n inteligente de interlocutor: clasificador '\u00bfva dirigido a zaelar?' que gatea la acci\u00f3n en always; off-loop",
+        "status": "next",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "voice",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [],
+        "initiative": "V2-016",
+        "path": ".meshkore/modules/voice/tasks/T141-interlocutor-detection.md",
+        "completed_at": null,
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T122",
+        "title": "Alineaci\u00f3n: zaelar-observability.md + diagrama /architecture + pasar la revisi\u00f3n de alineaci\u00f3n",
+        "status": "next",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "voice",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T121"
+        ],
+        "initiative": "V2-012",
+        "path": ".meshkore/modules/voice/tasks/T122-align-observability.md",
+        "completed_at": null,
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T118",
+        "title": "Esquema del observer: campos agent + agent_model en el evento, persistidos en el timeline jsonl",
+        "status": "next",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "voice",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [],
+        "initiative": "V2-012",
+        "path": ".meshkore/modules/voice/tasks/T118-observer-agent-fields.md",
+        "completed_at": null,
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T142",
+        "title": "Verificaci\u00f3n (dirigido\u2192act\u00faa; charla entre terceros\u2192no) + revisi\u00f3n de alineaci\u00f3n (icono, docs, diagrama)",
+        "status": "next",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "voice",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T140",
+          "T141"
+        ],
+        "initiative": "V2-016",
+        "path": ".meshkore/modules/voice/tasks/T142-verify-attention-ui.md",
+        "completed_at": null,
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T67",
+        "title": "Componer prompt con memory.state() + memory.query(); escribir trivial a memoria; briefing de arranque",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T66"
+        ],
+        "initiative": "V2-004",
+        "path": ".meshkore/modules/nucleo/tasks/T67-prompt-memory.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "214fa9d"
+        ]
+      },
+      {
+        "id": "T76",
+        "title": "Prueba en vivo: aviso programado por voz a +1 min dispara por voz+UI; consolidador nocturno",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T75"
+        ],
+        "initiative": "V2-005",
+        "path": ".meshkore/modules/nucleo/tasks/T76-live-test-loop.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T65",
+        "title": "voice/engine/llm/providers/nucleo.py \u2014 provider LLM streaming con strip_tags\u2192speech (espejo de duo.py)",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T64"
+        ],
+        "initiative": "V2-004",
+        "path": ".meshkore/modules/nucleo/tasks/T65-provider-nucleo.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "214fa9d"
+        ]
+      },
+      {
+        "id": "T71",
+        "title": "Scheduler de tareas programadas respaldado por memory.journal (crear/listar/disparar/cerrar) + tests",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T70"
+        ],
+        "initiative": "V2-005",
+        "path": ".meshkore/modules/nucleo/tasks/T71-scheduler-journal.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T116",
+        "title": "Recall bajo demanda (no en cada frase), en paralelo con la frase-puente",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T115"
+        ],
+        "initiative": "V2-011",
+        "path": ".meshkore/modules/nucleo/tasks/T116-recall-on-demand.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "1eb506c"
+        ]
+      },
+      {
+        "id": "T107",
+        "title": "Sandbox del CodeAgent (cwd aislado, timeout, allowlist de tools por agente) + test",
+        "status": "next",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T106"
+        ],
+        "initiative": "V2-010",
+        "path": ".meshkore/modules/nucleo/tasks/T107-codeagent-sandbox.md",
+        "completed_at": null,
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T136",
+        "title": "Interrupci\u00f3n DURA cierra/para/silencio/stop: atendida de inmediato aunque haya turno/cola en vuelo",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T134"
+        ],
+        "initiative": "V2-015",
+        "path": ".meshkore/modules/nucleo/tasks/T136-hard-interrupt.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "efc6a3a"
+        ]
+      },
+      {
+        "id": "T82",
+        "title": "Config v2: selecci\u00f3n de code-agent (claude|codex) + defaults de modelo por tipo de tarea",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T81"
+        ],
+        "initiative": "V2-006",
+        "path": ".meshkore/modules/nucleo/tasks/T82-config-codeagent.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T77",
+        "title": "nucleo/agentes/base.py \u2014 CodeAgent (ABC) + AgentSpec{prompt,model,tools,cwd,timeout} + tests",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T76"
+        ],
+        "initiative": "V2-006",
+        "path": ".meshkore/modules/nucleo/tasks/T77-codeagent-base.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T83",
+        "title": "Prueba: dispatch(task) \u2192 contexto m\u00ednimo \u2192 Claude Code con modelo del spec \u2192 resultado",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T82"
+        ],
+        "initiative": "V2-006",
+        "path": ".meshkore/modules/nucleo/tasks/T83-test-dispatch.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T111",
+        "title": "Benchmark fast layer (local vs Grok) + code-agent por tarea \u2192 defaults en config + doc en benchmarks",
+        "status": "next",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T110"
+        ],
+        "initiative": "V2-010",
+        "path": ".meshkore/modules/nucleo/tasks/T111-benchmarks.md",
+        "completed_at": null,
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T68",
+        "title": "Config v2: defaults de routing del fast layer (base_url/model/api_key por invocaci\u00f3n)",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T67"
+        ],
+        "initiative": "V2-004",
+        "path": ".meshkore/modules/nucleo/tasks/T68-config-fast-routing.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "5c2715a"
+        ]
+      },
+      {
+        "id": "T120",
+        "title": "Procesos del FlashBrain (agente navegador/b\u00fasqueda, hilo separado) emiten agent + agent_model",
+        "status": "next",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T118"
+        ],
+        "initiative": "V2-012",
+        "path": ".meshkore/modules/nucleo/tasks/T120-flashbrain-procs-emit-agent.md",
+        "completed_at": null,
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T108",
+        "title": "Portar scan_outbound a la salida del SlowBrain hacia cluster/mensajer\u00eda + test",
+        "status": "next",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T107"
+        ],
+        "initiative": "V2-010",
+        "path": ".meshkore/modules/nucleo/tasks/T108-scan-outbound.md",
+        "completed_at": null,
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T106",
+        "title": "Deny-tools por defecto para turnos de input no confiable que alcancen un CodeAgent + tests adversariales",
+        "status": "next",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T105"
+        ],
+        "initiative": "V2-010",
+        "path": ".meshkore/modules/nucleo/tasks/T106-deny-tools-untrusted.md",
+        "completed_at": null,
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T80",
+        "title": "nucleo/dispatch.py \u2014 prompt din\u00e1mico (memoria + tarea), consume escalate.requested del bus + tests",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T79"
+        ],
+        "initiative": "V2-006",
+        "path": ".meshkore/modules/nucleo/tasks/T80-dispatcher.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T87",
+        "title": "Cablear escalate() real: FlashBrain \u2192 bus \u2192 dispatcher \u2192 agente; sustituir el stub de V2-004",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T86"
+        ],
+        "initiative": "V2-007",
+        "path": ".meshkore/modules/nucleo/tasks/T87-escalate-real.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T73",
+        "title": "Chispas: generador rate-limited con presupuesto diario + gate \u00bfaporta? + test",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T72"
+        ],
+        "initiative": "V2-005",
+        "path": ".meshkore/modules/nucleo/tasks/T73-sparks.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T85",
+        "title": "nucleo/agentes/code.py \u2014 envuelve widgets/generator.py + rol Architect como CodeAgents + test de generaci\u00f3n",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T84"
+        ],
+        "initiative": "V2-007",
+        "path": ".meshkore/modules/nucleo/tasks/T85-agent-code.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T112",
+        "title": "Pasar la auditor\u00eda completa (zaelar-audit-workflow.md) sobre el sistema v2",
+        "status": "next",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T111"
+        ],
+        "initiative": "V2-010",
+        "path": ".meshkore/modules/nucleo/tasks/T112-audit-v2.md",
+        "completed_at": null,
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T69",
+        "title": "Prueba en vivo: BRAIN=nucleo \u2192 turno de voz, [[show]]/[[close]], recall de un dato guardado",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T68"
+        ],
+        "initiative": "V2-004",
+        "path": ".meshkore/modules/nucleo/tasks/T69-live-test-flash.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "5c2715a"
+        ]
+      },
+      {
+        "id": "T114",
+        "title": "Bloque de memoria cacheado por sesi\u00f3n (estado + recall) con TTL + refresco async",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T113"
+        ],
+        "initiative": "V2-011",
+        "path": ".meshkore/modules/nucleo/tasks/T114-memory-cache-session.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "d8033e3"
+        ]
+      },
+      {
+        "id": "T110",
+        "title": "Re-apuntar las oleadas del tester (INI-013) al cerebro v2; el juez observa los eventos v2",
+        "status": "next",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T109"
+        ],
+        "initiative": "V2-010",
+        "path": ".meshkore/modules/nucleo/tasks/T110-tester-v2.md",
+        "completed_at": null,
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T63",
+        "title": "nucleo/flash/procs.py \u2014 puente a widgets/supervisor.py",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T62"
+        ],
+        "initiative": "V2-004",
+        "path": ".meshkore/modules/nucleo/tasks/T63-flash-procs.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "13880bc"
+        ]
+      },
+      {
+        "id": "T90",
+        "title": "Prueba en vivo: b\u00fascame X en la web / cr\u00e9ame un widget de Y \u2192 escala, async, vuelve por voz+UI",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T89"
+        ],
+        "initiative": "V2-007",
+        "path": ".meshkore/modules/nucleo/tasks/T90-live-test-slow.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T79",
+        "title": "nucleo/agentes/codex.py \u2014 adaptador stub con la misma firma + selecci\u00f3n por config",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T78"
+        ],
+        "initiative": "V2-006",
+        "path": ".meshkore/modules/nucleo/tasks/T79-codex-adapter.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T123",
+        "title": "Procesador de memoria: worker + cola chunk-a-chunk (LLM local Ollama, off-hot-path) \u2014 decide DESCARTAR/ESTADO/CORTO/LARGO + importancia; reemplaza el write crudo",
+        "status": "next",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [],
+        "initiative": "V2-013",
+        "path": ".meshkore/modules/nucleo/tasks/T123-fact-extraction.md",
+        "completed_at": null,
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T66",
+        "title": "Registrar BRAIN=nucleo en el selector de cerebros; make run-nucleo (sin tocar el default)",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T65"
+        ],
+        "initiative": "V2-004",
+        "path": ".meshkore/modules/nucleo/tasks/T66-register-brain.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "214fa9d"
+        ]
+      },
+      {
+        "id": "T115",
+        "title": "memory.query/embeddings y refuerzo fuera del event loop (to_thread / fire-and-forget)",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T114"
+        ],
+        "initiative": "V2-011",
+        "path": ".meshkore/modules/nucleo/tasks/T115-memory-offloop.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "ede30d7"
+        ]
+      },
+      {
+        "id": "T62",
+        "title": "nucleo/flash/frontend.py \u2014 control de widgets v\u00eda tag_protocol (show/close/render) + tests",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T61"
+        ],
+        "initiative": "V2-004",
+        "path": ".meshkore/modules/nucleo/tasks/T62-flash-frontend.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "ebc4ac0"
+        ]
+      },
+      {
+        "id": "T117",
+        "title": "Verificar latencia con el tester + registrar en zaelar-model-benchmarks.md",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T116"
+        ],
+        "initiative": "V2-011",
+        "path": ".meshkore/modules/nucleo/tasks/T117-verify-benchmark.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "aeaebc3"
+        ]
+      },
+      {
+        "id": "T89",
+        "title": "Portar el confirm-gate de acciones irreversibles (_DANGER_RE) al flujo del SlowBrain",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T88"
+        ],
+        "initiative": "V2-007",
+        "path": ".meshkore/modules/nucleo/tasks/T89-confirm-gate.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T109",
+        "title": "Auditor\u00eda de privacidad de memoria: nada personal sale a un API salvo lo expl\u00edcito",
+        "status": "next",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T108"
+        ],
+        "initiative": "V2-010",
+        "path": ".meshkore/modules/nucleo/tasks/T109-memory-privacy-audit.md",
+        "completed_at": null,
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T78",
+        "title": "nucleo/agentes/claude_code.py \u2014 adaptador claude -p (headless, timeout, cwd) + test",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T77"
+        ],
+        "initiative": "V2-006",
+        "path": ".meshkore/modules/nucleo/tasks/T78-claude-code-adapter.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T72",
+        "title": "Disparo del consolidador por intervalo/tama\u00f1o (fuera del hot path) + test",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T71"
+        ],
+        "initiative": "V2-005",
+        "path": ".meshkore/modules/nucleo/tasks/T72-trigger-consolidator.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T86",
+        "title": "nucleo/agentes/otros.py \u2014 agente gen\u00e9rico on-demand + test",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T85"
+        ],
+        "initiative": "V2-007",
+        "path": ".meshkore/modules/nucleo/tasks/T86-agent-otros.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T74",
+        "title": "Re-cablear [[cron.create]] al scheduler del loop; retirar el uso de hermes cron tick",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T73"
+        ],
+        "initiative": "V2-005",
+        "path": ".meshkore/modules/nucleo/tasks/T74-cron-rewire.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T143",
+        "title": "Prompt DIN\u00c1MICO de importancia: se compone desde el estado/situaci\u00f3n del operador (estudio derecho \u2192 derecho importa)",
+        "status": "next",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T123"
+        ],
+        "initiative": "V2-013",
+        "path": ".meshkore/modules/nucleo/tasks/T143-dynamic-importance-prompt.md",
+        "completed_at": null,
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T64",
+        "title": "nucleo/flash/escalate.py \u2014 stub escalate(task) que registra por el bus (escalate.requested)",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T63"
+        ],
+        "initiative": "V2-004",
+        "path": ".meshkore/modules/nucleo/tasks/T64-escalate-stub.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "13880bc"
+        ]
+      },
+      {
+        "id": "T81",
+        "title": "nucleo/memory_agent.py \u2014 recall de contexto m\u00ednimo (heur\u00edstica + router barato) + escritura a memoria + tests",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T80"
+        ],
+        "initiative": "V2-006",
+        "path": ".meshkore/modules/nucleo/tasks/T81-memory-agent.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T61",
+        "title": "nucleo/flash/router.py \u2014 clasificaci\u00f3n trivial/escala por function-calling + tests",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T60"
+        ],
+        "initiative": "V2-004",
+        "path": ".meshkore/modules/nucleo/tasks/T61-router.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "ebc4ac0"
+        ]
+      },
+      {
+        "id": "T60",
+        "title": "nucleo/flash/fast_client.py \u2014 cliente streaming, modelo por invocaci\u00f3n, UA-spoof, degradaci\u00f3n + tests",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T59"
+        ],
+        "initiative": "V2-004",
+        "path": ".meshkore/modules/nucleo/tasks/T60-fast-client.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "9c77372"
+        ]
+      },
+      {
+        "id": "T119",
+        "title": "SlowBrain/CodeAgent emite agent + agent_model (modelo del RunSpec, por invocaci\u00f3n) al despachar",
+        "status": "next",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T118"
+        ],
+        "initiative": "V2-012",
+        "path": ".meshkore/modules/nucleo/tasks/T119-slowbrain-emit-agent.md",
+        "completed_at": null,
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T84",
+        "title": "nucleo/agentes/web.py \u2014 mover la orquestaci\u00f3n de automatizaci\u00f3n web al SlowBrain (bucle barato intacto) + test",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T83"
+        ],
+        "initiative": "V2-007",
+        "path": ".meshkore/modules/nucleo/tasks/T84-agent-web.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T70",
+        "title": "nucleo/loop.py \u2014 tarea peri\u00f3dica en el lifespan (arranca/para) + tick configurable + tests",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T69"
+        ],
+        "initiative": "V2-005",
+        "path": ".meshkore/modules/nucleo/tasks/T70-loop-core.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T88",
+        "title": "Retorno: agente de memoria escribe + proactive.notify + [SISTEMA]; dedup + test del circuito",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T87"
+        ],
+        "initiative": "V2-007",
+        "path": ".meshkore/modules/nucleo/tasks/T88-return-circuit.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T37",
+        "title": "nucleo/ \u2014 \u00e1rbol de stubs con docstrings + firmas (sin cablear a voz)",
+        "status": "done",
+        "priority": "medium",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T36"
+        ],
+        "initiative": "V2-001",
+        "path": ".meshkore/modules/nucleo/tasks/T37-nucleo-skeleton.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "0f55980"
+        ]
+      },
+      {
+        "id": "T128",
+        "title": "Verificar: datos por voz \u2192 reiniciar \u2192 recuerda; nombre en 3 formas \u2192 1 hecho reforzado (dedup); basura descartada; + revisi\u00f3n de alineaci\u00f3n",
+        "status": "next",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T124",
+          "T125",
+          "T126",
+          "T127"
+        ],
+        "initiative": "V2-013",
+        "path": ".meshkore/modules/nucleo/tasks/T128-verify-persistence.md",
+        "completed_at": null,
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T75",
+        "title": "Emitir loop.* por el bus; verificar en GET /events",
+        "status": "done",
+        "priority": "low",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [
+          "T74"
+        ],
+        "initiative": "V2-005",
+        "path": ".meshkore/modules/nucleo/tasks/T75-loop-bus-events.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": []
+      },
+      {
+        "id": "T113",
+        "title": "Instrumentar el desglose de latencia del turno nucleo (memory/LLM/TTS) en /debug",
+        "status": "done",
+        "priority": "high",
+        "owner": "ricart",
+        "category": "nucleo",
+        "created": "2026-07-09",
+        "updated": "2026-07-09",
+        "tags": [],
+        "depends_on": [],
+        "initiative": "V2-011",
+        "path": ".meshkore/modules/nucleo/tasks/T113-latency-instrument.md",
+        "completed_at": "2026-07-09",
+        "resolved_by": null,
+        "resolved_by_conv": null,
+        "commit_shas": [
+          "ce078f0"
+        ]
+      }
+    ],
+    "stats": {
+      "backlog": 0,
+      "next": 21,
+      "in_progress": 0,
+      "active": 0,
+      "blocked": 0,
+      "done": 89,
+      "total": 110
+    }
+  },
+  "docs": [
+    {
+      "title": "Zaelar Security",
+      "category": "security",
+      "tags": [],
+      "updated": "2026-07-09",
+      "owner": "ricart",
+      "status": "current",
+      "path": ".meshkore/docs/security/zaelar-security.md"
+    },
+    {
+      "title": "Zaelar Deploy",
+      "category": "deploy",
+      "tags": [],
+      "updated": "2026-07-09",
+      "owner": "ricart",
+      "status": "current",
+      "path": ".meshkore/docs/deploy/zaelar-deploy.md"
+    },
+    {
+      "title": "Zaelar Product Context",
+      "category": "product",
+      "tags": [],
+      "updated": "2026-07-09",
+      "owner": "ricart",
+      "status": "current",
+      "path": ".meshkore/docs/product/zaelar-product.md"
+    },
+    {
+      "title": "Zaelar Architecture",
+      "category": "architecture",
+      "tags": [],
+      "updated": "2026-07-09",
+      "owner": "ricart",
+      "status": "current",
+      "path": ".meshkore/docs/architecture/zaelar-architecture.md"
+    },
+    {
+      "title": "Zaelar Full-System Audit \u2014 2026-07-02",
+      "category": "architecture",
+      "tags": [],
+      "updated": "2026-07-02",
+      "owner": "ricart",
+      "status": "current",
+      "path": ".meshkore/docs/architecture/zaelar-audit-2026-07-02.md"
+    },
+    {
+      "title": "Zaelar Conventions",
+      "category": "conventions",
+      "tags": [],
+      "updated": "2026-07-09",
+      "owner": "ricart",
+      "status": "current",
+      "path": ".meshkore/docs/conventions/zaelar-conventions.md"
+    },
+    {
+      "title": "Zaelar Setup & Ops",
+      "category": "ops",
+      "tags": [],
+      "updated": "2026-07-09",
+      "owner": "ricart",
+      "status": "current",
+      "path": ".meshkore/docs/ops/zaelar-ops.md"
+    },
+    {
+      "title": "Zaelar Docs & Structure Sync",
+      "category": "ops",
+      "tags": [],
+      "updated": "2026-07-02",
+      "owner": "ricart",
+      "status": "current",
+      "path": ".meshkore/docs/ops/zaelar-docs-sync.md"
+    },
+    {
+      "title": "Zaelar Alignment Review",
+      "category": "ops",
+      "tags": [],
+      "updated": "2026-07-09",
+      "owner": "ricart",
+      "status": "current",
+      "path": ".meshkore/docs/ops/zaelar-alignment-review.md"
+    },
+    {
+      "title": "Zaelar Memory Change Workflow",
+      "category": "ops",
+      "tags": [],
+      "updated": "2026-07-10",
+      "owner": "ricart",
+      "status": "current",
+      "path": ".meshkore/docs/ops/zaelar-memory-workflow.md"
+    },
+    {
+      "title": "Zaelar Audit Workflow",
+      "category": "ops",
+      "tags": [],
+      "updated": "2026-07-09",
+      "owner": "ricart",
+      "status": "current",
+      "path": ".meshkore/docs/ops/zaelar-audit-workflow.md"
+    },
+    {
+      "title": "Zaelar Change Protocol",
+      "category": "ops",
+      "tags": [],
+      "updated": "2026-07-09",
+      "owner": "ricart",
+      "status": "current",
+      "path": ".meshkore/docs/ops/zaelar-change-protocol.md"
+    },
+    {
+      "title": "Zaelar Widgets Change Workflow",
+      "category": "ops",
+      "tags": [],
+      "updated": "2026-07-09",
+      "owner": "ricart",
+      "status": "current",
+      "path": ".meshkore/docs/ops/zaelar-widgets-workflow.md"
+    },
+    {
+      "title": "Zaelar Modules",
+      "category": "modules",
+      "tags": [],
+      "updated": "2026-07-09",
+      "owner": "ricart",
+      "status": "current",
+      "path": ".meshkore/docs/modules/zaelar-modules.md"
+    }
+  ],
+  "initiatives": [
+    {
+      "id": "V2-013",
+      "title": "Memoria que APRENDE \u2014 el CORAZ\u00d3N de escritura (LLM local) cura cada dato como P\u00cdLDORA (dato+metadatos), decide d\u00f3nde/importancia y no duplica",
+      "status": "next",
+      "priority": "critical",
+      "oneliner": "",
+      "modules": [
+        "nucleo",
+        "memory",
+        "voice"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "2026-07-09",
+      "updated": "2026-07-10",
+      "child_task_ids": [
+        "T125",
+        "T124",
+        "T127",
+        "T126",
+        "T123",
+        "T143",
+        "T128"
+      ],
+      "task_total": 7,
+      "path": ".meshkore/roadmap/initiatives/V2-013-memoria-que-aprende.md",
+      "next": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "wall_order": 13
+    },
+    {
+      "id": "V2-010",
+      "title": "Endurecimiento v2 \u2014 seguridad del SlowBrain + tester v2 + benchmarks de latencia/modelo",
+      "status": "next",
+      "priority": "high",
+      "oneliner": "",
+      "modules": [
+        "nucleo",
+        "memory",
+        "connectors",
+        "tester",
+        "config"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "2026-07-09",
+      "updated": "2026-07-09",
+      "child_task_ids": [
+        "T107",
+        "T111",
+        "T108",
+        "T106",
+        "T112",
+        "T110",
+        "T109"
+      ],
+      "task_total": 7,
+      "path": ".meshkore/roadmap/initiatives/V2-010-seguridad-tester-v2.md",
+      "next": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "wall_order": 10
+    },
+    {
+      "id": "V2-012",
+      "title": "Observabilidad \u2014 columna de AGENTE + modelo del agente en el timeline",
+      "status": "next",
+      "priority": "high",
+      "oneliner": "",
+      "modules": [
+        "voice",
+        "nucleo",
+        "frontend"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "2026-07-09",
+      "updated": "2026-07-09",
+      "child_task_ids": [
+        "T121",
+        "T122",
+        "T118",
+        "T120",
+        "T119"
+      ],
+      "task_total": 5,
+      "path": ".meshkore/roadmap/initiatives/V2-012-observabilidad-agente-modelo.md",
+      "next": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "wall_order": 12
+    },
+    {
+      "id": "V2-016",
+      "title": "Control de atenci\u00f3n desde la UI (icono robot) + detecci\u00f3n inteligente de interlocutor",
+      "status": "next",
+      "priority": "high",
+      "oneliner": "",
+      "modules": [
+        "frontend",
+        "voice",
+        "config"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "2026-07-09",
+      "updated": "2026-07-09",
+      "child_task_ids": [
+        "T139",
+        "T140",
+        "T141",
+        "T142"
+      ],
+      "task_total": 4,
+      "path": ".meshkore/roadmap/initiatives/V2-016-control-atencion-ui.md",
+      "next": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "wall_order": 16
+    },
+    {
+      "id": "V2-031",
+      "title": "Memoria de FIDELIDAD M\u00c1XIMA \u2014 subir el techo de recall (embedding SOTA local + auto-mejora continua)",
+      "status": "in_progress",
+      "priority": "critical",
+      "oneliner": "",
+      "modules": [
+        "memory",
+        "nucleo",
+        "tester"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "2026-07-12",
+      "updated": "2026-07-12",
+      "child_task_ids": [],
+      "task_total": 0,
+      "path": ".meshkore/roadmap/initiatives/V2-031-memoria-fidelidad-maxima.md",
+      "next": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "wall_order": 31
+    },
+    {
+      "id": "V2-018",
+      "title": "Gobierno de procesos \u2014 el cerebro sabe qu\u00e9 corre y el operador lo puede PARAR (Reset duro)",
+      "status": "next",
+      "priority": "high",
+      "oneliner": "",
+      "modules": [
+        "nucleo",
+        "voice",
+        "widgets",
+        "frontend",
+        "memory",
+        "server"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "2026-07-10",
+      "updated": "2026-07-10",
+      "child_task_ids": [],
+      "task_total": 0,
+      "path": ".meshkore/roadmap/initiatives/V2-018-gobierno-de-procesos.md",
+      "next": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "wall_order": 18
+    },
+    {
+      "id": "V2-019",
+      "title": "Memoria \u2014 el SUE\u00d1O (consolidaci\u00f3n CORTO\u2192LARGO + olvido) + aislamiento del tester + limpieza de la BD",
+      "status": "next",
+      "priority": "high",
+      "oneliner": "",
+      "modules": [
+        "memory",
+        "nucleo",
+        "tester"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "2026-07-10",
+      "updated": "2026-07-10",
+      "child_task_ids": [],
+      "task_total": 0,
+      "path": ".meshkore/roadmap/initiatives/V2-019-memoria-sueno-aislamiento.md",
+      "next": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "wall_order": 19
+    },
+    {
+      "id": "V2-021",
+      "title": "Memoria MULTI-FUENTE \u2014 ingesta tipada de N fuentes (voz \u00b7 mensajer\u00eda \u00b7 cluster \u00b7 agentes) + consulta por tipo indexado + cuarentena de confianza",
+      "status": "in-progress",
+      "priority": "medium",
+      "oneliner": "",
+      "modules": [
+        "memory",
+        "connectors",
+        "nucleo"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "2026-07-10",
+      "updated": "2026-07-10",
+      "child_task_ids": [],
+      "task_total": 0,
+      "path": ".meshkore/roadmap/initiatives/V2-021-memoria-multifuente.md",
+      "next": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "wall_order": 21
+    },
+    {
+      "id": "V2-020",
+      "title": "Rendimiento \u2014 hot-tier en RAM (estado + corto) + evaluaci\u00f3n Rust, guiada por perfilado",
+      "status": "backlog",
+      "priority": "low",
+      "oneliner": "",
+      "modules": [
+        "memory",
+        "nucleo",
+        "voice"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "2026-07-10",
+      "updated": "2026-07-10",
+      "child_task_ids": [],
+      "task_total": 0,
+      "path": ".meshkore/roadmap/initiatives/V2-020-rendimiento-hot-tier-rust.md",
+      "next": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "wall_order": 20
+    },
+    {
+      "id": "INI-005",
+      "title": "MeshKore Native Cluster Channel",
+      "status": "cancelled",
+      "priority": "medium",
+      "oneliner": "",
+      "modules": [
+        "connectors",
+        "brains",
+        "voice",
+        "server",
+        "frontend"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "",
+      "updated": "2026-07-01",
+      "child_task_ids": [],
+      "task_total": 0,
+      "path": ".meshkore/roadmap/initiatives/INI-005-meshkore-connector.md",
+      "next": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "wall_order": null
+    },
+    {
+      "id": "INI-003",
+      "title": "Widgets pure-frontend + generic data layer",
+      "status": "cancelled",
+      "priority": "medium",
+      "oneliner": "",
+      "modules": [
+        "widgets",
+        "frontend",
+        "server"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "",
+      "updated": "2026-06-30",
+      "child_task_ids": [],
+      "task_total": 0,
+      "path": ".meshkore/roadmap/initiatives/INI-003-widgets-frontend-data.md",
+      "next": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "wall_order": null
+    },
+    {
+      "id": "V2-001",
+      "title": "Cimientos v2 \u2014 sistema nervioso (bus/) + esqueleto nucleo/ + config v2 aditiva",
+      "status": "done",
+      "priority": "high",
+      "oneliner": "",
+      "modules": [
+        "bus",
+        "nucleo",
+        "config",
+        "voice",
+        "server"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "2026-07-09",
+      "updated": "2026-07-09",
+      "child_task_ids": [
+        "T38",
+        "T35",
+        "T34",
+        "T36",
+        "T40",
+        "T39",
+        "T41",
+        "T37"
+      ],
+      "task_total": 8,
+      "path": ".meshkore/roadmap/initiatives/V2-001-cimientos-bus-nucleo.md",
+      "next": null,
+      "completed_at": "2026-07-09T01:37:56.421Z",
+      "commit_sha": "814ed219742d85c767e2813e3698a4909a97ef1f",
+      "wall_order": 1
+    },
+    {
+      "id": "V2-002",
+      "title": "Memoria v2 \u2014 n\u00facleo local (memory/ top-level \u00b7 SQLite + sqlite-vec + FTS5 + retriever + olvido)",
+      "status": "done",
+      "priority": "high",
+      "oneliner": "",
+      "modules": [
+        "memory",
+        "bus"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "2026-07-09",
+      "updated": "2026-07-09",
+      "child_task_ids": [
+        "T51",
+        "T52",
+        "T45",
+        "T47",
+        "T49",
+        "T46",
+        "T44",
+        "T43",
+        "T48",
+        "T42",
+        "T50"
+      ],
+      "task_total": 11,
+      "path": ".meshkore/roadmap/initiatives/V2-002-memoria-nucleo.md",
+      "next": null,
+      "completed_at": "2026-07-09T02:11:09.243Z",
+      "commit_sha": "74b3bf9f803b67fbf79c3829f89c70d13ea41d29",
+      "wall_order": 2
+    },
+    {
+      "id": "V2-003",
+      "title": "Memoria \u2014 integraci\u00f3n (files/\u2192epis\u00f3dica \u00b7 migraci\u00f3n Hermes\u2192DB \u00b7 widgets escriben \u00b7 estado vivo)",
+      "status": "done",
+      "priority": "high",
+      "oneliner": "",
+      "modules": [
+        "memory",
+        "files",
+        "widgets",
+        "server"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "2026-07-09",
+      "updated": "2026-07-09",
+      "child_task_ids": [
+        "T53",
+        "T58",
+        "T55",
+        "T56",
+        "T59",
+        "T57",
+        "T54"
+      ],
+      "task_total": 7,
+      "path": ".meshkore/roadmap/initiatives/V2-003-memoria-integracion.md",
+      "next": null,
+      "completed_at": "2026-07-09T08:41:00.102Z",
+      "commit_sha": "ab6d2326cdb14469cb50a2e07f737c1f7018a5d7",
+      "wall_order": 3
+    },
+    {
+      "id": "V2-004",
+      "title": "FlashBrain \u2014 orquestaci\u00f3n refleja (c\u00f3digo propio) + provider nucleo enchufado al motor de voz",
+      "status": "done",
+      "priority": "high",
+      "oneliner": "",
+      "modules": [
+        "nucleo",
+        "voice",
+        "memory",
+        "widgets",
+        "config"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "2026-07-09",
+      "updated": "2026-07-09",
+      "child_task_ids": [
+        "T67",
+        "T65",
+        "T68",
+        "T69",
+        "T63",
+        "T66",
+        "T62",
+        "T64",
+        "T61",
+        "T60"
+      ],
+      "task_total": 10,
+      "path": ".meshkore/roadmap/initiatives/V2-004-flashbrain.md",
+      "next": null,
+      "completed_at": "2026-07-09T08:41:00.102Z",
+      "commit_sha": "ab6d2326cdb14469cb50a2e07f737c1f7018a5d7",
+      "wall_order": 4
+    },
+    {
+      "id": "V2-005",
+      "title": "Loop orquestador (~1 Hz) \u2014 hilo del tiempo + chispas + consolidaci\u00f3n + cron propio",
+      "status": "done",
+      "priority": "high",
+      "oneliner": "",
+      "modules": [
+        "nucleo",
+        "memory",
+        "voice",
+        "server"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "2026-07-09",
+      "updated": "2026-07-09",
+      "child_task_ids": [
+        "T76",
+        "T71",
+        "T73",
+        "T72",
+        "T74",
+        "T70",
+        "T75"
+      ],
+      "task_total": 7,
+      "path": ".meshkore/roadmap/initiatives/V2-005-loop-orquestador.md",
+      "next": null,
+      "completed_at": "2026-07-09T08:41:00.102Z",
+      "commit_sha": "ab6d2326cdb14469cb50a2e07f737c1f7018a5d7",
+      "wall_order": 5
+    },
+    {
+      "id": "V2-006",
+      "title": "SlowBrain \u2014 interfaz CodeAgent + dispatcher + agente de MEMORIA \u2605",
+      "status": "done",
+      "priority": "high",
+      "oneliner": "",
+      "modules": [
+        "nucleo",
+        "memory",
+        "config"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "2026-07-09",
+      "updated": "2026-07-09",
+      "child_task_ids": [
+        "T82",
+        "T77",
+        "T83",
+        "T80",
+        "T79",
+        "T78",
+        "T81"
+      ],
+      "task_total": 7,
+      "path": ".meshkore/roadmap/initiatives/V2-006-slowbrain-codeagent.md",
+      "next": null,
+      "completed_at": "2026-07-09T08:41:00.102Z",
+      "commit_sha": "ab6d2326cdb14469cb50a2e07f737c1f7018a5d7",
+      "wall_order": 6
+    },
+    {
+      "id": "V2-007",
+      "title": "SlowBrain \u2014 agentes de trabajo + escalado FlashBrain\u2192SlowBrain + retorno por voz+UI",
+      "status": "done",
+      "priority": "high",
+      "oneliner": "",
+      "modules": [
+        "nucleo",
+        "memory",
+        "voice",
+        "widgets",
+        "connectors"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "2026-07-09",
+      "updated": "2026-07-09",
+      "child_task_ids": [
+        "T87",
+        "T85",
+        "T90",
+        "T89",
+        "T86",
+        "T84",
+        "T88"
+      ],
+      "task_total": 7,
+      "path": ".meshkore/roadmap/initiatives/V2-007-slowbrain-agentes.md",
+      "next": null,
+      "completed_at": "2026-07-09T08:41:00.102Z",
+      "commit_sha": "ab6d2326cdb14469cb50a2e07f737c1f7018a5d7",
+      "wall_order": 7
+    },
+    {
+      "id": "V2-008",
+      "title": "Conectores STATELESS + triaje DENTRO del widget mensajer\u00eda (backed + CodeAgent interno)",
+      "status": "done",
+      "priority": "high",
+      "oneliner": "",
+      "modules": [
+        "connectors",
+        "widgets",
+        "memory",
+        "nucleo",
+        "bus"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "2026-07-09",
+      "updated": "2026-07-09",
+      "child_task_ids": [
+        "T91",
+        "T94",
+        "T92",
+        "T96",
+        "T93",
+        "T95"
+      ],
+      "task_total": 6,
+      "path": ".meshkore/roadmap/initiatives/V2-008-conectores-stateless.md",
+      "next": null,
+      "completed_at": "2026-07-09T08:41:00.102Z",
+      "commit_sha": "ab6d2326cdb14469cb50a2e07f737c1f7018a5d7",
+      "wall_order": 8
+    },
+    {
+      "id": "V2-009",
+      "title": "Entierro de Hermes \u2014 cutover BRAIN=nucleo, retirar brains/, config v2 definitiva, docs+diagramas",
+      "status": "done",
+      "priority": "high",
+      "oneliner": "",
+      "modules": [
+        "brains",
+        "nucleo",
+        "config",
+        "server",
+        "frontend",
+        "voice"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "2026-07-09",
+      "updated": "2026-07-09",
+      "child_task_ids": [
+        "T104",
+        "T102",
+        "T99",
+        "T105",
+        "T97",
+        "T103",
+        "T98",
+        "T100",
+        "T101"
+      ],
+      "task_total": 9,
+      "path": ".meshkore/roadmap/initiatives/V2-009-entierro-hermes.md",
+      "next": null,
+      "completed_at": "2026-07-09T08:41:00.102Z",
+      "commit_sha": "ab6d2326cdb14469cb50a2e07f737c1f7018a5d7",
+      "wall_order": 9
+    },
+    {
+      "id": "V2-011",
+      "title": "FlashBrain \u2014 latencia sub-segundo (sacar la memoria del camino caliente)",
+      "status": "done",
+      "priority": "high",
+      "oneliner": "",
+      "modules": [
+        "nucleo",
+        "memory",
+        "voice"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "2026-07-09",
+      "updated": "2026-07-09",
+      "child_task_ids": [
+        "T116",
+        "T114",
+        "T115",
+        "T117",
+        "T113"
+      ],
+      "task_total": 5,
+      "path": ".meshkore/roadmap/initiatives/V2-011-flashbrain-latencia.md",
+      "next": null,
+      "completed_at": "2026-07-09T11:32:13.372Z",
+      "commit_sha": "1eb506c1c072a6d600b20b3193c0fe506fcdeeef",
+      "wall_order": 11
+    },
+    {
+      "id": "V2-014",
+      "title": "Visualizador del MAPA DE MEMORIA \u2014 estado + corto + largo plazo, grafo, en tiempo real",
+      "status": "done",
+      "priority": "high",
+      "oneliner": "",
+      "modules": [
+        "frontend",
+        "memory",
+        "server",
+        "voice"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "2026-07-09",
+      "updated": "2026-07-09",
+      "child_task_ids": [
+        "T129",
+        "T130",
+        "T131",
+        "T132",
+        "T133"
+      ],
+      "task_total": 5,
+      "path": ".meshkore/roadmap/initiatives/V2-014-visualizador-memoria.md",
+      "next": null,
+      "completed_at": "2026-07-13T16:36:14.556Z",
+      "commit_sha": "e5298232d74569141da4f36341aa92b7fae434c8",
+      "wall_order": 14
+    },
+    {
+      "id": "V2-015",
+      "title": "Gate de ATENCI\u00d3N \u2014 el micro abierto no act\u00faa sobre lo que no le hablan",
+      "status": "done",
+      "priority": "critical",
+      "oneliner": "",
+      "modules": [
+        "voice",
+        "nucleo",
+        "connectors",
+        "frontend"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "2026-07-09",
+      "updated": "2026-07-09",
+      "child_task_ids": [
+        "T137",
+        "T135",
+        "T138",
+        "T134",
+        "T136"
+      ],
+      "task_total": 5,
+      "path": ".meshkore/roadmap/initiatives/V2-015-gate-de-atencion.md",
+      "next": null,
+      "completed_at": "2026-07-09T14:36:47.433Z",
+      "commit_sha": "fe04f7e8f46ca56788dda5b716d14230a8fae6d0",
+      "wall_order": 15
+    },
+    {
+      "id": "INI-008",
+      "title": "Cerebro de dos velocidades (fast orchestrator + Hermes async)",
+      "status": "done",
+      "priority": "medium",
+      "oneliner": "",
+      "modules": [
+        "brains",
+        "voice",
+        "server"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "",
+      "updated": "2026-07-08",
+      "child_task_ids": [],
+      "task_total": 0,
+      "path": ".meshkore/roadmap/initiatives/INI-008-two-speed-brain.md",
+      "next": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "wall_order": null
+    },
+    {
+      "id": "INI-010",
+      "title": "Architect Provider \u2014 voz sobre el daemon MeshKore",
+      "status": "done",
+      "priority": "medium",
+      "oneliner": "",
+      "modules": [
+        "connectors",
+        "brains",
+        "voice"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "",
+      "updated": "2026-07-08",
+      "child_task_ids": [],
+      "task_total": 0,
+      "path": ".meshkore/roadmap/initiatives/INI-010-architect-provider.md",
+      "next": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "wall_order": null
+    },
+    {
+      "id": "INI-013",
+      "title": "Agente tester de voz \u2014 habla con zaelar y detecta cosas a mejorar",
+      "status": "done",
+      "priority": "medium",
+      "oneliner": "",
+      "modules": [
+        "tester"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "",
+      "updated": "2026-07-08",
+      "child_task_ids": [],
+      "task_total": 0,
+      "path": ".meshkore/roadmap/initiatives/INI-013-voice-tester.md",
+      "next": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "wall_order": null
+    },
+    {
+      "id": "INI-016",
+      "title": "Widget navegador (browser dentro de zaelar) + kind \"backed\"",
+      "status": "done",
+      "priority": "medium",
+      "oneliner": "",
+      "modules": [
+        "widgets",
+        "server",
+        "voice"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "",
+      "updated": "2026-07-08",
+      "child_task_ids": [],
+      "task_total": 0,
+      "path": ".meshkore/roadmap/initiatives/INI-016-browser-widget.md",
+      "next": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "wall_order": null
+    },
+    {
+      "id": "INI-017",
+      "title": "Agent Files Inbox \u2014 paste-image & drag-drop file upload",
+      "status": "done",
+      "priority": "medium",
+      "oneliner": "",
+      "modules": [
+        "files",
+        "frontend",
+        "server",
+        "voice",
+        "brains"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "",
+      "updated": "2026-07-08",
+      "child_task_ids": [],
+      "task_total": 0,
+      "path": ".meshkore/roadmap/initiatives/INI-017-agent-files-inbox.md",
+      "next": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "wall_order": null
+    },
+    {
+      "id": "INI-015",
+      "title": "Telegram Triage Connector + Unified Messaging Widget",
+      "status": "done",
+      "priority": "medium",
+      "oneliner": "",
+      "modules": [
+        "connectors",
+        "brains",
+        "voice",
+        "widgets"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "",
+      "updated": "2026-07-07",
+      "child_task_ids": [],
+      "task_total": 0,
+      "path": ".meshkore/roadmap/initiatives/INI-015-telegram-unified-messaging.md",
+      "next": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "wall_order": null
+    },
+    {
+      "id": "INI-011",
+      "title": "Dark/light theme \u2014 dark por defecto, contrato de tema para widgets",
+      "status": "done",
+      "priority": "medium",
+      "oneliner": "",
+      "modules": [
+        "frontend",
+        "widgets"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "",
+      "updated": "2026-07-06",
+      "child_task_ids": [],
+      "task_total": 0,
+      "path": ".meshkore/roadmap/initiatives/INI-011-dark-light-theme.md",
+      "next": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "wall_order": null
+    },
+    {
+      "id": "INI-012",
+      "title": "Migraci\u00f3n del motor de voz Pipecat \u2192 LiveKit Agents",
+      "status": "done",
+      "priority": "medium",
+      "oneliner": "",
+      "modules": [
+        "voice",
+        "brains",
+        "server",
+        "frontend",
+        "config"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "",
+      "updated": "2026-07-06",
+      "child_task_ids": [],
+      "task_total": 0,
+      "path": ".meshkore/roadmap/initiatives/INI-012-livekit-voice-engine.md",
+      "next": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "wall_order": null
+    },
+    {
+      "id": "INI-014",
+      "title": "WhatsApp Triage Connector \u2014 leer, triar y marcar le\u00eddo",
+      "status": "done",
+      "priority": "medium",
+      "oneliner": "",
+      "modules": [
+        "connectors",
+        "brains",
+        "voice"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "",
+      "updated": "2026-07-06",
+      "child_task_ids": [],
+      "task_total": 0,
+      "path": ".meshkore/roadmap/initiatives/INI-014-whatsapp-triage-connector.md",
+      "next": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "wall_order": null
+    },
+    {
+      "id": "INI-009",
+      "title": "Redise\u00f1o de la capa de turnos (TurnBroker + TurnGate)",
+      "status": "done",
+      "priority": "medium",
+      "oneliner": "",
+      "modules": [
+        "voice"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "",
+      "updated": "2026-07-05",
+      "child_task_ids": [],
+      "task_total": 0,
+      "path": ".meshkore/roadmap/initiatives/INI-009-turn-taking-redesign.md",
+      "next": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "wall_order": null
+    },
+    {
+      "id": "INI-006",
+      "title": "Audit Remediation \u2014 Parte 1: Core & Arquitectura (2026-07-02)",
+      "status": "done",
+      "priority": "medium",
+      "oneliner": "",
+      "modules": [
+        "brains",
+        "widgets",
+        "voice",
+        "server",
+        "config",
+        "frontend"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "",
+      "updated": "2026-07-03",
+      "child_task_ids": [],
+      "task_total": 0,
+      "path": ".meshkore/roadmap/initiatives/INI-006-audit-remediation.md",
+      "next": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "wall_order": null
+    },
+    {
+      "id": "INI-007",
+      "title": "Security Hardening & Adversarial Tests (audit 2026-07-02)",
+      "status": "done",
+      "priority": "medium",
+      "oneliner": "",
+      "modules": [
+        "connectors",
+        "brains",
+        "widgets",
+        "server",
+        "config"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "",
+      "updated": "2026-07-03",
+      "child_task_ids": [],
+      "task_total": 0,
+      "path": ".meshkore/roadmap/initiatives/INI-007-adversarial-security-tests.md",
+      "next": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "wall_order": null
+    },
+    {
+      "id": "INI-002",
+      "title": "Canvas Widgets",
+      "status": "done",
+      "priority": "medium",
+      "oneliner": "",
+      "modules": [
+        "widgets",
+        "server"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "",
+      "updated": "2026-07-02",
+      "child_task_ids": [],
+      "task_total": 0,
+      "path": ".meshkore/roadmap/initiatives/INI-002-canvas-widgets.md",
+      "next": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "wall_order": null
+    },
+    {
+      "id": "INI-001",
+      "title": "Voice Pipeline",
+      "status": "done",
+      "priority": "medium",
+      "oneliner": "",
+      "modules": [
+        "voice",
+        "brain",
+        "server"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "",
+      "updated": "2026-06-30",
+      "child_task_ids": [],
+      "task_total": 0,
+      "path": ".meshkore/roadmap/initiatives/INI-001-voice-pipeline.md",
+      "next": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "wall_order": null
+    },
+    {
+      "id": "INI-004",
+      "title": "Hermes Self-Update",
+      "status": "done",
+      "priority": "medium",
+      "oneliner": "",
+      "modules": [
+        "brains",
+        "server",
+        "frontend"
+      ],
+      "target": "",
+      "owner": "ricart",
+      "created": "",
+      "updated": "2026-06-30",
+      "child_task_ids": [],
+      "task_total": 0,
+      "path": ".meshkore/roadmap/initiatives/INI-004-hermes-self-update.md",
+      "next": null,
+      "completed_at": null,
+      "commit_sha": null,
+      "wall_order": null
+    }
+  ],
+  "generated_at": "2026-07-14T11:04:25.133Z",
+  "generator": {
+    "name": "meshcore-py",
+    "version": "py-1.32.1"
+  }
+}
