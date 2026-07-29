@@ -1,0 +1,15 @@
+{
+  "id": "gestiona-recepcion-respuesta",
+  "version": "0.1.0",
+  "title": "Estefanía · WhatsApp",
+  "description": "Gestiona la recepción y la respuesta al mensaje nuevo de Estefanía en WhatsApp: muestra el mensaje entrante, guarda un borrador de respuesta y refleja el estado (recibido → respondiendo → respondido). El ENVÍO real se hace por el sistema real (conector de mensajería), y este widget se limita a espejar ese estado tras la gestión.",
+  "whenToUse": "Cuando el operador habla del mensaje de Estefanía en WhatsApp: verlo, preparar/guardar una respuesta o marcar que ya le ha contestado.",
+  "keywords": ["estefanía", "estefania", "mensaje de estefanía", "mensaje de estefania", "respuesta a estefanía", "contestar a estefanía", "recepción y respuesta", "recepcion y respuesta"],
+  "entry": "widget.js",
+  "usage": "Espejo local del mensaje de Estefanía: draft_reply guarda el borrador de la respuesta (text) y pone el estado en 'respondiendo'; mark_replied marca que la respuesta YA se ha ENVIADO por el sistema real (WhatsApp) —opcionalmente con el texto enviado— y pasa a 'respondido'; reset vuelve a 'recibido'. El envío de verdad NO lo hace el widget: lo ejecuta el conector de mensajería; el widget solo refleja el resultado.",
+  "actions": {
+    "draft_reply": {"desc": "guarda un borrador de la respuesta a Estefanía (aún sin enviar)", "payload": {"text": "string"}},
+    "mark_replied": {"desc": "marca que ya se le ha respondido en WhatsApp real y actualiza el estado a respondido", "payload": {"text": "string (opcional, el texto enviado)"}},
+    "reset": {"desc": "vuelve el estado a 'recibido' (deshace borrador/respuesta local)", "payload": {}}
+  }
+}
