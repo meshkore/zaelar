@@ -33,7 +33,21 @@ if not os.path.exists(_PY):
 
 
 # ── first-run marker (en settings.json, como config_profile de profiles.apply) ─────────────────────────────
+def _demo_session() -> bool:
+    """Same gate as nucleo/demo_limits.py and nucleo/energy_meter.py — true only on an ephemeral
+    demo Fly Machine (cloud/infra/demo-session-worker's demoMachineConfig sets this), never on a
+    self-host install."""
+    return bool((os.getenv("ZAELAR_DEMO_SESSION") or "").strip())
+
+
 def _first_run() -> bool:
+    if _demo_session():
+        # A demo Machine boots fresh every time (ephemeral, auto_destroy=true, no persisted
+        # settings.json) — without this the self-host first-run wizard ("Elige un perfil") would
+        # show unconditionally to every anonymous demo visitor, even though demoMachineConfig
+        # already sets working provider env vars (BASE_PROVIDER_ENV) for them. This wizard is for a
+        # human setting up their own machine once, not a public demo session.
+        return False
     try:
         from config import settings
         return not bool(settings.get("wizard_done"))
