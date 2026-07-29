@@ -73,7 +73,9 @@ function makeCard(it, isPrimary, choose){
 export function render(el, data, ctx){
   injectStyles();
   data = data || {};
-  const all = Array.isArray(data.items) ? data.items.slice(0, 24) : [];
+  const items = Array.isArray(data.items) ? data.items : [];
+  const total = items.length;
+  const all = items.slice(0, 24);
   el.className = "hb-results";
   el.textContent = "";
 
@@ -111,5 +113,14 @@ export function render(el, data, ctx){
     sgrid.style.gridTemplateColumns = `repeat(${cols},minmax(0,1fr))`;
     el.appendChild(sgrid);
     rest.forEach(it => sgrid.appendChild(makeCard(it, false, choose)));
+  }
+
+  // Faithful count: if the real pushed results exceed what we render, say so — never silently drop
+  // obtained data (the operator asked for a REAL search; the interface must reflect its true size).
+  if(total > all.length){
+    const more = document.createElement("div"); more.className = "hr-sub";
+    more.style.marginTop = "10px";
+    more.textContent = `Mostrando ${all.length} de ${total} resultados.`;
+    el.appendChild(more);
   }
 }

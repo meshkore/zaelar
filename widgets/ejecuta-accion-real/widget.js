@@ -24,6 +24,7 @@ function injectStyles(){
   .hb-ejecuta-real .eje-step{font-size:12px;color:var(--hb-muted,#5b6b82);line-height:1.4}
   .hb-ejecuta-real .eje-step .ts{font-family:ui-monospace,Menlo,monospace;color:var(--hb-muted-2,#9aa7b8);margin-right:6px}
   .hb-ejecuta-real .eje-reason{margin-top:6px;font-size:12px;color:var(--hb-risk,#e5484d)}
+  .hb-ejecuta-real .eje-done{margin-top:6px;font-size:12px;font-weight:600;color:var(--hb-accent2,#16B8A6)}
   .hb-ejecuta-real .eje-acts{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
   .hb-ejecuta-real .eje-acts button{border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);border-radius:9px;padding:5px 10px;font-size:11.5px;cursor:pointer;color:var(--hb-muted,#3a4757)}
   .hb-ejecuta-real .eje-acts button:hover{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}
@@ -77,6 +78,7 @@ export function render(el, data, ctx){
     }
 
     if (status === "failed" && a.reason) card.appendChild(el2("div", "eje-reason", a.reason));
+    if (status === "verified") card.appendChild(el2("div", "eje-done", "✓ Completada y verificada en la realidad"));
 
     const acts = el2("div", "eje-acts");
     if (status === "failed"){
