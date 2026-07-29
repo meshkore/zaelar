@@ -1,9 +1,0 @@
-{
-  "id": "realiza-cambio-real",
-  "version": "0.1.0",
-  "title": "Clusters — panel lateral",
-  "description": "Lista compacta de clusters MeshKore conocidos; al hacer clic en uno se abre, desde el lateral de la propia tarjeta, un panel más corto con su vista resumida (estado de conexión, peers y últimos mensajes) sin sustituir la lista.",
-  "whenToUse": "Cuando el usuario quiere ver de un vistazo los clusters MeshKore disponibles y abrir un resumen rápido de uno en concreto en un panel lateral, en vez del registro completo.",
-  "keywords": ["panel lateral cluster", "resumen cluster", "vista corta cluster", "lista de clusters", "clusters meshkore", "abre el cluster", "vista rápida cluster"],
-  "entry": "widget.js"
-}
