@@ -1,0 +1,483 @@
+# zaelar — Registro de benchmarks de modelos y latencia (canónico)
+
+> **Propósito**: la "parada de benchmarkings". Un ÚNICO sitio donde viven TODAS las pruebas de modelos de lenguaje
+> (FlashBrain, navegador, tester), sus latencias reales, y las decisiones tomadas — para no re-experimentar
+> y poder decidir con conocimiento de causa al cambiar de modelo. Antes estaba repartido entre INI-008 (Fases 2d/2e)
+> e INI-013; esto lo consolida. **Mantener vivo**: cada prueba de modelo nueva AÑADE una fila/entrada fechada aquí.
+> Detalle narrativo de cada ronda → sigue en la iniciativa correspondiente; la TABLA de resultados vive aquí.
+>
+> **RÉPLICA VISIBLE AL USUARIO (V2-077, 2026-07-26):** `engine/config/model_benchmarks.py` (sirve
+> `GET /api/config/benchmarks`, pintado por `engine/frontend/app/components/BenchmarksPanel.js` — botón "¿Quieres
+> ver los benchmarks…?" al fondo de Config → Cerebro rápido) es un resumen CURADO de este doc para el operador,
+> igual que `web/technology` es una foto curada de la arquitectura — no un parser automático. **Toda decisión de
+> modelo nueva que añadas aquí, añádela TAMBIÉN allí** (coste, latencia, tool-calling/alucinación, veredicto) o la
+> réplica queda desactualizada silenciosamente.
+
+## 0. El modelo mental de latencia (leer primero)
+
+zaelar "todo local" corre **STT (Whisper Metal), TTS (Kokoro Metal) y LLM (qwen Ollama) sobre la MISMA GPU Apple**.
+Se pelean. Ésta es la causa raíz de "todo va lentísimo", más que la velocidad de ningún componente aislado.
+
+Latencia percibida de un turno = `EOU` (fin-de-habla, VAD) + `STT dur` (transcribir, POST-habla) + `LLM ttft`
+(primer token) + `TTS ttfb` (primer audio). El cuello de botella se MUEVE según qué tiene la GPU ocupada.
+
+**Hallazgo clave (sesión real `20260708-105150`, ver §4):** el `STT dur` que se ve en los logs **NO es "lo que
+hablaste"** — es cómputo real POST-habla, pero está inflado por CONTENCIÓN de GPU, no por Whisper. Prueba: `dur` y
+`audio` están desacoplados — 13 s de audio → `dur=0.66s` (GPU libre), pero un "No" de 1,86 s → `dur=5.75s` (GPU
+ocupada por el LLM/TTS). Whisper turbo en M4 Max es sub-segundo cuando tiene la GPU para él. **Corolario de
+diseño: sacar el LLM de la GPU local (capa rápida a una API cloud) libera la GPU para STT+TTS → doble mejora
+(STT vuelve a sub-segundo Y el LLM corre en paralelo sin pelear).**
+
+---
+
+## 1. Capa rápida (FlashBrain) — modelos LOCALES (Ollama), M4 Max / 48 GB
+
+Arnés: prompt real (`build_flash_system`) + las 2 funciones reales (`escalate_to_slowbrain`/`set_style_directive`),
+13+2 casos (oleada A de INI-013) salvo nota. "Fiabilidad tool-calling" = % que invocó la función nativa cuando
+debía. Detalle: INI-008 Fases 2d/2e.
+
+| Modelo | Disco | Fiabilidad tool-calling | TTFT (caliente) | Veredicto |
+|---|---|---|---|---|
+| **`qwen2.5:14b-instruct`** ⬅ producción actual | 9 GB | **~45%** (6/13; 14/31 con más muestras) | 0,3–2 s (picos por contención) | mejor local, pero techo ~45% |
+| `qwen2.5:7b-instruct` | 4 GB | baja (a veces escribe la llamada como texto) | 0,3–1 s | descartado |
+| `qwen2.5:32b-instruct` | ~20 GB | media (mejor en casos, huella de memoria muy justa) | 0,9–4 s | descartado por riesgo memoria |
+| `hermes3:8b` (especialista FC) | 5 GB | peor que baseline; filtró `<THINKING>` crudo | — | descartado |
+| `firefunction-v2` (especialista FC) | 39 GB | 0/15 (todos timeout, fallback CPU) | — | inviable en este HW |
+| `qwen3:14b` / `qwen3:30b-a3b` | 9–18 GB | modo "thinking" ON por defecto → viola no-razonadores | 8–78 s | TODA la familia qwen3 descartada |
+| `gemma3:27b` | 17 GB | 0/15 — Ollama: "does not support tools" | — | sin FC, descartado de raíz |
+| `mistral-small` | 14 GB | 3/15; inventó fuga de formato nueva | ~0,7 s + picos | descartado |
+| `llama3.3:70b` | 42 GB | no completado (timeout warm, fallback CPU 28%) | >240 s | inviable en 48 GB compartidos |
+
+**Nota HW menos potente**: `firefunction-v2`/`llama3.3:70b` ya hacen fallback a CPU aquí → inutilizables en máquinas
+con menos RAM unificada. qwen3 = desactivar "thinking" antes de considerarla. gemma3 = sin FC en ningún HW.
+
+---
+
+## 2. Capa rápida (FlashBrain) — modelos CLOUD vía AIMLAPI (research 2026-07-08)
+
+⚠️ **Los TTFT de abajo son de la API NATIVA (artificialanalysis.ai / proveedor), NO de AIMLAPI.** AIMLAPI añade un
+hop + Cloudflare → **el TTFT real por AIMLAPI es MÁS ALTO** (los ~0,4–0,6 s nativos se sienten ~1,1–1,6 s, según
+nuestros propios logs). Usar como señal de RANKING, no como el número que se siente. Ids verificados contra
+`docs.aimlapi.com`.
+
+| Modelo (id AIMLAPI) | TTFT nativo | tps | Precio /1M (in/out) | Tool-calling | Nota |
+|---|---|---|---|---|---|
+| `google/gemini-2.5-flash-lite-preview` (thinking OFF) | ~0,37 s | 226 | ~muy barato | ✅ confirmado AIMLAPI | el más rápido; el "menos listo"; verboso |
+| `x-ai/grok-4-fast-non-reasoning` | ~0,5–0,6 s | ~207 | $0,21 / $0,53 | ✅ confirmado AIMLAPI | no-razonador POR CONSTRUCCIÓN (sin trampa thinking); buen equilibrio |
+| `google/gemini-2.5-flash` | ~0,45 s | ~205 | ~$0,30 / $2,50 | ✅ confirmado AIMLAPI | el más listo del trío rápido; puede activar thinking; verboso |
+| `anthropic/claude-haiku-4.5` | ~0,60 s | ~120 | $1,3 / $6,5 | ✅ (tools nativas Anthropic) | mejor fiabilidad FC + español; el más caro |
+| `deepseek/deepseek-v4-flash` | ~1,26 s | 111 | **$0,182 / $0,364** | ✅ confirmado AIMLAPI | el más barato; el MÁS LENTO del shortlist |
+| `moonshot/kimi-k2-6` / `k2-5` | 0,4–2,5 s (varía) | 77–431 | $0,21–0,78 / $3,9–5,2 | fuerte agéntico; FC en AIMLAPI SIN confirmar | medir TTFT por AIMLAPI antes de usar |
+
+**⚠️ Trampa Gemini 3.x flash-lite**: `gemini-3-1-flash-lite` mide **~5,75 s TTFT** porque trae reasoning ON por
+defecto = razonador en el path de voz (prohibido). Para Gemini quedarse en **2.5-flash/2.5-flash-lite con thinking
+OFF**; un 3.x flash solo tras fijar thinking off y RE-MEDIR.
+
+**Cerebras/Groq/SambaNova**: NO confirmados como modelos dedicados en AIMLAPI. Para esa velocidad habría que ir
+directo al proveedor, no por AIMLAPI.
+
+**AIMLAPI reliability**: tras Cloudflare → 403/1010 intermitentes por firma del request
+(`nucleo/flash/fast_client.py` spoofea UA de navegador + degrada al SlowBrain; mantener). TTFT más alto/variable
+que nativo.
+
+### Head-to-head REAL (2026-07-08) — prompt + `_TOOLS` reales del FlashBrain, escenario Wallapop que falló en vivo
+Arnés: `build_flash_system` real (33 KB) + los 4 `_TOOLS` reales (`browse_web`/`automate_web`/`escalate_to_slowbrain`/
+`set_style_directive`), 7 casos, TTFT real POR AIMLAPI (no nativo). Script: `scratchpad/bench_fastbrain.py`.
+Caso clave = `search_IN_wallapop` ("con Wallapop abierto, búscame ahí una moto…") → debe llamar `automate_web`.
+
+| Modelo | Routing OK (7 casos) | `search_IN_wallapop`→automate | TTFT típico | Veredicto |
+|---|---|---|---|---|
+| **`x-ai/grok-4-fast-non-reasoning`** | **7/7 ✅** | ✅ **1,35 s** | **~0,8–1,8 s** | 🏆 ELEGIDO |
+| `google/gemini-2.5-flash` | 7/7 ✅ | ✅ 1,66 s | ~1,1–1,9 s | muy bueno (alt) |
+| `deepseek/deepseek-v4-flash` | 7/7 ✅ | ✅ 2,38 s | ~1,0–1,3 s (dur 2–4,6 s) | bueno, el más barato (alt) |
+| `anthropic/claude-haiku-4.5` | 7/7 ✅ | ✅ 2,78 s | ~1,7–3,6 s | fiable, el más lento/caro (alt) |
+| `google/gemini-2.5-flash-lite-preview` | **4/7 ❌** | ❌ (no llamó nada) | ~0,8–1,7 s | rápido pero tonto en routing — DESCARTADO |
+| `qwen2.5:14b-instruct` (LOCAL, era prod) | 5/7, pero… | ✅ pero **27 s ttft** | **timeout 45 s** en "abre Wallapop" | 💀 confirma el desastre en vivo |
+
+Conclusión: en el caso EXACTO que falló en producción, qwen local tardó 27 s (y timeout 45 s sin llamar nada al
+abrir Wallapop). grok lo clava en 1,35 s con 7/7 de routing. `gemini-flash-lite` (el "rápido barato") confirmó el
+aviso de la §2: 4/7, no invoca las tools. **Decisión: capa rápida → `x-ai/grok-4-fast-non-reasoning` (§5).**
+
+### Shortlist para "sub-segundo + tool-calling fiable + español + barato"
+1. **`grok-4-fast-non-reasoning`** — mejor equilibrio; no-razonador por construcción (sin trampa). ⬅ recomendado.
+2. **`gemini-2.5-flash-lite-preview` (thinking off)** — el más rápido/barato; el menos listo (riesgo en enrutado de tools).
+3. **`gemini-2.5-flash`** — el más listo del trío rápido; para desambiguar/enrutar tools mejor.
+4. **`claude-haiku-4.5`** — máxima fiabilidad FC + español; caro (reservar si el enrutado de tools sigue fallando).
+5. **`deepseek/deepseek-v4-flash`** — suelo de coste / fallback; TTFT el peor del grupo.
+
+---
+
+## 3. Otros carriles (referencia)
+
+- **Navegador — automatizador** (`NAVEGADOR_AGENT_*`, bucle `automate_web`): por defecto `anthropic/claude-haiku-4.5`
+  vía AIMLAPI (un cerebro barato DEDICADO, NO el SlowBrain de `nucleo/`). Es un modelo cloud decente ya; el fallo de
+  la sesión `105150` NO fue del automatizador sino de la CAPA RÁPIDA (FlashBrain) enrutando mal (mandó la tarea a
+  `browse_web/search`→Bing en vez de `automate_web` sobre Wallapop).
+- **Tester (INI-013)**: DRIVE = DeepSeek vía AIMLAPI (barato); JUEZ = GLM-4.6 vía Z.AI (fallback DeepSeek).
+- **Reasoners (GLM-4.6/5.2)**: NUNCA en el path de voz. Solo cluster/uso específico async.
+
+---
+
+## 4. Latencias de sesiones REALES
+
+### Sesión `20260708-105150` (BRAIN=duo, `qwen2.5:14b` local, STT/TTS Metal locales)
+- **STT** (`dur` vs `audio`): GPU libre → sub-segundo aun con frases largas (`0.66s`/13 s, `0.42s`/8 s); GPU
+  contendida → 5–18 s desacoplado de la longitud (`5.75s`/1,86 s; `18.23s`/40,9 s). = **contención de GPU**, no Whisper.
+- **LLM ttft**: primer turno (saludo) **69,9 s** (prompt-eval frío del 14b con contexto grande); en conversación
+  **0,35–1,1 s** (GPU libre) vs **8–25 s** (contención/escalado).
+- **TTS ttfb**: normal 0,1–2,6 s; picos **5,4–5,6 s** bajo saturación de GPU.
+- **Intelligence**: la capa rápida enrutó MAL el navegador (Bing en vez de Wallapop), no encadenó open→automate,
+  casi no escaló, se quedó conversacional. Tools bien diseñadas; el modelo local no es lo bastante listo para
+  enrutar entre varias tools. → argumento para capa rápida cloud.
+
+### V2-011 (2026-07-09) — regresión de latencia del port a `nucleo/` y su fix (memoria fuera del turno)
+
+El port a `nucleo/` (V2-004) metió el retriever COMPLETO de memoria en el camino caliente del turno:
+`build_flash_system(recall_query=text)` disparaba `memory.query()` (embeddings HTTP a Ollama + RRF + graph +
+refuerzo) **síncrono en el event loop, cada turno, antes del LLM**. Medido con el desglose de T113 (evento `timing`
+en `/debug`): `mem_query_ms` = **112–452 ms por turno** era TODO el coste de armar el prompt (`mem_state_ms`≈0,1,
+`briefs_ms`≈1–2, `live_ms`≈0) — y bloqueaba el loop, así que se sumaba al TTFT y frenaba el TTS.
+
+**Fix (V2-011, T114–T116):** estado cacheado por sesión (`memory_cache`, TTL 300 s, refresco async, invalidación
+por `memory.updated`) → `mem_state_ms`≈0; recall semántico **bajo demanda** (heurística `needs_recall`) y **fuera
+del loop** (`asyncio.to_thread`) → solo dispara embeddings cuando el turno pide recordar, y sin bloquear el loop.
+
+Medición con el tester (mismo M4 Max, grok-4-fast-non-reasoning cloud, STT/TTS Metal locales; `fast_ms` = del
+turno cerrado del FlashBrain, `ttft_ms` = primer token):
+
+| Escenario | ANTES (V2-004) | DESPUÉS (V2-011) `fast_ms` | `ttft_ms` | Notas |
+|---|---|---|---|---|
+| `memory`   | 3726 avg / 4742 max | **p50 1139 · avg 1132 · max 1247** | p50 1031 | recall correcto ("coche en el taller") en 2 turnos; `mem_query` 137/172 ms OFF-LOOP, solo en esos 2 |
+| `widget`   | 5885 avg / 8900 max | **p50 1031 · avg 1045 · max 1347** | p50 864  | ningún turno tocó el retriever |
+| `conversation` | — | p50 1605 · avg 2158 · max 4075 | p50 1432 | el max/avg lo infla el 1er turno frío (4 s, kickoff) + turnos que ESCALAN (coste de escalada, ajeno a V2-011); charla pura 751–2070 ms |
+
+**Resultado:** la regresión de memoria eliminada — `mem_state`=0 (caché), `mem_query` solo en turnos de recall y
+fuera del loop. `memory`/`widget` p50 ~1 s (×3–6 más rápido, sin picos); recall REAL conservado. Los picos que
+quedan en `conversation` son cold-start del 1er turno + escaladas, no la memoria.
+
+---
+
+## 5. Decisión y config actual
+
+- **Producción (desde 2026-07-15)**: `grok-4.20-0309-non-reasoning` vía **xAI DIRECTO**
+  (`config/v2.json §fast` → `provider:"xai"`, `base_url:"https://api.x.ai/v1"`, key = `XAI_API_KEY` en el credential
+  store). Se pasó de AIMLAPI a xAI directo porque el store solo tiene `XAI_API_KEY`/`GROQ_API_KEY` (no `AIMLAPI_KEY`):
+  el default heredado (Haiku vía AIMLAPI) dejaba el turno sin credencial → fallback "Uf, se me ha ido un momento".
+  `fast_client.py::resolved_api_key()` resuelve la key **por endpoint** (x.ai/groq.com/aimlapi/gemini). Historial:
+  fue `x-ai/grok-4-fast-non-reasoning` vía AIMLAPI (desde 2026-07-08), luego Haiku 4.5 vía AIMLAPI (V2-034,
+  2026-07-12, por fiabilidad de routing). Alternativas hoy: Haiku/AIMLAPI o Groq (`llama-3.3-70b-versatile`) metiendo
+  su key en el store. NUNCA local en la voz: `qwen2.5:14b-instruct` medido ~19 s/turno + patoso (contención de GPU).
+  Bonus arquitectónico (se mantiene): el LLM en la nube saca la GPU Metal → libera STT (Whisper) + TTS (Kokoro) locales.
+- **Alternativas validadas** (mismo benchmark, todas 7/7 routing) por si grok da problemas de fiabilidad/Cloudflare:
+  `google/gemini-2.5-flash`, `deepseek/deepseek-v4-flash` (más barato), `anthropic/claude-haiku-4.5` (más fiable, caro).
+  Camino de vuelta a LOCAL documentado en el `.env` (bloque comentado).
+- **Pendiente de medir en producción**: TTFT real de grok en sesión de voz completa (no solo el benchmark aislado) y
+  confirmar que la latencia percibida baja de verdad al liberar la GPU (comparar STT `dur` antes/después).
+- Cambiar de modelo → actualizar este doc (fila §1/§2 + entrada §5) Y el `.env` Y la nota de routing de CLAUDE.md.
+
+### Ronda 2026-07-08 (tarde) — proveedores DIRECTOS + recorte de prompt (arnés `scratchpad/bench_fastbrain.py`)
+
+Objetivo: bajar el TTFT de ~1 s (grok por AIMLAPI) yendo a un proveedor directo. **Conclusión: no hay salto de
+latencia posible por cambio de proveedor — grok es ~1 s por sí mismo; el proxy AIMLAPI NO era el cuello.**
+
+| Proveedor · modelo | Routing (7 casos) | TTFT | Veredicto |
+|---|---|---|---|
+| **AIMLAPI `x-ai/grok-4-fast-non-reasoning`** (producción) | **7/7** | ~1,0 s | 🏆 se mantiene (unifica coste en un sitio) |
+| Groq `llama-3.3-70b-versatile` | 3/7 (rechazó tool-calls) | rate-limited 57 s (free) | ❌ |
+| Groq `meta-llama/llama-4-scout-17b-16e` | 4/7 (no escala memoria/estilo) | 1–21 s (rate-limit) | ❌ |
+| Groq `openai/gpt-oss-120b` | 0/7 (413 request too large; razonador) | — | ❌ (viola no-razonadores) |
+| Groq: **NO hospeda Kimi K2** en la cuenta | — | — | descartado como capa rápida |
+| xAI directo `grok-4.20-0309-non-reasoning` | 6/7 (falló escalar memoria) | ~0,97 s | tie en latencia, peor routing → guardado como perfil de demo |
+
+- **Groq descartado**: su catálogo no tiene un no-razonador que enrute nuestras 4 tools; free tier limita por tamaño/rate.
+- **xAI directo**: mismo ~1 s que AIMLAPI (el proxy no añadía latencia relevante) y 6/7 con el modelo nuevo. Key en el
+  store de credenciales por si se usa como perfil de demo (evita los 403 de Cloudflare de AIMLAPI), pero NO es más rápido.
+- **Recorte de prompt (capa rápida)**: `build_flash_system` 32,9K→~29,4K chars (`_FAST_RULES` −20%, briefs por
+  DISPONIBILIDAD). Re-benchmark contra AIMLAPI grok: **7/7 mantenido**, TTFT 0,95 s. Lección: **a 28-33K el tamaño del
+  prompt NO mueve el TTFT de grok** (0,95–1,1 s con 28K/29K/33K) → el recorte gana COSTE (~10% tokens/turno) y
+  ESCALABILIDAD, no latencia. Un recorte inicial demasiado agresivo bajó a 6/7 (rompió `search_IN_wallapop`→automate);
+  el gate del benchmark lo pilló y se reforzó la distinción browse/automate → 7/7. **Nunca trimar el prompt de routing
+  sin re-pasar el benchmark.**
+- **Pendiente (siguiente)**: composición DINÁMICA del prompt — esqueleto siempre + módulos de dominio por heurística
+  sobre el texto del turno (para que el prompt no crezca linealmente al añadir conectores). Requiere benchmark AMPLIADO
+  (más casos por dominio) como gate + pasar el texto del turno a `build_flash_system` (1 línea en el provider
+  `voice/engine/llm/providers/nucleo.py`).
+
+## Metodología (para no sobre-interpretar)
+- Latencia ABSOLUTA de un candidato solo es fiable si es el ÚNICO modelo cargado y la GPU no está saturada por
+  otra ronda (cargar/descargar muchos modelos infla picos aislados; ver nota INI-008 Fase 2e).
+- Ollama descarga el modelo tras ~5 min idle → `keep_alive:"30m"` en cada turno (ya en `nucleo/flash/fast_client.py`).
+- La comparación de TASA DE ACIERTOS (tool-calling) entre modelos sí es válida bajo misma metodología imperfecta.
+- Para cloud: medir TTFT REAL por AIMLAPI (no el nativo) antes de tomarlo como definitivo.
+
+## 6. Reranker del recall LARGO — A/B a escala (V2-030, 2026-07-12)
+
+**Problema medido:** a escala (442 recuerdos durables) el embedding local bi-encoder (embeddinggemma) ordena
+"borroso" — la respuesta correcta está en el top-10 el ~82% de las veces, pero solo el 62% llega al top-3 y el 42%
+al top-1. **Palanca:** un **reranker** (cross-encoder) que reordena el top-N del RRF leyendo query+recuerdo JUNTOS.
+
+Harness: `tests/e2e/memory/bot/scale_eval.py` — 281 queries de recall largo (`t=query`, `via=long`, con ancla)
+por `memory/retriever.search` sobre la BD aislada del bot. Métrica = rango del primer resultado con el ancla.
+
+| proveedor | modelo | recall@1 | recall@3 | recall@5 | recall@10 | MRR | lat p50 | coste/privacidad |
+|---|---|---|---|---|---|---|---|---|
+| **off** (baseline) | — | 41.6% | 62.3% | 71.9% | 80.8% | 0.544 | 114 ms | — |
+| **local** ⬅ producción | `jinaai/jina-reranker-v2-base-multilingual` (fastembed ONNX/CPU) | **56.2%** | **68.7%** | **74.4%** | 80.8% | 0.642 | 260 ms | gratis · 100% local |
+| openai (techo) | `gpt-4o-mini` (LLM listwise) | 64.8% | 69.0% | 73.0% | 81.5% | 0.686 | 849 ms | API € · datos a la nube |
+
+**Decisión: LOCAL por defecto.** Captura la mayor parte del salto (recall@1 +14.6 pts), **empata a OpenAI en
+recall@3** (68.7 vs 69.0) y **lo supera en recall@5**, a 1/3 de la latencia, gratis, sin GPU (ONNX/CPU → no compite
+con STT/TTS Metal) y sin que nada salga de la máquina. OpenAI solo gana claro en recall@1 (+8.6 pts) → queda como
+**techo cloud opcional** (`rerank_provider=openai`), listo para la versión cloud. Ambos por la misma abstracción
+`memory/rerank.py` (model-agnostic, `config/v2.py §memory`, fail-open, off-hot-path, solo recall LARGO). El modelo
+local se calienta en el arranque (`prewarm._warm_rerank`).
+
+**Techo honesto = found@10 (~82%):** lo que el retriever NO trae, el reranker no lo arregla. Para pasar de ahí →
+embedding más fuerte (exige re-embed, `memory/reembed.py`) o consolidación semántica (`summarize_fn`) — ver
+`zaelar-memory.md §Re-ranking · Palancas futuras`.
+
+**Metodología:** la BD del bot es role-play SINTÉTICO (no el perfil real) → medir OpenAI mandando ese corpus a la
+nube no tiene coste de privacidad. Latencia local en CPU (no compite con la GPU). El reranker NUNCA entra en
+ESTADO/CORTO (lectura µs sin modelo) — solo en el recall LARGO, que ya es bajo demanda + `asyncio.to_thread`.
+
+## 7. Embedding a escala + WRITE-completeness — el techo NO es el embedding (V2-031 T1, 2026-07-12)
+
+Continuación de §6. Buscábamos subir el techo `found@10` (~82%). Se hizo la **dim provider-driven** (embeddings de
+1024d posibles) + `tests/e2e/memory/bot/embed_bench.py` (re-embed del corpus con un modelo candidato + `scale_eval`).
+
+| embedding local | dim | found@10 | recall@1 | veredicto |
+|---|---|---|---|---|
+| embeddinggemma | 768 | ~82% | ~56% | baseline |
+| **bge-m3** (SOTA multilingüe) | 1024 | **~82%** | ~56% | **no mejora** |
+
+**Un embedding local más fuerte NO sube el techo.** El diagnóstico de los ~50 casos que ni entran al top-10:
+la **mayoría NO están guardados** (0 filas en la BD para `lisboa`/`tokio`/`150`/`macbook`/`2018`…) o están
+invalidados (`toby`/`611`); solo unos pocos (`girona`/`pasaporte`) están guardados y no se recuperan. → **el techo
+es WRITE-completeness + retrieval de lo guardado + reparación activa, no la calidad del bi-encoder.** Re-prioriza
+V2-031 (embedding baja de prioridad; write-completeness y la memoria auto-evaluativa suben).
+
+### ⚠️ Caveat de metodología (IMPORTANTE, no repetir el error)
+El **test bot SIEMBRA con embeddings `hash`** (léxicos, deterministas, rápidos — `runner.py:702`, para sembrar miles
+sin coste). Medir el recall **SEMÁNTICO** contra esos vectores es un MISMATCH de espacio (query embeddinggemma vs
+store hash). Para una medición válida hay que **re-embeber el corpus con el modelo real por AMBOS lados** (lo hace
+`embed_bench.py` vía `memory/reembed.py`). En **producción** siempre se escribe con embeddinggemma, no hash. Además
+la BD acumulada del bot (`--next` incremental) está INCOMPLETA → para el número honesto, medir sobre BD fresca de
+corpus completo re-embebida. Regla: **antes de concluir sobre recall a escala, confirmar con qué embedding está
+indexada la BD** (`memory/reembed.py::signature()` / `<db>.embedsig`).
+
+## 8. Catálogo SOTA de recuperación por TIER (embeddings + rerankers, 2026) — V2-031 T6
+
+Referencia para elegir modelo de memoria sin re-investigar. **Regla de producto:** LOCAL por defecto (gratis,
+model-agnostic vía `config/v2.py §memory`); los MISMOS pesos abiertos en nuestro **VPS-GPU** cuando escale; los
+**externos de pago SOLO para un tier premium** (nunca default — insostenible en coste). Todo se cambia por config,
+sin refactor. Recuerda el hallazgo T1: a la escala de un perfil personal, un embedding mayor **no** subió el techo
+(el cuello es write-completeness + retrieval), así que el salto de tier es sobre TODO escala/serving, no recall en
+perfiles pequeños.
+
+### Embeddings
+| Tier | Modelo | Dim | Licencia | Nota |
+|---|---|---|---|---|
+| **LOCAL (actual)** | `embeddinggemma` (Ollama) | 768 | Gemma | en producción; multilingüe, on-device, gratis |
+| LOCAL (candidatos) | `Qwen3-Embedding-0.6B` · `bge-m3` | 1024 | Apache-2.0 · MIT | **#1 MTEB multilingüe** (familia Qwen3) / workhorse dense+sparse+multivector. `bge-m3` medido ≈ embeddinggemma a nuestra escala (§7) |
+| **VPS-GPU propio** | `Qwen3-Embedding-4B/8B` · `bge-m3` | 1024–4096 | Apache-2.0 · MIT | mismos pesos servidos por nosotros (TEI en GPU); Qwen3-Embedding-8B lidera MTEB v2 (~70.6 multiling.); 100+ idiomas, 32K ctx; coste/llamada 0, datos NO salen |
+| **PREMIUM externo** | OpenAI `text-embedding-3-large` · Cohere `embed-4` · `voyage-3` | var. | API pago | máxima calidad gestionada; €/llamada + datos a la nube. SOLO tier premium |
+
+### Rerankers (cross-encoder)
+| Tier | Modelo | Licencia | Nota |
+|---|---|---|---|
+| **LOCAL (actual)** | `jina-reranker-v2-base-multilingual` (fastembed ONNX/CPU) | Apache-2.0 | en producción (V2-030); multilingüe, cero GPU, recall@1 42→56% |
+| LOCAL (candidatos) | `bge-reranker-v2-m3` · `Qwen3-Reranker-0.6B` · `mxbai-rerank-large-v2` | MIT/Apache-2.0 | `bge-reranker-v2-m3` = default seguro self-host (ligero, multilingüe, TEI); `Qwen3-Reranker` = 1er open a probar (100+ idiomas, 32K); comparar en T3 |
+| **VPS-GPU propio** | `Qwen3-Reranker-4B` · `bge-reranker-v2-m3` | Apache-2.0/MIT | mismos, servidos en GPU (TEI); más calidad, coste/llamada 0, datos NO salen |
+| **PREMIUM externo** | Cohere `Rerank 3.5/4` · `voyage rerank-2.5` | API pago | ~595–603 ms; SLA gestionado. SOLO tier premium (ya enchufado: `rerank_provider=cohere/voyage`) |
+
+**Cómo se cambia de tier:** `config/v2.py §memory` (`embed_provider`/`embed_model`, `rerank_provider`/`rerank_model`).
+Cambiar de embedding EXIGE re-embed (`memory/reembed.py`, firma de modelo). El reranker es hot-swap (fail-open).
+
+Fuentes (2026): [MTEB/embeddings SOTA](https://www.codesota.com/benchmarks/mteb) ·
+[Qwen3-Embedding](https://github.com/QwenLM/Qwen3-Embedding) ·
+[open-weight embeddings 2026](https://www.bentoml.com/blog/a-guide-to-open-source-embedding-models) ·
+[rerankers 2026](https://futureagi.com/blog/best-rerankers-for-rag-2026/) ·
+[reranker open vs API](https://docs.bswen.com/blog/2026-02-25-best-reranker-models/) ·
+[self-host TEI GPU](https://www.spheron.network/blog/self-host-embedding-reranker-tei-gpu-cloud/).
+
+---
+
+## 9. Política de modelos POR MÓDULO — matriz canónica (2026-07-17)
+
+> **Regla de oro (operador):** *más que especular, PRUEBAS.* Antes de confiar un modelo a un módulo se le pasa su
+> tarea real (routing / write-completeness / clasificación) y se anota aquí el veredicto — para no repetir errores.
+> **Dos directrices duras del operador (2026-07-17):** (a) el **motor de memoria SIEMPRE por OpenAI**; (b) **cero
+> ejecución local por batería** — ningún módulo debe apuntar a Ollama/qwen local (salvo que el operador lo reactive).
+
+Config: cada pieza es elegible por la UI (`server/config_api.py::_PROVIDER_CATALOG`) y persiste en `config/v2.json`
+(gitignored). La key va vacía → se resuelve del entorno por endpoint (OpenAI→`OPENAI_API_KEY`, xAI→`XAI_API_KEY`).
+
+### 9.1 FlashBrain — capa RÁPIDA de VOZ (`config §fast`)
+Restricción: **no-razonador**, tool-calling FIABLE, sub-segundo. Cierra el turno; un fallo de routing = zaelar inútil.
+
+| Modelo | Proveedor | Veredicto | Evidencia |
+|---|---|---|---|
+| **gpt-4o-mini** | OpenAI | ✅ **EN USO** | A/B 2026-07-17 (turno "dime cuándo es la cita ITV"): responde de memoria + `web_search` solo en consultas reales. Barato. |
+| grok-4-fast-non-reasoning | AIMLAPI | ✅ válido (histórico) | head-to-head 2026-07-08: 7/7 routing (§2). ⚠️ es OTRO modelo que el de xAI directo. |
+| gemini-2.5-flash | AIMLAPI | ✅ válido | 7/7 routing (§2). |
+| claude-haiku-4.5 | AIMLAPI | ✅ válido, caro | 7/7, mejor fiabilidad FC (§2). |
+| **grok-4.20-0309-non-reasoning** | **xAI directo** | ❌ **NO USAR en FlashBrain** | A/B 2026-07-17 MISMO turno: contestó "Hecho" + llamó `widget_data` a una PREGUNTA de memoria (mis-routing), teniendo la respuesta en el prompt. Enruta preguntas a acciones. |
+| gemini-2.5-flash-lite | AIMLAPI | ❌ NO USAR | 4/7 routing, no invoca tools (§2). |
+| cualquier `*-reasoning` / grok-4.3/4.5 / gemini-3.x-flash | — | ❌ PROHIBIDO en voz | razonadores → +segundos de thinking → zaelar lento/mudo (regla dura). |
+| qwen2.5:14b local (Ollama) | local | ❌ NO USAR en voz | ~19s/turno + contiende GPU con STT/TTS (§1, §4). |
+
+### 9.2 Motor de MEMORIA — CORAZÓN de escritura / distiller (`config §memory.mem_processor_*`)
+Restricción: **OFF-hot-path** (la latencia NO toca la voz) → prioriza **write-completeness** (palanca nº1 del recall,
+V2-031). **Directriz: SIEMPRE OpenAI.**
+
+| Modelo | Veredicto | Evidencia (prueba write-completeness es, 2026-07-17) |
+|---|---|---|
+| **gpt-4.1-mini** | ✅ **EN USO** | 4/4 casos difíciles; capta "alérgico a penicilina y marisco" → 2 píldoras. Más barato que 4o. |
+| gpt-4o | ✅ válido, más caro | 4/4 igual que 4.1-mini; sin ventaja que justifique el coste. |
+| gpt-4o-mini | ❌ insuficiente para memoria | **se COME la alergia (0 píldoras)**; 3/4. Vale para voz, NO para el distiller. |
+| qwen2.5:7b local | ✅ (pero LOCAL) | 12/12 write-completeness (auditoría 2026-07-14); descartado por la regla de cero ejecución local. |
+| qwen2.5:3b local | ❌ | 3/12 (era el cuello de botella real del recall). |
+| deepseek/deepseek-v4-flash | ⚠️ NO probado aquí | el operador lo puso pero SIN endpoint → se mandaba a Ollama y fallaba a heurística (memoria degradada). Requiere key propia de DeepSeek (no la hay). |
+
+### 9.3 TRIAJE de mensajería (`config §triage`)
+Tarea: clasificación de relevancia de mensajes (NO tool-routing) → tolera un modelo más simple. **⚠️ PRIVACIDAD:**
+antes local (qwen2.5:3b) para que nada personal saliera; ahora EXTERNO por decisión del operador (batería) → los
+mensajes personales SALEN a la nube.
+
+| Modelo | Veredicto |
+|---|---|
+| **grok-4.20-0309-non-reasoning** (xAI) | ✅ **EN USO** — barato, aprovecha el saldo xAI; clasificación simple donde su debilidad de routing no aplica. |
+| gpt-4o-mini (OpenAI) | ✅ alternativa fiable. |
+| qwen2.5:3b (local) | ⛔ retirado (regla cero-local); era el más PRIVADO. |
+
+### 9.4 Otros módulos de lenguaje
+- **Workers / SlowBrain** (`config §code_agent`): `claude_code` (CLI) — sin cambios.
+- **Reranker del recall largo** (`config §memory.rerank_provider`): **`local` = jina cross-encoder vía fastembed
+  (CPU/ONNX, NO Ollama/GPU)**. Sube recall@1 41.6→56.2% gratis (§6). Es LOCAL pero CPU-ligero → no es el consumo de
+  batería que preocupa. Alternativa cloud: `openai` (listwise, +8.6pts recall@1, coste/query, datos a la nube).
+- **Embeddings** (`config §memory.embed_provider`): **`fastembed` (CPU/ONNX local, NO Ollama/GPU)**. ⚠️ Cambiarlo a
+  cloud (OpenAI/Voyage) EXIGE **re-embed de toda la BD** (`memory/reembed.py`; nunca mezclar espacios vectoriales) +
+  añade latencia de red a CADA recall (embedding en el hot-path de lectura). Recomendación: **mantener local CPU**.
+- **STT (voz→texto)** (`config/settings.py`, NO v2.json): hoy **`whisper_local` (Metal/GPU)** — es el ÚNICO consumidor
+  de GPU local que queda tras mover memoria+triaje a la nube. Para "cero local" real habría que pasar a **Deepgram**
+  (hay `DEEPGRAM_API_KEY` en `.env`) u otro STT cloud. PENDIENTE de decisión del operador (coste vs batería).
+- **TTS**: `elevenlabs` (cloud) — ya externo.
+
+### 9.5 Estado de config tras esta ronda (2026-07-17)
+`fast`=OpenAI gpt-4o-mini · `memory`=OpenAI gpt-4.1-mini · `triage`=xAI grok · `code_agent`=claude_code ·
+`rerank`=local jina (CPU) · `embed`=fastembed (CPU) · **STT=whisper_local (GPU) ← único local pesado pendiente**.
+
+## 10. «Susurro» (V2-053) — modelo del auditor conversacional
+
+Carril NUEVO fuera del camino de voz → **aquí un RAZONADOR sí vale** (la regla dura solo veta el path de voz).
+Lo que importa: calidad de DIAGNÓSTICO (¿señala la causa real del fallo del tramo?), disciplina de catálogo
+(JSON válido, correcciones quirúrgicas, `corrections=[]` ante un tramo sano) y coste (se paga por fricción, no
+por turno). Config: `config/v2.py §susurro` (UI, key por endpoint).
+
+| Modelo | Vía | Probado | Resultado |
+|---|---|---|---|
+| **gpt-4.1-mini** | OpenAI | **2026-07-17, e2e en vivo** (suite `tests/e2e/susurro/run_probe_suite.py`) | ✅ **DEFAULT actual** — diagnóstico correcto en el caso reloj-vs-agenda (queja simulada), repair natural + finding P1 bien clasificado; ciclo completo 2.4-2.9s; JSON impecable con `response_format json_object` |
+| gpt-4.1 / gpt-4o | OpenAI | pendiente | candidatos si el mini se queda corto en tramos complejos (multi-worker, rails encadenados) |
+| o4-mini / razonadores OpenAI | OpenAI | pendiente | el carril ADMITE razonamiento; medir si el thinking mejora el diagnóstico lo bastante para pagar su latencia (aquí no bloquea nada) |
+| grok (xAI) | xAI | no | descartado de entrada para AUDITAR: si mis-rutea como FlashBrain (§9), no puede juzgar routing ajeno |
+
+**Cómo re-evaluar:** correr la suite e2e N veces con `SUSURRO_MODEL=<candidato>` sobre los MISMOS casos de
+fricción y comparar assessment/correcciones a mano + `history.jsonl` (calidad longitudinal). No especular:
+cambiar el default solo con evidencia.
+
+## 11 · FAST layer de voz — TTFT + routing (consolidado 2026-07-19)
+
+El hueco que hace que la charla "no parezca charla" es el **TTFT (tiempo al primer token)**: el silencio entre que
+el operador calla y zaelar empieza. Medido con streaming real + routing con las tools REALES del flash (memoria =
+6 preguntas de recuperar dato guardado que NO deben ir a `widget_data`; general = 6 rutas web/show/música/escalar/
+cálculo/charla). **Titular: `gpt-4o-mini`.** Tabla única — NO re-litigar estos modelos:
+
+| Modelo | TTFT | Routing memoria | Routing general | Coste vs 4o-mini | Veredicto |
+|---|---|---|---|---|---|
+| **gpt-4o-mini (OpenAI) — TITULAR** | ~660-1098 ms | 0/6 ✅ | 7/7 ✅ | 1× ($0.15/$0.60) | **SE QUEDA** — rápido+fiable+barato |
+| **gemini-2.5-flash (vía AIMLAPI)** | full ~1.1-1.5 s | 0/6 ✅ | 6/6 ✅ | output más caro ($2.50) | ✅ **FALLBACK validado de un clic** (thinking OFF). No migrar: ni más rápido ni más barato + AIMLAPI tras Cloudflare (403 intermitente) |
+| gpt-4.1-mini (OpenAI) | ~540-576 ms ⚡ | 0/6 ✅ | 7/7 ✅ | **~2.7×** ($0.40/$1.60) | ⚠️ superior técnicamente pero no compensa 2.7× por ~140 ms en cada turno. Promover solo si el coste deja de importar |
+| grok-4.20-0309-non-reasoning (xAI) | ~530-826 ms ⚡ | **2/6 MAL** ❌ | 7/7 | funded | ❌ **BANEADO** — dice `widget_data`/"Hecho" a una PREGUNTA (causa de conversaciones absurdas) |
+| grok-4.3 / grok-4.5 (xAI) | 2633 / 3501 ms 🐢 | 0/6 ✅ | — | funded | ❌ RAZONADORES (rutean bien pero 3-5× más lentos; sin variante `-non-reasoning`) — violan "voz=no-razonador" |
+| grok-3-mini (xAI) | 3442 ms 🐢 | — | — | funded | ❌ razonador |
+| gemini-3.5-flash / 3-flash (AIMLAPI) | — | — | — | barato | ❌ 3.5 trae **thinking ON** (no se apaga vía AIMLAPI); 3-flash da 404 |
+| Groq LPU llama (api.groq.com ≠ xAI) | ~300-500 ms típico (sin medir) | — | — | barato | ⏸️ el ÚNICO genuinamente más rápido, pero `GROQ_API_KEY` da **403**. Acción operador: refrescar para A/B |
+| gemini-3.5-flash (Google directo) | — | — | — | barato | ⏸️ `GEMINI_API_KEY` da **429** (sin billing). Acción operador: poner saldo |
+
+**Reglas duras (para no re-probar):**
+- **grok NUNCA en el fast layer de voz**: el único rápido (4.20-nr) mis-rutea memoria; los correctos (4.3/4.5) razonan → lentos. No existe un grok rápido Y correcto.
+- **El paso heurístico rápido YA existe y es 0 ms** (`nucleo/flash/router.py`, determinista). Lo que baja el TTFT no es un clasificador LLM en serie (suma latencia) — es un modelo base más rápido.
+- **Tiered por complejidad**: útil para INTELIGENCIA (router 0 ms → gpt-4o-mini → workers, ya en embrión), no para latencia salvo con un tier rápido real.
+- **Palancas reales de latencia pendientes**: (1) refrescar **Groq** (LPU, el más rápido) y A/B routing; (2) poner billing a **Gemini** y medir 3.5-flash con thinking OFF; (3) aceptar gpt-4.1-mini pagando 2.7×.
+- **Mitigación de síntoma YA aplicada**: lead-in filler timer-gated (`ZAELAR_FILLER_MS`, def 600 ms) — rellena SOLO los turnos lentos; no baja el TTFT real, mejora la latencia PERCIBIDA.
+
+## 12. Módulo de MEMORIA — ronda V2-056 (2026-07-20): destilador + síntesis REM, con router interno
+
+> Contexto: auditoría profunda 2026-07-19 (informe `~/.meshkore/tmp/auditoria-memoria-20260719.html`) + orden del
+> operador de elegir los modelos del módulo CON DATOS (catálogo AIMLAPI disponible, respetar descartes previos §9).
+> **Router interno del módulo**: cada tarea de LLM de la memoria es elegible POR CONFIG con key POR ENDPOINT —
+> `nucleo/memllm.py` (tareas `rem`, futuras) + `mem_processor` (tarea `distill`, su propia cola/semántica).
+> Config: `config/v2.json §memory.{mem_processor_*, rem_*}`. Los benches son REPRODUCIBLES (scripts versionados).
+
+### 12.1 DESTILADOR (CORAZÓN de escritura) — `tests/e2e/memory/bot/distiller_bench.py`
+
+16 casos duros por el CAMINO real (`mem_processor.process`): write-completeness (multi-hecho médico, precio,
+mudanza slot+change, corrección identidad, compromiso, rutina, reversión, observación, nombre propio en PARRAFADA
+[T181], telegráfico, EN→ES, familia con nombres) + PRECISIÓN (4 descartes: pregunta, efímera, ack, comando) +
+penalización de idioma (regla monolingüe).
+
+| modelo | endpoint | score | p50 | veredicto |
+|---|---|---|---|---|
+| **gpt-4.1-mini** | OpenAI | **98.3%** (28.5/29) | 1.1s | ✅ **TITULAR confirmado** (ya era el default por la regla «memoria=OpenAI») |
+| gemini-2.5-flash | AIMLAPI | 96.6% | 3.3s | ✅ fallback nº1 si OpenAI cae (pero ver 12.2: NO vale para REM) |
+| claude-haiku-4.5 | AIMLAPI | 94.8% | 1.5s | ✅ válido, algo más caro |
+| deepseek-v4-flash | AIMLAPI | 94.8% | 4.0s | ✅ válido (por fin probado CON endpoint — §9.2 lo tenía pendiente) |
+| qwen2.5:7b local | Ollama | 86.2% | 2.2s | ⚠️ opción local (batería/privacidad); pierde precisión en descartes |
+| qwen3.5-flash | AIMLAPI | 17.2% | 18.7s | ❌ NO USAR (thinking ON → timeouts; consistente con §11) |
+
+### 12.2 SÍNTESIS del sueño REM — `tests/e2e/memory/bot/rem_synth_bench.py`
+
+Tarea real (`memllm.synthesize_concept_groups`): 3 grupos por concepto → 1 insight/grupo; puntúa retención de
+nombres/cifras (anti-T181), castellano, brevedad, abstracción (no repetir píldoras verbatim). 2 pasadas.
+
+| modelo | score | p50 | veredicto |
+|---|---|---|---|
+| **gpt-4.1-mini** | **100%** | 2.3s | ✅ **TITULAR** (`§memory.rem_model` default) |
+| deepseek-v4-flash | 100% | 7.4s | ✅ fallback (3× más lento, mismo resultado) |
+| claude-haiku-4.5 | 90% | 3.1s | ✅ válido |
+| gemini-2.5-flash | 50% | 7.3s | ❌ NO para síntesis (pierde claves/forma) — aunque destila bien (12.1) |
+
+**Conclusión de la ronda:** `gpt-4.1-mini` titular en las DOS tareas de LLM del módulo de memoria (distill + REM);
+cadena de fallback documentada por tarea (distill: gemini-2.5-flash → haiku-4.5; REM: deepseek-v4-flash →
+haiku-4.5). ⚠️ AIMLAPI por urllib exige UA de navegador (Cloudflare 403 — mismo workaround que fast_client, ya
+aplicado en memllm). Embeddings: restaurado `auto` (ollama/embeddinggemma, firma re-sellada + re-embed 261/261)
+tras el incidente de mezcla de espacios (fastembed/bge-EN); el enforcement del writer impide que se repita.
+
+## 13. Candidatos en el radar (aún no evaluados/adoptados)
+
+### 13.1 Xiaomi MiMo-V2.5-Pro-UltraSpeed — candidato Nº1 para FlashBrain cuando sea comercial (2026-07-22)
+
+Xiaomi + TileRT_AI lanzaron (~2026-06-08) el primer modelo de **1T parámetros** (MoE, 42B activos) sirviendo
+**>1000 tok/s de decode** en GPUs de 8 unidades COMMODITY (sin silicio wafer-scale tipo Cerebras) — FP4 cuantizado
+en las matrices MoE (router+atención en precisión más alta) + "block-level masked parallel drafting"
+(speculative decoding en bloques, acceptance ~4.3-6.3 tokens/ronda). Esto sería un salto de latencia real para
+el FlashBrain/voz si la calidad de tool-routing aguanta (pendiente de A/B — ver §9.1/§11 metodología).
+
+**Estado de acceso (verificado 2026-07-22):**
+- `MiMo-V2.5-Pro` (el modelo BASE, sin UltraSpeed) SÍ está en AIMLAPI (`xiaomi/mimo-v2.5-pro`, $1.3/$3.9 por
+  millón tok in/out, contexto 1M, compatible OpenAI Chat Completions) — pero es la velocidad NORMAL, no aporta el
+  salto de los 1000 tok/s.
+- `MiMo-V2.5-Pro-UltraSpeed` (la variante rápida) NO está en AIMLAPI ni en ningún proveedor tercero — solo se sirve
+  desde `api.xiaomimimo.com/v1` (protocolo OpenAI y Anthropic), en un **trial limitado por tiempo** (ventana
+  9-23 junio 2026 vista en el anuncio, condiciones cambiantes) con **aprobación diaria/solicitud**, prioridad para
+  organizaciones — no self-serve. Precio trial: ~3× el modelo base por ~10× la velocidad.
+
+**Decisión del operador (2026-07-22): ESPERAR a la versión COMERCIAL** (self-serve, sin aprobación, disponible vía
+AIMLAPI u otro proveedor agregador) antes de integrarlo — no vale la pena cablear un piloto de acceso restringido
+para un día de pruebas. **Cuando UltraSpeed sea comercial, es uno de los PRIMEROS candidatos a evaluar para
+`config §fast`** (junto a los ya tested en §9.1/§11): A/B con el mismo arnés de siempre (prompt+`_TOOLS` reales,
+medir TTFT real y fiabilidad de routing, no solo velocidad de decode nominal).
+
+**Sobre el `MiMo-V2.5-Pro` normal (ya disponible hoy):** NO incorporar salvo que un A/B muestre ventaja real sobre
+los modelos ya tested (grok-4.20-non-reasoning, gpt-4o-mini, haiku-4.5…) al mismo precio — de momento no hay razón
+para añadirlo solo por ser nuevo.
