@@ -62,14 +62,22 @@ for pid in $(pgrep -f "[Pp]ython -m server" 2>/dev/null || true); do kill -9 "$p
 # espera a que el 7880 quede LIBRE (hasta ~6s) — si no, el probe de abajo re-detecta al zombi y volvemos al bug
 for _ in $(seq 1 12); do nc -z 127.0.0.1 7880 2>/dev/null || break; sleep 0.5; done
 
-# node-ip: WebRTC FILTRA el candidato loopback (127.0.0.1), así que el agente EMBEBIDO ofrece como candidato ICE la
-# IP de la interfaz ACTIVA (p.ej. 172.20.10.4 en un hotspot), NO 127.0.0.1. Si livekit arranca con
-# --node-ip=127.0.0.1, su socket de medios (loopback) NO puede responder a ese candidato → 'wait_pc_connection timed
-# out' → el agente no recibe el micro → CERO STT y observabilidad vacía (visto en vivo 2026-07-17, red hotspot).
-# Fix: node-ip = IP PRIMARIA detectada (en0→en1→loopback), reevaluada en CADA arranque (robusto a cambios de red).
-# La señalización sigue en --bind 127.0.0.1 (privada, no se expone a la LAN); el RTC/UDP escucha ancho y anuncia
-# NODE_IP para que agente↔server casen por esa IP.
-NODE_IP="$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo 127.0.0.1)"
+# node-ip: NO lo fijamos (auto-sanación ante cambios de red — fix 2026-07-29). LiveKit/pion ENUMERA las interfaces
+# VIVAS y reúne sus host-candidates ICE EN EL MOMENTO de cada PeerConnection nueva (no una vez al arrancar) → una
+# conexión hecha DESPUÉS de cambiar de wifi/hotspot/casa-de-un-amigo anuncia sola la IP ACTUAL, sin reiniciar.
+# FIJAR `--node-ip` al arranque (lo que hacíamos antes) DESACTIVABA justo ese auto-descubrimiento: LiveKit seguía
+# anunciando la IP detectada al arrancar aunque ya no existiera en ninguna interfaz → 'wait_pc_connection timed out'
+# en CADA cambio de red (incidente recurrente 2026-07-28: 3 caídas en un día al moverse entre redes).
+# OJO — esto NO es el caso loopback: `--node-ip=127.0.0.1` SÍ falla (el agente embebido pion no reúne candidato
+# loopback → no hay par ICE, confirmado por la comunidad LiveKit); por eso NO ponemos loopback, simplemente NO
+# fijamos nada y dejamos el enumerado dinámico. La señalización sigue en `--bind 127.0.0.1` (privada, no LAN).
+# Escape hatch power-user / entornos raros: `ZAELAR_LIVEKIT_NODE_IP=<ip>` restaura el viejo pin.
+# PRODUCCIÓN (deploy real, no local): LiveKit Cloud o coturn/Cloudflare TURN → candidato relay con IP estable,
+# independiente de la IP del nodo y del NAT del cliente. Ver zaelar-deploy.md. Detalle: research 2026-07-29.
+LK_NODE_IP_ARG=""
+if [[ -n "${ZAELAR_LIVEKIT_NODE_IP:-}" ]]; then
+  LK_NODE_IP_ARG="--node-ip=${ZAELAR_LIVEKIT_NODE_IP}"
+fi
 
 # AUTO-INSTALL (self-contained first run, sin pasos manuales): si no hay binario nativo, intenta instalarlo solo
 # ANTES de caer a Docker/error — macOS vía brew, Linux vía el instalador oficial. Silencioso si ya está.
@@ -85,8 +93,8 @@ fi
 
 if command -v livekit-server >/dev/null 2>&1; then
   LK_MODE="native"
-  echo "▶ servidor LiveKit dev (binario nativo, sin Docker) · node-ip=${NODE_IP} ..."
-  livekit-server --dev --bind 127.0.0.1 --node-ip="$NODE_IP" >"$HERE/.meshkore/logs/livekit-dev.log" 2>&1 &
+  echo "▶ servidor LiveKit dev (binario nativo, sin Docker) · node-ip=${ZAELAR_LIVEKIT_NODE_IP:-dinámico (auto-red)} ..."
+  livekit-server --dev --bind 127.0.0.1 $LK_NODE_IP_ARG >"$HERE/.meshkore/logs/livekit-dev.log" 2>&1 &
   LK_PID=$!
 elif command -v docker >/dev/null 2>&1; then
   LK_MODE="docker"
