@@ -269,6 +269,16 @@ SCENARIOS: list[Scenario] = [
              "responde «hecho», hace solo un widget_data/drop de agenda, pide «¿cuál de estos items?» listando cosas "
              "ajenas, o pierde el hilo de que hablabais de la cita.",
              turns=5),
+    # V2-079: la skill de VOZ para abrir el panel nativo lateral (ChatWall) en sus 3 pestañas (chat/procesos/crons).
+    Scenario("panels", "voice",
+             "Pídele por voz, en turnos separados y con palabras VARIADAS (no las literales de ningún menú): primero "
+             "«enséñame los procesos que tienes en marcha» (o «qué estás haciendo», «los brain workers», «las cosas "
+             "que te he encargado»); luego «ábreme los crons» (o «qué tengo programado», «mis tareas programadas»); "
+             "luego «ábreme el chat para escribirte» (o «abre el muro de texto»).",
+             "Cada petición ABRE el panel nativo en la pestaña CORRECTA (tool show_panel → evento panel: procesos / "
+             "crons / chat), con una frase corta y natural de acompañamiento. FAIL: intenta abrir un WIDGET del canvas "
+             "(show_widget/[[show]]), responde solo hablando sin abrir el panel cuando el operador pidió VERLO, o abre "
+             "la pestaña equivocada.", turns=5),
 ]
 
 BY_ID = {s.id: s for s in SCENARIOS}

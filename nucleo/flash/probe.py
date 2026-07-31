@@ -325,6 +325,10 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         action = "music"                     # V2-041: ruta ligera; el turno real lo resuelve por el conector activo
     elif "play_video" in names:
         action = "canvas:show:youtube"       # V2-045: VER → widget youtube (show + data-op load); espejo del provider
+    elif "show_panel" in names:
+        # V2-079: abre el PANEL nativo lateral (chat/procesos/crons) por voz — espejo del provider (emite `panel`).
+        _sp = next(t for t in tool_calls if t["name"] == "show_panel")
+        action = "panel:" + _router._canon_panel(_sp["args"].get("panel"))
     elif "show_widget" in names:
         # MOSTRAR un widget (incl. JUEGOS) como tool — espejo del provider: CREATE→escala; si no, resuelve a un id
         # REAL del catálogo → [[show:id]]; sin match real → escala (posible CREATE).

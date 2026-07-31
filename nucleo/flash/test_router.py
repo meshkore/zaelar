@@ -5,7 +5,7 @@ from nucleo.flash.router import ANSWER, CHAT, ESCALATE, INJECT, MUSIC, STOP, STY
 
 def test_tools_are_openai_functions():
     names = {t["function"]["name"] for t in router.tools()}
-    assert names == {"escalate_to_slowbrain", "set_style_directive", "show_widget", "fullscreen_widget",
+    assert names == {"escalate_to_slowbrain", "set_style_directive", "show_widget", "show_panel", "fullscreen_widget",
                      "widget_data", "delete_widget",
                      "confirm_widget_delete", "authenticate_web", "login_done", "web_search", "recall",
                      "reveal_secret", "play_music", "play_video", "reply_message", "connect_cluster",
@@ -248,3 +248,19 @@ def test_stop_work_bulk_and_false_positive():
         assert router.looks_like_stop_work(yes), yes
     for no in ("para toda la comida", "para todo el mundo es difícil", "para la cena de mañana"):
         assert not router.looks_like_stop_work(no), no
+
+
+def test_show_panel_decision_and_canon():
+    # V2-079: la tool show_panel abre el panel nativo lateral (chat/procesos/crons) por voz.
+    d = router.decide("show_panel", {"panel": "procesos"})
+    assert d.kind == router.PANEL and d.payload.get("panel") == "procesos"
+    # _canon_panel normaliza sinónimos que el modelo pueda soltar en el ARGUMENTO (no en la petición):
+    assert router._canon_panel("crons") == "crons"
+    assert router._canon_panel("chat") == "chat"
+    assert router._canon_panel("workers") == "procesos"
+    assert router._canon_panel("brain workers") == "procesos"
+    assert router._canon_panel("tareas programadas") == "crons"
+    assert router._canon_panel("muro de texto") == "chat"
+    assert router._canon_panel("") == "procesos"           # default: el caso más pedido
+    # show_panel está en el catálogo de tools ofrecido al modelo
+    assert any(t["function"]["name"] == "show_panel" for t in router.TOOLS)

@@ -852,6 +852,16 @@ class NucleoLLMStream(llm.LLMStream):
                             # el widget pedido NO existe en el catálogo → probablemente hay que CREARLO → escala
                             escalate_req["v"] = text
                             emit("brain", "🏗️ show_widget sin match en catálogo → escala (posible CREATE)", role="system")
+            elif name == "show_panel":
+                # V2-079: abre el PANEL nativo lateral (ChatWall) en una pestaña por voz — 'enséñame los procesos',
+                # 'los crons', 'ábreme el chat'. NO es un widget del canvas: se emite un evento `panel` que el
+                # frontend (sse.js) traduce a store.setChatTab + setChatOpen. UI nativa e intocable.
+                if "show_panel" not in _tool_fired:
+                    _tool_fired.add("show_panel")
+                    _tab = _router._canon_panel(args.get("panel"))
+                    emit("panel", "open", extra={"tab": _tab, "src": "flash"})
+                    emit("brain", "🗂️ show_panel → panel nativo", text=_tab, role="system")
+                    acted["widget"] = True     # cuenta como acción de UI (ack "nunca mudo" + no escala espurio)
             elif name == "fullscreen_widget":
                 # BUG real 2026-07-23: "ponme el vídeo a pantalla completa" no tenía tool → el modelo confabulaba
                 # éxito o inventaba una data-op falsa. Espejo de show_widget: resuelve el id (exacto o fuzzy) y

@@ -37,6 +37,7 @@ REVEAL = "reveal"      # V2-060: el operador pide un SECRETO guardado (reveal_se
 MUSIC = "music"        # V2-041: reproduce/controla música por un conector (play_music) — ruta ligera, en el turno
 VIDEO = "video"        # V2-045: reproduce un VÍDEO en el widget youtube (play_video) — hermano de MUSIC, VER≠OÍR
 SHOW = "show"          # MOSTRAR/ABRIR un widget del canvas (show_widget) — tool de 1ª clase, converge en [[show:id]]
+PANEL = "panel"        # V2-079: abre el PANEL nativo lateral (chat/procesos/crons) en una pestaña (show_panel)
 ESCALATE = "escalate"  # el turno pide memoria/tools/razonamiento → se LANZA un Brain Worker async
 INJECT = "inject"      # V2-038: refina/amplía un Brain Worker EN MARCHA (send_to_worker) → inyecta, no relanza
 STOP = "stop"          # V2-038: mata un Brain Worker EN MARCHA (stop_worker)
@@ -45,7 +46,7 @@ ANSWER = "answer"      # V2-038: responde la pregunta de un Brain Worker que esp
 # Prioridad al colapsar varias tool calls de un mismo turno en una decisión (mayor = manda). STOP manda sobre todo
 # (si el operador pide parar Y otra cosa, primero para); ANSWER/INJECT por encima de ESCALATE (refinar/responder un
 # worker vivo antes que abrir otro). MUSIC va con las rutas ligeras (SEARCH), por debajo de las de worker.
-_PRIORITY = {CHAT: 0, STYLE: 1, SEARCH: 2, RECALL: 2, REVEAL: 2, MUSIC: 3, VIDEO: 3, SHOW: 3, ANSWER: 4,
+_PRIORITY = {CHAT: 0, STYLE: 1, SEARCH: 2, RECALL: 2, REVEAL: 2, MUSIC: 3, VIDEO: 3, SHOW: 3, PANEL: 3, ANSWER: 4,
              INJECT: 5, ESCALATE: 6, STOP: 7}
 
 
@@ -136,6 +137,40 @@ TOOLS: list[dict] = [
                                   "description": "id exacto del catálogo, o nombre natural del widget a mostrar"},
                 },
                 "required": ["widget_id"],
+            },
+        },
+    },
+    {
+        # V2-079: el PANEL nativo lateral del operador (muro de chat + Procesos + Crons, con pestañas) es UI nativa
+        # INTOCABLE (no un widget del canvas): abrirlo por voz necesita su propia tool (tool-vs-tool, como
+        # show_widget/fullscreen_widget). Los SINÓNIMOS viven en la DESCRIPCIÓN (el modelo mapea; nada de tabla de
+        # verbos hardcodeada, doctrina V2-046). El provider la ejecuta emitiendo un evento `panel` al frontend.
+        "type": "function",
+        "function": {
+            "name": "show_panel",
+            "description": (
+                "Abre el PANEL lateral NATIVO del operador (su muro de CHAT + PROCESOS + CRONS, con pestañas) en la "
+                "pestaña indicada. Es UI nativa fija, NO un widget del canvas — NUNCA uses show_widget ni [[show]] "
+                "para esto. `panel`:\n"
+                "· 'procesos' — quiere VER lo que ESTÁS HACIENDO ahora, tus BRAIN WORKERS / los TRABAJOS o TAREAS "
+                "en marcha y el histórico de lo hecho: 'enséñame los procesos', 'qué estás haciendo', 'los brain "
+                "workers', 'los trabajos que tienes', 'las cosas/tareas que te he encargado', 'qué estás procesando', "
+                "'muéstrame lo que hay en marcha'.\n"
+                "· 'crons' — quiere ver sus CRONS / TAREAS PROGRAMADAS / RECORDATORIOS programados / lo que tiene "
+                "AGENDADO para avisarle: 'enséñame los crons', 'qué tengo programado', 'mis tareas programadas', "
+                "'los recordatorios que tienes puestos'.\n"
+                "· 'chat' — quiere ABRIR el CHAT / el MURO DE TEXTO para escribirte en vez de hablar: 'ábreme el "
+                "chat', 'abre el muro de texto', 'quiero escribirte', 'ábreme para escribir'.\n"
+                "Úsala cuando quiere VER/ABRIR esa lista o panel. Si SOLO pregunta un dato puntual sin querer verlo "
+                "('¿cuántas tareas tienes?', '¿tengo algo programado hoy?'), respóndelo TÚ hablando, sin abrir el panel."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "panel": {"type": "string",
+                              "description": "cuál abrir: 'chat' | 'procesos' | 'crons' (elige por lo que pide el operador)"},
+                },
+                "required": ["panel"],
             },
         },
     },
@@ -733,6 +768,23 @@ def tool_context(*, open_widgets=None, has_catalog: bool = True,
             "cluster_widget_open": bool(cluster_widget_open)}
 
 
+def _canon_panel(v) -> str:
+    """Normaliza el `panel` de show_panel a una pestaña canónica del ChatWall (chat|procesos|crons). Tolera
+    sinónimos que el modelo pueda soltar en el argumento (workers→procesos, cron→crons, texto/muro→chat). Es solo
+    para el ARGUMENTO ya elegido por el modelo — el 'cuándo' (los sinónimos de la petición) vive en la descripción
+    de la tool, no aquí. Default 'procesos' (el caso más pedido: "enséñame lo que estás haciendo")."""
+    p = str(v or "").strip().lower()
+    if p in ("chat", "procesos", "crons"):
+        return p
+    if any(k in p for k in ("cron", "programad", "recordatorio", "agendad")):
+        return "crons"
+    if any(k in p for k in ("chat", "texto", "muro", "escrib", "message", "mensaj")):
+        return "chat"
+    if any(k in p for k in ("proces", "worker", "tarea", "trabajo", "encarg", "activ")):
+        return "procesos"
+    return "procesos"
+
+
 def decide(name: str, args: dict | None = None) -> Decision:
     """Traduce UNA tool call (nombre + argumentos) a una `Decision`. Un nombre desconocido = charla (fail-safe:
     la capa rápida no rompe por una función que no reconoce)."""
@@ -753,6 +805,8 @@ def decide(name: str, args: dict | None = None) -> Decision:
         return Decision(VIDEO, {"query": (args.get("query") or "").strip()})
     if name == "show_widget":
         return Decision(SHOW, {"widget_id": (args.get("widget_id") or "").strip()})
+    if name == "show_panel":
+        return Decision(PANEL, {"panel": _canon_panel(args.get("panel"))})
     if name == "set_style_directive":
         return Decision(STYLE, {"directive": (args.get("directive") or "").strip()})
     if name == "send_to_worker":
