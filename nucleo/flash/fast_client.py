@@ -17,6 +17,7 @@ cerebro v2:
 from __future__ import annotations
 
 import asyncio
+import json
 import os
 import time
 from dataclasses import dataclass
@@ -190,6 +191,41 @@ def est_tokens(chars: int) -> int:
     return int(round((chars or 0) / 4.0))
 
 
+class _AnthropicSSE:
+    """Máquina de estados PURA para el stream SSE de Anthropic Messages (lo que habla Z.AI directo). Separada del
+    transporte HTTP a propósito → testeable con objetos `data:` sintéticos (ver tests). `feed(obj)` recibe UN
+    objeto JSON de una línea `data:` y devuelve una lista de eventos: `("text", str)` por cada `text_delta`, y
+    `("tool", name, input_dict)` cuando un bloque `tool_use` se cierra (acumula `input_json_delta.partial_json`)."""
+
+    def __init__(self) -> None:
+        self._blocks: dict[int, dict] = {}   # index → {"type","name","json"}
+
+    def feed(self, obj: dict) -> list[tuple]:
+        out: list[tuple] = []
+        t = obj.get("type")
+        if t == "content_block_start":
+            cb = obj.get("content_block") or {}
+            self._blocks[obj.get("index")] = {"type": cb.get("type"), "name": cb.get("name", ""), "json": ""}
+        elif t == "content_block_delta":
+            d = obj.get("delta") or {}
+            dt = d.get("type")
+            if dt == "text_delta" and d.get("text"):
+                out.append(("text", d["text"]))
+            elif dt == "input_json_delta":
+                b = self._blocks.get(obj.get("index"))
+                if b is not None:
+                    b["json"] += d.get("partial_json", "") or ""
+        elif t == "content_block_stop":
+            b = self._blocks.get(obj.get("index"))
+            if b and b.get("type") == "tool_use" and b.get("name"):
+                try:
+                    inp = json.loads(b["json"] or "{}")
+                except Exception:
+                    inp = {}
+                out.append(("tool", b["name"], inp))
+        return out
+
+
 class FastClient:
     """Cliente streaming del modelo rápido. STATELESS respecto al modelo: cada `stream()` recibe su `ModelSpec`.
     Los clientes AsyncOpenAI subyacentes se cachean por (base_url, api_key, ua) para reusar conexiones."""
@@ -350,6 +386,82 @@ class FastClient:
                         continue
         return "".join(p.get("text", "") for p in parts if p.get("type") == "text").strip()
 
+    async def _stream_zai(self, messages: list[dict], spec: ModelSpec, *, max_tokens: int | None = None,
+                          tools: list[dict] | None = None, on_tool_call=None,
+                          metrics: dict | None = None) -> AsyncIterator[str]:
+        """STREAMING para Z.AI directo (V2-077 A/B, 2026-07-31): el endpoint Anthropic-compatible (`/v1/messages`
+        con `stream:true`) emite SSE en el wire format de Anthropic Messages (`content_block_delta` con
+        `text_delta`), DISTINTO del `chat/completions` de OpenAI que usa `stream()`. Hasta hoy Z.AI solo tenía
+        `complete()` (no-streaming) → un GLM-4.5-Air como FlashBrain de VOZ no era evaluable (la voz necesita
+        deltas para TTS incremental). Esto lo hace posible; queda LATENTE hasta configurar FAST=Z.AI (el path de
+        voz vivo sigue en Haiku/AIMLAPI). El parser de SSE es `_AnthropicSSE` (puro, con test unitario). NOTA: sin
+        verificar end-to-end contra un GLM-4.5-Air con fondos (pay-as-you-go da 429 sin saldo) — pendiente A/B."""
+        import httpx
+        system = "\n\n".join(m.get("content", "") for m in messages if m.get("role") == "system")
+        turns = [{"role": m["role"], "content": m["content"]} for m in messages if m.get("role") in ("user", "assistant")]
+        if not turns:
+            turns = [{"role": "user", "content": system}]
+            system = ""
+        payload: dict[str, Any] = {"model": spec.model, "max_tokens": max_tokens or _DEFAULT_MAX_TOKENS,
+                                   "messages": turns, "stream": True}
+        if system:
+            payload["system"] = system
+        if tools:
+            payload["tools"] = [
+                {"name": t["function"]["name"], "description": t["function"].get("description", ""),
+                 "input_schema": t["function"].get("parameters") or {"type": "object", "properties": {}}}
+                for t in tools if t.get("type") == "function" and t.get("function", {}).get("name")
+            ]
+            payload["tool_choice"] = {"type": "auto"}
+        headers = {"x-api-key": spec.resolved_api_key(), "anthropic-version": "2023-06-01",
+                   "content-type": "application/json"}
+        url = spec.resolved_base_url().rstrip("/") + "/v1/messages"
+        m = metrics if metrics is not None else {}
+        m.update({"model": spec.model, "provider": spec.provider,
+                  "prompt_chars": sum(len(str(x.get("content") or "")) for x in messages)})
+        parser = _AnthropicSSE()
+        _completion_chars = 0
+        # Reintento SOLO de la fase de conexión (aún sin emitir tokens), como el path OpenAI de `stream()`.
+        _attempt = 0
+        while True:
+            try:
+                async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=10.0)) as client:
+                    async with client.stream("POST", url, json=payload, headers=headers) as resp:
+                        resp.raise_for_status()
+                        async for line in resp.aiter_lines():
+                            if not line or not line.startswith("data:"):
+                                continue
+                            raw = line[5:].strip()
+                            if not raw or raw == "[DONE]":
+                                continue
+                            try:
+                                obj = json.loads(raw)
+                            except Exception:                # una línea SSE malformada no tira el turno
+                                continue
+                            for ev in parser.feed(obj):
+                                if ev[0] == "text":
+                                    _completion_chars += len(ev[1])
+                                    yield ev[1]
+                                elif ev[0] == "tool" and on_tool_call:
+                                    try:
+                                        on_tool_call(ev[1], ev[2])
+                                    except Exception:        # tool-call malformada se salta, nunca tira el turno
+                                        continue
+                return
+            except Exception as e:  # noqa: BLE001
+                if _completion_chars or _attempt >= _CONNECT_RETRIES or not _is_transient(e):
+                    raise                                    # ya emitimos, o no es transitorio → no reintentar
+                _attempt += 1
+                logger.warning(f"fast_client._stream_zai: blip transitorio al conectar ({type(e).__name__}), "
+                               f"reintento {_attempt}/{_CONNECT_RETRIES}")
+                await asyncio.sleep(_RETRY_BACKOFF_S * _attempt)
+            finally:
+                try:
+                    m["completion_chars"] = _completion_chars
+                    m["completion_tokens_est"] = est_tokens(_completion_chars)
+                except Exception:
+                    pass
+
     async def stream(
         self,
         messages: list[dict],
@@ -368,6 +480,13 @@ class FastClient:
         `delta.tool_calls` se acumulan por índice y, al terminar el stream, `on_tool_call(name, args_dict)` se
         dispara una vez por llamada completa (best-effort: una con JSON inválido se salta, nunca lanza)."""
         spec = spec or spec_from_config()
+        # Z.AI directo habla Anthropic Messages SSE (no OpenAI chat/completions) → ruta aparte (paridad con
+        # `complete()`, que ya bifurca a `_complete_zai`). Latente hasta configurar FAST=Z.AI.
+        if spec._is_zai():
+            async for _t in self._stream_zai(messages, spec, max_tokens=max_tokens, tools=tools,
+                                             on_tool_call=on_tool_call, metrics=metrics):
+                yield _t
+            return
         extra_body: dict[str, Any] = {}
         r = spec.reasoning_effort()
         if r:
