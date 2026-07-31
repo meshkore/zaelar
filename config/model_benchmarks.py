@@ -21,9 +21,15 @@ MODULES = [
         "role": "Responde CADA turno de voz/chat en tiempo real: charla, tool-calling (mostrar/cerrar widgets, "
                 "buscar, música, memoria, escalar) — nunca puede razonar (thinking OFF), el turno debe cerrar en "
                 "~1-3s o la voz se queda muda.",
-        "current": {"model": "anthropic/claude-haiku-4.5", "provider": "AIMLAPI", "cost_in": 1.00, "cost_out": 5.00,
-                    "ttft_ms": 900, "since": "2026-07-12 (V2-034)"},
-        "why": "A/B en el canal de prueba (mismo prompt + catálogo de tools reales) sobre grok-4-fast-non-reasoning: "
+        "current": {"model": "deepseek/deepseek-v4-flash · non-thinking", "provider": "AIMLAPI", "cost_in": 0.14,
+                    "cost_out": 0.28, "ttft_ms": 1170, "since": "2026-07-31 — Haiku queda de FALLBACK (_FALLBACK_MODEL)"},
+        "why": "CAMBIO 2026-07-31 (Haiku→DeepSeek V4 Flash non-thinking): A/B robusto (tester/model_bench, 16 turnos "
+               "inequívocos ×4 reps, mismo prompt+tools reales) → deepseek non-thinking ROUTING 10/10 (vs Haiku 8/10, "
+               "que INFRA-actuaba: no buscaba horarios ni añadía cita), INTEL 6/6 (tras acotar la regla 'insiste→"
+               "ejecuta' que hacía sobre-actuar en meta/contradicción — fix flash/prompt.py 3bd8c29), TTFT p50 1170ms "
+               "(vs Haiku 1821ms) y ~7x más barato. El MODO importa: v4-flash PIENSA por defecto (sobre-actúa, +latencia) "
+               "→ fast_client fuerza thinking:disabled cuando el modelo es deepseek. Haiku es el _FALLBACK_MODEL. "
+               "[HISTÓRICO] A/B previo (grok-4-fast-non-reasoning): "
                "grok 'parecía tonto' — no buscaba cuando debía (alucinaba), no introspeccionaba su propia "
                "contradicción y reaccionaba con acciones espurias a preguntas meta. Haiku buscaba fiable, "
                "explicaba en vez de actuar sobre dudas, a latencia comparable.",
