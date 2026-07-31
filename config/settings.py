@@ -7,7 +7,7 @@ How it applies:
 - STT / TTS / voice / language → env vars the voice pipeline reads when a session STARTS. We update os.environ
   live + persist to config/settings.json (loaded at boot). Effect: RECONNECT the voice session to apply.
 
-The BRAIN's model routing (fast layer + SlowBrain CodeAgent) is NOT here — it lives in `config/v2.py` (its own
+The BRAIN's model routing (fast layer + brain-worker CodeAgent) is NOT here — it lives in `config/v2.py` (its own
 UI-managed store with a redacted public view, model POR INVOCACIÓN). This panel is only the voice knobs.
 
 Whitelisted on purpose: only these knobs are settable from the web. No secrets here (keys stay in the
