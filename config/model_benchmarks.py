@@ -31,6 +31,21 @@ MODULES = [
                                "responde 'Hecho' a preguntas que no eran órdenes — el fallo más caro en un cerebro "
                                "no-razonador es actuar con seguridad sobre un malentendido.",
         "candidates_2026_07_26": [
+            {"model": "deepseek-v4-flash · NON-THINKING (AIMLAPI)", "cost_in": 0.14, "cost_out": 0.28,
+             "tool_calling": "propio A/B 2026-07-31 (tester/model_bench, mismo prompt+tools reales): routing 4/5 y "
+                             "🧠 INTEL 5/5 — IGUALA a Haiku en inteligencia (no alucina, no actúa de más, resuelve "
+                             "la contradicción). CLAVE: el modo importa — v4-flash PIENSA por defecto y en thinking "
+                             "baja a 4/5 (sobre-actuó: abrió un widget en el turno de contradicción); con "
+                             "thinking:disabled sube a 5/5.",
+             "ttft_ms": "1683 (p50) vs Haiku 2222 → ~24% MÁS RÁPIDO al primer token; total p50 2331 vs 2676. "
+                        "Nota: total con picos (5-6.6s) en algún turno verboso, pero TTFT —la métrica reina de "
+                        "voz— es netamente mejor",
+             "status": "★ CANDIDATO FUERTE para sustituir a Haiku: + rápido, MISMA inteligencia, ~mucho más barato. "
+                        "fast_client ya fuerza thinking:disabled cuando el modelo del path rápido es deepseek "
+                        "(voz=no-razonador). Pendiente: flip de config §fast + spot-check de voz REAL (el A/B son "
+                        "10 turnos por un proxy AIMLAPI; una key DeepSeek directa daría el modelo más fresco y "
+                        "menos hop). deepseek-v4-flash ES la última (snapshot 0731); no hay v4.x más nuevo.",
+             "verdict": "recomendado sustituir a Haiku en non-thinking, tras spot-check de voz real"},
             {"model": "glm-4.5-air (Z.AI directo)", "cost_in": 0.20, "cost_out": 1.10,
              "tool_calling": "propio A/B 2026-07-26: 85/90 (94.4%) vs Haiku 87/90 (96.7%) en el mismo arnés real "
                              "de 90 casos (tests/e2e/search/bot) — cerca, no empatado; falló 'hora en Tokio' "
