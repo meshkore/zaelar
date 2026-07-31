@@ -491,6 +491,12 @@ class FastClient:
         r = spec.reasoning_effort()
         if r:
             extra_body["reasoning_effort"] = r
+        if "deepseek" in (spec.model or "").lower():
+            # VOZ = NO-RAZONADOR (invariante duro). DeepSeek V4 Flash PIENSA por defecto → en el A/B (2026-07-31)
+            # el modo thinking sobre-actuaba (abrió un widget en un turno de contradicción) y bajaba el routing
+            # (4/5→3/5 intel); el non-thinking iguala a Haiku en inteligencia (5/5) con MENOS TTFT. Forzamos
+            # non-thinking en el path rápido — campo `thinking` (api-docs.deepseek.com, OpenAI/Anthropic-compat).
+            extra_body.setdefault("thinking", {"type": "disabled"})
         if spec.is_local():
             # Mantén el modelo local caliente durante toda la sesión (evita recargas de ~60s tras un hueco).
             extra_body["keep_alive"] = "30m"
