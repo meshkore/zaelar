@@ -112,6 +112,79 @@ def risky_decision(decision: dict | None) -> str:
     return ""
 
 
+# CONFABULACIÓN de data-op (V2-078, 2026-07-31): el ESPEJO de risky_decision. Ahí el rápido ACTUÓ sin escalar;
+# aquí NO actuó (turno de charla, cero tools/tags) PERO su RESPUESTA CLAMA que hizo/está haciendo algo («ya la
+# estoy añadiendo a la agenda», «sigo con ello», «hecho») sobre un widget del catálogo que el operador NOMBRÓ. Es
+# la data-op FANTASMA que el A/B destapó: con el widget CERRADO el no-razonador dice que actúa sin llamar
+# widget_data → mentira. Señal BARATA (regex de la RESPUESTA, es/en, no una tabla de verbos por widget) que le da a
+# Susurro la oportunidad de RE-RUTEAR (worker_action) y ejecutar de verdad, OFF-hot-path. El MODELO decide si de
+# verdad quedó algo sin hacer; esto solo abre la puerta. Doctrina V2-046/V2-075: la decisión es del modelo.
+_CLAIM = [
+    # es — pretérito/gerundio/presente que AFIRMA una mutación hecha o en curso
+    r"\b(?:hecho|listo|ya (?:esta|está)|queda (?:hecho|anotad|apuntad|añadid|agregad|guardad|reservad|marcad|cread))\b",
+    r"\b(?:lo|la|los|las|te) (?:he |)(?:anotad|apuntad|añadid|agregad|guardad|actualizad|reservad|marcad|puest|cread|cancelad|borrad|program)",
+    r"\b(?:lo |la |los |las |)(?:añado|agrego|apunto|anoto|guardo|actualizo|reservo|marco|pongo|creo|cancelo|borro|programo)\b",
+    r"\b(?:estoy|voy a) (?:añad|agreg|apunt|anot|guard|actualiz|reserv|marc|pon|cre|cancel|borr|program)",
+    r"\b(?:sigo|me pongo) con ello\b|\bva en ello\b|\bahora mismo (?:lo|la|te)\b",
+    # en
+    r"\b(?:done|on it)\b",
+    r"\b(?:i'?ve|i have|i'?ll|i will|i'?m|i am) (?:added|updated|booked|scheduled|noted|saved|marked|set|created|cancel|put|adding|updating|booking)\b",
+    r"\b(?:adding|updating|booking|scheduling|noting|saving|marking|creating|cancelling|canceling) (?:it|the|your|a )\b",
+]
+_CLAIM_RE = [re.compile(p, re.I) for p in _CLAIM]
+
+
+def claims_action(reply: str) -> bool:
+    """¿La RESPUESTA de zaelar afirma haber hecho / estar haciendo una mutación? (es/en, acento-insensible).
+    Es el rastro de la confabulación cuando el turno NO llamó a ninguna tool."""
+    t = _norm(reply)
+    return bool(t) and any(p.search(t) for p in _CLAIM_RE)
+
+
+def _nothing_acted(decision: dict | None) -> bool:
+    """True si el turno NO ejecutó NADA consecuente — robusto a las dos formas de `decision` (voz vs probe).
+    Voz: banderas escalated/searched/widget_acted/worker_acted/data_done/confirm_opened/clarify/shown_ids.
+    Probe: action=='chat' + sin tool_calls + sin tags."""
+    d = decision if isinstance(decision, dict) else {}
+    if "action" in d:                       # forma del probe
+        if str(d.get("action") or "") not in ("chat", ""):
+            return False
+        return not (d.get("tool_calls") or d.get("tags"))
+    # forma del provider de voz
+    return not any(d.get(k) for k in ("escalated", "searched", "widget_acted", "worker_acted",
+                                      "data_done", "confirm_opened", "clarify", "shown_ids"))
+
+
+def phantom_dataop(user: str, decision: dict | None) -> str:
+    """Motivo si el turno es una data-op FANTASMA (charló y clamó una acción sobre un widget nombrado, sin
+    ejecutarla); '' si no. `decision` debe llevar la RESPUESTA en `reply`. Gate en TRES capas de precisión:
+    (1) nada actuó · (2) la respuesta clama acción · (3) el turno resuelve a un widget con acciones DECLARADAS
+    (data-driven del manifest, no una tabla de verbos). El modelo potente decide luego si de verdad quedó algo
+    sin hacer y re-rutea; esto solo abre la puerta, barato."""
+    d = decision if isinstance(decision, dict) else {}
+    if not _nothing_acted(d):
+        return ""
+    if not claims_action(str(d.get("reply") or "")):
+        return ""
+    u = (user or "").strip()
+    if len(u) < 8:                          # "vale", "gracias" — nunca una data-op
+        return ""
+    try:                                    # ¿el turno apunta a un widget REAL con acciones que cambian datos?
+        from widgets import runtime
+        from memory import api as _mem
+        st = _mem.state() or {}
+        m = (runtime.identify(u, open_ids=st.get("open_widgets") or [],
+                              recent_ids=st.get("recent_widgets") or []) or {}).get("match")
+        if not m:
+            return ""
+        w = runtime.get(m) or {}
+        if not (isinstance(w.get("actions"), dict) and w.get("actions")):
+            return ""                       # widget sin data-ops (solo display) → no era una data-op
+    except Exception:
+        return ""
+    return "data-op fantasma (charló y dijo que actuaba sobre un widget, sin ejecutar la tool)"
+
+
 # Eventos del sistema que son fricción por sí mismos (los emite quien ya vigila cada pieza; aquí solo se mapean
 # a un motivo legible). kind/label del observer o topic del bus → motivo.
 def system_friction(kind: str, label: str = "", topic: str = "") -> str:

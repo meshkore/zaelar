@@ -1820,7 +1820,7 @@ class NucleoLLMStream(llm.LLMStream):
                           "searched": bool(search_req["v"] is not None), "widget_acted": acted["widget"],
                           "worker_acted": worker_acted["v"], "data_done": data_done["v"],
                           "confirm_opened": bool(confirm_state.get("opened")), "clarify": bool(clarify["msg"]),
-                          "shown_ids": sorted(_shown_ids)},
+                          "shown_ids": sorted(_shown_ids), "reply": (spoken_text or "")[:400]},
                       extra={"turn_ms": _reply_extra.get("total_ms")})
         except Exception:
             pass
