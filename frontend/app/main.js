@@ -13,21 +13,11 @@ import * as store from "./core/store.js?v=2";
 import { startStatusPolling } from "./services/status.js?v=2";
 import { initTheme } from "./services/theme.js?v=2";
 
-import { Alert } from "./components/Alert.js?v=2";
-import { BootOverlay } from "./components/BootOverlay.js?v=2";
-import { CameraUnit } from "./components/CameraUnit.js?v=2";
-import { ChatWall, submitChat } from "./components/ChatWall.js?v=5";
-import { StatusPanel } from "./components/StatusPanel.js?v=2";
-import { TopBar } from "./components/TopBar.js?v=3";
-import { ConfigPanel } from "./components/ConfigPanel.js?v=1";
-import { BenchmarksPanel } from "./components/BenchmarksPanel.js?v=1";
-import { Orb } from "./components/Orb.js?v=3";
-import { ActivityStrip } from "./components/ActivityStrip.js?v=2";
-import { ConnStatus } from "./components/ConnStatus.js?v=2";
-import { DebugPanel } from "./components/DebugPanel.js?v=4";
-import { MemoryMap } from "./components/MemoryMap.js?v=2";
-import { WizardModal } from "./components/WizardModal.js?v=1";
-import { VaultModal } from "./components/VaultModal.js?v=1";
+// SUPERFICIES NATIVAS del frontend (widgets de SISTEMA, intocables): la LISTA CANÓNICA ÚNICA vive en
+// core/system-surfaces.js — main.js las MONTA desde ahí (sin lista duplicada). `submitChat` es el único símbolo
+// de un componente que main.js usa aparte de montar (el handler de pegar del portapapeles).
+import { submitChat } from "./components/ChatWall.js?v=5";
+import { SYSTEM_SURFACES } from "./core/system-surfaces.js?v=1";
 import * as api from "./services/api.js?v=2";
 
 import { Desktop } from "./widgets/desktop.js?v=3";
@@ -45,7 +35,9 @@ const desk = mount(h("div", { id: "desk" }));
 
 // ---- static scaffold (backdrop, widget stage, bot audio sink) ----
 mount(h("div", { class: "canvas" }), desk);
-mount(ActivityStrip(), desk);   // background-activity HONEYCOMB: right above .canvas so EVERYTHING paints over it (V2-039)
+// superficies de sistema de FASE scaffold (hoy: el panal de actividad) — van justo encima de .canvas y DEBAJO del
+// widget stage (V2-039: todo pinta por encima del panal). Se montan desde la lista canónica.
+for (const s of SYSTEM_SURFACES.filter(s => s.phase === "scaffold")) mount(s.comp(), desk);
 mount(h("div", { class: "wstage", id: "wstage" }), desk);   // widgets pop onto the canvas here
 const botAudio = mount(h("audio", { id: "botaudio", autoplay: true }));
 session.attachBotAudio(botAudio);
@@ -53,22 +45,14 @@ session.attachBotAudio(botAudio);
 // cuenco) — el switch on/off aplica al instante y nunca queda "icono silenciado pero suena" (bug de arranque V2-043).
 createEffect(() => { try { botAudio.muted = store.botMuted(); } catch (_) {} });
 
-// ---- components: chrome del ESCRITORIO → #desk (se desplaza); overlays/paneles/chat → body (por encima) ----
-mount(Alert());
-mount(BootOverlay());
-mount(CameraUnit(), desk);
-mount(ChatWall());     // la columna acoplable — FUERA de #desk (es quien lo empuja). V2-079: incluye las pestañas
-//                        Chat/Procesos/Crons (el antiguo CronPanel suelto se fundió aquí, en la 3ª pestaña).
-mount(StatusPanel());
-mount(TopBar(), desk);
-mount(ConfigPanel());  // ⚙ área de configuración full-screen: API/modelo por pieza + voz + saldos (V2-043)
-mount(BenchmarksPanel());  // "¿por qué estos modelos?" — solo informativo, abierta desde el cerebro rápido (V2-077)
-mount(Orb(), desk);
-mount(ConnStatus(), desk);
-mount(DebugPanel());   // resizable observability side-column (◷ in the TopBar); shrinks the canvas when open
-mount(MemoryMap());    // 🧠 memory map overlay (state + short/long-term + concept graph), toggled from the orb bowl
-mount(WizardModal());  // 🧭 wizard de primer arranque (perfil local/cloud + detector + credenciales, V2-040)
-mount(VaultModal());   // 🔐 bóveda de secretos: crear/desbloquear (passphrase o passkey), mostrar valor (V2-060)
+// ---- SUPERFICIES DE SISTEMA (nativas, intocables) — montadas desde la LISTA CANÓNICA ÚNICA
+// (core/system-surfaces.js), en su orden de apilado. chrome del escritorio → #desk (se desplaza al acoplar el
+// chat); paneles/overlays/modales/chat/banners → body (por encima). Añadir una superficie nativa = añadirla a
+// esa lista; aquí no se toca nada. Todo lo DEMÁS que aparece en pantalla son widgets de USUARIO (catálogo
+// widgets/<id>/, aunque se distribuyan de serie) — variables, creados por/para el usuario, como los conectores. ----
+for (const s of SYSTEM_SURFACES.filter(s => s.phase === "overlay")) {
+  mount(s.comp(), s.target === "desk" ? desk : undefined);
+}
 
 // ---- primer arranque: si la config no está validada, abre el wizard ANTES de nada (config gestionada por la UI) ----
 api.wizardState().then(s => { if (s && s.first_run) store.setWizardOpen(true); }).catch(() => {});

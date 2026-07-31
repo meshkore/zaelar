@@ -213,7 +213,15 @@ arranque `make run` → `python -m server`.
   Kafka/broker.**
 - `frontend/` — interfaz como app de **módulos ES sin build**, migrable a Solid (core reactivo + services +
   components + widget desktop). Voz vía **cliente LiveKit** (`services/session-lk.js` + SDK vendorizado en
-  `frontend/vendor/`). Ver `zaelar-modules.md §Frontend`.
+  `frontend/vendor/`). Ver `zaelar-modules.md §Frontend`. **SUPERFICIES NATIVAS del frontend = «widgets de
+  SISTEMA», INTOCABLES** (V2-080): su LISTA CANÓNICA ÚNICA vive en **`frontend/app/core/system-surfaces.js`**
+  (`SYSTEM_SURFACES` + `isSystemSurface()`) — panal de actividad, cámara/mic, orbe, TopBar, estado de conexión,
+  chat (Chat/Procesos/Crons), panel de estado ◉, config ⚙, benchmarks, debug ◷, mapa de memoria 🧠, wizard 🧭,
+  bóveda 🔐, banner de aviso y splash de arranque. `main.js` las MONTA desde esa lista (sin duplicar). El
+  generador/`lifecycle` NUNCA las tocan (solo tocan `widgets/<id>/`). **Todo lo demás en pantalla son WIDGETS DE
+  USUARIO** (catálogo `widgets/<id>/`, full-stack `manifest.json`+`data.py`+`widget.js`), variables y creados
+  por/para el usuario **aunque se distribuyan de serie** — como los conectores. Añadir una superficie nativa nueva
+  = añadirla a `system-surfaces.js`.
 - `server/` — FastAPI app + routers + entrypoint (`server/__main__.py`); corre el **agent worker de LiveKit
   EMBEBIDO** en el proceso (lifespan), y arranca en ese mismo lifespan el loop de `nucleo/`, el supervisor de
   widgets `backed` y el consumidor de la cola de memoria. Routers: `livekit_api` (token + config + swap de
