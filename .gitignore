@@ -85,3 +85,6 @@ scratchpad/
 
 # Zaelar self-contained runtime
 bin/
+
+# Copias locales de reversión del config runtime (nunca al repo)
+config/*.bak-*
