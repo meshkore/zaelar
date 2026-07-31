@@ -16,8 +16,7 @@ import { initTheme } from "./services/theme.js?v=2";
 import { Alert } from "./components/Alert.js?v=2";
 import { BootOverlay } from "./components/BootOverlay.js?v=2";
 import { CameraUnit } from "./components/CameraUnit.js?v=2";
-import { ChatWall, submitChat } from "./components/ChatWall.js?v=4";
-import { CronPanel } from "./components/CronPanel.js?v=2";
+import { ChatWall, submitChat } from "./components/ChatWall.js?v=5";
 import { StatusPanel } from "./components/StatusPanel.js?v=2";
 import { TopBar } from "./components/TopBar.js?v=3";
 import { ConfigPanel } from "./components/ConfigPanel.js?v=1";
@@ -58,8 +57,8 @@ createEffect(() => { try { botAudio.muted = store.botMuted(); } catch (_) {} });
 mount(Alert());
 mount(BootOverlay());
 mount(CameraUnit(), desk);
-mount(ChatWall());     // la columna acoplable — FUERA de #desk (es quien lo empuja)
-mount(CronPanel());
+mount(ChatWall());     // la columna acoplable — FUERA de #desk (es quien lo empuja). V2-079: incluye las pestañas
+//                        Chat/Procesos/Crons (el antiguo CronPanel suelto se fundió aquí, en la 3ª pestaña).
 mount(StatusPanel());
 mount(TopBar(), desk);
 mount(ConfigPanel());  // ⚙ área de configuración full-screen: API/modelo por pieza + voz + saldos (V2-043)

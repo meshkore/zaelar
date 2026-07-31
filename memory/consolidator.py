@@ -254,6 +254,15 @@ def consolidate(limit: int = DEFAULT_LIMIT, lam: float = DECAY_LAMBDA_PER_DAY, s
     decayed = decay(now=now, lam=lam)
     pruned = prune_invalid(now=now)
     evicted = evict(limit=limit)
+    # V2-079: el mismo barrido del sueño limpia el LEDGER de Brain Workers — borra ejecuciones terminadas viejas
+    # (>7d por defecto), como el decay/evict de la memoria; las ligadas a un cron activo (recurrentes) no caducan.
+    # La memoria no importa `nucleo/*` → import perezoso y fail-open (nunca tumba el ciclo de consolidación).
+    workers_pruned = 0
+    try:
+        from nucleo.workers import ledger as _wledger
+        workers_pruned = _wledger.prune(now=now)
+    except Exception:
+        pass
     return {
         "healed_slots": healed,
         "promoted": promoted,
@@ -261,5 +270,6 @@ def consolidate(limit: int = DEFAULT_LIMIT, lam: float = DECAY_LAMBDA_PER_DAY, s
         "decayed": decayed,
         "pruned": pruned,
         "evicted": evicted,
+        "workers_pruned": workers_pruned,
         "count": count(),
     }

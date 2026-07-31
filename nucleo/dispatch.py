@@ -1064,6 +1064,15 @@ async def _run_session(task: "Task") -> None:
             except Exception:
                 pass
             _waiting_user = (rec.waiting_on == "user") or bool(rec.ask)
+            # V2-079: rastro DURABLE de la ejecución que se va (el registro vivo se purga aquí y desaparecía). El
+            # ledger conserva el histórico para la pestaña «Procesos» del ChatWall. Best-effort, fuera del hot-path.
+            try:
+                from nucleo.workers import ledger as _ledger
+                _ledger.record_finish(id=str(key), kind=str(kind or ""), goal=str(req or "")[:160],
+                                      status=str(rec.status or "done"), started_at=getattr(rec, "started", None),
+                                      trace_id=str(getattr(rec, "trace_id", "") or ""), ok=bool(rec.ok))
+            except Exception:
+                pass
             _SESSIONS.pop(key, None)
             try:
                 from nucleo import worker_api
