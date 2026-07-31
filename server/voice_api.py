@@ -164,7 +164,7 @@ async def status():
     # ── Cerebro «Colmena» ─────────────────────────────────────────────────────────────────────────────────────
     from config.v2 import active_brain
     brain = active_brain()
-    _brain_detail = {"nucleo": "«Colmena» · FlashBrain + SlowBrain + memoria propia"}.get(brain, f"modo {brain}")
+    _brain_detail = {"nucleo": "«Colmena» · FlashBrain + brain workers + memoria propia"}.get(brain, f"modo {brain}")
     items.append({"key": "brain", "label": "Cerebro", "state": "ok", "detail": _brain_detail})
 
     # ── Voice session ─────────────────────────────────────────────────────────────────────────────────────────
