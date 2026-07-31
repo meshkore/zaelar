@@ -1,0 +1,60 @@
+# Engine release trigger → hands off to the private cloud deploy pipeline.
+#
+# This is the ONLY piece of the deploy story that lives in the PUBLIC engine repo, on purpose kept
+# minimal and secret-free: it runs a pre-deploy test gate and, if green, tells the private
+# zaelar-cloud repo to deploy this tag. It contains NO Fly token, NO app/region names, NO deploy
+# logic — all of that stays private (cloud/.github/workflows/deploy-engine-to-fly.yml).
+#
+# 0-CLICK, ON YOUR DEMAND: pushing a version tag IS the demand. From there it's automatic —
+#   git tag v2.78 && git push origin v2.78
+# → this gate runs → on green, the cloud pipeline deploys + runs the e2e smoke + auto-rolls-back on
+# failure. Nothing else to click.
+#
+# PREREQUISITE (operator): a repo secret CLOUD_DISPATCH_TOKEN — a fine-grained PAT scoped to ONLY the
+# private cloud repo with "contents: read" + "metadata: read" + permission to create a
+# repository_dispatch. Set CLOUD_REPO below to that repo's full name once it exists.
+#
+# ALTERNATIVE (zero public footprint): instead of this file, a scheduled poller inside the cloud repo
+# that watches this repo's tags. Cleaner boundary, ~poll-interval latency. Not used here because the
+# tag→dispatch path is immediate and needs no "what's already deployed" bookkeeping. Ask to switch.
+
+name: Release (tag → cloud deploy)
+
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  CLOUD_REPO: meshkore/zaelar-cloud # ← set to the real private cloud repo name once created
+
+jobs:
+  gate-and-dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # PRE-DEPLOY GATE. Today: a fast, reliable SYNTAX check across the tree (catches a broken commit
+      # without needing the heavy runtime deps/models the full suite requires). EXTEND THIS with the
+      # real unit/integration suite once the engine's CI deps are wired (pip install + a models-free
+      # subset, or `tests/run_testmap.py --ci`). Kept honest: a weak-but-reliable gate beats a strong
+      # one that false-fails and blocks releases. The deep safety net is the cloud pipeline's
+      # post-deploy e2e smoke + auto-rollback.
+      - name: Gate — syntax check
+        run: python -m compileall -q nucleo memory voice server widgets bus config connectors
+
+      - name: Dispatch deploy to the private cloud repo
+        env:
+          TOKEN: ${{ secrets.CLOUD_DISPATCH_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          echo "Gate green → asking $CLOUD_REPO to deploy engine tag $TAG"
+          curl -sf -X POST \
+            -H "Authorization: Bearer $TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${CLOUD_REPO}/dispatches" \
+            -d "{\"event_type\":\"engine-release\",\"client_payload\":{\"engine_ref\":\"${TAG}\"}}"
