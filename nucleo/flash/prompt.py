@@ -386,6 +386,16 @@ def _open_widget_ids() -> set[str]:
         return set()
 
 
+def _recent_widget_ids() -> list[str]:
+    """ids de widgets USADOS HACE POCO (MRU `state.recent_widgets`, V2-078), en orden de recencia. 2ª capa de
+    acotación para elegir/resolver el widget objetivo (abiertos > recientes > catálogo). Lectura µs, sin retriever."""
+    try:
+        from memory import api as memory
+        return [str(w).strip().lower() for w in (memory.state().get("recent_widgets") or []) if str(w).strip()]
+    except Exception:
+        return []
+
+
 def _workers_directive() -> str:
     """Directiva de DIRECCIÓN de Brain Workers (V2-038 §v3·F) — solo cuando hay workers vivos. Antes vivía
     incrustada en `memory.compose_state()` (auditoría 2026-07-14): esa prosa es del FlashBrain (V2-027: la
@@ -415,7 +425,7 @@ def _rails_directive() -> str:
     return ("\n" + "\n".join(lines) + "\n") if lines else ""
 
 
-def _flash_layer(open_ids: set[str]) -> str:
+def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None) -> str:
     """CAPA DE RECURSOS del FlashBrain (D) — TERSA (V2-027). Reemplaza al `_FAST_RULES` de ~75 líneas: las reglas
     de VOZ esenciales caben en 3-4 frases; el "cómo se usa cada tool" NO va aquí (vive en `router.TOOLS`, única
     fuente por tool). Los RECURSOS (widgets/web/navegador) son data-driven, no prosa hardcodeada."""
@@ -474,7 +484,7 @@ def _flash_layer(open_ids: set[str]) -> str:
         + _workers_directive()
         + _rails_directive()
     )
-    res = "── QUÉ TIENES (recursos) ──\n" + _widgets(open_ids) + (
+    res = "── QUÉ TIENES (recursos) ──\n" + _widgets(open_ids, recent_ids) + (
         "\n\nweb_search (tool): un DATO factual y actual del mundo (resultado, tiempo, precio, noticia); "
         "NO para navegar tiendas/marketplaces. Un dato ligado a un LUGAR (el tiempo, tráfico…) sin ciudad "
         "explícita va SIEMPRE con la ciudad ACTUAL del operador (la de su estado); un dato que tengas guardado "
@@ -588,7 +598,7 @@ def build_flash_system(directive: str = "", recall_query: str = "", recall_block
         recall_block, used_ids = compose_recall(recall_query, timings=timings)
     _tb = _t.perf_counter()
     open_ids = _open_widget_ids()
-    resources = _flash_layer(open_ids)
+    resources = _flash_layer(open_ids, _recent_widget_ids())
     if timings is not None:
         timings["briefs_ms"] = round((_t.perf_counter() - _tb) * 1000, 1)
     _tl = _t.perf_counter()

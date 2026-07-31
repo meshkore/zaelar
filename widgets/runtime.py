@@ -94,7 +94,17 @@ def _identify_index() -> list[dict]:
     return rows
 
 
-def identify(query: str, open_ids: list | None = None) -> dict:
+def _tiebreak_by_context(scored, top_score, ids, key: str):
+    """Devuelve el ÚNICO empatado (score == top_score) cuyo id esté en `ids`, o None si hay 0 o >1. `key` solo
+    documenta la capa (open/recent) para el llamante. Normaliza ids de instancia (navegador::t1 → navegador)."""
+    ctx = {str(i).split("::", 1)[0].strip().lower() for i in (ids or []) if str(i).strip()}
+    if not ctx:
+        return None
+    tied = [w for s, w in scored if s == top_score and w.get("id", "").lower() in ctx]
+    return tied[0] if len(tied) == 1 else None
+
+
+def identify(query: str, open_ids: list | None = None, recent_ids: list | None = None) -> dict:
     """Map a free-text/voice request to a widget. Returns the best match + ranked candidates so the assistant
     can DISAMBIGUATE ('do you mean this widget or that one?') when it's not clear (HANDOFF §0).
 
@@ -103,11 +113,15 @@ def identify(query: str, open_ids: list | None = None) -> dict:
     tokens with a fuzzy tolerance (difflib, catches voice-typos) · id/title hits dominate · description/whenToUse
     token overlap adds a small tiebreak signal, capped so prose can never beat a real keyword.
 
-    `open_ids` = widgets abiertos ahora en el canvas (contexto de UI del ESTADO): cuando varios candidatos empatan,
-    el que el operador tiene DELANTE gana ("modifica el widget de X" apuntando a lo que está en pantalla)."""
+    ACOTACIÓN por CONTEXTO cuando el top empata (V2-078, idea del operador — genérica, sin frases hardcodeadas):
+    los candidatos empatados se desempatan por PRIORIDAD **abiertos > usados hace poco**. `open_ids` = widgets en
+    pantalla AHORA; `recent_ids` = MRU de los usados hace poco aunque ya se cerraran (`state.recent_widgets`). Con
+    100 widgets pero 3 recién usados, "modifica el widget de X" cae en lo que el operador tiene delante/tocó hace
+    nada, no en un homónimo del catálogo. Solo desempata EMPATES — un nombre inequívoco (gana por score) manda igual
+    aunque no esté abierto. Devuelve también `score` (top) para que el llamante calibre la confianza."""
     q = _norm(query)
     if not q:
-        return {"match": None, "ambiguous": False, "candidates": []}
+        return {"match": None, "ambiguous": False, "candidates": [], "score": 0.0}
     q_padded = f" {q} "
     q_tokens = [t for t in q.split() if t not in _STOP]
     scored = []
@@ -131,13 +145,16 @@ def identify(query: str, open_ids: list | None = None) -> dict:
     scored.sort(key=lambda s: (-s[0], s[1].get("id", "")))
     cands = [{"id": w["id"], "title": w["title"], "score": s} for s, w in scored]
     top = scored[0][1] if scored else None
+    top_score = scored[0][0] if scored else 0.0
     # clear winner only if there is a unique top score
     ambiguous = len(scored) > 1 and scored[0][0] == scored[1][0]
-    # Desempate por CONTEXTO DE UI: si el top empata pero UNO de los empatados está ABIERTO en pantalla, ese gana.
-    if ambiguous and open_ids:
-        open_set = {str(i).split("::", 1)[0].strip().lower() for i in open_ids if str(i).strip()}
-        tied_open = [w for s, w in scored if s == scored[0][0] and w.get("id", "").lower() in open_set]
-        if len(tied_open) == 1:
-            top, ambiguous = tied_open[0], False
+    # Desempate por CONTEXTO DE UI, POR PRIORIDAD: primero los ABIERTOS (lo que tiene DELANTE), y si ahí no hay un
+    # único ganador, los USADOS HACE POCO (MRU). Un solo empatado en la capa → ese gana; si no, sigue ambiguo (el
+    # llamante pregunta). Genérico: escala a cualquier widget custom sin tabla de casos.
+    if ambiguous:
+        winner = _tiebreak_by_context(scored, scored[0][0], open_ids, "open") \
+            or _tiebreak_by_context(scored, scored[0][0], recent_ids, "recent")
+        if winner is not None:
+            top, ambiguous = winner, False
     return {"match": (top["id"] if (top and not ambiguous) else None),
-            "ambiguous": ambiguous, "candidates": cands}
+            "ambiguous": ambiguous, "candidates": cands, "score": top_score}

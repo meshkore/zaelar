@@ -52,6 +52,24 @@ def _session(sid: str) -> ProbeSession:
     return _SESSIONS.setdefault(sid or "default", ProbeSession())
 
 
+def _ctx_ids() -> tuple[list, list]:
+    """(open_ids, recent_ids) del ESTADO para acotar `runtime.identify` (V2-078) — ESPEJO de `providers/nucleo.py::
+    _identify`. Ante un empate el que está en pantalla / se usó hace poco gana. Best-effort (estado ausente → ([],[]))."""
+    try:
+        from memory import api as _memapi
+        _st = _memapi.state() or {}
+        return (_st.get("open_widgets") or []), (_st.get("recent_widgets") or [])
+    except Exception:
+        return [], []
+
+
+def _identify_ctx(rt, query: str) -> str | None:
+    """`rt.identify(query, open_ids, recent_ids)['match']` con el contexto del estado — el resolvedor con la misma
+    acotación open>reciente>catálogo que usa la voz. `rt` = módulo widgets.runtime ya importado por el llamante."""
+    _o, _r = _ctx_ids()
+    return (rt.identify(query, open_ids=_o, recent_ids=_r) or {}).get("match")
+
+
 def _show_target(text: str) -> str | None:
     """Mismo criterio que `providers/nucleo.py::_show_guard_target` (impl PARALELA — mantener en sync): verbo de
     MOSTRAR + NO crear + `runtime.identify` resuelve un widget existente → el turno real lo convierte en show."""
@@ -66,7 +84,7 @@ def _show_target(text: str) -> str | None:
         return None
     try:
         from widgets import runtime
-        return (runtime.identify(text) or {}).get("match")
+        return _identify_ctx(runtime, text)
     except Exception:
         return None
 
@@ -320,7 +338,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 if _swid and _rt.get(_swid) is not None:
                     _rid = _swid
                 else:
-                    _m = (_rt.identify(_swid or text) or {}).get("match") or ""
+                    _m = _identify_ctx(_rt, _swid or text) or ""
                     _rid = _m if (_m and _rt.get(_m) is not None) else ""
             except Exception:
                 _rid = ""
@@ -335,7 +353,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             if _fwid and _rtf.get(_fwid) is not None:
                 _frid = _fwid
             else:
-                _m = (_rtf.identify(_fwid or text) or {}).get("match") or ""
+                _m = _identify_ctx(_rtf, _fwid or text) or ""
                 _frid = _m if (_m and _rtf.get(_m) is not None) else ""
         except Exception:
             _frid = ""
@@ -354,8 +372,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             _wid = str(_wd["args"].get("widget_id") or "").strip().lower()
             _act = str(_wd["args"].get("action") or "").strip()
             if _wid and _rt.get(_wid) is None:   # id flojito → resuélvelo contra el catálogo, como la voz
-                _wid = ((_rt.identify(_wid) or {}).get("match")
-                        or (_rt.identify(text) or {}).get("match") or _wid)
+                _wid = (_identify_ctx(_rt, _wid) or _identify_ctx(_rt, text) or _wid)
             if _fe.action_mode(_wid, _act) is None:
                 _cv = _fe.canvas_verb(_act)
                 if _cv and _rt.get(_wid) is not None:
@@ -376,7 +393,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                     _ow = set((_memapi.state() or {}).get("open_widgets") or [])
                 except Exception:
                     _ow = set()
-                _named = (_rt.identify(text) or {}).get("match")
+                _named = _identify_ctx(_rt, text)
                 if _wid not in _ow and _named != _wid:
                     action = "escalate"
         except Exception:

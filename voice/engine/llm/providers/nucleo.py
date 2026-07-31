@@ -2028,9 +2028,19 @@ def _show_guard_target(text: str) -> str | None:
 
 
 def _identify(text: str) -> str | None:
+    """Resuelve una frase a un id de widget. V2-078: pasa el CONTEXTO (abiertos + usados hace poco) para que, ante
+    un empate, gane el que el operador tiene DELANTE o tocó hace nada — no un homónimo del catálogo. Lectura µs del
+    estado (sin retriever); best-effort (si el estado no está, resuelve sin contexto, como antes)."""
     try:
         from widgets import runtime
-        return (runtime.identify(text) or {}).get("match")
+        try:
+            from memory import api as _memapi
+            _st = _memapi.state() or {}
+            _open = _st.get("open_widgets") or []
+            _recent = _st.get("recent_widgets") or []
+        except Exception:
+            _open, _recent = [], []
+        return (runtime.identify(text, open_ids=_open, recent_ids=_recent) or {}).get("match")
     except Exception:
         return None
 
