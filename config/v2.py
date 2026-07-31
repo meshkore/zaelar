@@ -264,6 +264,29 @@ def code_agent_model(kind: str = "generic") -> str:
     return per_kind or (cfg.get("model") or "").strip()
 
 
+def external_worker_env() -> dict:
+    """Env vars para que un agente `claude` HEADLESS (brain worker o generador de widgets) use el endpoint
+    Anthropic-compatible EXTERNO de §code_agent (p.ej. Z.AI GLM coding plan) en vez de la cuenta/licencia Claude
+    del sistema — así los agentes headless NO consumen tokens de la licencia Claude Teams (regla del operador
+    2026-07-31). Devuelve {} si `base_url` no está configurado (→ comportamiento normal). Fuente ÚNICA para TODOS
+    los spawns de `claude` del repo, para que ninguno se quede fuera. El token se resuelve del credential store
+    POR ENDPOINT (z.ai → `Z_AI_API_KEY`), NUNCA desde el JSON de config. Fail-open (cualquier fallo → {})."""
+    try:
+        cfg = get("code_agent")
+        base = (cfg.get("base_url") or "").strip()
+        if not base:
+            return {}
+        tok = (cfg.get("api_key") or "").strip()
+        if not tok and "z.ai" in base.lower():
+            tok = os.getenv("Z_AI_API_KEY", "")
+        if not tok:
+            return {}
+        # ANTHROPIC_API_KEY conviviendo con base_url ambigua al CLI → se quita en el consumidor tras aplicar esto.
+        return {"ANTHROPIC_BASE_URL": base, "ANTHROPIC_AUTH_TOKEN": tok}
+    except Exception:
+        return {}
+
+
 def active_brain() -> str:
     """El cerebro seleccionado para este run. Fuente ÚNICA tras el entierro de Hermes (V2-009): antes vivía en
     `brains/__init__.py`. Env-first (`BRAIN`, lo que fija `make run` = nucleo) → store `flags.brain` → default

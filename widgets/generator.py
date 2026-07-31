@@ -205,10 +205,24 @@ def _run_agent(prompt: str, token: str = "") -> tuple[bool, str]:
         return False, "Claude Code CLI not found (set CLAUDE_BIN)"
     cmd = [claude, "-p", "--allowedTools", "Write Edit Read",
            "--permission-mode", "acceptEdits", "--output-format", "json"]
-    if GEN_MODEL:
-        cmd += ["--model", GEN_MODEL]
     env = dict(os.environ)
     env["PATH"] = os.path.dirname(claude) + os.pathsep + env.get("PATH", "")
+    # Enruta la generación de widgets por el endpoint externo de §code_agent (Z.AI GLM) si está configurado, para
+    # que este agente headless TAMPOCO consuma tokens de la licencia Claude Teams (operador 2026-07-31). Helper
+    # ÚNICO compartido con los brain workers. Si se enruta y no hay override explícito, usa el modelo de §code_agent.
+    model = GEN_MODEL
+    try:
+        from config import v2 as _v2
+        _ext = _v2.external_worker_env()
+        if _ext:
+            env.update(_ext)
+            env.pop("ANTHROPIC_API_KEY", None)
+            if not model:
+                model = _v2.code_agent_model("code")
+    except Exception:
+        pass
+    if model:
+        cmd += ["--model", model]
     try:
         p = subprocess.Popen(cmd, cwd=ZAELAR, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                              stderr=subprocess.PIPE, text=True, env=env)

@@ -115,25 +115,18 @@ class ClaudeCodeSession(WorkerBackend):
         env = dict(os.environ)
         env["PATH"] = os.path.dirname(claude) + os.pathsep + env.get("PATH", "")
         env.update(spec.env or {})
-        # Backend de razonamiento EXTERNO (2026-07-31): si §code_agent.base_url apunta a un endpoint Anthropic-
-        # compatible (Z.AI GLM coding plan, "una API para usar desde Claude Code"), el worker `claude` lo usa vía
-        # ANTHROPIC_BASE_URL + ANTHROPIC_AUTH_TOKEN. OFF por defecto (base_url vacío → cuenta Anthropic normal).
-        # El token se resuelve del credential store POR ENDPOINT (z.ai → Z_AI_API_KEY), nunca desde config JSON.
-        # spec.env (del dispatch) manda si ya lo trae; esto es el default config-driven. Fail-open (nunca rompe).
+        # Endpoint de razonamiento EXTERNO (2026-07-31): si §code_agent.base_url apunta a un proveedor Anthropic-
+        # compatible (Z.AI GLM coding plan), el agente headless `claude` lo usa vía ANTHROPIC_BASE_URL +
+        # ANTHROPIC_AUTH_TOKEN → NO consume tokens de la licencia Claude Teams. OFF por defecto (base_url vacío).
+        # spec.env (del dispatch) manda si ya lo trae. Helper ÚNICO `v2.external_worker_env()` (comparte con el
+        # generador de widgets — así NINGÚN spawn de `claude` se queda sin enrutar). Fail-open.
         if "ANTHROPIC_BASE_URL" not in env:
             try:
                 from config import v2 as _v2
-                _ca = _v2.get("code_agent") or {}
-                _base = (_ca.get("base_url") or "").strip()
-                if _base:
-                    _tok = (_ca.get("api_key") or "").strip()
-                    if not _tok and "z.ai" in _base.lower():
-                        _tok = os.getenv("Z_AI_API_KEY", "")
-                    if _tok:
-                        env["ANTHROPIC_BASE_URL"] = _base
-                        env["ANTHROPIC_AUTH_TOKEN"] = _tok
-                        # el CLI avisa si conviven API key + base_url; quitamos la key de Anthropic para no ambiguar.
-                        env.pop("ANTHROPIC_API_KEY", None)
+                _ext = _v2.external_worker_env()
+                if _ext:
+                    env.update(_ext)
+                    env.pop("ANTHROPIC_API_KEY", None)   # evita ambigüedad key-vs-base_url en el CLI
             except Exception:
                 pass
         # marcadores para el barrido de huérfanos al arrancar (§v2·D) + auth de bridges por-tarea (§v2·D).
