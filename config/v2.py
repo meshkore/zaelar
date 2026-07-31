@@ -50,6 +50,11 @@ _DEFAULTS: dict[str, dict] = {
         "model_web": "",                                    # agentes de trabajo web (V2-007)
         "model_code": "",                                   # agentes de trabajo de código (V2-007)
         "api_key": "",
+        # base_url: endpoint Anthropic-compatible EXTERNO para los workers `claude` (2026-07-31). Vacío = la
+        # cuenta Anthropic normal del sistema. Si apunta a un proveedor compatible (p.ej. Z.AI GLM coding plan,
+        # "una API para usar desde Claude Code"), el worker lo usa vía ANTHROPIC_BASE_URL + ANTHROPIC_AUTH_TOKEN;
+        # el token se resuelve del credential store por endpoint (z.ai → Z_AI_API_KEY), nunca desde este JSON.
+        "base_url": "",
         "max_parallel": 3,                                  # POOL: máx sesiones Claude Code concurrentes (V2-036) —
         #                                                     no saturar equipo/tokens; env CODE_AGENT_MAX_PARALLEL.
     },
@@ -148,6 +153,7 @@ _ENV_FALLBACK = {
     ("code_agent", "model_web"): "CODE_AGENT_MODEL_WEB",
     ("code_agent", "model_code"): "CODE_AGENT_MODEL_CODE",
     ("code_agent", "api_key"): "CODE_AGENT_API_KEY",
+    ("code_agent", "base_url"): "CODE_AGENT_BASE_URL",
     ("memory", "rerank_provider"): "MEMORY_RERANK",
     ("memory", "rerank_model"): "MEMORY_RERANK_MODEL",
     ("memory", "rerank_base_url"): "MEMORY_RERANK_BASE_URL",
