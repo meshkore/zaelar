@@ -280,6 +280,15 @@ def external_worker_env() -> dict:
         if not tok and "z.ai" in base.lower():
             tok = os.getenv("Z_AI_API_KEY", "")
         if not tok:
+            # base_url CONFIGURADO pero sin token resoluble → si devolviéramos {} el agente headless caería a la
+            # licencia Claude Teams EN SILENCIO (justo lo que el operador quiere evitar). Avisar FUERTE (fail-loud).
+            try:
+                from loguru import logger
+                logger.warning(f"code_agent.base_url={base!r} configurado pero SIN token resoluble "
+                               "(¿falta Z_AI_API_KEY en el store?) → los brain workers caerían a la licencia "
+                               "Claude Teams. Revisa credenciales.")
+            except Exception:
+                pass
             return {}
         # ANTHROPIC_API_KEY conviviendo con base_url ambigua al CLI → se quita en el consumidor tras aplicar esto.
         return {"ANTHROPIC_BASE_URL": base, "ANTHROPIC_AUTH_TOKEN": tok}
