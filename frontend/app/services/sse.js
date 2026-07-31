@@ -44,6 +44,10 @@ export function openSSE(desktop) {
       // the single choke point that emits this. No polling anywhere: re-fetch + re-render ONLY if that widget
       // happens to be open right now; otherwise there's nothing on screen to update.
       else if (d.label === "data" && d.id) desktop.refreshData(d.id);
+    } else if (d.kind === "panel") {                                              // V2-079: el cerebro abre el panel nativo (chat/procesos/crons) por voz
+      const tab = (d.tab === "procesos" || d.tab === "crons") ? d.tab : "chat";
+      store.setChatTab(tab);
+      store.setChatOpen(true);
     } else if (d.kind === "transcript" && d.text) {
       if (d.role === "assistant") {
         // zaelar's FINAL turn text → chat wall (the HISTORY). The LIVE caption over the orb does NOT come from here

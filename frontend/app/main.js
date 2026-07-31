@@ -104,6 +104,7 @@ window.zaelar = {
   retrain: () => session.retrain(),
   orb: (s) => session.setOrb(s),
   vault: (mode = "manage") => store.openVault(mode),   // 🔐 bóveda de secretos (V2-060): crear/desbloquear/gestionar
+  panel: (tab = "chat") => { store.setChatTab(["chat", "procesos", "crons"].includes(tab) ? tab : "chat"); store.setChatOpen(true); },  // V2-079: abre el panel nativo (chat/procesos/crons)
 };
 
 // ---- files: paste an image / drop a file → lands in the central memory's EPISODIC layer (V2-003); the brain
