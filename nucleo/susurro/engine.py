@@ -79,8 +79,14 @@ async def _consume_turns(sub):
                 # modelo potente juzga si el path fue erróneo; esto solo abre la puerta. Gate por config (ON def).
                 cons = _cfg().get("audit_consequential", True)
                 risk = friction.risky_decision(ev.get("decision")) if cons else ""
+                # V2-078: el ESPEJO — data-op FANTASMA (charló y dijo que actuaba sobre un widget, sin ejecutar).
+                # Mismo principio que risky_decision: señal barata que abre la puerta; el modelo potente decide y
+                # re-rutea (worker_action) off-hot-path. Gate por config (ON def).
+                phantom = friction.phantom_dataop(user, ev.get("decision")) if _cfg().get("audit_phantom", True) else ""
                 if risk:
                     _maybe_trigger(risk, [user[:80]], trace)
+                elif phantom:
+                    _maybe_trigger(phantom, [user[:80]], trace)
                 else:
                     pulse = int(_cfg().get("pulse_turns") or 0)
                     if pulse > 0 and _turns_since_audit >= pulse:

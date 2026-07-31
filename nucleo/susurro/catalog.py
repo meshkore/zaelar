@@ -34,6 +34,14 @@ dice «hecho» SIN ejecutar nada real. La agenda y los widgets son solo ESPEJOS 
 cancela la cita real. Cuando veas este patrón (mira las DECISIONES POR TURNO: un widget_acted/data_done sin escalar
 ante una orden que era una acción real), es un fallo serio → usa `worker_action` para que se ejecute de verdad.
 
+VARIANTE FANTASMA (data-op local no ejecutada): el operador pide AÑADIR/CAMBIAR/MARCAR/QUITAR algo de un widget
+que NOMBRA (una cita en la agenda, una tarea, una nota) y el rápido RESPONDE que ya lo añade/actualiza/reserva
+(«ya la estoy metiendo en la agenda», «sigo con ello», «hecho») PERO la decisión del turno está VACÍA — no llamó a
+ninguna tool. Es una data-op que quedó SIN hacer (el rápido suele fallar esto cuando el widget no está abierto). NO
+es un simple recordatorio si el operador nombró el widget y la acción existe → `worker_action` con la tarea concreta
+(«añade a la agenda la cita de mañana a las 17:00») para que el trabajador la ejecute de verdad reflejándola con
+widget_data, + un `repair_say` natural. Si en cambio solo era un recordatorio suelto sin widget, NO dispares.
+
 CATÁLOGO (responde SOLO con JSON válido, sin markdown):
 {
   "assessment": "1-3 frases: qué pasó y por qué (o 'sin fallo apreciable')",
