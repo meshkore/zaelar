@@ -406,6 +406,14 @@ async def canvas_state(payload: dict):
         for wid in (prev - now):
             emit("widget", "close", extra={"id": wid, "src": "user"})
         memory.set_state({"open_widgets": seen})
+        # V2-078: los que PASAN a abiertos entran al MRU `recent_widgets` (2ª capa de acotación open>reciente>
+        # catálogo). Persiste tras cerrarse → "el que usé hace un momento" sigue teniendo prioridad. Único hook:
+        # todo show (del operador O del cerebro vía [[show]]) re-reporta el canvas por aquí.
+        if (now - prev):
+            try:
+                memory.note_widgets_used(sorted(now - prev))
+            except Exception:
+                pass
     except Exception:  # noqa: BLE001
         pass
     return JSONResponse({"ok": True, "open_widgets": seen})

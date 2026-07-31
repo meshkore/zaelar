@@ -304,6 +304,15 @@ def set_state(fields: dict) -> dict:
     return s
 
 
+def note_widgets_used(ids) -> list:
+    """Estampa widget(s) en el MRU `recent_widgets` (V2-078): la 2ª capa de acotación para "¿a qué widget se
+    refiere?" (abiertos > usados hace poco > catálogo). Lo llama el choke point del canvas cuando un widget pasa
+    a ABIERTO. Emite memory.updated para que el prompt cacheado se recomponga fuera del turno (V2-011)."""
+    merged = _state.push_recent_widgets(ids)
+    _emit("memory.updated", {"op": "state"})
+    return merged
+
+
 # ── KV genérico (sys_kv) — estado ESTRUCTURADO scopeado que no es el ESTADO raíz del operador ────────────────
 # V2-069 «una sola mente»: la memoria-de-relación con cada agente (cápsula) necesita persistir un pequeño estado
 # ESTRUCTURADO por (cluster,peer) — objetivo, fase, bucles abiertos — SIN inflar el `state()` raíz (que es la

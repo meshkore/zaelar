@@ -41,6 +41,13 @@ _DEFAULT: dict = {
     # el widget de X" sin preguntar (si está abierto/es único). Lo escribe el frontend (autoritativo del canvas,
     # POST /api/canvas/state) y el dispatcher (tareas en marcha); visible en el mapa de la memoria.
     "open_widgets": [],       # ids de widgets ABIERTOS ahora en la pantalla del operador
+    # MRU de widgets USADOS hace poco (V2-078): la SEGUNDA capa de acotación de "¿a qué widget se refiere?" — los
+    # abiertos mandan (están DELANTE), luego los usados hace poco, y solo si no casa ahí se recurre al catálogo
+    # completo (salvo nombre inequívoco). Se estampa cuando un widget PASA a abierto (server/voice_api.py::canvas_state,
+    # único choke point del canvas) y PERSISTE tras cerrarse — por eso es distinto de open_widgets. Lista corta MRU
+    # (dedup, la más reciente primero, cap ~6). Idea del operador: con 100 widgets pero 3 recién usados, casi seguro
+    # se refiere a esos → menos ambigüedad sin hardcodear frases por widget.
+    "recent_widgets": [],     # ids de widgets usados hace poco (MRU, dedup, cap ~6), aunque ya no estén abiertos
     "activity": [],           # tareas del SlowBrain EN MARCHA ahora (etiquetas cortas)
     "sessions": [],           # V2-036: sesiones de trabajo VIVAS del SlowBrain [{id,goal,phase}] — el orquestador
     #                           las conoce para situarse y dirigirles follow-ups; el FlashBrain las cuenta al operador.
@@ -114,3 +121,33 @@ def set_security_flag(key: str, value) -> None:
         sec[key] = value
         cur["security"] = sec
         write(cur)
+
+
+# ── MRU de widgets usados hace poco (V2-078) ────────────────────────────────────────────────────────────────
+_RECENT_CAP = 6
+
+
+def push_recent_widgets(ids, cap: int = _RECENT_CAP) -> list:
+    """Estampa uno o más widgets como USADOS AHORA en el MRU `recent_widgets` (dedup, la más reciente primero,
+    cap corto). Bajo el mismo lock que `patch` (es un RMW más del estado). `ids` = id(s) base, normalizados a
+    minúsculas y sin sufijo de instancia (navegador::t1 → navegador). Best-effort: ids vacíos se ignoran.
+    Devuelve la lista MRU resultante. Lo llama el único choke point del canvas (canvas_state) cuando un widget
+    pasa a ABIERTO — así "reciente" persiste aunque luego se cierre (≠ open_widgets)."""
+    if isinstance(ids, str):
+        ids = [ids]
+    fresh = []
+    for w in (ids or []):
+        b = str(w or "").split("::", 1)[0].strip().lower()
+        if b and b not in fresh:
+            fresh.append(b)
+    if not fresh:
+        return read().get("recent_widgets") or []
+    with _patch_lock:
+        cur = read()
+        prev = [str(w).strip().lower() for w in (cur.get("recent_widgets") or []) if str(w).strip()]
+        # MRU: los nuevos delante (en el orden dado), luego los previos que no repitan, recorta al cap.
+        merged = fresh + [w for w in prev if w not in fresh]
+        merged = merged[:max(1, int(cap))]
+        cur["recent_widgets"] = merged
+        write(cur)
+        return merged

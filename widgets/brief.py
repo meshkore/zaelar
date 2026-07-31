@@ -92,7 +92,7 @@ def _actions_brief() -> str:
     return "\n".join(lines)
 
 
-def for_prompt(open_ids=None) -> str:
+def for_prompt(open_ids=None, recent_ids=None) -> str:
     """TERSE widget view for the FlashBrain turn prompt (V2-027 — prompt de ~30 líneas). Data-driven from the live
     catalog, deliberately small: the old `for_brain()` dumped, on EVERY turn, the tag protocol + full payload JSON +
     usage prose + live items + agenda coach for ALL widgets (~40+ lines). This trims to what routing actually needs:
@@ -105,17 +105,38 @@ def for_prompt(open_ids=None) -> str:
          what's ON SCREEN; dumping every widget's items each turn was the biggest cost.
       4. **Coach context** — ONLY if that widget (today: agenda) is OPEN.
 
-    `open_ids` = ids of widgets open on the canvas now (from `memory.state().open_widgets`). None/empty = nothing
-    open → only 1+2. Best-effort: never raises (a broken widget can't break the turn)."""
+    ACOTACIÓN POR PRIORIDAD (V2-078, idea del operador — genérica, no hardcodea widgets): el catálogo se ORDENA y
+    ANOTA en tres capas para que el modelo elija bien sin tabla de casos — **EN PANTALLA** (abiertos ahora) primero,
+    **usado hace poco** (MRU `recent_ids`, aunque ya no esté abierto) después, y el resto del catálogo al final. Con
+    100 widgets, "añade una cita" cae en la agenda que tiene delante o tocó hace nada, no en un homónimo. El nombre
+    inequívoco ("el del tiempo") sigue valiendo esté donde esté — esto es una PISTA de prioridad, no una restricción.
+
+    `open_ids`/`recent_ids` = ids de `memory.state().open_widgets` / `.recent_widgets`. None/empty = sin acotar.
+    Best-effort: never raises (a broken widget can't break the turn)."""
     from . import actions as wactions, refs
     opened = {str(w).strip().lower() for w in (open_ids or []) if str(w).strip()}
+    recent = [str(w).strip().lower() for w in (recent_ids or []) if str(w).strip() and str(w).strip().lower() not in opened]
 
     cat = list(runtime.catalog())
-    lines = ["Widgets del canvas (id — para qué; acciones = data-ops que haces TÚ con widget_data, nunca escalas):"]
+    # Ordena por capa de prioridad: abiertos (en orden de open_ids) → recientes (en orden del MRU) → resto (catálogo).
+    def _rank(w):
+        wid = str(w.get("id") or "").strip().lower()
+        if wid in opened:
+            return (0, 0)
+        if wid in recent:
+            return (1, recent.index(wid))
+        return (2, 0)
+    cat = sorted(cat, key=lambda w: (_rank(w), str(w.get("id") or "")))
+
+    lines = ["Widgets del canvas (id — para qué; acciones = data-ops que haces TÚ con widget_data, nunca escalas). "
+             "Para una orden de widget cuyo objetivo NO sea inequívoco, prefiere «EN PANTALLA», luego «usado hace "
+             "poco»:"]
     for w in cat:
         wid = w.get("id")
+        widl = str(wid or "").strip().lower()
         purpose = str(w.get("whenToUse") or w.get("title") or "").strip().replace("\n", " ")
-        row = f"- {wid} — {purpose[:80]}"
+        tag = "  ◀ EN PANTALLA" if widl in opened else ("  · usado hace poco" if widl in recent else "")
+        row = f"- {wid} — {purpose[:80]}{tag}"
         # Acciones DECLARADAS (SOLO los nombres, inline): el vocabulario que la tool widget_data referencia. Los
         # payload SHAPES no van (el modelo los infiere del ejemplo de la tool; agenda.data/refs normalizan, V2-026).
         acts = w.get("actions")
@@ -131,7 +152,7 @@ def for_prompt(open_ids=None) -> str:
         # ABIERTO no llevaba el aviso "empieza en silencio, usa unmute/volume_up" → el modelo pequeño no tenía cómo
         # deducir cuál de mute/unmute/volume_up resuelve "no suena" y acabó escalando a regenerar el widget. Solo
         # para widgets ABIERTOS (mismo criterio que items/coach) — coste de prompt nulo si no está en pantalla.
-        if wid in opened:
+        if widl in opened:
             usage = str(w.get("usage") or "").strip()
             if usage:
                 lines.append(f"  [{wid}] {usage}")
