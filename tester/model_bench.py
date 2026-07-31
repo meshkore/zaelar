@@ -51,6 +51,7 @@ class Candidate:
     base_url: str
     api_key_env: str
     reasoning_off: bool = False   # manda reasoning_effort='none' (solo lo acepta el endpoint google-directo)
+    extra_body: dict | None = None   # extra_body arbitrario (p.ej. DeepSeek non-thinking: {"thinking":{"type":"disabled"}})
 
 
 def _aimlapi(model: str) -> Candidate:
@@ -129,11 +130,12 @@ def _route_of(content: str, tool_names: list[str]) -> str:
     return "chat"
 
 
-async def _one_call(cli, model: str, messages: list[dict], reasoning_off: bool) -> dict:
+async def _one_call(cli, model: str, messages: list[dict], reasoning_off: bool,
+                    extra_body: dict | None = None) -> dict:
     """Una llamada streaming; mide TTFT (1er chunk de CUALQUIER tipo) y total. Replica fast_client."""
     kwargs = dict(model=model, messages=messages, max_tokens=200, stream=True,
                   tools=TOOLS, tool_choice="auto")
-    extra: dict = {}
+    extra: dict = dict(extra_body or {})
     if reasoning_off:
         extra["reasoning_effort"] = "none"
     if extra:
@@ -185,7 +187,7 @@ async def _bench_candidate(c: Candidate, reps: int) -> dict:
         degenerate = False
         err = None
         for r in range(reps + 1):        # +1 = descartar la 1ª (fría)
-            res = await _one_call(cli, c.model, messages, c.reasoning_off)
+            res = await _one_call(cli, c.model, messages, c.reasoning_off, c.extra_body)
             if not res["ok"]:
                 err = res["err"]
                 break
@@ -240,6 +242,8 @@ async def main() -> None:
     ap.add_argument("--reps", type=int, default=3, help="reps calientes por turno (descarta 1 fría extra)")
     ap.add_argument("--models", default="", help="lista separada por comas (default = shortlist)")
     ap.add_argument("--gemini-direct", action="store_true", help="añade Gemini por endpoint google-directo (thinking OFF)")
+    ap.add_argument("--deepseek-nothink", action="store_true",
+                    help="añade DeepSeek V4 Flash en modo NON-THINKING (thinking:disabled) — el modo apto para voz")
     args = ap.parse_args()
 
     model_ids = [m.strip() for m in args.models.split(",") if m.strip()] or DEFAULT_MODELS
@@ -248,6 +252,12 @@ async def main() -> None:
         for m in model_ids:
             if "gemini" in m:
                 candidates.append(_gemini_direct(m))
+    if args.deepseek_nothink:
+        # v4-flash por defecto va en THINKING (alta latencia/variación). En voz sirve el NON-THINKING: mismo modelo,
+        # thinking:disabled. Anthropic-compat y OpenAI-compat aceptan el campo `thinking` (api-docs.deepseek.com).
+        c = _aimlapi("deepseek/deepseek-v4-flash")
+        candidates.append(Candidate(f"{c.label} (non-thinking)", c.model, c.base_url, c.api_key_env,
+                                    extra_body={"thinking": {"type": "disabled"}}))
 
     print(f"═══ BENCHMARK FlashBrain · {len(candidates)} modelos · {args.reps} reps · {len(TURNS)} turnos ═══")
     print("(TTFT = 1er token; es lo que hace que la voz se sienta viva. La 1ª rep de cada turno se descarta como fría.)")
