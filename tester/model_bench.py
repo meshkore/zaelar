@@ -82,12 +82,17 @@ DEFAULT_MODELS = [
 # cat="intel" → mide INTELIGENCIA (introspección, no-alucinar, no-actuar de más, resolver contradicción). Los
 # routing casi todos los pasan; los intel DISCRIMINAN velocidad de VERDADERA inteligencia (el hueco de grok).
 TURNS = [
-    # ── ROUTING (despacho) ──
-    ("chat",     "Oye, ¿qué tal va todo? Cuéntame algo.",                                    "chat",       "routing"),
-    ("search",   "¿Qué tiempo va a hacer mañana en Soria?",                                  "web_search", "routing"),
-    ("widget",   "Muéstrame un reloj en la pantalla.",                                       "canvas",     "routing"),
-    ("recall",   "¿Te acuerdas de cómo me llamo?",                                           "chat",       "routing"),
-    ("escalate", "Búscame en Wallapop una moto de enduro de segunda mano por menos de 4000 euros cerca de mí.", "escalate", "routing"),
+    # ── ROUTING (despacho) — cada turno tiene una ruta ÚNICA e inequívoca (si es ambigua, mete ruido, no señal) ──
+    ("chat",       "Oye, ¿qué tal va todo? Cuéntame algo.",                                  "chat",        "routing"),
+    ("search",     "¿Qué tiempo va a hacer mañana en Soria?",                                "web_search",  "routing"),
+    ("search2",    "¿A qué hora abre hoy el Mercadona de mi barrio?",                         "web_search",  "routing"),
+    ("widget",     "Muéstrame un reloj en la pantalla.",                                     "canvas",      "routing"),
+    ("widget2",    "Ábreme la agenda.",                                                      "canvas",      "routing"),
+    ("widget_data","Añade una cita mañana a las cinco de la tarde en la agenda.",            "widget_data", "routing"),
+    ("music",      "Pon algo de música de los Beatles.",                                     "play_music",  "routing"),
+    ("delete",     "Borra el widget del reloj.",                                             "delete_widget","routing"),
+    ("recall",     "¿Te acuerdas de cómo me llamo?",                                         "chat",        "routing"),
+    ("escalate",   "Búscame en Wallapop una moto de enduro de segunda mano por menos de 4000 euros cerca de mí.", "escalate", "routing"),
     # ── INTELIGENCIA (turnos DUROS que discriminan; casi todos deben quedarse en `chat`, sin acción espuria) ──
     # META: preguntar por su propia conducta NO es una orden de actuar → debe EXPLICARSE, no abrir/buscar nada.
     ("meta",        "¿Por qué has hecho eso? No te había pedido que abrieras nada.",         "chat", "intel"),
@@ -99,6 +104,8 @@ TURNS = [
     ("noact",       "No abras ni cambies nada todavía, solo escúchame un momento, ¿vale?",   "chat", "intel"),
     # INTROSPECCIÓN: pregunta META sobre capacidades → explicar con naturalidad, sin disparar acción.
     ("introspect",  "¿Tú cómo sabes lo que tengo abierto en la pantalla ahora mismo?",       "chat", "intel"),
+    # COMENTARIO (no orden): observación sobre algo en pantalla → NO tocar el canvas; seguir la conversación.
+    ("comment",     "Qué pequeño se ve ese reloj, ¿no?",                                     "chat", "intel"),
 ]
 
 
@@ -123,6 +130,11 @@ def _route_of(content: str, tool_names: list[str]) -> str:
         return "web_search"
     if "widget_data" in tool_names:
         return "widget_data"
+    # MOSTRAR/ABRIR un widget = ruta "canvas", tanto por la TOOL de 1ª clase `show_widget`/`fullscreen_widget`
+    # (que converge en [[show:id]], router.TOOLS) como por el TAG inline [[show]]. Ambas son correctas → contarlas
+    # igual (de-ruidificado 2026-07-31: antes solo el tag contaba, penalizando falsamente el uso de la tool).
+    if any(t in tool_names for t in ("show_widget", "fullscreen_widget")):
+        return "canvas"
     if any(t in content for t in ("[[show", "[[close", "[[move")):
         return "canvas"
     if tool_names:
