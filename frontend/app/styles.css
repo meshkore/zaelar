@@ -144,6 +144,33 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .cw-input textarea:focus{border-color:var(--hb-accent)}
 .cw-send{flex:0 0 auto;width:36px;height:36px;border-radius:10px;border:none;cursor:pointer;color:#fff;
      background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2));display:flex;align-items:center;justify-content:center}
+/* V2-079 — pestañas del ChatWall (Chat / Procesos / Crons) + visibilidad de paneles por la clase tab-* del root */
+.cw-tabs{display:flex;gap:2px;background:var(--hb-hover);border-radius:9px;padding:2px}
+.cw-tab{flex:0 0 auto;border:none;background:transparent;color:var(--hb-muted-2);font-size:12px;font-weight:600;
+     padding:4px 10px;border-radius:7px;cursor:pointer;font-family:var(--sans);line-height:1.4}
+.cw-tab.on{background:var(--hb-bg);color:var(--hb-ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.cw-proc,.cw-crons{flex:1 1 auto;min-height:0;flex-direction:column;overflow:hidden}
+/* solo el panel de la pestaña activa se muestra (por defecto todos ocultos) */
+.chatwall .cw-list,.chatwall .cw-proc,.chatwall .cw-crons,.chatwall .cw-input{display:none}
+.chatwall.tab-chat .cw-list{display:flex}
+.chatwall.tab-chat .cw-input{display:flex}
+.chatwall.tab-procesos .cw-proc{display:flex}
+.chatwall.tab-crons .cw-crons{display:flex}
+.cw-crons .cron-list{flex:1 1 auto;min-height:0}
+/* pestaña Procesos: vivos + histórico */
+.cw-proc{overflow-y:auto;padding:10px 12px;gap:7px}
+.cw-proc-sec{font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--hb-muted-2);margin:6px 2px 2px}
+.cw-proc-sec:first-child{margin-top:0}
+.cw-proc-row{display:flex;gap:9px;align-items:flex-start;border:1px solid var(--hb-line);border-radius:11px;padding:8px 10px}
+.cw-proc-dot{flex:0 0 auto;font-size:13px;line-height:1.5;width:16px;text-align:center}
+.cw-proc-row.run .cw-proc-dot,.cw-proc-row.done .cw-proc-dot{color:var(--hb-accent)}
+.cw-proc-row.error .cw-proc-dot{color:var(--hb-risk,#e5484d)}
+.cw-proc-row.waiting .cw-proc-dot,.cw-proc-row.paused .cw-proc-dot{color:var(--hb-warn-ink,#d9a441)}
+.cw-proc-row.hist{opacity:.82}
+.cw-proc-main{min-width:0;flex:1 1 auto}
+.cw-proc-goal{font-size:13px;color:var(--hb-ink);line-height:1.3;word-break:break-word}
+.cw-proc-meta{font-size:11px;color:var(--hb-muted-2);margin-top:2px}
+.cw-empty{color:var(--hb-muted-2);font-size:12px;line-height:1.45;padding:8px 4px}
 
 /* ---------- TOP-RIGHT: A · D · Reset · Power (power far right) ---------- */
 .tr{position:fixed;top:calc(16px + var(--banner-h));right:18px;z-index:20;display:flex;align-items:center;gap:8px;transition:top .2s}

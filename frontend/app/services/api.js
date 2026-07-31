@@ -91,6 +91,9 @@ export const cronList = () => fetch("/api/cron").then(json).catch(() => ({ jobs:
 export const cronAction = (action, ref) => postJSON("/api/cron/" + action, { ref }).then(json).catch(() => ({ ok: false }));
 export const cronCreate = (body) => postJSON("/api/cron/create", body).then(json).catch(() => ({ ok: false }));
 
+// ---- historial de Brain Workers terminados (V2-079, ledger durable) ----
+export const workersHistory = () => fetch("/api/workers/history").then(json).catch(() => ({ history: [] }));
+
 // ---- wizard de primer arranque (perfiles local/cloud + detector de capacidades, V2-040) ----
 export const wizardState = () => fetch("/api/wizard/state", { cache: "no-store" }).then(json);
 export const wizardReport = (refresh = true) => postJSON("/api/wizard/report", { refresh }).then(json);

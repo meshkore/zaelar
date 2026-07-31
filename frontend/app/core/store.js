@@ -131,6 +131,18 @@ export const fetchTasks = async () => {
   } catch (_) {}
 };
 
+// V2-079: HISTÓRICO de Brain Workers TERMINADOS (ledger durable) — la pestaña «Procesos» del ChatWall lo pinta
+// bajo los vivos (store.tasks) para dar perspectiva de lo hecho hoy/ayer/hace días. Se refresca al abrir la
+// pestaña y cuando una tarea acaba (SSE task:end).
+export const [workerHistory, setWorkerHistory] = createSignal([]);  // [{id,kind,goal,status,finished_at,...}]
+export const fetchWorkerHistory = async () => {
+  try {
+    const r = await fetch("/api/workers/history", { cache: "no-cache" });
+    const d = await r.json();
+    setWorkerHistory(Array.isArray(d.history) ? d.history : []);
+  } catch (_) {}
+};
+
 // ---- memory map (🧠 the "map of zaelar's memory": state + short/long term + concept graph, V2-014) ----
 // memOpen = the 🧠 icon in the orb bowl toggles the full-screen visualizer. memBump increments on every
 // `memory.updated` SSE push (bridged from the bus in server/__init__.py) so the map refetches LIVE, no polling.
@@ -195,6 +207,7 @@ export const [debugWidth, setDebugWidth] = createSignal(Math.max(300, parseInt(l
 
 // ---- chat wall (text channel to the agent) ----
 export const [chatOpen, setChatOpen]   = createSignal(false);  // chat wall panel visible?
+export const [chatTab, setChatTab]     = createSignal("chat");  // V2-079: "chat" | "procesos" | "crons"
 export const [chatMsgs, setChatMsgs]   = createSignal([]);     // [{ role:"you"|"agent", text }]
 // TOPE (2026-07-23, petición del operador): sin límite, un hilo largo (p.ej. horas hablando con un agente de
 // cluster por WebSocket) crece sin fin — y ChatWall reconstruye TODO el DOM desde `chatMsgs()` en cada push

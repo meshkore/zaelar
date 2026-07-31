@@ -72,9 +72,16 @@ export function Orb() {
     // to the corners to meet the ECG's lower lid): ⏰ · 🧠 · 🔊 · ⏻ · 📝 · ☾ · 🤖. BLUE = on/open, GREY = off.
     h("div", { class: "orbctl" },
       h("button", {
-        class: () => "orbic" + (store.cronOpen() ? " on" : " off"),
+        // V2-079: los crons se ven/gestionan en la 3ª pestaña del widget de chat. El botón ⏰ abre ESE widget
+        // directamente en la pestaña «Crons» (ya no hay panel suelto). ON = chat abierto EN la pestaña crons.
+        class: () => "orbic" + ((store.chatOpen() && store.chatTab() === "crons") ? " on" : " off"),
         title: "Tareas programadas (proactividad)",
-        onClick: () => { const v = !store.cronOpen(); store.setCronOpen(v); api.uiEvent("orb:cron", { state: v ? "open" : "close" }); },
+        onClick: () => {
+          const on = store.chatOpen() && store.chatTab() === "crons";
+          if (on) { store.setChatOpen(false); }
+          else { store.setChatTab("crons"); store.setChatOpen(true); }
+          api.uiEvent("orb:cron", { state: on ? "close" : "open" });
+        },
       }, raw(CRON_ICON)),
       h("button", {
         class: () => "orbic" + (store.memOpen() ? " on" : " off"),

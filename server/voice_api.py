@@ -432,6 +432,17 @@ async def tasks():
         return JSONResponse({"sessions": []}, headers={"Cache-Control": "no-cache"})
 
 
+@router.get("/api/workers/history")
+async def workers_history():
+    """V2-079: HISTÓRICO de Brain Workers TERMINADOS (ledger durable) — para la pestaña «Procesos» del ChatWall,
+    que da PERSPECTIVA de lo hecho hoy/ayer/hace días (los vivos van por /api/tasks). Read-only, no-cache."""
+    try:
+        from nucleo.workers import ledger
+        return JSONResponse({"history": ledger.history()}, headers={"Cache-Control": "no-cache"})
+    except Exception:
+        return JSONResponse({"history": []}, headers={"Cache-Control": "no-cache"})
+
+
 @router.post("/api/workers/pause")
 async def workers_pause():
     """V2-065 (botón ⏻ del operador): congela los Brain Workers vivos SIN matarlos (SIGSTOP al backend) — a
