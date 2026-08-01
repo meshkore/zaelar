@@ -77,7 +77,7 @@ def reset_all() -> dict:
         logger.warning(f"reset_all: memoria (congelar/registro) falló: {e}")
 
     # (3) MATAR los procesos de fondo (tras congelar y registrar).
-    killed = {"navegador": 0, "escaladas": 0, "workers": 0, "notas": 0}
+    killed = {"navegador": 0, "escaladas": 0, "workers": 0, "notas": 0, "ledger": 0}
     try:
         from widgets.navegador import tasks as nt
         for tid in list(nt.active_ids()):
@@ -91,6 +91,13 @@ def reset_all() -> dict:
         killed["workers"] = dispatch.cancel_all(reason="reset")
     except Exception as e:  # noqa: BLE001
         logger.warning(f"reset_all: cancel_all workers falló: {e}")
+    # V2-084: vaciar el HISTÓRICO de Procesos (worker ledger) → los procesos quedan EN BLANCO tras el reset
+    # («empezamos de cero»). No toca estado/memoria/datos de widgets: es solo el registro de procesos.
+    try:
+        from nucleo.workers import ledger as _ledger
+        killed["ledger"] = _ledger.clear()
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"reset_all: clear ledger falló: {e}")
     try:
         from nucleo.flash import escalate
         killed["escaladas"] = len(escalate.pending())

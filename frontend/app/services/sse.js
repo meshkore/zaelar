@@ -67,6 +67,10 @@ export function openSSE(desktop) {
     } else if (d.kind === "alert") {                                              // hard notice (e.g. no LLM credit) → red banner
       store.showAlert(d.label || "⚠️ Problema con el modelo de lenguaje");
       refreshStatus();                                                           // turn the ◉ status icon red now
+    } else if (d.kind === "session" && d.label === "RESET") {                    // V2-084: reset → procesos EN BLANCO
+      // El escritorio lo cierra el evento widget/close; aquí vaciamos la pestaña Procesos (chips vivos + histórico)
+      // al instante para que "empecemos de cero" — estado/memoria/datos de widgets se conservan (backend).
+      try { store.setTasks([]); store.setWorkerHistory([]); } catch (_) {}
     } else if (d.kind === "task") {                                               // SlowBrain background task lifecycle
       // A deep-brain task started/finished — surface it as a liquid chip flanking the orb so the operator SEES
       // zaelar is working (widget build/modify, web task, …) and how many at once. Removed when it ends.
