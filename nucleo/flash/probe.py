@@ -330,26 +330,32 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         _sp = next(t for t in tool_calls if t["name"] == "show_panel")
         action = "panel:" + _router._canon_panel(_sp["args"].get("panel"))
     elif "show_widget" in names:
-        # MOSTRAR un widget (incl. JUEGOS) como tool — espejo del provider: CREATE→escala; si no, resuelve a un id
-        # REAL del catálogo → [[show:id]]; sin match real → escala (posible CREATE).
+        # MOSTRAR una pieza por NOMBRE/ALIAS con CERTEZA (V2-082) — espejo del provider: CREATE→escala; si hay match
+        # de widget → [[show:id]]; si nombró el CHAT (superficie) → panel; sin match → PREGUNTA (clarify), NUNCA
+        # fabrica un widget ("no se abre el más parecido").
         _sw = next(t for t in tool_calls if t["name"] == "show_widget")
         _swid = (_sw["args"].get("widget_id") or "").strip()
         if _router.looks_like_create_widget(text):
             action = "escalate"
         else:
+            from widgets import runtime as _rt
+            _res = {}
             try:
-                from widgets import runtime as _rt
                 if _swid and _rt.get(_swid) is not None:
-                    _rid = _swid
+                    _res = {"match": _swid, "system": None}
                 else:
-                    _m = _identify_ctx(_rt, _swid or text) or ""
-                    _rid = _m if (_m and _rt.get(_m) is not None) else ""
+                    _o, _r = _ctx_ids()
+                    _res = _rt.identify(_swid or text, open_ids=_o, recent_ids=_r) or {}
             except Exception:
-                _rid = ""
-            action = f"canvas:show:{_rid}" if _rid else "escalate"
+                _res = {}
+            _rid = _res.get("match") or ""
+            _rid = _rid if (_rid and _rt.get(_rid) is not None) else ""
+            _sys = _res.get("system")
+            action = (f"canvas:show:{_rid}" if _rid else
+                      "panel:chat" if _sys == "chat" else "clarify")
     elif "fullscreen_widget" in names:
-        # BUG real 2026-07-23 — espejo del provider: pone/quita pantalla completa de verdad. Resuelve el id
-        # (exacto o fuzzy) igual que show_widget.
+        # BUG real 2026-07-23 — espejo del provider: pone/quita pantalla completa de verdad. Resuelve el id por
+        # nombre/alias con certeza (V2-082); sin match → pregunta (no fabrica).
         _fw = next(t for t in tool_calls if t["name"] == "fullscreen_widget")
         _fwid = (_fw["args"].get("widget_id") or "").strip()
         try:
@@ -361,7 +367,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 _frid = _m if (_m and _rtf.get(_m) is not None) else ""
         except Exception:
             _frid = ""
-        action = f"canvas:fullscreen:{_frid}" if _frid else "escalate"
+        action = f"canvas:fullscreen:{_frid}" if _frid else "clarify"
     elif "widget_data" in names:
         # ESPEJO de la voz (`_handle_widget_data_tool`, impl PARALELA — cablear en AMBOS): la voz NO ejecuta a
         # ciegas el nombre de la tool — resuelve el widget, consulta `action_mode` y (diag sesiones-largas
