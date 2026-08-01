@@ -184,7 +184,7 @@ A widget is a folder (catalog auto-discovers it from `manifest.json`, cached by 
 - `__init__.py` — empty (package).
 `transient:true` widgets (e.g. `search`) render in the **activity rail above the orb**; the rest are cards.
 
-## 3b. PROGRESSIVE capability selection — the prompt is O(K), not O(N) (V2-084, 2026-08-01)
+## 3b. PROGRESSIVE capability selection — the prompt is O(K), not O(N) (V2-085, 2026-08-01)
 
 **Measured before touching anything** (real catalog, 16 widgets): `brief.for_prompt()` put the ENTIRE catalog in
 EVERY turn's prompt (2,497 chars) and `GET /widgets` returned all 16 manifests in full (25,639 chars) to a consumer
@@ -549,25 +549,25 @@ proyectado a `state.widget_registry` para visibilidad). Concepto sin mezclar: WI
 SUPERFICIE DE SISTEMA (nativa, alias fijos) · TOOL (este §8) · ACCIÓN/data-op (≡"skill", `manifest.actions`) ·
 EMBEDDING (solo memoria). Plan: `.meshkore/docs/architecture/zaelar-widget-naming-v2082.md`.
 
-**Contextual tool set (V2-035 · extended V2-084):** `router.tools(context)` OMITS situational tools when their state
+**Contextual tool set (V2-035 · extended V2-085):** `router.tools(context)` OMITS situational tools when their state
 does not apply (`confirm_widget_delete` without a pending delete, `login_done` without an active login, the widget
 tools when no widgets exist) → shorter prompt, less decision noise. The voice turn (`providers/nucleo.py`) and the
 probe (`nucleo/flash/probe.py`) build the same context so `make flash` mirrors reality. **Descriptions are
 condensed** (V2-035) but keep the routing rules that came from real bugs (reminder-simple = no tool,
 no-duplicate-task, no-answer-then-search, login-vs-task); those are marked in `router.py` comments.
 
-**V2-084 adds three CAPABILITY gates** — `reply_message` (a messaging connector is enabled), `reveal_secret` (a
+**V2-085 adds three CAPABILITY gates** — `reply_message` (a messaging connector is enabled), `reveal_secret` (a
 vault exists), `play_video` (the `youtube` widget is in the catalog). All **fail-OPEN**: if the probe raises, the
 tool is offered anyway — a monitoring glitch must never silently take a capability away from the operator.
 
-> **Gating invariant (V2-084, hard).** A gate reads **STATE, never the words of the turn.** "Is there a live
+> **Gating invariant (V2-085, hard).** A gate reads **STATE, never the words of the turn.** "Is there a live
 > worker?", "is the vault created?", "is the messaging connector connected?" are verifiable, language-agnostic
 > facts about the system. "Does the sentence contain *recuérdame*?" would be a keyword table deciding routing —
 > exactly what this brain rejects (`feedback_no_hardcoded_understand`; see the module docstring at the top of
 > `router.py`). **Who decides intent is the model, by function-calling.** A tool that cannot be switched off by
 > state is OFFERED; it is never guessed at.
 
-**Tool families + budget observability (V2-084).** `router.FAMILIES` classifies every tool (core · widgets ·
+**Tool families + budget observability (V2-085).** `router.FAMILIES` classifies every tool (core · widgets ·
 workers · cluster · messaging · media · web · memory) and `router.tools_report(offered)` returns the per-turn
 breakdown (`n_tools_offered`, `sz_tools`, `tool_families`, `tools_omitted`) into `llm_metrics`. **Measured
 2026-08-01:** the full catalog is 22 tools / 29,659 chars; the typical gated turn is 15 tools / 22,522 chars; with
@@ -654,7 +654,7 @@ memory timeline uses one isolated DB and replays the complete prefix before an i
 `tests/README.md`; diagnosis playbook: `.meshkore/docs/ops/zaelar-testing.md`; machine contract:
 `tests/platform/SCHEMA.md`.
 
-**Evidence is complete; the PRESENTATION is summarized (V2-084).** A journey `interaction.output` can carry the
+**Evidence is complete; the PRESENTATION is summarized (V2-085).** A journey `interaction.output` can carry the
 engine's whole response (tens of KB). Dumping it inline meant ONE case filled the screen and hid the rest of the
 run — what was lost wasn't the data, it was the view. Worse, `runner.py` printed
 `json.dumps(output)[:12000]`: flooding the console AND **truncating** the proof exactly when it was needed most.

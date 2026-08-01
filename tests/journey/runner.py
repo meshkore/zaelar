@@ -398,7 +398,7 @@ def run(until: int) -> dict[str, Any]:
                                   status="passed" if ok else "failed", duration_ms=elapsed)
                 print(f"{'✓' if ok else '×'} {case['id']} · {case['phase']} · {case['title']} · {detail}", flush=True)
                 if not ok:
-                    # EVIDENCIA COMPLETA, TERMINAL LEGIBLE (V2-084). Antes: `json.dumps(output)[:12000]` — un dump
+                    # EVIDENCIA COMPLETA, TERMINAL LEGIBLE (V2-085). Antes: `json.dumps(output)[:12000]` — un dump
                     # que a la vez inundaba la consola Y **recortaba** la prueba justo cuando más falta hacía (el
                     # peor de los dos mundos). Ahora el raw íntegro se guarda como ARTEFACTO del run y la terminal
                     # imprime el resumen accionable + la ruta. Nada se pierde; deja de ser ilegible.

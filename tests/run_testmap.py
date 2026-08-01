@@ -116,6 +116,11 @@ DOMAINS: list[dict] = [
         {"id": "4.5", "title": "Widget de mensajería", "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_owner_v2.py"]},
         {"id": "4.6", "title": "Agenda: contrato XSS del renderer", "ch": UNIT, "paths": [
             "tests/browser/unit/agenda/test_xss_contract.py"]},
+        # V2-085 — la garantía de ESCALA: el prompt es O(K) y no O(N) por muchos widgets que haya. Nodo propio (no
+        # dentro de 4.1) porque lo que prueba no es el contrato de UN widget sino el del CATÁLOGO: sintéticos de
+        # 100/1.000/10.000, promoción del widget nombrado desde la cola, e índice compacto del endpoint.
+        {"id": "4.7", "title": "Selección progresiva del catálogo (escala 100/1k/10k)", "ch": UNIT, "paths": [
+            "tests/browser/unit/widgets/test_selection_scale.py"]},
     ]},
     {"id": "5", "name": "CONECTORES", "nodes": [
         {"id": "5.1", "title": "Email", "ch": UNIT, "paths": [

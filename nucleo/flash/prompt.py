@@ -431,7 +431,7 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
     de VOZ esenciales caben en 3-4 frases; el "cómo se usa cada tool" NO va aquí (vive en `router.TOOLS`, única
     fuente por tool). Los RECURSOS (widgets/web/navegador) son data-driven, no prosa hardcodeada.
 
-    `turn_text` (V2-084) = la frase del operador ESTE turno. No se usa para clasificar la intención (invariante:
+    `turn_text` (V2-085) = la frase del operador ESTE turno. No se usa para clasificar la intención (invariante:
     nada de tablas de verbos) sino para RECUPERAR: `brief.for_prompt` promociona al top-K el widget que el
     operador nombra, de modo que el bloque de widgets sea O(K) y no O(N) por muy grande que sea el catálogo."""
     from widgets.brief import for_prompt as _widgets
@@ -604,7 +604,7 @@ def build_flash_system(directive: str = "", recall_query: str = "", recall_block
         recall_block, used_ids = compose_recall(recall_query, timings=timings)
     _tb = _t.perf_counter()
     open_ids = _open_widget_ids()
-    # SELECCIÓN PROGRESIVA (V2-084): `turn_text` alimenta la capa `named` del top-K de widgets. Sus stats
+    # SELECCIÓN PROGRESIVA (V2-085): `turn_text` alimenta la capa `named` del top-K de widgets. Sus stats
     # (cuántos candidatos, por qué entró cada uno, cuántos quedaron ocultos) se vuelcan en `timings` — el mismo
     # canal de observabilidad que ya usa `/debug` para el desglose de tamaños.
     _wstats: dict = {}

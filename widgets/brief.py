@@ -97,7 +97,7 @@ def for_prompt(open_ids=None, recent_ids=None, query: str = "", stats: dict | No
     catalog, deliberately small: the old `for_brain()` dumped, on EVERY turn, the tag protocol + full payload JSON +
     usage prose + live items + agenda coach for ALL widgets (~40+ lines). This trims to what routing actually needs:
 
-      1. **Candidatos** (top-K, ya NO el catálogo entero — V2-084): `id — one-line mission`. Lets the model pick the
+      1. **Candidatos** (top-K, ya NO el catálogo entero — V2-085): `id — one-line mission`. Lets the model pick the
          right `[[show]]`/widget_id.
       2. **Action NAMES** (de los candidatos que declaran actions): `id: act1 · act2 · act3(confirmar)`. El tool
          `widget_data` points here for valid action names; names are cheap, payload SHAPES are NOT dumped (the tool
@@ -112,7 +112,7 @@ def for_prompt(open_ids=None, recent_ids=None, query: str = "", stats: dict | No
     100 widgets, "añade una cita" cae en la agenda que tiene delante o tocó hace nada, no en un homónimo. El nombre
     inequívoco ("el del tiempo") sigue valiendo esté donde esté — esto es una PISTA de prioridad, no una restricción.
 
-    SELECCIÓN PROGRESIVA (V2-084): la lista es **O(K), no O(N)** — la elige `widgets/selection.py` a partir de
+    SELECCIÓN PROGRESIVA (V2-085): la lista es **O(K), no O(N)** — la elige `widgets/selection.py` a partir de
     `query` (la frase del turno: lo que el operador NOMBRA se promociona aunque esté en la posición 4.000 del
     catálogo). Si queda catálogo fuera, se dice explícitamente y se recuerda la escotilla: `show_widget`/
     `widget_data` resuelven el nombre server-side contra el catálogo COMPLETO, así que recortar el prompt no
@@ -186,7 +186,7 @@ def for_prompt(open_ids=None, recent_ids=None, query: str = "", stats: dict | No
         except Exception:
             pass
 
-    # CATÁLOGO OCULTO (V2-084): la lista de arriba es un TOP-K, no el inventario. Decirlo importa por dos motivos
+    # CATÁLOGO OCULTO (V2-085): la lista de arriba es un TOP-K, no el inventario. Decirlo importa por dos motivos
     # opuestos y ambos reales — (a) sin el aviso el modelo NIEGA capacidades que sí existen ("no tienes ningún
     # widget de X") cuando solo es que no lo listamos; (b) con el aviso pero sin la escotilla, se pondría a
     # inventar ids. La escotilla es que `show_widget`/`widget_data` resuelven el NOMBRE contra el catálogo

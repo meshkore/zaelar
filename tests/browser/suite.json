@@ -11,6 +11,7 @@
     {"id": "4.3", "label": "Widget música", "kind": "unit"},
     {"id": "4.4", "label": "Widget YouTube", "kind": "unit"},
     {"id": "4.5", "label": "Widget mensajería", "kind": "unit"},
-    {"id": "4.6", "label": "Agenda: contrato XSS", "kind": "javascript"}
+    {"id": "4.6", "label": "Agenda: contrato XSS", "kind": "javascript"},
+    {"id": "4.7", "label": "Selección progresiva del catálogo (escala 100/1k/10k)", "kind": "unit"}
   ]
 }

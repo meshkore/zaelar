@@ -43,7 +43,7 @@ def test_set_cluster_objective_is_situational():
 
 
 def test_capability_tools_are_situational():
-    """V2-084: tres gates NUEVOS por CAPACIDAD REAL — sin conector de mensajería no hay a quién responder, sin
+    """V2-085: tres gates NUEVOS por CAPACIDAD REAL — sin conector de mensajería no hay a quién responder, sin
     bóveda no hay secreto que revelar, sin widget `youtube` play_video no tiene dónde cargar el vídeo. Ofrecerlas
     en ese estado solo invita al modelo a prometer algo imposible."""
     on = {t["function"]["name"] for t in router.tools(router.tool_context())}

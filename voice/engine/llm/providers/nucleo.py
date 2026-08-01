@@ -306,7 +306,7 @@ class NucleoLLMStream(llm.LLMStream):
                     asyncio.to_thread(_prompt_mod.compose_recent_block), timeout=0.5)
             except Exception:
                 recent_block = ""
-        # `turn_text` (V2-084): la frase del operador entra en el build para que la SELECCIÓN PROGRESIVA de widgets
+        # `turn_text` (V2-085): la frase del operador entra en el build para que la SELECCIÓN PROGRESIVA de widgets
         # promocione al top-K el que él nombra. NO clasifica la intención (invariante: sin tablas de verbos), solo
         # recupera candidatos — así el bloque de widgets es O(K) aunque el catálogo tenga miles.
         system, _used_ids = build_flash_system(
@@ -1255,7 +1255,7 @@ class NucleoLLMStream(llm.LLMStream):
             _cluster_open = "cluster-registro" in set((_memapi0.state() or {}).get("open_widgets") or [])
         except Exception:
             _cluster_open = False
-        # V2-084 — tres CAPACIDADES reales más (nunca palabras del turno: hechos del sistema). Todas fail-OPEN:
+        # V2-085 — tres CAPACIDADES reales más (nunca palabras del turno: hechos del sistema). Todas fail-OPEN:
         # si el sondeo peta, la tool se ofrece igual y no le quitamos nada al operador.
         try:
             from connectors.whatsapp import service as _wa1
@@ -1288,7 +1288,7 @@ class NucleoLLMStream(llm.LLMStream):
         # vez de saludar. El saludo no necesita ninguna tool → no las ofrecemos y no hay nada que mis-rutear.
         if first_turn:
             _turn_tools = []
-        # OBSERVABILIDAD del presupuesto de tools (V2-084): no solo cuántas — cuánto ocupan, qué familias entraron
+        # OBSERVABILIDAD del presupuesto de tools (V2-085): no solo cuántas — cuánto ocupan, qué familias entraron
         # y cuáles se podaron. Junto a los `sz_*`/`widgets_*` del prompt cierra el desglose completo del turno.
         try:
             llm_metrics.update(_router.tools_report(_turn_tools))

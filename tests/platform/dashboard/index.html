@@ -60,7 +60,7 @@
     function relevant(e){return e.type!=='test.discovered'&&(state.suite==='all'||e.suite===state.suite||!e.suite)&&(!state.testFilter||e.test_id===state.testFilter)}
     function label(e){return e.label||e.test_id||e.text||e.type.replaceAll('.',' ')}
     function glyph(e){if(e.status==='passed')return '✓';if(e.status==='failed'||e.type.includes('error'))return '×';if(e.type.endsWith('started'))return '▶';if(e.type==='interaction.input')return '→';if(e.type==='interaction.output')return '←';return '·'}
-    // PAYLOADS PLEGADOS (V2-084) — un `interaction.output` de journey puede traer la respuesta ENTERA del motor
+    // PAYLOADS PLEGADOS (V2-085) — un `interaction.output` de journey puede traer la respuesta ENTERA del motor
     // (decenas de KB). Volcarla inline hacía que UN caso llenara el timeline y tapara el resto del run: lo que se
     // perdía no era el dato, era la vista. Ahora se muestra un RESUMEN (campos que se miran para decidir PASS/FAIL
     // + tamaño) y el JSON íntegro queda en un <details> plegado. La evidencia NO se recorta — sigue completa en el

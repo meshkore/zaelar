@@ -74,7 +74,7 @@ async def run_widget_hook(wid: str, fn: str, caller):
     return await _run_widget(wid, fn, caller)
 
 
-# Campos del ÍNDICE compacto (V2-084). Lo mínimo para RESOLVER e IDENTIFICAR un widget sin descargar su manifest:
+# Campos del ÍNDICE compacto (V2-085). Lo mínimo para RESOLVER e IDENTIFICAR un widget sin descargar su manifest:
 # quién es (id/name/title), para qué (whenToUse, recortado), cómo se le llama (aliases), de dónde viene (origin) y
 # si es efímero (transient — el frontend rutea las tarjetas de actividad por ahí). NADA de `actions`, payload
 # schemas, `usage`, `refs` ni prosa: eso es carga bajo demanda vía /widgets/{id}/manifest.
@@ -97,7 +97,7 @@ def _index_row(w: dict) -> dict:
 
 @router.get("/widgets")
 async def list_widgets(full: int = 0, q: str = "", limit: int = 0):
-    """ÍNDICE COMPACTO del catálogo (V2-084) — por defecto, NO los manifests completos.
+    """ÍNDICE COMPACTO del catálogo (V2-085) — por defecto, NO los manifests completos.
 
     Medido 2026-08-01: con 16 widgets este endpoint devolvía 25.639 chars de manifests íntegros y su único
     consumidor real (`frontend/app/widgets/desktop.js::_resolve`) solo quería los **ids** y cuatro campos de

@@ -130,7 +130,7 @@ def set_security_flag(key: str, value) -> None:
 
 
 # ── CATÁLOGO de nombres + alias (V2-082) ────────────────────────────────────────────────────────────────────
-# TECHO DURO de la proyección (V2-084). `widget_registry` es O(N) sobre el catálogo, y el ESTADO es material que
+# TECHO DURO de la proyección (V2-085). `widget_registry` es O(N) sobre el catálogo, y el ESTADO es material que
 # viaja: se compone en el prompt (`compose_state`), se serializa en snapshots y se devuelve en respuestas de API.
 # Hoy `compose_state()` NO lo incluye — pero "hoy no" no es una garantía, y un catálogo de 10.000 widgets colado
 # en un prompt por un cambio futuro sería un incidente caro y silencioso. El cap lo hace IMPOSIBLE por

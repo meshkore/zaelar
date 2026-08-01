@@ -162,7 +162,7 @@ export class Desktop {
 
   // The brain doesn't always emit the EXACT catalog id (it said "agenda-today" for the "agenda" widget). Resolve
   // loosely against the live catalog so id drift never silently swallows a widget: exact → prefix → contains.
-  // V2-084: `GET /widgets` devuelve ahora el ÍNDICE COMPACTO (id/name/title/whenToUse/aliases/origin/transient),
+  // V2-085: `GET /widgets` devuelve ahora el ÍNDICE COMPACTO (id/name/title/whenToUse/aliases/origin/transient),
   // no los manifests completos — es todo lo que este resolver y `_meta` necesitan, y deja de ser O(N·manifest)
   // (25 KB con 16 widgets, megas con miles). El manifest íntegro se pide por widget: /widgets/{id}/manifest.
   async _resolve(id){

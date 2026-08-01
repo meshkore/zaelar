@@ -1,4 +1,4 @@
-"""Tests de la SELECCIÓN PROGRESIVA de widgets (V2-084) — la garantía de que el prompt es **O(K), no O(N)**.
+"""Tests de la SELECCIÓN PROGRESIVA de widgets (V2-085) — la garantía de que el prompt es **O(K), no O(N)**.
 
 El contrato que se defiende aquí, y que hay que romper a propósito para que estos tests fallen:
 

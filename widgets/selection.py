@@ -1,5 +1,5 @@
 #
-# selection.py — SELECCIÓN PROGRESIVA del catálogo de widgets (V2-084).
+# selection.py — SELECCIÓN PROGRESIVA del catálogo de widgets (V2-085).
 #
 # EL PROBLEMA (medido 2026-08-01, con solo 16 widgets): `brief.for_prompt()` metía el catálogo ENTERO en el prompt
 # de CADA turno (2.497 chars) y `GET /widgets` devolvía los 16 manifests COMPLETOS (25.639 chars). Los dos crecen
