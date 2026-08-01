@@ -59,6 +59,38 @@ def _active_cluster_name() -> str:
     return ""
 
 
+def _cluster_id(name: str) -> str:
+    """El cluster_id REAL (p. ej. c_f6aae47f6fa44a428cca) del cluster `name`, leído de las creds persistidas
+    (`config/meshkore.json`). NO es un secreto — el token sí lo es, y aquí JAMÁS se lee ni se returna.
+    '' si no hay config o el cluster no figura (p. ej. tras un disconnect que borra las creds)."""
+    try:
+        cfg = REPO_ROOT / "config" / "meshkore.json"
+        d = json.loads(cfg.read_text(encoding="utf-8"))
+        return (d.get(name) or {}).get("cluster_id") or ""
+    except Exception:
+        return ""
+
+
+def _post_json(path: str, body: dict) -> dict:
+    """POST JSON al plano de control MeshKore por loopback (mismo host/port/timeout que `_live_status`).
+    Devuelve el payload del server, NUNCA lanza: {"ok": …} o {"ok": False, "error": …}."""
+    try:
+        port = os.environ.get("PORT", "43917")
+        req = urllib.request.Request(
+            f"http://127.0.0.1:{port}{path}",
+            data=json.dumps(body).encode("utf-8"),
+            method="POST",
+            headers={"User-Agent": "zaelar-widget/cluster-registro", "Content-Type": "application/json"},
+        )
+        try:
+            with urllib.request.urlopen(req, timeout=4) as r:
+                return json.loads(r.read().decode("utf-8", "replace"))
+        except urllib.error.HTTPError as e:
+            return json.loads(e.read().decode("utf-8", "replace"))
+    except Exception as e:
+        return {"ok": False, "error": f"{e}"}
+
+
 def _iter_lines(path: Path):
     try:
         with path.open("r", encoding="utf-8", errors="replace") as f:
@@ -139,6 +171,7 @@ def view_data(q: str = "") -> dict:
         live = _live_status(cluster_name) if cluster_name else {"reachable": True, "connected": False, "online": []}
         return {
             "cluster": cluster_name,
+            "cluster_id": _cluster_id(cluster_name),
             "clusters": clusters,
             "peers": peers,
             "count": len(turns),
@@ -156,30 +189,31 @@ def _send_message(cluster: str, text: str, to: str | None = None) -> dict:
     """POST an outbound message to the MeshKore cluster via the loopback control-plane
     (same host/port/timeout convention as _live_status). `to` = exact peer handle, or None for a
     cluster-wide broadcast. Never raises."""
-    try:
-        port = os.environ.get("PORT", "43917")
-        body = json.dumps({"name": cluster, "to": to, "text": text}).encode("utf-8")
-        req = urllib.request.Request(
-            f"http://127.0.0.1:{port}/api/meshkore/send",
-            data=body,
-            method="POST",
-            headers={"User-Agent": "zaelar-widget/cluster-registro", "Content-Type": "application/json"},
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=4) as r:
-                payload = json.loads(r.read().decode("utf-8", "replace"))
-        except urllib.error.HTTPError as e:
-            payload = json.loads(e.read().decode("utf-8", "replace"))
-        if payload.get("ok"):
-            return {"ok": True}
-        return {"ok": False, "error": payload.get("error") or "El cluster ha rechazado el mensaje."}
-    except Exception as e:
-        return {"ok": False, "error": f"No se ha podido enviar: {e}"}
+    payload = _post_json("/api/meshkore/send", {"name": cluster, "to": to, "text": text})
+    if payload.get("ok"):
+        return {"ok": True}
+    return {"ok": False, "error": payload.get("error") or "El cluster ha rechazado el mensaje."}
 
 
 def apply_action(action: str, payload: dict | None = None) -> dict:
-    """Chat wall send box — the single data-op, driven both by the widget's own send button and by the brain."""
+    """Data-ops: 'send' (chat wall → /api/meshkore/send) y 'connect'/'disconnect' (toggles de conexión →
+    /api/meshkore/connect|disconnect). Todas ejecutan el plano de control REAL por loopback y devuelven
+    view_data() refrescado (igual que hace el botón de la UI de su propio widget)."""
     payload = payload or {}
+    if action in ("connect", "disconnect"):
+        out = view_data()
+        name = (out.get("cluster") or payload.get("name") or "").strip()
+        if not name:
+            out["conn_error"] = "No hay ningún cluster MeshKore ahora mismo."
+            return out
+        path = "/api/meshkore/connect" if action == "connect" else "/api/meshkore/disconnect"
+        res = _post_json(path, {"name": name})
+        out = view_data()
+        if not res.get("ok"):
+            out["conn_error"] = (res.get("error")
+                                 or ("No se ha podido conectar." if action == "connect"
+                                     else "No se ha podido desconectar."))
+        return out
     if action == "send":
         text = (payload.get("text") or "").strip()
         to_raw = (payload.get("to") or "").strip()

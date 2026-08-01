@@ -40,6 +40,13 @@ function injectStyles(){
                           display:flex;align-items:center;justify-content:center}
   .hb-clusterreg .crgsend:disabled{opacity:.5;cursor:default}
   .hb-clusterreg .crgerr{font-size:11.5px;color:var(--hb-risk,#e5484d);margin-top:5px}
+  .hb-clusterreg .conn{display:inline-flex;gap:6px;margin-left:10px}
+  .hb-clusterreg .cbtn{font:inherit;font-size:11.5px;font-weight:600;line-height:1;padding:6px 10px;border-radius:8px;
+                       cursor:pointer;border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);
+                       color:var(--hb-ink,#0d1622);transition:border-color .12s,color .12s}
+  .hb-clusterreg .cbtn:disabled{opacity:.4;cursor:default}
+  .hb-clusterreg .cbtn.conn-on:not(:disabled){border-color:var(--hb-accent2,#16B8A6);color:#0f766e}
+  .hb-clusterreg .cbtn.conn-off:not(:disabled){border-color:var(--hb-risk,#e5484d);color:var(--hb-risk,#e5484d)}
   `; document.head.appendChild(s);
 }
 
@@ -65,7 +72,10 @@ export function render(el, data, ctx){
   const sub=document.createElement("span"); sub.className="sub";
   const count=(data.turns||[]).length;
   const peers=(data.peers||[]).filter(Boolean);
-  sub.textContent = `ID ${data.cluster||"arena"} · ${count} turno${count===1?"":"s"}` + (peers.length?` · ${peers.join(", ")}`:"");
+  const cid=data.cluster_id||"";
+  // Subheader = NOMBRE del cluster + su ID real (p. ej. meshcore · ID c_f6aae47f6fa44a428cca). El ID lo sirve
+  // data.py (config/meshkore.json); si aún no llega (data.py sin recargar), se muestra solo el nombre.
+  sub.textContent = `${data.cluster||"—"}${cid?` · ID ${cid}`:""} · ${count} turno${count===1?"":"s"}` + (peers.length?` · ${peers.join(", ")}`:"");
   hd.appendChild(sub);
   if(data.live_reachable){
     const st=document.createElement("span"); st.className="status " + (data.connected?"on":"off");
@@ -74,7 +84,35 @@ export function render(el, data, ctx){
     hd.appendChild(st);
   }
   const at=document.createElement("span"); at.className="at"; at.textContent=data.at||""; hd.appendChild(at);
+  // Dos botones de conexión (Conectar / Desconectar) — "opciones de conexión" en la cabecera del cluster.
+  // Van por ctx.action (data-ops connect/disconnect): el POST al plano de control lo hace el SERVER por loopback,
+  // no un fetch del navegador, así funciona desde cualquier dominio de acceso (el _guard de /api/meshkore/* rechaza
+  // origins que no sean localhost — la ruta data-op lo evita, igual que el botón de enviar).
+  const conn=document.createElement("span"); conn.className="conn";
+  const cBtn=document.createElement("button"); cBtn.type="button"; cBtn.className="cbtn conn-on"; cBtn.textContent="Conectar";
+  const dBtn=document.createElement("button"); dBtn.type="button"; dBtn.className="cbtn conn-off"; dBtn.textContent="Desconectar";
+  if(data.live_reachable){            // refleja el estado real: deshabilita la dirección que no aplica
+    cBtn.disabled = data.connected===true;
+    dBtn.disabled = data.connected===false;
+  }
+  conn.appendChild(cBtn); conn.appendChild(dBtn); hd.appendChild(conn);
+  // Botones de conexión → data-ops connect/disconnect; al volver, re-pintamos con el view_data() refrescado
+  // (que ya trae el nuevo estado connected + cluster_id). Cableados AQUÍ (antes de los `return` tempranos de
+  // lista vacía/error) para que respondan aunque aún no haya mensajes en el registro. Si la acción no existe
+  // todavía (data.py sin recargar), restauramos el estado sin inventar nada.
+  async function doConn(act){
+    cBtn.disabled=true; dBtn.disabled=true;
+    let nd=null;
+    try{ nd=await ctx.action(act,{}); }catch(_){ nd=null; }
+    if(nd && typeof nd==="object"){ render(el,nd,ctx); }
+    else { cBtn.disabled = data.connected===true; dBtn.disabled = data.connected===false; }
+  }
+  cBtn.addEventListener("click", ()=>doConn("connect"));
+  dBtn.addEventListener("click", ()=>doConn("disconnect"));
   el.appendChild(hd);
+  if(data.conn_error){
+    const ce=document.createElement("div"); ce.className="crgerr"; ce.textContent=data.conn_error; el.appendChild(ce);
+  }
 
   const list=document.createElement("div"); list.className="list"; el.appendChild(list);
 

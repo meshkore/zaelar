@@ -23,6 +23,16 @@
         "to": "string opcional, handle EXACTO de un peer online (vacío = broadcast a todos)"
       },
       "confirm": false
+    },
+    "connect": {
+      "desc": "conecta (reconecta) el cluster MeshKore activo",
+      "payload": {},
+      "confirm": false
+    },
+    "disconnect": {
+      "desc": "desconecta el cluster MeshKore activo",
+      "payload": {},
+      "confirm": false
     }
   },
   "name": "Mesh for Cluster",
