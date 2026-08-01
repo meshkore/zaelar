@@ -2,7 +2,7 @@ id: zaelar
 name: zaelar
 description: Voice-first personal assistant (STT→«Colmena» brain (nucleo/)→TTS over LiveKit WebRTC)
 standard_version: 27
-version: 2.76
+version: 2.88
 operator: ricart
 repo: meshkore/zaelar
 
