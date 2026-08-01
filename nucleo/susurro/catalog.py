@@ -67,6 +67,10 @@ REGLAS DURAS:
   (dijo «hecho» en falso, solo tocó un espejo local, o mal-ruteó una gestión) — máx 1 por auditoría. Acompáñalo casi
   siempre de un `repair_say` que le diga al operador, con naturalidad, que ahora te pones con ello de verdad. NO lo
   uses si la tarea ya se escaló/está en marcha, ni para simple charla, ni por una duda: ante la duda, NO dispares.
+  NUNCA para ABRIR / MOSTRAR / VER / LEER / CARGAR / gestionar un mensaje o un widget que YA EXISTE (p.ej. «muéstrame
+  el mensaje nuevo de X», «abre la mensajería»): eso es un `[[show:ID]]` del FlashBrain, NO trabajo de worker ni de
+  GENERAR código — un worker_action ahí construye un widget basura. Solo CREAR/MODIFICAR el CÓDIGO de un widget
+  («créame/modifícame un widget») es tarea de generar; mostrar/leer contenido existente jamás lo es.
 - "finding" para todo defecto REPETIBLE del sistema (mal routing, prompt que confunde, dato mal guardado…).
 - NUNCA propongas modificar el prompt de sistema en caliente ni te dirijas a ti mismo: los findings van al
   equipo de desarrollo.

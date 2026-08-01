@@ -55,16 +55,20 @@ def test_system_friction_map():
 
 
 def test_risky_decision_v2061():
-    # caso ITV: acción de widget SIN escalar sobre una orden que era del mundo real → riesgo (audita)
-    assert friction.risky_decision({"widget_acted": True, "clarify": True})
+    # caso ITV: una DATA-OP (agenda.drop → data_done) SIN escalar sobre una orden del mundo real → riesgo (audita)
+    assert friction.risky_decision({"data_done": True, "clarify": True})
     assert friction.risky_decision({"data_done": True})
+    # V2-081: un simple SHOW/CLOSE de canvas (widget_acted SIN data_done) NO es riesgo — abrir/cerrar/mostrar un
+    # widget nunca es una acción del mundo reflejada en local (incidente 2026-08-01: un close disparó a Susurro →
+    # sobre-escaló un "muestra el mensaje" → widget basura). Solo la MUTACIÓN de datos cuenta.
+    assert not friction.risky_decision({"widget_acted": True})
+    assert not friction.risky_decision({"widget_acted": True, "clarify": True})
     # ya escaló (camino pesado correcto) o charla pura → sin riesgo
-    assert not friction.risky_decision({"escalated": True, "widget_acted": True})
+    assert not friction.risky_decision({"escalated": True, "data_done": True})
     assert not friction.risky_decision({})
     assert not friction.risky_decision(None)
-    # BUG 2026-07-25: un confirm-gate ABIERTO (widget_acted=true PERO confirm_opened=true) NO es riesgo — la
-    # acción está pendiente del Sí/No del operador, no ejecutada en falso. Susurro no debe re-rutearla a un worker.
-    assert not friction.risky_decision({"widget_acted": True, "confirm_opened": True})
+    # BUG 2026-07-25: un confirm-gate ABIERTO (data_done PERO confirm_opened=true) NO es riesgo — la acción está
+    # pendiente del Sí/No del operador, no ejecutada en falso. Susurro no debe re-rutearla a un worker.
     assert not friction.risky_decision({"data_done": True, "confirm_opened": True})
 
 
@@ -282,7 +286,7 @@ def test_engine_risky_triggers_worker_action(monkeypatch, tmp_path):
         engine.start()
         try:
             bus.emit_sync("turn.completed", {"user": "hay que cancelarlo",
-                                             "decision": {"widget_acted": True, "clarify": True}, "trace": "Titv"})
+                                             "decision": {"data_done": True, "clarify": True}, "trace": "Titv"})
             for _ in range(40):
                 await asyncio.sleep(0.05)
                 if engine.status()["audits"] >= 1:
