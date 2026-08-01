@@ -36,7 +36,37 @@ function injectStyles(){
   .hb-win:fullscreen{width:100vw!important;height:100vh!important;max-width:100vw;max-height:100vh;top:0!important;left:0!important;
     border-radius:0;background:#000}
   .hb-win.loading{padding:22px;min-width:120px;min-height:120px;display:flex;align-items:center;justify-content:center}
-  .hb-win.loading .hb-x,.hb-win.loading .hb-grip,.hb-win.loading .hb-body{display:none}
+  .hb-win.loading .hb-x,.hb-win.loading .hb-grip,.hb-win.loading .hb-body,.hb-win.loading .hb-head{display:none}
+  /* HEADER del widget (V2-082): el NOMBRE por el que se abre + un botón de config que despliega los ALIAS.
+     Vive en la franja superior de 30px, entre el grip (izq) y la × (der). Genérico para TODO widget — el
+     widget.js no lo toca. El nombre sale de _meta/registry (manifest.name|title). */
+  .hb-head{position:absolute;top:6px;left:40px;right:40px;height:24px;display:flex;align-items:center;justify-content:center;
+    gap:5px;pointer-events:none}
+  .hb-name{pointer-events:auto;max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:none;cursor:pointer;
+    background:transparent;color:var(--hb-ink,#e8edf5);font:600 12px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+  .hb-name:hover{color:var(--hb-accent,#3D6FE0)}
+  .hb-cfg{pointer-events:auto;border:none;border-radius:6px;cursor:pointer;width:20px;height:20px;padding:0;font-size:11px;
+    background:transparent;color:var(--hb-muted-2,#9aa7b8)}
+  .hb-cfg:hover{color:var(--hb-ink,#e8edf5);background:var(--hb-bubble,#f1f4f9)}
+  /* Desplegable de ALIAS (host-level, patrón de .hb-confirm): lista de chips editable + añadir. */
+  .hb-aliases{position:absolute;top:30px;left:12px;right:12px;z-index:6;padding:12px;border-radius:12px;
+    background:var(--hb-bg,#141d29);border:1px solid var(--hb-line,#232e3d);box-shadow:var(--hb-shadow-2,0 12px 40px rgba(0,0,0,.3));
+    max-height:60%;overflow:auto;opacity:0;transform:translateY(-6px);transition:opacity .16s,transform .16s}
+  .hb-aliases.in{opacity:1;transform:none}
+  .hb-al-t{font:600 11px/1.3 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--hb-muted,#5b6b82);
+    margin-bottom:8px;text-transform:uppercase;letter-spacing:.04em}
+  .hb-al-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+  .hb-al-chip{display:inline-flex;align-items:center;gap:5px;padding:4px 8px;border-radius:8px;background:var(--hb-bubble,#1b2534);
+    color:var(--hb-ink,#e8edf5);font:500 12px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+  .hb-al-chip.name{background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 22%,transparent);font-weight:600}
+  .hb-al-chip button{border:none;background:transparent;color:var(--hb-muted,#9aa7b8);cursor:pointer;font-size:13px;padding:0;line-height:1}
+  .hb-al-chip button:hover{color:var(--hb-risk,#e5484d)}
+  .hb-al-add{display:flex;gap:6px}
+  .hb-al-add input{flex:1;min-width:0;border:1px solid var(--hb-line,#232e3d);border-radius:8px;padding:6px 8px;
+    background:var(--hb-bg,#0f1621);color:var(--hb-ink,#e8edf5);font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+  .hb-al-add button{border:none;border-radius:8px;padding:6px 12px;cursor:pointer;background:var(--hb-accent,#3D6FE0);color:#fff;
+    font:600 12px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+  .hb-al-err{color:var(--hb-risk,#e5484d);font:12px -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;margin-top:7px}
   .hb-load{width:72px;height:72px;border-radius:50%;
     background:conic-gradient(from 0deg,var(--hb-accent,#3D6FE0),var(--hb-accent2,#16B8A6),rgba(61,111,224,0) 78%);
     -webkit-mask:radial-gradient(farthest-side,transparent 58%,#000 60%);mask:radial-gradient(farthest-side,transparent 58%,#000 60%);
@@ -144,6 +174,83 @@ export class Desktop {
     }catch(_){ return id; }
   }
 
+  // ── NOMBRE + ALIAS del widget (V2-082) ───────────────────────────────────────────────────────────────────
+  // El header de cada tarjeta muestra el NOMBRE canónico y, tras el ⚙, la lista de ALIAS editable. Fuente: el
+  // registro unificado GET /widgets/registry (cacheado; se refresca por el evento SSE widget/alias).
+  async _ensureRegistry(force){
+    if(this._registry && !force) return this._registry;
+    try{
+      const r=await fetch("/widgets/registry").then(r=>r.json());
+      this._registry={}; (r.registry||[]).forEach(e=>{ this._registry[e.id]=e; });
+    }catch(_){ this._registry=this._registry||{}; }
+    return this._registry;
+  }
+  async _applyName(w){
+    const reg=await this._ensureRegistry(); const e=reg[w.base];
+    if(e && w.nameBtn) w.nameBtn.textContent=e.name||w.base;
+  }
+  async refreshRegistry(){                              // SSE widget/alias → repinta nombres + panel abierto
+    await this._ensureRegistry(true);
+    for(const w of this.wins.values()){ this._applyName(w); if(w._alias) this._renderAliases(w); }
+  }
+  _toggleAliases(w){
+    if(w._alias){ this._closeAliases(w); return; }
+    const panel=document.createElement("div"); panel.className="hb-aliases"; w._alias=panel;
+    w.card.appendChild(panel); this._renderAliases(w);
+    requestAnimationFrame(()=>panel.classList.add("in"));
+    w._aliasAway=(e)=>{ if(w._alias && !w._alias.contains(e.target) && !w.head.contains(e.target)) this._closeAliases(w); };
+    setTimeout(()=>document.addEventListener("pointerdown",w._aliasAway),0);
+  }
+  _closeAliases(w){
+    if(w._aliasAway){ document.removeEventListener("pointerdown",w._aliasAway); w._aliasAway=null; }
+    if(w._alias){ w._alias.remove(); w._alias=null; }
+  }
+  async _renderAliases(w){
+    const panel=w._alias; if(!panel) return;
+    const reg=await this._ensureRegistry(); const e=reg[w.base]||{name:w.base,aliases:[w.base]};
+    const name=e.name||w.base, aliases=e.aliases||[name];
+    panel.innerHTML="";
+    const t=document.createElement("div"); t.className="hb-al-t"; t.textContent=`Nombres de «${name}»`; panel.appendChild(t);
+    const chips=document.createElement("div"); chips.className="hb-al-chips";
+    aliases.forEach(a=>{
+      const isName=a.toLowerCase()===name.toLowerCase();
+      const chip=document.createElement("span"); chip.className="hb-al-chip"+(isName?" name":"");
+      chip.append(document.createTextNode(a));
+      if(!isName){ const rm=document.createElement("button"); rm.textContent="×"; rm.title="Quitar";
+        rm.onclick=()=>this._removeAlias(w,a); chip.appendChild(rm); }
+      chips.appendChild(chip);
+    });
+    panel.appendChild(chips);
+    const add=document.createElement("div"); add.className="hb-al-add";
+    const inp=document.createElement("input"); inp.type="text"; inp.placeholder="añadir alias…";
+    const btn=document.createElement("button"); btn.textContent="Añadir";
+    const go=()=>{ const v=inp.value.trim(); if(v) this._addAlias(w,v,inp); };
+    btn.onclick=go; inp.onkeydown=(ev)=>{ if(ev.key==="Enter"){ ev.preventDefault(); go(); } };
+    add.append(inp,btn); panel.appendChild(add);
+  }
+  async _addAlias(w,alias,inp){
+    try{
+      const r=await fetch(`/widgets/${w.base}/aliases`,{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({alias})});
+      const j=await r.json().catch(()=>({}));
+      if(r.ok){ if(inp)inp.value=""; await this.refreshRegistry(); }
+      else this._aliasError(w, j.error||"No se pudo añadir");
+    }catch(_){ this._aliasError(w,"Error de red"); }
+  }
+  async _removeAlias(w,alias){
+    try{
+      const r=await fetch(`/widgets/${w.base}/aliases/${encodeURIComponent(alias)}`,{method:"DELETE"});
+      const j=await r.json().catch(()=>({}));
+      if(r.ok) await this.refreshRegistry(); else this._aliasError(w, j.error||"No se pudo quitar");
+    }catch(_){ this._aliasError(w,"Error de red"); }
+  }
+  _aliasError(w,msg){
+    if(!w._alias) return;
+    let e=w._alias.querySelector(".hb-al-err");
+    if(!e){ e=document.createElement("div"); e.className="hb-al-err"; w._alias.appendChild(e); }
+    e.textContent=msg;
+  }
+
   async show(rawId, {q="", data:providedData=null, pos=null}={}){
     // INSTANCIA por tarea: un id como `navegador::t3` = varias tarjetas del MISMO widget base. base = código+datos
     // (`navegador`), q = id de la tarea (para /data?q= y ctx.action), y la tarjeta se indexa por el id COMPLETO
@@ -159,18 +266,28 @@ export class Desktop {
       const card=document.createElement("div"); card.className="hb-win loading"; card.dataset.wid=id;
       const grip=document.createElement("button"); grip.className="hb-grip"; grip.innerHTML=NINE_DOTS; grip.title="Mover";
       const x=document.createElement("button"); x.className="hb-x"; x.textContent="×"; x.onclick=()=>this.close(id);
+      // HEADER (V2-082): botón-NOMBRE + config para ver/editar los ALIAS. El nombre se rellena desde el registro.
+      const head=document.createElement("div"); head.className="hb-head";
+      const nameBtn=document.createElement("button"); nameBtn.className="hb-name"; nameBtn.textContent=baseId;
+      nameBtn.title="Nombre del widget — clic para ver/editar sus alias";
+      const cfg=document.createElement("button"); cfg.className="hb-cfg"; cfg.textContent="⚙"; cfg.title="Nombres / alias";
+      head.append(nameBtn,cfg);
       const load=document.createElement("div"); load.className="hb-load";
       const body=document.createElement("div"); body.className="hb-body";
-      card.append(grip,x,load,body); this.stage.appendChild(card);
+      card.append(grip,x,head,load,body); this.stage.appendChild(card);
       if(pos && pos.left){                              // restored: honor the SAVED position instead of auto-placing
         card.style.left=pos.left; card.style.top=pos.top;
         const pz=parseInt(pos.z)||0; if(pz){ card.style.zIndex=pz; this.z=Math.max(this.z, pz); } else this._bringFront(card);
       } else { this._place(card); this._bringFront(card); }   // fit into free space without overlapping anything
       this._wireDrag(card, grip);
       card.addEventListener("pointerdown",()=>this._bringFront(card));
+      // el drag (grip) ya no engulle clicks del header; el header ignora pointerdown para no arrastrar la tarjeta.
+      head.addEventListener("pointerdown",e=>e.stopPropagation());
       requestAnimationFrame(()=>card.classList.add("in"));
       card._long=setTimeout(()=>card.classList.add("long"),3500);
-      w={card, body, q, id, base:baseId}; this.wins.set(id, w);
+      w={card, body, q, id, base:baseId, nameBtn, head}; this.wins.set(id, w);
+      nameBtn.onclick=()=>this._toggleAliases(w); cfg.onclick=()=>this._toggleAliases(w);
+      this._applyName(w);                               // rellena el nombre desde el registro (async, best-effort)
     } else {
       this._bringFront(w.card);
       // Already open, no new data pushed, same query → just surface it (no re-fetch, no re-render, no flicker).
@@ -370,6 +487,7 @@ export class Desktop {
   close(id){
     if(this._actId===id){ clearTimeout(this._actTimer); if(this.activity)this.activity.innerHTML=""; this._actId=null; return; }
     const w=this.wins.get(id);
+    if(w) this._closeAliases(w);                        // V2-082: limpia el listener del panel de alias si estaba abierto
     if(!w){
       // ROBUSTEZ (2026-07-14): la tarjeta puede estar en el DOM pero NO en `wins` (huérfana tras una reconexión/
       // reinicio → desync). Antes `close` la ignoraba en silencio y el operador "seguía viendo el widget" pese a
