@@ -375,7 +375,11 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   (`inject_soon`/`cancel_soon`/`answer_active_soon`, §V2-038 §v3·D; nunca `await` de una op de worker en el turno).
   **Reset/lifespan:** `reset_all`/apagado del server **matan de verdad** (`dispatch.cancel_all`) + barrido de
   huérfanos al arrancar (`run-livekit.sh`). El frontend RECONCILIA los chips contra `GET /api/tasks` (registro RAM)
-  al (re)conectar → fin de los chips huérfanos. Piezas one-shot **parkeadas** (revertibles): `nucleo/agentes/
+  al (re)conectar → fin de los chips huérfanos. **V2-084:** `reset_all` **deja los PROCESOS en blanco** — además de
+  matar los workers vivos, vacía el HISTÓRICO de la pestaña Procesos (`nucleo/workers/ledger.clear`) para «empezar
+  de cero», y el frontend limpia chips+histórico al instante con un handler `session/RESET`. El reset **conserva
+  estado, memoria, datos de los widgets, config de modelos y credenciales** — solo los checkboxes MEMORIA/CREDENCIALES
+  (opt-in, V2-063) borran esas capas. Piezas one-shot **parkeadas** (revertibles): `nucleo/agentes/
   {worker,web,web_cc,otros}.py`.
 - **Gate de ATENCIÓN — el micro abierto no actúa sobre voz ambiente** (`voice/attention.py`, V2-015, 2026-07-09):
   con el micro SIEMPRE abierto, zaelar trataba TODO lo oído como órdenes — en una reunión capturó voz ambiente,
