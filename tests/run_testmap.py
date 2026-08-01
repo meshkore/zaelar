@@ -121,6 +121,10 @@ DOMAINS: list[dict] = [
         # 100/1.000/10.000, promoción del widget nombrado desde la cola, e índice compacto del endpoint.
         {"id": "4.7", "title": "Selección progresiva del catálogo (escala 100/1k/10k)", "ch": UNIT, "paths": [
             "tests/browser/unit/widgets/test_selection_scale.py"]},
+        # Contrato de la 4ª pestaña NATIVA «Clusters» (V2-086). Va en WIDGETS/superficies —no en CLUSTER— porque
+        # lo que fija es la UI y su contrato de datos; la lógica de red vive en 6.9.
+        {"id": "4.8", "title": "Pestaña nativa «Clusters» (contrato UI ↔ ruteo ↔ backend, V2-086)", "ch": UNIT,
+            "paths": ["tests/browser/unit/widgets/test_clusters_tab.py"]},
     ]},
     {"id": "5", "name": "CONECTORES", "nodes": [
         {"id": "5.1", "title": "Email", "ch": UNIT, "paths": [

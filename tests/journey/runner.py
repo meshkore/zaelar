@@ -232,6 +232,17 @@ class Journey:
             absent = set(expected["widget_ids"]) - ids
             if absent:
                 failures.append(f"widgets ausentes: {sorted(absent)}")
+        # `cluster_fields` (V2-086): el CONTRATO que consume la 4ª pestaña nativa «Clusters». Comprobar solo que
+        # la clave `clusters` existe no sirve: la pestaña necesita estado, visibilidad y tráfico por fila, y si
+        # alguien recorta un campo el frontend se queda mudo sin que ningún test se entere.
+        if expected.get("cluster_fields"):
+            rows = output.get("clusters") if isinstance(output, dict) else None
+            if not isinstance(rows, list):
+                failures.append("la superficie de red no devolvió una lista `clusters`")
+            elif rows:
+                absent = [k for k in expected["cluster_fields"] if k not in rows[0]]
+                if absent:
+                    failures.append(f"a las filas de cluster les faltan campos: {absent}")
         if expected.get("services"):
             services = {str(item.get("key")) for item in output.get("items", [])}
             absent = set(expected["services"]) - services
@@ -240,6 +251,12 @@ class Journey:
         actions = [output.get("action"), *(output.get("tool_calls") or [])]
         if expected.get("actions_any") and not _contains_any(actions, expected["actions_any"]):
             failures.append(f"acción observada {actions!r} no casa con {expected['actions_any']}")
+        # `forbid_actions` (V2-086): afirmar que el turno NO disparó algo. Hacía falta para poder EXPRESAR la
+        # invariante de seguridad del canal de cluster —un bloque de texto pegado con instrucciones NO debe
+        # conectar nada por sí solo— que hasta ahora no era comprobable: solo se podía exigir que una acción
+        # ocurriera, nunca que no ocurriera.
+        if expected.get("forbid_actions") and _contains_any(actions, expected["forbid_actions"]):
+            failures.append(f"acción PROHIBIDA disparada: {actions!r} contiene {expected['forbid_actions']}")
         if expected.get("tags_any") and not _contains_any(output.get("tags", []), expected["tags_any"]):
             failures.append(f"tags no contienen {expected['tags_any']}")
         memory_value = output.get("_memory_recall", output)

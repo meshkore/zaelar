@@ -102,18 +102,20 @@ def test_whole_system_journey_is_causal_mapped_and_primary():
     for case in plan["cases"]:
         assert set(case.get("consumes", [])) <= produced, case["id"]
         produced.update(case.get("produces", []))
-    assert len(plan["cases"]) == 26
+    # 26 originales + 3 de conexión a clusters (V2-086: reconocer sin actuar → autorizar → contrato de la
+    # superficie nativa). Al añadir un paso al viaje hay que tocar este número Y `case_count` en suite.json.
+    assert len(plan["cases"]) == 29
     assert {case["channel"] for case in plan["cases"]} >= {
         "headless", "browser-api", "observer", "meshkore-http", "meshkore", "http",
     }
     catalog = build_suite_catalog("journey", [])
     group = catalog["steps"][0]["case_groups"][0]
-    assert group["count"] == 26
+    assert group["count"] == 29
     assert group["execution"]["isolated_workspace"] is True
-    last = find_case(catalog, "journey::whole-system-v1::0025")
+    last = find_case(catalog, "journey::whole-system-v1::0028")
     assert last["execution"]["replay_prefix"] is True
     assert SUITES["journey"].primary_case == "journey::group::10.1::whole-system-v1"
-    assert SUITES["journey"].case_count == 26
+    assert SUITES["journey"].case_count == 29
     dashboard = (ENGINE / "tests/platform/dashboard/index.html").read_text(encoding="utf-8")
     assert "'journey':'journey::group::10.1::whole-system-v1'" in dashboard
 

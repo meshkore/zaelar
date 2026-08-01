@@ -5,7 +5,7 @@
   "description": "Historia cronológica compartida: diálogo, memoria, widgets, workers, observabilidad y canales",
   "domain_ids": [],
   "requirements": ["isolated-engine", "configured-llm"],
-  "case_count": 26,
+  "case_count": 29,
   "primary_case": "journey::group::10.1::whole-system-v1",
   "steps": [
     {

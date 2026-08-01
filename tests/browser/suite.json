@@ -3,15 +3,52 @@
   "id": "browser",
   "label": "Browser / widgets",
   "description": "Playwright, navegación y superficies visuales",
-  "domain_ids": ["4"],
-  "requirements": ["chromium"],
+  "domain_ids": [
+    "4"
+  ],
+  "requirements": [
+    "chromium"
+  ],
   "steps": [
-    {"id": "4.1", "label": "Ciclo, acciones, refs y background", "kind": "unit"},
-    {"id": "4.2", "label": "Navegador y tareas", "kind": "browser"},
-    {"id": "4.3", "label": "Widget música", "kind": "unit"},
-    {"id": "4.4", "label": "Widget YouTube", "kind": "unit"},
-    {"id": "4.5", "label": "Widget mensajería", "kind": "unit"},
-    {"id": "4.6", "label": "Agenda: contrato XSS", "kind": "javascript"},
-    {"id": "4.7", "label": "Selección progresiva del catálogo (escala 100/1k/10k)", "kind": "unit"}
+    {
+      "id": "4.1",
+      "label": "Ciclo, acciones, refs y background",
+      "kind": "unit"
+    },
+    {
+      "id": "4.2",
+      "label": "Navegador y tareas",
+      "kind": "browser"
+    },
+    {
+      "id": "4.3",
+      "label": "Widget música",
+      "kind": "unit"
+    },
+    {
+      "id": "4.4",
+      "label": "Widget YouTube",
+      "kind": "unit"
+    },
+    {
+      "id": "4.5",
+      "label": "Widget mensajería",
+      "kind": "unit"
+    },
+    {
+      "id": "4.6",
+      "label": "Agenda: contrato XSS",
+      "kind": "javascript"
+    },
+    {
+      "id": "4.7",
+      "label": "Selección progresiva del catálogo (escala 100/1k/10k)",
+      "kind": "unit"
+    },
+    {
+      "id": "4.8",
+      "label": "Pestaña nativa «Clusters» (contrato UI↔ruteo↔backend)",
+      "kind": "unit"
+    }
   ]
 }

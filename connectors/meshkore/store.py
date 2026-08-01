@@ -14,7 +14,24 @@ from pathlib import Path
 
 from loguru import logger
 
-CONFIG_FILE = Path(__file__).resolve().parents[2] / "config" / "meshkore.json"
+from nucleo import workspace as _workspace
+
+
+def _config_file() -> Path:
+    """Dónde viven las credenciales de cluster. Mismo criterio que `config/credentials.py::_store_path()` y
+    `meshkore/identity.py::_key_file()`: con `ZAELAR_WORKSPACE` puesto, el fichero se mueve al workspace.
+
+    V2-086 — esto era una ruta ABSOLUTA fija, y se le escapaba al aislamiento. El motor desechable del `journey`
+    corre con `ZAELAR_WORKSPACE` en un temporal (DB, memoria, canvas…), pero este módulo seguía leyendo el
+    `config/meshkore.json` REAL del operador: los tests veían sus clusters de verdad y —peor— un caso que
+    llegara a conectar habría SOBRESCRITO sus credenciales desde una batería de pruebas. Sin la env var
+    (self-host, hoy) la ruta es byte a byte la de siempre."""
+    if os.getenv("ZAELAR_WORKSPACE"):
+        return _workspace.root() / "config" / "meshkore.json"
+    return Path(__file__).resolve().parents[2] / "config" / "meshkore.json"
+
+
+CONFIG_FILE = _config_file()
 
 _staged: dict = {}   # name -> {cluster_id, token, handle} — ephemeral, process-lifetime only
 
