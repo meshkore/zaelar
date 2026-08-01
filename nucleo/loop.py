@@ -8,7 +8,7 @@ widgets). Es el latido propio de zaelar — reemplaza el **cron nativo de Hermes
   - 🔥 **chispas** — pensamiento espontáneo, con doble gate (frecuencia + utilidad, `nucleo/sparks.py`).
   - **consolidación** ("sueño") — dispara `memory.consolidate()` por intervalo, FUERA del hot path
     (`asyncio.to_thread`: el consolidador es sqlite síncrono y no debe bloquear la voz).
-  - **señales** por el bus: `loop.tick`, `loop.scheduled_fired`, `loop.spark` (observables por el tester/juez).
+  - **señales** por el bus: `loop.tick`, `loop.scheduled_fired`, `loop.spark` (observables por el tests/voice/e2e/agent/juez).
 
 Loop-agnóstico: se monta en el lifespan del server como una task (fuerte ref en app.state), como el resto de
 subsistemas. NUNCA bloquea la ruta de voz — el trabajo pesado va a un hilo o (V2-007) a un CodeAgent.

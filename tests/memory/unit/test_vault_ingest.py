@@ -2,7 +2,7 @@
 # test_vault_ingest.py — auto-vaulting en la ingesta (V2-060 F1): un turno con un secreto se CIFRA y se REDACTA
 # antes del destilador; sin bóveda pide crearla; el valor jamás llega al LLM ni a una píldora en claro.
 # Sin red (embeddings hash; mem_processor forzado OFF para aislar la heurística).
-# Ejecutar: .venv/bin/pytest tests/unit/memory/test_vault_ingest.py
+# Ejecutar: .venv/bin/pytest tests/memory/unit/test_vault_ingest.py
 #
 import asyncio
 

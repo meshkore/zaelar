@@ -1,4 +1,4 @@
-"""tests/e2e/memory/bot/scale_eval.py — harness de RECALL A ESCALA (reranker A/B) (V2-030).
+"""tests/memory/e2e/bot/scale_eval.py — harness de RECALL A ESCALA (reranker A/B) (V2-030).
 
 Mide la CALIDAD del retriever LARGO (`memory/retriever.search`) sobre la BD **AISLADA** ya poblada con la persona
 del bot (cientos de recuerdos). Es el número que movemos con el reranker: para cada query de recall-largo del
@@ -7,13 +7,13 @@ corpus (`t=query`, `via=long`, con `want`) calcula el RANGO del primer resultado
 
 A/B del reranker: se corre dos veces cambiando el proveedor por env/config (`MEMORY_RERANK=off|openai|local`).
 El harness NO reconstruye la persona por defecto (reutiliza `zaelar.membot.db` acumulada); `--fresh` la repuebla
-corriendo el runner de cero (lento: CORAZÓN LLM local por cada save).
+corriendo el runner de cero (lento: CORAZÓN LLM configurado por cada save).
 
 Uso:
-  ./.venv/bin/python -m tests.e2e.memory.bot.scale_eval                 # mide sobre la BD actual
-  MEMORY_RERANK=openai ./.venv/bin/python -m tests.e2e.memory.bot.scale_eval --label openai
-  ./.venv/bin/python -m tests.e2e.memory.bot.scale_eval --fresh         # repuebla y mide
-  ./.venv/bin/python -m tests.e2e.memory.bot.scale_eval --ab            # corre off vs config actual y compara
+  ./.venv/bin/python -m tests.memory.e2e.bot.scale_eval                 # mide sobre la BD actual
+  MEMORY_RERANK=openai ./.venv/bin/python -m tests.memory.e2e.bot.scale_eval --label openai
+  ./.venv/bin/python -m tests.memory.e2e.bot.scale_eval --fresh         # repuebla y mide
+  ./.venv/bin/python -m tests.memory.e2e.bot.scale_eval --ab            # corre off vs config actual y compara
 
 BD aislada: `ZAELAR_DB=memory/_data/zaelar.membot.db` (gitignored). El perfil REAL no se toca.
 """
@@ -48,7 +48,7 @@ def _setup_env():
 
 
 def _long_queries() -> list[dict]:
-    from tests.e2e.memory.bot import cases as C
+    from tests.memory.e2e.bot import cases as C
     return [c for c in C.CASES if c.get("t") == "query" and c.get("via") == "long" and c.get("want")]
 
 
@@ -159,7 +159,7 @@ def main():
     if args.fresh:
         import asyncio as _asyncio
 
-        from tests.e2e.memory.bot import runner
+        from tests.memory.e2e.bot import runner
         print("⟳ repoblando la persona (--fresh, corpus completo)…")
         # fix 2026-07-20: la API real del runner es la corrutina run_range, no un run() síncrono inexistente.
         _asyncio.run(runner.run_range(0, 10_000, fresh=True))

@@ -165,7 +165,7 @@ make run                 # = BRAIN=nucleo scripts/run-livekit.sh → http://loca
 servidor LiveKit dev) · `make agent-worker` (solo el worker contra un LiveKit ya arriba).
 
 Open **http://localhost:43917 in Chrome** (mic needs localhost or HTTPS). `/architecture` = live diagram + docs ·
-`/debug` = live event timeline. Self-test (no browser): `./.venv/bin/python harness/mic_selftest.py`.
+`/debug` = live event timeline. Self-test (no browser): `./.venv/bin/python -m tests.voice.e2e.mic.mic_selftest`.
 
 ### Reset de memoria — empezar un test de cero (`make reset-restart`)
 ```

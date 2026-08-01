@@ -23,7 +23,7 @@ MODULES = [
                 "~1-3s o la voz se queda muda.",
         "current": {"model": "deepseek/deepseek-v4-flash · non-thinking", "provider": "AIMLAPI", "cost_in": 0.14,
                     "cost_out": 0.28, "ttft_ms": 1170, "since": "2026-07-31 — Haiku queda de FALLBACK (_FALLBACK_MODEL)"},
-        "why": "CAMBIO 2026-07-31 (Haiku→DeepSeek V4 Flash non-thinking): A/B robusto (tester/model_bench, 16 turnos "
+        "why": "CAMBIO 2026-07-31 (Haiku→DeepSeek V4 Flash non-thinking): A/B robusto (tests/voice/e2e/agent/model_bench, 16 turnos "
                "inequívocos ×4 reps, mismo prompt+tools reales) → deepseek non-thinking ROUTING 10/10 (vs Haiku 8/10, "
                "que INFRA-actuaba: no buscaba horarios ni añadía cita), INTEL 6/6 (tras acotar la regla 'insiste→"
                "ejecuta' que hacía sobre-actuar en meta/contradicción — fix flash/prompt.py 3bd8c29), TTFT p50 1170ms "
@@ -38,7 +38,7 @@ MODULES = [
                                "no-razonador es actuar con seguridad sobre un malentendido.",
         "candidates_2026_07_26": [
             {"model": "deepseek-v4-flash · NON-THINKING (AIMLAPI)", "cost_in": 0.14, "cost_out": 0.28,
-             "tool_calling": "propio A/B 2026-07-31 (tester/model_bench, mismo prompt+tools reales): routing 4/5 y "
+             "tool_calling": "propio A/B 2026-07-31 (tests/voice/e2e/agent/model_bench, mismo prompt+tools reales): routing 4/5 y "
                              "🧠 INTEL 5/5 — IGUALA a Haiku en inteligencia (no alucina, no actúa de más, resuelve "
                              "la contradicción). CLAVE: el modo importa — v4-flash PIENSA por defecto y en thinking "
                              "baja a 4/5 (sobre-actuó: abrió un widget en el turno de contradicción); con "
@@ -54,7 +54,7 @@ MODULES = [
              "verdict": "recomendado sustituir a Haiku en non-thinking, tras spot-check de voz real"},
             {"model": "glm-4.5-air (Z.AI directo)", "cost_in": 0.20, "cost_out": 1.10,
              "tool_calling": "propio A/B 2026-07-26: 85/90 (94.4%) vs Haiku 87/90 (96.7%) en el mismo arnés real "
-                             "de 90 casos (tests/e2e/search/bot) — cerca, no empatado; falló 'hora en Tokio' "
+                             "de 90 casos (tests/agent_headless/e2e/search/bot) — cerca, no empatado; falló 'hora en Tokio' "
                              "(el caso que SÍ arreglamos hoy en Haiku) y 2 escalate→chat en tareas reales",
              "ttft_ms": "no medido de forma justa aún — el adaptador de hoy usa complete() no-streaming (el "
                         "canal de cluster no necesita streaming); comparar latencia real exige construir "
@@ -125,7 +125,7 @@ MODULES = [
         "why": "Antes pasaba por AIMLAPI (con margen) aunque ya había cuenta Z.AI propia. Verificado en vivo: el "
                "endpoint pay-as-you-go de Z.AI (/chat/completions) devuelve 429 sin fondos con esa key — pero su "
                "endpoint de coding-plan (/v1/messages, saldo SEPARADO) sí responde. Migrado; verificado end-to-end "
-               "con `tests/e2e/cluster/run_cluster_suite.py` — más rápido que la ruta AIMLAPI anterior.",
+               "con `tests/cluster/e2e/run_cluster_suite.py` — más rápido que la ruta AIMLAPI anterior.",
         "hallucination_note": None,
         "candidates_2026_07_26": [],
     },

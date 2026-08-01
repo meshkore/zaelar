@@ -1,0 +1,1 @@
+"""Music widget tests."""

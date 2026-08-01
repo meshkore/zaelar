@@ -1,4 +1,4 @@
-"""tests/e2e/search/bot/report_html.py — informe HTML del test bot de búsqueda para el operador.
+"""tests/agent_headless/e2e/search/bot/report_html.py — informe HTML del test bot de búsqueda para el operador.
 
 Lee `.meshkore/logs/searchbot/progress.json` y escribe un HTML autocontenido en `~/.meshkore/tmp/` (donde el
 operador lee los informes). Uso: `./.venv/bin/python -m tests.e2e.search.bot.report_html`.

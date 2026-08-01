@@ -110,6 +110,15 @@ async def prime() -> None:
     await _do_refresh()
 
 
+async def refresh() -> None:
+    """Force a fresh state composition from an off-hot-path caller.
+
+    Memory ingestion and explicit session barriers use this after their writes have completed. This preserves
+    the instant `get()` contract while ensuring the *next* turn cannot observe a superseded identity value.
+    """
+    await _do_refresh()
+
+
 def invalidate() -> None:
     """Marca el bloque como sucio → el próximo `get()` agenda un refresco. Lo llama el sink de `memory.updated`."""
     with _lock:

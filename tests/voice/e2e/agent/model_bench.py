@@ -1,4 +1,4 @@
-"""tester/model_bench.py — BENCHMARK PROPIO de elección de modelo del FlashBrain (latencia ↔ inteligencia).
+"""tests/voice/e2e/agent/model_bench.py — BENCHMARK PROPIO de elección de modelo del FlashBrain (latencia ↔ inteligencia).
 
 El PROBLEMA: la latencia percibida de la voz la domina el **TTFT del modelo rápido** (el proveedor de routing
 AIMLAPI no es el cuello — verificado; es el propio modelo el que tarda en emitir el primer token). Este script
@@ -14,10 +14,10 @@ NO cambia nada de producción: no toca `config/v2`, no reconfigura el server. So
 Es un test REUTILIZABLE — corre cuando quieras re-evaluar el shortlist de modelos.
 
 Uso:
-    ./.venv/bin/python -m tester.model_bench                 # shortlist por defecto, 3 reps
-    ./.venv/bin/python -m tester.model_bench --reps 4        # más reps (promedia varianza de Cloudflare)
-    ./.venv/bin/python -m tester.model_bench --models "anthropic/claude-haiku-4.5,google/gemini-3-5-flash"
-    ./.venv/bin/python -m tester.model_bench --gemini-direct # añade Gemini por el endpoint google-directo (thinking OFF)
+    ./.venv/bin/python -m tests.voice.e2e.agent.model_bench                 # shortlist por defecto, 3 reps
+    ./.venv/bin/python -m tests.voice.e2e.agent.model_bench --reps 4        # más reps (promedia varianza de Cloudflare)
+    ./.venv/bin/python -m tests.voice.e2e.agent.model_bench --models "anthropic/claude-haiku-4.5,google/gemini-3-5-flash"
+    ./.venv/bin/python -m tests.voice.e2e.agent.model_bench --gemini-direct # añade Gemini por el endpoint google-directo (thinking OFF)
 
 Claves: AIMLAPI_KEY (nube) y GEMINI_API_KEY (google-directo) desde el entorno (.env), igual que fast_client.
 """
@@ -298,9 +298,9 @@ async def main() -> None:
             print(f"{r['label']:40s}   TODO FALLÓ ({'; '.join(list(errs)[:1])})")
 
     # ── guardar ──
-    os.makedirs("tester/runs", exist_ok=True)
+    os.makedirs("tests/runs/agent", exist_ok=True)
     stamp = time.strftime("%Y%m%d-%H%M%S")
-    path = f"tester/runs/model_bench_{stamp}.json"
+    path = f"tests/runs/agent/model_bench_{stamp}.json"
     with open(path, "w") as f:
         json.dump({"reps": args.reps, "turns": [t[0] for t in TURNS], "results": results}, f,
                   ensure_ascii=False, indent=2)

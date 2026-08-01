@@ -1,4 +1,4 @@
-"""tests/e2e/search/bot/runner.py — el MOTOR del test bot de BÚSQUEDA WEB (V2-022).
+"""tests/agent_headless/e2e/search/bot/runner.py — el MOTOR del test bot de BÚSQUEDA WEB (V2-022).
 
 Ejecuta el guion de `cases.py` contra la ruta REAL del FlashBrain, EMPEZANDO POR EL FLASHBRAIN y SIN la capa de
 voz/LiveKit por encima (aislado, para depurar limpio — "deshabilitar todo lo de arriba"):
@@ -153,7 +153,7 @@ def _judge_answer(question: str, answer: str) -> dict:
     if not answer:
         return {"ok": False, "reason": "respuesta vacía"}
     try:
-        from tester import config as tcfg, llm as tllm
+        from tests.voice.e2e.agent import config as tcfg, llm as tllm
     except Exception:
         return {}
     prompt = (

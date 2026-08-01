@@ -1,6 +1,6 @@
 #
 # test_vault_rules.py — user rules DURAS de seguridad (V2-060 F2): detección de comandos de config por voz +
-# aplicación (persistencia en state.security). Sin red. Ejecutar: .venv/bin/pytest tests/unit/memory/test_vault_rules.py
+# aplicación (persistencia en state.security). Sin red. Ejecutar: .venv/bin/pytest tests/memory/unit/test_vault_rules.py
 #
 import pytest
 

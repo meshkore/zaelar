@@ -1,9 +1,7 @@
 .venv
 .env
 logs
-harness/runs
-harness/last_run.log
-harness/rerun.log
+tests/runs
 **/__pycache__
 *.pyc
 .pytest_cache

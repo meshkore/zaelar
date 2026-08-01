@@ -1,7 +1,7 @@
 # Test bot de BÚSQUEDA WEB (V2-022)
 
 Prueba la capacidad de búsqueda del cerebro **empezando por el FlashBrain** y **sin la capa de voz/LiveKit por
-encima** (aislado, para depurar limpio). Mismo patrón que el test bot de memoria (`tests/e2e/memory/bot/`).
+encima** (aislado, para depurar limpio). Mismo patrón que el test bot de memoria (`tests/memory/e2e/bot/`).
 
 ## Qué verifica (por cada caso)
 

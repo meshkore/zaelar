@@ -1,6 +1,6 @@
 #
 # Tests de la CÁPSULA de conversación (connectors/meshkore/capsule.py, V2-069 «una sola mente»).
-# Run: .venv/bin/pytest connectors/meshkore/test_capsule.py -q
+# Run: .venv/bin/pytest tests/cluster/unit/test_capsule.py -q
 #
 # Cubre lo que evitó los fallos de la forense (re-presentación, bucle sin fin, objetivo perdido):
 #   · fases derivadas del estado de la relación (no re-presentarse en trabajo/sondeo)

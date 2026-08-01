@@ -8,7 +8,7 @@ router, rails, tools, memoria-estado y Susurro → auto-marca fallos de routing.
 import os, sys, json, time, urllib.request, concurrent.futures as cf
 
 BASE = "http://localhost:43917"
-from tester import llm  # DRIVE vía AIMLAPI (UA-spoof incluido)
+from tests.voice.e2e.agent import llm  # DRIVE vía AIMLAPI (UA-spoof incluido)
 
 def post(path, body, t=45):
     r = urllib.request.Request(BASE+path, data=json.dumps(body).encode(),

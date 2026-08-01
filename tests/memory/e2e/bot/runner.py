@@ -1,7 +1,7 @@
-"""tests/e2e/memory/bot/runner.py — el MOTOR del test bot de memoria (V2-013 · V2-019).
+"""tests/memory/e2e/bot/runner.py — el MOTOR del test bot de memoria (V2-013 · V2-019).
 
 Ejecuta el guion de `cases.py` contra una BD **AISLADA** (nunca el perfil real) y por CADA paso verifica:
-  - **save**: tras `memory_agent.ingest_utterance` (ruta real de escritura, con el CORAZÓN LLM local) drena la
+  - **save/extract**: tras `memory_agent.ingest_utterance` (ruta real de escritura, con el CORAZÓN LLM configurado) drena la
     cola y comprueba que el dato quedó en la(s) capa(s) esperada(s) — o en NINGUNA si es descarte.
   - **query**: por la ruta de lectura DIRECTA (state/recent_short/query, SIN LLM) comprueba que devuelve los datos.
 
@@ -9,11 +9,11 @@ Resumible y por TANDAS: guarda el progreso en `.meshkore/logs/membot/progress.js
 para correr en bucle (cada iteración = 10 pasos), iterar el módulo entre tandas y crecer hasta 1000.
 
 Uso:
-  ./.venv/bin/python -m tests.e2e.memory.bot.runner --next 10        # siguiente tanda de 10 (desde el progreso)
-  ./.venv/bin/python -m tests.e2e.memory.bot.runner --fresh --next 10  # reinicia la BD del bot y arranca de cero
-  ./.venv/bin/python -m tests.e2e.memory.bot.runner --range 0 10      # una tanda concreta
+  ./.venv/bin/python -m tests.memory.e2e.bot.runner --next 10        # siguiente tanda de 10 (desde el progreso)
+  ./.venv/bin/python -m tests.memory.e2e.bot.runner --fresh --next 10  # reinicia la BD del bot y arranca de cero
+  ./.venv/bin/python -m tests.memory.e2e.bot.runner --range 0 10      # una tanda concreta
 
-Env: BD aislada `ZAELAR_DB=memory/_data/zaelar.membot.db` (gitignored) · `MEM_PROCESSOR=1` (LLM local real) — se
+Env: BD aislada por corpus (gitignored) · `MEM_PROCESSOR=1` (LLM configurado real) — se
 fijan aquí si no vienen del entorno. La memoria del operador REAL (zaelar.db) NO se toca.
 """
 from __future__ import annotations
@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import pathlib
 import time
 import unicodedata
@@ -41,6 +42,9 @@ CORPORA = {
     # AGUJAS enterradas entre ese pajar, midiendo acierto Y latencia. Persona Amaia (continuidad). BD/progreso/
     # catálogo AISLADOS. Repetible para verificar refactors: `python -m …runner --corpus v3 --fresh --range 0 N`.
     "v3": {"module": "cases3", "db": "zaelar.membot3.db", "progress": "progress-v3.json", "catalog": "CATALOG3.md"},
+    # Gateway conversacional focalizado: turnos ambiguos pasan por el CORAZÓN real y se validan por píldoras,
+    # slots, state, capa/importancia y recall. No inyecta hechos preestructurados directamente en el writer.
+    "v4": {"module": "cases4", "db": "zaelar.membot4.db", "progress": "progress-v4.json", "catalog": "CATALOG4.md"},
 }
 _ACTIVE = "v1"
 
@@ -69,9 +73,17 @@ def _norm(s: str) -> str:
 
 
 def _setup_env():
-    import os
+    # Los runners E2E son procesos nuevos lanzados por CLI/Observatory. Cargan el
+    # mismo credential store local que el engine sin imprimirlo ni copiarlo a
+    # eventos; antes OpenAI recibía el fallback literal "local" y toda la batería
+    # degradaba silenciosamente a heurística.
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(REPO / ".env", override=False)
+    except Exception:
+        pass
     os.environ.setdefault("ZAELAR_DB", str(REPO / "memory" / "_data" / _corpus()["db"]))
-    os.environ.setdefault("MEM_PROCESSOR", "1")   # CORAZÓN LLM local real — el sistema que evolucionamos
+    os.environ.setdefault("MEM_PROCESSOR", "1")   # CORAZÓN LLM configurado real — el sistema que evolucionamos
 
 
 # ── sondas de capa (lectura DIRECTA, sin LLM) ───────────────────────────────────────────────────────────────
@@ -228,6 +240,83 @@ async def _do_turn(memory, memory_agent, get_queue, step: dict) -> tuple[bool, s
     missing = [l for l in dur if l not in got]
     ok = not missing
     return ok, (f"destiló a {got} OK" if ok else f"esperaba durable en {dur}; está en {got}")
+
+
+async def _do_extract(memory, memory_agent, get_queue, step: dict) -> tuple[bool, str]:
+    """Evalúa texto natural → CORAZÓN → gates → píldoras/slots/state."""
+    from memory import db as _db
+
+    database = _db.get_db()
+    before = {int(row["id"]) for row in database.query("SELECT id FROM memories")}
+    result = await memory_agent.ingest_utterance(step["text"], role="operator")
+    await get_queue().join()
+    rows = [dict(row) for row in database.query(
+        "SELECT id,level,kind,text,importance,weight,ttl_days,pinned,valid,slot,meta "
+        "FROM memories ORDER BY id")]
+    new_rows = [row for row in rows if int(row["id"]) not in before]
+    active = [row for row in rows if int(row["valid"] or 0) == 1]
+    state = memory.state()
+    combined = _norm("\n".join(row.get("text") or "" for row in active) + "\n" +
+                     json.dumps(state, ensure_ascii=False))
+    errors: list[str] = []
+
+    source = str(result.get("source") or "")
+    if step.get("require_llm") and not source.startswith("llm"):
+        errors.append(f"CORAZÓN no produjo la escritura (source={source!r})")
+    atoms = int(result.get("atoms") or 0)
+    if atoms < int(step.get("min_atoms", 0)):
+        errors.append(f"átomos={atoms} < mínimo {step['min_atoms']}")
+    if step.get("max_atoms") is not None and atoms > int(step["max_atoms"]):
+        errors.append(f"átomos={atoms} > máximo {step['max_atoms']}")
+
+    if step.get("discard"):
+        if new_rows:
+            errors.append(f"debía descartarse pero creó {len(new_rows)} fila(s)")
+        if source not in {"discard", "discard-llm", "skip"}:
+            errors.append(f"ruta de descarte inesperada: {source!r}")
+
+    for marker in step.get("contains", ()):
+        if _norm(marker) not in combined:
+            errors.append(f"no extrajo {marker!r}")
+    if step.get("contains_any") and not any(_norm(marker) in combined for marker in step["contains_any"]):
+        errors.append(f"no extrajo ninguno de {step['contains_any']!r}")
+    for marker in step.get("not_contains", ()):
+        if _norm(marker) in combined:
+            errors.append(f"persistió contenido prohibido {marker!r}")
+
+    for field, expected in (step.get("state") or {}).items():
+        actual = str(state.get(field) or "")
+        if _norm(expected) not in _norm(actual):
+            errors.append(f"state.{field}={actual!r}; esperaba {expected!r}")
+
+    by_slot: dict[str, list[dict]] = {}
+    for row in active:
+        if row.get("slot"):
+            by_slot.setdefault(str(row["slot"]), []).append(row)
+    for slot, expected in (step.get("slots") or {}).items():
+        slot_rows = by_slot.get(slot, [])
+        blob = _norm(" ".join(row.get("text") or "" for row in slot_rows))
+        if len(slot_rows) != 1 or _norm(expected) not in blob:
+            errors.append(f"slot {slot}: {len(slot_rows)} vigente(s), esperaba una con {expected!r}")
+    for slot, forbidden in (step.get("slot_not") or {}).items():
+        blob = _norm(" ".join(row.get("text") or "" for row in by_slot.get(slot, [])))
+        if _norm(forbidden) in blob:
+            errors.append(f"slot {slot} aún contiene {forbidden!r}")
+
+    for marker, allowed in (step.get("allowed_levels") or {}).items():
+        hits = [row for row in active if _norm(marker) in _norm(row.get("text") or "")]
+        if hits and not any(row.get("level") in allowed for row in hits):
+            errors.append(f"{marker!r} quedó en {[row.get('level') for row in hits]}, esperaba {allowed}")
+    for marker in step.get("pinned", ()):
+        hits = [row for row in active if _norm(marker) in _norm(row.get("text") or "")]
+        if not hits or not any(int(row.get("pinned") or 0) == 1 for row in hits):
+            errors.append(f"{marker!r} no quedó pinned")
+
+    evidence = {
+        "gateway": {k: v for k, v in result.items() if k != "plan"},
+        "plan": result.get("plan"), "state": state, "new_rows": new_rows, "errors": errors,
+    }
+    return not errors, json.dumps(evidence, ensure_ascii=False, default=str)
 
 
 async def _do_connector(memory, memory_agent, get_queue, step: dict) -> tuple[bool, str]:
@@ -686,20 +775,56 @@ async def run_range(lo: int, hi: int, fresh: bool = False) -> dict:
     CASES = _load_cases()
     hi = min(hi, len(CASES))
     results = []
+    observer = None
+    if os.getenv("ZAELAR_TEST_RUN_DIR"):
+        from tests.platform.events import EventWriter
+        observer = EventWriter(os.environ["ZAELAR_TEST_RUN_DIR"], run_id=os.getenv("ZAELAR_TEST_RUN_ID"))
+        from .catalog import serialize_case
+        for position, case_index in enumerate(range(lo, hi), start=1):
+            entry = serialize_case(_ACTIVE, case_index, CASES[case_index])
+            observer.emit("test.discovered", test_id=entry["id"], suite="memory",
+                          label=f"{_ACTIVE} #{case_index + 1} · {entry['type']} · {entry['title']}",
+                          index=position, total=hi - lo, case=entry)
+        observer.emit("collection.finished", suite="memory", total=hi - lo)
+
+    def record(result: dict, step: dict, started: float) -> None:
+        result.setdefault("ms", round((time.time() - started) * 1000))
+        results.append(result)
+        if observer:
+            from .catalog import serialize_case
+            entry = serialize_case(_ACTIVE, result["i"], step)
+            observer.emit("interaction.output", test_id=entry["id"], suite="memory", label="resultado",
+                          output={"ok": result["ok"], "detail": result["detail"], "ms": result["ms"]})
+            observer.emit("test.finished", test_id=entry["id"], suite="memory", label=entry["title"],
+                          status="passed" if result["ok"] else "failed", duration_ms=result["ms"],
+                          output={"detail": result["detail"]})
+
     await memory.start()
     try:
         for i in range(lo, hi):
             step = CASES[i]
             t0 = time.time()
+            if observer:
+                from .catalog import serialize_case
+                entry = serialize_case(_ACTIVE, i, step)
+                observer.emit("test.started", test_id=entry["id"], suite="memory", label=entry["title"])
+                observer.emit("interaction.input", test_id=entry["id"], suite="memory", label="request",
+                              input=entry["input"], expectation=entry["expected"],
+                              verification=entry["verification"], note=entry["note"])
             if step["t"] == "save":
                 try:
                     await memory_agent.ingest_utterance(step["text"], role="operator")
                 except Exception as e:  # noqa: BLE001
-                    results.append({"i": i, "t": "save", "ok": False, "detail": f"ingest lanzó: {e}",
-                                    "text": step.get("text"), "note": step.get("note")})
+                    record({"i": i, "t": "save", "ok": False, "detail": f"ingest lanzó: {e}",
+                            "text": step.get("text"), "note": step.get("note")}, step, t0)
                     continue
                 await get_queue().join()               # drena la cola (write + embedding)
                 ok, detail = _verify_save(memory, step)
+            elif step["t"] == "extract":
+                try:
+                    ok, detail = await _do_extract(memory, memory_agent, get_queue, step)
+                except Exception as e:  # noqa: BLE001
+                    ok, detail = False, f"gateway conversacional lanzó: {type(e).__name__}: {e}"
             elif step["t"] == "dedup":
                 for tx in step["texts"]:               # el MISMO hecho, varios fraseos → debe colapsar en 1
                     await memory_agent.ingest_utterance(tx, role="operator")
@@ -710,9 +835,9 @@ async def run_range(lo: int, hi: int, fresh: bool = False) -> dict:
                 ok = (1 <= n <= maxc)
                 detail = (f"{len(step['texts'])} fraseos → {n} recuerdo(s) durable(s), peso máx {wmax:.2f} "
                           f"(esperado ≤{maxc}) {'OK' if ok else 'FALLO (duplicados)'}")
-                results.append({"i": i, "t": "dedup", "ok": ok, "detail": detail,
-                                "text": step["texts"][0], "note": step.get("note"),
-                                "ms": round((time.time() - t0) * 1000)})
+                record({"i": i, "t": "dedup", "ok": ok, "detail": detail,
+                        "text": step["texts"][0], "note": step.get("note"),
+                        "ms": round((time.time() - t0) * 1000)}, step, t0)
                 continue
             elif step["t"] == "turn":
                 ok, detail = await _do_turn(memory, memory_agent, get_queue, step)
@@ -748,9 +873,9 @@ async def run_range(lo: int, hi: int, fresh: bool = False) -> dict:
                 ok, detail = await _do_compose_check(memory, get_queue, step)
             else:
                 ok, detail = _verify_query(memory, step)
-            results.append({"i": i, "t": step["t"], "ok": ok, "detail": detail,
-                            "text": step.get("text") or step.get("q") or step.get("op") or step.get("inbound"),
-                            "note": step.get("note"), "ms": round((time.time() - t0) * 1000)})
+            record({"i": i, "t": step["t"], "ok": ok, "detail": detail,
+                    "text": step.get("text") or step.get("q") or step.get("op") or step.get("inbound"),
+                    "note": step.get("note"), "ms": round((time.time() - t0) * 1000)}, step, t0)
     finally:
         await memory.stop()
 
@@ -786,8 +911,9 @@ def emit_catalog() -> str:
     lines = [
         "# Catálogo del test bot de memoria (registro de requests + expectativas)",
         "",
-        "> Generado desde `cases.py` (`python -m tests.e2e.memory.bot.runner --catalog`). NO editar a mano.",
-        "> Cada **save** dice qué dice el operador y en qué CAPA debe quedar el dato (o DESCARTE). Cada **query**",
+        f"> Generado desde `{_corpus()['module']}.py` "
+        f"(`python -m tests.memory.e2e.bot.runner --corpus {_ACTIVE} --catalog`). NO editar a mano.",
+        "> Cada **save/extract** dice qué dice el operador y qué debe extraerse, descartarse o actualizarse. Cada **query**",
         "> simula una pregunta como la haría el FlashBrain y qué datos debe devolver la lectura DIRECTA (sin LLM):",
         "> ESTADO + perfil durable + CORTO (cacheado) y, si el gate `needs_recall` dispara, el recall del LARGO.",
         "",
@@ -797,7 +923,27 @@ def emit_catalog() -> str:
         "|--:|:--|:--|:--|:--|",
     ]
     for i, c in enumerate(CASES):
-        if c["t"] == "save":
+        if c["t"] == "extract":
+            say = "🗣️ " + c.get("text", "")
+            checks = []
+            if c.get("discard"):
+                checks.append("**DESCARTE**: cero píldoras")
+            if c.get("min_atoms") is not None:
+                checks.append(f"≥{c['min_atoms']} píldoras")
+            if c.get("max_atoms") is not None:
+                checks.append(f"≤{c['max_atoms']} píldoras")
+            if c.get("contains"):
+                checks.append("extraer " + ", ".join(f"`{x}`" for x in c["contains"]))
+            if c.get("contains_any"):
+                checks.append("extraer alguno de " + ", ".join(f"`{x}`" for x in c["contains_any"]))
+            if c.get("state"):
+                checks.append("estado " + ", ".join(f"`{k}={v}`" for k, v in c["state"].items()))
+            if c.get("slots"):
+                checks.append("slots " + ", ".join(f"`{k}={v}`" for k, v in c["slots"].items()))
+            if c.get("pinned"):
+                checks.append("pinned " + ", ".join(f"`{x}`" for x in c["pinned"]))
+            exp = "; ".join(checks) or "validar extracción conversacional declarada"
+        elif c["t"] == "save":
             where = ("**DESCARTE** (no debe quedar en ninguna capa)" if not c.get("in")
                      else "grabar en " + " + ".join(_LAYER.get(x, x) for x in c["in"]))
             if c.get("state_key"):

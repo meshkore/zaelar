@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 # Overnight autonomous test loop (INI-013). Runs the tester against a LIVE zaelar in a loop, rotating scenarios
-# + free-form creative goals, so reports keep accumulating in tester/runs/ for debugging. Robust: never crashes the
-# loop on a single failure; sleeps between cycles. Stop: `pkill -f tester.overnight` or remove the cron.
+# + free-form creative goals, so reports keep accumulating in tests/runs/agent/ for debugging. Robust: never crashes the
+# loop on a single failure; sleeps between cycles. Stop: `pkill -f tests.voice.e2e.agent.overnight` or remove the cron.
 #
 # Model routing (operator 2026-07-07): DRIVE=DeepSeek(AIMLAPI), JUDGE=GLM(Z.AI)→DeepSeek fallback. Budget-capped by
 # the plans themselves. Requires zaelar UP on :43917 (checked each cycle; skips if down so the cron can heal it).
 set -uo pipefail
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 PY="$HERE/.venv/bin/python"
-LOG="$HERE/tester/runs/overnight.log"
-mkdir -p "$HERE/tester/runs"
+LOG="$HERE/tests/runs/agent/overnight.log"
+mkdir -p "$HERE/tests/runs/agent"
 
 # rotating menu: the scenarios (incl. V2-022 web-search, navegador/moto, mensajería, conectores) + creative
-# free-form goals (a personal assistant — invent realistic asks). Kept in sync with tester/scenarios.py.
+# free-form goals (a personal assistant — invent realistic asks). Kept in sync with tests/voice/e2e/agent/scenarios.py.
 SCENARIOS=(conversation agenda memory widget search busqueda_web navegador_moto mensajeria conectores complex_idea chat paste websocket)
 GOALS=(
   "Pídele a zaelar que muestre el reloj, luego el tiempo, luego cierra el reloj — comprueba que el canvas reacciona cada vez."
@@ -43,11 +43,11 @@ while true; do
   if (( i % 2 == 0 )); then
     S="${SCENARIOS[$(( (i/2) % ${#SCENARIOS[@]} ))]}"
     echo "[$(date +%H:%M:%S)] cycle $i → scenario=$S" >> "$LOG"
-    "$PY" -m tester.run --scenario "$S" --no-open --hold 0 >> "$LOG" 2>&1 || echo "  (cycle errored, continuing)" >> "$LOG"
+    "$PY" -m tests.voice.e2e.agent.run --scenario "$S" --no-open --hold 0 >> "$LOG" 2>&1 || echo "  (cycle errored, continuing)" >> "$LOG"
   else
     G="${GOALS[$(( (i/2) % ${#GOALS[@]} ))]}"
     echo "[$(date +%H:%M:%S)] cycle $i → goal: ${G:0:60}…" >> "$LOG"
-    "$PY" -m tester.run --goal "$G" --turns 6 --no-open --hold 0 >> "$LOG" 2>&1 || echo "  (cycle errored, continuing)" >> "$LOG"
+    "$PY" -m tests.voice.e2e.agent.run --goal "$G" --turns 6 --no-open --hold 0 >> "$LOG" 2>&1 || echo "  (cycle errored, continuing)" >> "$LOG"
   fi
   i=$((i+1))
   sleep 20

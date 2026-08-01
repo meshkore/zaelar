@@ -916,7 +916,15 @@ _INGEST_LOCK = asyncio.Lock()
 
 async def ingest_utterance(text: str, *, role: str = "operator") -> dict:
     async with _INGEST_LOCK:
-        return await _ingest_utterance_locked(text, role=role)
+        result = await _ingest_utterance_locked(text, role=role)
+        # Ingestion itself already runs off the voice/chat hot path. Publish the completed state into the
+        # FlashBrain cache here, so the next utterance sees a correction/move immediately instead of one turn late.
+        try:
+            from nucleo.flash import memory_cache
+            await memory_cache.refresh()
+        except Exception:
+            pass
+        return result
 
 
 async def _ingest_utterance_locked(text: str, *, role: str = "operator") -> dict:

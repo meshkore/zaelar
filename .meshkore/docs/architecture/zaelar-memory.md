@@ -272,7 +272,7 @@ def query(prompt, budget_tokens):
 A ESCALA (cientos de recuerdos) el embedding local (bi-encoder, vectores independientes) ordena "borroso": la
 respuesta correcta suele estar en el top-10 pero NO en el top-1/3. Un **reranker** (cross-encoder) vuelve a puntuar
 cada candidato **leyendo query+recuerdo JUNTOS** → sube el correcto. Es la mayor palanca de recall por el menor
-coste. Medido en `tests/e2e/memory/bot/scale_eval.py` (442 durables, 281 queries de recall largo):
+coste. Medido en `tests/memory/e2e/bot/scale_eval.py` (442 durables, 281 queries de recall largo):
 
 | | baseline | **local (jina-v2-multi)** | openai (gpt-4o-mini) |
 |---|---|---|---|
@@ -300,7 +300,7 @@ carga en frío. Observabilidad: `status()` (proveedor/modelo/latencia).
 > **Subir el techo del recall — iniciativa `V2-031` (memoria de fidelidad máxima).** El reranker local cierra la
 > mayor parte del hueco de ORDENACIÓN, pero el techo real es `found@10` (~82%): lo que el retriever ni trae. La
 > T1 de V2-031 midió las palancas y **reordenó las prioridades con datos** (ver `zaelar-model-benchmarks.md §6/§7/§8`
-> y `tests/e2e/memory/bot/RESEARCH.md`):
+> y `tests/memory/e2e/bot/RESEARCH.md`):
 > - ❌ **Un embedding más FUERTE NO es la palanca** (hallazgo T1): `bge-m3` (1024d SOTA multilingüe) ≈ embeddinggemma
 >    (768) en found@10. El eje NO es la calidad del bi-encoder. *(Se dejó la abstracción provider-driven de dim +
 >    `memory/reembed.py` para poder cambiarlo, pero no mejora el recall.)*
@@ -318,7 +318,7 @@ carga en frío. Observabilidad: `status()` (proveedor/modelo/latencia).
 >
 > ⚠️ **Caveat de método (V2-031 T1):** el test bot SIEMBRA con embeddings `hash` (léxicos, deterministas y rápidos,
 > `runner.py:702`); medir el recall SEMÁNTICO exige **re-embeber** el corpus con el modelo real (embeddinggemma/
-> bge-m3) por AMBOS lados — lo hace `tests/e2e/memory/bot/embed_bench.py`. No comparar query-semántica contra
+> bge-m3) por AMBOS lados — lo hace `tests/memory/e2e/bot/embed_bench.py`. No comparar query-semántica contra
 > vectores-hash (mismatch de espacio). En PRODUCCIÓN se escribe siempre con embeddinggemma.
 
 **Grafo de CONCEPTOS** (T126, organiza la memoria conceptualmente — lo pidió el operador): al ESCRIBIR, el
@@ -356,7 +356,7 @@ y NUNCA en saludo/asentimiento/charla trivial (`_TRIVIAL_RE`). Sesga a RECORDAR:
 off-loop que el LLM ignora; un falso negativo = cerebro amnésico. + un backstop determinista mapea keywords→concepto
 (`memory_agent._derive_concepts`) cuando el LLM heart no etiqueta, garantizando cobertura del grafo por categoría.
 
-**Mejoras de recuperación validadas con el test bot** (V2-013, `tests/e2e/memory/bot/`, tandas 7-15):
+**Mejoras de recuperación validadas con el test bot** (V2-013, `tests/memory/e2e/bot/`, tandas 7-15):
 
 - **FTS con STEM por prefijo** (`retriever._fts_query`): el español es muy flexivo y el CORAZÓN canonicaliza
   persona/tiempo al escribir ("estoy aprendiendo" → "aprende japonés"; "me operaron" → "se operó") → el token
@@ -696,7 +696,7 @@ voz — regla de V2-011). El "corazón" que decide, por cada cosa que dice el op
 - **`mem_processor.process(text, state) → list|None`** — el **procesador LLM**: default actual
   **`gpt-4.1-mini` vía OpenAI** (config `§memory.mem_processor_model/_base_url/_api_key`; decisión del operador
   2026-07-17 «memoria SIEMPRE OpenAI», confirmada por el **bench de destilación V2-056**
-  (`tests/e2e/memory/bot/distiller_bench.py`, `zaelar-model-benchmarks.md §12`): gpt-4.1-mini **98.3%** (28.5/29,
+  (`tests/memory/e2e/bot/distiller_bench.py`, `zaelar-model-benchmarks.md §12`): gpt-4.1-mini **98.3%** (28.5/29,
   1.1s) vs **qwen2.5:7b local 86.2%** — el qwen queda como **OPCIÓN local** apuntando `base_url` a Ollama, para
   batería/privacidad). Env `MEM_PROCESSOR_MODEL/URL/KEY` = fallback power-user; modelo por invocación. La
   **credencial se resuelve POR ENDPOINT** (`mem_processor._key` → `_endpoint_key`, mismo patrón que
@@ -787,7 +787,7 @@ por voz pero no ensucian el nivel `mid`).
 **Red de BACKSTOPS DETERMINISTAS del CORAZÓN (regex es/en, sin LLM)** — el LLM local a veces DESCARTA por "charla"
 cosas que un humano SÍ recuerda, o su decisión es inconsistente. `nucleo/memory_agent.py` intercepta patrones
 inequívocos ANTES/DESPUÉS del LLM y garantiza el comportamiento correcto sin depender del fraseo (cada uno con guard
-en `nucleo/test_memory_agent.py` y batch propio en el bot de memoria):
+en `tests/memory/integration/test_memory_agent.py` y batch propio en el bot de memoria):
 - **Compromisos** (`_COMMITMENT_RE`) — una petición/cita/encargo ("mi jefa me pidió el informe para el miércoles")
   se guarda SIEMPRE aunque el LLM la canonicalice y la tire.
 - **Rutinas** (`_ROUTINE_RE`) — una costumbre recurrente ("cada lunes gimnasio") es memorable como patrón.
@@ -838,7 +838,7 @@ efímeras → guards DETERMINISTAS en `nucleo/memory_agent.py`, aplicados a la s
 - **(P1) Preferencias EFÍMERAS** (`_is_ephemeral_directive`): una directiva de pantalla/acción inmediata ("no me
   muestres nada ahora", "ahora no") es estilo de sesión que ejecuta el FlashBrain — NUNCA una preferencia durable;
   descarte pre-LLM. Solo se hace durable si trae marca de durabilidad ("prefiero/siempre/en general…").
-Verificado por `tests/integration/memory/test_write_precision_v2033.py` (16 casos, `MEM_PROCESSOR=0` → determinista
+Verificado por `tests/memory/integration/test_write_precision_v2033.py` (16 casos, `MEM_PROCESSOR=0` → determinista
 sin GPU) + smoke con el destilador LLM real; sin regresión (291 tests de memoria). Cruza con **V2-031**: el eje del
 recall no es el embedding sino **write-completeness + PRECISIÓN** — esta es la cara "precisión".
 
@@ -914,7 +914,7 @@ Dos superficies para VER la memoria trabajar en tiempo real:
 > **Encargo del operador (2026-07-10/11):** "una memoria cada vez más parecida a la de un humano pero con
 > superpoderes". Para llegar ahí hay que **probarla A FONDO, de forma original y bien estructurada**, deduciendo
 > cómo se pone a prueba una memoria y **aplicando lo que dice la literatura**. Esta sección es la TEORÍA canónica;
-> el mapa operativo vive en `tests/e2e/memory/bot/TAXONOMY.md` (dimensiones + cobertura) y `EXIGENCIA.md` (control
+> el mapa operativo vive en `tests/memory/e2e/bot/TAXONOMY.md` (dimensiones + cobertura) y `EXIGENCIA.md` (control
 > de calidad cada 50 casos). Registro de oleadas: `.meshkore/roadmap/initiatives/INI-013-voice-tester.md`.
 
 **Qué mide la literatura (WebSearch 2026-07-11).** El campo converge en unas **habilidades núcleo**: los benchmarks
@@ -930,12 +930,18 @@ MemoryAgentBench las resume en **4 competencias + 1 hueco que casi nadie prueba*
 **Cómo lo probamos en zaelar (metodología).** Tres superficies, alineadas con las buenas prácticas del campo
 (interacción **incremental multi-turno** + **checks de regresión** en cada cambio + **revisión humana** para lo que
 un juez-LLM no puede decidir):
-- **Bot de memoria** (`tests/e2e/memory/bot/`, `python -m tests.e2e.memory.bot.runner`): alimenta la memoria turno a
+- **Bot de memoria** (`tests/memory/e2e/bot/`, `python -m tests.memory.e2e.bot.runner`): alimenta la memoria turno a
   turno sobre una **BD que ACUMULA** (como MemoryAgentBench: chunks incrementales), y verifica el comportamiento por
   el CAMINO REAL — `_brain_view` reconstruye EXACTAMENTE lo que ve el FlashBrain (bloque cacheado + recall si el gate
   `needs_recall` dispara), **sin LLM en la lectura**. Tipos de paso: `save`/`query`/`dedup`/`turn`/`connector`/
   `source_query`/`cluster_exchange`/`forget`/`unforget`/`consolidate`/`episode`/`scale`/`recall_probe`/`weight_check`.
-- **pytest** (`tests/`, `nucleo/test_memory_agent.py`): guards deterministas de las piezas (backstops, forget/unforget,
+- **Gateway conversacional focalizado** (`cases4.py`): es la acción primaria del Observatory. Pasa parrafadas
+  naturales por `ingest_utterance → CORAZÓN → gates → writer`, exige fuente LLM, inspecciona todas las píldoras,
+  slots y estado, y luego interroga la misma memoria. Así la extracción no queda escondida detrás de writes directos.
+- **Cronología de lifecycle** (`tests/memory/e2e/timeline/`): 966 operaciones en una BD y reloj aislados, con sueño
+  ligero y REM tras cada día simulado (180 REM). Usa átomos explícitos para medir aging, TTL, refuerzo, corrección y
+  olvido sin confundir una regresión del lifecycle con variación del modelo extractor.
+- **pytest** (`tests/`, `tests/memory/integration/test_memory_agent.py`): guards deterministas de las piezas (backstops, forget/unforget,
   concept vocab, aviso de backend degradado…) — la red de regresión que corre en cada cambio.
 - **Tester en vivo** (INI-013): lo que es comportamiento del LLM del turno (abstención query-time, resolución de un
   conflicto, ironía) NO es del membot (que lee sin LLM) → se prueba con el agente que HABLA con zaelar y un juez.

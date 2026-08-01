@@ -1,7 +1,7 @@
 #
 # test_vault.py — bóveda de secretos cifrados (V2-060): crypto asimétrica + sobre passphrase, storage partido,
 # supersede, invariantes (valor jamás en claro en `memories`). Sin red (embeddings hash).
-# Ejecutar: .venv/bin/pytest tests/unit/memory/test_vault.py
+# Ejecutar: .venv/bin/pytest tests/memory/unit/test_vault.py
 #
 import pytest
 

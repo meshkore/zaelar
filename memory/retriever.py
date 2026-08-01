@@ -194,7 +194,8 @@ def search(
 ) -> list[dict]:
     """Ruta caliente: devuelve recuerdos relevantes ordenados por score (con `score` en cada dict)."""
     db = _db.get_db()
-    now = int(time.time())
+    from .clock import now as _clock_now
+    now = _clock_now()
     qvec = _emb.embed(prompt)
     vec = vec_search(qvec, k=k)
     kw = fts_search(prompt, k=k)

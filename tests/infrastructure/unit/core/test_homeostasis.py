@@ -1,5 +1,5 @@
 #
-# Tests del LATIDO AUTÓNOMO (homeostasis, V2-070). Run: .venv/bin/pytest nucleo/test_homeostasis.py -q
+# Tests del LATIDO AUTÓNOMO (homeostasis, V2-070). Run: .venv/bin/pytest tests/infrastructure/unit/core/test_homeostasis.py -q
 #
 # Garantía DETERMINISTA de que la capa que mantiene la máquina viva hace lo correcto SIN necesidad de un incidente
 # real (que es raro): las decisiones son funciones puras testeables + el detector IN-PROCESS + la rotación real en

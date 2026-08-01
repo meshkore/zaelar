@@ -1,7 +1,7 @@
 """Defensas de estabilidad conversacional del FlashBrain (V2-032). Deterministas, sin modelo → rápido en CI.
 
 Cubren el bloqueante #1 del informe del 2026-07-12: bucles de repetición/negación y degeneración del texto del
-modelo pequeño. Ejecutar: .venv/bin/pytest nucleo/flash/test_dialog.py
+modelo pequeño. Ejecutar: .venv/bin/pytest tests/agent_headless/unit/flash/test_dialog.py
 """
 from nucleo.flash import dialog
 

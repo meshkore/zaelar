@@ -788,7 +788,7 @@ BD del bot (aislada): /Users/ricartjuncadella/Documents/Prj/asimovia/harbee/memo
 Progreso acumulado: 40 pasos · 36 OK · 4 fallos
 BD del bot (aislada): /Users/ricartjuncadella/Documents/Prj/asimovia/harbee/memory/_data/harbee.membot.db
 =========================== short test summary info ============================
-FAILED nucleo/test_memory_agent.py::test_ingest_utterance_uses_llm_atoms_when_processor_on
+FAILED tests/memory/integration/test_memory_agent.py::test_ingest_utterance_uses_llm_atoms_when_processor_on
 1 failed, 65 passed in 9.52s
 
 === TANDA [0, 10] — 10/10 OK (0 fallos) ===

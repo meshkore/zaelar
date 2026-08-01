@@ -2,7 +2,7 @@
 # test_memory_agent.py — el agente de MEMORIA ★ del SlowBrain (V2-006, T81). Verifica: compose_context da
 # SOLO lo relevante (estado + recall, no todo el store), remember() escribe a memoria por la cola (único
 # escritor) y aplica un state_patch, y que el router LLM se salta sin credencial (heurística pura).
-# Ejecutar: .venv/bin/pytest nucleo/test_memory_agent.py
+# Ejecutar: .venv/bin/pytest tests/memory/integration/test_memory_agent.py
 #
 import asyncio
 

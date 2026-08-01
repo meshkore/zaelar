@@ -1,4 +1,4 @@
-"""nucleo/mem_processor.py — el PROCESADOR de memoria (LLM LOCAL) del CORAZÓN de escritura (V2-013 · T123).
+"""nucleo/mem_processor.py — el PROCESADOR LLM del CORAZÓN de escritura (V2-013 · T123).
 
 Por cada turno del operador, DESTILA el texto crudo en **píldoras** curadas y decide, por cada una, si se guarda,
 DÓNDE (ESTADO/CORTO/LARGO/DESCARTAR), con qué importancia, TTL y bajo qué `slot` canónico. Es la pieza que hace
@@ -9,11 +9,10 @@ Reglas de diseño (invariantes del operador, 2026-07-10):
   - **LLM al ESCRIBIR, nunca al LEER.** Este módulo vive SOLO en el camino de escritura, que es async/off-hot-path
     (lo llama `nucleo/memory_agent.ingest_utterance`, disparado fire-and-forget en `providers/nucleo.py`). El turno
     de voz NUNCA espera aquí. La LECTURA es siempre queries directas (retriever/state/recent_short), sin LLM.
-  - **Modelo LOCAL por defecto** (Ollama, `qwen2.5:7b-instruct` desde la 2ª auditoría 2026-07-14; 3b se quedaba
-    corto en write-completeness — 3/12 vs 12/12 en el benchmark es+en), OpenAI-compatible — nada personal sale de la máquina.
-    Mismo patrón que `connectors/messaging/triage.py`. Configurable por env (`MEM_PROCESSOR_*`), modelo por
-    invocación (no fija ninguna env global de cerebro).
-  - **Fail-open**: si el modelo local no está / falla / devuelve basura, `process()` devuelve `[]` y el llamador
+  - **Proveedor configurable**: por defecto usa `gpt-4.1-mini` vía OpenAI según `config/v2.py`; puede apuntarse al
+    endpoint OpenAI-compatible de Ollama para ejecución local. Configurable por `memory.mem_processor_*` o env,
+    con modelo por invocación (no fija ninguna env global de cerebro).
+  - **Fail-open**: si el modelo no está / falla / devuelve basura, `process()` devuelve `None` y el llamador
     cae a la heurística regex barata (`memory_agent.classify`) — la memoria nunca se queda sin escribir.
 
 Salida por átomo (`process()` devuelve `list[dict]`)::
@@ -68,7 +67,7 @@ _QUEUE_WAIT = float(os.getenv("MEM_PROCESSOR_QUEUE_WAIT", "15"))   # s de espera
 _waiters = 0
 
 
-# ── config (modelo LOCAL por defecto; mismo endpoint que el perfil `local`) ─────────────────────────────────
+# ── config (OpenAI por defecto; endpoint local OpenAI-compatible opcional) ──────────────────────────────────
 def _config_url() -> str:
     try:
         from config import v2 as _v2
@@ -211,6 +210,10 @@ Por CADA píldora decides:
     "el mes pasado…", "la semana pasada…"). Si un humano lo recordaría semanas o meses después → long.
   · "short"  = SOLO contexto EFÍMERO de HOY sin valor duradero (estado de ánimo del momento, el tiempo que hace,
     "tengo hambre ahora"). Si mañana ya no importa → short. En la duda entre short y long, elige long.
+  IMPORTANTE: "evento vivido" NO convierte toda actividad cotidiana en long. Café, comida, trayecto, compra menor,
+  recado rutinario o cansancio del día → short con TTL 1-20 días, salvo que el turno explique por qué fue
+  excepcional. En cambio un accidente, incendio, operación, logro o incidente laboral significativo → long.
+  NO inventes intenciones a partir de una predicción banal ("mañana estaré mejor" no es un objetivo ni un deseo).
   NUNCA descartes PETICIONES, TAREAS, COMPROMISOS, CITAS o RECADOS, aunque vengan de otra persona ("X me pidió Y
   para el día Z", "tengo cita el jueves", "me han encargado…"): guárdalos (long si son relevantes/importan más de
   un día; short si son solo de hoy). Tampoco descartes datos concretos con NÚMEROS/fechas/importes/direcciones.
@@ -318,6 +321,23 @@ Turno del operador: "Ah, por cierto, me acabo de mudar a Valencia." """
 
 _FEWSHOT_ASSISTANT_6 = """[{"text":"Vive en Valencia.","dest":"state","kind":"profile","importance":0.95,"ttl_days":null,"slot":"operator.location","value":"Valencia","change":"update","concepts":["vivienda"],"state_patch":{"location":"Valencia"}}]"""
 
+# Séptimo shot: conversación con VARIOS hechos mezclados. Obliga a no quedarse solo con el perfil evidente.
+_FEWSHOT_USER_7 = """ESTADO actual: (vacío)
+Turno del operador: "Hoy en el hospital atendimos una emergencia bastante seria. Soy enfermera. Antes vivía en Granada, pero ahora vivo en Málaga; quizá algún día me vaya a Cádiz, todavía no lo sé." """
+
+_FEWSHOT_ASSISTANT_7 = """[{"text":"Trabaja como enfermera.","dest":"state","kind":"profile","importance":0.9,"ttl_days":null,"slot":"operator.job","value":"enfermera","change":"none","concepts":["trabajo"],"state_patch":{"job":"enfermera"}},
+{"text":"Hoy atendió una emergencia seria en el hospital.","dest":"long","kind":"event","importance":0.75,"ttl_days":null,"slot":null,"change":"none","concepts":["trabajo","salud"],"state_patch":{}},
+{"text":"Vivía anteriormente en Granada.","dest":"long","kind":"event","importance":0.55,"ttl_days":null,"slot":null,"change":"none","concepts":["vivienda"],"state_patch":{}},
+{"text":"Vive en Málaga.","dest":"state","kind":"profile","importance":0.95,"ttl_days":null,"slot":"operator.location","value":"Málaga","change":"none","concepts":["vivienda"],"state_patch":{"location":"Málaga"}},
+{"text":"Considera mudarse a Cádiz en el futuro, sin una decisión tomada.","dest":"long","kind":"intent","importance":0.5,"ttl_days":null,"slot":null,"change":"none","concepts":["vivienda"],"state_patch":{}}]"""
+
+# Octavo shot: cotidianeidad efímera. No promocionar café ni fabricar objetivos a partir de "mañana estaré bien".
+_FEWSHOT_USER_8 = """ESTADO actual: operator_name=Marta
+Turno del operador: "Esta mañana tomé un café al volver del trabajo y ahora estoy cansada, pero mañana ya estaré bien." """
+
+_FEWSHOT_ASSISTANT_8 = """[{"text":"Esta mañana tomó un café al volver del trabajo.","dest":"short","kind":"event","importance":0.2,"ttl_days":7,"slot":null,"change":"none","concepts":[],"state_patch":{}},
+{"text":"Ahora está cansada.","dest":"short","kind":"fact","importance":0.3,"ttl_days":1,"slot":null,"change":"none","concepts":[],"state_patch":{}}]"""
+
 
 _LANG_NAME = {"es": "castellano", "en": "English", "de": "Deutsch", "fr": "français", "it": "italiano",
               "pt": "português", "ca": "català"}
@@ -379,6 +399,10 @@ async def process(text: str, *, state: dict | None = None) -> list[dict] | None:
             {"role": "assistant", "content": _FEWSHOT_ASSISTANT_5},
             {"role": "user", "content": _FEWSHOT_USER_6},
             {"role": "assistant", "content": _FEWSHOT_ASSISTANT_6},
+            {"role": "user", "content": _FEWSHOT_USER_7},
+            {"role": "assistant", "content": _FEWSHOT_ASSISTANT_7},
+            {"role": "user", "content": _FEWSHOT_USER_8},
+            {"role": "assistant", "content": _FEWSHOT_ASSISTANT_8},
             {"role": "user", "content": _render(t, state)},
         ],
     }

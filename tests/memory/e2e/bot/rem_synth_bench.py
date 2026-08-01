@@ -7,7 +7,7 @@ sueño) sobre 3 grupos-fixture con hechos conocidos, y puntúa MECÁNICAMENTE:
   - castellano (regla monolingüe)
   - brevedad (≤ 260 chars/insight — un insight no es un resumen-lista)
   - abstracción (el insight NO repite verbatim una píldora — debe sintetizar)
-Uso: PYTHONPATH=. ./.venv/bin/python tests/e2e/memory/bot/rem_synth_bench.py
+Uso: PYTHONPATH=. ./.venv/bin/python tests/memory/e2e/bot/rem_synth_bench.py
 Veredictos → zaelar-model-benchmarks.md §12.
 """
 from __future__ import annotations

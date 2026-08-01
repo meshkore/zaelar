@@ -6,7 +6,7 @@
 #       al bloque pasivo del estado (que se pinta "dalo por sabido sin buscar") — así "¿qué tiempo hace hoy?" no
 #       queda secuestrado por la ciudad equivocada — pero SIGUEN recuperables por consulta explícita.
 # Determinista: sin red (embeddings hash) ni LLM (MEM_PROCESSOR=0). Ejecutar:
-#   .venv/bin/pytest tests/unit/memory/test_location_grounding.py -q
+#   .venv/bin/pytest tests/memory/unit/test_location_grounding.py -q
 #
 import pytest
 

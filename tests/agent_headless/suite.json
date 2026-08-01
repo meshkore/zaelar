@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "id": "agent-headless",
+  "label": "Agente · headless",
+  "description": "FlashBrain, routing, diálogo, tools, rails y workers",
+  "domain_ids": ["2"],
+  "requirements": ["python"],
+  "live_commands": [["-m", "tests.agent_headless.harness.run"]],
+  "steps": [
+    {"id": "2.1", "label": "Enrutado y elección de tool", "kind": "unit"},
+    {"id": "2.2", "label": "Diálogo y anti-degeneración", "kind": "unit"},
+    {"id": "2.3", "label": "Prompt, skeleton y sparks", "kind": "unit"},
+    {"id": "2.4", "label": "Cliente LLM y reintentos", "kind": "unit"},
+    {"id": "2.5", "label": "Escalado, dispatch y workers", "kind": "unit"},
+    {"id": "2.6", "label": "Scheduler, rails y workspace", "kind": "unit"},
+    {"id": "2.7", "label": "Susurro auto-reparación", "kind": "unit"},
+    {"id": "2.8", "label": "Búsqueda web de comportamiento", "kind": "live", "catalog_provider": "tests.agent_headless.catalog:search_groups"},
+    {"id": "2.9", "label": "Sandbox de ejecución", "kind": "unit"},
+    {"id": "2.10", "label": "Git acotado y dev worker", "kind": "unit"},
+    {"id": "2.11", "label": "Conversación sintética + juez", "kind": "live", "catalog_provider": "tests.agent_headless.catalog:persona_groups"}
+  ]
+}

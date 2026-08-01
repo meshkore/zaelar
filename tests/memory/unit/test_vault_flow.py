@@ -1,7 +1,7 @@
 #
 # test_vault_flow.py — flujo de LECTURA de secretos del FlashBrain (V2-060 F1b): resolución difusa de etiqueta +
 # los desenlaces (no_vault/empty/not_found/locked/ok). El valor solo en 'ok'. Sin red (embeddings hash).
-# Ejecutar: .venv/bin/pytest tests/unit/memory/test_vault_flow.py
+# Ejecutar: .venv/bin/pytest tests/memory/unit/test_vault_flow.py
 #
 import pytest
 

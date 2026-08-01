@@ -1125,7 +1125,7 @@ async def _deliver_confirm(rec: "SessionRecord") -> None:
 
 # ── compat: llamada directa (tester) ───────────────────────────────────────────────────────────────────────
 async def dispatch(task: "Task") -> str:
-    """Compat: arranca una sesión y espera su resultado (para tester/llamadas directas)."""
+    """Compat: arranca una sesión y espera su resultado (para tests/voice/e2e/agent/llamadas directas)."""
     if not (task.request or "").strip():        # una petición vacía es un no-op, no una sesión
         return ""
     key = str(task.id)

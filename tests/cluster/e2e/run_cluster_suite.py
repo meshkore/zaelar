@@ -12,7 +12,7 @@ trailer de seguridad. Verifica el comportamiento OBSERVABLE que arregla la foren
 La MAQUINARIA se exige (sin respuesta = FAIL, exit 1); el JUICIO del modelo se reporta como WARN sin tumbar la
 suite. Appendea el resumen a `history.jsonl` (métrica longitudinal).
 
-Uso:  ./.venv/bin/python tests/e2e/cluster/run_cluster_suite.py
+Uso:  ./.venv/bin/python tests/cluster/e2e/run_cluster_suite.py
       (carga engine/.env + credential store automáticamente; requiere key del tier del canal)
 """
 from __future__ import annotations

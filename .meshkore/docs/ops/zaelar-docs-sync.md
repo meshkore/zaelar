@@ -48,7 +48,8 @@ zaelar debe poder correr en **macOS, Windows y Linux**. Al documentar instalaci�
 | toca seguridad (canal cluster, permisos, secretos) | `.meshkore/docs/security/zaelar-security.md` · la subsección de fronteras de confianza del `zaelar-architecture.md` · `CLAUDE.md` |
 | cambia un flujo ya dibujado | el **diagrama ASCII** correspondiente en `zaelar-architecture.md` (no dejar el dibujo obsoleto) |
 | añade ruta/endpoint/env/comando | el doc que lo describa (ops/architecture) · `config/.env.example` si es una env var |
-| **toca el catálogo de TOOLS del FlashBrain** (`nucleo/flash/router.py::TOOLS`: añade/quita/renombra una tool, cambia su descripción o su gating) | la **doc canónica `zaelar-architecture.md §8`** (única fuente) · el diagrama público `web/src/pages/technology/flashbrain.astro` + `web/src/lib/diagrams/flashbrain.ts` (solo si el cambio es significativo de cara a fuera — paso MANUAL, ningún workflow lo hace solo desde 2026-07-24) · `nucleo/flash/test_router.py` · re-comprobar el gating contextual en `providers/nucleo.py` + `nucleo/flash/probe.py` · `CLAUDE.md` si cambia una decisión. Toda tool debe estar JUSTIFICADA y encajar en el flujo V2-036 (nada de entradas muertas/stale). |
+| cambia estructura, comandos, suites, catálogo o protocolo de testing | `tests/README.md` · `.meshkore/docs/ops/zaelar-testing.md` · `tests/TESTMAP.md`/`tests/platform/SCHEMA.md` según corresponda · `CLAUDE.md` y `AGENTS.md` si cambia lo que deben hacer los agentes |
+| **toca el catálogo de TOOLS del FlashBrain** (`nucleo/flash/router.py::TOOLS`: añade/quita/renombra una tool, cambia su descripción o su gating) | la **doc canónica `zaelar-architecture.md §8`** (única fuente) · el diagrama público `web/src/pages/technology/flashbrain.astro` + `web/src/lib/diagrams/flashbrain.ts` (solo si el cambio es significativo de cara a fuera — paso MANUAL, ningún workflow lo hace solo desde 2026-07-24) · `tests/agent_headless/unit/flash/test_router.py` · re-comprobar el gating contextual en `providers/nucleo.py` + `nucleo/flash/probe.py` · `CLAUDE.md` si cambia una decisión. Toda tool debe estar JUSTIFICADA y encajar en el flujo V2-036 (nada de entradas muertas/stale). |
 | es visible para quien clona el repo | **`README.md`** (siempre que cambie qué instalar/cómo arrancar) |
 
 ## 3. Regla de oro: "que aparezca en los tres sitios"
@@ -56,6 +57,11 @@ zaelar debe poder correr en **macOS, Windows y Linux**. Al documentar instalaci�
 Todo concepto que importe debe ser hallable en: **(a) el contexto** (`CLAUDE.md`), **(b) la documentación canónica**
 (`.meshkore/docs/<categoría>/`), y **(c) la arquitectura** (`zaelar-architecture.md`, incluido su diagrama si el
 concepto es estructural o de flujo). Si algo solo está en el código, no está documentado.
+
+Para testing, la misma regla se concreta en cuatro capas sin duplicar instrucciones: `CLAUDE.md`/`AGENTS.md`
+enrutan al agente, `tests/README.md` da el contrato operativo, `zaelar-testing.md` explica el diagnóstico profundo y
+`tests/platform/SCHEMA.md` fija el contrato máquina. Un cambio de plataforma de tests debe mantener las cuatro
+coherentes.
 
 ## 4. Verificación
 

@@ -1,10 +1,10 @@
 """Orchestrator — starts everything at once against a running zaelar: the interlocutor (speaks/types), the live
-observation console (watch in a browser), and the judge (writes improvement reports to tester/runs/).
+observation console (watch in a browser), and the judge (writes improvement reports to tests/runs/agent/).
 
 Run (zaelar up on the LiveKit engine):
-    ./.venv/bin/python -m tester.run                      # all scenarios, opens the console, writes a report
-    ./.venv/bin/python -m tester.run --scenario agenda    # just one
-    ./.venv/bin/python -m tester.run --goal "..." --turns 6   # a free-form conversation
+    ./.venv/bin/python -m tests.voice.e2e.agent.run                      # all scenarios, opens the console, writes a report
+    ./.venv/bin/python -m tests.voice.e2e.agent.run --scenario agenda    # just one
+    ./.venv/bin/python -m tests.voice.e2e.agent.run --goal "..." --turns 6   # a free-form conversation
 
 Independent: talks to zaelar only over LiveKit + HTTP + data channel. Imports no zaelar core code.
 """
@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import json
+import os
 import subprocess
 import time
 import urllib.request
@@ -128,10 +129,14 @@ async def _dialog(link: VoiceLink, scenario, obs: Observer, tr=None) -> dict:
 async def run(args) -> None:
     config.RUNS_DIR.mkdir(parents=True, exist_ok=True)
     obs = Observer()
-    bound = await obs.start(args.port)
-    console = f"http://127.0.0.1:{bound}"
+    external_console = os.getenv("ZAELAR_TEST_DASHBOARD_URL", "")
+    if os.getenv("ZAELAR_TEST_EXTERNAL_DASHBOARD"):
+        console = external_console
+    else:
+        bound = await obs.start(args.port)
+        console = f"http://127.0.0.1:{bound}"
     print(f"▶ observation console: {console}")
-    if not args.no_open:
+    if not args.no_open and not external_console:
         try:
             subprocess.Popen(["open", console])
         except Exception:
@@ -207,7 +212,7 @@ async def run(args) -> None:
     await tr.aclose()
     stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime())
     report_path = reportmod.build(results, stamp, config.RUNS_DIR)
-    obs.push({"kind": "verdict", "text": f"✓ informe → {report_path.name} (en tester/runs/)"})
+    obs.push({"kind": "verdict", "text": f"✓ informe → {report_path.name} (en tests/runs/agent/)"})
     print(f"✓ report → {report_path}")
 
     print(f"▶ console live at {console} for {args.hold}s")

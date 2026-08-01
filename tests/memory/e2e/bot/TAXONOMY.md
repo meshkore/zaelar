@@ -54,8 +54,8 @@ auditoría quitó de los fewshots), y con las **4 dimensiones nuevas AD–AG** q
 auditoría. Se corre con `--corpus v2` (BD/progreso/catálogo AISLADOS de v1; la GOLD de 1032 queda intacta):
 
 ```bash
-python -m tests.e2e.memory.bot.runner --corpus v2 --coverage
-python -m tests.e2e.memory.bot.runner --corpus v2 --fresh --range 0 N
+python -m tests.memory.e2e.bot.runner --corpus v2 --coverage
+python -m tests.memory.e2e.bot.runner --corpus v2 --fresh --range 0 N
 ```
 
 Estado inicial (2026-07-14): **650 casos, 33 dimensiones**. Baseline de humo `[0,46]` = 42/46 (los 4 rojos son

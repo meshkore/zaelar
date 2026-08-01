@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "id": "memory-corpus",
+  "label": "Batería masiva de memoria",
+  "description": "Requests acumulativos sobre estado, corto, largo, recall, fuentes, olvido, episodios y escala.",
+  "chronology": {
+    "id": "timeline-6m",
+    "label": "Vida cronológica · 180 días",
+    "source": "tests/memory/e2e/timeline/cases.py",
+    "mode": "una BD aislada; orden causal; reloj real inyectado; replay obligatorio del prefijo"
+  },
+  "corpora": [
+    {"id": "v4", "label": "Gateway conversación → memoria", "module": "cases4", "persona": "diálogo natural", "mode": "CORAZÓN real · multi-hecho · secuencial acumulativo"},
+    {"id": "v1", "label": "v1 · GOLD histórica", "module": "cases", "persona": "Ricart", "mode": "secuencial acumulativo"},
+    {"id": "v2", "label": "v2 · genericidad y multiidioma", "module": "cases2", "persona": "Amaia", "mode": "secuencial acumulativo"},
+    {"id": "v3", "label": "v3 · eficiencia bajo carga", "module": "cases3", "persona": "Amaia", "mode": "40 días simulados + agujas"}
+  ]
+}

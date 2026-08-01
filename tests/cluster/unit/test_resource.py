@@ -1,5 +1,5 @@
 #
-# Tests de la PROTECCIÓN DE RECURSOS del canal de cluster (V2-071). Run: .venv/bin/pytest connectors/meshkore/test_resource.py -q
+# Tests de la PROTECCIÓN DE RECURSOS del canal de cluster (V2-071). Run: .venv/bin/pytest tests/cluster/unit/test_resource.py -q
 #
 # El tercer robo: que un peer nos endose el trabajo CARO (generar su código/informe → gasta NUESTROS tokens sin
 # reciprocidad). Se detecta el desequilibrio y se protege EN SILENCIO (no se le comunica al peer). Cubre:

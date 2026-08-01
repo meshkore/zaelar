@@ -4,18 +4,17 @@
 # voz obliga a tocar los dos sitios. Parse tolerante (substring), suficiente para cazar la deriva típica (editar el
 # JS sin tocar el .py, o al revés).
 #
-import os
 import re
+from pathlib import Path
 
 from widgets import system_surfaces
 
-HERE = os.path.dirname(os.path.abspath(__file__))
-_JS = os.path.abspath(os.path.join(HERE, "..", "frontend", "app", "core", "system-surfaces.js"))
+ENGINE = Path(__file__).resolve().parents[4]
+_JS = ENGINE / "frontend" / "app" / "core" / "system-surfaces.js"
 
 
 def _js_text() -> str:
-    with open(_JS, encoding="utf-8") as f:
-        return f.read()
+    return _JS.read_text(encoding="utf-8")
 
 
 def test_every_backend_surface_and_alias_is_in_the_js():

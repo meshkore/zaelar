@@ -1,6 +1,6 @@
 #
 # Guard de confinamiento REAL del dev-worker (V2-076, auditoría 2026-07-26). Run:
-# .venv/bin/pytest nucleo/test_dev_worker_guard.py -q
+# .venv/bin/pytest tests/agent_headless/unit/test_dev_worker_guard.py -q
 #
 # Antes de este fix, Read/Write/Edit del dev-worker solo estaban "confinados" por una instrucción de prompt — un
 # bug/prompt-injection podía leer fuera del cwd temporal. Este módulo es un hook PreToolUse real: lo crítico de

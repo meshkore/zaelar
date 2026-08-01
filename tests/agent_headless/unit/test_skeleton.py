@@ -1,7 +1,7 @@
 #
 # test_skeleton.py — el esqueleto del cerebro v2 (V2-001, T37). Verifica que `import nucleo` (y todos sus
 # submódulos) funciona y que el CONTRATO está fijado: firmas presentes, stubs que levantan NotImplementedError
-# al llamarse (nada cableado a la voz todavía). Ejecutar: .venv/bin/pytest nucleo/test_skeleton.py
+# al llamarse (nada cableado a la voz todavía). Ejecutar: .venv/bin/pytest tests/agent_headless/unit/test_skeleton.py
 #
 import importlib
 

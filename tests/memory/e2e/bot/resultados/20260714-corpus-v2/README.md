@@ -1,6 +1,6 @@
 # Corpus v2 del test bot de memoria — preparado 2026-07-14 (post-auditoría V2-038)
 
-Segundo corpus (`tests/e2e/memory/bot/cases2.py`), hermano de la GOLD `cases.py` (1032, persona Ricart). Motivación
+Segundo corpus (`tests/memory/e2e/bot/cases2.py`), hermano de la GOLD `cases.py` (1032, persona Ricart). Motivación
 tras la auditoría del sistema de memoria: (1) **genericidad/multi-operador** — la GOLD es 100 % "Ricart de Barcelona",
 justo el sesgo que la auditoría quitó de los fewshots; (2) cubrir las **4 capacidades NUEVAS** de la auditoría.
 

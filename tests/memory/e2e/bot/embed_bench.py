@@ -1,12 +1,12 @@
-"""tests/e2e/memory/bot/embed_bench.py — benchmark de EMBEDDINGS locales a escala (V2-031 T1).
+"""tests/memory/e2e/bot/embed_bench.py — benchmark de EMBEDDINGS locales a escala (V2-031 T1).
 
 Copia la BD del bot, la RE-EMBEBE con un modelo candidato (`memory/reembed.py`) y corre `scale_eval` → compara
 `found@10`/recall@k contra embeddinggemma (768). El embedding fija el TECHO del retriever (found@10): un modelo
 más fuerte sube ese techo, que ni el reranker ni el grafo pueden superar. No toca la BD de producción del bot.
 
 Uso:
-  ./.venv/bin/python -m tests.e2e.memory.bot.embed_bench --model bge-m3 --provider ollama
-  ./.venv/bin/python -m tests.e2e.memory.bot.embed_bench --model intfloat/multilingual-e5-large --provider fastembed
+  ./.venv/bin/python -m tests.memory.e2e.bot.embed_bench --model bge-m3 --provider ollama
+  ./.venv/bin/python -m tests.memory.e2e.bot.embed_bench --model intfloat/multilingual-e5-large --provider fastembed
 """
 from __future__ import annotations
 
@@ -52,7 +52,7 @@ def main():
     rep_re = reembed.reembed()
     print(f"  re-embed: {rep_re.get('reindexed')}/{rep_re.get('total')} en {time.time()-t0:.0f}s · sig={reembed.signature()}")
 
-    from tests.e2e.memory.bot import scale_eval
+    from tests.memory.e2e.bot import scale_eval
     rep = scale_eval.evaluate(limit=10)
     rep.update({"model": args.model, "provider": args.provider, "dim": _emb.dim(),
                 "rerank": args.rerank, "signature": reembed.signature()})

@@ -1,5 +1,5 @@
 #
-# Permisos por-CLUSTER (V2-076) + su traducción al catálogo. Run: .venv/bin/pytest connectors/meshkore/test_perms.py -q
+# Permisos por-CLUSTER (V2-076) + su traducción al catálogo. Run: .venv/bin/pytest tests/cluster/unit/test_perms.py -q
 #
 # Base de la Parte A/C: un cluster nuevo DENIEGA todo (seguridad máxima); el operador eleva al conectar; el perfil se
 # traduce al subconjunto del catálogo del FlashBrain y al contexto de escalada ACOTADO. Permiso cero → sin tools →

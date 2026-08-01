@@ -1,4 +1,4 @@
-"""tests/e2e/memory/bot/cases.py — el GUION del test bot de memoria (V2-013 · V2-019).
+"""tests/memory/e2e/bot/cases.py — el GUION del test bot de memoria (V2-013 · V2-019).
 
 El bot role-play una PERSONA (el operador) que habla con zaelar a lo largo de una conversación LARGA (objetivo:
 1000 pasos), y por cada paso verifica que la memoria HUMANA de zaelar hace lo correcto:

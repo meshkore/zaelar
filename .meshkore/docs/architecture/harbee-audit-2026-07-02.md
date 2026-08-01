@@ -103,7 +103,7 @@ Severidad: **2 críticas/altas de seguridad de cluster · 2 XSS · 6 bugs de arq
 
 ## Dominio C — Seguridad del canal cluster (adversarial)
 
-Tests: **24 passed** (`connectors/meshkore/test_security.py`), coincide con la doc. Cobertura ciega en V1-V6.
+Tests: **24 passed** (`tests/cluster/unit/test_security.py`), coincide con la doc. Cobertura ciega en V1-V6.
 
 > **Actualización 2026-07-03 (INI-007 aplicada):** V1-V10 remediados (S-01…S-08, S-10) con tests adversariales (rojo pre-fix / verde post-fix); ahora **51 passed**. S-09 (tirith `fail_open:false`) queda pendiente del operador (requiere `brew install sheeki03/tap/tirith` primero). Ver INI-007 + diarios en `.meshkore/modules/{connectors,widgets}/logs/2026-07/`.
 

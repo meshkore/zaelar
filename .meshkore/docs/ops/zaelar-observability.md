@@ -176,9 +176,9 @@ lleva `op`+`ids` afectados (`services/sse.js` → `store.pushMemPulse`). Fuente:
 
 ## El tester independiente (INI-013) usa esta observabilidad
 
-`tester/interlocutor/trace.py` se **suscribe a `/events`** y captura la traza por escenario; el **juez GLM** (Z.AI)
+`tests/voice/e2e/agent/interlocutor/trace.py` se **suscribe a `/events`** y captura la traza por escenario; el **juez GLM** (Z.AI)
 la lee para verificar el comportamiento OBSERVABLE (acciones de frontend + cerebro), no solo el transcript. Los
-informes salen a `tester/runs/report_*.md` con las acciones de frontend observadas por escenario.
+informes salen a `tests/voice/e2e/agent/runs/report_*.md` con las acciones de frontend observadas por escenario.
 
 **Routing de modelos** (operador 2026-07-07): conducir el tester + juicio barato = **DeepSeek vía AIMLAPI**; juicio
 competente/razonamiento = **GLM vía Z.AI** (coding-plan, endpoint Anthropic `api.z.ai/api/anthropic`, con fallback a
@@ -187,8 +187,8 @@ DeepSeek). **Gemini free-tier = NO usable** (cuota 20/día, da 429). Claves en `
 
 ## Bucle autónomo nocturno
 
-- `tester/overnight.sh` — bucle: rota escenarios + goals creativos contra zaelar vivo, escribe informes.
-- `tester/guard.sh` — idempotente: levanta zaelar (`make run`, LiveKit nativo sin Docker) y el bucle si están caídos.
+- `tests/voice/e2e/agent/overnight.sh` — bucle: rota escenarios + goals creativos contra zaelar vivo, escribe informes.
+- `tests/voice/e2e/agent/guard.sh` — idempotente: levanta zaelar (`make run`, LiveKit nativo sin Docker) y el bucle si están caídos.
 - El loop autónomo (`/loop <intervalo> <prompt>`, skill `loop`) re-invoca al agente para: guard → leer último
   informe → arreglar el top bug → reprobar → documentar en INI-013 → repetir.
 

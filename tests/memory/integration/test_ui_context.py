@@ -77,10 +77,10 @@ def test_identify_prefers_open_widget_on_tie(monkeypatch):
     from widgets import runtime
     # dos widgets que EMPATAN para la misma query (mismo score por título)
     rows = [
-        {"w": {"id": "agenda", "title": "agenda"}, "kws": ["agenda"], "kw_tokens": {"agenda"},
-         "name": "agenda", "title": "agenda", "name_tokens": {"agenda"}, "desc_tokens": set()},
-        {"w": {"id": "agenda-pro", "title": "agenda"}, "kws": ["agenda"], "kw_tokens": {"agenda"},
-         "name": "agenda-pro", "title": "agenda", "name_tokens": {"agenda", "pro"}, "desc_tokens": set()},
+        {"w": {"id": "agenda", "title": "agenda"},
+         "aliases": ["agenda"], "alias_tokens": {"agenda"}},
+        {"w": {"id": "agenda-pro", "title": "agenda"},
+         "aliases": ["agenda"], "alias_tokens": {"agenda"}},
     ]
     monkeypatch.setattr(runtime, "_identify_index", lambda: rows)
     # sin contexto → ambiguo, sin match

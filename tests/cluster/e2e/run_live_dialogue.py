@@ -13,7 +13,7 @@ el que el `MeshKoreClient` entrega los frames (`bridge.on_event`) y saca los env
 («zalo») es un segundo LLM con su propia persona, así la conversación EMERGE turno a turno (no está scripteada) —
 como pidió el operador: comprobar que el diseño lleva de verdad una charla/desarrollo con otro agente.
 
-Uso:  ./.venv/bin/python tests/e2e/cluster/run_live_dialogue.py [--turns 6]
+Uso:  ./.venv/bin/python tests/cluster/e2e/run_live_dialogue.py [--turns 6]
 """
 from __future__ import annotations
 

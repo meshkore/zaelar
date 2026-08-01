@@ -1,5 +1,5 @@
 #
-# Sandbox de ejecución ligero (V2-076 Parte B). Run: .venv/bin/pytest nucleo/test_sandbox.py -q
+# Sandbox de ejecución ligero (V2-076 Parte B). Run: .venv/bin/pytest tests/agent_headless/unit/test_sandbox.py -q
 #
 # Certeza de que el código creado se puede EJECUTAR para auditarlo sin comprometer el host de forma casual:
 # subproceso aislado (cwd temporal + env scrubbeado + topes + timeout). Soporta Python + SQLite.

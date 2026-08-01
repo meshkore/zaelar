@@ -1,6 +1,6 @@
 #
 # Tests del guard de seguridad del canal de cluster (connectors/meshkore/security.py).
-# Run: .venv/bin/pytest connectors/meshkore/test_security.py -q
+# Run: .venv/bin/pytest tests/cluster/unit/test_security.py -q
 #
 import asyncio
 

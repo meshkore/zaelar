@@ -1,7 +1,7 @@
 # zaelar — personal voice assistant, cerebro propio «Colmena» (nucleo/). Docs: README.md (install) + .meshkore/docs/.
 PY=./.venv/bin/python
 
-.PHONY: help run run-nucleo run-lk lk-server agent-worker stop down sim smoke test test-widgets install-livekit install-stt install-tts install-whatsapp install-telegram reset reset-dry reset-restart flash flash-repl flash-serve doctor
+.PHONY: help run run-nucleo run-lk lk-server agent-worker stop down sim smoke test test-list test-all test-ui test-widgets install-livekit install-stt install-tts install-whatsapp install-telegram reset reset-dry reset-restart flash flash-repl flash-serve doctor
 
 help:
 	@echo "zaelar targets:"
@@ -10,6 +10,9 @@ help:
 	@echo "  make sim            - run the bot-vs-bot reasoning simulator + judge (all personas)"
 	@echo "  make smoke          - quick single-persona sim (no judge)"
 	@echo "  make test           - import/health checks (no real voice; safe to run in CI)"
+	@echo "  make test-list      - list unified test suites"
+	@echo "  make test-all       - run all deterministic suites without opening a browser"
+	@echo "  make test-ui        - run all deterministic suites + open the realtime observatory"
 	@echo "  make test-widgets   - per-widget harness: contract + view_data golden shape + widget.js parse"
 	@echo "  make install-livekit- install the native LiveKit server binary (so 'make run' needs NO Docker)"
 	@echo "  make install-stt    - install FREE LOCAL speech-to-text (Whisper) — private, no per-use cost"
@@ -104,10 +107,10 @@ agent-worker:
 	$(PY) -m voice.engine.pipeline.agent dev
 
 sim:
-	$(PY) harness/run.py
+	$(PY) -m tests.agent_headless.harness.run
 
 smoke:
-	$(PY) harness/run.py skeptic 3
+	$(PY) -m tests.agent_headless.harness.run skeptic 3
 
 # Per-widget harness: contract gate + golden view_data() shape + ES-module parse (widgets/harness.py).
 test-widgets:
@@ -117,6 +120,16 @@ test-widgets:
 test:
 	$(PY) -c "import sys; sys.path.insert(0,'.'); import server; from voice.prompt import build_system_prompt; \
 	assert server.app.title=='zaelar'; assert 'zaelar' in build_system_prompt().lower(); print('OK zaelar imports + prompt')"
+
+# Unified test observatory. The CLI keeps the normal exit code for agents/CI and serves a durable local replay.
+test-list:
+	$(PY) -m tests list
+
+test-all:
+	$(PY) -m tests run all --no-open
+
+test-ui:
+	$(PY) -m tests run all
 
 # FREE LOCAL speech-to-text (faster-whisper). After this, STT_PROVIDER=auto runs 100% on-device (private, free).
 install-stt:

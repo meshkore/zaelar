@@ -2,7 +2,7 @@
 # test_ingest.py — la capa STATELESS de mensajería v2 (V2-008). Verifica: el gate v2 (sigue al cerebro nucleo,
 # con override por env), la publicación de connector.msg / connector.status / msg.mark_read al bus, y que la
 # MarkReadInbox de un conector solo drena las órdenes de SU plataforma.
-# Ejecutar: .venv/bin/python -m pytest connectors/messaging/test_ingest.py
+# Ejecutar: .venv/bin/python -m pytest tests/connectors/unit/messaging/test_ingest.py
 #
 import pytest
 

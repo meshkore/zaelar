@@ -66,7 +66,7 @@ voz un widget que reproduzca un vídeo de YouTube y luego mejorarlo**, insistien
 6. Comentar el vídeo: "va, este vídeo es antiguo" → (NO debe cerrar el widget; es un comentario).
 7. "Cierra el resto de widgets, **solo quiero el de YouTube**." → (cierra los otros, conserva youtube).
 
-Duración: ~7-10 turnos. Vale `--goal` (canal voz) o el escenario equivalente en `tester/scenarios.py`.
+Duración: ~7-10 turnos. Vale `--goal` (canal voz) o el escenario equivalente en `tests/voice/e2e/agent/scenarios.py`.
 
 ---
 

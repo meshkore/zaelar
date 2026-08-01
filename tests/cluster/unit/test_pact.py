@@ -1,5 +1,5 @@
 #
-# Tests del PACTO DE CONVERSACIÓN agente-agente (V2-072). Run: .venv/bin/pytest connectors/meshkore/test_pact.py -q
+# Tests del PACTO DE CONVERSACIÓN agente-agente (V2-072). Run: .venv/bin/pytest tests/cluster/unit/test_pact.py -q
 #
 # El 3er nivel de reglas (sistema-duro > operador > PACTO negociado), SOLO en el túnel agente-agente. Cubre:
 #   · el tag [[cluster.pact:NAME]]{json} que la mente emite al acordar normas

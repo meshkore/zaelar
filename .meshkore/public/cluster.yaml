@@ -33,10 +33,10 @@ modules:
   # files/ RETIRADO como módulo en V2-003 — plegado en la capa episódica de memory/ (bytes en el data-dir de la
   # memoria + resumen buscable; el upload vive en memory/server_api.py; files/ queda como shim de compatibilidad).
   - id: harness
-    path: harness/
+    path: tests/agent_headless/harness/
     description: Evaluation harness with persona-based test runs (text-level bot-vs-bot + judge)
   - id: tester
-    path: tester/
+    path: tests/voice/e2e/agent/
     description: Voice tester (INI-013) — a 2nd LiveKit participant that SPEAKS to zaelar (TTS) and LISTENS (STT), driving scenarios with a DeepSeek brain to detect things to improve (latency/turns/memory/agenda/widgets/robustness). Reuses the persona/judge/analyze/report logic of the prior sim candidate; transport is native LiveKit. Runnable/observable without a human mic. Dedicated key TESTER_AIMLAPI_KEY (never committed).
   # --- v2 «Colmena» (EPIC-v2-colmena; bus CONSTRUIDO + nucleo esqueleto en V2-001, resto V2-002→V2-010) ---
   - id: bus

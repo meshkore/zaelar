@@ -1,4 +1,4 @@
-"""tests/e2e/memory/bot/cases3.py — TERCER corpus del test bot de memoria: EFICIENCIA BAJO CARGA REAL.
+"""tests/memory/e2e/bot/cases3.py — TERCER corpus del test bot de memoria: EFICIENCIA BAJO CARGA REAL.
 
 Petición del operador (2026-07-14): «no me valen pruebecitas con cuatro datos en la memoria; si los metemos todos
 el LLM siempre acierta». La corrección de un dato ya la cubren v1 (GOLD) y v2 (genericidad + auditoría). Este corpus
@@ -18,7 +18,7 @@ Tres ejes que v1/v2 no atacan:
      LLENA, no vacía (que es cuando de verdad importan).
 
 Persona: **Amaia Etxeberria** (la misma que v2 — continuidad; ahora con 40 días de vida encima). Corre aislado:
-`python -m tests.e2e.memory.bot.runner --corpus v3 --fresh --range 0 N` (BD zaelar.membot3.db / progress-v3.json /
+`python -m tests.memory.e2e.bot.runner --corpus v3 --fresh --range 0 N` (BD zaelar.membot3.db / progress-v3.json /
 CATALOG3.md). REPETIBLE y determinista (sin azar ni reloj) → sirve para re-verificar refactors de arquitectura.
 
 Formato de cada caso = idéntico a cases.py/cases2.py. La AGREGACIÓN (abajo) mete PRIMERO todo el pajar (día 0 →

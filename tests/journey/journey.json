@@ -1,0 +1,180 @@
+{
+  "schema": 1,
+  "id": "whole-system-v1",
+  "label": "Una vida compartida · sistema completo",
+  "description": "Cada paso consume el estado producido anteriormente. Los IDs, sesión, memoria, canvas y tareas pertenecen a un único run aislado.",
+  "cases": [
+    {
+      "id": "J001", "phase": "arranque", "channel": "http", "op": "get", "path": "/api/status",
+      "title": "Arranca un engine aislado y comprueba la salud base",
+      "expected": {"keys": ["items"], "services": ["server", "brain", "memory", "widgets", "cluster"]},
+      "produces": ["engine.ready", "journey.workspace"], "consumes": []
+    },
+    {
+      "id": "J002", "phase": "arranque", "channel": "browser-api", "op": "get", "path": "/widgets",
+      "title": "Descubre el catálogo real de widgets antes de conversar",
+      "expected": {"keys": ["widgets"], "widget_ids": ["agenda", "search", "mensajeria", "navegador"]},
+      "produces": ["widgets.catalog.baseline"], "consumes": ["engine.ready"]
+    },
+    {
+      "id": "J003", "phase": "arranque", "channel": "meshkore-http", "op": "get", "path": "/api/meshkore/status",
+      "title": "Comprueba que el bridge WebSocket de MeshKore está cableado",
+      "expected": {"keys": ["wired", "clusters"], "equals": {"wired": true}},
+      "produces": ["meshkore.baseline"], "consumes": ["engine.ready"]
+    },
+    {
+      "id": "J004", "phase": "identidad", "channel": "headless", "op": "chat",
+      "title": "Extrae identidad y objetivos desde conversación natural",
+      "input": "Bueno, hoy salgo tarde del trabajo. Soy Nora, coordino emergencias y vivo en Valencia. Este año quiero aprender arquitectura bioclimática.",
+      "expected": {"ok": true, "memory_contains": ["Nora", "Valencia", "arquitectura"]},
+      "produces": ["memory.operator.name", "memory.operator.location", "memory.operator.job", "memory.goal.architecture"],
+      "consumes": ["engine.ready"]
+    },
+    {
+      "id": "J005", "phase": "identidad", "channel": "headless", "op": "chat",
+      "title": "Mantiene contexto inmediato sin repetir el sujeto",
+      "input": "Y de lo último, me interesa sobre todo cómo reducir el calor sin gastar tanta energía.",
+      "expected": {"ok": true, "reply_nonempty": true},
+      "produces": ["conversation.architecture.detail"], "consumes": ["memory.goal.architecture"]
+    },
+    {
+      "id": "J006", "phase": "identidad", "channel": "headless", "op": "reset_session",
+      "title": "Vacía solo la ventana de chat para obligar a usar memoria durable",
+      "expected": {"ok": true}, "produces": ["conversation.window.empty"], "consumes": ["conversation.architecture.detail"]
+    },
+    {
+      "id": "J007", "phase": "identidad", "channel": "headless", "op": "chat",
+      "title": "Recupera identidad y objetivo después de perder la ventana inmediata",
+      "input": "Recuérdame dónde vivo y qué quiero estudiar en serio.",
+      "expected": {"ok": true, "reply_contains": ["Valencia", "arquitectura"], "must_reference_state": "memory"},
+      "produces": ["memory.recall.verified"], "consumes": ["conversation.window.empty", "memory.operator.location", "memory.goal.architecture"]
+    },
+    {
+      "id": "J008", "phase": "contexto-widget", "channel": "headless", "op": "chat",
+      "title": "Pregunta por el tiempo usando la ubicación recordada",
+      "input": "¿Qué tiempo hará mañana aquí?",
+      "expected": {"ok": true, "actions_any": ["web_search", "chat"], "reply_nonempty": true},
+      "produces": ["conversation.topic.weather", "weather.answer"], "consumes": ["memory.operator.location"]
+    },
+    {
+      "id": "J009", "phase": "contexto-widget", "channel": "headless", "op": "chat",
+      "title": "Resuelve «muéstramelo» contra el tema meteorológico anterior",
+      "input": "Vale, pues muéstramelo y déjalo abierto.",
+      "expected": {"ok": true, "actions_any": ["canvas:show:search"]},
+      "produces": ["widget.meteo.requested"], "consumes": ["conversation.topic.weather", "weather.answer"]
+    },
+    {
+      "id": "J010", "phase": "contexto-widget", "channel": "browser-api", "op": "canvas",
+      "title": "El frontend confirma al cerebro que el widget meteorológico está abierto",
+      "input": {"open": ["search"]}, "expected": {"open_widgets": ["search"]},
+      "produces": ["canvas.open.meteo", "memory.state.open_widgets"], "consumes": ["widget.meteo.requested"]
+    },
+    {
+      "id": "J011", "phase": "contexto-widget", "channel": "headless", "op": "chat",
+      "title": "Modifica el widget implícito sin volver a nombrarlo",
+      "input": "Ponlo más grande y céntralo; sigo hablando del que acabas de abrir.",
+      "expected": {"ok": true, "reply_nonempty": true, "must_reference_state": "open_widgets"},
+      "produces": ["widget.meteo.contextual_change"], "consumes": ["canvas.open.meteo"]
+    },
+    {
+      "id": "J012", "phase": "agenda", "channel": "headless", "op": "chat",
+      "title": "Pide una cita con lenguaje natural dentro de la misma historia",
+      "input": "Apúntame mañana a las cinco una revisión de la moto de enduro.",
+      "expected": {"ok": true, "actions_any": ["widget_data", "canvas:show:agenda"]},
+      "produces": ["agenda.meeting.requested"], "consumes": ["memory.operator.location"]
+    },
+    {
+      "id": "J013", "phase": "agenda", "channel": "browser-api", "op": "widget_action", "widget": "agenda",
+      "title": "El canvas ejecuta la data-op emitida para la agenda",
+      "input": {"action": "add_meeting", "payload": {"title": "Revisión moto enduro", "date": "mañana", "startTime": "17:00", "endTime": "18:00"}},
+      "expected": {"contains": ["Revisión moto enduro", "17:00"]}, "produces": ["agenda.meeting.persisted"], "consumes": ["agenda.meeting.requested"]
+    },
+    {
+      "id": "J014", "phase": "agenda", "channel": "browser-api", "op": "get", "path": "/widgets/agenda/data",
+      "title": "Verifica inline que la agenda contiene la cita creada",
+      "expected": {"contains": ["Revisión moto enduro", "17:00"]},
+      "produces": ["agenda.meeting.verified"], "consumes": ["agenda.meeting.persisted"]
+    },
+    {
+      "id": "J015", "phase": "agenda", "channel": "headless", "op": "chat",
+      "title": "Pregunta por «eso de mañana» sin repetir moto ni agenda",
+      "input": "¿A qué hora era eso de mañana?",
+      "expected": {"ok": true, "reply_contains_any": ["cinco", "17"]},
+      "produces": ["agenda.contextual_recall"], "consumes": ["agenda.meeting.verified", "conversation.topic.weather"]
+    },
+    {
+      "id": "J016", "phase": "worker-busqueda", "channel": "headless", "op": "chat",
+      "title": "Crea una única búsqueda compleja de moto en Wallapop",
+      "input": "Busca en Wallapop una moto de enduro de 300 a 400 centímetros cúbicos, cuatro tiempos, para principiante y por menos de 6.000 euros.",
+      "execute": true,
+      "expected": {"ok": true, "actions_any": ["escalate", "escalate_to_slowbrain"], "min_new_tasks": 1, "max_new_tasks": 1},
+      "produces": ["worker.motorbike.task", "process.search.active"], "consumes": ["agenda.meeting.verified", "memory.operator.location"]
+    },
+    {
+      "id": "J017", "phase": "worker-busqueda", "channel": "observer", "op": "tasks",
+      "title": "La pestaña Procesos ve la búsqueda activa y su progreso",
+      "expected": {"min_matching": 1, "max_matching": 1, "contains_any": ["moto", "enduro", "Wallapop"]},
+      "produces": ["process.search.visible"], "consumes": ["process.search.active"]
+    },
+    {
+      "id": "J018", "phase": "worker-busqueda", "channel": "headless", "op": "chat",
+      "title": "Una aclaración modifica la tarea viva, no crea otra",
+      "input": "De la búsqueda que está en marcha, prioriza las que tengan arranque eléctrico y analiza cada resultado; no abras otra búsqueda.",
+      "execute": true,
+      "expected": {"ok": true, "max_total_matching_tasks": 1},
+      "produces": ["worker.motorbike.refined"], "consumes": ["worker.motorbike.task", "process.search.visible"]
+    },
+    {
+      "id": "J019", "phase": "worker-busqueda", "channel": "observer", "op": "debug",
+      "title": "Correlaciona escalada, worker, navegador y datos parciales en una sola traza",
+      "expected": {"event_kinds_any": ["worker_start", "task", "widget", "brain"], "contains_any": ["moto", "enduro"]},
+      "produces": ["trace.motorbike.verified"], "consumes": ["worker.motorbike.refined"]
+    },
+    {
+      "id": "J020", "phase": "conectores", "channel": "http", "op": "get", "path": "/api/connectors",
+      "title": "Lee el registro unificado de conectores sin inventar estados",
+      "expected": {"http_status": 200}, "produces": ["connectors.snapshot"], "consumes": ["engine.ready"]
+    },
+    {
+      "id": "J021", "phase": "conectores", "channel": "headless", "op": "chat",
+      "title": "Explica en lenguaje natural qué canales están conectados",
+      "input": "¿Qué canales tienes conectados ahora, incluido MeshKore? Dímelo sin enseñarme JSON.",
+      "expected": {"ok": true, "forbid_reply": ["{\"", "'wired':"]},
+      "produces": ["connectors.spoken_status"], "consumes": ["connectors.snapshot", "meshkore.baseline"]
+    },
+    {
+      "id": "J022", "phase": "cluster", "channel": "meshkore", "op": "cluster_dialogue",
+      "title": "Un peer retoma un objetivo sin filtrar la identidad del operador",
+      "input": "Retomemos el análisis de las motos: ¿qué criterio falta comprobar?",
+      "expected": {"machinery": true, "identity_safe": true, "no_reintro": true},
+      "produces": ["cluster.peer.turn"], "consumes": ["worker.motorbike.refined", "meshkore.baseline"]
+    },
+    {
+      "id": "J023", "phase": "memoria-cruzada", "channel": "headless", "op": "chat",
+      "title": "Corrige la ubicación después de múltiples dominios",
+      "input": "Por cierto, antes dije Valencia por costumbre, pero me he mudado a Castellón; Valencia es la ciudad anterior.",
+      "expected": {"ok": true, "memory_contains": ["Castellón"]},
+      "produces": ["memory.operator.location.corrected"], "consumes": ["memory.operator.location", "cluster.peer.turn"]
+    },
+    {
+      "id": "J024", "phase": "memoria-cruzada", "channel": "headless", "op": "reset_session",
+      "title": "Fuerza otro salto de sesión conservando memoria, widgets y procesos",
+      "expected": {"ok": true}, "produces": ["conversation.second_window.empty"], "consumes": ["memory.operator.location.corrected"]
+    },
+    {
+      "id": "J025", "phase": "memoria-cruzada", "channel": "headless", "op": "chat",
+      "title": "Recupera ciudad corregida, cita, widget y tarea tras reiniciar conversación",
+      "input": "Hazme un resumen de contexto: dónde vivo ahora, qué tengo mañana, qué widget dejé abierto y qué búsqueda seguía activa.",
+      "expected": {"ok": true, "reply_contains": ["Castellón"], "reply_contains_any": ["moto", "revisión", "tiempo"], "must_reference_state": "cross-domain"},
+      "produces": ["cross_domain.recall.verified"],
+      "consumes": ["conversation.second_window.empty", "memory.operator.location.corrected", "agenda.meeting.verified", "canvas.open.meteo", "worker.motorbike.refined"]
+    },
+    {
+      "id": "J026", "phase": "cierre", "channel": "observer", "op": "checkpoint",
+      "title": "Checkpoint final: memoria, canvas, agenda, workers, conectores y trazas coherentes",
+      "expected": {"memory": true, "canvas": ["search"], "agenda_contains": "Revisión moto enduro", "max_motorbike_tasks": 1, "traceable": true},
+      "produces": ["journey.complete"],
+      "consumes": ["cross_domain.recall.verified", "trace.motorbike.verified", "connectors.spoken_status"]
+    }
+  ]
+}

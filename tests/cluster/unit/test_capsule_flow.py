@@ -1,6 +1,6 @@
 #
 # Set de REGRESIÓN determinista de V2-069 «una sola mente» — la inteligencia de CONDUCCIÓN del canal de cluster.
-# Run: .venv/bin/pytest connectors/meshkore/test_capsule_flow.py -q
+# Run: .venv/bin/pytest tests/cluster/unit/test_capsule_flow.py -q
 #
 # No usa LLM (cero flaky): captura el texto EXACTO que el bridge le da al cerebro por turno (con un cerebro falso
 # que lo graba) y verifica el contrato que arregla la forense:

@@ -1,0 +1,15 @@
+{
+  "schema": 1,
+  "id": "connectors",
+  "label": "Conectores",
+  "description": "Email, mensajería, música, Spotify y architect",
+  "domain_ids": ["5"],
+  "requirements": ["python", "node"],
+  "steps": [
+    {"id": "5.1", "label": "Email", "kind": "unit"},
+    {"id": "5.2", "label": "Mensajería", "kind": "unit"},
+    {"id": "5.3", "label": "Música, Spotify y YouTube audio", "kind": "unit"},
+    {"id": "5.4", "label": "Architect", "kind": "unit"},
+    {"id": "5.5", "label": "WhatsApp: allowlist", "kind": "javascript"}
+  ]
+}

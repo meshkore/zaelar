@@ -33,7 +33,8 @@ _WS = re.compile(r"\s+")
 
 
 def _now() -> int:
-    return int(time.time())
+    from .clock import now
+    return now()
 
 
 def _norm(text: str) -> str:
@@ -243,15 +244,36 @@ def prune_invalid(now: int | None = None, after_days: float = PRUNE_INVALID_AFTE
     return pruned
 
 
-def consolidate(limit: int = DEFAULT_LIMIT, lam: float = DECAY_LAMBDA_PER_DAY, summarize_fn=None) -> dict:
+def expire_ttl(now: int | None = None) -> int:
+    """Invalidate expired non-pinned memories according to ``created + ttl_days``.
+
+    TTL was part of the schema and writer contract but was previously never
+    enforced. Expiration is soft: the historical row remains auditable and its
+    search indexes are pruned by the normal invalid-row phase.
+    """
+    db = _db.get_db()
+    now = now or _now()
+    with db.cursor() as cur:
+        cur.execute(
+            "UPDATE memories SET valid=0, updated=? "
+            "WHERE valid=1 AND pinned=0 AND ttl_days IS NOT NULL "
+            "AND created + CAST(ttl_days * 86400 AS INTEGER) <= ?",
+            (now, now),
+        )
+        return cur.rowcount
+
+
+def consolidate(limit: int = DEFAULT_LIMIT, lam: float = DECAY_LAMBDA_PER_DAY, summarize_fn=None,
+                now: int | None = None) -> dict:
     """Un ciclo de "sueño" LIGERO: heal_slots → promote → dedup → decay → prune → evict. Devuelve el informe.
     No es hot path. (El sueño PROFUNDO —dedup semántico + síntesis/insights, la fase REM— vive en
     `memory/rem.py` y lo dispara el loop con su propia cadencia.)"""
-    now = _now()
+    now = now or _now()
     healed = heal_slots()
     promoted = promote(now=now, summarize_fn=summarize_fn)
     deduped = dedup()
     decayed = decay(now=now, lam=lam)
+    expired = expire_ttl(now=now)
     pruned = prune_invalid(now=now)
     evicted = evict(limit=limit)
     # V2-079: el mismo barrido del sueño limpia el LEDGER de Brain Workers — borra ejecuciones terminadas viejas
@@ -268,6 +290,7 @@ def consolidate(limit: int = DEFAULT_LIMIT, lam: float = DECAY_LAMBDA_PER_DAY, s
         "promoted": promoted,
         "deduped": deduped,
         "decayed": decayed,
+        "expired": expired,
         "pruned": pruned,
         "evicted": evicted,
         "workers_pruned": workers_pruned,

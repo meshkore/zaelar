@@ -3,7 +3,7 @@
 # frontera del bus (sin red, con triaje stub): un connector.msg entrante RELEVANTE se tría, aflora al store de UI
 # y (por el mismo upsert) a la memoria; uno irrelevante NO aflora; connector.status se refleja en la tarjeta; y
 # una acción "read" publica msg.mark_read al bus (para que el conector correcto marque leído en su app).
-# Ejecutar: .venv/bin/python -m pytest widgets/mensajeria/test_owner_v2.py
+# Ejecutar: .venv/bin/python -m pytest tests/browser/unit/mensajeria/test_owner_v2.py
 #
 import asyncio
 

@@ -2,7 +2,7 @@
 
 Bug: el operador PREGUNTANDO por un widget ("¿por qué has abierto el de proyectos?") hacía que zaelar ABRIERA un
 widget espurio (el modelo emitía [[show]] y/o el fallback disparaba). Una pregunta/queja META sobre una acción
-pasada NUNCA es una orden de mostrar. Ejecutar: .venv/bin/pytest voice/engine/llm/providers/test_nucleo_guards.py
+pasada NUNCA es una orden de mostrar. Ejecutar: .venv/bin/pytest tests/voice/unit/providers/test_nucleo_guards.py
 """
 from voice.engine.llm.providers.nucleo import _is_meta_widget_question as meta, _norm_nfkd as norm
 
@@ -24,3 +24,13 @@ def test_real_commands_still_pass():
     assert _q("abre el navegador") is False
     assert _q("enséñame el reloj") is False
     assert _q("ponme el tiempo en pantalla") is False
+
+
+def test_deictic_show_resolves_topic_from_previous_turn(monkeypatch):
+    from voice.engine.llm.providers import nucleo
+
+    monkeypatch.setattr(nucleo, "_identify", lambda text: "meteo-soria" if "tiempo" in text.lower() else None)
+    context = [{"role": "user", "content": "¿Qué tiempo hará mañana aquí?"},
+               {"role": "assistant", "content": "Mañana estará despejado."}]
+    assert nucleo._show_guard_target("Vale, pues muéstramelo.", context) == "meteo-soria"
+    assert nucleo._show_guard_target("No muestres nada.", context) is None

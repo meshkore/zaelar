@@ -1,4 +1,4 @@
-"""tester/loop_cycle.py — CICLO LARGO y EXHAUSTIVO de verificación headless para el loop test→fix autónomo.
+"""tests/voice/e2e/agent/loop_cycle.py — CICLO LARGO y EXHAUSTIVO de verificación headless para el loop test→fix autónomo.
 
 Cubre TODO el catálogo de workflows por routing (canal probe, input limpio): memoria (recall+supersede),
 búsqueda, estudios/informes, reservar ITV (acción web), música + pista difusa + spotify-connect + listas,
@@ -7,9 +7,9 @@ multiidioma, robustez. La mayoría en sesión FRESCA con ingest=false (no invasi
 usa ingest=true (válido porque el loop hace `make reset-restart` limpio antes de cada ciclo).
 
 Imprime PASS/FAIL por check + resumen + FALLOS para que el agente del loop diagnostique y arregle por
-COMPRENSIÓN (ver tester/fixloop-web-music.md). Distinguir bug real vs rigidez del check vs ruido.
+COMPRENSIÓN (ver tests/voice/e2e/agent/fixloop-web-music.md). Distinguir bug real vs rigidez del check vs ruido.
 
-Uso:  ./.venv/bin/python -m tester.loop_cycle
+Uso:  ./.venv/bin/python -m tests.voice.e2e.agent.loop_cycle
 """
 from __future__ import annotations
 import json, urllib.request

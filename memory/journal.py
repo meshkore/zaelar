@@ -20,7 +20,8 @@ _STATUSES = ("pending", "in_progress", "done")
 
 
 def _now() -> int:
-    return int(time.time())
+    from .clock import now
+    return now()
 
 
 def _row_to_dict(row) -> dict:

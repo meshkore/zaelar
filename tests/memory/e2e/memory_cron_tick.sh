@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# memory_cron_tick.sh — ONE tick of the memory test→fix cron (V2-050, hermano de tester/cron_tick.sh).
+# memory_cron_tick.sh — ONE tick of the memory test→fix cron (V2-050, hermano de tests/voice/e2e/agent/cron_tick.sh).
 # Mitad DETERMINISTA del bucle (el agente Claude hace la mitad de juicio/arreglo, leyendo el VERDICT):
 #   1) REGRESIÓN rápida: pytest de precisión de memoria (gates V2-033/V2-050 + unit + integration). BD aislada,
 #      SIN servidor, SIN GPU — es la red que garantiza que un fix nuevo no rompe lo anterior.
@@ -10,7 +10,7 @@
 set -uo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 PY="$HERE/.venv/bin/python"
-RUNS="$HERE/tests/e2e/memory/bot/runs"; mkdir -p "$RUNS"
+RUNS="$HERE/tests/memory/e2e/bot/runs"; mkdir -p "$RUNS"
 CURSOR="$RUNS/.cron-cursor"
 LOG="$RUNS/cron.log"
 
@@ -18,9 +18,9 @@ say(){ echo "[mem_cron $(date +%H:%M:%S)] $*"; }
 cd "$HERE" || { echo "VERDICT status=INFRA phase=cd reason=no_repo"; exit 0; }
 
 # ── 1) REGRESIÓN determinista (pytest) ───────────────────────────────────────────────────────────────────────
-PYT_OUT=$("$PY" -m pytest tests/integration/memory/test_write_precision_v2050.py \
-                          tests/integration/memory/test_write_precision_v2033.py \
-                          nucleo/test_memory_agent.py memory/test_compose_state.py \
+PYT_OUT=$("$PY" -m pytest tests/memory/integration/test_write_precision_v2050.py \
+                          tests/memory/integration/test_write_precision_v2033.py \
+                          tests/memory/integration/test_memory_agent.py tests/memory/unit/test_compose_state.py \
                           -q --no-header 2>&1 | tail -3)
 echo "$PYT_OUT" >> "$LOG"
 if echo "$PYT_OUT" | grep -qE '[0-9]+ failed'; then
@@ -60,7 +60,7 @@ if curl -sf -m 3 http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
   # 2026-07-17). Fuente de verdad = "Progreso acumulado" (SIEMPRE al final, sobrevive al tail; con
   # --fresh refleja SOLO esta corrida); fallback a "=== TANDA".
   BOT_OUT=$(ZAELAR_DB="$HERE/memory/_data/zaelar.membot.db" MEM_PROCESSOR=1 \
-            "$PY" -m tests.e2e.memory.bot.runner --fresh --range 0 "$HI" --corpus "$CORPUS" 2>&1 | tail -$(( MAXD + 40 )))
+            "$PY" -m tests.memory.e2e.bot.runner --fresh --range 0 "$HI" --corpus "$CORPUS" 2>&1 | tail -$(( MAXD + 40 )))
   echo "$BOT_OUT" >> "$LOG"
   BOT_LINE=$(echo "$BOT_OUT" | grep -E 'Progreso acumulado' | tail -1)
   [ -z "$BOT_LINE" ] && BOT_LINE=$(echo "$BOT_OUT" | grep -E '=== TANDA' | tail -1)

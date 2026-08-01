@@ -3,18 +3,18 @@
 # Deterministic half of the loop (the Claude agent does the judging/fixing half):
 #   1) ensure zaelar is UP on :43917 (make run + readiness wait if down)
 #   2) if the operator is LIVE in a voice session, SKIP this tick (don't contend the single THREAD worker)
-#   3) pick the NEXT scenario round-robin (cursor persisted in tester/runs/.cron-cursor)
+#   3) pick the NEXT scenario round-robin (cursor persisted in tests/runs/agent/.cron-cursor)
 #   4) run exactly that one scenario (black-box, no browser, no lingering)
 #   5) print a compact VERDICT block the agent parses to decide PASS / FIX / INFRA
 # Never creates profiles; runs against the LIVE account (operator-authorized). Exit 0 always (agent reads output).
 set -uo pipefail
-HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../.." && pwd)"
 PY="$HERE/.venv/bin/python"
-RUNS="$HERE/tester/runs"; mkdir -p "$RUNS"
+RUNS="$HERE/tests/runs/agent"; mkdir -p "$RUNS"
 CURSOR="$RUNS/.cron-cursor"
 URL="http://127.0.0.1:43917"
 
-# curated rotation — meaningful, complete use-cases (kept in sync with tester/scenarios.py)
+# curated rotation — meaningful, complete use-cases (kept in sync with tests/voice/e2e/agent/scenarios.py)
 SCENARIOS=(mensajeria widget navegador_moto reserva_web musica musica_difusa musica_spotify_connect youtube_voice conectores memory search busqueda_web agenda complex_idea conversation chat paste archivos websocket)
 
 say(){ echo "[cron_tick $(date +%H:%M:%S)] $*"; }
@@ -48,7 +48,7 @@ say "scenario=$S (cursor $idx)"
 
 # 4) run it — with a portable watchdog (macOS has no `timeout`): kill the run if it exceeds MAX_RUN seconds
 MAX_RUN=${CRON_TICK_MAX_RUN:-300}
-"$PY" -m tester.run --scenario "$S" --no-open --hold 0 >> "$RUNS/cron.log" 2>&1 &
+"$PY" -m tests.voice.e2e.agent.run --scenario "$S" --no-open --hold 0 >> "$RUNS/cron.log" 2>&1 &
 RUN_PID=$!
 ( sleep "$MAX_RUN"; kill -0 "$RUN_PID" 2>/dev/null && { say "run exceeded ${MAX_RUN}s → killing"; kill -TERM "$RUN_PID" 2>/dev/null; sleep 3; kill -9 "$RUN_PID" 2>/dev/null; } ) &
 WATCH_PID=$!

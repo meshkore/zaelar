@@ -1,19 +1,52 @@
 # zaelar — Playbook de testing del bot ("lanza un test del bot")
 
+> **Entrada operativa obligatoria para agentes:** leer primero `tests/README.md`. Ese archivo contiene el contrato
+> conciso terminal↔UI, selección de suite, aislamiento, puertos y cómo añadir runners. Este playbook es la capa
+> profunda para preparar escenarios vivos, diagnosticar resultados y archivar evidencia. Si hubiera contradicción,
+> mandan el comportamiento del CLI actual + `tests/platform/SCHEMA.md`, y se deben alinear ambos documentos en el
+> mismo cambio.
+
 > **Trigger**: cuando el operador dice **"lanza un test del bot"**, **"lanza la batería (de escenarios)"**,
 > **"prueba el bot en tuen"** o similar → ejecutar ESTE playbook de principio a fin. No hay que recordar los pasos
 > de memoria: viven aquí. La descripción de las PIEZAS del sistema vive en `zaelar-architecture.md`/`CLAUDE.md`;
 > este doc es SOLO **cómo se prueba** (qué, con qué prioridad, cómo se evalúa, dónde se archiva).
 
-El bot se prueba **solo, sin micrófono humano**: un agente **tester** (`tester/`) se une a la sala LiveKit como 2º
+El bot se prueba **solo, sin micrófono humano**: un agente **tester** (`tests/voice/e2e/agent/`) se une a la sala LiveKit como 2º
 participante, HABLA por TTS y ESCUCHA por STT; un **JUEZ** (GLM-4.6 vía Z.AI, fallback DeepSeek) evalúa el
 comportamiento OBSERVABLE (acciones de frontend, tags del cerebro, escaladas, latencias) leyendo `GET /events`.
 Detalle del arnés: **INI-013** (`.meshkore/roadmap/initiatives/INI-013-voice-tester.md`).
 
+> **Entrada unificada + visor realtime (V2-077)** — `./.venv/bin/python -m tests run <suite>` ejecuta memoria,
+> agent-headless, voz, browser, conectores, cluster o infraestructura con el mismo contrato. En local abre
+> automáticamente **Zaelar Test Observatory** en `http://127.0.0.1:8765`; en CI usar `--no-open`. Cada nueva
+> ejecución hace handoff sobre ese mismo puerto y sustituye el dashboard anterior, sin dejar servidores huérfanos. Cada test, turno,
+> input/output, latencia, evento de agente y score se persiste en `tests/runs/<run-id>/events.jsonl`, y puede
+> reabrirse con `python -m tests replay <run-id>`. Para voz real: `python -m tests run voice --live` con zaelar UP.
+
 > **Mapa de tests navegable** — toda la superficie de pruebas es ahora recorrible por
 > **`tests/run_testmap.py`** (eje **dominio → caso de uso → canal**, numerado `1.1`/`2.1`/…), con la narrativa en
 > **`tests/TESTMAP.md`**. Son **9 dominios**; el **dominio 9 = HOMEOSTASIS** (la capa autónoma de salud de la
-> máquina, `nucleo/homeostasis.py` / `nucleo/test_homeostasis.py`, V2-070).
+> máquina, `nucleo/homeostasis.py` / `tests/infrastructure/unit/core/test_homeostasis.py`, V2-070).
+
+> **Contrato de mapa schema 2** — el Observatory consume un árbol común para TODOS los tipos principales:
+> `suite → pasos ordenados → grupos → casos`. Cada caso tiene ID estable, input, expectativa, verificación, ruta
+> interna, fuente y ejecución validada. Pytest se normaliza automáticamente y los corpus ricos se conectan con
+> `catalog_provider` (Memoria, Voz y Headless ya migrados). Se puede ejecutar una suite completa, un grupo en orden
+> o un caso desde el UI o con `python -m tests run <suite> --case <id>`. Especificación:
+> `tests/platform/SCHEMA.md`.
+
+> **Regla para Claude Code/Codex:** usar `--no-open` si no necesitan manejar el navegador. El Observatory se sigue
+> levantando en `127.0.0.1:8765`, por lo que el operador puede ser espectador y luego lanzar casos desde la web.
+> El motor real usa `127.0.0.1:43917`. No solapar dos runs del Observatory; no usar `make reset` como preparación
+> rutinaria; y declarar con honestidad si solo se ejecutó lógica determinista o si también se cruzó la frontera
+> real headless/Playwright/LiveKit.
+
+> **Viaje causal compartido** — para cambios que cruzan dominios ejecutar
+> `./.venv/bin/python -m tests run journey --no-open`. Son 26 pasos enlazados sobre un engine, memoria, canvas,
+> agenda y registro de workers aislados. Cada caso declara `consumes`/`produces`; lanzar un caso intermedio
+> reconstruye J001→caso. Incluye extracción natural, pronombres, widgets, cita, Wallapop, procesos, conectores,
+> cluster, corrección temporal y checkpoint. No sustituye las fronteras físicas de micrófono/STT/LiveKit,
+> Playwright o WebSocket remoto. Diseño completo: `tests/journey/README.md`.
 
 ---
 
@@ -21,13 +54,13 @@ Detalle del arnés: **INI-013** (`.meshkore/roadmap/initiatives/INI-013-voice-te
 
 Antes de probar hay que garantizar que **los escenarios prueban la versión ACTUAL del sistema**. Checklist:
 
-1. **Módulos principales cubiertos**: cada capacidad viva tiene al menos un escenario en `tester/scenarios.py`
-   (ver el catálogo en `tester/anexos/catalogo-escenarios.md`): conversación · memoria (guardar/recall/corrección) ·
+1. **Módulos principales cubiertos**: cada capacidad viva tiene al menos un escenario en `tests/voice/e2e/agent/scenarios.py`
+   (ver el catálogo en `tests/voice/e2e/agent/anexos/catalogo-escenarios.md`): conversación · memoria (guardar/recall/corrección) ·
    widgets (mostrar/crear/borrar) · búsqueda web factual · navegación web profunda (Wallapop/coches.net) ·
    mensajería unificada · conectores · cluster · paste/chat · multiidioma · **seguridad de datos (bóveda, V2-060)**.
 2. **Cambios de las últimas ~48 h**: `git log --oneline --since='48 hours ago'`. Por cada capacidad NUEVA o
    CAMBIADA (una tool nueva, un proveedor nuevo, un flujo nuevo), confirmar que hay escenario que la ejercita; si
-   no, **añadirlo a `tester/scenarios.py` + al catálogo** antes de lanzar. Mira también las **decisiones clave** con
+   no, **añadirlo a `tests/voice/e2e/agent/scenarios.py` + al catálogo** antes de lanzar. Mira también las **decisiones clave** con
    marca `V2-0xx` recién añadidas en `CLAUDE.md`.
 3. **Arranque real**: zaelar UP en `:43917` con la ÚLTIMA versión (si tocaste `.py`, reinicia — `make run` —, espera
    `/api/livekit` + `registered worker`, y confirma en el log el **prewarm** (`prewarm FlashBrain OK`) y
@@ -108,17 +141,17 @@ validas por texto corre igual en voz. Endpoint solo con `BRAIN=nucleo`. Ver `nuc
 Grupo ESPECIAL pedido por el operador: no prueba una feature sino **que el sistema se corrige a sí mismo** — el
 modelo potente debe discernir dónde está el problema cuando algo sale mal y corregir. Tres anclas:
 
-1. **Unit** — `nucleo/susurro/test_susurro.py` (fricción es/en, catálogo, aplicadores, engine con LLM falso,
+1. **Unit** — `tests/agent_headless/unit/susurro/test_susurro.py` (fricción es/en, catálogo, aplicadores, engine con LLM falso,
    cooldown, kill-switch). Corre con el pytest normal.
-2. **Integración headless** — `tests/e2e/susurro/run_probe_suite.py` (server vivo): simula fricción por el probe
+2. **Integración headless** — `tests/agent_headless/e2e/susurro/run_probe_suite.py` (server vivo): simula fricción por el probe
    (queja tras una acción), exige la MAQUINARIA completa (trigger → request CON payload → response → auditoría
    completa, eventos kind `susurro` en el timeline) y verifica que un `repair_say` sale HABLADO en el turno
    siguiente (el probe drena `brain_notes`). El JUICIO del modelo se reporta sin fallar la suite (decidir
    `corrections=[]` ante un tramo sano es correcto). **Cada run appendea a
-   `tests/e2e/susurro/history.jsonl`** — el histórico LONGITUDINAL: con el tiempo debe bajar la fricción por
+   `tests/agent_headless/e2e/susurro/history.jsonl`** — el histórico LONGITUDINAL: con el tiempo debe bajar la fricción por
    sesión y mejorar la calidad de diagnóstico (revisar ese fichero al evaluar oleadas). Ojo al `cooldown_s`
    (def 60s) entre runs.
-3. **Voz e2e** — escenario `susurro_reparacion` en `tester/scenarios.py` (rotación del cron): el tester se queja
+3. **Voz e2e** — escenario `susurro_reparacion` en `tests/voice/e2e/agent/scenarios.py` (rotación del cron): el tester se queja
    de viva voz y el juez verifica los eventos `susurro` + la reparación natural. Queja sin NINGÚN evento
    susurro = FAIL de maquinaria.
 
@@ -131,15 +164,15 @@ El canal de cluster es agente-a-agente (NO voz), así que el tester de voz no lo
 verifica la INTELIGENCIA de conducción (no re-presentarse, fase, objetivo presente, corte de bucle) y la SEGURIDAD
 (perfil untrusted: tools off + identidad-safe). Dos anclas:
 
-1. **Regresión determinista (sin LLM)** — `connectors/meshkore/test_capsule.py` + `test_capsule_flow.py` +
+1. **Regresión determinista (sin LLM)** — `tests/cluster/unit/test_capsule.py` + `test_capsule_flow.py` +
    `test_security.py` (guard de atasco). Capturan el prompt EXACTO que el bridge da al cerebro por turno y verifican:
    NO re-presentarse tras el 1er contacto, progresión de fase (saludo→sondeo→trabajo), objetivo del operador presente,
    cápsula inyectada, `build_cluster_system` identidad-safe (cero PII del operador), tools-off estructural, y la
    escalada de atasco (repetición → 1 asertivo → callar + avisar). Corren con el pytest normal.
-2. **e2e con el MOTOR REAL** — `tests/e2e/cluster/run_cluster_suite.py`: scriptea una conversación de peer y la pasa
+2. **e2e con el MOTOR REAL** — `tests/cluster/e2e/run_cluster_suite.py`: scriptea una conversación de peer y la pasa
    por `nucleo/flash/cluster.py::respond` (GLM-5.2) con el MISMO framing del bridge (cápsula + fence + trailer).
    Invariantes DUROS (maquinaria + identidad-safe + no-re-presentación) tumban la suite; el juicio blando
-   (intro/on-goal/conciso) se reporta. Appendea a `tests/e2e/cluster/history.jsonl` (longitudinal). Requiere la key
+   (intro/on-goal/conciso) se reporta. Appendea a `tests/cluster/e2e/history.jsonl` (longitudinal). Requiere la key
    del tier del canal (carga `.env` + credential store solo).
 
 ---
@@ -147,11 +180,13 @@ verifica la INTELIGENCIA de conducción (no re-presentarse, fase, objetivo prese
 ## Cómo se LANZA
 
 - **Batería completa** (todos los escenarios, con settle entre ellos para no saturar el worker THREAD):
-  `bash tester/run_battery.sh` → escribe una tabla resumen `tester/runs/battery_summary_<hhmmss>.tsv` + un informe
-  por escenario `tester/runs/report_*.{json,md}`. Variables: `BATTERY_SCENARIOS="a b c"` (subconjunto),
+  `bash tests/voice/e2e/agent/run_battery.sh` → escribe una tabla resumen `tests/voice/e2e/agent/runs/battery_summary_<hhmmss>.tsv` + un informe
+  por escenario `tests/voice/e2e/agent/runs/report_*.{json,md}`. Variables: `BATTERY_SCENARIOS="a b c"` (subconjunto),
   `BATTERY_SETTLE=12` (s entre escenarios), `BATTERY_MAX_RUN=360` (watchdog por escenario).
-- **Un solo tick** (rota por cursor): `bash tester/cron_tick.sh` — imprime un bloque `VERDICT status=…`.
-- **Un escenario suelto**: `./.venv/bin/python -m tester.run --scenario <id> --no-open --hold 0`.
+- **Un solo tick** (rota por cursor): `bash tests/voice/e2e/agent/cron_tick.sh` — imprime un bloque `VERDICT status=…`.
+- **Un escenario suelto**: `./.venv/bin/python -m tests run voice --case voice::scenario::<id> --no-open`
+  (acción canónica observable), o directamente
+  `./.venv/bin/python -m tests.voice.e2e.agent.run --scenario <id> --no-open --hold 0` para diagnosticar el arnés.
 - **Loop autónomo test→fix cada 15 min** (cron de sesión): ver INI-013 §"Cron test→fix loop" (`cron_tick.sh` +
   prompt del cron). Cada disparo prueba UN caso, el juez puntúa, y el agente ARREGLA el código si hay bug real.
 
@@ -184,13 +219,13 @@ el veredicto humano en el informe del día.
 
 ## Dónde se ARCHIVA (histórico consultable)
 
-- **Catálogo de escenarios** (qué se prueba y por qué): `tester/anexos/catalogo-escenarios.md` — se mantiene
-  alineado con `tester/scenarios.py` en el Paso 0.
-- **Informe de cada sesión de test**: al cerrar una tanda, crear una carpeta **`tester/reports/<YYYYMMDD>-<desc>/`**
-  (fecha invertida año-mes-día + descripción corta, p. ej. `tester/reports/20260711-bateria-v2024-google-prewarm/`)
+- **Catálogo de escenarios** (qué se prueba y por qué): `tests/voice/e2e/agent/anexos/catalogo-escenarios.md` — se mantiene
+  alineado con `tests/voice/e2e/agent/scenarios.py` en el Paso 0.
+- **Informe de cada sesión de test**: al cerrar una tanda, crear una carpeta **`tests/voice/e2e/agent/reports/<YYYYMMDD>-<desc>/`**
+  (fecha invertida año-mes-día + descripción corta, p. ej. `tests/voice/e2e/agent/reports/20260711-bateria-v2024-google-prewarm/`)
   con: la tabla resumen (`.tsv`), los `report_*.{json,md}` relevantes, y un **`INFORME.md`** con: qué se probó, la
   tabla de resultados, hallazgos (bug real vs ruido), arreglos hechos, y latencias antes/después. Así, repetir la
-  batería una semana después deja un histórico comparable. (Los `tester/runs/` son el scratch en crudo; `reports/`
+  batería una semana después deja un histórico comparable. (Los `tests/voice/e2e/agent/runs/` son el scratch en crudo; `reports/`
   es el archivo curado.)
 
 ---
@@ -205,12 +240,28 @@ el veredicto humano en el informe del día.
 ## Ciclo de re-verificación de la MEMORIA (test-bot de 1000+ requests)
 
 Aparte de la batería de voz, la memoria tiene su propio **ciclo de re-verificación**: el test-bot
-(`tests/e2e/memory/bot/`) role-play una PERSONA a lo largo de 1000+ pasos y verifica por el CAMINO REAL (escritura
-CORAZÓN LLM local + lectura FlashBrain sin LLM) que cada request cae/aflora donde debe, por **29 tipologías**
+(`tests/memory/e2e/bot/`) role-play una PERSONA a lo largo de 1000+ pasos y verifica por el CAMINO REAL (escritura
+CORAZÓN LLM configurado + lectura FlashBrain sin LLM) que cada request cae/aflora donde debe, por **29 tipologías**
 (ESTADO/CORTO/LARGO + dedup, grafo, multi-fuente, olvido, episódica, escala, contradicciones, adversarial,
 memoria→acción, anti-alucinación, validez-temporal, identidad-cross-sesión…). Corre como **loop autónomo
 avanzar-primero** (ola de 80 → triaje bug/flaky/test-flaw → commit) hasta una **pasada de ORO fresca 0→N en verde**.
+
+La primera batería del Observatory es **`Diálogo natural → memoria · gateway real`** (`cases4.py`): 15 turnos
+ordinarios multi-hecho que prueban extracción y descarte, división en píldoras, importancia/capa/TTL, slots y
+estado vigentes, correcciones y recall diferido. No utiliza frases artificiales «recuerda X». Run de control
+2026-08-01: **15/15 PASS** con el CORAZÓN real `gpt-4.1-mini`; la evidencia completa queda en
+`tests/runs/20260801-133729-memory-080645/`. Esta batería descubrió la pérdida de un incidente significativo dentro
+de una parrafada y la promoción indebida de café/cansancio a largo plazo; ambos criterios quedaron corregidos.
+
+La segunda batería es **`Vida cronológica · 180 días`** (`tests/memory/e2e/timeline/`): 966 operaciones sobre una
+única BD con reloj inyectado. Simula actividad diaria, TTL 2/20/90 días, objetivos durables, corrección
+Sevilla→Segovia en el día 45, refuerzo por frecuencia de consulta, consolidación nocturna, **REM diario durante los
+180 días**, y presión de capacidad. Un caso aislado reproduce siempre su prefijo causal. La cronología usa átomos
+estructurados para aislar el lifecycle; la extracción semántica pertenece al gateway v4 y a los corpus históricos.
+Run de control 2026-08-01: **966/966 PASS**, vivienda 26 accesos/peso 0,995; arquitectura 4/peso 0,970; 35
+recuerdos activos al final. La creación del corpus detectó y corrigió tres fallos reales: TTL almacenado pero no
+aplicado, doble borrado FTS tras prune+evict y refuerzo indiscriminado de todo el paquete de contexto.
 La metodología completa, cómo repetirla desde cero, la clasificación de fallos, cada-cuánto-se-cuestiona y las
 fronteras conocidas (no-determinismo del CORAZÓN, recall-a-escala del embedding local) están en el **playbook
 reutilizable**: `.meshkore/docs/ops/anexos/zaelar-memory-cycle-playbook.md`. Última corrida: 2026-07-12, **GOLD
-1032/1032, 9 bugs de código arreglados** (resultados en `tests/e2e/memory/bot/resultados/20260712-ciclo-1000/`).
+1032/1032, 9 bugs de código arreglados** (resultados en `tests/memory/e2e/bot/resultados/20260712-ciclo-1000/`).

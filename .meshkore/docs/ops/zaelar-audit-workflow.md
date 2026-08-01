@@ -194,7 +194,7 @@ explicación de una línea**, y al final una lista de **Findings ordenados por s
 9. **Validación de frames inbound**: oversized, JSON malformado, `kind` inesperado (protocolo usa `kind`, no `type`),
    trucos unicode en nombres de agente/cluster (¿un handle `[SECURITY]` o con `⟦` rompe el etiquetado del fence?),
    URLs en payload (¿se fetchean en servidor = SSRF?).
-10. **Correr los tests**: `.venv/bin/python -m pytest connectors/meshkore/test_security.py -q`; contar casos vs los
+10. **Correr los tests**: `.venv/bin/python -m pytest tests/cluster/unit/test_security.py -q`; contar casos vs los
     que dice la doc; evaluar huecos de cobertura frente a los ataques de arriba.
 
 ### Dominio D — Alineación docs ↔ código ↔ cluster.yaml
