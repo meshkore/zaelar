@@ -41,6 +41,16 @@ def _save(entries: list[dict]) -> None:
         pass
 
 
+def clear() -> int:
+    """Vacía el ledger (el HISTÓRICO de la pestaña Procesos). Lo usa el RESET para dejar los procesos EN BLANCO
+    («empezamos de cero»): matar los workers vivos limpia los chips, esto limpia el histórico. Devuelve cuántas
+    entradas se descartaron. El estado/memoria/datos de widgets NO se tocan (esto es solo el registro de procesos)."""
+    n = len(_load())
+    if n:
+        _save([])
+    return n
+
+
 def record_finish(*, id: str, kind: str = "", goal: str = "", status: str = "done",
                    started_at: float | None = None, finished_at: float | None = None,
                    trace_id: str = "", cron: str = "", ok: bool = False) -> None:
