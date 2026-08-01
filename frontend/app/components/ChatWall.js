@@ -12,9 +12,9 @@
 // A Ctrl+V anywhere on the page (see main.js) ALSO feeds the chat channel — pasted text reaches the agent even
 // while this panel is hidden; it shows up here the next time you open it.
 import { h, raw } from "../core/dom.js?v=2";
-import { createEffect } from "../core/reactive.js?v=2";
+import { createEffect, untrack } from "../core/reactive.js?v=2";
 import * as store from "../core/store.js?v=2";
-import * as session from "../services/session.js?v=2";
+import * as session from "../services/session.js?v=3";
 import * as api from "../services/api.js?v=2";
 import { makeResizable } from "../lib/resizable.js?v=1";
 import { CLOSE_ICON, TRASH_ICON } from "../lib/icons.js?v=1";
@@ -226,20 +226,40 @@ export function ChatWall() {
     if (store.chatOpen() && store.chatTab() === "procesos") store.fetchWorkerHistory();
   });
 
-  // MODO CHAT = VOZ OFF (V2-054 T1.1/T1.2): al ABRIR el chat apagamos la voz de zaelar — icono del altavoz a OFF
-  // (mute cliente) + señal al server para NO sintetizar TTS. Al CERRAR, restauramos el estado del altavoz PREVIO.
+  // MODO CHAT = VOZ OFF por DEFECTO (V2-054 T1.1/T1.2 · revisado V2-087): al ABRIR el chat silenciamos a zaelar
+  // —la respuesta ya se lee escrita, así que sintetizarla es latencia y coste tirados— y al CERRAR restauramos el
+  // estado previo del altavoz.
+  //
+  // V2-087: esto ya NO manda `setVoiceOutput` por su cuenta. Solo mueve el ICONO, y el icono es la única fuente
+  // de verdad: `toggleBotMute()` es quien avisa al server. Antes eran dos interruptores para una sola cosa y se
+  // desincronizaban — con el chat abierto podías pulsar 🔊, el icono se ponía en ON y no sonaba nada porque el
+  // server seguía sin sintetizar. Ahora el DEFECTO sigue siendo silencio al abrir el chat, pero el operador
+  // puede recuperar la voz con un clic SIN cerrarlo, y el icono nunca miente.
+  // El efecto depende SOLO de `chatOpen()`. El estado del altavoz se lee con `untrack` a propósito: leerlo de
+  // forma reactiva suscribía este efecto a `botMuted`, y como el efecto también lo ESCRIBE, se retroalimentaba —
+  // el operador pulsaba 🔊 con el chat abierto, el efecto se re-disparaba y lo re-silenciaba al instante. Se veía
+  // como un icono «bloqueado» (V2-087).
   let _prevMuted = null;
   createEffect(() => {
     const open = store.chatOpen();
+    untrack(() => {
     if (open) {
       if (_prevMuted === null) _prevMuted = store.botMuted();
-      if (!store.botMuted()) session.toggleBotMute();
-      session.setVoiceOutput(false);
+      if (!store.botMuted()) {
+        session.toggleBotMute();
+        // Decirlo con el MOTIVO: un «silenciado» a secas es lo que hizo perder una sesión entera buscando una
+        // avería de TTS que no existía. Si el operador sabe POR QUÉ está muda, sabe cómo devolverla.
+        store.setVoiceFlash({ text: "🔇 modo chat — sin voz (pulsa 🔊 para oírlo igualmente)", show: true });
+        setTimeout(() => store.setVoiceFlash(f => ({ ...f, show: false })), 2600);
+      }
     } else if (_prevMuted !== null) {
-      if (store.botMuted() !== _prevMuted) session.toggleBotMute();
-      session.setVoiceOutput(true);
+      // Restaurar SOLO si el silencio sigue siendo el que pusimos nosotros. Si el operador lo quitó a mano con el
+      // chat abierto, esa es su intención más reciente y mandan sus manos, no el estado previo: re-silenciarle al
+      // cerrar sería deshacerle una decisión explícita.
+      if (store.botMuted() && !_prevMuted) session.toggleBotMute();
       _prevMuted = null;
     }
+    });
     setReserve();          // closing releases the reserved strip; reopening while docked re-applies it
   });
 

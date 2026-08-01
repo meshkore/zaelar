@@ -4,7 +4,7 @@
 // control row below carries the mic + camera toggles and, set apart, the chat toggle.
 import { h, raw } from "../core/dom.js?v=2";
 import * as store from "../core/store.js?v=2";
-import * as session from "../services/session.js?v=2";
+import * as session from "../services/session.js?v=3";
 import { makeDraggable } from "../lib/draggable.js?v=2";
 
 const DRAG_SVG = `<svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><circle cx="2.5" cy="2.5" r="1.3"/><circle cx="7" cy="2.5" r="1.3"/><circle cx="11.5" cy="2.5" r="1.3"/><circle cx="2.5" cy="7" r="1.3"/><circle cx="7" cy="7" r="1.3"/><circle cx="11.5" cy="7" r="1.3"/><circle cx="2.5" cy="11.5" r="1.3"/><circle cx="7" cy="11.5" r="1.3"/><circle cx="11.5" cy="11.5" r="1.3"/></svg>`;

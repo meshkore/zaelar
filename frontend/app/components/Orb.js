@@ -21,7 +21,7 @@
 import { h, raw } from "../core/dom.js?v=2";
 import { createEffect, createSignal } from "../core/reactive.js?v=2";
 import * as store from "../core/store.js?v=2";
-import * as session from "../services/session.js?v=2";
+import * as session from "../services/session.js?v=3";
 import * as api from "../services/api.js?v=2";
 import { toggleTheme } from "../services/theme.js?v=2";
 import { makeDraggable } from "../lib/draggable.js?v=2";

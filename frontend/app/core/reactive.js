@@ -56,6 +56,19 @@ export function createEffect(fn) {
   return () => cleanupObserver(observer);
 }
 
+// untrack(fn) — lee señales SIN suscribirse a ellas. Firma idéntica a la de Solid (`untrack`), así que la
+// migración prevista arriba sigue siendo un cambio de import.
+//
+// Por qué hace falta (V2-087, bug real): un efecto que LEE una señal para DECIDIR y luego la ESCRIBE se
+// retroalimenta. Caso concreto: el efecto de ChatWall leía `botMuted()` para silenciar al abrir el chat, así que
+// quedaba suscrito — y cuando el operador pulsaba 🔊 para recuperar la voz, el efecto se re-disparaba, veía el
+// chat abierto y lo VOLVÍA A SILENCIAR. El icono parecía bloqueado: respondía y algo lo deshacía al instante.
+export function untrack(fn) {
+  const prev = currentObserver;
+  currentObserver = null;
+  try { return fn(); } finally { currentObserver = prev; }
+}
+
 // createMemo(fn) — derived, cached reactive value (read like a signal getter).
 export function createMemo(fn) {
   const [get, set] = createSignal(undefined);

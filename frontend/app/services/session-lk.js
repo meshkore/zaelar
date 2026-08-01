@@ -157,6 +157,12 @@ export function applyBotMute() {
 export function toggleBotMute() {
   const next = !store.botMuted(); store.setBotMuted(next); localStorage.setItem("hb_bot_muted", next ? "1" : "0");
   applyBotMute();
+  // EL ICONO MANDA (V2-087). Antes había DOS interruptores para una sola cosa: este (mute del <audio> local) y la
+  // síntesis del server, que gobernaba SOLO `chatOpen`. Con el chat abierto podías pulsar 🔊, el icono se ponía
+  // en ON, salía el aviso «con voz»… y no sonaba nada, porque el server seguía sin sintetizar. El icono MENTÍA y
+  // parecía bloqueado. Ahora el server sigue al icono: el chat abierto sigue silenciando por defecto (ahorra
+  // latencia y coste de TTS), pero el operador puede recuperar la voz con un clic sin cerrar el chat.
+  setVoiceOutput(!next);
   store.setVoiceFlash({ text: next ? "🔇 silenciado (sigue en marcha)" : "🔊 con voz", show: true });
   clearTimeout(toggleBotMute._t); toggleBotMute._t = setTimeout(() => store.setVoiceFlash(f => ({ ...f, show: false })), 1600);
 }
@@ -297,8 +303,10 @@ export async function start() {
         // SIN ack — si el mensaje se perdió en una reconexión a medias, el server podía quedar con audio_enabled
         // en False (modo chat) PARA SIEMPRE aunque el chat ya estuviera cerrado en el cliente ("no suena ni
         // subtitula" con el chat cerrado). Al (re)conectar, el cliente es AUTORITATIVO: re-afirma el estado REAL
-        // deseado según si el chat está abierto AHORA — mismo patrón que la reconciliación del canvas de arriba.
-        setVoiceOutput(!store.chatOpen());
+        // deseado — mismo patrón que la reconciliación del canvas de arriba.
+        // V2-087: la verdad es el ICONO (`botMuted`), no `chatOpen`. Antes esto reconciliaba contra el chat, así
+        // que una reconexión DESHACÍA el «quiero oírte con el chat abierto» que el operador acabara de pedir.
+        setVoiceOutput(!store.botMuted());
         _flushPendingText();
       }
       else if (st === ConnectionState.Reconnecting) store.setConnState("reconnecting…");

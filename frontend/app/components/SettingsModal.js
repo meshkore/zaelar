@@ -4,7 +4,7 @@
 import { h, raw } from "../core/dom.js?v=2";
 import { createSignal, createEffect } from "../core/reactive.js?v=2";
 import * as api from "../services/api.js?v=2";
-import * as session from "../services/session.js?v=2";
+import * as session from "../services/session.js?v=3";
 import { GEAR_ICON, PLAY_ICON } from "../lib/icons.js?v=1";
 
 const [isOpen, setOpen] = createSignal(false);

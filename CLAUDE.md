@@ -781,6 +781,22 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   (`desktop.js`, evento SSE `widget/alias` refresca en vivo). **Concepto fijado sin mezclar:** WIDGET (catálogo, alias
   editables) · SUPERFICIE DE SISTEMA (nativa, alias fijos) · TOOL (`router.TOOLS`) · ACCIÓN/data-op (≡"skill",
   `manifest.actions`) · EMBEDDING (solo memoria). `keyword ≡ alias` (D1): `keywords` legacy se siembra a `aliases`.
+- **El icono del altavoz MANDA — un solo interruptor para la voz** (V2-087, 2026-08-01): «abro el chat y la voz se
+  desactiva, y el icono se bloquea». Tres fallos encadenados detrás. **(a) DOS interruptores para una cosa:** el
+  icono movía solo el `<audio>` local, mientras la síntesis del server la gobernaba `chatOpen` por su cuenta →
+  con el chat abierto pulsabas 🔊, el icono se ponía en ON, salía «con voz» y no sonaba nada: **el icono mentía**.
+  **(b) MÓDULO DUPLICADO** (pre-existente, de alcance amplio): `main.js` importaba `services/session.js?v=3` y los
+  SEIS componentes `?v=2` — query distinta = **instancia distinta** en el navegador, y la de `?v=2` tenía
+  `room=null`, así que TODO lo que tocara la sala desde la UI (incluido `setVoiceOutput` del ChatWall) era un
+  no-op silencioso; el modo-chat-sin-voz funcionaba solo de rebote, por la reconciliación al (re)conectar.
+  Unificados los 7 imports. **(c) BUCLE REACTIVO:** el efecto de ChatWall LEÍA `botMuted()` y también lo ESCRIBÍA
+  → al desilenciar se re-disparaba y te re-silenciaba al instante (eso es lo que se veía como «bloqueado»). Fix:
+  `untrack()` nuevo en `core/reactive.js` (firma de Solid, la migración prevista sigue siendo un cambio de
+  import). **Diseño resultante:** el defecto sigue siendo silencio al abrir el chat (ahorra latencia y coste de
+  TTS), pero ahora el icono es la ÚNICA fuente de verdad —`toggleBotMute` avisa al server— así que recuperas la
+  voz con un clic sin cerrar el chat, y cerrarlo NO deshace tu clic manual. El aviso dice el MOTIVO («modo chat —
+  sin voz, pulsa 🔊 para oírlo igualmente»): un «silenciado» a secas costó una sesión entera buscando una avería
+  de TTS inexistente. Ver [[project_v2054_chat_mode_voice_off]].
 - **La RED es NATIVA, y hay clusters PÚBLICOS** (V2-086, 2026-08-01; detalle en `§3c` de
   `.meshkore/docs/architecture/zaelar-architecture.md`): el operador pegó la invitación oficial de MeshKore a un
   cluster público y no pasó nada. No era UN fallo sino **CUATRO apilados**: (1) `connect_cluster` gateada al widget

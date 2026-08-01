@@ -5,7 +5,7 @@
 // explicit, persisted exception. Reset clears the canvas. (operator 2026-07-07)
 import { h, raw } from "../core/dom.js?v=2";
 import * as store from "../core/store.js?v=2";
-import * as session from "../services/session.js?v=2";
+import * as session from "../services/session.js?v=3";
 import * as api from "../services/api.js?v=2";
 import { overallStatus } from "../services/status.js?v=2";
 import { BUG_ICON, GEAR_ICON, COMPASS_ICON } from "../lib/icons.js?v=1";
