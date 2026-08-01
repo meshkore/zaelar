@@ -836,22 +836,42 @@ class NucleoLLMStream(llm.LLMStream):
                         emit("brain", "🏗️ show_widget→CREATE: se escala al generador (no es un show)", role="system")
                     else:
                         from widgets import runtime
-                        _rid = ""
+                        # Resolver CON CERTEZA (V2-082): solo nombre/alias abren; contexto (abiertos>recientes) para
+                        # desempatar. Devuelve match (widget), system (superficie de sistema nombrada) o nada.
                         try:
-                            if _wid and runtime.get(_wid) is not None:      # id exacto del catálogo
-                                _rid = _wid
-                            else:                                            # nombre natural → id REAL del catálogo
-                                _m = (runtime.identify(_wid or text) or {}).get("match") or ""
-                                _rid = _m if (_m and runtime.get(_m) is not None) else ""
+                            from memory import api as _memapi
+                            _st = _memapi.state() or {}
+                            _open, _recent = _st.get("open_widgets") or [], _st.get("recent_widgets") or []
                         except Exception:
-                            _rid = _wid if runtime.get(_wid) is not None else ""
+                            _open, _recent = [], []
+                        _res = {}
+                        try:
+                            if _wid and runtime.get(_wid) is not None:       # id exacto del catálogo
+                                _res = {"match": _wid, "system": None}
+                            else:                                            # nombre/alias → id REAL o superficie
+                                _res = runtime.identify(_wid or text, open_ids=_open, recent_ids=_recent) or {}
+                        except Exception:
+                            _res = {"match": _wid if runtime.get(_wid) is not None else None, "system": None}
+                        _rid = _res.get("match") or ""
+                        _rid = _rid if (_rid and runtime.get(_rid) is not None) else ""
+                        _sys = _res.get("system")
                         if _rid:
                             _tag_emit("show", {"id": _rid})
                             emit("brain", "🪟 show_widget → canvas", text=_rid, role="system")
-                        elif escalate_req["v"] is None:
-                            # el widget pedido NO existe en el catálogo → probablemente hay que CREARLO → escala
-                            escalate_req["v"] = text
-                            emit("brain", "🏗️ show_widget sin match en catálogo → escala (posible CREATE)", role="system")
+                        elif _sys == "chat":
+                            # nombró el CHAT (superficie de sistema, no un widget) → abre el panel nativo.
+                            emit("panel", "open", extra={"tab": "chat", "src": "flash"})
+                            emit("brain", "🗂️ show_widget→chat (superficie de sistema)", role="system")
+                            acted["widget"] = True
+                        else:
+                            # V2-082: NO se fabrica un widget cuando no hay match. Si nombró una pieza de sistema o
+                            # nada reconocible → se PREGUNTA con naturalidad, jamás se escala al generador ni se abre
+                            # el "más parecido". (Crear solo con crea/genera/hazme/modifica, ya filtrado arriba.)
+                            clarify["msg"] = ("No tengo ninguna pieza con ese nombre; ¿cuál quieres que te abra?"
+                                              if _sys is None else
+                                              "Eso es una pieza del sistema; ábrela desde su botón o dime su nombre.")
+                            emit("brain", "🤔 show_widget sin match → pregunto (no fabrico widget)",
+                                 text=str(_sys or "—"), role="system")
             elif name == "show_panel":
                 # V2-079: abre el PANEL nativo lateral (ChatWall) en una pestaña por voz — 'enséñame los procesos',
                 # 'los crons', 'ábreme el chat'. NO es un widget del canvas: se emite un evento `panel` que el

@@ -6,9 +6,11 @@ from widgets import runtime
 
 
 def _row(wid: str, kw: str) -> dict:
-    """Fila del índice de identify para un widget ficticio con UNA keyword (para forzar empates controlados)."""
-    return {"w": {"id": wid, "title": wid}, "kws": [kw], "kw_tokens": {kw},
-            "name": wid, "title": wid, "name_tokens": {wid}, "desc_tokens": set()}
+    """Fila del índice de identify (contrato V2-082: alias/nombre) para un widget ficticio con UN alias extra
+    (para forzar empates controlados). El nombre (id) va como alias implícito, igual que en `_aliases_of`."""
+    aliases = [runtime._norm(wid), runtime._norm(kw)]
+    return {"w": {"id": wid, "title": wid}, "aliases": aliases,
+            "alias_tokens": {t for a in aliases for t in a.split()}}
 
 
 def test_tie_broken_by_open(monkeypatch):

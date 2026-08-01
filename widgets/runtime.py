@@ -69,12 +69,32 @@ def _norm(s: str) -> str:
 
 
 # Identification index, rebuilt only when the catalog changes (same signature as the catalog cache). Holds the
-# pre-normalized keyword phrases + descriptive tokens per widget so identify() — which runs on every transcript —
-# does no normalization work per call beyond the query itself. This keeps it viable for catalogs of thousands.
+# pre-normalized ALIAS phrases + alias tokens per widget so identify() — which runs on every transcript — does no
+# normalization work per call beyond the query itself. Viable for catalogs of thousands.
 _index = {"sig": None, "rows": []}
 
 _STOP = set("el la los las un una de del en al a y o que con para por me mi tu su es hay este esta ese esa lo se "
             "the a an of in on to and or is are my".split())
+
+# La palabra "widget" (y sinónimos que usa el operador) es un SELECTOR de espacio de nombres (V2-082): si aparece,
+# el usuario se refiere a una PIEZA construida por él → se resuelve SOLO contra widgets de usuario, nunca contra una
+# superficie de sistema ("abre el widget de mensajería" jamás cae en el chat de sistema). Espejo LÉXICO de
+# router._WIDGET_SYN (aquí, no importado, para que runtime siga stdlib-only y sin ciclos).
+_WIDGET_WORD_RE = re.compile(r"\b(widget|gadget|tablero|contador|cuadro de mando|mini ?app|tarjeta)\b")
+
+
+def _aliases_of(w: dict) -> list[str]:
+    """Alias de IDENTIDAD de un widget (V2-082): `name`|`title`|id + `aliases` del manifest (o `keywords` legacy como
+    semilla — keyword ≡ alias). ÚNICA señal de apertura; la descripción ya NO abre nada. Normalizados, dedup."""
+    name = str(w.get("name") or w.get("title") or w.get("id") or "").strip()
+    seed = w.get("aliases") or w.get("keywords") or []
+    out, seen = [], set()
+    for a in [name, *seed]:
+        a = _norm(a)
+        if a and a not in seen:
+            seen.add(a)
+            out.append(a)
+    return out
 
 
 def _identify_index() -> list[dict]:
@@ -83,15 +103,58 @@ def _identify_index() -> list[dict]:
         return _index["rows"]
     rows = []
     for w in catalog():
-        kws = [_norm(k) for k in (w.get("keywords") or [])]
-        name_tokens = set(_norm(w.get("id", "")).split()) | set(_norm(w.get("title", "")).split())
-        desc_tokens = (set(_norm(w.get("description", "")).split()) |
-                       set(_norm(w.get("whenToUse", "")).split())) - _STOP
-        rows.append({"w": w, "kws": [k for k in kws if k], "kw_tokens": {t for k in kws for t in k.split()} - _STOP,
-                     "name": _norm(w.get("id", "")), "title": _norm(w.get("title", "")),
-                     "name_tokens": name_tokens - _STOP, "desc_tokens": desc_tokens})
+        aliases = _aliases_of(w)
+        rows.append({"w": w, "aliases": aliases,
+                     "alias_tokens": {t for a in aliases for t in a.split() if t not in _STOP}})
     _index["sig"], _index["rows"] = sig, rows
     return rows
+
+
+# ── Superficies de SISTEMA en el mismo espacio de nombres (V2-082) ──────────────────────────────────────────────
+_sys_index = {"loaded": False, "rows": []}
+
+
+def _system_index() -> list[dict]:
+    """Índice léxico de las superficies de sistema (chat, config, debug…): id + alias FIJOS normalizados. Fuente:
+    `widgets/system_surfaces.py` (espejo del front). Se carga una vez (la lista es estática, no cambia en runtime)."""
+    if _sys_index["loaded"]:
+        return _sys_index["rows"]
+    rows = []
+    try:
+        from . import system_surfaces
+        for s in system_surfaces.surfaces():
+            als, seen = [], set()
+            for a in [s["name"], *s["aliases"]]:
+                a = _norm(a)
+                if a and a not in seen:
+                    seen.add(a)
+                    als.append(a)
+            rows.append({"id": s["id"], "name": s["name"], "aliases": als,
+                         "alias_tokens": {t for a in als for t in a.split() if t not in _STOP}})
+    except Exception:
+        rows = []
+    _sys_index["loaded"], _sys_index["rows"] = True, rows
+    return rows
+
+
+def _alias_score(q: str, q_padded: str, q_tokens: list, aliases: list, alias_tokens: set) -> float:
+    """Puntuación de una pieza contra la query SOLO por NOMBRE/ALIAS (nunca por descripción). Frase de alias
+    alineada a palabra = señal fuerte; token de query difuso sobre un token de alias distintivo = tolerancia de
+    voz. Con certeza: la descripción no participa, así nada abre por parecido temático."""
+    score = 0.0
+    for a in aliases:
+        if f" {a} " in q_padded:                            # alias entero, alineado a palabra
+            score += 3 if (" " in a or len(a) > 6) else 2
+    fuzzy = 0.0
+    for t in q_tokens:                                      # tolerancia a erratas de voz: 'watsap'≈'wasap'
+        if len(t) > 4 and t not in alias_tokens:
+            m = difflib.get_close_matches(t, [x for x in alias_tokens if len(x) > 4], n=1, cutoff=0.84)
+            if m:
+                fuzzy += 2 if len(m[0]) > 4 else 1
+    return score + min(fuzzy, 2.0)                          # el difuso ayuda a aflorar pero nunca domina una frase
+
+
+_THRESHOLD = 2.0            # por debajo de 2 no se abre nada → se pregunta (certeza, V2-082)
 
 
 def _tiebreak_by_context(scored, top_score, ids, key: str):
@@ -104,57 +167,76 @@ def _tiebreak_by_context(scored, top_score, ids, key: str):
     return tied[0] if len(tied) == 1 else None
 
 
+def _match_system(q: str, q_padded: str, q_tokens: list):
+    """¿La query nombra una SUPERFICIE DE SISTEMA (chat/config/debug…)? Devuelve (id, score) del mejor o (None,0).
+    Mismo scoring alias-only que los widgets — así 'abre el chat' resuelve a sistema y no a un widget homónimo."""
+    best_id, best = None, 0.0
+    for row in _system_index():
+        s = _alias_score(q, q_padded, q_tokens, row["aliases"], row["alias_tokens"])
+        if s > best:
+            best_id, best = row["id"], s
+    return (best_id, best) if best >= _THRESHOLD else (None, 0.0)
+
+
 def identify(query: str, open_ids: list | None = None, recent_ids: list | None = None) -> dict:
-    """Map a free-text/voice request to a widget. Returns the best match + ranked candidates so the assistant
-    can DISAMBIGUATE ('do you mean this widget or that one?') when it's not clear (HANDOFF §0).
+    """Resuelve una petición de voz/texto a una PIEZA por su NOMBRE o ALIAS, con CERTEZA (V2-082).
 
-    Lexical-semantic scoring, stdlib-only (the step before real embeddings — see W-5 in INI-006):
-    accent-insensitive · keyword PHRASE hits keep their classic weights · single query tokens also match keyword
-    tokens with a fuzzy tolerance (difflib, catches voice-typos) · id/title hits dominate · description/whenToUse
-    token overlap adds a small tiebreak signal, capped so prose can never beat a real keyword.
+    Reglas duras (invierten el matching difuso anterior, causa de las confusiones):
+    - **Solo NOMBRE/ALIAS abren.** La `description`/`whenToUse` ya NO puntúa — se acabó el "abrió por parecido
+      temático". Tolerancia de voz (difflib) SOLO sobre tokens de alias.
+    - **La palabra "widget"** en la frase acota a widgets de USUARIO (ignora superficies de sistema).
+    - **Objeto de sistema nombrado** (chat/config/debug…) → `system` = su id y `match` = None (una superficie
+      jamás se devuelve como widget de usuario). El llamante rutea la superficie (show_panel / toggle).
+    - **Sin match de nombre/alias → `match` = None.** El llamante NO abre el más parecido: PREGUNTA con
+      naturalidad. Único matiz: si no casa ningún alias pero hay UN solo widget ABIERTO, opera sobre él
+      (`by_context`) — es lo que el operador tiene delante (data-op sobre la pieza en pantalla), no una apertura
+      a ciegas.
 
-    ACOTACIÓN por CONTEXTO cuando el top empata (V2-078, idea del operador — genérica, sin frases hardcodeadas):
-    los candidatos empatados se desempatan por PRIORIDAD **abiertos > usados hace poco**. `open_ids` = widgets en
-    pantalla AHORA; `recent_ids` = MRU de los usados hace poco aunque ya se cerraran (`state.recent_widgets`). Con
-    100 widgets pero 3 recién usados, "modifica el widget de X" cae en lo que el operador tiene delante/tocó hace
-    nada, no en un homónimo del catálogo. Solo desempata EMPATES — un nombre inequívoco (gana por score) manda igual
-    aunque no esté abierto. Devuelve también `score` (top) para que el llamante calibre la confianza."""
+    Devuelve {match, ambiguous, candidates, score, system, by_context}. `open_ids`/`recent_ids` desempatan
+    empates por prioridad abiertos > usados hace poco (V2-078)."""
     q = _norm(query)
     if not q:
-        return {"match": None, "ambiguous": False, "candidates": [], "score": 0.0}
+        return {"match": None, "ambiguous": False, "candidates": [], "score": 0.0,
+                "system": None, "by_context": False}
     q_padded = f" {q} "
     q_tokens = [t for t in q.split() if t not in _STOP]
+    has_widget_word = bool(_WIDGET_WORD_RE.search(q))
+
+    # 1) ¿nombra una superficie de sistema? (salvo que diga explícitamente "widget" → solo usuario)
+    system_id, system_score = (None, 0.0) if has_widget_word else _match_system(q, q_padded, q_tokens)
+
+    # 2) scoring de widgets de USUARIO, SOLO por alias/nombre
     scored = []
     for row in _identify_index():
-        score = 0.0
-        for kw in row["kws"]:
-            if f" {kw} " in q_padded:                       # whole keyword phrase, word-aligned
-                score += 2 if len(kw) > 4 else 1
-        # fuzzy per-token: 'tarrgona'≈'tarragona' (voice/typos). Only for meaningful tokens (>3 chars).
-        for t in q_tokens:
-            if len(t) > 3 and t not in row["kw_tokens"] and \
-                    difflib.get_close_matches(t, row["kw_tokens"], n=1, cutoff=0.84):
-                score += 1
-        if (row["name"] and row["name"] in q) or (row["title"] and row["title"] in q):
-            score += 3
-        overlap = len(set(q_tokens) & row["desc_tokens"])
-        if overlap:
-            score += min(0.5 * overlap, 1.5)               # weak signal, capped below one keyword hit
-        if score >= 1:                                      # description alone (<1) never surfaces a widget
-            scored.append((score, row["w"]))
+        s = _alias_score(q, q_padded, q_tokens, row["aliases"], row["alias_tokens"])
+        if s >= _THRESHOLD:
+            scored.append((s, row["w"]))
     scored.sort(key=lambda s: (-s[0], s[1].get("id", "")))
-    cands = [{"id": w["id"], "title": w["title"], "score": s} for s, w in scored]
+    cands = [{"id": w["id"], "title": w.get("title", ""), "score": s} for s, w in scored]
     top = scored[0][1] if scored else None
     top_score = scored[0][0] if scored else 0.0
-    # clear winner only if there is a unique top score
     ambiguous = len(scored) > 1 and scored[0][0] == scored[1][0]
-    # Desempate por CONTEXTO DE UI, POR PRIORIDAD: primero los ABIERTOS (lo que tiene DELANTE), y si ahí no hay un
-    # único ganador, los USADOS HACE POCO (MRU). Un solo empatado en la capa → ese gana; si no, sigue ambiguo (el
-    # llamante pregunta). Genérico: escala a cualquier widget custom sin tabla de casos.
     if ambiguous:
         winner = _tiebreak_by_context(scored, scored[0][0], open_ids, "open") \
             or _tiebreak_by_context(scored, scored[0][0], recent_ids, "recent")
         if winner is not None:
             top, ambiguous = winner, False
-    return {"match": (top["id"] if (top and not ambiguous) else None),
-            "ambiguous": ambiguous, "candidates": cands, "score": top_score}
+    match = top["id"] if (top and not ambiguous) else None
+
+    # 3) una superficie de sistema nombrada gana sobre un widget FLOJO: si el sistema puntúa >= al mejor widget,
+    #    NO devolvemos widget (evita que 'abre el chat' caiga en un widget con 'chats' de alias).
+    if system_id is not None and system_score >= top_score:
+        match, ambiguous = None, False
+
+    # 4) fallback de CONTEXTO: sin match de alias ni superficie, si hay UN solo widget abierto, opera sobre él
+    #    (lo que tiene DELANTE) — NUNCA una apertura a ciegas del "más parecido".
+    by_context = False
+    if match is None and system_id is None and not ambiguous:
+        singles = {str(i).split("::", 1)[0].strip().lower() for i in (open_ids or []) if str(i).strip()}
+        if len(singles) == 1:
+            only = next(iter(singles))
+            if get(only) is not None:
+                match, by_context = only, True
+
+    return {"match": match, "ambiguous": ambiguous, "candidates": cands, "score": top_score,
+            "system": (system_id if match is None else None), "by_context": by_context}
