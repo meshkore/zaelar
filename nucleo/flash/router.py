@@ -38,6 +38,7 @@ MUSIC = "music"        # V2-041: reproduce/controla música por un conector (pla
 VIDEO = "video"        # V2-045: reproduce un VÍDEO en el widget youtube (play_video) — hermano de MUSIC, VER≠OÍR
 SHOW = "show"          # MOSTRAR/ABRIR un widget del canvas (show_widget) — tool de 1ª clase, converge en [[show:id]]
 PANEL = "panel"        # V2-079: abre el PANEL nativo lateral (chat/procesos/crons) en una pestaña (show_panel)
+ALIAS = "alias"        # V2-082: añade/quita un NOMBRE/ALIAS de un widget (manage_widget_alias) — escritura de manifest
 ESCALATE = "escalate"  # el turno pide memoria/tools/razonamiento → se LANZA un Brain Worker async
 INJECT = "inject"      # V2-038: refina/amplía un Brain Worker EN MARCHA (send_to_worker) → inyecta, no relanza
 STOP = "stop"          # V2-038: mata un Brain Worker EN MARCHA (stop_worker)
@@ -46,8 +47,8 @@ ANSWER = "answer"      # V2-038: responde la pregunta de un Brain Worker que esp
 # Prioridad al colapsar varias tool calls de un mismo turno en una decisión (mayor = manda). STOP manda sobre todo
 # (si el operador pide parar Y otra cosa, primero para); ANSWER/INJECT por encima de ESCALATE (refinar/responder un
 # worker vivo antes que abrir otro). MUSIC va con las rutas ligeras (SEARCH), por debajo de las de worker.
-_PRIORITY = {CHAT: 0, STYLE: 1, SEARCH: 2, RECALL: 2, REVEAL: 2, MUSIC: 3, VIDEO: 3, SHOW: 3, PANEL: 3, ANSWER: 4,
-             INJECT: 5, ESCALATE: 6, STOP: 7}
+_PRIORITY = {CHAT: 0, STYLE: 1, SEARCH: 2, RECALL: 2, REVEAL: 2, MUSIC: 3, VIDEO: 3, SHOW: 3, PANEL: 3, ALIAS: 3,
+             ANSWER: 4, INJECT: 5, ESCALATE: 6, STOP: 7}
 
 
 @dataclass
@@ -175,6 +176,34 @@ TOOLS: list[dict] = [
                               "description": "cuál abrir: 'chat' | 'procesos' | 'crons' (elige por lo que pide el operador)"},
                 },
                 "required": ["panel"],
+            },
+        },
+    },
+    {
+        # V2-082: un widget tiene un NOMBRE + una lista de ALIAS por los que se abre. El operador puede EDITAR esa
+        # lista hablando ("añade el alias WhatsApp al widget de mensajería", "quítale el apodo X"). Es una escritura
+        # QUIRÚRGICA del manifest (widgets/aliases.py), NO regenerar el widget (no es escalate) NI cambiar sus datos
+        # (no es widget_data). Sinónimos del verbo en la DESCRIPCIÓN (el modelo mapea; nada de tabla hardcodeada).
+        "type": "function",
+        "function": {
+            "name": "manage_widget_alias",
+            "description": (
+                "AÑADE o QUITA un NOMBRE/ALIAS/APODO por el que se reconoce y abre un widget. Úsala cuando el "
+                "operador quiera cambiar CÓMO se llama o cómo se refiere a un widget: 'añade el alias WhatsApp al "
+                "widget de mensajería', 'ponle también el nombre X al widget de música', 'que el navegador también "
+                "se abra diciendo Chrome', 'quítale el apodo Y al reloj'. NO crea ni modifica el widget (su código): "
+                "solo su lista de nombres. NO cambia sus datos (para eso está widget_data). `widget_id` = el widget "
+                "a editar (id exacto o nombre natural). `alias` = el nombre/apodo a añadir o quitar. `op` = 'add' "
+                "(por defecto) o 'remove'."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "widget_id": {"type": "string", "description": "widget a editar (id exacto o nombre natural)"},
+                    "alias": {"type": "string", "description": "el nombre/alias/apodo a añadir o quitar"},
+                    "op": {"type": "string", "description": "'add' (por defecto) o 'remove'"},
+                },
+                "required": ["widget_id", "alias"],
             },
         },
     },
@@ -728,6 +757,7 @@ _SITUATIONAL = {
     "show_widget":           lambda ctx: ctx.get("has_widgets", True),   # solo si hay widgets que mostrar
     "widget_data":           lambda ctx: ctx.get("has_widgets", True),   # solo si hay widgets con acciones
     "delete_widget":         lambda ctx: ctx.get("has_widgets", True),   # solo si hay widgets que borrar
+    "manage_widget_alias":   lambda ctx: ctx.get("has_widgets", True),   # V2-082: editar nombres/alias de widgets
     "confirm_widget_delete": lambda ctx: ctx.get("confirm_pending", False),  # solo con un borrado en el aire
     "login_done":            lambda ctx: ctx.get("auth_pending", False),     # solo durante un login en curso
     "authenticate_web":      lambda ctx: ctx.get("allow_auth", True),        # operator-only; se puede apagar
@@ -811,6 +841,11 @@ def decide(name: str, args: dict | None = None) -> Decision:
         return Decision(SHOW, {"widget_id": (args.get("widget_id") or "").strip()})
     if name == "show_panel":
         return Decision(PANEL, {"panel": _canon_panel(args.get("panel"))})
+    if name == "manage_widget_alias":
+        _op = (args.get("op") or "add").strip().lower()
+        return Decision(ALIAS, {"widget_id": (args.get("widget_id") or "").strip(),
+                                "alias": (args.get("alias") or "").strip(),
+                                "op": "remove" if _op.startswith("rem") or _op in ("quitar", "borrar") else "add"})
     if name == "set_style_directive":
         return Decision(STYLE, {"directive": (args.get("directive") or "").strip()})
     if name == "send_to_worker":

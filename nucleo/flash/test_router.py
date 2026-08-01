@@ -6,7 +6,7 @@ from nucleo.flash.router import ANSWER, CHAT, ESCALATE, INJECT, MUSIC, STOP, STY
 def test_tools_are_openai_functions():
     names = {t["function"]["name"] for t in router.tools()}
     assert names == {"escalate_to_slowbrain", "set_style_directive", "show_widget", "show_panel", "fullscreen_widget",
-                     "widget_data", "delete_widget",
+                     "manage_widget_alias", "widget_data", "delete_widget",
                      "confirm_widget_delete", "authenticate_web", "login_done", "web_search", "recall",
                      "reveal_secret", "play_music", "play_video", "reply_message", "connect_cluster",
                      "set_cluster_objective", "send_to_worker", "stop_worker", "answer_worker"}
@@ -264,3 +264,16 @@ def test_show_panel_decision_and_canon():
     assert router._canon_panel("") == "procesos"           # default: el caso más pedido
     # show_panel está en el catálogo de tools ofrecido al modelo
     assert any(t["function"]["name"] == "show_panel" for t in router.TOOLS)
+
+
+def test_manage_widget_alias_decision():
+    # V2-082: añadir/quitar un alias de un widget por voz.
+    d = router.decide("manage_widget_alias", {"widget_id": "mensajeria", "alias": "WhatsApp"})
+    assert d.kind == router.ALIAS and d.payload["widget_id"] == "mensajeria"
+    assert d.payload["alias"] == "WhatsApp" and d.payload["op"] == "add"     # add por defecto
+    d = router.decide("manage_widget_alias", {"widget_id": "reloj", "alias": "x", "op": "remove"})
+    assert d.payload["op"] == "remove"
+    d = router.decide("manage_widget_alias", {"widget_id": "reloj", "alias": "x", "op": "quitar"})
+    assert d.payload["op"] == "remove"
+    # situacional: solo con widgets
+    assert "manage_widget_alias" in {t["function"]["name"] for t in router.tools(router.tool_context())}

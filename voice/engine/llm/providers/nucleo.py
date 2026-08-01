@@ -882,6 +882,33 @@ class NucleoLLMStream(llm.LLMStream):
                     emit("panel", "open", extra={"tab": _tab, "src": "flash"})
                     emit("brain", "🗂️ show_panel → panel nativo", text=_tab, role="system")
                     acted["widget"] = True     # cuenta como acción de UI (ack "nunca mudo" + no escala espurio)
+            elif name == "manage_widget_alias":
+                # V2-082: añade/quita un NOMBRE/ALIAS de un widget por voz ("añade el alias WhatsApp a mensajería").
+                # Escritura QUIRÚRGICA del manifest (no regenera código), con guard de colisión. Resuelve el widget
+                # por id exacto o por nombre/alias (mismo resolver de certeza). Off-loop (I/O de fichero + estado).
+                if "manage_widget_alias" not in _tool_fired:
+                    _tool_fired.add("manage_widget_alias")
+                    from widgets import aliases as _al, runtime as _rt_al
+                    _awid = (args.get("widget_id") or "").strip()
+                    _alias = (args.get("alias") or "").strip()
+                    _op = "remove" if str(args.get("op") or "add").lower().startswith(("rem", "quit", "borr")) else "add"
+                    _rid = _awid if (_awid and _rt_al.get(_awid) is not None) else \
+                        ((_rt_al.identify(_awid or text) or {}).get("match") or "")
+                    if not _rid:
+                        clarify["msg"] = "¿A qué widget le cambio el nombre? No lo localizo."
+                    elif not _alias:
+                        clarify["msg"] = "¿Qué alias quieres que le ponga?"
+                    else:
+                        _res = await asyncio.to_thread(_al.remove if _op == "remove" else _al.add, _rid, _alias)
+                        acted["widget"] = True
+                        if _res.get("ok") and not _res.get("unchanged"):
+                            clarify["msg"] = (f"Hecho, le quité el alias «{_alias}»." if _op == "remove"
+                                              else f"Hecho, «{_rid}» también responde ahora a «{_alias}».")
+                        elif _res.get("unchanged"):
+                            clarify["msg"] = (f"«{_rid}» ya {'no tenía' if _op == 'remove' else 'tenía'} ese alias.")
+                        else:
+                            clarify["msg"] = _res.get("error") or "No pude cambiar el alias."
+                        emit("brain", f"🏷️ manage_widget_alias {_op} → {_rid}", text=_alias, role="system")
             elif name == "fullscreen_widget":
                 # BUG real 2026-07-23: "ponme el vídeo a pantalla completa" no tenía tool → el modelo confabulaba
                 # éxito o inventaba una data-op falsa. Espejo de show_widget: resuelve el id (exacto o fuzzy) y
