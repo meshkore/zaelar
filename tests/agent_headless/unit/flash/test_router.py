@@ -9,7 +9,7 @@ def test_tools_are_openai_functions():
                      "manage_widget_alias", "widget_data", "delete_widget",
                      "confirm_widget_delete", "authenticate_web", "login_done", "web_search", "recall",
                      "reveal_secret", "play_music", "play_video", "reply_message", "connect_cluster",
-                     "set_cluster_objective", "send_to_worker", "stop_worker", "answer_worker"}
+                     "cluster_send", "set_cluster_objective", "send_to_worker", "stop_worker", "answer_worker"}
     for t in router.tools():
         assert t["type"] == "function"
         assert "parameters" in t["function"]
@@ -25,21 +25,44 @@ def test_worker_tools_are_situational():
     assert "answer_worker" in with_ask
 
 
-def test_connect_cluster_is_situational():
-    # V2-064: connect_cluster solo se ofrece con el widget cluster-registro abierto delante del operador — no en
-    # cada turno normal (sería ruido y superficie de ataque innecesaria si nunca se usa).
+def test_cluster_tools_are_always_offered():
+    """V2-086 — INVIERTE el gate de V2-064. Aquel exigía tener el widget `cluster-registro` abierto, lo que hacía
+    la capacidad INDESCUBRIBLE: para conectar un cluster NUEVO había que saber de antemano que primero tocaba
+    abrir un widget concreto. Comprobado en vivo el 2026-08-01 (turno 766): el operador pegó la invitación
+    oficial de MeshKore y `connect_cluster` ni siquiera estaba en el set ofrecido — el modelo no podía actuar.
+    Ese widget ya no existe (la red es superficie NATIVA) y la protección real contra el disparo espurio es la
+    CONFIRMACIÓN Sí/No determinista, no el gate."""
     normal = {t["function"]["name"] for t in router.tools(router.tool_context())}
-    assert "connect_cluster" not in normal
-    with_widget = {t["function"]["name"] for t in router.tools(router.tool_context(cluster_widget_open=True))}
-    assert "connect_cluster" in with_widget
+    assert "connect_cluster" in normal
+    assert "set_cluster_objective" in normal
 
 
-def test_set_cluster_objective_is_situational():
-    # T-02 (auditoría 2026-07-26): mismo gate que connect_cluster — solo con el widget cluster-registro delante.
-    normal = {t["function"]["name"] for t in router.tools(router.tool_context())}
-    assert "set_cluster_objective" not in normal
-    with_widget = {t["function"]["name"] for t in router.tools(router.tool_context(cluster_widget_open=True))}
-    assert "set_cluster_objective" in with_widget
+def test_cluster_send_needs_a_live_cluster():
+    """`cluster_send` sí es situacional, pero por ESTADO REAL (hay cluster conectado), no por tener una UI
+    abierta: sin nadie al otro lado no hay a quién escribir."""
+    off = {t["function"]["name"] for t in router.tools(router.tool_context())}
+    assert "cluster_send" not in off
+    on = {t["function"]["name"] for t in router.tools(router.tool_context(cluster_connected=True))}
+    assert "cluster_send" in on
+
+
+def test_connect_cluster_accepts_a_public_tokenless_cluster():
+    """V2-086: MeshKore tiene clusters PÚBLICOS sin token (Commons). El esquema exigía `token`, así que ese caso
+    era INEXPRESABLE — el modelo o se inventaba un token o no llamaba. Ahora solo el cluster_id es obligatorio."""
+    fn = next(t["function"] for t in router.TOOLS if t["function"]["name"] == "connect_cluster")
+    assert fn["parameters"]["required"] == ["cluster_id"]
+    assert "vis" in fn["parameters"]["properties"]
+
+
+def test_show_panel_routes_the_clusters_tab():
+    """La RED es la 4ª pestaña nativa del ChatWall (V2-086) — se abre por show_panel, como Procesos/Crons."""
+    assert router._canon_panel("clusters") == "clusters"
+    for word in ("cluster", "meshkore", "la red", "la malla", "conexiones", "peers"):
+        assert router._canon_panel(word) == "clusters", word
+    # …y no se ha llevado por delante el ruteo de las otras.
+    assert router._canon_panel("crons") == "crons"
+    assert router._canon_panel("chat") == "chat"
+    assert router._canon_panel("workers") == "procesos"
 
 
 def test_capability_tools_are_situational():
@@ -71,7 +94,9 @@ def test_tools_report_is_observable():
     assert rep["sz_tools"] > 0
     assert sum(rep["tool_families"].values()) == len(offered)
     # Lo PODADO también se registra: sin eso no se puede auditar por qué un turno no tuvo una tool.
-    assert "connect_cluster" in rep["tools_omitted"] and "send_to_worker" in rep["tools_omitted"]
+    # (V2-086: `connect_cluster` dejó de estar aquí a propósito — ya no se gatea.)
+    assert "cluster_send" in rep["tools_omitted"] and "send_to_worker" in rep["tools_omitted"]
+    assert "connect_cluster" not in rep["tools_omitted"]
 
 
 def test_tool_catalog_is_constant_sized(monkeypatch):

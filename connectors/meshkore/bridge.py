@@ -28,7 +28,8 @@ MAX_INFLIGHT = int(os.getenv("MESHKORE_MAX_INFLIGHT", "8"))  # cap queued/in-fli
 # not a new turn: reply ONCE, ignore verbatim repeats. Defensive hardening on the untrusted channel, same spirit
 # as MAX_INFLIGHT — does NOT change conversational style, only suppresses reacting to duplicate spam.
 DEDUP_SECS = float(os.getenv("MESHKORE_DEDUP_SECS", "60"))
-_REGISTRY_WIDGET = "cluster-registro"                       # widget to refresh on every cluster event
+# V2-086: la red dejó de tener widget. Cada evento de cluster avisa a la superficie NATIVA (pestaña «Clusters»
+# del ChatWall) por SSE, para que refresque estado/peers/contadores sin sondear.
 
 
 def _emit(*args, **kwargs):
@@ -97,10 +98,12 @@ class ClusterBridge:
         self._last_activity[name] = self._now()
 
     def _notify_registry(self):
-        """Touch the cluster-registro widget store so SSE fires → canvas re-renders with the latest log data."""
+        """Avisa a la pestaña NATIVA «Clusters» de que algo cambió en la red (V2-086) — conexión, presencia de un
+        peer, mensaje. El frontend la refresca desde `/api/meshkore/status`. Antes esto tocaba el store del widget
+        `cluster-registro` para forzar un re-render del canvas; ese widget ya no existe."""
         try:
-            from widgets import store as wstore
-            wstore.save(_REGISTRY_WIDGET, {"_tick": time.time_ns()})
+            from voice.observer import emit
+            emit("cluster", "changed", role="system")
         except Exception:
             pass
 
@@ -525,12 +528,25 @@ class ClusterBridge:
                     _emit("error", "cluster.connect: missing 'name'")
                     return
                 creds = store.resolve(name, data.get("cluster_id", ""), data.get("token", ""),
-                                      data.get("handle", ""))
+                                      data.get("handle", ""), data.get("vis", ""))
                 if not creds:
-                    _emit("error", f"cluster.connect '{name}': no cluster_id/token (paste them first)")
+                    # V2-086: el mensaje distingue los dos modos — un cluster PÚBLICO solo necesita el id, así que
+                    # "faltan credenciales" sería mentira y mandaría al operador a buscar un token que no existe.
+                    _emit("error", f"cluster.connect '{name}': falta el cluster_id "
+                                   "(y el token, si el cluster es privado)")
                     return
-                await self._manager.connect(name, creds["cluster_id"], creds["token"], creds.get("handle"))
-                store.save_cluster(name, creds["cluster_id"], creds["token"], creds.get("handle", "zaelar"))
+                _vis = creds.get("vis", "")
+                # Guard de COLISIÓN de alias (V2-086): nunca pisar las credenciales de otro cluster porque el
+                # modelo reutilizó un nombre por defecto. Ver store.unique_name.
+                _orig = name
+                name = store.unique_name(name, creds["cluster_id"])
+                if name != _orig:
+                    _emit("cluster", f"alias «{_orig}» ya es de otro cluster → se usa «{name}»",
+                          extra={"cluster": name})
+                await self._manager.connect(name, creds["cluster_id"], creds["token"], creds.get("handle"),
+                                            vis=_vis)
+                store.save_cluster(name, creds["cluster_id"], creds["token"], creds.get("handle", "zaelar"),
+                                   vis=_vis)
                 # PERMISOS al conectar (V2-076): el operador puede conceder capacidades a ESTE cluster en el mismo
                 # acto de conectar (p.ej. code+repo). Por defecto (sin `perms`) el cluster queda en seguridad máxima.
                 if isinstance(data.get("perms"), dict):

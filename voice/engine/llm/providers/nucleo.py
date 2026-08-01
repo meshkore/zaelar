@@ -561,22 +561,30 @@ class NucleoLLMStream(llm.LLMStream):
                 logger.warning(f"data confirm request falló: {e}")
 
         def _request_cluster_confirm(name: str, cluster_id: str, token: str, handle: str | None,
-                                     perms: dict | None = None) -> None:
+                                     perms: dict | None = None, vis: str = "") -> None:
             """V2-064, bug 2026-07-23: la sola DESCRIPCIÓN de la tool ('solo si el operador te lo pide') NO bastó —
             un bloque de texto pegado que se limitaba a MENCIONAR un cluster_id/token (sin que el operador pidiera
             nada aparte) hizo que el modelo llamara a `connect_cluster` igual, y encima confabuló "ya estoy
             conectado". Abrir un socket real a un cluster desconocido no puede depender de que el modelo pequeño
             distinga una orden de un texto que solo la menciona — así que, como con borrar un widget o una data-op
-            irreversible, se pide confirmación DETERMINISTA (overlay Sí/No en la tarjeta `cluster-registro`, que ya
-            tiene que estar abierta) antes de tocar la red. Sin un «sí» explícito del operador, nada se conecta."""
+            irreversible, se pide confirmación DETERMINISTA antes de tocar la red. Sin un «sí» explícito del
+            operador, nada se conecta.
+
+            V2-086: el Sí/No ya NO vive en una tarjeta del canvas (el widget `cluster-registro` se retiró: la red
+            es infraestructura del sistema, no un widget de usuario). Ahora se pinta en la pestaña NATIVA
+            «Clusters» del ChatWall, que además es donde el operador ve el resultado. Esto arregla de paso un
+            agujero real: la confirmación por BOTÓN nunca funcionó para conectar — `/widgets/{id}/confirm` solo
+            sabía resolver borrados, así que el único camino que cerraba el círculo era decir «sí» por voz."""
             try:
                 from widgets import confirm as _confirm
                 q = (f"¿Conectar al cluster MeshKore «{name}» (cluster_id {cluster_id[:10]}…)? Solo si tú me lo "
                      f"acabas de pedir — no por algo que hayas pegado o reenviado.")
                 _payload = {"name": name, "cluster_id": cluster_id, "token": token, "handle": handle}
+                if vis:
+                    _payload["vis"] = vis              # V2-086: cluster PÚBLICO (sin token) → viaja al connect
                 if perms:
                     _payload["perms"] = perms          # V2-076: la concesión viaja con la conexión → store.set_perms
-                _confirm.request("data", "cluster-registro", q,
+                _confirm.request("data", _confirm.NATIVE_CLUSTERS, q,
                                  op={"action": "connect_cluster", "payload": _payload})
                 confirm_state["opened"] = q
                 emit("brain", "🛰 confirmación de conexión a cluster pedida", text=name, role="system")
@@ -1022,14 +1030,54 @@ class NucleoLLMStream(llm.LLMStream):
                 # modelo distinguiera una orden real de un texto pegado que solo mencionaba un cluster_id/token.
                 _ccid = (args.get("cluster_id") or "").strip()
                 _ctok = (args.get("token") or "").strip()
-                if _ccid and _ctok:
+                # V2-086 — DOS clases de cluster. Antes la condición era `_ccid and _ctok`, así que un cluster
+                # PÚBLICO (MeshKore Commons: tokenless por diseño) se descartaba en silencio: la tool se llamaba,
+                # no pasaba nada y el operador no recibía ni un "no puedo". Ahora basta el cluster_id cuando el
+                # cluster es público; el token solo es obligatorio en los privados.
+                _cvis = (args.get("vis") or "").strip().lower()
+                if _cvis not in ("public", "private", ""):
+                    _cvis = ""
+                if _ccid and not _ctok and not _cvis:
+                    _cvis = "public"          # id sin token = solo puede ser un cluster abierto
+                if _ccid and (_ctok or _cvis == "public"):
                     _cname = (args.get("name") or "meshcore").strip() or "meshcore"
                     _chandle = (args.get("handle") or "").strip() or None
                     # PERMISOS al conectar (V2-076): si el operador concede código, se persiste con la conexión.
                     _cperms = None
                     if bool(args.get("code")):
                         _cperms = {"workers": True, "code": True, "repo": (args.get("repo") or "").strip() or None}
-                    _request_cluster_confirm(_cname, _ccid, _ctok, _chandle, perms=_cperms)
+                    _request_cluster_confirm(_cname, _ccid, _ctok, _chandle, perms=_cperms,
+                                             vis=("public" if _cvis == "public" else ""))
+            elif name == "cluster_send":
+                # V2-086: enviar al cluster, ahora como tool de 1ª clase (antes iba por widget_data sobre el
+                # widget `cluster-registro`, que ya no existe). Sale por el MISMO camino que el tag
+                # [[cluster.send]] → `bridge.dispatch_tag`, así que hereda el guard de salida (un secreto duro
+                # bloquea el envío) y el journal. No pide confirmación: es una comunicación normal que el
+                # operador acaba de pedir, como escribir en un chat.
+                _stext = (args.get("text") or "").strip()
+                if _stext:
+                    _sto = (args.get("to") or "").strip()
+                    _scl = (args.get("cluster") or "").strip()
+                    if not _scl:
+                        try:
+                            from connectors import meshkore as _mk2
+                            _live = [c for c in _mk2.get_manager().clusters() if c.get("connected")]
+                            _scl = _live[0]["name"] if len(_live) == 1 else ""
+                        except Exception:
+                            _scl = ""
+                    if _scl:
+                        _data = {"text": _stext}
+                        if _sto:
+                            _data["to"] = _sto
+                        try:
+                            from connectors import meshkore as _mk3
+                            _spawn(_mk3.dispatch_tag(f"cluster.send:{_scl}", {"data": _data}), "cluster-send")
+                            emit("brain", "🛰 mensaje enviado al cluster", role="system",
+                                 text=f"{_scl}{('→' + _sto) if _sto else ''}")
+                        except Exception as _e:  # noqa: BLE001
+                            logger.warning(f"cluster_send falló: {_e}")
+                    else:
+                        emit("brain", "🛰 cluster_send sin cluster resuelto (¿varios o ninguno?)", role="system")
             elif name == "set_cluster_objective":
                 # T-02 (auditoría 2026-07-26): antes NADA escribía nunca capsule.objective — el guard
                 # `perms.gate_dev_by_objective` (V2-076) dejaba el dev-worker de CUALQUIER cluster con permiso
@@ -1249,12 +1297,19 @@ class NucleoLLMStream(llm.LLMStream):
             _ask_pending = _wapi.has_pending_ask()
         except Exception:
             _has_workers = _ask_pending = False
-        # V2-064: connect_cluster solo con el widget cluster-registro delante del operador.
+        # V2-086: las tools de cluster YA NO dependen de tener un widget delante. El gate de V2-064
+        # (`cluster-registro` abierto) hacía la capacidad INDESCUBRIBLE — para conectar un cluster NUEVO había que
+        # saber de antemano que primero tocaba abrir un widget concreto (pez que se muerde la cola: comprobado en
+        # el turno 766 del 2026-08-01, donde `connect_cluster` simplemente no estaba en el set ofrecido y el
+        # modelo no pudo hacer nada). La protección real contra el disparo espurio no era ese gate sino la
+        # CONFIRMACIÓN Sí/No determinista con el cluster_id a la vista, que sigue intacta.
+        _cluster_open = True
+        # `cluster_send` sí es situacional, pero por ESTADO REAL: sin cluster conectado no hay a quién escribir.
         try:
-            from memory import api as _memapi0
-            _cluster_open = "cluster-registro" in set((_memapi0.state() or {}).get("open_widgets") or [])
+            from connectors import meshkore as _mk0
+            _cluster_conn = any(c.get("connected") for c in _mk0.get_manager().clusters())
         except Exception:
-            _cluster_open = False
+            _cluster_conn = False
         # V2-085 — tres CAPACIDADES reales más (nunca palabras del turno: hechos del sistema). Todas fail-OPEN:
         # si el sondeo peta, la tool se ofrece igual y no le quitamos nada al operador.
         try:
@@ -1281,7 +1336,8 @@ class NucleoLLMStream(llm.LLMStream):
         _tool_ctx = _router.tool_context(confirm_pending=had_pending_confirm, auth_pending=_auth_pending,
                                          has_workers=_has_workers, ask_pending=_ask_pending,
                                          cluster_widget_open=_cluster_open, messaging_on=_msg_on,
-                                         has_vault=_has_vault1, has_video_widget=_has_video1)
+                                         has_vault=_has_vault1, has_video_widget=_has_video1,
+                                         cluster_connected=_cluster_conn)
         _turn_tools = _router.tools(_tool_ctx)
         # KICKOFF = saludo PURO, sin tools (fix 2026-07-19): el texto del kickoff ("Salúdame en 1-2 frases, cálido y
         # breve…") lo interpretaba el modelo como `set_style_directive` → guardaba una regla y respondía "Hecho." en

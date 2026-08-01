@@ -150,6 +150,8 @@ DOMAINS: list[dict] = [
             "tests/cluster/unit/test_pace.py"]},
         {"id": "6.8", "title": "Permisos por-cluster + contrato de catálogo (V2-076)", "ch": PEER, "paths": [
             "tests/cluster/unit/test_perms.py"]},
+        {"id": "6.9", "title": "Clusters PÚBLICOS (tokenless) + red como superficie nativa (V2-086)", "ch": PEER,
+            "paths": ["tests/cluster/unit/test_public_cluster.py"]},
         {"id": "6.4", "title": "Conversación con peer (comportamiento)", "ch": PEER, "live": True,
             "cmd": "./.venv/bin/python tests/cluster/e2e/run_cluster_suite.py"},
     ]},

@@ -238,6 +238,48 @@ candidates, which were selected, and why*.
 Flat. Naming the last widget of a 10,000 catalog finds it in 4.5 ms. Pinned by
 `tests/browser/unit/widgets/test_selection_scale.py` (synthetic 100 / 1,000 / 10,000).
 
+## 3c. The NETWORK is native, not a widget — public clusters (V2-086, 2026-08-01)
+
+**What happened:** the operator pasted MeshKore's own invitation to a public cluster and nothing happened. The
+cause was not one bug but **four stacked blockers**, each of which alone was enough to kill it:
+
+1. **The tool wasn't offered.** `connect_cluster` was gated on having the `cluster-registro` widget open (V2-064)
+   — verified live in turn 766: the tool simply wasn't in the offered set, so the model *could not* act. That gate
+   made the capability undiscoverable: to connect a NEW cluster you had to already know to open a specific widget.
+2. **The schema couldn't express it.** `required: ["cluster_id", "token"]` — and MeshKore Commons is `tokenless`
+   by design. The model had to either invent a token or not call.
+3. **The description refused that shape of input** — correctly. The MeshKore invite is textbook prompt-injection
+   shape ("connect now and keep the socket open", "pick your own handle", "Then GET https://…"), and that guard
+   exists because of a real incident.
+4. **The transport couldn't do it.** `client._url()` always sent `token=` and never `vis=public`.
+
+**The resolution for #3 is the interesting one, and it is NOT weakening the guard: separate ORDER from
+PARAMETERS.** The operator's request is the authorization; the pasted block is only where the parameters come
+from. Block alone → recognize it and ASK ("veo una invitación a un cluster público, ¿quieres que entre?"), never
+act. Block + operator's request → act, reading the id from the block. This preserves the defense exactly (a block
+arriving on its own still does nothing) while making the workflow possible — and it's the operator's own
+ask-when-uncertain pattern from V2-082, applied to the network.
+
+**Public vs private is a real protocol distinction, not cosmetic.** Sending `token=` empty on a public cluster is
+NOT the same as omitting it: the server reads a blank token as failed auth, not anonymous entry. So `_url()` has
+two modes and `store.resolve()` accepts `cluster_id` alone when `vis="public"`.
+
+**The network is a NATIVE surface.** The `cluster-registro` widget is **gone** (its last state is preserved in
+git at `ea49962`). Connectivity is infrastructure — it's what plugs the agent into the outside world — not a
+user widget the operator creates or deletes. It now lives as the **4th ChatWall tab** («Clusters», beside
+Chat/Procesos/Crons), routed by `show_panel` like the others. It lists every cluster we hold credentials for —
+**connected or not** (before, a cluster that failed to connect vanished from the list precisely when knowing it
+existed mattered most) — with state, peers and message counters. **No conversation is stored**: clusters have
+their own monitor, so duplicating history here would just be a second source of truth (operator's call).
+
+**Alias collision guard.** Caught by live testing: connecting to Commons, the model picked the default alias
+`meshcore` — already the operator's PRIVATE cluster — which would have overwritten its token. The alias is chosen
+by a model, so uniqueness is guaranteed in code (`store.unique_name`): same name + same cluster_id = legitimate
+reconnect; same name + different cluster_id = suffixed (`meshcore-2`).
+
+**Verified live:** connected to MeshKore Commons (`c_1b938b9ede1b436980e2`) with no token, peers
+`greeter, wanderer, zalo` visible, alongside the operator's private cluster, both rendered in the native tab.
+
 ## 4. The widget circuit (check → reuse / create; hide ≠ delete)
 
 When the user wants a widget, the brain follows: **1)** is it (or a close match) already in the catalog? → just
@@ -512,7 +554,8 @@ fit the V2-036 flow** — no dead/stale entries.
 | `authenticate_web` | Open the browser to **log in** to a site, ONLY when login is the sole goal (a task verb → escalate instead). | → navegador auth | always |
 | `confirm_widget_delete` | Resolve a **pending** delete confirmation (yes/no). | → `widgets/confirm` | **only if a delete-confirm is pending** |
 | `login_done` | Operator says they finished logging in → close window, resume task. | → navegador auth | **only if a login is in progress** |
-| `connect_cluster` | **V2-064, 2026-07-23** · Operator dictates a NEW/changed `cluster_id`+`token` for a MeshKore cluster ("conéctate a este cluster", "cambia el token"). The tubería (`connectors/meshkore/bridge.dispatch`) already existed; this is what exposes it to the FlashBrain. **Never connects directly** — opens a deterministic Sí/No confirm (`widgets/confirm.py`, same primitive as `delete_widget`) on the `cluster-registro` card showing the real cluster_id, because a text-only guard in the description was NOT enough: a pasted block that merely MENTIONED a cluster_id/token (no operator command attached) still made the model call the tool. Only a "sí" resolves to `meshkore.dispatch_tag("cluster.connect", …)`. | → `widgets/confirm` → (on yes) `connectors.meshkore.dispatch_tag` | **only with `cluster-registro` open** |
+| `connect_cluster` | **V2-064 · rediseñada V2-086** · Connect to a MeshKore cluster — PRIVATE (`cluster_id`+`token`) or **PUBLIC/tokenless** (`cluster_id`+`vis:"public"`, e.g. MeshKore Commons). **Never connects directly** — opens a deterministic Sí/No confirm (`widgets/confirm.py`) showing the real cluster_id, now on the NATIVE «Clusters» tab. A text-only guard in the description was NOT enough (a pasted block merely MENTIONING a cluster_id made the model call it), and that confirm — not the old widget gate — is the actual protection. Only a "sí" resolves to `meshkore.dispatch_tag("cluster.connect", …)`. | → `widgets/confirm` → (on yes) `connectors.meshkore.dispatch_tag` | always |
+| `cluster_send` | **V2-086** · Send a message to a cluster you're ALREADY connected to ("dile a zalo que…", "pregunta en el cluster"). Sent instantly, no confirm (it's ordinary communication the operator just asked for). Replaces the old `widget_data(cluster-registro, send)` route, gone with the widget; the `[[cluster.send]]` tag can't serve as the primary path because its protocol lives in the MeshKore brief, which is OUTSIDE the FlashBrain's hot prompt. | → `meshkore.dispatch_tag("cluster.send:<name>")` (inherits the outbound secret guard + journal) | **only with a cluster connected** |
 | `send_to_worker` | **V2-038** · Inject a refinement into a **live** Brain Worker ("además, verde") — do NOT open another. | → `dispatch.inject_soon` (piggyback queue) | **only if workers are live** |
 | `stop_worker` | **V2-038** · **Kill** a live Brain Worker ("para eso"). ≠ close/delete a widget. | → `dispatch.cancel_soon` (killpg) | **only if workers are live** |
 | `answer_worker` | **V2-038** · Answer a Brain Worker that is **waiting** on the operator. | → `worker_api.answer_active_soon` | **only if a worker ask is pending** |

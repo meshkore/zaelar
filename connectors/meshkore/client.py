@@ -29,21 +29,42 @@ MAX_FRAME = 64 * 1024   # protocol size limit
 
 class MeshKoreClient:
     def __init__(self, name: str, cluster_id: str, token: str, handle: str = "zaelar",
-                 did: str = None, on_event=None):
+                 did: str = None, on_event=None, vis: str = ""):
         self.name = name                # local alias for this cluster
         self.cluster_id = cluster_id
         self._token = token
         self.handle = handle
         self._did = did
+        self._vis = (vis or "").strip().lower()   # "public" → cluster ABIERTO, sin token (V2-086)
         self._on_event = on_event       # async callable(event: dict)
         self._ws = None
         self._task = None
         self._closing = False
         self.online: set[str] = set()   # handles currently present (excludes us)
         self.connected = False
+        # Contadores de TRÁFICO (V2-086) — lo único que la pestaña nativa «Clusters» necesita saber del volumen.
+        # Deliberadamente NO guardamos las conversaciones: los clusters ya tienen su propio monitor, y replicar
+        # aquí el histórico solo duplicaría estado (decisión del operador). Contar es barato y no retiene contenido.
+        self.msgs_in = 0
+        self.msgs_out = 0
+
+    @property
+    def public(self) -> bool:
+        """Cluster PÚBLICO (tokenless). Se deduce de `vis=public` o, en su defecto, de no tener token: la
+        distinción es real en el protocolo, no cosmética — cambia la query de conexión."""
+        return self._vis == "public" or not self._token
 
     def _url(self) -> str:
-        q = {"token": self._token, "agent": self.handle}
+        """Query de conexión. DOS modos (V2-086):
+          · PRIVADO  — `?token=…&agent=…`  (el de siempre: la credencial autoriza).
+          · PÚBLICO  — `?agent=…&vis=public` (MeshKore Commons y similares: sin token, eliges tu handle).
+        Mandar `token=` VACÍO en un cluster público no es equivalente: el servidor lo interpreta como un intento
+        de auth fallido, no como una entrada anónima. Por eso la clave se OMITE, no se manda en blanco."""
+        q = {"agent": self.handle}
+        if self.public:
+            q["vis"] = self._vis or "public"
+        else:
+            q["token"] = self._token
         if self._did:
             q["did"] = self._did
         return f"{WS_BASE}/clusters/{self.cluster_id}/ws?" + urllib.parse.urlencode(q)
@@ -133,6 +154,8 @@ class MeshKoreClient:
             return
         # The MeshKore server tags frames with "kind" (message/ready/presence/ack/…); keep "type" as a fallback.
         t = m.get("kind") or m.get("type")
+        if t == "message":
+            self.msgs_in += 1
         if t == "ready":
             self.online = {a for a in (m.get("online") or []) if a != self.handle}
         elif t == "presence":
@@ -165,6 +188,7 @@ class MeshKoreClient:
         if len(data.encode("utf-8")) > MAX_FRAME:
             raise ValueError("MeshKore frame exceeds 64 KB limit")
         await self._ws.send(data)
+        self.msgs_out += 1                                  # solo tras un send REAL (V2-086)
 
     async def stop(self):
         self._closing = True

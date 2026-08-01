@@ -29,8 +29,6 @@ CURATED: dict[str, dict] = {
                "aliases": ["agenda", "agenda del día", "mi día", "plan del día", "planning"]},
     "clock": {"name": "Reloj",
               "aliases": ["reloj", "la hora", "qué hora es", "fecha"]},
-    "cluster-registro": {"name": "Mesh for Cluster",
-                         "aliases": ["cluster", "mesh", "meshkore", "registro del cluster", "peers"]},
     "futbol-champions": {"name": "Champions League",
                          "aliases": ["champions", "champions league", "liga de campeones", "uefa"]},
     "juego-serpiente-snake": {"name": "Serpiente",

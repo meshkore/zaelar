@@ -128,12 +128,37 @@ export function ChatWall() {
     ),
   );
 
+  // Una fila de la pestaña CLUSTERS (V2-086). Muestra lo que el operador pidió y nada más: nombre, si estamos
+  // dentro, quién hay, y cuánto se ha hablado. El cluster_id se enseña porque NO es secreto (viaja en la propia
+  // URL de invitación) y es lo que permite reconocer de cuál se trata; el token nunca sale del backend.
+  const clusterRow = (c) => h("div", { class: "cl-row" },
+    h("div", { class: "cl-main" },
+      h("div", { class: "cl-name" },
+        h("span", { class: () => "cl-dot" + (c.connected ? " on" : "") }),
+        c.name,
+        c.public ? h("span", { class: "cl-badge" }, "público") : null,
+      ),
+      h("div", { class: "cl-meta" },
+        (c.connected ? "conectado" : "desconectado")
+        + (c.handle ? ` · como ${c.handle}` : "")
+        + (c.online && c.online.length ? ` · ${c.online.length} peer${c.online.length > 1 ? "s" : ""}: ${c.online.join(", ")}` : " · nadie más")
+        + ` · ${c.msgs || 0} msg`),
+      c.cluster_id ? h("div", { class: "cl-id" }, c.cluster_id) : null,
+    ),
+    h("div", { class: "cl-btns" },
+      c.connected
+        ? h("button", { class: "cl-b", title: "Desconectar", onClick: () => store.clusterDisconnect(c.name) }, "Desconectar")
+        : h("button", { class: "cl-b on", title: "Conectar", onClick: () => store.clusterConnect(c.name) }, "Conectar"),
+    ),
+  );
+
   const wall = h("div", { id: "chatwall", ref: el => (wallEl = el), class: () => "chatwall tab-" + store.chatTab() + (store.chatOpen() ? " open" : "") },
     h("div", { class: "cw-head", ref: el => (headEl = el) },
       h("div", { class: "cw-tabs" },
         h("button", { class: () => "cw-tab" + (store.chatTab() === "chat" ? " on" : ""), onClick: () => store.setChatTab("chat") }, "Chat"),
         h("button", { class: () => "cw-tab" + (store.chatTab() === "procesos" ? " on" : ""), onClick: () => store.setChatTab("procesos") }, "Procesos"),
         h("button", { class: () => "cw-tab" + (store.chatTab() === "crons" ? " on" : ""), onClick: () => store.setChatTab("crons") }, "Crons"),
+        h("button", { class: () => "cw-tab" + (store.chatTab() === "clusters" ? " on" : ""), onClick: () => store.setChatTab("clusters") }, "Clusters"),
       ),
       h("button", { class: "cw-x hb-icbtn", title: "Cerrar", onClick: () => store.setChatOpen(false) }, raw(CLOSE_ICON)),
     ),
@@ -156,6 +181,26 @@ export function ChatWall() {
         h("button", { class: "cron-create", onClick: cronAdd }, "Programar"),
       ),
     ),
+    // CLUSTERS (V2-086) — la RED, nativa. Administración de conexiones, no conversación: los clusters tienen su
+    // propio monitor, así que aquí solo se ve a qué red estamos enganchados, con quién y cuánto tráfico ha habido.
+    h("div", { class: "cw-clusters" },
+      // Confirmación de CONECTAR: gate determinista. Sin un «sí» explícito aquí no se abre ningún socket, por
+      // convincente que fuera el texto que lo pidió (V2-064 → V2-086: cambia dónde se pinta, no la garantía).
+      () => (store.clusterConfirm()
+        ? h("div", { class: "cl-confirm" },
+            h("div", { class: "cl-q" }, store.clusterConfirm().question || "¿Conectar al cluster?"),
+            h("div", { class: "cl-cbtns" },
+              h("button", { class: "cl-b on", onClick: () => store.clusterConfirmResolve(true) }, "Sí, conecta"),
+              h("button", { class: "cl-b", onClick: () => store.clusterConfirmResolve(false) }, "No"),
+            ))
+        : null),
+      h("div", { class: "cl-list" },
+        () => (store.clusters().length
+          ? store.clusters().map(clusterRow)
+          : h("div", { class: "cw-empty" },
+              "Sin clusters. Pídele a zaelar «conéctate al cluster público de MeshKore» o pásale un cluster_id.")),
+      ),
+    ),
     // INPUT (solo Chat — CSS lo oculta en las otras pestañas)
     h("div", { class: "cw-input" },
       h("textarea", {
@@ -172,6 +217,7 @@ export function ChatWall() {
     if (!store.chatOpen()) return;
     if (t === "procesos") { store.fetchTasks(); store.fetchWorkerHistory(); }
     else if (t === "crons") refreshCrons();
+    else if (t === "clusters") store.fetchClusters();
   });
   // Cuando cambian los procesos vivos (una tarea acaba) y estamos mirando «Procesos», refresca el histórico para
   // que la que acaba de terminar baje del bloque "en marcha" al "histórico".

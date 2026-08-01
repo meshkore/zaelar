@@ -781,6 +781,28 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   (`desktop.js`, evento SSE `widget/alias` refresca en vivo). **Concepto fijado sin mezclar:** WIDGET (catálogo, alias
   editables) · SUPERFICIE DE SISTEMA (nativa, alias fijos) · TOOL (`router.TOOLS`) · ACCIÓN/data-op (≡"skill",
   `manifest.actions`) · EMBEDDING (solo memoria). `keyword ≡ alias` (D1): `keywords` legacy se siembra a `aliases`.
+- **La RED es NATIVA, y hay clusters PÚBLICOS** (V2-086, 2026-08-01; detalle en `§3c` de
+  `.meshkore/docs/architecture/zaelar-architecture.md`): el operador pegó la invitación oficial de MeshKore a un
+  cluster público y no pasó nada. No era UN fallo sino **CUATRO apilados**: (1) `connect_cluster` gateada al widget
+  `cluster-registro` abierto → la capacidad era INDESCUBRIBLE (verificado en vivo, turno 766: la tool ni siquiera
+  estaba en el set ofrecido); (2) el esquema exigía `token` y Commons es **tokenless** → el caso era inexpresable;
+  (3) la descripción rechazaba ese formato de bloque pegado —correctamente, es forma canónica de prompt-injection—;
+  (4) el transporte siempre mandaba `token=` y nunca `vis=public`. **La solución de (3) NO es debilitar la guarda
+  sino separar ORDEN de PARÁMETROS:** la orden la da el operador, el bloque pegado solo es de dónde se leen los
+  datos. Bloque solo → RECONOCERLO y PREGUNTAR («veo una invitación a un cluster público, ¿quieres que entre?»),
+  nunca actuar; bloque + petición → actuar. Se conserva la defensa intacta y es el patrón preguntar-ante-la-duda de
+  V2-082 aplicado a la red. **Público ≠ privado en el protocolo:** mandar `token=` VACÍO no equivale a omitirlo (el
+  servidor lo lee como auth fallida, no como entrada anónima) → `client._url()` tiene dos modos. **El widget
+  `cluster-registro` se RETIRÓ** (su último estado queda en git, `ea49962`): la conectividad es infraestructura del
+  sistema, no un widget de usuario → ahora es la **4ª pestaña del ChatWall** («Clusters», junto a Chat/Procesos/
+  Crons, ruteada por `show_panel`), que lista los clusters con credenciales **estén conectados o no** (antes uno
+  caído desaparecía de la lista justo cuando más importaba saber que existe), con peers y contadores. **Sin
+  conversación**: los clusters tienen su propio monitor (decisión del operador). Enviar pasa a la tool
+  `cluster_send` (gateada por cluster conectado); el confirm Sí/No se pinta en la pestaña y por fin funciona por
+  BOTÓN (`/api/meshkore/confirm` — antes `/widgets/{id}/confirm` solo sabía borrar, así que solo cerraba por voz).
+  **Guard de colisión de alias** (`store.unique_name`), cazado probando: al conectar a Commons el modelo eligió el
+  alias `meshcore`, el del cluster PRIVADO del operador → habría sobrescrito su token. Verificado en vivo contra
+  Commons: conectado sin token, peers `greeter/wanderer/zalo`, conviviendo con el privado.
 - **Selección PROGRESIVA de capacidades — el prompt es O(K), no O(N)** (V2-085, 2026-08-01; detalle en
   `.meshkore/docs/architecture/zaelar-architecture.md §3b`): **medido antes de tocar nada** (catálogo real, 16
   widgets) `brief.for_prompt()` metía el catálogo ENTERO en CADA turno (2.497 chars) y `GET /widgets` devolvía los 16

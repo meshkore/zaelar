@@ -28,13 +28,13 @@ class MeshKoreManager:
             await self._sink(event)
 
     async def connect(self, name: str, cluster_id: str, token: str,
-                      handle: str = None, did: str = None) -> MeshKoreClient:
-        """Open (or replace) the connection aliased `name`."""
+                      handle: str = None, did: str = None, vis: str = "") -> MeshKoreClient:
+        """Open (or replace) the connection aliased `name`. `vis="public"` = cluster abierto sin token (V2-086)."""
         if name in self._clients:
             await self.disconnect(name)
         did = did or identity.did_key()          # stable did:key so peers recognise zaelar (auto, no brain input)
         client = MeshKoreClient(name, cluster_id, token, handle or DEFAULT_HANDLE,
-                                did, on_event=self._on_event)
+                                did, on_event=self._on_event, vis=vis)
         self._clients[name] = client
         await client.start()
         logger.info(f"MeshKore: connecting cluster '{name}' ({cluster_id[:8]}…) as {did[:24]}…")
@@ -78,9 +78,34 @@ class MeshKoreManager:
         return list(self._clients)
 
     def clusters(self) -> list[dict]:
-        """Snapshot for the status endpoint / brief."""
-        return [{"name": c.name, "connected": c.connected, "handle": c.handle,
-                 "online": sorted(c.online)} for c in self._clients.values()]
+        """Snapshot para el endpoint de estado, el brief del cerebro y la pestaña nativa «Clusters» (V2-086).
+
+        Incluye los clusters de los que hay CREDENCIALES GUARDADAS aunque no haya cliente vivo — un cluster que
+        el operador dio de alta pero está caído debe VERSE como «desconectado», no desaparecer de la lista (era
+        el comportamiento anterior: solo se listaba `self._clients`, así que un fallo de conexión lo volvía
+        invisible justo cuando más falta hacía saber que existe).
+
+        Nunca expone el token: solo `public` (si el cluster es abierto) y el `cluster_id`, que no es secreto —
+        viaja en la propia URL de invitación."""
+        rows, seen = [], set()
+        for c in self._clients.values():
+            seen.add(c.name)
+            rows.append({"name": c.name, "connected": c.connected, "handle": c.handle,
+                         "online": sorted(c.online), "cluster_id": c.cluster_id, "public": c.public,
+                         "msgs_in": c.msgs_in, "msgs_out": c.msgs_out,
+                         "msgs": c.msgs_in + c.msgs_out})
+        try:
+            from connectors.meshkore import store
+            for name, cfg in (store.load_clusters() or {}).items():
+                if name in seen:
+                    continue
+                rows.append({"name": name, "connected": False, "handle": cfg.get("handle", "zaelar"),
+                             "online": [], "cluster_id": cfg.get("cluster_id", ""),
+                             "public": (cfg.get("vis", "") == "public") or not cfg.get("token"),
+                             "msgs_in": 0, "msgs_out": 0, "msgs": 0})
+        except Exception:
+            pass
+        return rows
 
     async def shutdown(self):
         for name in list(self._clients):

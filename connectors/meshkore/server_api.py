@@ -55,13 +55,15 @@ class ConnectBody(BaseModel):
     cluster_id: str = ""
     token: str = ""
     handle: str = "zaelar"
+    vis: str = ""            # "public" → cluster abierto, sin token (V2-086)
 
 
 class StageBody(BaseModel):
     name: str
     cluster_id: str
-    token: str
+    token: str = ""          # V2-086: vacío en un cluster público — no falta, es que no existe
     handle: str = "zaelar"
+    vis: str = ""
 
 
 class SendBody(BaseModel):
@@ -88,18 +90,43 @@ async def status(_=Depends(_guard)):
 async def stage(body: StageBody, _=Depends(_guard)):
     """Hold pasted credentials in memory so a later name-only connect resolves the token WITHOUT it going through
     the LLM. Returns nothing sensitive."""
-    store.stage(body.name, body.cluster_id, body.token, body.handle)
+    store.stage(body.name, body.cluster_id, body.token, body.handle, body.vis)
     return JSONResponse({"ok": True, "name": body.name})
 
 
 @router.post("/api/meshkore/connect")
 async def connect(body: ConnectBody, _=Depends(_guard)):
-    creds = store.resolve(body.name, body.cluster_id, body.token, body.handle)
+    creds = store.resolve(body.name, body.cluster_id, body.token, body.handle, getattr(body, "vis", "") or "")
     if not creds:
-        return JSONResponse({"ok": False, "error": "no cluster_id/token (stage or pass them)"}, status_code=400)
-    await meshkore.get_manager().connect(body.name, creds["cluster_id"], creds["token"], creds.get("handle"))
-    store.save_cluster(body.name, creds["cluster_id"], creds["token"], creds.get("handle", "zaelar"))
-    return JSONResponse({"ok": True, "name": body.name})
+        return JSONResponse({"ok": False, "error": "falta el cluster_id (y el token si es privado)"},
+                            status_code=400)
+    vis = creds.get("vis", "")
+    await meshkore.get_manager().connect(body.name, creds["cluster_id"], creds["token"], creds.get("handle"),
+                                         vis=vis)
+    store.save_cluster(body.name, creds["cluster_id"], creds["token"], creds.get("handle", "zaelar"), vis=vis)
+    return JSONResponse({"ok": True, "name": body.name, "public": bool(vis == "public")})
+
+
+@router.post("/api/meshkore/confirm")
+async def confirm(body: dict, _=Depends(_guard)):
+    """Resuelve la confirmación Sí/No de CONECTAR a un cluster desde la pestaña nativa «Clusters» (V2-086).
+
+    Antes esto no existía: la confirmación se pedía sobre la tarjeta del widget `cluster-registro`, pero
+    `/widgets/{id}/confirm` solo sabía resolver BORRADOS — así que el botón nunca conectaba nada y el único
+    camino que cerraba el círculo era decir «sí» por voz. Ahora el botón funciona, por el MISMO camino
+    (`dispatch_tag("cluster.connect")`) y con el mismo gate: sin un «sí» explícito no se abre ningún socket."""
+    from widgets import confirm as _confirm
+    ok = bool((body or {}).get("ok"))
+    p = _confirm.resolve(_confirm.NATIVE_CLUSTERS, ok)
+    if p is None:
+        return JSONResponse({"ok": False, "error": "no hay confirmación pendiente"}, status_code=409)
+    if not ok:
+        return JSONResponse({"ok": True, "cancelled": True})
+    op = p.get("op") or {}
+    if op.get("action") != "connect_cluster":
+        return JSONResponse({"ok": False, "error": f"acción no soportada: {op.get('action')}"}, status_code=400)
+    await meshkore.dispatch_tag("cluster.connect", {"data": op.get("payload") or {}})
+    return JSONResponse({"ok": True, "name": (op.get("payload") or {}).get("name", "")})
 
 
 @router.post("/api/meshkore/send")

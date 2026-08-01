@@ -3,16 +3,57 @@
   "id": "cluster",
   "label": "Cluster",
   "description": "MeshKore framing, seguridad, permisos y conversación peer",
-  "domain_ids": ["6"],
-  "requirements": ["python"],
+  "domain_ids": [
+    "6"
+  ],
+  "requirements": [
+    "python"
+  ],
   "steps": [
-    {"id": "6.1", "label": "Cápsula y framing", "kind": "unit"},
-    {"id": "6.2", "label": "Seguridad del canal", "kind": "unit"},
-    {"id": "6.3", "label": "Ingesta cluster→memoria", "kind": "integration"},
-    {"id": "6.4", "label": "Conversación con peer", "kind": "live"},
-    {"id": "6.5", "label": "Protección de recursos", "kind": "unit"},
-    {"id": "6.6", "label": "Pacto de conversación", "kind": "unit"},
-    {"id": "6.7", "label": "Criterio de inteligencia", "kind": "unit"},
-    {"id": "6.8", "label": "Permisos y catálogo", "kind": "unit"}
+    {
+      "id": "6.1",
+      "label": "Cápsula y framing",
+      "kind": "unit"
+    },
+    {
+      "id": "6.2",
+      "label": "Seguridad del canal",
+      "kind": "unit"
+    },
+    {
+      "id": "6.3",
+      "label": "Ingesta cluster→memoria",
+      "kind": "integration"
+    },
+    {
+      "id": "6.9",
+      "label": "Clusters públicos (tokenless) + red nativa",
+      "kind": "unit"
+    },
+    {
+      "id": "6.4",
+      "label": "Conversación con peer",
+      "kind": "live"
+    },
+    {
+      "id": "6.5",
+      "label": "Protección de recursos",
+      "kind": "unit"
+    },
+    {
+      "id": "6.6",
+      "label": "Pacto de conversación",
+      "kind": "unit"
+    },
+    {
+      "id": "6.7",
+      "label": "Criterio de inteligencia",
+      "kind": "unit"
+    },
+    {
+      "id": "6.8",
+      "label": "Permisos y catálogo",
+      "kind": "unit"
+    }
   ]
 }

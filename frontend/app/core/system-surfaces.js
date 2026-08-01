@@ -59,11 +59,14 @@ export const SYSTEM_SURFACES = [
     toggle: "siempre visible (línea de conexión)", label: "Estado de conexión",
     name: null, aliases: null },
   // ── PANELES / OVERLAYS / MODALES (a nivel de body, por encima del escritorio) ──
-  // OJO: el chat tiene 3 pestañas (Chat/Procesos/Crons). "abre el chat" → pestaña Chat; "lista de tareas/procesos"
-  // y "crons/lista del cron" son las OTRAS pestañas, ruteadas por la tool show_panel (router._canon_panel) — sus
-  // sinónimos viven ahí, no aquí, para no duplicar. Estos alias abren la superficie del chat (pestaña por defecto).
+  // OJO: el chat tiene 4 pestañas (Chat/Procesos/Crons/Clusters). "abre el chat" → pestaña Chat; "procesos",
+  // "crons" y "clusters" (la RED MeshKore, V2-086) son las OTRAS, ruteadas por la tool show_panel
+  // (router._canon_panel) — sus sinónimos viven ahí, no aquí, para no duplicar. Estos alias abren la superficie
+  // del chat (pestaña por defecto). La red es NATIVA a propósito: es infraestructura del sistema (la conexión al
+  // exterior), no un widget de usuario — por eso vive junto a Procesos/Crons y no en el catálogo.
   { id: "chat",       comp: ChatWall,     target: "body", phase: "overlay", kind: "panel",
-    toggle: "store.chatOpen + store.chatTab (Chat/Procesos/Crons)", label: "Chat + Procesos + Crons (3 pestañas)",
+    toggle: "store.chatOpen + store.chatTab (Chat/Procesos/Crons/Clusters)",
+    label: "Chat + Procesos + Crons + Clusters (4 pestañas)",
     name: "Chat", aliases: ["chat", "muro", "muro de texto", "muro de chat", "escribirte", "hablarte por texto",
       "conversacion", "conversación", "el chat contigo"] },
   { id: "status",     comp: StatusPanel,  target: "body", phase: "overlay", kind: "panel",

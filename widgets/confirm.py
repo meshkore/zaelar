@@ -40,6 +40,13 @@ def _sweep() -> None:
         _PENDING.pop(k, None)
 
 
+# Id RESERVADO de una superficie NATIVA que también pide confirmación (V2-086). No es un widget del catálogo: es
+# la pestaña «Clusters» del ChatWall. El almacén de este módulo siempre fue genérico (un dict por clave), así que
+# reutilizarlo evita un segundo mecanismo de confirmación paralelo — lo único específico es dónde se PINTA el
+# Sí/No (la pestaña, no una tarjeta) y quién lo RESUELVE (`/api/meshkore/confirm`, no `/widgets/{id}/confirm`).
+NATIVE_CLUSTERS = "clusters"
+
+
 def request(action: str, widget_id: str, question: str = "", op: dict | None = None) -> str | None:
     """Registra una confirmación pendiente para `widget_id` y pide el overlay en su tarjeta (SSE). Devuelve el id
     normalizado, o None si el id es inválido.

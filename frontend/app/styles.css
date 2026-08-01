@@ -149,14 +149,35 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .cw-tab{flex:0 0 auto;border:none;background:transparent;color:var(--hb-muted-2);font-size:12px;font-weight:600;
      padding:4px 10px;border-radius:7px;cursor:pointer;font-family:var(--sans);line-height:1.4}
 .cw-tab.on{background:var(--hb-bg);color:var(--hb-ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
-.cw-proc,.cw-crons{flex:1 1 auto;min-height:0;flex-direction:column;overflow:hidden}
+.cw-proc,.cw-crons,.cw-clusters{flex:1 1 auto;min-height:0;flex-direction:column;overflow:hidden}
 /* solo el panel de la pestaña activa se muestra (por defecto todos ocultos) */
-.chatwall .cw-list,.chatwall .cw-proc,.chatwall .cw-crons,.chatwall .cw-input{display:none}
+.chatwall .cw-list,.chatwall .cw-proc,.chatwall .cw-crons,.chatwall .cw-clusters,.chatwall .cw-input{display:none}
 .chatwall.tab-chat .cw-list{display:flex}
 .chatwall.tab-chat .cw-input{display:flex}
 .chatwall.tab-procesos .cw-proc{display:flex}
 .chatwall.tab-crons .cw-crons{display:flex}
+.chatwall.tab-clusters .cw-clusters{display:flex}
 .cw-crons .cron-list{flex:1 1 auto;min-height:0}
+/* pestaña Clusters (V2-086): la RED. Estado de conexión + peers + tráfico; sin conversación. */
+.cw-clusters .cl-list{flex:1 1 auto;min-height:0;overflow-y:auto;padding:10px 12px;display:flex;flex-direction:column;gap:7px}
+.cl-row{display:flex;gap:9px;align-items:flex-start;border:1px solid var(--hb-line);border-radius:11px;padding:9px 10px}
+.cl-main{min-width:0;flex:1 1 auto}
+.cl-name{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:650;color:var(--hb-ink)}
+.cl-dot{flex:0 0 auto;width:7px;height:7px;border-radius:50%;background:var(--hb-muted-2);opacity:.55}
+.cl-dot.on{background:var(--hb-accent);opacity:1;box-shadow:0 0 7px var(--hb-accent)}
+.cl-badge{font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--hb-muted-2);
+  border:1px solid var(--hb-line);border-radius:999px;padding:1px 6px}
+.cl-meta{font-size:11px;color:var(--hb-muted-2);margin-top:3px;word-break:break-word}
+.cl-id{font-size:10px;color:var(--hb-muted-2);opacity:.7;margin-top:2px;font-family:var(--mono,ui-monospace,monospace);word-break:break-all}
+.cl-btns{flex:0 0 auto;display:flex;align-items:center}
+.cl-b{border:1px solid var(--hb-line);background:transparent;color:var(--hb-muted-2);border-radius:8px;
+  padding:4px 9px;cursor:pointer;font-family:var(--sans);font-size:11.5px}
+.cl-b:hover{color:var(--hb-ink)}
+.cl-b.on{color:var(--hb-accent);border-color:var(--hb-accent)}
+.cl-confirm{margin:10px 12px 0;border:1px solid var(--hb-accent);border-radius:11px;padding:10px 11px;
+  background:color-mix(in srgb, var(--hb-accent) 7%, transparent)}
+.cl-q{font-size:12.5px;color:var(--hb-ink);line-height:1.35}
+.cl-cbtns{display:flex;gap:7px;margin-top:9px}
 /* pestaña Procesos: vivos + histórico */
 .cw-proc{overflow-y:auto;padding:10px 12px;gap:7px}
 .cw-proc-sec{font-size:10.5px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--hb-muted-2);margin:6px 2px 2px}

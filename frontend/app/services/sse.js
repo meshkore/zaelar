@@ -34,6 +34,10 @@ export function openSSE(desktop) {
       else if (d.label === "create" && d.id) desktop.createWidget(d.id, d.spec);  // brain asked to BUILD a new widget
       else if (d.label === "modify" && d.id) desktop.modifyWidget(d.id, d.change);// brain asked to EDIT an existing widget
       else if (d.label === "delete" && d.id) desktop.onDeleted(d.id);             // backend ALREADY deleted (lifecycle) → close the card + drop the cached catalog
+      // V2-086: el id RESERVADO "clusters" no es una tarjeta sino la pestaña NATIVA — su Sí/No se pinta ahí
+      // (conectarse a una red no es una acción de canvas, y ese widget ya no existe).
+      else if (d.label === "confirm" && d.id === "clusters") { store.setClusterConfirm({ question: d.question }); store.setChatTab("clusters"); store.setChatOpen(true); }
+      else if (d.label === "confirm-cancel" && d.id === "clusters") store.setClusterConfirm(null);
       else if (d.label === "confirm" && d.id) desktop.showConfirm(d.id, { question: d.question, action: d.action });      // irreversible action (delete/data) → Sí/No overlay ON the card
       else if (d.label === "confirm-cancel" && d.id) desktop.hideConfirm(d.id);   // confirmation resolved/cancelled elsewhere (voice/timeout)
       else if (d.label === "close") d.id ? desktop.close(d.id) : desktop.closeAll();
@@ -111,11 +115,11 @@ export function openSSE(desktop) {
       // history; pushAgentChat dedupes against the spoken transcript so it lands exactly once.
       store.pushAgentChat("🔔 " + d.text);
     } else if (d.kind === "cluster") {                                            // MeshKore channel
-      // The chat wall is ONLY the operator ↔ zaelar channel (operator's rule, 2026-07-25): cluster traffic must
-      // NOT show up here — it belongs to the `cluster-registro` widget, which controls one/several clusters and
-      // shows their last-N messages (it refreshes on its own via the bridge's _notify_registry SSE). So we do NOT
-      // pushChat cluster messages anymore. Left as an explicit no-op branch so a future maintainer sees the intent
-      // (and doesn't "restore" the push): cluster in/out/notes live in the widget, never in the personal chat.
+      // El muro de chat es SOLO el canal operador ↔ zaelar (regla del operador, 2026-07-25): el tráfico de
+      // cluster NO se vuelca aquí. V2-086: tampoco se guarda en ningún sitio del frontend — los clusters tienen
+      // su PROPIO monitor, así que la pestaña «Clusters» solo administra la conexión (estado, peers, contadores).
+      // Cualquier evento de red refresca esa lista; nada de conversación.
+      if (store.chatOpen() && store.chatTab() === "clusters") store.fetchClusters();
     }
   };
 }

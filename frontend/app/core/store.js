@@ -143,6 +143,39 @@ export const fetchWorkerHistory = async () => {
   } catch (_) {}
 };
 
+// V2-086: CONEXIONES A CLUSTERS — nativo, 4ª pestaña del ChatWall. La red (hoy MeshKore; mañana quizá otros
+// proveedores) es infraestructura del sistema, no un widget de usuario: por eso vive junto a Procesos y Crons y
+// NO en el catálogo. Lista los clusters de los que hay CREDENCIALES (conectados o no) con su estado y tráfico.
+// Deliberadamente SIN conversación: los clusters tienen su propio monitor, aquí solo se administra la conexión.
+export const [clusters, setClusters] = createSignal([]);  // [{name,connected,handle,online[],public,msgs,...}]
+export const fetchClusters = async () => {
+  try {
+    const r = await fetch("/api/meshkore/status", { cache: "no-cache" });
+    const d = await r.json();
+    setClusters(Array.isArray(d.clusters) ? d.clusters : []);
+  } catch (_) { setClusters([]); }
+};
+// Confirmación Sí/No de CONECTAR a un cluster (V2-086). Vive aquí y se pinta en la pestaña «Clusters» porque la
+// red no es una tarjeta del canvas. El gate es determinista y NO se puede saltar: por muy convincente que sea un
+// bloque de texto pegado, sin un «sí» explícito del operador no se abre ningún socket.
+export const [clusterConfirm, setClusterConfirm] = createSignal(null);   // {question} | null
+export const clusterConfirmResolve = async (ok) => {
+  setClusterConfirm(null);
+  try { await fetch("/api/meshkore/confirm", { method: "POST", headers: { "Content-Type": "application/json" },
+                                               body: JSON.stringify({ ok: !!ok }) }); } catch (_) {}
+  await fetchClusters();
+};
+export const clusterConnect = async (name) => {
+  try { await fetch("/api/meshkore/connect", { method: "POST", headers: { "Content-Type": "application/json" },
+                                               body: JSON.stringify({ name }) }); } catch (_) {}
+  await fetchClusters();
+};
+export const clusterDisconnect = async (name) => {
+  try { await fetch("/api/meshkore/disconnect", { method: "POST", headers: { "Content-Type": "application/json" },
+                                                  body: JSON.stringify({ name }) }); } catch (_) {}
+  await fetchClusters();
+};
+
 // ---- memory map (🧠 the "map of zaelar's memory": state + short/long term + concept graph, V2-014) ----
 // memOpen = the 🧠 icon in the orb bowl toggles the full-screen visualizer. memBump increments on every
 // `memory.updated` SSE push (bridged from the bus in server/__init__.py) so the map refetches LIVE, no polling.
@@ -207,7 +240,7 @@ export const [debugWidth, setDebugWidth] = createSignal(Math.max(300, parseInt(l
 
 // ---- chat wall (text channel to the agent) ----
 export const [chatOpen, setChatOpen]   = createSignal(false);  // chat wall panel visible?
-export const [chatTab, setChatTab]     = createSignal("chat");  // V2-079: "chat" | "procesos" | "crons"
+export const [chatTab, setChatTab]     = createSignal("chat");  // V2-079/086: "chat"|"procesos"|"crons"|"clusters"
 export const [chatMsgs, setChatMsgs]   = createSignal([]);     // [{ role:"you"|"agent", text }]
 // TOPE (2026-07-23, petición del operador): sin límite, un hilo largo (p.ej. horas hablando con un agente de
 // cluster por WebSocket) crece sin fin — y ChatWall reconstruye TODO el DOM desde `chatMsgs()` en cada push

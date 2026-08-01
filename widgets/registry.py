@@ -21,8 +21,9 @@ from . import runtime, system_surfaces
 # (V2-083). Lista curada y editable a mano (patrón `_STDLIB_EXEMPT` del generador: un id hardcodeado, nunca un campo
 # del manifest que un widget generado pueda auto-concederse). Un manifest con `origin` explícito manda sobre esta
 # lista (el generador estampa `origin:"user"` en lo que crea). Todo lo que no esté aquí ni traiga origin = "user".
-_BUILTINS = {"agenda", "clock", "timer", "search", "results", "navegador", "mensajeria", "musica", "youtube",
-             "cluster-registro"}
+# V2-086: `cluster-registro` salió de aquí al retirarse el widget — la RED es una superficie NATIVA (pestaña
+# «Clusters» del ChatWall), no un widget de usuario: es infraestructura del sistema, no algo que el operador cree.
+_BUILTINS = {"agenda", "clock", "timer", "search", "results", "navegador", "mensajeria", "musica", "youtube"}
 
 
 def origin_of(w: dict) -> str:

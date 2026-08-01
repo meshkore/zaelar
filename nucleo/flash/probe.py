@@ -281,16 +281,16 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         _akp = _wapi_p.has_pending_ask()
     except Exception:
         pass
-    # V2-064: mismo gate que la voz (impl PARALELA — cablear en AMBOS): connect_cluster solo con el widget abierto.
-    _cluster_open_p = False
+    # V2-086: espejo de la voz (impl PARALELA — cablear en AMBOS). El gate por widget desapareció con el propio
+    # widget: las tools de cluster se ofrecen siempre y la protección es el confirm Sí/No determinista.
     try:
-        from memory import api as _memapi_p
-        _cluster_open_p = "cluster-registro" in set((_memapi_p.state() or {}).get("open_widgets") or [])
+        from connectors import meshkore as _mk_p
+        _cl_conn_p = any(c.get("connected") for c in _mk_p.get_manager().clusters())
     except Exception:
-        pass
+        _cl_conn_p = False
     _turn_tools = _router.tools(_router.tool_context(confirm_pending=_cpend, auth_pending=_apend,
                                                      has_workers=_hw, ask_pending=_akp,
-                                                     cluster_widget_open=_cluster_open_p))
+                                                     cluster_widget_open=True, cluster_connected=_cl_conn_p))
     llm_metrics["n_tools_offered"] = len(_turn_tools)
     try:
         async for delta in FastClient().stream(messages, spec=spec, tools=_turn_tools,
@@ -679,9 +679,9 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             elif action == "widget_data":
                 # EJECUCIÓN REAL de una data-op (2026-07-25): sin esto el probe validaba el ROUTING pero nunca
                 # ENVIABA — imposible reproducir e2e "manda a zalo …". Ahora, si la acción es FAST, se despacha por
-                # el MISMO camino que la voz (widgets.dispatch_tag → apply_action del widget). Para cluster-registro
-                # `send` eso llama a _send_message → REST /api/meshkore/send → entrega real + journal. CONFIRM no se
-                # auto-confirma (requiere el sí del operador); se reporta como pendiente.
+                # el MISMO camino que la voz (widgets.dispatch_tag → apply_action del widget). CONFIRM no se
+                # auto-confirma (requiere el sí del operador); se reporta como pendiente. (V2-086: enviar al
+                # cluster ya NO pasa por aquí — es la tool `cluster_send`, no una data-op de widget.)
                 _wd = next((t["args"] for t in tool_calls if t["name"] == "widget_data"), {}) or {}
                 _wid = (str(_wd.get("widget_id") or "")).strip().lower()
                 _act = (str(_wd.get("action") or "")).strip()

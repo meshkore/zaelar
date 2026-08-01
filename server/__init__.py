@@ -169,7 +169,10 @@ async def _lifespan(app: FastAPI):
             async def _meshkore_autoreconnect():
                 for name, cfg in store.load_clusters().items():
                     try:
-                        await meshkore.get_manager().connect(name, cfg["cluster_id"], cfg["token"], cfg.get("handle"))
+                        # `vis` (V2-086): un cluster PÚBLICO se reconecta sin token — si no se propaga aquí, el
+                        # cluster abierto se cae en cada reinicio y solo sobreviven los privados.
+                        await meshkore.get_manager().connect(name, cfg["cluster_id"], cfg["token"],
+                                                             cfg.get("handle"), vis=cfg.get("vis", ""))
                         meshkore.get_bridge().note_objective(name)   # standing objective → peer arrival wakes the brain
                     except Exception as e:
                         logger.warning(f"MeshKore autoreconnect '{name}' failed: {e}")
