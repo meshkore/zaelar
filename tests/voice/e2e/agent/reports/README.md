@@ -1,4 +1,4 @@
-# tester/reports — histórico de sesiones de test (consultable)
+# tests/voice/e2e/agent/reports — histórico de sesiones de test (consultable)
 
 Una carpeta por **sesión/tanda de test**, nombrada **`<YYYYMMDD>-<descripción-corta>/`** (fecha invertida
 año-mes-día + descripción), calcando la convención de los tests de memoria. Ejemplos:
@@ -10,8 +10,9 @@ Cada carpeta contiene:
   web: el veredicto HUMANO de si extrajo datos reales que cumplen los criterios (✋).
 - La **tabla resumen** de la batería (`battery_summary_*.tsv`) y los `report_*.{json,md}` relevantes de esa tanda.
 
-Objetivo: repetir la batería una semana después y **comparar** contra el histórico. Los `tester/runs/` son scratch
-en crudo (se sobrescriben/acumulan); `tester/reports/` es el archivo curado que se conserva.
+Objetivo: repetir la batería una semana después y **comparar** contra el histórico. Los
+`tests/voice/e2e/agent/runs/` son scratch en crudo (se sobrescriben/acumulan);
+`tests/voice/e2e/agent/reports/` es el archivo curado que se conserva.
 
 > Cómo se genera: al cerrar una tanda, el agente (o el operador) crea la carpeta del día y vuelca ahí el INFORME +
 > los artefactos. Ver el playbook `.meshkore/docs/ops/zaelar-testing.md` §"Dónde se archiva".

@@ -35,7 +35,7 @@ en voz/chat el hard-interrupt DETERMINISTA (`attention.hard_interrupt`, V2-015) 
 Verificado: cierra todo 5/5 `canvas:close`, quita todo 3/3, para 2/2 chat.
 
 ### INCORPORADO — cobertura del canal chat (commit `e9d6eb6`)
-`tester/chat_convo.py` — conversación MULTI-TURNO headless del canal voz-OFF (el lado cerebro del T1.4 pendiente),
+`tests/voice/e2e/agent/chat_convo.py` — conversación MULTI-TURNO headless del canal voz-OFF (el lado cerebro del T1.4 pendiente),
 registrado en el catálogo. Complementa al escenario single-shot `chat` de `scenarios.py`.
 
 ### CERRADO POR OTRA SESIÓN — `guardar secretos por voz` (commit `fc69fb5`, NO mío)

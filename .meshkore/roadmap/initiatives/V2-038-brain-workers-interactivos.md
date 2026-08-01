@@ -1042,7 +1042,7 @@ Routing/conversación 24-25/25; 3 hallazgos del orquestador arreglados:
   cláusula tersa en la regla de voz (palabras BIEN formadas, sin deformar/mezclar idiomas: "bici de montaña" no
   "biking de montaña", "te abro la mensajería" no "ábrole"). **98 tests verdes.**
 Solo se commitean los ficheros de este fix (router/prompt/probe/test_router/langs/provider); `memory/*` y
-`tests/e2e/*` del status son trabajo en curso del equipo de memoria, NO se tocan.
+`tests/memory/e2e/*` del status son trabajo en curso del equipo de memoria, NO se tocan.
 
 ### 2026-07-15 — Confirmación de data-op irreversible: copy CRÍPTICO ocultaba el alcance
 Sesión en vivo (log 09:14): el operador pidió eliminar UN ítem de la agenda ("el primer ítem que pone revisar
