@@ -609,8 +609,16 @@ def _validate(wid: str) -> tuple[bool, str]:
                        f"the widget would be unidentifiable; use distinctive keywords")
     if coll:
         logger.warning(f"widget-agent: '{wid}' keyword collisions (identify() will disambiguate): {coll}")
-    if man.get("id") != wid:                            # folder name is authoritative
+    # folder name is authoritative + este widget lo CREA el usuario (V2-083) → estampa origin:"user" para que la
+    # pestaña Widgets de Config lo liste como "tuyo" (los de serie llevan la lista curada de registry._BUILTINS).
+    _dirty = False
+    if man.get("id") != wid:
         man["id"] = wid
+        _dirty = True
+    if man.get("origin") != "user":
+        man["origin"] = "user"
+        _dirty = True
+    if _dirty:
         json.dump(man, open(man_p, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
     js_src = open(js_p, encoding="utf-8").read() if os.path.isfile(js_p) else ""
     if not js_src or "export function render" not in js_src:

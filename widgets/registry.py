@@ -17,6 +17,22 @@ from __future__ import annotations
 
 from . import runtime, system_surfaces
 
+# Widgets que vienen DE SERIE en el agente (distribución OSS) — el resto se consideran creados por el usuario
+# (V2-083). Lista curada y editable a mano (patrón `_STDLIB_EXEMPT` del generador: un id hardcodeado, nunca un campo
+# del manifest que un widget generado pueda auto-concederse). Un manifest con `origin` explícito manda sobre esta
+# lista (el generador estampa `origin:"user"` en lo que crea). Todo lo que no esté aquí ni traiga origin = "user".
+_BUILTINS = {"agenda", "clock", "timer", "search", "results", "navegador", "mensajeria", "musica", "youtube",
+             "cluster-registro"}
+
+
+def origin_of(w: dict) -> str:
+    """`builtin` (de serie) | `user` (creado por el usuario). `origin` explícito del manifest manda; si no, la lista
+    curada `_BUILTINS`; en su defecto `user`."""
+    o = str(w.get("origin") or "").strip().lower()
+    if o in ("builtin", "user"):
+        return o
+    return "builtin" if str(w.get("id") or "") in _BUILTINS else "user"
+
 
 def _norm_aliases(seq) -> list[str]:
     """Dedup preservando orden, sin vacíos, cap defensivo."""
@@ -40,7 +56,7 @@ def widget_identity(w: dict) -> dict:
     if not seed:                                   # sin campo nuevo → sembramos de keywords (migración perezosa)
         seed = w.get("keywords") or []
     aliases = _norm_aliases([name, *seed])
-    return {"id": wid, "name": name, "aliases": aliases, "surface": "user"}
+    return {"id": wid, "name": name, "aliases": aliases, "surface": "user", "origin": origin_of(w)}
 
 
 def registry() -> list[dict]:
@@ -49,15 +65,15 @@ def registry() -> list[dict]:
     out = [widget_identity(w) for w in runtime.catalog()]
     for s in system_surfaces.surfaces():
         out.append({"id": s["id"], "name": s["name"],
-                    "aliases": _norm_aliases([s["name"], *s["aliases"]]), "surface": "system"})
+                    "aliases": _norm_aliases([s["name"], *s["aliases"]]), "surface": "system", "origin": "system"})
     return out
 
 
 def project_state() -> list[dict]:
     """Versión COMPACTA para proyectar a `memory/state.py` (`widget_registry`) — visibilidad, no fuente de verdad.
     Solo id/name/aliases/surface, ya normalizado. La escribe el que corresponda tras un cambio de catálogo/alias."""
-    return [{"id": r["id"], "name": r["name"], "aliases": r["aliases"], "surface": r["surface"]}
-            for r in registry()]
+    return [{"id": r["id"], "name": r["name"], "aliases": r["aliases"], "surface": r["surface"],
+             "origin": r.get("origin", "user")} for r in registry()]
 
 
 def refresh_state() -> list[dict]:
