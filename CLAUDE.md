@@ -93,14 +93,14 @@ cambio de memoria. Termina SIEMPRE con la revisión de alineación.
 
 **Testing del bot ("lanza un test del bot"):** cuando el operador dice **"lanza un test del bot"**, **"lanza la
 batería (de escenarios)"** o **"prueba el bot en tuen"**, ejecutar `zaelar-testing.md` — el playbook autocontenido:
-**Paso 0 = ALINEACIÓN** (comprobar que `tester/scenarios.py` cubre los módulos principales y los cambios de las
+**Paso 0 = ALINEACIÓN** (comprobar que `tests/voice/e2e/agent/scenarios.py` cubre los módulos principales y los cambios de las
 ÚLTIMAS 48 h — `git log --since` + decisiones `V2-0xx` nuevas; si falta, añadir el escenario ANTES de lanzar) →
 prioridades (latencia · coste bajo · memoria · búsqueda precisa · **navegación web profunda Wallapop/coches.net con
-extracción de datos reales, con/sin login** · robustez · multiidioma) → lanzar (`tester/run_battery.sh` con settle,
+extracción de datos reales, con/sin login** · robustez · multiidioma) → lanzar (`tests/voice/e2e/agent/run_battery.sh` con settle,
 o `cron_tick.sh`) → evaluar con el JUEZ distinguiendo **bug real (trace-confirmado) vs ruido de STT del tester vs
 rigidez del juez** (y comparación HUMANA de lo extraído en navegación) → arreglar código si hay bug → **archivar el
-informe del día en `tester/reports/<YYYYMMDD>-<desc>/`** (histórico consultable). Catálogo legible de escenarios en
-`tester/anexos/catalogo-escenarios.md`. No hay que recordar los pasos: viven en el playbook.
+informe del día en `tests/voice/e2e/agent/reports/<YYYYMMDD>-<desc>/`** (histórico consultable). Catálogo legible de escenarios en
+`tests/voice/e2e/agent/anexos/catalogo-escenarios.md`. No hay que recordar los pasos: viven en el playbook.
 
 > **Diagrama de arquitectura — MOVIDO al sitio público (2026-07-24):** `frontend/pages/architecture.html` y la
 > ruta `/architecture` de este repo se **retiraron** — ya no tenía sentido servir un panel interno (con editor de
@@ -221,7 +221,10 @@ arranque `make run` → `python -m server`.
   generador/`lifecycle` NUNCA las tocan (solo tocan `widgets/<id>/`). **Todo lo demás en pantalla son WIDGETS DE
   USUARIO** (catálogo `widgets/<id>/`, full-stack `manifest.json`+`data.py`+`widget.js`), variables y creados
   por/para el usuario **aunque se distribuyan de serie** — como los conectores. Añadir una superficie nativa nueva
-  = añadirla a `system-surfaces.js`.
+  = añadirla a `system-surfaces.js`. **V2-082:** cada superficie dirigible por voz lleva `name` + `aliases` FIJOS
+  (hardcodeados en el front, NO editables) — espejados en el backend `widgets/system_surfaces.py` (test de sincronía)
+  para que el resolver de nombres las conozca. Cada tarjeta de widget de usuario pinta un HEADER genérico (en
+  `desktop.js`, sin tocar su `widget.js`) con el NOMBRE + un ⚙ que despliega sus ALIAS editables.
 - `server/` — FastAPI app + routers + entrypoint (`server/__main__.py`); corre el **agent worker de LiveKit
   EMBEBIDO** en el proceso (lifespan), y arranca en ese mismo lifespan el loop de `nucleo/`, el supervisor de
   widgets `backed` y el consumidor de la cola de memoria. Routers: `livekit_api` (token + config + swap de
@@ -260,7 +263,7 @@ arranque `make run` → `python -m server`.
   **Contactos como memoria + envío-a-persona (mándale un mensaje a X) + conectores Apple/Google + red de agentes =
   iniciativa de DISEÑO `V2-052` (pendiente de OK del operador).**
 - `harness/` — harness de evaluación (self-test de mic/pipeline).
-- `tester/` — tester de voz (INI-013): 2º participante LiveKit que HABLA con zaelar y un JUEZ que evalúa lo que HACE.
+- `tests/voice/e2e/agent/` — tester de voz (INI-013): 2º participante LiveKit que HABLA con zaelar y un JUEZ que evalúa lo que HACE.
 
 `files/` quedó plegado en la capa episódica de `memory/` (shim de compatibilidad). Raíz (no-módulos): `README.md`,
 `Makefile`, `requirements.txt` + `.venv/`, `Dockerfile`/`fly.toml`/`.dockerignore`, `scripts/` (tooling de
@@ -490,7 +493,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     → solo pantalla.
   - **Invariante duro:** passphrase / clave privada / PRF de la passkey JAMÁS en un LLM, worker, log/observer,
     `state` o píldora. Distinta del **credential store** del SISTEMA (`.meshkore/credentials/zaelar.env`, claves de
-    zaelar). Testing: dominio `seguridad_datos` (`tester/scenarios.py`, prioridad nº8 en `zaelar-testing.md`; el
+    zaelar). Testing: dominio `seguridad_datos` (`tests/voice/e2e/agent/scenarios.py`, prioridad nº8 en `zaelar-testing.md`; el
     tester usa PASSPHRASE, la biometría no es testeable). Detalle: `V2-060-boveda-secretos-cifrados.md` +
     `zaelar-security.md` / `zaelar-memory.md` / `zaelar-conventions.md`.
 - **«Susurro» — auto-auditoría conversacional y mejora continua** (`nucleo/susurro/`, V2-053, 2026-07-17; diseño
@@ -673,7 +676,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   `memory/rerank_local.py`, config `config/v2.py` §`memory`, V2-030, 2026-07-12): a escala (cientos de recuerdos)
   el embedding local bi-encoder ordena "borroso" — la respuesta está en el top-10 (~82%) pero no en el top-1/3. Un
   **cross-encoder** que reordena el top-N del RRF **leyendo query+recuerdo juntos** cierra la mayor parte del hueco:
-  medido (`tests/e2e/memory/bot/scale_eval.py`, 442 durables) **recall@1 41.6→56.2%, recall@3 62.3→68.7%** (empata
+  medido (`tests/memory/e2e/bot/scale_eval.py`, 442 durables) **recall@1 41.6→56.2%, recall@3 62.3→68.7%** (empata
   al techo OpenAI 69%), MRR 0.544→0.642, lat p50 114→260ms. **Default `local`** = `jina-reranker-v2-base-multilingual`
   vía fastembed (ONNX/**CPU → cero contención con la GPU** de STT/TTS), gratis, 100% local. **Mismo patrón
   LLM-agnostic que el routing del cerebro** (`fast`/`code_agent`): proveedor CONFIGURABLE por la UI/config, **cloud =
@@ -741,6 +744,23 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   código, ~1-2 min). El FlashBrain también hace `[[show]]`/`[[close]]`/`[[move]]` y **BORRAR un widget** (V2-017:
   determinista → no necesita agente headless). Solo CREAR/MODIFICAR-código y volcar datos-a-buscar escalan por
   `escalate_to_slowbrain`, forzado en código.
+- **Nombres + alias de widgets con CERTEZA de enrutamiento** (V2-082, 2026-08-01; plan en
+  `.meshkore/docs/architecture/zaelar-widget-naming-v2082.md`): cada pieza tiene un **NOMBRE canónico + una lista de
+  ALIAS** y se resuelve SOLO por ellos. **Invierte el matching difuso** que confundía widgets: `widgets/runtime.py::
+  identify` reescrito — la `description`/`whenToUse` ya **NO abre nada** (fin del "abrió por parecido temático", causa
+  raíz de la mis-ruta de [[project_v2081_show_vs_build_misroute]]), tolerancia de voz solo sobre tokens de alias, y
+  **sin match de nombre/alias → se PREGUNTA** (nunca se abre el más parecido ni se fabrica un widget). La palabra
+  **"widget"** en la frase acota a widgets de USUARIO; las **SUPERFICIES DE SISTEMA** (chat/config/debug…, espejo
+  backend `widgets/system_surfaces.py` ← front `system-surfaces.js`) viven en el mismo espacio de nombres y devuelven
+  `system=<id>`, nunca un widget → "abre el chat" (sistema) y "abre los mensajes" (mensajería) jamás se cruzan. Único
+  matiz: sin match pero UN solo widget abierto → se opera sobre él (lo que tiene delante). Alias de widget
+  **EDITABLES por voz/texto** (tool `manage_widget_alias` + REST `POST/DELETE /widgets/{id}/aliases`, escritura
+  QUIRÚRGICA del manifest en `widgets/aliases.py` con guard de colisión —un alias = una sola pieza— sin regenerar
+  código); alias de sistema FIJOS. **Registro unificado** `widgets/registry.py` (`GET /widgets/registry`, proyectado a
+  `state.widget_registry`); el frontend pinta el NOMBRE + un ⚙ con los alias editables en el header de cada tarjeta
+  (`desktop.js`, evento SSE `widget/alias` refresca en vivo). **Concepto fijado sin mezclar:** WIDGET (catálogo, alias
+  editables) · SUPERFICIE DE SISTEMA (nativa, alias fijos) · TOOL (`router.TOOLS`) · ACCIÓN/data-op (≡"skill",
+  `manifest.actions`) · EMBEDDING (solo memoria). `keyword ≡ alias` (D1): `keywords` legacy se siembra a `aliases`.
 - **Acciones de widget = FRONTERA datos/código + gate de irreversibilidad (NO de escalado)** (`widgets/actions.py`,
   V2-025, 2026-07-11): el flag `"safe"` estaba SOBRECARGADO — mezclaba «¿puede la capa rápida hacer esta mutación?»
   con «¿es irreversible?». Consecuencia real: `add_meeting` («añade una cita a la agenda») estaba `"safe":false` →
@@ -1129,8 +1149,8 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un
 JUEZ que evalúa lo que zaelar HACE (no lo que dice). **El PLAYBOOK autocontenido de "cómo se prueba" (trigger "lanza
 un test del bot", Paso 0 de alineación, prioridades, evaluación, archivado) vive en
-`.meshkore/docs/ops/zaelar-testing.md`**; el catálogo legible de escenarios en `tester/anexos/catalogo-escenarios.md`
-y el histórico de informes por día en `tester/reports/<YYYYMMDD>-<desc>/`. Docs canónicas:
+`.meshkore/docs/ops/zaelar-testing.md`**; el catálogo legible de escenarios en `tests/voice/e2e/agent/anexos/catalogo-escenarios.md`
+y el histórico de informes por día en `tests/voice/e2e/agent/reports/<YYYYMMDD>-<desc>/`. Docs canónicas:
 **«¿funciona todo bien?» → `./.venv/bin/python tests/run_testmap.py`**: el MAPA DE TESTS navegable — todo el testing
 ordenado por **DOMINIO → CASO DE USO → CANAL** (9 dominios, nodos `N.M`), responde con el árbol numerado
 "1.1 ✅, 1.2 ✅, 2.1 ✅…" y marca aparte los nodos VIVOS (exigen `make run`). Es la fuente de verdad de qué fichero
@@ -1141,28 +1161,28 @@ cubre cada caso; la narrativa/segunda-opinión (cobertura, huecos, duplicación)
 (modelos/latencias). Cómo funciona:
 
 > **TRES formas de testing** (el DETALLE completo — cómo lanzar, formatos, evaluación — vive en
-> **`.meshkore/docs/ops/zaelar-testing.md`**, no aquí): (1) **MEMORIA** (`tests/e2e/memory/bot/`, taxonomía A–X);
-> (2) **VOZ e2e** (INI-013, `tester/`) — realista, lento, con ruido de STT; (3) **canal de PRUEBA del FlashBrain por
+> **`.meshkore/docs/ops/zaelar-testing.md`**, no aquí): (1) **MEMORIA** (`tests/memory/e2e/bot/`, taxonomía A–X);
+> (2) **VOZ e2e** (INI-013, `tests/voice/e2e/agent/`) — realista, lento, con ruido de STT; (3) **canal de PRUEBA del FlashBrain por
 > TEXTO** (V2-032, el más RÁPIDO, headless) — **úsalo siempre que toques cerebro rápido / conversación / prompt /
 > memoria-estado / tools**: `make reset` → `make flash-serve` → `make flash T="…"` (ver el playbook para el resto).
 
 Cómo funciona (canal de VOZ e2e, INI-013):
 
-- **El tester** (`tester/`, `python -m tester.run`): se une a la MISMA sala LiveKit de zaelar como un **2º
+- **El tester** (`tests/voice/e2e/agent/`, `python -m tests.voice.e2e.agent.run`): se une a la MISMA sala LiveKit de zaelar como un **2º
   participante**, **habla por TTS** y **escucha+transcribe con Deepgram STT**. Un cerebro **DRIVE** (DeepSeek vía
-  AIMLAPI) conduce el escenario/objetivo turno a turno. Uso: `./.venv/bin/python -m tester.run --scenario <id>` o
+  AIMLAPI) conduce el escenario/objetivo turno a turno. Uso: `./.venv/bin/python -m tests.voice.e2e.agent.run --scenario <id>` o
   `--goal "..." --turns N`, `--no-open` para no abrir navegador. **Requiere zaelar ya arrancado** (`make run`). Bucle
-  nocturno: `tester/overnight.sh` + `tester/guard.sh`.
-- **El juez** (`tester/judge/`, GLM-4.6 vía Z.AI, fallback DeepSeek): se suscribe a `GET /events` (el bus del
+  nocturno: `tests/voice/e2e/agent/overnight.sh` + `tests/voice/e2e/agent/guard.sh`.
+- **El juez** (`tests/voice/e2e/agent/judge/`, GLM-4.6 vía Z.AI, fallback DeepSeek): se suscribe a `GET /events` (el bus del
   observer) y evalúa el **comportamiento OBSERVABLE**: acciones de frontend (widgets `show`/`close`, navegador), tags
-  del cerebro, escalados, latencias reales. Escribe un informe por sesión en `tester/runs/report_*.md` (+ `.json`,
+  del cerebro, escalados, latencias reales. Escribe un informe por sesión en `tests/runs/agent/report_*.md` (+ `.json`,
   versionados; los `.wav`/`.log` se ignoran).
 - **El prompt de iteración — el loop autónomo** (`/loop 20m <prompt>`, skill `loop`): re-invoca SIEMPRE el mismo
   ciclo: **(1) guarda** (`curl /api/brain`; si no responde, `make run` y esperar) → **(2) prueba** la siguiente
   oleada → **(3) arregla** en código si hay hallazgo → **(4) re-verifica** (reinicia si tocó `.py`) → **(5)
   documenta** una entrada FECHADA nueva al final de INI-013 → **(6) repite**.
-- **Cron test→fix (cada 15 min) — el PROCEDIMIENTO ESTÁNDAR** (`tester/cron_tick.sh`, doc en INI-013 §Cron test→fix
-  loop): cada disparo prueba **UN caso de uso COMPLETO** (no saludos triviales) rotando por `tester/scenarios.py`
+- **Cron test→fix (cada 15 min) — el PROCEDIMIENTO ESTÁNDAR** (`tests/voice/e2e/agent/cron_tick.sh`, doc en INI-013 §Cron test→fix
+  loop): cada disparo prueba **UN caso de uso COMPLETO** (no saludos triviales) rotando por `tests/voice/e2e/agent/scenarios.py`
   (mensajería · widgets · navegador/moto · conectores · memoria · búsqueda V2-022 · agenda · idea compleja…), el
   JUEZ lo puntúa (`overall>=4` = PASS, `dispatch_dead`/null = INFRA), y el agente **arregla el código si falla**,
   reinicia si tocó `.py`, **re-corre ese mismo escenario** y documenta. `cron_tick.sh` asegura zaelar UP, SALTA si el
@@ -1171,7 +1191,7 @@ Cómo funciona (canal de VOZ e2e, INI-013):
 - **Oleadas de prueba (A-L)**, en INI-013: A=fiabilidad de escalada, B=directiva de estilo, C=memoria de arranque,
   D=widgets, E/F=WhatsApp/Telegram, G=paste/ficheros, H=multilenguaje, I=latencia, J=regresión, K=widgets nuevos,
   L=cron/proactividad.
-- **Evaluación A FONDO de la MEMORIA** (bot dedicado `tests/e2e/memory/bot/`): taxonomía de **24 dimensiones (A–X)**
+- **Evaluación A FONDO de la MEMORIA** (bot dedicado `tests/memory/e2e/bot/`): taxonomía de **24 dimensiones (A–X)**
   anclada a los benchmarks del estado del arte (LongMemEval/LoCoMo/MemBench/MemoryAgentBench/MemConflict/BEAM/STALE/
   Mem2ActBench) — alimenta la memoria incremental por el CAMINO REAL (`_brain_view`, sin LLM en la lectura) + pytest
   de regresión + tester en vivo para lo que es del LLM. **Teoría canónica** en `zaelar-memory.md §Evaluación de la

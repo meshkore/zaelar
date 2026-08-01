@@ -1,6 +1,6 @@
 # V2-082 — Nombres + alias de widgets, certeza 100% en el enrutamiento
 
-> Estado: **PLAN, sin implementar** — pendiente de aprobación del operador.
+> Estado: **IMPLEMENTADO** (2026-08-01, v2.82) — Fases 1-5. Aprobado por el operador con decisiones D1-D4 (ver §Decisiones).
 > Autor: sesión 2026-08-01. Sucede a [[V2-081]] (mostrar≠construir) y [[V2-078]] (acotación open>recent).
 
 ## 0. Problema y objetivo
@@ -188,7 +188,7 @@ email, mail`; y garantizar que `chat` (sistema) NO comparte ninguno → caso de 
 - Unit `widgets/test_aliases.py`: add/remove, colisión rechazada, colisión con sistema rechazada,
   invalidación de caché.
 - `test_router.py`: nueva tool `manage_widget_alias` en el set esperado.
-- Paridad provider/probe: escenario en `tester/scenarios.py` ("aliases") + "abre por nombre/alias".
+- Paridad provider/probe: escenario en `tests/e2e/agent/scenarios.py` ("aliases") + "abre por nombre/alias".
 - `make test-widgets` (golden) + los 201 existentes verdes.
 
 ## 9. Docs
