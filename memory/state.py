@@ -48,6 +48,12 @@ _DEFAULT: dict = {
     # (dedup, la más reciente primero, cap ~6). Idea del operador: con 100 widgets pero 3 recién usados, casi seguro
     # se refiere a esos → menos ambigüedad sin hardcodear frases por widget.
     "recent_widgets": [],     # ids de widgets usados hace poco (MRU, dedup, cap ~6), aunque ya no estén abiertos
+    # CATÁLOGO de NOMBRES + ALIAS (V2-082): proyección de VISIBILIDAD del registro unificado (widgets de usuario +
+    # superficies de sistema), [{id,name,aliases,surface}]. NO es fuente de verdad (la identidad vive en el manifest
+    # de cada widget y en system-surfaces.js) — es un espejo para que el operador VEA en el estado qué se puede abrir
+    # y con qué alias. Lo regenera widgets/registry.refresh_state() tras un cambio de catálogo/alias y al arrancar.
+    "widget_registry": [],
+
     "activity": [],           # tareas del SlowBrain EN MARCHA ahora (etiquetas cortas)
     "sessions": [],           # V2-036: sesiones de trabajo VIVAS del SlowBrain [{id,goal,phase}] — el orquestador
     #                           las conoce para situarse y dirigirles follow-ups; el FlashBrain las cuenta al operador.
@@ -121,6 +127,18 @@ def set_security_flag(key: str, value) -> None:
         sec[key] = value
         cur["security"] = sec
         write(cur)
+
+
+# ── CATÁLOGO de nombres + alias (V2-082) ────────────────────────────────────────────────────────────────────
+def set_widget_registry(rows) -> list:
+    """Escribe la proyección de VISIBILIDAD del registro de widgets/superficies (id/name/aliases/surface). Best-effort,
+    bajo el mismo lock que `patch`. No es fuente de verdad — la regenera widgets/registry.refresh_state()."""
+    rows = list(rows or [])
+    with _patch_lock:
+        cur = read()
+        cur["widget_registry"] = rows
+        write(cur)
+        return rows
 
 
 # ── MRU de widgets usados hace poco (V2-078) ────────────────────────────────────────────────────────────────

@@ -4,7 +4,34 @@
   "title": "Búsqueda / Tiempo",
   "description": "Widget transitorio estilo Jarvis: muestra en vivo qué fuentes consulta (cilindro giratorio), pasa a la siguiente si una falla, va mostrando resultados y llega a una conclusión; luego se desvanece. Primera capacidad: el tiempo.",
   "whenToUse": "Cuando el usuario pregunta por el tiempo/clima/temperatura o pide buscar algo en internet.",
-  "keywords": ["tiempo", "clima", "temperatura", "grados", "calor", "frío", "frio", "llueve", "lluvia", "weather", "qué tiempo", "que tiempo", "busca", "buscar", "búscame", "buscame", "internet", "search", "mira en", "averigua"],
+  "keywords": [
+    "tiempo",
+    "clima",
+    "temperatura",
+    "grados",
+    "calor",
+    "frío",
+    "frio",
+    "llueve",
+    "lluvia",
+    "weather",
+    "qué tiempo",
+    "que tiempo",
+    "busca",
+    "buscar",
+    "búscame",
+    "buscame",
+    "internet",
+    "search",
+    "mira en",
+    "averigua"
+  ],
   "entry": "widget.js",
-  "transient": true
+  "transient": true,
+  "name": "Búsqueda",
+  "aliases": [
+    "Búsqueda",
+    "buscador",
+    "panel de búsqueda"
+  ]
 }
