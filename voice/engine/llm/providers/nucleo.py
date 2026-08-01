@@ -885,7 +885,8 @@ class NucleoLLMStream(llm.LLMStream):
             elif name == "manage_widget_alias":
                 # V2-082: añade/quita un NOMBRE/ALIAS de un widget por voz ("añade el alias WhatsApp a mensajería").
                 # Escritura QUIRÚRGICA del manifest (no regenera código), con guard de colisión. Resuelve el widget
-                # por id exacto o por nombre/alias (mismo resolver de certeza). Off-loop (I/O de fichero + estado).
+                # por id exacto o por nombre/alias (mismo resolver de certeza). Este bucle de tool-calls es SÍNCRONO
+                # (como _apply_widget_data) → la escritura va inline (I/O de fichero de ms, no un await).
                 if "manage_widget_alias" not in _tool_fired:
                     _tool_fired.add("manage_widget_alias")
                     from widgets import aliases as _al, runtime as _rt_al
@@ -899,7 +900,7 @@ class NucleoLLMStream(llm.LLMStream):
                     elif not _alias:
                         clarify["msg"] = "¿Qué alias quieres que le ponga?"
                     else:
-                        _res = await asyncio.to_thread(_al.remove if _op == "remove" else _al.add, _rid, _alias)
+                        _res = (_al.remove if _op == "remove" else _al.add)(_rid, _alias)
                         acted["widget"] = True
                         if _res.get("ok") and not _res.get("unchanged"):
                             clarify["msg"] = (f"Hecho, le quité el alias «{_alias}»." if _op == "remove"
