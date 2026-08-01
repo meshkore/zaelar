@@ -59,10 +59,12 @@ export function createEffect(fn) {
 // untrack(fn) — lee señales SIN suscribirse a ellas. Firma idéntica a la de Solid (`untrack`), así que la
 // migración prevista arriba sigue siendo un cambio de import.
 //
-// Por qué hace falta (V2-087, bug real): un efecto que LEE una señal para DECIDIR y luego la ESCRIBE se
-// retroalimenta. Caso concreto: el efecto de ChatWall leía `botMuted()` para silenciar al abrir el chat, así que
-// quedaba suscrito — y cuando el operador pulsaba 🔊 para recuperar la voz, el efecto se re-disparaba, veía el
-// chat abierto y lo VOLVÍA A SILENCIAR. El icono parecía bloqueado: respondía y algo lo deshacía al instante.
+// Para qué sirve, con un caso real detrás: un efecto que LEE una señal para DECIDIR y luego la ESCRIBE se
+// retroalimenta. Pasó con el altavoz — un efecto leía `botMuted()` para silenciar al abrir el chat, quedaba
+// suscrito, y al pulsar 🔊 se re-disparaba y VOLVÍA A SILENCIAR: el icono parecía bloqueado porque respondía y
+// algo lo deshacía en el mismo tick (V2-087). Aquel efecto se eliminó del todo en V2-088 —chat y voz son
+// independientes—, así que hoy nadie usa `untrack`; se conserva porque es primitivo de Solid y la herramienta
+// correcta para esa clase de bucle. Antes de usarlo, pregúntate si el acoplamiento debería existir siquiera.
 export function untrack(fn) {
   const prev = currentObserver;
   currentObserver = null;

@@ -125,6 +125,10 @@ DOMAINS: list[dict] = [
         # lo que fija es la UI y su contrato de datos; la lógica de red vive en 6.9.
         {"id": "4.8", "title": "Pestaña nativa «Clusters» (contrato UI ↔ ruteo ↔ backend, V2-086)", "ch": UNIT,
             "paths": ["tests/browser/unit/widgets/test_clusters_tab.py"]},
+        # V2-088: el chat es una VISTA, no un modo. Estos tests impiden que alguien vuelva a cablear el panel
+        # con el altavoz — el acoplamiento anterior era indistinguible de un TTS averiado.
+        {"id": "4.9", "title": "Chat y voz INDEPENDIENTES (el icono es el único dueño del silencio, V2-088)",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_chat_voice_independent.py"]},
     ]},
     {"id": "5", "name": "CONECTORES", "nodes": [
         {"id": "5.1", "title": "Email", "ch": UNIT, "paths": [

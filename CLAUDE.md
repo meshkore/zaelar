@@ -781,6 +781,14 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   (`desktop.js`, evento SSE `widget/alias` refresca en vivo). **Concepto fijado sin mezclar:** WIDGET (catálogo, alias
   editables) · SUPERFICIE DE SISTEMA (nativa, alias fijos) · TOOL (`router.TOOLS`) · ACCIÓN/data-op (≡"skill",
   `manifest.actions`) · EMBEDDING (solo memoria). `keyword ≡ alias` (D1): `keywords` legacy se siembra a `aliases`.
+- **CHAT y VOZ, INDEPENDIENTES — el icono es el único dueño del silencio** (V2-088, 2026-08-02): se RETIRA el
+  «modo chat = voz off» de V2-054. Partía de una premisa falsa —que abrir el panel significa «prefiero leer»—
+  cuando tiene CUATRO pestañas y el operador entra a mirar Procesos/Crons/Clusters sin querer callar a nadie.
+  Ahora abrir el chat NO toca el altavoz y silenciar NO toca el chat. **El chat no es un modo, es una VISTA MÁS**:
+  la respuesta aparece en el chat, en los subtítulos y en la voz **a la vez** (`pushAgentChat` cuelga del
+  transcript, independiente del audio). Silenciar es SIEMPRE decisión del operador con 🔊. Tests: nodo 4.9
+  (`test_chat_voice_independent.py`) — prohíben que el ChatWall vuelva a nombrar `toggleBotMute`/`setVoiceOutput`/
+  `botMuted`. La etiqueta del evento ya no dice «modo chat» (apuntaba a una causa inexistente y costaba horas).
 - **El icono del altavoz MANDA — un solo interruptor para la voz** (V2-087, 2026-08-01): «abro el chat y la voz se
   desactiva, y el icono se bloquea». Tres fallos encadenados detrás. **(a) DOS interruptores para una cosa:** el
   icono movía solo el `<audio>` local, mientras la síntesis del server la gobernaba `chatOpen` por su cuenta →

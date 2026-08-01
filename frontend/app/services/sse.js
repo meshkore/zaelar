@@ -49,8 +49,10 @@ export function openSSE(desktop) {
       // happens to be open right now; otherwise there's nothing on screen to update.
       else if (d.label === "data" && d.id) desktop.refreshData(d.id);
       else if (d.label === "alias") desktop.refreshRegistry && desktop.refreshRegistry();  // V2-082: cambió un nombre/alias → repinta header + panel
-    } else if (d.kind === "panel") {                                              // V2-079: el cerebro abre el panel nativo (chat/procesos/crons) por voz
-      const tab = (d.tab === "procesos" || d.tab === "crons") ? d.tab : "chat";
+    } else if (d.kind === "panel") {                                              // V2-079/086: el cerebro abre el panel nativo (chat/procesos/crons/clusters) por voz
+      // La lista blanca DEBE incluir toda pestaña que `router._canon_panel` sepa devolver, o el backend rutea
+      // bien y el frontend lo tira al suelo abriendo «Chat» (le pasó a `clusters` al nacer, V2-086).
+      const tab = ["procesos", "crons", "clusters"].includes(d.tab) ? d.tab : "chat";
       store.setChatTab(tab);
       store.setChatOpen(true);
     } else if (d.kind === "transcript" && d.text) {

@@ -412,16 +412,26 @@ async def entrypoint(ctx: JobContext) -> None:
                 except Exception:
                     pass
                 return
-            # MODO CHAT = VOZ OFF (V2-054 T1.2): al abrir el chat el frontend publica {audio:false} → apagamos la
-            # SALIDA de audio de la sesión. Con audio_enabled=False el pipeline de LiveKit NO invoca el TTS
-            # (agent_activity: audio_output=None → rama text-only) → CERO síntesis (ahorra latencia TTS + coste).
-            # La respuesta sigue llegando al ChatWall por el evento transcript/assistant (conversation_item_added),
-            # que es independiente del audio. Al cerrar el chat el frontend publica {audio:true} y se restaura.
+            # SILENCIO = decisión del OPERADOR (V2-054 · redefinido en V2-088). El frontend publica {audio:false}
+            # cuando el operador SILENCIA con el icono 🔊, y {audio:true} cuando lo reactiva. Con audio_enabled=False
+            # el pipeline de LiveKit NO invoca el TTS (agent_activity: audio_output=None → rama text-only) → CERO
+            # síntesis: ahorra latencia y coste, y es la diferencia entre «silenciado» y «bajar el volumen».
+            #
+            # Ya NO lo dispara abrir el chat. Eso era V2-054 («modo chat = voz off») y partía de una premisa falsa:
+            # que abrir el panel significaba «prefiero leer». El panel tiene cuatro pestañas y se entra a mirar
+            # procesos, crons o clusters sin querer callar a nadie. Ahora el chat y la voz son independientes; el
+            # único dueño del silencio es el icono. La respuesta llega SIEMPRE al ChatWall por el evento
+            # transcript/assistant (conversation_item_added), que es independiente del audio: chat, subtítulos y
+            # voz son tres vistas de lo mismo, no modos que se excluyan.
             if topic == "zaelar-voice":
                 try:
                     want = bool(_json.loads(bytes(packet.data).decode("utf-8")).get("audio", True))
                     session.output.set_audio_enabled(want)
-                    _emit("session", "voz ON (síntesis activa)" if want else "voz OFF (modo chat — sin TTS)",
+                    # La etiqueta importa: es lo que un agente lee en `/api/debug` para diagnosticar «no se oye».
+                    # Decía «modo chat», y desde V2-088 eso ya no es la causa — silenciar es SIEMPRE una decisión
+                    # del operador con el icono. Una etiqueta que apunta a una causa falsa cuesta horas.
+                    _emit("session", "voz ON (síntesis activa)" if want
+                          else "voz OFF (el operador silenció con el icono 🔊 — sin TTS)",
                           role="system")
                 except Exception as ve:
                     logger.warning("zaelar-voice toggle failed: %s", ve)

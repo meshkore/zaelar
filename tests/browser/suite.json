@@ -49,6 +49,11 @@
       "id": "4.8",
       "label": "Pestaña nativa «Clusters» (contrato UI↔ruteo↔backend)",
       "kind": "unit"
+    },
+    {
+      "id": "4.9",
+      "label": "Chat y voz independientes (V2-088)",
+      "kind": "unit"
     }
   ]
 }
