@@ -33,9 +33,18 @@ const SECTIONS = [
   { id: "apis", label: "APIs y saldo", icon: SERVER_ICON },
 ];
 
+// V2-083: tres pestañas principales. "settings" = todo lo de antes (menú lateral + secciones); "conectores" y
+// "widgets" son nuevas. Patrón de pastilla segmentada (como las pestañas del ChatWall).
+const TABS = [
+  { id: "settings", label: "Ajustes" },
+  { id: "conectores", label: "Conectores" },
+  { id: "widgets", label: "Widgets" },
+];
+
 export function ConfigPanel() {
   let cfg = null, bodyEl, msgEl, ovl;
   let activeSec = SECTIONS[0].id;
+  let activeTab = "settings";
 
   const msg = t => { if (msgEl) msgEl.textContent = t || ""; };
 
@@ -52,8 +61,17 @@ export function ConfigPanel() {
       apis: () => sec_apis(),
     };
     if (!builders[activeSec]) activeSec = SECTIONS[0].id;
-    const nav = SECTIONS.map(s => `<button type="button" class="cf-nav-item${s.id === activeSec ? " active" : ""}" data-sec="${s.id}">${s.icon}<span>${esc(s.label)}</span></button>`).join("");
-    bodyEl.innerHTML = `<nav class="cf-nav">${nav}</nav><div class="cf-scroll"><div class="cf-panel">${builders[activeSec]()}</div></div>`;
+    const tabsBar = TABS.map(t => `<button type="button" class="cf-tab${t.id === activeTab ? " on" : ""}" data-tab="${t.id}">${esc(t.label)}</button>`).join("");
+    let pane;
+    if (activeTab === "conectores") {
+      pane = `<div class="cf-tabpane"><div class="cf-scroll"><div class="cf-panel">${sec_connectors()}</div></div></div>`;
+    } else if (activeTab === "widgets") {
+      pane = `<div class="cf-tabpane"><div class="cf-scroll"><div class="cf-panel">${sec_widgets()}</div></div></div>`;
+    } else {
+      const nav = SECTIONS.map(s => `<button type="button" class="cf-nav-item${s.id === activeSec ? " active" : ""}" data-sec="${s.id}">${s.icon}<span>${esc(s.label)}</span></button>`).join("");
+      pane = `<div class="cf-tabpane"><nav class="cf-nav">${nav}</nav><div class="cf-scroll"><div class="cf-panel">${builders[activeSec]()}</div></div></div>`;
+    }
+    bodyEl.innerHTML = `<div class="cf-tabs">${tabsBar}</div>${pane}`;
     wire();
   }
 
@@ -171,6 +189,11 @@ export function ConfigPanel() {
 
   // ---- wiring ----
   function wire() {
+    // V2-083: pestañas principales (settings/conectores/widgets)
+    bodyEl.querySelectorAll(".cf-tab").forEach(b => b.onclick = () => { if (b.dataset.tab !== activeTab) { activeTab = b.dataset.tab; render(); } });
+    // controles de la pestaña Conectores
+    bodyEl.querySelectorAll(".cf-cx-act").forEach(b => b.onclick = () => cxAct(b.dataset.act, b.dataset.id, b));
+    const cxr = bodyEl.querySelector(".cf-cx-refresh"); if (cxr) cxr.onclick = () => reloadConnectors();
     bodyEl.querySelectorAll(".cf-nav-item").forEach(b => b.onclick = () => { if (b.dataset.sec !== activeSec) { activeSec = b.dataset.sec; render(); } });
 
     // proveedor del FlashBrain → repuebla modelos, placeholder de base_url y fila de key
@@ -270,10 +293,124 @@ export function ConfigPanel() {
     try { await fetch("/api/spotify/disconnect", { method: "POST" }); msg("Spotify desconectado."); await load(); } catch (_) {} finally { btn.disabled = false; }
   }
 
+  // ═══ PESTAÑA CONECTORES (V2-083) ═══════════════════════════════════════════════════════════════════════
+  const cxBadge = c => badge(c.connected ? "ok" : (c.status === "error" ? "error" : "off"))
+    .replace(">OK<", ">conectado<").replace(">sin key<", ">no conectado<");
+
+  function connectorCard(c) {
+    const id = esc(c.id), fam = esc(c.family || "");
+    let box = "";
+    if (c.connected) {
+      // ya conectado → botón de desconectar/revocar
+      const revoke = c.family === "infra" ? "Revocar" : "Desconectar";
+      box = `<button class="cf-btn cf-cx-act" data-act="disconnect" data-id="${id}">${revoke}</button>`;
+    } else if (id === "whatsapp") {
+      box = `<button class="cf-btn cf-cx-act" data-act="connect" data-id="whatsapp">Conectar (mostrar QR)</button>`;
+    } else if (id === "telegram") {
+      box = `${row("api_id", `<input id="cx_tg_api_id" type="text" placeholder="de my.telegram.org"/>`)}
+        ${row("api_hash", `<input id="cx_tg_api_hash" type="password" placeholder="de my.telegram.org"/>`)}
+        <button class="cf-btn cf-cx-act" data-act="connect" data-id="telegram">Conectar (mostrar QR)</button>`;
+    } else if (id === "email") {
+      box = `${row("Proveedor", `<select id="cx_em_provider">${opt(["gmail", "outlook", "otro"], "gmail")}</select>`)}
+        ${row("Correo", `<input id="cx_em_address" type="email" placeholder="tucorreo@gmail.com"/>`)}
+        ${row("Contraseña de aplicación", `<input id="cx_em_pass" type="password" placeholder="app-password"/>`)}
+        <button class="cf-btn cf-cx-act" data-act="connect" data-id="email">Conectar</button>`;
+    } else if (id === "spotify") {
+      box = `<button class="cf-btn cf-cx-act" data-act="connect" data-id="spotify">Conectar con Spotify</button>`;
+    } else if (id === "architect") {
+      const set = (c.config || {}).token_set;
+      box = `${row("Token del daemon", `<input id="cx_arch_token" type="password" placeholder="${set ? "•••••• (guardado)" : "pega el token"}"/>`)}
+        ${row("URL (opcional)", `<input id="cx_arch_url" type="text" placeholder="https://127.0.0.1:5573"/>`)}
+        <button class="cf-btn cf-cx-act" data-act="architect-save" data-id="architect">Guardar token</button>`;
+    } else if (id === "meshkore") {
+      const clusters = (c.clusters || []).map(cl =>
+        `<div class="cf-cx-cluster"><span>${esc(cl.name)} ${cl.connected ? "· conectado" : ""}</span>
+          <button class="cf-btn cf-cx-act" data-act="mesh-remove" data-id="meshkore" data-name="${esc(cl.name)}">Revocar</button></div>`).join("");
+      box = `${clusters}${row("Nombre", `<input id="cx_mk_name" type="text" placeholder="p.ej. equipo"/>`)}
+        ${row("cluster_id", `<input id="cx_mk_cid" type="text"/>`)}
+        ${row("token", `<input id="cx_mk_token" type="password"/>`)}
+        ${row("handle (opcional)", `<input id="cx_mk_handle" type="text" placeholder="zaelar"/>`)}
+        <button class="cf-btn cf-cx-act" data-act="mesh-add" data-id="meshkore">Añadir cluster</button>`;
+    }
+    return `<section class="cf-panel-sec"><header class="cf-panel-head"><h4>${esc(c.label)} ${cxBadge(c)}</h4>
+      <p>${esc(c.detail || "")}</p></header><div class="cf-group">${box}</div></section>`;
+  }
+
+  function sec_connectors() {
+    const cs = cfg.connectors || [];
+    if (!cs.length) return `<p class="cf-loading">No pude cargar los conectores.</p>`;
+    const fams = [["mensajeria", "Mensajería"], ["musica", "Música"], ["infra", "Infraestructura (equipo · código)"]];
+    return fams.map(([f, title]) => {
+      const items = cs.filter(c => c.family === f);
+      if (!items.length) return "";
+      return `<h3 class="cf-fam">${esc(title)}</h3>${items.map(connectorCard).join("")}`;
+    }).join("") + `<div class="cf-foot"><button class="cf-btn cf-cx-refresh">Actualizar estado</button></div>`;
+  }
+
+  const sleep = ms => new Promise(r => setTimeout(r, ms));
+  async function reloadConnectors() {
+    try { cfg.connectors = (await api.getConnectors()).connectors || []; } catch (_) {}
+    if (activeTab === "conectores") render();
+  }
+  async function pollConnectors() {   // tras conectar mensajería, el QR/estado tardan un momento en aparecer
+    for (let i = 0; i < 6; i++) { await sleep(1500); await reloadConnectors(); }
+  }
+
+  async function cxAct(act, id, btn) {
+    btn.disabled = true;
+    try {
+      if (act === "disconnect") {
+        if (id === "spotify") { await disconnectSpotify(btn); }
+        else if (id === "architect") { await api.architectDisconnect(); msg("Architect revocado."); }
+        else { await api.disconnectMessaging(id, {}); msg(`${id} desconectado.`); }
+        await reloadConnectors();
+      } else if (act === "connect") {
+        if (id === "spotify") { await connectSpotify(btn); return; }
+        let payload = {};
+        if (id === "telegram") payload = { api_id: val("cx_tg_api_id"), api_hash: val("cx_tg_api_hash") };
+        if (id === "email") payload = { email_address: val("cx_em_address"), email_password: val("cx_em_pass"), provider: val("cx_em_provider") };
+        const r = await api.connectMessaging(id, payload);
+        msg(r.ok ? `${id}: conectando…` : ("✗ " + (r.error || "error")));
+        pollConnectors();
+      } else if (act === "architect-save") {
+        const token = val("cx_arch_token"), url = val("cx_arch_url");
+        const r = await api.architectConnect({ token, url });
+        msg(r.ok ? "✓ token guardado" : ("✗ " + (r.error || "error"))); await reloadConnectors();
+      } else if (act === "mesh-add") {
+        const r = await api.meshkoreAdd({ name: val("cx_mk_name"), cluster_id: val("cx_mk_cid"), token: val("cx_mk_token"), handle: val("cx_mk_handle") });
+        msg(r.ok ? "✓ cluster añadido" : ("✗ " + (r.error || "error"))); await reloadConnectors();
+      } else if (act === "mesh-remove") {
+        await api.meshkoreRemove(btn.dataset.name); msg("cluster revocado"); await reloadConnectors();
+      }
+    } catch (e) { msg("✗ error"); } finally { btn.disabled = false; }
+  }
+
+  // ═══ PESTAÑA WIDGETS (V2-083) — una sola lista alfabética con badge de-serie/tuyo ═══════════════════════
+  function sec_widgets() {
+    const ws = (cfg.widgets || []).filter(w => w.surface === "user")
+      .sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id), "es"));
+    if (!ws.length) return `<p class="cf-loading">No pude cargar los widgets.</p>`;
+    const rows = ws.map(w => {
+      const kind = w.origin === "builtin"
+        ? `<span class="cf-wbadge builtin">de serie</span>`
+        : `<span class="cf-wbadge user">tuyo</span>`;
+      const al = (w.aliases || []).filter(a => a.toLowerCase() !== String(w.name || "").toLowerCase()).slice(0, 6).join(" · ");
+      return `<div class="cf-wrow"><div class="cf-wname">${esc(w.name || w.id)} ${kind}</div>
+        <div class="cf-waliases">${esc(al)}</div></div>`;
+    }).join("");
+    return panel("widgets", "Widgets del sistema", "Todos los widgets disponibles. «de serie» vienen con el agente; «tuyo» los has creado tú. Solo lectura (sus alias se editan en el header del propio widget o por voz).", rows);
+  }
+
   async function load() {
     msg(""); bodyEl.innerHTML = '<p class="cf-loading">Cargando configuración…</p>';
     try {
       cfg = await api.getConfig();
+      // V2-083: conectores + widgets para sus pestañas (best-effort, en paralelo).
+      try {
+        const [cx, wr] = await Promise.all([api.getConnectors(), api.getWidgetsRegistry()]);
+        cfg.connectors = (cx && cx.connectors) || [];
+        cfg.widgets = (wr && wr.registry) || [];
+      } catch (_) { cfg.connectors = cfg.connectors || []; cfg.widgets = cfg.widgets || []; }
       render();
       store.setApiSummary(cfg.apis || []);
       store.setApiAlerts((cfg.apis || []).filter(a => a.state === "warn" || a.state === "error"));
