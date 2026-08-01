@@ -178,6 +178,31 @@ def _match_system(q: str, q_padded: str, q_tokens: list):
     return (best_id, best) if best >= _THRESHOLD else (None, 0.0)
 
 
+def rank(query: str, limit: int = 8) -> list[tuple[float, dict]]:
+    """Ranking PÚBLICO de widgets contra una frase, SOLO por nombre/alias — la misma señal (y el mismo índice
+    cacheado) que usa `identify()`, pero devolviendo los N mejores en vez de exigir un ganador inequívoco.
+
+    Existe para la SELECCIÓN PROGRESIVA (`widgets/selection.py`): con un catálogo de miles, el prompt no puede
+    llevar el catálogo entero, así que el widget que el operador NOMBRA en su frase se PROMOCIONA al top-K por
+    esta vía — sin ella, un widget en la posición 4.000 sería invisible para el modelo. Es RECUPERACIÓN
+    (retrieval), no comprensión: no interpreta el verbo ni la intención, solo mide parecido de nombre/alias.
+
+    Devuelve [(score, manifest)] ordenado desc, ya filtrado por `_THRESHOLD` (por debajo no hay señal real).
+    Coste: O(N) sobre un índice ya normalizado en RAM (~µs por widget); no hace I/O ni re-parsea manifests."""
+    q = _norm(query)
+    if not q:
+        return []
+    q_padded = f" {q} "
+    q_tokens = [t for t in q.split() if t not in _STOP]
+    scored = []
+    for row in _identify_index():
+        s = _alias_score(q, q_padded, q_tokens, row["aliases"], row["alias_tokens"])
+        if s >= _THRESHOLD:
+            scored.append((s, row["w"]))
+    scored.sort(key=lambda sw: (-sw[0], str(sw[1].get("id", ""))))
+    return scored[:max(0, int(limit))]
+
+
 def identify(query: str, open_ids: list | None = None, recent_ids: list | None = None) -> dict:
     """Resuelve una petición de voz/texto a una PIEZA por su NOMBRE o ALIAS, con CERTEZA (V2-082).
 

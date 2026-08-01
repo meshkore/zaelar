@@ -751,8 +751,39 @@ TOOLS: list[dict] = [
 ]
 
 
+# ── FAMILIAS de tools + gating situacional ───────────────────────────────────────────────────────────────────
+# Cada tool pertenece a una FAMILIA (widgets, workers, cluster, mensajería, media, web, memoria, núcleo). La
+# familia es documentación viva y la unidad con la que se razona el presupuesto de tools de un turno: se ve de un
+# vistazo qué bloque entra y cuál se queda fuera, en vez de 22 gates sueltos. NO es un clasificador de intención.
+FAMILIES: dict[str, tuple[str, ...]] = {
+    "core":      ("escalate_to_slowbrain", "set_style_directive"),
+    "widgets":   ("show_widget", "widget_data", "delete_widget", "confirm_widget_delete", "fullscreen_widget",
+                  "manage_widget_alias", "show_panel"),
+    "workers":   ("send_to_worker", "stop_worker", "answer_worker"),
+    "cluster":   ("connect_cluster", "set_cluster_objective"),
+    "messaging": ("reply_message",),
+    "media":     ("play_music", "play_video"),
+    "web":       ("web_search", "authenticate_web", "login_done"),
+    "memory":    ("recall", "reveal_secret"),
+}
+
+
+def family_of(name: str) -> str:
+    """La familia de una tool (o 'core' si no está clasificada — fail-safe: nunca se pierde una tool nueva)."""
+    for fam, names in FAMILIES.items():
+        if name in names:
+            return fam
+    return "core"
+
+
 # Tools SITUACIONALES: solo tienen sentido en un estado concreto → fuera del prompt cuando no aplican (V2-035).
 # Ofrecerlas SIEMPRE malgastaba ~1.2k chars/turno y añadía ruido de decisión al modelo pequeño.
+#
+# ⚠️ INVARIANTE (V2-084, `feedback_no_hardcoded_understand`): **un gate mira ESTADO, nunca las palabras del turno.**
+# «¿existe la bóveda?», «¿hay un worker vivo?», «¿está el conector de mensajería conectado?» son hechos del
+# sistema, verificables y agnósticos del idioma. «¿la frase contiene "recuérdame"?» sería una tabla de palabras
+# clave decidiendo el routing — justo lo que este cerebro rechaza: quien decide la intención es el modelo, por
+# function-calling. Si una tool no se puede apagar por estado, se OFRECE; no se adivina.
 _SITUATIONAL = {
     "show_widget":           lambda ctx: ctx.get("has_widgets", True),   # solo si hay widgets que mostrar
     "widget_data":           lambda ctx: ctx.get("has_widgets", True),   # solo si hay widgets con acciones
@@ -767,6 +798,11 @@ _SITUATIONAL = {
     "send_to_worker":        lambda ctx: ctx.get("has_workers", False),
     "stop_worker":           lambda ctx: ctx.get("has_workers", False),
     "answer_worker":         lambda ctx: ctx.get("ask_pending", False),
+    # V2-084 — tres gates NUEVOS, todos por CAPACIDAD REAL del sistema (si no existe, la tool no puede funcionar y
+    # ofrecerla solo invita a que el modelo prometa algo imposible):
+    "reply_message":         lambda ctx: ctx.get("messaging_on", True),   # sin conector de mensajería no hay a quién
+    "reveal_secret":         lambda ctx: ctx.get("has_vault", True),      # V2-060: sin bóveda no hay secreto que leer
+    "play_video":            lambda ctx: ctx.get("has_video_widget", True),  # play_video CARGA el widget `youtube`
 }
 
 
@@ -774,8 +810,13 @@ def tools(context: dict | None = None) -> list[dict]:
     """El catálogo de funciones a ofrecer al modelo rápido ESTE turno. Set CONTEXTUAL (V2-035): las tools
     situacionales (confirmar-borrado, login-hecho, y las de widget si no hay widgets) se OMITEN cuando su estado no
     aplica → prompt más corto, menos ruido de decisión, mismo comportamiento. `context` (best-effort, todo opcional):
-      · has_widgets (def True) · confirm_pending (def False) · auth_pending (def False) · allow_auth (def True).
-    Sin contexto devuelve el set COMPLETO (compat con tests/prewarm)."""
+      · has_widgets (def True) · confirm_pending (def False) · auth_pending (def False) · allow_auth (def True)
+      · messaging_on / has_vault / has_video_widget (def True — V2-084, capacidades reales).
+    Sin contexto devuelve el set COMPLETO (compat con tests/prewarm).
+
+    NOTA DE ESCALA (V2-084): este catálogo es **O(1)** — 22 tools fijas, ~29,7 KB completo / ~22,5 KB con el gating
+    típico. No crece con el catálogo de widgets, así que NO es el cuello de botella de escalabilidad (ese es el
+    catálogo, ver `widgets/selection.py`); sí es coste y ruido fijos por turno, y por eso se poda por estado."""
     ctx = context or {}
     if not context:
         return TOOLS
@@ -791,15 +832,34 @@ def tools(context: dict | None = None) -> list[dict]:
 def tool_context(*, open_widgets=None, has_catalog: bool = True,
                  confirm_pending: bool = False, auth_pending: bool = False,
                  has_workers: bool = False, ask_pending: bool = False,
-                 cluster_widget_open: bool = False) -> dict:
+                 cluster_widget_open: bool = False, messaging_on: bool = True,
+                 has_vault: bool = True, has_video_widget: bool = True) -> dict:
     """Arma el `context` de `tools()` desde señales de estado baratas. `has_widgets` = hay catálogo de widgets
     (siempre lo hay hoy) O alguno abierto. `has_workers` = hay Brain Workers vivos (→ send/stop_worker). `ask_pending`
     = un worker espera respuesta (→ answer_worker). `cluster_widget_open` = el widget `cluster-registro` está
-    abierto (→ connect_cluster, V2-064)."""
+    abierto (→ connect_cluster, V2-064). `messaging_on`/`has_vault`/`has_video_widget` (V2-084) = capacidades
+    REALES del sistema; el default es True (fail-OPEN) para que un fallo al sondear una capacidad nunca le quite
+    al operador una tool que sí tenía."""
     return {"has_widgets": has_catalog or bool(open_widgets),
             "confirm_pending": confirm_pending, "auth_pending": auth_pending, "allow_auth": True,
             "has_workers": bool(has_workers), "ask_pending": bool(ask_pending),
-            "cluster_widget_open": bool(cluster_widget_open)}
+            "cluster_widget_open": bool(cluster_widget_open), "messaging_on": bool(messaging_on),
+            "has_vault": bool(has_vault), "has_video_widget": bool(has_video_widget)}
+
+
+def tools_report(offered: list[dict]) -> dict:
+    """Desglose OBSERVABLE del set de tools de un turno: cuántas, cuánto ocupan y qué familias entraron/quedaron
+    fuera. Alimenta `llm_metrics` (misma vía que `sz_*` del prompt) para poder atribuir coste y detectar que una
+    familia se cuela en turnos donde no pinta nada."""
+    import json as _json
+    names = [t.get("function", {}).get("name", "") for t in offered]
+    fams: dict[str, int] = {}
+    for n in names:
+        fams[family_of(n)] = fams.get(family_of(n), 0) + 1
+    all_names = {t.get("function", {}).get("name", "") for t in TOOLS}
+    return {"n_tools_offered": len(offered), "n_tools_total": len(TOOLS),
+            "sz_tools": len(_json.dumps(offered, ensure_ascii=False)),
+            "tool_families": fams, "tools_omitted": sorted(all_names - set(names))}
 
 
 def _canon_panel(v) -> str:

@@ -306,8 +306,12 @@ class NucleoLLMStream(llm.LLMStream):
                     asyncio.to_thread(_prompt_mod.compose_recent_block), timeout=0.5)
             except Exception:
                 recent_block = ""
+        # `turn_text` (V2-084): la frase del operador entra en el build para que la SELECCIÓN PROGRESIVA de widgets
+        # promocione al top-K el que él nombra. NO clasifica la intención (invariante: sin tablas de verbos), solo
+        # recupera candidatos — así el bloque de widgets es O(K) aunque el catálogo tenga miles.
         system, _used_ids = build_flash_system(
-            directive=brain._directive, recall_block=recall_block, recent_block=recent_block, timings=timings)
+            directive=brain._directive, recall_block=recall_block, recent_block=recent_block, timings=timings,
+            turn_text=text)
         # BREAK-LOOP (V2-032): si el cerebro llevaba ≥2 respuestas casi idénticas, añade una instrucción que le
         # OBLIGA a cambiar de estrategia — corta el bucle de repetición/negación (bloqueante #1 del informe).
         _nudge = _dialog.loop_nudge(brain._window)
@@ -1251,16 +1255,45 @@ class NucleoLLMStream(llm.LLMStream):
             _cluster_open = "cluster-registro" in set((_memapi0.state() or {}).get("open_widgets") or [])
         except Exception:
             _cluster_open = False
+        # V2-084 — tres CAPACIDADES reales más (nunca palabras del turno: hechos del sistema). Todas fail-OPEN:
+        # si el sondeo peta, la tool se ofrece igual y no le quitamos nada al operador.
+        try:
+            from connectors.whatsapp import service as _wa1
+            _msg_on = _wa1.enabled()
+        except Exception:
+            _msg_on = False
+        if not _msg_on:
+            try:
+                from connectors.telegram import service as _tg1
+                _msg_on = _tg1.enabled()
+            except Exception:
+                _msg_on = True                  # no se pudo sondear ninguno → fail-open
+        try:
+            from memory import vault as _vault1
+            _has_vault1 = _vault1.exists()
+        except Exception:
+            _has_vault1 = True
+        try:
+            from widgets import runtime as _rt_cap
+            _has_video1 = _rt_cap.get("youtube") is not None
+        except Exception:
+            _has_video1 = True
         _tool_ctx = _router.tool_context(confirm_pending=had_pending_confirm, auth_pending=_auth_pending,
                                          has_workers=_has_workers, ask_pending=_ask_pending,
-                                         cluster_widget_open=_cluster_open)
+                                         cluster_widget_open=_cluster_open, messaging_on=_msg_on,
+                                         has_vault=_has_vault1, has_video_widget=_has_video1)
         _turn_tools = _router.tools(_tool_ctx)
         # KICKOFF = saludo PURO, sin tools (fix 2026-07-19): el texto del kickoff ("Salúdame en 1-2 frases, cálido y
         # breve…") lo interpretaba el modelo como `set_style_directive` → guardaba una regla y respondía "Hecho." en
         # vez de saludar. El saludo no necesita ninguna tool → no las ofrecemos y no hay nada que mis-rutear.
         if first_turn:
             _turn_tools = []
-        llm_metrics["n_tools_offered"] = len(_turn_tools)
+        # OBSERVABILIDAD del presupuesto de tools (V2-084): no solo cuántas — cuánto ocupan, qué familias entraron
+        # y cuáles se podaron. Junto a los `sz_*`/`widgets_*` del prompt cierra el desglose completo del turno.
+        try:
+            llm_metrics.update(_router.tools_report(_turn_tools))
+        except Exception:
+            llm_metrics["n_tools_offered"] = len(_turn_tools)
         # LEAD-IN FILLER (naturalidad, 2026-07-19): el TTFT del modelo (~1.1s medido) deja un silencio que no parece
         # charla. Si a los ~ZAELAR_FILLER_MS ms NO ha empezado la respuesta REAL, soltamos UN sonido de pensar neutro
         # y variado ("a ver…", "mmm…") en paralelo — rellena SOLO los turnos que tardan de verdad; las respuestas

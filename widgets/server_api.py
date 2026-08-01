@@ -74,9 +74,57 @@ async def run_widget_hook(wid: str, fn: str, caller):
     return await _run_widget(wid, fn, caller)
 
 
+# Campos del ÍNDICE compacto (V2-084). Lo mínimo para RESOLVER e IDENTIFICAR un widget sin descargar su manifest:
+# quién es (id/name/title), para qué (whenToUse, recortado), cómo se le llama (aliases), de dónde viene (origin) y
+# si es efímero (transient — el frontend rutea las tarjetas de actividad por ahí). NADA de `actions`, payload
+# schemas, `usage`, `refs` ni prosa: eso es carga bajo demanda vía /widgets/{id}/manifest.
+_INDEX_FIELDS = ("id", "title", "name", "transient", "kind", "icon")
+_INDEX_PURPOSE_MAX = 120
+
+
+def _index_row(w: dict) -> dict:
+    """Una fila del índice compacto a partir de un manifest completo."""
+    from . import registry as _registry
+    row = {k: w[k] for k in _INDEX_FIELDS if k in w}
+    row["id"] = str(w.get("id") or "")
+    purpose = str(w.get("whenToUse") or w.get("title") or "").strip().replace("\n", " ")
+    if purpose:
+        row["whenToUse"] = purpose[:_INDEX_PURPOSE_MAX]
+    ident = _registry.widget_identity(w)
+    row["name"], row["aliases"], row["origin"] = ident["name"], ident["aliases"], ident["origin"]
+    return row
+
+
 @router.get("/widgets")
-async def list_widgets():
-    return JSONResponse({"widgets": runtime.catalog()})
+async def list_widgets(full: int = 0, q: str = "", limit: int = 0):
+    """ÍNDICE COMPACTO del catálogo (V2-084) — por defecto, NO los manifests completos.
+
+    Medido 2026-08-01: con 16 widgets este endpoint devolvía 25.639 chars de manifests íntegros y su único
+    consumidor real (`frontend/app/widgets/desktop.js::_resolve`) solo quería los **ids** y cuatro campos de
+    cabecera. O(N) sobre el manifest ENTERO: con miles de widgets, cada arranque del canvas se descargaba megas
+    para resolver un id. El índice lleva solo identidad + propósito recortado (~10× menos) y el manifest completo
+    se pide por widget cuando de verdad hace falta: `GET /widgets/{id}/manifest`.
+
+    `?full=1` = escotilla ADMINISTRATIVA explícita (depuración, export, herramientas). Nunca es el camino por
+    defecto: si algo la necesita en caliente, es que le falta una carga bajo demanda.
+
+    `?q=` + `?limit=` acotan el índice server-side (mismo ranking por nombre/alias que el resolver de voz). El
+    índice sigue siendo O(N) por naturaleza — es el inventario —, así que un consumidor que no pueda con miles de
+    filas debe paginar/buscar por aquí en vez de descargarlo entero. `count` es SIEMPRE el total real del
+    catálogo, no el número de filas devueltas: nadie debe confundir un extracto con el inventario."""
+    cat = runtime.catalog()
+    total = len(cat)
+    if full:
+        return JSONResponse({"widgets": cat, "count": total, "returned": total, "full": True})
+    if q:
+        ranked_ids = [str(w.get("id") or "") for _s, w in runtime.rank(q, limit=max(1, limit or 20))]
+        order = {wid: i for i, wid in enumerate(ranked_ids)}
+        cat = sorted((w for w in cat if str(w.get("id") or "") in order),
+                     key=lambda w: order[str(w.get("id") or "")])
+    if limit and limit > 0:
+        cat = cat[:limit]
+    rows = [_index_row(w) for w in cat]
+    return JSONResponse({"widgets": rows, "count": total, "returned": len(rows), "full": False})
 
 
 @router.get("/widgets/identify")

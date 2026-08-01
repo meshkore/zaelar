@@ -425,10 +425,15 @@ def _rails_directive() -> str:
     return ("\n" + "\n".join(lines) + "\n") if lines else ""
 
 
-def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None) -> str:
+def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
+                 turn_text: str = "", stats: dict | None = None) -> str:
     """CAPA DE RECURSOS del FlashBrain (D) — TERSA (V2-027). Reemplaza al `_FAST_RULES` de ~75 líneas: las reglas
     de VOZ esenciales caben en 3-4 frases; el "cómo se usa cada tool" NO va aquí (vive en `router.TOOLS`, única
-    fuente por tool). Los RECURSOS (widgets/web/navegador) son data-driven, no prosa hardcodeada."""
+    fuente por tool). Los RECURSOS (widgets/web/navegador) son data-driven, no prosa hardcodeada.
+
+    `turn_text` (V2-084) = la frase del operador ESTE turno. No se usa para clasificar la intención (invariante:
+    nada de tablas de verbos) sino para RECUPERAR: `brief.for_prompt` promociona al top-K el widget que el
+    operador nombra, de modo que el bloque de widgets sea O(K) y no O(N) por muy grande que sea el catálogo."""
     from widgets.brief import for_prompt as _widgets
     ops = (
         "── CÓMO OPERAS (capa rápida, tiempo real) ──\n"
@@ -484,7 +489,7 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None) -> str
         + _workers_directive()
         + _rails_directive()
     )
-    res = "── QUÉ TIENES (recursos) ──\n" + _widgets(open_ids, recent_ids) + (
+    res = "── QUÉ TIENES (recursos) ──\n" + _widgets(open_ids, recent_ids, query=turn_text, stats=stats) + (
         "\n\nweb_search (tool): un DATO factual y actual del mundo (resultado, tiempo, precio, noticia); "
         "NO para navegar tiendas/marketplaces. Un dato ligado a un LUGAR (el tiempo, tráfico…) sin ciudad "
         "explícita va SIEMPRE con la ciudad ACTUAL del operador (la de su estado); un dato que tengas guardado "
@@ -570,7 +575,8 @@ def live_state() -> str:
 
 
 def build_flash_system(directive: str = "", recall_query: str = "", recall_block: str = "",
-                       recent_block: str = "", timings: dict | None = None) -> tuple[str, list[int]]:
+                       recent_block: str = "", timings: dict | None = None,
+                       turn_text: str = "") -> tuple[str, list[int]]:
     """El system message del FlashBrain, recompuesto por turno (REDISEÑO V2-027): **[ESTADO compuesto] + capa de
     recursos TERSA**, ~30 líneas. Devuelve (prompt, ids_de_memoria_usados). Ensamblado:
 
@@ -598,9 +604,15 @@ def build_flash_system(directive: str = "", recall_query: str = "", recall_block
         recall_block, used_ids = compose_recall(recall_query, timings=timings)
     _tb = _t.perf_counter()
     open_ids = _open_widget_ids()
-    resources = _flash_layer(open_ids, _recent_widget_ids())
+    # SELECCIÓN PROGRESIVA (V2-084): `turn_text` alimenta la capa `named` del top-K de widgets. Sus stats
+    # (cuántos candidatos, por qué entró cada uno, cuántos quedaron ocultos) se vuelcan en `timings` — el mismo
+    # canal de observabilidad que ya usa `/debug` para el desglose de tamaños.
+    _wstats: dict = {}
+    resources = _flash_layer(open_ids, _recent_widget_ids(), turn_text=turn_text, stats=_wstats)
     if timings is not None:
         timings["briefs_ms"] = round((_t.perf_counter() - _tb) * 1000, 1)
+        for _k, _v in _wstats.items():
+            timings[f"widgets_{_k}" if not _k.startswith("sz_") else _k] = _v
     _tl = _t.perf_counter()
     live = live_state()
     if timings is not None:

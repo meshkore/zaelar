@@ -130,10 +130,24 @@ def set_security_flag(key: str, value) -> None:
 
 
 # ── CATÁLOGO de nombres + alias (V2-082) ────────────────────────────────────────────────────────────────────
+# TECHO DURO de la proyección (V2-084). `widget_registry` es O(N) sobre el catálogo, y el ESTADO es material que
+# viaja: se compone en el prompt (`compose_state`), se serializa en snapshots y se devuelve en respuestas de API.
+# Hoy `compose_state()` NO lo incluye — pero "hoy no" no es una garantía, y un catálogo de 10.000 widgets colado
+# en un prompt por un cambio futuro sería un incidente caro y silencioso. El cap lo hace IMPOSIBLE por
+# construcción: la proyección es un espejo de VISIBILIDAD, no el inventario. El inventario completo se consulta
+# donde vive — `GET /widgets` (índice) y `runtime.identify()` (resolución) — que sí trabajan con los N reales.
+_REGISTRY_CAP = 200
+
+
 def set_widget_registry(rows) -> list:
     """Escribe la proyección de VISIBILIDAD del registro de widgets/superficies (id/name/aliases/surface). Best-effort,
-    bajo el mismo lock que `patch`. No es fuente de verdad — la regenera widgets/registry.refresh_state()."""
+    bajo el mismo lock que `patch`. No es fuente de verdad — la regenera widgets/registry.refresh_state().
+    ACOTADA a `_REGISTRY_CAP` filas: por encima de eso se guarda el prefijo + un marcador `_truncated` con el total
+    real, para que quien lea el estado sepa que está viendo un extracto y no crea que ese es todo el catálogo."""
     rows = list(rows or [])
+    if len(rows) > _REGISTRY_CAP:
+        rows = rows[:_REGISTRY_CAP] + [{"_truncated": True, "total": len(rows), "shown": _REGISTRY_CAP,
+                                        "hint": "catálogo completo en GET /widgets"}]
     with _patch_lock:
         cur = read()
         cur["widget_registry"] = rows

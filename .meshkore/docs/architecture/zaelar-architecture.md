@@ -184,6 +184,60 @@ A widget is a folder (catalog auto-discovers it from `manifest.json`, cached by 
 - `__init__.py` — empty (package).
 `transient:true` widgets (e.g. `search`) render in the **activity rail above the orb**; the rest are cards.
 
+## 3b. PROGRESSIVE capability selection — the prompt is O(K), not O(N) (V2-084, 2026-08-01)
+
+**Measured before touching anything** (real catalog, 16 widgets): `brief.for_prompt()` put the ENTIRE catalog in
+EVERY turn's prompt (2,497 chars) and `GET /widgets` returned all 16 manifests in full (25,639 chars) to a consumer
+(`desktop.js::_resolve`) that only wanted the **ids**. Both are O(N): at 1,000 widgets a "¿qué hora es?" would drag
+~150 KB of irrelevant catalog, and at 10,000 the turn is simply not viable — cost, latency, and above all decision
+noise for a small model.
+
+**The rule: what the model sees is O(K).** Growing the catalog must not grow an unrelated turn.
+
+**`widgets/selection.py`** is the only place that decides which widgets enter a turn, in priority layers (extending
+the V2-078 ladder rather than replacing it):
+
+| Layer | What it is | Why it can't be dropped |
+|---|---|---|
+| `open` | everything the operator has ON SCREEN | it's their screen — the source of truth |
+| `named` | what the operator NAMES this turn, resolved by `runtime.rank()` (name/alias, V2-082) | **this is what makes thousands viable** — a widget at position 9,999 is promoted into the prompt the moment it's named |
+| `recent` | the MRU `state.recent_widgets` (V2-078), capped | cross-turn continuity after it's closed |
+| `fill` | the rest of the catalog, in order, until the budget runs out | discoverability only — first thing to go |
+
+Hard budget `MAX_WIDGETS = 20`, chosen so **today nothing changes** (16 widgets → all fit, prompt byte-identical to
+before: zero regression for the operator) while the O(K) guarantee is written in code. The exact value barely
+matters: correctness does not depend on it, it depends on the `named` layer.
+
+**What it deliberately does NOT do:** classify intent with verb/keyword tables. It does not decide whether the turn
+"is about widgets" — it only RETRIEVES plausible candidates and lets the model decide by function-calling.
+Retrieval ≠ understanding (`feedback_no_hardcoded_understand`).
+
+**Why truncating is safe — the escape hatch.** `show_widget` and `widget_data` resolve their argument server-side
+with `runtime.identify()` against the FULL catalog (`providers/nucleo.py`). If a named widget somehow missed the
+top-K, the model can pass the operator's own words and the server still resolves it. When anything is left out the
+prompt SAYS SO, with that instruction attached — otherwise the model would either deny capabilities that do exist
+or start inventing ids. **Trimming the prompt never trims what the system can open.**
+
+**Endpoints — progressive loading.** `GET /widgets` now returns a COMPACT INDEX (id, name, title, aliases, origin,
+one-line purpose capped at 120 chars, `transient`): 25,639 → 5,142 chars on the real catalog, ~5× less, and it
+drops `actions`, payload schemas and `usage` prose entirely. Full manifests come one at a time from
+`GET /widgets/{id}/manifest`, or via the explicit ADMIN escape hatch `?full=1` (debug/export — never the hot path).
+`?q=` + `?limit=` narrow the index server-side with the same name/alias ranking for consumers that can't take
+thousands of rows; `count` is always the real total, so nobody mistakes an extract for the inventory.
+
+**State can't swallow the catalog.** `state.widget_registry` is capped at `_REGISTRY_CAP = 200` rows + a
+`_truncated` marker. `compose_state()` does not include it today — but "today it doesn't" is not a guarantee, and a
+10,000-widget catalog leaking into a prompt through a future change would be an expensive, silent incident.
+
+**Observability per turn.** `build_flash_system` writes `widgets_n_total`, `widgets_n_selected`, `widgets_n_open` /
+`_named` / `_recent` / `_fill`, `widgets_hidden`, `widgets_selected_ids` and `sz_widgets` into `timings` — the same
+channel `/debug` already uses for the `sz_*` size breakdown. So a turn can always answer *how many widgets were
+candidates, which were selected, and why*.
+
+**Measured after** (turn that is NOT about widgets): 100 widgets → 2,763 chars · 1,000 → 2,764 · 10,000 → 2,765.
+Flat. Naming the last widget of a 10,000 catalog finds it in 4.5 ms. Pinned by
+`tests/browser/unit/widgets/test_selection_scale.py` (synthetic 100 / 1,000 / 10,000).
+
 ## 4. The widget circuit (check → reuse / create; hide ≠ delete)
 
 When the user wants a widget, the brain follows: **1)** is it (or a close match) already in the catalog? → just
@@ -495,12 +549,32 @@ proyectado a `state.widget_registry` para visibilidad). Concepto sin mezclar: WI
 SUPERFICIE DE SISTEMA (nativa, alias fijos) · TOOL (este §8) · ACCIÓN/data-op (≡"skill", `manifest.actions`) ·
 EMBEDDING (solo memoria). Plan: `.meshkore/docs/architecture/zaelar-widget-naming-v2082.md`.
 
-**Contextual tool set (V2-035):** `router.tools(context)` OMITS situational tools when their state does not apply
-(`confirm_widget_delete` without a pending delete, `login_done` without an active login, the widget tools when no
-widgets exist) → shorter prompt, less decision noise. The voice turn (`providers/nucleo.py`) and the probe
-(`nucleo/flash/probe.py`) build the same context so `make flash` mirrors reality. **Descriptions are condensed**
-(V2-035) but keep the routing rules that came from real bugs (reminder-simple = no tool, no-duplicate-task,
-no-answer-then-search, login-vs-task); those are marked in `router.py` comments.
+**Contextual tool set (V2-035 · extended V2-084):** `router.tools(context)` OMITS situational tools when their state
+does not apply (`confirm_widget_delete` without a pending delete, `login_done` without an active login, the widget
+tools when no widgets exist) → shorter prompt, less decision noise. The voice turn (`providers/nucleo.py`) and the
+probe (`nucleo/flash/probe.py`) build the same context so `make flash` mirrors reality. **Descriptions are
+condensed** (V2-035) but keep the routing rules that came from real bugs (reminder-simple = no tool,
+no-duplicate-task, no-answer-then-search, login-vs-task); those are marked in `router.py` comments.
+
+**V2-084 adds three CAPABILITY gates** — `reply_message` (a messaging connector is enabled), `reveal_secret` (a
+vault exists), `play_video` (the `youtube` widget is in the catalog). All **fail-OPEN**: if the probe raises, the
+tool is offered anyway — a monitoring glitch must never silently take a capability away from the operator.
+
+> **Gating invariant (V2-084, hard).** A gate reads **STATE, never the words of the turn.** "Is there a live
+> worker?", "is the vault created?", "is the messaging connector connected?" are verifiable, language-agnostic
+> facts about the system. "Does the sentence contain *recuérdame*?" would be a keyword table deciding routing —
+> exactly what this brain rejects (`feedback_no_hardcoded_understand`; see the module docstring at the top of
+> `router.py`). **Who decides intent is the model, by function-calling.** A tool that cannot be switched off by
+> state is OFFERED; it is never guessed at.
+
+**Tool families + budget observability (V2-084).** `router.FAMILIES` classifies every tool (core · widgets ·
+workers · cluster · messaging · media · web · memory) and `router.tools_report(offered)` returns the per-turn
+breakdown (`n_tools_offered`, `sz_tools`, `tool_families`, `tools_omitted`) into `llm_metrics`. **Measured
+2026-08-01:** the full catalog is 22 tools / 29,659 chars; the typical gated turn is 15 tools / 22,522 chars; with
+no messaging, no vault and no youtube widget, 12 tools / 18,868 chars. Note the catalog is **O(1)** — it does NOT
+grow with the widget catalog, so it is a fixed per-turn cost, not the scalability bottleneck (that one is §3b).
+`test_router.py::test_tool_catalog_is_constant_sized` pins this: if a tool ever starts enumerating widgets in its
+description, the test fails.
 
 > **Change rule:** touching `router.TOOLS` (add/remove/rename a tool, change a description or its gating) MUST update
 > **this §8**, the `/architecture` FlashBrain tab, and `test_router.py`, and re-check the contextual gating in
@@ -579,3 +653,17 @@ judge score are separate signals. Stateful corpora must declare their causal pol
 memory timeline uses one isolated DB and replays the complete prefix before an individual step. Operational rules:
 `tests/README.md`; diagnosis playbook: `.meshkore/docs/ops/zaelar-testing.md`; machine contract:
 `tests/platform/SCHEMA.md`.
+
+**Evidence is complete; the PRESENTATION is summarized (V2-084).** A journey `interaction.output` can carry the
+engine's whole response (tens of KB). Dumping it inline meant ONE case filled the screen and hid the rest of the
+run — what was lost wasn't the data, it was the view. Worse, `runner.py` printed
+`json.dumps(output)[:12000]`: flooding the console AND **truncating** the proof exactly when it was needed most.
+Now:
+
+- **Terminal** — on failure, `runner._dump_failure()` writes the FULL output (indented, greppable, diffable) to
+  `artifacts/journey-<case>-output.json` and prints size + the verdict fields + the path.
+- **Dashboard** — payloads over 400 chars render as a summary (verdict fields + char count) with the complete JSON
+  in a collapsed `<details>`; the signals column always summarizes (it's a scanner, one line per event).
+
+Nothing is deleted or capped: the raw stays in the DOM, in `events.jsonl` and in the run's artifacts. It just stops
+being the first thing you see.

@@ -781,6 +781,35 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   (`desktop.js`, evento SSE `widget/alias` refresca en vivo). **Concepto fijado sin mezclar:** WIDGET (catálogo, alias
   editables) · SUPERFICIE DE SISTEMA (nativa, alias fijos) · TOOL (`router.TOOLS`) · ACCIÓN/data-op (≡"skill",
   `manifest.actions`) · EMBEDDING (solo memoria). `keyword ≡ alias` (D1): `keywords` legacy se siembra a `aliases`.
+- **Selección PROGRESIVA de capacidades — el prompt es O(K), no O(N)** (V2-084, 2026-08-01; detalle en
+  `.meshkore/docs/architecture/zaelar-architecture.md §3b`): **medido antes de tocar nada** (catálogo real, 16
+  widgets) `brief.for_prompt()` metía el catálogo ENTERO en CADA turno (2.497 chars) y `GET /widgets` devolvía los 16
+  manifests completos (25.639 chars) a un consumidor (`desktop.js::_resolve`) que solo quería los **ids**. Los dos
+  O(N): con 1.000 widgets un "¿qué hora es?" arrastraría ~150 KB de catálogo irrelevante; con 10.000 el turno no es
+  viable (coste, latencia y sobre todo ruido de decisión para un modelo pequeño). **Regla: lo que ve el modelo es
+  O(K)** — ampliar el catálogo NO engorda un turno que no va de widgets. `widgets/selection.py` es el ÚNICO sitio que
+  elige, por capas de prioridad (extiende la escalera de V2-078): `open` (lo que tiene DELANTE, nunca se recorta) →
+  **`named`** (lo que el operador NOMBRA este turno, vía `runtime.rank()` sobre nombre/alias de V2-082 — **esta es la
+  capa que sostiene los miles**: un widget en la posición 9.999 se promociona en cuanto lo nombra) → `recent` (MRU,
+  acotado) → `fill` (relleno, lo primero en caerse). Techo `MAX_WIDGETS=20`, elegido para que **hoy no cambie nada**
+  (16 widgets → entran todos, prompt idéntico: cero regresión) y a la vez la garantía quede escrita en código; la
+  corrección no depende del techo sino de `named`. **Lo que NO hace, deliberado** ([[feedback_no_hardcoded_understand]]):
+  NO clasifica la intención con tablas de verbos/keywords — solo RECUPERA candidatos y decide el modelo por
+  function-calling. Recuperar ≠ comprender. **Recortar es seguro** porque `show_widget`/`widget_data` resuelven su
+  argumento server-side con `runtime.identify()` contra el catálogo COMPLETO: si algo se quedó fuera, basta pasar las
+  palabras del operador; y cuando hay recorte el prompt lo DICE con esa instrucción (si no, el modelo negaría
+  capacidades que sí existen o se inventaría ids). **Endpoints:** `GET /widgets` devuelve ahora un **índice compacto**
+  (25.639 → 5.142 chars, sin `actions`/payload schemas/`usage`), manifests uno a uno por `/widgets/{id}/manifest`, y
+  `?full=1` como escotilla ADMINISTRATIVA explícita (nunca el camino caliente); `?q=`/`?limit=` acotan server-side.
+  `state.widget_registry` capado a 200 filas + marcador `_truncated` (hoy `compose_state` no lo incluye, pero "hoy no"
+  no es garantía). **Tools:** el catálogo de tools es **O(1)** (22 fijas, 29,7 KB) → NO es el cuello de botella; aun
+  así se poda por estado (V2-035 + 3 gates nuevos por CAPACIDAD REAL: `reply_message`/`reveal_secret`/`play_video`,
+  todos fail-OPEN) y se clasifica en `router.FAMILIES` con `tools_report()` en `llm_metrics`. **Invariante DURO del
+  gating:** un gate mira **ESTADO, jamás las palabras del turno**. **Medido después** (turno que no va de widgets):
+  100 → 2.763 chars · 1.000 → 2.764 · 10.000 → 2.765 (plano); nombrar el último de 10.000 lo encuentra en 4,5 ms.
+  Observabilidad por turno en `timings` (`widgets_n_total/_selected/_open/_named/_recent/_fill/_hidden`, `sz_widgets`)
+  + `sz_tools`/`tool_families`/`tools_omitted`. Tests: `tests/browser/unit/widgets/test_selection_scale.py`
+  (sintéticos 100/1.000/10.000).
 - **Acciones de widget = FRONTERA datos/código + gate de irreversibilidad (NO de escalado)** (`widgets/actions.py`,
   V2-025, 2026-07-11): el flag `"safe"` estaba SOBRECARGADO — mezclaba «¿puede la capa rápida hacer esta mutación?»
   con «¿es irreversible?». Consecuencia real: `add_meeting` («añade una cita a la agenda») estaba `"safe":false` →

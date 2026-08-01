@@ -312,6 +312,40 @@ def _validate_plan(cases: list[dict[str, Any]]) -> None:
         produced.update(case.get("produces", []))
 
 
+# Campos que se MIRAN para decidir PASS/FAIL — el resumen de un fallo empieza por ellos, no por el volcado.
+_SUMMARY_KEYS = ("ok", "status", "action", "reply", "detail", "error", "open_widgets", "tool_calls", "tags",
+                 "match", "widgets", "items")
+
+
+def _dump_failure(case: dict[str, Any], output: Any, artifacts: Path) -> str:
+    """Guarda el output ÍNTEGRO como artefacto descargable y devuelve un resumen accionable para la terminal.
+
+    Regla: la evidencia no se recorta, la PRESENTACIÓN sí. El fichero lleva el JSON completo (indentado, para
+    poder diffearlo y grepearlo); la consola lleva tamaño, campos de veredicto y la ruta."""
+    raw = json.dumps(output, ensure_ascii=False, default=str, indent=2, sort_keys=True)
+    path = artifacts / f"journey-{case['id']}-output.json"
+    try:
+        artifacts.mkdir(parents=True, exist_ok=True)
+        path.write_text(raw, encoding="utf-8")
+        where = str(path)
+    except OSError as exc:                                   # nunca dejar al agente sin evidencia por un fallo de I/O
+        where = f"(no se pudo escribir el artefacto: {exc})"
+    lines = [f"  output: {len(raw):,} chars · raw completo → {where}"]
+    if isinstance(output, dict):
+        for key in _SUMMARY_KEYS:
+            if key not in output:
+                continue
+            val = output[key]
+            val = val if isinstance(val, str) else json.dumps(val, ensure_ascii=False, default=str)
+            lines.append(f"    {key}: {val if len(val) <= 300 else val[:300] + '…'}")
+        extra = [k for k in output if k not in _SUMMARY_KEYS and not k.startswith("_")]
+        if extra:
+            lines.append(f"    (+{len(extra)} campos más en el artefacto: {', '.join(sorted(extra)[:10])})")
+    else:
+        lines.append(f"    {raw[:300]}")
+    return "\n".join(lines)
+
+
 def run(until: int) -> dict[str, Any]:
     cases = load_plan()["cases"]
     _validate_plan(cases)
@@ -364,7 +398,11 @@ def run(until: int) -> dict[str, Any]:
                                   status="passed" if ok else "failed", duration_ms=elapsed)
                 print(f"{'✓' if ok else '×'} {case['id']} · {case['phase']} · {case['title']} · {detail}", flush=True)
                 if not ok:
-                    print("  output:", json.dumps(output, ensure_ascii=False, default=str)[:12000], flush=True)
+                    # EVIDENCIA COMPLETA, TERMINAL LEGIBLE (V2-084). Antes: `json.dumps(output)[:12000]` — un dump
+                    # que a la vez inundaba la consola Y **recortaba** la prueba justo cuando más falta hacía (el
+                    # peor de los dos mundos). Ahora el raw íntegro se guarda como ARTEFACTO del run y la terminal
+                    # imprime el resumen accionable + la ruta. Nada se pierde; deja de ser ilegible.
+                    print(_dump_failure(case, output, log_path.parent), flush=True)
                     break
         finally:
             process.terminate()

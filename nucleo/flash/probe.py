@@ -228,7 +228,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     recent_block = compose_recent_block() if needs_recent(text) else ""
     timings["recent_fired"] = bool(recent_block)
     system, _used = build_flash_system(directive=sess.directive, recall_query=recall_q,
-                                       recent_block=recent_block, timings=timings)
+                                       recent_block=recent_block, timings=timings, turn_text=text)
     nudge = dialog.loop_nudge(sess.window)
     if nudge:
         system += nudge
@@ -782,7 +782,7 @@ async def say(text: str = Body(..., embed=True), session: str = Body("default", 
         # opcional: incluye el prompt compuesto (para inspeccionar qué estado/memoria vio el modelo)
         from .prompt import build_flash_system, needs_recall
         sys_txt, _ = build_flash_system(directive=_session(session).directive,
-                                        recall_query=text if needs_recall(text) else "")
+                                        recall_query=text if needs_recall(text) else "", turn_text=text)
         res["prompt"] = sys_txt
     return res
 

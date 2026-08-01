@@ -42,6 +42,51 @@ def test_set_cluster_objective_is_situational():
     assert "set_cluster_objective" in with_widget
 
 
+def test_capability_tools_are_situational():
+    """V2-084: tres gates NUEVOS por CAPACIDAD REAL — sin conector de mensajería no hay a quién responder, sin
+    bóveda no hay secreto que revelar, sin widget `youtube` play_video no tiene dónde cargar el vídeo. Ofrecerlas
+    en ese estado solo invita al modelo a prometer algo imposible."""
+    on = {t["function"]["name"] for t in router.tools(router.tool_context())}
+    assert {"reply_message", "reveal_secret", "play_video"} <= on          # default fail-OPEN
+    off = {t["function"]["name"] for t in router.tools(
+        router.tool_context(messaging_on=False, has_vault=False, has_video_widget=False))}
+    assert not ({"reply_message", "reveal_secret", "play_video"} & off)
+    # …y podar por capacidad no se lleva por delante nada más.
+    assert on - off == {"reply_message", "reveal_secret", "play_video"}
+
+
+def test_every_tool_belongs_to_a_family():
+    """La familia es la unidad con la que se razona el presupuesto de tools de un turno. Una tool nueva sin
+    familia caería en 'core' silenciosamente — este test obliga a clasificarla al añadirla."""
+    classified = {n for names in router.FAMILIES.values() for n in names}
+    catalog = {t["function"]["name"] for t in router.TOOLS}
+    assert catalog - classified == set(), f"tools sin familia: {sorted(catalog - classified)}"
+    assert classified - catalog == set(), f"familias con tools inexistentes: {sorted(classified - catalog)}"
+
+
+def test_tools_report_is_observable():
+    offered = router.tools(router.tool_context())
+    rep = router.tools_report(offered)
+    assert rep["n_tools_offered"] == len(offered) and rep["n_tools_total"] == len(router.TOOLS)
+    assert rep["sz_tools"] > 0
+    assert sum(rep["tool_families"].values()) == len(offered)
+    # Lo PODADO también se registra: sin eso no se puede auditar por qué un turno no tuvo una tool.
+    assert "connect_cluster" in rep["tools_omitted"] and "send_to_worker" in rep["tools_omitted"]
+
+
+def test_tool_catalog_is_constant_sized(monkeypatch):
+    """El catálogo de tools es O(1): NO crece con el de widgets (ese es el que se acota en widgets/selection.py).
+    Si algún día una tool empieza a enumerar widgets en su descripción, este test lo caza."""
+    import json as _json
+    from widgets import runtime as _rt
+    base = len(_json.dumps(router.tools(router.tool_context()), ensure_ascii=False))
+    monkeypatch.setattr(_rt, "_signature", lambda: ("synthetic", 5000))
+    monkeypatch.setitem(_rt._cache, "sig", ("synthetic", 5000))
+    monkeypatch.setitem(_rt._cache, "list", [{"id": f"w{i}", "title": f"W{i}"} for i in range(5000)])
+    grown = len(_json.dumps(router.tools(router.tool_context()), ensure_ascii=False))
+    assert grown == base
+
+
 def test_decide_worker_tools():
     assert router.decide("send_to_worker", {"which": "la moto", "message": "verde"}).kind == INJECT
     assert router.decide("stop_worker", {"which": "el widget"}).kind == STOP
