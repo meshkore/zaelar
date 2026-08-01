@@ -105,6 +105,41 @@ async def manifest(wid: str):
     return JSONResponse(w or {"error": "unknown widget"}, status_code=200 if w else 404)
 
 
+def _emit_alias_change(wid: str, res: dict) -> None:
+    """Avisa al frontend (SSE) de que cambiaron los alias de un widget → el header refresca su desplegable en vivo.
+    Best-effort (un fallo de notificación no rompe la escritura, que ya está hecha en disco)."""
+    try:
+        from voice.observer import emit
+        emit("widget", "alias", extra={"id": wid, "aliases": res.get("aliases") or []})
+    except Exception:
+        pass
+
+
+@router.post("/widgets/{wid}/aliases")
+async def add_alias(wid: str, payload: dict):
+    """Añade un alias al widget (V2-082) — desde el header del canvas (texto) o el flujo de voz. Escritura
+    quirúrgica del manifest con guard de colisión (un alias = una sola pieza). 409 si ya lo usa otra pieza."""
+    from . import aliases
+    res = aliases.add(_safe(wid), str((payload or {}).get("alias") or ""))
+    if res.get("ok"):
+        _emit_alias_change(_safe(wid), res)
+        return JSONResponse(res)
+    code = 409 if res.get("owner") else 404 if "no existe" in str(res.get("error")) else 400
+    return JSONResponse(res, status_code=code)
+
+
+@router.delete("/widgets/{wid}/aliases/{alias}")
+async def remove_alias(wid: str, alias: str):
+    """Quita un alias del widget (V2-082). No permite quitar el NOMBRE canónico (sin nombre no se abre)."""
+    from . import aliases
+    res = aliases.remove(_safe(wid), alias)
+    if res.get("ok"):
+        _emit_alias_change(_safe(wid), res)
+        return JSONResponse(res)
+    code = 404 if "no existe" in str(res.get("error")) else 400
+    return JSONResponse(res, status_code=code)
+
+
 @router.get("/widgets/{wid}/widget.js")
 async def widget_js(wid: str):
     """Serve the widget's client render module (lazy-loaded by the canvas host). `no-cache` forces revalidation
