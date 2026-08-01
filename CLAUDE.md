@@ -262,7 +262,8 @@ arranque `make run` → `python -m server`.
   → tool `reply_message` con confirm-gate). Ver `zaelar-modules.md §Connectors`. Slots futuros: LinkedIn, X.
   **Contactos como memoria + envío-a-persona (mándale un mensaje a X) + conectores Apple/Google + red de agentes =
   iniciativa de DISEÑO `V2-052` (pendiente de OK del operador).**
-- `harness/` — harness de evaluación (self-test de mic/pipeline).
+- `tests/agent_headless/harness/` — harness de evaluación conversacional sintética + juez.
+- `tests/voice/e2e/mic/` — self-test headless del transporte micrófono→STT por WebRTC.
 - `tests/voice/e2e/agent/` — tester de voz (INI-013): 2º participante LiveKit que HABLA con zaelar y un JUEZ que evalúa lo que HACE.
 
 `files/` quedó plegado en la capa episódica de `memory/` (shim de compatibilidad). Raíz (no-módulos): `README.md`,
@@ -521,7 +522,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   corrección con su ANTES/DESPUÉS → timeline + /debug + bus/log. **INVARIANTE: NUNCA modifica BRAIN
   RULES/prompt de sistema en runtime** — mejora en dos velocidades: runtime corrige la capa MUTABLE (F2/F3:
   user_rules/workers/estado/memoria con gates); los findings cambian la genética por DESARROLLO (git+tests).
-  Verificado e2e (suite `tests/e2e/susurro/run_probe_suite.py`, histórico longitudinal + escenario
+  Verificado e2e (suite `tests/agent_headless/e2e/susurro/run_probe_suite.py`, histórico longitudinal + escenario
   `susurro_reparacion` en la batería): queja→diagnóstico correcto→reparación hablada, ciclo ~2.5-2.9s.
 - **Acciones ENCADENADAS realidad↔widgets↔memoria + inteligencia asertiva de DOS velocidades** (V2-061, 2026-07-21;
   detalle en `.meshkore/roadmap/initiatives/V2-061-acciones-encadenadas-realidad-widgets-memoria.md`): muchas órdenes
@@ -934,7 +935,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   — evicta las concluidas+viejas y acota el total (`sys_kv capsule:*`, con `memory.kv_keys`/`kv_del`). Kill-switch de
   1ª clase `ZAELAR_HOMEOSTASIS`; observabilidad TOTAL (evento `homeostasis` en el timeline). **Invariantes:** NUNCA
   toca el FlashBrain ni la PII del operador; reciclar solo cuando es seguro, si no avisar; determinista y testeable
-  SIN incidente real (funciones puras + watcher + rotación real: `nucleo/test_homeostasis.py`, dominio 9 del mapa de
+  SIN incidente real (funciones puras + watcher + rotación real: `tests/infrastructure/unit/core/test_homeostasis.py`, dominio 9 del mapa de
   tests). La memoria ya se auto-cura (schema/olvido/dedup); esta pieza cubre lo que NO: motor de voz, logs, cápsulas.
   Detalle: `.meshkore/roadmap/initiatives/V2-070-homeostasis-anti-degeneracion.md`.
 - **Canal nativo MeshKore** (`connectors/meshkore/`): 3er I/O (voz+chat+cluster), conducido por el **MISMO motor del
@@ -1080,7 +1081,16 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   MANDA sobre `.env`** (env = fallback power-user/headless). La API de control
   (`connectors/messaging/server_api.py POST /api/messaging/{plataforma}/connect|disconnect`) escribe el store Y
   arranca/para el subsistema **en caliente** → el QR/estado aparecen solos en el widget. Todo conector futuro sigue
-  este patrón.
+  este patrón. **V2-083 — Config en 3 pestañas + conectores 100% dinámicos:** el área ⚙ (`ConfigPanel.js`,
+  superficie de sistema) se organiza en **Ajustes · Conectores · Widgets**. **Conectores** lista TODOS desde un
+  **registro único** `connectors/registry.py` (`GET /api/connectors`: mensajería/música/infra con familia, método de
+  auth, estado y config redactada) y permite **conectar/revocar desde ahí** (además del widget de mensajería, en los
+  dos sitios) — WhatsApp/Telegram QR, Email app-password, Spotify OAuth, **Architect (token) y MeshKore (cluster_id+
+  token) DINÁMICOS**: el token de Architect vive ahora en `config/connectors.json` (NO en `.env`; `client.token()`
+  store-first), visible/revocable desde la UI — invariante del operador: NADA de credenciales en archivos de entorno,
+  todo dinámico y revocable desde el frontend. **Widgets** = una sola lista alfabética con badge «de serie»/«tuyo»
+  (`origin` de `registry.origin_of`: lista curada `_BUILTINS` + el generador estampa `origin:"user"`), solo lectura.
+  Conectar por voz = follow-up (aparte).
 - **Tema dark/light** (`frontend/app/services/theme.js` + `core/store.js`, doc en `zaelar-modules.md §Frontend`):
   **dark por defecto** — señal `theme` persistida en `localStorage`, toggle ☾/☀ en el `TopBar`. Todo `styles.css`
   corre sobre variables CSS en `:root` redefinidas bajo `:root[data-theme="light"]`; cero ramas de JS por tema. Los
