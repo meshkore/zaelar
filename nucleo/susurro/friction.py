@@ -107,8 +107,13 @@ def risky_decision(decision: dict | None) -> str:
         # Un confirm-gate ABIERTO es justo lo contrario del patrón de riesgo V2-061 (reflejar en local algo real sin
         # ejecutarlo y decir «hecho»): aquí no se dijo «hecho», se PREGUNTÓ, y se ejecutará al confirmar. No auditar.
         return ""
-    if d.get("widget_acted") or d.get("data_done"):
-        return "acción de widget sin escalar (¿reflejo local de una acción real no ejecutada?)"
+    # Fix V2-081: SOLO una MUTACIÓN DE DATOS (data_done) es candidata a "reflejo local de una acción real sin
+    # ejecutar" (la ITV: agenda.drop). ANTES disparaba también con `widget_acted`, que es True para un simple
+    # SHOW/CLOSE de canvas → auditoría espuria (incidente 2026-08-01: un close de mensajería tras un WhatsApp
+    # nuevo disparó a Susurro, que sobre-escaló un "muestra el mensaje" a un worker→generador→widget basura).
+    # Abrir/cerrar/mostrar un widget NUNCA es una acción del mundo real reflejada en local.
+    if d.get("data_done"):
+        return "data-op sin escalar (¿reflejo local de una acción real no ejecutada?)"
     return ""
 
 

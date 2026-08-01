@@ -34,7 +34,18 @@ from nucleo.workers.session import SessionRecord, WorkerSession
 _WEB_RE = re.compile(
     r"\b(en\s+wallapop|wallapop|en\s+amazon|en\s+la\s+web|en\s+internet|navegador|abre\s+la\s+web|"
     r"en\s+linkedin|linkedin|en\s+el\s+sitio|en\s+la\s+p[áa]gina|automatiza)\b", re.I)
-_CODE_RE = re.compile(r"\b(widget|tarjeta|panel|architect|proyecto)\b", re.I)
+# El generador (kind="code") SOLO construye/modifica el CÓDIGO de un widget. Antes `_CODE_RE` matcheaba la palabra
+# «widget/tarjeta/panel» A SECAS → CUALQUIER tarea que la mencionara (p.ej. «abre y muestra el mensaje… se refleja
+# en el widget de mensajería») caía en el generador y CONSTRUÍA un widget basura (incidente 2026-08-01, clase del
+# 25/07). Fix V2-081: exige un VERBO de crear/modificar CÓDIGO junto al nombre — coherente con el guard del router
+# (`looks_like_create_widget`, que también usa verbo+nombre); create se reutiliza de ahí (fuente única), aquí solo
+# se añade el lado MODIFICAR-código. Mostrar/abrir/leer/gestionar un widget existente NO es código → kind="generic"
+# (un worker general que, si hace falta, OPERA el widget vía hbwidget — nunca lo regenera).
+_MODIFY_CODE_RE = re.compile(
+    r"\b(modific\w*|cambi\w*|edit\w*|reescrib\w*|refactor\w*|redise[nñ]\w*|actualiz\w+ el c[oó]digo|"
+    r"a[ñn]ad\w*\s+(?:una?\s+)?columna|modify|redesign|rewrite)\b[^.!?]{0,45}\b(widget|tarjeta|panel|componente)\b",
+    re.I)
+_ARCHITECT_RE = re.compile(r"\barchitect\b|\bproyecto\b", re.I)
 
 
 @dataclass
@@ -184,7 +195,14 @@ def _classify_kind(request: str) -> str:
     r = request or ""
     if _WEB_RE.search(r):
         return "web"
-    if _CODE_RE.search(r):
+    # CÓDIGO de widget = CREAR (reusa la detección del router, verbo+nombre) o MODIFICAR-código, o architect.
+    # NUNCA por mencionar «widget» a secas (V2-081): abrir/mostrar/gestionar uno existente NO es código.
+    try:
+        from nucleo.flash import router as _router
+        _create = _router.looks_like_create_widget(r)
+    except Exception:
+        _create = False
+    if _create or _MODIFY_CODE_RE.search(r) or _ARCHITECT_RE.search(r):
         return "code"
     return "generic"
 
