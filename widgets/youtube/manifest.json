@@ -4,19 +4,84 @@
   "title": "YouTube",
   "description": "Reproductor de YouTube REAL embebido en el canvas: reproduce el vídeo de verdad (no una captura) y se controla por voz — reproducir, pausar, subir/bajar volumen, silenciar y reiniciar.",
   "whenToUse": "Cuando el usuario quiere VER o REPRODUCIR un vídeo de YouTube en pantalla, poner un vídeo concreto, o controlar la reproducción (play/pausa/volumen/silencio) del vídeo que está viendo.",
-  "keywords": ["youtube", "vídeo", "video", "reproduce", "reproducir", "pon el vídeo", "pon el video", "reproductor", "ver vídeo", "ver video", "clip", "youtu.be", "gol de maradona", "mano de dios", "cierra el vídeo", "cierra el video", "quita el vídeo", "detén el vídeo"],
+  "keywords": [
+    "youtube",
+    "vídeo",
+    "video",
+    "reproduce",
+    "reproducir",
+    "pon el vídeo",
+    "pon el video",
+    "reproductor",
+    "ver vídeo",
+    "ver video",
+    "clip",
+    "youtu.be",
+    "gol de maradona",
+    "mano de dios",
+    "cierra el vídeo",
+    "cierra el video",
+    "quita el vídeo",
+    "detén el vídeo"
+  ],
   "entry": "widget.js",
   "usage": "Para poner un vídeo usa 'load' con url/videoId (o 'query' con el nombre y lo busca). El vídeo empieza EN SILENCIO por la política de autoplay: usa 'unmute' o 'volume_up' para que se oiga. Si el navegador bloquea el audio por no venir de un toque real (pedido por voz), el widget muestra un botón «toca para activar el sonido» sobre el vídeo — dile al operador que lo toque una vez para que suene. Controla la reproducción con play/pause/mute/unmute/volume_up/volume_down/set_volume/restart — son data-ops instantáneas, ninguna es irreversible. Para cerrar/quitar el vídeo del reproductor (deja de reproducirse de verdad y la tarjeta muestra 'sin vídeo') usa 'close'.",
   "actions": {
-    "load": {"desc": "carga y reproduce un vídeo de YouTube (por URL, id o nombre)", "payload": {"url": "URL o id de YouTube (opcional)", "videoId": "id de 11 caracteres (opcional)", "query": "nombre del vídeo a buscar (opcional)", "title": "título a mostrar (opcional)"}},
-    "play": {"desc": "reanuda/reproduce el vídeo", "payload": {}},
-    "pause": {"desc": "pausa el vídeo", "payload": {}},
-    "mute": {"desc": "silencia el audio", "payload": {}},
-    "unmute": {"desc": "quita el silencio (vuelve a oírse)", "payload": {}},
-    "volume_up": {"desc": "sube el volumen", "payload": {}},
-    "volume_down": {"desc": "baja el volumen", "payload": {}},
-    "set_volume": {"desc": "pone el volumen a un nivel concreto (0-100)", "payload": {"level": "0-100"}},
-    "restart": {"desc": "reinicia el vídeo desde el principio", "payload": {}},
-    "close": {"desc": "cierra el vídeo: lo detiene de verdad y lo quita del reproductor (vuelve al estado sin vídeo)", "payload": {}}
-  }
+    "load": {
+      "desc": "carga y reproduce un vídeo de YouTube (por URL, id o nombre)",
+      "payload": {
+        "url": "URL o id de YouTube (opcional)",
+        "videoId": "id de 11 caracteres (opcional)",
+        "query": "nombre del vídeo a buscar (opcional)",
+        "title": "título a mostrar (opcional)"
+      }
+    },
+    "play": {
+      "desc": "reanuda/reproduce el vídeo",
+      "payload": {}
+    },
+    "pause": {
+      "desc": "pausa el vídeo",
+      "payload": {}
+    },
+    "mute": {
+      "desc": "silencia el audio",
+      "payload": {}
+    },
+    "unmute": {
+      "desc": "quita el silencio (vuelve a oírse)",
+      "payload": {}
+    },
+    "volume_up": {
+      "desc": "sube el volumen",
+      "payload": {}
+    },
+    "volume_down": {
+      "desc": "baja el volumen",
+      "payload": {}
+    },
+    "set_volume": {
+      "desc": "pone el volumen a un nivel concreto (0-100)",
+      "payload": {
+        "level": "0-100"
+      }
+    },
+    "restart": {
+      "desc": "reinicia el vídeo desde el principio",
+      "payload": {}
+    },
+    "close": {
+      "desc": "cierra el vídeo: lo detiene de verdad y lo quita del reproductor (vuelve al estado sin vídeo)",
+      "payload": {}
+    }
+  },
+  "name": "YouTube",
+  "aliases": [
+    "YouTube",
+    "vídeo",
+    "clip",
+    "reproductor de vídeo",
+    "pon un vídeo",
+    "ver un vídeo"
+  ]
 }

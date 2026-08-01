@@ -4,13 +4,34 @@
   "title": "Resultados",
   "description": "Rejilla de resultados (1-2 columnas) para PRESENTAR EN EL ESCRITORIO lo que zaelar encuentra: búsquedas web, anuncios, productos, correos, archivos, mensajes de WhatsApp. NO busca por su cuenta: lo rellena el cerebro (Hermes) pasándole los datos por el protocolo [[push:results]]. Así el usuario ve todo aquí, nunca en un navegador externo.",
   "whenToUse": "Para MOSTRAR los resultados de una búsqueda o consulta (motos/productos, correos, archivos, WhatsApp, cualquier listado) dentro de nuestra interfaz, en lugar de abrir el navegador u otra app.",
-  "keywords": ["resultados", "anuncios", "comprar", "precio", "opciones", "correos", "mails", "email", "archivos", "ficheros", "documentos", "whatsapp", "mensajes"],
+  "keywords": [
+    "resultados",
+    "anuncios",
+    "comprar",
+    "precio",
+    "opciones",
+    "correos",
+    "mails",
+    "email",
+    "archivos",
+    "ficheros",
+    "documentos",
+    "whatsapp",
+    "mensajes"
+  ],
   "entry": "widget.js",
   "usage": "Para que el operador pueda ELEGIR uno de los resultados (p.ej. un nombre de producto disponible de una búsqueda activa), pushea con `choosable:true` en los datos; cuando el operador elige uno, usa la acción `choose` con el título EXACTO del item para marcarlo como seleccionado en pantalla.",
   "actions": {
     "choose": {
       "desc": "Marca un item de la lista mostrada (pusheada con choosable:true) como elegido por el operador.",
-      "payload": {"title": "Aurora"}
+      "payload": {
+        "title": "Aurora"
+      }
     }
-  }
+  },
+  "name": "Resultados",
+  "aliases": [
+    "Resultados",
+    "panel de resultados"
+  ]
 }

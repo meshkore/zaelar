@@ -85,6 +85,20 @@ async def identify(q: str = ""):
     return JSONResponse(runtime.identify(q))
 
 
+@router.get("/widgets/registry")
+async def registry_endpoint():
+    """Registro UNIFICADO de nombres + alias (V2-082): widgets de usuario (catálogo, alias editables) + superficies
+    de sistema (alias fijos). Cada entrada {id, name, aliases, surface}. Lo consume el header del frontend (botón-
+    nombre + desplegable de alias). De paso refresca la proyección de visibilidad en el estado."""
+    from . import registry as _registry
+    rows = _registry.registry()
+    try:
+        _registry.refresh_state()
+    except Exception:
+        pass
+    return JSONResponse({"registry": rows})
+
+
 @router.get("/widgets/{wid}/manifest")
 async def manifest(wid: str):
     w = runtime.get(_safe(wid))

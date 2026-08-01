@@ -16,7 +16,13 @@
 //   phase   — "scaffold" (andamiaje del escritorio, orden load-bearing) | "overlay" (el resto)
 //   kind    — para qué sirve / cómo se ve (documental): canvas-bg · chrome · panel · overlay · modal · transient
 //   toggle  — cómo se abre/gestiona (documental): señal de store o control que lo dispara
-//   label   — nombre legible
+//   label   — nombre legible (descriptivo)
+//   name    — NOMBRE canónico por el que se abre por voz/texto (V2-082)
+//   aliases — nombres/k-words alternativos por los que se reconoce (V2-082). FIJOS y HARDCODEADOS: el front es
+//             "el cuerpo", su genética viene programada; el usuario NO puede editar estos alias (a diferencia de
+//             los widgets de usuario, cuyos alias sí son editables). Un objeto de sistema NUNCA es un "widget":
+//             decir "el widget de X" jamás resuelve a una de estas superficies (ver widgets/runtime.py::identify).
+//             `null` = superficie no dirigible por voz (transitoria/andamiaje); no entra al resolver de nombres.
 import { ActivityStrip } from "../components/ActivityStrip.js?v=2";
 import { Alert } from "../components/Alert.js?v=2";
 import { BenchmarksPanel } from "../components/BenchmarksPanel.js?v=1";
@@ -37,38 +43,61 @@ import { WizardModal } from "../components/WizardModal.js?v=1";
 export const SYSTEM_SURFACES = [
   // ── ANDAMIAJE del escritorio (dentro de #desk; posición load-bearing entre .canvas y #wstage) ──
   { id: "activity-strip", comp: ActivityStrip, target: "desk", phase: "scaffold", kind: "canvas-bg",
-    toggle: "store.tasks (SSE)", label: "Panal de actividad (hexágonos de fondo)" },
+    toggle: "store.tasks (SSE)", label: "Panal de actividad (hexágonos de fondo)",
+    name: null, aliases: null },
   // ── CHROME del escritorio (dentro de #desk; se desplaza al acoplar el chat) ──
   { id: "camera",     comp: CameraUnit,   target: "desk", phase: "overlay", kind: "chrome",
-    toggle: "siempre visible (mic/cámara + botón de chat)", label: "Cámara y micrófono del usuario" },
+    toggle: "siempre visible (mic/cámara + botón de chat)", label: "Cámara y micrófono del usuario",
+    name: "Cámara y micrófono", aliases: ["camara", "cámara", "microfono", "micrófono", "mic", "webcam"] },
   { id: "orb",        comp: Orb,          target: "desk", phase: "overlay", kind: "chrome",
-    toggle: "siempre visible (el ojo + 7 controles + subtítulos)", label: "Orbe (zaelar personificado)" },
+    toggle: "siempre visible (el ojo + 7 controles + subtítulos)", label: "Orbe (zaelar personificado)",
+    name: "Orbe", aliases: ["orbe", "orb", "el ojo", "ojo", "controles", "subtitulos", "subtítulos"] },
   { id: "topbar",     comp: TopBar,       target: "desk", phase: "overlay", kind: "chrome",
-    toggle: "siempre visible (◉ estado · ⌗ docs · ◷ debug · ⚙ · 🧭 · Reset)", label: "Barra superior" },
+    toggle: "siempre visible (◉ estado · ⌗ docs · ◷ debug · ⚙ · 🧭 · Reset)", label: "Barra superior",
+    name: null, aliases: null },
   { id: "connstatus", comp: ConnStatus,   target: "desk", phase: "overlay", kind: "chrome",
-    toggle: "siempre visible (línea de conexión)", label: "Estado de conexión" },
+    toggle: "siempre visible (línea de conexión)", label: "Estado de conexión",
+    name: null, aliases: null },
   // ── PANELES / OVERLAYS / MODALES (a nivel de body, por encima del escritorio) ──
+  // OJO: el chat tiene 3 pestañas (Chat/Procesos/Crons). "abre el chat" → pestaña Chat; "lista de tareas/procesos"
+  // y "crons/lista del cron" son las OTRAS pestañas, ruteadas por la tool show_panel (router._canon_panel) — sus
+  // sinónimos viven ahí, no aquí, para no duplicar. Estos alias abren la superficie del chat (pestaña por defecto).
   { id: "chat",       comp: ChatWall,     target: "body", phase: "overlay", kind: "panel",
-    toggle: "store.chatOpen + store.chatTab (Chat/Procesos/Crons)", label: "Chat + Procesos + Crons (3 pestañas)" },
+    toggle: "store.chatOpen + store.chatTab (Chat/Procesos/Crons)", label: "Chat + Procesos + Crons (3 pestañas)",
+    name: "Chat", aliases: ["chat", "muro", "muro de texto", "muro de chat", "escribirte", "hablarte por texto",
+      "conversacion", "conversación", "el chat contigo"] },
   { id: "status",     comp: StatusPanel,  target: "body", phase: "overlay", kind: "panel",
-    toggle: "store.statusOpen (◉)", label: "Panel de estado del sistema" },
+    toggle: "store.statusOpen (◉)", label: "Panel de estado del sistema",
+    name: "Estado", aliases: ["estado", "estado del sistema", "status", "panel de estado", "salud del sistema"] },
   { id: "config",     comp: ConfigPanel,  target: "body", phase: "overlay", kind: "fullscreen",
-    toggle: "store.configOpen (⚙)", label: "Configuración (API/modelo por pieza, voz, saldos)" },
+    toggle: "store.configOpen (⚙)", label: "Configuración (API/modelo por pieza, voz, saldos)",
+    name: "Configuración", aliases: ["config", "configuracion", "configuración", "ajustes", "preferencias",
+      "settings", "opciones"] },
   { id: "benchmarks", comp: BenchmarksPanel, target: "body", phase: "overlay", kind: "modal",
-    toggle: "desde Config → Cerebro rápido", label: "Benchmarks (¿por qué estos modelos?)" },
+    toggle: "desde Config → Cerebro rápido", label: "Benchmarks (¿por qué estos modelos?)",
+    name: "Benchmarks", aliases: ["benchmarks", "por que estos modelos", "por qué estos modelos", "comparativa"] },
   { id: "debug",      comp: DebugPanel,   target: "body", phase: "overlay", kind: "panel",
-    toggle: "store.debugOpen (◷)", label: "Debug / observabilidad (logging, timeline, trazas)" },
+    toggle: "store.debugOpen (◷)", label: "Debug / observabilidad (logging, timeline, trazas)",
+    name: "Debug", aliases: ["debug", "depuracion", "depuración", "logs", "logging", "trazas", "timeline",
+      "observabilidad"] },
   { id: "memory-map", comp: MemoryMap,    target: "body", phase: "overlay", kind: "overlay",
-    toggle: "store.memOpen (🧠)", label: "Mapa de la memoria (estado · corto · largo · grafo)" },
+    toggle: "store.memOpen (🧠)", label: "Mapa de la memoria (estado · corto · largo · grafo)",
+    name: "Mapa de la memoria", aliases: ["memoria", "mapa de memoria", "mapa de la memoria", "tu memoria",
+      "recuerdos"] },
   { id: "wizard",     comp: WizardModal,  target: "body", phase: "overlay", kind: "modal",
-    toggle: "store.wizardOpen (🧭, y auto en primer arranque)", label: "Wizard de primer arranque" },
+    toggle: "store.wizardOpen (🧭, y auto en primer arranque)", label: "Wizard de primer arranque",
+    name: "Asistente de configuración", aliases: ["wizard", "asistente", "primer arranque", "configuracion inicial",
+      "configuración inicial"] },
   { id: "vault",      comp: VaultModal,   target: "body", phase: "overlay", kind: "modal",
-    toggle: "eventos SSE kind:secret · window.zaelar.vault()", label: "Bóveda de secretos (🔐)" },
+    toggle: "eventos SSE kind:secret · window.zaelar.vault()", label: "Bóveda de secretos (🔐)",
+    name: "Bóveda", aliases: ["boveda", "bóveda", "secretos", "vault", "contraseñas", "caja fuerte"] },
   // ── TRANSITORIOS (banner / velo de arranque) ──
   { id: "alert",      comp: Alert,        target: "body", phase: "overlay", kind: "transient",
-    toggle: "store.showAlert (aviso duro, p.ej. sin saldo de modelo)", label: "Banner de aviso" },
+    toggle: "store.showAlert (aviso duro, p.ej. sin saldo de modelo)", label: "Banner de aviso",
+    name: null, aliases: null },
   { id: "boot",       comp: BootOverlay,  target: "body", phase: "overlay", kind: "transient",
-    toggle: "store.bootReady (velo de arranque)", label: "Splash de arranque" },
+    toggle: "store.bootReady (velo de arranque)", label: "Splash de arranque",
+    name: null, aliases: null },
 ];
 
 const _IDS = new Set(SYSTEM_SURFACES.map(s => s.id));

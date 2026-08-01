@@ -4,29 +4,142 @@
   "title": "Música",
   "description": "Tu música estilo Spotify por voz y a mano. Crea listas, añade canciones, reproduce una lista, y controla la reproducción (pausa, siguiente, volumen). Conecta tu Spotify (un clic) o suena gratis desde YouTube-audio. Home con Tus listas · Más escuchadas · Recientes, y barra de reproducción.",
   "whenToUse": "Para CONECTAR/VINCULAR Spotify ('conéctame Spotify' se hace AQUÍ, en su tarjeta — NUNCA por el navegador/authenticate_web), o para ESCUCHAR y ORGANIZAR música: crear/gestionar LISTAS, reproducir una lista, poner una canción/artista, controlar la reproducción. Cuando el widget está ABIERTO, las órdenes de música (crear/añadir/reproducir lista, navegar entre vistas) se resuelven CONTRA él con data-ops.",
-  "keywords": ["música", "musica", "spotify", "canción", "cancion", "pon música", "pon musica", "ponme música", "reproducir música", "conectar spotify", "vincular spotify", "conéctame spotify", "mi música", "reproductor de música", "lista de reproducción", "lista de música", "playlist", "crear lista", "más escuchadas", "sube la música", "siguiente canción", "pausa la música"],
+  "keywords": [
+    "música",
+    "musica",
+    "spotify",
+    "canción",
+    "cancion",
+    "pon música",
+    "pon musica",
+    "ponme música",
+    "reproducir música",
+    "conectar spotify",
+    "vincular spotify",
+    "conéctame spotify",
+    "mi música",
+    "reproductor de música",
+    "lista de reproducción",
+    "lista de música",
+    "playlist",
+    "crear lista",
+    "más escuchadas",
+    "sube la música",
+    "siguiente canción",
+    "pausa la música"
+  ],
   "entry": "widget.js",
   "usage": "CARA + LISTAS del conector de música (connectors/music + connectors/spotify). Conexión desde la tarjeta (botón Conectar → login de Spotify en una ventana; avanzado: pega tu propio client_id). REPRODUCCIÓN: poner una canción/artista suelto sigue yendo por la tool play_music del FlashBrain; para LISTAS propias usa data-ops de este widget: crear una lista → create_playlist{name}; añadir una canción → add_to_playlist{playlist,query} (playlist = nombre de la lista en lenguaje natural, query = canción/artista); quitar una canción → remove_from_playlist{playlist,item} (item = título o nº); reproducir una lista entera → play_playlist{playlist}; guardar la canción que suena AHORA en favoritos → favorite_current{} (sin payload; crea 'Favoritos de Manolo' si no existe). Navegar la tarjeta: open_view{kind,id} (kind=home|playlist, id=nombre/id de lista) y back (volver a home). connect/disconnect gestionan la cuenta de Spotify. Curar una lista con muchas canciones ('hazme una lista random de disco') es una escalada a worker (Fase posterior), no una data-op.",
   "actions": {
-    "create_playlist": {"desc": "crea una lista de reproducción vacía y la abre", "payload": {"name": "Disco de los 80"}},
-    "add_to_playlist": {"desc": "añade una canción (por búsqueda) a una lista existente", "payload": {"playlist": "nombre de la lista", "query": "Bohemian Rhapsody Queen"}},
-    "favorite_current": {"desc": "guarda la canción que está sonando ahora en la lista de favoritos de Manolo (la crea si no existe)", "payload": {}},
-    "remove_from_playlist": {"desc": "quita una canción de una lista (por título o número de fila)", "payload": {"playlist": "nombre de la lista", "item": "título de la canción o nº"}},
-    "play_playlist": {"desc": "reproduce una lista entera (la 1ª suena ya, el resto a la cola)", "payload": {"playlist": "nombre de la lista"}},
-    "open_view": {"desc": "cambia lo que muestra la tarjeta (home o el detalle de una lista)", "payload": {"kind": "home|playlist", "id": "nombre/id de la lista (si kind=playlist)"}},
-    "back": {"desc": "vuelve a la vista Home", "payload": {}},
-    "connect": {"desc": "inicia la conexión de Spotify (devuelve la URL de login para abrir en una ventana)", "payload": {"client_id": "opcional: tu propio client_id de developer.spotify.com"}},
-    "disconnect": {"desc": "desconecta la cuenta de Spotify (borra los tokens locales)", "payload": {}},
-    "play": {"desc": "reproduce/reanuda la reproducción actual, o busca y reproduce si se da 'query'", "payload": {"query": "opcional: canción/artista a poner"}},
-    "pause": {"desc": "pausa la reproducción en curso", "payload": {}},
-    "resume": {"desc": "reanuda la reproducción pausada", "payload": {}},
-    "next": {"desc": "salta a la siguiente canción de la cola", "payload": {}},
-    "previous": {"desc": "vuelve a la canción anterior", "payload": {}},
-    "volume_up": {"desc": "sube el volumen", "payload": {}},
-    "volume_down": {"desc": "baja el volumen", "payload": {}},
-    "set_volume": {"desc": "fija el volumen a un nivel concreto (0-100)", "payload": {"level": 70}},
-    "queue": {"desc": "añade una canción al final de la cola de reproducción", "payload": {"query": "canción/artista"}},
-    "refresh": {"desc": "refresca la tarjeta con el estado real de reproducción", "payload": {}},
-    "ended": {"desc": "interno: lo dispara el propio reproductor al terminar una canción para avanzar la cola — nunca una orden de voz, no invocar", "payload": {}}
-  }
+    "create_playlist": {
+      "desc": "crea una lista de reproducción vacía y la abre",
+      "payload": {
+        "name": "Disco de los 80"
+      }
+    },
+    "add_to_playlist": {
+      "desc": "añade una canción (por búsqueda) a una lista existente",
+      "payload": {
+        "playlist": "nombre de la lista",
+        "query": "Bohemian Rhapsody Queen"
+      }
+    },
+    "favorite_current": {
+      "desc": "guarda la canción que está sonando ahora en la lista de favoritos de Manolo (la crea si no existe)",
+      "payload": {}
+    },
+    "remove_from_playlist": {
+      "desc": "quita una canción de una lista (por título o número de fila)",
+      "payload": {
+        "playlist": "nombre de la lista",
+        "item": "título de la canción o nº"
+      }
+    },
+    "play_playlist": {
+      "desc": "reproduce una lista entera (la 1ª suena ya, el resto a la cola)",
+      "payload": {
+        "playlist": "nombre de la lista"
+      }
+    },
+    "open_view": {
+      "desc": "cambia lo que muestra la tarjeta (home o el detalle de una lista)",
+      "payload": {
+        "kind": "home|playlist",
+        "id": "nombre/id de la lista (si kind=playlist)"
+      }
+    },
+    "back": {
+      "desc": "vuelve a la vista Home",
+      "payload": {}
+    },
+    "connect": {
+      "desc": "inicia la conexión de Spotify (devuelve la URL de login para abrir en una ventana)",
+      "payload": {
+        "client_id": "opcional: tu propio client_id de developer.spotify.com"
+      }
+    },
+    "disconnect": {
+      "desc": "desconecta la cuenta de Spotify (borra los tokens locales)",
+      "payload": {}
+    },
+    "play": {
+      "desc": "reproduce/reanuda la reproducción actual, o busca y reproduce si se da 'query'",
+      "payload": {
+        "query": "opcional: canción/artista a poner"
+      }
+    },
+    "pause": {
+      "desc": "pausa la reproducción en curso",
+      "payload": {}
+    },
+    "resume": {
+      "desc": "reanuda la reproducción pausada",
+      "payload": {}
+    },
+    "next": {
+      "desc": "salta a la siguiente canción de la cola",
+      "payload": {}
+    },
+    "previous": {
+      "desc": "vuelve a la canción anterior",
+      "payload": {}
+    },
+    "volume_up": {
+      "desc": "sube el volumen",
+      "payload": {}
+    },
+    "volume_down": {
+      "desc": "baja el volumen",
+      "payload": {}
+    },
+    "set_volume": {
+      "desc": "fija el volumen a un nivel concreto (0-100)",
+      "payload": {
+        "level": 70
+      }
+    },
+    "queue": {
+      "desc": "añade una canción al final de la cola de reproducción",
+      "payload": {
+        "query": "canción/artista"
+      }
+    },
+    "refresh": {
+      "desc": "refresca la tarjeta con el estado real de reproducción",
+      "payload": {}
+    },
+    "ended": {
+      "desc": "interno: lo dispara el propio reproductor al terminar una canción para avanzar la cola — nunca una orden de voz, no invocar",
+      "payload": {}
+    }
+  },
+  "name": "Música",
+  "aliases": [
+    "Música",
+    "spotify",
+    "reproductor de música",
+    "mi música",
+    "playlist",
+    "lista de reproducción"
+  ]
 }
