@@ -110,3 +110,17 @@ export const saveConfigCredential = (key, value) => postJSON("/api/config/creden
 export const getApiSummary = (refresh = false) =>
   fetch("/api/config/apis" + (refresh ? "?refresh=1" : ""), { cache: "no-store" }).then(json).catch(() => ({ apis: [], alerts: [] }));
 export const getBenchmarks = () => fetch("/api/config/benchmarks", { cache: "no-store" }).then(json);
+
+// ---- conectores + widgets para las pestañas de Config (V2-083) ----
+export const getConnectors = () => fetch("/api/connectors", { cache: "no-store" }).then(json).catch(() => ({ connectors: [] }));
+export const getWidgetsRegistry = () => fetch("/widgets/registry", { cache: "no-store" }).then(json).catch(() => ({ registry: [] }));
+export const connectMessaging = (platform, payload) => postJSON(`/api/messaging/${platform}/connect`, payload || {}).then(json);
+export const disconnectMessaging = (platform, payload) => postJSON(`/api/messaging/${platform}/disconnect`, payload || {}).then(json);
+export const architectConnect = (payload) => postJSON("/api/connectors/architect/connect", payload || {}).then(json);
+export const architectDisconnect = () => postJSON("/api/connectors/architect/disconnect", {}).then(json);
+// MeshKore: stage (credenciales fuera del LLM) + connect; y disconnect por nombre.
+export const meshkoreAdd = async ({ name, cluster_id, token, handle }) => {
+  await postJSON("/api/meshkore/stage", { name, cluster_id, token, handle });
+  return postJSON("/api/meshkore/connect", { name, cluster_id, token, handle }).then(json);
+};
+export const meshkoreRemove = (name) => postJSON("/api/meshkore/disconnect", { name }).then(json);
