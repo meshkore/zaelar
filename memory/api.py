@@ -221,7 +221,8 @@ def forget(match: str, *, hard: bool = False, include_pinned: bool = False) -> i
         return 0
     ids = list(ids)
     ph = ",".join("?" * len(ids))
-    now = int(__import__("time").time())
+    from .clock import now as _clock_now
+    now = _clock_now()
     if hard:
         # DELEGA en writer.delete_memory (auditoría 2026-07-19 P1-3): el DELETE plano sobre fts_memories
         # (external-content) NO limpiaba el índice → los tokens del dato "borrado del todo" seguían casando MATCH
@@ -263,7 +264,8 @@ def unforget(match: str, *, include_pinned: bool = False) -> int:
         return 0
     ids = list(ids)
     ph = ",".join("?" * len(ids))
-    now = int(__import__("time").time())
+    from .clock import now as _clock_now
+    now = _clock_now()
     db.execute(f"UPDATE memories SET valid=1, updated=? WHERE id IN ({ph})", (now, *ids))
     _emit("memory.updated", {"op": "unforget", "ids": ids})
     return len(ids)
@@ -612,7 +614,16 @@ def query(prompt: str, budget_tokens: int = DEFAULT_BUDGET_TOKENS, limit: int = 
     mems = _pack(mems, budget_tokens)
     ids = [m["id"] for m in mems]
     if reinforce_used and ids:
-        reinforce(ids)  # escritura async (el acceso resetea el decay)
+        # Refuerzo SELECTIVO: el paquete puede incluir conceptos, vecinos de
+        # grafo y resultados laterales para dar contexto al cerebro. Reforzar
+        # todos ellos convierte una consulta sobre vivienda en "uso" de la
+        # alergia, la infancia o cualquier otro resultado empaquetado. Sin un
+        # feedback explícito del LLM sobre qué leyó, la señal honesta es el
+        # primer recuerdo de contenido (los nodos conceptuales son índices, no
+        # recuerdos vividos). Esto evita crecimiento neuronal artificial.
+        used = [m["id"] for m in mems if m.get("kind") != "concept"][:1]
+        if used:
+            reinforce(used)  # escritura async (el acceso resetea el decay)
     return {"state": st, "memories": mems, "ids": ids}
 
 

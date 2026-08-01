@@ -17,7 +17,7 @@
 - **Capa 3 (8346db1):** puente genérico **`hbwidget`** (`nucleo/widget_cli.py` + `worker_api` acción `widget_data`
   con gate del catálogo canónico + provenance worker) + `_METHOD_BLOCK` ampliado (entender-plano → localizar-memoria
   → ejecutar-real → REFLEJAR en widgets/memoria → verificar todos los planos → iterar).
-- **Testing:** escenario `accion_real_encadenada` (`tester/scenarios.py`, canal chat). 286 pytest verdes.
+- **Testing:** escenario `accion_real_encadenada` (`tests/voice/e2e/agent/scenarios.py`, canal chat). 286 pytest verdes.
 
 Pendiente (fase futura, no bloqueante): user_rule/state_patch/memory_fix como acciones de Susurro (hoy → finding);
 verificación en vivo por voz del ciclo completo con una cita real cancelable.
@@ -156,5 +156,5 @@ hace falta.
    catálogo de acción `dispatch_worker`/`repair_say` con gates + observabilidad total (payload/respuesta/antes-después).
 3. **Capa 3** — puente genérico worker→widget `hbwidget` (data-op con confirm-gate, provenance, token por-tarea) +
    método V2-057 con reflejo-en-widgets explícito.
-4. **Testing** — escenario `accion_real_encadenada` en `tester/scenarios.py` (cancelar cita / baja de suscripción /
+4. **Testing** — escenario `accion_real_encadenada` en `tests/voice/e2e/agent/scenarios.py` (cancelar cita / baja de suscripción /
    cancelar pedido): verificar realidad + widget + memoria COHERENTES, no solo el «Hecho».

@@ -6,10 +6,10 @@ Verifica el ciclo COMPLETO contra el server VIVO (make run / make flash-serve):
 
 La MAQUINARIA se exige (sin trigger/request/response = FAIL); el JUICIO del modelo se reporta sin fallar la
 suite (que decida corrections=[] ante un tramo sano es correcto). Cada run APPENDEA su resumen a
-`tests/e2e/susurro/history.jsonl` — la métrica LONGITUDINAL que pidió el operador para ver si el sistema
+`tests/agent_headless/e2e/susurro/history.jsonl` — la métrica LONGITUDINAL que pidió el operador para ver si el sistema
 mejora (menos fricción, mejores diagnósticos) con el tiempo.
 
-Uso:  ./.venv/bin/python tests/e2e/susurro/run_probe_suite.py  [--base http://localhost:43917]
+Uso:  ./.venv/bin/python tests/agent_headless/e2e/susurro/run_probe_suite.py  [--base http://localhost:43917]
 """
 from __future__ import annotations
 

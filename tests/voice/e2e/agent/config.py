@@ -7,7 +7,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-ZAELAR_ROOT = Path(__file__).resolve().parents[1]
+ZAELAR_ROOT = Path(__file__).resolve().parents[4]
 load_dotenv(ZAELAR_ROOT / ".env")
 # Tester credentials live gitignored under .meshkore/credentials/ (per operator, 2026-07-07).
 load_dotenv(ZAELAR_ROOT / ".meshkore" / "credentials" / "tester.env")
@@ -48,4 +48,4 @@ CARTESIA_API_KEY = _env("CARTESIA_API_KEY")
 DEEPGRAM_API_KEY = _env("DEEPGRAM_API_KEY")
 
 # --- output -----------------------------------------------------------------------------------------------------
-RUNS_DIR = ZAELAR_ROOT / "tester" / "runs"
+RUNS_DIR = ZAELAR_ROOT / "tests" / "runs" / "agent"

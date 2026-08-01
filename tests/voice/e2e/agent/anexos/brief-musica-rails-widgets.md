@@ -2,7 +2,7 @@
 
 > Para el **test agent**: incorpora esto a los workflows de prueba (batería + cron). Cubre las features nuevas del
 > 2026-07-15 para que **no quede nada sin probar ni verificar**. Escenarios ejecutables ya añadidos a
-> `tester/scenarios.py`: **`musica`**, **`musica_difusa`**, **`musica_spotify_connect`**, **`widget_conducciones`**
+> `tests/voice/e2e/agent/scenarios.py`: **`musica`**, **`musica_difusa`**, **`musica_spotify_connect`**, **`widget_conducciones`**
 > (+ el existente `youtube_voice`, que NO debe confundirse con música: es VÍDEO). El JUEZ evalúa por la TRAZA
 > (`GET /events`, `.meshkore/logs/timeline-latest.jsonl`), distinguiendo **bug real (trace-confirmado)** de ruido de
 > STT del tester y de rigidez del juez (ver `.meshkore/docs/ops/zaelar-testing.md`).
@@ -53,6 +53,6 @@
 
 ## Lanzar
 
-`./.venv/bin/python -m tester.run --scenario musica` (o `musica_difusa` / `musica_spotify_connect` /
-`widget_conducciones`), o incluirlos en `tester/run_battery.sh` / la rotación de `tester/cron_tick.sh`. Requiere
-zaelar arrancado (`make run`). Archivar el informe del día en `tester/reports/<YYYYMMDD>-musica-rails-widgets/`.
+`./.venv/bin/python -m tests.voice.e2e.agent.run --scenario musica` (o `musica_difusa` / `musica_spotify_connect` /
+`widget_conducciones`), o incluirlos en `tests/voice/e2e/agent/run_battery.sh` / la rotación de `tests/voice/e2e/agent/cron_tick.sh`. Requiere
+zaelar arrancado (`make run`). Archivar el informe del día en `tests/voice/e2e/agent/reports/<YYYYMMDD>-musica-rails-widgets/`.

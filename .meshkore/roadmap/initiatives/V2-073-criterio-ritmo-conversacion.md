@@ -53,7 +53,7 @@ cápsula (de repetición EXACTA a NO-PROGRESO semántico) y añade la cesión de
 
 ## Testing
 
-`connectors/meshkore/test_pace.py` (17) con los mensajes REALES de zalo: detección de bloqueo, casi-repetición
+`tests/cluster/unit/test_pace.py` (17) con los mensajes REALES de zalo: detección de bloqueo, casi-repetición
 reescrita, `advanced`, progresión del veredicto (seguir→ceder→callar), la directiva de cesión. **Nodo 6.7** del mapa.
 126/126 meshkore verdes.
 

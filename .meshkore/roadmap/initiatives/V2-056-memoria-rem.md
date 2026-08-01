@@ -17,7 +17,7 @@ Modelos del módulo elegidos POR BENCHMARK, no por inercia (`zaelar-model-benchm
 ## Qué se construyó
 
 1. **CORAZÓN de escritura → `gpt-4.1-mini` vía OpenAI por config** (`config/v2.py §memory.mem_processor_*`),
-   confirmado por bench §12 (**98.3%** sobre 16 casos, `tests/e2e/memory/bot/distiller_bench.py`); qwen2.5:7b
+   confirmado por bench §12 (**98.3%** sobre 16 casos, `tests/memory/e2e/bot/distiller_bench.py`); qwen2.5:7b
    local queda como OPCIÓN (86.2%). Key resuelta **POR ENDPOINT** (`nucleo/mem_processor.py::_key`, fix del
    incidente). **SALUD de 1ª clase**: racha de fallos → alerta observer + aviso de recuperación + `status()`.
 2. **Sueño PROFUNDO «fase REM»** (`memory/rem.py`, NUEVO): ciclo diario disparado por `nucleo/loop.py` tras el

@@ -34,7 +34,7 @@ FUERA del fence, junto a instrucciones de confianza —
 
 ## Verificación (adversarial — rojo pre-fix, verde post-fix)
 
-`connectors/meshkore/test_security.py` (+5 tests): `neutralize_identity` borra fence/trailer forjados y clampa
+`tests/cluster/unit/test_security.py` (+5 tests): `neutralize_identity` borra fence/trailer forjados y clampa
 longitud/saltos; `brief.for_brain()` no deja `⟦`/`UNTRUSTED`/`[SECURITY` en el snapshot con un handle malicioso;
 las etiquetas de `on_event` (message/ready) neutralizan el handle antes del prompt. Confirmado que los tests de
 brief y bridge FALLAN contra el código pre-fix. Suite completo: 29 passed. `make run-hermes` sano.

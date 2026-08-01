@@ -54,7 +54,7 @@ pequeña y determinista, el cerebro queda intacto.
 - Reciclar SOLO cuando es seguro; si no, avisar, nunca cortar una conversación viva.
 - Determinista, sin LLM. Kill-switch de 1ª clase `ZAELAR_HOMEOSTASIS`. Observabilidad TOTAL (evento `homeostasis`).
 - **Testeable SIN incidente real** (que es raro): funciones puras + watcher IN-PROCESS + rotación real en disco →
-  `nucleo/test_homeostasis.py` (13 tests), **dominio 9 del mapa de tests** (`tests/run_testmap.py`).
+  `tests/infrastructure/unit/core/test_homeostasis.py` (13 tests), **dominio 9 del mapa de tests** (`tests/run_testmap.py`).
 
 ## Config (env, infra — no UI)
 

@@ -37,7 +37,7 @@ pedidos y tenía un diálogo absurdo (respondía al tema del turno anterior). Di
   de canvas), `.meshkore/docs/architecture/zaelar-memory.md`, `CLAUDE.md`.
 
 ## Verificación
-- 27 tests verdes: `nucleo/flash/test_prompt.py`, `nucleo/flash/test_memory_cache.py`, `memory/test_compose_state.py`.
+- 27 tests verdes: `tests/agent_headless/unit/flash/test_prompt.py`, `tests/agent_headless/unit/flash/test_memory_cache.py`, `memory/test_compose_state.py`.
 - `needs_recent` 8/8; gating `recent_fired` F/T/F; coste del 2º pase ~1.4ms.
 - Probe en vivo: identidad sólida ("Te llamas Ricard"), T2 recupera el intercambio reciente exacto, "gracias" no
   dispara el 2º pase. Suelo de identidad: fallo transitorio mantiene el nombre; reset legítimo vacía.

@@ -1,6 +1,6 @@
-"""tester/youtube_flow_probe.py — RE-SIMULACIÓN headless del flujo YouTube-por-voz (sesión 2026-07-15).
+"""tests/voice/e2e/agent/youtube_flow_probe.py — RE-SIMULACIÓN headless del flujo YouTube-por-voz (sesión 2026-07-15).
 
-Compañero RÁPIDO y FIABLE del escenario de voz `youtube_voice` (tester/scenarios.py). Reproduce, por el canal
+Compañero RÁPIDO y FIABLE del escenario de voz `youtube_voice` (tests/voice/e2e/agent/scenarios.py). Reproduce, por el canal
 de PRUEBA headless del FlashBrain (`POST /api/flash/say`, V2-032, INPUT LIMPIO sin STT), el subconjunto de
 verificaciones DETERMINISTAS del flujo que reventó en la sesión manual y se arregló en P0/P1:
 
@@ -21,7 +21,7 @@ QUÉ NO PUEDE CUBRIR (necesita el escenario de VOZ `youtube_voice` + ejecución 
   - voz ambiente DURANTE el trabajo, estado de tarea con paso+tiempo → voz/e2e.
 
 Uso (server arrancado; `make run` o `make flash-serve`):
-    ./.venv/bin/python -m tester.youtube_flow_probe
+    ./.venv/bin/python -m tests.voice.e2e.agent.youtube_flow_probe
 """
 from __future__ import annotations
 import json, urllib.request
@@ -76,7 +76,7 @@ def main():
         print(f"       «{(r.get('reply') or '')[:80]}»")
     print(f"\n  RESULTADO: {passed}/{len(CHECKS)} checks deterministas OK")
     print("  (para dedup de workers / un-solo-chip / modify-vs-create real / cerrar-resto / ambiente-durante-trabajo:")
-    print("   correr el escenario de VOZ:  ./.venv/bin/python -m tester.run --scenario youtube_voice )")
+    print("   correr el escenario de VOZ:  ./.venv/bin/python -m tests.voice.e2e.agent.run --scenario youtube_voice )")
 
 if __name__ == "__main__":
     main()

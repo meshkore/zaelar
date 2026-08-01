@@ -1,6 +1,6 @@
-"""tester/chain_suite.py — ITERACIÓN 2 del testing del FlashBrain: HUMANO, FLEXIBLE, ENCADENADO + TRAZAS.
+"""tests/voice/e2e/agent/chain_suite.py — ITERACIÓN 2 del testing del FlashBrain: HUMANO, FLEXIBLE, ENCADENADO + TRAZAS.
 
-Sube el listón sobre `tester/loop_cycle.py`: en vez de UNA frase precisa por intención, prueba VARIAS frases
+Sube el listón sobre `tests/voice/e2e/agent/loop_cycle.py`: en vez de UNA frase precisa por intención, prueba VARIAS frases
 humanas y difusas por intención (como hablaría el operador), verifica que el FlashBrain (la CABEZA del iceberg)
 elige la PRIMERA acción correcta que lanza la cadena, INSPECCIONA las INSTRUCCIONES del handoff (el `request` que
 recibe el worker / el `query` de la música) y comprueba la TRAZABILIDAD (V2-044): que la frase nace con un trace id
@@ -18,11 +18,11 @@ Lo que el probe NO puede (no ejecuta workers/rails) queda DOCUMENTADO como caden
 verificación de la cadena COMPLETA (worker→web→widget) vive en la observabilidad del camino real (vista Trazas).
 
 Uso:
-    ./.venv/bin/python -m tester.chain_suite                  # sweep completo
-    ./.venv/bin/python -m tester.chain_suite --domains music,chain
-    ./.venv/bin/python -m tester.chain_suite --sample 2       # 2 frases por caso (rotación rápida)
-    ./.venv/bin/python -m tester.chain_suite --trace CHAIN-01 # dump del árbol de traza de un caso
-    ./.venv/bin/python -m tester.chain_suite --json           # resumen máquina (para el cron)
+    ./.venv/bin/python -m tests.voice.e2e.agent.chain_suite                  # sweep completo
+    ./.venv/bin/python -m tests.voice.e2e.agent.chain_suite --domains music,chain
+    ./.venv/bin/python -m tests.voice.e2e.agent.chain_suite --sample 2       # 2 frases por caso (rotación rápida)
+    ./.venv/bin/python -m tests.voice.e2e.agent.chain_suite --trace CHAIN-01 # dump del árbol de traza de un caso
+    ./.venv/bin/python -m tests.voice.e2e.agent.chain_suite --json           # resumen máquina (para el cron)
 """
 from __future__ import annotations
 

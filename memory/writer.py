@@ -99,7 +99,8 @@ _IMPORTANCE_BY_KIND = {
 
 
 def _now() -> int:
-    return int(time.time())
+    from .clock import now
+    return now()
 
 
 def _pack(vec: list[float]) -> bytes:
@@ -408,12 +409,24 @@ def supersede(old_id: int, new_id: int) -> None:
 
 def delete_memory(mid: int) -> None:
     """Borra un recuerdo y sus representaciones (vec/fts). Solo el consolidador debería llamar esto."""
+    import json as _json
+
     db = _db.get_db()
     mid = int(mid)
-    row = db.query_one("SELECT text FROM memories WHERE id=?", (mid,))
+    row = db.query_one("SELECT text, meta FROM memories WHERE id=?", (mid,))
+    already_pruned = False
+    if row is not None:
+        try:
+            already_pruned = bool(_json.loads(row["meta"] or "{}").get("pruned"))
+        except Exception:
+            already_pruned = False
     with db.cursor() as cur:
-        if db.fts_available and row is not None:
+        if db.fts_available and row is not None and not already_pruned:
             # FTS5 externo: borrado explícito con la sintaxis 'delete'.
+            # Una fila invalidada puede haber sido retirada antes por
+            # consolidator.prune_invalid(meta.pruned=1). Repetir el comando
+            # especial `delete` sobre esa rowid corrompe el índice FTS5
+            # (`database disk image is malformed`) durante una eviction posterior.
             cur.execute(
                 "INSERT INTO fts_memories (fts_memories, rowid, text) VALUES ('delete', ?, ?)",
                 (mid, row["text"]),

@@ -38,12 +38,12 @@
     },
     {
       "id": "harness",
-      "path": "harness/",
+      "path": "tests/agent_headless/harness/",
       "description": "Evaluation harness with persona-based test runs (text-level bot-vs-bot + judge)"
     },
     {
       "id": "tester",
-      "path": "tester/",
+      "path": "tests/voice/e2e/agent/",
       "description": "Voice tester (INI-013) \u2014 a 2nd LiveKit participant that SPEAKS to zaelar (TTS) and LISTENS (STT), driving scenarios with a DeepSeek brain to detect things to improve (latency/turns/memory/agenda/widgets/robustness). Reuses the persona/judge/analyze/report logic of the prior sim candidate; transport is native LiveKit. Runnable/observable without a human mic. Dedicated key TESTER_AIMLAPI_KEY (never committed)."
     },
     {

@@ -6,8 +6,6 @@ __pycache__/
 .pytest_cache/
 .ruff_cache/
 .mypy_cache/
-harness/runs/
-harness/last_run.log
 config/settings.json
 config/meshkore.json
 # connector config MANAGED FROM THE UI (INI-015): enable flags + credentials (Telegram api_id/api_hash) the user
@@ -47,11 +45,9 @@ zaelar.db
 zaelar.db-wal
 zaelar.db-shm
 
-# voice tester run artifacts. tester/runs/ = SCRATCH en crudo (ignorado por completo). El histórico CURADO y
-# consultable vive en tester/reports/<YYYYMMDD>-<desc>/ (versionado) — ver .meshkore/docs/ops/zaelar-testing.md.
-tester/runs/
-tester/runs/*.wav
-tester/runs/*.log
+# Unified test observatory: append-only executions, voice scratch and captured artifacts.
+# Curated voice history lives in tests/voice/e2e/agent/reports/ and remains versioned.
+tests/runs/
 
 # WhatsApp connector (INI-014): npm-installed deps of the vendored bridge, and the
 # WhatsApp pairing session (personal credentials — NEVER commit) + triage state.

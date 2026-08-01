@@ -1,0 +1,19 @@
+{
+  "schema": 1,
+  "id": "infrastructure",
+  "label": "Infraestructura",
+  "description": "Bus, observabilidad, configuración, energía y homeostasis",
+  "domain_ids": ["7", "8", "9"],
+  "requirements": ["python"],
+  "steps": [
+    {"id": "7.1", "label": "Bus de eventos y log", "kind": "unit"},
+    {"id": "7.2", "label": "Observer SSE", "kind": "integration"},
+    {"id": "7.5", "label": "Sello de versión", "kind": "unit"},
+    {"id": "7.3", "label": "Chat por transporte LiveKit", "kind": "live"},
+    {"id": "7.4", "label": "Smoke integral de salud", "kind": "live"},
+    {"id": "8.1", "label": "Medidor de energía y límites demo", "kind": "unit"},
+    {"id": "8.2", "label": "Perfiles, configuración y credenciales", "kind": "unit"},
+    {"id": "9.1", "label": "Homeostasis: detección y seguridad", "kind": "unit"},
+    {"id": "9.2", "label": "Salud viva de la máquina", "kind": "live"}
+  ]
+}

@@ -28,7 +28,7 @@ updated: 2026-07-03
   - `voice/silence.py`: docstring sin "candidato/personas/_comun.md" + nota de que va OFF por diseño.
   - `Makefile`: primera línea sin refs muertas (NOTES.md / prototype_candidate); `.PHONY` completo
     (+run-hermes, sim-hermes, test-widgets).
-  - Fallbacks de modelo en `brains/reasoner.py` y `harness/run.py` → deepseek (remate de T-25).
+  - Fallbacks de modelo en `brains/reasoner.py` y `tests/agent_headless/harness/run.py` → deepseek (remate de T-25).
 - **T-33 · batching de logs en observer** — **evaluado y diferido a propósito**: el volumen actual (decenas de
   eventos por turno) no justifica batching, y bufferizar añade riesgo de perder eventos en un crash justo cuando
   más se necesitan (/debug es la herramienta de diagnóstico). Revisar solo si el volumen sube un orden de

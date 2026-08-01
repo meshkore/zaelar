@@ -69,6 +69,7 @@ class NucleoLLM(llm.LLM):
         self._last_dataop = None           # (wid, action, payload, ts) última data-op EJECUTADA — guard anti
         #                                    context-bleed (round headless V2-038 #1: re-emisión cross-turno)
         self._turn_count = 0                # turnos conversacionales completados esta sesión (INI-018 T6, demo cap)
+        self._last_action = ""              # route/surface del turno anterior para referencias deícticas
         self._session_started_at = time.time()  # arranque de la sesión (INI-018 T6, demo TTL)
 
     @property
@@ -474,6 +475,10 @@ class NucleoLLMStream(llm.LLMStream):
                     logger.warning(f"nucleo cron {action} failed: {e}")
                 return
             # show / close / move → acción de canvas.
+            if action == "show":
+                contextual = _show_guard_target(text, brain._window, brain._last_action)
+                if contextual:
+                    extra = {**(extra or {}), "id": contextual}
             # GUARD anti-clutter (2026-07-12): el modelo tiende a emitir [[show:navegador]] al pedir una búsqueda,
             # abriendo el navegador VACÍO ("Nuevo navegador") ADEMÁS de la tarjeta de la tarea → dos/tres cajas de
             # navegador en pantalla. La búsqueda se ve en SU tarjeta (navegador::tN, la abre la tarea sola); el
@@ -846,7 +851,10 @@ class NucleoLLMStream(llm.LLMStream):
                             _open, _recent = [], []
                         _res = {}
                         try:
-                            if _wid and runtime.get(_wid) is not None:       # id exacto del catálogo
+                            _contextual = _show_guard_target(text, brain._window, brain._last_action)
+                            if _contextual:
+                                _res = {"match": _contextual, "system": None}
+                            elif _wid and runtime.get(_wid) is not None:       # id exacto del catálogo
                                 _res = {"match": _wid, "system": None}
                             else:                                            # nombre/alias → id REAL o superficie
                                 _res = runtime.identify(_wid or text, open_ids=_open, recent_ids=_recent) or {}
@@ -1344,7 +1352,7 @@ class NucleoLLMStream(llm.LLMStream):
         # guard colisionan con 'pon música'/'va a poner el tiempo'/'a ver si…' → hijack de web/deep/música. La cola
         # de show-promesa-en-charla la captura el Susurro, no un guard sobre-amplio.)
         if (escalate_req["v"] is not None or search_req["v"] is not None) and not acted["widget"]:
-            _guard_wid = _show_guard_target(text)
+            _guard_wid = _show_guard_target(text, brain._window, brain._last_action)
             if _guard_wid:
                 _was_search = search_req["v"] is not None
                 escalate_req["v"] = None
@@ -1578,6 +1586,7 @@ class NucleoLLMStream(llm.LLMStream):
             except Exception as e:  # noqa: BLE001
                 logger.warning(f"web_search compose falló (voz sigue): {e}")
             spoken_text = "".join(spoken).strip()
+            brain._last_action = "search"
 
         # MÚSICA (V2-041/V2-042): ruta LIGERA como web_search, ahora con la CADENA resolver→validar→actuar
         # (`nucleo/flash/music_flow`): intento directo → si no_track, websearch (Chromium CALIENTE del prewarm) +
@@ -2068,7 +2077,7 @@ def _human_confirm_question(wid: str, action: str, payload: dict) -> str:
     return f"Ojo, la acción «{action}»{tail} es permanente. ¿La confirmo?"
 
 
-def _show_guard_target(text: str) -> str | None:
+def _show_guard_target(text: str, context: list[dict] | None = None, last_action: str = "") -> str | None:
     """Si la frase es una orden clara de MOSTRAR un widget EXISTENTE y NO pide crear uno nuevo, devuelve su id;
     si no, None. Guard DETERMINISTA (V2-023, no depende del LLM) para que una escalada ERRÓNEA de "muéstrame el de
     mensajería" nunca genere un widget basura — espejo del guard de LOGIN. Con verbo de crear ("créame otro reloj")
@@ -2082,6 +2091,32 @@ def _show_guard_target(text: str) -> str | None:
         return None
     if not _re.search(r"\b(abr|muestr|ensen|pon|saca|sube)|quiero ver|ver mi|ense", n):
         return None
+    # Pronouns such as "muéstramelo" deliberately omit the widget noun. Resolve their most recent topical
+    # antecedent through the real catalogue; this preserves human continuity without a weather/agenda/etc table.
+    try:
+        from nucleo.flash import router as _router
+        tail = (text or "").strip().lower().strip("¿?¡!.,;:")
+        deictic = (bool(_re.search(r"\b(?:muestr|ensen|abre|saca)\w*(?:lo|la|los|las)\b", n))
+                    or any(_router.looks_like_bare_ref(token) for token in tail.split() if token))
+        if deictic:
+            for message in reversed(context or []):
+                if message.get("role") != "user":
+                    continue
+                prior = str(message.get("content") or "").strip()
+                if prior:
+                    match = _identify(prior)
+                    if match:
+                        return match
+                    break
+            if last_action == "search":
+                try:
+                    from widgets import runtime
+                    if runtime.get("search") is not None:
+                        return "search"
+                except Exception:
+                    pass
+    except Exception:
+        pass
     return _identify(text)
 
 

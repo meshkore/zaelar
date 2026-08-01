@@ -4,7 +4,7 @@
 
 > **v1 verificada**: probe headless → `trace: T1·a90f` en la respuesta; el timeline muestra la raíz (frase) + la
 > destilación del CORAZÓN (off-hot-path, segundos después) + la forense del turno, todos con el mismo id — el
-> ContextVar cruzó `create_task`→`to_thread` sin stamping manual. Tests `voice/test_trace.py` 5/5.
+> ContextVar cruzó `create_task`→`to_thread` sin stamping manual. Tests `tests/voice/unit/test_trace.py` 5/5.
 > **Fuera de v1** (documentado): ticks de `widgets/background.py` como origen, triaje de mensajería como origen
 > propio, filtro del árbol de Trazas por texto.
 
@@ -87,6 +87,6 @@ el juez del tester pueden agrupar por `trace` (el juez gana correlación gratis)
 
 ## Verificación
 
-- `voice/test_trace.py`: propagación por create_task/to_thread + adopt cross-thread.
+- `tests/voice/unit/test_trace.py`: propagación por create_task/to_thread + adopt cross-thread.
 - Probe headless: `make flash T="pon música de Sinatra"` → todos los eventos del timeline comparten `trace`.
 - Manual: vista Trazas con una orden de widget + una escalada → dos árboles con su frase raíz.

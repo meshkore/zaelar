@@ -17,7 +17,7 @@ status: current
 | widgets    | widgets/       | Full-stack widgets (data.py + widget.js per folder), generator, catalog, runtime |
 | config     | config/        | Runtime settings (persisted in settings.json)                               |
 | connectors | connectors/    | External connectors. `meshkore/` = native multi-cluster WebSocket I/O channel (see §MeshKore below). `architect/` = Architect code/project provider over the shared MeshKore daemon (see §Architect below). `whatsapp/`+`telegram/` over `messaging/` = the unified personal inbox (see §Messaging connectors). Future: email, LinkedIn, X |
-| harness    | harness/       | Evaluation harness, persona test runs                                       |
+| testing    | tests/         | Plataforma única: suites por dominio, catálogos schema 2, runners terminal/CI, harnesses headless/voz/browser y Test Observatory realtime en `127.0.0.1:8765`. Entrada de agentes: `tests/README.md`. |
 
 All modules declared in `.meshkore/public/cluster.yaml`.
 
@@ -105,7 +105,7 @@ env-first). It runs at two speeds:
   capsules and caps the total (`sys_kv` `capsule:*`, via `memory.kv_keys(prefix)`/`memory.kv_del(key)`). **Distinct
   from the widgets `supervisor.py`**: the widgets supervisor watches widget *owner processes* (backed widgets);
   homeostasis watches the *machine itself* (LiveKit engine, logs, capsules). Emits observer events kind
-  `homeostasis` (labels `start`/`degraded`/`recycle`/`rotate`/`evict`/`alert`); tests `nucleo/test_homeostasis.py`
+  `homeostasis` (labels `start`/`degraded`/`recycle`/`rotate`/`evict`/`alert`); tests `tests/infrastructure/unit/core/test_homeostasis.py`
   (13 deterministic). Born from the 2026-07-25 incident: the embedded LiveKit worker degraded after ~7h and nothing
   self-healed until a manual restart. Initiative: `roadmap/initiatives/V2-070-homeostasis-anti-degeneracion.md`.
 
@@ -771,7 +771,7 @@ Config (`.env`, gitignored): `ARCHITECT_URL` (def `https://127.0.0.1:5573`), `AR
 from the cockpit → Config → Remote control), `ARCHITECT_PARENT` (default folder for `architect.new`),
 `ARCHITECT_ASK_TIMEOUT`. The token is never rendered into briefs, notes or speech.
 
-Tests: `connectors/architect/test_architect.py` (tag parsing incl. split-chunk hold; ask lifecycle with a fake
+Tests: `tests/connectors/unit/architect/test_architect.py` (tag parsing incl. split-chunk hold; ask lifecycle with a fake
 client: happy path, busy rejection, error status, missing config).
 
 ## Messaging connectors (`connectors/{whatsapp,telegram,messaging}/`) — the unified inbox

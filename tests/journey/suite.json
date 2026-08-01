@@ -1,0 +1,18 @@
+{
+  "schema": 1,
+  "id": "journey",
+  "label": "Viaje integral",
+  "description": "Historia cronológica compartida: diálogo, memoria, widgets, workers, observabilidad y canales",
+  "domain_ids": [],
+  "requirements": ["isolated-engine", "configured-llm"],
+  "case_count": 26,
+  "primary_case": "journey::group::10.1::whole-system-v1",
+  "steps": [
+    {
+      "id": "10.1",
+      "label": "Vida integral y continuidad causal",
+      "kind": "e2e",
+      "catalog_provider": "tests.journey.catalog:platform_groups"
+    }
+  ]
+}

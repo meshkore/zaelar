@@ -8,10 +8,12 @@ la de una persona.
 
 ## Piezas
 
-- `cases.py` — el GUION (crece en tandas de 10). Cada caso = `save` (con `in`=capas esperadas, `[]`=descarte) o
+- `cases.py`/`cases2.py`/`cases3.py` — corpus históricos extensos. `cases4.py` es la batería focalizada visible
+  primero en el Observatory: conversación natural multi-hecho, descarte, correcciones y recall diferido.
+  Cada caso histórico = `save` (con `in`=capas esperadas, `[]`=descarte) o
   `query` (con `via`=fuente esperada, `want`=subcadenas que deben aparecer). Una PERSONA coherente y acumulativa.
-- `runner.py` — el MOTOR. BD **AISLADA** (`memory/_data/zaelar.membot.db`, NUNCA el perfil real). Ejecuta la ruta
-  REAL de escritura (`memory_agent.ingest_utterance` → CORAZÓN LLM local) y la ruta REAL de lectura del FlashBrain
+- `runner.py` — el MOTOR. Una BD **AISLADA por corpus** (`memory/_data/zaelar.membot*.db`, NUNCA el perfil real).
+  Ejecuta la ruta REAL de escritura (`memory_agent.ingest_utterance` → CORAZÓN LLM configurado) y la ruta REAL de lectura del FlashBrain
   (`memory_cache._compose` estado+perfil-durable+corto + `compose_recall` con su gate `needs_recall`). Verifica,
   informa y persiste progreso.
 - `CATALOG.md` — REGISTRO legible autogenerado desde `cases.py`: cada request + qué esperamos al grabar y al
@@ -22,13 +24,17 @@ la de una persona.
 ## Uso
 
 ```bash
-./.venv/bin/python -m tests.e2e.memory.bot.runner --fresh --next 10   # replay LIMPIO de la conversación [0,10)
-./.venv/bin/python -m tests.e2e.memory.bot.runner --fresh --range 0 20  # replay limpio hasta 20
-./.venv/bin/python -m tests.e2e.memory.bot.runner --catalog            # regenera CATALOG.md y sale
+./.venv/bin/python -m tests run memory --case memory::group::1.4::v4 --no-open
+./.venv/bin/python -m tests.memory.e2e.bot.runner --corpus v4 --fresh --range 0 15
+./.venv/bin/python -m tests.memory.e2e.bot.runner --corpus v1 --fresh --next 10
+./.venv/bin/python -m tests.memory.e2e.bot.runner --corpus v4 --catalog
 ```
 
-Requiere **Ollama local** (el CORAZÓN usa `qwen2.5:7b-instruct` por defecto; embeddings `embeddinggemma`). Nada
-sale a la nube. La BD del bot está gitignored (`memory/_data/`), no toca `zaelar.db` real.
+El CORAZÓN usa el proveedor configurado para memoria (por defecto `gpt-4.1-mini` vía OpenAI; puede apuntarse a
+Ollama local). El runner carga `.env` explícitamente sin sobrescribir variables ya exportadas y publica en cada
+caso la fuente real (`llm` o `heuristic`). Los casos `require_llm` fallan si el proveedor no respondió: nunca se
+acepta silenciosamente una heurística como prueba de extracción semántica. Los embeddings siguen la configuración
+normal. Las BD del bot están gitignored bajo `memory/_data/` y no tocan `zaelar.db` real.
 
 ## El CICLO de evolución (manual del loop autónomo)
 

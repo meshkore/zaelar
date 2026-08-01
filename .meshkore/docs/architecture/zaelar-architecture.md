@@ -1,7 +1,7 @@
 ---
 title: Zaelar Architecture
 category: architecture
-updated: 2026-07-25
+updated: 2026-08-01
 owner: ricart
 status: current
 ---
@@ -352,7 +352,7 @@ conversation stretch when FRICTION is detected and returns corrections from a CL
 - **Hard invariant:** the Susurro NEVER modifies BRAIN RULES / the system prompt at runtime (no fixed point if
   corrupted). Improvement runs at two speeds: runtime corrections on the MUTABLE layer; findings change the
   genetics via development (git + tests + alignment review).
-- Measured e2e (probe suite `tests/e2e/susurro/run_probe_suite.py`, longitudinal `history.jsonl`): complaint →
+- Measured e2e (probe suite `tests/agent_headless/e2e/susurro/run_probe_suite.py`, longitudinal `history.jsonl`): complaint →
   correct diagnosis → natural spoken repair + P1 finding, full cycle ~2.5-2.9s with gpt-4.1-mini.
 
 ## 5g. «Homeostasis» — the autonomic / health-supervisor layer (V2-070)
@@ -387,7 +387,7 @@ gradations, no scoring, no model in the loop. **THREE checks:**
 **Invariants.** Off the voice loop; deterministic (no model, ever); fail-open; heals the machine ONLY when safe
 (never interrupts a live voice turn); one recycle per cooldown. **Kill-switch:** env `ZAELAR_HOMEOSTASIS`.
 **Observability:** it emits observer events of kind `homeostasis` (labels: `start` / `degraded` / `recycle` /
-`rotate` / `evict` / `alert`) — see `zaelar-observability.md`. **Tests:** `nucleo/test_homeostasis.py` (13
+`rotate` / `evict` / `alert`) — see `zaelar-observability.md`. **Tests:** `tests/infrastructure/unit/core/test_homeostasis.py` (13
 deterministic tests; domain 9 of the test map). Full initiative:
 `.meshkore/roadmap/initiatives/V2-070-homeostasis-anti-degeneracion.md`.
 
@@ -423,8 +423,8 @@ does in the background. Model routing changes apply on the next voice reconnect 
 - Widget circuit: `widgets/{runtime,server_api,brief,generator}.py`, `widgets/<id>/` (data.py + widget.js), `frontend/app/widgets/desktop.js`.
 - Music (§5d): `connectors/music/` (agnostic seam) + `connectors/spotify/` (Web API + OAuth PKCE) + `connectors/music/youtube_audio.py` (free fallback) + `widgets/musica/` (surface) + `server/spotify_api.py` (`/api/spotify/*` + `/api/music/state`).
 - Front: `frontend/` — ES-module app (`app/core` reactive store, `app/services` WebRTC/audio/VAD/STT/SSE engine, `app/components`, SSE + voice-command fast-path). `index.html` is a thin bootstrap. Solid-migration-ready.
-- Autonomic health (§5g): `nucleo/homeostasis.py` (the health supervisor — LiveKit engine recycle + log rotation + capsule eviction; no model, deterministic; `start(app)`/`stop()` in the lifespan) + `nucleo/test_homeostasis.py`.
-- Self-test: `harness/mic_selftest.py` (headless: injects speech, checks the server pipeline).
+- Autonomic health (§5g): `nucleo/homeostasis.py` (the health supervisor — LiveKit engine recycle + log rotation + capsule eviction; no model, deterministic; `start(app)`/`stop()` in the lifespan) + `tests/infrastructure/unit/core/test_homeostasis.py`.
+- Self-test: `tests/voice/e2e/mic/mic_selftest.py` (headless: injects speech, checks the server pipeline).
 - Runtime config: `config/settings.py` (GET/POST `/api/settings`) → `config/settings.json` (⚙ panel: STT/TTS/voice/language); `config/v2.py` = model routing (fast + code_agent) + `active_brain()`. Both gitignored where they persist state.
 
 ## 8. FlashBrain tool catalog — CANONICAL (V2-035, 2026-07-14)
@@ -546,3 +546,36 @@ takes ~2s to complete — that's fine now, because nothing is waiting on it).
 saved credentials on boot must follow pattern 2 — wrap its reconnect loop in its own `asyncio.create_task`, never
 an inline `await` in the shared lifespan. A single slow connector must never be able to delay every other one, let
 alone voice itself.
+
+## 10. Testing control plane — terminal and Observatory (V2-077)
+
+Testing is one platform with two clients, not separate terminal and web systems. `python -m tests` resolves the
+catalog, executes the declared action and preserves its exit code; `tests/platform/events.py` writes an append-only
+JSONL stream; `tests/platform/server.py` projects that same run at `127.0.0.1:8765`. Therefore Codex/Claude Code can
+run headlessly with `--no-open` while the operator watches or later replays exactly the same evidence. The
+application under test remains a different process at `127.0.0.1:43917` when a live boundary is required.
+
+```text
+tests/<suite>/suite.json + run_testmap.py + catalog_provider
+                         │
+                         ▼
+             schema 2 ordered catalog
+                         │
+          ┌──────────────┴──────────────┐
+          ▼                             ▼
+ python -m tests / CI             Observatory UI :8765
+          │                             │ launch validated ID
+          └──────────────┬──────────────┘
+                         ▼
+        pytest | headless runner | Playwright | voice runner
+                         │
+                         ▼
+       tests/runs/<run-id>/{run.json,events.jsonl,artifacts/}
+```
+
+The server accepts only catalog-owned suite/group/case IDs and rejects a UI handoff while the visible run is still
+active. One port represents one run; overlapping test processes are forbidden. Deterministic pass/fail and an LLM
+judge score are separate signals. Stateful corpora must declare their causal policy—for example, the six-month
+memory timeline uses one isolated DB and replays the complete prefix before an individual step. Operational rules:
+`tests/README.md`; diagnosis playbook: `.meshkore/docs/ops/zaelar-testing.md`; machine contract:
+`tests/platform/SCHEMA.md`.

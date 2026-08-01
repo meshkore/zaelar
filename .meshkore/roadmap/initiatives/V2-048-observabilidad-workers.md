@@ -81,4 +81,4 @@ fin  $0.0142   [1420 in · 380 out]
 `nucleo/workers/claude_session.py` (`_tool_step`/`_bash_step`/`_nav_target` + `step`/`model` en `_map`) ·
 `nucleo/workers/session.py` (`_emit_step`/`_emit_meta_row`/`_PLACE` + tokens/coste en la fila final) ·
 `nucleo/dispatch.py` (`record_by_nav_task`) · `widgets/navegador/act_api.py` (`_emit_nav`) ·
-`nucleo/workers/test_workers.py` (+3 tests). Doc: `zaelar-observability.md §Pasos del worker`.
+`tests/agent_headless/unit/workers/test_workers.py` (+3 tests). Doc: `zaelar-observability.md §Pasos del worker`.

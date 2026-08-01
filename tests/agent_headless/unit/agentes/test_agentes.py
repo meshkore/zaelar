@@ -2,7 +2,7 @@
 # test_agentes.py — la interfaz CodeAgent + adaptadores + selección por config (V2-006, T77-T79).
 # Verifica: contrato ABC/RunSpec, adaptador Claude Code real contra un CLI FALSO (modelo por invocación +
 # política de tools + parseo de salida JSON + timeout), stub de Codex que responde sin lanzar, y la factoría
-# get_agent() por config. Ejecutar: .venv/bin/pytest nucleo/agentes/test_agentes.py
+# get_agent() por config. Ejecutar: .venv/bin/pytest tests/agent_headless/unit/agentes/test_agentes.py
 #
 import asyncio
 import os

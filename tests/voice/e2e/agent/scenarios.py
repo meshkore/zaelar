@@ -229,7 +229,7 @@ SCENARIOS: list[Scenario] = [
              "basura ni dobles workers.", turns=8),
     # SUSURRO (V2-053): auditor conversacional — la QUEJA del operador debe disparar la auto-auditoría y, si el
     # auditor decide una reparación, zaelar la dice con naturalidad. Grupo especial de MEJORA CONTINUA: además de
-    # este escenario de voz, existe la suite headless tests/e2e/susurro/run_probe_suite.py (histórico longitudinal).
+    # este escenario de voz, existe la suite headless tests/agent_headless/e2e/susurro/run_probe_suite.py (histórico longitudinal).
     Scenario("susurro_reparacion", "voice",
              "Pide a zaelar que abra un widget concreto (p. ej. el reloj). En el SIGUIENTE turno, quéjate como si "
              "lo hubiera hecho mal («te he dicho que abrieras la agenda, no el reloj — no me haces caso») y sigue "

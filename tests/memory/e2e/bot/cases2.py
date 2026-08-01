@@ -1,4 +1,4 @@
-"""tests/e2e/memory/bot/cases2.py — SEGUNDO corpus del test bot de memoria (auditoría V2-038, 2026-07-14).
+"""tests/memory/e2e/bot/cases2.py — SEGUNDO corpus del test bot de memoria (auditoría V2-038, 2026-07-14).
 
 Un corpus NUEVO de ~1000 requests, hermano de `cases.py` (la GOLD de 1032) pero con **otra PERSONA** y **más
 originalidad**. Dos objetivos que `cases.py` no puede cumplir:
@@ -16,7 +16,7 @@ originalidad**. Dos objetivos que `cases.py` no puede cumplir:
          toca `state`, slots de identidad VETADOS, preguntas reificadas DESCARTADAS, procedencia estampada.
        · **AG** — SANEO `heal_slots` del consolidador: colapsa linajes duplicados del stock ya existente.
 
-Corre con el runner por corpus: `python -m tests.e2e.memory.bot.runner --corpus v2 --fresh --range 0 N`.
+Corre con el runner por corpus: `python -m tests.memory.e2e.bot.runner --corpus v2 --fresh --range 0 N`.
 BD/progreso/catálogo AISLADOS de v1 (zaelar.membot2.db / progress-v2.json / CATALOG2.md). Requiere Ollama local.
 
 ════════════════════════════════════════════════════════════════════════════════════════════════════════════════

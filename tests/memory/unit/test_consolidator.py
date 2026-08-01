@@ -103,5 +103,34 @@ def test_consolidate_reports(fresh_db):
     memwriter.insert_memory("uno", weight=0.5)
     memwriter.insert_memory("dos", weight=0.5)
     rep = memcons.consolidate(limit=1000)
-    assert set(rep) == {"healed_slots", "promoted", "deduped", "decayed", "pruned", "evicted", "count"}
+    assert set(rep) == {
+        "healed_slots", "promoted", "deduped", "decayed", "expired", "pruned", "evicted", "workers_pruned", "count"
+    }
+    assert rep["workers_pruned"] == 0
     assert rep["count"] == 2
+
+
+def test_consolidate_expires_ttl_but_preserves_history_and_pinned(fresh_db):
+    from memory.clock import travel
+
+    day = 1_700_000_000
+    with travel(day):
+        ephemeral = memwriter.insert_memory("café rutinario", level="short", ttl_days=2)
+        pinned = memwriter.insert_memory("alergia crítica", level="long", ttl_days=2, pinned=True)
+    with travel(day + 3 * 86400):
+        rep = memcons.consolidate(limit=1000)
+    assert rep["expired"] == 1
+    rows = {row["id"]: row for row in memdb.get_db().query("SELECT id, valid FROM memories")}
+    assert rows[ephemeral]["valid"] == 0  # expira de la memoria activa
+    assert rows[pinned]["valid"] == 1     # un crítico pinned nunca caduca
+
+
+def test_evict_can_delete_an_already_pruned_invalid_row_without_fts_corruption(fresh_db):
+    now = int(time.time())
+    mid = memwriter.insert_memory("efímero ya podado", level="short", weight=0.01)
+    memdb.get_db().execute(
+        "UPDATE memories SET valid=0, updated=? WHERE id=?", (now - 5 * 86400, mid))
+    assert memcons.prune_invalid(now=now) == 1
+    assert memcons.evict(limit=0) == 1
+    assert memdb.get_db().query_one("SELECT id FROM memories WHERE id=?", (mid,)) is None
+    assert memdb.get_db().query_one("SELECT COUNT(*) c FROM fts_memories")["c"] == 0

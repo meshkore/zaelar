@@ -47,25 +47,25 @@ Empezar y terminar con la capacidad de **observar a los agentes hablando en tiem
 ambos lados + reproduce audio; y abrir el navegador). El tester no necesita cambios manuales para verificar que va.
 
 ## Estructura (INDEPENDIENTE del core de zaelar — verificado 0 imports de voice/brains/server)
-- `tester/interlocutor/` — quien interpela a zaelar: `brain.py` (deepseek), `personas/`, `voice_link.py`
+- `tests/voice/e2e/agent/interlocutor/` — quien interpela a zaelar: `brain.py` (deepseek), `personas/`, `voice_link.py`
   (participante LiveKit: voz + chat + paste), `providers.py` (plugins LiveKit directos, sin zaelar).
-- `tester/judge/` — `judge.py` (juez LLM black-box, juzga por comportamiento observable) + `report.py`
-  (informes markdown+JSON para el equipo de código en `tester/runs/`).
-- `tester/{config,llm,observe,scenarios,run}.py` — infra + consola de observación + escenarios + orquestador.
+- `tests/voice/e2e/agent/judge/` — `judge.py` (juez LLM black-box, juzga por comportamiento observable) + `report.py`
+  (informes markdown+JSON para el equipo de código en `tests/voice/e2e/agent/runs/`).
+- `tests/voice/e2e/agent/{config,llm,observe,scenarios,run}.py` — infra + consola de observación + escenarios + orquestador.
 - Habla a zaelar solo por interfaces externas (LiveKit room + `/api/token` + SSE + data channel). Nunca importa
   ni modifica el código bajo prueba. Key `TESTER_AIMLAPI_KEY` en `.env` (nunca commiteada).
 
 ## Estado
 - [x] Bucle de voz bidireccional PROBADO (zaelar oye+responde, latencia por turno) — sin micro humano.
 - [x] Interlocutor (brain deepseek + persona + voz/chat/paste) + consola de observación en vivo (puerto random, abre navegador).
-- [x] Juez + informes de mejoras (priorizados por área) en `tester/runs/report_*.md|json`.
+- [x] Juez + informes de mejoras (priorizados por área) en `tests/voice/e2e/agent/runs/report_*.md|json`.
 - [x] Escenarios: conversación, agenda, memoria, widget, búsqueda, idea compleja, chat, paste, websocket.
 - [x] Verificado E2E contra zaelar real → informe generado.
 - [ ] Pendiente/mejora: fiabilidad de STT del tester (garbles), atribución fina de latencia ida/vuelta, TTS/STT
       local para el propio tester (adapter self-contained), reproducir audio en la consola.
 
 ## Uso
-`./.venv/bin/python -m tester.run`  → todos los escenarios, abre la consola, escribe informe. `--scenario <id>`
+`./.venv/bin/python -m tests.e2e.agent.run`  → todos los escenarios, abre la consola, escribe informe. `--scenario <id>`
 para uno, `--goal "..."` para conversación libre. Requiere zaelar arrancado sobre el motor LiveKit.
 
 ## Seguridad
@@ -78,9 +78,9 @@ Modelos: DRIVE=DeepSeek(AIMLAPI), JUEZ=GLM(Z.AI coding-plan, endpoint Anthropic)
 free-tier PROHIBIDO** (429, 20/día). Claves en `.env` + `.meshkore/credentials/tester.env` (gitignored).
 
 ### Hecho + verificado
-- **Observabilidad de extremo a extremo**: el tester se suscribe a `/events` SSE (`tester/interlocutor/trace.py`),
+- **Observabilidad de extremo a extremo**: el tester se suscribe a `/events` SSE (`tests/voice/e2e/agent/interlocutor/trace.py`),
   captura acciones de frontend/cerebro por escenario; el **juez GLM-4.6 la lee** (acciones de frontend = fuente de
-  verdad para "accion") y produce informes en `tester/runs/report_*.md`. Verificado: GLM juzgó y detectó bugs reales.
+  verdad para "accion") y produce informes en `tests/voice/e2e/agent/runs/report_*.md`. Verificado: GLM juzgó y detectó bugs reales.
   Doc: `.meshkore/docs/ops/zaelar-observability.md`.
 - **FIX zaelar (crítico)**: el fast layer duo daba **HTTP 400** con AIMLAPI/DeepSeek por enviar
   `reasoning_effort="none"` (solo Gemini lo acepta) → "Cerebro rápido caído" → Hermes soltaba gibberish
@@ -89,7 +89,7 @@ free-tier PROHIBIDO** (429, 20/día). Claves en `.env` + `.meshkore/credentials/
 - **FIX tester**: latencia negativa (-5275ms, la detectó el juez) — la ventana de respuesta se abría en `say()` start;
   ahora en `say_end` + clamp de negativos (`voice_link.py`). Idioma: el tester ahora **habla castellano** (coherente
   con zaelar; antes hablaba inglés contra un zaelar en español → tests inválidos) + Deepgram STT en `es`.
-- **Autonomía**: `tester/overnight.sh` (bucle: rota escenarios + goals creativos) + `tester/guard.sh` (levanta zaelar
+- **Autonomía**: `tests/voice/e2e/agent/overnight.sh` (bucle: rota escenarios + goals creativos) + `tests/voice/e2e/agent/guard.sh` (levanta zaelar
   y el bucle si caen). Cron de sesión Claude cada ~30 min re-invoca al agente a: guard → leer último informe →
   arreglar top bug → reprobar. Bucle LANZADO.
 
@@ -135,7 +135,7 @@ en los informes.
 ### FIX 2026-07-07 (iter cron): paste/chat no llegaba al cerebro (timeout, "sin traza de cerebro")
 El escenario paste (y chat) enviaba el texto por el data-channel `zaelar-text` ANTES de que zaelar tuviera la sesión
 lista y el handler `data_received` registrado → el texto se perdía → el cerebro nunca lo veía → timeout. Solo la voz
-esperaba el saludo. Fix en `tester/run.py`: esperar el saludo de zaelar en TODOS los canales (confirma que la sesión
+esperaba el saludo. Fix en `tests/voice/e2e/agent/run.py`: esperar el saludo de zaelar en TODOS los canales (confirma que la sesión
 + handler están listos) antes de enviar; envoltorio del paste pasado a castellano. Verificado: zaelar ingiere el
 texto pegado y lo resume ("sacaste al perro, pagaste dos facturas, reservaste vuelo a Lisboa"); utilidad/coherencia 1→4.
 
@@ -157,7 +157,7 @@ tropiezan en Metal ("Hola, soy zaelar.", "Vale.") se sirven por onnx. Cumple "el
 
 ### FIX 2026-07-07 (iter cron): juez injusto en accion + no entendía los canales
 El juez ponía accion=1 SIEMPRE en chat/paste (zaelar resumía perfecto pero "sin acción de frontend") y hasta pedía
-una "UI de pegar" inexistente — malinterpretaba los canales. Fix en `tester/judge/judge.py`: (1) rubric de accion por
+una "UI de pegar" inexistente — malinterpretaba los canales. Fix en `tests/voice/e2e/agent/judge/judge.py`: (1) rubric de accion por
 TIPO de objetivo (visual→requiere acción de frontend; informativo/charla→la respuesta verbal ES la acción, no penalizar
 falta de widget); (2) explicar los canales (chat/paste = texto inyectado, sin UI de pegado). Verificado re-juzgando la
 corrida paste buena: accion 1→5, y el juez ahora señala el bloqueante REAL (latencia de 10s del fast layer). Informes
@@ -166,7 +166,7 @@ más fieles. (Pendiente de fondo: latencia del fast layer DeepSeek-vía-AIMLAPI 
 ### FIX 2026-07-07 (iter cron): bucle resiliente + estado tras 8 fixes
 Informe más reciente (paste): latencia 5 / accion 5 / utilidad 5 — zaelar funciona bien en corridas limpias tras los
 8 fixes de la noche. Los all-1s/`None` residuales eran ciclos que pillaban zaelar a medio reiniciar (por las propias
-iteraciones del cron). Fix en `tester/overnight.sh`: cada ciclo espera a que `/api/livekit` responda (zaelar del todo
+iteraciones del cron). Fix en `tests/voice/e2e/agent/overnight.sh`: cada ciclo espera a que `/api/livekit` responda (zaelar del todo
 arriba), no solo el puerto → menos falsos all-1s en los informes. El handler `data_received` ya se registra ANTES de
 `session.start` (sin carrera). ABIERTO PRINCIPAL: latencia del fast layer (3s base AIMLAPI, 10s en inputs largos) →
 requiere elección de modelo local rápido (Kimi/Qwen-7B/GLM-air) — decisión de diseño del operador, no adivinar.
@@ -174,7 +174,7 @@ requiere elección de modelo local rápido (Kimi/Qwen-7B/GLM-air) — decisión 
 ### FIX 2026-07-07 (iter cron): CAUSA de los all-1s masivos — STT del tester no oía a zaelar
 La mayoría de corridas daban all-1s "zaelar timeout", pero los EVENTOS de sesión mostraban que zaelar SÍ hablaba
 (transcript bot + TTSMetrics). Causa: el STT del tester (Deepgram) dropea/cierra la conexión → no transcribe el audio
-de zaelar → falso timeout → falso all-1s. zaelar NO fallaba. Fix en `tester/run.py`+`trace.py`: el texto de respuesta
+de zaelar → falso timeout → falso all-1s. zaelar NO fallaba. Fix en `tests/voice/e2e/agent/run.py`+`trace.py`: el texto de respuesta
 se toma del TRANSCRIPT PROPIO de zaelar en la traza `/events` (fuente autoritativa de lo que dijo), no de re-transcribir
 su audio con Deepgram; el STT solo aporta la latencia de audio. Verificado: chat pasa de all-1s a
 naturalidad 3/coherencia 4/utilidad 4/accion 5/latencia 4/robustez 5, con las respuestas reales de zaelar capturadas.
@@ -204,7 +204,7 @@ etiquete eventos con room/session_id y trace.py filtre por la sala del tester. N
 ### FIX 2026-07-07 (iter cron): no-respuesta intermitente en chat/paste — carrera con el saludo
 Sesión 050722 (chat all-1s): zaelar greetó pero no respondió el turno de texto (no emitió reply). Hipótesis: el texto
 de respuesta del saludo llega por la traza (evento brain) en cuanto zaelar lo GENERA, mientras su TTS aún SUENA; el
-tester envía entonces el primer texto y pilla la sesión ocupada → generate_reply se descarta. Fix en `tester/run.py`:
+tester envía entonces el primer texto y pilla la sesión ocupada → generate_reply se descarta. Fix en `tests/voice/e2e/agent/run.py`:
 en canales chat/paste, esperar 2.5s tras el saludo (que zaelar termine de hablarlo) antes de enviar el primer texto.
 Bajo riesgo. Re-verificación: por el propio bucle (corre ciclos chat/paste continuamente) en vez de gastar uso en un
 ciclo manual (usage crítico). ABIERTO clave sigue siendo la latencia del fast layer (modelo local rápido, decisión del operador).
@@ -270,7 +270,7 @@ vivo (no colisionar su sesión con una del tester sobre el único worker THREAD)
 El veredicto "✅ RESUELTO" se apoyó SOLO en que el operador tuvo una conversación completa a las 15:59 — la propia
 entrada dice que la verificación e2e del tester "queda para cuando el operador no esté en vivo" y nunca se hizo.
 Pero el tester SÍ corrió en esa misma ventana del mismo proceso servidor (restart de las 15:51) y su informe
-(`tester/runs/report_20260707-155658.md`, generado 15:56:58 — **antes** del `assigned job to worker` de las 15:59:06
+(`tests/voice/e2e/agent/runs/report_20260707-155658.md`, generado 15:56:58 — **antes** del `assigned job to worker` de las 15:59:06
 que sirvió de prueba de "resuelto") registra 1/5, silencio total en las 6 tomas, cero eventos de `brain`/`transcript`
 en todo el timeline entre 15:21 y 15:59. Reanalizado con logs completos (`.meshkore/logs/livekit-dev.log`):
 - El worker se registra DOS veces con workerID distinto 6.2s aparte (`AW_V9K6e9av3mgG` → `AW_G4XLezpdLncz`) — ya
@@ -289,7 +289,7 @@ en todo el timeline entre 15:21 y 15:59. Reanalizado con logs completos (`.meshk
   el worker "vivo" quedara registrado e idle. La sala del tester (`zaelar-10f999df`, con un participante activo
   publicando audio durante 4m27s completos) nunca aparece ni una sola vez junto a `job`/`dispatch`/`assign`/`agent`
   en las 344 líneas de log que la mencionan.
-Mitigado (no arreglado de raíz) en `tester/run.py`: `_dispatch_looks_dead()` detecta silencio total (CERO texto de
+Mitigado (no arreglado de raíz) en `tests/voice/e2e/agent/run.py`: `_dispatch_looks_dead()` detecta silencio total (CERO texto de
 zaelar en TODOS los turnos) y reintenta el escenario UNA vez con sala+token nuevos antes de dar el veredicto por
 malo; si el reintento también sale mudo, el informe lo marca explícitamente como "fallo real, no ruido de un solo
 intento" (`dispatch_dead_after_retry`). Esto evita informes falsos "sistema completamente roto" para un defecto de
@@ -299,7 +299,7 @@ misma entrada ya pedía en 2026-07-07 y nunca llegó a hacerse.
 ### FIX 2026-07-07 (loop): ancla de rol del tester — el DRIVE (qwen) invertía usuario/asistente
 El modelo DRIVE del tester (qwen local) se creía el ASISTENTE ("soy zaelar, ¿en qué te ayudo?", "¿quieres que
 muestre una pantalla?") porque zaelar llega con role 'user' y las líneas del tester con role 'assistant' (POV
-invertido) → conversaciones sin sentido → veredictos del juez inválidos. Fix en tester/interlocutor/brain.py:
+invertido) → conversaciones sin sentido → veredictos del juez inválidos. Fix en tests/voice/e2e/agent/interlocutor/brain.py:
 ancla de IDENTIDAD FIJA al inicio del system prompt ("TÚ eres Alex, humano, que USA zaelar; los turnos 'user' son
 lo que ZAELAR te dice; prohibido presentarte como zaelar / ofrecerte a mostrar pantallas…"). Verificado: el tester
 ahora se mantiene en rol ("Mi nombre es Alex. ¿Puedes mostrarme mi agenda?"). Con eso, el juez ya evalúa señal real.
@@ -350,8 +350,8 @@ Detectar problemas REALES conversando con zaelar (voz cuando se pueda, chat/past
    herramienta empieza a fallar por rate-limit/cuota, o notas degradación anómala sostenida, PARA — no reintentes
    en bucle — escribe una entrada final "PARADO por cuota (hora X)" con el estado de las oleadas y deja de
    programar el siguiente wakeup (no llames a ScheduleWakeup de nuevo).
-7. **No dupliques el tester de voz con mic real**: no hay micrófono humano disponible de noche. Usa `tester/run.py`
-   (`--scenario`/`--goal`, canal voz-TTS-del-tester/chat/paste) para las oleadas que lo permiten; para lo que el
+7. **No dupliques el tester de voz con mic real**: no hay micrófono humano disponible de noche. Usa `tests/voice/e2e/agent/run.py`
+   (`--scenario`/`--goal`, canal voz-TTS-del-tests/voice/e2e/agent/chat/paste) para las oleadas que lo permiten; para lo que el
    tester no cubre (WhatsApp/Telegram, paste de archivos, tool-calling directo), habla con zaelar por el data-
    channel/HTTP directamente o inyecta contra `voice/engine/llm/providers/duo.py` como en los benchmarks de hoy.
 
@@ -404,7 +404,7 @@ smoke-test básico (`[[show:id]]`, `view_data`, catálogo) y anota hallazgos, pe
 lo arreglado vs lo que queda abierto para el operador por la mañana.
 
 ### Iteración 1 (00:41-01:05) — oleada smoke (A+D básico): CRÍTICO encontrado y arreglado
-**Probado**: `tester/run.py --scenario memory` (voz real) contra zaelar ya con `qwen2.5:14b-instruct` local +
+**Probado**: `tests/voice/e2e/agent/run.py --scenario memory` (voz real) contra zaelar ya con `qwen2.5:14b-instruct` local +
 function-calling (`escalate_to_hermes`/`set_style_directive`, ver INI-008 Fase 2c/2d, mismo día).
 
 **Encontrado (crítico)**: primer run → overall 1/5, accion 1/5. zaelar HABLÓ EL JSON crudo de la llamada a
@@ -482,7 +482,7 @@ orientativo, se reajusta el resto de la noche en consecuencia).
 ### Iteración 3 (03:35-03:50) — oleadas B+D: señal contaminada por ruido del propio tester, sin arreglo forzado
 **Probado**: dos conversaciones `--goal` libres contra zaelar (qwen2.5:14b) cubriendo directiva de estilo
 ("no me cuentes lo que vas a hacer") + el bug abierto del widget de tiempo (desde 2026-07-07, "el tiempo hoy sin
-ciudad → ¿agenda o meteo?"). **Hallazgo de infraestructura del tester**: `tester/run.py --goal "..."` SIEMPRE usa
+ciudad → ¿agenda o meteo?"). **Hallazgo de infraestructura del tester**: `tests/voice/e2e/agent/run.py --goal "..."` SIEMPRE usa
 canal VOZ aunque el texto del goal pida explícitamente "escribe por chat" — no hay forma de forzar chat/paste
 desde `--goal` (solo los escenarios predefinidos `chat`/`paste` en `scenarios.py` fijan el canal). Anotado como
 mejora pendiente del arnés, no de zaelar.
@@ -632,19 +632,19 @@ instrumentación). **Resultado**: `min=0.62s max=71.92s mean=10.06s median=2.26s
 de 3s · solo 9% por debajo de 1s. La mediana (2.26s) es razonable; la media (10.06s) está muy inflada por los
 mismos picos aislados ya diagnosticados (Iteración 4: degradación de Ollama tras la ronda de benchmarking).
 
-**Intento de confirmación post-reinicio con voz real**: se lanzó `tester/run.py --scenario chat` (post-reinicio
+**Intento de confirmación post-reinicio con voz real**: se lanzó `tests/voice/e2e/agent/run.py --scenario chat` (post-reinicio
 de Ollama) para comparar latencia antes/después con una sesión de voz real — pero el run falló por un bug YA
 CONOCIDO y documentado esta misma noche más arriba ("no-respuesta intermitente en chat/paste — carrera con el
 saludo"): zaelar repitió el saludo de "primer turno" DOS veces y nunca procesó "¿qué hora es?" — 0 turnos con
 métricas, sin dato de latencia aprovechable. Es un problema de temporización del TESTER (ya tiene un fix parcial
 documentado: esperar 2.5s tras el saludo antes de enviar el primer texto) resurgiendo, no una regresión nueva de
 zaelar — no se investiga más a fondo esta noche para no gastar más ciclos en el mismo bug ya conocido; lo
-correcto sería un fix de temporización más robusto en `tester/run.py`, fuera de alcance de esta iteración.
+correcto sería un fix de temporización más robusto en `tests/voice/e2e/agent/run.py`, fuera de alcance de esta iteración.
 
 **Conclusión de la oleada I**: no se pudo obtener confirmación limpia post-reinicio con una sesión de voz REAL
 esta noche (el intento chocó con un bug de temporización del propio tester), pero la confirmación directa contra
 Ollama (Iteración 4: 2.05-2.66s tras el reinicio, en 4 peticiones) sigue siendo el mejor dato disponible. Repetir
-esta comparación en una futura sesión, arreglando antes la temporización de `tester/run.py` para chat/paste.
+esta comparación en una futura sesión, arreglando antes la temporización de `tests/voice/e2e/agent/run.py` para chat/paste.
 
 **Siguiente**: oleada J (regresión) — dado que el canal de voz del tester ha dado señal sucia en varias oleadas
 seguidas esta noche (B, D primera pasada, I), para la regresión priorizar comprobaciones DIRECTAS (API/código,
@@ -653,7 +653,7 @@ propio bug de temporización esté arreglado.
 
 ### Nota rápida (04:15-04:18) — revisión superficial del bug de chat/paste repitiendo el saludo
 Antes de descartarlo como "solo ruido del tester": revisado `voice/engine/pipeline/agent.py` (handler
-`data_received`, topic/payload `"zaelar-text"`) y `tester/interlocutor/voice_link.py::send_text` (mismo
+`data_received`, topic/payload `"zaelar-text"`) y `tests/voice/e2e/agent/interlocutor/voice_link.py::send_text` (mismo
 topic/payload) — el cableado coincide exactamente, no hay mismatch obvio de topic/kind. El bug (si es real y no
 solo un problema de slicing de la traza del propio tester en `zaelar_reply()`) está en otro sitio — no se
 identificó la causa exacta en esta revisión superficial. Se necesita reproducir con logging más fino
@@ -1153,7 +1153,7 @@ los puertos 8473/7880/3111 estén libres antes de relanzar (si no, `kill -9` al 
 
 ## Oleada M — BÚSQUEDA WEB (V2-022) · 2026-07-11
 
-Nuevo test bot dedicado a la búsqueda: `tests/e2e/search/bot/` (cases + runner + README + report_html), a imagen
+Nuevo test bot dedicado a la búsqueda: `tests/agent_headless/e2e/search/bot/` (cases + runner + README + report_html), a imagen
 del test bot de memoria. Prueba la ruta REAL **empezando por el FlashBrain**, sin la capa de voz (aislado, para
 depurar): input → decisión por function-calling (routing) → si busca, `websearch.search` + 2º pase que compone la
 respuesta (idéntico a `nucleo.py`) → juicio (subcadenas + juez GLM/DeepSeek). BD aislada, resumible por tandas,
@@ -2071,22 +2071,22 @@ que entiende, pedirle que busque una moto en un marketplace (que abra el navegad
 complejas que requieran el SlowBrain, búsqueda web factual (V2-022), memoria.
 
 ### Piezas
-- **`tester/cron_tick.sh`** — la mitad DETERMINISTA de un tick: (1) asegura zaelar UP (`make run` + readiness si está
+- **`tests/voice/e2e/agent/cron_tick.sh`** — la mitad DETERMINISTA de un tick: (1) asegura zaelar UP (`make run` + readiness si está
   caído); (2) si el operador está EN VIVO en una sesión de voz, **SALTA** el tick (no contender el único worker
-  THREAD); (3) elige el **siguiente escenario** round-robin (cursor en `tester/runs/.cron-cursor`); (4) lo corre con
+  THREAD); (3) elige el **siguiente escenario** round-robin (cursor en `tests/voice/e2e/agent/runs/.cron-cursor`); (4) lo corre con
   watchdog (`CRON_TICK_MAX_RUN`, def 300s — macOS no tiene `timeout`); (5) imprime un bloque **VERDICT** compacto que
   el agente parsea (`status=PASS|FAIL|INFRA|SKIP`, `overall`, `SCORES`, `VEREDICTO`, `FINDING`, `IMPROVE`).
-- **`tester/scenarios.py`** — set de escenarios (13): añadidos **`busqueda_web`** (V2-022, dato factual sintetizado
+- **`tests/voice/e2e/agent/scenarios.py`** — set de escenarios (13): añadidos **`busqueda_web`** (V2-022, dato factual sintetizado
   EN el turno), **`navegador_moto`** (marketplace → `automate_web`, navegador backed en 2º plano), **`mensajeria`**
   (REGRESIÓN del bug V2-023: "abre el de mensajería" DEBE mostrar el widget existente, jamás crear uno) y
   **`conectores`** (salud de WhatsApp/Telegram/cluster en lenguaje natural). El `search` afila su check a la ruta
   ligera de V2-022. La memoria conserva su único escenario (tiene su propio test dedicado — no hace falta más).
 - **El juez** produce `overall` (1-5) + `scores` + `veredicto` + `findings`/`improvements` en
-  `tester/runs/report_*.json`. **No hay pass/fail booleano**: el umbral lo pone el cron → `overall>=4` = PASS;
+  `tests/voice/e2e/agent/runs/report_*.json`. **No hay pass/fail booleano**: el umbral lo pone el cron → `overall>=4` = PASS;
   `dispatch_dead_after_retry`/`overall null`/`scores {}` = **INFRA** (fallo de arnés/LiveKit, NO de zaelar).
 
 ### El ciclo por disparo (lo que hace el AGENTE al recibir el prompt del cron)
-1. `bash tester/cron_tick.sh` y leer el bloque `VERDICT`.
+1. `bash tests/voice/e2e/agent/cron_tick.sh` y leer el bloque `VERDICT`.
 2. **PASS** (`overall>=4`) → anota una entrada FECHADA breve al final de este doc (§Ticks del cron) y ESPERA al
    siguiente disparo. No tocar código.
 3. **FAIL** (`overall<4`, contenido) → diagnosticar con `.meshkore/logs/timeline-latest.jsonl` (eventos `brain`/
@@ -2416,7 +2416,7 @@ robustas) y recall-a-escala del embedding LOCAL (embeddinggemma degradado a cien
 HippoRAG-v2 54% FactConsolidation). Se prueban con preguntas naturales que nombran la entidad/término.
 
 **Entregables:** tabla HTML de las 1032 requests (`~/.meshkore/tmp/zaelar-ciclo-1000-memoria.html`), carpeta de
-resultados fechada (`tests/e2e/memory/bot/resultados/20260712-ciclo-1000/`), **playbook reutilizable**
+resultados fechada (`tests/memory/e2e/bot/resultados/20260712-ciclo-1000/`), **playbook reutilizable**
 (`.meshkore/docs/ops/anexos/zaelar-memory-cycle-playbook.md`), referencia en `zaelar-testing.md`. Rama
 `feat/memoria-1000` (sin push). Loop parado.
 
@@ -2426,7 +2426,7 @@ Continuación directa de la frontera honesta del ciclo de 1000 ("recall-a-escala
 un **reranker** (cross-encoder que reordena el top-N del RRF leyendo query+recuerdo juntos), **model-agnostic y
 local por defecto** — construido hacia la versión local autosuficiente PERO listo para cloud (cambiar `provider`).
 
-**Harness nuevo** `tests/e2e/memory/bot/scale_eval.py` (recall@k/MRR/latencia a escala, A/B por proveedor).
+**Harness nuevo** `tests/memory/e2e/bot/scale_eval.py` (recall@k/MRR/latencia a escala, A/B por proveedor).
 Baseline medido: recall@1 41.6% · recall@3 62.3% · found@10 81.8% (la respuesta está en el top-10 pero no arriba).
 
 **A/B (442 durables, 281 queries):**

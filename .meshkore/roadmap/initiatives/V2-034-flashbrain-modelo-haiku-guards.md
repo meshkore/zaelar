@@ -32,7 +32,7 @@ default (`config/v2.py::_DEFAULTS.fast`) y el `.env` local (`FAST_MODEL`). Rever
 `_is_meta_widget_question()`: una pregunta/queja sobre una acción de widget YA ocurrida ("¿por qué has abierto X?",
 "no deberías haber abierto nada", verbo en pasado/participio) NUNCA es una orden de mostrar → se ignora el `[[show]]`
 del modelo Y no se dispara `_widget_fallback`. NO pisa una orden educada ("¿me muestras la agenda?"). Test:
-`voice/engine/llm/providers/test_nucleo_guards.py`.
+`tests/voice/unit/providers/test_nucleo_guards.py`.
 
 ## Validación (canal de prueba, memoria aislada)
 Re-corrida la sesión con Haiku: busca en las dos preguntas factuales, INTROSPECCIONA el error de Brasil ("no

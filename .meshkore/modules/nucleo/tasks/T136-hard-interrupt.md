@@ -20,4 +20,4 @@ Hecho: `voice/attention.py::hard_interrupt(text)` — patrón corto es/en, DETER
 "para"/"espera" solo como imperativo corto para no chocar con la preposición "para"). En `nucleo.py::_run` se
 comprueba ANTES del gate y sobre el texto COMPLETO (antes de recortar), así una interrupción se atiende siempre
 y de inmediato aunque el turno sea gigante: `close` emite `[[close]]` al canvas ya; `stop` corta (el barge-in de
-LiveKit ya paró el TTS) sin generar respuesta. Tests en `voice/test_attention.py`.
+LiveKit ya paró el TTS) sin generar respuesta. Tests en `tests/voice/unit/test_attention.py`.

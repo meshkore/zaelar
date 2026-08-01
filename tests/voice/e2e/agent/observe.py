@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
+import re
 
 from aiohttp import web
 
@@ -60,9 +62,37 @@ class Observer:
         self._history: list[dict] = []
         self._runner = None
         self.port: int | None = None   # the actual bound port (OS-assigned when started with 0)
+        self._platform = None
+        if run_dir := os.getenv("ZAELAR_TEST_RUN_DIR"):
+            try:
+                from tests.platform.events import EventWriter
+                self._platform = EventWriter(run_dir, run_id=os.getenv("ZAELAR_TEST_RUN_ID"))
+            except Exception:
+                self._platform = None
 
     def push(self, ev: dict) -> None:
         self._history.append(ev)
+        if self._platform is not None:
+            kind = ev.get("kind", "observer")
+            event_type = {
+                "say": "interaction.input",
+                "zaelar_turn": "interaction.output",
+                "verdict": "judge.verdict",
+                "error": "observer.error",
+                "alert": "observer.error",
+            }.get(kind, f"voice.{kind}")
+            score = None
+            if kind == "verdict" and (match := re.search(r"([0-5](?:\.\d+)?)\s*/\s*5", ev.get("text", ""))):
+                score = {"value": float(match.group(1)), "scale": 5, "source": "judge"}
+            self._platform.emit(
+                event_type,
+                suite="voice",
+                kind=kind,
+                label=ev.get("label", ""),
+                text=ev.get("text", ""),
+                latency_ms=ev.get("latency_ms"),
+                score=score,
+            )
         for q in list(self._subs):
             try:
                 q.put_nowait(ev)

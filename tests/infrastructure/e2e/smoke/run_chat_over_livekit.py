@@ -12,8 +12,8 @@ Qué hace:
   4. espera la respuesta de zaelar en el stream de observabilidad (timeline: transcript de zaelar posterior)
   5. PASS si llega respuesta; FAIL si no (chat roto) — exit≠0
 
-Uso:  ./.venv/bin/python tests/e2e/smoke/run_chat_over_livekit.py [--base http://127.0.0.1:43917]
-Requiere el server arrancado (make run) y el SDK livekit (ya usado por tester/).
+Uso:  ./.venv/bin/python tests/infrastructure/e2e/smoke/run_chat_over_livekit.py [--base http://127.0.0.1:43917]
+Requiere el server arrancado (make run) y el SDK livekit (ya usado por tests/voice/e2e/agent/).
 """
 from __future__ import annotations
 

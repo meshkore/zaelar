@@ -28,7 +28,7 @@ def test_last_user_text_from_ctx():
 
 def test_widget_fallback_emits_show(monkeypatch):
     import widgets.runtime as rt
-    monkeypatch.setattr(rt, "identify", lambda text: {"match": "agenda"})
+    monkeypatch.setattr(rt, "identify", lambda text, **context: {"match": "agenda"})
     events = []
     nucleo._widget_fallback("enséñame la agenda", lambda kind, action, extra=None: events.append((action, extra)))
     # V2-039: los eventos de widget llevan procedencia (`src`) — el fallback del provider marca 'flash'.

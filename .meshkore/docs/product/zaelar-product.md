@@ -225,8 +225,8 @@ zaelar/
   connectors/    external I/O: meshkore/ (cluster WS · FlashBrain untrusted profile · per-peer capsule) · architect/ · whatsapp/ · telegram/ · messaging/ (shared)
   widgets/       WIDGETS full-stack per folder (manifest.json + widget.js + data.py) + runtime, store, server_api, brief, supervisor; _data/
   config/        .env.example · settings.py → settings.json (⚙ STT/TTS/voice/language) · v2.py (model routing + active_brain)
-  harness/       dev/eval: run.py, user_sim.py, judge.py, personas/  (not shipped)
-  tester/        voice tester (INI-013): 2nd LiveKit participant that SPEAKS + LISTENS
+  tests/agent_headless/harness/       dev/eval: run.py, user_sim.py, judge.py, personas/  (not shipped)
+  tests/voice/e2e/agent/        voice tester (INI-013): 2nd LiveKit participant that SPEAKS + LISTENS
   scripts/       install tooling (install-stt/tts-*.sh/.ps1)
   .meshkore/     MeshKore Standard v27 — public/cluster.yaml, docs/, modules/, roadmap/; logs → .meshkore/logs/
   Dockerfile · fly.toml · .dockerignore · Makefile · requirements.txt · CLAUDE.md   (root manifests; .venv shared)

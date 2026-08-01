@@ -85,7 +85,8 @@ def register(path: str, summary: str, *, mime: str | None = None, size: int | No
 
     Devuelve {episode_id, memory_id}. El resumen es lo único que participa en la búsqueda; el binario es lazy."""
     db = _db.get_db()
-    now = int(time.time())
+    from .clock import now as _clock_now
+    now = _clock_now()
     if size is None:
         try:
             size = os.path.getsize(path)

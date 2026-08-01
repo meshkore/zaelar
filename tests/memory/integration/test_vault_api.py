@@ -2,7 +2,7 @@
 # test_vault_api.py — ciclo completo de la bóveda por HTTP (V2-060): crear → guardar → bloqueada pide passphrase →
 # desbloquear/revelar. Es el camino que conduce el TESTER (dominio «seguridad de datos», sin biometría) y el modal
 # nativo del frontend. Router aislado (sin lifespan pesado). Sin red (embeddings hash).
-# Ejecutar: .venv/bin/pytest tests/integration/test_vault_api.py
+# Ejecutar: .venv/bin/pytest tests/memory/integration/test_vault_api.py
 #
 import pytest
 from fastapi import FastAPI

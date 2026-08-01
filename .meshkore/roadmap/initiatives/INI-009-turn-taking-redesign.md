@@ -46,7 +46,7 @@ navegador. El operador pidió explícitamente **rediseño de arquitectura, no pa
 
 ## Validación
 
-`voice/test_endpointing.py` — 9 tests que REPRODUCEN las secuencias reales de la sesión 20:28 (troceo a 0.7s,
+`tests/voice/unit/test_endpointing.py` — 9 tests que REPRODUCEN las secuencias reales de la sesión 20:28 (troceo a 0.7s,
 "Gracias" a 600ms, stop perdido, comando corto, divagación larga) — todos en verde. Smoke de integración del
 `TurnBroker` con la secuencia completa: 1 idea con pausa = 1 solo commit; backchannel sobre el bot = 0 cortes.
 

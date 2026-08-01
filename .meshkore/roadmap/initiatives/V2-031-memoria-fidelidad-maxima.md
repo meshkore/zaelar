@@ -22,7 +22,7 @@ MISMOS modelos en nuestro **VPS con GPU** cuando escale, y los modelos **externo
 tier premium (nunca default — no es sostenible).
 
 **Métrica norte:** `found@10` (techo del retriever) y `recall@1/@3` (calidad final), medidos por
-`tests/e2e/memory/bot/scale_eval.py` sobre la BD aislada del bot. **Objetivo:** found@10 82→**≥92%**, recall@1
+`tests/memory/e2e/bot/scale_eval.py` sobre la BD aislada del bot. **Objetivo:** found@10 82→**≥92%**, recall@1
 56→**≥75%** en LOCAL, sin coste externo recurrente.
 
 ## Principio de tiers (localizado en contexto, decisión del operador)

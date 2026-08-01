@@ -90,7 +90,7 @@ CORAZÓN guarda de más:
 - **[P1]** directiva efímera ("no me muestres ahora") = estilo de sesión, no durable; durable solo con marca
   ("prefiero/siempre…").
 
-**Verificación:** `tests/integration/memory/test_write_precision_v2033.py` (16 casos, `MEM_PROCESSOR=0` → determinista,
+**Verificación:** `tests/memory/integration/test_write_precision_v2033.py` (16 casos, `MEM_PROCESSOR=0` → determinista,
 cero GPU: los 3 turnos del brief dan largo = SOLO el alérgeno, `state` sin pref, identidad protegida) + **smoke con el
 destilador LLM real** (qwen2.5 vía Ollama, DB aislada): el LLM reifica/garblea y los gates lo atrapan; `operator_name`
 queda intacto. **291 tests de memoria sin regresión.** Camino de prueba del brief (`make flash`) validado por la vía

@@ -25,9 +25,9 @@ Tests de borde del regex "single-line" y actualización del recuento documentado
   `z6Mkabc123`, dependía de la redacción por prefijo que era el bug).
 - **Recuento**: `zaelar-security.md` y el informe `harbee-audit-2026-07-02.md` pasan de **24 → 51** tests, con
   nota de que cada fix de INI-007 lleva su test adversarial (rojo pre-fix / verde post-fix) y del test XSS de
-  agenda en `widgets/agenda/test_xss.mjs`.
+  agenda en `tests/browser/unit/agenda/test_xss.mjs`.
 
 ## Verificación
 
-Suite completo `connectors/meshkore/test_security.py`: **51 passed**. `make test-widgets`: 7/7. Los tests de
+Suite completo `tests/cluster/unit/test_security.py`: **51 passed**. `make test-widgets`: 7/7. Los tests de
 did:key (incluido el existente) FALLAN contra el código pre-fix (huella filtrada). `make run-hermes` sano.

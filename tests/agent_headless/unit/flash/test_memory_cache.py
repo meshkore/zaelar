@@ -3,6 +3,8 @@
 Invariantes: (a) `get()` compone el bloque de ESTADO desde `memory.state()` y lo cachea; (b) NUNCA dispara el
 retriever (`memory.query`) — eso es on-demand y fuera del loop (T115/T116); (c) se invalida con `memory.updated`.
 """
+import asyncio
+
 import pytest
 
 from memory import api as memapi
@@ -60,3 +62,13 @@ def test_empty_memory_no_crash(fresh_db):
     # V2-027: sin perfil, la MISIÓN (identidad, sembrada desde langs) SIEMPRE está — el bloque nunca es vacío,
     # pero el operator_name sí (aún no lo conocemos).
     assert op == "" and "QUIÉN ERES" in block
+
+
+def test_explicit_refresh_publishes_correction_for_next_turn(fresh_db):
+    memapi.set_state({"location": "Valencia"})
+    asyncio.run(memory_cache.refresh())
+    memapi.set_state({"location": "Castellón"})
+    asyncio.run(memory_cache.refresh())
+    block, _ = memory_cache.get()
+    assert "Castellón" in block
+    assert "Ubicación: Valencia" not in block

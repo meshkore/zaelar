@@ -1,5 +1,5 @@
 #
-# Puente git acotado (V2-076). Run: .venv/bin/pytest nucleo/test_git_cli.py -q
+# Puente git acotado (V2-076). Run: .venv/bin/pytest tests/agent_headless/unit/test_git_cli.py -q
 #
 # Lo CRÍTICO de seguridad: el dev worker (que puede servir a una charla agente-agente) solo puede tocar el repo
 # AUTORIZADO por el operador; cualquier otro repo o la ausencia de autorización se RECHAZA. Se prueban las guardas

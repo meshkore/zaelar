@@ -2,7 +2,7 @@
 # test_endpointing.py — the turn-layer redesign (INI-009) validated against the REAL car session 20260705-202813.
 #
 # Every scenario below reproduces a failure the operator hit live, with the actual timings from the session log,
-# and asserts the redesigned logic fixes it. Run: .venv/bin/python -m pytest voice/test_endpointing.py -q
+# and asserts the redesigned logic fixes it. Run: .venv/bin/python -m pytest tests/voice/unit/test_endpointing.py -q
 #
 from voice.endpointing import (
     hold_secs,

@@ -48,7 +48,7 @@ de cierre corto y las trazas V2-044 (este informe existe gracias a ellas).
 - **Fase 1 — visibilidad y guards de ejecución (sin tocar prompts):** F3 telemetría compromiso-sin-acción ·
   F6 guard de turno-de-corrección · F7 instrumentar `say`/speech-in-flight · F8 agente único por sala ·
   F9 canvas reporta instancias · F11 higiene. Cada pieza = un cambio acotado + un caso nuevo en
-  `tester/chain_suite.py`.
+  `tests/voice/e2e/agent/chain_suite.py`.
 - **Fase 2 — el rail de COLA de música (`music.queue`, la petición estrella):** cola en el run + `ended` del
   widget (handshake iframe API con `onReady`/`onStateChange` reales → cierra también F10) + guard no-reiniciar-lo-
   que-suena (F5) + `action=queue` en `play_music`. El FlashBrain sigue no-razonador: la cadena vive EN CÓDIGO y

@@ -216,7 +216,7 @@ latencia posible por cambio de proveedor — grok es ~1 s por sí mismo; el prox
 "borroso" — la respuesta correcta está en el top-10 el ~82% de las veces, pero solo el 62% llega al top-3 y el 42%
 al top-1. **Palanca:** un **reranker** (cross-encoder) que reordena el top-N del RRF leyendo query+recuerdo JUNTOS.
 
-Harness: `tests/e2e/memory/bot/scale_eval.py` — 281 queries de recall largo (`t=query`, `via=long`, con ancla)
+Harness: `tests/memory/e2e/bot/scale_eval.py` — 281 queries de recall largo (`t=query`, `via=long`, con ancla)
 por `memory/retriever.search` sobre la BD aislada del bot. Métrica = rango del primer resultado con el ancla.
 
 | proveedor | modelo | recall@1 | recall@3 | recall@5 | recall@10 | MRR | lat p50 | coste/privacidad |
@@ -243,7 +243,7 @@ ESTADO/CORTO (lectura µs sin modelo) — solo en el recall LARGO, que ya es baj
 ## 7. Embedding a escala + WRITE-completeness — el techo NO es el embedding (V2-031 T1, 2026-07-12)
 
 Continuación de §6. Buscábamos subir el techo `found@10` (~82%). Se hizo la **dim provider-driven** (embeddings de
-1024d posibles) + `tests/e2e/memory/bot/embed_bench.py` (re-embed del corpus con un modelo candidato + `scale_eval`).
+1024d posibles) + `tests/memory/e2e/bot/embed_bench.py` (re-embed del corpus con un modelo candidato + `scale_eval`).
 
 | embedding local | dim | found@10 | recall@1 | veredicto |
 |---|---|---|---|---|
@@ -376,7 +376,7 @@ por turno). Config: `config/v2.py §susurro` (UI, key por endpoint).
 
 | Modelo | Vía | Probado | Resultado |
 |---|---|---|---|
-| **gpt-4.1-mini** | OpenAI | **2026-07-17, e2e en vivo** (suite `tests/e2e/susurro/run_probe_suite.py`) | ✅ **DEFAULT actual** — diagnóstico correcto en el caso reloj-vs-agenda (queja simulada), repair natural + finding P1 bien clasificado; ciclo completo 2.4-2.9s; JSON impecable con `response_format json_object` |
+| **gpt-4.1-mini** | OpenAI | **2026-07-17, e2e en vivo** (suite `tests/agent_headless/e2e/susurro/run_probe_suite.py`) | ✅ **DEFAULT actual** — diagnóstico correcto en el caso reloj-vs-agenda (queja simulada), repair natural + finding P1 bien clasificado; ciclo completo 2.4-2.9s; JSON impecable con `response_format json_object` |
 | gpt-4.1 / gpt-4o | OpenAI | pendiente | candidatos si el mini se queda corto en tramos complejos (multi-worker, rails encadenados) |
 | o4-mini / razonadores OpenAI | OpenAI | pendiente | el carril ADMITE razonamiento; medir si el thinking mejora el diagnóstico lo bastante para pagar su latencia (aquí no bloquea nada) |
 | grok (xAI) | xAI | no | descartado de entrada para AUDITAR: si mis-rutea como FlashBrain (§9), no puede juzgar routing ajeno |
@@ -419,7 +419,7 @@ cálculo/charla). **Titular: `gpt-4o-mini`.** Tabla única — NO re-litigar est
 > `nucleo/memllm.py` (tareas `rem`, futuras) + `mem_processor` (tarea `distill`, su propia cola/semántica).
 > Config: `config/v2.json §memory.{mem_processor_*, rem_*}`. Los benches son REPRODUCIBLES (scripts versionados).
 
-### 12.1 DESTILADOR (CORAZÓN de escritura) — `tests/e2e/memory/bot/distiller_bench.py`
+### 12.1 DESTILADOR (CORAZÓN de escritura) — `tests/memory/e2e/bot/distiller_bench.py`
 
 16 casos duros por el CAMINO real (`mem_processor.process`): write-completeness (multi-hecho médico, precio,
 mudanza slot+change, corrección identidad, compromiso, rutina, reversión, observación, nombre propio en PARRAFADA
@@ -435,7 +435,7 @@ penalización de idioma (regla monolingüe).
 | qwen2.5:7b local | Ollama | 86.2% | 2.2s | ⚠️ opción local (batería/privacidad); pierde precisión en descartes |
 | qwen3.5-flash | AIMLAPI | 17.2% | 18.7s | ❌ NO USAR (thinking ON → timeouts; consistente con §11) |
 
-### 12.2 SÍNTESIS del sueño REM — `tests/e2e/memory/bot/rem_synth_bench.py`
+### 12.2 SÍNTESIS del sueño REM — `tests/memory/e2e/bot/rem_synth_bench.py`
 
 Tarea real (`memllm.synthesize_concept_groups`): 3 grupos por concepto → 1 insight/grupo; puntúa retención de
 nombres/cifras (anti-T181), castellano, brevedad, abstracción (no repetir píldoras verbatim). 2 pasadas.

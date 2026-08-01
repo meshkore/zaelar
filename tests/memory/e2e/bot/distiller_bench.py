@@ -12,9 +12,9 @@ Elige el modelo del destilador (`config §memory.mem_processor_*`) CON DATOS, no
     devuelve [] (la precisión importa tanto como la completitud, V2-033).
   - Penalización de IDIOMA: átomo durable no-castellano = -0.5 (regla monolingüe).
 
-Uso:  PYTHONPATH=. ./.venv/bin/python tests/e2e/memory/bot/distiller_bench.py [--models a,b] [--runs 1]
+Uso:  PYTHONPATH=. ./.venv/bin/python tests/memory/e2e/bot/distiller_bench.py [--models a,b] [--runs 1]
 Requiere .env (OPENAI_API_KEY / AIMLAPI_KEY) y, para el candidato local, Ollama arriba.
-Resultados → tests/e2e/memory/bot/resultados/<fecha>-distiller-bench/report.md (+ .json). Veredictos → benchmarks §12.
+Resultados → tests/memory/e2e/bot/resultados/<fecha>-distiller-bench/report.md (+ .json). Veredictos → benchmarks §12.
 """
 from __future__ import annotations
 

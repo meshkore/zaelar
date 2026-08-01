@@ -58,7 +58,7 @@ interacciones de arriba. Sigue como siempre.
 | **Buffer conversacional de CORTO** | `voice/engine/llm/providers/nucleo.py` (`memory.write(kind='conv', level='short', ttl_days=…)`) | Que siga siendo EFÍMERO (TTL) y NO durable; que alimente `recent_short`; que no re-infle la memoria (adiós al write crudo 0.3). |
 | **SlowBrain / agentes** | `nucleo/memory_agent.remember({text,kind[,slot,meta]})` (único escritor sancionado del SlowBrain); `nucleo/dispatch.py` | Que pase `slot` para hechos singulares; que no bloquee. |
 | **Brain Workers (V2-036/38, EXTERNOS)** | `hbmem remember` (`nucleo/mem_cli.py`) → `POST /api/memory/remember` (`memory/server_api.py`) → `memory_agent.remember_external` | Que exija el token por-tarea (headers de mem_cli); que aplique gates P0a + veto de slots de identidad + `meta.source="worker:<id>"`; que NUNCA toque `state`; que el Bash del worker siga acotado a los CLIs (`dispatch._tools_for` sin "Bash" pelado). Resultado de sesión: solo si `ok` (`workers/session._deliver`). |
-| **Contexto del worker al ARRANCAR** | `nucleo/dispatch._compose_context` → `memory_agent.compose_context` | Que el bloque «CONTEXTO DE MEMORIA» del prompt del worker NO quede vacío (regresión del typo `compose_task_context`, cazada en la auditoría 2026-07-14; guard en `nucleo/test_dispatch.py`). |
+| **Contexto del worker al ARRANCAR** | `nucleo/dispatch._compose_context` → `memory_agent.compose_context` | Que el bloque «CONTEXTO DE MEMORIA» del prompt del worker NO quede vacío (regresión del typo `compose_task_context`, cazada en la auditoría 2026-07-14; guard en `tests/agent_headless/unit/test_dispatch.py`). |
 | **Reset duro** | `nucleo/reset.py` (`set_state({trabajo_interrumpido})` + `memory.write(level='short')`) | Que el congelado a ESTADO + registro a CORTO sigan válidos con el schema nuevo. |
 | **Contexto de UI vivo → ESTADO** | Canvas (frontend autoritativo): `POST /api/canvas/state` (`server/voice_api.py`) → `set_state({open_widgets})`; tareas en marcha: `nucleo/dispatch.py::_emit_activity` → `set_state({activity})` | Que el reporte normalice ids de instancia y dedup; que `set_state` NO pise otros campos (patch superficial); que dispare `memory.updated` para refrescar prompt+mapa. |
 | **Widgets / ciclo de vida** | `widgets/lifecycle.py` (`record_created`/lápida de borrado) | Que las trazas de alta/baja se escriban por la fachada; regla de oro "nunca se borra el histórico". |
@@ -112,7 +112,7 @@ interacciones de arriba. Sigue como siempre.
 
 - `.venv/bin/pytest memory/ nucleo/ -q` (con `ZAELAR_EMBED_BACKEND=hash` para no depender de Ollama).
 - Añade/ajusta tests para lo que cambiaste: schema/migración (`memory/test_pill_slot.py`), corazón
-  (`nucleo/test_memory_agent.py`), writer/retriever/consolidador.
+  (`tests/memory/integration/test_memory_agent.py`), writer/retriever/consolidador.
 - **Determinismo**: el procesador LLM se apaga en tests con `MEM_PROCESSOR=0` (ruta heurística); para ejercitar el
   LLM, mockea `mem_processor.process`.
 - Si tocaste escritores fuera de `memory/` (mensajería, widgets, reset), corre también SU suite.

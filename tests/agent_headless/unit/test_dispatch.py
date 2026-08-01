@@ -4,7 +4,7 @@
 # nada y lanzaban un `claude` REAL que colgaba la suite). Verifica contra la costura REAL (`dispatch.get_backend`):
 # prompt = contexto de memoria + tarea, modelo por invocación, deny-tools a input no confiable, Bash NUNCA pelado,
 # el resultado OK se recuerda en memoria (y el FALLIDO no), y el listener consume `escalate.requested`.
-# Ejecutar: .venv/bin/pytest nucleo/test_dispatch.py
+# Ejecutar: .venv/bin/pytest tests/agent_headless/unit/test_dispatch.py
 #
 import asyncio
 

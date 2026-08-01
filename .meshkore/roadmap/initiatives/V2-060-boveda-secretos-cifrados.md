@@ -219,7 +219,7 @@ El **valor cifrado** puede persistir donde sea (BD, backup, nube) porque es opac
 
 - **F0 ✅ HECHO** — `memory/vault.py` (sealed box + sobre passphrase + storage partido + modos cómodo/estricto) +
   `memory/secrets.py` (gate FAIL-CLOSED + redact) + `memory/schema.py` v3 + `memory/vault_api.py` (HTTP) + tests
-  (`tests/unit/memory/test_vault.py` + `test_secrets.py` + `tests/integration/test_vault_api.py`, 29 verdes). Ya
+  (`tests/memory/unit/test_vault.py` + `test_secrets.py` + `tests/memory/integration/test_vault_api.py`, 29 verdes). Ya
   cifra, guarda y sirve por passphrase; el valor jamás en claro en `memories`/ciphertext (verificado en test).
 - **F1** — auto-vaulting conversacional + flujo de LECTURA end-to-end: `ingest_utterance` redacta+vaultea; el
   retriever/recall señala «sellado»; tool `reveal_secret` del FlashBrain; **inyección OUT-OF-BAND del valor** (§13);
@@ -238,7 +238,7 @@ El sistema de testing (INI-013) **no puede usar biometría** (Touch ID/Face ID/W
   usuario que no quiera passkeys elige el sistema de passphrase → es equivalente, no un parche de test.
 - **Passkeys + modal = NATIVOS del frontend**, no un widget variable. La lógica WebAuthn `prf` y el modal de
   passphrase viven en `frontend/app/` y en el **motor de memoria** (server), nunca en `widgets/`.
-- **Dominio nuevo `seguridad-datos`** (`tester/scenarios.py` + `zaelar-testing.md`): (1) «guárdame la contraseña de
+- **Dominio nuevo `seguridad-datos`** (`tests/voice/e2e/agent/scenarios.py` + `zaelar-testing.md`): (1) «guárdame la contraseña de
   Netflix, es X» → verifica que se cifró (NO hay X en claro en la BD) + zaelar no la repite en voz; (2) «dame la
   contraseña de Netflix» con bóveda bloqueada → zaelar **pide la passphrase** (el tester la provee vía la API); (3)
   desbloqueo → zaelar **sirve** el dato; (4) comprobación del JUEZ: el valor nunca apareció en un evento/log en
@@ -264,7 +264,7 @@ El sistema de testing (INI-013) **no puede usar biometría** (Touch ID/Face ID/W
     cableado en el provider `nucleo.py` Y el probe `probe.py` (impls PARALELAS). El valor se entrega OUT-OF-BAND:
     NUNCA al modelo ni al observer/logs; el frontend/tester lo piden a `/api/vault/reveal`. Plantillas es/en en
     `langs`. +6 tests (vault_flow) + router. **207 verdes en total**, sin regresión.
-  - **Testing:** dominio `seguridad_datos` en `tester/scenarios.py` + prioridad nº8 y Paso-0 en `zaelar-testing.md`
+  - **Testing:** dominio `seguridad_datos` en `tests/voice/e2e/agent/scenarios.py` + prioridad nº8 y Paso-0 en `zaelar-testing.md`
     (passphrase = camino del tester; FAIL DURO si un valor aparece en claro).
 - **2026-07-21 — F2 (reglas duras + lectura por voz) + F3 (frontend + passkeys):**
   - F2: `memory/state.py` gana `state.security` (2ª clase de user rules, DURA, aplicada en código, fuera del cap de

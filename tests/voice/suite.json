@@ -1,0 +1,17 @@
+{
+  "schema": 1,
+  "id": "voice",
+  "label": "Voz",
+  "description": "VAD, STT/TTS, transporte LiveKit y conversaciones del agente",
+  "domain_ids": ["3"],
+  "requirements": ["zaelar-live", "livekit", "stt", "tts", "judge-model"],
+  "live_commands": [["-m", "tests.voice.e2e.agent.run", "--no-open", "--hold", "0"]],
+  "dynamic_steps": "tests.voice.e2e.agent.scenarios:SCENARIOS",
+  "steps": [
+    {"id": "3.1", "label": "Atención, VAD y endpointing", "kind": "unit"},
+    {"id": "3.2", "label": "Puente voz→núcleo y trazas", "kind": "unit"},
+    {"id": "3.3", "label": "Micrófono→STT por WebRTC", "kind": "live"},
+    {"id": "3.4", "label": "Bucle de voz completo", "kind": "live"},
+    {"id": "3.5", "label": "Escenarios voz/chat/paste + juez", "kind": "live", "catalog_provider": "tests.voice.catalog:scenario_groups"}
+  ]
+}

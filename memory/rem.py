@@ -45,7 +45,8 @@ HEURISTIC_ALERT_MIN = 10
 
 
 def _now() -> int:
-    return int(time.time())
+    from .clock import now
+    return now()
 
 
 def enabled() -> bool:

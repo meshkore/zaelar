@@ -49,7 +49,7 @@ ensuciar; y sin aislar el tester no se puede MEDIR "basura descartada vs. hecho 
 - [ ] T133 — Promoción CORTO→LARGO por TTL/peso (no solo edad): el `kind='conv'` caduca; lo reforzado/relevante sube a LARGO.
 - [ ] T144 — Calibrar decay (λ por tipo) + eviction (límite doméstico) + confirmar que pinned nunca se toca.
 - [ ] T127 — Aislamiento del tester: arranque con `ZAELAR_DB` a `zaelar.test.db`; documentar en INI-013 / zaelar-observability.
-- [ ] T145 — Limpieza de la BD contaminada: snapshot + purga idempotente no destructiva de la basura del tester/chat crudo.
+- [ ] T145 — Limpieza de la BD contaminada: snapshot + purga idempotente no destructiva de la basura del tests/voice/e2e/agent/chat crudo.
 - [ ] T150 — RECALL por VOCABULARIO-GAP (techo del embedding local): una pregunta que no comparte léxico con el hecho y exige conocimiento del mundo ("¿qué **instrumento** toco?" → "toco la **guitarra**") falla porque embeddinggemma da similitudes PLANAS en español (~0.5–0.95: "recuérdame sacar la basura" puntúa 0.955 para "instrumento" y "toca la guitarra" 0.512) y el FTS exige tokens exactos ("toco"≠"toca"). Detectado por el test bot (BATCH_10 #97). Opciones: expansión de query (sinónimos/hiperónimos SIN LLM en el read path — p. ej. tabla de sinónimos o un índice de conceptos del grafo), mejor modelo de embedding, o stemming/prefijo en FTS. No falsear el recall — subir la calidad de la recuperación.
 - [~] T151 — RECUPERACIÓN TEMPORAL / conciencia CRONOLÓGICA (gap del SOTA) — AVANCE parcial (2026-07-10): el GRAFO
   DE CONCEPTOS (T126) ya resuelve la mitad de CO-RECUPERACIÓN cuando los eventos fechados comparten concepto

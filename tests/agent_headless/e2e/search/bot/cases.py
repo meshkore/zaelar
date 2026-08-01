@@ -1,4 +1,4 @@
-"""tests/e2e/search/bot/cases.py — el GUION del test bot de BÚSQUEDA WEB (V2-022).
+"""tests/agent_headless/e2e/search/bot/cases.py — el GUION del test bot de BÚSQUEDA WEB (V2-022).
 
 Mismo espíritu que el test bot de memoria: un guion de casos, en TANDAS de 10, que ejercita la ruta REAL de
 búsqueda del cerebro EMPEZANDO POR EL FLASHBRAIN (input → decisión por function-calling → tool → resultado), sin

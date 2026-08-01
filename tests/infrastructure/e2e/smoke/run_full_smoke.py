@@ -14,11 +14,11 @@ Comprueba, por capas:
 
 GAP CONOCIDO (documentado, no falso-verde): el camino de TRANSPORTE del chat del navegador (data-channel LiveKit
 `zaelar-text` → agent → SSE) y el estado de sesión tras un REFRESCO del frontend NO se cubren aquí — exigen un
-cliente LiveKit real (patrón `tester/`). Es la vía donde falló el chat del operador el 2026-07-25 (desync de sesión
+cliente LiveKit real (patrón `tests/voice/e2e/agent/`). Es la vía donde falló el chat del operador el 2026-07-25 (desync de sesión
 frontend↔server). TODO: añadir `run_chat_over_livekit.py` (une un participante, publica zaelar-text, espera la
 respuesta por SSE) para cerrar ese hueco.
 
-Uso:  ./.venv/bin/python tests/e2e/smoke/run_full_smoke.py [--base http://127.0.0.1:43917] [--no-pytest]
+Uso:  ./.venv/bin/python tests/infrastructure/e2e/smoke/run_full_smoke.py [--base http://127.0.0.1:43917] [--no-pytest]
 """
 from __future__ import annotations
 

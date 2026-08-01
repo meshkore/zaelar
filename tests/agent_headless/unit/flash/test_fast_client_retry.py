@@ -1,6 +1,6 @@
 #
 # Reintento en TRANSITORIOS del cliente del modelo (fast_client, 2026-07-25).
-# Run: .venv/bin/pytest nucleo/flash/test_fast_client_retry.py -q
+# Run: .venv/bin/pytest tests/agent_headless/unit/flash/test_fast_client_retry.py -q
 #
 # Un blip PUNTUAL de conexión (AIMLAPI tras Cloudflare) NO debe tirar el turno — síntoma real: el chat del operador
 # se quedaba sin respuesta / con "Uf, se me ha ido". Verifica: reintenta en transitorio y acierta; NO reintenta en

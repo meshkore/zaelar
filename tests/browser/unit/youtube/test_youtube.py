@@ -1,6 +1,6 @@
 #
 # test_youtube.py — V2-057: el widget devuelve un resultado VERIFICABLE (orden por fecha + canal/fecha).
-# Ejecutar: .venv/bin/pytest widgets/youtube/test_youtube.py
+# Ejecutar: .venv/bin/pytest tests/browser/unit/youtube/test_youtube.py
 #
 import io
 import urllib.request

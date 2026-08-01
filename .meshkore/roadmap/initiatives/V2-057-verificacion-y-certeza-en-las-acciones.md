@@ -63,8 +63,8 @@ comprobable que el fast path no certifica, sería aquí — hoy NO es necesario.
 
 ## Bitácora
 - **2026-07-21** · **Set de testing a fondo por dominios** (petición del operador) + fixes de lo que destapó.
-  `tester/domain_sea.py` ampliado a 16 dominios (incl. `market`: idealista/coches.net/autoscout/wallapop/
-  milanuncios/amazon → navegador; `create`/`modify` de widgets; `latest` V2-057). `tester/deep_nav.py` nuevo =
+  `tests/voice/e2e/agent/domain_sea.py` ampliado a 16 dominios (incl. `market`: idealista/coches.net/autoscout/wallapop/
+  milanuncios/amazon → navegador; `create`/`modify` de widgets; `latest` V2-057). `tests/voice/e2e/agent/deep_nav.py` nuevo =
   ejecución REAL (escala con `execute=true` → worker conduce el navegador contra el sitio vivo). El mar (188
   turnos) destapó 19 fallos → arreglados los GENERALIZABLES (sin tabla de verbos): sinónimos de widget
   (panel/gadget) en `_CREATE_WIDGET_RE`; el backstop de promesa mira también la RESPUESTA; guard determinista

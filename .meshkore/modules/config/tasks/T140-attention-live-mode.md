@@ -19,5 +19,5 @@ El cambio de `attention_mode` aplica EN CALIENTE sin endpoint nuevo: `config/set
 la costura del ⚙) escribe `config/settings.json` + `os.environ["ZAELAR_ATTENTION"]` de inmediato, y
 `voice/attention.py::mode()` lee `ZAELAR_ATTENTION` cada turno → el siguiente turno respeta el modo sin
 reconectar. Ciclo verificado por curl contra `POST /api/settings`: pulsar→`wakeword` (settings.json + knob
-efectivo lo reflejan)→volver a `always`; persiste. `voice/test_attention.py` 34/34 verde. done 2026-07-09 ·
+efectivo lo reflejan)→volver a `always`; persiste. `tests/voice/unit/test_attention.py` 34/34 verde. done 2026-07-09 ·
 commit 2cd7617.

@@ -1,6 +1,6 @@
 # Chain-loop — procedimiento del test→fix autónomo (iteración 2)
 
-Loop autónomo continuo para el operador ausente. Sube el listón de `tester/fixloop-web-music.md`: prueba frases
+Loop autónomo continuo para el operador ausente. Sube el listón de `tests/voice/e2e/agent/fixloop-web-music.md`: prueba frases
 HUMANAS y difusas, CADENAS multi-paso y TRAZAS (V2-044), en TODOS los dominios. **No preguntes. No pares. Asume la
 mejor opción.** Commits cortos, bien documentados. **NUNCA push.**
 
@@ -13,9 +13,9 @@ mejor opción.** Commits cortos, bien documentados. **NUNCA push.**
    → SALTA el ciclo (no reinicies con el operador hablando).
 3. **Reset limpio** (solo si NO hay sesión viva): `make reset` (memoria + UI + sesiones/observabilidad a cero;
    conserva credenciales/conectores/config). Reinicia solo si tocaste `.py` desde el último arranque.
-4. **Sweep.** `./.venv/bin/python -m tester.chain_suite` (completo) o `--sample 2` para rotación rápida, o
+4. **Sweep.** `./.venv/bin/python -m tests.voice.e2e.agent.chain_suite` (completo) o `--sample 2` para rotación rápida, o
    `--domains music,chain,video` para enfocar un área. Guarda GREEN/YELLOW/RED + trazas.
-5. **Traza de muestra.** `./.venv/bin/python -m tester.chain_suite --trace CHAIN-01` — confirma que la cadena
+5. **Traza de muestra.** `./.venv/bin/python -m tests.voice.e2e.agent.chain_suite --trace CHAIN-01` — confirma que la cadena
    texto→acción queda sellada con el mismo trace id (la observabilidad que pidió el operador).
 6. **Diagnostica cada RED/YELLOW por COMPRENSIÓN.** Distingue:
    - **bug real** — la primera acción es objetivamente incorrecta (charla muda ante una orden, navegador para
@@ -27,7 +27,7 @@ mejor opción.** Commits cortos, bien documentados. **NUNCA push.**
 7. **Decide: arreglar o diferir.**
    - **Simple** (prosa de descripción de tool, guard determinista, predicado): arréglalo, re-testéalo, commit corto.
    - **Complejo** (plan del worker, cadena real, nueva capacidad): NO lo arregles a medias → anótalo en
-     `tester/chain_roadmap.md` con el ID del caso + severidad + por qué es del developer.
+     `tests/voice/e2e/agent/chain_roadmap.md` con el ID del caso + severidad + por qué es del developer.
 8. **Documenta.** Añade la entrada al roadmap (abiertos/cerrados) + una línea a la bitácora de ciclos.
 9. **Commit corto** por cambio coherente. NUNCA push.
 10. **Repite** (el cron re-dispara).

@@ -29,7 +29,7 @@ epoch de arranque del proceso; todo cacheado. `short()` → `"2.74+<sha>"`. Se s
 
 ## Testing
 
-`tests/unit/test_version.py` (3): forma de `info()`, estabilidad de `short()`, y que el observer sella `ver` en cada
+`tests/infrastructure/unit/test_version.py` (3): forma de `info()`, estabilidad de `short()`, y que el observer sella `ver` en cada
 evento. **Nodo 7.5** del mapa de tests.
 
 ## Nota adjunta — fix del criterio de ritmo (V2-073)

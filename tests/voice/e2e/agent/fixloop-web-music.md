@@ -1,8 +1,8 @@
 # Fix-loop AUTÓNOMO (ciclos LARGOS, sin parar) — catálogo completo de workflows
 
 Loop test→fix desatendido. Cada disparo hace un **ciclo LARGO y EXHAUSTIVO** sobre TODO el catálogo de
-workflows y arregla lo que falle, SIN preguntar y SIN parar. Fuente ejecutable: `tester/scenarios.py`;
-verificación: `tester/loop_cycle.py` (routing + memoria, headless, ~35 checks). Playbook:
+workflows y arregla lo que falle, SIN preguntar y SIN parar. Fuente ejecutable: `tests/voice/e2e/agent/scenarios.py`;
+verificación: `tests/voice/e2e/agent/loop_cycle.py` (routing + memoria, headless, ~35 checks). Playbook:
 `.meshkore/docs/ops/zaelar-testing.md`.
 
 ## Cada disparo (un ciclo LARGO, autónomo)
@@ -14,7 +14,7 @@ verificación: `tester/loop_cycle.py` (routing + memoria, headless, ~35 checks).
 1. **Salud / limpieza**: si el operador está en sesión de VOZ activa (`/api/status` voice.state on/active), SALTA
    este disparo. Si no: `make reset-restart` (slate LIMPIO — memoria/observabilidad a cero, credenciales/
    widgets/conectores intactos) para que el ciclo sea repetible y la memoria testeable. Espera READY.
-2. **Ciclo largo**: `./.venv/bin/python -m tester.loop_cycle`. Cubre: MEMORIA (recall + no-alucinar +
+2. **Ciclo largo**: `./.venv/bin/python -m tests.voice.e2e.agent.loop_cycle`. Cubre: MEMORIA (recall + no-alucinar +
    supersede), BÚSQUEDA (+ trampa cálculo), ESTUDIOS/informe→escala, RESERVAR ITV→escala (no web_search),
    MÚSICA (pon/artista/difusa/sube/siguiente/lista/spotify-connect), VÍDEO youtube (widget != música,
    comentario→charla, modify→escala), CREAR widget→escala, DATA-OP agenda/show/close/borrar, MENSAJERÍA
@@ -26,7 +26,7 @@ verificación: `tester/loop_cycle.py` (routing + memoria, headless, ~35 checks).
    `usage` del widget, o PROMPT del worker. Guard de EJECUCIÓN solo para invariantes duros.
 5. **Re-verifica**: reinicia si tocaste `.py`/manifest (comprobando antes voice.state), re-corre ese check.
    Verde → **commit** honesto (Co-Authored-By Opus 4.8). **NO push.**
-6. **Documenta** una línea fechada en INI-013 (o `tester/reports/<fecha>-loop/`) y **repite otra ronda dentro
+6. **Documenta** una línea fechada en INI-013 (o `tests/voice/e2e/agent/reports/<fecha>-loop/`) y **repite otra ronda dentro
    del mismo disparo** si queda tiempo/bugs; si no, cede (el cron re-dispara en 20 min).
 
 ## Objetivos vivos (ir cerrando)
@@ -54,7 +54,7 @@ usa un **mecanismo más fuerte** (guard de ejecución determinista, o surfacing 
 - **informe/estudio a fondo → web_search** (borderline; una síntesis web es UX válida). Baja prioridad.
 - **math trivial → a veces web_search** (inconsistente). Baja prioridad.
 - Ejecución e2e profunda (rail/worker/navegador cookies/worker_bridge ask/audio real) NO es headless →
-  correr el escenario de VOZ (`-m tester.run --scenario <id>`) cuando toque validar eso.
+  correr el escenario de VOZ (`-m tests.voice.e2e.agent.run --scenario <id>`) cuando toque validar eso.
 
 ## Progreso (bitácora breve — actualízala cada disparo)
 - 2026-07-16: infra loop + cron; FIX marketplace→escalate (179e5d0); web_search excluye datos personales
@@ -118,7 +118,7 @@ marketplace→escalate, hora/mensajes/agenda/conectores fuera de web_search). Lo
 VARIANZA de Haiku: un mismo turno enruta bien 2/3–4/5 veces; la prosa mejora la media pero NO converge a 5/5.
 El retry-on-fail absorbe casi todo → el ciclo da 44/44 la mayoría de veces, con 1 fallo esporádico rotatorio.
 → NO seguir haciendo whack-a-mole de prosa sobre estos (rinde poco y añade longitud al prompt). Próximos fires
-de más valor: (a) EJECUCIÓN real por VOZ (`-m tester.run --scenario …`) — rail/worker/navegador/cookies/audio,
+de más valor: (a) EJECUCIÓN real por VOZ (`-m tests.voice.e2e.agent.run --scenario …`) — rail/worker/navegador/cookies/audio,
 que el headless no ve; (b) cobertura de FLUJOS nuevos multi-turno; (c) fix de FONDO si se decide: reforzar que
 el modelo LEE su ESTADO en vez de buscar (p.ej. un modelo rápido mejor, o un gate que bloquee web_search cuando
 la respuesta ya está en el prompt). Mientras, el loop headless vela por REGRESIONES (que un fix no rompa otro).

@@ -54,7 +54,7 @@ y heartbeat sin ejercitar end-to-end).
   respuesta estándar de auth =
   "canal autorizado por token, sin datos personales sin permiso del operador". Postura `MESHKORE_SECURITY=strict`
   por defecto. Invariante de privacidad documentado (el cluster no tiene ruta a micro/cámara/voz). Tests en
-  `connectors/meshkore/test_security.py`. Ver `.meshkore/docs/security/zaelar-security.md`.
+  `tests/cluster/unit/test_security.py`. Ver `.meshkore/docs/security/zaelar-security.md`.
 - **Auditoría + controles DUROS de seguridad** (v0.7.0, MK-004): tras auditar el canal se cerró el riesgo mayor —
   el brain de cluster es el mismo Hermes con terminal/tools y zaelar auto-aprobaba todo permiso. Añadido: **tool-gate
   por origen** (turnos de cluster ejecutan con herramientas DENEGADAS; `acp_client._decide_permission` +

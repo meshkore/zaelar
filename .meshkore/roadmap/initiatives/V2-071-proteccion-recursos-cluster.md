@@ -66,7 +66,7 @@ Dos primitivas deterministas en `security.py` (el módulo de seguridad) + el bal
 
 ## Testing
 
-`connectors/meshkore/test_resource.py` (22 tests): offload es/en, guardia de código (volcado→puntero, snippet pasa),
+`tests/cluster/unit/test_resource.py` (22 tests): offload es/en, guardia de código (volcado→puntero, snippet pasa),
 veredicto (tolerante a asimetría sin offload; salta con volumen+ratio+offload), meter por-peer aislado. **Nodo 6.5**
 del mapa de tests (`tests/run_testmap.py`). 97/97 meshkore verdes.
 

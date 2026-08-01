@@ -7,7 +7,7 @@ entrega final · señales de VERIFICACIÓN (V2-057: ¿cumple la restricción? ¿
 
 A diferencia del mar de dominios (routing, rápido, cientos), esto es LENTO y toca sitios EN VIVO (1-3 min c/u,
 puede haber CAPTCHA/bloqueo) → se corren POCOS, como prueba e2e. Uso:
-  PYTHONPATH=. .venv/bin/python tester/deep_nav.py <sitio|all> [timeout_s]
+  PYTHONPATH=. .venv/bin/python tests/voice/e2e/agent/deep_nav.py <sitio|all> [timeout_s]
   sitios: idealista coches autoscout wallapop milanuncios amazon
 Requiere zaelar arrancado (make run) con el navegador backed vivo."""
 import json

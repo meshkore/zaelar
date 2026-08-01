@@ -1,12 +1,12 @@
 #
-# Dev worker acotado (V2-076, escalada de cluster con permiso de código). Run: .venv/bin/pytest nucleo/test_dev_worker.py -q
+# Dev worker acotado (V2-076, escalada de cluster con permiso de código). Run: .venv/bin/pytest tests/agent_headless/unit/test_dev_worker.py -q
 #
 # La decisión de montar un dev worker es un helper PURO (testeable sin spawnear). Lo crítico de seguridad: solo se
 # activa con `dev`+`repo`; sus tools son Read/Write/Edit + el PUENTE git (nunca Bash pelado); sin puentes de memoria;
 # repo acotado. Sin `dev` → None → worker normal (cero regresión).
 #
 from nucleo import dispatch
-from nucleo.test_dispatch import fake_backend, fresh_db  # noqa: F401 — reusa los fixtures de integración (backend
+from tests.agent_headless.unit.test_dispatch import fake_backend, fresh_db  # noqa: F401 — shared integration fixtures
                                                           # falso; nunca lanza un `claude` real)
 
 

@@ -44,7 +44,7 @@ dependencia, pasividad, malentendido…). Ningún regex las cubre. **Lo tiene qu
 
 ## Testing
 
-`connectors/meshkore/test_pace.py` reescrito (13): parseo/validación del catálogo cerrado + fail-open, la petición
+`tests/cluster/unit/test_pace.py` reescrito (13): parseo/validación del catálogo cerrado + fail-open, la petición
 marca el contenido como no-instrucciones, `evaluate()` con modelo simulado (éxito y error→fail-open), `near_repeat`
 estructural, y un test que verifica que el anti-patrón (`looks_stuck`/`advanced`) YA NO existe. Nodo 6.7. 122/122
 meshkore verdes.

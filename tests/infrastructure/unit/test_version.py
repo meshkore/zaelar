@@ -1,5 +1,5 @@
 #
-# Sello de versión (V2-074). Run: .venv/bin/pytest tests/unit/test_version.py -q
+# Sello de versión (V2-074). Run: .venv/bin/pytest tests/infrastructure/unit/test_version.py -q
 #
 # Certeza de qué código corre y qué versión generó cada línea de observabilidad: version.info() bien formado y el
 # observer sella CADA evento con `ver`.

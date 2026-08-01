@@ -2,7 +2,7 @@ PROMPT PARA EL TEST AGENT — INCORPORAR AL WORKFLOW: ACCIÓN WEB (routing + nav
 ================================================================================================
 Fecha: 2026-07-16 · Ámbito: bug ITV (acción web) 2026-07-15 + MÚSICA V2-041/V2-042.
 Objetivo de este prompt: que AÑADAS estos casos a los workflows de prueba (batería + cron) y no
-quede nada sin verificar. Los escenarios YA están en `tester/scenarios.py` (fuente ejecutable);
+quede nada sin verificar. Los escenarios YA están en `tests/voice/e2e/agent/scenarios.py` (fuente ejecutable);
 tu trabajo es meterlos en la rotación, lanzarlos, JUZGARLOS por la TRAZA y, si hay bug real,
 reportarlo/arreglarlo. Sigue el playbook `.meshkore/docs/ops/zaelar-testing.md` (Paso 0 = alineación).
 
@@ -29,7 +29,7 @@ QUÉ CAMBIÓ (contexto para juzgar bien; distinguir bug real vs ruido de STT vs 
    RETOMA cuando el operador aporta un dato. Eventos `music` y `rail` en /debug.
 
 --------------------------------------------------------------------------------
-ESCENARIOS A AÑADIR A LA ROTACIÓN (ya en tester/scenarios.py)
+ESCENARIOS A AÑADIR A LA ROTACIÓN (ya en tests/voice/e2e/agent/scenarios.py)
 --------------------------------------------------------------------------------
 ACCIÓN WEB:
   · reserva_web   — "resérvame cita para la ITV cuanto antes; hazlo tú en la web". Si pregunta un
@@ -39,9 +39,9 @@ MÚSICA:
   · musica_difusa          — pista VAGA por una frase de la letra → resolver; al fallar, dar un dato → RETOMAR.
   · musica_spotify_connect — "conéctame Spotify" → tarjeta de conexión guiada.
 
-Lanzar cada uno:  ./.venv/bin/python -m tester.run --scenario <id>
-(requiere zaelar arrancado: `make run`). Mételos en `tester/run_battery.sh` y en la rotación de
-`tester/cron_tick.sh` (round-robin de SCENARIOS[]). Mantén alineado `tester/anexos/catalogo-escenarios.md`.
+Lanzar cada uno:  ./.venv/bin/python -m tests.voice.e2e.agent.run --scenario <id>
+(requiere zaelar arrancado: `make run`). Mételos en `tests/voice/e2e/agent/run_battery.sh` y en la rotación de
+`tests/voice/e2e/agent/cron_tick.sh` (round-robin de SCENARIOS[]). Mantén alineado `tests/voice/e2e/agent/anexos/catalogo-escenarios.md`.
 
 --------------------------------------------------------------------------------
 QUÉ DEBE VERIFICAR EL JUEZ (por la traza: GET /events, .meshkore/logs/timeline-latest.jsonl)
@@ -85,6 +85,6 @@ INVARIANTES TRANSVERSALES (para todos)
 --------------------------------------------------------------------------------
 CIERRE
 --------------------------------------------------------------------------------
-Archiva el informe del día en `tester/reports/<YYYYMMDD>-accion-web-musica/`. Si un fallo es bug real
+Archiva el informe del día en `tests/voice/e2e/agent/reports/<YYYYMMDD>-accion-web-musica/`. Si un fallo es bug real
 (trace-confirmado), arréglalo en código, reinicia si tocó .py (comprobando ANTES que el operador no
 esté en sesión de voz: /api/status voice.state), re-corre ese mismo escenario y documenta.

@@ -1,6 +1,6 @@
 """Turn scenario runs + judge verdicts into improvement reports for zaelar's code team.
 
-Writes two files to tester/runs/:
+Writes two files to tests/runs/agent/:
   · report_<stamp>.md   — human/agent-readable: summary, per-scenario findings, a prioritized list of concrete
                           improvements (this is what you hand to the code agents), and a latency table.
   · report_<stamp>.json — the same, machine-readable.

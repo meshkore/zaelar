@@ -43,6 +43,7 @@ class ProbeSession:
     window: list[dict] = field(default_factory=list)
     directive: str = ""
     seeded: bool = False   # ¿ventana sembrada desde memoria? (circuito de corto plazo, espejo de nucleo.py::_run)
+    last_action: str = ""  # surface/action produced by the preceding turn (for deictic continuity)
 
 
 _SESSIONS: dict[str, ProbeSession] = {}
@@ -70,7 +71,7 @@ def _identify_ctx(rt, query: str) -> str | None:
     return (rt.identify(query, open_ids=_o, recent_ids=_r) or {}).get("match")
 
 
-def _show_target(text: str) -> str | None:
+def _show_target(text: str, context: list[dict] | None = None, last_action: str = "") -> str | None:
     """Mismo criterio que `providers/nucleo.py::_show_guard_target` (impl PARALELA — mantener en sync): verbo de
     MOSTRAR + NO crear + `runtime.identify` resuelve un widget existente → el turno real lo convierte en show."""
     import re
@@ -84,6 +85,27 @@ def _show_target(text: str) -> str | None:
         return None
     try:
         from widgets import runtime
+        # A deictic show request ("muéstramelo") gets its noun from the recent dialogue. Resolve the most recent
+        # topical utterance against the same real widget catalogue instead of forcing the model to repeat a noun.
+        # This is generic: weather, agenda, messages, music… are all resolved by runtime.identify, not a keyword map.
+        from . import router as _router
+        tail = (text or "").strip().lower().strip("¿?¡!.,;:")
+        deictic = (bool(re.search(r"\b(?:muestr|ensen|abre|saca)\w*(?:lo|la|los|las)\b", n))
+                    or any(_router.looks_like_bare_ref(token) for token in tail.split() if token))
+        if deictic:
+            for message in reversed(context or []):
+                if message.get("role") != "user":
+                    continue
+                prior = str(message.get("content") or "").strip()
+                if prior:
+                    match = _identify_ctx(runtime, prior)
+                    if match:
+                        return match
+                    break  # the grammatical antecedent is the immediately preceding user topic, never older history
+            # The preceding route is stronger than fuzzy words: a LIGHT search is rendered in the built-in
+            # `search` (Búsqueda / Tiempo) surface. This is action→surface continuity, not a topic keyword table.
+            if last_action == "search" and runtime.get("search") is not None:
+                return "search"
         return _identify_ctx(runtime, text)
     except Exception:
         return None
@@ -223,6 +245,10 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         tool_calls.append({"name": name, "args": args})
 
     def _tag_emit(action: str, extra: dict) -> None:
+        if action == "show":
+            contextual = _show_target(text, sess.window, sess.last_action)
+            if contextual:
+                extra = {**(extra or {}), "id": contextual}
         tags.append({"action": action, "extra": {k: v for k, v in (extra or {}).items() if k != "data"}
                      or (extra or {})})
 
@@ -354,7 +380,10 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             from widgets import runtime as _rt
             _res = {}
             try:
-                if _swid and _rt.get(_swid) is not None:
+                _contextual = _show_target(text, sess.window, sess.last_action)
+                if _contextual:
+                    _res = {"match": _contextual, "system": None}
+                elif _swid and _rt.get(_swid) is not None:
                     _res = {"match": _swid, "system": None}
                 else:
                     _o, _r = _ctx_ids()
@@ -457,7 +486,9 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                     except Exception:
                         pass
     elif tags:
-        action = "canvas:" + ",".join(t["action"] for t in tags)
+        show_ids = [str(t.get("extra", {}).get("id") or "") for t in tags if t["action"] == "show"]
+        action = (f"canvas:show:{show_ids[-1]}" if show_ids and show_ids[-1]
+                  else "canvas:" + ",".join(t["action"] for t in tags))
     else:
         action = "chat"
 
@@ -469,7 +500,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # mostrar ("¿me enseñas la agenda?" → "aquí tienes la agenda" sin tool). No pisa música/vídeo/data (esos ya
     # resolvieron); _show_target exige verbo de show + identify real.
     if action in ("escalate", "search"):
-        wid = _show_target(text)
+        wid = _show_target(text, sess.window, sess.last_action)
         if wid:
             action = f"canvas:show:{wid}"
     # BACKSTOP PROMESA-SIN-ACCIÓN UNIFICADO (espejo del provider): el modelo charló una promesa sin tool → re-deriva
@@ -575,6 +606,47 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         if _committed and _router.looks_like_web_task(text):
             action = "escalate"
 
+    # PARIDAD con el canal vivo: recall y web_search are two-pass LIGHT routes. Historically the probe only
+    # reported the tool and returned an empty reply, so a chronological headless conversation lost the assistant
+    # turn and every following pronoun was tested against a state that can never occur in production.
+    if "recall" in names and action == "chat":
+        _rq = next((t["args"].get("query") for t in tool_calls if t["name"] == "recall"), "") or text
+        try:
+            from . import prompt as _prompt2
+            _rblock, _ = await asyncio.to_thread(_prompt2.compose_recall, _rq)
+            _sys2 = (_prompt2._lang_lock()
+                     + "\nResponde en 1-3 frases habladas y naturales usando SOLO estos datos del operador. "
+                       "No menciones capas ni memoria interna; si falta algo, dilo.\n\n"
+                     + f"PETICIÓN: {text}\n\nDATOS:\n{_rblock or '(sin datos relevantes)'}")
+            _parts = []
+            async for _delta in FastClient().stream(
+                    [{"role": "system", "content": _sys2}, {"role": "user", "content": text}],
+                    spec=spec, max_tokens=260):
+                _parts.append(_delta)
+            spoken = dialog.sanitize_reply(speech.sanitize("".join(_parts), drop_metadata=False))
+            action = "recall"
+        except Exception:
+            pass
+    if action == "search":
+        _sq = next((t["args"].get("query") for t in tool_calls if t["name"] == "web_search"), "") or text
+        try:
+            from nucleo import websearch as _ws
+            from . import prompt as _prompt2
+            _res = await asyncio.to_thread(_ws.search, _sq)
+            _ctx = _ws.format_results(_res)
+            _sys2 = (_prompt2._lang_lock()
+                     + "\nResponde en 1-2 frases habladas, naturales, sin URLs, usando estos resultados web. "
+                       "Si no contienen una respuesta clara, dilo; no inventes.\n\n"
+                     + f"PREGUNTA: {_sq}\n\nRESULTADOS:\n{_ctx or '(sin resultados)'}")
+            _parts = []
+            async for _delta in FastClient().stream(
+                    [{"role": "system", "content": _sys2}, {"role": "user", "content": _sq}],
+                    spec=spec, max_tokens=240):
+                _parts.append(_delta)
+            spoken = dialog.sanitize_reply(speech.sanitize("".join(_parts), drop_metadata=False))
+        except Exception:
+            pass
+
     # (e-ter) EJECUCIÓN REAL de acciones de worker (V2-049, solo si execute=True) — para el test e2e de gestiones
     # web por TEXTO: la escalada arranca un Brain Worker REAL que conduce el navegador; inyección/respuesta/stop van
     # a un worker vivo. Marshalea al loop del server (mismo proceso). El resto de acciones (canvas/data/música) NO se
@@ -668,6 +740,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     if spoken:
         sess.window.append({"role": "assistant", "content": spoken})
     del sess.window[:-_WINDOW_MAX]
+    sess.last_action = action
 
     timings["total_ms"] = round((time.time() - t0) * 1000, 1)
     timings["ttft_ms"] = _ttft
@@ -717,6 +790,10 @@ async def say(text: str = Body(..., embed=True), session: str = Body("default", 
 @router.post("/api/flash/reset")
 async def reset(session: str = Body("default", embed=True)) -> dict:
     """Limpia la ventana conversacional del probe (NO toca la memoria; para eso, `make reset`)."""
+    # A reset is an explicit causal barrier in headless tests: all completed memory writes must be visible in the
+    # first turn of the new window. It does not run on the physical voice hot path.
+    from . import memory_cache
+    await memory_cache.refresh()
     _SESSIONS.pop(session or "default", None)
     return {"ok": True, "session": session or "default"}
 

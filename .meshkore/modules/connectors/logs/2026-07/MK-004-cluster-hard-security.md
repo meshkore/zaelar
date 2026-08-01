@@ -47,11 +47,11 @@ Principio del operador: *robusto y cerrado; antes falta de permisos que exceso.*
 - `brains/hermes/acp_client.py` (tool-gate + `_decide_permission`), `brains/hermes/runtime.py` (deny_tools + env)
 - `connectors/meshkore/bridge.py` (allowlist + flood cap), `security.py` (fence-escape + trailer),
   `server_api.py` (guard + scan), `client.py` (TLS floor), `store.py` (redacción)
-- `connectors/meshkore/test_security.py` (24 casos), `~/.hermes/config.yaml` (tirith)
+- `tests/cluster/unit/test_security.py` (24 casos), `~/.hermes/config.yaml` (tirith)
 - Docs: `.meshkore/docs/security/zaelar-security.md`, `CLAUDE.md`, `INI-005`, `cluster.yaml` (0.6.0→0.7.0)
 
 ## Verificación (2026-07-02)
-- `pytest connectors/meshkore/test_security.py -q` → **24 passed** (tool-gate deny/allow/no-reject, allowlist bloquea
+- `pytest tests/cluster/unit/test_security.py -q` → **24 passed** (tool-gate deny/allow/no-reject, allowlist bloquea
   connect/disconnect, fence-escape, guard REST loopback+token, redacción de secret shapes, bloqueo saliente…).
 - Servidor arranca (`brain=hermes`, cluster `arena` conecta). REST cross-origin → **403**; `/send` con `sk-…` → **400**.
 - **Soft vs hard** documentado: tool-gate/allowlist/flood/guard/TLS son duros; auto-revelación en prosa y el cuerpo de

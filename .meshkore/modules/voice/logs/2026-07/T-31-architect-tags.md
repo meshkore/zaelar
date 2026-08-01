@@ -23,5 +23,5 @@ El retorno del resultado reutiliza `voice/proactive` y `voice/brain_notes` sin c
 
 ## Verificación
 
-Tests de parsing/hold en `connectors/architect/test_architect.py` (incluye split por chunks de 7 chars);
+Tests de parsing/hold en `tests/connectors/unit/architect/test_architect.py` (incluye split por chunks de 7 chars);
 suite de voz en verde (73/73 global).

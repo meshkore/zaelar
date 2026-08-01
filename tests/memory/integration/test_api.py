@@ -172,6 +172,24 @@ def test_reinforce_used_writes_weight(fresh_db):
     assert w1 > w0
 
 
+def test_query_reinforces_only_the_dominant_content_memory(fresh_db, monkeypatch):
+    from memory import api as memapi
+    from memory import retriever
+
+    dominant = memapi.write_now("objetivo vivienda", level="long", kind="pref")
+    concept = memapi.write_now("vivienda", level="long", kind="concept")
+    lateral = memapi.write_now("objetivo estudios", level="long", kind="pref")
+    monkeypatch.setattr(retriever, "search", lambda *args, **kwargs: [
+        {"id": concept, "text": "vivienda", "kind": "concept"},
+        {"id": dominant, "text": "objetivo vivienda", "kind": "pref"},
+        {"id": lateral, "text": "objetivo estudios", "kind": "pref"},
+    ])
+    memapi.query("mi vivienda", reinforce_used=True)
+    rows = {row["id"]: row["access_count"] for row in memdb.get_db().query(
+        "SELECT id,access_count FROM memories WHERE id IN (?,?,?)", (dominant, concept, lateral))}
+    assert rows == {dominant: 1, concept: 0, lateral: 0}
+
+
 def test_consolidate_via_facade(fresh_db):
     memapi.write_now("uno")
     memapi.write_now("dos")

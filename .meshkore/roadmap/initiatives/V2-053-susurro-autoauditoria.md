@@ -238,7 +238,7 @@ consumido por el dev-loop.
   `memory/api.py`, **topic semántico `turn.completed`** desde `observer.turn_detail`). F1: módulo
   `nucleo/susurro/` completo (friction/window/catalog/client/apply/engine) + config §susurro + área ⚙ + lifespan
   con kill-switch + paridad probe (drena brain_notes) + 13 tests unit + suite e2e
-  `tests/e2e/susurro/run_probe_suite.py` (histórico `history.jsonl`) + escenario `susurro_reparacion` en la
+  `tests/agent_headless/e2e/susurro/run_probe_suite.py` (histórico `history.jsonl`) + escenario `susurro_reparacion` en la
   batería de voz. **Verificado e2e EN VIVO** (server reiniciado, OpenAI real): queja simulada reloj-vs-agenda →
   diagnóstico correcto («abrió el reloj en lugar de la agenda») → `repair_say` hablado en el turno siguiente +
   finding P1 en la cola; ciclo 2.4-2.9s con gpt-4.1-mini. Docs-sync completo: CLAUDE.md (módulo + decisión

@@ -1,6 +1,6 @@
 #
 # Tests de la OBSERVACIÓN PASIVA cluster→memoria (connectors/meshkore/mem_ingest.py, V2-021 T170).
-# Run: .venv/bin/pytest connectors/meshkore/test_mem_ingest.py -q
+# Run: .venv/bin/pytest tests/cluster/unit/test_mem_ingest.py -q
 #
 # Verifica el invariante central: un intercambio con un peer produce una SÍNTESIS COMPRIMIDA recuperable por
 # `recent_by_source("cluster", <peer>)`, CUARENTENADA (nunca en `recent_short`/`salient_long` ni en el recall),

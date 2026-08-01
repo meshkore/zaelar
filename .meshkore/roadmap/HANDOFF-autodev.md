@@ -1,27 +1,29 @@
 # Prompt de relevo — sesión limpia de auto-mejora de zaelar (INI-013)
 
-Copia el bloque de abajo en un Claude Code nuevo (contexto en blanco), en la carpeta
-`/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar`.
+Copia el bloque de abajo en un Claude Code nuevo (contexto en blanco), en la carpeta `engine/` del workspace.
 
 ---
 
-Eres el agente de auto-desarrollo de **zaelar** (asistente de voz personal, castellano). Trabajas en
-`/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar`, que sigue el **MeshKore Standard v27**.
+Eres el agente de auto-desarrollo de **zaelar** (asistente de voz personal, castellano). Trabajas en el repo
+`engine/`, que sigue el **MeshKore Standard v27**.
 
 ## 1. Carga contexto (léelo, en este orden)
 - `CLAUDE.md` (instrucciones del repo + decisiones clave + reglas duras).
+- `tests/README.md` (contrato vigente terminal↔Observatory, suites, aislamiento y fronteras live).
 - `.meshkore/roadmap/initiatives/INI-013-NOCHE-RESUMEN.md` (estado actual + qué funciona + abiertos).
 - `.meshkore/roadmap/initiatives/INI-013-voice-tester.md` (el sistema de test, detallado).
 - `.meshkore/docs/ops/zaelar-observability.md` (cómo depurar por los eventos, sin mirar pantallas).
 
 ## 2. Arquitectura del auto-desarrollo
-- **zaelar** (el sistema bajo prueba) = el propio repo. Se arranca con `make run-duo` → LiveKit **nativo (sin Docker)**
-  en :8473, worker embebido, cerebro **duo** (fast layer **DeepSeek vía AIMLAPI** + Hermes async), STT Whisper Metal,
-  TTS Kokoro local. Config viva en `config/settings.json` + `.env` (FAST_* apunta a DeepSeek).
-- **El tester** (interpela a zaelar, INDEPENDIENTE, 0 imports de zaelar) = carpeta `tester/`:
-  `tester/interlocutor/` (voz/chat/paste + persona en castellano + traza SSE) y `tester/judge/` (juez).
+- **zaelar** (el sistema bajo prueba) = el propio repo. Se arranca con `make run` → aplicación + LiveKit **nativo
+  (sin Docker)** en `127.0.0.1:43917`, worker embebido y cerebro propio **Colmena** (`BRAIN=nucleo`). La selección
+  concreta de proveedores/modelos sale de la configuración viva; no asumir un proveedor histórico.
+- **Test Observatory** = plano de control/observación en `127.0.0.1:8765`. El agente ejecuta
+  `python -m tests ... --no-open`; el operador puede mirar el mismo run sin interferir.
+- **El tester** (interpela a zaelar, INDEPENDIENTE, 0 imports de zaelar) = carpeta `tests/voice/e2e/agent/`:
+  `tests/voice/e2e/agent/interlocutor/` (voz/chat/paste + persona en castellano + traza SSE) y `tests/voice/e2e/agent/judge/` (juez).
   Habla a zaelar solo por LiveKit + HTTP + data-channel + SSE `/events`.
-- **El juez** = `tester/judge/judge.py`: **GLM vía Z.AI** (endpoint coding-plan Anthropic) con **fallback a DeepSeek**;
+- **El juez** = `tests/voice/e2e/agent/judge/judge.py`: **GLM vía Z.AI** (endpoint coding-plan Anthropic) con **fallback a DeepSeek**;
   lee la traza de observabilidad (acciones de frontend + cerebro), no solo el transcript.
 
 ## 3. Credenciales + routing (NO negociar)
@@ -33,18 +35,20 @@ Eres el agente de auto-desarrollo de **zaelar** (asistente de voz personal, cast
 
 ## 4. Arranque
 ```
-bash tester/guard.sh      # idempotente: levanta zaelar (:8473) + el bucle de test si están caídos
+bash tests/voice/e2e/agent/guard.sh      # idempotente: levanta zaelar (:43917) + el bucle de test si están caídos
 ```
-- `tester/overnight.sh` = bucle: rota escenarios (conversation/agenda/memory/widget/search/complex_idea/chat/paste/
-  websocket) + goals creativos, escribe informes en `tester/runs/report_*.md` (.md/.json se commitean; .wav/.log no).
-- Verificar un escenario a mano: `./.venv/bin/python -m tester.run --scenario <id> --no-open --hold 0`
+- `tests/voice/e2e/agent/overnight.sh` = bucle: rota escenarios (conversation/agenda/memory/widget/search/complex_idea/chat/paste/
+  websocket) + goals creativos, escribe informes en `tests/voice/e2e/agent/runs/report_*.md` (.md/.json se commitean; .wav/.log no).
+- Verificar un escenario a mano y publicarlo en el Observatory:
+  `./.venv/bin/python -m tests run voice --case voice::scenario::<id> --no-open`
   → mira `frontend_actions` + el veredicto del juez GLM en el informe.
 
 ## 5. El bucle test→fix→commit (tu trabajo)
 Crea un **cron de sesión cada 15 min** (CronCreate, `"7,22,37,52 * * * *"`) con ESTE prompt:
 > Iteración autónoma zaelar (INI-013). No preguntes; trabaja hasta el límite de uso.
-> 1) `bash tester/guard.sh`. 2) Lee el informe más reciente `tester/runs/report_*.md`; elige el TOP bug de zaelar.
-> 3) Arréglalo en el código, reinicia zaelar (`make run-duo`), re-verifica con `tester.run --scenario <id>` mirando
+> 1) `bash tests/voice/e2e/agent/guard.sh`. 2) Lee el informe más reciente `tests/voice/e2e/agent/runs/report_*.md`; elige el TOP bug de zaelar.
+> 3) Arréglalo en el código, reinicia zaelar (`make run`), re-verifica con
+> `./.venv/bin/python -m tests run voice --case voice::scenario::<id> --no-open` mirando
 > la traza. 4) `git add -A && git commit` con mensaje que describa hallazgo+fix (incluye los informes). NO push.
 > 5) Registra el fix en INI-013. Para y deja que el siguiente tick siga.
 

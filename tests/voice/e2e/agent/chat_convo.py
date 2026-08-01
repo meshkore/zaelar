@@ -11,8 +11,8 @@ headless del T1.4 pendiente (el mecanismo de audio-OFF a nivel LiveKit se prueba
 Cada HILO es una sesión persistente del probe (la ventana conversacional se conserva turno a turno). NO escribe a la
 memoria durable (`ingest=False`) → NO ensucia la cuenta del operador; el contexto se prueba por la VENTANA del turno.
 
-Uso:  ./.venv/bin/python -m tester.chat_convo
-      BASE=http://localhost:43917 ./.venv/bin/python -m tester.chat_convo
+Uso:  ./.venv/bin/python -m tests.voice.e2e.agent.chat_convo
+      BASE=http://localhost:43917 ./.venv/bin/python -m tests.voice.e2e.agent.chat_convo
 """
 import json
 import os

@@ -3,11 +3,11 @@
 > Documento reutilizable: cómo repetir DESDE CERO el ciclo que lleva la memoria de zaelar a **≥1000 requests
 > verificadas en verde** (ESTADO/CORTO/LARGO + 26 tipologías más), en un loop autónomo. Última corrida:
 > **2026-07-12 — GOLD 1032/1032, 9 bugs de código arreglados**. Resultados fechados en
-> `tests/e2e/memory/bot/resultados/<fecha>-ciclo-1000/`.
+> `tests/memory/e2e/bot/resultados/<fecha>-ciclo-1000/`.
 
 ## Qué prueba (y por qué)
 
-El **test-bot de memoria** (`tests/e2e/memory/bot/`) role-play una PERSONA que habla con zaelar durante una
+El **test-bot de memoria** (`tests/memory/e2e/bot/`) role-play una PERSONA que habla con zaelar durante una
 conversación LARGA (1032 pasos) y, por cada paso, verifica que la memoria HUMANA hace lo correcto por el **camino
 REAL** (escritura por el CORAZÓN LLM local `ingest_utterance`; lectura como la del FlashBrain `_brain_view` =
 `memory_cache._compose` + `compose_recall`, SIN LLM). No mide lo que el bot DICE sino lo que la memoria HACE.
@@ -22,10 +22,10 @@ anti-alucinación (AA), validez temporal/as-of (AB), identidad cross-sesión (AC
 ## Cómo se ejecuta
 
 ```bash
-./.venv/bin/python -m tests.e2e.memory.bot.runner --coverage        # cobertura por dimensión (elegir hueco)
-./.venv/bin/python -m tests.e2e.memory.bot.runner --next 80         # avanza 80 sobre la BD acumulada (persona coherente)
-./.venv/bin/python -m tests.e2e.memory.bot.runner --fresh --range 0 1032   # pasada de ORO (replay lineal limpio)
-./.venv/bin/python -m tests.e2e.memory.bot.runner --catalog         # regenera CATALOG.md
+./.venv/bin/python -m tests.memory.e2e.bot.runner --coverage        # cobertura por dimensión (elegir hueco)
+./.venv/bin/python -m tests.memory.e2e.bot.runner --next 80         # avanza 80 sobre la BD acumulada (persona coherente)
+./.venv/bin/python -m tests.memory.e2e.bot.runner --fresh --range 0 1032   # pasada de ORO (replay lineal limpio)
+./.venv/bin/python -m tests.memory.e2e.bot.runner --catalog         # regenera CATALOG.md
 ```
 
 **DOS corpus (auditoría 2026-07-14):** `--corpus v1` (def) = la GOLD histórica `cases.py` (persona Ricart, 1032);

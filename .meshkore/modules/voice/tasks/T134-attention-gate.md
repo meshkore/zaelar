@@ -21,4 +21,4 @@ o ventana de conversación activa `ZAELAR_ATTENTION_WINDOW`, def 30s), `note_dir
 Cableado en `voice/engine/llm/providers/nucleo.py::_run`: un turno no dirigido emite `ambient` (observer) y
 RETORNA antes de drenar notas/escalar/actuar. `agent.py` marca chat/paste como dirigido (`note_directed`),
 resetea la ventana al arrancar sesión y recibe el PTT por el topic `zaelar-ptt`. Config por la UI: knobs
-`attention_mode`/`attention_window` en `config/settings.py` (⚙, aplican al instante). Tests: `voice/test_attention.py`.
+`attention_mode`/`attention_window` en `config/settings.py` (⚙, aplican al instante). Tests: `tests/voice/unit/test_attention.py`.

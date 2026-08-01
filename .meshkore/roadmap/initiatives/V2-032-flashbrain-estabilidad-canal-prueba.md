@@ -20,7 +20,7 @@ ARREGLARLO hacía falta una forma **rápida** de inyectar texto al FlashBrain y 
 - **`sanitize_reply(text)`** — anti-degeneración del output: colapsa palabras/frases duplicadas y empalmes. Se aplica
   a lo que se GUARDA en la ventana → corta el bucle de realimentación que degrada al modelo.
 - Compartidas por el turno de VOZ (`voice/engine/llm/providers/nucleo.py::_run`) y el canal de prueba → lo que se
-  valida por texto corre igual en voz. Tests: `nucleo/flash/test_dialog.py` (11).
+  valida por texto corre igual en voz. Tests: `tests/agent_headless/unit/flash/test_dialog.py` (11).
 
 ### 2. Canal de prueba headless — `nucleo/flash/probe.py` (3ª forma de testing)
 - `run_turn(text, sid, ingest)` reproduce el NÚCLEO del turno real (mismo `build_flash_system`, `FastClient`,

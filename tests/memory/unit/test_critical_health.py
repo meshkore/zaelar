@@ -7,7 +7,7 @@
 #   (B) bajo densidad, la alergia se enterraba fuera del cap de salient_long. compose_state la surface SIEMPRE en
 #       una línea CRÍTICO propia (critical_facts), independiente del ranking.
 # Determinista: sin red (embeddings hash) ni LLM. Ejecutar:
-#   .venv/bin/pytest tests/unit/memory/test_critical_health.py -q
+#   .venv/bin/pytest tests/memory/unit/test_critical_health.py -q
 #
 import pytest
 

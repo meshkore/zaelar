@@ -58,8 +58,8 @@ Balance de complejidad NEGATIVO: se **borra** un sistema (el cerebro paralelo), 
     (en código, probado en vivo con zalo: 7 asertivos) ya cubre la degeneración de conversación SIN exponer contenido
     untrusted a un modelo potente. Reabrir solo dentro de V2-010, con el gate de untrusted→tools.
   - La profundidad «actuar» desde una charla de agente (peer→worker) es V2-010 (fuera de scope por seguridad).
-- **F2 (hecho):** SMOKE INTEGRAL de todo el sistema (`tests/e2e/smoke/run_full_smoke.py`, 20 checks) + e2e del CHAT
-  por transporte REAL (`tests/e2e/smoke/run_chat_over_livekit.py`: cliente LiveKit → data-channel → agent → reply) —
+- **F2 (hecho):** SMOKE INTEGRAL de todo el sistema (`tests/infrastructure/e2e/smoke/run_full_smoke.py`, 20 checks) + e2e del CHAT
+  por transporte REAL (`tests/infrastructure/e2e/smoke/run_chat_over_livekit.py`: cliente LiveKit → data-channel → agent → reply) —
   este último cierra el hueco que dejó pasar la degradación del motor LiveKit del 2026-07-25.
 
 ## Incidente 2026-07-25 (motor LiveKit degradado — NO era V2-069)

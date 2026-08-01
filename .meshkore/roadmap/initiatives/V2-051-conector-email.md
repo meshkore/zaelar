@@ -88,8 +88,8 @@ por defecto.
 
 ## Tests
 
-- `connectors/email/test_mailbox.py` — parsers puros (decode headers, HTML→texto, noreply, auth-results) sin red.
-- `connectors/messaging/test_reply.py` — `pending_reply` end-to-end (apply_action reply → owner drain → bus).
+- `tests/connectors/unit/email/test_mailbox.py` — parsers puros (decode headers, HTML→texto, noreply, auth-results) sin red.
+- `tests/connectors/unit/messaging/test_reply.py` — `pending_reply` end-to-end (apply_action reply → owner drain → bus).
 
 ## Pasos del operador (UI, sin `.env`)
 

@@ -66,7 +66,7 @@ Piezas del cerebro (ya diseñadas en los diagramas v2):
 | `widgets/` | **REUSA + amplía** | passive + backed intactos. Ahora los widgets ESCRIBEN a `memory/` y se suscriben al `bus/`. |
 | `server/` | **REUSA + reshape** | El lifespan monta bus + memoria (cola/escritor/consolidador) + loop de nucleo + supervisor. Se retiran rutas Hermes. |
 | `frontend/` | **REUSA** | Se quita el banner de update de Hermes y el polling `/api/hermes/*`. |
-| `tester/`, `harness/` | **REUSA + adapta** | Oleadas de INI-013 re-apuntadas al cerebro v2. |
+| `tests/voice/e2e/agent/`, `tests/agent_headless/harness/` | **REUSA + adapta** | Oleadas de INI-013 re-apuntadas al cerebro v2. |
 | `connectors/` | **RESHAPE → stateless** | Solo leen + publican eventos al `bus/`. Triaje y store SALEN de aquí. |
 | `config/` | **RESHAPE → v2** | Nuevo esquema; fuera settings de Hermes/duo; dentro routing de modelos (fast + code-agent) y flags de conector. |
 | `brains/` | **RETIRA (último)** | hermes (ACP/cron/update) + duo + reasoner + providers hermes/duo. Sustituido por `nucleo/`. |

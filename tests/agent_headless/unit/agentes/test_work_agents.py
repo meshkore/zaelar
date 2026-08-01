@@ -7,11 +7,11 @@
 #   - el dispatcher enruta por tipo (web/code/genérico) y clasifica lo no marcado
 #   - el confirm-gate PARA una acción irreversible salvo OK; sin OK no ejecuta el agente
 #   - el retorno entrega por voz+UI+[SISTEMA] solo lo entregable (web no)
-# Ejecutar: .venv/bin/pytest nucleo/agentes/test_work_agents.py
+# Ejecutar: .venv/bin/pytest tests/agent_headless/unit/agentes/test_work_agents.py
 #
 # ⚠️ V2-038: los agentes one-shot de nucleo/agentes/ quedaron PARKEADOS (sustituidos por nucleo/workers/ — sesiones
 # interactivas). dispatch.run_task/_deliver ya no existen. Este test se SALTA (revertible; su cobertura la retoman
-# nucleo/workers/test_workers.py + los tests de routing). Retirada física = trabajo del equipo.
+# tests/agent_headless/unit/workers/test_workers.py + los tests de routing). Retirada física = trabajo del equipo.
 import pytest
 pytest.skip("nucleo/agentes one-shot parkeado en V2-038 (ver nucleo/workers/)", allow_module_level=True)
 

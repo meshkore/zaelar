@@ -73,7 +73,7 @@ wall. Ninguno es urgente; T2.1 (TTL real) es el más sano de cerrar primero.
 
 ## 3 · Naturalidad de la voz — lead-in filler sin cortes (EN CURSO)
 
-**Petición:** iterar con la simulación de voz e2e (`tester/`, INI-013) leyendo la observabilidad milisegundo a
+**Petición:** iterar con la simulación de voz e2e (`tests/voice/e2e/agent/`, INI-013) leyendo la observabilidad milisegundo a
 milisegundo: evaluar si los nexos/frases-para-ganar-tiempo están bien colocados y son naturales, y **garantizar
 que NO se cortan** — si un nexo corto de 4 palabras está sonando y ya hay respuesta que reproducir, el nexo debe
 TERMINAR y luego enlazar con lo siguiente, natural.
@@ -84,13 +84,13 @@ TERMINAR y luego enlazar con lo siguiente, natural.
       sintetiza ENTERO antes de encadenar la respuesta real (mismo `_event_ch` → debería ser continuo; el `…`
       del filler da pausa natural). Medir con el tester e2e y la observabilidad (transcripción acompasada al audio).
 - [ ] T3.2b **DEUDA del tester de voz (bloquea la iteración multi-turno)**: el DRIVE del tester apuntaba a Ollama local (apagado por batería) → connection refused; repuntado a xAI da HTTP 400 (payload user/assistant invertido que xAI no tolera) y a OpenAI da 401 (clave). El tester solo completa el kickoff. **Migrar el DRIVE del tester a un modelo de nube que funcione** (formato de mensajes compatible) para poder conducir conversaciones multi-turno. Hasta entonces, la iteración de voz se hace con el kickoff + probe + oído del operador en vivo.
-- [ ] T3.3 **Iteración autónoma con el tester de voz** (`tester/`): lanzar simulación → evaluar con inteligencia
+- [ ] T3.3 **Iteración autónoma con el tester de voz** (`tests/voice/e2e/agent/`): lanzar simulación → evaluar con inteligencia
       la observabilidad (timing STT/TTFT/TTS por ms) → decidir si los nexos son naturales / bien colocados / sin
       cortes → mejorar el sistema → repetir. Archivar hallazgos.
 
 ## 5 · «Mar de testing por dominios» — simulación de conversación a escala (2026-07-19/20)
 
-Construido `tester/domain_sea.py` (INI-013): genera N parafraseos NATURALES por semilla (vía AIMLAPI, `tester.llm`)
+Construido `tests/voice/e2e/agent/domain_sea.py` (INI-013): genera N parafraseos NATURALES por semilla (vía AIMLAPI, `tester.llm`)
 y los pasa por el canal PROBE (`/api/flash/say`, headless, rápido) → ejercita el MISMO FlashBrain/router/rails/
 tools/memoria-estado/Susurro. 14 dominios (mem/web/math/chat/show/close/create/music/video/deep/style + multiidioma
 en/ca/fr). Auto-marca fallos de routing; el operador/agente evalúa con criterio. Corre cientos de turnos por ronda
@@ -115,7 +115,7 @@ en/ca/fr). Auto-marca fallos de routing; el operador/agente evalúa con criterio
   (icono OFF al abrir, restaura al cerrar). T1.1/T1.2/T1.3 hechas; T1.4 e2e headless pendiente (validado en vivo).
 - **2026-07-19** · Creada. §1 y §2 anotados a petición del operador ("para que no se me olvide"). §2 verificado
   (pipeline de memoria: núcleo OK, 4 huecos). §3 en curso (filler construido; falta iteración e2e).
-- **2026-07-19/20** · §5 mar de testing construido (`tester/domain_sea.py`) + 4 clases de bug arregladas en ~1500
+- **2026-07-19/20** · §5 mar de testing construido (`tests/voice/e2e/agent/domain_sea.py`) + 4 clases de bug arregladas en ~1500
   turnos parafraseados (música-cambio, apaga/quita-close incl. delete peligroso, crear-cortés, promesa-sin-acción
   unificado). DRIVE del tester repuntado a AIMLAPI (Ollama estaba apagado). Kickoff arreglado (saludo sin tools ni
   filler). Techo determinista identificado → Susurro.

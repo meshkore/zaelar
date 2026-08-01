@@ -18,5 +18,5 @@ commit_shas: [efc6a3a]
 Hecho: `voice/attention.py::clamp_input(text, max_len)` sustituye el `text[-max_in:]` a ciegas del provider —
 si el turno excede `ZAELAR_FAST_MAX_INPUT` (1600) y contiene una cláusula de comando explícito
 (cierra/abre/muestra/para…), la ANTEPONE al recorte para que nunca quede fuera (era como el "cierra los widgets"
-acababa truncado en un turno de 14k chars). Cableado en `nucleo.py::_run`. Tests en `voice/test_attention.py`
+acababa truncado en un turno de 14k chars). Cableado en `nucleo.py::_run`. Tests en `tests/voice/unit/test_attention.py`
 (comando al principio de un turno gigante se preserva; sin comando trunca normal).

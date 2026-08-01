@@ -1,6 +1,6 @@
 # Chain-suite — HOJA DE RUTA de problemas detectados
 
-Registro VIVO de problemas encontrados por `tester/chain_suite.py` (iteración 2 del testing: frases humanas +
+Registro VIVO de problemas encontrados por `tests/voice/e2e/agent/chain_suite.py` (iteración 2 del testing: frases humanas +
 cadenas + trazas). Cada entrada lleva el **ID del caso** para que, cuando el developer arregle algo, el operador
 pueda decir *"repite estos tests"* y se re-corran exactamente esos.
 

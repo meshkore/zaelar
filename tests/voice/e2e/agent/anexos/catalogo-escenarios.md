@@ -1,7 +1,7 @@
 # Catálogo de escenarios de test — anexo del bot tester
 
 > Lista LEGIBLE de los casos de uso que probamos, agrupados por capacidad y por prioridad. Es el ANEXO humano de
-> `tester/scenarios.py` (la fuente ejecutable). **Debe mantenerse alineado con `scenarios.py` en el Paso 0** del
+> `tests/voice/e2e/agent/scenarios.py` (la fuente ejecutable). **Debe mantenerse alineado con `scenarios.py` en el Paso 0** del
 > playbook (`.meshkore/docs/ops/zaelar-testing.md`): si se añade/cambia un escenario en el código, se refleja aquí;
 > si aquí falta cubrir una capacidad nueva (últimas 48 h), se añade el escenario al código.
 >
@@ -39,7 +39,7 @@
 |---|---|---|---|
 | `widget` | voz | "muéstrame un reloj y luego el tiempo" | emite `[[show]]` de widgets existentes; NO crea widgets basura; idempotente |
 | `mensajeria` | voz | "abre el widget de mensajería y dime cuántos importantes tengo + si WhatsApp/Telegram conectados" | MUESTRA el `mensajeria` EXISTENTE (regresión bug V2-023: jamás crear uno nuevo); da estado natural |
-| `youtube_voice` | voz | re-simulación sesión 2026-07-15: montar widget YouTube (gol mano de Dios) → comentar ambiente → estado → MODIFICAR (pantalla completa + control por voz) → insistir → "cierra el resto menos youtube" | **1 solo worker/objetivo** (`task/dedup`, no 2º `task/start`, sin doble chip); **modificar≠crear** (toca `youtube`, sin id-basura); "cierra el resto" conserva youtube (`[[close:ID]]` uno-a-uno, no `[[close]]` global); voz AMBIENTE no actúa; hecho conocido→busca (≤1 aclaración); estado=paso+tiempo (no frase-loro); hay `perf func=turn` para diagnosticar. Fixes P0 `d78d457` + P1 `dc436cc`/`5367200`. Companion headless determinista: `python -m tester.youtube_flow_probe` |
+| `youtube_voice` | voz | re-simulación sesión 2026-07-15: montar widget YouTube (gol mano de Dios) → comentar ambiente → estado → MODIFICAR (pantalla completa + control por voz) → insistir → "cierra el resto menos youtube" | **1 solo worker/objetivo** (`task/dedup`, no 2º `task/start`, sin doble chip); **modificar≠crear** (toca `youtube`, sin id-basura); "cierra el resto" conserva youtube (`[[close:ID]]` uno-a-uno, no `[[close]]` global); voz AMBIENTE no actúa; hecho conocido→busca (≤1 aclaración); estado=paso+tiempo (no frase-loro); hay `perf func=turn` para diagnosticar. Fixes P0 `d78d457` + P1 `dc436cc`/`5367200`. Companion headless determinista: `python -m tests.voice.e2e.agent.youtube_flow_probe` |
 
 ## Prioridad 2 — Conectores y cluster
 | id | canal | qué prueba | éxito |
@@ -63,9 +63,9 @@ FlashBrain/router/rails/tools/memoria-estado/Susurro sin STT/TTS. Ideales para b
 
 | herramienta | qué hace | uso |
 |---|---|---|
-| `tester/domain_sea.py` | **Mar de testing por DOMINIOS** (routing): N parafraseos NATURALES por semilla (vía AIMLAPI) → probe → auto-marca fallos de routing por dominio. 16 dominios: mem·web·math·chat·show·close·**create**·**modify**·music·video·**latest** (V2-057)·**market** (idealista/coches.net/autoscout/wallapop/milanuncios/amazon → escalate)·deep·style·ml_en/ca/fr. | `PYTHONPATH=. .venv/bin/python tester/domain_sea.py all 5` (≈220 turnos) · o un dominio: `… domain_sea.py market 6` |
-| `tester/deep_nav.py` | **Navegación REAL** (ejecución, V2-057): escala un objetivo de marketplace con `execute=true` → el server lanza un Brain Worker que CONDUCE el navegador contra el sitio VIVO → observa el timeline (fases·tocó el sitio·extrajo anuncios·entrega·verificación). LENTO, toca sitios vivos (1-3 min c/u) → pocos, como prueba e2e. | `PYTHONPATH=. .venv/bin/python tester/deep_nav.py idealista` · o `… deep_nav.py coches 150` · `all` para todos |
-| `tester/chat_convo.py` | **Canal CHAT (voz OFF, V2-054)** — conversación MULTI-TURNO headless: sesión persistente del probe (la ventana se conserva) → verifica que la charla por TEXTO se mantiene COHERENTE, arrastra el CONTEXTO de turnos previos, no degenera/buclea, enruta un dato factual en medio → `search` y vuelve a charla, y responde rápido (< 3.5 s). Es el lado CEREBRO/CONVERSACIÓN del canal sin voz (el mecanismo audio-OFF a nivel LiveKit = escenario de voz, T1.4). Complementa al escenario single-shot `chat`. | `.venv/bin/python -m tester.chat_convo` · o hilos sueltos: `… -m tester.chat_convo smalltalk context` |
+| `tests/voice/e2e/agent/domain_sea.py` | **Mar de testing por DOMINIOS** (routing): N parafraseos NATURALES por semilla (vía AIMLAPI) → probe → auto-marca fallos de routing por dominio. 16 dominios: mem·web·math·chat·show·close·**create**·**modify**·music·video·**latest** (V2-057)·**market** (idealista/coches.net/autoscout/wallapop/milanuncios/amazon → escalate)·deep·style·ml_en/ca/fr. | `PYTHONPATH=. .venv/bin/python tests/voice/e2e/agent/domain_sea.py all 5` (≈220 turnos) · o un dominio: `… domain_sea.py market 6` |
+| `tests/voice/e2e/agent/deep_nav.py` | **Navegación REAL** (ejecución, V2-057): escala un objetivo de marketplace con `execute=true` → el server lanza un Brain Worker que CONDUCE el navegador contra el sitio VIVO → observa el timeline (fases·tocó el sitio·extrajo anuncios·entrega·verificación). LENTO, toca sitios vivos (1-3 min c/u) → pocos, como prueba e2e. | `PYTHONPATH=. .venv/bin/python tests/voice/e2e/agent/deep_nav.py idealista` · o `… deep_nav.py coches 150` · `all` para todos |
+| `tests/voice/e2e/agent/chat_convo.py` | **Canal CHAT (voz OFF, V2-054)** — conversación MULTI-TURNO headless: sesión persistente del probe (la ventana se conserva) → verifica que la charla por TEXTO se mantiene COHERENTE, arrastra el CONTEXTO de turnos previos, no degenera/buclea, enruta un dato factual en medio → `search` y vuelve a charla, y responde rápido (< 3.5 s). Es el lado CEREBRO/CONVERSACIÓN del canal sin voz (el mecanismo audio-OFF a nivel LiveKit = escenario de voz, T1.4). Complementa al escenario single-shot `chat`. | `.venv/bin/python -m tests.voice.e2e.agent.chat_convo` · o hilos sueltos: `… -m tests.voice.e2e.agent.chat_convo smalltalk context` |
 
 > **Doctrina (mar de testing, confirmada):** parchear verbo a verbo NO generaliza; ampliar verbos AMBIGUOS regresiona.
 > El techo determinista (fraseo indirecto/deseo sin verbo — «me vendría bien un gadget», y elegir web_search sobre
@@ -74,7 +74,7 @@ FlashBrain/router/rails/tools/memoria-estado/Susurro sin STT/TTS. Ideales para b
 > marketplace/informe en el backstop de promesa, V2-057 2026-07-21) y deja el resto marcado.
 
 ## Notas de mantenimiento
-- Añadir un escenario: definirlo en `tester/scenarios.py` (dataclass `Scenario`) **y** aquí, en su grupo de
+- Añadir un escenario: definirlo en `tests/voice/e2e/agent/scenarios.py` (dataclass `Scenario`) **y** aquí, en su grupo de
   prioridad, indicando ✋ si requiere comparación humana de datos.
-- Rotación de la batería y del cron: `tester/run_battery.sh` (todos, con settle) y `tester/cron_tick.sh`
+- Rotación de la batería y del cron: `tests/voice/e2e/agent/run_battery.sh` (todos, con settle) y `tests/voice/e2e/agent/cron_tick.sh`
   (SCENARIOS[] round-robin). Mantener ambas listas al día si se añaden escenarios.

@@ -35,7 +35,7 @@ El canal de cluster (`connectors/meshkore`) NO escribía a memoria (reasoner sta
   FlashBrain; **`untrusted`** (peer de cluster/agente ajeno) NUNCA se inyecta en el prompt pasivo
   (`recent_short`/`salient_long` lo excluyen) — anti prompt-injection; solo aflora por consulta EXPLÍCITA.
 - **Mensajería real** (`connectors/messaging/store`) migrada al primitivo → WhatsApp/Telegram quedan indexados.
-- **Tests**: 4 unit (`tests/integration/memory/test_api.py`) + 5 tandas del bot (BATCH_30-34, 290→324):
+- **Tests**: 4 unit (`tests/memory/integration/test_api.py`) + 5 tandas del bot (BATCH_30-34, 290→324):
   multi-fuente básico, cluster (Zalo) + agente, cross-source por entidad, hecho durable desde mensaje, escalado a
   fuentes futuras (email/linkedin/x), cuarentena. Verde.
 
@@ -50,7 +50,7 @@ El canal de cluster (`connectors/meshkore`) NO escribía a memoria (reasoner sta
   OFF-HOT-PATH — el reasoner **sigue stateless** (no gana estado ni capacidades; es pura observación). Contenido
   REDACTADO (secretos) y handles neutralizados antes de persistir. `dispatch`/`_route_reply` devuelven el saliente
   REALMENTE enviado (post-guard) para registrar lo que zaelar dijo. Superficie de seguridad: `MESHKORE_MEMORY=0` lo
-  apaga. `ingest_message` extendido con `slot` (la síntesis evolutiva). Tests: `connectors/meshkore/test_mem_ingest.py`
+  apaga. `ingest_message` extendido con `slot` (la síntesis evolutiva). Tests: `tests/cluster/unit/test_mem_ingest.py`
   (4 unit: síntesis cuarentenada, evolutiva/supersede, fail-open acotado, off por flag) + bot BATCH_37 (step nuevo
   `cluster_exchange`). Encaja con V2-010 (enrutado seguro del canal de cluster).
 - [ ] T171 — **Voz como fuente tipada**: hoy la voz entra por `ingest_utterance` (el CORAZÓN). Evaluar si el turno

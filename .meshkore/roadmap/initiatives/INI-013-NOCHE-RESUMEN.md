@@ -32,7 +32,7 @@ Lee esto primero por la mañana. Detalle por iteración: `git log` (13 commits, 
 3. **Menor**: traza `/events` es global al proceso; filtrar por room/session_id si molesta (impacto bajo en el bucle).
 
 ## Cómo seguir
-- `bash tester/guard.sh` levanta zaelar + bucle. Informes en `tester/runs/report_*.md` (WAV/logs gitignored).
+- `bash tests/voice/e2e/agent/guard.sh` levanta zaelar + bucle. Informes en `tests/voice/e2e/agent/runs/report_*.md` (WAV/logs gitignored).
 - Config de test en `.env` (FAST_*=DeepSeek override; #TEST-OFF# = diseño local Ollama) + `config/settings.json`
   (kokoro_local + ef_dora). Claves en `.meshkore/credentials/tester.env`. Observabilidad: `zaelar-observability.md`.
 
@@ -67,7 +67,7 @@ Nota menor: a "ponme el reloj en pantalla" zaelar respondió la hora en vez de [
 
 ## Captura de respuestas de VOZ afinada (2026-07-07)
 Los timeouts "(vacío)" en voz eran el tester no capturando la respuesta de zaelar (STT Deepgram dropea + la traza SSE
-llega con lag tras wait_reply). Fix en `tester/run.py`: `zaelar_reply` ahora SONDEA la traza hasta ~4s si viene vacío,
+llega con lag tras wait_reply). Fix en `tests/voice/e2e/agent/run.py`: `zaelar_reply` ahora SONDEA la traza hasta ~4s si viene vacío,
 en vez de declarar falso timeout. Verificado en widget-voz: zaelar capturado ("Alex, te pongo el reloj ya") + widget
 disparó (frontend: ['widget:show']). Los informes de VOZ ya reflejan el comportamiento real de zaelar. Queda ruido de
 STT-sobre-STT (tester Deepgram-Aura → whisper de zaelar a veces garbla un turno) — inherente, el juez lo tolera.

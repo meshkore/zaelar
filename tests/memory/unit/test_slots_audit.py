@@ -2,7 +2,7 @@
 # test_slots_audit.py — auditoría de memoria 2026-07-14 (cierre del retest V2-038): registro canónico de slots,
 # supersede AUTO-CURATIVO multi-fila, saneo de slots legacy en el consolidador, contrato v2 del procesador
 # (`value`/`change`), y la vía de escritura EXTERNA con gates (`remember_external`).
-# Sin red (embeddings hash) ni LLM (MEM_PROCESSOR=0). Ejecutar: .venv/bin/pytest tests/unit/memory/test_slots_audit.py
+# Sin red (embeddings hash) ni LLM (MEM_PROCESSOR=0). Ejecutar: .venv/bin/pytest tests/memory/unit/test_slots_audit.py
 #
 import asyncio
 
@@ -61,6 +61,15 @@ def test_prompt_catalog_reaches_processor_prompt():
     from nucleo import mem_processor
     assert "{SLOT_CATALOG}" not in mem_processor._SYSTEM          # el placeholder se sustituyó
     assert "operator.location" in mem_processor._SYSTEM           # con el catálogo real del registro
+
+
+def test_prompt_preserves_multi_fact_incidents_and_keeps_daily_noise_ephemeral():
+    from nucleo import mem_processor
+    assert "emergencia" in mem_processor._FEWSHOT_USER_7.lower()
+    assert '"dest":"long","kind":"event"' in mem_processor._FEWSHOT_ASSISTANT_7
+    assert "café" in mem_processor._FEWSHOT_USER_8.lower()
+    assert '"dest":"short","kind":"event"' in mem_processor._FEWSHOT_ASSISTANT_8
+    assert '"ttl_days":7' in mem_processor._FEWSHOT_ASSISTANT_8
 
 
 # ── writer: alias + supersede auto-curativo ────────────────────────────────────────────────────────────────

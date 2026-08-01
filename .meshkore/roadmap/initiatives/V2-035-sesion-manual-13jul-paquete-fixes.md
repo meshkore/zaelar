@@ -240,7 +240,7 @@ premisa (totalizadores de tamaño/tokens para distinguir «lento por el modelo»
   se descartaba respondiéndose a sí mismo); cancelación por barge-in observable (no reinyecta respuesta vieja).
 - **FASE 3 — contención**: tracker `busy` (corazon/embed/rerank) en el observer; el turno adjunta `busy_at_start`/
   `contended` al `reply` → correlaciona si el TTFT (cloud) sube bajo carga LOCAL (⇒ sería CPU/event-loop, no GPU).
-- **FASE 4 — bench de inteligencia**: `tester/model_bench.py` + 5 turnos DUROS (meta/contradicción/no-buscar/
+- **FASE 4 — bench de inteligencia**: `tests/voice/e2e/agent/model_bench.py` + 5 turnos DUROS (meta/contradicción/no-buscar/
   no-actuar/introspección) puntuados APARTE del TTFT (`🧠 intel`) + tamaño de prompt por turno.
 - **FASE 5 — optimización de tools**: el catálogo pesaba 11.313 chars (descripciones-ensayo con referencias cruzadas
   + 2 tools situacionales enviadas siempre). Descripciones condensadas (−34%, conservando reglas de bugs) + SET

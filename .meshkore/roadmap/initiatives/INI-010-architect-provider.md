@@ -36,7 +36,7 @@ el cockpit. Lo que el daemon produce puede quedarse en su repo o adoptarse despu
 - Brief inyectado en el kickoff de voz (`voice/agent.py`) y en el system por-turno del duo (`brains/duo/prompt.py`).
 - Config en `.env`: `ARCHITECT_URL`, `ARCHITECT_TOKEN` (rotable desde el cockpit), `ARCHITECT_PARENT`,
   `ARCHITECT_ASK_TIMEOUT` (documentado en `config/.env.example`, sin valores).
-- Tests: `connectors/architect/test_architect.py` (7 casos — parsing/hold de tags, happy path, rechazo por
+- Tests: `tests/connectors/unit/architect/test_architect.py` (7 casos — parsing/hold de tags, happy path, rechazo por
   encargo en curso, status error, config ausente, brief sin token).
 
 ## Validación

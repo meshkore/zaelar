@@ -26,7 +26,7 @@ Actualizado:
   `BRAIN=…`, rutas por-brain montadas condicionalmente, self-update con health-check, cron nativo),
   connectors/meshkore (3er I/O), widgets (data.py off-loop + store versionado + harness), frontend (módulos ES
   sin build: core/services/components — ChatWall, StatusPanel, CronPanel, Notice, UpdateBanner… — y desktop),
-  config ⚙ (gates de T-15/T-16), importers/, harness/, observer con timing ⏱.
+  config ⚙ (gates de T-15/T-16), importers/, tests/agent_headless/harness/, observer con timing ⏱.
 - Claim "cero cross-imports" → "solo bridges guarded (brief, brain_notes, proactive)".
 - **Nota de seguridad del cluster** (resumen de alto nivel: tools denegadas en turnos de cluster, allowlist de
   tags, wrapping de entrada, escaneo de salida, loopback-only, wss, strict/fail-closed) apuntando a

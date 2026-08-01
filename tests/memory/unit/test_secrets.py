@@ -1,6 +1,6 @@
 #
 # test_secrets.py — detección FAIL-CLOSED de secretos (V2-060). Sin red, stdlib puro.
-# Ejecutar: .venv/bin/pytest tests/unit/memory/test_secrets.py
+# Ejecutar: .venv/bin/pytest tests/memory/unit/test_secrets.py
 #
 from memory import secrets
 

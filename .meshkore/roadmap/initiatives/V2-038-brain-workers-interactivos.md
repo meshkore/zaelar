@@ -846,7 +846,7 @@ Construido en 10 fases con commit por fase, sobre el baseline `v1.6.0` / tag `pr
 - **P7** frontend: reconcile desde /api/tasks + estado `waiting` en el ActivityStrip.
 - **P8** reset mata de verdad + apagado ordenado del lifespan + barrido de huérfanos.
 - **P9** generador de widgets unificado bajo WorkerSession (matable por token, contrato+validación intactos).
-- **P10** tests (router + `nucleo/workers/test_workers.py`, 74 verdes en flash+workers) + docs (§8, architecture.html, CLAUDE.md, cluster.yaml) + versión 1.6.0→1.7.0.
+- **P10** tests (router + `tests/agent_headless/unit/workers/test_workers.py`, 74 verdes en flash+workers) + docs (§8, architecture.html, CLAUDE.md, cluster.yaml) + versión 1.6.0→1.7.0.
 
 **Verificación en esta sesión:** imports de todos los módulos runtime OK; 74 tests flash+workers verdes; routing de backend (widget→generator, web→claude); política del act; resolve/inject/cancel; gating situacional de tools; backstop stop-work. **Pendiente de PRUEBA EN VIVO del operador** (el stack LiveKit + un worker real end-to-end no se ejecutó aquí). **Pendiente (equipo):** redibujar el SVG de nodos de `/architecture` al modelo Brain Workers (los sellos y las tablas ya están actualizados; la topología dibujada del SlowBrain sigue mostrando el modelo previo).
 
@@ -937,7 +937,7 @@ sin pasar el memory-workflow — por eso "creíamos no haber tocado la memoria".
 **Regresiones arregladas (P0/P1):**
 1. `dispatch.py:371` llamaba a `compose_task_context` (INEXISTENTE; typo de `compose_context`) con fail-open
    silencioso → TODOS los Brain Workers arrancaban SIN el bloque «CONTEXTO DE MEMORIA». Arreglado + warning +
-   guard en `nucleo/test_dispatch.py`.
+   guard en `tests/agent_headless/unit/test_dispatch.py`.
 2. `_tools_for` daba **`Bash` PELADO** a los workers web/code → el escritor único quedaba sin enforcement
    (un worker inducido por web hostil podía abrir la SQLite). Ahora Bash SOLO por los CLIs puente
    (`_BRIDGE_TOOLS`), como documentaba CLAUDE.md.
@@ -947,7 +947,7 @@ sin pasar el memory-workflow — por eso "creíamos no haber tocado la memoria".
    NUNCA toca `state`, slots de IDENTIDAD vetados, `meta.source="worker:<id>"`.
 4. Las tareas FALLIDAS escribían píldora mid («No pude completar la tarea») — el refactor P2 perdió el gate `ok`
    de `_deliver`. Restaurado (`workers/session.py`): solo el ÉXITO se recuerda; el fallo va por voz+[SISTEMA].
-5. `nucleo/test_dispatch.py` mockeaba la costura MUERTA (`agentes.get_agent`) → lanzaba un `claude` REAL y
+5. `tests/agent_headless/unit/test_dispatch.py` mockeaba la costura MUERTA (`agentes.get_agent`) → lanzaba un `claude` REAL y
    colgaba la suite. Reescrito contra `dispatch.get_backend` con un `_FakeBackend` (+ test de tarea fallida).
 **Cierre de FONDO del retest #2 (P2 — decisiones del equipo de memoria):**
 6. **Registro canónico de slots `memory/slots.py`** (SlotSpec: clave+alias+campo de state+flag identity): lo
@@ -970,7 +970,7 @@ sin pasar el memory-workflow — por eso "creíamos no haber tocado la memoria".
     (`v2.json §memory.mem_processor_model`, env fallback) y el SKIP-si-ocupado se sustituye por una **cola
     diferida corta** (serial en GPU — sin pileup; espera acotada `MEM_PROCESSOR_QUEUE_WAIT/[_MAX]`; solo al
     agotarse cae a heurística, de forma observable).
-**Tests:** 318 verdes (suite memory/nucleo/tests/bus completa) + `tests/unit/memory/test_slots_audit.py` nuevo
+**Tests:** 318 verdes (suite memory/nucleo/tests/bus completa) + `tests/memory/unit/test_slots_audit.py` nuevo
 (12 casos: alias, auto-curativo, heal, contrato v2, señal change end-to-end con LLM mockeado en CATALÁN,
 remember_external). Docs-sync: zaelar-memory.md + zaelar-memory-workflow.md (mapa 1a/1b con workers) + CLAUDE.md +
 diagrama Memoria de /architecture (writer auto-curativo + registro + workers como escritores + consolidador).

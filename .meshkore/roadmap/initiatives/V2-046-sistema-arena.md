@@ -176,7 +176,7 @@ widget) es la generalización final y se hace SOLO con medición de probe. P1 (g
 | T4 | **A1d** · Handler del provider (aplica ya + persiste off-loop `to_thread`; la retirada suelta también la directiva de sesión) + PARIDAD probe (gated a `ingest`) | ✅ done 2026-07-16 |
 | T5 | **A1e** · Tests: `test_compose_state` (render/byte-idéntico/dedup/cap/retirada difusa/no-retirada-falsa) + `test_router` (guard) — 91/91 verde | ✅ done 2026-07-16 |
 | T6 | **A1f** · Docs-sync: CLAUDE.md, `zaelar-architecture.md §8`, `zaelar-memory.md §Capas`, diagrama `/architecture` (fila de la tool + sellos de ambas pestañas, JS validado) | ✅ done 2026-07-16 |
-| T7 | **A1g** · Verificación EN VIVO por el probe (regla → persiste + viaja en el prompt de OTRA sesión; «olvida esa regla» → se retira; NUNCA mudo — se arregló el turno de retirada mudo con ack `style_fired`) + ciclo permanente `user_rules_cycle` en `tester/loop_cycle.py` (3/3) | ✅ done 2026-07-16 |
+| T7 | **A1g** · Verificación EN VIVO por el probe (regla → persiste + viaja en el prompt de OTRA sesión; «olvida esa regla» → se retira; NUNCA mudo — se arregló el turno de retirada mudo con ack `style_fired`) + ciclo permanente `user_rules_cycle` en `tests/voice/e2e/agent/loop_cycle.py` (3/3) | ✅ done 2026-07-16 |
 | T8 | **D1** · Rail declarado por `manifest.json` (guía `_GUIDANCE` + kinds declarables por widget) | backlog (OK del operador) |
 | T9 | **D2** · Tools declaradas por widget (medir presupuesto de prompt con probe; permitiría des-nativizar play_music/play_video) | backlog |
 | T10 | **D3** · Aprendizaje por uso (writeback → afina la conducción del rail) · **D4** · endurecer el ciclo modify | backlog |

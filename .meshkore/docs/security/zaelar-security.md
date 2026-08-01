@@ -194,10 +194,10 @@ operator-granted permission AND an operator-set objective, with a real PreToolUs
 2026-07-26). `guard_code_
 outbound` also gained an accumulation-by-destination check (audit fix 2026-07-26): before, a large code dump split
 across several under-threshold messages bypassed the per-message pointer-replacement — it's now tracked in a short
-rolling window per `(cluster, to)`. Tests: `connectors/meshkore/test_security.py` (51 cases;
+rolling window per `(cluster, to)`. Tests: `tests/cluster/unit/test_security.py` (51 cases;
 each INI-007 fix ships with an adversarial regression test that is red against the pre-fix code and green after —
-run `./.venv/bin/python -m pytest connectors/meshkore/test_security.py -q`). The XSS regression for the agenda
-widget lives in `widgets/agenda/test_xss.mjs` (node, DOM shim).
+run `./.venv/bin/python -m pytest tests/cluster/unit/test_security.py -q`). The XSS regression for the agenda
+widget lives in `tests/browser/unit/agenda/test_xss.mjs` (node, DOM shim).
 
 ## Architect provider channel (`connectors/architect/`)
 

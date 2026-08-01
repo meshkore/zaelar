@@ -155,7 +155,7 @@ dedicado, aislamiento, scraping) — es la única parte donde Docker es aceptabl
 
 ## Testing (acordado 2026-07-06 — a la espera de la spec del operador)
 
-Lo que hay: `make test` (integrity/health), `harness/` bot-vs-bot + juez (cerebro a nivel de TEXTO, sin audio).
+Lo que hay: `make test` (integrity/health), `tests/agent_headless/harness/` bot-vs-bot + juez (cerebro a nivel de TEXTO, sin audio).
 Falta y se hará: un **agente de audio de prueba** — 2º participante LiveKit que HABLA guiones (TTS) y ESCUCHA
 (STT) a zaelar por el stack real; reutiliza la infra de providers del motor. Dimensiones a evaluar (las 4, por
 decisión del operador): **latencia** (ttft/ttfb de las métricas LiveKit), **turn-taking/barge-in** (pausa no corta,

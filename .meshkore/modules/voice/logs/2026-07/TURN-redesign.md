@@ -40,13 +40,13 @@ cada "barge-in armed" acababa en "FIRED".
 
 ## Ficheros
 
-`voice/endpointing.py` (nuevo) · `voice/turn_control.py` (rediseño) · `voice/test_endpointing.py` (nuevo) ·
+`voice/endpointing.py` (nuevo) · `voice/turn_control.py` (rediseño) · `tests/voice/unit/test_endpointing.py` (nuevo) ·
 `voice/agent.py` · `frontend/app/services/{vad,session}.js` (diagnóstico: pérdidas de señal de turno y muerte del
 data channel quedan en el timeline — así se cazó la causa).
 
 ## Verificación
 
-`voice/test_endpointing.py`: **9 tests que reproducen las secuencias reales** de la sesión 20:28 (troceo a 0.7s,
+`tests/voice/unit/test_endpointing.py`: **9 tests que reproducen las secuencias reales** de la sesión 20:28 (troceo a 0.7s,
 "Gracias" a 600ms de voz, stop perdido, comando corto, divagación larga) — 9/9 en verde. Smoke de integración del
 broker: 1 idea con pausa = 1 solo commit; backchannel sobre el bot = 0 cortes. Sistema reiniciado y corriendo.
 

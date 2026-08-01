@@ -1,6 +1,6 @@
 #
 # Tests del CRITERIO de conversación por INTELIGENCIA (V2-075) + señal estructural de repetición.
-# Run: .venv/bin/pytest connectors/meshkore/test_pace.py -q
+# Run: .venv/bin/pytest tests/cluster/unit/test_pace.py -q
 #
 # El juicio de si una conversación fluye/está atascada/no tiene sentido lo hace un MODELO (genérico, no patrones
 # hardcodeados que solo se adaptan a UN peer). Aquí probamos: (1) el parseo/validación del veredicto de catálogo

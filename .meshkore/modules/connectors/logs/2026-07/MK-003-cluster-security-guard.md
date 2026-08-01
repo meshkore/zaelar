@@ -44,14 +44,14 @@ El system message del path `direct` incorpora la postura de seguridad. Para Herm
 `.meshkore/docs/ops/hermes-MEMORY.seed.md` (no se toca `~/.hermes/memories/MEMORY.md`, perfil personal).
 
 ## Ficheros tocados
-- `connectors/meshkore/security.py` (nuevo), `connectors/meshkore/test_security.py` (nuevo)
+- `connectors/meshkore/security.py` (nuevo), `tests/cluster/unit/test_security.py` (nuevo)
 - `connectors/meshkore/bridge.py`, `brains/reasoner.py`
 - `.meshkore/docs/security/zaelar-security.md`, `.meshkore/docs/ops/hermes-MEMORY.seed.md`
 - `.meshkore/public/cluster.yaml` (version 0.5.0 → 0.6.0; descripción del módulo connectors)
 - `.meshkore/roadmap/initiatives/INI-005-meshkore-connector.md`, `CLAUDE.md`
 
 ## Verificación (2026-07-01)
-- `pytest connectors/meshkore/test_security.py -q` → 15 passed (bloqueo de tokens/keys/IBAN/tarjeta, redacción de
+- `pytest tests/cluster/unit/test_security.py -q` → 15 passed (bloqueo de tokens/keys/IBAN/tarjeta, redacción de
   `did:key`/términos env, modelo NO redactado, passthrough de texto limpio, postura off).
 - Smoke: `import bridge/security/reasoner` OK; se comprueba que en el prompt armado el contenido del peer va dentro
   de `⟦UNTRUSTED⟧` y el trailer de seguridad es el bloque final.

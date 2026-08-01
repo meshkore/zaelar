@@ -51,7 +51,7 @@ estructurado y lo aplicamos de forma determinista.
 
 ## Testing
 
-`connectors/meshkore/test_pact.py` (15): parseo del tag, saneado al vocabulario cerrado (descarta basura, clampa
+`tests/cluster/unit/test_pact.py` (15): parseo del tag, saneado al vocabulario cerrado (descarta basura, clampa
 cadencia), jerarquía operador>peer, cadencia real (cuenta atrás), composición del bloque. **Nodo 6.6** del mapa de
 tests. 153/153 (meshkore+voz) verdes.
 

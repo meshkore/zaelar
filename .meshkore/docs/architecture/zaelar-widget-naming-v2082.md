@@ -182,13 +182,13 @@ email, mail`; y garantizar que `chat` (sistema) NO comparte ninguno → caso de 
 
 ## 8. Testing
 
-- Unit `widgets/test_resolver_certainty.py`: (a) frase sin nombre/alias registrado → `None` (no hijack);
+- Unit `tests/browser/unit/widgets/test_resolver_certainty.py`: (a) frase sin nombre/alias registrado → `None` (no hijack);
   (b) alias exacto → ese widget; (c) errata de voz sobre alias ("wasap") → mensajeria; (d) chat vs mensajeria
   desambiguados; (e) empate open>recent.
-- Unit `widgets/test_aliases.py`: add/remove, colisión rechazada, colisión con sistema rechazada,
+- Unit `tests/browser/unit/widgets/test_aliases.py`: add/remove, colisión rechazada, colisión con sistema rechazada,
   invalidación de caché.
 - `test_router.py`: nueva tool `manage_widget_alias` en el set esperado.
-- Paridad provider/probe: escenario en `tests/e2e/agent/scenarios.py` ("aliases") + "abre por nombre/alias".
+- Paridad provider/probe: escenario en `tests/voice/e2e/agent/scenarios.py` ("aliases") + "abre por nombre/alias".
 - `make test-widgets` (golden) + los 201 existentes verdes.
 
 ## 9. Docs

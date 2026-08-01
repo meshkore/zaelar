@@ -28,7 +28,7 @@ ahora modela la convención.
 
 ## Verificación (adversarial — rojo pre-fix, verde post-fix)
 
-`widgets/agenda/test_xss.mjs` (node, shim DOM mínimo que registra cualquier escritura a `innerHTML`): con un
+`tests/browser/unit/agenda/test_xss.mjs` (node, shim DOM mínimo que registra cualquier escritura a `innerHTML`): con un
 payload `<img src=x onerror=alert(1)>` en label/coaching/warnings/date/etc. → **0 escrituras a innerHTML** y el
 payload aparece como `textContent` en 7 nodos. Confirmado que FALLA contra el widget.js pre-fix (registraba
 escrituras a innerHTML). `make test-widgets` → agenda golden estable (8 keys) + parsea; `/widgets/agenda/data`
