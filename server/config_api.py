@@ -216,3 +216,40 @@ async def get_apis(refresh: bool = False):
         return JSONResponse({"apis": balances.summary(refresh=refresh), "alerts": balances.alerts(refresh=refresh)})
     except Exception as e:  # noqa: BLE001
         return JSONResponse({"apis": [], "alerts": [], "error": str(e)[:120]})
+
+
+# ── Conectores (V2-083) — registro único + control de los que se autentican por TOKEN dinámico ──────────────
+@router.get("/api/connectors")
+async def get_connectors():
+    """Inventario ÚNICO de conectores (mensajería/música/infra) con estado + config REDACTADA — para la pestaña
+    Conectores. Las escrituras van por los endpoints de cada familia (`/api/messaging/*`, `/api/spotify/*`,
+    `/api/meshkore/*`) + los de architect de aquí abajo."""
+    try:
+        from connectors import registry
+        return JSONResponse({"connectors": registry.descriptors()})
+    except Exception as e:  # noqa: BLE001
+        return JSONResponse({"connectors": [], "error": str(e)[:160]})
+
+
+@router.post("/api/connectors/architect/connect")
+async def architect_connect(payload: dict):
+    """Fija el TOKEN (y url opcional) del daemon Architect en el store DINÁMICO (config/connectors.json), NO en
+    .env — configurable/revocable desde la UI. El token es secreto (se redacta al leer)."""
+    from config import connectors as cfg
+    tok = str((payload or {}).get("token") or "").strip()
+    if not tok:
+        return JSONResponse({"ok": False, "error": "token vacío"}, status_code=400)
+    patch = {"token": tok, "enabled": True}
+    url = str((payload or {}).get("url") or "").strip()
+    if url:
+        patch["url"] = url
+    cfg.set("architect", patch)
+    return JSONResponse({"ok": True, "id": "architect", "config": cfg.public("architect")})
+
+
+@router.post("/api/connectors/architect/disconnect")
+async def architect_disconnect():
+    """REVOCA el token de Architect (lo borra del store). Deja el conector desconectado."""
+    from config import connectors as cfg
+    cfg.set("architect", {"token": "", "enabled": False})
+    return JSONResponse({"ok": True, "id": "architect", "config": cfg.public("architect")})

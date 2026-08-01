@@ -25,10 +25,27 @@ class ArchitectBusy(ArchitectError):
 
 
 def base_url() -> str:
+    # V2-083: store dinámico manda (configurable desde Conectores); env como fallback power-user; default loopback.
+    try:
+        from config import connectors as _cfg
+        u = str((_cfg.get("architect") or {}).get("url") or "").strip()
+        if u:
+            return u.rstrip("/")
+    except Exception:
+        pass
     return os.getenv("ARCHITECT_URL", "https://127.0.0.1:5573").rstrip("/")
 
 
 def token() -> str:
+    # V2-083: el token vive en el store dinámico de conectores (config/connectors.json), gestionable/revocable desde
+    # la pestaña Conectores. `.env` (ARCHITECT_TOKEN) queda solo como fallback power-user/headless.
+    try:
+        from config import connectors as _cfg
+        t = str((_cfg.get("architect") or {}).get("token") or "").strip()
+        if t:
+            return t
+    except Exception:
+        pass
     return (os.getenv("ARCHITECT_TOKEN") or "").strip()
 
 

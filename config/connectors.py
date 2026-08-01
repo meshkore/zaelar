@@ -30,9 +30,12 @@ _DEFAULTS = {
     "telegram": {"enabled": False, "api_id": "", "api_hash": ""},    # Telegram: api_id/api_hash de my.telegram.org
     "email": {"enabled": False, "email_address": "", "email_password": "", "provider": "",   # V2-051: IMAP/SMTP
               "imap_host": "", "imap_port": 0, "smtp_host": "", "smtp_port": 0, "autoreply": False},
+    # V2-083: el token del daemon Architect vive AQUÍ (store dinámico), NO en .env — configurable/revocable desde
+    # la pestaña Conectores. `url` opcional (default loopback). `token` es SECRETO (se redacta al frontend).
+    "architect": {"enabled": False, "token": "", "url": ""},
 }
 # Claves que NUNCA se devuelven al frontend (se sustituyen por un booleano `<key>_set`). Fail-safe de privacidad.
-_SECRET_KEYS = {"api_hash", "email_password"}
+_SECRET_KEYS = {"api_hash", "email_password", "token"}
 # env var que hace de FALLBACK del flag `enabled` cuando el store no dice nada (back-compat / power-user).
 _ENABLED_ENV = {"whatsapp": "WA_ENABLED", "telegram": "TG_ENABLED", "email": "EMAIL_ENABLED"}
 
