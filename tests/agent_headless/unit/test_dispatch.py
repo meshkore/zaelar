@@ -100,6 +100,13 @@ def test_dispatch_composes_prompt_with_memory_context(fresh_db, fake_backend, mo
     monkeypatch.setenv("CODE_AGENT_MODEL_CODE", "modelo-de-tarea")
     import config.v2 as v2
     monkeypatch.setattr(v2, "_PATH", Path("/nonexistent/v2.json"))
+    # El modelo por invocación solo manda mientras NO haya relevo de proveedor, y la cadena decide si hay relevo
+    # mirando `os.environ`. En la batería completa alguien carga el credential store real antes que este fichero
+    # → aparecía una key de proveedor, la cadena creía estar relevada y el modelo de tarea se perdía: el test
+    # fallaba solo por el ORDEN. Aquí no se prueba el relevo, así que el entorno de credenciales va vacío.
+    from nucleo.workers import providers as _prov
+    for _var in {e for t in _prov.KNOWN for e in t.get("env", ())}:
+        monkeypatch.delenv(_var, raising=False)
 
     task = dispatch.Task(id="t1", request="arregla el bug de arranque", kind="code", trusted=True)
     asyncio.run(dispatch.dispatch(task))

@@ -112,6 +112,26 @@ def test_tool_catalog_is_constant_sized(monkeypatch):
     assert grown == base
 
 
+# Techo del catálogo (2026-08-02). O(1) no basta: la constante puede crecer sola, y ya lo hizo — llegó a 31.647
+# chars (~7,9k tokens EN CADA TURNO, incluido «hola»), con el 70% en prosa. Tras compactarlo son 18.926. La norma
+# del operador es «las tools, de menos a más»: un modelo de lenguaje ya sabe qué es un reproductor de música, así
+# que la descripción solo lleva qué hace + las FRONTERAS contra NUESTRAS otras tools. Este techo obliga a que
+# añadir una tool nueva pase por recortar, no por engordar el turno de todos. Si hay que subirlo, que sea una
+# decisión con su medición al lado (`tests/agent_headless/e2e/prompt_cost/bench_fast_model.py`, nodo 2.13).
+MAX_CATALOG_CHARS = 21_000
+
+
+def test_tool_catalog_stays_compact():
+    import json as _json
+    size = len(_json.dumps(router.TOOLS, ensure_ascii=False))
+    assert size <= MAX_CATALOG_CHARS, (
+        f"el catálogo de tools ha crecido a {size} chars (techo {MAX_CATALOG_CHARS}). Compacta descripciones "
+        f"antes de subir el techo: se paga en CADA turno de voz.")
+    # Ninguna tool suelta debe acaparar el catálogo: la que más pesa es la de escalada y aun así cabe holgada.
+    worst = max(router.TOOLS, key=lambda t: len(_json.dumps(t, ensure_ascii=False)))
+    assert len(_json.dumps(worst, ensure_ascii=False)) <= 2_000, worst["function"]["name"]
+
+
 def test_decide_worker_tools():
     assert router.decide("send_to_worker", {"which": "la moto", "message": "verde"}).kind == INJECT
     assert router.decide("stop_worker", {"which": "el widget"}).kind == STOP

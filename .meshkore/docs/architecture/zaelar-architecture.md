@@ -599,6 +599,25 @@ probe (`nucleo/flash/probe.py`) build the same context so `make flash` mirrors r
 condensed** (V2-035) but keep the routing rules that came from real bugs (reminder-simple = no tool,
 no-duplicate-task, no-answer-then-search, login-vs-task); those are marked in `router.py` comments.
 
+**Description compaction (2026-08-02, operator request).** The catalog had grown to 31,647 chars, **70 % of it
+prose**, and it shipped on every turn. The operator's rule: *«hay que tratar las tools de menos a más como norma…
+un modelo de lenguaje ya sabe lo que es un player de música»*. So every description was rewritten terse, keeping
+only (a) what the tool does, in one clause, and (b) the **boundaries against OUR other tools** plus the hard rules
+that came from real bugs — the only things a model cannot infer. Dropped: example lists, restatements, historical
+narrative. The Python **comments stay**: they cost no tokens and hold the why. Result **31,647 → 18,926 chars
+(-41 %)**, ~7.9k → ~4.7k tokens per turn.
+
+Measured, not assumed (`tests/agent_headless/e2e/prompt_cost/bench_fast_model.py`, 3 rounds × 12 routing cases
+against the REAL composed prompt): `deepseek-v4-flash` scored **35/36 with the full catalog and 36/36 with the
+compact one** — routing did not regress, it improved, and the escalation turn dropped from ~10 s to ~6.4 s median.
+The saving is mostly COST (input tokens every turn, no provider-side caching), which is why compaction is the
+norm and not a one-off.
+
+> **Do NOT split the catalog into two calls.** Measured the same day: an index-only first pass (9,729 → 1,221
+> tokens) followed by a second call carrying the chosen tool costs **2-4× more wall-clock** (búsqueda 1,938 →
+> 6,208 ms), because prompt size is worth ~150 ms of a turn while each round trip costs 1.5-4.5 s. Weight and
+> latency are different problems; compaction fixes the first, a second round trip makes the second worse.
+
 **V2-085 adds three CAPABILITY gates** — `reply_message` (a messaging connector is enabled), `reveal_secret` (a
 vault exists), `play_video` (the `youtube` widget is in the catalog). All **fail-OPEN**: if the probe raises, the
 tool is offered anyway — a monitoring glitch must never silently take a capability away from the operator.
@@ -613,8 +632,9 @@ tool is offered anyway — a monitoring glitch must never silently take a capabi
 **Tool families + budget observability (V2-085).** `router.FAMILIES` classifies every tool (core · widgets ·
 workers · cluster · messaging · media · web · memory) and `router.tools_report(offered)` returns the per-turn
 breakdown (`n_tools_offered`, `sz_tools`, `tool_families`, `tools_omitted`) into `llm_metrics`. **Measured
-2026-08-01:** the full catalog is 22 tools / 29,659 chars; the typical gated turn is 15 tools / 22,522 chars; with
-no messaging, no vault and no youtube widget, 12 tools / 18,868 chars. Note the catalog is **O(1)** — it does NOT
+2026-08-02 (after the compaction below):** the full catalog is 23 tools / 18,926 chars; the typical gated turn is
+17 tools / 15,486 chars; with no messaging, no vault and no youtube widget, 14 tools / 13,220 chars. Note the
+catalog is **O(1)** — it does NOT
 grow with the widget catalog, so it is a fixed per-turn cost, not the scalability bottleneck (that one is §3b).
 `test_router.py::test_tool_catalog_is_constant_sized` pins this: if a tool ever starts enumerating widgets in its
 description, the test fails.

@@ -24,6 +24,11 @@ def _clean(monkeypatch):
     monkeypatch.setattr(prov, "_loaded", True)          # sin tocar la memoria real
     monkeypatch.setattr(prov, "_save", lambda: None)
     monkeypatch.setattr(prov, "_is_container", lambda: False)
+    # La cadena mira `os.environ` para saber qué escalón EXISTE. En la batería completa alguien carga el
+    # credential store real antes que este fichero → aparecía una `Z_AI_API_KEY` de verdad y dos tests fallaban
+    # solo por el ORDEN (pasaban sueltos). El entorno de credenciales lo fija cada test, nunca la máquina.
+    for _var in {e for t in prov.KNOWN for e in t.get("env", ())}:
+        monkeypatch.delenv(_var, raising=False)
     yield
 
 

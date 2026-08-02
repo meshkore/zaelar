@@ -301,6 +301,35 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 
 ## Decisiones clave
 
+- **Las tools, de menos a más (2026-08-02, norma del operador)**: el catálogo de `router.TOOLS` había llegado a
+  **31.647 chars, el 70% prosa**, y viaja ENTERO en cada turno — también en el que solo dice «hola». La norma que
+  fija el operador: *«un modelo de lenguaje ya sabe lo que es un player de música; dile que tienes un widget de
+  música con play/stop y punto»*. Aplicada: cada descripción se reescribió terse dejando solo (a) qué hace, en una
+  cláusula, y (b) las **fronteras contra NUESTRAS otras tools** y las reglas duras nacidas de bugs reales — lo
+  único que el modelo no puede deducir. Fuera: listas de ejemplos, repeticiones, narrativa histórica. Los
+  COMENTARIOS de Python se quedan (no cuestan tokens y guardan el porqué). **31.647 → 18.926 chars (−41%)**, ~7,9k
+  → ~4,7k tokens por turno, con techo fijado en `test_router.py::test_tool_catalog_stays_compact` (21.000) para
+  que añadir una tool obligue a recortar, no a engordar el turno de todos.
+  - **Medido, no supuesto** (`tests/.../prompt_cost/bench_fast_model.py`, nodo 2.13, 3 rondas × 12 casos contra el
+    prompt REAL compuesto por `prompt.build_flash_system`): el enrutado **no empeoró, mejoró** — `deepseek-v4-flash`
+    35/36 con el catálogo completo, **36/36 con el compacto**; el turno de escalada bajó de ~10 s a ~6,4 s.
+  - **NO partir el catálogo en dos peticiones** (idea razonable que la medición tumba): un índice de una línea por
+    tool baja el prompt de 9.729 a 1.221 tokens, pero el turno pasa de 1.938 a **6.208 ms**. El tamaño del prompt
+    vale ~150 ms; cada ida y vuelta cuesta 1,5-4,5 s. **Peso y latencia son problemas distintos**: compactar
+    arregla el primero, un segundo viaje empeora el segundo.
+- **El FlashBrain se queda en DeepSeek V4 Flash — y la latencia NO es del prompt (2026-08-02)**: ante turnos de
+  6-15 s se barrieron 11 candidatos contra el prompt real (nodo 2.13). **DeepSeek es el ÚNICO que enruta 12/12**;
+  los veloces enrutan peor (gpt-4.1-mini 9/12 y confunde escalada con `web_search`, gemini-3.5-flash-lite 2/12,
+  mistral-medium 10/12) y cambiar por ellos regala velocidad a cambio de que el agente haga lo que no es. No hay
+  cola ni contención: 4 peticiones a la vez no degradan a nadie (×0,9-1,6).
+  - **La causa real: DeepSeek V4 Flash RAZONA aunque se le pida que no**, y la VOZ es no-razonadora por invariante
+    duro. Medido en el turno de escalada: sin flag, **2.489 chars de razonamiento / 700 tokens de salida / 8,7 s y
+    ni siquiera llama a la tool**; con `extra_body={"thinking":{"type":"disabled"}}` (lo que ya manda
+    `fast_client.py`) baja a 993 chars / 405 tokens / 4,7 s — **lo reduce, no lo apaga**. `reasoning_effort`
+    (none/minimal) lo rechaza AIMLAPI con 400; `enable_thinking`, `chat_template_kwargs` y `reasoning.enabled`
+    EMPEORAN (hasta 1.857 tokens / 20 s). Es decir: los segundos son tokens de pensamiento que el broker no deja
+    desactivar del todo. **Pendiente**: probar DeepSeek DIRECTO (`api.deepseek.com`, donde el parámetro es nativo)
+    — hoy no hay key. Ese es el siguiente paso de latencia, no tocar el catálogo ni el prompt.
 - **Dominios públicos → motor local (CERRADO 2026-07-22)**: `server/__main__.py` arranca DOS listeners a la
   vez: el de siempre en `43917` (HTTP plano, para las bridges internas `nucleo/*_cli.py` — sin cambios) y
   uno adicional en `44317` sirviendo **HTTPS con un certificado compartido** (`certs/local.zaelar.com/`,
@@ -862,7 +891,9 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   (25.639 → 5.142 chars, sin `actions`/payload schemas/`usage`), manifests uno a uno por `/widgets/{id}/manifest`, y
   `?full=1` como escotilla ADMINISTRATIVA explícita (nunca el camino caliente); `?q=`/`?limit=` acotan server-side.
   `state.widget_registry` capado a 200 filas + marcador `_truncated` (hoy `compose_state` no lo incluye, pero "hoy no"
-  no es garantía). **Tools:** el catálogo de tools es **O(1)** (22 fijas, 29,7 KB) → NO es el cuello de botella; aun
+  no es garantía). **Tools:** el catálogo de tools es **O(1)** (23 fijas) → no crece con el catálogo de widgets;
+  pero O(1) NO quiere decir barato — la constante llegó a 29,7 KB y luego a 31,6 KB, y **se paga entera en cada
+  turno** (ver la decisión «Las tools, de menos a más», 2026-08-02: hoy 18,9 KB con techo en test). Aun
   así se poda por estado (V2-035 + 3 gates nuevos por CAPACIDAD REAL: `reply_message`/`reveal_secret`/`play_video`,
   todos fail-OPEN) y se clasifica en `router.FAMILIES` con `tools_report()` en `llm_metrics`. **Invariante DURO del
   gating:** un gate mira **ESTADO, jamás las palabras del turno**. **Medido después** (turno que no va de widgets):

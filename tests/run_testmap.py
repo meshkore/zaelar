@@ -98,6 +98,12 @@ DOMAINS: list[dict] = [
         {"id": "2.12", "title": "Coste del prompt: tools, dos-pasadas vs una, catálogo compacto", "ch": UNIT,
             "live": True,
             "cmd": "./.venv/bin/python -m tests.agent_headless.e2e.prompt_cost.bench_tools"},
+        # ¿Qué modelo rápido aguanta el turno de voz? Mide latencia, enrutado y ráfaga en paralelo contra el
+        # prompt REAL (compuesto con `prompt.build_flash_system`, no una maqueta). Repásalo al cambiar de modelo
+        # o de proveedor: es el que demostró que el candidato veloz de turno enruta peor que el que ya está.
+        {"id": "2.13", "title": "Modelo rápido: latencia + enrutado + paralelo (prompt real)", "ch": UNIT,
+            "live": True,
+            "cmd": "./.venv/bin/python -m tests.agent_headless.e2e.prompt_cost.bench_fast_model"},
         {"id": "2.9", "title": "Sandbox de ejecución ligero (V2-076)", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/test_sandbox.py"]},
         {"id": "2.10", "title": "Puente git acotado + dev worker (V2-076)", "ch": UNIT, "paths": [
