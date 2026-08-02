@@ -93,6 +93,11 @@ DOMAINS: list[dict] = [
             "tests/agent_headless/unit/susurro/test_phantom_dataop.py"]},
         {"id": "2.8", "title": "Búsqueda web (comportamiento)", "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/agent_headless/e2e/search/bot/runner.py"},
+        # Coste/latencia del PROMPT del turno, medido contra el modelo vivo. Responde con números —no con
+        # opinión— a «¿cuánto pesan las tools?» y «¿compensa partir el turno en dos peticiones?».
+        {"id": "2.12", "title": "Coste del prompt: tools, dos-pasadas vs una, catálogo compacto", "ch": UNIT,
+            "live": True,
+            "cmd": "./.venv/bin/python -m tests.agent_headless.e2e.prompt_cost.bench_tools"},
         {"id": "2.9", "title": "Sandbox de ejecución ligero (V2-076)", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/test_sandbox.py"]},
         {"id": "2.10", "title": "Puente git acotado + dev worker (V2-076)", "ch": UNIT, "paths": [
