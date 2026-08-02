@@ -730,6 +730,19 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   (cae al default); Cartesia es multilingüe (una voz + `language`). Un idioma solo entra al catálogo si tiene voz
   nativa verificada (hoy **es + en**). Los providers leen `langs.current_code()` (lee `ZAELAR_LANGUAGE`, que el ⚙
   escribe en caliente) → el cambio aplica **al reconectar**.
+- **UI multilingüe que se adapta a CUALQUIER idioma** (V2-089, subsistema `i18n/`; doc completa
+  `.meshkore/docs/architecture/zaelar-i18n.md`): la UI del frontend ya NO está hardcodeada — cada string pasa por
+  `t(key)` (reactivo) y sigue el idioma del operador. **Tres ejes:** exterior/clusters = **siempre inglés**;
+  operador↔agente = idioma del operador (cualquiera); UI = sigue al operador. **Best of both worlds:** `en` (base/
+  manifiesto) + `es` PRESET en `i18n/bundles/*.json`; cualquier OTRO idioma lo **genera un LLM al vuelo** la 1ª vez
+  que se habla y se **actualiza** en cada release (una sola función idempotente `i18n.init.prepare(code)` que diffea
+  por snapshot de inglés — misma ruta primer-uso y upgrade). **Autodetección** del idioma en el primer arranque
+  (`i18n/init/detect.py`: heurística de script no-latino + LLM para latino; STT en modo auto la 1ª vez) → fija
+  `ZAELAR_LANGUAGE` + genera bundle + evento SSE `language` → la UI cambia EN VIVO. **Principio arquitectónico:
+  INICIALIZACIÓN (`i18n/init/`, puede llamar LLM/STT, corre en boot/primer-uso/switch/upgrade) SEPARADA de la
+  EJECUCIÓN (`i18n/runtime.py`, hot path, barato, sin LLM).** `active_code()` (UI) lee `ZAELAR_LANGUAGE` crudo
+  (cualquier código), DESACOPLADO del catálogo de voz `langs` (es/en). El **matching de voz** (aliases/regex) es
+  es/en como ACELERADOR; el **router/resolver LLM es el mecanismo multilingüe** para idiomas no cubiertos.
 - **TTS local por hardware (Metal)** (`voice/engine/speech/tts/kokoro.py`): en Apple Silicon el TTS Kokoro corre
   **in-process por Metal** (`mlx-audio`, `ZAELAR_TTS_DEVICE=auto|metal|fastapi`) → ~0.3s al primer audio. `prewarm`
   carga el modelo Metal en el executor idle y el entrypoint lo reutiliza. mlx-audio tiene un **bug de shapes en su
