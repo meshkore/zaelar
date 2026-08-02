@@ -24,6 +24,9 @@ from loguru import logger
 
 _DEFAULTS = {
     "rem": ("https://api.openai.com/v1", "gpt-4.1-mini"),
+    # i18n (V2-089): traducción del UI a un idioma nuevo en la INICIALIZACIÓN (i18n/init). Off-hot-path, calidad
+    # importa (scripts no-latinos: árabe, chino, japonés…) → modelo fuerte por defecto. Override en config §memory.
+    "i18n": ("https://api.openai.com/v1", "gpt-4o"),
 }
 
 

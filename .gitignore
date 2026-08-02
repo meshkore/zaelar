@@ -86,4 +86,4 @@ bin/
 config/*.bak-*
 
 # generated i18n bundles (runtime, produced by the LLM per language)
-config/i18n/generated/
+i18n/generated/
