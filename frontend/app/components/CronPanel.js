@@ -7,6 +7,7 @@ import { createEffect } from "../core/reactive.js?v=2";
 import * as store from "../core/store.js?v=2";
 import * as api from "../services/api.js?v=2";
 import { CLOCK_ICON, REFRESH_ICON, CLOSE_ICON, TRASH_ICON } from "../lib/icons.js?v=1";
+import { t } from "../core/i18n.js?v=1";
 
 async function refresh() { const r = await api.cronList(); store.setCronJobs(r.jobs || []); }
 
@@ -26,32 +27,32 @@ export function CronPanel() {
   const row = (j) => h("div", { class: "cron-row" },
     h("div", { class: "cron-main" },
       h("div", { class: "cron-name" }, j.name || j.id),
-      h("div", { class: "cron-meta" }, `${j.schedule || "?"} · ${j.paused ? "paused" : (j.state || "active")}` +
-        (j.last_status ? ` · last: ${j.last_status}` : "")),
+      h("div", { class: "cron-meta" }, `${j.schedule || "?"} · ${j.paused ? t("cron.paused") : (j.state || t("cron.active"))}` +
+        (j.last_status ? ` · ${t("cron.last")}: ${j.last_status}` : "")),
       j.prompt ? h("div", { class: "cron-prompt" }, j.prompt) : null,
     ),
     h("div", { class: "cron-btns" },
-      h("button", { class: "cron-b hb-icbtn danger", title: "Delete", onClick: () => act("remove", j.id) }, raw(TRASH_ICON)),
+      h("button", { class: "cron-b hb-icbtn danger", title: () => t("cron.delete"), onClick: () => act("remove", j.id) }, raw(TRASH_ICON)),
     ),
   );
 
   return h("div", { class: () => "cronpanel" + (store.cronOpen() ? " open" : "") },
     h("div", { class: "cw-head" },
-      h("span", { class: "cw-title" }, raw(CLOCK_ICON), "Scheduled tasks"),
-      h("button", { class: "cw-x hb-icbtn", title: "Refresh", onClick: refresh }, raw(REFRESH_ICON)),
-      h("button", { class: "cw-x hb-icbtn", title: "Close", onClick: () => store.setCronOpen(false) }, raw(CLOSE_ICON)),
+      h("span", { class: "cw-title" }, raw(CLOCK_ICON), () => t("cron.title")),
+      h("button", { class: "cw-x hb-icbtn", title: () => t("cron.refresh"), onClick: refresh }, raw(REFRESH_ICON)),
+      h("button", { class: "cw-x hb-icbtn", title: () => t("cron.close"), onClick: () => store.setCronOpen(false) }, raw(CLOSE_ICON)),
     ),
     h("div", { class: "cron-list" },
       () => (store.cronJobs().length
         ? store.cronJobs().map(row)
-        : h("div", { class: "cron-empty" }, "No tasks yet. Tell zaelar “remind me…” or “let me know when…”, or add one below.")),
+        : h("div", { class: "cron-empty" }, () => t("cron.empty"))),
     ),
     h("div", { class: "cron-add" },
-      h("input", { ref: el => (schedEl = el), class: "cron-in", placeholder: "when (30m · every 2h · 0 9 * * *)" }),
-      h("input", { ref: el => (nameEl = el), class: "cron-in", placeholder: "name (optional)" }),
+      h("input", { ref: el => (schedEl = el), class: "cron-in", placeholder: () => t("cron.ph_when") }),
+      h("input", { ref: el => (nameEl = el), class: "cron-in", placeholder: () => t("cron.ph_name") }),
       h("textarea", { ref: el => (promptEl = el), class: "cron-in", rows: 2,
-        placeholder: "what to do/check and what to tell me (for conditions, have it reply [SILENT] when there's nothing to report)" }),
-      h("button", { class: "cron-create", onClick: add }, "Schedule"),
+        placeholder: () => t("cron.ph_prompt") }),
+      h("button", { class: "cron-create", onClick: add }, () => t("cron.schedule_btn")),
     ),
   );
 }

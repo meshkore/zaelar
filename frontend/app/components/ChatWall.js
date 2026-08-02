@@ -19,6 +19,7 @@ import * as api from "../services/api.js?v=2";
 import { makeResizable } from "../lib/resizable.js?v=1";
 import { CLOSE_ICON, TRASH_ICON } from "../lib/icons.js?v=1";
 import { renderMarkdownLite } from "../lib/markdown-lite.js?v=1";
+import { t } from "../core/i18n.js?v=1";
 
 const SEND_SVG = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>`;
 const FLOAT_KEY = "hb_chat_float", DOCK_KEY = "hb_chat_dock";
@@ -56,11 +57,11 @@ function placeWall(el) {
 function ago(ts) {
   if (!ts) return "";
   const s = Math.max(0, Date.now() / 1000 - Number(ts));
-  if (s < 60) return "now";
-  if (s < 3600) return Math.floor(s / 60) + "m ago";
-  if (s < 86400) return Math.floor(s / 3600) + "h ago";
+  if (s < 60) return t("chat.agoNow");
+  if (s < 3600) return t("chat.agoMinutes", { n: Math.floor(s / 60) });
+  if (s < 86400) return t("chat.agoHours", { n: Math.floor(s / 3600) });
   const d = Math.floor(s / 86400);
-  return d === 1 ? "yesterday" : d + "d ago";
+  return d === 1 ? t("chat.agoYesterday") : t("chat.agoDays", { n: d });
 }
 
 export function ChatWall() {
@@ -72,14 +73,14 @@ export function ChatWall() {
   const send = () => { if (!inputEl) return; submitChat(inputEl.value); inputEl.value = ""; inputEl.focus(); };
 
   // ── Pestaña PROCESOS: vivos (store.tasks, SSE) arriba + histórico (store.workerHistory, ledger) debajo ──────
-  const liveRow = (t) => {
-    const icon = t.waiting ? "waiting" : t.paused ? "paused" : "run";
-    const gl = t.waiting ? "⏳" : t.paused ? "⏸" : "●";
+  const liveRow = (task) => {
+    const icon = task.waiting ? "waiting" : task.paused ? "paused" : "run";
+    const gl = task.waiting ? "⏳" : task.paused ? "⏸" : "●";
     return h("div", { class: "cw-proc-row live " + icon },
       h("span", { class: "cw-proc-dot" }, gl),
       h("div", { class: "cw-proc-main" },
-        h("div", { class: "cw-proc-goal" }, t.text || "working…"),
-        h("div", { class: "cw-proc-meta" }, (typeof t.pct === "number" && t.pct >= 0 ? t.pct + "% · " : "") + "running"),
+        h("div", { class: "cw-proc-goal" }, task.text || t("chat.working")),
+        h("div", { class: "cw-proc-meta" }, (typeof task.pct === "number" && task.pct >= 0 ? task.pct + "% · " : "") + t("chat.running")),
       ),
     );
   };
@@ -91,7 +92,7 @@ export function ChatWall() {
       h("span", { class: "cw-proc-dot" }, gl),
       h("div", { class: "cw-proc-main" },
         h("div", { class: "cw-proc-goal" }, e.goal || e.kind || e.id),
-        h("div", { class: "cw-proc-meta" }, meta + (e.cron ? " · from cron «" + e.cron + "»" : "")),
+        h("div", { class: "cw-proc-meta" }, meta + (e.cron ? t("chat.fromCron", { name: e.cron }) : "")),
       ),
     );
   };
@@ -99,11 +100,11 @@ export function ChatWall() {
     const live = store.tasks() || [];
     const hist = (store.workerHistory() || []).filter(e => !live.some(t => String(t.id) === String(e.id)));
     if (!live.length && !hist.length) {
-      return h("div", { class: "cw-empty" }, "No processes yet. When the agent starts a job (a search, creating a widget, a web task) it shows up here, and stays in the history once it finishes.");
+      return h("div", { class: "cw-empty" }, () => t("chat.procEmpty"));
     }
     const out = [];
-    if (live.length) out.push(h("div", { class: "cw-proc-sec" }, "Running"), ...live.map(liveRow));
-    if (hist.length) out.push(h("div", { class: "cw-proc-sec" }, "History"), ...hist.map(histRow));
+    if (live.length) out.push(h("div", { class: "cw-proc-sec" }, () => t("chat.sectionRunning")), ...live.map(liveRow));
+    if (hist.length) out.push(h("div", { class: "cw-proc-sec" }, () => t("chat.sectionHistory")), ...hist.map(histRow));
     return out;
   };
 
@@ -119,12 +120,12 @@ export function ChatWall() {
   const cronRow = (j) => h("div", { class: "cron-row" },
     h("div", { class: "cron-main" },
       h("div", { class: "cron-name" }, j.name || j.id),
-      h("div", { class: "cron-meta" }, `${j.schedule || "?"} · ${j.paused ? "paused" : (j.state || "active")}` +
-        (j.last_status ? ` · last: ${j.last_status}` : "")),
+      h("div", { class: "cron-meta" }, `${j.schedule || "?"} · ${j.paused ? t("chat.paused") : (j.state || t("chat.active"))}` +
+        (j.last_status ? t("chat.cronLast", { status: j.last_status }) : "")),
       j.prompt ? h("div", { class: "cron-prompt" }, j.prompt) : null,
     ),
     h("div", { class: "cron-btns" },
-      h("button", { class: "cron-b hb-icbtn danger", title: "Delete", onClick: () => cronRemove(j.id) }, raw(TRASH_ICON)),
+      h("button", { class: "cron-b hb-icbtn danger", title: () => t("chat.delete"), onClick: () => cronRemove(j.id) }, raw(TRASH_ICON)),
     ),
   );
 
@@ -136,31 +137,35 @@ export function ChatWall() {
       h("div", { class: "cl-name" },
         h("span", { class: () => "cl-dot" + (c.connected ? " on" : "") }),
         c.name,
-        c.public ? h("span", { class: "cl-badge" }, "public") : null,
+        c.public ? h("span", { class: "cl-badge" }, () => t("chat.public")) : null,
       ),
       h("div", { class: "cl-meta" },
-        (c.connected ? "connected" : "disconnected")
-        + (c.handle ? ` · as ${c.handle}` : "")
-        + (c.online && c.online.length ? ` · ${c.online.length} peer${c.online.length > 1 ? "s" : ""}: ${c.online.join(", ")}` : " · nobody else")
-        + ` · ${c.msgs || 0} msg`),
+        (c.connected ? t("chat.connected") : t("chat.disconnected"))
+        + (c.handle ? t("chat.clusterAs", { handle: c.handle }) : "")
+        + (c.online && c.online.length
+            ? (c.online.length > 1
+                ? t("chat.clusterPeers", { n: c.online.length, list: c.online.join(", ") })
+                : t("chat.clusterPeer", { n: c.online.length, list: c.online.join(", ") }))
+            : t("chat.clusterNobody"))
+        + t("chat.clusterMsgs", { n: c.msgs || 0 })),
       c.cluster_id ? h("div", { class: "cl-id" }, c.cluster_id) : null,
     ),
     h("div", { class: "cl-btns" },
       c.connected
-        ? h("button", { class: "cl-b", title: "Disconnect", onClick: () => store.clusterDisconnect(c.name) }, "Disconnect")
-        : h("button", { class: "cl-b on", title: "Connect", onClick: () => store.clusterConnect(c.name) }, "Connect"),
+        ? h("button", { class: "cl-b", title: () => t("chat.disconnectBtn"), onClick: () => store.clusterDisconnect(c.name) }, () => t("chat.disconnectBtn"))
+        : h("button", { class: "cl-b on", title: () => t("chat.connectBtn"), onClick: () => store.clusterConnect(c.name) }, () => t("chat.connectBtn")),
     ),
   );
 
   const wall = h("div", { id: "chatwall", ref: el => (wallEl = el), class: () => "chatwall tab-" + store.chatTab() + (store.chatOpen() ? " open" : "") },
     h("div", { class: "cw-head", ref: el => (headEl = el) },
       h("div", { class: "cw-tabs" },
-        h("button", { class: () => "cw-tab" + (store.chatTab() === "chat" ? " on" : ""), onClick: () => store.setChatTab("chat") }, "Chat"),
-        h("button", { class: () => "cw-tab" + (store.chatTab() === "procesos" ? " on" : ""), onClick: () => store.setChatTab("procesos") }, "Processes"),
-        h("button", { class: () => "cw-tab" + (store.chatTab() === "crons" ? " on" : ""), onClick: () => store.setChatTab("crons") }, "Crons"),
-        h("button", { class: () => "cw-tab" + (store.chatTab() === "clusters" ? " on" : ""), onClick: () => store.setChatTab("clusters") }, "Clusters"),
+        h("button", { class: () => "cw-tab" + (store.chatTab() === "chat" ? " on" : ""), onClick: () => store.setChatTab("chat") }, () => t("chat.tabChat")),
+        h("button", { class: () => "cw-tab" + (store.chatTab() === "procesos" ? " on" : ""), onClick: () => store.setChatTab("procesos") }, () => t("chat.tabProcesses")),
+        h("button", { class: () => "cw-tab" + (store.chatTab() === "crons" ? " on" : ""), onClick: () => store.setChatTab("crons") }, () => t("chat.tabCrons")),
+        h("button", { class: () => "cw-tab" + (store.chatTab() === "clusters" ? " on" : ""), onClick: () => store.setChatTab("clusters") }, () => t("chat.tabClusters")),
       ),
-      h("button", { class: "cw-x hb-icbtn", title: "Close", onClick: () => store.setChatOpen(false) }, raw(CLOSE_ICON)),
+      h("button", { class: "cw-x hb-icbtn", title: () => t("chat.close"), onClick: () => store.setChatOpen(false) }, raw(CLOSE_ICON)),
     ),
     // CHAT
     h("div", { class: "cw-list", ref: el => (listEl = el) }),
@@ -171,14 +176,14 @@ export function ChatWall() {
       h("div", { class: "cron-list" },
         () => (store.cronJobs().length
           ? store.cronJobs().map(cronRow)
-          : h("div", { class: "cw-empty" }, "No tasks yet. Tell zaelar «remind me…» or «let me know when…», or create one below.")),
+          : h("div", { class: "cw-empty" }, () => t("chat.cronsEmpty"))),
       ),
       h("div", { class: "cron-add" },
-        h("input", { ref: el => (schedEl = el), class: "cron-in", placeholder: "when (30m · every 2h · 0 9 * * *)" }),
-        h("input", { ref: el => (cnameEl = el), class: "cron-in", placeholder: "name (optional)" }),
+        h("input", { ref: el => (schedEl = el), class: "cron-in", placeholder: () => t("chat.cronWhenPlaceholder") }),
+        h("input", { ref: el => (cnameEl = el), class: "cron-in", placeholder: () => t("chat.cronNamePlaceholder") }),
         h("textarea", { ref: el => (cpromptEl = el), class: "cron-in", rows: 2,
-          placeholder: "what to do/check and what to notify me about (for conditions, have it reply [SILENT] when nothing to report)" }),
-        h("button", { class: "cron-create", onClick: cronAdd }, "Schedule"),
+          placeholder: () => t("chat.cronPromptPlaceholder") }),
+        h("button", { class: "cron-create", onClick: cronAdd }, () => t("chat.scheduleBtn")),
       ),
     ),
     // CLUSTERS (V2-086) — la RED, nativa. Administración de conexiones, no conversación: los clusters tienen su
@@ -188,26 +193,25 @@ export function ChatWall() {
       // convincente que fuera el texto que lo pidió (V2-064 → V2-086: cambia dónde se pinta, no la garantía).
       () => (store.clusterConfirm()
         ? h("div", { class: "cl-confirm" },
-            h("div", { class: "cl-q" }, store.clusterConfirm().question || "Connect to the cluster?"),
+            h("div", { class: "cl-q" }, store.clusterConfirm().question || t("chat.clusterConfirmQ")),
             h("div", { class: "cl-cbtns" },
-              h("button", { class: "cl-b on", onClick: () => store.clusterConfirmResolve(true) }, "Yes, connect"),
-              h("button", { class: "cl-b", onClick: () => store.clusterConfirmResolve(false) }, "No"),
+              h("button", { class: "cl-b on", onClick: () => store.clusterConfirmResolve(true) }, () => t("chat.yesConnect")),
+              h("button", { class: "cl-b", onClick: () => store.clusterConfirmResolve(false) }, () => t("chat.no")),
             ))
         : null),
       h("div", { class: "cl-list" },
         () => (store.clusters().length
           ? store.clusters().map(clusterRow)
-          : h("div", { class: "cw-empty" },
-              "No clusters yet. Ask zaelar to «connect to the MeshKore public cluster» or give it a cluster_id.")),
+          : h("div", { class: "cw-empty" }, () => t("chat.clustersEmpty"))),
       ),
     ),
     // INPUT (solo Chat — CSS lo oculta en las otras pestañas)
     h("div", { class: "cw-input" },
       h("textarea", {
-        ref: el => (inputEl = el), rows: 1, placeholder: "Message the agent…",
+        ref: el => (inputEl = el), rows: 1, placeholder: () => t("chat.messagePlaceholder"),
         onKeydown: e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } },
       }),
-      h("button", { class: "cw-send", title: "Send", onClick: send }, raw(SEND_SVG)),
+      h("button", { class: "cw-send", title: () => t("chat.send"), onClick: send }, raw(SEND_SVG)),
     ),
   );
 

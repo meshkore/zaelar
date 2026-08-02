@@ -6,6 +6,7 @@ import { createSignal, createEffect } from "../core/reactive.js?v=2";
 import * as api from "../services/api.js?v=2";
 import * as session from "../services/session.js?v=3";
 import { GEAR_ICON, PLAY_ICON } from "../lib/icons.js?v=1";
+import { t } from "../core/i18n.js?v=1";
 
 const [isOpen, setOpen] = createSignal(false);
 export const openSettings = () => setOpen(true);
@@ -23,7 +24,7 @@ export function SettingsModal() {
       // Voice: a normal <select> PLUS a ▶ test button, and its option list is repopulated when the TTS provider
       // changes (wireVoice, below). Selecting + saving applies the voice on reconnect, same as tapping the orb.
       if (k.key === "assistant_voice") {
-        return `<div class="knob"><label>${esc(k.label)}</label><div class="voicerow"><select id="cfg_assistant_voice">${optsHTML(k.options, k.value)}</select><button type="button" id="cfg_voicetest" class="voicetest">${PLAY_ICON}<span>test</span></button></div>${note}</div>`;
+        return `<div class="knob"><label>${esc(k.label)}</label><div class="voicerow"><select id="cfg_assistant_voice">${optsHTML(k.options, k.value)}</select><button type="button" id="cfg_voicetest" class="voicetest">${PLAY_ICON}<span>${t("settings.test")}</span></button></div>${note}</div>`;
       }
       if (free.has(k.key)) {
         const dl = "cfg_" + k.key;
@@ -57,39 +58,39 @@ export function SettingsModal() {
         const a = new Audio(url); a.onended = () => URL.revokeObjectURL(url);
         await a.play();
       } catch (e) {
-        msgEl.textContent = "✗ couldn't play the voice (" + (e && e.message ? e.message : "error") + ")";
+        msgEl.textContent = t("settings.voiceTestError", { err: (e && e.message ? e.message : t("settings.error")) });
       } finally { btn.disabled = false; btn.innerHTML = label; }
     };
   }
 
   async function open() {
-    msgEl.textContent = ""; bodyEl.innerHTML = '<p class="hint">Loading…</p>';
-    try { cfg = await api.getSettings(); render(); } catch (e) { bodyEl.innerHTML = '<p class="hint">Couldn\'t load /api/settings</p>'; }
+    msgEl.textContent = ""; bodyEl.innerHTML = '<p class="hint">' + t("settings.loading") + '</p>';
+    try { cfg = await api.getSettings(); render(); } catch (e) { bodyEl.innerHTML = '<p class="hint">' + t("settings.loadError") + '</p>'; }
   }
   const close = () => setOpen(false);
 
   async function save() {
     const payload = {}; cfg.knobs.forEach(k => { const el = document.getElementById("cfg_" + k.key); if (el) payload[k.key] = el.value; });
-    msgEl.textContent = "Saving…";
+    msgEl.textContent = t("settings.saving");
     try {
       const r = await api.saveSettings(payload);
-      msgEl.textContent = r.ok ? ("✓ " + r.note) : "no changes";
+      msgEl.textContent = r.ok ? t("settings.savedNote", { note: r.note }) : t("settings.noChanges");
       if (r.ok && r.needs_reconnect) {
         // Sync the voice picker with the index the server just chose (single source of truth) BEFORE reconnecting,
         // so start() re-applies the NEW voice instead of clobbering it with the stale orb index.
         try { await session.loadVoices(); } catch (_) {}
-        if (session.isActive()) { msgEl.textContent = "✓ applying… reconnecting"; await session.reconnect(); msgEl.textContent = "✓ applied"; }
-        else { msgEl.textContent = "✓ saved · applied on connect"; }
+        if (session.isActive()) { msgEl.textContent = t("settings.applying"); await session.reconnect(); msgEl.textContent = t("settings.applied"); }
+        else { msgEl.textContent = t("settings.savedApplyOnConnect"); }
       }
-    } catch (e) { msgEl.textContent = "✗ error saving"; }
+    } catch (e) { msgEl.textContent = t("settings.saveError"); }
   }
 
   ovl = h("div", { id: "cfgOvl", class: () => "ovl" + (isOpen() ? " on" : ""), onClick: e => { if (e.target === ovl) close(); } },
     h("div", { class: "cfgm" },
-      h("div", { class: "mh" }, h("h3", {}, raw(GEAR_ICON), "Settings"), h("button", { class: "x", onClick: close }, "close")),
-      h("p", { class: "hint", html: 'Voice provider, language, STT/TTS. The <b>voice</b> is changed by tapping the orb. Changes → reconnect.' }),
-      h("div", { id: "cfgBody", ref: el => (bodyEl = el) }, h("p", { class: "hint" }, "Loading…")),
-      h("div", { class: "mfoot" }, h("button", { id: "cfgSave", onClick: save }, "Save"), h("span", { class: "msg", ref: el => (msgEl = el) })),
+      h("div", { class: "mh" }, h("h3", {}, raw(GEAR_ICON), () => t("settings.title")), h("button", { class: "x", onClick: close }, () => t("settings.close"))),
+      h("p", { class: "hint", html: () => t("settings.hint") }),
+      h("div", { id: "cfgBody", ref: el => (bodyEl = el) }, h("p", { class: "hint" }, () => t("settings.loading"))),
+      h("div", { class: "mfoot" }, h("button", { id: "cfgSave", onClick: save }, () => t("settings.save")), h("span", { class: "msg", ref: el => (msgEl = el) })),
     ),
   );
 

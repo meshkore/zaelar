@@ -15,6 +15,8 @@
 // Backend contract used:  GET /widgets/{id}/data?q=  ·  GET /widgets/{id}/widget.js  ·  POST /widgets/{id}/action
 // ============================================================================
 
+import { t as tr } from "../core/i18n.js?v=1";
+
 const NINE_DOTS = `<svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor">
   <circle cx="2.5" cy="2.5" r="1.3"/><circle cx="7" cy="2.5" r="1.3"/><circle cx="11.5" cy="2.5" r="1.3"/>
   <circle cx="2.5" cy="7" r="1.3"/><circle cx="7" cy="7" r="1.3"/><circle cx="11.5" cy="7" r="1.3"/>
@@ -213,20 +215,20 @@ export class Desktop {
     const reg=await this._ensureRegistry(); const e=reg[w.base]||{name:w.base,aliases:[w.base]};
     const name=e.name||w.base, aliases=e.aliases||[name];
     panel.innerHTML="";
-    const t=document.createElement("div"); t.className="hb-al-t"; t.textContent=`Names for «${name}»`; panel.appendChild(t);
+    const t=document.createElement("div"); t.className="hb-al-t"; t.textContent=tr("desktop.aliases_title", { name }); panel.appendChild(t);
     const chips=document.createElement("div"); chips.className="hb-al-chips";
     aliases.forEach(a=>{
       const isName=a.toLowerCase()===name.toLowerCase();
       const chip=document.createElement("span"); chip.className="hb-al-chip"+(isName?" name":"");
       chip.append(document.createTextNode(a));
-      if(!isName){ const rm=document.createElement("button"); rm.textContent="×"; rm.title="Remove";
+      if(!isName){ const rm=document.createElement("button"); rm.textContent="×"; rm.title=tr("desktop.remove_tooltip");
         rm.onclick=()=>this._removeAlias(w,a); chip.appendChild(rm); }
       chips.appendChild(chip);
     });
     panel.appendChild(chips);
     const add=document.createElement("div"); add.className="hb-al-add";
-    const inp=document.createElement("input"); inp.type="text"; inp.placeholder="add alias…";
-    const btn=document.createElement("button"); btn.textContent="Add";
+    const inp=document.createElement("input"); inp.type="text"; inp.placeholder=tr("desktop.alias_placeholder");
+    const btn=document.createElement("button"); btn.textContent=tr("desktop.add_btn");
     const go=()=>{ const v=inp.value.trim(); if(v) this._addAlias(w,v,inp); };
     btn.onclick=go; inp.onkeydown=(ev)=>{ if(ev.key==="Enter"){ ev.preventDefault(); go(); } };
     add.append(inp,btn); panel.appendChild(add);
@@ -237,15 +239,15 @@ export class Desktop {
         body:JSON.stringify({alias})});
       const j=await r.json().catch(()=>({}));
       if(r.ok){ if(inp)inp.value=""; await this.refreshRegistry(); }
-      else this._aliasError(w, j.error||"Couldn't add");
-    }catch(_){ this._aliasError(w,"Network error"); }
+      else this._aliasError(w, j.error||tr("desktop.couldnt_add"));
+    }catch(_){ this._aliasError(w,tr("desktop.network_error")); }
   }
   async _removeAlias(w,alias){
     try{
       const r=await fetch(`/widgets/${w.base}/aliases/${encodeURIComponent(alias)}`,{method:"DELETE"});
       const j=await r.json().catch(()=>({}));
-      if(r.ok) await this.refreshRegistry(); else this._aliasError(w, j.error||"Couldn't remove");
-    }catch(_){ this._aliasError(w,"Network error"); }
+      if(r.ok) await this.refreshRegistry(); else this._aliasError(w, j.error||tr("desktop.couldnt_remove"));
+    }catch(_){ this._aliasError(w,tr("desktop.network_error")); }
   }
   _aliasError(w,msg){
     if(!w._alias) return;
@@ -267,13 +269,13 @@ export class Desktop {
     let w = this.wins.get(id), fresh=!w;
     if(fresh){
       const card=document.createElement("div"); card.className="hb-win loading"; card.dataset.wid=id;
-      const grip=document.createElement("button"); grip.className="hb-grip"; grip.innerHTML=NINE_DOTS; grip.title="Move";
+      const grip=document.createElement("button"); grip.className="hb-grip"; grip.innerHTML=NINE_DOTS; grip.title=tr("desktop.move_tooltip");
       const x=document.createElement("button"); x.className="hb-x"; x.textContent="×"; x.onclick=()=>this.close(id);
       // HEADER (V2-082): botón-NOMBRE + config para ver/editar los ALIAS. El nombre se rellena desde el registro.
       const head=document.createElement("div"); head.className="hb-head";
       const nameBtn=document.createElement("button"); nameBtn.className="hb-name"; nameBtn.textContent=baseId;
-      nameBtn.title="Widget name — click to view/edit its aliases";
-      const cfg=document.createElement("button"); cfg.className="hb-cfg"; cfg.textContent="⚙"; cfg.title="Names / aliases";
+      nameBtn.title=tr("desktop.name_tooltip");
+      const cfg=document.createElement("button"); cfg.className="hb-cfg"; cfg.textContent="⚙"; cfg.title=tr("desktop.cfg_tooltip");
       head.append(nameBtn,cfg);
       const load=document.createElement("div"); load.className="hb-load";
       const body=document.createElement("div"); body.className="hb-body";
@@ -331,7 +333,7 @@ export class Desktop {
         const l=w.card.querySelector(".hb-load"); if(l) l.remove();
         if(w.body) w.body.innerHTML =
           '<div style="padding:16px;color:var(--hb-muted,#8a95a5);font-size:13px;line-height:1.4">'
-          +'Couldn\'t load this widget.<br><small style="opacity:.8">'
+          +tr("desktop.load_failed")+'<br><small style="opacity:.8">'
           +String(msg||"error").replace(/[<>&]/g,"").slice(0,140)+'</small></div>';
       }
     }catch(_){}
@@ -375,7 +377,7 @@ export class Desktop {
     this._busy.add(rid);
     const card=document.createElement("div"); card.className="hb-win loading long building"; card.dataset.wid=id;
     const load=document.createElement("div"); load.className="hb-load";
-    const cap=document.createElement("div"); cap.className="hb-cap"; cap.textContent="Creating the widget…";
+    const cap=document.createElement("div"); cap.className="hb-cap"; cap.textContent=tr("desktop.creating");
     card.append(load,cap); this.stage.appendChild(card);
     this._place(card); this._bringFront(card); requestAnimationFrame(()=>card.classList.add("in"));
     try{
@@ -387,7 +389,7 @@ export class Desktop {
         await this.show(r.id||id, {q:spec});
       } else {
         const l=card.querySelector(".hb-load"); if(l)l.remove();
-        cap.className="hb-cap err"; cap.textContent="Couldn't create the widget: "+((r&&r.error)||"error");
+        cap.className="hb-cap err"; cap.textContent=tr("desktop.create_failed", { error: (r&&r.error)||"error" });
         setTimeout(()=>{card.classList.remove("in");setTimeout(()=>card.remove(),200);},4000);
       }
     }catch(e){ console.error("createWidget failed", e); card.classList.remove("in"); setTimeout(()=>card.remove(),200); }
@@ -401,7 +403,7 @@ export class Desktop {
     if(this._busy.has(rid)) return;                  // don't stack agents on the same widget (rapid re-modify)
     this._busy.add(rid);
     const open = this.wins.has(rid);
-    if(open){ const cap=document.createElement("div"); cap.className="hb-cap"; cap.textContent="Updating…";
+    if(open){ const cap=document.createElement("div"); cap.className="hb-cap"; cap.textContent=tr("desktop.updating");
       this.wins.get(rid).card.appendChild(cap); }
     try{
       const r=await fetch("/widgets/modify",{method:"POST",headers:{"Content-Type":"application/json"},
@@ -439,9 +441,9 @@ export class Desktop {
     let ov = w.card.querySelector(".hb-confirm");
     if(!ov){ ov=document.createElement("div"); ov.className="hb-confirm"; w.card.appendChild(ov); }
     ov.innerHTML="";
-    const msg=document.createElement("div"); msg.className="hb-confirm-msg"; msg.textContent=question||"Delete this widget forever?";
+    const msg=document.createElement("div"); msg.className="hb-confirm-msg"; msg.textContent=question||tr("desktop.confirm_default");
     const row=document.createElement("div"); row.className="hb-confirm-row";
-    const no=document.createElement("button"); no.className="hb-confirm-no"; no.textContent="No";
+    const no=document.createElement("button"); no.className="hb-confirm-no"; no.textContent=tr("desktop.no");
     const yes=document.createElement("button"); yes.className="hb-confirm-yes";
     // Bug real 2026-07-25 (reporte del operador): el botón de confirmar decía SIEMPRE "Borrar", aunque la
     // confirmación fuera de OTRA cosa (conectar a un cluster, enviar un mensaje…) — confuso y directamente
@@ -449,7 +451,7 @@ export class Desktop {
     // `widgets/confirm.py` ("delete" | "data") — "delete" sigue diciendo "Borrar" (comportamiento previo
     // intacto); cualquier otra data-op (connect_cluster, send, o lo que declare cualquier widget futuro) usa
     // un texto genérico correcto para TODAS, sin tener que enumerar cada acción posible.
-    yes.textContent = action === "delete" ? "Delete" : "Yes, confirm";
+    yes.textContent = action === "delete" ? tr("desktop.delete_btn") : tr("desktop.confirm_btn");
     no.onclick=()=>this._resolveConfirm(rid,false);
     yes.onclick=()=>this._resolveConfirm(rid,true);
     row.append(no,yes); ov.append(msg,row);

@@ -10,10 +10,11 @@ import * as store from "../core/store.js?v=2";
 import * as api from "../services/api.js?v=2";
 import * as session from "../services/session.js?v=3";
 import { GEAR_ICON, BRAIN_ICON, CPU_ICON, DATABASE_ICON, MIC_ICON, SEARCH_ICON, MUSIC_ICON, SERVER_ICON } from "../lib/icons.js?v=1";
+import { t } from "../core/i18n.js?v=1";
 
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const opt = (list, sel) => (list || []).map(o => `<option value="${esc(o.value != null ? o.value : o)}"${(o.value != null ? o.value : o) === sel ? " selected" : ""}>${esc(o.label != null ? o.label : o)}</option>`).join("");
-const badge = st => `<span class="cf-badge cf-${esc(st || "off")}">${({ ok: "OK", warn: "warning", error: "problem", off: "no key", unknown: "—" }[st] || st || "—")}</span>`;
+const badge = st => `<span class="cf-badge cf-${esc(st || "off")}">${({ ok: t("config.badge.ok"), warn: t("config.badge.warn"), error: t("config.badge.error"), off: t("config.badge.off"), unknown: "—" }[st] || st || "—")}</span>`;
 
 // una fila de ajuste: etiqueta a la izquierda, control (+ pista opcional) a la derecha — patrón Ajustes/Chrome.
 const row = (label, ctl, hint) =>
@@ -24,21 +25,21 @@ const panel = (id, title, sub, inner) =>
   `<section class="cf-panel-sec" id="cf_${id}"><header class="cf-panel-head"><h4>${esc(title)}</h4>${sub ? `<p>${esc(sub)}</p>` : ""}</header><div class="cf-group">${inner}</div></section>`;
 
 const SECTIONS = [
-  { id: "fast", label: "Fast brain", icon: BRAIN_ICON },
-  { id: "code", label: "Code agent", icon: CPU_ICON },
-  { id: "memory", label: "Memory", icon: DATABASE_ICON },
-  { id: "voice", label: "Voice", icon: MIC_ICON },
-  { id: "search", label: "Web search", icon: SEARCH_ICON },
-  { id: "music", label: "Music", icon: MUSIC_ICON },
-  { id: "apis", label: "APIs & balance", icon: SERVER_ICON },
+  { id: "fast", icon: BRAIN_ICON },
+  { id: "code", icon: CPU_ICON },
+  { id: "memory", icon: DATABASE_ICON },
+  { id: "voice", icon: MIC_ICON },
+  { id: "search", icon: SEARCH_ICON },
+  { id: "music", icon: MUSIC_ICON },
+  { id: "apis", icon: SERVER_ICON },
 ];
 
 // V2-083: tres pestañas principales. "settings" = todo lo de antes (menú lateral + secciones); "conectores" y
 // "widgets" son nuevas. Patrón de pastilla segmentada (como las pestañas del ChatWall).
 const TABS = [
-  { id: "settings", label: "Settings" },
-  { id: "conectores", label: "Connectors" },
-  { id: "widgets", label: "Widgets" },
+  { id: "settings" },
+  { id: "conectores" },
+  { id: "widgets" },
 ];
 
 export function ConfigPanel() {
@@ -61,14 +62,14 @@ export function ConfigPanel() {
       apis: () => sec_apis(),
     };
     if (!builders[activeSec]) activeSec = SECTIONS[0].id;
-    const tabsBar = TABS.map(t => `<button type="button" class="cf-tab${t.id === activeTab ? " on" : ""}" data-tab="${t.id}">${esc(t.label)}</button>`).join("");
+    const tabsBar = TABS.map(tab => `<button type="button" class="cf-tab${tab.id === activeTab ? " on" : ""}" data-tab="${tab.id}">${esc(t("config.tab." + tab.id))}</button>`).join("");
     let pane;
     if (activeTab === "conectores") {
       pane = `<div class="cf-tabpane"><div class="cf-scroll"><div class="cf-panel">${sec_connectors()}</div></div></div>`;
     } else if (activeTab === "widgets") {
       pane = `<div class="cf-tabpane"><div class="cf-scroll"><div class="cf-panel">${sec_widgets()}</div></div></div>`;
     } else {
-      const nav = SECTIONS.map(s => `<button type="button" class="cf-nav-item${s.id === activeSec ? " active" : ""}" data-sec="${s.id}">${s.icon}<span>${esc(s.label)}</span></button>`).join("");
+      const nav = SECTIONS.map(s => `<button type="button" class="cf-nav-item${s.id === activeSec ? " active" : ""}" data-sec="${s.id}">${s.icon}<span>${esc(t("config.sec." + s.id))}</span></button>`).join("");
       pane = `<div class="cf-tabpane"><nav class="cf-nav">${nav}</nav><div class="cf-scroll"><div class="cf-panel">${builders[activeSec]()}</div></div></div>`;
     }
     bodyEl.innerHTML = `<div class="cf-tabs">${tabsBar}</div>${pane}`;
@@ -79,9 +80,9 @@ export function ConfigPanel() {
     // fila de API key para el proveedor seleccionado (si es cloud y tiene key_env). Redactada: solo presencia.
     if (!prov || !prov.cloud || !prov.key_env) return "";
     const setNow = (cfg.credentials || []).some(c => (c.env || []).includes(prov.key_env) && c.set);
-    return row(`API key · ${prov.key_env}`,
-      `<input id="cf_key_${esc(prov.key_env)}" type="password" placeholder="${setNow ? "•••••• (saved — leave blank to keep)" : "paste the key"}" autocomplete="off"/>`,
-      setNow ? "✓ configured" : "not configured");
+    return row(t("config.apikey.label", { env: prov.key_env }),
+      `<input id="cf_key_${esc(prov.key_env)}" type="password" placeholder="${setNow ? t("config.key.ph_saved_keep") : t("config.key.ph_paste")}" autocomplete="off"/>`,
+      setNow ? t("config.key.configured") : t("config.key.not_configured"));
   };
 
   function sec_fast(c) {
@@ -89,41 +90,41 @@ export function ConfigPanel() {
     const provs = c.providers || [];
     const cur = provs.find(p => p.id === f.provider) || provs[0] || {};
     const models = cur.models || [];
-    return panel("fast", "Fast brain · FlashBrain", (c.note || "") + " — the one that answers on every voice turn.",
-      row("Provider", `<select id="cf_fast_provider">${opt(provs.map(p => ({ value: p.id, label: p.label })), f.provider)}</select>`) +
-      row("Model", `<input id="cf_fast_model" list="dl_fast_model" value="${esc(f.model)}"/><datalist id="dl_fast_model">${opt(models)}</datalist>`) +
-      row("Base URL", `<input id="cf_fast_base_url" value="${esc(f.base_url)}" placeholder="${esc(cur.base_url || "")}"/>`) +
+    return panel("fast", t("config.fast.title"), (c.note || "") + t("config.fast.sub_suffix"),
+      row(t("config.row.provider"), `<select id="cf_fast_provider">${opt(provs.map(p => ({ value: p.id, label: p.label })), f.provider)}</select>`) +
+      row(t("config.row.model"), `<input id="cf_fast_model" list="dl_fast_model" value="${esc(f.model)}"/><datalist id="dl_fast_model">${opt(models)}</datalist>`) +
+      row(t("config.row.base_url"), `<input id="cf_fast_base_url" value="${esc(f.base_url)}" placeholder="${esc(cur.base_url || "")}"/>`) +
       `<div id="cf_fast_keyrow">${providerKeyRow(cur)}</div>` +
-      `<div class="cf-foot"><button class="cf-save" data-sec="fast">Save fast brain</button></div>` +
-      `<div class="cf-foot cf-foot-info"><button type="button" class="cf-benchmarks-btn">Want to see the benchmarks and why we use one model over another?</button></div>`);
+      `<div class="cf-foot"><button class="cf-save" data-sec="fast">${t("config.fast.save")}</button></div>` +
+      `<div class="cf-foot cf-foot-info"><button type="button" class="cf-benchmarks-btn">${t("config.fast.benchmarks")}</button></div>`);
   }
 
   function sec_code(c) {
     const a = (cfg.v2 && cfg.v2.code_agent) || {};
     const provs = c.providers || [];
-    return panel("code", "Code agent · workers", (c.note || ""),
-      row("Provider", `<select id="cf_code_provider">${opt(provs.map(p => ({ value: p.id, label: p.label })), a.provider)}</select>`) +
-      row("Model (global)", `<input id="cf_code_model" value="${esc(a.model)}" placeholder="provider default"/>`) +
-      row("· memory", `<input id="cf_code_model_memory" value="${esc(a.model_memory)}" placeholder="inherits"/>`) +
-      row("· web", `<input id="cf_code_model_web" value="${esc(a.model_web)}" placeholder="inherits"/>`) +
-      row("· code", `<input id="cf_code_model_code" value="${esc(a.model_code)}" placeholder="inherits"/>`) +
-      row("Max in parallel", `<input id="cf_code_max_parallel" type="number" min="1" max="8" value="${esc(a.max_parallel)}"/>`) +
-      `<div class="cf-foot"><button class="cf-save" data-sec="code_agent">Save code agent</button></div>`);
+    return panel("code", t("config.code.title"), (c.note || ""),
+      row(t("config.row.provider"), `<select id="cf_code_provider">${opt(provs.map(p => ({ value: p.id, label: p.label })), a.provider)}</select>`) +
+      row(t("config.code.model_global"), `<input id="cf_code_model" value="${esc(a.model)}" placeholder="${t("config.ph.provider_default")}"/>`) +
+      row(t("config.code.model_memory"), `<input id="cf_code_model_memory" value="${esc(a.model_memory)}" placeholder="${t("config.ph.inherits")}"/>`) +
+      row(t("config.code.model_web"), `<input id="cf_code_model_web" value="${esc(a.model_web)}" placeholder="${t("config.ph.inherits")}"/>`) +
+      row(t("config.code.model_code"), `<input id="cf_code_model_code" value="${esc(a.model_code)}" placeholder="${t("config.ph.inherits")}"/>`) +
+      row(t("config.code.max_parallel"), `<input id="cf_code_max_parallel" type="number" min="1" max="8" value="${esc(a.max_parallel)}"/>`) +
+      `<div class="cf-foot"><button class="cf-save" data-sec="code_agent">${t("config.code.save")}</button></div>`);
   }
 
   function sec_memory(cat) {
     const m = (cfg.v2 && cfg.v2.memory) || {};
     const emb = (cat.memory_embed && cat.memory_embed.providers) || [];
     const rer = (cat.memory_rerank && cat.memory_rerank.providers) || [];
-    return panel("memory", "Memory · retrieval and writing", "Embedding + reranker + write processor. Local by default.",
-      row("Embedding", `<select id="cf_mem_embed_provider">${opt(emb.map(p => ({ value: p.id, label: p.label })), m.embed_provider)}</select>`, "⚠️ changing it requires re-embed") +
-      row("Embedding model", `<input id="cf_mem_embed_model" value="${esc(m.embed_model)}"/>`) +
-      row("Reranker", `<select id="cf_mem_rerank_provider">${opt(rer.map(p => ({ value: p.id, label: p.label })), m.rerank_provider)}</select>`) +
-      row("Reranker model", `<input id="cf_mem_rerank_model" value="${esc(m.rerank_model)}" placeholder="provider default"/>`) +
-      row("top-N", `<input id="cf_mem_rerank_top_n" type="number" min="1" max="100" value="${esc(m.rerank_top_n)}"/>`) +
-      row("blend", `<input id="cf_mem_rerank_blend" type="number" step="0.05" min="0" max="1" value="${esc(m.rerank_blend)}"/>`) +
-      row("Write processor (the HEART)", `<input id="cf_mem_mem_processor_model" value="${esc(m.mem_processor_model)}"/>`) +
-      `<div class="cf-foot"><button class="cf-save" data-sec="memory">Save memory</button></div>`);
+    return panel("memory", t("config.memory.title"), t("config.memory.sub"),
+      row(t("config.memory.embedding"), `<select id="cf_mem_embed_provider">${opt(emb.map(p => ({ value: p.id, label: p.label })), m.embed_provider)}</select>`, t("config.memory.embed_warn")) +
+      row(t("config.memory.embed_model"), `<input id="cf_mem_embed_model" value="${esc(m.embed_model)}"/>`) +
+      row(t("config.memory.reranker"), `<select id="cf_mem_rerank_provider">${opt(rer.map(p => ({ value: p.id, label: p.label })), m.rerank_provider)}</select>`) +
+      row(t("config.memory.rerank_model"), `<input id="cf_mem_rerank_model" value="${esc(m.rerank_model)}" placeholder="${t("config.ph.provider_default")}"/>`) +
+      row(t("config.memory.top_n"), `<input id="cf_mem_rerank_top_n" type="number" min="1" max="100" value="${esc(m.rerank_top_n)}"/>`) +
+      row(t("config.memory.blend"), `<input id="cf_mem_rerank_blend" type="number" step="0.05" min="0" max="1" value="${esc(m.rerank_blend)}"/>`) +
+      row(t("config.memory.write_processor"), `<input id="cf_mem_mem_processor_model" value="${esc(m.mem_processor_model)}"/>`) +
+      `<div class="cf-foot"><button class="cf-save" data-sec="memory">${t("config.memory.save")}</button></div>`);
   }
 
   function sec_voice() {
@@ -137,8 +138,8 @@ export function ConfigPanel() {
         : `<select id="cfv_${k.key}">${opt(k.options, k.value)}</select>`;
       return row(k.label, ctl, hint);
     }).join("");
-    return panel("voice", "Voice · STT · TTS · language · attention", "The specific VOICE is changed by tapping the orb. Saving may reconnect.",
-      rows + `<div class="cf-foot"><button class="cf-save-voice">Save voice</button></div>`);
+    return panel("voice", t("config.voice.title"), t("config.voice.sub"),
+      rows + `<div class="cf-foot"><button class="cf-save-voice">${t("config.voice.save")}</button></div>`);
   }
 
   function sec_search() {
@@ -148,24 +149,24 @@ export function ConfigPanel() {
     const keyRow = (prov, env, label) => {
       const setNow = creds.some(c => c.key === prov && c.set);
       return row(`${label} · ${env}`,
-        `<input id="cf_key_${esc(env)}" type="password" placeholder="${setNow ? "•••••• (saved)" : "paste the key (optional)"}" autocomplete="off"/>`,
-        setNow ? "✓ active" : "—");
+        `<input id="cf_key_${esc(env)}" type="password" placeholder="${setNow ? t("config.key.ph_saved") : t("config.key.ph_paste_optional")}" autocomplete="off"/>`,
+        setNow ? t("config.key.active") : "—");
     };
-    return panel("search", "Web search", "Provider AUTO by quality based on the key: Perplexity → Tavily → Brave → Google (free) → DuckDuckGo. With no key it works for free with Google.",
-      keyRow("perplexity", "PERPLEXITY_API_KEY", "Perplexity (synthesis, best)") +
-      keyRow("tavily", "TAVILY_API_KEY", "Tavily") +
-      keyRow("brave", "BRAVE_SEARCH_KEY", "Brave (snippets)") +
-      `<div class="cf-foot"><button class="cf-save-keys" data-envs="PERPLEXITY_API_KEY,TAVILY_API_KEY,BRAVE_SEARCH_KEY">Save search keys</button></div>`);
+    return panel("search", t("config.search.title"), t("config.search.sub"),
+      keyRow("perplexity", "PERPLEXITY_API_KEY", t("config.search.perplexity")) +
+      keyRow("tavily", "TAVILY_API_KEY", t("config.search.tavily")) +
+      keyRow("brave", "BRAVE_SEARCH_KEY", t("config.search.brave")) +
+      `<div class="cf-foot"><button class="cf-save-keys" data-envs="PERPLEXITY_API_KEY,TAVILY_API_KEY,BRAVE_SEARCH_KEY">${t("config.search.save")}</button></div>`);
   }
 
   function sec_music() {
     const sp = cfg.spotify || {};
-    const st = sp.logged_in ? "connected" : (sp.can_connect ? "ready to connect" : "missing client_id");
-    return panel("music", "Music · Spotify", "Plays by voice. Without Spotify, it falls back to free YouTube audio inside the music widget.",
-      row("Status", `<span class="cf-status">${esc(st)}${sp.logged_in ? "" : (sp.default_available ? " · one-click app available" : "")}</span>`) +
+    const st = sp.logged_in ? t("config.music.connected") : (sp.can_connect ? t("config.music.ready") : t("config.music.missing_client"));
+    return panel("music", t("config.music.title"), t("config.music.sub"),
+      row(t("config.row.status"), `<span class="cf-status">${esc(st)}${sp.logged_in ? "" : (sp.default_available ? t("config.music.oneclick") : "")}</span>`) +
       `<div class="cf-foot">${sp.logged_in
-        ? `<button class="cf-spotify-dis">Disconnect Spotify</button>`
-        : `<button class="cf-spotify" ${sp.can_connect ? "" : "disabled"}>Connect Spotify</button>`}</div>`);
+        ? `<button class="cf-spotify-dis">${t("config.music.disconnect")}</button>`
+        : `<button class="cf-spotify" ${sp.can_connect ? "" : "disabled"}>${t("config.music.connect")}</button>`}</div>`);
   }
 
   function apisRows() {
@@ -177,9 +178,9 @@ export function ConfigPanel() {
       </tr>`).join("") || '<tr><td colspan="3">—</td></tr>';
   }
   function sec_apis() {
-    return panel("apis", "APIs and services · balance", "Summary of external APIs. Balance is shown where the provider exposes it; the rest report via their last error.",
+    return panel("apis", t("config.apis.title"), t("config.apis.sub"),
       `<table class="cf-apis"><tbody id="cf_apis_tbody">${apisRows()}</tbody></table>
-       <div class="cf-foot"><button class="cf-refresh-apis">Refresh balances</button></div>`);
+       <div class="cf-foot"><button class="cf-refresh-apis">${t("config.apis.refresh")}</button></div>`);
   }
 
   const bar = (b) => {
@@ -223,7 +224,7 @@ export function ConfigPanel() {
   }
 
   async function saveV2(section, btn) {
-    btn.disabled = true; msg("Saving…");
+    btn.disabled = true; msg(t("config.msg.saving"));
     try {
       let patch = {};
       if (section === "fast") {
@@ -242,34 +243,34 @@ export function ConfigPanel() {
           mem_processor_model: val("cf_mem_mem_processor_model") };
       }
       const r = await api.saveConfigV2(section, patch);
-      msg(r.ok ? "✓ saved (applies on the next turn, no reconnect)" : ("✗ " + (r.error || "error")));
+      msg(r.ok ? t("config.msg.saved_next_turn") : ("✗ " + (r.error || t("config.msg.error"))));
       api.uiEvent("config.save", { section });
-    } catch (e) { msg("✗ error saving"); } finally { btn.disabled = false; }
+    } catch (e) { msg(t("config.msg.error_saving")); } finally { btn.disabled = false; }
   }
 
   async function saveVoice(btn) {
-    btn.disabled = true; msg("Saving voice…");
+    btn.disabled = true; msg(t("config.msg.saving_voice"));
     try {
       const payload = {};
       (cfg.voice.knobs || []).forEach(k => { const el = document.getElementById("cfv_" + k.key); if (el) payload[k.key] = el.value; });
       const r = await api.saveSettings(payload);
       if (r.ok && r.needs_reconnect) {
         try { await session.loadVoices(); } catch (_) {}
-        if (session.isActive()) { msg("✓ applying… reconnecting"); await session.reconnect(); msg("✓ applied"); }
-        else msg("✓ saved · applies on connect");
-      } else msg(r.ok ? ("✓ " + (r.note || "saved")) : "no changes");
-    } catch (e) { msg("✗ error saving the voice"); } finally { btn.disabled = false; }
+        if (session.isActive()) { msg(t("config.msg.applying_reconnect")); await session.reconnect(); msg(t("config.msg.applied")); }
+        else msg(t("config.msg.saved_on_connect"));
+      } else msg(r.ok ? ("✓ " + (r.note || t("config.msg.saved"))) : t("config.msg.no_changes"));
+    } catch (e) { msg(t("config.msg.error_saving_voice")); } finally { btn.disabled = false; }
   }
 
   async function saveKeys(envs, btn) {
-    btn.disabled = true; msg("Saving keys…");
-    try { let n = 0; for (const e of envs) { if (await saveKey(e)) n++; } msg(n ? `✓ ${n} key(s) saved` : "no changes"); }
-    catch (e) { msg("✗ error"); } finally { btn.disabled = false; await reloadApis(); }
+    btn.disabled = true; msg(t("config.msg.saving_keys"));
+    try { let n = 0; for (const e of envs) { if (await saveKey(e)) n++; } msg(n ? t("config.msg.keys_saved", { n }) : t("config.msg.no_changes")); }
+    catch (e) { msg(t("config.msg.error_generic")); } finally { btn.disabled = false; await reloadApis(); }
   }
 
   async function refreshApis(btn) {
-    btn.disabled = true; msg("Querying balances…");
-    try { await reloadApis(true); msg("✓ balances updated"); } catch (_) { msg("✗ couldn't query"); } finally { btn.disabled = false; }
+    btn.disabled = true; msg(t("config.msg.querying_balances"));
+    try { await reloadApis(true); msg(t("config.msg.balances_updated")); } catch (_) { msg(t("config.msg.couldnt_query")); } finally { btn.disabled = false; }
   }
 
   async function reloadApis(refresh) {
@@ -281,56 +282,61 @@ export function ConfigPanel() {
   }
 
   async function connectSpotify(btn) {
-    btn.disabled = true; msg("Opening Spotify…");
+    btn.disabled = true; msg(t("config.msg.opening_spotify"));
     try {
       const r = await fetch("/api/spotify/connect", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).then(x => x.json());
-      if (r.url) { window.open(r.url, "_blank", "width=520,height=680"); msg("Authorize in the Spotify window and come back."); }
-      else msg("✗ " + (r.error || "couldn't start"));
-    } catch (_) { msg("✗ error"); } finally { btn.disabled = false; }
+      if (r.url) { window.open(r.url, "_blank", "width=520,height=680"); msg(t("config.msg.spotify_authorize")); }
+      else msg("✗ " + (r.error || t("config.msg.couldnt_start")));
+    } catch (_) { msg(t("config.msg.error_generic")); } finally { btn.disabled = false; }
   }
   async function disconnectSpotify(btn) {
     btn.disabled = true;
-    try { await fetch("/api/spotify/disconnect", { method: "POST" }); msg("Spotify disconnected."); await load(); } catch (_) {} finally { btn.disabled = false; }
+    try { await fetch("/api/spotify/disconnect", { method: "POST" }); msg(t("config.msg.spotify_disconnected")); await load(); } catch (_) {} finally { btn.disabled = false; }
   }
 
   // ═══ PESTAÑA CONECTORES (V2-083) ═══════════════════════════════════════════════════════════════════════
-  const cxBadge = c => badge(c.connected ? "ok" : (c.status === "error" ? "error" : "off"))
-    .replace(">OK<", ">connected<").replace(">no key<", ">not connected<");
+  // Etiqueta traducida directa (sin depender del texto renderizado por badge): connected/error/off.
+  const cxBadge = c => {
+    const st = c.connected ? "ok" : (c.status === "error" ? "error" : "off");
+    const label = c.connected ? t("config.cx.connected")
+      : (c.status === "error" ? t("config.badge.error") : t("config.cx.disconnected"));
+    return `<span class="cf-badge cf-${esc(st)}">${label}</span>`;
+  };
 
   function connectorCard(c) {
     const id = esc(c.id), fam = esc(c.family || "");
     let box = "";
     if (c.connected) {
       // ya conectado → botón de desconectar/revocar
-      const revoke = c.family === "infra" ? "Revoke" : "Disconnect";
+      const revoke = c.family === "infra" ? t("config.cx.revoke") : t("config.cx.disconnect_btn");
       box = `<button class="cf-btn cf-cx-act" data-act="disconnect" data-id="${id}">${revoke}</button>`;
     } else if (id === "whatsapp") {
-      box = `<button class="cf-btn cf-cx-act" data-act="connect" data-id="whatsapp">Connect (show QR)</button>`;
+      box = `<button class="cf-btn cf-cx-act" data-act="connect" data-id="whatsapp">${t("config.cx.connect_qr")}</button>`;
     } else if (id === "telegram") {
-      box = `${row("api_id", `<input id="cx_tg_api_id" type="text" placeholder="from my.telegram.org"/>`)}
-        ${row("api_hash", `<input id="cx_tg_api_hash" type="password" placeholder="from my.telegram.org"/>`)}
-        <button class="cf-btn cf-cx-act" data-act="connect" data-id="telegram">Connect (show QR)</button>`;
+      box = `${row("api_id", `<input id="cx_tg_api_id" type="text" placeholder="${t("config.cx.tg_placeholder")}"/>`)}
+        ${row("api_hash", `<input id="cx_tg_api_hash" type="password" placeholder="${t("config.cx.tg_placeholder")}"/>`)}
+        <button class="cf-btn cf-cx-act" data-act="connect" data-id="telegram">${t("config.cx.connect_qr")}</button>`;
     } else if (id === "email") {
-      box = `${row("Provider", `<select id="cx_em_provider">${opt(["gmail", "outlook", "other"], "gmail")}</select>`)}
-        ${row("Email", `<input id="cx_em_address" type="email" placeholder="you@gmail.com"/>`)}
-        ${row("App password", `<input id="cx_em_pass" type="password" placeholder="app-password"/>`)}
-        <button class="cf-btn cf-cx-act" data-act="connect" data-id="email">Connect</button>`;
+      box = `${row(t("config.row.provider"), `<select id="cx_em_provider">${opt(["gmail", "outlook", "other"], "gmail")}</select>`)}
+        ${row(t("config.cx.email_label"), `<input id="cx_em_address" type="email" placeholder="${t("config.cx.email_placeholder")}"/>`)}
+        ${row(t("config.cx.app_password"), `<input id="cx_em_pass" type="password" placeholder="${t("config.cx.app_password_ph")}"/>`)}
+        <button class="cf-btn cf-cx-act" data-act="connect" data-id="email">${t("config.cx.connect")}</button>`;
     } else if (id === "spotify") {
-      box = `<button class="cf-btn cf-cx-act" data-act="connect" data-id="spotify">Connect with Spotify</button>`;
+      box = `<button class="cf-btn cf-cx-act" data-act="connect" data-id="spotify">${t("config.cx.connect_spotify")}</button>`;
     } else if (id === "architect") {
       const set = (c.config || {}).token_set;
-      box = `${row("Daemon token", `<input id="cx_arch_token" type="password" placeholder="${set ? "•••••• (saved)" : "paste the token"}"/>`)}
-        ${row("URL (optional)", `<input id="cx_arch_url" type="text" placeholder="https://127.0.0.1:5573"/>`)}
-        <button class="cf-btn cf-cx-act" data-act="architect-save" data-id="architect">Save token</button>`;
+      box = `${row(t("config.cx.daemon_token"), `<input id="cx_arch_token" type="password" placeholder="${set ? t("config.key.ph_saved") : t("config.cx.paste_token")}"/>`)}
+        ${row(t("config.cx.url_optional"), `<input id="cx_arch_url" type="text" placeholder="https://127.0.0.1:5573"/>`)}
+        <button class="cf-btn cf-cx-act" data-act="architect-save" data-id="architect">${t("config.cx.save_token")}</button>`;
     } else if (id === "meshkore") {
       const clusters = (c.clusters || []).map(cl =>
-        `<div class="cf-cx-cluster"><span>${esc(cl.name)} ${cl.connected ? "· connected" : ""}</span>
-          <button class="cf-btn cf-cx-act" data-act="mesh-remove" data-id="meshkore" data-name="${esc(cl.name)}">Revoke</button></div>`).join("");
-      box = `${clusters}${row("Name", `<input id="cx_mk_name" type="text" placeholder="e.g. team"/>`)}
+        `<div class="cf-cx-cluster"><span>${esc(cl.name)} ${cl.connected ? t("config.cx.cluster_connected") : ""}</span>
+          <button class="cf-btn cf-cx-act" data-act="mesh-remove" data-id="meshkore" data-name="${esc(cl.name)}">${t("config.cx.revoke")}</button></div>`).join("");
+      box = `${clusters}${row(t("config.cx.mk_name"), `<input id="cx_mk_name" type="text" placeholder="${t("config.cx.mk_name_ph")}"/>`)}
         ${row("cluster_id", `<input id="cx_mk_cid" type="text"/>`)}
         ${row("token", `<input id="cx_mk_token" type="password"/>`)}
-        ${row("handle (optional)", `<input id="cx_mk_handle" type="text" placeholder="zaelar"/>`)}
-        <button class="cf-btn cf-cx-act" data-act="mesh-add" data-id="meshkore">Add cluster</button>`;
+        ${row(t("config.cx.mk_handle"), `<input id="cx_mk_handle" type="text" placeholder="zaelar"/>`)}
+        <button class="cf-btn cf-cx-act" data-act="mesh-add" data-id="meshkore">${t("config.cx.add_cluster")}</button>`;
     }
     return `<section class="cf-panel-sec"><header class="cf-panel-head"><h4>${esc(c.label)} ${cxBadge(c)}</h4>
       <p>${esc(c.detail || "")}</p></header><div class="cf-group">${box}</div></section>`;
@@ -338,13 +344,13 @@ export function ConfigPanel() {
 
   function sec_connectors() {
     const cs = cfg.connectors || [];
-    if (!cs.length) return `<p class="cf-loading">Couldn't load the connectors.</p>`;
-    const fams = [["mensajeria", "Messaging"], ["musica", "Music"], ["infra", "Infrastructure (team · code)"]];
+    if (!cs.length) return `<p class="cf-loading">${t("config.cx.load_error")}</p>`;
+    const fams = [["mensajeria", t("config.cx.fam_messaging")], ["musica", t("config.cx.fam_music")], ["infra", t("config.cx.fam_infra")]];
     return fams.map(([f, title]) => {
       const items = cs.filter(c => c.family === f);
       if (!items.length) return "";
       return `<h3 class="cf-fam">${esc(title)}</h3>${items.map(connectorCard).join("")}`;
-    }).join("") + `<div class="cf-foot"><button class="cf-btn cf-cx-refresh">Refresh status</button></div>`;
+    }).join("") + `<div class="cf-foot"><button class="cf-btn cf-cx-refresh">${t("config.cx.refresh_status")}</button></div>`;
   }
 
   const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -361,8 +367,8 @@ export function ConfigPanel() {
     try {
       if (act === "disconnect") {
         if (id === "spotify") { await disconnectSpotify(btn); }
-        else if (id === "architect") { await api.architectDisconnect(); msg("Architect revoked."); }
-        else { await api.disconnectMessaging(id, {}); msg(`${id} disconnected.`); }
+        else if (id === "architect") { await api.architectDisconnect(); msg(t("config.msg.architect_revoked")); }
+        else { await api.disconnectMessaging(id, {}); msg(t("config.msg.disconnected", { id })); }
         await reloadConnectors();
       } else if (act === "connect") {
         if (id === "spotify") { await connectSpotify(btn); return; }
@@ -370,39 +376,39 @@ export function ConfigPanel() {
         if (id === "telegram") payload = { api_id: val("cx_tg_api_id"), api_hash: val("cx_tg_api_hash") };
         if (id === "email") payload = { email_address: val("cx_em_address"), email_password: val("cx_em_pass"), provider: val("cx_em_provider") };
         const r = await api.connectMessaging(id, payload);
-        msg(r.ok ? `${id}: connecting…` : ("✗ " + (r.error || "error")));
+        msg(r.ok ? t("config.msg.connecting", { id }) : ("✗ " + (r.error || t("config.msg.error"))));
         pollConnectors();
       } else if (act === "architect-save") {
         const token = val("cx_arch_token"), url = val("cx_arch_url");
         const r = await api.architectConnect({ token, url });
-        msg(r.ok ? "✓ token saved" : ("✗ " + (r.error || "error"))); await reloadConnectors();
+        msg(r.ok ? t("config.msg.token_saved") : ("✗ " + (r.error || t("config.msg.error")))); await reloadConnectors();
       } else if (act === "mesh-add") {
         const r = await api.meshkoreAdd({ name: val("cx_mk_name"), cluster_id: val("cx_mk_cid"), token: val("cx_mk_token"), handle: val("cx_mk_handle") });
-        msg(r.ok ? "✓ cluster added" : ("✗ " + (r.error || "error"))); await reloadConnectors();
+        msg(r.ok ? t("config.msg.cluster_added") : ("✗ " + (r.error || t("config.msg.error")))); await reloadConnectors();
       } else if (act === "mesh-remove") {
-        await api.meshkoreRemove(btn.dataset.name); msg("cluster revoked"); await reloadConnectors();
+        await api.meshkoreRemove(btn.dataset.name); msg(t("config.msg.cluster_revoked")); await reloadConnectors();
       }
-    } catch (e) { msg("✗ error"); } finally { btn.disabled = false; }
+    } catch (e) { msg(t("config.msg.error_generic")); } finally { btn.disabled = false; }
   }
 
   // ═══ PESTAÑA WIDGETS (V2-083) — una sola lista alfabética con badge de-serie/tuyo ═══════════════════════
   function sec_widgets() {
     const ws = (cfg.widgets || []).filter(w => w.surface === "user")
       .sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id), "es"));
-    if (!ws.length) return `<p class="cf-loading">Couldn't load the widgets.</p>`;
+    if (!ws.length) return `<p class="cf-loading">${t("config.widgets.load_error")}</p>`;
     const rows = ws.map(w => {
       const kind = w.origin === "builtin"
-        ? `<span class="cf-wbadge builtin">built-in</span>`
-        : `<span class="cf-wbadge user">yours</span>`;
+        ? `<span class="cf-wbadge builtin">${t("config.widgets.builtin_badge")}</span>`
+        : `<span class="cf-wbadge user">${t("config.widgets.yours_badge")}</span>`;
       const al = (w.aliases || []).filter(a => a.toLowerCase() !== String(w.name || "").toLowerCase()).slice(0, 6).join(" · ");
       return `<div class="cf-wrow"><div class="cf-wname">${esc(w.name || w.id)} ${kind}</div>
         <div class="cf-waliases">${esc(al)}</div></div>`;
     }).join("");
-    return panel("widgets", "System widgets", "All available widgets. «built-in» come with the agent; «yours» you created. Read-only (their aliases are edited in the widget's own header or by voice).", rows);
+    return panel("widgets", t("config.widgets.title"), t("config.widgets.sub"), rows);
   }
 
   async function load() {
-    msg(""); bodyEl.innerHTML = '<p class="cf-loading">Loading settings…</p>';
+    msg(""); bodyEl.innerHTML = `<p class="cf-loading">${t("config.loading")}</p>`;
     try {
       cfg = await api.getConfig();
       // V2-083: conectores + widgets para sus pestañas (best-effort, en paralelo).
@@ -414,7 +420,7 @@ export function ConfigPanel() {
       render();
       store.setApiSummary(cfg.apis || []);
       store.setApiAlerts((cfg.apis || []).filter(a => a.state === "warn" || a.state === "error"));
-    } catch (e) { bodyEl.innerHTML = '<p class="cf-loading">Couldn\'t load /api/config</p>'; }
+    } catch (e) { bodyEl.innerHTML = `<p class="cf-loading">${t("config.load_config_error")}</p>`; }
   }
   const close = () => store.setConfigOpen(false);
   const onKey = e => { if (e.key === "Escape" && store.configOpen()) close(); };
@@ -423,11 +429,11 @@ export function ConfigPanel() {
   ovl = h("div", { class: () => "cfgfull" + (store.configOpen() ? " open" : ""), onClick: e => { if (e.target === ovl) close(); } },
     h("div", { class: "cf-shell" },
       h("div", { class: "cf-head" },
-        h("h3", {}, raw(GEAR_ICON), "Settings"),
+        h("h3", {}, raw(GEAR_ICON), () => t("config.tab.settings")),
         h("span", { class: "cf-msg", ref: el => (msgEl = el) }),
-        h("button", { class: "cf-x", onClick: close }, "close"),
+        h("button", { class: "cf-x", onClick: close }, () => t("config.close")),
       ),
-      h("div", { class: "cf-body", ref: el => (bodyEl = el) }, h("p", { class: "cf-loading" }, "Loading…")),
+      h("div", { class: "cf-body", ref: el => (bodyEl = el) }, h("p", { class: "cf-loading" }, () => t("config.loading_short"))),
     ),
   );
 

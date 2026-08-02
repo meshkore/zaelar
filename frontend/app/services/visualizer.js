@@ -7,6 +7,7 @@
 // ============================================================================
 import * as store from "../core/store.js?v=2";
 import { micRMS, micAnalyser, botAnalyser, level } from "./audio.js?v=2";
+import { t as tr } from "../core/i18n.js?v=1";
 
 let raf = null, orbPhase = 0, vizPhase = 0;
 
@@ -103,8 +104,8 @@ export function startVisualizer({ orbCanvas, vizCanvas, getStream, getGate, audi
       const show = !micMuted && (muted || audit.silent);
       store.setMicBlocked({
         show,
-        msg: muted ? "🔇 Microphone in use by another app — I can't hear you"
-           : (audit.silent ? "🔇 I can't pick up your mic · is another app using it (SuperWhisper)?" : ""),
+        msg: muted ? tr("viz.mic_in_use")
+           : (audit.silent ? tr("viz.mic_silent") : ""),
       });
     }
 

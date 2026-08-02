@@ -8,6 +8,7 @@ import * as store from "../core/store.js?v=2";
 import { handleWidgetVoice } from "./voiceCommands.js?v=2";
 import { refreshStatus } from "./status.js?v=2";
 import * as vault from "./vault.js?v=1";
+import { t } from "../core/i18n.js?v=1";
 
 let es = null;
 
@@ -71,7 +72,7 @@ export function openSSE(desktop) {
         store.pushChat({ role: "you", text: d.text });
       }
     } else if (d.kind === "alert") {                                              // hard notice (e.g. no LLM credit) → red banner
-      store.showAlert(d.label || "⚠️ Problem with the language model");
+      store.showAlert(d.label || t("sse.llm_problem"));
       refreshStatus();                                                           // turn the ◉ status icon red now
     } else if (d.kind === "session" && d.label === "RESET") {                    // V2-084: reset → procesos EN BLANCO
       // El escritorio lo cierra el evento widget/close; aquí vaciamos la pestaña Procesos (chips vivos + histórico)
@@ -99,7 +100,7 @@ export function openSSE(desktop) {
         vault.reveal(d.mid).then(r => {
           if (r && r.value != null) {
             store.openVault("reveal");                                            // (resetea vaultRevealed)
-            store.setVaultRevealed({ label: d.slabel || "Secreto", value: r.value });   // …y AHORA el valor
+            store.setVaultRevealed({ label: d.slabel || t("sse.secret_default"), value: r.value });   // …y AHORA el valor
           } else if (r && r.locked) store.openVault("unlock", { mid: d.mid });
         }).catch(() => {});
       }

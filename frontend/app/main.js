@@ -12,7 +12,7 @@ import * as session from "./services/session.js?v=3";
 import * as store from "./core/store.js?v=2";
 import { startStatusPolling } from "./services/status.js?v=2";
 import { initTheme } from "./services/theme.js?v=2";
-import { initI18n } from "./core/i18n.js?v=1";
+import { initI18n, t } from "./core/i18n.js?v=1";
 
 // SUPERFICIES NATIVAS del frontend (widgets de SISTEMA, intocables): la LISTA CANÓNICA ÚNICA vive en
 // core/system-surfaces.js — main.js las MONTA desde ahí (sin lista duplicada). `submitChat` es el único símbolo
@@ -105,9 +105,9 @@ async function uploadFile(file, source) {
     const res = await fetch("/api/files/upload", { method: "POST", body: fd });
     const d = await res.json();
     if (!res.ok) throw new Error(d && d.detail || "upload failed");
-    store.pushChat({ role: "sys", text: (source === "paste" ? "📎 image sent: " : "📁 file added: ") + d.name });
+    store.pushChat({ role: "sys", text: source === "paste" ? t("main.image_sent", { name: d.name }) : t("main.file_added", { name: d.name }) });
   } catch (_) {
-    store.pushChat({ role: "sys", text: "⚠️ couldn't upload the file" });
+    store.pushChat({ role: "sys", text: t("main.upload_failed") });
   }
 }
 

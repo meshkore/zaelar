@@ -7,6 +7,7 @@ import { createEffect } from "../core/reactive.js?v=2";
 import * as store from "../core/store.js?v=2";
 import * as api from "../services/api.js?v=2";
 import { BRAIN_ICON } from "../lib/icons.js?v=1";
+import { t } from "../core/i18n.js?v=1";
 
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const money = v => (v == null ? "—" : `$${Number(v).toFixed(2)}/M`);
@@ -14,7 +15,7 @@ const money = v => (v == null ? "—" : `$${Number(v).toFixed(2)}/M`);
 function moduleCard(m) {
   const cur = m.current || {};
   const costLine = (cur.cost_in != null || cur.cost_out != null)
-    ? `${money(cur.cost_in)} in · ${money(cur.cost_out)} out` : "cost not measured in $/M (internal use, not FlashBrain)";
+    ? `${money(cur.cost_in)} in · ${money(cur.cost_out)} out` : t("bench.cost_not_measured");
   const candidates = m.candidates_2026_07_26 || [];
   const candRows = candidates.map(c => `
     <tr class="${c.verdict ? "bp-cand-rejected" : "bp-cand-open"}">
@@ -27,20 +28,20 @@ function moduleCard(m) {
   return `<section class="cf-panel-sec bp-card">
     <header class="cf-panel-head"><h4>${esc(m.label)}</h4><p>${esc(m.role)}</p></header>
     <div class="cf-group bp-current">
-      <div class="cf-row2"><label class="cf-row2-label">Current model</label>
+      <div class="cf-row2"><label class="cf-row2-label">${t("bench.current_model")}</label>
         <div class="cf-row2-ctl bp-right"><span class="bp-model">${esc(cur.model || "—")}</span>
-          <span class="cf-hint">${esc(cur.provider || "")}${cur.since ? " · since " + esc(cur.since) : ""}</span></div></div>
-      <div class="cf-row2"><label class="cf-row2-label">Cost</label>
+          <span class="cf-hint">${esc(cur.provider || "")}${cur.since ? " · " + t("bench.since", { value: esc(cur.since) }) : ""}</span></div></div>
+      <div class="cf-row2"><label class="cf-row2-label">${t("bench.cost")}</label>
         <div class="cf-row2-ctl bp-right"><span class="bp-model">${esc(costLine)}</span></div></div>
-      ${cur.ttft_ms ? `<div class="cf-row2"><label class="cf-row2-label">Latency (TTFT)</label>
+      ${cur.ttft_ms ? `<div class="cf-row2"><label class="cf-row2-label">${t("bench.latency_ttft")}</label>
         <div class="cf-row2-ctl bp-right"><span class="bp-model">${esc(cur.ttft_ms)}ms</span></div></div>` : ""}
-      <div class="cf-row2"><label class="cf-row2-label">Why this one</label>
+      <div class="cf-row2"><label class="cf-row2-label">${t("bench.why_this")}</label>
         <div class="cf-row2-ctl bp-right bp-why">${esc(m.why || "—")}</div></div>
-      ${m.hallucination_note ? `<div class="cf-row2"><label class="cf-row2-label">Hallucination / reliability</label>
+      ${m.hallucination_note ? `<div class="cf-row2"><label class="cf-row2-label">${t("bench.hallucination")}</label>
         <div class="cf-row2-ctl bp-right bp-hallu">${esc(m.hallucination_note)}</div></div>` : ""}
     </div>
-    ${candidates.length ? `<div class="bp-candtitle">Candidates evaluated</div>
-      <table class="bp-cand-table"><thead><tr><th>model</th><th>cost in/out</th><th>tool-calling</th><th>TTFT (ms)</th><th>status</th></tr></thead>
+    ${candidates.length ? `<div class="bp-candtitle">${t("bench.candidates_evaluated")}</div>
+      <table class="bp-cand-table"><thead><tr><th>${t("bench.col_model")}</th><th>${t("bench.col_cost")}</th><th>${t("bench.col_tool_calling")}</th><th>${t("bench.col_ttft")}</th><th>${t("bench.col_status")}</th></tr></thead>
       <tbody>${candRows}</tbody></table>` : ""}
   </section>`;
 }
@@ -50,19 +51,16 @@ export function BenchmarksPanel() {
   const close = () => store.setBenchmarksOpen(false);
 
   async function load() {
-    bodyEl.innerHTML = '<p class="cf-loading">Loading benchmarks…</p>';
+    bodyEl.innerHTML = `<p class="cf-loading">${t("bench.loading")}</p>`;
     try {
       const data = await api.getBenchmarks();
       const mods = (data.modules || []).map(moduleCard).join("");
       bodyEl.innerHTML = `<div class="cf-scroll"><div class="cf-panel bp-panel">
-        <p class="bp-intro">Why we use each model where we use it — cost, latency and reliability we measured, not
-        just the provider's spec sheet. Detailed source: <code>${esc(data.source_doc || "")}</code>
-        (updated ${esc(data.updated || "")}). This is informational only — actually changing a model is done
-        in the normal sections above.</p>
-        ${mods || '<p class="cf-loading">No data.</p>'}
+        <p class="bp-intro">${t("bench.intro", { source: esc(data.source_doc || ""), updated: esc(data.updated || "") })}</p>
+        ${mods || `<p class="cf-loading">${t("bench.no_data")}</p>`}
       </div></div>`;
     } catch (e) {
-      bodyEl.innerHTML = '<p class="cf-loading">Couldn\'t load /api/config/benchmarks</p>';
+      bodyEl.innerHTML = `<p class="cf-loading">${t("bench.load_error")}</p>`;
     }
   }
 
@@ -72,10 +70,10 @@ export function BenchmarksPanel() {
   const ovl = h("div", { class: () => "cfgfull" + (store.benchmarksOpen() ? " open" : ""), onClick: e => { if (e.target === ovl) close(); } },
     h("div", { class: "cf-shell" },
       h("div", { class: "cf-head" },
-        h("h3", {}, raw(BRAIN_ICON), "Benchmarks · why these models"),
-        h("button", { class: "cf-x", onClick: close }, "close"),
+        h("h3", {}, raw(BRAIN_ICON), () => t("bench.header")),
+        h("button", { class: "cf-x", onClick: close }, () => t("bench.close")),
       ),
-      h("div", { class: "cf-body", ref: el => (bodyEl = el) }, h("p", { class: "cf-loading" }, "Loading…")),
+      h("div", { class: "cf-body", ref: el => (bodyEl = el) }, h("p", { class: "cf-loading" }, () => t("bench.loading_short"))),
     ),
   );
 

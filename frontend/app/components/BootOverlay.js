@@ -8,12 +8,13 @@ import { h } from "../core/dom.js?v=2";
 import { createEffect } from "../core/reactive.js?v=2";
 import * as store from "../core/store.js?v=2";
 import { startBootAnim } from "./boot-anim.js?v=2";
+import { t } from "../core/i18n.js?v=1";
 
 const LABELS = {
-  encendiendo: "Starting up zaelar…",
-  voz: "Connecting voice…",
-  memoria: "Composing memory…",
-  reflejo: "Tuning the reflex…",
+  encendiendo: t("boot.encendiendo"),
+  voz: t("boot.voz"),
+  memoria: t("boot.memoria"),
+  reflejo: t("boot.reflejo"),
   listo: "",
 };
 

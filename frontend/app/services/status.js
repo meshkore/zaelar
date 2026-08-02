@@ -14,6 +14,7 @@
 // ============================================================================
 import * as api from "./api.js?v=2";
 import * as store from "../core/store.js?v=2";
+import { t } from "../core/i18n.js?v=1";
 
 const SEV = { ok: 0, off: 0, unknown: 1, warn: 2, error: 3 };   // "off" (voice idle) is NON-alarming
 const LABEL = ["ok", "unknown", "warn", "error"];
@@ -21,16 +22,16 @@ const LABEL = ["ok", "unknown", "warn", "error"];
 // The VOICE row, computed from THIS browser's live signals (reactive: reads store signals).
 export function voiceStatus() {
   const mb = store.micBlocked();
-  if (mb && mb.show) return { state: "error", detail: mb.msg || "🔇 microphone unavailable" };
+  if (mb && mb.show) return { state: "error", detail: mb.msg || t("statussvc.mic_unavailable") };
   const conn = store.conn() || {};
   const reconnecting = /reconnect|reconect/i.test(conn.label || "");
   if (store.started()) {
-    if (reconnecting) return { state: "warn", detail: "reconnecting…" };
-    if (!conn.ok) return { state: "warn", detail: "connecting…" };
-    return { state: "ok", detail: store.micMuted() ? "active · mic muted 🚫" : "active · listening" };
+    if (reconnecting) return { state: "warn", detail: t("statussvc.reconnecting") };
+    if (!conn.ok) return { state: "warn", detail: t("statussvc.connecting") };
+    return { state: "ok", detail: store.micMuted() ? t("statussvc.active_mic_muted") : t("statussvc.active_listening") };
   }
-  if (store.starting()) return { state: "warn", detail: "connecting…" };
-  return { state: "off", detail: "on standby · activates when you open the site" };
+  if (store.starting()) return { state: "warn", detail: t("statussvc.connecting") };
+  return { state: "off", detail: t("statussvc.standby") };
 }
 
 // Worst of: server overall, this browser's voice state, and the offline flag. Drives the ◉ icon (color + blink).
@@ -51,7 +52,7 @@ export async function refreshStatus() {
     // Server unreachable (restarting / crashed) → RED alarm now, don't keep a stale green.
     store.setStatus({
       overall: "error", offline: true,
-      items: [{ key: "server", label: "Server · FastAPI", state: "error", detail: "NOT responding — restarting or crashed?" }],
+      items: [{ key: "server", label: t("statussvc.server_label"), state: "error", detail: t("statussvc.server_not_responding") }],
     });
   }
 }

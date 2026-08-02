@@ -6,6 +6,7 @@ import { h, raw } from "../core/dom.js?v=2";
 import * as store from "../core/store.js?v=2";
 import * as session from "../services/session.js?v=3";
 import { makeDraggable } from "../lib/draggable.js?v=2";
+import { t } from "../core/i18n.js?v=1";
 
 const DRAG_SVG = `<svg width="14" height="14" viewBox="0 0 14 14" fill="currentColor"><circle cx="2.5" cy="2.5" r="1.3"/><circle cx="7" cy="2.5" r="1.3"/><circle cx="11.5" cy="2.5" r="1.3"/><circle cx="2.5" cy="7" r="1.3"/><circle cx="7" cy="7" r="1.3"/><circle cx="11.5" cy="7" r="1.3"/><circle cx="2.5" cy="11.5" r="1.3"/><circle cx="7" cy="11.5" r="1.3"/><circle cx="11.5" cy="11.5" r="1.3"/></svg>`;
 const MIC_SVG = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>`;
@@ -23,30 +24,30 @@ export function CameraUnit() {
       // own mic back through the speakers (the "echo"). Setting el.muted here is what actually silences local playback.
       h("video", { id: "cam", ref: el => { el.muted = true; session.attachVideo(el); }, autoplay: true, playsinline: true, muted: true }),
       h("div", { class: "camoff", style: { display: () => (store.camOff() ? "flex" : "none") } }, raw(CAMOFF_SVG)),
-      h("div", { id: "camph", class: "camph", style: { display: () => (!store.started() && !store.camOff() ? "flex" : "none") } }, "camera off"),
+      h("div", { id: "camph", class: "camph", style: { display: () => (!store.started() && !store.camOff() ? "flex" : "none") } }, () => t("camera.off")),
       h("canvas", { id: "viz" }),                                  // voice spectrum, overlaid along the bottom edge
-      h("button", { class: "drag", id: "drag", ref: el => (dragEl = el), title: "Move" }, raw(DRAG_SVG)),
+      h("button", { class: "drag", id: "drag", ref: el => (dragEl = el), title: () => t("camera.move") }, raw(DRAG_SVG)),
     ),
     h("div", { class: "ctrl" },
       h("button", {
         class: () => "mtog" + (store.micMuted() ? " off" : ""), id: "micToggle",
-        title: () => (store.micMuted() ? "Turn on mic" : "Mute mic"), "aria-label": "Mute mic",
+        title: () => (store.micMuted() ? t("camera.mic_unmute") : t("camera.mic_mute")), "aria-label": () => t("camera.mic_mute"),
         onClick: () => session.toggleMic(),
       }, raw(MIC_SVG)),
       h("button", {
         class: () => "mtog" + (store.camOff() ? " off" : ""), id: "camToggle",
-        title: () => (store.camOff() ? "Turn on camera" : "Turn off camera"), "aria-label": "Turn off camera",
+        title: () => (store.camOff() ? t("camera.cam_on") : t("camera.cam_off")), "aria-label": () => t("camera.cam_off"),
         onClick: () => session.toggleCam(),
       }, raw(CAM_SVG)),
       h("div", { class: "ctrl-sp" }),                              // spacer: sets the chat toggle apart
       h("button", {
         class: () => "mtog chat" + (store.chatOpen() ? " active" : ""), id: "chatToggle",
-        title: "Text chat with the agent", "aria-label": "Open chat",
+        title: () => t("camera.chat_title"), "aria-label": () => t("camera.chat_aria"),
         onClick: () => store.setChatOpen(!store.chatOpen()),
       }, raw(CHAT_SVG)),
     ),
     h("div", {
-      id: "spk", title: "Your voice recognition · click to retrain",
+      id: "spk", title: () => t("camera.spk_title"),
       class: () => "spk" + (store.spk().show ? " show" : "") + (store.spk().other ? " other" : ""),
       html: () => store.spk().html, onClick: () => session.retrain(),
     }),

@@ -3,17 +3,18 @@
 // session's diagnostic helpers (diagMic / populateMicPicker) can drive them directly.
 import { h } from "../core/dom.js?v=2";
 import * as store from "../core/store.js?v=2";
+import { t } from "../core/i18n.js?v=1";
 
 export function ConnStatus() {
   return h("div", { class: "conn" },
-    "conn ",
+    () => t("conn.conn"),
     h("b", { id: "connv", style: { color: () => (store.conn().ok ? "#16B8A6" : "#9aa7b8") } }, () => store.conn().label),
-    " · reply ",
+    () => t("conn.reply"),
     h("b", { id: "latv" }, () => store.latency()),
-    " · mic ",
+    () => t("conn.mic"),
     h("b", { id: "micv", style: { display: "none" } }, "—"),                              // legacy name (hidden): diagnostic only
-    h("select", { id: "micsel", title: "Microphone", style: { display: "none", maxWidth: "200px", fontSize: "11px", verticalAlign: "middle" } }),
-    h("select", { id: "micmode", title: "Capture mode (noise cleanup)", style: { display: "none", marginLeft: "6px", fontSize: "11px", verticalAlign: "middle" } }),
+    h("select", { id: "micsel", title: () => t("conn.microphone"), style: { display: "none", maxWidth: "200px", fontSize: "11px", verticalAlign: "middle" } }),
+    h("select", { id: "micmode", title: () => t("conn.captureMode"), style: { display: "none", marginLeft: "6px", fontSize: "11px", verticalAlign: "middle" } }),
     h("span", { id: "micbarwrap", style: { display: "none", verticalAlign: "middle", marginLeft: "8px", width: "64px", overflow: "hidden" } },
       h("span", {
         id: "micbar",

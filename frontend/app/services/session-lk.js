@@ -25,6 +25,7 @@ import * as api from "./api.js?v=2";
 import { openSSE, closeSSE } from "./sse.js?v=4";
 import { clearDebugBuffer } from "./debugbus.js?v=2";
 import { startVisualizer } from "./visualizer.js?v=2";
+import { t } from "../core/i18n.js?v=1";
 
 let room = null, stream = null, videoEl = null, botAudioEl = null;
 let started = false, starting = false;
@@ -77,7 +78,7 @@ function _startHeartbeat() {
       if (r && r.ok === false && started) {   // perdimos la carrera (otra pestaña viva) → cede el paso, no dos micros
         console.warn("session lock perdido — otra sesión tomó el control; cierro esta.");
         stop();
-        store.setMicBlocked({ show: true, msg: "zaelar is active in another tab or browser. Close it to use it here." });
+        store.setMicBlocked({ show: true, msg: t("voice.session_active_other_tab") });
       }
     });
   }, 4000);
@@ -163,7 +164,7 @@ export function toggleBotMute() {
   // parecía bloqueado. Ahora el server sigue al icono: el chat abierto sigue silenciando por defecto (ahorra
   // latencia y coste de TTS), pero el operador puede recuperar la voz con un clic sin cerrar el chat.
   setVoiceOutput(!next);
-  store.setVoiceFlash({ text: next ? "🔇 muted (still running)" : "🔊 voice on", show: true });
+  store.setVoiceFlash({ text: next ? t("voice.flash_muted") : t("voice.flash_voice_on"), show: true });
   clearTimeout(toggleBotMute._t); toggleBotMute._t = setTimeout(() => store.setVoiceFlash(f => ({ ...f, show: false })), 1600);
 }
 export async function toggleCam() {
@@ -183,9 +184,9 @@ async function populateMicPicker() {
     const ins = devs.filter(d => d.kind === "audioinput");
     const sel = document.getElementById("micsel"); if (!sel) return; sel.innerHTML = "";
     const cur = stream && stream.getAudioTracks()[0] && stream.getAudioTracks()[0].getSettings().deviceId;
-    ins.forEach(d => { const o = document.createElement("option"); o.value = d.deviceId; o.textContent = d.label || ("mic " + d.deviceId.slice(0, 6)); if (d.deviceId === (micDeviceId || cur)) o.selected = true; sel.appendChild(o); });
+    ins.forEach(d => { const o = document.createElement("option"); o.value = d.deviceId; o.textContent = d.label || t("voice.mic_fallback", { id: d.deviceId.slice(0, 6) }); if (d.deviceId === (micDeviceId || cur)) o.selected = true; sel.appendChild(o); });
     sel.style.display = "inline-block";
-    sel.onchange = () => { micDeviceId = sel.value || null; localStorage.setItem("zaelar_mic", micDeviceId || ""); store.setConnState("switching mic…"); stop(); setTimeout(start, 350); };
+    sel.onchange = () => { micDeviceId = sel.value || null; localStorage.setItem("zaelar_mic", micDeviceId || ""); store.setConnState(t("voice.conn_switching_mic")); stop(); setTimeout(start, 350); };
   } catch (e) { console.warn("enumerateDevices failed:", e); }
 }
 
@@ -194,21 +195,21 @@ function populateMicModePicker() {
   const sel = document.getElementById("micmode"); if (!sel) return;
   const cur = micMode();
   const opts = [
-    ["isolate", "🎙️ Isolation (macOS)"],
-    ["full", "🎙️ Chrome filter"],
-    ["raw", "🎙️ Raw"],
+    ["isolate", t("voice.micmode_isolate")],
+    ["full", t("voice.micmode_full")],
+    ["raw", t("voice.micmode_raw")],
   ];
   sel.innerHTML = "";
   opts.forEach(([v, label]) => { const o = document.createElement("option"); o.value = v; o.textContent = label; if (v === cur) o.selected = true; sel.appendChild(o); });
   sel.style.display = "inline-block";
   sel.onchange = () => {
     localStorage.setItem("zaelar_micmode", sel.value);
-    store.setConnState("switching capture…"); stop(); setTimeout(start, 350);
+    store.setConnState(t("voice.conn_switching_capture")); stop(); setTimeout(start, 350);
   };
 }
 
 export async function start() {
-  if (started || starting) return; starting = true; store.setStarting(true); store.setConnState("requesting…");
+  if (started || starting) return; starting = true; store.setStarting(true); store.setConnState(t("voice.conn_requesting"));
   audit.silent = false; store.setMicBlocked({ show: false, msg: "" });
 
   // GATE de SESIÓN ÚNICA: antes de tocar el micro, pide ser la única sesión viva. Si otra pestaña/navegador la
@@ -216,7 +217,7 @@ export async function start() {
   const acq = await api.sessionAcquire(SID);
   if (acq && acq.ok === false) {
     starting = false; store.setStarting(false); started = false; store.setStarted(false); store.setConnState("—");
-    store.setMicBlocked({ show: true, msg: "zaelar is already open in another tab or browser. Close it to use it here." });
+    store.setMicBlocked({ show: true, msg: t("voice.session_open_other_tab") });
     if (_blockedRetry) clearTimeout(_blockedRetry);
     _blockedRetry = setTimeout(() => { _blockedRetry = null; start(); }, 3000);
     if (!_everBooted) _unblockBoot();   // no dejes la UI atrapada en el splash mientras está bloqueada
@@ -285,13 +286,13 @@ export async function start() {
         // AQUÍ es donde una política de autoplay del navegador (Chrome exige gesto del usuario) bloquea el sonido
         // en silencio para el operador — SIN esto no había forma de verlo desde el server.
         try { api.clientLog("⚠️ play() RECHAZADO (posible bloqueo de autoplay)", { text: String((e && e.name) || e) + ": " + String((e && e.message) || "") }); } catch (_) {}
-        store.showAlert("Tap to enable zaelar's audio.", () => botAudioEl.play().catch(() => {}));
+        store.showAlert(t("voice.alert_tap_audio"), () => botAudioEl.play().catch(() => {}));
       });
       try { audio.attachBot(new MediaStream([track.mediaStreamTrack])); } catch (_) {}
     });
     room.on(RoomEvent.ConnectionStateChanged, (st) => {
       if (st === ConnectionState.Connected) {
-        store.setConnState("connected", true); store.hideAlert();
+        store.setConnState(t("voice.conn_connected"), true); store.hideAlert();
         _recTries = 0;                                   // link is back → refresca el presupuesto de reintentos
         if (_recTimer) { clearTimeout(_recTimer); _recTimer = null; }   // cancela cualquier reintento en cola
         // RECONCILIA el canvas: el servidor puede haberse reiniciado con la página abierta → su `open_widgets`
@@ -309,7 +310,7 @@ export async function start() {
         setVoiceOutput(!store.botMuted());
         _flushPendingText();
       }
-      else if (st === ConnectionState.Reconnecting) store.setConnState("reconnecting…");
+      else if (st === ConnectionState.Reconnecting) store.setConnState(t("voice.conn_reconnecting"));
       else if (st === ConnectionState.Disconnected) { store.setConnState("—"); if (started) store.setBotSpeaking(false); }
       else store.setConnState(String(st));
     });
@@ -333,7 +334,7 @@ export async function start() {
       for (const s of (segments || [])) store.pushCaptionSeg(s.id, s.text, s.final);
     });
 
-    store.setConnState("connecting…");
+    store.setConnState(t("voice.conn_connecting"));
     await room.connect(url, token);
     // Publish the mic track we already captured (so the analyser and the published audio are the SAME track).
     const micTrack = stream.getAudioTracks()[0];
@@ -346,7 +347,7 @@ export async function start() {
     starting = false; store.setStarting(false); started = false; store.setStarted(false); store.setConnState("error"); console.error(err);
     const n = err && err.name;
     if (n === "NotReadableError" || n === "NotAllowedError" || n === "OverconstrainedError") {
-      store.setMicBlocked({ show: true, msg: n === "NotAllowedError" ? "🔇 Microphone permission denied" : "🔇 Microphone in use by another app" });
+      store.setMicBlocked({ show: true, msg: n === "NotAllowedError" ? t("voice.mic_denied") : t("voice.mic_in_use") });
     }
     if (!_everBooted) _unblockBoot();   // a failed boot must never leave the UI locked — let the user retry
     try { await stop(); } catch (_) {}
@@ -367,10 +368,10 @@ function autoReconnect() {
   if (!started || _recTimer) return;                    // ya hay un reintento en cola → no solapar
   const i = Math.min(_recTries, _REC_BACKOFF.length - 1);
   if (_recTries >= _REC_BACKOFF.length) {               // ventana agotada → avisa (banda superior) pero SIGUE sola
-    store.showAlert("Lost the voice connection (did the network change?). Retrying on its own…",
+    store.showAlert(t("voice.alert_lost_network"),
       () => { _recTries = 0; if (_recTimer) { clearTimeout(_recTimer); _recTimer = null; } stop(); setTimeout(start, 300); });
   }
-  _recTries++; store.setConnState("reconnecting…");
+  _recTries++; store.setConnState(t("voice.conn_reconnecting"));
   stop();
   _recTimer = setTimeout(() => { _recTimer = null; if (started) start(); }, _REC_BACKOFF[i]);
 }
@@ -379,7 +380,7 @@ try {
   window.addEventListener("online", () => {
     if (!started) return;
     _recTries = 0; if (_recTimer) { clearTimeout(_recTimer); _recTimer = null; }
-    store.setConnState("reconnecting…"); stop(); setTimeout(start, 500);
+    store.setConnState(t("voice.conn_reconnecting")); stop(); setTimeout(start, 500);
   });
 } catch (_) {}
 

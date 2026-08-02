@@ -16,6 +16,7 @@ import { startMicVAD, stopMicVAD } from "./vad.js?v=2";
 import { startBrowserSTT, stopBrowserSTT } from "./stt.js?v=2";
 import { openSSE, closeSSE } from "./sse.js?v=4";
 import { startVisualizer } from "./visualizer.js?v=2";
+import { t } from "../core/i18n.js?v=1";
 
 // ---- imperative runtime state (mirrors the old module-level globals) ----
 let pc = null, dc = null, stream = null, gate = null, videoEl = null, botAudioEl = null;
@@ -58,17 +59,17 @@ export function isActive() { return started; }
 
 // ---- owner-voice indicator (speaker gate) → store ----
 function spkState(s) {
-  if (!store.gateOn()) { store.setSpk({ show: true, other: false, html: "🎙 voice filter: off" }); return; }
-  store.setSpk({ show: true, other: false, html: s.enrolled ? "🔊 recognizing your voice" : `🎧 learning your voice… ${s.enrollCount}/${s.need}` });
+  if (!store.gateOn()) { store.setSpk({ show: true, other: false, html: t("voice.spk_filter_off") }); return; }
+  store.setSpk({ show: true, other: false, html: s.enrolled ? t("voice.spk_recognizing") : t("voice.spk_learning", { count: s.enrollCount, need: s.need }) });
 }
 let _spkTimer = null;
 function spkOwner(d) {
   if (!store.gateOn()) return;
-  if (d.reason === "enroll") store.setSpk({ show: true, other: false, html: `🎧 learning your voice… ${d.count}/5` });
+  if (d.reason === "enroll") store.setSpk({ show: true, other: false, html: t("voice.spk_learning", { count: d.count, need: 5 }) });
   else if (d.reason === "other") {
-    store.setSpk({ show: true, other: true, html: "🚫 <b>another voice</b> (ignored)" });
-    clearTimeout(_spkTimer); _spkTimer = setTimeout(() => store.setSpk({ show: true, other: false, html: "🔊 recognizing your voice" }), 1500);
-  } else if (d.reason === "owner") store.setSpk({ show: true, other: false, html: "🔊 you" });
+    store.setSpk({ show: true, other: true, html: t("voice.spk_another_voice") });
+    clearTimeout(_spkTimer); _spkTimer = setTimeout(() => store.setSpk({ show: true, other: false, html: t("voice.spk_recognizing") }), 1500);
+  } else if (d.reason === "owner") store.setSpk({ show: true, other: false, html: t("voice.spk_you") });
 }
 
 // ---- mic / camera toggles. State persists across refreshes; here we only apply to the live stream. ----
@@ -92,7 +93,7 @@ export function applyBotMute() {
 export function toggleBotMute() {
   const next = !store.botMuted(); store.setBotMuted(next); localStorage.setItem("hb_bot_muted", next ? "1" : "0");
   applyBotMute();
-  store.setVoiceFlash({ text: next ? "🔇 muted (still running)" : "🔊 voice on", show: true });
+  store.setVoiceFlash({ text: next ? t("voice.flash_muted") : t("voice.flash_voice_on"), show: true });
   clearTimeout(toggleBotMute._t); toggleBotMute._t = setTimeout(() => store.setVoiceFlash(f => ({ ...f, show: false })), 1600);
 }
 export async function toggleCam() {
@@ -140,9 +141,9 @@ async function populateMicPicker() {
     console.info("🎚️ audioinput devices:", ins.map(d => ({ id: d.deviceId.slice(0, 8), label: d.label })));
     const sel = document.getElementById("micsel"); if (!sel) return; sel.innerHTML = "";
     const cur = stream && stream.getAudioTracks()[0] && stream.getAudioTracks()[0].getSettings().deviceId;
-    ins.forEach(d => { const o = document.createElement("option"); o.value = d.deviceId; o.textContent = d.label || ("mic " + d.deviceId.slice(0, 6)); if (d.deviceId === (micDeviceId || cur)) o.selected = true; sel.appendChild(o); });
+    ins.forEach(d => { const o = document.createElement("option"); o.value = d.deviceId; o.textContent = d.label || t("voice.mic_fallback", { id: d.deviceId.slice(0, 6) }); if (d.deviceId === (micDeviceId || cur)) o.selected = true; sel.appendChild(o); });
     sel.style.display = "inline-block";
-    sel.onchange = () => { micDeviceId = sel.value || null; localStorage.setItem("zaelar_mic", micDeviceId || ""); store.setConnState("switching mic…"); stop(); setTimeout(start, 350); };
+    sel.onchange = () => { micDeviceId = sel.value || null; localStorage.setItem("zaelar_mic", micDeviceId || ""); store.setConnState(t("voice.conn_switching_mic")); stop(); setTimeout(start, 350); };
   } catch (e) { console.warn("enumerateDevices failed:", e); }
 }
 
@@ -155,7 +156,7 @@ function iceDone(pc) {
 }
 
 export async function start() {
-  if (started || starting) return; starting = true; store.setStarting(true); store.setConnState("requesting…");
+  if (started || starting) return; starting = true; store.setStarting(true); store.setConnState(t("voice.conn_requesting"));
   audit.silent = false; store.setMicBlocked({ show: false, msg: "" });   // clear any prior mic-blocked state
   try {
     await api.setVoiceConfig(store.voiceIdx());
@@ -188,7 +189,7 @@ export async function start() {
     dc.onerror = e => api.clientLog("⚠️ data channel ERROR", { text: String((e && e.error) || e) });
     pc.ontrack = e => {
       const a = botAudioEl; if (!a) return; a.srcObject = e.streams[0]; a.muted = store.botMuted();   // honor persisted bot-mute
-      if (a.play) a.play().then(store.hideAlert).catch(() => store.showAlert("Tap to enable zaelar's audio.", () => a.play().catch(() => {})));
+      if (a.play) a.play().then(store.hideAlert).catch(() => store.showAlert(t("voice.alert_tap_audio"), () => a.play().catch(() => {})));
       audio.attachBot(e.streams[0]);
     };
     pc.onconnectionstatechange = () => {
@@ -207,27 +208,27 @@ export async function start() {
     // free browser STT if the server is configured for it (STT_PROVIDER=browser)
     api.sttMode().then(m => { if (m && m.mode === "browser") startBrowserSTT(m.lang, { getDc, isActive }); }).catch(() => {});
     const offer = await pc.createOffer({ offerToReceiveAudio: true }); await pc.setLocalDescription(offer);
-    await iceDone(pc); store.setConnState("connecting…");
+    await iceDone(pc); store.setConnState(t("voice.conn_connecting"));
     const r = await api.sendOffer(pc.localDescription);
-    if (!r.ok) { store.setConnState("error " + r.status); starting = false; store.setStarting(false); stop(); return; }
+    if (!r.ok) { store.setConnState(t("voice.conn_error_status", { status: r.status })); starting = false; store.setStarting(false); stop(); return; }
     await pc.setRemoteDescription(await r.json());
     starting = false; store.setStarting(false);
   } catch (err) {
-    starting = false; store.setStarting(false); started = false; store.setStarted(false); store.setConnState("error"); console.error(err);
+    starting = false; store.setStarting(false); started = false; store.setStarted(false); store.setConnState(t("voice.conn_error")); console.error(err);
     // Mic taken by another app (NotReadableError) or denied → show the 🚫 ring on the orb, NOT a top error banner.
     const n = err && err.name;
     if (n === "NotReadableError" || n === "NotAllowedError" || n === "OverconstrainedError") {
-      store.setMicBlocked({ show: true, msg: n === "NotAllowedError" ? "🔇 Microphone permission denied" : "🔇 Microphone in use by another app (SuperWhisper?)" });
-    } else { store.setConnState("error"); }
+      store.setMicBlocked({ show: true, msg: n === "NotAllowedError" ? t("voice.mic_denied") : t("voice.mic_in_use_superwhisper") });
+    } else { store.setConnState(t("voice.conn_error")); }
   }
 }
 
 // Auto-reconnect on a dropped WebRTC link. Silent for the first tries; only bother the user if it can't come back.
 function autoReconnect() {
   if (!started) return;
-  if (_recTries >= 2) { store.showAlert("Lost the audio connection with zaelar.", () => { _recTries = 0; stop(); setTimeout(start, 300); }); return; }
+  if (_recTries >= 2) { store.showAlert(t("voice.alert_lost_audio"), () => { _recTries = 0; stop(); setTimeout(start, 300); }); return; }
   _recTries++; _wasConnected = false;   // require a fresh successful connect before another retry → no storms
-  store.setConnState("reconnecting…"); console.warn("WebRTC lost → auto-reconnect #" + _recTries);
+  store.setConnState(t("voice.conn_reconnecting")); console.warn("WebRTC lost → auto-reconnect #" + _recTries);
   stop(); setTimeout(start, 800);
 }
 
@@ -288,7 +289,7 @@ export function sendText(text) {
 export async function loadVoices() { const d = await api.voices(); store.setVoices(d.voices || []); store.setVoiceIdx(d.current || 0); }
 function flashVoice() {
   const v = store.voices(); if (!v.length) return;
-  store.setVoiceFlash({ text: "🗣 " + v[store.voiceIdx()], show: true });
+  store.setVoiceFlash({ text: t("voice.flash_voice_name", { voice: v[store.voiceIdx()] }), show: true });
   clearTimeout(flashVoice._t); flashVoice._t = setTimeout(() => store.setVoiceFlash(f => ({ ...f, show: false })), 1800);
 }
 export async function cycleVoice() {

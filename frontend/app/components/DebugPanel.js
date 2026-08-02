@@ -16,6 +16,7 @@ import { createEffect } from "../core/reactive.js?v=2";
 import * as store from "../core/store.js?v=2";
 import { startDebugBus, onDebug, debugBuffer, clearDebugBuffer } from "../services/debugbus.js?v=2";
 import { LIST_ICON, LINK_ICON, VOLUME_X_ICON, TRASH_ICON, CLOSE_ICON, BUG_ICON } from "../lib/icons.js?v=1";
+import { t } from "../core/i18n.js?v=1";
 
 const MAX_ROWS = 800;             // cap the DOM so a long session can't grow it without bound
 
@@ -52,6 +53,12 @@ const CATS = [
   // en «Memoria», nunca aquí (la proyección de estado sin cambios ya no se emite — dispatch.sync_state).
   { key: "pulse", label: "Pulse" },
 ];
+
+// V2-089: cada categoría del filtro mapea a su clave i18n (la `key` sigue siendo el valor comparado en código).
+const CAT_LABEL_KEY = {
+  main: "debug.cat_main", memory: "debug.cat_memory", flash: "debug.cat_flash",
+  nav: "debug.cat_nav", system: "debug.cat_system", pulse: "debug.cat_pulse",
+};
 
 // Which layer of the «Colmena» brain resolved this turn: the FlashBrain stamps its fast-model provider
 // ("aimlapi"/"ollama"/…), the SlowBrain escalation path stamps "slowbrain". Stamped by the provider itself
@@ -202,7 +209,7 @@ export function DebugPanel() {
       let badge = lastRow.querySelector(".dbg-x"); if (!badge) { badge = document.createElement("span"); badge.className = "dbg-x"; lastRow.querySelector(".dbg-msg").appendChild(badge); }
       badge.textContent = " ×" + n;
       lastRow.querySelector(".dbg-t").textContent = stamp(d._rx);
-      count++; if (countEl) countEl.textContent = count + " ev";
+      count++; if (countEl) countEl.textContent = t("debug.events", { n: count });
       pinTail();   // el ×N puede crecer la fila → re-fijar el fondo si estamos siguiendo
       return;
     }
@@ -235,7 +242,7 @@ export function DebugPanel() {
     lastRow = row; lastSig = sig;
     while (listEl.childElementCount > MAX_ROWS) { const f = listEl.firstElementChild; if (f === lastRow) break; listEl.removeChild(f); }
     pinTail();   // seguir el tail (tras el layout) salvo que el operador haya subido — ver onListScroll
-    count++; if (countEl) countEl.textContent = count + " ev";
+    count++; if (countEl) countEl.textContent = t("debug.events", { n: count });
   }
 
   // ── vista TRAZAS (V2-044): árbol  frase-raíz → actor (span) → eventos ──────────────────────────────────────
@@ -298,7 +305,7 @@ export function DebugPanel() {
       return;
     }
     if (e.n >= MAX_TR_EVENTS) return;
-    e.n++; e.nEl.textContent = e.n + " ev";
+    e.n++; e.nEl.textContent = t("debug.events", { n: e.n });
     let parent = e.body;
     if (d.span) {                                        // nivel 2: el ACTOR que trabaja para esta frase
       let sp = e.spans.get(d.span);
@@ -320,7 +327,7 @@ export function DebugPanel() {
     localStorage.setItem("hb_dbg_mode", m);
     if (listEl) listEl.hidden = (m === "traces");
     if (tracesEl) tracesEl.hidden = (m !== "traces");
-    if (btn) { btn.innerHTML = m === "traces" ? LIST_ICON : LINK_ICON; btn.title = m === "traces" ? "View chronological log" : "View the Traces tree (phrase → actions → events)"; }
+    if (btn) { btn.innerHTML = m === "traces" ? LIST_ICON : LINK_ICON; btn.title = m === "traces" ? t("debug.view_log") : t("debug.view_traces"); }
   }
 
   function applyFilter() {
@@ -342,7 +349,7 @@ export function DebugPanel() {
     if (tracesEl) tracesEl.replaceChildren();   // V2-044: también el árbol
     traces.clear();
     lastRow = null; lastSig = ""; count = 0;
-    if (countEl) countEl.textContent = "0 ev";
+    if (countEl) countEl.textContent = t("debug.events", { n: 0 });
   }
 
   // ── resize by dragging the left edge ──────────────────────────────────────
@@ -366,29 +373,29 @@ export function DebugPanel() {
   }
 
   const panel = h("div", { class: "dbgpanel", style: { width: () => store.debugWidth() + "px" } },
-    h("div", { class: "dbg-resize", title: "Drag to resize", onPointerdown: startResize }),
+    h("div", { class: "dbg-resize", title: () => t("debug.resize"), onPointerdown: startResize }),
     h("div", { class: "dbg-head" },
-      h("span", { class: "dbg-title" }, raw(BUG_ICON), "Observability"),
-      h("input", { class: "dbg-filter", placeholder: "filter (widget, deep, T12…)", ref: (el) => (filterEl = el), onInput: applyFilter }),
-      h("span", { class: "dbg-count", ref: (el) => (countEl = el) }, "0 ev"),
+      h("span", { class: "dbg-title" }, raw(BUG_ICON), () => t("debug.title")),
+      h("input", { class: "dbg-filter", placeholder: () => t("debug.filter_placeholder"), ref: (el) => (filterEl = el), onInput: applyFilter }),
+      h("span", { class: "dbg-count", ref: (el) => (countEl = el) }, () => t("debug.events", { n: 0 })),
       // V2-044: toggle Log cronológico ⇄ árbol de Trazas (frase → acciones → eventos)
       h("button", {
-        class: "dbg-btn hb-icbtn", title: "View the Traces tree (phrase → actions → events)",
+        class: "dbg-btn hb-icbtn", title: () => t("debug.view_traces"),
         ref: (el) => { el.innerHTML = mode === "traces" ? LIST_ICON : LINK_ICON; },
         onClick: (e) => setMode(mode === "traces" ? "log" : "traces", e.currentTarget),
       }),
-      h("button", { class: "dbg-btn hb-icbtn", title: "Show/hide noise (state · widget:data)", onClick: (e) => toggleNoise(e.currentTarget) }, raw(VOLUME_X_ICON)),
-      h("button", { class: "dbg-btn hb-icbtn", title: "Clear", onClick: clearAll }, raw(TRASH_ICON)),
-      h("button", { class: "dbg-btn hb-icbtn", title: "Close", onClick: () => store.setDebugOpen(false) }, raw(CLOSE_ICON)),
+      h("button", { class: "dbg-btn hb-icbtn", title: () => t("debug.noise"), onClick: (e) => toggleNoise(e.currentTarget) }, raw(VOLUME_X_ICON)),
+      h("button", { class: "dbg-btn hb-icbtn", title: () => t("debug.clear"), onClick: clearAll }, raw(TRASH_ICON)),
+      h("button", { class: "dbg-btn hb-icbtn", title: () => t("debug.close"), onClick: () => store.setDebugOpen(false) }, raw(CLOSE_ICON)),
     ),
     // V2-037: 2ª barra — filtro por CATEGORÍA. Todo en una sola lista ordenada por tiempo; estos toggles solo
     // muestran/ocultan familias. System/Code OFF por defecto (son docenas de eventos internos/perf).
     h("div", { class: "dbg-cats" },
       ...CATS.map((c) => h("button", {
         class: "dbg-cat" + (enabledCats.has(c.key) ? " on" : ""),
-        title: c.key === "system" ? "Internal/perf events (calls, callbacks, cycles) — lots of them" : c.label,
+        title: c.key === "system" ? () => t("debug.cat_system_title") : () => t(CAT_LABEL_KEY[c.key] || "debug.cat_main"),
         onClick: (e) => toggleCat(c.key, e.currentTarget),
-      }, c.label)),
+      }, () => t(CAT_LABEL_KEY[c.key] || "debug.cat_main"))),
     ),
     h("div", { class: "dbg-list", ref: (el) => { listEl = el; el.hidden = (mode === "traces"); el.addEventListener("scroll", onListScroll, { passive: true }); } }),
     // V2-044: la vista Trazas — misma zona, contenedor alterno (toggle ⛓ arriba)

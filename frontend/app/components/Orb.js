@@ -26,6 +26,7 @@ import * as api from "../services/api.js?v=2";
 import { toggleTheme } from "../services/theme.js?v=2";
 import { makeDraggable } from "../lib/draggable.js?v=2";
 import { startEcg } from "../lib/ecg.js?v=2";
+import { t } from "../core/i18n.js?v=1";
 
 // Inline SVGs (self-contained, currentColor). Cron + memory + speaker on/off + power + captions + moon/sun + robot.
 const CRON_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>`;
@@ -75,7 +76,7 @@ export function Orb() {
         // V2-079: los crons se ven/gestionan en la 3ª pestaña del widget de chat. El botón ⏰ abre ESE widget
         // directamente en la pestaña «Crons» (ya no hay panel suelto). ON = chat abierto EN la pestaña crons.
         class: () => "orbic" + ((store.chatOpen() && store.chatTab() === "crons") ? " on" : " off"),
-        title: "Scheduled tasks (proactivity)",
+        title: () => t("orb.cron"),
         onClick: () => {
           const on = store.chatOpen() && store.chatTab() === "crons";
           if (on) { store.setChatOpen(false); }
@@ -85,17 +86,17 @@ export function Orb() {
       }, raw(CRON_ICON)),
       h("button", {
         class: () => "orbic" + (store.memOpen() ? " on" : " off"),
-        title: "Memory map (state · short · long term · graph)",
+        title: () => t("orb.memory"),
         onClick: () => { const v = !store.memOpen(); store.setMemOpen(v); api.uiEvent("orb:memory", { state: v ? "open" : "close" }); },
       }, raw(MEM_ICON)),
       h("button", {
         class: () => "orbic" + (store.botMuted() ? " off" : " on"),
-        title: () => store.botMuted() ? "Muted — click to hear it again" : "Click to mute (the agent keeps running)",
+        title: () => store.botMuted() ? t("orb.speaker_muted") : t("orb.speaker_unmuted"),
         onClick: () => { session.toggleBotMute(); api.uiEvent("orb:speaker", { state: store.botMuted() ? "muted" : "unmuted" }); },
       }, () => raw(store.botMuted() ? SPK_OFF : SPK_ON)),
       h("button", {
         class: () => "orbic" + (store.powerOff() ? " off" : " on"),
-        title: () => store.powerOff() ? "zaelar off — click to turn on" : "Turn off zaelar (mic and voice off; click to come back)",
+        title: () => store.powerOff() ? t("orb.power_off") : t("orb.power_on"),
         onClick: () => {
           const off = !store.powerOff();
           store.setPowerOff(off);
@@ -133,19 +134,19 @@ export function Orb() {
       }, raw(PWR_ICON)),
       h("button", {
         class: () => "orbic" + (store.captionsOn() ? " on" : " off"),
-        title: () => store.captionsOn() ? "Hide live text" : "Show live text",
+        title: () => store.captionsOn() ? t("orb.captions_hide") : t("orb.captions_show"),
         onClick: () => { const v = store.toggleCaptions(); api.uiEvent("orb:captions", { state: v ? "on" : "off" }); },
       }, raw(CAP_ICON)),
       h("button", {
         // ONE icon (the moon = "dark mode"), colored on/off like every other control — not swapped for a sun
         // glyph when off (operator 2026-07-22: "quiero que todo lo activo esté en azul y lo demás en gris").
         class: () => "orbic" + (store.theme() === "dark" ? " on" : " off"),
-        title: () => (store.theme() === "dark" ? "Light mode" : "Dark mode"),
+        title: () => (store.theme() === "dark" ? t("orb.theme_light") : t("orb.theme_dark")),
         onClick: () => { toggleTheme(); api.uiEvent("orb:theme", { state: store.theme() }); },
       }, raw(MOON_ICON)),
       h("button", {
         class: () => "orbic" + (wakeOn() ? " on" : " off"),
-        title: () => wakeOn() ? "Only with «zaelar» — click to always listen" : "Always listening — click to require «zaelar»",
+        title: () => wakeOn() ? t("orb.wake_on") : t("orb.wake_off"),
         onClick: () => { toggleWake(); api.uiEvent("orb:attention", { state: wakeOn() ? "wakeword" : "always" }); },
       }, raw(BOT_ICON)),
     ),
@@ -158,7 +159,7 @@ export function Orb() {
         h("div", { class: "orbcap-inner", ref: el => (capInnerEl = el) }),
       ),
       h("canvas", { id: "orb", class: () => store.botMuted() ? "muted" : "", ref: el => (orbEl = el),
-                    title: "Drag me to move me" }),
+                    title: () => t("orb.drag") }),
       h("div", { class: () => "micblock" + (store.micBlocked().show ? " show" : "") }, h("span", { class: "ring" })),
     ),
     // ELECTROCARDIOGRAM under the orb — zaelar's REAL heartbeat: a QRS per orchestrator loop.tick (~1 Hz at rest),

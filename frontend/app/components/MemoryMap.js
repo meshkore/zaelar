@@ -30,6 +30,7 @@ import { createEffect } from "../core/reactive.js?v=2";
 import * as store from "../core/store.js?v=2";
 import * as api from "../services/api.js?v=2";
 import { FIT_ICON, REFRESH_ICON, CLOSE_ICON, PIN_ICON } from "../lib/icons.js?v=1";
+import { t } from "../core/i18n.js?v=1";
 
 const BRAIN = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5a3 3 0 0 0-3 3 3 3 0 0 0-1.3 5.7A3 3 0 0 0 8 16.5a3 3 0 0 0 4 2.6"/><path d="M12 4.5a3 3 0 0 1 3 3 3 3 0 0 1 1.3 5.7A3 3 0 0 1 16 16.5a3 3 0 0 1-4 2.6"/><path d="M12 4.5v15"/></svg>`;
 const SVGNS = "http://www.w3.org/2000/svg";
@@ -44,9 +45,9 @@ const COL_GAP = 34;       // horizontal gap between the three columns
 // The three layers, laid out LEFT → RIGHT as columns in the SLOTS view. `frac` = share of the
 // usable width (0.10 / 0.20 / 0.70 — the last one is the one that grows). `accent` = top rail.
 const ZONES = [
-  { key: "state", frac: 0.10, title: "STATE", sub: "awareness of itself and its surroundings", accent: "var(--hb-neutral)" },
-  { key: "short", frac: 0.20, title: "SHORT TERM", sub: "recent memory", accent: "var(--hb-accent2)" },
-  { key: "long",  frac: 0.70, title: "LONG TERM", sub: "durable facts · preferences · tasks", accent: "var(--hb-accent)" },
+  { key: "state", frac: 0.10, title: "memory.zone_state", sub: "memory.zone_state_sub", accent: "var(--hb-neutral)" },
+  { key: "short", frac: 0.20, title: "memory.zone_short", sub: "memory.zone_short_sub", accent: "var(--hb-accent2)" },
+  { key: "long",  frac: 0.70, title: "memory.zone_long", sub: "memory.zone_long_sub", accent: "var(--hb-accent)" },
 ];
 
 function computeGeom(viewW) {
@@ -76,16 +77,16 @@ function stateItems(s) {
   s = s || {};
   const arr = (v) => (Array.isArray(v) && v.length ? v.join(" · ") : "");
   return [
-    { label: "mission", val: s.mission },
-    { label: "operator", val: s.operator_name },
-    { label: "form of address", val: s.treatment },
-    { label: "location", val: s.location },
-    { label: "language", val: s.language },
-    { label: "assistant", val: s.assistant_name },
-    { label: "open widgets", val: arr(s.open_widgets) },
-    { label: "tasks in progress", val: arr(s.activity) },
-    { label: "recent", val: arr(s.recent) },
-    { label: "topics", val: arr(s.topics) },
+    { label: t("memory.field_mission"), val: s.mission },
+    { label: t("memory.field_operator"), val: s.operator_name },
+    { label: t("memory.field_treatment"), val: s.treatment },
+    { label: t("memory.field_location"), val: s.location },
+    { label: t("memory.field_language"), val: s.language },
+    { label: t("memory.field_assistant"), val: s.assistant_name },
+    { label: t("memory.field_open_widgets"), val: arr(s.open_widgets) },
+    { label: t("memory.field_activity"), val: arr(s.activity) },
+    { label: t("memory.field_recent"), val: arr(s.recent) },
+    { label: t("memory.field_topics"), val: arr(s.topics) },
   ];
 }
 
@@ -121,9 +122,9 @@ export function MemoryMap() {
     if (m.valid === 0) el.classList.add("stale");
     el.dataset.mid = String(m.id);                       // for live-observability tinting by id
     el.style.left = x + "px"; el.style.top = y + "px"; el.style.width = w + "px";
-    el.title = `#${m.id} · ${m.kind} · ${m.level}\n${m.text || ""}\n\nscore ${num(m.importance)} · weight ${num(m.weight)} · accesses ${m.access_count || 0}` +
-      (m.pinned ? " · 📌" : "") + `\ncreated ${fmtDate(m.created)} · seen ${fmtDate(m.last_access)}` +
-      (m.ttl_days != null ? ` · ttl ${m.ttl_days}d` : "");
+    el.title = `#${m.id} · ${m.kind} · ${m.level}\n${m.text || ""}\n\n${t("memory.score")} ${num(m.importance)} · ${t("memory.weight")} ${num(m.weight)} · ${t("memory.accesses")} ${m.access_count || 0}` +
+      (m.pinned ? " · 📌" : "") + `\n${t("memory.created")} ${fmtDate(m.created)} · ${t("memory.seen")} ${fmtDate(m.last_access)}` +
+      (m.ttl_days != null ? ` · ${t("memory.ttl")} ${m.ttl_days}d` : "");
 
     const tx = document.createElement("div"); tx.className = "mm-tx"; tx.textContent = m.text || "";
     const meta = document.createElement("div"); meta.className = "mm-meta";
@@ -145,7 +146,7 @@ export function MemoryMap() {
     el.className = "mm-node state"; el.style.left = x + "px"; el.style.top = y + "px"; el.style.width = w + "px";
     const empty = it.val == null || it.val === "";
     if (empty) el.classList.add("empty");
-    el.title = it.label + ": " + (empty ? "(empty)" : it.val);
+    el.title = it.label + ": " + (empty ? t("memory.empty_paren") : it.val);
     const lb = document.createElement("div"); lb.className = "mm-slabel"; lb.textContent = it.label;
     const vl = document.createElement("div"); vl.className = "mm-sval"; vl.textContent = empty ? "—" : String(it.val);
     el.append(lb, vl);
@@ -160,10 +161,10 @@ export function MemoryMap() {
     b.style.borderTopColor = z.accent;   // coloured rail per column
     const lab = document.createElement("div"); lab.className = "mm-zlabel";
     const head = document.createElement("div"); head.className = "mm-zhead";
-    const t = document.createElement("span"); t.className = "mm-ztitle"; t.textContent = z.title;
-    head.appendChild(t);
+    const titleEl = document.createElement("span"); titleEl.className = "mm-ztitle"; titleEl.textContent = t(z.title);
+    head.appendChild(titleEl);
     if (count !== "") { const c = document.createElement("span"); c.className = "mm-zcount"; c.textContent = count; head.appendChild(c); }
-    const sub = document.createElement("span"); sub.className = "mm-zsub"; sub.textContent = z.sub;
+    const sub = document.createElement("span"); sub.className = "mm-zsub"; sub.textContent = t(z.sub);
     lab.append(head, sub);
     b.appendChild(lab);
     return b;
@@ -198,7 +199,7 @@ export function MemoryMap() {
         const none = document.createElement("div");
         none.className = "mm-none"; none.style.left = (g.x + IPAD) + "px"; none.style.top = gridTop + "px";
         none.style.width = (g.w - IPAD * 2) + "px";
-        none.textContent = z.key === "state" ? "(empty state — it'll fill in as it gets to know you)" : "(no memories in this layer)";
+        none.textContent = z.key === "state" ? t("memory.empty_state") : t("memory.no_memories");
         nodesEl.appendChild(none);
       }
       maxBottom = Math.max(maxBottom, PAD + blockH);
@@ -220,7 +221,7 @@ export function MemoryMap() {
     el.dataset.concept = n.key;
     el.style.left = (cx - r) + "px"; el.style.top = (cy - r) + "px";
     el.style.width = (2 * r) + "px"; el.style.height = (2 * r) + "px";
-    el.title = `${n.label} — ${n.count} item(s)`;
+    el.title = t("memory.concept_items", { label: n.label, count: n.count });
     const nm = document.createElement("span"); nm.className = "mm-cnname"; nm.textContent = n.label;
     const ct = document.createElement("span"); ct.className = "mm-cncount"; ct.textContent = String(n.count);
     el.append(nm, ct);
@@ -240,10 +241,10 @@ export function MemoryMap() {
     b.style.borderTopColor = meta.accent;
     const lab = document.createElement("div"); lab.className = "mm-zlabel";
     const head = document.createElement("div"); head.className = "mm-zhead";
-    const t = document.createElement("span"); t.className = "mm-ztitle"; t.textContent = meta.title;
-    head.appendChild(t);
+    const titleEl = document.createElement("span"); titleEl.className = "mm-ztitle"; titleEl.textContent = t(meta.title);
+    head.appendChild(titleEl);
     const c = document.createElement("span"); c.className = "mm-zcount"; c.textContent = nodes.length; head.appendChild(c);
-    const sub = document.createElement("span"); sub.className = "mm-zsub"; sub.textContent = meta.sub;
+    const sub = document.createElement("span"); sub.className = "mm-zsub"; sub.textContent = t(meta.sub);
     lab.append(head, sub);
     b.appendChild(lab);
     nodesEl.appendChild(b);
@@ -252,7 +253,7 @@ export function MemoryMap() {
       const none = document.createElement("div");
       none.className = "mm-none"; none.style.left = (x + IPAD) + "px"; none.style.top = (y + HEAD_H) + "px";
       none.style.width = (w - IPAD * 2) + "px";
-      none.textContent = "(no concepts in this layer yet)";
+      none.textContent = t("memory.no_concepts");
       nodesEl.appendChild(none);
       return y + panelH;
     }
@@ -281,7 +282,7 @@ export function MemoryMap() {
       line.setAttribute("class", "mm-cedge");
       line.setAttribute("stroke-width", String(Math.min(6, 0.8 + (l.weight || 1) * 0.7)));
       const ti = document.createElementNS(SVGNS, "title");
-      ti.textContent = `${l.a} ↔ ${l.b} · ${l.weight} item(s) in common`;
+      ti.textContent = t("memory.edge_common", { a: l.a, b: l.b, count: l.weight });
       line.appendChild(ti);
       edgesSvg.appendChild(line);
     }
@@ -299,9 +300,9 @@ export function MemoryMap() {
     worldW = Math.max(720, vw);
     const panelW = worldW - PAD * 2;
     let y = PAD;
-    y = conceptPanel({ key: "short", title: "SHORT TERM", sub: "concept map of recent memory", accent: "var(--hb-accent2)" }, cg.short, PAD, y, panelW);
+    y = conceptPanel({ key: "short", title: "memory.zone_short", sub: "memory.concept_sub_short", accent: "var(--hb-accent2)" }, cg.short, PAD, y, panelW);
     y += COL_GAP;
-    y = conceptPanel({ key: "long", title: "LONG TERM", sub: "concept map of durable facts", accent: "var(--hb-accent)" }, cg.long, PAD, y, panelW);
+    y = conceptPanel({ key: "long", title: "memory.zone_long", sub: "memory.concept_sub_long", accent: "var(--hb-accent)" }, cg.long, PAD, y, panelW);
     worldH = y + PAD;
     edgesSvg.setAttribute("width", worldW);
     edgesSvg.setAttribute("height", worldH);
@@ -328,8 +329,8 @@ export function MemoryMap() {
       const cg = data.concept_graph || {};
       const cn = (cg.short?.nodes?.length || 0) + (cg.long?.nodes?.length || 0);
       countsEl.textContent = mode === "concepts"
-        ? `${cg.short?.nodes?.length || 0} short concepts · ${cg.long?.nodes?.length || 0} long concepts`
-        : `${c.short || 0} short · ${c.long || 0} long · ${cn} concepts`;
+        ? t("memory.counts_concepts", { short: cg.short?.nodes?.length || 0, long: cg.long?.nodes?.length || 0 })
+        : t("memory.counts_slots", { short: c.short || 0, long: c.long || 0, concepts: cn });
     }
   }
 
@@ -450,23 +451,23 @@ export function MemoryMap() {
 
   return h("div", { class: () => "memmap" + (store.memOpen() ? " open" : "") },
     h("div", { class: "mm-head" },
-      h("span", { class: "mm-brand" }, raw(BRAIN), h("b", {}, "Memory map")),
+      h("span", { class: "mm-brand" }, raw(BRAIN), h("b", {}, () => t("memory.title"))),
       h("div", { class: "mm-modes" },
-        h("button", { class: "mm-mode on", ref: (el) => (slotsBtn = el), title: "View memory as it's stored (state · short · long)", onClick: () => setMode("slots") }, "Slots"),
-        h("button", { class: "mm-mode", ref: (el) => (conceptsBtn = el), title: "View the concept map: how the information is organized and connected", onClick: () => setMode("concepts") }, "Concepts"),
+        h("button", { class: "mm-mode on", ref: (el) => (slotsBtn = el), title: () => t("memory.view_slots"), onClick: () => setMode("slots") }, () => t("memory.slots_btn")),
+        h("button", { class: "mm-mode", ref: (el) => (conceptsBtn = el), title: () => t("memory.view_concepts"), onClick: () => setMode("concepts") }, () => t("memory.concepts_btn")),
       ),
       h("span", { class: "mm-counts", ref: (el) => (countsEl = el) }, ""),
       h("div", { class: "mm-tools" },
-        h("button", { class: "mm-btn hb-icbtn", title: "Zoom out", onClick: () => zoomBy(1 / 1.2) }, "−"),
-        h("button", { class: "mm-btn hb-icbtn", title: "Zoom in", onClick: () => zoomBy(1.2) }, "+"),
-        h("button", { class: "mm-btn hb-icbtn", title: "Fit to view", onClick: () => fitView() }, raw(FIT_ICON)),
-        h("button", { class: "mm-btn hb-icbtn", title: "Refresh", onClick: () => load(false) }, raw(REFRESH_ICON)),
-        h("button", { class: "mm-btn mm-close hb-icbtn", title: "Close (Esc)", onClick: close }, raw(CLOSE_ICON)),
+        h("button", { class: "mm-btn hb-icbtn", title: () => t("memory.zoom_out"), onClick: () => zoomBy(1 / 1.2) }, "−"),
+        h("button", { class: "mm-btn hb-icbtn", title: () => t("memory.zoom_in"), onClick: () => zoomBy(1.2) }, "+"),
+        h("button", { class: "mm-btn hb-icbtn", title: () => t("memory.fit"), onClick: () => fitView() }, raw(FIT_ICON)),
+        h("button", { class: "mm-btn hb-icbtn", title: () => t("memory.refresh"), onClick: () => load(false) }, raw(REFRESH_ICON)),
+        h("button", { class: "mm-btn mm-close hb-icbtn", title: () => t("memory.close"), onClick: close }, raw(CLOSE_ICON)),
       ),
     ),
     h("div", { class: "mm-viewport", ref: (el) => (viewportEl = el), onWheel, onPointerdown: onPointerDown },
-      h("div", { class: "mm-hint" }, "wheel = zoom · drag = pan · Slots = content · Concepts = organization"),
-      h("div", { class: "mm-empty", ref: (el) => (emptyEl = el) }, "Memory is still empty. Talk to zaelar and you'll watch it fill in here live."),
+      h("div", { class: "mm-hint" }, () => t("memory.hint")),
+      h("div", { class: "mm-empty", ref: (el) => (emptyEl = el) }, () => t("memory.empty_hint")),
       h("div", { class: "mm-world", ref: (el) => (worldEl = el) },
         edgesSvg,
         h("div", { class: "mm-nodes", ref: (el) => (nodesEl = el) }),
