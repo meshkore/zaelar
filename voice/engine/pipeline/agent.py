@@ -282,11 +282,48 @@ async def entrypoint(ctx: JobContext) -> None:
         elif new == "listening":
             _emit("vad", "… fin de voz", role="user", extra={})
 
+    # FIRST-RUN LANGUAGE AUTO-DETECTION (V2-089 P3): on a brand-new install, detect the operator's language from
+    # their first utterance(s) and lock it — no trip to settings. Fires at most once per session; a no-op after a
+    # language has been chosen (i18n.init.detect.should_detect()). Off the hot path: classify runs in a thread.
+    _lang_detect = {"busy": False, "done": False}
+
+    def _maybe_detect_language(text: str) -> None:
+        if _lang_detect["done"] or _lang_detect["busy"]:
+            return
+        try:
+            from i18n.init import detect as _d
+        except Exception:
+            _lang_detect["done"] = True
+            return
+        if not _d.should_detect():
+            _lang_detect["done"] = True
+            return
+        if len((text or "").strip()) < 2:
+            return
+        _lang_detect["busy"] = True
+
+        async def _run() -> None:
+            try:
+                code = await asyncio.to_thread(_d.classify, text)
+                if code:
+                    await _d.lock(code)
+                    _lang_detect["done"] = True
+            except Exception as e:  # noqa: BLE001
+                logger.warning("i18n first-run detect failed: %s", e)
+            finally:
+                _lang_detect["busy"] = False
+
+        try:
+            asyncio.create_task(_run())
+        except RuntimeError:
+            _lang_detect["busy"] = False
+
     @session.on("user_input_transcribed")
     def _on_transcript(ev) -> None:
         if ev.is_final:
             # → observer/SSE: chat wall + the front-end voice-command fast-path (show/close widgets) consume this.
             _emit("transcript", "🗣", text=ev.transcript, role="user")
+            _maybe_detect_language(ev.transcript)
         else:
             _emit("interim", "…", text=ev.transcript, role="user")   # live, UI-only (dedup/no-disk en observer)
 

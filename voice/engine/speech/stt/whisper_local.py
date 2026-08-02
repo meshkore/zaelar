@@ -124,8 +124,20 @@ class _WhisperSTT(stt_module.STT):
         samples = _frames_to_16k(buffer)
         # LIVE active language (a ⚙/voice switch applies on the next session); honor an
         # explicit non-empty override if the caller passes one.
-        lang = language if isinstance(language, str) and language else langs.current_code()
-        prompt = langs.spec(lang).whisper_prompt
+        # FIRST-RUN (V2-089 P3): if no language has been chosen yet, transcribe in AUTO mode (language=None →
+        # Whisper detects it) so a non-Latin operator (Arabic/Chinese/…) is transcribed CORRECTLY — that clean
+        # text is what i18n.init.detect classifies to lock the language. No biasing initial_prompt in auto mode.
+        auto = False
+        if isinstance(language, str) and language:
+            lang = language
+        else:
+            try:
+                from i18n.init import detect as _detect
+                auto = _detect.should_detect()
+            except Exception:
+                auto = False
+            lang = None if auto else langs.current_code()
+        prompt = "" if auto else langs.spec(lang or langs.current_code()).whisper_prompt
 
         # Energy/duration gate: drop non-speech blips before Whisper so it can't
         # hallucinate a confident filler ("Thank you.") on silence/noise.
@@ -148,7 +160,7 @@ class _WhisperSTT(stt_module.STT):
                 text = ""
         return SpeechEvent(
             type=SpeechEventType.FINAL_TRANSCRIPT,
-            alternatives=[SpeechData(language=lang, text=text)],
+            alternatives=[SpeechData(language=lang or "auto", text=text)],
         )
 
 

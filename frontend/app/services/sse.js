@@ -8,7 +8,7 @@ import * as store from "../core/store.js?v=2";
 import { handleWidgetVoice } from "./voiceCommands.js?v=2";
 import { refreshStatus } from "./status.js?v=2";
 import * as vault from "./vault.js?v=1";
-import { t } from "../core/i18n.js?v=1";
+import { t, applyLang } from "../core/i18n.js?v=1";
 
 let es = null;
 
@@ -74,6 +74,8 @@ export function openSSE(desktop) {
     } else if (d.kind === "alert") {                                              // hard notice (e.g. no LLM credit) → red banner
       store.showAlert(d.label || t("sse.llm_problem"));
       refreshStatus();                                                           // turn the ◉ status icon red now
+    } else if (d.kind === "language") {                                          // V2-089 P3: idioma detectado/cambiado → toda la UI cambia EN VIVO
+      if (d.code) applyLang(d.code);                                             // el bundle ya está listo backend-side (prepare corrió antes del emit)
     } else if (d.kind === "session" && d.label === "RESET") {                    // V2-084: reset → procesos EN BLANCO
       // El escritorio lo cierra el evento widget/close; aquí vaciamos la pestaña Procesos (chips vivos + histórico)
       // al instante para que "empecemos de cero" — estado/memoria/datos de widgets se conservan (backend).
