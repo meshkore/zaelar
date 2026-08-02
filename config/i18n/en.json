@@ -1,0 +1,22 @@
+{
+  "topbar.status.title": "System status (brain · voice · APIs · cluster)",
+  "topbar.debug.title": "Observability · live event column (transcription, widgets, brain, models)",
+  "topbar.settings.title": "Settings · which API/model each part uses · voice · balances",
+  "topbar.wizard.title": "Setup wizard · local/cloud profile, system detector, credentials",
+  "topbar.reset.title": "Reset · stops everything and clears (asks for confirmation)",
+  "topbar.reset": "Reset",
+
+  "reset.confirm.title": "Stop everything and clear?",
+  "reset.confirm.body": "All running processes will be STOPPED (browser searches, SlowBrain tasks, widget creation), observability will be cleared and the desktop left blank. Your memory and your credentials (WhatsApp/Telegram/browser) will NOT be touched unless you check the boxes below.",
+  "reset.confirm.wipeMemory": "Also wipe MEMORY (your name, everything it knows about you — short and long term)",
+  "reset.confirm.wipeCredentials": "Also wipe widget CREDENTIALS (WhatsApp, Telegram, browser session)",
+  "reset.confirm.hint": "Checking either one restarts the server automatically (a few seconds).",
+  "reset.confirm.cancel": "Cancel",
+  "reset.confirm.yes": "Yes, continue",
+
+  "restarting.title": "Restarting zaelar…",
+  "restarting.body": "Wiping what you selected and starting over. This takes a few seconds — the page will reload itself as soon as it's ready again.",
+
+  "i18n.preparing": "Preparing {language}…",
+  "i18n.preparing.sub": "First time in this language — setting up the interface. This only happens once."
+}

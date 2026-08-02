@@ -8,6 +8,11 @@
 // ============================================================================
 import { createSignal } from "./reactive.js?v=2";
 
+// ---- active UI language (V2-089 multilingual) — the single signal every t() reads. Seeds instantly from the
+// localStorage mirror (no flash for returning operators), then initI18n() reconciles against the backend's
+// active language (ZAELAR_LANGUAGE). Flipping it re-renders every localized string in the tree, live. ----
+export const [lang, setLang]           = createSignal(localStorage.getItem("hb_lang") || "en");
+
 export const [started, setStarted]     = createSignal(false);   // a live session is up
 export const [starting, setStarting]   = createSignal(false);   // session is connecting
 export const [conn, setConn]           = createSignal({ label: "—", ok: false });

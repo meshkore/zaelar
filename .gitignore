@@ -84,3 +84,6 @@ bin/
 
 # Copias locales de reversión del config runtime (nunca al repo)
 config/*.bak-*
+
+# generated i18n bundles (runtime, produced by the LLM per language)
+config/i18n/generated/

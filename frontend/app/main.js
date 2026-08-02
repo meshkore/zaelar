@@ -12,6 +12,7 @@ import * as session from "./services/session.js?v=3";
 import * as store from "./core/store.js?v=2";
 import { startStatusPolling } from "./services/status.js?v=2";
 import { initTheme } from "./services/theme.js?v=2";
+import { initI18n } from "./core/i18n.js?v=1";
 
 // SUPERFICIES NATIVAS del frontend (widgets de SISTEMA, intocables): la LISTA CANÓNICA ÚNICA vive en
 // core/system-surfaces.js — main.js las MONTA desde ahí (sin lista duplicada). `submitChat` es el único símbolo
@@ -24,6 +25,9 @@ import { Desktop } from "./widgets/desktop.js?v=3";
 
 // ---- theme (dark/light) — apply before mounting anything, so nothing flashes the wrong palette ----
 initTheme();
+// ---- active UI language (V2-089): the store seeded instantly from the localStorage mirror; reconcile with the
+// backend's active language (ZAELAR_LANGUAGE). t() is reactive, so any correction re-renders the UI in place. ----
+initI18n();
 
 // ---- #desk = EL ESCRITORIO como UNA sola unidad (V2-062) — la "columna central" del layout de 3 columnas.
 // Todo el escritorio (fondo, widgets, cámara, orbe, TopBar, estado) vive DENTRO. Cuando el chat se acopla a un
