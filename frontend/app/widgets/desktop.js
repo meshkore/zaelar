@@ -213,20 +213,20 @@ export class Desktop {
     const reg=await this._ensureRegistry(); const e=reg[w.base]||{name:w.base,aliases:[w.base]};
     const name=e.name||w.base, aliases=e.aliases||[name];
     panel.innerHTML="";
-    const t=document.createElement("div"); t.className="hb-al-t"; t.textContent=`Nombres de «${name}»`; panel.appendChild(t);
+    const t=document.createElement("div"); t.className="hb-al-t"; t.textContent=`Names for «${name}»`; panel.appendChild(t);
     const chips=document.createElement("div"); chips.className="hb-al-chips";
     aliases.forEach(a=>{
       const isName=a.toLowerCase()===name.toLowerCase();
       const chip=document.createElement("span"); chip.className="hb-al-chip"+(isName?" name":"");
       chip.append(document.createTextNode(a));
-      if(!isName){ const rm=document.createElement("button"); rm.textContent="×"; rm.title="Quitar";
+      if(!isName){ const rm=document.createElement("button"); rm.textContent="×"; rm.title="Remove";
         rm.onclick=()=>this._removeAlias(w,a); chip.appendChild(rm); }
       chips.appendChild(chip);
     });
     panel.appendChild(chips);
     const add=document.createElement("div"); add.className="hb-al-add";
-    const inp=document.createElement("input"); inp.type="text"; inp.placeholder="añadir alias…";
-    const btn=document.createElement("button"); btn.textContent="Añadir";
+    const inp=document.createElement("input"); inp.type="text"; inp.placeholder="add alias…";
+    const btn=document.createElement("button"); btn.textContent="Add";
     const go=()=>{ const v=inp.value.trim(); if(v) this._addAlias(w,v,inp); };
     btn.onclick=go; inp.onkeydown=(ev)=>{ if(ev.key==="Enter"){ ev.preventDefault(); go(); } };
     add.append(inp,btn); panel.appendChild(add);
@@ -237,15 +237,15 @@ export class Desktop {
         body:JSON.stringify({alias})});
       const j=await r.json().catch(()=>({}));
       if(r.ok){ if(inp)inp.value=""; await this.refreshRegistry(); }
-      else this._aliasError(w, j.error||"No se pudo añadir");
-    }catch(_){ this._aliasError(w,"Error de red"); }
+      else this._aliasError(w, j.error||"Couldn't add");
+    }catch(_){ this._aliasError(w,"Network error"); }
   }
   async _removeAlias(w,alias){
     try{
       const r=await fetch(`/widgets/${w.base}/aliases/${encodeURIComponent(alias)}`,{method:"DELETE"});
       const j=await r.json().catch(()=>({}));
-      if(r.ok) await this.refreshRegistry(); else this._aliasError(w, j.error||"No se pudo quitar");
-    }catch(_){ this._aliasError(w,"Error de red"); }
+      if(r.ok) await this.refreshRegistry(); else this._aliasError(w, j.error||"Couldn't remove");
+    }catch(_){ this._aliasError(w,"Network error"); }
   }
   _aliasError(w,msg){
     if(!w._alias) return;
@@ -267,13 +267,13 @@ export class Desktop {
     let w = this.wins.get(id), fresh=!w;
     if(fresh){
       const card=document.createElement("div"); card.className="hb-win loading"; card.dataset.wid=id;
-      const grip=document.createElement("button"); grip.className="hb-grip"; grip.innerHTML=NINE_DOTS; grip.title="Mover";
+      const grip=document.createElement("button"); grip.className="hb-grip"; grip.innerHTML=NINE_DOTS; grip.title="Move";
       const x=document.createElement("button"); x.className="hb-x"; x.textContent="×"; x.onclick=()=>this.close(id);
       // HEADER (V2-082): botón-NOMBRE + config para ver/editar los ALIAS. El nombre se rellena desde el registro.
       const head=document.createElement("div"); head.className="hb-head";
       const nameBtn=document.createElement("button"); nameBtn.className="hb-name"; nameBtn.textContent=baseId;
-      nameBtn.title="Nombre del widget — clic para ver/editar sus alias";
-      const cfg=document.createElement("button"); cfg.className="hb-cfg"; cfg.textContent="⚙"; cfg.title="Nombres / alias";
+      nameBtn.title="Widget name — click to view/edit its aliases";
+      const cfg=document.createElement("button"); cfg.className="hb-cfg"; cfg.textContent="⚙"; cfg.title="Names / aliases";
       head.append(nameBtn,cfg);
       const load=document.createElement("div"); load.className="hb-load";
       const body=document.createElement("div"); body.className="hb-body";
@@ -331,7 +331,7 @@ export class Desktop {
         const l=w.card.querySelector(".hb-load"); if(l) l.remove();
         if(w.body) w.body.innerHTML =
           '<div style="padding:16px;color:var(--hb-muted,#8a95a5);font-size:13px;line-height:1.4">'
-          +'No pude cargar este widget.<br><small style="opacity:.8">'
+          +'Couldn\'t load this widget.<br><small style="opacity:.8">'
           +String(msg||"error").replace(/[<>&]/g,"").slice(0,140)+'</small></div>';
       }
     }catch(_){}
@@ -375,7 +375,7 @@ export class Desktop {
     this._busy.add(rid);
     const card=document.createElement("div"); card.className="hb-win loading long building"; card.dataset.wid=id;
     const load=document.createElement("div"); load.className="hb-load";
-    const cap=document.createElement("div"); cap.className="hb-cap"; cap.textContent="Creando el widget…";
+    const cap=document.createElement("div"); cap.className="hb-cap"; cap.textContent="Creating the widget…";
     card.append(load,cap); this.stage.appendChild(card);
     this._place(card); this._bringFront(card); requestAnimationFrame(()=>card.classList.add("in"));
     try{
@@ -387,7 +387,7 @@ export class Desktop {
         await this.show(r.id||id, {q:spec});
       } else {
         const l=card.querySelector(".hb-load"); if(l)l.remove();
-        cap.className="hb-cap err"; cap.textContent="No pude crear el widget: "+((r&&r.error)||"error");
+        cap.className="hb-cap err"; cap.textContent="Couldn't create the widget: "+((r&&r.error)||"error");
         setTimeout(()=>{card.classList.remove("in");setTimeout(()=>card.remove(),200);},4000);
       }
     }catch(e){ console.error("createWidget failed", e); card.classList.remove("in"); setTimeout(()=>card.remove(),200); }
@@ -401,7 +401,7 @@ export class Desktop {
     if(this._busy.has(rid)) return;                  // don't stack agents on the same widget (rapid re-modify)
     this._busy.add(rid);
     const open = this.wins.has(rid);
-    if(open){ const cap=document.createElement("div"); cap.className="hb-cap"; cap.textContent="Actualizando…";
+    if(open){ const cap=document.createElement("div"); cap.className="hb-cap"; cap.textContent="Updating…";
       this.wins.get(rid).card.appendChild(cap); }
     try{
       const r=await fetch("/widgets/modify",{method:"POST",headers:{"Content-Type":"application/json"},
@@ -439,7 +439,7 @@ export class Desktop {
     let ov = w.card.querySelector(".hb-confirm");
     if(!ov){ ov=document.createElement("div"); ov.className="hb-confirm"; w.card.appendChild(ov); }
     ov.innerHTML="";
-    const msg=document.createElement("div"); msg.className="hb-confirm-msg"; msg.textContent=question||"¿Borrar este widget para siempre?";
+    const msg=document.createElement("div"); msg.className="hb-confirm-msg"; msg.textContent=question||"Delete this widget forever?";
     const row=document.createElement("div"); row.className="hb-confirm-row";
     const no=document.createElement("button"); no.className="hb-confirm-no"; no.textContent="No";
     const yes=document.createElement("button"); yes.className="hb-confirm-yes";
@@ -449,7 +449,7 @@ export class Desktop {
     // `widgets/confirm.py` ("delete" | "data") — "delete" sigue diciendo "Borrar" (comportamiento previo
     // intacto); cualquier otra data-op (connect_cluster, send, o lo que declare cualquier widget futuro) usa
     // un texto genérico correcto para TODAS, sin tener que enumerar cada acción posible.
-    yes.textContent = action === "delete" ? "Borrar" : "Sí, confirmar";
+    yes.textContent = action === "delete" ? "Delete" : "Yes, confirm";
     no.onclick=()=>this._resolveConfirm(rid,false);
     yes.onclick=()=>this._resolveConfirm(rid,true);
     row.append(no,yes); ov.append(msg,row);

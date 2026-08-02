@@ -21,25 +21,25 @@ export function TopBar() {
     // opening anything. Click → the status panel with the per-item detail.
     h("button", {
       class: () => "ic statusBtn st-" + overallStatus(),   // worst(server, voz del browser, offline) → color + parpadeo
-      id: "statusBtn", title: "Estado del sistema (cerebro · voz · APIs · cluster)",
+      id: "statusBtn", title: "System status (brain · voice · APIs · cluster)",
       onClick: () => { const v = !store.statusOpen(); store.setStatusOpen(v); api.uiEvent("topbar:status", { state: v ? "open" : "close" }); },
     }, raw(STATUS_ICON)),
     h("button", {
       class: () => "ic" + (store.debugOpen() ? " on" : ""),
-      id: "debugBtn", title: "Observabilidad · columna de eventos en vivo (transcripción, widgets, cerebro, modelos)",
+      id: "debugBtn", title: "Observability · live event column (transcription, widgets, brain, models)",
       onClick: () => { const v = !store.debugOpen(); store.setDebugOpen(v); api.uiEvent("topbar:debug", { state: v ? "open" : "close" }); },
     }, raw(BUG_ICON)),
     // ☾/☀ theme MOVED to the orb's upper lid (V2-039 «ojo» — generic/personal control, helps close the eye shape).
     h("button", { class: () => "ic" + (store.configOpen() ? " on" : ""), id: "cfgBtn",
-      title: "Configuración · qué API/modelo usa cada pieza · voz · saldos",
+      title: "Settings · which API/model each part uses · voice · balances",
       onClick: () => { const v = !store.configOpen(); store.setConfigOpen(v); api.uiEvent("topbar:settings", { state: v ? "open" : "close" }); } }, raw(GEAR_ICON)),
     // 🧭 Wizard de config (V2-040): perfil local/cloud + detector del sistema + credenciales. Se auto-abre en el
     // primer arranque; este icono lo reabre cuando el operador quiera revalidar/cambiar el perfil.
     h("button", { class: () => "ic" + (store.wizardOpen() ? " on" : ""), id: "wizBtn",
-      title: "Asistente de configuración · perfil local/cloud, detector del sistema, credenciales",
+      title: "Setup wizard · local/cloud profile, system detector, credentials",
       onClick: () => { const v = !store.wizardOpen(); store.setWizardOpen(v); api.uiEvent("topbar:wizard", { state: v ? "open" : "close" }); } }, raw(COMPASS_ICON)),
     // Reset = DESTRUCTIVO: para todos los procesos de fondo y limpia el canvas. Pide confirmación primero.
-    h("button", { class: "reset", id: "reset", title: "Reset · detiene todo y limpia (pide confirmación)",
+    h("button", { class: "reset", id: "reset", title: "Reset · stops everything and clears (asks for confirmation)",
       onClick: () => { api.uiEvent("topbar:reset", { state: "prompt" }); store.setResetConfirmOpen(true); } }, "Reset"),
     ResetConfirm(),
     RestartingOverlay(),
@@ -68,22 +68,22 @@ function ResetConfirm() {
     onClick: (e) => { if (e.target === ovl) close(); },
   },
     h("div", { class: "rc-box" },
-      h("h3", { class: "rc-title" }, "¿Detener todo y limpiar?"),
+      h("h3", { class: "rc-title" }, "Stop everything and clear?"),
       h("p", { class: "rc-body" },
-        "Se van a PARAR todos los procesos en curso (búsquedas del navegador, tareas del SlowBrain, ",
-        "creación de widgets), a limpiar la observabilidad y a dejar el escritorio en blanco. Tu memoria y ",
-        "tus credenciales (WhatsApp/Telegram/navegador) NO se tocan salvo que marques lo de abajo."),
+        "All running processes will be STOPPED (browser searches, SlowBrain tasks, ",
+        "widget creation), observability will be cleared and the desktop left blank. Your memory and ",
+        "your credentials (WhatsApp/Telegram/browser) will NOT be touched unless you check the boxes below."),
       h("label", { class: "rc-check" },
         h("input", { type: "checkbox", ref: (el) => (memEl = el) }),
-        " Borrar también la MEMORIA (tu nombre, todo lo que sabe de ti — corto y largo plazo)"),
+        " Also wipe MEMORY (your name, everything it knows about you — short and long term)"),
       h("label", { class: "rc-check" },
         h("input", { type: "checkbox", ref: (el) => (credEl = el) }),
-        " Borrar también las CREDENCIALES de widgets (WhatsApp, Telegram, sesión del navegador)"),
+        " Also wipe widget CREDENTIALS (WhatsApp, Telegram, browser session)"),
       h("p", { class: "rc-body rc-hint" },
-        "Marcar cualquiera de las dos reinicia el servidor automáticamente (unos segundos)."),
+        "Checking either one restarts the server automatically (a few seconds)."),
       h("div", { class: "rc-actions" },
-        h("button", { class: "rc-btn rc-no", onClick: close }, "Cancelar"),
-        h("button", { class: "rc-btn rc-yes", onClick: confirm }, "Sí, continuar"),
+        h("button", { class: "rc-btn rc-no", onClick: close }, "Cancel"),
+        h("button", { class: "rc-btn rc-yes", onClick: confirm }, "Yes, continue"),
       ),
     ),
   );
@@ -95,9 +95,9 @@ function ResetConfirm() {
 function RestartingOverlay() {
   return h("div", { class: () => "ovl rc-ovl" + (store.restarting() ? " on" : "") },
     h("div", { class: "rc-box" },
-      h("h3", { class: "rc-title" }, "Reiniciando zaelar…"),
-      h("p", { class: "rc-body" }, "Borrando lo marcado y arrancando de nuevo. Esto tarda unos segundos — la "
-        + "página se recargará sola en cuanto vuelva a estar lista."),
+      h("h3", { class: "rc-title" }, "Restarting zaelar…"),
+      h("p", { class: "rc-body" }, "Wiping what you selected and starting over. This takes a few seconds — the "
+        + "page will reload itself as soon as it's ready again."),
     ),
   );
 }

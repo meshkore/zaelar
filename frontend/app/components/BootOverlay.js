@@ -10,10 +10,10 @@ import * as store from "../core/store.js?v=2";
 import { startBootAnim } from "./boot-anim.js?v=2";
 
 const LABELS = {
-  encendiendo: "Encendiendo a zaelar…",
-  voz: "Conectando la voz…",
-  memoria: "Componiendo la memoria…",
-  reflejo: "Afinando el reflejo…",
+  encendiendo: "Starting up zaelar…",
+  voz: "Connecting voice…",
+  memoria: "Composing memory…",
+  reflejo: "Tuning the reflex…",
   listo: "",
 };
 

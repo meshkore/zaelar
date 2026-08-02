@@ -24,26 +24,26 @@ def _services():
 def validate_connect(platform: str, payload: dict) -> str | None:
     """Devuelve un mensaje de error si la petición de conexión es inválida; None si es válida."""
     if platform not in PLATFORMS:
-        return f"plataforma desconocida: {platform}"
+        return f"unknown platform: {platform}"
     if platform == "telegram":
         api_id = str((payload or {}).get("api_id") or "").strip()
         api_hash = str((payload or {}).get("api_hash") or "").strip()
         if not api_id.isdigit() or not api_hash:
-            return ("api_id (número) y api_hash son obligatorios. "
-                    "Sácalos de my.telegram.org → API development tools.")
+            return ("api_id (a number) and api_hash are required. "
+                    "Get them from my.telegram.org → API development tools.")
     if platform == "email":
         p = payload or {}
         addr = str(p.get("email_address") or "").strip()
         pwd = str(p.get("email_password") or "").strip()
         if "@" not in addr:
-            return "La dirección de correo es obligatoria (p.ej. tucuenta@gmail.com)."
+            return "An email address is required (e.g. youraccount@gmail.com)."
         if not pwd:
-            return ("La contraseña de aplicación es obligatoria. En Gmail/Outlook actívala en la seguridad de tu "
-                    "cuenta (con verificación en 2 pasos): 'contraseña de aplicación'.")
+            return ("An app password is required. On Gmail/Outlook, enable it in your account security "
+                    "(with 2-step verification): 'app password'.")
         prov = str(p.get("provider") or "").strip().lower()
         from connectors.email.mailbox import PRESETS
         if prov not in PRESETS and prov not in ("", "otro", "other"):
-            return f"proveedor desconocido: {prov}"
+            return f"unknown provider: {prov}"
         # Si no hay preset explícito y el payload no trae hosts, exige que el dominio de la dirección sea deducible.
         has_hosts = bool(str(p.get("imap_host") or "").strip() and str(p.get("smtp_host") or "").strip())
         if prov not in PRESETS and not has_hosts:
@@ -51,8 +51,8 @@ def validate_connect(platform: str, payload: dict) -> str | None:
             deducible = any(k in domain for k in ("gmail", "googlemail", "outlook", "hotmail", "live",
                                                   "office365", "icloud", "me.com", "yahoo"))
             if not deducible:
-                return ("Para un proveedor no listado necesito el servidor IMAP y el SMTP (p.ej. imap.tudominio.com "
-                        "y smtp.tudominio.com).")
+                return ("For an unlisted provider I need the IMAP and SMTP servers (e.g. imap.yourdomain.com "
+                        "and smtp.yourdomain.com).")
     return None
 
 

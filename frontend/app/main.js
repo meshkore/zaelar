@@ -101,9 +101,9 @@ async function uploadFile(file, source) {
     const res = await fetch("/api/files/upload", { method: "POST", body: fd });
     const d = await res.json();
     if (!res.ok) throw new Error(d && d.detail || "upload failed");
-    store.pushChat({ role: "sys", text: (source === "paste" ? "📎 imagen enviada: " : "📁 archivo añadido: ") + d.name });
+    store.pushChat({ role: "sys", text: (source === "paste" ? "📎 image sent: " : "📁 file added: ") + d.name });
   } catch (_) {
-    store.pushChat({ role: "sys", text: "⚠️ no se pudo subir el archivo" });
+    store.pushChat({ role: "sys", text: "⚠️ couldn't upload the file" });
   }
 }
 

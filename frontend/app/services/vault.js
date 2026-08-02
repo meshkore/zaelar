@@ -41,7 +41,7 @@ async function _challenge() { return fetch("/api/vault/passkey/challenge", { cac
 export async function enrollPasskey() {
   try {
     const ch = await _challenge();
-    if (!ch.prf_salt) return { error: "no hay bóveda" };
+    if (!ch.prf_salt) return { error: "no vault yet" };
     const salt = _b64ToBytes(ch.prf_salt);
     const userId = crypto.getRandomValues(new Uint8Array(16));
     const cred = await navigator.credentials.create({
@@ -55,7 +55,7 @@ export async function enrollPasskey() {
         timeout: 60000,
       },
     });
-    if (!cred) return { error: "cancelado" };
+    if (!cred) return { error: "cancelled" };
     // el PRF puede venir en la creación; si no, se obtiene con un get() inmediato (patrón robusto multi-navegador)
     let prf = cred.getClientExtensionResults?.()?.prf?.results?.first;
     if (!prf) {
@@ -71,20 +71,20 @@ export async function enrollPasskey() {
       });
       prf = asrt?.getClientExtensionResults?.()?.prf?.results?.first;
     }
-    if (!prf) return { error: "este dispositivo no soporta PRF (usa la contraseña)" };
+    if (!prf) return { error: "this device doesn't support PRF (use the passphrase)" };
     const r = await postJSON("/api/vault/passkey/enroll",
       { cred_id: _b64url(cred.rawId), prf_secret: _bytesToB64(prf) });
-    if (r.status === 423) return { error: "desbloquea la bóveda primero" };
-    if (!r.ok) return { error: (await r.json().catch(() => ({}))).detail || "no se pudo registrar" };
+    if (r.status === 423) return { error: "unlock the vault first" };
+    if (!r.ok) return { error: (await r.json().catch(() => ({}))).detail || "couldn't register" };
     return { ok: true };
-  } catch (e) { return { error: (e && e.message) || "passkey cancelada" }; }
+  } catch (e) { return { error: (e && e.message) || "passkey cancelled" }; }
 }
 
 // DESBLOQUEA con una passkey registrada (biometría). Devuelve {ok} o {error}.
 export async function unlockPasskey(hold = true) {
   try {
     const ch = await _challenge();
-    if (!ch.prf_salt || !ch.cred_ids || !ch.cred_ids.length) return { error: "no hay passkeys registradas" };
+    if (!ch.prf_salt || !ch.cred_ids || !ch.cred_ids.length) return { error: "no passkeys registered" };
     const salt = _b64ToBytes(ch.prf_salt);
     const allow = ch.cred_ids.map(id => ({
       type: "public-key",
@@ -101,8 +101,8 @@ export async function unlockPasskey(hold = true) {
       },
     });
     const prf = asrt?.getClientExtensionResults?.()?.prf?.results?.first;
-    if (!prf) return { error: "no se pudo leer la huella" };
+    if (!prf) return { error: "couldn't read the fingerprint" };
     const r = await postJSON("/api/vault/passkey/unlock", { prf_secret: _bytesToB64(prf), hold }).then(json);
-    return r.ok ? { ok: true } : { error: "la passkey no abrió la bóveda" };
-  } catch (e) { return { error: (e && e.message) || "passkey cancelada" }; }
+    return r.ok ? { ok: true } : { error: "the passkey didn't open the vault" };
+  } catch (e) { return { error: (e && e.message) || "passkey cancelled" }; }
 }

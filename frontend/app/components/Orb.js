@@ -75,7 +75,7 @@ export function Orb() {
         // V2-079: los crons se ven/gestionan en la 3ª pestaña del widget de chat. El botón ⏰ abre ESE widget
         // directamente en la pestaña «Crons» (ya no hay panel suelto). ON = chat abierto EN la pestaña crons.
         class: () => "orbic" + ((store.chatOpen() && store.chatTab() === "crons") ? " on" : " off"),
-        title: "Tareas programadas (proactividad)",
+        title: "Scheduled tasks (proactivity)",
         onClick: () => {
           const on = store.chatOpen() && store.chatTab() === "crons";
           if (on) { store.setChatOpen(false); }
@@ -85,17 +85,17 @@ export function Orb() {
       }, raw(CRON_ICON)),
       h("button", {
         class: () => "orbic" + (store.memOpen() ? " on" : " off"),
-        title: "Mapa de la memoria (estado · corto · largo plazo · grafo)",
+        title: "Memory map (state · short · long term · graph)",
         onClick: () => { const v = !store.memOpen(); store.setMemOpen(v); api.uiEvent("orb:memory", { state: v ? "open" : "close" }); },
       }, raw(MEM_ICON)),
       h("button", {
         class: () => "orbic" + (store.botMuted() ? " off" : " on"),
-        title: () => store.botMuted() ? "Silenciado — clic para volver a oírlo" : "Clic para silenciar (el agente sigue en marcha)",
+        title: () => store.botMuted() ? "Muted — click to hear it again" : "Click to mute (the agent keeps running)",
         onClick: () => { session.toggleBotMute(); api.uiEvent("orb:speaker", { state: store.botMuted() ? "muted" : "unmuted" }); },
       }, () => raw(store.botMuted() ? SPK_OFF : SPK_ON)),
       h("button", {
         class: () => "orbic" + (store.powerOff() ? " off" : " on"),
-        title: () => store.powerOff() ? "zaelar apagado — clic para encender" : "Apagar zaelar (micro y voz fuera; clic para volver)",
+        title: () => store.powerOff() ? "zaelar off — click to turn on" : "Turn off zaelar (mic and voice off; click to come back)",
         onClick: () => {
           const off = !store.powerOff();
           store.setPowerOff(off);
@@ -133,19 +133,19 @@ export function Orb() {
       }, raw(PWR_ICON)),
       h("button", {
         class: () => "orbic" + (store.captionsOn() ? " on" : " off"),
-        title: () => store.captionsOn() ? "Ocultar el texto en vivo" : "Mostrar el texto en vivo",
+        title: () => store.captionsOn() ? "Hide live text" : "Show live text",
         onClick: () => { const v = store.toggleCaptions(); api.uiEvent("orb:captions", { state: v ? "on" : "off" }); },
       }, raw(CAP_ICON)),
       h("button", {
         // ONE icon (the moon = "dark mode"), colored on/off like every other control — not swapped for a sun
         // glyph when off (operator 2026-07-22: "quiero que todo lo activo esté en azul y lo demás en gris").
         class: () => "orbic" + (store.theme() === "dark" ? " on" : " off"),
-        title: () => (store.theme() === "dark" ? "Modo claro" : "Modo oscuro"),
+        title: () => (store.theme() === "dark" ? "Light mode" : "Dark mode"),
         onClick: () => { toggleTheme(); api.uiEvent("orb:theme", { state: store.theme() }); },
       }, raw(MOON_ICON)),
       h("button", {
         class: () => "orbic" + (wakeOn() ? " on" : " off"),
-        title: () => wakeOn() ? "Solo con «zaelar» — clic para escuchar siempre" : "Escucha siempre — clic para exigir «zaelar»",
+        title: () => wakeOn() ? "Only with «zaelar» — click to always listen" : "Always listening — click to require «zaelar»",
         onClick: () => { toggleWake(); api.uiEvent("orb:attention", { state: wakeOn() ? "wakeword" : "always" }); },
       }, raw(BOT_ICON)),
     ),
@@ -158,7 +158,7 @@ export function Orb() {
         h("div", { class: "orbcap-inner", ref: el => (capInnerEl = el) }),
       ),
       h("canvas", { id: "orb", class: () => store.botMuted() ? "muted" : "", ref: el => (orbEl = el),
-                    title: "Arrástrame para moverme" }),
+                    title: "Drag me to move me" }),
       h("div", { class: () => "micblock" + (store.micBlocked().show ? " show" : "") }, h("span", { class: "ring" })),
     ),
     // ELECTROCARDIOGRAM under the orb — zaelar's REAL heartbeat: a QRS per orchestrator loop.tick (~1 Hz at rest),

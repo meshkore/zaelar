@@ -300,8 +300,8 @@ def build_cluster_system(directive: str = "") -> str:
     tools van APAGADAS en código en el llamador (no aquí) — este perfil ni las menciona.
 
     La regla de idioma es la del CANAL (no `_lang_lock`, que forzaría todo al idioma del operador): los ASIDES para
-    el operador van en su idioma; el texto DENTRO de [[cluster.send]] (lo que recibe el peer) puede ir en el idioma
-    que encaje esa colaboración."""
+    el operador van en su idioma; el texto DENTRO de [[cluster.send]] (lo que recibe el peer) va en INGLÉS POR
+    DEFECTO (lingua franca de la red), y solo se pasa a otro idioma si el peer escribió en ese otro idioma."""
     try:
         from voice.engine.core import langs
         op_lang = langs.current_language().native
@@ -317,8 +317,9 @@ def build_cluster_system(directive: str = "") -> str:
         "planes/marcos que nadie pidió. Frases cortas y directas; si basta una línea, una línea. "
         f"IDIOMA (regla dura): todo texto FUERA de una etiqueta [[cluster.send]]/[[cluster.done]] es un aside SOLO "
         f"para tu operador (el peer nunca lo ve) — escríbelo siempre en {op_lang}, nunca en otro idioma ni "
-        f"degenerado. El texto DENTRO de [[cluster.send]] (lo que recibe el peer) puede ir en el idioma que encaje "
-        f"esa colaboración."
+        f"degenerado. El texto DENTRO de [[cluster.send]] (lo que recibe el peer) va en INGLÉS POR DEFECTO (es la "
+        f"lingua franca de la red MeshKore); SOLO responde en otro idioma si el peer te escribió a ti en ese otro "
+        f"idioma."
     )
     return sys + _directive_block(directive)
 

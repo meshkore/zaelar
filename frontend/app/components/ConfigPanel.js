@@ -13,7 +13,7 @@ import { GEAR_ICON, BRAIN_ICON, CPU_ICON, DATABASE_ICON, MIC_ICON, SEARCH_ICON, 
 
 const esc = s => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const opt = (list, sel) => (list || []).map(o => `<option value="${esc(o.value != null ? o.value : o)}"${(o.value != null ? o.value : o) === sel ? " selected" : ""}>${esc(o.label != null ? o.label : o)}</option>`).join("");
-const badge = st => `<span class="cf-badge cf-${esc(st || "off")}">${({ ok: "OK", warn: "aviso", error: "problema", off: "sin key", unknown: "—" }[st] || st || "—")}</span>`;
+const badge = st => `<span class="cf-badge cf-${esc(st || "off")}">${({ ok: "OK", warn: "warning", error: "problem", off: "no key", unknown: "—" }[st] || st || "—")}</span>`;
 
 // una fila de ajuste: etiqueta a la izquierda, control (+ pista opcional) a la derecha — patrón Ajustes/Chrome.
 const row = (label, ctl, hint) =>
@@ -24,20 +24,20 @@ const panel = (id, title, sub, inner) =>
   `<section class="cf-panel-sec" id="cf_${id}"><header class="cf-panel-head"><h4>${esc(title)}</h4>${sub ? `<p>${esc(sub)}</p>` : ""}</header><div class="cf-group">${inner}</div></section>`;
 
 const SECTIONS = [
-  { id: "fast", label: "Cerebro rápido", icon: BRAIN_ICON },
-  { id: "code", label: "Agente de código", icon: CPU_ICON },
-  { id: "memory", label: "Memoria", icon: DATABASE_ICON },
-  { id: "voice", label: "Voz", icon: MIC_ICON },
-  { id: "search", label: "Búsqueda web", icon: SEARCH_ICON },
-  { id: "music", label: "Música", icon: MUSIC_ICON },
-  { id: "apis", label: "APIs y saldo", icon: SERVER_ICON },
+  { id: "fast", label: "Fast brain", icon: BRAIN_ICON },
+  { id: "code", label: "Code agent", icon: CPU_ICON },
+  { id: "memory", label: "Memory", icon: DATABASE_ICON },
+  { id: "voice", label: "Voice", icon: MIC_ICON },
+  { id: "search", label: "Web search", icon: SEARCH_ICON },
+  { id: "music", label: "Music", icon: MUSIC_ICON },
+  { id: "apis", label: "APIs & balance", icon: SERVER_ICON },
 ];
 
 // V2-083: tres pestañas principales. "settings" = todo lo de antes (menú lateral + secciones); "conectores" y
 // "widgets" son nuevas. Patrón de pastilla segmentada (como las pestañas del ChatWall).
 const TABS = [
-  { id: "settings", label: "Ajustes" },
-  { id: "conectores", label: "Conectores" },
+  { id: "settings", label: "Settings" },
+  { id: "conectores", label: "Connectors" },
   { id: "widgets", label: "Widgets" },
 ];
 
@@ -80,8 +80,8 @@ export function ConfigPanel() {
     if (!prov || !prov.cloud || !prov.key_env) return "";
     const setNow = (cfg.credentials || []).some(c => (c.env || []).includes(prov.key_env) && c.set);
     return row(`API key · ${prov.key_env}`,
-      `<input id="cf_key_${esc(prov.key_env)}" type="password" placeholder="${setNow ? "•••••• (guardada — deja vacío para mantener)" : "pega la key"}" autocomplete="off"/>`,
-      setNow ? "✓ configurada" : "no configurada");
+      `<input id="cf_key_${esc(prov.key_env)}" type="password" placeholder="${setNow ? "•••••• (saved — leave blank to keep)" : "paste the key"}" autocomplete="off"/>`,
+      setNow ? "✓ configured" : "not configured");
   };
 
   function sec_fast(c) {
@@ -89,41 +89,41 @@ export function ConfigPanel() {
     const provs = c.providers || [];
     const cur = provs.find(p => p.id === f.provider) || provs[0] || {};
     const models = cur.models || [];
-    return panel("fast", "Cerebro rápido · FlashBrain", (c.note || "") + " — el que responde en cada turno de voz.",
-      row("Proveedor", `<select id="cf_fast_provider">${opt(provs.map(p => ({ value: p.id, label: p.label })), f.provider)}</select>`) +
-      row("Modelo", `<input id="cf_fast_model" list="dl_fast_model" value="${esc(f.model)}"/><datalist id="dl_fast_model">${opt(models)}</datalist>`) +
+    return panel("fast", "Fast brain · FlashBrain", (c.note || "") + " — the one that answers on every voice turn.",
+      row("Provider", `<select id="cf_fast_provider">${opt(provs.map(p => ({ value: p.id, label: p.label })), f.provider)}</select>`) +
+      row("Model", `<input id="cf_fast_model" list="dl_fast_model" value="${esc(f.model)}"/><datalist id="dl_fast_model">${opt(models)}</datalist>`) +
       row("Base URL", `<input id="cf_fast_base_url" value="${esc(f.base_url)}" placeholder="${esc(cur.base_url || "")}"/>`) +
       `<div id="cf_fast_keyrow">${providerKeyRow(cur)}</div>` +
-      `<div class="cf-foot"><button class="cf-save" data-sec="fast">Guardar cerebro rápido</button></div>` +
-      `<div class="cf-foot cf-foot-info"><button type="button" class="cf-benchmarks-btn">¿Quieres ver los benchmarks y el por qué usamos unos modelos u otros?</button></div>`);
+      `<div class="cf-foot"><button class="cf-save" data-sec="fast">Save fast brain</button></div>` +
+      `<div class="cf-foot cf-foot-info"><button type="button" class="cf-benchmarks-btn">Want to see the benchmarks and why we use one model over another?</button></div>`);
   }
 
   function sec_code(c) {
     const a = (cfg.v2 && cfg.v2.code_agent) || {};
     const provs = c.providers || [];
-    return panel("code", "Agente de código · workers", (c.note || ""),
-      row("Proveedor", `<select id="cf_code_provider">${opt(provs.map(p => ({ value: p.id, label: p.label })), a.provider)}</select>`) +
-      row("Modelo (global)", `<input id="cf_code_model" value="${esc(a.model)}" placeholder="default del proveedor"/>`) +
-      row("· memoria", `<input id="cf_code_model_memory" value="${esc(a.model_memory)}" placeholder="hereda"/>`) +
-      row("· web", `<input id="cf_code_model_web" value="${esc(a.model_web)}" placeholder="hereda"/>`) +
-      row("· código", `<input id="cf_code_model_code" value="${esc(a.model_code)}" placeholder="hereda"/>`) +
-      row("Máx. en paralelo", `<input id="cf_code_max_parallel" type="number" min="1" max="8" value="${esc(a.max_parallel)}"/>`) +
-      `<div class="cf-foot"><button class="cf-save" data-sec="code_agent">Guardar agente de código</button></div>`);
+    return panel("code", "Code agent · workers", (c.note || ""),
+      row("Provider", `<select id="cf_code_provider">${opt(provs.map(p => ({ value: p.id, label: p.label })), a.provider)}</select>`) +
+      row("Model (global)", `<input id="cf_code_model" value="${esc(a.model)}" placeholder="provider default"/>`) +
+      row("· memory", `<input id="cf_code_model_memory" value="${esc(a.model_memory)}" placeholder="inherits"/>`) +
+      row("· web", `<input id="cf_code_model_web" value="${esc(a.model_web)}" placeholder="inherits"/>`) +
+      row("· code", `<input id="cf_code_model_code" value="${esc(a.model_code)}" placeholder="inherits"/>`) +
+      row("Max in parallel", `<input id="cf_code_max_parallel" type="number" min="1" max="8" value="${esc(a.max_parallel)}"/>`) +
+      `<div class="cf-foot"><button class="cf-save" data-sec="code_agent">Save code agent</button></div>`);
   }
 
   function sec_memory(cat) {
     const m = (cfg.v2 && cfg.v2.memory) || {};
     const emb = (cat.memory_embed && cat.memory_embed.providers) || [];
     const rer = (cat.memory_rerank && cat.memory_rerank.providers) || [];
-    return panel("memory", "Memoria · recuperación y escritura", "Embedding + reranker + procesador de escritura. Local por defecto.",
-      row("Embedding", `<select id="cf_mem_embed_provider">${opt(emb.map(p => ({ value: p.id, label: p.label })), m.embed_provider)}</select>`, "⚠️ cambiarlo exige re-embed") +
-      row("Modelo embedding", `<input id="cf_mem_embed_model" value="${esc(m.embed_model)}"/>`) +
+    return panel("memory", "Memory · retrieval and writing", "Embedding + reranker + write processor. Local by default.",
+      row("Embedding", `<select id="cf_mem_embed_provider">${opt(emb.map(p => ({ value: p.id, label: p.label })), m.embed_provider)}</select>`, "⚠️ changing it requires re-embed") +
+      row("Embedding model", `<input id="cf_mem_embed_model" value="${esc(m.embed_model)}"/>`) +
       row("Reranker", `<select id="cf_mem_rerank_provider">${opt(rer.map(p => ({ value: p.id, label: p.label })), m.rerank_provider)}</select>`) +
-      row("Modelo reranker", `<input id="cf_mem_rerank_model" value="${esc(m.rerank_model)}" placeholder="default del proveedor"/>`) +
+      row("Reranker model", `<input id="cf_mem_rerank_model" value="${esc(m.rerank_model)}" placeholder="provider default"/>`) +
       row("top-N", `<input id="cf_mem_rerank_top_n" type="number" min="1" max="100" value="${esc(m.rerank_top_n)}"/>`) +
       row("blend", `<input id="cf_mem_rerank_blend" type="number" step="0.05" min="0" max="1" value="${esc(m.rerank_blend)}"/>`) +
-      row("Procesador de escritura (el CORAZÓN)", `<input id="cf_mem_mem_processor_model" value="${esc(m.mem_processor_model)}"/>`) +
-      `<div class="cf-foot"><button class="cf-save" data-sec="memory">Guardar memoria</button></div>`);
+      row("Write processor (the HEART)", `<input id="cf_mem_mem_processor_model" value="${esc(m.mem_processor_model)}"/>`) +
+      `<div class="cf-foot"><button class="cf-save" data-sec="memory">Save memory</button></div>`);
   }
 
   function sec_voice() {
@@ -137,8 +137,8 @@ export function ConfigPanel() {
         : `<select id="cfv_${k.key}">${opt(k.options, k.value)}</select>`;
       return row(k.label, ctl, hint);
     }).join("");
-    return panel("voice", "Voz · STT · TTS · idioma · atención", "La VOZ concreta se cambia tocando el orbe. Guardar puede reconectar.",
-      rows + `<div class="cf-foot"><button class="cf-save-voice">Guardar voz</button></div>`);
+    return panel("voice", "Voice · STT · TTS · language · attention", "The specific VOICE is changed by tapping the orb. Saving may reconnect.",
+      rows + `<div class="cf-foot"><button class="cf-save-voice">Save voice</button></div>`);
   }
 
   function sec_search() {
@@ -148,24 +148,24 @@ export function ConfigPanel() {
     const keyRow = (prov, env, label) => {
       const setNow = creds.some(c => c.key === prov && c.set);
       return row(`${label} · ${env}`,
-        `<input id="cf_key_${esc(env)}" type="password" placeholder="${setNow ? "•••••• (guardada)" : "pega la key (opcional)"}" autocomplete="off"/>`,
-        setNow ? "✓ activa" : "—");
+        `<input id="cf_key_${esc(env)}" type="password" placeholder="${setNow ? "•••••• (saved)" : "paste the key (optional)"}" autocomplete="off"/>`,
+        setNow ? "✓ active" : "—");
     };
-    return panel("search", "Búsqueda web", "Proveedor AUTO por calidad según la key: Perplexity → Tavily → Brave → Google (gratis) → DuckDuckGo. Sin ninguna key funciona gratis con Google.",
-      keyRow("perplexity", "PERPLEXITY_API_KEY", "Perplexity (síntesis, mejor)") +
+    return panel("search", "Web search", "Provider AUTO by quality based on the key: Perplexity → Tavily → Brave → Google (free) → DuckDuckGo. With no key it works for free with Google.",
+      keyRow("perplexity", "PERPLEXITY_API_KEY", "Perplexity (synthesis, best)") +
       keyRow("tavily", "TAVILY_API_KEY", "Tavily") +
       keyRow("brave", "BRAVE_SEARCH_KEY", "Brave (snippets)") +
-      `<div class="cf-foot"><button class="cf-save-keys" data-envs="PERPLEXITY_API_KEY,TAVILY_API_KEY,BRAVE_SEARCH_KEY">Guardar keys de búsqueda</button></div>`);
+      `<div class="cf-foot"><button class="cf-save-keys" data-envs="PERPLEXITY_API_KEY,TAVILY_API_KEY,BRAVE_SEARCH_KEY">Save search keys</button></div>`);
   }
 
   function sec_music() {
     const sp = cfg.spotify || {};
-    const st = sp.logged_in ? "conectado" : (sp.can_connect ? "listo para conectar" : "falta client_id");
-    return panel("music", "Música · Spotify", "Reproduce por voz. Sin Spotify, cae al audio gratis de YouTube dentro del widget de música.",
-      row("Estado", `<span class="cf-status">${esc(st)}${sp.logged_in ? "" : (sp.default_available ? " · app de un clic disponible" : "")}</span>`) +
+    const st = sp.logged_in ? "connected" : (sp.can_connect ? "ready to connect" : "missing client_id");
+    return panel("music", "Music · Spotify", "Plays by voice. Without Spotify, it falls back to free YouTube audio inside the music widget.",
+      row("Status", `<span class="cf-status">${esc(st)}${sp.logged_in ? "" : (sp.default_available ? " · one-click app available" : "")}</span>`) +
       `<div class="cf-foot">${sp.logged_in
-        ? `<button class="cf-spotify-dis">Desconectar Spotify</button>`
-        : `<button class="cf-spotify" ${sp.can_connect ? "" : "disabled"}>Conectar Spotify</button>`}</div>`);
+        ? `<button class="cf-spotify-dis">Disconnect Spotify</button>`
+        : `<button class="cf-spotify" ${sp.can_connect ? "" : "disabled"}>Connect Spotify</button>`}</div>`);
   }
 
   function apisRows() {
@@ -177,9 +177,9 @@ export function ConfigPanel() {
       </tr>`).join("") || '<tr><td colspan="3">—</td></tr>';
   }
   function sec_apis() {
-    return panel("apis", "APIs y servicios · saldo", "Resumen de las APIs externas. El saldo se muestra donde el proveedor lo expone; el resto avisa por el último error.",
+    return panel("apis", "APIs and services · balance", "Summary of external APIs. Balance is shown where the provider exposes it; the rest report via their last error.",
       `<table class="cf-apis"><tbody id="cf_apis_tbody">${apisRows()}</tbody></table>
-       <div class="cf-foot"><button class="cf-refresh-apis">Actualizar saldos</button></div>`);
+       <div class="cf-foot"><button class="cf-refresh-apis">Refresh balances</button></div>`);
   }
 
   const bar = (b) => {
@@ -223,7 +223,7 @@ export function ConfigPanel() {
   }
 
   async function saveV2(section, btn) {
-    btn.disabled = true; msg("Guardando…");
+    btn.disabled = true; msg("Saving…");
     try {
       let patch = {};
       if (section === "fast") {
@@ -242,34 +242,34 @@ export function ConfigPanel() {
           mem_processor_model: val("cf_mem_mem_processor_model") };
       }
       const r = await api.saveConfigV2(section, patch);
-      msg(r.ok ? "✓ guardado (aplica en el próximo turno, sin reconectar)" : ("✗ " + (r.error || "error")));
+      msg(r.ok ? "✓ saved (applies on the next turn, no reconnect)" : ("✗ " + (r.error || "error")));
       api.uiEvent("config.save", { section });
-    } catch (e) { msg("✗ error al guardar"); } finally { btn.disabled = false; }
+    } catch (e) { msg("✗ error saving"); } finally { btn.disabled = false; }
   }
 
   async function saveVoice(btn) {
-    btn.disabled = true; msg("Guardando voz…");
+    btn.disabled = true; msg("Saving voice…");
     try {
       const payload = {};
       (cfg.voice.knobs || []).forEach(k => { const el = document.getElementById("cfv_" + k.key); if (el) payload[k.key] = el.value; });
       const r = await api.saveSettings(payload);
       if (r.ok && r.needs_reconnect) {
         try { await session.loadVoices(); } catch (_) {}
-        if (session.isActive()) { msg("✓ aplicando… reconectando"); await session.reconnect(); msg("✓ aplicado"); }
-        else msg("✓ guardado · se aplica al conectar");
-      } else msg(r.ok ? ("✓ " + (r.note || "guardado")) : "sin cambios");
-    } catch (e) { msg("✗ error al guardar la voz"); } finally { btn.disabled = false; }
+        if (session.isActive()) { msg("✓ applying… reconnecting"); await session.reconnect(); msg("✓ applied"); }
+        else msg("✓ saved · applies on connect");
+      } else msg(r.ok ? ("✓ " + (r.note || "saved")) : "no changes");
+    } catch (e) { msg("✗ error saving the voice"); } finally { btn.disabled = false; }
   }
 
   async function saveKeys(envs, btn) {
-    btn.disabled = true; msg("Guardando keys…");
-    try { let n = 0; for (const e of envs) { if (await saveKey(e)) n++; } msg(n ? `✓ ${n} key(s) guardada(s)` : "sin cambios"); }
+    btn.disabled = true; msg("Saving keys…");
+    try { let n = 0; for (const e of envs) { if (await saveKey(e)) n++; } msg(n ? `✓ ${n} key(s) saved` : "no changes"); }
     catch (e) { msg("✗ error"); } finally { btn.disabled = false; await reloadApis(); }
   }
 
   async function refreshApis(btn) {
-    btn.disabled = true; msg("Consultando saldos…");
-    try { await reloadApis(true); msg("✓ saldos actualizados"); } catch (_) { msg("✗ no pude consultar"); } finally { btn.disabled = false; }
+    btn.disabled = true; msg("Querying balances…");
+    try { await reloadApis(true); msg("✓ balances updated"); } catch (_) { msg("✗ couldn't query"); } finally { btn.disabled = false; }
   }
 
   async function reloadApis(refresh) {
@@ -281,56 +281,56 @@ export function ConfigPanel() {
   }
 
   async function connectSpotify(btn) {
-    btn.disabled = true; msg("Abriendo Spotify…");
+    btn.disabled = true; msg("Opening Spotify…");
     try {
       const r = await fetch("/api/spotify/connect", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }).then(x => x.json());
-      if (r.url) { window.open(r.url, "_blank", "width=520,height=680"); msg("Autoriza en la ventana de Spotify y vuelve."); }
-      else msg("✗ " + (r.error || "no pude iniciar"));
+      if (r.url) { window.open(r.url, "_blank", "width=520,height=680"); msg("Authorize in the Spotify window and come back."); }
+      else msg("✗ " + (r.error || "couldn't start"));
     } catch (_) { msg("✗ error"); } finally { btn.disabled = false; }
   }
   async function disconnectSpotify(btn) {
     btn.disabled = true;
-    try { await fetch("/api/spotify/disconnect", { method: "POST" }); msg("Spotify desconectado."); await load(); } catch (_) {} finally { btn.disabled = false; }
+    try { await fetch("/api/spotify/disconnect", { method: "POST" }); msg("Spotify disconnected."); await load(); } catch (_) {} finally { btn.disabled = false; }
   }
 
   // ═══ PESTAÑA CONECTORES (V2-083) ═══════════════════════════════════════════════════════════════════════
   const cxBadge = c => badge(c.connected ? "ok" : (c.status === "error" ? "error" : "off"))
-    .replace(">OK<", ">conectado<").replace(">sin key<", ">no conectado<");
+    .replace(">OK<", ">connected<").replace(">no key<", ">not connected<");
 
   function connectorCard(c) {
     const id = esc(c.id), fam = esc(c.family || "");
     let box = "";
     if (c.connected) {
       // ya conectado → botón de desconectar/revocar
-      const revoke = c.family === "infra" ? "Revocar" : "Desconectar";
+      const revoke = c.family === "infra" ? "Revoke" : "Disconnect";
       box = `<button class="cf-btn cf-cx-act" data-act="disconnect" data-id="${id}">${revoke}</button>`;
     } else if (id === "whatsapp") {
-      box = `<button class="cf-btn cf-cx-act" data-act="connect" data-id="whatsapp">Conectar (mostrar QR)</button>`;
+      box = `<button class="cf-btn cf-cx-act" data-act="connect" data-id="whatsapp">Connect (show QR)</button>`;
     } else if (id === "telegram") {
-      box = `${row("api_id", `<input id="cx_tg_api_id" type="text" placeholder="de my.telegram.org"/>`)}
-        ${row("api_hash", `<input id="cx_tg_api_hash" type="password" placeholder="de my.telegram.org"/>`)}
-        <button class="cf-btn cf-cx-act" data-act="connect" data-id="telegram">Conectar (mostrar QR)</button>`;
+      box = `${row("api_id", `<input id="cx_tg_api_id" type="text" placeholder="from my.telegram.org"/>`)}
+        ${row("api_hash", `<input id="cx_tg_api_hash" type="password" placeholder="from my.telegram.org"/>`)}
+        <button class="cf-btn cf-cx-act" data-act="connect" data-id="telegram">Connect (show QR)</button>`;
     } else if (id === "email") {
-      box = `${row("Proveedor", `<select id="cx_em_provider">${opt(["gmail", "outlook", "otro"], "gmail")}</select>`)}
-        ${row("Correo", `<input id="cx_em_address" type="email" placeholder="tucorreo@gmail.com"/>`)}
-        ${row("Contraseña de aplicación", `<input id="cx_em_pass" type="password" placeholder="app-password"/>`)}
-        <button class="cf-btn cf-cx-act" data-act="connect" data-id="email">Conectar</button>`;
+      box = `${row("Provider", `<select id="cx_em_provider">${opt(["gmail", "outlook", "other"], "gmail")}</select>`)}
+        ${row("Email", `<input id="cx_em_address" type="email" placeholder="you@gmail.com"/>`)}
+        ${row("App password", `<input id="cx_em_pass" type="password" placeholder="app-password"/>`)}
+        <button class="cf-btn cf-cx-act" data-act="connect" data-id="email">Connect</button>`;
     } else if (id === "spotify") {
-      box = `<button class="cf-btn cf-cx-act" data-act="connect" data-id="spotify">Conectar con Spotify</button>`;
+      box = `<button class="cf-btn cf-cx-act" data-act="connect" data-id="spotify">Connect with Spotify</button>`;
     } else if (id === "architect") {
       const set = (c.config || {}).token_set;
-      box = `${row("Token del daemon", `<input id="cx_arch_token" type="password" placeholder="${set ? "•••••• (guardado)" : "pega el token"}"/>`)}
-        ${row("URL (opcional)", `<input id="cx_arch_url" type="text" placeholder="https://127.0.0.1:5573"/>`)}
-        <button class="cf-btn cf-cx-act" data-act="architect-save" data-id="architect">Guardar token</button>`;
+      box = `${row("Daemon token", `<input id="cx_arch_token" type="password" placeholder="${set ? "•••••• (saved)" : "paste the token"}"/>`)}
+        ${row("URL (optional)", `<input id="cx_arch_url" type="text" placeholder="https://127.0.0.1:5573"/>`)}
+        <button class="cf-btn cf-cx-act" data-act="architect-save" data-id="architect">Save token</button>`;
     } else if (id === "meshkore") {
       const clusters = (c.clusters || []).map(cl =>
-        `<div class="cf-cx-cluster"><span>${esc(cl.name)} ${cl.connected ? "· conectado" : ""}</span>
-          <button class="cf-btn cf-cx-act" data-act="mesh-remove" data-id="meshkore" data-name="${esc(cl.name)}">Revocar</button></div>`).join("");
-      box = `${clusters}${row("Nombre", `<input id="cx_mk_name" type="text" placeholder="p.ej. equipo"/>`)}
+        `<div class="cf-cx-cluster"><span>${esc(cl.name)} ${cl.connected ? "· connected" : ""}</span>
+          <button class="cf-btn cf-cx-act" data-act="mesh-remove" data-id="meshkore" data-name="${esc(cl.name)}">Revoke</button></div>`).join("");
+      box = `${clusters}${row("Name", `<input id="cx_mk_name" type="text" placeholder="e.g. team"/>`)}
         ${row("cluster_id", `<input id="cx_mk_cid" type="text"/>`)}
         ${row("token", `<input id="cx_mk_token" type="password"/>`)}
-        ${row("handle (opcional)", `<input id="cx_mk_handle" type="text" placeholder="zaelar"/>`)}
-        <button class="cf-btn cf-cx-act" data-act="mesh-add" data-id="meshkore">Añadir cluster</button>`;
+        ${row("handle (optional)", `<input id="cx_mk_handle" type="text" placeholder="zaelar"/>`)}
+        <button class="cf-btn cf-cx-act" data-act="mesh-add" data-id="meshkore">Add cluster</button>`;
     }
     return `<section class="cf-panel-sec"><header class="cf-panel-head"><h4>${esc(c.label)} ${cxBadge(c)}</h4>
       <p>${esc(c.detail || "")}</p></header><div class="cf-group">${box}</div></section>`;
@@ -338,13 +338,13 @@ export function ConfigPanel() {
 
   function sec_connectors() {
     const cs = cfg.connectors || [];
-    if (!cs.length) return `<p class="cf-loading">No pude cargar los conectores.</p>`;
-    const fams = [["mensajeria", "Mensajería"], ["musica", "Música"], ["infra", "Infraestructura (equipo · código)"]];
+    if (!cs.length) return `<p class="cf-loading">Couldn't load the connectors.</p>`;
+    const fams = [["mensajeria", "Messaging"], ["musica", "Music"], ["infra", "Infrastructure (team · code)"]];
     return fams.map(([f, title]) => {
       const items = cs.filter(c => c.family === f);
       if (!items.length) return "";
       return `<h3 class="cf-fam">${esc(title)}</h3>${items.map(connectorCard).join("")}`;
-    }).join("") + `<div class="cf-foot"><button class="cf-btn cf-cx-refresh">Actualizar estado</button></div>`;
+    }).join("") + `<div class="cf-foot"><button class="cf-btn cf-cx-refresh">Refresh status</button></div>`;
   }
 
   const sleep = ms => new Promise(r => setTimeout(r, ms));
@@ -361,8 +361,8 @@ export function ConfigPanel() {
     try {
       if (act === "disconnect") {
         if (id === "spotify") { await disconnectSpotify(btn); }
-        else if (id === "architect") { await api.architectDisconnect(); msg("Architect revocado."); }
-        else { await api.disconnectMessaging(id, {}); msg(`${id} desconectado.`); }
+        else if (id === "architect") { await api.architectDisconnect(); msg("Architect revoked."); }
+        else { await api.disconnectMessaging(id, {}); msg(`${id} disconnected.`); }
         await reloadConnectors();
       } else if (act === "connect") {
         if (id === "spotify") { await connectSpotify(btn); return; }
@@ -370,17 +370,17 @@ export function ConfigPanel() {
         if (id === "telegram") payload = { api_id: val("cx_tg_api_id"), api_hash: val("cx_tg_api_hash") };
         if (id === "email") payload = { email_address: val("cx_em_address"), email_password: val("cx_em_pass"), provider: val("cx_em_provider") };
         const r = await api.connectMessaging(id, payload);
-        msg(r.ok ? `${id}: conectando…` : ("✗ " + (r.error || "error")));
+        msg(r.ok ? `${id}: connecting…` : ("✗ " + (r.error || "error")));
         pollConnectors();
       } else if (act === "architect-save") {
         const token = val("cx_arch_token"), url = val("cx_arch_url");
         const r = await api.architectConnect({ token, url });
-        msg(r.ok ? "✓ token guardado" : ("✗ " + (r.error || "error"))); await reloadConnectors();
+        msg(r.ok ? "✓ token saved" : ("✗ " + (r.error || "error"))); await reloadConnectors();
       } else if (act === "mesh-add") {
         const r = await api.meshkoreAdd({ name: val("cx_mk_name"), cluster_id: val("cx_mk_cid"), token: val("cx_mk_token"), handle: val("cx_mk_handle") });
-        msg(r.ok ? "✓ cluster añadido" : ("✗ " + (r.error || "error"))); await reloadConnectors();
+        msg(r.ok ? "✓ cluster added" : ("✗ " + (r.error || "error"))); await reloadConnectors();
       } else if (act === "mesh-remove") {
-        await api.meshkoreRemove(btn.dataset.name); msg("cluster revocado"); await reloadConnectors();
+        await api.meshkoreRemove(btn.dataset.name); msg("cluster revoked"); await reloadConnectors();
       }
     } catch (e) { msg("✗ error"); } finally { btn.disabled = false; }
   }
@@ -389,20 +389,20 @@ export function ConfigPanel() {
   function sec_widgets() {
     const ws = (cfg.widgets || []).filter(w => w.surface === "user")
       .sort((a, b) => String(a.name || a.id).localeCompare(String(b.name || b.id), "es"));
-    if (!ws.length) return `<p class="cf-loading">No pude cargar los widgets.</p>`;
+    if (!ws.length) return `<p class="cf-loading">Couldn't load the widgets.</p>`;
     const rows = ws.map(w => {
       const kind = w.origin === "builtin"
-        ? `<span class="cf-wbadge builtin">de serie</span>`
-        : `<span class="cf-wbadge user">tuyo</span>`;
+        ? `<span class="cf-wbadge builtin">built-in</span>`
+        : `<span class="cf-wbadge user">yours</span>`;
       const al = (w.aliases || []).filter(a => a.toLowerCase() !== String(w.name || "").toLowerCase()).slice(0, 6).join(" · ");
       return `<div class="cf-wrow"><div class="cf-wname">${esc(w.name || w.id)} ${kind}</div>
         <div class="cf-waliases">${esc(al)}</div></div>`;
     }).join("");
-    return panel("widgets", "Widgets del sistema", "Todos los widgets disponibles. «de serie» vienen con el agente; «tuyo» los has creado tú. Solo lectura (sus alias se editan en el header del propio widget o por voz).", rows);
+    return panel("widgets", "System widgets", "All available widgets. «built-in» come with the agent; «yours» you created. Read-only (their aliases are edited in the widget's own header or by voice).", rows);
   }
 
   async function load() {
-    msg(""); bodyEl.innerHTML = '<p class="cf-loading">Cargando configuración…</p>';
+    msg(""); bodyEl.innerHTML = '<p class="cf-loading">Loading settings…</p>';
     try {
       cfg = await api.getConfig();
       // V2-083: conectores + widgets para sus pestañas (best-effort, en paralelo).
@@ -414,7 +414,7 @@ export function ConfigPanel() {
       render();
       store.setApiSummary(cfg.apis || []);
       store.setApiAlerts((cfg.apis || []).filter(a => a.state === "warn" || a.state === "error"));
-    } catch (e) { bodyEl.innerHTML = '<p class="cf-loading">No pude cargar /api/config</p>'; }
+    } catch (e) { bodyEl.innerHTML = '<p class="cf-loading">Couldn\'t load /api/config</p>'; }
   }
   const close = () => store.setConfigOpen(false);
   const onKey = e => { if (e.key === "Escape" && store.configOpen()) close(); };
@@ -423,11 +423,11 @@ export function ConfigPanel() {
   ovl = h("div", { class: () => "cfgfull" + (store.configOpen() ? " open" : ""), onClick: e => { if (e.target === ovl) close(); } },
     h("div", { class: "cf-shell" },
       h("div", { class: "cf-head" },
-        h("h3", {}, raw(GEAR_ICON), "Configuración"),
+        h("h3", {}, raw(GEAR_ICON), "Settings"),
         h("span", { class: "cf-msg", ref: el => (msgEl = el) }),
-        h("button", { class: "cf-x", onClick: close }, "cerrar"),
+        h("button", { class: "cf-x", onClick: close }, "close"),
       ),
-      h("div", { class: "cf-body", ref: el => (bodyEl = el) }, h("p", { class: "cf-loading" }, "Cargando…")),
+      h("div", { class: "cf-body", ref: el => (bodyEl = el) }, h("p", { class: "cf-loading" }, "Loading…")),
     ),
   );
 

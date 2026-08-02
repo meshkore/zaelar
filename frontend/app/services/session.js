@@ -58,17 +58,17 @@ export function isActive() { return started; }
 
 // ---- owner-voice indicator (speaker gate) → store ----
 function spkState(s) {
-  if (!store.gateOn()) { store.setSpk({ show: true, other: false, html: "🎙 filtro de voz: off" }); return; }
-  store.setSpk({ show: true, other: false, html: s.enrolled ? "🔊 reconociendo tu voz" : `🎧 aprendiendo tu voz… ${s.enrollCount}/${s.need}` });
+  if (!store.gateOn()) { store.setSpk({ show: true, other: false, html: "🎙 voice filter: off" }); return; }
+  store.setSpk({ show: true, other: false, html: s.enrolled ? "🔊 recognizing your voice" : `🎧 learning your voice… ${s.enrollCount}/${s.need}` });
 }
 let _spkTimer = null;
 function spkOwner(d) {
   if (!store.gateOn()) return;
-  if (d.reason === "enroll") store.setSpk({ show: true, other: false, html: `🎧 aprendiendo tu voz… ${d.count}/5` });
+  if (d.reason === "enroll") store.setSpk({ show: true, other: false, html: `🎧 learning your voice… ${d.count}/5` });
   else if (d.reason === "other") {
-    store.setSpk({ show: true, other: true, html: "🚫 <b>otra voz</b> (ignorada)" });
-    clearTimeout(_spkTimer); _spkTimer = setTimeout(() => store.setSpk({ show: true, other: false, html: "🔊 reconociendo tu voz" }), 1500);
-  } else if (d.reason === "owner") store.setSpk({ show: true, other: false, html: "🔊 tú" });
+    store.setSpk({ show: true, other: true, html: "🚫 <b>another voice</b> (ignored)" });
+    clearTimeout(_spkTimer); _spkTimer = setTimeout(() => store.setSpk({ show: true, other: false, html: "🔊 recognizing your voice" }), 1500);
+  } else if (d.reason === "owner") store.setSpk({ show: true, other: false, html: "🔊 you" });
 }
 
 // ---- mic / camera toggles. State persists across refreshes; here we only apply to the live stream. ----
@@ -92,7 +92,7 @@ export function applyBotMute() {
 export function toggleBotMute() {
   const next = !store.botMuted(); store.setBotMuted(next); localStorage.setItem("hb_bot_muted", next ? "1" : "0");
   applyBotMute();
-  store.setVoiceFlash({ text: next ? "🔇 silenciado (sigue en marcha)" : "🔊 con voz", show: true });
+  store.setVoiceFlash({ text: next ? "🔇 muted (still running)" : "🔊 voice on", show: true });
   clearTimeout(toggleBotMute._t); toggleBotMute._t = setTimeout(() => store.setVoiceFlash(f => ({ ...f, show: false })), 1600);
 }
 export async function toggleCam() {
@@ -140,9 +140,9 @@ async function populateMicPicker() {
     console.info("🎚️ audioinput devices:", ins.map(d => ({ id: d.deviceId.slice(0, 8), label: d.label })));
     const sel = document.getElementById("micsel"); if (!sel) return; sel.innerHTML = "";
     const cur = stream && stream.getAudioTracks()[0] && stream.getAudioTracks()[0].getSettings().deviceId;
-    ins.forEach(d => { const o = document.createElement("option"); o.value = d.deviceId; o.textContent = d.label || ("micro " + d.deviceId.slice(0, 6)); if (d.deviceId === (micDeviceId || cur)) o.selected = true; sel.appendChild(o); });
+    ins.forEach(d => { const o = document.createElement("option"); o.value = d.deviceId; o.textContent = d.label || ("mic " + d.deviceId.slice(0, 6)); if (d.deviceId === (micDeviceId || cur)) o.selected = true; sel.appendChild(o); });
     sel.style.display = "inline-block";
-    sel.onchange = () => { micDeviceId = sel.value || null; localStorage.setItem("zaelar_mic", micDeviceId || ""); store.setConnState("cambiando micro…"); stop(); setTimeout(start, 350); };
+    sel.onchange = () => { micDeviceId = sel.value || null; localStorage.setItem("zaelar_mic", micDeviceId || ""); store.setConnState("switching mic…"); stop(); setTimeout(start, 350); };
   } catch (e) { console.warn("enumerateDevices failed:", e); }
 }
 
@@ -217,7 +217,7 @@ export async function start() {
     // Mic taken by another app (NotReadableError) or denied → show the 🚫 ring on the orb, NOT a top error banner.
     const n = err && err.name;
     if (n === "NotReadableError" || n === "NotAllowedError" || n === "OverconstrainedError") {
-      store.setMicBlocked({ show: true, msg: n === "NotAllowedError" ? "🔇 Permiso de micrófono denegado" : "🔇 Micrófono ocupado por otra app (¿SuperWhisper?)" });
+      store.setMicBlocked({ show: true, msg: n === "NotAllowedError" ? "🔇 Microphone permission denied" : "🔇 Microphone in use by another app (SuperWhisper?)" });
     } else { store.setConnState("error"); }
   }
 }

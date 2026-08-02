@@ -38,7 +38,7 @@ export function VaultModal() {
   async function afterUnlock() {
     await refreshStatus();
     const mid = store.vaultPendingMid();
-    if (mid == null) { store.setVaultMode("manage"); msg("Bóveda desbloqueada."); return; }
+    if (mid == null) { store.setVaultMode("manage"); msg("Vault unlocked."); return; }
     const r = await vault.reveal(mid);
     if (r.value != null) {
       let label = "";
@@ -46,55 +46,55 @@ export function VaultModal() {
       store.setVaultRevealed({ label, value: r.value });
       store.setVaultMode("reveal");
     } else {
-      msg(r.error || "No se pudo mostrar el secreto.");
+      msg(r.error || "Couldn't show the secret.");
       store.setVaultMode("manage");
     }
   }
 
   const doCreate = async () => {
     const a = (p1.value || "").trim(), b = (p2.value || "").trim();
-    if (a.length < 4) return msg("La contraseña debe tener al menos 4 caracteres.");
-    if (a !== b) return msg("Las dos contraseñas no coinciden.");
+    if (a.length < 4) return msg("The password must be at least 4 characters.");
+    if (a !== b) return msg("The two passwords don't match.");
     const r = await vault.create(a).catch(() => ({}));
-    if (r && r.exists) { p1.value = p2.value = ""; msg("Bóveda creada. Ya puedes guardar secretos."); afterUnlockOrManage(); }
-    else msg((r && r.detail) || "No se pudo crear la bóveda.");
+    if (r && r.exists) { p1.value = p2.value = ""; msg("Vault created. You can now store secrets."); afterUnlockOrManage(); }
+    else msg((r && r.detail) || "Couldn't create the vault.");
   };
   // tras crear, la bóveda queda SIN desbloquear (no hay clave en RAM) → desbloquea con la misma passphrase
   const afterUnlockOrManage = async () => { await refreshStatus(); store.setVaultMode(store.vaultPendingMid() != null ? "unlock" : "manage"); };
 
   const doUnlock = async () => {
     const a = (p1.value || "").trim();
-    if (!a) return msg("Escribe tu contraseña.");
+    if (!a) return msg("Enter your password.");
     const r = await vault.unlock(a).catch(() => ({}));
     p1.value = "";
-    if (r && r.ok) { msg(""); afterUnlock(); } else msg("Contraseña incorrecta.");
+    if (r && r.ok) { msg(""); afterUnlock(); } else msg("Wrong password.");
   };
 
   const doUnlockPasskey = async () => {
-    msg("Pon tu huella / Face ID…");
+    msg("Use your fingerprint / Face ID…");
     const r = await vault.unlockPasskey();
-    if (r.ok) { msg(""); afterUnlock(); } else msg(r.error || "No se pudo desbloquear con la passkey.");
+    if (r.ok) { msg(""); afterUnlock(); } else msg(r.error || "Couldn't unlock with the passkey.");
   };
 
   const doEnrollPasskey = async () => {
-    msg("Registrando este dispositivo…");
+    msg("Registering this device…");
     const r = await vault.enrollPasskey();
     await refreshStatus();
-    msg(r.ok ? "Dispositivo registrado. Ya puedes desbloquear con la huella." : (r.error || "No se pudo registrar."));
+    msg(r.ok ? "Device registered. You can now unlock with your fingerprint." : (r.error || "Couldn't register."));
   };
 
   const doChange = async () => {
     const o = (op1.value || "").trim(), a = (np1.value || "").trim(), b = (np2.value || "").trim();
-    if (a.length < 4 || a !== b) return msg("La nueva contraseña no es válida o no coincide.");
+    if (a.length < 4 || a !== b) return msg("The new password is invalid or doesn't match.");
     const r = await vault.change(o, a);
     op1.value = np1.value = np2.value = "";
-    msg(r.ok ? "Contraseña cambiada." : "La contraseña actual no es correcta.");
+    msg(r.ok ? "Password changed." : "The current password is incorrect.");
     if (r.ok) refreshStatus();
   };
 
   const copyValue = async () => {
     const v = store.vaultRevealed(); if (!v) return;
-    try { await navigator.clipboard.writeText(v.value); msg("Copiado al portapapeles."); } catch (_) { msg("No se pudo copiar."); }
+    try { await navigator.clipboard.writeText(v.value); msg("Copied to clipboard."); } catch (_) { msg("Couldn't copy."); }
   };
 
   const field = (setRef, ph, opts = {}) =>
@@ -105,56 +105,56 @@ export function VaultModal() {
     if (!vault.passkeySupported()) return null;
     const st = store.vaultStatus();
     if (mode === "unlock" && (st.methods || []).includes("passkey"))
-      return h("button", { class: "vault-b ghost", onClick: doUnlockPasskey }, raw(KEY_ICON), "Usar huella / Face ID");
+      return h("button", { class: "vault-b ghost", onClick: doUnlockPasskey }, raw(KEY_ICON), "Use fingerprint / Face ID");
     return null;
   };
 
   const body = () => {
     const mode = store.vaultMode();
     if (mode === "create") return h("div", { class: "vault-body" },
-      h("p", { class: "vault-lead" }, "Crea una contraseña maestra para guardar tus secretos cifrados (contraseñas, IBAN, claves). Solo tú la conoces; sin ella no se pueden leer."),
-      field(el => (p1 = el), "contraseña maestra", { onEnter: doCreate }),
-      field(el => (p2 = el), "repite la contraseña", { onEnter: doCreate }),
-      h("button", { class: "vault-b", onClick: doCreate }, "Crear bóveda"),
+      h("p", { class: "vault-lead" }, "Create a master password to store your encrypted secrets (passwords, IBAN, keys). Only you know it; without it they can't be read."),
+      field(el => (p1 = el), "master password", { onEnter: doCreate }),
+      field(el => (p2 = el), "repeat the password", { onEnter: doCreate }),
+      h("button", { class: "vault-b", onClick: doCreate }, "Create vault"),
     );
     if (mode === "unlock") return h("div", { class: "vault-body" },
-      h("p", { class: "vault-lead" }, "Desbloquea tu bóveda para acceder a tus secretos."),
-      field(el => (p1 = el), "contraseña de la bóveda", { onEnter: doUnlock }),
-      h("button", { class: "vault-b", onClick: doUnlock }, "Desbloquear"),
+      h("p", { class: "vault-lead" }, "Unlock your vault to access your secrets."),
+      field(el => (p1 = el), "vault password", { onEnter: doUnlock }),
+      h("button", { class: "vault-b", onClick: doUnlock }, "Unlock"),
       passkeyBtns("unlock"),
     );
     if (mode === "reveal") {
       const v = store.vaultRevealed() || {};
       return h("div", { class: "vault-body" },
-        h("p", { class: "vault-lead" }, v.label || "Secreto"),
+        h("p", { class: "vault-lead" }, v.label || "Secret"),
         h("div", { class: "vault-secret" }, v.value || ""),
         h("div", { class: "vault-row" },
-          h("button", { class: "vault-b", onClick: copyValue }, "Copiar"),
-          h("button", { class: "vault-b ghost", onClick: store.closeVault }, "Ocultar"),
+          h("button", { class: "vault-b", onClick: copyValue }, "Copy"),
+          h("button", { class: "vault-b ghost", onClick: store.closeVault }, "Hide"),
         ),
       );
     }
     // manage
     const st = store.vaultStatus();
     return h("div", { class: "vault-body" },
-      h("p", { class: "vault-lead" }, `Bóveda ${st.unlocked ? "desbloqueada" : "bloqueada"} · ${st.secret_count || 0} secretos guardados.`),
-      st.unlocked ? null : h("button", { class: "vault-b", onClick: () => store.setVaultMode("unlock") }, "Desbloquear"),
+      h("p", { class: "vault-lead" }, `Vault ${st.unlocked ? "unlocked" : "locked"} · ${st.secret_count || 0} secrets stored.`),
+      st.unlocked ? null : h("button", { class: "vault-b", onClick: () => store.setVaultMode("unlock") }, "Unlock"),
       (st.unlocked && vault.passkeySupported())
-        ? h("button", { class: "vault-b ghost", onClick: doEnrollPasskey }, raw(KEY_ICON), "Registrar este dispositivo (huella)")
+        ? h("button", { class: "vault-b ghost", onClick: doEnrollPasskey }, raw(KEY_ICON), "Register this device (fingerprint)")
         : null,
-      h("div", { class: "vault-sep" }, "Cambiar contraseña maestra"),
-      field(el => (op1 = el), "contraseña actual"),
-      field(el => (np1 = el), "nueva contraseña"),
-      field(el => (np2 = el), "repite la nueva", { onEnter: doChange }),
-      h("button", { class: "vault-b ghost", onClick: doChange }, "Cambiar contraseña"),
+      h("div", { class: "vault-sep" }, "Change master password"),
+      field(el => (op1 = el), "current password"),
+      field(el => (np1 = el), "new password"),
+      field(el => (np2 = el), "repeat the new one", { onEnter: doChange }),
+      h("button", { class: "vault-b ghost", onClick: doChange }, "Change password"),
     );
   };
 
   return h("div", { class: () => "vault-modal" + (store.vaultOpen() ? " open" : "") },
     h("div", { class: "vault-card" },
       h("div", { class: "vault-head" },
-        h("span", { class: "vault-title" }, raw(LOCK_ICON), "Bóveda de secretos"),
-        h("button", { class: "vault-x", title: "Cerrar", onClick: store.closeVault }, raw(CLOSE_ICON)),
+        h("span", { class: "vault-title" }, raw(LOCK_ICON), "Secrets vault"),
+        h("button", { class: "vault-x", title: "Close", onClick: store.closeVault }, raw(CLOSE_ICON)),
       ),
       () => body(),
       h("div", { class: () => "vault-msg" + (store.vaultMsg() ? " show" : "") }, () => store.vaultMsg()),

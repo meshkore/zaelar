@@ -12,8 +12,8 @@ export function ConnStatus() {
     h("b", { id: "latv" }, () => store.latency()),
     " · mic ",
     h("b", { id: "micv", style: { display: "none" } }, "—"),                              // legacy name (hidden): diagnostic only
-    h("select", { id: "micsel", title: "Micrófono", style: { display: "none", maxWidth: "200px", fontSize: "11px", verticalAlign: "middle" } }),
-    h("select", { id: "micmode", title: "Modo de captura (limpieza de ruido)", style: { display: "none", marginLeft: "6px", fontSize: "11px", verticalAlign: "middle" } }),
+    h("select", { id: "micsel", title: "Microphone", style: { display: "none", maxWidth: "200px", fontSize: "11px", verticalAlign: "middle" } }),
+    h("select", { id: "micmode", title: "Capture mode (noise cleanup)", style: { display: "none", marginLeft: "6px", fontSize: "11px", verticalAlign: "middle" } }),
     h("span", { id: "micbarwrap", style: { display: "none", verticalAlign: "middle", marginLeft: "8px", width: "64px", overflow: "hidden" } },
       h("span", {
         id: "micbar",

@@ -77,7 +77,7 @@ function _startHeartbeat() {
       if (r && r.ok === false && started) {   // perdimos la carrera (otra pestaña viva) → cede el paso, no dos micros
         console.warn("session lock perdido — otra sesión tomó el control; cierro esta.");
         stop();
-        store.setMicBlocked({ show: true, msg: "zaelar está activo en otra pestaña o navegador. Ciérralo para usarlo aquí." });
+        store.setMicBlocked({ show: true, msg: "zaelar is active in another tab or browser. Close it to use it here." });
       }
     });
   }, 4000);
@@ -163,7 +163,7 @@ export function toggleBotMute() {
   // parecía bloqueado. Ahora el server sigue al icono: el chat abierto sigue silenciando por defecto (ahorra
   // latencia y coste de TTS), pero el operador puede recuperar la voz con un clic sin cerrar el chat.
   setVoiceOutput(!next);
-  store.setVoiceFlash({ text: next ? "🔇 silenciado (sigue en marcha)" : "🔊 con voz", show: true });
+  store.setVoiceFlash({ text: next ? "🔇 muted (still running)" : "🔊 voice on", show: true });
   clearTimeout(toggleBotMute._t); toggleBotMute._t = setTimeout(() => store.setVoiceFlash(f => ({ ...f, show: false })), 1600);
 }
 export async function toggleCam() {
@@ -183,9 +183,9 @@ async function populateMicPicker() {
     const ins = devs.filter(d => d.kind === "audioinput");
     const sel = document.getElementById("micsel"); if (!sel) return; sel.innerHTML = "";
     const cur = stream && stream.getAudioTracks()[0] && stream.getAudioTracks()[0].getSettings().deviceId;
-    ins.forEach(d => { const o = document.createElement("option"); o.value = d.deviceId; o.textContent = d.label || ("micro " + d.deviceId.slice(0, 6)); if (d.deviceId === (micDeviceId || cur)) o.selected = true; sel.appendChild(o); });
+    ins.forEach(d => { const o = document.createElement("option"); o.value = d.deviceId; o.textContent = d.label || ("mic " + d.deviceId.slice(0, 6)); if (d.deviceId === (micDeviceId || cur)) o.selected = true; sel.appendChild(o); });
     sel.style.display = "inline-block";
-    sel.onchange = () => { micDeviceId = sel.value || null; localStorage.setItem("zaelar_mic", micDeviceId || ""); store.setConnState("cambiando micro…"); stop(); setTimeout(start, 350); };
+    sel.onchange = () => { micDeviceId = sel.value || null; localStorage.setItem("zaelar_mic", micDeviceId || ""); store.setConnState("switching mic…"); stop(); setTimeout(start, 350); };
   } catch (e) { console.warn("enumerateDevices failed:", e); }
 }
 
@@ -194,16 +194,16 @@ function populateMicModePicker() {
   const sel = document.getElementById("micmode"); if (!sel) return;
   const cur = micMode();
   const opts = [
-    ["isolate", "🎙️ Aislamiento (macOS)"],
-    ["full", "🎙️ Filtro Chrome"],
-    ["raw", "🎙️ Crudo"],
+    ["isolate", "🎙️ Isolation (macOS)"],
+    ["full", "🎙️ Chrome filter"],
+    ["raw", "🎙️ Raw"],
   ];
   sel.innerHTML = "";
   opts.forEach(([v, label]) => { const o = document.createElement("option"); o.value = v; o.textContent = label; if (v === cur) o.selected = true; sel.appendChild(o); });
   sel.style.display = "inline-block";
   sel.onchange = () => {
     localStorage.setItem("zaelar_micmode", sel.value);
-    store.setConnState("cambiando captura…"); stop(); setTimeout(start, 350);
+    store.setConnState("switching capture…"); stop(); setTimeout(start, 350);
   };
 }
 
@@ -216,7 +216,7 @@ export async function start() {
   const acq = await api.sessionAcquire(SID);
   if (acq && acq.ok === false) {
     starting = false; store.setStarting(false); started = false; store.setStarted(false); store.setConnState("—");
-    store.setMicBlocked({ show: true, msg: "zaelar ya está abierto en otra pestaña o navegador. Ciérralo para usarlo aquí." });
+    store.setMicBlocked({ show: true, msg: "zaelar is already open in another tab or browser. Close it to use it here." });
     if (_blockedRetry) clearTimeout(_blockedRetry);
     _blockedRetry = setTimeout(() => { _blockedRetry = null; start(); }, 3000);
     if (!_everBooted) _unblockBoot();   // no dejes la UI atrapada en el splash mientras está bloqueada
@@ -264,7 +264,7 @@ export async function start() {
       } catch (_) {}
       if (track.kind !== "audio" || !botAudioEl) return;
       try { track.attach(botAudioEl); } catch (e) {
-        try { api.clientLog("⚠️ track.attach() lanzó", { text: String((e && e.message) || e) }); } catch (_) {}
+        try { api.clientLog("⚠️ track.attach() threw", { text: String((e && e.message) || e) }); } catch (_) {}
       }
       applyBotMute();   // el attach del vendor SIEMPRE des-mutea (attachToElement) → re-asertar muted+volume
       try {
@@ -346,7 +346,7 @@ export async function start() {
     starting = false; store.setStarting(false); started = false; store.setStarted(false); store.setConnState("error"); console.error(err);
     const n = err && err.name;
     if (n === "NotReadableError" || n === "NotAllowedError" || n === "OverconstrainedError") {
-      store.setMicBlocked({ show: true, msg: n === "NotAllowedError" ? "🔇 Permiso de micrófono denegado" : "🔇 Micrófono ocupado por otra app" });
+      store.setMicBlocked({ show: true, msg: n === "NotAllowedError" ? "🔇 Microphone permission denied" : "🔇 Microphone in use by another app" });
     }
     if (!_everBooted) _unblockBoot();   // a failed boot must never leave the UI locked — let the user retry
     try { await stop(); } catch (_) {}
@@ -367,7 +367,7 @@ function autoReconnect() {
   if (!started || _recTimer) return;                    // ya hay un reintento en cola → no solapar
   const i = Math.min(_recTries, _REC_BACKOFF.length - 1);
   if (_recTries >= _REC_BACKOFF.length) {               // ventana agotada → avisa (banda superior) pero SIGUE sola
-    store.showAlert("Se perdió la conexión de voz (¿cambió la red?). Reintentando sola…",
+    store.showAlert("Lost the voice connection (did the network change?). Retrying on its own…",
       () => { _recTries = 0; if (_recTimer) { clearTimeout(_recTimer); _recTimer = null; } stop(); setTimeout(start, 300); });
   }
   _recTries++; store.setConnState("reconnecting…");

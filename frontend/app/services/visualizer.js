@@ -103,8 +103,8 @@ export function startVisualizer({ orbCanvas, vizCanvas, getStream, getGate, audi
       const show = !micMuted && (muted || audit.silent);
       store.setMicBlocked({
         show,
-        msg: muted ? "🔇 Micrófono ocupado por otra app — no puedo oírte"
-           : (audit.silent ? "🔇 No capto tu micro · ¿lo usa otra app (SuperWhisper)?" : ""),
+        msg: muted ? "🔇 Microphone in use by another app — I can't hear you"
+           : (audit.silent ? "🔇 I can't pick up your mic · is another app using it (SuperWhisper)?" : ""),
       });
     }
 

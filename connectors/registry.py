@@ -37,8 +37,8 @@ def _messaging() -> list[dict]:
                         "connected": status == "connected", "status": status,
                         "detail": str(lv.get("detail") or ""), "qr": lv.get("qr"), "config": pub})
     except Exception as e:
-        out.append({"id": "messaging", "label": "Mensajería", "family": "mensajeria", "auth": "app-password",
-                    "connected": False, "status": "error", "detail": f"registro no disponible: {e}", "config": {}})
+        out.append({"id": "messaging", "label": "Messaging", "family": "mensajeria", "auth": "app-password",
+                    "connected": False, "status": "error", "detail": f"registry unavailable: {e}", "config": {}})
     return out
 
 
@@ -48,7 +48,7 @@ def _music() -> list[dict]:
         st = auth.status() or {}
         return [{"id": "spotify", "label": "Spotify", "family": "musica", "auth": "oauth",
                  "connected": bool(st.get("logged_in")), "status": "connected" if st.get("logged_in") else "off",
-                 "detail": "Reproducción y control de Spotify (OAuth).", "config": st}]
+                 "detail": "Play and control Spotify (OAuth).", "config": st}]
     except Exception as e:
         return [{"id": "spotify", "label": "Spotify", "family": "musica", "auth": "oauth",
                  "connected": False, "status": "error", "detail": str(e), "config": {}}]
@@ -60,9 +60,9 @@ def _architect() -> list[dict]:
         from connectors.architect import client
         pub = cfg.public("architect")
         connected = client.configured()
-        return [{"id": "architect", "label": "Architect (daemon de código)", "family": "infra", "auth": "token",
+        return [{"id": "architect", "label": "Architect (code daemon)", "family": "infra", "auth": "token",
                  "connected": connected, "status": "connected" if connected else "off",
-                 "detail": "Proyectos/agentes de código sobre el daemon MeshKore. Token dinámico (revocable).",
+                 "detail": "Code projects/agents on the MeshKore daemon. Dynamic token (revocable).",
                  "config": pub}]
     except Exception as e:
         return [{"id": "architect", "label": "Architect", "family": "infra", "auth": "token",
@@ -82,9 +82,9 @@ def _meshkore() -> list[dict]:
                              "connected": bool(c.get("connected", True))})
             else:
                 norm.append({"name": str(c), "connected": True})
-        return [{"id": "meshkore", "label": "MeshKore (cluster / equipo)", "family": "infra", "auth": "cluster",
+        return [{"id": "meshkore", "label": "MeshKore (cluster / team)", "family": "infra", "auth": "cluster",
                  "connected": bool(norm), "status": "connected" if norm else "off",
-                 "detail": "Acceso al equipo/cluster por cluster_id + token (dinámicos, revocables).",
+                 "detail": "Access to the team/cluster via cluster_id + token (dynamic, revocable).",
                  "clusters": norm, "config": {}}]
     except Exception as e:
         return [{"id": "meshkore", "label": "MeshKore", "family": "infra", "auth": "cluster",

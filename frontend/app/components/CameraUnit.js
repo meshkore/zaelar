@@ -23,30 +23,30 @@ export function CameraUnit() {
       // own mic back through the speakers (the "echo"). Setting el.muted here is what actually silences local playback.
       h("video", { id: "cam", ref: el => { el.muted = true; session.attachVideo(el); }, autoplay: true, playsinline: true, muted: true }),
       h("div", { class: "camoff", style: { display: () => (store.camOff() ? "flex" : "none") } }, raw(CAMOFF_SVG)),
-      h("div", { id: "camph", class: "camph", style: { display: () => (!store.started() && !store.camOff() ? "flex" : "none") } }, "cámara apagada"),
+      h("div", { id: "camph", class: "camph", style: { display: () => (!store.started() && !store.camOff() ? "flex" : "none") } }, "camera off"),
       h("canvas", { id: "viz" }),                                  // voice spectrum, overlaid along the bottom edge
-      h("button", { class: "drag", id: "drag", ref: el => (dragEl = el), title: "Mover" }, raw(DRAG_SVG)),
+      h("button", { class: "drag", id: "drag", ref: el => (dragEl = el), title: "Move" }, raw(DRAG_SVG)),
     ),
     h("div", { class: "ctrl" },
       h("button", {
         class: () => "mtog" + (store.micMuted() ? " off" : ""), id: "micToggle",
-        title: () => (store.micMuted() ? "Activar micrófono" : "Silenciar micrófono"), "aria-label": "Silenciar micrófono",
+        title: () => (store.micMuted() ? "Turn on mic" : "Mute mic"), "aria-label": "Mute mic",
         onClick: () => session.toggleMic(),
       }, raw(MIC_SVG)),
       h("button", {
         class: () => "mtog" + (store.camOff() ? " off" : ""), id: "camToggle",
-        title: () => (store.camOff() ? "Encender cámara" : "Apagar cámara"), "aria-label": "Apagar cámara",
+        title: () => (store.camOff() ? "Turn on camera" : "Turn off camera"), "aria-label": "Turn off camera",
         onClick: () => session.toggleCam(),
       }, raw(CAM_SVG)),
       h("div", { class: "ctrl-sp" }),                              // spacer: sets the chat toggle apart
       h("button", {
         class: () => "mtog chat" + (store.chatOpen() ? " active" : ""), id: "chatToggle",
-        title: "Chat de texto con el agente", "aria-label": "Abrir chat",
+        title: "Text chat with the agent", "aria-label": "Open chat",
         onClick: () => store.setChatOpen(!store.chatOpen()),
       }, raw(CHAT_SVG)),
     ),
     h("div", {
-      id: "spk", title: "Reconocimiento de tu voz · clic para reentrenar",
+      id: "spk", title: "Your voice recognition · click to retrain",
       class: () => "spk" + (store.spk().show ? " show" : "") + (store.spk().other ? " other" : ""),
       html: () => store.spk().html, onClick: () => session.retrain(),
     }),

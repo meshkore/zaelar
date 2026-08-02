@@ -57,39 +57,39 @@ export function SettingsModal() {
         const a = new Audio(url); a.onended = () => URL.revokeObjectURL(url);
         await a.play();
       } catch (e) {
-        msgEl.textContent = "✗ no pude reproducir la voz (" + (e && e.message ? e.message : "error") + ")";
+        msgEl.textContent = "✗ couldn't play the voice (" + (e && e.message ? e.message : "error") + ")";
       } finally { btn.disabled = false; btn.innerHTML = label; }
     };
   }
 
   async function open() {
-    msgEl.textContent = ""; bodyEl.innerHTML = '<p class="hint">Cargando…</p>';
-    try { cfg = await api.getSettings(); render(); } catch (e) { bodyEl.innerHTML = '<p class="hint">No pude cargar /api/settings</p>'; }
+    msgEl.textContent = ""; bodyEl.innerHTML = '<p class="hint">Loading…</p>';
+    try { cfg = await api.getSettings(); render(); } catch (e) { bodyEl.innerHTML = '<p class="hint">Couldn\'t load /api/settings</p>'; }
   }
   const close = () => setOpen(false);
 
   async function save() {
     const payload = {}; cfg.knobs.forEach(k => { const el = document.getElementById("cfg_" + k.key); if (el) payload[k.key] = el.value; });
-    msgEl.textContent = "Guardando…";
+    msgEl.textContent = "Saving…";
     try {
       const r = await api.saveSettings(payload);
-      msgEl.textContent = r.ok ? ("✓ " + r.note) : "sin cambios";
+      msgEl.textContent = r.ok ? ("✓ " + r.note) : "no changes";
       if (r.ok && r.needs_reconnect) {
         // Sync the voice picker with the index the server just chose (single source of truth) BEFORE reconnecting,
         // so start() re-applies the NEW voice instead of clobbering it with the stale orb index.
         try { await session.loadVoices(); } catch (_) {}
-        if (session.isActive()) { msgEl.textContent = "✓ aplicando… reconectando"; await session.reconnect(); msgEl.textContent = "✓ aplicado"; }
-        else { msgEl.textContent = "✓ guardado · se aplica al conectar"; }
+        if (session.isActive()) { msgEl.textContent = "✓ applying… reconnecting"; await session.reconnect(); msgEl.textContent = "✓ applied"; }
+        else { msgEl.textContent = "✓ saved · applied on connect"; }
       }
-    } catch (e) { msgEl.textContent = "✗ error al guardar"; }
+    } catch (e) { msgEl.textContent = "✗ error saving"; }
   }
 
   ovl = h("div", { id: "cfgOvl", class: () => "ovl" + (isOpen() ? " on" : ""), onClick: e => { if (e.target === ovl) close(); } },
     h("div", { class: "cfgm" },
-      h("div", { class: "mh" }, h("h3", {}, raw(GEAR_ICON), "Configuración"), h("button", { class: "x", onClick: close }, "cerrar")),
-      h("p", { class: "hint", html: 'Proveedor de voz, idioma, STT/TTS. La <b>voz</b> se cambia tocando el orbe. Cambios → reconecta.' }),
-      h("div", { id: "cfgBody", ref: el => (bodyEl = el) }, h("p", { class: "hint" }, "Cargando…")),
-      h("div", { class: "mfoot" }, h("button", { id: "cfgSave", onClick: save }, "Guardar"), h("span", { class: "msg", ref: el => (msgEl = el) })),
+      h("div", { class: "mh" }, h("h3", {}, raw(GEAR_ICON), "Settings"), h("button", { class: "x", onClick: close }, "close")),
+      h("p", { class: "hint", html: 'Voice provider, language, STT/TTS. The <b>voice</b> is changed by tapping the orb. Changes → reconnect.' }),
+      h("div", { id: "cfgBody", ref: el => (bodyEl = el) }, h("p", { class: "hint" }, "Loading…")),
+      h("div", { class: "mfoot" }, h("button", { id: "cfgSave", onClick: save }, "Save"), h("span", { class: "msg", ref: el => (msgEl = el) })),
     ),
   );
 

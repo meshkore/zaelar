@@ -71,7 +71,7 @@ export function openSSE(desktop) {
         store.pushChat({ role: "you", text: d.text });
       }
     } else if (d.kind === "alert") {                                              // hard notice (e.g. no LLM credit) → red banner
-      store.showAlert(d.label || "⚠️ Problema con el modelo de lenguaje");
+      store.showAlert(d.label || "⚠️ Problem with the language model");
       refreshStatus();                                                           // turn the ◉ status icon red now
     } else if (d.kind === "session" && d.label === "RESET") {                    // V2-084: reset → procesos EN BLANCO
       // El escritorio lo cierra el evento widget/close; aquí vaciamos la pestaña Procesos (chips vivos + histórico)

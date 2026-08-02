@@ -14,7 +14,7 @@ const money = v => (v == null ? "—" : `$${Number(v).toFixed(2)}/M`);
 function moduleCard(m) {
   const cur = m.current || {};
   const costLine = (cur.cost_in != null || cur.cost_out != null)
-    ? `${money(cur.cost_in)} in · ${money(cur.cost_out)} out` : "coste no medido en $/M (uso interno, no FlashBrain)";
+    ? `${money(cur.cost_in)} in · ${money(cur.cost_out)} out` : "cost not measured in $/M (internal use, not FlashBrain)";
   const candidates = m.candidates_2026_07_26 || [];
   const candRows = candidates.map(c => `
     <tr class="${c.verdict ? "bp-cand-rejected" : "bp-cand-open"}">
@@ -27,20 +27,20 @@ function moduleCard(m) {
   return `<section class="cf-panel-sec bp-card">
     <header class="cf-panel-head"><h4>${esc(m.label)}</h4><p>${esc(m.role)}</p></header>
     <div class="cf-group bp-current">
-      <div class="cf-row2"><label class="cf-row2-label">Modelo actual</label>
+      <div class="cf-row2"><label class="cf-row2-label">Current model</label>
         <div class="cf-row2-ctl bp-right"><span class="bp-model">${esc(cur.model || "—")}</span>
-          <span class="cf-hint">${esc(cur.provider || "")}${cur.since ? " · desde " + esc(cur.since) : ""}</span></div></div>
-      <div class="cf-row2"><label class="cf-row2-label">Coste</label>
+          <span class="cf-hint">${esc(cur.provider || "")}${cur.since ? " · since " + esc(cur.since) : ""}</span></div></div>
+      <div class="cf-row2"><label class="cf-row2-label">Cost</label>
         <div class="cf-row2-ctl bp-right"><span class="bp-model">${esc(costLine)}</span></div></div>
-      ${cur.ttft_ms ? `<div class="cf-row2"><label class="cf-row2-label">Latencia (TTFT)</label>
+      ${cur.ttft_ms ? `<div class="cf-row2"><label class="cf-row2-label">Latency (TTFT)</label>
         <div class="cf-row2-ctl bp-right"><span class="bp-model">${esc(cur.ttft_ms)}ms</span></div></div>` : ""}
-      <div class="cf-row2"><label class="cf-row2-label">Por qué este</label>
+      <div class="cf-row2"><label class="cf-row2-label">Why this one</label>
         <div class="cf-row2-ctl bp-right bp-why">${esc(m.why || "—")}</div></div>
-      ${m.hallucination_note ? `<div class="cf-row2"><label class="cf-row2-label">Alucinación / fiabilidad</label>
+      ${m.hallucination_note ? `<div class="cf-row2"><label class="cf-row2-label">Hallucination / reliability</label>
         <div class="cf-row2-ctl bp-right bp-hallu">${esc(m.hallucination_note)}</div></div>` : ""}
     </div>
-    ${candidates.length ? `<div class="bp-candtitle">Candidatos evaluados</div>
-      <table class="bp-cand-table"><thead><tr><th>modelo</th><th>coste in/out</th><th>tool-calling</th><th>TTFT (ms)</th><th>estado</th></tr></thead>
+    ${candidates.length ? `<div class="bp-candtitle">Candidates evaluated</div>
+      <table class="bp-cand-table"><thead><tr><th>model</th><th>cost in/out</th><th>tool-calling</th><th>TTFT (ms)</th><th>status</th></tr></thead>
       <tbody>${candRows}</tbody></table>` : ""}
   </section>`;
 }
@@ -50,19 +50,19 @@ export function BenchmarksPanel() {
   const close = () => store.setBenchmarksOpen(false);
 
   async function load() {
-    bodyEl.innerHTML = '<p class="cf-loading">Cargando benchmarks…</p>';
+    bodyEl.innerHTML = '<p class="cf-loading">Loading benchmarks…</p>';
     try {
       const data = await api.getBenchmarks();
       const mods = (data.modules || []).map(moduleCard).join("");
       bodyEl.innerHTML = `<div class="cf-scroll"><div class="cf-panel bp-panel">
-        <p class="bp-intro">Por qué usamos cada modelo donde lo usamos — coste, latencia y fiabilidad medidos, no
-        solo la ficha del proveedor. Fuente detallada: <code>${esc(data.source_doc || "")}</code>
-        (actualizado ${esc(data.updated || "")}). Esto es solo informativo — cambiar un modelo de verdad se hace
-        en las secciones normales de arriba.</p>
-        ${mods || '<p class="cf-loading">Sin datos.</p>'}
+        <p class="bp-intro">Why we use each model where we use it — cost, latency and reliability we measured, not
+        just the provider's spec sheet. Detailed source: <code>${esc(data.source_doc || "")}</code>
+        (updated ${esc(data.updated || "")}). This is informational only — actually changing a model is done
+        in the normal sections above.</p>
+        ${mods || '<p class="cf-loading">No data.</p>'}
       </div></div>`;
     } catch (e) {
-      bodyEl.innerHTML = '<p class="cf-loading">No pude cargar /api/config/benchmarks</p>';
+      bodyEl.innerHTML = '<p class="cf-loading">Couldn\'t load /api/config/benchmarks</p>';
     }
   }
 
@@ -72,10 +72,10 @@ export function BenchmarksPanel() {
   const ovl = h("div", { class: () => "cfgfull" + (store.benchmarksOpen() ? " open" : ""), onClick: e => { if (e.target === ovl) close(); } },
     h("div", { class: "cf-shell" },
       h("div", { class: "cf-head" },
-        h("h3", {}, raw(BRAIN_ICON), "Benchmarks · por qué estos modelos"),
-        h("button", { class: "cf-x", onClick: close }, "cerrar"),
+        h("h3", {}, raw(BRAIN_ICON), "Benchmarks · why these models"),
+        h("button", { class: "cf-x", onClick: close }, "close"),
       ),
-      h("div", { class: "cf-body", ref: el => (bodyEl = el) }, h("p", { class: "cf-loading" }, "Cargando…")),
+      h("div", { class: "cf-body", ref: el => (bodyEl = el) }, h("p", { class: "cf-loading" }, "Loading…")),
     ),
   );
 

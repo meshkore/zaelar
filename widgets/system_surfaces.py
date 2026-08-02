@@ -22,45 +22,54 @@ from __future__ import annotations
 # chat abren la superficie (pestaña por defecto).
 SYSTEM_SURFACES: dict[str, dict] = {
     "camera": {
-        "name": "Cámara y micrófono",
-        "aliases": ["camara", "cámara", "microfono", "micrófono", "mic", "webcam"],
+        "name": "Camera & mic",
+        "aliases": ["camara", "cámara", "microfono", "micrófono", "mic", "webcam",
+                    "camera", "camera and mic", "microphone"],
     },
     "orb": {
-        "name": "Orbe",
-        "aliases": ["orbe", "orb", "el ojo", "ojo", "controles", "subtitulos", "subtítulos"],
+        "name": "Orb",
+        "aliases": ["orbe", "orb", "el ojo", "ojo", "controles", "subtitulos", "subtítulos",
+                    "the eye", "eye", "controls", "subtitles"],
     },
     "chat": {
         "name": "Chat",
         "aliases": ["chat", "muro", "muro de texto", "muro de chat", "escribirte", "hablarte por texto",
-                    "conversacion", "conversación", "el chat contigo"],
+                    "conversacion", "conversación", "el chat contigo", "wall", "text wall", "chat wall"],
     },
     "status": {
-        "name": "Estado",
-        "aliases": ["estado", "estado del sistema", "status", "panel de estado", "salud del sistema"],
+        "name": "Status",
+        "aliases": ["estado", "estado del sistema", "status", "panel de estado", "salud del sistema",
+                    "system status", "health"],
     },
     "config": {
-        "name": "Configuración",
-        "aliases": ["config", "configuracion", "configuración", "ajustes", "preferencias", "settings", "opciones"],
+        "name": "Settings",
+        "aliases": ["config", "configuracion", "configuración", "ajustes", "preferencias", "settings", "opciones",
+                    "preferences", "options"],
     },
     "benchmarks": {
         "name": "Benchmarks",
-        "aliases": ["benchmarks", "por que estos modelos", "por qué estos modelos", "comparativa"],
+        "aliases": ["benchmarks", "por que estos modelos", "por qué estos modelos", "comparativa",
+                    "why these models", "comparison"],
     },
     "debug": {
         "name": "Debug",
-        "aliases": ["debug", "depuracion", "depuración", "logs", "logging", "trazas", "timeline", "observabilidad"],
+        "aliases": ["debug", "depuracion", "depuración", "logs", "logging", "trazas", "timeline", "observabilidad",
+                    "traces", "observability"],
     },
     "memory-map": {
-        "name": "Mapa de la memoria",
-        "aliases": ["memoria", "mapa de memoria", "mapa de la memoria", "tu memoria", "recuerdos"],
+        "name": "Memory map",
+        "aliases": ["memoria", "mapa de memoria", "mapa de la memoria", "tu memoria", "recuerdos",
+                    "memory", "memory map", "memories"],
     },
     "wizard": {
-        "name": "Asistente de configuración",
-        "aliases": ["wizard", "asistente", "primer arranque", "configuracion inicial", "configuración inicial"],
+        "name": "Setup wizard",
+        "aliases": ["wizard", "asistente", "primer arranque", "configuracion inicial", "configuración inicial",
+                    "setup", "setup wizard", "first run", "onboarding"],
     },
     "vault": {
-        "name": "Bóveda",
-        "aliases": ["boveda", "bóveda", "secretos", "vault", "contraseñas", "caja fuerte"],
+        "name": "Vault",
+        "aliases": ["boveda", "bóveda", "secretos", "vault", "contraseñas", "caja fuerte",
+                    "secrets", "passwords", "safe"],
     },
 }
 

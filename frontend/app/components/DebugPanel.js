@@ -42,10 +42,10 @@ function parts(d) {
 // V2-037: categorías del filtro superior (pocas). Las 4 primeras ON por defecto; System/Code OFF (al activarlo
 // salen docenas de eventos internos/perf). La `cat` la sella el backend (voice/observer.py::_CAT / perf()).
 const CATS = [
-  { key: "main", label: "Principales" },
-  { key: "memory", label: "Memoria" },
+  { key: "main", label: "Main" },
+  { key: "memory", label: "Memory" },
   { key: "flash", label: "FlashBrain" },
-  { key: "nav", label: "Navegador" },
+  { key: "nav", label: "Browser" },
   { key: "system", label: "System/Code" },
   // Pulse (V2-043): el LATIDO del loop orquestador (~1 Hz, «PULSE·tick»). OFF por defecto — ensucia el log muy
   // rápido y no lleva datos; actívalo solo para ver el ritmo del loop. Las llamadas REALES de memoria in/out van
@@ -320,7 +320,7 @@ export function DebugPanel() {
     localStorage.setItem("hb_dbg_mode", m);
     if (listEl) listEl.hidden = (m === "traces");
     if (tracesEl) tracesEl.hidden = (m !== "traces");
-    if (btn) { btn.innerHTML = m === "traces" ? LIST_ICON : LINK_ICON; btn.title = m === "traces" ? "Ver log cronológico" : "Ver árbol de Trazas (frase → acciones → eventos)"; }
+    if (btn) { btn.innerHTML = m === "traces" ? LIST_ICON : LINK_ICON; btn.title = m === "traces" ? "View chronological log" : "View the Traces tree (phrase → actions → events)"; }
   }
 
   function applyFilter() {
@@ -366,27 +366,27 @@ export function DebugPanel() {
   }
 
   const panel = h("div", { class: "dbgpanel", style: { width: () => store.debugWidth() + "px" } },
-    h("div", { class: "dbg-resize", title: "Arrastra para redimensionar", onPointerdown: startResize }),
+    h("div", { class: "dbg-resize", title: "Drag to resize", onPointerdown: startResize }),
     h("div", { class: "dbg-head" },
-      h("span", { class: "dbg-title" }, raw(BUG_ICON), "Observabilidad"),
-      h("input", { class: "dbg-filter", placeholder: "filtrar (widget, deep, T12…)", ref: (el) => (filterEl = el), onInput: applyFilter }),
+      h("span", { class: "dbg-title" }, raw(BUG_ICON), "Observability"),
+      h("input", { class: "dbg-filter", placeholder: "filter (widget, deep, T12…)", ref: (el) => (filterEl = el), onInput: applyFilter }),
       h("span", { class: "dbg-count", ref: (el) => (countEl = el) }, "0 ev"),
       // V2-044: toggle Log cronológico ⇄ árbol de Trazas (frase → acciones → eventos)
       h("button", {
-        class: "dbg-btn hb-icbtn", title: "Ver árbol de Trazas (frase → acciones → eventos)",
+        class: "dbg-btn hb-icbtn", title: "View the Traces tree (phrase → actions → events)",
         ref: (el) => { el.innerHTML = mode === "traces" ? LIST_ICON : LINK_ICON; },
         onClick: (e) => setMode(mode === "traces" ? "log" : "traces", e.currentTarget),
       }),
-      h("button", { class: "dbg-btn hb-icbtn", title: "Mostrar/ocultar ruido (state · widget:data)", onClick: (e) => toggleNoise(e.currentTarget) }, raw(VOLUME_X_ICON)),
-      h("button", { class: "dbg-btn hb-icbtn", title: "Limpiar", onClick: clearAll }, raw(TRASH_ICON)),
-      h("button", { class: "dbg-btn hb-icbtn", title: "Cerrar", onClick: () => store.setDebugOpen(false) }, raw(CLOSE_ICON)),
+      h("button", { class: "dbg-btn hb-icbtn", title: "Show/hide noise (state · widget:data)", onClick: (e) => toggleNoise(e.currentTarget) }, raw(VOLUME_X_ICON)),
+      h("button", { class: "dbg-btn hb-icbtn", title: "Clear", onClick: clearAll }, raw(TRASH_ICON)),
+      h("button", { class: "dbg-btn hb-icbtn", title: "Close", onClick: () => store.setDebugOpen(false) }, raw(CLOSE_ICON)),
     ),
     // V2-037: 2ª barra — filtro por CATEGORÍA. Todo en una sola lista ordenada por tiempo; estos toggles solo
     // muestran/ocultan familias. System/Code OFF por defecto (son docenas de eventos internos/perf).
     h("div", { class: "dbg-cats" },
       ...CATS.map((c) => h("button", {
         class: "dbg-cat" + (enabledCats.has(c.key) ? " on" : ""),
-        title: c.key === "system" ? "Eventos internos/perf (llamadas, callbacks, ciclos) — muchos" : c.label,
+        title: c.key === "system" ? "Internal/perf events (calls, callbacks, cycles) — lots of them" : c.label,
         onClick: (e) => toggleCat(c.key, e.currentTarget),
       }, c.label)),
     ),

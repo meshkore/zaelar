@@ -28,86 +28,86 @@ router = APIRouter()
 _PROVIDER_CATALOG = {
     "fast": {                       # FlashBrain — NO-razonador, por invocación
         "providers": [
-            {"id": "xai", "label": "xAI (grok, directo)", "base_url": "https://api.x.ai/v1", "key_env": "XAI_API_KEY",
+            {"id": "xai", "label": "xAI (grok, direct)", "base_url": "https://api.x.ai/v1", "key_env": "XAI_API_KEY",
              "cloud": True, "models": ["grok-4.20-0309-non-reasoning"]},
-            {"id": "aimlapi", "label": "AIMLAPI (nube)", "base_url": "https://api.aimlapi.com/v1",
+            {"id": "aimlapi", "label": "AIMLAPI (cloud)", "base_url": "https://api.aimlapi.com/v1",
              "key_env": "AIMLAPI_KEY", "cloud": True,
              "models": ["anthropic/claude-haiku-4.5", "x-ai/grok-4-fast-non-reasoning", "deepseek/deepseek-v4-flash"]},
-            {"id": "zai", "label": "Z.AI (GLM, directo — en evaluación 2026-07-26)",
+            {"id": "zai", "label": "Z.AI (GLM, direct — under evaluation 2026-07-26)",
              "base_url": "https://api.z.ai/api/anthropic", "key_env": "Z_AI_API_KEY", "cloud": True,
              "models": ["glm-4.5-air", "glm-4.6", "glm-5.2"]},
-            {"id": "groq", "label": "Groq (nube, rápido)", "base_url": "https://api.groq.com/openai/v1",
+            {"id": "groq", "label": "Groq (cloud, fast)", "base_url": "https://api.groq.com/openai/v1",
              "key_env": "GROQ_API_KEY", "cloud": True, "models": ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]},
-            {"id": "openai", "label": "OpenAI (nube, tool-calling fiable)", "base_url": "https://api.openai.com/v1",
+            {"id": "openai", "label": "OpenAI (cloud, reliable tool-calling)", "base_url": "https://api.openai.com/v1",
              "key_env": "OPENAI_API_KEY", "cloud": True, "models": ["gpt-4o-mini", "gpt-4.1-mini"]},
-            {"id": "mistral", "label": "Mistral (nube)", "base_url": "https://api.mistral.ai/v1",
+            {"id": "mistral", "label": "Mistral (cloud)", "base_url": "https://api.mistral.ai/v1",
              "key_env": "MISTRAL_API_KEY", "cloud": True, "models": ["mistral-small-latest"]},
-            {"id": "ollama", "label": "Ollama (local/gratis)", "base_url": "http://localhost:11434/v1",
+            {"id": "ollama", "label": "Ollama (local/free)", "base_url": "http://localhost:11434/v1",
              "key_env": "", "cloud": False, "models": ["qwen2.5:14b-instruct", "qwen2.5:7b-instruct"]},
         ],
-        "note": "Solo NO-razonadores (el turno de voz debe cerrar rápido). Local es gratis pero más lento.",
+        "note": "Only NON-reasoners (the voice turn must close fast). Local is free but slower.",
     },
     "code_agent": {                 # SlowBrain / workers
         "providers": [
             {"id": "claude_code", "label": "Claude Code (CLI)", "cloud": True, "models": []},
             {"id": "codex", "label": "Codex (CLI)", "cloud": True, "models": []},
         ],
-        "note": "Agente headless que conduce tareas (memoria/web/código). Modelo por tipo de tarea opcional.",
+        "note": "Headless agent that drives tasks (memory/web/code). Per-task-type model optional.",
     },
     "memory_processor": {           # CORAZÓN de escritura (mem_processor / distiller de píldoras)
         "providers": [
-            {"id": "openai", "label": "OpenAI (REGLA: memoria SIEMPRE OpenAI)", "base_url": "https://api.openai.com/v1",
+            {"id": "openai", "label": "OpenAI (RULE: memory ALWAYS OpenAI)", "base_url": "https://api.openai.com/v1",
              "key_env": "OPENAI_API_KEY", "cloud": True, "models": ["gpt-4.1-mini", "gpt-4o"]},
-            {"id": "ollama", "label": "Ollama (local — solo si se acepta consumo local)", "base_url": "http://localhost:11434/v1",
+            {"id": "ollama", "label": "Ollama (local — only if local usage is accepted)", "base_url": "http://localhost:11434/v1",
              "key_env": "", "cloud": False, "models": ["qwen2.5:7b-instruct", "qwen2.5:3b"]},
         ],
-        "note": "Off-hot-path (no toca latencia de voz) pero la WRITE-COMPLETENESS es la palanca nº1 del recall. "
-                "PROBADO 2026-07-17: gpt-4o-mini se come la alergia (0 píldoras); gpt-4.1-mini la capta → ELEGIDO. "
-                "Regla del operador: memoria SIEMPRE por OpenAI.",
+        "note": "Off-hot-path (does not touch voice latency) but WRITE-COMPLETENESS is the nº1 lever of recall. "
+                "TESTED 2026-07-17: gpt-4o-mini swallows the allergy (0 pills); gpt-4.1-mini catches it → CHOSEN. "
+                "Operator rule: memory ALWAYS via OpenAI.",
     },
     "triage": {                     # clasificador de mensajería (relevancia WhatsApp/Telegram)
         "providers": [
-            {"id": "xai", "label": "xAI grok (barato, aprovecha saldo)", "base_url": "https://api.x.ai/v1",
+            {"id": "xai", "label": "xAI grok (cheap, uses existing credit)", "base_url": "https://api.x.ai/v1",
              "key_env": "XAI_API_KEY", "cloud": True, "models": ["grok-4.20-0309-non-reasoning"]},
             {"id": "openai", "label": "OpenAI", "base_url": "https://api.openai.com/v1",
              "key_env": "OPENAI_API_KEY", "cloud": True, "models": ["gpt-4o-mini"]},
-            {"id": "ollama", "label": "Ollama (local — PRIVADO, nada sale de la máquina)", "base_url": "http://localhost:11434/v1",
+            {"id": "ollama", "label": "Ollama (local — PRIVATE, nothing leaves the machine)", "base_url": "http://localhost:11434/v1",
              "key_env": "", "cloud": False, "models": ["qwen2.5:3b"]},
         ],
-        "note": "⚠️ PRIVACIDAD: en externo, los mensajes personales SALEN a la nube (antes era local por eso). "
-                "Tarea de clasificación simple (no tool-routing) → grok vale. Operador aceptó el tradeoff (batería).",
+        "note": "⚠️ PRIVACY: in external mode, personal messages LEAVE to the cloud (that is why it used to be local). "
+                "Simple classification task (no tool-routing) → grok is fine. Operator accepted the tradeoff (battery).",
     },
     "susurro": {                    # «Susurro» (V2-053) — auditor conversacional off-hot-path
         "providers": [
-            {"id": "openai", "label": "OpenAI (misma key que la memoria)", "base_url": "https://api.openai.com/v1",
+            {"id": "openai", "label": "OpenAI (same key as memory)", "base_url": "https://api.openai.com/v1",
              "key_env": "OPENAI_API_KEY", "cloud": True, "models": ["gpt-4.1-mini", "gpt-4.1", "gpt-4o"]},
             {"id": "xai", "label": "xAI grok", "base_url": "https://api.x.ai/v1",
              "key_env": "XAI_API_KEY", "cloud": True, "models": ["grok-4.20-0309-non-reasoning"]},
-            {"id": "off", "label": "Desactivado (enabled=false)", "cloud": False},
+            {"id": "off", "label": "Disabled (enabled=false)", "cloud": False},
         ],
-        "note": "Audita tramos con FRICCIÓN (queja/repetición/fallo) y devuelve correcciones estructuradas. "
-                "FUERA del camino de voz → aquí un razonador SÍ vale (benchmark §10 pendiente). "
-                "pulse_turns=0 → solo fricción; N → además cada N turnos.",
+        "note": "Audits stretches with FRICTION (complaint/repetition/failure) and returns structured corrections. "
+                "OUTSIDE the voice path → here a reasoner IS worth it (benchmark §10 pending). "
+                "pulse_turns=0 → friction only; N → also every N turns.",
     },
     "memory_embed": {
         "providers": [
             {"id": "auto", "label": "Auto (ollama→fastembed→hash)", "cloud": False},
             {"id": "ollama", "label": "Ollama (local)", "cloud": False, "models": ["embeddinggemma", "bge-m3"]},
             {"id": "fastembed", "label": "fastembed (local CPU)", "cloud": False},
-            {"id": "openai", "label": "OpenAI (nube)", "cloud": True, "key_env": "OPENAI_API_KEY"},
-            {"id": "voyage", "label": "Voyage (nube)", "cloud": True, "key_env": "VOYAGE_API_KEY"},
+            {"id": "openai", "label": "OpenAI (cloud)", "cloud": True, "key_env": "OPENAI_API_KEY"},
+            {"id": "voyage", "label": "Voyage (cloud)", "cloud": True, "key_env": "VOYAGE_API_KEY"},
         ],
-        "note": "Cambiar el embedding EXIGE re-embed (memory/reembed.py). Local por defecto.",
+        "note": "Changing the embedding REQUIRES re-embed (memory/reembed.py). Local by default.",
     },
     "memory_rerank": {
         "providers": [
-            {"id": "local", "label": "Local (jina, CPU/gratis)", "cloud": False},
-            {"id": "openai", "label": "OpenAI (listwise, nube)", "cloud": True, "key_env": "OPENAI_API_KEY"},
-            {"id": "cohere", "label": "Cohere (nube)", "cloud": True, "key_env": "COHERE_API_KEY"},
-            {"id": "voyage", "label": "Voyage (nube)", "cloud": True, "key_env": "VOYAGE_API_KEY"},
-            {"id": "off", "label": "Desactivado", "cloud": False},
+            {"id": "local", "label": "Local (jina, CPU/free)", "cloud": False},
+            {"id": "openai", "label": "OpenAI (listwise, cloud)", "cloud": True, "key_env": "OPENAI_API_KEY"},
+            {"id": "cohere", "label": "Cohere (cloud)", "cloud": True, "key_env": "COHERE_API_KEY"},
+            {"id": "voyage", "label": "Voyage (cloud)", "cloud": True, "key_env": "VOYAGE_API_KEY"},
+            {"id": "off", "label": "Disabled", "cloud": False},
         ],
-        "note": "Reordena el recall LARGO (off-hot-path). Local sube recall@1 sin coste.",
+        "note": "Reorders LONG recall (off-hot-path). Local raises recall@1 at no cost.",
     },
 }
 
@@ -158,7 +158,7 @@ async def set_v2(payload: dict | None = None):
     section = (payload.get("section") or "").strip()
     patch = payload.get("patch") or {}
     if not section or not isinstance(patch, dict):
-        return JSONResponse({"ok": False, "error": "faltan section/patch"}, status_code=400)
+        return JSONResponse({"ok": False, "error": "missing section/patch"}, status_code=400)
     try:
         from config import v2
         v2.set(section, patch)
@@ -178,7 +178,7 @@ async def set_credential(payload: dict | None = None):
     raw = (payload.get("key") or payload.get("provider") or "").strip()
     value = payload.get("value")
     if not raw:
-        return JSONResponse({"ok": False, "error": "falta key/provider"}, status_code=400)
+        return JSONResponse({"ok": False, "error": "missing key/provider"}, status_code=400)
     env_name = raw
     try:
         from config import doctor
@@ -238,7 +238,7 @@ async def architect_connect(payload: dict):
     from config import connectors as cfg
     tok = str((payload or {}).get("token") or "").strip()
     if not tok:
-        return JSONResponse({"ok": False, "error": "token vacío"}, status_code=400)
+        return JSONResponse({"ok": False, "error": "empty token"}, status_code=400)
     patch = {"token": tok, "enabled": True}
     url = str((payload or {}).get("url") or "").strip()
     if url:

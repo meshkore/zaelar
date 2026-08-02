@@ -85,7 +85,7 @@ export const startTask = (id, text) => setTasks(xs => {
   const side = onLeft <= onRight ? "l" : "r";             // fill the emptier side first (ties → left)
   const delay = -(Math.random() * 3).toFixed(2);          // desync the slow breathing so they don't pulse in unison
   const hue = Math.round((Math.random() * 2 - 1) * 38);   // ±38° hue-rotate → each blob a slightly different tint
-  return [...xs, { id, text: text || "Trabajando…", done: false, side, delay, hue }];  // …same cool blue-teal gama
+  return [...xs, { id, text: text || "Working…", done: false, side, delay, hue }];  // …same cool blue-teal gama
 });
 export const endTask = (id) => {
   setTasks(xs => xs.map(t => t.id === id ? { ...t, done: true } : t));   // settle to a solid teal dot…
@@ -95,7 +95,7 @@ export const endTask = (id) => {
 // para después; lo que importa es el dato). pct −1 = desconocido. Crea el chip si aún no existe (idempotente).
 export const setTaskProgress = (id, note, pct, done, total) => setTasks(xs => {
   const tag = (total ? ` ${Math.min(done || 0, total)}/${total}` : "") + (pct >= 0 ? ` · ${pct}%` : "");
-  const text = ((note || "").trim() || "Trabajando…") + tag;
+  const text = ((note || "").trim() || "Working…") + tag;
   if (!xs.some(t => t.id === id)) return [...xs, { id, text, done: false, side: "l", delay: 0, hue: 0, pct }];
   return xs.map(t => t.id === id ? { ...t, text, pct } : t);
 });
@@ -108,7 +108,7 @@ export const reconcileTasks = (sessions) => {
     // conserva/actualiza los vivos; marca done (→ clear) los que ya no están en la verdad
     const kept = xs.filter(t => t.done || live.has(String(t.id))).map(t => {
       const s = live.get(String(t.id));
-      return s ? { ...t, text: (s.phase || t.text) + (s.paused ? " (pausado)" : ""),
+      return s ? { ...t, text: (s.phase || t.text) + (s.paused ? " (paused)" : ""),
                    waiting: (s.waiting_on === "user"), paused: !!s.paused } : t;
     });
     const known = new Set(kept.map(t => String(t.id)));
@@ -116,7 +116,7 @@ export const reconcileTasks = (sessions) => {
     let i = kept.filter(t => !t.done).length;
     for (const [id, s] of live) {
       if (known.has(id)) continue;
-      added.push({ id, text: (s.phase || s.goal || "Trabajando…") + (s.paused ? " (pausado)" : ""), done: false,
+      added.push({ id, text: (s.phase || s.goal || "Working…") + (s.paused ? " (paused)" : ""), done: false,
                    side: (i++ % 2 === 0) ? "l" : "r", delay: 0, hue: 0,
                    waiting: (s.waiting_on === "user"), paused: !!s.paused });
     }
