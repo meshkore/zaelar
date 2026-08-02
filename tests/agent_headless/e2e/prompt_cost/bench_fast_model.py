@@ -32,6 +32,7 @@ AIML = "https://api.aimlapi.com/v1"
 GEMINI = "https://generativelanguage.googleapis.com/v1beta/openai/"
 OPENAI = "https://api.openai.com/v1"
 MISTRAL = "https://api.mistral.ai/v1"
+XAI = "https://api.x.ai/v1"
 
 # Candidatos. El primero es el de producción HOY; el resto son los que respondieron al ping de disponibilidad.
 # `aimlapi` es un BROKER (proxy con margen); los demás son el proveedor DIRECTO — la comparación entre el mismo
@@ -51,27 +52,44 @@ CANDIDATES: list[tuple[str, ModelSpec]] = [
     ("aiml·gemini-2.5-flash", ModelSpec("google/gemini-2.5-flash", AIML, provider="aimlapi")),
     ("openai·gpt-4.1-mini", ModelSpec("gpt-4.1-mini", OPENAI, provider="openai")),
     ("mistral·medium-latest", ModelSpec("mistral-medium-latest", MISTRAL, provider="mistral")),
+    # xAI DIRECTO (sin broker). Grok está BANEADO en el FlashBrain desde que mis-ruteaba memoria→widget_data,
+    # pero aquella era otra generación: estos declaran «non-reasoning» en el nombre, que es justo el invariante
+    # de la voz y justo lo que DeepSeek V4 Flash no cumple. El ban se levanta con datos o no se levanta.
+    ("xai·grok-4.20-non-reasoning", ModelSpec("grok-4.20-0309-non-reasoning", XAI, provider="xai")),
+    ("xai·grok-4.5", ModelSpec("grok-4.5", XAI, provider="xai")),
+    ("xai·grok-4.3", ModelSpec("grok-4.3", XAI, provider="xai")),
+    ("aiml·grok-4-1-fast-non-reas", ModelSpec("x-ai/grok-4-1-fast-non-reasoning", AIML, provider="aimlapi")),
     # Gemini DIRECTO: el más rápido del banco, pero la key del operador está en free tier (20 req/día) → 429.
     # Se deja declarado para volver a medirlo el día que se active facturación.
     ("gemini·2.5-flash (free)", ModelSpec("gemini-2.5-flash", GEMINI, provider="gemini")),
 ]
 
 # Casos de ENRUTADO: la mezcla que de verdad se ve en un turno de voz (charla, dato, widget, tarea, media, panel).
-# `expect` vacío = no debe llamar a ninguna tool.
-CASES: list[tuple[str, str, set[str]]] = [
-    ("charla", "hola, ¿qué tal todo?", set()),
-    ("dato del mundo", "¿cuánto cuesta la entrada de Aquopolis?", {"web_search"}),
-    ("mostrar widget", "muéstrame el widget de resultados", {"show_widget"}),
-    ("data-op", "elige el primero de la lista de resultados", {"widget_data"}),
+# Cada caso es (nombre, turno, aceptadas, PROHIBIDAS). `aceptadas` vacío = no debe llamar a ninguna tool;
+# `prohibidas` marca el fallo GRAVE concreto, el que rompe una conversación en vez de solo quedarse corto.
+CASES: list[tuple[str, str, set[str], set[str]]] = [
+    ("charla", "hola, ¿qué tal todo?", set(), set()),
+    ("dato del mundo", "¿cuánto cuesta la entrada de Aquopolis?", {"web_search"}, set()),
+    ("mostrar widget", "muéstrame el widget de resultados", {"show_widget"}, set()),
+    ("data-op", "elige el primero de la lista de resultados", {"widget_data"}, set()),
     ("tarea larga", "investiga en internet y ponme un informe de 3 parques acuáticos en pantalla",
-     {"escalate_to_slowbrain"}),
-    ("música", "pon música de jazz", {"play_music"}),
-    ("vídeo", "pon el vídeo del último gol del Barça", {"play_video"}),
-    ("panel", "abre el chat", {"show_panel"}),
-    ("estilo", "a partir de ahora sé más breve", {"set_style_directive"}),
-    ("borrar widget", "borra el widget de resultados", {"delete_widget"}),
-    ("marketplace", "busca motos naked de segunda mano en Wallapop", {"escalate_to_slowbrain"}),
-    ("alias", "llama a este widget «mi informe»", {"manage_widget_alias"}),
+     {"escalate_to_slowbrain"}, set()),
+    ("música", "pon música de jazz", {"play_music"}, set()),
+    ("vídeo", "pon el vídeo del último gol del Barça", {"play_video"}, set()),
+    ("panel", "abre el chat", {"show_panel"}, set()),
+    ("estilo", "a partir de ahora sé más breve", {"set_style_directive"}, set()),
+    ("borrar widget", "borra el widget de resultados", {"delete_widget"}, set()),
+    ("marketplace", "busca motos naked de segunda mano en Wallapop", {"escalate_to_slowbrain"}, set()),
+    ("alias", "llama a este widget «mi informe»", {"manage_widget_alias"}, set()),
+    # ── PREGUNTA ≠ ORDEN ──────────────────────────────────────────────────────────────────────────────────
+    # El turno EXACTO que baneó a grok del FlashBrain (A/B 2026-07-17, `zaelar-model-benchmarks.md §9`):
+    # teniendo la respuesta delante en el prompt, contestó «Hecho» y llamó a `widget_data`. Enrutar una
+    # PREGUNTA a una ACCIÓN es lo que el operador llamó «conversaciones absurdas», y no lo caza ninguno de los
+    # casos de arriba. Responder sin tool o mirar la memoria valen; TOCAR datos no.
+    ("pregunta memoria", "dime cuándo es la cita de la ITV", {"recall", "show_widget"},
+     {"widget_data", "escalate_to_slowbrain", "delete_widget"}),
+    ("pregunta estado", "¿cuántas tareas tienes en marcha?", set(),
+     {"widget_data", "escalate_to_slowbrain", "delete_widget"}),
 ]
 
 _TIMELINE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(
@@ -194,27 +212,37 @@ async def exp_parallel(system: str, n: int = 4) -> None:
     print()
 
 
+def score(got: set[str], expect: set[str], forbidden: set[str]) -> tuple[bool, bool]:
+    """(acierta, es_grave). Un caso con `forbidden` es una PREGUNTA: el listón es no convertirla en una ACCIÓN,
+    así que responder sin tool cuenta como acierto. Llamar a una tool prohibida es GRAVE — no es quedarse corto,
+    es hacer algo que nadie pidió, y eso es lo que rompe una conversación."""
+    grave = bool(got & forbidden)
+    if forbidden:
+        return (not grave), grave
+    return ((not expect and not got) or bool(got & expect)), grave
+
+
 async def exp_routing(system: str) -> None:
     print("── C · ENRUTADO: rápido no vale si elige mal la tool ──\n")
-    print(f"{'candidato':24} {'acierto':>9} {'p50':>9}   fallos")
+    print(f"{'candidato':28} {'acierto':>9} {'graves':>7} {'p50':>9}   fallos")
     for label, spec in CANDIDATES:
         if not _usable(spec):
             continue
         c = FastClient()
-        hits, lat, miss = 0, [], []
-        for name, text, expect in CASES:
+        hits, graves, lat, miss = 0, 0, [], []
+        for name, text, expect, forbidden in CASES:
             r = await one_call(c, spec, system, text, router.TOOLS)
             if r.get("error"):
                 miss.append(f"{name}!")
                 continue
             lat.append(r["total_ms"])
-            got = r["tools"]
-            ok = (not expect and not got) or bool(got & expect)
+            ok, grave = score(r["tools"], expect, forbidden)
             hits += int(ok)
+            graves += int(grave)
             if not ok:
-                miss.append(f"{name}→{sorted(got) or '—'}")
+                miss.append(f"{'⛔' if grave else ''}{name}→{sorted(r['tools']) or '—'}")
             await asyncio.sleep(0.4)
-        print(f"{label:24} {hits:>4}/{len(CASES)}  "
+        print(f"{label:28} {hits:>4}/{len(CASES)} {graves:>7} "
               f"{(statistics.median(lat) if lat else 0):7.0f} ms   {', '.join(miss) or '—'}")
     print()
 

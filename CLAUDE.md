@@ -674,7 +674,10 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     (xAI) está BANEADO en el FlashBrain**: el único rápido (`grok-4.20-0309-non-reasoning`) MIS-RUTEA —contesta
     "Hecho"/`widget_data` a una PREGUNTA de memoria, causa de "conversaciones absurdas"—; los correctos (grok-4.3/4.5)
     son razonadores → violan "voz=no-razonador". **NUNCA grok en la capa de voz** (canónico: `zaelar-model-benchmarks.md
-    §9/§13`). `nucleo/flash/fast_client.py::resolved_api_key()` resuelve la key **por endpoint** (aimlapi→`AIMLAPI_KEY`,
+    §9/§13`). **RE-VALIDADO 2026-08-03 con la generación NUEVA** (`§9.1.b`): sí es ultra rápido (1.030 ms de mediana
+    y nunca se dispara, peor caso 2,8 s vs los 76 s de DeepSeek), pero repite el fallo exacto —a «dime cuándo es la
+    cita de la ITV» llamó `web_search`+`widget_data`— y además enruta «investiga y ponme un informe» a `web_search`
+    **3 de 3**, o sea contesta un dato donde toca lanzar un Brain Worker. El veto no es folclore: se vuelve a medir. `nucleo/flash/fast_client.py::resolved_api_key()` resuelve la key **por endpoint** (aimlapi→`AIMLAPI_KEY`,
     groq.com→`GROQ_API_KEY`, gemini→`GEMINI_API_KEY`). **Alternativas válidas** (UI/`config/v2.json §fast` o env
     `FAST_PROVIDER`/`FAST_MODEL`/…): **Groq** (`llama-3.3-70b-versatile`, muy rápido, `GROQ_API_KEY`); **local Ollama**
     (`qwen2.5:14b-instruct`, gratis/sin red pero **patoso y LENTO** —~19s/turno con contención de GPU→ NO como capa de

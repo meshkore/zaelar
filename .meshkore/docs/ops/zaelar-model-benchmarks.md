@@ -326,6 +326,32 @@ Restricción: **no-razonador**, tool-calling FIABLE, sub-segundo. Cierra el turn
 | cualquier `*-reasoning` / grok-4.3/4.5 / gemini-3.x-flash | — | ❌ PROHIBIDO en voz | razonadores → +segundos de thinking → zaelar lento/mudo (regla dura). |
 | qwen2.5:14b local (Ollama) | local | ❌ NO USAR en voz | ~19s/turno + contiende GPU con STT/TTS (§1, §4). |
 
+#### 9.1.b Re-validación del veto a grok con la generación NUEVA (2026-08-03)
+
+El operador preguntó por «un grok nuevo que es ultra rápido». Lo es — y sigue vetado. Barrido con el banco
+`bench_fast_model.py` (nodo 2.13), **3 rondas × 14 casos contra el prompt REAL**, incluyendo por primera vez las
+dos trampas **PREGUNTA ≠ ORDEN** (entre ellas el turno literal que lo vetó en 2026-07-17, «dime cuándo es la cita
+de la ITV»). Un fallo **GRAVE** = convertir una pregunta en una acción; no es quedarse corto, es hacer lo que
+nadie pidió.
+
+| Modelo | Acierto | GRAVES | p50 | Peor | Veredicto |
+|---|---|---|---|---|---|
+| `deepseek-v4-flash` (AIMLAPI, en uso) | **40/42** | **0** | 2.921 ms | **76.392 ms** ⚠️ | ✅ sigue siendo el mejor enrutador |
+| `grok-4.20-0309-non-reasoning` (xAI directo) | 33/42 | 1 | **1.030 ms** | 2.791 ms | ❌ el veto se reproduce |
+| `x-ai/grok-4-1-fast-non-reasoning` (AIMLAPI) | 32/42 | 1 | 1.285 ms | 2.433 ms | ❌ mismo fallo |
+| `mistral-medium-latest` (directo) | 33/42 | **3** | 1.977 ms | 15.214 ms | ❌ falla la pregunta SIEMPRE |
+
+**Lo que confirma:** grok es de verdad ultra rápido (1 s de mediana y **jamás se dispara** — su peor caso es
+2,8 s), pero repitió el fallo exacto de julio: a «dime cuándo es la cita de la ITV» respondió llamando a
+`web_search` + `widget_data`. Y añade uno peor para el caso de uso que el operador está probando ahora mismo:
+enruta «investiga y ponme un informe en pantalla» a `web_search` **3 de 3 veces**, en vez de lanzar un Brain
+Worker — es decir, contestaría con un dato suelto donde se espera una investigación. **El veto se mantiene.**
+
+**Hallazgo colateral, más preocupante que grok:** DeepSeek enruta perfecto pero tuvo un turno de **76 segundos**
+(1 de 42). No hay timeout de turno en la capa de voz — `providers/nucleo.py` acota el recall (800 ms) y la
+conversación reciente (500 ms), pero la llamada al modelo solo topa contra el read-timeout de httpx (60 s) y sus
+reintentos. Para voz eso es minuto y cuarto de silencio. **Pendiente**: presupuesto de turno con frase de reserva.
+
 ### 9.2 Motor de MEMORIA — CORAZÓN de escritura / distiller (`config §memory.mem_processor_*`)
 Restricción: **OFF-hot-path** (la latencia NO toca la voz) → prioriza **write-completeness** (palanca nº1 del recall,
 V2-031). **Directriz: SIEMPRE OpenAI.**
