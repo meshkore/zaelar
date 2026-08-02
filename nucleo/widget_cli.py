@@ -8,8 +8,16 @@ tras ejecutar algo en el mundo real (cancelar una cita en una web) el worker REF
 
     python -m nucleo.widget_cli read agenda                      # LEE el widget: manifest + datos + ITEMS con su id
     python -m nucleo.widget_cli data agenda drop '{"itemId":"m_itv_23jul"}'   # DATA-OP (usa ids REALES de `read`)
+    python -m nucleo.widget_cli data results present @informe.json           # PAYLOAD GRANDE: desde un fichero
     python -m nucleo.widget_cli show agenda                      # muestra la tarjeta en el canvas
     python -m nucleo.widget_cli close agenda                     # cierra la tarjeta
+
+PAYLOAD DESDE FICHERO (`@ruta.json`, o `-` para stdin): úsalo SIEMPRE que el payload sea grande o lleve comillas,
+acentos, URLs o saltos de línea — o sea, cualquier informe de verdad. Escribe el JSON a un fichero y pásalo con
+`@`. Pegar 4 KB de JSON en la línea de comandos no funciona: se rompe con el quoting del shell y, si lo envuelves
+en `"$(cat …)"`, el comando deja de ser reconocible y se queda esperando una aprobación que nadie va a dar (caso
+real 2026-08-02: un worker terminó una búsqueda impecable de 9 minutos y el operador no llegó a ver ni un
+resultado por esto).
 
 REGLA DE ORO: para operar un item, LEE primero (`read`) y usa el id REAL que te devuelve — NUNCA inventes ids ni
 pases lenguaje natural aquí (eso es del FlashBrain). El gate es el del catálogo: una acción FAST se aplica ya; una
@@ -91,11 +99,26 @@ def main(argv: list[str]) -> int:
             return 2
         wid, action = argv[2], argv[3]
         payload = {}
-        if len(argv) >= 5 and argv[4].strip():
+        raw = argv[4].strip() if len(argv) >= 5 else ""
+        if raw:
+            src = "argumento"
+            if raw == "-":
+                raw, src = sys.stdin.read(), "stdin"
+            elif raw.startswith("@"):
+                path, src = raw[1:], f"fichero {raw[1:]}"
+                try:
+                    with open(path, encoding="utf-8") as f:
+                        raw = f.read()
+                except OSError as e:
+                    print(f"no puedo leer el payload de {path}: {e}")
+                    return 2
             try:
-                payload = json.loads(argv[4])
+                payload = json.loads(raw)
             except Exception as e:  # noqa: BLE001
-                print(f"payload no es JSON válido: {e}")
+                print(f"el payload ({src}) no es JSON válido: {e}")
+                return 2
+            if not isinstance(payload, dict):
+                print("el payload debe ser un objeto JSON")
                 return 2
         return _report(_act("widget_data", {"widget_id": wid, "action": action, "payload": payload}))
     print(f"comando desconocido: {cmd}")

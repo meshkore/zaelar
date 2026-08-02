@@ -7,9 +7,12 @@
 // a 2-column grid. If no item is primary, all go into the columned grid.
 //
 // Expected data shape (all fields optional except items[].title):
-//   { title, subtitle, columns: 1|2, choosable, chosen, items: [ { title, subtitle, lines:[...], price, badge, url, primary } ] }
+//   { title, subtitle, columns: 1|2, choosable, chosen, items: [ { title, subtitle, lines:[...], price, badge, url, image, primary } ] }
 // `price` renders as a prominent tag next to the title (e.g. listing searches: modelo=title, precio=price,
 // año/estado go in subtitle/lines) — kept as its own field so it's never buried in free text.
+// `image` (a photo URL) renders as a cover photo at the TOP of the card — for searches the operator asked to see
+// "con fotos" (hoteles/piscinas/campings, anuncios con imagen). Declarative <img> of the pushed URL (no JS network
+// call, same pattern as the <a> link built for `url`); a broken photo link self-removes so a dead image never wrecks the card.
 // `choosable:true` (e.g. a list of available product names) makes non-link items clickable so the operator can
 // PICK one — click calls apply_action("choose",{title}); the pick is highlighted LOCALLY (not via store.save/SSE
 // refresh, which would refetch data.py's static fallback and discard this pushed list — see data.py).
@@ -28,6 +31,8 @@ function injectStyles(){
     border-radius:12px;padding:11px 13px;background:var(--hb-bg,#fff);transition:.15s}
   .hb-results a.hr-card:hover{border-color:var(--hb-accent,#3D6FE0);box-shadow:0 6px 18px rgba(61,111,224,.14);transform:translateY(-1px)}
   .hb-results .hr-card.primary{border-left-color:var(--hb-accent2,#16B8A6);background:var(--hb-bg-soft,#fbfffd)}
+  .hb-results .hr-img{display:block;width:100%;height:130px;object-fit:cover;border-radius:8px;margin:0 0 10px;background:var(--hb-line,#eef1f6)}
+  .hb-results .hr-card.primary .hr-img{height:160px}
   .hb-results .hr-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
   .hb-results .hr-t{font-size:14px;font-weight:600;line-height:1.25;word-break:break-word}
   .hb-results .hr-card.primary .hr-t{font-size:15.5px}
@@ -48,6 +53,12 @@ function makeCard(it, isPrimary, choose){
   const card = document.createElement(it.url ? "a" : "div");
   card.className = "hr-card" + (isPrimary ? " primary" : "");
   if(it.url){ card.href = it.url; card.target = "_blank"; card.rel = "noopener noreferrer"; }
+  if(it.image){
+    const img=document.createElement("img"); img.className="hr-img";
+    img.src=it.image; img.alt=it.title||""; img.loading="lazy"; img.referrerPolicy="no-referrer";
+    img.addEventListener("error",()=>img.remove());   // dead photo link → drop silently, never break the card
+    card.appendChild(img);
+  }
   const head = document.createElement("div"); head.className = "hr-head";
   const t = document.createElement("div"); t.className = "hr-t"; t.textContent = it.title || ""; head.appendChild(t);
   if(it.price){ const p=document.createElement("div"); p.className="hr-price"; p.textContent=it.price; head.appendChild(p); }

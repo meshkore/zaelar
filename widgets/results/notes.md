@@ -1,3 +1,29 @@
 - Petición: buscar motos Naked de 2ª mano en Bilbao y mostrar precio/modelo/año/estado aquí, asegurando que sea una búsqueda REAL (no un espejo local con datos inventados). Este widget NUNCA busca por su cuenta (lo dice su propio contrato) — la búsqueda real la ejecuta el cerebro vía navegador/worker y empuja los datos con `[[push:results]]`; el fallback `view_data()` de aquí NO debe rellenarse con motos falsas. Cambio hecho: añadido campo opcional `price` a los items (badge junto al título, `.hr-head`/`.hr-price`) para que precio quede siempre visible y no enterrado en subtitle/lines; modelo=título, año/estado siguen yendo en subtitle/lines como ya soportaba el esquema genérico.
 - Petición: asegurar que la acción REAL de obtención y presentación de datos se refleje correctamente en la interfaz (no que el widget busque — sigue SIN buscar, la búsqueda real la ejecuta el cerebro/worker/navegador y pushea con `[[push:results]]`). Cambio quirúrgico en `widget.js/render`: se conserva el recuento REAL de items pusheados (`total`) antes del `slice(0,24)` y, si hay más de los que se pintan, se muestra un pie ("Mostrando 24 de N resultados.") reutilizando el estilo `.hr-sub` — así una búsqueda real con muchos resultados nunca se recorta en silencio y el operador ve el volumen verdadero de lo obtenido. Nada más tocado (CSS/layout/choose/fallback intactos).
 - Petición: tras una búsqueda activa (p.ej. nombres de producto disponibles), que el operador pueda ELEGIR uno de los resultados mostrados aquí. Este widget sigue SIN buscar por su cuenta (la búsqueda real la hace el cerebro y pushea los items); solo se añadió la capacidad de SELECCIÓN sobre lo ya mostrado: `data.choosable:true` hace clicables los items sin `url`, con acción `choose({title})` (declarada en manifest, no-confirm, reversible). La selección se marca EN CLIENTE (widget.js usa el valor devuelto por `ctx.action`, sin re-render), a propósito: `apply_action("choose",…)` NO llama a `store.save()` porque los datos pusheados son efímeros (nunca pasan por `data.py`) y disparar la señal SSE de refresco solo recargaría el fallback estático de `view_data()` (Proyectos), borrando la lista real de pantalla. No se añadió `ref_index()`: `data.py` no tiene visibilidad de los items realmente pusheados (por diseño), así que un índice aquí solo listaría el fallback y desorientaría al cerebro — el título exacto mostrado en pantalla basta para resolver la elección.
+- Petición: finalizar y mostrar el informe de la búsqueda ampliada de piscinas/hoteles/campings cerca de Tarragona INCLUYENDO FOTOS. Sigue SIN buscar (contrato de arriba): la búsqueda REAL la hace el cerebro vía worker/navegador y empuja con `[[push:results]]`; el fallback `view_data()` NO se rellena con datos inventados de Tarragona (igual que ya se descartó con las motos de Bilbao). Cambio quirúrgico = soporte de FOTO: los items pueden llevar `image` (URL) y se pinta como `<img>` de portada (`object-fit:cover`, esquina redondeada, `referrerPolicy=no-referrer`+`loading=lazy`, self-remove en `error` si el enlace cae) encima del título, reutilizando layout/CSS existentes — choose/price/columns/recuento/fallback INTACTOS. Añadidos alias `Informe`/`Informes` y keyword `fotos` (el operador lo llama "widget de informes") para que el cerebro enrute aquí "muéstrame el informe con fotos".
+- **2026-08-02 — CORRECCIÓN DE FONDO: las 4 notas de arriba parten de una premisa FALSA.** Todas dicen que los datos
+  "los empuja el cerebro con `[[push:results]]`". **Ese canal nunca ha funcionado**: el provider de voz
+  (`voice/engine/llm/providers/nucleo.py`) trata `push` igual que `create`/`modify` — lo BLOQUEA y lo convierte en
+  una escalada ("intentó [[push]] — bloqueado, escalando"). Es decir, este widget llevaba tiempo sin ninguna vía
+  real de relleno: un Brain Worker con el informe terminado en la mano no tenía por dónde entregarlo, y
+  `view_data()` devolvía una lista DEMO de proyectos del operador (Pricewaterhouse/Mage Core/…), así que abrir la
+  tarjeta para una búsqueda de piscinas pintaba "Proyectos". El operador lo vivió entero el 2026-08-02: 3 workers,
+  ~9 min, 0 resultados en pantalla.
+  **Rediseño (el widget es ahora la SUPERFICIE GENÉRICA DE PRESENTACIÓN):**
+  · `view_data()` devuelve lo ÚLTIMO ENTREGADO, persistido en `widgets/_data/results.json` (`store`). Sin nada
+    entregado = hoja EN BLANCO. Fuera la lista demo: una superficie de presentación no tiene contenido propio.
+  · Se entrega por ACCIONES DECLARADAS —`present` (conjunto completo), `append` (ir llenando según llegan,
+    deduplica por title+url), `clear`— que reutilizan el camino ya probado `hbwidget → /api/worker/act widget_data
+    → brain_action → apply_action → store.save → SSE → re-render`. Cero protocolo nuevo. Las tres son FAST.
+  · `choose` ya SÍ persiste (la lista es persistente; el motivo que había para no llamar a `store.save()` era
+    justamente la efimeridad del push, que ya no existe).
+  · Añadido `ref_index()` — que la nota 3 descartó a propósito con el modelo viejo: ahora `data.py` SÍ ve los items
+    reales. Sirve para elegir por lenguaje natural y, sobre todo, para que el cerebro DISTINGA "abierto con datos"
+    de "abierto y vacío" (`widgets/refs.items_line`) y deje de decir "aquí lo tienes" sobre una tarjeta en blanco.
+  · `usage`/`actions` del manifest enseñan el contrato COMPLETO de la tarjeta (title/subtitle/price/lines/badge/
+    url/image/primary) y que el payload va **por fichero** (`hbwidget data results present @informe.json`): pegar
+    4 KB de JSON en la línea de comandos rompe el quoting y deja al worker esperando una aprobación que no llega.
+  · `widget.js` NO se tocó en este cambio (el soporte de `image` de la nota 4 se conserva tal cual).
+  Verificado en vivo de punta a punta: petición → worker real → búsqueda web → `present @fichero` → `show` →
+  4 parques acuáticos con precio, horario, enlace y foto en pantalla (~5 min).

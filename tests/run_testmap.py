@@ -73,7 +73,10 @@ DOMAINS: list[dict] = [
             "tests/agent_headless/unit/flash/test_procs.py"]},
         {"id": "2.5", "title": "Escalado / dispatch / workers", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_escalate.py", "tests/agent_headless/unit/test_dispatch.py", "tests/agent_headless/unit/workers/test_workers.py",
-            "tests/agent_headless/unit/agentes/test_agentes.py", "tests/agent_headless/unit/agentes/test_work_agents.py"]},
+            "tests/agent_headless/unit/agentes/test_agentes.py", "tests/agent_headless/unit/agentes/test_work_agents.py",
+            # las 3 decisiones que hundieron la sesión del 2026-08-02 (llenar≠programar · confirm-gate sobre una
+            # investigación · la frase del operador perdida al pisarse los turnos del STT)
+            "tests/agent_headless/unit/test_search_report_flow.py"]},
         {"id": "2.6", "title": "Scheduler / rails / workspace / frontend-glue", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/test_scheduler.py", "tests/agent_headless/unit/test_rails.py", "tests/agent_headless/unit/test_workspace.py",
             "tests/agent_headless/unit/flash/test_frontend.py", "tests/agent_headless/unit/flash/test_memory_cache.py"]},
@@ -129,6 +132,11 @@ DOMAINS: list[dict] = [
         # con el altavoz — el acoplamiento anterior era indistinguible de un TTS averiado.
         {"id": "4.9", "title": "Chat y voz INDEPENDIENTES (el icono es el único dueño del silencio, V2-088)",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_chat_voice_independent.py"]},
+        # 2026-08-02: «busca X y ponme el informe en pantalla» no llegaba NUNCA a pantalla. Nodo propio porque lo
+        # que fija no es un widget temático sino la SUPERFICIE GENÉRICA de presentación: hoja en blanco sin
+        # contenido propio, se rellena por acción declarada (no reescribiendo su código) y lo entregado PERSISTE.
+        {"id": "4.10", "title": "Superficie genérica de presentación de resultados (hoja en blanco + present/append)",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_results_presentation.py"]},
     ]},
     {"id": "5", "name": "CONECTORES", "nodes": [
         {"id": "5.1", "title": "Email", "ch": UNIT, "paths": [

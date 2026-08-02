@@ -735,8 +735,10 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     except Exception:
         pass
 
-    # (f) actualiza la ventana con la respuesta SANEADA (corta el bucle de realimentación)
-    sess.window.append({"role": "user", "content": text})
+    # (f) actualiza la ventana con la respuesta SANEADA (corta el bucle de realimentación). El turno de usuario
+    # entra por `dialog.push_user` para conservar la PARIDAD con la voz (que además lo usa para no perder la frase
+    # de un turno pisado por solape del STT).
+    dialog.push_user(sess.window, text)
     if spoken:
         sess.window.append({"role": "assistant", "content": spoken})
     del sess.window[:-_WINDOW_MAX]

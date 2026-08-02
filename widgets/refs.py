@@ -50,6 +50,15 @@ def _ref_index(widget_id: str) -> list[dict]:
     return []
 
 
+def _exposes_ref_index(widget_id: str) -> bool:
+    """¿Este widget PUBLICA sus items? (para poder distinguir «vacío» de «no publica» — ver items_line)."""
+    try:
+        import importlib
+        return hasattr(importlib.import_module(f"widgets.{widget_id}.data"), "ref_index")
+    except Exception:
+        return False
+
+
 def id_field_for_action(widget_id: str, action: str) -> str | None:
     """La clave del payload de esta acción que identifica a un item existente (termina en 'Id', p.ej. `taskId`,
     `projectId`, `chatId`), leída del manifest. None si la acción no actúa sobre un item preexistente (p.ej.
@@ -145,10 +154,18 @@ def label_for(widget_id: str, field: str, item_id: str) -> str:
 
 def items_line(widget_id: str) -> str:
     """Línea compacta con los items VIVOS del widget (label + hint) para el brief del cerebro, de modo que sepa
-    QUÉ existe y pueda referenciarlo con naturalidad. Sin ids internos (el modelo referencia por lenguaje)."""
+    QUÉ existe y pueda referenciarlo con naturalidad. Sin ids internos (el modelo referencia por lenguaje).
+
+    VACÍO ≠ SIN ÍNDICE (fix 2026-08-02): un widget que expone `ref_index` pero no tiene nada dentro lo DICE. Antes
+    devolvía "" en los dos casos, así que el cerebro no podía distinguir «esta tarjeta está abierta y vacía» de
+    «esta tarjeta no publica sus items» — y con la hoja de resultados abierta y en blanco contestaba «aquí lo
+    tienes» al operador, que no veía nada. Un widget vacío es un hecho que el cerebro tiene que ver."""
+    if not _exposes_ref_index(widget_id):
+        return ""
     idx = _ref_index(widget_id)
     if not idx:
-        return ""
+        return ("items ahora: NINGUNO — la tarjeta está ABIERTA pero VACÍA: el operador no ve NADA dentro, así que "
+                "no des por entregado lo que hay que poner ahí")
     bits = []
     for i in idx[:12]:
         h = str(i.get("hint") or "").strip()

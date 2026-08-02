@@ -1398,8 +1398,13 @@ class NucleoLLMStream(llm.LLMStream):
             send(speech.sanitize(take(True), drop_metadata=False))
         except asyncio.CancelledError:
             # BARGE-IN / turno superpuesto: el stream se cancela. NO reinyectamos la respuesta parcial a la ventana
-            # (el `raise` salta el append de más abajo) → sin respuestas zombie. Observamos el solapamiento (FASE 2):
-            # cuánto se generó antes de cortar, para medir cuánta latencia/tokens se tiran por turnos pisados.
+            # (el `raise` salta el append de más abajo) → sin respuestas zombie. PERO lo que dijo el OPERADOR sí se
+            # conserva (fix 2026-08-02): cancelar la RESPUESTA no borra la FRASE, y hasta hoy el `raise` se llevaba
+            # por delante el turno de usuario → el siguiente turno llegaba al modelo sin el contexto que el operador
+            # acababa de dar (ver dialog.push_user para el caso real de la piscina). Coalesce por prefijo, así los
+            # trozos acumulativos del STT no duplican la frase.
+            _dialog.push_user(brain._window, text)
+            del brain._window[:-_WINDOW_MAX]
             emit("brain", "✂️ turno cancelado (barge-in/overlap)", role="system",
                  extra={"cat": "flash", "partial_chars": len("".join(spoken)),
                         "ttft_ms": first_ms, "cut_after_ms": round((time.time() - t0) * 1000)})
@@ -1861,7 +1866,9 @@ class NucleoLLMStream(llm.LLMStream):
                 spoken_text = "Sigo con ello." if _prev_pending else "Vale, dame un momento."
             send(speech.sanitize(spoken_text, drop_metadata=False))
 
-        brain._window.append({"role": "user", "content": text})
+        # push_user (no append pelado): si el turno ANTERIOR se canceló por solape, su frase ya está registrada y
+        # ésta suele ser su versión acumulada por el STT → se sustituye en vez de duplicar el prefijo.
+        _dialog.push_user(brain._window, text)
         if spoken_text:
             # Guarda la respuesta SANEADA (anti-degeneración V2-032): si el modelo empalmó/repitió, no reinyectamos
             # esa basura al turno siguiente → cortamos el bucle de realimentación que degrada al modelo pequeño.

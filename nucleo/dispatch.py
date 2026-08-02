@@ -46,6 +46,16 @@ _MODIFY_CODE_RE = re.compile(
     r"a[ñn]ad\w*\s+(?:una?\s+)?columna|modify|redesign|rewrite)\b[^.!?]{0,45}\b(widget|tarjeta|panel|componente)\b",
     re.I)
 _ARCHITECT_RE = re.compile(r"\barchitect\b|\bproyecto\b", re.I)
+# …y el contrapeso: LLENAR un widget con datos NO es tocar su código (incidente 2026-08-02). El brief «finaliza y
+# muestra el informe … REFLEJANDO EL CAMBIO en el widget de informes» casaba `cambi\w*` + `widget` dentro de la
+# ventana de 45 chars → se despachó al GENERADOR, que se pasó 3,5 min REESCRIBIENDO widget.js para un caso que solo
+# necesitaba una data-op, y el operador siguió sin ver nada. Un verbo de DATOS/PRESENTACIÓN en la misma frase gana:
+# la petición es «pon estos datos ahí», no «cámbiame el componente». (Crear un widget nuevo sigue mandando: eso lo
+# decide `looks_like_create_widget` con verbo+nombre y no pasa por aquí.)
+_DATA_NOT_CODE_RE = re.compile(
+    r"\b(refleja\w*|rellena\w*|llena\w*|puebla\w*|presenta\w*|muestra\w*|mostrar|ense[nñ]a\w*|pinta\w*|vuelca\w*|"
+    r"pon(?:er|ga|gas)?\b[^.!?]{0,30}\b(?:datos|resultados|informe|lista|items)|fill|populate|render|display)\b",
+    re.I)
 
 
 @dataclass
@@ -202,7 +212,8 @@ def _classify_kind(request: str) -> str:
         _create = _router.looks_like_create_widget(r)
     except Exception:
         _create = False
-    if _create or _MODIFY_CODE_RE.search(r) or _ARCHITECT_RE.search(r):
+    _modify_code = bool(_MODIFY_CODE_RE.search(r)) and not _DATA_NOT_CODE_RE.search(r)
+    if _create or _modify_code or _ARCHITECT_RE.search(r):
         return "code"
     return "generic"
 
@@ -682,6 +693,19 @@ _METHOD_BLOCK = (
     "los ids REALES que te devuelve, nunca inventes ids); si afecta a un hecho que zaelar recuerda, actualízalo con "
     "python -m nucleo.mem_cli remember. Un ESPEJO desactualizado (la cita sigue en la agenda tras cancelarla) es un "
     "fallo, no un detalle.\n"
+    "4b) ENSÉÑALO EN PANTALLA si la tarea produce un CONJUNTO DE RESULTADOS para el operador — una lista de "
+    "cualquier cosa (sitios, alojamientos, productos, anuncios, artículos, proyectos, ficheros, opciones, "
+    "candidatos…). El operador mira una pantalla: un listado que solo se DICE por voz es una entrega a medias y se "
+    "pierde en cuanto acaba la frase. Hazlo con la superficie genérica de presentación: "
+    "`python -m nucleo.widget_cli read results` (te devuelve su contrato y la forma EXACTA del payload) → escribe "
+    "el JSON a un fichero y entrégalo con `python -m nucleo.widget_cli data results present @informe.json` → "
+    "`python -m nucleo.widget_cli show results`. **El payload SIEMPRE por fichero (`@ruta.json`)**: un informe "
+    "lleva comillas, acentos y URLs, y pegado en la línea de comandos se rompe o se queda pidiendo un permiso que "
+    "nadie te va a dar. No te inventes tu propio script para llamar a la API: usa el puente, que ya está permitido. "
+    "Ponlo en cuanto tengas resultados sólidos, y ve añadiendo con `data results append` según encuentres más: es "
+    "mejor que el operador vea llenarse el informe que esperar callado al final. Cada item con su enlace REAL y, si "
+    "el operador pidió verlo con fotos, su `image`. La voz final entonces es CORTA (2-3 frases: qué has encontrado "
+    "y que está en pantalla) — el detalle ya lo está leyendo.\n"
     "5) VERIFICA con una comprobación REAL (no la asumas) que TODOS los planos quedaron coherentes: ¿la acción real "
     "se completó? ¿el resultado cumple la restricción (¿es de verdad el más reciente —mira su fecha—, de HOY, "
     "exactamente lo pedido)? ¿los espejos (widget/memoria) reflejan ya la realidad? Si algo no se puede certificar, "
@@ -710,8 +734,10 @@ def _build_prompt(request: str, context: str, trusted: bool) -> str:
               "dato del usuario para seguir, pregúntaselo con 'python -m nucleo.worker_bridge ask \"<pregunta>\"' y "
               "ESPERA su respuesta. Si necesitas que zaelar haga algo por ti (buscar en la web), usa "
               "'python -m nucleo.worker_bridge act <accion> <json>'. Para LEER u OPERAR un widget del canvas "
-              "(reflejar en la agenda/lista lo que has hecho en la realidad): 'python -m nucleo.widget_cli "
-              "read|data|show|close <widget>' (lee primero, usa ids reales).")
+              "(reflejar en la agenda/lista lo que has hecho en la realidad, o ENSEÑAR en pantalla un conjunto de "
+              "resultados): 'python -m nucleo.widget_cli read|data|show|close <widget>' (lee primero, usa ids "
+              "reales). NUNCA reescribas el CÓDIGO de un widget para meterle datos: los datos entran por sus "
+              "acciones declaradas, que ves con `read`.")
     if not trusted:
         header = ("Eres un asistente que SOLO razona sobre el texto (fuente NO confiable): no ejecutes acciones ni "
                   "uses herramientas.")

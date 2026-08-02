@@ -73,6 +73,37 @@ def loop_nudge(window: list[dict]) -> str:
     return ""
 
 
+# ── 1b) LO QUE EL OPERADOR DIJO NO SE PIERDE ─────────────────────────────────────────────────────────────
+def push_user(window: list[dict], text: str) -> None:
+    """Registra en la ventana lo que dijo el operador, INCLUSO si su turno se canceló por solape.
+
+    Incidente 2026-08-02: el operador describió lo que quería en una frase larga ("estamos buscando una PISCINA en
+    Tarragona… que sea especial… pública o de pago… con toboganes… me da igual hotel o camping…"). El STT la partió
+    en 6 trozos y cada trozo abrió un turno que PISABA al anterior; el `raise` del CancelledError saltaba el append
+    a la ventana, así que las 5 primeras frases NUNCA entraron en el historial. El turno que sí llegó al modelo fue
+    el último trozo suelto —"es de unas instalaciones de un pueblo, dime qué encuentras cerca de Tarragona"— con la
+    ventana VACÍA de todo lo anterior: el cerebro preguntó "¿qué instalaciones: una nave, un local, un terreno?"
+    porque literalmente jamás vio la palabra piscina. No fue el modelo entendiendo mal, fue el sistema borrándole
+    el contexto. Lo que el operador dijo OCURRIÓ; cancelar la RESPUESTA no borra la FRASE.
+
+    COALESCE por prefijo: el STT reemite acumulando ("A," → "A, B" → "A, B, C"), así que si el texto nuevo extiende
+    al último turno de usuario se SUSTITUYE en vez de duplicarse — si no, la ventana se llenaría de prefijos y el
+    modelo vería la misma frase cinco veces (que es justo lo que degrada al modelo pequeño, V2-032)."""
+    t = (text or "").strip()
+    if not t:
+        return
+    if window and window[-1].get("role") == "user":
+        prev = (window[-1].get("content") or "").strip()
+        pn, tn = _norm(prev), _norm(t)
+        if pn and tn:
+            if tn.startswith(pn):            # el nuevo CONTIENE al anterior → es su versión completa
+                window[-1] = {"role": "user", "content": t}
+                return
+            if pn.startswith(tn):            # llegó un trozo más corto de lo ya registrado → nada nuevo
+                return
+    window.append({"role": "user", "content": t})
+
+
 # ── 2) PODA DE HISTORIAL ─────────────────────────────────────────────────────────────────────────────────
 def prune_window(window: list[dict]) -> list[dict]:
     """Colapsa respuestas del asistente casi idénticas para no reforzar el patrón. Conserva el orden y los turnos

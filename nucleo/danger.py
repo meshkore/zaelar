@@ -25,9 +25,31 @@ _DANGER_RE = re.compile(
 )
 
 
+# Dos correcciones de PRECISIÓN (incidente 2026-08-02: una escalada de INVESTIGACIÓN —«termina la búsqueda ampliada
+# del operador (proyecto compra y venta de motos): completa el informe…»— disparó el confirm-gate y dejó la tarea
+# parada esperando un OK que nadie entendía por qué se pedía). Ninguna de las dos afloja el gate para una orden real:
+#  (1) lo que va entre PARÉNTESIS es CONTEXTO, no la orden — la acción vive en el texto principal;
+#  (2) un término que aquí es SUSTANTIVO y no verbo ("compra y venta", "compraventa") nombra un tema, no manda comprar.
+_PAREN_RE = re.compile(r"\([^()]*\)")
+_NOUN_COMPOUND_RE = re.compile(
+    r"\bcompra\s*[-/y]\s*venta\b|\bventa\s*[-/y]\s*compra\b|\bcompraventa\b|\bbuying\s+and\s+selling\b", re.I)
+
+
+def _order_text(text: str) -> str:
+    """El texto sobre el que se juzga la irreversibilidad: la ORDEN, sin contexto entre paréntesis ni sustantivos
+    compuestos que solo nombran un tema."""
+    t = (text or "").lower()
+    for _ in range(3):                      # paréntesis anidados: colapsa de dentro afuera
+        t2 = _PAREN_RE.sub(" ", t)
+        if t2 == t:
+            break
+        t = t2
+    return _NOUN_COMPOUND_RE.sub(" ", t)
+
+
 def is_dangerous(text: str) -> bool:
     """True si la petición describe una acción irreversible que exige OK explícito del operador antes de ejecutarse."""
-    return bool(_DANGER_RE.search((text or "").lower()))
+    return bool(_DANGER_RE.search(_order_text(text)))
 
 
 def confirm_question(text: str) -> str:
