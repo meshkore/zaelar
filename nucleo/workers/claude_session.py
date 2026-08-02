@@ -23,6 +23,7 @@ import os
 import re
 import shutil
 import signal
+import sys
 
 from loguru import logger
 
@@ -32,13 +33,30 @@ _ZAELAR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file
 _DEFAULT_TOOLS = ["Read"]
 # PUENTES agnósticos que un worker CONFIABLE puede usar (Bash acotado a estos CLIs, nunca un Bash abierto).
 # hbmem/hbnote/hbweb (V2-036) + hbask/hbact (V2-038, plano request/response). Se omiten si deny_tools (§v3·P).
-_BRIDGE_TOOLS = [
-    "Bash(python -m nucleo.mem_cli:*)", "Bash(.venv/bin/python -m nucleo.mem_cli:*)",
-    "Bash(python -m nucleo.agent_report:*)", "Bash(.venv/bin/python -m nucleo.agent_report:*)",
-    "Bash(python -m nucleo.nav_cli:*)", "Bash(.venv/bin/python -m nucleo.nav_cli:*)",
-    "Bash(python -m nucleo.worker_bridge:*)", "Bash(.venv/bin/python -m nucleo.worker_bridge:*)",
-    "Bash(python -m nucleo.widget_cli:*)", "Bash(.venv/bin/python -m nucleo.widget_cli:*)",   # hbwidget (V2-061)
-]
+# Puentes del worker (hbmem/hbnote/hbweb/hbask/hbwidget). El allowlist casa por PREFIJO LITERAL del comando, así
+# que hay que declarar TODAS las formas con las que se puede escribir el intérprete — si no, el worker escribe una
+# variante razonable, el sandbox le pide una aprobación que en headless nadie va a dar, y se pone a hacer
+# arqueología de permisos en vez de la tarea.
+#
+# Medido el 2026-08-02 en cuanto la narración del worker se hizo visible (antes esto era invisible): en esta
+# máquina **`python` a secas NI SIQUIERA EXISTE** (solo `python3` y el venv), y el prompt le decía justo eso. El
+# worker se pasó minutos probando `python`, `.venv/bin/python`, `python3`, `python3 -m nucleo.*`… y narrándolo:
+# «los puentes del worker siguen pidiendo aprobación», «voy a revisar la configuración de permisos». Ahí se iba la
+# mayor parte de los 5 minutos de una búsqueda, no en buscar.
+_INTERPRETERS = ("python", "python3", ".venv/bin/python", ".venv/bin/python3",
+                 os.path.join(_ZAELAR, ".venv", "bin", "python"))
+_BRIDGES = ("mem_cli", "agent_report", "nav_cli", "worker_bridge", "widget_cli")
+_BRIDGE_TOOLS = [f"Bash({py} -m nucleo.{mod}:*)" for mod in _BRIDGES for py in _INTERPRETERS]
+
+
+def bridge_python() -> str:
+    """El intérprete EXACTO con el que el worker debe invocar los puentes: el del propio servidor (`sys.executable`,
+    absoluto y garantizado), o `.venv/bin/python` si por lo que sea no resuelve. Se le da MASTICADO en el prompt y
+    en `ZAELAR_PY` para que no tenga que adivinarlo — adivinar es lo que le costaba los minutos."""
+    exe = (sys.executable or "").strip()
+    if exe and os.path.exists(exe):
+        return exe
+    return os.path.join(_ZAELAR, ".venv", "bin", "python")
 # límite de buffer de línea del stdout (un tool_use grande puede pasar de 64KB, el default de StreamReader).
 _STREAM_LIMIT = int(os.getenv("WORKER_STREAM_LIMIT", str(16 * 1024 * 1024)))
 
@@ -77,6 +95,7 @@ class ClaudeCodeSession(WorkerBackend):
         self._done = False
         self._stdin_closed = False
         self._paused = False
+        self._tier: dict | None = None   # escalón de proveedor con el que arrancó (para culpar al correcto si cae)
 
     # ── ciclo de vida ─────────────────────────────────────────────────────────────────────────────────────
     async def start(self, prompt: str, *, spec: "WorkerSpec") -> None:
@@ -120,10 +139,13 @@ class ClaudeCodeSession(WorkerBackend):
         # ANTHROPIC_AUTH_TOKEN → NO consume tokens de la licencia Claude Teams. OFF por defecto (base_url vacío).
         # spec.env (del dispatch) manda si ya lo trae. Helper ÚNICO `v2.external_worker_env()` (comparte con el
         # generador de widgets — así NINGÚN spawn de `claude` se queda sin enrutar). Fail-open.
+        # 2026-08-02: ya no es UN proveedor sino una CADENA (`workers/providers.py`) — se elige el primer escalón
+        # SANO en cada spawn, así el worker siguiente a una cuota agotada arranca solo en el de relevo.
         if "ANTHROPIC_BASE_URL" not in env:
             try:
-                from config import v2 as _v2
-                _ext = _v2.external_worker_env()
+                from nucleo.workers import providers as _prov
+                _ext = _prov.env_for_worker()
+                self._tier = _prov.pick()
                 if _ext:
                     env.update(_ext)
                     env.pop("ANTHROPIC_API_KEY", None)   # evita ambigüedad key-vs-base_url en el CLI
@@ -315,7 +337,19 @@ class ClaudeCodeSession(WorkerBackend):
             # assistant sigue SIN convertirse en say (monólogo interno).
             msg = obj.get("message") or {}
             for block in (msg.get("content") or []):
-                if not (isinstance(block, dict) and block.get("type") == "tool_use"):
+                if not isinstance(block, dict):
+                    continue
+                # NARRACIÓN del worker (2026-08-02). Hasta hoy solo se traducían los `tool_use`, así que entre que
+                # nacía y tocaba su primera herramienta el operador veía un hueco NEGRO (medido: 21 s hasta el primer
+                # paso y 2m21s sin una sola fila en una tarea de 5 min). El worker SÍ está hablando todo ese rato —
+                # dice qué va a hacer, qué ha encontrado, por qué cambia de plan — y eso es justo lo que hay que ver.
+                # Sigue SIN convertirse en `say` (no se habla por voz, §v2·E): es observabilidad pura.
+                if block.get("type") == "text":
+                    txt = " ".join(str(block.get("text") or "").split())
+                    if txt:
+                        yield self._ev("note", text=txt, model=self._model)
+                    continue
+                if block.get("type") != "tool_use":
                     continue
                 name = block.get("name") or ""
                 tin = block.get("input") or {}
@@ -332,6 +366,20 @@ class ClaudeCodeSession(WorkerBackend):
             summary = obj.get("result") or ""
             ok = obj.get("subtype") == "success" and not obj.get("is_error")
             usage = obj.get("usage") or {}
+            # ¿murió por el PROVEEDOR (plan/cuota agotada) y no por la tarea? Hasta hoy ese «API Error … Weekly
+            # Limit Exhausted» se le entregaba al operador como si fuera el RESULTADO de su búsqueda, sin alerta
+            # ni relevo. Marcar aquí pone el escalón en cooldown, dispara la alerta del panel y deja elegido el
+            # siguiente proveedor para el próximo spawn.
+            if not ok:
+                try:
+                    from nucleo.workers import providers as _prov
+                    nxt = _prov.note_failure(str(summary), self._tier)
+                    if nxt is not None or _prov.classify_failure(str(summary)):
+                        yield self._ev("provider_down", text=str(summary)[:300],
+                                       provider=(self._tier or {}).get("name", ""),
+                                       next=(nxt or {}).get("name", ""))
+                except Exception:
+                    pass
             yield self._ev("result", summary=str(summary), ok=bool(ok), usage=usage,
                            cost=obj.get("total_cost_usd"), model=self._model)
             yield self._ev("done")

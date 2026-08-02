@@ -752,6 +752,17 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                "total_ms", "cold_estimate", "gap_since_last_s", "usage_source"):
         if _k in llm_metrics:
             timings.setdefault(f"llm_{_k}" if _k in ("total_ms",) else _k, llm_metrics[_k])
+    # VEREDICTO de latencia, igual que en la voz (paridad probe↔voz): prompt grande vs proveedor vs frío.
+    try:
+        from . import turn_perf as _perf
+        timings["verdict"] = _perf.emit_verdict({
+            **timings, "escalated": action == "escalate", "searched": action == "search",
+            "engine": spec.provider, "model": spec.model,
+            "tok_per_s": (round((llm_metrics.get("completion_tokens") or llm_metrics.get("completion_tokens_est") or 0)
+                                / max(0.001, (llm_metrics.get("total_ms") or 0) / 1000.0), 1)
+                          if llm_metrics.get("total_ms") else None)})
+    except Exception:
+        pass
     return {
         "ok": True,
         "reply": spoken,

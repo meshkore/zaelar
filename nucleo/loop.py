@@ -213,10 +213,15 @@ class OrchestratorLoop:
                 self._timeout_informed.add(tid)
                 goal = (s.get("goal") or self._lang().generic_task)[:40]
                 await self._deliver("zaelar", self._say("worker_timeout_running", goal=goal, minutes=age // 60))
-            elif age >= self._stuck_secs and tid not in self._stuck_informed:
-                # heurística de encallamiento: viejo y sin cambio de fase reciente (aproximado por edad).
+            elif int(s.get("silent_s", age)) >= self._stuck_secs and tid not in self._stuck_informed:
+                # ENCALLADO = CALLADO, no «lleva rato». Hasta el 2026-08-02 esto miraba `age` (la edad de la tarea),
+                # con la propia nota «aproximado por edad» — así que CUALQUIER worker que pasara de 3 min se
+                # declaraba «encallado (sin eventos)» aunque estuviera emitiendo cada 5 s. El Susurro lo creía,
+                # re-escalaba, y salían DOS y TRES workers haciendo el mismo trabajo (visto en vivo: 3 workers y
+                # ~3× el coste para una sola búsqueda). `last_event_at` ya se mantenía en cada evento; solo faltaba
+                # mirarlo. Fallback a `age` si el snapshot es viejo y no trae el campo.
                 self._stuck_informed.add(tid)
-                _emit("worker.stuck", {"id": tid, "age_s": age})
+                _emit("worker.stuck", {"id": tid, "age_s": age, "silent_s": int(s.get("silent_s", age))})
 
     @staticmethod
     def _lang():

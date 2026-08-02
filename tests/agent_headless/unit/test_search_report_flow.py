@@ -102,3 +102,30 @@ def test_empty_input_is_not_recorded():
     window: list[dict] = []
     dialog.push_user(window, "   ")
     assert window == []
+
+
+# ── investigar ≠ conducir un navegador ────────────────────────────────────────────────────────────────────
+def test_research_does_not_drive_a_browser():
+    """«en internet»/«en la web» dicen DÓNDE vive el dato, no que haya que abrir Chromium.
+
+    Observado en vivo el 2026-08-02 con la narración del worker ya visible: «Investiga EN INTERNET y prepárame un
+    informe» casaba `_WEB_RE` → el worker se pasó 7 min clicando por coordenadas para esquivar el banner de
+    cookies de aquopolis.es, sacando un precio que `web_search`+`fetch` habían dado en segundos en la corrida
+    anterior."""
+    for req in (
+        "Investiga en internet y prepárame un informe con 3 parques acuáticos cerca de Tarragona",
+        "busca en la web cuánto cuesta la entrada y ponme el informe en pantalla",
+        "prepara una lista de cuentos infantiles de código abierto",
+    ):
+        assert _classify_kind(req) == "generic", req
+
+
+def test_entering_a_real_site_still_goes_to_the_browser():
+    """La modalidad 2 sigue intacta: cuando hay que ENTRAR y operar un sitio, navegador."""
+    for req in (
+        "busca motos naked de segunda mano en Wallapop",
+        "abre la web del ayuntamiento y descarga el formulario",
+        "inicia sesión en LinkedIn y mira los mensajes",
+        "automatiza la reserva en el sitio de la ITV",
+    ):
+        assert _classify_kind(req) == "web", req

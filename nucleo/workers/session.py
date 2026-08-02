@@ -66,6 +66,11 @@ class SessionRecord:
     pct: int = -1
     note: str = ""
     steps: list = field(default_factory=list)
+    # Murió porque el PROVEEDOR se quedó sin cuota (no por la tarea) → `{provider, next, text}`. Lo pone el
+    # backend al ver el error; `_finish` lo usa para reintentar UNA vez con el escalón de relevo en vez de
+    # entregarle al operador un «API Error … Weekly Limit Exhausted» como si fuera su informe.
+    provider_down: dict | None = None
+    provider_retried: bool = False
     # handles runtime (NO serializar):
     session: "WorkerSession | None" = None
     task: "asyncio.Task | None" = None
@@ -80,6 +85,8 @@ class WorkerSession:
         self._model = spec.model or ""     # V2-048: modelo del worker (chip de observabilidad) — lo afina `spawned`
         self._usage: dict = {}             # tokens del `result` (input/output) → chip de tamaño en la fila final
         self._cost = None                  # coste USD del `result` → texto de la fila final
+        self._started_at = time.time()     # para medir el PRIMER output del worker (su TTFT) — ver _emit_note
+        self._first_output_at = 0.0
 
     @property
     def alive(self) -> bool:
@@ -136,6 +143,13 @@ class WorkerSession:
                     rec.steps = rec.steps[-12:]
             except Exception:
                 pass
+        elif ev.type == "note":
+            self._emit_note(str(d.get("text") or ""))          # narración del worker → observabilidad, no voz
+        elif ev.type == "provider_down":
+            rec.provider_down = {"provider": d.get("provider") or "", "next": d.get("next") or "",
+                                 "text": d.get("text") or ""}
+            self._emit_chip("proveedor sin cuota", (d.get("provider") or "") +
+                            (f" → relevo a {d['next']}" if d.get("next") else " · sin relevo"), ok=False)
         elif ev.type == "progress":
             self._bus("worker.progress", {"id": rec.task_id, "pct": d.get("pct"), "note": d.get("note")})
         elif ev.type == "result":
@@ -157,6 +171,29 @@ class WorkerSession:
 
     async def _finish(self) -> None:
         rec = self._rec
+        # RELEVO DE PROVEEDOR: la tarea no fracasó, se quedó sin gasolina. Se relanza UNA vez —el escalón agotado
+        # ya está en cooldown, así que el spawn nuevo coge el siguiente— en vez de entregarle al operador el error
+        # crudo del proveedor como si fuera el resultado de lo que pidió.
+        if rec.provider_down and not rec.provider_retried and rec.status != "cancelled":
+            rec.provider_retried = True
+            nxt = rec.provider_down.get("next") or ""
+            if nxt:
+                try:
+                    from nucleo.flash import escalate as _esc
+                    _esc.escalate_to_slowbrain(rec.goal, context={
+                        "src": "provider_failover", "kind": rec.kind, "trace": rec.trace_id,
+                        "depth": int(rec.depth or 0)})
+                    rec.result_summary = ""          # sin entrega: la retoma el worker de relevo, sin ruido
+                    rec.ok = False
+                    logger.warning(f"worker[{rec.task_id}]: proveedor sin cuota → relanzada con «{nxt}»")
+                except Exception as e:  # noqa: BLE001
+                    logger.warning(f"worker[{rec.task_id}]: relevo de proveedor falló: {e}")
+                    rec.result_summary = (f"Me he quedado sin cuota en el proveedor de los procesos de fondo y no "
+                                          f"he podido relevarlo. Míralo en el panel de estado.")
+            else:
+                rec.result_summary = ("Me he quedado sin cuota en el proveedor que mueve mis procesos de fondo y "
+                                      "no tengo otro configurado, así que esta tarea se queda parada. Lo tienes "
+                                      "en el panel de estado.")
         if rec.status not in ("cancelled",):
             rec.status = "done" if rec.ok else "error"
         rec.phase = "terminado" if rec.ok else "sin completar"
@@ -275,6 +312,28 @@ class WorkerSession:
             model = self._model or self._spec.model or "(def)"
             emit("worker_start", f"worker · {rec.backend or self._b.name}", text=rec.goal[:120],
                  extra={"id": rec.task_id, "model": model, "layer": rec.kind})
+        except Exception:
+            pass
+
+    def _emit_note(self, text: str) -> None:
+        """Lo que el worker VA DICIENDO mientras trabaja (su razonamiento en voz alta), con el ID de la sesión y el
+        sello `worker` para que en el visor se lea «esto viene del brain worker N». Es la fila que llena el hueco
+        entre que nace y hace algo: sale en cuanto el modelo emite el bloque de texto, sin esperar a una tool.
+
+        Además mide el **primer output** (`first_output_ms` desde que arrancó la sesión) — el equivalente al TTFT de
+        un turno de voz, para poder decir si un worker tardó porque el motor arranca lento o porque el trabajo era
+        largo de verdad."""
+        t = " ".join((text or "").split())
+        if not t:
+            return
+        try:
+            from voice.observer import emit
+            rec = self._rec
+            ex = {"id": rec.task_id, "src": f"worker:{rec.task_id}", "model": self._model or ""}
+            if not self._first_output_at:
+                self._first_output_at = time.time()
+                ex["first_output_ms"] = round((self._first_output_at - self._started_at) * 1000)
+            emit("task", "💬 worker", text=t[:600], extra=ex)
         except Exception:
             pass
 

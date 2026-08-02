@@ -29,7 +29,14 @@ def test_reactive_credit_overrides_ok(monkeypatch):
         def get(k):
             return {"kind": "credit", "text": "429 too many requests"} if k == "llm" else None
     import sys
+
+    import voice
+    # Hay que sustituir AMBOS: `balances` hace `from voice import health_state`, que lee el ATRIBUTO del paquete,
+    # no `sys.modules` — parchear solo sys.modules no tenía efecto en cuanto otro test hubiera importado el módulo
+    # antes (desde 2026-08-02 lo importa el relevo de proveedores del worker), y el test pasaba/fallaba según el
+    # orden de colección.
     monkeypatch.setitem(sys.modules, "voice.health_state", _HS)
+    monkeypatch.setattr(voice, "health_state", _HS, raising=False)
     out = {s["key"]: s for s in balances.summary()}
     assert out["aimlapi"]["state"] == "error"
     assert "SIN SALDO" in out["aimlapi"]["detail"]

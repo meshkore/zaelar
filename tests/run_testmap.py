@@ -65,7 +65,9 @@ DOMAINS: list[dict] = [
         {"id": "2.1", "title": "Enrutado / elección de tool", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_router.py", "tests/agent_headless/unit/flash/test_music_flow.py", "tests/agent_headless/unit/test_demo_routing.py"]},
         {"id": "2.2", "title": "Bucle de diálogo y anti-degeneración", "ch": UNIT, "paths": [
-            "tests/agent_headless/unit/flash/test_dialog.py", "tests/agent_headless/unit/test_loop.py"]},
+            "tests/agent_headless/unit/flash/test_dialog.py", "tests/agent_headless/unit/test_loop.py",
+            # veredicto de latencia del turno: prompt grande vs proveedor vs frío vs trabajo real
+            "tests/agent_headless/unit/test_turn_perf.py"]},
         {"id": "2.3", "title": "Prompt / skeleton / chispas", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_prompt.py", "tests/agent_headless/unit/test_skeleton.py", "tests/agent_headless/unit/test_sparks.py"]},
         {"id": "2.4", "title": "Cliente LLM rápido y reintento", "ch": UNIT, "paths": [
@@ -76,7 +78,13 @@ DOMAINS: list[dict] = [
             "tests/agent_headless/unit/agentes/test_agentes.py", "tests/agent_headless/unit/agentes/test_work_agents.py",
             # las 3 decisiones que hundieron la sesión del 2026-08-02 (llenar≠programar · confirm-gate sobre una
             # investigación · la frase del operador perdida al pisarse los turnos del STT)
-            "tests/agent_headless/unit/test_search_report_flow.py"]},
+            "tests/agent_headless/unit/test_search_report_flow.py",
+            # el worker se ve trabajar desde el primer segundo (narración → observabilidad, nunca voz)
+            "tests/agent_headless/unit/workers/test_worker_narration.py",
+            # el worker puede llamar a sus puentes a la primera (intérprete real + allowlist completo)
+            "tests/agent_headless/unit/workers/test_bridge_interpreter.py",
+            # cadena de proveedores del worker + relevo por cuota agotada + alerta en el panel
+            "tests/agent_headless/unit/workers/test_provider_failover.py"]},
         {"id": "2.6", "title": "Scheduler / rails / workspace / frontend-glue", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/test_scheduler.py", "tests/agent_headless/unit/test_rails.py", "tests/agent_headless/unit/test_workspace.py",
             "tests/agent_headless/unit/flash/test_frontend.py", "tests/agent_headless/unit/flash/test_memory_cache.py"]},

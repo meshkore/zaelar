@@ -175,7 +175,8 @@ arranque `make run` → `python -m server`.
   —cuarentena— y no hace durable una preferencia efímera) + **`nucleo/workers/`** (**Brain Workers V2-038** —
   sustrato AGNÓSTICO: `base.py` [`WorkerBackend`/`WorkerEvent`/`WorkerSpec`], `claude_session.py` [stream-json vivo],
   `generator_session.py` [widgets, envuelve el generador matable], `codex_session.py` [stub], `registry.py`
-  [`get_backend` por config, mezclable], `session.py` [`WorkerSession` + `SessionRecord`]) = capa de trabajo async
+  [`get_backend` por config, mezclable], `session.py` [`WorkerSession` + `SessionRecord`], **`providers.py`**
+  [CADENA de endpoints Anthropic-compatible + relevo por cuota agotada, ver decisión clave]) = capa de trabajo async
   INTERACTIVA. `nucleo/agentes/` (interfaz `CodeAgent` one-shot V2-036 — `worker/web/web_cc/otros.py` **PARKEADOS**
   en V2-038; solo se reutilizan sus helpers de detección de widget). **Puentes de los workers**: `nucleo/mem_cli.py`
   (`hbmem` — memoria serial, recall/remember por HTTP) · `nucleo/agent_report.py`+`nucleo/agent_api.py` (`hbnote` —
@@ -1023,6 +1024,27 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   saludar en trabajo/sondeo); el **guardia de atasco** (bridge, umbrales 2/4) corta el bucle pronto (asertivo 1× →
   callar + avisar al operador). Susurro hereda el canal por `turn.completed`. Detalle:
   `.meshkore/roadmap/initiatives/V2-069-una-sola-mente.md`.
+- **Los Brain Workers no dependen de UN proveedor — cadena + relevo automático** (`nucleo/workers/providers.py`,
+  2026-08-02; detonante: el plan de Z.AI agotó su cuota SEMANAL en mitad de una búsqueda —«[1310] Weekly/Monthly
+  Limit Exhausted. Your limit will reset at 2026-08-04»— y todo se cayó a la vez: el worker murió, al operador se le
+  entregó el texto del error donde esperaba su informe, y el **panel de alertas no dijo nada** porque el proveedor de
+  los workers no estaba en ningún mapa de servicios). **Quien conduce es SIEMPRE Claude Code**; lo que se releva por
+  debajo es el endpoint Anthropic-compatible (`ANTHROPIC_BASE_URL`+`ANTHROPIC_AUTH_TOKEN`). Regla del operador:
+  **planes de SUSCRIPCIÓN (forfait), nunca pago por token** — dos suscripciones baratas cubren el hueco semanal de
+  una. Piezas: **cadena ordenada** (`chain()`) donde un escalón SOLO existe si su credencial está presente (catálogo
+  `KNOWN`: z.ai/GLM, moonshot/Kimi `https://api.moonshot.ai/anthropic`; ampliable con una línea o desde
+  `code_agent.providers` sin tocar código) · **agotado ≠ roto** (`classify_failure`: `exhausted` releva y pone
+  cooldown **hasta la fecha de reset que da el propio proveedor**; `rate` es pasajero y NO quema el escalón; un fallo
+  de la TAREA no es un fallo de proveedor) · cooldown **persistido** (`sys_kv`) para que un reinicio no reintente una
+  cuota agotada hasta el jueves · **el modelo va PEGADO al escalón** (`code_agent.model`=`glm-5.2` solo existe en SU
+  proveedor: el primer relevo cambió el endpoint pero siguió pidiendo `glm-5.2` y el CLI murió con «There's an issue
+  with the selected model» — `providers.relayed()` decide, y sin relevo manda el modelo POR INVOCACIÓN de siempre) ·
+  **reintento único** de la tarea con el escalón de relevo (`SessionRecord.provider_down`, `_finish`) · y la
+  **ALERTA** por fin en el panel (`balances.worker_providers()` + `summary_with_workers()`, alimentado por
+  `health_state`), con una fila propia `worker:sin-relevo` cuando no queda ningún escalón. **La licencia local de
+  Claude Code es el ÚLTIMO escalón y SOLO en local** (autorizado por el operador 2026-08-02): un login de navegador
+  no corre en un contenedor, así que en **cloud la cobertura la dan dos tokens de suscripción**, nunca la licencia.
+  Fail-open: sin config ni credenciales, `env_for_worker()` devuelve {} y todo se comporta como antes.
 - **«Homeostasis» — el LATIDO AUTÓNOMO del sistema** (`nucleo/homeostasis.py`, V2-070, 2026-07-25; detonante: el
   incidente del motor LiveKit degradado del 2026-07-25 — tras ~7h de bucle `wait_pc_connection timed out` el chat/voz
   dejó de responder y NADA lo curó). El sistema emula a un humano en **tres niveles, y solo dos piensan**: **Mente**

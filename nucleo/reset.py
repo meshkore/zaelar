@@ -63,10 +63,17 @@ def reset_all() -> dict:
     # (1) + (2): congelar en ESTADO y registrar la orden en CORTO. La memoria ordena las inserciones (cola async).
     try:
         from memory import api as memory
-        if frozen_n:
-            memory.set_state({"trabajo_interrumpido": {
-                "cuando": ts, "navegador": nav, "escaladas": esc, "widgets_en_curso": jobs,
-            }})
+        # El snapshot se escribe SIEMPRE, incluso vacío. Antes era `if frozen_n:` → si al resetear no había nada
+        # corriendo, el snapshot del reset ANTERIOR se quedaba ahí para siempre, y el operador que aprieta Reset
+        # «para empezar de cero» arrastraba el trabajo interrumpido de hace días. Un reset sin nada en curso tiene
+        # que dejarlo en blanco: es residuo de PROCESOS, no un recuerdo (2026-08-02).
+        memory.set_state({"trabajo_interrumpido": ({
+            "cuando": ts, "navegador": nav, "escaladas": esc, "widgets_en_curso": jobs,
+        } if frozen_n else {})})
+        # Las proyecciones de trabajo VIVO en el estado (`activity`/`sessions`, las que alimentan «PROCESOS DE
+        # FONDO» en el prompt) se vacían YA — el loop las recompone en su siguiente pulso, pero hasta entonces el
+        # cerebro seguiría creyendo que hay tareas en marcha justo después de matarlas.
+        memory.set_state({"activity": [], "sessions": []})
         resumen = f"navegador {len(nav)} · escaladas {len(esc)} · widgets {len(jobs)}"
         memory.write(
             f"[RESET] El operador detuvo TODO el trabajo en curso ({resumen}). "

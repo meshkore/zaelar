@@ -1972,6 +1972,14 @@ class NucleoLLMStream(llm.LLMStream):
             "engine": spec.provider, "model": spec.model,
         }
         emit("brain", "⚡ Nucleo(flash): reply", text=spoken_text, role="assistant", extra=_reply_extra)
+        # …y el VEREDICTO en una línea legible: si el turno pasó del listón, POR QUÉ (prompt grande / proveedor /
+        # frío / trabajo real). Los números ya estaban todos en `_reply_extra`, pero enterrados en el extra: había
+        # que exportar el jsonl para saber si un turno de 8 s fue culpa nuestra o del proveedor.
+        try:
+            from nucleo.flash import turn_perf as _perf
+            _perf.emit_verdict({**_reply_extra, "total_ms": _fast_ms})
+        except Exception:
+            pass
 
         # CAPTURA FORENSE del turno (V2-040): prompt + ventana + tools + decisión, en categoría `system` (fichero,
         # no floodea el visor) — para diagnosticar a futuro cosas como la re-escalada en un turno ambiente.

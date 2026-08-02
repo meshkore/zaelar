@@ -31,9 +31,20 @@ from nucleo.workers import WorkerSpec, get_backend
 from nucleo.workers.session import SessionRecord, WorkerSession
 
 # Heurística de clasificación (solo cuando el escalado no fija `kind`). Conservadora.
+# kind="web" = hay que ENTRAR a un sitio concreto y operarlo con un navegador real (modalidad 2 de la decisión
+# «búsqueda web» de CLAUDE.md: marketplaces, login, automatizar una gestión). NO es «el dato está en internet» —
+# eso es INVESTIGACIÓN (modalidad 3) y la hace un worker genérico con WebSearch/WebFetch, que es muchísimo más
+# rápido y no se pelea con banners de cookies.
+#
+# Se quitan de aquí «en la web» y «en internet» (2026-08-02): «investiga EN INTERNET y prepárame un informe»
+# casaba y mandaba la tarea al navegador. Observado en vivo con la narración del worker: 7 minutos peleándose con
+# el banner de cookies de aquopolis.es, clicando por coordenadas y pidiendo análisis de imagen, para sacar un
+# precio que `web_search` + `fetch` habían dado en segundos en la corrida anterior. Decir dónde vive un dato no es
+# pedir que se abra un navegador.
 _WEB_RE = re.compile(
-    r"\b(en\s+wallapop|wallapop|en\s+amazon|en\s+la\s+web|en\s+internet|navegador|abre\s+la\s+web|"
-    r"en\s+linkedin|linkedin|en\s+el\s+sitio|en\s+la\s+p[áa]gina|automatiza)\b", re.I)
+    r"\b(en\s+wallapop|wallapop|en\s+amazon|amazon|navegador|abre\s+la\s+web|abre\s+la\s+p[áa]gina|"
+    r"en\s+linkedin|linkedin|en\s+el\s+sitio|en\s+la\s+p[áa]gina|automatiza|"
+    r"in[ií]ciame?\s+sesi[óo]n|log[ui]n)\b", re.I)
 # El generador (kind="code") SOLO construye/modifica el CÓDIGO de un widget. Antes `_CODE_RE` matcheaba la palabra
 # «widget/tarjeta/panel» A SECAS → CUALQUIER tarea que la mencionara (p.ej. «abre y muestra el mensaje… se refleja
 # en el widget de mensajería») caía en el generador y CONSTRUÍA un widget basura (incidente 2026-08-01, clase del
@@ -136,12 +147,28 @@ def set_loop(loop) -> None:
 
 
 def _model_for(kind: str) -> str:
+    """Modelo del worker — PEGADO AL ESCALÓN DE PROVEEDOR que se vaya a usar, no al config global.
+
+    `code_agent.model` (p.ej. `glm-5.2`) solo existe en SU proveedor. Al relevar a otro escalón hay que relevar
+    también el nombre del modelo: con la cuota de Z.AI agotada, el relevo a la licencia local seguía pidiendo
+    `glm-5.2` y el CLI moría al instante con «There's an issue with the selected model (glm-5.2)» — un relevo que
+    no releva. Con la licencia (o cualquier escalón sin modelo declarado) se devuelve "" y el CLI usa su default."""
+    def _configured() -> str:
+        try:
+            from config import v2 as _v2
+            key = kind if kind in ("web", "code", "memory") else "generic"
+            return _v2.code_agent_model(key)
+        except Exception:
+            return ""
+
     try:
-        from config import v2 as _v2
-        key = kind if kind in ("web", "code", "memory") else "generic"
-        return _v2.code_agent_model(key)
+        from nucleo.workers import providers as _prov
+        if not _prov.relayed():
+            return _configured()                    # sin relevo, manda el modelo por invocación de siempre
+        tier = _prov.pick() or {}
     except Exception:
-        return ""
+        return _configured()
+    return str(tier.get("model") or "")              # relevado: el modelo del escalón, o el default del proveedor
 
 
 def _tools_for(kind: str, trusted: bool) -> list[str] | None:
@@ -169,8 +196,17 @@ def _tools_for(kind: str, trusted: bool) -> list[str] | None:
 #   · SIN puentes de memoria (ZAELAR_NO_BRIDGE_TOOLS) → un dev de cluster no lee/escribe la memoria del operador.
 #   · PYTHONPATH al engine para que el puente sea importable desde el cwd temporal.
 _ENGINE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-_DEV_TOOLS = ["Read", "Write", "Edit",
-              "Bash(python -m nucleo.git_cli:*)", "Bash(.venv/bin/python -m nucleo.git_cli:*)"]
+def _git_tools() -> list[str]:
+    """Mismo criterio que los puentes de `claude_session._BRIDGE_TOOLS`: TODAS las formas de escribir el intérprete,
+    para que el dev worker no se quede pidiendo una aprobación que en headless nadie va a dar."""
+    try:
+        from nucleo.workers.claude_session import _INTERPRETERS
+        return [f"Bash({py} -m nucleo.git_cli:*)" for py in _INTERPRETERS]
+    except Exception:
+        return ["Bash(python -m nucleo.git_cli:*)", "Bash(.venv/bin/python -m nucleo.git_cli:*)"]
+
+
+_DEV_TOOLS = ["Read", "Write", "Edit", *_git_tools()]
 
 
 def _dev_worker_params(context: dict) -> dict | None:
@@ -256,6 +292,9 @@ def active_sessions() -> list[dict]:
         out.append({
             "id": r.task_id, "kind": r.kind, "backend": r.backend, "goal": r.goal[:120],
             "phase": r.phase, "status": r.status, "age_s": int(now - r.started), "paused": r.paused,
+            # SILENCIO real desde el último evento del worker. Es lo que de verdad dice si está encallado — `age_s`
+            # solo dice si lleva rato trabajando, que no es lo mismo (ver el detector en nucleo/loop.py).
+            "silent_s": int(now - (r.last_event_at or r.started)),
             "waiting_on": r.waiting_on, "ask": r.ask[:160] if r.ask else "",
             # V2-059: observabilidad estructurada — plan + progreso + últimos pasos reales.
             "plan": list(r.plan), "done": r.done, "total": len(r.plan), "pct": _progress_pct(r),
@@ -388,7 +427,8 @@ def sync_state() -> None:
         # si se incluye, con una sesión viva el snapshot difiere SIEMPRE y se reescribe el estado cada tick
         # (flood de MEMORY·state, el bug 2026-07-16). Comparo solo los campos ESTABLES; el estado escrito sí
         # conserva age_s (lo usa el prompt), pero no dispara memory.updated si nada relevante cambió.
-        stable = [{k: v for k, v in s.items() if k not in ("age_s", "secs", "updated", "ts")} for s in sess]
+        stable = [{k: v for k, v in s.items() if k not in ("age_s", "silent_s", "secs", "updated", "ts")}
+                  for s in sess]
         snap = (tuple(labels), json.dumps(stable, sort_keys=True, default=str))
         if snap == _last_sync:
             return                      # nada relevante cambió → no reescribir ni emitir memory.updated (~1 Hz)
@@ -697,11 +737,15 @@ _METHOD_BLOCK = (
     "cualquier cosa (sitios, alojamientos, productos, anuncios, artículos, proyectos, ficheros, opciones, "
     "candidatos…). El operador mira una pantalla: un listado que solo se DICE por voz es una entrega a medias y se "
     "pierde en cuanto acaba la frase. Hazlo con la superficie genérica de presentación: "
-    "`python -m nucleo.widget_cli read results` (te devuelve su contrato y la forma EXACTA del payload) → escribe "
-    "el JSON a un fichero y entrégalo con `python -m nucleo.widget_cli data results present @informe.json` → "
-    "`python -m nucleo.widget_cli show results`. **El payload SIEMPRE por fichero (`@ruta.json`)**: un informe "
-    "lleva comillas, acentos y URLs, y pegado en la línea de comandos se rompe o se queda pidiendo un permiso que "
-    "nadie te va a dar. No te inventes tu propio script para llamar a la API: usa el puente, que ya está permitido. "
+    "`python -m nucleo.widget_cli read results` (te devuelve su contrato y la forma EXACTA del payload) → "
+    "entrégalo en DOS pasos, que es la ÚNICA forma probada que pasa los guardas:\n"
+    "     (i)  escribe el JSON con tu tool Write a un fichero de RUTA RELATIVA en tu directorio de trabajo — "
+    "`informe.json` a secas. NUNCA `/tmp/…` ni una ruta absoluta ni `TMP/`: fuera de tu directorio la escritura "
+    "pide una aprobación que nadie te va a dar.\n"
+    "     (ii) `python -m nucleo.widget_cli data results present @informe.json`\n"
+    "   …y después `python -m nucleo.widget_cli show results`. **Nunca pegues el JSON en la línea de comandos ni "
+    "uses un heredoc**: las comillas y las llaves los bloquea el guarda del shell. Y no te inventes un script "
+    "propio para llamar a la API: el puente ya está permitido, úsalo tal cual. "
     "Ponlo en cuanto tengas resultados sólidos, y ve añadiendo con `data results append` según encuentres más: es "
     "mejor que el operador vea llenarse el informe que esperar callado al final. Cada item con su enlace REAL y, si "
     "el operador pidió verlo con fotos, su `image`. La voz final entonces es CORTA (2-3 frases: qué has encontrado "
@@ -754,7 +798,32 @@ def _build_prompt(request: str, context: str, trusted: bool) -> str:
                          "quejas del operador ('no se oye', 'ciérralo', 'eso') se refieren a lo que sale AQUÍ):\n"
                          + recent)
     parts.append("PETICIÓN:\n" + request)
-    return "\n\n".join(parts)
+    return _with_interpreter("\n\n".join(parts))
+
+
+# El prompt se ESCRIBE con `python -m nucleo.…` porque así se lee; lo que le LLEGA al worker es el intérprete REAL
+# y absoluto. En esta máquina `python` a secas no existe (solo `python3` y el venv) — y el worker obedecía la
+# instrucción al pie de la letra, fallaba, y se ponía a probar variantes hasta topar con el allowlist. Con la
+# narración del worker visible (2026-08-02) se le vio decirlo con todas las letras: «`python` (bare) pasó el
+# permiso pero no existe el binario; `.venv/bin/python` existe pero pide aprobación». Sustituir aquí es un solo
+# punto de verdad: el texto sigue legible y el comando sale siempre ejecutable y ya permitido.
+def _with_interpreter(prompt: str) -> str:
+    # Solo si el prompt REALMENTE trae puentes. El perfil UNTRUSTED (texto de un peer) va sin tools por
+    # construcción: colarle la cabecera le daría la ruta absoluta del engine sin ninguna necesidad.
+    if "python -m nucleo." not in prompt:
+        return prompt
+    try:
+        from nucleo.workers.claude_session import bridge_python
+        py = bridge_python()
+    except Exception:
+        return prompt
+    if not py or py == "python":
+        return prompt
+    out = prompt.replace("python -m nucleo.", f"{py} -m nucleo.")
+    return (f"INTÉRPRETE: para CUALQUIER puente (`-m nucleo.…`) usa EXACTAMENTE `{py}`, tal cual, siempre. Está "
+            f"permitido y funciona. NO uses `python` a secas ni `python3` ni rutas relativas: si un comando te pide "
+            f"aprobación es que lo escribiste distinto — corrige el intérprete, no busques otra vía ni escribas un "
+            f"script propio para llamar a la API.\n\n") + out
 
 
 # ── contrato WEB restaurado (demo 2026-07-14: la búsqueda corrió INVISIBLE) ────────────────────────────────
@@ -879,7 +948,11 @@ _HUMAN_NAV_GUIDE = (
 def _web_prompt(goal: str, context: str) -> str:
     """Prompt del worker WEB (portado de web_cc/V2-036 al sustrato V2-038): conduce el navegador por hbweb con
     criterio de CIERRE (extraer → concluir → entregar) e hitos visibles. Sin él, el worker deambula."""
-    py = ".venv/bin/python"
+    try:
+        from nucleo.workers.claude_session import bridge_python
+        py = bridge_python()          # absoluto y permitido; `.venv/bin/python` relativo pedía aprobación
+    except Exception:
+        py = ".venv/bin/python"
     try:
         from voice.engine.core import langs
         native = langs.current_language().native

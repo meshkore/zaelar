@@ -144,7 +144,7 @@ async def get_config():
     out["catalog"] = _PROVIDER_CATALOG
     try:
         from config import balances
-        out["apis"] = balances.summary()
+        out["apis"] = balances.summary_with_workers()
     except Exception:
         out["apis"] = []
     return JSONResponse(out)
@@ -213,7 +213,7 @@ async def get_apis(refresh: bool = False):
     Para el resumen de la config y las alertas del diálogo de estado. `refresh=1` fuerza resondeo."""
     try:
         from config import balances
-        return JSONResponse({"apis": balances.summary(refresh=refresh), "alerts": balances.alerts(refresh=refresh)})
+        return JSONResponse({"apis": balances.summary_with_workers(refresh=refresh), "alerts": balances.alerts(refresh=refresh)})
     except Exception as e:  # noqa: BLE001
         return JSONResponse({"apis": [], "alerts": [], "error": str(e)[:120]})
 

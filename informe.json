@@ -1,0 +1,45 @@
+{
+  "title": "3 parques acuáticos cerca de Tarragona",
+  "subtitle": "Precio de entrada y web oficial",
+  "columns": 3,
+  "items": [
+    {
+      "title": "PortAventura Caribe Aquatic Park",
+      "subtitle": "Salou · dentro de PortAventura World",
+      "price": "Adulto 32€",
+      "lines": [
+        "Adulto (11-59): 32€ (desde 24€ anticipada)",
+        "Junior (4-10) y senior (+60): 28€",
+        "Menores de 3 años: gratis",
+        "Abierto de mayo a septiembre"
+      ],
+      "badge": "Nuevo 2026: Coral Bay",
+      "url": "https://www.portaventuraworld.com/en/promotions/tickets-caribe-aquatic-park",
+      "primary": true
+    },
+    {
+      "title": "Aqualeon Water Park",
+      "subtitle": "Albinyana (Tarragona)",
+      "price": "Adulto 33€",
+      "lines": [
+        "Adulto (11-64): 33€",
+        "Infantil (5-10) y senior (+65): 24€",
+        "Mini (3-4 años): 13€",
+        "Menores de 2 años: gratis"
+      ],
+      "url": "https://www.aqualeon.es/",
+      "primary": true
+    },
+    {
+      "title": "Aquopolis Costa Dorada",
+      "subtitle": "La Pineda, Vila-seca (cerca de Salou)",
+      "price": "Adulto 24,95€",
+      "lines": [
+        "Adulto general (+140 cm): 24,95€ online",
+        "Entrada reducida: 19,95€"
+      ],
+      "url": "https://costa-dorada.aquopolis.es/",
+      "primary": true
+    }
+  ]
+}

@@ -161,6 +161,33 @@ def summary(refresh: bool = False) -> list[dict]:
     return out
 
 
+def worker_providers() -> list[dict]:
+    """Escalones del proveedor de los BRAIN WORKERS, en el mismo formato que el resto de servicios.
+
+    Faltaba justo esto (2026-08-02): el plan de Z.AI agotó su cuota semanal en mitad de una tarea y el panel de
+    alertas —que existe para avisar de esto— no dijo nada, porque el proveedor de los workers no estaba en
+    ningún mapa. El operador se enteró leyendo un «API Error … Weekly Limit Exhausted» donde esperaba su informe."""
+    try:
+        from nucleo.workers import providers as prov
+        tiers = prov.status()
+    except Exception:
+        return []
+    out = []
+    for t in tiers:
+        out.append({"key": f"worker:{t['name']}", "enables": f"procesos de fondo · {t.get('plan', '')}",
+                    "set": True, "state": t["state"],
+                    "detail": ("EN USO · " if t.get("active") else "") + t.get("detail", "")})
+    if tiers and all(t["state"] != "ok" for t in tiers):
+        out.append({"key": "worker:sin-relevo", "enables": "procesos de fondo", "set": True, "state": "error",
+                    "detail": "NINGÚN proveedor con cuota — los procesos de fondo no pueden correr"})
+    return out
+
+
+def summary_with_workers(refresh: bool = False) -> list[dict]:
+    """summary() + los escalones de los workers. Lo que debe pintar el diálogo de estado."""
+    return summary(refresh=refresh) + worker_providers()
+
+
 def alerts(refresh: bool = False) -> list[dict]:
     """Solo los servicios en estado warn/error (para el diálogo de estado). Subconjunto de summary()."""
-    return [s for s in summary(refresh=refresh) if s.get("state") in ("warn", "error")]
+    return [s for s in summary_with_workers(refresh=refresh) if s.get("state") in ("warn", "error")]
