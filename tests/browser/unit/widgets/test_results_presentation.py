@@ -17,15 +17,18 @@ import asyncio
 
 import pytest
 
-from widgets import actions, runtime
+from widgets import actions, runtime, store
 from widgets.results import data as results
 
 
 @pytest.fixture(autouse=True)
-def _clean_sheet():
-    results.apply_action("clear", {})
+def _isolated_sheet(tmp_path, monkeypatch):
+    """Store AISLADO. La primera versión de estos tests limpiaba el store REAL entre casos y le borró al operador
+    el informe que tenía en pantalla en mitad de una regresión — exactamente el fallo que venimos a arreglar."""
+    monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
+    store._last_hash.pop("results", None)          # el gate de "contenido idéntico" es por proceso, no por dir
     yield
-    results.apply_action("clear", {})
+    store._last_hash.pop("results", None)
 
 
 def _present(**payload):
