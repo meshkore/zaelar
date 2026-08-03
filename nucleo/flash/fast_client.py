@@ -52,6 +52,26 @@ def _is_transient(e: Exception) -> bool:
     return status in (408, 429, 500, 502, 503, 504)
 
 
+async def _raise_with_body(resp) -> None:
+    """`resp.raise_for_status()`, pero con el CUERPO de la respuesta metido en el mensaje de la excepción. Sin
+    esto, un 429 de Z.AI llega como el mensaje genérico de httpx («429 Too Many Requests», sin más) y quien
+    clasifica el fallo aguas abajo (`nucleo.flash.provider_chain.classify_failure`, y su hermano de
+    `nucleo.workers.providers`) no puede distinguir «cuota SEMANAL agotada, reset el jueves» (hay que relevar) de
+    un rate-limit pasajero (se reintenta solo) — los dos dan el MISMO 429 desnudo. No-op si la respuesta es OK."""
+    import httpx
+    if resp.status_code < 400:
+        return
+    try:
+        await resp.aread()          # no-op si ya está buffered (Response normal); imprescindible en streaming
+        body = (resp.text or "")[:400]
+    except Exception:
+        body = ""
+    err = httpx.HTTPStatusError(f"{resp.status_code} {resp.reason_phrase}" + (f" — {body}" if body else ""),
+                                request=resp.request, response=resp)
+    err.status_code = resp.status_code   # deja que `_is_transient` lo detecte también por status_code, no solo texto
+    raise err
+
+
 def _keepalive_expiry() -> float:
     """Segundos que el pool HTTP mantiene VIVA una conexión ociosa (FASE 1 cold-start). httpx por defecto la cierra
     a los ~5s → el prewarm no llega al 1er turno. La subimos mucho (def 30 min). Configurable `FAST_HTTP_KEEPALIVE_S`.
@@ -366,7 +386,7 @@ class FastClient:
             try:
                 async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=10.0)) as client:
                     resp = await client.post(url, json=payload, headers=headers)
-                    resp.raise_for_status()
+                    _raise_with_body(resp)
                 break
             except Exception as e:  # noqa: BLE001
                 if _attempt >= _CONNECT_RETRIES or not _is_transient(e):
@@ -427,7 +447,7 @@ class FastClient:
             try:
                 async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=10.0)) as client:
                     async with client.stream("POST", url, json=payload, headers=headers) as resp:
-                        resp.raise_for_status()
+                        await _raise_with_body(resp)
                         async for line in resp.aiter_lines():
                             if not line or not line.startswith("data:"):
                                 continue

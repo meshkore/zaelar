@@ -86,7 +86,8 @@ Esto es lo que ocurre, en ORDEN, cada vez que un peer manda algo (`bridge.on_eve
 7. **Catálogo de tools** — por defecto, VACÍO (perfil untrusted puro). Si el operador concedió un perfil de
    permisos a ESTE cluster (§3), se calcula el subconjunto permitido y se pasa al motor.
 8. **Llamada al motor** (`nucleo/flash/cluster.py::respond`, `FastClient.complete` NO-streaming, con el modelo
-   del tier off-voz que resuelva `connectors/meshkore/brain.py`).
+   del tier off-voz que resuelva `connectors/meshkore/brain.py` — con RELEVO automático si el proveedor falla,
+   ver §1.5b).
 9. **Parseo de la respuesta** — solo se admiten los tags `cluster.send`/`cluster.done`/`cluster.pact` desde un
    turno de peer (`_CLUSTER_TURN_ALLOWED`); cualquier otro tag (`cluster.connect`, `cron.*`, `widget.*`…) se
    DESCARTA y se avisa al operador — un peer no puede colar una acción con privilegio de operador en su reply.
@@ -106,6 +107,43 @@ Un tick periódico (`TICK_SECS`) hace dos cosas, independientes:
 - **Nudge por inactividad**: si un cluster está "engaged" (con un objetivo activo) y lleva `IDLE_SECS` en
   silencio con peers presentes, el motor manda UN follow-up humano — nunca espera en bucle sin más.
 - **Evaluador de salud** (§1.6), con su propio throttle (`EVAL_SECS`), solo sobre charlas realmente activas.
+
+### 1.5b Relevo de proveedor del tier off-voz (2026-08-03)
+
+Incidente que lo motiva: el 2026-08-03 la cuota de Z.AI se agotó y CADA turno de cluster (el nudge de arriba
+insistiendo en responder a un peer) repetía la MISMA llamada rota → `429 Too Many Requests` en bucle, sin relevo
+y sin que ningún panel dijera nada — el tier se fijaba UNA VEZ al arrancar el server.
+
+Ahora `nucleo/flash/provider_chain.py` (hermano de `nucleo/workers/providers.py`, mismo diseño — cadena
+ordenada de escalones, cooldown, `classify_failure` reusado) resuelve el tier **por turno**:
+
+1. `connectors/meshkore/brain.py::_brain()` llama `provider_chain.pick()` en cada turno (barato: un dict de
+   cooldowns en memoria, no red) — nunca vuelve a probar toda la cadena, solo consulta el escalón sano actual.
+2. Si `cluster.respond` falla, `provider_chain.note_failure(texto_del_error, tier)` clasifica el fallo
+   («exhausted» = cuota/plan agotado → releva y pone en cooldown hasta la fecha de reset del proveedor si la da;
+   «auth» → cooldown corto; «rate» = 429 pasajero → NO releva, se reintenta solo) y devuelve el escalón de
+   RELEVO si lo hay.
+3. Con relevo, `_brain()` **reintenta ese mismo turno una vez** con el nuevo tier — el mensaje real-time al peer
+   no se pierde solo porque el tier de cabecera se quedara sin cuota a mitad de conversación.
+4. El relevo es **STICKY**: el siguiente turno ya arranca en el tier nuevo (cooldown persistido en `sys_kv`); no
+   hay "probar cada petición contra toda la cadena".
+5. Cadena por defecto (sin config explícita) = las credenciales presentes, en el mismo orden que tenía
+   `brain.py._resolve_endpoint` antes de esto: Z.AI directo → AIMLAPI/DeepSeek → xAI directo → Groq directo. El
+   operador puede fijar el orden a mano en `config/v2 cluster.providers` (lista `[{name, base_url, env, model,
+   plan}, …]`; vacío = el default de arriba).
+6. Aviso al operador: mismo canal que el resto de proveedores — `voice.health_state.record("cluster_brain", …)` +
+   `voice.observer.emit("perf", …)`, visibles en el panel ⚙ (`config/balances.py::cluster_providers()`, sumado a
+   `summary_with_workers()`) y en el badge rojo del propio icono ⚙ (`store.apiAlerts()`).
+
+`nucleo/flash/fast_client.py::_complete_zai`/`_stream_zai` (el wire Anthropic-compatible que habla Z.AI directo)
+ahora capturan el CUERPO de la respuesta de error (`_raise_with_body`) antes de lanzar — sin esto, un 429
+llegaba como el mensaje genérico de httpx («429 Too Many Requests», sin más) y `classify_failure` no podía
+distinguir «cuota semanal agotada, reset el jueves» de un rate-limit pasajero: los dos daban el mismo 429 desnudo.
+
+Ver también `nucleo/workers/providers.py` (el MISMO problema, para el CLI `claude` de los brain workers en vez
+del modelo del canal) — módulos hermanos, deliberadamente separados (un escalón ahí es un endpoint
+`ANTHROPIC_BASE_URL` para un CLI; aquí es un `ModelSpec` de `FastClient`) en vez de forzar los dos casos por una
+abstracción común.
 
 ### 1.6 El evaluador — el criterio HUMANO, hecho por un modelo (V2-075)
 

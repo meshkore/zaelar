@@ -183,9 +183,31 @@ def worker_providers() -> list[dict]:
     return out
 
 
+def cluster_providers() -> list[dict]:
+    """Escalones del proveedor del CEREBRO DE CLUSTER (`nucleo.flash.provider_chain`, 2026-08-03), mismo formato
+    que `worker_providers()`. Faltaba justo esto: un 429 de Z.AI en el turno de cluster (el heartbeat insistiendo
+    en responder a un peer) no aparecía en ningún sitio del panel — el operador solo lo veía en el log crudo
+    («cluster brain turn failed: 429»), en bucle, cada vez que el heartbeat volvía a intentar."""
+    try:
+        from nucleo.flash import provider_chain as pc
+        tiers = pc.status()
+    except Exception:
+        return []
+    out = []
+    for t in tiers:
+        out.append({"key": f"cluster:{t['name']}", "enables": f"cerebro de cluster (off-voz) · {t.get('plan', '')}",
+                    "set": True, "state": t["state"],
+                    "detail": ("EN USO · " if t.get("active") else "") + t.get("detail", "")})
+    if tiers and all(t["state"] != "ok" for t in tiers):
+        out.append({"key": "cluster:sin-relevo", "enables": "cerebro de cluster", "set": True, "state": "error",
+                    "detail": "NINGÚN proveedor con cuota — el canal de cluster no puede responder"})
+    return out
+
+
 def summary_with_workers(refresh: bool = False) -> list[dict]:
-    """summary() + los escalones de los workers. Lo que debe pintar el diálogo de estado."""
-    return summary(refresh=refresh) + worker_providers()
+    """summary() + los escalones de los workers + los del cerebro de cluster. Lo que debe pintar el diálogo de
+    estado. (El nombre quedó corto tras sumar `cluster_providers()` — se conserva para no tocar los llamadores.)"""
+    return summary(refresh=refresh) + worker_providers() + cluster_providers()
 
 
 def alerts(refresh: bool = False) -> list[dict]:

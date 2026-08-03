@@ -76,3 +76,34 @@ def test_is_transient_classification():
     assert _is_transient(type("E", (Exception,), {"status_code": 503})())
     assert not _is_transient(type("E", (Exception,), {"status_code": 400})())
     assert not _is_transient(ValueError("bad input schema"))
+
+
+# ── el CUERPO del 429 viaja con la excepción (2026-08-03) ────────────────────────────────────────────────────
+# Sin esto, el 429 de Z.AI (`_complete_zai`/`_stream_zai`, que hablan httpx crudo, no el SDK OpenAI) llega como el
+# mensaje genérico de httpx («429 Too Many Requests», sin más) y `nucleo.flash.provider_chain.classify_failure`
+# (y su hermano de `nucleo.workers.providers`) no puede distinguir cuota SEMANAL agotada de un blip pasajero — los
+# dos dan el MISMO 429 desnudo. Verificado con el diagnóstico real del operador 2026-08-03.
+class _FakeHttpxResp:
+    def __init__(self, status_code, body):
+        self.status_code = status_code
+        self.reason_phrase = "Too Many Requests" if status_code == 429 else "Error"
+        self._body = body
+        self.request = None
+    async def aread(self):
+        pass
+    @property
+    def text(self):
+        return self._body
+
+
+def test_raise_with_body_embeds_the_response_text_for_exhaustion():
+    from nucleo.workers.providers import classify_failure
+    resp = _FakeHttpxResp(429, '{"error":{"message":"[1310][Weekly Limit Exhausted. reset at 2026-08-04]"}}')
+    with pytest.raises(Exception) as ei:
+        asyncio.run(fc._raise_with_body(resp))
+    assert classify_failure(str(ei.value)) == "exhausted"
+
+
+def test_raise_with_body_is_a_noop_on_success():
+    resp = _FakeHttpxResp(200, "")
+    asyncio.run(fc._raise_with_body(resp))    # no lanza

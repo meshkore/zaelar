@@ -57,6 +57,19 @@ _DEFAULTS: dict[str, dict] = {
         "base_url": "",
         "max_parallel": 3,                                  # POOL: máx sesiones Claude Code concurrentes (V2-036) —
         #                                                     no saturar equipo/tokens; env CODE_AGENT_MAX_PARALLEL.
+        # Cadena de RELEVO explícita (2026-08-03): el operador ordena a mano principal→failover→failover (cada uno
+        # {name, base_url, env|api_key, model, plan}). `nucleo.workers.providers.chain()` la lee si NO está vacía;
+        # vacío (default) = comportamiento de siempre (base_url de arriba + catálogo KNOWN + licencia local).
+        "providers": [],
+    },
+    # Cadena del CEREBRO DE CLUSTER (V2-069 «una sola mente», off-voz — `nucleo.flash.provider_chain`, 2026-08-03).
+    # Motiva esto el incidente del 429 de Z.AI: un turno de cluster (heartbeat/reply a un peer) solo tenía UN tier
+    # fijado al arrancar el server (`connectors/meshkore/brain.py`), sin relevo — agotada su cuota, el turno moría
+    # y se reintentaba SIEMPRE contra el mismo proveedor roto. `providers` (vacío = default) deja al operador fijar
+    # a mano principal→failover→failover ({name, base_url, env|api_key, model, plan}); vacío = cadena por defecto
+    # construida de las credenciales presentes (Z.AI directo → AIMLAPI/DeepSeek → xAI → Groq), igual que siempre.
+    "cluster": {
+        "providers": [],
     },
     # Memoria — modelos de RECUPERACIÓN (embedding + reranker), MODEL-AGNOSTIC (V2-030). Igual que `fast`/
     # `code_agent`: DEFAULTS que la memoria lee; local por defecto (autosuficiente con nuestra GPU/CPU), listo

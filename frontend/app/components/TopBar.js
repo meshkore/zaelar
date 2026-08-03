@@ -31,9 +31,12 @@ export function TopBar() {
       onClick: () => { const v = !store.debugOpen(); store.setDebugOpen(v); api.uiEvent("topbar:debug", { state: v ? "open" : "close" }); },
     }, raw(BUG_ICON)),
     // ☾/☀ theme MOVED to the orb's upper lid (V2-039 «ojo» — generic/personal control, helps close the eye shape).
+    // Badge rojo (2026-08-03): store.apiAlerts() ya alimenta el ◉ de estado; el mismo dato aquí porque ⚙ es donde
+    // el operador mira el detalle por proveedor (workers/cluster relevados, saldo agotado…) — no un aviso nuevo.
     h("button", { class: () => "ic" + (store.configOpen() ? " on" : ""), id: "cfgBtn",
       title: () => t("topbar.settings.title"),
-      onClick: () => { const v = !store.configOpen(); store.setConfigOpen(v); api.uiEvent("topbar:settings", { state: v ? "open" : "close" }); } }, raw(GEAR_ICON)),
+      onClick: () => { const v = !store.configOpen(); store.setConfigOpen(v); api.uiEvent("topbar:settings", { state: v ? "open" : "close" }); } },
+      raw(GEAR_ICON), () => ((store.apiAlerts() || []).length ? h("span", { class: "ic-badge" }) : null)),
     // 🧭 Wizard de config (V2-040): perfil local/cloud + detector del sistema + credenciales. Se auto-abre en el
     // primer arranque; este icono lo reabre cuando el operador quiera revalidar/cambiar el perfil.
     h("button", { class: () => "ic" + (store.wizardOpen() ? " on" : ""), id: "wizBtn",

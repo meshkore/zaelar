@@ -199,6 +199,12 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
     display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:15px;cursor:pointer}
 .ic svg{width:19px;height:19px}
 .ic:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
+.ic{position:relative}
+/* Badge de alerta sobre un botón `.ic` (2026-08-03): un proveedor (LLM/voz/cerebro de cluster/brain workers) sin
+   saldo/cuota — mismo dato que ya pinta rojo el ◉ de estado (store.apiAlerts), pero visible TAMBIÉN en ⚙ porque
+   ahí es donde el operador va a mirar "qué proveedor está tocado y a cuál hemos relevado". */
+.ic-badge{position:absolute;top:-3px;right:-3px;width:9px;height:9px;border-radius:50%;
+  background:var(--hb-risk);border:2px solid var(--hb-bg)}
 /* shared UTILITY icon-button (2026-07-22 frontend pass): close/refresh/delete-style controls in panels/modals —
    ChatWall/StatusPanel/CronPanel/MemoryMap/DebugPanel all converge here instead of 4 slightly-different sizes
    (26/28/30px) with slightly-different radii (7/8/9px). `.ic` above stays the (deliberately bigger) TopBar size. */
