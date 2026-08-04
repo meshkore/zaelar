@@ -9,6 +9,7 @@ def _reset_pool_state(monkeypatch):
     """The warm-pool pin is a process-global — reset it (and the pool env) around every test so
     order can't leak a pinned session into an unrelated assertion."""
     monkeypatch.delenv("ZAELAR_DEMO_POOL", raising=False)
+    monkeypatch.delenv("ZAELAR_DEMO_ROUTER", raising=False)
     demo_routing._PINNED_SESSION = None
     yield
     demo_routing._PINNED_SESSION = None
@@ -58,6 +59,16 @@ def test_pool_off_string_is_not_demo(monkeypatch):
     monkeypatch.delenv("ZAELAR_DEMO_SESSION", raising=False)
     monkeypatch.setenv("ZAELAR_DEMO_POOL", "0")
     assert demo_routing.is_demo_machine() is False
+
+
+def test_router_is_demo_but_never_pins(monkeypatch):
+    """The base router routes sessions but must NEVER bind one as its own."""
+    monkeypatch.delenv("ZAELAR_DEMO_SESSION", raising=False)
+    monkeypatch.delenv("ZAELAR_DEMO_POOL", raising=False)
+    monkeypatch.setenv("ZAELAR_DEMO_ROUTER", "1")
+    assert demo_routing.is_demo_machine() is True
+    demo_routing.pin_session("sess-X")
+    assert demo_routing.my_session_id() is None  # router stays unbound → falls through to fly-replay
 
 
 def test_my_session_id_set(monkeypatch):

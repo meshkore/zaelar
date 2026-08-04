@@ -40,6 +40,12 @@ primary_region = "iad"   # Ashburn, Virginia — Fly's US East region
   # per-session Machines get their OWN values injected by the Worker at creation time.
   ZAELAR_DEMO_MAX_TURNS = "20"
   ZAELAR_DEMO_TTL_SECS = "900"
+  # ROUTER MODE (warm pool, 2026-08-04): the base machine participates in fly-replay routing — if a
+  # session-carrying request lands here (e.g. Fly served it the base instead of the visitor's warm
+  # pool machine), it replays to that session's owning machine instead of serving it locally on the
+  # wrong engine. It NEVER binds a session as its own (that's what pool machines do). See
+  # nucleo/demo_routing.py::is_demo_machine / _can_pin.
+  ZAELAR_DEMO_ROUTER = "1"
 
 [http_service]
   internal_port = 8080

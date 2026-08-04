@@ -71,22 +71,35 @@ _INFLIGHT: dict[str, "asyncio.Future"] = {}
 _PINNED_SESSION: str | None = None
 
 
+def _truthy(name: str) -> bool:
+    return (os.getenv(name) or "").strip().lower() not in ("", "0", "false", "no")
+
+
 def is_demo_machine() -> bool:
-    """True on ANY cloud-demo Fly Machine — both a per-session machine (ZAELAR_DEMO_SESSION set at
-    creation) and a warm-pool machine (ZAELAR_DEMO_POOL=1, session learned at first touch). False on
-    every self-host install and the operator's own cloud account (neither env set) → routing/energy/
-    limits all no-op there, exactly as before."""
+    """True on ANY cloud-demo Fly Machine that participates in session routing — a per-session
+    machine (ZAELAR_DEMO_SESSION), a warm-pool machine (ZAELAR_DEMO_POOL=1, session learned at first
+    touch), OR the always-on base machine in ROUTER mode (ZAELAR_DEMO_ROUTER=1: it fly-replays a
+    session to its owning machine but never binds itself). False on every self-host install and the
+    operator's own cloud account (none set) → routing/energy/limits all no-op there, exactly as before."""
     if (os.getenv("ZAELAR_DEMO_SESSION") or "").strip():
         return True
-    return (os.getenv("ZAELAR_DEMO_POOL") or "").strip() not in ("", "0", "false", "no")
+    return _truthy("ZAELAR_DEMO_POOL") or _truthy("ZAELAR_DEMO_ROUTER")
+
+
+def _can_pin() -> bool:
+    """Only a warm-POOL machine may bind itself to a session. The base router (ZAELAR_DEMO_ROUTER)
+    routes but never serves a session as its own; a fixed per-session machine is already bound."""
+    if (os.getenv("ZAELAR_DEMO_SESSION") or "").strip():
+        return False
+    return _truthy("ZAELAR_DEMO_POOL")
 
 
 def pin_session(session_id: str) -> None:
-    """Bind a warm-pool machine to a session, ONCE, at its first request. No-op if this machine was
-    created with a fixed ZAELAR_DEMO_SESSION (per-session machine — its identity is immutable) or if
-    it's already been pinned (first visitor wins; a stray later ?s= never re-binds a live machine)."""
+    """Bind a warm-pool machine to a session, ONCE, at its first request. No-op on a per-session
+    machine (immutable identity), on the base router (never binds), or if already pinned (first
+    visitor wins; a stray later ?s= never re-binds a live machine)."""
     global _PINNED_SESSION
-    if (os.getenv("ZAELAR_DEMO_SESSION") or "").strip():
+    if not _can_pin():
         return
     sid = (session_id or "").strip()
     if sid and _PINNED_SESSION is None:
