@@ -30,6 +30,12 @@ COPY connectors ./connectors
 COPY widgets ./widgets
 COPY config ./config
 COPY frontend ./frontend
+COPY i18n ./i18n
+# ⚠️ These COPYs are BY NAME — every top-level runtime package must be listed here, or the image
+# ships without it and the engine crash-loops on boot (ModuleNotFoundError). This bit us on
+# 2026-08-04: V2-089 added the `i18n/` package + `server/i18n_api.py` (imported unconditionally by
+# server/__init__.py) but nobody added `COPY i18n` here → the whole cloud demo crash-looped
+# "No module named 'i18n'" for days. When you add a new top-level module, add its COPY here.
 
 ENV HOST=0.0.0.0 \
     PORT=8080 \
