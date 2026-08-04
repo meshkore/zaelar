@@ -439,6 +439,15 @@ def create_app() -> FastAPI:
         if mine is None:
             return await call_next(request)
 
+        # Static assets are IDENTICAL on every demo Machine (same image) — a JS/CSS/wasm file never
+        # needs the visitor's SPECIFIC machine. Serve them LOCALLY instead of fly-replaying each one
+        # to the session's machine. This is the bulk of a page load (dozens of /static/* requests);
+        # replaying every one is exactly what produced the intermittent 502 WALL on assets when a
+        # replay target hiccuped or was mid-boot (2026-08-04). Only stateful paths below (the HTML
+        # that sets the session cookie, /api/*, the SSE stream) actually need the session's machine.
+        if request.url.path.startswith("/static/"):
+            return await call_next(request)
+
         wanted = _dr.requested_session_id(
             request.cookies.get(_dr.SESSION_COOKIE), request.query_params.get(_dr.SESSION_QUERY_PARAM)
         )
