@@ -435,8 +435,7 @@ def create_app() -> FastAPI:
     async def _demo_session_routing(request, call_next):
         from nucleo import demo_routing as _dr
 
-        mine = _dr.my_session_id()
-        if mine is None:
+        if not _dr.is_demo_machine():
             return await call_next(request)
 
         # Static assets are IDENTICAL on every demo Machine (same image) — a JS/CSS/wasm file never
@@ -451,6 +450,16 @@ def create_app() -> FastAPI:
         wanted = _dr.requested_session_id(
             request.cookies.get(_dr.SESSION_COOKIE), request.query_params.get(_dr.SESSION_QUERY_PARAM)
         )
+        mine = _dr.my_session_id()
+        # WARM POOL: an unbound pool machine (is_demo_machine() true, but no session yet) BINDS itself
+        # to the first visitor it sees carrying ?s=<id>. After this it behaves exactly like a
+        # per-session machine — serves this and every later request locally (the boot was already paid
+        # before the visitor arrived). Other machines route this session here via Fly metadata, which
+        # the Worker stamps when it hands the machine out (see the demo-session Worker's claim step).
+        if mine is None and wanted is not None:
+            _dr.pin_session(wanted)
+            mine = _dr.my_session_id()
+
         if wanted is None or wanted == mine:
             response = await call_next(request)
             if wanted == mine and not request.cookies.get(_dr.SESSION_COOKIE):

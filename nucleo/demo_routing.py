@@ -60,11 +60,47 @@ def _cache_put(session_id: str, machine_id: str) -> None:
 _INFLIGHT: dict[str, "asyncio.Future"] = {}
 
 
+# WARM POOL (2026-08-04) — a pool machine is pre-booted BLANK (engine fully warm, ~40s of boot
+# already paid) and only learns WHICH session it serves at the first request. It carries
+# ZAELAR_DEMO_POOL=1 (so it IS a demo machine — routing/energy/limits apply) but NO
+# ZAELAR_DEMO_SESSION at boot; the first hit carrying ?s=<id> PINS it for the rest of its life. This
+# preserves the single-tenant-per-process invariant (one machine still serves exactly one session)
+# while killing the visitor-facing cold start: the boot happened before they arrived. The pin is a
+# process-global set exactly once — a pool machine is used by ONE visitor then destroyed (never
+# reused across visitors → zero cross-session contamination, same guarantee as a per-session machine).
+_PINNED_SESSION: str | None = None
+
+
+def is_demo_machine() -> bool:
+    """True on ANY cloud-demo Fly Machine — both a per-session machine (ZAELAR_DEMO_SESSION set at
+    creation) and a warm-pool machine (ZAELAR_DEMO_POOL=1, session learned at first touch). False on
+    every self-host install and the operator's own cloud account (neither env set) → routing/energy/
+    limits all no-op there, exactly as before."""
+    if (os.getenv("ZAELAR_DEMO_SESSION") or "").strip():
+        return True
+    return (os.getenv("ZAELAR_DEMO_POOL") or "").strip() not in ("", "0", "false", "no")
+
+
+def pin_session(session_id: str) -> None:
+    """Bind a warm-pool machine to a session, ONCE, at its first request. No-op if this machine was
+    created with a fixed ZAELAR_DEMO_SESSION (per-session machine — its identity is immutable) or if
+    it's already been pinned (first visitor wins; a stray later ?s= never re-binds a live machine)."""
+    global _PINNED_SESSION
+    if (os.getenv("ZAELAR_DEMO_SESSION") or "").strip():
+        return
+    sid = (session_id or "").strip()
+    if sid and _PINNED_SESSION is None:
+        _PINNED_SESSION = sid
+        logger.info(f"demo_routing: warm-pool machine pinned to session {sid}")
+
+
 def my_session_id() -> str | None:
-    """This Machine's OWN assigned session (set by the Worker at creation time), or None if this
-    isn't a demo machine at all."""
+    """This Machine's OWN assigned session, or None if it isn't a demo machine (or is an as-yet
+    unbound pool machine). A fixed ZAELAR_DEMO_SESSION wins; otherwise the pinned session (warm pool)."""
     v = (os.getenv("ZAELAR_DEMO_SESSION") or "").strip()
-    return v or None
+    if v:
+        return v
+    return _PINNED_SESSION
 
 
 def requested_session_id(cookie_value: str | None, query_value: str | None) -> str | None:

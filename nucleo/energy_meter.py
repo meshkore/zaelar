@@ -43,8 +43,10 @@ MARGIN_MULTIPLIER = float(os.getenv("ENERGY_MARGIN_MULTIPLIER", "4.0"))  # retai
 
 
 def enabled() -> bool:
-    """Same gate as demo_limits.py — Energy metering only exists for demo Machines."""
-    return bool((os.getenv("ZAELAR_DEMO_SESSION") or "").strip())
+    """Energy metering only exists for demo Machines (per-session OR warm-pool). Routes through the
+    single 'am I a demo machine' accessor so pool machines (session learned at first touch) meter too."""
+    from nucleo import demo_routing
+    return demo_routing.is_demo_machine()
 
 
 def _rate_for_base_url(base_url: str) -> tuple[float, float] | None:
@@ -104,8 +106,9 @@ _USAGE_ENDPOINT_PATH = "/usage"
 
 
 async def _post_usage(energy: float, kind: str) -> None:
+    from nucleo import demo_routing
     worker_url = (os.getenv("DEMO_SESSION_WORKER_URL") or "").strip()
-    session_id = (os.getenv("ZAELAR_DEMO_SESSION") or "").strip()
+    session_id = demo_routing.my_session_id() or ""   # fixed env OR warm-pool pinned session
     if not worker_url or not session_id or energy <= 0:
         return
     try:

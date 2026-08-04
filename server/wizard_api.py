@@ -34,10 +34,11 @@ if not os.path.exists(_PY):
 
 # ── first-run marker (en settings.json, como config_profile de profiles.apply) ─────────────────────────────
 def _demo_session() -> bool:
-    """Same gate as nucleo/demo_limits.py and nucleo/energy_meter.py — true only on an ephemeral
-    demo Fly Machine (cloud/infra/demo-session-worker's demoMachineConfig sets this), never on a
-    self-host install."""
-    return bool((os.getenv("ZAELAR_DEMO_SESSION") or "").strip())
+    """True on any ephemeral demo Fly Machine — per-session (ZAELAR_DEMO_SESSION) OR warm-pool
+    (ZAELAR_DEMO_POOL); never on a self-host install. Routes through the single demo_routing accessor
+    so a pool machine also suppresses the self-host first-run wizard."""
+    from nucleo import demo_routing
+    return demo_routing.is_demo_machine()
 
 
 def _first_run() -> bool:
