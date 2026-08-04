@@ -47,12 +47,26 @@ primary_region = "iad"   # Ashburn, Virginia — Fly's US East region
   # nucleo/demo_routing.py::is_demo_machine / _can_pin.
   ZAELAR_DEMO_ROUTER = "1"
 
-[http_service]
+# SERVICE on 443 — declared as [[services]] (NOT [http_service]) ON PURPOSE (2026-08-05): a custom
+# domain (demo.zaelar.com) needs ONE coherent service definition on port 443 across the WHOLE app,
+# and the per-visitor ephemeral/pool Machines are created via the Machines API with a RAW services
+# array (cloud/provisioner/src/machineConfig.js: 443 handlers ["tls","http"] → 8080). When the base
+# used [http_service] while the ephemerals used [[services]], `flyctl certs check` flagged
+# "Conflicting service definitions found on port 443" and the custom-domain cert never validated →
+# demo.zaelar.com fell back to the raw zaelar-demo.fly.dev in the address bar. This block now MATCHES
+# the provisioner's shape EXACTLY (same protocol/port/handlers/internal_port), so there is a single
+# 443 definition app-wide and the cert validates. Scale-to-zero settings live here at service level;
+# force_https/80-redirect dropped (visitors always arrive via https from my.zaelar.com's redirect,
+# and the ephemerals have no port 80 either — keeping them identical is the whole point).
+[[services]]
+  protocol = "tcp"
   internal_port = 8080
-  force_https = true
   auto_stop_machines = "stop"    # scale to zero — cost only while actually in use
   auto_start_machines = true
   min_machines_running = 0
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
 
 [[vm]]
   size = "shared-cpu-1x"   # cheap-but-sufficient (operator, 2026-07-24) — half the CPU of the old
