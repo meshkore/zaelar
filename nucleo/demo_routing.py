@@ -17,7 +17,9 @@
 # and the operator's own cloud account) never enters any of this: `my_session_id()` returns None
 # and the middleware no-ops on the very first check, zero cost.
 #
+import asyncio
 import os
+import time
 
 import httpx
 from loguru import logger
@@ -26,6 +28,36 @@ FLY_API_BASE = "https://api.machines.dev/v1"
 SESSION_COOKIE = "zaelar_demo_session"
 SESSION_QUERY_PARAM = "s"   # first landing on a fresh machine carries ?s=<id> (cookies don't cross
                             # from my.zaelar.com to zaelar-demo.fly.dev — different domains)
+
+# session_id -> (machine_id, cached_at). A session's owning machine NEVER changes for its lifetime,
+# so this can be cached hard. WHY THIS EXISTS (the 502-wall fix, 2026-08-04): the middleware
+# (server/__init__.py) runs on EVERY request that lands on the "wrong" machine — and a browser
+# loading the agent fires dozens of asset requests (dom.js, session.js, livekit-client, sse.js…),
+# each Fly-load-balanced across all live machines. Without this cache, each one that missed the
+# owning machine did a fresh `GET /machines` call to api.machines.dev; a page-load's worth of them
+# hammered Fly's Machines API concurrently → rate-limited/timed-out (3s each) → a wall of 502s that
+# killed the whole session ~20-30s in. Cached, the API is hit ~once per session per machine, and
+# every subsequent replay is instant + API-free.
+_SESSION_MACHINE_CACHE: dict[str, tuple[str, float]] = {}
+_CACHE_TTL = 300.0   # seconds; generous — the mapping is stable, TTL is only a safety net for reaped/moved sessions
+
+
+def _cache_get(session_id: str) -> str | None:
+    hit = _SESSION_MACHINE_CACHE.get(session_id)
+    if hit and (time.monotonic() - hit[1]) < _CACHE_TTL:
+        return hit[0]
+    return None
+
+
+def _cache_put(session_id: str, machine_id: str) -> None:
+    _SESSION_MACHINE_CACHE[session_id] = (machine_id, time.monotonic())
+
+
+# SINGLE-FLIGHT: even with the cache, the FIRST burst of ~30 concurrent asset requests for a
+# not-yet-cached session would each start their own Fly API call before any completes. This coalesces
+# them: the first lookup in flight for a session owns a Future; every concurrent caller awaits it →
+# exactly one API call, not N. Keyed per session_id.
+_INFLIGHT: dict[str, "asyncio.Future"] = {}
 
 
 def my_session_id() -> str | None:
@@ -50,19 +82,47 @@ async def find_machine_for_session(
 ) -> str | None:
     """Looks up which Machine in this Fly app owns `session_id` right now, via the
     `metadata.session_id` the Worker set at creation time (see
-    cloud/infra/demo-session-worker/src/index.js::createFlyMachine). Fail-open: any error (network,
-    auth, malformed response) returns None rather than raising — routing degrades to "serve this
-    request locally" (server/__init__.py), never a 500."""
-    url = f"{FLY_API_BASE}/apps/{app_name}/machines"
+    cloud/infra/demo-session-worker/src/index.js::createFlyMachine). **Cached + single-flighted** so a
+    page-load's worth of asset requests hit the Fly Machines API at most once per session, never once
+    per request. Fail-open: any error (network, auth, malformed response) returns None rather than
+    raising — routing degrades to "serve this request locally" (server/__init__.py), never a 500."""
+    cached = _cache_get(session_id)
+    if cached is not None:
+        return cached
+
+    inflight = _INFLIGHT.get(session_id)
+    if inflight is not None:
+        try:
+            return await inflight
+        except Exception:  # noqa: BLE001
+            return None
+
+    fut: asyncio.Future = asyncio.get_event_loop().create_future()
+    _INFLIGHT[session_id] = fut
     try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            res = await client.get(url, headers={"Authorization": f"Bearer {api_token}"})
-            res.raise_for_status()
-            machines = res.json()
+        mid = await _lookup_machine(session_id, app_name=app_name, api_token=api_token, timeout=timeout)
+        if mid:
+            _cache_put(session_id, mid)   # stable mapping — every later asset request skips the API
+        if not fut.done():
+            fut.set_result(mid)
+        return mid
     except Exception as e:  # noqa: BLE001
         logger.warning(f"demo_routing: Fly machines lookup failed: {e}")
+        if not fut.done():
+            fut.set_result(None)
         return None
+    finally:
+        _INFLIGHT.pop(session_id, None)
 
+
+async def _lookup_machine(session_id, *, app_name, api_token, timeout) -> str | None:
+    """The raw Fly Machines API call — one GET, matched by metadata.session_id. Separated so
+    find_machine_for_session() owns the cache/single-flight and this owns only the network."""
+    url = f"{FLY_API_BASE}/apps/{app_name}/machines"
+    async with httpx.AsyncClient(timeout=timeout) as client:
+        res = await client.get(url, headers={"Authorization": f"Bearer {api_token}"})
+        res.raise_for_status()
+        machines = res.json()
     for m in machines or []:
         meta = ((m.get("config") or {}).get("metadata")) or {}
         if meta.get("session_id") == session_id:
