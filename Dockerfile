@@ -1,10 +1,11 @@
 # zaelar — personal voice assistant. FastAPI + LiveKit Agents (INI-012), cerebro propio «Colmena» (BRAIN=nucleo).
 # Build from the repo root:  docker build -t zaelar .
 #
-# PERFIL EN LA NUBE (V2-040): esta imagen Linux x86 NO trae las rutas de modelo LOCAL (mlx Metal es darwin-only y
-# se salta en el pip install; no hay Ollama, ni binario livekit-server, ni Chromium de Playwright, ni el CLI de
-# Claude). El deploy corre con el **perfil `cloud`**: STT/TTS/cerebro/memoria por proveedores de nube (claves como
-# secretos de Fly). Para el navegador/Ollama en la nube habría que añadir esas piezas a la imagen aparte.
+# PERFIL EN LA NUBE (V2-040): esta imagen Linux x86 NO trae las rutas de modelo LOCAL (mlx Metal es darwin-only
+# y se salta en el pip install; no hay Ollama ni binario livekit-server). SÍ trae (desde 2026-08-05) el **CLI de
+# Claude Code** (brain workers) y el **Chromium de Playwright** (navegador) para que cloud tenga la MISMA
+# capacidad que local. El deploy corre con el **perfil `cloud`**: STT/TTS/cerebro/memoria por proveedores de nube
+# (claves como secretos de Fly: OPENAI_API_KEY para la memoria, Z_AI_API_KEY para los workers, etc.).
 FROM python:3.12-slim
 
 # System deps: ffmpeg/libsndfile for aiortc (WebRTC) + resampling; build tools for pyrnnoise.
@@ -29,6 +30,22 @@ RUN pip install --no-cache-dir -r requirements.txt
 # LOCAL build (`flyctl deploy --local-only`, where the builder has normal network) or cache the models
 # on the per-account Fly Volume so they download once, not per boot.
 
+# CLAUDE CODE CLI + CHROMIUM — the two runtime engines the cloud image was missing (2026-08-05). The
+# brain workers (nucleo/workers/) DRIVE the `claude` CLI, and the navegador widget drives a real
+# headless Chromium via Playwright; without these in the image, cloud could only do voice — no brain
+# workers, no web browsing. Node 20 (NodeSource) provides `claude`; workers point it at Z.ai via
+# ANTHROPIC_BASE_URL/AUTH_TOKEN (resolved from CODE_AGENT_BASE_URL + the Z_AI_API_KEY secret, injected
+# per machine — see cloud/provisioner/src/machineConfig.js). Then Playwright's Chromium + its OS deps.
+RUN apt-get update && apt-get install -y --no-install-recommends curl gnupg \
+    && curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && npm install -g @anthropic-ai/claude-code \
+    && npm cache clean --force \
+    && rm -rf /var/lib/apt/lists/*
+RUN apt-get update \
+    && python -m playwright install --with-deps chromium \
+    && rm -rf /var/lib/apt/lists/*
+
 # App code — one COPY per domain package (no .venv/.env/logs/harness — see .dockerignore). Módulos VIVOS del
 # estándar (cluster.yaml): el cerebro «Colmena» (nucleo/), la memoria central (memory/), el bus (bus/) y los
 # conectores. `brains/` YA NO EXISTE (Hermes retirado, V2-009) — copiarlo reventaba el build.
@@ -42,6 +59,11 @@ COPY widgets ./widgets
 COPY config ./config
 COPY frontend ./frontend
 COPY i18n ./i18n
+# Root-level modules the packages import (NOT part of any package dir). version.py backs /api/status +
+# the observer's per-event `ver` stamp; without it the engine ran but the Status panel showed "No
+# module named 'version'" (found live 2026-08-05). Only ship RUNTIME root modules here — conftest.py is
+# pytest-only and must stay out.
+COPY version.py .
 # ⚠️ These COPYs are BY NAME — every top-level runtime package must be listed here, or the image
 # ships without it and the engine crash-loops on boot (ModuleNotFoundError). This bit us on
 # 2026-08-04: V2-089 added the `i18n/` package + `server/i18n_api.py` (imported unconditionally by

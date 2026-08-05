@@ -40,6 +40,11 @@ primary_region = "iad"   # Ashburn, Virginia — Fly's US East region
   # needs the memory reranker; the Worker injects the same MEMORY_RERANK=off into every demo/pool
   # machine (see cloud/provisioner/src/machineConfig.js). Applies on the NEXT base redeploy.
   MEMORY_RERANK = "off"
+  # Brain workers → Claude Code CLI (baked into the image) against Z.ai's Anthropic-compatible endpoint
+  # (operator forfait; token = Z_AI_API_KEY secret, resolved by endpoint). Mirrors what the Worker
+  # injects into demo/pool machines (cloud/provisioner/src/machineConfig.js BASE_PROVIDER_ENV).
+  CODE_AGENT_BASE_URL = "https://api.z.ai/api/anthropic"
+  CODE_AGENT_MODEL = "glm-5.2"
   #
   # Demo caps (INI-018 T6) — baseline for the one verification machine this file brings up; real
   # per-session Machines get their OWN values injected by the Worker at creation time.
