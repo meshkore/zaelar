@@ -22,6 +22,12 @@ from fastapi.responses import JSONResponse
 
 router = APIRouter()
 
+# Sections of config/v2.json that pick a PROVIDER/model (as opposed to `flags`, which doesn't). In the
+# cloud profile (ZAELAR_USER_ID set) these are centrally managed by the operator, not user-editable —
+# see INI-019 addenda "Cambio B", 2026-08-05. Self-host is completely unaffected (is_cloud_account()
+# is always False there) — this NEVER restricts the OSS product, only the hosted cloud accounts.
+_CLOUD_LOCKED_V2_SECTIONS = frozenset({"fast", "code_agent", "memory", "triage", "susurro"})
+
 
 # Catálogo de PROVEEDORES por pieza (hints para los desplegables de la UI). No es exhaustivo ni obliga a nada —
 # el usuario puede teclear un modelo/base_url a mano; esto solo acelera la elección. Cloud vs local marcado.
@@ -143,6 +149,11 @@ async def get_config():
         out["credentials"] = []
     out["catalog"] = _PROVIDER_CATALOG
     try:
+        from nucleo import cloud_account
+        out["cloud_profile"] = cloud_account.is_cloud_account()
+    except Exception:
+        out["cloud_profile"] = False
+    try:
         from config import balances
         out["apis"] = balances.summary_with_workers()
     except Exception:
@@ -159,6 +170,16 @@ async def set_v2(payload: dict | None = None):
     patch = payload.get("patch") or {}
     if not section or not isinstance(patch, dict):
         return JSONResponse({"ok": False, "error": "missing section/patch"}, status_code=400)
+    if section in _CLOUD_LOCKED_V2_SECTIONS:
+        try:
+            from nucleo import cloud_account
+            if cloud_account.is_cloud_account():
+                return JSONResponse(
+                    {"ok": False, "error": "provider/model selection is centrally managed in the cloud profile"},
+                    status_code=403,
+                )
+        except Exception:
+            pass
     try:
         from config import v2
         v2.set(section, patch)

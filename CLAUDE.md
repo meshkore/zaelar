@@ -1103,12 +1103,32 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   cloud → `POST {CONTROL_PLANE_URL}/usage` con `{user_id,energy,kind}` + `X-Service-Token` (el endpoint YA
   existía en `cloud/control-plane`, solo faltaba que el motor lo llamara — Fase 3 M8 del plan INI-019).
   **Precios verificados por web (2026-08-05, re-verificar periódicamente)**: DeepSeek V4 Flash $0.14/$0.28,
-  GLM-5.2 $1.40/$4.40, Kimi K2.6 $0.95/$4.00, Claude Haiku 4.5 $1.00/$5.00 (fallback). **Gap conocido, no
-  cerrado**: la generación de widgets (`widgets/generator.py::_run_agent`) también lanza `claude -p
-  --output-format json` con `usage`/`total_cost_usd` en la salida, pero hoy descarta el stdout entero sin
-  parsearlo — no metrado todavía (menor volumen que la conversación/workers interactivos, follow-up
-  pendiente). Detalle completo + decisión de negocio: `.meshkore/roadmap/initiatives/INI-019-fase3-backoffice-multitenant.md`
+  GLM-5.2 $1.40/$4.40, Kimi K2.6 $0.95/$4.00, Claude Haiku 4.5 $1.00/$5.00 (fallback). **Gap cerrado el
+  mismo día**: la generación de widgets (`widgets/generator.py::_run_agent`) también lanza `claude -p
+  --output-format json` con `usage`/modelo reales en la salida — antes se descartaba el stdout entero sin
+  parsearlo (nunca metraba pese a costar tokens reales); ahora se parsea y reporta a
+  `report_worker_usage` (best-effort: stdout no-JSON o sin `usage` no rompe una generación que ya
+  terminó bien). El reporte de uso ahora también manda `meta:{model,base_url}` — el control-plane
+  (`cloud/control-plane`) reutiliza ese MISMO payload (zero-PII por construcción) para alimentar
+  `zaelar_user_events`, la observabilidad centralizada por-usuario del backoffice (Cambio A, sin
+  endpoint de ingesta nuevo ni redactor nuevo en `engine/` — ver la addenda de INI-019 para el porqué).
+  Detalle completo + decisión de negocio: `.meshkore/roadmap/initiatives/INI-019-fase3-backoffice-multitenant.md`
   (raíz del workspace) addenda 2026-08-05.
+- **Control central de proveedores en el perfil cloud** (`server/config_api.py` + `ConfigPanel.js`,
+  2026-08-05, INI-019 "Cambio B"): en self-host el usuario elige proveedor/modelo por pieza
+  (`_PROVIDER_CATALOG`: fast/code_agent/memory/triage/susurro); en una cuenta cloud esa elección la fija
+  el operador de forma centralizada — sino perdería el control de coste/calidad de una plataforma de
+  pago. `GET /api/config` expone `cloud_profile` (= `nucleo.cloud_account.is_cloud_account()`, mismo
+  accessor que gatea Energy); `POST /api/config/v2` devuelve 403 para las secciones de proveedor cuando
+  `cloud_profile` es verdad (`flags` queda fuera del gate — no es una elección de proveedor).
+  `ConfigPanel.js` oculta esas secciones del menú + los selectores STT/TTS de la sección voz en ese
+  perfil (idioma/VAD/atención siguen editables). **Self-host queda byte-idéntico** — el gate solo existe
+  si `ZAELAR_USER_ID` está puesto, que nunca ocurre fuera de una Machine de cuenta cloud.
+  **Deliberadamente sin tocar** `POST /api/config/credential`: mezclaría credenciales de CONECTORES
+  propios del usuario (email/WhatsApp/Telegram/Spotify, que deben seguir siendo autoservicio incluso en
+  cloud) con claves de proveedor central — bloquearlo bien exige una lista precisa de qué env-var es
+  cuál, que no existe hoy; construirla deprisa arriesgaba romper el autoservicio de conectores. Follow-up
+  anotado, no bug.
 - **«Homeostasis» — el LATIDO AUTÓNOMO del sistema** (`nucleo/homeostasis.py`, V2-070, 2026-07-25; detonante: el
   incidente del motor LiveKit degradado del 2026-07-25 — tras ~7h de bucle `wait_pc_connection timed out` el chat/voz
   dejó de responder y NADA lo curó). El sistema emula a un humano en **tres niveles, y solo dos piensan**: **Mente**

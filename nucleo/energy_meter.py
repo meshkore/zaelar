@@ -161,11 +161,11 @@ def stt_cost_to_energy(*, audio_seconds: float | None) -> float:
 _USAGE_ENDPOINT_PATH = "/usage"
 
 
-async def _post_usage(energy: float, kind: str) -> None:
+async def _post_usage(energy: float, kind: str, meta: dict | None = None) -> None:
     from nucleo import cloud_account
 
     if cloud_account.is_cloud_account():
-        await _post_usage_cloud_account(energy, kind)
+        await _post_usage_cloud_account(energy, kind, meta)
         return
     from nucleo import demo_routing
 
@@ -183,12 +183,14 @@ async def _post_usage(energy: float, kind: str) -> None:
         logger.warning(f"energy_meter: usage report failed (non-fatal, turn unaffected): {e}")
 
 
-async def _post_usage_cloud_account(energy: float, kind: str) -> None:
+async def _post_usage_cloud_account(energy: float, kind: str, meta: dict | None = None) -> None:
     """Real-account counterpart of _post_usage: reports to the control-plane's PERSISTENT per-user
-    Energy ledger (cloud/control-plane's POST /usage) instead of the demo Worker's ephemeral KV.
-    CONTROL_PLANE_URL/CONTROL_PLANE_SERVICE_TOKEN are injected by the provisioner at Machine creation
-    (cloud/provisioner/src/machineConfig.js::accountMachineConfig) — same guarded-until-configured
-    pattern as everything else here: missing either → no-op, never an exception."""
+    Energy ledger (cloud/control-plane's POST /usage) instead of the demo Worker's ephemeral KV. The
+    control-plane writes this SAME call into zaelar_user_events too (INI-019 addenda, "Cambio A") — so
+    `meta` (model/base_url ONLY — never content) doubles as the per-user activity timeline the
+    backoffice reads. CONTROL_PLANE_URL/CONTROL_PLANE_SERVICE_TOKEN are injected by the provisioner at
+    Machine creation (cloud/provisioner/src/machineConfig.js::accountMachineConfig) — same
+    guarded-until-configured pattern as everything else here: missing either → no-op, never raises."""
     from nucleo import cloud_account
 
     control_plane_url = (os.getenv("CONTROL_PLANE_URL") or "").strip()
@@ -197,18 +199,21 @@ async def _post_usage_cloud_account(energy: float, kind: str) -> None:
         return
     service_token = (os.getenv("CONTROL_PLANE_SERVICE_TOKEN") or "").strip()
     headers = {"X-Service-Token": service_token} if service_token else {}
+    payload = {"user_id": user_id, "energy": energy, "kind": kind}
+    if meta:
+        payload["meta"] = meta
     try:
         async with httpx.AsyncClient(timeout=3.0) as client:
             await client.post(
                 control_plane_url.rstrip("/") + _USAGE_ENDPOINT_PATH,
-                json={"user_id": user_id, "energy": energy, "kind": kind},
+                json=payload,
                 headers=headers,
             )
     except Exception as e:  # noqa: BLE001
         logger.warning(f"energy_meter: cloud-account usage report failed (non-fatal): {e}")
 
 
-def _fire_and_forget(energy: float, kind: str) -> None:
+def _fire_and_forget(energy: float, kind: str, meta: dict | None = None) -> None:
     """Shared tail of every report_*_usage(): schedule the POST without ever blocking or raising
     into the caller. No running loop (e.g. a unit test calling this directly) → drop silently."""
     import asyncio
@@ -217,7 +222,7 @@ def _fire_and_forget(energy: float, kind: str) -> None:
         asyncio.get_running_loop()
     except RuntimeError:
         return
-    asyncio.create_task(_post_usage(energy, kind))
+    asyncio.create_task(_post_usage(energy, kind, meta))
 
 
 def report_llm_usage(
@@ -233,7 +238,7 @@ def report_llm_usage(
     )
     if energy is None:
         return
-    _fire_and_forget(energy, "llm")
+    _fire_and_forget(energy, "llm", {"model": model, "base_url": base_url})
 
 
 def report_worker_usage(
@@ -253,7 +258,7 @@ def report_worker_usage(
     )
     if energy is None:
         return
-    _fire_and_forget(energy, "worker")
+    _fire_and_forget(energy, "worker", {"model": model, "base_url": base_url})
 
 
 def report_tts_usage(*, characters: int | None) -> None:

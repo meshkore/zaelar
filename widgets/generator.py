@@ -211,12 +211,14 @@ def _run_agent(prompt: str, token: str = "") -> tuple[bool, str]:
     # que este agente headless TAMPOCO consuma tokens de la licencia Claude Teams (operador 2026-07-31). Helper
     # ÚNICO compartido con los brain workers. Si se enruta y no hay override explícito, usa el modelo de §code_agent.
     model = GEN_MODEL
+    base_url = ""       # endpoint realmente usado (para el metering de Energy más abajo — "" = licencia local)
     try:
         from config import v2 as _v2
         _ext = _v2.external_worker_env()
         if _ext:
             env.update(_ext)
             env.pop("ANTHROPIC_API_KEY", None)
+            base_url = _ext.get("ANTHROPIC_BASE_URL", "")
             if not model:
                 model = _v2.code_agent_model("code")
     except Exception:
@@ -232,7 +234,7 @@ def _run_agent(prompt: str, token: str = "") -> tuple[bool, str]:
         with _PROCS_LOCK:
             _PROCS[str(token)] = p
     try:
-        _, stderr = p.communicate(input=prompt, timeout=GEN_TIMEOUT)
+        stdout, stderr = p.communicate(input=prompt, timeout=GEN_TIMEOUT)
     except subprocess.TimeoutExpired:
         try:
             p.kill(); p.communicate()
@@ -250,6 +252,26 @@ def _run_agent(prompt: str, token: str = "") -> tuple[bool, str]:
         # un proceso MATADO (terminate/kill) devuelve rc≠0 → lo tratamos como 'no completó' para que _discard limpie.
         if p.returncode and p.returncode < 0:
             return False, "generation cancelled"
+    # Energy metering (2026-08-05, cierra el gap anotado en INI-019 addenda): `--output-format json` YA trae
+    # `usage`/`model` (mismo shape que el "result" de stream-json que sí se metraba en los Brain Workers
+    # interactivos, ver nucleo/workers/session.py) — antes se tiraba el stdout entero sin leerlo, así que la
+    # generación/modificación de widgets nunca descontaba Energy pese a costar tokens reales. Best-effort: un
+    # stdout no-JSON o sin `usage` no debe romper la generación, que ya terminó bien.
+    if p.returncode == 0 and stdout:
+        try:
+            import json as _json
+            obj = _json.loads(stdout)
+            usage = obj.get("usage") or {}
+            if usage:
+                from nucleo import energy_meter as _energy
+                _energy.report_worker_usage(
+                    base_url=base_url,
+                    model=obj.get("model") or model,
+                    prompt_tokens=usage.get("input_tokens"),
+                    completion_tokens=usage.get("output_tokens"),
+                )
+        except Exception:
+            pass
     return True, ""
 
 

@@ -197,6 +197,7 @@
   "config.tab.conectores": "Connectors",
   "config.tab.settings": "Settings",
   "config.tab.widgets": "Widgets",
+  "config.voice.cloud_locked": "STT/TTS provider is centrally managed in the cloud profile — not user-editable here.",
   "config.voice.save": "Save voice",
   "config.voice.sub": "The specific VOICE is changed by tapping the orb. Saving may reconnect.",
   "config.voice.title": "Voice · STT · TTS · language · attention",

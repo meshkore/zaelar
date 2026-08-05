@@ -34,6 +34,14 @@ const SECTIONS = [
   { id: "apis", icon: SERVER_ICON },
 ];
 
+// Sections that PICK a provider/model — centrally managed in the cloud profile, hidden there (V2-043 area
+// stays intact for self-host; see INI-019 addenda "Cambio B", 2026-08-05 and server/config_api.py's
+// matching _CLOUD_LOCKED_V2_SECTIONS backend gate). `apis` (balance/status) stays visible either way —
+// it's read-only information, not a choice.
+const CLOUD_LOCKED_NAV_SECTIONS = new Set(["fast", "code", "memory"]);
+// voice_api's STT/TTS provider knobs specifically (the rest of `voice` — language, VAD, etc. — stays editable).
+const CLOUD_LOCKED_VOICE_KEYS = new Set(["stt_provider", "tts_provider"]);
+
 // V2-083: tres pestañas principales. "settings" = todo lo de antes (menú lateral + secciones); "conectores" y
 // "widgets" son nuevas. Patrón de pastilla segmentada (como las pestañas del ChatWall).
 const TABS = [
@@ -52,16 +60,18 @@ export function ConfigPanel() {
   // ---- render ----
   function render() {
     const cat = cfg.catalog || {};
+    const cloudProfile = !!cfg.cloud_profile;
+    const visibleSections = cloudProfile ? SECTIONS.filter(s => !CLOUD_LOCKED_NAV_SECTIONS.has(s.id)) : SECTIONS;
     const builders = {
       fast: () => sec_fast(cat.fast || {}),
       code: () => sec_code(cat.code_agent || {}),
       memory: () => sec_memory(cat),
-      voice: () => sec_voice(),
+      voice: () => sec_voice(cloudProfile),
       search: () => sec_search(),
       music: () => sec_music(),
       apis: () => sec_apis(),
     };
-    if (!builders[activeSec]) activeSec = SECTIONS[0].id;
+    if (!builders[activeSec] || (cloudProfile && CLOUD_LOCKED_NAV_SECTIONS.has(activeSec))) activeSec = visibleSections[0].id;
     const tabsBar = TABS.map(tab => `<button type="button" class="cf-tab${tab.id === activeTab ? " on" : ""}" data-tab="${tab.id}">${esc(t("config.tab." + tab.id))}</button>`).join("");
     let pane;
     if (activeTab === "conectores") {
@@ -69,7 +79,7 @@ export function ConfigPanel() {
     } else if (activeTab === "widgets") {
       pane = `<div class="cf-tabpane"><div class="cf-scroll"><div class="cf-panel">${sec_widgets()}</div></div></div>`;
     } else {
-      const nav = SECTIONS.map(s => `<button type="button" class="cf-nav-item${s.id === activeSec ? " active" : ""}" data-sec="${s.id}">${s.icon}<span>${esc(t("config.sec." + s.id))}</span></button>`).join("");
+      const nav = visibleSections.map(s => `<button type="button" class="cf-nav-item${s.id === activeSec ? " active" : ""}" data-sec="${s.id}">${s.icon}<span>${esc(t("config.sec." + s.id))}</span></button>`).join("");
       pane = `<div class="cf-tabpane"><nav class="cf-nav">${nav}</nav><div class="cf-scroll"><div class="cf-panel">${builders[activeSec]()}</div></div></div>`;
     }
     bodyEl.innerHTML = `<div class="cf-tabs">${tabsBar}</div>${pane}`;
@@ -127,9 +137,10 @@ export function ConfigPanel() {
       `<div class="cf-foot"><button class="cf-save" data-sec="memory">${t("config.memory.save")}</button></div>`);
   }
 
-  function sec_voice() {
+  function sec_voice(cloudProfile) {
     const v = cfg.voice || {};
-    const knobs = v.knobs || [];
+    const allKnobs = v.knobs || [];
+    const knobs = cloudProfile ? allKnobs.filter(k => !CLOUD_LOCKED_VOICE_KEYS.has(k.key)) : allKnobs;
     const free = new Set(v.free_text || []);
     const rows = knobs.map(k => {
       const hint = k.note ? esc(k.note) : "";
@@ -138,8 +149,11 @@ export function ConfigPanel() {
         : `<select id="cfv_${k.key}">${opt(k.options, k.value)}</select>`;
       return row(k.label, ctl, hint);
     }).join("");
+    const cloudNote = cloudProfile
+      ? `<p class="cf-hint">${esc(t("config.voice.cloud_locked"))}</p>`
+      : "";
     return panel("voice", t("config.voice.title"), t("config.voice.sub"),
-      rows + `<div class="cf-foot"><button class="cf-save-voice">${t("config.voice.save")}</button></div>`);
+      cloudNote + rows + `<div class="cf-foot"><button class="cf-save-voice">${t("config.voice.save")}</button></div>`);
   }
 
   function sec_search() {
