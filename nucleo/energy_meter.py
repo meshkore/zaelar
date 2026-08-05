@@ -1,25 +1,42 @@
 #
-# ENERGY METERING (INI-018, added 2026-07-24) — real usage → real cost → "Energy" units, DEMO ONLY.
+# ENERGY METERING (INI-018, added 2026-07-24; extended 2026-08-05 — INI-019 addenda) — real usage →
+# real cost → "Energy" units.
 #
 # Zaelar's product concept of "Energy" (web/src/components/Pricing.astro/Energy.astro,
 # project/concept/docs/product/energy-model.md) had NO real conversion rate or ledger anywhere —
-# confirmed by a full repo search before writing this. This module is the first real piece: it
-# converts ACTUAL provider usage (LLM tokens, TTS characters, STT audio-seconds) into a real
-# €-cost estimate, then into Energy units, and reports it fire-and-forget to the demo ledger
-# (cloud/infra/demo-session-worker/'s /usage endpoint).
+# confirmed by a full repo search before writing this. This module converts ACTUAL provider usage
+# (LLM tokens, TTS characters, STT audio-seconds, Brain Worker tokens) into a real €-cost estimate,
+# then into Energy units, and reports it fire-and-forget to the right ledger (demo Worker's ephemeral
+# KV, or the control-plane's persistent per-account ledger — see _post_usage).
 #
-# SCOPE: this only ever fires for demo Machines (`ZAELAR_DEMO_SESSION` set — see
-# nucleo/demo_limits.py, the same gate). The operator's own account and every self-host install
-# have NO Energy system at all (energy-model.md is explicit about this) — `enabled()` being False
-# there means zero cost, zero network calls, exactly like demo_limits.py's own no-op pattern.
+# SCOPE: fires for demo Machines (`ZAELAR_DEMO_SESSION`/pool/router — nucleo/demo_routing.py) AND for
+# real cloud accounts (`ZAELAR_USER_ID` — nucleo/cloud_account.py, wired 2026-08-05). The operator's
+# own local install and every self-host install have NEITHER set → enabled() False → zero cost, zero
+# network calls, exactly like demo_limits.py's own no-op pattern.
+#
+# 2026-08-05 FINDING (see INI-019 addenda for the full incident writeup): report_llm_usage() was only
+# ever called from the FlashBrain's voice turn (nucleo/flash/fast_client.py), and the rate table only
+# covered "x.ai"/"api.openai.com" — but the FlashBrain's actual production model runs on AIMLAPI
+# (a multi-model broker, config/v2.json §fast), which matched NEITHER row. Every real voice turn was
+# metering silently to zero cost. Fixed by: (a) per-MODEL rates for the AIMLAPI broker (a single
+# base_url covers dozens of differently-priced models — a base_url-only table cannot express that),
+# (b) a non-None FALLBACK rate for any (base_url, model) this table doesn't yet know about, so a
+# future unlisted provider degrades to "probably overcharges a little" instead of "silently free" —
+# under-metering loses real money, over-metering by a small margin on a rare/unknown provider does not.
+# Brain Workers (nucleo/workers/, Claude Code CLI relayed to Z.AI/Moonshot/local license) are metered
+# too (report_worker_usage) — they were computing real usage/cost already (claude_session.py's stream-
+# json "result" message) but discarding it into a UI chip, never into Energy.
 #
 # NUMBERS BELOW ARE DEFAULTS, NOT FINAL PRICING — flagged explicitly wherever they are business
 # decisions, not technical facts:
-#   - Per-provider $/token rates: real published pricing as of 2026-07-24 (web search), but
-#     provider pricing changes — re-verify against the provider's own pricing page periodically,
-#     don't treat these as permanently accurate.
+#   - Per-provider/per-model $/token rates: real published pricing as of 2026-08-05 (web search) —
+#     re-verify against the provider's own pricing page periodically, don't treat as permanently
+#     accurate. Same norm as the rest of the repo (see V2-035's "never assume, verify" note).
 #   - EUR_PER_ENERGY_UNIT (1 Energy = €0.01) and MARGIN_MULTIPLIER (4x raw cost) are OPERATOR
 #     business decisions defaulted here for a working system — confirm/adjust, don't treat as final.
+#   - The FALLBACK rate for an unmapped (base_url, model) is a deliberate business choice: better to
+#     mildly over-meter an unknown provider (logged loudly so it gets a real rate added) than to ever
+#     silently meter it as free.
 #
 import os
 import time
@@ -27,14 +44,32 @@ import time
 import httpx
 from loguru import logger
 
-# $ per 1M tokens, (input, output). Source: public provider pricing, 2026-07-24 — RE-VERIFY
-# periodically, provider pricing changes without notice.
+# $ per 1M tokens, (input, output), matched by substring against `base_url`. Covers providers that
+# serve a single (or effectively single-priced) model directly — NOT brokers like AIMLAPI, which
+# serve dozens of models at very different prices (see _AIMLAPI_MODEL_RATES below).
+# Source: public provider pricing, 2026-08-05 — RE-VERIFY periodically, provider pricing changes.
 _RATES_PER_1M_TOKENS_USD: dict[str, tuple[float, float]] = {
-    "x.ai": (0.20, 0.50),              # Grok 4.1 Fast tier — matches FAST_MODEL=grok-4.20-0309-non-reasoning
-    "api.openai.com": (0.40, 1.60),    # gpt-4.1-mini — the memory CORAZÓN (mem_processor) model
-    # Add a row here for every provider actually reachable from a demo Machine before relying on
-    # this for anything beyond the FlashBrain (xai) call this module currently meters.
+    "x.ai": (0.20, 0.50),               # Grok 4.1 Fast tier
+    "api.openai.com": (0.40, 1.60),     # gpt-4.1-mini — the memory CORAZÓN (mem_processor) model
+    "api.z.ai": (1.40, 4.40),           # GLM-5.2 — the Brain Workers' primary relay tier (code_agent)
+    "moonshot.ai": (0.95, 4.00),        # Kimi K2.6 — the Brain Workers' secondary relay tier
 }
+
+# $ per 1M tokens, (input, output), matched by substring against the MODEL name — only consulted when
+# `base_url` resolves to the AIMLAPI broker (api.aimlapi.com), which serves many models at different
+# prices; a single base_url→rate row (as used above) cannot express that. Source: public AIMLAPI/
+# DeepSeek/Anthropic pricing, 2026-08-05 — RE-VERIFY periodically.
+_AIMLAPI_MODEL_RATES: dict[str, tuple[float, float]] = {
+    "deepseek-v4-flash": (0.14, 0.28),         # today's FlashBrain model (config/v2.json §fast)
+    "claude-haiku-4.5": (1.00, 5.00),          # FlashBrain's _FALLBACK_MODEL
+}
+
+# Applied when neither table above has a row for the (base_url, model) actually used. Deliberately NOT
+# the cheapest rate seen (that would risk under-charging real usage on an unlisted provider) — see
+# module docstring. Logged loudly (once per distinct unmapped key) so an operator notices and adds a
+# real rate instead of this staying the permanent answer.
+_FALLBACK_RATE_USD: tuple[float, float] = (1.00, 5.00)
+_warned_unmapped: set[str] = set()
 
 # Business decisions (see module docstring) — single constants, easy to tune without touching the
 # calculation logic below.
@@ -43,29 +78,50 @@ MARGIN_MULTIPLIER = float(os.getenv("ENERGY_MARGIN_MULTIPLIER", "4.0"))  # retai
 
 
 def enabled() -> bool:
-    """Energy metering only exists for demo Machines (per-session OR warm-pool). Routes through the
-    single 'am I a demo machine' accessor so pool machines (session learned at first touch) meter too."""
-    from nucleo import demo_routing
-    return demo_routing.is_demo_machine()
+    """Energy metering exists for demo Machines (per-session OR warm-pool) AND for real cloud accounts
+    (ZAELAR_USER_ID set, 2026-08-05). Routes through the two single-purpose accessors so neither this
+    module nor its callers need to know the shape of either gate."""
+    from nucleo import cloud_account, demo_routing
+    return demo_routing.is_demo_machine() or cloud_account.is_cloud_account()
 
 
-def _rate_for_base_url(base_url: str) -> tuple[float, float] | None:
+def _is_local_endpoint(base_url: str) -> bool:
     u = (base_url or "").lower()
+    return "11434" in u or "localhost" in u or "127.0.0.1" in u
+
+
+def _rate_for(base_url: str, model: str | None) -> tuple[float, float]:
+    """Never returns None — local endpoints are filtered by the caller BEFORE this is reached
+    (llm_cost_to_energy). Every real cloud endpoint gets a rate: exact if we have one, a per-model
+    AIMLAPI rate if the broker is AIMLAPI, else the fallback (logged once)."""
+    u = (base_url or "").lower()
+    m = (model or "").lower()
+    if "aimlapi" in u and m:
+        for needle, rates in _AIMLAPI_MODEL_RATES.items():
+            if needle in m:
+                return rates
     for needle, rates in _RATES_PER_1M_TOKENS_USD.items():
         if needle in u:
             return rates
-    return None
+    key = f"{u}::{m}"
+    if key not in _warned_unmapped:
+        _warned_unmapped.add(key)
+        logger.warning(
+            f"energy_meter: no rate row for base_url={base_url!r} model={model!r} — charging the "
+            f"fallback rate {_FALLBACK_RATE_USD} $/1M tokens. Add a real rate to energy_meter.py."
+        )
+    return _FALLBACK_RATE_USD
 
 
 def llm_cost_to_energy(
-    *, base_url: str, prompt_tokens: int | None, completion_tokens: int | None
+    *, base_url: str, model: str | None = None, prompt_tokens: int | None, completion_tokens: int | None
 ) -> float | None:
-    """Pure. Returns Energy units for one LLM call, or None if this provider has no rate row (fails
-    open — better to under-meter an unlisted provider than crash the turn over a billing detail)."""
-    rates = _rate_for_base_url(base_url)
-    if rates is None:
+    """Pure. Returns Energy units for one LLM call, or None only for a local/free endpoint (Ollama —
+    11434/localhost/127.0.0.1). Every real cloud endpoint always returns a value (exact rate if known,
+    fallback otherwise) — see module docstring for why this changed from the original fail-open design."""
+    if _is_local_endpoint(base_url):
         return None
-    in_rate, out_rate = rates
+    in_rate, out_rate = _rate_for(base_url, model)
     pt = prompt_tokens or 0
     ct = completion_tokens or 0
     raw_usd = (pt / 1_000_000) * in_rate + (ct / 1_000_000) * out_rate
@@ -100,13 +156,19 @@ def stt_cost_to_energy(*, audio_seconds: float | None) -> float:
     return retail_eur / EUR_PER_ENERGY_UNIT
 
 
-# --- reporting: fire-and-forget POST to the demo session's own ledger, never blocks the turn ---
+# --- reporting: fire-and-forget POST to the right ledger, never blocks the turn/worker ---
 
 _USAGE_ENDPOINT_PATH = "/usage"
 
 
 async def _post_usage(energy: float, kind: str) -> None:
+    from nucleo import cloud_account
+
+    if cloud_account.is_cloud_account():
+        await _post_usage_cloud_account(energy, kind)
+        return
     from nucleo import demo_routing
+
     worker_url = (os.getenv("DEMO_SESSION_WORKER_URL") or "").strip()
     session_id = demo_routing.my_session_id() or ""   # fixed env OR warm-pool pinned session
     if not worker_url or not session_id or energy <= 0:
@@ -121,6 +183,31 @@ async def _post_usage(energy: float, kind: str) -> None:
         logger.warning(f"energy_meter: usage report failed (non-fatal, turn unaffected): {e}")
 
 
+async def _post_usage_cloud_account(energy: float, kind: str) -> None:
+    """Real-account counterpart of _post_usage: reports to the control-plane's PERSISTENT per-user
+    Energy ledger (cloud/control-plane's POST /usage) instead of the demo Worker's ephemeral KV.
+    CONTROL_PLANE_URL/CONTROL_PLANE_SERVICE_TOKEN are injected by the provisioner at Machine creation
+    (cloud/provisioner/src/machineConfig.js::accountMachineConfig) — same guarded-until-configured
+    pattern as everything else here: missing either → no-op, never an exception."""
+    from nucleo import cloud_account
+
+    control_plane_url = (os.getenv("CONTROL_PLANE_URL") or "").strip()
+    user_id = cloud_account.my_user_id()
+    if not control_plane_url or not user_id or energy <= 0:
+        return
+    service_token = (os.getenv("CONTROL_PLANE_SERVICE_TOKEN") or "").strip()
+    headers = {"X-Service-Token": service_token} if service_token else {}
+    try:
+        async with httpx.AsyncClient(timeout=3.0) as client:
+            await client.post(
+                control_plane_url.rstrip("/") + _USAGE_ENDPOINT_PATH,
+                json={"user_id": user_id, "energy": energy, "kind": kind},
+                headers=headers,
+            )
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"energy_meter: cloud-account usage report failed (non-fatal): {e}")
+
+
 def _fire_and_forget(energy: float, kind: str) -> None:
     """Shared tail of every report_*_usage(): schedule the POST without ever blocking or raising
     into the caller. No running loop (e.g. a unit test calling this directly) → drop silently."""
@@ -133,16 +220,40 @@ def _fire_and_forget(energy: float, kind: str) -> None:
     asyncio.create_task(_post_usage(energy, kind))
 
 
-def report_llm_usage(*, base_url: str, prompt_tokens: int | None, completion_tokens: int | None) -> None:
+def report_llm_usage(
+    *, base_url: str, model: str | None = None, prompt_tokens: int | None, completion_tokens: int | None
+) -> None:
     """Call from the LLM streaming call site's `finally` block, AFTER usage/estimate is resolved.
     Fire-and-forget (asyncio.create_task) — never awaited by the caller, never adds latency to the
-    turn. No-op with zero cost if not a demo Machine (enabled() False) or no running event loop."""
+    turn. No-op with zero cost if not a metered account (enabled() False) or no running event loop."""
     if not enabled():
         return
-    energy = llm_cost_to_energy(base_url=base_url, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens)
+    energy = llm_cost_to_energy(
+        base_url=base_url, model=model, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens
+    )
     if energy is None:
         return
     _fire_and_forget(energy, "llm")
+
+
+def report_worker_usage(
+    *, base_url: str, model: str | None = None, prompt_tokens: int | None, completion_tokens: int | None
+) -> None:
+    """Call from a Brain Worker session's completion (nucleo/workers/session.py::_finish), AFTER the
+    stream-json "result" usage is known. Same rate table and fire-and-forget contract as
+    report_llm_usage — a worker call IS an LLM call, just reached via the Claude Code CLI subprocess
+    instead of an HTTP client. Deliberately does NOT use the CLI's own `total_cost_usd`: that figure is
+    computed by the CLI against OFFICIAL Anthropic pricing, which is meaningless once the call was
+    relayed to a flat-rate subscription tier (Z.AI/Moonshot, see nucleo/workers/providers.py) — pricing
+    by our own per-model table keeps worker Energy consistent with every other metered call."""
+    if not enabled():
+        return
+    energy = llm_cost_to_energy(
+        base_url=base_url, model=model, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens
+    )
+    if energy is None:
+        return
+    _fire_and_forget(energy, "worker")
 
 
 def report_tts_usage(*, characters: int | None) -> None:

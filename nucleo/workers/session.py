@@ -84,7 +84,9 @@ class WorkerSession:
         self._stopped = False
         self._model = spec.model or ""     # V2-048: modelo del worker (chip de observabilidad) — lo afina `spawned`
         self._usage: dict = {}             # tokens del `result` (input/output) → chip de tamaño en la fila final
-        self._cost = None                  # coste USD del `result` → texto de la fila final
+        self._cost = None                  # coste USD del `result` → texto de la fila final (informativo, NO se
+                                            # usa para Energy — ver energy_meter.report_worker_usage docstring)
+        self._base_url = ""                # endpoint real del escalón que sirvió la sesión (energy_meter, 2026-08-05)
         self._started_at = time.time()     # para medir el PRIMER output del worker (su TTFT) — ver _emit_note
         self._first_output_at = 0.0
 
@@ -158,6 +160,7 @@ class WorkerSession:
             self._usage = d.get("usage") or {}
             self._cost = d.get("cost")
             self._model = d.get("model") or self._model
+            self._base_url = d.get("base_url") or self._base_url
             self._bus("worker.result", {"id": rec.task_id, "ok": rec.ok})
         elif ev.type == "say":
             # (por si un backend lo emite explícito) → lo relata el loop; aquí solo al bus.
@@ -214,6 +217,15 @@ class WorkerSession:
                 extra["completion_tokens"] = ct
             if self._model:
                 extra["model"] = self._model
+            if pt or ct:
+                try:
+                    from nucleo import energy_meter as _energy
+                    _energy.report_worker_usage(
+                        base_url=self._base_url, model=self._model,
+                        prompt_tokens=pt, completion_tokens=ct,
+                    )
+                except Exception:
+                    pass
             lbl = ""
             try:
                 if self._cost:

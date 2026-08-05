@@ -632,6 +632,7 @@ class FastClient:
                 from nucleo import energy_meter as _energy
                 _energy.report_llm_usage(
                     base_url=spec.resolved_base_url(),
+                    model=spec.model,
                     prompt_tokens=m.get("prompt_tokens", m.get("prompt_tokens_est")),
                     completion_tokens=m.get("completion_tokens", m.get("completion_tokens_est")),
                 )

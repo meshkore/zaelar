@@ -381,7 +381,8 @@ class ClaudeCodeSession(WorkerBackend):
                 except Exception:
                     pass
             yield self._ev("result", summary=str(summary), ok=bool(ok), usage=usage,
-                           cost=obj.get("total_cost_usd"), model=self._model)
+                           cost=obj.get("total_cost_usd"), model=self._model,
+                           base_url=(getattr(self, "_tier", None) or {}).get("base_url", ""))
             yield self._ev("done")
             self._done = True
             return

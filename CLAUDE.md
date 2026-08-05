@@ -1079,6 +1079,36 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   Claude Code es el ÚLTIMO escalón y SOLO en local** (autorizado por el operador 2026-08-02): un login de navegador
   no corre en un contenedor, así que en **cloud la cobertura la dan dos tokens de suscripción**, nunca la licencia.
   Fail-open: sin config ni credenciales, `env_for_worker()` devuelve {} y todo se comporta como antes.
+- **Energy metering — cobertura real, no solo tabla de tarifas** (`nucleo/energy_meter.py`, 2026-08-05;
+  detonante: el operador pidió avanzar el sistema de Energy para TODO el consumo real —voz+FlashBrain+Brain
+  Workers— porque "sino perderemos dinero"). **Hallazgo antes de tocar nada**: `report_llm_usage()` se llamaba
+  desde UN SOLO sitio (`nucleo/flash/fast_client.py`, el turno de voz), y la tabla de tarifas solo cubría
+  `"x.ai"`/`"api.openai.com"` — pero el FlashBrain de PRODUCCIÓN corre sobre **AIMLAPI** (`config/v2.json §fast`,
+  un broker multi-modelo), que no matcheaba ninguna fila → **el 100% del tráfico real de voz meteraba a CERO
+  coste de Energy**, en silencio, sin ningún error. Fix en tres piezas: **(1) tarifa por (base_url,modelo)** —
+  AIMLAPI es un broker de decenas de modelos a precios muy distintos, así que un único par `(in,out)` por
+  `base_url` (lo que servía para x.ai/openai) es estructuralmente insuficiente; `_AIMLAPI_MODEL_RATES` tariffa
+  por MODELO cuando el broker es AIMLAPI. **(2) FALLBACK nunca-silencioso** — un `(base_url,modelo)` no
+  mapeado YA NO devuelve `None`/coste-cero: aplica una tarifa de seguridad (logueada 1×) y sigue cobrando.
+  Perder dinero por sub-cobrar es peor que sobre-cobrar un poco a un proveedor raro/nuevo — el fallo por
+  defecto se invirtió a propósito. **(3) Brain Workers metrados** (`nucleo/workers/session.py::_finish` +
+  `claude_session.py`): el CLI de Claude Code YA calculaba `usage`/`total_cost_usd` reales en su mensaje
+  `"result"` de stream-json, pero morían en un chip de UI (`voice.observer`), nunca en Energy —
+  `report_worker_usage()` los tariffa con la MISMA tabla (no con el `total_cost_usd` del CLI: ese número usa
+  precio OFICIAL de Anthropic, que no significa nada una vez el worker se relevó a un plan forfait de Z.AI/
+  Moonshot — ver decisión anterior). **Gate extendido a cuentas cloud reales**: `enabled()` solo miraba
+  `demo_routing.is_demo_machine()`; ahora también `nucleo/cloud_account.is_cloud_account()`
+  (`ZAELAR_USER_ID`, inyectado por el provisioner en `accountMachineConfig` — mismo patrón accessor que
+  `is_demo_machine()`). El reporte se enruta: demo → KV efímero del Worker de sesión (sin cambios); cuenta
+  cloud → `POST {CONTROL_PLANE_URL}/usage` con `{user_id,energy,kind}` + `X-Service-Token` (el endpoint YA
+  existía en `cloud/control-plane`, solo faltaba que el motor lo llamara — Fase 3 M8 del plan INI-019).
+  **Precios verificados por web (2026-08-05, re-verificar periódicamente)**: DeepSeek V4 Flash $0.14/$0.28,
+  GLM-5.2 $1.40/$4.40, Kimi K2.6 $0.95/$4.00, Claude Haiku 4.5 $1.00/$5.00 (fallback). **Gap conocido, no
+  cerrado**: la generación de widgets (`widgets/generator.py::_run_agent`) también lanza `claude -p
+  --output-format json` con `usage`/`total_cost_usd` en la salida, pero hoy descarta el stdout entero sin
+  parsearlo — no metrado todavía (menor volumen que la conversación/workers interactivos, follow-up
+  pendiente). Detalle completo + decisión de negocio: `.meshkore/roadmap/initiatives/INI-019-fase3-backoffice-multitenant.md`
+  (raíz del workspace) addenda 2026-08-05.
 - **«Homeostasis» — el LATIDO AUTÓNOMO del sistema** (`nucleo/homeostasis.py`, V2-070, 2026-07-25; detonante: el
   incidente del motor LiveKit degradado del 2026-07-25 — tras ~7h de bucle `wait_pc_connection timed out` el chat/voz
   dejó de responder y NADA lo curó). El sistema emula a un humano en **tres niveles, y solo dos piensan**: **Mente**
