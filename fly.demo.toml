@@ -35,6 +35,11 @@ primary_region = "iad"   # Ashburn, Virginia — Fly's US East region
   # mostly documentation/explicitness (matching the pattern of the other overrides above), not a
   # behavior change. `DEEPGRAM_API_KEY` is also present/verified if voxtral proves flaky in practice.
   ZAELAR_STT = "voxtral"
+  # Fast boot (2026-08-05): skip the ~1.1GB jina-reranker download that otherwise dominates every cold
+  # start (2min18s measured). The router never serves a session (it only fly-replays), so it never
+  # needs the memory reranker; the Worker injects the same MEMORY_RERANK=off into every demo/pool
+  # machine (see cloud/provisioner/src/machineConfig.js). Applies on the NEXT base redeploy.
+  MEMORY_RERANK = "off"
   #
   # Demo caps (INI-018 T6) — baseline for the one verification machine this file brings up; real
   # per-session Machines get their OWN values injected by the Worker at creation time.

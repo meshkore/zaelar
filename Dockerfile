@@ -18,6 +18,19 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Bake the ONNX models the engine loads at runtime INTO the image (2026-08-05). WHY: an ephemeral cloud
+# Machine has no volume, so on EVERY boot the engine used to download these from HuggingFace on first
+# use — the jina reranker alone is ~1.1GB and took 2min18s, during which the HTTP server didn't answer.
+# That was the dominant cold-start cost AND the cause of "started but hung" warm-pool machines that Fly
+# kept routing 502s into. Pre-downloading here puts the models in the image layer (pulled once per Fly
+# host, then cached) instead of over the network per boot. fastembed caches under /root/.cache; build
+# and runtime both run as root with HOME=/root, so the baked cache is found at runtime. `|| true` keeps
+# a transient HF hiccup at build time from failing the whole image (worst case: it downloads at boot,
+# the old behavior). Embedding = fastembed's default (memory/embeddings.py TextEmbedding()); reranker =
+# memory/rerank_local.py's default (demo runs with MEMORY_RERANK=off, but real accounts use it).
+RUN python -c "from fastembed import TextEmbedding; TextEmbedding()" || true
+RUN python -c "from fastembed.rerank.cross_encoder import TextCrossEncoder; TextCrossEncoder(model_name='jinaai/jina-reranker-v2-base-multilingual')" || true
+
 # App code — one COPY per domain package (no .venv/.env/logs/harness — see .dockerignore). Módulos VIVOS del
 # estándar (cluster.yaml): el cerebro «Colmena» (nucleo/), la memoria central (memory/), el bus (bus/) y los
 # conectores. `brains/` YA NO EXISTE (Hermes retirado, V2-009) — copiarlo reventaba el build.
