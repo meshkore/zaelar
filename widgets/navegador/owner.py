@@ -811,6 +811,21 @@ async def _authenticate(task_id: str, url: str, *, site: str = "", goal: str = "
             tasks.finish(task_id, "done", "Ya tenías sesión iniciada.")
         await _resume_paused_tasks()                              # reanuda OTRAS tareas pausadas por el login (si las hubo)
         return
+    if _in_container():
+        # 2026-08-03: en un contenedor headless (cloud) no hay display → el relanzado "headed" de más abajo
+        # SIEMPRE degrada a headless en silencio (`_ensure_page`), y la tarea se queda esperando un login que
+        # nunca puede pasar — antes esto se quedaba embuclado para siempre (voz Y widget colgados, visto en vivo
+        # con Wallapop). Cortar aquí, ANTES de intentarlo, con un mensaje claro en vez de un intento fantasma.
+        msg = (f"Para entrar en {site or url} hace falta iniciar sesión, y eso todavía no lo puedo hacer desde la "
+               "nube — necesitaría abrir una ventana de navegador que aquí no existe. Instala la versión local "
+               "(desde GitHub) si quieres usar sitios que exigen iniciar sesión.")
+        await _fail_paused_tasks(msg)
+        try:
+            from voice import proactive
+            await proactive.notify("navegador", msg, speak=True)
+        except Exception:
+            pass
+        return
     _auth_active = site
     auth_memory.checkpoint_auth_pending(site, task_id, goal)       # miga durable (sobrevive a crash/reinicio)
     _visible_override = True                                       # fuerza VISIBLE para el login
@@ -982,6 +997,31 @@ async def _resume_paused_tasks() -> None:
         _t = asyncio.create_task(_automate(goal, (info or {}).get("plan", ""), tid))
         _running.add(_t)
         _t.add_done_callback(_running.discard)
+
+
+def _in_container() -> bool:
+    """¿Corremos en un contenedor headless (cloud), sin display para una ventana real? Mismo accessor que
+    `nucleo/workers/providers.py::_is_container()` — la licencia local de Claude Code y la ventana de login
+    comparten la misma limitación: ninguna de las dos existe dentro de un contenedor."""
+    try:
+        from config import doctor
+        return bool(doctor.hardware().get("container"))
+    except Exception:
+        return False
+
+
+async def _fail_paused_tasks(message: str) -> None:
+    """Cierra en LIMPIO la tarea que pidió el login + las que se pausaron esperándolo — hermana de
+    `_resume_paused_tasks`, para cuando el login NO puede resolverse en este entorno (en vez de dejarlas
+    colgadas para siempre esperando un login que nunca va a llegar)."""
+    from . import tasks
+    items = list(_auth_resume.items())
+    _auth_resume.clear()
+    for tid, _info in items:
+        if tasks.is_cancelled(tid):
+            continue
+        tasks.set_login_wait(tid, False)
+        tasks.finish(tid, "failed", message)
 
 
 # Solo intención FUERTE de login para detectar "hay que iniciar sesión" (no ambiguos como "mi cuenta"/"entrar",
