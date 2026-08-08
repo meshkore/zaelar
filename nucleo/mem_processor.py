@@ -39,6 +39,8 @@ from loguru import logger
 
 _MAX_INPUT = 600            # chars del turno que ve el procesador (destila, no necesita el turno entero)
 _TIMEOUT = float(os.getenv("MEM_PROCESSOR_TIMEOUT", "30"))   # s por INTENTO; off-hot-path pero acotado (release del slot)
+# UA de navegador para el POST del CORAZÓN — AIMLAPI (tras Cloudflare) 403ea el UA por defecto de aiohttp; ver el uso.
+_BROWSER_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36"
 # REINTENTO ante fallo TRANSITORIO (auditoría 2026-07-29): un timeout/conexión/429/5xx de la API remota devolvía
 # None → fail-open a la heurística lossy → PÉRDIDA DURABLE de ese turno (un hecho que el modelo SÍ destila bien se
 # tiraba por un blip de red). Era la causa nº1 de los fallos "esperaba long, está []" del bot de memoria (medido:
@@ -439,7 +441,12 @@ async def process(text: str, *, state: dict | None = None) -> list[dict] | None:
                 try:
                     to = aiohttp.ClientTimeout(total=_TIMEOUT)
                     async with aiohttp.ClientSession(timeout=to) as s:
-                        async with s.post(url, headers={"Authorization": f"Bearer {_key()}"}, json=payload) as r:
+                        # UA de navegador: AIMLAPI va tras Cloudflare y 403ea el User-Agent por defecto de aiohttp
+                        # (igual que fast_client con el SDK OpenAI — ver su _BROWSER_UA). Sin esto, apuntar el CORAZÓN
+                        # a AIMLAPI (config §memory.mem_processor_base_url) 403ea SIEMPRE → todo escribe por heurística.
+                        # Inocuo para OpenAI/Ollama/otros endpoints; el header sobra pero no molesta.
+                        _headers = {"Authorization": f"Bearer {_key()}", "User-Agent": _BROWSER_UA}
+                        async with s.post(url, headers=_headers, json=payload) as r:
                             if r.status != 200:
                                 body = (await r.text())[:200]
                                 # 4xx (salvo 429) = auth/bad-request: PERMANENTE, reintentar no ayuda → fail-open ya.
