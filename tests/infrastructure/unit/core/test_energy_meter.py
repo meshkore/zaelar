@@ -219,6 +219,50 @@ async def test_post_usage_cloud_account_noop_without_control_plane_url(monkeypat
     await energy_meter._post_usage(12.5, "worker")
 
 
+@pytest.mark.anyio
+async def test_post_usage_demo_session_also_reports_to_control_plane(monkeypatch):
+    """2026-08-08: a demo session (no account) must ALSO post to CONTROL_PLANE_URL/usage with
+    {session_id, energy, kind} — for centralized observability (zaelar_user_events) — in ADDITION
+    to, not instead of, the demo Worker's own session_id-keyed KV ledger call."""
+    monkeypatch.delenv("ZAELAR_USER_ID", raising=False)
+    monkeypatch.setenv("ZAELAR_DEMO_SESSION", "demo-sess-1")
+    monkeypatch.setenv("DEMO_SESSION_WORKER_URL", "https://zaelar-demo-session.example.workers.dev")
+    monkeypatch.setenv("CONTROL_PLANE_URL", "https://zaelar-control-plane.example.workers.dev")
+    calls = []
+
+    class _FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def post(self, url, json=None, headers=None):
+            calls.append({"url": url, "json": json, "headers": headers})
+
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: _FakeClient())
+    await energy_meter._post_usage(7.0, "tts")
+    assert len(calls) == 2
+    assert calls[0]["url"] == "https://zaelar-demo-session.example.workers.dev/usage"
+    assert calls[0]["json"] == {"session_id": "demo-sess-1", "energy": 7.0, "kind": "tts"}
+    assert calls[1]["url"] == "https://zaelar-control-plane.example.workers.dev/usage"
+    assert calls[1]["json"] == {"session_id": "demo-sess-1", "energy": 7.0, "kind": "tts"}
+
+
+@pytest.mark.anyio
+async def test_post_usage_demo_session_control_plane_noop_without_url(monkeypatch):
+    monkeypatch.delenv("ZAELAR_USER_ID", raising=False)
+    monkeypatch.setenv("ZAELAR_DEMO_SESSION", "demo-sess-1")
+    monkeypatch.delenv("DEMO_SESSION_WORKER_URL", raising=False)
+    monkeypatch.delenv("CONTROL_PLANE_URL", raising=False)
+
+    async def _boom(*a, **kw):
+        raise AssertionError("must not attempt a network call without either URL configured")
+
+    monkeypatch.setattr(httpx, "AsyncClient", _boom)
+    await energy_meter._post_usage(7.0, "tts")
+
+
 @pytest.fixture
 def anyio_backend():
     return "asyncio"

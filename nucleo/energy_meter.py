@@ -169,18 +169,47 @@ async def _post_usage(energy: float, kind: str, meta: dict | None = None) -> Non
         return
     from nucleo import demo_routing
 
-    worker_url = (os.getenv("DEMO_SESSION_WORKER_URL") or "").strip()
     session_id = demo_routing.my_session_id() or ""   # fixed env OR warm-pool pinned session
-    if not worker_url or not session_id or energy <= 0:
+    worker_url = (os.getenv("DEMO_SESSION_WORKER_URL") or "").strip()
+    if worker_url and session_id and energy > 0:
+        try:
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                await client.post(
+                    worker_url.rstrip("/") + _USAGE_ENDPOINT_PATH,
+                    json={"session_id": session_id, "energy": energy, "kind": kind},
+                )
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"energy_meter: usage report failed (non-fatal, turn unaffected): {e}")
+    # 2026-08-08: ALSO report to the control-plane (zaelar_user_events, keyed by session_id — no
+    # account exists yet) — "everything goes through zaelar_user_events" (operator ask). The demo
+    # Worker's KV above stays the actual budget cap; this call is purely for centralized
+    # observability, so its own failure must never affect (or be affected by) the call above.
+    await _post_usage_demo_to_control_plane(session_id, energy, kind, meta)
+
+
+async def _post_usage_demo_to_control_plane(session_id: str, energy: float, kind: str, meta: dict | None) -> None:
+    """Demo-session counterpart of _post_usage_cloud_account: same /usage call, session_id instead of
+    user_id, no Energy ledger involved (a demo session has no account to bill — energy.consume is
+    skipped control-plane-side when there's no user_id). CONTROL_PLANE_URL is injected by the
+    provisioner at Machine creation (machineConfig.js::demoMachineConfig/demoPoolMachineConfig,
+    2026-08-08) — guarded-until-configured, same as everywhere else: missing it → no-op, never raises."""
+    control_plane_url = (os.getenv("CONTROL_PLANE_URL") or "").strip()
+    if not control_plane_url or not session_id or energy <= 0:
         return
+    service_token = (os.getenv("CONTROL_PLANE_SERVICE_TOKEN") or "").strip()
+    headers = {"X-Service-Token": service_token} if service_token else {}
+    payload = {"session_id": session_id, "energy": energy, "kind": kind}
+    if meta:
+        payload["meta"] = meta
     try:
         async with httpx.AsyncClient(timeout=3.0) as client:
             await client.post(
-                worker_url.rstrip("/") + _USAGE_ENDPOINT_PATH,
-                json={"session_id": session_id, "energy": energy, "kind": kind},
+                control_plane_url.rstrip("/") + _USAGE_ENDPOINT_PATH,
+                json=payload,
+                headers=headers,
             )
     except Exception as e:  # noqa: BLE001
-        logger.warning(f"energy_meter: usage report failed (non-fatal, turn unaffected): {e}")
+        logger.warning(f"energy_meter: demo-session control-plane report failed (non-fatal): {e}")
 
 
 async def _post_usage_cloud_account(energy: float, kind: str, meta: dict | None = None) -> None:
