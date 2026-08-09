@@ -229,6 +229,17 @@ arranque `make run` → `python -m server`.
   passkeys WebAuthn PRF; tablas `vault_meta`/`vault_secrets`), **`memory/secrets.py`** (detección FAIL-CLOSED +
   redacción) y **`memory/vault_api.py`** (`/api/vault/*`, loopback) — ver la decisión clave «Bóveda de secretos».
   Diseño en `zaelar-memory.md`.
+- `observability/` — **QUIÉN · CUÁNDO · en qué FLUJO** (V2-090). Completa el registro de eventos (que ya contaba
+  QUÉ pasa) con los ejes para ANALIZARLO: `identity.py` (**`user_id`** estable por instalación —UUID4 aleatorio
+  en `config/identity.json` gitignored; en la nube manda el `ZAELAR_USER_ID` del provisioner— y **`session_id`**
+  por SESIÓN DE TRABAJO del operador: arranca al conectar, se cierra con ⏻ o al cerrar la pestaña, y una
+  reconexión NO la parte en dos) · `flows.py` (lectura por **CORRELATION ID**: flujos con duración real de punta
+  a punta, familias, actores, tokens y errores; detalle cronológico; sesiones; cobertura) · `api.py`
+  (`/api/observability/*`). **El correlation id NO es un id nuevo: es el `trace` de V2-044 PROMOVIDO** de campo
+  del JSON a columna indexada (`events.corr_id`) — un segundo id paralelo se habría separado del primero en la
+  primera costura cross-loop sin coser. Un flujo nuevo nace con cada petición del operador (aunque corrija una
+  anterior); lo que continúa un flujo vivo hereda el suyo. SOLO LECTURA: el único escritor de `events` sigue
+  siendo el sink del bus. Fase LOCAL entregada; nube + privacidad en `INI-021` (raíz del workspace).
 - `bus/` — **Sistema Nervioso**: pub/sub de señales in-process (asyncio, patrones fnmatch + `emit_sync`
   loop-agnóstico vía `call_soon_threadsafe` para entrega cross-loop job-thread↔uvicorn). `bus/log.py` = log durable
   de eventos en SQLite (`zaelar.db`, tabla `events`, WAL). `bus/sse.py` = puente SSE al frontend (`GET /events`).
@@ -1492,7 +1503,10 @@ Cómo funciona (canal de VOZ e2e, INI-013):
   7.6); antes caían filas que ningún chip gobernaba. Regla: **la familia dice QUÉ pasó, el `span`/`trace` dice
   QUIÉN lo hizo** — la lectura de memoria de un worker es `memory`, no «worker»; para aislar por ACTOR está la
   vista Trazas. Segundo eje de filtro, más fino, por `kind` (botón «Tipos…», contador vivo, shift+click = solo
-  ese) + cabecera FIJA de columnas. Tabla completa en `zaelar-observability.md §El visor`.
+  ese) + cabecera FIJA de columnas. Tabla completa en `zaelar-observability.md §El visor`. **Cada evento lleva
+  además `corr` (el FLUJO), `sid` (sesión de trabajo) y `uid` (instalación)**, y `bus/log.py` los sube a COLUMNAS
+  indexadas de `events` junto a `cat`/`kind`/`ms`/`model`/tokens → la observabilidad se CONSULTA por flujos en
+  vez de escanearse. Ver el módulo `observability/` y la iniciativa V2-090.
 - **Routing de modelos del tester**: DRIVE + juicio barato = **DeepSeek vía AIMLAPI**; juicio competente = **GLM-4.6
   vía Z.AI**. Claves en `.env` + `.meshkore/credentials/tester.env` (gitignored).
 - **Docker SÍ se permite AQUÍ** (aislamiento, LiveKit dedicado del tester) — es la ÚNICA parte del proyecto donde

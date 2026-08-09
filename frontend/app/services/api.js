@@ -46,6 +46,21 @@ export const sessionRelease = (sid) => {
   } catch (_) {}
   try { fetch("/api/session/release", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sid }), keepalive: true }); } catch (_) {}
 };
+// SESIÓN DE TRABAJO para observabilidad (2026-08-09) — NO confundir con `sessionAcquire`, que es el lock de
+// instancia única por pestaña. Esta es el tramo que el operador reconocería como «lo de esta tarde»: arranca al
+// conectar el agente y se cierra con ⏻ o al cerrar la pestaña. El server reutiliza la sesión abierta, así que
+// una reconexión no la parte en dos. El cierre va por `sendBeacon` porque al cerrar la pestaña no da tiempo a
+// negociar un fetch normal (mismo patrón que `sessionRelease`).
+export const obsSessionStart = (source = "frontend") =>
+  postJSON("/api/observability/session/start", { source }).then(json).catch(() => ({}));
+export const obsSessionEnd = (reason = "frontend") => {
+  try {
+    const blob = new Blob([JSON.stringify({ reason })], { type: "application/json" });
+    if (navigator.sendBeacon && navigator.sendBeacon("/api/observability/session/end", blob)) return;
+  } catch (_) {}
+  try { fetch("/api/observability/session/end", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason }), keepalive: true }); } catch (_) {}
+};
+
 export const voices = () => fetch("/api/voices").then(json).catch(() => ({}));
 // ▶ test button: synthesize a SAMPLE for a provider+voice (does not touch the live session). Resolves to a
 // playable audio Blob; rejects with the server message so the caller can surface why a voice couldn't be tried.

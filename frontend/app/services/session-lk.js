@@ -85,7 +85,7 @@ function _startHeartbeat() {
 }
 function _stopHeartbeat() { if (_hb) { clearInterval(_hb); _hb = null; } }
 // Soltar el lock al cerrar la pestaña (sendBeacon sobrevive al unload) → otra pestaña puede entrar al instante.
-try { window.addEventListener("pagehide", () => api.sessionRelease(SID)); } catch (_) {}
+try { window.addEventListener("pagehide", () => { api.sessionRelease(SID); api.obsSessionEnd("tab_closed"); }); } catch (_) {}
 
 // ---- boot overlay: only the VERY FIRST boot blocks the UI; later reconnects (mic swap, auto-reconnect, voice
 // picker) never re-lock it. A safety timeout unblocks even if the agent's "ready" signal never arrives — a
@@ -247,6 +247,7 @@ export async function start() {
     }
     if (videoEl) videoEl.srcObject = stream;
     started = true; store.setStarted(true);
+    api.obsSessionStart("voice");   // abre (o reengancha) la sesión de trabajo que agrupa los eventos — ver api.js
     audio.initMic(stream);   // AudioContext + mic analyser → orb visualiser + mic-level meter keep working
 
     // --- LiveKit room ---

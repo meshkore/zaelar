@@ -59,9 +59,84 @@ def _connect() -> sqlite3.Connection:
     )
     conn.execute("CREATE INDEX IF NOT EXISTS idx_events_topic ON events(topic)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts_ms)")
+    _migrate_columns(conn)
     conn.commit()
     _conn = conn
     return conn
+
+
+# COLUMNAS DE ANÁLISIS (2026-08-09). Hasta aquí un evento era `(ts, topic, payload-JSON)`: para responder «dame
+# todo el flujo de "enséñame el tiempo en Soria"» o «¿qué hizo este usuario en la sesión del martes?» había que
+# escanear y parsear TODO el JSON. Estos campos SUBEN del payload a columnas indexadas — el JSON completo se
+# sigue guardando intacto (es la fuente de verdad; esto es una proyección para consultar).
+#
+# Se añaden con ALTER TABLE idempotente en vez de recrear la tabla: una instalación viva no puede perder su
+# histórico por una migración, y SQLite añade columnas NULL sin reescribir el fichero. Las filas antiguas quedan
+# con NULL — correcto y honesto: ese dato no existía cuando se registraron.
+_COLUMNS = (
+    ("corr_id", "TEXT"),      # CORRELATION ID = el flujo completo de inicio a fin (voice/trace.py)
+    ("session_id", "TEXT"),   # sesión de trabajo del operador (observability/identity.py)
+    ("user_id", "TEXT"),      # instalación / cuenta
+    ("cat", "TEXT"),          # familia: flash · worker · memory · widget · system · pulse
+    ("kind", "TEXT"),         # tipo concreto dentro de la familia
+    ("label", "TEXT"),        # qué pasó, en una línea
+    ("span", "TEXT"),         # ACTOR dentro del flujo: worker:5 · rail:music · web:t2
+    ("ms", "REAL"),           # duración REAL de la operación, cuando el evento la trae
+    ("model", "TEXT"),        # modelo que sirvió el turno/paso
+    ("tokens_in", "INTEGER"),
+    ("tokens_out", "INTEGER"),
+    ("ver", "TEXT"),          # versión del código que lo generó (V2-074)
+)
+
+
+def _migrate_columns(conn: sqlite3.Connection) -> None:
+    """Añade las columnas que falten. Idempotente y no destructivo: se puede llamar en cada arranque."""
+    try:
+        have = {r[1] for r in conn.execute("PRAGMA table_info(events)").fetchall()}
+    except Exception:
+        return
+    for name, decl in _COLUMNS:
+        if name in have:
+            continue
+        try:
+            conn.execute(f"ALTER TABLE events ADD COLUMN {name} {decl}")
+        except Exception:
+            pass
+    for col in ("corr_id", "session_id", "user_id", "cat"):
+        try:
+            conn.execute(f"CREATE INDEX IF NOT EXISTS idx_events_{col} ON events({col})")
+        except Exception:
+            pass
+
+
+# `ms` no tiene un nombre único: cada sitio estampa el suyo (brain_ms, tts_ms, gen_ms…). Mismo orden de
+# preferencia que usa el visor — una duración TOTAL gana a una parcial (`ttft_ms` = solo el primer token).
+_MS_FIELDS = ("brain_ms", "fast_ms", "deep_ms", "tts_ms", "stt_ms", "gen_ms",
+              "architect_ms", "cluster_ms", "triage_ms", "mem_ms", "ttft_ms")
+
+
+def _columns_from(payload) -> tuple:
+    """Proyecta un payload de evento a la tupla de columnas. Tolerante: lo que no venga queda a NULL."""
+    if not isinstance(payload, dict):
+        return (None,) * len(_COLUMNS)
+    ms = None
+    for f in _MS_FIELDS:
+        v = payload.get(f)
+        if isinstance(v, (int, float)):
+            ms = float(v)
+            break
+
+    def _s(key, cap=200):
+        v = payload.get(key)
+        return str(v)[:cap] if v not in (None, "") else None
+
+    def _i(key):
+        v = payload.get(key)
+        return int(v) if isinstance(v, (int, float)) else None
+
+    return (_s("trace", 64), _s("sid", 64), _s("uid", 64), _s("cat", 24), _s("kind", 40),
+            _s("label", 200), _s("span", 64), ms, _s("model", 120),
+            _i("prompt_tokens"), _i("completion_tokens"), _s("ver", 40))
 
 
 def _write(rec: dict):
@@ -72,11 +147,14 @@ def _write(rec: dict):
             blob = json.dumps(payload, ensure_ascii=False, default=str)
         except Exception:
             blob = json.dumps(str(payload), ensure_ascii=False)
+        cols = _columns_from(payload)
+        names = ", ".join(c[0] for c in _COLUMNS)
+        marks = ", ".join("?" for _ in _COLUMNS)
         with _lock:
             conn = _connect()
             conn.execute(
-                "INSERT INTO events (ts_ms, topic, payload) VALUES (?, ?, ?)",
-                (float(rec.get("ts_ms") or time.time() * 1000.0), str(rec.get("topic") or ""), blob),
+                f"INSERT INTO events (ts_ms, topic, payload, {names}) VALUES (?, ?, ?, {marks})",
+                (float(rec.get("ts_ms") or time.time() * 1000.0), str(rec.get("topic") or ""), blob, *cols),
             )
             conn.commit()
     except Exception:

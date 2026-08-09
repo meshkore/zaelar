@@ -216,6 +216,11 @@ DOMAINS: list[dict] = [
         # ningún chip gobernaba).
         {"id": "7.6", "title": "Inventario de categorías del visor (ningún kind sin familia)", "ch": UNIT,
             "paths": ["tests/infrastructure/unit/core/test_observer_categories.py"]},
+        # INI-021 (2026-08-09): la observabilidad pasa de «ver líneas» a «analizar procesos». Un estímulo y todo
+        # lo que desencadena comparten CORRELATION ID; cada evento dice de qué instalación y de qué sesión de
+        # trabajo salió; y todo eso es consultable por columnas indexadas, no escaneando JSON.
+        {"id": "7.7", "title": "Flujos por correlation ID + identidad de instalación + sesión de trabajo",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/core/test_observability_flows.py"]},
         {"id": "7.3", "title": "Chat por transporte LiveKit REAL", "ch": CHAT, "live": True,
             "cmd": "./.venv/bin/python tests/infrastructure/e2e/smoke/run_chat_over_livekit.py"},
         {"id": "7.4", "title": "Smoke INTEGRAL de salud", "ch": HTTP, "live": True,

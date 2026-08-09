@@ -33,6 +33,7 @@ from connectors.meshkore.server_api import router as meshkore_router  # native c
 from connectors.messaging.server_api import router as messaging_router  # UI-managed connect/disconnect of connectors
 from memory.server_api import router as files_router  # paste/drop uploads → EPISODIC memory (V2-003; absorbs files/)
 from memory.vault_api import router as vault_router    # bóveda de secretos cifrados del operador (V2-060)
+from observability.api import router as obs_router    # flujos/sesiones/identidad (correlation id, 2026-08-09)
 from nucleo.cron_api import router as cron_router  # proactividad PROPIA del cerebro «Colmena» (V2-005/009; ⏰ panel)
 from .wizard_api import router as wizard_router  # wizard de primer arranque: perfiles local/cloud + detector (V2-040)
 from .spotify_api import router as spotify_router  # conector de música Spotify (OAuth PKCE + estado), V2-041
@@ -466,7 +467,8 @@ def create_app() -> FastAPI:
     # cron_router = proactividad PROPIA del cerebro «Colmena» (nucleo/cron_api.py sobre nucleo/scheduler.py) —
     # sustituye al viejo /api/cron de Hermes; el mismo panel ⏰ del frontend lo consume.
     routers = [pages_router, voice_router, widgets_router, meshkore_router, messaging_router, files_router,
-               vault_router, cron_router, wizard_router, spotify_router, config_router, i18n_router]
+               vault_router, cron_router, wizard_router, spotify_router, config_router, i18n_router,
+               obs_router]
     # LiveKit control plane (token + connect config + session.js swap) — the default engine (INI-012).
     if os.getenv("ZAELAR_ENGINE", "livekit").lower() == "livekit":
         from .livekit_api import router as livekit_router

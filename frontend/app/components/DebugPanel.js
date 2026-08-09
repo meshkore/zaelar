@@ -74,10 +74,15 @@ const CAT_LABEL_KEY = {
 // justo encima de su columna sin tocar el ancho actual de nada. Si el rótulo no cabe se recorta con «…» y el
 // `title` (hover) dice qué es. Bajo 560px de panel las filas se colapsan a flujo libre (container query) y la
 // cabecera se oculta: ahí ya no hay columnas que rotular.
+// El ORDEN cuenta una historia de izquierda a derecha: CUÁNDO · de qué FLUJO · de qué PIEZA · QUÉ tipo ·
+// cuánto tardó · con qué modelo · cuántos tokens · y qué pasó. Las dos primeras después de la hora son las que
+// permiten leer el log como PROCESOS y no como líneas sueltas.
 const COLS = [
   { cls: "dbg-t", key: "debug.col_time", tip: "debug.col_time_t" },
-  { cls: "dbg-lat", key: "debug.col_lat", tip: "debug.col_lat_t" },
+  { cls: "dbg-corr", key: "debug.col_corr", tip: "debug.col_corr_t" },
+  { cls: "dbg-cat", key: "debug.col_family", tip: "debug.col_family_t" },
   { cls: "dbg-k", key: "debug.col_kind", tip: "debug.col_kind_t" },
+  { cls: "dbg-lat", key: "debug.col_lat", tip: "debug.col_lat_t" },
   { cls: "dbg-eng", key: "debug.col_engine", tip: "debug.col_engine_t" },
   { cls: "dbg-sz", key: "debug.col_size", tip: "debug.col_size_t" },
   { cls: "dbg-msg", key: "debug.col_event", tip: "debug.col_event_t" },
@@ -90,6 +95,10 @@ const COLS = [
 // Column 2 (kind badge): for "brain" rows, name the layer instead of the generic "BRAIN" pill.
 // V2-036: ya NO hay "cerebro" aparte — solo el FlashBrain ORQUESTADOR + procesos (workers) que lanza. Los turnos
 // del orquestador se etiquetan "FlashBrain"; un evento de worker (engine "slowbrain", legado) → "Worker".
+// Familia en 4 letras: la celda es estrecha y el nombre completo ya está en el chip del filtro y en el hover.
+const CAT_SHORT = { flash: "FLSH", worker: "WRKR", memory: "MEM", widget: "WDGT", system: "SYS", pulse: "PULS" };
+function catShort(cat) { return CAT_SHORT[cat] || (cat || "?").slice(0, 4).toUpperCase(); }
+
 function brainName(engine) {
   if (engine === "slowbrain") return "Worker";
   return "FlashBrain";
@@ -314,6 +323,13 @@ export function DebugPanel() {
     row.dataset.kind = kind;                              // desglose por kind (2ª fila de chips)
 
     const ts = document.createElement("span"); ts.className = "dbg-t"; ts.textContent = stamp(d._rx);
+    // CORRELATION ID: el flujo completo al que pertenece esta línea (voice/trace.py). Antes el chip iba dentro
+    // del mensaje, donde se perdía entre el texto; en columna propia se leen los flujos de un vistazo — click
+    // sigue aislando la cadena entera.
+    const cr = document.createElement("span"); cr.className = "dbg-corr";
+    if (d.trace) cr.appendChild(traceChip(d.trace, (tid) => { if (filterEl) { filterEl.value = tid; } applyFilter(); }));
+    const ct = document.createElement("span"); ct.className = "dbg-cat c-" + (d.cat || "other");
+    ct.textContent = catShort(d.cat); ct.title = t(CAT_LABEL_KEY[d.cat] || "debug.col_family");
     const lt = document.createElement("span"); lt.className = "dbg-lat" + (lat ? " " + lat.cls : "");
     if (lat) { lt.textContent = lat.text; lt.title = lat.field; }
     const kd = document.createElement("span"); kd.className = "dbg-k"; kd.textContent = bn || kind;
@@ -323,12 +339,10 @@ export function DebugPanel() {
     const szc = document.createElement("span"); szc.className = "dbg-sz" + (sz ? " " + sz.cls : "");
     if (sz) { szc.textContent = sz.text; szc.title = sz.title; }
     const msg = document.createElement("span"); msg.className = "dbg-msg";
-    // V2-044: chip de trace ANTES del label — click aísla la cadena entera de esa frase en el filtro.
-    if (d.trace) msg.appendChild(traceChip(d.trace, (tid) => { if (filterEl) { filterEl.value = tid; } applyFilter(); }));
     if (label) { const b = document.createElement("b"); b.textContent = label; msg.appendChild(b); msg.appendChild(document.createTextNode(" ")); }
     if (meta) { const m = document.createElement("i"); m.className = "dbg-meta"; m.textContent = meta; msg.appendChild(m); msg.appendChild(document.createTextNode(" ")); }
     if (text) msg.appendChild(document.createTextNode(text));
-    row.append(ts, lt, kd, eg, szc, msg);
+    row.append(ts, cr, ct, kd, lt, eg, szc, msg);
     row.hidden = !visible(row);
 
     listEl.appendChild(row);

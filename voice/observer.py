@@ -294,6 +294,18 @@ def emit(kind: str, label: str, text: str = "", role: str = "", extra: dict | No
                     ev["span"] = _sp
         except Exception:
             pass
+    # QUIÉN y CUÁNDO (2026-08-09). El evento ya decía QUÉ pasó (`kind`), de qué PIEZA (`cat`) y de qué FLUJO
+    # (`trace` = correlation id). Le faltaban los dos ejes con los que se analiza el uso REAL: la instalación
+    # (`uid`) y la sesión de trabajo (`sid`). Ambos son lecturas de un dict cacheado (ns) — el hot path de voz
+    # (V2-011) no paga nada. `sid` abre sesión sola en el primer evento: preferimos una sesión auto-abierta a un
+    # evento sin sesión, que es un dato que ya no se puede reconstruir después.
+    if "uid" not in ev or "sid" not in ev:
+        try:
+            from observability import identity as _ident
+            ev.setdefault("uid", _ident.user_id())
+            ev.setdefault("sid", _ident.session_id())
+        except Exception:
+            pass
     _events.append(ev)
     if len(_events) > 5000:
         del _events[:1000]

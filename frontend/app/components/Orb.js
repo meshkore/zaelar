@@ -106,6 +106,10 @@ export function Orb() {
             // desmontar la sesión entera. Se fuerzan TAMBIÉN los signals de mic/altavoz explícitamente aquí,
             // en defensa: si algún día `stop()` cambia y dejar de tocarlos, el candado de ⏻ no depende de ello.
             try { session.stop(); } catch (_) {}
+            // Fin de la SESIÓN DE TRABAJO para observabilidad (2026-08-09): ⏻ es, junto con cerrar la pestaña,
+            // el único gesto que significa «he terminado». Un `stop()` por reconexión NO cierra sesión — si lo
+            // hiciera, un bache de red partiría en dos lo que el operador vive como una sola tarde de trabajo.
+            api.obsSessionEnd("power_off");
             store.setMicMuted(true); localStorage.setItem("hb_mic_muted", "1");
             store.setBotMuted(true); localStorage.setItem("hb_bot_muted", "1");
             // Bug real 2026-07-23 (reporte del operador): apagar dejaba el pulso del ECG latiendo y los

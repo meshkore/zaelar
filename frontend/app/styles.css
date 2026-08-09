@@ -837,7 +837,7 @@ body.dbg-resizing{cursor:ew-resize;user-select:none}
    que las filas dejan de ser columnas. Los rótulos heredan la clase de su columna solo para POSICIONARSE: aquí
    se les quita el aspecto de chip/píldora y se pintan todos iguales. */
 .dbg-hdrwrap{flex:0 0 auto;container-type:inline-size;container-name:dbgh}
-.dbg-hdr{display:grid;grid-template-columns:80px 46px 78px 80px 96px 1fr;gap:8px;padding:5px 12px 5px 9px;
+.dbg-hdr{display:grid;grid-template-columns:80px 58px 52px 78px 46px 80px 96px 1fr;gap:8px;padding:5px 12px 5px 9px;
   border-bottom:1px solid var(--hb-line);border-left:3px solid transparent;align-items:baseline;
   background:color-mix(in srgb,var(--hb-ink) 4%,transparent);font-family:var(--mono);font-size:9.5px;
   text-transform:uppercase;letter-spacing:.06em;color:var(--hb-muted-2);user-select:none}
@@ -847,11 +847,11 @@ body.dbg-resizing{cursor:ew-resize;user-select:none}
 .dbg-hdr>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:help;
   border:0;border-radius:0;padding:0;background:none;color:inherit;font-size:inherit;font-weight:600;
   letter-spacing:inherit;text-transform:inherit;opacity:1}
-@container dbgh (max-width: 560px){ .dbg-hdr{display:none} }
+@container dbgh (max-width: 700px){ .dbg-hdr{display:none} }
 .dbg-list{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:0 0 10px;font-family:var(--mono);font-size:11.5px;line-height:1.45;
   /* query container: the ROW layout reacts to the PANEL width (resizable), not the viewport (V2 obs) */
   container-type:inline-size;container-name:dbg}
-.dbg-row{display:grid;grid-template-columns:80px 46px 78px 80px 96px 1fr;gap:8px;padding:3px 12px 3px 9px;
+.dbg-row{display:grid;grid-template-columns:80px 58px 52px 78px 46px 80px 96px 1fr;gap:8px;padding:3px 12px 3px 9px;
   border-bottom:1px solid var(--hb-line);border-left:3px solid var(--hb-neutral);align-items:baseline}
 /* `.dbg-row{display:grid}` (clase) ganaba al `[hidden]{display:none}` del navegador (empate de especificidad →
    gana el autor) → row.hidden NO ocultaba nada y los chips (Pulse/System…) no filtraban. Esta regla lo restaura. */
@@ -875,6 +875,18 @@ body.dbg-resizing{cursor:ew-resize;user-select:none}
 .dbg-sz{font-family:var(--mono);font-size:9px;font-weight:700;white-space:nowrap;text-align:center;border-radius:4px;
   padding:1px 4px;overflow:hidden;text-overflow:ellipsis;color:var(--hb-muted);background:color-mix(in srgb, var(--hb-muted) 12%, transparent)}
 .dbg-sz.sz-big{color:var(--hb-warn-ink);background:var(--hb-warn-bg)}
+/* CORRELATION ID (col 2): solo aloja el chip de traza — sin fondo propio, el color lo pone el hash del id. */
+.dbg-corr{min-width:0;overflow:hidden;white-space:nowrap}
+.dbg-corr .dbg-tr{margin-right:0}
+/* FAMILIA (col 3): la PIEZA del sistema. Chip plano y en 4 letras; el color repite el del rail izquierdo para
+   que el ojo agrupe por pieza sin leer. */
+.dbg-cat{font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.04em;text-align:center;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-radius:4px;padding:1px 3px;
+  color:var(--hb-muted-2);background:color-mix(in srgb,var(--hb-muted) 12%,transparent)}
+.dbg-cat.c-flash{color:#a78bfa;background:color-mix(in srgb,#a78bfa 15%,transparent)}
+.dbg-cat.c-worker{color:var(--hb-accent);background:color-mix(in srgb,var(--hb-accent) 15%,transparent)}
+.dbg-cat.c-memory{color:var(--hb-accent2);background:color-mix(in srgb,var(--hb-accent2) 15%,transparent)}
+.dbg-cat.c-widget{color:var(--hb-warn-ink);background:var(--hb-warn-bg)}
 .dbg-msg{color:var(--hb-ink);word-break:break-word;overflow-wrap:anywhere}
 .dbg-msg b{color:var(--hb-accent);font-weight:600}
 .dbg-meta{color:var(--hb-muted);font-style:normal;opacity:.85}
@@ -923,10 +935,12 @@ body.dbg-resizing{cursor:ew-resize;user-select:none}
    pasado ese ancho el message (1fr) queda en un hilo (una palabra por línea). Umbral 560px (MUY por encima del
    ancho por defecto de 460px, ver store.debugWidth) para que el panel por defecto YA salga apilado y legible; el
    grid de 5 columnas solo vuelve al arrastrar la columna claramente ancha (>560px). */
-@container dbg (max-width: 560px){
+/* Umbral 560 → 700px (2026-08-09): con las columnas de CORRELATION ID y FAMILIA la rejilla necesita ~124px más
+   antes de que el mensaje se quede sin sitio. Por debajo se vuelve a flujo libre, como siempre. */
+@container dbg (max-width: 700px){
   .dbg-row{display:flex;flex-wrap:wrap;align-items:center;column-gap:8px;row-gap:4px}
   .dbg-lat{text-align:left}
-  .dbg-lat:empty,.dbg-eng:empty,.dbg-sz:empty{display:none}   /* sin latencia/modelo/tamaño no dejan hueco */
+  .dbg-lat:empty,.dbg-eng:empty,.dbg-sz:empty,.dbg-corr:empty{display:none}   /* celda vacía no deja hueco */
   .dbg-msg{flex:0 0 100%;width:100%}                    /* el mensaje ocupa su propia línea completa */
 }
 

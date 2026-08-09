@@ -61,6 +61,11 @@
       "id": "7.6",
       "label": "Inventario de categorías del visor",
       "kind": "unit"
+    },
+    {
+      "id": "7.7",
+      "label": "Flujos por correlation ID + identidad + sesión",
+      "kind": "unit"
     }
   ]
 }
