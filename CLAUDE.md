@@ -1132,7 +1132,11 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   `code_agent.providers` sin tocar código) · **agotado ≠ roto** (`classify_failure`: `exhausted` releva y pone
   cooldown **hasta la fecha de reset que da el propio proveedor**; `rate` es pasajero y NO quema el escalón; un fallo
   de la TAREA no es un fallo de proveedor) · cooldown **persistido** (`sys_kv`) para que un reinicio no reintente una
-  cuota agotada hasta el jueves · **el modelo va PEGADO al escalón** (`code_agent.model`=`glm-5.2` solo existe en SU
+  cuota agotada hasta el jueves (**con SUELO de media hora desde 2026-08-09**: si la fecha de reset que da el
+  proveedor ya PASÓ —respuesta cacheada, reloj desfasado, texto de error reutilizado— el cooldown quedaba en el
+  pasado, el escalón volvía a estar disponible en el acto y se relevaba a SÍ MISMO → el bucle de 429 que esta pieza
+  existe para cortar. Arreglado en los DOS hermanos, `nucleo/workers/providers.py` y `nucleo/flash/provider_chain.py`;
+  el commit lleva mensaje de observabilidad, `3552324`, porque otro agente lo barrió con un `git add -A`) · **el modelo va PEGADO al escalón** (`code_agent.model`=`glm-5.2` solo existe en SU
   proveedor: el primer relevo cambió el endpoint pero siguió pidiendo `glm-5.2` y el CLI murió con «There's an issue
   with the selected model» — `providers.relayed()` decide, y sin relevo manda el modelo POR INVOCACIÓN de siempre) ·
   **reintento único** de la tarea con el escalón de relevo (`SessionRecord.provider_down`, `_finish`) · y la
