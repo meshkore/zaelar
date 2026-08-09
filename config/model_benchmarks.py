@@ -11,7 +11,7 @@ informativo — no hay POST, nada de esto se guarda ni se aplica; cambiar un mod
 secciones normales de configuración (`/api/config/v2`)."""
 from __future__ import annotations
 
-UPDATED = "2026-07-26"
+UPDATED = "2026-08-09"
 SOURCE_DOC = ".meshkore/docs/ops/zaelar-model-benchmarks.md"
 
 MODULES = [
@@ -158,10 +158,34 @@ MODULES = [
         "label": "«Susurro» — auditor conversacional",
         "role": "Fuera del camino de voz por completo: revisa tramos con fricción (queja/repetición/fallo) y "
                 "devuelve correcciones de un catálogo cerrado. Aquí SÍ puede ser un razonador.",
-        "current": {"model": "gpt-4.1-mini", "provider": "OpenAI directo", "cost_in": None, "cost_out": None},
-        "why": "Misma key que la memoria; benchmark dedicado pendiente (§10 del doc denso).",
+        "current": {"model": "openai/gpt-4.1-mini", "provider": "AIMLAPI", "cost_in": 0.40, "cost_out": 1.60,
+                    "since": "2026-08-09 (movido al broker)"},
+        "why": "El MODELO no se ha elegido con datos todavía — su benchmark sigue pendiente (§10 del doc denso). "
+               "Lo que sí cambió el 2026-08-09 es el CAMINO: iba por OpenAI directo, una cuenta que en la nube no "
+               "existe, así que allí habría fallado en silencio. Ahora va por el broker como todo lo demás, con el "
+               "mismo modelo — ninguna calidad que re-medir.",
         "hallucination_note": None,
         "candidates_2026_07_26": [],
+    },
+    {
+        "id": "i18n",
+        "label": "Traducción del interfaz a un idioma nuevo",
+        "role": "La primera vez que alguien habla un idioma que no viene de fábrica (solo inglés y castellano son "
+                "PRESET), un modelo traduce los 514 textos del interfaz. Corre una vez por idioma, en la "
+                "inicialización — nunca durante una conversación.",
+        "current": {"model": "anthropic/claude-haiku-4.5", "provider": "AIMLAPI", "cost_in": 1.00, "cost_out": 5.00,
+                    "since": "2026-08-09 (sonda §12.5)"},
+        "why": "Aquí no manda el precio ni la calidad marginal, sino la FIABILIDAD: se paga UNA vez por idioma "
+               "(11 lotes, unos 8 céntimos) y un lote que falle deja 50 textos del interfaz en inglés, sin una "
+               "segunda pasada que lo arregle. Probado al tamaño real del lote (50 claves, 15 con variables) hacia "
+               "japonés y árabe: haiku devuelve el 100% con las variables intactas en ambos, en 7-10 segundos.",
+        "hallucination_note": None,
+        "candidates_2026_07_26": [
+            {"model": "gemini-2.5-flash", "cost_in": 0.30, "cost_out": 2.50, "status": "descartado",
+             "verdict": "correcto casi siempre, pero una pasada de árabe devolvió 0 de 50 (respuesta cortada)"},
+            {"model": "deepseek-v4-flash", "cost_in": 0.14, "cost_out": 0.28, "status": "descartado",
+             "verdict": "acierta, pero razona: 6-8 veces más tokens de los que entrega y ~1 minuto por lote"},
+        ],
     },
     {
         "id": "cluster",

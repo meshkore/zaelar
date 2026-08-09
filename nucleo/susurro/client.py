@@ -11,6 +11,13 @@ import time
 
 _TIMEOUT = float(os.getenv("SUSURRO_TIMEOUT", "45") or 45)
 
+# AIMLAPI (el endpoint por defecto desde 2026-08-09) va tras Cloudflare, que 403ea a clientes que no parecen
+# navegador. COMPROBADO hoy: el UA por defecto de aiohttp SÍ pasa (200) — el que se bloqueaba era el de urllib,
+# por eso `fast_client`/`memllm` lo llevan. Se manda igualmente: es gratis, iguala el patrón de los otros
+# clientes y el fail-open del Susurro es SILENCIOSO por diseño — no conviene depender de la política de un CDN.
+_UA = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
+                     "(KHTML, like Gecko) Chrome/126.0 Safari/537.36"}
+
 
 def cfg() -> dict:
     try:
@@ -42,8 +49,10 @@ async def audit_llm(window_text: str) -> tuple[str | None, dict]:
     meta["request"] para la observabilidad total (regla del operador: registrar envío Y respuesta)."""
     from . import catalog
     c = cfg()
-    model = str(c.get("model") or "gpt-4.1-mini")
-    base = str(c.get("base_url") or "https://api.openai.com/v1").rstrip("/")
+    # Último recurso si §susurro no se puede leer: debe coincidir con el default de `config/v2.py` (broker
+    # AIMLAPI), no con OpenAI directo — en la nube no hay OPENAI_API_KEY y esto se caería en silencio.
+    model = str(c.get("model") or "openai/gpt-4.1-mini")
+    base = str(c.get("base_url") or "https://api.aimlapi.com/v1").rstrip("/")
     key = resolved_api_key(base, str(c.get("api_key") or "").strip())
     messages = [
         {"role": "system", "content": catalog.SYSTEM},
@@ -61,14 +70,14 @@ async def audit_llm(window_text: str) -> tuple[str | None, dict]:
         to = aiohttp.ClientTimeout(total=_TIMEOUT)
         async with aiohttp.ClientSession(timeout=to) as s:
             async with s.post(base + "/chat/completions",
-                              headers={"Authorization": f"Bearer {key}"}, json=payload) as r:
+                              headers={"Authorization": f"Bearer {key}", **_UA}, json=payload) as r:
                 data = await r.json()
         if not isinstance(data, dict) or "choices" not in data:
             # algunos endpoints no soportan response_format → reintento sin él
             payload2 = {k: v for k, v in payload.items() if k != "response_format"}
             async with aiohttp.ClientSession(timeout=to) as s:
                 async with s.post(base + "/chat/completions",
-                                  headers={"Authorization": f"Bearer {key}"}, json=payload2) as r:
+                                  headers={"Authorization": f"Bearer {key}", **_UA}, json=payload2) as r:
                     data = await r.json()
         content = data["choices"][0]["message"]["content"]
         usage = data.get("usage") or {}

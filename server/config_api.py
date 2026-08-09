@@ -62,14 +62,20 @@ _PROVIDER_CATALOG = {
     },
     "memory_processor": {           # CORAZÓN de escritura (mem_processor / distiller de píldoras)
         "providers": [
-            {"id": "openai", "label": "OpenAI (RULE: memory ALWAYS OpenAI)", "base_url": "https://api.openai.com/v1",
-             "key_env": "OPENAI_API_KEY", "cloud": True, "models": ["gpt-4.1-mini", "gpt-4o"]},
+            {"id": "aimlapi", "label": "AIMLAPI (broker — the one account we manage)",
+             "base_url": "https://api.aimlapi.com/v1", "key_env": "AIMLAPI_KEY", "cloud": True,
+             "models": ["deepseek/deepseek-v4-flash", "google/gemini-2.5-flash", "openai/gpt-4.1-mini"]},
             {"id": "ollama", "label": "Ollama (local — only if local usage is accepted)", "base_url": "http://localhost:11434/v1",
              "key_env": "", "cloud": False, "models": ["qwen2.5:7b-instruct", "qwen2.5:3b"]},
         ],
+        # Actualizado 2026-08-09: la etiqueta anterior («RULE: memory ALWAYS OpenAI») quedó DEROGADA por el bench
+        # §12.3 y por la norma de una sola cuenta de API. Se elige con datos, no por reputación del proveedor.
         "note": "Off-hot-path (does not touch voice latency) but WRITE-COMPLETENESS is the nº1 lever of recall. "
-                "TESTED 2026-07-17: gpt-4o-mini swallows the allergy (0 pills); gpt-4.1-mini catches it → CHOSEN. "
-                "Operator rule: memory ALWAYS via OpenAI.",
+                "BENCHMARKED 2026-08-09 (21 candidates × 34 cases, see zaelar-model-benchmarks.md §12.3): "
+                "deepseek-v4-flash ties gpt-4.1-mini on capture (98.5 vs 98.9%) and precision (100%) for −55% cost "
+                "→ CHOSEN; fallback gemini-2.5-flash → gpt-4.1-mini. ⛔ gpt-4o-mini is VETOED: it files an allergy "
+                "under slot=operator.diet, and a slot invalidates every earlier pill with that slot — a later diet "
+                "change would erase the allergy. Everything goes through the AIMLAPI broker (one account).",
     },
     "triage": {                     # clasificador de mensajería (relevancia WhatsApp/Telegram)
         "providers": [
@@ -85,8 +91,10 @@ _PROVIDER_CATALOG = {
     },
     "susurro": {                    # «Susurro» (V2-053) — auditor conversacional off-hot-path
         "providers": [
-            {"id": "openai", "label": "OpenAI (same key as memory)", "base_url": "https://api.openai.com/v1",
-             "key_env": "OPENAI_API_KEY", "cloud": True, "models": ["gpt-4.1-mini", "gpt-4.1", "gpt-4o"]},
+            {"id": "aimlapi", "label": "AIMLAPI (broker — the one account we manage)",
+             "base_url": "https://api.aimlapi.com/v1", "key_env": "AIMLAPI_KEY", "cloud": True,
+             "models": ["openai/gpt-4.1-mini", "openai/gpt-4.1", "anthropic/claude-haiku-4.5",
+                        "deepseek/deepseek-v4-flash"]},
             {"id": "xai", "label": "xAI grok", "base_url": "https://api.x.ai/v1",
              "key_env": "XAI_API_KEY", "cloud": True, "models": ["grok-4.20-0309-non-reasoning"]},
             {"id": "off", "label": "Disabled (enabled=false)", "cloud": False},

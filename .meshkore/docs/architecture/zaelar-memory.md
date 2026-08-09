@@ -496,6 +496,46 @@ cueste nada al turno de voz.
 **Un solo modelo para las dos** (decisión del operador 2026-08-09): una cuenta, un proveedor, una cosa que vigilar.
 Y el MISMO en self-host y en nube — no hay dos ganadores según dónde corras.
 
+**Una tercera tarea vive en el mismo router pero NO es memoria** — conviene no confundirlas:
+
+| tarea | qué hace | modelo (2026-08-09) | cadencia | evidencia |
+|---|---|---|---|---|
+| **i18n init** (`i18n/init/generate.py`) | traduce los 514 strings del UI a un idioma nuevo | **`anthropic/claude-haiku-4.5`** vía AIMLAPI | **1 vez por IDIOMA** (init + upgrade) | §12.5 |
+
+Está en `memllm` porque comparte la costura off-hot-path (`chat_sync` + key por endpoint), no porque escriba en la
+memoria. **Su criterio es la FIABILIDAD, no el precio ni la calidad marginal**: se paga una sola vez por idioma
+(11 lotes ≈ $0,08), y un lote perdido deja 50 strings de la UI en inglés. Por eso NO usa el `deepseek` de la
+memoria: acierta, pero razona (6.700-8.500 tokens de salida para ~1.200 de contenido) — el mismo perfil que
+truncaba el REM. `gemini-2.5-flash` tampoco: una pasada de árabe devolvió 0 de 50 con la respuesta cortada.
+
+### Ningún camino sale por OpenAI directo (norma del operador, 2026-08-09)
+
+**TODO pasa por el broker AIMLAPI** — una sola cuenta de API que gestionar. Z.AI (Brain Workers) y Groq/xAI van
+aparte y solo donde hacen falta, con su propia credencial. Que un modelo se llame `openai/gpt-4.1-mini` NO
+significa cuenta de OpenAI: es el broker sirviendo ese modelo. Cuando se cerró la elección de modelos quedaban
+DOS restos apuntando a `api.openai.com`, los dos con el mismo defecto latente —en la nube no existe
+`OPENAI_API_KEY`, así que habrían fallado en silencio como falló el REM—: la tarea **i18n** de `memllm` y el
+**Susurro** (`config/v2.py §susurro`). Ambos movidos al broker; el Susurro conserva su modelo exacto
+(`gpt-4.1-mini`), así que no hay calidad que re-medir, solo camino.
+
+Comprobación de que no vuelve a colarse uno — **mira los DEFAULTS, no las menciones**: `api.openai.com` sigue
+apareciendo a propósito en el catálogo de opciones de la UI (`server/config_api.py`, por si alguien QUIERE
+elegirlo), en la resolución de key por endpoint (`fast_client`, `susurro/client`) y en la tabla de tarifas de
+Energy. Lo que no puede volver a aparecer es en un valor por defecto:
+
+```bash
+cd engine && ./.venv/bin/python - <<'PY'
+from nucleo import memllm
+from nucleo.susurro import client as sus
+from config import v2
+m = v2.get("memory") or {}
+print("CORAZÓN", m.get("mem_processor_base_url"))
+for t in ("rem", "i18n"):
+    print(t, memllm.resolve(t)[0])
+print("susurro", (sus.cfg() or {}).get("base_url"))
+PY
+```
+
 ### Por qué el criterio es DISTINTO en cada una (y no es opinión, es la forma del código)
 
 - **CORAZÓN → manda el PRECIO.** Corre en cada turno, así que el coste es lineal con el uso: **$0,68 por 1.000

@@ -28,8 +28,21 @@ from loguru import logger
 _DEFAULTS = {
     "rem": ("https://api.aimlapi.com/v1", "deepseek/deepseek-v4-flash"),
     # i18n (V2-089): traducción del UI a un idioma nuevo en la INICIALIZACIÓN (i18n/init). Off-hot-path, calidad
-    # importa (scripts no-latinos: árabe, chino, japonés…) → modelo fuerte por defecto. Override en config §memory.
-    "i18n": ("https://api.openai.com/v1", "gpt-4o"),
+    # importa (scripts no-latinos: árabe, chino, japonés…) → modelo fuerte. Override en config §memory.
+    #
+    # 2026-08-09 — apuntaba a OpenAI DIRECTO (gpt-4o) y era el último resto de esa cuenta en la memoria: en la
+    # nube no hay OPENAI_API_KEY, así que generar el bundle de un idioma nuevo habría fallado en silencio (mismo
+    # patrón que tumbó el CORAZÓN en julio y el REM hasta ayer). Norma del operador: TODO por el broker AIMLAPI,
+    # una sola cuenta que gestionar. Sonda al tamaño REAL del lote (`_BATCH=50`, ja/ar/zh, 15 claves con
+    # placeholder) antes de elegir sustituto:
+    #   · anthropic/claude-haiku-4.5 → 100% cobertura y 15/15 placeholders en TODOS los idiomas, ~7-10s. ELEGIDO.
+    #   · google/gemini-2.5-flash    → correcto casi siempre, pero una pasada de árabe devolvió 0/50 (respuesta
+    #                                  cortada a 160 tokens). Un lote perdido = 50 strings en inglés en la UI.
+    #   · deepseek/deepseek-v4-flash → acierta, pero RAZONA: 6.700-8.500 tokens de salida para ~1.200 de
+    #                                  contenido, 50-60s por lote. Es el mismo perfil que truncaba el REM; aquí
+    #                                  no compensa porque la tarea se paga UNA vez por idioma (514 claves = 11
+    #                                  lotes ≈ $0,08 con haiku) y la fiabilidad vale más que el precio.
+    "i18n": ("https://api.aimlapi.com/v1", "anthropic/claude-haiku-4.5"),
 }
 
 

@@ -150,12 +150,15 @@ _DEFAULTS: dict[str, dict] = {
     # no pasa nada. NUNCA modifica BRAIN RULES en runtime (invariante V2-053 §3d).
     "susurro": {
         "enabled": True,
-        "provider": "openai",
-        # ⚠️ Sigue en OpenAI DIRECTO — ya NO comparte endpoint con la memoria (el CORAZÓN pasó a AIMLAPI el
-        # 2026-08-09). Ojo si se re-mide: esa cuenta de OpenAI va muy limitada de tasa (429 con pocas llamadas en
-        # vuelo, p50 de 20s medido en el barrido §12.3). Benchmark §10 pendiente.
-        "model": "gpt-4.1-mini",
-        "base_url": "https://api.openai.com/v1",
+        "provider": "aimlapi",
+        # 2026-08-09 — por el BROKER, no por OpenAI directo. Norma del operador: una sola cuenta de API que
+        # gestionar (AIMLAPI); Z.AI y Groq van aparte y solo donde hacen falta. El MODELO no cambia (gpt-4.1-mini,
+        # el mismo que se venía usando), solo el camino — así que no hay regresión de calidad que medir. Motivo
+        # extra: la cuenta de OpenAI directo va muy limitada de tasa (429 con pocas llamadas en vuelo, p50 de 20s
+        # medido en el barrido §12.3), lo que disfrazaba de "mal modelo" lo que era el endpoint. Benchmark §10
+        # (elegir el modelo de Susurro con datos) sigue pendiente.
+        "model": "openai/gpt-4.1-mini",
+        "base_url": "https://api.aimlapi.com/v1",
         "api_key": "",                          # secreto (redactado); vacío = resuelta por endpoint (OPENAI_API_KEY…)
         "pulse_turns": 0,                       # 0 = solo fricción; N = auditoría ligera además cada N turnos
         "cooldown_s": 60,                       # mínimo entre auditorías (anti-ráfaga)

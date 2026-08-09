@@ -3,8 +3,10 @@ i18n.init.generate — LLM translation of UI strings into a new language (V2-089
 
 INITIALIZATION only (never the hot path). Given a batch of {key: english}, translate to the target language and
 return {key: translated}, preserving {placeholders}, punctuation, emoji, and technical tokens. Off-hot-path, so
-quality wins over latency: a strong model (config §memory.i18n_model, default gpt-4o) via the shared off-path
-caller (nucleo.memllm). Runs inside asyncio.to_thread so it doesn't block the event loop.
+quality wins over latency: a strong model (config §memory.i18n_model, default claude-haiku-4.5 via the AIMLAPI
+broker) through the shared off-path caller (nucleo.memllm). Runs inside asyncio.to_thread so it doesn't block
+the event loop. Why that model — and why NOT the memory's own deepseek — is argued in `nucleo/memllm.py`
+(`_DEFAULTS["i18n"]`): measured at the real batch size, not guessed.
 
 Fail-open: if the model is unavailable, returns what it could (possibly empty) — the frontend falls back to
 English, so a missing translation degrades gracefully instead of breaking the UI.

@@ -568,7 +568,9 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   y plan en `.meshkore/roadmap/initiatives/V2-053-susurro-autoauditoria.md`): el bucle test→fix parchea el routing
   del no-razonador caso a caso (81 fixes/5 días, ~55% clase routing) y NO generaliza — la pieza que faltaba es un
   **auditor interno**: un modelo POTENTE (config `§susurro`, por la UI; FUERA del camino de voz → puede razonar;
-  default `gpt-4.1-mini`) que, ante **FRICCIÓN** (detector determinista es/en: queja/corrección del operador,
+  default `openai/gpt-4.1-mini` **vía AIMLAPI** — el 2026-08-09 se movió del endpoint de OpenAI directo al broker
+  conservando el modelo exacto: en la nube no hay `OPENAI_API_KEY`, así que allí habría fallado en silencio como
+  falló el REM; §12.5) que, ante **FRICCIÓN** (detector determinista es/en: queja/corrección del operador,
   petición repetida, turno degradado, rail `sin_resolver`, `worker.stuck`, **+ turno de RIESGO V2-061:
   `friction.risky_decision` = acción de widget sin escalar, para intervenir ANTES de la queja**), recibe una ventana
   comprimida (conversación verbatim + decisiones por turno + eventos filtrados + ESTADO) y devuelve correcciones de un
@@ -725,7 +727,15 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   «ahora soy vegetariano» borraría la alergia. Los **razonadores tampoco valen** (gpt-5-mini/nano: 50-60% de
   precisión — convierten preguntas y órdenes en recuerdos). Esto **DEROGA la directriz «memoria = SIEMPRE OpenAI»**
   de 2026-07-17: el destilador se elige con el bench, no por reputación del proveedor. Cadena de fallback:
-  `gemini-2.5-flash` → `gpt-4.1-mini`. El CORAZÓN **reporta su consumo a Energy** desde 2026-08-09 (era la única
+  `gemini-2.5-flash` → `gpt-4.1-mini`. **NORMA GENERAL (operador, 2026-08-09): NADA sale por OpenAI directo — todo
+  pasa por el broker AIMLAPI, una sola cuenta de API**; Z.AI (workers) y xAI/Groq van aparte, con su credencial, y
+  solo donde hacen falta. Que un modelo se llame `openai/gpt-4.1-mini` no implica cuenta de OpenAI: es el broker
+  sirviéndolo. Los DOS restos que quedaban apuntando a `api.openai.com` —la tarea `i18n` de `memllm` (traducir el
+  UI a un idioma nuevo) y el **Susurro**— se movieron el mismo día: los dos tenían el defecto latente de que en la
+  nube no existe `OPENAI_API_KEY` y habrían fallado en silencio. i18n eligió modelo con una sonda al tamaño REAL
+  del lote (§12.5): **`anthropic/claude-haiku-4.5`** — 100% de cobertura y placeholders intactos en japonés Y
+  árabe, frente a `gemini-2.5-flash` (una pasada de árabe devolvió 0/50) y `deepseek-v4-flash` (acierta pero razona:
+  6-8× los tokens que entrega). Sonda de regresión: `grep -rn "api\.openai\.com" --include="*.py" engine/ | grep -v tests/`. El CORAZÓN **reporta su consumo a Energy** desde 2026-08-09 (era la única
   llamada LLM de nube sin metering); key resuelta **POR ENDPOINT** + **SALUD de 1ª clase** (alerta por racha de fallos +
   `status()` — el incidente 2026-07-17/19 lo dejó 2 días caído en silencio) que DESTILA cada turno en **píldoras**
   (dato canónico + metadatos) y decide DESCARTAR/ESTADO/CORTO/LARGO + importancia + `slot` — LENTO a propósito,

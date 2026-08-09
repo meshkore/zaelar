@@ -674,6 +674,52 @@ Fallback: `grok-4-fast-non-reasoning` → `glm-4.7`.
 grupo flojo «salió null», como todos) y se llevaba un 20% en vez de un 0%. Un no-resultado no es disciplina: ahora
 ese eje queda `n/a` y no promedia.
 
+### §12.5 — Los DOS restos de OpenAI directo, y el modelo de i18n (2026-08-09)
+
+Cerrada la elección de modelos de la memoria, el operador fija la norma general: **nada sale por OpenAI directo;
+todo pasa por el broker AIMLAPI** (una sola cuenta de API que gestionar). Z.AI y Groq/xAI van aparte, con su
+propia credencial, y solo donde hacen falta. Un modelo llamado `openai/gpt-4.1-mini` servido por el broker NO es
+una cuenta de OpenAI — la confusión es fácil y conviene decirlo por escrito.
+
+Quedaban DOS apuntando a `api.openai.com`, los dos con el defecto latente que ya había matado al REM: **en la nube
+no existe `OPENAI_API_KEY`**, así que la llamada habría fallado en silencio (fail-open, sin error visible).
+
+- **Susurro** (`config/v2.py §susurro`) → movido al broker **conservando su modelo exacto** (`openai/gpt-4.1-mini`).
+  Cambia el camino, no el modelo: no hay calidad que re-medir. Verificado con una llamada real (auditoría de un
+  tramo con fricción, 2.927 ms, 1.431 in / 136 out, diagnóstico correcto). El `§10` de este doc —elegir el modelo
+  del Susurro con datos— sigue PENDIENTE; esto no lo resuelve, solo lo saca de una cuenta que no existe en la nube.
+  De paso, su cliente manda ya el User-Agent de navegador como los demás; **comprobado que el UA por defecto de
+  `aiohttp` SÍ pasa el Cloudflare de AIMLAPI** (HTTP 200) — el que se bloqueaba era el de `urllib`. Se manda igual
+  porque el fail-open del Susurro es silencioso por diseño y no conviene depender de la política de un CDN.
+- **i18n init** (`nucleo/memllm.py::_DEFAULTS["i18n"]`, traducir el UI a un idioma nuevo) → apuntaba a `gpt-4o`
+  directo. Aquí SÍ había que elegir modelo, así que se midió antes.
+
+**Sonda de i18n — al tamaño REAL del lote.** No es un bench de los de §12 (una tarea que se ejecuta una vez por
+idioma no justifica 3 pasadas × 21 candidatos); es la comprobación de que mover el endpoint no rompe la tarea.
+Corpus: claves REALES de `i18n/bundles/en.json`, **50 por lote (`_BATCH`)** con 15 que llevan `{placeholder}`,
+hacia **japonés y árabe** (los scripts no-latinos son lo que discrimina). Ejes: cobertura (¿devuelve TODAS las
+claves?), placeholders intactos, y script destino correcto.
+
+| candidato | ja | ar | out_tok (lote de 50) | veredicto |
+|---|---|---|---|---|
+| **`anthropic/claude-haiku-4.5`** | 100% · 15/15 | 100% · 15/15 | ~1.050-1.200 | **ELEGIDO** — limpio en los dos, 7-10s |
+| `google/gemini-2.5-flash` | 100% · 15/15 | **0%** (respuesta cortada a 160 tok) | ~740 | descartado por el fallo de árabe |
+| `deepseek/deepseek-v4-flash` | 100% · 15/15 | 100% · 15/15 | **6.777-8.560** | descartado: razona, 48-59s por lote |
+
+El fallo de `gemini` no se repitió al reintentar 3 veces (813-925 tokens, JSON completo), o sea es intermitente —
+que es justo lo que no quieres en una tarea que corre UNA vez: **un lote perdido = 50 strings de UI en inglés**,
+y no hay una segunda pasada que lo arregle. El de `deepseek` es el perfil que ya truncó el REM (§12.4): emite
+6-8× más tokens de los que entrega. Coste del ganador: 514 claves = 11 lotes ≈ **$0,08 por idioma**, una vez —
+a ese precio la fiabilidad se paga sola.
+
+Con esto los CUATRO caminos de LLM off-hot-path (CORAZÓN · REM · i18n · Susurro) salen por el mismo broker, más el
+FlashBrain que ya estaba. Fuera del broker quedan, a propósito: `code_agent` (Z.AI, plan de suscripción) y
+`triage` (xAI, crédito propio). **La sonda correcta mira los DEFAULTS resueltos, no las menciones en el código**:
+`api.openai.com` sigue apareciendo a propósito en el catálogo de opciones de la UI, en la resolución de key por
+endpoint y en la tabla de tarifas de Energy. El script de verificación está en `zaelar-memory.md §Ningún camino
+sale por OpenAI directo`; debe imprimir `api.aimlapi.com` en las cuatro tareas, con y sin `config/v2.json`
+(comprobado en las dos formas el 2026-08-09, incluida la de repo recién clonado).
+
 ## 13. Candidatos en el radar (aún no evaluados/adoptados)
 
 ### 13.1 Xiaomi MiMo-V2.5-Pro-UltraSpeed — candidato Nº1 para FlashBrain cuando sea comercial (2026-07-22)
