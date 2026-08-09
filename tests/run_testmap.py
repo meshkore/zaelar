@@ -156,6 +156,13 @@ DOMAINS: list[dict] = [
         # contenido propio, se rellena por acción declarada (no reescribiendo su código) y lo entregado PERSISTE.
         {"id": "4.10", "title": "Superficie genérica de presentación de resultados (hoja en blanco + present/append)",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_results_presentation.py"]},
+        # i18n de la UI (V2-089). Estaba SIN mapear: `test_bundles.py` guarda los presets (mismas claves en/es,
+        # español no vacío, placeholders alineados) y `test_bundle_reactivity.py` el contrato RUNTIME —
+        # `t()` re-renderiza cuando el bundle gana claves, no solo cuando cambia el idioma (fallo 2026-08-09:
+        # los rótulos nuevos del visor salían como su clave cruda porque `setLang` al mismo valor es no-op).
+        {"id": "4.11", "title": "i18n de la UI: presets alineados + t() reactivo al CONTENIDO del bundle",
+            "ch": UNIT, "paths": ["tests/browser/unit/i18n/test_bundles.py",
+                                  "tests/browser/unit/i18n/test_bundle_reactivity.py"]},
     ]},
     {"id": "5", "name": "CONECTORES", "nodes": [
         {"id": "5.1", "title": "Email", "ch": UNIT, "paths": [

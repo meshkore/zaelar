@@ -54,6 +54,11 @@
       "id": "4.9",
       "label": "Chat y voz independientes (V2-088)",
       "kind": "unit"
+    },
+    {
+      "id": "4.11",
+      "label": "i18n de la UI: presets + t() reactivo al bundle",
+      "kind": "unit"
     }
   ]
 }

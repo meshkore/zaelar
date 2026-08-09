@@ -8,20 +8,39 @@
 // /api/i18n/bundle/<code> and caches it in localStorage, so repeat visits paint
 // instantly (no flash) while the boot veil covers the very first fetch.
 //
-// t(key) is REACTIVE: it reads store.lang(), so every t() used inside a dom.js
-// function-prop or function-child re-renders the moment the active language
-// changes (applyLang) — no page reload, no voice reconnect for the UI.
+// t(key) is REACTIVE on TWO things: the active language (store.lang()) AND the
+// CONTENT of the loaded bundles. Any t() inside a dom.js function-prop/child
+// re-renders when the operator switches language (applyLang) AND when a bundle
+// arrives with strings the cached copy didn't have — no page reload, no voice
+// reconnect. That second dependency is not optional: the first paint comes from
+// the localStorage cache, which is stale by definition right after a release.
 //
 // Resolution order: active-language bundle → English base → the key itself.
 // English is guaranteed complete (it's the manifest), so it's always a safe net.
 // ============================================================================
 import * as store from "./store.js?v=2";
+import { createSignal } from "./reactive.js?v=2";   // MISMO especificador que store.js → misma instancia (lección V2-087)
 
 const BUNDLES = {};            // code -> { key: string }
 const _loading = {};           // code -> Promise (dedupe concurrent fetches)
 const CACHE_KEY = (code) => "hb_i18n_" + code;
 
-export function registerBundle(code, dict) { if (dict) BUNDLES[String(code)] = dict; }
+// CONTENIDO del bundle, no solo el CÓDIGO de idioma (fix 2026-08-09). `t()` dependía únicamente de `store.lang()`,
+// y `setLang` es no-op cuando el valor no cambia (semántica Solid, `Object.is`) → al arrancar la UI se pintaba con
+// el bundle CACHEADO en localStorage y, cuando la respuesta del backend traía claves NUEVAS, se guardaba en memoria
+// pero **no re-renderizaba nada**: los strings nuevos se quedaban como su clave cruda (`debug.col_time`) hasta que
+// el operador cambiara de idioma o vaciara el localStorage. Este contador se lee dentro de `t()` y se incrementa
+// cada vez que un bundle cambia de VERDAD → la UI se reconcilia sola. Cubre también el upgrade de un idioma
+// generado (mismo código, strings nuevos), que tenía el mismo punto ciego.
+const [bundleRev, setBundleRev] = createSignal(0);
+function bumpIfChanged(code, dict) {
+  const prev = BUNDLES[String(code)];
+  BUNDLES[String(code)] = dict;
+  // Comparación por contenido: un re-fetch idéntico (el caso normal) no debe invalidar el árbol entero.
+  if (JSON.stringify(prev) !== JSON.stringify(dict)) setBundleRev((n) => n + 1);
+}
+
+export function registerBundle(code, dict) { if (dict) bumpIfChanged(code, dict); }
 export function hasBundle(code) { return !!BUNDLES[String(code)]; }
 export function available() { return Object.keys(BUNDLES); }
 
@@ -36,6 +55,7 @@ export function available() { return Object.keys(BUNDLES); }
 // t(key, params?) — localized string. Reads store.lang() (reactive dependency).
 export function t(key, params) {
   const code = store.lang();
+  bundleRev();                            // dependencia reactiva: re-renderiza cuando el bundle cambia de contenido
   const dict = BUNDLES[code] || BUNDLES.en || {};
   let s = dict[key];
   if (s == null) s = (BUNDLES.en || {})[key];
@@ -54,7 +74,7 @@ export async function loadBundle(code) {
       const r = await fetch("/api/i18n/bundle/" + encodeURIComponent(code), { cache: "no-cache" });
       const d = await r.json();
       if (d && d.strings && Object.keys(d.strings).length) {
-        BUNDLES[code] = d.strings;
+        bumpIfChanged(code, d.strings);   // ← la reconciliación que faltaba: el fetch puede traer claves nuevas
         try { localStorage.setItem(CACHE_KEY(code), JSON.stringify(d.strings)); } catch (_) {}
       }
     } catch (_) {}
