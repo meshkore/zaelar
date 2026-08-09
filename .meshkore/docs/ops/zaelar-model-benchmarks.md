@@ -12,6 +12,13 @@
 > igual que `web/technology` es una foto curada de la arquitectura — no un parser automático. **Toda decisión de
 > modelo nueva que añadas aquí, añádela TAMBIÉN allí** (coste, latencia, tool-calling/alucinación, veredicto) o la
 > réplica queda desactualizada silenciosamente.
+>
+> **ATAJO — «¿qué modelos usa la MEMORIA y por qué?»** (la pregunta que más se repite): respuesta canónica y
+> autosuficiente en **`zaelar-memory.md §Modelos de la memoria`**. Detalle denso aquí en **§12.3** (CORAZÓN de
+> escritura) y **§12.4** (sueño REM). **Informes CRUDOS de cada corrida, versionados**:
+> `tests/memory/e2e/bot/resultados/` (ver su `README.md` — índice de corridas y cómo leer un `report.json`).
+> Las tres capas dicen lo mismo a propósito: la corta para responder, la densa para justificar, y los datos
+> crudos para que nadie tenga que fiarse de la palabra de nadie.
 
 ## 0. El modelo mental de latencia (leer primero)
 

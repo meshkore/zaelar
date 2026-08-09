@@ -96,6 +96,14 @@ interacciones de arriba. Sigue como siempre.
 
 1. **`zaelar-memory.md`** (fuente de verdad): §Schema, §El CORAZÓN de escritura, §Lectura en TRES velocidades,
    §Cómo la USA el resto del sistema, §Observabilidad — lo que hayas tocado.
+   - **Si cambiaste un MODELO de la memoria** (destilador o síntesis REM), el sitio es **§Modelos de la memoria**:
+     la tabla de las dos tareas, por qué el criterio es distinto en cada una (precio en el CORAZÓN porque corre en
+     cada turno; calidad en REM porque es 1 llamada/día con entrada acotada), los VETOS con su motivo, y las
+     cadenas de fallback. Además: **guarda el informe crudo** de la corrida en `tests/memory/e2e/bot/resultados/`
+     y añade su fila al `README.md` de esa carpeta. La norma es que nadie tenga que RE-EJECUTAR un benchmark para
+     saber por qué usamos un modelo — si hay que dar explicaciones, se dan desde el doc, no desde la memoria de
+     quien lo corrió. Los veredictos densos van a `zaelar-model-benchmarks.md §12.x` y el resumen curado que ve el
+     operador a `config/model_benchmarks.py` (los tres, o queda desalineado en silencio).
 2. **`CLAUDE.md`**: la decisión clave "Memoria central" + el bullet del módulo `memory/`/`nucleo/` + (si es un
    invariante nuevo) su regla dura. **Explica cómo se usa la memoria desde otros módulos** — es mandatorio que esté
    al día (guardar Y leer).

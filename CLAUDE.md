@@ -31,6 +31,7 @@ Los agentes DEBEN trabajar dentro de esta estructura — no crear `docs/` ni car
 | Architecture | `.meshkore/docs/architecture/zaelar-architecture.md` |
 | **Modularidad / contratos de acoplamiento** | `.meshkore/docs/architecture/zaelar-modularity.md` |
 | **Memoria central** | `.meshkore/docs/architecture/zaelar-memory.md` |
+| **¿Por qué ESTOS modelos en la memoria?** (respuesta canónica) | `zaelar-memory.md §Modelos de la memoria` · denso: `zaelar-model-benchmarks.md §12.3/§12.4` · crudo: `tests/memory/e2e/bot/resultados/` |
 | **Canal de cluster — algoritmo de punta a punta** | `.meshkore/docs/architecture/zaelar-cluster-channel.md` |
 | **Multidioma / i18n (arranque idiomático, generación de bundles)** | `.meshkore/docs/architecture/zaelar-i18n.md` |
 | Product / Context | `.meshkore/docs/product/zaelar-product.md` |
@@ -218,7 +219,9 @@ arranque `make run` → `python -m server`.
   consolidador (sueño LIGERO: decay Ebbinghaus POR VENTANA + dedup + prune_invalid + eviction por peso, pinned
   intocable) · **`memory/rem.py`** (V2-056: sueño PROFUNDO «fase REM» diario — repara vectores `embed_pending` +
   dedup SEMÁNTICO por coseno + INSIGHTS por concepto [`slot=insight:<c>`, hook LLM inyectado desde
-  `nucleo/memllm.py`] + higiene con alerta; kill-switch `ZAELAR_REM`) · capa **episódica** (absorbió el
+  `nucleo/memllm.py`, **`deepseek-v4-flash` vía AIMLAPI** desde 2026-08-09 — bench §12.4] + higiene con alerta;
+  kill-switch `ZAELAR_REM`. ⚠️ Esta fase estuvo MUERTA semanas: `.format()` sobre un prompt con llaves literales
+  lanzaba `KeyError` y el `except` lo volvía un warning — ver la decisión «Memoria central») · capa **episódica** (absorbió el
   antiguo `files/`: paste/drop → `memory/server_api.py` → `memory.write_episode`, binario + resumen buscable, carga
   lazy) · fachada + señal `memory.updated` por el bus. `memory/seed_from_hermes.py` = importador one-shot que siembra
   el perfil del operador desde `~/.hermes` si existe (best-effort, solo-lectura). **`memory/vault.py`** ★ (V2-060:
@@ -718,7 +721,19 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   nunca en el turno; fail-open a la heurística regex, que ya NO ensucia (degrada a short+TTL 3d, nunca durable
   crudo). El sueño tiene DOS fases: el consolidador LIGERO (horario) y la **fase REM** (`memory/rem.py`, V2-056,
   diaria): repara vectores + dedup semántico + **INSIGHTS por concepto** + higiene con alerta — detalle en
-  `zaelar-memory.md §Sueño PROFUNDO`. **La lectura NUNCA lleva LLM** — tres velocidades
+  `zaelar-memory.md §Sueño PROFUNDO`. Su síntesis usa **`deepseek/deepseek-v4-flash`** (el MISMO modelo que el
+  CORAZÓN; bench §12.4, 2026-08-09) — pero ahí el criterio es la CALIDAD, no el precio: REM es **1 llamada al día**
+  con la entrada acotada por diseño (`MAX_GROUPS=8` × `pills[:12]`), así que **el coste no escala con el tamaño de
+  la memoria** (todo el barrido cabía entre $0,14 y $2,17 AL AÑO) mientras que un insight malo se consolida como
+  píldora durable. Los modelos MÁS POTENTES no mejoran (medido: v4-pro 98,1%, reasoner 97,1%, gpt-4.1 96,8% vs
+  flash 97,8-99,0%) y `gpt-4.1-mini` cae por no saber CALLARSE (0% de disciplina de `null`: de «se le olvidó dónde
+  dejó las llaves» fabricaba un rasgo durable del operador). **⚠️ INCIDENTE 2026-08-09: esta fase llevaba semanas
+  sin escribir un solo insight** — `_REM_SYSTEM` acaba con el ejemplo del contrato `[{"concept": …}]` y se
+  interpolaba con `.format(lang=…)`, que lee esas llaves como marcadores → `KeyError` en cada llamada → el
+  `except` de `synthesize` devolvía 0 con un `logger.warning`. Fail-open silencioso; el síntoma era «la memoria no
+  consolida», nunca un error. Arreglado (`.replace`), blindado (`tests/memory/unit/test_rem_prompt.py` PROHÍBE
+  volver a `.format` ahí) y el fallo ya marca `health_state` → sale en el ◉. Tercer incidente de la misma familia
+  en este módulo: **un fallo de la memoria nunca puede quedarse en un `logger.warning`.** **La lectura NUNCA lleva LLM** — tres velocidades
   directas: ESTADO `memory.state()` (µs, cacheado, SIEMPRE en el prompt), CORTO `memory.recent_short()` (µs, working
   set entero, sobre-incluye), LARGO `memory.query()` (retriever RRF ms, bajo demanda + `asyncio.to_thread`, la única
   capa que tolera esperas — con DOS gatillos desde V2-056: prefetch `needs_recall` + **tool `recall`**, el modelo
