@@ -508,7 +508,11 @@ class NucleoLLMStream(llm.LLMStream):
             if action == "close":
                 acted["closed"] = True                   # el backstop de cierre corto no re-cierra (ver post-stream)
             extra["src"] = "flash"                       # V2-039: procedencia — esta orden viene del FlashBrain
-            emit("widget", action, extra=extra)
+            # REGISTRO DE ÓRDENES DE CANVAS (2026-08-09, petición del operador): el evento se lleva la FRASE que
+            # lo provocó. Cuando se abre el widget EQUIVOCADO, la pregunta siempre es «¿de qué texto salió esto?»
+            # — y hasta ahora había que reconstruirla saltando al evento `transcript` anterior o abriendo la vista
+            # de trazas. Con el texto pegado al propio evento, la fila ya dice orden + objetivo + origen.
+            emit("widget", action, text=(text or "").strip()[:160], extra=extra)
 
         def _request_delete_confirm(widget_id: str, turn_text: str) -> None:
             """FlashBrain pide BORRAR un widget → abre la CONFIRMACIÓN (overlay Sí/No en la tarjeta); el borrado
@@ -638,6 +642,19 @@ class NucleoLLMStream(llm.LLMStream):
             wid = (wid or "").strip().lower()
             action_name = (action_name or "").strip()
             mode = _frontend.action_mode(wid, action_name)
+
+            def _log_dataop(m: str) -> None:
+                """REGISTRO DE ACCIONES DE WIDGET (2026-08-09, petición del operador). Hasta ahora una data-op
+                («sube el volumen», «maximiza», «marca hecha la tarea») solo dejaba rastro cuando el widget
+                GUARDABA (`widget/data` desde `widgets/store.py`), una fila genérica con el id y nada más — sin
+                el nombre de la acción, sin quién la pidió y sin la frase. Y encima está clasificada como ruido,
+                así que por defecto ni se ve. Aquí se registra la ORDEN en sí: qué acción, sobre qué widget, en
+                qué modo (fast/confirm/escalate) y con la FRASE que la originó, para poder atar una acción
+                equivocada con el texto exacto que la produjo. La fila del store se queda como está (es el efecto,
+                no la orden)."""
+                emit("widget", f"data:{action_name}", text=(text or "").strip()[:160],
+                     extra={"id": wid, "action": action_name, "mode": m, "src": "flash"})
+
             if mode == _wactions.FAST:
                 # GUARD anti context-bleed (round headless V2-038 #1): el modelo a veces RE-emite la data-op del
                 # turno ANTERIOR junto a la acción de ESTE ("borra el reloj" arrastró el add_meeting del dentista
@@ -653,6 +670,7 @@ class NucleoLLMStream(llm.LLMStream):
                     return
                 acted["widget"] = True
                 data_done["v"] = True
+                _log_dataop("fast")
                 brain._last_dataop = (wid, action_name, dict(payload or {}), time.time())
                 try:
                     from widgets import provenance as _prov
@@ -668,9 +686,11 @@ class NucleoLLMStream(llm.LLMStream):
                     pass
             elif mode == _wactions.CONFIRM:
                 acted["widget"] = True
+                _log_dataop("confirm")
                 _request_data_confirm(wid, action_name, payload or {})
             else:
                 logger.warning(f"nucleo(flash) widget.data {mode or 'no-declarada'} ({wid}:{action_name}) — escalando")
+                _log_dataop("escalate")
                 if escalate_req["v"] is None:
                     escalate_req["v"] = text
 

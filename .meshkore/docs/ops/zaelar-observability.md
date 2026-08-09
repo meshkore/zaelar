@@ -21,23 +21,53 @@ para el splash) y una grabación de mic OPCIONAL. Cada evento se escribe a:
 | **`GET /debug`** | timeline en vivo en el navegador (anillo en memoria) | abrir en Chrome mientras hablas |
 | **`.meshkore/logs/voice/<session_id>/mic_raw.wav`** | audio de entrada, **solo si `ZAELAR_RECORD_MIC=1`** (def OFF) | reproducir para verificar STT |
 
-### Filtrar el visor (◷): DOS ejes, no uno
+### El visor (◷): columnas, y DOS ejes de filtro
 
-El panel (`frontend/app/components/DebugPanel.js`) filtra en vivo por **dos ejes independientes**, ambos aplicados
-en `visible(row)` y re-evaluados sobre TODO el log en cada cambio (`reflow()`), no solo sobre lo que llegue después:
+**Cabecera FIJA de columnas** (2026-08-09): bajo las barras de filtro hay una fila de rótulos con el **mismo grid
+exacto** que `.dbg-row` (anchos, gap, padding y el borde izquierdo de 3px) → cada rótulo cae justo encima de su
+columna sin cambiar ningún ancho. Vive **fuera** del contenedor con scroll: no scrollea, no la puede podar el
+recorte de `MAX_ROWS`, y la lista ocupa exacto desde su borde inferior hasta el fondo del panel. Rótulo que no
+cabe se recorta con `…` y el `title` (hover) lo explica. Las columnas son **Hora · ms · Tipo · Motor · Tam. ·
+Evento**. Se oculta sola en la vista **Trazas** (árbol, sin columnas) y por debajo de 560px de panel, donde la
+container query ya colapsa las filas a flujo libre.
 
-1. **CATEGORÍA** (2ª barra, 6 familias gruesas: Principal · Memoria · FlashBrain · Navegador · Sistema/Código ·
-   Pulso). La sella el backend en `observer.py::_CAT`; persiste en `hb_dbg_cats`.
+**Filtro por dos ejes independientes**, ambos aplicados en `visible(row)` y re-evaluados sobre TODO el log en cada
+cambio (`reflow()`), no solo sobre lo que llegue después:
+
+1. **CATEGORÍA** (2ª barra). Rediseñada 2026-08-09 a las **piezas reales del sistema** — se retiró «Principal»,
+   que era un cajón de sastre: **FlashBrain · Brain Workers · Memoria · Widgets · Sistema/Código · Pulso**. Las
+   cuatro primeras ON por defecto. La sella el backend en `observer.py::_CAT`; persiste en `hb_dbg_cats_v2` (clave
+   reestrenada a propósito: con el vocabulario viejo, Widgets y Brain Workers habrían nacido apagados en silencio).
+   - **Brain Workers incluye el navegador**: el Chromium interno no es una familia propia, es lo que abre un
+     worker cuando le hace falta (`navegador`/`backed`/`background` cuelgan de ahí).
+   - **Un `kind` sin clasificar NO se oculta nunca por este eje** (el backend le sella `cat="other"`), ni
+     `error`/`alert`. Una capacidad nueva debe VERSE hasta que alguien la clasifique; el silencio por omisión es
+     la peor forma de perder señal.
 2. **KIND** (3ª barra, plegable — botón «Tipos…»): un chip **por cada `kind` que ha aparecido**, con contador vivo.
-   Es el desglose FINO que la categoría no da: dentro de «Principal» conviven `transcript`, `task`, `widget`,
-   `session`… y el operador puede querer solo `brain` + `task` + `worker_start`. Click = mostrar/ocultar;
-   **shift+click = ver SOLO ese kind** (repetir devuelve todo). Persiste en `hb_dbg_kinds_off` — se guardan los
-   **apagados**, no los encendidos, para que un `kind` NUEVO (el que estrene una capacidad futura) nazca VISIBLE y
-   nunca se pierda señal por una lista vieja en el `localStorage`. Mientras haya algo apagado el botón «Tipos…» se
-   pone en ámbar: **un hilo recortado no debe parecer completo**.
+   Es el desglose FINO que la categoría no da. Click = mostrar/ocultar; **shift+click = ver SOLO ese kind**
+   (repetir devuelve todo). Persiste en `hb_dbg_kinds_off` — se guardan los **apagados**, no los encendidos, por la
+   misma razón de arriba. Mientras haya algo apagado el botón «Tipos…» se pone en ámbar: **un hilo recortado no
+   debe parecer completo**. Este eje sí puede silenciar errores: ahí la decisión es explícita, no una omisión.
 
 Las filas ocultas siguen en el DOM (encender un chip las devuelve al instante, sin recargar) y **nada de esto toca
 lo que se persiste**: los `.jsonl` y el SSE siguen llevándolo todo — el filtro es de LECTURA.
+
+### Registro de acciones de widget — atar «widget equivocado» con la FRASE que lo pidió
+
+Toda orden contra el canvas queda en la categoría **Widgets**, y **cada evento se lleva el texto del turno que la
+originó** (2026-08-09). Antes había que reconstruirlo saltando al `transcript` anterior o abriendo la vista de
+trazas; ahora la fila ya dice orden + objetivo + origen + frase, que es justo lo que hace falta cuando se abre el
+widget que no era.
+
+| Fila | De dónde sale | Qué dice |
+|---|---|---|
+| `widget · show\|close\|move` | `providers/nucleo.py` (tag `[[show]]`/`[[close]]`) | la orden de canvas + `id` + `src=flash` + **la frase** |
+| `widget · data:<acción>` | `providers/nucleo.py::_apply_widget_data` | la DATA-OP en sí (subir volumen, maximizar, marcar hecha) con su `mode` (`fast`/`confirm`/`escalate`) + **la frase** |
+| `widget · data` | `widgets/store.py::save()` | el EFECTO (el widget guardó). Sigue marcada como ruido — es consecuencia, no orden |
+| `widget · action` | `widgets/server_api.py` | el operador pulsando un botón de la tarjeta (`src=user`) |
+| `widget · show\|close` | `nucleo/worker_api.py` | lo mismo pedido por un Brain Worker (`src=worker:<id>`) |
+
+Con el chip de trace (V2-044) de esa misma fila se salta a la cadena completa de la frase.
 
 ## Trazabilidad texto → acción → rail → sesión → eventos (V2-044)
 

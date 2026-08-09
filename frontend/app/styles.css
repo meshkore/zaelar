@@ -829,7 +829,26 @@ body.dbg-resizing{cursor:ew-resize;user-select:none}
 .dbg-kind:hover{border-color:var(--hb-accent);color:var(--hb-accent);opacity:1}
 .dbg-kind.on{opacity:1;color:var(--hb-ink);border-color:color-mix(in srgb,var(--hb-accent) 45%,var(--hb-line))}
 .dbg-kn{font-style:normal;color:var(--hb-muted-2);font-size:9.5px}
-.dbg-list{flex:1;overflow-y:auto;overflow-x:hidden;padding:4px 0 10px;font-family:var(--mono);font-size:11.5px;line-height:1.45;
+/* CABECERA FIJA DE COLUMNAS (2026-08-09) — mismo grid EXACTO que `.dbg-row` (anchos, gap, padding y el borde
+   izquierdo de 3px, aquí transparente) para que cada rótulo caiga justo encima de su columna sin cambiar ningún
+   ancho. Vive FUERA de `.dbg-list`: así ni scrollea ni la puede podar el recorte de MAX_ROWS, y la lista ocupa
+   exactamente desde su borde inferior hasta el fondo del panel. Su wrapper es un query-container propio (la
+   query `dbg` pertenece a `.dbg-list`, que es otro elemento) para poder ocultarla en el mismo breakpoint en el
+   que las filas dejan de ser columnas. Los rótulos heredan la clase de su columna solo para POSICIONARSE: aquí
+   se les quita el aspecto de chip/píldora y se pintan todos iguales. */
+.dbg-hdrwrap{flex:0 0 auto;container-type:inline-size;container-name:dbgh}
+.dbg-hdr{display:grid;grid-template-columns:80px 46px 78px 80px 96px 1fr;gap:8px;padding:5px 12px 5px 9px;
+  border-bottom:1px solid var(--hb-line);border-left:3px solid transparent;align-items:baseline;
+  background:color-mix(in srgb,var(--hb-ink) 4%,transparent);font-family:var(--mono);font-size:9.5px;
+  text-transform:uppercase;letter-spacing:.06em;color:var(--hb-muted-2);user-select:none}
+/* `span` + clase (0,1,1) para GANARLE a `.dbg-k`/`.dbg-eng`/`.dbg-sz` (0,1,0), que llevan píldora, fondo y
+   color propios: en la cabecera solo queremos la POSICIÓN de esas clases, no su aspecto de chip. La alineación
+   (izq/centro/dcha) se deja caer a propósito — así cada rótulo se alinea como los valores de su columna. */
+.dbg-hdr>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:help;
+  border:0;border-radius:0;padding:0;background:none;color:inherit;font-size:inherit;font-weight:600;
+  letter-spacing:inherit;text-transform:inherit;opacity:1}
+@container dbgh (max-width: 560px){ .dbg-hdr{display:none} }
+.dbg-list{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:0 0 10px;font-family:var(--mono);font-size:11.5px;line-height:1.45;
   /* query container: the ROW layout reacts to the PANEL width (resizable), not the viewport (V2 obs) */
   container-type:inline-size;container-name:dbg}
 .dbg-row{display:grid;grid-template-columns:80px 46px 78px 80px 96px 1fr;gap:8px;padding:3px 12px 3px 9px;

@@ -21,30 +21,41 @@ os.makedirs(LOG_DIR, exist_ok=True)
 
 _t0 = {"v": None}
 
-# CATEGORÍAS del visor de observabilidad (V2-037) — pocas familias para el filtro. `main`/`memory`/`flash`/`nav`
-# van ON por defecto; `system` (eventos internos/perf: round-trips, callbacks, ciclos, llamadas a modelo/DB) va OFF
-# por defecto (al activarlo salen docenas). "brain" = FlashBrain ORQUESTADOR (ya no hay cerebro aparte).
+# CATEGORÍAS del visor de observabilidad — las familias del filtro superior.
+#
+# REDISEÑO 2026-08-09 (petición del operador): fuera «Principal», que era un cajón de sastre donde convivían la
+# conversación, los widgets, las tareas y la plomería del transporte. Las familias son ahora las PIEZAS REALES del
+# sistema, que es como el operador razona cuando depura: **FlashBrain · Brain Workers · Memoria · Widgets ·
+# Sistema/Código · Pulso**. ON por defecto las cuatro primeras; `system` y `pulse` OFF (internos y ruidosos).
+#
+# Un `kind` NO mapeado NO cae en ninguna familia — y el visor lo trata como SIEMPRE VISIBLE (nunca se oculta por
+# el eje de categoría). Es deliberado: una capacidad nueva que estrene su propio kind debe VERSE hasta que alguien
+# la clasifique aquí; el silencio por omisión es la peor forma de perder señal. Lo mismo vale para `error`/`alert`.
 _CAT = {
-    # principales (ON)
-    "task": "main", "state": "main", "transcript": "main", "bot_speech": "main",
-    "tts": "main", "stt": "main", "widget": "main", "notify": "main", "timing": "main", "search": "main",
-    "ambient": "main", "session": "main", "worker_start": "main", "error": "main",
-    # UI del operador — taps de iconos del orbe/TopBar + geometría de widgets (V2-039, ON: es auditoría del frontend)
-    "ui": "main",
-    # memoria (ON)
+    # ── FlashBrain (ON) — el TURNO: qué se dijo, qué decidió el orquestador, qué buscó, qué auditó Susurro.
+    "brain": "flash", "transcript": "flash", "ambient": "flash", "search": "flash",
+    "susurro": "flash", "rail": "flash", "trace": "flash",
+    # ── Brain Workers (ON) — el trabajo ASYNC: sesiones de worker, el Chromium interno que abren para navegar,
+    # y los procesos backed/background que corren fuera del turno. El navegador va AQUÍ (2026-08-09): para el
+    # operador «abrir el navegador» no es una familia propia, es lo que hace un worker cuando le hace falta.
+    "task": "worker", "worker_start": "worker", "navegador": "worker",
+    "background": "worker", "backed": "worker",
+    # ── Memoria (ON)
     "memory": "memory",
-    # orquestador / FlashBrain (ON)
-    "brain": "flash",
-    # navegador + procesos backed/background (ON)
-    "navegador": "nav", "background": "nav", "backed": "nav",
-    # sistema / código — internos y ruidosos (OFF por defecto)
-    # `metric` BAJÓ de `main` a `system` (2026-08-09, queja del operador): son las métricas CRUDAS del plugin
-    # de LiveKit, y con un STT de streaming (Deepgram) la métrica NO depende de que alguien hable — su
+    # ── Widgets (ON) — TODA orden contra el canvas: show/close/move, data-ops (subir volumen, maximizar…),
+    # alias, y los taps del propio operador sobre la UI (`ui`). Es el registro que permite atar «widget
+    # equivocado» con la FRASE que lo pidió (cada evento lleva el texto del turno + su chip de trace).
+    "widget": "widget", "ui": "widget",
+    # ── Sistema / Código (OFF) — plomería: transporte de voz, estado, métricas crudas, cluster, perf.
+    # `metric` BAJÓ de la vista principal a aquí (2026-08-09, queja del operador): son las métricas CRUDAS del
+    # plugin de LiveKit, y con un STT de streaming (Deepgram) la métrica NO depende de que alguien hable — su
     # PeriodicCollector suelta `STTMetrics: audio=5.00s` cada 5 s mientras el micro esté abierto, de forma
-    # PERPETUA. Ensuciaba el hilo principal con ~720 filas/hora sin señal (la latencia POR FRASE, que sí la
-    # tiene, ya sale como `stt`/`tts`/`brain` con backend, modelo y texto). Misma lógica que el anti-flood de
-    # `VADMetrics` del 2026-07-12: métrica continua ≠ evento del turno. Sigue persistida en los jsonl.
+    # PERPETUA. Ensuciaba el hilo con ~720 filas/hora sin señal (la latencia POR FRASE, que sí la tiene, ya sale
+    # como `stt`/`tts`/`brain` con backend, modelo y texto). Misma lógica que el anti-flood de `VADMetrics` del
+    # 2026-07-12: métrica continua ≠ evento del turno. Sigue persistida en los jsonl.
     "metric": "system", "vad": "system", "cluster": "system", "perf": "system",
+    "stt": "system", "tts": "system", "bot_speech": "system", "state": "system",
+    "session": "system", "timing": "system", "notify": "system",
 }
 
 
@@ -243,7 +254,9 @@ def emit(kind: str, label: str, text: str = "", role: str = "", extra: dict | No
     # CATEGORÍA para el filtro del visor (V2-037): agrupa los kinds en pocas familias. El caller puede forzarla con
     # extra={"cat": ...}; si no, se deriva del kind. System/Code (`system`) = eventos internos/perf, OFF por defecto.
     if "cat" not in ev:
-        ev["cat"] = _CAT.get(kind, "main")
+        # Sin familia → `other`: el visor NO lo oculta por categoría (ver la nota de `_CAT`). Un kind sin clasificar
+        # se ve; clasificarlo es lo que decide dónde vive, no lo que decide si existe.
+        ev["cat"] = _CAT.get(kind, "other")
     # SELLO DE VERSIÓN (V2-074): cada evento lleva la versión del código que lo generó ('2.74+sha') → en el timeline
     # se ve qué versión produjo cada línea y se distinguen sesiones/reinicios. Constante en runtime (µs).
     if "ver" not in ev:

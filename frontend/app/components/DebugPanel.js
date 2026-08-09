@@ -40,25 +40,48 @@ function parts(d) {
   return { label: (d.label || "").toString(), meta: meta.join(" · "), text };
 }
 
-// V2-037: categorías del filtro superior (pocas). Las 4 primeras ON por defecto; System/Code OFF (al activarlo
-// salen docenas de eventos internos/perf). La `cat` la sella el backend (voice/observer.py::_CAT / perf()).
+// Categorías del filtro superior = las PIEZAS REALES del sistema (rediseño 2026-08-09, petición del operador).
+// Antes la primera era «Principal», un cajón de sastre con la conversación, los widgets, las tareas y la plomería
+// del transporte dentro; se retiró. Las 4 primeras van ON por defecto; System/Code y Pulso OFF.
+// La `cat` la sella el backend (voice/observer.py::_CAT / perf()) — aquí solo se muestra y se filtra.
 const CATS = [
-  { key: "main", label: "Main" },
+  { key: "flash", label: "FlashBrain" },       // el turno: transcripts, decisión, búsqueda, Susurro
+  { key: "worker", label: "Brain Workers" },   // trabajo async + el Chromium interno que abren para navegar
   { key: "memory", label: "Memory" },
-  { key: "flash", label: "FlashBrain" },
-  { key: "nav", label: "Browser" },
+  { key: "widget", label: "Widgets" },         // TODA orden contra el canvas (show/close/move/data-op/tap)
   { key: "system", label: "System/Code" },
   // Pulse (V2-043): el LATIDO del loop orquestador (~1 Hz, «PULSE·tick»). OFF por defecto — ensucia el log muy
   // rápido y no lleva datos; actívalo solo para ver el ritmo del loop. Las llamadas REALES de memoria in/out van
   // en «Memoria», nunca aquí (la proyección de estado sin cambios ya no se emite — dispatch.sync_state).
   { key: "pulse", label: "Pulse" },
 ];
+const CAT_KEYS = new Set(CATS.map((c) => c.key));
+
+// Un evento cuya `cat` NO es ninguna de las de arriba (un kind aún sin clasificar en `_CAT`, o el `other` que
+// sella el backend por defecto) NUNCA se oculta por el eje de categoría: una capacidad nueva debe VERSE hasta que
+// alguien la clasifique. Igual con error/alert — un error invisible es el peor modo de fallo posible. El eje de
+// KIND sí puede silenciarlos: ahí la decisión es explícita del operador, no una omisión.
+const ALWAYS_KINDS = new Set(["error", "alert"]);
 
 // V2-089: cada categoría del filtro mapea a su clave i18n (la `key` sigue siendo el valor comparado en código).
 const CAT_LABEL_KEY = {
-  main: "debug.cat_main", memory: "debug.cat_memory", flash: "debug.cat_flash",
-  nav: "debug.cat_nav", system: "debug.cat_system", pulse: "debug.cat_pulse",
+  worker: "debug.cat_worker", memory: "debug.cat_memory", flash: "debug.cat_flash",
+  widget: "debug.cat_widget", system: "debug.cat_system", pulse: "debug.cat_pulse",
 };
+
+// Cabecera FIJA de columnas (2026-08-09, petición del operador: «no se ve claro qué es cada columna»). Mismo
+// grid EXACTO que `.dbg-row` en CSS — mismos anchos, mismo gap, mismo padding — para que cada rótulo caiga
+// justo encima de su columna sin tocar el ancho actual de nada. Si el rótulo no cabe se recorta con «…» y el
+// `title` (hover) dice qué es. Bajo 560px de panel las filas se colapsan a flujo libre (container query) y la
+// cabecera se oculta: ahí ya no hay columnas que rotular.
+const COLS = [
+  { cls: "dbg-t", key: "debug.col_time", tip: "debug.col_time_t" },
+  { cls: "dbg-lat", key: "debug.col_lat", tip: "debug.col_lat_t" },
+  { cls: "dbg-k", key: "debug.col_kind", tip: "debug.col_kind_t" },
+  { cls: "dbg-eng", key: "debug.col_engine", tip: "debug.col_engine_t" },
+  { cls: "dbg-sz", key: "debug.col_size", tip: "debug.col_size_t" },
+  { cls: "dbg-msg", key: "debug.col_event", tip: "debug.col_event_t" },
+];
 
 // Which layer of the «Colmena» brain resolved this turn: the FlashBrain stamps its fast-model provider
 // ("aimlapi"/"ollama"/…), the SlowBrain escalation path stamps "slowbrain". Stamped by the provider itself
@@ -152,14 +175,17 @@ const ORIGIN_ICON = { turno: "🗣", kickoff: "👋", probe: "🧪", cron: "⏰"
 export function DebugPanel() {
   let listEl, countEl, filterEl, lastRow = null, lastSig = "";
   let tracesEl;                                  // V2-044: contenedor de la vista Trazas (árbol por trace)
+  let hdrEl;                                     // cabecera fija de columnas (solo tiene sentido en la vista log)
   let mode = localStorage.getItem("hb_dbg_mode") === "traces" ? "traces" : "log";
   let filter = "";
   let noiseHidden = true;
   let count = 0;
-  // V2-037: categorías activas. Por defecto todo lo principal ON y System/Code OFF (persistido).
+  // Categorías activas (persistidas). Clave `_v2` a propósito: el vocabulario cambió (fuera `main`/`nav`, dentro
+  // `worker`/`widget`) y una lista vieja habría dejado Widgets y Brain Workers apagados EN SILENCIO — reestrenar la
+  // clave es lo único que garantiza que el operador vea el filtro nuevo tal y como se diseñó.
   const enabledCats = new Set((() => {
-    try { const s = JSON.parse(localStorage.getItem("hb_dbg_cats") || "null"); if (Array.isArray(s)) return s; } catch {}
-    return ["main", "memory", "flash", "nav"];
+    try { const s = JSON.parse(localStorage.getItem("hb_dbg_cats_v2") || "null"); if (Array.isArray(s)) return s; } catch {}
+    return ["flash", "worker", "memory", "widget"];
   })());
 
   // ── DESGLOSE POR KIND (2026-08-09, petición del operador) ────────────────────────────────────────────────────
@@ -200,8 +226,12 @@ export function DebugPanel() {
   }
 
   function visible(row) {
-    if (!enabledCats.has(row.dataset.cat || "main")) return false;
-    if (hiddenKinds.has(row.dataset.kind || "log")) return false;
+    const kind = row.dataset.kind || "log";
+    const cat = row.dataset.cat || "other";
+    // Eje CATEGORÍA — solo puede ocultar lo que pertenece a una familia CONOCIDA. Un kind sin clasificar y los
+    // errores/alertas pasan siempre por aquí (ver ALWAYS_KINDS): no se pierde señal por omisión.
+    if (CAT_KEYS.has(cat) && !ALWAYS_KINDS.has(kind) && !enabledCats.has(cat)) return false;
+    if (hiddenKinds.has(kind)) return false;                    // eje KIND — decisión explícita, sin excepciones
     if (noiseHidden && row.dataset.noise === "1") return false;
     return !filter || (row.dataset.s || "").includes(filter);
   }
@@ -390,6 +420,7 @@ export function DebugPanel() {
     localStorage.setItem("hb_dbg_mode", m);
     if (listEl) listEl.hidden = (m === "traces");
     if (tracesEl) tracesEl.hidden = (m !== "traces");
+    if (hdrEl) hdrEl.hidden = (m === "traces");     // el árbol no va en columnas → sin cabecera que rotular
     if (btn) { btn.innerHTML = m === "traces" ? LIST_ICON : LINK_ICON; btn.title = m === "traces" ? t("debug.view_log") : t("debug.view_traces"); }
   }
 
@@ -402,7 +433,7 @@ export function DebugPanel() {
   function toggleCat(key, btn) {
     if (enabledCats.has(key)) enabledCats.delete(key); else enabledCats.add(key);
     btn.classList.toggle("on", enabledCats.has(key));
-    try { localStorage.setItem("hb_dbg_cats", JSON.stringify([...enabledCats])); } catch {}
+    try { localStorage.setItem("hb_dbg_cats_v2", JSON.stringify([...enabledCats])); } catch {}
     reflow();
   }
 
@@ -460,9 +491,9 @@ export function DebugPanel() {
     h("div", { class: "dbg-cats" },
       ...CATS.map((c) => h("button", {
         class: "dbg-cat" + (enabledCats.has(c.key) ? " on" : ""),
-        title: c.key === "system" ? () => t("debug.cat_system_title") : () => t(CAT_LABEL_KEY[c.key] || "debug.cat_main"),
+        title: c.key === "system" ? () => t("debug.cat_system_title") : () => t(CAT_LABEL_KEY[c.key]),
         onClick: (e) => toggleCat(c.key, e.currentTarget),
-      }, () => t(CAT_LABEL_KEY[c.key] || "debug.cat_main"))),
+      }, () => t(CAT_LABEL_KEY[c.key]))),
       // Desglose fino: despliega la 3ª fila con un chip por kind visto. Se marca `muted` mientras haya algo
       // apagado, para que el operador nunca mire un hilo recortado creyendo que lo ve todo.
       h("button", {
@@ -475,13 +506,36 @@ export function DebugPanel() {
     // 3ª barra — un chip POR KIND (con su contador vivo), construida sobre la marcha con los kinds que van
     // apareciendo. Oculta salvo que el operador la despliegue: es la herramienta de precisión, no el mando diario.
     h("div", { class: "dbg-kinds", ref: (el) => { kindsEl = el; el.hidden = !kindsOpen; } }),
+    // CABECERA DE COLUMNAS — fija, fuera del contenedor con scroll (así no scrollea ni la puede podar el
+    // recorte de MAX_ROWS) y con el MISMO grid que las filas. El wrapper es su propio query-container para que
+    // se oculte sola cuando el panel se estrecha y las filas dejan de estar en columnas.
+    h("div", { class: "dbg-hdrwrap", ref: (el) => { hdrEl = el; el.hidden = (mode === "traces"); } },
+      h("div", { class: "dbg-hdr" },
+        ...COLS.map((c) => h("span", { class: c.cls, title: () => t(c.tip) }, () => t(c.key))),
+      ),
+    ),
     h("div", { class: "dbg-list", ref: (el) => { listEl = el; el.hidden = (mode === "traces"); el.addEventListener("scroll", onListScroll, { passive: true }); } }),
     // V2-044: la vista Trazas — misma zona, contenedor alterno (toggle ⛓ arriba)
     h("div", { class: "dbg-list dbg-traces", ref: (el) => { tracesEl = el; el.hidden = (mode !== "traces"); el.addEventListener("scroll", onListScroll, { passive: true }); } }),
   );
 
-  // Open ⇒ start the bus, shrink the canvas (body class + --dbg-w), and backfill the recent buffer once.
-  let backfilled = false;
+  // Open ⇒ start the bus, shrink the canvas (body class + --dbg-w), y REPONER lo que falte del buffer.
+  // El bus (debugbus.js) sigue vivo y acumulando SIEMPRE, abierto o cerrado el panel — pero mientras está
+  // cerrado no pintamos filas (abajo, el suscriptor vivo lo filtra por `store.debugOpen()`), así que al
+  // reabrir puede haber eventos reales más recientes que el último que SÍ se pintó. Antes esto se resolvía
+  // con un flag de una sola vez (`backfilled`), que solo rellenaba en la PRIMERA apertura de la página — la
+  // 2ª+ apertura se quedaba con la última fila pintada antes de cerrar, aunque hubiera eventos más nuevos en
+  // el buffer: el scroll SÍ estaba abajo, pero abajo de un DOM incompleto (parecía "no sigue al último
+  // evento" sin serlo). Ahora cada evento se marca `_dbgSeen` al pintarse, y CADA apertura repone los que
+  // falten — así el operador siempre ve el evento real más reciente, no solo el más reciente que ya viera.
+  function catchUp() {
+    if (!listEl) return;
+    for (const d of debugBuffer()) {
+      if (d._dbgSeen) continue;
+      d._dbgSeen = true;
+      addRow(d); addTrace(d);
+    }
+  }
   createEffect(() => {
     const open = store.debugOpen();
     document.body.classList.toggle("dbg-open", open);
@@ -490,12 +544,12 @@ export function DebugPanel() {
     if (open) {
       startDebugBus();
       stick = true;   // al abrir el panel, arrancar SIEMPRE enganchado al último evento
-      if (!backfilled && listEl) { backfilled = true; for (const d of debugBuffer()) { addRow(d); addTrace(d); } }
+      catchUp();
       pinTail();
     }
   });
 
-  onDebug((d) => { if (store.debugOpen()) { addRow(d); addTrace(d); } });   // live append only while visible
+  onDebug((d) => { if (store.debugOpen()) { d._dbgSeen = true; addRow(d); addTrace(d); } });   // live append only while visible
 
   return panel;
 }

@@ -216,7 +216,17 @@ def synthesize(synthesize_fn, min_group: int = MIN_GROUP) -> int:
     try:
         results = synthesize_fn(groups) or []
     except Exception as e:  # noqa: BLE001
-        logger.warning(f"rem.synthesize: hook falló ({str(e)[:120]}) → sin insights este sueño")
+        # NUNCA en silencio (lección del incidente del CORAZÓN 2026-07-17/19, y de este mismo módulo: un
+        # `KeyError` del prompt dejó esta fase sin escribir un solo insight durante semanas y solo constaba
+        # como un warning entre miles de líneas). El fallo del hook es un fallo de la MEMORIA: se marca en
+        # `health_state` → lo pinta el ◉ de estado, igual que una caída del destilador. Sigue siendo fail-open:
+        # el sueño continúa con sus otras fases.
+        logger.error(f"rem.synthesize: hook falló ({str(e)[:160]}) → sin insights este sueño")
+        try:
+            from voice import health_state
+            health_state.record("memory", "outage", f"sueño REM sin insights: {str(e)[:120]}")
+        except Exception:  # noqa: BLE001
+            pass
         return 0
     written = 0
     for it in results:

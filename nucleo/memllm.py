@@ -22,8 +22,11 @@ import urllib.request
 
 from loguru import logger
 
+# Fallback de última instancia (si `config §memory` no se puede leer). Debe coincidir con el default de
+# `config/v2.py §memory` — apuntar a OpenAI aquí significaba, en la nube, fallar siempre: no hay OPENAI_API_KEY
+# entre los secretos que inyecta el provisioner (2026-08-09, misma corrección que en mem_processor).
 _DEFAULTS = {
-    "rem": ("https://api.openai.com/v1", "gpt-4.1-mini"),
+    "rem": ("https://api.aimlapi.com/v1", "openai/gpt-4.1-mini"),
     # i18n (V2-089): traducción del UI a un idioma nuevo en la INICIALIZACIÓN (i18n/init). Off-hot-path, calidad
     # importa (scripts no-latinos: árabe, chino, japonés…) → modelo fuerte por defecto. Override en config §memory.
     "i18n": ("https://api.openai.com/v1", "gpt-4o"),
@@ -88,10 +91,40 @@ def chat_sync(task: str, system: str, user: str, *, max_tokens: int = 900,
     try:
         with urllib.request.urlopen(req, timeout=timeout) as r:
             data = json.loads(r.read().decode())
+        _record_usage(data.get("usage"), url, model)
         return data["choices"][0]["message"]["content"]
     except Exception as e:  # noqa: BLE001
         logger.warning(f"memllm[{task}]: {model} @ {url} falló: {str(e)[:160]} → fail-open")
         return None
+
+
+# ── CONSUMO REAL (2026-08-09) — mismo cierre que en `mem_processor`: las tareas de LLM de la memoria son
+# llamadas de nube como cualquier otra y no reportaban a Energy, así que en una cuenta cloud el sueño REM (y la
+# generación de bundles i18n) consumían tokens gratis en el contador. `last_usage()` además da los tokens REALES
+# al bench de síntesis (§12.4) para calcular el coste por sueño con números medidos. Fail-open siempre: medir
+# NUNCA puede tumbar una consolidación.
+_last_usage: dict = {}
+
+
+def last_usage() -> dict:
+    """Tokens de la última llamada (`{prompt_tokens, completion_tokens, total_tokens}`), `{}` si el proveedor no
+    los devolvió. Solo diagnóstico/bench."""
+    return dict(_last_usage)
+
+
+def _record_usage(usage: dict | None, base_url: str, model: str) -> None:
+    global _last_usage
+    if not isinstance(usage, dict):
+        _last_usage = {}
+        return
+    _last_usage = {k: usage.get(k) for k in ("prompt_tokens", "completion_tokens", "total_tokens")}
+    try:
+        from nucleo import energy_meter as _energy
+        _energy.report_llm_usage(base_url=base_url, model=model,
+                                 prompt_tokens=_last_usage.get("prompt_tokens"),
+                                 completion_tokens=_last_usage.get("completion_tokens"))
+    except Exception:  # noqa: BLE001
+        pass
 
 
 # ── SÍNTESIS del sueño REM (el hook que el loop inyecta en memory/rem.py) ─────────────────────────────────────
@@ -134,7 +167,14 @@ def synthesize_concept_groups(groups: list[dict], *, model_override: str | None 
         [{"concept": g["concept"], "recuerdos": g["pills"][:12]} for g in groups],
         ensure_ascii=False, indent=1,
     )
-    system = _REM_SYSTEM.format(lang=_canonical_lang_native())
+    # `.replace`, NO `.format` (fix 2026-08-09): el prompt TERMINA con un ejemplo de JSON literal
+    # —[{"concept": str, "insight": str|null}]— y `str.format` interpreta esas llaves como marcadores →
+    # `KeyError: '"concept"'` en CADA llamada. `rem.synthesize` captura la excepción y devuelve 0 con un
+    # `logger.warning`, así que la fase de INSIGHTS del sueño profundo llevaba rota EN SILENCIO desde que se
+    # añadió la interpolación `{lang}` de la regla monolingüe (los números de §12.2 son anteriores a ese
+    # cambio). Mismo idioma que `mem_processor`, que ya usaba `.replace` para su catálogo de slots.
+    # Cubierto por tests/memory/unit/test_rem_prompt.py para que no pueda repetirse.
+    system = _REM_SYSTEM.replace("{lang}", _canonical_lang_native())
     content = chat_sync("rem", system, user, max_tokens=1200,
                         model_override=model_override, url_override=url_override)
     if not content:
