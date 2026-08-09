@@ -209,9 +209,13 @@ export function DebugPanel() {
     return [];
   })());
   const kindChips = new Map();                   // kind -> {btn, nEl, n, cat} (orden = primera aparición)
-  const kindGroups = new Map();                  // familia -> {box, body} — la línea de tipos de esa familia
-  let kindsEl, kindsBtn;
-  let kindsOpen = localStorage.getItem("hb_dbg_kinds_open") !== "0";   // ahora ON por defecto: ya no es un muro
+  const kindGroups = new Map();                  // familia -> {box, body, head, cat} — la línea de tipos
+  let kindsEl, filtersEl, filtersBtn, filtersLabel;
+  // PANEL DE FILTROS PLEGABLE (2026-08-09, petición del operador: «hay tantos datos que configurar en los
+  // filtros que no los podemos tener a la vista porque perdemos la pantalla»). CERRADO por defecto: lo normal
+  // es mirar eventos, no reconfigurar el filtro. Cerrado no queda NADA de filtros en pantalla — solo la
+  // cabecera de columnas y la lista.
+  let filtersOpen = localStorage.getItem("hb_dbg_filters_open") === "1";
 
   // ── stick-to-tail: seguir SIEMPRE el último evento, pero soltar si el operador sube el scroll ──
   // (V2 obs) El fondo se fija DESPUÉS del layout (rAF), así una fila recién añadida —que ahora puede
@@ -258,16 +262,25 @@ export function DebugPanel() {
       box.className = "dbg-kgroup c-" + cat;
       const head = document.createElement("span");
       head.className = "dbg-kgh";
-      head.textContent = t(CAT_LABEL_KEY[cat] || "debug.col_family");
-      head.title = head.textContent;      // el rótulo se recorta en columna estrecha; el hover lo dice entero
       const body = document.createElement("span"); body.className = "dbg-kgb";
       box.append(head, body);
       kindsEl.appendChild(box);
-      g = { box, body };
+      g = { box, body, head, cat };
       kindGroups.set(cat, g);
+      labelGroup(g);
       syncGroups();
     }
     return g;
+  }
+
+  // El rótulo de una familia se pinta de forma IMPERATIVA (el chip vive fuera del árbol reactivo de dom.js), así
+  // que hay que re-rotularlo a mano cuando cambia el idioma o cuando llega el bundle bueno. Sin esto salían
+  // rótulos MEZCLADOS —«FAMILY» en una fila y «FAMILIA» en la siguiente— según si el grupo se creó antes o
+  // después de que el fetch del bundle reconciliara. Una familia sin nombre conocido se rotula como tal, en vez
+  // de caer al genérico «Familia», que no decía nada.
+  function labelGroup(g) {
+    g.head.textContent = CAT_LABEL_KEY[g.cat] ? t(CAT_LABEL_KEY[g.cat]) : t("debug.cat_other");
+    g.head.title = g.head.textContent;   // el rótulo se recorta en columna estrecha; el hover lo dice entero
   }
 
   // Una familia apagada no enseña sus tipos: sus filas ya no están en pantalla, así que sus chips solo estorban.
@@ -275,7 +288,27 @@ export function DebugPanel() {
     for (const [cat, g] of kindGroups) {
       g.box.hidden = CAT_KEYS.has(cat) ? !enabledCats.has(cat) : false;
     }
-    if (kindsEl) kindsEl.hidden = !kindsOpen;
+    updateFiltersLabel();
+  }
+
+  // «Filtros (N)» — N = tipos MARCADOS entre los visibles ahora mismo. Es el número que responde «¿estoy viendo
+  // todo o me falta algo?» sin abrir el panel.
+  function updateFiltersLabel() {
+    if (!filtersLabel) return;
+    let n = 0;
+    for (const [kind, c] of kindChips) {
+      const catOn = !CAT_KEYS.has(c.cat) || enabledCats.has(c.cat);
+      if (catOn && !hiddenKinds.has(kind)) n++;
+    }
+    filtersLabel.textContent = t("debug.filters", { n });
+  }
+
+  function toggleFilters() {
+    filtersOpen = !filtersOpen;
+    localStorage.setItem("hb_dbg_filters_open", filtersOpen ? "1" : "0");
+    if (filtersEl) filtersEl.hidden = !filtersOpen;
+    if (filtersBtn) filtersBtn.classList.toggle("on", filtersOpen);
+    pinTail();      // el panel cambia el alto de la lista → re-fijar el fondo si estábamos siguiendo
   }
 
   // Registra (o actualiza) el chip de un kind. Se llama por CADA evento —también por los colapsados en ×N— así el
@@ -296,11 +329,12 @@ export function DebugPanel() {
       if (g) g.body.appendChild(btn);
     }
     c.n++; c.nEl.textContent = String(c.n);
+    updateFiltersLabel();
   }
 
   function persistKinds() {
     try { localStorage.setItem("hb_dbg_kinds_off", JSON.stringify([...hiddenKinds])); } catch {}
-    if (kindsBtn) kindsBtn.classList.toggle("muted", hiddenKinds.size > 0);
+    if (filtersBtn) filtersBtn.classList.toggle("muted", hiddenKinds.size > 0);
   }
 
   function toggleKind(kind, solo) {
@@ -313,15 +347,11 @@ export function DebugPanel() {
     else hiddenKinds.add(kind);
     for (const [k, c] of kindChips) c.btn.classList.toggle("on", !hiddenKinds.has(k));
     persistKinds();
+    updateFiltersLabel();
     reflow();
   }
 
-  function toggleKindsRow() {
-    kindsOpen = !kindsOpen;
-    localStorage.setItem("hb_dbg_kinds_open", kindsOpen ? "1" : "0");
-    if (kindsBtn) kindsBtn.classList.toggle("on", kindsOpen);
-    syncGroups();
-  }
+
 
   function addRow(d) {
     if (!listEl) return;
@@ -525,6 +555,15 @@ export function DebugPanel() {
     h("div", { class: "dbg-head" },
       h("span", { class: "dbg-title" }, raw(BUG_ICON), () => t("debug.title")),
       h("input", { class: "dbg-filter", placeholder: () => t("debug.filter_placeholder"), ref: (el) => (filterEl = el), onInput: applyFilter }),
+      // FILTROS — un solo botón que despliega TODO el panel (familias + tipos). Lleva el nº de tipos marcados
+      // para saber de un vistazo si se está mirando el hilo entero o uno recortado.
+      h("button", {
+        class: "dbg-fbtn" + (filtersOpen ? " on" : ""), title: () => t("debug.filters_title"),
+        ref: (el) => (filtersBtn = el), onClick: toggleFilters,
+      },
+        h("span", { ref: (el) => { filtersLabel = el; el.textContent = t("debug.filters", { n: 0 }); } }),
+        h("span", { class: "dbg-fcar" }, "▾"),
+      ),
       h("span", { class: "dbg-count", ref: (el) => (countEl = el) }, () => t("debug.events", { n: 0 })),
       // V2-044: toggle Log cronológico ⇄ árbol de Trazas (frase → acciones → eventos)
       h("button", {
@@ -538,24 +577,23 @@ export function DebugPanel() {
     ),
     // V2-037: 2ª barra — filtro por CATEGORÍA. Todo en una sola lista ordenada por tiempo; estos toggles solo
     // muestran/ocultan familias. System/Code OFF por defecto (son docenas de eventos internos/perf).
-    h("div", { class: "dbg-cats" },
+    // PANEL DE FILTROS (plegable). Cerrado no deja NADA en pantalla: debajo de la cabecera van directamente los
+    // rótulos de columna y los eventos, que es lo que se viene a mirar.
+    h("div", { class: "dbg-filters", ref: (el) => { filtersEl = el; el.hidden = !filtersOpen; } },
+      h("div", { class: "dbg-cats" },
       ...CATS.map((c) => h("button", {
         class: "dbg-cat" + (enabledCats.has(c.key) ? " on" : ""),
         title: c.key === "system" ? () => t("debug.cat_system_title") : () => t(CAT_LABEL_KEY[c.key]),
         onClick: (e) => toggleCat(c.key, e.currentTarget),
       }, () => t(CAT_LABEL_KEY[c.key]))),
-      // Desglose fino: despliega la 3ª fila con un chip por kind visto. Se marca `muted` mientras haya algo
-      // apagado, para que el operador nunca mire un hilo recortado creyendo que lo ve todo.
-      h("button", {
-        class: "dbg-cat dbg-kinds-t" + (kindsOpen ? " on" : "") + (hiddenKinds.size ? " muted" : ""),
-        title: () => t("debug.kinds_title"),
-        ref: (el) => (kindsBtn = el),
-        onClick: toggleKindsRow,
-      }, () => t("debug.kinds")),
+      ),
+      // Una línea por familia con SUS tipos a la derecha. Se construye sobre la marcha con lo que va apareciendo.
+      h("div", { class: "dbg-kinds", ref: (el) => (kindsEl = el) }),
+      // Condensar desde DENTRO del panel: al terminar de configurar no hay que volver a subir a la cabecera.
+      h("div", { class: "dbg-fbar" },
+        h("button", { class: "dbg-fclose", onClick: toggleFilters }, "▴ ", () => t("debug.filters_collapse")),
+      ),
     ),
-    // 3ª barra — un chip POR KIND (con su contador vivo), construida sobre la marcha con los kinds que van
-    // apareciendo. Oculta salvo que el operador la despliegue: es la herramienta de precisión, no el mando diario.
-    h("div", { class: "dbg-kinds", ref: (el) => { kindsEl = el; el.hidden = !kindsOpen; } }),
     // CABECERA DE COLUMNAS — fija, fuera del contenedor con scroll (así no scrollea ni la puede podar el
     // recorte de MAX_ROWS) y con el MISMO grid que las filas. El wrapper es su propio query-container para que
     // se oculte sola cuando el panel se estrecha y las filas dejan de estar en columnas.
@@ -597,6 +635,16 @@ export function DebugPanel() {
       catchUp();
       pinTail();
     }
+  });
+
+  // Los rótulos del panel de filtros se pintan IMPERATIVAMENTE (viven fuera del árbol reactivo de dom.js), así
+  // que hay que re-rotularlos cuando cambia el idioma o cuando llega el bundle bueno. Leer `t()` aquí dentro es
+  // lo que crea la dependencia. Sin esto se veían rótulos MEZCLADOS en dos idiomas a la vez —«FAMILY» en una
+  // fila y «FAMILIA» en la siguiente— según si el grupo se creó antes o después de reconciliar el bundle.
+  createEffect(() => {
+    t("debug.filters", { n: 0 });
+    for (const g of kindGroups.values()) labelGroup(g);
+    updateFiltersLabel();
   });
 
   onDebug((d) => { if (store.debugOpen()) { d._dbgSeen = true; addRow(d); addTrace(d); } });   // live append only while visible

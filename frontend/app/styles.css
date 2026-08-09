@@ -805,13 +805,33 @@ body.dbg-resizing{cursor:ew-resize;user-select:none}
 .dbg-resize:hover,body.dbg-resizing .dbg-resize{background:linear-gradient(90deg,transparent,rgba(61,111,224,.5))}
 .dbg-head{flex:0 0 auto;display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--hb-line)}
 .dbg-title{font-weight:700;font-size:14px;color:var(--hb-ink);white-space:nowrap}
-.dbg-filter{flex:1;min-width:0;background:var(--hb-bg-soft);border:1px solid var(--hb-line);color:var(--hb-ink);
+/* Buscador a MEDIA anchura (2026-08-09): el sitio que deja se lo lleva el botón de Filtros, que es lo que se
+   toca a diario. `flex:0 1 …` en vez de `flex:1` — ya no se come todo el hueco libre. */
+.dbg-filter{flex:0 1 42%;min-width:90px;background:var(--hb-bg-soft);border:1px solid var(--hb-line);color:var(--hb-ink);
   border-radius:8px;padding:6px 9px;font-size:12px;font-family:var(--sans)}
+/* Botón FILTROS (n) ▾ — el único mando del panel plegable. Ámbar mientras haya algún tipo apagado: un hilo
+   recortado no debe parecer completo. */
+.dbg-fbtn{flex:0 0 auto;display:inline-flex;align-items:center;gap:5px;padding:5px 9px;border-radius:8px;
+  border:1px solid var(--hb-line);background:var(--hb-bg);color:var(--hb-muted);cursor:pointer;
+  font-family:var(--sans);font-size:11.5px;white-space:nowrap}
+.dbg-fbtn:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
+.dbg-fbtn.on{border-color:var(--hb-accent);color:var(--hb-accent);background:color-mix(in srgb,var(--hb-accent) 14%,transparent)}
+.dbg-fbtn.muted{border-color:var(--hb-warn-border);color:var(--hb-warn-ink)}
+.dbg-fcar{font-size:9px;line-height:1;transition:transform .12s ease}
+.dbg-fbtn.on .dbg-fcar{transform:rotate(180deg)}
+/* El panel entero: familias + tipos + condensar. Cerrado no deja NADA en pantalla. */
+.dbg-filters{flex:0 0 auto;display:flex;flex-direction:column;max-height:46vh;overflow-y:auto;
+  border-bottom:1px solid var(--hb-line);background:color-mix(in srgb,var(--hb-ink) 3%,transparent)}
+.dbg-filters[hidden]{display:none}
+.dbg-fbar{display:flex;justify-content:flex-end;padding:4px 12px 8px}
+.dbg-fclose{border:1px solid var(--hb-line);background:var(--hb-bg);color:var(--hb-muted);cursor:pointer;
+  border-radius:8px;padding:3px 10px;font-family:var(--sans);font-size:11px}
+.dbg-fclose:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
 .dbg-filter:focus{outline:none;border-color:var(--hb-accent)}
 .dbg-count{font-family:var(--mono);font-size:10.5px;color:var(--hb-muted-2);white-space:nowrap}
 .dbg-btn{flex:0 0 auto}
 /* V2-037: 2ª barra de filtros por categoría (chips toggle). System/Code se resalta como "amenaza de ruido". */
-.dbg-cats{flex:0 0 auto;display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px;border-bottom:1px solid var(--hb-line)}
+.dbg-cats{flex:0 0 auto;display:flex;flex-wrap:wrap;gap:6px;padding:8px 12px}
 .dbg-cat{padding:3px 10px;border-radius:999px;border:1px solid var(--hb-line);background:var(--hb-bg);
   color:var(--hb-muted);cursor:pointer;font-size:11px;line-height:1.4;white-space:nowrap}
 .dbg-cat:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
@@ -822,8 +842,7 @@ body.dbg-resizing{cursor:ew-resize;user-select:none}
    familias; el contador dice cuánto pesa cada tipo, que es lo que decide qué callar. */
 /* Los tipos van AGRUPADOS BAJO SU FAMILIA: una línea por familia activa, con su nombre a la izquierda. Apagar
    la familia se lleva su línea (sus filas ya no están en pantalla, sus chips solo estorbarían). */
-.dbg-kinds{flex:0 0 auto;display:flex;flex-direction:column;gap:3px;padding:6px 12px;
-  border-bottom:1px solid var(--hb-line);max-height:30vh;overflow-y:auto}
+.dbg-kinds{flex:0 0 auto;display:flex;flex-direction:column;gap:3px;padding:0 12px 4px}
 .dbg-kinds[hidden]{display:none}
 .dbg-kgroup{display:flex;align-items:baseline;gap:6px;min-width:0}
 .dbg-kgroup[hidden]{display:none}

@@ -31,6 +31,12 @@ cabe se recorta con `…` y el `title` (hover) lo explica. Las columnas son **Ho
 Evento**. Se oculta sola en la vista **Trazas** (árbol, sin columnas) y por debajo de 560px de panel, donde la
 container query ya colapsa las filas a flujo libre.
 
+**Todo el filtro vive en UN panel PLEGABLE** (2026-08-09): en la cabecera, un botón **«Filtros (N) ▾»** —N = tipos
+marcados ahora mismo, para saber de un vistazo si estás viendo el hilo entero o uno recortado— junto a un buscador
+a media anchura. **Cerrado no deja nada en pantalla**: debajo de la cabecera van directamente los rótulos de
+columna y los eventos. Se cierra desde el mismo botón o desde «▴ Condensar», dentro del panel. Con tantas
+familias y tipos, tenerlo todo desplegado se comía la pantalla, que es para lo que se abre el visor.
+
 **Filtro por dos ejes independientes**, ambos aplicados en `visible(row)` y re-evaluados sobre TODO el log en cada
 cambio (`reflow()`), no solo sobre lo que llegue después:
 
@@ -65,8 +71,10 @@ cambio (`reflow()`), no solo sobre lo que llegue después:
    quita las filas de SESIÓN de worker pero no las de memoria que ese worker provocó: esas son memoria. Para
    aislar por ACTOR está la vista **Trazas** (⛓), que agrupa frase-raíz → actor → eventos.
 
-2. **KIND** (3ª barra, plegable — botón «Tipos…»): un chip **por cada `kind` que ha aparecido**, con contador vivo.
-   Es el desglose FINO que la categoría no da. Click = mostrar/ocultar; **shift+click = ver SOLO ese kind**
+2. **KIND** (dentro del panel, una LÍNEA POR FAMILIA con sus tipos a la derecha): un chip **por cada `kind` que
+   ha aparecido**, con contador vivo. Es el desglose FINO que la categoría no da; apagar una familia se lleva su
+   línea entera. Los rótulos se re-pintan al cambiar de idioma (viven fuera del árbol reactivo, así que hay un
+   `createEffect` que los refresca — sin él salían mezclados en dos idiomas). Click = mostrar/ocultar; **shift+click = ver SOLO ese kind**
    (repetir devuelve todo). Persiste en `hb_dbg_kinds_off` — se guardan los **apagados**, no los encendidos, por la
    misma razón de arriba. Mientras haya algo apagado el botón «Tipos…» se pone en ámbar: **un hilo recortado no
    debe parecer completo**. Este eje sí puede silenciar errores: ahí la decisión es explícita, no una omisión.
