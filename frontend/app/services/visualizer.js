@@ -119,11 +119,15 @@ export function startVisualizer({ orbCanvas, vizCanvas, getStream, getGate, audi
       const x = oc.getContext("2d"); x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, W, H);
       (store.orbStyle() === "friendly" ? drawOrbFriendly : drawOrbPro)(x, W, H, bbuf, blvl);
     }
-    // SPECTRUM under the camera = the PERSON's voice (mic), gated so the agent's echo doesn't move it
+    // SPECTRUM under the camera = the PERSON's voice (mic), gated so the agent's echo doesn't move it. `vizCanvas`
+    // lives inside CameraUnit, which the operator can hide (2026-08-09: hidden by default) — null is a real,
+    // permanent state now, not a startup race, so this whole block is skipped rather than crashing `draw()` (which
+    // ran SYNCHRONOUSLY from main.js before `ensureVoice()` — a null-deref here used to abort boot entirely,
+    // leaving "Encendiendo zaelar…" stuck forever since the code that lifts the boot veil never got to run).
     let mbuf = null;
     if (micAn && !store.botSpeaking()) { mbuf = new Uint8Array(micAn.frequencyBinCount); micAn.getByteFrequencyData(mbuf); }
-    const vc = vizCanvas, w = vc.clientWidth, hh = vc.clientHeight;
-    if (w) {
+    const vc = vizCanvas, w = vc ? vc.clientWidth : 0, hh = vc ? vc.clientHeight : 0;
+    if (vc && w) {
       if (vc.width !== w * dpr) { vc.width = w * dpr; vc.height = hh * dpr; }
       const x = vc.getContext("2d"); x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, w, hh);
       const N = 42, bw = w / N; x.fillStyle = "rgba(61,111,224,.6)";
