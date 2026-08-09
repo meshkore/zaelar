@@ -1,7 +1,7 @@
 """
 observability/api.py — superficie HTTP de lectura (`/api/observability/*`) + ciclo de vida de la SESIÓN.
 
-Lectura (para el visor, para un análisis a mano y, más adelante, para el backoffice):
+Lectura (para el visor y para analizar a mano lo que ha pasado en esta instalación):
   GET  /api/observability/identity          → quién es esta instalación y qué sesión hay abierta
   GET  /api/observability/flows             → últimos flujos con su resumen (duración, piezas, tokens, errores)
   GET  /api/observability/flow/{corr_id}    → un flujo completo, en orden
