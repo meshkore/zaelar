@@ -40,10 +40,9 @@ function parts(d) {
   return { label: (d.label || "").toString(), meta: meta.join(" · "), text };
 }
 
-// Categorías del filtro superior = las PIEZAS REALES del sistema (rediseño 2026-08-09, petición del operador).
-// Antes la primera era «Principal», un cajón de sastre con la conversación, los widgets, las tareas y la plomería
-// del transporte dentro; se retiró. Las 4 primeras van ON por defecto; System/Code y Pulso OFF.
-// La `cat` la sella el backend (voice/observer.py::_CAT / perf()) — aquí solo se muestra y se filtra.
+// Las FAMILIAS = las piezas reales del sistema. Aquí solo fijan el ORDEN de las filas de la tabla de filtros y
+// su rótulo; qué kind pertenece a cuál lo dice el backend (`observer.py::_CAT`, servido en
+// `/api/observability/catalog`) — el frontend no duplica ese mapa, lo pide.
 const CATS = [
   { key: "flash", label: "FlashBrain" },       // el turno: transcripts, decisión, búsqueda, Susurro
   { key: "worker", label: "Brain Workers" },   // trabajo async + el Chromium interno que abren para navegar
@@ -55,12 +54,8 @@ const CATS = [
   // en «Memoria», nunca aquí (la proyección de estado sin cambios ya no se emite — dispatch.sync_state).
   { key: "pulse", label: "Pulse" },
 ];
-const CAT_KEYS = new Set(CATS.map((c) => c.key));
-
-// Un evento cuya `cat` NO es ninguna de las de arriba (un kind aún sin clasificar en `_CAT`, o el `other` que
-// sella el backend por defecto) NUNCA se oculta por el eje de categoría: una capacidad nueva debe VERSE hasta que
-// alguien la clasifique. Igual con error/alert — un error invisible es el peor modo de fallo posible. El eje de
-// KIND sí puede silenciarlos: ahí la decisión es explícita del operador, no una omisión.
+// Tipos que arrancan ENCENDIDOS aunque su familia venga apagada por defecto: un error invisible es el peor modo
+// de fallo posible. El operador puede apagarlos, pero tiene que ser una decisión suya, no una omisión.
 const ALWAYS_KINDS = new Set(["error", "alert"]);
 
 // V2-089: cada categoría del filtro mapea a su clave i18n (la `key` sigue siendo el valor comparado en código).
@@ -189,27 +184,28 @@ export function DebugPanel() {
   let filter = "";
   let noiseHidden = true;
   let count = 0;
-  // Categorías activas (persistidas). Clave `_v2` a propósito: el vocabulario cambió (fuera `main`/`nav`, dentro
-  // `worker`/`widget`) y una lista vieja habría dejado Widgets y Brain Workers apagados EN SILENCIO — reestrenar la
-  // clave es lo único que garantiza que el operador vea el filtro nuevo tal y como se diseñó.
-  const enabledCats = new Set((() => {
-    try { const s = JSON.parse(localStorage.getItem("hb_dbg_cats_v2") || "null"); if (Array.isArray(s)) return s; } catch {}
-    return ["flash", "worker", "memory", "widget"];
-  })());
-
-  // ── DESGLOSE POR KIND (2026-08-09, petición del operador) ────────────────────────────────────────────────────
-  // Las 6 categorías son familias GRUESAS: dentro de «Principal» conviven transcripts, tareas, widgets, sesión…
-  // El operador pidió poder centrarse en lo suyo («mensajes, brain workers, FlashBrain») y callar el resto SIN
-  // tener que apagar una familia entera. Cada `kind` que APARECE gana su propio chip con contador vivo; apagarlo
-  // oculta esas filas al instante (y persiste). Se guardan los APAGADOS, no los encendidos: así un kind nuevo
-  // (uno que estrene una capacidad futura) nace VISIBLE — nunca se pierde señal por una lista vieja en el
-  // localStorage. Shift+click = SOLO ese kind (apaga los demás); repetir devuelve todo.
+  // ── UN SOLO EJE DE FILTRO: EL TIPO ──────────────────────────────────────────────────────────────────────────
+  // Rediseño 2026-08-09 (petición del operador): «vamos a exponer el MAPA COMPLETO de todo lo que podemos
+  // filtrar, ya inicializado con unos valores por defecto». Se retira la barra de familias: era un SEGUNDO eje
+  // que se solapaba con el de tipos y obligaba a razonar dos veces («esta fila no sale… ¿por la familia o por el
+  // tipo?»). La familia sigue existiendo, pero como FILA de la tabla: su rótulo enciende o apaga todos sus tipos
+  // de una vez, que es para lo que servía el chip.
+  //
+  // El mapa NO se construye con lo que va apareciendo: se pide entero al backend (`/api/observability/catalog`,
+  // que lo saca de `observer.py::_CAT`, la misma fuente que sella la familia de cada evento). Así el operador ve
+  // de una lo que puede encender y apagar, incluso lo que hoy no ha ocurrido todavía.
+  //
+  // Se persisten los APAGADOS, no los encendidos: un kind NUEVO (el que estrene una capacidad futura) nace
+  // VISIBLE en vez de desaparecer por una lista vieja del localStorage. Shift+click = solo ese tipo.
+  const DEFAULT_ON_CATS = new Set(["flash", "worker", "memory", "widget"]);
   const hiddenKinds = new Set((() => {
-    try { const s = JSON.parse(localStorage.getItem("hb_dbg_kinds_off") || "null"); if (Array.isArray(s)) return s; } catch {}
-    return [];
-  })());
-  const kindChips = new Map();                   // kind -> {btn, nEl, n, cat} (orden = primera aparición)
-  const kindGroups = new Map();                  // familia -> {box, body, head, cat} — la línea de tipos
+    try { const s = JSON.parse(localStorage.getItem("hb_dbg_kinds_off_v2") || "null"); if (Array.isArray(s)) return s; } catch {}
+    return null;   // null = aún sin decidir: los valores por defecto se aplican al llegar el catálogo
+  })() || []);
+  let defaultsApplied = localStorage.getItem("hb_dbg_kinds_off_v2") != null;
+  const catalog = new Map();                     // kind -> familia (el mapa COMPLETO, del backend)
+  const kindChips = new Map();                   // kind -> {btn, nEl, n, cat}
+  const kindGroups = new Map();                  // familia -> {box, body, head, cat} — la FILA de esa familia
   let kindsEl, filtersEl, filtersBtn, filtersLabel;
   // PANEL DE FILTROS PLEGABLE (2026-08-09, petición del operador: «hay tantos datos que configurar en los
   // filtros que no los podemos tener a la vista porque perdemos la pantalla»). CERRADO por defecto: lo normal
@@ -240,14 +236,38 @@ export function DebugPanel() {
   }
 
   function visible(row) {
-    const kind = row.dataset.kind || "log";
-    const cat = row.dataset.cat || "other";
-    // Eje CATEGORÍA — solo puede ocultar lo que pertenece a una familia CONOCIDA. Un kind sin clasificar y los
-    // errores/alertas pasan siempre por aquí (ver ALWAYS_KINDS): no se pierde señal por omisión.
-    if (CAT_KEYS.has(cat) && !ALWAYS_KINDS.has(kind) && !enabledCats.has(cat)) return false;
-    if (hiddenKinds.has(kind)) return false;                    // eje KIND — decisión explícita, sin excepciones
+    // UN SOLO EJE: el tipo. La familia ya no filtra por su cuenta (su rótulo enciende/apaga sus tipos), así que
+    // «esta fila no sale» tiene siempre UNA respuesta y no dos que se pisan.
+    if (hiddenKinds.has(row.dataset.kind || "log")) return false;
     if (noiseHidden && row.dataset.noise === "1") return false;
     return !filter || (row.dataset.s || "").includes(filter);
+  }
+
+  // El MAPA COMPLETO desde el backend: `observer.py::_CAT`, la misma fuente que sella la familia de cada evento.
+  // Se pide una vez al abrir el panel; si falla, el visor sigue funcionando y la tabla se irá poblando con lo que
+  // vaya llegando (degradación, no pantalla en blanco).
+  async function loadCatalog() {
+    if (catalog.size) return;
+    try {
+      const r = await fetch("/api/observability/catalog", { cache: "no-cache" });
+      const d = await r.json();
+      for (const [kind, cat] of Object.entries(d.kinds || {})) catalog.set(kind, cat);
+    } catch (_) { /* sin catálogo se degrada a lo observado */ }
+    applyDefaults();
+    for (const [kind, cat] of catalog) ensureChip(kind, cat);
+    syncGroups();
+  }
+
+  // Valores POR DEFECTO, aplicados una sola vez (la primera apertura de una instalación): visibles las familias
+  // de trabajo, apagadas las de plomería… salvo error/alert, que arrancan encendidos aunque su familia esté
+  // apagada — un error invisible es el peor modo de fallo posible. A partir de ahí manda el operador.
+  function applyDefaults() {
+    if (defaultsApplied) return;
+    defaultsApplied = true;
+    for (const [kind, cat] of catalog) {
+      if (!DEFAULT_ON_CATS.has(cat) && !ALWAYS_KINDS.has(kind)) hiddenKinds.add(kind);
+    }
+    persistKinds();
   }
 
   // Los tipos van AGRUPADOS BAJO SU FAMILIA (2026-08-09, petición del operador: «si cojo la familia de memoria,
@@ -260,17 +280,41 @@ export function DebugPanel() {
     if (!g && kindsEl) {
       const box = document.createElement("div");
       box.className = "dbg-kgroup c-" + cat;
-      const head = document.createElement("span");
+      // El rótulo de la familia ES el mando de la familia: enciende o apaga todos sus tipos de golpe. Sustituye
+      // al chip de la barra que se retiró, sin volver a introducir un segundo eje de filtrado.
+      const head = document.createElement("button");
       head.className = "dbg-kgh";
+      head.addEventListener("click", () => toggleFamily(cat));
       const body = document.createElement("span"); body.className = "dbg-kgb";
       box.append(head, body);
-      kindsEl.appendChild(box);
+      // Orden ESTABLE por el catálogo (CATS + lo no clasificado al final), no por orden de aparición: la tabla
+      // no puede bailar mientras el operador la mira.
+      const order = CATS.map((c) => c.key);
+      const at = order.indexOf(cat);
+      let before = null;
+      for (const [k, other] of kindGroups) {
+        const oi = order.indexOf(k);
+        if ((at === -1 ? Infinity : at) < (oi === -1 ? Infinity : oi)) { before = other.box; break; }
+      }
+      kindsEl.insertBefore(box, before);
       g = { box, body, head, cat };
       kindGroups.set(cat, g);
       labelGroup(g);
-      syncGroups();
     }
     return g;
+  }
+
+  // Toda la familia de una vez. Si ya estaba entera encendida, se apaga; si no, se enciende (incluye recuperar
+  // los tipos que el operador hubiera apagado sueltos dentro de ella).
+  function toggleFamily(cat) {
+    const kinds = [...catalog].filter(([, c]) => c === cat).map(([k]) => k);
+    for (const [k, c] of kindChips) if (c.cat === cat && !kinds.includes(k)) kinds.push(k);
+    const allOn = kinds.every((k) => !hiddenKinds.has(k));
+    for (const k of kinds) { if (allOn) hiddenKinds.add(k); else hiddenKinds.delete(k); }
+    for (const [k, c] of kindChips) c.btn.classList.toggle("on", !hiddenKinds.has(k));
+    persistKinds();
+    syncGroups();
+    reflow();
   }
 
   // El rótulo de una familia se pinta de forma IMPERATIVA (el chip vive fuera del árbol reactivo de dom.js), así
@@ -283,10 +327,14 @@ export function DebugPanel() {
     g.head.title = g.head.textContent;   // el rótulo se recorta en columna estrecha; el hover lo dice entero
   }
 
-  // Una familia apagada no enseña sus tipos: sus filas ya no están en pantalla, así que sus chips solo estorban.
+  // La tabla enseña SIEMPRE el mapa entero (esa es la gracia); lo que cambia es el aspecto del rótulo de cada
+  // familia según tenga todos, algunos o ningún tipo encendido.
   function syncGroups() {
     for (const [cat, g] of kindGroups) {
-      g.box.hidden = CAT_KEYS.has(cat) ? !enabledCats.has(cat) : false;
+      const kinds = [...kindChips].filter(([, c]) => c.cat === cat).map(([k]) => k);
+      const on = kinds.filter((k) => !hiddenKinds.has(k)).length;
+      g.head.classList.toggle("on", on > 0);
+      g.head.classList.toggle("partial", on > 0 && on < kinds.length);
     }
     updateFiltersLabel();
   }
@@ -296,10 +344,7 @@ export function DebugPanel() {
   function updateFiltersLabel() {
     if (!filtersLabel) return;
     let n = 0;
-    for (const [kind, c] of kindChips) {
-      const catOn = !CAT_KEYS.has(c.cat) || enabledCats.has(c.cat);
-      if (catOn && !hiddenKinds.has(kind)) n++;
-    }
+    for (const kind of kindChips.keys()) if (!hiddenKinds.has(kind)) n++;
     filtersLabel.textContent = t("debug.filters", { n });
   }
 
@@ -508,14 +553,6 @@ export function DebugPanel() {
   }
   function reflow() { if (!listEl) return; for (const row of listEl.children) row.hidden = !visible(row); pinTail(); }
   function toggleNoise(btn) { noiseHidden = !noiseHidden; btn.classList.toggle("on", !noiseHidden); reflow(); }
-  function toggleCat(key, btn) {
-    if (enabledCats.has(key)) enabledCats.delete(key); else enabledCats.add(key);
-    btn.classList.toggle("on", enabledCats.has(key));
-    try { localStorage.setItem("hb_dbg_cats_v2", JSON.stringify([...enabledCats])); } catch {}
-    syncGroups();     // encender/apagar una familia trae o se lleva SU línea de tipos
-    reflow();
-  }
-
   function clearAll() {
     clearDebugBuffer();
     if (listEl) listEl.replaceChildren();
@@ -575,19 +612,12 @@ export function DebugPanel() {
       h("button", { class: "dbg-btn hb-icbtn", title: () => t("debug.clear"), onClick: clearAll }, raw(TRASH_ICON)),
       h("button", { class: "dbg-btn hb-icbtn", title: () => t("debug.close"), onClick: () => store.setDebugOpen(false) }, raw(CLOSE_ICON)),
     ),
-    // V2-037: 2ª barra — filtro por CATEGORÍA. Todo en una sola lista ordenada por tiempo; estos toggles solo
-    // muestran/ocultan familias. System/Code OFF por defecto (son docenas de eventos internos/perf).
     // PANEL DE FILTROS (plegable). Cerrado no deja NADA en pantalla: debajo de la cabecera van directamente los
     // rótulos de columna y los eventos, que es lo que se viene a mirar.
+    // Dentro va LA TABLA y nada más: una fila por familia —su rótulo enciende o apaga la familia entera— con
+    // todos sus tipos a la derecha. La barra de chips de familia que había encima se RETIRÓ: era un segundo eje
+    // que se solapaba con este y obligaba a razonar dos veces por qué no salía una fila.
     h("div", { class: "dbg-filters", ref: (el) => { filtersEl = el; el.hidden = !filtersOpen; } },
-      h("div", { class: "dbg-cats" },
-      ...CATS.map((c) => h("button", {
-        class: "dbg-cat" + (enabledCats.has(c.key) ? " on" : ""),
-        title: c.key === "system" ? () => t("debug.cat_system_title") : () => t(CAT_LABEL_KEY[c.key]),
-        onClick: (e) => toggleCat(c.key, e.currentTarget),
-      }, () => t(CAT_LABEL_KEY[c.key]))),
-      ),
-      // Una línea por familia con SUS tipos a la derecha. Se construye sobre la marcha con lo que va apareciendo.
       h("div", { class: "dbg-kinds", ref: (el) => (kindsEl = el) }),
       // Condensar desde DENTRO del panel: al terminar de configurar no hay que volver a subir a la cabecera.
       h("div", { class: "dbg-fbar" },

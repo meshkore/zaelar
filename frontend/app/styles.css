@@ -823,7 +823,10 @@ body.dbg-resizing{cursor:ew-resize;user-select:none}
 .dbg-filters{flex:0 0 auto;display:flex;flex-direction:column;max-height:46vh;overflow-y:auto;
   border-bottom:1px solid var(--hb-line);background:color-mix(in srgb,var(--hb-ink) 3%,transparent)}
 .dbg-filters[hidden]{display:none}
-.dbg-fbar{display:flex;justify-content:flex-end;padding:4px 12px 8px}
+/* «Condensar» PEGADO al fondo del panel: con el mapa completo la tabla puede pasar del alto máximo y hacer
+   scroll, y el botón de cerrar no puede quedarse fuera de pantalla justo cuando hace falta. */
+.dbg-fbar{position:sticky;bottom:0;display:flex;justify-content:flex-end;padding:4px 12px 8px;
+  background:linear-gradient(transparent,var(--hb-bg) 40%)}
 .dbg-fclose{border:1px solid var(--hb-line);background:var(--hb-bg);color:var(--hb-muted);cursor:pointer;
   border-radius:8px;padding:3px 10px;font-family:var(--sans);font-size:11px}
 .dbg-fclose:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
@@ -842,17 +845,24 @@ body.dbg-resizing{cursor:ew-resize;user-select:none}
    familias; el contador dice cuánto pesa cada tipo, que es lo que decide qué callar. */
 /* Los tipos van AGRUPADOS BAJO SU FAMILIA: una línea por familia activa, con su nombre a la izquierda. Apagar
    la familia se lleva su línea (sus filas ya no están en pantalla, sus chips solo estorbarían). */
-.dbg-kinds{flex:0 0 auto;display:flex;flex-direction:column;gap:3px;padding:0 12px 4px}
+.dbg-kinds{flex:0 0 auto;display:flex;flex-direction:column;gap:4px;padding:8px 12px 4px}
 .dbg-kinds[hidden]{display:none}
 .dbg-kgroup{display:flex;align-items:baseline;gap:6px;min-width:0}
 .dbg-kgroup[hidden]{display:none}
+/* El rótulo de familia ES un botón: enciende o apaga toda su fila. Apagado = gris; encendido = color de la
+   familia; `partial` (algunos tipos sueltos apagados) lo marca en cursiva, para que un filtro a medias no se
+   confunda con la familia entera. */
 .dbg-kgh{flex:0 0 96px;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.05em;
   text-transform:uppercase;color:var(--hb-muted-2);text-align:right;white-space:nowrap;overflow:hidden;
-  text-overflow:ellipsis;border-right:2px solid var(--hb-line);padding-right:6px}
+  text-overflow:ellipsis;border-right:2px solid var(--hb-line);padding:0 6px 0 0;
+  border-top:0;border-left:0;border-bottom:0;background:none;cursor:pointer;opacity:.55}
+.dbg-kgh.on{opacity:1}
+.dbg-kgh.partial{font-style:italic}
+.dbg-kgh:hover{color:var(--hb-accent)}
 .dbg-kgroup.c-flash  .dbg-kgh{color:#a78bfa;border-right-color:color-mix(in srgb,#a78bfa 55%,transparent)}
-.dbg-kgroup.c-worker .dbg-kgh{color:var(--hb-accent);border-right-color:color-mix(in srgb,var(--hb-accent) 55%,transparent)}
-.dbg-kgroup.c-memory .dbg-kgh{color:var(--hb-accent2);border-right-color:color-mix(in srgb,var(--hb-accent2) 55%,transparent)}
-.dbg-kgroup.c-widget .dbg-kgh{color:var(--hb-warn-ink);border-right-color:var(--hb-warn-border)}
+.dbg-kgroup.c-worker .dbg-kgh.on{color:var(--hb-accent);border-right-color:color-mix(in srgb,var(--hb-accent) 55%,transparent)}
+.dbg-kgroup.c-memory .dbg-kgh.on{color:var(--hb-accent2);border-right-color:color-mix(in srgb,var(--hb-accent2) 55%,transparent)}
+.dbg-kgroup.c-widget .dbg-kgh.on{color:var(--hb-warn-ink);border-right-color:var(--hb-warn-border)}
 .dbg-kgb{display:flex;flex-wrap:wrap;gap:4px;min-width:0}
 .dbg-kind{display:inline-flex;align-items:baseline;gap:4px;padding:2px 7px;border-radius:6px;
   border:1px solid var(--hb-line);background:var(--hb-bg);color:var(--hb-muted-2);cursor:pointer;

@@ -31,6 +31,19 @@ async def identity_state():
     return JSONResponse(_identity.session_info())
 
 
+@router.get("/api/observability/catalog")
+async def catalog():
+    """El MAPA COMPLETO de lo que se puede filtrar: cada `kind` que el sistema sabe emitir y a qué familia
+    pertenece. El visor lo pinta ENTERO al desplegar los filtros, en vez de ir descubriéndolo según llegan
+    eventos — así el operador ve de una lo que puede encender y apagar, incluso lo que hoy no ha ocurrido.
+
+    La fuente es `voice/observer.py::_CAT`, la MISMA que sella la familia de cada evento: el frontend no
+    duplica el mapa, lo pide. Un test impide que un kind nuevo se quede fuera
+    (`tests/infrastructure/unit/core/test_observer_categories.py`)."""
+    from voice import observer as _obs
+    return JSONResponse({"kinds": dict(sorted(_obs._CAT.items()))})
+
+
 @router.get("/api/observability/flows")
 async def list_flows(limit: int = 50, session_id: str = "", user_id: str = ""):
     return JSONResponse({"flows": _flows.flows(limit=min(limit, 500), session_id=session_id, user_id=user_id)})

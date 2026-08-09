@@ -37,47 +37,25 @@ a media anchura. **Cerrado no deja nada en pantalla**: debajo de la cabecera van
 columna y los eventos. Se cierra desde el mismo botón o desde «▴ Condensar», dentro del panel. Con tantas
 familias y tipos, tenerlo todo desplegado se comía la pantalla, que es para lo que se abre el visor.
 
-**Filtro por dos ejes independientes**, ambos aplicados en `visible(row)` y re-evaluados sobre TODO el log en cada
-cambio (`reflow()`), no solo sobre lo que llegue después:
+**UN SOLO EJE: el tipo.** Dentro del panel va una TABLA con el **mapa completo de lo filtrable** —una fila por
+familia, todos sus tipos a la derecha— servida por `GET /api/observability/catalog`, que lo saca de
+`observer.py::_CAT`: la MISMA fuente que sella la familia de cada evento, así que el frontend no duplica el mapa,
+lo pide. Se pinta ENTERO aunque un tipo no haya ocurrido nunca — el operador ve de una lo que puede encender.
 
-1. **CATEGORÍA** (2ª barra). Rediseñada 2026-08-09 a las **piezas reales del sistema** — se retiró «Principal»,
-   que era un cajón de sastre: **FlashBrain · Brain Workers · Memoria · Widgets · Sistema/Código · Pulso**. Las
-   cuatro primeras ON por defecto. La sella el backend en `observer.py::_CAT`; persiste en `hb_dbg_cats_v2` (clave
-   reestrenada a propósito: con el vocabulario viejo, Widgets y Brain Workers habrían nacido apagados en silencio).
-   - **Brain Workers incluye el navegador**: el Chromium interno no es una familia propia, es lo que abre un
-     worker cuando le hace falta (`navegador`/`backed`/`background` cuelgan de ahí).
-   - **Red de seguridad:** un `kind` sin clasificar (el backend le sella `cat="other"`) y los `error`/`alert`
-     NO se ocultan nunca por este eje. Con el inventario completo + su test esto no debería dispararse jamás,
-     pero si alguien añade un kind y se olvida, se VE en vez de desaparecer: el silencio por omisión es la peor
-     forma de perder señal.
-   **Inventario COMPLETO — cada `kind` pertenece a una familia** (norma del operador 2026-08-09: «si tenemos N
-   familias, todos los eventos tienen que estar asociados a una»). El mapa vive en `observer.py::_CAT` y lo
-   GUARDA un test que recorre el código, saca los `kind` literales de cada `emit(...)` real (siguiendo los
-   wrappers `def _emit(kind, …)`) y falla si alguno se quedó sin clasificar —
-   `tests/infrastructure/unit/core/test_observer_categories.py`, nodo 7.6:
+- **El rótulo de la familia es su mando**: enciende o apaga todos sus tipos de golpe. En cursiva cuando la familia
+  está a medias, para que un filtro parcial no se confunda con la familia entera.
+- La barra de chips de familia que había encima **se retiró** (2026-08-09): era un SEGUNDO eje que se solapaba con
+  este y obligaba a razonar dos veces «¿esta fila no sale por la familia o por el tipo?». Con un solo eje,
+  `visible(row)` tiene una respuesta y solo una.
+- **Por defecto**: encendidas las familias de trabajo (FlashBrain · Brain Workers · Memoria · Widgets), apagadas
+  las de plomería (Sistema/Código · Pulso) — **salvo `error` y `alert`, que arrancan encendidos aunque su familia
+  esté apagada**: un error invisible es el peor modo de fallo posible. El operador puede apagarlos, pero como
+  decisión suya, no por omisión.
+- Se persisten los **apagados** (`hb_dbg_kinds_off_v2`), no los encendidos: un tipo NUEVO nace visible en vez de
+  desaparecer por una lista vieja del localStorage.
 
-   | Familia | Kinds |
-   |---|---|
-   | **FlashBrain** | `brain` · `transcript` · `interim` · `ambient` · `search` · `susurro` · `rail` · `music` · `trace` |
-   | **Brain Workers** | `task` · `worker_start` · `navegador` · `backed` · `background` |
-   | **Memoria** | `memory` |
-   | **Widgets** | `widget` · `ui` · `panel` · `secret` |
-   | **Sistema/Código** | `metric` · `stt` · `tts` · `bot_speech` · `vad` · `state` · `session` · `timing` · `notify` · `cluster` · `perf` · `error` · `alert` · `homeostasis` · `language` · `client` |
-   | **Pulso** | `pulse` |
-
-   **La familia dice QUÉ pasó, no QUIÉN lo hizo.** Una lectura de memoria es `memory` la haga el FlashBrain o un
-   Brain Worker; una navegación es `navegador` aunque la ordenara el turno de voz. Quién la hizo lo dice el
-   `span` (`worker:5`, `rail:music.playing`, `web:t2`) y el chip de `trace` — por eso apagar «Brain Workers»
-   quita las filas de SESIÓN de worker pero no las de memoria que ese worker provocó: esas son memoria. Para
-   aislar por ACTOR está la vista **Trazas** (⛓), que agrupa frase-raíz → actor → eventos.
-
-2. **KIND** (dentro del panel, una LÍNEA POR FAMILIA con sus tipos a la derecha): un chip **por cada `kind` que
-   ha aparecido**, con contador vivo. Es el desglose FINO que la categoría no da; apagar una familia se lleva su
-   línea entera. Los rótulos se re-pintan al cambiar de idioma (viven fuera del árbol reactivo, así que hay un
-   `createEffect` que los refresca — sin él salían mezclados en dos idiomas). Click = mostrar/ocultar; **shift+click = ver SOLO ese kind**
-   (repetir devuelve todo). Persiste en `hb_dbg_kinds_off` — se guardan los **apagados**, no los encendidos, por la
-   misma razón de arriba. Mientras haya algo apagado el botón «Tipos…» se pone en ámbar: **un hilo recortado no
-   debe parecer completo**. Este eje sí puede silenciar errores: ahí la decisión es explícita, no una omisión.
+El filtro se aplica en `visible(row)` y se re-evalúa sobre TODO el log en cada cambio (`reflow()`), no solo sobre
+lo que llegue después:
 
 Las filas ocultas siguen en el DOM (encender un chip las devuelve al instante, sin recargar) y **nada de esto toca
 lo que se persiste**: los `.jsonl` y el SSE siguen llevándolo todo — el filtro es de LECTURA.
