@@ -340,6 +340,10 @@ def stamp_identity(ev: dict) -> dict:
     mano al topic `observer` (el latido `pulse` del loop, el puente de `memory.updated`) y se saltaban el sello
     —50 de 66 filas del primer arranque salieron sin sesión—. `bus/sse.py::publish` lo aplica también, que sí es
     la puerta ÚNICA. Idempotente: pasar dos veces no pisa nada."""
+    # La FAMILIA también: un dict construido a mano no pasa por la derivación de `emit()` y llegaba al visor sin
+    # `cat`, o sea a la fila «Sin clasificar» — que es justo lo que el operador vio con los eventos de memoria.
+    if "cat" not in ev:
+        ev["cat"] = _CAT.get(str(ev.get("kind") or ""), "other")
     if "uid" in ev and "sid" in ev:
         return ev
     try:

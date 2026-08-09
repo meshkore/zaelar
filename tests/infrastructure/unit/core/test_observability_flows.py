@@ -150,3 +150,4 @@ def test_hand_published_events_are_stamped_too(wired):
     # depende de si ese kind concreto llega a persistirse (el latido, por ejemplo, se descarta a propósito).
     assert ev["sid"] == identity.session_id()
     assert ev["uid"] == identity.user_id()
+    assert ev["cat"] == "memory", "la familia también se deriva: sin ella la fila cae en «Sin clasificar»"
