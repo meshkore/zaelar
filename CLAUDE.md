@@ -708,7 +708,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   Empata con el titular anterior `gpt-4.1-mini` en los dos ejes que DESTRUYEN datos —captar el hecho 98,5 vs 98,9%
   y no ensuciar 100% vs 100%— por **$0,68 vs $1,516 los 1.000 turnos (−55%)**; escribir va off-hot-path, así que su
   mayor lentitud no le cuesta nada al turno. **UN solo modelo comercial para self-host y nube** (decisión del
-  operador): los TRES sitios que lo fijan van sincronizados — `config/v2.py §memory`, `fly.demo.toml` y
+  operador): los TRES sitios que lo fijan van sincronizados — `config/v2.py §memory`, `fly.accounts.toml` y
   `cloud/provisioner/src/machineConfig.js`. ⛔ `gpt-4o-mini` es más barato y está **VETADO**: a una alergia dicha en
   INGLÉS le pone `slot=operator.diet` (3/3 pasadas) y un slot invalida todo lo anterior con ese slot → un futuro
   «ahora soy vegetariano» borraría la alergia. Los **razonadores tampoco valen** (gpt-5-mini/nano: 50-60% de
