@@ -46,6 +46,10 @@ _CAT = {
     # alias, y los taps del propio operador sobre la UI (`ui`). Es el registro que permite atar «widget
     # equivocado» con la FRASE que lo pidió (cada evento lleva el texto del turno + su chip de trace).
     "widget": "widget", "ui": "widget",
+    # ── Widgets, 2ª tanda: superficies NATIVAS que el cerebro abre igual que una tarjeta (`panel` = pestaña del
+    # ChatWall vía `show_panel`; `secret` = modal de la bóveda). Para el operador «abrir el chat» y «abrir la
+    # agenda» son el mismo gesto contra el canvas, así que viven en la misma familia.
+    "panel": "widget", "secret": "widget",
     # ── Sistema / Código (OFF) — plomería: transporte de voz, estado, métricas crudas, cluster, perf.
     # `metric` BAJÓ de la vista principal a aquí (2026-08-09, queja del operador): son las métricas CRUDAS del
     # plugin de LiveKit, y con un STT de streaming (Deepgram) la métrica NO depende de que alguien hable — su
@@ -56,6 +60,16 @@ _CAT = {
     "metric": "system", "vad": "system", "cluster": "system", "perf": "system",
     "stt": "system", "tts": "system", "bot_speech": "system", "state": "system",
     "session": "system", "timing": "system", "notify": "system",
+    # Salud e infraestructura: `error`/`alert` (el visor NO los oculta nunca por categoría — ver abajo),
+    # `homeostasis` (el latido autónomo, V2-070), `language` (el idioma quedó fijado), `client` (eventos que
+    # reporta el navegador por `/api/ui-event`).
+    "error": "system", "alert": "system", "homeostasis": "system", "language": "system", "client": "system",
+    # `music` es el rail de música conducido por el FlashBrain (hermano de `rail`), no un widget: la tarjeta que
+    # se abre por el camino ya emite SU propio evento `widget`.
+    "music": "flash",
+    # `interim` = transcripción parcial en vivo. Nunca llega a llevar `cat` (sale por SSE y RETORNA antes, ver
+    # `emit`), pero se mapea igual para que el inventario esté COMPLETO y no parezca un olvido.
+    "interim": "flash",
 }
 
 

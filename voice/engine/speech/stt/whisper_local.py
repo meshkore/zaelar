@@ -131,11 +131,7 @@ class _WhisperSTT(stt_module.STT):
         if isinstance(language, str) and language:
             lang = language
         else:
-            try:
-                from i18n.init import detect as _detect
-                auto = _detect.should_detect()
-            except Exception:
-                auto = False
+            auto = langs.first_run_auto()      # misma respuesta que dan deepgram/voxtral (una sola fuente)
             lang = None if auto else langs.current_code()
         prompt = "" if auto else langs.spec(lang or langs.current_code()).whisper_prompt
 

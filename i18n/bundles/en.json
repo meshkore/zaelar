@@ -240,7 +240,7 @@
   "debug.col_kind_t": "Event kind — the filter chips below break it down",
   "debug.col_lat": "ms",
   "debug.col_lat_t": "How long THIS operation actually took",
-  "debug.col_size": "Size",
+  "debug.col_size": "Tokens",
   "debug.col_size_t": "Tokens in→out (+tools, ❄️ = cold start)",
   "debug.col_time": "Time",
   "debug.col_time_t": "Event wall-clock time (h:m:s.ms)",

@@ -9,7 +9,8 @@
 > **Lo que NO vive aquí:** la gestión de NEGOCIO/proyecto entero (cloud/GTM, `launch-readiness`, coordinación
 > engine+web+cloud) vive en `../.meshkore/` de la RAÍZ del workspace (repo aparte, privado) — ver `../CLAUDE.md`.
 
-Asistente personal por voz **multidioma** (por defecto **castellano**), siempre activo. Arquitectura: STT →
+Asistente personal por voz **multidioma** (**inglés por defecto**, y se pasa SOLO al idioma del operador en
+cuanto lo detecta — ver «Arranque idiomático» abajo), siempre activo. Arquitectura: STT →
 **cerebro propio «Colmena»** → TTS, sobre **LiveKit Agents**. El cerebro (`nucleo/`), la memoria (`memory/`) y la
 proactividad son **nuestros**: zaelar no depende de ningún agente externo.
 
@@ -31,6 +32,7 @@ Los agentes DEBEN trabajar dentro de esta estructura — no crear `docs/` ni car
 | **Modularidad / contratos de acoplamiento** | `.meshkore/docs/architecture/zaelar-modularity.md` |
 | **Memoria central** | `.meshkore/docs/architecture/zaelar-memory.md` |
 | **Canal de cluster — algoritmo de punta a punta** | `.meshkore/docs/architecture/zaelar-cluster-channel.md` |
+| **Multidioma / i18n (arranque idiomático, generación de bundles)** | `.meshkore/docs/architecture/zaelar-i18n.md` |
 | Product / Context | `.meshkore/docs/product/zaelar-product.md` |
 | Deploy | `.meshkore/docs/deploy/zaelar-deploy.md` |
 | Ops / Setup | `.meshkore/docs/ops/zaelar-ops.md` |
@@ -732,7 +734,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   **Nunca** BD directa ni LLM/I-O síncrono de memoria
   en la ruta de voz. Sustituye a cualquier memoria externa: la persona/instrucciones se inyectan en cada conexión
   desde `memory/` + `nucleo/flash/prompt.py`. **MONOLINGÜE — la memoria vive en el IDIOMA DEL OPERADOR** (decisión
-  2026-07-10): el sistema entero se adapta a UN idioma (el de la persona; castellano por defecto, ver `langs.py`);
+  2026-07-10): el sistema entero se adapta a UN idioma (el de la persona; inglés hasta detectarlo, ver `langs.py`);
   el CORAZÓN destila cada píldora en ese idioma canónico **traduciendo** lo que venga en otro y **nunca descarta un
   dato durable por estar en otro idioma** → la lectura es siempre mismo-idioma (cero gap cross-lingual, sin indexar
   N idiomas). El FlashBrain entiende varias lenguas (STT+modelo) y sus gates son es/en, pero lo que se GUARDA/RECUERDA
@@ -769,7 +771,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
 - **Perfiles remote/local** (`ZAELAR_PROFILE`): `remote` = voxtral/cartesia/aimlapi; `local` = whisper/kokoro/ollama.
   Override por componente con `ZAELAR_STT`/`ZAELAR_TTS`/`ZAELAR_LLM_PROVIDER` (híbridos). El servidor LiveKit local
   (`--dev`) no necesita TURN; en prod se configura el servidor/Cloud.
-- **Multidioma con catálogo alineado** (`voice/engine/core/langs.py`, single source of truth; default **castellano**):
+- **Multidioma con catálogo alineado** (`voice/engine/core/langs.py`, single source of truth; default **inglés**):
   al cambiar de idioma (⚙ o por voz), **STT (lang+initial_prompt), voz TTS e idioma de respuesta del cerebro se
   re-alinean juntos**. Invariante: **la voz nunca puede quedar cruzada con el idioma** — las voces Kokoro son
   por-idioma (`ef_dora`=es, `af_bella`=en) y `voices.selected_voice()` rechaza una voz no nativa del idioma activo
@@ -784,7 +786,18 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   que se habla y se **actualiza** en cada release (una sola función idempotente `i18n.init.prepare(code)` que diffea
   por snapshot de inglés — misma ruta primer-uso y upgrade). **Autodetección** del idioma en el primer arranque
   (`i18n/init/detect.py`: heurística de script no-latino + LLM para latino; STT en modo auto la 1ª vez) → fija
-  `ZAELAR_LANGUAGE` + genera bundle + evento SSE `language` → la UI cambia EN VIVO. **Principio arquitectónico:
+  `ZAELAR_LANGUAGE` + genera bundle + evento SSE `language` → la UI cambia EN VIVO.
+  **ARRANQUE IDIOMÁTICO — el contrato completo (norma del operador, endurecido 2026-08-09):** el producto
+  arranca en **INGLÉS** (`langs.DEFAULT_LANG="en"` + `SETTINGS.language` + `store.lang()` del frontend: los tres
+  alineados; antes la voz arrancaba en castellano y la UI en inglés). Ese defecto solo dura hasta la PRIMERA frase:
+  se detecta el idioma real y **todo** —voz, conversación y frontend— pasa a él, generando el bundle de UI con un
+  LLM si no es `en`/`es` (los dos PRESET de fábrica). Para que eso pueda ocurrir, mientras no hay idioma elegido
+  **el STT transcribe en AUTO**, y eso lo responde UNA sola función, `langs.first_run_auto()`, que cada backend
+  traduce a su forma de decir «auto» — Whisper `language=None`, Voxtral OMITE el parámetro, Deepgram exige
+  `"multi"` explícito (omitirlo cae a `en-US` en el servidor, que NO es auto). Antes solo lo hacía `whisper_local`:
+  en el perfil de NUBE, que es el de producción, el STT arrancaba clavado al idioma por defecto y la
+  autodetección **no podía funcionar** — clasificaba la primera frase ya transcrita por el modelo equivocado.
+  Tests: `tests/voice/unit/test_language_bootstrap.py` (nodo 1.9). **Principio arquitectónico:
   INICIALIZACIÓN (`i18n/init/`, puede llamar LLM/STT, corre en boot/primer-uso/switch/upgrade) SEPARADA de la
   EJECUCIÓN (`i18n/runtime.py`, hot path, barato, sin LLM).** `active_code()` (UI) lee `ZAELAR_LANGUAGE` crudo
   (cualquier código), DESACOPLADO del catálogo de voz `langs` (es/en). El **matching de voz** (aliases/regex) es

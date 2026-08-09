@@ -240,7 +240,7 @@
   "debug.col_kind_t": "Tipo de evento (kind) — los chips de abajo lo desglosan",
   "debug.col_lat": "ms",
   "debug.col_lat_t": "Lo que tardó DE VERDAD esta operación",
-  "debug.col_size": "Tam.",
+  "debug.col_size": "Tokens",
   "debug.col_size_t": "Tokens in→out (+tools, ❄️ = arranque en frío)",
   "debug.col_time": "Hora",
   "debug.col_time_t": "Hora del evento (h:m:s.ms)",

@@ -27,7 +27,7 @@ para el splash) y una grabación de mic OPCIONAL. Cada evento se escribe a:
 exacto** que `.dbg-row` (anchos, gap, padding y el borde izquierdo de 3px) → cada rótulo cae justo encima de su
 columna sin cambiar ningún ancho. Vive **fuera** del contenedor con scroll: no scrollea, no la puede podar el
 recorte de `MAX_ROWS`, y la lista ocupa exacto desde su borde inferior hasta el fondo del panel. Rótulo que no
-cabe se recorta con `…` y el `title` (hover) lo explica. Las columnas son **Hora · ms · Tipo · Motor · Tam. ·
+cabe se recorta con `…` y el `title` (hover) lo explica. Las columnas son **Hora · ms · Tipo · Motor · Tokens ·
 Evento**. Se oculta sola en la vista **Trazas** (árbol, sin columnas) y por debajo de 560px de panel, donde la
 container query ya colapsa las filas a flujo libre.
 
@@ -40,9 +40,31 @@ cambio (`reflow()`), no solo sobre lo que llegue después:
    reestrenada a propósito: con el vocabulario viejo, Widgets y Brain Workers habrían nacido apagados en silencio).
    - **Brain Workers incluye el navegador**: el Chromium interno no es una familia propia, es lo que abre un
      worker cuando le hace falta (`navegador`/`backed`/`background` cuelgan de ahí).
-   - **Un `kind` sin clasificar NO se oculta nunca por este eje** (el backend le sella `cat="other"`), ni
-     `error`/`alert`. Una capacidad nueva debe VERSE hasta que alguien la clasifique; el silencio por omisión es
-     la peor forma de perder señal.
+   - **Red de seguridad:** un `kind` sin clasificar (el backend le sella `cat="other"`) y los `error`/`alert`
+     NO se ocultan nunca por este eje. Con el inventario completo + su test esto no debería dispararse jamás,
+     pero si alguien añade un kind y se olvida, se VE en vez de desaparecer: el silencio por omisión es la peor
+     forma de perder señal.
+   **Inventario COMPLETO — cada `kind` pertenece a una familia** (norma del operador 2026-08-09: «si tenemos N
+   familias, todos los eventos tienen que estar asociados a una»). El mapa vive en `observer.py::_CAT` y lo
+   GUARDA un test que recorre el código, saca los `kind` literales de cada `emit(...)` real (siguiendo los
+   wrappers `def _emit(kind, …)`) y falla si alguno se quedó sin clasificar —
+   `tests/infrastructure/unit/core/test_observer_categories.py`, nodo 7.6:
+
+   | Familia | Kinds |
+   |---|---|
+   | **FlashBrain** | `brain` · `transcript` · `interim` · `ambient` · `search` · `susurro` · `rail` · `music` · `trace` |
+   | **Brain Workers** | `task` · `worker_start` · `navegador` · `backed` · `background` |
+   | **Memoria** | `memory` |
+   | **Widgets** | `widget` · `ui` · `panel` · `secret` |
+   | **Sistema/Código** | `metric` · `stt` · `tts` · `bot_speech` · `vad` · `state` · `session` · `timing` · `notify` · `cluster` · `perf` · `error` · `alert` · `homeostasis` · `language` · `client` |
+   | **Pulso** | `pulse` |
+
+   **La familia dice QUÉ pasó, no QUIÉN lo hizo.** Una lectura de memoria es `memory` la haga el FlashBrain o un
+   Brain Worker; una navegación es `navegador` aunque la ordenara el turno de voz. Quién la hizo lo dice el
+   `span` (`worker:5`, `rail:music.playing`, `web:t2`) y el chip de `trace` — por eso apagar «Brain Workers»
+   quita las filas de SESIÓN de worker pero no las de memoria que ese worker provocó: esas son memoria. Para
+   aislar por ACTOR está la vista **Trazas** (⛓), que agrupa frase-raíz → actor → eventos.
+
 2. **KIND** (3ª barra, plegable — botón «Tipos…»): un chip **por cada `kind` que ha aparecido**, con contador vivo.
    Es el desglose FINO que la categoría no da. Click = mostrar/ocultar; **shift+click = ver SOLO ese kind**
    (repetir devuelve todo). Persiste en `hb_dbg_kinds_off` — se guardan los **apagados**, no los encendidos, por la

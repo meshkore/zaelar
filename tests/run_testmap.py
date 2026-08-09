@@ -124,6 +124,11 @@ DOMAINS: list[dict] = [
             "cmd": "./.venv/bin/python -m tests.voice.e2e.agent.smoke"},
         {"id": "3.5", "title": "Escenarios voz/chat/paste + juez", "ch": VOICE, "live": True,
             "cmd": "./.venv/bin/python -m tests.voice.e2e.agent.run --no-open --hold 0"},
+        # 2026-08-09: el defecto del producto es INGLÉS y, mientras no hay idioma elegido, el STT transcribe en
+        # AUTO — sin eso la autodetección de la 1ª frase clasificaba texto ya transcrito por el modelo equivocado
+        # (y en el perfil de NUBE, el de producción, no funcionaba en absoluto).
+        {"id": "3.6", "title": "Arranque idiomático: defecto inglés + STT en auto en primera ejecución",
+            "ch": VOICE, "paths": ["tests/voice/unit/test_language_bootstrap.py"]},
     ]},
     {"id": "4", "name": "WIDGETS", "nodes": [
         {"id": "4.1", "title": "Ciclo de vida / acciones / refs / generador / background", "ch": UNIT, "paths": [
@@ -206,6 +211,11 @@ DOMAINS: list[dict] = [
             "tests/infrastructure/integration/test_sse_observer.py", "tests/infrastructure/unit/test_zai_sse.py"]},
         {"id": "7.5", "title": "Sello de versión (instancia + observabilidad, V2-074)", "ch": UNIT, "paths": [
             "tests/infrastructure/unit/test_version.py"]},
+        # 2026-08-09: el filtro del visor solo es fiable si TODO kind emitido pertenece a una familia. El test
+        # recorre el código y falla si alguien estrena un kind sin clasificarlo (el operador veía filas que
+        # ningún chip gobernaba).
+        {"id": "7.6", "title": "Inventario de categorías del visor (ningún kind sin familia)", "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/core/test_observer_categories.py"]},
         {"id": "7.3", "title": "Chat por transporte LiveKit REAL", "ch": CHAT, "live": True,
             "cmd": "./.venv/bin/python tests/infrastructure/e2e/smoke/run_chat_over_livekit.py"},
         {"id": "7.4", "title": "Smoke INTEGRAL de salud", "ch": HTTP, "live": True,

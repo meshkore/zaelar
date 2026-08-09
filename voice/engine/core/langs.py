@@ -1,6 +1,6 @@
 """Supported-language catalog — the single source of truth for multilingual zaelar.
 
-zaelar is multilingual with **Spanish as the default**; the operator switches
+zaelar is multilingual with **English as the default**; the operator switches
 language from the ⚙ panel or by voice, and EVERYTHING moves together and stays
 perfectly aligned: STT recognition language + prompt, TTS voice (a native voice
 per language) and lang code, and the brain's reply language. A language is only
@@ -189,13 +189,39 @@ LANGUAGES: dict[str, LangSpec] = {
     ),
 }
 
-DEFAULT_LANG = "es"
+# El DEFECTO del producto es INGLÉS (norma del operador 2026-08-09; antes era castellano). Un zaelar recién
+# instalado, sin idioma elegido, arranca en inglés — igual que el frontend (`store.lang()` ya caía a "en") y que
+# el manifiesto de i18n. Deja de haber una instalación limpia con la UI en inglés y la VOZ en castellano.
+# Esto NO es "zaelar habla inglés": es solo el punto de partida hasta que la AUTODETECCIÓN de la primera frase
+# fija el idioma real del operador (`i18n/init/detect.py`) o hasta que este lo elija en ⚙. Ninguna instalación
+# existente cambia: en cuanto hay `stt_language` persistido, este valor no se mira.
+DEFAULT_LANG = "en"
 
 
 def _default_code() -> str:
-    """Import-time default: SETTINGS.language if it's a catalog language, else Spanish."""
+    """Import-time default: SETTINGS.language if it's a catalog language, else the product default (English)."""
     from .config import SETTINGS
     return SETTINGS.language if SETTINGS.language in LANGUAGES else DEFAULT_LANG
+
+
+def first_run_auto() -> bool:
+    """¿Seguimos en primera ejecución, SIN idioma elegido todavía? Entonces el STT debe transcribir en AUTO en vez
+    de fijar un idioma: es lo único que permite que un operador árabe o chino sea transcrito CORRECTAMENTE en su
+    primera frase — y ese texto limpio es justo lo que `i18n.init.detect` clasifica para fijar el idioma.
+
+    Vive AQUÍ (una sola respuesta para los tres backends de STT) porque si no cada adaptador se inventa la suya:
+    `whisper_local` ya lo hacía por su cuenta y los REMOTOS (deepgram/voxtral) no — o sea que en el perfil de nube,
+    que es el de producción, la autodetección arrancaba con el STT clavado al idioma por defecto y no podía
+    funcionar. Defensivo a propósito (fail-closed): si i18n no está disponible, se comporta como siempre.
+
+    Cada backend traduce esto a SU forma de decir «auto» — no hay un token común: Whisper quiere `language=None`,
+    Voxtral quiere que se OMITA el parámetro, y Deepgram necesita `"multi"` explícito (omitirlo cae a en-US en el
+    servidor, que NO es auto)."""
+    try:
+        from i18n.init import detect as _detect
+        return bool(_detect.should_detect())
+    except Exception:
+        return False
 
 
 def current_code() -> str:

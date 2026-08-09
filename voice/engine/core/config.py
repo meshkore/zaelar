@@ -94,7 +94,7 @@ class Settings:
     # Default INTERFACE language. zaelar is MULTILINGUAL (see core/langs.py): this is only the
     # import-time default (Spanish); the operator switches from the ⚙ or by voice and STT/TTS/voice/reply
     # move together. The engine reads the LIVE language via ``core.langs.current_code()``, not this frozen field.
-    language: str = env("ZAELAR_LANGUAGE", "es")
+    language: str = env("ZAELAR_LANGUAGE", "en")   # producto en INGLÉS por defecto; la autodetección lo cambia
     # Language-NEUTRAL persona; the reply LANGUAGE is appended per session from the active language
     # (core.langs reply_directive), so switching language re-languages the assistant coherently.
     system_prompt: str = env(
