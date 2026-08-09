@@ -1,0 +1,70 @@
+[
+  {
+    "model": "deepseek-v4-flash",
+    "endpoint": "https://api.aimlapi.com/v1",
+    "model_id": "deepseek/deepseek-v4-flash",
+    "validez": 66.7,
+    "claves": 65.1,
+    "forma": 57.1,
+    "null": 66.7,
+    "no_invencion": 66.7,
+    "usd_per_sleep": 0.0006,
+    "usd_per_year": 0.219,
+    "avg_in_tok": 1137,
+    "avg_out_tok": 1578,
+    "p50_ms": 11271,
+    "runs": 3,
+    "notes": [
+      "musica: SIN insight (debía tenerlo)",
+      "salud: SIN insight (debía tenerlo)",
+      "familia: SIN insight (debía tenerlo)",
+      "vivienda: SIN insight (debía tenerlo)",
+      "trabajo: SIN insight (debía tenerlo)",
+      "viajes: SIN insight (debía tenerlo)",
+      "estudios: SIN insight (debía tenerlo)"
+    ],
+    "calidad_pct": 64.5
+  },
+  {
+    "model": "gpt-4.1-mini",
+    "endpoint": "https://api.aimlapi.com/v1",
+    "model_id": "openai/gpt-4.1-mini",
+    "validez": 100.0,
+    "claves": 100.0,
+    "forma": 90.5,
+    "null": 0.0,
+    "no_invencion": 100.0,
+    "usd_per_sleep": 0.00124,
+    "usd_per_year": 0.451,
+    "avg_in_tok": 962,
+    "avg_out_tok": 532,
+    "p50_ms": 7588,
+    "runs": 3,
+    "notes": [
+      "viajes: FORMA ['largo'] (294 chars) «Disfruta de viajes culturales y de naturaleza como Oporto y Berlín, prefiere viajar en tem»",
+      "cotidiano: DEBÍA ser null y sintetizó → «En su día a día muestra hábitos variables, como tomar café por la mañana, experimentar can»"
+    ],
+    "calidad_pct": 78.1
+  },
+  {
+    "model": "grok-4-fast-nonreason",
+    "endpoint": "https://api.aimlapi.com/v1",
+    "model_id": "x-ai/grok-4-fast-non-reasoning",
+    "validez": 100.0,
+    "claves": 88.9,
+    "forma": 100.0,
+    "null": 100.0,
+    "no_invencion": 100.0,
+    "usd_per_sleep": 0.0004,
+    "usd_per_year": 0.145,
+    "avg_in_tok": 1133,
+    "avg_out_tok": 339,
+    "p50_ms": 3544,
+    "runs": 3,
+    "notes": [
+      "trabajo: PERDIÓ la clave 'marta ruiz'",
+      "viajes: PERDIÓ la clave 'pasaporte'"
+    ],
+    "calidad_pct": 97.8
+  }
+]

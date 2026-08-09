@@ -486,8 +486,11 @@ haiku-4.5). ⚠️ AIMLAPI por urllib exige UA de navegador (Cloudflare 403 — 
 aplicado en memllm). Embeddings: restaurado `auto` (ollama/embeddinggemma, firma re-sellada + re-embed 261/261)
 tras el incidente de mezcla de espacios (fastembed/bge-EN); el enforcement del writer impide que se repita.
 
-> ⚠️ **SUPERSEDIDO en el destilador por §12.3 (2026-08-09).** El titular del CORAZÓN pasa a
-> `deepseek/deepseek-v4-flash`. Lo de arriba sigue vigente para la SÍNTESIS REM (§12.2), que no se ha vuelto a medir.
+> ⚠️ **SUPERSEDIDO ENTERO: el destilador por §12.3 y la síntesis REM por §12.4 (ambas 2026-08-09).** Las dos
+> tareas del módulo pasan a `deepseek/deepseek-v4-flash`. **Los números de §12.2 miden un código que dejó de
+> ejecutarse poco después**: la interpolación `{lang}` de la regla monolingüe rompió `synthesize_concept_groups`
+> con un `KeyError` (ver §12.4), así que desde entonces y hasta el 2026-08-09 la síntesis no escribió NADA. Se
+> conserva por trazabilidad, no como evidencia vigente.
 
 ### 12.3 DESTILADOR — ronda de PRECIO (2026-08-09): `deepseek-v4-flash` sustituye a `gpt-4.1-mini`
 
@@ -584,6 +587,85 @@ cuenta cloud destilaba gratis en el contador. Ya reporta, y `energy_meter` lleva
 cadena de fallback. **Bug de producción encontrado por el preflight:** AIMLAPI devuelve **HTTP 201** con un cuerpo
 válido para algunos modelos (`zhipu/glm-4.7`); el CORAZÓN exigía `== 200` → lo trataba como error y caía a la
 heurística lossy en silencio, en cada turno. Ahora acepta cualquier 2xx.
+
+### 12.4 SÍNTESIS del sueño REM — ronda 2026-08-09: `deepseek-v4-flash`, y **la fase llevaba semanas muerta**
+
+> Detonante: el operador pregunta por qué REM se quedaba en `gpt-4.1-mini` mientras el CORAZÓN pasaba a DeepSeek,
+> y si una tarea así no pediría un modelo **más potente**. Respuesta corta: el modelo estaba HEREDADO de §12.2, no
+> elegido con datos nuevos — y al montar el bench apareció algo peor que un modelo mal elegido.
+
+**🔴 HALLAZGO PRINCIPAL — la síntesis no se ejecutaba.** `_REM_SYSTEM` termina con el ejemplo del contrato de
+salida —`[{"concept": str, "insight": str|null}]`— y se interpolaba con `str.format(lang=…)`: Python lee esas
+llaves literales como marcadores y lanza `KeyError: '"concept"'` en CADA llamada. `memory/rem.py::synthesize`
+captura cualquier excepción del hook, escribe un `warning` y devuelve 0 → **la fase 3 del sueño profundo (los
+INSIGHTS por concepto) no escribió una sola píldora desde que se añadió la regla monolingüe hasta el 2026-08-09**.
+Fail-open perfecto y silencioso: el síntoma era «la memoria no consolida», nunca un error. Misma clase de avería
+que dejó el CORAZÓN dos días caído en julio. Arreglado (`.replace`, el idioma que ya usaba `mem_processor`),
+blindado con `tests/memory/unit/test_rem_prompt.py` (que **prohíbe explícitamente** volver a `.format` sobre ese
+prompt) y el fallo deja de ser invisible: log a ERROR + `health_state.record("memory")` → lo pinta el ◉.
+⚠️ Por el lío de sesiones concurrentes de ese día, el fix viajó dentro del commit `1b7eb48`, cuyo título habla de
+observabilidad. Se anota aquí porque en el log no se encuentra buscando "REM".
+
+**Por qué aquí manda la CALIDAD y no el precio — al revés que en §12.3.** No es criterio, es la forma del código:
+`rem.py` manda **TODOS los grupos en UNA sola llamada**, con `MAX_GROUPS=8` × `pills[:12]`, **una vez al día**
+(`rem_every_hours=24`). Son ~365 llamadas al año con la entrada ACOTADA por diseño: **el coste NO escala con el
+tamaño de la memoria** (la preocupación razonable del operador la resuelven ya los topes). Todo el barrido cabe
+entre **$0,14 y $2,17 AL AÑO** por usuario — el modelo más caro cuesta dos euros anuales. En cambio un insight malo
+se escribe como píldora durable con `slot=insight:<concepto>` y el retriever puede devolverlo como si fuera un
+hecho del operador. Con ese reparto, optimizar el precio aquí sería optimizar el ruido.
+
+**Metodología** (`tests/memory/e2e/bot/rem_synth_bench.py`, reescrito): 8 grupos-fixture (antes 3), 3 pasadas,
+**seis ejes**: validez · retención de CLAVES (nombres/cifras, anti-T181) · forma (castellano, ≤260 chars, no
+copiar verbatim) · **disciplina de NULL** (un grupo flojo DEBE volver `null`, lo pide el prompt — el bench viejo
+no lo medía) · **NO-INVENCIÓN** (términos plausibles pero ausentes de las píldoras) · $/año medido. Grupos nuevos:
+evolución contradictoria (Madrid→Valencia), cifras densas, grupo de 12 píldoras, multilingüe, y uno de
+trivialidades que no merece insight.
+
+| modelo | calidad | validez | claves | forma | null | no-inv. | $/año | p50 |
+|---|---|---|---|---|---|---|---|---|
+| **`deepseek/deepseek-v4-flash`** | **97,8-99,0%** | 100% | 98,4-100% | 90,5-95,2% | 100% | 100% | **$0,25** | 14s | ✅ **TITULAR** |
+| `x-ai/grok-4-fast-non-reasoning` | 97,8-98,7% | 100% | 88,9-93,7% | 100% | 100% | 100% | $0,14 | 3s | ✅ **alternativa / fallback** |
+| `zhipu/glm-4.7` | 99,0% | 100% | 95,2% | 100% | 100% | 100% | $1,69 | 49s | ✅ válido, 7× el precio y lentísimo |
+| `deepseek/deepseek-v4-pro` | 98,1% | 100% | 95,2% | 95,2% | 100% | 100% | $0,78 | 25s | ⚠️ el POTENTE **no mejora** al flash |
+| `deepseek/deepseek-reasoner` | 97,1% | 100% | 100% | 85,7% | 100% | 100% | $1,71 | 12s | ⚠️ razonar no aporta; insights largos |
+| `openai/gpt-4.1` | 96,8% | 100% | 98,4% | 85,7% | 100% | 100% | $2,17 | 4s | ⚠️ el más caro del lote útil |
+| `deepseek/deepseek-thinking-v3.2-exp` | 92,4% | 100% | 90,5% | 71,4% | 100% | 100% | $0,20 | 20s | ❌ pierde claves y se alarga |
+| `anthropic/claude-haiku-4.5` | 91,4% | 100% | 95,2% | **61,9%** | 100% | 100% | $1,70 | 8s | ❌ insights demasiado largos |
+| `openai/gpt-4.1-mini` (titular previo) | **78,1%** | 100% | 100% | 90,5% | **0%** | 100% | $0,44 | 7s | ❌ **nunca calla** (ver abajo) |
+| `google/gemini-2.5-flash` | 20% | **0%** | — | — | n/a | 0% | $0,16 | 7s | ❌ no devuelve nada usable |
+| `openai/gpt-5-mini` | 20% | **0%** | — | — | n/a | 0% | $0,93 | 20s | ❌ 1.152 tokens de salida para nada |
+
+**Por qué cae el titular anterior.** `gpt-4.1-mini` es impecable en todo… salvo en el eje que el bench viejo no
+medía: **disciplina de NULL, 0% en las 3 pasadas**. Ante el grupo de trivialidades («tomó un café», «estaba
+cansado», «hizo buen tiempo», «se le olvidó dónde dejó las llaves») fabrica siempre un insight —*«En su día a día
+experimenta pequeños olvidos como perder las llaves, nota variaciones en su estado…»*— que se escribiría como
+píldora DURABLE. Es decir: convierte un despiste en un rasgo del operador. Callar cuando no hay patrón es parte de
+la tarea, no una omisión.
+
+**La hipótesis "más potente" queda MEDIDA y descartada.** `deepseek-v4-pro` (98,1%), `deepseek-reasoner` (97,1%),
+`gpt-4.1` (96,8%) y `deepseek-thinking` (92,4%) **no superan** al flash, y cuestan entre 3× y 9× más. `gpt-5-mini`
+directamente falla. La síntesis REM es mecánica —agrupar, abstraer, conservar claves— y razonar sobre ella añade
+verbosidad e inestabilidad, no criterio. Es el mismo patrón que en §12.3 con los razonadores del destilador.
+
+**Dos topes latentes que truncaban en SILENCIO** (encontrados persiguiendo una inestabilidad de DeepSeek, que
+oscilaba entre 99,0% y 64,5% según la tanda):
+- **`max_tokens=1200`** era insuficiente con 8 grupos para un modelo que RAZONA aunque no se le pida
+  (`deepseek-v4-flash`, ya documentado para el FlashBrain): el pensamiento agota el presupuesto ANTES de cerrar el
+  array → JSON truncado → `[]` → «sin insights» sin error. Medido aislando la variable: con 1200, **1 de cada 3**
+  llamadas fallaba (una topó exactamente en 1200 tokens); con 4000, **3/3 válidas emitiendo solo ~1.100** — el
+  techo alto no cuesta nada, se paga lo emitido. Subido a 4000.
+- **`timeout=60s`**: una tanda lenta del broker se comía la noche entera de consolidación por una prisa que nadie
+  tiene (REM corre de madrugada, en `to_thread`). Subido a 240s.
+
+**Conclusión de la ronda:** `deepseek-v4-flash` titular en las DOS tareas de LLM de la memoria (destilar y
+consolidar) — un solo modelo, una sola cuenta, una sola cosa que vigilar. Se elige sobre `grok-4-fast` (que gana
+en forma y precio) porque **retiene mejor los datos clave** (98,4-100% vs 88,9-93,7%: grok perdía «Marta Ruiz»),
+y perder un nombre propio en una síntesis destruye información, mientras que pasarse de 260 chars es cosmético.
+Fallback: `grok-4-fast-non-reasoning` → `glm-4.7`.
+
+**Artefacto de marcador corregido de paso:** un modelo que no devolvía NADA aprobaba el eje `null` al 100% (el
+grupo flojo «salió null», como todos) y se llevaba un 20% en vez de un 0%. Un no-resultado no es disciplina: ahora
+ese eje queda `n/a` y no promedia.
 
 ## 13. Candidatos en el radar (aún no evaluados/adoptados)
 

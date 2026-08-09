@@ -128,7 +128,7 @@ _DEFAULTS: dict[str, dict] = {
         #       estaba en AIMLAPI), en vez de dos facturas para dos tareas de la misma pieza.
         #   (3) esa cuenta de OpenAI directo va muy limitada de tasa (429 con pocas llamadas en vuelo, p50 de
         #       20 s medido en el barrido §12.3) — mal sitio para una consolidación que procesa lotes.
-        "rem_model": "openai/gpt-4.1-mini",
+        "rem_model": "deepseek/deepseek-v4-flash",
         "rem_base_url": "https://api.aimlapi.com/v1",
         "rem_api_key": "",                               # secreto (redactado); vacío = key por endpoint
         "rem_every_hours": 24,                           # cadencia del sueño profundo (mín 1h)

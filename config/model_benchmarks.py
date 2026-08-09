@@ -113,6 +113,36 @@ MODULES = [
         ],
     },
     {
+        "id": "memory_rem",
+        "label": "Memoria · sueño REM (consolidación)",
+        "role": "Una vez al día agrupa los recuerdos durables por concepto y destila 1 INSIGHT de alto nivel por "
+                "grupo (kind='insight'). Es lo que hace que la memoria APRENDA patrones en vez de solo acumular "
+                "hechos. Off-hot-path total: corre de madrugada.",
+        "current": {"model": "deepseek-v4-flash", "provider": "AIMLAPI", "cost_in": 0.14, "cost_out": 0.28,
+                    "since": "2026-08-09 (bench §12.4)"},
+        "why": "Aquí manda la CALIDAD, no el precio, y es por la forma del código: TODOS los grupos van en UNA "
+               "llamada, con topes de 8 grupos × 12 recuerdos, una vez al día — el coste NO crece con el tamaño "
+               "de la memoria. Todo el barrido cabía entre 0,14 y 2,17 dólares AL AÑO por usuario, así que "
+               "optimizar precio aquí sería optimizar ruido. deepseek-v4-flash saca 97,8-99% y es el que mejor "
+               "conserva nombres y cifras al resumir (98,4-100%), que es el dato que de verdad se puede perder.",
+        "hallucination_note": "El titular anterior (gpt-4.1-mini) fallaba el eje que el bench viejo no medía: ante "
+                              "un grupo de trivialidades («tomó un café», «se le olvidó dónde dejó las llaves») "
+                              "SIEMPRE fabricaba un insight, 0% de aciertos en 3 pasadas — convertía un despiste "
+                              "en un rasgo durable del operador. Callar cuando no hay patrón es parte de la tarea. "
+                              "Los modelos más POTENTES (v4-pro, reasoner, gpt-4.1) NO mejoran: la tarea es "
+                              "mecánica y razonar solo añade verbosidad.",
+        "candidates_2026_07_26": [
+            {"model": "grok-4-fast-non-reasoning", "cost_in": 0.20, "cost_out": 0.50, "status": "alternativa",
+             "verdict": "fallback: mejor forma y el más barato, pero pierde algún nombre propio al sintetizar"},
+            {"model": "deepseek-v4-pro", "cost_in": 0.435, "cost_out": 0.87, "status": "descartado",
+             "verdict": "el DeepSeek potente NO mejora al flash (98,1%) y cuesta el triple"},
+            {"model": "gpt-4.1-mini", "cost_in": 0.40, "cost_out": 1.60, "status": "descartado",
+             "verdict": "titular hasta 2026-08-09; nunca devuelve null ante un grupo sin sustancia"},
+            {"model": "gemini-2.5-flash / gpt-5-mini", "cost_in": 0.30, "cost_out": 2.50, "status": "descartado",
+             "verdict": "no devuelven nada usable en esta tarea (validez 0%)"},
+        ],
+    },
+    {
         "id": "triage",
         "label": "Triaje de mensajería (WhatsApp/Telegram)",
         "role": "Clasifica relevancia de mensajes entrantes — tarea simple, NO tool-routing.",

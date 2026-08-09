@@ -181,18 +181,22 @@ def score(results: list[dict]) -> tuple[dict, list[str]]:
     ax = {k: [0, 0] for k in ("validez", "claves", "forma", "null", "no_invencion")}   # [got, total]
     notes: list[str] = []
     by_c = {r["concept"]: r.get("insight") for r in results}
+    # ARTEFACTO a evitar (visto en la ronda 2026-08-09): un modelo que NO devuelve NADA aprobaba el eje `null`
+    # al 100% —el grupo flojo "salió null", claro, como todos— y se llevaba un 20% de calidad en vez de un 0%.
+    # Un no-resultado no es disciplina. Si no hay un solo insight en los grupos con sustancia, `null` no puntúa.
+    produjo_algo = any((by_c.get(g["concept"]) or "") for g in GROUPS_SPEC if not g["want_null"])
     for g in GROUPS_SPEC:
         c = g["concept"]
         ins = by_c.get(c) or ""
         n = _norm(ins)
         if g["want_null"]:
-            ax["null"][1] += 1
-            if not ins:
-                ax["null"][0] += 1
-            else:
-                notes.append(f"{c}: DEBÍA ser null y sintetizó → «{ins[:90]}»")
+            if produjo_algo:                       # ver `produjo_algo`: callarse del todo no es disciplina
+                ax["null"][1] += 1
+                if not ins:
+                    ax["null"][0] += 1
             # un grupo que debía ser null no puntúa en los demás ejes, pero SÍ en no-invención si habló
             if ins:
+                notes.append(f"{c}: DEBÍA ser null y sintetizó → «{ins[:90]}»")
                 ax["no_invencion"][1] += 1
                 bad = [f for f in g["forbidden"] if _norm(f) in n]
                 ax["no_invencion"][0] += 0 if bad else 1
@@ -233,8 +237,10 @@ def score(results: list[dict]) -> tuple[dict, list[str]]:
     return ax, notes
 
 
-def _pct(pair) -> float:
-    return round(100 * pair[0] / pair[1], 1) if pair[1] else 100.0
+def _pct(pair) -> float | None:
+    """None = eje NO APLICABLE en esta corrida (p.ej. `null` cuando el modelo no produjo nada). Devolver 100.0
+    ahí sería mentir: un no-resultado se leería como disciplina perfecta."""
+    return round(100 * pair[0] / pair[1], 1) if pair[1] else None
 
 
 def _load_prices() -> None:
@@ -291,11 +297,12 @@ def main() -> None:
                "avg_in_tok": avg_in, "avg_out_tok": avg_out,
                "p50_ms": int(statistics.median(lats)), "runs": len(axes), "notes": notes}
         # media de los CINCO ejes de calidad — resumen, no sustituto de mirarlos por separado
-        row["calidad_pct"] = round(statistics.mean(
-            [row["validez"], row["claves"], row["forma"], row["null"], row["no_invencion"]]), 1)
+        _ejes = [row[k] for k in ("validez", "claves", "forma", "null", "no_invencion") if row[k] is not None]
+        row["calidad_pct"] = round(statistics.mean(_ejes), 1) if _ejes else 0.0
         out_rows.append(row)
-        print(f"   calidad={row['calidad_pct']}%  (val={row['validez']} claves={row['claves']} "
-              f"forma={row['forma']} null={row['null']} no-inv={row['no_invencion']})  "
+        _f = lambda v: "n/a" if v is None else v
+        print(f"   calidad={row['calidad_pct']}%  (val={_f(row['validez'])} claves={_f(row['claves'])} "
+              f"forma={_f(row['forma'])} null={_f(row['null'])} no-inv={_f(row['no_invencion'])})  "
               f"${row['usd_per_year']}/año  p50={row['p50_ms']}ms", flush=True)
 
     tag = f"-{args.tag}" if args.tag else ""
@@ -308,8 +315,9 @@ def main() -> None:
              "|---|---|---|---|---|---|---|---|---|"]
     for r in sorted(out_rows, key=lambda x: -x["calidad_pct"]):
         cost = f"${r['usd_per_year']}" if r["usd_per_year"] is not None else "—"
-        lines.append(f"| {r['model']} | **{r['calidad_pct']}%** | {r['validez']}% | {r['claves']}% | "
-                     f"{r['forma']}% | {r['null']}% | {r['no_invencion']}% | {cost} | {r['p50_ms']}ms |")
+        _c = lambda v: "n/a" if v is None else f"{v}%"
+        lines.append(f"| {r['model']} | **{r['calidad_pct']}%** | {_c(r['validez'])} | {_c(r['claves'])} | "
+                     f"{_c(r['forma'])} | {_c(r['null'])} | {_c(r['no_invencion'])} | {cost} | {r['p50_ms']}ms |")
     (out / "report.md").write_text("\n".join(lines) + "\n")
     print("\n".join(lines))
     print(f"\nresultados → {out}")

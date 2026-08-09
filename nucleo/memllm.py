@@ -26,7 +26,7 @@ from loguru import logger
 # `config/v2.py §memory` — apuntar a OpenAI aquí significaba, en la nube, fallar siempre: no hay OPENAI_API_KEY
 # entre los secretos que inyecta el provisioner (2026-08-09, misma corrección que en mem_processor).
 _DEFAULTS = {
-    "rem": ("https://api.aimlapi.com/v1", "openai/gpt-4.1-mini"),
+    "rem": ("https://api.aimlapi.com/v1", "deepseek/deepseek-v4-flash"),
     # i18n (V2-089): traducción del UI a un idioma nuevo en la INICIALIZACIÓN (i18n/init). Off-hot-path, calidad
     # importa (scripts no-latinos: árabe, chino, japonés…) → modelo fuerte por defecto. Override en config §memory.
     "i18n": ("https://api.openai.com/v1", "gpt-4o"),
@@ -175,7 +175,19 @@ def synthesize_concept_groups(groups: list[dict], *, model_override: str | None 
     # cambio). Mismo idioma que `mem_processor`, que ya usaba `.replace` para su catálogo de slots.
     # Cubierto por tests/memory/unit/test_rem_prompt.py para que no pueda repetirse.
     system = _REM_SYSTEM.replace("{lang}", _canonical_lang_native())
-    content = chat_sync("rem", system, user, max_tokens=1200,
+    # TIMEOUT GENEROSO (2026-08-09): el sueño REM corre UNA vez al día, de madrugada, en `to_thread` — no hay
+    # nadie esperando. El default de 60s se quedaba corto: el modelo titular emite ~2.200 tokens de salida para
+    # los 8 grupos, y en una tanda lenta del broker se pasa de 60s → la noche entera sin consolidar por prisa
+    # que nadie tenía. Escribir puede ser LENTO (invariante V2-013); leer es lo que no puede.
+    # `max_tokens` HOLGADO y timeout GENEROSO (2026-08-09). El sueño REM corre UNA vez al día, de madrugada, en
+    # `to_thread`: no hay nadie esperando, y escribir puede ser LENTO (invariante V2-013) — leer es lo que no.
+    #   · max_tokens 1200 → 4000: con 8 grupos, un modelo verboso o que RAZONA (deepseek-v4-flash piensa aunque
+    #     se le pida que no) agota el presupuesto ANTES de cerrar el array → JSON truncado → `_parse` devuelve []
+    #     → "sin insights" SIN error. Medido: con 1200 fallaba 1 de cada 3 llamadas (una topó exactamente en
+    #     1200); con 4000, 3/3 válidas emitiendo solo ~1.100 tokens. El techo alto NO cuesta: se paga lo emitido.
+    #   · timeout 60 → 240s: una tanda lenta del broker se comía la noche entera de consolidación por una prisa
+    #     que nadie tenía.
+    content = chat_sync("rem", system, user, max_tokens=4000, timeout=240.0,
                         model_override=model_override, url_override=url_override)
     if not content:
         return []

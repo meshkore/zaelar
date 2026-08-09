@@ -1,0 +1,87 @@
+[
+  {
+    "model": "deepseek-v4-flash",
+    "endpoint": "https://api.aimlapi.com/v1",
+    "model_id": "deepseek/deepseek-v4-flash",
+    "validez": 100.0,
+    "claves": 98.4,
+    "forma": 90.5,
+    "null": 100.0,
+    "no_invencion": 100.0,
+    "usd_per_sleep": 0.00067,
+    "usd_per_year": 0.246,
+    "avg_in_tok": 1137,
+    "avg_out_tok": 1838,
+    "p50_ms": 14347,
+    "runs": 3,
+    "notes": [
+      "viajes: FORMA ['largo'] (280 chars) «Viaja habitualmente con Marta, prefiere temporada baja y evita vuelos de más de 8 horas; l»"
+    ],
+    "calidad_pct": 97.8
+  },
+  {
+    "model": "grok-4-fast-nonreason",
+    "endpoint": "https://api.aimlapi.com/v1",
+    "model_id": "x-ai/grok-4-fast-non-reasoning",
+    "validez": 100.0,
+    "claves": 90.5,
+    "forma": 100.0,
+    "null": 100.0,
+    "no_invencion": 100.0,
+    "usd_per_sleep": 0.00039,
+    "usd_per_year": 0.143,
+    "avg_in_tok": 1133,
+    "avg_out_tok": 328,
+    "p50_ms": 2733,
+    "runs": 3,
+    "notes": [
+      "trabajo: PERDIÓ la clave 'marta ruiz'",
+      "viajes: PERDIÓ la clave 'buceo'"
+    ],
+    "calidad_pct": 98.1
+  },
+  {
+    "model": "gpt-4.1-mini",
+    "endpoint": "https://api.aimlapi.com/v1",
+    "model_id": "openai/gpt-4.1-mini",
+    "validez": 100.0,
+    "claves": 100.0,
+    "forma": 90.5,
+    "null": 0.0,
+    "no_invencion": 100.0,
+    "usd_per_sleep": 0.00121,
+    "usd_per_year": 0.441,
+    "avg_in_tok": 962,
+    "avg_out_tok": 514,
+    "p50_ms": 7112,
+    "runs": 3,
+    "notes": [
+      "viajes: FORMA ['largo'] (269 chars) «Disfruta de viajes culturales y de naturaleza, como Oporto y Berlín, prefiere viajar en te»",
+      "cotidiano: DEBÍA ser null y sintetizó → «En su día a día experimenta momentos de cansancio y distracciones como olvidar las llaves,»"
+    ],
+    "calidad_pct": 78.1
+  },
+  {
+    "model": "claude-haiku-4.5",
+    "endpoint": "https://api.aimlapi.com/v1",
+    "model_id": "anthropic/claude-haiku-4.5",
+    "validez": 100.0,
+    "claves": 95.2,
+    "forma": 61.9,
+    "null": 100.0,
+    "no_invencion": 100.0,
+    "usd_per_sleep": 0.00466,
+    "usd_per_year": 1.7,
+    "avg_in_tok": 1252,
+    "avg_out_tok": 681,
+    "p50_ms": 7858,
+    "runs": 3,
+    "notes": [
+      "musica: FORMA ['largo'] (261 chars) «Disfruta de música en español de distintas épocas (Mocedades, Serrat, música de los ochent»",
+      "salud: PERDIÓ la clave 'gimnasio'",
+      "trabajo: FORMA ['largo'] (263 chars) «Cambió de carrera en marzo como coordinador de emergencias tras 12 años como bombero, bajo»",
+      "viajes: FORMA ['largo'] (330 chars) «Prefiere viajes cortos en temporada baja con presupuesto máximo de 3.000 euros, evita vuel»"
+    ],
+    "calidad_pct": 91.4
+  }
+]

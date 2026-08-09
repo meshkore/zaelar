@@ -1,0 +1,54 @@
+[
+  {
+    "model": "gemini-2.5-flash",
+    "endpoint": "https://api.aimlapi.com/v1",
+    "model_id": "google/gemini-2.5-flash",
+    "validez": 0.0,
+    "claves": 0.0,
+    "forma": 0.0,
+    "null": 100.0,
+    "no_invencion": 0.0,
+    "usd_per_sleep": 0.00043,
+    "usd_per_year": 0.157,
+    "avg_in_tok": 1050,
+    "avg_out_tok": 46,
+    "p50_ms": 7220,
+    "runs": 1,
+    "notes": [
+      "musica: SIN insight (debía tenerlo)",
+      "salud: SIN insight (debía tenerlo)",
+      "familia: SIN insight (debía tenerlo)",
+      "vivienda: SIN insight (debía tenerlo)",
+      "trabajo: SIN insight (debía tenerlo)",
+      "viajes: SIN insight (debía tenerlo)",
+      "estudios: SIN insight (debía tenerlo)"
+    ],
+    "calidad_pct": 20.0
+  },
+  {
+    "model": "deepseek-v4-flash",
+    "endpoint": "https://api.aimlapi.com/v1",
+    "model_id": "deepseek/deepseek-v4-flash",
+    "validez": 0.0,
+    "claves": 0.0,
+    "forma": 0.0,
+    "null": 100.0,
+    "no_invencion": 0.0,
+    "usd_per_sleep": 0.00016,
+    "usd_per_year": 0.058,
+    "avg_in_tok": 1050,
+    "avg_out_tok": 46,
+    "p50_ms": 135304,
+    "runs": 1,
+    "notes": [
+      "musica: SIN insight (debía tenerlo)",
+      "salud: SIN insight (debía tenerlo)",
+      "familia: SIN insight (debía tenerlo)",
+      "vivienda: SIN insight (debía tenerlo)",
+      "trabajo: SIN insight (debía tenerlo)",
+      "viajes: SIN insight (debía tenerlo)",
+      "estudios: SIN insight (debía tenerlo)"
+    ],
+    "calidad_pct": 20.0
+  }
+]
