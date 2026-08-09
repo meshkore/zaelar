@@ -354,7 +354,14 @@ reintentos. Para voz eso es minuto y cuarto de silencio. **Pendiente**: presupue
 
 ### 9.2 Motor de MEMORIA — CORAZÓN de escritura / distiller (`config §memory.mem_processor_*`)
 Restricción: **OFF-hot-path** (la latencia NO toca la voz) → prioriza **write-completeness** (palanca nº1 del recall,
-V2-031). **Directriz: SIEMPRE OpenAI.**
+V2-031).
+
+> ⚠️ **SECCIÓN HISTÓRICA — superada por §12.3 (2026-08-09).** El titular es hoy
+> **`deepseek/deepseek-v4-flash` vía AIMLAPI**, y la **directriz «SIEMPRE OpenAI» queda DEROGADA**: se tomó cuando
+> el único contendiente barato medido era `gpt-4o-mini` sobre 16 casos. El barrido de 21 candidatos × 34 casos
+> encontró modelos no-OpenAI que igualan la calidad útil a menos de la mitad de precio. También caduca la fila de
+> `gpt-4o-mini` de abajo: hoy SÍ capta la alergia; su fallo se movió al metadato (le pone `slot=operator.diet`
+> cuando se dice en inglés), que es peor. La tabla se conserva por trazabilidad de cómo se decidió entonces.
 
 | Modelo | Veredicto | Evidencia (prueba write-completeness es, 2026-07-17) |
 |---|---|---|
@@ -478,6 +485,105 @@ cadena de fallback documentada por tarea (distill: gemini-2.5-flash → haiku-4.
 haiku-4.5). ⚠️ AIMLAPI por urllib exige UA de navegador (Cloudflare 403 — mismo workaround que fast_client, ya
 aplicado en memllm). Embeddings: restaurado `auto` (ollama/embeddinggemma, firma re-sellada + re-embed 261/261)
 tras el incidente de mezcla de espacios (fastembed/bge-EN); el enforcement del writer impide que se repita.
+
+> ⚠️ **SUPERSEDIDO en el destilador por §12.3 (2026-08-09).** El titular del CORAZÓN pasa a
+> `deepseek/deepseek-v4-flash`. Lo de arriba sigue vigente para la SÍNTESIS REM (§12.2), que no se ha vuelto a medir.
+
+### 12.3 DESTILADOR — ronda de PRECIO (2026-08-09): `deepseek-v4-flash` sustituye a `gpt-4.1-mini`
+
+> Encargo del operador: *«modelos que den IGUAL O MEJOR calidad más baratos»* para el CORAZÓN, y **un solo modelo
+> comercial que sirva igual en self-host y en la nube** (se retira la vía Ollama local: obligaba a dos ganadores).
+
+**Por qué el precio es el eje correcto aquí, y la velocidad no.** Escribir va **off-hot-path** (cola async,
+fire-and-forget) y **leer no usa ningún LLM** (retriever sqlite-vec + FTS5 + reranker). Así que la latencia del
+destilador no la paga nadie: un modelo lento y barato es perfectamente válido. Lo que NO es tolerable es perder un
+hecho durable — write-completeness es la palanca nº1 del recall (V2-031: la mayoría de los "no recuperados" ni
+siquiera están GUARDADOS).
+
+**Metodología** (`tests/memory/e2e/bot/distiller_bench.py`, reescrito): **34 casos** (antes 16) por el camino REAL
+`mem_processor.process`, y **cuatro ejes SEPARADOS** en vez de un único % que escondía de qué flojeaba cada modelo:
+
+1. **write-completeness** (24 casos, 90 hechos) — ¿capta el hecho durable?
+2. **precisión / no-pollution** (10 descartes) — ¿deja la memoria limpia? Puntúa solo si devuelve `[]`. Las píldoras
+   EXTRA en casos KEEP **no** se penalizan: el prompt PIDE inferir intereses/intenciones.
+3. **capa/slot** (18 comprobaciones) — `dest`/`slot`/`change`/`kind`. Incluye la regla ADITIVA: una alergia lleva
+   `slot=null`, nunca `operator.diet`.
+4. **$/1k turnos** — tokens REALES del proveedor (`mem_processor.last_usage()`, capturado desde esta ronda) ×
+   tarifa publicada (`prices.json`). El prompt son ~3.700 tokens de INPUT fijos → el coste lo domina el input.
+
+Casos nuevos que separan de verdad: alergia en INGLÉS y mudanza en CATALÁN (regla monolingüe), secreto que el
+operador pide guardar, compromiso ajeno, corrección de fecha, interés+intención inferidos, cotidiano que NO debe
+promocionar a durable, garble de STT con dato bueno.
+
+| modelo (id AIMLAPI salvo nota) | write-compl. | precisión | capa/slot | $/1k turnos | pasadas | p50 | veredicto |
+|---|---|---|---|---|---|---|---|
+| **`deepseek/deepseek-v4-flash`** | **98,5%** | **100%** | 94,4% | **$0,680** | 3 | 4,1s | ✅ **TITULAR** — −55% de coste |
+| `openai/gpt-4.1-mini` | 98,9% | 100% | 100% | $1,516 | 3 | 1,7s | ✅ titular ANTERIOR; último de la cadena |
+| `openai/gpt-4o-mini` | 98,9% | 100% | 94,4% | $0,567 | 3 | 1,4s | ⛔ **VETADO** — mete la alergia en `operator.diet` |
+| `openai/gpt-5-mini` | 98,9% | **50%** | 100% | $2,517 | 1 | 13,0s | ❌ razonador: capta bien pero ENSUCIA |
+| `mistralai/ministral-8b` (directo) | 97,8% | **73,3%** | 100% | $0,393 | 3 | 1,0s | ❌ el más barato del lote, pero ensucia |
+| `google/gemini-2.5-flash` | 96,7% | 100% | 100% | $1,232 | 3 | 2,5s | ✅ **fallback nº1** (metadato perfecto) |
+| `anthropic/claude-haiku-4.5` | 96,7% | 100% | 100% | $4,607 | 1 | 1,8s | ✅ válido, 6,8× el precio del titular |
+| `x-ai/grok-4-20-non-reasoning` (xAI directo) | 96,7% | 100% | 100% | $4,749 | 1 | 1,1s | ✅ válido pero CARO ($1,25/$2,50) |
+| `google/gemini-2.5-flash-lite` | 96,7% | 90% | 94,4% | $0,390 | 3 | 0,9s | ❌ reifica una PREGUNTA + falla el slot de mudanza |
+| `zhipu/glm-4.7` | 96,7% | 90% | 94,4% | $3,793 | 1 | 28,9s | ❌ caro y lentísimo por el broker |
+| `openai/gpt-5-nano` | 96,7% | **60%** | 83,3% | $1,134 | 1 | 16,3s | ❌ razonador: ensucia (2.388 tok de salida) |
+| `x-ai/grok-4-fast-non-reasoning` | 95,6% | 100% | 100% | $0,762 | 3 | 1,1s | ✅ **alternativa CONSERVADORA** (metadato 100%) |
+| `deepseek/deepseek-chat` | 95,6% | 100% | 94,4% | $0,579 | 3 | 2,0s | ✅ válido; −3 pts de completeness vs v4-flash |
+| `moonshot/kimi-k2-6` | 95,6% | 100% | 94,4% | $7,031 | 1 | 10,1s | ❌ el MÁS CARO del barrido |
+| `meta-llama/llama-3.3-70b` | 95,6% | 80% | 100% | $2,379 | 1 | 0,9s | ❌ ensucia + más caro que el titular |
+| `Qwen/Qwen2.5-7B-Instruct-Turbo` | 94,4% | **20%** | 94,4% | $1,201 | 1 | 1,5s | ❌ ensucia 8 de cada 10 descartes |
+| `openai/gpt-4.1-nano` | **68,9%** | 100% | **38,9%** | $0,377 | 1 | 1,0s | ❌ pierde 1/3 de los hechos y 6/10 slots |
+
+**No medibles (fallo de CUENTA, no del modelo — no son veredictos):** `llama-3.3-70b` por Groq directo (29 llamadas
+muertas, HTTP 429 de rate-limit) y `glm-4.7-flash` por Z.AI directo (33 muertas, HTTP 429 código 1113, saldo).
+También `gpt-4o-mini` por **OpenAI directo** dio 21 muertas de 102 con 6 llamadas en vuelo → esa cuenta va muy
+limitada de tasa (mismo motivo del p50 de 20 s de `gpt-4.1-mini@openai`). **Norma para la próxima ronda: medir
+siempre por el broker**, no por OpenAI directo, o el rate-limit se disfraza de mala calidad.
+
+**Por qué gana `deepseek-v4-flash` y no el más barato.** Empata con el titular en los **dos ejes que destruyen
+datos** —captar el hecho (98,5 vs 98,9%: UN hecho de 90, dentro del ruido; su spread por pasada fue 96,7-100%) y no
+ensuciar (100% los dos)— por **$0,68 frente a $1,516 los 1.000 turnos**. Sus dos fallos de capa/slot son
+reproducibles y están caracterizados: (a) pierde el «somos **cinco**» de una enumeración familiar —los nombres sí
+los guarda, y el número es derivable de la enumeración— y (b) no marca `change=update` en una NEGACIÓN pura («ya no
+trabajo en X»), donde no hay valor nuevo con el que superseder; el hecho se guarda igual, solo que el viejo no se
+invalida. **Ninguno destruye lo ya escrito.**
+
+**El veto de `gpt-4o-mini` (más barato: $0,567) es la decisión importante de esta ronda.** Con la alergia dicha en
+**inglés** le pone `slot=operator.diet` — 3/3 pasadas del bench y 3/3 en reproducción directa aparte. Un `slot`
+**invalida todas las píldoras anteriores con ese slot**, así que un futuro «ahora soy vegetariano» borraría la
+alergia al marisco. Es exactamente el error que el prompt del CORAZÓN advierte por escrito, y en una memoria
+personal es pérdida de datos silenciosa, no un punto porcentual. Nota: la MISMA frase en castellano la resuelve
+bien (`slot=null`) — lo que rompe es el cruce de idioma. También **caduca el hallazgo de §9.2** («se comía la
+alergia, 0 píldoras»): hoy la capta; el fallo se ha movido del texto al metadato.
+
+**Los razonadores NO valen para destilar** (hallazgo nuevo y consistente): `gpt-5-mini` 50% y `gpt-5-nano` 60% de
+precisión — captan bien pero convierten preguntas y órdenes en píldoras. Un razonador «encuentra sentido» a un
+turno que había que tirar. Coincide con el descarte de `qwen3.5-flash` en §12.1, por otra vía.
+
+**Cadena de fallback del destilador:** `deepseek-v4-flash` → `google/gemini-2.5-flash` (96,7/100/100) →
+`openai/gpt-4.1-mini`. La alternativa CONSERVADORA, para quien prefiera metadato perfecto a 3 puntos de
+completeness, es `x-ai/grok-4-fast-non-reasoning` ($0,762, 100% en precisión y capa/slot, varianza cero).
+
+**Deroga la directriz «memoria = SIEMPRE OpenAI»** (§9.2, 2026-07-17): se tomó cuando el único contendiente barato
+medido era `gpt-4o-mini` sobre 16 casos. Con 21 candidatos y 34 casos, hay modelos no-OpenAI que igualan la calidad
+útil a menos de la mitad de precio. Lo que SÍ se mantiene como regla: **el destilador se elige con el bench, nunca
+por reputación del proveedor.**
+
+**Notas de coste.** Los $/1k son con tarifa NATIVA del proveedor (`prices.json`, verificada por web el 2026-08-09);
+AIMLAPI cobra encima un margen de ~1,0-1,3× según modelo, común a todos los candidatos → no altera el ranking, sí
+el absoluto (el titular real en nube ≈ $0,88/1k). `deepseek-v4-flash` DIRECTO (`api.deepseek.com`, sin el margen del
+broker) ahorraría otro ~30%, pero no hay `DEEPSEEK_API_KEY` — pendiente, igual que en §9.1 para el FlashBrain.
+**Palanca no explorada, mayor que el cambio de modelo:** el prompt son ~3.700 tokens de input FIJOS por turno
+(system + 8 pares de few-shot); un proveedor con *prompt caching* recortaría el coste bastante más que cualquier
+sustitución de modelo.
+
+**Gap de facturación cerrado de paso:** el CORAZÓN era la ÚNICA llamada LLM de nube que no reportaba a Energy
+(`report_llm_usage` solo se llamaba desde `fast_client`, los Brain Workers y el generador de widgets) → en una
+cuenta cloud destilaba gratis en el contador. Ya reporta, y `energy_meter` lleva la tarifa del titular y de toda la
+cadena de fallback. **Bug de producción encontrado por el preflight:** AIMLAPI devuelve **HTTP 201** con un cuerpo
+válido para algunos modelos (`zhipu/glm-4.7`); el CORAZÓN exigía `== 200` → lo trataba como error y caía a la
+heurística lossy en silencio, en cada turno. Ahora acepta cualquier 2xx.
 
 ## 13. Candidatos en el radar (aún no evaluados/adoptados)
 

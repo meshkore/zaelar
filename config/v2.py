@@ -141,7 +141,10 @@ _DEFAULTS: dict[str, dict] = {
     "susurro": {
         "enabled": True,
         "provider": "openai",
-        "model": "gpt-4.1-mini",               # default verificado (misma key que memoria); benchmark §10 pendiente
+        # ⚠️ Sigue en OpenAI DIRECTO — ya NO comparte endpoint con la memoria (el CORAZÓN pasó a AIMLAPI el
+        # 2026-08-09). Ojo si se re-mide: esa cuenta de OpenAI va muy limitada de tasa (429 con pocas llamadas en
+        # vuelo, p50 de 20s medido en el barrido §12.3). Benchmark §10 pendiente.
+        "model": "gpt-4.1-mini",
         "base_url": "https://api.openai.com/v1",
         "api_key": "",                          # secreto (redactado); vacío = resuelta por endpoint (OPENAI_API_KEY…)
         "pulse_turns": 0,                       # 0 = solo fricción; N = auditoría ligera además cada N turnos

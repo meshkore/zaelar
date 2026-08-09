@@ -85,14 +85,32 @@ MODULES = [
         "role": "Destila cada turno en píldoras (dato + metadatos + capa + slot). Off-hot-path (nunca toca la "
                 "latencia de voz) — pero la WRITE-COMPLETENESS es la palanca nº1 del recall (V2-031): un dato mal "
                 "escrito no hay retriever que lo recupere.",
-        "current": {"model": "gpt-4.1-mini", "provider": "OpenAI directo", "cost_in": None, "cost_out": None,
-                    "since": "2026-07-20 (V2-056)"},
-        "why": "Bench de write-completeness (casos difíciles, es+en): gpt-4o-mini se comía la alergia (0 píldoras); "
-               "gpt-4.1-mini y gpt-4o la captan. gpt-4.1-mini es el punto dulce — 98.3% vs qwen2.5:7b local 86.2%, "
-               "que queda de opción si se quiere volver a 100% local.",
-        "hallucination_note": "Regla dura del operador: la memoria SIEMPRE va por OpenAI (nunca modelos baratos de "
-                               "terceros para esta pieza) — un hecho perdido en la escritura es irrecuperable.",
-        "candidates_2026_07_26": [],
+        "current": {"model": "deepseek-v4-flash", "provider": "AIMLAPI", "cost_in": 0.14, "cost_out": 0.28,
+                    "since": "2026-08-09 (bench §12.3)"},
+        "why": "Elegido por PRECIO a igualdad de calidad útil: 21 candidatos comerciales × 34 casos × 4 ejes, 3 "
+               "pasadas a los finalistas. Empata con el anterior titular (gpt-4.1-mini) en los dos ejes que "
+               "destruyen datos — captar el hecho (98,5% vs 98,9%: un hecho de 90) y no ensuciar con descartes "
+               "(100% los dos) — por 0,68 $ frente a 1,516 $ los 1.000 turnos, un 55% menos. Escribir va "
+               "off-hot-path, así que su mayor lentitud no le cuesta nada al turno de voz.",
+        "hallucination_note": "gpt-4o-mini es aún más barato (0,567 $) y está VETADO: con la alergia dicha en "
+                              "inglés le pone slot=operator.diet (3/3 pasadas). Un slot invalida todo lo anterior "
+                              "con ese slot, así que un futuro «ahora soy vegetariano» borraría la alergia — "
+                              "pérdida de datos silenciosa. El destilador se elige con el bench, nunca por "
+                              "reputación del proveedor (esto derogó la vieja regla «memoria = siempre OpenAI»).",
+        "candidates_2026_07_26": [
+            {"model": "gpt-4.1-mini", "cost_in": 0.40, "cost_out": 1.60, "status": "alternativa",
+             "verdict": "titular hasta 2026-08-09; único con metadato 100% y varianza cero, pero 2,2x el precio"},
+            {"model": "grok-4-fast-non-reasoning", "cost_in": 0.20, "cost_out": 0.50, "status": "alternativa",
+             "verdict": "la conservadora: 100% en precisión y capa/slot, pierde 3 pts de completeness"},
+            {"model": "gemini-2.5-flash", "cost_in": 0.30, "cost_out": 2.50, "status": "alternativa",
+             "verdict": "fallback nº1 si DeepSeek cae — metadato perfecto, 96,7% de completeness"},
+            {"model": "gpt-4o-mini", "cost_in": 0.15, "cost_out": 0.60, "status": "descartado",
+             "verdict": "VETADO — mete una alergia dicha en inglés en el slot de dieta; un cambio de dieta la borraría"},
+            {"model": "gpt-5-mini / gpt-5-nano", "cost_in": 0.25, "cost_out": 2.00, "status": "descartado",
+             "verdict": "razonadores: 50-60% de precisión — convierten preguntas y órdenes en recuerdos"},
+            {"model": "gpt-4.1-nano", "cost_in": 0.10, "cost_out": 0.40, "status": "descartado",
+             "verdict": "el más barato de OpenAI, pero pierde un tercio de los hechos y 6 de cada 10 slots"},
+        ],
     },
     {
         "id": "triage",

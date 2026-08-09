@@ -165,8 +165,10 @@ arranque `make run` → `python -m server`.
   [contexto+tarea] → CodeAgent con modelo por invocación, consume `escalate.requested` del bus, entrega por voz+UI) +
   `nucleo/memory_agent.py` ★ (agente de MEMORIA, único escritor a `memory/`; su `compose_context` = **dossier v2
   multi-eje** del worker V2-056: perfil sin misión + reglas + ⚠️ críticos SIEMPRE + recall + `by_concepts` + agenda,
-  solo durables, `to_thread`) + `nucleo/mem_processor.py` ★ (el CORAZÓN de escritura V2-013: **`gpt-4.1-mini` vía
-  OpenAI** por config `§memory` desde V2-056 — bench §12: 98.3% vs qwen2.5:7b local 86.2%, que queda de OPCIÓN; key
+  solo durables, `to_thread`) + `nucleo/mem_processor.py` ★ (el CORAZÓN de escritura V2-013:
+  **`deepseek/deepseek-v4-flash` vía AIMLAPI** por config `§memory` desde 2026-08-09 — bench §12.3: iguala a
+  `gpt-4.1-mini` en completeness (98,5 vs 98,9%) y precisión (100%) por **−55% de coste**; `gpt-4o-mini` VETADO
+  (mete una alergia en inglés en `slot=operator.diet`, que la borraría al cambiar de dieta); key
   POR ENDPOINT + salud con alerta por racha de fallos [incidente 2026-07-17/19: 2 días caído en silencio];
   escribir puede ser lento, prioriza escribir BIEN — DESTILA cada turno en píldoras curadas — dato+metadatos,
   decide DESCARTAR/ESTADO/CORTO/LARGO + importancia + `slot`; off-hot-path, fail-open a la heurística [que ya NO
@@ -695,9 +697,20 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   organizar los conceptos del grafo y calcular embeddings — todo **off-hot-path** (cola async, fire-and-forget); no
   hace falta que escritura y lectura sean inmediatas. La LECTURA, en cambio, es la que paga el FlashBrain en el turno
   (compone el prompt, responde, actúa) → **JAMÁS un LLM ni I/O de memoria síncrono al leer**. La escritura pasa por
-  el **CORAZÓN** (`nucleo/mem_processor.py`, **`gpt-4.1-mini` vía OpenAI** por config `§memory` desde V2-056
-  2026-07-20 — bench de destilación §12 (`zaelar-model-benchmarks.md`): **98.3%** vs qwen2.5:7b local 86.2%, que
-  queda como OPCIÓN local; key resuelta **POR ENDPOINT** + **SALUD de 1ª clase** (alerta por racha de fallos +
+  el **CORAZÓN** (`nucleo/mem_processor.py`, **`deepseek/deepseek-v4-flash` vía AIMLAPI** por config `§memory` desde
+  2026-08-09 — bench de destilación §12.3 (`zaelar-model-benchmarks.md`): 21 candidatos comerciales × 34 casos ×
+  **4 ejes separados** (write-completeness · precisión/no-pollution · capa+slot · $/1k turnos con tokens REALES).
+  Empata con el titular anterior `gpt-4.1-mini` en los dos ejes que DESTRUYEN datos —captar el hecho 98,5 vs 98,9%
+  y no ensuciar 100% vs 100%— por **$0,68 vs $1,516 los 1.000 turnos (−55%)**; escribir va off-hot-path, así que su
+  mayor lentitud no le cuesta nada al turno. **UN solo modelo comercial para self-host y nube** (decisión del
+  operador): los TRES sitios que lo fijan van sincronizados — `config/v2.py §memory`, `fly.demo.toml` y
+  `cloud/provisioner/src/machineConfig.js`. ⛔ `gpt-4o-mini` es más barato y está **VETADO**: a una alergia dicha en
+  INGLÉS le pone `slot=operator.diet` (3/3 pasadas) y un slot invalida todo lo anterior con ese slot → un futuro
+  «ahora soy vegetariano» borraría la alergia. Los **razonadores tampoco valen** (gpt-5-mini/nano: 50-60% de
+  precisión — convierten preguntas y órdenes en recuerdos). Esto **DEROGA la directriz «memoria = SIEMPRE OpenAI»**
+  de 2026-07-17: el destilador se elige con el bench, no por reputación del proveedor. Cadena de fallback:
+  `gemini-2.5-flash` → `gpt-4.1-mini`. El CORAZÓN **reporta su consumo a Energy** desde 2026-08-09 (era la única
+  llamada LLM de nube sin metering); key resuelta **POR ENDPOINT** + **SALUD de 1ª clase** (alerta por racha de fallos +
   `status()` — el incidente 2026-07-17/19 lo dejó 2 días caído en silencio) que DESTILA cada turno en **píldoras**
   (dato canónico + metadatos) y decide DESCARTAR/ESTADO/CORTO/LARGO + importancia + `slot` — LENTO a propósito,
   nunca en el turno; fail-open a la heurística regex, que ya NO ensucia (degrada a short+TTL 3d, nunca durable

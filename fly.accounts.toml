@@ -1,0 +1,54 @@
+# Fly.io — Zaelar ACCOUNTS app (2026-08-09, unifying demo↔account into one system — operator ask).
+# Separate app from `zaelar-demo` ON PURPOSE (operator decision, same session): mixing ephemeral demo
+# Machines and persistent account Machines under one app risks repeating the 2026-08-05 stale-image
+# incident (fly.js::currentAppImage() picking an old-image ephemeral machine over the freshly
+# redeployed base) and complicates the reaper's Machine-state bookkeeping. Same engine image either
+# way — public OSS, zero multi-tenancy awareness (boundary rule); only the app/env/volume differ.
+#
+# This file only matters for the INITIAL `flyctl deploy` (creates the app's base machine + pushes the
+# image to the registry, so fly.js::currentAppImage() has something to resolve). Real per-ACCOUNT
+# Machines are created dynamically by cloud/control-plane/ via the Fly Machines API
+# (accountMachineConfig — auto_destroy:false, a mounted Volume, ZAELAR_USER_ID set), NOT through this
+# file — see cloud/provisioner/src/machineConfig.js.
+app = "zaelar-accounts"
+primary_region = "iad"   # same region as zaelar-demo
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  HOST = "0.0.0.0"
+  PORT = "8080"
+  DEPLOY_ENV = "fly·iad·accounts"
+  # Same provider wiring as fly.demo.toml / machineConfig.js's BASE_PROVIDER_ENV — MUST stay in sync
+  # by hand (two deployables, no shared build step).
+  ZAELAR_TTS = "elevenlabs"
+  FAST_PROVIDER = "xai"
+  FAST_BASE_URL = "https://api.x.ai/v1"
+  FAST_MODEL = "grok-4.20-0309-non-reasoning"
+  ZAELAR_STT = "voxtral"
+  CODE_AGENT_BASE_URL = "https://api.z.ai/api/anthropic"
+  CODE_AGENT_MODEL = "glm-5.2"
+  MEM_PROCESSOR_URL = "https://api.aimlapi.com/v1"
+  MEM_PROCESSOR_MODEL = "deepseek/deepseek-v4-flash"
+  # NB: unlike fly.demo.toml, deliberately NO MEMORY_RERANK=off, NO ZAELAR_DEMO_*, NO
+  # ZAELAR_DEMO_ROUTER — a real account keeps the memory reranker ON (quality over ephemeral boot
+  # speed) and has no demo turn/TTL caps (see accountMachineConfig's docstring: bounded by Energy
+  # balance instead).
+
+# Same single coherent 443 service definition as fly.demo.toml, for the same cert-conflict reason —
+# but WITH autostop/autostart (accountMachineConfig's ACCOUNT_SERVICES mirrors this for the
+# per-account Machines the Machines API creates; this block covers only this app's own base machine).
+[[services]]
+  protocol = "tcp"
+  internal_port = 8080
+  auto_stop_machines = "stop"
+  auto_start_machines = true
+  min_machines_running = 0
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "2gb"
