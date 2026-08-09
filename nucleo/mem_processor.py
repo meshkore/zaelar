@@ -491,7 +491,11 @@ async def process(text: str, *, state: dict | None = None) -> list[dict] | None:
                         # Inocuo para OpenAI/Ollama/otros endpoints; el header sobra pero no molesta.
                         _headers = {"Authorization": f"Bearer {_key()}", "User-Agent": _BROWSER_UA}
                         async with s.post(url, headers=_headers, json=payload) as r:
-                            if r.status != 200:
+                            # CUALQUIER 2xx es una respuesta buena (2026-08-09): AIMLAPI devuelve **HTTP 201** con
+                            # un cuerpo de completion perfectamente válido para algunos modelos (visto con
+                            # `zhipu/glm-4.7`). Exigir `== 200` convertía eso en un fallo → fail-open a la heurística
+                            # lossy en CADA turno, en silencio, para quien configurase uno de esos modelos.
+                            if not (200 <= r.status < 300):
                                 body = (await r.text())[:200]
                                 # 4xx (salvo 429) = auth/bad-request: PERMANENTE, reintentar no ayuda → fail-open ya.
                                 if 400 <= r.status < 500 and r.status != 429:
