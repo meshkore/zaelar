@@ -233,8 +233,15 @@ async def _post_usage_cloud_account(energy: float, kind: str, meta: dict | None 
     `meta` (model/base_url ONLY — never content) doubles as the per-user activity timeline the
     backoffice reads. CONTROL_PLANE_URL/CONTROL_PLANE_SERVICE_TOKEN are injected by the provisioner at
     Machine creation (cloud/provisioner/src/machineConfig.js::accountMachineConfig) — same
-    guarded-until-configured pattern as everything else here: missing either → no-op, never raises."""
-    from nucleo import cloud_account
+    guarded-until-configured pattern as everything else here: missing either → no-op, never raises.
+
+    2026-08-09: the response already carries the account's new `balance` (control-plane's own
+    /usage handler has always returned it) — this used to be discarded. Reading it here is the WHOLE
+    gate: no separate balance-check endpoint was needed, just stop throwing the answer away. A
+    depleted balance (nucleo/account_limits.should_close) requests the session close, same
+    fire-and-forget contract demo_limits.py uses — a failed close request never breaks the turn that
+    triggered it."""
+    from nucleo import account_limits, cloud_account
 
     control_plane_url = (os.getenv("CONTROL_PLANE_URL") or "").strip()
     user_id = cloud_account.my_user_id()
@@ -247,11 +254,14 @@ async def _post_usage_cloud_account(energy: float, kind: str, meta: dict | None 
         payload["meta"] = meta
     try:
         async with httpx.AsyncClient(timeout=3.0) as client:
-            await client.post(
+            resp = await client.post(
                 control_plane_url.rstrip("/") + _USAGE_ENDPOINT_PATH,
                 json=payload,
                 headers=headers,
             )
+        balance = (resp.json() or {}).get("balance") if resp.status_code < 400 else None
+        if account_limits.should_close(balance):
+            account_limits.request_close("balance_depleted")
     except Exception as e:  # noqa: BLE001
         logger.warning(f"energy_meter: cloud-account usage report failed (non-fatal): {e}")
 

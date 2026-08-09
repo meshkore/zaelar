@@ -432,6 +432,31 @@ async def entrypoint(ctx: JobContext) -> None:
 
     _demo_limits.register_closer(_close_demo_session)
 
+    # ACCOUNT ENERGY CAP (2026-08-09): real-account counterpart of the demo cap above, same closer
+    # shape — but unlike demo_limits.check() (called synchronously BEFORE the next turn, with its
+    # closing line already queued by the caller), account_limits fires ASYNCHRONOUSLY from
+    # energy_meter.py's fire-and-forget usage report, well after the triggering turn's own reply
+    # already finished — so this closer must SPEAK the closing line itself, not just wait for one.
+    # No-op everywhere ZAELAR_USER_ID isn't set (self-host, demo) — cloud_account.is_cloud_account().
+    from nucleo import account_limits as _account_limits
+    from nucleo import cloud_account as _cloud_account
+
+    async def _close_account_session(reason: str) -> None:
+        _emit("session", f"account energy exhausted ({reason}) — closing", role="system")
+        try:
+            await session.say(langs.current_language().energy_exhausted, allow_interruptions=True)
+        except Exception:
+            pass
+        for _ in range(50):  # ~10s hard cap so a stuck busy-probe can never wedge the close forever
+            if not _busy["bot"]:
+                break
+            await asyncio.sleep(0.2)
+        await asyncio.sleep(0.3)
+        ctx.shutdown(reason=f"account:{reason}")
+
+    if _cloud_account.is_cloud_account():
+        _account_limits.register_closer(_close_account_session)
+
     # CHAT TEXT: the frontend publishes typed/pasted messages on the LiveKit data topic "zaelar-text"
     # (session-lk.js). Inject each as a normal user turn so the brain answers it exactly like a spoken turn.
     import json as _json
@@ -510,6 +535,10 @@ async def entrypoint(ctx: JobContext) -> None:
             pass
         try:
             _demo_limits.clear_closer(_close_demo_session)
+        except Exception:
+            pass
+        try:
+            _account_limits.clear_closer(_close_account_session)
         except Exception:
             pass
         boot.close()

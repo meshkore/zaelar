@@ -485,6 +485,39 @@ def create_app() -> FastAPI:
         logger.warning(f"demo_routing: could not resolve machine for session {wanted!r}, serving locally")
         return await call_next(request)
 
+    # ACCOUNT SESSION ROUTING (2026-08-09, unifying demo↔account — Fase 2): the real-account
+    # counterpart of the demo routing above. A no-op on every Machine that isn't a real cloud
+    # account (self-host, every demo Machine) — is_cloud_account() is False there, zero cost.
+    @app.middleware("http")
+    async def _account_session_routing(request, call_next):
+        from nucleo import account_routing as _ar
+        from nucleo import cloud_account as _ca
+
+        if not _ca.is_cloud_account():
+            return await call_next(request)
+        if request.url.path.startswith("/static/"):
+            return await call_next(request)
+
+        token = request.cookies.get(_ar.SESSION_COOKIE)
+        if not token:
+            # no cloud session cookie at all (shouldn't happen once Fase 2's cookie is set correctly,
+            # but fail-open — serve locally rather than dead-end a request) — never touches the
+            # network for the common "this IS the right machine" case.
+            return await call_next(request)
+
+        control_plane_url = os.getenv("CONTROL_PLANE_URL", "")
+        mine = _ar.my_machine_id()
+        if not control_plane_url or not mine:
+            return await call_next(request)
+
+        target = await _ar.find_machine_for_session(token, control_plane_url=control_plane_url)
+        if target is None or target == mine:
+            return await call_next(request)
+
+        # wrong Machine for this session's account — hand off via fly-replay, same technique as demo.
+        from starlette.responses import Response as _Response
+        return _Response(status_code=307, headers={"fly-replay": f"instance={target}"})
+
     # meshkore_router is NATIVE (a channel like voice/chat), so it is always mounted regardless of BRAIN.
     # messaging_router is the UI-managed connect/disconnect API for the messaging connectors (WhatsApp/Telegram):
     # the whole point of INI-015 is that a user connects them from the widget, never by editing .env.

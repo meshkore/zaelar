@@ -1,3 +1,5 @@
+import asyncio
+
 import httpx
 import pytest
 
@@ -261,6 +263,83 @@ async def test_post_usage_demo_session_control_plane_noop_without_url(monkeypatc
 
     monkeypatch.setattr(httpx, "AsyncClient", _boom)
     await energy_meter._post_usage(7.0, "tts")
+
+
+@pytest.mark.anyio
+async def test_post_usage_cloud_account_requests_close_when_balance_depleted(monkeypatch):
+    """2026-08-09: the /usage response's `balance` used to be discarded — now a depleted balance
+    (<=0) must request the session close via nucleo.account_limits, the operator's "cuando se gasta,
+    se acabó" rule."""
+    monkeypatch.setenv("ZAELAR_USER_ID", "did:key:z6MkExample")
+    monkeypatch.setenv("CONTROL_PLANE_URL", "https://zaelar-control-plane.example.workers.dev")
+    monkeypatch.delenv("ZAELAR_DEMO_SESSION", raising=False)
+
+    class _FakeResp:
+        status_code = 200
+
+        def json(self):
+            return {"ok": True, "balance": 0}
+
+    class _FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def post(self, url, json=None, headers=None):
+            return _FakeResp()
+
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: _FakeClient())
+
+    from nucleo import account_limits
+
+    closed = []
+    account_limits.register_closer(lambda reason: closed.append(reason))
+    try:
+        await energy_meter._post_usage(12.5, "worker")
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+    finally:
+        account_limits.clear_closer()
+    assert closed == ["balance_depleted"]
+
+
+@pytest.mark.anyio
+async def test_post_usage_cloud_account_does_not_close_with_energy_left(monkeypatch):
+    monkeypatch.setenv("ZAELAR_USER_ID", "did:key:z6MkExample")
+    monkeypatch.setenv("CONTROL_PLANE_URL", "https://zaelar-control-plane.example.workers.dev")
+    monkeypatch.delenv("ZAELAR_DEMO_SESSION", raising=False)
+
+    class _FakeResp:
+        status_code = 200
+
+        def json(self):
+            return {"ok": True, "balance": 137.5}
+
+    class _FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def post(self, url, json=None, headers=None):
+            return _FakeResp()
+
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: _FakeClient())
+
+    from nucleo import account_limits
+
+    closed = []
+    account_limits.register_closer(lambda reason: closed.append(reason))
+    try:
+        await energy_meter._post_usage(12.5, "worker")
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+    finally:
+        account_limits.clear_closer()
+    assert closed == []
 
 
 @pytest.fixture
