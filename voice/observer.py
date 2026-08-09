@@ -190,7 +190,13 @@ def unsubscribe(q):
 SESSIONS_DIR = os.path.join(LOG_DIR, "sessions")
 os.makedirs(SESSIONS_DIR, exist_ok=True)
 _events: list = []                 # in-memory ring of the CURRENT session (served by /debug)
-_session = {"id": None, "path": None}
+# LIMPIEZA 2026-08-09: aquí vivía un SEGUNDO concepto de sesión (`_session = {id, path}`, id con formato
+# `%Y%m%d-%H%M%S`) que solo se rellenaba llamando a `reset_session()`… y NADIE lo llamaba. Consecuencia: el
+# fichero por sesión que documentábamos (`.meshkore/logs/sessions/<id>.jsonl`) llevaba tiempo sin escribirse
+# nunca, porque `path` era None y el bucle de escritura lo saltaba. Ahora hay UNA sola sesión —la de trabajo del
+# operador, `observability/identity.py`— y el fichero se deriva de SU id: la función documentada vuelve a
+# existir de verdad y desaparece la duplicidad.
+_session_file = {"sid": None, "path": None}
 _seq = {"n": 0}
 _dedup: dict = {}                  # (kind,label) -> last ts, to collapse high-frequency frame floods
 
@@ -310,7 +316,7 @@ def emit(kind: str, label: str, text: str = "", role: str = "", extra: dict | No
     if len(_events) > 5000:
         del _events[:1000]
     line = json.dumps(ev, ensure_ascii=False) + "\n"
-    for path in (os.path.join(LOG_DIR, "timeline-latest.jsonl"), _session["path"]):
+    for path in (os.path.join(LOG_DIR, "timeline-latest.jsonl"), _session_path(ev.get("sid"))):
         if not path:
             continue
         try:
@@ -334,25 +340,28 @@ def debug_events(kind: str = "", limit: int = 0) -> list:
     return evs[-limit:] if limit else evs
 
 
+def _session_path(sid) -> str:
+    """Fichero de la sesión de trabajo en curso. Se memoiza para no recomponer la ruta en cada evento (el hot
+    path de voz pasa por aquí); al cambiar de sesión, cambia solo."""
+    sid = str(sid or "")
+    if not sid:
+        return ""
+    if _session_file["sid"] != sid:
+        _session_file["sid"] = sid
+        _session_file["path"] = os.path.join(SESSIONS_DIR, f"{sid}.jsonl")
+    return _session_file["path"]
+
+
 def session_info() -> dict:
-    return {"session_id": _session["id"], "events": len(_events),
-            "file": _session["path"], "t0_ms": _t0["v"]}
-
-
-def reset_session():
-    """Start a fresh conversation: clean t0, clear the in-memory ring, open a new per-session debug file."""
-    import time
-    _t0["v"] = None
-    _events.clear()
-    _dedup.clear()
-    _seq["n"] = 0
-    _session["id"] = time.strftime("%Y%m%d-%H%M%S")
-    _session["path"] = os.path.join(SESSIONS_DIR, f"{_session['id']}.jsonl")
+    """Estado de la sesión para `/api/debug`. La FUENTE es `observability.identity` — este módulo ya no lleva
+    su propia contabilidad de sesiones (ver la nota de `_session_file`)."""
+    sid = ""
     try:
-        open(os.path.join(LOG_DIR, "timeline-latest.jsonl"), "w").close()
+        from observability import identity as _ident
+        sid = _ident.session_id()
     except Exception:
         pass
-    emit("session", "── NEW SESSION ──", extra={"session_id": _session["id"]})
+    return {"session_id": sid, "events": len(_events), "file": _session_path(sid), "t0_ms": _t0["v"]}
 
 
 def clear_log():

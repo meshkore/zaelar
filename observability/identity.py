@@ -29,6 +29,8 @@ import time
 import uuid
 from pathlib import Path
 
+from loguru import logger
+
 from nucleo import workspace as _workspace
 
 _lock = threading.Lock()
@@ -97,6 +99,7 @@ def begin_session(source: str = "frontend", force: bool = False) -> dict:
         _session["source"] = (source or "frontend")[:40]
         info = dict(_session)
     _emit_session("start", info, extra={"source": info["source"]})
+    _report_to_control_plane("start", info)
     return info
 
 
@@ -111,6 +114,7 @@ def end_session(reason: str = "frontend") -> dict:
     if info.get("id"):
         dur = round(time.time() * 1000) - (info.get("started_ms") or 0)
         _emit_session("end", info, extra={"reason": (reason or "")[:40], "duration_ms": dur})
+        _report_to_control_plane("end", info)
     return info
 
 
@@ -118,6 +122,45 @@ def session_info() -> dict:
     sid = _session["id"]
     return {"session_id": sid, "started_ms": _session["started_ms"], "source": _session["source"],
             "user_id": user_id()}
+
+
+def _report_to_control_plane(label: str, info: dict) -> None:
+    """SOLO en una cuenta de nube: avisa al control-plane de que una sesión empieza o acaba, para el REGISTRO DE
+    ACTIVIDAD central (quién usó el sistema, cuándo y cuánto gastó). No viaja ni un evento ni una transcripción —
+    solo `(user_id, session_id, start|end)`; el consumo lo acumula el propio `POST /usage`, que desde 2026-08-09
+    ya lleva la sesión. En self-host es un no-op: no hay control-plane al que hablarle.
+
+    Fire-and-forget con el mismo contrato que `energy_meter`: sin URL o sin token no hace nada, y un fallo NUNCA
+    puede tumbar el arranque ni el cierre de una sesión. Sin `ended_at` (una máquina que muere de golpe no lo
+    manda) el registro sigue sirviendo: el control-plane conserva el último consumo visto como estimación."""
+    try:
+        import asyncio
+        import os
+
+        from nucleo import cloud_account
+
+        url = (os.getenv("CONTROL_PLANE_URL") or "").strip()
+        uid = cloud_account.my_user_id()
+        if not url or not uid:
+            return
+
+        async def _post() -> None:
+            import httpx
+            token = (os.getenv("CONTROL_PLANE_SERVICE_TOKEN") or "").strip()
+            try:
+                async with httpx.AsyncClient(timeout=3.0) as client:
+                    await client.post(url.rstrip("/") + "/session",
+                                      json={"user_id": uid, "session_id": info.get("id"), "event": label},
+                                      headers={"X-Service-Token": token} if token else {})
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"observability: reporte de sesión '{label}' falló (no fatal): {e}")
+
+        asyncio.get_running_loop()
+        asyncio.create_task(_post())
+    except RuntimeError:
+        pass          # sin loop (arranque, test) — el registro de actividad no vale una excepción
+    except Exception:
+        pass
 
 
 def _emit_session(label: str, info: dict, extra: dict | None = None) -> None:
