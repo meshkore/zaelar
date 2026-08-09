@@ -415,29 +415,11 @@ async def entrypoint(ctx: JobContext) -> None:
     _proactive.register_speaker(_speak)
     _proactive.register_busy_probe(lambda: _busy["bot"] or _busy["user"])   # don't talk over a live turn
 
-    # DEMO CAP (INI-018 T6): closer registry, same shape as the proactive speaker above — a no-op
-    # everywhere the ZAELAR_DEMO_* env vars aren't set (self-host, the operator's own cloud account).
-    from nucleo import demo_limits as _demo_limits
-
-    async def _close_demo_session(reason: str) -> None:
-        _emit("session", f"demo limit reached ({reason}) — closing", role="system")
-        # let the closing line (already queued via send()/session.say before this was called) finish
-        # playing before the room actually goes away.
-        for _ in range(50):  # ~10s hard cap so a stuck busy-probe can never wedge the close forever
-            if not _busy["bot"]:
-                break
-            await asyncio.sleep(0.2)
-        await asyncio.sleep(0.3)
-        ctx.shutdown(reason=f"demo:{reason}")
-
-    _demo_limits.register_closer(_close_demo_session)
-
-    # ACCOUNT ENERGY CAP (2026-08-09): real-account counterpart of the demo cap above, same closer
-    # shape — but unlike demo_limits.check() (called synchronously BEFORE the next turn, with its
-    # closing line already queued by the caller), account_limits fires ASYNCHRONOUSLY from
-    # energy_meter.py's fire-and-forget usage report, well after the triggering turn's own reply
-    # already finished — so this closer must SPEAK the closing line itself, not just wait for one.
-    # No-op everywhere ZAELAR_USER_ID isn't set (self-host, demo) — cloud_account.is_cloud_account().
+    # ACCOUNT ENERGY CAP (2026-08-09): closer registry, same shape as the proactive speaker above.
+    # Fires ASYNCHRONOUSLY from energy_meter.py's fire-and-forget usage report, well after the
+    # triggering turn's own reply already finished — so this closer must SPEAK the closing line
+    # itself, not just wait for one. No-op everywhere ZAELAR_USER_ID isn't set (self-host) —
+    # cloud_account.is_cloud_account().
     from nucleo import account_limits as _account_limits
     from nucleo import cloud_account as _cloud_account
 
@@ -531,10 +513,6 @@ async def entrypoint(ctx: JobContext) -> None:
         _emit("session", "session closed", role="system")
         try:
             _proactive.clear_speaker(_speak)
-        except Exception:
-            pass
-        try:
-            _demo_limits.clear_closer(_close_demo_session)
         except Exception:
             pass
         try:

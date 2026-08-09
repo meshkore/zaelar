@@ -162,6 +162,21 @@ export function DebugPanel() {
     return ["main", "memory", "flash", "nav"];
   })());
 
+  // ── DESGLOSE POR KIND (2026-08-09, petición del operador) ────────────────────────────────────────────────────
+  // Las 6 categorías son familias GRUESAS: dentro de «Principal» conviven transcripts, tareas, widgets, sesión…
+  // El operador pidió poder centrarse en lo suyo («mensajes, brain workers, FlashBrain») y callar el resto SIN
+  // tener que apagar una familia entera. Cada `kind` que APARECE gana su propio chip con contador vivo; apagarlo
+  // oculta esas filas al instante (y persiste). Se guardan los APAGADOS, no los encendidos: así un kind nuevo
+  // (uno que estrene una capacidad futura) nace VISIBLE — nunca se pierde señal por una lista vieja en el
+  // localStorage. Shift+click = SOLO ese kind (apaga los demás); repetir devuelve todo.
+  const hiddenKinds = new Set((() => {
+    try { const s = JSON.parse(localStorage.getItem("hb_dbg_kinds_off") || "null"); if (Array.isArray(s)) return s; } catch {}
+    return [];
+  })());
+  const kindChips = new Map();                   // kind -> {btn, nEl, n} (orden = primera aparición, estable)
+  let kindsEl, kindsBtn;
+  let kindsOpen = localStorage.getItem("hb_dbg_kinds_open") === "1";
+
   // ── stick-to-tail: seguir SIEMPRE el último evento, pero soltar si el operador sube el scroll ──
   // (V2 obs) El fondo se fija DESPUÉS del layout (rAF), así una fila recién añadida —que ahora puede
   // ocupar dos líneas en columna estrecha— nunca queda a medio cortar en el borde inferior. Cuando el
@@ -186,8 +201,53 @@ export function DebugPanel() {
 
   function visible(row) {
     if (!enabledCats.has(row.dataset.cat || "main")) return false;
+    if (hiddenKinds.has(row.dataset.kind || "log")) return false;
     if (noiseHidden && row.dataset.noise === "1") return false;
     return !filter || (row.dataset.s || "").includes(filter);
+  }
+
+  // Registra (o actualiza) el chip de un kind. Se llama por CADA evento —también por los colapsados en ×N— así el
+  // contador dice cuánto pesa realmente cada tipo en el hilo, que es lo que decide qué apagar.
+  function noteKind(kind) {
+    let c = kindChips.get(kind);
+    if (!c) {
+      const btn = document.createElement("button");
+      btn.className = "dbg-kind" + (hiddenKinds.has(kind) ? "" : " on");
+      btn.title = t("debug.kind_hint", { kind });
+      const lb = document.createElement("span"); lb.textContent = kind;
+      const nEl = document.createElement("i"); nEl.className = "dbg-kn";
+      btn.append(lb, nEl);
+      btn.addEventListener("click", (e) => toggleKind(kind, e.shiftKey));
+      c = { btn, nEl, n: 0 };
+      kindChips.set(kind, c);
+      if (kindsEl) kindsEl.appendChild(btn);
+    }
+    c.n++; c.nEl.textContent = String(c.n);
+  }
+
+  function persistKinds() {
+    try { localStorage.setItem("hb_dbg_kinds_off", JSON.stringify([...hiddenKinds])); } catch {}
+    if (kindsBtn) kindsBtn.classList.toggle("muted", hiddenKinds.size > 0);
+  }
+
+  function toggleKind(kind, solo) {
+    if (solo) {
+      // «solo esto»: si YA estaba aislado, el segundo shift+click devuelve todo (interruptor, no callejón sin salida).
+      const alreadySolo = !hiddenKinds.has(kind) && hiddenKinds.size === kindChips.size - 1;
+      hiddenKinds.clear();
+      if (!alreadySolo) for (const k of kindChips.keys()) if (k !== kind) hiddenKinds.add(k);
+    } else if (hiddenKinds.has(kind)) hiddenKinds.delete(kind);
+    else hiddenKinds.add(kind);
+    for (const [k, c] of kindChips) c.btn.classList.toggle("on", !hiddenKinds.has(k));
+    persistKinds();
+    reflow();
+  }
+
+  function toggleKindsRow() {
+    kindsOpen = !kindsOpen;
+    localStorage.setItem("hb_dbg_kinds_open", kindsOpen ? "1" : "0");
+    if (kindsEl) kindsEl.hidden = !kindsOpen;
+    if (kindsBtn) kindsBtn.classList.toggle("on", kindsOpen);
   }
 
   function addRow(d) {
@@ -201,6 +261,8 @@ export function DebugPanel() {
     const searchable = (kind + " " + label + " " + meta + " " + text + " " + (bn || "") + " " + (chip ? chip.text : "")
       + " " + (d.trace || "") + " " + (d.span || "")).toLowerCase();   // V2-044: filtrable por trace/span
     const sig = kind + "|" + label + "|" + meta + "|" + text;
+
+    noteKind(kind);
 
     // Collapse consecutive identical events into one row with a ×N counter (defends the panel against any burst).
     if (lastRow && sig === lastSig) {
@@ -219,6 +281,7 @@ export function DebugPanel() {
     row.dataset.s = searchable;
     row.dataset.noise = isNoise(kind, label) ? "1" : "0";
     row.dataset.cat = (d.cat || "main").toString();       // V2-037: categoría para el filtro superior
+    row.dataset.kind = kind;                              // desglose por kind (2ª fila de chips)
 
     const ts = document.createElement("span"); ts.className = "dbg-t"; ts.textContent = stamp(d._rx);
     const lt = document.createElement("span"); lt.className = "dbg-lat" + (lat ? " " + lat.cls : "");
@@ -347,6 +410,10 @@ export function DebugPanel() {
     clearDebugBuffer();
     if (listEl) listEl.replaceChildren();
     if (tracesEl) tracesEl.replaceChildren();   // V2-044: también el árbol
+    // Los chips de kind describen lo que HAY en el log → al vaciarlo se vacían con él (y se re-crean solos con el
+    // siguiente evento). Lo que NO se toca es qué kinds están apagados: esa es la preferencia del operador.
+    if (kindsEl) kindsEl.replaceChildren();
+    kindChips.clear();
     traces.clear();
     lastRow = null; lastSig = ""; count = 0;
     if (countEl) countEl.textContent = t("debug.events", { n: 0 });
@@ -396,7 +463,18 @@ export function DebugPanel() {
         title: c.key === "system" ? () => t("debug.cat_system_title") : () => t(CAT_LABEL_KEY[c.key] || "debug.cat_main"),
         onClick: (e) => toggleCat(c.key, e.currentTarget),
       }, () => t(CAT_LABEL_KEY[c.key] || "debug.cat_main"))),
+      // Desglose fino: despliega la 3ª fila con un chip por kind visto. Se marca `muted` mientras haya algo
+      // apagado, para que el operador nunca mire un hilo recortado creyendo que lo ve todo.
+      h("button", {
+        class: "dbg-cat dbg-kinds-t" + (kindsOpen ? " on" : "") + (hiddenKinds.size ? " muted" : ""),
+        title: () => t("debug.kinds_title"),
+        ref: (el) => (kindsBtn = el),
+        onClick: toggleKindsRow,
+      }, () => t("debug.kinds")),
     ),
+    // 3ª barra — un chip POR KIND (con su contador vivo), construida sobre la marcha con los kinds que van
+    // apareciendo. Oculta salvo que el operador la despliegue: es la herramienta de precisión, no el mando diario.
+    h("div", { class: "dbg-kinds", ref: (el) => { kindsEl = el; el.hidden = !kindsOpen; } }),
     h("div", { class: "dbg-list", ref: (el) => { listEl = el; el.hidden = (mode === "traces"); el.addEventListener("scroll", onListScroll, { passive: true }); } }),
     // V2-044: la vista Trazas — misma zona, contenedor alterno (toggle ⛓ arriba)
     h("div", { class: "dbg-list dbg-traces", ref: (el) => { tracesEl = el; el.hidden = (mode !== "traces"); el.addEventListener("scroll", onListScroll, { passive: true }); } }),

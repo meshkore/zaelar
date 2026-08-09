@@ -26,7 +26,7 @@ _t0 = {"v": None}
 # por defecto (al activarlo salen docenas). "brain" = FlashBrain ORQUESTADOR (ya no hay cerebro aparte).
 _CAT = {
     # principales (ON)
-    "task": "main", "metric": "main", "state": "main", "transcript": "main", "bot_speech": "main",
+    "task": "main", "state": "main", "transcript": "main", "bot_speech": "main",
     "tts": "main", "stt": "main", "widget": "main", "notify": "main", "timing": "main", "search": "main",
     "ambient": "main", "session": "main", "worker_start": "main", "error": "main",
     # UI del operador — taps de iconos del orbe/TopBar + geometría de widgets (V2-039, ON: es auditoría del frontend)
@@ -38,7 +38,13 @@ _CAT = {
     # navegador + procesos backed/background (ON)
     "navegador": "nav", "background": "nav", "backed": "nav",
     # sistema / código — internos y ruidosos (OFF por defecto)
-    "vad": "system", "cluster": "system", "perf": "system",
+    # `metric` BAJÓ de `main` a `system` (2026-08-09, queja del operador): son las métricas CRUDAS del plugin
+    # de LiveKit, y con un STT de streaming (Deepgram) la métrica NO depende de que alguien hable — su
+    # PeriodicCollector suelta `STTMetrics: audio=5.00s` cada 5 s mientras el micro esté abierto, de forma
+    # PERPETUA. Ensuciaba el hilo principal con ~720 filas/hora sin señal (la latencia POR FRASE, que sí la
+    # tiene, ya sale como `stt`/`tts`/`brain` con backend, modelo y texto). Misma lógica que el anti-flood de
+    # `VADMetrics` del 2026-07-12: métrica continua ≠ evento del turno. Sigue persistida en los jsonl.
+    "metric": "system", "vad": "system", "cluster": "system", "perf": "system",
 }
 
 

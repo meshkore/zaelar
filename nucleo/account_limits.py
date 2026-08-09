@@ -1,16 +1,13 @@
 #
-# ACCOUNT LIMITS (2026-08-09) — the real-account counterpart of demo_limits.py. A cloud account has
-# NO turn/TTL cap by design (accountMachineConfig's docstring: "bounded by Energy balance, not a
-# hard cap") — the only thing that ends a session here is running OUT of Energy. Operator's own
-# words: "cuando se gasta, se acabó" — a hard, uniform cutoff (trial or a subscriber between
-# renewals, same rule; see the INI-019-adjacent addenda for why this supersedes energy-model.md's
-# older soft-degrade language). Self-host and demo Machines never call this (is_cloud_account() is
-# False there) — same no-op-by-construction idiom as everywhere else.
+# ACCOUNT LIMITS (2026-08-09) — a cloud account has NO turn/TTL cap by design (accountMachineConfig's
+# docstring: "bounded by Energy balance, not a hard cap") — the only thing that ends a session here
+# is running OUT of Energy. Operator's own words: "cuando se gasta, se acabó" — a hard, uniform
+# cutoff (trial or a subscriber between renewals, same rule; see the INI-019-adjacent addenda for why
+# this supersedes energy-model.md's older soft-degrade language). Self-host never calls this
+# (is_cloud_account() is False there) — same no-op-by-construction idiom as everywhere else.
 #
-# Mirrors demo_limits.py's closer registry EXACTLY (same shape, same asyncio.create_task/no-op-
-# without-a-loop contract) so the live voice session (voice/engine/pipeline/agent.py) registers ONE
-# extra closer next to the demo one, gated on cloud_account.is_cloud_account() instead of
-# demo_limits.enabled().
+# Closer registry: the live voice session (voice/engine/pipeline/agent.py) registers a closer gated
+# on cloud_account.is_cloud_account(), invoked fire-and-forget from energy_meter.py.
 #
 import asyncio
 
@@ -23,9 +20,7 @@ def should_close(balance: float | None) -> bool:
     return balance is not None and balance <= 0
 
 
-# --- closer registry — identical contract to demo_limits.py's, deliberately not shared code: the two
-# modules gate on different accessors (is_cloud_account() vs demo_limits.enabled()) and a future
-# change to one's semantics must never silently affect the other. ---
+# --- closer registry ---
 
 _closer = None  # callable(reason: str) -> None | Awaitable[None], set by the live session
 

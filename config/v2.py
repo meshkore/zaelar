@@ -108,7 +108,7 @@ _DEFAULTS: dict[str, dict] = {
         #     por escrito, y en una memoria personal es pérdida de datos silenciosa, no un punto porcentual.
         #   · Fallback si AIMLAPI/DeepSeek cae: `google/gemini-2.5-flash` (96,7/100/100) → `openai/gpt-4.1-mini`.
         #   · MISMO modelo en self-host y en la nube (decisión del operador 2026-08-09: un solo modelo comercial que
-        #     sirva en los dos sitios). Los dos sitios que lo fijan por env en cloud —`engine/fly.demo.toml` y
+        #     sirva en los dos sitios). Los sitios que lo fijan por env en cloud —`engine/fly.accounts.toml` y
         #     `cloud/provisioner/src/machineConfig.js`— van sincronizados con este default.
         #   · La opción LOCAL (Ollama) sigue disponible apuntando `mem_processor_base_url` a `localhost:11434`.
         "mem_processor_model": "deepseek/deepseek-v4-flash",     # vacío = env MEM_PROCESSOR_MODEL o el fallback

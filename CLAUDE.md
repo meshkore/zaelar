@@ -1109,12 +1109,14 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   `"result"` de stream-json, pero morían en un chip de UI (`voice.observer`), nunca en Energy —
   `report_worker_usage()` los tariffa con la MISMA tabla (no con el `total_cost_usd` del CLI: ese número usa
   precio OFICIAL de Anthropic, que no significa nada una vez el worker se relevó a un plan forfait de Z.AI/
-  Moonshot — ver decisión anterior). **Gate extendido a cuentas cloud reales**: `enabled()` solo miraba
-  `demo_routing.is_demo_machine()`; ahora también `nucleo/cloud_account.is_cloud_account()`
-  (`ZAELAR_USER_ID`, inyectado por el provisioner en `accountMachineConfig` — mismo patrón accessor que
-  `is_demo_machine()`). El reporte se enruta: demo → KV efímero del Worker de sesión (sin cambios); cuenta
-  cloud → `POST {CONTROL_PLANE_URL}/usage` con `{user_id,energy,kind}` + `X-Service-Token` (el endpoint YA
+  Moonshot — ver decisión anterior). **Gate = `nucleo/cloud_account.is_cloud_account()`**
+  (`ZAELAR_USER_ID`, inyectado por el provisioner en `accountMachineConfig`). El reporte va a
+  `POST {CONTROL_PLANE_URL}/usage` con `{user_id,energy,kind}` + `X-Service-Token` (el endpoint YA
   existía en `cloud/control-plane`, solo faltaba que el motor lo llamara — Fase 3 M8 del plan INI-019).
+  **2026-08-09 (INI-020):** el sistema demo anónimo efímero (`demo_routing.py`/`demo_limits.py`,
+  Machines compartidas de 15 min) se RETIRÓ por completo — toda alta, gratis o de pago, es hoy una
+  cuenta real con Machine+Volumen propios; el corte pasa a ser por saldo de Energy
+  (`nucleo/account_limits.py`), nunca por turnos/TTL.
   **Precios verificados por web (2026-08-05, re-verificar periódicamente)**: DeepSeek V4 Flash $0.14/$0.28,
   GLM-5.2 $1.40/$4.40, Kimi K2.6 $0.95/$4.00, Claude Haiku 4.5 $1.00/$5.00 (fallback). **Gap cerrado el
   mismo día**: la generación de widgets (`widgets/generator.py::_run_agent`) también lanza `claude -p

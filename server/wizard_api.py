@@ -25,6 +25,8 @@ from pathlib import Path
 from fastapi import APIRouter, Body
 from loguru import logger
 
+from nucleo import cloud_account
+
 router = APIRouter()
 
 _PY = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".venv", "bin", "python")
@@ -33,21 +35,12 @@ if not os.path.exists(_PY):
 
 
 # ── first-run marker (en settings.json, como config_profile de profiles.apply) ─────────────────────────────
-def _demo_session() -> bool:
-    """True on any ephemeral demo Fly Machine — per-session (ZAELAR_DEMO_SESSION) OR warm-pool
-    (ZAELAR_DEMO_POOL); never on a self-host install. Routes through the single demo_routing accessor
-    so a pool machine also suppresses the self-host first-run wizard."""
-    from nucleo import demo_routing
-    return demo_routing.is_demo_machine()
-
-
 def _first_run() -> bool:
-    if _demo_session():
-        # A demo Machine boots fresh every time (ephemeral, auto_destroy=true, no persisted
-        # settings.json) — without this the self-host first-run wizard ("Elige un perfil") would
-        # show unconditionally to every anonymous demo visitor, even though demoMachineConfig
-        # already sets working provider env vars (BASE_PROVIDER_ENV) for them. This wizard is for a
-        # human setting up their own machine once, not a public demo session.
+    if cloud_account.is_cloud_account():
+        # A real account Machine boots fresh (persisted Volume, but no settings.json of its own)
+        # and already gets working provider env vars from accountMachineConfig — the self-host
+        # first-run wizard ("Elige un perfil") is for a human setting up their own machine once,
+        # not a cloud account.
         return False
     try:
         from config import settings

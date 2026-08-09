@@ -21,6 +21,24 @@ para el splash) y una grabación de mic OPCIONAL. Cada evento se escribe a:
 | **`GET /debug`** | timeline en vivo en el navegador (anillo en memoria) | abrir en Chrome mientras hablas |
 | **`.meshkore/logs/voice/<session_id>/mic_raw.wav`** | audio de entrada, **solo si `ZAELAR_RECORD_MIC=1`** (def OFF) | reproducir para verificar STT |
 
+### Filtrar el visor (◷): DOS ejes, no uno
+
+El panel (`frontend/app/components/DebugPanel.js`) filtra en vivo por **dos ejes independientes**, ambos aplicados
+en `visible(row)` y re-evaluados sobre TODO el log en cada cambio (`reflow()`), no solo sobre lo que llegue después:
+
+1. **CATEGORÍA** (2ª barra, 6 familias gruesas: Principal · Memoria · FlashBrain · Navegador · Sistema/Código ·
+   Pulso). La sella el backend en `observer.py::_CAT`; persiste en `hb_dbg_cats`.
+2. **KIND** (3ª barra, plegable — botón «Tipos…»): un chip **por cada `kind` que ha aparecido**, con contador vivo.
+   Es el desglose FINO que la categoría no da: dentro de «Principal» conviven `transcript`, `task`, `widget`,
+   `session`… y el operador puede querer solo `brain` + `task` + `worker_start`. Click = mostrar/ocultar;
+   **shift+click = ver SOLO ese kind** (repetir devuelve todo). Persiste en `hb_dbg_kinds_off` — se guardan los
+   **apagados**, no los encendidos, para que un `kind` NUEVO (el que estrene una capacidad futura) nazca VISIBLE y
+   nunca se pierda señal por una lista vieja en el `localStorage`. Mientras haya algo apagado el botón «Tipos…» se
+   pone en ámbar: **un hilo recortado no debe parecer completo**.
+
+Las filas ocultas siguen en el DOM (encender un chip las devuelve al instante, sin recargar) y **nada de esto toca
+lo que se persiste**: los `.jsonl` y el SSE siguen llevándolo todo — el filtro es de LECTURA.
+
 ## Trazabilidad texto → acción → rail → sesión → eventos (V2-044)
 
 Cada **estímulo** que entra al sistema nace con un **trace id** (`T12·9f3a`) y TODO lo que deriva de él queda
@@ -114,10 +132,16 @@ Diseño: `.meshkore/roadmap/initiatives/V2-048-observabilidad-workers.md`.
   voz ambiente?"**: si en una reunión NO hay eventos `widget`/`brain reply` sino `ambient`, el gate está haciendo su
   trabajo. Si ves `widget`/escaladas sobre frases que no le hablaban a zaelar → revisar `ZAELAR_ATTENTION` (¿en
   `always`?) o la ventana. El evento no lleva role de chat (no ensucia el ChatWall), solo `/debug` + SSE `/events`.
-- `bot_speech` — orbe hablando/idle. `tts` — síntesis. `metric` — métricas por turno (`STTMetrics`, `LLMMetrics
-  ttft/dur`, `TTSMetrics ttfb`, `EOUMetrics`). ⚠️ **`VADMetrics` NO se registra** (anti-flood 2026-07-12): se
-  dispara ~2/s de forma continua (más con ruido de fondo) y no lleva latencias útiles → floodeaba el stream y hacía
-  I/O de fichero síncrono en el hilo de voz. `agent.py::_on_metrics` descarta toda métrica sin números reales.
+- `bot_speech` — orbe hablando/idle. `tts` — síntesis. `metric` — métricas CRUDAS del plugin de LiveKit
+  (`STTMetrics`, `LLMMetrics ttft/dur`, `TTSMetrics ttfb`, `EOUMetrics`). ⚠️ **`VADMetrics` NO se registra**
+  (anti-flood 2026-07-12): se dispara ~2/s de forma continua (más con ruido de fondo) y no lleva latencias útiles →
+  floodeaba el stream y hacía I/O de fichero síncrono en el hilo de voz. `agent.py::_on_metrics` descarta toda
+  métrica sin números reales. ⚠️ **`metric` vive en la categoría `system`, NO en `main`** (2026-08-09, queja del
+  operador): con un STT de **streaming** (Deepgram) la métrica **no depende de que nadie hable** — el
+  `PeriodicCollector` del plugin suelta `STTMetrics: audio=5.00s` **cada 5 s mientras el micro esté abierto**, de
+  forma perpetua (~720 filas/hora en un canal ocioso). La latencia POR FRASE, que sí es señal, ya sale como
+  `stt`/`tts`/`brain` con backend, modelo y texto. Se sigue persistiendo al jsonl; solo deja de ensuciar el hilo
+  principal del visor.
   `error` — errores de sesión. `alert` — errores hablables (p.ej. "Cerebro rápido caído"). `session` — apertura/cierre.
 - Conectores: `label` con prefijo `cluster.` / `cron.` / `architect.` / `wa.` (WhatsApp) / (Telegram) = despacho de tag.
 - **`cluster` · campo `pace` (V2-075, supersede V2-073)** — el **criterio de salud de conversación** del canal

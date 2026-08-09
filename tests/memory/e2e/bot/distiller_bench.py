@@ -69,7 +69,7 @@ from nucleo import mem_processor as mp  # noqa: E402
 # ── candidatos ──────────────────────────────────────────────────────────────────────────────────────────────
 # Todos COMERCIALES de API (decisión del operador 2026-08-09: UN solo modelo que sirva igual en self-host y en
 # cloud — se retira la vía Ollama local, que obligaba a dos ganadores distintos). El broker AIMLAPI es el endpoint
-# que la nube YA usa (fly.demo.toml + provisioner), así que un ganador que viva ahí no exige endpoint ni secret
+# que la nube YA usa (fly.accounts.toml + provisioner), así que un ganador que viva ahí no exige endpoint ni secret
 # nuevos; los DIRECTOS se miden para saber cuánto se paga por el hop del broker.
 AIML = "https://api.aimlapi.com/v1"
 OPENAI = "https://api.openai.com/v1"

@@ -1266,20 +1266,6 @@ class NucleoLLMStream(llm.LLMStream):
                     send(speech.sanitize(_L0.secret_need_vault, drop_metadata=False))
                 return
 
-        # DEMO CAP (INI-018 T6): apagado en self-host/cloud normal (sin las env vars, `enabled()` es False, cero
-        # coste por turno). En el perfil demo, corta ANTES de llamar al modelo — nunca un fallo silencioso, siempre
-        # una frase clara + cierre real de la sesión (mismo patrón determinista que los short-circuits de arriba).
-        if not first_turn:
-            from nucleo import demo_limits as _demo
-            if _demo.enabled():
-                _reason = _demo.check(brain._turn_count, brain._session_started_at)
-                if _reason:
-                    from voice.engine.core import langs as _lg1
-                    emit("session", "demo limit reached", role="system", extra={"reason": _reason})
-                    send(speech.sanitize(_lg1.current_language().demo_ended, drop_metadata=False))
-                    _demo.request_close(_reason)
-                    return
-
         errored = False
         err_text = ""
         llm_metrics: dict = {}   # totalizadores de tamaño/tokens/latencia del modelo (observabilidad, FASE 0)

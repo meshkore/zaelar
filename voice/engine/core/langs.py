@@ -81,8 +81,6 @@ class LangSpec:
     secret_saved: str = "Hecho, la he guardado cifrada en tu bóveda de secretos."   # tras cifrar un secreto nuevo
     secret_need_vault: str = ("Puedo guardártela cifrada, pero primero necesito que crees una contraseña maestra "
                               "para tu bóveda. Te la abro.")                        # querer guardar sin bóveda aún
-    demo_ended: str = ("Esto era una demostración. Si quieres seguir usando tu agente sin límites, date de alta "
-                       "en zaelar.com.")                                            # INI-018 T6, solo perfil demo
     energy_exhausted: str = ("Se ha agotado tu Energía. Paga una cuota o compra más para seguir usando tu "
                              "agente.")                                             # 2026-08-09, solo cuentas reales
     kokoro_voices: list = field(default_factory=list)  # [{label, voice, gender}] native to this language
@@ -180,7 +178,6 @@ LANGUAGES: dict[str, LangSpec] = {
         secret_saved="Done, I've saved it encrypted in your vault.",
         secret_need_vault=("I can keep it encrypted, but first you need to create a master passphrase for your "
                            "vault. Opening it now."),
-        demo_ended="This was a demo. If you'd like to keep using your agent with no limits, sign up at zaelar.com.",
         energy_exhausted="You're out of Energy. Pay for a plan or buy more to keep using your agent.",
         kokoro_voices=[
             {"label": "Bella (en, f)",   "voice": "af_bella",   "gender": "f"},

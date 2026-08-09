@@ -63,7 +63,7 @@ DOMAINS: list[dict] = [
     ]},
     {"id": "2", "name": "FLASHBRAIN (nucleo)", "nodes": [
         {"id": "2.1", "title": "Enrutado / elección de tool", "ch": UNIT, "paths": [
-            "tests/agent_headless/unit/flash/test_router.py", "tests/agent_headless/unit/flash/test_music_flow.py", "tests/agent_headless/unit/test_demo_routing.py"]},
+            "tests/agent_headless/unit/flash/test_router.py", "tests/agent_headless/unit/flash/test_music_flow.py", "tests/agent_headless/unit/test_account_routing.py"]},
         {"id": "2.2", "title": "Bucle de diálogo y anti-degeneración", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_dialog.py", "tests/agent_headless/unit/test_loop.py",
             # veredicto de latencia del turno: prompt grande vs proveedor vs frío vs trabajo real
@@ -205,8 +205,8 @@ DOMAINS: list[dict] = [
             "cmd": "./.venv/bin/python tests/infrastructure/e2e/smoke/run_full_smoke.py"},
     ]},
     {"id": "8", "name": "ENERGÍA / CONFIG", "nodes": [
-        {"id": "8.1", "title": "Medidor de energía y límites demo", "ch": UNIT, "paths": [
-            "tests/infrastructure/unit/core/test_energy_meter.py", "tests/infrastructure/unit/core/test_demo_limits.py", "tests/infrastructure/unit/config/test_balances.py"]},
+        {"id": "8.1", "title": "Medidor de energía y límites de cuenta", "ch": UNIT, "paths": [
+            "tests/infrastructure/unit/core/test_energy_meter.py", "tests/infrastructure/unit/core/test_account_limits.py", "tests/infrastructure/unit/config/test_balances.py"]},
         {"id": "8.2", "title": "Perfiles / v2 / doctor / credenciales", "ch": UNIT, "paths": [
             "tests/infrastructure/unit/config/test_profiles.py", "tests/infrastructure/unit/config/test_v2.py",
             "tests/infrastructure/unit/config/test_doctor.py", "tests/infrastructure/unit/config/test_credentials.py"]},

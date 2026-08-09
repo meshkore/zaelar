@@ -6,13 +6,12 @@
 # project/concept/docs/product/energy-model.md) had NO real conversion rate or ledger anywhere —
 # confirmed by a full repo search before writing this. This module converts ACTUAL provider usage
 # (LLM tokens, TTS characters, STT audio-seconds, Brain Worker tokens) into a real €-cost estimate,
-# then into Energy units, and reports it fire-and-forget to the right ledger (demo Worker's ephemeral
-# KV, or the control-plane's persistent per-account ledger — see _post_usage).
+# then into Energy units, and reports it fire-and-forget to the control-plane's persistent
+# per-account ledger (see _post_usage_cloud_account).
 #
-# SCOPE: fires for demo Machines (`ZAELAR_DEMO_SESSION`/pool/router — nucleo/demo_routing.py) AND for
-# real cloud accounts (`ZAELAR_USER_ID` — nucleo/cloud_account.py, wired 2026-08-05). The operator's
-# own local install and every self-host install have NEITHER set → enabled() False → zero cost, zero
-# network calls, exactly like demo_limits.py's own no-op pattern.
+# SCOPE: fires for real cloud accounts (`ZAELAR_USER_ID` — nucleo/cloud_account.py, wired
+# 2026-08-05). The operator's own local install and every self-host install don't set it →
+# enabled() False → zero cost, zero network calls.
 #
 # 2026-08-05 FINDING (see INI-019 addenda for the full incident writeup): report_llm_usage() was only
 # ever called from the FlashBrain's voice turn (nucleo/flash/fast_client.py), and the rate table only
@@ -92,11 +91,11 @@ MARGIN_MULTIPLIER = float(os.getenv("ENERGY_MARGIN_MULTIPLIER", "4.0"))  # retai
 
 
 def enabled() -> bool:
-    """Energy metering exists for demo Machines (per-session OR warm-pool) AND for real cloud accounts
-    (ZAELAR_USER_ID set, 2026-08-05). Routes through the two single-purpose accessors so neither this
-    module nor its callers need to know the shape of either gate."""
-    from nucleo import cloud_account, demo_routing
-    return demo_routing.is_demo_machine() or cloud_account.is_cloud_account()
+    """Energy metering exists for real cloud accounts (ZAELAR_USER_ID set, 2026-08-05). Routes
+    through the single-purpose accessor so neither this module nor its callers need to know the
+    shape of the gate."""
+    from nucleo import cloud_account
+    return cloud_account.is_cloud_account()
 
 
 def _is_local_endpoint(base_url: str) -> bool:
@@ -176,71 +175,23 @@ _USAGE_ENDPOINT_PATH = "/usage"
 
 
 async def _post_usage(energy: float, kind: str, meta: dict | None = None) -> None:
-    from nucleo import cloud_account
-
-    if cloud_account.is_cloud_account():
-        await _post_usage_cloud_account(energy, kind, meta)
-        return
-    from nucleo import demo_routing
-
-    session_id = demo_routing.my_session_id() or ""   # fixed env OR warm-pool pinned session
-    worker_url = (os.getenv("DEMO_SESSION_WORKER_URL") or "").strip()
-    if worker_url and session_id and energy > 0:
-        try:
-            async with httpx.AsyncClient(timeout=3.0) as client:
-                await client.post(
-                    worker_url.rstrip("/") + _USAGE_ENDPOINT_PATH,
-                    json={"session_id": session_id, "energy": energy, "kind": kind},
-                )
-        except Exception as e:  # noqa: BLE001
-            logger.warning(f"energy_meter: usage report failed (non-fatal, turn unaffected): {e}")
-    # 2026-08-08: ALSO report to the control-plane (zaelar_user_events, keyed by session_id — no
-    # account exists yet) — "everything goes through zaelar_user_events" (operator ask). The demo
-    # Worker's KV above stays the actual budget cap; this call is purely for centralized
-    # observability, so its own failure must never affect (or be affected by) the call above.
-    await _post_usage_demo_to_control_plane(session_id, energy, kind, meta)
-
-
-async def _post_usage_demo_to_control_plane(session_id: str, energy: float, kind: str, meta: dict | None) -> None:
-    """Demo-session counterpart of _post_usage_cloud_account: same /usage call, session_id instead of
-    user_id, no Energy ledger involved (a demo session has no account to bill — energy.consume is
-    skipped control-plane-side when there's no user_id). CONTROL_PLANE_URL is injected by the
-    provisioner at Machine creation (machineConfig.js::demoMachineConfig/demoPoolMachineConfig,
-    2026-08-08) — guarded-until-configured, same as everywhere else: missing it → no-op, never raises."""
-    control_plane_url = (os.getenv("CONTROL_PLANE_URL") or "").strip()
-    if not control_plane_url or not session_id or energy <= 0:
-        return
-    service_token = (os.getenv("CONTROL_PLANE_SERVICE_TOKEN") or "").strip()
-    headers = {"X-Service-Token": service_token} if service_token else {}
-    payload = {"session_id": session_id, "energy": energy, "kind": kind}
-    if meta:
-        payload["meta"] = meta
-    try:
-        async with httpx.AsyncClient(timeout=3.0) as client:
-            await client.post(
-                control_plane_url.rstrip("/") + _USAGE_ENDPOINT_PATH,
-                json=payload,
-                headers=headers,
-            )
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"energy_meter: demo-session control-plane report failed (non-fatal): {e}")
+    await _post_usage_cloud_account(energy, kind, meta)
 
 
 async def _post_usage_cloud_account(energy: float, kind: str, meta: dict | None = None) -> None:
-    """Real-account counterpart of _post_usage: reports to the control-plane's PERSISTENT per-user
-    Energy ledger (cloud/control-plane's POST /usage) instead of the demo Worker's ephemeral KV. The
-    control-plane writes this SAME call into zaelar_user_events too (INI-019 addenda, "Cambio A") — so
-    `meta` (model/base_url ONLY — never content) doubles as the per-user activity timeline the
-    backoffice reads. CONTROL_PLANE_URL/CONTROL_PLANE_SERVICE_TOKEN are injected by the provisioner at
-    Machine creation (cloud/provisioner/src/machineConfig.js::accountMachineConfig) — same
-    guarded-until-configured pattern as everything else here: missing either → no-op, never raises.
+    """Reports to the control-plane's PERSISTENT per-user Energy ledger (cloud/control-plane's
+    POST /usage). The control-plane writes this SAME call into zaelar_user_events too (INI-019
+    addenda, "Cambio A") — so `meta` (model/base_url ONLY — never content) doubles as the per-user
+    activity timeline the backoffice reads. CONTROL_PLANE_URL/CONTROL_PLANE_SERVICE_TOKEN are
+    injected by the provisioner at Machine creation
+    (cloud/provisioner/src/machineConfig.js::accountMachineConfig) — guarded-until-configured:
+    missing either → no-op, never raises.
 
     2026-08-09: the response already carries the account's new `balance` (control-plane's own
     /usage handler has always returned it) — this used to be discarded. Reading it here is the WHOLE
     gate: no separate balance-check endpoint was needed, just stop throwing the answer away. A
-    depleted balance (nucleo/account_limits.should_close) requests the session close, same
-    fire-and-forget contract demo_limits.py uses — a failed close request never breaks the turn that
-    triggered it."""
+    depleted balance (nucleo/account_limits.should_close) requests the session close, fire-and-forget
+    (nucleo/account_limits.py) — a failed close request never breaks the turn that triggered it."""
     from nucleo import account_limits, cloud_account
 
     control_plane_url = (os.getenv("CONTROL_PLANE_URL") or "").strip()

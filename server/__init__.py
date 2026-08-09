@@ -426,68 +426,11 @@ def create_app() -> FastAPI:
     load_into_env()
     app = FastAPI(title="zaelar", lifespan=_lifespan)
 
-    # DEMO SESSION ROUTING (INI-018, 2026-07-24): a no-op on every non-demo machine (self-host,
-    # the operator's own cloud account) — my_session_id() is None there and this returns on the
-    # first line, zero cost. Only matters on a cloud-demo Fly Machine (ZAELAR_DEMO_SESSION set),
-    # where several Machines share one public hostname and Fly's proxy doesn't know which one is
-    # "yours" — see nucleo/demo_routing.py for the full why.
-    @app.middleware("http")
-    async def _demo_session_routing(request, call_next):
-        from nucleo import demo_routing as _dr
-
-        if not _dr.is_demo_machine():
-            return await call_next(request)
-
-        # Static assets are IDENTICAL on every demo Machine (same image) — a JS/CSS/wasm file never
-        # needs the visitor's SPECIFIC machine. Serve them LOCALLY instead of fly-replaying each one
-        # to the session's machine. This is the bulk of a page load (dozens of /static/* requests);
-        # replaying every one is exactly what produced the intermittent 502 WALL on assets when a
-        # replay target hiccuped or was mid-boot (2026-08-04). Only stateful paths below (the HTML
-        # that sets the session cookie, /api/*, the SSE stream) actually need the session's machine.
-        if request.url.path.startswith("/static/"):
-            return await call_next(request)
-
-        wanted = _dr.requested_session_id(
-            request.cookies.get(_dr.SESSION_COOKIE), request.query_params.get(_dr.SESSION_QUERY_PARAM)
-        )
-        mine = _dr.my_session_id()
-        # WARM POOL: an unbound pool machine (is_demo_machine() true, but no session yet) BINDS itself
-        # to the first visitor it sees carrying ?s=<id>. After this it behaves exactly like a
-        # per-session machine — serves this and every later request locally (the boot was already paid
-        # before the visitor arrived). Other machines route this session here via Fly metadata, which
-        # the Worker stamps when it hands the machine out (see the demo-session Worker's claim step).
-        if mine is None and wanted is not None:
-            _dr.pin_session(wanted)
-            mine = _dr.my_session_id()
-
-        if wanted is None or wanted == mine:
-            response = await call_next(request)
-            if wanted == mine and not request.cookies.get(_dr.SESSION_COOKIE):
-                # first hit landed via ?s=... — pin this visitor to THIS machine's domain-scoped
-                # cookie for every request after, no more query param needed.
-                response.set_cookie(
-                    _dr.SESSION_COOKIE, mine, httponly=True, secure=True, samesite="lax", max_age=3600
-                )
-            return response
-
-        # this request belongs to a DIFFERENT session than the one this machine was created for —
-        # find that machine and hand off via fly-replay instead of silently serving the wrong
-        # visitor's turn on the wrong instance.
-        api_token = os.getenv("FLY_API_TOKEN", "")
-        app_name = os.getenv("FLY_APP_NAME", "")
-        if api_token and app_name:
-            target = await _dr.find_machine_for_session(wanted, app_name=app_name, api_token=api_token)
-            if target:
-                from starlette.responses import Response as _Response
-                return _Response(status_code=307, headers={"fly-replay": f"instance={target}"})
-        # couldn't resolve (session expired, lookup failed, no token configured) — fail-open and
-        # serve this request locally rather than dead-end the visitor.
-        logger.warning(f"demo_routing: could not resolve machine for session {wanted!r}, serving locally")
-        return await call_next(request)
-
-    # ACCOUNT SESSION ROUTING (2026-08-09, unifying demo↔account — Fase 2): the real-account
-    # counterpart of the demo routing above. A no-op on every Machine that isn't a real cloud
-    # account (self-host, every demo Machine) — is_cloud_account() is False there, zero cost.
+    # ACCOUNT SESSION ROUTING (2026-08-09): fly-replay support for real, persistent account
+    # Machines — `zaelar-accounts` is ONE Fly app with MANY Machines (one per user) sharing one
+    # public hostname, and Fly's edge picks whichever is available for a plain request, not
+    # necessarily the visitor's OWN one. A no-op on every Machine that isn't part of account
+    # routing (self-host) — is_account_routing_machine() is False there, zero cost.
     @app.middleware("http")
     async def _account_session_routing(request, call_next):
         from nucleo import account_routing as _ar
