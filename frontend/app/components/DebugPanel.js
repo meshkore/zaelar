@@ -90,9 +90,14 @@ const COLS = [
 // Column 2 (kind badge): for "brain" rows, name the layer instead of the generic "BRAIN" pill.
 // V2-036: ya NO hay "cerebro" aparte — solo el FlashBrain ORQUESTADOR + procesos (workers) que lanza. Los turnos
 // del orquestador se etiquetan "FlashBrain"; un evento de worker (engine "slowbrain", legado) → "Worker".
-// Familia en 4 letras: la celda es estrecha y el nombre completo ya está en el chip del filtro y en el hover.
-const CAT_SHORT = { flash: "FLSH", worker: "WRKR", memory: "MEM", widget: "WDGT", system: "SYS", pulse: "PULS" };
-function catShort(cat) { return CAT_SHORT[cat] || (cat || "?").slice(0, 4).toUpperCase(); }
+// Familia abreviada para la celda estrecha de la columna FAMILIA. Va por i18n como cualquier otro texto de la
+// interfaz —un idioma generado puede necesitar otras letras, u otro alfabeto entero— y el nombre completo sigue
+// estando en el hover y en la tabla de filtros. Sin clave (familia aún sin clasificar) → las 4 primeras letras
+// del código técnico, que es lo único que se sabe de ella.
+function catShort(cat) {
+  const key = CAT_LABEL_KEY[cat] ? "debug.short_" + cat : null;
+  return key ? t(key) : (cat || "?").slice(0, 4).toUpperCase();
+}
 
 function brainName(engine) {
   if (engine === "slowbrain") return "Worker";
@@ -253,6 +258,12 @@ export function DebugPanel() {
       const d = await r.json();
       for (const [kind, cat] of Object.entries(d.kinds || {})) catalog.set(kind, cat);
     } catch (_) { /* sin catálogo se degrada a lo observado */ }
+    // SIN catálogo NO se tocan los valores por defecto ni se persiste nada, y se reintenta en la siguiente
+    // apertura. Fallo real 2026-08-09: con un backend que aún no servía el endpoint, `applyDefaults()` corría
+    // sobre un mapa VACÍO, se marcaba como aplicado y guardaba una lista de apagados vacía — así que el día que
+    // el catálogo llegara, «ya estaba configurado» y las familias de plomería habrían salido ENCENDIDAS. Los
+    // valores por defecto solo tienen sentido cuando se sabe sobre qué se aplican.
+    if (!catalog.size) return;
     applyDefaults();
     for (const [kind, cat] of catalog) ensureChip(kind, cat);
     syncGroups();
@@ -675,6 +686,12 @@ export function DebugPanel() {
     t("debug.filters", { n: 0 });
     for (const g of kindGroups.values()) labelGroup(g);
     updateFiltersLabel();
+    // La celda FAMILIA de cada fila ya pintada también es texto de interfaz: se re-rotula, no se queda con el
+    // idioma que hubiera cuando llegó el evento.
+    if (listEl) for (const row of listEl.children) {
+      const c = row.querySelector(".dbg-cat");
+      if (c) c.textContent = catShort(row.dataset.cat || "");
+    }
   });
 
   onDebug((d) => { if (store.debugOpen()) { d._dbgSeen = true; addRow(d); addTrace(d); } });   // live append only while visible
