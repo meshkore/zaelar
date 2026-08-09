@@ -31,10 +31,22 @@ primary_region = "iad"   # same region as zaelar-demo
   CODE_AGENT_MODEL = "glm-5.2"
   MEM_PROCESSOR_URL = "https://api.aimlapi.com/v1"
   MEM_PROCESSOR_MODEL = "deepseek/deepseek-v4-flash"
-  # NB: unlike fly.demo.toml, deliberately NO MEMORY_RERANK=off, NO ZAELAR_DEMO_*, NO
-  # ZAELAR_DEMO_ROUTER — a real account keeps the memory reranker ON (quality over ephemeral boot
-  # speed) and has no demo turn/TTL caps (see accountMachineConfig's docstring: bounded by Energy
-  # balance instead).
+  # NB: unlike fly.demo.toml, deliberately NO MEMORY_RERANK=off, NO ZAELAR_DEMO_* — a real account
+  # keeps the memory reranker ON (quality over ephemeral boot speed) and has no demo turn/TTL caps
+  # (see accountMachineConfig's docstring: bounded by Energy balance instead).
+  #
+  # ROUTER MODE (2026-08-09, mirrors fly.demo.toml's ZAELAR_DEMO_ROUTER): this base Machine has no
+  # account identity of its own (no ZAELAR_USER_ID), so WITHOUT this flag
+  # nucleo/account_routing.py's middleware would no-op here and silently serve its OWN generic
+  # content for a cookie meant for a different account's Machine — found live while testing Fase 2.
+  # With it, this Machine still never binds an account as its own, but it DOES attempt to resolve +
+  # fly-replay a request it isn't the right target for.
+  ZAELAR_ACCOUNT_ROUTER = "1"
+  # CONTROL_PLANE_URL — needed for THIS base Machine to resolve a zaelar_cloud_session cookie via
+  # POST /session/verify (account_routing.py). Real account Machines get this from
+  # accountMachineConfig instead; the base Machine needs its own copy since it's brought up by
+  # `flyctl deploy`, not by the control-plane's provisioning path.
+  CONTROL_PLANE_URL = "https://zaelar-control-plane.rjj.workers.dev"
 
 # Same single coherent 443 service definition as fly.demo.toml, for the same cert-conflict reason —
 # but WITH autostop/autostart (accountMachineConfig's ACCOUNT_SERVICES mirrors this for the

@@ -491,9 +491,8 @@ def create_app() -> FastAPI:
     @app.middleware("http")
     async def _account_session_routing(request, call_next):
         from nucleo import account_routing as _ar
-        from nucleo import cloud_account as _ca
 
-        if not _ca.is_cloud_account():
+        if not _ar.is_account_routing_machine():
             return await call_next(request)
         if request.url.path.startswith("/static/"):
             return await call_next(request)

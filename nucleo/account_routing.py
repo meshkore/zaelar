@@ -32,6 +32,25 @@ from loguru import logger
 
 SESSION_COOKIE = "zaelar_cloud_session"
 
+
+def _truthy(name: str) -> bool:
+    return (os.getenv(name) or "").strip().lower() not in ("", "0", "false", "no")
+
+
+def is_account_routing_machine() -> bool:
+    """True on any Machine that should PARTICIPATE in account routing — a real account Machine
+    (ZAELAR_USER_ID set) OR the always-on base "router" (ZAELAR_ACCOUNT_ROUTER=1), mirroring
+    demo_routing.py's ZAELAR_DEMO_ROUTER. Without the router flag, a request that lands on the base
+    Machine (which has no account identity of its own) would just serve its OWN generic content
+    instead of ever attempting a fly-replay — found live 2026-08-09 while testing Fase 2: the base
+    Machine answered a cookie meant for a different account's Machine, silently, because nothing told
+    it to even TRY routing."""
+    from nucleo import cloud_account
+
+    if cloud_account.is_cloud_account():
+        return True
+    return _truthy("ZAELAR_ACCOUNT_ROUTER")
+
 # session_token -> (fly_machine_id, cached_at). A session token's owning Machine is STABLE for the
 # token's lifetime (30 days) — same caching rationale as demo_routing.py's 502-wall fix.
 _TOKEN_MACHINE_CACHE: dict[str, tuple[str, float]] = {}

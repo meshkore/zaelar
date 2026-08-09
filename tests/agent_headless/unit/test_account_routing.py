@@ -14,6 +14,26 @@ def test_my_machine_id_reads_the_fly_runtime_var(monkeypatch):
     assert account_routing.my_machine_id() == "080d69da092648"
 
 
+def test_is_account_routing_machine_false_on_selfhost_and_demo(monkeypatch):
+    monkeypatch.delenv("ZAELAR_USER_ID", raising=False)
+    monkeypatch.delenv("ZAELAR_ACCOUNT_ROUTER", raising=False)
+    assert account_routing.is_account_routing_machine() is False
+
+
+def test_is_account_routing_machine_true_for_a_real_account(monkeypatch):
+    monkeypatch.setenv("ZAELAR_USER_ID", "did:key:z6MkExample")
+    monkeypatch.delenv("ZAELAR_ACCOUNT_ROUTER", raising=False)
+    assert account_routing.is_account_routing_machine() is True
+
+
+def test_is_account_routing_machine_true_for_the_base_router(monkeypatch):
+    """2026-08-09 fix: the base Machine has no ZAELAR_USER_ID of its own but MUST still attempt
+    routing (found live: without this it silently served the wrong content for a mismatched cookie)."""
+    monkeypatch.delenv("ZAELAR_USER_ID", raising=False)
+    monkeypatch.setenv("ZAELAR_ACCOUNT_ROUTER", "1")
+    assert account_routing.is_account_routing_machine() is True
+
+
 @pytest.mark.anyio
 async def test_find_machine_for_session_returns_the_verified_machine_id(monkeypatch):
     class _FakeResponse:
