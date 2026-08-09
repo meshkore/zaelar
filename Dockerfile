@@ -5,7 +5,8 @@
 # y se salta en el pip install; no hay Ollama ni binario livekit-server). SÍ trae (desde 2026-08-05) el **CLI de
 # Claude Code** (brain workers) y el **Chromium de Playwright** (navegador) para que cloud tenga la MISMA
 # capacidad que local. El deploy corre con el **perfil `cloud`**: STT/TTS/cerebro/memoria por proveedores de nube
-# (claves como secretos de Fly: OPENAI_API_KEY para la memoria, Z_AI_API_KEY para los workers, etc.).
+# (claves como secretos de Fly: AIMLAPI_KEY para la memoria —CORAZÓN de escritura Y sueño REM, ambos por AIMLAPI
+# desde 2026-08-09—, Z_AI_API_KEY para los workers, etc.).
 FROM python:3.12-slim
 
 # System deps: ffmpeg/libsndfile for aiortc (WebRTC) + resampling; build tools for pyrnnoise.

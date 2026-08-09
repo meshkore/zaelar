@@ -78,26 +78,34 @@ def _config_url() -> str:
         return ""
 
 
+# Último recurso si `config/v2.py` no se puede importar NI hay env: tiene que ser el MISMO par que el default de
+# `config §memory` (2026-08-09). Antes caía a Ollama local (`qwen2.5:7b-instruct` @ 11434), que en cualquier
+# instalación sin Ollama —toda la nube, y la mayoría de self-hosts— significaba fallar en cada turno y escribir
+# por la heurística lossy en silencio. Un default que solo funciona en la máquina del que lo escribió no es
+# un default. Ollama sigue siendo una OPCIÓN, apuntando `mem_processor_base_url` a localhost:11434 a mano.
+_FALLBACK_URL = "https://api.aimlapi.com/v1"
+_FALLBACK_MODEL = "deepseek/deepseek-v4-flash"
+
+
 def _url() -> str:
-    # Endpoint del CORAZÓN. DEFAULT ahora EXTERNO (config §memory.mem_processor_base_url → OpenAI); env de
-    # fallback; localhost:11434 solo si se apunta a Ollama a mano (legacy local). Cero ejecución local por defecto.
+    # Endpoint del CORAZÓN: config §memory.mem_processor_base_url → env → el mismo default que la config.
     u = _config_url()
     if u:
         return u
     return (os.getenv("MEM_PROCESSOR_URL")
-            or os.getenv("ZAELAR_LOCAL_LLM_URL", "http://localhost:11434/v1"))
+            or os.getenv("ZAELAR_LOCAL_LLM_URL")
+            or _FALLBACK_URL)
 
 
 def _model() -> str:
-    # Modelo LOCAL del CORAZÓN de escritura. Va OFF-HOT-PATH (cola async). **DEFAULT = `qwen2.5:7b-instruct`**
-    # (2ª auditoría 2026-07-14): benchmark de write-completeness es+en sobre los casos que fallaban → 3b **3/12**,
-    # 7b **12/12** (multiidioma nativo, ~4s p50), 14b 10/12 (+timeouts >_TIMEOUT). La write-completeness es la
-    # palanca nº1 del recall (V2-031) → el 3b era el cuello de botella real de la memoria.
-    # ⚠️ TRADE-OFF con la VOZ 100% LOCAL: el modelo corre en la MISMA GPU Metal que STT/TTS locales → uno pesado
-    # roba GPU y puede CORTAR la voz aunque no pile (medido 15-29s en sesión manual). NO aplica a la config de
-    # PRODUCCIÓN (voz por NUBE: Haiku + ElevenLabs → GPU libre). Quien corra voz 100% local en Metal debe bajar a
-    # `qwen2.5:3b` por la UI/config. En la NUBE (sin GPU) → modelo comercial vía API (misma abstracción de routing).
-    # CONFIGURABLE (`config/v2.py`/`config/v2.json §memory.mem_processor_model`); env MEM_PROCESSOR_MODEL = fallback.
+    # Modelo del CORAZÓN de escritura. Va OFF-HOT-PATH (cola async) → su latencia NO la paga el turno de voz, así
+    # que el eje de elección es calidad-vs-PRECIO. **DEFAULT = `deepseek/deepseek-v4-flash` vía AIMLAPI**
+    # (2026-08-09, benchmarks §12.3: iguala a gpt-4.1-mini en completeness y precisión por −55% de coste).
+    # CONFIGURABLE (`config/v2.py`/`config/v2.json §memory.mem_processor_model`); env MEM_PROCESSOR_MODEL = fallback
+    # power-user; el literal de abajo solo se alcanza si la config no se puede importar (ver _FALLBACK_MODEL).
+    # ⚠️ Si se apunta a un modelo LOCAL (Ollama), ojo al TRADE-OFF con la voz 100% local: corre en la MISMA GPU
+    # Metal que STT/TTS → uno pesado puede CORTAR la voz aunque no pile (medido 15-29s). No aplica a la config de
+    # producción, que va por nube y deja la GPU libre.
     try:
         from config import v2 as _v2
         m = (_v2.get("memory").get("mem_processor_model") or "").strip()
@@ -105,7 +113,7 @@ def _model() -> str:
             return m
     except Exception:
         pass
-    return os.getenv("MEM_PROCESSOR_MODEL") or "qwen2.5:7b-instruct"
+    return os.getenv("MEM_PROCESSOR_MODEL") or _FALLBACK_MODEL
 
 
 def _endpoint_key(url: str) -> str:
