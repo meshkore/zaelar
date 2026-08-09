@@ -88,20 +88,32 @@ _DEFAULTS: dict[str, dict] = {
         "embed_provider": "auto",              # 'auto' (ollama→fastembed→hash) | 'ollama' | 'fastembed' | 'voyage'/'openai' (cloud)
         "embed_model": "embeddinggemma",       # modelo de embedding; cambiarlo EXIGE re-embed (memory/reembed.py)
         "embed_api_key": "",                   # secreto (redactado); solo para proveedores cloud
-        # El CORAZÓN de escritura (mem_processor, LLM LOCAL que destila píldoras). Configurable como el resto del
-        # routing. **DEFAULT = `qwen2.5:7b-instruct`** (2ª auditoría 2026-07-14): benchmark de write-completeness
-        # (es+en) sobre los casos que fallaban → 3b 3/12, **7b 12/12**, 14b 10/12 (+timeouts). El 7b es multiidioma
-        # nativo y su ~4s p50 está FUERA del hot-path (cola async, no toca la latencia de la voz); el 14b es más
-        # lento, da timeouts (>_TIMEOUT 20s) y NO es más preciso. Write-completeness = la palanca nº1 del recall
-        # (V2-031). En la NUBE (sin GPU local) se cae a un modelo comercial vía API (misma abstracción de routing).
-        # DEFAULT EXTERNO (2026-07-17, regla del operador «memoria = SIEMPRE OpenAI» + cero ejecución local por
-        # batería): gpt-4.1-mini. PRUEBA de write-completeness (es, casos difíciles): gpt-4o-mini se COMÍA la alergia
-        # (0 píldoras); gpt-4.1-mini y gpt-4o la captan (2 píldoras) → gpt-4.1-mini es el punto dulce (completitud
-        # 4/4, off-hot-path así que su latencia no toca la voz, más barato que 4o). El qwen local 7b (12/12) queda
-        # como opción SOLO si se quiere volver a local (base_url a Ollama). Ver zaelar-model-benchmarks.md §Módulos.
-        "mem_processor_model": "gpt-4.1-mini",           # vacío = env MEM_PROCESSOR_MODEL o el fallback del procesador
-        "mem_processor_base_url": "https://api.openai.com/v1",  # endpoint OpenAI-compatible; a Ollama = local (legacy)
-        "mem_processor_api_key": "",                     # secreto (redactado); vacío = OPENAI_API_KEY del entorno
+        # El CORAZÓN de escritura (mem_processor): destila cada turno en píldoras. Va OFF-HOT-PATH (cola async) →
+        # **su latencia NO la paga la voz**, y la LECTURA no usa ningún LLM. Por eso el eje de elección es
+        # calidad-vs-PRECIO, nunca velocidad: aquí un modelo lento y barato es perfectamente válido.
+        #
+        # **DEFAULT = `deepseek/deepseek-v4-flash` vía AIMLAPI** (ronda 2026-08-09, benchmarks §12.3). Barrido de 21
+        # candidatos comerciales × 34 casos × 4 ejes (`tests/memory/e2e/bot/distiller_bench.py`), 3 pasadas a los
+        # finalistas. Sustituye a `gpt-4.1-mini` **por precio a igualdad de calidad útil**: completeness 98,5% vs
+        # 98,9% (un solo hecho de diferencia, dentro del ruido), precisión 100% vs 100% (ninguno de los dos ensucia
+        # jamás un descarte) y **$0,68 vs $1,516 por 1.000 turnos → −55%**. Deroga la directriz previa «memoria =
+        # SIEMPRE OpenAI» (2026-07-17), que se tomó cuando el único contendiente barato medido era gpt-4o-mini.
+        #   · Capa/slot 94,4% vs 100% del titular — sus DOS únicos fallos, reproducibles: pierde el «somos cinco» de
+        #     una enumeración familiar (el resto de nombres sí los guarda) y no marca `change=update` en una
+        #     NEGACIÓN pura («ya no trabajo en X», donde no hay valor nuevo con el que superseder). Ninguno destruye
+        #     datos ya guardados.
+        #   · ⛔ `gpt-4o-mini` es más barato aún ($0,567) y quedó VETADO: con la alergia dicha en INGLÉS le pone
+        #     `slot=operator.diet` (3/3 pasadas + 3/3 en reproducción directa). Un slot INVALIDA todo lo anterior con
+        #     ese slot → un futuro «ahora soy vegetariano» borraría la alergia. Es el error que el prompt advierte
+        #     por escrito, y en una memoria personal es pérdida de datos silenciosa, no un punto porcentual.
+        #   · Fallback si AIMLAPI/DeepSeek cae: `google/gemini-2.5-flash` (96,7/100/100) → `openai/gpt-4.1-mini`.
+        #   · MISMO modelo en self-host y en la nube (decisión del operador 2026-08-09: un solo modelo comercial que
+        #     sirva en los dos sitios). Los dos sitios que lo fijan por env en cloud —`engine/fly.demo.toml` y
+        #     `cloud/provisioner/src/machineConfig.js`— van sincronizados con este default.
+        #   · La opción LOCAL (Ollama) sigue disponible apuntando `mem_processor_base_url` a `localhost:11434`.
+        "mem_processor_model": "deepseek/deepseek-v4-flash",     # vacío = env MEM_PROCESSOR_MODEL o el fallback
+        "mem_processor_base_url": "https://api.aimlapi.com/v1",  # endpoint OpenAI-compatible; a Ollama = local
+        "mem_processor_api_key": "",                     # secreto (redactado); vacío = key POR ENDPOINT (AIMLAPI_KEY)
         # Sueño PROFUNDO «fase REM» (V2-056, memory/rem.py): consolidación diaria con LLM — síntesis de clusters
         # de píldoras en INSIGHTS de alto nivel (kind='insight', slot insight:<concepto>, supersede por sueño).
         # Off-hot-path total (lo dispara el loop); modelo por tarea (router nucleo/memllm.py, key por endpoint).

@@ -45,10 +45,13 @@ primary_region = "iad"   # Ashburn, Virginia — Fly's US East region
   # injects into demo/pool machines (cloud/provisioner/src/machineConfig.js BASE_PROVIDER_ENV).
   CODE_AGENT_BASE_URL = "https://api.z.ai/api/anthropic"
   CODE_AGENT_MODEL = "glm-5.2"
-  # Memory CORAZÓN via AIMLAPI (operator, not OpenAI direct). Key resolves by endpoint → AIMLAPI_KEY
-  # secret (nucleo/mem_processor.py). Mirrors machineConfig.js BASE_PROVIDER_ENV.
+  # Memory CORAZÓN via AIMLAPI. Key resolves by endpoint → AIMLAPI_KEY secret (nucleo/mem_processor.py).
+  # Mirrors machineConfig.js BASE_PROVIDER_ENV. Model chosen by measurement 2026-08-09 (benchmarks
+  # §12.3): deepseek-v4-flash iguala a gpt-4.1-mini en completeness (98,5 vs 98,9%) y precisión (100%)
+  # por $0,68 vs $1,516 los 1.000 turnos (-55%). Escribir va off-hot-path → su latencia no toca la voz.
+  # MANTENER EN SINCRONÍA con config/v2.py §memory y cloud/provisioner/src/machineConfig.js.
   MEM_PROCESSOR_URL = "https://api.aimlapi.com/v1"
-  MEM_PROCESSOR_MODEL = "openai/gpt-4.1-mini"
+  MEM_PROCESSOR_MODEL = "deepseek/deepseek-v4-flash"
   #
   # Demo caps (INI-018 T6) — baseline for the one verification machine this file brings up; real
   # per-session Machines get their OWN values injected by the Worker at creation time.

@@ -50,7 +50,7 @@ from loguru import logger
 # Source: public provider pricing, 2026-08-05 — RE-VERIFY periodically, provider pricing changes.
 _RATES_PER_1M_TOKENS_USD: dict[str, tuple[float, float]] = {
     "x.ai": (0.20, 0.50),               # Grok 4.1 Fast tier
-    "api.openai.com": (0.40, 1.60),     # gpt-4.1-mini — the memory CORAZÓN (mem_processor) model
+    "api.openai.com": (0.40, 1.60),     # gpt-4.1-mini tier (OpenAI direct is no longer a default anywhere)
     "api.z.ai": (1.40, 4.40),           # GLM-5.2 — the Brain Workers' primary relay tier (code_agent)
     "moonshot.ai": (0.95, 4.00),        # Kimi K2.6 — the Brain Workers' secondary relay tier
 }
@@ -60,8 +60,22 @@ _RATES_PER_1M_TOKENS_USD: dict[str, tuple[float, float]] = {
 # prices; a single base_url→rate row (as used above) cannot express that. Source: public AIMLAPI/
 # DeepSeek/Anthropic pricing, 2026-08-05 — RE-VERIFY periodically.
 _AIMLAPI_MODEL_RATES: dict[str, tuple[float, float]] = {
-    "deepseek-v4-flash": (0.14, 0.28),         # today's FlashBrain model (config/v2.json §fast)
+    # Serves TWO pieces since 2026-08-09: the FlashBrain (config §fast) and the memory CORAZÓN
+    # (config §memory.mem_processor_model — see zaelar-model-benchmarks.md §12.3). Measured cost of
+    # one distilled turn: ~4076 in + ~389 out tokens => ~$0.00068, i.e. $0.68 per 1000 turns.
+    "deepseek-v4-flash": (0.14, 0.28),
     "claude-haiku-4.5": (1.00, 5.00),          # FlashBrain's _FALLBACK_MODEL
+    # CORAZÓN fallback chain (§12.3), rated so a failover never meters as the generic fallback rate.
+    "gemini-2.5-flash-lite": (0.10, 0.40),
+    "gemini-2.5-flash": (0.30, 2.50),
+    "gpt-4.1-mini": (0.40, 1.60),              # previous CORAZÓN titular; last link of the chain
+    "gpt-4.1-nano": (0.10, 0.40),
+    "gpt-4o-mini": (0.15, 0.60),
+    "grok-4-fast": (0.20, 0.50),
+    "kimi-k2": (0.95, 4.00),
+    "glm-4.7": (0.40, 1.75),
+    "ministral-8b": (0.10, 0.10),
+    "llama-3.3-70b": (0.59, 0.79),
 }
 
 # Applied when neither table above has a row for the (base_url, model) actually used. Deliberately NOT

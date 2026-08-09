@@ -1,0 +1,386 @@
+[
+  {
+    "model": "gpt-4o-mini@aimlapi",
+    "endpoint": "https://api.aimlapi.com/v1",
+    "model_id": "openai/gpt-4o-mini",
+    "completeness_pct": 98.9,
+    "completeness": "44.0/45",
+    "precision_pct": 100.0,
+    "precision": "10/10",
+    "layer_pct": 94.4,
+    "layer": "17/18",
+    "lang_pen": 1.0,
+    "dead_calls": 0,
+    "p50_ms": 1409,
+    "avg_in_tok": 3558,
+    "avg_out_tok": 54.7,
+    "usage_calls": 34,
+    "detail": [
+      {
+        "case": "medico-multi",
+        "axis": "completeness",
+        "hits": "2/2",
+        "lang_pen": 0,
+        "layer": "3/3",
+        "ms": 1919,
+        "got": [
+          "Es alérgico a la penicilina.",
+          "Es alérgico al marisco."
+        ]
+      },
+      {
+        "case": "compra-precio",
+        "axis": "completeness",
+        "hits": "2/2",
+        "lang_pen": 0,
+        "layer": "0/0",
+        "ms": 2265,
+        "got": [
+          "Se ha comprado una bici eléctrica para ir al trabajo.",
+          "La bici eléctrica costó 1.800 euros."
+        ]
+      },
+      {
+        "case": "mudanza",
+        "axis": "completeness",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "layer": "3/3",
+        "ms": 1397,
+        "got": [
+          "Se ha mudado a Valencia con toda la familia."
+        ]
+      },
+      {
+        "case": "correccion",
+        "axis": "completeness",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "layer": "2/2",
+        "ms": 1396,
+        "got": [
+          "Se llama Ricart."
+        ]
+      },
+      {
+        "case": "compromiso",
+        "axis": "completeness",
+        "hits": "3/3",
+        "lang_pen": 0,
+        "layer": "0/0",
+        "ms": 1880,
+        "got": [
+          "La jefa de Ricart se llama Marta.",
+          "Marta le pidió el informe trimestral para el miércoles que viene."
+        ]
+      },
+      {
+        "case": "rutina",
+        "axis": "completeness",
+        "hits": "3/3",
+        "lang_pen": 0,
+        "layer": "0/0",
+        "ms": 1409,
+        "got": [
+          "Va al gimnasio todos los lunes y jueves a las siete de la mañana."
+        ]
+      },
+      {
+        "case": "reversion",
+        "axis": "completeness",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "layer": "0/0",
+        "ms": 1554,
+        "got": [
+          "No bebe café desde enero; lo dejó del todo."
+        ]
+      },
+      {
+        "case": "observacion",
+        "axis": "completeness",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "layer": "0/0",
+        "ms": 1539,
+        "got": [
+          "Rinde mucho mejor por las mañanas que por las tardes."
+        ]
+      },
+      {
+        "case": "parrafada-t181",
+        "axis": "completeness",
+        "hits": "3/3",
+        "lang_pen": 0.5,
+        "layer": "1/1",
+        "ms": 2004,
+        "got": [
+          "Ayer cenó con amigos y hablaron sobre conciertos.",
+          "Ha comprado entradas para el concierto de Muse en Bilbao el 12 de septiembre."
+        ]
+      },
+      {
+        "case": "telegrafico",
+        "axis": "completeness",
+        "hits": "2/2",
+        "lang_pen": 0,
+        "layer": "0/0",
+        "ms": 1546,
+        "got": [
+          "El presupuesto máximo para vacaciones es de 3000 euros."
+        ]
+      },
+      {
+        "case": "ingles",
+        "axis": "completeness",
+        "hits": "2/2",
+        "lang_pen": 0,
+        "layer": "0/0",
+        "ms": 1518,
+        "got": [
+          "La hija del operador se llama Emma y cumple 8 años el próximo mes."
+        ]
+      },
+      {
+        "case": "familia",
+        "axis": "completeness",
+        "hits": "4/4",
+        "lang_pen": 0,
+        "layer": "1/1",
+        "ms": 1300,
+        "got": [
+          "En casa son cinco: su mujer se llama Marta, tiene gemelos llamados Pau y Nil, y su madre vive con ellos."
+        ]
+      },
+      {
+        "case": "alergia-ingles",
+        "axis": "completeness",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "layer": "0/1",
+        "ms": 1297,
+        "got": [
+          "Es alérgico a los mariscos."
+        ]
+      },
+      {
+        "case": "catalan-mudanza",
+        "axis": "completeness",
+        "hits": "2/2",
+        "lang_pen": 0,
+        "layer": "1/1",
+        "ms": 1638,
+        "got": [
+          "Vive en Girona.",
+          "Trabaja de carpintero."
+        ]
+      },
+      {
+        "case": "secreto-pedido",
+        "axis": "completeness",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "layer": "0/0",
+        "ms": 1252,
+        "got": [
+          "La contraseña del router es Zx9tormenta."
+        ]
+      },
+      {
+        "case": "compromiso-ajeno",
+        "axis": "completeness",
+        "hits": "2/2",
+        "lang_pen": 0,
+        "layer": "0/0",
+        "ms": 1315,
+        "got": [
+          "La madre de Ricart le ha pedido que la llame el domingo por la tarde."
+        ]
+      },
+      {
+        "case": "correccion-fecha",
+        "axis": "completeness",
+        "hits": "2/2",
+        "lang_pen": 0,
+        "layer": "0/0",
+        "ms": 1320,
+        "got": [
+          "La reunión con el notario es el jueves a las diez."
+        ]
+      },
+      {
+        "case": "interes-intent",
+        "axis": "completeness",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "layer": "1/1",
+        "ms": 1338,
+        "got": [
+          "Está mirando cursos de buceo para el año que viene."
+        ]
+      },
+      {
+        "case": "cotidiano-short",
+        "axis": "completeness",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "layer": "1/1",
+        "ms": 1588,
+        "got": [
+          "Hoy ha comido un bocadillo en el bar de abajo.",
+          "Ahora está reventado."
+        ]
+      },
+      {
+        "case": "multi-profesional",
+        "axis": "completeness",
+        "hits": "4/4",
+        "lang_pen": 0.5,
+        "layer": "1/1",
+        "ms": 2459,
+        "got": [
+          "El operador se llama Ricart.",
+          "Es arquitecto.",
+          "Trabaja en un estudio en Bilbao.",
+          "Tiene dos hijas, Nora y Vega."
+        ]
+      },
+      {
+        "case": "importe-hipoteca",
+        "axis": "completeness",
+        "hits": "3/3",
+        "lang_pen": 0,
+        "layer": "0/0",
+        "ms": 1428,
+        "got": [
+          "Ha firmado una hipoteca de 250.000 euros a 30 años con el Santander."
+        ]
+      },
+      {
+        "case": "garble-identidad",
+        "axis": "completeness",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "layer": "1/1",
+        "ms": 1138,
+        "got": [
+          "El operador se llama Ricart."
+        ]
+      },
+      {
+        "case": "evento-medico",
+        "axis": "completeness",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "layer": "1/1",
+        "ms": 1309,
+        "got": [
+          "La semana pasada se operó del menisco de la rodilla derecha."
+        ]
+      },
+      {
+        "case": "reversion-laboral",
+        "axis": "completeness",
+        "hits": "1/1",
+        "lang_pen": 0,
+        "layer": "1/1",
+        "ms": 1377,
+        "got": [
+          "Ya no trabaja en Telefónica."
+        ]
+      },
+      {
+        "case": "q-asistente",
+        "axis": "precision",
+        "ok": true,
+        "ms": 728,
+        "got": "[]"
+      },
+      {
+        "case": "efimera",
+        "axis": "precision",
+        "ok": true,
+        "ms": 695,
+        "got": "[]"
+      },
+      {
+        "case": "ack",
+        "axis": "precision",
+        "ok": true,
+        "ms": 878,
+        "got": "[]"
+      },
+      {
+        "case": "comando",
+        "axis": "precision",
+        "ok": true,
+        "ms": 764,
+        "got": "[]"
+      },
+      {
+        "case": "saludo",
+        "axis": "precision",
+        "ok": true,
+        "ms": 773,
+        "got": "[]"
+      },
+      {
+        "case": "orden-widget",
+        "axis": "precision",
+        "ok": true,
+        "ms": 1832,
+        "got": "[]"
+      },
+      {
+        "case": "meta-memoria",
+        "axis": "precision",
+        "ok": true,
+        "ms": 1830,
+        "got": "[]"
+      },
+      {
+        "case": "ruido-stt",
+        "axis": "precision",
+        "ok": true,
+        "ms": 1573,
+        "got": "[]"
+      },
+      {
+        "case": "repeticion",
+        "axis": "precision",
+        "ok": true,
+        "ms": 1460,
+        "got": "[]"
+      },
+      {
+        "case": "queja-asistente",
+        "axis": "precision",
+        "ok": true,
+        "ms": 1333,
+        "got": "[]"
+      }
+    ],
+    "misses": [
+      "alergia-ingles: slot de «marisco» = 'operator.diet', esperado None"
+    ],
+    "runs": 3,
+    "spread": {
+      "completeness_pct": [
+        97.8,
+        98.9,
+        100.0
+      ],
+      "precision_pct": [
+        100.0,
+        100.0,
+        100.0
+      ],
+      "layer_pct": [
+        94.4,
+        94.4,
+        94.4
+      ]
+    },
+    "usd_per_1k_turns": 0.567
+  }
+]

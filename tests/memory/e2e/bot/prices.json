@@ -9,25 +9,92 @@
     "sumarlo al coste absoluto de la nube, que es la que paga por AIMLAPI. Las claves son los nombres de",
     "candidato de distiller_bench.py, no ids de modelo."
   ],
-  "gpt-4.1-mini@openai": [0.40, 1.60],
-  "gpt-4.1-mini@aimlapi": [0.40, 1.60],
-  "gpt-4.1-nano": [0.10, 0.40],
-  "gpt-5-nano": [0.05, 0.40],
-  "gpt-5-mini": [0.25, 2.00],
-  "gpt-4o-mini": [0.15, 0.60],
-  "deepseek-v4-flash": [0.14, 0.28],
-  "deepseek-chat": [0.14, 0.28],
-  "gemini-2.5-flash": [0.30, 2.50],
-  "gemini-2.5-flash-lite": [0.10, 0.40],
-  "claude-haiku-4.5": [1.00, 5.00],
-  "kimi-k2-6": [0.95, 4.00],
-  "grok-4-fast-nonreason": [0.20, 0.50],
-  "glm-4.7": [0.40, 1.75],
-  "ministral-8b": [0.10, 0.10],
-  "llama-3.3-70b": [0.59, 0.79],
-  "qwen2.5-7b-turbo": [0.30, 0.30],
-  "llama-3.3-70b@groq": [0.59, 0.79],
-  "grok-4.20-nonreason@xai": [1.25, 2.50],
-  "glm-4.7-flash@zai": [0.06, 0.40],
-  "ministral-8b@mistral": [0.10, 0.10]
+  "gpt-4.1-mini@openai": [
+    0.4,
+    1.6
+  ],
+  "gpt-4.1-mini@aimlapi": [
+    0.4,
+    1.6
+  ],
+  "gpt-4.1-nano": [
+    0.1,
+    0.4
+  ],
+  "gpt-5-nano": [
+    0.05,
+    0.4
+  ],
+  "gpt-5-mini": [
+    0.25,
+    2.0
+  ],
+  "gpt-4o-mini": [
+    0.15,
+    0.6
+  ],
+  "gpt-4o-mini@aimlapi": [
+    0.15,
+    0.6
+  ],
+  "deepseek-v4-flash": [
+    0.14,
+    0.28
+  ],
+  "deepseek-chat": [
+    0.14,
+    0.28
+  ],
+  "gemini-2.5-flash": [
+    0.3,
+    2.5
+  ],
+  "gemini-2.5-flash-lite": [
+    0.1,
+    0.4
+  ],
+  "claude-haiku-4.5": [
+    1.0,
+    5.0
+  ],
+  "kimi-k2-6": [
+    0.95,
+    4.0
+  ],
+  "grok-4-fast-nonreason": [
+    0.2,
+    0.5
+  ],
+  "glm-4.7": [
+    0.4,
+    1.75
+  ],
+  "ministral-8b": [
+    0.1,
+    0.1
+  ],
+  "llama-3.3-70b": [
+    0.59,
+    0.79
+  ],
+  "qwen2.5-7b-turbo": [
+    0.3,
+    0.3
+  ],
+  "llama-3.3-70b@groq": [
+    0.59,
+    0.79
+  ],
+  "grok-4.20-nonreason@xai": [
+    1.25,
+    2.5
+  ],
+  "glm-4.7-flash@zai": [
+    0.06,
+    0.4
+  ],
+  "ministral-8b@mistral": [
+    0.1,
+    0.1
+  ]
 }

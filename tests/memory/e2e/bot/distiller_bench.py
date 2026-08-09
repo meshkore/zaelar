@@ -87,6 +87,10 @@ CANDIDATES: dict[str, tuple[str, str]] = {
     "gpt-5-nano":               (AIML, "openai/gpt-5-nano"),
     "gpt-5-mini":               (AIML, "openai/gpt-5-mini"),
     "gpt-4o-mini":              (OPENAI, "gpt-4o-mini"),          # CONTROL negativo: §9.2 lo vio comerse la alergia
+    # OJO al medir por OpenAI DIRECTO: esa cuenta va muy limitada de tasa — con 6 llamadas en vuelo devuelve
+    # HTTP 429 en ~1 de cada 5 (21 muertas de 102 en la Fase 2) y hunde el score por una razón que NO es el
+    # modelo. Por el broker sale limpio, y además es el camino que usa la nube de verdad.
+    "gpt-4o-mini@aimlapi":      (AIML, "openai/gpt-4o-mini"),
     # el tramo barato del broker
     "deepseek-v4-flash":        (AIML, "deepseek/deepseek-v4-flash"),
     "deepseek-chat":            (AIML, "deepseek/deepseek-chat"),
