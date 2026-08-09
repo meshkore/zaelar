@@ -133,3 +133,21 @@ def test_reconnecting_does_not_split_the_work_session(wired):
     identity.end_session("power_off")
     c = identity.begin_session("voice")["id"]
     assert c != a, "tras cerrarla de verdad, arrancar el agente abre una sesión NUEVA"
+
+
+def test_hand_published_events_are_stamped_too(wired):
+    """`observer.emit` NO es la única puerta: el latido del loop y el puente de `memory.updated` construyen su
+    dict a mano y lo publican directos al topic. Se saltaban el sello —50 de 66 filas del primer arranque real
+    salieron sin sesión— y un evento sin sesión ya no se puede atribuir después. El sello vive en
+    `bus/sse.py::publish`, que sí es la puerta única."""
+    from bus import sse as _sse
+    from observability import identity
+
+    identity.begin_session("test")
+    _sse.publish({"kind": "pulse", "label": "tick", "cat": "pulse"})     # tal cual lo hace nucleo/loop.py
+    _settle()
+
+    rows = wired.recent(5, topic="observer")
+    pulse = next(r for r in rows if (r["payload"] or {}).get("kind") == "pulse")
+    assert pulse["payload"]["sid"] == identity.session_id()
+    assert pulse["payload"]["uid"] == identity.user_id()

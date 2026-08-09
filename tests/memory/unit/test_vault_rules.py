@@ -63,11 +63,16 @@ def test_detect_english():
 # ── aplicación + persistencia ───────────────────────────────────────────────────────────────────────────
 def test_apply_persists_flag(fresh_db):
     assert mstate.security_flag("secrets_voice", True) is True     # default cómodo
-    line = vault_rules.apply(("secrets_voice", False))
-    assert "no" in line.lower()
+    off = vault_rules.apply(("secrets_voice", False))
     assert mstate.security_flag("secrets_voice", True) is False    # persistió
-    vault_rules.apply(("secrets_voice", True))
+    on = vault_rules.apply(("secrets_voice", True))
     assert mstate.security_flag("secrets_voice", True) is True
+    # La confirmación es LOCALIZADA (`apply` la traduce según el idioma del operador), así que aquí solo se
+    # comprueba el contrato agnóstico del idioma: que confirme algo y que las dos direcciones NO digan lo mismo.
+    # Antes se afirmaba `"no" in off.lower()` —cierto solo en castellano— y el test se puso rojo el día que el
+    # producto pasó a arrancar en INGLÉS por defecto (c615ee4): fallo del test, no del código.
+    assert off.strip() and on.strip()
+    assert off != on
 
 
 def test_security_flag_isolated_from_style_rules(fresh_db):

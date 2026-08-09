@@ -300,18 +300,7 @@ def emit(kind: str, label: str, text: str = "", role: str = "", extra: dict | No
                     ev["span"] = _sp
         except Exception:
             pass
-    # QUIÉN y CUÁNDO (2026-08-09). El evento ya decía QUÉ pasó (`kind`), de qué PIEZA (`cat`) y de qué FLUJO
-    # (`trace` = correlation id). Le faltaban los dos ejes con los que se analiza el uso REAL: la instalación
-    # (`uid`) y la sesión de trabajo (`sid`). Ambos son lecturas de un dict cacheado (ns) — el hot path de voz
-    # (V2-011) no paga nada. `sid` abre sesión sola en el primer evento: preferimos una sesión auto-abierta a un
-    # evento sin sesión, que es un dato que ya no se puede reconstruir después.
-    if "uid" not in ev or "sid" not in ev:
-        try:
-            from observability import identity as _ident
-            ev.setdefault("uid", _ident.user_id())
-            ev.setdefault("sid", _ident.session_id())
-        except Exception:
-            pass
+    stamp_identity(ev)
     _events.append(ev)
     if len(_events) > 5000:
         del _events[:1000]
@@ -338,6 +327,28 @@ def debug_events(kind: str = "", limit: int = 0) -> list:
     """Current session's events (for the /debug endpoint). Optional kind filter + tail limit."""
     evs = [e for e in _events if (not kind or e.get("kind") == kind)]
     return evs[-limit:] if limit else evs
+
+
+def stamp_identity(ev: dict) -> dict:
+    """QUIÉN y CUÁNDO (2026-08-09). El evento ya decía QUÉ pasó (`kind`), de qué PIEZA (`cat`) y de qué FLUJO
+    (`trace` = correlation id). Le faltaban los dos ejes con los que se analiza el uso REAL: la instalación
+    (`uid`) y la sesión de trabajo (`sid`). Son lecturas de un dict cacheado (ns) — el hot path de voz (V2-011)
+    no paga nada. `sid` abre sesión sola en el primer evento: preferimos una sesión auto-abierta a un evento sin
+    sesión, que es un dato que ya no se puede reconstruir después.
+
+    Vive en una función PROPIA porque `emit()` no es la única puerta al stream: hay eventos que se publican a
+    mano al topic `observer` (el latido `pulse` del loop, el puente de `memory.updated`) y se saltaban el sello
+    —50 de 66 filas del primer arranque salieron sin sesión—. `bus/sse.py::publish` lo aplica también, que sí es
+    la puerta ÚNICA. Idempotente: pasar dos veces no pisa nada."""
+    if "uid" in ev and "sid" in ev:
+        return ev
+    try:
+        from observability import identity as _ident
+        ev.setdefault("uid", _ident.user_id())
+        ev.setdefault("sid", _ident.session_id())
+    except Exception:
+        pass
+    return ev
 
 
 def _session_path(sid) -> str:

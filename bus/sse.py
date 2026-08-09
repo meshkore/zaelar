@@ -16,7 +16,16 @@ TOPIC = "observer"
 
 
 def publish(ev: dict):
-    """Publica un evento de observer en el bus. Loop-agnóstico (lo llama el job-thread de LiveKit)."""
+    """Publica un evento de observer en el bus. Loop-agnóstico (lo llama el job-thread de LiveKit).
+
+    Esta es la puerta ÚNICA al stream, así que aquí se sella la identidad (instalación + sesión de trabajo):
+    `observer.emit` no es el único emisor — el latido del loop y el puente de `memory.updated` construyen su
+    dict a mano y lo publican directos. El sello es idempotente y cuesta un par de lecturas cacheadas."""
+    try:
+        from voice.observer import stamp_identity
+        stamp_identity(ev)
+    except Exception:
+        pass
     _bus.emit_sync(TOPIC, ev)
 
 
