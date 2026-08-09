@@ -33,3 +33,4 @@ export const MIC_ICON = `<svg ${S}><path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V
 export const SEARCH_ICON = `<svg ${S}><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>`;
 export const MUSIC_ICON = `<svg ${S}><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>`;
 export const SERVER_ICON = `<svg ${S}><rect x="2" y="3" width="20" height="8" rx="2"/><rect x="2" y="13" width="20" height="8" rx="2"/><path d="M6 7h.01"/><path d="M6 17h.01"/></svg>`;
+export const MOON_ICON = `<svg ${S}><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>`;

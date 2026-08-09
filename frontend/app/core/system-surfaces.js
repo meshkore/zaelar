@@ -27,7 +27,6 @@ import { ActivityStrip } from "../components/ActivityStrip.js?v=2";
 import { Alert } from "../components/Alert.js?v=2";
 import { BenchmarksPanel } from "../components/BenchmarksPanel.js?v=1";
 import { BootOverlay } from "../components/BootOverlay.js?v=2";
-import { CameraUnit } from "../components/CameraUnit.js?v=2";
 import { ChatWall } from "../components/ChatWall.js?v=5";
 import { ConfigPanel } from "../components/ConfigPanel.js?v=2";
 import { ConnStatus } from "../components/ConnStatus.js?v=2";
@@ -48,10 +47,9 @@ export const SYSTEM_SURFACES = [
   // ── CHROME del escritorio (dentro de #desk; se desplaza al acoplar el chat) ──
   // NOTA: `name` es DISPLAY (inglés, lo ve el usuario). `aliases` son k-words de RECONOCIMIENTO por voz: se
   // mantienen en castellano Y en inglés porque el asistente es multilingüe con el operador (no son texto visible).
-  { id: "camera",     comp: CameraUnit,   target: "desk", phase: "overlay", kind: "chrome",
-    toggle: "always visible (mic/camera + chat button)", label: "User camera & microphone",
-    name: "Camera & mic", aliases: ["camara", "cámara", "microfono", "micrófono", "mic", "webcam",
-      "camera", "camera and mic", "microphone"] },
+  // «camera» (CameraUnit) OCULTADA a petición del operador (2026-08-09), para simplificar el cuenco — NO borrada:
+  // `components/CameraUnit.js` se queda archivada tal cual (código intacto, solo desenchufada de aquí). Su mic
+  // toggle y su botón de abrir el chat se trasladaron al ojo (Orb.js, dos slots que quedaron libres al mover ⏰/☾).
   { id: "orb",        comp: Orb,          target: "desk", phase: "overlay", kind: "chrome",
     toggle: "always visible (the eye + 7 controls + subtitles)", label: "Orb (zaelar personified)",
     name: "Orb", aliases: ["orbe", "orb", "el ojo", "ojo", "controles", "subtitulos", "subtítulos",

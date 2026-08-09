@@ -21,11 +21,6 @@ from __future__ import annotations
 # pestañas del chat (Procesos/Crons) NO vive aquí: lo hace la tool show_panel (router._canon_panel) — estos alias del
 # chat abren la superficie (pestaña por defecto).
 SYSTEM_SURFACES: dict[str, dict] = {
-    "camera": {
-        "name": "Camera & mic",
-        "aliases": ["camara", "cámara", "microfono", "micrófono", "mic", "webcam",
-                    "camera", "camera and mic", "microphone"],
-    },
     "orb": {
         "name": "Orb",
         "aliases": ["orbe", "orb", "el ojo", "ojo", "controles", "subtitulos", "subtítulos",

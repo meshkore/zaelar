@@ -8,8 +8,9 @@ import * as store from "../core/store.js?v=2";
 import * as session from "../services/session.js?v=3";
 import * as api from "../services/api.js?v=2";
 import { overallStatus } from "../services/status.js?v=2";
+import { toggleTheme } from "../services/theme.js?v=2";
 import { t } from "../core/i18n.js?v=1";
-import { BUG_ICON, GEAR_ICON, COMPASS_ICON } from "../lib/icons.js?v=1";
+import { BUG_ICON, GEAR_ICON, COMPASS_ICON, MOON_ICON } from "../lib/icons.js?v=1";
 
 // Status dot is a plain filled circle (see .statusBtn svg below) — recolors via the SAME --hb-ok/--hb-warn/--hb-risk
 // tokens the rest of the app uses for health state, instead of a one-off emoji/dingbat only this button had.
@@ -37,6 +38,11 @@ export function TopBar() {
       title: () => t("topbar.settings.title"),
       onClick: () => { const v = !store.configOpen(); store.setConfigOpen(v); api.uiEvent("topbar:settings", { state: v ? "open" : "close" }); } },
       raw(GEAR_ICON), () => ((store.apiAlerts() || []).length ? h("span", { class: "ic-badge" }) : null)),
+    // ☾ tema: MOVIDO aquí desde el ojo (Orb.js, 2026-08-09) — junto a ⚙, a petición del operador. ONE icon (moon),
+    // blue=dark/grey=light — mismo lenguaje on/off que el resto de controles, nunca se cambia por un icono de sol.
+    h("button", { class: () => "ic" + (store.theme() === "dark" ? " on" : ""), id: "themeBtn",
+      title: () => (store.theme() === "dark" ? t("topbar.theme_light") : t("topbar.theme_dark")),
+      onClick: () => { toggleTheme(); api.uiEvent("topbar:theme", { state: store.theme() }); } }, raw(MOON_ICON)),
     // 🧭 Wizard de config (V2-040): perfil local/cloud + detector del sistema + credenciales. Se auto-abre en el
     // primer arranque; este icono lo reabre cuando el operador quiera revalidar/cambiar el perfil.
     h("button", { class: () => "ic" + (store.wizardOpen() ? " on" : ""), id: "wizBtn",

@@ -3,40 +3,43 @@
 // — V2-039 «EL OJO» (operator 2026-07-17) — the whole cluster reads as an EYE: the icon arc above is the UPPER
 // LID, the ECG arc below (lib/ecg.js) is the LOWER LID, the orb is the IRIS. Both arcs stretch so their tips
 // nearly meet at the corners (canthi). SEVEN controls on the upper lid (L→R):
-//   ⏰ cron     → open the scheduled-tasks panel (proactivity). BLUE while the panel is open.
+//   🎤 mic      → mute/unmute the OPERATOR'S OWN microphone input. MOVED here 2026-08-09 when the CameraUnit
+//                 widget (its former home) was hidden/archived — same session.toggleMic()/store.micMuted() seam.
 //   🧠 memory   → open the MEMORY MAP visualizer (state + short/long-term + concept graph, V2-014). BLUE while open.
 //   🔊 speaker  → mute/unmute zaelar's voice OUTPUT (the agent keeps running: mic, brain and crons stay live).
 //   ⏻ power    → CENTRE (apex). Explicit ON/OFF of the voice session — the ONE exception to always-on: while
 //                 off (persisted hb_power_off) main.js does NOT auto-(re)connect; click again to come back.
 //   📝 captions → show/hide the live transcript crawling above the orb (history always stays in the chat wall).
-//   ☾ theme    → dark/light toggle. MOVED here from the TopBar (generic/personal, helps close the eye). ONE
-//                 icon (moon), blue=dark/grey=light — same on/off language as every other control, no icon swap.
+//   💬 chat     → open the chat panel (Chat/Processes/Crons/Clusters tabs — crons live INSIDE it, no separate
+//                 cron icon any more). MOVED here 2026-08-09, same slot the ⏰ cron shortcut used to occupy;
+//                 replaces both that shortcut AND CameraUnit's own chat button (archived along with it).
 //   🤖 robot    → attention gate (V2-016). OFF (grey) = `always`; ON (blue) = `wakeword` ("zaelar"/"harvis").
 //                 Toggles attention_mode LIVE via the SAME settings seam the ⚙ uses (POST /api/settings).
 // All controls are frameless icons: BLUE when ON/open, pale GREY when OFF/closed. The lid arc is drawn by CSS
-// (translateY per nth-child: centre highest, outer icons dive to the corners). The PROJECT icons (◉ status,
-// ⌗ docs, ◷ debug, ⚙, Reset) stay UP in the TopBar. Drag the orb to move it (position persisted). The orb canvas
-// is driven by the visualizer; the ECG canvas by lib/ecg.js; the activity rail (#activity) is owned by the desktop.
-// Captions are LIVE only (last 3 lines) — the chat wall keeps the history.
+// (translateY per nth-child: centre highest, outer icons dive to the corners) — UNCHANGED by the 2026-08-09 swap,
+// since it's keyed by SLOT INDEX, not which icon sits there. The PROJECT icons (◉ status, ⌗ docs, ◷ debug, ⚙,
+// ☾ theme, 🧭, Reset) stay UP in the TopBar — ☾ theme moved there FROM here the same day, next to ⚙. Drag the orb
+// to move it (position persisted). The orb canvas is driven by the visualizer; the ECG canvas by lib/ecg.js; the
+// activity rail (#activity) is owned by the desktop. Captions are LIVE only (last 3 lines) — the chat wall keeps
+// the history.
 import { h, raw } from "../core/dom.js?v=2";
 import { createEffect, createSignal } from "../core/reactive.js?v=2";
 import * as store from "../core/store.js?v=2";
 import * as session from "../services/session.js?v=3";
 import * as api from "../services/api.js?v=2";
-import { toggleTheme } from "../services/theme.js?v=2";
 import { makeDraggable } from "../lib/draggable.js?v=2";
 import { startEcg } from "../lib/ecg.js?v=2";
 import { t } from "../core/i18n.js?v=1";
 
-// Inline SVGs (self-contained, currentColor). Cron + memory + speaker on/off + power + captions + moon/sun + robot.
-const CRON_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7.5V12l3 2"/></svg>`;
+// Inline SVGs (self-contained, currentColor). Mic + memory + speaker on/off + power + captions + chat + robot.
+const MIC_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><path d="M12 18v3"/></svg>`;
 const MEM_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4.5a3 3 0 0 0-3 3 3 3 0 0 0-1.3 5.7A3 3 0 0 0 8 16.5a3 3 0 0 0 4 2.6"/><path d="M12 4.5a3 3 0 0 1 3 3 3 3 0 0 1 1.3 5.7A3 3 0 0 1 16 16.5a3 3 0 0 1-4 2.6"/><path d="M12 4.5v15"/></svg>`;
 const SPK_ON  = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/></svg>`;
 const SPK_OFF = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4V5z"/><path d="m22 9-6 6"/><path d="m16 9 6 6"/></svg>`;
 const CAP_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M7 10h5"/><path d="M7 14h9"/></svg>`;
+const CHAT_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.4 9.06 9.06 0 0 1-4-.9L3 21l1.9-4.5a8.38 8.38 0 0 1-.9-4A8.5 8.5 0 0 1 12.5 4 8.38 8.38 0 0 1 21 11.5z"/></svg>`;
 const BOT_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M9 13v2"/><path d="M15 13v2"/></svg>`;
 const PWR_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v10"/><path d="M18.4 6.6a9 9 0 1 1-12.77.04"/></svg>`;
-const MOON_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"/></svg>`;
 
 export function Orb() {
   let wrapEl, orbEl, capEl, capInnerEl, ecgEl;
@@ -73,17 +76,12 @@ export function Orb() {
     // to the corners to meet the ECG's lower lid): ⏰ · 🧠 · 🔊 · ⏻ · 📝 · ☾ · 🤖. BLUE = on/open, GREY = off.
     h("div", { class: "orbctl" },
       h("button", {
-        // V2-079: los crons se ven/gestionan en la 3ª pestaña del widget de chat. El botón ⏰ abre ESE widget
-        // directamente en la pestaña «Crons» (ya no hay panel suelto). ON = chat abierto EN la pestaña crons.
-        class: () => "orbic" + ((store.chatOpen() && store.chatTab() === "crons") ? " on" : " off"),
-        title: () => t("orb.cron"),
-        onClick: () => {
-          const on = store.chatOpen() && store.chatTab() === "crons";
-          if (on) { store.setChatOpen(false); }
-          else { store.setChatTab("crons"); store.setChatOpen(true); }
-          api.uiEvent("orb:cron", { state: on ? "close" : "open" });
-        },
-      }, raw(CRON_ICON)),
+        // 2026-08-09: relocated from CameraUnit (now hidden/archived) — same session.toggleMic()/store.micMuted()
+        // seam, just a different button. ON (blue) = mic live, like the speaker's on/off language.
+        class: () => "orbic" + (store.micMuted() ? " off" : " on"),
+        title: () => (store.micMuted() ? t("camera.mic_unmute") : t("camera.mic_mute")),
+        onClick: () => { session.toggleMic(); api.uiEvent("orb:mic", { state: store.micMuted() ? "muted" : "unmuted" }); },
+      }, raw(MIC_ICON)),
       h("button", {
         class: () => "orbic" + (store.memOpen() ? " on" : " off"),
         title: () => t("orb.memory"),
@@ -138,12 +136,12 @@ export function Orb() {
         onClick: () => { const v = store.toggleCaptions(); api.uiEvent("orb:captions", { state: v ? "on" : "off" }); },
       }, raw(CAP_ICON)),
       h("button", {
-        // ONE icon (the moon = "dark mode"), colored on/off like every other control — not swapped for a sun
-        // glyph when off (operator 2026-07-22: "quiero que todo lo activo esté en azul y lo demás en gris").
-        class: () => "orbic" + (store.theme() === "dark" ? " on" : " off"),
-        title: () => (store.theme() === "dark" ? t("orb.theme_light") : t("orb.theme_dark")),
-        onClick: () => { toggleTheme(); api.uiEvent("orb:theme", { state: store.theme() }); },
-      }, raw(MOON_ICON)),
+        // 2026-08-09: relocated from CameraUnit (now hidden/archived) — opens the SAME chat panel the old ⏰
+        // cron shortcut used to jump into (crons live inside its 3rd tab; no separate cron icon any more).
+        class: () => "orbic" + (store.chatOpen() ? " on" : " off"),
+        title: () => t("camera.chat_title"),
+        onClick: () => { const v = !store.chatOpen(); store.setChatOpen(v); api.uiEvent("orb:chat", { state: v ? "open" : "close" }); },
+      }, raw(CHAT_ICON)),
       h("button", {
         class: () => "orbic" + (wakeOn() ? " on" : " off"),
         title: () => wakeOn() ? t("orb.wake_on") : t("orb.wake_off"),
