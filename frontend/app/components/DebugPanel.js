@@ -208,9 +208,10 @@ export function DebugPanel() {
     try { const s = JSON.parse(localStorage.getItem("hb_dbg_kinds_off") || "null"); if (Array.isArray(s)) return s; } catch {}
     return [];
   })());
-  const kindChips = new Map();                   // kind -> {btn, nEl, n} (orden = primera aparición, estable)
+  const kindChips = new Map();                   // kind -> {btn, nEl, n, cat} (orden = primera aparición)
+  const kindGroups = new Map();                  // familia -> {box, body} — la línea de tipos de esa familia
   let kindsEl, kindsBtn;
-  let kindsOpen = localStorage.getItem("hb_dbg_kinds_open") === "1";
+  let kindsOpen = localStorage.getItem("hb_dbg_kinds_open") !== "0";   // ahora ON por defecto: ya no es un muro
 
   // ── stick-to-tail: seguir SIEMPRE el último evento, pero soltar si el operador sube el scroll ──
   // (V2 obs) El fondo se fija DESPUÉS del layout (rAF), así una fila recién añadida —que ahora puede
@@ -245,9 +246,41 @@ export function DebugPanel() {
     return !filter || (row.dataset.s || "").includes(filter);
   }
 
+  // Los tipos van AGRUPADOS BAJO SU FAMILIA (2026-08-09, petición del operador: «si cojo la familia de memoria,
+  // que salga debajo una línea con los kinds que puedo filtrar»). Antes era una lista plana de ~35 chips donde no
+  // se veía a qué pieza pertenecía cada uno; ahora cada familia ACTIVA aporta su línea, y apagar la familia se
+  // lleva su línea con ella. La familia de cada kind NO se duplica aquí: viene sellada en el propio evento
+  // (`cat`, de `observer.py::_CAT`), así que el frontend la aprende mirando lo que pasa y no puede desalinearse.
+  function groupFor(cat) {
+    let g = kindGroups.get(cat);
+    if (!g && kindsEl) {
+      const box = document.createElement("div");
+      box.className = "dbg-kgroup c-" + cat;
+      const head = document.createElement("span");
+      head.className = "dbg-kgh";
+      head.textContent = t(CAT_LABEL_KEY[cat] || "debug.col_family");
+      head.title = head.textContent;      // el rótulo se recorta en columna estrecha; el hover lo dice entero
+      const body = document.createElement("span"); body.className = "dbg-kgb";
+      box.append(head, body);
+      kindsEl.appendChild(box);
+      g = { box, body };
+      kindGroups.set(cat, g);
+      syncGroups();
+    }
+    return g;
+  }
+
+  // Una familia apagada no enseña sus tipos: sus filas ya no están en pantalla, así que sus chips solo estorban.
+  function syncGroups() {
+    for (const [cat, g] of kindGroups) {
+      g.box.hidden = CAT_KEYS.has(cat) ? !enabledCats.has(cat) : false;
+    }
+    if (kindsEl) kindsEl.hidden = !kindsOpen;
+  }
+
   // Registra (o actualiza) el chip de un kind. Se llama por CADA evento —también por los colapsados en ×N— así el
   // contador dice cuánto pesa realmente cada tipo en el hilo, que es lo que decide qué apagar.
-  function noteKind(kind) {
+  function noteKind(kind, cat) {
     let c = kindChips.get(kind);
     if (!c) {
       const btn = document.createElement("button");
@@ -257,9 +290,10 @@ export function DebugPanel() {
       const nEl = document.createElement("i"); nEl.className = "dbg-kn";
       btn.append(lb, nEl);
       btn.addEventListener("click", (e) => toggleKind(kind, e.shiftKey));
-      c = { btn, nEl, n: 0 };
+      c = { btn, nEl, n: 0, cat };
       kindChips.set(kind, c);
-      if (kindsEl) kindsEl.appendChild(btn);
+      const g = groupFor(cat);
+      if (g) g.body.appendChild(btn);
     }
     c.n++; c.nEl.textContent = String(c.n);
   }
@@ -285,8 +319,8 @@ export function DebugPanel() {
   function toggleKindsRow() {
     kindsOpen = !kindsOpen;
     localStorage.setItem("hb_dbg_kinds_open", kindsOpen ? "1" : "0");
-    if (kindsEl) kindsEl.hidden = !kindsOpen;
     if (kindsBtn) kindsBtn.classList.toggle("on", kindsOpen);
+    syncGroups();
   }
 
   function addRow(d) {
@@ -301,7 +335,7 @@ export function DebugPanel() {
       + " " + (d.trace || "") + " " + (d.span || "")).toLowerCase();   // V2-044: filtrable por trace/span
     const sig = kind + "|" + label + "|" + meta + "|" + text;
 
-    noteKind(kind);
+    noteKind(kind, (d.cat || "other").toString());
 
     // Collapse consecutive identical events into one row with a ×N counter (defends the panel against any burst).
     if (lastRow && sig === lastSig) {
@@ -448,6 +482,7 @@ export function DebugPanel() {
     if (enabledCats.has(key)) enabledCats.delete(key); else enabledCats.add(key);
     btn.classList.toggle("on", enabledCats.has(key));
     try { localStorage.setItem("hb_dbg_cats_v2", JSON.stringify([...enabledCats])); } catch {}
+    syncGroups();     // encender/apagar una familia trae o se lleva SU línea de tipos
     reflow();
   }
 
@@ -459,6 +494,7 @@ export function DebugPanel() {
     // siguiente evento). Lo que NO se toca es qué kinds están apagados: esa es la preferencia del operador.
     if (kindsEl) kindsEl.replaceChildren();
     kindChips.clear();
+    kindGroups.clear();
     traces.clear();
     lastRow = null; lastSig = ""; count = 0;
     if (countEl) countEl.textContent = t("debug.events", { n: 0 });

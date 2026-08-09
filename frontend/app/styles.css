@@ -820,9 +820,21 @@ body.dbg-resizing{cursor:ew-resize;user-select:none}
 .dbg-cat.muted{border-color:var(--hb-warn-border);color:var(--hb-warn-ink)}
 /* 3ª barra: desglose por KIND (2026-08-09). Chips más pequeños y monoespaciados — son nombres de evento, no
    familias; el contador dice cuánto pesa cada tipo, que es lo que decide qué callar. */
-.dbg-kinds{flex:0 0 auto;display:flex;flex-wrap:wrap;gap:4px;padding:6px 12px;border-bottom:1px solid var(--hb-line);
-  max-height:26vh;overflow-y:auto}
+/* Los tipos van AGRUPADOS BAJO SU FAMILIA: una línea por familia activa, con su nombre a la izquierda. Apagar
+   la familia se lleva su línea (sus filas ya no están en pantalla, sus chips solo estorbarían). */
+.dbg-kinds{flex:0 0 auto;display:flex;flex-direction:column;gap:3px;padding:6px 12px;
+  border-bottom:1px solid var(--hb-line);max-height:30vh;overflow-y:auto}
 .dbg-kinds[hidden]{display:none}
+.dbg-kgroup{display:flex;align-items:baseline;gap:6px;min-width:0}
+.dbg-kgroup[hidden]{display:none}
+.dbg-kgh{flex:0 0 96px;font-family:var(--mono);font-size:9px;font-weight:700;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--hb-muted-2);text-align:right;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;border-right:2px solid var(--hb-line);padding-right:6px}
+.dbg-kgroup.c-flash  .dbg-kgh{color:#a78bfa;border-right-color:color-mix(in srgb,#a78bfa 55%,transparent)}
+.dbg-kgroup.c-worker .dbg-kgh{color:var(--hb-accent);border-right-color:color-mix(in srgb,var(--hb-accent) 55%,transparent)}
+.dbg-kgroup.c-memory .dbg-kgh{color:var(--hb-accent2);border-right-color:color-mix(in srgb,var(--hb-accent2) 55%,transparent)}
+.dbg-kgroup.c-widget .dbg-kgh{color:var(--hb-warn-ink);border-right-color:var(--hb-warn-border)}
+.dbg-kgb{display:flex;flex-wrap:wrap;gap:4px;min-width:0}
 .dbg-kind{display:inline-flex;align-items:baseline;gap:4px;padding:2px 7px;border-radius:6px;
   border:1px solid var(--hb-line);background:var(--hb-bg);color:var(--hb-muted-2);cursor:pointer;
   font-family:var(--mono);font-size:10.5px;line-height:1.4;white-space:nowrap;opacity:.55}
