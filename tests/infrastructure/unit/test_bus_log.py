@@ -41,7 +41,7 @@ def test_write_persists_and_reads_back(log):
 
 
 def test_persists_across_connection_close(log, tmp_path):
-    log._write({"topic": "loop.tick", "ts_ms": 1.0, "payload": {"n": 1}})
+    log._write({"topic": "memory.updated", "ts_ms": 1.0, "payload": {"n": 1}})
     log.close()                                     # simula reinicio: nueva conexión al MISMO fichero
     log.drain()
     assert log.count() == 1
@@ -81,7 +81,7 @@ def test_attach_is_idempotent(log):
     async def run():
         log.attach()
         log.attach()                  # segunda vez = no-op, no duplica el sink
-        await busmod.publish("loop.tick", {})
+        await busmod.publish("memory.updated", {})
     asyncio.run(run())
     log.drain()
     assert log.count() == 1
@@ -122,3 +122,14 @@ def test_a_full_queue_drops_log_instead_of_slowing_the_caller(log, monkeypatch):
         log._write({"topic": "x", "ts_ms": float(i), "payload": {"i": i}})
     assert log._dropped["n"] > 0
     assert log.stats()["dropped"] == log._dropped["n"]
+
+
+def test_the_heartbeat_is_not_persisted(log):
+    """El loop tiquea a ~1 Hz: persistir el latido serían ~140.000 filas al día de un evento SIN datos, que se
+    comerían la retención y ahogarían lo que sí importa. Para la UI en vivo sigue llegando por SSE."""
+    log._write({"topic": "loop.tick", "ts_ms": 1.0, "payload": {"n": 1}})
+    log._write({"topic": "observer", "ts_ms": 2.0, "payload": {"kind": "pulse", "label": "tick"}})
+    log._write({"topic": "observer", "ts_ms": 3.0, "payload": {"kind": "brain", "label": "decide"}})
+    log.drain()
+    assert log.count() == 1, "solo el evento con contenido real debe quedar"
+    assert log.recent(1)[0]["payload"]["kind"] == "brain"

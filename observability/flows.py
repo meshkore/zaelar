@@ -106,7 +106,12 @@ def sessions(limit: int = 30, user_id: str = "") -> list[dict]:
 
 def stats() -> dict:
     """Cobertura del propio sistema: cuántos eventos llevan ya cada eje. Sirve para detectar un hueco (una pieza
-    que emite sin correlation id) en vez de descubrirlo cuando falte el dato al analizar."""
+    que emite sin correlation id) en vez de descubrirlo cuando falte el dato al analizar.
+
+    Acotado a `topic='observer'`: la tabla guarda TODO el bus, y las señales internas (`memory.updated`,
+    `connector.status`) no son eventos de observabilidad — no llevan familia, ni sesión, ni flujo, y contarlas
+    hundía la cobertura con un problema inexistente. `with_corr` bajo SÍ es normal: solo tienen flujo los eventos
+    que nacen de un estímulo; los de arranque y los de fondo no vienen de ninguno."""
     r = _rows(
         """
         SELECT COUNT(*)                                                        AS events,
@@ -115,7 +120,7 @@ def stats() -> dict:
                SUM(CASE WHEN user_id    IS NOT NULL AND user_id    != '' THEN 1 ELSE 0 END) AS with_user,
                COUNT(DISTINCT corr_id)                                         AS flows,
                COUNT(DISTINCT session_id)                                      AS sessions
-        FROM events
+        FROM events WHERE topic = 'observer'
         """,
         (),
     )

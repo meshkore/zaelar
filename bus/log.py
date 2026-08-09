@@ -176,8 +176,26 @@ def drain(timeout: float = 2.0) -> None:
         _t.sleep(0.01)
 
 
+# QUÉ MERECE PERSISTIRSE (la pregunta que V2-001 dejó abierta al poner el log en standby). El LATIDO no: el
+# loop orquestador tiquea a ~1 Hz, así que `loop.tick` y su reflejo `kind="pulse"` meterían ~140.000 filas al día
+# de un evento que no lleva ningún dato — ahogando lo que sí importa y comiéndose la retención entera. El latido
+# existe para la UI en vivo (el ECG del orbe), que lo recibe por SSE igual; para el REGISTRO no aporta nada.
+# Cualquier otro topic sí se guarda: ante la duda, se registra.
+_SKIP_TOPICS = {"loop.tick"}
+_SKIP_KINDS = {"pulse"}
+
+
+def _worth_persisting(rec: dict) -> bool:
+    if str(rec.get("topic") or "") in _SKIP_TOPICS:
+        return False
+    p = rec.get("payload")
+    return not (isinstance(p, dict) and p.get("kind") in _SKIP_KINDS)
+
+
 def _write(rec: dict):
     """Sink del bus: ENCOLA el evento. Nunca bloquea al que publica (ver la nota de arriba)."""
+    if not _worth_persisting(rec):
+        return
     try:
         _q.put_nowait(rec)
     except queue.Full:

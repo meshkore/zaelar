@@ -226,7 +226,9 @@ def note_failure(text: str, tier: dict | None = None) -> dict | None:
         return None                                  # la licencia local no se pone en cooldown por esto
 
     if kind == "exhausted":
-        until = _reset_epoch(text) or (time.time() + _DEFAULT_COOLDOWN_S)
+        # Mismo suelo que en el hermano `nucleo/flash/provider_chain.py` (2026-08-09): una fecha de reset ya
+        # VENCIDA en el texto del error dejaba el escalón disponible en el acto → relevo a sí mismo → bucle.
+        until = max(_reset_epoch(text), time.time() + _DEFAULT_COOLDOWN_S)
     elif kind == "auth":
         until = time.time() + _AUTH_COOLDOWN_S
     else:

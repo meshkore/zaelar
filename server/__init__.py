@@ -33,6 +33,7 @@ from connectors.meshkore.server_api import router as meshkore_router  # native c
 from connectors.messaging.server_api import router as messaging_router  # UI-managed connect/disconnect of connectors
 from memory.server_api import router as files_router  # paste/drop uploads → EPISODIC memory (V2-003; absorbs files/)
 from memory.vault_api import router as vault_router    # bóveda de secretos cifrados del operador (V2-060)
+from bus.sse import publish as _sse_publish   # puerta ÚNICA al topic observer: sella instalación+sesión
 from observability.api import router as obs_router    # flujos/sesiones/identidad (correlation id, 2026-08-09)
 from nucleo.cron_api import router as cron_router  # proactividad PROPIA del cerebro «Colmena» (V2-005/009; ⏰ panel)
 from .wizard_api import router as wizard_router  # wizard de primer arranque: perfiles local/cloud + detector (V2-040)
@@ -131,7 +132,7 @@ async def _lifespan(app: FastAPI):
                         out["ids"] = list(state["ids"])
                     if state["layer"]:
                         out["layer"] = state["layer"]
-                    bus.emit_sync("observer", out)
+                    _sse_publish(out)
                     state["ids"] = set(); state["op"] = ""; state["layer"] = ""
 
                 async for ev in sub:
@@ -217,7 +218,7 @@ async def _lifespan(app: FastAPI):
                             # latido ~1 Hz sigue alimentando el ECG del orbe (sse.js), pero NO ensucia el log en
                             # vivo salvo que el operador active el chip «Pulse». Así se ven las llamadas REALES
                             # de memoria in/out.
-                            bus.emit_sync("observer", {"kind": "pulse", "label": "tick", "cat": "pulse",
+                            _sse_publish({"kind": "pulse", "label": "tick", "cat": "pulse",
                                                        "n": ev.get("n"), "ts": ev.get("ts")})
                         except Exception:
                             pass

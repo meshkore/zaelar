@@ -159,7 +159,12 @@ def note_failure(text: str, tier: dict | None = None) -> dict | None:
         return None
 
     if kind == "exhausted":
-        until = _reset_epoch(text) or (time.time() + _DEFAULT_COOLDOWN_S)
+        # La fecha de reset que da el proveedor manda… salvo que ya haya PASADO. Un mensaje con una fecha vencida
+        # (respuesta cacheada, reloj desfasado, texto de error reutilizado) dejaba `until` en el pasado → el
+        # escalón quedaba disponible en el acto → se relevaba a SÍ MISMO y volvía a fallar: exactamente el bucle
+        # de 429 que este módulo existe para cortar. Suelo de media hora: si la cuota de verdad ya se repuso, se
+        # pierde media hora de tier preferido; sin suelo se pierde el turno entero, en bucle. (2026-08-09)
+        until = max(_reset_epoch(text), time.time() + _DEFAULT_COOLDOWN_S)
     elif kind == "auth":
         until = time.time() + _AUTH_COOLDOWN_S
     else:

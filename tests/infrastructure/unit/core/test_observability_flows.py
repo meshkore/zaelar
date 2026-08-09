@@ -144,10 +144,9 @@ def test_hand_published_events_are_stamped_too(wired):
     from observability import identity
 
     identity.begin_session("test")
-    _sse.publish({"kind": "pulse", "label": "tick", "cat": "pulse"})     # tal cual lo hace nucleo/loop.py
-    _settle()
-
-    rows = wired.recent(5, topic="observer")
-    pulse = next(r for r in rows if (r["payload"] or {}).get("kind") == "pulse")
-    assert pulse["payload"]["sid"] == identity.session_id()
-    assert pulse["payload"]["uid"] == identity.user_id()
+    ev = {"kind": "memory", "label": "updated"}     # dict construido a mano, como el puente de memory.updated
+    _sse.publish(ev)
+    # Se comprueba sobre el evento PUBLICADO, no sobre la fila: el sello ocurre al publicar, y así el test no
+    # depende de si ese kind concreto llega a persistirse (el latido, por ejemplo, se descarta a propósito).
+    assert ev["sid"] == identity.session_id()
+    assert ev["uid"] == identity.user_id()
