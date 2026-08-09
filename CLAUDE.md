@@ -1470,6 +1470,14 @@ Cómo funciona (canal de VOZ e2e, INI-013):
   costuras explícitas (payload de escalada→`SessionRecord.trace_id`, registro de tareas del navegador, run del
   rail). El visor ◷ pinta un chip por fila (click→filtra la cadena) y el botón **⛓** alterna a la vista
   **Trazas** (árbol frase→actor→eventos). Detalle en `zaelar-observability.md §Trazabilidad` + iniciativa V2-044.
+  **Filtro del visor = las PIEZAS del sistema, con inventario CERRADO (2026-08-09):** las familias son
+  **FlashBrain · Brain Workers · Memoria · Widgets · Sistema/Código · Pulso** (fuera «Principal», que era un cajón
+  de sastre), y **TODO `kind` emitido pertenece a una** — lo garantiza un test que recorre el código y falla si
+  alguien estrena un kind sin clasificarlo (`tests/infrastructure/unit/core/test_observer_categories.py`, nodo
+  7.6); antes caían filas que ningún chip gobernaba. Regla: **la familia dice QUÉ pasó, el `span`/`trace` dice
+  QUIÉN lo hizo** — la lectura de memoria de un worker es `memory`, no «worker»; para aislar por ACTOR está la
+  vista Trazas. Segundo eje de filtro, más fino, por `kind` (botón «Tipos…», contador vivo, shift+click = solo
+  ese) + cabecera FIJA de columnas. Tabla completa en `zaelar-observability.md §El visor`.
 - **Routing de modelos del tester**: DRIVE + juicio barato = **DeepSeek vía AIMLAPI**; juicio competente = **GLM-4.6
   vía Z.AI**. Claves en `.env` + `.meshkore/credentials/tester.env` (gitignored).
 - **Docker SÍ se permite AQUÍ** (aislamiento, LiveKit dedicado del tester) — es la ÚNICA parte del proyecto donde

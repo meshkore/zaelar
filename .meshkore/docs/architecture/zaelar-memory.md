@@ -458,9 +458,121 @@ fallo no tumba el sueño):
 
 Cadencia: marcador persistente **`sys_kv.rem_last_run`** + `config §memory.rem_every_hours` (def 24h, mín 1h; env
 `ZAELAR_REM_SECS` manda si está). **Kill-switch `ZAELAR_REM=0`**. Modelo de síntesis por config
-(`§memory.rem_model/rem_base_url/rem_api_key`, default `gpt-4.1-mini` — bench de síntesis 100%, §12) resuelto por el
-**router interno `nucleo/memllm.py`** (modelos POR TAREA del módulo de memoria, key POR ENDPOINT — lección del
-incidente: una key suelta enviada al endpoint equivocado tumbó el CORAZÓN 2 días en silencio).
+(`§memory.rem_model/rem_base_url/rem_api_key`, default **`deepseek/deepseek-v4-flash` vía AIMLAPI** — ver
+§Modelos de la memoria) resuelto por el **router interno `nucleo/memllm.py`** (modelos POR TAREA del módulo de
+memoria, key POR ENDPOINT — lección del incidente: una key suelta enviada al endpoint equivocado tumbó el CORAZÓN
+2 días en silencio).
+
+> ⚠️ **La fase 3 estuvo MUERTA semanas (incidente 2026-08-09).** `_REM_SYSTEM` termina con el ejemplo del contrato
+> de salida —`[{"concept": str, "insight": str|null}]`— y se interpolaba con `str.format(lang=…)`: Python lee esas
+> llaves literales como marcadores y lanza `KeyError` en CADA llamada; el `except` de `synthesize` lo convertía en
+> un `warning` y 0 insights. **Fail-open perfecto y silencioso**: el síntoma era «la memoria no consolida», nunca
+> un error. Arreglado con `.replace` (el idioma que ya usaba `mem_processor`), blindado con
+> `tests/memory/unit/test_rem_prompt.py` —que **prohíbe explícitamente** volver a `.format` sobre ese prompt— y el
+> fallo dejó de ser invisible: log a ERROR + `health_state.record("memory")` → sale en el ◉. **La lección, que ya
+> es la tercera vez en este módulo: un fallo de la memoria NUNCA puede quedarse en un `logger.warning`.**
+> Dos topes latentes del mismo sitio, que truncaban en silencio: `max_tokens` 1200→**4000** (un modelo que razona
+> agotaba el presupuesto antes de cerrar el JSON → array truncado → `[]` sin error; medido: 1 de cada 3 llamadas)
+> y `timeout` 60→**240s** (REM corre de madrugada: no hay prisa que justifique perder la consolidación).
+
+---
+
+## Modelos de la memoria — QUÉ usamos, POR QUÉ, y dónde está la evidencia
+
+> **Esta sección es la respuesta canónica a «¿por qué estos modelos?».** Está pensada para no tener que repetir
+> ningún benchmark: si alguien pregunta, se responde desde aquí. El detalle denso vive en
+> `zaelar-model-benchmarks.md §12.3` (destilar) y **§12.4** (consolidar); los informes CRUDOS de cada corrida están
+> versionados en `tests/memory/e2e/bot/resultados/` y los arneses son reproducibles.
+
+**La memoria usa LLM en DOS sitios, los dos de ESCRITURA y los dos off-hot-path. LEER no usa LLM nunca** (retriever
+sqlite-vec + FTS5 + RRF + reranker CPU) — ese es el invariante que hace que la latencia de estos modelos no le
+cueste nada al turno de voz.
+
+| tarea | qué hace | modelo (2026-08-09) | cadencia | evidencia |
+|---|---|---|---|---|
+| **CORAZÓN** (`nucleo/mem_processor.py`) | destila cada turno en píldoras + metadatos | **`deepseek/deepseek-v4-flash`** vía AIMLAPI | **cada turno** (miles/día) | §12.3 |
+| **Sueño REM** (`nucleo/memllm.py`) | agrupa durables por concepto → 1 insight | **`deepseek/deepseek-v4-flash`** vía AIMLAPI | **1 vez al día** | §12.4 |
+
+**Un solo modelo para las dos** (decisión del operador 2026-08-09): una cuenta, un proveedor, una cosa que vigilar.
+Y el MISMO en self-host y en nube — no hay dos ganadores según dónde corras.
+
+### Por qué el criterio es DISTINTO en cada una (y no es opinión, es la forma del código)
+
+- **CORAZÓN → manda el PRECIO.** Corre en cada turno, así que el coste es lineal con el uso: **$0,68 por 1.000
+  turnos destilados** frente a los $1,516 del titular anterior (`gpt-4.1-mini`) = **−55%**. Se cambió porque
+  EMPATA en los dos ejes que destruyen datos —captar el hecho (98,5% vs 98,9%: un hecho de 90, dentro del ruido) y
+  no ensuciar con descartes (100% los dos)—, no porque sea "mejor".
+- **REM → manda la CALIDAD.** `rem.py` manda TODOS los grupos en **UNA llamada**, con topes `MAX_GROUPS=8` ×
+  `pills[:12]`, **una vez al día**: ~365 llamadas al año con la entrada ACOTADA por diseño. **El coste NO escala
+  con el tamaño de la memoria** — todo el barrido de 11 candidatos cabía entre **$0,14 y $2,17 AL AÑO** por
+  usuario. Optimizar precio ahí sería optimizar ruido; en cambio un insight malo se escribe como píldora DURABLE
+  (`slot=insight:<concepto>`) que el retriever puede devolver como si fuera un hecho del operador.
+
+### Los vetos — por qué NO usamos el más barato ni el más potente
+
+- ⛔ **`gpt-4o-mini`** (más barato que el titular, $0,567/1k) **VETADO en el CORAZÓN**: a una alergia dicha en
+  **inglés** le pone `slot=operator.diet` — 3/3 pasadas del bench y 3/3 reproduciéndolo aparte. Un `slot`
+  **invalida todas las píldoras anteriores con ese slot**, así que un futuro «ahora soy vegetariano» borraría la
+  alergia al marisco. Es el error que el propio prompt advierte por escrito; en una memoria personal es pérdida de
+  datos silenciosa, no un punto porcentual. (La MISMA frase en castellano la resuelve bien: lo que rompe es el
+  cruce de idioma.)
+- ⛔ **Los RAZONADORES no valen para NINGUNA de las dos.** Destilando, `gpt-5-mini` y `gpt-5-nano` sacan **50-60%
+  de precisión**: captan bien pero convierten preguntas y órdenes en recuerdos — un razonador "le encuentra
+  sentido" a un turno que había que tirar. Consolidando, `gpt-5-mini` y `gemini-2.5-flash` directamente **no
+  devuelven nada usable** (validez 0%).
+- ⚠️ **"Más potente" NO es mejor aquí, y está MEDIDO.** En REM: `deepseek-v4-pro` 98,1%, `deepseek-reasoner`
+  97,1%, `gpt-4.1` 96,8%, `deepseek-thinking` 92,4% — **ninguno supera al flash** (97,8-99,0%) y cuestan de 3× a
+  9× más. La síntesis es mecánica (agrupar, abstraer, conservar claves); razonar añade verbosidad e inestabilidad,
+  no criterio.
+- ❌ **`gpt-4.1-mini` cae de REM por no saber CALLARSE**: 0% de disciplina de `null` en 3 pasadas. Ante un grupo de
+  trivialidades («tomó un café», «se le olvidó dónde dejó las llaves») SIEMPRE fabrica un insight —«experimenta
+  pequeños olvidos…»— que se consolidaría como rasgo durable del operador. Callar cuando no hay patrón es parte de
+  la tarea, no una omisión.
+
+### Cadenas de FALLBACK (documentadas, no automáticas)
+
+- **CORAZÓN:** `deepseek-v4-flash` → `google/gemini-2.5-flash` (96,7 / 100 / 100) → `openai/gpt-4.1-mini`
+  (98,9 / 100 / 100, el único con metadato perfecto y varianza cero, a 2,2× el precio).
+- **REM:** `deepseek-v4-flash` → `x-ai/grok-4-fast-non-reasoning` (97,8-98,7%, el más barato y rápido; pierde
+  algún nombre propio al sintetizar) → `zhipu/glm-4.7` (99,0%, pero 7× el precio y 49s).
+- Se cambian por config (`§memory.mem_processor_*` / `§memory.rem_*`) o por la UI. **La credencial se resuelve POR
+  ENDPOINT**, nunca a mano: cambiar de modelo NO exige tocar keys.
+
+### La REGLA que sustituye a la anterior
+
+La directriz **«memoria = SIEMPRE OpenAI»** (2026-07-17) queda **DEROGADA**. Se tomó cuando el único contendiente
+barato medido era `gpt-4o-mini` sobre 16 casos. Con 21 candidatos × 34 casos (destilar) y 11 × 8 grupos
+(consolidar) hay modelos no-OpenAI que igualan la calidad útil a menos de la mitad de precio. **La regla nueva:
+el modelo de la memoria se elige con el BENCH, nunca por reputación del proveedor** — y el bench se vuelve a
+correr antes de afirmar nada, porque los hallazgos caducan (el «gpt-4o-mini se come la alergia» de §9.2 dejó de
+ser cierto: hoy la capta, y falla en el metadato, que es peor).
+
+### Cómo REPRODUCIR los benchmarks (ambos arneses son versionados y deterministas en su corpus)
+
+```bash
+# CORAZÓN — 34 casos × 4 ejes (write-completeness · precisión · capa/slot · $/1k turnos)
+PYTHONPATH=. ./.venv/bin/python tests/memory/e2e/bot/distiller_bench.py --preflight        # ¿responden los ids?
+PYTHONPATH=. ./.venv/bin/python tests/memory/e2e/bot/distiller_bench.py --runs 3 --models deepseek-v4-flash,gpt-4.1-mini@aimlapi
+
+# SUEÑO REM — 8 grupos × 6 ejes (validez · claves · forma · null · no-invención · $/año)
+PYTHONPATH=. ./.venv/bin/python tests/memory/e2e/bot/rem_synth_bench.py --runs 3 --models deepseek-v4-flash,grok-4-fast-nonreason
+```
+
+Los dos escriben `resultados/<fecha>-<bench>[-tag]/report.{md,json}` con el detalle por caso y los **fallos
+concretos** de cada modelo. Las tarifas viven FUERA del código en `tests/memory/e2e/bot/prices.json` para poder
+re-verificarlas por web sin tocar el arnés (los precios de LLM cambian sin aviso).
+
+⚠️ **Norma metodológica aprendida el 2026-08-09: medir SIEMPRE por el broker, no por OpenAI directo.** Esa cuenta
+va muy limitada de tasa — con 6 llamadas en vuelo devolvió HTTP 429 en 21 de 102, hundiendo el score de un modelo
+por una razón que no era el modelo (y explicando de paso un p50 de 20s). Un rate-limit se disfraza de mala calidad.
+
+### Consumo: las dos tareas REPORTAN a Energy
+
+Desde 2026-08-09 el CORAZÓN (`mem_processor`) y el router de memoria (`memllm`, que sirve REM e i18n) capturan el
+bloque `usage` de la respuesta y lo reportan a `nucleo/energy_meter.py` (fire-and-forget, fail-open). **Antes eran
+las únicas llamadas LLM de nube sin metering**: en una cuenta cloud, destilar y consolidar contaban CERO. La
+tarifa del titular y la de toda la cadena de fallback están en `_AIMLAPI_MODEL_RATES`, para que un failover no
+meter por la tarifa genérica.
 
 ## API interna de la memoria
 
