@@ -1,6 +1,11 @@
 #
 # test_log.py — log durable de eventos del bus en SQLite (V2-001, T35). Verifica persistencia real a
 # disco (fichero temporal vía ZAELAR_DB), enganche como sink del bus, filtros y resiliencia.
+#
+# 2026-08-09: el sink pasó a ser ASÍNCRONO (encola + hilo escritor). El bus lo llama en el hilo que PUBLICA, que
+# muchas veces es el de la voz, y un INSERT síncrono ahí era el motivo de que el log durable llevara desde V2-001
+# apagado por defecto. Por eso los tests ahora DRENAN antes de leer: `_write` ya no promete haber escrito, promete
+# no haber bloqueado.
 # Ejecutar: .venv/bin/pytest tests/infrastructure/unit/test_bus_log.py
 #
 import asyncio
@@ -26,7 +31,9 @@ def log(tmp_path, monkeypatch):
 def test_write_persists_and_reads_back(log):
     log._write({"topic": "brain.reply", "ts_ms": 1000.0, "payload": {"text": "hola"}})
     log._write({"topic": "widget.show", "ts_ms": 2000.0, "payload": {"id": "agenda"}})
+    log.drain()
     assert log.count() == 2
+    log.drain()
     rows = log.recent(10)
     assert rows[0]["topic"] == "widget.show"        # más nuevo primero
     assert rows[0]["payload"] == {"id": "agenda"}
@@ -36,6 +43,7 @@ def test_write_persists_and_reads_back(log):
 def test_persists_across_connection_close(log, tmp_path):
     log._write({"topic": "loop.tick", "ts_ms": 1.0, "payload": {"n": 1}})
     log.close()                                     # simula reinicio: nueva conexión al MISMO fichero
+    log.drain()
     assert log.count() == 1
     assert log.recent(1)[0]["payload"] == {"n": 1}
 
@@ -46,6 +54,7 @@ def test_attach_captures_bus_events(log):
         await busmod.publish("memory.updated", {"id": 42})
         await busmod.publish("connector.msg", {"from": "wa"})
     asyncio.run(run())
+    log.drain()
     assert log.count() == 2
     assert log.count("memory.updated") == 1
 
@@ -54,6 +63,7 @@ def test_topic_prefix_filter(log):
     log._write({"topic": "widget.show", "ts_ms": 1.0, "payload": 1})
     log._write({"topic": "widget.close", "ts_ms": 2.0, "payload": 2})
     log._write({"topic": "brain.reply", "ts_ms": 3.0, "payload": 3})
+    log.drain()
     assert len(log.recent(10, topic="widget.*")) == 2
     assert len(log.recent(10, topic="brain.reply")) == 1
 
@@ -62,6 +72,7 @@ def test_non_serializable_payload_does_not_crash(log):
     class Weird:
         pass
     log._write({"topic": "x", "ts_ms": 1.0, "payload": Weird()})
+    log.drain()
     assert log.count() == 1           # se guarda como str, no revienta
     assert log.recent(1)[0]["topic"] == "x"
 
@@ -72,4 +83,42 @@ def test_attach_is_idempotent(log):
         log.attach()                  # segunda vez = no-op, no duplica el sink
         await busmod.publish("loop.tick", {})
     asyncio.run(run())
+    log.drain()
     assert log.count() == 1
+
+
+def test_the_sink_never_blocks_the_publisher(log):
+    """El CONTRATO nuevo: `_write` encola y vuelve. Es lo que permite tener el log durable encendido sin que un
+    INSERT por evento se interponga en el hilo de la voz (el motivo por el que estuvo apagado desde V2-001)."""
+    import time
+    t0 = time.perf_counter()
+    for i in range(2000):
+        log._write({"topic": "x", "ts_ms": float(i), "payload": {"i": i}})
+    encolar_ms = (time.perf_counter() - t0) * 1000
+    assert encolar_ms < 200, f"encolar 2000 eventos tardó {encolar_ms:.0f}ms — eso ya no es 'no bloquea'"
+    log.drain(timeout=5.0)
+    assert log.count() == 2000
+
+
+def test_retention_caps_the_table(log, monkeypatch):
+    """La otra razón de que estuviera apagado: crecimiento sin límite. Ahora hay techo de filas y poda por edad."""
+    monkeypatch.setattr(log, "_MAX_ROWS", 10)
+    monkeypatch.setattr(log, "_RETENTION_DAYS", 0)      # aislar el techo de filas del corte por antigüedad
+    for i in range(25):
+        log._write({"topic": "x", "ts_ms": float(i), "payload": {"i": i}})
+    log.drain(timeout=5.0)
+    log.prune()
+    assert log.count() == 10, "el techo debe dejar exactamente las N más recientes"
+    assert log.recent(1)[0]["payload"]["i"] == 24, "y las que quedan son las ÚLTIMAS, no las primeras"
+
+
+def test_a_full_queue_drops_log_instead_of_slowing_the_caller(log, monkeypatch):
+    """Bajo saturación se pierde LOG, nunca velocidad: la prioridad es la voz. Y el descarte se CUENTA, para que
+    un hueco en los datos sea visible en vez de silencioso."""
+    import queue as _q
+    monkeypatch.setattr(log, "_q", _q.Queue(maxsize=2))
+    log._dropped["n"] = 0
+    for i in range(10):
+        log._write({"topic": "x", "ts_ms": float(i), "payload": {"i": i}})
+    assert log._dropped["n"] > 0
+    assert log.stats()["dropped"] == log._dropped["n"]

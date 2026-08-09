@@ -56,13 +56,15 @@ async def _lifespan(app: FastAPI):
     # v2 «Colmena» — Sistema Nervioso (bus/, V2-001). Mount the durable event log's LIFECYCLE here (attach at
     # boot, detach+close at shutdown). The bus pub/sub itself is in-memory and needs no "start"; voice/observer
     # already fans out through it (bus/sse.py) with NO new subscribers wired here — the voice hot path is
-    # unchanged. The durable SQLite log (bus/log.py) is a SYNCHRONOUS sink, so it is OFF by default
-    # (ZAELAR_BUS_LOG, default 0) to keep the hot path byte-for-byte as today and avoid unbounded zaelar.db
-    # growth from voice-token events; it flips on once the memory subsystem (V2-002/003) defines what deserves
-    # durable persistence. Never breaks voice/chat.
+    # unchanged. El log durable (bus/log.py) estaba APAGADO por defecto desde V2-001 por dos razones concretas:
+    # era un sink SÍNCRONO (un INSERT por evento en el hilo que publica, o sea a veces el de la voz) y hacía
+    # crecer zaelar.db sin límite. **Las dos están resueltas** (2026-08-09): el sink solo ENCOLA y drena un hilo
+    # dedicado, y hay retención por antigüedad + techo de filas. Así que se ENCIENDE por defecto — sin él, la
+    # observabilidad por flujos/sesiones (observability/) consulta una tabla que nadie alimenta, que es
+    # justamente el fallo que destapó esto. `ZAELAR_BUS_LOG=0` sigue apagándolo. Nunca rompe voz/chat.
     _bus_log = None
     try:
-        if os.getenv("ZAELAR_BUS_LOG", "0") == "1":
+        if os.getenv("ZAELAR_BUS_LOG", "1") == "1":
             from bus import log as _bus_log
             _bus_log.attach()
             logger.info("Sistema Nervioso (bus/) montado — log durable de eventos ACTIVO (zaelar.db)")

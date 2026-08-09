@@ -13,6 +13,7 @@ NUNCA revienta el reparto de eventos (el sink del bus ya está protegido por try
 """
 import json
 import os
+import queue
 import sqlite3
 import threading
 import time
@@ -139,8 +140,52 @@ def _columns_from(payload) -> tuple:
             _i("prompt_tokens"), _i("completion_tokens"), _s("ver", 40))
 
 
+# ESCRITURA OFF-THREAD (2026-08-09). El sink lo llama el bus EN EL HILO QUE PUBLICA — y ese hilo es, muchas
+# veces, el de la voz. Un INSERT síncrono por evento ahí es exactamente el fallo que V2-035 sacó del observador:
+# las escrituras síncronas retenían el GIL en ráfagas de eventos y ahogaban el pump de audio del TTS (voz
+# entrecortada). Por eso el log durable llevaba desde V2-001 APAGADO por defecto «para no tocar el hot path».
+#
+# La solución no es dejarlo apagado —sin él no hay nada que analizar— sino que el sink solo ENCOLE (operación de
+# microsegundos que nunca bloquea) y un hilo dedicado drene en orden. Cola ACOTADA: bajo una ráfaga se pierden
+# eventos de log antes que ralentizar la voz. Esa es la prioridad correcta.
+_q: "queue.Queue" = queue.Queue(maxsize=20000)
+_dropped = {"n": 0}
+
+
+def _writer_loop():
+    while True:
+        rec = _q.get()
+        try:
+            if rec is not None:
+                _write_now(rec)
+        except Exception:
+            pass
+        finally:
+            _q.task_done()      # permite Queue.join() — los tests esperan el drenado antes de leer
+
+
+_writer_thread = threading.Thread(target=_writer_loop, name="bus-log-writer", daemon=True)
+_writer_thread.start()
+
+
+def drain(timeout: float = 2.0) -> None:
+    """Espera a que la cola se vacíe. Para tests y para el apagado ordenado; nunca se llama en el hot path."""
+    import time as _t
+    t0 = _t.time()
+    while not _q.empty() and (_t.time() - t0) < timeout:
+        _t.sleep(0.01)
+
+
 def _write(rec: dict):
-    """Sink del bus: persiste un evento. `rec` = {topic, ts_ms, payload}. Best-effort."""
+    """Sink del bus: ENCOLA el evento. Nunca bloquea al que publica (ver la nota de arriba)."""
+    try:
+        _q.put_nowait(rec)
+    except queue.Full:
+        _dropped["n"] += 1      # visible en `stats()`: mejor perder log que frenar la voz
+
+
+def _write_now(rec: dict):
+    """Persistencia real, en el hilo del writer. `rec` = {topic, ts_ms, payload}. Best-effort."""
     try:
         payload = rec.get("payload")
         try:
@@ -161,6 +206,41 @@ def _write(rec: dict):
         pass
 
 
+# RETENCIÓN (2026-08-09). La otra razón por la que el log durable estaba apagado: «crecimiento sin límite de
+# zaelar.db». Con el log encendido esto deja de ser hipotético — una sesión activa genera miles de filas al día —
+# y ahora además es el ÚNICO sitio donde viven los eventos. Se poda por antigüedad y con un techo duro de filas,
+# ambos configurables. Corre al enganchar el sink (arranque) en el hilo del writer: nunca en el de la voz.
+_RETENTION_DAYS = float(os.getenv("ZAELAR_EVENTS_RETENTION_DAYS", "30"))
+_MAX_ROWS = int(os.getenv("ZAELAR_EVENTS_MAX_ROWS", "500000"))
+
+
+def prune() -> int:
+    """Borra lo viejo y lo que pase del techo. Devuelve cuántas filas se fueron. Best-effort: un fallo podando
+    NUNCA puede impedir que se sigan registrando eventos."""
+    gone = 0
+    try:
+        with _lock:
+            conn = _connect()
+            if _RETENTION_DAYS > 0:
+                cutoff = (time.time() - _RETENTION_DAYS * 86400) * 1000.0
+                gone += conn.execute("DELETE FROM events WHERE ts_ms < ?", (cutoff,)).rowcount or 0
+            if _MAX_ROWS > 0:
+                # Por id (autoincremental) y no por ts_ms: es el orden real de inserción y usa la PK.
+                row = conn.execute(
+                    "SELECT id FROM events ORDER BY id DESC LIMIT 1 OFFSET ?", (_MAX_ROWS,)).fetchone()
+                if row:
+                    gone += conn.execute("DELETE FROM events WHERE id <= ?", (row[0],)).rowcount or 0
+            conn.commit()
+    except Exception:
+        pass
+    return gone
+
+
+def stats() -> dict:
+    """Salud del propio log: cuánto hay, cuánto se ha descartado por saturación y cuánto queda en cola."""
+    return {"rows": count(), "dropped": _dropped["n"], "queued": _q.qsize()}
+
+
 def attach(bus_mod=None):
     """Engancha el log al bus (idempotente). Llamado desde el lifespan del server (T40)."""
     global _attached
@@ -170,6 +250,8 @@ def attach(bus_mod=None):
         import bus as bus_mod  # noqa
     bus_mod.add_sink(_write)
     _attached = True
+    # Poda al arrancar, en su propio hilo: con 500k filas el DELETE puede tardar y no puede retrasar el boot.
+    threading.Thread(target=prune, name="bus-log-prune", daemon=True).start()
 
 
 def detach(bus_mod=None):
