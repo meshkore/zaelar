@@ -1529,6 +1529,24 @@ Cómo funciona (canal de VOZ e2e, INI-013):
 Ver `.meshkore/docs/deploy/zaelar-deploy.md` — instrucciones completas para Fly.io + CloudFlare TURN.
 Estado actual: **sin deploy en prod** (destruido por ahorro de costes).
 
+## Frontera PÚBLICO/PRIVADO — este repo es OSS y se lee desde fuera
+
+**`engine/` es el repo PÚBLICO.** Su código y su `.meshkore/` los lee cualquiera que clone zaelar. Por eso:
+
+- **NUNCA se documenta aquí nada de la NUBE ni del NEGOCIO**: control-plane, provisioner, facturación, backoffice,
+  tablas de la base central, precios, políticas de las cuentas de pago, decisiones de privacidad del producto
+  comercial. Eso vive en el `.meshkore/` de la RAÍZ del workspace (repo privado aparte) — ver `../CLAUDE.md`.
+- **El código puede tener costuras que un despliegue use y otro no** (una URL de servicio en una variable de
+  entorno, un id de usuario que venga del entorno). Lo que NO puede es NARRAR para qué sirven en un producto de
+  pago. La regla práctica: describe el MECANISMO («si `X_URL` está configurada, avisa a ese servicio; sin ella es
+  un no-op»), nunca el PRODUCTO («el provisioner inyecta esto en la Machine de cada cliente»).
+- Ante la duda, la pregunta es: *¿esto le sirve a alguien que se auto-hospeda?* Si la respuesta es no, no va aquí.
+
+⚠️ **Deuda conocida (2026-08-09):** este `CLAUDE.md` y varios docs de `.meshkore/` arrastran menciones a
+`INI-019`/`INI-020`, control-plane, provisioner y backoffice de ANTES de fijar esta regla, y el repo **ya está
+publicado**, así que el historial de git las conserva aunque se limpien hoy. Limpiar lo que queda es una tarea
+abierta (`V2-091`); a partir de ahora, no añadir más.
+
 ## Hard rules
 
 - **COMMITEA PRONTO Y SIEMPRE — cada agente y cada sesión commitea SU propio trabajo.** En cuanto una tarea está

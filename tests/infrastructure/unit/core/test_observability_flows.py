@@ -100,8 +100,8 @@ def test_every_event_carries_installation_and_session(wired):
 
 
 def test_local_user_id_is_a_random_uuid_and_persists(wired, tmp_path):
-    """UUID4 aleatorio: no puede chocar con un id de la nube, así que enlazar la instalación local con una cuenta
-    remota no exige reconciliar nada."""
+    """UUID4 aleatorio y no correlativo: no identifica a nadie por sí mismo y no puede chocar con el de otra
+    instalación."""
     import uuid
 
     from observability import identity
@@ -113,7 +113,7 @@ def test_local_user_id_is_a_random_uuid_and_persists(wired, tmp_path):
     assert identity.user_id() == uid, "la identidad de la instalación debe sobrevivir al reinicio"
 
 
-def test_cloud_user_id_wins(wired, monkeypatch):
+def test_an_environment_provided_user_id_wins(wired, monkeypatch):
     from observability import identity
 
     monkeypatch.setenv("ZAELAR_USER_ID", "acct_42")

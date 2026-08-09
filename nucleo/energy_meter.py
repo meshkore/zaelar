@@ -201,11 +201,9 @@ async def _post_usage_cloud_account(energy: float, kind: str, meta: dict | None 
     service_token = (os.getenv("CONTROL_PLANE_SERVICE_TOKEN") or "").strip()
     headers = {"X-Service-Token": service_token} if service_token else {}
     payload = {"user_id": user_id, "energy": energy, "kind": kind}
-    # SESIÓN DE TRABAJO (2026-08-09). Los EVENTOS no salen nunca de la máquina del usuario (decisión INI-021: su
-    # observabilidad vive en su propio volumen, con su memoria). Lo que sí necesita ser central es el REGISTRO DE
-    # ACTIVIDAD —quién usó el sistema, cuándo y cuánto gastó— y para eso basta con que cada reporte de consumo
-    # diga a qué sesión pertenece: el control-plane acumula por (usuario, sesión) y sale la tabla de actividad sin
-    # ninguna vía de ingesta nueva. Cuesta un dict lookup y no manda NADA de contenido.
+    # SESIÓN DE TRABAJO (2026-08-09): el reporte dice a qué sesión pertenece el consumo, para que quien lo reciba
+    # pueda agruparlo sin abrir otra vía. Cuesta un dict lookup y no manda NADA de contenido. Los EVENTOS no
+    # viajan por aquí ni por ningún sitio: se quedan en esta máquina.
     try:
         from observability import identity as _ident
         payload["session_id"] = _ident.session_id()

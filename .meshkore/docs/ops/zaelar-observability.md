@@ -4,6 +4,48 @@
 > cerebro «Colmena», llamadas a modelos LLM y por qué API) deja rastro en un **registro único de eventos**. Este
 > documento dice dónde está y cómo leerlo. Cualquier agente que cargue el contexto debe empezar por aquí para depurar.
 
+## Los CUATRO ejes de un evento
+
+Todo evento responde a cuatro preguntas, y cada una tiene su campo. Entender esto es entender el sistema entero:
+
+| Eje | Campo | Qué contesta | De dónde sale |
+|---|---|---|---|
+| **QUÉ** | `kind` + `label` | qué ha pasado | el sitio que lo emite |
+| **DE QUÉ PIEZA** | `cat` | FlashBrain · Brain Workers · Memoria · Widgets · Sistema · Pulso | `observer.py::_CAT` |
+| **DE QUÉ FLUJO** | `trace` → columna `corr_id` | el **correlation id**: todo lo que desencadena un estímulo, de inicio a fin | `voice/trace.py` (ContextVar) |
+| **QUIÉN y CUÁNDO** | `uid` · `sid` | la instalación y la sesión de trabajo | `observability/identity.py` |
+
+**El correlation id no es un identificador aparte**: es el `trace` de V2-044, promovido de campo dentro del JSON a
+columna indexada. Un segundo id paralelo se habría separado del primero en la primera costura cross-loop que
+alguien olvidara coser. Cada petición del operador abre su propio flujo —aunque corrija una anterior—; lo que
+continúa un flujo vivo (un worker entregando, un paso del navegador) hereda el suyo.
+
+**La familia dice QUÉ pasó, no QUIÉN lo hizo.** Una lectura de memoria es `memory` la haga el FlashBrain o un
+worker; quién la hizo lo dice el `span` (`worker:5`, `rail:music`, `web:t2`). Para aislar por actor está la vista
+Trazas (⛓).
+
+## Dónde se guarda
+
+**Todo en la instalación, en un solo sitio.** No hay servicio externo ni carpeta aparte:
+
+- **`memory/_data/zaelar.db`** (SQLite+WAL, el MISMO fichero de la memoria) tabla `events`, escrita por el sink
+  del bus (`bus/log.py`) — escritor único. Además del `payload` JSON completo, sube a **columnas indexadas** lo
+  que hace falta para consultar: `corr_id · session_id · user_id · cat · kind · label · span · ms · model ·
+  tokens_in · tokens_out · ver`. Se añadieron con `ALTER TABLE` idempotente: una instalación viva no pierde su
+  histórico por una migración, y las filas antiguas quedan a `NULL` porque ese dato no existía.
+- **`.meshkore/logs/timeline-latest.jsonl`** (rodante) y **`.meshkore/logs/sessions/<session_id>.jsonl`** (por
+  sesión de trabajo) — el volcado crudo, para `jq`.
+
+`GET /api/observability/*` lo lee: `flows` (resumen por flujo: duración real de punta a punta, familias, actores,
+tokens, errores), `flow/{corr_id}` (detalle cronológico), `sessions`, `catalog` (el mapa de lo filtrable),
+`identity` y `stats` (cobertura de los propios ejes). Solo lectura.
+
+**Identidad**: `user_id` es un **UUID4 aleatorio** generado la primera vez y guardado en `config/identity.json`
+(gitignored). Aleatorio y no correlativo a propósito — no identifica a nadie por sí mismo. Va a un JSON y no a la
+base de datos porque un reset con «borrar memoria» destruye `zaelar.db`, y perder la identidad al limpiar la
+memoria haría inútil cualquier análisis longitudinal. `session_id` es un UUID4 por **sesión de trabajo**: la abre
+el frontend al conectar y la cierran ⏻ o cerrar la pestaña; una reconexión NO la parte en dos.
+
 ## El bus único de eventos
 
 **UN solo sistema de registro**: todo pasa por `voice/observer.py` → `emit(kind, label, text="", role="", extra={})`,

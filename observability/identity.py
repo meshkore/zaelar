@@ -2,12 +2,12 @@
 observability.identity — QUIÉN y CUÁNDO: el usuario de esta instalación y la sesión de trabajo en curso.
 
 Los eventos ya sabían QUÉ pasó (`kind`), de qué PIEZA (`cat`) y de qué FLUJO (`trace`/correlation id). Les
-faltaban los dos ejes que permiten analizar el uso REAL — y que la nube ya asume pero el self-host no tenía:
+faltaban los dos ejes que permiten analizar el uso REAL:
 
-- **`user_id`** — estable de por vida para esta instalación. En la NUBE lo inyecta el provisioner
-  (`ZAELAR_USER_ID`, ver `nucleo/cloud_account.py`) y manda ese. En LOCAL no había ninguno: se genera un
-  **UUID4 aleatorio** la primera vez y se persiste. Al ser aleatorio no puede colisionar con un id de la nube,
-  así que el día que una instalación local se enlace con una cuenta remota no hay nada que reconciliar.
+- **`user_id`** — estable de por vida para esta instalación. Se genera un **UUID4 aleatorio** la primera vez y se
+  persiste. Aleatorio y no correlativo a propósito: no identifica a nadie por sí mismo y no puede colisionar con
+  el de otra instalación. Si el entorno ya trae uno (`ZAELAR_USER_ID`), manda ese — la identidad la puede fijar
+  quien despliega, y este módulo no necesita saber por qué.
 - **`session_id`** — un UUID4 por SESIÓN DE TRABAJO: desde que el operador arranca el agente hasta que cierra el
   navegador o le da al botón de parar. No es el proceso (el server puede vivir semanas) ni el turno (dura
   segundos): es el tramo de trabajo que el operador reconocería como «lo de esta tarde».
@@ -43,12 +43,12 @@ def _identity_file() -> Path:
 
 
 def user_id() -> str:
-    """El id ESTABLE de esta instalación. Nube → el que inyecta el provisioner; local → UUID4 persistido."""
+    """El id ESTABLE de esta instalación: el que traiga el entorno si lo hay, o un UUID4 propio persistido."""
     from nucleo import cloud_account
 
-    cloud = cloud_account.my_user_id()
-    if cloud:
-        return cloud
+    provided = cloud_account.my_user_id()
+    if provided:
+        return provided
     if _user["id"]:
         return _user["id"]
     with _lock:
@@ -125,14 +125,14 @@ def session_info() -> dict:
 
 
 def _report_to_control_plane(label: str, info: dict) -> None:
-    """SOLO en una cuenta de nube: avisa al control-plane de que una sesión empieza o acaba, para el REGISTRO DE
-    ACTIVIDAD central (quién usó el sistema, cuándo y cuánto gastó). No viaja ni un evento ni una transcripción —
-    solo `(user_id, session_id, start|end)`; el consumo lo acumula el propio `POST /usage`, que desde 2026-08-09
-    ya lleva la sesión. En self-host es un no-op: no hay control-plane al que hablarle.
+    """Aviso opcional a un servicio de registro externo de que una sesión empieza o acaba, cuando el despliegue
+    tiene uno configurado (`CONTROL_PLANE_URL` + un `ZAELAR_USER_ID`). **En una instalación normal esto es un
+    no-op**: sin esas variables no se contacta con nada y no sale un solo byte de la máquina.
 
-    Fire-and-forget con el mismo contrato que `energy_meter`: sin URL o sin token no hace nada, y un fallo NUNCA
-    puede tumbar el arranque ni el cierre de una sesión. Sin `ended_at` (una máquina que muere de golpe no lo
-    manda) el registro sigue sirviendo: el control-plane conserva el último consumo visto como estimación."""
+    Mismo contrato guarded-until-configured que `nucleo/energy_meter.py`: fire-and-forget, y un fallo NUNCA puede
+    tumbar el arranque ni el cierre de una sesión. No viaja ningún evento ni ninguna transcripción — solo
+    `(user_id, session_id, start|end)`."""
+
     try:
         import asyncio
         import os

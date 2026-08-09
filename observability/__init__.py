@@ -4,7 +4,7 @@ observability/ — QUIÉN, CUÁNDO y en qué FLUJO (2026-08-09).
 El registro de eventos (`voice/observer.py` + `bus/log.py`) ya contaba QUÉ pasa en el sistema. Este módulo añade
 los ejes que faltaban para poder ANALIZARLO en vez de solo mirarlo pasar:
 
-- **`identity`** — `user_id` estable por instalación (UUID4 aleatorio en local, el de la cuenta en la nube) y
+- **`identity`** — `user_id` estable por instalación (UUID4 aleatorio, persistido) y
   `session_id` por sesión de trabajo del operador.
 - **`flows`** — lectura por CORRELATION ID: un flujo = todo lo que desencadena un estímulo, de inicio a fin.
 
