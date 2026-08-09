@@ -15,7 +15,7 @@ import time
 # por contexto + Susurro anti-confabulación · V2-079 visibilidad de workers/crons en pestañas · V2-080 lista
 # canónica de superficies nativas · V2-085 selección progresiva O(K) · V2-086 red nativa + clusters
 # públicos · V2-088 chat y voz independientes).
-VERSION = "2.88"
+VERSION = "2.89"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CACHE: dict = {}
