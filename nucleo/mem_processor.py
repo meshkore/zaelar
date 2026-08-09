@@ -110,15 +110,29 @@ def _model() -> str:
 
 def _endpoint_key(url: str) -> str:
     # Credencial POR ENDPOINT (mismo patrón que fast_client.resolved_api_key) — la key sigue a la URL, nunca al revés.
+    # El orden importa: `aimlapi` PRIMERO, porque el id del modelo del broker (openai/…, x-ai/…) no debe confundirse
+    # con el endpoint, y porque el broker sirve modelos de todos esos proveedores bajo SU propia key.
     low = url.lower()
+    if "aimlapi" in low:
+        return os.getenv("AIMLAPI_KEY", "") or "local"
     if "openai.com" in low:
         return os.getenv("OPENAI_API_KEY", "") or "local"
     if "x.ai" in low:
         return os.getenv("XAI_API_KEY", "") or "local"
-    if "aimlapi" in low:
-        return os.getenv("AIMLAPI_KEY", "") or "local"
     if "groq.com" in low:
         return os.getenv("GROQ_API_KEY", "") or "local"
+    # Endpoints DIRECTOS añadidos en la ronda de destilación 2026-08-09 (§12.3): el barrido de precio/calidad del
+    # CORAZÓN los evalúa, así que la resolución de credencial tiene que conocerlos — misma lista que fast_client.
+    if "z.ai" in low:
+        return os.getenv("Z_AI_API_KEY", "") or "local"
+    if "mistral.ai" in low:
+        return os.getenv("MISTRAL_API_KEY", "") or "local"
+    if "generativelanguage.googleapis.com" in low or "gemini" in low:
+        return os.getenv("GEMINI_API_KEY", "") or "local"
+    if "moonshot" in low:
+        return os.getenv("MOONSHOT_API_KEY", "") or "local"
+    if "deepseek.com" in low:
+        return os.getenv("DEEPSEEK_API_KEY", "") or "local"
     return "local"
 
 
@@ -194,6 +208,36 @@ def _mark_fail(err: str) -> None:
                                 f"{_fail_streak} fallos ({_model()} @ {_url()}): {err[:160]} — heurística")
         except Exception:
             pass
+
+
+# ── CONSUMO REAL (2026-08-09) — el CORAZÓN es una llamada LLM de nube como cualquier otra, y hasta hoy era la
+# ÚNICA que no reportaba a Energy: `report_llm_usage` solo se llamaba desde `flash/fast_client.py`, los Brain
+# Workers y el generador de widgets. En una cuenta cloud eso significaba destilar cada turno GRATIS en el
+# contador — exactamente el agujero que la addenda de INI-019 cerró para la voz. Mismo contrato que el resto:
+# fire-and-forget, fail-open, no-op fuera de demo/cuenta cloud. `last_usage()` además expone los tokens reales
+# al bench de destilación (§12.3), que calcula el $/1k turnos con números medidos, no estimados.
+_last_usage: dict = {}
+
+
+def last_usage() -> dict:
+    """Tokens de la ÚLTIMA destilación (`{prompt_tokens, completion_tokens, total_tokens}`), `{}` si el proveedor
+    no los devolvió. Solo diagnóstico/bench — el camino de escritura no lo consume."""
+    return dict(_last_usage)
+
+
+def _record_usage(usage: dict | None) -> None:
+    global _last_usage
+    if not isinstance(usage, dict):
+        _last_usage = {}
+        return
+    _last_usage = {k: usage.get(k) for k in ("prompt_tokens", "completion_tokens", "total_tokens")}
+    try:
+        from nucleo import energy_meter as _energy
+        _energy.report_llm_usage(base_url=_url(), model=_model(),
+                                 prompt_tokens=_last_usage.get("prompt_tokens"),
+                                 completion_tokens=_last_usage.get("completion_tokens"))
+    except Exception:  # noqa: BLE001  — medir NUNCA puede romper una escritura de memoria
+        pass
 
 
 # ── prompt (afinable; se destila sobre turnos reales) ───────────────────────────────────────────────────────
@@ -456,6 +500,7 @@ async def process(text: str, *, state: dict | None = None) -> list[dict] | None:
                             data = await r.json()
                     content = data["choices"][0]["message"]["content"]
                     atoms = _parse(content)
+                    _record_usage(data.get("usage"))
                     _mark_ok()
                     break
                 except _PermanentError as e:
