@@ -185,7 +185,12 @@ async def test_post_usage_routes_cloud_account_to_control_plane(monkeypatch):
     monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: _FakeClient())
     await energy_meter._post_usage(12.5, "worker")
     assert captured["url"] == "https://zaelar-control-plane.example.workers.dev/usage"
-    assert captured["json"] == {"user_id": "did:key:z6MkExample", "energy": 12.5, "kind": "worker"}
+    # `session_id` (2026-08-09, INI-021): los EVENTOS no salen de la máquina del usuario, pero el registro de
+    # ACTIVIDAD central (quién usa el sistema, cuándo y cuánto gasta) necesita saber a qué sesión de trabajo
+    # pertenece cada consumo. Viaja por ESTE mismo reporte para no abrir una vía de ingesta nueva.
+    from observability import identity as _ident
+    assert captured["json"] == {"user_id": "did:key:z6MkExample", "energy": 12.5, "kind": "worker",
+                                "session_id": _ident.session_id()}
     assert captured["headers"] == {"X-Service-Token": "shh-secret"}
 
 
