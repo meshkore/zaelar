@@ -27,3 +27,14 @@
   · `widget.js` NO se tocó en este cambio (el soporte de `image` de la nota 4 se conserva tal cual).
   Verificado en vivo de punta a punta: petición → worker real → búsqueda web → `present @fichero` → `show` →
   4 parques acuáticos con precio, horario, enlace y foto en pantalla (~5 min).
+- **2026-08-03 — el widget ya podía; el cerebro no sabía pedírselo (+ un cap real de sobra).** Petición
+  "muéstrame una foto de un plato de quinoa": el cerebro llamó a `web_search` (solo TEXTO — nunca una foto real)
+  y acabó DESCRIBIENDO de palabra la imagen que no podía traer; 6 turnos de disculpas antes de rendirse. El
+  esquema de este widget YA aceptaba un item con solo `image` (una foto sola, sin url/price), pero nada en las
+  descripciones de `router.py` decía que ESO había que escalarlo. Fix real en `nucleo/flash/router.py`: `web_search`
+  ahora dice explícitamente "solo trae TEXTO, nunca una foto real"; `escalate_to_slowbrain` incluye "conseguir una
+  foto/imagen REAL para enseñarla" en su lista de SÍ. Nada tocado aquí en el contrato — solo se subió el cap de
+  `lines` (4→80 líneas, 300 chars cada una sigue igual) porque una petición real ("muéstrame la letra de una
+  canción") necesita un bloque de texto completo, no 4 bullets — mismo esquema, un tope menos artificialmente
+  corto. `manifest.json.usage` y `keywords` (imagen/letra/canción) actualizados para que el cerebro sepa que este
+  widget cubre también esos casos.

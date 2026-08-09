@@ -64,7 +64,9 @@ function makeCard(it, isPrimary, choose){
   if(it.price){ const p=document.createElement("div"); p.className="hr-price"; p.textContent=it.price; head.appendChild(p); }
   card.appendChild(head);
   if(it.subtitle){ const s=document.createElement("div"); s.className="hr-s"; s.textContent=it.subtitle; card.appendChild(s); }
-  (Array.isArray(it.lines) ? it.lines : []).slice(0,4).forEach(l=>{
+  // 80 lines (data.py's cap) so a full block of text — e.g. a song's lyrics — fits in one item's body, not just
+  // a handful of spec-sheet bullets (2026-08-03).
+  (Array.isArray(it.lines) ? it.lines : []).slice(0,80).forEach(l=>{
     const ln=document.createElement("div"); ln.className="hr-ln"; ln.textContent=String(l); card.appendChild(ln); });
   if(it.badge){ const b=document.createElement("span"); b.className="hr-badge"; b.textContent=it.badge; card.appendChild(b); }
   const chosenTag = document.createElement("span"); chosenTag.className = "hr-chosen-tag"; chosenTag.textContent = "✓ Elegido";

@@ -121,6 +121,26 @@ def test_tool_catalog_is_constant_sized(monkeypatch):
 MAX_CATALOG_CHARS = 21_000
 
 
+# ── "muéstrame una foto de X" tiene que escalar, no narrar (incidente real 2026-08-03) ───────────────────────
+# El cerebro pedía a web_search una foto que web_search no puede dar (solo texto) y acababa DESCRIBIENDO la
+# imagen de palabra en vez de mostrarla — 6 turnos de "no se ve nada"/disculpas antes de rendirse. Las tools no
+# tienen un parámetro para esto (no hay «pedir imagen»): la frontera vive en la DESCRIPCIÓN, así que el test es
+# textual — cachea la regresión si alguien recorta esta frase sin darse cuenta de por qué está.
+def _desc(name: str) -> str:
+    return next(t["function"]["description"] for t in router.TOOLS if t["function"]["name"] == name)
+
+
+def test_web_search_description_excludes_showing_a_real_photo():
+    d = _desc("web_search").lower()
+    assert "foto" in d or "imagen" in d
+    assert "texto" in d           # deja claro que solo trae texto, nunca la imagen en sí
+
+
+def test_escalate_description_covers_fetching_a_real_photo():
+    d = _desc("escalate_to_slowbrain").lower()
+    assert "foto" in d or "imagen" in d
+
+
 def test_tool_catalog_stays_compact():
     import json as _json
     size = len(_json.dumps(router.TOOLS, ensure_ascii=False))

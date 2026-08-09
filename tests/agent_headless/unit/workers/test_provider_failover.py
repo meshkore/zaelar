@@ -14,8 +14,12 @@ import pytest
 
 from nucleo.workers import providers as prov
 
+# Fecha de reset SIEMPRE 2 días por delante de "ahora" (2026-08-09: una fecha fija ya se quedó atrás una vez —
+# "2026-08-04" pasó a estar en el PASADO, y un cooldown con fecha de reset ya vencida se considera disponible al
+# instante, tumbando relayed()/pick() en cascada). Nunca hardcodear una fecha absoluta en un test de cooldown.
+RESET_DATE = time.strftime("%Y-%m-%d", time.localtime(time.time() + 2 * 86400))
 REAL_429 = ("API Error: Request rejected (429) · [1310][Weekly/Monthly Limit Exhausted. "
-            "Your limit will reset at 2026-08-04 00:00:00]")
+            f"Your limit will reset at {RESET_DATE} 00:00:00]")
 
 
 @pytest.fixture(autouse=True)
@@ -105,7 +109,7 @@ def test_exhaustion_hands_over_and_respects_the_providers_own_reset_date(monkeyp
     assert nxt["name"] == "licencia-claude"
     assert prov.pick()["name"] == "licencia-claude"          # el siguiente spawn ya arranca en el relevo
     # el cooldown sale de la FECHA que da el proveedor, no de un timeout inventado
-    assert prov._cooldown["z.ai"] == time.mktime(time.strptime("2026-08-04", "%Y-%m-%d"))
+    assert prov._cooldown["z.ai"] == time.mktime(time.strptime(RESET_DATE, "%Y-%m-%d"))
 
 
 def test_without_a_reset_date_it_retries_in_a_while(monkeypatch):

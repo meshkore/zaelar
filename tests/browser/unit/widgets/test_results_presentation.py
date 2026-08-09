@@ -125,3 +125,35 @@ def test_payload_schema_is_closed():
 def test_unknown_action_is_refused_not_ignored():
     r = results.apply_action("rewrite_yourself", {})
     assert r["ok"] is False and "present" in r["error"]
+
+
+# ── 5) "muéstrame una foto/imagen de X" — un solo item con SOLO `image`, sin url/price (2026-08-03) ─────────
+# El fallo real: pedida una foto, el cerebro narraba una descripción en vez de mostrarla porque nada le decía que
+# ESTO es lo que hay que rellenar (ver el fix del router en nucleo/flash/router.py). El widget en sí ya lo aceptaba.
+def test_a_single_photo_request_is_a_valid_item():
+    assert _present(title="Plato de quinoa", items=[{"title": "Plato de quinoa", "image": "https://example.com/quinoa.jpg"}]).get("ok")
+    top = results.view_data()["items"][0]
+    assert top["image"] and "url" not in top and "price" not in top
+
+
+def test_several_photos_are_several_items():
+    res = _present(title="Fotos de quinoa", items=[
+        {"title": f"Foto {i}", "image": f"https://example.com/{i}.jpg"} for i in range(4)
+    ])
+    assert res.get("shown") == 4
+    assert all(i.get("image") for i in results.view_data()["items"])
+
+
+# ── 6) `lines` alcanza para un bloque de texto COMPLETO, no solo 4 bullets (2026-08-03) ──────────────────────
+# El cap de 4 líneas bastaba para una ficha técnica pero no para "muéstrame la letra de una canción" (una canción
+# real tiene decenas de versos) — otro caso real que la superficie ya podía cubrir con un tope más generoso.
+def test_lines_hold_a_full_block_of_text_like_song_lyrics():
+    lyrics = [f"Verso {i} de la canción" for i in range(60)]
+    _present(title="Letra de una canción", items=[{"title": "Mi canción", "lines": lyrics}])
+    assert results.view_data()["items"][0]["lines"] == lyrics
+
+
+def test_lines_are_still_bounded_not_unlimited():
+    huge = [f"línea {i}" for i in range(500)]
+    _present(title="Demasiado largo", items=[{"title": "X", "lines": huge}])
+    assert len(results.view_data()["items"][0]["lines"]) == results._MAX_LINES

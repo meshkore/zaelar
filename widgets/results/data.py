@@ -26,6 +26,11 @@ WIDGET_ID = "results"
 # schema is the contract and it stays closed).
 _ITEM_FIELDS = ("title", "subtitle", "price", "badge", "url", "image", "primary", "lines")
 _MAX_ITEMS = 60          # a report the operator can actually read; widget.js renders the first 24 and says how many more
+# `lines` used to cap at 4 — fine for a spec-sheet bullet list, but a real request ("show me the lyrics to X") needs
+# a whole song's worth of text in ONE item's body (2026-08-03). Raised so a full block of text fits; still bounded
+# so a worker can't paste an entire scraped page into a card.
+_MAX_LINES = 80
+_MAX_LINE_CHARS = 300
 
 
 def _clean_item(raw: dict) -> dict | None:
@@ -40,9 +45,9 @@ def _clean_item(raw: dict) -> dict | None:
             it[k] = bool(v)
         elif k == "lines":
             if isinstance(v, (list, tuple)):
-                it[k] = [str(x)[:300] for x in v if x not in (None, "")][:4]
+                it[k] = [str(x)[:_MAX_LINE_CHARS] for x in v if x not in (None, "")][:_MAX_LINES]
             elif v:
-                it[k] = [str(v)[:300]]
+                it[k] = [str(v)[:_MAX_LINE_CHARS]]
         else:
             it[k] = str(v)[:300]
     return it if it.get("title") else None       # a card with no title is not a result, it is noise

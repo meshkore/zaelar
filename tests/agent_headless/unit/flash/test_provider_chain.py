@@ -12,8 +12,11 @@ import pytest
 
 from nucleo.flash import provider_chain as pc
 
+# Fecha SIEMPRE 2 días por delante de "ahora" — nunca un literal absoluto (uno se quedó atrás: "2026-08-04" pasó
+# a estar en el pasado y un cooldown con reset ya vencido se considera disponible al instante, tumbando pick()).
+RESET_DATE = time.strftime("%Y-%m-%d", time.localtime(time.time() + 2 * 86400))
 REAL_429_EXHAUSTED = ("429 Too Many Requests — {\"error\":{\"message\":"
-                      "\"[1310][Weekly/Monthly Limit Exhausted. Your limit will reset at 2026-08-04 00:00:00]\"}}")
+                      f"\"[1310][Weekly/Monthly Limit Exhausted. Your limit will reset at {RESET_DATE} 00:00:00]\"}}}}")
 BARE_429 = "429 Too Many Requests"
 
 
@@ -93,7 +96,7 @@ def test_exhaustion_hands_over_and_respects_the_providers_own_reset_date(monkeyp
     nxt = pc.note_failure(REAL_429_EXHAUSTED, {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic"})
     assert nxt["name"] == "aimlapi"
     assert pc.pick()["name"] == "aimlapi"               # el siguiente turno ya arranca en el relevo (STICKY)
-    assert pc._cooldown["z.ai"] == time.mktime(time.strptime("2026-08-04", "%Y-%m-%d"))
+    assert pc._cooldown["z.ai"] == time.mktime(time.strptime(RESET_DATE, "%Y-%m-%d"))
 
 
 def test_without_a_reset_date_it_retries_in_a_while(monkeypatch):
