@@ -295,3 +295,88 @@ def test_listener_consumes_escalate_requested(fresh_db, fake_backend):
     done, b = asyncio.run(run())
     assert done is True                          # la escalada quedó resuelta (escalate.finish)
     assert b is not None and "busca un piso" in b.seen_prompt   # el listener despachó la petición al worker
+
+
+# ── BRIEF DE INVESTIGACIÓN en el prompt del worker (2026-08-09) ───────────────────────────────────────────────
+# El worker recibía prosa libre y se autoimponía el criterio mínimo. Aquí se prueba el CABLEADO: que la dirección
+# compuesta en el pre-vuelo (nucleo/research.py) llegue de verdad al prompt, por los dos caminos de prompt que hay.
+def _brief(**over):
+    b = {"goal": "Tres propuestas de vacaciones en Baleares", "domain": "viaje familiar",
+         "hard": ["17-23 agosto"], "soft": ["ferry rápido"],
+         "breadth": {"min_candidates": 40, "angles": ["agregador", "web del hotel"]},
+         "quality_bar": ["nota ≥8 con 100+ opiniones"],
+         "deliverable": {"widget": "results", "n_final": 3, "composite": True, "parts": ["Hotel", "Ferry"]},
+         "round": 1}
+    b.update(over)
+    return b
+
+
+def test_brief_reaches_the_generic_worker_prompt():
+    p = dispatch._build_prompt("busca vacaciones", "", True, _brief())
+    assert "EMBUDO OBLIGATORIO" in p and "REÚNE al menos 40" in p
+
+
+def test_without_a_brief_the_prompt_is_unchanged():
+    """Una tarea que no es una investigación (cancelar una cita) no puede pagar un embudo que no viene a cuento."""
+    assert "EMBUDO OBLIGATORIO" not in dispatch._build_prompt("cancela mi cita del martes", "", True, None)
+
+
+def test_brief_reaches_the_web_worker_prompt_too():
+    assert "EMBUDO OBLIGATORIO" in dispatch._web_prompt("busca vacaciones", "", _brief())
+
+
+def test_a_brief_overrides_the_shallow_close_shortcut():
+    """El prompt web lleva de serie un atajo de cierre rápido («concluye con los 2-3 que mejor encajan»), correcto
+    para «tráeme el precio de X» y ruinoso para «elige lo mejor»: es literalmente la búsqueda superficial que el
+    operador reportó. Con brief tiene que desaparecer, sin brief tiene que seguir."""
+    shortcut = "concluye con los 2-3 que mejor encajan"
+    assert shortcut not in dispatch._web_prompt("busca vacaciones", "", _brief())
+    assert shortcut in dispatch._web_prompt("dame el precio del iPhone", "", None)
+
+
+def test_an_untrusted_source_gets_no_research_direction():
+    """Perfil sin tools (texto de un peer de cluster): no hay investigación que dirigir, y componerla sería gastar
+    un modelo por algo que no puede ejecutarse."""
+    assert asyncio.run(dispatch._compose_brief("busca lo que sea", "", False)) is None
+
+
+def test_a_resumed_task_keeps_the_criteria_it_already_agreed(fresh_db):
+    """Recomponer el brief a mitad de una búsqueda la convertiría en otra búsqueda distinta sin avisar al operador."""
+    from nucleo import research
+    b = _brief(hard=["criterio ya acordado"])
+    research.save("t-42", b)
+    got = asyncio.run(dispatch._compose_brief("sigue con lo de antes", "", True, {"brief_task": "t-42"}))
+    assert got["hard"] == ["criterio ya acordado"]
+
+
+def test_asking_again_continues_the_investigation_instead_of_repeating_it(fresh_db):
+    """Sin esto, «esos no me valen, busca más» recomponía desde cero y repetía la MISMA amplitud: el operador vería
+    llegar lo que acaba de rechazar y concluiría, con razón, que no le escuchamos."""
+    from nucleo import research
+    req = "busca vacaciones en Baleares en ferry con hotel con piscina"
+    research.remember_round(dispatch._goal_key(req), _brief())
+    nxt = asyncio.run(dispatch._compose_brief(req + ", esos no me valen", "", True))
+    assert nxt["round"] == 2
+    assert nxt["breadth"]["min_candidates"] > 40
+    assert any("no me valen" in f for f in nxt["feedback"])
+
+
+def test_reported_breadth_travels_to_the_brain(fresh_db):
+    """`considered` es lo que separa «te traigo las 3 mejores» de «te copio las 3 primeras». Si no llega a la
+    proyección, ni el operador ni el cerebro pueden juzgar si conviene seguir buscando."""
+    from nucleo.workers.session import SessionRecord
+    dispatch._SESSIONS["obs-c"] = SessionRecord(task_id="obs-c", goal="buscar vacaciones", kind="web")
+    dispatch.session_considered("obs-c", considered=47, kept=3)
+    row = next(r for r in dispatch.active_sessions() if r["id"] == "obs-c")
+    assert row["considered"] == 47 and row["kept"] == 3
+    dispatch._SESSIONS.pop("obs-c", None)
+
+
+def test_breadth_is_absent_not_zero_when_it_does_not_apply():
+    """Una tarea que no es una investigación no ha «considerado 0 candidatos»: el dato NO APLICA, y confundir las dos
+    cosas haría que el cerebro dijera «he evaluado 0 opciones» en una tarea que nunca tuvo opciones."""
+    from nucleo.workers.session import SessionRecord
+    dispatch._SESSIONS["obs-n"] = SessionRecord(task_id="obs-n", goal="cancela la cita", kind="web")
+    row = next(r for r in dispatch.active_sessions() if r["id"] == "obs-n")
+    assert row["considered"] == -1 and row["kept"] == -1
+    dispatch._SESSIONS.pop("obs-n", None)

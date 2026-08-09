@@ -66,6 +66,12 @@ class SessionRecord:
     pct: int = -1
     note: str = ""
     steps: list = field(default_factory=list)
+    # AMPLITUD de una investigación (`hbnote considered N --kept M`): cuántos candidatos ha mirado el worker DE
+    # VERDAD antes de quedarse con M. Es lo que separa una selección defendible de las tres primeras filas de un
+    # buscador, y lo que le permite al cerebro ofrecer «he visto 47, ¿te vale o sigo?» en vez de callar el dato.
+    # -1 = no reportado (tarea que no es una investigación, o worker que no lo dijo).
+    considered: int = -1
+    kept: int = -1
     # Murió porque el PROVEEDOR se quedó sin cuota (no por la tarea) → `{provider, next, text}`. Lo pone el
     # backend al ver el error; `_finish` lo usa para reintentar UNA vez con el escalón de relevo en vez de
     # entregarle al operador un «API Error … Weekly Limit Exhausted» como si fuera su informe.

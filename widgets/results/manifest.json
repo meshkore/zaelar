@@ -1,15 +1,19 @@
 {
   "id": "results",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "title": "Resultados",
-  "description": "SUPERFICIE GENÉRICA DE PRESENTACIÓN: una hoja en blanco de tarjetas donde zaelar ENSEÑA EN PANTALLA cualquier conjunto de resultados que haya obtenido — búsquedas web, sitios, productos, anuncios, alojamientos, artículos, correos, archivos, mensajes. NO busca ni calcula nada por su cuenta: quien hizo el trabajo (un Brain Worker, el navegador, el cerebro) le entrega el conjunto ya hecho con la acción `present` y esto lo guarda y lo pinta. Es agnóstico del tema: da igual piscinas, coches, vacaciones o proyectos open-source.",
-  "whenToUse": "Siempre que haya que MOSTRAR al operador un listado de resultados o un informe dentro de nuestra interfaz en vez de solo decirlo por voz o abrir un navegador externo. Si una tarea produce un conjunto de hallazgos, su sitio es aquí.",
+  "description": "SUPERFICIE GENÉRICA DE PRESENTACIÓN: una hoja en blanco de tarjetas donde zaelar ENSEÑA EN PANTALLA cualquier conjunto de resultados que haya obtenido — búsquedas web, sitios, productos, anuncios, alojamientos, artículos, correos, archivos, mensajes, o PROPUESTAS COMPUESTAS (un plan hecho de varias piezas: alojamiento + transporte + restaurante). NO busca ni calcula nada por su cuenta: quien hizo el trabajo (un Brain Worker, el navegador, el cerebro) le entrega el conjunto ya hecho con la acción `present` y esto lo guarda y lo pinta. Es agnóstico del tema: da igual piscinas, coches, vacaciones o proyectos open-source. Tiene DOS páginas: la lista comparable y el DETALLE de un item (acción `detail`).",
+  "whenToUse": "Siempre que haya que MOSTRAR al operador un listado de resultados o un informe dentro de nuestra interfaz en vez de solo decirlo por voz o abrir un navegador externo. Si una tarea produce un conjunto de hallazgos, su sitio es aquí. También cuando el operador pida VER EN DETALLE uno de los resultados ya mostrados (acción `detail`).",
   "keywords": [
     "resultados",
     "anuncios",
     "comprar",
     "precio",
     "opciones",
+    "propuestas",
+    "planes",
+    "comparar",
+    "detalle",
     "correos",
     "mails",
     "email",
@@ -27,22 +31,69 @@
     "canción"
   ],
   "entry": "widget.js",
-  "usage": "SE RELLENA CON LA ACCIÓN `present` (nunca se toca su código para meter datos). Un Brain Worker escribe el JSON a un fichero de RUTA RELATIVA en su directorio de trabajo (`informe.json`, nunca `/tmp/` ni rutas absolutas) y lo entrega con `python -m nucleo.widget_cli data results present @informe.json`, y luego `python -m nucleo.widget_cli show results`. Pegar el JSON en la línea de comandos o usar un heredoc NO funciona: lo bloquean el quoting y el guarda del shell. El cerebro: tool `widget_data(widget_id=\"results\", action=\"present\", payload={...})`. FORMA DEL PAYLOAD: `{title, subtitle, columns:1|2|3, choosable, items:[…]}`. Cada item: `title` (OBLIGATORIO, el nombre del resultado), `subtitle` (una línea de contexto: sitio/lugar/categoría), `price` (etiqueta destacada junto al título: precio, tarifa, distancia…), `lines` (hasta 80 líneas de detalle — un bloque de texto completo también vale, p.ej. la letra entera de una canción, no solo bullets cortos), `badge` (etiqueta corta), `url` (enlace a la fuente REAL — hace la tarjeta clicable), `image` (URL de una foto REAL — nunca inventada — que se pinta de portada; úsalo para 'muéstrame una foto/imagen de X': un solo item con su `image`, sin necesidad de `url`/`price`), `primary:true` (destaca el item en la fila superior; reserva 1-3 para lo mejor del conjunto). Varias fotos = varios items, cada uno con su `image`. Con `append` se van añadiendo resultados según llegan (deduplica por title+url) para que el operador vea llenarse el informe sin esperar al final; `clear` lo vacía. Con `choosable:true` el operador puede ELEGIR uno haciendo clic (acción `choose` con el title EXACTO). Los datos PERSISTEN: sobreviven al re-render, a reconectar y a reiniciar.",
+  "usage": "SE RELLENA CON LA ACCIÓN `present` (nunca se toca su código para meter datos). Un Brain Worker escribe el JSON a un fichero de RUTA RELATIVA en su directorio de trabajo (`informe.json`, nunca `/tmp/` ni rutas absolutas) y lo entrega con `python -m nucleo.widget_cli data results present @informe.json`, y luego `python -m nucleo.widget_cli show results`. Pegar el JSON en la línea de comandos o usar un heredoc NO funciona: lo bloquean el quoting y el guarda del shell. El cerebro: tool `widget_data(widget_id=\"results\", action=\"present\", payload={...})`. FORMA DEL PAYLOAD: `{title, subtitle, columns:1|2|3, choosable, items:[…]}`. Cada item: `title` (OBLIGATORIO, el nombre del resultado), `subtitle` (una línea de contexto: sitio/lugar/categoría), `price` (etiqueta destacada junto al título: precio TOTAL, tarifa, distancia…), `lines` (hasta 80 líneas de detalle — un bloque de texto completo también vale, p.ej. la letra entera de una canción), `badge` (etiqueta corta: «Mejor calidad/precio»), `url` (enlace a la fuente REAL), `image` (URL de una foto REAL — nunca inventada — de portada), `primary:true` (destaca el item arriba; reserva 1-3 para lo mejor). ITEM COMPUESTO (una PROPUESTA hecha de piezas): `parts:[{kind,title,subtitle,price,url,image,lines,facts}]` donde `kind` es el ROL de la pieza («Hotel», «Ferry», «Restaurante», «Vuelo», «Coche»); así una propuesta de viaje se compara pieza a pieza en vez de disolverse en prosa. Para que el operador pueda PREGUNTAR después («¿lleva desayuno?», «¿a qué hora es el check-in?») mete los datos duros en `facts` — un objeto {etiqueta: valor} — del item y/o de cada pieza; eso es lo que el cerebro lee sin volver a buscar. `images:[url,…]` = galería de fotos REALES para la página de detalle. LA SEGUNDA PÁGINA: con `detail` ({title} o {index} 1-based) esta misma hoja pasa a mostrar el EXPEDIENTE COMPLETO de un item (galería, todos sus `facts`, cada pieza desplegada con su enlace y horarios) — es lo que responde a «enséñame en detalle la propuesta uno»; `list` vuelve a la lista. Con `append` se van añadiendo resultados según llegan (deduplica por title+url) para que el operador vea llenarse el informe sin esperar al final; `clear` lo vacía. Con `choosable:true` el operador puede ELEGIR uno haciendo clic (acción `choose` con el title EXACTO). Los datos PERSISTEN: sobreviven al re-render, a reconectar y a reiniciar.",
   "actions": {
     "present": {
-      "desc": "Entrega el conjunto de resultados COMPLETO y lo pinta (reemplaza lo que hubiera). Es la forma normal de rellenar este widget.",
+      "desc": "Entrega el conjunto de resultados COMPLETO y lo pinta (reemplaza lo que hubiera). Es la forma normal de rellenar este widget. Un item puede ser simple o COMPUESTO (`parts`: las piezas de una propuesta), y llevar `facts` (datos duros consultables después) e `images` (galería para el detalle).",
       "payload": {
-        "title": "Piscinas con ambiente cerca de Tarragona",
-        "subtitle": "9 sitios · acceso de día sin ser socio",
+        "title": "Propuestas de vacaciones · Baleares 17-23 ago",
+        "subtitle": "3 planes completos · 2 adultos + 2 niños · coche 4x4",
         "items": [
           {
-            "title": "INFINITUM Beach Club",
-            "subtitle": "Salou · beach club",
-            "price": "40-55€",
-            "lines": ["Day pass, abre 11-20h en agosto"],
-            "url": "https://www.infinitumliving.com/es/beach-club",
-            "image": "https://example.com/foto.jpg",
-            "primary": true
+            "title": "Plan A — Ibiza, todo en una habitación familiar",
+            "subtitle": "Cala Tarida · 4 noches",
+            "price": "1.840€ total",
+            "badge": "Mejor calidad/precio",
+            "primary": true,
+            "image": "https://example.com/hotel-portada.jpg",
+            "images": [
+              "https://example.com/piscina.jpg",
+              "https://example.com/habitacion.jpg"
+            ],
+            "facts": {
+              "Total 4 noches": "1.840€",
+              "Habitación": "Familiar, 4 personas en la misma habitación",
+              "Desayuno": "Incluido (buffet)",
+              "Wifi": "Sí, gratis en todo el hotel",
+              "Parking": "Gratuito en el hotel"
+            },
+            "parts": [
+              {
+                "kind": "Hotel",
+                "title": "Insotel Tarida Beach 4★",
+                "subtitle": "Cala Tarida, Ibiza",
+                "price": "1.200€",
+                "url": "https://example.com/hotel",
+                "image": "https://example.com/hotel.jpg",
+                "lines": ["Complejo con 3 piscinas y zona de toboganes para niños"],
+                "facts": {
+                  "Check-in": "15:00",
+                  "Check-out": "11:00",
+                  "Piscinas": "3 + splash park infantil",
+                  "Valoración": "8,7/10 (2.431 opiniones)"
+                }
+              },
+              {
+                "kind": "Ferry",
+                "title": "Baleària rápido · Dénia → Ibiza",
+                "price": "640€ ida y vuelta con coche",
+                "url": "https://example.com/ferry",
+                "facts": {
+                  "Ida": "17 ago 11:30 → 13:45 (2h 15m)",
+                  "Vuelta": "23 ago 19:00 → 21:15",
+                  "Puerto": "Dénia (Estación Marítima)",
+                  "Vehículo": "Admite 4x4 hasta 5,0 m / 1,85 m de alto",
+                  "Cancelación": "Flexible hasta 48h antes"
+                }
+              },
+              {
+                "kind": "Restaurante",
+                "title": "Es Torrent",
+                "subtitle": "Pescado a pie de playa",
+                "price": "45-60€/persona",
+                "url": "https://example.com/restaurante"
+              }
+            ]
           }
         ]
       }
@@ -52,12 +103,34 @@
       "payload": {
         "items": [
           {
-            "title": "Camping Tamarit Beach Resort",
-            "subtitle": "Tarragona",
-            "url": "https://example.com"
+            "title": "Plan B — Mallorca",
+            "subtitle": "Alcúdia · 4 noches",
+            "price": "1.910€ total",
+            "parts": [
+              {
+                "kind": "Hotel",
+                "title": "Zafiro Palace Alcúdia",
+                "price": "1.350€"
+              },
+              {
+                "kind": "Ferry",
+                "title": "Trasmed · Valencia → Palma",
+                "price": "560€"
+              }
+            ]
           }
         ]
       }
+    },
+    "detail": {
+      "desc": "Pasa la hoja a la SEGUNDA PÁGINA: el expediente completo de UN item (galería de fotos, todos sus `facts`, cada pieza desplegada con su enlace, horarios y condiciones). Responde a «enséñame en detalle la propuesta uno». Acepta el `title` del item o su `index` 1-based (el ordinal es más robusto viniendo de voz que un nombre comercial largo).",
+      "payload": {
+        "index": 1
+      }
+    },
+    "list": {
+      "desc": "Vuelve de la página de detalle a la LISTA de resultados.",
+      "payload": {}
     },
     "clear": {
       "desc": "Vacía la hoja (vuelve al estado sin resultados).",
@@ -66,7 +139,7 @@
     "choose": {
       "desc": "Marca un item de la lista mostrada (pusheada con choosable:true) como elegido por el operador.",
       "payload": {
-        "title": "INFINITUM Beach Club"
+        "title": "Plan A — Ibiza, todo en una habitación familiar"
       }
     }
   },
@@ -75,7 +148,8 @@
     "Resultados",
     "panel de resultados",
     "Informe",
-    "Informes"
+    "Informes",
+    "Propuestas"
   ],
   "origin": "user"
 }

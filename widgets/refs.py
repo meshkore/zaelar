@@ -152,6 +152,39 @@ def label_for(widget_id: str, field: str, item_id: str) -> str:
     return ""
 
 
+_MAX_DIGEST_CHARS = 1800
+
+
+def prompt_digest(widget_id: str) -> str:
+    """Contenido REAL de un widget ABIERTO, para que el cerebro pueda RAZONAR sobre lo que el operador tiene delante
+    — no solo nombrarlo. Contrato OPCIONAL en el `data.py` del widget:
+
+        def prompt_digest() -> str:
+            '''Resumen en texto de lo que hay dentro AHORA. Compacto: viaja en el prompt de cada turno.'''
+
+    Por qué existe (2026-08-09): `items_line` publica solo `label (hint)`, así que ante «¿el hotel de la propuesta 2
+    tiene wifi?» —un dato que está ESCRITO en la tarjeta que el operador está mirando— el cerebro no lo tenía en el
+    prompt: o lo adivinaba o escalaba una búsqueda nueva para recuperar algo que ya poseía. Esa es la diferencia
+    entre una pantalla que el agente VE y una que solo ha pintado.
+
+    Acotado a propósito (`_MAX_DIGEST_CHARS`): es un resumen para razonar, no el expediente completo — el detalle
+    íntegro vive en el propio widget (su vista de detalle), no en cada turno del prompt. Solo se pide para widgets
+    ABIERTOS, así que un catálogo grande no paga nada por esto.
+    Best-effort: un widget roto no puede romper el turno."""
+    try:
+        import importlib
+        mod = importlib.import_module(f"widgets.{widget_id}.data")
+        fn = getattr(mod, "prompt_digest", None)
+        if not callable(fn):
+            return ""
+        out = str(fn() or "").strip()
+    except Exception:
+        return ""
+    if len(out) > _MAX_DIGEST_CHARS:
+        out = out[:_MAX_DIGEST_CHARS].rsplit("\n", 1)[0] + "\n… (recortado — el resto está en la propia tarjeta)"
+    return out
+
+
 def items_line(widget_id: str) -> str:
     """Línea compacta con los items VIVOS del widget (label + hint) para el brief del cerebro, de modo que sepa
     QUÉ existe y pueda referenciarlo con naturalidad. Sin ids internos (el modelo referencia por lenguaje).

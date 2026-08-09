@@ -55,6 +55,9 @@ def main(argv: list[str] | None = None) -> int:
     pr.add_argument("text", nargs="?", default="")
     pr.add_argument("--done", type=int, default=None)
     pr.add_argument("--pct", type=int, default=None)
+    co = sub.add_parser("considered", help="AMPLITUD: cuántos candidatos has evaluado de verdad (--kept N finalistas)")
+    co.add_argument("n", type=int)
+    co.add_argument("--kept", type=int, default=None)
     a = ap.parse_args(argv)
     if a.cmd == "phase":
         return _post({"phase": a.text})
@@ -68,6 +71,11 @@ def main(argv: list[str] | None = None) -> int:
             body["done"] = a.done
         if a.pct is not None:
             body["pct"] = a.pct
+        return _post(body)
+    if a.cmd == "considered":
+        body = {"considered": a.n}
+        if a.kept is not None:
+            body["kept"] = a.kept
         return _post(body)
     return 0
 

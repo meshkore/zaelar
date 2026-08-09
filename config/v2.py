@@ -165,6 +165,18 @@ _DEFAULTS: dict[str, dict] = {
         "window_turns": 8,                      # turnos de conversación verbatim en la ventana de auditoría
         "recency_window_s": 120,                # solo turnos/eventos de esta ventana entran a la auditoría (anti-contaminación)
     },
+    # DIRECTOR DE INVESTIGACIÓN (nucleo/research.py) — compone el BRIEF con el que un Brain Worker ejecuta una
+    # SELECCIÓN (criterios duros/blandos separados, enriquecimientos de experto, amplitud mínima de candidatos,
+    # baremo de calidad, forma del entregable). Corre en el pre-vuelo ASÍNCRONO de la escalada, nunca en el turno
+    # de voz, así que aquí SÍ puede razonar. Vacío = va por la CADENA del tier de razonamiento
+    # (nucleo/flash/provider_chain.py), que además releva de proveedor si el principal se queda sin cuota; rellena
+    # model+base_url solo para FIJAR uno concreto. Fail-open: sin brief el worker sale como salía antes.
+    "research": {
+        "enabled": True,                        # kill-switch de 1ª clase (UI) + env ZAELAR_RESEARCH=0
+        "model": "",
+        "base_url": "",
+        "api_key": "",                          # secreto (redactado); vacío = key por endpoint
+    },
     # Flags de despliegue v2. Tras el entierro de Hermes (V2-009) el cerebro por defecto es el propio «Colmena».
     "flags": {
         "brain": "nucleo",                                  # cerebro activo: 'nucleo' (propio) · 'direct'/'local' (baselines)

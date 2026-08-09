@@ -167,6 +167,13 @@ def for_prompt(open_ids=None, recent_ids=None, query: str = "", stats: dict | No
         if wid not in opened:
             continue
         try:
+            # Un widget puede publicar un DIGEST de su contenido (refs.prompt_digest): entonces gana, porque
+            # `items_line` solo da «label (pista)» y con eso el cerebro sabe NOMBRAR lo que hay en pantalla pero
+            # no RESPONDER sobre ello. Sin digest se mantiene la línea de items de siempre.
+            digest = refs.prompt_digest(w.get("id"))
+            if digest:
+                item_lines.append(f"- {w.get('id')} (contenido en pantalla):\n{digest}")
+                continue
             items = refs.items_line(w.get("id"))
             if items:
                 item_lines.append(f"- {w.get('id')}: {items}")

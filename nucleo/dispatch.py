@@ -26,7 +26,7 @@ from typing import Any
 
 from loguru import logger
 
-from nucleo import dev_worker_guard
+from nucleo import dev_worker_guard, research
 from nucleo.workers import WorkerSpec, get_backend
 from nucleo.workers.session import SessionRecord, WorkerSession
 
@@ -299,6 +299,7 @@ def active_sessions() -> list[dict]:
             # V2-059: observabilidad estructurada — plan + progreso + últimos pasos reales.
             "plan": list(r.plan), "done": r.done, "total": len(r.plan), "pct": _progress_pct(r),
             "note": r.note, "steps": list(r.steps)[-6:],
+            "considered": r.considered, "kept": r.kept,     # amplitud de una investigación (-1 = no aplica)
         })
     return out
 
@@ -313,7 +314,9 @@ def pending_summaries() -> list[dict]:
     return [{"id": r.task_id, "request": r.goal, "secs": int(now - r.started),
              "phase": r.phase, "waiting_on": r.waiting_on,
              # V2-059: el FlashBrain puede decir el PASO real + progreso si el operador pregunta "¿cómo va?".
-             "pct": _progress_pct(r), "done": r.done, "total": len(r.plan), "note": r.note}
+             "pct": _progress_pct(r), "done": r.done, "total": len(r.plan), "note": r.note,
+             # Amplitud en curso: deja al cerebro contestar «va por 30 candidatos» y, al acabar, ofrecer seguir.
+             "considered": r.considered, "kept": r.kept}
             for r in _SESSIONS.values() if r.status in ("queued", "running")]
 
 
@@ -395,6 +398,34 @@ def session_progress(tid, note: str = "", done: int | None = None, pct: int | No
         if r.trace_id:
             extra.update(trace=r.trace_id, span=f"worker:{tid}")
         emit("task", "progress", text=(r.note or f"{r.done}/{len(r.plan)}")[:160], extra=extra)
+    except Exception:
+        pass
+
+
+def session_considered(tid, considered: int | None = None, kept: int | None = None) -> None:
+    """AMPLITUD reportada por el worker (`hbnote considered N --kept M`): cuántos candidatos ha evaluado de verdad.
+
+    Existe para que la SELECCIÓN sea auditable. Sin este dato, «te he encontrado las 3 mejores» es indistinguible
+    de «te he copiado las 3 primeras que salieron», y ni el operador ni el cerebro pueden juzgar si conviene seguir
+    buscando. Con él, el cerebro puede ofrecer la continuación con un número concreto delante."""
+    r = _SESSIONS.get(str(tid))
+    if r is None:
+        return
+    for attr, val in (("considered", considered), ("kept", kept)):
+        if val is None:
+            continue
+        try:
+            setattr(r, attr, max(0, int(val)))
+        except (TypeError, ValueError):
+            pass
+    r.last_event_at = time.time()
+    try:
+        from voice.observer import emit
+        extra = {"id": str(tid), "considered": r.considered, "kept": r.kept}
+        if r.trace_id:
+            extra.update(trace=r.trace_id, span=f"worker:{tid}")
+        emit("task", "considered", text=f"{r.considered} candidatos evaluados"
+                                       + (f" · {r.kept} finalistas" if r.kept >= 0 else ""), extra=extra)
     except Exception:
         pass
 
@@ -758,7 +789,39 @@ _METHOD_BLOCK = (
     "hasta cumplirlo. Solo entrega cuando está CERTIFICADO en todos los planos. Nunca digas «hecho» sin verificar.")
 
 
-def _build_prompt(request: str, context: str, trusted: bool) -> str:
+async def _compose_brief(request: str, context: str, trusted: bool, resume: dict | None = None) -> dict | None:
+    """PRE-VUELO de una investigación: convierte la petición cruda en un BRIEF dirigido (nucleo/research.py).
+
+    Por qué está AQUÍ y no en el turno de voz: dirigir bien una búsqueda —separar criterios duros de blandos,
+    añadir lo que un experto sabe que hará falta, fijar cuán ancho hay que buscar y con qué baremo juzgar— es un
+    trabajo de razonamiento, y el FlashBrain de voz tiene que contestar en milisegundos. Aquí ya estamos fuera de
+    ese reloj: la escalada es asíncrona, el operador ya sabe que esto tarda, así que este es el único punto del
+    sistema donde se puede pensar antes de empezar a trabajar.
+
+    Si es una REANUDACIÓN, el brief de la ronda anterior se reutiliza tal cual: los criterios ya estaban acordados
+    y recomponerlos podría cambiarlos a mitad de una búsqueda que el operador cree que sigue el mismo guion."""
+    if not trusted:
+        return None                       # perfil sin tools: no hay investigación que dirigir
+    prev_tid = str((resume or {}).get("brief_task") or "")
+    if prev_tid:
+        prev = research.load(prev_tid)
+        if prev:
+            return prev
+    # ¿Ya investigamos esto y el operador vuelve a la carga? Entonces es la RONDA SIGUIENTE de la misma búsqueda:
+    # hereda los criterios acordados y sube la amplitud, con su frase de ahora como motivo del rechazo. Sin esto,
+    # «esos no me valen, busca más» recomponía el brief desde cero y repetía la misma búsqueda con la misma
+    # amplitud — el operador habría visto llegar los mismos resultados y concluido, con razón, que no le escuchamos.
+    gk = _goal_key(request)
+    prev = research.previous_round(gk)
+    if prev:
+        nxt = research.expand(prev, note=request)
+        logger.info(f"dispatch: RONDA {nxt.get('round')} de una investigación ya conocida "
+                    f"(≥{(nxt.get('breadth') or {}).get('min_candidates')} candidatos): {request[:60]}")
+        return nxt
+    return await research.compose(request, context)
+
+
+def _build_prompt(request: str, context: str, trusted: bool, brief: dict | None = None) -> str:
     header = ("Eres un Brain Worker del asistente personal zaelar: una sesión de trabajo que CONDUCE una tarea del "
               "operador con tus herramientas (memoria, navegador, código, búsqueda). Resuelve la PETICIÓN de forma "
               "concreta y devuelve SOLO el resultado útil, natural y humano, SIN jerga técnica ni interna (nunca "
@@ -798,6 +861,13 @@ def _build_prompt(request: str, context: str, trusted: bool) -> str:
                          "quejas del operador ('no se oye', 'ciérralo', 'eso') se refieren a lo que sale AQUÍ):\n"
                          + recent)
     parts.append("PETICIÓN:\n" + request)
+    # El BRIEF va DESPUÉS de la petición literal, no antes: es la dirección de CÓMO hacerlo bien, y se lee mejor
+    # sabiendo ya qué se pide. Sin brief (no es una investigación, o el compositor no estaba) esto no aparece y el
+    # worker sale exactamente como salía antes.
+    if brief:
+        block = research.to_prompt_block(brief)
+        if block:
+            parts.append(block)
     return _with_interpreter("\n\n".join(parts))
 
 
@@ -945,9 +1015,13 @@ _HUMAN_NAV_GUIDE = (
 )
 
 
-def _web_prompt(goal: str, context: str) -> str:
+def _web_prompt(goal: str, context: str, brief: dict | None = None) -> str:
     """Prompt del worker WEB (portado de web_cc/V2-036 al sustrato V2-038): conduce el navegador por hbweb con
-    criterio de CIERRE (extraer → concluir → entregar) e hitos visibles. Sin él, el worker deambula."""
+    criterio de CIERRE (extraer → concluir → entregar) e hitos visibles. Sin él, el worker deambula.
+
+    Con `brief` (nucleo/research.py) la BÚSQUEDA deja de ser «filtra y coge los 2-3 primeros»: el atajo de cierre
+    rápido que este prompto lleva de serie —correcto para «tráeme el precio de X», ruinoso para «elige lo mejor»—
+    se sustituye por el embudo del brief (reunir ancho → filtrar → puntuar → verificar finalistas)."""
     try:
         from nucleo.workers.claude_session import bridge_python
         py = bridge_python()          # absoluto y permitido; `.venv/bin/python` relativo pedía aprobación
@@ -1002,8 +1076,14 @@ def _web_prompt(goal: str, context: str) -> str:
         "no se pierde y no lo vuelves a pedir aunque el flujo se reinicie.\n"
         "   d. EJECUTA hasta el FINAL: rellena TODOS los campos con visión, elige opciones, avanza el calendario, "
         "acepta condiciones y ENVÍA/CONFIRMA. Es una acción a TERMINAR, no algo que se le explique al operador.\n"
-        "   (Si el objetivo es BUSCAR/COMPARAR productos: llega a la página de RESULTADOS con los filtros exactos "
-        "—categoría excluyente, ubicación/orden—, `extract`, y concluye con los 2-3 que mejor encajan.)\n"
+        + ("   (Si el objetivo es BUSCAR/COMPARAR: llega a la página de RESULTADOS con los filtros exactos "
+           "—categoría excluyente, ubicación/orden— y `extract`. NO cierres con los primeros que salgan: esta tarea "
+           "trae un BRIEF DE INVESTIGACIÓN al final del prompt que fija cuántos candidatos hay que reunir ANTES de "
+           "descartar y con qué baremo verificar a los finalistas. Manda el brief.)\n"
+           if brief else
+           "   (Si el objetivo es BUSCAR/COMPARAR productos: llega a la página de RESULTADOS con los filtros exactos "
+           "—categoría excluyente, ubicación/orden—, `extract`, y concluye con los 2-3 que mejor encajan.)\n")
+        +
         "4) SOLO te detienen dos cosas: un CAPTCHA o un LOGIN/pago que exija credenciales que no tienes. Todo lo demás "
         "(entender la página, aceptar cookies, elegir en un desplegable/calendario, rellenar y enviar) lo resuelves TÚ "
         "con visión — no es excusa para parar. Si de verdad hay un captcha/login, repórtalo y pregunta cómo seguir.\n"
@@ -1026,6 +1106,10 @@ def _web_prompt(goal: str, context: str) -> str:
     )
     if context:
         p += "\n\nCONTEXTO DE MEMORIA (lo que zaelar ya sabe; úsalo si viene a cuento):\n" + context
+    if brief:
+        block = research.to_prompt_block(brief)
+        if block:
+            p += "\n\n" + block
     return p
 
 
@@ -1129,12 +1213,25 @@ async def _run_session(task: "Task") -> None:
         backend = get_backend(spec)
         session = WorkerSession(backend, spec, rec)
         rec.session = session
+        # PRE-VUELO: ¿esto es una investigación/selección? Entonces se dirige con un brief (amplitud + baremo +
+        # forma del entregable) en vez de dejar que el worker se autoimponga el criterio mínimo. Un dev-worker de
+        # código no pasa por aquí: su dirección es el repo, no un espacio de candidatos.
+        brief = None
+        if not _dev:
+            brief = await _compose_brief(req, ctx, trusted, resume)
+            if brief:
+                research.save(key, brief)
+                research.remember_round(_goal_key(req), brief)   # para que una 2ª petición continúe, no reempiece
+                rec.phase = "preparando la investigación"
+                logger.info(f"dispatch: tarea {key} dirigida por BRIEF (ronda {brief.get('round')}, "
+                            f"≥{(brief.get('breadth') or {}).get('min_candidates')} candidatos)")
+                sync_state()
         if _dev:
             prompt = _dev_prompt(req, _dev["repo"])
         elif kind == "web" and trusted:
-            prompt = _web_prompt(req, ctx)
+            prompt = _web_prompt(req, ctx, brief)
         else:
-            prompt = _build_prompt(req, ctx, trusted)
+            prompt = _build_prompt(req, ctx, trusted, brief)
         if resume and (kind == "web" and trusted):
             prompt = ("REANUDAS una gestión que YA empezaste (no arranques de cero): la pestaña sigue donde la "
                       "dejaste y los datos que ya reuniste están en memoria (consúltalos con mem_cli recall). Haz "
@@ -1174,7 +1271,10 @@ async def _run_session(task: "Task") -> None:
                 elif nav_tid or rec.native_sid:
                     _WEB_RESUME[gk] = {"nav_task": nav_tid or str((resume or {}).get("nav_task") or ""),
                                        "native_sid": rec.native_sid or str((resume or {}).get("native_sid") or ""),
-                                       "ts": time.time(), "count": _prev_count + 1, "goal": req[:200]}
+                                       "ts": time.time(), "count": _prev_count + 1, "goal": req[:200],
+                                       # los criterios ya acordados viajan a la reanudación: recomponerlos a mitad
+                                       # de una búsqueda la convertiría en otra búsqueda distinta sin avisar
+                                       "brief_task": key if brief else str((resume or {}).get("brief_task") or "")}
             try:
                 if key.isdigit():
                     escalate.finish(int(key), rec.result_summary if rec.ok else "")

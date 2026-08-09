@@ -157,3 +157,138 @@ def test_lines_are_still_bounded_not_unlimited():
     huge = [f"línea {i}" for i in range(500)]
     _present(title="Demasiado largo", items=[{"title": "X", "lines": huge}])
     assert len(results.view_data()["items"][0]["lines"]) == results._MAX_LINES
+
+
+# ── 7) PROPUESTAS COMPUESTAS: un resultado hecho de piezas (2026-08-09) ──────────────────────────────────────
+# Caso del operador: "queremos ir de vacaciones… hotel + ferry", y la respuesta útil no es una lista de hoteles y
+# otra de ferries, sino TRES PROPUESTAS COMPLETAS comparables entre sí. Con el esquema plano anterior eso solo se
+# podía escribir disolviéndolo en prosa dentro de `lines`, que es justo lo que impide comparar.
+def _plan(title="Plan A", **extra):
+    it = {"title": title, "price": "1.840€ total", "parts": [
+        {"kind": "Hotel", "title": "Insotel Tarida Beach", "price": "1.200€",
+         "facts": {"Check-in": "15:00", "Piscinas": "3 + splash park"}},
+        {"kind": "Ferry", "title": "Dénia → Ibiza", "price": "640€",
+         "facts": {"Ida": "17 ago 11:30", "Vehículo": "4x4 hasta 5,0 m"}},
+    ]}
+    it.update(extra)
+    return it
+
+
+def test_one_result_can_bundle_several_pieces():
+    assert _present(title="Propuestas", items=[_plan()]).get("shown") == 1
+    it = results.view_data()["items"][0]
+    kinds = [p["kind"] for p in it["parts"]]
+    assert kinds == ["Hotel", "Ferry"], "cada pieza conserva su ROL, que es lo que hace comparables dos propuestas"
+    # cada pieza lleva su PROPIO precio: sin esto el operador no puede ver de dónde sale el total
+    assert [p["price"] for p in it["parts"]] == ["1.200€", "640€"]
+
+
+def test_pieces_follow_the_same_closed_schema_as_items():
+    _present(title="P", items=[{"title": "Plan", "parts": [
+        {"kind": "Hotel", "title": "H", "onclick": "alert(1)", "script": "<script>"},
+        {"kind": "Ferry", "subtitle": "pieza sin nombre = ruido"},
+    ]}])
+    parts = results.view_data()["items"][0]["parts"]
+    assert len(parts) == 1, "una pieza sin title no se puede mostrar ni nombrar: se descarta"
+    assert "onclick" not in parts[0] and "script" not in parts[0]
+
+
+def test_facts_accept_the_shapes_an_llm_actually_emits():
+    """`facts` lo escribe un modelo, y un modelo emite las tres formas. Las tres deben llegar ORDENADAS e iguales."""
+    want = [{"label": "Desayuno", "value": "Incluido"}, {"label": "Wifi", "value": "Sí"}]
+    for shape in ({"Desayuno": "Incluido", "Wifi": "Sí"},
+                  [["Desayuno", "Incluido"], ["Wifi", "Sí"]],
+                  [{"label": "Desayuno", "value": "Incluido"}, {"label": "Wifi", "value": "Sí"}]):
+        _present(title="P", items=[{"title": "Plan", "facts": shape}])
+        assert results.view_data()["items"][0]["facts"] == want, f"forma no soportada: {shape!r}"
+
+
+def test_composite_payload_is_bounded():
+    _present(title="P", items=[{"title": "Plan",
+                                "parts": [{"kind": "K", "title": f"p{i}"} for i in range(20)],
+                                "images": [f"https://e.com/{i}.jpg" for i in range(40)],
+                                "facts": {f"k{i}": f"v{i}" for i in range(90)}}])
+    it = results.view_data()["items"][0]
+    assert len(it["parts"]) == results._MAX_PARTS
+    assert len(it["images"]) == results._MAX_IMAGES
+    assert len(it["facts"]) == results._MAX_FACTS
+
+
+# ── 8) SEGUNDA PÁGINA: "enséñame en detalle la propuesta uno" ────────────────────────────────────────────────
+def test_detail_and_list_are_declared_fast_actions():
+    declared = (runtime.get("results") or {}).get("actions") or {}
+    for name in ("detail", "list"):
+        assert name in declared, f"«{name}» debe estar DECLARADA para que el cerebro pueda invocarla"
+        assert actions.classify(declared[name], name) == actions.FAST
+
+
+def test_detail_by_ordinal_because_that_is_how_voice_refers_to_it():
+    """Por VOZ el operador dice «la propuesta número uno», no el nombre comercial del hotel: el ordinal sobrevive
+    al STT mucho mejor que «Insotel Tarida Beach», así que la acción tiene que aceptarlo."""
+    _present(title="Propuestas", items=[_plan("Plan A"), _plan("Plan B")])
+    assert results.apply_action("detail", {"index": 2}).get("detail") == "Plan B"
+    d = results.view_data()
+    assert d["view"] == "detail" and d["focus"] == "Plan B"
+
+
+def test_detail_by_name_tolerates_a_partial_title():
+    _present(title="Propuestas", items=[_plan("Plan A — Ibiza en familia")])
+    assert results.apply_action("detail", {"title": "ibiza"}).get("ok") is True
+
+
+def test_list_goes_back_to_the_grid():
+    _present(title="Propuestas", items=[_plan()])
+    results.apply_action("detail", {"index": 1})
+    results.apply_action("list", {})
+    d = results.view_data()
+    assert "view" not in d and "focus" not in d
+
+
+def test_detail_of_something_not_there_is_refused_not_guessed():
+    _present(title="Propuestas", items=[_plan("Plan A")])
+    r = results.apply_action("detail", {"title": "un hotel que nunca buscamos"})
+    assert r["ok"] is False
+    assert results.view_data().get("view") is None, "un fallo no puede dejar la hoja en una página que no existe"
+
+
+def test_emptying_the_sheet_drops_a_stale_detail_page():
+    """Si el detalle sobreviviera a un `present` que ya no trae ese item, la hoja apuntaría a un resultado
+    inexistente — pantalla en blanco sin explicación."""
+    _present(title="Propuestas", items=[_plan("Plan A")])
+    results.apply_action("detail", {"index": 1})
+    _present(title="Otra búsqueda", items=[])
+    assert results.view_data().get("view") is None
+
+
+# ── 9) el cerebro SABE lo que hay en pantalla (prompt_digest) ────────────────────────────────────────────────
+# Sin esto, preguntado "¿el hotel de la propuesta 2 tiene wifi?" —un dato ESCRITO en la tarjeta que el operador
+# está mirando— el cerebro tenía que adivinar o escalar una búsqueda nueva para recuperar algo que ya poseía.
+def test_digest_carries_the_hard_facts_so_followups_need_no_new_search():
+    _present(title="Propuestas", items=[
+        _plan("Plan A", facts={"Wifi": "Sí, gratis"}),
+        _plan("Plan B", facts={"Wifi": "De pago, 5€/día"}),
+    ])
+    dig = results.prompt_digest()
+    assert "#1" in dig and "#2" in dig, "el ordinal tiene que estar: es como el operador se refiere a cada una"
+    assert "Sí, gratis" in dig and "De pago, 5€/día" in dig
+    assert "Check-in: 15:00" in dig, "los datos de cada PIEZA también, no solo los del conjunto"
+
+
+def test_digest_says_the_sheet_is_empty_instead_of_staying_silent():
+    assert "VAC" in results.prompt_digest().upper()
+
+
+def test_digest_is_bounded_even_with_a_huge_result_set():
+    from widgets import refs
+    _present(title="P", items=[_plan(f"Plan {i}", lines=[f"detalle {j}" * 20 for j in range(30)])
+                               for i in range(40)])
+    assert len(refs.prompt_digest("results")) <= refs._MAX_DIGEST_CHARS + 80
+
+
+def test_digest_is_reached_through_the_generic_hook_not_a_special_case():
+    """`widgets/brief.py` no puede conocer al widget «results»: el digest se recoge por el hook genérico, así que
+    cualquier widget futuro que lo implemente aparece sin tocar el puente."""
+    from widgets import refs
+    _present(title="Propuestas", items=[_plan("Plan A")])
+    assert refs.prompt_digest("results").startswith("#1")
+    assert refs.prompt_digest("agenda") == "" or isinstance(refs.prompt_digest("agenda"), str)
