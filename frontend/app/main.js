@@ -9,6 +9,7 @@
 import { h, mount, $ } from "./core/dom.js?v=2";
 import { createEffect } from "./core/reactive.js?v=2";
 import * as session from "./services/session.js?v=3";
+import { openSSE } from "./services/sse.js?v=4";
 import * as store from "./core/store.js?v=2";
 import { startStatusPolling } from "./services/status.js?v=2";
 import { initTheme } from "./services/theme.js?v=2";
@@ -64,6 +65,19 @@ api.wizardState().then(s => { if (s && s.first_run) store.setWizardOpen(true); }
 // ---- widget desktop (independent canvas / window manager) ----
 const desktop = new Desktop($("#wstage"));
 window.__zaelarDesktop = desktop;   // the SSE/session bridge reaches the desktop through this
+
+// ---- eventos del server → escritorio, DESDE EL ARRANQUE y sin depender de la voz (2026-08-09) ----
+// `openSSE` se llamaba SOLO dentro de `session.start()` (services/session.js), o sea después de conseguir el
+// micrófono y montar el WebRTC. Consecuencia: sin voz no llegaba NINGÚN evento de widget, y "sin voz" son casos
+// reales y cotidianos — el operador con ⏻ apagado (store.powerOff, que ya usa la app a propósito así desde que
+// chat y voz son independientes), un navegador que niega el micro, o cualquier arranque en el que la voz aún no
+// ha subido. En todos ellos un widget abierto se quedaba CONGELADO en la foto de su primer render: un worker
+// podía estar empujando resultados uno a uno y la pantalla no se enteraba. Justo lo contrario de lo que se pide
+// de esta superficie —ver llenarse el informe en vivo— y sin ningún síntoma que lo delatara.
+// El bus de observabilidad (services/debugbus.js) ya resolvió esto igual: suscriptor propio a /events,
+// independiente de la sesión. `openSSE` es idempotente, así que la llamada de `session.start()` sigue ahí sin
+// abrir una segunda conexión.
+openSSE(desktop);
 
 // ---- always-on render loop (orb = zaelar's voice, viz = the person's voice) ----
 session.startVisuals({ orbCanvas: $("#orb"), vizCanvas: $("#viz") });

@@ -13,7 +13,7 @@ import { t, applyLang } from "../core/i18n.js?v=1";
 let es = null;
 
 export function openSSE(desktop) {
-  if (es) es.close();
+  if (es) return;               // ya suscrito: reabrir tiraría el stream vivo y perdería los eventos en vuelo
   es = new EventSource("/events");
   // V2-038: al (re)conectar, RECONCILIA los chips de actividad contra la verdad del server (GET /api/tasks lee el
   // registro RAM) → fin de los chips huérfanos tras un reinicio/crash. El ESTADO manda; la UI es su espejo.
@@ -129,4 +129,8 @@ export function openSSE(desktop) {
   };
 }
 
+// El stream vive lo que vive la APLICACIÓN (lo abre main.js en el arranque), no lo que vive la sesión de voz: por
+// él llegan los eventos de widget, que deben seguir pintándose con la voz parada o sin micrófono. Se deja como
+// escotilla explícita para quien de verdad quiera cortarlo; `session.stop()` ya NO la usa (cerraba la pantalla en
+// vivo del operador cada vez que paraba la voz o el navegador denegaba el micro).
 export function closeSSE() { if (es) { try { es.close(); } catch (_) {} es = null; } }

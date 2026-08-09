@@ -288,3 +288,49 @@ def test_the_composer_prompt_spans_domains_instead_of_specialising():
     # y nada de fijar el vocabulario de UN caso concreto (el que motivó la pieza)
     for leak in ("baleares", "ferry", "piscina", "hotel"):
         assert leak not in sysmsg, f"«{leak}» es el caso que motivó la pieza, no puede estar en el mecanismo"
+
+
+# ── 7) hallazgos de la primera corrida REAL del compositor (2026-08-09) ──────────────────────────────────────
+# Se lanzó el director contra la petición literal del operador (viaje a Baleares) con el modelo de verdad. El brief
+# salió excelente en lo importante —enriquecimientos de experto reales: «a los 11 años muchos hoteles ya cuentan al
+# niño como adulto para la ocupación», «1,80 m es el umbral de vehículo alto en ferry»— pero destapó dos defectos.
+def test_a_descriptive_phrase_smuggled_as_a_role_becomes_a_badge():
+    """Lo que devolvió el modelo real: en vez de roles cortos, la DESCRIPCIÓN del contenido de cada pieza. Puesto tal
+    cual en la insignia de la tarjeta, la rompe. El prompt lo pide corto; el cap lo garantiza."""
+    b = research.parse(_raw(deliverable={
+        "widget": "results", "n_final": 3, "composite": True,
+        "parts": ["Ruta de ferry (origen, destino, naviera, tipo rápido/convencional, horarios)",
+                  "Tarifa de ferry para 4 pasajeros + vehículo (detallando cargos por altura)",
+                  "Coste total combinado y razón por la que es la mejor opción"]}))
+    roles = b["deliverable"]["parts"]
+    assert all(len(r) <= research._MAX_ROLE_CHARS for r in roles)
+    assert all(len(r.split()) <= research._MAX_ROLE_WORDS for r in roles)
+    # y NUNCA cortado a mitad de palabra: «Tarifa de ferry para 4 pasaj» es basura en pantalla
+    assert not any(r.endswith(("pasaj", "razó", "conven")) for r in roles), roles
+    assert roles[0] == "Ruta de ferry"
+
+
+def test_the_same_role_twice_is_not_a_composite_proposal():
+    b = research.parse(_raw(deliverable={"widget": "results", "n_final": 3, "composite": True,
+                                         "parts": ["Hotel", "hotel", "HOTEL", "Ferry"]}))
+    assert b["deliverable"]["parts"] == ["Hotel", "Ferry"]
+
+
+def test_the_composer_is_told_not_to_turn_a_search_into_a_booking():
+    """Defecto REAL de la primera corrida: el objetivo salió como «Encontrar y RESERVAR la mejor oferta…» cuando el
+    operador solo pidió buscar. Un worker con «reservar» en su objetivo puede reservar de verdad — dinero
+    comprometido e irreversible por una palabra que nadie dijo. Investigar es encontrar y proponer; actuar es una
+    decisión del operador al ver las propuestas."""
+    sysmsg = research.build_messages("busca vacaciones")[0]["content"].lower()
+    assert "no reservar" in sysmsg or "nunca añadas" in sysmsg
+    for forbidden in ("reservar", "comprar", "pagar"):
+        assert forbidden in sysmsg, f"el director tiene que nombrar «{forbidden}» para prohibirlo explícitamente"
+
+
+def test_the_worker_is_told_not_to_commit_anything():
+    """Defensa en profundidad sobre lo anterior: aunque el objetivo se colara con «reservar», el bloque que LEE el
+    worker le prohíbe comprometer dinero o mandar algo. Investigar acaba en proponer; actuar lo decide el operador."""
+    block = research.to_prompt_block(research.parse(_raw()))
+    assert "NO COMPROMETAS NADA" in block
+    for forbidden in ("reserves", "compres", "pagues"):
+        assert forbidden in block

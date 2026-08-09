@@ -22,7 +22,7 @@ import { Room, RoomEvent, LocalAudioTrack, ConnectionState } from "../../vendor/
 import * as store from "../core/store.js?v=2";
 import * as audio from "./audio.js?v=2";
 import * as api from "./api.js?v=2";
-import { openSSE, closeSSE } from "./sse.js?v=4";
+import { openSSE } from "./sse.js?v=4";
 import { clearDebugBuffer } from "./debugbus.js?v=2";
 import { startVisualizer } from "./visualizer.js?v=2";
 import { t } from "../core/i18n.js?v=1";
@@ -391,7 +391,11 @@ export async function stop() {
   _stopHeartbeat();   // deja de renovar el lock; el TTL del server lo libera solo, o `pagehide` al cerrar la pestaña
   started = false; starting = false; store.setStarted(false); store.setStarting(false);
   try { if (room) await room.disconnect(); } catch (_) {} room = null;
-  closeSSE();
+  // OJO: aquí NO se cierra el stream de /events. Desde 2026-08-09 lo abre `main.js` en el arranque y su vida es la
+  // de la APLICACIÓN, no la de la sesión de voz: por él llegan los eventos de widget (un worker empujando
+  // resultados uno a uno), que tienen que seguir pintándose con la voz parada. Cerrarlo aquí dejaba la pantalla
+  // congelada en dos casos reales y silenciosos — el operador que para la voz, y el navegador que DENIEGA el
+  // micrófono (start() falla → pasa por aquí → adiós al stream que main.js acababa de abrir).
   if (stream) { try { stream.getTracks().forEach(t => t.stop()); } catch (_) {} stream = null; }
   store.setBotSpeaking(false); audio.dropBot();
   store.setConnState("—"); store.setLatency("— ms");

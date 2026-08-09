@@ -107,3 +107,19 @@ def test_raise_with_body_embeds_the_response_text_for_exhaustion():
 def test_raise_with_body_is_a_noop_on_success():
     resp = _FakeHttpxResp(200, "")
     asyncio.run(fc._raise_with_body(resp))    # no lanza
+
+
+def test_raise_with_body_is_a_coroutine_and_must_be_awaited():
+    """Bug real (2026-08-09), encontrado por el aviso de Python «coroutine never awaited» durante la primera corrida
+    del director de investigación: en `_complete_zai` se llamaba `_raise_with_body(resp)` SIN await. Sin await no
+    lanza nada —Python crea el objeto corrutina y lo descarta— así que un 429/500 pasaba por bueno y el flujo seguía
+    hasta `resp.json()` sobre un cuerpo de error, convirtiendo un fallo de proveedor claro en un error de parseo
+    confuso más adelante (y, peor, sin clasificar la cuota → sin relevo de proveedor)."""
+    import inspect
+    from nucleo.flash import fast_client
+    assert inspect.iscoroutinefunction(fast_client._raise_with_body)
+    src = inspect.getsource(fast_client)
+    for line in src.splitlines():
+        s = line.strip()
+        if "_raise_with_body(" in s and not s.startswith(("#", "async def", "def")):
+            assert "await" in s, f"llamada sin await, no lanzará nada: {s}"

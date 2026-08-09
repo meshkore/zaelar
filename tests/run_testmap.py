@@ -84,7 +84,12 @@ DOMAINS: list[dict] = [
             # el worker puede llamar a sus puentes a la primera (intérprete real + allowlist completo)
             "tests/agent_headless/unit/workers/test_bridge_interpreter.py",
             # cadena de proveedores del worker + relevo por cuota agotada + alerta en el panel
-            "tests/agent_headless/unit/workers/test_provider_failover.py"]},
+            "tests/agent_headless/unit/workers/test_provider_failover.py",
+            # DIRECCIÓN de una investigación (2026-08-09): el brief que convierte «las mejores vacaciones» en una
+            # selección defendible — amplitud mínima de candidatos, criterios duros vs blandos, baremo de calidad,
+            # y la ronda 2 cuando el operador dice que siga buscando. Sin esto el worker se autoimponía el criterio
+            # mínimo y devolvía los tres primeros resultados de la primera página.
+            "tests/agent_headless/unit/test_research.py"]},
         {"id": "2.6", "title": "Scheduler / rails / workspace / frontend-glue", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/test_scheduler.py", "tests/agent_headless/unit/test_rails.py", "tests/agent_headless/unit/test_workspace.py",
             "tests/agent_headless/unit/flash/test_frontend.py", "tests/agent_headless/unit/flash/test_memory_cache.py"]},
@@ -159,8 +164,14 @@ DOMAINS: list[dict] = [
         # 2026-08-02: «busca X y ponme el informe en pantalla» no llegaba NUNCA a pantalla. Nodo propio porque lo
         # que fija no es un widget temático sino la SUPERFICIE GENÉRICA de presentación: hoja en blanco sin
         # contenido propio, se rellena por acción declarada (no reescribiendo su código) y lo entregado PERSISTE.
-        {"id": "4.10", "title": "Superficie genérica de presentación de resultados (hoja en blanco + present/append)",
-            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_results_presentation.py"]},
+        # 2026-08-09: además de la hoja en blanco, la superficie sostiene PROPUESTAS COMPUESTAS (un plan = varias
+        # piezas con su propio precio/enlace/horarios) y su SEGUNDA PÁGINA de detalle; y el canal por el que se
+        # llenan en vivo tenía que dejar de depender de la sesión de voz (sin micro o con la voz parada, la tarjeta
+        # se quedaba congelada en su primer render sin ningún síntoma).
+        {"id": "4.10", "title": "Superficie genérica de presentación de resultados (hoja en blanco + present/append "
+                                "+ propuestas compuestas + detalle + refresco en vivo sin voz)",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_results_presentation.py",
+                                  "tests/browser/unit/widgets/test_live_updates_independent_of_voice.py"]},
         # i18n de la UI (V2-089). Estaba SIN mapear: `test_bundles.py` guarda los presets (mismas claves en/es,
         # español no vacío, placeholders alineados) y `test_bundle_reactivity.py` el contrato RUNTIME —
         # `t()` re-renderiza cuando el bundle gana claves, no solo cuando cambia el idioma (fallo 2026-08-09:

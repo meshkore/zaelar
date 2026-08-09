@@ -58,11 +58,14 @@ function injectStyles(){
   .hb-results .hr-chosen-tag{display:inline-block;font-size:11px;font-weight:600;color:var(--hb-accent2,#16B8A6);margin-top:6px}
   /* composite items: the pieces a proposal is made of, one labelled row each */
   .hb-results .hr-parts{margin-top:8px;border-top:1px dashed var(--hb-line,#eef1f6);padding-top:7px;display:grid;gap:5px}
-  .hb-results .hr-part{display:flex;align-items:baseline;gap:6px;font-size:12.5px;line-height:1.35}
+  /* wrap + min-width: en una tarjeta de 2 columnas el precio (nowrap, empujado a la derecha) estrangulaba al
+     título hasta partirlo letra a letra («Valenci / a → / Palma»). Con wrap el precio baja de línea entero en vez
+     de robarle el ancho, y el título nunca se queda con menos de ~7em. */
+  .hb-results .hr-part{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 6px;font-size:12.5px;line-height:1.35}
   .hb-results .hr-pk{flex:none;font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--hb-accent,#3D6FE0);
     background:var(--hb-bg-soft,#eef3fe);border-radius:5px;padding:1px 6px}
-  .hb-results .hr-pt{color:var(--hb-ink,#0d1622);word-break:break-word}
-  .hb-results .hr-pp{flex:none;margin-left:auto;font-weight:600;color:var(--hb-accent2,#16B8A6);white-space:nowrap}
+  .hb-results .hr-pt{flex:1 1 7em;min-width:7em;color:var(--hb-ink,#0d1622);overflow-wrap:break-word}
+  .hb-results .hr-pp{flex:0 0 auto;margin-left:auto;font-weight:600;color:var(--hb-accent2,#16B8A6);white-space:nowrap}
   .hb-results .hr-more{margin-top:9px;display:inline-block;font-size:12px;font-weight:600;color:var(--hb-accent,#3D6FE0);
     background:none;border:1px solid var(--hb-line,#eef1f6);border-radius:8px;padding:4px 10px;cursor:pointer;font-family:inherit}
   .hb-results .hr-more:hover{border-color:var(--hb-accent,#3D6FE0);background:var(--hb-bg-soft,#eef3fe)}

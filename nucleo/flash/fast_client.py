@@ -57,7 +57,12 @@ async def _raise_with_body(resp) -> None:
     esto, un 429 de Z.AI llega como el mensaje genérico de httpx («429 Too Many Requests», sin más) y quien
     clasifica el fallo aguas abajo (`nucleo.flash.provider_chain.classify_failure`, y su hermano de
     `nucleo.workers.providers`) no puede distinguir «cuota SEMANAL agotada, reset el jueves» (hay que relevar) de
-    un rate-limit pasajero (se reintenta solo) — los dos dan el MISMO 429 desnudo. No-op si la respuesta es OK."""
+    un rate-limit pasajero (se reintenta solo) — los dos dan el MISMO 429 desnudo. No-op si la respuesta es OK.
+
+    ES CORRUTINA: hay que llamarla con AWAIT. Sin await no lanza absolutamente nada —Python solo crea el objeto
+    corrutina y lo tira— así que un 429/500 pasaba por bueno y el código seguía con `resp.json()` sobre un cuerpo de
+    error, convirtiendo un fallo de proveedor claro en un error de parseo confuso más adelante. Pasó justo aquí, en
+    `_complete_zai` (2026-08-09): solo se vio porque Python avisa («coroutine never awaited»)."""
     import httpx
     if resp.status_code < 400:
         return
@@ -386,7 +391,7 @@ class FastClient:
             try:
                 async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=10.0)) as client:
                     resp = await client.post(url, json=payload, headers=headers)
-                    _raise_with_body(resp)
+                    await _raise_with_body(resp)      # sin await no lanza NADA: ver el aviso de abajo
                 break
             except Exception as e:  # noqa: BLE001
                 if _attempt >= _CONNECT_RETRIES or not _is_transient(e):

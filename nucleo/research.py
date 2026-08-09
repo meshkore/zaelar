@@ -55,11 +55,16 @@ _MIN_CANDIDATES_FLOOR = 25
 _MIN_CANDIDATES_CAP = 200
 _MAX_LIST = 12          # criterios/enriquecimientos/baremo: una lista que el worker pueda de verdad respetar
 _MAX_ITEM_CHARS = 220
+# El ROL de una pieza se pinta como INSIGNIA en la tarjeta («Hotel», «Ferry»), así que tiene que caber en una. El
+# modelo, si le dejas, devuelve la descripción del contenido en vez del nombre del rol («Tarifa del ferry para 4
+# pasajeros detallando cargos por altura»), y eso en una insignia rompe la tarjeta. El prompt lo pide corto; esto lo
+# GARANTIZA, porque un prompt es una petición y un cap es un contrato.
+_MAX_ROLE_CHARS = 28
 _KV = "research_brief"  # memoria KV: <_KV>:<task_id>
 
 
 # ── el catálogo CERRADO de lo que un brief puede decir (mismo criterio que evaluator.py: validar, no confiar) ──
-def _strlist(raw, cap: int = _MAX_LIST) -> list[str]:
+def _strlist(raw, cap: int = _MAX_LIST, chars: int = _MAX_ITEM_CHARS) -> list[str]:
     if isinstance(raw, str):
         raw = [raw]
     if not isinstance(raw, (list, tuple)):
@@ -68,9 +73,31 @@ def _strlist(raw, cap: int = _MAX_LIST) -> list[str]:
     for x in raw:
         s = str(x).strip()
         if s:
-            out.append(s[:_MAX_ITEM_CHARS])
+            out.append(s[:chars])
         if len(out) >= cap:
             break
+    return out
+
+
+_MAX_ROLE_WORDS = 3
+
+
+def _roles(raw) -> list[str]:
+    """Roles de las piezas de una propuesta compuesta. Cortos por contrato (van en una insignia) y sin duplicados:
+    dos piezas con el mismo rol («Hotel» y «Hotel») no son una propuesta compuesta, son una lista mal montada.
+
+    Se corta por PALABRA, nunca a mitad: «Tarifa de ferry para 4 pasajeros (detallando…)» → «Tarifa de ferry», que
+    es una insignia legible; cortar por caracteres daba «Tarifa de ferry para 4 pasaj», que es basura en pantalla."""
+    seen, out = set(), []
+    for raw_role in _strlist(raw, cap=6, chars=200):
+        # una frase descriptiva colada como rol se queda en su primera cláusula, que es donde está el nombre real
+        r = raw_role.split("(")[0].split(",")[0].split(":")[0].strip(" -–—")
+        words = [w for w in (r or raw_role).split() if w]
+        r = " ".join(words[:_MAX_ROLE_WORDS])[:_MAX_ROLE_CHARS].strip(" -–—")
+        k = r.lower()
+        if r and k not in seen:
+            seen.add(k)
+            out.append(r)
     return out
 
 
@@ -120,7 +147,7 @@ def parse(raw: str) -> dict | None:
             "widget": str(deliv.get("widget") or "results").strip()[:40] or "results",
             "n_final": nfin,
             "composite": bool(deliv.get("composite")),
-            "parts": _strlist(deliv.get("parts"), cap=6),
+            "parts": _roles(deliv.get("parts")),
         },
         "round": 1,
         "ts": time.time(),
@@ -149,6 +176,10 @@ Si SÍ lo es, devuelve:
 {
   "research": true,
   "goal": "el objetivo reformulado, autocontenido, como se lo explicarías a un profesional que empieza de cero",
+  "//goal": "NUNCA añadas al objetivo una acción que el operador no pidió. Investigar es ENCONTRAR Y PROPONER: no
+             reservar, no comprar, no pagar, no contratar, no enviar nada. Comprometer dinero o mandar algo en
+             nombre del operador es una decisión SUYA, que tomará al ver las propuestas. Si su petición era buscar,
+             el objetivo termina en «presentar las mejores opciones».",
   "domain": "de qué campo es esto (2-6 palabras)",
   "hard": ["criterios NO NEGOCIABLES: si un candidato los incumple, queda DESCALIFICADO"],
   "soft": ["preferencias que PUNTÚAN pero no descalifican"],
@@ -163,9 +194,16 @@ Si SÍ lo es, devuelve:
     "widget": "results",
     "n_final": 3,
     "composite": true,
-    "parts": ["los ROLES de las piezas de cada propuesta, si una propuesta se compone de varias cosas"]
+    "parts": ["Alojamiento", "Transporte"]
   }
 }
+
+`parts` son ETIQUETAS CORTAS (1-3 palabras) del ROL de cada pieza que hay que conseguir por separado. Se pintan como
+una INSIGNIA en la tarjeta, así que tienen que caber en una: «Alojamiento», «Transporte», «Equipo», «Fuente»,
+«Capítulo», «Servidor». Una frase descriptiva («Tarifa del transporte para 4 pasajeros detallando los cargos») NO es
+un rol: eso es el CONTENIDO de la pieza y va en sus datos, no en su nombre. Ejemplos de cuándo aplica: un viaje se
+compone de alojamiento + transporte; un trabajo escrito, de fuentes + capítulos; una arquitectura, de sus
+componentes. Si lo que se busca es UNA sola cosa (un portátil, un piso, un artículo), composite:false y `parts` vacío.
 
 Cómo pensar cada campo:
 
@@ -349,6 +387,9 @@ def to_prompt_block(brief: dict) -> str:
              f"criterio has cortado, y repórtalo también con "
              f"`python -m nucleo.agent_report considered <nº> --kept {nfin}`. Es lo que le permite al operador "
              f"saber si la selección es sólida o si conviene seguir buscando.")
+    L.append("NO COMPROMETAS NADA: tu trabajo acaba en PROPONER. No reserves, no compres, no pagues, no contrates "
+             "ni envíes nada en nombre del operador —aunque encuentres la opción perfecta y aunque parezca el "
+             "siguiente paso obvio—: esa decisión es suya y la toma al ver las propuestas.")
     L.append("CIERRE HONESTO: acaba ofreciéndole SEGUIR buscando o AFINAR los criterios. Si algo del baremo no has "
              "podido verificar, dilo en vez de darlo por bueno — una propuesta con un dato sin confirmar y avisado "
              "vale; una con un dato inventado, no. Si el operador te dice que sigas, se reanuda esta misma "

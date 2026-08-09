@@ -14,7 +14,7 @@ import * as api from "./api.js?v=2";
 import { SpeakerGate } from "../lib/speaker-gate.js?v=2";
 import { startMicVAD, stopMicVAD } from "./vad.js?v=2";
 import { startBrowserSTT, stopBrowserSTT } from "./stt.js?v=2";
-import { openSSE, closeSSE } from "./sse.js?v=4";
+import { openSSE } from "./sse.js?v=4";
 import { startVisualizer } from "./visualizer.js?v=2";
 import { t } from "../core/i18n.js?v=1";
 
@@ -240,7 +240,12 @@ export function stop() {
   started = false; starting = false; store.setStarted(false); store.setStarting(false);
   try { stopBrowserSTT(); } catch (_) {}
   try { stopMicVAD(); } catch (_) {}
-  try { if (pc) pc.close(); } catch (_) {} pc = null; dc = null; closeSSE();
+  // OJO: aquí NO se cierra el stream de /events. Desde 2026-08-09 lo abre `main.js` en el arranque y su vida es la
+  // de la APLICACIÓN, no la de la sesión de voz: por él llegan los eventos de widget (un worker empujando
+  // resultados uno a uno), que tienen que seguir pintándose con la voz parada. Cerrarlo aquí dejaba la pantalla
+  // congelada en dos casos reales y silenciosos — el operador que para la voz, y el navegador que DENIEGA el
+  // micrófono (start() falla → pasa por aquí → adiós al stream que main.js acababa de abrir).
+  try { if (pc) pc.close(); } catch (_) {} pc = null; dc = null;
   if (stream) { try { stream.getTracks().forEach(t => t.stop()); } catch (_) {} stream = null; }
   store.setBotSpeaking(false); audio.dropBot();
   gate = null; store.setSpk({ show: false, other: false, html: "" });
