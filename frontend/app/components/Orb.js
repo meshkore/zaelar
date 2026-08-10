@@ -9,6 +9,9 @@
 //   🔊 speaker  → mute/unmute zaelar's voice OUTPUT (the agent keeps running: mic, brain and crons stay live).
 //   ⏻ power    → CENTRE (apex). Explicit ON/OFF of the voice session — the ONE exception to always-on: while
 //                 off (persisted hb_power_off) main.js does NOT auto-(re)connect; click again to come back.
+//                 While OFF, the OTHER six controls read DISABLED (grey) too via lidClass(): a stopped agent can't
+//                 use mic/speaker/captions, and live-blue icons over a stopped session used to look like an audio
+//                 bug. Each control keeps its own state underneath and shows it again once power returns.
 //   📝 captions → show/hide the live transcript crawling above the orb (history always stays in the chat wall).
 //   💬 chat     → open the chat panel (Chat/Processes/Crons/Clusters tabs — crons live INSIDE it, no separate
 //                 cron icon any more). MOVED here 2026-08-09, same slot the ⏰ cron shortcut used to occupy;
@@ -62,6 +65,20 @@ export function Orb() {
       .catch(() => setWakeOn(!next));                           // revert on failure
   };
 
+  // ⏻ STOPPED dims the whole lid (petición del operador): a stopped agent can't use mic/speaker/captions — and
+  // when the mic/speaker icons kept reading ON (blue) over a stopped session, the operator mistook a stopped
+  // agent for a broken mic. Now, while ⏻ is OFF, the OTHER six controls all read as DISABLED (grey .off) whatever
+  // their own signal says, so there's no doubt the agent is stopped. The ⏻ icon itself already reads "off", and
+  // clicking it is how you bring everything back. Visual only: each control keeps its real state underneath and
+  // reflects it again the moment power returns. (Reactive: reads powerOff() inside the class effect → repaints on
+  // toggle, same as every other icon here.)
+  // 2026-08-10: la condición era `!store.powerOff()` — la INTENCIÓN persistida. No cubría el caso que de verdad
+  // hizo daño: `powerOff=false` con la sesión CAÍDA pintaba el micro y el altavoz en azul sobre un agente muerto.
+  // Ahora depende de `agentLive()` (store.js), que es la realidad: si el agente no está vivo, NINGÚN icono puede
+  // leerse como encendido, dé lo que dé su propia señal. Visual: cada control conserva su estado debajo y lo vuelve
+  // a mostrar en cuanto el agente vive.
+  const lidClass = (on) => "orbic" + (on && store.agentLive() ? " on" : " off");
+
   const wrap = h("div", { id: "orbwrap", class: "orbwrap", ref: el => (wrapEl = el) },
     // OVAL VEIL (operator 2026-07-22, 3rd pass): a big, opaque, blurred backdrop behind the WHOLE eye cluster
     // (icons + orb + ECG), not just the orb canvas — over a busy background (e.g. a video playing in a widget)
@@ -78,23 +95,37 @@ export function Orb() {
       h("button", {
         // 2026-08-09: relocated from CameraUnit (now hidden/archived) — same session.toggleMic()/store.micMuted()
         // seam, just a different button. ON (blue) = mic live, like the speaker's on/off language.
-        class: () => "orbic" + (store.micMuted() ? " off" : " on"),
+        //
+        // VÚMETRO (2026-08-10, petición del operador): «quiero estar seguro de que me estás escuchando cuando
+        // hablo, y como no tenemos ningún medidor en pantalla, quisiera que el icono del micrófono hiciera
+        // blinking, incluso se hiciera un poquito más grande y más pequeño a medida que detecta la voz». O sea: el
+        // propio icono ES el medidor, igual que el orbe crece cuando habla zaelar. Se escala con el nivel REAL del
+        // micro (store.micLevel, RMS 0..1) por variable CSS, así que la animación no cuesta un re-render: solo
+        // cambia una custom property. Con el micro silenciado o el agente parado no hay efecto — porque no hay
+        // nivel: el medidor solo puede moverse cuando de verdad se está escuchando.
+        class: () => lidClass(!store.micMuted()) + (store.agentLive() && !store.micMuted() ? " vu" : ""),
+        style: { "--vu": () => (store.agentLive() && !store.micMuted() ? String(Math.min(1, store.micLevel() * 6)) : "0") },
         title: () => (store.micMuted() ? t("camera.mic_unmute") : t("camera.mic_mute")),
         onClick: () => { session.toggleMic(); api.uiEvent("orb:mic", { state: store.micMuted() ? "muted" : "unmuted" }); },
       }, raw(MIC_ICON)),
       h("button", {
-        class: () => "orbic" + (store.memOpen() ? " on" : " off"),
+        class: () => lidClass(store.memOpen()),
         title: () => t("orb.memory"),
         onClick: () => { const v = !store.memOpen(); store.setMemOpen(v); api.uiEvent("orb:memory", { state: v ? "open" : "close" }); },
       }, raw(MEM_ICON)),
       h("button", {
-        class: () => "orbic" + (store.botMuted() ? " off" : " on"),
+        class: () => lidClass(!store.botMuted()),
         title: () => store.botMuted() ? t("orb.speaker_muted") : t("orb.speaker_unmuted"),
         onClick: () => { session.toggleBotMute(); api.uiEvent("orb:speaker", { state: store.botMuted() ? "muted" : "unmuted" }); },
       }, () => raw(store.botMuted() ? SPK_OFF : SPK_ON)),
       h("button", {
-        class: () => "orbic" + (store.powerOff() ? " off" : " on"),
-        title: () => store.powerOff() ? t("orb.power_off") : t("orb.power_on"),
+        // El ⏻ es el ÚNICO icono que no puede mentir nunca: es el que el operador mira para saber si hay alguien
+        // al otro lado. Pinta los CUATRO estados reales (store.agentState), no el flag persistido:
+        //   live → azul · starting → «levantándose» · off → gris (parado a mano) · stalled → AVISO.
+        // `stalled` («debería estar encendido y no lo está») es el estado que no existía: con él, un agente caído
+        // se ve caído en vez de pasar por operativo.
+        class: () => "orbic pwr-" + store.agentState() + (store.agentLive() ? " on" : " off"),
+        title: () => t("orb.power_" + store.agentState()),
         onClick: () => {
           const off = !store.powerOff();
           store.setPowerOff(off);
@@ -135,19 +166,19 @@ export function Orb() {
         },
       }, raw(PWR_ICON)),
       h("button", {
-        class: () => "orbic" + (store.captionsOn() ? " on" : " off"),
+        class: () => lidClass(store.captionsOn()),
         title: () => store.captionsOn() ? t("orb.captions_hide") : t("orb.captions_show"),
         onClick: () => { const v = store.toggleCaptions(); api.uiEvent("orb:captions", { state: v ? "on" : "off" }); },
       }, raw(CAP_ICON)),
       h("button", {
         // 2026-08-09: relocated from CameraUnit (now hidden/archived) — opens the SAME chat panel the old ⏰
         // cron shortcut used to jump into (crons live inside its 3rd tab; no separate cron icon any more).
-        class: () => "orbic" + (store.chatOpen() ? " on" : " off"),
+        class: () => lidClass(store.chatOpen()),
         title: () => t("camera.chat_title"),
         onClick: () => { const v = !store.chatOpen(); store.setChatOpen(v); api.uiEvent("orb:chat", { state: v ? "open" : "close" }); },
       }, raw(CHAT_ICON)),
       h("button", {
-        class: () => "orbic" + (wakeOn() ? " on" : " off"),
+        class: () => lidClass(wakeOn()),
         title: () => wakeOn() ? t("orb.wake_on") : t("orb.wake_off"),
         onClick: () => { toggleWake(); api.uiEvent("orb:attention", { state: wakeOn() ? "wakeword" : "always" }); },
       }, raw(BOT_ICON)),
@@ -160,8 +191,12 @@ export function Orb() {
       h("div", { class: "orbcap", ref: el => (capEl = el) },
         h("div", { class: "orbcap-inner", ref: el => (capInnerEl = el) }),
       ),
-      h("canvas", { id: "orb", class: () => store.botMuted() ? "muted" : "", ref: el => (orbEl = el),
-                    title: () => t("orb.drag") }),
+      // `frozen` (2026-08-10): con el agente parado el orbe se apaga y se queda QUIETO. Es la pieza que más
+      // «personifica» a zaelar, así que verla ondular con el agente detenido es la señal más engañosa de toda la
+      // pantalla. El visualizador además deja de avanzar su fase, así que no es solo que se vea gris: no se mueve.
+      h("canvas", { id: "orb",
+                    class: () => (store.botMuted() ? "muted" : "") + (store.agentLive() ? "" : " frozen"),
+                    ref: el => (orbEl = el), title: () => t("orb.drag") }),
       h("div", { class: () => "micblock" + (store.micBlocked().show ? " show" : "") }, h("span", { class: "ring" })),
     ),
     // ELECTROCARDIOGRAM under the orb — zaelar's REAL heartbeat: a QRS per orchestrator loop.tick (~1 Hz at rest),

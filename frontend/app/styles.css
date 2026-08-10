@@ -341,6 +341,9 @@ canvas#orb:active{cursor:grabbing}
 .vlabel.show{opacity:1}
 /* BOT MUTED: zaelar's voice output silenced (agent still running). Dim the orb — the 🔊/🔇 control lives below. */
 canvas#orb.muted{opacity:.5;filter:grayscale(.45)}
+/* AGENTE PARADO (2026-08-10): el orbe se apaga del todo. `muted` es «no te hablo» (sigo aquí); `frozen` es «no
+   estoy». Más gris y más tenue que el mute, y sin movimiento — el visualizador congela también su fase. */
+canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 
 /* orb core: RELATIVE anchor for the orb + its overlays. The orb sits here; the caption/mic-block float over it
    without touching layout, so the orb never shifts when text appears. */
@@ -389,6 +392,27 @@ canvas#orb.muted{opacity:.5;filter:grayscale(.45)}
 .orbic:hover{color:var(--hb-accent)}
 .orbic.on{color:var(--hb-accent)}
 .orbic.off{color:var(--hb-muted-2);opacity:.5}
+/* ⏻ ESTADOS REALES del agente (2026-08-10). El ⏻ es el icono que el operador mira para saber si hay alguien al
+   otro lado, así que es el único que no puede mentir. `stalled` = «debería estar encendido y NO lo está» (sesión
+   caída, micrófono denegado, sala perdida): late en ámbar para que no vuelva a pasar por operativo — el operador
+   estuvo un buen rato hablándole a un agente muerto porque los iconos seguían azules. `starting` respira mientras
+   se levanta, así que «tarda» no se confunde con «no va». */
+/* VÚMETRO del icono del micro (2026-08-10, petición del operador): el icono ES el medidor — crece y se aviva con
+   la voz detectada, igual que el orbe cuando habla zaelar, para que el operador SEPA que se le está escuchando sin
+   necesidad de un medidor aparte en pantalla. `--vu` (0..1) lo pone Orb.js desde el nivel REAL del micro; sin
+   nivel, la variable es 0 y el icono se queda exactamente como estaba: si no se escucha, no se mueve. Se anima
+   `transform`/`opacity` por variable CSS (compositor), sin re-render por frame. */
+.orbic.vu{transform-origin:50% 50%}
+.orbic.vu svg{transform:scale(calc(1 + var(--vu, 0) * .28));opacity:calc(.72 + var(--vu, 0) * .28);
+  transition:transform .07s linear,opacity .07s linear}
+@media (prefers-reduced-motion:reduce){ .orbic.vu svg{transform:none} }
+.orbic.pwr-stalled{color:var(--hb-warn);opacity:1;animation:pwrAlert 1.6s ease-in-out infinite}
+.orbic.pwr-starting{color:var(--hb-muted);opacity:.85;animation:pwrBoot 1.4s ease-in-out infinite}
+@keyframes pwrAlert{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.93)}}
+@keyframes pwrBoot{0%,100%{opacity:.45}50%{opacity:.95}}
+@media (prefers-reduced-motion:reduce){
+  .orbic.pwr-stalled,.orbic.pwr-starting{animation:none}
+}
 /* the UPPER LID **IS** THE ICONS (v4, operator 2026-07-22: "arriba van los iconos, no una raya"). Inner 5
    (nth-child 2-6) sit ON the almond circle the ECG draws below (R=(S²+a²)/2a ≈ 2.5·orbRadius; icon x = 0/±45/±90
    → y = R−√(R²−x²) = 0/6/23). The outer 2 (clock/robot) DON'T need to touch the ECG's tips — the orb's own edge

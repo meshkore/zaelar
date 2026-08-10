@@ -44,6 +44,34 @@ export const [botSpeaking, setBotSpeaking] = createSignal(false);            // 
 export const [micBlocked, setMicBlocked]   = createSignal({ show: false, msg: "" });  // 🚫 ring over the orb
 export const [micLevel, setMicLevel]       = createSignal(0);               // true mic RMS (0..1) for the meter
 
+// ── ¿ESTÁ VIVO EL AGENTE? UNA sola respuesta, derivada — no un signal más que mantener ────────────────────────
+// Nace de un fallo real y caro (sesión del operador, 2026-08-10). Cada icono del orbe decidía su aspecto a partir
+// de una señal DISTINTA, y ninguna significaba «el agente está funcionando»:
+//   · `powerOff` es la INTENCIÓN persistida del operador, no la realidad;
+//   · `started` es la realidad, pero no lo miraba nadie para pintar.
+// Con `powerOff=false` y la sesión CAÍDA (micrófono denegado, sala perdida, un fallo de arranque) el micro, el
+// altavoz y el ⏻ seguían pintados en azul. El operador estuvo un buen rato hablándole a un agente muerto: «como
+// yo veía el micrófono encendido, el del altavoz encendido y el de la transcripción encendida, pensaba que estabas
+// operativo». No era un fallo de audio: era un estado invisible.
+//
+// Cuatro estados, y el que faltaba es el que causó el daño:
+//   off      → el operador lo paró (⏻). Todo debe verse y estar CONGELADO.
+//   starting → levantándose (conectando sala/micro). Ni vivo ni parado: en tránsito.
+//   live     → sesión REALMENTE en marcha. Lo único que autoriza a pintar algo «encendido».
+//   stalled  → debería estar encendido y NO lo está. ESTE es el que no existía; ahora se ve.
+export const agentState = () => {
+  if (powerOff()) return "off";
+  if (started()) return "live";
+  // `!bootReady()` cubre el hueco del ARRANQUE: entre que la página carga y que `session.start()` marca
+  // `starting`, no hay nada puesto todavía — sin esto, cada carga abriría en «stalled» (todo en alarma) durante
+  // unos instantes. `bootReady` solo es falso en el primer arranque, así que una sesión que se cae DESPUÉS sí
+  // cae en «stalled», que es lo que se quiere ver.
+  if (starting() || !bootReady()) return "starting";
+  return "stalled";
+};
+// Único predicado que deben usar las vistas para decidir si algo puede leerse como «activo».
+export const agentLive = () => agentState() === "live";
+
 export const [voices, setVoices]       = createSignal([]);
 export const [voiceIdx, setVoiceIdx]   = createSignal(0);
 export const [voiceFlash, setVoiceFlash] = createSignal({ text: "", show: false });   // transient "🗣 <voice>" label

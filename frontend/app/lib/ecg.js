@@ -95,18 +95,28 @@ export function startEcg(canvas) {
   }
 
   // store.pulse → a beat. tick = the real ~1 Hz server heartbeat (rest amplitude); turn = a FlashBrain turn (taller).
+  //
+  // PERO SOLO SI EL AGENTE ESTÁ VIVO (2026-08-10, fallo reportado por el operador con captura: «fíjate que está el
+  // ECG a tope y el agente debería estar completamente parado»). El pulso que llega es del SERVIDOR (loop.tick de
+  // nucleo/loop.py, ~1 Hz), y el servidor sigue latiendo aunque la sesión de voz esté apagada — así que el
+  // electrocardiograma, que es lo que MÁS dice «estoy vivo» en toda la pantalla, seguía a pleno pulmón sobre un
+  // agente detenido. Ahora un agente parado da una línea PLANA, que es la lectura honesta: no late porque no está.
+  // (El arreglo de 2026-07-23 atacó solo los latidos EXTRA por carga —`activeLoad`—, no el pulso base.)
   let lastSeq = 0;
   createEffect(() => {
     const p = store.pulse();
     if (!p || p.seq === lastSeq) return;
-    lastSeq = p.seq;
+    lastSeq = p.seq;                          // se consume igual: al volver a encender no se descarga la cola
+    if (!store.agentLive()) return;
     triggerBeat(p.kind === "turn" ? 1.15 : 0.85);
   });
 
   // V2-065: una tarea PAUSADA (⏻) está deliberadamente congelada — no debe seguir acelerando el pulso, o
   // "apagar" contradiría su propia señal visual (el pulso seguiría corriendo mientras todo está quieto).
   const activeLoad = () =>
-    (store.tasks() || []).filter(t => !t.done && !t.paused).length + (store.botSpeaking() ? 1 : 0);
+    store.agentLive()      // parado = ni latido base ni latidos por carga: la línea se queda plana de verdad
+      ? (store.tasks() || []).filter(t => !t.done && !t.paused).length + (store.botSpeaking() ? 1 : 0)
+      : 0;
 
   // ---- render loop ----
   const PX_PER_SEC = 92;                            // trace scroll speed (px of arc length per second)

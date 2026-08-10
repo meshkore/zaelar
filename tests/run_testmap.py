@@ -172,6 +172,12 @@ DOMAINS: list[dict] = [
                                 "+ propuestas compuestas + detalle + refresco en vivo sin voz)",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_results_presentation.py",
                                   "tests/browser/unit/widgets/test_live_updates_independent_of_voice.py"]},
+        # 2026-08-10: el operador estuvo hablándole a un agente MUERTO porque los iconos seguían azules y el ECG
+        # latía (lo late el servidor, no el agente). El estado del agente pasa a ser UNA verdad derivada y todo lo
+        # que se ve deriva de ella; «parado» significa congelado de verdad y a la vista. Incluye el vúmetro del
+        # icono del micro, para saber que se te está escuchando sin medidor aparte.
+        {"id": "4.12", "title": "Estado del agente: una sola verdad · parado = congelado (real y visible) · vúmetro",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_agent_state_freeze.py"]},
         # i18n de la UI (V2-089). Estaba SIN mapear: `test_bundles.py` guarda los presets (mismas claves en/es,
         # español no vacío, placeholders alineados) y `test_bundle_reactivity.py` el contrato RUNTIME —
         # `t()` re-renderiza cuando el bundle gana claves, no solo cuando cambia el idioma (fallo 2026-08-09:

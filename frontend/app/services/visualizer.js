@@ -10,6 +10,9 @@ import { micRMS, micAnalyser, botAnalyser, level } from "./audio.js?v=2";
 import { t as tr } from "../core/i18n.js?v=1";
 
 let raf = null, orbPhase = 0, vizPhase = 0;
+// ¿quedó el orbe ya pintado en su forma de reposo tras congelarse? (evita repintarlo 60 veces por segundo estando
+// parado, que es lo que lo mantenía ondulando: la fase avanza dentro del propio dibujado)
+let _orbFrozenAt = false;
 
 // The orb's own glow layers below are translucent by design (additive "lighter" blend, alpha .18-.63) — on a
 // canvas cleared to transparent each frame that means whatever sits BEHIND the orb in the page (a widget card)
@@ -90,13 +93,24 @@ export function startVisualizer({ orbCanvas, vizCanvas, getStream, getGate, audi
     const gate = getGate && getGate();
     if (gate && gate.enabled) gate.update();   // only run the (heavy) speaker-gate DSP when it's actually enabled
 
-    // MIC METER (always-on diagnostic): true RMS of the captured mic. If flat while you talk, the browser is
-    // capturing silence (wrong device / OS mute) — the problem is BEFORE the network, not STT.
-    const micAn = micAnalyser();
+    // MIC METER: true RMS of the captured mic. If flat while you talk, the browser is capturing silence (wrong
+    // device / OS mute) — the problem is BEFORE the network, not STT.
+    //
+    // GATED POR EL ESTADO DEL AGENTE (2026-08-10). Antes escribía SIEMPRE, con solo que existiera un analizador —
+    // y el analizador SOBREVIVE a `stop()` (nadie llama a `audio.reset()`), así que con el agente parado el medidor
+    // seguía publicando nivel y el vúmetro seguía moviéndose: el operador veía «el micrófono captando» en
+    // observabilidad y daba por hecho que había alguien escuchando. Con el agente parado no hay micro: el nivel es
+    // 0 y se dice UNA vez (no en cada frame, para no despertar a los efectos 60 veces por segundo).
+    const live = store.agentLive();
+    const micAn = live ? micAnalyser() : null;
     if (micAn) { const r = micRMS(); store.setMicLevel(r); if (r > 0.02) audit.silent = false; }
+    else if (store.micLevel() !== 0) store.setMicLevel(0);
 
     // MIC BLOCKED check (real-time): the OS muted our track or another app (SuperWhisper) grabbed the mic → 🚫 ring.
-    if (store.started()) {
+    // Parado no es «bloqueado»: al apagar hay que RETIRAR el 🚫, no dejarlo clavado con el último valor.
+    if (!live) {
+      if (store.micBlocked().show) store.setMicBlocked({ show: false, msg: "" });
+    } else if (store.started()) {
       const stream = getStream(); const t = stream && stream.getAudioTracks()[0];
       const muted = !!(t && (t.muted || t.readyState === "ended"));
       const micMuted = store.micMuted();
@@ -114,11 +128,17 @@ export function startVisualizer({ orbCanvas, vizCanvas, getStream, getGate, audi
     let bbuf = null, blvl = 0; const botAn = botAnalyser();
     if (botAn) { bbuf = new Uint8Array(botAn.frequencyBinCount); botAn.getByteFrequencyData(bbuf); blvl = level(botAn); }
     const oc = orbCanvas, W = oc.clientWidth, H = oc.clientHeight;
-    if (W) {
+    // Con el agente PARADO el orbe se dibuja UNA vez y se queda quieto: `frozen` (styles.css) lo apaga en color, y
+    // saltarse el redibujado congela también su ondulación (la fase avanza dentro de drawOrb*). Un orbe gris que
+    // sigue moviéndose seguiría diciendo «estoy aquí». Se pinta el primer frame tras el cambio para que quede en su
+    // forma de reposo, no con el último gesto a medias.
+    const frozen = !live;
+    if (W && !(frozen && _orbFrozenAt)) {
       if (oc.width !== W * dpr) { oc.width = W * dpr; oc.height = H * dpr; }
       const x = oc.getContext("2d"); x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, W, H);
-      (store.orbStyle() === "friendly" ? drawOrbFriendly : drawOrbPro)(x, W, H, bbuf, blvl);
+      (store.orbStyle() === "friendly" ? drawOrbFriendly : drawOrbPro)(x, W, H, frozen ? null : bbuf, frozen ? 0 : blvl);
     }
+    _orbFrozenAt = frozen;
     // SPECTRUM under the camera = the PERSON's voice (mic), gated so the agent's echo doesn't move it. `vizCanvas`
     // lives inside CameraUnit, which the operator can hide (2026-08-09: hidden by default) — null is a real,
     // permanent state now, not a startup race, so this whole block is skipped rather than crashing `draw()` (which
