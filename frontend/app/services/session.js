@@ -247,7 +247,9 @@ export function stop() {
   // micrófono (start() falla → pasa por aquí → adiós al stream que main.js acababa de abrir).
   try { if (pc) pc.close(); } catch (_) {} pc = null; dc = null;
   if (stream) { try { stream.getTracks().forEach(t => t.stop()); } catch (_) {} stream = null; }
-  store.setBotSpeaking(false); audio.dropBot();
+  // Mismo contrato que el motor LiveKit (`session-lk.js`): al parar se suelta el grafo de audio COMPLETO, no solo
+  // el analizador del bot. `gate` se anula justo debajo, así que nadie queda leyendo un analizador muerto.
+  store.setBotSpeaking(false); audio.reset("session_stop");
   gate = null; store.setSpk({ show: false, other: false, html: "" });
   store.setConnState("—"); store.setLatency("— ms");
 }

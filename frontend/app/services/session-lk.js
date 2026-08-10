@@ -397,7 +397,11 @@ export async function stop() {
   // congelada en dos casos reales y silenciosos — el operador que para la voz, y el navegador que DENIEGA el
   // micrófono (start() falla → pasa por aquí → adiós al stream que main.js acababa de abrir).
   if (stream) { try { stream.getTracks().forEach(t => t.stop()); } catch (_) {} stream = null; }
-  store.setBotSpeaking(false); audio.dropBot();
+  // SOLTAR EL AUDIO DE VERDAD (2026-08-10): antes solo se dejaba caer el analizador del BOT (`dropBot`) y el del
+  // MICRO sobrevivía a `stop()` con su AudioContext abierto — de ahí que el visualizador tuviera que gatearse por
+  // `agentLive()` para no seguir publicando nivel de un micro parado. Ahora se cierra el grafo entero, así que
+  // «parado» es parado en la realidad y no solo en el icono; y queda la línea en observabilidad que lo demuestra.
+  store.setBotSpeaking(false); audio.reset("session_stop");
   store.setConnState("—"); store.setLatency("— ms");
 }
 

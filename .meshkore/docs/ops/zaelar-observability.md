@@ -227,7 +227,40 @@ Diseño: `.meshkore/roadmap/initiatives/V2-048-observabilidad-workers.md`.
   intención `widgets/provenance.py` (`note`/`who`, TTL). El dedup de `widget` clavea por `(kind,label,id,src)` — dos
   widgets distintos (o el mismo por flash y por worker) NO se colapsan. **`kind="ui"`** = taps de iconos del orbe
   (`orb:cron|memory|speaker|captions|attention`) y del TopBar (`topbar:status|docs|debug|theme|settings|reset`),
-  siempre `src="user"` (POST `/api/ui-event`). Con esto el `/debug` responde "¿quién abrió/cerró/movió/creó esto?".
+  con `src="user"` (POST `/api/ui-event`). Con esto el `/debug` responde "¿quién abrió/cerró/movió/creó esto?".
+  **`kind="ui"` con `src="frontend"` (2026-08-10) = ESTADO del cliente, no actividad del operador** — ver abajo.
+
+### Estado del CLIENTE: lo que el frontend sabe y el servidor no puede ver (2026-08-10)
+
+El log tenía la **intención** del operador (`orb:power` al pulsar ⏻) pero no la **realidad** del navegador. Por eso
+un agente CAÍDO que se pintaba vivo fue invisible en el registro: costó una sesión entera de diagnóstico y tres bugs
+reportados que no existían. Ahora las **transiciones** del cliente entran por el mismo canal
+(`api.uiState(action, {...})` → `POST /api/ui-event`, `kind="ui"`, `src="frontend"`):
+
+| Acción | Campos | Qué contesta, que antes no se podía |
+|---|---|---|
+| `agent:state` | `state` ∈ `off\|starting\|live\|stalled` · `prev` | La VERDAD del agente (`store.agentState()`, no `powerOff`, que es la intención). `stalled` con `prev:"live"` = se cayó en marcha; con `prev:"starting"` = no llegó a subir |
+| `mic:analyser` | `state` ∈ `open\|closed` · `reason` | Si el micro se libera **de verdad** al parar, no solo que el icono se apaga |
+| `audio:out` | `state` ∈ `attached\|released` | El attach ya se veía (`🔈 TrackSubscribed`); el **release** no → un altavoz zombi no dejaba rastro |
+| `tab:visibility` | `state` ∈ `hidden\|visible` | `requestAnimationFrame` NO corre en pestaña de fondo, y de rAF dependen el visualizador y varios guardas: distingue «se congeló» de «estabas en otra aplicación» |
+
+**Regla de uso, y es la que los mantiene útiles: son eventos de ESTADO, no de actividad.** Se emiten SOLO en
+transición y jamás dentro de un bucle de render. Dos consecuencias prácticas en el código: `agent:state` cuelga de un
+`createEffect` sobre una señal DERIVADA —que se re-ejecuta cuando cambia cualquiera de sus dependencias, a veces con
+el mismo valor— y por eso lleva un guarda de valor previo; y `mic:analyser`/`audio:out` viven en `services/audio.js`,
+el ÚNICO dueño de los analizadores, que es el único sitio donde «se abrió» y «se soltó» son la verdad y no una
+suposición del que llama.
+
+**Hizo falta un arreglo para que el evento pudiera AFIRMAR algo:** `stop()` soltaba solo el analizador del bot
+(`audio.dropBot()`) y el del micro sobrevivía con su `AudioContext` abierto — «cerrado» nunca habría ocurrido. Ahora
+suelta el grafo entero (`audio.reset(reason)`, que además cierra el contexto). De paso mata una fuga real: `initMic`
+abría un `AudioContext` nuevo por sesión sin cerrar el anterior, y Chrome corta a ~6 por página — unas cuantas
+reconexiones y `new AudioContext()` empieza a lanzar, dejando el medidor de micro y el orbe muertos para el resto de
+la vida de la pestaña.
+
+El endpoint solo reenvía los campos que tiene en lista (`where`/`state`/`detail`/`prev`/`reason`/`cause` + `id`): uno
+fuera de ella se descarta **en silencio**, que es peor que no instrumentar nada porque el código parece instrumentado.
+Y `src` está acotado a `user`/`frontend` — cualquier otra cosa cae a `user`.
 - `brain` — prompts/replies del cerebro «Colmena» (FlashBrain), notas `[SISTEMA]`, escalados a SlowBrain
   (`escalate_to_slowbrain`).
 - **`ambient`** — gate de ATENCIÓN (V2-015, `voice/attention.py`): un turno que NO iba dirigido a zaelar (sin

@@ -98,6 +98,34 @@ if (store.powerOff()) store.setBootReady(true);
 ensureVoice();
 window.addEventListener("pointerdown", ensureVoice);
 
+// ---- ESTADO DEL CLIENTE → observabilidad (2026-08-10) ----------------------------------------------------------
+// Hasta ahora el log solo tenía la INTENCIÓN del operador (`orb:power` al pulsar ⏻), nunca la REALIDAD: un agente
+// caído que se pintaba vivo —el fallo que costó una sesión entera— era invisible desde el servidor. `agentState()`
+// es la verdad única (off/starting/live/stalled, ver store.js), así que su TRANSICIÓN es el evento que faltaba:
+// `stalled` con `prev:"live"` es «se ha caído en marcha»; con `prev:"starting"` es «no llegó a subir». Dos lecturas
+// muy distintas que antes había que adivinar.
+//
+// Un `createEffect` sobre una señal DERIVADA se re-ejecuta cuando cambia cualquiera de sus dependencias
+// (`powerOff`/`started`/`starting`/`bootReady`), y varias de esas combinaciones dan el MISMO estado — de ahí el
+// guarda: se emite en el cambio real, no en cada re-evaluación. Es la regla de estos eventos: estado, no actividad.
+let _prevAgentState = null;
+createEffect(() => {
+  const s = store.agentState();
+  if (s === _prevAgentState) return;
+  const prev = _prevAgentState;
+  _prevAgentState = s;
+  api.uiState("agent:state", { state: s, prev: prev || "none" });
+});
+
+// La pestaña en segundo plano NO ejecuta `requestAnimationFrame`, y de rAF dependen el bucle del visualizador y
+// varios guardas del frontend. Sin esta línea, «se quedó congelado» y «estabas en otra aplicación» son
+// indistinguibles en el log — y esa confusión ya nos costó un diagnóstico entero.
+try {
+  document.addEventListener("visibilitychange", () => {
+    api.uiState("tab:visibility", { state: document.hidden ? "hidden" : "visible" });
+  });
+} catch (_) {}
+
 // ---- manual control surface: window.zaelar.show('search','tiempo en Soria') · .close() · .gate(true) · .orb('friendly') ----
 window.zaelar = {
   show: (id, q = "") => desktop && desktop.show(id, { q }),

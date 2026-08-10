@@ -81,6 +81,12 @@ export const clientLog = (label, o) => { try { postJSON("/api/client-log", { lab
 // geometría de widgets a mano (mover/redimensionar, kind "widget"). Fire-and-forget; el server estampa src="user". ----
 export const uiEvent = (action, o = {}) => { try { postJSON("/api/ui-event", { action, ...o }); } catch (_) {} };
 
+// ESTADO del cliente, no actividad del operador (2026-08-10). Mismo canal, `src="frontend"`: lo que el frontend
+// SABE y el server no puede ver — si el agente está realmente vivo, si el analizador de micro se soltó, si la pista
+// de audio del bot se liberó, si la pestaña se fue al fondo. Regla de uso: **solo en TRANSICIÓN**, nunca dentro de
+// un bucle de render ni en un efecto que pueda re-entrar con el mismo valor. Son pocos y significan un cambio real.
+export const uiState = (action, o = {}) => uiEvent(action, { src: "frontend", ...o });
+
 // ---- canvas → ESTADO (contexto de UI vivo) ----
 // Reporta qué widgets tiene ABIERTOS el operador para que viajen en el prompt del cerebro (ESTADO) y se vean en el
 // mapa de memoria. Best-effort, fire-and-forget: el canvas es la fuente de verdad, el servidor solo la refleja.

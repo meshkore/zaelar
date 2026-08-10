@@ -158,3 +158,81 @@ def test_each_control_keeps_its_own_state_underneath(signal):
     """El apagón es una CAPA encima: al volver la corriente, cada control vuelve a mostrar lo que era. Si alguien
     «arreglara» esto forzando los signals a false, el operador perdería sus preferencias en cada parada."""
     assert any(signal in l for l in _code(ORB)), f"{signal} sigue siendo el estado real del control"
+
+
+# ── 6) …Y ADEMÁS SE REGISTRA: el estado del cliente entra en el log (2026-08-10) ───────────────────────────────
+# Verlo en pantalla arregla al operador delante del ordenador. Pero el diagnóstico A POSTERIORI seguía ciego: en el
+# log solo estaba la INTENCIÓN (`orb:power` al pulsar ⏻), nunca la REALIDAD. Un agente caído que se pinta vivo, un
+# altavoz zombi o un micro que no se libera no dejaban ni una línea. Ahora las TRANSICIONES del cliente van por el
+# canal que ya existía (`api.uiState` → `/api/ui-event`, `src="frontend"`).
+#
+# Regla que estos tests protegen: son eventos de ESTADO, no de actividad — solo en transición, nunca en un bucle de
+# render. De ahí el guarda contra re-emisión con el mismo valor.
+MAIN = APP / "main.js"
+AUDIO = APP / "services" / "audio.js"
+API = APP / "services" / "api.js"
+SESSIONS_STOP = [APP / "services" / "session-lk.js",   # el que SIRVE el motor LiveKit (el que corre hoy)
+                 APP / "services" / "session.js"]      # el de Pipecat (mismo contrato, no puede divergir)
+VOICE_API = ENGINE / "server" / "voice_api.py"
+
+
+def test_the_client_has_its_own_door_for_state():
+    """`src="frontend"` separa «lo que hizo el operador» de «lo que le pasó al cliente». Sin esa distinción, un
+    `agent:state stalled` se leería como una acción del operador, que es lo contrario de lo que dice."""
+    assert any('uiState' in l and '"frontend"' in l for l in _code(API)), \
+        "api.uiState debe estampar src=frontend"
+    body = VOICE_API.read_text(encoding="utf-8")
+    assert '"frontend"' in body, "el endpoint debe admitir src=frontend"
+
+
+def test_every_agent_state_transition_is_logged_once():
+    code = _code(MAIN)
+    assert any('uiState("agent:state"' in l for l in code), "falta el evento de estado del agente"
+    assert any("agentState()" in l for l in code), "…derivado de la verdad única, no de powerOff"
+    assert any('prev' in l and 'uiState("agent:state"' in l for l in code), \
+        "sin `prev` no se distingue «se ha caído» (live→stalled) de «no llegó a subir» (starting→stalled)"
+    body = MAIN.read_text(encoding="utf-8")
+    assert "_prevAgentState) return" in body, (
+        "un efecto sobre una señal DERIVADA se re-ejecuta con el mismo valor: sin guarda esto pasa de ser un evento "
+        "de estado a ser ruido de render")
+
+
+def test_releasing_the_audio_graph_leaves_a_trace():
+    """El attach de la pista del bot ya se veía (🔈 TrackSubscribed); el RELEASE no, así que un altavoz zombi era
+    indetectable. Y del micro solo se veía apagarse el icono."""
+    code = _code(AUDIO)
+    assert any('uiState("mic:analyser"' in l and '"open"' in l for l in code)
+    assert any('uiState("mic:analyser"' in l and '"closed"' in l for l in code)
+    assert any('uiState("audio:out"' in l and '"attached"' in l for l in code)
+    assert any('uiState("audio:out"' in l and '"released"' in l for l in code)
+    assert any("reason" in l for l in code), "un cierre sin motivo no se puede interpretar"
+
+
+@pytest.mark.parametrize("path", SESSIONS_STOP, ids=lambda p: p.name)
+def test_stopping_really_releases_the_audio_graph(path):
+    """El evento tiene que poder AFIRMAR algo. `stop()` soltaba solo el analizador del bot: el del micro y su
+    AudioContext sobrevivían, así que «cerrado» nunca habría ocurrido y el log habría dicho la verdad a medias.
+    Cerrar el grafo entero también mata una fuga real (Chrome corta a ~6 AudioContext por página: unas cuantas
+    reconexiones y `new AudioContext()` empieza a lanzar)."""
+    code = _code(path)
+    assert any("audio.reset(" in l for l in code), f"{path.name} debe soltar el grafo de audio al parar"
+    assert not any("audio.dropBot()" in l for l in code), \
+        f"{path.name} suelta solo el bot: el analizador de micro sobreviviría a stop()"
+
+
+def test_a_background_tab_is_distinguishable_from_a_freeze():
+    """`requestAnimationFrame` no corre en segundo plano y de él dependen el visualizador y varios guardas. Sin esta
+    línea, «se congeló» y «estabas en otra aplicación» son la misma foto en el log."""
+    code = _code(MAIN)
+    assert any('uiState("tab:visibility"' in l for l in code)
+    assert any("visibilitychange" in l for l in code)
+
+
+def test_the_endpoint_forwards_what_makes_a_transition_readable():
+    """Los campos que no están en la lista se DESCARTAN en silencio: un evento con `prev`/`reason`/`cause` que el
+    server tira es peor que no tenerlo, porque parece instrumentado."""
+    body = VOICE_API.read_text(encoding="utf-8")
+    i = body.index('@router.post("/api/ui-event")')
+    block = body[i:i + 2200]
+    for k in ("prev", "reason", "cause", "state"):
+        assert f'"{k}"' in block, f"el endpoint descarta `{k}`"

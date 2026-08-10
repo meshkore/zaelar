@@ -339,18 +339,30 @@ async def client_log(payload: dict):
 
 @router.post("/api/ui-event")
 async def ui_event(payload: dict):
-    """V2-039 — AUDITORÍA de lo que hace el OPERADOR en el frontend: taps de los iconos del orbe/TopBar (kind="ui")
-    y geometría de widgets a mano (mover/redimensionar, kind="widget"). Va a la MISMA línea de tiempo que las órdenes
-    del FlashBrain y los workers, con `src="user"`, para poder ver de dónde salió cada acción. Best-effort."""
+    """V2-039 — AUDITORÍA de lo que pasa en el frontend, en la MISMA línea de tiempo que las órdenes del FlashBrain
+    y los workers. Dos cosas distintas entran por aquí y se distinguen por `src`:
+
+    - **`src="user"`** (por defecto): lo que HACE el operador — taps de los iconos del orbe/TopBar (kind="ui") y
+      geometría de widgets a mano (mover/redimensionar, kind="widget").
+    - **`src="frontend"`** (2026-08-10): TRANSICIONES DE ESTADO del propio cliente — el agente pasa a
+      `live`/`stalled`, se abre o se suelta el analizador de micro, se engancha o se suelta la pista de audio del
+      bot, la pestaña se va al fondo. No son actividad, son estado: pocos eventos y solo cuando algo cambia de
+      verdad. Sin ellos un agente CAÍDO que se pinta vivo, un altavoz zombi o un micro que no se libera no dejan
+      ni una línea (el log solo tenía la INTENCIÓN del operador, `orb:power`, no la realidad).
+
+    Best-effort: esto nunca puede romper el frontend que lo reporta."""
     kind = str((payload or {}).get("kind") or "ui")
     if kind not in ("ui", "widget"):
         kind = "ui"
     label = str((payload or {}).get("action") or (payload or {}).get("label") or "")[:60]
-    extra = {"src": "user"}
+    src = str((payload or {}).get("src") or "user")
+    extra = {"src": src if src in ("user", "frontend") else "user"}
     wid = (payload or {}).get("id")
     if wid:
         extra["id"] = str(wid).split("::", 1)[0].strip().lower()
-    for k in ("where", "state", "detail"):
+    # `prev`/`reason`/`cause` son los que hacen LEGIBLE una transición: de qué estado venía y por qué se movió.
+    # Sin ellos, `agent:state stalled` no dice si veníamos de `live` (se ha caído) o de `starting` (no llegó a subir).
+    for k in ("where", "state", "detail", "prev", "reason", "cause"):
         v = (payload or {}).get(k)
         if v is not None:
             extra[k] = str(v)[:120]
