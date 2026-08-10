@@ -868,7 +868,21 @@ def _build_prompt(request: str, context: str, trusted: bool, brief: dict | None 
         block = research.to_prompt_block(brief)
         if block:
             parts.append(block)
-    return _with_interpreter("\n\n".join(parts))
+    return _with_interpreter(_with_presentation("\n\n".join(parts)))
+
+
+# CONTROL DE CALIDAD DE PRESENTACIÓN (2026-08-10). El brief dirige QUÉ buscar y con qué exigencia; esto dirige CÓMO
+# se ENSEÑA. Faltaba, y se vio: un worker hizo un trabajo impecable (45 candidatos, 3 propuestas verificadas) y lo
+# pintó ilegible — títulos con tres ideas dentro, tarjetas descuadradas, un aviso cortado. No era culpa del modelo:
+# los presupuestos de cada campo vivían solo en el CSS del widget, así que nadie se los había dicho.
+def _with_presentation(prompt: str) -> str:
+    """Añade las reglas de presentación de las superficies en blanco que el prompt mencione. Fail-open."""
+    try:
+        from widgets import presentation
+        block = presentation.directive_for(prompt)
+    except Exception:
+        return prompt
+    return prompt + "\n\n" + block if block else prompt
 
 
 # El prompt se ESCRIBE con `python -m nucleo.…` porque así se lee; lo que le LLEGA al worker es el intérprete REAL
@@ -1110,7 +1124,7 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None) -> str:
         block = research.to_prompt_block(brief)
         if block:
             p += "\n\n" + block
-    return p
+    return _with_presentation(p)
 
 
 async def _compose_context(request: str, kind: str) -> str:

@@ -51,6 +51,37 @@ _MAX_FACTS = 30          # label→value sheet (check-in, puerto, política de c
 _MAX_FACT_CHARS = 200
 
 
+# ── CONTROL DE CALIDAD DE PRESENTACIÓN (2026-08-10) ───────────────────────────────────────────────────────────────
+# Los presupuestos de campo y las reglas viven en `widgets/presentation.py` (compartidas por TODA superficie en
+# blanco); aquí solo se aplican. Dos cosas cambian respecto a antes:
+#   · el recorte va por frontera de PALABRA y se marca. El `[:200]` de antes cortó un aviso real del worker
+#     («⚠️ Llevar tu cadena…») dejándolo en «⚠️ Llevar tu c»: una salvedad amputada engaña más que su ausencia.
+#   · un payload que rompe la tarjeta deja RASTRO. Un prompt es una petición, no una garantía: si el título trae
+#     tres ideas dentro, se registra y vuelve en la respuesta de la acción, así el worker puede corregirlo.
+def _clip(text, key: str) -> str:
+    try:
+        from widgets import presentation
+        return presentation.clip(text, presentation.contract(WIDGET_ID)[key])[0]
+    except Exception:
+        return "" if text is None else str(text)[:220]
+
+
+def _audit(payload: dict) -> list[str]:
+    try:
+        from widgets import presentation
+        issues = presentation.audit(WIDGET_ID, payload)
+    except Exception:
+        return []
+    if issues:
+        try:
+            from voice.observer import emit
+            emit("widget", "🎨 presentación: el payload rompe la tarjeta", text=" · ".join(issues)[:400],
+                 role="system", extra={"id": WIDGET_ID, "n": len(issues), "issues": issues[:12]})
+        except Exception:
+            pass
+    return issues
+
+
 def _clean_facts(raw) -> list[dict]:
     """`facts` is the STRUCTURED half of a result — the part the operator asks precise questions about later
     ("¿a qué hora es el check-in?", "¿lleva desayuno?"). Written naturally as {label: value} by whoever found it,
@@ -273,23 +304,27 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
     payload = payload or {}
 
     if action == "present":
+        issues = _audit(payload)
         items = _clean_items(payload.get("items"))
         data = {
-            "title": str(payload.get("title") or "Resultados")[:120],
-            "subtitle": str(payload.get("subtitle") or "")[:200],
+            "title": _clip(payload.get("title") or "Resultados", "sheet_title"),
+            "subtitle": _clip(payload.get("subtitle"), "sheet_subtitle"),
             "items": items,
         }
+        # `columns` se conserva como TOPE (la superficie decide el reparto por la forma del contenido, ver
+        # widget.js::columnsFor), nunca como orden — un 2 adivinado dejaba 3 tarjetas ricas con una huérfana.
         cols = payload.get("columns")
         if isinstance(cols, int) and 1 <= cols <= 3:
             data["columns"] = cols
         if payload.get("choosable"):
             data["choosable"] = True
         if not items:
-            data["note"] = str(payload.get("note") or "Sin resultados.")[:200]
+            data["note"] = _clip(payload.get("note") or "Sin resultados.", "sheet_subtitle")
         store.save(WIDGET_ID, data)
-        return {"ok": True, "shown": len(items)}
+        return {"ok": True, "shown": len(items), "presentation": issues}
 
     if action == "append":
+        issues = _audit(payload)
         add = _clean_items(payload.get("items"))
         if not add:
             return {"ok": False, "error": "append sin items válidos (cada item necesita al menos title)"}
@@ -303,11 +338,11 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                 data["items"].append(it)
         data["items"] = data["items"][:_MAX_ITEMS]
         if payload.get("title"):
-            data["title"] = str(payload["title"])[:120]
+            data["title"] = _clip(payload["title"], "sheet_title")
         if payload.get("subtitle"):
-            data["subtitle"] = str(payload["subtitle"])[:200]
+            data["subtitle"] = _clip(payload["subtitle"], "sheet_subtitle")
         store.save(WIDGET_ID, data)
-        return {"ok": True, "shown": len(data["items"])}
+        return {"ok": True, "shown": len(data["items"]), "presentation": issues}
 
     if action == "clear":
         store.save(WIDGET_ID, _empty())

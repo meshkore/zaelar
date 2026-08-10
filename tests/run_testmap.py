@@ -172,7 +172,8 @@ DOMAINS: list[dict] = [
         {"id": "4.10", "title": "Superficie genérica de presentación de resultados (hoja en blanco + present/append "
                                 "+ propuestas compuestas + detalle + refresco en vivo sin voz)",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_results_presentation.py",
-                                  "tests/browser/unit/widgets/test_live_updates_independent_of_voice.py"]},
+                                  "tests/browser/unit/widgets/test_live_updates_independent_of_voice.py",
+                                  "tests/browser/unit/widgets/test_presentation_quality.py"]},
         # 2026-08-10: el operador estuvo hablándole a un agente MUERTO porque los iconos seguían azules y el ECG
         # latía (lo late el servidor, no el agente). El estado del agente pasa a ser UNA verdad derivada y todo lo
         # que se ve deriva de ella; «parado» significa congelado de verdad y a la vista. Incluye el vúmetro del

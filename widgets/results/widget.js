@@ -106,6 +106,30 @@ function factsTable(facts){
   return box.childElementCount ? box : null;
 }
 
+// ¿Cuántas columnas? Se deduce de la FORMA de las tarjetas, no de un parámetro que pueda venir mal.
+// · Una tarjeta con piezas (ida/vuelta, hotel+ferry), ficha de datos larga, fotos o líneas de texto tiene estructura
+//   PROPIA dentro: necesita el ancho entero o se convierte en una columna de palabras partidas.
+// · Solo las tarjetas simples y cortas pueden compartir fila.
+// · Y nunca se deja una tarjeta HUÉRFANA sola en la última fila con pocos items: preferimos menos columnas.
+// `cap` (el `columns` del payload) solo puede REDUCIR, nunca forzar más de lo que el contenido admite.
+function columnsFor(items, cap){
+  const rich = items.some(it => it && (
+    (it.parts && it.parts.length) ||
+    (it.facts && it.facts.length > 3) ||
+    (it.images && it.images.length) ||
+    (it.lines && it.lines.length > 4)
+  ));
+  let cols = rich ? 1 : (items.length > 6 ? 3 : items.length > 3 ? 2 : 1);
+  const n = Number(cap);
+  if(Number.isFinite(n) && n >= 1) cols = Math.min(cols, Math.floor(n));
+  cols = Math.max(1, Math.min(3, cols));
+  // Huérfana DESEQUILIBRANTE: cuando no hay ni para dos filas completas, una sola tarjeta suelta debajo se lee como
+  // un error de maquetación (el caso del operador: 3 propuestas en 2 columnas). Con más items una última fila
+  // incompleta es normal y no se toca — bajar a 1 columna 7 tarjetas sería peor que el problema.
+  if(cols > 1 && items.length < cols * 2) cols = 1;
+  return cols;
+}
+
 function makeCard(it, isPrimary, choose, ctx){
   const parts = Array.isArray(it.parts) ? it.parts : [];
   const hasDetail = parts.length || (Array.isArray(it.images) && it.images.length)
@@ -263,12 +287,12 @@ export function render(el, data, ctx){
     primary.forEach(it => pgrid.appendChild(makeCard(it, true, choose, ctx)));
   }
 
-  // remaining items: side grid. When primary items exist, use 2 columns (the side-projects layout).
-  // Otherwise honor data.columns (back-compat for generic uses).
+  // remaining items: LA SUPERFICIE decide el reparto (2026-08-10). Antes `data.columns` MANDABA, y un `columns:2`
+  // adivinado por el modelo pisaba la heurística correcta de aquí: 3 propuestas ricas quedaron en dos columnas con
+  // una huérfana en la última fila, cuando lo que tocaba era 1 columna = tres filas horizontales. Quien rellena la
+  // hoja describe el CONTENIDO; cuántas columnas caben es cosa de quien conoce el CSS. `columns` pasa a ser un TOPE.
   if(rest.length){
-    const cols = primary.length
-      ? 2
-      : Math.max(1, Math.min(3, data.columns || (rest.length > 6 ? 3 : rest.length > 3 ? 2 : 1)));
+    const cols = primary.length ? 2 : columnsFor(rest, data.columns);
     const sgrid = document.createElement("div"); sgrid.className = "hr-grid";
     sgrid.style.gridTemplateColumns = `repeat(${cols},minmax(0,1fr))`;
     el.appendChild(sgrid);

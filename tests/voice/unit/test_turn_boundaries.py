@@ -240,6 +240,9 @@ def test_the_name_resolver_already_points_at_results(query):
     """La resolución por nombre/alias (V2-082) SÍ acertaba: el que eligió `search` fue el modelo, leyendo el
     catálogo. Este test deja constancia de que el resolver no es el culpable — si algún día falla, es otro bug."""
     from widgets import runtime
+    # El catálogo está CACHEADO y otras suites lo sustituyen por uno sintético (test_selection_scale monta 10.000
+    # widgets falsos). Sin invalidar, este test mide el catálogo de otro test, no el real.
+    runtime.invalidate()
     assert (runtime.identify(query) or {}).get("match") == "results"
 
 
