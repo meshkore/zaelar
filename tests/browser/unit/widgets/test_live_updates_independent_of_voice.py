@@ -97,3 +97,52 @@ def test_the_observability_column_empties_itself_on_a_new_session():
     code = list(_code_lines(DEBUG_PANEL))
     assert any("sessionEpoch()" in l for l in code), "el panel debe reaccionar a la sesión nueva"
     assert any("clearAll()" in l for l in code), "…vaciándose"
+
+
+# ── LA COLUMNA SIGUE AL ÚLTIMO EVENTO, Y SI SE SUELTA SE VE (2026-08-10) ─────────────────────────────────────
+# Reportado por el operador: «eso funciona durante diez o quince mensajes y luego ya se encalla y la lista se queda
+# parada… yo no estoy interviniendo en nada». NO se consiguió reproducir la causa, así que se hacen tres cosas:
+# se cierran los dos caminos por los que el enganche podía perderse solo, y —lección de esta misma sesión— el
+# estado deja de ser invisible: se ve si va siguiendo y se reengancha de un clic.
+def test_the_pin_guard_cannot_get_stuck_forever():
+    """El guarda era un booleano que solo se bajaba DENTRO del requestAnimationFrame, y el rAF no corre con la
+    pestaña en segundo plano: un evento llegando mientras el operador está en otra aplicación dejaba el guarda en
+    true PARA SIEMPRE y `pinTail` en un no-op permanente. Con un id de rAF no hay estado que se cuelgue."""
+    code = list(_code_lines(DEBUG_PANEL))
+    assert not any("pinPending" in l for l in code), \
+        "el booleano que se podía quedar colgado no puede volver"
+    assert any("cancelAnimationFrame" in l for l in code), \
+        "si el frame anterior no llegó a correr hay que cancelarlo y pedir otro"
+
+
+def test_only_a_real_gesture_releases_the_tail():
+    """`stick` se decidía en CUALQUIER evento de scroll — y no todos los provoca el operador: también nuestro propio
+    `scrollTop = scrollHeight` y el reflujo de una fila que crece a dos líneas. Uno de esos midiendo >24px lo
+    soltaba, y ya no volvía. Explica por qué empezaba a los 10-15 mensajes: es cuando empieza a haber scroll."""
+    code = list(_code_lines(DEBUG_PANEL))
+    assert any("lastGesture" in l for l in code), "hay que distinguir el scroll del operador del programático"
+    for ev in ("wheel", "pointerdown"):
+        assert any(ev in l for l in code), f"falta escuchar «{ev}» como gesto real"
+
+
+def test_following_is_a_visible_recoverable_state():
+    """Si vuelve a soltarse por un camino que no vimos, tiene que verse y arreglarse con un clic — no quedarse
+    quieta en silencio sin forma de recuperarla salvo bajar a mano hasta el fondo."""
+    code = list(_code_lines(DEBUG_PANEL))
+    assert any("followBtn" in l for l in code), "el estado de seguimiento necesita un indicador"
+    assert any("setStick(" in l for l in code), "…y un único escritor que lo mantenga sincronizado"
+    import json
+    for lang in ("en", "es"):
+        b = json.loads((ENGINE / "i18n" / "bundles" / f"{lang}.json").read_text(encoding="utf-8"))
+        for k in ("debug.follow_on", "debug.follow_off"):
+            assert k in b and b[k].strip(), f"falta {k} en {lang}"
+
+
+def test_stick_has_a_single_writer():
+    """Tres sitios escribían `stick` a pelo; con un indicador que hay que mantener sincronizado, cualquier escritura
+    directa se desincroniza del botón en silencio."""
+    body = DEBUG_PANEL.read_text(encoding="utf-8")
+    directas = [l.strip() for l in body.splitlines()
+                if "stick = " in l and "function setStick" not in l and not l.strip().startswith("//")]
+    # solo se admite la declaración inicial y la asignación de DENTRO de setStick
+    assert len(directas) <= 2, f"escrituras directas de stick fuera de setStick: {directas}"

@@ -20,6 +20,9 @@ import { t } from "../core/i18n.js?v=1";
 
 const MAX_ROWS = 800;             // cap the DOM so a long session can't grow it without bound
 
+// flecha «al final» del indicador de seguimiento (misma familia visual que el resto de iconos del panel)
+const TAIL_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12"/><path d="m6 12 6 6 6-6"/><path d="M5 21h14"/></svg>`;
+
 const p2 = (n, l = 2) => String(n).padStart(l, "0");
 function stamp(ms) {
   const t = new Date(ms || Date.now());
@@ -222,19 +225,66 @@ export function DebugPanel() {
   // (V2 obs) El fondo se fija DESPUÉS del layout (rAF), así una fila recién añadida —que ahora puede
   // ocupar dos líneas en columna estrecha— nunca queda a medio cortar en el borde inferior. Cuando el
   // operador sube a mirar algo, `stick` pasa a false y no le arrastramos; al volver abajo, se reengancha.
+  // ── «SIGUIENDO» ES UN ESTADO VISIBLE, NO UN SECRETO (2026-08-10) ────────────────────────────────────────────
+  // El operador reportó que la lista deja de seguir al último evento «a los diez o quince mensajes» sin que él
+  // toque nada. No he conseguido REPRODUCIR la causa (ver los dos endurecimientos de abajo: el guarda del rAF que
+  // podía quedarse colgado y el `stick` que lo decidía cualquier scroll, no solo el suyo). Así que, además de
+  // arreglar esos dos, se aplica la lección de esta misma sesión: cuando un estado invisible puede engañar, se
+  // hace VISIBLE y RECUPERABLE. El indicador de la cabecera dice si va siguiendo o si se ha soltado, y un clic lo
+  // vuelve a engancha. Si esto se repite, deja de ser un misterio: se ve, y se arregla con un clic.
   let stick = true;
-  let pinPending = false;
+  let followBtn = null;
+  function setStick(v) {
+    stick = !!v;
+    if (followBtn) {
+      followBtn.classList.toggle("on", stick);
+      followBtn.title = t(stick ? "debug.follow_on" : "debug.follow_off");
+    }
+  }
   function activeList() { return mode === "traces" ? tracesEl : listEl; }   // V2-044: contenedor visible
+
+  // SOLO EL OPERADOR SUELTA EL ENGANCHE (2026-08-10). Fallo reportado: «eso funciona durante diez o quince
+  // mensajes y luego ya se encalla y la lista se queda parada… yo no estoy interviniendo en nada». La causa: se
+  // decidía `stick` en CUALQUIER evento de scroll, y no todos los provoca el operador — los provoca también
+  // nuestro propio `scrollTop = scrollHeight`, y el reflujo de una fila que crece a dos líneas DESPUÉS de haberla
+  // fijado. En cuanto uno de esos medía un hueco > 24px, `stick` pasaba a false y ya no volvía nunca (solo se
+  // reengancha bajando a mano). Y por eso empezaba justo a los 10-15 mensajes: es cuando la lista pasa a ser más
+  // alta que su caja y empieza a haber scroll de verdad.
+  //
+  // Ahora `stick` solo puede cambiar en la estela de un GESTO real (rueda, dedo, teclado, arrastrar la barra). Un
+  // scroll programático o un reflujo no tocan nada. La ventana cubre el scroll por inercia, que sigue emitiendo
+  // eventos bastante después del gesto.
+  const USER_SCROLL_MS = 700;
+  let lastGesture = 0;
+  const markGesture = () => { lastGesture = performance.now(); };
   function onListScroll() {
     const el = activeList();
     if (!el) return;
-    stick = el.scrollHeight - el.scrollTop - el.clientHeight < 24;   // 24px de tolerancia = "está abajo"
+    if (performance.now() - lastGesture > USER_SCROLL_MS) return;   // no lo ha hecho él: no decidimos nada
+    setStick(el.scrollHeight - el.scrollTop - el.clientHeight < 24);   // 24px de tolerancia = "está abajo"
   }
+  // Se enganchan en el contenedor al montarlo (ver los `ref` de .dbg-list más abajo).
+  function watchGestures(el) {
+    for (const ev of ["wheel", "touchstart", "touchmove", "pointerdown", "keydown"]) {
+      el.addEventListener(ev, markGesture, { passive: true });
+    }
+    el.addEventListener("scroll", onListScroll, { passive: true });
+  }
+  // EL GUARDA NO PUEDE ATASCARSE (2026-08-10). La versión anterior usaba un booleano `pinPending` que solo se
+  // bajaba DENTRO del requestAnimationFrame… y el rAF NO se ejecuta si la pestaña está en segundo plano. Basta con
+  // que llegue un evento mientras el operador está en otra aplicación —que es lo normal mientras trabaja— para que
+  // `pinPending` se quede en true PARA SIEMPRE y `pinTail` se convierta en un no-op permanente: la lista deja de
+  // seguir al último evento y ya no vuelve sola. Encaja exactamente con lo reportado: «funciona durante diez o
+  // quince mensajes y luego se encalla… yo no estoy interviniendo en nada».
+  //
+  // Con un id de rAF en vez de un booleano no hay estado que se pueda quedar colgado: si el frame anterior nunca
+  // llegó a correr, se cancela y se pide otro. Al volver a la pestaña, el primer evento vuelve a fijar el fondo.
+  let pinRaf = 0;
   function pinTail() {
-    if (!stick || pinPending || !activeList()) return;
-    pinPending = true;
-    requestAnimationFrame(() => {                 // esperar a que el navegador mida la fila (2 líneas) antes de fijar
-      pinPending = false;
+    if (!stick || !activeList()) return;
+    if (pinRaf) cancelAnimationFrame(pinRaf);
+    pinRaf = requestAnimationFrame(() => {        // esperar a que el navegador mida la fila (2 líneas) antes de fijar
+      pinRaf = 0;
       const el = activeList();
       if (stick && el) el.scrollTop = el.scrollHeight;
     });
@@ -619,6 +669,14 @@ export function DebugPanel() {
         ref: (el) => { el.innerHTML = mode === "traces" ? LIST_ICON : LINK_ICON; },
         onClick: (e) => setMode(mode === "traces" ? "log" : "traces", e.currentTarget),
       }),
+      // «SIGUIENDO AL ÚLTIMO»: indicador + reengancha de un clic. Encendido = la lista persigue el último evento;
+      // apagado = está soltada (el operador subió a leer… o se soltó por su cuenta, que es el fallo que no
+      // conseguí reproducir). Antes esto era invisible: la lista se quedaba quieta y no había ni forma de saber
+      // por qué ni forma de recuperarla sin bajar a mano hasta el fondo.
+      h("button", {
+        class: "dbg-btn hb-icbtn on", ref: (el) => { followBtn = el; el.title = t("debug.follow_on"); },
+        onClick: () => { setStick(true); pinTail(); },
+      }, raw(TAIL_ICON)),
       h("button", { class: "dbg-btn hb-icbtn", title: () => t("debug.noise"), onClick: (e) => toggleNoise(e.currentTarget) }, raw(VOLUME_X_ICON)),
       h("button", { class: "dbg-btn hb-icbtn", title: () => t("debug.clear"), onClick: clearAll }, raw(TRASH_ICON)),
       h("button", { class: "dbg-btn hb-icbtn", title: () => t("debug.close"), onClick: () => store.setDebugOpen(false) }, raw(CLOSE_ICON)),
@@ -643,9 +701,9 @@ export function DebugPanel() {
         ...COLS.map((c) => h("span", { class: c.cls, title: () => t(c.tip) }, () => t(c.key))),
       ),
     ),
-    h("div", { class: "dbg-list", ref: (el) => { listEl = el; el.hidden = (mode === "traces"); el.addEventListener("scroll", onListScroll, { passive: true }); } }),
+    h("div", { class: "dbg-list", ref: (el) => { listEl = el; el.hidden = (mode === "traces"); watchGestures(el); } }),
     // V2-044: la vista Trazas — misma zona, contenedor alterno (toggle ⛓ arriba)
-    h("div", { class: "dbg-list dbg-traces", ref: (el) => { tracesEl = el; el.hidden = (mode !== "traces"); el.addEventListener("scroll", onListScroll, { passive: true }); } }),
+    h("div", { class: "dbg-list dbg-traces", ref: (el) => { tracesEl = el; el.hidden = (mode !== "traces"); watchGestures(el); } }),
   );
 
   // Open ⇒ start the bus, shrink the canvas (body class + --dbg-w), y REPONER lo que falte del buffer.
@@ -672,7 +730,7 @@ export function DebugPanel() {
     localStorage.setItem("hb_debug_open", open ? "1" : "0");
     if (open) {
       startDebugBus();
-      stick = true;   // al abrir el panel, arrancar SIEMPRE enganchado al último evento
+      setStick(true);   // al abrir el panel, arrancar SIEMPRE enganchado al último evento
       catchUp();
       pinTail();
     }
