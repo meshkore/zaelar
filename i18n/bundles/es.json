@@ -251,8 +251,6 @@
   "debug.col_time_t": "Hora del evento (h:m:s.ms)",
   "debug.events": "{n} ev",
   "debug.filter_placeholder": "filtrar (widget, deep, T12…)",
-  "debug.follow_off": "Sin seguir — la lista se queda donde la dejaste. Pulsa para volver a seguir el último evento",
-  "debug.follow_on": "Siguiendo el último evento — sube el scroll para leer atrás y se suelta solo",
   "debug.filters": "Filtros ({n})",
   "debug.filters_collapse": "Condensar",
   "debug.filters_title": "Mostrar/ocultar el panel de filtros — familias y sus tipos de evento",

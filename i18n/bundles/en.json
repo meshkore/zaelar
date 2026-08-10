@@ -251,8 +251,6 @@
   "debug.col_time_t": "Event wall-clock time (h:m:s.ms)",
   "debug.events": "{n} ev",
   "debug.filter_placeholder": "filter (widget, deep, T12…)",
-  "debug.follow_off": "Not following — the list stays where you left it. Click to follow the newest event again",
-  "debug.follow_on": "Following the newest event — scroll up to read back and it releases on its own",
   "debug.filters": "Filters ({n})",
   "debug.filters_collapse": "Collapse",
   "debug.filters_title": "Show/hide the filter panel — families and their event kinds",

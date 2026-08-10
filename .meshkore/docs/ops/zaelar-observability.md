@@ -69,9 +69,34 @@ para el splash) y una grabación de mic OPCIONAL. Cada evento se escribe a:
 exacto** que `.dbg-row` (anchos, gap, padding y el borde izquierdo de 3px) → cada rótulo cae justo encima de su
 columna sin cambiar ningún ancho. Vive **fuera** del contenedor con scroll: no scrollea, no la puede podar el
 recorte de `MAX_ROWS`, y la lista ocupa exacto desde su borde inferior hasta el fondo del panel. Rótulo que no
-cabe se recorta con `…` y el `title` (hover) lo explica. Las columnas son **Hora · ms · Tipo · Motor · Tokens ·
-Evento**. Se oculta sola en la vista **Trazas** (árbol, sin columnas) y por debajo de 560px de panel, donde la
-container query ya colapsa las filas a flujo libre.
+cabe se recorta con `…` y el `title` (hover) lo explica. Las columnas cuentan una historia de izquierda a derecha
+—CUÁNDO · de qué FLUJO · de qué PIEZA · QUÉ tipo · cuánto tardó · con qué modelo · cuántos tokens · y qué pasó—:
+**Hora · Flujo · Familia · Tipo · ms · Motor · Tamaño · Evento**. Se oculta sola en la vista **Trazas** (árbol, sin
+columnas) y por debajo de 700px de panel, donde la container query ya colapsa las filas a flujo libre.
+
+#### El último evento va ARRIBA, y el scroll es del operador (2026-08-10)
+
+**La lista crece por PREPEND**: lo recién ocurrido entra pegado a la cabecera de columnas y empuja al resto hacia
+abajo. Mirando siempre el mismo trozo de pantalla se ve lo último; bajar es ir hacia atrás en el tiempo. En la vista
+**Trazas** manda el mismo criterio —el flujo más reciente arriba— pero **dentro** de cada árbol los eventos siguen
+en orden cronológico: un flujo se lee de principio a fin, que es lo que permite ver dónde se torció.
+
+Esto **sustituye al «seguir el último evento»** y no es un detalle estético, es lo que hace que la superficie no
+pueda mentir. La versión anterior fijaba el fondo en cada evento y tenía que decidir cuándo soltarse (el operador
+sube a leer) y cuándo re-engancharse: estado de seguimiento, ventana de gesto real para distinguir su scroll del
+nuestro, un `requestAnimationFrame` para medir la fila antes de fijar, y un indicador en la cabecera para que el
+estado no fuera invisible. Se reportó dos veces que «a los diez o quince mensajes deja de seguir sola», se
+endurecieron los dos caminos por los que podía perderse (el guarda de rAF que se colgaba con la pestaña en segundo
+plano; el `stick` que soltaba cualquier scroll, incluido el programático) y **aun así el estado seguía pudiendo
+mentir sobre lo que estabas viendo**. Creciendo por arriba no hay nada que perseguir: el problema no se blinda, se
+elimina, y con él ~70 líneas.
+
+Lo único que queda es **una compensación de tres líneas** (`DebugPanel.prepend()`): si el operador está arriba
+(`scrollTop 0`) la fila entra y ya; si está leyendo más abajo se suma el alto que acaba de aparecer encima, para
+que lo que tiene bajo los ojos no se mueva ni un píxel. El anclaje automático del navegador se **desactiva**
+(`overflow-anchor:none` en `.dbg-list`) porque solo existe en Chrome/Firefox y su ajuste se sumaría al nuestro:
+un solo dueño, mismo comportamiento en todos los navegadores. El scroll no se toca en ningún otro sitio, salvo al
+ABRIR el panel (que es «a ver qué pasa ahora» → arriba).
 
 **Todo el filtro vive en UN panel PLEGABLE** (2026-08-09): en la cabecera, un botón **«Filtros (N) ▾»** —N = tipos
 marcados ahora mismo, para saber de un vistazo si estás viendo el hilo entero o uno recortado— junto a un buscador

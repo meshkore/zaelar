@@ -21,7 +21,7 @@ from i18n import store as _store
 # Coarse cache-buster for the browser's localStorage bundle cache. Bump when the SET of keys or their English
 # text changes. (Per-key upgrade diffing uses the English snapshot stored in each generated bundle — see
 # i18n.init.ensure; this version is just the frontend cache signal.)
-MANIFEST_VERSION = 3   # 2026-08-09: claves del visor — columnas, familias, panel de filtros, abreviaturas
+MANIFEST_VERSION = 4   # 2026-08-10: el visor ya no «sigue» al último evento (entra por arriba) → sin sus rótulos
 
 PRESET = ("en", "es")            # shipped in the repo; never generated
 BASE = "en"                      # the manifest language every other bundle is translated FROM

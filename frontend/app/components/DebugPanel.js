@@ -9,7 +9,14 @@
 // brain prompt/reply + [[deep]] escalation to Hermes, LLM/STT/TTS metric (the local
 // qwen fast layer, Whisper, Kokoro), and connector dispatch (cluster/cron/architect/
 // whatsapp), each stamped h:m:s.mmm. A filter box narrows by kind/label/text. Rows
-// are appended imperatively (a live log of ~800 rows shouldn't re-render wholesale).
+// are inserted imperatively (a live log of ~800 rows shouldn't re-render wholesale).
+//
+// ORDEN: EL ÚLTIMO EVENTO VA ARRIBA (2026-08-10, decisión del operador). La lista crece hacia ABAJO por
+// PREPEND, así que lo recién ocurrido está siempre pegado a la cabecera de columnas — a la vista, sin perseguir
+// nada. El scroll queda 100% MANUAL: nadie lo mueve por ti. Esto SUSTITUYE al «stick-to-tail» (seguir el fondo,
+// soltarse al subir, re-enganchar al bajar, indicador de seguimiento, guarda de rAF, ventana de gesto real):
+// ~70 líneas de estado que se podía desincronizar de la realidad —y que ya falló dos veces— para resolver un
+// problema que el orden inverso simplemente NO TIENE.
 // ============================================================================
 import { h, raw } from "../core/dom.js?v=2";
 import { createEffect } from "../core/reactive.js?v=2";
@@ -19,9 +26,6 @@ import { LIST_ICON, LINK_ICON, VOLUME_X_ICON, TRASH_ICON, CLOSE_ICON, BUG_ICON }
 import { t } from "../core/i18n.js?v=1";
 
 const MAX_ROWS = 800;             // cap the DOM so a long session can't grow it without bound
-
-// flecha «al final» del indicador de seguimiento (misma familia visual que el resto de iconos del panel)
-const TAIL_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12"/><path d="m6 12 6 6 6-6"/><path d="M5 21h14"/></svg>`;
 
 const p2 = (n, l = 2) => String(n).padStart(l, "0");
 function stamp(ms) {
@@ -221,73 +225,28 @@ export function DebugPanel() {
   // cabecera de columnas y la lista.
   let filtersOpen = localStorage.getItem("hb_dbg_filters_open") === "1";
 
-  // ── stick-to-tail: seguir SIEMPRE el último evento, pero soltar si el operador sube el scroll ──
-  // (V2 obs) El fondo se fija DESPUÉS del layout (rAF), así una fila recién añadida —que ahora puede
-  // ocupar dos líneas en columna estrecha— nunca queda a medio cortar en el borde inferior. Cuando el
-  // operador sube a mirar algo, `stick` pasa a false y no le arrastramos; al volver abajo, se reengancha.
-  // ── «SIGUIENDO» ES UN ESTADO VISIBLE, NO UN SECRETO (2026-08-10) ────────────────────────────────────────────
-  // El operador reportó que la lista deja de seguir al último evento «a los diez o quince mensajes» sin que él
-  // toque nada. No he conseguido REPRODUCIR la causa (ver los dos endurecimientos de abajo: el guarda del rAF que
-  // podía quedarse colgado y el `stick` que lo decidía cualquier scroll, no solo el suyo). Así que, además de
-  // arreglar esos dos, se aplica la lección de esta misma sesión: cuando un estado invisible puede engañar, se
-  // hace VISIBLE y RECUPERABLE. El indicador de la cabecera dice si va siguiendo o si se ha soltado, y un clic lo
-  // vuelve a engancha. Si esto se repite, deja de ser un misterio: se ve, y se arregla con un clic.
-  let stick = true;
-  let followBtn = null;
-  function setStick(v) {
-    stick = !!v;
-    if (followBtn) {
-      followBtn.classList.toggle("on", stick);
-      followBtn.title = t(stick ? "debug.follow_on" : "debug.follow_off");
-    }
-  }
-  function activeList() { return mode === "traces" ? tracesEl : listEl; }   // V2-044: contenedor visible
-
-  // SOLO EL OPERADOR SUELTA EL ENGANCHE (2026-08-10). Fallo reportado: «eso funciona durante diez o quince
-  // mensajes y luego ya se encalla y la lista se queda parada… yo no estoy interviniendo en nada». La causa: se
-  // decidía `stick` en CUALQUIER evento de scroll, y no todos los provoca el operador — los provoca también
-  // nuestro propio `scrollTop = scrollHeight`, y el reflujo de una fila que crece a dos líneas DESPUÉS de haberla
-  // fijado. En cuanto uno de esos medía un hueco > 24px, `stick` pasaba a false y ya no volvía nunca (solo se
-  // reengancha bajando a mano). Y por eso empezaba justo a los 10-15 mensajes: es cuando la lista pasa a ser más
-  // alta que su caja y empieza a haber scroll de verdad.
+  // ── LO NUEVO ENTRA POR ARRIBA — y el scroll es del operador (2026-08-10) ────────────────────────────────────
+  // Toda la maquinaria de «seguir el fondo» desaparece: no hay estado de seguimiento, ni gestos que vigilar, ni
+  // rAF, ni indicador que mantener sincronizado. Solo dos casos, y ninguno guarda nada:
   //
-  // Ahora `stick` solo puede cambiar en la estela de un GESTO real (rueda, dedo, teclado, arrastrar la barra). Un
-  // scroll programático o un reflujo no tocan nada. La ventana cubre el scroll por inercia, que sigue emitiendo
-  // eventos bastante después del gesto.
-  const USER_SCROLL_MS = 700;
-  let lastGesture = 0;
-  const markGesture = () => { lastGesture = performance.now(); };
-  function onListScroll() {
-    const el = activeList();
+  //   · el operador está ARRIBA (scrollTop 0) → la fila entra justo bajo la cabecera y empuja al resto hacia
+  //     abajo. Es lo que quiere ver, y sale sin tocar el scroll.
+  //   · el operador está LEYENDO más abajo → se compensa el alto que acaba de aparecer ENCIMA, así lo que tiene
+  //     bajo los ojos no se mueve ni un píxel. Sin esto, cada evento le desplazaría el texto hacia abajo.
+  //
+  // La compensación la hacemos NOSOTROS y no el navegador (`overflow-anchor:none` en `.dbg-list`): el anclaje
+  // automático solo existe en Chrome/Firefox y su ajuste se sumaría al nuestro. Un solo dueño, mismo
+  // comportamiento en todos los navegadores.
+  // `bulk` = relleno masivo al abrir el panel (hasta 1.000 filas del anillo de golpe). Ahí no hay nada que
+  // compensar —el scroll se coloca arriba al terminar— y el corto-circuito evita leer el scroll fila a fila, que
+  // fuerza un relayout en cada una. No es estado que sobreviva a nada: se pone y se quita en el mismo pase.
+  let bulk = false;
+  function prepend(el, node) {
     if (!el) return;
-    if (performance.now() - lastGesture > USER_SCROLL_MS) return;   // no lo ha hecho él: no decidimos nada
-    setStick(el.scrollHeight - el.scrollTop - el.clientHeight < 24);   // 24px de tolerancia = "está abajo"
-  }
-  // Se enganchan en el contenedor al montarlo (ver los `ref` de .dbg-list más abajo).
-  function watchGestures(el) {
-    for (const ev of ["wheel", "touchstart", "touchmove", "pointerdown", "keydown"]) {
-      el.addEventListener(ev, markGesture, { passive: true });
-    }
-    el.addEventListener("scroll", onListScroll, { passive: true });
-  }
-  // EL GUARDA NO PUEDE ATASCARSE (2026-08-10). La versión anterior usaba un booleano `pinPending` que solo se
-  // bajaba DENTRO del requestAnimationFrame… y el rAF NO se ejecuta si la pestaña está en segundo plano. Basta con
-  // que llegue un evento mientras el operador está en otra aplicación —que es lo normal mientras trabaja— para que
-  // `pinPending` se quede en true PARA SIEMPRE y `pinTail` se convierta en un no-op permanente: la lista deja de
-  // seguir al último evento y ya no vuelve sola. Encaja exactamente con lo reportado: «funciona durante diez o
-  // quince mensajes y luego se encalla… yo no estoy interviniendo en nada».
-  //
-  // Con un id de rAF en vez de un booleano no hay estado que se pueda quedar colgado: si el frame anterior nunca
-  // llegó a correr, se cancela y se pide otro. Al volver a la pestaña, el primer evento vuelve a fijar el fondo.
-  let pinRaf = 0;
-  function pinTail() {
-    if (!stick || !activeList()) return;
-    if (pinRaf) cancelAnimationFrame(pinRaf);
-    pinRaf = requestAnimationFrame(() => {        // esperar a que el navegador mida la fila (2 líneas) antes de fijar
-      pinRaf = 0;
-      const el = activeList();
-      if (stick && el) el.scrollTop = el.scrollHeight;
-    });
+    if (bulk || el.scrollTop <= 0) { el.insertBefore(node, el.firstChild); return; }
+    const h0 = el.scrollHeight;
+    el.insertBefore(node, el.firstChild);
+    el.scrollTop += el.scrollHeight - h0;
   }
 
   function visible(row) {
@@ -414,7 +373,6 @@ export function DebugPanel() {
     localStorage.setItem("hb_dbg_filters_open", filtersOpen ? "1" : "0");
     if (filtersEl) filtersEl.hidden = !filtersOpen;
     if (filtersBtn) filtersBtn.classList.toggle("on", filtersOpen);
-    pinTail();      // el panel cambia el alto de la lista → re-fijar el fondo si estábamos siguiendo
   }
 
   // Registra (o actualiza) el chip de un kind. Se llama por CADA evento —también por los colapsados en ×N— así el
@@ -439,7 +397,10 @@ export function DebugPanel() {
   }
 
   function persistKinds() {
-    try { localStorage.setItem("hb_dbg_kinds_off", JSON.stringify([...hiddenKinds])); } catch {}
+    // MISMA clave que se LEE arriba (`hb_dbg_kinds_off_v2`). Escribía en la vieja sin `_v2`: la configuración de
+    // filtros del operador no sobrevivía a un recargado —y los valores por defecto se re-aplicaban cada vez—
+    // porque nadie leía nunca lo que se guardaba.
+    try { localStorage.setItem("hb_dbg_kinds_off_v2", JSON.stringify([...hiddenKinds])); } catch {}
     if (filtersBtn) filtersBtn.classList.toggle("muted", hiddenKinds.size > 0);
   }
 
@@ -474,6 +435,7 @@ export function DebugPanel() {
     noteKind(kind, (d.cat || "other").toString());
 
     // Collapse consecutive identical events into one row with a ×N counter (defends the panel against any burst).
+    // `lastRow` es la fila de ARRIBA (la más reciente), que es justo donde el operador está mirando.
     if (lastRow && sig === lastSig) {
       const n = (parseInt(lastRow.dataset.n || "1", 10) + 1);
       lastRow.dataset.n = String(n);
@@ -481,7 +443,6 @@ export function DebugPanel() {
       badge.textContent = " ×" + n;
       lastRow.querySelector(".dbg-t").textContent = stamp(d._rx);
       count++; if (countEl) countEl.textContent = t("debug.events", { n: count });
-      pinTail();   // el ×N puede crecer la fila → re-fijar el fondo si estamos siguiendo
       return;
     }
 
@@ -515,10 +476,10 @@ export function DebugPanel() {
     row.append(ts, cr, ct, kd, lt, eg, szc, msg);
     row.hidden = !visible(row);
 
-    listEl.appendChild(row);
+    prepend(listEl, row);
     lastRow = row; lastSig = sig;
-    while (listEl.childElementCount > MAX_ROWS) { const f = listEl.firstElementChild; if (f === lastRow) break; listEl.removeChild(f); }
-    pinTail();   // seguir el tail (tras el layout) salvo que el operador haya subido — ver onListScroll
+    // El recorte se lleva las filas MÁS VIEJAS, que ahora son las del final.
+    while (listEl.childElementCount > MAX_ROWS) { const f = listEl.lastElementChild; if (f === lastRow) break; listEl.removeChild(f); }
     count++; if (countEl) countEl.textContent = t("debug.events", { n: count });
   }
 
@@ -545,10 +506,12 @@ export function DebugPanel() {
     det.append(sum, body);
     e = { det, ic, tx, nEl, body, spans: new Map(), n: 0 };
     traces.set(tid, e);
+    // El flujo más RECIENTE arriba, igual que el log. DENTRO de cada árbol los eventos siguen en orden
+    // cronológico: un flujo se lee de principio a fin, es lo que permite ver dónde se torció.
     if (tracesEl) {
-      tracesEl.appendChild(det);
+      prepend(tracesEl, det);
       while (tracesEl.childElementCount > MAX_TRACES) {
-        const f = tracesEl.firstElementChild;
+        const f = tracesEl.lastElementChild;
         for (const [k, v] of traces) if (v.det === f) { traces.delete(k); break; }
         tracesEl.removeChild(f);
       }
@@ -596,7 +559,6 @@ export function DebugPanel() {
       parent = sp;
     }
     parent.appendChild(traceRow(d));
-    if (mode === "traces") pinTail();
   }
 
   function setMode(m, btn) {
@@ -612,7 +574,7 @@ export function DebugPanel() {
     filter = (filterEl ? filterEl.value : "").trim().toLowerCase();
     reflow();
   }
-  function reflow() { if (!listEl) return; for (const row of listEl.children) row.hidden = !visible(row); pinTail(); }
+  function reflow() { if (!listEl) return; for (const row of listEl.children) row.hidden = !visible(row); }
   function toggleNoise(btn) { noiseHidden = !noiseHidden; btn.classList.toggle("on", !noiseHidden); reflow(); }
   function clearAll() {
     clearDebugBuffer();
@@ -669,14 +631,6 @@ export function DebugPanel() {
         ref: (el) => { el.innerHTML = mode === "traces" ? LIST_ICON : LINK_ICON; },
         onClick: (e) => setMode(mode === "traces" ? "log" : "traces", e.currentTarget),
       }),
-      // «SIGUIENDO AL ÚLTIMO»: indicador + reengancha de un clic. Encendido = la lista persigue el último evento;
-      // apagado = está soltada (el operador subió a leer… o se soltó por su cuenta, que es el fallo que no
-      // conseguí reproducir). Antes esto era invisible: la lista se quedaba quieta y no había ni forma de saber
-      // por qué ni forma de recuperarla sin bajar a mano hasta el fondo.
-      h("button", {
-        class: "dbg-btn hb-icbtn on", ref: (el) => { followBtn = el; el.title = t("debug.follow_on"); },
-        onClick: () => { setStick(true); pinTail(); },
-      }, raw(TAIL_ICON)),
       h("button", { class: "dbg-btn hb-icbtn", title: () => t("debug.noise"), onClick: (e) => toggleNoise(e.currentTarget) }, raw(VOLUME_X_ICON)),
       h("button", { class: "dbg-btn hb-icbtn", title: () => t("debug.clear"), onClick: clearAll }, raw(TRASH_ICON)),
       h("button", { class: "dbg-btn hb-icbtn", title: () => t("debug.close"), onClick: () => store.setDebugOpen(false) }, raw(CLOSE_ICON)),
@@ -701,9 +655,9 @@ export function DebugPanel() {
         ...COLS.map((c) => h("span", { class: c.cls, title: () => t(c.tip) }, () => t(c.key))),
       ),
     ),
-    h("div", { class: "dbg-list", ref: (el) => { listEl = el; el.hidden = (mode === "traces"); watchGestures(el); } }),
+    h("div", { class: "dbg-list", ref: (el) => { listEl = el; el.hidden = (mode === "traces"); } }),
     // V2-044: la vista Trazas — misma zona, contenedor alterno (toggle ⛓ arriba)
-    h("div", { class: "dbg-list dbg-traces", ref: (el) => { tracesEl = el; el.hidden = (mode !== "traces"); watchGestures(el); } }),
+    h("div", { class: "dbg-list dbg-traces", ref: (el) => { tracesEl = el; el.hidden = (mode !== "traces"); } }),
   );
 
   // Open ⇒ start the bus, shrink the canvas (body class + --dbg-w), y REPONER lo que falte del buffer.
@@ -717,11 +671,15 @@ export function DebugPanel() {
   // falten — así el operador siempre ve el evento real más reciente, no solo el más reciente que ya viera.
   function catchUp() {
     if (!listEl) return;
-    for (const d of debugBuffer()) {
-      if (d._dbgSeen) continue;
-      d._dbgSeen = true;
-      addRow(d); addTrace(d);
-    }
+    bulk = true;
+    try {
+      // Del más VIEJO al más nuevo: como cada uno entra por arriba, el último del anillo acaba arriba del todo.
+      for (const d of debugBuffer()) {
+        if (d._dbgSeen) continue;
+        d._dbgSeen = true;
+        addRow(d); addTrace(d);
+      }
+    } finally { bulk = false; }
   }
   createEffect(() => {
     const open = store.debugOpen();
@@ -730,9 +688,11 @@ export function DebugPanel() {
     localStorage.setItem("hb_debug_open", open ? "1" : "0");
     if (open) {
       startDebugBus();
-      setStick(true);   // al abrir el panel, arrancar SIEMPRE enganchado al último evento
       catchUp();
-      pinTail();
+      // Abrir el panel es «a ver qué está pasando» → arriba, donde está lo último. Es la ÚNICA vez que movemos
+      // el scroll nosotros; a partir de aquí es todo del operador.
+      if (listEl) listEl.scrollTop = 0;
+      if (tracesEl) tracesEl.scrollTop = 0;
     }
   });
 

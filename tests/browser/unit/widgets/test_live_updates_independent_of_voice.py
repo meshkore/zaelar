@@ -99,50 +99,56 @@ def test_the_observability_column_empties_itself_on_a_new_session():
     assert any("clearAll()" in l for l in code), "…vaciándose"
 
 
-# ── LA COLUMNA SIGUE AL ÚLTIMO EVENTO, Y SI SE SUELTA SE VE (2026-08-10) ─────────────────────────────────────
-# Reportado por el operador: «eso funciona durante diez o quince mensajes y luego ya se encalla y la lista se queda
-# parada… yo no estoy interviniendo en nada». NO se consiguió reproducir la causa, así que se hacen tres cosas:
-# se cierran los dos caminos por los que el enganche podía perderse solo, y —lección de esta misma sesión— el
-# estado deja de ser invisible: se ve si va siguiendo y se reengancha de un clic.
-def test_the_pin_guard_cannot_get_stuck_forever():
-    """El guarda era un booleano que solo se bajaba DENTRO del requestAnimationFrame, y el rAF no corre con la
-    pestaña en segundo plano: un evento llegando mientras el operador está en otra aplicación dejaba el guarda en
-    true PARA SIEMPRE y `pinTail` en un no-op permanente. Con un id de rAF no hay estado que se cuelgue."""
+# ── LO ÚLTIMO ARRIBA, Y EL SCROLL ES DEL OPERADOR (2026-08-10) ───────────────────────────────────────────────
+# Historia: la columna «seguía» al último evento fijando el fondo, y el operador reportó que a los 10-15 mensajes
+# dejaba de seguir sin que él tocara nada. Se endureció dos veces (guarda de rAF que se colgaba con la pestaña de
+# fondo, `stick` que lo soltaba cualquier scroll incluido el nuestro) y aun así el estado seguía pudiendo mentir.
+#
+# El operador propuso quitar el problema en vez de blindarlo: **la lista crece por ARRIBA**. Lo último está pegado
+# a la cabecera, así que no hay a qué perseguir; el scroll pasa a ser 100% manual. Con eso se borró TODA la
+# maquinaria (seguimiento, gestos, rAF, indicador, sus dos claves i18n) — estas pruebas impiden que vuelva.
+def test_the_newest_event_goes_on_top():
+    """La inserción por arriba ES el mecanismo: si alguien vuelve a `appendChild` en la lista, la columna vuelve a
+    necesitar que alguien persiga el fondo."""
     code = list(_code_lines(DEBUG_PANEL))
-    assert not any("pinPending" in l for l in code), \
-        "el booleano que se podía quedar colgado no puede volver"
-    assert any("cancelAnimationFrame" in l for l in code), \
-        "si el frame anterior no llegó a correr hay que cancelarlo y pedir otro"
+    assert any("insertBefore" in l and "firstChild" in l for l in code), \
+        "las filas entran por ARRIBA (prepend), no por el final"
+    assert not any("listEl.appendChild" in l for l in code), \
+        "una fila añadida al final resucita el problema del seguimiento"
+    # el recorte de MAX_ROWS tiene que llevarse las VIEJAS, que ahora están al final
+    assert any("lastElementChild" in l for l in code), "el recorte debe podar por el final (las más viejas)"
 
 
-def test_only_a_real_gesture_releases_the_tail():
-    """`stick` se decidía en CUALQUIER evento de scroll — y no todos los provoca el operador: también nuestro propio
-    `scrollTop = scrollHeight` y el reflujo de una fila que crece a dos líneas. Uno de esos midiendo >24px lo
-    soltaba, y ya no volvía. Explica por qué empezaba a los 10-15 mensajes: es cuando empieza a haber scroll."""
+def test_no_scroll_following_machinery_comes_back():
+    """Nada de estado de seguimiento: ni el flag, ni el indicador, ni los gestos, ni el rAF que se colgaba. Un
+    estado invisible que puede mentir sobre lo que estás viendo no vuelve a este panel."""
     code = list(_code_lines(DEBUG_PANEL))
-    assert any("lastGesture" in l for l in code), "hay que distinguir el scroll del operador del programático"
-    for ev in ("wheel", "pointerdown"):
-        assert any(ev in l for l in code), f"falta escuchar «{ev}» como gesto real"
-
-
-def test_following_is_a_visible_recoverable_state():
-    """Si vuelve a soltarse por un camino que no vimos, tiene que verse y arreglarse con un clic — no quedarse
-    quieta en silencio sin forma de recuperarla salvo bajar a mano hasta el fondo."""
-    code = list(_code_lines(DEBUG_PANEL))
-    assert any("followBtn" in l for l in code), "el estado de seguimiento necesita un indicador"
-    assert any("setStick(" in l for l in code), "…y un único escritor que lo mantenga sincronizado"
+    for muerto in ("stick", "pinTail", "pinPending", "followBtn", "lastGesture",
+                   "requestAnimationFrame", "scrollTop = el.scrollHeight"):
+        assert not any(muerto in l for l in code), f"vuelve la maquinaria de seguimiento: «{muerto}»"
+    assert not any('addEventListener("scroll"' in l for l in code), \
+        "el scroll es del operador: no lo escuchamos para decidir nada"
     import json
     for lang in ("en", "es"):
         b = json.loads((ENGINE / "i18n" / "bundles" / f"{lang}.json").read_text(encoding="utf-8"))
         for k in ("debug.follow_on", "debug.follow_off"):
-            assert k in b and b[k].strip(), f"falta {k} en {lang}"
+            assert k not in b, f"{k} sigue en {lang}: ya no hay estado de seguimiento que rotular"
 
 
-def test_stick_has_a_single_writer():
-    """Tres sitios escribían `stick` a pelo; con un indicador que hay que mantener sincronizado, cualquier escritura
-    directa se desincroniza del botón en silencio."""
+def test_reading_further_down_is_not_pushed_around():
+    """Crecer por arriba desplaza lo de abajo. Se compensa a mano —y se desactiva el anclaje del navegador— para
+    que lo que el operador tiene bajo los ojos no se mueva, y para que el comportamiento sea el MISMO en Safari
+    (que no implementa scroll anchoring) que en Chrome (donde su ajuste se sumaría al nuestro)."""
     body = DEBUG_PANEL.read_text(encoding="utf-8")
-    directas = [l.strip() for l in body.splitlines()
-                if "stick = " in l and "function setStick" not in l and not l.strip().startswith("//")]
-    # solo se admite la declaración inicial y la asignación de DENTRO de setStick
-    assert len(directas) <= 2, f"escrituras directas de stick fuera de setStick: {directas}"
+    assert "el.scrollTop +=" in body, "sin compensar, cada evento le empuja el texto al operador"
+    css = (APP / "styles.css").read_text(encoding="utf-8")
+    assert "overflow-anchor:none" in css.replace(" ", ""), \
+        "con el anclaje del navegador activo la compensación se aplicaría DOS veces"
+
+
+def test_the_filter_config_survives_a_reload():
+    """La clave que se escribía (`hb_dbg_kinds_off`) no era la que se leía (`…_v2`): la configuración de filtros del
+    operador se perdía en cada recarga y los valores por defecto se re-aplicaban como si fuera la primera vez."""
+    body = DEBUG_PANEL.read_text(encoding="utf-8")
+    claves = set(re.findall(r"hb_dbg_kinds_off\w*", body))
+    assert claves == {"hb_dbg_kinds_off_v2"}, f"la clave de lectura y la de escritura deben ser UNA: {claves}"

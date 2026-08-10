@@ -1516,8 +1516,12 @@ Cómo funciona (canal de VOZ e2e, INI-013):
   alguien estrena un kind sin clasificarlo (`tests/infrastructure/unit/core/test_observer_categories.py`, nodo
   7.6); antes caían filas que ningún chip gobernaba. Regla: **la familia dice QUÉ pasó, el `span`/`trace` dice
   QUIÉN lo hizo** — la lectura de memoria de un worker es `memory`, no «worker»; para aislar por ACTOR está la
-  vista Trazas. Segundo eje de filtro, más fino, por `kind` (botón «Tipos…», contador vivo, shift+click = solo
-  ese) + cabecera FIJA de columnas. Tabla completa en `zaelar-observability.md §El visor`. **Cada evento lleva
+  vista Trazas. **UN SOLO eje de filtro, el `kind`** (panel plegable «Filtros (N)» con el mapa COMPLETO de lo
+  filtrable —una fila por familia, su rótulo enciende/apaga la familia entera—, shift+click = solo ese) + cabecera
+  FIJA de columnas. **El último evento va ARRIBA (2026-08-10, decisión del operador): la lista crece por PREPEND y
+  el scroll es 100% manual** — eso RETIRA el «seguir el fondo» y toda su maquinaria (estado de seguimiento, ventana
+  de gesto, rAF, indicador): un estado que puede mentir sobre lo que estás viendo se elimina, no se blinda (falló
+  dos veces). Tabla completa en `zaelar-observability.md §El visor`. **Cada evento lleva
   además `corr` (el FLUJO), `sid` (sesión de trabajo) y `uid` (instalación)**, y `bus/log.py` los sube a COLUMNAS
   indexadas de `events` junto a `cat`/`kind`/`ms`/`model`/tokens → la observabilidad se CONSULTA por flujos en
   vez de escanearse. Ver el módulo `observability/` y la iniciativa V2-090.

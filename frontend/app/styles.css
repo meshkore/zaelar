@@ -915,7 +915,11 @@ body.dbg-resizing{cursor:ew-resize;user-select:none}
 @container dbgh (max-width: 700px){ .dbg-hdr{display:none} }
 .dbg-list{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:0 0 10px;font-family:var(--mono);font-size:11.5px;line-height:1.45;
   /* query container: the ROW layout reacts to the PANEL width (resizable), not the viewport (V2 obs) */
-  container-type:inline-size;container-name:dbg}
+  container-type:inline-size;container-name:dbg;
+  /* LO NUEVO ENTRA POR ARRIBA (2026-08-10): el anclaje automático del navegador compensaría ese crecimiento…
+     pero solo en Chrome/Firefox, y su ajuste se SUMARÍA al que hace `DebugPanel.prepend()` (doble salto). Un
+     solo dueño de la compensación → mismo comportamiento en todos los navegadores. */
+  overflow-anchor:none}
 .dbg-row{display:grid;grid-template-columns:80px 58px 52px 78px 46px 80px 96px 1fr;gap:8px;padding:3px 12px 3px 9px;
   border-bottom:1px solid var(--hb-line);border-left:3px solid var(--hb-neutral);align-items:baseline}
 /* `.dbg-row{display:grid}` (clase) ganaba al `[hidden]{display:none}` del navegador (empate de especificidad →
