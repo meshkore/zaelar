@@ -919,8 +919,11 @@ class NucleoLLMStream(llm.LLMStream):
                 if "show_panel" not in _tool_fired:
                     _tool_fired.add("show_panel")
                     _tab = _router._canon_panel(args.get("panel"))
-                    emit("panel", "open", extra={"tab": _tab, "src": "flash"})
-                    emit("brain", "🗂️ show_panel → panel nativo", text=_tab, role="system")
+                    # 2026-08-10: también CIERRA. Antes solo abría, así que «cierra el chat» no tenía a dónde ir y
+                    # el turno acababa en un «vale, cerrado» que era falso.
+                    _act = _router._canon_panel_action(args.get("action"))
+                    emit("panel", _act, extra={"tab": _tab, "src": "flash"})
+                    emit("brain", f"🗂️ show_panel → panel nativo ({_act})", text=_tab, role="system")
                     acted["widget"] = True     # cuenta como acción de UI (ack "nunca mudo" + no escala espurio)
             elif name == "manage_widget_alias":
                 # V2-082: añade/quita un NOMBRE/ALIAS de un widget por voz ("añade el alias WhatsApp a mensajería").

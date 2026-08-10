@@ -87,3 +87,14 @@ def test_panel_routing_whitelist_covers_every_tab():
     for tab in ("procesos", "crons", "clusters"):
         assert f'"{tab}"' in branch, f"el frontend no acepta la pestaña «{tab}»"
         assert router._canon_panel(tab) == tab
+
+
+def test_the_panel_can_be_closed_by_voice_not_only_opened():
+    """2026-08-10: el operador pidió cerrar el chat CINCO veces («cierra también el chat», «cierra el chat de
+    sistema», «cierra la ventana de chat»), zaelar contestó «vale, cerrado» cada vez, y siguió abierto — tuvo que
+    cerrarlo con la ✕. El chat es UI NATIVA, así que [[close]] no lo toca, y `show_panel` solo sabía abrir: la
+    capacidad no existía y el turno mentía. Peor que no poder es decir que sí."""
+    branch = SSE.split('d.kind === "panel"')[1].split("} else if")[0]
+    assert 'd.label === "close"' in branch, "el frontend debe distinguir abrir de cerrar"
+    assert "setChatOpen(false)" in branch, "…y cerrarlo de verdad"
+    assert "setChatOpen(true)" in branch, "…sin perder el abrir"

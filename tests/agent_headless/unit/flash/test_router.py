@@ -387,3 +387,38 @@ def test_manage_widget_alias_decision():
     assert d.payload["op"] == "remove"
     # situacional: solo con widgets
     assert "manage_widget_alias" in {t["function"]["name"] for t in router.tools(router.tool_context())}
+
+
+# ── EL PANEL NATIVO TAMBIÉN SE CIERRA POR VOZ (2026-08-10) ────────────────────────────────────────────────────
+# Fallo real, y de los que rompen la confianza. En la sesión del operador:
+#   «Vale, cierra también el chat.»          → «Vale.»
+#   «Cierra también el chatbot.»             → «Vale, cerrado.»
+#   «Quiero que cierres el chat de sistema.» → «Aquí lo tienes.»
+#   «Cierra la ventana de chat.»             → (nada)
+#   «Vale, lo hago yo apretando el botón de la x. Ya está.»
+# El chat NO es un widget (es UI nativa), así que [[close]] no lo toca — y `show_panel` solo sabía ABRIR. O sea que
+# la capacidad no existía y el turno acababa en un «cerrado» que era falso. Peor que no poder es decir que sí.
+def test_the_panel_tool_can_close_not_only_open():
+    d = router.decide("show_panel", {"panel": "chat", "action": "close"})
+    assert d.payload["action"] == "close" and d.payload["panel"] == "chat"
+
+
+def test_opening_stays_the_default_so_a_missing_argument_never_closes_it():
+    """Un modelo que se deja el argumento no puede acabar cerrándole el panel al operador."""
+    assert router.decide("show_panel", {"panel": "procesos"}).payload["action"] == "open"
+    assert router.decide("show_panel", {"panel": "chat", "action": ""}).payload["action"] == "open"
+
+
+def test_the_close_argument_tolerates_what_a_model_actually_writes():
+    """El argumento lo escribe un modelo en el idioma del turno: 'close', 'cerrar', 'quita', 'oculta'."""
+    for v in ("close", "cerrar", "cierra el chat", "quita", "ocultar", "hide"):
+        assert router.decide("show_panel", {"panel": "chat", "action": v}).payload["action"] == "close", v
+
+
+def test_the_tool_says_out_loud_that_the_chat_is_not_a_widget():
+    """La confusión de fondo: el operador dice «cierra el chat» y el modelo alcanza [[close]], que solo cierra
+    tarjetas del canvas. La descripción tiene que desambiguarlo, o vuelve a fallar en silencio."""
+    desc = _desc("show_panel")
+    assert "close" in desc
+    low = desc.lower()
+    assert "no es un widget" in low or "nunca show_widget" in low

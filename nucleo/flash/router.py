@@ -135,18 +135,21 @@ TOOLS: list[dict] = [
         "function": {
             "name": "show_panel",
             "description": (
-                "Abre el PANEL lateral NATIVO del operador en una pestaña — es UI fija, NUNCA show_widget ni "
+                "Abre o CIERRA el PANEL lateral NATIVO del operador — es UI fija, NUNCA show_widget ni "
                 "[[show]]. `panel`: 'procesos' (lo que estás haciendo: brain workers, trabajos y tareas en marcha e "
                 "histórico) | 'crons' (lo que tiene programado o agendado) | 'chat' (el muro de texto, para "
                 "escribirte en vez de hablar) | 'clusters' (la red MeshKore: a qué clusters está conectado, quién "
                 "hay y cuánto tráfico). Úsala cuando quiera VER esa lista; si solo pregunta un dato suelto "
-                "('¿cuántas tareas tienes?'), respóndelo hablando."
+                "('¿cuántas tareas tienes?'), respóndelo hablando. Con `action:'close'` lo CIERRA: «cierra el "
+                "chat», «quita los procesos». El chat NO es un widget, así que [[close]] no lo cierra — es ESTA."
             ),
             "parameters": {
                 "type": "object",
                 "properties": {
                     "panel": {"type": "string",
-                              "description": "cuál abrir: 'chat' | 'procesos' | 'crons' | 'clusters' (elige por lo que pide el operador)"},
+                              "description": "cuál: 'chat' | 'procesos' | 'crons' | 'clusters' (elige por lo que pide el operador)"},
+                    "action": {"type": "string",
+                               "description": "'open' (por defecto) o 'close' si pide cerrarlo/quitarlo"},
                 },
                 "required": ["panel"],
             },
@@ -790,6 +793,20 @@ def tools_report(offered: list[dict]) -> dict:
             "tool_families": fams, "tools_omitted": sorted(all_names - set(names))}
 
 
+def _canon_panel_action(v) -> str:
+    """'open' | 'close' del `action` de show_panel. Default ABRIR: es el caso mayoritario, y un modelo que se deja
+    el argumento no puede acabar cerrándole el panel al operador.
+
+    Existe desde 2026-08-10 porque la tool solo sabía ABRIR: el operador pidió cerrar el chat cinco veces seguidas
+    («cierra también el chat», «cierra el chat de sistema», «cierra la ventana de chat»), zaelar contestó «vale,
+    cerrado» cada vez, y el chat seguía abierto — tuvo que cerrarlo él con la ✕. Peor que no poder es decir que sí:
+    ahora la capacidad existe de verdad."""
+    a = str(v or "").strip().lower()
+    if any(k in a for k in ("clos", "cerr", "cierra", "quita", "oculta", "hide", "off")):
+        return "close"
+    return "open"
+
+
 def _canon_panel(v) -> str:
     """Normaliza el `panel` de show_panel a una pestaña canónica del ChatWall (chat|procesos|crons|clusters).
     Tolera sinónimos que el modelo pueda soltar en el argumento (workers→procesos, cron→crons, texto/muro→chat,
@@ -832,7 +849,8 @@ def decide(name: str, args: dict | None = None) -> Decision:
     if name == "show_widget":
         return Decision(SHOW, {"widget_id": (args.get("widget_id") or "").strip()})
     if name == "show_panel":
-        return Decision(PANEL, {"panel": _canon_panel(args.get("panel"))})
+        return Decision(PANEL, {"panel": _canon_panel(args.get("panel")),
+                                "action": _canon_panel_action(args.get("action"))})
     if name == "manage_widget_alias":
         _op = (args.get("op") or "add").strip().lower()
         return Decision(ALIAS, {"widget_id": (args.get("widget_id") or "").strip(),
