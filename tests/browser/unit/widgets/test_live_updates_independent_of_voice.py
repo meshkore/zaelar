@@ -69,3 +69,31 @@ def test_stopping_the_voice_does_not_close_the_event_stream(path):
     assert not any("closeSSE(" in l for l in _code_lines(path)), (
         f"{path.name} vuelve a cerrar el stream de /events al parar la voz — la pantalla se queda congelada "
         "(un worker puede seguir empujando resultados y no se verán)")
+
+
+# ── SESIÓN NUEVA al resetear (2026-08-10) ────────────────────────────────────────────────────────────────────
+# El backend rota el id y deja su observabilidad a cero (voice/observer.py::rotate_session), pero la columna de
+# observabilidad pinta sus filas A MANO (no re-renderiza por datos), así que hay que avisarla o se queda mostrando
+# el historial de una sesión que ya no existe. `clearDebugBuffer()` —que el reset ya llamaba— vacía el ANILLO, no
+# el DOM: era exactamente la mitad del trabajo.
+DEBUG_PANEL = APP / "components" / "DebugPanel.js"
+STORE = APP / "core" / "store.js"
+
+
+def test_the_store_exposes_a_new_session_signal():
+    code = list(_code_lines(STORE))
+    assert any("sessionEpoch" in l for l in code)
+    assert any("newSession" in l for l in code)
+
+
+def test_a_reset_announces_the_new_session_to_the_ui():
+    code = list(_code_lines(SSE))
+    assert any("newSession()" in l for l in code), (
+        "el handler de session/RESET debe avisar de la sesión nueva; sin eso la observabilidad se queda con las "
+        "filas de la sesión anterior")
+
+
+def test_the_observability_column_empties_itself_on_a_new_session():
+    code = list(_code_lines(DEBUG_PANEL))
+    assert any("sessionEpoch()" in l for l in code), "el panel debe reaccionar a la sesión nueva"
+    assert any("clearAll()" in l for l in code), "…vaciándose"

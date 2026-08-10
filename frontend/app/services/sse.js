@@ -80,6 +80,11 @@ export function openSSE(desktop) {
       // El escritorio lo cierra el evento widget/close; aquí vaciamos la pestaña Procesos (chips vivos + histórico)
       // al instante para que "empecemos de cero" — estado/memoria/datos de widgets se conservan (backend).
       try { store.setTasks([]); store.setWorkerHistory([]); } catch (_) {}
+      // SESIÓN NUEVA (2026-08-10): el backend ya rotó el id y dejó su observabilidad a cero
+      // (voice/observer.py::rotate_session). Avisamos a las vistas imperativas para que se vacíen también — si no,
+      // el panel de observabilidad seguiría mostrando las filas de la sesión anterior sobre una sesión que acaba
+      // de nacer en blanco. `clearDebugBuffer()` (que ya se llamaba desde el reset) vacía el ANILLO, no el DOM.
+      try { store.newSession(); } catch (_) {}
     } else if (d.kind === "task") {                                               // SlowBrain background task lifecycle
       // A deep-brain task started/finished — surface it as a liquid chip flanking the orb so the operator SEES
       // zaelar is working (widget build/modify, web task, …) and how many at once. Removed when it ends.

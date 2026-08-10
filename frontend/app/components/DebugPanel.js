@@ -694,6 +694,20 @@ export function DebugPanel() {
     }
   });
 
+  // SESIÓN NUEVA (2026-08-10) → la columna se vacía. Un Reset deliberado abre otra sesión de trabajo en el backend
+  // (id nuevo, observabilidad a cero); si aquí siguieran las filas de la anterior, el operador estaría leyendo el
+  // historial de una sesión que ya no existe creyendo que es la de ahora. Es el MISMO vaciado que el botón 🗑, con
+  // una diferencia deliberada: los kinds que el operador tenía apagados NO se re-encienden — eso es su preferencia
+  // de trabajo, no contenido de la sesión. `store.sessionEpoch` empieza en 0, así que el primer pase (montaje) no
+  // borra nada.
+  let _lastEpoch = store.sessionEpoch();
+  createEffect(() => {
+    const e = store.sessionEpoch();
+    if (e === _lastEpoch) return;
+    _lastEpoch = e;
+    clearAll();
+  });
+
   onDebug((d) => { if (store.debugOpen()) { d._dbgSeen = true; addRow(d); addTrace(d); } });   // live append only while visible
 
   return panel;

@@ -383,10 +383,65 @@ def clear_log():
     _t0["v"] = None
     _events.clear()
     _seq["n"] = 0
+    _dedup.clear()          # (kind,label)→último ts: sin vaciarlo, el 1er evento de una sesión nueva puede
+    #                         colapsarse contra uno de la sesión anterior y NO aparecer (arranca en blanco de más)
     try:
         open(os.path.join(LOG_DIR, "timeline-latest.jsonl"), "w").close()
     except Exception:
         pass
+
+
+def rotate_session(reason: str = "reset") -> dict:
+    """Cierra la sesión de trabajo en curso y abre una NUEVA, con la observabilidad a cero. Devuelve la info de la
+    sesión nueva (`{session_id, started_ms, source, user_id}`).
+
+    Es lo que tiene que pasar al pulsar «Reset» (petición del operador, 2026-08-10): un reset deliberado es «para
+    el agente y vuélvelo a arrancar» — mismas reglas, misma memoria, pero **empezamos en blanco**. Antes el reset
+    vaciaba el log y NO rotaba el id (`begin_session(force=True)` no lo llamaba nadie), así que los eventos de
+    después seguían colgando de la sesión vieja: el registro durable mezclaba en una misma sesión el trabajo de
+    antes y el de después de un borrón, y la columna de observabilidad arrancaba «vacía» pero con la identidad de
+    algo que ya no existía. Un id nuevo es lo que hace que ese borrón signifique algo.
+
+    ORDEN, que importa:
+      1. `end_session` — el evento de cierre se sella con el sid VIEJO y cae en el fichero de esa sesión, que es su
+         sitio (ahí queda el registro de cuándo y por qué acabó).
+      2. `clear_log` — se vacían el anillo en RAM, el contador de secuencia y el `timeline-latest.jsonl` (la vista
+         «lo que está pasando ahora»); los ficheros POR SESIÓN no se tocan: son el histórico.
+      3. `begin_session(force=True)` — id nuevo. El `force` es imprescindible: `begin_session` reutiliza a
+         propósito la sesión abierta para que una reconexión por un bache de red no se cuente como sesión nueva.
+      4. Los traces vuelven a numerar desde T1.
+
+    Fail-open: si la identidad no está disponible, al menos se limpia el log (mejor un reset a medias que un reset
+    que revienta)."""
+    trace_reset = None
+    try:
+        from voice import trace as _trace
+        trace_reset = _trace.reset_seq
+    except Exception:
+        pass
+    try:
+        from observability import identity as _ident
+    except Exception:
+        clear_log()
+        if trace_reset:
+            trace_reset()
+        return {}
+    try:
+        _ident.end_session(reason)
+    except Exception:
+        pass
+    clear_log()
+    _session_file["sid"] = None       # la ruta memoizada apuntaba al fichero de la sesión que acaba de cerrar
+    _session_file["path"] = None
+    if trace_reset:
+        trace_reset()
+    try:
+        _ident.begin_session(source=reason, force=True)
+        # `session_info()` y no lo que devuelve `begin_session`: esa lleva la clave interna `id`, y quien llama a
+        # esto (la respuesta del reset, el evento RESET) habla el vocabulario público `session_id`.
+        return _ident.session_info()
+    except Exception:
+        return {}
 
 
 # NOTE (INI-012): the Pipecat frame observers (TimelineObserver, AudioProbe) that used to live here were

@@ -140,6 +140,14 @@ export const fetchTasks = async () => {
 // bajo los vivos (store.tasks) para dar perspectiva de lo hecho hoy/ayer/hace días. Se refresca al abrir la
 // pestaña y cuando una tarea acaba (SSE task:end).
 export const [workerHistory, setWorkerHistory] = createSignal([]);  // [{id,kind,goal,status,finished_at,...}]
+
+// SESIÓN DE TRABAJO en curso (2026-08-10). Un Reset deliberado abre una sesión NUEVA en el backend
+// (voice/observer.py::rotate_session: id nuevo + observabilidad a cero). Este contador sube en cada RESET y es la
+// señal que usan las vistas IMPERATIVAS —la columna de observabilidad, que pinta sus filas a mano y no re-renderiza
+// por datos— para vaciarse. Sin él, tras un Reset el panel seguía mostrando las filas de la sesión anterior: el
+// backend había empezado en blanco y la pantalla no, que es la peor de las dos mentiras posibles.
+export const [sessionEpoch, bumpSessionEpoch] = createSignal(0);
+export const newSession = () => bumpSessionEpoch(n => n + 1);
 export const fetchWorkerHistory = async () => {
   try {
     const r = await fetch("/api/workers/history", { cache: "no-cache" });

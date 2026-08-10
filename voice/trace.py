@@ -32,6 +32,15 @@ _ctx: contextvars.ContextVar[tuple[str, str]] = contextvars.ContextVar("zaelar_t
 _seq = itertools.count(1)
 
 
+def reset_seq() -> None:
+    """Vuelve a numerar los traces desde T1. La llama el arranque de una SESIÓN NUEVA (`observer.rotate_session`):
+    si el contador siguiera subiendo, una sesión que empieza en blanco abriría en «T34», que le dice al operador que
+    está mirando la continuación de algo — justo lo contrario de lo que es. El id sigue llevando su sufijo
+    aleatorio, así que dos sesiones distintas nunca colisionan aunque las dos tengan un T1."""
+    global _seq
+    _seq = itertools.count(1)
+
+
 def begin(text: str, origin: str = "turno") -> str:
     """Nace un trace: id corto legible (`T<seq>·<hex4>`), se fija en el contexto y se emite el EVENTO RAÍZ
     (kind="trace", root=True) con la frase/motivo que lo inicia — es la raíz del árbol en la vista Trazas.

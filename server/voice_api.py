@@ -15,6 +15,7 @@ from voice.observer import (
     clear_log,
     debug_events,
     emit,
+    rotate_session,
     session_info,
     subscribe,
     unsubscribe,
@@ -501,9 +502,10 @@ async def reset_hard():
     except Exception:  # noqa: BLE001
         summary = {"frozen": 0, "killed": {}, "error": True}
     S.reset_session_state()
-    clear_log()
+    ses = rotate_session("reset")          # SESIÓN NUEVA (id nuevo + observabilidad a cero), no solo log limpio
     emit("widget", "close", extra={})      # cierra TODAS las tarjetas del canvas (frontend: desktop.closeAll())
-    return JSONResponse(emit("session", "RESET", extra={"hard": True, "reset": summary}))
+    return JSONResponse(emit("session", "RESET", extra={"hard": True, "reset": summary,
+                                                        "session": ses.get("session_id", "")}))
 
 
 @router.post("/api/reset/full")
@@ -527,11 +529,12 @@ async def reset_full(payload: dict | None = None):
     except Exception:  # noqa: BLE001
         summary = {"frozen": 0, "killed": {}, "error": True}
     S.reset_session_state()
-    clear_log()
+    ses = rotate_session("reset")           # SESIÓN NUEVA (id nuevo + observabilidad a cero), no solo log limpio
     emit("widget", "close", extra={})
 
     if not wipe_memory and not wipe_credentials:
-        return JSONResponse(emit("session", "RESET", extra={"hard": True, "reset": summary, "restarting": False}))
+        return JSONResponse(emit("session", "RESET", extra={"hard": True, "reset": summary, "restarting": False,
+                                                            "session": ses.get("session_id", "")}))
 
     # Memoria y/o credenciales: reinicio AUTOMÁTICO en un proceso DETACHED (sobrevive a que este muera).
     # `reset-memory.sh` para el server él mismo (busca el PID por puerto), borra, y bumpea desktop-epoch; tras

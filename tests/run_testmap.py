@@ -220,6 +220,11 @@ DOMAINS: list[dict] = [
             "tests/platform/tests/test_pytest_plugin.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [
             "tests/infrastructure/integration/test_sse_observer.py", "tests/infrastructure/unit/test_zai_sse.py"]},
+        # 2026-08-10: un RESET deliberado abre una SESIÓN DE TRABAJO NUEVA (id nuevo + observabilidad a cero). Antes
+        # vaciaba el log pero NO rotaba el id, así que lo de después seguía colgando de la sesión vieja. El test
+        # también guarda el contrapeso: una RECONEXIÓN no es una sesión nueva.
+        {"id": "7.6", "title": "Sesión de trabajo: el reset abre una NUEVA (id nuevo, observabilidad a cero)",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/core/test_session_rotation.py"]},
         {"id": "7.5", "title": "Sello de versión (instancia + observabilidad, V2-074)", "ch": UNIT, "paths": [
             "tests/infrastructure/unit/test_version.py"]},
         # 2026-08-09: el filtro del visor solo es fiable si TODO kind emitido pertenece a una familia. El test
