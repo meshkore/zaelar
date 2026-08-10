@@ -260,3 +260,58 @@ def test_the_two_surfaces_declare_their_frontier():
     # y results debe advertir que abrirla no produce nada
     low = results["whenToUse"].lower()
     assert "no produce" in low or "en blanco" in low
+
+
+# ── 7. El FlashBrain NUNCA se queda parado ────────────────────────────────────────────────────────────────────────
+# Sesión 14:08:26: 23 turnos seguidos sin respuesta durante 5 minutos. El operador preguntó «¿me estás escuchando?»
+# y «¿estás operativo, sí o no?» y tampoco obtuvo nada. Medido en el log: turnos de 35,7 s · 31,8 s · 32,2 s y uno
+# de 60,5 s, todos con `partial_chars=0` y `ttft=None` — el modelo no emitió UN solo token hablable. El único plazo
+# que existía era el timeout de red de httpx: 60 s. Regla dura del operador: el FlashBrain siempre operativo,
+# aunque los Brain Workers vayan lentos.
+
+def test_the_voice_turn_has_a_silence_deadline():
+    from voice.engine.llm.providers.nucleo import _turn_budget_ms
+    ms = _turn_budget_ms()
+    assert 0 < ms <= 15000, "un turno de voz no puede tolerar más que unos segundos de silencio"
+    assert ms < 60000, "60 s era el timeout de red de httpx: justo el agujero que dejó al operador sin respuesta"
+
+
+def test_the_deadline_is_tunable_and_disablable(monkeypatch):
+    from voice.engine.llm.providers.nucleo import _turn_budget_ms
+    monkeypatch.setenv("ZAELAR_TURN_QUIET_MS", "4000")
+    assert _turn_budget_ms() == 4000
+    monkeypatch.setenv("ZAELAR_TURN_QUIET_MS", "0")
+    assert _turn_budget_ms() > 10 ** 8, "0 = sin plazo (escotilla), no plazo cero"
+    monkeypatch.setenv("ZAELAR_TURN_QUIET_MS", "no-numero")
+    assert _turn_budget_ms() == 9000
+
+
+def test_the_deadline_measures_silence_not_total_length():
+    """Clave del diseño: cada trozo hablable renueva el plazo, así una respuesta larga y legítima sale ENTERA y
+    solo se corta lo que de verdad no avanza."""
+    import inspect
+    from voice.engine.llm.providers.nucleo import NucleoLLMStream
+    src = inspect.getsource(NucleoLLMStream._run_inner)
+    loop = src[src.index("_quiet_ms = _turn_budget_ms()"):]
+    assert "if delta:" in loop and loop.count("_quiet_ms = _turn_budget_ms()") >= 2, \
+        "el plazo debe renovarse con cada delta hablable"
+    assert "asyncio.wait_for(_agen.__anext__()" in loop, "el plazo va por trozo, no sobre el stream entero"
+
+
+def test_a_stall_is_treated_as_a_brain_failure_not_as_silence():
+    """Atascarse debe dar frase corta y honesta + alerta + salud en rojo (rama `errored`), nunca un minuto de
+    silencio que parece un cuelgue."""
+    import inspect
+    from voice.engine.llm.providers.nucleo import NucleoLLMStream
+    src = inspect.getsource(NucleoLLMStream._run_inner)
+    # el PRIMER `except asyncio.TimeoutError` de la función es el del recall (otra cosa); nos interesa el del
+    # bucle de streaming, que va después del plazo de silencio.
+    stall = src[src.index("_quiet_ms = _turn_budget_ms()"):]
+    stall = stall[stall.index("except asyncio.TimeoutError:"):]
+    assert "errored = True" in stall[:600]
+    assert "ATASCADO" in stall[:900], "el atasco tiene que dejar rastro en la observabilidad"
+
+
+def test_a_stall_is_classified_as_an_outage_so_the_status_icon_goes_red():
+    from voice import llm_health
+    assert llm_health.classify("flash brain stalled: 9000 ms sin salida hablable") == "outage"

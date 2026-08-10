@@ -47,6 +47,20 @@ def _last_user_text(chat_ctx) -> str:
     return ""
 
 
+def _turn_budget_ms() -> int:
+    """Cuánto SILENCIO se le tolera al modelo dentro de un turno de voz antes de darlo por atascado.
+
+    No es la duración máxima del turno: se renueva con cada trozo hablable (ver el bucle de streaming), así que una
+    respuesta larga sale entera. Es el plazo para que ALGO empiece a salir. 9 s ya es mucho hablando en voz alta;
+    el único límite que había antes era el timeout de red de httpx, 60 s. Ajustable en caliente; 0 lo desactiva.
+    """
+    try:
+        v = int(os.getenv("ZAELAR_TURN_QUIET_MS", "9000"))
+    except ValueError:
+        return 9000
+    return v if v > 0 else 10 ** 9
+
+
 def _norm_utt(s: str) -> str:
     return " ".join((s or "").lower().split())
 
@@ -1518,15 +1532,47 @@ class NucleoLLMStream(llm.LLMStream):
         _filler_task = asyncio.create_task(_lead_in_filler()) if (_filler_ms > 0 and not first_turn) else None
         self._phase = "generando la respuesta"
         try:
-            async for delta in FastClient().stream(messages, spec=spec, tools=_turn_tools,
-                                                    on_tool_call=_on_tool_call, metrics=llm_metrics):
+            # PLAZO DE SILENCIO — el FlashBrain NUNCA se queda parado (2026-08-10, regla dura del operador).
+            # Sesión 14:08:26: 23 turnos seguidos sin respuesta durante 5 minutos. El operador llegó a preguntar
+            # «¿me estás escuchando?», «¿estás operativo, sí o no?» y tampoco obtuvo nada. La medida del log:
+            # turnos de 35,7 s · 31,8 s · 32,2 s y uno de 60,5 s, todos con `partial_chars=0` y `ttft=None`, o sea
+            # el modelo NO emitió un solo token hablable. No era razonamiento ni contención de los workers: la
+            # llamada se quedaba colgada y el único plazo que existía era el timeout de red de httpx —60 s—, una
+            # eternidad en el camino de tiempo real. Mientras, cada frase nueva del operador cancelaba el turno en
+            # vuelo, así que el siguiente empezaba de cero: inanición perfecta, el sistema no podía contestar nunca.
+            # El plazo se mide sobre el SILENCIO, no sobre la duración total: cada trozo hablable lo reinicia, así
+            # una respuesta larga y legítima se transmite entera y solo se corta lo que de verdad no avanza.
+            _quiet_ms = _turn_budget_ms()
+            _agen = FastClient().stream(messages, spec=spec, tools=_turn_tools,
+                                        on_tool_call=_on_tool_call, metrics=llm_metrics).__aiter__()
+            while True:
+                try:
+                    delta = await asyncio.wait_for(_agen.__anext__(), timeout=_quiet_ms / 1000.0)
+                except StopAsyncIteration:
+                    break
+                except asyncio.TimeoutError:
+                    # Se atascó. Se trata como un fallo del cerebro (rama `errored`): frase corta y honesta, alerta
+                    # y salud en rojo — nunca más un silencio de un minuto que parece un cuelgue.
+                    errored = True
+                    err_text = f"flash brain stalled: {_quiet_ms} ms sin salida hablable"
+                    emit("brain", "⏱️ turno ATASCADO — el modelo no emitía nada, lo corto", role="system",
+                         extra={"cat": "flash", "quiet_ms": _quiet_ms, "spoken_chars": len("".join(spoken)),
+                                "phase": self._phase})
+                    try:
+                        await _agen.aclose()
+                    except Exception:
+                        pass
+                    break
                 if delta and not _real_started["v"]:
                     _real_started["v"] = True          # primer token REAL → corta el timer del filler
                     if _filler_task:
                         _filler_task.cancel()
                 buf += delta
+                if delta:
+                    _quiet_ms = _turn_budget_ms()      # hay avance real → el plazo se renueva
                 send(speech.inline(take(False)))
-            send(speech.sanitize(take(True), drop_metadata=False))
+            if not errored:
+                send(speech.sanitize(take(True), drop_metadata=False))
         except asyncio.CancelledError:
             # BARGE-IN / turno superpuesto: el stream se cancela. NO reinyectamos la respuesta parcial a la ventana
             # (el `raise` salta el append de más abajo) → sin respuestas zombie. PERO lo que dijo el OPERADOR sí se
