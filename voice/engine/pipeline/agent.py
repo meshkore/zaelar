@@ -135,6 +135,24 @@ def _mark_kickoff(room: str) -> None:
         _KICKOFF_SEEN.pop(k, None)
 
 
+def _endpointing_opts() -> dict:
+    """Cuánto silencio cierra un turno. Los valores viven en `voice/endpointing.py` — la fuente de verdad ÚNICA de
+    esta decisión, escrita a partir de sesiones reales (INI-009) y hasta hoy huérfana. Overrides por env para poder
+    ajustarlo en caliente sin tocar código."""
+    from voice import endpointing as _ep
+
+    def _f(name: str, default: float) -> float:
+        v = (os.getenv(name) or "").strip()
+        try:
+            return float(v) if v else default
+        except ValueError:
+            return default
+
+    lo = _f("ZAELAR_ENDPOINT_MIN_S", _ep.HOLD_BASE)
+    hi = _f("ZAELAR_ENDPOINT_MAX_S", _ep.HOLD_MAX)
+    return {"mode": "dynamic", "min_delay": lo, "max_delay": max(lo, hi)}
+
+
 async def entrypoint(ctx: JobContext) -> None:
     setup_console_logging()
     await ctx.connect()
@@ -189,7 +207,8 @@ async def entrypoint(ctx: JobContext) -> None:
     _emit("worker_start", "motor de voz arriba", role="system",
           extra={"profile": SETTINGS.profile, "stt": SETTINGS.stt_provider, "stt_device": stt_device,
                  "llm_provider": SETTINGS.llm_provider, "llm_model": SETTINGS.llm_model or "(default)",
-                 "tts": SETTINGS.tts_provider, "turn": SETTINGS.turn_provider})
+                 "tts": SETTINGS.tts_provider, "turn": SETTINGS.turn_provider,
+                 **{f"endpoint_{k}": v for k, v in _endpointing_opts().items()}})
     logger.info("Connected to %s (profile=%s, stt=%s%s) — session log %s",
                 ctx.room.name, SETTINGS.profile, SETTINGS.stt_provider,
                 f"/{stt_device}" if stt_device else "", boot.dir)
@@ -219,6 +238,10 @@ async def entrypoint(ctx: JobContext) -> None:
     #   · ZAELAR_FALSE_INTERRUPTION_TIMEOUT — silencio (s) tras cortar antes de declararla FALSA (LiveKit def 2.0).
     #   · ZAELAR_RESUME_FALSE_INTERRUPTION — reanudar la locución tras una falsa interrupción (LiveKit def True; la
     #     salida de audio de la sala soporta pause, así que aplica). Un ruido corta ~<timeout> y luego RETOMA.
+    # 2026-08-10: estos ajustes se pasaban como argumentos SUELTOS de `AgentSession`, que LiveKit 1.6 ya declara
+    # deprecados («use turn_handling=TurnHandlingOptions(...) instead») y retira en la 2.0. Al cablear el
+    # endpointing —que solo existe en la forma nueva— habrían quedado DOS formas conviviendo en la misma llamada,
+    # justo el tipo de costura a medias que cuesta una tarde dentro de seis meses. Se migran los tres a la vez.
     def _int_kwargs() -> dict:
         out: dict = {}
         def _f(name):
@@ -233,11 +256,12 @@ async def entrypoint(ctx: JobContext) -> None:
                 return int(v) if v else None
             except ValueError:
                 return None
+        out["enabled"] = True
         dur = _f("ZAELAR_MIN_INTERRUPTION_SEC")
-        out["min_interruption_duration"] = dur if dur is not None else 0.6
+        out["min_duration"] = dur if dur is not None else 0.6
         words = _i("ZAELAR_MIN_INTERRUPTION_WORDS")
         if words is not None:
-            out["min_interruption_words"] = words
+            out["min_words"] = words
         fit = _f("ZAELAR_FALSE_INTERRUPTION_TIMEOUT")
         if fit is not None:
             out["false_interruption_timeout"] = fit
@@ -249,15 +273,33 @@ async def entrypoint(ctx: JobContext) -> None:
     _interruption = _int_kwargs()
     logger.info("barge-in tuning: %s (resume needs room audio pause=True)", _interruption)
 
+    # ENDPOINTING — cuánto silencio cierra un turno (2026-08-10). LiveKit cierra a los **0,5 s** por defecto, y con
+    # el detector ML de turno desactivado (`turn_provider="disabled"`, ver core/config.py) el EOU es VAD puro. Una
+    # frase dictada con las pausas naturales de quien piensa mientras habla se parte en varios turnos, y el agente
+    # contesta a medias frases: en la sesión 13:20:50 una sola petición de ferry produjo 8 transcripciones finales,
+    # y una de ellas —«…de Denia a»— preguntó por el destino que el operador estaba diciendo.
+    # Los valores NO son inventados: salen de `voice/endpointing.py`, escrito para ESTE bug (INI-009) a partir de
+    # las sesiones reales en coche… y que llevaba desde entonces HUÉRFANO — el motor pasó a LiveKit y nadie lo
+    # cableó, así que su única referencia en todo el repo era su propio test. Ahora es su fuente de verdad, y
+    # `mode:"dynamic"` (media móvil de las pausas observadas, entre min y max) hace nativo lo que `hold_secs()`
+    # calculaba a mano: pausa corta → respuesta rápida; hablante que se toma su tiempo → más margen.
+    # OJO con la expectativa: esto cose los cortes de ~1 s, no los de 5 s. Un silencio largo en mitad de una frase
+    # SEGUIRÁ cerrando el turno (subir el hold a 5 s dejaría muerto cualquier comando corto). Lo que evita el daño
+    # es la GUARDA DE FRAGMENTOS del cerebro (`nucleo.py::_superseded`): un trozo superado no habla ni actúa.
+    _endpointing = _endpointing_opts()
+    logger.info("endpointing: %s (turn_detection=%s)", _endpointing, turn_detection)
+
     session = AgentSession(
         vad=vad_session,
         stt=stt,
         llm=llm,
         tts=tts,
-        turn_detection=turn_detection,
-        preemptive_generation=True,   # latency: start generating before EOU confirmed
-        allow_interruptions=True,     # barge-in: user speech cancels TTS immediately
-        **_interruption,
+        turn_handling={
+            "turn_detection": turn_detection,       # None (ML desactivado) → EOU por VAD
+            "endpointing": _endpointing,            # cuánto silencio cierra el turno (ver arriba)
+            "interruption": _interruption,          # barge-in: la voz del operador corta el TTS
+            "preemptive_generation": {"enabled": True},   # latencia: empieza a generar antes de confirmar el EOU
+        },
     )
 
     @session.on("agent_state_changed")

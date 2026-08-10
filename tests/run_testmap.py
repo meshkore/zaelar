@@ -119,7 +119,8 @@ DOMAINS: list[dict] = [
     ]},
     {"id": "3", "name": "VOZ", "nodes": [
         {"id": "3.1", "title": "Atención / VAD / endpointing", "ch": VOICE, "paths": [
-            "tests/voice/unit/test_attention.py", "tests/voice/unit/test_endpointing.py"]},
+            "tests/voice/unit/test_attention.py", "tests/voice/unit/test_endpointing.py",
+            "tests/voice/unit/test_turn_boundaries.py"]},
         {"id": "3.2", "title": "Puente voz→nucleo + trazas", "ch": VOICE, "paths": [
             "tests/voice/unit/providers/test_nucleo.py", "tests/voice/unit/providers/test_nucleo_guards.py",
             "tests/voice/unit/test_trace.py", "tests/voice/e2e/agent/interlocutor/test_trace.py"]},

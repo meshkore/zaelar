@@ -47,6 +47,44 @@ def _last_user_text(chat_ctx) -> str:
     return ""
 
 
+def _norm_utt(s: str) -> str:
+    return " ".join((s or "").lower().split())
+
+
+def _extends(prev: str, cur: str) -> bool:
+    """¿`cur` es LA MISMA frase que `prev`, solo más larga?
+
+    Señal puramente ESTRUCTURAL, no semántica: el STT entrega la transcripción ACUMULADA de la frase en curso, así
+    que un fragmento de algo que el operador sigue diciendo es un PREFIJO del turno siguiente. Detectarlo así no
+    necesita tablas de verbos ni heurísticas de idioma — vale igual en castellano, en japonés o dictando código.
+    """
+    p, c = _norm_utt(prev), _norm_utt(cur)
+    return bool(p) and len(c) > len(p) and c.startswith(p)
+
+
+def _surface_is_empty(widget_id: str) -> bool:
+    """¿La tarjeta que acabamos de abrir no tiene NADA que enseñar?
+
+    Nace del incidente de la sesión 13:20:50: el operador pidió resultados de una búsqueda que nunca se hizo, el
+    cerebro abrió una hoja en blanco y dijo «Aquí lo tienes». En el log no quedaba ni una pista de que la pantalla
+    estaba vacía — había que estar mirando. Marcarlo en el evento `show_widget` convierte ese acuse falso en un dato
+    consultable (y en algo que un test puede exigir). Genérico y sin catálogo de widgets: mira el estado GUARDADO,
+    así que vale igual para resultados, mensajes o cualquier superficie futura. Fail-open a `False` (no afirmamos
+    que esté vacía si no lo podemos saber).
+    """
+    try:
+        from widgets import store
+        data = store.load(widget_id) or {}
+    except Exception:
+        return False
+    if not isinstance(data, dict):
+        return False
+    for v in data.values():
+        if isinstance(v, (list, tuple, dict)) and len(v) > 0:
+            return False
+    return True
+
+
 def _spawn(coro, label: str) -> None:
     task = asyncio.create_task(coro)
     _TAG_TASKS.add(task)
@@ -68,6 +106,7 @@ class NucleoLLM(llm.LLM):
         self._last_spoke_at = 0.0          # cuándo la dijo (epoch s) → ventana de eco
         self._last_dataop = None           # (wid, action, payload, ts) última data-op EJECUTADA — guard anti
         #                                    context-bleed (round headless V2-038 #1: re-emisión cross-turno)
+        self._utterance: dict = {"text": "", "at": 0.0}   # frase EN CURSO del operador (guarda de fragmentos, _extends)
         self._turn_count = 0                # turnos conversacionales completados esta sesión (INI-018 T6, demo cap)
         self._last_action = ""              # route/surface del turno anterior para referencias deícticas
         self._session_started_at = time.time()  # arranque de la sesión (INI-018 T6, demo TTL)
@@ -91,7 +130,62 @@ class NucleoLLM(llm.LLM):
 
 
 class NucleoLLMStream(llm.LLMStream):
+    # ── UN TURNO QUE MUERE DEJA RASTRO (2026-08-10) ───────────────────────────────────────────────────────────────
+    # Incidente real (sesión 13:20:50): el operador dictó una petición larga —ferry Dénia→Ibiza, fechas, medidas del
+    # coche, 4 pasajeros— y su turno (T6) se quedó SIN RESPUESTA. 13 ms después entró el turno siguiente
+    # («muéstrame los resultados») y LiveKit canceló T6 en pleno montaje del prompt. Dos daños, los dos invisibles:
+    #   (a) el TEXTO se perdió — el `push_user` que conserva la frase del operador vivía SOLO en el `except` del
+    #       stream, así que una cancelación ANTES de llegar al stream se llevaba los criterios por delante y el
+    #       turno siguiente hablaba de «los resultados» sin saber de qué; y
+    #   (b) no quedaba ni una línea en la observabilidad: el evento `prompt` salía y luego NADA. Mirando el log se
+    #       veía la petición entrar y no salir, sin motivo — el mismo pecado que un micrófono encendido con el
+    #       agente muerto (ver la regla «estado visible, no silencioso»).
+    # Por eso el cuerpo del turno pasa a `_run_inner` y `_run` queda como ENVOLTURA: cualquier cancelación, en
+    # cualquier fase, conserva la frase y deja su rastro con la FASE en la que murió. No cambia el camino feliz.
     async def _run(self) -> None:
+        self._phase = "arranque"
+        self._death_logged = False
+        try:
+            await self._run_inner()
+        except asyncio.CancelledError:
+            self._note_death("superado por otro turno")
+            raise
+
+    def _superseded(self) -> bool:
+        """True si ya llegó una versión MÁS LARGA de la misma frase que este turno está atendiendo — o sea, el
+        operador seguía hablando y esto es un fragmento viejo. Ver `_extends` para el porqué de la señal."""
+        mine = getattr(self, "_turn_text", "")
+        if not mine:
+            return False
+        return _extends(mine, (getattr(self._llm, "_utterance", None) or {}).get("text", ""))
+
+    def _note_death(self, reason: str) -> None:
+        """Conserva la frase del operador y registra DÓNDE murió el turno. Idempotente: el `except` del stream ya
+        emite su propia línea (con métricas de barge-in), así que marca la bandera y esta no duplica."""
+        if getattr(self, "_death_logged", False):
+            return
+        self._death_logged = True
+        try:
+            from voice.observer import emit
+        except Exception:
+            return
+        text = _last_user_text(self._chat_ctx)
+        kept = False
+        if text:
+            # Cancelar la RESPUESTA no borra la FRASE (misma regla que el barge-in del stream, ahora en TODAS las
+            # fases): sin esto, el turno siguiente llega al modelo sin el contexto que el operador acababa de dar.
+            try:
+                from nucleo.flash import dialog as _dialog
+                _dialog.push_user(self._llm._window, text)
+                del self._llm._window[:-_WINDOW_MAX]
+                kept = True
+            except Exception:
+                pass
+        emit("brain", "✂️ turno descartado — sin respuesta", text=text[:200], role="system",
+             extra={"cat": "flash", "reason": reason, "phase": getattr(self, "_phase", "?"),
+                    "text_kept": kept})
+
+    async def _run_inner(self) -> None:
         brain: NucleoLLM = self._llm  # type: ignore[assignment]
         try:
             from voice.observer import emit
@@ -201,6 +295,16 @@ class NucleoLLMStream(llm.LLMStream):
                 return
             attention.note_directed()   # refresca la ventana de conversación activa
 
+        # GUARDA DE FRAGMENTOS (2026-08-10). La frase de este turno queda registrada como la utterance EN CURSO. Si
+        # mientras trabajamos llega una versión MÁS LARGA de la misma frase (el operador seguía hablando), este turno
+        # es un fragmento viejo y hay que abandonarlo ANTES de gastar modelo o —sobre todo— de disparar una tool.
+        # Incidente de la sesión 13:20:50: una sola petición de ferry se partió en 8 transcripciones finales y cada
+        # trozo abrió su propio turno; uno de ellos («…de Denia a») llegó a HABLAR, preguntando por el destino que el
+        # operador estaba diciendo en ese momento. Un fragmento no debe poder abrir widgets ni lanzar un worker.
+        if not first_turn:
+            brain._utterance = {"text": text, "at": time.time()}
+            self._turn_text = text
+
         # V2-013: el "corazón" (agente de memoria) clasifica en background lo que dijo el operador y, si es
         # perfil (nombre/ubicación/trato/hardware/coche) o deseo durable, lo lleva a `state`/`long` sin
         # bloquear el turno. Fire-and-forget: regex µs + escritura por la cola async → cero coste en TTFB.
@@ -261,6 +365,7 @@ class NucleoLLMStream(llm.LLMStream):
         emit("brain", "⚡ Nucleo(flash): prompt", text=text, role="user",
              extra={"engine": spec.provider, "model": spec.model})
 
+        self._phase = "montando el prompt"
         timings: dict = {}
         _t_prompt = time.time()
         # RECALL semántico BAJO DEMANDA y FUERA del event loop (T115+T116): `compose_recall` hace embeddings HTTP
@@ -320,6 +425,7 @@ class NucleoLLMStream(llm.LLMStream):
             emit("brain", "🔁 break-loop: nudge anti-repetición inyectado", role="system")
         timings["prompt_ms"] = round((time.time() - _t_prompt) * 1000, 1)
         emit("timing", "⏱ turn breakdown (prompt build)", extra=timings)
+        self._phase = "eligiendo qué hacer"
 
         # OBSERVABILIDAD DE MEMORIA (V2-014 Task 2): una fila por CAPA leída este turno, con módulo=memory,
         # capa (state/short/slow), la petición y el resultado (nº de tarjetas/chars) + su tiempo. Alimenta la
@@ -790,6 +896,13 @@ class NucleoLLMStream(llm.LLMStream):
             return len(wa & wb)
 
         def _on_tool_call(name: str, args: dict) -> None:
+            # NINGUNA tool se ejecuta desde un fragmento superado: mientras el modelo generaba, el operador siguió
+            # hablando, así que esta decisión se tomó sobre media frase. Abrir un widget o lanzar un worker con
+            # criterios a medias es peor que no hacer nada — el turno completo llega enseguida.
+            if self._superseded():
+                emit("brain", "🧩 tool ignorada — la frase seguía", text=name, role="system",
+                     extra={"cat": "flash", "fragment": (getattr(self, "_turn_text", "") or "")[:120]})
+                return
             if name == "widget_data":
                 # UNA data-op por turno: el modelo pequeño a veces emite VARIAS widget_data en un mismo turno
                 # (enumera acciones ante "muéstrame la agenda" → done/drop/snooze…, o DUPLICA un add_meeting → cita
@@ -897,7 +1010,8 @@ class NucleoLLMStream(llm.LLMStream):
                         _sys = _res.get("system")
                         if _rid:
                             _tag_emit("show", {"id": _rid})
-                            emit("brain", "🪟 show_widget → canvas", text=_rid, role="system")
+                            emit("brain", "🪟 show_widget → canvas", text=_rid, role="system",
+                                 extra={"empty": _surface_is_empty(_rid)})
                         elif _sys == "chat":
                             # nombró el CHAT (superficie de sistema, no un widget) → abre el panel nativo.
                             emit("panel", "open", extra={"tab": "chat", "src": "flash"})
@@ -1394,7 +1508,15 @@ class NucleoLLMStream(llm.LLMStream):
                 pass
 
         # NO en el kickoff: el saludo lo inicia zaelar (nadie espera) → un "Pues…" antes de saludar suena raro.
+        # Último corte ANTES de pagar el modelo: si la frase ya creció, este fragmento no tiene nada que decir.
+        if self._superseded():
+            self._death_logged = True
+            emit("brain", "🧩 fragmento descartado — la frase seguía", text=text[:200], role="system",
+                 extra={"cat": "flash", "phase": self._phase, "spent_model": False})
+            return
+
         _filler_task = asyncio.create_task(_lead_in_filler()) if (_filler_ms > 0 and not first_turn) else None
+        self._phase = "generando la respuesta"
         try:
             async for delta in FastClient().stream(messages, spec=spec, tools=_turn_tools,
                                                     on_tool_call=_on_tool_call, metrics=llm_metrics):
@@ -1414,6 +1536,7 @@ class NucleoLLMStream(llm.LLMStream):
             # trozos acumulativos del STT no duplican la frase.
             _dialog.push_user(brain._window, text)
             del brain._window[:-_WINDOW_MAX]
+            self._death_logged = True   # ya se relata aquí, con métricas; la envoltura de `_run` no duplica
             emit("brain", "✂️ turno cancelado (barge-in/overlap)", role="system",
                  extra={"cat": "flash", "partial_chars": len("".join(spoken)),
                         "ttft_ms": first_ms, "cut_after_ms": round((time.time() - t0) * 1000)})
