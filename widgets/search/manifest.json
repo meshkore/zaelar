@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "title": "Búsqueda / Tiempo",
   "description": "Widget transitorio estilo Jarvis: muestra en vivo qué fuentes consulta (cilindro giratorio), pasa a la siguiente si una falla, va mostrando resultados y llega a una conclusión; luego se desvanece. Primera capacidad: el tiempo.",
-  "whenToUse": "Cuando el usuario pregunta por el tiempo/clima/temperatura o pide buscar algo en internet.",
+  "whenToUse": "Cuando el usuario pregunta por el tiempo/clima/temperatura. FRONTERA con `results`: esto es el CARTEL DE PROGRESO mientras se busca (fuentes que se consultan, y se desvanece); NO es donde se ENSEÑAN los hallazgos. Si el operador pide VER resultados, propuestas o un informe —aunque la conversación venga de un «busca…»— la superficie es `results`, no esta. Y si todavía no hay nada buscado, lo que toca es hacer el trabajo, no abrir una pantalla vacía.",
   "keywords": [
     "tiempo",
     "clima",
