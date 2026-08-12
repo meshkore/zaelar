@@ -44,7 +44,12 @@ def _system(code: str) -> str:
         "RULES: (1) Keep every {placeholder} token EXACTLY as-is (same name, same braces) — they are interpolated "
         "at runtime. (2) Preserve punctuation, the middot ' · ', ellipses, emoji and leading/trailing spacing. "
         "(3) Do NOT translate technical/brand tokens: API, STT, TTS, LLM, URL, IMAP, SMTP, OAuth, QR, WhatsApp, "
-        "Telegram, Spotify, YouTube, MeshKore, zaelar, Fly, LiveKit, Kokoro, and product names. (4) Natural, "
+        "Telegram, Spotify, YouTube, MeshKore, zaelar, Fly, LiveKit, Kokoro, and product names. "
+        # Los NOMBRES PROPIOS de las piezas del sistema (norma del operador, 2026-08-12): FlashBrain y Brain Workers
+        # se escriben IGUAL en castellano, inglés o chino. Traducirlos («cerebro rápido», «agentes de código») rompe
+        # la conversación con el operador y con la documentación, que los nombra así en todos los idiomas.
+        "The NAMES OF OUR OWN COMPONENTS are proper nouns and must appear VERBATIM, never translated nor "
+        "transliterated: FlashBrain, Brain Workers, Susurro, MeshKore, Colmena, Energy. (4) Natural, "
         "concise, native phrasing for a UI (buttons/labels/tooltips) — match the register, not word-for-word. "
         "(5) Keep ALL-CAPS emphasis where the English uses it for a warning."
     )

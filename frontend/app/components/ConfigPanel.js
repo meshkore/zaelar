@@ -95,29 +95,59 @@ export function ConfigPanel() {
       setNow ? t("config.key.configured") : t("config.key.not_configured"));
   };
 
+  // Desplegable CERRADO de modelos: solo lo que ese proveedor sirve. `blank` = una primera opción vacía con su
+  // texto (heredar / por defecto del proveedor). Un modelo que el proveedor no sirve ya no es tecleable — el
+  // backend además lo rechaza al guardar (config_api._model_mismatch), porque el síntoma de un modelo imposible
+  // aparecía minutos después dentro de una tarea muerta, no al guardar.
+  const modelSelect = (id, models, sel, blank) =>
+    `<select id="${id}">${blank != null ? `<option value=""${sel ? "" : " selected"}>${esc(blank)}</option>` : ""}${opt(models || [], sel)}</select>`;
+
   function sec_fast(c) {
     const f = (cfg.v2 && cfg.v2.fast) || {};
     const provs = c.providers || [];
     const cur = provs.find(p => p.id === f.provider) || provs[0] || {};
-    const models = cur.models || [];
+    // Ni URL base ni modelo a mano (norma del operador 2026-08-12): el proveedor determina el endpoint y la lista
+    // de modelos son los que el benchmark avala. Lo único que se teclea aquí es la API key.
     return panel("fast", t("config.fast.title"), (c.note || "") + t("config.fast.sub_suffix"),
       row(t("config.row.provider"), `<select id="cf_fast_provider">${opt(provs.map(p => ({ value: p.id, label: p.label })), f.provider)}</select>`) +
-      row(t("config.row.model"), `<input id="cf_fast_model" list="dl_fast_model" value="${esc(f.model)}"/><datalist id="dl_fast_model">${opt(models)}</datalist>`) +
-      row(t("config.row.base_url"), `<input id="cf_fast_base_url" value="${esc(f.base_url)}" placeholder="${esc(cur.base_url || "")}"/>`) +
+      row(t("config.row.model"), `<span id="cf_fast_modelbox">${modelSelect("cf_fast_model", cur.models, f.model)}</span>`) +
       `<div id="cf_fast_keyrow">${providerKeyRow(cur)}</div>` +
       `<div class="cf-foot"><button class="cf-save" data-sec="fast">${t("config.fast.save")}</button></div>` +
       `<div class="cf-foot cf-foot-info"><button type="button" class="cf-benchmarks-btn">${t("config.fast.benchmarks")}</button></div>`);
   }
 
+  // ¿Está el CLI de ese proveedor instalado en ESTA máquina? Lo dice el backend (`detected`/`version`). Antes la UI
+  // ofrecía los dos por igual y elegir el que no estaba se descubría dentro de una tarea muerta.
+  const cliState = (p) => {
+    if (p.detected === undefined) return "";
+    if (!p.detected) return `<span class="cf-hint cf-warn">⚠ ${esc(t("config.code.cli_missing"))}</span>`;
+    let s = `<span class="cf-hint">✓ ${esc(t("config.code.cli_found", { version: p.version || "?" }))}</span>`;
+    // Su propio config del CLI pide un modelo que la API no sirve: se DICE, no se descarta callando.
+    if (p.stale_default) s += `<span class="cf-hint cf-warn">⚠ ${esc(t("config.code.stale_default", { model: p.stale_default }))}</span>`;
+    return s;
+  };
+
+  const codeModelRows = (p, a) => {
+    const ms = p.models || [];
+    // El default del propio CLI (leído de su config) manda como pista: si el operador ya decidió cuál usa su
+    // Codex, la UI arranca de ahí en vez de proponer otro.
+    const dflt = p.default_model && ms.includes(p.default_model) ? p.default_model : "";
+    const g = t("config.ph.provider_default") + (dflt ? ` (${dflt})` : "");
+    return row(t("config.code.model_global"), modelSelect("cf_code_model", ms, a.model, g)) +
+      row(t("config.code.model_memory"), modelSelect("cf_code_model_memory", ms, a.model_memory, t("config.ph.inherits"))) +
+      row(t("config.code.model_web"), modelSelect("cf_code_model_web", ms, a.model_web, t("config.ph.inherits"))) +
+      row(t("config.code.model_code"), modelSelect("cf_code_model_code", ms, a.model_code, t("config.ph.inherits")));
+  };
+
   function sec_code(c) {
     const a = (cfg.v2 && cfg.v2.code_agent) || {};
     const provs = c.providers || [];
-    return panel("code", t("config.code.title"), (c.note || ""),
-      row(t("config.row.provider"), `<select id="cf_code_provider">${opt(provs.map(p => ({ value: p.id, label: p.label })), a.provider)}</select>`) +
-      row(t("config.code.model_global"), `<input id="cf_code_model" value="${esc(a.model)}" placeholder="${t("config.ph.provider_default")}"/>`) +
-      row(t("config.code.model_memory"), `<input id="cf_code_model_memory" value="${esc(a.model_memory)}" placeholder="${t("config.ph.inherits")}"/>`) +
-      row(t("config.code.model_web"), `<input id="cf_code_model_web" value="${esc(a.model_web)}" placeholder="${t("config.ph.inherits")}"/>`) +
-      row(t("config.code.model_code"), `<input id="cf_code_model_code" value="${esc(a.model_code)}" placeholder="${t("config.ph.inherits")}"/>`) +
+    const cur = provs.find(p => p.id === a.provider) || provs[0] || {};
+    return panel("code", t("config.code.title"), t("config.code.sub"),
+      row(t("config.row.provider"), `<select id="cf_code_provider">${opt(provs.map(p => ({ value: p.id, label: p.label })), a.provider)}</select>`,
+        `<span id="cf_code_clistate">${cliState(cur)}</span>`) +
+      `<div id="cf_code_models">${codeModelRows(cur, a)}</div>` +
+      `<div id="cf_code_provnote" class="cf-hint">${esc(cur.note || c.note || "")}</div>` +
       row(t("config.code.max_parallel"), `<input id="cf_code_max_parallel" type="number" min="1" max="8" value="${esc(a.max_parallel)}"/>`) +
       `<div class="cf-foot"><button class="cf-save" data-sec="code_agent">${t("config.code.save")}</button></div>`);
   }
@@ -211,14 +241,28 @@ export function ConfigPanel() {
     const cxr = bodyEl.querySelector(".cf-cx-refresh"); if (cxr) cxr.onclick = () => reloadConnectors();
     bodyEl.querySelectorAll(".cf-nav-item").forEach(b => b.onclick = () => { if (b.dataset.sec !== activeSec) { activeSec = b.dataset.sec; render(); } });
 
-    // proveedor del FlashBrain → repuebla modelos, placeholder de base_url y fila de key
+    // proveedor del FlashBrain → repuebla SUS modelos y su fila de key
     const fp = document.getElementById("cf_fast_provider");
     if (fp) fp.onchange = () => {
       const provs = (cfg.catalog.fast && cfg.catalog.fast.providers) || [];
       const p = provs.find(x => x.id === fp.value) || {};
-      const dl = document.getElementById("dl_fast_model"); if (dl) dl.innerHTML = opt(p.models || []);
-      const bu = document.getElementById("cf_fast_base_url"); if (bu) { bu.placeholder = p.base_url || ""; }
+      const mb = document.getElementById("cf_fast_modelbox");
+      if (mb) mb.innerHTML = modelSelect("cf_fast_model", p.models, (p.models || [])[0]);
       const kr = document.getElementById("cf_fast_keyrow"); if (kr) kr.innerHTML = providerKeyRow(p);
+    };
+
+    // proveedor de los Brain Workers → repuebla SUS modelos (el bug que traía al operador aquí: cambiaba a Codex
+    // y los cinco campos seguían con los `glm-5.2` del proveedor anterior, que Codex no sirve), su nota de
+    // seguridad y el estado del CLI. Los modelos NO se conservan al cambiar: son de otro proveedor.
+    const cp = document.getElementById("cf_code_provider");
+    if (cp) cp.onchange = () => {
+      const provs = (cfg.catalog.code_agent && cfg.catalog.code_agent.providers) || [];
+      const p = provs.find(x => x.id === cp.value) || {};
+      const box = document.getElementById("cf_code_models");
+      if (box) box.innerHTML = codeModelRows(p, { model: p.default_model || "", model_memory: "", model_web: "", model_code: "" });
+      const st = document.getElementById("cf_code_clistate"); if (st) st.innerHTML = cliState(p);
+      const nt = document.getElementById("cf_code_provnote");
+      if (nt) nt.textContent = p.note || (cfg.catalog.code_agent && cfg.catalog.code_agent.note) || "";
     };
     bodyEl.querySelectorAll(".cf-save").forEach(b => b.onclick = () => saveV2(b.dataset.sec, b));
     const bv = bodyEl.querySelector(".cf-save-voice"); if (bv) bv.onclick = () => saveVoice(bv);
@@ -242,10 +286,12 @@ export function ConfigPanel() {
     try {
       let patch = {};
       if (section === "fast") {
-        patch = { provider: val("cf_fast_provider"), model: val("cf_fast_model"), base_url: val("cf_fast_base_url") };
-        // la key del proveedor seleccionado (si se tecleó) → credencial en su env
         const provs = (cfg.catalog.fast && cfg.catalog.fast.providers) || [];
-        const p = provs.find(x => x.id === patch.provider) || {};
+        const p = provs.find(x => x.id === val("cf_fast_provider")) || {};
+        // El endpoint SALE del proveedor, ya no hay campo de URL: elegir proveedor y dejar una base_url vieja
+        // apuntando a otro sitio era una forma silenciosa de romper el FlashBrain.
+        patch = { provider: val("cf_fast_provider"), model: val("cf_fast_model"), base_url: p.base_url || "" };
+        // la key del proveedor seleccionado (si se tecleó) → credencial en su env
         if (p.key_env) await saveKey(p.key_env);
       } else if (section === "code_agent") {
         patch = { provider: val("cf_code_provider"), model: val("cf_code_model"), model_memory: val("cf_code_model_memory"),

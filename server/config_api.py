@@ -33,32 +33,51 @@ _CLOUD_LOCKED_V2_SECTIONS = frozenset({"fast", "code_agent", "memory", "triage",
 # el usuario puede teclear un modelo/base_url a mano; esto solo acelera la elección. Cloud vs local marcado.
 _PROVIDER_CATALOG = {
     "fast": {                       # FlashBrain — NO-razonador, por invocación
+        # CERRADO A PROPÓSITO (2026-08-12, norma del operador): el modelo del FlashBrain se ELIGE de una lista, no se
+        # teclea, y la lista solo lleva lo que el benchmark avala. Un modelo mal elegido aquí no da un error: da un
+        # agente que hace lo que no es (el veto de grok existe justo por eso), y eso es indistinguible de un bug.
+        # Fuera, por tanto: `xai`/grok (VETADO en la capa de voz — mis-rutea preguntas de memoria y manda una
+        # investigación a `web_search`, re-medido §9.1.b), `openai` y `mistral` directos (la norma es UNA sola cuenta
+        # de API: todo lo comercial pasa por el broker AIMLAPI) y `zai` (razonador → viola voz=no-razonador).
         "providers": [
-            {"id": "xai", "label": "xAI (grok, direct)", "base_url": "https://api.x.ai/v1", "key_env": "XAI_API_KEY",
-             "cloud": True, "models": ["grok-4.20-0309-non-reasoning"]},
-            {"id": "aimlapi", "label": "AIMLAPI (cloud)", "base_url": "https://api.aimlapi.com/v1",
-             "key_env": "AIMLAPI_KEY", "cloud": True,
-             "models": ["anthropic/claude-haiku-4.5", "x-ai/grok-4-fast-non-reasoning", "deepseek/deepseek-v4-flash"]},
-            {"id": "zai", "label": "Z.AI (GLM, direct — under evaluation 2026-07-26)",
-             "base_url": "https://api.z.ai/api/anthropic", "key_env": "Z_AI_API_KEY", "cloud": True,
-             "models": ["glm-4.5-air", "glm-4.6", "glm-5.2"]},
-            {"id": "groq", "label": "Groq (cloud, fast)", "base_url": "https://api.groq.com/openai/v1",
-             "key_env": "GROQ_API_KEY", "cloud": True, "models": ["llama-3.3-70b-versatile", "llama-3.1-8b-instant"]},
-            {"id": "openai", "label": "OpenAI (cloud, reliable tool-calling)", "base_url": "https://api.openai.com/v1",
-             "key_env": "OPENAI_API_KEY", "cloud": True, "models": ["gpt-4o-mini", "gpt-4.1-mini"]},
-            {"id": "mistral", "label": "Mistral (cloud)", "base_url": "https://api.mistral.ai/v1",
-             "key_env": "MISTRAL_API_KEY", "cloud": True, "models": ["mistral-small-latest"]},
-            {"id": "ollama", "label": "Ollama (local/free)", "base_url": "http://localhost:11434/v1",
-             "key_env": "", "cloud": False, "models": ["qwen2.5:14b-instruct", "qwen2.5:7b-instruct"]},
+            {"id": "aimlapi", "label": "AIMLAPI (broker — the one account we manage)",
+             "base_url": "https://api.aimlapi.com/v1", "key_env": "AIMLAPI_KEY", "cloud": True,
+             "models": ["anthropic/claude-haiku-4.5", "deepseek/deepseek-v4-flash"]},
+            {"id": "groq", "label": "Groq (cloud, fastest — routes worse)",
+             "base_url": "https://api.groq.com/openai/v1", "key_env": "GROQ_API_KEY", "cloud": True,
+             "models": ["llama-3.3-70b-versatile"]},
+            {"id": "ollama", "label": "Ollama (local/free — slow, offline fallback)",
+             "base_url": "http://localhost:11434/v1", "key_env": "", "cloud": False,
+             "models": ["qwen2.5:14b-instruct"]},
         ],
-        "note": "Only NON-reasoners (the voice turn must close fast). Local is free but slower.",
+        "closed_models": True,      # la UI pinta un desplegable, no un campo de texto
+        "note": "NON-reasoners only (the voice turn must close fast) and only benchmark-endorsed ones. "
+                "claude-haiku-4.5 = production default (reliable routing + introspection). "
+                "deepseek-v4-flash = the ONLY one that routed 12/12 in §9. Endpoint comes from the provider — "
+                "there is no URL to type.",
     },
-    "code_agent": {                 # SlowBrain / workers
+    "code_agent": {                 # Brain Workers — el agente headless que CONDUCE las tareas
+        # Modelos REALES por proveedor (2026-08-12). Antes esta lista estaba VACÍA para los dos, así que la UI
+        # pintaba un campo libre: el operador cambiaba a Codex y se quedaban los `glm-5.2` del proveedor anterior
+        # —un modelo que Codex no sirve— y la tarea moría con «There's an issue with the selected model». Un
+        # proveedor solo puede ofrecer SUS modelos.
         "providers": [
-            {"id": "claude_code", "label": "Claude Code (CLI)", "cloud": True, "models": []},
-            {"id": "codex", "label": "Codex (CLI)", "cloud": True, "models": []},
+            {"id": "claude_code", "label": "Claude Code (CLI)", "cloud": True,
+             # Alias que acepta el CLI. Con la cadena de relevo activa el modelo va PEGADO al escalón
+             # (`providers.relayed()`), así que esto es el default de la licencia propia, no de todo escalón.
+             "models": ["opus", "sonnet", "haiku", "sonnet[1m]", "opus[1m]"],
+             "note": "Can restrict Bash to our bridges only (single-writer invariant) → the only backend valid for "
+                     "untrusted input (deny_tools) and cluster dev workers."},
+            {"id": "codex", "label": "Codex (CLI)", "cloud": True,
+             # VERIFICADO contra la lista que devuelve el propio servidor de modelos (2026-08-12): son estos tres.
+             # No hay familia 5.6 disponible — un `gpt-5.6-*` en el config.toml no lo sirve la API.
+             "models": ["gpt-5.5", "gpt-5.4", "gpt-5.4-mini"],
+             "note": "Has NO tool allowlist — only sandbox modes, so a Codex worker runs a full shell "
+                     "(wider blast radius). Refused for untrusted input and dev workers."},
         ],
-        "note": "Headless agent that drives tasks (memory/web/code). Per-task-type model optional.",
+        "closed_models": True,
+        "note": "Headless agent that drives tasks (memory/web/code). Per-task-type model optional. "
+                "Each provider serves ONLY its own models.",
     },
     "memory_processor": {           # CORAZÓN de escritura (mem_processor / distiller de píldoras)
         "providers": [
@@ -126,6 +145,61 @@ _PROVIDER_CATALOG = {
 }
 
 
+def _detected_code_agents() -> dict:
+    """¿Qué CLI de Brain Worker está instalado en ESTA máquina, y con qué versión/modelo por defecto?
+
+    Existe porque la UI ofrecía los dos proveedores por igual sin que nada comprobara si el binario estaba: el
+    operador elegía Codex, guardaba, y el fallo aparecía minutos después dentro de una tarea muerta. Elegir un
+    proveedor que no está instalado tiene que verse ANTES de guardar, en el propio desplegable.
+
+    Barato (`--version` local) y NUNCA lanza: si la detección falla, la UI simplemente no marca nada."""
+    det: dict = {}
+    try:
+        from nucleo.workers import codex_session as _cx
+        det["codex"] = _cx.detect()
+    except Exception:
+        det["codex"] = {"installed": False}
+    try:
+        from nucleo.workers import claude_session as _cc
+        path = _cc._find_claude()
+        det["claude_code"] = {"installed": bool(path), "path": path, "version": "", "default_model": ""}
+    except Exception:
+        det["claude_code"] = {"installed": False}
+    return det
+
+
+def _catalog_for_ui() -> dict:
+    """El catálogo con la detección de CLIs INYECTADA en cada proveedor de `code_agent` (copia superficial: el
+    catálogo del módulo es una constante y no se muta)."""
+    cat = dict(_PROVIDER_CATALOG)
+    try:
+        det = _detected_code_agents()
+        ca = dict(cat["code_agent"])
+        provs = []
+        for p in ca.get("providers", []):
+            p = dict(p)
+            d = det.get(p["id"]) or {}
+            p["detected"] = bool(d.get("installed"))
+            if d.get("version"):
+                p["version"] = d["version"]
+            # Un default que el propio CLI ya usa gana a cualquiera que eligiéramos nosotros — PERO solo si ese
+            # modelo existe. El caso real que motiva la guarda: `~/.codex/config.toml` pedía `gpt-5.6-sol`, que la
+            # API no sirve para esta cuenta; usarlo de default habría propuesto en la UI un modelo condenado a
+            # fallar, y descartarlo en silencio habría escondido que su config apunta a algo que no existe.
+            dm = d.get("default_model") or ""
+            if dm:
+                if dm in (p.get("models") or []):
+                    p["default_model"] = dm
+                else:
+                    p["stale_default"] = dm
+            provs.append(p)
+        ca["providers"] = provs
+        cat["code_agent"] = ca
+    except Exception:
+        pass
+    return cat
+
+
 @router.get("/api/config")
 async def get_config():
     """Vista agregada REDACTADA para el área de configuración. NUNCA contiene una API key en claro."""
@@ -155,7 +229,7 @@ async def get_config():
         out["credentials"] = doctor.credentials()
     except Exception:
         out["credentials"] = []
-    out["catalog"] = _PROVIDER_CATALOG
+    out["catalog"] = _catalog_for_ui()
     try:
         from nucleo import cloud_account
         out["cloud_profile"] = cloud_account.is_cloud_account()
@@ -167,6 +241,40 @@ async def get_config():
     except Exception:
         out["apis"] = []
     return JSONResponse(out)
+
+
+_MODEL_FIELDS = {"fast": ("model",),
+                 "code_agent": ("model", "model_memory", "model_web", "model_code")}
+
+
+def _model_mismatch(section: str, patch: dict) -> str:
+    """¿Se está guardando un modelo que el proveedor elegido NO sirve? Devuelve el motivo, o "" si todo cuadra.
+
+    El fallo que cierra: al cambiar de proveedor, los modelos del anterior se quedaban puestos (Codex con cinco
+    campos a `glm-5.2`). Guardar salía OK y el error aparecía minutos después, DENTRO de una tarea, como «There's
+    an issue with the selected model» — el operador no tiene forma de relacionar eso con lo que guardó. Un
+    desajuste de config se rechaza AQUÍ, con el nombre de lo que sobra.
+
+    Solo aplica a las secciones de lista CERRADA y solo si el proveedor declara modelos: un proveedor sin lista
+    (o una sección abierta) sigue aceptando lo que el llamador ponga — esto valida, no encierra."""
+    conf = _PROVIDER_CATALOG.get(section) or {}
+    if not conf.get("closed_models"):
+        return ""
+    prov_id = str(patch.get("provider") or "").strip()
+    if not prov_id:
+        return ""
+    prov = next((p for p in conf.get("providers", []) if p.get("id") == prov_id), None)
+    if prov is None:
+        return f"unknown provider «{prov_id}» for {section}"
+    allowed = set(prov.get("models") or [])
+    if not allowed:
+        return ""
+    for field in _MODEL_FIELDS.get(section, ()):
+        val = str(patch.get(field) or "").strip()
+        if val and val not in allowed:
+            return (f"«{val}» is not served by {prov.get('label') or prov_id} (field {field}). "
+                    f"Available: {', '.join(sorted(allowed))}")
+    return ""
 
 
 @router.post("/api/config/v2")
@@ -188,6 +296,9 @@ async def set_v2(payload: dict | None = None):
                 )
         except Exception:
             pass
+    bad = _model_mismatch(section, patch)
+    if bad:
+        return JSONResponse({"ok": False, "error": bad}, status_code=400)
     try:
         from config import v2
         v2.set(section, patch)
