@@ -10,7 +10,14 @@ from nucleo.flash import music_flow
 
 @pytest.fixture(autouse=True)
 def _iso(monkeypatch):
-    """Aísla rails (proyección capturada) + memoria (ingest capturado)."""
+    """Aísla rails (proyección capturada) + memoria (ingest capturado) + el IDIOMA.
+
+    El idioma se fija a propósito: este fichero comprueba FRASES que se le dicen al operador («pide el artista»),
+    y desde el arranque idiomático (2026-08-09) el producto arranca en INGLÉS y solo pasa al idioma del operador
+    cuando lo detecta. Sin fijarlo, el test heredaba el idioma AMBIENTE de la máquina: pasaba en la del operador
+    —que tiene castellano en su config— y fallaba en cualquier otra y en CI, sin que el producto tuviera nada
+    malo. Un test de una frase tiene que decir en qué idioma la espera."""
+    monkeypatch.setenv("ZAELAR_LANGUAGE", "es")
     ingested = []
     from memory import api as mapi
     monkeypatch.setattr(mapi, "set_state", lambda fields: fields)

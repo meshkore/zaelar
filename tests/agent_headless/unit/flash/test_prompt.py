@@ -83,9 +83,17 @@ def test_needs_recall_false(text):
     assert prompt.needs_recall(text) is False
 
 
-def test_prompt_never_exposes_memory_layers(fresh_db):
+@pytest.mark.parametrize("lang,needle", [("es", "corto o largo plazo"), ("en", "short/long-term memory")])
+def test_prompt_never_exposes_memory_layers(fresh_db, monkeypatch, lang, needle):
     """El FlashBrain NUNCA debe hablarle al operador de sus capas internas ('memoria de corto/largo plazo').
     Regla dura tras el bug en vivo 2026-07-10; en V2-027 vive en la MISIÓN sembrada (langs), no en un `_FAST_RULES`
-    estático — así el prompt ensamblado la sigue llevando."""
+    estático — así el prompt ensamblado la sigue llevando.
+
+    El IDIOMA se fija, y se comprueban LOS DOS: la prohibición vive en la misión, que es POR IDIOMA, así que
+    heredar el idioma ambiente hacía que este test pasara en la máquina del operador (castellano en su config) y
+    fallara en cualquier otra y en CI — sin que el producto tuviera nada malo. Y comprobar solo el castellano
+    dejaba sin guardia justo el idioma con el que ARRANCA el producto desde 2026-08-09: si la prohibición se
+    cayera del inglés, nadie se enteraría."""
+    monkeypatch.setenv("ZAELAR_LANGUAGE", lang)
     system, _ = prompt.build_flash_system()
-    assert "corto o largo plazo" in system   # aparece SOLO en la prohibición de la misión
+    assert needle in system                  # aparece SOLO en la prohibición de la misión
