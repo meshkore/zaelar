@@ -164,6 +164,58 @@ def test_resuming_marks_the_goal_so_the_next_crash_gives_up(fresh_db):
     assert R._marks(2000.0 + R.MARK_TTL_S + 1) == {}
 
 
+def test_the_events_land_in_the_brain_workers_family(fresh_db):
+    """Cazado en vivo: `observer.emit` hace `ev.update(extra)`, así que un `kind` dentro de `extra` PISA el kind del
+    evento — estas líneas salían clasificadas como `code`/`web` y el chip «Brain Workers» del visor no las
+    enseñaba. Un aviso que no se ve es un aviso que no existe."""
+    import bus
+    seen = []
+    sink = lambda rec: seen.append(rec["payload"]) if rec["topic"] == "observer" else None
+    bus.add_sink(sink)
+    try:
+        R.remember([_live(), _live(id="2", kind="code", goal="reescribe el widget de agenda")])
+        R.at_boot(schedule=False)
+    finally:
+        bus.remove_sink(sink)
+    mine = [e for e in seen if isinstance(e, dict) and "reiniciar" in str(e.get("label") or "")]
+    assert len(mine) == 2
+    for ev in mine:
+        assert ev["kind"] == "task"       # ← la FAMILIA («Brain Workers»), no el tipo de trabajo
+        assert ev["cat"] == "worker"      # la sella observer._CAT; pasarla a mano permitía inventarse una retirada
+    assert {e.get("work") for e in mine} == {"web", "code"}
+
+
+def test_the_resume_really_fires_and_carries_the_goal(fresh_db):
+    """El plan no basta: hay que comprobar que la re-escalada SALE. Es diferida a propósito (el listener de
+    escaladas tiene que estar suscrito o el evento se publica contra nadie), así que esto ejerce el `create_task`
+    y el `sleep` de verdad — la única parte que los tests con `schedule=False` no tocan."""
+    import asyncio
+
+    from nucleo.flash import escalate
+
+    calls = []
+
+    async def _run():
+        orig = escalate.escalate_to_slowbrain
+        escalate.escalate_to_slowbrain = lambda req, context=None: calls.append((req, context or {})) or 1
+        try:
+            R.remember([_live()])
+            out = R.at_boot(delay=0.0)          # schedule=True: crea la task de verdad
+            assert len(out["resume"]) == 1
+            for _ in range(50):                 # deja que la task diferida corra
+                await asyncio.sleep(0.01)
+                if calls:
+                    break
+        finally:
+            escalate.escalate_to_slowbrain = orig
+
+    asyncio.run(_run())
+    assert len(calls) == 1
+    req, ctx = calls[0]
+    assert req == VELEROS                       # el objetivo íntegro, no un resumen
+    assert ctx["kind"] == "web" and ctx["rehydrated"] is True
+
+
 def test_at_boot_reports_what_it_decided(fresh_db):
     R.remember([_live(), _live(id="2", kind="code", goal="reescribe el widget de agenda")])
     out = R.at_boot(schedule=False)

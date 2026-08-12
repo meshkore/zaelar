@@ -1219,6 +1219,40 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   SIN incidente real (funciones puras + watcher + rotación real: `tests/infrastructure/unit/core/test_homeostasis.py`, dominio 9 del mapa de
   tests). La memoria ya se auto-cura (schema/olvido/dedup); esta pieza cubre lo que NO: motor de voz, logs, cápsulas.
   Detalle: `.meshkore/roadmap/initiatives/V2-070-homeostasis-anti-degeneracion.md`.
+- **REHIDRATACIÓN — el trabajo que corta un reinicio se recoge, no desaparece** (`nucleo/rehydrate.py`,
+  2026-08-12; detonante reconstruido evento a evento del log durable: a las 12:19:46 el operador pidió una búsqueda
+  de veleros en Wallapop, el worker abrió su pestaña, y un reinicio a las 12:21:15 se lo llevó por delante **sin
+  dejar rastro** — ni evento, ni entrada en el ledger, ni aviso; la pantalla siguió pintando dos tarjetas de un
+  navegador que ya no existía y al recargar quedó en blanco). Tres agujeros distintos, no uno: **(1)** el registro
+  de sesiones vivas (`dispatch._SESSIONS`) era RAM y NADIE lo leía al arrancar → `dispatch.sync_state()`, que ya
+  sabe cuándo la proyección cambia (no añade escrituras en reposo), deja un **rastro durable con marca de tiempo en
+  `sys_kv`** y el lifespan lo recoge UNA vez; **(2)** la continuidad web (`_WEB_RESUME`, el `native_sid` con el que
+  el worker RETOMA su razonamiento) también era RAM → espejada en `sys_kv` con su TTL, porque sin ella «reanudar»
+  sería empezar la búsqueda de cero; **(3)** el escritorio no volvía (ver la decisión siguiente). **Rastro en
+  `sys_kv`, NUNCA en el ESTADO raíz**: `memory.api.compose_state` vuelca cada escalar suelto del estado al prompt
+  como «Clave: valor.», así que un timestamp ahí viajaría en todos los turnos. **Lo reanudable se re-escala** (en
+  diferido: el listener de escaladas tiene que estar suscrito o el evento se publica contra nadie) y **todo lo demás
+  queda VISIBLE** — al ledger como `interrumpido`, con evento y MOTIVO. No se reanuda solo, a propósito:
+  `kind="code"` (reescribe el código de un widget del operador), lo que él pausó, lo que esperaba su respuesta (la
+  pregunta murió con el proceso), ni nada más viejo que `STALE_S`. **Anti-bucle:** el rastro se CONSUME al leerlo +
+  contador durable por objetivo (`RESUME_CAP`) + techo por arranque (`MAX_RESUME`). El **reset lo borra**: matar el
+  trabajo a mano es una orden, no una caída. Módulo aparte y sin estado propio — circunstancia → función → se
+  aparta; **no-op silencioso en todo arranque limpio**. Y dos superficies que mentían: Procesos pintaba con ✓
+  cualquier estado desconocido (una tarea muerta a medias se veía terminada con éxito) y `make stop`/`restart`
+  mataba trabajo del operador sin decir palabra — ahora lista lo que va a interrumpir antes de tocar nada. Tests:
+  nodo 2.5 (`test_rehydrate.py`) + nodo 4.13.
+- **El ESCRITORIO se rehidrata — y el `localStorage` es per-ORIGEN** (`desktop.js` + `GET /api/canvas/layout`,
+  2026-08-12): la mitad de frontend del incidente anterior. `_persist()` excluía `navegador` **por nombre** — el
+  único widget excluido así, y justo el que está en pantalla durante una tarea web → recargar en mitad de una
+  búsqueda dejaba el canvas literalmente vacío. Ahora la tarjeta BASE del navegador se guarda; sus tarjetas de
+  INSTANCIA (`navegador::tN` = una pestaña/tarea) siguen siendo efímeras a propósito (mueren con su tarea:
+  restaurarlas pintaría algo que ya no existe). Y el único almacén era el `localStorage`, que es **per-origen y
+  per-navegador**: el mismo zaelar por `http://localhost:43917` y por `https://local.zaelar.com:44317` son **dos
+  escritorios distintos**, así que cambiar de puerta de entrada, de navegador o de perfil PARECE pérdida de datos y
+  no lo es. El server guarda la geometría como **red de seguridad** (en `sys_kv`: al cerebro no le importan las
+  coordenadas de una tarjeta) y `restore()` la usa **solo como fallback** — si este navegador tiene su escritorio,
+  manda él (el frontend sigue siendo AUTORITATIVO del canvas). La **época de wipe conserva la última palabra**: tras
+  un reset el escritorio queda en blanco y aquí no se resucita.
 - **Canal nativo MeshKore** (`connectors/meshkore/`): 3er I/O (voz+chat+cluster), conducido por el **MISMO motor del
   FlashBrain en perfil UNTRUSTED** (V2-069 «una sola mente»): hablar con el operador o con un agente es el MISMO acto.
   **El algoritmo COMPLETO, de punta a punta (ciclo de vida, orden exacto de cada guard, tabla resumen de defensa
