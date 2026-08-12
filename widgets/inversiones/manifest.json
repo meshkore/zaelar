@@ -1,0 +1,46 @@
+{
+  "id": "inversiones",
+  "version": "0.1.0",
+  "title": "Inversiones — cartera de tokens",
+  "description": "Dashboard de la cartera de inversiones: un disco/donut con la asignación por token y una rejilla 2×2 de tarjetas (una por posición) con nombre, ticker, valor y variación.",
+  "whenToUse": "Cuando el operador pide ver su cartera de inversiones, sus tokens o criptomonedas, cómo se reparte el portfolio o el valor total, o quiere enseñar/actualizar sus posiciones en pantalla.",
+  "keywords": [
+    "inversiones",
+    "tokens",
+    "portfolio",
+    "cartera",
+    "cripto",
+    "criptomoneda",
+    "criptomonedas",
+    "bitcoin",
+    "asignación",
+    "asignacion",
+    "mi cartera",
+    "dashboard de inversiones"
+  ],
+  "entry": "widget.js",
+  "name": "Inversiones",
+  "aliases": [
+    "Inversiones",
+    "mi cartera",
+    "cartera de tokens",
+    "portfolio",
+    "cripto",
+    "mis tokens",
+    "dashboard de inversiones",
+    "donut de inversiones"
+  ],
+  "actions": {
+    "set_holdings": {
+      "desc": "Reemplazar toda la cartera por una lista de posiciones.",
+      "payload": {
+        "title": "Cartera de inversiones",
+        "currency": "€",
+        "holdings": [
+          {"name": "Bitcoin", "ticker": "BTC", "value": 42000, "change": 2.4}
+        ]
+      }
+    }
+  },
+  "usage": "Para ver la cartera, muéstrala con [[show:inversiones]]. Para cargar/actualizar posiciones reales, action set_holdings con la lista {name,ticker,value,change}."
+}

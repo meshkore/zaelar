@@ -63,11 +63,17 @@ _PROVIDER_CATALOG = {
         # proveedor solo puede ofrecer SUS modelos.
         "providers": [
             {"id": "claude_code", "label": "Claude Code (CLI)", "cloud": True,
-             # Alias que acepta el CLI. Con la cadena de relevo activa el modelo va PEGADO al escalón
-             # (`providers.relayed()`), así que esto es el default de la licencia propia, no de todo escalón.
-             "models": ["opus", "sonnet", "haiku", "sonnet[1m]", "opus[1m]"],
+             # DOS familias, y las dos son legítimas para ESTE proveedor: los alias de la licencia propia, y los
+             # modelos de los escalones de RELEVO Anthropic-compatible (`workers/providers.py`), porque quien
+             # conduce sigue siendo Claude Code — solo cambia el endpoint por debajo. Dejar fuera los del relevo
+             # habría marcado como inválida la config que el operador tiene HOY funcionando (claude_code +
+             # glm-5.2 + endpoint de Z.AI), que es correcta.
+             "models": ["opus", "sonnet", "haiku", "sonnet[1m]", "opus[1m]",
+                        "glm-5.2", "glm-4.6", "kimi-k2.6"],
              "note": "Can restrict Bash to our bridges only (single-writer invariant) → the only backend valid for "
-                     "untrusted input (deny_tools) and cluster dev workers."},
+                     "untrusted input (deny_tools) and cluster dev workers. The glm-*/kimi-* entries belong to the "
+                     "relay tiers (Z.AI / Moonshot subscription plans): they only work while that endpoint is the "
+                     "active tier — see workers/providers.py."},
             {"id": "codex", "label": "Codex (CLI)", "cloud": True,
              # VERIFICADO contra la lista que devuelve el propio servidor de modelos (2026-08-12): son estos tres.
              # No hay familia 5.6 disponible — un `gpt-5.6-*` en el config.toml no lo sirve la API.

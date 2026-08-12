@@ -85,6 +85,10 @@ DOMAINS: list[dict] = [
             "tests/agent_headless/unit/workers/test_bridge_interpreter.py",
             # cadena de proveedores del worker + relevo por cuota agotada + alerta en el panel
             "tests/agent_headless/unit/workers/test_provider_failover.py",
+            # el OTRO backend (Codex): traducción de su JSONL a WorkerEvent con trazas REALES del CLI + la postura
+            # FAIL-CLOSED — Codex no sabe acotar sus tools, así que rechaza justo las tareas que existen acotadas
+            # (entrada no confiable, dev worker de cluster) en vez de correr con menos contención de la pedida
+            "tests/agent_headless/unit/workers/test_codex_session.py",
             # DIRECCIÓN de una investigación (2026-08-09): el brief que convierte «las mejores vacaciones» en una
             # selección defendible — amplitud mínima de candidatos, criterios duros vs blandos, baremo de calidad,
             # y la ronda 2 cuando el operador dice que siga buscando. Sin esto el worker se autoimponía el criterio
