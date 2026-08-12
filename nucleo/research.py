@@ -53,6 +53,12 @@ _COMPOSE_TIMEOUT = 30.0
 # algo si detrás hay un conjunto del que elegir.
 _MIN_CANDIDATES_FLOOR = 25
 _MIN_CANDIDATES_CAP = 200
+# CUÁNTAS se entregan. El defecto es DIEZ por decisión del operador (2026-08-12): con tres, una selección honesta
+# se queda sin sitio para enseñar el segundo pelotón —lo que casi entra— y él no puede juzgar si el corte fue
+# bueno; con diez ve la horquilla entera y elige. Si el operador PIDE un número ("dame tres", "ponme veinte"), ese
+# número manda y sustituye al defecto: el brief lo recoge del propio encargo, no de aquí.
+_N_FINAL_DEFAULT = 10
+_N_FINAL_CAP = 20       # el tope antes era 10 y hacía INEXPRESABLE un "ponme veinte" del operador
 _MAX_LIST = 12          # criterios/enriquecimientos/baremo: una lista que el worker pueda de verdad respetar
 _MAX_ITEM_CHARS = 220
 # El ROL de una pieza se pinta como INSIGNIA en la tarjeta («Hotel», «Ferry»), así que tiene que caber en una. El
@@ -129,10 +135,10 @@ def parse(raw: str) -> dict | None:
 
     deliv = p.get("deliverable") if isinstance(p.get("deliverable"), dict) else {}
     try:
-        nfin = int(deliv.get("n_final") or 3)
+        nfin = int(deliv.get("n_final") or _N_FINAL_DEFAULT)
     except (TypeError, ValueError):
-        nfin = 3
-    nfin = max(1, min(10, nfin))
+        nfin = _N_FINAL_DEFAULT
+    nfin = max(1, min(_N_FINAL_CAP, nfin))
 
     brief = {
         "goal": str(p.get("goal") or "").strip()[:400],
@@ -192,7 +198,10 @@ Si SÍ lo es, devuelve:
   "quality_bar": ["qué hay que VERIFICAR de verdad para que un finalista cuente como verificado"],
   "deliverable": {
     "widget": "results",
-    "n_final": 3,
+    "n_final": 10,
+    "//n_final": "CUÁNTAS se entregan. Si el operador DIJO un número («las tres mejores», «ponme veinte»), pon ESE
+                  número. Si no dijo ninguno, pon 10 — no 3: con tres no se ve el segundo pelotón y el operador no
+                  puede juzgar si el corte fue bueno. Máximo 20.",
     "composite": true,
     "parts": ["Alojamiento", "Transporte"]
   }
@@ -406,6 +415,12 @@ def to_prompt_block(brief: dict) -> str:
                  f"su precio y su enlace real.")
     else:
         L.append(f"ENTREGABLE — las {nfin} mejores opciones, cada una con sus datos verificados y su enlace real.")
+    # ORDEN = parte del entregable, no cosmética (petición del operador 2026-08-12: «ordenar los diez mejores por
+    # orden de uno al diez»). Una lista sin orden obliga al operador a re-hacer la comparación que el worker ya hizo.
+    L.append(f"ORDENADAS DE MEJOR A PEOR — la primera es tu nº1 y la última tu nº{nfin}. El orden en que las mandes "
+             f"ES el ranking (la hoja las pinta en ese orden), y cada una lleva su `score` con el `why` en una "
+             f"frase: sin el porqué, el operador no puede discutir ni corregir tu criterio. Si dos empatan, "
+             f"desempata con los criterios blandos y dilo.")
     L.append("Móntalas en la superficie de resultados con `python -m nucleo.widget_cli read results` para ver el "
              "contrato exacto. IMPORTANTE para que el operador pueda PREGUNTAR después ('¿lleva desayuno?', '¿a qué "
              "hora es la entrada?'): mete los datos duros en `facts` del item y de cada pieza, y las fotos REALES "

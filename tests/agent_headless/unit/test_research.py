@@ -372,3 +372,34 @@ def test_the_worker_is_told_to_report_its_sources():
     for status in ("partial", "auth", "blocked"):
         assert status in block
     assert "results progress" in block, "y el avance: sin él el sumario no puede decir cuántos ha explorado"
+
+
+# ── 8) CUÁNTAS y en QUÉ ORDEN se entregan (petición del operador 2026-08-12) ─────────────────────────────────
+# «Por defecto debemos buscar diez resultados, y si el usuario nos pide tres o veinte, modificar ese criterio de
+# base»; y «ordenar los diez mejores por orden de uno al diez». Antes el defecto era 3 y el tope 10 — con lo que
+# un «ponme veinte» era literalmente inexpresable en el brief.
+def test_by_default_ten_are_delivered_not_three():
+    b = research.parse(_raw(deliverable={"widget": "results"}))
+    assert b["deliverable"]["n_final"] == 10
+
+
+def test_the_number_the_operator_asks_for_wins_over_the_default():
+    for asked in (3, 5, 20):
+        b = research.parse(_raw(deliverable={"widget": "results", "n_final": asked}))
+        assert b["deliverable"]["n_final"] == asked, f"pidió {asked}"
+
+
+def test_twenty_is_expressible_and_absurd_numbers_are_capped():
+    assert research.parse(_raw(deliverable={"n_final": 20}))["deliverable"]["n_final"] == 20
+    assert research.parse(_raw(deliverable={"n_final": 500}))["deliverable"]["n_final"] == research._N_FINAL_CAP
+    assert research.parse(_raw(deliverable={"n_final": 0}))["deliverable"]["n_final"] == 10, \
+        "0 es «no lo dijo», no «no entregues nada»"
+
+
+def test_the_delivery_is_ranked_and_the_order_is_the_ranking():
+    """Una lista sin orden obliga al operador a repetir la comparación que el worker ya hizo. El brief tiene que
+    decir que el orden ES el ranking y que cada opción lleva su nota CON su porqué."""
+    block = research.to_prompt_block(research.parse(_raw(deliverable={"widget": "results", "n_final": 10})))
+    assert "ORDENADAS DE MEJOR A PEOR" in block
+    assert "nº1" in block and "nº10" in block
+    assert "score" in block and "why" in block, "una nota sin porqué no se puede discutir"
