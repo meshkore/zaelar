@@ -211,3 +211,69 @@ def test_without_a_relay_the_per_invocation_model_still_rules(monkeypatch):
     monkeypatch.setattr(v2, "code_agent_model", lambda k: "modelo-de-tarea")
     assert prov.relayed() is False
     assert dispatch._model_for("code") == "modelo-de-tarea"
+
+
+# ── CIEGO ≠ CAÍDO: las TOOLS del proveedor se agotan sin que falle el modelo (2026-08-10) ─────────────────────
+# Hallazgo de una prueba e2e real (informada por otra sesión mientras corría una búsqueda de veleros): el plan de
+# un proveedor se agota por DOS vías distintas que hasta hoy se trataban como una sola cosa.
+#
+#   · el MODELO se agota (`[1308] Usage limit reached for 5 hour`) → la llamada falla → relevo. Ya funcionaba.
+#   · las TOOLS INTEGRADAS del proveedor se agotan (`[1310] … for web_search_prime`) → **la llamada al modelo no
+#     falla**. El worker sigue razonando pero CIEGO: no puede buscar ni leer una página. El error llega dentro de
+#     un `tool_result`, que se descartaba como ruido interno → ni alerta, ni relevo, ni rastro. El worker parecía
+#     sano y entregaba conclusiones sin material.
+#
+# Es el modo de fallo más caro de este sistema: un estado que ENGAÑA. Estos tests fijan la distinción.
+TOOL_429 = ('API Error: 429 {"error":{"code":"1310","message":"Weekly/Monthly Limit Exhausted for '
+            'web_search_prime. Your limit will reset at 2026-08-30"}}')
+MODEL_429 = ('API Error: 429 {"error":{"code":"1308","message":"Usage limit reached for 5 hour, '
+             'please try again later"}}')
+
+
+def test_a_tool_quota_and_a_model_quota_are_not_the_same_thing():
+    assert prov.classify_tool_failure(TOOL_429) == "blind"
+    assert prov.classify_tool_failure(MODEL_429) == "", (
+        "un 429 del MODELO no es ceguera: es el caso que ya releva `note_failure`, y confundirlos daría una "
+        "alerta equivocada y un cooldown injusto")
+    assert prov.classify_tool_failure("File not found: /tmp/x") == ""
+    assert prov.classify_tool_failure("") == ""
+
+
+def test_going_blind_raises_an_alert_and_names_the_right_provider(monkeypatch):
+    from voice import health_state
+
+    health_state.clear("worker_tools")
+    # El culpable es el escalón con el que corría ESA sesión, no el primero de la cadena ahora mismo: tras un
+    # relevo son distintos, y nombrar al equivocado manda al operador a mirar el proveedor que sí funciona.
+    detail = prov.note_tool_blindness(TOOL_429, tool="web_search_prime", provider="z.ai")
+    assert "z.ai" in detail
+    assert "2026-08-30" in detail, "la fecha de reset la da el propio proveedor: es lo que dice cuándo vuelve a ver"
+    assert "no puede buscar" in detail.lower() or "NO puede buscar" in detail
+    rec = health_state.get("worker_tools")
+    assert rec and rec["kind"] == "credit"
+
+
+def test_going_blind_does_NOT_put_the_model_in_cooldown(monkeypatch):
+    """Sus tools están agotadas, su modelo no. Castigar al modelo apagaría un proveedor que funciona para todo lo
+    demás — y esa política es decisión del operador, no un efecto colateral de instrumentar."""
+    _cfg(monkeypatch)
+    monkeypatch.setenv("Z_AI_API_KEY", "k")
+    prov._cooldown.clear()
+    prov.note_tool_blindness(TOOL_429, tool="web_search_prime", provider="z.ai")
+    assert prov._cooldown == {}, "la ceguera no releva de escalón"
+    assert (prov.pick() or {}).get("name") == "z.ai", "el proveedor sigue sirviendo el modelo"
+
+
+def test_the_panel_gets_its_own_row_for_blindness(monkeypatch):
+    """Fila propia, no la de «proveedor sin cuota»: es otro problema con otra solución. Sin ella el panel decía
+    «todo ok» mientras el worker entregaba conclusiones sin haber podido mirar nada."""
+    from voice import health_state
+    import config.balances as balances
+
+    health_state.clear("worker_tools")
+    assert not [r for r in balances.worker_providers() if r["key"] == "worker:tools"]
+    prov.note_tool_blindness(TOOL_429, tool="web_search_prime", provider="z.ai")
+    rows = [r for r in balances.worker_providers() if r["key"] == "worker:tools"]
+    assert rows and rows[0]["state"] == "error"
+    assert "z.ai" in rows[0]["detail"]
+    health_state.clear("worker_tools")

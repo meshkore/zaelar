@@ -391,6 +391,16 @@ class WorkerSession:
             emit(kind, place + (" ⚠️ error" if bad else " ↩"), text=body,
                  extra={"id": self._rec.task_id, "tool": d.get("tool") or "", "evidence": True,
                         "is_error": bad, "span": f"worker:{self._rec.task_id}"})
+            # CEGUERA: un error de cuota de las TOOLS del proveedor no hace fallar la llamada al modelo, así que no
+            # dispara el relevo y el worker sigue razonando SIN poder buscar. Sin esto no había ni alerta ni rastro:
+            # el worker parecía sano y entregaba conclusiones sin material. Ver `providers.note_tool_blindness`.
+            if bad:
+                try:
+                    from nucleo.workers import providers as _prov
+                    _prov.note_tool_blindness(body, tool=str(d.get("tool") or ""),
+                                              provider=str(d.get("provider") or ""))
+                except Exception:
+                    pass
         except Exception:
             pass
 

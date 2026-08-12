@@ -366,7 +366,7 @@ class ClaudeCodeSession(WorkerBackend):
                 if step:
                     # Se recuerda el ÚLTIMO paso para poder atribuirle su respuesta: el `tool_result` llega en el
                     # mensaje siguiente (rol `user`) y NO dice de qué tool era más que por `tool_use_id`.
-                    self._steps_by_id[str(block.get("id") or "")] = {"tool": name, "where": step.get("where", "")}
+                    self._steps().setdefault(str(block.get("id") or ""), {"tool": name, "where": step.get("where", "")})
                     self._last_step = {"tool": name, "where": step.get("where", "")}
                     yield self._ev("step", tool=name, model=self._model, **step)
             return
@@ -379,10 +379,15 @@ class ClaudeCodeSession(WorkerBackend):
             for block in (msg.get("content") or []):
                 if not isinstance(block, dict) or block.get("type") != "tool_result":
                     continue
-                meta = self._steps_by_id.pop(str(block.get("tool_use_id") or ""), None) or self._last_step or {}
+                meta = self._steps().pop(str(block.get("tool_use_id") or ""), None) \
+                    or getattr(self, "_last_step", None) or {}
                 yield self._ev("step_result", text=_result_text(block.get("content")),
                                tool=meta.get("tool", ""), where=meta.get("where", ""),
-                               is_error=bool(block.get("is_error")))
+                               is_error=bool(block.get("is_error")),
+                               # el escalón con el que corre ESTA sesión: si sus tools se agotan, hay que culpar al
+                               # que las sirve, no al que esté primero en la cadena ahora mismo (tras un relevo son
+                               # distintos, y atribuirlo mal manda al operador a mirar el proveedor equivocado)
+                               provider=(getattr(self, "_tier", None) or {}).get("name", ""))
             return
         if t == "result":
             summary = obj.get("result") or ""
@@ -409,6 +414,18 @@ class ClaudeCodeSession(WorkerBackend):
             self._done = True
             return
         # el resto (system de cierre, etc.) → sin evento.
+
+    def _steps(self) -> dict:
+        """`tool_use_id` → el paso que lo pidió, para casar cada `tool_result` con SU herramienta.
+
+        Se resuelve PEREZOSAMENTE en vez de confiar en `__init__`: `_map` es el bombeo de eventos del worker y un
+        `AttributeError` ahí mata el stream entero de una sesión viva. (Y el test del mapper construye la sesión
+        con `object.__new__` a propósito, para probar la traducción pura sin montar colas ni procesos.)"""
+        d = getattr(self, "_steps_by_id", None)
+        if d is None:
+            d = {}
+            self._steps_by_id = d
+        return d
 
     def _ev(self, etype: str, **data) -> WorkerEvent:
         return WorkerEvent(task_id=self._task_id, type=etype, data=data, backend=self.name)

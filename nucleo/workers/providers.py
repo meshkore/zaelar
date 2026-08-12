@@ -203,6 +203,68 @@ def classify_failure(text: str) -> str:
     return ""
 
 
+# ── UN WORKER CIEGO NO ES UN WORKER CAÍDO (2026-08-10) ────────────────────────────────────────────────────────
+# Hallazgo de una prueba e2e real: el plan de un proveedor se agota por DOS vías que no son la misma cosa.
+#
+#   · el MODELO se agota → la llamada falla → `note_failure` releva de escalón y el worker sigue en otro sitio.
+#     Esto ya funcionaba (y se vio funcionar: relevó a la licencia local y entregó).
+#   · las TOOLS INTEGRADAS del proveedor se agotan (búsqueda web y lector de páginas servidos por él) → la llamada
+#     al modelo NO falla. El worker sigue razonando perfectamente… pero **CIEGO**: no puede buscar ni leer una
+#     página. El error viaja dentro de un `tool_result`, que hasta ayer se descartaba como ruido interno, así que
+#     no había alerta, ni relevo, ni una línea en el registro. El worker parecía sano y entregaba conclusiones
+#     sin material.
+#
+# Es exactamente el modo de fallo que más caro sale aquí: un estado que ENGAÑA. Lo que hace esta función es
+# separar las dos cosas para poder DECIRLO. Deliberadamente NO pone el escalón en cooldown: sus tools están
+# agotadas, su modelo no, y castigar al modelo por eso apagaría un proveedor que funciona para todo lo demás.
+# Qué hacer con esa política (¿relevar igualmente? ¿solo para tareas de investigación?) es decisión del operador,
+# no un efecto colateral de instrumentar.
+_TOOL_LIMIT_RE = re.compile(
+    r"web_search|websearch_prime|web_search_prime|webreader|web_reader|"          # las tools integradas por nombre
+    r"search.{0,20}(?:quota|limit)|(?:quota|limit).{0,20}search", re.I)
+
+
+def classify_tool_failure(text: str) -> str:
+    """'blind' si el error de un `tool_result` es una cuota agotada de las TOOLS del proveedor · '' si no lo es.
+
+    Se exige que sea (a) un problema de cuota/límite Y (b) que hable de las tools: un 429 pelado del modelo no es
+    ceguera, es el caso que ya cubre `note_failure`, y confundirlos daría una alerta equivocada."""
+    t = text or ""
+    if not _TOOL_LIMIT_RE.search(t):
+        return ""
+    return "blind" if (classify_failure(t) in ("exhausted", "rate")) else ""
+
+
+def note_tool_blindness(text: str, tool: str = "", provider: str = "") -> str:
+    """Registra que el worker se ha quedado CIEGO y devuelve el detalle legible (o "" si no era eso).
+
+    Alerta + timeline, sin tocar el relevo. Fila propia en el panel (`worker:tools`) para que no se confunda con
+    «el proveedor de los workers está caído», que es otro problema con otra solución."""
+    if not classify_tool_failure(text):
+        return ""
+    # El culpable es el escalón con el que corría ESA sesión, no el primero de la cadena ahora: tras un relevo
+    # son distintos, y nombrar al equivocado manda al operador a mirar el proveedor que sí funciona.
+    name = provider or (pick() or {}).get("name", "") or "el proveedor"
+    when = _RESET_RE.search(text or "")
+    detail = (f"las herramientas de búsqueda de «{name}» están sin cuota"
+              + (f" (reset {when.group(1)})" if when else "")
+              + " — el worker sigue razonando pero NO puede buscar ni leer páginas")
+    logger.warning(f"brain worker CIEGO: {detail}")
+    try:
+        from voice import health_state
+        health_state.record("worker_tools", "credit", detail)
+    except Exception:
+        pass
+    try:
+        from voice.observer import emit
+        emit("alert", "🕶️ worker CIEGO — sin herramientas de búsqueda", text=detail, role="system",
+             extra={"provider": name, "tool": tool, "reason": "tool_quota",
+                    "raw": (text or "")[:300]})
+    except Exception:
+        pass
+    return detail
+
+
 def _reset_epoch(text: str) -> float:
     m = _RESET_RE.search(text or "")
     if not m:

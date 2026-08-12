@@ -183,6 +183,17 @@ def worker_providers() -> list[dict]:
     if tiers and all(t["state"] != "ok" for t in tiers):
         out.append({"key": "worker:sin-relevo", "enables": "procesos de fondo", "set": True, "state": "error",
                     "detail": "NINGÚN proveedor con cuota — los procesos de fondo no pueden correr"})
+    # CIEGO ≠ CAÍDO (2026-08-10). Fila propia porque es otro problema con otra solución: el modelo del proveedor
+    # responde, pero sus herramientas de búsqueda/lectura están sin cuota → el worker razona sin poder mirar nada.
+    # Sin esta fila el panel decía «todo ok» mientras el worker entregaba conclusiones sin material.
+    try:
+        from voice import health_state
+        rec = health_state.get("worker_tools")
+        if rec:
+            out.append({"key": "worker:tools", "enables": "búsqueda y lectura web DE los workers", "set": True,
+                        "state": "error", "detail": rec.get("text") or "herramientas del proveedor sin cuota"})
+    except Exception:
+        pass
     return out
 
 
