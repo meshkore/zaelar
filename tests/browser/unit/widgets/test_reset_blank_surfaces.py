@@ -174,3 +174,68 @@ def test_the_sheet_documents_the_live_contract_for_whoever_reads_it():
         man = json.load(f)
     assert "append" in (man.get("actions") or {})
     assert "MIENTRAS SE TRABAJA" in man["usage"]
+
+
+# ── VACIAR UN WIDGET NO PUEDE SER SILENCIOSO (2026-08-10) ─────────────────────────────────────────────────────
+# Punto ciego encontrado en carne propia: a otra sesión se le vació la hoja de resultados DOS VECES en mitad de una
+# prueba (la causa fue un fixture de test que llamaba al reset real), y no había forma de saberlo — porque el
+# camino genérico de vaciado borra el `state.json` a mano y `store.save()` es el ÚNICO punto que anuncia «este
+# widget ha cambiado». Sin evento no hay fila en el registro, y sin señal el canvas sigue enseñando datos que en
+# disco ya no existen. Parecía un fallo de persistencia del widget: se fue un buen rato buscando una avería
+# inexistente. Un camino que MUTA datos sin anunciarlo es un agujero en la observabilidad, no un detalle.
+def _emitted(monkeypatch):
+    """Captura lo que se emite al observador, sin tocar el registro real."""
+    seen = []
+    import voice.observer as obs
+    monkeypatch.setattr(obs, "emit",
+                        lambda kind, label, text="", role="", extra=None: seen.append((kind, label, extra or {})))
+    return seen
+
+
+def test_wiping_a_widget_leaves_an_audit_row_and_repaints_the_canvas(data_dir, monkeypatch):
+    from widgets import reset as wreset
+
+    (data_dir / "hoja").mkdir()
+    (data_dir / "hoja" / "state.json").write_text(json.dumps({"items": [1, 2, 3]}), encoding="utf-8")
+    seen = _emitted(monkeypatch)
+
+    assert wreset._blank_one("hoja") == "wiped"
+    labels = [(k, l) for k, l, _ in seen]
+    assert ("widget", "blank") in labels, "sin fila de auditoría, vaciar un widget es indistinguible de perder datos"
+    assert ("widget", "data") in labels, (
+        "sin la señal que escucha el canvas, la tarjeta abierta sigue mostrando lo que ya no está en disco")
+    blank = next(e for k, l, e in seen if l == "blank")
+    assert blank["id"] == "hoja" and blank["how"] == "wiped"
+
+
+def test_the_widgets_own_blank_also_leaves_the_audit_row_without_duplicating_the_signal(data_dir, monkeypatch):
+    """El camino que pasa por `store.save()` ya avisa al canvas él solo; lo que le faltaba es DECIR que fue un
+    reset — un `data` a secas no distingue «lo vaciaron» de «lo actualizaron»."""
+    from widgets import reset as wreset
+
+    (data_dir / "msg").mkdir()
+    (data_dir / "msg" / "state.json").write_text(json.dumps({"items": [1]}), encoding="utf-8")
+    monkeypatch.setattr(wreset, "_data_module", lambda wid: type("M", (), {"blank": staticmethod(lambda: {"items": []})}))
+    seen = _emitted(monkeypatch)
+
+    assert wreset._blank_one("msg") == "blank"
+    labels = [l for _, l, _ in seen]
+    assert "blank" in labels
+    assert labels.count("data") == 1, (
+        "`save()` ya emitió el refresco: emitir un segundo `data` haría al canvas re-pintar dos veces por nada")
+
+
+def test_announcing_can_never_break_the_wipe(data_dir, monkeypatch):
+    """Vaciar un widget es la operación; contarlo es un efecto. Si el observador falla, el reset SIGUE."""
+    from widgets import reset as wreset
+    import voice.observer as obs
+
+    (data_dir / "x").mkdir()
+    (data_dir / "x" / "state.json").write_text("{}", encoding="utf-8")
+
+    def boom(*a, **k):
+        raise RuntimeError("observer caído")
+
+    monkeypatch.setattr(obs, "emit", boom)
+    assert wreset._blank_one("x") == "wiped"
+    assert not (data_dir / "x" / "state.json").exists()

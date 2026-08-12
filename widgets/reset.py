@@ -73,7 +73,9 @@ def _blank_one(widget_id: str) -> str:
                 continue
             data = fn()
             if isinstance(data, dict):
-                store.save(widget_id, data)
+                store.save(widget_id, data)                # ya anuncia el cambio al canvas (`widget/data`)
+                # …pero un `data` a secas no dice que esto fue un RESET: la fila de auditoría la pone `_announce`.
+                _announce(widget_id, "blank" if name == "blank" else "empty", refresh=False)
                 return "blank" if name == "blank" else "empty"
         except Exception as e:  # noqa: BLE001
             logger.warning(f"widgets.reset: {widget_id}.{name}() falló: {e}")
@@ -83,10 +85,34 @@ def _blank_one(widget_id: str) -> str:
         if os.path.exists(p):
             os.remove(p)
         store.forget(widget_id)
+        _announce(widget_id, "wiped")
         return "wiped"
     except Exception as e:  # noqa: BLE001
         logger.warning(f"widgets.reset: no se pudo vaciar {widget_id}: {e}")
         return "error"
+
+
+def _announce(widget_id: str, how: str, refresh: bool = True) -> None:
+    """Este camino MUTA los datos de un widget SIN pasar por `store.save()` — y `save()` es el único punto que
+    anuncia «este widget ha cambiado». O sea que borrar el `state.json` era una mutación INVISIBLE: ni evento en el
+    registro, ni señal al canvas, ni una línea que lo explique. Punto ciego encontrado en carne propia (2026-08-10):
+    a otra sesión se le vació la hoja de resultados dos veces en mitad de una prueba y, sin rastro de reset, parecía
+    un fallo de persistencia del widget — se fue un buen rato en buscar una avería que no existía.
+
+    Se anuncia por la MISMA puerta y con dos propósitos distintos, y hacen falta los dos:
+      · `blank` → la fila de AUDITORÍA: qué widget se vació, cómo y por orden de quién (`src`, provenance).
+      · `data`  → la señal que el canvas escucha (`sse.js` → `desktop.refreshData`), para que la tarjeta abierta se
+        repinte YA en vez de seguir mostrando datos que en disco ya no existen.
+    Best-effort: vaciar un widget nunca puede fallar porque no se pudiera contar."""
+    try:
+        from voice.observer import emit
+        from widgets.provenance import who
+        src = who(widget_id)
+        emit("widget", "blank", extra={"id": widget_id, "src": src, "how": how})
+        if refresh:                                   # el camino que pasa por `save()` ya lo ha emitido él
+            emit("widget", "data", extra={"id": widget_id, "src": src})
+    except Exception:
+        pass
 
 
 def blank_all() -> dict:
