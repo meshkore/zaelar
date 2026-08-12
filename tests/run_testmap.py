@@ -271,6 +271,11 @@ DOMAINS: list[dict] = [
         # en la raíz no se versione nada que no sea del proyecto, se llame como se llame.
         {"id": "7.9", "title": "La raíz del repo no versiona datos (fuga de PII, 2026-08-12)", "ch": UNIT,
             "paths": ["tests/infrastructure/unit/test_repo_root_clean.py"]},
+        # 2026-08-10: un guarda SOBRE LOS GUARDAS. Aparecieron tests verdes por la MÁQUINA y no por el código (la
+        # config del operador —idioma, proveedores, atención, perfil— pisaba el entorno de la suite vía
+        # `settings.load_into_env`). No es que fallaran: es que no se podía confiar en el verde.
+        {"id": "7.10", "title": "Aislamiento de la suite (la máquina del que corre no decide el resultado)",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/test_suite_isolation.py"]},
         {"id": "7.3", "title": "Chat por transporte LiveKit REAL", "ch": CHAT, "live": True,
             "cmd": "./.venv/bin/python tests/infrastructure/e2e/smoke/run_chat_over_livekit.py"},
         {"id": "7.4", "title": "Smoke INTEGRAL de salud", "ch": HTTP, "live": True,
