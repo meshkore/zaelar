@@ -186,7 +186,24 @@ def test_a_widget_can_declare_the_size_it_needs_to_be_readable():
         "y el índice compacto tiene que llevarlo: el canvas lo necesita ANTES de pedir el manifest"
 
 
-def test_the_card_body_is_the_scroller_so_the_handles_stay_grabbable():
-    """Con la tarjeta entera scrolleando, los tiradores —absolutos— se iban con el contenido."""
+def test_the_scroller_is_a_wrapper_the_widget_cannot_clobber():
+    """Dos cosas a la vez. (a) Con la tarjeta ENTERA scrolleando, los tiradores —absolutos— se iban con el
+    contenido y no se podían agarrar. (b) El scroller no puede ser el div del propio widget: un `widget.js` hace
+    `el.className="hb-loquesea"` y se lleva por delante cualquier clase que le pongamos a su raíz, así que una
+    regla sobre `.hb-body` no aplicaba a NADIE (cazado en vivo el 2026-08-12, con el scroll ya escrito y sin
+    funcionar). El scroll es chrome de la tarjeta, como el grip o la ×."""
     src = _desktop()
-    assert ".hb-body{flex:1 1 auto;min-height:0;overflow:auto}" in src.replace("\n", "")
+    assert ".hb-scroll{flex:1 1 auto;min-height:0;overflow:auto}" in src.replace("\n", "")
+    assert "scroll.appendChild(body)" in src, "el widget monta DENTRO del scroller, no ES el scroller"
+    assert "card.append(grip,mx,x,head,load,scroll)" in src
+
+
+def test_navigating_returns_to_the_top_but_live_data_does_not_move_the_page():
+    """«Ver detalle →» vive al final de una tarjeta: sin volver arriba el expediente se abre por la mitad. Pero un
+    `append` del worker mientras el operador lee NO puede arrancarle la página de las manos."""
+    src = _desktop()
+    assert "top:()=>{" in src.replace(" ", "").replace("top:()=>{", "top:()=>{"), "el canvas ofrece el «vuelve arriba»"
+    assert ".hb-scroll" in src
+    wsrc = pathlib.Path("widgets/results/widget.js").read_text()
+    assert "const WHERE = new WeakMap()" in wsrc
+    assert "paint(navigated(el, data, cur))" in wsrc, "solo la NAVEGACIÓN resetea el scroll, no el refresco"
