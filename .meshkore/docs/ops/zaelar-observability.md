@@ -127,6 +127,66 @@ lo que llegue después:
 Las filas ocultas siguen en el DOM (encender un chip las devuelve al instante, sin recargar) y **nada de esto toca
 lo que se persiste**: los `.jsonl` y el SSE siguen llevándolo todo — el filtro es de LECTURA.
 
+### La EVIDENCIA: qué trajo el mundo exterior (2026-08-10)
+
+Un registro que cuenta la **pregunta** y la **decisión** pero no la **prueba** sirve para saber que el sistema
+buscó, nunca si buscó BIEN. La fila decía «7 resultados» y el contenido que el modelo leyó se perdía; de un paso de
+un Brain Worker quedaba la tool y su objetivo (la query, la URL), no lo que le contestaron — así que un worker que
+trae basura y otro que trae el dato exacto dejaban **el mismo rastro**. Ahora cada punto donde entra el exterior
+guarda su evidencia:
+
+| Fila | Qué guarda de nuevo |
+|---|---|
+| `search · 🔎 resultados web` | título + **URL** + un trozo del snippet de cada resultado, y la respuesta sintetizada si el proveedor la dio |
+| `task · <lugar> ↩` | el **`tool_result`** del CLI del worker — lo que le contestó la herramienta. Antes se descartaba entero como «ruido interno» |
+| `navegador · 📋 candidatos extraídos` | los anuncios raspados de la página **con su URL**, para poder volver y comprobar precio y descripción |
+| `navegador · 🏁 hito` | los hitos de la tarea (`N encontrados`, `descartados por no encajar`), que solo iban al feed EFÍMERO de la tarjeta y morían con ella |
+
+El formato y **el presupuesto** viven en `observability/evidence.py`, y sus reglas explican las decisiones raras:
+
+- **Se recorta, no se resume.** Un resumen es una interpretación; una auditoría necesita el texto tal cual, aunque
+  sea el principio. Todo recorte deja marca visible (`…`).
+- **Cabeceras antes que cuerpos.** Título y URL no se recortan nunca (identifican la fuente y permiten volver a
+  ella); el snippet sí, y agresivo.
+- **Techo por evento, y `omitted`.** Si no caben todos, entran los primeros y se dice cuántos quedaron fuera. Un
+  recorte silencioso es peor que el recorte: quien audita creería que eso era todo lo que había.
+
+El mismo camino está en el **probe** (`nucleo/flash/probe.py`), que es una implementación paralela del turno: sin
+eso, auditar dependía de por dónde hubiera entrado la frase — el punto ciego exacto que esta capa existe para no
+tener.
+
+### Leer una sesión entera, viva o terminada
+
+Dos lecturas nuevas encima de las de flujos:
+
+- **`flows.session(sid)`** → la forma de UNA sesión (cuándo, cuánto, cuántos flujos y eventos, tokens, errores,
+  familias tocadas, versión del código). Una sesión que no existe devuelve vacío; no se fabrica una que parezca real.
+- **`flows.events(session_id, since_id)`** → los eventos EN CRUDO con su payload intacto (ahí vive la evidencia).
+  `since_id` es un **cursor sobre `id`, no una ventana de tiempo**: dos eventos en el mismo milisegundo son
+  normales —el bus reparte rápido— y una ventana temporal los duplicaría o se comería uno. La misma ruta sirve
+  para dos cosas: **seguir** una sesión viva (pidiendo lo que haya después del último id visto) y **archivarla**
+  entera paginando desde 0.
+
+`GET /api/observability/session/{sid}` marca además `live` comparando con la sesión abierta, y devuelve `flows`
+(número) y `flows_detail` (la lista) como campos DISTINTOS — meter la lista dentro de `flows` pisaba el contador y
+quien lo consumiera recibía a veces un número y a veces un array según la ruta.
+
+### Quién puede leer el CONTENIDO
+
+Estas rutas nacieron para el visor local y eran **abiertas**. En una instalación en casa da igual: el puerto solo lo
+alcanza la propia máquina. Pero el mismo código corre en despliegues donde el puerto SÍ es alcanzable, y ahí
+«abierto» significa que cualquiera que dé con la URL se lleva las conversaciones. Patrón
+guarded-until-configured, el mismo del resto del sistema:
+
+- **sin `ZAELAR_OBS_TOKEN` → solo loopback.** Una instalación local funciona exactamente igual que antes.
+- **con `ZAELAR_OBS_TOKEN` → hace falta la cabecera `X-Observability-Token`**, venga de donde venga (ni loopback
+  pasa sin ella: si no, cualquier proceso de la máquina seguiría teniendo acceso libre al contenido).
+- Fail-closed (sin origen determinable, se deniega) y comparación en **tiempo constante**, que no filtra el prefijo
+  válido de un token a base de intentos.
+
+Quedan ABIERTAS `catalog`, `identity` y `session/start|end`: las usa la propia interfaz del usuario, que en un
+despliegue remoto no es loopback, y no exponen contenido.
+
 ### Registro de acciones de widget — atar «widget equivocado» con la FRASE que lo pidió
 
 Toda orden contra el canvas queda en la categoría **Widgets**, y **cada evento se lleva el texto del turno que la
