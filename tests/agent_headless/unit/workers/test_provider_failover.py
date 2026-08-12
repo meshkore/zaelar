@@ -291,8 +291,13 @@ def test_the_panel_gets_its_own_row_for_blindness(monkeypatch):
 # Dos causas encadenadas, y las dos hacen falta: la clasificación (no es pasajero) y la LECTURA DE LA HORA
 # (`_RESET_RE` solo capturaba la FECHA, así que una hora del mismo día se resolvía a medianoche pasada → epoch en
 # el pasado → el cooldown nacía vencido y caía al suelo de media hora).
+# La hora de reset se CALCULA (ahora + 3 h) en vez de estar clavada. Estuvo clavada a las «23:15:37», y eso hacía
+# que `test_the_window_limit_actually_relays_and_waits` —que comprueba que el cooldown llega a la hora anunciada y
+# no al suelo de media hora— dependiera de la hora a la que corres la suite: verde por la mañana, rojo a partir de
+# las 22:15 todas las noches. El test habla del MECANISMO, no del reloj de quien lo lanza.
+_RESET_AT = time.strftime("%H:%M:%S", time.localtime(time.time() + 3 * 3600))
 WINDOW_429 = ('API Error: 429 {"error":{"code":"1308","message":"Usage limit reached for 5 hour. '
-              'Your limit will reset at 23:15:37"}}')
+              f'Your limit will reset at {_RESET_AT}"}}')
 
 
 def test_a_window_limit_that_announces_its_reset_is_exhausted_not_rate():
@@ -308,7 +313,7 @@ def test_a_bare_time_resets_today_not_at_midnight_past():
 
     e = prov._reset_epoch(WINDOW_429)
     assert e > time.time(), "un reset anunciado para hoy NO puede resolverse a un instante ya pasado"
-    assert time.strftime("%H:%M", time.localtime(e)) == "23:15"
+    assert time.strftime("%H:%M", time.localtime(e)) == _RESET_AT[:5]
 
 
 def test_a_bare_time_already_gone_rolls_to_tomorrow(monkeypatch):

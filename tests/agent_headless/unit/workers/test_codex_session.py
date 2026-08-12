@@ -178,3 +178,19 @@ def test_stderr_noise_is_not_reported_as_the_cause_of_death():
             b"2026-08-12T19:59:48Z ERROR codex_models_manager::manager: failed to refresh available models\n"
             b"stream error: 401 Unauthorized\n")
     assert _stderr_reason(blob) == "stream error: 401 Unauthorized"
+
+
+# ── enrutado por CAPACIDAD (registry) ─────────────────────────────────────────────────────────────────────
+def test_registry_routes_the_contained_tasks_to_claude_code_even_with_codex_configured(monkeypatch):
+    """Elegir Codex para el trabajo normal NO puede costarle al operador las capacidades del cluster ni la
+    protección ante entrada no confiable, ni de forma visible (tarea fallida) ni invisible (worker con shell
+    abierto). El registro las enruta al backend que SÍ puede acotarse."""
+    from nucleo.workers import registry
+    from nucleo.workers.claude_session import ClaudeCodeSession
+    monkeypatch.setenv("WORKER_BACKEND", "")
+    monkeypatch.setattr(registry, "_provider_for", lambda kind: "codex")
+
+    assert isinstance(registry.get_backend(WorkerSpec(kind="web", deny_tools=True)), ClaudeCodeSession)
+    assert isinstance(registry.get_backend(WorkerSpec(kind="dev")), ClaudeCodeSession)
+    # y el trabajo normal SÍ va a Codex, que es lo que el operador eligió
+    assert isinstance(registry.get_backend(WorkerSpec(kind="web")), CodexSession)

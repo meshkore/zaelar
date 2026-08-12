@@ -212,6 +212,18 @@ def _model_for(kind: str) -> str:
         except Exception:
             return ""
 
+    # La cadena de relevo es de CLAUDE CODE (escalones `ANTHROPIC_BASE_URL`-compatible). Otro backend —Codex— se
+    # autentica con SU propia cuenta y esos escalones no significan nada para él: dejar que la cadena decidiera su
+    # modelo TIRABA el modelo configurado (2026-08-12, medido). El caso real: con `base_url` apuntando aún a Z.AI de
+    # cuando el proveedor era claude_code, y Z.AI en cooldown por cuota, `relayed()` daba True → se devolvía el
+    # modelo del escalón de relevo (vacío) → Codex caía a su propio `config.toml` (`gpt-5.6-sol`, que la API no
+    # sirve) y el worker moría en 2,8 s con un 400. El `gpt-5.5` que el operador había elegido no llegaba nunca.
+    try:
+        from nucleo.workers import registry as _reg
+        if _reg._provider_for(kind) != "claude_code":
+            return _configured()
+    except Exception:
+        pass
     try:
         from nucleo.workers import providers as _prov
         if not _prov.relayed():

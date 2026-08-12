@@ -56,8 +56,21 @@ def get_backend(spec: "WorkerSpec") -> "WorkerBackend":
         return GeneratorBackend()
     prov = _provider_for(spec.kind or "generic")
     if prov == "codex":
-        from .codex_session import CodexSession
-        return CodexSession()
+        # MEZCLABLE por CAPACIDAD, no solo por tipo de tarea (2026-08-12): Codex no sabe acotar sus herramientas
+        # (solo tiene modos de sandbox), así que las dos tareas que EXISTEN para estar acotadas —entrada NO
+        # confiable (V2-010) y el dev worker de un peer de cluster— van al backend que SÍ puede, aunque la config
+        # diga Codex. La alternativa era fallar la tarea: peor, porque el operador elige un proveedor para su
+        # trabajo normal y perdería a la vez las capacidades del cluster sin relación aparente. Se DICE en el log
+        # (no es un silencio: es un enrutado por capacidad, y el invariante del escritor único manda sobre una
+        # preferencia de config). `codex_session` conserva su rechazo fail-closed como defensa en profundidad.
+        if spec.deny_tools or (spec.kind or "") == "dev":
+            import logging
+            logging.getLogger(__name__).info(
+                "worker[%s]: kind=%s deny_tools=%s → claude_code (Codex no puede acotar sus tools)",
+                spec.task_id or "?", spec.kind, spec.deny_tools)
+        else:
+            from .codex_session import CodexSession
+            return CodexSession()
     # default + fail-safe
     from .claude_session import ClaudeCodeSession
     return ClaudeCodeSession()

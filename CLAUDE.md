@@ -179,7 +179,8 @@ arranque `make run` → `python -m server`.
   descarta peticiones/preguntas/ack reificadas, no deja que un nombre garbleado del STT pise la identidad del `state`
   —cuarentena— y no hace durable una preferencia efímera) + **`nucleo/workers/`** (**Brain Workers V2-038** —
   sustrato AGNÓSTICO: `base.py` [`WorkerBackend`/`WorkerEvent`/`WorkerSpec`], `claude_session.py` [stream-json vivo],
-  `generator_session.py` [widgets, envuelve el generador matable], `codex_session.py` [stub], `registry.py`
+  `generator_session.py` [widgets, envuelve el generador matable], `codex_session.py` [Codex CLI, `exec --json`],
+  `registry.py`
   [`get_backend` por config, mezclable], `session.py` [`WorkerSession` + `SessionRecord`], **`providers.py`**
   [CADENA de endpoints Anthropic-compatible + relevo por cuota agotada, ver decisión clave]) = capa de trabajo async
   INTERACTIVA. `nucleo/agentes/` (interfaz `CodeAgent` one-shot V2-036 — `worker/web/web_cc/otros.py` **PARKEADOS**
@@ -419,7 +420,8 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   one-shot (`claude -p`) se convierte en una **sesión VIVA** que el FlashBrain gobierna. **Agnóstico del motor
   (requisito nº1 del operador):** una sola costura `WorkerBackend`/`WorkerEvent`/`WorkerSpec` (`workers/base.py`);
   backends `claude_session` (stream-json), `generator_session` (widgets — envuelve `widgets/generator.py`
-  conservando su contrato+validación, ahora **matable** por token), `codex_session` (stub); `registry.get_backend`
+  conservando su contrato+validación, ahora **matable** por token) y **`codex_session`** (Codex CLI, `exec --json`
+  → JSONL; ver la decisión «El segundo backend» más abajo); `registry.get_backend`
   elige por config y es **mezclable** (Claude web + Codex código a la vez). **`dispatch.py` = gestor de sesiones**:
   **REGISTRO ÚNICO EN RAM = fuente de verdad** (absorbe `escalate._tasks`/`_INFLIGHT`/`_SESSIONS` viejos), **kill de
   GRUPO** (`killpg`, mata al `claude` y sus hijos), **cola de inyección** (↓ `pending→delivered`), `resolve_sessions`
@@ -1120,6 +1122,48 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   saludar en trabajo/sondeo); el **guardia de atasco** (bridge, umbrales 2/4) corta el bucle pronto (asertivo 1× →
   callar + avisar al operador). Susurro hereda el canal por `turn.completed`. Detalle:
   `.meshkore/roadmap/initiatives/V2-069-una-sola-mente.md`.
+- **El SEGUNDO backend de Brain Worker: Codex — y su frontera de seguridad es DISTINTA** (`nucleo/workers/
+  codex_session.py`, 2026-08-12). La agnosticidad de V2-038 dejó el punto de extensión con un **stub honesto**, y el
+  precio de dejarlo ahí se cobró entero: con el proveedor puesto a `codex` el operador se quedaba SIN workers y el
+  síntoma era una tarea que **moría al instante**, no un mensaje de configuración. Ya es un adaptador real:
+  `codex exec --json` escribe **JSONL** y se traduce al vocabulario normalizado — `thread.started`→`spawned` (con el
+  `thread_id`, que es lo ÚNICO con lo que se reanuda vía `exec resume`), `item.started`→`step`,
+  `item.completed`→`step_result` (la EVIDENCIA) o `note` (su narración), `turn.completed.usage`→`result` con los
+  tokens REALES (Energy los tariffa en `session.py::_finish`), `error`/`turn.failed`→`error` fatal. El prompt entra
+  por stdin (por argv un prompt largo revienta el límite), killpg/SIGSTOP igual que Claude Code, y el CLI se
+  localiza bajo nvm (como `claude`, no está en el PATH del server).
+  - **La frontera de seguridad NO es la misma, y eso es lo importante.** Claude Code acota `Bash` a nuestros puentes
+    (`--allowedTools`), que ES el invariante del ESCRITOR ÚNICO de la memoria. Codex no tiene ese eje: tiene MODOS de
+    sandbox, y headless exige `workspace-write` (verificado: en ese modo ejecuta comandos SIN pedir aprobación, que
+    en headless nadie daría). O sea que **un worker de Codex corre un shell COMPLETO** — más radio de acción. Nunca
+    se usa `--dangerously-bypass-approvals-and-sandbox`. Consecuencia de diseño: `registry.get_backend` es
+    **mezclable por CAPACIDAD, no solo por tipo de tarea** — una tarea con `deny_tools` (entrada NO confiable,
+    V2-010) o `kind="dev"` (dev worker de un peer de cluster) va a `claude_code` **aunque la config diga Codex**, y
+    se dice en el log; `codex_session` conserva además su rechazo fail-closed como defensa en profundidad. Elegir
+    Codex para el trabajo normal no puede costar las capacidades del cluster, ni de forma visible (tarea fallida) ni
+    invisible (worker con shell abierto).
+  - **La RED hay que abrirla a mano** (`-c sandbox_workspace_write.network_access=true`): el sandbox de Codex la
+    corta, y TODOS nuestros puentes hablan HTTP con el server vivo. Sin eso el worker arranca, trabaja y entrega…
+    **sin memoria y sin poder reportar su fase** — medido en la primera prueba en vivo, donde narró «no puedo
+    publicar el progreso en el puente local» y siguió a ciegas. Es todo-o-nada (no hay allowlist de hosts), así que
+    abre internet; no es una clase de riesgo nueva (un worker de Claude Code ya tiene WebSearch/WebFetch) pero queda
+    escrito. Kill-switch `ZAELAR_CODEX_NETWORK=0`.
+  - **`send()` no inyecta en vivo** (`codex exec` no lee turnos por stdin) y no hace falta: la vía PRINCIPAL de
+    inyección es el **piggyback** en las respuestas de los puentes (§v2·A), que es HTTP y por tanto agnóstica del
+    backend.
+  - **El modelo lo decide el PROVEEDOR, no la cadena de relevo** (fix del mismo día en `dispatch._model_for`): la
+    cadena de `workers/providers.py` es de Claude Code (escalones `ANTHROPIC_BASE_URL`-compatible) y estaba
+    decidiendo también el modelo de Codex → con `base_url` apuntando aún a Z.AI y Z.AI en cooldown, `relayed()` daba
+    True, se devolvía el modelo del escalón (vacío) y Codex caía a su propio `config.toml`; el `gpt-5.5` elegido por
+    el operador no llegaba nunca. Ahora la cadena solo manda si el backend ES `claude_code`.
+  - **Cada proveedor ofrece SOLO sus modelos** (`server/config_api.py`): las listas estaban vacías, la UI pintaba
+    campos libres, y al cambiar de proveedor se quedaban los del anterior (`glm-5.2` en Codex) → la tarea moría
+    minutos después con «There's an issue with the selected model», que el operador no puede relacionar con lo que
+    guardó. Hoy el catálogo declara los modelos por proveedor, el backend RECHAZA al guardar uno que ese proveedor no
+    sirve, y se DETECTA si el CLI está instalado y con qué versión. Los de Codex están verificados contra la lista
+    que devuelve su propio servidor de modelos.
+  - Verificado en vivo de punta a punta: escalada → worker de Codex (`gpt-5.5`) → 13 consultas por el puente de
+    memoria + fase y progreso reportados → entrega, `ok=true`. Tests: nodo 2.5 (`test_codex_session.py`).
 - **Los Brain Workers no dependen de UN proveedor — cadena + relevo automático** (`nucleo/workers/providers.py`,
   2026-08-02; detonante: el plan de Z.AI agotó su cuota SEMANAL en mitad de una búsqueda —«[1310] Weekly/Monthly
   Limit Exhausted. Your limit will reset at 2026-08-04»— y todo se cayó a la vez: el worker murió, al operador se le

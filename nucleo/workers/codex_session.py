@@ -50,6 +50,17 @@ _STREAM_LIMIT = int(os.getenv("WORKER_STREAM_LIMIT", str(16 * 1024 * 1024)))
 # `ZAELAR_CODEX_SANDBOX` deja al power-user bajarlo a `read-only` para una tarea de solo lectura.
 _SANDBOX = (os.getenv("ZAELAR_CODEX_SANDBOX") or "workspace-write").strip()
 
+# RED: el sandbox de Codex la corta por defecto, y TODOS nuestros puentes hablan HTTP con el server vivo
+# (127.0.0.1:43917) — memoria, navegador, widgets, preguntar al operador. Sin esto el worker arranca, trabaja y
+# entrega… pero SIN memoria y sin poder reportar su fase; medido en la primera prueba en vivo (2026-08-12), donde
+# narró «no puedo publicar el progreso en el puente local, la llamada queda bloqueada por permisos» y siguió a
+# ciegas. Un worker que puede menos y no lo dice a gritos es peor que uno que falla.
+# El sandbox de Codex es todo-o-nada con la red (no hay allowlist de hosts), así que esto abre internet, no solo el
+# loopback. No es una clase de riesgo NUEVA —un worker de Claude Code ya tiene WebSearch/WebFetch— pero conviene
+# tenerlo escrito. Apagable: `ZAELAR_CODEX_NETWORK=0` (worker sin puentes, para una tarea puramente local).
+_NET_ARGS = ([] if (os.getenv("ZAELAR_CODEX_NETWORK") or "1").strip() in ("0", "false", "no")
+             else ["-c", "sandbox_workspace_write.network_access=true"])
+
 
 def find_codex() -> str:
     """Localiza el CLI de Codex. Mismo problema que `claude` en esta clase de máquinas: se instala con npm bajo un
@@ -139,7 +150,7 @@ class CodexSession(WorkerBackend):
             return
 
         cwd = spec.cwd or _ZAELAR
-        cmd = [codex, "exec", "--json", "--skip-git-repo-check", "-s", _SANDBOX, "-C", cwd]
+        cmd = [codex, "exec", "--json", "--skip-git-repo-check", "-s", _SANDBOX, "-C", cwd] + _NET_ARGS
         # CONTINUIDAD (V2-049): Codex reanuda por `exec resume <thread_id>`, no por un flag. El id es el
         # `thread.started` de la sesión anterior, que ya guardamos como `native_session_id`.
         if spec.resume_sid:

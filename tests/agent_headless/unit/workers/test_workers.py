@@ -19,7 +19,14 @@ def test_event_and_spec_contract():
     assert s.token == "tok" and s.depth == 1
 
 
-def test_backend_selection_agnostic():
+def test_backend_selection_agnostic(monkeypatch):
+    """El DEFAULT del registro es `claude_code`, y una tarea de widget va al generador — pase lo que pase.
+
+    El proveedor se fuerza a propósito: sin fijarlo, este test leía `config/v2.json`, o sea la config REAL de la
+    máquina donde corre. Pasaba solo mientras el operador tuviera ahí `claude_code`, y en cuanto probó Codex empezó
+    a fallar un test que no habla de su elección sino del DEFAULT del código. Misma clase que la fuga de
+    `store.DATA_DIR` de 2026-08-12: un test no puede depender del estado real del operador."""
+    monkeypatch.setattr("nucleo.workers.registry._provider_for", lambda kind: "claude_code")
     assert get_backend(WorkerSpec(kind="web", task_id="1")).name == "claude_code"
     assert get_backend(WorkerSpec(kind="code", task_id="1",
                                   env={"ZAELAR_TASK_REQUEST": "hazme un widget del clima"})).name == "widget_generator"
