@@ -102,7 +102,7 @@ def _reactive(service_keys: list[str]) -> dict:
     except Exception:
         return {}
     worst = {}
-    rank = {"credit": 3, "auth": 2, "outage": 1, "error": 1}
+    rank = {"credit": 3, "auth": 2, "outage": 1, "error": 1, "slow": 0}   # un turno atascado nunca tapa una caída
     for sk in service_keys:
         rec = health_state.get(sk)
         if not rec:
@@ -119,7 +119,10 @@ _REACTIVE_MAP = {
     "deepgram": ["stt", "tts"], "mistral": ["stt"], "cartesia": ["tts"], "elevenlabs": ["tts"],
 }
 _CREDIT_KIND = {"credit": ("error", "SIN SALDO/cuota"), "auth": ("error", "credencial inválida"),
-                "outage": ("warn", "el proveedor no responde")}
+                "outage": ("warn", "el proveedor no responde"),
+                # `slow` (2026-08-12) = UN turno se atascó y se cortó. Es un aviso, no una caída del proveedor:
+                # decir «no responde» de algo que contesta bien antes y después manda a buscar una avería que no hay.
+                "slow": ("warn", "un turno se atascó")}
 
 
 def summary(refresh: bool = False) -> list[dict]:

@@ -1418,6 +1418,7 @@ class NucleoLLMStream(llm.LLMStream):
                 return
 
         errored = False
+        stalled = False          # se atascó UN turno (≠ el cerebro está caído) — cambia lo que se le cuenta al operador
         err_text = ""
         llm_metrics: dict = {}   # totalizadores de tamaño/tokens/latencia del modelo (observabilidad, FASE 0)
         # SET CONTEXTUAL DE TOOLS (V2-035): omite las situacionales que no aplican este turno (confirmar-borrado sin
@@ -1554,6 +1555,7 @@ class NucleoLLMStream(llm.LLMStream):
                     # Se atascó. Se trata como un fallo del cerebro (rama `errored`): frase corta y honesta, alerta
                     # y salud en rojo — nunca más un silencio de un minuto que parece un cuelgue.
                     errored = True
+                    stalled = True
                     err_text = f"flash brain stalled: {_quiet_ms} ms sin salida hablable"
                     emit("brain", "⏱️ turno ATASCADO — el modelo no emitía nada, lo corto", role="system",
                          extra={"cat": "flash", "quiet_ms": _quiet_ms, "spoken_chars": len("".join(spoken)),
@@ -1600,13 +1602,24 @@ class NucleoLLMStream(llm.LLMStream):
             # DEGRADED: sin Hermes al que caer — frase de reserva segura (nunca el error crudo, nunca mudo).
             # CLASIFICA el error (V2-043): SIN SALDO/cuota (credit) · credencial (auth) · caída (outage) — así el
             # diálogo de estado muestra la alerta REAL en vez de un genérico "no responde". Fail-open a "error".
+            # UN TURNO ATASCADO NO ES «EL CEREBRO ESTÁ CAÍDO» (fix 2026-08-12). El plazo de silencio reutilizaba esta
+            # rama entera, así que un corte aislado —del que la sesión se recupera al turno siguiente— pintaba el ◉ en
+            # rojo con «no responde» y gritaba «Cerebro rápido caído». Visto en vivo: el modelo contestaba bien antes y
+            # después, y el operador se queda mirando un LLM en rojo que funciona. Se distingue el HECHO (este turno no
+            # salió, y eso hay que decirlo) del DIAGNÓSTICO (el proveedor está caído, que es otra cosa y más grave).
             try:
                 from voice import health_state, llm_health
-                kind = llm_health.classify(err_text) or "error"
-                health_state.record("llm", kind, err_text[:200] or "flash brain down")
+                if stalled:
+                    health_state.record("llm", "slow", f"un turno se atascó ({_quiet_ms} ms sin respuesta) y lo corté")
+                else:
+                    kind = llm_health.classify(err_text) or "error"
+                    health_state.record("llm", kind, err_text[:200] or "flash brain down")
             except Exception:
                 pass
-            emit("alert", "Cerebro rápido caído — turno degradado.", text="flash layer error")
+            if stalled:
+                emit("alert", "Un turno se atascó y lo corté — sigo operativo.", text="flash turn stalled")
+            else:
+                emit("alert", "Cerebro rápido caído — turno degradado.", text="flash layer error")
             emit("error", "nucleo flash brain error")
             send("Uf, se me ha ido un momento. ¿Me lo repites?")
             return

@@ -312,6 +312,53 @@ def test_a_stall_is_treated_as_a_brain_failure_not_as_silence():
     assert "ATASCADO" in stall[:900], "el atasco tiene que dejar rastro en la observabilidad"
 
 
-def test_a_stall_is_classified_as_an_outage_so_the_status_icon_goes_red():
-    from voice import llm_health
-    assert llm_health.classify("flash brain stalled: 9000 ms sin salida hablable") == "outage"
+def test_a_stalled_turn_is_a_warning_not_a_dead_provider():
+    """CORREGIDO 2026-08-12 con un caso en vivo: el plazo reutilizaba la rama de error entera, así que UN turno
+    cortado —del que la sesión se recupera al turno siguiente— dejaba el ◉ en ROJO con «no responde» y gritaba
+    «Cerebro rápido caído». El modelo contestaba bien antes y después: el operador se queda mirando un LLM en rojo
+    que funciona, y buscando una avería que no existe. Se separa el HECHO (este turno no salió) del DIAGNÓSTICO
+    (el proveedor está caído). Sigue habiendo aviso — lo que no hay es un diagnóstico inventado."""
+    import asyncio
+    import json
+
+    from voice import health_state
+    from server.voice_api import status
+
+    health_state.record("llm", "slow", "un turno se atascó (9000 ms sin respuesta) y lo corté")
+    try:
+        items = json.loads(bytes(asyncio.run(status()).body).decode("utf-8"))["items"]
+        llm = next(i for i in items if i["key"] == "llm")
+        assert llm["state"] == "warn", "un turno atascado avisa; no declara el proveedor caído"
+        assert "atasc" in llm["detail"] and "no responde" not in llm["detail"]
+    finally:
+        health_state.clear("llm")
+
+
+def test_a_real_provider_failure_still_goes_red():
+    """El contrapeso del test anterior: rebajar el atasco no puede rebajar una caída de verdad."""
+    import asyncio
+    import json
+
+    from voice import health_state, llm_health
+    from server.voice_api import status
+
+    assert llm_health.classify("connection refused") == "outage"
+    health_state.record("llm", "outage", "connection refused")
+    try:
+        items = json.loads(bytes(asyncio.run(status()).body).decode("utf-8"))["items"]
+        llm = next(i for i in items if i["key"] == "llm")
+        assert llm["state"] == "error" and "no responde" in llm["detail"]
+    finally:
+        health_state.clear("llm")
+
+
+def test_the_stall_path_says_stalled_not_dead():
+    """Y la ALERTA hablada/visible tampoco puede decir «caído» por un turno."""
+    import inspect
+    from voice.engine.llm.providers.nucleo import NucleoLLMStream
+    src = inspect.getsource(NucleoLLMStream._run_inner)
+    stall = src[src.index("_quiet_ms = _turn_budget_ms()"):]
+    stall = stall[stall.index("except asyncio.TimeoutError:"):]
+    assert "stalled = True" in stall[:700]
+    assert 'health_state.record("llm", "slow"' in src
+    assert "Un turno se atascó y lo corté" in src

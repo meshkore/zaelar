@@ -113,9 +113,18 @@ def reset() -> None:
 
 
 # ── interrupción DURA (T136): STOP siempre atendido, SALTA el gate, DETERMINISTA (no depende del LLM) ────
+# PRONOMBRE ENCLÍTICO (fix 2026-08-12, fallo REAL en vivo): en castellano el imperativo se PEGA al pronombre —
+# «ciérraLO todo», «páraLO todo», «quítaLOS» — y `\bcierra\b` NO casa con «cierralo» (después de 'cierra' vienen
+# más caracteres de palabra, así que no hay frontera). Resultado medido (13:01:51): el operador dijo «Ciérralo todo
+# y páralo todo», el detector devolvió None, la orden ACABÓ EN EL MODELO —que ese turno se atascó— y no se cerró
+# nada. Justo lo que este camino determinista existe para que no pase: cerrar y parar no pueden depender del LLM.
+# No es una tabla de frases: es la MORFOLOGÍA del imperativo español (hasta dos pronombres: «devuélveMeLO»), así que
+# cubre cualquier verbo de la lista y los que se añadan.
+_ENCLITIC = r"(?:(?:me|te|se|nos|os|lo|la|le|los|las|les){1,2})?"
 # Cerrar TODO: verbo de cierre + palabra de "todo/widgets". Corto, agnóstico de idioma (es/en).
 _CLOSE_VERB_RE = re.compile(
-    r"\b(cierra|cierre|cierr|quita|elimina|esconde|oculta|limpia|despeja|close|hide|clear)\b")
+    r"\b(?:cierra|cierre|cierr|quita|elimina|esconde|oculta|limpia|despeja)" + _ENCLITIC + r"\b"
+    r"|\b(?:close|hide|clear)\b")
 _ALL_RE = re.compile(
     r"\b(todo|todos|todas|all|widgets|tarjetas|ventanas|pantalla|escritorio|everything)\b")
 # BUG real 2026-07-23 (feature nueva de fullscreen): "quita la pantalla completa" (salir de pantalla completa de UN
@@ -124,7 +133,10 @@ _ALL_RE = re.compile(
 _FULLSCREEN_RE = re.compile(r"\bpantalla\s+completa\b|\bfull\s*screen\b", re.I)
 # STOP inequívoco (dispara aunque el turno sea largo).
 _STOP_HARD_RE = re.compile(
-    r"\b(silencio|calla(?:te|os|d)?|basta|stop|shh+|quiet[oa]|detente|para\s+ya|para\s+de|parate|shut\s*up)\b")
+    r"\b(silencio|calla(?:te|os|d)?|basta|stop|shh+|quiet[oa]|detente|para\s+ya|para\s+de|parate|shut\s*up)\b"
+    # «páralo / párala / páralos / detenlo» — con pronombre pegado ya NO es la preposición «para», así que es
+    # inequívoco y entra en la regla DURA (la blanda de abajo solo existe por la ambigüedad de «para» a secas).
+    r"|\b(?:para|pare|deten|detenga)(?:me|te|se|nos|os|lo|la|le|los|las|les){1,2}\b")
 # STOP ambiguo ("para"/"pare"/"espera" — también preposición): solo como imperativo CORTO (evita "para la cena").
 _STOP_SOFT_RE = re.compile(r"\b(para|pare|espera)\b")
 

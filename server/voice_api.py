@@ -201,7 +201,12 @@ async def status():
     else:
         llm_key = has("AIMLAPI_KEY", "LLM_API_KEY")
     llm_detail = f"{model_name} · {prov_label}"
-    if llm_err:
+    if llm_err and llm_err.get("kind") == "slow":
+        # UN TURNO ATASCADO ≠ EL PROVEEDOR NO RESPONDE (2026-08-12). El plazo de silencio del turno registraba el
+        # corte como si el modelo estuviera caído → el ◉ se quedaba ROJO con «no responde» mientras el modelo
+        # contestaba perfectamente antes y después. Es un AVISO con el hecho concreto, no un diagnóstico de caída.
+        state = "warn"; llm_detail += " · " + (llm_err.get("text") or "un turno se atascó")
+    elif llm_err:
         state = "error"
         llm_detail += " · " + {"credit": "SIN SALDO/cuota", "auth": "credencial inválida"}.get(llm_err["kind"], "no responde")
     elif not llm_key:

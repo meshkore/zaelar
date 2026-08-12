@@ -128,6 +128,35 @@ def test_hard_interrupt_stop_hard(txt):
     assert attention.hard_interrupt(txt) == "stop"
 
 
+# ── PRONOMBRE ENCLÍTICO (fallo REAL en vivo, 2026-08-12 13:01:51) ────────────────────────────────────────
+# El operador dijo «Ciérralo todo y páralo todo». `\bcierra\b` no casa con «cierralo» (no hay frontera de palabra
+# después de 'cierra'), así que el detector devolvió None, la orden acabó en el MODELO —que ese turno se atascó— y
+# no se cerró nada. Este camino existe precisamente para que cerrar y parar NO dependan del LLM.
+# Es morfología, no una lista de frases: el imperativo español pega hasta dos pronombres al verbo.
+def test_close_all_with_the_pronoun_stuck_to_the_verb():
+    assert attention.hard_interrupt("Ciérralo todo y páralo todo.") == "close"   # la frase EXACTA del incidente
+    assert attention.hard_interrupt("ciérralo todo") == "close"
+    assert attention.hard_interrupt("ciérramelo todo") == "close"                # dos pronombres
+    assert attention.hard_interrupt("quítalos todos") == "close"
+    assert attention.hard_interrupt("límpialo todo") == "close"
+
+
+def test_stop_with_the_pronoun_stuck_to_the_verb():
+    """«páralo» lleva pronombre pegado → ya no puede ser la preposición «para», así que es STOP inequívoco
+    (la regla BLANDA con su tope de palabras solo existe por la ambigüedad de «para» a secas)."""
+    assert attention.hard_interrupt("páralo todo ahora mismo y espera") == "stop"
+    assert attention.hard_interrupt("párala") == "stop"
+    assert attention.hard_interrupt("detenlo") == "stop"
+
+
+def test_the_enclitic_forms_do_not_swallow_normal_speech():
+    """La frontera sigue exigiendo un pronombre REAL pegado: ni 'cierralotodo' inventado ni palabras que empiecen
+    igual disparan un cierre, y un turno largo con 'para' de preposición sigue siendo conversación."""
+    assert attention.hard_interrupt("dame una receta rica para la cena de mañana") is None
+    assert attention.hard_interrupt("cierra la puerta de casa cuando salgas") is None   # sin 'todo/widgets'
+    assert attention.hard_interrupt("quita la pantalla completa") is None               # modo de UN widget
+
+
 def test_hard_interrupt_soft_para_short():
     assert attention.hard_interrupt("para por favor") == "stop"
 
