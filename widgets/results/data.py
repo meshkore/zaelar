@@ -588,10 +588,32 @@ _STATUS_ES = {"ok": "entró", "partial": "entró con límite", "auth": "pedía a
               "blocked": "bloqueó el acceso", "error": "dio error", "pending": "pendiente"}
 
 
+_MAX_HEAD_CHARS = 620      # techo del encabezado: los RESULTADOS no pueden quedarse sin sitio (ver _digest_head)
+_MAX_HEAD_LIST = 4         # criterios/fuentes que se enumeran; el resto se cuenta
+_MAX_HEAD_ITEM = 90
+
+
+def _head_list(items, label: str) -> str:
+    """Una lista de la cabecera, acotada Y contada. Enumerar los 14 criterios duros a 220 chars cada uno son 3 KB
+    en el prompt de CADA turno — y encima se comerían el presupuesto del digest, dejando fuera justo los
+    resultados. Se enseñan los primeros y se DICE cuántos quedan (callarse el resto haría creer que no hay más)."""
+    xs = [str(x)[:_MAX_HEAD_ITEM] for x in (items or [])]
+    if not xs:
+        return ""
+    out = f"  {label}: " + " · ".join(xs[:_MAX_HEAD_LIST])
+    if len(xs) > _MAX_HEAD_LIST:
+        out += f" (+{len(xs) - _MAX_HEAD_LIST})"
+    return out
+
+
 def _digest_head(data: dict) -> str:
     """Las TRES pestañas que no son la lista, comprimidas para el prompt. Es lo que permite responder «¿por qué no
     sale nada de esa web?» o «¿con qué criterio has descartado?» SIN volver a buscar: el dato ya está en pantalla,
-    solo faltaba que el cerebro lo tuviera delante. Muy acotado: el detalle vive en la propia tarjeta."""
+    solo faltaba que el cerebro lo tuviera delante.
+
+    ACOTADO CON TECHO PROPIO, no solo por el tope global del digest: este encabezado va DELANTE, así que sin límite
+    propio unos criterios largos empujarían los resultados fuera del recorte — el cerebro sabría con qué se busca
+    pero no qué se ha encontrado, que es exactamente al revés de lo útil."""
     L: list[str] = []
     tab = data.get("tab") or "results"
     if tab != "results":
@@ -611,26 +633,38 @@ def _digest_head(data: dict) -> str:
             bits.append(f"{c['shown']} en pantalla")
         L.append("SUMARIO: " + " · ".join(bits))
     if s.get("note"):
-        L.append(f"  {s['note']}")
-    crit = data.get("criteria") or {}
-    if crit.get("goal"):
-        L.append(f"CRITERIOS · objetivo: {crit['goal']}")
-    for key, label in (("hard", "duros"), ("changes", "correcciones del operador")):
-        if crit.get(key):
-            L.append(f"  {label}: " + " · ".join(crit[key][:6]))
+        L.append(f"  {s['note'][:_MAX_HEAD_ITEM * 2]}")
+    # ORDEN POR IRREEMPLAZABILIDAD, no por importancia abstracta: lo primero es lo que NO existe en ningún otro
+    # sitio. El estado de una fuente («Wallapop pedía login») solo lo sabe esta pantalla; los criterios, en cambio,
+    # se dijeron en voz alta y el cerebro los tiene en la conversación reciente. Así que si el techo obliga a
+    # recortar, se recorta el criterio y sobrevive la fuente — y no al revés, que era el orden que había.
     src = data.get("sources") or []
     if src:
+        # Y dentro de las fuentes, las FALLIDAS primero: son las que cambian una respuesta. Que Yachtworld fuera
+        # bien no aporta nada al razonamiento.
+        order = sorted(src, key=lambda s0: 0 if s0.get("status") in ("auth", "blocked", "error", "partial") else 1)
         L.append(f"FUENTES ({len(src)}):")
-        for s0 in src[:8]:
+        for s0 in order[:6]:
             bit = f"  · {s0.get('name','')}: {_STATUS_ES.get(s0.get('status'), s0.get('status', ''))}"
             if s0.get("found"):
                 bit += f", {s0['found']} resultados"
             if s0.get("detail"):
-                bit += f" — {s0['detail']}"
+                bit += f" — {s0['detail'][:_MAX_HEAD_ITEM]}"
             L.append(bit)
-        if len(src) > 8:
-            L.append(f"  (+{len(src) - 8} fuentes más)")
-    return "\n".join(L)
+        if len(src) > 6:
+            L.append(f"  (+{len(src) - 6} fuentes más)")
+    crit = data.get("criteria") or {}
+    if crit.get("goal"):
+        L.append(f"CRITERIOS · objetivo: {crit['goal'][:140]}")
+    for key, label in (("hard", "duros"), ("changes", "correcciones del operador")):
+        row = _head_list(crit.get(key), label)
+        if row:
+            L.append(row)
+    out = "\n".join(L)
+    if len(out) > _MAX_HEAD_CHARS:
+        tail = "\n  (…el resto, en la tarjeta)"
+        out = out[:_MAX_HEAD_CHARS - len(tail)].rsplit("\n", 1)[0] + tail
+    return out
 
 
 def prompt_digest() -> str:

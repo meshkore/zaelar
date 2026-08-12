@@ -53,145 +53,261 @@ const CRIT_SECTIONS = [
 function injectStyles(){
   if(document.getElementById("hb-results-css"))return;
   const s=document.createElement("style"); s.id="hb-results-css"; s.textContent=`
-  .hb-results{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--hb-ink,#0d1622);
-    width:100%;min-width:0;display:flex;flex-direction:column;gap:0}
-  /* CABECERA FIJA. Una hoja con veinte resultados se recorre con scroll, y con la cabecera dentro del flujo las
-     pestañas se iban por arriba justo cuando más falta hacen (ver una ficha del final y saltar a Fuentes). El
-     scroll lo pone la tarjeta (.hb-scroll del canvas); aquí solo nos pegamos a su borde superior. El fondo
-     OPACO no es decoración: sin él las tarjetas se leerían por debajo del título al desplazar. */
+  /* ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
+     SISTEMA, no números sueltos. La versión anterior acumulaba trece tamaños de letra (10.5, 11, 11.5, 12, 12.5,
+     13, 13.5, 14, 15, 15.5, 18, 21…) y márgenes de 3, 5, 6, 7, 8, 9, 10, 11px elegidos uno a uno: eso no se lee
+     como una superficie, se lee como parches. Aquí hay UNA escala tipográfica de cuatro pasos y UNA rejilla de
+     espaciado de 4px, en variables locales, así que todo cae en el mismo ritmo y un cambio de densidad es una
+     línea. El resto del CSS ya no lleva magnitudes crudas.
+     Los COLORES son todos del contrato --hb-* del tema (nunca hex): la tarjeta se repinta sola al cambiar de tema.
+     OJO al editar: esto es un template literal — nada de acentos graves aquí dentro.
+     ───────────────────────────────────────────────────────────────────────────────────────────────────────────── */
+  .hb-results{
+    --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px;      /* rejilla de 4 */
+    --f-micro:10.5px;                                          /* rótulos en versal, con tracking */
+    --f-sm:11.5px;                                             /* metadatos, estados */
+    --f-body:12.5px;                                           /* el cuerpo de todo */
+    --f-md:14px;                                               /* título de ficha */
+    --f-lg:17px; --f-xl:21px;                                  /* expediente y cifras del sumario */
+    --r-sm:7px; --r-md:10px; --r-lg:13px; --r-pill:99px;       /* radios */
+    --line:1px solid var(--hb-line,#e3e8f0);
+    font-family:var(--sans,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif);
+    color:var(--hb-ink,#0d1622);font-size:var(--f-body);line-height:1.45;
+    width:100%;min-width:0;display:flex;flex-direction:column}
+  /* Toda cifra que se COMPARA va en cifras tabulares. En una superficie cuyo trabajo es poner precios y notas
+     unos debajo de otros, dígitos de anchura distinta obligan a releer para saber cuál es mayor. */
+  .hb-results .hr-price,.hb-results .hr-score,.hb-results .hr-pp,.hb-results .hr-n,
+  .hb-results .hr-stat b,.hb-results .hr-sn,.hb-results .hr-tbl td,.hb-results .hr-dprice{
+    font-variant-numeric:tabular-nums}
+  .hb-results .hr-bt,.hb-results .hr-cgt,.hb-results .hr-pk,.hb-results .hr-stat span{
+    font-size:var(--f-micro);font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--hb-muted-2,#9aa7b8)}
+
+  /* ── CABECERA FIJA ──────────────────────────────────────────────────────────────────────────────────────────
+     Una hoja de diez resultados se recorre con scroll, y con la cabecera en el flujo las pestañas se iban por
+     arriba justo cuando más falta hacen (mirar la última ficha y saltar a Fuentes). El scroll lo pone la tarjeta
+     (.hb-scroll del canvas); aquí solo nos pegamos a su borde. El fondo OPACO no es decoración: sin él las fichas
+     se leerían por debajo del título al desplazar. */
   .hb-results .hr-top{position:sticky;top:0;z-index:5;background:var(--hb-bg,#fff);
     padding-top:2px;margin:-2px 0 0}
-  .hb-results .hr-hd{font-size:15px;font-weight:600;margin:0 0 3px;word-break:break-word}
-  .hb-results .hr-sub{font-size:12px;color:var(--hb-muted-2,#7d8a9c);margin:0 0 10px}
-  .hb-results .hr-top .hr-sub{margin-bottom:6px}
-  /* ── barra de pestañas ── */
-  .hb-results .hr-tabs{display:flex;gap:2px;border-bottom:1px solid var(--hb-line,#eef1f6);margin:0 0 12px;
+  .hb-results .hr-hd{font-size:var(--f-md);font-weight:650;letter-spacing:-.01em;margin:0;word-break:break-word}
+  .hb-results .hr-sub{font-size:var(--f-sm);color:var(--hb-muted-2,#9aa7b8);margin:var(--s1) 0 0}
+  /* Un subtítulo suelto dentro de un panel necesita aire POR DEBAJO: sin él, la línea de contexto («náutica de
+     recreo · amplitud mínima 40») quedaba pegada al rótulo siguiente y se leían como una sola cosa. */
+  .hb-results .hr-panel>.hr-sub{margin-bottom:var(--s4)}
+  .hb-results .hr-panel>.hr-why{margin-bottom:var(--s4)}
+
+  /* ── PESTAÑAS ── el subrayado activo hace de continuación de la línea inferior, no de caja aparte. */
+  .hb-results .hr-tabs{display:flex;gap:2px;border-bottom:var(--line);margin:var(--s3) 0 var(--s4);
     overflow-x:auto;scrollbar-width:none}
   .hb-results .hr-tabs::-webkit-scrollbar{display:none}
-  .hb-results .hr-tab{flex:none;display:inline-flex;align-items:center;gap:6px;border:none;background:none;cursor:pointer;
-    font:600 12.5px/1 inherit;color:var(--hb-muted,#5b6b82);padding:8px 11px;border-bottom:2px solid transparent;
-    margin-bottom:-1px;white-space:nowrap}
+  .hb-results .hr-tab{flex:none;display:inline-flex;align-items:center;gap:var(--s1);border:none;background:none;
+    cursor:pointer;font:600 var(--f-body)/1 inherit;color:var(--hb-muted,#5f6b7c);
+    padding:var(--s2) var(--s3) 9px;border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap;
+    transition:color .14s}
   .hb-results .hr-tab:hover{color:var(--hb-ink,#0d1622)}
   .hb-results .hr-tab.on{color:var(--hb-accent,#3D6FE0);border-bottom-color:var(--hb-accent,#3D6FE0)}
-  .hb-results .hr-tab .hr-n{font-size:11px;font-weight:700;padding:1px 6px;border-radius:99px;
-    background:var(--hb-bubble,#eef3fe);color:var(--hb-muted,#5b6b82)}
-  .hb-results .hr-tab.on .hr-n{background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 18%,transparent);color:var(--hb-accent,#3D6FE0)}
-  .hb-results .hr-tab .hr-n.bad{background:color-mix(in srgb,var(--hb-risk,#e5484d) 18%,transparent);color:var(--hb-risk,#e5484d)}
-  /* ── rejilla ── */
-  .hb-results .hr-grid{display:grid;gap:12px;min-width:0}
-  .hb-results .hr-grid + .hr-grid{margin-top:12px}
-  .hb-results .hr-card{display:block;text-decoration:none;color:inherit;border:1px solid var(--hb-line,#eef1f6);border-left:3px solid var(--hb-accent,#3D6FE0);
-    border-radius:12px;padding:11px 13px;background:var(--hb-bg,#fff);transition:.15s;min-width:0}
-  .hb-results a.hr-card:hover{border-color:var(--hb-accent,#3D6FE0);box-shadow:0 6px 18px rgba(61,111,224,.14);transform:translateY(-1px)}
-  .hb-results .hr-card.primary{border-left-color:var(--hb-accent2,#16B8A6);background:var(--hb-bg-soft,#fbfffd)}
-  .hb-results .hr-img{display:block;width:100%;height:130px;object-fit:cover;border-radius:8px;margin:0 0 10px;background:var(--hb-line,#eef1f6)}
-  .hb-results .hr-card.primary .hr-img{height:160px}
-  .hb-results .hr-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;flex-wrap:wrap}
-  .hb-results .hr-t{font-size:14px;font-weight:600;line-height:1.25;word-break:break-word;flex:1 1 8em;min-width:0}
+  .hb-results .hr-tab .hr-n{font-size:var(--f-micro);font-weight:700;padding:1.5px 6px;border-radius:var(--r-pill);
+    background:var(--hb-bubble,#f1f4f9);color:var(--hb-muted,#5f6b7c);line-height:1.4}
+  .hb-results .hr-tab.on .hr-n{background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 16%,transparent);
+    color:var(--hb-accent,#3D6FE0)}
+  .hb-results .hr-tab .hr-n.bad{background:color-mix(in srgb,var(--hb-risk,#e5484d) 15%,transparent);
+    color:var(--hb-risk,#e5484d)}
+
+  /* ── REJILLA Y FICHAS ───────────────────────────────────────────────────────────────────────────────────────
+     El filete de acento se queda SOLO en la destacada. Con diez resultados —el nuevo defecto de entrega— diez
+     barras azules en vertical se leen como un código de barras y dejan de destacar nada: si todo grita, no grita
+     nadie. Las demás llevan un hilo de 1px y se levantan al pasar por encima solo si el clic hace algo. */
+  .hb-results .hr-grid{display:grid;gap:var(--s3);min-width:0}
+  .hb-results .hr-grid + .hr-grid{margin-top:var(--s3)}
+  .hb-results .hr-card{position:relative;display:block;text-decoration:none;color:inherit;
+    border:var(--line);border-radius:var(--r-lg);padding:var(--s3) var(--s4);background:var(--hb-bg,#fff);
+    min-width:0;transition:border-color .15s,box-shadow .15s,transform .15s}
+  /* La destacada se marca con borde y fondo, y punto. Se probó además un filete de color asomando por arriba
+     («pestaña de etiqueta»): con el radio de la tarjeta quedaba como un guion suelto FLOTANDO sobre el borde, o
+     sea un defecto de maquetación. El fondo templado + el borde turquesa + su badge ya la distinguen de nueve
+     hermanas; un adorno más no destacaba mejor, solo añadía algo que podía verse roto. */
+  .hb-results .hr-card.primary{border-color:color-mix(in srgb,var(--hb-accent2,#16B8A6) 42%,var(--hb-line,#e3e8f0));
+    background:var(--hb-bg-soft,#fbfdff)}
+  .hb-results a.hr-card:hover,.hb-results .hr-card.choosable:hover{border-color:var(--hb-accent,#3D6FE0);
+    box-shadow:var(--hb-shadow-1,0 8px 30px rgba(13,22,34,.12));transform:translateY(-1px)}
+  .hb-results .hr-img{display:block;width:100%;height:128px;object-fit:cover;border-radius:var(--r-md);
+    margin:0 0 var(--s3);background:var(--hb-bubble,#f1f4f9)}
+  .hb-results .hr-card.primary .hr-img{height:168px}
+  .hb-results .hr-head{display:flex;align-items:baseline;justify-content:space-between;gap:var(--s1) var(--s2);
+    flex-wrap:wrap}
+  .hb-results .hr-t{font-size:var(--f-md);font-weight:650;line-height:1.3;letter-spacing:-.01em;
+    word-break:break-word;flex:1 1 8em;min-width:0}
   .hb-results .hr-card.primary .hr-t{font-size:15.5px}
-  .hb-results .hr-price{flex:none;font-size:13px;font-weight:700;color:var(--hb-accent2,#16B8A6);white-space:nowrap}
-  .hb-results .hr-s{font-size:12.5px;color:var(--hb-accent2,#16B8A6);font-weight:600;margin-top:3px}
-  .hb-results .hr-card.primary .hr-s{color:var(--hb-accent,#3D6FE0)}
-  .hb-results .hr-ln{font-size:12.5px;color:var(--hb-muted,#5b6b82);margin-top:3px;line-height:1.4;overflow-wrap:break-word}
+  .hb-results .hr-price{flex:none;font-size:var(--f-md);font-weight:700;color:var(--hb-ink,#0d1622);
+    white-space:nowrap;letter-spacing:-.01em}
+  /* El subtítulo DEJA de ser turquesa y en negrita: competía con el precio por la atención y en una ficha solo
+     puede haber un dato que gane. Es contexto, y el contexto se lee en segundo plano. */
+  .hb-results .hr-s{font-size:var(--f-sm);color:var(--hb-muted,#5f6b7c)}
+  /* Subtítulo y badge en la MISMA línea, alineados por su base: es la fila de metadatos del resultado. */
+  .hb-results .hr-metarow{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s1) var(--s2);
+    margin-top:5px}
+  .hb-results .hr-ln{font-size:var(--f-body);color:var(--hb-muted,#5f6b7c);margin-top:var(--s1);
+    overflow-wrap:break-word}
   .hb-results .hr-ln.strong{color:var(--hb-ink,#0d1622);font-weight:600}
-  .hb-results .hr-ln.warn{color:var(--hb-warn-ink,#b26b00)}
-  .hb-results .hr-badge{display:inline-block;font-size:11px;color:var(--hb-accent,#3D6FE0);background:var(--hb-bg-soft,#eef3fe);border-radius:6px;padding:1px 7px;margin-top:6px}
-  .hb-results .hr-empty{color:var(--hb-muted-2,#7d8a9c);font-size:13px;padding:14px 2px;line-height:1.5}
-  .hb-results .hr-card.choosable{cursor:pointer}
-  .hb-results .hr-card.choosable:hover{border-color:var(--hb-accent2,#16B8A6);box-shadow:0 6px 18px rgba(22,184,166,.14);transform:translateY(-1px)}
-  .hb-results .hr-card.chosen{border-color:var(--hb-accent2,#16B8A6);box-shadow:0 0 0 1px var(--hb-accent2,#16B8A6) inset;cursor:default}
-  .hb-results .hr-chosen-tag{display:inline-block;font-size:11px;font-weight:600;color:var(--hb-accent2,#16B8A6);margin-top:6px}
-  /* composite items: the pieces a proposal is made of, one labelled row each */
-  .hb-results .hr-parts{margin-top:8px;border-top:1px dashed var(--hb-line,#eef1f6);padding-top:7px;display:grid;gap:5px}
-  /* wrap + min-width: en una tarjeta estrecha el precio (nowrap, empujado a la derecha) estrangulaba al título
+  .hb-results .hr-ln.warn{color:var(--hb-warn-ink,#9a5b1b)}
+  .hb-results .hr-badge{display:inline-block;font-size:var(--f-micro);font-weight:700;letter-spacing:.04em;
+    text-transform:uppercase;color:var(--hb-accent,#3D6FE0);
+    background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 10%,transparent);
+    border-radius:var(--r-sm);padding:2.5px 7px}
+  .hb-results .hr-empty{color:var(--hb-muted,#5f6b7c);font-size:var(--f-body);padding:var(--s5) 0;
+    max-width:52ch;line-height:1.6}
+  .hb-results .hr-card.chosen{border-color:var(--hb-accent2,#16B8A6);
+    box-shadow:0 0 0 1px var(--hb-accent2,#16B8A6) inset;cursor:default;transform:none}
+  .hb-results .hr-chosen-tag{display:inline-block;font-size:var(--f-sm);font-weight:700;
+    color:var(--hb-accent2,#16B8A6);margin-top:var(--s2)}
+
+  /* ── PIEZAS de una propuesta compuesta ── una fila etiquetada cada una, para comparar propuesta a propuesta. */
+  .hb-results .hr-parts{margin-top:var(--s3);padding-top:var(--s3);border-top:var(--line);display:grid;gap:var(--s2)}
+  /* wrap + min-width: en una ficha estrecha el precio (nowrap, empujado a la derecha) estrangulaba el título
      hasta partirlo letra a letra («Valenci / a → / Palma»). Con wrap el precio baja de línea entero. */
-  .hb-results .hr-part{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 6px;font-size:12.5px;line-height:1.35}
-  .hb-results .hr-pk{flex:none;font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--hb-accent,#3D6FE0);
-    background:var(--hb-bg-soft,#eef3fe);border-radius:5px;padding:1px 6px}
+  .hb-results .hr-part{display:flex;flex-wrap:wrap;align-items:baseline;gap:var(--s1) var(--s2);
+    font-size:var(--f-body);line-height:1.4}
+  .hb-results .hr-pk{flex:none;background:var(--hb-bubble,#f1f4f9);border-radius:var(--r-sm);padding:2px 6px;
+    color:var(--hb-accent,#3D6FE0)}
   .hb-results .hr-pt{flex:1 1 7em;min-width:7em;color:var(--hb-ink,#0d1622);overflow-wrap:break-word}
-  .hb-results .hr-pp{flex:0 0 auto;margin-left:auto;font-weight:600;color:var(--hb-accent2,#16B8A6);white-space:nowrap}
-  .hb-results .hr-more{margin-top:9px;display:inline-block;font-size:12px;font-weight:600;color:var(--hb-accent,#3D6FE0);
-    background:none;border:1px solid var(--hb-line,#eef1f6);border-radius:8px;padding:4px 10px;cursor:pointer;font-family:inherit}
-  .hb-results .hr-more:hover{border-color:var(--hb-accent,#3D6FE0);background:var(--hb-bg-soft,#eef3fe)}
-  /* ── VALORACIÓN ── la nota, y por qué. Sin el porqué una nota no se puede discutir ni corregir. */
-  .hb-results .hr-score{flex:none;display:inline-flex;align-items:baseline;gap:2px;font-weight:700;font-size:13px;
-    color:var(--hb-accent,#3D6FE0);background:var(--hb-bg-soft,#eef3fe);border-radius:8px;padding:2px 8px}
-  .hb-results .hr-score small{font-weight:600;font-size:10.5px;opacity:.75}
-  .hb-results .hr-bar{height:5px;border-radius:99px;background:var(--hb-line,#eef1f6);margin:7px 0 4px;overflow:hidden}
-  .hb-results .hr-bar i{display:block;height:100%;border-radius:99px;background:var(--hb-accent,#3D6FE0)}
-  .hb-results .hr-why{font-size:12px;color:var(--hb-muted,#5b6b82);line-height:1.4}
-  /* ── bloques de ficha dinámica ── */
-  .hb-results .hr-blocks{display:grid;gap:9px;margin-top:9px}
-  .hb-results .hr-bt{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--hb-muted-2,#7d8a9c);margin-bottom:4px}
+  .hb-results .hr-pp{flex:0 0 auto;margin-left:auto;font-weight:600;color:var(--hb-ink,#0d1622);white-space:nowrap}
+  .hb-results .hr-more{margin-top:var(--s3);display:inline-flex;align-items:center;gap:5px;font:600 var(--f-sm)/1 inherit;
+    color:var(--hb-accent,#3D6FE0);background:none;border:var(--line);border-radius:var(--r-sm);
+    padding:6px 10px;cursor:pointer;transition:.14s}
+  .hb-results .hr-more:hover{border-color:var(--hb-accent,#3D6FE0);
+    background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 8%,transparent)}
+
+  /* ── VALORACIÓN ── la nota junto al título; el porqué, en el expediente. Sin el porqué no se puede discutir. */
+  .hb-results .hr-score{flex:none;display:inline-flex;align-items:baseline;gap:1px;font-weight:700;
+    font-size:var(--f-sm);color:var(--hb-accent,#3D6FE0);
+    background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 10%,transparent);
+    border-radius:var(--r-pill);padding:2.5px var(--s2)}
+  .hb-results .hr-score small{font-weight:600;font-size:var(--f-micro);opacity:.7}
+  .hb-results .hr-bar{height:4px;border-radius:var(--r-pill);background:var(--hb-bubble,#f1f4f9);
+    margin:var(--s2) 0 var(--s1);overflow:hidden}
+  .hb-results .hr-bar i{display:block;height:100%;border-radius:var(--r-pill);
+    background:linear-gradient(90deg,var(--hb-accent,#3D6FE0),var(--hb-accent2,#16B8A6))}
+  .hb-results .hr-why{font-size:var(--f-body);color:var(--hb-muted,#5f6b7c)}
+
+  /* ── BLOQUES de la ficha a medida ── */
+  .hb-results .hr-blocks{display:grid;gap:var(--s3);margin-top:var(--s3)}
+  .hb-results .hr-bt{margin-bottom:var(--s1)}
   .hb-results .hr-chips{display:flex;flex-wrap:wrap;gap:5px}
-  .hb-results .hr-chip{font-size:11.5px;padding:2px 8px;border-radius:99px;background:var(--hb-bubble,#f1f4f9);color:var(--hb-muted,#5b6b82)}
-  .hb-results .hr-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:5px}
-  .hb-results .hr-strip img{width:100%;height:64px;object-fit:cover;border-radius:7px;background:var(--hb-line,#eef1f6)}
-  .hb-results .hr-tbl{width:100%;border-collapse:collapse;font-size:12px;display:block;overflow-x:auto}
-  .hb-results .hr-tbl th,.hb-results .hr-tbl td{text-align:left;padding:4px 9px 4px 0;border-bottom:1px solid var(--hb-line,#eef1f6);
-    white-space:nowrap}
-  .hb-results .hr-tbl th{color:var(--hb-muted-2,#7d8a9c);font-weight:600}
-  .hb-results .hr-sub-sec{border-left:2px solid var(--hb-line,#eef1f6);padding-left:10px;display:grid;gap:8px}
-  /* ── ficha de datos (compartida por tarjeta, detalle y bloques) ── */
-  .hb-results .hr-facts{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;margin:9px 0;font-size:12.5px;min-width:0}
-  .hb-results .hr-fl{color:var(--hb-muted-2,#7d8a9c)}
+  .hb-results .hr-chip{font-size:var(--f-sm);padding:2.5px var(--s2);border-radius:var(--r-pill);
+    background:var(--hb-bubble,#f1f4f9);color:var(--hb-muted,#5f6b7c)}
+  .hb-results .hr-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:5px}
+  .hb-results .hr-strip img{width:100%;height:62px;object-fit:cover;border-radius:var(--r-sm);
+    background:var(--hb-bubble,#f1f4f9)}
+  /* La tabla va en su PROPIO contenedor con scroll: hacerla display:block para que desbordara le quitaba su
+     comportamiento de tabla (las columnas dejaban de alinearse entre filas, que es todo lo que aporta). */
+  .hb-results .hr-tblwrap{overflow-x:auto;scrollbar-width:thin}
+  .hb-results .hr-tbl{border-collapse:collapse;font-size:var(--f-body);min-width:100%}
+  .hb-results .hr-tbl th,.hb-results .hr-tbl td{text-align:left;padding:5px var(--s3) 5px 0;
+    border-bottom:var(--line);white-space:nowrap}
+  .hb-results .hr-tbl tr:last-child td{border-bottom:none}
+  .hb-results .hr-tbl th{font-size:var(--f-micro);font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--hb-muted-2,#9aa7b8)}
+  .hb-results .hr-tbl td:last-child,.hb-results .hr-tbl th:last-child{padding-right:0;text-align:right}
+  .hb-results .hr-sub-sec{border-left:2px solid var(--hb-line,#e3e8f0);padding-left:var(--s3);display:grid;
+    gap:var(--s2)}
+
+  /* ── FICHA DE DATOS (compartida por tarjeta, expediente y bloques) ── */
+  .hb-results .hr-facts{display:grid;grid-template-columns:auto 1fr;gap:var(--s1) var(--s3);
+    margin:var(--s3) 0;font-size:var(--f-body);min-width:0}
+  .hb-results .hr-fl{color:var(--hb-muted-2,#9aa7b8)}
   .hb-results .hr-fv{color:var(--hb-ink,#0d1622);word-break:break-word}
-  /* ── detail page ── */
-  .hb-results .hr-back{font-size:12px;font-weight:600;color:var(--hb-accent,#3D6FE0);background:none;border:none;
-    padding:0 0 8px;cursor:pointer;font-family:inherit}
-  .hb-results .hr-back:hover{text-decoration:underline}
-  .hb-results .hr-dt{font-size:18px;font-weight:700;line-height:1.2;word-break:break-word}
-  .hb-results .hr-dprice{font-size:15px;font-weight:700;color:var(--hb-accent2,#16B8A6);margin-top:2px}
-  .hb-results .hr-gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:6px;margin:11px 0}
-  .hb-results .hr-gal img{width:100%;height:104px;object-fit:cover;border-radius:8px;background:var(--hb-line,#eef1f6)}
-  .hb-results .hr-sec{border:1px solid var(--hb-line,#eef1f6);border-radius:12px;padding:11px 13px;margin-top:10px;background:var(--hb-bg,#fff)}
-  .hb-results .hr-sec .hr-pk{margin-bottom:5px;display:inline-block}
-  .hb-results .hr-sect{font-size:14px;font-weight:600;margin-top:3px;word-break:break-word}
-  .hb-results .hr-link{display:inline-block;margin-top:7px;font-size:12px;font-weight:600;color:var(--hb-accent,#3D6FE0);text-decoration:none;word-break:break-all}
+
+  /* ── EXPEDIENTE (página 2) ── */
+  .hb-results .hr-back{display:inline-flex;align-items:center;gap:5px;font:600 var(--f-sm)/1 inherit;
+    color:var(--hb-muted,#5f6b7c);background:none;border:none;padding:0 0 var(--s3);cursor:pointer}
+  .hb-results .hr-back:hover{color:var(--hb-accent,#3D6FE0)}
+  .hb-results .hr-dt{font-size:var(--f-lg);font-weight:700;line-height:1.25;letter-spacing:-.015em;
+    word-break:break-word}
+  .hb-results .hr-dprice{font-size:var(--f-md);font-weight:700;color:var(--hb-ink,#0d1622);margin-top:2px}
+  .hb-results .hr-gal{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:var(--s1);
+    margin:var(--s3) 0}
+  .hb-results .hr-gal img{width:100%;height:100px;object-fit:cover;border-radius:var(--r-md);
+    background:var(--hb-bubble,#f1f4f9)}
+  .hb-results .hr-sec{border:var(--line);border-radius:var(--r-lg);padding:var(--s3) var(--s4);
+    margin-top:var(--s3);background:var(--hb-bg,#fff)}
+  .hb-results .hr-sec .hr-pk{margin-bottom:var(--s1);display:inline-block}
+  .hb-results .hr-sect{font-size:var(--f-md);font-weight:650;margin-top:2px;word-break:break-word}
+  .hb-results .hr-link{display:inline-block;margin-top:var(--s2);font-size:var(--f-sm);font-weight:600;
+    color:var(--hb-accent,#3D6FE0);text-decoration:none;word-break:break-all}
   .hb-results .hr-link:hover{text-decoration:underline}
+
   /* ── SUMARIO ── */
-  .hb-results .hr-stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(128px,1fr));gap:9px;margin-bottom:12px}
-  .hb-results .hr-stat{border:1px solid var(--hb-line,#eef1f6);border-radius:11px;padding:9px 11px;background:var(--hb-bg,#fff)}
-  .hb-results .hr-stat b{display:block;font-size:21px;line-height:1.1;font-weight:700;color:var(--hb-ink,#0d1622)}
-  .hb-results .hr-stat span{display:block;font-size:11px;color:var(--hb-muted-2,#7d8a9c);margin-top:3px;line-height:1.3}
-  .hb-results .hr-state{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:600;margin-bottom:10px}
-  .hb-results .hr-dot{width:8px;height:8px;border-radius:50%;background:var(--hb-muted-2,#7d8a9c);flex:none}
-  .hb-results .hr-dot.ok{background:var(--hb-accent2,#16B8A6)}
-  .hb-results .hr-dot.warn{background:var(--hb-warn,#e8a33d)}
+  .hb-results .hr-state{display:inline-flex;align-items:center;gap:var(--s2);font-size:var(--f-body);
+    font-weight:600;margin-bottom:var(--s3)}
+  .hb-results .hr-dot{width:7px;height:7px;border-radius:50%;background:var(--hb-neutral,#c2ccda);flex:none}
+  .hb-results .hr-dot.ok{background:var(--hb-ok,#1f9d55)}
+  .hb-results .hr-dot.warn{background:var(--hb-warn,#c98a00)}
   .hb-results .hr-dot.bad{background:var(--hb-risk,#e5484d)}
-  .hb-results .hr-dot.idle{background:var(--hb-accent,#3D6FE0);animation:hrpulse 1.6s ease-in-out infinite}
-  @keyframes hrpulse{0%,100%{opacity:1}50%{opacity:.35}}
-  .hb-results .hr-steps{list-style:none;margin:4px 0 0;padding:0;display:grid;gap:0}
-  .hb-results .hr-steps li{position:relative;padding:0 0 9px 17px;font-size:12.5px;color:var(--hb-muted,#5b6b82);line-height:1.4}
-  .hb-results .hr-steps li::before{content:"";position:absolute;left:2px;top:5px;width:6px;height:6px;border-radius:50%;background:var(--hb-line,#dfe5ee)}
-  .hb-results .hr-steps li::after{content:"";position:absolute;left:4.5px;top:11px;bottom:0;width:1px;background:var(--hb-line,#eef1f6)}
-  .hb-results .hr-steps li:last-child{padding-bottom:0}
+  .hb-results .hr-dot.idle{background:var(--hb-accent,#3D6FE0);animation:hrpulse 1.8s ease-in-out infinite}
+  @keyframes hrpulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .hb-results .hr-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:var(--s2);
+    margin-bottom:var(--s4)}
+  .hb-results .hr-stat{border:var(--line);border-radius:var(--r-md);padding:var(--s2) var(--s3) 9px;
+    background:var(--hb-bg,#fff)}
+  .hb-results .hr-stat b{display:block;font-size:var(--f-xl);line-height:1.1;font-weight:700;letter-spacing:-.02em;
+    color:var(--hb-ink,#0d1622)}
+  .hb-results .hr-stat span{display:block;margin-top:var(--s1);line-height:1.35;letter-spacing:.04em}
+  .hb-results .hr-stat.dim b{color:var(--hb-muted-2,#9aa7b8)}
+  .hb-results .hr-stat.warn{border-color:color-mix(in srgb,var(--hb-warn,#c98a00) 34%,var(--hb-line,#e3e8f0))}
+  .hb-results .hr-stat.warn b{color:var(--hb-warn-ink,#9a5b1b)}
+  /* Bitácora: una línea de tiempo con el hito ACTUAL marcado — leer «por dónde va» no debería exigir contar. */
+  .hb-results .hr-steps{list-style:none;margin:var(--s2) 0 0;padding:0;display:grid}
+  .hb-results .hr-steps li{position:relative;padding:0 0 var(--s3) var(--s4);color:var(--hb-muted,#5f6b7c)}
+  .hb-results .hr-steps li::before{content:"";position:absolute;left:2px;top:6px;width:6px;height:6px;
+    border-radius:50%;background:var(--hb-neutral,#c2ccda)}
+  .hb-results .hr-steps li::after{content:"";position:absolute;left:4.5px;top:var(--s3);bottom:0;width:1px;
+    background:var(--hb-line,#e3e8f0)}
+  .hb-results .hr-steps li:last-child{padding-bottom:0;color:var(--hb-ink,#0d1622);font-weight:600}
   .hb-results .hr-steps li:last-child::after{display:none}
-  .hb-results .hr-steps li:last-child::before{background:var(--hb-accent,#3D6FE0)}
-  /* ── FUENTES ── */
-  .hb-results .hr-srcs{display:grid;gap:7px}
-  .hb-results .hr-src{display:grid;grid-template-columns:auto 1fr auto;align-items:start;gap:9px;padding:9px 11px;
-    border:1px solid var(--hb-line,#eef1f6);border-radius:11px;background:var(--hb-bg,#fff);min-width:0}
-  .hb-results .hr-src .hr-dot{margin-top:5px}
-  .hb-results .hr-sname{font-size:13px;font-weight:600;word-break:break-word}
+  .hb-results .hr-steps li:last-child::before{background:var(--hb-accent,#3D6FE0);
+    box-shadow:0 0 0 3px color-mix(in srgb,var(--hb-accent,#3D6FE0) 18%,transparent)}
+
+  /* ── FUENTES ── el punto de color da el veredicto antes de leer; el recuento va a la derecha, alineado. */
+  .hb-results .hr-srcs{display:grid;gap:var(--s2)}
+  .hb-results .hr-src{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:start;
+    gap:var(--s2) var(--s3);padding:var(--s3) var(--s4);border:var(--line);border-radius:var(--r-md);
+    background:var(--hb-bg,#fff)}
+  .hb-results .hr-src .hr-dot{margin-top:6px}
+  .hb-results .hr-src.bad{border-color:color-mix(in srgb,var(--hb-risk,#e5484d) 30%,var(--hb-line,#e3e8f0))}
+  .hb-results .hr-src.warn{border-color:color-mix(in srgb,var(--hb-warn,#c98a00) 34%,var(--hb-line,#e3e8f0))}
+  .hb-results .hr-sname{font-size:var(--f-body);font-weight:650;word-break:break-word}
   .hb-results .hr-sname a{color:inherit;text-decoration:none}
   .hb-results .hr-sname a:hover{color:var(--hb-accent,#3D6FE0);text-decoration:underline}
-  .hb-results .hr-sst{font-size:11.5px;font-weight:600;color:var(--hb-muted,#5b6b82);margin-top:2px}
-  .hb-results .hr-sst.warn{color:var(--hb-warn-ink,#b26b00)}
+  .hb-results .hr-sst{font-size:var(--f-sm);font-weight:600;color:var(--hb-muted,#5f6b7c);margin-top:1px}
+  .hb-results .hr-sst.warn{color:var(--hb-warn-ink,#9a5b1b)}
   .hb-results .hr-sst.bad{color:var(--hb-risk,#e5484d)}
-  .hb-results .hr-sd{font-size:12px;color:var(--hb-muted,#5b6b82);margin-top:3px;line-height:1.4;overflow-wrap:break-word}
-  .hb-results .hr-sn{flex:none;font-size:12px;font-weight:700;color:var(--hb-ink,#0d1622);white-space:nowrap}
-  .hb-results .hr-sn small{display:block;font-size:10px;font-weight:600;color:var(--hb-muted-2,#7d8a9c);text-align:right}
+  .hb-results .hr-sd{font-size:var(--f-body);color:var(--hb-muted,#5f6b7c);margin-top:var(--s1);
+    overflow-wrap:break-word}
+  .hb-results .hr-sn{text-align:right;font-size:var(--f-md);font-weight:700;color:var(--hb-ink,#0d1622);
+    white-space:nowrap;line-height:1.2}
+  .hb-results .hr-sn.zero{color:var(--hb-muted-2,#9aa7b8)}
+  /* La unidad se repite en cada fila, así que va en minúscula y sin tracking: en versalitas competía en peso con
+     la propia cifra y seis «RESULTADOS» seguidos gritaban más que los números, que es lo que hay que leer. */
+  .hb-results .hr-sn small{display:block;font-size:var(--f-micro);font-weight:500;
+    color:var(--hb-muted-2,#9aa7b8);margin-top:1px}
+
   /* ── CRITERIOS ── */
-  .hb-results .hr-goal{font-size:13.5px;line-height:1.45;padding:10px 12px;border-radius:11px;
-    background:var(--hb-bg-soft,#eef3fe);border:1px solid var(--hb-line,#eef1f6);margin-bottom:12px;word-break:break-word}
-  .hb-results .hr-cgrp{margin-bottom:13px}
-  .hb-results .hr-cgt{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--hb-muted-2,#7d8a9c);margin-bottom:5px}
-  .hb-results .hr-cgt em{font-style:normal;text-transform:none;letter-spacing:0;font-weight:500;opacity:.8}
-  .hb-results .hr-clist{list-style:none;margin:0;padding:0;display:grid;gap:4px}
-  .hb-results .hr-clist li{position:relative;padding-left:15px;font-size:12.5px;line-height:1.45;color:var(--hb-ink,#0d1622);overflow-wrap:break-word}
-  .hb-results .hr-clist li::before{content:"·";position:absolute;left:4px;font-weight:700;color:var(--hb-accent,#3D6FE0)}
-  .hb-results .hr-cgrp.changes .hr-clist li::before{color:var(--hb-accent2,#16B8A6)}
+  .hb-results .hr-goal{font-size:var(--f-body);line-height:1.55;padding:var(--s3) var(--s4);
+    border-radius:var(--r-md);background:var(--hb-bg-soft,#fbfdff);border:var(--line);
+    border-left:2px solid var(--hb-accent,#3D6FE0);margin-bottom:var(--s3);word-break:break-word}
+  .hb-results .hr-cgrp{margin-bottom:var(--s4)}
+  .hb-results .hr-cgrp:last-child{margin-bottom:0}
+  .hb-results .hr-cgt{margin-bottom:var(--s2)}
+  .hb-results .hr-cgt em{font-style:normal;text-transform:none;letter-spacing:0;font-weight:500;
+    color:var(--hb-muted-2,#9aa7b8);opacity:.85}
+  .hb-results .hr-clist{list-style:none;margin:0;padding:0;display:grid;gap:5px}
+  .hb-results .hr-clist li{position:relative;padding-left:var(--s3);line-height:1.5;color:var(--hb-ink,#0d1622);
+    overflow-wrap:break-word}
+  .hb-results .hr-clist li::before{content:"";position:absolute;left:0;top:7px;width:4px;height:4px;
+    border-radius:50%;background:var(--hb-neutral,#c2ccda)}
+  .hb-results .hr-cgrp.hard .hr-clist li::before{background:var(--hb-accent,#3D6FE0)}
+  .hb-results .hr-cgrp.changes .hr-clist li::before{background:var(--hb-accent2,#16B8A6)}
   `; document.head.appendChild(s);
 }
 
@@ -288,6 +404,10 @@ function renderBlock(b, depth){
       break;
     }
     case "table": {
+      // La tabla vive en su PROPIO contenedor con scroll. Antes se le ponía `display:block` para que desbordara,
+      // y eso le quita su comportamiento de tabla: las columnas dejan de alinearse entre filas, que es lo único
+      // que aporta una tabla sobre una lista.
+      const box=elem("div","hr-tblwrap");
       const t=elem("table","hr-tbl");
       if(b.columns && b.columns.length){
         const tr=elem("tr"); b.columns.forEach(c=>tr.appendChild(elem("th","",c)));
@@ -295,7 +415,7 @@ function renderBlock(b, depth){
       }
       const tb=elem("tbody");
       (b.rows||[]).forEach(r=>{ const tr=elem("tr"); (r||[]).forEach(c=>tr.appendChild(elem("td","",c))); tb.appendChild(tr); });
-      t.appendChild(tb); wrap.appendChild(t);
+      t.appendChild(tb); box.appendChild(t); wrap.appendChild(box);
       break;
     }
     case "link": {
@@ -316,9 +436,24 @@ function renderBlock(b, depth){
   return wrap.childElementCount ? wrap : null;
 }
 
-function renderBlocks(blocks){
+// En la LISTA no cabe el expediente. Visto en pantalla: una ficha con su tabla de costes, su medidor y su sección
+// de documentación ocupaba la tarjeta ENTERA, y con diez resultados —el defecto de entrega desde el 2026-08-12— la
+// lista deja de poder BARRERSE, que es lo único que una lista tiene que saber hacer. Así que la lista se queda con
+// los bloques LIGEROS y el resto es lo que uno va a buscar al abrir la ficha.
+// La excepción es un `text` con tono de AVISO: una salvedad importante escondida detrás de un clic es justo lo que
+// prohíbe la regla de presentación («nada importante al final de un campo largo»).
+const LIGHT_BLOCKS = new Set(["chips"]);
+function isLight(b){
+  if(!b) return false;
+  if(LIGHT_BLOCKS.has(b.kind)) return true;
+  return b.kind === "text" && b.tone === "warn";
+}
+
+function renderBlocks(blocks, {compact = false} = {}){
+  let list = Array.isArray(blocks) ? blocks : [];
+  if(compact) list = list.filter(isLight).slice(0, 2);
   const box=elem("div","hr-blocks");
-  (Array.isArray(blocks)?blocks:[]).forEach(b=>{ const e=renderBlock(b,0); if(e) box.appendChild(e); });
+  list.forEach(b=>{ const e=renderBlock(b,0); if(e) box.appendChild(e); });
   return box.childElementCount ? box : null;
 }
 
@@ -366,12 +501,18 @@ function makeCard(it, isPrimary, choose, ctx){
   const sc = scoreTag(it.score); if(sc) head.appendChild(sc);
   if(it.price) head.appendChild(elem("div","hr-price", it.price));
   card.appendChild(head);
-  if(it.subtitle) card.appendChild(elem("div","hr-s", it.subtitle));
+  // El BADGE va con el título, no al pie. Es una etiqueta que CALIFICA el resultado («Mejor conjunto»), y abajo
+  // acababa junto al botón de detalle, donde se leía como un segundo botón.
+  const meta = elem("div","hr-metarow");
+  if(it.subtitle) meta.appendChild(elem("span","hr-s", it.subtitle));
+  if(it.badge) meta.appendChild(elem("span","hr-badge", it.badge));
+  if(meta.childElementCount) card.appendChild(meta);
   // 80 lines (data.py's cap) so a full block of text — e.g. a song's lyrics — fits in one item's body, not just
-  // a handful of spec-sheet bullets (2026-08-03).
-  (Array.isArray(it.lines) ? it.lines : []).slice(0,80).forEach(l=>card.appendChild(elem("div","hr-ln", l)));
+  // a handful of spec-sheet bullets (2026-08-03). En la lista se acotan: el bloque entero es del expediente.
+  (Array.isArray(it.lines) ? it.lines : []).slice(0, hasDetail ? 3 : 80)
+    .forEach(l=>card.appendChild(elem("div","hr-ln", l)));
 
-  const bl = renderBlocks(blocks); if(bl) card.appendChild(bl);
+  const bl = renderBlocks(blocks, {compact: true}); if(bl) card.appendChild(bl);
 
   // the pieces of a composite result, so three proposals stay comparable at a glance
   if(parts.length){
@@ -385,7 +526,6 @@ function makeCard(it, isPrimary, choose, ctx){
     });
     card.appendChild(box);
   }
-  if(it.badge) card.appendChild(elem("span","hr-badge", it.badge));
 
   if(hasDetail && ctx){
     const btn=elem("button","hr-more","Ver detalle →"); btn.type="button";
@@ -418,8 +558,15 @@ function renderDetail(panel, it, ctx){
 
   panel.appendChild(elem("div","hr-dt", it.title||""));
   if(it.price) panel.appendChild(elem("div","hr-dprice", it.price));
-  if(it.subtitle) panel.appendChild(elem("div","hr-s", it.subtitle));
-  if(it.badge) panel.appendChild(elem("span","hr-badge", it.badge));
+  const dmeta = elem("div","hr-metarow");
+  if(it.subtitle) dmeta.appendChild(elem("span","hr-s", it.subtitle));
+  if(it.badge) dmeta.appendChild(elem("span","hr-badge", it.badge));
+  if(dmeta.childElementCount) panel.appendChild(dmeta);
+
+  // LA VALORACIÓN va ARRIBA, antes de las fotos: es el VEREDICTO. Debajo de la galería se leía como un dato más
+  // al final de la ficha, cuando es justo lo que responde «¿por qué esta y no otra?».
+  const sb=scoreBlock(it.score);
+  if(sb){ const sec=elem("div","hr-sec"); sec.appendChild(sb); panel.appendChild(sec); }
 
   const gallery = Array.isArray(it.images) && it.images.length ? it.images : (it.image ? [it.image] : []);
   if(gallery.length){
@@ -427,9 +574,6 @@ function renderDetail(panel, it, ctx){
     gallery.forEach(u=>g.appendChild(photo(u, it.title, "")));
     panel.appendChild(g);
   }
-
-  const sb=scoreBlock(it.score);
-  if(sb){ const sec=elem("div","hr-sec"); sec.appendChild(sb); panel.appendChild(sec); }
 
   (Array.isArray(it.lines)?it.lines:[]).slice(0,80).forEach(l=>panel.appendChild(elem("div","hr-ln", l)));
 
@@ -531,17 +675,22 @@ function paintSummary(panel, data){
     panel.appendChild(row);
   }
   const stats=elem("div","hr-stats");
-  const add=(value, label)=>{
-    const box=elem("div","hr-stat");
+  const add=(value, label, tone)=>{
+    const box=elem("div","hr-stat"+(tone?" "+tone:""));
     box.appendChild(elem("b","", value));
     box.appendChild(elem("span","", label));
     stats.appendChild(box);
   };
-  add(s.explored != null ? s.explored : "—", s.explored != null ? "candidatos explorados" : "amplitud sin reportar");
+  const noBreadth = s.explored == null;
+  add(noBreadth ? "—" : s.explored, noBreadth ? "sin reportar" : "explorados", noBreadth ? "dim" : "");
   add(c.shown || 0, "en pantalla");
   if(s.discarded != null) add(s.discarded, "descartados");
-  if(c.sources) add(c.sources, c.sources_failed ? `fuentes · ${c.sources_failed} con problema` : "fuentes consultadas");
-  if(s.round && s.round > 1) add(s.round, "ronda de búsqueda");
+  if(c.sources) add(c.sources, "fuentes");
+  // Las fuentes con problema van en su PROPIA casilla y en color de aviso. Metidas en la etiqueta de «fuentes»
+  // hacían un rótulo de dos líneas («FUENTES · 3 CON / PROBLEMA») que rompía la fila, y además escondían dentro
+  // del pie de otro número el único dato de aquí que pide una decisión del operador.
+  if(c.sources_failed) add(c.sources_failed, "sin aprovechar", "warn");
+  if(s.round && s.round > 1) add(s.round, "ronda");
   panel.appendChild(stats);
 
   if(s.note) panel.appendChild(elem("div","hr-why", s.note));
@@ -570,10 +719,19 @@ function paintSources(panel, data){
     `${src.length} fuente${src.length===1?"":"s"}`
     + (c.sources_failed ? ` · ${c.sources_failed} sin poder aprovechar` : "")
     + (c.from_sources ? ` · ${c.from_sources} resultados reunidos` : "")));
+  // Las que NO se pudieron aprovechar, PRIMERO. Son las que piden una decisión del operador («esa pide login,
+  // entro yo»); las que fueron bien solo necesitan estar contadas. Orden estable dentro de cada grupo.
+  const rank = {bad: 0, warn: 1, idle: 2, ok: 3};
+  const ordered = src.map((s, i) => [s, i]).sort((a, b) => {
+    const ra = rank[(SOURCE_STATUS[a[0].status] || SOURCE_STATUS.ok).cls] ?? 3;
+    const rb = rank[(SOURCE_STATUS[b[0].status] || SOURCE_STATUS.ok).cls] ?? 3;
+    return ra - rb || a[1] - b[1];
+  }).map(x => x[0]);
+
   const list=elem("div","hr-srcs");
-  src.forEach(s=>{
+  ordered.forEach(s=>{
     const st = SOURCE_STATUS[s.status] || SOURCE_STATUS.ok;
-    const row=elem("div","hr-src");
+    const row=elem("div","hr-src"+(st.cls==="bad"||st.cls==="warn" ? " "+st.cls : ""));
     row.appendChild(elem("span","hr-dot "+st.cls));
     const mid=elem("div","");
     const name=elem("div","hr-sname");
@@ -585,8 +743,8 @@ function paintSources(panel, data){
     if(s.detail) mid.appendChild(elem("div","hr-sd", s.detail));
     row.appendChild(mid);
     if(s.found != null){
-      const n=elem("div","hr-sn", String(s.found));
-      n.appendChild(elem("small","","resultados"));
+      const n=elem("div","hr-sn"+(s.found ? "" : " zero"), String(s.found));
+      n.appendChild(elem("small","", s.found === 1 ? "resultado" : "resultados"));
       row.appendChild(n);
     } else row.appendChild(elem("div",""));
     list.appendChild(row);
@@ -617,7 +775,7 @@ function paintCriteria(panel, data){
   CRIT_SECTIONS.forEach(sec=>{
     const list = c[sec.key];
     if(!Array.isArray(list) || !list.length) return;
-    const grp=elem("div","hr-cgrp"+(sec.key==="changes"?" changes":""));
+    const grp=elem("div","hr-cgrp "+sec.key);
     const t=elem("div","hr-cgt", sec.label);
     if(sec.note){ t.appendChild(document.createTextNode(" ")); t.appendChild(elem("em","","— "+sec.note)); }
     grp.appendChild(t);

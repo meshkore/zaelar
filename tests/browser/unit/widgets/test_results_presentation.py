@@ -604,3 +604,89 @@ def test_the_sheet_ships_with_the_product():
     man = runtime.get("results") or {}
     assert registry.origin_of(man) == "builtin"
     assert "results" in registry._BUILTINS
+
+
+# ══ 13) el DIGEST cabe en el prompt sin comerse los resultados ══════════════════════════════════════════════════
+def test_the_head_never_squeezes_the_results_out_of_the_digest():
+    """El encabezado (sumario+fuentes+criterios) va DELANTE, así que sin techo propio unos criterios largos
+    empujarían los resultados fuera del recorte: el cerebro sabría con qué se busca pero no qué se ha encontrado,
+    que es exactamente al revés de lo útil."""
+    results.apply_action("criteria", {"goal": "velero " + "x" * 400,
+                                      "hard": [f"duro {i} " + "y" * 200 for i in range(14)],
+                                      "changes": [f"corrección {i} " + "z" * 200 for i in range(14)]})
+    results.apply_action("sources", {"sources": [
+        {"name": f"fuente {i}", "status": "auth", "detail": "d" * 200, "found": i} for i in range(40)]})
+    _present(title="P", items=[{"title": f"Resultado {i}", "price": f"{i}.000 €"} for i in range(12)])
+    head = results._digest_head(results.view_data())
+    assert len(head) <= results._MAX_HEAD_CHARS
+    dig = results.prompt_digest()
+    assert "#1 Resultado 0" in dig, "los resultados tienen que sobrevivir al recorte del encabezado"
+
+
+def test_when_the_head_is_squeezed_it_keeps_the_sources_and_drops_the_criteria():
+    """Orden por IRREEMPLAZABILIDAD: el estado de una fuente solo lo sabe esta pantalla; los criterios se dijeron
+    en voz alta y el cerebro los tiene en la conversación reciente. Recortar el criterio se puede permitir."""
+    results.apply_action("criteria", {"goal": "g" * 300, "hard": ["h" * 200] * 14})
+    results.apply_action("sources", {"sources": [
+        {"name": "Wallapop", "status": "auth", "detail": "pedía iniciar sesión"}]})
+    head = results._digest_head(results.view_data())
+    assert "Wallapop" in head and "autenticación" in head
+
+
+def test_failed_sources_lead_because_they_are_the_ones_that_change_an_answer():
+    results.apply_action("sources", {"sources": [
+        {"name": "BienA", "status": "ok", "found": 10},
+        {"name": "BienB", "status": "ok", "found": 20},
+        {"name": "Wallapop", "status": "auth", "detail": "pedía sesión"},
+    ]})
+    head = results._digest_head(results.view_data())
+    assert head.index("Wallapop") < head.index("BienA")
+
+
+# ══ 14) LA VISTA: la lista se BARRE, el expediente se LEE (2026-08-12, visto en pantalla) ═══════════════════════
+# Con las fichas pintando todos sus bloques, UNA tarjeta llenaba la hoja entera — y desde que la entrega por defecto
+# son diez resultados, eso convierte la lista en algo que no se puede recorrer. Contratos de render (los tests de
+# frontend son de string): en la lista van los bloques LIGEROS; los pesados son lo que uno va a buscar al abrir.
+def test_the_list_shows_a_summary_card_not_the_whole_dossier():
+    src = WIDGET_JS.read_text()
+    assert "renderBlocks(blocks, {compact: true})" in src, "la LISTA pinta la ficha en modo compacto"
+    assert "renderBlocks(it.blocks)" in src, "y el EXPEDIENTE, entera"
+    assert "const LIGHT_BLOCKS = new Set([\"chips\"])" in src
+    assert 'b.kind === "text" && b.tone === "warn"' in src, \
+        "un AVISO no puede quedarse escondido detrás de un clic (regla de presentación)"
+
+
+def test_the_badge_travels_with_the_title_not_with_the_button():
+    """«Mejor conjunto» CALIFICA el resultado. Al pie acababa junto a «Ver detalle» y se leía como otro botón."""
+    src = WIDGET_JS.read_text()
+    assert "hr-metarow" in src
+    i_meta, i_more = src.index("hr-metarow"), src.index('elem("button","hr-more"')
+    assert i_meta < i_more
+
+
+def test_the_numbers_that_get_compared_are_tabular():
+    """Detalle de composición, no capricho: en una superficie cuyo trabajo es poner precios y notas unos debajo de
+    otros, dígitos de anchura distinta obligan a releer para saber cuál es mayor."""
+    src = WIDGET_JS.read_text()
+    i = src.index("font-variant-numeric:tabular-nums")
+    block = src[max(0, i - 400):i]
+    for cls in ("hr-price", "hr-score", "hr-stat b", "hr-sn", "hr-tbl td"):
+        assert cls in block, f"{cls} lleva cifras que se comparan: van tabulares"
+
+
+def test_the_type_scale_and_spacing_are_a_system_not_ad_hoc_numbers():
+    """La versión anterior acumulaba trece tamaños de letra y márgenes elegidos uno a uno. Eso no se lee como una
+    superficie, se lee como parches. Un techo de magnitudes crudas obliga a usar la escala."""
+    src = WIDGET_JS.read_text()
+    css = src[src.index("s.textContent=`"):src.index("`; document.head.appendChild(s)")]
+    for token in ("--f-body", "--f-micro", "--s3", "--r-md", "--line:"):
+        assert token in css, f"falta el token {token} de la escala"
+    import re
+    # Magnitudes crudas EN USO, excluyendo la definición de los propios tokens (ahí los px son obligatorios) y los
+    # valores por debajo de 4px (hilos, semitonos ópticos: no hay escala que los cubra sin quedar peor).
+    body = "\n".join(ln for ln in css.split("\n") if not re.match(r"\s*--[a-z0-9-]+:", ln))
+    raw = [m for m in re.findall(r":\s*(\d+(?:\.\d+)?)px", body) if float(m) > 3]
+    assert len(raw) <= 24, (f"demasiadas magnitudes crudas en uso ({len(raw)}: {sorted(set(raw))}): "
+                            "usa la escala --s*/--f*/--r*")
+    assert "#0d1622" in css or "#e8edf5" in css, "los hex solo valen como FALLBACK de var(--hb-*)"
+    assert "color:#" not in css.replace("color:#fff", ""), "ningún color fuera del contrato --hb-*"

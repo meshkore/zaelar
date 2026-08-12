@@ -169,11 +169,53 @@ def test_the_worker_is_told_to_fill_the_sheet_while_it_works():
 
 def test_the_sheet_documents_the_live_contract_for_whoever_reads_it():
     """El worker aprende el contrato leyendo el manifest (`widget_cli read results`): si la convención no está ahí,
-    no existe."""
+    no existe. Vive en `worker_guide` —que solo se sirve BAJO DEMANDA en `read_widget`— y no en `usage`, por el
+    test de presupuesto de abajo."""
     with open("widgets/results/manifest.json", encoding="utf-8") as f:
         man = json.load(f)
     assert "append" in (man.get("actions") or {})
-    assert "MIENTRAS SE TRABAJA" in man["usage"]
+    guide = man.get("worker_guide") or ""
+    assert "MIENTRAS TRABAJAS" in guide, "que la hoja se llena en curso, no al final"
+    assert "provisional" in guide.lower() and "@informe.json" in guide
+
+
+# ── PRESUPUESTO DE PROMPT: `usage` se paga en CADA turno con el widget abierto ─────────────────────────────────
+# `widgets/brief.py::for_prompt` mete el `usage` COMPLETO del widget en el prompt mientras esté en pantalla. La
+# hoja de resultados está abierta justamente durante una investigación larga, que es cuando el operador más habla:
+# un `usage` de 4,9 KB (donde llegó a estar) son ~1,2k tokens en cada «¿cómo va?». La norma del operador es la de
+# «las tools, de menos a más»: el contrato LARGO se sirve bajo demanda (`worker_guide` → `read_widget`), y en el
+# turno solo va lo que el cerebro no puede deducir. El techo obliga a recortar en vez de engordar el turno de todos.
+_USAGE_BUDGET = 700
+
+
+def test_the_per_turn_doc_stays_small_and_the_long_contract_is_on_demand():
+    with open("widgets/results/manifest.json", encoding="utf-8") as f:
+        man = json.load(f)
+    usage = man.get("usage") or ""
+    assert len(usage) <= _USAGE_BUDGET, (
+        f"`usage` viaja en CADA turno con la hoja abierta: {len(usage)} chars > {_USAGE_BUDGET}. "
+        "Lo que sea contrato de relleno va a `worker_guide`, que solo se lee con read_widget.")
+    # y lo que se movió NO puede seguir duplicado en el camino caro
+    for long_only in ("@informe.json", "kind:\"meter\"", "≤34"):
+        assert long_only not in usage, f"«{long_only}» es del contrato largo: su sitio es worker_guide"
+    assert len(man.get("worker_guide") or "") > len(usage), "el contrato largo existe, solo que bajo demanda"
+
+
+def test_the_turn_prompt_does_not_carry_the_long_contract(tmp_path, monkeypatch):
+    """Comprobado por el camino REAL (`brief.for_prompt`), no leyendo el JSON: es ahí donde se paga.
+
+    Con la hoja VACÍA a propósito, para medir lo que cuesta la DOCUMENTACIÓN y no lo que cuesta el CONTENIDO. Los
+    resultados que hay en pantalla también viajan (el digest), y eso es dinero bien gastado: es lo que permite
+    responder «¿ese lleva wifi?» sin volver a buscar. Lo que no puede colarse en cada turno es el manual de cómo
+    se rellena la hoja, que solo le importa a quien la rellena."""
+    from widgets import brief, store
+    monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
+    opened = brief.for_prompt(open_ids=["results"], query="")
+    closed = brief.for_prompt(open_ids=[], query="")
+    assert "results" in opened
+    assert "@informe.json" not in opened and "kind:\"meter\"" not in opened
+    cost = len(opened) - len(closed)
+    assert cost < 1000, f"tener la hoja abierta cuesta {cost} chars de prompt en CADA turno: es un manual, no una guía"
 
 
 # ── VACIAR UN WIDGET NO PUEDE SER SILENCIOSO (2026-08-10) ─────────────────────────────────────────────────────

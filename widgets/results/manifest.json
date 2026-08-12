@@ -1,9 +1,9 @@
 {
   "id": "results",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "title": "Resultados",
-  "description": "SUPERFICIE GENÉRICA DE PRESENTACIÓN con CUATRO PESTAÑAS, para enseñar en pantalla el trabajo de cualquier búsqueda o investigación compleja — anuncios, alojamientos, productos, artículos, correos, archivos, o PROPUESTAS COMPUESTAS (un plan hecho de varias piezas). RESULTADOS: las fichas, y el expediente completo de una al abrirla. SUMARIO: en qué punto va, cuántos candidatos ha explorado y qué ha hecho. FUENTES: en qué webs ha entrado y qué pasó en cada una (entró · le limitaron los resultados · pedía autenticación · error). CRITERIOS: el encargo tal y como se está ejecutando, con las correcciones que el operador va dando. NO busca ni calcula nada por su cuenta: quien hizo el trabajo le entrega lo suyo con acciones declaradas y esto lo guarda y lo pinta. Agnóstico del tema: da igual barcos, pisos, coches o papers.",
-  "whenToUse": "Siempre que haya que MOSTRAR al operador el trabajo de una búsqueda o investigación dentro de nuestra interfaz en vez de solo decirlo por voz. Si una tarea produce hallazgos, su sitio es aquí. También cuando pida VER EN DETALLE uno de los resultados (`detail`), o cambiar de pestaña: «¿de dónde has sacado esto?» / «en qué webs has mirado» → `tab` sources; «¿cómo va?» / «cuántos has mirado» → `tab` summary; «con qué criterios estás buscando» → `tab` criteria. ESTA es la superficie de «muéstrame los resultados / el informe» (el widget `search` solo es el cartel de progreso, no el sitio de los hallazgos). OJO: abrirla NO produce resultados. Si nadie ha hecho el trabajo, enseña una hoja EN BLANCO — primero se busca (escala a un Brain Worker). Nunca digas «aquí lo tienes» por haber abierto esta hoja vacía.",
+  "description": "Superficie genérica de presentación, con cuatro pestañas: RESULTADOS (fichas + expediente de una), SUMARIO (cómo va), FUENTES (en qué webs entró y qué pasó en cada una) y CRITERIOS (con qué se está buscando). No busca ni calcula: quien hizo el trabajo le entrega el conjunto ya hecho y esto lo guarda y lo pinta. Agnóstica del tema — barcos, pisos, papers o correos.",
+  "whenToUse": "Enseñar EN PANTALLA los resultados o el informe de una búsqueda o investigación, y ver una en detalle. Es el sitio de los HALLAZGOS (el widget `search` solo es el cartel de progreso). Abrirla no produce resultados: si nadie ha buscado, enseña una hoja en blanco.",
   "keywords": [
     "resultados",
     "anuncios",
@@ -52,69 +52,64 @@
       "source_detail": 160
     }
   },
-  "usage": "CUATRO PESTAÑAS. La hoja no es solo la lista: es RESULTADOS + SUMARIO (cómo va) + FUENTES (de dónde salen los datos y qué pasó en cada web) + CRITERIOS (con qué se está buscando). Las tres últimas se llenan MIENTRAS trabajas con `progress`, `sources` y `criteria`, y son lo que le permite al operador entender y CORREGIR el rumbo a los dos minutos en vez de a los quince. Una búsqueda sin fuentes reportadas es una búsqueda que él no puede auditar: si una web te dejó fuera, DILO ahí — «no encontré nada» y «Wallapop me pedía login» son cosas distintas.\n· `sources` en cuanto entras (o fallas) en cada sitio: {name, url, status, detail, found}. status = ok · partial (te limitó los resultados) · auth (pedía sesión) · blocked · error · pending. Es UPSERT: reporta pending al empezar y actualiza la misma fuente al acabar con ella.\n· `progress` cada vez que haya avance de verdad: {state, explored, discarded, note, steps}. `explored` es cuántos candidatos has evaluado DE VERDAD — nadie más lo sabe, y sin él el sumario dice «amplitud sin reportar» en vez de inventárselo.\n· `criteria` para las correcciones del operador («que sean de 42 a 49 pies» → changes). El objetivo y los criterios iniciales ya vienen sembrados del brief; no los repitas, corrígelos.\n\nPRESENTACIÓN: una idea por campo (el `title` es el NOMBRE, nada más — la ruta/compañía/horario van en `subtitle` o en `facts`); los datos duros en `facts`, nunca en prosa; y NO mandes `columns` ni maquetes con guiones o tablas: el reparto lo decide la hoja según la forma del contenido Y EL ANCHO REAL (la tarjeta es redimensionable y puede ir a pantalla completa). Presupuestos que caben sin envolver: title ≤34, subtitle ≤70, price ≤16, badge ≤16, título de pieza ≤40, título de la hoja ≤70, detalle de fuente ≤160.\nSE LLENA MIENTRAS SE TRABAJA: primer `present` en cuanto haya candidatos reales (subtítulo diciendo en qué punto va: «en curso · 12 candidatos»), `append` según se confirmen, y un `present` FINAL que reemplaza lo provisional por la selección definitiva. Lo provisional se marca COMO provisional. La hoja es el estado ACTUAL del trabajo, no un historial: lo descartado desaparece.\nCÓMO SE ENTREGA: un Brain Worker escribe el JSON a un fichero de RUTA RELATIVA en su directorio de trabajo (`informe.json`, nunca `/tmp/` ni rutas absolutas) y lo pasa con `python -m nucleo.widget_cli data results present @informe.json`, y luego `python -m nucleo.widget_cli show results`. Pegar el JSON en la línea de comandos o usar un heredoc NO funciona: lo bloquean el quoting y el guarda del shell. El cerebro: tool `widget_data(widget_id=\"results\", action=\"present\", payload={...})`.\n\nFORMA DEL PAYLOAD: `{title, subtitle, choosable, items:[…], sources:[…], summary:{…}, criteria:{…}}`. Cada item: `title` (OBLIGATORIO), `subtitle` (una línea de contexto), `price` (etiqueta destacada junto al título), `lines` (hasta 80 líneas de detalle), `badge`, `url` (la fuente REAL), `image` (foto REAL de portada, nunca inventada), `primary:true` (destaca arriba; reserva 1-3), `facts` ({etiqueta: valor} — los datos duros, que es lo que zaelar podrá responder después sin volver a buscar), `images:[…]` (galería del detalle).\nVALORACIÓN — `score`: la nota con la que has puntuado ese candidato. Número (`8.7`), texto («8,7/10») o `{value, max, label, why}`. Pon el `why` en una frase: una nota sin porqué no se puede discutir ni corregir. Sale como etiqueta en la ficha y desplegada con su barra en el detalle.\nITEM COMPUESTO — `parts:[{kind,title,subtitle,price,url,image,lines,facts}]` donde `kind` es el ROL de la pieza («Hotel», «Ferry», «Vuelo»): así una propuesta se compara pieza a pieza en vez de disolverse en prosa.\nFICHA A MEDIDA — `blocks`: cada tipo de resultado se lee distinto (un barco no es un paper ni un correo), así que además de los campos fijos puedes COMPONER la ficha con bloques. NO mandes HTML (se descarta): son piezas declarativas y la hoja las pinta. Vocabulario: {kind:\"text\", lines:[…], tone:muted|strong|warn} · {kind:\"facts\", title, facts:{…}} · {kind:\"chips\", chips:[…]} (etiquetas cortas: equipamiento, tags) · {kind:\"gallery\", images:[…]} · {kind:\"meter\", title, value, max, caption} (una barra: estado, encaje, batería) · {kind:\"table\", title, columns:[…], rows:[[…]]} (comparativas y series cortas) · {kind:\"link\", url, label} · {kind:\"section\", title, blocks:[…]} (agrupa, un solo nivel).\nLA SEGUNDA PÁGINA: con `detail` ({title} o {index} 1-based) la hoja pasa al EXPEDIENTE COMPLETO de un item (galería, valoración con su porqué, todos sus `facts`, la ficha a medida y cada pieza desplegada con su enlace); `list` vuelve. Con `append` se van añadiendo resultados según llegan (deduplica por title+url); `clear` vacía la hoja entera. Con `choosable:true` el operador puede ELEGIR uno haciendo clic. Los datos PERSISTEN: sobreviven al re-render, a reconectar y a reiniciar.",
+  "usage": "4 pestañas, se cambia con `tab`: results · summary (cómo va) · sources (webs consultadas y qué pasó) · criteria (con qué se busca). «de dónde has sacado esto»→sources · «cómo va / cuántos has mirado»→summary · «con qué criterios»→criteria. `detail` abre el expediente de UNA (mejor `index` 1-based: sobrevive al STT). Si está vacía es que nadie ha buscado aún: escala, y NUNCA digas «aquí lo tienes» sobre una hoja en blanco. La rellena un worker con `present`/`append`; el contrato del payload está en `read_widget`, no aquí.",
+  "worker_guide": "GUÍA COMPLETA PARA RELLENAR ESTA HOJA (la lees con `python -m nucleo.widget_cli read results`; no viaja en el prompt de nadie).\n\nCÓMO SE ENTREGA. Escribe el JSON a un fichero de RUTA RELATIVA en tu directorio de trabajo (`informe.json`, nunca `/tmp/` ni rutas absolutas) y pásalo con `python -m nucleo.widget_cli data results present @informe.json`; luego `… show results`. Pegar el JSON en la línea de comandos o usar un heredoc NO funciona: lo bloquean el quoting y el guarda del shell.\n\nLA HOJA SE LLENA MIENTRAS TRABAJAS, no al final. Primer `present` en cuanto haya candidatos reales, con el subtítulo diciendo en qué punto vas («en curso · 12 candidatos, sin filtrar»); `append` a medida que confirmes; `present` FINAL que reemplaza lo provisional por la selección definitiva. Marca lo provisional COMO provisional. La hoja es el estado ACTUAL del trabajo, no un historial: lo descartado desaparece.\n\nLAS OTRAS TRES PESTAÑAS son lo que le permite al operador entender y CORREGIR el rumbo a los dos minutos en vez de a los quince.\n· `sources` en cuanto entras (o no puedes entrar) en cada sitio: {name, url, status, detail, found}. status = ok · partial (te limitó los resultados) · auth (pedía sesión) · blocked · error · pending. UPSERT por url: anuncia `pending` y actualiza la misma fuente al acabar. Si una web te dejó fuera, DILO: «no encontré nada» y «Wallapop me pedía login» son cosas distintas, y solo la segunda le dice al operador que entre él.\n· `progress` cuando haya avance de verdad (no un mensaje por candidato): {state, explored, discarded, note, steps}. `explored` = cuántos candidatos has evaluado DE VERDAD; nadie más lo sabe, y sin él el sumario dice «amplitud sin reportar» en vez de inventárselo.\n· `criteria` solo para corregir: el objetivo y los criterios ya vienen sembrados del brief. Una corrección del operador va en `changes`.\n\nPAYLOAD: {title, subtitle, choosable, items:[…], sources:[…], summary:{…}, criteria:{…}}. ITEM: `title` (OBLIGATORIO, el NOMBRE y nada más), `subtitle` (una línea de contexto), `price` (etiqueta destacada), `lines` (≤80 líneas), `badge`, `url` (la fuente REAL), `image` (foto REAL de portada, nunca inventada), `primary:true` (destaca arriba; reserva 1-3), `facts` ({etiqueta: valor} — los datos duros, que es lo que zaelar podrá responder luego sin volver a buscar), `images:[…]` (galería del expediente).\n· `score` = LA VALORACIÓN con la que puntúas ese candidato: `8.7`, «8,7/10» o {value,max,label,why}. Pon el `why` en una frase: una nota sin porqué no se puede discutir ni corregir.\n· `parts:[{kind,title,subtitle,price,url,image,lines,facts}]` = las PIEZAS de una propuesta compuesta; `kind` es el ROL («Hotel», «Ferry», «Vuelo»), y es lo que hace comparables dos propuestas en vez de disolverlas en prosa.\n· `blocks` = FICHA A MEDIDA, porque un barco no se lee como un paper ni como un correo. NO mandes HTML (se descarta entero). Vocabulario: {kind:\"text\", lines, tone:muted|strong|warn} · {kind:\"facts\", title, facts} · {kind:\"chips\", chips} · {kind:\"gallery\", images} · {kind:\"meter\", title, value, max, caption} · {kind:\"table\", title, columns, rows} · {kind:\"link\", url, label} · {kind:\"section\", title, blocks} (un solo nivel).\n\nPRESENTACIÓN: una idea por campo — la ruta, la compañía o el horario NO van en el título, van en `subtitle` o en `facts`. Los datos duros en `facts`, nunca en prosa. NO maquetes con guiones, tablas ASCII ni `columns`: el reparto lo decide la hoja por la forma del contenido Y el ancho real (la tarjeta se redimensiona y se maximiza). Caben sin envolver: title ≤34, subtitle ≤70, price ≤16, badge ≤16, título de pieza ≤40, título de la hoja ≤70, detalle de fuente ≤160. Misma forma para todos los items: comparar exige columnas comparables.",
   "actions": {
     "present": {
-      "desc": "Entrega el conjunto de resultados COMPLETO y lo pinta (reemplaza los items; NO toca fuentes, sumario ni criterios, que se conservan). Es la forma normal de rellenar este widget. Un item puede ser simple, COMPUESTO (`parts`) o traer una FICHA A MEDIDA (`blocks`), además de `facts`, `images` y `score` (la valoración, que sale en la ficha y en el detalle). Puede traer de paso `sources`/`summary`/`criteria`.",
+      "desc": "Entrega el conjunto COMPLETO de resultados y lo pinta (reemplaza los items; conserva fuentes, sumario y criterios). Un item puede ser simple, COMPUESTO (`parts`) o traer ficha a medida (`blocks`), más `facts`, `images` y `score`. Admite de paso `sources`/`summary`/`criteria`. Contrato completo en `read_widget`.",
       "payload": {
         "title": "Propuestas de vacaciones · Baleares 17-23 ago",
         "subtitle": "3 planes completos · 2 adultos + 2 niños · coche 4x4",
         "items": [
           {
-            "title": "Plan A — Ibiza, todo en una habitación familiar",
+            "title": "Plan A — Ibiza en familia",
             "subtitle": "Cala Tarida · 4 noches",
             "price": "1.840€ total",
             "badge": "Mejor calidad/precio",
             "primary": true,
-            "image": "https://example.com/hotel-portada.jpg",
+            "score": {
+              "value": 8.7,
+              "max": 10,
+              "why": "Única con los 4 en la misma habitación y parking incluido"
+            },
+            "image": "https://example.com/portada.jpg",
             "images": [
-              "https://example.com/piscina.jpg",
-              "https://example.com/habitacion.jpg"
+              "https://example.com/piscina.jpg"
             ],
             "facts": {
-              "Total 4 noches": "1.840€",
-              "Habitación": "Familiar, 4 personas en la misma habitación",
-              "Desayuno": "Incluido (buffet)",
-              "Wifi": "Sí, gratis en todo el hotel",
-              "Parking": "Gratuito en el hotel"
+              "Habitación": "Familiar, los 4 juntos",
+              "Desayuno": "Incluido",
+              "Parking": "Gratuito"
             },
+            "blocks": [
+              {
+                "kind": "chips",
+                "chips": [
+                  "Toboganes",
+                  "A pie de playa"
+                ]
+              }
+            ],
             "parts": [
               {
                 "kind": "Hotel",
                 "title": "Insotel Tarida Beach 4★",
-                "subtitle": "Cala Tarida, Ibiza",
                 "price": "1.200€",
                 "url": "https://example.com/hotel",
-                "image": "https://example.com/hotel.jpg",
-                "lines": [
-                  "Complejo con 3 piscinas y zona de toboganes para niños"
-                ],
                 "facts": {
                   "Check-in": "15:00",
-                  "Check-out": "11:00",
-                  "Piscinas": "3 + splash park infantil",
-                  "Valoración": "8,7/10 (2.431 opiniones)"
+                  "Piscinas": "3 + splash park"
                 }
               },
               {
                 "kind": "Ferry",
-                "title": "Baleària rápido · Dénia → Ibiza",
+                "title": "Baleària · Dénia → Ibiza",
                 "price": "640€ ida y vuelta con coche",
                 "url": "https://example.com/ferry",
                 "facts": {
-                  "Ida": "17 ago 11:30 → 13:45 (2h 15m)",
-                  "Vuelta": "23 ago 19:00 → 21:15",
-                  "Puerto": "Dénia (Estación Marítima)",
-                  "Vehículo": "Admite 4x4 hasta 5,0 m / 1,85 m de alto",
-                  "Cancelación": "Flexible hasta 48h antes"
+                  "Ida": "17 ago 11:30 → 13:45",
+                  "Vehículo": "4x4 hasta 5,0 m"
                 }
-              },
-              {
-                "kind": "Restaurante",
-                "title": "Es Torrent",
-                "subtitle": "Pescado a pie de playa",
-                "price": "45-60€/persona",
-                "url": "https://example.com/restaurante"
               }
             ]
           }
@@ -122,62 +117,43 @@
       }
     },
     "append": {
-      "desc": "Añade resultados al conjunto ya mostrado, según se van encontrando (deduplica por title+url). Para que el informe se llene en vivo en vez de aparecer de golpe al final.",
+      "desc": "Añade resultados a lo ya mostrado según se van encontrando (deduplica por title+url), para que el informe se llene en vivo en vez de aparecer de golpe al final.",
       "payload": {
         "items": [
           {
             "title": "Plan B — Mallorca",
             "subtitle": "Alcúdia · 4 noches",
-            "price": "1.910€ total",
-            "parts": [
-              {
-                "kind": "Hotel",
-                "title": "Zafiro Palace Alcúdia",
-                "price": "1.350€"
-              },
-              {
-                "kind": "Ferry",
-                "title": "Trasmed · Valencia → Palma",
-                "price": "560€"
-              }
-            ]
+            "price": "1.910€ total"
           }
         ]
       }
     },
     "detail": {
-      "desc": "Pasa la hoja a la SEGUNDA PÁGINA: el expediente completo de UN item (galería de fotos, todos sus `facts`, cada pieza desplegada con su enlace, horarios y condiciones). Responde a «enséñame en detalle la propuesta uno». Acepta el `title` del item o su `index` 1-based (el ordinal es más robusto viniendo de voz que un nombre comercial largo).",
+      "desc": "Abre el EXPEDIENTE completo de UN item: galería, valoración con su porqué, todos sus `facts`, la ficha a medida y cada pieza con su enlace y horarios. Acepta `title` o `index` 1-based — el ordinal sobrevive al STT mucho mejor que un nombre comercial largo.",
       "payload": {
         "index": 1
       }
     },
     "list": {
-      "desc": "Vuelve de la página de detalle a la LISTA de resultados.",
+      "desc": "Vuelve del expediente a la lista.",
       "payload": {}
     },
     "tab": {
-      "desc": "Cambia de pestaña: `results` (las fichas) · `summary` (estado, cuántos ha explorado, qué ha hecho) · `sources` (en qué webs ha entrado y qué pasó en cada una) · `criteria` (con qué criterios se está buscando). Responde a «enséñame de dónde has sacado esto», «¿cómo va?», «con qué criterios buscas».",
+      "desc": "Cambia de pestaña: `results` · `summary` (estado y recuentos) · `sources` (webs consultadas y qué pasó en cada una) · `criteria` (con qué se busca). Responde a «de dónde has sacado esto», «¿cómo va?», «con qué criterios buscas».",
       "payload": {
         "tab": "sources"
       }
     },
     "sources": {
-      "desc": "Reporta una web/origen consultado y QUÉ PASÓ ahí. Se hace SOBRE LA MARCHA, no al final: es lo que le permite al operador ver el proceso y actuar («esa pide login, entro yo»). Upsert por url/nombre, así que la misma fuente se puede ir actualizando. `status`: ok (entró) · partial (entró pero le limitaron los resultados) · auth (pedía autenticación) · blocked (bloqueó el acceso) · error · pending. `detail` = la explicación en una frase; `found` = cuántos resultados sacó de ahí.",
+      "desc": "Reporta una web/origen y QUÉ PASÓ ahí, sobre la marcha. `status`: ok · partial (te limitó los resultados) · auth (pedía sesión) · blocked · error · pending. Upsert por url/nombre. Es lo que convierte «no encontré nada» en un dato que el operador puede auditar y arreglar.",
       "payload": {
         "sources": [
           {
             "name": "Wallapop",
             "url": "https://es.wallapop.com",
             "status": "auth",
-            "detail": "pedía iniciar sesión para ver los anuncios completos",
+            "detail": "pedía iniciar sesión para ver el anuncio completo",
             "found": 0
-          },
-          {
-            "name": "Cosasdebarcos",
-            "url": "https://www.cosasdebarcos.com",
-            "status": "partial",
-            "detail": "el listado corta a 50 resultados por búsqueda",
-            "found": 50
           },
           {
             "name": "Yachtworld",
@@ -189,7 +165,7 @@
       }
     },
     "progress": {
-      "desc": "Actualiza el SUMARIO mientras trabajas: `state` (en una frase: «filtrando por eslora»), `explored` (cuántos candidatos has evaluado DE VERDAD), `selected`, `discarded`, `round`, `note` (una salvedad) y `steps` (hitos, que se van acumulando en una bitácora — hitos, no cada clic). Se mezcla con lo que ya hubiera, no lo reemplaza.",
+      "desc": "Actualiza el SUMARIO: `state` (una frase), `explored` (candidatos evaluados DE VERDAD), `selected`, `discarded`, `round`, `note` y `steps` (hitos, que se acumulan). Se mezcla con lo que hubiera.",
       "payload": {
         "state": "verificando los finalistas",
         "explored": 47,
@@ -201,25 +177,21 @@
       }
     },
     "criteria": {
-      "desc": "Fija o corrige los CRITERIOS con los que se está buscando. Se siembran solos desde el brief al arrancar una investigación, así que lo normal aquí es AÑADIR una corrección del operador en `changes` (se acumulan) o afinar una lista. Un `goal` DISTINTO del que había = investigación nueva: vacía la hoja (resultados, fuentes y sumario de la anterior). `reset:false` lo evita.",
+      "desc": "Fija o corrige los criterios de búsqueda. Se siembran solos desde el brief, así que lo normal es AÑADIR una corrección del operador en `changes`. Un `goal` distinto = investigación nueva: vacía la hoja de la anterior (`reset:false` lo evita).",
       "payload": {
         "changes": [
           "solo esloras de 42 a 49 pies"
-        ],
-        "hard": [
-          "eslora 42-49 pies",
-          "precio ≤ 200.000 €"
         ]
       }
     },
     "clear": {
-      "desc": "Vacía la hoja (vuelve al estado sin resultados).",
+      "desc": "Vacía la hoja entera (las cuatro pestañas).",
       "payload": {}
     },
     "choose": {
-      "desc": "Marca un item de la lista mostrada (pusheada con choosable:true) como elegido por el operador.",
+      "desc": "Marca un item como elegido por el operador (requiere `choosable:true`).",
       "payload": {
-        "title": "Plan A — Ibiza, todo en una habitación familiar"
+        "title": "Plan A — Ibiza en familia"
       }
     }
   },

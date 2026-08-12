@@ -73,3 +73,38 @@
   larga; (2) «pantalla completa» eran DOS cosas y solo existía la nativa, que tapa el orbe y el chat — pésimo
   justo aquí, donde el operador agranda la hoja PARA seguir corrigiendo la búsqueda por voz. Ahora por defecto se
   maximiza dentro de la app y la nativa la pide el widget en su manifest (`"fullscreen":"native"`, el vídeo).
+- **2026-08-12 (2º pase) — pulido de vista, diseño gráfico y DOC AL MÍNIMO para embeber.** Petición del operador:
+  «márgenes, padding, detalles, optimización de la vista… asegúrate de que la doc está optimizada para que la use
+  el sistema, todo al mínimo para embeberlo… dale un toque de diseño gráfico».
+  · **DOC PARTIDA EN DOS AUDIENCIAS, medido.** `widgets/brief.py::for_prompt` mete el `usage` COMPLETO en el prompt
+    de CADA turno mientras el widget está abierto — y esta hoja está abierta justo durante una investigación larga,
+    que es cuando el operador más habla. El `usage` del primer pase eran **4.868 chars** (~1,2k tokens por «¿cómo
+    va?»), exactamente el despilfarro que prohíbe la norma «las tools, de menos a más». Ahora: `usage` = 526 chars
+    (solo lo que el CEREBRO no puede deducir: las cuatro pestañas y su disparador, el ordinal del detalle, y que una
+    hoja vacía no es un resultado) y el contrato de relleno entero se muda a **`worker_guide`**, que viaja SOLO en
+    `read_widget` — bajo demanda, una vez por tarea, a quien lo necesita. **Coste de tener la hoja abierta: 5.000 →
+    740 chars de prompt.** Con techo en test (`test_reset_blank_surfaces.py`) para que añadir doc obligue a recortar.
+  · **DIGEST con techo propio** y ORDENADO POR IRREEMPLAZABILIDAD. El encabezado (sumario+fuentes+criterios) va
+    delante del listado, así que sin límite unos criterios largos empujaban los RESULTADOS fuera del recorte: el
+    cerebro sabría con qué se busca pero no qué se ha encontrado. Ahora 620 chars de techo, las fuentes ANTES que
+    los criterios (el estado de una fuente solo lo sabe esta pantalla; los criterios se dijeron en voz alta y el
+    cerebro los tiene en la conversación) y, dentro de las fuentes, las FALLIDAS primero.
+  · **LA LISTA SE BARRE, EL EXPEDIENTE SE LEE.** Visto en pantalla: con las fichas pintando todos sus bloques, UNA
+    tarjeta llenaba la hoja entera — y desde que la entrega por defecto son DIEZ resultados eso hace la lista
+    irrecorrible. La lista se queda con los bloques ligeros (`chips`) más, como excepción, un `text` de tono AVISO
+    (una salvedad importante detrás de un clic es justo lo que prohíbe la regla de presentación); lo pesado —tabla,
+    galería, sección, medidor— es lo que uno va a buscar al abrir. El `badge` sube a la fila del título: al pie
+    acababa junto a «Ver detalle» y se leía como un segundo botón. Y la valoración sube en el expediente: es el
+    VEREDICTO, no un dato al final.
+  · **SISTEMA en vez de números sueltos.** Había trece tamaños de letra y márgenes de 3/5/6/7/8/9/10/11px elegidos
+    uno a uno. Ahora una escala de cuatro pasos + rejilla de 4px en variables locales, con un test que acota las
+    magnitudes crudas. Toque de diseño: **cifras tabulares** en todo lo que se compara (precio, nota, recuentos,
+    tablas) —dígitos de anchura distinta obligan a releer para saber cuál es mayor—, el subtítulo deja de ser
+    turquesa y en negrita (competía con el precio: en una ficha solo puede ganar un dato), el filete de acento se
+    queda SOLO en la destacada (diez barras azules son un código de barras), la unidad repetida de las fuentes baja
+    a minúscula (seis «RESULTADOS» en versalitas gritaban más que los números) y las fuentes sin aprovechar tienen
+    su propia casilla en color de aviso, que es el único dato del sumario que pide una decisión.
+  · Dos fallos propios cazados por herramientas y no a ojo: `node --check` pilló **acentos graves dentro del
+    template literal** del CSS (cerraban la cadena), y el banco de pruebas pintaba el dict CRUDO sin cruzar
+    `data.py` — así que no veía que `facts` se escribe como objeto y se guarda como lista. El banco ahora sanea el
+    fixture por `apply_action`/`view_data`, como en vivo.
