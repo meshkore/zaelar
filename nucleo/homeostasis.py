@@ -63,7 +63,19 @@ def enabled() -> bool:
 
 
 # ── DETECCIÓN del motor LiveKit — señal IN-PROCESS por el logging del SDK ───────────────────────────────────────
-_MARKERS = ("wait_pc_connection timed out", "entrypoint did not exit")
+_MARKERS = (
+    "wait_pc_connection timed out",
+    "entrypoint did not exit",
+    # AÑADIDO 2026-08-12, con un incidente de 3 HORAS detrás: el 2026-08-10 el SDK avisó dos veces de esto a las
+    # 15:54/15:57, el último job se aceptó a las 15:58:02 y el worker de voz **no volvió a atender nada**; el proceso
+    # ignoró incluso un SIGTERM. La homeostasis existía precisamente para curar eso y no lo reconocía, así que se
+    # quedó tres horas muerto delante del operador. Es el aviso que el SDK da cuando el ejecutor del job no contesta
+    # a su ping de salud — con `job_executor_type=THREAD`, un hilo bloqueado (una inferencia de VAD lenta, una
+    # llamada síncrona) lo dispara de forma TRANSITORIA, así que no se cura por una marca suelta: entra en el mismo
+    # contador de ventana+umbral que las otras señales y en el mismo gate de «solo si no corto a nadie».
+    "job executor is unresponsive",
+)
+
 
 
 class _LKWatcher(logging.Handler):

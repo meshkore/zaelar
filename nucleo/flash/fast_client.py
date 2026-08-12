@@ -580,6 +580,7 @@ class FastClient:
                 await asyncio.sleep(_RETRY_BACKOFF_S * _attempt)
         calls: dict[int, dict] = {}
         _completion_chars = 0
+        _seen_output = False     # ¿ha contestado ya el proveedor? (→ retirar el fallo registrado, ver abajo)
         _usage = None
         _t_start = time.time()
         try:
@@ -596,6 +597,30 @@ class FastClient:
                     delta = chunk.choices[0].delta
                 except (IndexError, AttributeError):
                     continue
+                # LATIDO DEL STREAM (2026-08-12) — el dato que faltaba, y costó turnos de verdad. Este generador solo
+                # YIELDEA cuando el chunk trae TEXTO: los chunks de una tool-call (que llegan con `content` vacío y
+                # los argumentos goteando en `tool_calls`) se consumen aquí dentro y no salen. Para quien nos
+                # recorre, un turno cuya respuesta es una ACCIÓN —«muéstrame los resultados», «cierra eso»— es
+                # indistinguible de un modelo colgado. El plazo de silencio del turno mataba esos turnos SANOS: el
+                # 2026-08-12 a las 13:49/13:50 se cortaron tres seguidos justo cuando el operador pedía ver los
+                # resultados, con `ttft=1.5s` (el modelo había contestado) y `spoken_chars=0`. Sellamos el avance
+                # AQUÍ, en el sitio que sí ve cada chunk, y el plazo de arriba consulta esto antes de declarar nada.
+                m["chunks"] = int(m.get("chunks") or 0) + 1
+                m["last_chunk_ts"] = time.time()
+                # SALUD: el proveedor ha CONTESTADO → se retira cualquier fallo anterior del modelo rápido. Va aquí,
+                # en el único punto por el que pasan TODAS las llamadas del turno, y no al final del turno
+                # conversacional, que es donde estaba (2026-08-12): esa función tiene una docena de `return`
+                # tempranos —turno de solo-tool, `show_widget`, gate de atención, fragmento descartado— y cada uno
+                # se saltaba el `clear`. Efecto medido: el ◉ enseñó «un turno se atascó» durante 40 MINUTOS
+                # mientras el modelo respondía decenas de veces. Un panel que afirma el presente con evidencia
+                # rancia es el mismo fallo que el agente caído pintado en azul.
+                if not _seen_output:
+                    _seen_output = True
+                    try:
+                        from voice import health_state
+                        health_state.clear("llm")
+                    except Exception:
+                        pass
                 text = getattr(delta, "content", None) or ""
                 if text:
                     _completion_chars += len(text)

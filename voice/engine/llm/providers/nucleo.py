@@ -61,6 +61,24 @@ def _turn_budget_ms() -> int:
     return v if v > 0 else 10 ** 9
 
 
+def stream_advancing(metrics: dict, quiet_ms: int, now: float | None = None) -> bool:
+    """¿El stream del modelo AVANZA aunque no salga nada hablable?
+
+    Es la corrección de 2026-08-12, y viene de matar tres turnos SANOS en dos minutos. `fast_client.stream()` solo
+    yieldea chunks CON TEXTO: los de una tool-call (argumentos goteando, `content` vacío) se consumen dentro y no
+    salen. O sea que un turno cuya respuesta es una ACCIÓN —«muéstrame los resultados», «cierra eso»— se ve, desde
+    el bucle del turno, exactamente igual que un modelo colgado. Medido en el corte de las 13:49: `ttft=1.50s` (el
+    modelo había contestado en segundo y medio) con cero caracteres hablables; el plazo lo guillotinaba a los 9 s y
+    el operador oía «se me ha ido un momento» sin llegar a ver sus resultados.
+
+    Así que el plazo pregunta por el LATIDO del stream (`last_chunk_ts`, que sella quien sí ve cada chunk) y no por
+    la voz. Sin sello todavía → False: nada ha llegado, es un atasco de verdad. Pura y sin IO a propósito."""
+    last = float((metrics or {}).get("last_chunk_ts") or 0)
+    if not last:
+        return False
+    return ((now if now is not None else time.time()) - last) * 1000.0 < quiet_ms
+
+
 def _norm_utt(s: str) -> str:
     return " ".join((s or "").lower().split())
 
@@ -1543,36 +1561,70 @@ class NucleoLLMStream(llm.LLMStream):
             # vuelo, así que el siguiente empezaba de cero: inanición perfecta, el sistema no podía contestar nunca.
             # El plazo se mide sobre el SILENCIO, no sobre la duración total: cada trozo hablable lo reinicia, así
             # una respuesta larga y legítima se transmite entera y solo se corta lo que de verdad no avanza.
+            # EL PLAZO MIDE QUE EL STREAM NO AVANZA, no que no salga voz (corregido 2026-08-12, con tres turnos
+            # SANOS muertos en dos minutos). Un turno cuya respuesta es una ACCIÓN —«muéstrame los resultados»,
+            # «cierra eso»— no emite NI UN carácter hablable: los chunks de la tool-call los consume `stream()` sin
+            # yieldear nada, así que desde aquí un turno de acción y un modelo colgado se veían IGUAL. Medido en el
+            # corte de las 13:49: `ttft=1.50s` —el modelo había contestado en segundo y medio— con `spoken_chars=0`;
+            # el plazo lo mataba a los 9 s, el operador oía «se me ha ido un momento» y seguía sin ver sus
+            # resultados. Ahora `fast_client` sella `last_chunk_ts` en CADA chunk y aquí se consulta antes de
+            # declarar nada: un stream que avanza es un turno vivo, aunque calle.
+            #
+            # Y se recorre con una TAREA BOMBA en vez de un `wait_for` sobre `__anext__()`: cancelar un `__anext__`
+            # a mitad y llamar luego a `aclose()` deja el generador en un estado indefinido —carrera conocida, y
+            # candidata a los cuelgues del hilo de voz—. Cancelar la TAREA sí es limpio: es la única dueña del
+            # `async for`, y el `finally` de `stream()` cierra y dispara sus tool-calls acumuladas igual que en
+            # cualquier otro cierre.
             _quiet_ms = _turn_budget_ms()
-            _agen = FastClient().stream(messages, spec=spec, tools=_turn_tools,
-                                        on_tool_call=_on_tool_call, metrics=llm_metrics).__aiter__()
-            while True:
+            _chunks: asyncio.Queue = asyncio.Queue()
+            _stream = FastClient().stream(messages, spec=spec, tools=_turn_tools,
+                                          on_tool_call=_on_tool_call, metrics=llm_metrics)
+
+            async def _pump() -> None:
                 try:
-                    delta = await asyncio.wait_for(_agen.__anext__(), timeout=_quiet_ms / 1000.0)
-                except StopAsyncIteration:
-                    break
-                except asyncio.TimeoutError:
-                    # Se atascó. Se trata como un fallo del cerebro (rama `errored`): frase corta y honesta, alerta
-                    # y salud en rojo — nunca más un silencio de un minuto que parece un cuelgue.
-                    errored = True
-                    stalled = True
-                    err_text = f"flash brain stalled: {_quiet_ms} ms sin salida hablable"
-                    emit("brain", "⏱️ turno ATASCADO — el modelo no emitía nada, lo corto", role="system",
-                         extra={"cat": "flash", "quiet_ms": _quiet_ms, "spoken_chars": len("".join(spoken)),
-                                "phase": self._phase})
+                    async for _d in _stream:
+                        await _chunks.put(("d", _d))
+                except asyncio.CancelledError:
+                    raise
+                except BaseException as _e:  # noqa: BLE001
+                    await _chunks.put(("err", _e))
+                    return
+                await _chunks.put(("end", None))
+
+            _pump_task = asyncio.create_task(_pump(), name="flash-stream-pump")
+            try:
+                while True:
                     try:
-                        await _agen.aclose()
-                    except Exception:
-                        pass
-                    break
-                if delta and not _real_started["v"]:
-                    _real_started["v"] = True          # primer token REAL → corta el timer del filler
-                    if _filler_task:
-                        _filler_task.cancel()
-                buf += delta
-                if delta:
-                    _quiet_ms = _turn_budget_ms()      # hay avance real → el plazo se renueva
-                send(speech.inline(take(False)))
+                        _kind, _val = await asyncio.wait_for(_chunks.get(), timeout=_quiet_ms / 1000.0)
+                    except asyncio.TimeoutError:
+                        # ¿Llega algo por debajo (argumentos de una tool-call)? Entonces NO es un atasco.
+                        if stream_advancing(llm_metrics, _quiet_ms):
+                            continue
+                        # Atasco de verdad: ni texto ni chunks. Se trata como fallo del cerebro (rama `errored`):
+                        # frase corta y honesta + aviso — nunca un minuto de silencio que parece un cuelgue.
+                        errored = True
+                        stalled = True
+                        err_text = f"flash brain stalled: {_quiet_ms} ms sin un solo chunk"
+                        emit("brain", "⏱️ turno ATASCADO — el modelo no emitía nada, lo corto", role="system",
+                             extra={"cat": "flash", "quiet_ms": _quiet_ms, "spoken_chars": len("".join(spoken)),
+                                    "chunks": int(llm_metrics.get("chunks") or 0), "phase": self._phase})
+                        break
+                    if _kind == "err":
+                        raise _val
+                    if _kind == "end":
+                        break
+                    delta = _val
+                    if delta and not _real_started["v"]:
+                        _real_started["v"] = True          # primer token REAL → corta el timer del filler
+                        if _filler_task:
+                            _filler_task.cancel()
+                    buf += delta
+                    if delta:
+                        _quiet_ms = _turn_budget_ms()      # hay avance real → el plazo se renueva
+                    send(speech.inline(take(False)))
+            finally:
+                if not _pump_task.done():
+                    _pump_task.cancel()
             if not errored:
                 send(speech.sanitize(take(True), drop_metadata=False))
         except asyncio.CancelledError:
@@ -2123,11 +2175,8 @@ class NucleoLLMStream(llm.LLMStream):
             except Exception:
                 pass
 
-        try:
-            from voice import health_state
-            health_state.clear("llm")
-        except Exception:
-            pass
+        # (el `health_state.clear("llm")` que había aquí se movió a `fast_client.stream`, al primer chunk que llega:
+        #  este punto solo lo alcanza el turno CONVERSACIONAL, y los de solo-tool/show/fragmento se lo saltaban)
         # OBSERVABILIDAD DEL MODELO (FASE 0): TTFT + latencia + TOTALIZADORES de tamaño (chars/tokens de entrada y
         # salida) + cold/warm. Con esto distinguimos «lento por el modelo» de «lento por prompt gigante» y «frío por
         # cold-start». El desglose de QUÉ infla el prompt (system/memoria/reciente/recall/recursos) va en `timings`.

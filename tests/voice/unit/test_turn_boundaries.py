@@ -286,16 +286,59 @@ def test_the_deadline_is_tunable_and_disablable(monkeypatch):
     assert _turn_budget_ms() == 9000
 
 
-def test_the_deadline_measures_silence_not_total_length():
-    """Clave del diseño: cada trozo hablable renueva el plazo, así una respuesta larga y legítima sale ENTERA y
-    solo se corta lo que de verdad no avanza."""
+def test_the_deadline_measures_stream_progress_not_speech():
+    """CORREGIDO 2026-08-12 con tres turnos SANOS muertos en dos minutos. Este test afirmaba antes el detalle de
+    implementación (`wait_for` sobre `__anext__`) y con él se colaba el fallo: el plazo medía «no sale voz», y un
+    turno cuya respuesta es una ACCIÓN no emite un solo carácter hablable —los chunks de la tool-call los consume
+    `stream()` sin yieldear—. Lo que se mide es que el STREAM avance."""
     import inspect
     from voice.engine.llm.providers.nucleo import NucleoLLMStream
     src = inspect.getsource(NucleoLLMStream._run_inner)
     loop = src[src.index("_quiet_ms = _turn_budget_ms()"):]
     assert "if delta:" in loop and loop.count("_quiet_ms = _turn_budget_ms()") >= 2, \
         "el plazo debe renovarse con cada delta hablable"
-    assert "asyncio.wait_for(_agen.__anext__()" in loop, "el plazo va por trozo, no sobre el stream entero"
+    assert "stream_advancing(" in loop, "antes de declarar un atasco hay que mirar el latido del stream"
+    assert "asyncio.wait_for(_chunks.get()" in loop, "el plazo va por trozo, no sobre el stream entero"
+
+
+def test_a_turn_whose_answer_is_an_action_is_not_a_stall():
+    """El caso REAL (13:49:00 y 13:50:55): `ttft=1.50s`, `spoken_chars=0`, y el turno guillotinado a los 9 s. El
+    modelo estaba emitiendo una tool-call —el operador acababa de decir «no veo ningún resultado en pantalla»—."""
+    from voice.engine.llm.providers.nucleo import stream_advancing
+    now = 1000.0
+    # llegó un chunk hace 1 s con un plazo de 9 s → el stream VIVE, aunque no haya salido voz
+    assert stream_advancing({"last_chunk_ts": now - 1.0, "chunks": 7}, 9000, now) is True
+
+
+def test_a_provider_that_never_answers_is_still_a_stall():
+    """El contrapeso: rebajar el falso positivo no puede tapar el fallo que el plazo existe para cortar."""
+    from voice.engine.llm.providers.nucleo import stream_advancing
+    now = 1000.0
+    assert stream_advancing({}, 9000, now) is False                        # ni un chunk: atasco de verdad
+    assert stream_advancing({"last_chunk_ts": 0}, 9000, now) is False      # sin sello = nada ha llegado
+    assert stream_advancing({"last_chunk_ts": now - 30.0}, 9000, now) is False   # avanzó, pero hace rato
+
+
+def test_the_stream_stamps_its_heartbeat_on_every_chunk():
+    """El sello lo tiene que poner quien VE cada chunk (`fast_client`), no quien solo recibe los que traen texto."""
+    import inspect
+    from nucleo.flash.fast_client import FastClient
+    src = inspect.getsource(FastClient.stream)
+    body = src[src.index("async for chunk in stream:"):]
+    head = body[:body.index("text = getattr(delta")]
+    assert "last_chunk_ts" in head, "el latido se sella ANTES de filtrar por texto, o los turnos de acción no cuentan"
+
+
+def test_the_stream_is_torn_down_without_cancelling_a_call_in_flight():
+    """Cancelar un `__anext__` a mitad y llamar luego a `aclose()` deja el generador en estado indefinido — era la
+    forma anterior y una candidata a los cuelgues del hilo de voz. Se cancela la TAREA que lo recorre, que es la
+    única dueña del `async for`."""
+    import inspect
+    from voice.engine.llm.providers.nucleo import NucleoLLMStream
+    src = inspect.getsource(NucleoLLMStream._run_inner)
+    loop = src[src.index("_quiet_ms = _turn_budget_ms()"):]
+    assert "_agen.aclose()" not in loop and "__anext__" not in loop
+    assert "_pump_task.cancel()" in loop
 
 
 def test_a_stall_is_treated_as_a_brain_failure_not_as_silence():
