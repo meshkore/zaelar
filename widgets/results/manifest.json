@@ -231,7 +231,7 @@
     "Informes",
     "Propuestas"
   ],
-  "origin": "user",
+  "origin": "builtin",
   "size": {
     "w": 720,
     "h": 560

@@ -592,3 +592,15 @@ def test_the_detail_page_shows_the_score_and_the_dynamic_card():
     assert "function scoreBlock(" in src
     assert "scoreBlock(it.score)" in src, "la valoración tiene que salir en el DETALLE, no solo en la tarjeta"
     assert "renderBlocks(it.blocks)" in src, "la ficha a medida también se despliega en el detalle"
+
+
+# ══ 12) es una superficie DE SERIE, no un widget que se hizo el usuario ════════════════════════════════════════
+def test_the_sheet_ships_with_the_product():
+    """Estaba en la lista curada `_BUILTINS` y a la vez su manifest declaraba `origin:"user"` — y el explícito
+    manda, así que Config la listaba como «tuyo». Es la superficie con la que zaelar entrega CUALQUIER búsqueda:
+    de serie. (Sigue siendo un widget full-stack a propósito: es su `data.py` + acciones declaradas lo que permite
+    que un Brain Worker la rellene; una superficie nativa del frontend no tendría por dónde recibir los datos.)"""
+    from widgets import registry
+    man = runtime.get("results") or {}
+    assert registry.origin_of(man) == "builtin"
+    assert "results" in registry._BUILTINS
