@@ -177,9 +177,12 @@ def worker_providers() -> list[dict]:
         return []
     out = []
     for t in tiers:
+        # «EN USO» significa que está TRABAJANDO, no que sería el elegido — son dos cosas distintas y confundirlas
+        # hacía que la fila mintiera en las dos mitades: decía «EN USO · disponible» de un proveedor que no estaba
+        # sirviendo a nadie (el relevo lo había apartado) y cuya ventana seguía agotada.
+        mark = "EN USO · " if t.get("serving") else ("PRÓXIMO · " if t.get("active") else "")
         out.append({"key": f"worker:{t['name']}", "enables": f"procesos de fondo · {t.get('plan', '')}",
-                    "set": True, "state": t["state"],
-                    "detail": ("EN USO · " if t.get("active") else "") + t.get("detail", "")})
+                    "set": True, "state": t["state"], "detail": mark + t.get("detail", "")})
     if tiers and all(t["state"] != "ok" for t in tiers):
         out.append({"key": "worker:sin-relevo", "enables": "procesos de fondo", "set": True, "state": "error",
                     "detail": "NINGÚN proveedor con cuota — los procesos de fondo no pueden correr"})

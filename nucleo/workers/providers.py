@@ -182,7 +182,21 @@ def env_for_worker() -> dict:
 
 
 # ── detección de agotamiento y relevo ─────────────────────────────────────────────────────────────────────
-_RESET_RE = re.compile(r"reset(?:\s+at)?\s*[:\s]\s*(\d{4}-\d{2}-\d{2})", re.I)
+# El proveedor ANUNCIA cuándo vuelve, y lo dice de tres formas distintas. Solo se leía la primera:
+#   · fecha            «will reset at 2026-08-30»          → límite semanal/mensual
+#   · fecha + hora     «reset at 2026-08-12 23:15:37»
+#   · SOLO la hora     «Usage limit reached for 5 hour … reset at 23:15:37»  → límite de VENTANA, del mismo día
+# Leer solo la fecha convertía el tercer caso en «medianoche pasada» → epoch en el pasado → caía al suelo de media
+# hora, y a partir de ahí cada worker volvía a elegir ese proveedor y a comerse un 429. Con el reset a las 23:15,
+# eso son SIETE HORAS de reintentos quemados de uno en uno (hallazgo de un e2e real, 2026-08-10).
+_RESET_RE = re.compile(
+    r"reset(?:s|ting)?(?:\s+(?:at|on|in))?\s*[:\s]\s*"
+    r"(\d{4}-\d{2}-\d{2}(?:[ T]\d{2}:\d{2}(?::\d{2})?)?|\d{2}:\d{2}(?::\d{2})?)", re.I)
+# Un límite de VENTANA (5 h, diario) no es un rate-limit pasajero: no se arregla reintentando en dos segundos, se
+# arregla esperando a la hora que el propio proveedor dice. Tratarlo como `rate` era no ponerle cooldown NI relevar.
+_WINDOW_RE = re.compile(
+    r"usage limit reached|limit reached for\s+\d+\s*(?:hour|hr|minute|min|day)|"
+    r"limit will reset|quota (?:will )?reset", re.I)
 # Señales de CUOTA/PLAN agotado, más específicas que el `credit` genérico de `llm_health` (que también pilla un
 # rate-limit pasajero). Aquí importa distinguir «espera 20s» de «hasta el jueves».
 _EXHAUSTED_RE = re.compile(
@@ -198,6 +212,12 @@ def classify_failure(text: str) -> str:
     low = t.lower()
     if any(x in low for x in ("401", "403", "invalid api key", "unauthorized", "authentication")):
         return "auth"
+    # VENTANA AGOTADA ≠ RATE-LIMIT (2026-08-10). Un «Usage limit reached for 5 hour» o cualquier 429 que ANUNCIE su
+    # hora de reset no se arregla reintentando: hay que esperar a esa hora y, mientras, usar otro escalón. Caía en
+    # `rate`, y `rate` no pone cooldown ni releva — así que el proveedor seguía siendo el elegido durante horas y
+    # cada worker nuevo quemaba su reintento contra él.
+    if _WINDOW_RE.search(t) or ("429" in low and _RESET_RE.search(t)):
+        return "exhausted"
     if "429" in low or "too many requests" in low or "rate limit" in low:
         return "rate"
     return ""
@@ -266,13 +286,29 @@ def note_tool_blindness(text: str, tool: str = "", provider: str = "") -> str:
 
 
 def _reset_epoch(text: str) -> float:
+    """Cuándo dice el proveedor que vuelve, en epoch local. 0.0 = no lo dice (el llamador aplica su suelo).
+
+    Una hora SUELTA se resuelve sobre HOY; si ya pasó, es de mañana (a las 23:50 un «reset at 00:30» no es de hace
+    23 horas). Sin esto, una hora del mismo día se leía como medianoche pasada y el cooldown nacía vencido."""
     m = _RESET_RE.search(text or "")
     if not m:
         return 0.0
-    try:
-        return time.mktime(time.strptime(m.group(1), "%Y-%m-%d"))
-    except Exception:
-        return 0.0
+    raw = m.group(1).strip().replace("T", " ")
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+        try:
+            return time.mktime(time.strptime(raw, fmt))
+        except Exception:
+            pass
+    for fmt in ("%H:%M:%S", "%H:%M"):                     # solo la hora → sobre el día de hoy
+        try:
+            hm = time.strptime(raw, fmt)
+        except Exception:
+            continue
+        now = time.localtime()
+        stamp = time.mktime((now.tm_year, now.tm_mon, now.tm_mday,
+                             hm.tm_hour, hm.tm_min, hm.tm_sec, 0, 0, -1))
+        return stamp if stamp > time.time() else stamp + 86400.0
+    return 0.0
 
 
 def note_failure(text: str, tier: dict | None = None) -> dict | None:
@@ -323,11 +359,37 @@ def note_failure(text: str, tier: dict | None = None) -> dict | None:
     return nxt
 
 
+def _serving() -> set[str]:
+    """Qué escalones están sirviendo AHORA MISMO a una sesión viva.
+
+    «EN USO» y «el que se elegiría» son preguntas DISTINTAS, y confundirlas hacía mentir al panel: tras un relevo,
+    el que trabaja es el de relevo y el que se elegiría vuelve a ser el primero de la cadena en cuanto su cooldown
+    expira. La fila decía «EN USO · disponible» de un proveedor que no estaba haciendo nada (hallazgo de un e2e
+    real, 2026-08-10). Best-effort: si el registro de sesiones no está disponible, se cae al comportamiento de antes.
+    """
+    try:
+        from nucleo import dispatch
+        by_url = {t.get("base_url", ""): t["name"] for t in chain()}
+        out = set()
+        for r in dispatch._SESSIONS.values():
+            if r.status not in ("queued", "running"):
+                continue
+            s = getattr(r, "session", None)
+            url = getattr(s, "_base_url", "") if s else ""
+            name = by_url.get(url or "")
+            if name:
+                out.add(name)
+        return out
+    except Exception:
+        return set()
+
+
 def status() -> list[dict]:
-    """Estado de cada escalón para el panel: `[{name, plan, state, detail, active}]`."""
+    """Estado de cada escalón para el panel: `[{name, plan, state, detail, active, serving}]`."""
     _load()
     now = time.time()
     active = pick()
+    serving = _serving()
     out = []
     for t in chain():
         until = _cooldown.get(t["name"], 0)
@@ -337,7 +399,10 @@ def status() -> list[dict]:
         else:
             state = "ok"
             detail = "disponible"
+        # `serving` = está trabajando de verdad · `active` = es el que se elegiría para el próximo worker. Con un
+        # relevo en marcha no son el mismo, y el panel tiene que poder decir cuál es cuál.
         out.append({"name": t["name"], "plan": t.get("plan", ""), "state": state, "detail": detail,
+                    "serving": t["name"] in serving,
                     "active": bool(active and active["name"] == t["name"])})
     return out
 

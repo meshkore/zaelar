@@ -165,7 +165,10 @@ def test_the_alerts_panel_surfaces_an_exhausted_worker_provider(monkeypatch):
     rows = balances.worker_providers()
     bad = [r for r in rows if r["state"] == "error"]
     assert bad and bad[0]["key"] == "worker:z.ai" and "cuota" in bad[0]["detail"]
-    assert [r for r in rows if r["state"] == "ok" and "EN USO" in r["detail"]]
+    # «PRÓXIMO», no «EN USO» (2026-08-10): esta aserción decía «EN USO» y era precisamente el significado
+    # impreciso que hacía mentir al panel — marcaba como trabajando a un escalón que solo era el candidato. Lo que
+    # importa aquí sigue comprobándose: tras el relevo se ve QUIÉN toma el mando.
+    assert [r for r in rows if r["state"] == "ok" and "PRÓXIMO" in r["detail"]]
 
 
 def test_no_tier_left_is_its_own_loud_alert(monkeypatch):
@@ -277,3 +280,75 @@ def test_the_panel_gets_its_own_row_for_blindness(monkeypatch):
     assert rows and rows[0]["state"] == "error"
     assert "z.ai" in rows[0]["detail"]
     health_state.clear("worker_tools")
+
+
+# ── UNA VENTANA AGOTADA NO ES UN RATE-LIMIT (2026-08-10) ──────────────────────────────────────────────────────
+# Hallazgo de un e2e real: el 429 `[1308] Usage limit reached for 5 hour … reset at 23:15:37` caía en `rate`, y
+# `rate` NO pone cooldown ni releva. Consecuencia medida: el cooldown que sí se puso venía de otro camino y expiró
+# a las 16:11 — SIETE HORAS antes del reset que el propio proveedor anuncia. A partir de ahí, cada worker nuevo
+# elegía ese escalón, se comía un 429 y quemaba su reintento, uno detrás de otro, hasta las 23:15.
+#
+# Dos causas encadenadas, y las dos hacen falta: la clasificación (no es pasajero) y la LECTURA DE LA HORA
+# (`_RESET_RE` solo capturaba la FECHA, así que una hora del mismo día se resolvía a medianoche pasada → epoch en
+# el pasado → el cooldown nacía vencido y caía al suelo de media hora).
+WINDOW_429 = ('API Error: 429 {"error":{"code":"1308","message":"Usage limit reached for 5 hour. '
+              'Your limit will reset at 23:15:37"}}')
+
+
+def test_a_window_limit_that_announces_its_reset_is_exhausted_not_rate():
+    assert prov.classify_failure(WINDOW_429) == "exhausted", (
+        "esperar a una hora concreta no se arregla reintentando en dos segundos: hay que relevar")
+    assert prov.classify_failure("HTTP 429 Too Many Requests") == "rate", (
+        "un 429 pelado SÍ es pasajero — no se puede castigar un escalón por una ráfaga")
+    assert prov.classify_failure("connection reset by peer") == ""
+
+
+def test_a_bare_time_resets_today_not_at_midnight_past():
+    import time
+
+    e = prov._reset_epoch(WINDOW_429)
+    assert e > time.time(), "un reset anunciado para hoy NO puede resolverse a un instante ya pasado"
+    assert time.strftime("%H:%M", time.localtime(e)) == "23:15"
+
+
+def test_a_bare_time_already_gone_rolls_to_tomorrow(monkeypatch):
+    """A las 23:50 un «reset at 00:30» es de mañana, no de hace 23 horas."""
+    import time as _t
+
+    e = prov._reset_epoch("your limit will reset at 00:30")
+    assert e > _t.time()
+    assert _t.strftime("%H:%M", _t.localtime(e)) == "00:30"
+
+
+def test_the_window_limit_actually_relays_and_waits(monkeypatch):
+    _cfg(monkeypatch)
+    monkeypatch.setenv("Z_AI_API_KEY", "k")
+    prov._cooldown.clear()
+    nxt = prov.note_failure(WINDOW_429, {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic"})
+    assert nxt and nxt["name"] != "z.ai", "hay que relevar, no reintentar contra el mismo"
+    import time
+    assert prov._cooldown["z.ai"] > time.time() + 3600, (
+        "el cooldown tiene que llegar a la hora anunciada, no a los 5-30 minutos del suelo: si no, todos los "
+        "workers de las próximas horas vuelven a elegirlo y queman su reintento")
+    prov._cooldown.clear()
+
+
+# ── «EN USO» ≠ «EL QUE SE ELEGIRÍA» ──────────────────────────────────────────────────────────────────────────
+def test_the_panel_does_not_claim_a_provider_is_working_when_it_is_not(monkeypatch):
+    """La fila decía «EN USO · disponible» de un escalón que no estaba sirviendo a nadie: tras un relevo, el que
+    trabaja es el de relevo, y el que se elegiría vuelve a ser el primero en cuanto expira su cooldown. Son dos
+    preguntas distintas y el panel tiene que distinguirlas."""
+    import config.balances as balances
+
+    _cfg(monkeypatch)
+    monkeypatch.setenv("Z_AI_API_KEY", "k")
+    prov._cooldown.clear()
+    monkeypatch.setattr(prov, "_serving", lambda: set())          # nadie trabajando
+    rows = {r["key"]: r for r in balances.worker_providers()}
+    assert "EN USO" not in rows["worker:z.ai"]["detail"], "sin sesiones vivas, nadie está «EN USO»"
+    assert "PRÓXIMO" in rows["worker:z.ai"]["detail"], "…pero sí es el que se elegiría, y eso también se dice"
+
+    monkeypatch.setattr(prov, "_serving", lambda: {"licencia-claude"})
+    rows = {r["key"]: r for r in balances.worker_providers()}
+    assert "EN USO" in rows["worker:licencia-claude"]["detail"], "el que trabaja de verdad es el que va marcado"
+    assert "EN USO" not in rows["worker:z.ai"]["detail"]

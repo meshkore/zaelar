@@ -27,14 +27,16 @@ DISEÑO (igual que el hermano de workers)
 from __future__ import annotations
 
 import os
-import re
 import time
 
 from loguru import logger
 
-from nucleo.workers.providers import classify_failure  # regex de clasificación PURA, reusada tal cual (sin estado)
+# Clasificación y lectura de la hora de reset REUSADAS del hermano (puras, sin estado). No se copian a propósito:
+# este módulo tenía su propio `_RESET_RE` que solo leía la FECHA, así que un reset del mismo día («reset at
+# 23:15:37») se resolvía a medianoche pasada y el cooldown nacía vencido — el bug que el hermano ya arregló y que
+# aquí seguía vivo. Dos copias de la misma lectura garantizan que una de ellas se quede atrás.
+from nucleo.workers.providers import _reset_epoch, classify_failure
 
-_RESET_RE = re.compile(r"reset(?:\s+at)?\s*[:\s]\s*(\d{4}-\d{2}-\d{2})", re.I)
 
 _DEFAULT_COOLDOWN_S = 30 * 60          # sin fecha de reset explícita: media hora y se reintenta
 _AUTH_COOLDOWN_S = 5 * 60              # credencial mal: puede ser un despiste, no castigues una semana
@@ -135,16 +137,6 @@ def spec_for(tier: dict):
     tok = (tier.get("api_key") or "").strip() or _token_for(tier)
     return ModelSpec(model=tier.get("model") or "", base_url=tier.get("base_url") or "",
                       api_key=tok, provider=tier.get("provider") or "aimlapi")
-
-
-def _reset_epoch(text: str) -> float:
-    m = _RESET_RE.search(text or "")
-    if not m:
-        return 0.0
-    try:
-        return time.mktime(time.strptime(m.group(1), "%Y-%m-%d"))
-    except Exception:
-        return 0.0
 
 
 def note_failure(text: str, tier: dict | None = None) -> dict | None:
