@@ -345,7 +345,7 @@
   "orb.speaker_unmuted": "Click to mute (the agent keeps running)",
   "orb.wake_off": "Always listening — click to require «zaelar»",
   "orb.wake_on": "Only with «zaelar» — click to always listen",
-  "reset.confirm.body": "All running processes will be STOPPED (browser searches, SlowBrain tasks, widget creation), observability will be cleared and the desktop left blank. Your memory and your credentials (WhatsApp/Telegram/browser) will NOT be touched unless you check the boxes below.",
+  "reset.confirm.body": "All running processes will be STOPPED (browser searches, Brain Workers, widget creation), the desktop will be left blank and your widgets emptied: results, reports, charts and your message list start from zero. Your memory, your credentials and connections (WhatsApp/Telegram/browser) and your agenda —projects, tasks and appointments— are KEPT, unless you check the boxes below.",
   "reset.confirm.cancel": "Cancel",
   "reset.confirm.hint": "Checking either one restarts the server automatically (a few seconds).",
   "reset.confirm.title": "Stop everything and clear?",

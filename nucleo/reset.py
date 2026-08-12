@@ -84,7 +84,7 @@ def reset_all() -> dict:
         logger.warning(f"reset_all: memoria (congelar/registro) falló: {e}")
 
     # (3) MATAR los procesos de fondo (tras congelar y registrar).
-    killed = {"navegador": 0, "escaladas": 0, "workers": 0, "notas": 0, "ledger": 0}
+    killed = {"navegador": 0, "escaladas": 0, "workers": 0, "notas": 0, "ledger": 0, "widgets_en_blanco": 0}
     try:
         from widgets.navegador import tasks as nt
         for tid in list(nt.active_ids()):
@@ -133,6 +133,30 @@ def reset_all() -> dict:
         _dispatch._resume_persist()
     except Exception as e:  # noqa: BLE001
         logger.warning(f"reset_all: limpiar rastro de rehidratación falló: {e}")
+    # (3b) SUPERFICIES EN BLANCO (2026-08-12, petición del operador). Cerrar las tarjetas no vaciaba sus DATOS: tras
+    # un reset, el operador pidió una búsqueda nueva y la hoja de resultados le sacó ENTERA la anterior mientras el
+    # worker de la nueva seguía trabajando. Un widget que enseña el trabajo de antes como si fuera el de ahora
+    # engaña igual que un agente caído pintado de azul. Conserva credenciales/perfiles y respeta el widget que
+    # declara que su dato es el REGISTRO del operador (la agenda) — detalle en `widgets/reset.py`.
+    blanked = {}
+    try:
+        from widgets import reset as _wreset
+        blanked = _wreset.blank_all()
+        killed["widgets_en_blanco"] = len(blanked.get("blanked") or [])
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"reset_all: dejar los widgets en blanco falló: {e}")
+    # (3c) …y el ESTADO que DEPENDE de todo eso. `activity`/`sessions` ya se vaciaban arriba, pero el resto seguía
+    # describiendo un mundo que acabamos de desmontar: widgets abiertos que ya no están, el MRU de «los que usaste
+    # hace un momento» apuntando a la prueba anterior, y runs de rails vivos de un trabajo ya muerto. El cerebro
+    # leía eso en cada prompt, así que arrancaba la prueba nueva creyendo que seguía en la vieja.
+    try:
+        from memory import api as memory
+        memory.set_state({"open_widgets": [], "recent_widgets": [], "rails": []})
+        memory.kv_del("canvas_layout")     # el escritorio guardado en el server también a cero (rehidratación)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"reset_all: limpiar el estado de UI falló: {e}")
 
     logger.info(f"HARD RESET: congelados {frozen_n} · matados {killed}")
-    return {"frozen": frozen_n, "killed": killed, "when": ts}
+    # `widgets` viaja en la respuesta para que se pueda VER qué se vació y qué se conservó: enseñar la lista de lo
+    # respetado es la parte que evita la sorpresa de «¿y mi agenda?».
+    return {"frozen": frozen_n, "killed": killed, "when": ts, "widgets": blanked}

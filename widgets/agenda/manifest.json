@@ -85,5 +85,9 @@
     "mi día",
     "plan del día",
     "planning"
-  ]
+  ],
+  "data": {
+    "durable": true,
+    "why": "Lo que hay dentro NO es la salida de un trabajo: son los proyectos, tareas, ideas y citas REALES del operador. Un reset deja en blanco las superficies derivadas (resultados, informes, gráficas) porque son reproducibles; borrar esto sería pérdida de datos, del mismo orden que borrar la memoria — y eso solo pasa si el operador marca su casilla en el diálogo del reset."
+  }
 }

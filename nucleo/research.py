@@ -383,6 +383,24 @@ def to_prompt_block(brief: dict) -> str:
              "contrato exacto. IMPORTANTE para que el operador pueda PREGUNTAR después ('¿lleva desayuno?', '¿a qué "
              "hora es la entrada?'): mete los datos duros en `facts` del item y de cada pieza, y las fotos REALES "
              "en `images` — lo que no dejes ahí, zaelar no lo sabrá cuando él pregunte, y tendrá que buscarlo otra vez.")
+    # LA HOJA SE LLENA MIENTRAS TRABAJAS (2026-08-12, petición del operador). Una investigación seria tarda de 5 a
+    # 15 minutos, y hasta hoy el brief solo pedía entregar AL FINAL: el operador se quedaba mirando una hoja vacía
+    # —o peor, la de la búsqueda anterior— sin saber si había algo pasando. Su regla: «un brainworker que está
+    # produciendo resultados, a medida que va teniendo candidatos, los tiene que ir colocando en el widget». No es
+    # cosmético: es lo que le permite CORREGIR el rumbo a los dos minutos en vez de a los quince (y ya ocurrió:
+    # tuvo que decir «acótalo a 42-49 pies» con el worker a medio camino).
+    L.append(f"\nLA HOJA SE LLENA MIENTRAS TRABAJAS, no solo al final — el operador está MIRANDO:\n"
+             f"  · En cuanto tengas los PRIMEROS candidatos reales (no esperes a filtrar), haz un `present` con el "
+             f"título del encargo, un subtítulo que diga en qué punto vas («en curso · 12 candidatos, aún sin "
+             f"filtrar») y los que lleves. Marca lo provisional COMO provisional: una opción sin verificar que "
+             f"parece definitiva es peor que un hueco.\n"
+             f"  · Después ve AÑADIENDO con `append` a medida que confirmes candidatos que pasan el filtro duro, y "
+             f"refresca el subtítulo con el recuento real. Unas pocas actualizaciones con avance de verdad, no una "
+             f"por candidato.\n"
+             f"  · Al entregar, un `present` FINAL con las {nfin} definitivas y verificadas, que REEMPLAZA lo "
+             f"provisional. Lo que quede en pantalla al acabar tiene que ser exactamente tu selección.\n"
+             f"  · Si al final descartas algo que habías publicado, que desaparezca: la hoja no es un historial, es "
+             f"el estado ACTUAL de tu trabajo.")
     L.append(f"AMPLITUD REPORTADA: cuando entregues, di cuántos candidatos has considerado DE VERDAD y con qué "
              f"criterio has cortado, y repórtalo también con "
              f"`python -m nucleo.agent_report considered <nº> --kept {nfin}`. Es lo que le permite al operador "

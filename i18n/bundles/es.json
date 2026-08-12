@@ -345,7 +345,7 @@
   "orb.speaker_unmuted": "Pulsa para silenciar (el agente sigue en marcha)",
   "orb.wake_off": "Escuchando siempre — pulsa para exigir «zaelar»",
   "orb.wake_on": "Solo con «zaelar» — pulsa para escuchar siempre",
-  "reset.confirm.body": "Se DETENDRÁN todos los procesos en marcha (búsquedas del navegador, tareas del SlowBrain, creación de widgets), se limpiará la observabilidad y el escritorio quedará en blanco. Tu memoria y tus credenciales (WhatsApp/Telegram/navegador) NO se tocarán salvo que marques las casillas de abajo.",
+  "reset.confirm.body": "Se DETENDRÁN todos los procesos en marcha (búsquedas del navegador, Brain Workers, creación de widgets), el escritorio quedará en blanco y los widgets se vaciarán: resultados, informes, gráficas y el contenido de mensajería empiezan de cero. Se CONSERVAN tu memoria, tus credenciales y conexiones (WhatsApp/Telegram/navegador) y tu agenda —proyectos, tareas y citas—, salvo que marques las casillas de abajo.",
   "reset.confirm.cancel": "Cancelar",
   "reset.confirm.hint": "Marcar cualquiera de las dos reinicia el servidor automáticamente (unos segundos).",
   "reset.confirm.title": "¿Detener todo y limpiar?",

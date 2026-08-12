@@ -185,6 +185,13 @@ DOMAINS: list[dict] = [
         {"id": "4.13", "title": "Rehidratación del escritorio (tarjetas + posiciones tras recargar o cambiar de "
                                 "navegador) · «interrumpido» visible en Procesos",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_desktop_rehydrate.py"]},
+        # 2026-08-12: tras un reset, la hoja de resultados sacó ENTERA la búsqueda anterior mientras el worker de la
+        # nueva trabajaba — el reset cerraba las tarjetas pero no vaciaba sus DATOS. Aquí van las dos mitades: lo
+        # derivado se vacía y el registro del operador (agenda, credenciales, perfil del navegador) NO; y el worker
+        # llena la hoja MIENTRAS trabaja en vez de solo al final.
+        {"id": "4.14", "title": "Reset = superficies EN BLANCO (sin borrar el registro del operador) · la hoja se "
+                                "llena mientras el worker trabaja",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_reset_blank_surfaces.py"]},
         # 2026-08-10: el operador estuvo hablándole a un agente MUERTO porque los iconos seguían azules y el ECG
         # latía (lo late el servidor, no el agente). El estado del agente pasa a ser UNA verdad derivada y todo lo
         # que se ve deriva de ella; «parado» significa congelado de verdad y a la vista. Incluye el vúmetro del

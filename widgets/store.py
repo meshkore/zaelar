@@ -118,6 +118,15 @@ def exists(widget_id: str) -> bool:
     return os.path.exists(_path(widget_id))
 
 
+def forget(widget_id: str) -> None:
+    """Olvida la huella del último guardado. Hay que llamarla cuando el `state.json` se toca POR FUERA de `save()`
+    (hoy: el reset lo borra para dejar la superficie en blanco) — si no, el anti-flood de `save` cree que lo que
+    hay en disco es lo último que escribió y se SALTA el siguiente guardado idéntico, dejando el widget vacío en
+    pantalla con datos nuevos que nunca llegaron a escribirse."""
+    with _lock:
+        _last_hash.pop(widget_id, None)
+
+
 def delete(widget_id: str) -> bool:
     """Remove the widget's ENTIRE data directory (state.json + any media/files it kept there). Called when the
     widget itself is deleted — per-widget storage lives and dies with its widget, so no orphan files pile up

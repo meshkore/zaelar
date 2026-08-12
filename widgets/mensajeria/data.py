@@ -28,6 +28,19 @@ def _empty() -> dict:
     }
 
 
+def blank() -> dict:
+    """Estado EN BLANCO para un reset del operador: fuera los mensajes y las colas, **pero se conserva el estado de
+    CONEXIÓN de cada plataforma**. El reset promete no tocar credenciales ni autenticación (lo dice su diálogo), y
+    un `_empty()` a secas deja las tres plataformas en `status:"off"` → parecería que el reset te ha desconectado de
+    WhatsApp cuando la cuenta sigue enlazada. Lo llama `widgets/reset.py`, que prefiere esta función precisamente
+    para que cada widget decida qué significa «en blanco» para él."""
+    fresh = _empty()
+    cur = store.load(WIDGET_ID, {})
+    if isinstance(cur.get("platforms"), dict):
+        fresh["platforms"] = cur["platforms"]
+    return fresh
+
+
 def load_db() -> dict:
     db = store.load(WIDGET_ID, _empty())
     if not isinstance(db.get("platforms"), dict):
