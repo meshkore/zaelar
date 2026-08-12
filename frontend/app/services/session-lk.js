@@ -420,6 +420,24 @@ function _clearCanvasAndLog() {
   try { clearDebugBuffer(); } catch (_) {}
 }
 
+// Un reset deja el sistema LISTO PARA EMPEZAR — y eso incluye la voz (fix 2026-08-12).
+//
+// Fallo REAL medido: el operador apretó Reset a las 13:21:46 y la voz no volvió hasta las 13:22:49 — **61 segundos**
+// con el ⏻ parpadeando en ámbar. No era un arranque lento: no había ningún arranque. `stop()` tumba la sesión y
+// NADIE la levantaba; el único que re-arma es `ensureVoice()` de main.js, que solo corre al cargar la página y en
+// cada `pointerdown` — y el clic que dispara el reset llega ANTES del `stop()`, así que ese re-armado se desperdicia.
+// La voz se quedaba esperando el SIGUIENTE clic del operador, que tardó un minuto en llegar. El comentario de
+// `ensureVoice` presumía de «re-arms after Reset»: no era verdad por este camino.
+//
+// Se re-arma aquí, que es además donde toca: seguimos dentro del gesto del usuario (acaba de pulsar el botón de
+// confirmar), así que el navegador concede micro/audio sin pelear — que es la razón por la que ese re-armado cuelga
+// de `pointerdown` y no de un temporizador.
+async function _rearmVoiceAfterReset() {
+  if (store.powerOff()) return;              // ⏻ apagado A PROPÓSITO: un reset no desobedece al operador
+  await new Promise(r => setTimeout(r, 450));  // deja cerrar la Room anterior (mismo settle que reconnect())
+  try { await start(); } catch (_) {}
+}
+
 // HARD reset (botón Reset, tras confirmación): para la voz, dispara el /reset/hard del server (congela el trabajo
 // en curso en la memoria de estado + registra la orden en corto + MATA los procesos de fondo) y limpia los blobs
 // de actividad del canvas en el cliente.
@@ -429,6 +447,7 @@ export async function resetHard() {
   try { await api.resetHard(); } catch (_) {}
   try { store.setTasks([]); } catch (_) {}          // fuera las "nubes" de actividad de fondo del canvas
   unmuteVoice();   // tras un RESET del agente, la voz arranca ACTIVA (icono activo) por defecto
+  await _rearmVoiceAfterReset();
 }
 // Reset CON CHECKBOXES (V2-063, diálogo del botón Reset): opts = {wipeMemory, wipeCredentials}. Si CUALQUIERA es
 // true el server SE REINICIA SOLO (SQLite/perfiles en uso) — no hay sesión a la que volver hasta que responda de
@@ -440,8 +459,11 @@ export async function resetFull({ wipeMemory = false, wipeCredentials = false } 
   let res = {};
   try { res = await api.resetFull({ wipe_memory: wipeMemory, wipe_credentials: wipeCredentials }); } catch (_) {}
   if (!res || !res.restarting) {
+    // El caso NORMAL del botón Reset (sin borrar memoria ni credenciales): el server sigue vivo, así que la voz
+    // vuelve YA. Sin esto el reset dejaba el agente en `stalled` — el ámbar parpadeante — hasta el siguiente clic.
     try { store.setTasks([]); } catch (_) {}
     unmuteVoice();
+    await _rearmVoiceAfterReset();
     return;
   }
   store.setRestarting(true);

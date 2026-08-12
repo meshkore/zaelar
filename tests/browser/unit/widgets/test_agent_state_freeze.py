@@ -236,3 +236,46 @@ def test_the_endpoint_forwards_what_makes_a_transition_readable():
     block = body[i:i + 2200]
     for k in ("prev", "reason", "cause", "state"):
         assert f'"{k}"' in block, f"el endpoint descarta `{k}`"
+
+
+# ── 6) UN RESET DEJA EL SISTEMA LISTO — no `stalled` esperando un clic ────────────────────────────────────────
+# Misma familia que todo lo de arriba, medido en vivo el 2026-08-12: el operador apretó Reset a las 13:21:46 «para
+# que se pare todo y podamos empezar de cero» y la voz no volvió hasta las 13:22:49 — **61 segundos** con el ⏻
+# parpadeando en ámbar. No era un arranque lento: no había arranque. `resetFull()`/`resetHard()` llamaban a `stop()`
+# y NADIE levantaba la sesión; el único que re-arma es `ensureVoice()` de main.js, que corre al cargar la página y en
+# cada `pointerdown` — y el clic que dispara el reset llega ANTES del `stop()`, así que ese re-armado se pierde. La
+# voz esperaba el SIGUIENTE clic. El estado ámbar era HONESTO (`stalled` = debería estar arriba y no lo está); lo que
+# estaba roto era que un reset dejase el sistema así.
+SESSION_LK = APP / "services" / "session-lk.js"
+
+
+def _reset_paths() -> str:
+    """Los dos caminos de reset del cliente LiveKit (el módulo que se sirve DE VERDAD: el server lo publica en la
+    URL de session.js — ver server/livekit_api.py)."""
+    body = SESSION_LK.read_text(encoding="utf-8")
+    return body[body.index("export async function resetHard()"):body.index("export function toggle()")]
+
+
+def test_a_reset_brings_the_voice_back_by_itself():
+    block = _reset_paths()
+    assert block.count("_rearmVoiceAfterReset()") >= 2, \
+        "los DOS caminos de reset (resetHard y el resetFull sin borrados) tienen que re-armar la voz"
+
+
+def test_the_rearm_obeys_an_explicit_power_off():
+    """El ⏻ apagado es una orden del operador, persistida. Un reset no puede desobedecerla encendiendo la voz."""
+    body = SESSION_LK.read_text(encoding="utf-8")
+    fn = body[body.index("async function _rearmVoiceAfterReset()"):]
+    fn = fn[:fn.index("\n}")]
+    assert "store.powerOff()" in fn and "return" in fn
+    assert "start()" in fn
+
+
+def test_the_rearm_does_not_fight_the_server_restart():
+    """Con borrado de memoria/credenciales el server SE REINICIA: ahí no hay sesión a la que volver y quien manda es
+    el overlay + la recarga de la página. Re-armar la voz en ese camino sería pelearse con el reinicio."""
+    body = SESSION_LK.read_text(encoding="utf-8")
+    full = body[body.index("export async function resetFull("):body.index("export function toggle()")]
+    restarting = full[full.index("store.setRestarting(true)"):]
+    assert "_rearmVoiceAfterReset" not in restarting
+    assert "location.reload()" in restarting
