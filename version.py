@@ -11,11 +11,11 @@ import os
 import subprocess
 import time
 
-# Versión semántica del motor — súbela al cerrar un bloque de cambios notable (última: V2-078 acotación de widgets
-# por contexto + Susurro anti-confabulación · V2-079 visibilidad de workers/crons en pestañas · V2-080 lista
-# canónica de superficies nativas · V2-085 selección progresiva O(K) · V2-086 red nativa + clusters
-# públicos · V2-088 chat y voz independientes).
-VERSION = "2.90"
+# Versión semántica del motor — súbela al cerrar un bloque de cambios notable (última: V2-089 UI multilingüe +
+# arranque idiomático endurecido · V2-090 observabilidad por flujo/sesión/instalación · memoria a
+# deepseek-v4-flash (todo por el broker AIMLAPI, fin de OpenAI directo) · hoja de resultados como superficie
+# de sistema · rehidratación del trabajo tras reinicio + escritorio · aislamiento de datos en la suite de tests).
+VERSION = "2.91"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CACHE: dict = {}
