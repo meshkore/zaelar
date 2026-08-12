@@ -62,6 +62,10 @@ for (const s of SYSTEM_SURFACES.filter(s => s.phase === "overlay")) {
 // ---- primer arranque: si la config no está validada, abre el wizard ANTES de nada (config gestionada por la UI) ----
 api.wizardState().then(s => { if (s && s.first_run) store.setWizardOpen(true); }).catch(() => {});
 
+// ---- perfil CLOUD (cuenta de pago): /api/config expone `cloud_profile` (= ZAELAR_USER_ID puesto por el
+// provisioner). En cloud el header se reduce a tema + perfil (TopBar lo gatea); en self-host es false y nada cambia. ----
+api.getConfig().then(cfg => store.setCloudProfile(!!(cfg && cfg.cloud_profile))).catch(() => {});
+
 // ---- widget desktop (independent canvas / window manager) ----
 const desktop = new Desktop($("#wstage"));
 window.__zaelarDesktop = desktop;   // the SSE/session bridge reaches the desktop through this

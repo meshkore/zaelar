@@ -271,6 +271,12 @@ export const [restarting, setRestarting] = createSignal(false);
 // primer arranque (config sin validar) y es reabrible desde el TopBar (🧭). ----
 export const [wizardOpen, setWizardOpen] = createSignal(false);
 
+// ---- perfil CLOUD: en una cuenta de pago (cloud_profile del /api/config, = ZAELAR_USER_ID puesto) el header se
+// reduce a tema + perfil; en self-host es siempre false y el header no cambia (cero regresión). Lo siembra main.js
+// al arrancar desde /api/config. ----
+export const [cloudProfile, setCloudProfile] = createSignal(false);        // ¿cuenta cloud? (header reducido)
+export const [accountOpen, setAccountOpen]   = createSignal(false);        // panel de cuenta (icono perfil, solo cloud)
+
 // ---- system status (ⓘ panel: Hermes / voz / LLM / STT / TTS / cluster · credit + health) ----
 export const [statusOpen, setStatusOpen] = createSignal(false);            // status panel visible?
 export const [status, setStatus]         = createSignal({ overall: "unknown", items: [] });

@@ -15,7 +15,7 @@ import time
 # arranque idiomático endurecido · V2-090 observabilidad por flujo/sesión/instalación · memoria a
 # deepseek-v4-flash (todo por el broker AIMLAPI, fin de OpenAI directo) · hoja de resultados como superficie
 # de sistema · rehidratación del trabajo tras reinicio + escritorio · aislamiento de datos en la suite de tests).
-VERSION = "2.91"
+VERSION = "2.92"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CACHE: dict = {}
