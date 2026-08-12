@@ -97,6 +97,9 @@ i18n/generated/
 # `git add -A` barre el borrador del último worker: `informe.json` llegó a versionarse DOS veces (816efd7,
 # 8a959b8) y la copia que quedó en HEAD era el informe de vacaciones del operador con las fechas, el presupuesto
 # y las edades de sus hijos. Es un artefacto de trabajo, no fuente.
-/informe.json
-/fuentes.json
-/prog.json
+# Se ignora el PATRÓN, no los tres nombres que usó el run que destapó esto: el contrato dice «`informe.json` a
+# secas» como EJEMPLO, así que el worker siguiente puede llamarlo `resultados.json` o `veleros.json` y la fuga se
+# reabre. La raíz del engine no tiene ningún `.json` legítimo versionado (comprobado: cero), y el contexto ya manda
+# tenerla limpia — así que cualquier `.json` suelto ahí es un borrador de worker. Si algún día hace falta uno de
+# verdad, se des-ignora explícitamente con `!nombre.json`, que es una decisión visible en vez de un descuido.
+/*.json

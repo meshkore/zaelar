@@ -249,7 +249,10 @@ DOMAINS: list[dict] = [
         # 2026-08-10: un RESET deliberado abre una SESIÓN DE TRABAJO NUEVA (id nuevo + observabilidad a cero). Antes
         # vaciaba el log pero NO rotaba el id, así que lo de después seguía colgando de la sesión vieja. El test
         # también guarda el contrapeso: una RECONEXIÓN no es una sesión nueva.
-        {"id": "7.6", "title": "Sesión de trabajo: el reset abre una NUEVA (id nuevo, observabilidad a cero)",
+        # OJO: este nodo nació como «7.6» y COLISIONABA con el inventario de categorías, que también era 7.6 —
+        # el mapa es la respuesta a «¿funciona todo bien?», así que dos nodos con el mismo número hacen que uno se
+        # cuente dos veces y el otro no exista. Renumerado a 7.8 (2026-08-10).
+        {"id": "7.8", "title": "Sesión de trabajo: el reset abre una NUEVA (id nuevo, observabilidad a cero)",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/core/test_session_rotation.py"]},
         {"id": "7.5", "title": "Sello de versión (instancia + observabilidad, V2-074)", "ch": UNIT, "paths": [
             "tests/infrastructure/unit/test_version.py"]},
@@ -263,6 +266,11 @@ DOMAINS: list[dict] = [
         # trabajo salió; y todo eso es consultable por columnas indexadas, no escaneando JSON.
         {"id": "7.7", "title": "Flujos por correlation ID + identidad de instalación + sesión de trabajo",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/core/test_observability_flows.py"]},
+        # 2026-08-12: por la RAÍZ del repo se escapó información personal del operador a un repo PÚBLICO — un
+        # borrador de Brain Worker (`informe.json`) acabó versionado dos veces. El guarda no mira nombres: mira que
+        # en la raíz no se versione nada que no sea del proyecto, se llame como se llame.
+        {"id": "7.9", "title": "La raíz del repo no versiona datos (fuga de PII, 2026-08-12)", "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/test_repo_root_clean.py"]},
         {"id": "7.3", "title": "Chat por transporte LiveKit REAL", "ch": CHAT, "live": True,
             "cmd": "./.venv/bin/python tests/infrastructure/e2e/smoke/run_chat_over_livekit.py"},
         {"id": "7.4", "title": "Smoke INTEGRAL de salud", "ch": HTTP, "live": True,
