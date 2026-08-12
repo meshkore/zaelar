@@ -632,8 +632,25 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         try:
             from nucleo import websearch as _ws
             from . import prompt as _prompt2
+            _t_s = time.time()
             _res = await asyncio.to_thread(_ws.search, _sq)
             _ctx = _ws.format_results(_res)
+            # PARIDAD DE OBSERVABILIDAD con el canal vivo (2026-08-10). El probe es una implementación PARALELA
+            # del turno, y este camino no registraba nada: una búsqueda hecha por el canal de prueba no dejaba ni
+            # la fila `search` ni su evidencia, así que auditar lo que hace el sistema dependía de por dónde
+            # hubiera entrado la frase — justo el tipo de punto ciego que esta capa existe para no tener.
+            try:
+                from observability import evidence as _evd
+                from voice.observer import emit as _emit_obs
+                _x = {"source": _res.get("source"), "ai": bool(_res.get("ai")),
+                      "n": len(_res.get("results", [])), "ms": round((time.time() - _t_s) * 1000),
+                      "src": "probe", "evidence": _evd.web_results(_res.get("results"))}
+                _a = _evd.body(_res.get("answer"))
+                if _a:
+                    _x["evidence"]["answer"] = _a
+                _emit_obs("search", "🔎 resultados web", text=_sq, role="system", extra=_x)
+            except Exception:
+                pass
             _sys2 = (_prompt2._lang_lock()
                      + "\nResponde en 1-2 frases habladas, naturales, sin URLs, usando estos resultados web. "
                        "Si no contienen una respuesta clara, dilo; no inventes.\n\n"

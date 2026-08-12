@@ -306,9 +306,23 @@ def set_login_wait(task_id: str, on: bool) -> None:
 
 
 def milestone(task_id: str, text: str) -> None:
-    """Un HITO del proceso para el feed (p.ej. '34 anuncios encontrados', 'analizando 10 finalistas') — NO cada
-    acción de navegador. Alias legible de add_event para dejar claro qué va al feed de la tarjeta."""
+    """Un HITO del proceso (p.ej. '34 anuncios encontrados', 'analizando 10 finalistas') — NO cada acción de
+    navegador.
+
+    Va a DOS sitios (2026-08-10): al feed de la tarjeta (que es efímero, en memoria, y muere con la tarea) y al
+    registro de eventos, que es lo que se puede auditar después. Antes solo iba a la tarjeta: los hitos que
+    cuentan lo que la tarea ENCONTRÓ y lo que DESCARTÓ —justo la evidencia de si la búsqueda trajo lo pedido—
+    desaparecían al cerrarla. Ahora quedan, con el trace de la frase que pidió la tarea y el `span` del actor."""
     add_event(task_id, text)
+    try:
+        from voice.observer import emit
+        extra = {"id": "navegador", "task": task_id, "span": f"web:{task_id}"}
+        tid = trace_of(task_id)
+        if tid:
+            extra["trace"] = tid
+        emit("navegador", "🏁 hito", text=str(text), extra=extra)
+    except Exception:
+        pass
 
 
 def set_status(task_id: str, status: str) -> None:

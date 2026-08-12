@@ -151,6 +151,8 @@ class WorkerSession:
                     rec.steps = rec.steps[-12:]
             except Exception:
                 pass
+        elif ev.type == "step_result":
+            self._emit_step_result(d)                          # 2026-08-10: qué le CONTESTARON a ese paso
         elif ev.type == "note":
             self._emit_note(str(d.get("text") or ""))          # narración del worker → observabilidad, no voz
         elif ev.type == "provider_down":
@@ -364,7 +366,31 @@ class WorkerSession:
             action = (d.get("action") or "").strip()
             target = (d.get("target") or "").strip()
             text = " ".join(x for x in (action, target) if x)
-            emit(kind, place, text=text, extra={"id": self._rec.task_id, "tool": d.get("tool") or ""})
+            emit(kind, place, text=text,
+                 extra={"id": self._rec.task_id, "tool": d.get("tool") or "",
+                        "span": f"worker:{self._rec.task_id}"})
+        except Exception:
+            pass
+
+    def _emit_step_result(self, d: dict) -> None:
+        """La EVIDENCIA del paso: qué le contestó la herramienta (2026-08-10).
+
+        Los `tool_result` del stream se descartaban como «ruido interno», y con ellos se iba lo único que permite
+        auditar un worker de verdad: se veía que buscó en tal sitio y abrió tal URL, **nunca lo que encontró**. Un
+        worker que trae basura y otro que trae el dato exacto dejaban EL MISMO rastro. Va recortado (no resumido —
+        un resumen es una interpretación) y en la misma familia que su paso, para que se lea seguido: pido → me
+        contestan."""
+        try:
+            from voice.observer import emit
+            body = str(d.get("text") or "").strip()
+            if not body:
+                return
+            where = (d.get("where") or "sistema")
+            place, kind = _PLACE.get(where, _PLACE["sistema"])
+            bad = bool(d.get("is_error"))
+            emit(kind, place + (" ⚠️ error" if bad else " ↩"), text=body,
+                 extra={"id": self._rec.task_id, "tool": d.get("tool") or "", "evidence": True,
+                        "is_error": bad, "span": f"worker:{self._rec.task_id}"})
         except Exception:
             pass
 

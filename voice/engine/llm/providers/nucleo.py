@@ -1895,9 +1895,22 @@ class NucleoLLMStream(llm.LLMStream):
             except Exception as e:  # noqa: BLE001
                 logger.warning(f"web_search falló (voz sigue): {e}")
                 res, ctx = {"source": "none", "results": []}, ""
-            emit("search", "🔎 resultados web", text=query, role="system",
-                 extra={"source": res.get("source"), "ai": bool(res.get("ai")),
-                        "n": len(res.get("results", [])), "ms": round((time.time() - _t_s) * 1000)})
+            # EVIDENCIA (2026-08-10): además del proveedor y el número, se guarda QUÉ VOLVIÓ — título, URL y un
+            # trozo del snippet de cada resultado, más la respuesta sintetizada si el proveedor la dio. Sin esto
+            # se podía auditar que el sistema BUSCÓ, nunca si respondió con lo que traía: la fila decía «7
+            # resultados» y el contenido que el modelo leyó se perdía para siempre. Presupuestada en
+            # `observability.evidence` (se recorta, no se resume) y best-effort: si falla, el evento sale igual.
+            _ev = {"source": res.get("source"), "ai": bool(res.get("ai")),
+                   "n": len(res.get("results", [])), "ms": round((time.time() - _t_s) * 1000)}
+            try:
+                from observability import evidence as _evd
+                _ev["evidence"] = _evd.web_results(res.get("results"))
+                _ans = _evd.body(res.get("answer"))
+                if _ans:
+                    _ev["evidence"]["answer"] = _ans
+            except Exception:
+                pass
+            emit("search", "🔎 resultados web", text=query, role="system", extra=_ev)
             _hoy = time.strftime("%A %d %b %Y (%Y-%m-%d)")
             sys2 = (
                 _prompt_mod._lang_lock()

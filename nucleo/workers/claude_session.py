@@ -96,6 +96,10 @@ class ClaudeCodeSession(WorkerBackend):
         self._stdin_closed = False
         self._paused = False
         self._tier: dict | None = None   # escalón de proveedor con el que arrancó (para culpar al correcto si cae)
+        # Atribución de la EVIDENCIA: `tool_use_id` → el paso que la pidió, para casar cada `tool_result` con SU
+        # herramienta. `_last_step` es el respaldo cuando el id no viene (algunos backends no lo mandan).
+        self._steps_by_id: dict[str, dict] = {}
+        self._last_step: dict = {}
 
     # ── ciclo de vida ─────────────────────────────────────────────────────────────────────────────────────
     async def start(self, prompt: str, *, spec: "WorkerSpec") -> None:
@@ -360,7 +364,25 @@ class ClaudeCodeSession(WorkerBackend):
                     # pero rec.phase (el prompt "PROCESOS DE FONDO") SÍ se actualiza con la coarse.
                     yield self._ev("phase", label=lbl, quiet=bool(step))
                 if step:
+                    # Se recuerda el ÚLTIMO paso para poder atribuirle su respuesta: el `tool_result` llega en el
+                    # mensaje siguiente (rol `user`) y NO dice de qué tool era más que por `tool_use_id`.
+                    self._steps_by_id[str(block.get("id") or "")] = {"tool": name, "where": step.get("where", "")}
+                    self._last_step = {"tool": name, "where": step.get("where", "")}
                     yield self._ev("step", tool=name, model=self._model, **step)
+            return
+        if t == "user":
+            # LA EVIDENCIA DEL PASO (2026-08-10). Esto se descartaba entero como «ruido interno», y con ello lo
+            # único que permite auditar a un worker: qué le CONTESTARON. Se veía «busca en la web: ferry Dénia
+            # Ibiza» y «abre esta URL», pero no si volvió el horario correcto o una página de error — un worker que
+            # trae basura dejaba el mismo rastro que uno que acierta.
+            msg = obj.get("message") or {}
+            for block in (msg.get("content") or []):
+                if not isinstance(block, dict) or block.get("type") != "tool_result":
+                    continue
+                meta = self._steps_by_id.pop(str(block.get("tool_use_id") or ""), None) or self._last_step or {}
+                yield self._ev("step_result", text=_result_text(block.get("content")),
+                               tool=meta.get("tool", ""), where=meta.get("where", ""),
+                               is_error=bool(block.get("is_error")))
             return
         if t == "result":
             summary = obj.get("result") or ""
@@ -386,10 +408,35 @@ class ClaudeCodeSession(WorkerBackend):
             yield self._ev("done")
             self._done = True
             return
-        # user (tool_result), etc. → sin evento (ruido interno).
+        # el resto (system de cierre, etc.) → sin evento.
 
     def _ev(self, etype: str, **data) -> WorkerEvent:
         return WorkerEvent(task_id=self._task_id, type=etype, data=data, backend=self.name)
+
+
+def _result_text(content) -> str:
+    """El cuerpo de un `tool_result`, que llega en dos formas según la tool: un string pelado, o una lista de
+    bloques `{type:"text"|"image", ...}`. De las imágenes solo se anota que había una (una captura en base64 no
+    cabe en un evento y no se audita leyéndola en el log). Recortado con el presupuesto de `evidence`."""
+    if isinstance(content, str):
+        parts = [content]
+    elif isinstance(content, list):
+        parts = []
+        for b in content:
+            if isinstance(b, str):
+                parts.append(b)
+            elif isinstance(b, dict):
+                if b.get("type") == "text":
+                    parts.append(str(b.get("text") or ""))
+                elif b.get("type") == "image":
+                    parts.append("[imagen]")
+    else:
+        parts = [str(content or "")]
+    try:
+        from observability import evidence as _evd
+        return _evd.body(" ".join(p for p in parts if p))
+    except Exception:
+        return " ".join(p for p in parts if p)[:1500]
 
 
 def _tool_phase(tool: str, tin: dict | None = None) -> str:

@@ -623,6 +623,19 @@ async def _automate(goal: str, plan: str = "", task_id: str = "") -> None:
                     f"{(it.get('title') or '')[:40]}{(' · '+it.get('price')) if it.get('price') else ''}"
                     for it in items[:6])
                 tasks.milestone(task_id, f"📋 {len(items)} anuncios encontrados: {_sample}")
+                # EVIDENCIA (2026-08-10): el hito lleva un muestreo legible, pero para AUDITAR hace falta la
+                # fuente — la URL de cada candidato, que es lo que permite volver y comprobar si el precio y la
+                # descripción eran los que dijo. Presupuestado (`observability.evidence`), best-effort.
+                try:
+                    from observability import evidence as _evd
+                    from voice.observer import emit as _emit_obs
+                    _ev = _evd.web_results([{"title": it.get("title"), "url": it.get("url"),
+                                             "snippet": it.get("price")} for it in items])
+                    _emit_obs("navegador", "📋 candidatos extraídos", text=f"{len(items)} de {tb.page.url}",
+                              extra={"id": "navegador", "task": task_id, "span": f"web:{task_id}",
+                                     "trace": tasks.trace_of(task_id), "evidence": _ev})
+                except Exception:
+                    pass
                 tasks.set_phase(task_id, "investigando los mejores", True)
                 results = await agent.summarize_results(goal, items)
                 if results and results.get("discarded"):

@@ -65,9 +65,13 @@ def flows(limit: int = 50, session_id: str = "", user_id: str = "") -> list[dict
 def flow(corr_id: str, limit: int = 500) -> list[dict]:
     """El flujo COMPLETO en orden cronológico — la secuencia exacta de qué pasó y cuándo, que es lo que permite
     ver dónde se torció (p. ej. que se abrió el widget equivocado, y de qué frase salió)."""
+    # `topic` va en la proyección a propósito: un flujo NO es solo observabilidad. Otras señales del bus
+    # (`turn.completed`, `memory.updated`…) viajan con el mismo correlation id, y son parte legítima de la
+    # historia del flujo — pero no traen `kind`/`label`, así que sin el topic salían como filas VACÍAS y
+    # misteriosas en el visor. Un renglón que no se sabe qué es hace desconfiar de toda la tabla.
     return _rows(
         """
-        SELECT id, ts_ms, cat, kind, label, span, ms, model, tokens_in, tokens_out, ver, payload
+        SELECT id, ts_ms, topic, cat, kind, label, span, ms, model, tokens_in, tokens_out, ver, payload
         FROM events WHERE corr_id = ? ORDER BY id ASC LIMIT ?
         """,
         (str(corr_id), int(limit)),
@@ -99,6 +103,62 @@ def sessions(limit: int = 30, user_id: str = "") -> list[dict]:
         GROUP BY session_id
         ORDER BY started_ms DESC
         LIMIT ?
+        """,
+        tuple(args),
+    )
+
+
+def session(session_id: str) -> dict:
+    """UNA sesión con su forma, para abrirla y auditarla: cuándo empezó, cuánto lleva/duró, cuántos flujos y
+    eventos, tokens, errores. Devuelve `{}` si no existe — el que pregunta decide qué hacer con eso, aquí no se
+    inventa una sesión vacía que parezca real."""
+    r = _rows(
+        """
+        SELECT session_id,
+               MAX(user_id)                       AS user_id,
+               MIN(ts_ms)                         AS started_ms,
+               MAX(ts_ms)                         AS last_ms,
+               MAX(ts_ms) - MIN(ts_ms)            AS t_ms,
+               COUNT(*)                           AS events,
+               COUNT(DISTINCT corr_id)            AS flows,
+               SUM(COALESCE(tokens_in, 0))        AS tokens_in,
+               SUM(COALESCE(tokens_out, 0))       AS tokens_out,
+               SUM(CASE WHEN kind IN ('error', 'alert') THEN 1 ELSE 0 END) AS errors,
+               GROUP_CONCAT(DISTINCT cat)         AS families,
+               MAX(ver)                           AS ver
+        FROM events WHERE session_id = ?
+        """,
+        (str(session_id),),
+    )
+    row = r[0] if r else {}
+    return row if row and row.get("events") else {}
+
+
+def events(session_id: str = "", corr_id: str = "", since_id: int = 0, limit: int = 500) -> list[dict]:
+    """Los eventos EN CRUDO y en orden, con su payload completo — el material de la auditoría (2026-08-10).
+
+    `since_id` es lo que hace posible **seguir una sesión viva sin repetirse**: el que lee guarda el último `id`
+    que vio y pide lo que haya después. Es un cursor sobre una clave monótona (`AUTOINCREMENT`), no una ventana
+    de tiempo: ni pierde eventos que lleguen con el mismo milisegundo ni los cuenta dos veces.
+
+    El `payload` va TAL CUAL (JSON crudo, sin tocar): ahí viven la evidencia y los campos que el resto de la
+    proyección no sube a columnas. Quien audita necesita el original, no un resumen nuestro."""
+    where, args = ["topic = 'observer'"], []
+    if session_id:
+        where.append("session_id = ?")
+        args.append(str(session_id))
+    if corr_id:
+        where.append("corr_id = ?")
+        args.append(str(corr_id))
+    if since_id:
+        where.append("id > ?")
+        args.append(int(since_id))
+    args.append(int(limit))
+    return _rows(
+        f"""
+        SELECT id, ts_ms, topic, corr_id, session_id, user_id, cat, kind, label, span, ms, model,
+               tokens_in, tokens_out, ver, payload
+        FROM events WHERE {' AND '.join(where)} ORDER BY id ASC LIMIT ?
         """,
         tuple(args),
     )

@@ -151,3 +151,147 @@ def test_hand_published_events_are_stamped_too(wired):
     assert ev["sid"] == identity.session_id()
     assert ev["uid"] == identity.user_id()
     assert ev["cat"] == "memory", "la familia también se deriva: sin ella la fila cae en «Sin clasificar»"
+
+
+# ── LA EVIDENCIA: qué trajo el mundo exterior (2026-08-10) ────────────────────────────────────────────────────
+# Hasta hoy se registraba la PREGUNTA y la DECISIÓN, no la PRUEBA: de una búsqueda quedaba «7 resultados» y se
+# perdía lo que el modelo leyó de verdad. Con eso se puede auditar que el sistema BUSCÓ, nunca si buscó BIEN — la
+# pregunta que importa («¿los resultados sostienen lo que respondió?») era inverificable a posteriori.
+def test_the_evidence_of_a_search_is_kept_with_its_sources():
+    from observability import evidence
+
+    ev = evidence.web_results([
+        {"title": "El Tiempo: Soria", "url": "https://www.aemet.es/x", "snippet": "31 grados"},
+        {"title": "Meteored", "url": "https://www.tiempo.com/soria.htm", "snippet": "máxima 37"},
+    ])
+    assert [i["u"] for i in ev["items"]] == ["https://www.aemet.es/x", "https://www.tiempo.com/soria.htm"], \
+        "la URL es lo que permite VOLVER a la fuente y comprobar: nunca se recorta fuera"
+    assert ev["omitted"] == 0
+
+
+def test_the_evidence_has_a_budget_and_says_what_it_left_out():
+    """Sin tope, una búsqueda con snippets largos pesaría más que el resto del turno junto. Y un recorte SILENCIOSO
+    sería peor que el recorte: quien audita creería que eso era todo lo que había."""
+    from observability import evidence
+
+    many = [{"title": f"r{i}", "url": f"https://e/{i}", "snippet": "x" * 400} for i in range(30)]
+    ev = evidence.web_results(many)
+    assert len(ev["items"]) <= evidence.MAX_ITEMS
+    assert ev["omitted"] == 30 - len(ev["items"]) > 0
+    assert all(len(i["s"]) <= evidence.MAX_SNIPPET for i in ev["items"])
+    assert sum(len(i["t"]) + len(i["u"]) + len(i.get("s", "")) for i in ev["items"]) <= evidence.TOTAL
+
+
+def test_clipping_marks_the_cut():
+    from observability import evidence
+
+    assert evidence.clip("abcdefghij", 5).endswith("…"), "un texto recortado tiene que PARECER recortado"
+    assert evidence.clip("abc", 50) == "abc"
+    assert evidence.clip(None, 10) == ""            # best-effort: la evidencia nunca puede tumbar al emisor
+
+
+def test_a_worker_tool_result_is_recorded(wired):
+    """Los `tool_result` del stream del CLI se descartaban como «ruido interno», y con ellos lo único que permite
+    auditar a un worker: se veía qué pidió, nunca qué le contestaron. Un worker que trae basura y otro que trae el
+    dato exacto dejaban EL MISMO rastro."""
+    from observability import flows
+    from voice.observer import emit
+
+    emit("task", "web ↩", text="Tour 2026: ganó Vingegaard", extra={"id": "7", "evidence": True,
+                                                                    "span": "worker:7"})
+    _settle()
+    rows = [e for e in flows.events(limit=50) if e["kind"] == "task"]
+    assert rows, "el resultado de una tool tiene que quedar registrado"
+    assert rows[-1]["span"] == "worker:7", "…y atribuido a SU actor, o no se puede agrupar por quién lo hizo"
+
+
+# ── LEER UNA SESIÓN: resumen, cursor y por qué NO una ventana de tiempo ───────────────────────────────────────
+def test_one_session_can_be_opened_and_summarised(wired):
+    from observability import flows, identity
+    from voice import trace
+    from voice.observer import emit
+
+    sid = identity.begin_session("test")["id"]
+    trace.begin("ponme el tiempo")
+    emit("brain", "decide", extra={"brain_ms": 100, "prompt_tokens": 500, "completion_tokens": 20})
+    _settle()
+
+    s = flows.session(sid)
+    assert s and s["events"] >= 2 and s["flows"] >= 1
+    assert s["tokens_in"] == 500
+    assert flows.session("no-existe") == {}, "una sesión que no existe devuelve vacío, no una sesión fingida"
+
+
+def test_the_cursor_never_repeats_nor_skips_an_event(wired):
+    """`since_id` sobre una clave monótona, no una ventana de tiempo: dos eventos en el MISMO milisegundo son un
+    caso normal (el bus reparte rápido), y una ventana temporal los duplicaría o se comería uno."""
+    from observability import flows, identity
+    from voice.observer import emit
+
+    identity.begin_session("test")
+    for i in range(5):
+        emit("brain", f"e{i}")
+    _settle()
+
+    first = flows.events(limit=2)
+    assert len(first) == 2
+    nxt = flows.events(since_id=first[-1]["id"], limit=10)
+    assert nxt and all(e["id"] > first[-1]["id"] for e in nxt), "nada anterior al cursor puede volver a salir"
+    ids = [e["id"] for e in first + nxt]
+    assert ids == sorted(ids) and len(ids) == len(set(ids)), "ni se repite ni se desordena"
+
+
+def test_raw_events_carry_the_payload_untouched(wired):
+    """Quien audita necesita el original, no nuestra proyección: la evidencia y todo lo que no sube a columnas
+    viven en el payload."""
+    import json
+
+    from observability import flows, identity
+    from voice.observer import emit
+
+    identity.begin_session("test")
+    emit("search", "🔎 resultados web", text="tiempo soria",
+         extra={"evidence": {"items": [{"t": "AEMET", "u": "https://aemet.es"}], "omitted": 0}})
+    _settle()
+    row = [e for e in flows.events(limit=50) if e["kind"] == "search"][-1]
+    payload = json.loads(row["payload"])
+    assert payload["evidence"]["items"][0]["u"] == "https://aemet.es"
+
+
+# ── EL CANDADO: quién puede leer el CONTENIDO ────────────────────────────────────────────────────────────────
+# Estas rutas nacieron para el visor local y eran abiertas. En casa da igual; el MISMO código corre en
+# despliegues donde el puerto es alcanzable, y ahí «abierto» significa que quien dé con la URL se lleva las
+# conversaciones.
+class _Req:
+    def __init__(self, host="1.2.3.4", token=None):
+        self.client = type("C", (), {"host": host})()
+        self.headers = {"x-observability-token": token} if token else {}
+
+
+def test_without_a_token_the_content_is_loopback_only(monkeypatch):
+    from observability import api
+
+    monkeypatch.delenv("ZAELAR_OBS_TOKEN", raising=False)
+    assert api._allowed(_Req(host="127.0.0.1"))
+    assert not api._allowed(_Req(host="203.0.113.9")), "sin token, desde fuera NO se lee el contenido"
+
+
+def test_with_a_token_it_must_match(monkeypatch):
+    from observability import api
+
+    monkeypatch.setenv("ZAELAR_OBS_TOKEN", "s3cr3t")
+    assert api._allowed(_Req(host="203.0.113.9", token="s3cr3t")), "con el token correcto se puede operar en remoto"
+    assert not api._allowed(_Req(host="203.0.113.9", token="otro"))
+    assert not api._allowed(_Req(host="127.0.0.1")), (
+        "con token configurado, ni loopback pasa sin él: si no, un proceso local cualquiera de la máquina "
+        "seguiría teniendo acceso libre al contenido")
+
+
+def test_a_request_without_a_known_origin_is_denied(monkeypatch):
+    """Fail-closed: si no se puede saber de dónde viene, no se sirve."""
+    from observability import api
+
+    monkeypatch.delenv("ZAELAR_OBS_TOKEN", raising=False)
+    r = _Req()
+    r.client = None
+    assert not api._allowed(r)
