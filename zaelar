@@ -3,7 +3,11 @@
 #   ./zaelar            first run: check + setup + start.  After that: start.
 #   ./zaelar doctor     check requirements
 #   ./zaelar setup      create local .venv and install dependencies
-#   ./zaelar start      run Zaelar (http://localhost:43917)
+#   ./zaelar start      run Zaelar in the foreground (Ctrl-C quits) — http://localhost:43917
+#   ./zaelar up         start it in the BACKGROUND and return your prompt
+#   ./zaelar stop       stop it
+#   ./zaelar restart    stop + start in the background (this is how you load changed code)
+#   ./zaelar status     is it running? which build?
 #   ./zaelar update     git pull + re-setup
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -42,16 +46,32 @@ setup() {
 start() {
   [ -d .venv ] || setup
   export PORT="${ZAELAR_PORT:-43917}"
-  echo "Starting Zaelar → http://localhost:${PORT}"
+  # `local.zaelar.com` is a PUBLIC DNS A record pointing at 127.0.0.1, and the certificate for it ships in this
+  # repo (certs/local.zaelar.com/) — the same shared-cert model Plex uses for *.plex.direct. So this URL works for
+  # every install out of the box and never leaves the machine: a real domain in the address bar instead of
+  # "localhost", with HTTPS, which is also what browsers require before they grant microphone access.
+  echo "Starting Zaelar → https://local.zaelar.com:44317   (plain HTTP: http://localhost:${PORT})"
   # Delegates to the real stack: native LiveKit media server (auto-installed if missing, no Docker) +
   # the web server with the embedded voice agent (BRAIN=nucleo). Same path as `make run`.
   exec bash scripts/run-livekit.sh
+}
+
+# Background lifecycle. The logic is in scripts/zaelar.py (standard library only) so that macOS, Linux and Windows
+# all run the SAME code — `zaelar.ps1` calls the same file with the same verbs. Until now you could start Zaelar but
+# not stop it or ask whether it was running, which on a self-hosted install is the half you need most.
+lifecycle() {
+  [ -d .venv ] || setup
+  exec .venv/bin/python scripts/zaelar.py "$1"
 }
 
 case "${1:-start}" in
   doctor) doctor;;
   setup)  setup;;
   start|"") start;;
+  up)      lifecycle start;;
+  stop)    lifecycle stop;;
+  restart) lifecycle restart;;
+  status)  lifecycle status;;
   update) git pull --ff-only && setup;;
-  *) echo "usage: ./zaelar [doctor|setup|start|update]"; exit 1;;
+  *) echo "usage: ./zaelar [doctor|setup|start|up|stop|restart|status|update]"; exit 1;;
 esac

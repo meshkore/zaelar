@@ -34,18 +34,31 @@ cd zaelar
 .\zaelar.ps1      # checks your system, sets up, and starts
 ```
 
-Then open **http://localhost:43917** and follow the on-screen setup. Add your AI keys **in the app** —
+Then open **https://local.zaelar.com:44317** and follow the on-screen setup. Add your AI keys **in the app** —
 no `.env` editing, no config files to touch.
+
+> `local.zaelar.com` is a public DNS record that points at **127.0.0.1**, and its certificate ships in this repo,
+> so it resolves to **your own machine** on every install and nothing ever leaves it. You get a real domain and
+> HTTPS instead of `localhost` — which is also what browsers require before they will grant microphone access.
+> Plain HTTP still works at `http://localhost:43917` if you prefer.
 
 ## Commands
 
+Identical on macOS, Linux and Windows (use `.\zaelar.ps1` instead of `./zaelar` on Windows):
+
 | Command | What it does |
 |---|---|
-| `./zaelar` (or `.\zaelar.ps1`) | First run: check → setup → start. After that: just starts. |
+| `./zaelar` | First run: check → setup → start. After that: just starts. |
+| `./zaelar up` | Start it in the **background** and give you your prompt back. |
+| `./zaelar stop` | Stop it, and unload any local models so they stop draining the battery. |
+| `./zaelar restart` | Stop + start. This is how you pick up code you just changed. |
+| `./zaelar status` | Is it running? On which ports? Which build? |
+| `./zaelar start` | Run it in the **foreground** with the logs on screen (Ctrl-C quits). |
 | `./zaelar doctor` | Check that your system meets the requirements. |
 | `./zaelar setup` | Create the local environment and install dependencies. |
-| `./zaelar start` | Run Zaelar. |
 | `./zaelar update` | Pull the latest version and re-setup. |
+
+Working on the code? `make start` / `make stop` / `make restart` / `make status` do the same thing.
 
 ## Requirements
 

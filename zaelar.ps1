@@ -3,7 +3,11 @@
 #   .\zaelar.ps1            first run: check + setup + start.  After that: start.
 #   .\zaelar.ps1 doctor     check requirements
 #   .\zaelar.ps1 setup      create local .venv and install dependencies
-#   .\zaelar.ps1 start      run Zaelar (http://localhost:43917)
+#   .\zaelar.ps1 start      run Zaelar in the foreground (Ctrl-C quits) — http://localhost:43917
+#   .\zaelar.ps1 up         start it in the BACKGROUND and return your prompt
+#   .\zaelar.ps1 stop       stop it
+#   .\zaelar.ps1 restart    stop + start in the background (this is how you load changed code)
+#   .\zaelar.ps1 status     is it running? which build?
 #   .\zaelar.ps1 update     git pull + re-setup
 param([string]$cmd = "start")
 $ErrorActionPreference = "Stop"
@@ -140,10 +144,24 @@ function Invoke-Start {
   }
 }
 
+# Background lifecycle. Deliberately the SAME file the macOS/Linux launcher calls (scripts\zaelar.py, standard
+# library only): one implementation, identical verbs on every platform, so a fix never lands on just one OS.
+function Invoke-Lifecycle([string]$verb) {
+  if (-not (Test-Path ".venv")) { Invoke-Setup }
+  $venvPy = Join-Path $PSScriptRoot ".venv\Scripts\python.exe"
+  if (-not (Test-Path $venvPy)) { Write-Host "No local environment yet. Run:  .\zaelar.ps1 setup"; exit 1 }
+  & $venvPy "scripts\zaelar.py" $verb
+  exit $LASTEXITCODE
+}
+
 switch ($cmd) {
-  "doctor" { Invoke-Doctor }
-  "setup"  { Invoke-Setup }
-  "start"  { Invoke-Start }
-  "update" { git pull --ff-only; Invoke-Setup }
-  default  { Write-Host "usage: .\zaelar.ps1 [doctor|setup|start|update]"; exit 1 }
+  "doctor"  { Invoke-Doctor }
+  "setup"   { Invoke-Setup }
+  "start"   { Invoke-Start }
+  "up"      { Invoke-Lifecycle "start" }
+  "stop"    { Invoke-Lifecycle "stop" }
+  "restart" { Invoke-Lifecycle "restart" }
+  "status"  { Invoke-Lifecycle "status" }
+  "update"  { git pull --ff-only; Invoke-Setup }
+  default   { Write-Host "usage: .\zaelar.ps1 [doctor|setup|start|up|stop|restart|status|update]"; exit 1 }
 }

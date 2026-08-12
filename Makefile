@@ -1,12 +1,18 @@
 # zaelar — personal voice assistant, cerebro propio «Colmena» (nucleo/). Docs: README.md (install) + .meshkore/docs/.
 PY=./.venv/bin/python
 
-.PHONY: help run run-nucleo run-lk lk-server agent-worker stop down sim smoke test test-list test-all test-ui test-widgets install-livekit install-stt install-tts install-whatsapp install-telegram reset reset-dry reset-restart flash flash-repl flash-serve doctor
+.PHONY: help start restart status run run-nucleo run-lk lk-server agent-worker stop down sim smoke test test-list test-all test-ui test-widgets install-livekit install-stt install-tts install-whatsapp install-telegram reset reset-dry reset-restart flash flash-repl flash-serve doctor
 
 help:
+	@echo "zaelar — run it locally:"
+	@echo "  make start          - start it (background). Idempotent: if it's already up it tells you, it doesn't break it"
+	@echo "  make stop           - stop it (both listeners; forces a hung process) + unload Ollama models. Alias: make down"
+	@echo "  make restart        - stop + start. THIS is how you load code you just changed"
+	@echo "  make status         - what's up, and whether the running build matches git HEAD"
+	@echo "                        (no make? works everywhere: python scripts/zaelar.py start|stop|restart|status)"
+	@echo ""
 	@echo "zaelar targets:"
-	@echo "  make run            - run the voice app locally (http://localhost:43917) — cerebro «Colmena» (nucleo)"
-	@echo "  make stop           - PARA todo (server+LiveKit+workers) y DESCARGA los modelos Ollama (ahorra batería). Alias: make down"
+	@echo "  make run            - run in the FOREGROUND, logs on screen (Ctrl-C to quit) — for debugging"
 	@echo "  make sim            - run the bot-vs-bot reasoning simulator + judge (all personas)"
 	@echo "  make smoke          - quick single-persona sim (no judge)"
 	@echo "  make test           - import/health checks (no real voice; safe to run in CI)"
@@ -26,6 +32,30 @@ help:
 	@echo "  make flash T=\"...\"   - inyecta UN turno de texto al FlashBrain y muestra respuesta+acción+latencia (server ya arrancado)"
 	@echo "  make flash-repl     - conversación interactiva por texto con el FlashBrain (3ª forma de testing, V2-032)"
 
+# ── CICLO DE VIDA LOCAL — un comando por acción, en las TRES plataformas ─────────────────────────────────────────
+# La lógica vive en `scripts/zaelar.py` (stdlib pura) y NO en bash a propósito: los scripts antiguos usaban
+# lsof/pkill/pgrep, así que en Windows no se podía ni arrancar ni parar — y esto es un proyecto público que la gente
+# auto-hospeda. Python ya es requisito duro (la app ES Python), así que estos targets son un envoltorio fino y quien
+# no tenga `make` (Windows) llama al script directamente:  python scripts/zaelar.py start|stop|restart|status
+#
+# Lo que arregla, aprendido a golpes (2026-08-10/12):
+#   · `start` es IDEMPOTENTE — arrancar encima de una instancia viva dejaba los puertos ocupados, el proceso nuevo
+#     moría con un EADDRINUSE silencioso y la app PARECÍA arrancada sin funcionar.
+#   · `stop` cubre los DOS listeners (43917 y 44317). El `stop.sh` viejo solo liberaba el 43917: media instancia
+#     sobrevivía a cada parada.
+#   · `stop` ESCALA a kill: un proceso encallado ignora SIGTERM. Pasó de verdad (el hilo del worker de voz se colgó).
+#   · `status` compara la build VIVA contra `git HEAD` — reiniciar y CREER que reinició ha costado horas aquí.
+start:
+	$(PY) scripts/zaelar.py start
+
+restart:
+	$(PY) scripts/zaelar.py restart
+
+# El `-` es a propósito: el SCRIPT devuelve 1 cuando no hay nada corriendo (útil para guionizar «¿está arriba?»),
+# pero PREGUNTAR no es fallar — sin esto `make status` pintaba un «Error 1» que parece una avería y no lo es.
+status:
+	@$(PY) scripts/zaelar.py status || true
+
 # Voice app on LiveKit (INI-012): servidor LiveKit (binario NATIVO, sin Docker) + web con worker EMBEBIDO.
 # Docker es solo fallback si no está el binario → `make install-livekit`.
 # Cerebro = «Colmena» PROPIO (BRAIN=nucleo, EPIC-v2-colmena): FlashBrain (nucleo/) + memoria central + SlowBrain,
@@ -41,10 +71,11 @@ run-nucleo:
 run-lk:
 	BRAIN=$(or $(BRAIN),nucleo) bash scripts/run-livekit.sh
 
-# PARAR todo + DESCARGAR modelos Ollama (ahorra batería). No toca credenciales/memoria/datos. Vuelve con `make run`.
-# La frontera exacta (qué procesos para / qué modelos descarga) vive en scripts/stop.sh (auto-documentado).
+# PARAR todo + DESCARGAR modelos Ollama (ahorra batería). No toca credenciales/memoria/datos. Vuelve con `make start`.
+# Pasó de `scripts/stop.sh` (bash, solo-Unix, y solo liberaba el 43917) al script portable — ver la nota de arriba.
+# `stop.sh` se conserva como delegador para no romper a quien lo llame por su nombre.
 stop down:
-	bash scripts/stop.sh
+	$(PY) scripts/zaelar.py stop
 
 # RESET DE MEMORIA HUMANA (empezar un test de cero). Borra SOLO la memoria humana (zaelar.db + episódica + stores de
 # widgets/mensajes) Y la observabilidad (timeline + sesiones + el log durable de eventos que vive en zaelar.db), y
