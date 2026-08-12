@@ -18,6 +18,7 @@ Tres agujeros distintos, uno por bloque de este fichero:
 
 La decisión de qué se reanuda vive en `rehydrate.classify`, que es PURA — se prueba entera sin BD ni reloj.
 """
+import json
 import time
 
 import pytest
@@ -38,6 +39,27 @@ def _hash_backend(monkeypatch):
     mememb.reset()
     yield
     mememb.reset()
+
+
+@pytest.fixture(autouse=True)
+def _widget_data_sandbox(tmp_path, monkeypatch):
+    """LOS DATOS DE LOS WIDGETS, A UN TEMPORAL — SIEMPRE, en TODO test de este fichero.
+
+    Aquí abajo hay un test que llama al `reset.reset_all()` REAL (a propósito: lo que verifica es el cableado de
+    verdad, no un mock). El 2026-08-12 ese `reset_all` aprendió a dejar las superficies EN BLANCO
+    (`widgets.reset.blank_all()`), y `blank_all` recorre `store.DATA_DIR`… que en un test sin aislar es el
+    directorio REAL del operador. Resultado observado en vivo DOS veces: correr la suite le borró de la pantalla
+    los 6 veleros que un worker acababa de entregar, sin dejar ni un evento —`blank_all` escribe por
+    `store.forget()` + borrado de `state.json`, no por `store.save`, así que no emite señal— y el síntoma parecía
+    un bug de persistencia del widget.
+
+    Es `autouse` y NO opcional: la protección no puede depender de que el siguiente test se acuerde de pedirla.
+    Un test unitario no tiene ningún motivo para leer ni tocar los datos reales de los widgets del operador."""
+    from widgets import store as _store
+    sandbox = tmp_path / "widgets_data"
+    sandbox.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(_store, "DATA_DIR", str(sandbox))
+    yield sandbox
 
 
 @pytest.fixture
@@ -326,3 +348,25 @@ def test_the_brief_of_the_dead_task_is_the_one_reused(fresh_db):
     assert out["round"] == 1, f"reanudar no sube de ronda (salió {out.get('round')})"
     assert (out["breadth"] or {})["min_candidates"] == 40, "ni endurece la amplitud"
     assert out["deliverable"]["n_final"] == 10
+
+
+def test_a_reset_in_a_test_never_touches_the_operators_real_widget_data(tmp_path, monkeypatch):
+    """El daño ya ocurrido, convertido en guardia. `reset_all` deja las superficies en blanco recorriendo
+    `store.DATA_DIR`; si un test lo llama sin aislar ese directorio, borra los datos REALES del operador — y en
+    silencio, porque `blank_all` no pasa por `store.save` y por tanto no emite ninguna señal. Se comprobó en vivo:
+    dos corridas de esta suite le vaciaron la hoja con los 6 veleros que un worker acababa de entregar."""
+    from widgets import reset as wreset
+    from widgets import store as _store
+
+    real = _store.DATA_DIR                       # el de verdad, resuelto ANTES de aislar
+    sandbox = tmp_path / "solo_esto_se_toca"
+    (sandbox / "results").mkdir(parents=True)
+    (sandbox / "results" / "state.json").write_text('{"items": [{"title": "un velero"}]}', encoding="utf-8")
+    monkeypatch.setattr(_store, "DATA_DIR", str(sandbox))
+
+    out = wreset.blank_all()
+    assert "results" in out["blanked"]
+    # `results` declara `blank()`, así que la hoja se REESCRIBE vacía en vez de borrarse el fichero
+    kept = json.loads((sandbox / "results" / "state.json").read_text(encoding="utf-8"))
+    assert not (kept.get("items") or []), "en el sandbox SÍ deja la hoja en blanco"
+    assert str(sandbox) != real, "y el sandbox no puede ser el directorio real"
