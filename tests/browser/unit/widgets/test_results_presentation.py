@@ -686,7 +686,73 @@ def test_the_type_scale_and_spacing_are_a_system_not_ad_hoc_numbers():
     # valores por debajo de 4px (hilos, semitonos ópticos: no hay escala que los cubra sin quedar peor).
     body = "\n".join(ln for ln in css.split("\n") if not re.match(r"\s*--[a-z0-9-]+:", ln))
     raw = [m for m in re.findall(r":\s*(\d+(?:\.\d+)?)px", body) if float(m) > 3]
-    assert len(raw) <= 24, (f"demasiadas magnitudes crudas en uso ({len(raw)}: {sorted(set(raw))}): "
+    # 26 y no menos: lo que queda son alturas de imagen (128/168/100/62) y desplazamientos ópticos de 4-7px, que son
+    # one-offs estructurales de verdad — meterlos en la escala sería rigor de mentira. El techo está para que un
+    # TAMAÑO DE LETRA o un margen no vuelvan a escaparse: ya pasó, y con la escala nueva el título de la ficha
+    # destacada se quedó en 15.5px, o sea MÁS PEQUEÑO que el normal. Un número fuera de la escala no se entera de
+    # que la escala cambió.
+    assert len(raw) <= 26, (f"demasiadas magnitudes crudas en uso ({len(raw)}: {sorted(set(raw))}): "
                             "usa la escala --s*/--f*/--r*")
+    css_fonts = re.findall(r"font-size:\s*(\d+(?:\.\d+)?)px", body)
+    assert not css_fonts, f"todo tamaño de letra sale de la escala --f-*; crudos: {css_fonts}"
     assert "#0d1622" in css or "#e8edf5" in css, "los hex solo valen como FALLBACK de var(--hb-*)"
     assert "color:#" not in css.replace("color:#fff", ""), "ningún color fuera del contrato --hb-*"
+
+
+# ══ 15) LA CABECERA DICE LA TAREA, NO EL NOMBRE DE LA PIEZA (2026-08-12) ════════════════════════════════════════
+# Norma del operador, literal: «no hace falta que la gente sepa que eso es el visor o que eso es la muestra de
+# resultados, sino es lo que le hemos pedido puesto ahí». En una superficie GENÉRICA el nombre del catálogo
+# («Resultados») no identifica nada — lo que identifica esa tarjeta es el ENCARGO que está mostrando.
+DESKTOP_JS = pathlib.Path("frontend/app/widgets/desktop.js")
+
+
+def test_the_sheet_opts_into_a_live_title():
+    """Opt-in POR WIDGET, no global: el reloj o la agenda sí se identifican por su nombre, y cambiárselo a todos
+    sería una regresión."""
+    man = runtime.get("results") or {}
+    assert man.get("live_title") is True
+    assert "live_title" in pathlib.Path("widgets/server_api.py").read_text(), \
+        "el canvas lo necesita del índice compacto, antes de pedir el manifest entero"
+
+
+def test_the_canvas_puts_the_task_in_the_card_header():
+    src = DESKTOP_JS.read_text()
+    assert "_applyLiveTitle(w, baseId, data)" in src, "al montar"
+    assert "this._applyLiveTitle(ww, ww.base || id, data)" in src, \
+        "y al refrescar: una búsqueda nueva cambia el título, y dejar el viejo es un rótulo que MIENTE"
+    assert "if(w._liveTitle) return;" in src, "el nombre del catálogo no puede volver a pisar la tarea"
+
+
+def test_the_canonical_name_is_not_lost_only_moved():
+    """Es como se dirige la pieza por voz: no puede desaparecer, solo dejar de ocupar el sitio principal."""
+    src = DESKTOP_JS.read_text()
+    fn = src[src.index("async _applyLiveTitle("):src.index("_wireDrag(card, grip)")]
+    assert "nameBtn.title" in fn and "alias" in fn
+
+
+def test_the_title_is_said_once_not_twice():
+    """Con la tarea ya en la cabecera de la tarjeta, repetirla dentro en cuerpo mayor era el mismo texto dos veces
+    a 4px de diferencia: ruido, y una línea perdida en la parte más valiosa de la hoja."""
+    src = WIDGET_JS.read_text()
+    assert 'el.dataset.hostTitle !== "1"' in src
+    assert 'w.body.dataset.hostTitle = "1"' in DESKTOP_JS.read_text()
+    # …pero se conserva el respaldo: si la superficie se monta sin cabecera del canvas, la tarea no desaparece
+    assert 'elem("div","hr-hd", data.title || "Resultados")' in src
+
+
+def test_the_header_does_not_run_under_the_window_buttons():
+    """Los botones de la derecha son DOS desde que existe ⤢ (ocupa de 38 a 64): con la cabecera acabando en 40 un
+    título largo se le metía por debajo — invisible con un nombre corto y centrado, evidente con una frase."""
+    src = DESKTOP_JS.read_text()
+    head = src[src.index(".hb-head{"):src.index(".hb-head{") + 200]
+    assert "right:70px" in head
+
+
+def test_the_sticky_header_has_a_bounded_height():
+    """Cada línea de la cabecera pegajosa se la quita a los resultados en TODO el scroll. El subtítulo real llegaba
+    a tres líneas: se acota a dos EN PANTALLA y el texto íntegro queda en el tooltip — controlar el espacio no es
+    lo mismo que recortar el dato."""
+    src = WIDGET_JS.read_text()
+    assert "-webkit-line-clamp:2" in src
+    assert 'elem("div","hr-sub clamp2", data.subtitle)' in src
+    assert "sub.title = data.subtitle" in src, "el texto completo no se pierde: va al tooltip"

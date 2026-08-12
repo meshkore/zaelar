@@ -108,3 +108,33 @@
     template literal** del CSS (cerraban la cadena), y el banco de pruebas pintaba el dict CRUDO sin cruzar
     `data.py` — así que no veía que `facts` se escribe como objeto y se guarda como lista. El banco ahora sanea el
     fixture por `apply_action`/`view_data`, como en vivo.
+- **2026-08-12 (3er pase, CIERRE) — la cabecera dice LA TAREA, no el nombre de la pieza.** Petición del operador,
+  literal: «no hace falta que la gente sepa que eso es el visor o que eso es la muestra de resultados, sino es lo
+  que le hemos pedido puesto ahí». En una superficie GENÉRICA el nombre del catálogo («Resultados») no identifica
+  nada: lo que identifica esa tarjeta es el ENCARGO que está mostrando.
+  · **`live_title` en el manifest** (opt-in POR widget, no global — el reloj y la agenda sí se identifican por su
+    nombre y cambiárselo a todos sería una regresión). El canvas lo lee del índice compacto y pone `data.title` en
+    la cabecera de la tarjeta, alineado a la izquierda y con elipsis; el nombre canónico —cómo se dirige por voz—
+    NO se pierde: queda en el tooltip y en el panel de alias (⚙). Sigue a los datos también al REFRESCAR, porque
+    una búsqueda nueva cambia el título y dejar el viejo es un rótulo que miente sobre lo que hay debajo.
+  · **El título se dice UNA vez.** El canvas marca el div de montaje con `data-host-title` ANTES de pintar, y el
+    widget omite su propio `hr-hd`: repetirlo en cuerpo mayor era el mismo texto dos veces a 4px de diferencia y
+    una línea perdida en la cabecera pegajosa, que es el sitio más caro de la hoja. Se conserva el pintado propio
+    como respaldo por si algún día esta superficie se monta sin la cabecera del canvas.
+  · **Alto acotado**: el subtítulo real llegaba a tres líneas; se limita a DOS en pantalla (`-webkit-line-clamp`) y
+    el texto íntegro va al tooltip — controlar el espacio no es lo mismo que recortar el dato.
+  **Tres fallos reales cazados en este pase, ninguno a ojo:**
+  1. El `widget.js` estaba **ROTO en producción**: un comentario nuevo con acentos graves dentro del template
+     literal del CSS cerraba la cadena → el módulo no importaba y la tarjeta habría dicho «no se pudo cargar». Es
+     la SEGUNDA vez en un día, así que ahora hay un guard permanente para TODO el catálogo
+     (`tests/browser/unit/widgets/test_widget_js_parses.py`: `node --check` por fichero + un test que señala el
+     acento grave con fichero y línea, porque el SyntaxError del stdin no dice dónde está).
+  2. `.hb-head` acababa en `right:40px` cuando los botones de la derecha son DOS desde que existe ⤢ (ocupa de 38 a
+     64): un título largo se le metía por debajo. Invisible con un rótulo corto y centrado, evidente con una frase.
+  3. **El hueco de la rejilla tenía dos fuentes de verdad y costó una columna.** Al subir la escala de espaciado de
+     12 a 14px, `gridStyle` siguió restando 12: el suelo de cada pista quedaba 2px por encima de lo que cabía y
+     `auto-fill` bajaba de dos columnas a UNA en una hoja de 1.420px — se ve como «maximizar ya no aprovecha el
+     ancho» y no se deduce leyendo el diff. Ahora el cálculo lee `var(--s3)`, la misma variable que lo pinta.
+  Y de paso: el título de la ficha destacada llevaba `15.5px` crudo de cuando el cuerpo era 14, así que con la
+  escala nueva quedó **más pequeño** que el de sus hermanas. Un número fuera de la escala no se entera de que la
+  escala cambió: hereda, y ya destaca por fondo, borde y badge. Hay techo en test para los tamaños crudos.

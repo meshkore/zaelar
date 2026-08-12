@@ -65,7 +65,16 @@ def test_clip_never_leaves_a_dangling_separator():
 
 # ── 2. El layout lo decide la SUPERFICIE, por la forma del contenido ──────────────────────────────────────────────
 
-_GAP = 12
+# El hueco de la rejilla lo define el CSS (`--s3`) y `gridStyle` lo lee de ahí: la réplica hace lo mismo leyéndolo
+# del fichero, para que subir la escala no deje este test midiendo otra cosa que el widget.
+def _gap():
+    import re
+    src = (WIDGET / "widget.js").read_text()
+    m = re.search(r"--s3:\s*(\d+(?:\.\d+)?)px", src)
+    return float(m.group(1)) if m else 12.0
+
+
+_GAP = _gap()
 
 
 def _grid(items, cap=None):
@@ -123,6 +132,17 @@ def test_rich_content_is_never_squeezed_however_narrow_the_card_gets():
     rich = [{"parts": [1, 2]}] * 4
     for width in (320, 480, 620, 720, 800):
         assert _columns_at(rich, width) == 1
+
+
+def test_the_gap_has_a_single_source_of_truth():
+    """Tenerlo dos veces costó una columna: al subir la rejilla de 12 a 14px, `gridStyle` siguió restando 12, el
+    suelo de cada pista quedó 2px por encima de lo que cabía y `auto-fill` bajó de dos columnas a UNA en una hoja
+    de 1.420px. Se ve como «maximizar ya no aprovecha el ancho» y no se deduce leyendo el diff."""
+    src = (WIDGET / "widget.js").read_text()
+    fn = src[src.index("function gridStyle("):src.index("function makeCard(")]
+    assert "var(--s3)" in fn, "el hueco sale de la variable que lo pinta"
+    import re
+    assert not re.search(r"const gap\s*=\s*\d", fn), "un número copiado aquí se desincroniza del CSS en silencio"
 
 
 def test_the_widget_really_delegates_the_layout():

@@ -63,16 +63,16 @@ function injectStyles(){
      OJO al editar: esto es un template literal — nada de acentos graves aquí dentro.
      ───────────────────────────────────────────────────────────────────────────────────────────────────────────── */
   .hb-results{
-    --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px;      /* rejilla de 4 */
-    --f-micro:10.5px;                                          /* rótulos en versal, con tracking */
-    --f-sm:11.5px;                                             /* metadatos, estados */
-    --f-body:12.5px;                                           /* el cuerpo de todo */
-    --f-md:14px;                                               /* título de ficha */
-    --f-lg:17px; --f-xl:21px;                                  /* expediente y cifras del sumario */
+    --s1:5px; --s2:9px; --s3:14px; --s4:18px; --s5:26px;      /* rejilla de ~4-5, con más aire (2026-08-12) */
+    --f-micro:11px;                                           /* rótulos en versal, con tracking */
+    --f-sm:13px;                                              /* metadatos, estados (+1.5px) */
+    --f-body:14.5px;                                          /* el cuerpo de todo (+2px, legibilidad) */
+    --f-md:16px;                                              /* título de ficha (+2px) */
+    --f-lg:19px; --f-xl:23px;                                 /* expediente y cifras del sumario */
     --r-sm:7px; --r-md:10px; --r-lg:13px; --r-pill:99px;       /* radios */
     --line:1px solid var(--hb-line,#e3e8f0);
     font-family:var(--sans,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif);
-    color:var(--hb-ink,#0d1622);font-size:var(--f-body);line-height:1.45;
+    color:var(--hb-ink,#0d1622);font-size:var(--f-body);line-height:1.62;
     width:100%;min-width:0;display:flex;flex-direction:column}
   /* Toda cifra que se COMPARA va en cifras tabulares. En una superficie cuyo trabajo es poner precios y notas
      unos debajo de otros, dígitos de anchura distinta obligan a releer para saber cuál es mayor. */
@@ -92,10 +92,35 @@ function injectStyles(){
     padding-top:2px;margin:-2px 0 0}
   .hb-results .hr-hd{font-size:var(--f-md);font-weight:650;letter-spacing:-.01em;margin:0;word-break:break-word}
   .hb-results .hr-sub{font-size:var(--f-sm);color:var(--hb-muted-2,#9aa7b8);margin:var(--s1) 0 0}
+  /* Con la TAREA ya en la cabecera de la tarjeta, el subtítulo es la primera línea de la hoja: sin margen arriba. */
+  .hb-results .hr-top>.hr-sub:first-child{margin-top:0}
+  .hb-results .hr-sub.clamp2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   /* Un subtítulo suelto dentro de un panel necesita aire POR DEBAJO: sin él, la línea de contexto («náutica de
      recreo · amplitud mínima 40») quedaba pegada al rótulo siguiente y se leían como una sola cosa. */
   .hb-results .hr-panel>.hr-sub{margin-bottom:var(--s4)}
   .hb-results .hr-panel>.hr-why{margin-bottom:var(--s4)}
+
+  /* ── IDENTIFICADORES DE LA SESIÓN (cabecera) ────────────────────────────────────────────────────────────────
+     El usuario y la sesión de esta instalación, con un botón que copia AMBOS juntos: el operador se los pasa a un
+     agente de código para que audite la sesión (si fue bien/mal, dónde falló). Se muestran ABREVIADOS (con el id
+     completo en el 'title' al pasar por encima) y se COPIAN completos. Del contrato --hb-* del tema. */
+  .hb-results .hr-ident{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2);margin-top:var(--s3);
+    font-size:var(--f-sm)}
+  .hb-results .hr-idbit{display:inline-flex;align-items:center;gap:6px;
+    background:var(--hb-bubble,#f1f4f9);border-radius:var(--r-pill);padding:4px var(--s3);cursor:default}
+  .hb-results .hr-idbit b{font-size:var(--f-micro);font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    color:var(--hb-accent,#3D6FE0)}
+  .hb-results .hr-idbit code{font-family:var(--mono,ui-monospace,SFMono-Regular,Menlo,Consolas,monospace);
+    color:var(--hb-ink,#0d1622);font-variant-numeric:tabular-nums}
+  .hb-results .hr-idcopy{display:inline-flex;align-items:center;gap:5px;font:700 var(--f-sm)/1 inherit;
+    color:var(--hb-accent,#3D6FE0);background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 12%,transparent);
+    border:1px solid color-mix(in srgb,var(--hb-accent,#3D6FE0) 32%,transparent);
+    border-radius:var(--r-sm);padding:5px 11px;cursor:pointer;transition:.14s}
+  .hb-results .hr-idcopy:hover{background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 18%,transparent)}
+  .hb-results .hr-idcopy[disabled]{opacity:.5;cursor:default}
+  .hb-results .hr-idcopy.ok{color:var(--hb-ok,#1f9d55);
+    border-color:color-mix(in srgb,var(--hb-ok,#1f9d55) 42%,transparent);
+    background:color-mix(in srgb,var(--hb-ok,#1f9d55) 14%,transparent)}
 
   /* ── PESTAÑAS ── el subrayado activo hace de continuación de la línea inferior, no de caja aparte. */
   .hb-results .hr-tabs{display:flex;gap:2px;border-bottom:var(--line);margin:var(--s3) 0 var(--s4);
@@ -138,16 +163,20 @@ function injectStyles(){
     flex-wrap:wrap}
   .hb-results .hr-t{font-size:var(--f-md);font-weight:650;line-height:1.3;letter-spacing:-.01em;
     word-break:break-word;flex:1 1 8em;min-width:0}
-  .hb-results .hr-card.primary .hr-t{font-size:15.5px}
+  /* La destacada NO lleva tamaño propio. Lo llevaba (15.5px, de cuando el cuerpo era 14) y al subir la escala se
+     quedó por DEBAJO del título normal —16px—: la ficha recomendada con la letra más pequeña que sus hermanas. Un
+     número fuera de la escala no se entera de que la escala cambió; hereda y ya destaca por fondo, borde y badge. */
   .hb-results .hr-price{flex:none;font-size:var(--f-md);font-weight:700;color:var(--hb-ink,#0d1622);
     white-space:nowrap;letter-spacing:-.01em}
-  /* El subtítulo DEJA de ser turquesa y en negrita: competía con el precio por la atención y en una ficha solo
-     puede haber un dato que gane. Es contexto, y el contexto se lee en segundo plano. */
-  .hb-results .hr-s{font-size:var(--f-sm);color:var(--hb-muted,#5f6b7c)}
+  /* El subtítulo NO grita (no es turquesa ni negrita: en una ficha solo un dato gana, y ese es el precio), pero
+     SÍ tiene que leerse: el gris claro sobre blanco entre acentos azules era justo el contraste flojo que costaba
+     leer (2026-08-12). Sube a un tono casi-tinta, contexto pero nítido. */
+  .hb-results .hr-s{font-size:var(--f-sm);color:color-mix(in srgb,var(--hb-ink,#0d1622) 74%,var(--hb-muted,#5f6b7c))}
   /* Subtítulo y badge en la MISMA línea, alineados por su base: es la fila de metadatos del resultado. */
   .hb-results .hr-metarow{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s1) var(--s2);
-    margin-top:5px}
-  .hb-results .hr-ln{font-size:var(--f-body);color:var(--hb-muted,#5f6b7c);margin-top:var(--s1);
+    margin-top:var(--s2)}
+  /* El cuerpo se lee en TINTA, no en gris: es el texto del resultado, no un pie de página. */
+  .hb-results .hr-ln{font-size:var(--f-body);color:var(--hb-ink,#0d1622);margin-top:var(--s1);
     overflow-wrap:break-word}
   .hb-results .hr-ln.strong{color:var(--hb-ink,#0d1622);font-weight:600}
   .hb-results .hr-ln.warn{color:var(--hb-warn-ink,#9a5b1b)}
@@ -188,7 +217,9 @@ function injectStyles(){
     margin:var(--s2) 0 var(--s1);overflow:hidden}
   .hb-results .hr-bar i{display:block;height:100%;border-radius:var(--r-pill);
     background:linear-gradient(90deg,var(--hb-accent,#3D6FE0),var(--hb-accent2,#16B8A6))}
-  .hb-results .hr-why{font-size:var(--f-body);color:var(--hb-muted,#5f6b7c)}
+  /* El PORQUÉ es texto de cuerpo, se lee en tinta: gris claro entre pastillas azules era el combo azul+gris+blanco
+     que costaba leer (2026-08-12). Un pelín de aire arriba para separarlo de la barra. */
+  .hb-results .hr-why{font-size:var(--f-body);color:var(--hb-ink,#0d1622);margin-top:var(--s1)}
 
   /* ── BLOQUES de la ficha a medida ── */
   .hb-results .hr-blocks{display:grid;gap:var(--s3);margin-top:var(--s3)}
@@ -212,11 +243,20 @@ function injectStyles(){
   .hb-results .hr-sub-sec{border-left:2px solid var(--hb-line,#e3e8f0);padding-left:var(--s3);display:grid;
     gap:var(--s2)}
 
-  /* ── FICHA DE DATOS (compartida por tarjeta, expediente y bloques) ── */
+  /* ── FICHA DE DATOS (compartida por tarjeta, expediente y bloques) ──
+     Va en un PANEL templado con su propio color, no como texto suelto sobre el fondo: separa los datos duros del
+     resto de la tarjeta y le da el "juego" de color que se pidió (2026-08-12), sin gritar. La ETIQUETA en acento
+     (no en gris claro): así el par etiqueta→valor se lee como acento→tinta, con contraste, en vez de gris+azul+
+     blanco revueltos. El VALOR siempre en tinta. */
   .hb-results .hr-facts{display:grid;grid-template-columns:auto 1fr;gap:var(--s1) var(--s3);
-    margin:var(--s3) 0;font-size:var(--f-body);min-width:0}
-  .hb-results .hr-fl{color:var(--hb-muted-2,#9aa7b8)}
+    margin:var(--s3) 0;font-size:var(--f-body);min-width:0;
+    background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 5%,var(--hb-bg-soft,#fbfdff));
+    border:1px solid color-mix(in srgb,var(--hb-accent,#3D6FE0) 12%,transparent);
+    border-radius:var(--r-md);padding:var(--s3) var(--s4)}
+  .hb-results .hr-fl{color:var(--hb-accent,#3D6FE0);font-weight:600}
   .hb-results .hr-fv{color:var(--hb-ink,#0d1622);word-break:break-word}
+  /* En un bloque 'facts' (renderBlock) el panel ya lo envuelve el propio bloque: ahí la ficha va sin caja doble. */
+  .hb-results .hr-blocks .hr-facts{background:none;border:none;padding:0}
 
   /* ── EXPEDIENTE (página 2) ── */
   .hb-results .hr-back{display:inline-flex;align-items:center;gap:5px;font:600 var(--f-sm)/1 inherit;
@@ -317,6 +357,62 @@ function elem(tag, cls, text){
   if(cls) e.className=cls;
   if(text!=null) e.textContent=String(text);
   return e;
+}
+
+// ── IDENTIFICADORES de la instalación y la sesión ───────────────────────────────────────────────────────────────
+// Los sirve `GET /api/observability/identity` (abierto en loopback). Se cachea a nivel de módulo: el header se
+// repinta en cada refresco de datos y no tiene sentido re-preguntar quién soy en cada uno.
+let IDENT = null, IDENT_PROMISE = null;
+function fetchIdentity(){
+  if(IDENT) return Promise.resolve(IDENT);
+  if(IDENT_PROMISE) return IDENT_PROMISE;
+  IDENT_PROMISE = fetch("/api/observability/identity", {headers:{accept:"application/json"}})
+    .then(r => r.ok ? r.json() : null)
+    .then(j => { if(j){ IDENT = {user_id: String(j.user_id||""), session_id: String(j.session_id||"")}; } return IDENT; })
+    .catch(() => null);
+  return IDENT_PROMISE;
+}
+
+function shortId(id){
+  id = String(id||"");
+  return id.length > 13 ? id.slice(0,8) + "…" : (id || "—");
+}
+
+// La tira de la cabecera: Usuario · Sesión · Copiar. El botón copia AMBOS ids COMPLETOS, en un formato que un
+// agente de código entiende de un vistazo. Se pinta ya (con "…") y se rellena cuando llega el fetch; si no hay
+// identidad (endpoint caído), la tira se retira sola en vez de dejar un hueco vacío.
+function identityStrip(){
+  const strip = elem("div","hr-ident");
+  const uBit = elem("span","hr-idbit"); const uCode = elem("code","","…"); uBit.append(elem("b","","Usuario"), uCode);
+  const sBit = elem("span","hr-idbit"); const sCode = elem("code","","…"); sBit.append(elem("b","","Sesión"), sCode);
+  const btn = elem("button","hr-idcopy","⧉ Copiar"); btn.type = "button"; btn.disabled = true;
+  strip.append(uBit, sBit, btn);
+
+  fetchIdentity().then(id => {
+    if(!id){ strip.remove(); return; }
+    uCode.textContent = shortId(id.user_id);  uBit.title = "Usuario: " + (id.user_id || "—");
+    sCode.textContent = shortId(id.session_id); sBit.title = "Sesión: " + (id.session_id || "—");
+    btn.disabled = false;
+    let reset = null;
+    btn.addEventListener("click", async () => {
+      const text = `user_id: ${id.user_id||""}\nsession_id: ${id.session_id||""}`;
+      let ok = true;
+      try{ await navigator.clipboard.writeText(text); }
+      catch(_){                                    // sin Clipboard API (contexto no seguro) → textarea + execCommand
+        try{
+          const ta = document.createElement("textarea");
+          ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
+          document.body.appendChild(ta); ta.focus(); ta.select();
+          ok = document.execCommand("copy"); ta.remove();
+        }catch(__){ ok = false; }
+      }
+      btn.textContent = ok ? "✓ Copiado" : "No se pudo copiar";
+      btn.classList.toggle("ok", ok);
+      if(reset) clearTimeout(reset);
+      reset = setTimeout(() => { btn.textContent = "⧉ Copiar"; btn.classList.remove("ok"); }, 1800);
+    });
+  });
+  return strip;
 }
 
 function photo(url, alt, cls){
@@ -477,8 +573,11 @@ function gridStyle(items, cap){
   const n = Number(cap);
   if(Number.isFinite(n) && n >= 1) maxCols = Math.min(maxCols, Math.floor(n));
   maxCols = Math.max(1, maxCols);
-  const gap = 12;
-  const floor = `calc((100% - ${(maxCols-1)*gap}px) / ${maxCols})`;
+  // El HUECO sale de la MISMA variable que lo pinta (`--s3`), no de un número copiado aquí. Tenerlo dos veces
+  // costó una columna: al subir la rejilla de 12 a 14px, este cálculo siguió restando 12, así que el suelo de cada
+  // pista quedaba 2px por encima de lo que de verdad cabía y `auto-fill` bajaba de dos columnas a UNA en una hoja
+  // de 1.420px. Un desajuste de dos píxeles que se ve como «maximizar ya no aprovecha el ancho».
+  const floor = `calc((100% - ${maxCols - 1} * var(--s3)) / ${maxCols})`;
   return `repeat(auto-fill,minmax(max(min(100%,${min}px),${floor}),1fr))`;
 }
 
@@ -824,8 +923,25 @@ export function render(el, data, ctx){
   // Título y pestañas van juntos en una cabecera PEGAJOSA: con varias decenas de resultados la hoja se recorre
   // con scroll y las pestañas tienen que seguir ahí (mirar la última ficha y saltar a Fuentes es un caso normal).
   const top = elem("div","hr-top");
-  top.appendChild(elem("div","hr-hd", data.title || "Resultados"));
-  if(data.subtitle) top.appendChild(elem("div","hr-sub", data.subtitle));
+  // EL TÍTULO SE DICE UNA VEZ. Si la tarjeta ya lleva la TAREA en su cabecera (el canvas lo marca con
+  // `data-host-title` cuando el manifest declara `live_title`), repetirla aquí en cuerpo mayor era el mismo texto
+  // dos veces a 4px de diferencia: ruido, y una línea de alto perdida en la parte más valiosa de la hoja. Se
+  // conserva el pintado propio como RESPALDO: si algún día esta superficie se monta sin la cabecera del canvas, la
+  // tarea no puede desaparecer de la pantalla.
+  if(el.dataset.hostTitle !== "1"){
+    top.appendChild(elem("div","hr-hd", data.title || "Resultados"));
+  }
+  if(data.subtitle){
+    // La cabecera es PEGAJOSA: cada línea que ocupa se la quita a los resultados en TODO el scroll. Un subtítulo
+    // real («8 anuncios reales del Levante (SUV, ~5,00 m largo…), de coches.net y coches.com. Ordenados de…»)
+    // llegaba a tres líneas. Se acota a DOS en pantalla y el texto íntegro queda en el tooltip: se controla el
+    // espacio sin perder el dato, que es distinto de recortarlo.
+    const sub = elem("div","hr-sub clamp2", data.subtitle);
+    sub.title = data.subtitle;
+    top.appendChild(sub);
+  }
+  // Identificadores de usuario/sesión + Copiar: para pasárselos a un agente que audite esta sesión.
+  top.appendChild(identityStrip());
 
   let cur = TABS.some(t=>t.id===data.tab) ? data.tab : "results";
   const bar = elem("div","hr-tabs");

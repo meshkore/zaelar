@@ -82,7 +82,7 @@ async def run_widget_hook(wid: str, fn: str, caller):
 # nadie pida el manifest completo: el tamaño preferido de una superficie de ancho fluido y si "pantalla completa"
 # significa la nativa (vídeo) o maximizar dentro de la app. Son dos campos diminutos; pedir el manifest entero
 # para leerlos devolvería el O(N·manifest) que V2-085 quitó.
-_INDEX_FIELDS = ("id", "title", "name", "transient", "kind", "icon", "size", "fullscreen")
+_INDEX_FIELDS = ("id", "title", "name", "transient", "kind", "icon", "size", "fullscreen", "live_title")
 _INDEX_PURPOSE_MAX = 120
 
 

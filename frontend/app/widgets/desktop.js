@@ -73,8 +73,15 @@ function injectStyles(){
   /* HEADER del widget (V2-082): el NOMBRE por el que se abre + un botón de config que despliega los ALIAS.
      Vive en la franja superior de 30px, entre el grip (izq) y la × (der). Genérico para TODO widget — el
      widget.js no lo toca. El nombre sale de _meta/registry (manifest.name|title). */
-  .hb-head{position:absolute;top:6px;left:40px;right:40px;height:24px;display:flex;align-items:center;justify-content:center;
+  /* right:70px, no 40: los botones de la derecha son DOS desde que existe ⤢ (ocupa de 38 a 64), así que la
+     cabecera se le metía por debajo — invisible con un nombre corto y centrado, evidente con un título largo. */
+  .hb-head{position:absolute;top:6px;left:40px;right:70px;height:24px;display:flex;align-items:center;justify-content:center;
     gap:5px;pointer-events:none}
+  /* TÍTULO VIVO (2026-08-12): cuando la cabecera lleva la TAREA en vez del nombre del widget, se alinea a la
+     izquierda y ocupa todo el hueco. Un rótulo corto se centra bien; una frase se lee desde el margen, y centrarla
+     desperdicia la mitad del ancho en aire simétrico que no hace falta. */
+  .hb-head.live{justify-content:flex-start}
+  .hb-head.live .hb-name{max-width:100%;font-weight:600}
   .hb-name{pointer-events:auto;max-width:70%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border:none;cursor:pointer;
     background:transparent;color:var(--hb-ink,#e8edf5);font:600 12px/1 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
   .hb-name:hover{color:var(--hb-accent,#3D6FE0)}
@@ -249,8 +256,35 @@ export class Desktop {
     return this._registry;
   }
   async _applyName(w){
+    if(w._liveTitle) return;                            // la TAREA manda sobre el nombre del catálogo (ver _liveTitle)
     const reg=await this._ensureRegistry(); const e=reg[w.base];
     if(e && w.nameBtn) w.nameBtn.textContent=e.name||w.base;
+  }
+
+  // ---- TÍTULO VIVO: la cabecera dice QUÉ es esto, no CÓMO se llama la pieza ----
+  // Petición del operador (2026-08-12): «no hace falta que la gente sepa que eso es el visor o la muestra de
+  // resultados, sino lo que le hemos pedido puesto ahí». En una superficie genérica el nombre del catálogo
+  // («Resultados») no informa de nada: lo que identifica esa tarjeta es el ENCARGO que está mostrando. Así que un
+  // widget puede declarar `"live_title": true` en su manifest y entonces la cabecera de la tarjeta lleva su
+  // `data.title`.
+  // Es OPT-IN por widget, no global: la agenda o el reloj sí se identifican por su nombre, y cambiárselo a todos
+  // sería una regresión. Y el nombre POR EL QUE SE ABRE no se pierde — sigue en el tooltip y en el panel de alias
+  // (⚙), que es donde el operador va a buscar cómo llamarlo por voz.
+  _wantsLiveTitle(baseId){
+    const meta = this._meta && this._meta[baseId];
+    return !!(meta && meta.live_title);
+  }
+  async _applyLiveTitle(w, baseId, data){
+    if(!this._wantsLiveTitle(baseId)) return;
+    const title = String((data && data.title) || "").trim();
+    if(!title || !w.nameBtn) return;
+    w._liveTitle = true;
+    w.nameBtn.textContent = title;
+    if(w.head) w.head.classList.add("live");
+    // El nombre canónico queda a un gesto de distancia, no borrado: es como se dirige la pieza por voz.
+    const reg = await this._ensureRegistry();
+    const name = (reg[baseId] && reg[baseId].name) || baseId;
+    w.nameBtn.title = `${title}\n(${name} — clic para ver/editar sus alias)`;
   }
   async refreshRegistry(){                              // SSE widget/alias → repinta nombres + panel abierto
     await this._ensureRegistry(true);
@@ -383,7 +417,11 @@ export class Desktop {
         // refresco de datos: resetear el scroll cada vez que llegan resultados nuevos le arrancaría de las manos
         // al operador lo que está leyendo, justo mientras la hoja se llena en vivo.
         top:()=>{ const sc=w.card && w.card.querySelector(".hb-scroll"); if(sc) sc.scrollTop=0; } };
+      // La marca va ANTES de pintar: así el widget sabe en su PRIMERA pasada que la cabecera de la tarjeta ya lleva
+      // el título y no lo repite. Puesta después, la primera pintada saldría con el título duplicado.
+      if(this._wantsLiveTitle(baseId)) w.body.dataset.hostTitle = "1";
       mod.render(w.body, data, ctx);
+      this._applyLiveTitle(w, baseId, data);            // …y el texto, que sale de los datos recién cargados
       // TAMAÑO PREFERIDO del widget, solo en el primer montaje y solo si el operador no le había dejado uno suyo.
       // Una superficie de ancho fluido (la hoja de resultados) no puede deducir su tamaño del contenido: sin esto
       // encogería a la anchura de su tarjeta más estrecha. Lo declara su manifest (`size`), no lo adivina el canvas.
@@ -558,6 +596,9 @@ export class Desktop {
       if(ww && sig !== ww._dataSig){
         ww._dataSig = sig;
         ww._mod.render(ww.body, data, ww._ctx);
+        // Y la cabecera sigue a los datos: una búsqueda nueva cambia el título, y dejarlo con el de la anterior
+        // sería un rótulo que MIENTE sobre lo que hay debajo.
+        this._applyLiveTitle(ww, ww.base || id, data);
       }
     }catch(_){}
     finally{ w._refreshing = false; }
