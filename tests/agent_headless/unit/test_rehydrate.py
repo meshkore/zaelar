@@ -276,3 +276,53 @@ def test_a_reset_does_not_let_the_next_boot_resurrect_the_work(fresh_db):
     reset.reset_all()
     assert R.snapshot() is None
     assert R.at_boot(schedule=False)["found"] == 0
+
+
+# ── 4. REANUDAR NO ES «NO ME VALE, BUSCA MÁS» ────────────────────────────────────────────────────────────────
+# Visto en vivo el 2026-08-12: dos reinicios ajenos seguidos, en mitad de una investigación de veleros, la
+# convirtieron en «RONDA 2 de una investigación ya conocida (≥80 candidatos)». La expansión de ronda es correcta
+# cuando el OPERADOR vuelve a pedir lo mismo (significa que la respuesta no le sirvió); aplicada a una CAÍDA
+# endurece el encargo justo cuando hay que retomarlo, y con el mismo reloj.
+def test_a_crash_resume_inherits_the_brief_instead_of_opening_a_harder_round(fresh_db):
+    import asyncio
+
+    from nucleo.flash import escalate
+
+    calls = []
+
+    async def _run():
+        orig = escalate.escalate_to_slowbrain
+        escalate.escalate_to_slowbrain = lambda req, context=None: calls.append((req, context or {})) or 1
+        try:
+            R.remember([_live(id="7")])
+            R.at_boot(delay=0.0)
+            for _ in range(50):
+                await asyncio.sleep(0.01)
+                if calls:
+                    break
+        finally:
+            escalate.escalate_to_slowbrain = orig
+
+    asyncio.run(_run())
+    _, ctx = calls[0]
+    # la vía YA PREVISTA para esto: `_compose_brief` reutiliza el brief tal cual si le llega su task de origen
+    assert ctx["resume"]["brief_task"] == "7", "sin el brief de origen, el objetivo casa por parecido y EXPANDE"
+
+
+def test_the_brief_of_the_dead_task_is_the_one_reused(fresh_db):
+    """La costura completa: el brief guardado por la tarea muerta es el que recoge la reanudación — misma ronda,
+    misma amplitud, mismos criterios. Un cambio de criterios a mitad de una búsqueda que el operador cree que
+    sigue el mismo guion es peor que empezar de cero."""
+    import asyncio
+
+    from nucleo import dispatch, research
+
+    brief = {"goal": "veleros de 42 a 49 pies hasta 50.000 €", "hard": ["≤ 50.000 €"], "round": 1,
+             "breadth": {"min_candidates": 40, "angles": []}, "deliverable": {"widget": "results", "n_final": 10}}
+    research.save("7", brief)
+    research.remember_round(dispatch._goal_key(VELEROS), brief)   # el cebo que provocaba la ronda 2
+
+    out = asyncio.run(dispatch._compose_brief(VELEROS, "", True, {"brief_task": "7"}))
+    assert out["round"] == 1, f"reanudar no sube de ronda (salió {out.get('round')})"
+    assert (out["breadth"] or {})["min_candidates"] == 40, "ni endurece la amplitud"
+    assert out["deliverable"]["n_final"] == 10

@@ -1304,8 +1304,22 @@ async def _run_session(task: "Task") -> None:
                 research.remember_round(_goal_key(req), brief)   # para que una 2ª petición continúe, no reempiece
                 await _seed_research_criteria(brief)
                 rec.phase = "preparando la investigación"
+                # EL BRIEF ES LA PRUEBA de que esto es una INVESTIGACIÓN, y con ella se cobra el presupuesto que le
+                # corresponde. `loop._kind_budget_default` ya reservaba 1200s para `research`… pero NADIE asignaba
+                # nunca ese kind: `_classify_kind` solo devuelve web/code/generic, así que toda investigación que no
+                # nombrara Wallapop/Amazon caía en `generic` = 600s. Y ese medio presupuesto CONTRADICE el propio
+                # brief, que exige reunir ≥40 candidatos y ENTRAR en la ficha de cada finalista: 10 minutos no dan
+                # para eso, así que el worker moría conminado a «entrega ya» con la hoja a medias — es lo que le pasó
+                # al operador el 2026-08-12 dos veces («agotó su tiempo»). Solo se promociona `generic`: `web`
+                # (1200s, y con su reanudación por `native_sid`) y `code` conservan su ruta intacta. Y el `spec` del
+                # worker YA está construido con el kind viejo a propósito — aquí solo cambia lo que MIDE el
+                # supervisor y lo que LEE el operador en la tarjeta («Investigando…», no «Pensando…»).
+                if kind == "generic":
+                    rec.kind = "research"
+                    rec.label = _default_label("research", req)
                 logger.info(f"dispatch: tarea {key} dirigida por BRIEF (ronda {brief.get('round')}, "
-                            f"≥{(brief.get('breadth') or {}).get('min_candidates')} candidatos)")
+                            f"≥{(brief.get('breadth') or {}).get('min_candidates')} candidatos) · "
+                            f"kind={rec.kind}")
                 sync_state()
         if _dev:
             prompt = _dev_prompt(req, _dev["repo"])

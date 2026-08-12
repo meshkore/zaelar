@@ -237,8 +237,16 @@ def _schedule(entries: list[dict], delay: float) -> None:
             from nucleo.flash import escalate
             for ent in entries:
                 try:
+                    # REANUDAR NO ES «NO ME VALE, BUSCA MÁS». `_compose_brief` casa el objetivo contra las rondas
+                    # vivas y, si acierta, EXPANDE (ronda+1, más amplitud) — que es lo correcto cuando el operador
+                    # vuelve a pedir lo mismo, y exactamente lo contrario de lo que toca aquí: una caída no es un
+                    # rechazo. Visto en vivo el 2026-08-12: dos reinicios ajenos seguidos convirtieron una búsqueda
+                    # de ≥40 candidatos en una ronda 2 de ≥80, endureciendo el encargo cada vez que se moría, con
+                    # el mismo reloj. Pasando el `brief_task` se ENTRA POR LA VÍA YA PREVISTA para esto (reutilizar
+                    # el brief tal cual): mismos criterios, misma ronda, misma amplitud.
                     escalate.escalate_to_slowbrain(
-                        ent["goal"], context={"kind": ent.get("kind") or "generic", "rehydrated": True})
+                        ent["goal"], context={"kind": ent.get("kind") or "generic", "rehydrated": True,
+                                              "resume": {"brief_task": str(ent.get("id") or "")}})
                     logger.info(f"rehidratación: re-escalada «{ent['goal'][:70]}»")
                 except Exception as e:  # noqa: BLE001
                     logger.warning(f"rehidratación: re-escalar «{ent['goal'][:40]}» falló: {e}")

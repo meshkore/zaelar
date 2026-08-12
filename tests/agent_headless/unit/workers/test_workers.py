@@ -156,3 +156,40 @@ def test_claude_session_pause_resume_real_process():
             pass
 
     asyncio.run(_run())
+
+
+# ── DENEGAR TIENE QUE ENSEÑAR (incidente en vivo 2026-08-12, búsqueda de veleros) ────────────────────────────
+# Con la cuota del buscador de su proveedor agotada, el worker fue a pedir prestada la `web_search` del cerebro
+# —que SÍ es prestable— con la forma equivocada (`act web_search {...}` en vez de `act use_tool {"tool":…}`).
+# La política devolvía la MISMA frase para todo, «acción no permitida para un worker», el worker la creyó y
+# abandonó su única vía de reserva: la búsqueda se quedó sin buscador.
+def test_a_malformed_call_is_not_reported_as_a_forbidden_capability():
+    from nucleo.worker_api import deny_reason
+    msg = deny_reason("web_search", {"query": "velero 42 pies"})
+    assert "DESCONOCIDA" in msg, "un nombre de tool en el hueco de la acción es una llamada MAL ESCRITA"
+    assert "use_tool" in msg and '"tool":"web_search"' in msg, "tiene que decir la forma CORRECTA"
+    assert "NO es una prohibición" in msg, "si suena a prohibido, el worker deja de intentarlo"
+
+
+def test_an_actually_forbidden_tool_says_so_and_offers_the_way_out():
+    from nucleo.worker_api import deny_reason
+    msg = deny_reason("use_tool", {"tool": "authenticate_web"})
+    assert "no se presta" in msg and "ask_user" in msg
+    assert "DESCONOCIDA" not in msg, "esto sí es una prohibición real, no un error de forma"
+
+
+def test_a_tool_outside_the_lendable_catalogue_names_what_is_lendable():
+    from nucleo.worker_api import deny_reason, _PRESTABLE_TOOLS
+    msg = deny_reason("use_tool", {"tool": "play_music"})
+    assert all(t in msg for t in _PRESTABLE_TOOLS)
+
+
+def test_the_deny_message_lists_the_real_action_vocabulary():
+    """El mensaje no puede quedarse desactualizado respecto a lo que la política admite de verdad."""
+    from nucleo import worker_api as W
+    msg = W.deny_reason("noexiste", {})
+    for a in W._KNOWN_ACTS:
+        assert a in msg, a
+    for a in W._KNOWN_ACTS:
+        assert W.classify_act(a, {"widget_id": "results", "action": "present", "tool": "web_search"}) != W.DENY \
+            or a in ("widget_data",), f"«{a}» está en el vocabulario pero la política no lo conoce"

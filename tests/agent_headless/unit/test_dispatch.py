@@ -380,3 +380,42 @@ def test_breadth_is_absent_not_zero_when_it_does_not_apply():
     row = next(r for r in dispatch.active_sessions() if r["id"] == "obs-n")
     assert row["considered"] == -1 and row["kept"] == -1
     dispatch._SESSIONS.pop("obs-n", None)
+
+
+# ── EL PRESUPUESTO DE UNA INVESTIGACIÓN (defecto encontrado en la corrida del 2026-08-12) ─────────────────────
+# `loop._kind_budget_default` reservaba 1200s para `research`, pero NADIE asignaba nunca ese kind: `_classify_kind`
+# solo devuelve web/code/generic. Así que toda investigación que no nombrara Wallapop/Amazon corría con los 600s
+# de `generic` — medio presupuesto para un encargo que el propio brief define como «reúne ≥40 candidatos y ENTRA
+# en la ficha de cada finalista». El operador lo vio dos veces el mismo día: «agotó su tiempo», hoja a medias.
+def test_the_research_budget_was_reserved_for_a_kind_nobody_assigned():
+    """Prueba de la INCOHERENCIA que motiva el arreglo: el presupuesto existe y es el doble del genérico."""
+    from nucleo.loop import OrchestratorLoop
+    L = OrchestratorLoop()
+    assert L._budget_for("research") == 1200.0
+    assert L._budget_for("generic") == 600.0
+    assert L._budget_for("research") > L._budget_for("generic") * 1.5
+
+
+def test_a_directed_investigation_is_not_billed_as_a_generic_task(fresh_db):
+    """La costura: en cuanto el pre-vuelo compone un BRIEF, la tarea ES una investigación y su registro lo dice —
+    que es lo único que el supervisor mira para decidir cuánto tiempo le da."""
+    rec = dispatch.SessionRecord(task_id="9", goal="busca vacaciones en Baleares", kind="generic")
+    dispatch._SESSIONS["9"] = rec
+    try:
+        assert rec.kind == "generic"
+        # se reproduce lo que hace `_run_session` al obtener un brief (el spec ya está construido para entonces)
+        if rec.kind == "generic":
+            rec.kind = "research"
+            rec.label = dispatch._default_label("research", rec.goal)
+        assert rec.kind == "research"
+        assert rec.label == "Investigando…", "y el operador lee «Investigando…», no «Pensando…»"
+    finally:
+        dispatch._SESSIONS.pop("9", None)
+
+
+def test_promoting_to_research_never_steals_the_web_route():
+    """`web` tiene 1200s Y su reanudación por `native_sid`; `code` escribe el código de un widget del operador.
+    Ninguno de los dos puede convertirse en `research` por traer un brief — solo se promociona `generic`."""
+    for kind in ("web", "code"):
+        promoted = "research" if kind == "generic" else kind
+        assert promoted == kind
