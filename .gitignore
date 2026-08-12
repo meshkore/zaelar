@@ -90,3 +90,13 @@ config/*.bak-*
 
 # generated i18n bundles (runtime, produced by the LLM per language)
 i18n/generated/
+
+# BORRADORES DE LOS BRAIN WORKERS — nunca al repo (y menos a uno PÚBLICO).
+# El worker escribe su entregable en un fichero de RUTA RELATIVA de su directorio de trabajo, que hoy es la raíz
+# del engine (`dispatch`: «`informe.json` a secas, nunca /tmp ni una ruta absoluta»). Sin esto, cualquier
+# `git add -A` barre el borrador del último worker: `informe.json` llegó a versionarse DOS veces (816efd7,
+# 8a959b8) y la copia que quedó en HEAD era el informe de vacaciones del operador con las fechas, el presupuesto
+# y las edades de sus hijos. Es un artefacto de trabajo, no fuente.
+/informe.json
+/fuentes.json
+/prog.json
