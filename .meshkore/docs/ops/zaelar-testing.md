@@ -50,6 +50,47 @@ Detalle del arnés: **INI-013** (`.meshkore/roadmap/initiatives/INI-013-voice-te
 
 ---
 
+## Un test VERDE tiene que significar algo — el aislamiento de la suite (2026-08-10)
+
+La tarde del 2026-08-10 salieron **cuatro** fallos distintos que desde fuera se veían igual: un guarda que parece
+cubrir y no cubre. Ninguno «fallaba» — todos MENTÍAN, que es peor, porque nadie va a mirar lo que ya está en verde.
+
+| Lo que se veía | Lo que pasaba de verdad |
+|---|---|
+| dos tests verdes de frases al operador | verdes por la MÁQUINA (castellano en la config), rojos en cualquier otra y en CI |
+| un fixture que probaba el reset REAL | **borraba los datos reales de los widgets del operador** en cada corrida |
+| dos nodos del mapa numerados «7.6» | uno se contaba dos veces y el otro no existía |
+| vaciar un widget | mutación sin evento: parecía un fallo de persistencia |
+
+**El mecanismo, que es lo que hay que recordar:** fijar la variable no basta. `config/settings.load_into_env()`
+copia `config/settings.json` ENCIMA del entorno, sin condición, porque en producción el store MANDA sobre el env —
+regla correcta allí. En un test significa que la configuración PERSONAL del operador decide el resultado de la
+suite: idioma, proveedor de STT/TTS, modo de atención y perfil del motor. Se apuntó al síntoma (el idioma) antes de
+ver la puerta (el store).
+
+**Invariantes que sostiene `conftest.py`** (raíz), y por qué cada una:
+
+- **`ZAELAR_LOG_DIR` a un temporal** — los eventos de un test no pueden acabar en el timeline que el operador lee
+  para post-mortems REALES (julio 2026: un «kind:error boom» de un test se auditó como incidente).
+- **`SETTINGS_FILE` a un temporal VACÍO** — la config del operador no decide el resultado de la suite.
+- **`ZAELAR_LANGUAGE=en` FORZADO** (no `setdefault`): con un default, un `ZAELAR_LANGUAGE` en el shell vuelve a
+  cambiar qué significa «verde». **Probar otro idioma se declara EN el test**; probar los dos se hace comprobando
+  los dos DENTRO del caso, nunca corriendo la suite dos veces con el entorno cambiado.
+- **`ZAELAR_RESEARCH=0`** — el pre-vuelo de una escalada llama a un proveedor de verdad; en un test es una llamada
+  de red no declarada que cuelga el caso hasta el timeout.
+- Y cada test que toca datos de widgets **aísla `store.DATA_DIR`** él mismo.
+
+Todo esto va **al nivel del módulo** del conftest, no en un fixture: los módulos de test se importan ANTES de que
+corra cualquier fixture, así que un fixture llega tarde.
+
+Guarda permanente: **nodo 7.10** (`tests/infrastructure/unit/test_suite_isolation.py`) — un guarda sobre los
+guardas. Si alguna invariante se rompe, la suite vuelve a poder mentir y no se enteraría nadie hasta que un test
+pasara aquí y fallara en otro sitio.
+
+**Cómo se caza esta clase:** no con `grep`, con MEDICIÓN. Correr la suite con la variable sospechosa cambiada y
+diffear los fallos — y antes, comprobar que el knob LLEGA de verdad dentro de un test (un barrido que no aplica lo
+que cree aplicar es el mismo bug que se está buscando).
+
 ## Paso 0 — ALINEACIÓN tests ↔ sistema (SIEMPRE lo primero, antes de lanzar nada)
 
 Antes de probar hay que garantizar que **los escenarios prueban la versión ACTUAL del sistema**. Checklist:
