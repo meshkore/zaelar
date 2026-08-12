@@ -292,3 +292,303 @@ def test_digest_is_reached_through_the_generic_hook_not_a_special_case():
     _present(title="Propuestas", items=[_plan("Plan A")])
     assert refs.prompt_digest("results").startswith("#1")
     assert refs.prompt_digest("agenda") == "" or isinstance(refs.prompt_digest("agenda"), str)
+
+
+# ══ 10) LAS OTRAS TRES PESTAÑAS (2026-08-12) ═══════════════════════════════════════════════════════════════════
+# Norma del operador: esta superficie se va a usar para MUCHAS búsquedas complejas, y una búsqueda compleja no es
+# solo su resultado — es también con qué criterio se hizo, cómo va y de dónde salen los datos. Esas tres cosas
+# solo existían de palabra (había que preguntárselas al agente), así que no se podían comprobar.
+import pathlib
+
+WIDGET_JS = pathlib.Path("widgets/results/widget.js")
+
+
+def test_the_four_tabs_are_declared_fast_actions():
+    declared = (runtime.get("results") or {}).get("actions") or {}
+    for name in ("tab", "sources", "progress", "criteria"):
+        assert name in declared, f"«{name}» debe estar DECLARADA para que el puente del worker la admita"
+        assert actions.classify(declared[name], name) == actions.FAST
+
+
+def test_the_open_tab_lives_in_the_payload_so_voice_can_drive_it():
+    """Como `view`/`focus`: la pestaña NO es estado del navegador. Si lo fuera, «enséñame de dónde has sacado
+    esto» no podría mover la pantalla y una recarga perdería dónde estaba mirando el operador."""
+    _present(title="P", items=[{"title": "Uno"}])
+    assert results.apply_action("tab", {"tab": "sources"})["ok"]
+    assert results.view_data()["tab"] == "sources"
+
+
+def test_the_tab_name_survives_coming_from_voice():
+    """Llega por STT y en el idioma del operador. Normalizar el argumento que el modelo YA eligió es el mismo
+    papel que juega el ordinal en `detail` — no es una tabla de intención."""
+    for said in ("fuentes", "Fuentes", "webs"):
+        assert results.apply_action("tab", {"tab": said})["tab"] == "sources"
+    assert results.apply_action("tab", {"tab": "resumen"})["tab"] == "summary"
+    assert results.apply_action("tab", {"tab": "criterios"})["tab"] == "criteria"
+
+
+def test_an_unknown_tab_is_refused_not_guessed():
+    r = results.apply_action("tab", {"tab": "chorradas"})
+    assert r["ok"] is False and "sources" in r["error"]
+
+
+def test_leaving_the_results_tab_closes_the_detail_page():
+    """Si el detalle sobreviviera a un cambio de pestaña, volver a «Resultados» pintaría un expediente en vez de
+    la lista que el operador espera."""
+    _present(title="P", items=[_plan("Plan A")])
+    results.apply_action("detail", {"index": 1})
+    results.apply_action("tab", {"tab": "sources"})
+    d = results.view_data()
+    assert d["tab"] == "sources" and "view" not in d
+
+
+# ── FUENTES: lo que convierte «no encontré nada» en un dato auditable ─────────────────────────────────────────
+def test_a_source_records_what_happened_there_not_just_that_it_was_visited():
+    assert results.apply_action("sources", {"sources": [
+        {"name": "Wallapop", "url": "https://es.wallapop.com", "status": "auth",
+         "detail": "pedía iniciar sesión para ver los anuncios"},
+        {"name": "Cosasdebarcos", "url": "https://cosasdebarcos.com", "status": "partial",
+         "detail": "el listado corta a 50", "found": 50},
+        {"name": "Yachtworld", "url": "https://yachtworld.es", "status": "ok", "found": 128},
+    ]})["sources"] == 3
+    src = {s["name"]: s for s in results.view_data()["sources"]}
+    assert src["Wallapop"]["status"] == "auth" and src["Wallapop"]["detail"]
+    assert src["Cosasdebarcos"]["found"] == 50
+    c = results.view_data()["counts"]
+    assert c["sources_failed"] == 1 and c["from_sources"] == 178
+
+
+def test_reporting_the_same_source_twice_updates_it_instead_of_duplicating():
+    """Una fuente se anuncia al entrar y se cierra al salir. Si cada reporte creara una fila, la pestaña sería un
+    log en vez del ESTADO de cada sitio."""
+    results.apply_action("sources", {"sources": [{"name": "Yachtworld", "url": "https://yachtworld.es",
+                                                  "status": "pending"}]})
+    results.apply_action("sources", {"sources": [{"name": "Yachtworld", "url": "https://yachtworld.es",
+                                                  "status": "ok", "found": 128}]})
+    src = results.view_data()["sources"]
+    assert len(src) == 1 and src[0]["status"] == "ok" and src[0]["found"] == 128
+
+
+def test_an_unknown_source_status_degrades_instead_of_leaking_through():
+    results.apply_action("sources", {"sources": [{"name": "X", "status": "<script>"}]})
+    assert results.view_data()["sources"][0]["status"] in results._SOURCE_STATUS
+
+
+def test_a_source_with_no_name_takes_it_from_the_domain():
+    results.apply_action("sources", {"sources": [{"url": "https://www.yachtworld.es/veleros"}]})
+    assert results.view_data()["sources"][0]["name"] == "www.yachtworld.es"
+
+
+def test_sources_are_refused_when_there_is_nothing_to_record():
+    assert results.apply_action("sources", {"sources": [{"status": "ok"}]})["ok"] is False
+
+
+# ── SUMARIO: lo reportado y lo derivado, separados ────────────────────────────────────────────────────────────
+def test_the_summary_never_passes_off_card_count_as_breadth():
+    """«Cuántos ha explorado» solo lo sabe quien trabajó. Sin reportar, la hoja lo DICE en vez de enseñar el
+    número de tarjetas como si fuera la amplitud — que es justo el conformismo que el brief existe para evitar."""
+    _present(title="P", items=[{"title": f"R{i}"} for i in range(3)])
+    c = results.view_data()["counts"]
+    assert c["shown"] == 3 and c["explored"] is None
+    results.apply_action("progress", {"explored": 47})
+    assert results.view_data()["counts"]["explored"] == 47
+
+
+def test_progress_merges_and_accumulates_the_steps():
+    results.apply_action("progress", {"state": "barriendo", "steps": ["portal 1"]})
+    results.apply_action("progress", {"state": "filtrando", "explored": 20, "steps": ["portal 2"]})
+    s = results.view_data()["summary"]
+    assert s["state"] == "filtrando" and s["explored"] == 20
+    assert s["steps"] == ["portal 1", "portal 2"], "los hitos se acumulan; el estado se reemplaza"
+
+
+def test_the_same_step_repeated_is_not_progress():
+    results.apply_action("progress", {"steps": ["mirando"]})
+    results.apply_action("progress", {"steps": ["mirando"]})
+    assert results.view_data()["summary"]["steps"] == ["mirando"]
+
+
+def test_progress_is_refused_when_it_says_nothing():
+    assert results.apply_action("progress", {})["ok"] is False
+
+
+# ── CRITERIOS: el encargo tal y como se ejecuta, corregible por voz ───────────────────────────────────────────
+def test_criteria_hold_the_brief_and_accumulate_the_operators_corrections():
+    results.apply_action("criteria", {"goal": "velero de segunda mano", "hard": ["eslora 40-50 pies"]})
+    results.apply_action("criteria", {"changes": ["que sean de 42 a 49 pies"]})
+    results.apply_action("criteria", {"changes": ["y con motor diésel"]})
+    c = results.view_data()["criteria"]
+    assert c["goal"] == "velero de segunda mano" and c["hard"] == ["eslora 40-50 pies"]
+    assert c["changes"] == ["que sean de 42 a 49 pies", "y con motor diésel"]
+
+
+def test_a_correction_does_not_wipe_the_work_in_progress():
+    """Corregir un criterio a mitad de camino NO puede tirar lo ya encontrado: el operador está afinando, no
+    empezando otra cosa."""
+    results.apply_action("criteria", {"goal": "velero de segunda mano"})
+    _present(title="Veleros", items=[{"title": "Bavaria 46"}])
+    results.apply_action("sources", {"sources": [{"name": "Yachtworld", "status": "ok"}]})
+    results.apply_action("criteria", {"changes": ["de 42 a 49 pies"]})
+    d = results.view_data()
+    assert [i["title"] for i in d["items"]] == ["Bavaria 46"] and len(d["sources"]) == 1
+
+
+def test_a_different_goal_is_a_different_investigation_and_clears_the_stale_sheet():
+    """El operador ya se comió una vez quedarse mirando los resultados de la búsqueda ANTERIOR creyendo que eran
+    los suyos. El objetivo es la firma del encargo: si cambia, la hoja se vacía."""
+    results.apply_action("criteria", {"goal": "velero de segunda mano"})
+    _present(title="Veleros", items=[{"title": "Bavaria 46"}])
+    results.apply_action("sources", {"sources": [{"name": "Yachtworld", "status": "ok"}]})
+    results.apply_action("progress", {"explored": 40})
+    assert results.apply_action("criteria", {"goal": "pisos en Tarragona"})["reset"] is True
+    d = results.view_data()
+    assert d["items"] == [] and d["sources"] == [] and d["summary"] == {}
+    assert d["criteria"]["goal"] == "pisos en Tarragona"
+
+
+def test_the_goal_becomes_a_headline_not_a_paragraph():
+    """Visto en vivo el 2026-08-12: el `goal` del brief es un párrafo autocontenido («…y reportar el estado de
+    cada fuente consultada»). Puesto crudo como título ocupaba cinco líneas antes de enseñar un solo resultado.
+    El texto íntegro sigue completo en la pestaña CRITERIOS, que es su sitio."""
+    goal = ("Encontrar los mejores veleros de segunda mano a la venta ahora mismo que cumplan: precio ≤ 50.000 €, "
+            "eslora ≤ 20 m, listos para navegar, con amarre en Mediterráneo y motor en buen estado")
+    results.apply_action("criteria", {"goal": "algo anterior"})
+    results.apply_action("criteria", {"goal": goal})
+    d = results.view_data()
+    from widgets import presentation
+    assert len(d["title"]) <= presentation.contract("results")["sheet_title"] + 1
+    assert d["criteria"]["goal"] == goal, "recortar el TÍTULO no puede recortar el criterio"
+
+
+def test_a_second_round_keeps_the_same_goal_so_it_never_clears():
+    """«No me convence, sigue buscando» sube la amplitud sobre el MISMO objetivo (research.expand). Si eso
+    limpiara la hoja, continuar una búsqueda borraría lo que llevaba encontrado."""
+    results.apply_action("criteria", {"goal": "velero de segunda mano"})
+    _present(title="Veleros", items=[{"title": "Bavaria 46"}])
+    r = results.apply_action("criteria", {"goal": "velero de segunda mano", "min_candidates": 60})
+    assert r["reset"] is False
+    assert results.view_data()["items"], "una ronda 2 no puede vaciar la hoja"
+
+
+def test_present_preserves_the_other_three_tabs():
+    """Un trabajo largo hace varios `present` (provisional → final). Borrar en cada uno las fuentes y el sumario
+    ya reportados perdería datos que costaron minutos de navegación."""
+    results.apply_action("criteria", {"goal": "veleros"})
+    results.apply_action("sources", {"sources": [{"name": "Yachtworld", "status": "ok", "found": 128}]})
+    results.apply_action("progress", {"explored": 47})
+    _present(title="Veleros · selección final", items=[{"title": "Bavaria 46"}])
+    d = results.view_data()
+    assert d["sources"] and d["summary"]["explored"] == 47 and d["criteria"]["goal"] == "veleros"
+
+
+def test_clear_wipes_every_tab():
+    results.apply_action("criteria", {"goal": "veleros"})
+    results.apply_action("sources", {"sources": [{"name": "Yachtworld", "status": "ok"}]})
+    results.apply_action("clear", {})
+    d = results.view_data()
+    assert d["items"] == [] and d["sources"] == [] and d["criteria"] == {} and d["summary"] == {}
+
+
+# ── el cerebro VE las tres pestañas, así que responde sin volver a buscar ─────────────────────────────────────
+def test_digest_carries_the_sources_so_why_didnt_you_find_it_has_an_answer():
+    results.apply_action("criteria", {"goal": "velero de 42-49 pies", "hard": ["eslora 42-49 pies"]})
+    results.apply_action("sources", {"sources": [
+        {"name": "Wallapop", "status": "auth", "detail": "pedía iniciar sesión"}]})
+    results.apply_action("progress", {"state": "verificando finalistas", "explored": 47})
+    dig = results.prompt_digest()
+    assert "Wallapop" in dig and "autenticación" in dig
+    assert "47 explorados" in dig and "verificando finalistas" in dig
+    assert "eslora 42-49 pies" in dig
+
+
+def test_digest_of_an_empty_sheet_still_shows_the_criteria_being_worked_on():
+    """El caso de los primeros dos minutos: aún no hay ni un resultado, pero el cerebro ya puede contar con qué
+    se está buscando en vez de decir que no sabe nada."""
+    results.apply_action("criteria", {"goal": "velero de segunda mano"})
+    dig = results.prompt_digest()
+    assert "velero de segunda mano" in dig and "VAC" in dig.upper()
+
+
+def test_digest_stays_bounded_with_every_tab_full():
+    from widgets import refs
+    results.apply_action("criteria", {"goal": "x" * 300, "hard": ["h" * 200] * 14, "soft": ["s" * 200] * 14})
+    results.apply_action("sources", {"sources": [
+        {"name": f"fuente {i}", "status": "ok", "detail": "d" * 200, "found": i} for i in range(40)]})
+    _present(title="P", items=[_plan(f"Plan {i}") for i in range(40)])
+    assert len(refs.prompt_digest("results")) <= refs._MAX_DIGEST_CHARS + 80
+
+
+# ══ 11) FICHA DINÁMICA: cada tipo de resultado se enseña distinto, SIN aceptar HTML ════════════════════════════
+def test_a_card_can_be_composed_of_blocks():
+    _present(title="Veleros", items=[{"title": "Bavaria 46", "blocks": [
+        {"kind": "facts", "title": "Ficha técnica", "facts": {"Eslora": "14,27 m", "Motor": "Volvo 75cv"}},
+        {"kind": "chips", "chips": ["Piloto automático", "Radar", "Watermaker"]},
+        {"kind": "meter", "title": "Estado del casco", "value": 8, "max": 10, "caption": "osmosis tratada"},
+        {"kind": "table", "columns": ["Año", "Precio"], "rows": [["2019", "185.000 €"], ["2018", "172.000 €"]]},
+        {"kind": "section", "title": "Documentación", "blocks": [{"kind": "link", "url": "https://e.com/x",
+                                                                  "label": "Informe de tasación"}]},
+    ]}])
+    kinds = [b["kind"] for b in results.view_data()["items"][0]["blocks"]]
+    assert kinds == ["facts", "chips", "meter", "table", "section"]
+
+
+def test_html_is_not_a_block_kind():
+    """El payload viene de la web abierta. Un `kind` desconocido se DESCARTA entero — no se degrada a texto, que
+    sería colar contenido de un tercero por otra puerta."""
+    _present(title="P", items=[{"title": "X", "blocks": [
+        {"kind": "html", "html": "<img src=x onerror=alert(1)>"},
+        {"kind": "raw", "text": "<script>alert(1)</script>"},
+        {"kind": "text", "lines": ["esto sí"]},
+    ]}])
+    blocks = results.view_data()["items"][0]["blocks"]
+    assert [b["kind"] for b in blocks] == ["text"]
+
+
+def test_blocks_are_bounded_and_nest_only_one_level():
+    _present(title="P", items=[{"title": "X", "blocks":
+        [{"kind": "text", "lines": ["l"]} for _ in range(40)]
+        + [{"kind": "section", "blocks": [{"kind": "section", "blocks": [{"kind": "text", "lines": ["hondo"]}]}]}]}])
+    blocks = results.view_data()["items"][0]["blocks"]
+    assert len(blocks) <= results._MAX_BLOCKS
+    _present(title="P", items=[{"title": "X", "blocks": [
+        {"kind": "section", "blocks": [{"kind": "section", "blocks": [{"kind": "text", "lines": ["hondo"]}]}]}]}])
+    assert results.view_data()["items"][0].get("blocks") in (None, []), "un árbol no es una ficha"
+
+
+def test_an_empty_block_is_dropped_instead_of_painting_a_hole():
+    _present(title="P", items=[{"title": "X", "blocks": [
+        {"kind": "chips", "chips": []}, {"kind": "table", "rows": []}, {"kind": "link"}]}])
+    assert "blocks" not in results.view_data()["items"][0]
+
+
+# ── LA VALORACIÓN: estaba en el esquema desde hace meses y no se pintaba en ningún sitio ──────────────────────
+def test_the_score_accepts_the_shapes_a_researcher_actually_writes():
+    for raw, want in ((8.7, 8.7), ("8,7/10", 8.7), ({"value": 87, "max": 100}, 87)):
+        _present(title="P", items=[{"title": "X", "score": raw}])
+        assert results.view_data()["items"][0]["score"]["value"] == want
+
+
+def test_a_score_carries_its_why_because_a_mark_alone_cannot_be_argued_with():
+    _present(title="P", items=[{"title": "X", "score": {"value": 8.7, "why": "buen estado, precio ajustado"}}])
+    s = results.view_data()["items"][0]["score"]
+    assert s["why"] == "buen estado, precio ajustado" and s["max"] == 10
+
+
+def test_a_non_numeric_grade_still_works_as_a_label():
+    _present(title="P", items=[{"title": "X", "score": "Excelente"}])
+    assert results.view_data()["items"][0]["score"] == {"label": "Excelente"}
+
+
+def test_a_garbage_score_is_dropped_not_painted_as_zero():
+    for junk in ("", None, [], {"nada": 1}, float("nan")):
+        _present(title="P", items=[{"title": "X", "score": junk}])
+        assert "score" not in results.view_data()["items"][0], f"con {junk!r} no hay valoración que enseñar"
+
+
+def test_the_detail_page_shows_the_score_and_the_dynamic_card():
+    """Contrato de render (los tests de frontend son de string): el operador pidió que el expediente incluyera
+    «la valoración y todos los datos de la ficha»."""
+    src = WIDGET_JS.read_text()
+    assert "function scoreBlock(" in src
+    assert "scoreBlock(it.score)" in src, "la valoración tiene que salir en el DETALLE, no solo en la tarjeta"
+    assert "renderBlocks(it.blocks)" in src, "la ficha a medida también se despliega en el detalle"

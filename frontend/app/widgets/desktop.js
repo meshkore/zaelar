@@ -26,19 +26,50 @@ function injectStyles(){
   if(document.getElementById("hb-desk-css"))return;
   const s=document.createElement("style"); s.id="hb-desk-css"; s.textContent=`
   .hb-stage{position:fixed;inset:0;z-index:12;pointer-events:none}
+  /* La tarjeta es una COLUMNA FLEX con el cuerpo como único scroller (antes scrolleaba la tarjeta entera). El
+     cambio lo obliga el redimensionado: con la tarjeta scrolleando, los tiradores de borde —absolutos— se iban
+     con el contenido y no se podían agarrar. De paso, la cabecera y el overlay de confirmación dejan de
+     desplazarse fuera de la vista en un widget largo. */
   .hb-win{position:absolute;pointer-events:auto;background:var(--hb-bg,#fff);border:1px solid var(--hb-line,#e3e8f0);border-radius:16px;
-    box-shadow:var(--hb-shadow-2,0 20px 60px rgba(13,22,34,.22));padding:30px 16px 16px;max-width:92vw;max-height:82vh;overflow:auto;
+    box-shadow:var(--hb-shadow-2,0 20px 60px rgba(13,22,34,.22));padding:30px 16px 16px;max-width:92vw;max-height:82vh;overflow:hidden;
+    display:flex;flex-direction:column;
     opacity:0;transform:scale(.9) translateY(10px);transition:opacity .2s,transform .2s cubic-bezier(.2,.9,.3,1.2)}
   .hb-win.in{opacity:1;transform:none}
+  /* El SCROLLER es un envoltorio del canvas, NO el div del widget: un widget.js hace el.className="…" y se lleva
+     por delante cualquier clase que le pongamos a su raíz (así que una regla sobre .hb-body no aplicaba a nadie).
+     El widget sigue siendo dueño absoluto de su div; el scroll es chrome de la tarjeta, como el grip o la ×.
+     OJO al editar este bloque: es un template literal — nada de acentos graves aquí dentro. */
+  .hb-scroll{flex:1 1 auto;min-height:0;overflow:auto}
+  /* Redimensionar SIN transición: con la de arriba puesta, arrastrar una esquina iba a tirones (cada frame
+     animaba 200ms hacia el tamaño nuevo). Se apaga mientras dura el gesto. */
+  .hb-win.rz{transition:none;user-select:none}
   .hb-grip{position:absolute;top:7px;left:8px;width:26px;height:26px;border:none;border-radius:7px;cursor:grab;
-    background:var(--hb-bubble,#f1f4f9);color:var(--hb-muted-2,#9aa7b8);display:flex;align-items:center;justify-content:center;touch-action:none}
+    background:var(--hb-bubble,#f1f4f9);color:var(--hb-muted-2,#9aa7b8);display:flex;align-items:center;justify-content:center;touch-action:none;z-index:3}
   .hb-grip:active{cursor:grabbing}
   .hb-x{position:absolute;top:7px;right:8px;width:26px;height:26px;border:none;border-radius:7px;cursor:pointer;
-    background:var(--hb-bubble,#f1f4f9);color:var(--hb-muted,#5b6b82);font-size:14px}
+    background:var(--hb-bubble,#f1f4f9);color:var(--hb-muted,#5b6b82);font-size:14px;z-index:3}
+  .hb-max{position:absolute;top:7px;right:38px;width:26px;height:26px;border:none;border-radius:7px;cursor:pointer;
+    background:var(--hb-bubble,#f1f4f9);color:var(--hb-muted,#5b6b82);font-size:12px;line-height:1;z-index:3}
+  .hb-max:hover,.hb-x:hover{color:var(--hb-ink,#e8edf5)}
+  /* TIRADORES DE REDIMENSIÓN — cuatro esquinas y cuatro bordes. El operador pidió poder agarrar «las esquinas del
+     widget»: son invisibles hasta que pasas por encima (una tarjeta llena de asas es ruido) pero tienen 14px de
+     zona sensible, que es lo que hace que se puedan coger sin apuntar con precisión de cirujano. */
+  .hb-rz{position:absolute;z-index:4;touch-action:none}
+  .hb-rz-n,.hb-rz-s{left:14px;right:14px;height:8px}
+  .hb-rz-e,.hb-rz-w{top:14px;bottom:14px;width:8px}
+  .hb-rz-n{top:-4px;cursor:ns-resize} .hb-rz-s{bottom:-4px;cursor:ns-resize}
+  .hb-rz-w{left:-4px;cursor:ew-resize} .hb-rz-e{right:-4px;cursor:ew-resize}
+  .hb-rz-nw,.hb-rz-ne,.hb-rz-sw,.hb-rz-se{width:16px;height:16px}
+  .hb-rz-nw{top:-4px;left:-4px;cursor:nwse-resize} .hb-rz-se{bottom:-4px;right:-4px;cursor:nwse-resize}
+  .hb-rz-ne{top:-4px;right:-4px;cursor:nesw-resize} .hb-rz-sw{bottom:-4px;left:-4px;cursor:nesw-resize}
+  .hb-rz-se::after{content:"";position:absolute;right:4px;bottom:4px;width:7px;height:7px;opacity:0;transition:opacity .15s;
+    border-right:2px solid var(--hb-muted-2,#9aa7b8);border-bottom:2px solid var(--hb-muted-2,#9aa7b8);border-radius:0 0 3px 0}
+  .hb-win:hover .hb-rz-se::after{opacity:.8}
   .hb-win:fullscreen{width:100vw!important;height:100vh!important;max-width:100vw;max-height:100vh;top:0!important;left:0!important;
     border-radius:0;background:#000}
   .hb-win.loading{padding:22px;min-width:120px;min-height:120px;display:flex;align-items:center;justify-content:center}
-  .hb-win.loading .hb-x,.hb-win.loading .hb-grip,.hb-win.loading .hb-body,.hb-win.loading .hb-head{display:none}
+  .hb-win.loading .hb-x,.hb-win.loading .hb-max,.hb-win.loading .hb-grip,.hb-win.loading .hb-scroll,
+  .hb-win.loading .hb-head,.hb-win.loading .hb-rz{display:none}
   /* HEADER del widget (V2-082): el NOMBRE por el que se abre + un botón de config que despliega los ALIAS.
      Vive en la franja superior de 30px, entre el grip (izq) y la × (der). Genérico para TODO widget — el
      widget.js no lo toca. El nombre sale de _meta/registry (manifest.name|title). */
@@ -122,11 +153,15 @@ export class Desktop {
   // conducía, así que restaurarlas pintaría una pestaña que ya no existe. La tarjeta BASE del navegador SÍ se
   // restaura desde 2026-08-12: era el único widget excluido por nombre, y como es justo el que está en pantalla
   // durante una tarea web, recargar la página en mitad de una búsqueda dejaba el escritorio literalmente en blanco.
+  // El TAMAÑO viaja con la posición desde 2026-08-12. Antes solo se guardaba dónde estaba la tarjeta, así que
+  // agrandar la hoja de resultados para leerla a gusto y recargar la devolvía a su tamaño de fábrica — el
+  // esfuerzo del operador se perdía en cada refresco, que es la forma más rápida de que una función no se use.
   _layout(){
     const items=[];
     this.wins.forEach((w,id)=>{ if(id.includes("::")) return;
       const c=w.card;
-      items.push({id, q:w.q||"", left:c.style.left, top:c.style.top, z:c.style.zIndex||""}); });
+      items.push({id, q:w.q||"", left:c.style.left, top:c.style.top, z:c.style.zIndex||"",
+                  w:c.style.width||"", h:c.style.height||""}); });
     return items;
   }
   _persist(){
@@ -294,6 +329,8 @@ export class Desktop {
       const card=document.createElement("div"); card.className="hb-win loading"; card.dataset.wid=id;
       const grip=document.createElement("button"); grip.className="hb-grip"; grip.innerHTML=NINE_DOTS; grip.title=tr("desktop.move_tooltip");
       const x=document.createElement("button"); x.className="hb-x"; x.textContent="×"; x.onclick=()=>this.close(id);
+      const mx=document.createElement("button"); mx.className="hb-max"; mx.textContent="⤢"; mx.title=tr("desktop.maximize_tooltip");
+      mx.onclick=()=>this.maximize(id);
       // HEADER (V2-082): botón-NOMBRE + config para ver/editar los ALIAS. El nombre se rellena desde el registro.
       const head=document.createElement("div"); head.className="hb-head";
       const nameBtn=document.createElement("button"); nameBtn.className="hb-name"; nameBtn.textContent=baseId;
@@ -301,13 +338,18 @@ export class Desktop {
       const cfg=document.createElement("button"); cfg.className="hb-cfg"; cfg.textContent="⚙"; cfg.title=tr("desktop.cfg_tooltip");
       head.append(nameBtn,cfg);
       const load=document.createElement("div"); load.className="hb-load";
+      const scroll=document.createElement("div"); scroll.className="hb-scroll";
       const body=document.createElement("div"); body.className="hb-body";
-      card.append(grip,x,head,load,body); this.stage.appendChild(card);
+      scroll.appendChild(body);
+      card.append(grip,mx,x,head,load,scroll); this.stage.appendChild(card);
+      this._addHandles(card);
       if(pos && pos.left){                              // restored: honor the SAVED position instead of auto-placing
         card.style.left=pos.left; card.style.top=pos.top;
         const pz=parseInt(pos.z)||0; if(pz){ card.style.zIndex=pz; this.z=Math.max(this.z, pz); } else this._bringFront(card);
       } else { this._place(card); this._bringFront(card); }   // fit into free space without overlapping anything
+      if(pos && (pos.w || pos.h)) this._applyGeom(card, pos.w, pos.h);   // …y con el tamaño que le dejó el operador
       this._wireDrag(card, grip);
+      this._wireResize(card, id);
       card.addEventListener("pointerdown",()=>this._bringFront(card));
       // el drag (grip) ya no engulle clicks del header; el header ignora pointerdown para no arrastrar la tarjeta.
       head.addEventListener("pointerdown",e=>e.stopPropagation());
@@ -335,8 +377,17 @@ export class Desktop {
       const l=w.card.querySelector(".hb-load"); if(l)l.remove();
       const ctx={ action:async(name,payload)=>{ try{return await fetch(`/widgets/${baseId}/action`,{method:"POST",
           headers:{"Content-Type":"application/json"},body:JSON.stringify({action:name,payload:{...(payload||{}),q}})}).then(r=>r.json());}catch(_){return null;} },
-        close:()=>this.close(id) };
+        close:()=>this.close(id),
+        // «Vuelve arriba»: el widget pide, el canvas decide cómo (el scroller es chrome de la tarjeta, no suyo).
+        // Lo llama SOLO al NAVEGAR — abrir una ficha, cambiar de pestaña, volver a la lista —, nunca en un
+        // refresco de datos: resetear el scroll cada vez que llegan resultados nuevos le arrancaría de las manos
+        // al operador lo que está leyendo, justo mientras la hoja se llena en vivo.
+        top:()=>{ const sc=w.card && w.card.querySelector(".hb-scroll"); if(sc) sc.scrollTop=0; } };
       mod.render(w.body, data, ctx);
+      // TAMAÑO PREFERIDO del widget, solo en el primer montaje y solo si el operador no le había dejado uno suyo.
+      // Una superficie de ancho fluido (la hoja de resultados) no puede deducir su tamaño del contenido: sin esto
+      // encogería a la anchura de su tarjeta más estrecha. Lo declara su manifest (`size`), no lo adivina el canvas.
+      if(fresh && !(pos && (pos.w || pos.h))) this._applyPreferred(w.card, baseId);
       if(fresh){ w.card.classList.add("boop"); setTimeout(()=>w.card.classList.remove("boop"),460); }
       // Remember signature/module/ctx so refreshData() (SSE-triggered, NO polling) can re-render on change.
       w._dataSig = JSON.stringify(data); w._mod = mod; w._ctx = ctx;
@@ -567,10 +618,22 @@ export class Desktop {
     return true;
   }
 
-  // TRUE fullscreen for an OPEN widget's card (native Fullscreen API — Escape exits it, no extra tag needed).
-  // Toggle: calling it again while already fullscreen exits. Bug real 2026-07-23: "ponlo a pantalla completa"
-  // had NO real capability behind it — the brain confabulated success on a request it couldn't act on.
+  // "PANTALLA COMPLETA" son DOS cosas distintas y hasta hoy solo existía una. La nativa (Fullscreen API) tapa el
+  // resto de zaelar: perfecta para un vídeo, pésima para una hoja de resultados — el operador la agranda JUSTO
+  // para seguir hablando con el agente sobre lo que está mirando ("acótalo a 42 pies"), y sin orbe ni chat no
+  // puede. Así que por defecto se MAXIMIZA dentro de la app (ocupa casi todo el lienzo, la voz sigue ahí), y la
+  // nativa se reserva a los widgets que la declaran en su manifest (`"fullscreen":"native"`, p.ej. el vídeo).
+  // La decisión es del WIDGET, no del modelo: una elección declarada no se enruta mal.
   fullscreen(id){
+    const meta = this._meta && this._meta[(id||"").split("::")[0]];
+    if(meta && meta.fullscreen === "native") return this.nativeFullscreen(id);
+    return this.maximize(id);
+  }
+
+  // TRUE fullscreen (native Fullscreen API — Escape exits it, no extra tag needed). Toggle: calling it again
+  // while already fullscreen exits. Bug real 2026-07-23: "ponlo a pantalla completa" had NO real capability
+  // behind it — the brain confabulated success on a request it couldn't act on.
+  nativeFullscreen(id){
     const w = this.wins.get(id); if(!w || !w.card) return false;
     const card = w.card;
     if(document.fullscreenElement === card){ document.exitFullscreen?.(); return true; }
@@ -580,18 +643,108 @@ export class Desktop {
     return true;
   }
 
+  // MAXIMIZAR dentro de la app: la tarjeta ocupa casi todo el lienzo sin tapar zaelar. Es un TOGGLE y guarda la
+  // geometría anterior, así que volver deja la tarjeta exactamente donde y como estaba (si no, "ponlo grande"
+  // sería una operación de ida sin vuelta y el operador tendría que recolocarla a mano).
+  maximize(id){
+    const w = this.wins.get(id); if(!w || !w.card) return false;
+    const card = w.card, pad = this.tile.pad, top = this.tile.top;
+    if(card._restore){
+      const r = card._restore; card._restore = null;
+      card.style.left=r.left; card.style.top=r.top; card.style.width=r.w; card.style.height=r.h;
+      card.style.maxWidth=r.mw; card.style.maxHeight=r.mh;
+    } else {
+      card._restore = {left:card.style.left, top:card.style.top, w:card.style.width, h:card.style.height,
+                       mw:card.style.maxWidth, mh:card.style.maxHeight};
+      card.style.maxWidth="none"; card.style.maxHeight="none";
+      card.style.left=pad+"px"; card.style.top=top+"px";
+      card.style.width=(innerWidth - pad*2)+"px";
+      card.style.height=(innerHeight - top - pad)+"px";
+    }
+    this._bringFront(card); this._persist(); this._uiAudit("maximize", id);
+    return true;
+  }
+
+  // ---- redimensionado A MANO: ocho tiradores (cuatro esquinas + cuatro bordes) ----
+  _addHandles(card){
+    for(const dir of ["n","s","e","w","ne","nw","se","sw"]){
+      const h=document.createElement("div"); h.className="hb-rz hb-rz-"+dir; h.dataset.dir=dir;
+      card.appendChild(h);
+    }
+  }
+  _applyGeom(card, w, h){
+    if(w){ card.style.width = w; card.style.maxWidth="none"; }
+    if(h){ card.style.height = h; card.style.maxHeight="none"; }
+  }
+  // Tamaño preferido declarado por el widget (`manifest.size`), aplicado solo si la tarjeta no trae uno guardado.
+  _applyPreferred(card, baseId){
+    const size = this._meta && this._meta[baseId] && this._meta[baseId].size;
+    if(!size) return;
+    const maxW = innerWidth - this.tile.pad*2, maxH = innerHeight - this.tile.top - this.tile.pad;
+    if(size.w) card.style.width  = Math.min(Number(size.w), maxW) + "px";
+    if(size.h) card.style.height = Math.min(Number(size.h), maxH) + "px";
+    if(size.w || size.h){ card.style.maxWidth="none"; card.style.maxHeight="none"; }
+    // Recolocar: la tarjeta se ubicó con el tamaño por defecto (400×340) y puede haber crecido fuera del lienzo.
+    const L=parseInt(card.style.left)||this.tile.pad, T=parseInt(card.style.top)||this.tile.top;
+    card.style.left = Math.max(this.tile.pad, Math.min(L, innerWidth - card.offsetWidth - this.tile.pad)) + "px";
+    card.style.top  = Math.max(this.tile.top, Math.min(T, innerHeight - card.offsetHeight - this.tile.pad)) + "px";
+  }
+  _wireResize(card, id){
+    const MIN_W = 240, MIN_H = 150;
+    let dir="", sx=0, sy=0, sw=0, sh=0, sl=0, st=0, live=false;
+    const onMove = e => {
+      if(!live) return;
+      const dx = e.clientX - sx, dy = e.clientY - sy;
+      let w=sw, h=sh, l=sl, t=st;
+      if(dir.includes("e")) w = sw + dx;
+      if(dir.includes("s")) h = sh + dy;
+      if(dir.includes("w")){ w = sw - dx; l = sl + dx; }
+      if(dir.includes("n")){ h = sh - dy; t = st + dy; }
+      // Los mínimos se aplican ANTES de mover el origen: si no, arrastrar el borde izquierdo más allá del ancho
+      // mínimo seguía desplazando la tarjeta a la derecha y parecía que se estaba moviendo, no redimensionando.
+      if(w < MIN_W){ if(dir.includes("w")) l = sl + (sw - MIN_W); w = MIN_W; }
+      if(h < MIN_H){ if(dir.includes("n")) t = st + (sh - MIN_H); h = MIN_H; }
+      l = Math.max(0, l); t = Math.max(0, t);
+      w = Math.min(w, innerWidth - l); h = Math.min(h, innerHeight - t);
+      card.style.left=l+"px"; card.style.top=t+"px"; card.style.width=w+"px"; card.style.height=h+"px";
+    };
+    card.addEventListener("pointerdown", e => {
+      const h = e.target.closest && e.target.closest(".hb-rz");
+      if(!h || !card.contains(h)) return;
+      dir = h.dataset.dir || ""; if(!dir) return;
+      const r = card.getBoundingClientRect();
+      sx=e.clientX; sy=e.clientY; sw=r.width; sh=r.height; sl=r.left; st=r.top; live=true;
+      card._restore = null;                       // redimensionar a mano invalida el "volver" de maximizar
+      card.style.maxWidth="none"; card.style.maxHeight="none";
+      card.classList.add("rz"); this._bringFront(card);
+      h.setPointerCapture(e.pointerId); e.preventDefault(); e.stopPropagation();
+      h.addEventListener("pointermove", onMove);
+      const end = () => { live=false; card.classList.remove("rz");
+        h.removeEventListener("pointermove", onMove);
+        this._persist(); this._uiAudit("resize", id); };
+      h.addEventListener("pointerup", end, {once:true});
+      h.addEventListener("pointercancel", end, {once:true});
+    });
+  }
+
   // Resize an OPEN widget to given dimensions (width/height in px). `opts` = {width?:number, height?:number}.
   // Clamped to viewport limits. Pure UI — idempotent, persists. HERMES-ONLY (not safe for the fast layer).
   resize(id, opts = {}){
     const w = this.wins.get(id); if(!w || !w.card) return false;
     const card = w.card;
+    card._restore = null;
     if(opts.width != null){
       const maxW = innerWidth - this.tile.pad * 2;
       card.style.width = Math.max(120, Math.min(opts.width, maxW)) + "px";
+      card.style.maxWidth = "none";
     }
     if(opts.height != null){
       const maxH = innerHeight - this.tile.top - this.tile.pad;
-      card.style.maxHeight = Math.max(120, Math.min(opts.height, maxH)) + "px";
+      // ALTO REAL, no `max-height`. Con max-height la tarjeta seguía encogiéndose al contenido, así que "hazla
+      // más alta" no hacía nada visible salvo que el contenido ya desbordara — y el tamaño tampoco se podía
+      // guardar (no había ninguno). Ahora es el mismo eje que mueve el tirador de la esquina.
+      card.style.height = Math.max(120, Math.min(opts.height, maxH)) + "px";
+      card.style.maxHeight = "none";
     }
     this._persist();
     return true;

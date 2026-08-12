@@ -25,6 +25,30 @@
 # sheet: check-in, port, cancellation policy…). And `view`/`focus` give the sheet a SECOND PAGE: "enséñame en
 # detalle la propuesta 1" switches this same widget to the full dossier of one item instead of the compact grid.
 #
+# HISTORY (2026-08-12) — LA HOJA TIENE CUATRO PESTAÑAS, no solo la lista. Norma del operador: esta superficie se va
+# a usar de forma genérica para MUCHAS búsquedas complejas, y una búsqueda compleja no es solo su resultado. Es
+# también CÓMO va, CON QUÉ criterio y DE DÓNDE salen los datos. Hasta hoy las tres últimas cosas solo existían de
+# palabra —había que preguntárselas al agente— y por tanto no se podían comprobar:
+#
+#   · RESULTADOS (la importante) — las fichas, y el expediente de una al abrirla.
+#   · SUMARIO    — estado del trabajo + cuántos candidatos ha explorado, cuántos quedan en pantalla, qué ha hecho.
+#   · FUENTES    — en qué webs ha entrado y QUÉ PASÓ en cada una: entró, no pudo por autenticación, le limitaron
+#                  a 50 resultados, dio error. Es lo que convierte «no encontré nada» en un dato auditable.
+#   · CRITERIOS  — el encargo tal y como se está ejecutando (duros/blandos/asumidos/baremo) MÁS las correcciones
+#                  que el operador va soltando por voz («que sean de 42 a 49 pies»). Se siembran solos desde el
+#                  BRIEF (`nucleo/research.py`), así que no dependen de que el worker se acuerde de escribirlos.
+#
+# Las cuatro viven en el MISMO payload persistido que la lista, y la pestaña activa (`tab`) también — igual que
+# `view`/`focus`: así «enséñame de dónde has sacado esto» es una orden de voz que mueve la pantalla, y el estado
+# sobrevive al re-render, a reconectar y a reiniciar. Cero protocolo nuevo: todo entra por acciones DECLARADAS.
+#
+# Y la FICHA es DINÁMICA (`blocks`): cada tipo de resultado necesita enseñarse distinto — un barco no se lee como
+# un paper ni como un correo. En vez de un esquema fijo (que obliga a disolver lo que no encaje en prosa) o de HTML
+# crudo del worker (que es una inyección esperando a ocurrir: este payload viene de la web abierta), un item puede
+# traer una LISTA DE BLOQUES de un vocabulario cerrado —texto, ficha de datos, etiquetas, galería, medidor,
+# tabla, enlace, sección— que la superficie pinta con `textContent`. Es la misma libertad de composición sin
+# ceder la superficie a un tercero.
+#
 from .. import store
 
 WIDGET_ID = "results"
@@ -33,10 +57,22 @@ WIDGET_ID = "results"
 # web, so we never let arbitrary keys through to the renderer (widget.js paints with textContent only, but the
 # schema is the contract and it stays closed).
 _ITEM_FIELDS = ("title", "subtitle", "price", "badge", "url", "image", "primary", "lines",
-                "parts", "images", "facts", "score")
+                "parts", "images", "facts", "score", "blocks")
 # A PART is one piece of a composite item (the hotel inside a holiday plan, the ferry, the restaurant). Same
 # closed-schema discipline; `kind` is the piece's role ("Hotel", "Ferry", "Restaurante") so the card can label it.
 _PART_FIELDS = ("kind", "title", "subtitle", "price", "url", "image", "lines", "facts")
+
+# ── FICHA DINÁMICA: vocabulario CERRADO de bloques ────────────────────────────────────────────────────────────
+# Un tipo de resultado distinto necesita una ficha distinta, y el esquema fijo obligaba a disolver en prosa todo
+# lo que no encajara. Esto lo resuelve SIN aceptar HTML del worker: son piezas de composición que la superficie
+# pinta con textContent. Cualquier `kind` fuera de esta lista se descarta entero (no se degrada a texto: un bloque
+# que el operador no verá es mejor que uno que se ve donde no debe).
+_BLOCK_KINDS = ("text", "facts", "chips", "gallery", "meter", "table", "link", "section")
+_MAX_BLOCKS = 14         # una ficha, no un documento
+_MAX_CHIPS = 14
+_MAX_TABLE_ROWS = 24
+_MAX_TABLE_COLS = 6
+_MAX_CELL_CHARS = 90
 
 _MAX_ITEMS = 60          # a report the operator can actually read; widget.js renders the first 24 and says how many more
 # `lines` used to cap at 4 — fine for a spec-sheet bullet list, but a real request ("show me the lyrics to X") needs
@@ -49,6 +85,32 @@ _MAX_PART_LINES = 20
 _MAX_IMAGES = 12         # the detail page's photo gallery
 _MAX_FACTS = 30          # label→value sheet (check-in, puerto, política de cancelación…)
 _MAX_FACT_CHARS = 200
+
+# ── LAS OTRAS TRES PESTAÑAS ────────────────────────────────────────────────────────────────────────────────────
+_TABS = ("results", "summary", "sources", "criteria")
+
+# Una FUENTE es una web/origen que se ha intentado, con lo que PASÓ ahí. El estado es un vocabulario cerrado
+# porque de él depende el color y, sobre todo, la lectura: «no pude entrar» y «entré pero me cortó a 50» son
+# resultados MUY distintos y hasta hoy los dos se contaban como «nada».
+_SOURCE_FIELDS = ("name", "url", "status", "detail", "found")
+_SOURCE_STATUS = ("ok", "partial", "auth", "blocked", "error", "pending")
+_MAX_SOURCES = 40
+_MAX_DETAIL_CHARS = 200
+
+# El SUMARIO: estado global + recuentos + lo que se ha ido haciendo. `explored`/`selected`/`discarded` los REPORTA
+# quien trabaja (solo él sabe cuántos candidatos miró de verdad); lo que se puede derivar se deriva y se etiqueta
+# como derivado, nunca se confunden (ver `_counts`).
+_SUMMARY_NUMS = ("explored", "selected", "discarded", "round")
+_SUMMARY_TEXT = ("state", "note")
+_MAX_STEPS = 24          # bitácora de lo hecho: los hitos, no cada clic
+_MAX_STEP_CHARS = 160
+
+# Los CRITERIOS con los que se está ejecutando el encargo. Mismos nombres que el brief de `nucleo/research.py`
+# (de ahí se siembran) + `changes`: las correcciones que el operador va soltando MIENTRAS se busca, que son
+# justo las que hasta ahora se perdían en la conversación.
+_CRIT_LISTS = ("hard", "soft", "assumed", "enrichments", "quality_bar", "changes")
+_MAX_CRIT = 14
+_MAX_CRIT_CHARS = 220
 
 
 # ── CONTROL DE CALIDAD DE PRESENTACIÓN (2026-08-10) ───────────────────────────────────────────────────────────────
@@ -124,6 +186,142 @@ def _clean_images(raw) -> list[str]:
     return [str(x)[:500] for x in raw if x not in (None, "")][:_MAX_IMAGES]
 
 
+def _num(raw, default=None):
+    if isinstance(raw, bool) or raw in (None, ""):
+        return default
+    try:
+        v = float(raw)
+    except (TypeError, ValueError):
+        return default
+    if v != v or v in (float("inf"), float("-inf")):     # NaN/inf: un número que no se puede pintar ni comparar
+        return default
+    return int(v) if float(v).is_integer() else round(v, 2)
+
+
+def _clean_score(raw) -> dict | None:
+    """LA VALORACIÓN. El operador la pidió explícitamente en la ficha de detalle, y estaba en el esquema desde
+    hace meses SIN pintarse en ningún sitio — se guardaba y se perdía.
+
+    Se acepta como número suelto (`8.7`), como texto («8,7/10») o como objeto `{value,max,label,why}`. El `why`
+    es lo que la hace útil de verdad: una nota sin el porqué no se puede discutir ni corregir."""
+    if raw in (None, ""):
+        return None
+    if isinstance(raw, (int, float)) and not isinstance(raw, bool):
+        v = _num(raw)
+        return None if v is None else {"value": v, "max": 10 if v <= 10 else 100}
+    if isinstance(raw, str):
+        s = raw.strip()[:60]
+        if not s:
+            return None
+        body, _, mx = s.partition("/")
+        v = _num(body.replace(",", "."))
+        if v is None:
+            return {"label": s}                          # «Excelente», «A+»: vale como etiqueta, no como número
+        out = {"value": v, "max": _num(mx) or (10 if v <= 10 else 100)}
+        return out
+    if isinstance(raw, dict):
+        out: dict = {}
+        v = _num(raw.get("value") if raw.get("value") is not None else raw.get("score"))
+        if v is not None:
+            out["value"] = v
+            out["max"] = _num(raw.get("max")) or (10 if v <= 10 else 100)
+        for k in ("label", "why"):
+            if raw.get(k):
+                out[k] = str(raw[k])[:_MAX_FACT_CHARS]
+        return out or None
+    return None
+
+
+def _clean_block(raw, depth: int = 0) -> dict | None:
+    """UN bloque de una ficha dinámica. Vocabulario cerrado: un `kind` desconocido no se degrada a texto, se cae."""
+    if not isinstance(raw, dict):
+        return None
+    kind = str(raw.get("kind") or "").strip().lower()
+    if kind not in _BLOCK_KINDS:
+        return None
+    b: dict = {"kind": kind}
+    if raw.get("title"):
+        b["title"] = str(raw["title"])[:120]
+
+    if kind == "text":
+        lines = _clean_lines(raw.get("lines") if raw.get("lines") is not None else raw.get("text"), _MAX_LINES)
+        if not lines:
+            return None
+        b["lines"] = lines
+        if str(raw.get("tone") or "").lower() in ("muted", "strong", "warn"):
+            b["tone"] = str(raw["tone"]).lower()
+    elif kind == "facts":
+        f = _clean_facts(raw.get("facts") if raw.get("facts") is not None else raw.get("items"))
+        if not f:
+            return None
+        b["facts"] = f
+    elif kind == "chips":
+        src = raw.get("chips") if raw.get("chips") is not None else raw.get("items")
+        chips = [str(c)[:60] for c in src if c not in (None, "")][:_MAX_CHIPS] if isinstance(src, (list, tuple)) else []
+        if not chips:
+            return None
+        b["chips"] = chips
+    elif kind == "gallery":
+        img = _clean_images(raw.get("images") if raw.get("images") is not None else raw.get("items"))
+        if not img:
+            return None
+        b["images"] = img
+    elif kind == "meter":
+        v = _num(raw.get("value"))
+        if v is None:
+            return None
+        b["value"] = v
+        b["max"] = _num(raw.get("max")) or (10 if v <= 10 else 100)
+        if raw.get("caption"):
+            b["caption"] = str(raw["caption"])[:_MAX_FACT_CHARS]
+    elif kind == "table":
+        rows_raw = raw.get("rows")
+        if not isinstance(rows_raw, (list, tuple)):
+            return None
+        cols = [str(c)[:40] for c in raw.get("columns") or [] if c not in (None, "")][:_MAX_TABLE_COLS]
+        rows = []
+        for r in rows_raw:
+            if not isinstance(r, (list, tuple)):
+                continue
+            cells = [("" if c is None else str(c))[:_MAX_CELL_CHARS] for c in r][:_MAX_TABLE_COLS or 6]
+            if any(c for c in cells):
+                rows.append(cells)
+            if len(rows) >= _MAX_TABLE_ROWS:
+                break
+        if not rows:
+            return None
+        if cols:
+            b["columns"] = cols
+        b["rows"] = rows
+    elif kind == "link":
+        url = str(raw.get("url") or "").strip()[:500]
+        if not url:
+            return None
+        b["url"] = url
+        b["label"] = str(raw.get("label") or url)[:120]
+    elif kind == "section":
+        if depth:                                        # UN nivel de anidamiento: una ficha, no un árbol
+            return None
+        inner = _clean_blocks(raw.get("blocks"), depth + 1)
+        if not inner:
+            return None
+        b["blocks"] = inner
+    return b
+
+
+def _clean_blocks(raw, depth: int = 0) -> list[dict]:
+    if not isinstance(raw, (list, tuple)):
+        return []
+    out = []
+    for r in raw:
+        b = _clean_block(r, depth)
+        if b:
+            out.append(b)
+        if len(out) >= _MAX_BLOCKS:
+            break
+    return out
+
+
 def _clean_part(raw: dict) -> dict | None:
     if not isinstance(raw, dict):
         return None
@@ -178,6 +376,14 @@ def _clean_item(raw: dict) -> dict | None:
             f = _clean_facts(v)
             if f:
                 it[k] = f
+        elif k == "blocks":
+            b = _clean_blocks(v)
+            if b:
+                it[k] = b
+        elif k == "score":
+            s = _clean_score(v)
+            if s:
+                it[k] = s
         else:
             it[k] = str(v)[:300]
     return it if it.get("title") else None       # a card with no title is not a result, it is noise
@@ -194,8 +400,114 @@ def _clean_items(raw) -> list[dict]:
     return out[:_MAX_ITEMS]
 
 
+def _clean_source(raw) -> dict | None:
+    if not isinstance(raw, dict):
+        return None
+    s: dict = {}
+    for k in _SOURCE_FIELDS:
+        v = raw.get(k)
+        if v is None or v == "":
+            continue
+        if k == "found":
+            n = _num(v)
+            if n is not None:
+                s[k] = int(n)
+        elif k == "status":
+            st = str(v).strip().lower()
+            s[k] = st if st in _SOURCE_STATUS else "ok"
+        elif k == "detail":
+            s[k] = _clip(v, "source_detail") or str(v)[:_MAX_DETAIL_CHARS]
+        else:
+            s[k] = str(v)[:300]
+    if not s.get("name") and s.get("url"):
+        s["name"] = s["url"].split("//")[-1].split("/")[0]      # sin nombre, el dominio ya identifica la fuente
+    if not s.get("name"):
+        return None                              # una fuente que no se puede nombrar no se puede leer ni auditar
+    s.setdefault("status", "ok")
+    return s
+
+
+def _clean_sources(raw) -> list[dict]:
+    if isinstance(raw, dict):
+        raw = [raw]
+    if not isinstance(raw, (list, tuple)):
+        return []
+    out = []
+    for r in raw:
+        s = _clean_source(r)
+        if s:
+            out.append(s)
+    return out[:_MAX_SOURCES]
+
+
+def _clean_summary(raw) -> dict:
+    if not isinstance(raw, dict):
+        return {}
+    out: dict = {}
+    for k in _SUMMARY_NUMS:
+        n = _num(raw.get(k))
+        if n is not None and n >= 0:
+            out[k] = int(n)
+    for k in _SUMMARY_TEXT:
+        if raw.get(k):
+            out[k] = _clip(raw[k], "sheet_subtitle") or str(raw[k])[:220]
+    steps = raw.get("steps")
+    if isinstance(steps, str):
+        steps = [steps]
+    if isinstance(steps, (list, tuple)):
+        clean = [str(x)[:_MAX_STEP_CHARS] for x in steps if x not in (None, "")][:_MAX_STEPS]
+        if clean:
+            out["steps"] = clean
+    return out
+
+
+def _clean_criteria(raw) -> dict:
+    if not isinstance(raw, dict):
+        return {}
+    out: dict = {}
+    for k in ("goal", "domain"):
+        if raw.get(k):
+            out[k] = str(raw[k])[:400]
+    for k in _CRIT_LISTS:
+        v = raw.get(k)
+        if isinstance(v, str):
+            v = [v]
+        if isinstance(v, (list, tuple)):
+            clean = [str(x)[:_MAX_CRIT_CHARS] for x in v if x not in (None, "")][:_MAX_CRIT]
+            if clean:
+                out[k] = clean
+    n = _num(raw.get("min_candidates"))
+    if n is not None and n > 0:
+        out["min_candidates"] = int(n)
+    n = _num(raw.get("n_final"))
+    if n is not None and n > 0:
+        out["n_final"] = int(n)
+    return out
+
+
 def _empty() -> dict:
     return {"title": "Resultados", "subtitle": "", "items": []}
+
+
+def _counts(data: dict) -> dict:
+    """Recuentos DERIVADOS, separados de los reportados a propósito. «Cuántos ha explorado» solo lo sabe quien
+    trabajó (lo reporta en el sumario); «cuántos hay en pantalla» y «cuántas fuentes» los sabe la hoja. Mezclarlos
+    en un solo número sería inventarse la mitad: si nadie reportó amplitud, el sumario lo DICE en vez de enseñar
+    el número de tarjetas como si fuera lo explorado."""
+    items = data.get("items") or []
+    sources = data.get("sources") or []
+    summary = data.get("summary") or {}
+    ok = [s for s in sources if s.get("status") in ("ok", "partial")]
+    got = sum(int(s.get("found") or 0) for s in sources)
+    return {
+        "shown": len(items),
+        "sources": len(sources),
+        "sources_ok": len(ok),
+        "sources_failed": len([s for s in sources if s.get("status") in ("auth", "blocked", "error")]),
+        "from_sources": got,                     # candidatos vistos SEGÚN las fuentes reportadas
+        "explored": summary.get("explored"),     # lo que el trabajador declara haber evaluado de verdad
+        "selected": summary.get("selected", len(items) or None),
+    }
 
 
 def view_data(q: str = "") -> dict:
@@ -206,11 +518,28 @@ def view_data(q: str = "") -> dict:
     data = dict(db)
     data.setdefault("title", "Resultados")
     data["items"] = _clean_items(data.get("items"))
+    data["sources"] = _clean_sources(data.get("sources"))
+    data["summary"] = _clean_summary(data.get("summary"))
+    data["criteria"] = _clean_criteria(data.get("criteria"))
+    if data.get("tab") not in _TABS:
+        data.pop("tab", None)                    # sin pestaña válida manda la de resultados (el widget decide)
     if not data["items"]:
         data.setdefault("note", "Sin resultados todavía.")
         data.pop("view", None)                   # no items ⇒ there is nothing to be showing the detail OF
         data.pop("focus", None)
+    data["counts"] = _counts(data)
     return data
+
+
+def _save(data: dict) -> None:
+    """Persistir SIN los campos derivados: `counts` se recalcula al leer, y guardarlo lo dejaría rancio en cuanto
+    cambie cualquier otra cosa (un número viejo en pantalla es peor que ninguno)."""
+    d = dict(data)
+    d.pop("counts", None)
+    for k in ("sources", "summary", "criteria"):
+        if not d.get(k):
+            d.pop(k, None)                       # secciones vacías fuera: la hoja en blanco sigue siendo blanca
+    store.save(WIDGET_ID, d)
 
 
 def _find(items: list[dict], title: str = "", index=None) -> dict | None:
@@ -255,6 +584,55 @@ def ref_index() -> list[dict]:
     return out
 
 
+_STATUS_ES = {"ok": "entró", "partial": "entró con límite", "auth": "pedía autenticación",
+              "blocked": "bloqueó el acceso", "error": "dio error", "pending": "pendiente"}
+
+
+def _digest_head(data: dict) -> str:
+    """Las TRES pestañas que no son la lista, comprimidas para el prompt. Es lo que permite responder «¿por qué no
+    sale nada de esa web?» o «¿con qué criterio has descartado?» SIN volver a buscar: el dato ya está en pantalla,
+    solo faltaba que el cerebro lo tuviera delante. Muy acotado: el detalle vive en la propia tarjeta."""
+    L: list[str] = []
+    tab = data.get("tab") or "results"
+    if tab != "results":
+        L.append(f"[el operador está viendo la pestaña «{tab}»]")
+    s, c = data.get("summary") or {}, data.get("counts") or {}
+    # Solo lo REPORTADO abre la línea de sumario. Cuántas tarjetas hay en pantalla ya se ve en la lista que viene
+    # justo debajo: anunciarlo aparte engordaba el prompt de CADA turno con la hoja abierta sin decir nada nuevo.
+    bits = []
+    if s.get("state"):
+        bits.append(str(s["state"]))
+    if s.get("explored"):
+        bits.append(f"{s['explored']} explorados")
+    if s.get("discarded"):
+        bits.append(f"{s['discarded']} descartados")
+    if bits:
+        if c.get("shown"):
+            bits.append(f"{c['shown']} en pantalla")
+        L.append("SUMARIO: " + " · ".join(bits))
+    if s.get("note"):
+        L.append(f"  {s['note']}")
+    crit = data.get("criteria") or {}
+    if crit.get("goal"):
+        L.append(f"CRITERIOS · objetivo: {crit['goal']}")
+    for key, label in (("hard", "duros"), ("changes", "correcciones del operador")):
+        if crit.get(key):
+            L.append(f"  {label}: " + " · ".join(crit[key][:6]))
+    src = data.get("sources") or []
+    if src:
+        L.append(f"FUENTES ({len(src)}):")
+        for s0 in src[:8]:
+            bit = f"  · {s0.get('name','')}: {_STATUS_ES.get(s0.get('status'), s0.get('status', ''))}"
+            if s0.get("found"):
+                bit += f", {s0['found']} resultados"
+            if s0.get("detail"):
+                bit += f" — {s0['detail']}"
+            L.append(bit)
+        if len(src) > 8:
+            L.append(f"  (+{len(src) - 8} fuentes más)")
+    return "\n".join(L)
+
+
 def prompt_digest() -> str:
     """What is ACTUALLY on screen, compact enough to ride in every prompt while this widget is open.
 
@@ -265,9 +643,12 @@ def prompt_digest() -> str:
     a digest for reasoning over, not the full dossier (that lives in the detail view)."""
     data = view_data()
     items = data.get("items") or []
+    head = _digest_head(data)
     if not items:
-        return "hoja VACÍA — no hay ningún resultado en pantalla todavía"
+        return (head + "\n" if head else "") + "hoja VACÍA — no hay ningún resultado en pantalla todavía"
     lines = []
+    if head:
+        lines.append(head)
     if data.get("view") == "detail" and data.get("focus"):
         lines.append(f"[viendo el DETALLE de «{data['focus']}»]")
     for n, it in enumerate(items[:12], 1):
@@ -295,6 +676,48 @@ def prompt_digest() -> str:
     return "\n".join(lines)
 
 
+# La pestaña llega por VOZ («enséñame las fuentes», «¿cómo va?»), así que el nombre viene en el idioma del
+# operador y a través del STT. No es una tabla de intención —eso lo decide el modelo— sino la normalización del
+# argumento que ya eligió: el mismo papel que juega el ordinal en `detail`.
+_TAB_ALIASES = {
+    "resultados": "results", "resultado": "results", "lista": "results", "fichas": "results",
+    "sumario": "summary", "resumen": "summary", "estado": "summary", "progreso": "summary",
+    "fuentes": "sources", "fuente": "sources", "webs": "sources", "paginas": "sources", "páginas": "sources",
+    "criterios": "criteria", "criterio": "criteria", "brief": "criteria", "encargo": "criteria",
+}
+
+
+def _merge_sections(data: dict, payload: dict) -> None:
+    """`sources`/`summary`/`criteria` entregadas DE PASO dentro de un present/append. Se mezclan sobre lo que ya
+    había: quien entrega resultados no siempre tiene delante lo que reportó hace cinco minutos."""
+    src = _clean_sources(payload.get("sources"))
+    if src:
+        cur = list(data.get("sources") or [])
+        for s in src:
+            key = (s.get("url") or "").strip().lower() or (s.get("name") or "").strip().lower()
+            hit = next((c for c in cur
+                        if ((c.get("url") or "").strip().lower() or (c.get("name") or "").strip().lower()) == key),
+                       None)
+            if hit:
+                hit.update(s)
+            else:
+                cur.append(s)
+        data["sources"] = cur[:_MAX_SOURCES]
+    summ = _clean_summary(payload.get("summary"))
+    if summ:
+        cur = dict(data.get("summary") or {})
+        steps = list(cur.get("steps") or []) + [s for s in summ.pop("steps", []) if s not in (cur.get("steps") or [])]
+        cur.update(summ)
+        if steps:
+            cur["steps"] = steps[-_MAX_STEPS:]
+        data["summary"] = cur
+    crit = _clean_criteria(payload.get("criteria"))
+    if crit:
+        cur = dict(data.get("criteria") or {})
+        cur.update(crit)
+        data["criteria"] = cur
+
+
 # present/append/clear = how the result set is delivered. `choose` lets the operator PICK one of the shown items
 # (e.g. "quiero esa"); unlike before it now PERSISTS the pick, because the list itself is persisted — the old
 # comment about avoiding store.save() described the ephemeral-push era and no longer applies.
@@ -306,11 +729,21 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
     if action == "present":
         issues = _audit(payload)
         items = _clean_items(payload.get("items"))
+        prev = view_data()
         data = {
             "title": _clip(payload.get("title") or "Resultados", "sheet_title"),
             "subtitle": _clip(payload.get("subtitle"), "sheet_subtitle"),
             "items": items,
         }
+        # Las OTRAS pestañas SOBREVIVEN a un `present`. Durante un trabajo largo hay varios `present` (provisional
+        # → final) y borrar en cada uno las fuentes y el sumario que ya se habían reportado sería perder datos que
+        # costaron minutos de navegación. Quien las vacía es `clear`, o el arranque de una investigación NUEVA
+        # (un `criteria` con otro objetivo) — dos momentos explícitos, no un efecto colateral.
+        for k in ("sources", "summary", "criteria"):
+            if prev.get(k):
+                data[k] = prev[k]
+        if prev.get("tab") in _TABS:
+            data["tab"] = prev["tab"]
         # `columns` se conserva como TOPE (la superficie decide el reparto por la forma del contenido, ver
         # widget.js::columnsFor), nunca como orden — un 2 adivinado dejaba 3 tarjetas ricas con una huérfana.
         cols = payload.get("columns")
@@ -320,7 +753,10 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             data["choosable"] = True
         if not items:
             data["note"] = _clip(payload.get("note") or "Sin resultados.", "sheet_subtitle")
-        store.save(WIDGET_ID, data)
+        # Un `present` puede traer de paso las otras secciones (entregar todo de una vez es un viaje menos para
+        # quien trabaja). Se MEZCLAN sobre lo que hubiera, no lo reemplazan a ciegas.
+        _merge_sections(data, payload)
+        _save(data)
         return {"ok": True, "shown": len(items), "presentation": issues}
 
     if action == "append":
@@ -341,7 +777,8 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             data["title"] = _clip(payload["title"], "sheet_title")
         if payload.get("subtitle"):
             data["subtitle"] = _clip(payload["subtitle"], "sheet_subtitle")
-        store.save(WIDGET_ID, data)
+        _merge_sections(data, payload)
+        _save(data)
         return {"ok": True, "shown": len(data["items"]), "presentation": issues}
 
     if action == "clear":
@@ -354,7 +791,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             return {"ok": False, "error": "choose necesita el title EXACTO del item"}
         data = view_data()
         data["chosen"] = title
-        store.save(WIDGET_ID, data)
+        _save(data)
         return {"ok": True, "chosen": title}
 
     if action == "detail":
@@ -364,14 +801,106 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             return {"ok": False, "error": "no encuentro ese resultado en la hoja (pasa el title o index 1-based)"}
         data["view"] = "detail"
         data["focus"] = it["title"]
-        store.save(WIDGET_ID, data)
+        data["tab"] = "results"                  # abrir un expediente es volver a la lista, no quedarse en fuentes
+        _save(data)
         return {"ok": True, "detail": it["title"]}
 
     if action == "list":
         data = view_data()
         data.pop("view", None)
         data.pop("focus", None)
-        store.save(WIDGET_ID, data)
+        _save(data)
         return {"ok": True, "view": "list"}
 
-    return {"ok": False, "error": f"acción «{action}» no soportada (present · append · clear · choose · detail · list)"}
+    # ── LAS OTRAS TRES PESTAÑAS ────────────────────────────────────────────────────────────────────────────────
+    if action == "tab":
+        tab = str(payload.get("tab") or payload.get("name") or "").strip().lower()
+        tab = _TAB_ALIASES.get(tab, tab)
+        if tab not in _TABS:
+            return {"ok": False, "error": f"pestaña «{tab}» desconocida (results · summary · sources · criteria)"}
+        data = view_data()
+        data["tab"] = tab
+        if tab != "results":
+            data.pop("view", None)               # el detalle es una página de RESULTADOS: irse de pestaña la cierra
+            data.pop("focus", None)
+        _save(data)
+        return {"ok": True, "tab": tab}
+
+    if action == "sources":
+        add = _clean_sources(payload.get("sources") if payload.get("sources") is not None else payload)
+        if not add:
+            return {"ok": False, "error": "sources necesita al menos {name|url} por fuente"}
+        data = view_data()
+        cur = data.get("sources") or []
+        for s in add:
+            # UPSERT: una fuente se reporta varias veces durante el trabajo («entrando…» → «50 resultados, me
+            # cortó ahí»). Si cada reporte creara una fila, la pestaña sería un log y no un estado.
+            key = (s.get("url") or "").strip().lower() or (s.get("name") or "").strip().lower()
+            hit = next((c for c in cur
+                        if ((c.get("url") or "").strip().lower() or (c.get("name") or "").strip().lower()) == key),
+                       None)
+            if hit:
+                hit.update(s)
+            else:
+                cur.append(s)
+        data["sources"] = cur[:_MAX_SOURCES]
+        _save(data)
+        return {"ok": True, "sources": len(data["sources"])}
+
+    if action == "progress":
+        upd = _clean_summary(payload.get("summary") if isinstance(payload.get("summary"), dict) else payload)
+        if not upd:
+            return {"ok": False, "error": "progress necesita al menos state, explored, selected, note o steps"}
+        data = view_data()
+        cur = dict(data.get("summary") or {})
+        steps = list(cur.get("steps") or [])
+        new_steps = upd.pop("steps", [])
+        for st in new_steps:
+            if not steps or steps[-1] != st:     # el mismo hito repetido no es progreso
+                steps.append(st)
+        cur.update(upd)
+        if steps:
+            cur["steps"] = steps[-_MAX_STEPS:]
+        data["summary"] = cur
+        _save(data)
+        return {"ok": True, "summary": cur}
+
+    if action == "criteria":
+        upd = _clean_criteria(payload.get("criteria") if isinstance(payload.get("criteria"), dict) else payload)
+        if not upd:
+            return {"ok": False, "error": "criteria necesita goal y/o listas hard/soft/assumed/quality_bar/changes"}
+        data = view_data()
+        cur = dict(data.get("criteria") or {})
+        # ¿Es OTRA investigación? El objetivo es la firma del encargo: si cambia, lo que hay en pantalla es de la
+        # búsqueda anterior y engaña (el operador ya se comió una hoja rancia una vez). Una RONDA 2 conserva el
+        # objetivo, así que «sigue buscando» no borra nada. `reset:false` lo desactiva para correcciones finas.
+        new_goal = (upd.get("goal") or "").strip().lower()
+        old_goal = (cur.get("goal") or "").strip().lower()
+        fresh = bool(new_goal and old_goal and new_goal != old_goal)
+        if payload.get("reset") is not None:
+            fresh = bool(payload.get("reset"))
+        if fresh:
+            data = _empty()
+            # RECORTADO: el `goal` del brief es un párrafo autocontenido («…y reportar el estado de cada fuente
+            # consultada»), no un titular. Puesto crudo como título de la hoja ocupaba cinco líneas antes de
+            # empezar a enseñar nada. El texto íntegro sigue completo en la pestaña CRITERIOS, que es su sitio.
+            data["title"] = _clip(upd.get("goal") or "Resultados", "sheet_title") or "Resultados"
+            cur = {}
+        cur.update(upd)
+        for k in _CRIT_LISTS:                    # las listas se REEMPLAZAN salvo `changes`, que se acumula
+            if k == "changes":
+                continue
+            if k in upd:
+                cur[k] = upd[k]
+        if "changes" in upd:
+            acc = list((data.get("criteria") or {}).get("changes") or []) if not fresh else []
+            for ch in upd["changes"]:
+                if ch not in acc:
+                    acc.append(ch)
+            cur["changes"] = acc[-_MAX_CRIT:]
+        data["criteria"] = cur
+        _save(data)
+        return {"ok": True, "criteria": cur, "reset": fresh}
+
+    return {"ok": False, "error": f"acción «{action}» no soportada (present · append · clear · choose · detail · "
+                                  f"list · tab · sources · progress · criteria)"}

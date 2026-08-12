@@ -324,6 +324,33 @@ def expand(brief: dict, *, note: str = "") -> dict:
     return nxt
 
 
+def to_criteria(brief: dict) -> dict:
+    """El brief traducido al payload de la pestaña CRITERIOS de la hoja de resultados.
+
+    Por qué existe: los criterios con los que se está buscando eran, hasta hoy, algo que solo se podía PREGUNTAR
+    («¿qué has entendido?») y por tanto no se podía comprobar de un vistazo. Se siembran desde AQUÍ, en el
+    pre-vuelo, y no desde el worker: si dependieran de que el ejecutor se acuerde de escribirlos, faltarían justo
+    en las búsquedas que peor van. `goal` hace además de firma del encargo — un objetivo distinto vacía la hoja de
+    la búsqueda anterior, y una ronda 2 (que conserva el objetivo) no borra nada."""
+    if not isinstance(brief, dict) or not brief.get("goal"):
+        return {}
+    b = brief.get("breadth") or {}
+    d = brief.get("deliverable") or {}
+    out = {"goal": brief["goal"], "round": int(brief.get("round") or 1)}
+    if brief.get("domain"):
+        out["domain"] = brief["domain"]
+    for k in ("hard", "soft", "assumed", "enrichments", "quality_bar"):
+        if brief.get(k):
+            out[k] = list(brief[k])
+    if brief.get("feedback"):
+        out["changes"] = list(brief["feedback"])     # lo que el operador corrigió al rechazar la ronda anterior
+    if b.get("min_candidates"):
+        out["min_candidates"] = b["min_candidates"]
+    if d.get("n_final"):
+        out["n_final"] = d["n_final"]
+    return out
+
+
 def to_prompt_block(brief: dict) -> str:
     """El brief como bloque para el prompt del worker. El EMBUDO va explícito y en primera posición porque es la
     instrucción que el worker se salta si no se le dice: reunir ancho ANTES de descartar. Redactado sin nombrar
@@ -401,6 +428,22 @@ def to_prompt_block(brief: dict) -> str:
              f"provisional. Lo que quede en pantalla al acabar tiene que ser exactamente tu selección.\n"
              f"  · Si al final descartas algo que habías publicado, que desaparezca: la hoja no es un historial, es "
              f"el estado ACTUAL de tu trabajo.")
+    # LAS OTRAS TRES PESTAÑAS (2026-08-12). La hoja dejó de ser solo la lista: lleva SUMARIO, FUENTES y CRITERIOS.
+    # Las fuentes son la pieza que faltaba para que el operador pueda AUDITAR el trabajo: hasta hoy, una web que
+    # nos dejaba fuera (login, límite de 50, bloqueo) y una web sin resultados se veían exactamente igual —«no he
+    # encontrado nada»—, así que él no podía saber si convenía entrar a mano, cambiar de sitio o rendirse.
+    L.append(f"\nDEJA RASTRO DE CÓMO TRABAJAS — la hoja tiene tres pestañas más y se llenan MIENTRAS buscas:\n"
+             f"  · FUENTES: cada sitio en el que entras (o al que no puedes entrar) se reporta con "
+             f"`python -m nucleo.widget_cli data results sources @fuentes.json` → "
+             f"`{{\"sources\":[{{\"name\":…,\"url\":…,\"status\":…,\"detail\":…,\"found\":N}}]}}`. `status`: `ok` · "
+             f"`partial` (entraste pero te limitó los resultados) · `auth` (pedía sesión) · `blocked` · `error` · "
+             f"`pending`. Es UPSERT por url, así que puedes anunciar la fuente y actualizarla al terminar con "
+             f"ella. ESTO NO ES OPCIONAL: si una web te deja fuera, decir solo «no encontré nada» le oculta al "
+             f"operador que ahí SÍ había algo y que él sí puede entrar.\n"
+             f"  · SUMARIO: `… data results progress` con `{{\"state\":\"…\",\"explored\":N,\"discarded\":N,"
+             f"\"steps\":[\"…\"]}}` cada vez que haya avance de verdad (no un mensaje por candidato).\n"
+             f"  · CRITERIOS: ya están sembrados con este brief; solo los tocas (`… data results criteria` con "
+             f"`{{\"changes\":[\"…\"]}}`) si el operador te corrige a mitad de camino.")
     L.append(f"AMPLITUD REPORTADA: cuando entregues, di cuántos candidatos has considerado DE VERDAD y con qué "
              f"criterio has cortado, y repórtalo también con "
              f"`python -m nucleo.agent_report considered <nº> --kept {nfin}`. Es lo que le permite al operador "

@@ -78,7 +78,11 @@ async def run_widget_hook(wid: str, fn: str, caller):
 # quién es (id/name/title), para qué (whenToUse, recortado), cómo se le llama (aliases), de dónde viene (origin) y
 # si es efímero (transient — el frontend rutea las tarjetas de actividad por ahí). NADA de `actions`, payload
 # schemas, `usage`, `refs` ni prosa: eso es carga bajo demanda vía /widgets/{id}/manifest.
-_INDEX_FIELDS = ("id", "title", "name", "transient", "kind", "icon")
+# `size`/`fullscreen` entran aquí (2026-08-12) porque los consume el CANVAS al montar la tarjeta, antes de que
+# nadie pida el manifest completo: el tamaño preferido de una superficie de ancho fluido y si "pantalla completa"
+# significa la nativa (vídeo) o maximizar dentro de la app. Son dos campos diminutos; pedir el manifest entero
+# para leerlos devolvería el O(N·manifest) que V2-085 quitó.
+_INDEX_FIELDS = ("id", "title", "name", "transient", "kind", "icon", "size", "fullscreen")
 _INDEX_PURPOSE_MAX = 120
 
 

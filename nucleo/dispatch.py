@@ -835,6 +835,26 @@ _METHOD_BLOCK = (
     "hasta cumplirlo. Solo entrega cuando está CERTIFICADO en todos los planos. Nunca digas «hecho» sin verificar.")
 
 
+async def _seed_research_criteria(brief: dict) -> None:
+    """Vuelca el brief recién compuesto a la pestaña CRITERIOS de la hoja de resultados.
+
+    Se hace AQUÍ, en el pre-vuelo, y no dentro del worker: si dependiera de que el ejecutor se acuerde de
+    escribirlo, faltaría justo en las búsquedas que peor van. Efecto de paso —y buscado—: el `goal` es la firma
+    del encargo, así que arrancar una investigación DISTINTA vacía la hoja de la anterior. El operador ya se comió
+    una vez quedarse mirando los resultados de la búsqueda de antes creyendo que eran los suyos. Una ronda 2
+    conserva el objetivo, así que «sigue buscando» no borra nada.
+
+    Best-effort duro: esto es la pantalla, no el trabajo. Si el widget falla, la investigación sigue igual."""
+    try:
+        payload = research.to_criteria(brief)
+        if not payload:
+            return
+        from widgets.server_api import brain_action
+        await brain_action("results", "criteria", payload)
+    except Exception as exc:                                # noqa: BLE001 — nunca frenar una tarea por la vista
+        logger.debug(f"dispatch: no pude sembrar los criterios en la hoja de resultados ({exc})")
+
+
 async def _compose_brief(request: str, context: str, trusted: bool, resume: dict | None = None) -> dict | None:
     """PRE-VUELO de una investigación: convierte la petición cruda en un BRIEF dirigido (nucleo/research.py).
 
@@ -1282,6 +1302,7 @@ async def _run_session(task: "Task") -> None:
             if brief:
                 research.save(key, brief)
                 research.remember_round(_goal_key(req), brief)   # para que una 2ª petición continúe, no reempiece
+                await _seed_research_criteria(brief)
                 rec.phase = "preparando la investigación"
                 logger.info(f"dispatch: tarea {key} dirigida por BRIEF (ronda {brief.get('round')}, "
                             f"≥{(brief.get('breadth') or {}).get('min_candidates')} candidatos)")

@@ -38,3 +38,38 @@
   canción") necesita un bloque de texto completo, no 4 bullets — mismo esquema, un tope menos artificialmente
   corto. `manifest.json.usage` y `keywords` (imagen/letra/canción) actualizados para que el cerebro sepa que este
   widget cubre también esos casos.
+- **2026-08-12 — la hoja pasa a tener CUATRO PESTAÑAS, ficha DINÁMICA y tamaño manejable.** Petición del operador
+  (literal, con el porqué): «este widget va a ser utilizado de forma genérica para multitud de búsquedas complejas,
+  y entonces siempre vamos a seguir más o menos los mismos patrones». De ahí las cuatro cosas de este cambio.
+  · **ESCALABLE.** La hoja tenía **620px fijos** en su propio CSS, así que «ponlo a pantalla completa» dejaba una
+    columna estrecha en medio de la pantalla: el ancho no era del canvas, era de aquí. Ahora es `width:100%` y el
+    reparto en columnas lo hace el CSS por el ANCHO REAL (`auto-fill` + `minmax` con mínimo por riqueza de tarjeta
+    y TOPE de columnas), así que reflowea sola al arrastrar. La maquinaria de tamaño es del CANVAS porque sirve a
+    todo widget (ver `frontend/app/widgets/desktop.js`): ocho tiradores (4 esquinas + 4 bordes), botón ⤢ de
+    maximizar/restaurar, y la geometría VIAJA en `_layout()` — antes solo se guardaba la posición, así que agrandar
+    la hoja y recargar la devolvía a su tamaño de fábrica. El tamaño preferido lo declara el manifest (`size`),
+    porque una superficie de ancho fluido no puede deducirlo de su contenido.
+  · **CUATRO PESTAÑAS** (`tab` persistida, como `view`/`focus` — la mueve el clic Y la voz): RESULTADOS ·
+    SUMARIO (estado, cuántos explorados/descartados, bitácora de lo hecho) · FUENTES (cada web y QUÉ PASÓ ahí:
+    entró · le limitaron a 50 · pedía login · bloqueó · error) · CRITERIOS (el encargo tal y como se ejecuta, con
+    las correcciones del operador). Acciones nuevas `tab`/`sources`/`progress`/`criteria`, todas FAST.
+    **Las FUENTES son la pieza que faltaba para poder auditar una búsqueda:** hasta hoy «no encontré nada» y
+    «Wallapop me pedía login» se veían exactamente igual, así que el operador no podía saber si convenía entrar
+    él a mano. Los CRITERIOS **se siembran solos** desde el brief (`nucleo/research.py::to_criteria` llamado en
+    el pre-vuelo de `dispatch`): si dependieran de que el worker se acuerde de escribirlos, faltarían justo en
+    las búsquedas que peor van. El `goal` hace de firma del encargo → una investigación DISTINTA vacía la hoja de
+    la anterior (una ronda 2 conserva el objetivo, así que «sigue buscando» no borra nada).
+  · **FICHA DINÁMICA (`blocks`).** El operador pidió «una ficha HTML para cada resultado diferente». HTML crudo de
+    un worker que acaba de leer la web abierta es una inyección esperando a ocurrir, así que se resolvió con un
+    vocabulario CERRADO de bloques de composición —`text`/`facts`/`chips`/`gallery`/`meter`/`table`/`link`/
+    `section`— que dan la misma libertad de forma y se pintan con `textContent`. Un `kind` desconocido se descarta
+    ENTERO (no se degrada a texto: sería colar contenido de un tercero por otra puerta).
+  · **LA VALORACIÓN por fin se ve.** `score` estaba en el esquema desde el 2026-08-09 y **no se pintaba en ningún
+    sitio**: se guardaba y se perdía. Ahora sale como etiqueta en la tarjeta y desplegada con su barra y su
+    **porqué** en el expediente — una nota sin el porqué no se puede discutir ni corregir.
+  Dos hallazgos de paso, ninguno buscado: (1) un `widget.js` hace `el.className="…"` y **se lleva por delante la
+  clase `hb-body`** de su raíz, así que cualquier regla del canvas sobre ella no aplicaba a nadie → el scroll pasa
+  a un envoltorio propio (`.hb-scroll`) y las pestañas se quedan fijas (`position:sticky`) al recorrer una lista
+  larga; (2) «pantalla completa» eran DOS cosas y solo existía la nativa, que tapa el orbe y el chat — pésimo
+  justo aquí, donde el operador agranda la hoja PARA seguir corrigiendo la búsqueda por voz. Ahora por defecto se
+  maximiza dentro de la app y la nativa la pide el widget en su manifest (`"fullscreen":"native"`, el vídeo).

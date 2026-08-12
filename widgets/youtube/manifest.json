@@ -83,5 +83,6 @@
     "reproductor de vídeo",
     "pon un vídeo",
     "ver un vídeo"
-  ]
+  ],
+  "fullscreen": "native"
 }

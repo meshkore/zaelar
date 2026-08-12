@@ -65,50 +65,73 @@ def test_clip_never_leaves_a_dangling_separator():
 
 # ── 2. El layout lo decide la SUPERFICIE, por la forma del contenido ──────────────────────────────────────────────
 
-def _columns_for(items, cap=None):
-    """Réplica de `widget.js::columnsFor` (los tests de frontend son contratos de string, no ejecutan JS).
-    El test de abajo verifica que la implementación real sigue teniendo esta forma."""
-    rich = any((it.get("parts") or it.get("images")
+_GAP = 12
+
+
+def _grid(items, cap=None):
+    """Réplica de `widget.js::gridStyle` — devuelve `(ancho mínimo de columna, tope de columnas)`.
+
+    Desde 2026-08-12 el reparto ya NO es un número fijo calculado en JS: la tarjeta es REDIMENSIONABLE (y puede
+    maximizarse), así que quien manda es el ancho REAL. La superficie declara dos cosas —cuánto necesita como
+    mínimo una tarjeta de esa riqueza, y cuántas columnas como máximo tienen sentido— y el CSS reparte. La
+    garantía que se comprueba abajo es la misma de siempre: el contenido rico no se estrangula y el payload
+    solo puede REDUCIR."""
+    rich = any((it.get("parts") or it.get("images") or it.get("blocks")
                 or len(it.get("facts") or []) > 3 or len(it.get("lines") or []) > 4) for it in items)
-    cols = 1 if rich else (3 if len(items) > 6 else 2 if len(items) > 3 else 1)
-    if cap and cap >= 1:
-        cols = min(cols, int(cap))
-    cols = max(1, min(3, cols))
-    if cols > 1 and len(items) < cols * 2:
-        cols = 1
-    return cols
+    medium = not rich and any((it.get("lines") or it.get("image") or it.get("facts")) for it in items)
+    min_w = 400 if rich else 300 if medium else 230
+    max_cols = 2 if rich else 3 if medium else 4
+    if cap and int(cap) >= 1:
+        max_cols = min(max_cols, int(cap))
+    return min_w, max(1, max_cols)
+
+
+def _columns_at(items, width, cap=None):
+    """Cuántas columnas SALEN de verdad a un ancho de tarjeta dado (lo que hace `auto-fill` + `minmax`)."""
+    min_w, max_cols = _grid(items, cap)
+    floor = (width - (max_cols - 1) * _GAP) / max_cols
+    track = max(min(width, min_w), floor)
+    return max(1, min(max_cols, int((width + _GAP) // (track + _GAP))))
 
 
 def test_the_real_case_now_renders_as_three_horizontal_rows():
-    """Lo que pidió el operador: «esto yo lo hubiera presentado en tres filas horizontales»."""
+    """Lo que pidió el operador: «esto yo lo hubiera presentado en tres filas horizontales». Sigue saliendo así,
+    pero ahora por una razón comprobable —no caben dos tarjetas de 400px en una hoja de 720— en vez de por una
+    regla de huérfanas escrita a mano."""
     rich = [{"parts": [1, 2], "facts": [1] * 8}] * 3
-    assert _columns_for(rich, cap=2) == 1, "3 propuestas ricas = 1 columna, pese al columns:2 del payload"
+    assert _columns_at(rich, 720, cap=2) == 1, "3 propuestas ricas en la hoja por defecto = 1 columna"
+
+
+def test_widening_the_sheet_uses_the_space_instead_of_wasting_it():
+    """Y esta es la razón de ser del cambio: si el operador la agranda o la maximiza, las mismas tres propuestas
+    se ponen en paralelo. Con el número de columnas fijo, maximizar solo estiraba una columna."""
+    rich = [{"parts": [1, 2], "facts": [1] * 8}] * 3
+    assert _columns_at(rich, 1600) == 2, "hay sitio para dos columnas de 400: úsalo"
+    assert _columns_at([{}] * 8, 1600) == 4, "tarjetas simples aprovechan más, pero con tope"
 
 
 def test_a_payload_hint_can_only_reduce_never_force():
-    """`columns` pasa a ser TOPE. Antes MANDABA y pisaba la heurística correcta del widget."""
-    simple = [{}] * 8
-    assert _columns_for(simple) == 3
-    assert _columns_for(simple, cap=2) == 2, "puede reducir"
-    assert _columns_for([{"parts": [1]}] * 4, cap=3) == 1, "no puede forzar columnas sobre contenido rico"
+    """`columns` es un TOPE. Antes MANDABA y pisaba la decisión correcta de la superficie."""
+    assert _grid([{}] * 8)[1] == 4
+    assert _grid([{}] * 8, cap=2)[1] == 2, "puede reducir"
+    assert _grid([{"parts": [1]}] * 4, cap=3)[1] == 2, "no puede forzar columnas sobre contenido rico"
 
 
-def test_no_unbalanced_orphan_card():
-    assert _columns_for([{}] * 3) == 1      # 2+1 se lee como error de maquetación
-    assert _columns_for([{}] * 4) == 2      # 2+2 cuadra
-
-
-def test_a_normal_incomplete_last_row_is_left_alone():
-    """El bug que NO queremos introducir: bajar 7 tarjetas a una columna sería peor que la huérfana."""
-    assert _columns_for([{}] * 7) == 3
-    assert _columns_for([{}] * 5) == 2
+def test_rich_content_is_never_squeezed_however_narrow_the_card_gets():
+    """El fallo original («Valenci / a → / Palma»): una tarjeta rica en una columna estrecha. Ahora es imposible
+    por construcción — a cualquier ancho por debajo de dos columnas de 400px solo cabe una."""
+    rich = [{"parts": [1, 2]}] * 4
+    for width in (320, 480, 620, 720, 800):
+        assert _columns_at(rich, width) == 1
 
 
 def test_the_widget_really_delegates_the_layout():
     src = (WIDGET / "widget.js").read_text()
-    assert "function columnsFor(" in src
-    assert "columnsFor(rest, data.columns)" in src, "el grid debe pasar por la función, no por data.columns pelado"
+    assert "function gridStyle(" in src
+    assert "gridStyle(rest, primary.length ? 2 : data.columns)" in src, \
+        "el grid debe pasar por la función, no por data.columns pelado"
     assert "Math.min(3, data.columns ||" not in src, "esa era la forma en la que el payload MANDABA"
+    assert "auto-fill" in src, "el reparto lo hace el ancho REAL, no un número calculado al pintar"
 
 
 # ── 3. Los presupuestos se declaran, no se adivinan ───────────────────────────────────────────────────────────────

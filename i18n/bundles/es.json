@@ -278,6 +278,7 @@
   "desktop.creating": "Creando el widget…",
   "desktop.delete_btn": "Borrar",
   "desktop.load_failed": "No se pudo cargar este widget.",
+  "desktop.maximize_tooltip": "Maximizar / restaurar",
   "desktop.move_tooltip": "Mover",
   "desktop.name_tooltip": "Nombre del widget — haz clic para ver/editar sus alias",
   "desktop.network_error": "Error de red",

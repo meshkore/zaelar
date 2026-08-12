@@ -131,3 +131,62 @@ def test_interrupted_work_is_not_painted_as_a_success():
     row = src[src.index("const histRow"):src.index("const procBody")]
     assert '"interrumpido"' in row
     assert '"✂"' in row or "'✂'" in row
+
+
+# ── 5. ESCALAR la tarjeta a mano y que el esfuerzo no se pierda (2026-08-12) ─────────────────────────────────
+# Petición del operador para la hoja de resultados, resuelta en el CANVAS porque vale para cualquier widget: «si
+# yo lo quiero a pantalla completa tiene que ocupar gran parte del frontend, o lo puedo mover a mano pinchando en
+# las esquinas». Hasta hoy solo existía el fullscreen NATIVO (que tapa el orbe y el chat, así que agrandar la hoja
+# para hablar sobre ella con zaelar era imposible) y un `resize` por voz que ni siquiera se guardaba.
+def test_every_card_can_be_grabbed_by_its_corners_and_edges():
+    src = _desktop()
+    for dir_ in ("nw", "ne", "sw", "se", "n", "s", "e", "w"):
+        assert f'"hb-rz hb-rz-"+dir' in src or f"hb-rz-{dir_}" in src
+    assert "_wireResize(card" in src and "MIN_W" in src, "con un mínimo: una tarjeta de 0px no se recupera"
+
+
+def test_the_size_the_operator_chose_survives_a_refresh():
+    """Sin esto, agrandar la hoja para leerla a gusto y recargar la devolvía a su tamaño de fábrica — la forma
+    más rápida de que una función no se use."""
+    src = _desktop()
+    layout = src[src.index("_layout()"):src.index("_persist()")]
+    assert "w:c.style.width" in layout.replace(" ", "") and "h:c.style.height" in layout.replace(" ", "")
+    assert "_applyGeom(card, pos.w, pos.h)" in src, "y se vuelve a aplicar al restaurar"
+
+
+def test_fullscreen_keeps_the_voice_reachable_unless_the_widget_says_otherwise():
+    """«Pantalla completa» son DOS cosas. La nativa tapa el resto de zaelar: perfecta para un vídeo, pésima para
+    una hoja de resultados —el operador la agranda JUSTO para seguir corrigiendo la búsqueda por voz—. Así que
+    por defecto se maximiza DENTRO de la app, y la nativa la pide el widget en su manifest."""
+    src = _desktop()
+    fs = src[src.index("\n  fullscreen(id){"):src.index("nativeFullscreen(id){")]
+    assert 'fullscreen === "native"' in fs and "this.maximize(id)" in fs
+    man = json.loads(pathlib.Path("widgets/youtube/manifest.json").read_text())
+    assert man.get("fullscreen") == "native", "un vídeo SÍ quiere tapar la pantalla"
+    assert "fullscreen" not in json.loads(pathlib.Path("widgets/results/manifest.json").read_text()), \
+        "una hoja de datos no: se maximiza sin perder el orbe"
+
+
+def test_maximizing_is_a_toggle_that_can_be_undone():
+    """Si no, «ponlo grande» sería una operación de ida sin vuelta y habría que recolocar la tarjeta a mano."""
+    src = _desktop()
+    mx = src[src.index("maximize(id){"):src.index("_addHandles(card){")]
+    assert "card._restore" in mx and "card._restore = null" in mx
+
+
+def test_a_widget_can_declare_the_size_it_needs_to_be_readable():
+    """Una superficie de ancho fluido no puede deducir su tamaño del contenido: encogería a su tarjeta más
+    estrecha. Lo declara el manifest y lo aplica el canvas — y solo si el operador no dejó uno suyo."""
+    src = _desktop()
+    assert "_applyPreferred(w.card, baseId)" in src
+    assert "!(pos && (pos.w || pos.h))" in src, "el tamaño guardado por el operador manda sobre el preferido"
+    man = json.loads(pathlib.Path("widgets/results/manifest.json").read_text())
+    assert man["size"]["w"] >= 600 and man["size"]["h"] >= 400
+    assert "size" in pathlib.Path("widgets/server_api.py").read_text(), \
+        "y el índice compacto tiene que llevarlo: el canvas lo necesita ANTES de pedir el manifest"
+
+
+def test_the_card_body_is_the_scroller_so_the_handles_stay_grabbable():
+    """Con la tarjeta entera scrolleando, los tiradores —absolutos— se iban con el contenido."""
+    src = _desktop()
+    assert ".hb-body{flex:1 1 auto;min-height:0;overflow:auto}" in src.replace("\n", "")

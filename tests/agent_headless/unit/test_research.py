@@ -334,3 +334,41 @@ def test_the_worker_is_told_not_to_commit_anything():
     assert "NO COMPROMETAS NADA" in block
     for forbidden in ("reserves", "compres", "pagues"):
         assert forbidden in block
+
+
+# ── 8) el brief se VE en pantalla, no solo se obedece (2026-08-12) ────────────────────────────────────────────
+# Los criterios con los que se está buscando eran algo que solo se podía PREGUNTAR («¿qué has entendido?»), y por
+# tanto no se podían comprobar de un vistazo ni corregir mirándolos. Ahora se siembran en la pestaña CRITERIOS de
+# la hoja de resultados, desde el PRE-VUELO — no desde el worker: si dependiera de que el ejecutor se acuerde de
+# escribirlos, faltarían justo en las búsquedas que peor van.
+def test_the_brief_becomes_the_criteria_tab():
+    crit = research.to_criteria(research.parse(_raw()))
+    assert crit["goal"].startswith("Tres propuestas")
+    assert crit["hard"] and crit["soft"] and crit["quality_bar"] and crit["enrichments"]
+    assert crit["min_candidates"] == 40 and crit["n_final"] == 3
+    assert crit["domain"] == "viaje familiar en ferry"
+
+
+def test_criteria_of_a_second_round_carry_the_rejection_as_a_change():
+    """Lo que el operador dijo al rechazar la ronda anterior es una CORRECCIÓN suya: su sitio es la pestaña, donde
+    él puede verla, no solo el prompt del worker."""
+    nxt = research.expand(research.parse(_raw()), note="ninguno tiene parking cubierto")
+    crit = research.to_criteria(nxt)
+    assert "ninguno tiene parking cubierto" in crit["changes"]
+    assert crit["goal"] == research.to_criteria(research.parse(_raw()))["goal"], \
+        "la ronda 2 conserva el objetivo — es lo que impide que «sigue buscando» vacíe la hoja"
+
+
+def test_nothing_to_show_is_not_a_crash():
+    assert research.to_criteria({}) == {} and research.to_criteria(None) == {}
+
+
+def test_the_worker_is_told_to_report_its_sources():
+    """La pieza que faltaba para poder AUDITAR una búsqueda: hasta hoy una web que nos dejaba fuera (login, tope
+    de 50, bloqueo) y una web sin resultados se veían igual — «no he encontrado nada» —, así que el operador no
+    podía saber si convenía entrar él a mano."""
+    block = research.to_prompt_block(research.parse(_raw()))
+    assert "FUENTES" in block and "results sources" in block
+    for status in ("partial", "auth", "blocked"):
+        assert status in block
+    assert "results progress" in block, "y el avance: sin él el sumario no puede decir cuántos ha explorado"
