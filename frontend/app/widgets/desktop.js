@@ -117,25 +117,33 @@ export class Desktop {
   }
 
   // ---- PERSISTENCE: the desktop is the user's state. Open widgets + their positions survive a refresh / reopen. ----
+  // Geometría restaurable del escritorio: qué tarjetas, con qué consulta y dónde. Las tarjetas de INSTANCIA
+  // (`navegador::t3` = una pestaña/tarea concreta) siguen siendo efímeras — su tarea muere con el proceso que la
+  // conducía, así que restaurarlas pintaría una pestaña que ya no existe. La tarjeta BASE del navegador SÍ se
+  // restaura desde 2026-08-12: era el único widget excluido por nombre, y como es justo el que está en pantalla
+  // durante una tarea web, recargar la página en mitad de una búsqueda dejaba el escritorio literalmente en blanco.
+  _layout(){
+    const items=[];
+    this.wins.forEach((w,id)=>{ if(id.includes("::")) return;
+      const c=w.card;
+      items.push({id, q:w.q||"", left:c.style.left, top:c.style.top, z:c.style.zIndex||""}); });
+    return items;
+  }
   _persist(){
     if(this._restoring) return;
-    try{
-      const items=[];
-      this.wins.forEach((w,id)=>{ if(id.includes("::") || id==="navegador") return;   // tarjetas de navegador (tab/tarea) = efímeras; no se restauran
-        const c=w.card;
-        items.push({id, q:w.q||"", left:c.style.left, top:c.style.top, z:c.style.zIndex||""}); });
-      localStorage.setItem("hb_desktop", JSON.stringify(items));
-    }catch(_){}
+    try{ localStorage.setItem("hb_desktop", JSON.stringify(this._layout())); }catch(_){}
     this._reportOpen();     // ESTADO: el canvas es autoritativo → el servidor refleja qué hay abierto en el prompt
   }
   // Reporta los widgets ABIERTOS al ESTADO de la memoria (POST /api/canvas/state) para que viajen en el prompt del
   // cerebro ("modifica el widget de X" sin preguntar) y se vean en el mapa. Debounce ligero (los arrastres/moves
   // llaman _persist a ráfagas) + best-effort. Envía this.list() crudo; el servidor normaliza (navegador::t3→navegador).
+  // Lleva ADEMÁS la geometría, que el server guarda como red de seguridad del localStorage (que es per-origen y
+  // per-navegador: el mismo zaelar por :43917 y por :44317 son dos escritorios distintos). Ver `restore()`.
   _reportOpen(){
     clearTimeout(this._openTimer);
     this._openTimer=setTimeout(()=>{
       try{ fetch("/api/canvas/state",{method:"POST",headers:{"Content-Type":"application/json"},
-        body:JSON.stringify({open:this.list()})}); }catch(_){}
+        body:JSON.stringify({open:this.list(), layout:this._layout()})}); }catch(_){}
     }, 250);
   }
   async restore(){
@@ -152,6 +160,21 @@ export class Desktop {
       }
     }catch(_){}
     let items=[]; try{ items=JSON.parse(localStorage.getItem("hb_desktop")||"[]"); }catch(_){ items=[]; }
+    // REHIDRATACIÓN: sin nada guardado AQUÍ, preguntamos al server por el último escritorio conocido. El
+    // localStorage es per-origen y per-navegador — abrir el mismo zaelar por otro origen (:43917 ↔ :44317), en otro
+    // navegador o en otro perfil enseña un escritorio vacío que parece pérdida de datos y no lo es. El server
+    // conserva la geometría (`/api/canvas/layout`) y la devuelve para reconstruirlo. Solo como FALLBACK: si este
+    // navegador tiene su propio estado, MANDA él (el frontend sigue siendo autoritativo del canvas), y la época de
+    // wipe de arriba sigue teniendo la última palabra — un reset deja el escritorio en blanco y aquí no se resucita.
+    if(!items.length){
+      try{
+        const r=await fetch("/api/canvas/layout").then(r=>r.json());
+        if(Array.isArray(r.items) && r.items.length){
+          items=r.items;
+          console.info("desktop: restaurado del servidor (este navegador no tenía escritorio guardado)");
+        }
+      }catch(_){}
+    }
     if(!items.length) return;
     this._restoring=true;
     try{ for(const it of items){ await this.show(it.id, {q:it.q, pos:it}); } }

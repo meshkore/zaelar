@@ -89,7 +89,11 @@ DOMAINS: list[dict] = [
             # selección defendible — amplitud mínima de candidatos, criterios duros vs blandos, baremo de calidad,
             # y la ronda 2 cuando el operador dice que siga buscando. Sin esto el worker se autoimponía el criterio
             # mínimo y devolvía los tres primeros resultados de la primera página.
-            "tests/agent_headless/unit/test_research.py"]},
+            "tests/agent_headless/unit/test_research.py",
+            # REHIDRATACIÓN (2026-08-12): un reinicio en mitad de una búsqueda del operador se la llevó por delante
+            # sin dejar rastro — ni evento, ni ledger, ni aviso. Aquí se fija qué se reanuda solo, qué se reporta y
+            # por qué, y que un reset NO resucite el trabajo que el operador acaba de mandar parar.
+            "tests/agent_headless/unit/test_rehydrate.py"]},
         {"id": "2.6", "title": "Scheduler / rails / workspace / frontend-glue", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/test_scheduler.py", "tests/agent_headless/unit/test_rails.py", "tests/agent_headless/unit/test_workspace.py",
             "tests/agent_headless/unit/flash/test_frontend.py", "tests/agent_headless/unit/flash/test_memory_cache.py"]},
@@ -174,6 +178,13 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_results_presentation.py",
                                   "tests/browser/unit/widgets/test_live_updates_independent_of_voice.py",
                                   "tests/browser/unit/widgets/test_presentation_quality.py"]},
+        # 2026-08-12: el operador recargó con una búsqueda en marcha y el escritorio se quedó EN BLANCO. La tarjeta
+        # del navegador estaba excluida del guardado por nombre —la única, y justo la que se ve durante una tarea
+        # web— y el único almacén era el localStorage, que es per-origen y per-navegador. El escritorio ahora se
+        # rehidrata, y Procesos deja de pintar con un ✓ lo que un reinicio cortó a medias.
+        {"id": "4.13", "title": "Rehidratación del escritorio (tarjetas + posiciones tras recargar o cambiar de "
+                                "navegador) · «interrumpido» visible en Procesos",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_desktop_rehydrate.py"]},
         # 2026-08-10: el operador estuvo hablándole a un agente MUERTO porque los iconos seguían azules y el ECG
         # latía (lo late el servidor, no el agente). El estado del agente pasa a ser UNA verdad derivada y todo lo
         # que se ve deriva de ella; «parado» significa congelado de verdad y a la vista. Incluye el vúmetro del

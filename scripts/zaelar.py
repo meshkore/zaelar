@@ -228,8 +228,36 @@ def _unload_ollama() -> None:
             pass
 
 
+def live_work() -> list[dict]:
+    """Brain Workers in flight right now (`/api/tasks`). Empty when nothing is running or nothing answers.
+
+    Stopping is a decision the operator makes with numbers in front of them: on 2026-08-12 a `restart` landed in the
+    middle of a search the operator had asked for and killed it. Rehydration now picks that work back up on the next
+    boot, but SAYING what is about to be interrupted is still the difference between a tool and a trap."""
+    try:
+        with urllib.request.urlopen(f"http://127.0.0.1:{APP_PORT}/api/tasks", timeout=4) as r:
+            data = json.loads(r.read().decode("utf-8"))
+        sessions = data.get("sessions") if isinstance(data, dict) else data
+        return [s for s in (sessions or [])
+                if isinstance(s, dict) and str(s.get("status") or "") in ("queued", "running")]
+    except (urllib.error.URLError, OSError, ValueError, KeyError):
+        return []
+
+
+def _warn_live_work() -> None:
+    work = live_work()
+    if not work:
+        return
+    _say(f"  ⚠ {len(work)} Brain Worker(s) still working — they will be interrupted:")
+    for t in work[:5]:
+        goal = str(t.get("goal") or t.get("phase") or "?")[:70]
+        _say(f"      · {goal}")
+    _say("    zaelar picks resumable work back up on the next start (see nucleo/rehydrate.py).")
+
+
 def cmd_stop(keep_livekit: bool = False, grace: float = 6.0) -> int:
     _say("stopping zaelar…")
+    _warn_live_work()
     ok = True
     for port, role in PORTS:
         if keep_livekit and port == 7880:

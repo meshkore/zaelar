@@ -122,6 +122,17 @@ def reset_all() -> dict:
         killed["notas"] = len(brain_notes.drain())   # descarta notas [SISTEMA] pendientes → no re-disparan trabajo
     except Exception as e:  # noqa: BLE001
         logger.warning(f"reset_all: drenar brain_notes falló: {e}")
+    # REHIDRATACIÓN (2026-08-12): borra el rastro de sesiones vivas y la continuidad web. Sin esto, el operador
+    # aprieta Reset «para empezar de cero», mata el trabajo a mano… y el siguiente arranque se lo RESUCITA porque
+    # el rastro decía que estaba en vuelo. Un reset es una orden, no una caída.
+    try:
+        from nucleo import dispatch as _dispatch
+        from nucleo import rehydrate as _rehydrate
+        _rehydrate.forget()
+        _dispatch._WEB_RESUME.clear()
+        _dispatch._resume_persist()
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"reset_all: limpiar rastro de rehidratación falló: {e}")
 
     logger.info(f"HARD RESET: congelados {frozen_n} · matados {killed}")
     return {"frozen": frozen_n, "killed": killed, "when": ts}

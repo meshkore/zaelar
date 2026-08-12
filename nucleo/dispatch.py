@@ -92,6 +92,43 @@ _SESSIONS: dict[str, SessionRecord] = {}
 _WEB_RESUME: dict[str, dict] = {}
 _RESUME_TTL = 1800.0
 _RESUME_CAP = 3
+# …y como el registro de sesiones, esto vivía SOLO en RAM: un reinicio en mitad de una gestión web se llevaba por
+# delante la única forma de CONTINUARLA (el `native_sid` que hace que el worker retome su razonamiento en vez de
+# empezar de cero). Espejo en `sys_kv` — estado de proceso, no del operador, igual que el ledger de workers. El TTL
+# se aplica igual al cargar, así que una entrada rancia no revive nada.
+_RESUME_KEY = "web_resume"
+
+
+def _resume_persist() -> None:
+    """Espeja `_WEB_RESUME` a `sys_kv`. Best-effort y fuera del hot-path (solo al cerrar una sesión web)."""
+    try:
+        from memory import api as _mem
+        if _WEB_RESUME:
+            _mem.kv_set(_RESUME_KEY, _WEB_RESUME)
+        else:
+            _mem.kv_del(_RESUME_KEY)
+    except Exception:
+        pass
+
+
+def _resume_restore() -> int:
+    """Recarga las entradas de continuidad web que no han caducado. Devuelve cuántas. La llama `start()`."""
+    try:
+        from memory import api as _mem
+        raw = _mem.kv_get(_RESUME_KEY)
+        if not isinstance(raw, dict):
+            return 0
+        now = time.time()
+        n = 0
+        for k, ent in raw.items():
+            if isinstance(ent, dict) and (now - float(ent.get("ts") or 0)) <= _RESUME_TTL:
+                _WEB_RESUME[str(k)] = ent
+                n += 1
+        if n:
+            logger.info(f"dispatch: {n} gestión(es) web reanudables recuperadas del proceso anterior")
+        return n
+    except Exception:
+        return 0
 
 
 def _goal_key(req: str) -> str:
@@ -465,6 +502,15 @@ def sync_state() -> None:
             return                      # nada relevante cambió → no reescribir ni emitir memory.updated (~1 Hz)
         _last_sync = snap
         memory.set_state({"activity": labels, "sessions": sess})
+        # REHIDRATACIÓN (2026-08-12): el mismo cambio deja un rastro DURABLE en `sys_kv` con marca de tiempo. Es lo
+        # que permite que el arranque siguiente sepa qué había en vuelo si este proceso muere (un reinicio mató una
+        # búsqueda del operador SIN dejar constancia). Va aquí porque este es el único punto que ya sabe que la
+        # proyección cambió — no añade ni una escritura extra en reposo. Ver `nucleo/rehydrate.py`.
+        try:
+            from nucleo import rehydrate as _rehydrate
+            _rehydrate.remember(sess)
+        except Exception:
+            pass
     except Exception:
         pass
 
@@ -1282,6 +1328,7 @@ async def _run_session(task: "Task") -> None:
                 gk = _goal_key(req)
                 if rec.ok or rec.status == "cancelled":
                     _WEB_RESUME.pop(gk, None)                       # completada o parada → nada que reanudar
+                    _resume_persist()                               # …y que no quede rastro durable de algo cerrado
                 elif nav_tid or rec.native_sid:
                     _WEB_RESUME[gk] = {"nav_task": nav_tid or str((resume or {}).get("nav_task") or ""),
                                        "native_sid": rec.native_sid or str((resume or {}).get("native_sid") or ""),
@@ -1289,6 +1336,7 @@ async def _run_session(task: "Task") -> None:
                                        # los criterios ya acordados viajan a la reanudación: recomponerlos a mitad
                                        # de una búsqueda la convertiría en otra búsqueda distinta sin avisar
                                        "brief_task": key if brief else str((resume or {}).get("brief_task") or "")}
+                _resume_persist()       # sobrevive al reinicio → la reanudación CONTINÚA en vez de empezar de cero
             try:
                 if key.isdigit():
                     escalate.finish(int(key), rec.result_summary if rec.ok else "")
@@ -1429,6 +1477,7 @@ def start() -> None:
         _LOOP = asyncio.get_running_loop()   # loop dueño de las sesiones (server) → marshaling cross-loop (§v3·D)
     except RuntimeError:
         pass
+    _resume_restore()               # continuidad web del proceso anterior, ANTES de aceptar escaladas
     _listener_stop = asyncio.Event()
     _listener_task = asyncio.create_task(run_listener(_listener_stop), name="nucleo:workers-dispatch")
 

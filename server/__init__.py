@@ -239,6 +239,21 @@ async def _lifespan(app: FastAPI):
             logger.info("SlowBrain dispatcher v2 montado (nucleo/dispatch.py)")
         except Exception as e:
             logger.warning(f"slowbrain dispatcher start failed (voice/chat unaffected): {e}")
+        # REHIDRATACIÓN (2026-08-12) — recoge el trabajo que un reinicio dejó a medias: lo reanudable CONTINÚA, el
+        # resto queda REGISTRADO como interrumpido en vez de desaparecer en silencio (un `make restart` mató una
+        # búsqueda del operador sin dejar rastro: ni evento, ni ledger, ni aviso). Va AQUÍ y no antes porque el
+        # listener de escaladas ya está suscrito; la re-escalada es diferida de todos modos. **No-op silencioso
+        # cuando no había nada en vuelo**, que es el caso normal de cualquier arranque limpio. Módulo aparte
+        # (`nucleo/rehydrate.py`), una sola llamada, sin estado propio: circunstancia → función → se aparta.
+        if _first_lifespan_entry:
+            try:
+                from nucleo import rehydrate as nucleo_rehydrate
+                _reh = nucleo_rehydrate.at_boot()
+                if _reh.get("found"):
+                    logger.info("Rehidratación: {} en vuelo al morir → {} reanudada(s), {} registrada(s)"
+                                .format(_reh["found"], len(_reh.get("resume") or []), len(_reh.get("buried") or [])))
+            except Exception as e:
+                logger.warning(f"rehydrate at_boot failed (voice/chat unaffected): {e}")
     # «Susurro» (V2-053): auditor conversacional off-hot-path. Se enchufa SOLO por el bus (turn.completed +
     # señales de fricción) — cero acoplamiento con el provider de voz. Kill-switch de 1ª clase: config
     # §susurro.enabled (UI) + ZAELAR_SUSURRO. Fail-open: su caída jamás toca la voz.

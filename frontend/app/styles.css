@@ -187,6 +187,7 @@ body.chatdock-r .statuspanel,body.chatdock-r .cronpanel{right:calc(18px + var(--
 .cw-proc-row.run .cw-proc-dot,.cw-proc-row.done .cw-proc-dot{color:var(--hb-accent)}
 .cw-proc-row.error .cw-proc-dot{color:var(--hb-risk,#e5484d)}
 .cw-proc-row.waiting .cw-proc-dot,.cw-proc-row.paused .cw-proc-dot{color:var(--hb-warn-ink,#d9a441)}
+.cw-proc-row.cut .cw-proc-dot{color:var(--hb-warn-ink,#d9a441)}   /* cortada por un reinicio: ni éxito ni error */
 .cw-proc-row.hist{opacity:.82}
 .cw-proc-main{min-width:0;flex:1 1 auto}
 .cw-proc-goal{font-size:13px;color:var(--hb-ink);line-height:1.3;word-break:break-word}

@@ -7,6 +7,7 @@ the ⚙ settings + voice catalog, and client-log ingestion. No Pipecat, no /api/
 """
 import json
 import os
+import time
 
 from fastapi import APIRouter
 from loguru import logger
@@ -429,7 +430,41 @@ async def canvas_state(payload: dict):
                 pass
     except Exception:  # noqa: BLE001
         pass
+    # REHIDRATACIÓN DEL ESCRITORIO (2026-08-12): el frontend manda además la GEOMETRÍA (qué tarjeta, dónde, con qué
+    # consulta) y se guarda como RED DE SEGURIDAD del `localStorage`, que es de donde se restaura normalmente. El
+    # localStorage es per-ORIGEN y per-navegador: el mismo zaelar servido en `https://local.zaelar.com:44317` y en
+    # `http://localhost:43917` son dos escritorios distintos, y desde otro navegador/perfil no hay ninguno. Cuando el
+    # operador cree que «se ha perdido el escritorio», casi siempre está mirando un almacén vacío que no es el suyo.
+    # Va a `sys_kv` (estado de UI, NO el estado raíz que viaja en cada prompt: al cerebro no le importan las
+    # coordenadas de una tarjeta). Solo se ESCRIBE aquí; quien restaura es `GET /api/canvas/layout`.
+    try:
+        items = (payload or {}).get("layout")
+        if isinstance(items, list):
+            from memory import api as memory
+            clean = []
+            for it in items[:40]:
+                if not isinstance(it, dict) or not str(it.get("id") or "").strip():
+                    continue
+                clean.append({k: str(it.get(k) or "")[:120] for k in ("id", "q", "left", "top", "z")})
+            memory.kv_set("canvas_layout", {"at": time.time(), "items": clean})
+    except Exception:  # noqa: BLE001
+        pass
     return JSONResponse({"ok": True, "open_widgets": seen})
+
+
+@router.get("/api/canvas/layout")
+async def canvas_layout():
+    """El escritorio TAL COMO lo dejó el operador (tarjetas + posiciones). Es el fallback de restauración cuando el
+    `localStorage` del navegador no lo tiene — otro navegador, otro perfil, o el mismo zaelar por otro origen
+    (localhost:43917 vs local.zaelar.com:44317, dos almacenes distintos para el mismo escritorio). Read-only."""
+    try:
+        from memory import api as memory
+        snap = memory.kv_get("canvas_layout")
+        if isinstance(snap, dict) and isinstance(snap.get("items"), list):
+            return JSONResponse({"items": snap["items"], "at": snap.get("at") or 0})
+    except Exception:  # noqa: BLE001
+        pass
+    return JSONResponse({"items": [], "at": 0})
 
 
 @router.get("/api/tasks")

@@ -85,8 +85,12 @@ export function ChatWall() {
     );
   };
   const histRow = (e) => {
-    const st = e.status === "error" ? "error" : e.status === "cancelled" ? "cancelled" : (e.ok || e.status === "done") ? "done" : "done";
-    const gl = st === "error" ? "✕" : st === "cancelled" ? "⊘" : "✓";
+    // `interrumpido` = se la llevó por delante un reinicio (rehidratación, nucleo/rehydrate.py). Tiene su propio
+    // glifo porque antes CUALQUIER estado desconocido caía a "done" con un ✓: una tarea que murió a medias se
+    // pintaba como terminada con éxito. Un registro que miente es peor que no tenerlo.
+    const st = e.status === "error" ? "error" : e.status === "cancelled" ? "cancelled"
+             : e.status === "interrumpido" ? "cut" : (e.ok || e.status === "done") ? "done" : "done";
+    const gl = st === "error" ? "✕" : st === "cancelled" ? "⊘" : st === "cut" ? "✂" : "✓";
     const meta = [e.kind, ago(e.finished_at)].filter(Boolean).join(" · ");
     return h("div", { class: "cw-proc-row hist " + st },
       h("span", { class: "cw-proc-dot" }, gl),
