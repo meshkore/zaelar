@@ -56,7 +56,21 @@ _MODIFY_CODE_RE = re.compile(
     r"\b(modific\w*|cambi\w*|edit\w*|reescrib\w*|refactor\w*|redise[nñ]\w*|actualiz\w+ el c[oó]digo|"
     r"a[ñn]ad\w*\s+(?:una?\s+)?columna|modify|redesign|rewrite)\b[^.!?]{0,45}\b(widget|tarjeta|panel|componente)\b",
     re.I)
-_ARCHITECT_RE = re.compile(r"\barchitect\b|\bproyecto\b", re.I)
+# …y lo MISMO con «proyecto», que estaba A SECAS una línea debajo del comentario que lo prohíbe (incidente
+# 2026-08-12, auditando una búsqueda de veleros de punta a punta). El criterio que dio el propio operador era
+# «listo para navegar, no un PROYECTO para restaurar» — en la compraventa de barcos «un proyecto» es el término
+# corriente para un barco a medio reformar. Esa palabra sola mandó su BÚSQUEDA al `kind="code"`, o sea al backend
+# del GENERADOR de widgets (`registry.get_backend` elige por `spec.kind`): un buscador despachado al sitio que
+# escribe código. Es la misma clase exacta que V2-081, sin arreglar en esta rama.
+# `architect` se queda A SECAS a propósito: es el nombre de nuestro conector, nadie lo dice de pasada. «Proyecto»
+# es una palabra del castellano de todos los días, así que exige —como el lado MODIFICAR-código— un VERBO de
+# trabajo de proyecto delante, o una palabra de repositorio detrás.
+_ARCHITECT_RE = re.compile(
+    r"\barchitect\b"
+    r"|\b(crea\w*|monta\w*|arranca\w*|planifica\w*|retoma\w*|abre|cierra|a[ñn]ad\w*|actualiz\w*|"
+    r"create|start|plan)\b[^.!?]{0,45}\bproyecto\b"
+    r"|\bproyecto\b[^.!?]{0,45}\b(repo\w*|rama\w*|commit\w*|c[oó]digo|tarea\w*|meshkore|daemon)\b",
+    re.I)
 # …y el contrapeso: LLENAR un widget con datos NO es tocar su código (incidente 2026-08-02). El brief «finaliza y
 # muestra el informe … REFLEJANDO EL CAMBIO en el widget de informes» casaba `cambi\w*` + `widget` dentro de la
 # ventana de 45 chars → se despachó al GENERADOR, que se pasó 3,5 min REESCRIBIENDO widget.js para un caso que solo

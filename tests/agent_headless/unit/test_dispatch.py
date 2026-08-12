@@ -419,3 +419,43 @@ def test_promoting_to_research_never_steals_the_web_route():
     for kind in ("web", "code"):
         promoted = "research" if kind == "generic" else kind
         assert promoted == kind
+
+
+# ── «PROYECTO» A SECAS MANDABA UNA BÚSQUEDA AL GENERADOR DE CÓDIGO (incidente 2026-08-12) ─────────────────────
+# V2-081 arregló que la palabra «widget» a secas mandara cualquier tarea al generador… y dejó `\bproyecto\b` a
+# secas UNA LÍNEA MÁS ABAJO, en el mismo `_classify_kind`. El criterio que dio el operador para sus veleros era
+# «listo para navegar, no un PROYECTO para restaurar» — en la compraventa de barcos «un proyecto» es un barco a
+# medio reformar. Su BÚSQUEDA salió con kind="code", y `registry.get_backend` elige el backend POR EL KIND: acabó
+# despachada al generador de widgets. Un buscador en el sitio que escribe código.
+_VELEROS_LITERAL = ("Busca veleros de segunda mano a la venta AHORA MISMO con estos requisitos estrictos: precio "
+                    "máximo 50.000 €; eslora mínima de 42 pies (12,8 m) y máxima de 15 metros; que esté LISTO PARA "
+                    "NAVEGAR, no un proyecto de restauración ni barco a medio reformar; motor en buen estado; y "
+                    "ubicación/amarre en el Mediterráneo. Entra en la ficha/detalle de CADA candidato y verifica "
+                    "esos puntos. Preséntame los candidatos en el widget de resultados.")
+
+
+def test_the_operators_own_boat_criterion_is_not_code():
+    """Verbatim de la escalada real que se fue al generador. Lleva ADEMÁS la palabra «widget» al final (donde
+    pedía la superficie de resultados), así que blinda las dos trampas a la vez."""
+    assert dispatch._classify_kind(_VELEROS_LITERAL) == "generic"
+
+
+def test_a_project_boat_is_a_boat_not_a_project():
+    for frase in ("veleros que no sean un proyecto de restauración",
+                  "no quiero un proyecto para restaurar, quiero navegar ya",
+                  "un piso reformado, no un proyecto de obra"):
+        assert dispatch._classify_kind(frase) == "generic", frase
+
+
+def test_real_project_work_still_routes_to_code():
+    for frase in ("pregúntale al architect por el estado del daemon",
+                  "crea un proyecto nuevo para el bot de trading",
+                  "añade una tarea al proyecto zaelar para revisar el reranker",
+                  "en el proyecto de la web, haz un commit en la rama main"):
+        assert dispatch._classify_kind(frase) == "code", frase
+
+
+def test_the_architect_connector_name_still_matches_bare():
+    """`architect` SÍ se queda a secas a propósito: es el nombre de nuestro conector, no una palabra del habla."""
+    assert dispatch._ARCHITECT_RE.search("architect") is not None
+    assert dispatch._ARCHITECT_RE.search("proyecto") is None
