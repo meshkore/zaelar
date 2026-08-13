@@ -80,10 +80,43 @@ _PROVIDER_CATALOG = {
              "models": ["gpt-5.5", "gpt-5.4", "gpt-5.4-mini"],
              "note": "Has NO tool allowlist — only sandbox modes, so a Codex worker runs a full shell "
                      "(wider blast radius). Refused for untrusted input and dev workers."},
+            {"id": "grok_build", "label": "Grok Build (CLI)", "cloud": True, "key_env": "XAI_API_KEY",
+             # VERIFICADO con `grok models` contra la cuenta real (2026-08-13).
+             "models": ["grok-4.5", "grok-4.6", "grok-build-0.1", "grok-4.3",
+                        "grok-4.20-0309-non-reasoning"],
+             "note": "Same wire format AND same allowlist syntax as Claude Code — verified it enforces "
+                     "`--deny Bash(...)`, so it CAN hold the single-writer invariant (unlike Codex). "
+                     "Pay-per-token: watch the cost, a trivial turn already costs ~$0.03 (large system prompt)."},
         ],
         "closed_models": True,
+        # PRESETS (2026-08-13, petición del operador): una opción de Brain Worker no es «un proveedor», es la
+        # COMBINACIÓN de quién conduce (el CLI) y quién razona por debajo (el endpoint + su modelo). Elegir las tres
+        # piezas a mano es donde se producían los desajustes (`glm-5.2` sobre Codex, `gpt-5.5` sobre Z.AI): un
+        # preset las mueve JUNTAS y de una vez. El operador puede seguir afinando a mano después.
+        "presets": [
+            {"id": "cc_zai", "label": "Claude Code + Z.AI (GLM-5.2)", "provider": "claude_code",
+             "base_url": "https://api.z.ai/api/anthropic", "model": "glm-5.2", "key_env": "Z_AI_API_KEY",
+             "billing": "subscription", "cost": "GLM coding plan (flat rate)",
+             "note": "The operator's rule: subscription plans, never pay-per-token. Quota is WEEKLY and when it "
+                     "runs out everything on this tier dies at once — that is what the relay chain exists for."},
+            {"id": "cc_deepseek", "label": "Claude Code + DeepSeek V4", "provider": "claude_code",
+             "base_url": "https://api.deepseek.com/anthropic", "model": "sonnet", "key_env": "DEEPSEEK_API_KEY",
+             "billing": "per_token", "cost": "~$0.14/$0.28 per Mtok (v4-flash)",
+             "note": "Its gateway MAPS Claude aliases: sonnet/haiku → deepseek-v4-flash, opus → deepseek-v4-pro. "
+                     "So the model field is the Claude alias, not a DeepSeek name. Cheapest of the three."},
+            {"id": "grok45", "label": "Grok Build + Grok 4.5", "provider": "grok_build",
+             "base_url": "", "model": "grok-4.5", "key_env": "XAI_API_KEY",
+             "billing": "per_token", "cost": "pay-per-token — measured ~$0.03 for a trivial turn",
+             "note": "Native xAI agent CLI. Grok 4.6 ($2/$6 per Mtok, 500k ctx, reasoning) is selectable as the "
+                     "model if quality beats cost."},
+            {"id": "cc_local", "label": "Claude Code + local licence", "provider": "claude_code",
+             "base_url": "", "model": "", "key_env": "",
+             "billing": "licence", "cost": "the operator's own Claude licence",
+             "note": "LOCAL ONLY — a browser login does not exist inside a container, so this tier cannot be the "
+                     "cloud's coverage. It is the last rung of the relay chain."},
+        ],
         "note": "Headless agent that drives tasks (memory/web/code). Per-task-type model optional. "
-                "Each provider serves ONLY its own models.",
+                "Each provider serves ONLY its own models. Pick a preset to move CLI + endpoint + model together.",
     },
     "memory_processor": {           # CORAZÓN de escritura (mem_processor / distiller de píldoras)
         "providers": [
@@ -171,6 +204,11 @@ def _detected_code_agents() -> dict:
         det["claude_code"] = {"installed": bool(path), "path": path, "version": "", "default_model": ""}
     except Exception:
         det["claude_code"] = {"installed": False}
+    try:
+        from nucleo.workers import grok_session as _gk
+        det["grok_build"] = _gk.detect()
+    except Exception:
+        det["grok_build"] = {"installed": False}
     return det
 
 
@@ -200,6 +238,21 @@ def _catalog_for_ui() -> dict:
                     p["stale_default"] = dm
             provs.append(p)
         ca["providers"] = provs
+        # PRESETS: cada uno se marca READY o no, y por qué. Un preset que no puede funcionar (CLI ausente o clave
+        # sin poner) tiene que verse ANTES de elegirlo: elegirlo a ciegas es lo que producía una tarea muerta sin
+        # relación aparente con lo que el operador había guardado.
+        import os as _os
+        pres = []
+        for p in ca.get("presets", []):
+            p = dict(p)
+            d = det.get(p["provider"]) or {}
+            cli_ok = bool(d.get("installed"))
+            env = p.get("key_env") or ""
+            key_ok = (not env) or bool((_os.getenv(env) or "").strip())
+            p["cli_ok"], p["key_ok"], p["ready"] = cli_ok, key_ok, bool(cli_ok and key_ok)
+            p["blocked_by"] = ("cli" if not cli_ok else ("key" if not key_ok else ""))
+            pres.append(p)
+        ca["presets"] = pres
         cat["code_agent"] = ca
     except Exception:
         pass

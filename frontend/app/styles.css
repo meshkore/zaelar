@@ -1048,3 +1048,16 @@ body.dbg-open .orbwrap{left:calc(50% - var(--dbg-w) / 2)}
   text-transform:uppercase;letter-spacing:.04em}
 .vault-msg{max-height:0;overflow:hidden;transition:max-height .2s;padding:0 16px;color:var(--hb-muted);font-size:13px}
 .vault-msg.show{max-height:60px;padding:0 16px 14px}
+
+/* Presets de Brain Workers (2026-08-13): tarjetas de una LÍNEA con el nombre, el coste y, si no puede funcionar,
+   el motivo. Un preset bloqueado se ve apagado pero SIGUE clicable a propósito — el operador puede querer dejarlo
+   elegido y poner la clave después; lo que no puede es elegirlo creyendo que está listo. */
+.cf-presets { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.cf-preset { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; text-align: left;
+  padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: transparent;
+  color: var(--ink); cursor: pointer; font: inherit; }
+.cf-preset:hover { border-color: var(--accent); }
+.cf-preset.on { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.cf-preset.off { opacity: .62; }
+.cf-preset-h { font-weight: 600; }
+.cf-preset .cf-hint { margin: 0; }

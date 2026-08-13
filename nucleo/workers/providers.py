@@ -39,6 +39,14 @@ KNOWN: list[dict] = [
      "env": ["Z_AI_API_KEY"], "plan": "GLM coding plan"},
     {"name": "moonshot", "base_url": "https://api.moonshot.ai/anthropic",
      "env": ["MOONSHOT_API_KEY", "KIMI_API_KEY"], "plan": "Kimi Code"},
+    # DeepSeek expone un endpoint Anthropic-compatible propio (2026-08-13). OJO al MAPEO DE NOMBRES que hace su
+    # gateway: `claude-opus*` → deepseek-v4-pro y `claude-haiku*`/`claude-sonnet*` → deepseek-v4-flash. O sea que
+    # aquí el `model` que se le manda NO es un nombre de DeepSeek sino el alias de Claude que quieras que mapee —
+    # mandarle `deepseek-v4-flash` a pelo no es lo que su gateway espera. Por eso el escalón declara `sonnet`: es
+    # el alias que aterriza en el modelo barato. Es pago por token (no suscripción), así que rompe la regla del
+    # operador de «forfait, nunca por token» — va DESPUÉS de los planes y existe como red de seguridad barata.
+    {"name": "deepseek", "base_url": "https://api.deepseek.com/anthropic",
+     "env": ["DEEPSEEK_API_KEY"], "plan": "DeepSeek (pago por token)", "model": "sonnet"},
 ]
 # Escalón final SOLO LOCAL: sin base_url el CLI usa la licencia con la que el operador ya está logueado. No
 # necesita credencial y por eso no puede fallar por cuota de API — pero consume su licencia, así que va el último.

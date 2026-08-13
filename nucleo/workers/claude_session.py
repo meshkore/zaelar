@@ -357,8 +357,8 @@ class ClaudeCodeSession(WorkerBackend):
                     continue
                 name = block.get("name") or ""
                 tin = block.get("input") or {}
-                step = _tool_step(name, tin)
-                lbl = _tool_phase(name, tin)
+                step = self._tool_step(name, tin)
+                lbl = self._tool_phase(name, tin)
                 if lbl:                          # "" = no pisar la fase (p.ej. hbnote la fija él mismo, más rica)
                     # quiet=True cuando hay `step`: el step ES la fila del panel → no duplicar con la fase coarse,
                     # pero rec.phase (el prompt "PROCESOS DE FONDO") SÍ se actualiza con la coarse.
@@ -381,7 +381,7 @@ class ClaudeCodeSession(WorkerBackend):
                     continue
                 meta = self._steps().pop(str(block.get("tool_use_id") or ""), None) \
                     or getattr(self, "_last_step", None) or {}
-                yield self._ev("step_result", text=_result_text(block.get("content")),
+                yield self._ev("step_result", text=self._result_text(block.get("content")),
                                tool=meta.get("tool", ""), where=meta.get("where", ""),
                                is_error=bool(block.get("is_error")),
                                # el escalón con el que corre ESTA sesión: si sus tools se agotan, hay que culpar al
@@ -414,6 +414,22 @@ class ClaudeCodeSession(WorkerBackend):
             self._done = True
             return
         # el resto (system de cierre, etc.) → sin evento.
+
+    # ── COSTURA para backends del MISMO wire format (2026-08-13) ──────────────────────────────────────────
+    # Grok Build emite `--output-format streaming-messages-json`, que es el MISMO vocabulario que el stream-json
+    # de Claude Code (`system/init` · `assistant` con bloques · `user` con `tool_result` · `result` con usage y
+    # coste). Lo que cambia son los NOMBRES de sus tools (`run_terminal_command` en vez de `Bash`, `read_file` en
+    # vez de `Read`…) y la forma de su evidencia. Estos tres métodos son el único punto de variación: `_map` los
+    # llama a través de `self`, así que `GrokSession` hereda la traducción entera y solo sobrescribe el vocabulario.
+    # (Antes `_map` llamaba a las funciones de módulo directamente, lo que obligaba a duplicar el mapper.)
+    def _tool_step(self, tool: str, tin: dict | None = None):
+        return _tool_step(tool, tin)
+
+    def _tool_phase(self, tool: str, tin: dict | None = None) -> str:
+        return _tool_phase(tool, tin)
+
+    def _result_text(self, content) -> str:
+        return _result_text(content)
 
     def _steps(self) -> dict:
         """`tool_use_id` → el paso que lo pidió, para casar cada `tool_result` con SU herramienta.

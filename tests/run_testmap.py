@@ -89,6 +89,10 @@ DOMAINS: list[dict] = [
             # FAIL-CLOSED — Codex no sabe acotar sus tools, así que rechaza justo las tareas que existen acotadas
             # (entrada no confiable, dev worker de cluster) en vez de correr con menos contención de la pedida
             "tests/agent_headless/unit/workers/test_codex_session.py",
+            # y el TERCER backend (Grok Build): mismo wire format que Claude Code → hereda el traductor; se prueba
+            # que la herencia aguante y las 3 diferencias reales (nombres de tools, sus argumentos, el envoltorio de
+            # su evidencia) + que el prompt vaya por fichero (`-p -` no lee stdin: avería cara y MUDA)
+            "tests/agent_headless/unit/workers/test_grok_session.py",
             # DIRECCIÓN de una investigación (2026-08-09): el brief que convierte «las mejores vacaciones» en una
             # selección defendible — amplitud mínima de candidatos, criterios duros vs blandos, baremo de calidad,
             # y la ronda 2 cuando el operador dice que siga buscando. Sin esto el worker se autoimponía el criterio

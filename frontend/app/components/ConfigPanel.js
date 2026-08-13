@@ -139,11 +139,37 @@ export function ConfigPanel() {
       row(t("config.code.model_code"), modelSelect("cf_code_model_code", ms, a.model_code, t("config.ph.inherits")));
   };
 
+  // Un preset mueve CLI + endpoint + modelo A LA VEZ. Elegir las tres piezas por separado es donde salían los
+  // desajustes (glm-5.2 sobre Codex, gpt-5.5 sobre Z.AI). Se marca el que NO puede funcionar y POR QUÉ — verlo
+  // antes de elegir, no dentro de una tarea muerta media hora después.
+  const presetCard = (p, activeId) => {
+    const on = p.id === activeId;
+    const money = p.billing === "subscription" ? "◆" : (p.billing === "licence" ? "◇" : "$");
+    const state = p.ready ? "" : `<span class="cf-hint cf-warn">⚠ ${esc(p.blocked_by === "cli"
+      ? t("config.preset.no_cli") : t("config.preset.no_key", { env: p.key_env || "" }))}</span>`;
+    return `<button type="button" class="cf-preset${on ? " on" : ""}${p.ready ? "" : " off"}" data-preset="${esc(p.id)}">
+      <span class="cf-preset-h">${money} ${esc(p.label)}${on ? " ✓" : ""}</span>
+      <span class="cf-hint">${esc(p.cost || "")}</span>${state}</button>`;
+  };
+
+  // ¿Cuál de los presets es el que está puesto ahora? Se compara la TERNA completa: dos presets pueden compartir
+  // CLI y distinguirse solo por el endpoint.
+  const activePreset = (presets, a) => (presets.find(p =>
+    p.provider === (a.provider || "") && (p.base_url || "") === (a.base_url || "") &&
+    (p.model || "") === (a.model || "")) || {}).id || "";
+
   function sec_code(c) {
     const a = (cfg.v2 && cfg.v2.code_agent) || {};
     const provs = c.providers || [];
     const cur = provs.find(p => p.id === a.provider) || provs[0] || {};
+    const presets = c.presets || [];
+    const act = activePreset(presets, a);
+    const presetBox = presets.length
+      ? row(t("config.code.preset"), `<div class="cf-presets" id="cf_code_presets">${presets.map(p => presetCard(p, act)).join("")}</div>`,
+        t("config.code.preset_hint"))
+      : "";
     return panel("code", t("config.code.title"), t("config.code.sub"),
+      presetBox +
       row(t("config.row.provider"), `<select id="cf_code_provider">${opt(provs.map(p => ({ value: p.id, label: p.label })), a.provider)}</select>`,
         `<span id="cf_code_clistate">${cliState(cur)}</span>`) +
       `<div id="cf_code_models">${codeModelRows(cur, a)}</div>` +
@@ -251,6 +277,13 @@ export function ConfigPanel() {
       const kr = document.getElementById("cf_fast_keyrow"); if (kr) kr.innerHTML = providerKeyRow(p);
     };
 
+    // preset de Brain Workers → guarda la TERNA de golpe (proveedor + endpoint + modelo) y recarga
+    bodyEl.querySelectorAll(".cf-preset").forEach(b => b.onclick = () => {
+      const presets = (cfg.catalog.code_agent && cfg.catalog.code_agent.presets) || [];
+      const p = presets.find(x => x.id === b.dataset.preset);
+      if (p) savePreset(p, b);
+    });
+
     // proveedor de los Brain Workers → repuebla SUS modelos (el bug que traía al operador aquí: cambiaba a Codex
     // y los cinco campos seguían con los `glm-5.2` del proveedor anterior, que Codex no sirve), su nota de
     // seguridad y el estado del CLI. Los modelos NO se conservan al cambiar: son de otro proveedor.
@@ -305,6 +338,21 @@ export function ConfigPanel() {
       const r = await api.saveConfigV2(section, patch);
       msg(r.ok ? t("config.msg.saved_next_turn") : ("✗ " + (r.error || t("config.msg.error"))));
       api.uiEvent("config.save", { section });
+    } catch (e) { msg(t("config.msg.error_saving")); } finally { btn.disabled = false; }
+  }
+
+  async function savePreset(p, btn) {
+    btn.disabled = true; msg(t("config.msg.saving"));
+    try {
+      // Los `model_<kind>` se LIMPIAN a propósito: son de otro proveedor y arrastrarlos es exactamente el desajuste
+      // que el preset viene a evitar.
+      const r = await api.saveConfigV2("code_agent", {
+        provider: p.provider, base_url: p.base_url || "", model: p.model || "",
+        model_memory: "", model_web: "", model_code: "",
+      });
+      msg(r.ok ? "✓ " + p.label : ("✗ " + (r.error || t("config.msg.error"))));
+      api.uiEvent("config.save", { section: "code_agent", preset: p.id });
+      if (r.ok) await load();
     } catch (e) { msg(t("config.msg.error_saving")); } finally { btn.disabled = false; }
   }
 

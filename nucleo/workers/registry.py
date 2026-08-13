@@ -13,7 +13,7 @@ import os
 
 from .base import WorkerBackend, WorkerSpec
 
-_BACKENDS = {"claude_code", "codex"}
+_BACKENDS = {"claude_code", "codex", "grok_build"}
 
 
 def _provider_for(kind: str) -> str:
@@ -71,6 +71,12 @@ def get_backend(spec: "WorkerSpec") -> "WorkerBackend":
         else:
             from .codex_session import CodexSession
             return CodexSession()
+    if prov == "grok_build":
+        # Grok Build NO necesita el desvío de arriba: acepta nuestras reglas `Bash(...)` y las APLICA (probado), así
+        # que puede sostener el invariante del escritor único igual que Claude Code — incluida una tarea con
+        # `deny_tools`, que arranca sin ninguna tool.
+        from .grok_session import GrokSession
+        return GrokSession()
     # default + fail-safe
     from .claude_session import ClaudeCodeSession
     return ClaudeCodeSession()
