@@ -7,6 +7,7 @@
 # Ejecutar: .venv/bin/pytest tests/agent_headless/unit/test_dispatch.py
 #
 import asyncio
+import pathlib
 
 import pytest
 
@@ -459,3 +460,52 @@ def test_the_architect_connector_name_still_matches_bare():
     """`architect` SÍ se queda a secas a propósito: es el nombre de nuestro conector, no una palabra del habla."""
     assert dispatch._ARCHITECT_RE.search("architect") is not None
     assert dispatch._ARCHITECT_RE.search("proyecto") is None
+
+
+# ── PERDER EL BRIEF NO PUEDE COSTAR LA MITAD DEL TIEMPO (defecto del banco 2026-08-13) ────────────────────────
+# El fail-open del compositor es correcto —mejor arrancar sin dirigir que no arrancar— pero arrastraba un coste
+# OCULTO: la promoción a `research` (1200 s) colgaba de que HUBIERA brief, así que un compositor que tardaba >30 s
+# dejaba la tarea en `generic` (600 s). El worker murió a los 704 s con el navegador a medias: el mismo «agotó su
+# tiempo» que la promoción existe para cerrar. Y todo por un `None` que significaba DOS cosas distintas.
+def test_the_composer_distinguishes_declining_from_being_unable_to_answer():
+    """«esto no es una investigación» (decisión del modelo, presupuesto normal) NO es «no pude contestar» (avería
+    nuestra, el presupuesto se mantiene). Con un solo `None` para ambas, la costura era inexpresable."""
+    from nucleo import research
+    assert research._declined('{"research": false}') is True
+    assert research._declined('{"research": true, "breadth": {}}') is False
+    assert research._declined("lo siento, no puedo con esto") is False      # no contestó: NO es un rechazo suyo
+    assert research._declined('{"research": tru') is False                 # JSON roto: tampoco
+
+
+def test_a_dead_composer_costs_direction_never_time(fresh_db, monkeypatch):
+    """Con el compositor caído la tarea sale SIN dirigir (sin amplitud ni baremo) pero con el presupuesto de una
+    investigación — que la petición SEA una investigación no depende de que el compositor esté vivo."""
+    from nucleo import research
+    from nucleo.loop import OrchestratorLoop
+    rec = dispatch.SessionRecord(task_id="c1", goal="busca vacaciones en Baleares", kind="generic")
+    dispatch._SESSIONS["c1"] = rec
+    try:
+        async def _boom(*a, **k):
+            raise research.ComposerUnavailable("timeout")
+        monkeypatch.setattr(dispatch, "_compose_brief", _boom)
+        # se reproduce la rama de `_run_session` que atiende la avería
+        brief = None
+        try:
+            brief = asyncio.run(dispatch._compose_brief("busca vacaciones", "", True))
+        except research.ComposerUnavailable:
+            if rec.kind == "generic":
+                rec.kind = "research"
+                rec.label = dispatch._default_label("research", rec.goal)
+        assert brief is None, "sin brief: la búsqueda va sin dirigir, eso es lo que se pierde"
+        assert rec.kind == "research", "…pero NO sin tiempo"
+        assert OrchestratorLoop()._budget_for(rec.kind) == 1200.0
+    finally:
+        dispatch._SESSIONS.pop("c1", None)
+
+
+def test_the_fail_open_still_lets_the_task_out():
+    """Lo que NO puede pasar por arreglar el presupuesto: que un compositor caído impida salir a la tarea. La
+    excepción se captura en `_run_session` y el worker arranca igual — el fail-open sigue siendo fail-open."""
+    src = pathlib.Path(dispatch.__file__).read_text(encoding="utf-8")
+    assert "except research.ComposerUnavailable:" in src
+    assert "raise research.ComposerUnavailable" not in src      # dispatch la ATIENDE, nunca la propaga al operador

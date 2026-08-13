@@ -218,7 +218,9 @@ def test_the_killswitch_turns_it_off_completely(monkeypatch):
 
 def test_a_slow_composer_never_holds_the_task_hostage(monkeypatch):
     """Un proveedor atascado no puede impedir que la tarea arranque: mejor un worker sin dirigir —como salía antes—
-    que una escalada que no sale."""
+    que una escalada que no sale. Lo que CAMBIÓ el 2026-08-13 es la FORMA de decirlo: la avería sube como
+    `ComposerUnavailable` y `dispatch` la atiende, en vez de un `None` que se confundía con «esto no es una
+    investigación» y por esa confusión le quitaba a la tarea la mitad de su presupuesto (ver la clase)."""
     monkeypatch.setenv("ZAELAR_RESEARCH", "1")
 
     class _Hung:
@@ -228,7 +230,8 @@ def test_a_slow_composer_never_holds_the_task_hostage(monkeypatch):
 
     monkeypatch.setattr(research, "_spec", lambda: object())
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient", lambda *a, **k: _Hung())
-    assert asyncio.run(research.compose("busca las mejores vacaciones", timeout=0.2)) is None
+    with pytest.raises(research.ComposerUnavailable):
+        asyncio.run(research.compose("busca las mejores vacaciones", timeout=0.2))
 
 
 def test_a_broken_composer_fails_open(monkeypatch):
@@ -240,13 +243,15 @@ def test_a_broken_composer_fails_open(monkeypatch):
 
     monkeypatch.setattr(research, "_spec", lambda: object())
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient", lambda *a, **k: _Boom())
-    assert asyncio.run(research.compose("busca las mejores vacaciones")) is None
+    with pytest.raises(research.ComposerUnavailable):
+        asyncio.run(research.compose("busca las mejores vacaciones"))
 
 
 def test_no_provider_means_no_brief_not_a_crash(monkeypatch):
     monkeypatch.setenv("ZAELAR_RESEARCH", "1")
     monkeypatch.setattr(research, "_spec", lambda: None)
-    assert asyncio.run(research.compose("busca las mejores vacaciones")) is None
+    with pytest.raises(research.ComposerUnavailable):
+        asyncio.run(research.compose("busca las mejores vacaciones"))
 
 
 def test_a_good_composer_produces_a_directed_brief(monkeypatch):
@@ -403,3 +408,33 @@ def test_the_delivery_is_ranked_and_the_order_is_the_ranking():
     assert "ORDENADAS DE MEJOR A PEOR" in block
     assert "nº1" in block and "nº10" in block
     assert "score" in block and "why" in block, "una nota sin porqué no se puede discutir"
+
+
+def test_declining_is_not_an_outage_and_keeps_the_normal_budget(monkeypatch):
+    """La otra mitad del contrato: si el compositor CONTESTA que esto no pide amplitud ni baremo, eso es una
+    decisión suya y no una avería — devuelve `None` y la tarea corre con el presupuesto que le toca. Sin esta
+    distinción, cualquier charla habría heredado el presupuesto de una investigación."""
+    monkeypatch.setenv("ZAELAR_RESEARCH", "1")
+
+    class _No:
+        async def complete(self, *a, **k):
+            return '{"research": false, "why": "es una pregunta, no una selección"}'
+
+    monkeypatch.setattr(research, "_spec", lambda: object())
+    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", lambda *a, **k: _No())
+    assert asyncio.run(research.compose("¿qué hora es?")) is None
+
+
+def test_an_unreadable_answer_is_an_outage_not_a_decline(monkeypatch):
+    """Un compositor que contesta algo ilegible NO ha decidido que esto no sea una investigación: se ha averiado.
+    Tratarlo como un rechazo suyo es justo lo que le quitaba el tiempo a la tarea."""
+    monkeypatch.setenv("ZAELAR_RESEARCH", "1")
+
+    class _Garbage:
+        async def complete(self, *a, **k):
+            return "claro, te preparo un brief… (y aquí se cortó)"
+
+    monkeypatch.setattr(research, "_spec", lambda: object())
+    monkeypatch.setattr("nucleo.flash.fast_client.FastClient", lambda *a, **k: _Garbage())
+    with pytest.raises(research.ComposerUnavailable):
+        asyncio.run(research.compose("busca las mejores vacaciones"))

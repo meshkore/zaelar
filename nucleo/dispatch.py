@@ -1324,7 +1324,22 @@ async def _run_session(task: "Task") -> None:
         # código no pasa por aquí: su dirección es el repo, no un espacio de candidatos.
         brief = None
         if not _dev:
-            brief = await _compose_brief(req, ctx, trusted, resume)
+            try:
+                brief = await _compose_brief(req, ctx, trusted, resume)
+            except research.ComposerUnavailable:
+                # El compositor no pudo contestar. El fail-open (arrancar sin dirigir) es correcto, pero NO puede
+                # arrastrar consigo la mitad del presupuesto: que esto sea una investigación no depende de que el
+                # compositor esté vivo. Se promociona el kind IGUAL — cuesta DIRECCIÓN, no TIEMPO. Medido en el
+                # banco del 2026-08-13: el compositor tardó >30 s, la tarea se quedó en `generic` (600 s) y el
+                # worker murió a los 704 s con el navegador a medias, el mismo «agotó su tiempo» que la promoción
+                # de abajo existe para cerrar.
+                brief = None
+                if kind == "generic":
+                    rec.kind = "research"
+                    rec.label = _default_label("research", req)
+                    logger.info(f"dispatch: tarea {key} SIN brief (compositor caído) pero con presupuesto de "
+                                f"investigación · kind={rec.kind}")
+                    sync_state()
             if brief:
                 research.save(key, brief)
                 research.remember_round(_goal_key(req), brief)   # para que una 2ª petición continúe, no reempiece

@@ -282,8 +282,35 @@ def enabled() -> bool:
     return bool(v)
 
 
+class ComposerUnavailable(Exception):
+    """El compositor NO PUDO contestar (timeout, sin proveedor, respuesta ilegible) — distinto de que contestara
+    «esto no es una investigación».
+
+    Existen como dos cosas separadas porque `None` para ambas costó una tarea entera (banco del 2026-08-13). El
+    fail-open es correcto —mejor arrancar sin dirigir que no arrancar— pero tenía un coste OCULTO: `dispatch`
+    promociona el kind a `research` (1200 s) solo cuando HAY brief, así que un compositor caído dejaba además la
+    tarea en `generic` = 600 s. El worker murió conminado a «entrega ya» a los 704 s con el navegador a medias,
+    que es EXACTAMENTE el síntoma que la promoción de kind existe para cerrar. Perder el brief tiene que costar
+    DIRECCIÓN, nunca TIEMPO: que la petición sea una investigación no depende de que el compositor esté vivo."""
+
+
+def _declined(raw: str) -> bool:
+    """¿El compositor CONTESTÓ que esto no es una investigación? (frente a no haber podido contestar). Solo cuenta
+    como decisión suya si su JSON llegó entero y legible con `research` en falso."""
+    s = (raw or "").strip()
+    i, j = s.find("{"), s.rfind("}")
+    if i < 0 or j <= i:
+        return False
+    try:
+        p = json.loads(s[i:j + 1])
+    except Exception:
+        return False
+    return isinstance(p, dict) and not p.get("research")
+
+
 async def compose(request: str, context: str = "", *, timeout: float = _COMPOSE_TIMEOUT) -> dict | None:
-    """Petición cruda → brief estructurado. None = «no es una investigación» o el compositor no está disponible.
+    """Petición cruda → brief estructurado. `None` = el compositor dijo que **no es una investigación**;
+    `ComposerUnavailable` = no pudo contestar (ver esa clase: la diferencia vale medio presupuesto).
 
     FAIL-OPEN Y RUIDOSO: sin brief el worker sale exactamente como salía antes (no se pierde la escalada), pero se
     registra el motivo — un fail-open silencioso aquí escondería que TODAS las búsquedas volvieron a ser
@@ -296,7 +323,7 @@ async def compose(request: str, context: str = "", *, timeout: float = _COMPOSE_
         spec = _spec()
         if spec is None:
             logger.warning("research: sin proveedor disponible para el compositor — el worker sale SIN brief")
-            return None
+            raise ComposerUnavailable("sin proveedor")
         from nucleo.dispatch import _today_block
         out = await asyncio.wait_for(
             FastClient().complete(build_messages(req, context, _today_block()), spec=spec, max_tokens=1600),
@@ -304,13 +331,18 @@ async def compose(request: str, context: str = "", *, timeout: float = _COMPOSE_
     except asyncio.TimeoutError:
         logger.warning(f"research: el compositor no contestó en {timeout:.0f}s — el worker arranca SIN brief "
                        "(búsqueda sin dirigir); mejor eso que dejar la tarea sin salir")
-        return None
+        raise ComposerUnavailable("timeout") from None
+    except ComposerUnavailable:
+        raise
     except Exception as e:  # noqa: BLE001
         logger.warning(f"research: el compositor falló ({e}) — el worker sale SIN brief (búsqueda sin dirigir)")
-        return None
+        raise ComposerUnavailable(str(e)) from None
     brief = parse(out)
     if brief is None:
-        return None
+        if _declined(out):
+            return None                   # decisión SUYA: no pide amplitud ni baremo → presupuesto normal
+        logger.warning("research: el compositor contestó algo ilegible — el worker sale SIN brief")
+        raise ComposerUnavailable("respuesta ilegible")
     brief["request"] = req[:600]
     return brief
 
