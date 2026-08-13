@@ -37,6 +37,13 @@ _lock = threading.Lock()
 _user: dict = {"id": None}
 _session: dict = {"id": None, "started_ms": None, "source": ""}
 
+# Techo de INACTIVIDAD REAL (operador, 2026-08-13): sin esto una sesión vive en RAM hasta que ⏻/pestaña la
+# cierren EXPLÍCITAMENTE, y si esa señal no llega (red cortada, pestaña matada sin `pagehide`) sigue viva para
+# siempre, acumulando eventos de tramos de trabajo que no tienen nada que ver entre sí. Red de seguridad, no
+# sustituye al cierre explícito — solo actúa cuando ese cierre no llegó.
+IDLE_TIMEOUT_MS = int(os.getenv("ZAELAR_SESSION_IDLE_MIN", "5")) * 60_000
+_last_real_activity_ms: dict = {"v": None}
+
 
 def _identity_file() -> Path:
     return _workspace.root() / "config" / "identity.json"
@@ -116,6 +123,22 @@ def end_session(reason: str = "frontend") -> dict:
         _emit_session("end", info, extra={"reason": (reason or "")[:40], "duration_ms": dur})
         _report_to_control_plane("end", info)
     return info
+
+
+def note_real_activity() -> None:
+    """Marca que ha habido actividad REAL (voz/worker/memoria/widget — nunca ruido de fondo como homeostasis/
+    pulso/cron). Si la sesión abierta lleva más de `IDLE_TIMEOUT_MS` sin ninguna, la CIERRA (mismo camino que ⏻,
+    reporta `end_session('idle_timeout')` al timeline y al control-plane) y la deja cerrada: el siguiente
+    `session_id()` abrirá una nueva sola. Solo la actividad REAL cuenta para el reloj — si el pulso lo extendiera,
+    una máquina viva pero sin uso jamás rotaría; si el pulso pudiera disparar la rotación, una máquina inactiva
+    rotaría en cada tick del pulso. Con este filtro: ni una cosa ni la otra — solo el hueco real importa."""
+    now = round(time.time() * 1000)
+    with _lock:
+        last = _last_real_activity_ms["v"]
+        idle = bool(_session["id"] and last is not None and (now - last) > IDLE_TIMEOUT_MS)
+        _last_real_activity_ms["v"] = now
+    if idle:
+        end_session("idle_timeout")
 
 
 def session_info() -> dict:

@@ -345,6 +345,15 @@ def stamp_identity(ev: dict) -> dict:
     # `cat`, o sea a la fila «Sin clasificar» — que es justo lo que el operador vio con los eventos de memoria.
     if "cat" not in ev:
         ev["cat"] = _CAT.get(str(ev.get("kind") or ""), "other")
+    # Techo de inactividad (2026-08-13): solo la actividad REAL (no ruido de fondo `system`/`pulse`) cuenta para
+    # el reloj de sesión — va ANTES de resolver `sid` para que, si toca rotar, este mismo evento ya se estampe
+    # con la sesión NUEVA. Ver `observability/identity.py::note_real_activity`.
+    try:
+        if ev.get("cat") not in ("system", "pulse"):
+            from observability import identity as _ident
+            _ident.note_real_activity()
+    except Exception:
+        pass
     if "uid" in ev and "sid" in ev:
         return ev
     try:
