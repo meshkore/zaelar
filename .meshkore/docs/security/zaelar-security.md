@@ -1,7 +1,7 @@
 ---
 title: Zaelar Security
 category: security
-updated: 2026-07-25
+updated: 2026-08-13
 owner: ricart
 status: current
 ---
@@ -254,6 +254,44 @@ so zaelar can serve them on request without them ever sitting in the clear.
   ("modo máxima seguridad", "no me digas secretos por voz") persisted as **HARD user rules** enforced by a
   **deterministic code gate at output** — soft/style rules (V2-046) guide by prompt; security rules are inviolable
   and change only by explicit command or the ⚙.
+
+## Request admission — when the process is not the boundary (`server/ingress.py`, 2026-08-13)
+
+A single-process install serves whoever reaches it, and that is correct: the operator runs it, the operator owns
+it, and the machine it runs on is the boundary. That assumption stops holding in one specific shape — **several
+processes behind ONE hostname, each holding a different person's data**. There, "whichever process the edge
+happened to pick answered" is not a routing detail; it is the wrong process answering.
+
+`nucleo/account_routing.is_account_routing_machine()` says whether this process is in that shape (two env reads,
+default false). When it is, `server/ingress.py` admits a request only after this process has ESTABLISHED that the
+request's session belongs to it. Every other case refuses:
+
+| Case | Result |
+|---|---|
+| path on the public allowlist (`/`, `/static/*`, `/favicon.ico`, `/healthz`) | serve |
+| no session credential | 401 |
+| resolver not configured / no process identity | 503 |
+| resolver unreachable, timed out, or rejected our lookup | 503 |
+| credential the resolver does not recognise | 401 |
+| credential that resolves to ANOTHER process | handed over, not answered here |
+| credential that resolves here | serve |
+
+Three properties worth keeping when this code is touched:
+
+- **The resolver's answer is three-valued** (`RESOLVED` / `NO_SESSION` / `UNAVAILABLE`), never an `Optional`. A
+  timeout is not an authorization, and a rejection of OUR credential is not a verdict on the visitor — reporting
+  it as "not a session" would turn one credential mistake into a silent mass logout.
+- **Public is an ALLOWLIST.** A route added tomorrow is closed until someone opens it deliberately. The previous
+  design protected whichever routes their authors happened to protect.
+- **`/` stays public**, and not for convenience: it is the app shell (identical everywhere, nobody's data) and the
+  path a platform health check fetches. A probe that fails takes the process out of rotation — "secure but
+  receiving no traffic" is not a win.
+
+Why this is written as mechanism and not as a policy: whether a deployment is in that shape is decided by its
+configuration, not by this repo. A self-hosted install never enters any of it.
+
+Verified by nodo 7.11 of the test map. This replaced a middleware that served the request in all four refusal
+rows above; each of those was a deliberate fail-open, and together they were a live data-exposure surface.
 
 ## Secrets
 

@@ -1595,6 +1595,30 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   (`server/__init__.py`); `services/sse.js` hace `store.bumpMemory()`; `MemoryMap` re-fetchea (debounced) SOLO si
   está abierto. Tema `--hb-*` (cero hex).
 
+- **ADMISIÓN — cuando el proceso NO es la frontera, sin sesión verificada no se sirve nada**
+  (`server/ingress.py`, 2026-08-13; doc: `.meshkore/docs/security/zaelar-security.md §Request admission`):
+  una instalación de un solo proceso sirve a quien llegue, y está bien — la máquina donde corre ES la frontera.
+  Esa premisa se cae en UNA forma concreta: **varios procesos detrás de UN hostname, cada uno con los datos de
+  una persona distinta**. Ahí «contestó el proceso que el borde eligió» no es un detalle de routing, es el
+  proceso equivocado contestando.
+  - `nucleo/account_routing.is_account_routing_machine()` dice si este proceso está en esa forma (dos lecturas
+    de entorno, default falso). Si lo está, `server/ingress.py` solo admite una petición **después** de
+    establecer que su sesión es de ESTE proceso; todo lo demás se rechaza (401 sin credencial, 503 si no se
+    puede verificar, entrega al proceso dueño si es de otro).
+  - **La respuesta del resolver es de TRES valores** (`RESOLVED`/`NO_SESSION`/`UNAVAILABLE`), nunca un
+    `Optional`. Antes un `None` significaba a la vez «no es una sesión» y «no pude preguntar», y el llamante
+    leía las dos como permiso: **un timeout no es una autorización**. Y un rechazo de NUESTRA credencial no es
+    un veredicto sobre el visitante — tratarlo como «no es sesión» convertiría un error de credencial en un
+    cierre de sesión masivo y mudo en vez de en una avería visible.
+  - **Lo público es una ALLOWLIST** (shell, `/static/*`, `/favicon.ico`, `/healthz`): una ruta nueva nace
+    cerrada. El diseño anterior protegía las rutas cuyo autor se acordó de protegerlas.
+  - **`/` se queda pública**, y no por comodidad: es el shell (idéntico en todo proceso, de nadie) y la ruta que
+    busca el health-check de la plataforma. Un probe que falla saca al proceso de rotación — «seguro pero sin
+    tráfico» no es una victoria. `/healthz` existe para cuando toda la flota lleve la imagen nueva.
+  - La decisión está aislada en una función PURA (`decide`, cinco entradas) → se prueba sin servidor, sin red y
+    sin reloj. Nodo 7.11. Sustituye a un middleware que servía en **las cuatro** ramas de rechazo, las cuatro
+    comentadas como fail-open deliberado.
+
 - **PARAR ES PARAR — el interruptor global vive en el SERVIDOR, y un widget DECLARA lo que produce** (V2-092,
   `nucleo/runstate.py` + `widgets/producers.py`, iniciativa `V2-092-parar-es-parar.md`; fallo real del operador
   2026-08-13): el ⏻ paraba la voz (V2-039) y congelaba los Brain Workers (V2-065, SIGSTOP), pero su estado vivía en

@@ -21,6 +21,15 @@ async def home():
     return FileResponse(front("index.html"), headers={"Cache-Control": "no-store, max-age=0"})
 
 
+@router.get("/healthz")
+async def healthz():
+    """LIVENESS only: "this process is answering HTTP". Deliberately says nothing else — it is one of
+    the few paths a supervisor can reach without a session (server/ingress.py), so anything it
+    reported would be readable by anyone who can reach the port. Whether the process is READY to do
+    work is a different question with a different answer (/api/status, behind admission)."""
+    return {"ok": True}
+
+
 @router.get("/debug")
 async def debug_page():
     return FileResponse(front("pages", "debug.html"), headers={"Cache-Control": "no-store, max-age=0"})

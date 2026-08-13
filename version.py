@@ -11,11 +11,10 @@ import os
 import subprocess
 import time
 
-# Versión semántica del motor — súbela al cerrar un bloque de cambios notable (última: tercer backend de Brain
-# Worker Grok Build + presets de proveedor · pila de Energy visible antes de agotarse · sello de versión también
-# en el proveedor de producción · rehidratación de workers/escritorio · techo de inactividad de la sesión de
-# trabajo, 5 min sin actividad real cierra y abre una nueva).
-VERSION = "2.94"
+# Versión semántica del motor — súbela al cerrar un bloque de cambios notable (última: ADMISIÓN de peticiones —
+# un proceso que comparte hostname con otros solo sirve una petición cuya sesión ha verificado que es suya; el
+# resolver pasa a responder tres valores en vez de un Optional, porque un timeout no es una autorización).
+VERSION = "2.95"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CACHE: dict = {}

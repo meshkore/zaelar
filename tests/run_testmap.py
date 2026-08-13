@@ -305,6 +305,14 @@ DOMAINS: list[dict] = [
         # `settings.load_into_env`). No es que fallaran: es que no se podía confiar en el verde.
         {"id": "7.10", "title": "Aislamiento de la suite (la máquina del que corre no decide el resultado)",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_suite_isolation.py"]},
+        # 2026-08-13: el middleware de routing servía en LAS CUATRO ramas de rechazo (sin cookie, sin
+        # config, lookup caído, token no reconocido). No era una debilidad teórica: una GET anónima al
+        # hostname compartido devolvía datos de un inquilino. Estos casos fijan las cuatro cerradas y,
+        # a la vez, lo que NO puede cerrarse (shell, assets, sonda de vida — cerrar la sonda deja al
+        # proceso sin tráfico).
+        {"id": "7.11", "title": "Admisión de peticiones: sin sesión verificada no se sirve nada",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/core/test_ingress.py",
+                                  "tests/agent_headless/unit/test_account_routing.py"]},
         {"id": "7.3", "title": "Chat por transporte LiveKit REAL", "ch": CHAT, "live": True,
             "cmd": "./.venv/bin/python tests/infrastructure/e2e/smoke/run_chat_over_livekit.py"},
         {"id": "7.4", "title": "Smoke INTEGRAL de salud", "ch": HTTP, "live": True,
