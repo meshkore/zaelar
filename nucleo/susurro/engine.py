@@ -174,6 +174,13 @@ async def _audit(reason: str, signals: list[str], trace: str):
             cut = time.time() - recent_s
             tr = [t for t in _TURN_RING if float(t.get("ts") or 0) >= cut][-(turns):]
             er = [e for e in _EVENT_RING if float(e.get("ts") or 0) >= cut][-16:]
+            # SIN CONVERSACIÓN NO HAY AUDITORÍA (2026-08-13, ver `window.has_conversation` para el incidente):
+            # un auditor de conversaciones sin conversación no se calla, RELLENA — y con `worker_action` habilitado
+            # ese relleno se convierte en una acción real sobre el mundo. Abstenerse es gratis.
+            if not await asyncio.to_thread(window.has_conversation, turns):
+                _emit("🤐 auditoría OMITIDA (ventana sin conversación)", text=reason,
+                      extra={"reason": reason, "signals": signals[:4]})
+                return
             doc = await asyncio.to_thread(
                 window.compose_audit_window, reason=reason, signals=signals,
                 turn_ring=tr, event_ring=er, turns=turns)
@@ -194,7 +201,7 @@ async def _audit(reason: str, signals: list[str], trace: str):
                 _emit("⚠️ respuesta no parseable (fail-open)", text=(content or "")[:200])
                 return
             ok, downgraded = catalog.validate(parsed)
-            applied = apply.apply_corrections(ok + downgraded, reason=reason, trace=trace)
+            applied = apply.apply_corrections(ok + downgraded, reason=reason, trace=trace, window=doc)
             _stats["audits"] += 1
             _stats["corrections_applied"] += len(applied)
             _emit("✅ auditoría completa",

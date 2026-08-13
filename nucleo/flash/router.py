@@ -1002,10 +1002,34 @@ _CREATE_WIDGET_RE = _re.compile(
     r"|(\b" + _WIDGET_SYN + r"\b[^.!?]{0,25}\bnuev[oa]\b)|(\bnuev[oa]\b[^.!?]{0,12}\b" + _WIDGET_SYN + r"\b)", _re.I)
 
 
+# UN WIDGET NOMBRADO COMO DESTINO NO ES UN WIDGET QUE HAYA QUE PROGRAMAR (2026-08-13).
+#
+# Incidente que lo motiva: una investigación de viaje (ferry + hotel + restaurante) acabó en el GENERADOR DE
+# WIDGETS, que se puso a escribir código de un widget nuevo llamado `prepara-ricart-viaje` en vez de buscar nada.
+# Causa única: la última frase de la escalada era «Entrega el resultado MONTADO en el widget results…». `mont\w*`
+# es verbo de crear y `widget` estaba a nueve caracteres → CREATE. O sea que **pedir que el resultado se entregue
+# en la hoja de resultados desviaba la tarea al generador**, y la hoja de resultados es JUSTO la superficie de
+# entrega de toda investigación: el fallo estaba en el camino más transitado del producto.
+#
+# La distinción no es una lista de excepciones ([[feedback_no_hardcoded_understand]]) sino GRAMÁTICA: cuando el
+# widget va detrás de una preposición de destino («en el widget», «al panel», «dentro de la tarjeta», «into the
+# widget»), es el SITIO DONDE VA el resultado, no la cosa que se construye. El verbo que aparezca antes describe
+# qué se pone ahí. Se neutralizan esas menciones ANTES de buscar el patrón de crear, así una frase que traiga las
+# DOS cosas («créame un panel y entrégalo en el widget results») sigue detectando el create de verdad.
+# OJO con la preposición castellana «a» SUELTA: colisiona con el artículo INGLÉS «a» y neutralizaba
+# «build me A WIDGET that tracks my steps», que es un create de libro. Se queda `al` (la contracción que es la que
+# de verdad aparece: «al widget»); «a el widget» no es castellano.
+_WIDGET_DEST_RE = _re.compile(
+    r"\b(?:en|al|sobre|dentro\s+de|dentro\s+del|hacia)\s+(?:el\s+|la\s+|los\s+|las\s+)?" + _WIDGET_SYN + r"\b"
+    r"|\b(?:into|in|on)\s+(?:the\s+)?" + _WIDGET_SYN + r"\b", _re.I)
+
+
 def looks_like_create_widget(text: str) -> bool:
-    """True si el turno pide CREAR/GENERAR un widget NUEVO (→ escalate al generador), no mostrar uno existente.
-    GUARD de ejecución de show_widget: si el modelo elige show_widget para un CREATE, se redirige a escalar."""
-    return bool(_CREATE_WIDGET_RE.search(_norm_txt(text)))
+    """True si el turno pide CREAR/GENERAR un widget NUEVO (→ escalate al generador), no mostrar uno existente ni
+    ENTREGAR algo dentro de uno. GUARD de ejecución de show_widget: si el modelo elige show_widget para un CREATE,
+    se redirige a escalar."""
+    t = _WIDGET_DEST_RE.sub(" <destino> ", _norm_txt(text))
+    return bool(_CREATE_WIDGET_RE.search(t))
 
 
 # PROMESA SIN ACCIÓN (2026-07-19, mar de testing): el no-razonador, ante fraseo CORTÉS/indirecto/subjuntivo

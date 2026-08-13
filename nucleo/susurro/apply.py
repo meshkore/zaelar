@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import time
 from collections import deque
 
@@ -88,9 +89,34 @@ def _known_finding_keys(path: str) -> set[str]:
     return keys
 
 
+_STOP = {"de", "la", "el", "los", "las", "un", "una", "en", "y", "a", "que", "del", "al", "por", "con", "para",
+         "lo", "se", "su", "sus", "es", "the", "and", "for", "with", "to", "of", "in", "on", "it", "is"}
+
+
+def _grounded(request: str, window: str) -> bool:
+    """¿La acción propuesta habla de algo que está EN LA VENTANA, o se la ha inventado?
+
+    Segunda defensa del incidente 2026-08-13 (la primera es no auditar sin conversación, en `window.py`). Aun con
+    ventana, un auditor puede irse por su cuenta y proponer una acción sobre el mundo que nadie pidió; ahí lo hizo
+    copiando el caso de EJEMPLO de su propio prompt de sistema. `worker_action` es la ÚNICA corrección que ACTÚA,
+    así que es la única que exige anclaje: al menos dos palabras de contenido de la petición tienen que aparecer en
+    la ventana auditada. No es comprensión semántica y no pretende serlo — es un cinturón barato contra el texto
+    que viene de fuera de la conversación. Fail-OPEN si no hay ventana con la que comparar (no se rompe nada que
+    funcionara), fail-CLOSED cuando hay ventana y la petición no aparece en ella."""
+    win = (window or "").lower()
+    if not win:
+        return True
+    words = {w for w in re.findall(r"[a-záéíóúñü]{4,}", (request or "").lower()) if w not in _STOP}
+    if not words:
+        return True
+    hits = sum(1 for w in words if w in win)
+    return hits >= 2
+
+
 def apply_corrections(corrections: list[dict], *, reason: str, trace: str = "",
-                      findings_path: str | None = None) -> list[dict]:
-    """Aplica F1 (repair_say + finding). Devuelve un registro por corrección con before/after + estado."""
+                      findings_path: str | None = None, window: str = "") -> list[dict]:
+    """Aplica F1 (repair_say + finding) + F2 (worker_action). Devuelve un registro por corrección con
+    before/after + estado. `window` = el documento auditado, para exigir ANCLAJE a la única corrección que ACTÚA."""
     findings_path = findings_path or FINDINGS_PATH
     applied: list[dict] = []
     known = None
@@ -128,8 +154,13 @@ def apply_corrections(corrections: list[dict], *, reason: str, trace: str = "",
             ok = False
             dup = ""
             breaker = False
+            ungrounded = False
             now = time.time()
-            if req and _breaker_tripped(now):
+            if req and not _grounded(req, window):
+                # La acción no habla de nada que esté en la ventana → viene de fuera de la conversación. Se
+                # DEGRADA a finding (queda registrada para el dev-loop) en vez de ejecutarse.
+                ungrounded = True
+            elif req and _breaker_tripped(now):
                 breaker = True
                 global _breaker_notified_at
                 if now - _breaker_notified_at > _BREAKER_RENOTIFY_S:
@@ -171,8 +202,9 @@ def apply_corrections(corrections: list[dict], *, reason: str, trace: str = "",
                     except Exception:
                         ok = False
             rec = {"type": "worker_action", "ok": ok, "before": None, "after": req,
-                   "child": child, "dedup": bool(dup), "breaker": breaker}
-            _emit(("🛑 worker_action (circuito ABIERTO, no escala — anti-bucle)" if breaker else
+                   "child": child, "dedup": bool(dup), "breaker": breaker, "ungrounded": ungrounded}
+            _emit(("🚫 worker_action DESCARTADA (no aparece en la ventana — probable invención)" if ungrounded else
+                   "🛑 worker_action (circuito ABIERTO, no escala — anti-bucle)" if breaker else
                    "🚀 worker_action → escalada" if ok else
                    ("🧵 worker_action (ya hay un worker vivo, no duplica)" if dup else
                     "⚠️ worker_action no lanzada")),

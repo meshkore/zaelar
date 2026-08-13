@@ -9,6 +9,8 @@ Cada bloque fija una regresión observada en la traza real (`.meshkore/logs/time
   · `dialog.push_user` — el STT partió la petición en 6 trozos; cada turno pisaba al anterior y el `raise` del
                          CancelledError se llevaba la frase del operador → el cerebro nunca vio la palabra "piscina".
 """
+import pytest as _pytest
+
 from nucleo import danger
 from nucleo.dispatch import _classify_kind
 from nucleo.flash import dialog
@@ -129,3 +131,49 @@ def test_entering_a_real_site_still_goes_to_the_browser():
         "automatiza la reserva en el sitio de la ITV",
     ):
         assert _classify_kind(req) == "web", req
+
+
+# ── UN WIDGET COMO DESTINO NO ES UN WIDGET QUE PROGRAMAR (2026-08-13) ─────────────────────────────────────────
+@_pytest.mark.parametrize("text,is_create", [
+    # DESTINO de la entrega → NO es código. La primera es el caso REAL que hundió una investigación entera.
+    ("Entrega el resultado montado en el widget results con las 3 secciones claras y los enlaces", False),
+    ("pon los hoteles en el widget de resultados", False),
+    ("muestra el informe en el panel de resultados", False),
+    ("deliver the result into the widget results", False),
+    # OJO: «añade una columna al widget de agenda» NO se lista aquí. No es un create (y `looks_like_create_widget`
+    # dice False), pero SÍ es código: cambiar las columnas de un widget es modificar su UI, y `_classify_kind` lo
+    # manda al generador por `_MODIFY_CODE_RE`, que es lo correcto. Se comprueba aparte, abajo.
+    # CREATE de verdad → sí es código
+    ("créame un widget del tiempo de Soria", True),
+    ("hazme un panel con la cotización del bitcoin", True),
+    ("monta un widget nuevo para las mareas", True),
+    ("build me a widget that tracks my steps", True),          # ojo: «a widget» ≠ preposición castellana «a»
+    ("create a new panel for the tides", True),
+    ("créame un panel de mareas y entrégalo en el widget results", True),   # las DOS: gana el create real
+])
+def test_a_widget_named_as_a_destination_is_not_code(text, is_create):
+    """Una investigación de viaje (ferry+hotel+restaurante) acabó en el GENERADOR DE WIDGETS, escribiendo el código
+    de un widget nuevo `prepara-ricart-viaje` en vez de buscar nada. Causa única: la escalada terminaba en «Entrega
+    el resultado MONTADO en el widget results», y `mont\\w*` es verbo de crear con `widget` a nueve caracteres.
+
+    O sea que pedir la entrega EN LA HOJA DE RESULTADOS desviaba la tarea al generador — y la hoja de resultados es
+    justo la superficie de entrega de toda investigación: el fallo vivía en el camino más transitado del producto.
+
+    La distinción no es una lista de excepciones: es GRAMÁTICA. Detrás de una preposición de destino («en el
+    widget», «al panel», «into the widget») el widget es el SITIO donde va el resultado, no la cosa que se
+    construye. Misma familia que V2-081 (mostrar→construir) y que «proyecto» a secas (2026-08-12)."""
+    from nucleo.flash import router as _router
+    assert _router.looks_like_create_widget(text) is is_create
+    if not is_create:
+        # y la consecuencia que importa: el dispatcher NO lo manda al backend del generador
+        assert _classify_kind(text) != "code"
+
+
+def test_modifying_a_widgets_ui_is_still_code():
+    """La otra cara: el arreglo del DESTINO no puede tragarse una modificación de verdad. Cambiar las columnas de un
+    widget es tocar su UI, o sea código, aunque la frase lleve «al widget» — lo enruta `_MODIFY_CODE_RE`, no el
+    detector de create."""
+    from nucleo.flash import router as _router
+    t = "añade una columna al widget de agenda"
+    assert _router.looks_like_create_widget(t) is False       # no es CREAR
+    assert _classify_kind(t) == "code"                        # pero sí es CÓDIGO

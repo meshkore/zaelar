@@ -86,3 +86,20 @@ def compose_audit_window(*, reason: str, signals: list[str], turn_ring: list[dic
         parts += ["", "=== ESTADO ACTUAL (lo que el cerebro ve en su prompt) ===", st]
     doc = "\n".join(parts)
     return doc if len(doc) <= max_chars else doc[:max_chars] + "\n…(recortado)"
+
+
+def has_conversation(turns: int = 8) -> bool:
+    """¿Hay algo que auditar? SIN conversación en la ventana, Susurro no tiene material y NO debe auditar.
+
+    Incidente 2026-08-13, y es de los graves. Saltó la fricción «worker encallado (sin eventos)» mientras el buffer
+    conversacional estaba vacío, así que la ventana salió de 1.643 caracteres SIN la sección de conversación (el
+    ensamblador omite las secciones vacías, sin decir que faltan). El auditor, ante ese vacío, **rellenó el hueco
+    con el EJEMPLO que lleva en su propio prompt de sistema** —el caso de la ITV de V2-061— y afirmó como hecho
+    «el operador pidió cancelar una cita real». Y como `worker_action` está habilitado (F2), despachó un worker de
+    verdad a CANCELAR LA CITA. Una acción sobre el mundo nacida de una alucinación, sin que el operador hubiera
+    dicho una palabra.
+
+    Es la misma clase de fallo que [[feedback_visible_state_over_silent_state]]: una ventana incompleta se veía
+    igual que una ventana completa. La corrección de raíz es no dejar que un auditor de CONVERSACIONES opine
+    cuando no hay conversación — abstenerse es gratis; inventar cuesta una cita cancelada."""
+    return bool(conversation_block(turns).strip())

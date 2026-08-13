@@ -231,6 +231,13 @@ def test_engine_audit_cycle(monkeypatch, tmp_path):
         brain_notes.drain()
         monkeypatch.setattr(engine, "_cfg", lambda: {"enabled": True, "cooldown_s": 0.0,
                                                      "window_turns": 2, "pulse_turns": 0, "model": "test"})
+        # PRECONDICIÓN desde 2026-08-13: sin conversación en la ventana no se audita (ver
+        # `window.has_conversation`: con la ventana vacía el auditor RELLENA con los ejemplos de su propio prompt y
+        # llegó a despachar un worker a cancelar una cita que nadie pidió). El buffer se siembra explícitamente.
+        from memory import api as _mapi
+        monkeypatch.setattr(_mapi, "recent_window",
+                            lambda limit=8: [{"u": "te he dicho que abras la agenda y no lo has hecho",
+                                              "a": "abrí el reloj"}])
         monkeypatch.setattr(client, "audit_llm", fake_llm)
         monkeypatch.setattr(sus_apply, "FINDINGS_PATH", str(tmp_path / "f.jsonl"))
         engine.start()
@@ -277,6 +284,12 @@ def test_engine_risky_triggers_worker_action(monkeypatch, tmp_path):
         brain_notes.drain()
         monkeypatch.setattr(engine, "_cfg", lambda: {"enabled": True, "cooldown_s": 0.0, "window_turns": 2,
                                                      "pulse_turns": 0, "model": "test", "audit_consequential": True})
+        # La conversación tiene que estar Y tiene que ANCLAR la acción: `worker_action` es la única corrección que
+        # ACTÚA sobre el mundo, y desde 2026-08-13 exige que la petición hable de algo presente en la ventana.
+        from memory import api as _mapi
+        monkeypatch.setattr(_mapi, "recent_window",
+                            lambda limit=8: [{"u": "hay que cancelar la cita de la ITV, la reservé en su web",
+                                              "a": "hecho, la he quitado de la agenda"}])
         monkeypatch.setattr(client, "audit_llm", fake_llm)
         monkeypatch.setattr(sus_apply, "FINDINGS_PATH", str(tmp_path / "f.jsonl"))
         monkeypatch.setattr(dispatch, "active_sessions", lambda: [])
@@ -317,3 +330,83 @@ def test_engine_cooldown_skips(monkeypatch):
             await engine.stop()
             engine.reset()
     asyncio.run(run())
+
+
+# ── INCIDENTE 2026-08-13: el auditor INVENTÓ una acción sobre el mundo ─────────────────────────────────────────
+# Saltó la fricción «worker encallado (sin eventos)» con el buffer conversacional VACÍO. El ensamblador omite las
+# secciones vacías sin decir que faltan, así que la ventana salió de 1.643 caracteres SIN conversación. El auditor
+# rellenó ese vacío con el EJEMPLO de su propio prompt de sistema (el caso ITV de V2-061), afirmó como hecho «el
+# operador pidió cancelar una cita real» y, con worker_action habilitado, DESPACHÓ UN WORKER a cancelar la cita.
+# Una acción irreversible nacida de una alucinación, sin que el operador hubiera dicho una palabra.
+def test_no_conversation_no_audit(monkeypatch):
+    """Primera defensa: un auditor de CONVERSACIONES no opina cuando no hay conversación. Abstenerse es gratis."""
+    from memory import api as _mapi
+    from nucleo.susurro import window as _win
+    monkeypatch.setattr(_mapi, "recent_window", lambda limit=8: [])
+    assert _win.has_conversation() is False
+    monkeypatch.setattr(_mapi, "recent_window", lambda limit=8: [{"u": "hola", "a": "buenas"}])
+    assert _win.has_conversation() is True
+
+
+def test_the_engine_skips_the_audit_when_there_is_nothing_to_audit(monkeypatch, tmp_path):
+    """Y el ciclo NO llama al LLM: si llamara, volvería a poder inventar."""
+    from memory import api as _mapi
+    from nucleo.susurro import client
+
+    called = {"n": 0}
+
+    async def fake_llm(doc):
+        called["n"] += 1
+        return "{}", {"model": "test", "ms": 1, "request": {"messages": []}}
+
+    async def run():
+        import bus
+        engine.reset()
+        monkeypatch.setattr(engine, "_cfg", lambda: {"enabled": True, "cooldown_s": 0.0, "window_turns": 2,
+                                                    "pulse_turns": 0, "model": "test"})
+        monkeypatch.setattr(_mapi, "recent_window", lambda limit=8: [])       # ventana VACÍA
+        monkeypatch.setattr(client, "audit_llm", fake_llm)
+        monkeypatch.setattr(sus_apply, "FINDINGS_PATH", str(tmp_path / "f.jsonl"))
+        engine.start()
+        try:
+            bus.emit_sync("worker.stuck", {"id": "1", "trace": "T"})
+            for _ in range(20):
+                await asyncio.sleep(0.05)
+            assert called["n"] == 0, "auditó sin conversación → puede inventar"
+            assert engine.status()["audits"] == 0
+        finally:
+            await engine.stop()
+            engine.reset()
+    asyncio.run(run())
+
+
+def test_an_action_that_is_not_in_the_window_is_never_executed():
+    """Segunda defensa (en profundidad): aun CON ventana, la única corrección que ACTÚA sobre el mundo exige
+    ANCLAJE. Si la petición no habla de nada que esté en la ventana auditada, viene de fuera de la conversación —
+    del prompt de sistema, de otra sesión, de donde sea — y no se ejecuta.
+
+    Fail-OPEN sin ventana con la que comparar (no rompe lo que ya funcionaba), fail-CLOSED cuando hay ventana."""
+    from nucleo.susurro.apply import _grounded
+    win = ("=== CONVERSACIÓN RECIENTE ===\nOPERADOR: móntame un viaje a Ibiza con ferry y hotel\n"
+           "  ZAELAR: me pongo con ello")
+    assert _grounded("busca el ferry a Ibiza y el hotel", win) is True
+    # la INVENCIÓN del incidente: nada de esto está en la ventana
+    assert _grounded("cancela la cita de la ITV del 15 de junio en el sistema externo donde se reservó", win) is False
+    assert _grounded("cualquier cosa", "") is True          # sin ventana → fail-open
+
+
+def test_an_ungrounded_action_is_reported_not_silently_dropped(monkeypatch, tmp_path):
+    """Descartarla en silencio la volvería invisible: el operador no sabría que su auditor está inventando. Queda
+    el registro con `ungrounded` y su evento — estado VISIBLE, no silencioso."""
+    from nucleo import dispatch
+    from nucleo.flash import escalate as _esc
+    monkeypatch.setattr(dispatch, "active_sessions", lambda: [])
+    fired = {}
+    monkeypatch.setattr(_esc, "escalate_to_slowbrain", lambda req, **kw: fired.setdefault("req", req) or 1)
+    sus_apply.breaker_reset()
+    out = sus_apply.apply_corrections(
+        [{"type": "worker_action", "request": "cancela la cita de la ITV del 15 de junio a las 10:00"}],
+        reason="worker encallado (sin eventos)", window="OPERADOR: móntame un viaje a Ibiza con ferry y hotel",
+        findings_path=str(tmp_path / "f.jsonl"))
+    assert fired == {}, "se ejecutó una acción que no estaba en la ventana"
+    assert out and out[0]["ok"] is False and out[0]["ungrounded"] is True
