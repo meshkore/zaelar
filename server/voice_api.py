@@ -536,6 +536,38 @@ async def workers_resume():
         return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
 
 
+@router.get("/api/run")
+async def run_get():
+    """V2-092: ¿está el agente EN MARCHA o PARADO? La verdad la tiene el servidor (`nucleo/runstate.py`), no el
+    `localStorage` del navegador — el frontend siembra de aquí al arrancar, así que recargar la página (o abrirla en
+    otro navegador) hereda el estado real en vez de resucitar un agente que el operador había parado."""
+    from nucleo import runstate
+    return JSONResponse(runstate.snapshot(), headers={"Cache-Control": "no-cache"})
+
+
+@router.post("/api/run/stop")
+async def run_stop():
+    """PARA el agente: congela los Brain Workers (SIGSTOP, reversible) y SUSPENDE los widgets que estén
+    produciendo (música, vídeo…). Sustituye a /api/workers/pause en el botón ⏻ — hace lo mismo y además todo lo
+    demás. Devuelve qué se congeló, para que el log del operador no sea una lista de intenciones."""
+    try:
+        from nucleo import runstate
+        return JSONResponse(await runstate.stop("operator"))
+    except Exception as e:  # noqa: BLE001
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
+@router.post("/api/run/start")
+async def run_start():
+    """ARRANCA el agente: los workers congelados CONTINÚAN donde estaban. Los widgets NO se reanudan a propósito —
+    volver a poner la música es un gesto del operador (ver `nucleo/runstate.py`, «asimetría deliberada»)."""
+    try:
+        from nucleo import runstate
+        return JSONResponse(await runstate.start("operator"))
+    except Exception as e:  # noqa: BLE001
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500)
+
+
 @router.get("/api/desktop/epoch")
 async def desktop_epoch():
     """Época de WIPE del escritorio: `scripts/reset-memory.sh` la bumpea en cada wipeout. El frontend la compara con

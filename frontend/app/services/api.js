@@ -23,6 +23,13 @@ export const resetFull = (opts = {}) => postJSON("/api/reset/full", opts).then(r
 // a diferencia de resetHard. Ver server/voice_api.py + nucleo/dispatch.py::pause_all/resume_all.
 export const workersPause = () => fetch("/api/workers/pause", { method: "POST" }).then(r => r.json()).catch(() => ({}));
 export const workersResume = () => fetch("/api/workers/resume", { method: "POST" }).then(r => r.json()).catch(() => ({}));
+// V2-092 — el INTERRUPTOR GLOBAL, que es lo que el ⏻ usa ahora. Hace lo de arriba (congelar workers) y ADEMÁS
+// suspende los widgets que estén produciendo (música, vídeo), corta los ciclos de background y los crons, y
+// bloquea trabajo nuevo. El estado lo GUARDA el servidor, así que recargar la página o abrirla en otro navegador
+// hereda la realidad en vez de resucitar un agente parado. Ver nucleo/runstate.py.
+export const runState = () => fetch("/api/run", { cache: "no-store" }).then(r => r.json());
+export const runStop = () => fetch("/api/run/stop", { method: "POST" }).then(r => r.json()).catch(() => ({}));
+export const runStart = () => fetch("/api/run/start", { method: "POST" }).then(r => r.json()).catch(() => ({}));
 
 export async function iceServers() {
   let servers = [{ urls: "stun:stun.l.google.com:19302" }];

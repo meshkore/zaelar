@@ -142,9 +142,16 @@ if (typeof window !== "undefined" && !window.__hbMusicaYtBound){
 
 // El player OCULTO vive en un host persistente (`el._ytHost`) que NO se reconstruye al re-renderizar la vista →
 // reordenar/navegar nunca reinicia la canción. Solo se recrea el iframe si cambia el videoId.
+// ¿Está el agente PARADO? (V2-092) — con el ⏻ apagado la música no suena, y sobre todo no vuelve a sonar sola al
+// RECARGAR la página (era el bug: el estado guardado decía «suena» y el iframe nacía con `autoplay=1`). `ctx.running`
+// es un getter vivo del canvas que refleja la verdad del servidor (nucleo/runstate.py). «Parado» solo si lo dice
+// explícitamente: un ctx sin el campo no puede dejar el reproductor mudo para siempre.
+function halted(ctx){ return !!(ctx && ctx.running === false); }
+
 function syncYtPlayer(el, data, ctx){
   const yt = data.yt || {};
   const host = el._ytHost;
+  const stopped = halted(ctx);
   if(!yt.videoId){                                   // nada sonando por YouTube → suelta el frame
     if(el._hbFrame){ host.textContent = ""; el._hbFrame = null; el._hbVid = null; el._hbSeq = null; }
     return;
@@ -152,23 +159,29 @@ function syncYtPlayer(el, data, ctx){
   if(el._hbVid === yt.videoId && el._hbFrame){       // mismo vídeo → solo aplica el comando nuevo
     if(el._hbSeq !== yt.cmd_seq){
       el._hbSeq = yt.cmd_seq;
-      if(yt.paused){ ytPost(el._hbFrame, "pauseVideo"); }
+      if(yt.paused || stopped){ ytPost(el._hbFrame, "pauseVideo"); }
       else { ytEnsureAudible(el._hbFrame, yt.volume); ytPost(el._hbFrame, "playVideo"); }
     }
     return;
   }
   // vídeo nuevo → iframe OCULTO. ARRANQUE GARANTIZADO: mute=1 (autoplay silenciado siempre permitido) y se
   // des-silencia al instante por la API (la página ya tiene interacción del operador → el unMute se honra).
+  // Con el agente parado el `autoplay` se apaga en el propio `src`: cualquier pausa posterior llegaría tarde y se
+  // oiría el arranque.
   host.textContent = "";
   const frame = document.createElement("iframe");
   frame.className = "hb-mus2-frame";
   frame.allow = "autoplay";
   frame.src = "https://www.youtube-nocookie.com/embed/" + encodeURIComponent(yt.videoId)
-            + "?enablejsapi=1&autoplay=1&mute=1&controls=0&playsinline=1&rel=0";
+            + "?enablejsapi=1&autoplay=" + ((yt.paused || stopped) ? 0 : 1)
+            + "&mute=1&controls=0&playsinline=1&rel=0";
   frame.addEventListener("load", () => ytStartListening(frame));
   host.appendChild(frame);
   el._hbFrame = frame; el._hbVid = yt.videoId; el._hbSeq = yt.cmd_seq;
-  const wake = () => { ytEnsureAudible(frame, yt.volume); if(!yt.paused) ytPost(frame, "playVideo"); };
+  const wake = () => {
+    if(halted(ctx)){ ytPost(frame, "pauseVideo"); return; }   // se re-lee: `wake` corre en timeouts de hasta 2,6s
+    ytEnsureAudible(frame, yt.volume); if(!yt.paused) ytPost(frame, "playVideo");
+  };
   _ytReady = wake;                                   // el onReady REAL es el momento exacto (los timeouts respaldan)
   _ytEnded = () => { try{ ctx.action("ended"); }catch(_){} };   // F4: al terminar → avanza la cola en el servidor
   setTimeout(wake, 1200); setTimeout(wake, 2600);

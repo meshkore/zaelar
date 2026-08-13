@@ -254,8 +254,8 @@ choice below serves it. A dedicated diagram + lifecycle deep-dive lives at `/arc
 
 | File | Role |
 |------|------|
-| `manifest.json` | `{id,version,title,description,whenToUse,keywords[],entry}` (+ optional `transient`). Feeds the catalog + voice→widget matching. |
-| `widget.js` | ES module `export function render(el, data, ctx)`. Self-contained, no libs/CDN/network, injects its own `<style>` once, `textContent` for untrusted data. `ctx = {action(name,payload), close()}`. Styled with the `--hb-*` CSS variable contract (`--hb-bg`, `--hb-ink`, `--hb-muted`, `--hb-line`, `--hb-accent`/`--hb-accent2`, `--hb-risk`, `--hb-neutral`, `--hb-warn-*`) — never a hardcoded hex — so every widget follows the app's dark/light theme (`frontend/app/styles.css`) with zero JS, live, even while open. Full list + fallback pattern in `widgets/AGENTS.md`. |
+| `manifest.json` | `{id,version,title,description,whenToUse,keywords[],entry}` (+ optional `transient`, `background`, `runtime` — see §Widgets that PRODUCE something). Feeds the catalog + voice→widget matching. |
+| `widget.js` | ES module `export function render(el, data, ctx)`. Self-contained, no libs/CDN/network, injects its own `<style>` once, `textContent` for untrusted data. `ctx = {action(name,payload), close(), top(), running}` (`running:false` = the operator STOPPED the agent). Styled with the `--hb-*` CSS variable contract (`--hb-bg`, `--hb-ink`, `--hb-muted`, `--hb-line`, `--hb-accent`/`--hb-accent2`, `--hb-risk`, `--hb-neutral`, `--hb-warn-*`) — never a hardcoded hex — so every widget follows the app's dark/light theme (`frontend/app/styles.css`) with zero JS, live, even while open. Full list + fallback pattern in `widgets/AGENTS.md`. |
 | `data.py` | `view_data(q="") -> dict` (server-side, **stdlib only**, never raises) + optional `apply_action(action, payload)`. |
 | `notes.md` | **Per-widget context / memory** — the running log of decisions & constraints. The generator agent READS it before editing and APPENDS after, so it never regresses a past choice. This is the "own context folder" for regeneration. |
 | `__init__.py` | empty (makes it importable as `widgets.<id>`). |
@@ -439,6 +439,48 @@ side cross-widget calls; cross-module events go through the `bus/`.)
   reading as a second, detached window. `mensajeria` (`.conn`→`.linkcard`, `.me`→`.mine`) and `meteo-soria`
   (`.ic`→`.wicon`, which had been silently inheriting an unwanted bordered icon-button box) were fixed the same day.
   `hbk-*`/`hb-*` prefixed classes are exempt (the intentionally-shared kit and widget-chrome contract).
+
+### Widgets that PRODUCE something — the `runtime` contract (V2-092, `widgets/producers.py`)
+
+A widget that keeps doing something after the operator stops looking — playing audio/video, recording, running a
+live process — is not just a view, and the system needs to be able to **stop it**. That came from a real failure
+(operator, 2026-08-13): with the agent STOPPED via ⏻, a YouTube video kept playing, **restarted itself on page
+reload**, and played on top of the music player at the same time.
+
+The fix is not a special case per widget — widgets are GENERATED, so next month's podcast card would break the same
+way and nobody would remember to add its `if`. It is a DECLARATION in the manifest, read by `widgets/producers.py`:
+
+```json
+"runtime": {
+  "output": "audio",                                   // exclusive channel it takes (omit = competes for none)
+  "produce": ["load", "play", "restart", "unmute"],     // actions that START it producing
+  "suspend": "pause",                                  // the action that makes it STOP
+  "active_when": {"videoId": true, "paused": false}     // how "is producing" reads from view_data()
+}
+```
+
+Three capabilities then work for **any** widget, present or future:
+
+- **Global stop** — `suspend_all()` silences everything that is producing, knowing nobody by name. Driven by
+  `nucleo/runstate.py` (the server-side ⏻; see `CLAUDE.md` §Decisiones and initiative `V2-092-parar-es-parar.md`).
+- **Channel exclusivity** — taking `output` suspends whoever else held it. The speaker is ONE.
+- **Gate** — while the agent is stopped, `produce` actions are refused (`agent_stopped`). Everything else (navigate
+  the card, change view, lower the volume) still works: stopping the agent is not freezing the UI.
+
+Details that matter: `active_when` is evaluated against `view_data()` (the widget's own truth, not a copy), accepts
+dotted paths (`yt.paused`) and a LIST of conditions (AND inside one, OR between them) for a widget that can produce
+more than one way — `musica` plays through Spotify (remote device) or YouTube-audio (hidden iframe), two different
+states. `suspend` and every `produce` entry must be REAL declared actions; a typo there would be a stop that stops
+nothing, silently, so `tests/browser/unit/widgets/test_producers.py` (testmap **4.16**) asserts it against the real
+manifests.
+
+Everything funnels through `widgets/server_api._dispatch` (same path for the UI and the brain): gate → action →
+exclusivity. Suspending itself goes through `dispatch_raw`, bypassing the gate — otherwise stopping while already
+stopped would refuse itself.
+
+On the client, `widget.js` gets `ctx.running` (a live getter from the canvas): `false` means the agent is stopped, so
+never autoplay on mount — and for an `<iframe>` keep `autoplay=0` **out of the `src` itself**, because a pause sent
+afterwards arrives late and the first instant is audible.
 
 ### Widget-apps ("backed" widgets) — INI-016, users `navegador` + `mensajeria`
 

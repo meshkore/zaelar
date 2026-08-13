@@ -65,6 +65,9 @@ _CAT = {
     # reporta el navegador por `/api/ui-event`).
     "error": "system", "alert": "system", "homeostasis": "system", "language": "system", "client": "system",
     "energy": "system",
+    # `run` = el interruptor GLOBAL del agente (⏻ → nucleo/runstate.py): qué se congeló y qué continuó. Va en
+    # `system` con `session`/`state`, que es su familia: es estado del sistema, no actividad de un turno.
+    "run": "system",
     # `music` es el rail de música conducido por el FlashBrain (hermano de `rail`), no un widget: la tarjeta que
     # se abre por el camino ya emite SU propio evento `widget`.
     "music": "flash",

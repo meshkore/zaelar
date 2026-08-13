@@ -256,6 +256,15 @@ class OrchestratorLoop:
         return self._kind_budget_default.get(kind or "", self._budget_secs)
 
     async def _fire_due(self, now: float) -> None:
+        # V2-092: con el agente PARADO (⏻) un cron no dispara. Se sale ANTES de `mark_fired`, así que el job sigue
+        # VENCIDO y salta en cuanto el operador arranca — parar no pierde el recordatorio, lo aplaza. Un cron que
+        # hablara por voz encima de un agente parado sería exactamente el fallo que ⏻ existe para evitar.
+        try:
+            from nucleo import runstate
+            if runstate.stopped():
+                return
+        except Exception:
+            pass
         try:
             jobs = _scheduler.due(now)
         except Exception as e:  # noqa: BLE001

@@ -64,6 +64,11 @@
       "id": "4.15",
       "label": "Pila de Energy: la escala (huecos · valor por rayita · color por capacidad)",
       "kind": "javascript"
+    },
+    {
+      "id": "4.16",
+      "label": "Widgets que producen: parada global · un solo dueño del altavoz",
+      "kind": "unit"
     }
   ]
 }

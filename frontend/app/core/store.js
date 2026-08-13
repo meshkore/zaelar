@@ -37,6 +37,14 @@ export const [botMuted, setBotMuted]   = createSignal(localStorage.getItem("hb_b
 
 // ⏻ POWER (V2-039 «ojo»): apagado EXPLÍCITO de la sesión de voz por el operador — la única excepción al always-on.
 // Persistido: un apagado deliberado sobrevive al refresh; main.js NO auto-(re)conecta mientras esté apagado.
+//
+// V2-092: este signal ya NO es la verdad, es el ESPEJO LOCAL de una verdad que vive en el servidor
+// (`nucleo/runstate.py`, `GET /api/run`). El motivo es el fallo que lo destapó: parado el agente, un vídeo seguía
+// reproduciéndose y al recargar arrancaba solo. Con el interruptor únicamente aquí, el backend —widgets,
+// background, crons— no tenía a quién preguntar si el operador había parado, y este localStorage es per-navegador
+// y per-origen: el mismo zaelar por dos puertos eran dos agentes con opiniones distintas sobre si estaban vivos.
+// Ahora: el ⏻ ORDENA al servidor (POST /api/run/stop|start), y el servidor NOTIFICA (SSE `run`) → todas las
+// pestañas convergen. El localStorage se queda como arranque instantáneo sin esperar la red.
 export const [powerOff, setPowerOffRaw] = createSignal(localStorage.getItem("hb_power_off") === "1");
 export const setPowerOff = (off) => { setPowerOffRaw(off); localStorage.setItem("hb_power_off", off ? "1" : "0"); };
 

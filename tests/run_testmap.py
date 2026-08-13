@@ -101,7 +101,13 @@ DOMAINS: list[dict] = [
             # REHIDRATACIÓN (2026-08-12): un reinicio en mitad de una búsqueda del operador se la llevó por delante
             # sin dejar rastro — ni evento, ni ledger, ni aviso. Aquí se fija qué se reanuda solo, qué se reporta y
             # por qué, y que un reset NO resucite el trabajo que el operador acaba de mandar parar.
-            "tests/agent_headless/unit/test_rehydrate.py"]},
+            "tests/agent_headless/unit/test_rehydrate.py",
+            # V2-092 — el INTERRUPTOR GLOBAL (⏻). Su estado vivía solo en el localStorage, así que el backend no
+            # sabía que el operador había parado: seguían los ciclos de background, los crons y la reproducción de
+            # los widgets. Se fija la POLÍTICA, que es lo que se pierde en una refactorización: parar congela a
+            # TODOS y persiste; arrancar continúa el TRABAJO pero NO reanuda la música (asimetría pedida por el
+            # operador); y un fallo de una pieza no puede dejar la parada a medias.
+            "tests/agent_headless/unit/test_runstate.py"]},
         {"id": "2.6", "title": "Scheduler / rails / workspace / frontend-glue", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/test_scheduler.py", "tests/agent_headless/unit/test_rails.py", "tests/agent_headless/unit/test_workspace.py",
             "tests/agent_headless/unit/flash/test_frontend.py", "tests/agent_headless/unit/flash/test_memory_cache.py"]},
@@ -220,6 +226,14 @@ DOMAINS: list[dict] = [
         # techo en $250. Es pura, así que falla sola y sin navegador.
         {"id": "4.15", "title": "Pila de Energy: la escala (huecos fijos · valor por rayita · color por capacidad)",
             "ch": UNIT, "paths": ["tests/browser/unit/energy/test_energy_scale.py"]},
+        # V2-092 — PARAR ES PARAR. El operador vio, con el agente parado: un vídeo reproduciéndose, que volvía a
+        # arrancar al RECARGAR, y sonando encima de la música. Lo que faltaba no era un `if` para YouTube sino un
+        # CONTRATO declarable (`runtime` del manifest) del que salen la parada global, la exclusividad del altavoz
+        # y la puerta del agente parado — para cualquier widget, incluidos los que genera el agente mañana. Este
+        # nodo cubre el lado del canvas; el interruptor global es el 3.x de workers (test_runstate.py).
+        {"id": "4.16", "title": "Widgets que PRODUCEN: parada global · un solo dueño del altavoz · nada arranca con "
+                                "el agente parado", "ch": UNIT,
+            "paths": ["tests/browser/unit/widgets/test_producers.py"]},
     ]},
     {"id": "5", "name": "CONECTORES", "nodes": [
         {"id": "5.1", "title": "Email", "ch": UNIT, "paths": [

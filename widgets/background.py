@@ -128,6 +128,15 @@ def _call_tick(wid: str):
 
 
 async def _tick_once(wid: str, kind: str) -> None:
+    # V2-092: con el agente PARADO (⏻) no hay ciclos. Un «agente parado» que sigue sondeando conectores y
+    # escribiendo en la memoria no está parado — y era justo lo que pasaba. El bucle NO se cancela: sigue
+    # despierto contando, así que arrancar reanuda los ticks sin reconstruir el planificador.
+    try:
+        from nucleo import runstate
+        if runstate.stopped():
+            return
+    except Exception:
+        pass
     if wid in _inflight:                    # el ciclo anterior aún corre → salta este (no encolar trabajo lento)
         _emit("skip", wid, "tick anterior en curso")
         return

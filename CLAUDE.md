@@ -1595,6 +1595,37 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   (`server/__init__.py`); `services/sse.js` hace `store.bumpMemory()`; `MemoryMap` re-fetchea (debounced) SOLO si
   está abierto. Tema `--hb-*` (cero hex).
 
+- **PARAR ES PARAR — el interruptor global vive en el SERVIDOR, y un widget DECLARA lo que produce** (V2-092,
+  `nucleo/runstate.py` + `widgets/producers.py`, iniciativa `V2-092-parar-es-parar.md`; fallo real del operador
+  2026-08-13): el ⏻ paraba la voz (V2-039) y congelaba los Brain Workers (V2-065, SIGSTOP), pero su estado vivía en
+  `localStorage.hb_power_off` — **el backend no tenía a quién preguntar**. Con el agente parado seguía sonando un
+  vídeo, **recargar la página lo volvía a arrancar** (su store decía «reproduciendo» y el `<iframe>` nace con
+  `autoplay=1`), sonaba encima de la música, y los `tick()` de background seguían sondeando conectores.
+  - **`nucleo/runstate.py`** es la verdad única: `running|stopped` persistido en `sys_kv` (una parada es una
+    INTENCIÓN del operador, así que sobrevive a un reinicio), `GET /api/run`, `POST /api/run/stop|start`, y evento
+    SSE `run` (familia `system`) para que **todas las pestañas converjan**. `stopped()` cachea en proceso: lo
+    consultan caminos calientes.
+  - **Contrato DECLARABLE, no casos especiales** (`"runtime": {output, produce[], suspend, active_when}` en el
+    manifest). Los widgets los genera el agente: dos `if` para `youtube`/`musica` habrían dejado al widget de
+    podcast de la semana que viene sonando sobre un agente parado. De la declaración salen gratis la **parada
+    global**, la **exclusividad de canal** (el altavoz tiene UN dueño) y la **puerta** (`agent_stopped`) para
+    cualquier widget presente o futuro. `active_when` se evalúa contra `view_data()`, admite rutas con punto y una
+    LISTA de condiciones (la música suena por Spotify o por YouTube-audio: dos estados distintos).
+  - **Embudo único** en `widgets/server_api._dispatch` (mismo camino para la UI y para el cerebro): puerta → acción →
+    exclusividad, en ese orden. Suspender va por `dispatch_raw` (sin puerta), o parar con el agente ya parado se
+    rechazaría a sí mismo.
+  - **ASIMETRÍA deliberada** (decisión del operador): parar es total; **arrancar NO reanuda la reproducción** —
+    «que sea el usuario a mano el que decide si quiere volver a seguir escuchando música». Lo que SÍ continúa es el
+    TRABAJO: SIGCONT y el worker sigue exactamente donde estaba. La diferencia es de quién es la intención.
+  - **Y todo lo demás que podía estar en marcha**: sin ticks de background (el bucle no se cancela, solo no ejecuta),
+    sin crons (se sale ANTES de `mark_fired` → el job sigue vencido y salta al arrancar: parar no pierde el
+    recordatorio, lo aplaza), sin trabajo NUEVO (`task/blocked`, visible). En el frontend el ⏻ ORDENA al servidor y
+    el arranque RECONCILIA en la dirección segura (nunca se enciende solo), y cada widget recibe `ctx.running`.
+  - **El `autoplay` se apaga en el propio `src` del `<iframe>`**, no con una pausa posterior: esa llega tarde y el
+    primer instante se oye.
+  - Contrato para widgets nuevos en `widgets/AGENTS.md` + el prompt del generador, junto a la decisión hermana de
+    background: son la misma pregunta — ¿esto sigue haciendo algo cuando el operador deja de mirar?
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un

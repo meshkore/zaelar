@@ -141,5 +141,26 @@
     "mi música",
     "playlist",
     "lista de reproducción"
-  ]
+  ],
+  "runtime": {
+    "output": "audio",
+    "produce": [
+      "play",
+      "resume",
+      "next",
+      "previous",
+      "play_playlist",
+      "ended"
+    ],
+    "suspend": "pause",
+    "active_when": [
+      {
+        "yt.videoId": true,
+        "yt.paused": false
+      },
+      {
+        "now_playing.playing": true
+      }
+    ]
+  }
 }

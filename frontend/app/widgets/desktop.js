@@ -151,8 +151,17 @@ export class Desktop {
     this._ver = {};                                        // id -> cache-bust version (bumped after a modify)
     this._busy = new Set();                                // ids with an agent in-flight → don't stack create/modify
     this._restoring = false;
+    // V2-092: ¿está el agente EN MARCHA? Se lo pasamos a cada widget en su `ctx` (como getter, así que un widget ya
+    // montado lo lee VIVO). Un widget que produce algo —vídeo, audio, una grabación— tiene prohibido arrancar solo
+    // con el agente parado, y ese caso se da EN EL MONTAJE: recargar la página con el vídeo pausado por la parada
+    // volvía a reproducirlo, porque su `<iframe>` nace con `autoplay=1` y nadie le había dicho que el agente estaba
+    // parado. El servidor manda (nucleo/runstate.py); main.js nos lo empuja con `setRunning`.
+    this._running = true;
     this.restore();                                        // bring back the user's desktop (open widgets + positions)
   }
+
+  // Estado del agente → los widgets. Lo llama main.js reactivamente desde `store.powerOff()`.
+  setRunning(on){ this._running = !!on; }
 
   // ---- PERSISTENCE: the desktop is the user's state. Open widgets + their positions survive a refresh / reopen. ----
   // Geometría restaurable del escritorio: qué tarjetas, con qué consulta y dónde. Las tarjetas de INSTANCIA
@@ -398,6 +407,9 @@ export class Desktop {
       if(providedData === null && q === w.q) return;
     }
     w.q = q;                                            // remember the query so a refresh reloads the same content
+    // `desk` (NO `self`: en un navegador `self` es `window`, así que un getter que lo usara leería `window._running`
+    // = undefined y TODO widget creería que el agente está parado — un fallo silencioso y difícil de ver).
+    const desk = this;
     // async load — never blocks the voice loop; other widgets load in parallel
     try{
       const t0=Date.now();
@@ -416,7 +428,11 @@ export class Desktop {
         // Lo llama SOLO al NAVEGAR — abrir una ficha, cambiar de pestaña, volver a la lista —, nunca en un
         // refresco de datos: resetear el scroll cada vez que llegan resultados nuevos le arrancaría de las manos
         // al operador lo que está leyendo, justo mientras la hoja se llena en vivo.
-        top:()=>{ const sc=w.card && w.card.querySelector(".hb-scroll"); if(sc) sc.scrollTop=0; } };
+        top:()=>{ const sc=w.card && w.card.querySelector(".hb-scroll"); if(sc) sc.scrollTop=0; },
+        // V2-092 — ¿está el agente en marcha? GETTER a propósito: el `ctx` se crea una vez por montaje y se guarda
+        // (`w._ctx`) para los re-renders, así que una copia del valor se quedaría rancia. Un widget que REPRODUCE
+        // algo debe consultarlo antes de arrancar solo (ver widgets/AGENTS.md, «producir»).
+        get running(){ return desk._running; } };
       // La marca va ANTES de pintar: así el widget sabe en su PRIMERA pasada que la cabecera de la tarjeta ya lleva
       // el título y no lo repite. Puesta después, la primera pintada saldría con el título duplicado.
       if(this._wantsLiveTitle(baseId)) w.body.dataset.hostTitle = "1";
@@ -457,6 +473,7 @@ export class Desktop {
   // One at a time (re-showing replaces it). Renders the widget's own UI but chrome-free, anchored to the orb.
   async _showActivity(id, q, providedData=null){
     const rail=this.activity; if(!rail) return;
+    const desk = this;                                       // ver la nota de `show()` sobre por qué no `self`
     clearTimeout(this._actTimer);
     rail.innerHTML="";
     const item=document.createElement("div"); item.className="hb-act"; rail.appendChild(item);
@@ -470,7 +487,8 @@ export class Desktop {
       mount.textContent="";
       const ctx={ action:async(name,payload)=>{ try{return await fetch(`/widgets/${id}/action`,{method:"POST",
           headers:{"Content-Type":"application/json"},body:JSON.stringify({action:name,payload:{...(payload||{}),q}})}).then(r=>r.json());}catch(_){return null;} },
-        close:()=>{ clearTimeout(this._actTimer); rail.innerHTML=""; this._actId=null; } };
+        close:()=>{ clearTimeout(this._actTimer); rail.innerHTML=""; this._actId=null; },
+        get running(){ return desk._running; } };            // V2-092: mismo contrato que en una tarjeta normal
       mod.render(mount, data, ctx);
       this._actTimer=setTimeout(()=>{                     // transient: let it linger, then fade and clear the rail
         item.style.transition="opacity .6s"; item.style.opacity="0";

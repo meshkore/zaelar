@@ -1494,6 +1494,25 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                 continue
             key = str(tid or "?")
             kind = str(ctx.get("kind", "generic"))
+            # V2-092: con el agente PARADO (⏻) NO se abre trabajo nuevo. Los workers que ya estaban se congelan y
+            # continúan al arrancar (pause_all/resume_all), pero arrancar uno DESDE CERO sobre un agente parado es
+            # lo contrario de parar. Se rechaza VISIBLE (evento `task/blocked`), nunca en silencio: una escalada que
+            # desaparece sin rastro es la clase de fallo que cuesta una sesión de diagnóstico.
+            _halted = False
+            try:
+                from nucleo import runstate
+                _halted = runstate.stopped()
+            except Exception:
+                _halted = False
+            if _halted:
+                try:
+                    from voice.observer import emit
+                    emit("task", "blocked", role="system", text=request[:120],
+                         extra={"id": key, "reason": "el agente está parado (⏻): no se abre trabajo nuevo"})
+                except Exception:
+                    pass
+                logger.info(f"dispatch: escalada RECHAZADA (agente parado): {request[:80]}")
+                continue
             # DEDUP en la FUENTE DE VERDAD (§sesión 2026-07-15): si ya hay una sesión viva atendiendo esta misma
             # petición, NO abrimos un 2º worker (el bug de los dos «creando un widget…»). Se INYECTA como
             # refinamiento (el generador de widgets, build atómico, lo ignora con gracia; un worker vivo lo aprovecha).

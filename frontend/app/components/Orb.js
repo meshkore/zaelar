@@ -153,14 +153,21 @@ export function Orb() {
             try { store.fetchTasks(); } catch (_) {}
             // V2-065 (petición del operador): ⏻ para TODO, pero PAUSA — no mata como Reset. Congela los Brain
             // Workers vivos (SIGSTOP, reversible) para que sigan EXACTAMENTE donde estaban al volver a encender.
-            api.workersPause().then(() => store.fetchTasks());
+            // V2-092: la orden va al INTERRUPTOR GLOBAL del servidor, que hace eso y además suspende los widgets
+            // que estén produciendo (el vídeo que seguía sonando sobre un agente parado), corta los ciclos de
+            // background y los crons, y bloquea trabajo nuevo. El servidor guarda el estado → recargar la página
+            // ya no resucita nada.
+            api.runStop().then(() => store.fetchTasks());
           } else {
             // Simétrico: el mute que ⏻ impuso al apagar (arriba) se deshace al volver a encender — si el
             // operador quiere mic/altavoz mudos DE FORMA INDEPENDIENTE, ya tiene sus propios botones para eso.
             store.setMicMuted(false); localStorage.setItem("hb_mic_muted", "0");
             store.setBotMuted(false); localStorage.setItem("hb_bot_muted", "0");
             try { session.start(); } catch (_) {}
-            api.workersResume().then(() => store.fetchTasks());
+            // Arrancar CONTINÚA el trabajo congelado (SIGCONT) pero NO reanuda los widgets: volver a poner la
+            // música o el vídeo es un gesto del operador, no una consecuencia de encender (asimetría deliberada,
+            // ver nucleo/runstate.py).
+            api.runStart().then(() => store.fetchTasks());
           }
           api.uiEvent("orb:power", { state: off ? "off" : "on" });
         },

@@ -96,6 +96,9 @@ try { document.getElementById("preboot")?.remove(); } catch { /* noop */ }
 // ---- widget desktop (independent canvas / window manager) ----
 const desktop = new Desktop($("#wstage"));
 window.__zaelarDesktop = desktop;   // the SSE/session bridge reaches the desktop through this
+// V2-092: el estado del agente llega a TODO widget por su `ctx.running`. Reactivo, así que un ⏻ (aquí o en otra
+// pestaña, vía SSE) lo ve al instante y un widget que reproduce algo no arranca solo sobre un agente parado.
+createEffect(() => desktop.setRunning(!store.powerOff()));
 
 // ---- eventos del server → escritorio, DESDE EL ARRANQUE y sin depender de la voz (2026-08-09) ----
 // `openSSE` se llamaba SOLO dentro de `session.start()` (services/session.js), o sea después de conseguir el
@@ -128,6 +131,34 @@ function ensureVoice() { if (store.powerOff()) return; if (!store.started() && !
 if (store.powerOff()) store.setBootReady(true);
 ensureVoice();
 window.addEventListener("pointerdown", ensureVoice);
+
+// ---- V2-092: RECONCILIAR con la verdad del SERVIDOR (`nucleo/runstate.py`) --------------------------------------
+// El ⏻ vivía solo en el localStorage, que es per-navegador y per-origen y al que el backend no puede preguntar.
+// Consecuencia real (operador, 2026-08-13): con el agente parado, RECARGAR la página volvía a arrancar el vídeo.
+// Ahora el servidor guarda si el agente está parado y aquí se reconcilia, en la dirección SEGURA:
+//   · servidor PARADO → obedecer: apagar aquí también y tumbar la sesión si ya había subido (la siembra es async,
+//     así que `ensureVoice()` de arriba puede haberla arrancado antes de que llegue esta respuesta).
+//   · servidor EN MARCHA con el ⏻ apagado AQUÍ → propagar nuestra intención al servidor (POST /api/run/stop) en vez
+//     de encender solos. Nunca al revés: un arranque que el operador no pidió es peor que un estado desactualizado,
+//     y esto cubre además la migración (un ⏻ apagado antes de que el servidor supiera de esto).
+(async () => {
+  try {
+    const r = await api.runState();
+    if (!r || typeof r.running !== "boolean") return;
+    if (!r.running) { store.setPowerOff(true); store.setMicMuted(true); store.setBotMuted(true); }
+    else if (store.powerOff()) api.runStop();
+  } catch { /* el servidor aún no responde: manda el estado local, que ya está aplicado */ }
+})();
+
+// PARADO ⇒ SIN SESIÓN DE VOZ, venga la orden de donde venga. El ⏻ ya llama a `session.stop()` en su propio click,
+// pero desde V2-092 el estado puede llegar de FUERA de esta pestaña: de la siembra de arriba (el servidor dice que
+// el agente estaba parado) o del evento SSE `run` (otra ventana pulsó ⏻). Sin esto, esa pestaña se pintaría
+// apagada con el micro abierto — el estado que miente, otra vez. Idempotente: paramos solo si había algo en pie.
+createEffect(() => {
+  if (!store.powerOff()) return;
+  store.setBootReady(true);                       // nada que esperar: no hay arranque en curso ni lo habrá
+  if (store.started() || store.starting()) { try { session.stop(); } catch (_) {} }
+});
 
 // ---- ESTADO DEL CLIENTE → observabilidad (2026-08-10) ----------------------------------------------------------
 // Hasta ahora el log solo tenía la INTENCIÓN del operador (`orb:power` al pulsar ⏻), nunca la REALIDAD: un agente

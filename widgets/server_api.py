@@ -246,6 +246,47 @@ def _route_backed(wid: str, action: str, payload: dict):
     return None
 
 
+async def dispatch_raw(wid: str, action: str, payload: dict):
+    """La mutación DESNUDA de un widget: enruta a su owner si es `backed`, o llama a su `apply_action` fuera del
+    loop. SIN la puerta del run-state ni la exclusividad de canal (ver `_dispatch`).
+
+    Existe separada porque la PARADA necesita este camino: si suspender un widget pasara por la misma puerta que
+    gatea las acciones, parar con el agente ya parado se rechazaría a sí mismo. Único usuario legítimo del atajo:
+    `widgets/producers.py`. Todo lo que venga de fuera (UI, cerebro, cron) entra por `_dispatch`."""
+    wid = _safe(wid)
+    routed = _route_backed(wid, action, payload or {})      # backed widget → mailbox de su owner
+    if routed is not None:
+        return routed
+    return await _run_widget(wid, "apply_action", lambda fn: fn(action, payload or {}))
+
+
+async def _dispatch(wid: str, action: str, payload: dict):
+    """EMBUDO ÚNICO de toda mutación de widget que venga de fuera (V2-092). Tres pasos, en este orden:
+
+    1. **Puerta**: con el agente PARADO, una acción que pondría el widget a producir se rechaza (no se aplica a
+       medias y se deshace después: eso dejaría rastro raro en su store y, en algo como `load`, habría hecho ya el
+       trabajo de red).
+    2. **La acción**, por el camino de siempre.
+    3. **Exclusividad**: si acaba de tomar un canal exclusivo (el altavoz), se calla a los demás de ese canal.
+       Después de aplicarla, porque quién ocupa el canal se lee del estado REAL, no de la intención.
+
+    Los pasos 1 y 3 son best-effort: un fallo en la política de producción no puede tumbar una data-op normal."""
+    try:
+        from . import producers
+        denied = producers.gate(wid, action)
+        if denied is not None:
+            return denied
+    except Exception:
+        pass
+    res = await dispatch_raw(wid, action, payload)
+    try:
+        from . import producers
+        await producers.enforce_exclusive(wid, action)
+    except Exception:
+        pass
+    return res
+
+
 @router.post("/widgets/{wid}/action")
 async def widget_action(wid: str, payload: dict):
     wid = _safe(wid)
@@ -259,10 +300,7 @@ async def widget_action(wid: str, payload: dict):
         _emit("widget", "action", extra={"id": wid, "action": str(action), "src": "user"})
     except Exception:
         pass
-    routed = _route_backed(wid, action, data)               # backed → owner mailbox (owner writes + emits SSE)
-    if routed is not None:
-        return JSONResponse(routed)
-    res = await _run_widget(wid, "apply_action", lambda fn: fn(action, data))
+    res = await _dispatch(wid, action, data)
     if res is _MISSING:
         return JSONResponse({"error": "no data module"}, status_code=404)
     return JSONResponse(res)
@@ -273,11 +311,7 @@ async def brain_action(wid: str, action: str, payload: dict) -> dict:
     call used by the brain-side [[widget.data:ID]] tag (widgets/__init__.py:dispatch_tag), so Hermes can change
     a widget's OWN stored data with the exact contract its UI buttons already use. No HTTP round-trip: same
     process, same isolation guarantees. Never raises — degrades to {"error": …}."""
-    wid = _safe(wid)
-    routed = _route_backed(wid, action, payload or {})      # backed widget → same mailbox path as the UI/POST
-    if routed is not None:
-        return routed
-    res = await _run_widget(wid, "apply_action", lambda fn: fn(action, payload or {}))
+    res = await _dispatch(_safe(wid), action, payload or {})
     return {"error": "no data module"} if res is _MISSING else res
 
 

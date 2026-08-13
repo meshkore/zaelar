@@ -53,17 +53,35 @@ function post(iframe, func, args){
   }catch(_){}
 }
 
+// ¿Está el agente PARADO? (V2-092) — con el ⏻ apagado este widget NO puede reproducir nada. El caso que lo hizo
+// falta es el MONTAJE: el operador paró el agente, RECARGÓ la página y el vídeo volvió a arrancar solo, porque el
+// <iframe> nace con `autoplay=1` y nadie le había dicho que el agente estaba parado. `ctx.running` es un getter
+// vivo del canvas (widgets/desktop.js) que refleja la verdad del servidor (nucleo/runstate.py).
+// Se lee como «parado SOLO si lo dice explícitamente»: un ctx antiguo sin el campo (undefined) no debe dejar el
+// reproductor mudo para siempre.
+function halted(ctx){ return !!(ctx && ctx.running === false); }
+
 // Reafirma el estado deseado en el reproductor (idempotente) — se usa al cargar un vídeo nuevo.
-function applyState(iframe, data){
+function applyState(iframe, data, ctx){
   if(data.muted){ post(iframe, "mute", []); }
   else { post(iframe, "unMute", []); post(iframe, "setVolume", [Number(data.volume != null ? data.volume : 70)]); }
-  if(data.paused) post(iframe, "pauseVideo", []);
+  // Con el agente parado se PAUSA siempre, diga lo que diga el estado guardado: es la última línea de defensa por
+  // si el store quedó con `paused:false` de antes de la parada (o de una versión anterior del motor).
+  if(data.paused || halted(ctx)) post(iframe, "pauseVideo", []);
   else post(iframe, "playVideo", []);
 }
 
 // Aplica el ÚLTIMO comando pedido por voz/click (solo cuando avanza cmd_seq).
-function applyCmd(iframe, data){
+function applyCmd(iframe, data, ctx){
   const c = data.last_cmd || "";
+  // Un comando que haría sonar el vídeo se ignora con el agente parado. El servidor ya los rechaza en el embudo
+  // (widgets/producers.py::gate), así que esto solo cubre el estado que ya estuviera guardado — pero pausar de
+  // más nunca hace daño y sonar de menos sí.
+  if(halted(ctx) && (c === "play" || c === "load" || c === "restart" || c === "unmute"
+                     || c === "volume_up" || c === "set_volume")){
+    post(iframe, "pauseVideo", []);
+    return;
+  }
   const vol = Number(data.volume != null ? data.volume : 70);
   if(c === "play") post(iframe, "playVideo", []);
   else if(c === "pause") post(iframe, "pauseVideo", []);
@@ -107,11 +125,15 @@ export function render(root, data, ctx){
       iframe.title = data.title || "YouTube";
       iframe.allow = "autoplay; encrypted-media; fullscreen; picture-in-picture";
       iframe.setAttribute("allowfullscreen", "");
-      const params = "enablejsapi=1&rel=0&modestbranding=1&playsinline=1&autoplay=1&mute=1&origin="
+      // `autoplay` SOLO si hay agente en marcha y el vídeo no estaba pausado. Antes iba fijo a 1: al recargar con el
+      // agente parado, el vídeo arrancaba ANTES de que llegara cualquier orden de pausa (los 700ms de abajo) — se
+      // oía el arranque. Quitarlo del propio `src` es la única forma de que no suene NI UN INSTANTE.
+      const auto = (!data.paused && !halted(ctx)) ? 1 : 0;
+      const params = "enablejsapi=1&rel=0&modestbranding=1&playsinline=1&autoplay=" + auto + "&mute=1&origin="
                      + encodeURIComponent(location.origin);
       iframe.src = "https://www.youtube.com/embed/" + encodeURIComponent(id) + "?" + params;
-      const d0 = data;
-      iframe.addEventListener("load", function(){ setTimeout(function(){ applyState(iframe, d0); }, 700); });
+      const d0 = data, c0 = ctx;
+      iframe.addEventListener("load", function(){ setTimeout(function(){ applyState(iframe, d0, c0); }, 700); });
       frame.appendChild(iframe);
       // El navegador exige un TOQUE real para dar sonido a un autoplay que empezó muted (el "unmute" pedido
       // por VOZ no cuenta como gesto de usuario y el audio puede quedarse bloqueado en silencio sin avisar).
@@ -164,14 +186,16 @@ export function render(root, data, ctx){
   if(E.muteBtn){
     E.muteBtn.textContent = data.muted ? "🔊 Sonido" : "🔇 Silencio";
     E.muteBtn.onclick = () => {
-      if(data.muted){ post(E.iframe, "unMute", []); post(E.iframe, "setVolume", [vol0]); }  // click real: audio YA
+      // El `post` directo (no pasa por el servidor: es el click REAL que desbloquea el audio del navegador) también
+      // se gatea — si no, con el agente parado este botón haría sonar el vídeo por la puerta de atrás.
+      if(data.muted && !halted(ctx)){ post(E.iframe, "unMute", []); post(E.iframe, "setVolume", [vol0]); }
       if(ctx && ctx.action) ctx.action(data.muted ? "unmute" : "mute");
     };
   }
   if(E.unmuteHint){
     E.unmuteHint.style.display = data.muted ? "flex" : "none";
     E.unmuteHint.onclick = () => {
-      post(E.iframe, "unMute", []); post(E.iframe, "setVolume", [vol0]);
+      if(!halted(ctx)){ post(E.iframe, "unMute", []); post(E.iframe, "setVolume", [vol0]); }
       if(ctx && ctx.action) ctx.action("unmute");
     };
   }
@@ -179,7 +203,7 @@ export function render(root, data, ctx){
 
   // Aplicar el último comando si avanzó el contador (mismo vídeo; el cambio de vídeo lo cubre el src nuevo).
   if(seq !== root._hbYt.seq){
-    applyCmd(E.iframe, data);
+    applyCmd(E.iframe, data, ctx);
     root._hbYt.seq = seq;
   }
 }

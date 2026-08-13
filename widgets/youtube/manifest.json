@@ -84,5 +84,21 @@
     "pon un vídeo",
     "ver un vídeo"
   ],
-  "fullscreen": "native"
+  "fullscreen": "native",
+  "runtime": {
+    "output": "audio",
+    "produce": [
+      "load",
+      "play",
+      "restart",
+      "unmute",
+      "volume_up",
+      "set_volume"
+    ],
+    "suspend": "pause",
+    "active_when": {
+      "videoId": true,
+      "paused": false
+    }
+  }
 }
