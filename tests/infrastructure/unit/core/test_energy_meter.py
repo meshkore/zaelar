@@ -326,3 +326,37 @@ def test_one_energy_unit_is_a_quarter_of_a_cent_of_raw_compute():
     assert e(base_url="", model="grok-4.5", prompt_tokens=1_000_000, completion_tokens=0) == 800.0
     assert e(base_url="", model="grok-4.5", prompt_tokens=0, completion_tokens=1_000_000) == 2400.0
     assert e(base_url="", model="deepseek-v4-flash", prompt_tokens=1_000_000, completion_tokens=0) == pytest.approx(56.0)
+
+
+# ── THE CACHED-READ LINE (measured against xAI's own figure, 2026-08-13) ───────────────────────────────────────
+# `cache_read_input_tokens` is a SEPARATE billed counter — not part of `input_tokens` — and we were ignoring it.
+# In a long agentic session the same prompt prefix is re-read every turn, so cached reads end up several times the
+# fresh input: 13% of the bill missing on a medium call, 29% on a real worker run (211k cached vs 74k fresh).
+def test_the_cost_model_matches_what_the_provider_itself_charges():
+    """The only validation that counts: our number against the cost xAI's own CLI reports, on two calls of very
+    different size. Both land EXACTLY, which is also how the $0.30/1M cached rate was derived — the figure quoted
+    around the web ($0.50) fits neither sample."""
+    usd = lambda i, o, c: energy_meter.llm_cost_to_energy(          # noqa: E731
+        base_url="", model="grok-4.5", prompt_tokens=i, completion_tokens=o, cached_tokens=c) / 400.0
+    assert usd(2414, 11, 384) == pytest.approx(0.005009, abs=1e-6)
+    assert usd(62096, 133, 62720) == pytest.approx(0.143806, abs=1e-6)
+    # …y sin la línea de caché se cobra de MENOS, que es el fallo que esto cierra
+    assert usd(62096, 133, 0) < 0.143806 * 0.90
+
+
+def test_cached_tokens_are_optional_so_existing_callers_are_untouched():
+    """El turno de voz (`report_llm_usage`) no tiene cifra de caché; omitir el argumento tiene que dar el MISMO
+    número que antes de este cambio."""
+    e = energy_meter.llm_cost_to_energy
+    sin = e(base_url="", model="grok-4.5", prompt_tokens=1000, completion_tokens=100)
+    cero = e(base_url="", model="grok-4.5", prompt_tokens=1000, completion_tokens=100, cached_tokens=0)
+    assert sin == cero == pytest.approx((1000 * 2 + 100 * 6) / 1_000_000 * 400)
+
+
+def test_an_unmeasured_cache_rate_is_never_free():
+    """Misma postura que `_FALLBACK_RATE_USD`: un modelo sin fila de caché se cobra a una fracción del input y se
+    avisa — nunca a cero, que es perder dinero en silencio."""
+    energy_meter._warned_unmapped.clear()
+    r = energy_meter._cached_rate_for("", "modelo-nuevo-sin-medir", in_rate=4.00)
+    assert r == pytest.approx(1.00)                                  # 25% de 4.00
+    assert r > 0

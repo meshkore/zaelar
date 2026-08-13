@@ -85,8 +85,9 @@ _MODEL_RATES: dict[str, tuple[float, float]] = {
     # DIRECTAMENTE (no por la cadena de relevo Anthropic), así que la sesión no reporta base_url y sin
     # una fila POR MODELO caería al fallback — cobrando la mitad del input, que es donde está el gasto
     # de un worker (73.851 in vs 1.231 out en una corrida medida). Precios verificados 2026-08-13 en la
-    # tarifa pública de xAI. OJO: grok-4.5 tiene tramo LARGO ($4/$12 por encima de 200K de prompt) y
-    # cached input a $0.50 — ninguno de los dos se modela aquí todavía, ver _rate_for.
+    # tarifa pública de xAI. El input CACHEADO sí se modela (ver `_CACHED_READ_RATES_USD`, medido a
+    # $0.30/1M). Lo que NO se modela todavía es el tramo LARGO de grok-4.5 ($4/$12 por encima de 200K de
+    # prompt): con 500K de contexto una sesión larga puede cruzarlo y ahí volveríamos a cobrar de menos.
     "grok-4.5": (2.00, 6.00),
     "grok-4.6": (2.00, 6.00),
     "grok-4.3": (3.00, 15.00),
@@ -149,18 +150,60 @@ def _rate_for(base_url: str, model: str | None) -> tuple[float, float]:
     return _FALLBACK_RATE_USD
 
 
+# $ per 1M CACHED-READ input tokens, by model. A cached read is a real billed line and it is NOT
+# included in `input_tokens` (Anthropic-shaped usage reports the three counters separately), so ignoring
+# it undercharges — badly, because in a long agentic session the same prompt prefix is re-read on every
+# turn and cached reads end up SEVERAL TIMES the fresh input. Measured on a real worker run: 211k cached
+# reads against 74k fresh input, i.e. 29% of the bill missing.
+#
+# The grok rate is DERIVED FROM MEASUREMENT, not from a pricing page: two independent calls of very
+# different sizes (384 and 62.720 cached tokens) both solve to exactly $0.30/1M against the cost xAI's own
+# CLI reports, while the figure blogs quote ($0.50) does not fit either. GLM's is Z.AI's published
+# cached-input price. Anything unmapped falls to a fraction of the input rate — the same
+# never-silently-free stance as _FALLBACK_RATE_USD, logged once.
+_CACHED_READ_RATES_USD: dict[str, float] = {
+    "grok-4.5": 0.30,          # medido (ver arriba), no publicado
+    "grok-4.6": 0.30,
+    "glm-5.2": 0.26,           # precio público de Z.AI para input cacheado
+}
+_CACHED_READ_FALLBACK_FRACTION = 0.25      # del rate de input, cuando no hay fila propia
+
+
+def _cached_rate_for(base_url: str, model: str | None, in_rate: float) -> float:
+    m = (model or "").lower()
+    for needle in sorted(_CACHED_READ_RATES_USD, key=len, reverse=True):
+        if needle in m:
+            return _CACHED_READ_RATES_USD[needle]
+    key = f"cache::{m}"
+    if key not in _warned_unmapped:
+        _warned_unmapped.add(key)
+        logger.warning(
+            f"energy_meter: no cached-read rate for model={model!r} — charging "
+            f"{_CACHED_READ_FALLBACK_FRACTION:.0%} of the input rate. Measure it and add a real row."
+        )
+    return in_rate * _CACHED_READ_FALLBACK_FRACTION
+
+
 def llm_cost_to_energy(
-    *, base_url: str, model: str | None = None, prompt_tokens: int | None, completion_tokens: int | None
+    *, base_url: str, model: str | None = None, prompt_tokens: int | None, completion_tokens: int | None,
+    cached_tokens: int | None = None,
 ) -> float | None:
     """Pure. Returns Energy units for one LLM call, or None only for a local/free endpoint (Ollama —
     11434/localhost/127.0.0.1). Every real cloud endpoint always returns a value (exact rate if known,
-    fallback otherwise) — see module docstring for why this changed from the original fail-open design."""
+    fallback otherwise) — see module docstring for why this changed from the original fail-open design.
+
+    `cached_tokens` = `cache_read_input_tokens` of Anthropic-shaped usage: a SEPARATE counter, not part of
+    `prompt_tokens`, and a real billed line (see `_CACHED_READ_RATES_USD`). Optional and defaulting to 0 so
+    a caller that has no cache figure behaves exactly as before."""
     if _is_local_endpoint(base_url):
         return None
     in_rate, out_rate = _rate_for(base_url, model)
     pt = prompt_tokens or 0
     ct = completion_tokens or 0
+    cached = cached_tokens or 0
     raw_usd = (pt / 1_000_000) * in_rate + (ct / 1_000_000) * out_rate
+    if cached:
+        raw_usd += (cached / 1_000_000) * _cached_rate_for(base_url, model, in_rate)
     retail_eur = raw_usd * MARGIN_MULTIPLIER  # treats USD≈EUR for simplicity — fine at these magnitudes
     return retail_eur / EUR_PER_ENERGY_UNIT
 
@@ -277,7 +320,8 @@ def report_llm_usage(
 
 
 def report_worker_usage(
-    *, base_url: str, model: str | None = None, prompt_tokens: int | None, completion_tokens: int | None
+    *, base_url: str, model: str | None = None, prompt_tokens: int | None, completion_tokens: int | None,
+    cached_tokens: int | None = None,
 ) -> None:
     """Call from a Brain Worker session's completion (nucleo/workers/session.py::_finish), AFTER the
     stream-json "result" usage is known. Same rate table and fire-and-forget contract as
@@ -289,7 +333,8 @@ def report_worker_usage(
     if not enabled():
         return
     energy = llm_cost_to_energy(
-        base_url=base_url, model=model, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens
+        base_url=base_url, model=model, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens,
+        cached_tokens=cached_tokens,
     )
     if energy is None:
         return

@@ -169,7 +169,7 @@ class WorkerSession:
             # se suma al total final si el `result` llega —ese ya viene sumado por el CLI— sino que se conserva como
             # el MÍNIMO declarado. Ver `_finish`.
             u = d.get("usage") or {}
-            for k in ("input_tokens", "output_tokens"):
+            for k in ("input_tokens", "output_tokens", "cache_read_input_tokens"):
                 try:
                     self._usage_partial[k] = self._usage_partial.get(k, 0) + int(u.get(k) or 0)
                 except (TypeError, ValueError):
@@ -233,12 +233,18 @@ class WorkerSession:
         # ~$0,20 de tokens de xAI → €0 facturados. Dos preocupaciones distintas en un solo `if`; se separan.
         u = self._usage or self._usage_partial or {}
         pt, ct = u.get("input_tokens"), u.get("output_tokens")
-        if pt or ct:
+        # El input CACHEADO es una LÍNEA FACTURABLE APARTE y no va dentro de `input_tokens` (el usage con forma
+        # Anthropic lleva los tres contadores separados). En una sesión agéntica larga el mismo prefijo de prompt
+        # se relee en cada turno, así que los tokens de caché acaban siendo VARIAS VECES los de input fresco:
+        # medido contra el coste que reporta el propio CLI de Grok, ignorarlos nos dejaba el 29% de la factura
+        # fuera (211k cacheados frente a 74k de input). Se pasa al metro, que lo tariffa a su precio propio.
+        cached = u.get("cache_read_input_tokens")
+        if pt or ct or cached:
             try:
                 from nucleo import energy_meter as _energy
                 _energy.report_worker_usage(
                     base_url=self._base_url, model=self._model,
-                    prompt_tokens=pt, completion_tokens=ct,
+                    prompt_tokens=pt, completion_tokens=ct, cached_tokens=cached,
                 )
             except Exception:
                 pass
