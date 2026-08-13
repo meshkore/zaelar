@@ -91,6 +91,9 @@ def chat_sync(task: str, system: str, user: str, *, max_tokens: int = 900,
         "max_tokens": max_tokens,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
     }
+    # EGRESS (T304): si el despliegue media la salida, ni la URL ni la clave son las del proveedor.
+    from nucleo import llm_egress
+    url, key, _extra = llm_egress.route(url, key)
     req = urllib.request.Request(
         url.rstrip("/") + "/chat/completions",
         data=json.dumps(payload).encode(),

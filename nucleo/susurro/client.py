@@ -61,6 +61,10 @@ async def audit_llm(window_text: str) -> tuple[str | None, dict]:
     payload = {"model": model, "temperature": 0, "messages": messages,
                "response_format": {"type": "json_object"}}
     meta: dict = {"model": model, "base_url": base, "request": payload}
+    # EGRESS (T304). `meta` conserva el base_url ORIGINAL a propósito: es lo que hace legible el visor
+    # («esta auditoría iba a AIMLAPI»), y el enrutado real es un detalle del despliegue, no del evento.
+    from nucleo import llm_egress
+    base, key, _extra = llm_egress.route(base, key)
     if not key:
         meta["error"] = "sin api key para el endpoint"
         return None, meta

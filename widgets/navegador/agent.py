@@ -123,10 +123,18 @@ def _c() -> AsyncOpenAI:
         key = _api_key()
         if not key:
             raise RuntimeError("no NAVEGADOR_AGENT_API_KEY/AIMLAPI_KEY para el automatizador del navegador")
-        headers = None
-        if "aimlapi" in _base_url().lower():   # Cloudflare 403ea el UA por defecto del SDK (mismo fix que el duo)
-            headers = {"User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"}
-        _client = AsyncOpenAI(api_key=key, base_url=_base_url(), default_headers=headers)
+        # EGRESS (T304). Este agente es el que más llamadas hace del sistema — una por paso de
+        # navegación — así que es también el que más clave necesitaba tener a mano. Ya no.
+        from nucleo import llm_egress
+        base, key, extra = llm_egress.route(_base_url(), key)
+        if not key:
+            raise RuntimeError("sin credencial para el automatizador del navegador")
+        headers = dict(extra)
+        # El UA de navegador es para el Cloudflare que hay delante de AIMLAPI. Con salida mediada quien
+        # habla con AIMLAPI es el otro extremo, así que aquí sobra.
+        if not extra and "aimlapi" in base.lower():
+            headers["User-Agent"] = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+        _client = AsyncOpenAI(api_key=key, base_url=base, default_headers=headers or None)
     return _client
 
 

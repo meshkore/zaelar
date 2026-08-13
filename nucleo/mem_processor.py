@@ -497,8 +497,15 @@ async def process(text: str, *, state: dict | None = None) -> list[dict] | None:
                         # (igual que fast_client con el SDK OpenAI — ver su _BROWSER_UA). Sin esto, apuntar el CORAZÓN
                         # a AIMLAPI (config §memory.mem_processor_base_url) 403ea SIEMPRE → todo escribe por heurística.
                         # Inocuo para OpenAI/Ollama/otros endpoints; el header sobra pero no molesta.
-                        _headers = {"Authorization": f"Bearer {_key()}", "User-Agent": _BROWSER_UA}
-                        async with s.post(url, headers=_headers, json=payload) as r:
+                        # EGRESS (T304): con salida mediada, ni el destino ni la credencial son del
+                        # proveedor. `url` ya trae `/chat/completions`, así que se reenruta la BASE.
+                        from nucleo import llm_egress
+                        _base, _tok, _extra = llm_egress.route(_url(), _key())
+                        _dest = _base.rstrip("/") + "/chat/completions" if _extra else url
+                        _headers = {"Authorization": f"Bearer {_tok}", **(_extra or {})}
+                        if not _extra:
+                            _headers["User-Agent"] = _BROWSER_UA
+                        async with s.post(_dest, headers=_headers, json=payload) as r:
                             # CUALQUIER 2xx es una respuesta buena (2026-08-09): AIMLAPI devuelve **HTTP 201** con
                             # un cuerpo de completion perfectamente válido para algunos modelos (visto con
                             # `zhipu/glm-4.7`). Exigir `== 200` convertía eso en un fallo → fail-open a la heurística

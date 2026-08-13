@@ -122,6 +122,11 @@ def _order_openai(query: str, texts: list[str]) -> list[int] | None:
     except Exception:
         return None
     base_url = str(_cfg().get("rerank_base_url") or "").strip() or None
+    # EGRESS (T304). Solo si hay base_url explícita: sin ella el SDK va a OpenAI por defecto y no hay
+    # nada que reenrutar — el reranker remoto es opt-in y este camino está dormido por defecto.
+    if base_url:
+        from nucleo import llm_egress
+        base_url, key, _extra = llm_egress.route(base_url, key)
     cli = OpenAI(api_key=key, base_url=base_url, timeout=float(os.getenv("MEMORY_RERANK_TIMEOUT", "12")))
     listing = "\n".join(f"[{i}] {t[:280]}" for i, t in enumerate(texts))
     sys = ("Eres un reordenador de recuerdos. Dada una PREGUNTA y una lista de RECUERDOS numerados, devuelve SOLO "
