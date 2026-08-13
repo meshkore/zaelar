@@ -173,3 +173,22 @@ def test_the_backend_note_rides_the_prompt_and_never_reaches_untrusted_work():
                      if not ln.lstrip().startswith("#"))
     assert "_BACKEND_NOTE + " in code
     assert "spec.deny_tools else _BACKEND_NOTE" in code         # fail-closed: la rama sin nota es la no confiable
+
+
+def test_every_tool_gets_its_own_allow_rule_because_the_allowlist_is_strict():
+    """En cuanto hay UNA regla `--allow`, Grok pasa a allowlist ESTRICTA: `acceptEdits` deja de aprobar lo no
+    listado. Costó DOS corridas del banco verlo (primero faltaba `write` en `--tools`; al añadirlo seguía muriendo
+    con «User cancelled the execution for tool `write`», porque nunca había tenido permiso). Una tool en
+    `_GROK_TOOLS` sin entrada en `_TOOL_ALIAS` es una tool SIN PERMISO — este test es el que lo impide."""
+    from nucleo.workers.grok_session import _GROK_TOOLS, _TOOL_ALIAS
+    sin_alias = [t for t in _GROK_TOOLS if t not in _TOOL_ALIAS]
+    assert not sin_alias, f"sin alias = sin regla --allow = denegada en vivo: {sin_alias}"
+
+
+def test_writes_show_what_happened_not_the_diff_payload():
+    """`write`/`search_replace` devuelven `{"type":"SearchReplace","EditsApplied":{…}}`. Sin desenvolverlo la fila
+    enseñaba el JSON con `old_string`/`new_string` enteros en vez de «se ha creado X»."""
+    from nucleo.workers.grok_session import _unwrap_evidence
+    raw = ('{"type":"SearchReplace","EditsApplied":{"old_string":"","new_string":"hola\\n",'
+           '"tool_output_for_prompt":"The file /tmp/x.txt has been created."}}')
+    assert _unwrap_evidence(raw) == "The file /tmp/x.txt has been created."

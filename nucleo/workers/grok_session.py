@@ -98,6 +98,10 @@ _TOOL_ALIAS = {
     "web_fetch": "WebFetch",
     "spawn_subagent": "Task",
     "ask_user_question": "AskUser",
+    # `todo_write` tiene que estar AQUÍ aunque el panel no pinte su fila distinta: este mapa es también la fuente de
+    # las reglas `--allow` (ver `start`), así que una tool sin alias es una tool sin permiso — y se moriría con el
+    # mismo «User cancelled» que costó dos corridas del banco.
+    "todo_write": "TodoWrite",
 }
 # Argumento que lleva la ruta/consulta en cada tool de Grok → el nombre que espera `_tool_step` de claude_session.
 # VERIFICADO sondeando el CLI (no adivinado): `read_file` usa **`target_file`**, no `path`. Con el nombre mal, la
@@ -195,6 +199,16 @@ class GrokSession(ClaudeCodeSession):
             rules = list(_BRIDGE_TOOLS)
             if (spec.env or {}).get("ZAELAR_NO_BRIDGE_TOOLS"):
                 rules = []
+            # **En cuanto hay UNA regla `--allow`, la allowlist pasa a ser ESTRICTA**: `--permission-mode
+            # acceptEdits` deja de aprobar nada que no esté listado, así que hay que declarar CADA tool, no solo el
+            # Bash. Lo descubrió el banco del 2026-08-13 en dos capas: primero faltaba `write` en `--tools` (y el
+            # worker rodeaba por la terminal), y al añadirlo la escritura seguía muriendo — ahora con «User
+            # cancelled the execution for tool `write`», porque nunca había tenido permiso. Las reglas van con los
+            # nombres de CLAUDE (probado: `--allow Write` habilita su `write`, `--allow Read` su `read_file`), que
+            # es justo el mapeo que ya tenemos en `_TOOL_ALIAS` — se reusa para no mantener dos listas que se
+            # desincronizarían al añadir una tool.
+            rules += sorted({_TOOL_ALIAS[t] for t in _GROK_TOOLS
+                             if t in _TOOL_ALIAS and _TOOL_ALIAS[t] != "Bash"})
             for r in rules:
                 cmd += ["--allow", r]
         if spec.model:
@@ -302,6 +316,9 @@ _EVIDENCE_FIELDS = {
     "ListDir": ("content",),                            # anidado bajo Content
     "GrepSearch": ("stdout",),                          # ¡lista de bytes!
     "Todo": ("summary_for_prompt",),
+    # `write` y `search_replace` comparten forma: `{"type":"SearchReplace","EditsApplied":{…}}`. Sin esto la fila
+    # de un fichero escrito enseñaba el JSON con el `old_string`/`new_string` enteros en vez de «se ha creado X».
+    "SearchReplace": ("tool_output_for_prompt",),        # anidado bajo EditsApplied
 }
 
 
