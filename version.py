@@ -11,11 +11,11 @@ import os
 import subprocess
 import time
 
-# Versión semántica del motor — súbela al cerrar un bloque de cambios notable (última: V2-089 UI multilingüe +
-# arranque idiomático endurecido · V2-090 observabilidad por flujo/sesión/instalación · memoria a
-# deepseek-v4-flash (todo por el broker AIMLAPI, fin de OpenAI directo) · hoja de resultados como superficie
-# de sistema · rehidratación del trabajo tras reinicio + escritorio · aislamiento de datos en la suite de tests).
-VERSION = "2.93"
+# Versión semántica del motor — súbela al cerrar un bloque de cambios notable (última: tercer backend de Brain
+# Worker Grok Build + presets de proveedor · pila de Energy visible antes de agotarse · sello de versión también
+# en el proveedor de producción · rehidratación de workers/escritorio · techo de inactividad de la sesión de
+# trabajo, 5 min sin actividad real cierra y abre una nueva).
+VERSION = "2.94"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CACHE: dict = {}
