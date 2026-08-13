@@ -90,6 +90,7 @@ class WorkerSession:
         self._stopped = False
         self._model = spec.model or ""     # V2-048: modelo del worker (chip de observabilidad) — lo afina `spawned`
         self._usage: dict = {}             # tokens del `result` (input/output) → chip de tamaño en la fila final
+        self._usage_partial: dict = {}     # tokens ACUMULADOS mensaje a mensaje: lo único que hay si lo matamos
         self._cost = None                  # coste USD del `result` → texto de la fila final (informativo, NO se
                                             # usa para Energy — ver energy_meter.report_worker_usage docstring)
         self._base_url = ""                # endpoint real del escalón que sirvió la sesión (energy_meter, 2026-08-05)
@@ -162,6 +163,19 @@ class WorkerSession:
                             (f" → relevo a {d['next']}" if d.get("next") else " · sin relevo"), ok=False)
         elif ev.type == "progress":
             self._bus("worker.progress", {"id": rec.task_id, "pct": d.get("pct"), "note": d.get("note")})
+        elif ev.type == "usage":
+            # CONSUMO PARCIAL, mensaje a mensaje (2026-08-13). Se acumula aparte del `usage` del `result` porque
+            # sirve a un caso que el `result` no puede cubrir: el worker MATADO por presupuesto nunca lo emite. No
+            # se suma al total final si el `result` llega —ese ya viene sumado por el CLI— sino que se conserva como
+            # el MÍNIMO declarado. Ver `_finish`.
+            u = d.get("usage") or {}
+            for k in ("input_tokens", "output_tokens"):
+                try:
+                    self._usage_partial[k] = self._usage_partial.get(k, 0) + int(u.get(k) or 0)
+                except (TypeError, ValueError):
+                    pass
+            self._model = d.get("model") or self._model
+            self._base_url = d.get("base_url") or self._base_url
         elif ev.type == "result":
             rec.result_summary = str(d.get("summary") or "").strip()
             rec.ok = bool(d.get("ok", True))
@@ -212,28 +226,33 @@ class WorkerSession:
         if rec.status != "cancelled" and rec.result_summary.strip():
             await _deliver(rec)
         self._bus("worker.done", {"id": rec.task_id, "ok": rec.ok, "status": rec.status})
+        # LOS TOKENS SE COBRAN SIEMPRE, tambien si la sesión se CANCELÓ (2026-08-13). Esto vivía dentro del
+        # `if rec.status != "cancelled"` de abajo, que existe por una razón de INTERFAZ (no pintar dos filas `end`
+        # contradictorias) y se llevaba por delante una de FACTURACIÓN que no tiene nada que ver: un worker matado
+        # por presupuesto había consumido tokens REALES y se metraba a CERO. Medido en el banco: 704 s, 256 pasos,
+        # ~$0,20 de tokens de xAI → €0 facturados. Dos preocupaciones distintas en un solo `if`; se separan.
+        u = self._usage or self._usage_partial or {}
+        pt, ct = u.get("input_tokens"), u.get("output_tokens")
+        if pt or ct:
+            try:
+                from nucleo import energy_meter as _energy
+                _energy.report_worker_usage(
+                    base_url=self._base_url, model=self._model,
+                    prompt_tokens=pt, completion_tokens=ct,
+                )
+            except Exception:
+                pass
         # una sesión CANCELADA ya emitió su chip end (ok=False) desde dispatch.cancel_session — re-emitir aquí
         # producía DOS end contradictorios (ok=False y ok=True un segundo después, visto en la demo 2026-07-14).
         if rec.status != "cancelled":
             # V2-048: la fila final lleva los TOKENS (chip de tamaño) + el COSTE + el modelo — cuánto costó la tarea.
             extra = {}
-            u = self._usage or {}
-            pt, ct = u.get("input_tokens"), u.get("output_tokens")
             if pt is not None:
                 extra["prompt_tokens"] = pt
             if ct is not None:
                 extra["completion_tokens"] = ct
             if self._model:
                 extra["model"] = self._model
-            if pt or ct:
-                try:
-                    from nucleo import energy_meter as _energy
-                    _energy.report_worker_usage(
-                        base_url=self._base_url, model=self._model,
-                        prompt_tokens=pt, completion_tokens=ct,
-                    )
-                except Exception:
-                    pass
             lbl = ""
             try:
                 if self._cost:

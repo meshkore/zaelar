@@ -340,6 +340,15 @@ class ClaudeCodeSession(WorkerBackend):
             # + QUÉ usa (la tool + su objetivo concreto: URL, query, slot, fichero, ref del navegador). El texto
             # assistant sigue SIN convertirse en say (monólogo interno).
             msg = obj.get("message") or {}
+            # CONSUMO PARCIAL (2026-08-13): cada mensaje `assistant` trae SU `usage`, y el del `result` final es solo
+            # la suma (verificado sondeando: 61.969+127 = 62.096). Se emite por mensaje para que un worker que NO
+            # llega a su `result` —el caso NORMAL cuando el supervisor lo mata por presupuesto— siga habiendo
+            # declarado lo que gastó. Antes, matar a un worker era metrar CERO: una corrida medida quemó 704 s, 256
+            # pasos y ~$0,20 de tokens reales y se facturó a €0. La factura no puede depender de que el proceso
+            # tenga la cortesía de despedirse.
+            if isinstance(msg.get("usage"), dict):
+                yield self._ev("usage", usage=msg["usage"], model=self._model,
+                               base_url=(getattr(self, "_tier", None) or {}).get("base_url", ""))
             for block in (msg.get("content") or []):
                 if not isinstance(block, dict):
                     continue

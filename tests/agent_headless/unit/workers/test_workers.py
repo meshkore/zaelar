@@ -200,3 +200,41 @@ def test_the_deny_message_lists_the_real_action_vocabulary():
     for a in W._KNOWN_ACTS:
         assert W.classify_act(a, {"widget_id": "results", "action": "present", "tool": "web_search"}) != W.DENY \
             or a in ("widget_data",), f"«{a}» está en el vocabulario pero la política no lo conoce"
+
+
+# ── UN WORKER MATADO SE COBRA IGUAL (agujero de facturación, banco 2026-08-13) ─────────────────────────────────
+# El reporte a Energy vivía DENTRO del `if rec.status != "cancelled"` de `_finish` — un `if` que existe por una
+# razón de INTERFAZ (no pintar dos filas `end` contradictorias, demo 2026-07-14) y que se llevaba por delante una
+# de FACTURACIÓN sin relación: un worker matado por presupuesto había gastado tokens REALES y se metraba a CERO.
+# Medido: 704 s, 256 pasos, 39 capturas, ~$0,20 de tokens de xAI → €0 facturados.
+def test_the_energy_report_is_not_gated_by_the_ui_concern():
+    """Las dos preocupaciones van SEPARADAS en el código: el chip sigue bajo el guard de cancelación, el cobro no."""
+    import pathlib
+    src = pathlib.Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "session.py"
+    code = src.read_text(encoding="utf-8")
+    cobro = code.index("report_worker_usage")
+    guard = code.index('if rec.status != "cancelled":\n            # V2-048')
+    assert cobro < guard, "el cobro tiene que estar FUERA (y antes) del guard que solo gobierna la fila del panel"
+
+
+def test_partial_usage_survives_a_worker_that_never_says_goodbye():
+    """El `usage` del `result` final no existe si matamos el proceso, así que se acumula mensaje a mensaje. El
+    `result` manda cuando llega (el CLI ya lo trae sumado); el parcial es el MÍNIMO declarado cuando no llega."""
+    import pathlib
+    src = pathlib.Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "session.py"
+    code = src.read_text(encoding="utf-8")
+    assert 'elif ev.type == "usage":' in code
+    assert "self._usage or self._usage_partial or {}" in code, "el final gana; el parcial es el respaldo"
+
+
+def test_the_stream_emits_usage_per_message_not_only_at_the_end():
+    """Verificado sondeando el CLI: cada mensaje `assistant` trae su `usage` y el del `result` es la SUMA
+    (61.969+127 = 62.096). Sin emitirlo por mensaje, matar a un worker seguiría siendo gratis."""
+    import pathlib
+    src = pathlib.Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "claude_session.py"
+    code = src.read_text(encoding="utf-8")
+    assert 'self._ev("usage"' in code
+    # …y lo hereda Grok, que es donde se vio el agujero (no reimplementa `_map`)
+    grok = (pathlib.Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "grok_session.py"
+            ).read_text(encoding="utf-8")
+    assert "def _map" not in grok

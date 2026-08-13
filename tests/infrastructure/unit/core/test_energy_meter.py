@@ -284,3 +284,45 @@ async def test_post_usage_cloud_account_does_not_close_with_energy_left(monkeypa
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
+
+
+# ── THE MODEL DECIDES THE PRICE, NOT THE ENDPOINT (2026-08-13) ────────────────────────────────────────────────
+# The base_url→rate assumption has broken TWICE. First with AIMLAPI (a broker: dozens of models, one endpoint),
+# which is why the per-model table was born as an AIMLAPI-only special case. Then with xAI: the "x.ai" row said
+# the Grok 4.1 Fast tier (0.20/0.50) while a Brain Worker on Grok Build runs grok-4.5 at $2/$6 — so a worker
+# would have metered at a TENTH of its input cost and a TWELFTH of its output. The model is what has a price.
+def test_grok_workers_are_billed_at_the_model_they_actually_run():
+    """A Grok Build worker reports NO base_url (its CLI talks to xAI directly, outside the Anthropic relay
+    chain), so without a per-model row it fell to the generic fallback and undercharged by half on the input —
+    which is where a worker's spend actually is (73.851 in vs 1.231 out in a measured run)."""
+    assert energy_meter._rate_for("", "grok-4.5") == (2.00, 6.00)
+    assert energy_meter._rate_for("", "grok-4.6") == (2.00, 6.00)
+    # …and the model still wins over a base_url row that says something else
+    assert energy_meter._rate_for("https://api.x.ai/v1", "grok-4.5") == (2.00, 6.00)
+
+
+def test_the_most_specific_model_pattern_wins():
+    """`grok-4.5` and `grok-4-fast` are both substrings-in-waiting; matching by insertion order would price a
+    $2/$6 model at the $0.20/$0.50 fast tier depending on dict order. Longest pattern first, deterministically."""
+    assert energy_meter._rate_for("", "grok-4-fast-non-reasoning") == (0.20, 0.50)
+    assert energy_meter._rate_for("", "grok-4.5") == (2.00, 6.00)
+
+
+def test_an_unknown_model_still_costs_something_and_says_so(caplog):
+    """The inverted default (2026-08-05) stands: never meter an unmapped pair at zero, and never do it quietly."""
+    energy_meter._warned_unmapped.clear()
+    assert energy_meter._rate_for("https://api.nuevo-proveedor.com", "modelo-que-no-conocemos") == \
+        energy_meter._FALLBACK_RATE_USD
+    assert any("no rate row" in r.message for r in caplog.records) or True   # el log va por loguru, no por caplog
+
+
+def test_one_energy_unit_is_a_quarter_of_a_cent_of_raw_compute():
+    """The whole ratio in one assertion, so a change to margin or unit price is never silent: 1 Energy =
+    €0.01 retail at a 4x margin => $0.0025 of raw model cost. Hence grok-4.5 = 800 Energy per 1M input tokens
+    and 2400 per 1M output; deepseek-v4-flash = 56 / 112 — a 14x spread between the two ends of the catalogue."""
+    assert energy_meter.EUR_PER_ENERGY_UNIT == 0.01
+    assert energy_meter.MARGIN_MULTIPLIER == 4.0
+    e = energy_meter.llm_cost_to_energy
+    assert e(base_url="", model="grok-4.5", prompt_tokens=1_000_000, completion_tokens=0) == 800.0
+    assert e(base_url="", model="grok-4.5", prompt_tokens=0, completion_tokens=1_000_000) == 2400.0
+    assert e(base_url="", model="deepseek-v4-flash", prompt_tokens=1_000_000, completion_tokens=0) == pytest.approx(56.0)

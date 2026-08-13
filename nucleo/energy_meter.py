@@ -45,7 +45,7 @@ from loguru import logger
 
 # $ per 1M tokens, (input, output), matched by substring against `base_url`. Covers providers that
 # serve a single (or effectively single-priced) model directly — NOT brokers like AIMLAPI, which
-# serve dozens of models at very different prices (see _AIMLAPI_MODEL_RATES below).
+# serve dozens of models at very different prices (see _MODEL_RATES below, which is consulted FIRST).
 # Source: public provider pricing, 2026-08-05 — RE-VERIFY periodically, provider pricing changes.
 _RATES_PER_1M_TOKENS_USD: dict[str, tuple[float, float]] = {
     "x.ai": (0.20, 0.50),               # Grok 4.1 Fast tier
@@ -54,11 +54,17 @@ _RATES_PER_1M_TOKENS_USD: dict[str, tuple[float, float]] = {
     "moonshot.ai": (0.95, 4.00),        # Kimi K2.6 — the Brain Workers' secondary relay tier
 }
 
-# $ per 1M tokens, (input, output), matched by substring against the MODEL name — only consulted when
-# `base_url` resolves to the AIMLAPI broker (api.aimlapi.com), which serves many models at different
-# prices; a single base_url→rate row (as used above) cannot express that. Source: public AIMLAPI/
-# DeepSeek/Anthropic pricing, 2026-08-05 — RE-VERIFY periodically.
-_AIMLAPI_MODEL_RATES: dict[str, tuple[float, float]] = {
+# $ per 1M tokens, (input, output), matched by substring against the MODEL name. Consulted FIRST for
+# every provider, not just brokers (changed 2026-08-13 — it used to be AIMLAPI-only).
+#
+# Why model-first is the general case: a base_url→rate row can only be right where one endpoint serves
+# one price. That assumption has now broken TWICE. First with AIMLAPI (a broker, dozens of models at
+# very different prices) — which is why this table was born. Then with xAI: the "x.ai" row said
+# (0.20, 0.50), the Grok 4.1 Fast tier, but a Brain Worker on Grok Build runs **grok-4.5 at $2/$6** —
+# 10x the input rate. A worker on Grok would have metered at a TWELFTH of its output cost. The model
+# is what has a price; the endpoint is just where it is served. So the model decides, and base_url is
+# only the fallback for endpoints that really do serve a single price.
+_MODEL_RATES: dict[str, tuple[float, float]] = {
     # Serves TWO pieces since 2026-08-09: the FlashBrain (config §fast) and the memory CORAZÓN
     # (config §memory.mem_processor_model — see zaelar-model-benchmarks.md §12.3). Measured cost of
     # one distilled turn: ~4076 in + ~389 out tokens => ~$0.00068, i.e. $0.68 per 1000 turns.
@@ -75,6 +81,19 @@ _AIMLAPI_MODEL_RATES: dict[str, tuple[float, float]] = {
     "glm-4.7": (0.40, 1.75),
     "ministral-8b": (0.10, 0.10),
     "llama-3.3-70b": (0.59, 0.79),
+    # Brain Workers conducidos por Grok Build (backend `grok_build`, 2026-08-13). Su CLI habla con xAI
+    # DIRECTAMENTE (no por la cadena de relevo Anthropic), así que la sesión no reporta base_url y sin
+    # una fila POR MODELO caería al fallback — cobrando la mitad del input, que es donde está el gasto
+    # de un worker (73.851 in vs 1.231 out en una corrida medida). Precios verificados 2026-08-13 en la
+    # tarifa pública de xAI. OJO: grok-4.5 tiene tramo LARGO ($4/$12 por encima de 200K de prompt) y
+    # cached input a $0.50 — ninguno de los dos se modela aquí todavía, ver _rate_for.
+    "grok-4.5": (2.00, 6.00),
+    "grok-4.6": (2.00, 6.00),
+    "grok-4.3": (3.00, 15.00),
+    # Los del relay de los workers, también por modelo (la fila por base_url se queda de respaldo).
+    "glm-5.2": (1.40, 4.40),
+    "kimi-k2.6": (0.95, 4.00),
+    "deepseek-v4-pro": (0.28, 0.42),
 }
 
 # Applied when neither table above has a row for the (base_url, model) actually used. Deliberately NOT
@@ -109,10 +128,14 @@ def _rate_for(base_url: str, model: str | None) -> tuple[float, float]:
     AIMLAPI rate if the broker is AIMLAPI, else the fallback (logged once)."""
     u = (base_url or "").lower()
     m = (model or "").lower()
-    if "aimlapi" in u and m:
-        for needle, rates in _AIMLAPI_MODEL_RATES.items():
+    # EL MODELO MANDA (2026-08-13). Antes esta tabla solo se consultaba si el endpoint era AIMLAPI, y por
+    # eso un worker de Grok Build —que no reporta base_url, porque su CLI habla con xAI directamente— caía
+    # al fallback y se cobraba a la mitad. El precio es del MODELO; el endpoint solo es dónde se sirve.
+    # Se ordena por longitud del patrón para que el más específico gane («grok-4.5» antes que «grok-4»).
+    if m:
+        for needle in sorted(_MODEL_RATES, key=len, reverse=True):
             if needle in m:
-                return rates
+                return _MODEL_RATES[needle]
     for needle, rates in _RATES_PER_1M_TOKENS_USD.items():
         if needle in u:
             return rates
