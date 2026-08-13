@@ -262,22 +262,32 @@ class FastClient:
     _clients: dict[tuple, Any] = {}
 
     def _client_key(self, spec: ModelSpec) -> tuple:
-        key = spec.resolved_api_key()
+        # EGRESS (T303). Donde el despliegue declara una salida mediada, el destino y la credencial los
+        # decide `llm_egress`, no el spec: el spec sigue diciendo QUÉ modelo se quiere, y deja de decir
+        # con qué llave se paga. Sin salida mediada esto devuelve exactamente lo de antes, así que el
+        # camino de self-host no cambia ni un byte.
+        from nucleo import llm_egress
+        raw_base = spec.resolved_base_url()
+        base, key, extra = llm_egress.route(raw_base, spec.resolved_api_key())
         if not key:
-            raise RuntimeError(f"sin api_key para el modelo rápido ({spec.model} @ {spec.resolved_base_url()})")
-        base = spec.resolved_base_url()
-        ua = _BROWSER_UA if spec._is_aimlapi() else ""
-        return (base, key, ua)
+            raise RuntimeError(f"sin credencial para el modelo rápido ({spec.model} @ {base})")
+        # El User-Agent de navegador es para Cloudflare delante de AIMLAPI. Con salida mediada quien
+        # habla con AIMLAPI es el otro extremo, así que aquí ya no hace falta.
+        ua = _BROWSER_UA if (spec._is_aimlapi() and not extra) else ""
+        return (base, key, ua, tuple(sorted(extra.items())))
 
     def _client_for(self, spec: ModelSpec):
         # import perezoso: una key ausente no debe reventar el import del paquete/setup de sesión.
         from openai import AsyncOpenAI
 
         ck = self._client_key(spec)
-        base, _key, ua = ck
+        base, _key, ua, extra = ck
         cli = FastClient._clients.get(ck)
         if cli is None:
-            headers = {"User-Agent": ua} if ua else None
+            headers = dict(extra)
+            if ua:
+                headers["User-Agent"] = ua
+            headers = headers or None
             # FASE 1 (cold-start): el cliente HTTP mantiene la conexión TLS VIVA mucho más que el default de httpx
             # (~5s). Sin esto, el prewarm calienta la conexión al arrancar pero CADUCA antes del 1er turno → se
             # re-hace TLS+handshake = los ~3.8s del 1er turno frío. Con keepalive largo, la conexión prewarmeada

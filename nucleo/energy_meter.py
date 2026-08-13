@@ -331,6 +331,13 @@ async def _post_usage_cloud_account(energy: float, kind: str, meta: dict | None 
     user_id = cloud_account.my_user_id()
     if not control_plane_url or not user_id or energy <= 0:
         return
+    # DOBLE COBRO (2026-08-13, T303). Con egress mediado, quien hizo la llamada de verdad ya la apuntó
+    # en el ledger con los tokens que VIO ÉL — mejor dato que esta estimación. Reportarla otra vez
+    # desde aquí cobraría dos veces el mismo turno. El descuento del arriendo local NO pasa por aquí
+    # (va en `_fire_and_forget`, antes), así que el techo de seguridad sigue funcionando igual.
+    from nucleo import llm_egress
+    if kind in ("llm", "worker") and llm_egress.bills_upstream():
+        return
     service_token = (os.getenv("CONTROL_PLANE_SERVICE_TOKEN") or "").strip()
     headers = {"X-Service-Token": service_token} if service_token else {}
     payload = {"user_id": user_id, "energy": energy, "kind": kind}

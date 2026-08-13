@@ -50,6 +50,9 @@ _EXENTOS: dict[str, str] = {
     "voice/llm.py":
         "cliente del ARNÉS de evaluación (tests/agent_headless/harness) — corre en la máquina del "
         "desarrollador, nunca dentro de una Machine de inquilino, y su coste no es de ningún usuario.",
+    "nucleo/llm_egress.py":
+        "mapa de ENRUTADO: nombra hosts de proveedor para saber a qué familia iba dirigida una "
+        "llamada, pero no abre ninguna conexión. Quien llama —y quien mide— es el call site.",
     "config/balances.py":
         "consulta SALDO de las cuentas de proveedor; no consume nada facturable.",
     "server/config_api.py":

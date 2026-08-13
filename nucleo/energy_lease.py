@@ -251,12 +251,18 @@ async def _request(reason: str) -> bool:
 
     granted = float(data.get("energy") or 0.0)
     if not data.get("ok") or granted <= 0:
-        motivo = data.get("error") or data.get("reason") or "sin_energia"
-        logger.warning(f"energy_lease: la nube no concede arriendo ({motivo})")
-        if motivo in ("insufficient_energy", "sin_energia"):
-            _state.update({"granted": 0.0, "spent": 0.0, "expires_at": 0.0, "at": time.time()})
-            _persist()
-            _blow_fuse()
+        # CUALQUIER negativa con respuesta es un VEREDICTO, y todo veredicto significa lo mismo: no
+        # gastes. No se mira el motivo. Hubo una versión que solo paraba ante «insufficient_energy» y
+        # eso es una trampa de mantenimiento: el día que la nube añade una razón nueva —cuenta
+        # caducada, suspendida, lo que venga— el motor la ignoraría y seguiría gastando, en silencio y
+        # sin que ningún test lo note. El motivo se registra para el operador; la DECISIÓN no depende
+        # de él. Lo que sí se distingue es veredicto vs AVERÍA: un fallo de red sale antes (arriba) y
+        # deja vivo lo que quede, que es justo lo contrario.
+        motivo = data.get("error") or data.get("reason") or "sin_motivo"
+        logger.warning(f"energy_lease: la nube NIEGA el arriendo ({motivo}) — se paran las operaciones de pago")
+        _state.update({"granted": 0.0, "spent": 0.0, "expires_at": 0.0, "at": time.time()})
+        _persist()
+        _blow_fuse()
         return False
 
     ttl = float(data.get("ttl_s") or 1800)
