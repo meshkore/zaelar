@@ -360,3 +360,51 @@ def test_an_unmeasured_cache_rate_is_never_free():
     r = energy_meter._cached_rate_for("", "modelo-nuevo-sin-medir", in_rate=4.00)
     assert r == pytest.approx(1.00)                                  # 25% de 4.00
     assert r > 0
+
+
+# ── usage AUSENTE (2026-08-13, T299) ────────────────────────────────────────────────────────────────
+# La tarifa de seguridad cubría «no sé el PRECIO». Nada cubría «no sé el VOLUMEN», y ese era peor: un
+# precio desconocido se busca, un volumen ausente multiplica a exactamente cero y reporta éxito.
+
+def test_missing_usage_is_charged_a_floor_not_zero(monkeypatch):
+    monkeypatch.setenv("ZAELAR_USER_ID", "u-test")
+    energy_meter._warned_missing_usage.clear()
+    pt, ct, estimated = energy_meter._resolve_tokens(
+        "https://api.aimlapi.com/v1", "deepseek-v4-flash", None, None)
+    assert estimated is True
+    assert pt > 0 and ct > 0
+    assert energy_meter.llm_cost_to_energy(
+        base_url="https://api.aimlapi.com/v1", model="deepseek-v4-flash",
+        prompt_tokens=pt, completion_tokens=ct) > 0
+
+
+def test_an_explicit_zero_is_an_answer_and_a_none_is_not():
+    """Conflar los dos es lo que hizo el agujero invisible: un proveedor que dice «0 tokens» ha
+    contestado; uno que no dice nada, no. Solo el segundo se estima."""
+    assert energy_meter._resolve_tokens("https://api.x.ai/v1", "grok-4.5", 0, 0) == (0, 0, False)
+    assert energy_meter._resolve_tokens("https://api.x.ai/v1", "grok-4.5", None, None)[2] is True
+
+
+def test_a_local_endpoint_without_usage_stays_free():
+    """Ollama no factura. El suelo existe para lo que cuesta dinero, y aplicarlo aquí cobraría a un
+    self-hoster por su propia GPU."""
+    assert energy_meter._resolve_tokens("http://localhost:11434/v1", "qwen", None, None) == (0, 0, False)
+
+
+def test_the_floor_is_warned_once_per_endpoint_and_model(caplog):
+    energy_meter._warned_missing_usage.clear()
+    for _ in range(3):
+        energy_meter._resolve_tokens("https://api.nueva.com", "modelo-x", None, None)
+    assert len(energy_meter._warned_missing_usage) == 1
+
+
+# ── búsqueda de pago (T299) ─────────────────────────────────────────────────────────────────────────
+
+def test_paid_search_is_charged_per_request_with_margin():
+    e = energy_meter.search_cost_to_energy(provider="perplexity")
+    assert e == pytest.approx(0.005 * energy_meter.MARGIN_MULTIPLIER / energy_meter.EUR_PER_ENERGY_UNIT)
+
+
+def test_an_unknown_search_provider_is_never_free():
+    energy_meter._warned_search.clear()
+    assert energy_meter.search_cost_to_energy(provider="buscador-que-no-existe") > 0

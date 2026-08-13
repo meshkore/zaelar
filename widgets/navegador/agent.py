@@ -357,6 +357,23 @@ async def run_task(goal: str, owner, plan: str = "", max_steps: int = _MAX_STEPS
         return {"ok": False, "summary": f"error del automatizador: {e}", "steps": steps}
 
 
+def _meter(resp, model: str) -> None:
+    """Reporta a Energy lo que costó UNA llamada de este bucle. Este agente es el que más llamadas
+    hace de todo el sistema —una por paso de navegación, y una tarea son decenas— y era el ÚNICO
+    cliente de LLM que no reportaba nada: el navegador es gratis, el modelo que lo conduce no.
+    Best-effort: medir jamás puede tumbar una tarea que ya está en marcha."""
+    try:
+        from nucleo import energy_meter as _energy
+        u = getattr(resp, "usage", None)
+        _energy.report_llm_usage(
+            base_url=_base_url(), model=model,
+            prompt_tokens=getattr(u, "prompt_tokens", None),
+            completion_tokens=getattr(u, "completion_tokens", None),
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"navegador agent: metering falló (no fatal): {e}")
+
+
 async def _next_action(messages: list[dict], tools: list[dict], strong: bool = False) -> tuple[str | None, dict]:
     """Una llamada al modelo → una acción (function call). Ventana de mensajes acotada para no crecer.
     `tools` = _TOOLS (DOM, por refs) o _VISION_TOOLS (visión, por coordenadas). `strong`=True usa el modelo AVANZADO
@@ -367,8 +384,10 @@ async def _next_action(messages: list[dict], tools: list[dict], strong: bool = F
     model = _model_strong() if (strong and _model_strong()) else _model()
 
     async def _call(mdl):
-        return await _c().chat.completions.create(
+        r = await _c().chat.completions.create(
             model=mdl, messages=trimmed, tools=tools, tool_choice="required", max_tokens=400, temperature=0)
+        _meter(r, mdl)                                      # el modelo REAL de esta llamada, no el pedido
+        return r
     try:
         resp = await _call(model)
     except Exception as e:
@@ -414,6 +433,7 @@ async def summarize_results(goal: str, items: list) -> dict | None:
     try:
         resp = await _c().chat.completions.create(
             model=_judge_model(), messages=[{"role": "user", "content": prompt}], max_tokens=600, temperature=0)
+        _meter(resp, _judge_model())
         txt = (resp.choices[0].message.content or "").strip()
         txt = txt[txt.find("{"):txt.rfind("}") + 1] if "{" in txt else txt
         data = json.loads(txt)

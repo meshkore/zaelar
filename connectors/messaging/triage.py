@@ -89,6 +89,19 @@ async def classify(messages: list[dict], operator_name: str | None = None) -> li
                 data = await r.json()
         content = data["choices"][0]["message"]["content"]
         verdicts = _parse(content)
+        # A ENERGY (2026-08-13). El default es LOCAL (Ollama) y `energy_meter` devuelve None para un
+        # endpoint local, así que el caso normal sigue costando cero y no hace ni una llamada de red.
+        # Se reporta igualmente porque `MSG_TRIAGE_MODEL` puede apuntar a un endpoint REMOTO —y en la
+        # nube no hay Ollama—: sin esto, mover esa variable convierte el triaje en gasto invisible, y
+        # el triaje corre por CADA lote de mensajes entrantes, no por petición del operador.
+        try:
+            from nucleo import energy_meter as _energy
+            usage = (data.get("usage") or {}) if isinstance(data, dict) else {}
+            _energy.report_llm_usage(base_url=url, model=config.triage_model(),
+                                     prompt_tokens=usage.get("prompt_tokens"),
+                                     completion_tokens=usage.get("completion_tokens"))
+        except Exception:  # noqa: BLE001
+            pass
         try:
             from voice.observer import emit
             emit("brain", f"📨 Triaje mensajería ({len(messages)})",

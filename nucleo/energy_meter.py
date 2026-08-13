@@ -123,6 +123,42 @@ def _is_local_endpoint(base_url: str) -> bool:
     return "11434" in u or "localhost" in u or "127.0.0.1" in u
 
 
+# Token assumption for a PAID call whose provider reported no usage at all. 2026-08-13: the fallback
+# RATE (above) covered "we don't know the price"; nothing covered "we don't know the volume", and that
+# second hole was worse — a rate is a number that gets looked up, a missing volume multiplies to
+# exactly zero and reports success. Every provider that streams without `stream_options:
+# {include_usage: true}`, and every SDK response read for its text only, landed there.
+#
+# So: same never-silently-free stance as _FALLBACK_RATE_USD, one level up. A call with no usage is
+# charged this floor and logged loudly, which is deliberately the WRONG number — it exists to be
+# noticed and fixed at the call site (ask the provider for usage), not to be a permanent estimate.
+# Marked `estimated` in the report so reconciliation can find every one of them later.
+_MISSING_USAGE_FLOOR = (
+    int(os.getenv("ENERGY_MISSING_USAGE_IN_TOKENS", "2000")),
+    int(os.getenv("ENERGY_MISSING_USAGE_OUT_TOKENS", "500")),
+)
+_warned_missing_usage: set[str] = set()
+
+
+def _resolve_tokens(
+    base_url: str, model: str | None, prompt_tokens: int | None, completion_tokens: int | None
+) -> tuple[int, int, bool]:
+    """`(prompt, completion, estimated)`. Both counters absent on a PAID endpoint → the floor, warned
+    once per (endpoint, model). A call that reports 0/0 explicitly is NOT this case: zero is an
+    answer, `None` is a missing answer, and conflating them is what made this hole invisible."""
+    if prompt_tokens is None and completion_tokens is None and not _is_local_endpoint(base_url):
+        key = f"{(base_url or '').lower()}::{(model or '').lower()}"
+        if key not in _warned_missing_usage:
+            _warned_missing_usage.add(key)
+            logger.warning(
+                f"energy_meter: NO usage reported for base_url={base_url!r} model={model!r} — charging "
+                f"the floor {_MISSING_USAGE_FLOOR} tokens so it is not free. FIX THE CALL SITE: ask the "
+                f"provider for usage (streaming needs stream_options={{'include_usage': True}})."
+            )
+        return _MISSING_USAGE_FLOOR[0], _MISSING_USAGE_FLOOR[1], True
+    return prompt_tokens or 0, completion_tokens or 0, False
+
+
 def _rate_for(base_url: str, model: str | None) -> tuple[float, float]:
     """Never returns None — local endpoints are filtered by the caller BEFORE this is reached
     (llm_cost_to_energy). Every real cloud endpoint gets a rate: exact if we have one, a per-model
@@ -233,6 +269,37 @@ def stt_cost_to_energy(*, audio_seconds: float | None) -> float:
     raw_usd = (secs / 60.0) * _STT_USD_PER_MIN
     retail_eur = raw_usd * MARGIN_MULTIPLIER
     return retail_eur / EUR_PER_ENERGY_UNIT
+
+
+# $ per SEARCH REQUEST — this family is priced per call, not per token, so it needs its own table
+# rather than a row in the LLM one. Added 2026-08-13: web search had no rate at all, which meant a
+# paid search key would have billed at zero the way the FlashBrain did before 2026-08-05.
+#
+# `""` is the deliberate catch-all (same never-silently-free stance as _FALLBACK_RATE_USD). Free
+# providers are NOT in this table and are NOT charged — they are filtered by the caller, because
+# "free" is a fact about the provider, not a rate of zero to be looked up. Source: public pricing,
+# 2026-08-13 — RE-VERIFY, and note these are entry-tier rates that volume discounts move.
+_SEARCH_USD_PER_REQUEST: dict[str, float] = {
+    "perplexity": 0.005,     # Sonar, incl. the synthesised answer
+    "tavily": 0.008,         # advanced depth (the depth this repo asks for)
+    "brave": 0.005,
+    "": 0.008,               # unmapped paid provider → the most expensive known, logged once
+}
+_warned_search = set()
+
+
+def search_cost_to_energy(*, provider: str) -> float:
+    """Pure. Energy units for ONE paid search request. The caller decides what is paid: a free
+    provider must never reach here (see `websearch`)."""
+    p = (provider or "").lower()
+    if p not in _SEARCH_USD_PER_REQUEST and p not in _warned_search:
+        _warned_search.add(p)
+        logger.warning(
+            f"energy_meter: no search rate for provider={provider!r} — charging the catch-all "
+            f"{_SEARCH_USD_PER_REQUEST['']} $/request. Add a real rate to energy_meter.py."
+        )
+    raw_usd = _SEARCH_USD_PER_REQUEST.get(p, _SEARCH_USD_PER_REQUEST[""])
+    return (raw_usd * MARGIN_MULTIPLIER) / EUR_PER_ENERGY_UNIT
 
 
 # --- reporting: fire-and-forget POST to the right ledger, never blocks the turn/worker ---
@@ -392,12 +459,14 @@ def report_llm_usage(
     turn. No-op with zero cost if not a metered account (enabled() False) or no running event loop."""
     if not enabled():
         return
-    energy = llm_cost_to_energy(
-        base_url=base_url, model=model, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens
-    )
+    pt, ct, estimated = _resolve_tokens(base_url, model, prompt_tokens, completion_tokens)
+    energy = llm_cost_to_energy(base_url=base_url, model=model, prompt_tokens=pt, completion_tokens=ct)
     if energy is None:
         return
-    _fire_and_forget(energy, "llm", {"model": model, "base_url": base_url})
+    meta = {"model": model, "base_url": base_url}
+    if estimated:
+        meta["estimated"] = True
+    _fire_and_forget(energy, "llm", meta)
 
 
 def report_worker_usage(
@@ -413,13 +482,16 @@ def report_worker_usage(
     by our own per-model table keeps worker Energy consistent with every other metered call."""
     if not enabled():
         return
+    pt, ct, estimated = _resolve_tokens(base_url, model, prompt_tokens, completion_tokens)
     energy = llm_cost_to_energy(
-        base_url=base_url, model=model, prompt_tokens=prompt_tokens, completion_tokens=completion_tokens,
-        cached_tokens=cached_tokens,
+        base_url=base_url, model=model, prompt_tokens=pt, completion_tokens=ct, cached_tokens=cached_tokens,
     )
     if energy is None:
         return
-    _fire_and_forget(energy, "worker", {"model": model, "base_url": base_url})
+    meta = {"model": model, "base_url": base_url}
+    if estimated:
+        meta["estimated"] = True
+    _fire_and_forget(energy, "worker", meta)
 
 
 def report_tts_usage(*, characters: int | None) -> None:
@@ -444,3 +516,13 @@ def report_stt_usage(*, audio_seconds: float | None) -> None:
     if energy <= 0:
         return
     _fire_and_forget(energy, "stt")
+
+
+def report_search_usage(*, provider: str) -> None:
+    """Call from a PAID web-search provider's call site, after it answered. Same no-op/fire-and-forget
+    contract as report_llm_usage. The caller must not invoke this for a free provider (Google via our
+    own Chromium, DuckDuckGo): what is free is a property of the provider, and passing it through a
+    rate table would turn 'free' into a number somebody can get wrong later."""
+    if not enabled():
+        return
+    _fire_and_forget(search_cost_to_energy(provider=provider), "search", {"provider": provider})

@@ -83,6 +83,18 @@ async def audit_llm(window_text: str) -> tuple[str | None, dict]:
         usage = data.get("usage") or {}
         meta.update(ms=round((time.time() - t0) * 1000),
                     tokens={"in": usage.get("prompt_tokens"), "out": usage.get("completion_tokens")})
+        # A ENERGY (2026-08-13). Los tokens ya se leían aquí, pero solo para PINTARLOS en el evento del
+        # visor — el mismo defecto que tuvieron los Brain Workers antes de 2026-08-05: el número existía
+        # y moría en un chip de UI. Susurro corre ante fricción, con un modelo POTENTE y una ventana
+        # grande de conversación: es de las llamadas más caras por unidad. Un intento rechazado antes del
+        # reintento sin `response_format` no se cobra (un 400 no trae `usage`).
+        try:
+            from nucleo import energy_meter as _energy
+            _energy.report_llm_usage(base_url=base, model=model,
+                                     prompt_tokens=usage.get("prompt_tokens"),
+                                     completion_tokens=usage.get("completion_tokens"))
+        except Exception:  # noqa: BLE001 — medir nunca tumba la auditoría
+            pass
         return content, meta
     except Exception as e:  # noqa: BLE001 — fail-open duro
         meta.update(ms=round((time.time() - t0) * 1000), error=f"{type(e).__name__}: {e}")

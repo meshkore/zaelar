@@ -127,10 +127,14 @@ def last_usage() -> dict:
 
 def _record_usage(usage: dict | None, base_url: str, model: str) -> None:
     global _last_usage
+    # Sin `usage` NO se sale: se reporta igual con los contadores a None, y `energy_meter` aplica su
+    # suelo (2026-08-13). Salirse aquí era gratis para el proveedor que no informa — el mismo fallo
+    # que la tarifa a cero de 2026-08-05, un nivel más arriba: la llamada se hizo y se pagó.
     if not isinstance(usage, dict):
         _last_usage = {}
-        return
-    _last_usage = {k: usage.get(k) for k in ("prompt_tokens", "completion_tokens", "total_tokens")}
+        usage = {}
+    else:
+        _last_usage = {k: usage.get(k) for k in ("prompt_tokens", "completion_tokens", "total_tokens")}
     try:
         from nucleo import energy_meter as _energy
         _energy.report_llm_usage(base_url=base_url, model=model,

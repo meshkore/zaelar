@@ -111,6 +111,18 @@ async def _summarize(peer: str, prev: str, inbound: str, outbound: str) -> str |
             async with s.post(url, headers={"Authorization": f"Bearer {_key()}"}, json=payload) as r:
                 data = await r.json()
         out = (data["choices"][0]["message"]["content"] or "").strip()
+        # A ENERGY (2026-08-13). Local por defecto → `energy_meter` devuelve None y no cuesta nada.
+        # Se reporta porque el endpoint es CONFIGURABLE y porque este destilador lo dispara un PEER
+        # externo, no el operador: es la única llamada de pago del sistema cuyo ritmo lo marca alguien
+        # de fuera. Sin medirla, un peer parlanchín gastaría el saldo del operador sin dejar rastro.
+        try:
+            from nucleo import energy_meter as _energy
+            usage = (data.get("usage") or {}) if isinstance(data, dict) else {}
+            _energy.report_llm_usage(base_url=url, model=_model(),
+                                     prompt_tokens=usage.get("prompt_tokens"),
+                                     completion_tokens=usage.get("completion_tokens"))
+        except Exception:  # noqa: BLE001
+            pass
     except Exception as e:  # noqa: BLE001
         logger.debug(f"cluster→memoria: sintetizador no disponible/falló ({_model()}): {e} → merge determinista")
         return None

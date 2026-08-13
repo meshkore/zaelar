@@ -100,10 +100,33 @@ def search(query: str, k: int = _MAX_RESULTS) -> dict:
                 # respeta el flag `ai` que ponga el backend (google marca ai=True si trae AI Overview/featured);
                 # el resto por defecto = solo los de respuesta-IA de pago.
                 r["ai"] = bool(r.get("ai")) or src in ("perplexity", "tavily")
+                _meter_search(src)
                 return r
         except Exception as e:  # noqa: BLE001
             logger.warning(f"websearch backend '{src}' falló, siguiente: {e}")
     return {"query": q, "answer": "", "results": [], "source": "none", "ai": False}
+
+
+# Los de PAGO, por nombre de backend. `google` (nuestro Chromium) y `ddg` NO están y por eso no se
+# cobran — la gratuidad es una propiedad del proveedor, no una tarifa de cero que alguien pueda
+# equivocarse al mirar. Añadir un buscador de pago obliga a meterlo aquí Y a darle tarifa en
+# `energy_meter._SEARCH_USD_PER_REQUEST`; el gate de cobertura de Energy falla si no.
+_PAID_BACKENDS = frozenset({"perplexity", "tavily", "brave"})
+
+
+def _meter_search(src: str) -> None:
+    """A ENERGY (2026-08-13). Esta familia se factura POR PETICIÓN, no por tokens. Hoy la cadena cae
+    casi siempre en Google/DDG (gratis) porque las keys de pago no se aprovisionan, así que en la
+    práctica no cobra nada — pero sin esto, poner una key sería gasto invisible. Solo se cobra lo que
+    RESPONDIÓ: un backend que revienta antes de contestar no se factura (si lo hiciera después de que
+    el proveedor ya lo contara, se detectaría en la reconciliación)."""
+    if src not in _PAID_BACKENDS:
+        return
+    try:
+        from nucleo import energy_meter as _energy
+        _energy.report_search_usage(provider=src)
+    except Exception:  # noqa: BLE001 — medir jamás rompe una búsqueda
+        pass
 
 
 def _order() -> list[str]:
