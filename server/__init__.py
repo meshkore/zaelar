@@ -318,6 +318,17 @@ async def _lifespan(app: FastAPI):
             app.state.prewarm_task = asyncio.create_task(flash_prewarm.run())
         except Exception as e:
             logger.warning(f"prewarm skipped (voice/chat unaffected): {e}")
+    # ARRIENDO DE ENERGÍA (ADR-0005) — pedirlo al arrancar, junto al resto del calentamiento y ANTES de
+    # que el usuario pueda hablar, que es cuando de todos modos está esperando. No-op instantáneo en
+    # self-host. Es una TAREA y no un `await`: si el control-plane tarda, el arranque no se cuelga —
+    # sin arriendo `allowed()` ya dice que no, así que esperar aquí no compraría ninguna seguridad.
+    try:
+        import asyncio
+        from nucleo import energy_lease
+        if energy_lease.enabled():
+            app.state.energy_lease_task = asyncio.create_task(energy_lease.ensure(reason="boot"))
+    except Exception as e:
+        logger.warning(f"energy lease at boot skipped: {e}")
     # Messaging (INI-014 WhatsApp + INI-015 Telegram) — MANAGED FROM THE UI, not .env. The supervisor (a) re-starts
     # whatever the user left connected in config/connectors.json after a restart, and (b) drains the connect/
     # disconnect orders the widget enqueues (the widget can't fetch → it posts via ctx.action → store → supervisor).

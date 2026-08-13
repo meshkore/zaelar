@@ -444,6 +444,16 @@ def _fire_and_forget(energy: float, kind: str, meta: dict | None = None) -> None
     into the caller. No running loop (e.g. a unit test calling this directly) → drop silently."""
     import asyncio
 
+    # EL ARRIENDO SE DESCUENTA AQUÍ, ANTES y SIN RED (2026-08-13, ADR-0005). Es el mismo gesto que
+    # reportar, pero no espera respuesta: el techo local es una resta en proceso. Va delante del
+    # `create_task` a propósito — si no hay loop y el POST se descarta, el gasto ya ocurrió igual y el
+    # contador tiene que saberlo. Un contador que solo cuenta cuando la red va bien no es un techo.
+    try:
+        from nucleo import energy_lease
+        energy_lease.note_spend(energy)
+    except Exception:  # noqa: BLE001
+        pass
+
     try:
         asyncio.get_running_loop()
     except RuntimeError:

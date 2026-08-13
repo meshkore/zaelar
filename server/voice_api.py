@@ -483,8 +483,12 @@ async def energy():
 
     En self-host devuelve `cloud:false` y el frontend no pinta nada: no hay saldo que gastar."""
     try:
-        from nucleo import energy_meter
-        return JSONResponse(energy_meter.snapshot(), headers={"Cache-Control": "no-cache"})
+        from nucleo import energy_lease, energy_meter
+        # El ARRIENDO viaja junto al saldo porque son la misma pregunta vista a dos distancias: el saldo
+        # es lo que le queda a la CUENTA, el arriendo lo que puede gastar ESTA máquina antes de volver a
+        # pedir permiso. Con el enlace caído solo el segundo es un hecho comprobable desde aquí.
+        return JSONResponse({**energy_meter.snapshot(), "lease": energy_lease.snapshot()},
+                            headers={"Cache-Control": "no-cache"})
     except Exception:
         return JSONResponse({"cloud": False, "known": False}, headers={"Cache-Control": "no-cache"})
 
