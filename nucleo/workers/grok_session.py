@@ -50,7 +50,40 @@ from .claude_session import _BRIDGE_TOOLS, ClaudeCodeSession, _STREAM_LIMIT, _ZA
 
 # Tools NATIVAS de Grok que un worker confiable puede usar, en su propio vocabulario. `run_terminal_command` es su
 # Bash y va SIEMPRE acotado por las reglas `Bash(...)` de abajo (nunca abierto), igual que en Claude Code.
-_GROK_TOOLS = ("run_terminal_command", "read_file", "list_dir", "grep", "web_search", "todo_write")
+#
+# **`write` y `search_replace` están aquí porque su AUSENCIA mataba las corridas** (banco del 2026-08-13): la lista
+# solo traía lectura, así que al llegar el momento de dejar su informe el worker no tenía con qué y **rodeó por
+# `run_terminal_command`** — que la allowlist deniega, correctamente. Un worker sin escritura no es un worker más
+# seguro: es uno que empuja su trabajo contra la reja. Son los equivalentes de `Write`/`Edit`, que Claude Code ya
+# tiene de serie (`claude_session._DEFAULT_TOOLS`); la contención de verdad la da la reja del Bash, no negarle un
+# fichero. **NO se añaden** las suyas que pisarían piezas nuestras: `spawn_subagent` (el paralelismo lo gobierna
+# nuestro pool), `scheduler_*` (nuestro cron es `nucleo/scheduler.py`), `ask_user_question` (se pregunta por el
+# puente `hbask`, que es quien sabe llegar al operador) ni las de imagen/vídeo.
+#
+# ⚠️ Grok **NO tiene `web_fetch`** (su catálogo declarado se sondeó entero: solo `web_search`). O sea que descubre
+# páginas pero no puede ABRIRLAS por su cuenta — justo lo que hizo TODO el trabajo en la corrida de Claude Code,
+# donde la búsqueda del relay estaba agotada y el `WebFetch` la sustituyó. En este backend esa pata la dan los
+# PUENTES: `nucleo.worker_bridge` (la `web_search` propia de Zaelar) y `nucleo.nav_cli` (el navegador real). No es un
+# hueco tapable con la lista de tools; se le dice en el prompt (ver `_BACKEND_NOTE`).
+_GROK_TOOLS = ("run_terminal_command", "read_file", "write", "search_replace", "list_dir", "grep",
+               "web_search", "todo_write")
+
+# Lo que Grok le dice al modelo cuando la allowlist deniega un comando es, LITERALMENTE, «User cancelled the
+# execution for tool `run_terminal_command`». Un modelo que lee eso concluye lo razonable —que el humano lo ha
+# abortado— y **PARA**: en el banco del 2026-08-13 una sola denegación cerró la sesión con `ok=False` y entrega
+# vacía, tras haber trabajado bien (plan, contrato del widget, búsqueda con resultados reales). No podemos cambiar
+# ese texto (lo escribe el CLI dentro de su propio bucle, no pasa por nosotros), así que se DESARMA por delante:
+# se le explica de quién es la reja, por dónde se rodea y que no es una orden de parar. Va pegado al prompt por el
+# propio backend —no en `dispatch`— porque es una rareza de ESTE CLI y no tiene por qué ensuciar al resto.
+_BACKEND_NOTE = """[ENTORNO — LÉELO ANTES DE EMPEZAR]
+Tu terminal está acotada A PROPÓSITO: `run_terminal_command` solo puede ejecutar los PUENTES de Zaelar (los
+`python -m nucleo.*` que se te indican más abajo). Cualquier otro comando será denegado.
+Cuando eso pasa, el CLI te lo dirá con el texto «User cancelled the execution for tool `run_terminal_command`».
+**Eso NO es el operador cancelando ni una orden de parar**: es la reja de permisos rechazando un comando que no
+está en la lista. NO abandones la tarea — reformula usando los puentes y sigue.
+Para abrir una URL concreta no tienes `web_fetch`: usa la `web_search` de Zaelar por `nucleo.worker_bridge` o el
+navegador real por `nucleo.nav_cli`. Para dejar ficheros usa tu tool `write`, no la terminal.
+"""
 
 # Su vocabulario → el nuestro. Se traduce para que `_tool_step`/`_tool_phase` de `claude_session` (la fuente única
 # de cómo se pinta una fila) funcionen sin tocarse, y para que el panel hable el mismo idioma con los 3 backends.
@@ -136,7 +169,9 @@ class GrokSession(ClaudeCodeSession):
         # dossier de memoria + el método revienta el límite de la línea de comandos.
         fd, self._prompt_path = tempfile.mkstemp(prefix=f"zaelar-grok-{self._task_id or 'x'}-", suffix=".txt")
         with os.fdopen(fd, "w", encoding="utf-8") as fh:
-            fh.write(prompt)
+            # La nota del backend va DELANTE: explica la reja antes de que el modelo se choque con ella (ver
+            # `_BACKEND_NOTE`). Con `deny_tools` no hay puentes ni terminal, así que la nota no aplica y no se pone.
+            fh.write(prompt if spec.deny_tools else _BACKEND_NOTE + "\n" + prompt)
         cmd = [grok, "--prompt-file", self._prompt_path, "--output-format", "streaming-messages-json",
                "--permission-mode", "acceptEdits", "--cwd", cwd,
                # Su TUI y sus extras no tienen sentido headless, y cada uno es superficie que no queremos:

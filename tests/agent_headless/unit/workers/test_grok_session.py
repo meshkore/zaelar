@@ -138,3 +138,38 @@ def test_registry_sends_untrusted_work_to_grok_because_it_can_contain_it(monkeyp
     monkeypatch.setattr(registry, "_provider_for", lambda kind: "grok_build")
     assert registry.get_backend(WorkerSpec(kind="web")).name == "grok_build"
     assert registry.get_backend(WorkerSpec(kind="web", deny_tools=True)).name == "grok_build"
+
+
+def test_the_worker_can_write_so_it_never_pushes_against_the_bash_fence():
+    """Banco del 2026-08-13: `_GROK_TOOLS` solo traía LECTURA, así que al llegar el momento de dejar su informe el
+    worker no tenía con qué y rodeó por `run_terminal_command` — que la allowlist deniega, correctamente. Negarle
+    escritura no lo hace más seguro: lo empuja contra la reja. La contención la da la reja del Bash, y esa sigue.
+    """
+    from nucleo.workers.grok_session import _GROK_TOOLS
+    assert "write" in _GROK_TOOLS and "search_replace" in _GROK_TOOLS
+    # …pero NO las suyas que pisarían piezas nuestras (pool, cron, canal con el operador)
+    for pisa in ("spawn_subagent", "scheduler_create", "scheduler_list", "ask_user_question",
+                 "image_gen", "image_to_video"):
+        assert pisa not in _GROK_TOOLS, f"{pisa} duplicaría una pieza de Zaelar"
+
+
+def test_a_denied_command_is_not_read_as_the_operator_giving_up():
+    """Grok le dice al modelo «User cancelled the execution for tool `run_terminal_command`» cuando la que deniega
+    es NUESTRA allowlist. Un modelo que lee eso concluye que el humano lo abortó y PARA: en el banco una sola
+    denegación cerró la sesión con `ok=False` y entrega vacía tras haber trabajado bien. El texto lo escribe el CLI
+    dentro de su bucle (no pasa por nosotros), así que la única defensa es desarmarlo por delante, en el prompt."""
+    from nucleo.workers.grok_session import _BACKEND_NOTE
+    assert "User cancelled" in _BACKEND_NOTE                    # nombra el texto EXACTO que va a ver
+    assert "NO es el operador" in _BACKEND_NOTE                 # y dice de quién es la reja
+    assert "web_fetch" in _BACKEND_NOTE                         # + la pata que Grok no tiene y dónde está
+
+
+def test_the_backend_note_rides_the_prompt_and_never_reaches_untrusted_work():
+    """La nota va pegada al prompt por el PROPIO backend (es una rareza de este CLI; no ensucia `dispatch`). Con
+    `deny_tools` no hay terminal ni puentes que explicar, así que ahí no se pone: menos superficie que leer para una
+    tarea que viene de fuera."""
+    src = pathlib.Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "grok_session.py"
+    code = "\n".join(ln for ln in src.read_text(encoding="utf-8").splitlines()
+                     if not ln.lstrip().startswith("#"))
+    assert "_BACKEND_NOTE + " in code
+    assert "spec.deny_tools else _BACKEND_NOTE" in code         # fail-closed: la rama sin nota es la no confiable
