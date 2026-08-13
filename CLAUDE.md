@@ -1259,6 +1259,31 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   endpoint de ingesta nuevo ni redactor nuevo en `engine/` — ver la addenda de INI-019 para el porqué).
   Detalle completo + decisión de negocio: `.meshkore/roadmap/initiatives/INI-019-fase3-backoffice-multitenant.md`
   (raíz del workspace) addenda 2026-08-05.
+  - **CUATRO agujeros más, todos cobrando de MENOS (2026-08-13, encontrados corriendo el banco de Brain Workers).**
+    El patrón se repite: no fallaba nada, simplemente el número salía bajo y nadie lo comparaba con nada.
+    **(a) Matar un worker era GRATIS** — el reporte vivía DENTRO del `if rec.status != "cancelled"` de
+    `session.py::_finish`, que existe por una razón de INTERFAZ (no pintar dos filas `end` contradictorias, demo
+    2026-07-14) y se llevaba por delante una de FACTURACIÓN sin relación. Y como el supervisor MATA por diseño al
+    agotarse el presupuesto (`loop._budget_for`), no era un borde: era el camino normal de toda tarea que se pasa
+    de tiempo. Dos preocupaciones en un solo `if`; separadas.
+    **(b) Sin `result` no había números** — un proceso matado nunca lo emite. Cada mensaje `assistant` trae SU
+    `usage` y el del `result` es solo la suma (verificado sondeando: 61.969+127 = 62.096), así que se acumula
+    mensaje a mensaje: **la factura no puede depender de que el proceso tenga la cortesía de despedirse.**
+    **(c) El precio es del MODELO, no del endpoint** — `_MODEL_RATES` se consulta ahora PRIMERO para todos los
+    proveedores (antes solo si el endpoint era AIMLAPI), con el patrón más específico ganando. La suposición «un
+    endpoint = un precio» se había roto ya dos veces: con el broker AIMLAPI y con xAI, donde la fila decía el tramo
+    Fast mientras un worker corría un modelo 10× más caro. Un backend que habla con su proveedor DIRECTAMENTE (Grok
+    Build) no reporta `base_url`, así que sin fila por modelo caía a la tarifa de seguridad.
+    **(d) El input CACHEADO no se cobraba** — `cache_read_input_tokens` es un contador SEPARADO (no va dentro de
+    `input_tokens`) y es una línea que el proveedor factura. En una sesión agéntica larga el mismo prefijo se
+    relee en cada turno, así que los cacheados acaban siendo VARIAS VECES los frescos. Su tarifa se DERIVÓ
+    MIDIENDO —dos llamadas de tamaños muy distintos resuelven ambas al mismo valor contra el coste que reporta el
+    CLI del proveedor, mientras que la cifra que circula por la web no encaja en ninguna— y con ella el cálculo
+    cuadra al microdólar (0,0% de desvío en las dos muestras). Sigue SIN modelarse el tramo de contexto largo de
+    `grok-4.5` y el `cache_creation_input_tokens`.
+    **La equivalencia, el margen y el precio de venta son decisiones de NEGOCIO y NO se documentan aquí** (este
+    repo es público): viven en `.meshkore/docs/ops/zaelar-energy-accounting.md` de la RAÍZ del workspace, junto a
+    la tabla de Energy por millón de tokens y la lista de lo que sigue sin cobrarse. Aquí solo el mecanismo.
 - **Control central de proveedores en el perfil cloud** (`server/config_api.py` + `ConfigPanel.js`,
   2026-08-05, INI-019 "Cambio B"): en self-host el usuario elige proveedor/modelo por pieza
   (`_PROVIDER_CATALOG`: fast/code_agent/memory/triage/susurro); en una cuenta cloud esa elección la fija
