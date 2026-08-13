@@ -147,3 +147,19 @@ def test_pero_agotado_de_verdad_SI_para(monkeypatch):
     monkeypatch.setattr(energy_lease, "_schedule", lambda c: (parado.append(1), c.close()))
     energy_lease._blow_fuse()
     assert parado
+
+
+def test_el_fusible_arranca_un_reintento_o_seria_una_trampa(monkeypatch):
+    """Sin esto el fusible es irreversible en la práctica: la renovación se dispara al GASTAR, y parados
+    no se gasta — así que recargar el saldo no despertaría nunca a la máquina. Se encontró desplegándolo.
+    """
+    from nucleo import runstate
+    monkeypatch.setattr(energy_lease, "enabled", lambda: True)
+    energy_lease._loaded = True
+    energy_lease._state.update({"granted": 10.0, "spent": 10.0})
+    monkeypatch.setattr(runstate, "stopped", lambda: False)
+    monkeypatch.setattr(energy_lease, "_schedule", lambda c: c.close())
+    arrancado = []
+    monkeypatch.setattr(energy_lease, "_start_retry", lambda: arrancado.append(1))
+    energy_lease._blow_fuse()
+    assert arrancado, "el fusible saltó sin dejar forma de volver"

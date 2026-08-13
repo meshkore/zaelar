@@ -168,6 +168,42 @@ def _blow_fuse() -> None:
         account_limits.request_close("energy_lease_exhausted")
     except Exception:  # noqa: BLE001
         pass
+    _start_retry()
+
+
+# Reintento mientras estamos parados por energía. SIN ESTO EL FUSIBLE ES UNA TRAMPA: la renovación se
+# dispara al GASTAR, y parados no se gasta — así que recargar el saldo no despertaría nunca a la
+# máquina y la única salida sería reiniciarla a mano. Encontrado desplegándolo, no razonándolo.
+_RETRY_S = float(os.getenv("ENERGY_LEASE_RETRY_S", "60"))
+_retry_task = None
+
+
+def _start_retry() -> None:
+    global _retry_task
+    if _retry_task is not None and not _retry_task.done():
+        return
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        return
+    _retry_task = loop.create_task(_retry_loop())
+
+
+async def _retry_loop() -> None:
+    """Pide arriendo hasta conseguirlo. Termina SOLO al lograrlo (o al agotar los intentos), y es
+    `ensure(force=True)` porque el estado local dice «no queda nada» — sin forzar se creería al día y
+    no preguntaría."""
+    intentos = 0
+    while intentos < int(os.getenv("ENERGY_LEASE_RETRY_MAX", "2880")):   # ~48 h a un intento/minuto
+        intentos += 1
+        await asyncio.sleep(_RETRY_S)
+        try:
+            if await ensure(reason="retry_after_exhaustion", force=True):
+                logger.info(f"energy_lease: arriendo recuperado tras {intentos} intento(s)")
+                return
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"energy_lease: reintento {intentos} falló: {e}")
+    logger.warning("energy_lease: se agotaron los reintentos de arriendo; hace falta intervención")
 
 
 async def ensure(*, reason: str = "boot", force: bool = False) -> bool:
