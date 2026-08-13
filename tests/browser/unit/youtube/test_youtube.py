@@ -45,7 +45,12 @@ def test_search_relevance_when_not_latest(monkeypatch):
 def test_load_stores_verifiable_metadata(monkeypatch, tmp_path):
     monkeypatch.setattr(urllib.request, "urlopen", _fake_urlopen([]))
     from widgets import store
-    monkeypatch.setattr(store, "_DATA_DIR", tmp_path, raising=False)
+    # El global se llama `DATA_DIR`; esto decía `_DATA_DIR` con `raising=False`, así que monkeypatch CREABA un
+    # atributo nuevo y el aislamiento no aislaba nada: este test llevaba escribiendo en el store REAL del operador
+    # (`widgets/_data/youtube/state.json`), pisándole el vídeo cargado en cada corrida de la suite. Se descubrió el
+    # 2026-08-13 porque el interruptor global (V2-092) hizo visible el efecto: la suite dejaba el widget del operador
+    # en «reproduciendo» con el agente parado. Misma forma que el resto de la suite (ver test_rehydrate.py).
+    monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
     out = yt.apply_action("load", {"query": "el último de Cárpatos"})
     assert out["ok"] is True
     db = yt._load()
