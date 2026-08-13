@@ -277,6 +277,11 @@ export const [wizardOpen, setWizardOpen] = createSignal(false);
 export const [cloudProfile, setCloudProfile] = createSignal(false);        // ¿cuenta cloud? (header reducido)
 export const [accountOpen, setAccountOpen]   = createSignal(false);        // panel de cuenta (icono perfil, solo cloud)
 
+// ---- SALDO DE ENERGY (la PILA de la barra superior, solo cloud). `known:false` = todavía no sabemos el saldo, que
+// NO es lo mismo que cero: la pila se pinta apagada, nunca vacía. Lo siembra main.js desde /api/energy y lo refresca
+// el SSE (`kind:"energy"`) cada vez que el agente gasta, así baja EN VIVO sin que nadie pregunte. ----
+export const [energy, setEnergy] = createSignal({ cloud: false, known: false, balance: null, capacity: null });
+
 // ---- system status (ⓘ panel: Hermes / voz / LLM / STT / TTS / cluster · credit + health) ----
 export const [statusOpen, setStatusOpen] = createSignal(false);            // status panel visible?
 export const [status, setStatus]         = createSignal({ overall: "unknown", items: [] });

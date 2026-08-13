@@ -285,10 +285,91 @@ async def _post_usage_cloud_account(energy: float, kind: str, meta: dict | None 
                 headers=headers,
             )
         balance = (resp.json() or {}).get("balance") if resp.status_code < 400 else None
+        note_balance(balance)
         if account_limits.should_close(balance):
             account_limits.request_close("balance_depleted")
     except Exception as e:  # noqa: BLE001
         logger.warning(f"energy_meter: cloud-account usage report failed (non-fatal): {e}")
+
+
+# --- EL SALDO QUE EL OPERADOR VE (2026-08-13) --------------------------------------------------------------
+#
+# El saldo YA llegaba en la respuesta de cada reporte y solo se usaba para decidir el corte. Aquí se conserva,
+# porque un saldo que solo sirve para apagarte es la peor forma de contarlo: el operador se enteró de que se le
+# había agotado la energía por un cartel, sin haber visto nunca cuánta le quedaba. Es el mismo criterio que
+# [[feedback_visible_state_over_silent_state]] — un estado que puede dejarte tirado tiene que VERSE antes.
+#
+# `capacity` = de cuánto se partía, para poder dibujar una PILA (cuánto queda de cuánto había) y no un número
+# suelto. No se puede preguntar «cuánto compró»: solo se ve el saldo. Pero una recarga es, por definición, un
+# saldo que SUBE — así que un salto hacia arriba fija la capacidad nueva y un descenso no la toca.
+#
+# Vive en `sys_kv`, NUNCA en el estado raíz: `memory.api.compose_state` vuelca cada escalar del estado al prompt
+# como «Clave: valor.», así que un saldo ahí viajaría en todos los turnos de voz (misma razón que en
+# `nucleo/rehydrate.py`).
+_KV_KEY = "energy:balance"
+_state: dict = {"balance": None, "capacity": None, "at": 0.0}
+_loaded = False
+
+
+def _load_once() -> None:
+    global _loaded
+    if _loaded:
+        return
+    _loaded = True
+    try:
+        from memory import api as memory
+        d = memory.kv_get(_KV_KEY)          # kv_get/kv_set ya hacen el JSON: se guarda el dict tal cual
+        if isinstance(d, dict):
+            _state.update({"balance": d.get("balance"), "capacity": d.get("capacity"),
+                           "at": float(d.get("at") or 0.0)})
+    except Exception:
+        pass
+
+
+def note_balance(balance) -> None:
+    """Registra el saldo que acaba de decir el control-plane. Nunca lanza: es contabilidad de PRESENTACIÓN,
+    y un fallo aquí no puede tocar el turno ni el worker que la disparó."""
+    try:
+        if balance is None:
+            return
+        b = float(balance)
+    except (TypeError, ValueError):
+        return
+    _load_once()
+    prev = _state.get("balance")
+    cap = _state.get("capacity")
+    # Una RECARGA es un saldo que sube (o el primer saldo que vemos). Gastar no cambia de cuánto se partía.
+    if cap is None or prev is None or b > float(prev):
+        cap = b
+    _state.update({"balance": b, "capacity": cap, "at": time.time()})
+    try:
+        from memory import api as memory
+        import json as _json
+        memory.kv_set(_KV_KEY, _json.dumps({"balance": b, "capacity": cap, "at": _state["at"]}))
+    except Exception:
+        pass
+    # EN VIVO: la pila baja mientras el agente trabaja, sin que el frontend pregunte. Un `emit` no bloquea.
+    try:
+        from voice.observer import emit
+        emit("energy", "saldo", extra={"balance": b, "capacity": cap})
+    except Exception:
+        pass
+
+
+def snapshot() -> dict:
+    """Lo que el frontend necesita para pintar la pila. `known=False` = todavía no hemos visto ningún saldo (la
+    cuenta no ha gastado nada desde que arrancó y nadie nos lo ha dicho): la pila se pinta apagada, no a cero —
+    «no lo sé» y «se te acabó» no pueden verse igual."""
+    _load_once()
+    b, cap = _state.get("balance"), _state.get("capacity")
+    return {"cloud": enabled(), "known": b is not None, "balance": b, "capacity": cap,
+            "at": _state.get("at") or 0.0}
+
+
+def _reset_for_tests() -> None:
+    global _loaded
+    _state.update({"balance": None, "capacity": None, "at": 0.0})
+    _loaded = False
 
 
 def _fire_and_forget(energy: float, kind: str, meta: dict | None = None) -> None:

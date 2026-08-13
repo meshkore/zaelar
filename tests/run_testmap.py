@@ -213,6 +213,13 @@ DOMAINS: list[dict] = [
         {"id": "4.11", "title": "i18n de la UI: presets alineados + t() reactivo al CONTENIDO del bundle",
             "ch": UNIT, "paths": ["tests/browser/unit/i18n/test_bundles.py",
                                   "tests/browser/unit/i18n/test_bundle_reactivity.py"]},
+        # LA PILA de Energy (2026-08-13). El operador se quedó sin energía a mitad de trabajo y se enteró por un
+        # cartel, sin haber visto nunca cuánta le quedaba. Aquí se guarda la ESCALA —huecos fijos y valor por
+        # rayita variable, con el color atado a la CAPACIDAD y no al saldo para que no cambie mientras gastas—
+        # con los casos que dio él: demo 10, cuota $10 → 10 de un dólar, $50 → los 50, $100 → 50 de dos dólares,
+        # techo en $250. Es pura, así que falla sola y sin navegador.
+        {"id": "4.15", "title": "Pila de Energy: la escala (huecos fijos · valor por rayita · color por capacidad)",
+            "ch": UNIT, "paths": ["tests/browser/unit/energy/test_energy_scale.py"]},
     ]},
     {"id": "5", "name": "CONECTORES", "nodes": [
         {"id": "5.1", "title": "Email", "ch": UNIT, "paths": [

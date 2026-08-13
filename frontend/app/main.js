@@ -80,6 +80,19 @@ try { document.getElementById("preboot")?.remove(); } catch { /* noop */ }
   }
 })();
 
+// ---- SALDO DE ENERGY: siembra la PILA de la barra superior (EnergyGauge.js). Después vive del SSE (`kind:"energy"`),
+// que trae el saldo nuevo con cada gasto — así baja en vivo sin ningún polling. Mismo reintento que arriba, por la
+// misma razón: en el arranque en frío de la Machine el endpoint aún no está. ----
+(async () => {
+  for (let i = 0; i < 45; i++) {
+    try {
+      const r = await fetch("/api/energy", { cache: "no-store" });
+      if (r.ok) { store.setEnergy(await r.json()); return; }
+    } catch { /* la Machine sigue subiendo: reintentar */ }
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+})();
+
 // ---- widget desktop (independent canvas / window manager) ----
 const desktop = new Desktop($("#wstage"));
 window.__zaelarDesktop = desktop;   // the SSE/session bridge reaches the desktop through this

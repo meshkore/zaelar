@@ -64,6 +64,7 @@ _CAT = {
     # `homeostasis` (el latido autónomo, V2-070), `language` (el idioma quedó fijado), `client` (eventos que
     # reporta el navegador por `/api/ui-event`).
     "error": "system", "alert": "system", "homeostasis": "system", "language": "system", "client": "system",
+    "energy": "system",
     # `music` es el rail de música conducido por el FlashBrain (hermano de `rail`), no un widget: la tarjeta que
     # se abre por el camino ya emite SU propio evento `widget`.
     "music": "flash",

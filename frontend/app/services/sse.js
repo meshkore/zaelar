@@ -125,6 +125,14 @@ export function openSSE(desktop) {
       store.pushPulse({ kind: "turn" });                                          // → pico QRS más alto en el ECG
     } else if (d.kind === "status") {                                             // server nudged us to re-read status
       refreshStatus();
+    } else if (d.kind === "energy") {                                             // saldo de Energy → la PILA baja EN VIVO
+      // Se empuja el saldo, no se avisa de que hay que ir a buscarlo: el número entero cabe en el evento y así la
+      // pila baja mientras el worker trabaja, sin un fetch por cada gasto.
+      const x = d.extra || {};
+      if (typeof x.balance === "number") {
+        store.setEnergy({ cloud: true, known: true, balance: x.balance,
+                          capacity: typeof x.capacity === "number" ? x.capacity : (store.energy() || {}).capacity });
+      }
     } else if (d.kind === "notify") {                                             // proactive push (a native cron fired)
       // NO floating toast. When a voice session is live, zaelar SPEAKS it → the live caption comes from the
       // audio-synced transcription (session-lk.js), same as any turn. Here we just keep it in the chat wall as

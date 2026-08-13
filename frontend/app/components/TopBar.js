@@ -11,6 +11,7 @@ import { overallStatus } from "../services/status.js?v=2";
 import { toggleTheme } from "../services/theme.js?v=2";
 import { t } from "../core/i18n.js?v=1";
 import { BUG_ICON, GEAR_ICON, COMPASS_ICON, MOON_ICON, USER_ICON } from "../lib/icons.js?v=1";
+import { EnergyGauge } from "./EnergyGauge.js?v=1";
 
 // Status dot is a plain filled circle (see .statusBtn svg below) — recolors via the SAME --hb-ok/--hb-warn/--hb-risk
 // tokens the rest of the app uses for health state, instead of a one-off emoji/dingbat only this button had.
@@ -43,6 +44,10 @@ export function TopBar() {
       raw(GEAR_ICON), () => ((store.apiAlerts() || []).length ? h("span", { class: "ic-badge" }) : null)),
     // ☾ tema: MOVIDO aquí desde el ojo (Orb.js, 2026-08-09) — junto a ⚙, a petición del operador. ONE icon (moon),
     // blue=dark/grey=light — mismo lenguaje on/off que el resto de controles, nunca se cambia por un icono de sol.
+    // LA PILA de Energy, pegada a la IZQUIERDA del 👤 (EnergyGauge.js, 2026-08-13). Se gatea sola por el `cloud` de
+    // /api/energy y NO por `cloudProfile`: es el mismo hecho por dos vías, y la pila tiene que creerle al endpoint
+    // que le da el saldo, no a otro. En self-host devuelve null y aquí no aparece nada.
+    EnergyGauge(),
     // 👤 Perfil de la CUENTA (SOLO cloud): los datos de la cuenta de pago (usuario/energía/plan) — distinto de la
     // persona del operador, que vive en el orbe. En self-host NO aparece (instalación puramente local, no hace falta).
     // Contenido por definir; hoy abre un panel placeholder.
@@ -106,9 +111,10 @@ function ResetConfirm() {
   return ovl;
 }
 
-// Panel de CUENTA (icono 👤, solo cloud) — placeholder. Reutiliza el overlay del Reset (`ovl rc-ovl` + `rc-box`) para
-// no añadir CSS. El contenido real (usuario/energía/plan/facturación) se define más adelante; hoy solo existe la
-// superficie para que el header cloud tenga su sitio de "datos de la cuenta", separado de la persona del orbe.
+// Panel de CUENTA (icono 👤, solo cloud). Reutiliza el overlay del Reset (`ovl rc-ovl` + `rc-box`) para
+// no añadir CSS. Balance/plan/facturación en detalle no se muestran AQUÍ (eso pediría un endpoint propio del
+// motor); este panel es solo el punto de salida — un enlace de vuelta a donde esos datos SÍ viven. La URL es un
+// literal fijo, no una env var: no depende de qué despliegue sea, así que no hace falta configurarlo.
 function AccountPanel() {
   const close = () => store.setAccountOpen(false);
   let ovl;
@@ -120,6 +126,12 @@ function AccountPanel() {
       h("h3", { class: "rc-title" }, () => t("account.title")),
       h("p", { class: "rc-body" }, () => t("account.body")),
       h("div", { class: "rc-actions" },
+        h("a", {
+          class: "rc-btn rc-yes",
+          href: "https://zaelar.com/account",
+          target: "_blank",
+          rel: "noopener",
+        }, () => t("account.manage")),
         h("button", { class: "rc-btn rc-no", onClick: close }, () => t("account.close")),
       ),
     ),

@@ -1522,6 +1522,30 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   Los subtítulos son **solo en vivo**; el histórico vive en el ChatWall. **Invariante de producto: nada de
   notificaciones flotantes** — un aviso proactivo sale por voz + subtítulo + entrada de chat (deduplicada con
   `store.pushAgentChat`), nunca un toast.
+- **LA PILA de Energy — el saldo se VE antes de agotarse** (`frontend/app/components/EnergyGauge.js` +
+  `nucleo/energy_meter.py::snapshot`, `GET /api/energy`, 2026-08-13): el agente se quedó sin Energy a mitad de una
+  sesión real y el operador se enteró **por un cartel**, sin haber visto nunca cuánta le quedaba. El corte
+  funcionaba; faltaba la parte de antes — misma clase de fallo que un agente caído que se pinta vivo. Pila de
+  rayitas verticales a la IZQUIERDA del 👤, **SOLO con cuenta de nube** (en self-host `/api/energy` dice
+  `cloud:false` y no se pinta nada: allí el usuario paga sus propias APIs).
+  - **La escala son DOS ejes, no uno.** Un saldo crece sin techo y una barra no: la pila tiene un número FIJO de
+    huecos y lo que cambia es **cuánto vale cada rayita**, con el color diciéndolo. `valor = techo(capacidad/50)`
+    acotado a una escalera; encendidas = `saldo/valor`; los huecos dibujados son los que había al empezar y **lo
+    gastado se queda en gris pálido** — sin eso no es una pila, es un número de rayitas variable.
+  - **La CAPACIDAD fija el valor y el color, NUNCA el saldo.** Si dependiera del saldo, el color cambiaría mientras
+    gastas y la pila se leería como un tramo bajando de categoría. Y la capacidad tampoco se pregunta: **una
+    recarga es, por definición, un saldo que SUBE** → un salto hacia arriba la refija, gastar no la toca. Persiste
+    en `sys_kv`, NUNCA en el estado raíz (`compose_state` vuelca cada escalar del estado al prompt de CADA turno —
+    misma razón que en `nucleo/rehydrate.py`).
+  - **No hizo falta endpoint nuevo en la nube**: el saldo YA venía en la respuesta de cada reporte de consumo y
+    solo se usaba para decidir el corte; bastó dejar de tirarlo. Se empuja por SSE (`kind:"energy"`, familia
+    `system`) con cada gasto, así la pila baja EN VIVO sin polling.
+  - **«No lo sé» y «se te acabó» no pueden verse igual**: mientras no haya llegado ningún saldo la pila se pinta
+    APAGADA con su aviso, no vacía. Vacía de verdad = late en rojo.
+  - El servidor devuelve HECHOS (saldo, capacidad, si hay cuenta de nube) y **no la escala**: huecos, valor y color
+    son PRESENTACIÓN y viven en el frontend, así se cambian sin tocar Python. Los tramos y sus precios se
+    documentan en el repo PRIVADO (`../.meshkore/docs/ops/zaelar-energy-gauge.md`) — aquí el mecanismo, allí el
+    producto. Tests: nodo 4.14 (la escala es pura y se prueba en Node, sin navegador).
 - **Visor de memoria (🧠 «mapa de la memoria») — DOS VISTAS** (`frontend/app/components/MemoryMap.js` +
   `memory/api.py::map()` + ruta `GET /api/memory/map`, V2-014 · redseño 2026-07-10): vista de sistema a pantalla
   (overlay, como `/debug` — NO un widget) que se abre desde el 🧠 del cuenco del orbe (`store.memOpen`). Un **toggle

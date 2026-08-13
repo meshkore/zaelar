@@ -472,6 +472,23 @@ async def canvas_layout():
     return JSONResponse({"items": [], "at": 0})
 
 
+@router.get("/api/energy")
+async def energy():
+    """El saldo de Energy de la cuenta, para la PILA de la barra superior. Read-only, no-cache.
+
+    Devuelve HECHOS (saldo, de cuánto se partía, si esta instalación tiene cuenta de nube) y NO la escala con la
+    que se dibuja: cuántos huecos tiene la pila, cuánto vale cada rayita y de qué color es son decisiones de
+    PRESENTACIÓN y viven en el frontend (`EnergyGauge.js`). Así el servidor no tiene que saber nada de colores y
+    la escala se puede cambiar sin tocar Python.
+
+    En self-host devuelve `cloud:false` y el frontend no pinta nada: no hay saldo que gastar."""
+    try:
+        from nucleo import energy_meter
+        return JSONResponse(energy_meter.snapshot(), headers={"Cache-Control": "no-cache"})
+    except Exception:
+        return JSONResponse({"cloud": False, "known": False}, headers={"Cache-Control": "no-cache"})
+
+
 @router.get("/api/tasks")
 async def tasks():
     """Sesiones de Brain Workers VIVAS ahora — lee el REGISTRO EN RAM de dispatch (la FUENTE DE VERDAD, §v2·C),

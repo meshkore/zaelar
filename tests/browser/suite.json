@@ -59,6 +59,11 @@
       "id": "4.11",
       "label": "i18n de la UI: presets + t() reactivo al bundle",
       "kind": "unit"
+    },
+    {
+      "id": "4.15",
+      "label": "Pila de Energy: la escala (huecos · valor por rayita · color por capacidad)",
+      "kind": "javascript"
     }
   ]
 }
