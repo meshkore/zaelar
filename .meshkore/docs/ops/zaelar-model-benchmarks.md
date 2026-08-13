@@ -748,3 +748,148 @@ medir TTFT real y fiabilidad de routing, no solo velocidad de decode nominal).
 **Sobre el `MiMo-V2.5-Pro` normal (ya disponible hoy):** NO incorporar salvo que un A/B muestre ventaja real sobre
 los modelos ya tested (grok-4.20-non-reasoning, gpt-4o-mini, haiku-4.5…) al mismo precio — de momento no hay razón
 para añadirlo solo por ser nuevo.
+
+## 14. BRAIN WORKERS — qué CLI conduce y qué modelo razona (2026-08-13)
+
+Hasta hoy «el proveedor de los Brain Workers» era una sola casilla, y eso escondía que en realidad son **dos
+decisiones independientes**: **quién CONDUCE** (el CLI headless: lee ficheros, ejecuta comandos, llama a nuestros
+puentes) y **quién RAZONA** por debajo (el endpoint + su modelo). Una opción de worker es la TERNA completa. Elegir
+las piezas por separado es lo que producía desajustes silenciosos (`glm-5.2` pedido a Codex, `gpt-5.5` pedido a
+Z.AI): el fallo no aparecía al guardar sino minutos después, dentro de una tarea muerta. De ahí los **presets** de
+`server/config_api.py`, que las mueven juntas.
+
+### 14.1 Los tres CLIs, comparados por lo que de verdad los distingue
+
+| | Claude Code | **Grok Build** | Codex |
+|---|---|---|---|
+| Transporte headless | `--output-format stream-json` | `--output-format streaming-messages-json` (**mismo vocabulario**) | `exec --json` (JSONL propio) |
+| Entrega del prompt | stdin (stream-json) | **`--prompt-file`** (⚠️ `-p -` NO lee stdin) | stdin (`exec -`) |
+| Allowlist de tools | `--allowedTools "Bash(cmd:*)"` | **`--allow 'Bash(cmd:*)'` — MISMA sintaxis, y la APLICA** | ❌ no existe (solo modos de sandbox) |
+| Inyección en vivo | ✅ turnos por stdin | ❌ un turno (piggyback) | ❌ un turno (piggyback) |
+| Reanudar | `--resume <sid>` | `--resume <sid>` | `exec resume <thread_id>` |
+| Reporta coste | ✅ `total_cost_usd` | ✅ `total_cost_usd` | ❌ solo `usage` (lo tarifamos nosotros) |
+| Sostiene el escritor único | ✅ | ✅ | ❌ |
+
+**La fila que decide la arquitectura es la de la allowlist.** El invariante del ESCRITOR ÚNICO de la memoria se
+sostiene acotando el `Bash` del worker a nuestros puentes; sin ese eje, un worker inducido por contenido web hostil
+podría abrir la SQLite en paralelo. Claude Code y Grok Build pueden expresarlo — **verificado en Grok, no supuesto**:
+con `--deny 'Bash(whoami:*)'` el CLI devolvió «Tool `run_terminal_command` was not executed: Denied by permission
+policy: deny rule on bash matching "whoami"». Codex no puede, y headless necesita `workspace-write`, o sea shell
+completo: por eso `registry.get_backend` es **mezclable por CAPACIDAD** y desvía a `claude_code` las tareas que
+existen para estar acotadas (`deny_tools`, `kind="dev"`) aunque la config diga Codex.
+
+**Grok Build hereda el traductor de Claude Code** (`GrokSession(ClaudeCodeSession)`) porque el wire format es el
+mismo; solo se sobrescribe su vocabulario a través de una costura de tres métodos. Lo que cambia de verdad:
+
+1. `run_terminal_command`/`read_file`/`search_replace`/`list_dir`/`grep`/`web_search` → se traducen a
+   `Bash`/`Read`/`Edit`/`Glob`/`Grep`/`WebSearch` para que el panel hable el MISMO idioma con los tres backends.
+2. **`read_file` manda `target_file`, no `path`** (verificado sondeando, no leído en la doc): con el nombre mal la
+   fila salía «lee» sin decir QUÉ lee, que es el dato que hace auditable el paso.
+3. Cada tool envuelve su evidencia distinto — `output_for_prompt` (Bash), `FileContent.content` (ReadFile) y
+   **`stdout` como LISTA DE BYTES** (GrepSearch), que se pintaba «[60,119,111,…]».
+4. `thinking` NO se convierte en fila: el panel muestra trabajo, no monólogo.
+
+### 14.2 ⚠️ El prompt que no llega: la avería más CARA y más MUDA
+
+`grok -p -` **no lee stdin** — toma el `-` como el prompt literal. Y no da error: el CLI arranca con un prompt sin
+sentido y el modelo hace algo razonable por su cuenta. Medido:
+
+| | tokens de entrada | coste | qué hizo |
+|---|---|---|---|
+| Prompt PERDIDO (`-p -`) | **447.559** | **$0,73** | exploró el repo entero y redactó un informe del proyecto |
+| Prompt entregado (`--prompt-file`) | 59.825 | $0,087 | ejecutó el comando pedido y contestó en una línea |
+
+Mismo CLI, mismo modelo (`grok-4.20-non-reasoning`), misma clase de tarea: **×8 en coste y cero utilidad**. Es la
+razón de que el guard viva en tests (`test_grok_session.py`) y no solo en un comentario.
+
+**Nota de coste que aplica a los tres:** el prompt de sistema + el catálogo de tools de estos CLIs es grande, así
+que **un turno trivial ya cuesta céntimos** (~$0,03-0,09 aquí). El coste de un worker NO escala con lo pequeña que
+sea la tarea; escala con cuántas vueltas dé. Un worker que se desorienta es caro por definición.
+
+### 14.3 Los escalones de razonamiento (endpoint + modelo)
+
+- **Z.AI / GLM coding plan** (`api.z.ai/api/anthropic`) — **suscripción**, que es la regla del operador (forfait,
+  nunca por token). Su cuota es SEMANAL y cuando se agota todo el escalón muere de golpe: es justo para eso que
+  existe la cadena de relevo de `workers/providers.py`. Ojo, tiene DOS cuotas independientes (los prompts del
+  modelo y sus tools MCP internas) y solo la primera la ve la cadena.
+- **DeepSeek** (`api.deepseek.com/anthropic`) — pago por token, el más barato (~$0,14/$0,28 por Mtok en v4-flash).
+  Su gateway **MAPEA alias de Claude**: `sonnet`/`haiku` → `deepseek-v4-flash`, `opus` → `deepseek-v4-pro`. O sea
+  que el modelo que se le manda es el ALIAS de Claude, no un nombre de DeepSeek — mandarle `deepseek-v4-flash` a
+  pelo no es lo que espera. Va DESPUÉS de los planes de suscripción por ser por-token.
+- **Grok 4.5 / 4.6** vía Grok Build — por token; 4.6 son $2/$6 por Mtok con 500k de contexto y razonamiento.
+- **Licencia local de Claude Code** — último escalón y **SOLO en local**: un login de navegador no existe dentro de
+  un contenedor, así que en la nube la cobertura la tienen que dar tokens de suscripción, nunca la licencia.
+
+### 14.4 El banco: una tarea REAL de varias piezas, cada preset por turno (2026-08-13)
+
+Comparar CLIs por sus flags no dice quién sirve. El banco (`bench_workers.py`, serializado — nunca en paralelo:
+compartirían el pool y la red y los tiempos no serían comparables) manda una tarea de **tres piezas encadenadas**
+—ferry + hotel + restaurante, con **enlace y precio por pieza** y obligación de marcar como **PROVISIONAL** lo que
+no se pueda confirmar— y saca de la observabilidad lo que permite decidir.
+
+**Una VARIANTE por corrida, y no es un capricho.** La primera pasada mandó la MISMA petición al segundo preset y el
+FlashBrain, con toda la razón, **no escaló**: contestó «ya tienes los 10 planes en pantalla» resumiendo con exactitud
+el resultado anterior. Es el producto funcionando bien —no repite trabajo que acaba de hacer— pero deja al banco sin
+nada que medir. Las variantes son estructuralmente idénticas y solo cambian destino y fechas.
+
+| | **Claude Code + Z.AI (glm-5.2)** | Grok Build + grok-4.5 | Claude Code + DeepSeek |
+|---|---|---|---|
+| Entrega | ✅ 10 propuestas completas | ⛔ ninguna (3 corridas) | — |
+| Tiempo | 734 s (12 min) | 88 s hasta morir | — |
+| Tokens (in/out) | 112.326 / 23.369 | 73.851 / 1.231 | — |
+| Coste de la corrida | **$2,47** | $0,20-0,22 por corrida abortada | — |
+| Evidencia recogida | 18 respuestas del mundo | 9 | — |
+| Consultas a memoria | 26 | sí (sacó su 4x4 sin que nadie lo nombrara) | — |
+| Honestidad | ✅ marcó PROVISIONAL lo no confirmable | no llegó a entregar | — |
+
+**Lo que hace bueno al resultado de Z.AI no es la elocuencia: es lo que se NEGÓ a afirmar.** Confirmó con fuente lo
+duro (Baleària único operador, *Eleanor Roosevelt*, ~2h15, servicio diario en septiembre, ~73-77 €/trayecto) y dejó
+marcado como provisional lo que vive dentro del motor de reservas (horarios exactos, precio cerrado) y los precios de
+hotel que estimó. Un worker que hubiera rellenado esos huecos habría producido una entrega **más bonita y peor que
+nada**, porque el operador la usaría para reservar.
+
+**Y lo hizo con la búsqueda web AGOTADA.** La cuota MCP de Z.AI estaba consumida hasta el 2026-08-30
+(`MCP error -429 … Weekly/Monthly Limit Exhausted`), así que sus dos tools de servidor —`web_search_prime` y
+`webReader`— devolvían el error. El worker lo leyó, lo dijo («no hay problema: ataco directamente las webs con
+WebFetch») y siguió a mano: 403 de DirectFerries, 403 de Baleària, Booking sirviendo la búsqueda por JS, 404 de dos
+agregadores, y sacó el dato de Ferryhopper y TripAdvisor. **Dato de producto: son DOS cuotas independientes** —la de
+los prompts del modelo y la de sus tools MCP— y la cadena de relevo de `workers/providers.py` solo ve la primera. Un
+candidato que solo funcione con la búsqueda buena no vale; este siguió con la mala.
+
+⚠️ **`WebFetch` es la pata que hizo el trabajo, y Grok Build NO la tiene** (catálogo sondeado entero: solo
+`web_search`). En ese backend la sustituyen los puentes —la `web_search` propia de Zaelar y el navegador real— no el
+CLI.
+
+#### Lo que el banco encontró, que es más valioso que la tabla
+
+Ninguno de estos se ve leyendo código; los cuatro salieron de correrlo:
+
+1. **La hoja de resultados enrutaba al GENERADOR de widgets.** Pedir la entrega «en el widget results» hacía que
+   `looks_like_create_widget` viera una orden de CREAR un widget → se generó el widget basura
+   `prepara-ricart-viaje` en vez de investigar. La hoja de resultados es la superficie de entrega de **toda**
+   investigación, así que esto estaba en el camino más transitado del sistema. Arreglado en `flash/router.py`
+   neutralizando el widget de DESTINO antes de clasificar (familia V2-081).
+2. **Susurro inventó una acción y la EJECUTÓ.** Con el buffer conversacional vacío la ventana de auditoría salió sin
+   sección de conversación (el ensamblador omite las vacías sin decir que faltan), y el auditor rellenó el hueco con
+   el caso de EJEMPLO de su propio prompt de sistema: afirmó como hecho «el operador pidió cancelar una cita» y
+   despachó un worker real a cancelarla. Dos defensas nuevas: no auditar sin conversación (`window.has_conversation`)
+   y exigir ANCLAJE en la ventana a `worker_action`, la única corrección que ACTÚA.
+3. **El worker de Grok se quedaba sin escritura y luego sin permisos.** Dos capas del mismo fallo, ambas mudas para
+   quien mira el código: `_GROK_TOOLS` solo traía lectura, así que al ir a dejar su informe rodeaba por la terminal y
+   la allowlist lo denegaba; y al añadir `write`, seguía muriendo porque **con una sola regla `--allow` la allowlist
+   pasa a ser ESTRICTA** y ninguna tool tenía la suya. Encima, Grok presenta una denegación como «**User cancelled
+   the execution**», que un modelo lee como que el humano lo abortó — así que **paraba con entrega vacía tras haber
+   trabajado bien**. Tres corridas perdidas y ~$0,60 en aprender que la reja hay que explicarla, no solo ponerla.
+4. **El accounting de pasos del banco era falso.** Contaba `task · paso` del log durable y daba 2 en una corrida que
+   hizo 6: los pasos NO viven todos ahí, cada puente los emite bajo SU familia (el visor ◷ los agrega, el log no), y
+   `/api/tasks` recorta a los **últimos 6** (`dispatch.py:364`). Se mide por familias del log durable, que en un
+   banco serializado es atribución suficiente.
+
+**Estado de las tres opciones:**
+
+- **1 · Claude Code + Z.AI** — la única PROBADA de punta a punta sobre una tarea real. Es la de producción.
+- **2 · Claude Code + DeepSeek** — **sin probar, y es la que más interesa**: 10 veces más barata que las otras dos.
+  Bloqueada por credencial (no hay ninguna `DEEPSEEK_API_KEY` en ningún store).
+- **3 · Grok Build + grok-4.5** — el backend ya es correcto (traduce su stream, usa los puentes, trae evidencia real,
+  lee la memoria del operador) y los tres defectos del adaptador están arreglados con guards. Falta una entrega
+  completa medida para poder compararlo de verdad.

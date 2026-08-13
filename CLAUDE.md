@@ -180,6 +180,7 @@ arranque `make run` → `python -m server`.
   —cuarentena— y no hace durable una preferencia efímera) + **`nucleo/workers/`** (**Brain Workers V2-038** —
   sustrato AGNÓSTICO: `base.py` [`WorkerBackend`/`WorkerEvent`/`WorkerSpec`], `claude_session.py` [stream-json vivo],
   `generator_session.py` [widgets, envuelve el generador matable], `codex_session.py` [Codex CLI, `exec --json`],
+  **`grok_session.py`** [Grok Build; HEREDA de `claude_session` porque su wire format es el MISMO, ver decisión clave],
   `registry.py`
   [`get_backend` por config, mezclable], `session.py` [`WorkerSession` + `SessionRecord`], **`providers.py`**
   [CADENA de endpoints Anthropic-compatible + relevo por cuota agotada, ver decisión clave]) = capa de trabajo async
@@ -1164,6 +1165,38 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     que devuelve su propio servidor de modelos.
   - Verificado en vivo de punta a punta: escalada → worker de Codex (`gpt-5.5`) → 13 consultas por el puente de
     memoria + fase y progreso reportados → entrega, `ok=true`. Tests: nodo 2.5 (`test_codex_session.py`).
+- **El TERCER backend: Grok Build — y la elección de worker es una TERNA, no una casilla** (`nucleo/workers/
+  grok_session.py` + presets de `server/config_api.py`, 2026-08-13). «El proveedor de los Brain Workers» era una sola
+  casilla y eso escondía que son **dos decisiones independientes**: quién **CONDUCE** (el CLI headless) y quién
+  **RAZONA** (endpoint + modelo). Elegirlas por separado producía desajustes silenciosos —`glm-5.2` pedido a Codex,
+  `gpt-5.5` pedido a Z.AI— que no fallan al guardar sino minutos después dentro de una tarea ya muerta. De ahí los
+  **presets**, que mueven la terna junta con su coste y su estado (CLI detectado / credencial presente / `blocked_by`).
+  - **Grok Build HEREDA de `ClaudeCodeSession`** (`GrokSession`) porque su `--output-format streaming-messages-json`
+    emite **el MISMO vocabulario** que el stream-json de Claude Code. Solo se sobrescribe su vocabulario por una
+    costura de tres métodos (`_tool_step`/`_tool_phase`/`_result_text`) y la forma de su evidencia. Reimplementar la
+    traducción habría sido duplicar el traductor entero para cambiarle los nombres.
+  - **Sí puede sostener el invariante del ESCRITOR ÚNICO** (a diferencia de Codex): acepta `--allow 'Bash(cmd:*)'` y
+    lo APLICA — verificado contra el CLI, no supuesto. Por eso `registry` NO lo desvía: puede correr tareas con
+    `deny_tools`.
+  - ⚠️ **Su allowlist es ESTRICTA: en cuanto hay UNA regla `--allow`, `--permission-mode acceptEdits` deja de
+    aprobar lo no listado.** Las reglas se generan desde `_TOOL_ALIAS` (que ya es el mapeo a nombres de Claude, y son
+    los que las reglas entienden) para que **no existan dos listas** que se desincronicen: una tool sin alias es una
+    tool sin permiso, y hay un test que lo impide. Costó tres corridas del banco descubrirlo porque el síntoma no
+    dice «permiso»: Grok presenta una denegación como «**User cancelled the execution for tool X**», el modelo lo lee
+    como que el humano lo abortó y **PARA con entrega vacía tras haber trabajado bien**. Ese texto lo escribe el CLI
+    dentro de su bucle y no pasa por nosotros, así que se desarma por delante con `_BACKEND_NOTE`, que el propio
+    backend pega a su prompt (es una rareza de ESTE CLI; no ensucia `dispatch`).
+  - **Grok NO tiene `web_fetch`** (catálogo sondeado entero): descubre páginas pero no puede abrirlas — y en el banco
+    el `WebFetch` fue quien hizo TODO el trabajo cuando la búsqueda del relay estaba agotada. Esa pata la dan los
+    PUENTES (`worker_bridge` → la `web_search` propia, `nav_cli` → el navegador real), no el CLI.
+  - ⚠️ **`grok -p -` NO lee stdin** (a diferencia de `codex exec -`): toma el `-` como prompt literal, el nuestro se
+    pierde y **no da error** — el modelo se pone a hacer algo razonable por su cuenta. Medido: **447.559 tokens y
+    $0,73** explorando el repo cuando se le pidió imprimir una versión; con el prompt entregado por `--prompt-file`,
+    $0,005. Un prompt que no llega es la avería más cara y más muda de este backend, y por eso el guard vive en tests.
+  - **El banco y sus resultados**: `zaelar-model-benchmarks.md §14` (los tres CLIs comparados por lo que los
+    distingue de verdad, la tabla de la corrida real, y los cuatro defectos que solo aparecieron corriéndolo). Estado:
+    **Claude Code + Z.AI es la única probada de punta a punta**; DeepSeek es la más interesante por precio y sigue
+    **bloqueada por credencial**. Tests: nodo 2.5 (`test_grok_session.py`).
 - **Los Brain Workers no dependen de UN proveedor — cadena + relevo automático** (`nucleo/workers/providers.py`,
   2026-08-02; detonante: el plan de Z.AI agotó su cuota SEMANAL en mitad de una búsqueda —«[1310] Weekly/Monthly
   Limit Exhausted. Your limit will reset at 2026-08-04»— y todo se cayó a la vez: el worker murió, al operador se le

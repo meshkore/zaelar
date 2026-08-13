@@ -11,7 +11,7 @@ informativo — no hay POST, nada de esto se guarda ni se aplica; cambiar un mod
 secciones normales de configuración (`/api/config/v2`)."""
 from __future__ import annotations
 
-UPDATED = "2026-08-09"
+UPDATED = "2026-08-13"
 SOURCE_DOC = ".meshkore/docs/ops/zaelar-model-benchmarks.md"
 
 MODULES = [
@@ -200,6 +200,62 @@ MODULES = [
                "con `tests/cluster/e2e/run_cluster_suite.py` — más rápido que la ruta AIMLAPI anterior.",
         "hallucination_note": None,
         "candidates_2026_07_26": [],
+    },
+    {
+        "id": "code_agent",
+        "label": "Brain Workers (el trabajo largo: investigar, navegar, escribir código)",
+        "role": "Cada tarea escalada es un worker headless que RAZONA con sus propias tools durante minutos, fuera "
+                "del turno de voz. Son DOS decisiones, no una: quién CONDUCE (el CLI) y quién RAZONA (endpoint + "
+                "modelo). Por eso se eligen como PRESET — moverlas por separado produce desajustes que no fallan al "
+                "guardar, sino minutos después dentro de una tarea ya muerta.",
+        "current": {"model": "glm-5.2 · conducido por Claude Code", "provider": "Z.AI (coding plan, suscripción)",
+                    "cost_in": 1.40, "cost_out": 4.40,
+                    "since": "2026-08-13 — el único de los tres PROBADO de punta a punta sobre una tarea real"},
+        "why": "Banco serializado del 2026-08-13 sobre una tarea de varias piezas encadenadas (ferry + hotel + "
+               "restaurante, con enlace y precio por pieza y obligación de marcar como PROVISIONAL lo no "
+               "confirmado). Claude Code + Z.AI la completó: 12 min, 10 propuestas en la hoja de resultados, el "
+               "ferry CONFIRMADO con fuente y lo no confirmable (horarios exactos, que viven en el motor de "
+               "reservas) marcado como provisional en vez de inventado — que es justo el eje que distingue a un "
+               "worker que investiga de uno que redacta algo plausible. Y lo hizo con la búsqueda web del relay "
+               "AGOTADA: la cuota MCP de Z.AI estaba consumida, así que atacó las webs una a una con WebFetch, se "
+               "comió 403 de DirectFerries/Booking/Baleària y siguió. Un candidato que solo funcione con la "
+               "búsqueda buena no vale para producción.",
+        "hallucination_note": "El eje de calidad aquí NO es la elocuencia: es si marca lo que no pudo confirmar. Un "
+                              "worker que rellena un horario de ferry que no encontró produce una entrega que se ve "
+                              "MEJOR y vale menos que nada, porque el operador la usaría para reservar.",
+        "candidates_2026_07_26": [
+            {"model": "grok-4.5 · conducido por Grok Build", "cost_in": 2.00, "cost_out": 6.00,
+             "tool_calling": "El backend funciona (traduce su stream, usa los puentes, trae evidencia real de la "
+                             "web_search propia de Zaelar y lee la memoria del operador — sacó su 4x4 sin que "
+                             "nadie lo mencionara). Dos defectos del ADAPTADOR encontrados corriéndolo, no "
+                             "leyéndolo: le faltaba `write` (sin con qué escribir su informe, rodeaba por la "
+                             "terminal y la allowlist lo denegaba) y una denegación se le presenta como «User "
+                             "cancelled the execution», que un modelo lee como que el humano lo abortó — así que "
+                             "PARABA con entrega vacía tras haber trabajado bien. Ambos arreglados.",
+             "ttft_ms": None,
+             "status": "candidato REAL, con un hueco de capacidad conocido: Grok Build NO tiene `web_fetch` (su "
+                        "catálogo se sondeó entero). Descubre páginas y no puede abrirlas — justo lo que hizo TODO "
+                        "el trabajo en la corrida que sí terminó. Esa pata la dan los puentes (la web_search propia "
+                        "y el navegador real), no el CLI.",
+             "verdict": "en evaluación — el backend ya es correcto; lo que falta es una entrega completa medida"},
+            {"model": "sonnet/haiku → deepseek-v4-flash · conducido por Claude Code", "cost_in": 0.14,
+             "cost_out": 0.28,
+             "tool_calling": "SIN PROBAR — no hay ninguna DEEPSEEK_API_KEY en ningún store. Es el único de los tres "
+                             "que sigue sin medir, y es 10 veces más barato que los otros dos, así que es el que "
+                             "más interesa medir.",
+             "status": "bloqueado por credencial",
+             "verdict": "pendiente de key; su gateway MAPEA alias de Claude (sonnet/haiku → v4-flash, opus → "
+                        "v4-pro), o sea que se le manda el alias de Claude, no un nombre de DeepSeek"},
+            {"model": "gpt-5.5 · conducido por Codex", "cost_in": None, "cost_out": None,
+             "tool_calling": "Verificado en vivo de punta a punta (13 consultas por el puente de memoria, fase y "
+                             "progreso reportados, entrega con ok=true), pero su frontera de seguridad es DISTINTA: "
+                             "Codex no tiene allowlist de comandos, solo modos de sandbox, y headless exige "
+                             "workspace-write — o sea shell COMPLETO.",
+             "status": "usable para trabajo normal, NUNCA para lo que existe para estar acotado",
+             "verdict": "las tareas con entrada no confiable (deny_tools) o de dev de un peer se desvían a "
+                        "claude_code aunque la config diga Codex — elegir Codex no puede costar las capacidades "
+                        "de cluster, ni de forma visible ni invisible"},
+        ],
     },
 ]
 
