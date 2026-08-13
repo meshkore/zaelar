@@ -62,9 +62,23 @@ for (const s of SYSTEM_SURFACES.filter(s => s.phase === "overlay")) {
 // ---- primer arranque: si la config no está validada, abre el wizard ANTES de nada (config gestionada por la UI) ----
 api.wizardState().then(s => { if (s && s.first_run) store.setWizardOpen(true); }).catch(() => {});
 
+// El splash inline (#preboot en index.html) ya cumplió su papel (loader desde el PRIMER byte); los módulos han
+// cargado y el BootOverlay (velo de neuronas) toma el relevo → quítalo para no solapar dos loaders. Si main.js
+// hubiera fallado al cargar, #preboot se queda (mejor un loader que una pantalla negra).
+try { document.getElementById("preboot")?.remove(); } catch { /* noop */ }
+
 // ---- perfil CLOUD (cuenta de pago): /api/config expone `cloud_profile` (= ZAELAR_USER_ID puesto por el
-// provisioner). En cloud el header se reduce a tema + perfil (TopBar lo gatea); en self-host es false y nada cambia. ----
-api.getConfig().then(cfg => store.setCloudProfile(!!(cfg && cfg.cloud_profile))).catch(() => {});
+// provisioner). En cloud el header se reduce a PERFIL + tema (TopBar lo gatea); en self-host es false y nada cambia.
+// REINTENTO (2026-08-13): en el ARRANQUE EN FRÍO de la Machine de cuenta, /api/config devuelve 503 hasta que el
+// FastAPI termina de subir. Con un solo intento fallido, cloud_profile se quedaba en false PARA SIEMPRE y el header
+// pintaba el menú LOCAL en la nube. Se reintenta hasta que responde — el estado real manda. ----
+(async () => {
+  for (let i = 0; i < 45; i++) {
+    try { const cfg = await api.getConfig(); if (cfg) { store.setCloudProfile(!!cfg.cloud_profile); return; } }
+    catch { /* 503 mientras la Machine arranca: reintentar */ }
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+})();
 
 // ---- widget desktop (independent canvas / window manager) ----
 const desktop = new Desktop($("#wstage"));

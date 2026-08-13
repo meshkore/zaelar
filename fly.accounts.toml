@@ -23,9 +23,17 @@ primary_region = "iad"   # same region as zaelar-demo
   # Same provider wiring as fly.demo.toml / machineConfig.js's BASE_PROVIDER_ENV — MUST stay in sync
   # by hand (two deployables, no shared build step).
   ZAELAR_TTS = "elevenlabs"
-  FAST_PROVIDER = "xai"
-  FAST_BASE_URL = "https://api.x.ai/v1"
-  FAST_MODEL = "grok-4.20-0309-non-reasoning"
+  # FlashBrain = deepseek-v4-flash vía AIMLAPI, IGUAL que config/v2.json local (fuente de verdad, copiada 2026-08-13
+  # a petición del operador). Es el único que enruta 12/12 (benchmarks §9); grok queda VETADO por mis-rutear
+  # («conversaciones absurdas»). Requiere el secret AIMLAPI_KEY del app zaelar-accounts (puesto 2026-08-13).
+  FAST_PROVIDER = "aimlapi"
+  FAST_BASE_URL = "https://api.aimlapi.com/v1"
+  FAST_MODEL = "deepseek/deepseek-v4-flash"
+  # Arranque en FRÍO barato: las Machines de cuenta AUTOSTOPan (min_machines_running=0) para no gastar, así que CADA
+  # sesión paga el boot. El reranker de memoria (jina ~1.1GB) lo domina (2min18s→58s al apagarlo, medido en la demo).
+  # Un usuario nuevo casi no tiene memoria → el reranker apenas aporta al principio, así que OFF en la nube (sin warm
+  # pool, decisión del operador 2026-08-13). Reversible: enciéndelo cuando los usuarios acumulen memoria grande.
+  MEMORY_RERANK = "off"
   ZAELAR_STT = "voxtral"
   CODE_AGENT_BASE_URL = "https://api.z.ai/api/anthropic"
   CODE_AGENT_MODEL = "glm-5.2"

@@ -6,8 +6,25 @@
 <meta name="theme-color" content="#0a0f16" id="themeColorMeta"/>
 <title>zaelar</title>
 <link rel="stylesheet" href="/static/app/styles.css?v=2"/>
+<style>
+  /* PREBOOT splash — inline en el HTML a PROPÓSITO: pinta en el PRIMER byte, ANTES de que carguen los módulos ES.
+     En una Machine de cuenta en frío los módulos tardan decenas de segundos; sin esto el usuario veía una pantalla
+     NEGRA hasta que el BootOverlay (velo de neuronas, que lo pinta el JS) montaba. Su único fin es entretener desde
+     el segundo 1. `main.js` lo retira en cuanto monta la app. Cero dependencia de /static (colores inline). */
+  #preboot { position:fixed; inset:0; z-index:9998; display:flex; flex-direction:column; align-items:center;
+             justify-content:center; gap:18px; background:#0a0f16; color:#e6e8ee;
+             font:15px/1.5 -apple-system, system-ui, sans-serif; }
+  #preboot .ring { width:46px; height:46px; border-radius:50%;
+             background:conic-gradient(from 0deg, #10b981, #7ad0ff, #8b7bff, #10b981);
+             -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 4px), #000 0);
+             mask:radial-gradient(farthest-side, transparent calc(100% - 4px), #000 0);
+             animation:pbspin 1s linear infinite; }
+  #preboot .lbl { opacity:.72; letter-spacing:.02em; }
+  @keyframes pbspin { to { transform:rotate(360deg); } }
+</style>
 </head>
 <body>
+<div id="preboot"><div class="ring"></div><div class="lbl">Starting up zaelar…</div></div>
 <!-- The interface is built entirely by the ES-module app under /static/app/.
      index.html is just the bootstrap: styles + the vendored browser-VAD scripts
      (they attach window.vad / window.ort) + the module entry point. -->
