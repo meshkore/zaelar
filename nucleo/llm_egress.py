@@ -77,7 +77,14 @@ def route(base_url: str, api_key: str) -> tuple[str, str, dict]:
             "NO se cae hacia atrás a hablar directo con el proveedor: eso convertiría un despliegue "
             "incompleto en una fuga que funciona."
         )
-    return (os.getenv(_URL_ENV) or "").strip().rstrip("/"), token, _headers(base_url)
+    # El SDK compone `<base>/chat/completions`, así que la base tiene que acabar donde acababa la del
+    # proveedor: en `/v1`. Sin esto la llamada sale a `<egress>/chat/completions` y el egress devuelve
+    # 404 — que es como se rompió en el primer arranque real, y el síntoma («prewarm saltado») no
+    # apuntaba a la causa por ningún lado.
+    base = (os.getenv(_URL_ENV) or "").strip().rstrip("/")
+    if not base.endswith("/v1"):
+        base = f"{base}/v1"
+    return base, token, _headers(base_url)
 
 
 def _headers(base_url: str) -> dict:

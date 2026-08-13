@@ -31,7 +31,10 @@ def test_self_host_no_cambia_ni_un_byte(monkeypatch):
 def test_con_salida_mediada_la_clave_del_proveedor_ya_no_viaja(monkeypatch):
     _mediado(monkeypatch)
     base, key, headers = llm_egress.route("https://api.aimlapi.com/v1", "CLAVE-MAESTRA")
-    assert base == "https://egress.example"
+    # El SDK compone `<base>/chat/completions`: la base tiene que acabar en /v1 igual que la del
+    # proveedor. Sin esto la llamada sale a `<egress>/chat/completions` y devuelve 404 — pasó en el
+    # primer arranque real y el síntoma no apuntaba a la causa.
+    assert base == "https://egress.example/v1"
     assert key == "tok-de-workload"
     assert "CLAVE-MAESTRA" not in (base + key + str(headers))
     assert headers == {"X-Zaelar-Provider": "aimlapi"}
@@ -60,7 +63,7 @@ def test_sin_credencial_NO_se_cae_hacia_atras_al_proveedor(monkeypatch, caplog):
     todo responde bien."""
     _mediado(monkeypatch, token=None)
     base, key, _ = llm_egress.route("https://api.aimlapi.com/v1", "CLAVE-MAESTRA")
-    assert base == "https://egress.example", "se cayó al proveedor directo"
+    assert base.startswith("https://egress.example"), "se cayó al proveedor directo"
     assert key == "", "viajó la clave del proveedor pese a haber salida mediada"
 
 
