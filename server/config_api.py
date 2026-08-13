@@ -199,9 +199,20 @@ def _detected_code_agents() -> dict:
     except Exception:
         det["codex"] = {"installed": False}
     try:
+        import subprocess
+
         from nucleo.workers import claude_session as _cc
         path = _cc._find_claude()
         det["claude_code"] = {"installed": bool(path), "path": path, "version": "", "default_model": ""}
+        if path:
+            # La versión también AQUÍ. Codex y Grok la enseñaban y Claude Code no, así que en el panel el proveedor
+            # de PRODUCCIÓN era el único sin sello — que es justo la asimetría que hace dudar de si está detectado
+            # de verdad. `claude --version` responde «2.1.212 (Claude Code)»: el primer token es la versión.
+            try:
+                r = subprocess.run([path, "--version"], capture_output=True, text=True, timeout=8)
+                det["claude_code"]["version"] = ((r.stdout or r.stderr or "").strip().split() or [""])[0]
+            except Exception:
+                pass
     except Exception:
         det["claude_code"] = {"installed": False}
     try:
