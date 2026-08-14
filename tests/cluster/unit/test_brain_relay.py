@@ -29,7 +29,7 @@ def _clean(monkeypatch):
 def test_a_provider_failure_relays_and_retries_the_same_turn(monkeypatch):
     """El turno con z.ai revienta con un 429 de cuota agotada → se releva a aimlapi y el MISMO turno se reintenta
     (el mensaje real-time al peer no se pierde solo porque el tier de cabecera esté sin cuota)."""
-    monkeypatch.setattr(pc, "chain", lambda: [Z_AI, AIMLAPI])   # pick()/note_failure() se dejan REALES: el punto
+    monkeypatch.setattr(pc, "chain", lambda *a, **k: [Z_AI, AIMLAPI])   # pick()/note_failure() se dejan REALES: el punto
     # del test es que, tras el fallo, la cadena real recalcule el relevo contra el cooldown que acaba de anotar.
 
     calls = []
@@ -52,7 +52,7 @@ def test_a_provider_failure_relays_and_retries_the_same_turn(monkeypatch):
 def test_a_passing_rate_limit_is_not_relayed(monkeypatch):
     """Un 429 desnudo (sin texto de cuota) es rate-limit pasajero — no releva, se propaga (el bridge ya lo loguea
     y el heartbeat lo reintentará solo más tarde, no hay que quemar el proveedor por esto)."""
-    monkeypatch.setattr(pc, "chain", lambda: [Z_AI])
+    monkeypatch.setattr(pc, "chain", lambda *a, **k: [Z_AI])
 
     async def fake_respond(text, *, spec, **kw):
         raise RuntimeError("429 Too Many Requests")
@@ -65,8 +65,8 @@ def test_a_passing_rate_limit_is_not_relayed(monkeypatch):
 
 
 def test_no_tier_available_raises_before_calling_the_engine(monkeypatch):
-    monkeypatch.setattr(pc, "chain", lambda: [])
-    monkeypatch.setattr(pc, "pick", lambda: None)
+    monkeypatch.setattr(pc, "chain", lambda *a, **k: [])
+    monkeypatch.setattr(pc, "pick", lambda *a, **k: None)
     b = brain.make_brain()
     with pytest.raises(RuntimeError):
         asyncio.run(b("hola"))

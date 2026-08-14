@@ -393,7 +393,20 @@ class NucleoLLMStream(llm.LLMStream):
         from nucleo.flash.prompt import build_flash_system
         from nucleo.flash import router as _router
 
+        # EL SPEC SE RESUELVE POR TURNO, contra la cadena de relevo (V2-094). Antes se cogía el titular fijo de la
+        # config, así que un proveedor lento o sin cuota se repetía igual turno tras turno: no había a dónde ir.
+        # `pick()` es O(1) contra un dict de cooldowns en memoria — no reprueba la cadena en cada turno — y devuelve
+        # el titular mientras esté sano, que es el 99% del tiempo. En self-host la cadena es solo el titular (sin
+        # relevo por defecto), así que esto es idéntico al comportamiento anterior. Fail-open duro: cualquier
+        # problema resolviendo la cadena y se usa la config, como siempre.
         spec = spec_from_config()
+        try:
+            from nucleo.flash import provider_chain as _pchain0
+            _tier = _pchain0.pick(_pchain0.ROLE_VOICE)
+            if _tier and _tier.get("name") not in ("", "titular"):
+                spec = _pchain0.spec_for(_tier)
+        except Exception as _e_pc:  # noqa: BLE001
+            logger.warning(f"provider_chain(voice) no resolvió; sigo con la config: {_e_pc!r}")
         emit("brain", "⚡ Nucleo(flash): prompt", text=text, role="user",
              extra={"engine": spec.provider, "model": spec.model})
 
@@ -2295,7 +2308,13 @@ class NucleoLLMStream(llm.LLMStream):
         # que exportar el jsonl para saber si un turno de 8 s fue culpa nuestra o del proveedor.
         try:
             from nucleo.flash import turn_perf as _perf
-            _perf.emit_verdict({**_reply_extra, "total_ms": _fast_ms})
+            _v_perf = _perf.emit_verdict({**_reply_extra, "total_ms": _fast_ms})
+            # …y ese veredicto ALIMENTA el relevo por latencia (V2-094). El circuito no vuelve a medir nada: lee la
+            # causa que acaba de decidirse. `note_slow` exige turnos lentos SEGUIDOS, tiene cooldown corto y techo
+            # de turnos en el escalón de relevo — un turno lento no puede convertirse en una factura sorpresa.
+            # Cambia el titular para los turnos SIGUIENTES; el actual ya está entregado.
+            from nucleo.flash import provider_chain as _pchain
+            _pchain.note_slow(_v_perf, role=_pchain.ROLE_VOICE)
         except Exception:
             pass
 
