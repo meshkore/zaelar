@@ -20,6 +20,13 @@ Lo que comprueba:
 Lo que NO puede comprobar desde aquí (y por qué): la alineación con `web/` y con el log de contenido vive en el
 repo PRIVADO de la raíz, y este repo es PÚBLICO — un test de aquí no puede depender de un fichero que no viaja con
 él. Esa mitad la cubre `.meshkore/docs/ops/zaelar-initiative-closure.md` en la raíz.
+
+⚠️ **`.meshkore/roadmap/` está GITIGNOREADO a propósito** (`.gitignore`: «roadmap/iniciativas (el futuro)»), así que
+las iniciativas son LOCALES a la máquina del operador y no viajan con el repo público. Esto es, por tanto, un guarda
+de HIGIENE LOCAL, no una puerta de CI: donde no hay roadmap, se salta entero en vez de fallar. La primera versión de
+este fichero no lo hacía y se commiteó un test que reventaba en cualquier clon limpio — el mismo error que ya se
+había cazado dos veces hoy (el arnés del lead-in sin event loop, y el `_DATA_DIR` inexistente del test de youtube):
+**un test que solo se ha probado en una máquina no está probado.**
 """
 from __future__ import annotations
 
@@ -80,8 +87,15 @@ def _status(p: Path) -> str:
     return ""
 
 
+# El roadmap no viaja con el repo (ver la nota del docstring): sin él no hay nada que comprobar y saltar es la
+# respuesta correcta — no fallar, y desde luego no «pasar» en silencio fingiendo que se verificó algo.
+pytestmark = pytest.mark.skipif(
+    not ROADMAP.is_dir() or not list(ROADMAP.glob("V2-*.md")),
+    reason="`.meshkore/roadmap/` es local a la máquina del operador (gitignoreado): nada que verificar aquí")
+
+
 def test_hay_iniciativas():
-    assert _initiative_files(), "no encuentro el roadmap: ¿cambió la ruta?"
+    assert _initiative_files(), "hay ficheros V2-*.md pero ninguno parseable: ¿cambió el formato del nombre?"
 
 
 def test_cada_id_esta_una_sola_vez():
