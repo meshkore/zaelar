@@ -235,9 +235,11 @@ def test_engine_audit_cycle(monkeypatch, tmp_path):
         # `window.has_conversation`: con la ventana vacía el auditor RELLENA con los ejemplos de su propio prompt y
         # llegó a despachar un worker a cancelar una cita que nadie pidió). El buffer se siembra explícitamente.
         from memory import api as _mapi
+        # SHAPE REAL de `recent_window`: mensajes de chat role/content (NO pares u/a — ese es el de la meta en la
+        # BD). Los mocks con el shape equivocado son los que dejaron pasar el auditor muerto del 2026-08-14.
         monkeypatch.setattr(_mapi, "recent_window",
-                            lambda limit=8: [{"u": "te he dicho que abras la agenda y no lo has hecho",
-                                              "a": "abrí el reloj"}])
+                            lambda limit=8: [{"role": "user", "content": "te he dicho que abras la agenda y no lo has hecho"},
+                                             {"role": "assistant", "content": "abrí el reloj"}])
         monkeypatch.setattr(client, "audit_llm", fake_llm)
         monkeypatch.setattr(sus_apply, "FINDINGS_PATH", str(tmp_path / "f.jsonl"))
         engine.start()
@@ -288,8 +290,8 @@ def test_engine_risky_triggers_worker_action(monkeypatch, tmp_path):
         # ACTÚA sobre el mundo, y desde 2026-08-13 exige que la petición hable de algo presente en la ventana.
         from memory import api as _mapi
         monkeypatch.setattr(_mapi, "recent_window",
-                            lambda limit=8: [{"u": "hay que cancelar la cita de la ITV, la reservé en su web",
-                                              "a": "hecho, la he quitado de la agenda"}])
+                            lambda limit=8: [{"role": "user", "content": "hay que cancelar la cita de la ITV, la reservé en su web"},
+                                             {"role": "assistant", "content": "hecho, la he quitado de la agenda"}])
         monkeypatch.setattr(client, "audit_llm", fake_llm)
         monkeypatch.setattr(sus_apply, "FINDINGS_PATH", str(tmp_path / "f.jsonl"))
         monkeypatch.setattr(dispatch, "active_sessions", lambda: [])
@@ -344,6 +346,14 @@ def test_no_conversation_no_audit(monkeypatch):
     from nucleo.susurro import window as _win
     monkeypatch.setattr(_mapi, "recent_window", lambda limit=8: [])
     assert _win.has_conversation() is False
+    # El shape REAL que devuelve `recent_window` (mensajes de chat). Este test decía `{"u":…,"a":…}` —el shape de
+    # la META en la BD, no el de retorno— así que pasaba en verde mientras en producción la ventana salía SIEMPRE
+    # vacía y Susurro no auditaba nunca. Ver `test_window_reads_the_real_recent_window_shape` abajo.
+    monkeypatch.setattr(_mapi, "recent_window",
+                        lambda limit=8: [{"role": "user", "content": "hola"},
+                                         {"role": "assistant", "content": "buenas"}])
+    assert _win.has_conversation() is True
+    # …y el par u/a legacy se sigue tolerando (un registro viejo no debe apagar el auditor).
     monkeypatch.setattr(_mapi, "recent_window", lambda limit=8: [{"u": "hola", "a": "buenas"}])
     assert _win.has_conversation() is True
 
@@ -410,3 +420,50 @@ def test_an_ungrounded_action_is_reported_not_silently_dropped(monkeypatch, tmp_
         findings_path=str(tmp_path / "f.jsonl"))
     assert fired == {}, "se ejecutó una acción que no estaba en la ventana"
     assert out and out[0]["ok"] is False and out[0]["ungrounded"] is True
+
+
+# ── CONTRATO ventana↔memoria (2026-08-14) — el test que SÍ caza el auditor muerto ─────────────────────────────
+# `window.conversation_block` leía `u`/`user`/`a`/`assistant`; `memory.recent_window` devuelve `role`/`content`.
+# Resultado: bloque vacío SIEMPRE → `has_conversation()` False SIEMPRE → **Susurro no auditaba nunca**, y el
+# timeline lo decía como una abstención legítima («auditoría OMITIDA (ventana sin conversación)») sobre 16 turnos
+# de conversación viva. Se descubrió auditando la sesión b70a45d0, donde detectó SEIS veces el fallo real y se
+# calló las seis.
+#
+# Por qué no lo cazó nada: TODOS los tests de arriba mockean `recent_window` — y lo mockeaban con el shape de la
+# META en la BD (`{"u":…, "a":…}`), no con el de RETORNO. Mock y código se daban la razón mutuamente y los dos se
+# equivocaban respecto a la realidad. Es la misma familia que el `_DATA_DIR` que no existía en el test de youtube:
+# un guarda que parece proteger y no protege.
+#
+# Este test NO mockea nada: escribe en el buffer conversacional REAL por la vía real y lee por la función real.
+# Si alguien cambia cualquiera de los dos lados del contrato, falla aquí.
+def test_window_reads_the_real_recent_window_shape(tmp_path, monkeypatch):
+    monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
+    monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
+    from memory import api as memory
+    from memory import db as memdb
+    from memory import embeddings as mememb
+    from nucleo.susurro import window as _win
+
+    memdb.reset_db()
+    memdb.get_db()
+    mememb.reset()
+    try:
+        assert _win.has_conversation() is False, "base vacía: sin conversación de verdad"
+
+        # EXACTAMENTE como lo escribe el provider de voz (nucleo.py: kind='conv' + meta.source/u/a).
+        memory.write("Operador: vacía la agenda entera · zaelar: hecho",
+                     kind="conv", level="short", importance=0.2, ttl_days=2.0,
+                     meta={"source": "conv", "u": "vacía la agenda entera", "a": "hecho"})
+
+        win = memory.recent_window(limit=8) or []
+        assert win, "el buffer conversacional real no devolvió nada"
+        # El contrato, explícito: son MENSAJES DE CHAT, no pares por turno.
+        assert {"role", "content"} <= set(win[0]), f"shape inesperado de recent_window: {sorted(win[0])}"
+
+        block = _win.conversation_block(8)
+        assert "vacía la agenda entera" in block, "la ventana no ve lo que el operador dijo"
+        assert "hecho" in block, "la ventana no ve lo que zaelar respondió"
+        assert _win.has_conversation() is True, "con conversación viva, Susurro TIENE que poder auditar"
+    finally:
+        memdb.reset_db()
+        mememb.reset()

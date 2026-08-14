@@ -16,7 +16,20 @@ def _clip(s: str, n: int) -> str:
 
 
 def conversation_block(turns: int = 8) -> str:
-    """Últimos turnos verbatim del buffer conversacional (lectura directa; llamar FUERA del event loop)."""
+    """Últimos turnos verbatim del buffer conversacional (lectura directa; llamar FUERA del event loop).
+
+    ⚠️ El SHAPE de `memory.recent_window` es `[{"role": "user"|"assistant", "content": …}]` — mensajes de chat,
+    NO pares por turno. Esto leía `u`/`user`/`a`/`assistant` (claves que no existen en esa lista) y devolvía SIEMPRE
+    cadena vacía, con lo que `has_conversation()` era SIEMPRE False y **Susurro no auditaba nunca** (2026-08-14).
+    Fallo silencioso y de los caros: el guarda de «sin conversación no hay auditoría» se añadió el 2026-08-13 para
+    impedir que el auditor rellenara el vacío con el ejemplo de su propio prompt, y al leer mal la ventana acabó
+    apagando el 100% de las auditorías en vez del caso patológico. Se vio en la sesión b70a45d0, donde Susurro
+    detectó SEIS veces el fallo real («data-op fantasma») con las quejas literales del operador como señal, y las
+    seis veces se abstuvo — con el timeline diciendo «auditoría OMITIDA (ventana sin conversación)» sobre 16 turnos
+    de conversación viva.
+
+    Se lee el shape REAL y se toleran los dos históricos (pares `u`/`a`) por si algún registro viejo los trae.
+    """
     try:
         from memory import api as memory
         win = memory.recent_window(limit=turns) or []
@@ -24,6 +37,14 @@ def conversation_block(turns: int = 8) -> str:
         return ""
     lines = []
     for t in win:
+        # Shape CANÓNICO: mensaje de chat con role/content.
+        role = str(t.get("role") or "").strip().lower()
+        content = _clip(str(t.get("content") or ""), 400)
+        if role and content:
+            lines.append(f"OPERADOR: {content}" if role == "user" else f"  ZAELAR: {content}")
+            continue
+        # Compat: par por turno (u/a). No se ha visto en producción, pero abstenerse por no reconocer un shape es
+        # justo el fallo que esto arregla.
         u = _clip(str(t.get("u") or t.get("user") or ""), 400)
         a = _clip(str(t.get("a") or t.get("assistant") or ""), 400)
         if u:
