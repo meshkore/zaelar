@@ -153,6 +153,13 @@ DOMAINS: list[dict] = [
         # (y en el perfil de NUBE, el de producción, no funcionaba en absoluto).
         {"id": "3.6", "title": "Arranque idiomático: defecto inglés + STT en auto en primera ejecución",
             "ch": VOICE, "paths": ["tests/voice/unit/test_language_bootstrap.py"]},
+        # V2-093 (2026-08-14): el relleno de espera («Mmm…», «A ver…») llevaba desde julio SIN SONAR NUNCA. Viajaba
+        # por el stream del modelo, y el tokenizador de frases de LiveKit solo entrega un segmento cuando tiene DOS
+        # → un relleno suelto (sin punto y de menos de 20 chars) se quedaba en el buffer y salía PEGADO a la
+        # respuesta. 48 generados, 0 oídos a tiempo, y el operador diciéndole «parece que te has quedado tonto» a un
+        # agente que estaba trabajando. Aquí se reproduce el pegado y se fija la costura fuera de banda.
+        {"id": "3.7", "title": "Relleno de espera: suena MIENTRAS se espera (fuera del stream del modelo)",
+            "ch": VOICE, "paths": ["tests/voice/unit/test_lead_in.py"]},
     ]},
     {"id": "4", "name": "WIDGETS", "nodes": [
         {"id": "4.1", "title": "Ciclo de vida / acciones / refs / generador / background", "ch": UNIT, "paths": [

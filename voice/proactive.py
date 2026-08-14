@@ -42,6 +42,19 @@ def has_voice() -> bool:
     return _speaker is not None
 
 
+def speaker():
+    """El hablador FUERA DE BANDA de la sesión viva (`session.say`), o None si no hay sesión.
+
+    Existe para el LEAD-IN del FlashBrain (V2-093), que necesita sonar YA y no puede viajar por el stream del
+    modelo: ese stream pasa por el tokenizador de frases de LiveKit, que retiene todo lo que no acabe en `.!?` y
+    no llegue a 20 caracteres — o sea TODOS los rellenos («Mmm…», «A ver…»), que se quedaban en el buffer hasta
+    que la respuesta real cerraba el stream y se hablaban PEGADOS a ella, 50 s después de generarse.
+
+    Deliberadamente NO es `notify()`: eso espera hueco de silencio y publica en el muro de chat. Un relleno de
+    espera es lo contrario — suena ahora o no sirve de nada, y no es un mensaje que haya que conservar."""
+    return _speaker
+
+
 async def notify(title: str, text: str, *, speak: bool = True, kind: str = "notify") -> None:
     """Deliver a proactive message: UI always, voice if a session is live. Best-effort — never raises."""
     text = (text or "").strip()

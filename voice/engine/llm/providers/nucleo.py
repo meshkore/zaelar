@@ -1531,10 +1531,34 @@ class NucleoLLMStream(llm.LLMStream):
                     # y la respuesta real quedan intactos), pero SÍ actualiza el anti-eco (el mic no lo recaptura).
                     brain._last_spoken = _ph
                     brain._last_spoke_at = time.time()
-                    self._event_ch.send_nowait(
-                        ChatChunk(id=utils.shortuuid(), delta=ChoiceDelta(role="assistant", content=_ph + " ")))
+                    # ── FUERA DE BANDA, no por el stream del modelo (V2-093, 2026-08-14) ────────────────────────
+                    # Esto empujaba un ChatChunk al stream de la respuesta, y por ahí el filler NO PODÍA SONAR
+                    # NUNCA: LiveKit agrega el texto del LLM con su tokenizador de frases, que solo suelta un
+                    # segmento cuando ve `.!?。！？` **y** el buffer pasa de 20 caracteres. Los doce rellenos
+                    # acaban en «…» (que no es fin de frase para ese regex) y ninguno llega a 20 chars → cero
+                    # segmentos; se quedaban retenidos hasta que la respuesta real cerraba el stream y entonces se
+                    # hablaban PEGADOS a ella. Medido en la sesión b70a45d0: 48 rellenos generados, 0 oídos a
+                    # tiempo, 50 s de `bot_speech: idle` con tres pendientes, y las 11 respuestas habladas
+                    # empezando todas por su filler («Déjame que mire… Sí, te he oído»).
+                    # Su única razón de existir es tapar la espera, así que va por `session.say`, que no pasa por
+                    # el agregador. Si no hay sesión viva (probe, tests) se conserva el camino de antes: ahí no hay
+                    # TTS que tapar nada y el chunk al menos deja el rastro.
+                    _spk = None
+                    try:
+                        from voice import proactive as _proactive
+                        _spk = _proactive.speaker()
+                    except Exception:
+                        _spk = None
+                    if _spk is not None:
+                        # Sin esperar hueco y sin await bloqueante: el relleno vale por sonar YA, y este task no
+                        # puede quedarse enganchado a la reproducción mientras el turno sigue generándose.
+                        asyncio.create_task(_spk(_ph))
+                    else:
+                        self._event_ch.send_nowait(
+                            ChatChunk(id=utils.shortuuid(), delta=ChoiceDelta(role="assistant", content=_ph + " ")))
                     emit("brain", "💬 relleno de espera (lead-in)", text=_ph, role="system",
-                         extra={"cat": "flash", "after_ms": _filler_ms})
+                         extra={"cat": "flash", "after_ms": _filler_ms,
+                                "path": "say" if _spk is not None else "stream"})
             except asyncio.CancelledError:
                 pass
             except Exception:
