@@ -140,6 +140,15 @@ def verdict(m: dict) -> dict:
             # `ttft_frac` viaja en el evento: es la serie que gobierna el circuito de latencia del failover
             # (`provider_chain.note_slow`) y la que permite ver la VARIANZA del TTFT a prompt constante.
             "ttft_frac": round(ttft_frac, 3),
+            # De DÓNDE sale `prompt_tokens`, y el estimado AL LADO del real. Sin esto no se puede auditar el número
+            # con el que se factura un turno cancelado: el 2026-08-14 el estimado llevaba cobrando un 16% de menos
+            # (asumía 4 chars/token, inglés; el input real va a 3,36) y hubo que reconstruirlo cruzando dos campos
+            # que solo coincidían en 114 de 1.070 eventos. Un número que se factura tiene que poder compararse con
+            # la verdad en la misma fila.
+            "usage_source": m.get("usage_source") or "",
+            "prompt_tokens_est": _num(m, "prompt_tokens_est", default=0) or 0,
+            "prompt_chars": _num(m, "prompt_chars", default=0) or 0,
+            "tools_chars": _num(m, "tools_chars", default=0) or 0,
             "model": m.get("model") or "", "engine": m.get("engine") or m.get("provider") or ""}
 
 

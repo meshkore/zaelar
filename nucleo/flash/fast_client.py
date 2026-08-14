@@ -209,11 +209,33 @@ def available(spec: ModelSpec | None = None) -> bool:
     return bool(spec.resolved_api_key())
 
 
+# Chars por token. El 4.0 de siempre es la regla del pulgar del INGLÉS; medido contra el registro real (114 turnos
+# con `usage` del proveedor Y los chars de sus dos bloques) nuestro input va a **3,36 chars/token** — castellano con
+# tildes, más el JSON del catálogo de tools. El sesgo era sistemático, no ruido: el ratio estimado/real cabía entre
+# 0,823 y 0,857 en las 114 muestras.
+#
+# Importa porque este estimado NO es solo observabilidad: es lo que FACTURA un turno cancelado, donde el `usage` del
+# proveedor nunca llega (viaja en el último chunk). Con el 4.0 se cobraba **un 16% de menos** en el 70% de los turnos
+# de una sesión real de dictado. Va contra la política fijada el 2026-08-13 al cerrar los cuatro agujeros de Energy:
+# *«perder dinero por sub-cobrar es peor que sobre-cobrar un poco»*.
+#
+# Se deja en 3,3 y no en 3,36 a propósito: redondear hacia ABAJO el divisor estima de MÁS (~2%), que es el lado
+# seguro y el mismo criterio que la tarifa de seguridad del medidor.
+_CHARS_PER_TOKEN = 3.3
+
+
 def est_tokens(chars: int) -> int:
-    """Estimación barata de tokens desde nº de chars (~4 chars/token, es/en). NO exacta, pero suficiente para
-    distinguir «prompt de 100 tokens» de «prompt de 50k» — el eje que pide el operador para saber si la latencia
-    es del MODELO o del TAMAÑO del prompt. Si el proveedor devuelve `usage` real, ese manda (ver `stream`)."""
-    return int(round((chars or 0) / 4.0))
+    """Estimación barata de tokens desde nº de chars. Dos usos, y el segundo es el que fija la constante:
+
+    1. **Observabilidad** — distinguir «prompt de 100 tokens» de «prompt de 50k», el eje que pide el operador para
+       saber si la latencia es del MODELO o del TAMAÑO del prompt. Aquí el divisor casi da igual.
+    2. **La factura de un turno CANCELADO** — el `usage` real del proveedor viaja en el ÚLTIMO chunk del stream, así
+       que un turno cortado por barge-in no lo recibe nunca y este estimado es lo único que hay. Aquí el divisor es
+       dinero (ver `_CHARS_PER_TOKEN`).
+
+    Si el proveedor devuelve `usage`, ese manda siempre (ver `stream`).
+    """
+    return int(round((chars or 0) / _CHARS_PER_TOKEN))
 
 
 class _AnthropicSSE:

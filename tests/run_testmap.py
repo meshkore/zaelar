@@ -133,6 +133,12 @@ DOMAINS: list[dict] = [
         {"id": "2.13", "title": "Modelo rápido: latencia + enrutado + paralelo (prompt real)", "ch": UNIT,
             "live": True,
             "cmd": "./.venv/bin/python -m tests.agent_headless.e2e.prompt_cost.bench_fast_model"},
+        # 2026-08-14: un turno CANCELADO (38 de 54 en la sesión b70a45d0) ya se le pidió al proveedor y ya se pagó,
+        # pero su `usage` real viaja en el ÚLTIMO chunk del stream y nunca llega → lo factura un ESTIMADO. Este nodo
+        # fija las dos ramas (cancelado→estimado, completo→verdad del proveedor) y la DENSIDAD del estimado, que
+        # asumía 4 chars/token (inglés) cuando el input real va a 3,36 y cobraba un 16% de menos.
+        {"id": "2.14", "title": "Un turno CANCELADO también se factura (y con el estimado bien calibrado)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_cancelled_turn_billing.py"]},
         {"id": "2.9", "title": "Sandbox de ejecución ligero (V2-076)", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/test_sandbox.py"]},
         {"id": "2.10", "title": "Puente git acotado + dev worker (V2-076)", "ch": UNIT, "paths": [
