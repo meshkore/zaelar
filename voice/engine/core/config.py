@@ -43,12 +43,20 @@ class Settings:
     # --- Profile + component selection --------------------------------------
     profile: str = PROFILE                                # remote | local
     vad_provider: str = env("ZAELAR_VAD", "silero")       # local in both profiles
-    # Endpointing: default 'disabled' → AgentSession uses VAD-based EOU (turn_detection="vad"). The LiveKit ML
-    # turn model ('livekit', MultilingualModel) needs its InferenceRunner registered on the MAIN thread, which the
-    # embedded THREAD job executor (INI-012) can't provide → it crashes ("InferenceRunner must be registered on the
-    # main thread"). VAD endpointing works in-thread. Re-enabling the ML model is a follow-up (register inference
-    # on the main thread before the worker starts). See INI-012 known items.
-    turn_provider: str = env("ZAELAR_TURN", "disabled")
+    # Endpointing. The LiveKit ML turn model ('livekit', MultilingualModel) needs its InferenceRunner registered on
+    # the MAIN thread, which the embedded THREAD job executor (INI-012) cannot provide → it crashes ("InferenceRunner
+    # must be registered on the main thread"; re-verified 2026-08-14). That is why this defaulted to 'disabled' for
+    # a long time, leaving end-of-turn as pure VAD — silence only, blind to whether the sentence was FINISHED.
+    #
+    # Default is now 'semantic' (V2-095): a pure-Python lexical layer, no inference runner, so it runs in-thread
+    # where the ONNX model cannot. It does not replace VAD — it returns a probability, and below the threshold
+    # LiveKit waits `max_delay` instead of `min_delay`, which is a hard ceiling. So it can DELAY a turn and never
+    # lose one. 'disabled' still restores the old VAD-only behaviour.
+    #
+    # ⚠️ Shipping this as opt-in was a mistake worth remembering: V2-095 landed with its detector registered but
+    # NOTHING selecting it, so the whole feature was dead on arrival — the same failure as Susurro reading keys that
+    # did not exist. A capability whose default is off is a capability nobody has.
+    turn_provider: str = env("ZAELAR_TURN", "semantic")
     # STT/TTS/LLM default BY PROFILE; an explicit env var overrides (hybrids).
     stt_provider: str = pick("ZAELAR_STT", "stt")          # voxtral|deepgram|whisper_local
     tts_provider: str = pick("ZAELAR_TTS", "tts")          # cartesia|kokoro_local

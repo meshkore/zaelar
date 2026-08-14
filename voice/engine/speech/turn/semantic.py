@@ -27,6 +27,8 @@ una, y la nuestra no sabe de prosodia ni de idiomas — sabe de palabras colgada
 """
 from __future__ import annotations
 
+import os
+
 from loguru import logger
 
 from . import registry
@@ -127,12 +129,24 @@ def _last_user_text(chat_ctx) -> str:
 
 @registry.register("semantic")
 def build():
-    """`turn_provider=semantic`: la capa léxica sobre el detector local de LiveKit si está disponible. Si su modelo
-    ONNX no se puede cargar, se queda la capa léxica sola — que es infinitamente mejor que solo silencio."""
+    """`turn_provider=semantic` (DEFECTO desde 2026-08-14): la capa léxica, con el detector ONNX de LiveKit dentro
+    solo si se pide explícitamente.
+
+    El ONNX va **detrás de una env var y APAGADO por defecto** porque en esta arquitectura no puede funcionar, y eso
+    está medido, no supuesto: el job corre en un HILO (`job_executor_type=THREAD`, INI-012) y `MultilingualModel()`
+    exige registrar su `InferenceRunner` en el hilo PRINCIPAL — revienta con «InferenceRunner must be registered on
+    the main thread». Intentarlo en cada sesión solo dejaba un error ruidoso en el log que parece una avería y no lo
+    es. La capa léxica no necesita runner de inferencia ninguno, así que corre donde el modelo no puede.
+
+    `ZAELAR_TURN_ONNX=1` lo reintenta, para el día que la inferencia se registre en el hilo principal antes de
+    arrancar el worker (el follow-up de INI-012). Si falla, se degrada a la capa léxica sola — que sigue siendo
+    infinitamente mejor que solo silencio.
+    """
     inner = None
-    try:
-        from livekit.plugins.turn_detector.multilingual import MultilingualModel
-        inner = MultilingualModel()
-    except Exception as e:  # noqa: BLE001
-        logger.info(f"turno semántico: sin modelo ONNX interior ({e!r}) — capa léxica sola")
+    if (os.getenv("ZAELAR_TURN_ONNX") or "").strip().lower() in ("1", "true", "yes", "on"):
+        try:
+            from livekit.plugins.turn_detector.multilingual import MultilingualModel
+            inner = MultilingualModel()
+        except Exception as e:  # noqa: BLE001
+            logger.info(f"turno semántico: sin modelo ONNX interior ({e!r}) — capa léxica sola")
     return SemanticTurnDetector(inner)

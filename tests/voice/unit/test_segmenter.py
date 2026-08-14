@@ -16,6 +16,8 @@ primera versión de la regla («corta y sin cerrar») retenía TODAS las órdene
 """
 from __future__ import annotations
 
+import asyncio
+
 import pytest
 
 from nucleo.flash import segmenter as sg
@@ -175,6 +177,54 @@ def test_esta_registrado_como_proveedor():
     from voice.engine.speech.turn import registry
     import voice.engine.speech.turn.semantic  # noqa: F401  (el registro ocurre al importar)
     assert registry.create("semantic") is not None
+
+
+def test_esta_ENCENDIDO_por_defecto(monkeypatch):
+    """El guarda que faltaba y que dejó V2-095 MUERTA al nacer: el detector estaba registrado y `turn_provider`
+    valía `disabled`, así que nada lo seleccionaba y la capa léxica no corría en ninguna sesión. Un registro sin
+    defecto es una pieza que existe y no está enchufada — el mismo fallo que Susurro leyendo claves inexistentes.
+
+    Se comprueba el DEFECTO, no el valor actual del entorno: sin `ZAELAR_TURN` puesto, la pieza tiene que estar
+    activa. Y el ensamblado tiene que devolver un detector, no `None`.
+    """
+    import importlib
+    monkeypatch.delenv("ZAELAR_TURN", raising=False)
+    # Se recarga SOLO `config` (recalcula el defecto leyendo el entorno). Recargar el paquete `turn` NO vale: crea un
+    # `Registry` nuevo y vacío, porque los `@registry.register` viven en módulos ya cacheados que no se re-ejecutan.
+    cfg = importlib.reload(importlib.import_module("voice.engine.core.config"))
+    assert cfg.SETTINGS.turn_provider == "semantic", (
+        f"el defecto de turn_provider es {cfg.SETTINGS.turn_provider!r}: con «disabled» el fin de turno vuelve a "
+        f"ser silencio puro y toda V2-095 queda muerta sin que ningún test se entere")
+
+    # Y el ensamblado tiene que devolver un detector de verdad con ese valor (no `None`, que es lo que devuelve la
+    # rama «disabled» y lo que el motor traduce a `turn_detection="vad"`).
+    # `SETTINGS` es un dataclass CONGELADO (no se le asigna un campo): se sustituye el objeto del módulo por una
+    # copia con el valor puesto, así el test no depende de que el entorno del operador tenga `ZAELAR_TURN` a mano.
+    import dataclasses
+    from voice.engine.speech import turn as turn_mod
+    monkeypatch.setattr(turn_mod, "SETTINGS",
+                        dataclasses.replace(turn_mod.SETTINGS, turn_provider="semantic"))
+    det = turn_mod.build_turn_detection()
+    assert det is not None and getattr(det, "provider", "") == "zaelar"
+
+
+def test_sin_modelo_ONNX_la_capa_lexica_sigue_decidiendo():
+    """El ONNX no puede cargar aquí (el job corre en un HILO y su `InferenceRunner` exige el principal), así que el
+    camino REAL de producción es `inner=None`. Ese camino tiene que decidir igual, o el detector sería un envoltorio
+    que no hace nada."""
+    from voice.engine.speech.turn.semantic import SemanticTurnDetector
+    det = SemanticTurnDetector(inner=None)
+
+    class _M:
+        role = "user"
+        def __init__(self, c): self.content = c
+
+    class _Ctx:
+        def __init__(self, c): self.items = [_M(c)]
+
+    assert asyncio.run(det.predict_end_of_turn(_Ctx("y ponerlo en la"))) < 0.5      # retiene
+    assert asyncio.run(det.predict_end_of_turn(_Ctx("páralo todo."))) > 0.5         # orden de parar: pasa
+    assert asyncio.run(det.predict_end_of_turn(_Ctx("pon música"))) > 0.5           # orden corta: pasa
 
 
 # ── LA MEDICIÓN, como test ────────────────────────────────────────────────────────────────────────────────────
