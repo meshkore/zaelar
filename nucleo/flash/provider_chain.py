@@ -116,7 +116,7 @@ def _known_chain() -> list[dict]:
     override_model = os.getenv("MESHKORE_MISSION_MODEL") or os.getenv("ASSISTANT_LLM_MODEL") or os.getenv("LLM_MODEL") or ""
     explicit = bool(os.getenv("LLM_API_KEY") or os.getenv("LLM_BASE_URL"))
     zai = {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic", "env": ["Z_AI_API_KEY"],
-           "model": os.getenv("MESHKORE_MISSION_MODEL_ZAI", "glm-5.2"), "provider": "zai",
+           "model": os.getenv("MESHKORE_MISSION_MODEL_ZAI", "glm-5.3"), "provider": "zai",
            "plan": "Z.AI GLM (coding plan)"}
     aimlapi = {"name": "aimlapi", "base_url": os.getenv("LLM_BASE_URL") or "https://api.aimlapi.com/v1",
                "env": ["LLM_API_KEY", "AIMLAPI_KEY"], "model": override_model or "deepseek/deepseek-v4-flash",
@@ -157,6 +157,25 @@ def _voice_chain() -> list[dict]:
         logger.warning(f"provider_chain(voice): no pude resolver el titular: {e!r}")
 
     relevos = [
+        # PRIMER escalón desde 2026-08-14, y es el MISMO MODELO que el titular por OTRO endpoint — que suena raro
+        # hasta que se ve el número. El titular va por el broker AIMLAPI, que ACEPTA `thinking:{"type":"disabled"}`
+        # y razona igual; `api.deepseek.com` lo OBEDECE. Medido con el prompt real de voz, 6 turnos por brazo:
+        #
+        #   AIMLAPI → TTFT p50 4,24 s · peor 14,71 s · 2.138 tokens de razonamiento
+        #   DIRECTO → TTFT p50 1,01 s · peor  1,30 s ·     0
+        #
+        # O sea que el relevo por LATENCIA ideal no es un modelo distinto: es el mismo sin el razonamiento oculto
+        # que el broker no deja apagar. Y encaja con el criterio de esta cadena mejor que nada: **no encarece** (es
+        # la misma tarifa por token, sin el ×1,4 de Grok Fast ni el ×4,2 de Groq) y es el más rápido al primer token.
+        #
+        # No es el TITULAR porque no pasó la puerta del nodo 2.13 (12/14 frente a 14/14 del broker: falla `estilo` y
+        # manda `pregunta memoria` a `web_search`), y la regla es que si esa puerta baja, no se despliega. Aquí sí
+        # entra: un relevo solo actúa cuando el titular YA va lento dos turnos seguidos, así que el intercambio es
+        # «enrutado algo peor» contra «el turno llega», que es el que el operador quiere en ese momento concreto.
+        # Si el banco a 3 rondas lo deja en 14/14, pasa a titular (V2-097 §1).
+        {"name": "deepseek-directo", "base_url": "https://api.deepseek.com", "env": ["DEEPSEEK_API_KEY"],
+         "model": os.getenv("ZAELAR_VOICE_RELAY_DEEPSEEK_MODEL", "deepseek-v4-flash"), "provider": "aimlapi",
+         "plan": "DeepSeek directo (mismo precio, sin razonamiento oculto: TTFT ×4 mejor)"},
         {"name": "xai-fast", "base_url": "https://api.x.ai/v1", "env": ["XAI_API_KEY"],
          "model": os.getenv("ZAELAR_VOICE_RELAY_XAI_MODEL", "grok-4-fast"), "provider": "aimlapi",
          "plan": "xAI Grok Fast (1,4× el titular)"},

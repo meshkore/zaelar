@@ -408,3 +408,53 @@ def test_paid_search_is_charged_per_request_with_margin():
 def test_an_unknown_search_provider_is_never_free():
     energy_meter._warned_search.clear()
     assert energy_meter.search_cost_to_energy(provider="buscador-que-no-existe") > 0
+
+
+# ── LOS DOS CONTADORES DE CACHÉ TIENEN ARITMÉTICA OPUESTA (2026-08-14) ──────────────────────────────────────────
+def test_el_hit_de_cache_de_DEEPSEEK_se_DESCUENTA_no_se_suma():
+    """`prompt_cache_hit_tokens` (forma OpenAI/DeepSeek) va DENTRO de `prompt_tokens` — verificado contra la API
+    viva: `prompt_tokens = hit + miss`. Así que re-tarifica hacia ABAJO esa parte; sumarla la cobraría dos veces.
+
+    Importa más aquí que en cualquier otro sitio: el system prompt de voz son ~10k tokens CONSTANTES, así que en
+    una conversación real casi todo el input es un hit, y el input domina 14:1 en este cerebro.
+    """
+    kw = dict(base_url="https://api.deepseek.com", model="deepseek-v4-flash", completion_tokens=100)
+    sin_cache = energy_meter.llm_cost_to_energy(prompt_tokens=10_000, **kw)
+    con_cache = energy_meter.llm_cost_to_energy(prompt_tokens=10_000, cache_hit_tokens=9_000, **kw)
+    assert con_cache < sin_cache, "un hit de caché tiene que ABARATAR la llamada, no encarecerla"
+    # y NUNCA puede salir gratis: el hit se factura, solo más barato
+    solo_output = energy_meter.llm_cost_to_energy(prompt_tokens=1_000, **kw)
+    assert con_cache > 0 and con_cache >= solo_output * 0.5
+
+
+def test_el_hit_no_puede_dejar_tokens_frescos_NEGATIVOS():
+    """Un contador raro de un proveedor no puede restar de la factura. Acotado a `prompt_tokens`."""
+    kw = dict(base_url="https://api.deepseek.com", model="deepseek-v4-flash", completion_tokens=10)
+    absurdo = energy_meter.llm_cost_to_energy(prompt_tokens=100, cache_hit_tokens=999_999, **kw)
+    todo_hit = energy_meter.llm_cost_to_energy(prompt_tokens=100, cache_hit_tokens=100, **kw)
+    assert absurdo == todo_hit > 0
+
+
+def test_el_cache_de_ANTHROPIC_sigue_SUMANDOSE():
+    """La otra forma (`cache_read_input_tokens`) es un contador APARTE de `prompt_tokens`, así que su coste se
+    AÑADE. Se comprueba que el cambio de arriba no invirtió esta rama, que es la que usan los Brain Workers."""
+    kw = dict(base_url="https://api.z.ai/api/anthropic", model="glm-5.3", completion_tokens=100)
+    sin = energy_meter.llm_cost_to_energy(prompt_tokens=1_000, **kw)
+    con = energy_meter.llm_cost_to_energy(prompt_tokens=1_000, cached_tokens=50_000, **kw)
+    assert con > sin, "el cache_read de Anthropic va aparte del prompt: tiene que SUMAR"
+
+
+def test_el_estimado_no_se_beneficia_del_descuento_de_cache():
+    """Con tokens ESTIMADOS por chars no se sabe qué parte se cacheó, así que aplicar el descuento sería rebajar la
+    factura con un dato inventado. Se comprueba en el reporter, que es quien tiene el flag `estimated`."""
+    seen = []
+    import nucleo.energy_meter as em
+    orig = em.llm_cost_to_energy
+    try:
+        em.llm_cost_to_energy = lambda **kw: (seen.append(kw), 1.0)[1]
+        em.report_llm_usage(base_url="https://api.deepseek.com", model="deepseek-v4-flash",
+                            prompt_tokens=None, completion_tokens=None, cache_hit_tokens=5_000)
+    finally:
+        em.llm_cost_to_energy = orig
+    if seen:      # no-op si la cuenta no está metrada; si se llamó, el hit NO puede haber viajado
+        assert seen[0].get("cache_hit_tokens") is None

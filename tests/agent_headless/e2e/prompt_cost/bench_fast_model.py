@@ -39,6 +39,15 @@ XAI = "https://api.x.ai/v1"
 # tipo de modelo por una vía y por la otra es justamente lo que separa «modelo lento» de «intermediario lento».
 CANDIDATES: list[tuple[str, ModelSpec]] = [
     ("aiml·deepseek-v4-flash", ModelSpec("deepseek/deepseek-v4-flash", AIML, provider="aimlapi")),
+    # MISMO modelo, endpoint PROPIO (2026-08-14). No es un duplicado: el broker ACEPTA
+    # `thinking:{"type":"disabled"}` y razona igual, `api.deepseek.com` lo OBEDECE — medido, TTFT p50 4,24→1,01 s,
+    # peor caso 14,71→1,30 s, y 2.138→0 tokens de razonamiento (`usage.completion_tokens_details.reasoning_tokens`,
+    # que es la prueba que faltaba el 2026-08-02 para cerrar aquel diagnóstico).
+    # Está aquí porque es CANDIDATO A TITULAR y la decisión es de este banco: en una pasada suelta dio 12/14 contra
+    # el 14/14 del broker, y con una sola muestra por caso eso no basta para promoverlo ni para descartarlo. Hoy es
+    # el primer escalón de relevo por latencia (V2-094); si aguanta 14/14 a 3 rondas, pasa a titular (V2-097 §1).
+    ("deepseek·directo", ModelSpec("deepseek-v4-flash", "https://api.deepseek.com", provider="aimlapi")),
+    ("deepseek·directo-pro", ModelSpec("deepseek-v4-pro", "https://api.deepseek.com", provider="aimlapi")),
     # V4 Flash RAZONA aunque se le pida que no (medido 2026-08-02: el flag `thinking:disabled` solo lo reduce,
     # de 2489 a 993 chars de razonamiento) — y la VOZ es no-razonadora por invariante. Estas dos variantes lo
     # declaran en el propio nombre del modelo, que es la única forma fiable de apagarlo a través del broker.

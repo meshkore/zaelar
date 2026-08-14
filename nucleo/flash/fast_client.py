@@ -148,6 +148,8 @@ class ModelSpec:
             return os.getenv("MISTRAL_API_KEY", "")  # Mistral DIRECTO (api.mistral.ai) — p.ej. mistral-small-latest
         if self._is_zai():
             return os.getenv("Z_AI_API_KEY", "")     # Z.AI DIRECTO (api.z.ai) — coding-plan, Anthropic Messages
+        if self._is_deepseek():
+            return os.getenv("DEEPSEEK_API_KEY", "")  # DeepSeek DIRECTO — el que SÍ obedece `thinking:disabled`
         return ""
 
     def _is_aimlapi(self) -> bool:
@@ -172,9 +174,22 @@ class ModelSpec:
     def _is_zai(self) -> bool:
         return "api.z.ai" in self.resolved_base_url().lower()
 
+    def _is_deepseek(self) -> bool:
+        """DeepSeek DIRECTO (`api.deepseek.com`), distinto de DeepSeek servido por el broker AIMLAPI. La diferencia
+        NO es cosmética: aquí el parámetro de no-razonar se OBEDECE, y por el broker no. Ver `reasoning_effort`."""
+        return "api.deepseek.com" in self.resolved_base_url().lower()
+
     def reasoning_effort(self) -> str:
-        """``reasoning_effort='none'`` desactiva el thinking de GEMINI (su extensión). Es GEMINI-específico:
-        AIMLAPI/DeepSeek/Ollama lo RECHAZAN (400). Se manda SOLO a Gemini; en el resto se omite."""
+        """``reasoning_effort='none'`` apaga el thinking en GEMINI (su extensión) y también en DEEPSEEK DIRECTO.
+
+        La versión anterior de esta docstring decía que «AIMLAPI/DeepSeek/Ollama lo RECHAZAN (400)» y era medio
+        falsa: **AIMLAPI sí lo rechaza, DeepSeek directo NO** (medido 2026-08-14 con la key nueva: HTTP 200 y cero
+        `reasoning_tokens`). La confusión venía de haber probado DeepSeek solo A TRAVÉS del broker.
+
+        Aun así aquí se sigue devolviendo "" para DeepSeek, y a propósito: el camino que apaga el razonamiento es
+        `thinking:{"type":"disabled"}` (ver `stream`), que funciona en los DOS endpoints, así que no hace falta un
+        segundo mecanismo que mantener sincronizado. `reasoning_effort:"minimal"` NO sirve — medido, sigue razonando.
+        """
         return "none" if self._is_gemini() else ""
 
 
@@ -553,6 +568,16 @@ class FastClient:
             # el modo thinking sobre-actuaba (abrió un widget en un turno de contradicción) y bajaba el routing
             # (4/5→3/5 intel); el non-thinking iguala a Haiku en inteligencia (5/5) con MENOS TTFT. Forzamos
             # non-thinking en el path rápido — campo `thinking` (api-docs.deepseek.com, OpenAI/Anthropic-compat).
+            #
+            # ⚠️ **Este parámetro se manda igual por los dos endpoints, pero solo UNO lo OBEDECE.** Medido el
+            # 2026-08-14 con el prompt real de voz (13.488 chars, 23 tools), 6 turnos por brazo:
+            #
+            #   AIMLAPI `thinking:disabled` → TTFT p50 4,24 s · max 14,71 s · **2.138 tokens de razonamiento**
+            #   DIRECTO `thinking:disabled` → TTFT p50 1,01 s · max  1,30 s · **0**
+            #
+            # O sea que el broker acepta el campo y razona de todas formas (ya se sospechaba el 2026-08-02 por el
+            # tiempo: «lo reduce, no lo apaga»; ahora se LEE en `usage.completion_tokens_details.reasoning_tokens`,
+            # que es la prueba que entonces no teníamos). El titular de voz es por eso `api.deepseek.com`.
             extra_body.setdefault("thinking", {"type": "disabled"})
         if spec.is_local():
             # Mantén el modelo local caliente durante toda la sesión (evita recargas de ~60s tras un hueco).
@@ -675,6 +700,18 @@ class FastClient:
                     pt = getattr(_usage, "prompt_tokens", None)
                     ctk = getattr(_usage, "completion_tokens", None)
                     tt = getattr(_usage, "total_tokens", None)
+                    # HIT DE CACHÉ (2026-08-14). DeepSeek directo reporta `prompt_cache_hit_tokens`, y aquí importa
+                    # más que en cualquier otro sitio: el system prompt de voz son ~10k tokens CONSTANTES, así que
+                    # en una conversación de verdad la mayor parte del input es un hit, y el input domina 14:1.
+                    # Va DENTRO de `prompt_tokens` (verificado: pt = hit + miss), así que se DESCUENTA, no se suma
+                    # — ver `energy_meter.llm_cost_to_energy`, donde los dos contadores son parámetros distintos
+                    # precisamente para que nadie los confunda y cobre dos veces.
+                    _hit = getattr(_usage, "prompt_cache_hit_tokens", None)
+                    if _hit is None:
+                        _det = getattr(_usage, "prompt_tokens_details", None)
+                        _hit = getattr(_det, "cached_tokens", None) if _det is not None else None
+                    if _hit is not None:
+                        m["prompt_cache_hit_tokens"] = _hit
                     if pt is not None:
                         m["prompt_tokens"] = pt
                     if ctk is not None:
@@ -697,6 +734,7 @@ class FastClient:
                     model=spec.model,
                     prompt_tokens=m.get("prompt_tokens", m.get("prompt_tokens_est")),
                     completion_tokens=m.get("completion_tokens", m.get("completion_tokens_est")),
+                    cache_hit_tokens=m.get("prompt_cache_hit_tokens"),
                 )
             except Exception:
                 pass

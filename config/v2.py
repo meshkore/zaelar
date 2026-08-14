@@ -30,13 +30,32 @@ _DEFAULTS: dict[str, dict] = {
     # FlashBrain — fast non-reasoning layer (provider `nucleo`, V2-004). Non-reasoners only.
     "fast": {
         "provider": "aimlapi",                              # 'ollama' (local) | 'aimlapi' (cloud)
-        # V2-034 (2026-07-12): default = claude-haiku-4.5. The A/B in the test channel (nucleo/flash/probe.py) on
-        # the operator's manual session showed grok-4-fast-non-reasoning "seems dumb": it does not search when it
-        # should (hallucinates), does not reason about its own contradiction, and reacts with spurious actions to
-        # META questions. Haiku 4.5 (NON-reasoner, validated on AIMLAPI) searches reliably, INTROSPECTS its errors,
-        # and explains instead of acting, at comparable latency (~2-3s). Still PER INVOCATION; changed via UI/config.
-        "model": "anthropic/claude-haiku-4.5",              # default; passed per invocation
-        "base_url": "",
+        # 2026-08-14 — DeepSeek V4 Flash through the AIMLAPI broker. The DIRECT endpoint (api.deepseek.com) was
+        # wired and measured the same day and is **NOT the default**, deliberately, because it did not pass the gate.
+        #
+        # What direct buys (real voice prompt, 6 turns/arm) — the reasoning-off parameter
+        # `thinking:{"type":"disabled"}` is accepted-and-IGNORED by the broker and OBEYED direct:
+        #
+        #                    TTFT p50   worst    reasoning tokens   routing (node 2.13, 14 cases)
+        #   AIMLAPI            4.24s   14.71s        2138                14/14
+        #   DIRECT             1.01s    1.30s           0                12/14  ← estilo, pregunta memoria
+        #
+        # So: 4.2x median latency and 11.3x worst case — the worst case being what the operator experiences as "it's
+        # gone dumb" — against a 2-case routing regression on a SINGLE sample. The standing rule is «if node 2.13
+        # drops, it does not ship», and it is not waived because the latency number is attractive. Routing errors are
+        # the failure the operator called "conversaciones absurdas"; being fast at doing the wrong thing is worse.
+        #
+        # Direct is instead the FIRST latency-relay rung (provider_chain._voice_chain): when turn_perf reports two
+        # slow turns in a row we relay to it, which is exactly what V2-094 exists for. So the cure is applied where
+        # the problem shows up, without betting routing quality on n=1.
+        # To promote it: run node 2.13 with 3 rounds against direct (it is a bench candidate now) and if it holds
+        # 14/14, flip `base_url` here to https://api.deepseek.com and `model` to `deepseek-v4-flash`. See V2-097 §1.
+        #
+        # Superseded default: `anthropic/claude-haiku-4.5` (V2-034 A/B, 2026-07-12) — chosen over
+        # grok-4-fast-non-reasoning, which "seems dumb". Haiku is still a valid choice on this same broker.
+        # Still PER INVOCATION; changed via UI/config.
+        "model": "deepseek/deepseek-v4-flash",              # default; passed per invocation
+        "base_url": "",                                     # empty → the provider's own (AIMLAPI broker)
         "api_key": "",
     },
     # SlowBrain — headless code agent behind the CodeAgent interface (V2-006).

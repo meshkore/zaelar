@@ -201,6 +201,17 @@ _CACHED_READ_RATES_USD: dict[str, float] = {
     "grok-4.5": 0.30,          # medido (ver arriba), no publicado
     "grok-4.6": 0.30,
     "glm-5.2": 0.26,           # precio público de Z.AI para input cacheado
+    "glm-5.3": 0.26,           # 2026-08-14: se hereda el de 5.2 hasta que Z.AI publique el suyo (ver ⚠️ abajo)
+    # ⚠️ **DeepSeek: SIN CONFIRMAR, y a propósito por el lado seguro.** El endpoint directo entró el 2026-08-14 y
+    # reporta `prompt_cache_hit_tokens`, así que el hit se tarifica; lo que no tenemos es su PRECIO oficial de
+    # cache-hit para la familia V4. NO se inventa: sin fila propia cae a `_CACHED_READ_FALLBACK_FRACTION` (25% del
+    # input = $0,035/1M), que sobre-cobra si el descuento real es mayor. Sobre-cobrar un poco es la política
+    # (2026-08-13); cobrar el hit al precio de input completo sería sobre-cobrar ~10× y eso ya no vale.
+    #
+    # ⚠️ **Y desde el 2026-08-17 DeepSeek pasa a precio PICO/VALLE, con el valle a la MITAD del pico** (aviso del
+    # proveedor). Esta tabla es estática, así que factura siempre a PICO: en valle sobre-cobra hasta 2×, acotado y
+    # en el sentido seguro. Cerrarlo bien necesita las horas exactas de la ventana y los importes de la página de
+    # precios — datos del operador, no adivinables desde aquí. Tarea en V2-097.
 }
 _CACHED_READ_FALLBACK_FRACTION = 0.25      # del rate de input, cuando no hay fila propia
 
@@ -222,22 +233,41 @@ def _cached_rate_for(base_url: str, model: str | None, in_rate: float) -> float:
 
 def llm_cost_to_energy(
     *, base_url: str, model: str | None = None, prompt_tokens: int | None, completion_tokens: int | None,
-    cached_tokens: int | None = None,
+    cached_tokens: int | None = None, cache_hit_tokens: int | None = None,
 ) -> float | None:
     """Pure. Returns Energy units for one LLM call, or None only for a local/free endpoint (Ollama —
     11434/localhost/127.0.0.1). Every real cloud endpoint always returns a value (exact rate if known,
     fallback otherwise) — see module docstring for why this changed from the original fail-open design.
 
-    `cached_tokens` = `cache_read_input_tokens` of Anthropic-shaped usage: a SEPARATE counter, not part of
-    `prompt_tokens`, and a real billed line (see `_CACHED_READ_RATES_USD`). Optional and defaulting to 0 so
-    a caller that has no cache figure behaves exactly as before."""
+    **The two cache counters have OPPOSITE arithmetic, and mixing them up bills twice.** They are separate
+    parameters on purpose — a single `cached_tokens` would silently mean whichever the caller assumed:
+
+      * `cached_tokens` — **Anthropic** shape (`cache_read_input_tokens`). A counter that sits OUTSIDE
+        `prompt_tokens`, so its cost is ADDED.
+      * `cache_hit_tokens` — **OpenAI/DeepSeek** shape (`prompt_cache_hit_tokens`). Already INSIDE
+        `prompt_tokens` (verified against the live API: `prompt_tokens = hit + miss`), so it must be
+        DISCOUNTED — re-priced down from the input rate, never added on top.
+
+    Feeding DeepSeek's counter into `cached_tokens` would charge those tokens at the full input rate (inside
+    `prompt_tokens`) AND again at the cache rate. Getting this wrong matters more here than anywhere else: the
+    voice system prompt is ~10k CONSTANT tokens, so in a real conversation most of the input is a cache hit, and
+    input dominates output 14:1 in this brain.
+
+    Both default to 0, so a caller with no cache figure behaves exactly as before.
+    """
     if _is_local_endpoint(base_url):
         return None
     in_rate, out_rate = _rate_for(base_url, model)
     pt = prompt_tokens or 0
     ct = completion_tokens or 0
     cached = cached_tokens or 0
-    raw_usd = (pt / 1_000_000) * in_rate + (ct / 1_000_000) * out_rate
+    # Acotado a `pt`: un contador raro de un proveedor no puede producir un número de tokens frescos NEGATIVO
+    # (que restaría de la factura — el sentido peligroso).
+    hit = max(0, min(cache_hit_tokens or 0, pt))
+    fresh = pt - hit
+    raw_usd = (fresh / 1_000_000) * in_rate + (ct / 1_000_000) * out_rate
+    if hit:
+        raw_usd += (hit / 1_000_000) * _cached_rate_for(base_url, model, in_rate)
     if cached:
         raw_usd += (cached / 1_000_000) * _cached_rate_for(base_url, model, in_rate)
     retail_eur = raw_usd * MARGIN_MULTIPLIER  # treats USD≈EUR for simplicity — fine at these magnitudes
@@ -469,7 +499,8 @@ def _fire_and_forget(energy: float, kind: str, meta: dict | None = None) -> None
 
 
 def report_llm_usage(
-    *, base_url: str, model: str | None = None, prompt_tokens: int | None, completion_tokens: int | None
+    *, base_url: str, model: str | None = None, prompt_tokens: int | None, completion_tokens: int | None,
+    cache_hit_tokens: int | None = None,
 ) -> None:
     """Call from the LLM streaming call site's `finally` block, AFTER usage/estimate is resolved.
     Fire-and-forget (asyncio.create_task) — never awaited by the caller, never adds latency to the
@@ -477,7 +508,11 @@ def report_llm_usage(
     if not enabled():
         return
     pt, ct, estimated = _resolve_tokens(base_url, model, prompt_tokens, completion_tokens)
-    energy = llm_cost_to_energy(base_url=base_url, model=model, prompt_tokens=pt, completion_tokens=ct)
+    # El hit de caché solo se descuenta si los tokens son REALES del proveedor. Con un estimado por chars no hay
+    # forma de saber qué parte se cacheó, y aplicar el descuento sobre una cifra inventada sería rebajar la factura
+    # con un dato que no existe — el sentido peligroso.
+    energy = llm_cost_to_energy(base_url=base_url, model=model, prompt_tokens=pt, completion_tokens=ct,
+                                cache_hit_tokens=None if estimated else cache_hit_tokens)
     if energy is None:
         return
     meta = {"model": model, "base_url": base_url}

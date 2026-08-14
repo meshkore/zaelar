@@ -23,7 +23,16 @@ def v2(tmp_path, monkeypatch):
 def test_defaults(v2):
     fast = v2.get("fast")
     assert fast["provider"] == "aimlapi"
-    assert fast["model"] == "anthropic/claude-haiku-4.5"   # default V2-034 (era grok; el A/B lo cambió a Haiku)
+    # 2026-08-14: el default pasa a `deepseek/deepseek-v4-flash`, y con esto el DEFAULT y lo que el operador corre
+    # de verdad dejan de contar historias distintas (su `config/v2.json` llevaba tiempo en DeepSeek). Lo respalda el
+    # mismo banco del nodo 2.13 que eligió a Haiku en su día: sobre los 14 casos con el prompt real, DeepSeek enruta
+    # **14/14** y Haiku **11/14** (falla mostrar-widget, data-op y alias). Haiku sigue en el catálogo y en el mismo
+    # broker. Histórico: V2-034 (2026-07-12) lo puso en Haiku frente a grok-4-fast-non-reasoning.
+    assert fast["model"] == "deepseek/deepseek-v4-flash"
+    # El endpoint DIRECTO (api.deepseek.com) NO es el default a propósito: es 4× más rápido al primer token pero dio
+    # 12/14 en una pasada suelta, y la regla es que si el nodo 2.13 baja, no se despliega. Vive como primer escalón
+    # de relevo por latencia (`provider_chain._voice_chain`). Ver V2-097 §1.
+    assert fast["base_url"] == "", "el titular va por el broker; el endpoint directo es RELEVO, no titular"
     assert v2.active_brain() == "nucleo"        # tras el entierro de Hermes (V2-009): cerebro propio por defecto
     assert v2.get("flags")["memory_enabled"] is True
 

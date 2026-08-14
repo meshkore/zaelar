@@ -39,14 +39,23 @@ KNOWN: list[dict] = [
      "env": ["Z_AI_API_KEY"], "plan": "GLM coding plan"},
     {"name": "moonshot", "base_url": "https://api.moonshot.ai/anthropic",
      "env": ["MOONSHOT_API_KEY", "KIMI_API_KEY"], "plan": "Kimi Code"},
-    # DeepSeek expone un endpoint Anthropic-compatible propio (2026-08-13). OJO al MAPEO DE NOMBRES que hace su
-    # gateway: `claude-opus*` → deepseek-v4-pro y `claude-haiku*`/`claude-sonnet*` → deepseek-v4-flash. O sea que
-    # aquí el `model` que se le manda NO es un nombre de DeepSeek sino el alias de Claude que quieras que mapee —
-    # mandarle `deepseek-v4-flash` a pelo no es lo que su gateway espera. Por eso el escalón declara `sonnet`: es
-    # el alias que aterriza en el modelo barato. Es pago por token (no suscripción), así que rompe la regla del
-    # operador de «forfait, nunca por token» — va DESPUÉS de los planes y existe como red de seguridad barata.
+    # DeepSeek expone un endpoint Anthropic-compatible propio (2026-08-13), y este escalón estuvo escrito y SIN
+    # PROBAR hasta el 2026-08-14 porque faltaba la credencial.
+    #
+    # ⚠️ Al llegar la key se probó y **el `model` que declaraba era inválido**. Decía `sonnet` sobre la creencia de
+    # que el gateway mapea alias de Claude (`claude-sonnet*` → v4-flash). NO los mapea: responde
+    # `400 — «The supported API model names are deepseek-v4-pro or deepseek-v4-flash, but you passed sonnet»`.
+    # Verificado también con `opus` y `haiku` (400 los tres) y con los nombres propios (200 los dos).
+    #
+    # O sea que este escalón habría fallado con 400 en CADA petición desde el instante en que la credencial
+    # entrara — y habría fallado justo cuando se le necesita, porque un escalón de relevo solo se usa cuando el
+    # titular ya está caído. **Un relevo sin probar es peor que no tener relevo**: convierte una caída de proveedor
+    # en una caída total, y el síntoma («el worker muere al instante») no apunta al modelo.
+    #
+    # Es pago por token (no suscripción), así que rompe la regla del operador de «forfait, nunca por token» — va
+    # DESPUÉS de los planes y existe como red de seguridad barata.
     {"name": "deepseek", "base_url": "https://api.deepseek.com/anthropic",
-     "env": ["DEEPSEEK_API_KEY"], "plan": "DeepSeek (pago por token)", "model": "sonnet"},
+     "env": ["DEEPSEEK_API_KEY"], "plan": "DeepSeek (pago por token)", "model": "deepseek-v4-flash"},
 ]
 # Escalón final SOLO LOCAL: sin base_url el CLI usa la licencia con la que el operador ya está logueado. No
 # necesita credencial y por eso no puede fallar por cuota de API — pero consume su licencia, así que va el último.

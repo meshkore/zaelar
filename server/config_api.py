@@ -41,9 +41,27 @@ _PROVIDER_CATALOG = {
         # research to `web_search`, re-measured §9.1.b), direct `openai` and `mistral` (the rule is ONE API account:
         # all commercial traffic goes through the AIMLAPI broker), and `zai` (reasoner → violates voice=non-reasoner).
         "providers": [
+            # 2026-08-14 — DeepSeek DIRECT is the production default, and it is a separate entry from the broker on
+            # purpose: same model, different behaviour. `thinking:{"type":"disabled"}` is accepted-and-ignored by
+            # AIMLAPI and OBEYED here. Measured with the real voice prompt, 6 turns/arm: TTFT p50 4.24s → 1.01s,
+            # worst case 14.71s → 1.30s, reasoning tokens 2138 → 0. This is the one exception to the "one API
+            # account, everything through the broker" rule, and it earns it: the broker cannot turn the reasoning
+            # off, and voice=non-reasoner is a hard invariant, not a preference.
+            {"id": "deepseek", "label": "DeepSeek DIRECT (production default — the only one that truly stops reasoning)",
+             "base_url": "https://api.deepseek.com", "key_env": "DEEPSEEK_API_KEY", "cloud": True,
+             "models": ["deepseek-v4-flash", "deepseek-v4-pro"]},
             {"id": "aimlapi", "label": "AIMLAPI (broker — the one account we manage)",
              "base_url": "https://api.aimlapi.com/v1", "key_env": "AIMLAPI_KEY", "cloud": True,
              "models": ["anthropic/claude-haiku-4.5", "deepseek/deepseek-v4-flash"]},
+            # Gemini 3.7 Flash (live 2026-08-14, operator's request): in the catalogue as a CANDIDATE, NOT endorsed.
+            # 1M context, text/image/video/audio. The reason it is interesting is exactly the reason to be careful:
+            # Gemini Flash has always been fast and has always routed worse here (gemini-3.5-flash-lite scored 2/12
+            # in §9 and does not even invoke tools). Its reasoning-off knob is `reasoning_effort:"none"`, which
+            # `ModelSpec.reasoning_effort()` already sends for Gemini endpoints. **Not to be made default without
+            # running node 2.13** — see the benchmark task in V2-097.
+            {"id": "openrouter", "label": "OpenRouter (candidate — NOT benchmarked yet)",
+             "base_url": "https://openrouter.ai/api/v1", "key_env": "OPENROUTER_API_KEY", "cloud": True,
+             "models": ["google/gemini-3.7-flash"]},
             {"id": "groq", "label": "Groq (cloud, fastest — routes worse)",
              "base_url": "https://api.groq.com/openai/v1", "key_env": "GROQ_API_KEY", "cloud": True,
              "models": ["llama-3.3-70b-versatile"]},
@@ -68,8 +86,14 @@ _PROVIDER_CATALOG = {
              # Anthropic-compatible RELAY rung models (`workers/providers.py`), because Claude Code still drives —
              # only the endpoint underneath changes. Leaving relay models out would mark the operator's working
              # TODAY config as invalid (claude_code + glm-5.2 + Z.AI endpoint), and that config is correct.
+             # glm-5.3 (live 2026-08-14) VERIFIED against the real coding-plan endpoint. Two things worth knowing,
+             # both measured: (1) asking for `glm-5.2` already returns `model: "glm-5.3"` — the plan upgraded under
+             # us, so the old value was describing something that no longer ran; (2) the endpoint DOES validate the
+             # name (an invented model gets error 1214), so this is an alias, not a free-for-all. `glm-5.2` stays
+             # listed because it is still accepted. NOTE: 5.3 is a REASONER (its first content block is `thinking`)
+             # — fine for workers, never for the voice layer.
              "models": ["opus", "sonnet", "haiku", "sonnet[1m]", "opus[1m]",
-                        "glm-5.2", "glm-4.6", "kimi-k2.6"],
+                        "glm-5.3", "glm-5.2", "glm-4.6", "kimi-k2.6"],
              "note": "Can restrict Bash to our bridges only (single-writer invariant) → the only backend valid for "
                      "untrusted input (deny_tools) and cluster dev workers. The glm-*/kimi-* entries belong to the "
                      "relay tiers (Z.AI / Moonshot subscription plans): they only work while that endpoint is the "
