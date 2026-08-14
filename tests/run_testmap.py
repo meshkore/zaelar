@@ -325,6 +325,13 @@ DOMAINS: list[dict] = [
         # en la raíz no se versione nada que no sea del proyecto, se llame como se llame.
         {"id": "7.9", "title": "La raíz del repo no versiona datos (fuga de PII, 2026-08-12)", "ch": UNIT,
             "paths": ["tests/infrastructure/unit/test_repo_root_clean.py"]},
+        # 2026-08-14: que el CONTEXTO no se quede atrás del código. La deriva era medible — el log de alineación de
+        # contenido iba por la 2.88 con el motor en la 2.94, y 21 decisiones de CLAUDE.md sin iniciativa. Este nodo
+        # es la mitad AUTOMÁTICA del cierre (ids únicos, frontmatter cuadrado, decisión↔iniciativa en los dos
+        # sentidos), como TRINQUETE: la deuda histórica está declarada y solo puede bajar. La mitad que cruza a
+        # `web/` no se puede vigilar desde aquí (vive en el repo privado) → `zaelar-initiative-closure.md`.
+        {"id": "7.12", "title": "Cierre de iniciativa: toda decisión tiene iniciativa y al revés (trinquete)",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/test_roadmap_closure.py"]},
         # 2026-08-10: un guarda SOBRE LOS GUARDAS. Aparecieron tests verdes por la MÁQUINA y no por el código (la
         # config del operador —idioma, proveedores, atención, perfil— pisaba el entorno de la suite vía
         # `settings.load_into_env`). No es que fallaran: es que no se podía confiar en el verde.

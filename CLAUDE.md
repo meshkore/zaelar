@@ -1676,6 +1676,57 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - Contrato para widgets nuevos en `widgets/AGENTS.md` + el prompt del generador, junto a la decisión hermana de
     background: son la misma pregunta — ¿esto sigue haciendo algo cuando el operador deja de mirar?
 
+- **La ESPERA se oye, y el veredicto de latencia ya puede culpar al proveedor** (V2-093, `voice/proactive.py`
+  + `nucleo/flash/turn_perf.py`, iniciativa `V2-093-la-espera-se-oye.md`; sesión b70a45d0):
+  - **El relleno de espera llevaba desde julio SIN SONAR.** Viajaba como `ChatChunk` por el stream de la respuesta,
+    y el tokenizador de frases de LiveKit **solo entrega un segmento cuando tiene DOS**; un relleno suelto no llega
+    ni a ser segmento (acaba en «…», que no está en `[.!?。！？]`, y ninguno pasa de `min_sentence_len=20`), así que
+    se quedaba en el buffer y salía PEGADO a la respuesta. 48 generados, 0 oídos a tiempo, 50 s de `bot_speech:idle`
+    con tres pendientes mientras el operador decía «parece que te has quedado tonto». Ahora sale FUERA DE BANDA por
+    `session.say` (costura `proactive.speaker()`). **No baja el TTFT: cambia que la espera se viva como «pensando»
+    en vez de como «muerto»**, que es el síntoma que reportó el operador.
+  - **`turn_perf` no PODÍA culpar al proveedor en voz.** El orden era frío → prompt → proveedor y `prompt` gana con
+    `>=6000` tok; el prompt de voz es SIEMPRE 9-10k → rama inalcanzable POR CONSTRUCCIÓN. Diez turnos lentos
+    culpando al prompt con el prompt CONSTANTE (±9%) y el TTFT de 0 a 25.703 ms. Nuevas causas **`pre_token`** (≥70%
+    del turno antes del 1er token: razonamiento oculto o cola, y lo dice) y **`reparto`** (lento sin causa
+    dominante: los números en vez de un culpable por descarte). `ttft_frac` viaja en el evento.
+  - Regla que sale de aquí: **un diagnóstico que siempre acierta con el mismo culpable hay que sospecharlo.**
+- **RELEVO por latencia del cerebro de voz** (V2-094, `nucleo/flash/provider_chain.py`, iniciativa
+  `V2-094-relevo-por-latencia.md`): la cadena existía desde el 2026-08-03 pero solo servía al cerebro de CLUSTER y
+  solo relevaba por proveedor ROTO (429/cuota). Ahora `chain(role)`/`pick(role)` sirven a los dos —**el cooldown
+  sigue compartido a propósito**: un proveedor sin cuota lo está para todos— y `note_slow(verdict)` releva por
+  LENTITUD comiéndose el veredicto de `turn_perf` (no re-mide nada). El spec de voz se resuelve POR TURNO.
+  - **Tres protecciones de coste**, porque un relevo por latencia salta justo en los turnos difíciles, que son los
+    que más gastan: 2 turnos lentos SEGUIDOS (un pico no releva), cooldown de 5 min (no la media hora del de cuota)
+    y **TECHO de 40 turnos** en el escalón de relevo → se vuelve al titular aunque siga lento.
+  - Cadenas: **self-host `['titular']` SIN relevo** (quien se autohospeda paga sus APIs y no puede llevarse la
+    sorpresa; lo activa con `fast.providers`), nube `deepseek-v4-flash → grok-4-fast → groq`, cluster sin cambios.
+    El orden es por (rapidez al 1er token, precio de ENTRADA): el input domina **14:1** en este cerebro, así que
+    `grok-4-fast` está a 1,4× y **`grok-4.5` a 14,3× — fuera del defecto** (la sesión de 11 min habría pasado de
+    ~31 a ~460 Energy). Precios en `energy_meter.py`; el producto, en la raíz privada.
+  - **Esto NO cura el TTFT**: es razonamiento oculto del modelo, no cola. La cura sigue siendo `api.deepseek.com`
+    directo (parámetro nativo; AIMLAPI lo rechaza con 400) y sigue **bloqueada sin `DEEPSEEK_API_KEY`**.
+- **El turno se cierra cuando la frase ACABA, no cuando hay silencio** (V2-095, `nucleo/flash/segmenter.py` +
+  `voice/engine/speech/turn/semantic.py`, iniciativa `V2-095-turnos-por-sentido.md`): el límite era solo acústico,
+  así que quien piensa en voz alta abría un turno por pausa y el siguiente fragmento lo cancelaba — **22 prompts,
+  18 cancelados y CERO respuestas en 161 s** de dictado, sobre trozos como «del» o «para que».
+  - **No es la doble pasada descartada el 2026-08-02** (prompt 9.729→1.221 tok pero turno 1.938→6.208 ms): aquello
+    ponía dos llamadas en el camino crítico DESPUÉS de que el operador callara. Esto decide dónde acaba la frase
+    MIENTRAS habla, en tiempo que ya estamos esperando.
+  - **Y no hizo falta modelo**: mirando los 89 fragmentos reales, los que van a medias acaban en palabra función o
+    en coma. Regla léxica → **43/89 = 48% de llamadas evitadas** a coste y latencia cero. La capa de modelo queda
+    OPT-IN (`ZAELAR_SEGMENTER_MODEL`).
+  - **Se cablea como detector de turno de LiveKit** (`turn_provider=semantic`), no en el proveedor, y eso es lo que
+    lo hace seguro: devuelve una PROBABILIDAD y `max_delay` es el tope duro → puede RETRASAR un turno, nunca
+    perderlo. Compone con el ONNX quedándose la probabilidad más baja.
+  - **Dos falsos positivos que se cazaron MIDIENDO**: la regla «corta y sin cerrar» retenía TODAS las órdenes
+    cortas («pon música», «abre la agenda»); y «sí»/«si» son la misma palabra al quitar acentos, con «Sí, te
+    autorizo a borrar toda la agenda» —la frase que autorizó al worker— del lado equivocado. 0 falsos positivos
+    tras arreglarlo. **Techo conocido**: `max_delay` son 2,2 s, así que el veto añade ~1 s como mucho; subirlo
+    (`ZAELAR_ENDPOINT_MAX_S`) retrasa TODOS los turnos y se deja al operador.
+  - **Pendiente de la misma petición**: la selección DETERMINISTA de tools/widgets por turno (el catálogo son 17.335
+    de 31.772 chars = 55% del input). Pieza propia, con el nodo 2.13 como puerta (hoy 12/12).
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un
