@@ -195,6 +195,8 @@ DOMAINS: list[dict] = [
         # son los trozos JUNTOS (156 frases recompuestas sobre 79 cadenas reales). Los tres primeros tests son de
         # SEGURIDAD (una orden de parar o una autorización tragadas serían peores que el bug que arregla) y uno
         # documenta a propósito el límite del léxico: no ve que falte el OBJETO («quiero que busques»).
+        {"id": "3.10", "title": "Selección PROGRESIVA de tools: el turno lleva su rumbo, no el catálogo entero",
+            "ch": VOICE, "paths": ["tests/voice/unit/test_tool_selection.py"]},
         {"id": "3.9", "title": "Frase partida en dos tiempos = UNA petición (el fragmento no genera nada)",
             "ch": VOICE, "paths": ["tests/voice/unit/test_accumulator.py"]},
     ]},

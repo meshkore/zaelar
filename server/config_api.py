@@ -50,18 +50,19 @@ _PROVIDER_CATALOG = {
             {"id": "deepseek", "label": "DeepSeek DIRECT (production default — the only one that truly stops reasoning)",
              "base_url": "https://api.deepseek.com", "key_env": "DEEPSEEK_API_KEY", "cloud": True,
              "models": ["deepseek-v4-flash", "deepseek-v4-pro"]},
+            # `google/gemini-3.7-flash` (live 2026-08-14) is a CANDIDATE, NOT endorsed — and it goes here, on the
+            # broker, because the broker DOES serve it (verified against `/models` and a real call). The first
+            # version of this entry added OpenRouter as a new provider, which would have broken the "one API
+            # account" rule and needed a credential we do not have, for a model we already had access to.
+            # Why it needs measuring before anything else: the reason it looks attractive is the reason to be
+            # careful. Gemini Flash has always been fast here and has always routed WORSE — in this very bench
+            # gemini-3.6-flash scores 6/14 and gemini-3.5-flash 8/14, against deepseek's 14/14, mostly by not
+            # invoking tools at all. Reasoning-off knob is `reasoning_effort:"none"`, already sent by
+            # `ModelSpec.reasoning_effort()` for Gemini endpoints. Gate: node 2.13. See V2-097 §4.
             {"id": "aimlapi", "label": "AIMLAPI (broker — the one account we manage)",
              "base_url": "https://api.aimlapi.com/v1", "key_env": "AIMLAPI_KEY", "cloud": True,
-             "models": ["anthropic/claude-haiku-4.5", "deepseek/deepseek-v4-flash"]},
-            # Gemini 3.7 Flash (live 2026-08-14, operator's request): in the catalogue as a CANDIDATE, NOT endorsed.
-            # 1M context, text/image/video/audio. The reason it is interesting is exactly the reason to be careful:
-            # Gemini Flash has always been fast and has always routed worse here (gemini-3.5-flash-lite scored 2/12
-            # in §9 and does not even invoke tools). Its reasoning-off knob is `reasoning_effort:"none"`, which
-            # `ModelSpec.reasoning_effort()` already sends for Gemini endpoints. **Not to be made default without
-            # running node 2.13** — see the benchmark task in V2-097.
-            {"id": "openrouter", "label": "OpenRouter (candidate — NOT benchmarked yet)",
-             "base_url": "https://openrouter.ai/api/v1", "key_env": "OPENROUTER_API_KEY", "cloud": True,
-             "models": ["google/gemini-3.7-flash"]},
+             "models": ["anthropic/claude-haiku-4.5", "deepseek/deepseek-v4-flash",
+                        "google/gemini-3.7-flash"]},
             {"id": "groq", "label": "Groq (cloud, fastest — routes worse)",
              "base_url": "https://api.groq.com/openai/v1", "key_env": "GROQ_API_KEY", "cloud": True,
              "models": ["llama-3.3-70b-versatile"]},

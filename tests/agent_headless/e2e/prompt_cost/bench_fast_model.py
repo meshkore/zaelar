@@ -55,6 +55,7 @@ CANDIDATES: list[tuple[str, ModelSpec]] = [
     ("aiml·deepseek-non-reasoner", ModelSpec("deepseek/deepseek-non-reasoner-v3.1-terminus", AIML,
                                              provider="aimlapi")),
     ("aiml·haiku-4.5", ModelSpec("anthropic/claude-haiku-4.5", AIML, provider="aimlapi")),
+    ("aiml·gemini-3.7-flash", ModelSpec("google/gemini-3.7-flash", AIML, provider="aimlapi")),
     ("aiml·gemini-3.6-flash", ModelSpec("google/gemini-3.6-flash", AIML, provider="aimlapi")),
     ("aiml·gemini-3.5-flash", ModelSpec("google/gemini-3.5-flash", AIML, provider="aimlapi")),
     ("aiml·gemini-3.5-flash-lite", ModelSpec("google/gemini-3.5-flash-lite", AIML, provider="aimlapi")),

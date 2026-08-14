@@ -998,6 +998,29 @@ class NucleoLLMStream(llm.LLMStream):
                 emit("brain", "🧩 tool ignorada — la frase seguía", text=name, role="system",
                      extra={"cat": "flash", "fragment": (getattr(self, "_turn_text", "") or "")[:120]})
                 return
+
+            # ESCOTILLA de la selección progresiva (V2-096 F2): el modelo dice que le falta una familia. Se apunta
+            # para que el turno la RECOMPONGA con esa familia cargada — un viaje extra MEDIBLE en vez de una
+            # capacidad negada en silencio, que es el fallo que de verdad rompe una conversación. No es una tool
+            # real: no hace nada, solo marca.
+            if name == "need_capability":
+                _fam = str((args or {}).get("family") or "").strip()
+                if _fam:
+                    self._need_family = _fam
+                emit("brain", "🔓 el modelo pide una familia que se había recortado", text=_fam, role="system",
+                     extra={"cat": "flash", "family": _fam, "retry": True})
+                return
+
+            # Alimenta la capa `recent` del turno siguiente: una conversación que ya iba de widgets no debería
+            # perderlos porque el turno siguiente no los nombre.
+            try:
+                from nucleo.flash import tool_selection as _tsel2
+                _fams = _tsel2.families_used([name])
+                if _fams:
+                    prev = list(getattr(brain, "_recent_tool_families", None) or ())
+                    brain._recent_tool_families = list(dict.fromkeys(list(_fams) + prev))[:3]
+            except Exception:
+                pass
             if name == "widget_data":
                 # UNA data-op por turno: el modelo pequeño a veces emite VARIAS widget_data en un mismo turno
                 # (enumera acciones ante "muéstrame la agenda" → done/drop/snooze…, o DUPLICA un add_meeting → cita
@@ -1589,6 +1612,33 @@ class NucleoLLMStream(llm.LLMStream):
         # vez de saludar. El saludo no necesita ninguna tool → no las ofrecemos y no hay nada que mis-rutear.
         if first_turn:
             _turn_tools = []
+        # SELECCIÓN PROGRESIVA (V2-096 F2): el turno lleva la DIRECCIÓN hacia la que va, no el catálogo entero.
+        # «Cuando alguien dice "hola, ¿qué tal?" no le vamos a mandar todos los widgets, todas las tools.»
+        # Va DESPUÉS del gate por estado (que decide qué capacidades EXISTEN) porque son cosas distintas: el gate
+        # niega, esto solo recupera candidatos — y por eso puede mirar las palabras del turno sin romper el
+        # invariante de V2-085. Medido sobre los 14 casos del nodo 2.13: **−51,4% de chars de catálogo** y CERO
+        # casos que se queden sin ninguna tool aceptable.
+        _tool_report: dict = {}
+        if not first_turn:
+            try:
+                from nucleo.flash import tool_selection as _tsel
+                # «Lo que tiene DELANTE» sale del ESTADO, no de las palabras — es la capa que no se puede recortar
+                # (V2-085). Lectura directa de µs, ya cacheada; si falla, se degrada a las otras capas.
+                try:
+                    from memory import api as _mem_sel
+                    _open_now = (_mem_sel.state() or {}).get("open_widgets") or []
+                except Exception:
+                    _open_now = []
+                _turn_tools, _tool_report = _tsel.select(
+                    _turn_tools, turn_text=text, open_widgets=_open_now,
+                    recent_families=getattr(brain, "_recent_tool_families", None),
+                    force=getattr(self, "_force_families", None))
+                if _tool_report.get("omitted"):
+                    emit("brain", "🎯 tools recortadas al rumbo del turno", role="system",
+                         extra={"cat": "flash", **_tool_report})
+            except Exception as e:  # noqa: BLE001
+                emit("brain", "⚠️ selección de tools falló — catálogo completo", role="system",
+                     extra={"cat": "flash", "err": repr(e)[:120]})
         # OBSERVABILIDAD del presupuesto de tools (V2-085): no solo cuántas — cuánto ocupan, qué familias entraron
         # y cuáles se podaron. Junto a los `sz_*`/`widgets_*` del prompt cierra el desglose completo del turno.
         try:
@@ -1788,6 +1838,34 @@ class NucleoLLMStream(llm.LLMStream):
             emit("error", "nucleo flash brain error")
             send("Uf, se me ha ido un momento. ¿Me lo repites?")
             return
+
+        # SEGUNDO VIAJE de la selección progresiva (V2-096 F2), y SOLO aquí: la recuperación se equivocó y el modelo
+        # lo dijo llamando a `need_capability`. Es el precio explícito y MEDIBLE de recortar el catálogo.
+        #
+        # Va DESPUÉS del stream, no dentro: ese bucle tiene tarea bomba, cola y plazo de silencio, y meterle un
+        # reintento a media máquina es cómo se estropea el camino caliente. Aquí el primer stream ya cerró y el modelo
+        # NO le dijo nada al operador (gastó el turno en pedir la familia), así que no hay voz que deshacer: se
+        # repite la misma petición con la familia cargada. UNA sola vez — si con la familia delante tampoco resuelve,
+        # no es un problema de catálogo y otro viaje solo añade segundos.
+        _need = getattr(self, "_need_family", "")
+        if _need and not getattr(self, "_retried_tools", False) and not "".join(spoken).strip():
+            self._retried_tools = True
+            try:
+                from nucleo.flash import tool_selection as _tsel3
+                _wider, _rep2 = _tsel3.select(_router.tools(_tool_ctx), turn_text=text, force={_need})
+                emit("brain", "🔁 segundo viaje con la familia que faltaba", text=_need, role="system",
+                     extra={"cat": "flash", "family": _need, **_rep2})
+                _again: list[str] = []
+                async for _piece in FastClient().stream(messages, spec=spec, tools=_wider,
+                                                        on_tool_call=_on_tool_call, metrics=llm_metrics):
+                    _again.append(_piece)
+                if _again:
+                    _txt2 = "".join(_again).strip()
+                    spoken.append(_txt2)
+                    send(_txt2)
+            except Exception as e:  # noqa: BLE001
+                emit("brain", "⚠️ el segundo viaje falló — sigo con lo que haya", role="system",
+                     extra={"cat": "flash", "err": repr(e)[:120]})
 
         spoken_text = "".join(spoken).strip()
 
