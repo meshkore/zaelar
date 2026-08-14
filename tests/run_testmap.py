@@ -141,6 +141,11 @@ DOMAINS: list[dict] = [
             "tests/voice/unit/test_turn_boundaries.py"]},
         {"id": "3.2", "title": "Puente voz→nucleo + trazas", "ch": VOICE, "paths": [
             "tests/voice/unit/providers/test_nucleo.py", "tests/voice/unit/providers/test_nucleo_guards.py",
+            # 2026-08-14 (sesión b70a45d0): los dos eslabones que dejaron la agenda sin vaciar. (1) El backstop de
+            # promesa escalaba con `kind:"web"` FIJO → una data-op local abrió dos navegadores y pasó a llamarse
+            # «la tarea del navegador»; (2) ese nombre hizo que un `stop_worker` arrastrado del turno anterior la
+            # encontrara y la matara EN EL MISMO turno en que se le entregaba la autorización que esperaba.
+            "tests/voice/unit/providers/test_stop_and_route_guards.py",
             "tests/voice/unit/test_trace.py", "tests/voice/e2e/agent/interlocutor/test_trace.py"]},
         {"id": "3.3", "title": "Mic→STT (transporte WebRTC)", "ch": VOICE, "live": True,
             "cmd": "./.venv/bin/python -m tests.voice.e2e.mic.mic_selftest"},

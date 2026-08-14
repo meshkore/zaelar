@@ -927,6 +927,21 @@ class NucleoLLMStream(llm.LLMStream):
             wb = {w for w in (b or "").lower().split() if len(w) > 3}
             return len(wa & wb)
 
+        def _says_stop(t: str) -> bool:
+            """¿Ha pedido el operador PARAR un proceso, en ESTE turno? Determinista, para gatear lo irreversible.
+
+            Cuidado con «para»: en castellano es preposición mucho más veces que verbo («para nada», «para ti»,
+            «no era para ti»), así que NO entra suelta — y de hecho «para» a secas solo calla la voz, nunca detiene
+            tareas de fondo (regla del operador). Se piden formas inequívocas: el infinitivo/imperativo de parar con
+            o sin pronombre, detener, cancelar, anular, abortar, «deja de», y los equivalentes en inglés."""
+            n = _norm_nfkd(t or "")
+            import re as _re_ss
+            return bool(_re_ss.search(
+                r"\b(par[ae]r(?:me|te|lo|la|los|las)?|par[ae]l[oa]s?|paralo|parala|"
+                r"det[ei]n(?:er|lo|la|los|las|ga|gan)?|cancel(?:a|ar|alo|ala|o|en)|"
+                r"anul(?:a|ar|alo|ala)|abort(?:a|ar|)|deja de|dejalo|"
+                r"stop|cancel|abort|kill|halt|call it off)\b", n))
+
         def _on_tool_call(name: str, args: dict) -> None:
             # NINGUNA tool se ejecuta desde un fragmento superado: mientras el modelo generaba, el operador siguió
             # hablando, así que esta decisión se tomó sobre media frase. Abrir un widget o lanzar un worker con
@@ -1284,6 +1299,32 @@ class NucleoLLMStream(llm.LLMStream):
                         logger.warning(f"send_to_worker falló: {e}")
             elif name == "stop_worker":
                 which = (args.get("which") or "").strip()
+                # ── GUARD 1: NO SE MATA A QUIEN ACABAS DE CONTESTAR (2026-08-14, sesión b70a45d0) ──────────────
+                # El fallo más caro de esa sesión, en un solo milisegundo: el turno emitió `answer_worker` con la
+                # autorización que el worker llevaba 30 s esperando («Sí, autorizado: borra TODA la agenda») Y
+                # `stop_worker` detrás, y la tarea murió `ok:False` con la respuesta ya entregada. Después le dijo
+                # al operador «Vale, se lo digo» — falso en el instante en que lo dijo. La agenda nunca se vació.
+                # Contestar y matar en el MISMO turno es incoherente por definición: si el operador acaba de dar la
+                # respuesta que el proceso pedía, no está pidiendo que lo mates. Gana la respuesta (no destructiva).
+                if worker_acted["v"] == "answer":
+                    emit("brain", "🛡️ stop_worker ignorado — este turno ACABA de responder al worker",
+                         text=f"{which or 'todo'}", role="system",
+                         extra={"cat": "flash", "kind_diag": "stop_after_answer"})
+                    return
+                # ── GUARD 2: MATAR EXIGE QUE EL OPERADOR LO HAYA DICHO ────────────────────────────────────────
+                # Mismo espíritu que el guarda de context-bleed de las data-ops (arriba, ~L797), pero para lo
+                # irreversible: si en el turno del operador NO hay una orden de parar, el `stop_worker` es arrastre
+                # del turno anterior. En la sesión, el stop nació de una queja de DOS TURNOS ANTES sobre widgets
+                # («los dos navegadores no se tenían que haber abierto para nada»), y ese turno lo había cancelado
+                # un barge-in. El modelo lo arrastró y lo convirtió en un hachazo.
+                # OJO con «para»: en castellano es preposición mucho más a menudo que verbo («para nada», «para
+                # ti»), y por eso no entra suelto — de hecho «para» a secas solo calla la voz, nunca para tareas
+                # (regla del operador). Se piden formas inequívocas.
+                if not _says_stop(text):
+                    emit("brain", "🛡️ stop_worker ignorado — el operador no ha pedido parar nada (context-bleed)",
+                         text=(text or "")[:120], role="system",
+                         extra={"cat": "flash", "kind_diag": "stop_without_order", "which": which or "todo"})
+                    return
                 try:
                     from nucleo import dispatch as _d
                     # GUARD matar-TODO (sesión 23:15 2026-07-16, T49): ante «si solo es una tarea» el modelo llamó
@@ -2322,10 +2363,25 @@ class NucleoLLMStream(llm.LLMStream):
                             _disp_bk.inject_soon(text, text)
                             emit("brain", "↪️ promesa→inyección a worker vivo (backstop)", text=text[:120], role="system")
                         else:
-                            _escalate_mod.escalate_to_slowbrain(text, context={"src": "voice", "kind": "web"})
-                            emit("brain", "🧭 promesa→escalada FORZADA (backstop web)", text=text[:120], role="system")
+                            # EL KIND LO DECIDE EL CLASIFICADOR, no este backstop (2026-08-14, sesión b70a45d0).
+                            # Antes iba fijo a `"web"`, y eso convirtió una data-op LOCAL en una tarea de navegador:
+                            # «lees lo que hay en la agenda, lo borras y compruebas» abrió DOS tarjetas de navegador
+                            # que nadie pidió, se rotuló «Buscando en la web…», y —el daño de verdad— pasó a ser
+                            # «la tarea del navegador», que es justo lo que hizo que un `stop_worker` equivocado la
+                            # encontrara y la matara con la autorización del operador ya entregada.
+                            # `looks_like_web_task` se queda solo como DISPARADOR (¿hay un verbo de gestión?): su
+                            # propio docstring dice que existe para reclasificar una llamada errónea a
+                            # `authenticate_web`, y sus raíces (`borr|lee|compr|…`) no exigen destino web ninguno.
+                            # Quién es la tarea lo dice `dispatch._classify_kind`, que para ese mismo texto
+                            # responde `generic` — sin navegador y con el rótulo honesto.
+                            from nucleo import dispatch as _disp_kind
+                            _bk_kind = _disp_kind._classify_kind(text)
+                            _escalate_mod.escalate_to_slowbrain(
+                                text, context={"src": "voice", "kind": _bk_kind})
+                            emit("brain", f"🧭 promesa→escalada FORZADA (backstop · kind={_bk_kind})",
+                                 text=text[:120], role="system", extra={"cat": "flash", "kind_task": _bk_kind})
                 except Exception as _e_bk:  # noqa: BLE001
-                    logger.warning(f"backstop promesa-web falló: {_e_bk}")
+                    logger.warning(f"backstop promesa falló: {_e_bk}")
 
 
 def _similar_pending(req: str, pendings: list[dict]) -> bool:
