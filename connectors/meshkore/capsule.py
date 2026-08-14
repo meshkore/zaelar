@@ -1,62 +1,62 @@
 #
-# capsule.py — la CÁPSULA de conversación con un agente (V2-069 «una sola mente»).
+# capsule.py — the conversation CAPSULE with an agent (V2-069 "one mind").
 #
-# NO es un motor nuevo ni un almacén nuevo: es la FORMA que toma la memoria de una RELACIÓN, igual que un humano
-# recuerda de cada persona quién es, de qué hablaron, qué quedó pendiente y en qué punto está la conversación.
-# Vive sobre la MISMA memoria central, scopeada por (cluster, peer) y CUARENTENADA (trust=untrusted) — nunca se
-# mezcla con el estado del operador ni entra en su prompt. Es la pieza que hace que hablar con un agente sea el
-# MISMO acto que hablar con el operador, solo que "situado" en otra relación.
+# It is NOT a new engine or a new store: it is the SHAPE a RELATIONSHIP memory takes, just as a human remembers who
+# each person is, what they discussed, what remained pending, and where the conversation stands. It lives on the SAME
+# central memory, scoped by (cluster, peer) and QUARANTINED (trust=untrusted) — it never mixes with operator state or
+# enters the operator prompt. This is the piece that makes talking to an agent the SAME act as talking to the
+# operator, only "situated" in another relationship.
 #
-# Qué aporta (lo que le faltaba al canal y por lo que degeneró en 71h de re-presentaciones y "entendido, espero"):
-#   · FASE de la conversación (saludo→sondeo→trabajo→cierre) → no re-presentarse en cada turno.
-#   · OBJETIVO presente (el que fija el operador) → conducir hacia él, no derivar.
-#   · BUCLES ABIERTOS (lo pedido/lo ya rechazado) → "ya te dije que no, vamos al objetivo".
-#   · DOSSIER + resumen (ya existía en mem_ingest, se reutiliza) → saber siempre con quién se habla.
-#   · Detección de ATASCO (funciones puras) → cortar el bucle a los 2-3, no a los 1.333.
+# What it contributes (what the channel lacked, causing it to degenerate into 71h of re-introductions and waiting):
+#   · Conversation PHASE (greeting -> probing -> work -> closure) -> do not re-introduce every turn.
+#   · Current OBJECTIVE (set by the operator) -> steer toward it, do not drift.
+#   · OPEN LOOPS (what was requested / already refused) -> "I already said no; back to the objective."
+#   · DOSSIER + summary (already existed in mem_ingest, reused) -> always know who we are talking to.
+#   · STALL detection (pure functions) -> cut the loop at 2-3, not 1,333.
 #
-# Persistencia: el estado ESTRUCTURADO (objetivo/fase/bucles/greeted/turnos) va en `memory.kv_get/kv_set` bajo la
-# clave scopeada `capsule:<cluster>:<peer>` (sys_kv, sin tabla nueva). El dossier/resumen en prosa lo mantiene
-# `mem_ingest` (slot `cluster:<c>:<peer>`, untrusted). Ambos son la misma memoria, particionada por scope.
+# Persistence: STRUCTURED state (objective/phase/loops/greeted/turns) goes through `memory.kv_get/kv_set` under the
+# scoped key `capsule:<cluster>:<peer>` (sys_kv, no new table). The prose dossier/summary is maintained by
+# `mem_ingest` (slot `cluster:<c>:<peer>`, untrusted). Both are the same memory, partitioned by scope.
 #
 import re
 import time
 import unicodedata
 
-# Fases de la conversación — la mente ajusta el registro según en cuál esté (como un humano).
-SALUDO = "saludo"      # 1ª vez que se cruza con este peer → una presentación breve y para
-SONDEO = "sondeo"      # ya conocido, sin objetivo aún → averiguar qué trae / proponer el objetivo del operador
+# Conversation phases — the mind adjusts its register according to which one it is in (like a human).
+SALUDO = "saludo"      # first time meeting this peer -> brief introduction and stop
+SONDEO = "sondeo"      # already known, no objective yet -> find out what it brings / propose operator objective
 TRABAJO = "trabajo"    # hay objetivo activo → avanzar, concreto, SIN saludar ni presentarse
-CIERRE = "cierre"      # tarea concluida o sin avance → cerrar con cortesía o callar
+CIERRE = "cierre"      # task concluded or no progress -> close politely or stay silent
 
-# Umbrales de ATASCO (confirmados por el operador: cortar pronto, como un humano).
-STALL_REPEAT = 2       # el peer repite el MISMO mensaje (normalizado) esta veces → atasco
-STALL_NOPROGRESS = 4   # turnos sin avanzar el objetivo → atasco
+# STALL thresholds (confirmed by the operator: cut early, like a human).
+STALL_REPEAT = 2       # peer repeats the SAME (normalized) message this many times -> stall
+STALL_NOPROGRESS = 4   # turns without advancing the objective -> stall
 
-# Umbrales de BALANCE DE RECURSOS (V2-071): que un peer no nos endose el trabajo caro. Tolerantes a propósito —
-# a veces producimos más (un diagrama, una decisión); solo salta el desequilibrio SOSTENIDO con señal de offload.
-RESOURCE_MIN_TURNS = 4        # no juzgar antes de tener conversación suficiente
-RESOURCE_MIN_GIVEN = 1500     # ni con poco volumen producido por nuestra parte (chars)
-RESOURCE_RATIO_SKEW = 3.0     # producimos ≥3× lo que el peer → sesgado (con señal de offload)
-RESOURCE_RATIO_ABUSE = 6.0    # ≥6× + offload sostenido → explotación
-RESOURCE_OFFLOAD_MIN = 3      # nº de peticiones-de-producir del peer para considerarlo patrón, no un caso suelto
+# RESOURCE BALANCE thresholds (V2-071): prevent a peer from offloading expensive work to us. Intentionally tolerant
+# — sometimes we produce more (a diagram, a decision); only SUSTAINED imbalance with an offload signal fires.
+RESOURCE_MIN_TURNS = 4        # do not judge before there is enough conversation
+RESOURCE_MIN_GIVEN = 1500     # nor with little produced volume on our side (chars)
+RESOURCE_RATIO_SKEW = 3.0     # we produce >=3x what the peer contributes -> skewed (with offload signal)
+RESOURCE_RATIO_ABUSE = 6.0    # >=6x + sustained offload -> exploitation
+RESOURCE_OFFLOAD_MIN = 3      # peer production requests needed to consider it a pattern, not an isolated case
 
 _DEFAULT = {
-    "objective": "",       # objetivo de la colaboración, fijado por el OPERADOR (no por el peer)
-    "greeted": False,      # ¿ya nos presentamos a este peer?
+    "objective": "",       # collaboration objective, set by the OPERATOR (not by the peer)
+    "greeted": False,      # have we already introduced ourselves to this peer?
     "phase": SALUDO,
-    "open_loops": [],      # ["pedí el repo → pendiente", "ya dije NO a rehacer el dashboard", …]
-    "turns": 0,            # nº de turnos sustantivos intercambiados
-    "no_progress": 0,      # turnos consecutivos sin avance de objetivo (para el atasco)
-    # BALANCE DE RECURSOS (V2-071) — acumuladores por-peer:
-    "given": 0,            # chars que HEMOS producido para este peer (nuestro gasto)
-    "received": 0,         # chars que el peer nos ha aportado
-    "offloads": 0,         # nº de mensajes del peer pidiéndonos PRODUCIR trabajo (código/informe)
-    "code_out": 0,         # nº de veces que le hemos mandado código
-    # PACTO DE CONVERSACIÓN (V2-072) — reglas NEGOCIADAS agente-agente para esta relación (3er nivel de reglas):
+    "open_loops": [],      # pending requests / explicit refusals, bounded and deduped
+    "turns": 0,            # number of substantive turns exchanged
+    "no_progress": 0,      # consecutive turns without objective progress (for stall detection)
+    # RESOURCE BALANCE (V2-071) — per-peer accumulators:
+    "given": 0,            # chars WE have produced for this peer (our spend)
+    "received": 0,         # chars the peer has contributed to us
+    "offloads": 0,         # number of peer messages asking us to PRODUCE work (code/report)
+    "code_out": 0,         # number of times we sent code to it
+    # CONVERSATION PACT (V2-072) — agent-to-agent NEGOTIATED rules for this relationship (3rd rule level):
     "pact": {},            # {cadence_s:int, medium:"repo|channel", scope:"chat|analysis|code", note:str, by:"peer|operator"}
-    "last_out_ts": 0.0,    # cuándo mandamos el último mensaje a este peer (para aplicar la cadencia)
+    "last_out_ts": 0.0,    # when we last sent a message to this peer (for cadence enforcement)
     "updated": 0,
-    "_objective_gate_notified": False,   # ya avisamos 1× que 'code' está concedido pero sin objetivo (V2-076 guard)
+    "_objective_gate_notified": False,   # already alerted once that 'code' is granted but has no objective (V2-076 guard)
 }
 
 
@@ -65,7 +65,7 @@ def _key(cluster: str, peer: str) -> str:
 
 
 def load(cluster: str, peer: str) -> dict:
-    """La cápsula VIGENTE de esta relación (defaults si es nueva). µs, directo."""
+    """Current capsule for this relationship (defaults if new). Microseconds, direct."""
     try:
         from memory import api as memory
         cap = dict(_DEFAULT)
@@ -92,10 +92,10 @@ def patch(cluster: str, peer: str, **fields) -> dict:
     return cap
 
 
-# ── fase ─────────────────────────────────────────────────────────────────────────────────────────────────────
+# ── phase ─────────────────────────────────────────────────────────────────────────────────────────────────────
 def derive_phase(cap: dict, *, concluded: bool = False) -> str:
-    """La fase se DEDUCE del estado de la relación (no se hardcodea por keyword). Es la misma lógica con la que un
-    humano sabe si está conociendo a alguien, trabajando con él o cerrando."""
+    """The phase is DEDUCED from relationship state (not hardcoded by keyword). Same logic a human uses to know
+    whether they are meeting someone, working with them, or closing."""
     if concluded:
         return CIERRE
     if not cap.get("greeted"):
@@ -121,28 +121,28 @@ def phase_guidance(phase: str) -> str:
     return _PHASE_GUIDE.get(phase, _PHASE_GUIDE[SONDEO])
 
 
-# ── atasco (funciones PURAS, testeables) ───────────────────────────────────────────────────────────────────────
+# ── stall (testable PURE functions) ────────────────────────────────────────────────────────────────────────────
 def norm(text: str) -> str:
-    """Clave normalizada de un mensaje: sin acentos/puntuación/emojis, casefold, espacios colapsados. Dos mensajes
-    con la misma clave son 'el mismo' (un peer en bucle alterna acentos/emoji para esquivar un match exacto)."""
+    """Normalized message key: no accents/punctuation/emojis, casefolded, collapsed spaces. Two messages with the
+    same key are 'the same' (a looping peer alternates accents/emoji to evade an exact match)."""
     n = unicodedata.normalize("NFKD", (text or "").casefold())
     n = "".join(c for c in n if not unicodedata.combining(c))
     n = re.sub(r"[^0-9a-z\s]+", " ", n)
     return re.sub(r"\s+", " ", n).strip()
 
 
-# ── SEÑAL ESTRUCTURAL de repetición (V2-073, genérica) ──────────────────────────────────────────────────────────
-# NOTA (rediseño 2026-07-26, decisión del operador): el JUICIO semántico de si una conversación fluye/está atascada/
-# no tiene sentido NO se hace con patrones hardcodeados (un regex de frases solo se adapta a UN peer y falla con el
-# siguiente) — lo decide un MODELO en `connectors/meshkore/evaluator.py` (inteligencia, genérico). Aquí queda solo
-# lo ESTRUCTURAL y agnóstico del idioma/agente: la casi-repetición literal (el peer manda el mismo mensaje reescrito),
-# útil como SEÑAL barata, no como decisión. La repetición EXACTA la cubre el dedup del bridge (quema de tokens).
+# ── STRUCTURAL repetition SIGNAL (V2-073, generic) ──────────────────────────────────────────────────────────────
+# NOTE (2026-07-26 redesign, operator decision): the semantic JUDGMENT of whether a conversation is flowing/stuck/
+# nonsensical is NOT done with hardcoded patterns (a phrase regex only adapts to ONE peer and fails with the next)
+# — a MODEL decides that in `connectors/meshkore/evaluator.py` (intelligent, generic). What remains here is only the
+# STRUCTURAL, language/agent-agnostic part: near-literal repetition (the peer sends the same message rewritten),
+# useful as a cheap SIGNAL, not as a decision. EXACT repetition is covered by bridge dedup (token burn).
 def near_repeat(text: str, recent: list[str], *, threshold: float = 0.8) -> bool:
-    """¿`text` es casi el MISMO mensaje que alguno reciente del peer (reescrito para esquivar el match exacto)?
-    CONTENCIÓN de tokens normalizados (|intersección| / |menor conjunto|) — robusta a que el peer añada relleno
-    distinto alrededor del mismo núcleo. Barato y sin dependencias."""
+    """Is `text` almost the SAME message as a recent peer message (rewritten to evade exact matching)?
+    Normalized-token CONTAINMENT (|intersection| / |smaller set|) — robust when the peer adds different filler around
+    the same core. Cheap and dependency-free."""
     toks = set(norm(text).split())
-    if len(toks) < 3:                      # mensajes muy cortos: la casi-repetición no es fiable, no la juzgues
+    if len(toks) < 3:                      # very short messages: near-repetition is unreliable, do not judge it
         return False
     for r in recent:
         rt = set(norm(r).split())
@@ -154,8 +154,8 @@ def near_repeat(text: str, recent: list[str], *, threshold: float = 0.8) -> bool
     return False
 
 
-# Directiva de PAUSA (cesión de turno): la APLICA el bridge cuando el EVALUADOR (modelo) decide `hand_back`/`pause`.
-# Como un humano que ve que su interlocutor no le sigue: deja de exponer ideas, propone parar y espera a que esté listo.
+# PAUSE directive (turn handoff): APPLIED by the bridge when the EVALUATOR (model) decides `hand_back`/`pause`.
+# Like a human who sees the other party is not following: stop presenting ideas, suggest pausing, and wait until ready.
 PACE_HANDBACK = (
     "[RITMO] Este agente no está siguiendo el hilo: repite lo mismo con otras palabras o responde con frases de "
     "bloqueo, sin avanzar. NO añadas más ideas ni detalle (le estás bombardeando). Manda UN mensaje CORTO: reconoce "
@@ -165,10 +165,10 @@ PACE_HANDBACK = (
 
 def stall_verdict(repeat_count: int, no_progress: int,
                   *, k: int = STALL_REPEAT, m: int = STALL_NOPROGRESS) -> str:
-    """Decide qué hacer ante un posible atasco, como un humano:
-       'seguir'    — la conversación avanza, responde normal.
-       'asertivo'  — se está repitiendo o no avanza → UN mensaje directo anclado al objetivo (deja las cortesías).
-       'callar'    — ya fuiste asertivo y sigue sin avance → no respondas más (y el bridge avisa al operador 1 vez).
+    """Decide what to do with a possible stall, like a human:
+       'seguir'    — the conversation is moving forward, reply normally.
+       'asertivo'  — it is repeating or not advancing -> ONE direct message anchored to the objective (drop courtesies).
+       'callar'    — you were already assertive and it still does not advance -> stop replying (bridge alerts once).
     """
     if repeat_count >= k * 2 or no_progress >= m * 2:
         return "callar"
@@ -177,11 +177,12 @@ def stall_verdict(repeat_count: int, no_progress: int,
     return "seguir"
 
 
-# ── BALANCE DE RECURSOS (V2-071, funciones PURAS testeables) ────────────────────────────────────────────────────
+# ── RESOURCE BALANCE (V2-071, testable PURE functions) ─────────────────────────────────────────────────────────
 def meter(cluster: str, peer: str, *, received: int = 0, given: int = 0,
           offload: bool = False, code_out: bool = False) -> dict:
-    """Acumula el gasto de recursos de esta relación: lo que el peer aporta (`received`) vs lo que producimos para
-    él (`given`), más si nos pidió PRODUCIR (`offload`) y si le mandamos código (`code_out`). Barato, directo."""
+    """Accumulate this relationship's resource spend: what the peer contributes (`received`) vs what we produce for
+    it (`given`), plus whether it asked us to PRODUCE (`offload`) and whether we sent it code (`code_out`). Cheap,
+    direct."""
     cap = load(cluster, peer)
     cap["received"] = int(cap.get("received") or 0) + max(0, int(received))
     cap["given"] = int(cap.get("given") or 0) + max(0, int(given))
@@ -197,11 +198,11 @@ def resource_verdict(given: int, received: int, offloads: int, turns: int, *,
                      min_turns: int = RESOURCE_MIN_TURNS, min_given: int = RESOURCE_MIN_GIVEN,
                      skew: float = RESOURCE_RATIO_SKEW, abuse: float = RESOURCE_RATIO_ABUSE,
                      offload_min: int = RESOURCE_OFFLOAD_MIN) -> str:
-    """Decide el estado del balance de recursos, como un humano que nota que le están endosando el trabajo:
-       'equilibrado' — normal (o aún sin datos suficientes): colabora sin más.
-       'sesgado'     — producimos bastante más y nos piden producir → sé breve, código por el repo.
-       'explotación' — desequilibrio fuerte y sostenido con offload → deja de producir gratis, remite al repo.
-    Tolerante a propósito: exige VOLUMEN (turnos+chars) Y ratio Y señal de offload — un pico puntual no salta."""
+    """Classify resource use:
+       balanced — normal (or not enough data yet): just collaborate.
+       skewed — we produce much more and are asked to produce -> be brief, code through the repo.
+       exploitation — strong, sustained imbalance with offload -> stop producing for free, refer to the repo.
+    Intentionally tolerant: requires VOLUME (turns+chars), ratio, AND offload signal — a one-off spike does not fire."""
     if turns < min_turns or given < min_given:
         return "equilibrado"
     ratio = given / max(received, 1)
@@ -225,21 +226,20 @@ _RESOURCE_GUIDE = {
 
 
 def resource_guidance(verdict: str) -> str:
-    """Directiva de prompt (silenciosa hacia el peer) según el veredicto de balance. '' si equilibrado."""
+    """Prompt directive (silent toward the peer) according to the balance verdict. '' if balanced."""
     return _RESOURCE_GUIDE.get(verdict, "")
 
 
-# ── PACTO DE CONVERSACIÓN (V2-072) — el 3er nivel de reglas: NEGOCIADO agente-agente, por-relación ──────────────
-# Vocabulario CERRADO (seguridad: un pacto solo puede hacer que nos comportemos de forma más conservadora —cadencia,
-# medio, alcance—, nunca conceder capacidades; eso lo gobierna el nivel 1 duro). Los valores libres van en `note`,
-# siempre bajo el trailer de seguridad. Jerarquía: 1 sistema > 2 operador > 3 pacto — el `by` marca quién lo fijó
-# (un pacto del OPERADOR manda sobre lo negociado con el peer).
-PACT_MEDIUM = ("repo", "channel")            # dónde va el código: repositorio compartido vs pegado en el canal
-PACT_SCOPE = ("chat", "analysis", "code")    # hasta dónde llega la colaboración
-CADENCE_MIN_S = 0                             # sin límite inferior duro (0 = sin cadencia acordada)
-CADENCE_MAX_S = 600                           # tope sensato para un valor negociado (10 min)
+# ── CONVERSATION PACT (V2-072) — the 3rd rule level: agent-to-agent NEGOTIATED, per relationship ───────────────
+# CLOSED vocabulary (security: a pact can only make us behave more conservatively — cadence, medium, scope — never
+# grant capabilities; that is governed by hard level 1). Free values go in `note`, always under the security trailer.
+# Hierarchy: 1 system > 2 operator > 3 pact — `by` marks who set it (an OPERATOR pact outranks peer negotiation).
+PACT_MEDIUM = ("repo", "channel")            # where code goes: shared repository vs pasted in the channel
+PACT_SCOPE = ("chat", "analysis", "code")    # how far collaboration goes
+CADENCE_MIN_S = 0                             # no hard lower bound (0 = no agreed cadence)
+CADENCE_MAX_S = 600                           # sensible cap for a negotiated value (10 min)
 
-# Propuesta por defecto que la mente ofrece al SALUDAR a un agente nuevo (buena ciudadanía + ahorro mutuo de tokens).
+# Default proposal the mind offers when GREETING a new agent (good citizenship + mutual token savings).
 PACT_DEFAULT_PROPOSAL = (
     "Propón brevemente unas normas de trabajo para esta colaboración (podéis ajustarlas luego): "
     "(1) esperar su respuesta antes de mandar otro mensaje, sin ráfagas —ahorra tokens a ambos—; "
@@ -248,8 +248,8 @@ PACT_DEFAULT_PROPOSAL = (
 
 
 def _clean_pact(raw: dict) -> dict:
-    """Sanea un pacto propuesto (del tag de la mente o del operador) al vocabulario CERRADO. Descarta lo que no
-    encaje — un pacto nunca concede capacidades, solo restringe nuestra conducta."""
+    """Sanitize a proposed pact (from the mind tag or the operator) to the CLOSED vocabulary. Discard what does not
+    fit — a pact never grants capabilities, it only restricts our behavior."""
     out: dict = {}
     if not isinstance(raw, dict):
         return out
@@ -270,12 +270,12 @@ def _clean_pact(raw: dict) -> dict:
 
 
 def pact_set(cluster: str, peer: str, rules: dict, *, by: str = "peer") -> dict:
-    """Fija/actualiza (merge) el pacto de esta relación. `by='operator'` lo marca como puesto por el operador (manda
-    sobre lo negociado con el peer y no lo puede pisar un pacto posterior del peer)."""
+    """Set/update (merge) this relationship's pact. `by='operator'` marks it as operator-set (it outranks peer
+    negotiation and cannot be overwritten by a later peer pact)."""
     cap = load(cluster, peer)
     pact = dict(cap.get("pact") or {})
     if pact.get("by") == "operator" and by != "operator":
-        return cap                      # un pacto del operador no lo pisa el peer (jerarquía nivel 2 > 3)
+        return cap                      # a peer cannot overwrite an operator pact (hierarchy level 2 > 3)
     clean = _clean_pact(rules)
     if not clean:
         return cap
@@ -287,7 +287,7 @@ def pact_set(cluster: str, peer: str, rules: dict, *, by: str = "peer") -> dict:
 
 
 def cadence_wait(cap: dict, now: float) -> float:
-    """Segundos que hay que ESPERAR antes de mandar otro mensaje a este peer según la cadencia pactada (0 = ya)."""
+    """Seconds to WAIT before sending another message to this peer according to agreed cadence (0 = now)."""
     pact = cap.get("pact") or {}
     c = int(pact.get("cadence_s") or 0)
     if c <= 0:
@@ -297,8 +297,8 @@ def cadence_wait(cap: dict, now: float) -> float:
 
 
 def pact_compose(cap: dict) -> str:
-    """El bloque del PACTO para el prompt del turno: las normas acordadas que la mente debe respetar (nivel 3).
-    '' si no hay pacto. Es guía CONDUCTUAL, siempre por debajo del trailer de seguridad (nivel 1)."""
+    """The PACT block for the turn prompt: agreed norms the mind must respect (level 3). '' if there is no pact.
+    This is BEHAVIORAL guidance, always below the security trailer (level 1)."""
     pact = cap.get("pact") or {}
     if not pact:
         return ""
@@ -321,11 +321,11 @@ def pact_compose(cap: dict) -> str:
     return "[PACTO DE ESTA CONVERSACIÓN — normas " + who + ", respétalas]: " + " · ".join(parts)
 
 
-# ── composición del bloque de contexto que la mente lee al situarse en el turno ─────────────────────────────────
+# ── composition of the context block the mind reads to situate itself in the turn ───────────────────────────────
 def compose(cluster: str, peer: str, cap: dict | None = None) -> str:
-    """El bloque de la RELACIÓN que se antepone al turno: quién es, de qué habláis, objetivo, pendientes, fase +
-    su guía. Es lo que un humano tiene en la cabeza al retomar una conversación. Todo de fuentes NUESTRAS
-    (dossier destilado por nosotros), nunca texto crudo no confiable del peer."""
+    """The RELATIONSHIP block prepended to the turn: who this is, what you discuss, objective, pending items, phase +
+    its guidance. This is what a human keeps in mind when resuming a conversation. All from OUR sources (a dossier
+    distilled by us), never raw untrusted peer text."""
     cap = cap or load(cluster, peer)
     try:
         from connectors.meshkore import mem_ingest
@@ -344,9 +344,9 @@ def compose(cluster: str, peer: str, cap: dict | None = None) -> str:
     return "\n".join(lines)
 
 
-# ── mantenimiento de bucles abiertos (append acotado, dedup normalizado) ────────────────────────────────────────
+# ── open-loop maintenance (bounded append, normalized dedup) ───────────────────────────────────────────────────
 def add_open_loop(cluster: str, peer: str, loop: str, *, cap_max: int = 8) -> dict:
-    """Registra un compromiso o un rechazo ('pedí X → pendiente', 'ya dije NO a Y'). Dedup normalizado + tope."""
+    """Record a commitment or refusal ('asked for X -> pending', 'already said NO to Y'). Normalized dedup + cap."""
     cap = load(cluster, peer)
     loops = [l for l in (cap.get("open_loops") or []) if l]
     if norm(loop) not in {norm(l) for l in loops}:

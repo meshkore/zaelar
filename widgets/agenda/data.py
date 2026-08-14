@@ -56,8 +56,8 @@ _WEEK_LABELS = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"]
 
 
 def _horizon(db: dict, span: int = 7) -> list[dict]:
-    """Planes por-día para HOY .. HOY+span-1, así el widget ofrece un horizonte temporal (no solo hoy) y
-    conmuta de vista en cliente SIN otra petición (widget.js no puede hacer red). `plan_day` es PURA y barata."""
+    """Per-day plans for TODAY .. TODAY+span-1, so the widget exposes a time horizon (not only today) and
+    switches views client-side without another request (widget.js cannot fetch). `plan_day` is pure and cheap."""
     import time as _t
     today = _today()
     base = _t.mktime(_t.localtime())
@@ -72,8 +72,8 @@ def _horizon(db: dict, span: int = 7) -> list[dict]:
 
 
 def view_data(q: str = "") -> dict:
-    """Everything the render needs: HORIZONTE de días (hoy + próximos, para las pestañas), el plan de hoy, el
-    bloque activo (live), projects, warnings/coaching."""
+    """Everything the render needs: the day horizon (today + upcoming days for tabs), today's plan, the active
+    live block, projects, warnings/coaching."""
     db = load_db()
     days = _horizon(db)
     plan = days[0]["plan"]
@@ -83,7 +83,7 @@ def view_data(q: str = "") -> dict:
         "plan": plan,
         "active": planner.active_block(plan, _now()),
         "days": days, "todayIndex": 0,
-        "meetings": db.get("meetings", []),           # citas datadas → vista MES completa (calendario en cliente)
+        "meetings": db.get("meetings", []),           # dated meetings -> full MONTH view (client-side calendar)
         "projects": db.get("projects", []),
         "warnings": plan.get("warnings", []),
         "coaching": plan.get("coaching", []),
@@ -91,10 +91,10 @@ def view_data(q: str = "") -> dict:
 
 
 def ref_index() -> list[dict]:
-    """Items que el cerebro puede referenciar por VOZ (V2-026): las tareas VIVAS (por su título) y los proyectos
-    ACTIVOS (por su nombre). `field` = la clave de payload que los identifica en las acciones (`taskId` para una
-    tarea, `projectId` para un proyecto) — así `widgets/refs.py` resuelve "la tarea del daemon" → "t_daemon" sin
-    que el modelo tenga que adivinar un id. Solo lo VIGENTE (una tarea hecha/descartada ya no se referencia)."""
+    """Items the brain can reference by voice (V2-026): live tasks (by title) and active projects (by name).
+    `field` is the payload key that identifies them in actions (`taskId` for a task, `projectId` for a project),
+    so `widgets/refs.py` resolves a spoken task reference to its id without the model guessing it.
+    Only current items are exposed; completed/dropped tasks are no longer referenceable."""
     db = load_db()
     out: list[dict] = []
     for t in db.get("tasks", []):
@@ -109,20 +109,20 @@ def ref_index() -> list[dict]:
     return out
 
 
-# ── normalización de fechas/horas relativas del habla (V2-026) ────────────────────────────────────────────
+# Relative spoken date/time normalization (V2-026).
 _WEEKDAYS = {"lunes": 0, "martes": 1, "miercoles": 2, "miércoles": 2, "jueves": 3, "viernes": 4,
              "sabado": 5, "sábado": 5, "domingo": 6}
 
 
 def _resolve_date(raw: str) -> str:
-    """Convierte una fecha del habla ('mañana', 'hoy', 'pasado mañana', 'el viernes', o ya 'YYYY-MM-DD') a
-    'YYYY-MM-DD'. Default sensato: hoy. Así una cita 'mañana' queda bien puesta aunque el modelo no calcule la
-    fecha (era una causa del fallo: pedía la fecha por web_search en vez de apuntar la cita)."""
+    """Convert a spoken relative date (tomorrow, today, the day after tomorrow, a weekday, or already 'YYYY-MM-DD') into
+    'YYYY-MM-DD'. Sensible default: today. This keeps a relative-date appointment correctly placed even when the
+    model does not calculate the date itself."""
     import time as _t
     s = (raw or "").strip().lower()
     if not s:
         return _today()
-    if len(s) >= 8 and s[:4].isdigit() and "-" in s:      # ya viene como YYYY-MM-DD
+    if len(s) >= 8 and s[:4].isdigit() and "-" in s:      # already comes as YYYY-MM-DD
         return s[:10]
     n = _strip_accents(s)
     today = _t.localtime()
@@ -138,14 +138,14 @@ def _resolve_date(raw: str) -> str:
         nn = _strip_accents(name)
         if nn in n:
             delta = (wd - today.tm_wday) % 7
-            delta = delta or 7                             # "el lunes" = el PRÓXIMO lunes, no hoy
+            delta = delta or 7                             # weekday references mean the next matching day, not today
             return _t.strftime("%Y-%m-%d", _t.localtime(base + delta * day))
     return _today()
 
 
 def _resolve_time(raw: str, default: str = "17:00") -> str:
-    """Normaliza una hora del habla ('cinco', '5 de la tarde', '17h', '17:00') a 'HH:MM'. Asume tarde para 1–7
-    sin meridiano explícito por defecto (una cita se pide más de tarde que de madrugada)."""
+    """Normalize a spoken time (natural language hour, meridiem, '17h', or '17:00') into 'HH:MM'. Defaults 1-7 without an
+    explicit meridiem to afternoon, because appointments are more often requested for evening than early morning."""
     s = (raw or "").strip().lower()
     if not s:
         return default
@@ -159,7 +159,7 @@ def _resolve_time(raw: str, default: str = "17:00") -> str:
         am = any(w in s for w in ("manana", "mañana", "madrugada", "am"))
         if pm and h < 12:
             h += 12
-        elif not am and 1 <= h <= 7:                       # "a las cinco" (sin am/pm) → tarde
+        elif not am and 1 <= h <= 7:                       # bare 1-7 without am/pm -> afternoon
             h += 12
         return f"{h % 24:02d}:00"
     return default
@@ -174,7 +174,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
 
     if action == "done" and tid in tasks:
         tasks[tid]["status"] = "done"; tasks[tid]["updatedAt"] = _today()
-    elif action == "not_now" and tid in tasks:                     # "ahora no me apetece" → avoidance++ (coaching)
+    elif action == "not_now" and tid in tasks:                     # "ahora no me apetece" -> avoidance++ (coaching)
         tasks[tid]["avoidance"] = int(tasks[tid].get("avoidance", 0)) + 1
     elif action == "snooze" and tid in tasks:
         tasks[tid]["snoozedUntil"] = _today()
@@ -190,13 +190,13 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                 t["status"] = "dropped"
     elif action == "add_meeting":
         title = payload.get("title", "Cita")
-        # V2-026: normaliza fecha/hora del habla ('mañana a las cinco' → date=+1d, startTime='17:00'), así la cita
-        # queda bien puesta aunque el modelo no calcule la fecha él mismo.
+        # V2-026: normalize spoken date/time into date=+1d and startTime='17:00' when appropriate, so the meeting
+        # lands correctly even if the model does not calculate the date itself.
         start = _resolve_time(payload.get("startTime", ""), default="17:00")
         date = _resolve_date(payload.get("date", ""))
         end = payload.get("endTime", "")
         if not re.match(r"^\d{1,2}[:h]\d{2}$|^\d{2}:\d{2}$", str(end)):
-            eh = (int(start[:2]) + 1) % 24                 # sin fin explícito → +1h
+            eh = (int(start[:2]) + 1) % 24                 # no explicit end -> +1h
             end = f"{eh:02d}:{start[3:5]}"
         db.setdefault("meetings", []).append({
             "title": title,
@@ -205,7 +205,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             "endTime": end,
         })
     elif action == "cancel_meeting":
-        # Cancela la(s) cita(s) que casen por título (case-insensitive, sin acentos) + fecha opcional.
+        # Cancel meeting(s) matching title (case-insensitive, accent-insensitive) plus optional date.
         title = _strip_accents((payload.get("title") or "").strip().lower())
         raw_date = payload.get("date", "")
         date = _resolve_date(raw_date) if raw_date else ""

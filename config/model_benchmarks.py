@@ -1,14 +1,14 @@
-"""config/model_benchmarks.py — réplica CURADA, visible al usuario, de las decisiones de modelo del sistema
-(V2-077, 2026-07-26). Fuente de verdad DETALLADA: `.meshkore/docs/ops/zaelar-model-benchmarks.md` (interno,
-denso, con trazas/incidentes). Este módulo NO lo parsea — es un resumen a mano, igual que `web/src/pages/technology/`
-es una foto curada de la arquitectura interna, no un espejo automático. Al tocar una decisión de modelo (routing
-nuevo, benchmark nuevo, candidato descartado/adoptado) actualiza AMBOS: el doc denso Y este resumen — están
-enlazados en los dos sentidos (ver la cabecera de `zaelar-model-benchmarks.md`).
+"""config/model_benchmarks.py — CURATED, user-visible replica of system model decisions (V2-077, 2026-07-26).
+DETAILED source of truth: `.meshkore/docs/ops/zaelar-model-benchmarks.md` (internal, dense, with traces/incidents).
+This module does NOT parse it — it is a manual summary, just like `web/src/pages/technology/` is a curated snapshot
+of the internal architecture, not an automatic mirror. When touching a model decision (new routing, new benchmark,
+discarded/adopted candidate), update BOTH the dense doc AND this summary — they are linked both ways (see the
+header of `zaelar-model-benchmarks.md`).
 
-Sirve `GET /api/config/benchmarks` (server/config_api.py) → el botón "¿Quieres ver los benchmarks…?" al fondo de
-la sección "Cerebro rápido" del área de configuración (frontend/app/components/BenchmarksPanel.js). Puramente
-informativo — no hay POST, nada de esto se guarda ni se aplica; cambiar un modelo de verdad se hace en las
-secciones normales de configuración (`/api/config/v2`)."""
+Serves `GET /api/config/benchmarks` (server/config_api.py) → the "Want to see the benchmarks…?" button at the
+bottom of the "Fast brain" section in the configuration area (frontend/app/components/BenchmarksPanel.js). Purely
+informational — no POST, none of this is saved or applied; changing a real model happens in the normal configuration
+sections (`/api/config/v2`)."""
 from __future__ import annotations
 
 UPDATED = "2026-08-13"
@@ -261,5 +261,5 @@ MODULES = [
 
 
 def snapshot() -> dict:
-    """Vista completa para el frontend — de solo lectura, nada de esto se guarda desde aquí."""
+    """Full frontend view — read-only; none of this is saved from here."""
     return {"updated": UPDATED, "source_doc": SOURCE_DOC, "modules": MODULES}

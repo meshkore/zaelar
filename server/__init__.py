@@ -32,37 +32,37 @@ from widgets.server_api import router as widgets_router  # isolated widget layer
 from connectors.meshkore.server_api import router as meshkore_router  # native cluster I/O channel (always on)
 from connectors.messaging.server_api import router as messaging_router  # UI-managed connect/disconnect of connectors
 from memory.server_api import router as files_router  # paste/drop uploads → EPISODIC memory (V2-003; absorbs files/)
-from memory.vault_api import router as vault_router    # bóveda de secretos cifrados del operador (V2-060)
-from bus.sse import publish as _sse_publish   # puerta ÚNICA al topic observer: sella instalación+sesión
-from observability.api import router as obs_router    # flujos/sesiones/identidad (correlation id, 2026-08-09)
-from nucleo.cron_api import router as cron_router  # proactividad PROPIA del cerebro «Colmena» (V2-005/009; ⏰ panel)
-from .wizard_api import router as wizard_router  # wizard de primer arranque: perfiles local/cloud + detector (V2-040)
-from .spotify_api import router as spotify_router  # conector de música Spotify (OAuth PKCE + estado), V2-041
-from .config_api import router as config_router  # área de configuración full-screen + saldos de APIs (V2-043)
+from memory.vault_api import router as vault_router    # operator encrypted-secrets vault (V2-060)
+from bus.sse import publish as _sse_publish   # ONLY gate into the observer topic: stamps install+session
+from observability.api import router as obs_router    # flows/sessions/identity (correlation id, 2026-08-09)
+from nucleo.cron_api import router as cron_router  # «Colmena» brain's own proactivity (V2-005/009; ⏰ panel)
+from .wizard_api import router as wizard_router  # first-run wizard: local/cloud profiles + detector (V2-040)
+from .spotify_api import router as spotify_router  # Spotify music connector (OAuth PKCE + state), V2-041
+from .config_api import router as config_router  # full-screen configuration area + API balances (V2-043)
 from .i18n_api import router as i18n_router  # UI multilingüe: state + bundles preset/generados (V2-089)
 
 
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
-    # DOS listeners comparten esta MISMA app (43917 HTTP + 44317 HTTPS, decisión "dominios públicos → motor
-    # local") — cada `uvicorn.Server` dispara el lifespan ASGI de forma independiente, así que este cuerpo se
-    # ejecuta DOS VECES por proceso. La mayoría de piezas ya son idempotentes (p. ej. el loop orquestador
-    # comprueba `self._task is not None`), pero los puentes bus→SSE de aquí abajo (memoria, latido) no tenían
-    # guarda: cada entrada creaba una suscripción NUEVA al mismo topic → eventos duplicados en /events (hallazgo
-    # maratón de testing 2026-07-22, confirmado con un arranque limpio: "Puente … montado" aparecía 2×). Este
-    # flag en `app.state` (persiste entre entradas del lifespan, es la MISMA app) hace que solo la PRIMERA
-    # entrada monte esos puentes; la segunda los salta sin tocar nada más de este cuerpo.
+    # TWO listeners share this SAME app (43917 HTTP + 44317 HTTPS, "public domains → local engine" decision) —
+    # each `uvicorn.Server` fires the ASGI lifespan independently, so this body runs TWICE per process. Most
+    # pieces are already idempotent (for example the orchestrator loop checks `self._task is not None`), but the
+    # bus→SSE bridges below (memory, heartbeat) had no guard: each entry created a NEW subscription to the same
+    # topic → duplicated events in /events (2026-07-22 testing-marathon finding, confirmed on a clean boot:
+    # "Bridge … mounted" appeared 2×). This flag on `app.state` (which persists between lifespan entries because
+    # it is the SAME app) makes only the FIRST entry mount those bridges; the second skips them without touching
+    # anything else in this body.
     _first_lifespan_entry = not getattr(app.state, "_bridges_mounted", False)
     app.state._bridges_mounted = True
     # v2 «Colmena» — Sistema Nervioso (bus/, V2-001). Mount the durable event log's LIFECYCLE here (attach at
     # boot, detach+close at shutdown). The bus pub/sub itself is in-memory and needs no "start"; voice/observer
     # already fans out through it (bus/sse.py) with NO new subscribers wired here — the voice hot path is
-    # unchanged. El log durable (bus/log.py) estaba APAGADO por defecto desde V2-001 por dos razones concretas:
-    # era un sink SÍNCRONO (un INSERT por evento en el hilo que publica, o sea a veces el de la voz) y hacía
-    # crecer zaelar.db sin límite. **Las dos están resueltas** (2026-08-09): el sink solo ENCOLA y drena un hilo
-    # dedicado, y hay retención por antigüedad + techo de filas. Así que se ENCIENDE por defecto — sin él, la
-    # observabilidad por flujos/sesiones (observability/) consulta una tabla que nadie alimenta, que es
-    # justamente el fallo que destapó esto. `ZAELAR_BUS_LOG=0` sigue apagándolo. Nunca rompe voz/chat.
+    # unchanged. The durable log (bus/log.py) had been OFF by default since V2-001 for two concrete reasons: it
+    # was a SYNCHRONOUS sink (one INSERT per event on the publishing thread, sometimes the voice thread) and it
+    # made zaelar.db grow without bounds. **Both are fixed** (2026-08-09): the sink only ENQUEUES and drains from a
+    # dedicated thread, and retention has both an age limit and a row cap. So it is ON by default — without it,
+    # flow/session observability (observability/) queries a table nobody feeds, which is exactly the bug that
+    # exposed this. `ZAELAR_BUS_LOG=0` still disables it. It never breaks voice/chat.
     _bus_log = None
     try:
         if os.getenv("ZAELAR_BUS_LOG", "1") == "1":
@@ -74,11 +74,11 @@ async def _lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"bus mount failed (voice/chat unaffected): {e}")
         _bus_log = None
-    # Memoria central v2 (memory/, V2-002/003). Arranca el consumidor ÚNICO de la cola de escritura en ESTE loop
-    # (todas las escrituras async — write/reinforce/pin/link — se aplican aquí, un solo escritor → cero colisiones)
-    # y pliega la vieja bandeja files/uploads/ a la capa episódica con una migración PEREZOSA, idempotente y NO
-    # destructiva (no borra el origen). Best-effort: un fallo aquí no toca la voz. Ningún cerebro la consume aún
-    # (eso es V2-004); esto solo la deja VIVA y poblada. Off por flag para clones que aún no la quieren.
+    # Central memory v2 (memory/, V2-002/003). Starts the SINGLE write-queue consumer on THIS loop (all async writes
+    # — write/reinforce/pin/link — are applied here, one writer → zero collisions) and folds the old files/uploads/
+    # inbox into the episodic layer with a LAZY, idempotent, NON-destructive migration (the source is not deleted).
+    # Best-effort: a failure here does not touch voice. No brain consumes it yet (that is V2-004); this only leaves
+    # it ALIVE and populated. Disabled by flag for clones that do not want it yet.
     _memory_on = os.getenv("ZAELAR_MEMORY", "1") == "1"
     if _memory_on:
         try:
@@ -92,11 +92,11 @@ async def _lifespan(app: FastAPI):
         except Exception as e:
             logger.warning(f"memory start failed (voice/chat unaffected): {e}")
             _memory_on = False
-    # V2-014 — puente memoria→SSE del VISOR DE MEMORIA (🧠). Reenvía la señal `memory.updated` del bus (que emite
-    # cada mutación en memory/api.py::_emit) al topic `observer` — el que consume `GET /events` — como un evento
-    # {kind:"memory"}, para que el mapa de memoria del frontend se refresque EN TIEMPO REAL sin polling. Puente
-    # fino y desacoplado (el módulo memory/ no conoce el frontend) que NO pasa por el ring de /debug (cero ruido de
-    # observabilidad). La suscripción vive en el loop de uvicorn; la entrega cross-loop la resuelve el bus.
+    # V2-014 — memory→SSE bridge for the MEMORY VIEWER (🧠). Forwards the bus `memory.updated` signal (emitted by
+    # every mutation in memory/api.py::_emit) to the `observer` topic — the one consumed by `GET /events` — as a
+    # {kind:"memory"} event, so the frontend memory map refreshes IN REAL TIME without polling. Fine-grained,
+    # decoupled bridge (memory/ does not know the frontend) that does NOT go through the /debug ring (zero
+    # observability noise). The subscription lives in the uvicorn loop; the bus handles cross-loop delivery.
     _mem_sse_sub = None
     _mem_sse_task = None
     _pulse_sse_sub = None
@@ -107,19 +107,19 @@ async def _lifespan(app: FastAPI):
             import bus
             _mem_sse_sub = bus.subscribe("memory.updated")
 
-            # COALESCE (2026-07-12): la memoria emite `memory.updated` por CADA mutación — y un solo turno de voz
-            # dispara varias (buffer conv + píldoras del CORAZÓN + reinforce + state). Reenviar una a una floodeaba
-            # el SSE (→ el contador de "eventos" del operador se disparaba sin que pasara "nada"). El visor solo
-            # necesita saber QUE algo cambió (re-fetchea con debounce), así que juntamos las señales de una ráfaga
-            # en UNA sola por ventana corta, preservando la UNIÓN de ids afectados (para el tintado en vivo). Los
-            # write/state/reinforce se colapsan; una `query` (tinte azul) se deja pasar aparte para no perder el
-            # resaltado de lectura. Reduce el tráfico SSE ~1 orden de magnitud sin perder la reactividad del mapa.
+            # COALESCE (2026-07-12): memory emits `memory.updated` for EVERY mutation — and a single voice turn
+            # triggers several (conversation buffer + HEART pills + reinforce + state). Forwarding them one by one
+            # flooded SSE (→ the operator's "events" counter spiked while "nothing" seemed to happen). The viewer
+            # only needs to know THAT something changed (it refetches with debounce), so we merge burst signals into
+            # ONE signal per short window, preserving the UNION of affected ids (for live tinting). write/state/
+            # reinforce collapse; a `query` (blue tint) is allowed through separately so read highlighting is not
+            # lost. This cuts SSE traffic by roughly one order of magnitude without losing map reactivity.
             import os as _os
             _COALESCE_MS = float(_os.getenv("ZAELAR_MEM_SSE_COALESCE_MS", "400")) / 1000.0
 
             async def _mem_sse_forward(sub=_mem_sse_sub):
-                # Trailing-debounce: la 1ª señal de una ráfaga arma un flush a _COALESCE_MS; las siguientes solo
-                # ACUMULAN (unión de ids + último op/layer con señal). Al disparar el timer se emite UNA sola señal.
+                # Trailing debounce: the 1st signal in a burst arms a flush at _COALESCE_MS; following signals only
+                # ACCUMULATE (union of ids + latest signaled op/layer). When the timer fires, it emits ONE signal.
                 state = {"ids": set(), "op": "", "layer": "", "h": None}
                 loop = asyncio.get_event_loop()
 
@@ -160,8 +160,8 @@ async def _lifespan(app: FastAPI):
     # cluster is slow/unreachable) — this used to `await` INLINE, so a slow/dead cluster held the ENTIRE lifespan
     # hostage: the app doesn't reach `yield` (start serving ANY request — including the page load and the voice
     # token endpoint) until this function returns. Voice/FlashBrain must be usable FIRST; WS reconnects are
-    # deferred to their OWN background task (V2-065, petición del operador 2026-07-23 — ver
-    # `.meshkore/docs/ops/zaelar-observability.md §Arranque` para el detalle completo).
+    # deferred to their OWN background task (V2-065, operator request 2026-07-23 — see
+    # `.meshkore/docs/ops/zaelar-observability.md §Boot` for the full detail).
     from connectors import meshkore
     from connectors.meshkore import store
     from connectors.meshkore.brain import make_brain
@@ -174,8 +174,8 @@ async def _lifespan(app: FastAPI):
             async def _meshkore_autoreconnect():
                 for name, cfg in store.load_clusters().items():
                     try:
-                        # `vis` (V2-086): un cluster PÚBLICO se reconecta sin token — si no se propaga aquí, el
-                        # cluster abierto se cae en cada reinicio y solo sobreviven los privados.
+                        # `vis` (V2-086): a PUBLIC cluster reconnects without a token — if this is not propagated
+                        # here, the open cluster drops on every restart and only private clusters survive.
                         await meshkore.get_manager().connect(name, cfg["cluster_id"], cfg["token"],
                                                              cfg.get("handle"), vis=cfg.get("vis", ""))
                         meshkore.get_bridge().note_objective(name)   # standing objective → peer arrival wakes the brain
@@ -185,10 +185,10 @@ async def _lifespan(app: FastAPI):
     except Exception as e:
         logger.warning(f"MeshKore connector init failed (voice/chat unaffected): {e}")
     from config.v2 import active_brain
-    # v2 «Colmena» — Loop orquestador (nucleo/loop.py, V2-005): el latido PROPIO del cerebro v2 (tareas
-    # programadas + 🔥 chispas + consolidación de memoria) — sustituye por completo al viejo cron nativo de Hermes.
-    # SOLO con BRAIN=nucleo. Mismo loop que la voz; nunca bloquea el hot path (el trabajo pesado va a un hilo).
-    # Off por flag para clones que no lo quieran.
+    # v2 «Colmena» — orchestrator loop (nucleo/loop.py, V2-005): the v2 brain's OWN heartbeat (scheduled tasks +
+    # 🔥 sparks + memory consolidation) — completely replaces Hermes' old native cron. ONLY with BRAIN=nucleo. Same
+    # loop as voice; never blocks the hot path (heavy work goes to a thread). Disabled by flag for clones that do
+    # not want it.
     _loop_on = active_brain() == "nucleo" and os.getenv("ZAELAR_LOOP", "1") == "1"
     if _loop_on:
         try:
@@ -197,13 +197,13 @@ async def _lifespan(app: FastAPI):
             logger.info("Loop orquestador v2 montado (nucleo/loop.py)")
         except Exception as e:
             logger.warning(f"orchestrator loop start failed (voice/chat unaffected): {e}")
-        # ECG del orbe (V2-039) — puente LATIDO→SSE. Reenvía `loop.tick` del bus (el latido propio ~1 Hz del loop
-        # orquestador, nucleo/loop.py:127) al topic `observer` — el que consume GET /events — como {kind:"pulse"}.
-        # En REPOSO el electrocardiograma del frontend late a este ritmo REAL del server (solo revisando crons +
-        # procesos en marcha que hayan generado eventos); los turnos del FlashBrain y las tareas vivas lo aceleran
-        # ya en el cliente. Mismo patrón fino y desacoplado que el puente de memoria: va DIRECTO al topic observer
-        # (bus.emit_sync) → NO pasa por el ring de /debug (cero ruido de observabilidad). El módulo nucleo/ no
-        # conoce el frontend; la entrega cross-loop (job-thread↔uvicorn) la resuelve el bus.
+        # Orb ECG (V2-039) — HEARTBEAT→SSE bridge. Forwards the bus `loop.tick` event (the orchestrator loop's own
+        # ~1 Hz heartbeat, nucleo/loop.py:127) to the `observer` topic — the one consumed by GET /events — as
+        # {kind:"pulse"}. At REST the frontend ECG beats at this REAL server rhythm (only checking crons + running
+        # processes that have generated events); FlashBrain turns and live tasks already speed it up client-side.
+        # Same fine-grained, decoupled pattern as the memory bridge: it goes DIRECTLY to the observer topic
+        # (bus.emit_sync) → NOT through the /debug ring (zero observability noise). nucleo/ does not know the
+        # frontend; the bus handles cross-loop delivery (job-thread↔uvicorn).
         if _first_lifespan_entry:
             try:
                 import asyncio
@@ -214,10 +214,10 @@ async def _lifespan(app: FastAPI):
                     async for ev in sub:
                         try:
                             ev = ev or {}
-                            # cat:"pulse" (V2-043) → el visor lo agrupa en su propio chip (OFF por defecto): el
-                            # latido ~1 Hz sigue alimentando el ECG del orbe (sse.js), pero NO ensucia el log en
-                            # vivo salvo que el operador active el chip «Pulse». Así se ven las llamadas REALES
-                            # de memoria in/out.
+                            # cat:"pulse" (V2-043) → the viewer groups it under its own chip (OFF by default): the
+                            # ~1 Hz heartbeat keeps feeding the orb ECG (sse.js), but does NOT pollute the live log
+                            # unless the operator enables the «Pulse» chip. That leaves REAL memory in/out calls
+                            # visible.
                             _sse_publish({"kind": "pulse", "label": "tick", "cat": "pulse",
                                                        "n": ev.get("n"), "ts": ev.get("ts")})
                         except Exception:
@@ -227,10 +227,10 @@ async def _lifespan(app: FastAPI):
                 logger.info("Puente latido→SSE montado (loop.tick → /events; ECG del orbe en vivo)")
             except Exception as e:
                 logger.warning(f"pulse→SSE bridge failed (voice/chat unaffected): {e}")
-    # v2 «Colmena» — SlowBrain dispatcher (nucleo/dispatch.py, V2-007): consume las escaladas del FlashBrain
-    # (bus `escalate.requested`), las despacha a los agentes de trabajo (web/código/genérico) async y entrega el
-    # resultado por voz+UI+[SISTEMA]. SOLO con BRAIN=nucleo (el listener solo reacciona a un topic que emite el
-    # provider nucleo; duo/hermes ni lo tocan). Off por flag para clones que no lo quieran.
+    # v2 «Colmena» — SlowBrain dispatcher (nucleo/dispatch.py, V2-007): consumes FlashBrain escalations (bus
+    # `escalate.requested`), dispatches them to async work agents (web/code/generic), and delivers the result by
+    # voice+UI+[SYSTEM]. ONLY with BRAIN=nucleo (the listener only reacts to a topic emitted by the nucleo provider;
+    # duo/hermes never touch it). Disabled by flag for clones that do not want it.
     _slow_on = active_brain() == "nucleo" and os.getenv("ZAELAR_SLOWBRAIN", "1") == "1"
     if _slow_on:
         try:
@@ -239,12 +239,12 @@ async def _lifespan(app: FastAPI):
             logger.info("SlowBrain dispatcher v2 montado (nucleo/dispatch.py)")
         except Exception as e:
             logger.warning(f"slowbrain dispatcher start failed (voice/chat unaffected): {e}")
-        # REHIDRATACIÓN (2026-08-12) — recoge el trabajo que un reinicio dejó a medias: lo reanudable CONTINÚA, el
-        # resto queda REGISTRADO como interrumpido en vez de desaparecer en silencio (un `make restart` mató una
-        # búsqueda del operador sin dejar rastro: ni evento, ni ledger, ni aviso). Va AQUÍ y no antes porque el
-        # listener de escaladas ya está suscrito; la re-escalada es diferida de todos modos. **No-op silencioso
-        # cuando no había nada en vuelo**, que es el caso normal de cualquier arranque limpio. Módulo aparte
-        # (`nucleo/rehydrate.py`), una sola llamada, sin estado propio: circunstancia → función → se aparta.
+        # REHYDRATION (2026-08-12) — collects work a restart left halfway: resumable work CONTINUES, the rest is
+        # RECORDED as interrupted instead of silently disappearing (a `make restart` killed an operator search
+        # without leaving a trace: no event, no ledger, no warning). It goes HERE and not earlier because the
+        # escalation listener is already subscribed; re-escalation is deferred anyway. **Silent no-op when nothing
+        # was in flight**, which is the normal case for any clean boot. Separate module (`nucleo/rehydrate.py`), one
+        # call, no state of its own: circumstance → function → steps aside.
         if _first_lifespan_entry:
             try:
                 from nucleo import rehydrate as nucleo_rehydrate
@@ -254,9 +254,9 @@ async def _lifespan(app: FastAPI):
                                 .format(_reh["found"], len(_reh.get("resume") or []), len(_reh.get("buried") or [])))
             except Exception as e:
                 logger.warning(f"rehydrate at_boot failed (voice/chat unaffected): {e}")
-    # «Susurro» (V2-053): auditor conversacional off-hot-path. Se enchufa SOLO por el bus (turn.completed +
-    # señales de fricción) — cero acoplamiento con el provider de voz. Kill-switch de 1ª clase: config
-    # §susurro.enabled (UI) + ZAELAR_SUSURRO. Fail-open: su caída jamás toca la voz.
+    # «Susurro» (V2-053): off-hot-path conversational auditor. It plugs in ONLY through the bus (turn.completed +
+    # friction signals) — zero coupling with the voice provider. First-class kill switch: config §susurro.enabled
+    # (UI) + ZAELAR_SUSURRO. Fail-open: its failure never touches voice.
     _susurro_on = active_brain() == "nucleo" and os.getenv("ZAELAR_SUSURRO", "1") == "1"
     if _susurro_on:
         try:
@@ -304,11 +304,10 @@ async def _lifespan(app: FastAPI):
             logger.info("LiveKit agent worker started EMBEDDED (job_executor_type=THREAD)")
         except Exception as e:
             logger.warning(f"LiveKit embedded worker start failed: {e}")
-    # Prewarm del camino caliente (V2-024): la PRIMERA llamada al FlashBrain (AIMLAPI/Grok tras Cloudflare) monta
-    # TLS + handshake + arranque del modelo → 6-8s de cold-start en el PRIMER turno real. La absorbemos AQUÍ, en el
-    # arranque (mientras el frontend pinta el loader de la malla cerebral), con una query mínima fire-and-forget; y
-    # de paso calentamos el Chromium de búsqueda (google gratis). Enlaza el loop del server para el puente sync de
-    # la búsqueda. Nunca bloquea el arranque; SOLO con BRAIN=nucleo.
+    # Hot-path prewarm (V2-024): the FIRST FlashBrain call (AIMLAPI/Grok behind Cloudflare) sets up TLS + handshake
+    # + model startup → 6-8s cold-start on the FIRST real turn. Absorb that HERE, at boot (while the frontend paints
+    # the brain-mesh loader), with a minimal fire-and-forget query; also warm the search Chromium (free Google).
+    # Binds the server loop for the search sync bridge. Never blocks boot; ONLY with BRAIN=nucleo.
     if active_brain() == "nucleo":
         try:
             import asyncio
@@ -318,10 +317,10 @@ async def _lifespan(app: FastAPI):
             app.state.prewarm_task = asyncio.create_task(flash_prewarm.run())
         except Exception as e:
             logger.warning(f"prewarm skipped (voice/chat unaffected): {e}")
-    # ARRIENDO DE ENERGÍA (ADR-0005) — pedirlo al arrancar, junto al resto del calentamiento y ANTES de
-    # que el usuario pueda hablar, que es cuando de todos modos está esperando. No-op instantáneo en
-    # self-host. Es una TAREA y no un `await`: si el control-plane tarda, el arranque no se cuelga —
-    # sin arriendo `allowed()` ya dice que no, así que esperar aquí no compraría ninguna seguridad.
+    # ENERGY LEASE (ADR-0005) — request it at boot, alongside the rest of the warm-up and BEFORE the user can speak,
+    # which is when they are already waiting anyway. Instant no-op on self-host. It is a TASK, not an `await`: if the
+    # control plane is slow, boot does not hang — without a lease `allowed()` already says no, so waiting here would
+    # not buy any safety.
     try:
         import asyncio
         from nucleo import energy_lease
@@ -339,9 +338,9 @@ async def _lifespan(app: FastAPI):
         supervisor.start()
     except Exception as e:
         logger.warning(f"messaging supervisor start failed (voice/chat unaffected): {e}")
-    # HOMEOSTASIS (V2-070): el LATIDO AUTÓNOMO — mantiene la MÁQUINA sana (recicla el motor LiveKit degradado cuando
-    # es seguro, rota logs, evicta cápsulas muertas). Hermano del cerebro, nunca parte de él; determinista, sin LLM;
-    # fail-open (un fallo aquí jamás toca voz/chat). Necesita `app` para reciclar el worker LiveKit embebido.
+    # HOMEOSTASIS (V2-070): the AUTONOMOUS HEARTBEAT — keeps the MACHINE healthy (recycles the degraded LiveKit
+    # engine when safe, rotates logs, evicts dead capsules). Sibling of the brain, never part of it; deterministic,
+    # no LLM; fail-open (a failure here never touches voice/chat). Needs `app` to recycle the embedded LiveKit worker.
     try:
         from nucleo import homeostasis
         homeostasis.start(app)
@@ -391,8 +390,8 @@ async def _lifespan(app: FastAPI):
                 await _lk.aclose()
         except Exception:
             pass
-        # V2-038 §v3·L: apagado ORDENADO — MATA los Brain Workers (dispatch.stop → stop_all_async, killpg) ANTES de
-        # tumbar el loop supervisor, para que los subprocesos no queden huérfanos cuando el loop muera.
+        # V2-038 §v3·L: ORDERLY shutdown — KILL Brain Workers (dispatch.stop → stop_all_async, killpg) BEFORE
+        # bringing down the supervisor loop, so subprocesses are not orphaned when the loop dies.
         try:
             if _slow_on:
                 from nucleo import dispatch as nucleo_dispatch
@@ -468,8 +467,8 @@ def create_app() -> FastAPI:
     # meshkore_router is NATIVE (a channel like voice/chat), so it is always mounted regardless of BRAIN.
     # messaging_router is the UI-managed connect/disconnect API for the messaging connectors (WhatsApp/Telegram):
     # the whole point of INI-015 is that a user connects them from the widget, never by editing .env.
-    # cron_router = proactividad PROPIA del cerebro «Colmena» (nucleo/cron_api.py sobre nucleo/scheduler.py) —
-    # sustituye al viejo /api/cron de Hermes; el mismo panel ⏰ del frontend lo consume.
+    # cron_router = the «Colmena» brain's OWN proactivity (nucleo/cron_api.py over nucleo/scheduler.py) — replaces
+    # Hermes' old /api/cron; the same frontend ⏰ panel consumes it.
     routers = [pages_router, voice_router, widgets_router, meshkore_router, messaging_router, files_router,
                vault_router, cron_router, wizard_router, spotify_router, config_router, i18n_router,
                obs_router]
@@ -477,8 +476,8 @@ def create_app() -> FastAPI:
     if os.getenv("ZAELAR_ENGINE", "livekit").lower() == "livekit":
         from .livekit_api import router as livekit_router
         routers.append(livekit_router)
-    # Canal de PRUEBA headless del FlashBrain (V2-032, 3ª forma de testing): POST /api/flash/say inyecta texto y
-    # devuelve la respuesta + acción + latencias, sin voz ni sala. Solo con el cerebro «Colmena» (BRAIN=nucleo).
+    # FlashBrain headless TEST channel (V2-032, 3rd testing mode): POST /api/flash/say injects text and returns the
+    # response + action + latencies, without voice or a room. Only with the «Colmena» brain (BRAIN=nucleo).
     try:
         from config.v2 import active_brain
         if active_brain() == "nucleo":

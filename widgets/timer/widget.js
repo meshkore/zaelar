@@ -1,6 +1,6 @@
-// Timer/countdown widget — cronómetro grande y clarísimo (el "horno" de Ricard)
-// El brain fija el tiempo via backend; el widget pinta la cuenta atrás en vivo.
-// Persiste en localStorage del navegador para que sobreviva a refrescos.
+// Timer/countdown widget — large, crystal-clear countdown (Ricard's "oven" timer).
+// The brain sets time through the backend; the widget renders the live countdown.
+// Persists in browser localStorage so it survives refreshes.
 
 function injectStyles() {
   if (document.getElementById("hb-timer-css")) return;
@@ -168,7 +168,7 @@ export function render(el, data, ctx) {
   digits.className = "ht-digits lg";
   el.appendChild(digits);
 
-  // Subtext (e.g. "pausado" / "¡Tiempo cumplido!")
+  // Subtext (e.g. "paused" / "time is up!")
   const sub = document.createElement("div"); sub.className = "ht-sub";
   el.appendChild(sub);
 

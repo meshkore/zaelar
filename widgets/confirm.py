@@ -1,20 +1,19 @@
-"""widgets/confirm.py — puerta de CONFIRMACIÓN para acciones IRREVERSIBLES de widget (V2-017 · V2-025).
+"""widgets/confirm.py: CONFIRMATION gate for IRREVERSIBLE widget actions (V2-017, V2-025).
 
-Costura reutilizable para cualquier acción que exija OK explícito antes de ejecutarse. Antes de ejecutar, se
-registra una confirmación PENDIENTE y se pinta un overlay «¿…? Sí / No» en la propia tarjeta del canvas (a nivel
-del host, sirve para cualquier widget — no toca su `widget.js`). El operador confirma de dos formas, ambas
-resuelven la MISMA pendiente:
-  - **botón** de la tarjeta → `POST /widgets/{id}/confirm {ok}` → `resolve()`;
-  - **voz** ("sí, bórralo" / "no, déjalo") → detección DETERMINISTA es/en en el provider (`classify_reply`),
-    respaldada por una tool (`confirm_widget_delete`) que el modelo llama.
-Sin "sí" (o pasado el TTL) NO se ejecuta nada. DOS clases de pendiente hoy:
-  - **`delete`** — borrar el widget entero (V2-017); la ejecución la hace `lifecycle.delete_widget`.
-  - **`data`** — una data-op IRREVERSIBLE marcada `confirm:true` en el manifest (V2-025, hermano de
-    `nucleo/danger.py`): al confirmar, el provider DESPACHA la mutación (`op` = {action, payload}) por el MISMO
-    `apply_action` — **sin escalar a código**. Ese es el punto: irreversible ≠ trabajo de código.
+Reusable seam for any action requiring explicit OK before execution. Before running it, a pending confirmation is
+registered and a "Yes / No" overlay is painted on the canvas card itself. This is host-level, so it works for any
+widget and does not touch its `widget.js`. The operator confirms in two ways, both resolving the same pending item:
+  - **card button** -> `POST /widgets/{id}/confirm {ok}` -> `resolve()`;
+  - **voice** -> deterministic yes/no detection in the provider (`classify_reply`), backed by a tool
+    (`confirm_widget_delete`) called by the model.
+Without a yes, or after TTL expiry, nothing is executed. Two pending classes exist today:
+  - **`delete`**: delete the whole widget (V2-017); execution is handled by `lifecycle.delete_widget`.
+  - **`data`**: an irreversible data-op marked `confirm:true` in the manifest (V2-025, sibling of
+    `nucleo/danger.py`). On confirmation, the provider dispatches the mutation (`op` = {action, payload}) through
+    the same `apply_action`, without escalating to code. That is the point: irreversible does not mean code work.
 
-Registro en memoria de proceso (una confirmación por widget). El provider/endpoint hacen la EJECUCIÓN al
-resolver (loop-agnóstico): `resolve()` es solo bookkeeping + señal SSE.
+Process-memory registry, one confirmation per widget. The provider/endpoint execute on resolve in a loop-agnostic
+way; `resolve()` is only bookkeeping plus SSE signal.
 """
 from __future__ import annotations
 
@@ -23,7 +22,7 @@ import time
 import unicodedata
 
 _PENDING: dict[str, dict] = {}     # widget_id -> {action, question, ts}
-_TTL = 90.0                        # una confirmación caduca a los 90s (no se queda colgada para siempre)
+_TTL = 90.0                        # a confirmation expires after 90s; it must not hang forever
 
 
 def _emit(action: str, wid: str, extra: dict | None = None) -> None:
@@ -40,20 +39,20 @@ def _sweep() -> None:
         _PENDING.pop(k, None)
 
 
-# Id RESERVADO de una superficie NATIVA que también pide confirmación (V2-086). No es un widget del catálogo: es
-# la pestaña «Clusters» del ChatWall. El almacén de este módulo siempre fue genérico (un dict por clave), así que
-# reutilizarlo evita un segundo mecanismo de confirmación paralelo — lo único específico es dónde se PINTA el
-# Sí/No (la pestaña, no una tarjeta) y quién lo RESUELVE (`/api/meshkore/confirm`, no `/widgets/{id}/confirm`).
+# Reserved id for a native surface that also asks for confirmation (V2-086). It is not a catalog widget: it is the
+# ChatWall "Clusters" tab. This module's store has always been generic (a dict by key), so reusing it avoids a
+# parallel confirmation mechanism. The only specifics are where the Yes/No UI is painted (tab, not card) and who
+# resolves it (`/api/meshkore/confirm`, not `/widgets/{id}/confirm`).
 NATIVE_CLUSTERS = "clusters"
 
 
 def request(action: str, widget_id: str, question: str = "", op: dict | None = None) -> str | None:
-    """Registra una confirmación pendiente para `widget_id` y pide el overlay en su tarjeta (SSE). Devuelve el id
-    normalizado, o None si el id es inválido.
+    """Register a pending confirmation for `widget_id` and request the card overlay through SSE. Returns the
+    normalized id, or None if the id is invalid.
 
-    `action` = la CLASE de confirmación: `"delete"` (borrar el widget) o `"data"` (una data-op irreversible).
-    Para `"data"`, `op` lleva la mutación real ({"action": <nombre>, "payload": {...}}) que el que resuelve
-    despachará por `apply_action` al confirmar — nunca se escala a código."""
+    `action` is the confirmation class: `"delete"` (delete the widget) or `"data"` (an irreversible data-op).
+    For `"data"`, `op` carries the real mutation ({"action": <name>, "payload": {...}}) that the resolver dispatches
+    through `apply_action` on confirmation; it never escalates to code."""
     _sweep()
     wid = (widget_id or "").strip().lower()
     if not wid:
@@ -70,9 +69,9 @@ def pending() -> dict[str, dict]:
 
 
 def pending_line() -> str:
-    """Línea para el estado vivo del FlashBrain: hay una confirmación en el aire → el modelo debe interpretar el
-    "sí/no" del operador como respuesta a ESO (y llamar a `confirm_widget_delete`), no como charla. Cubre tanto
-    el borrado de un widget como una data-op irreversible pendiente."""
+    """Line for FlashBrain live state: a confirmation is in flight, so the model must interpret the operator's
+    yes/no as the answer to that and call `confirm_widget_delete`, not treat it as conversation. Covers both widget
+    deletion and a pending irreversible data-op."""
     _sweep()
     if not _PENDING:
         return ""
@@ -87,10 +86,10 @@ def pending_line() -> str:
 
 
 def resolve(widget_id: str = "", ok: bool = True) -> dict | None:
-    """Resuelve UNA confirmación pendiente: la de `widget_id`, o —si no se da id— la única/última pendiente
-    (la voz no siempre nombra el widget). Devuelve {'widget_id', 'action', ...} o None si no había ninguna.
-    Solo bookkeeping: la EJECUCIÓN (borrar) la hace el llamador en su loop. Si `ok` es False, avisa a la
-    tarjeta para que quite el overlay."""
+    """Resolve one pending confirmation: the one for `widget_id`, or, if no id is provided, the only/latest pending
+    confirmation because voice does not always name the widget. Returns {'widget_id', 'action', ...} or None when
+    none existed. Bookkeeping only: the caller performs execution in its own loop. If `ok` is False, notify the card
+    to remove the overlay."""
     _sweep()
     wid = (widget_id or "").strip().lower()
     p = None
@@ -98,7 +97,7 @@ def resolve(widget_id: str = "", ok: bool = True) -> dict | None:
         p = _PENDING.pop(wid)
     elif not wid and len(_PENDING) == 1:
         wid, p = _PENDING.popitem()
-    elif not wid and _PENDING:                        # varias pendientes, sin id → la más reciente
+    elif not wid and _PENDING:                        # several pending, no id -> the most recent
         wid = max(_PENDING, key=lambda k: _PENDING[k]["ts"])
         p = _PENDING.pop(wid)
     if p is None:
@@ -108,7 +107,7 @@ def resolve(widget_id: str = "", ok: bool = True) -> dict | None:
     return {"widget_id": wid, **p}
 
 
-# ── detección DETERMINISTA de sí/no (es/en) — no depende del LLM (mismo espíritu que attention.hard_interrupt) ──
+# Deterministic yes/no detection (es/en); does not depend on the LLM, same spirit as attention.hard_interrupt.
 _YES_RE = re.compile(r"\b(si|sip|claro|vale|venga|dale|adelante|hazlo|hazla|borralo|borrala|"
                      r"confirmo|confirmado|ok|okey|okay|perfecto|yes|yeah|yep|do it|go ahead|confirm)\b")
 _NO_RE = re.compile(r"\b(no|nop|cancela|cancelar|cancelalo|dejalo|dejala|para|olvidalo|mejor no|"
@@ -122,8 +121,8 @@ def _norm(text: str) -> str:
 
 
 def classify_reply(text: str) -> str | None:
-    """'yes' | 'no' | None para un turno cuando hay confirmación pendiente. NO se prioriza ninguno a ciegas:
-    si aparecen ambos ('no, mejor sí') gana el ÚLTIMO mencionado; si ninguno, None (no es una respuesta)."""
+    """'yes' | 'no' | None for a turn while a confirmation is pending. Neither side is blindly prioritized: if both
+    appear, the last mentioned wins; if neither appears, None means it is not an answer."""
     n = _norm(text)
     y = _YES_RE.search(n)
     no = _NO_RE.search(n)
@@ -137,5 +136,5 @@ def classify_reply(text: str) -> str | None:
 
 
 def reset() -> None:
-    """Limpia el registro (tests)."""
+    """Clear the registry for tests."""
     _PENDING.clear()

@@ -61,7 +61,7 @@ def invalidate() -> None:
 
 
 def _norm(s: str) -> str:
-    """Accent-insensitive lowercase normalization ('Previsión' → 'prevision') — voice STT is inconsistent
+    """Accent-insensitive lowercase normalization ('Forecast' → 'forecast') — voice STT is inconsistent
     about accents, and keyword matching must not depend on them."""
     s = unicodedata.normalize("NFKD", str(s or ""))
     s = "".join(c for c in s if not unicodedata.combining(c)).lower()
@@ -76,16 +76,16 @@ _index = {"sig": None, "rows": []}
 _STOP = set("el la los las un una de del en al a y o que con para por me mi tu su es hay este esta ese esa lo se "
             "the a an of in on to and or is are my".split())
 
-# La palabra "widget" (y sinónimos que usa el operador) es un SELECTOR de espacio de nombres (V2-082): si aparece,
-# el usuario se refiere a una PIEZA construida por él → se resuelve SOLO contra widgets de usuario, nunca contra una
-# superficie de sistema ("abre el widget de mensajería" jamás cae en el chat de sistema). Espejo LÉXICO de
-# router._WIDGET_SYN (aquí, no importado, para que runtime siga stdlib-only y sin ciclos).
+# The word "widget" (and synonyms the operator uses) is a namespace SELECTOR (V2-082): if it appears, the user refers
+# to a PIECE they built → resolve ONLY against user widgets, never against a system surface ("open the messaging
+# widget" never lands in system chat). LEXICAL mirror of router._WIDGET_SYN (here, not imported, so runtime remains
+# stdlib-only and cycle-free).
 _WIDGET_WORD_RE = re.compile(r"\b(widget|gadget|tablero|contador|cuadro de mando|mini ?app|tarjeta)\b")
 
 
 def _aliases_of(w: dict) -> list[str]:
-    """Alias de IDENTIDAD de un widget (V2-082): `name`|`title`|id + `aliases` del manifest (o `keywords` legacy como
-    semilla — keyword ≡ alias). ÚNICA señal de apertura; la descripción ya NO abre nada. Normalizados, dedup."""
+    """Widget IDENTITY aliases (V2-082): `name`|`title`|id + manifest `aliases` (or legacy `keywords` as seed —
+    keyword ≡ alias). ONLY opening signal; description no longer opens anything. Normalized, deduped."""
     name = str(w.get("name") or w.get("title") or w.get("id") or "").strip()
     seed = w.get("aliases") or w.get("keywords") or []
     out, seen = [], set()
@@ -110,13 +110,13 @@ def _identify_index() -> list[dict]:
     return rows
 
 
-# ── Superficies de SISTEMA en el mismo espacio de nombres (V2-082) ──────────────────────────────────────────────
+# ── SYSTEM surfaces in the same namespace (V2-082) ────────────────────────────────────────────────────────────
 _sys_index = {"loaded": False, "rows": []}
 
 
 def _system_index() -> list[dict]:
-    """Índice léxico de las superficies de sistema (chat, config, debug…): id + alias FIJOS normalizados. Fuente:
-    `widgets/system_surfaces.py` (espejo del front). Se carga una vez (la lista es estática, no cambia en runtime)."""
+    """Lexical index for system surfaces (chat, config, debug...): id + normalized FIXED aliases. Source:
+    `widgets/system_surfaces.py` (front mirror). Loaded once (the list is static, does not change at runtime)."""
     if _sys_index["loaded"]:
         return _sys_index["rows"]
     rows = []
@@ -138,28 +138,28 @@ def _system_index() -> list[dict]:
 
 
 def _alias_score(q: str, q_padded: str, q_tokens: list, aliases: list, alias_tokens: set) -> float:
-    """Puntuación de una pieza contra la query SOLO por NOMBRE/ALIAS (nunca por descripción). Frase de alias
-    alineada a palabra = señal fuerte; token de query difuso sobre un token de alias distintivo = tolerancia de
-    voz. Con certeza: la descripción no participa, así nada abre por parecido temático."""
+    """Score a piece against the query ONLY by NAME/ALIAS (never by description). Word-aligned alias phrase = strong
+    signal; fuzzy query token over a distinctive alias token = voice tolerance. Certainty: description does not
+    participate, so nothing opens by thematic similarity."""
     score = 0.0
     for a in aliases:
-        if f" {a} " in q_padded:                            # alias entero, alineado a palabra
+        if f" {a} " in q_padded:                            # whole alias, word-aligned
             score += 3 if (" " in a or len(a) > 6) else 2
     fuzzy = 0.0
-    for t in q_tokens:                                      # tolerancia a erratas de voz: 'watsap'≈'wasap'
+    for t in q_tokens:                                      # tolerance for voice typos: 'watsap'≈'wasap'
         if len(t) > 4 and t not in alias_tokens:
             m = difflib.get_close_matches(t, [x for x in alias_tokens if len(x) > 4], n=1, cutoff=0.84)
             if m:
                 fuzzy += 2 if len(m[0]) > 4 else 1
-    return score + min(fuzzy, 2.0)                          # el difuso ayuda a aflorar pero nunca domina una frase
+    return score + min(fuzzy, 2.0)                          # fuzzy helps surface candidates but never beats a phrase
 
 
-_THRESHOLD = 2.0            # por debajo de 2 no se abre nada → se pregunta (certeza, V2-082)
+_THRESHOLD = 2.0            # below 2, open nothing → ask (certainty, V2-082)
 
 
 def _tiebreak_by_context(scored, top_score, ids, key: str):
-    """Devuelve el ÚNICO empatado (score == top_score) cuyo id esté en `ids`, o None si hay 0 o >1. `key` solo
-    documenta la capa (open/recent) para el llamante. Normaliza ids de instancia (navegador::t1 → navegador)."""
+    """Return the ONLY tied item (score == top_score) whose id is in `ids`, or None if there are 0 or >1. `key` only
+    documents the layer (open/recent) for the caller. Normalizes instance ids (navegador::t1 → navegador)."""
     ctx = {str(i).split("::", 1)[0].strip().lower() for i in (ids or []) if str(i).strip()}
     if not ctx:
         return None
@@ -168,8 +168,8 @@ def _tiebreak_by_context(scored, top_score, ids, key: str):
 
 
 def _match_system(q: str, q_padded: str, q_tokens: list):
-    """¿La query nombra una SUPERFICIE DE SISTEMA (chat/config/debug…)? Devuelve (id, score) del mejor o (None,0).
-    Mismo scoring alias-only que los widgets — así 'abre el chat' resuelve a sistema y no a un widget homónimo."""
+    """Does the query name a SYSTEM SURFACE (chat/config/debug...)? Return (id, score) for the best match or (None,0).
+    Same alias-only scoring as widgets — so 'open chat' resolves to system, not to a homonymous widget."""
     best_id, best = None, 0.0
     for row in _system_index():
         s = _alias_score(q, q_padded, q_tokens, row["aliases"], row["alias_tokens"])
@@ -179,16 +179,16 @@ def _match_system(q: str, q_padded: str, q_tokens: list):
 
 
 def rank(query: str, limit: int = 8) -> list[tuple[float, dict]]:
-    """Ranking PÚBLICO de widgets contra una frase, SOLO por nombre/alias — la misma señal (y el mismo índice
-    cacheado) que usa `identify()`, pero devolviendo los N mejores en vez de exigir un ganador inequívoco.
+    """PUBLIC widget ranking against a phrase, ONLY by name/alias — the same signal (and cached index) used by
+    `identify()`, but returning the top N instead of requiring an unambiguous winner.
 
-    Existe para la SELECCIÓN PROGRESIVA (`widgets/selection.py`): con un catálogo de miles, el prompt no puede
-    llevar el catálogo entero, así que el widget que el operador NOMBRA en su frase se PROMOCIONA al top-K por
-    esta vía — sin ella, un widget en la posición 4.000 sería invisible para el modelo. Es RECUPERACIÓN
-    (retrieval), no comprensión: no interpreta el verbo ni la intención, solo mide parecido de nombre/alias.
+    Exists for PROGRESSIVE SELECTION (`widgets/selection.py`): with a catalog of thousands, the prompt cannot carry
+    the whole catalog, so the widget the operator NAMES in the phrase is PROMOTED to the top-K through this path —
+    without it, a widget at position 4,000 would be invisible to the model. This is RETRIEVAL, not understanding: it
+    does not interpret verb or intent, only name/alias similarity.
 
-    Devuelve [(score, manifest)] ordenado desc, ya filtrado por `_THRESHOLD` (por debajo no hay señal real).
-    Coste: O(N) sobre un índice ya normalizado en RAM (~µs por widget); no hace I/O ni re-parsea manifests."""
+    Returns [(score, manifest)] sorted desc, already filtered by `_THRESHOLD` (below that there is no real signal).
+    Cost: O(N) over an already normalized in-RAM index (~µs per widget); does no I/O and does not re-parse manifests."""
     q = _norm(query)
     if not q:
         return []
@@ -204,21 +204,20 @@ def rank(query: str, limit: int = 8) -> list[tuple[float, dict]]:
 
 
 def identify(query: str, open_ids: list | None = None, recent_ids: list | None = None) -> dict:
-    """Resuelve una petición de voz/texto a una PIEZA por su NOMBRE o ALIAS, con CERTEZA (V2-082).
+    """Resolve a voice/text request to a PIECE by NAME or ALIAS, with CERTAINTY (V2-082).
 
-    Reglas duras (invierten el matching difuso anterior, causa de las confusiones):
-    - **Solo NOMBRE/ALIAS abren.** La `description`/`whenToUse` ya NO puntúa — se acabó el "abrió por parecido
-      temático". Tolerancia de voz (difflib) SOLO sobre tokens de alias.
-    - **La palabra "widget"** en la frase acota a widgets de USUARIO (ignora superficies de sistema).
-    - **Objeto de sistema nombrado** (chat/config/debug…) → `system` = su id y `match` = None (una superficie
-      jamás se devuelve como widget de usuario). El llamante rutea la superficie (show_panel / toggle).
-    - **Sin match de nombre/alias → `match` = None.** El llamante NO abre el más parecido: PREGUNTA con
-      naturalidad. Único matiz: si no casa ningún alias pero hay UN solo widget ABIERTO, opera sobre él
-      (`by_context`) — es lo que el operador tiene delante (data-op sobre la pieza en pantalla), no una apertura
-      a ciegas.
+    Hard rules (reverse previous fuzzy matching, which caused confusion):
+    - **Only NAME/ALIAS opens.** `description`/`whenToUse` no longer scores — no more "opened by thematic similarity".
+      Voice tolerance (difflib) ONLY over alias tokens.
+    - **The word "widget"** in the phrase scopes to USER widgets (ignore system surfaces).
+    - **Named system object** (chat/config/debug...) → `system` = its id and `match` = None (a surface is never
+      returned as a user widget). The caller routes the surface (show_panel / toggle).
+    - **No name/alias match → `match` = None.** The caller does NOT open the most similar one: it ASKS naturally.
+      Only nuance: if no alias matches but there is ONE open widget, operate on it (`by_context`) — it is what the
+      operator has in front of them (data-op over the piece on screen), not a blind open.
 
-    Devuelve {match, ambiguous, candidates, score, system, by_context}. `open_ids`/`recent_ids` desempatan
-    empates por prioridad abiertos > usados hace poco (V2-078)."""
+    Returns {match, ambiguous, candidates, score, system, by_context}. `open_ids`/`recent_ids` break ties by priority:
+    open > recently used (V2-078)."""
     q = _norm(query)
     if not q:
         return {"match": None, "ambiguous": False, "candidates": [], "score": 0.0,
@@ -227,10 +226,10 @@ def identify(query: str, open_ids: list | None = None, recent_ids: list | None =
     q_tokens = [t for t in q.split() if t not in _STOP]
     has_widget_word = bool(_WIDGET_WORD_RE.search(q))
 
-    # 1) ¿nombra una superficie de sistema? (salvo que diga explícitamente "widget" → solo usuario)
+    # 1) does it name a system surface? (unless it explicitly says "widget" → user only)
     system_id, system_score = (None, 0.0) if has_widget_word else _match_system(q, q_padded, q_tokens)
 
-    # 2) scoring de widgets de USUARIO, SOLO por alias/nombre
+    # 2) USER widget scoring, ONLY by alias/name
     scored = []
     for row in _identify_index():
         s = _alias_score(q, q_padded, q_tokens, row["aliases"], row["alias_tokens"])
@@ -248,13 +247,13 @@ def identify(query: str, open_ids: list | None = None, recent_ids: list | None =
             top, ambiguous = winner, False
     match = top["id"] if (top and not ambiguous) else None
 
-    # 3) una superficie de sistema nombrada gana sobre un widget FLOJO: si el sistema puntúa >= al mejor widget,
-    #    NO devolvemos widget (evita que 'abre el chat' caiga en un widget con 'chats' de alias).
+    # 3) a named system surface beats a WEAK widget: if the system scores >= the best widget, do NOT return a widget
+    #    (prevents 'open chat' from landing on a widget with 'chats' as alias).
     if system_id is not None and system_score >= top_score:
         match, ambiguous = None, False
 
-    # 4) fallback de CONTEXTO: sin match de alias ni superficie, si hay UN solo widget abierto, opera sobre él
-    #    (lo que tiene DELANTE) — NUNCA una apertura a ciegas del "más parecido".
+    # 4) CONTEXT fallback: without alias or surface match, if there is ONE open widget, operate on it (what is IN
+    #    FRONT of the operator) — NEVER a blind open of the "most similar" one.
     by_context = False
     if match is None and system_id is None and not ambiguous:
         singles = {str(i).split("::", 1)[0].strip().lower() for i in (open_ids or []) if str(i).strip()}

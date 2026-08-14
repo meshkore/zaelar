@@ -1,28 +1,28 @@
 #
-# El cerebro del canal MeshKore = el MOTOR del FlashBrain en perfil UNTRUSTED (V2-069 «una sola mente»).
+# MeshKore channel brain = the FlashBrain ENGINE in UNTRUSTED profile (V2-069 «one mind»).
 #
-# Hablar con el operador o con otro agente es el MISMO acto → un solo motor. Este módulo NO razona: (1) resuelve el
-# TIER de modelo del canal (off-voz, sin presión de latencia de tiempo real) y (2) delega el turno en el motor del
-# FlashBrain con perfil UNTRUSTED (`nucleo.flash.cluster`, tools apagadas en código + system identidad-safe).
+# Talking to the operator or to another agent is the SAME act → one engine. This module does NOT reason: (1) resolve
+# the channel model TIER (off-voice, no real-time latency pressure), and (2) delegate the turn to the FlashBrain
+# engine with the UNTRUSTED profile (`nucleo.flash.cluster`, tools disabled in code + identity-safe system).
 #
-# Seam de cableado: `make_brain()` (lo llama el lifespan del server) devuelve un `async brain(text, on_chunk=None)
-# -> str`, así el bridge/connector siguen siendo agnósticos del cerebro.
+# Wiring seam: `make_brain()` (called by server lifespan) returns an `async brain(text, on_chunk=None) -> str`, so
+# the bridge/connector remain brain-agnostic.
 #
-# Seguridad: el peer no tiene superficie de tools (se fuerza en `nucleo.flash.cluster`), el system nunca toca la
-# memoria/PII del operador, y el bridge antepone el trailer de seguridad al final del turno.
+# Security: the peer has no tools surface (forced in `nucleo.flash.cluster`), the system never touches operator
+# memory/PII, and the bridge appends the security trailer at the end of the turn.
 #
-# RELEVO (2026-08-03): el tier YA NO se fija una vez al arrancar — `nucleo.flash.provider_chain.pick()` se
-# consulta EN CADA turno (barato: un dict de cooldowns en memoria, no una llamada de red) y, si el turno falla por
-# el proveedor (cuota/credencial — ver `provider_chain.classify_failure`), se releva y se REINTENTA ese mismo turno
-# una vez antes de rendirse. Antes: un 429 de Z.AI moría el turno y el siguiente heartbeat repetía la MISMA llamada
-# rota — sin relevo, sin aviso (diagnosticado con el operador 2026-08-03: el heartbeat de `bridge.py` insistía en
-# responder a un peer mientras Z.AI daba 429 sin parar, en bucle).
+# RELAY (2026-08-03): the tier is NO LONGER fixed once at boot — `nucleo.flash.provider_chain.pick()` is queried ON
+# EACH turn (cheap: an in-memory cooldown dict, not a network call) and, if the turn fails because of the provider
+# (quota/credential — see `provider_chain.classify_failure`), it relays and RETRIES that same turn once before
+# giving up. Before: a Z.AI 429 killed the turn and the next heartbeat repeated the SAME broken call — no relay, no
+# warning (diagnosed with the operator 2026-08-03: `bridge.py` heartbeat kept trying to answer a peer while Z.AI
+# returned endless 429s, in a loop).
 from loguru import logger
 
 
 def _spec():
-    """El `ModelSpec` del escalón ACTUAL de la cadena (compat: lo usa `bridge.py`'s V2-075 evaluator, que solo
-    necesita ALGÚN spec razonable para juzgar la conversación — no participa del relevo de `_brain`)."""
+    """`ModelSpec` for the CURRENT chain tier (compat: used by `bridge.py`'s V2-075 evaluator, which only needs SOME
+    reasonable spec to judge the conversation — it does not participate in `_brain` relay)."""
     from nucleo.flash import provider_chain
     tier = provider_chain.pick()
     if not tier:
@@ -31,17 +31,16 @@ def _spec():
 
 
 def make_brain():
-    """Devuelve el cerebro del canal: el MOTOR del FlashBrain (perfil untrusted), con RELEVO automático de
-    proveedor. El tier se elige por turno vía `provider_chain.pick()`; el turno lo conduce
-    `nucleo.flash.cluster.respond`."""
+    """Return the channel brain: the FlashBrain ENGINE (untrusted profile), with automatic provider RELAY. The tier
+    is chosen per turn via `provider_chain.pick()`; the turn is driven by `nucleo.flash.cluster.respond`."""
     from nucleo.flash import cluster, provider_chain
     chain_now = provider_chain.chain()
     logger.info("MeshKore: canal conducido por el FlashBrain (perfil untrusted · sin tools) · cadena: "
                 + (" → ".join(t["name"] for t in chain_now) if chain_now else "(sin credencial configurada)"))
 
     async def _brain(text: str, on_chunk=None, *, tool_names=None, escalate_ctx=None) -> str:
-        # V2-076: por defecto sin tools (perfil untrusted, como siempre). El bridge solo pasa tool_names/escalate_ctx
-        # cuando el PERFIL DE PERMISOS del cluster (que fijó el operador al conectar) concede alguna capacidad.
+        # V2-076: default has no tools (untrusted profile, as always). The bridge only passes tool_names/escalate_ctx
+        # when the cluster PERMISSION PROFILE (set by the operator on connect) grants some capability.
         tier = provider_chain.pick()
         if not tier:
             raise RuntimeError("MeshKore: ningún proveedor de cerebro de cluster con credencial disponible")

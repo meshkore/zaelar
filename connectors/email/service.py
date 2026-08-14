@@ -1,14 +1,14 @@
 #
-# service.py — el MOTOR del conector Email integrado en zaelar (V2-051). Corre EN PROCESO en el lifespan del server
-# (gated por la UI), como una tarea asyncio. Email es el conector más LIMPIO de los tres: stdlib puro (imaplib/
-# smtplib), SIN bridge Node (WhatsApp) ni lib de terceros (Telethon). La lógica de red vive en mailbox.py y se
-# ejecuta SIEMPRE en asyncio.to_thread (IMAP/SMTP bloquean) → nunca tapona el event loop del server.
+# service.py — Email connector ENGINE integrated into zaelar (V2-051). Runs IN PROCESS in the server lifespan
+# (UI-gated), as an asyncio task. Email is the CLEANEST of the three connectors: pure stdlib (imaplib/smtplib), NO
+# Node bridge (WhatsApp), and no third-party lib (Telethon). Network logic lives in mailbox.py and ALWAYS runs in
+# asyncio.to_thread (IMAP/SMTP block) → never clogs the server event loop.
 #
-# Flujo (camino de producción v2 stateless, BRAIN=nucleo): login IMAP/SMTP → poll INBOX (BODY.PEEK, no marca leído)
-# → publica los correos NUEVOS al bus (connector.msg) → el widget mensajería los tría/guarda/avisa. Drena:
-#   · msg.mark_read (MarkReadInbox) → mailbox.mark_seen (marca \Seen en IMAP).
-#   · msg.reply      (ReplyInbox)   → mailbox.send_reply (SMTP con threading In-Reply-To/References).
-# Camino directo duo/hermes (fallback): tría con el clasificador compartido y escribe el store como WhatsApp/Telegram.
+# Flow (stateless v2 production path, BRAIN=nucleo): IMAP/SMTP login → poll INBOX (BODY.PEEK, does not mark read)
+# → publish NEW emails to the bus (connector.msg) → the mensajeria widget triages/saves/notifies. Drains:
+#   · msg.mark_read (MarkReadInbox) → mailbox.mark_seen (marks \Seen in IMAP).
+#   · msg.reply      (ReplyInbox)   → mailbox.send_reply (SMTP with In-Reply-To/References threading).
+# Direct duo/hermes path (fallback): triages with the shared classifier and writes the store like WhatsApp/Telegram.
 #
 import asyncio
 
@@ -20,11 +20,11 @@ from connectors.messaging import ingest, notify, store, triage
 PLATFORM = "email"
 
 _task: asyncio.Task | None = None
-_seen: set[str] = set()          # UIDs de IMAP ya vistos (sembrado al conectar → solo triamos correo NUEVO)
+_seen: set[str] = set()          # already-seen IMAP UIDs (seeded on connect → only triage NEW email)
 _published: set[str] = set()     # v2: UIDs ya publicados al bus (dedup antes de triar en el widget)
 _shown: set[str] = set()         # camino directo: messageIds ya sacados a flote
-_mark_inbox = None               # v2: suscripción a msg.mark_read (creada en ESTE loop)
-_reply_inbox = None              # v2: suscripción a msg.reply (creada en ESTE loop)
+_mark_inbox = None               # v2: msg.mark_read subscription (created in THIS loop)
+_reply_inbox = None              # v2: msg.reply subscription (created in THIS loop)
 
 
 def enabled() -> bool:
@@ -42,7 +42,7 @@ def _set_status(status: str, qr=None, detail=None) -> None:
 
 
 def _friendly_error(why: str) -> str:
-    """Traduce el motivo técnico de un fallo IMAP/SMTP a algo ACCIONABLE para el usuario (no jerga)."""
+    """Translate the technical reason for an IMAP/SMTP failure into something ACTIONABLE for the user (no jargon)."""
     w = (why or "").lower()
     if "imap" in w and ("auth" in w or "login" in w or "invalid credentials" in w or "[alert]" in w):
         return ("No pude iniciar sesión. En Gmail/Outlook usa una CONTRASEÑA DE APLICACIÓN (no tu contraseña "
@@ -60,7 +60,7 @@ def _friendly_error(why: str) -> str:
 
 
 async def _ingest_new(mb) -> None:
-    """Lee INBOX en un hilo, publica/tría los correos nuevos. Actualiza `_seen`/`_published`."""
+    """Read INBOX in a thread, publish/triage new emails. Updates `_seen`/`_published`."""
     msgs = await asyncio.to_thread(mb.fetch_new, _seen)
     if not msgs:
         return
@@ -73,7 +73,7 @@ async def _ingest_new(mb) -> None:
                 _published.add(mid)
                 ingest.publish_msg(PLATFORM, m)
         return
-    # Camino directo (duo/hermes): triaje + store + aviso, como WhatsApp/Telegram.
+    # Direct path (duo/hermes): triage + store + notification, like WhatsApp/Telegram.
     verdicts = await triage.classify(msgs, config.operator_name() or None)
     surfaced = notify.surface(verdicts, _shown)
     if not surfaced:
@@ -92,7 +92,7 @@ async def _drain_reads(mb) -> None:
     keys = (_mark_inbox.drain() if _mark_inbox else []) if v2 else store.take_pending_read(PLATFORM)
     if not keys:
         return
-    uids = [k.get("messageId") for k in keys if k.get("messageId")]     # messageId de email = UID de IMAP
+    uids = [k.get("messageId") for k in keys if k.get("messageId")]     # email messageId = IMAP UID
     ok = await asyncio.to_thread(mb.mark_seen, uids)
     if not ok:
         logger.warning("Email mark-read falló (reintento luego)")
@@ -104,8 +104,8 @@ async def _drain_reads(mb) -> None:
 
 
 async def _drain_replies(mb) -> None:
-    """Drena las respuestas pendientes (V2-051): envía por SMTP con threading. Solo camino v2 (el owner del widget
-    encola en pending_reply → publica msg.reply al bus). Marca leído el original tras responder."""
+    """Drain pending replies (V2-051): send by SMTP with threading. v2 path only (widget owner enqueues in
+    pending_reply → publishes msg.reply to the bus). Marks the original read after replying."""
     if not ingest.v2_enabled() or _reply_inbox is None:
         return
     for r in _reply_inbox.drain():
@@ -145,9 +145,9 @@ async def _loop() -> None:
     ok, why = await asyncio.to_thread(mb.test_connection)
     if not ok:
         logger.error(f"Email: no pude conectar: {why}")
-        _set_status("error", None, _friendly_error(why))     # 'error' (no 'no_creds'): configurado pero falló → card con motivo + reintentar
+        _set_status("error", None, _friendly_error(why))     # 'error' (not 'no_creds'): configured but failed → card with reason + retry
         return
-    _seen.update(await asyncio.to_thread(mb.all_uids))     # solo triamos correo que llega DESPUÉS de conectar
+    _seen.update(await asyncio.to_thread(mb.all_uids))     # only triage email that arrives AFTER connecting
     if ingest.v2_enabled():
         if _mark_inbox is None:
             _mark_inbox = ingest.MarkReadInbox(PLATFORM)
@@ -172,7 +172,7 @@ async def _loop() -> None:
 
 
 def start() -> None:
-    """Arranca el motor como tarea de fondo (lifespan del server, si el conector está activado desde la UI)."""
+    """Start the engine as a background task (server lifespan, if the connector is enabled from the UI)."""
     global _task
     if not enabled():
         _set_status("off", None)

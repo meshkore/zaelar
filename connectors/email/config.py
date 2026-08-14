@@ -1,13 +1,13 @@
 #
-# config.py — knobs del conector Email (V2-051). Config MANEJADA POR LA INTERFAZ: el store (config/connectors.py,
-# escrito por el widget de mensajería) MANDA; `.env` es fallback de power-user / back-compat. Email = IMAP/SMTP con
-# app-password (Gmail/Outlook exigen 2FA + app-password). OAuth2 (XOAUTH2) = Fase 2 futura (costura abierta).
+# config.py — Email connector knobs (V2-051). Config MANAGED BY THE INTERFACE: the store (config/connectors.py,
+# written by the messaging widget) WINS; `.env` is a power-user / back-compat fallback. Email = IMAP/SMTP with
+# app-password (Gmail/Outlook require 2FA + app-password). OAuth2 (XOAUTH2) = future Phase 2 (open seam).
 #
-# El triaje es el compartido (connectors/messaging/triage.py), LOCAL por defecto → nada personal sale de la máquina.
+# Triage is shared (connectors/messaging/triage.py), LOCAL by default → nothing personal leaves the machine.
 #
 import os
 
-from config import connectors as _store            # store gana sobre .env
+from config import connectors as _store            # store wins over .env
 
 from connectors.email.mailbox import PRESETS
 
@@ -29,12 +29,12 @@ def password() -> str:
 
 
 def provider() -> str:
-    """Preset elegido en la UI (gmail|outlook|icloud|yahoo|otro). '' = deducir del dominio, luego 'otro'."""
+    """Preset chosen in the UI (gmail|outlook|icloud|yahoo|other). '' = infer from domain, then 'other'."""
     return str(_cfg().get("provider") or "").strip().lower()
 
 
 def _preset() -> dict:
-    """Hosts del preset: primero el `provider` elegido, luego deducido del dominio de la dirección."""
+    """Preset hosts: first the chosen `provider`, then inferred from the address domain."""
     p = provider()
     if p in PRESETS:
         return PRESETS[p]
@@ -70,7 +70,7 @@ def smtp_port() -> int:
 
 
 def resolved_provider_id() -> str:
-    """El id de proveedor efectivo (el elegido en la UI, o deducido por el dominio de la dirección, o 'imap')."""
+    """Effective provider id (chosen in the UI, inferred from the address domain, or 'imap')."""
     from connectors.email import providers as pv
     p = provider()
     if pv.get(p):
@@ -80,7 +80,7 @@ def resolved_provider_id() -> str:
 
 
 def auth_method() -> str:
-    """'oauth' si el proveedor lo soporta Y hay app registrada Y tokens de esta cuenta; si no, 'password'."""
+    """'oauth' if the provider supports it AND an app is registered AND this account has tokens; otherwise 'password'."""
     from connectors.email import oauth, providers as pv
     pid = resolved_provider_id()
     prov = pv.get(pid)
@@ -91,12 +91,12 @@ def auth_method() -> str:
 
 def has_credentials() -> bool:
     if auth_method() == "oauth":
-        return bool(address() and imap_host() and smtp_host())     # el token lo aporta el seam OAuth
+        return bool(address() and imap_host() and smtp_host())     # the OAuth seam provides the token
     return bool(address() and password() and imap_host() and smtp_host())
 
 
 def autoreply() -> bool:
-    """Auto-respuesta automática — DIFERIDA, OFF por defecto (V2-051). Placeholder de opción futura."""
+    """Automatic auto-reply — DEFERRED, OFF by default (V2-051). Placeholder for a future option."""
     v = _cfg().get("autoreply")
     if v is not None:
         return bool(v)
@@ -112,8 +112,8 @@ def operator_name() -> str:
 
 
 def mailbox():
-    """Instancia Mailbox con la config efectiva (o None si faltan credenciales). Elige el modo de auth: OAuth
-    (XOAUTH2 con access token vivo) o app-password, según `auth_method()`."""
+    """Mailbox instance with effective config (or None if credentials are missing). Chooses auth mode: OAuth
+    (XOAUTH2 with live access token) or app-password, according to `auth_method()`."""
     if not has_credentials():
         return None
     from connectors.email.mailbox import Mailbox

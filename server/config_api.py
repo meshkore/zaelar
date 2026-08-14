@@ -1,19 +1,20 @@
-"""server/config_api.py — plano de control de la CONFIGURACIÓN completa (V2-043).
+"""server/config_api.py — control plane for the full CONFIGURATION surface (V2-043).
 
-El área de configuración full-screen del frontend (elegir QUÉ API/modelo usa CADA pieza + resumen de APIs con
-saldo) se apoya aquí. Config gestionada por la UI (invariante de producto): el usuario lo cambia TODO desde la
-interfaz, nunca editando ficheros. Reúne lo que ya existía disperso (v2.py, settings.py, connectors.py,
-credentials.py, doctor.py, spotify) bajo una sola boca — sin duplicar la lógica, delegando en cada módulo dueño.
+The frontend full-screen configuration area (choosing WHICH API/model each piece uses + API balance summary) is
+backed here. UI-managed config (product invariant): the user changes EVERYTHING from the interface, never by
+editing files. It gathers what used to be scattered around (v2.py, settings.py, connectors.py, credentials.py,
+doctor.py, spotify) behind one mouth — without duplicating logic, delegating to each owning module.
 
-  · GET  /api/config            → vista agregada REDACTADA (nunca una key en claro): v2 (fast/code_agent/memory/
-                                   flags) + voz (settings) + conectores + spotify + credenciales + catálogo de
-                                   proveedores por pieza + resumen de APIs con saldo.
-  · POST /api/config/v2         → {section, patch} → v2.set(section, patch) (por pieza: modelo/proveedor/params).
-  · POST /api/config/credential → {key|provider, value} → credentials.set_key (resuelve provider→env por doctor).
-  · GET  /api/config/apis       → resumen/alertas de saldo (proactivo donde se expone + reactivo por último error).
+  · GET  /api/config            → REDACTED aggregate view (never a cleartext key): v2 (fast/code_agent/memory/
+                                   flags) + voice (settings) + connectors + spotify + credentials + provider
+                                   catalog per piece + API balance summary.
+  · POST /api/config/v2         → {section, patch} → v2.set(section, patch) (per piece: model/provider/params).
+  · POST /api/config/credential → {key|provider, value} → credentials.set_key (doctor resolves provider→env).
+  · GET  /api/config/apis       → balance summary/alerts (proactive where exposed + reactive from last error).
 
-Loopback (app local single-user), como el resto de la API. Voz sigue por `/api/settings`; el área de config la
-consume igual. Los cambios de v2 (fast/code_agent/memory) son POR INVOCACIÓN → aplican sin reconectar.
+Loopback (single-user local app), like the rest of the API. Voice still goes through `/api/settings`; the config
+area consumes it the same way. v2 changes (fast/code_agent/memory) are PER INVOCATION → they apply without
+reconnecting.
 """
 from __future__ import annotations
 
@@ -29,16 +30,16 @@ router = APIRouter()
 _CLOUD_LOCKED_V2_SECTIONS = frozenset({"fast", "code_agent", "memory", "triage", "susurro"})
 
 
-# Catálogo de PROVEEDORES por pieza (hints para los desplegables de la UI). No es exhaustivo ni obliga a nada —
-# el usuario puede teclear un modelo/base_url a mano; esto solo acelera la elección. Cloud vs local marcado.
+# PROVIDER catalog per piece (hints for UI dropdowns). It is not exhaustive and does not force anything — the user
+# can type a model/base_url manually; this only speeds up selection. Cloud vs local is marked.
 _PROVIDER_CATALOG = {
-    "fast": {                       # FlashBrain — NO-razonador, por invocación
-        # CERRADO A PROPÓSITO (2026-08-12, norma del operador): el modelo del FlashBrain se ELIGE de una lista, no se
-        # teclea, y la lista solo lleva lo que el benchmark avala. Un modelo mal elegido aquí no da un error: da un
-        # agente que hace lo que no es (el veto de grok existe justo por eso), y eso es indistinguible de un bug.
-        # Fuera, por tanto: `xai`/grok (VETADO en la capa de voz — mis-rutea preguntas de memoria y manda una
-        # investigación a `web_search`, re-medido §9.1.b), `openai` y `mistral` directos (la norma es UNA sola cuenta
-        # de API: todo lo comercial pasa por el broker AIMLAPI) y `zai` (razonador → viola voz=no-razonador).
+    "fast": {                       # FlashBrain — NON-reasoner, per invocation
+        # CLOSED ON PURPOSE (2026-08-12, operator rule): the FlashBrain model is CHOSEN from a list, not typed, and
+        # the list only contains benchmark-approved choices. A bad model here does not throw a clean error: it gives
+        # an agent that does the wrong thing (the grok veto exists exactly for that), which is indistinguishable from
+        # a bug. Therefore excluded: `xai`/grok (VETOED in the voice layer — it misroutes memory questions and sends
+        # research to `web_search`, re-measured §9.1.b), direct `openai` and `mistral` (the rule is ONE API account:
+        # all commercial traffic goes through the AIMLAPI broker), and `zai` (reasoner → violates voice=non-reasoner).
         "providers": [
             {"id": "aimlapi", "label": "AIMLAPI (broker — the one account we manage)",
              "base_url": "https://api.aimlapi.com/v1", "key_env": "AIMLAPI_KEY", "cloud": True,
@@ -50,24 +51,23 @@ _PROVIDER_CATALOG = {
              "base_url": "http://localhost:11434/v1", "key_env": "", "cloud": False,
              "models": ["qwen2.5:14b-instruct"]},
         ],
-        "closed_models": True,      # la UI pinta un desplegable, no un campo de texto
+        "closed_models": True,      # the UI renders a dropdown, not a text field
         "note": "NON-reasoners only (the voice turn must close fast) and only benchmark-endorsed ones. "
                 "claude-haiku-4.5 = production default (reliable routing + introspection). "
                 "deepseek-v4-flash = the ONLY one that routed 12/12 in §9. Endpoint comes from the provider — "
                 "there is no URL to type.",
     },
-    "code_agent": {                 # Brain Workers — el agente headless que CONDUCE las tareas
-        # Modelos REALES por proveedor (2026-08-12). Antes esta lista estaba VACÍA para los dos, así que la UI
-        # pintaba un campo libre: el operador cambiaba a Codex y se quedaban los `glm-5.2` del proveedor anterior
-        # —un modelo que Codex no sirve— y la tarea moría con «There's an issue with the selected model». Un
-        # proveedor solo puede ofrecer SUS modelos.
+    "code_agent": {                 # Brain Workers — the headless agent that DRIVES tasks
+        # REAL models per provider (2026-08-12). This list used to be EMPTY for both, so the UI rendered a free
+        # field: the operator switched to Codex and the previous provider's `glm-5.2` values remained — a model
+        # Codex does not serve — and the task died with "There's an issue with the selected model". A provider may
+        # only offer ITS models.
         "providers": [
             {"id": "claude_code", "label": "Claude Code (CLI)", "cloud": True,
-             # DOS familias, y las dos son legítimas para ESTE proveedor: los alias de la licencia propia, y los
-             # modelos de los escalones de RELEVO Anthropic-compatible (`workers/providers.py`), porque quien
-             # conduce sigue siendo Claude Code — solo cambia el endpoint por debajo. Dejar fuera los del relevo
-             # habría marcado como inválida la config que el operador tiene HOY funcionando (claude_code +
-             # glm-5.2 + endpoint de Z.AI), que es correcta.
+             # TWO families, and both are legitimate for THIS provider: the own-license aliases, and the
+             # Anthropic-compatible RELAY rung models (`workers/providers.py`), because Claude Code still drives —
+             # only the endpoint underneath changes. Leaving relay models out would mark the operator's working
+             # TODAY config as invalid (claude_code + glm-5.2 + Z.AI endpoint), and that config is correct.
              "models": ["opus", "sonnet", "haiku", "sonnet[1m]", "opus[1m]",
                         "glm-5.2", "glm-4.6", "kimi-k2.6"],
              "note": "Can restrict Bash to our bridges only (single-writer invariant) → the only backend valid for "
@@ -75,13 +75,13 @@ _PROVIDER_CATALOG = {
                      "relay tiers (Z.AI / Moonshot subscription plans): they only work while that endpoint is the "
                      "active tier — see workers/providers.py."},
             {"id": "codex", "label": "Codex (CLI)", "cloud": True,
-             # VERIFICADO contra la lista que devuelve el propio servidor de modelos (2026-08-12): son estos tres.
-             # No hay familia 5.6 disponible — un `gpt-5.6-*` en el config.toml no lo sirve la API.
+             # VERIFIED against the list returned by the model server itself (2026-08-12): these are the three.
+             # There is no 5.6 family available — a `gpt-5.6-*` in config.toml is not served by the API.
              "models": ["gpt-5.5", "gpt-5.4", "gpt-5.4-mini"],
              "note": "Has NO tool allowlist — only sandbox modes, so a Codex worker runs a full shell "
                      "(wider blast radius). Refused for untrusted input and dev workers."},
             {"id": "grok_build", "label": "Grok Build (CLI)", "cloud": True, "key_env": "XAI_API_KEY",
-             # VERIFICADO con `grok models` contra la cuenta real (2026-08-13).
+             # VERIFIED with `grok models` against the real account (2026-08-13).
              "models": ["grok-4.5", "grok-4.6", "grok-build-0.1", "grok-4.3",
                         "grok-4.20-0309-non-reasoning"],
              "note": "Same wire format AND same allowlist syntax as Claude Code — verified it enforces "
@@ -89,10 +89,10 @@ _PROVIDER_CATALOG = {
                      "Pay-per-token: watch the cost, a trivial turn already costs ~$0.03 (large system prompt)."},
         ],
         "closed_models": True,
-        # PRESETS (2026-08-13, petición del operador): una opción de Brain Worker no es «un proveedor», es la
-        # COMBINACIÓN de quién conduce (el CLI) y quién razona por debajo (el endpoint + su modelo). Elegir las tres
-        # piezas a mano es donde se producían los desajustes (`glm-5.2` sobre Codex, `gpt-5.5` sobre Z.AI): un
-        # preset las mueve JUNTAS y de una vez. El operador puede seguir afinando a mano después.
+        # PRESETS (2026-08-13, operator request): a Brain Worker option is not "a provider"; it is the COMBINATION
+        # of who drives (the CLI) and who reasons underneath (the endpoint + its model). Picking the three pieces by
+        # hand is where mismatches happened (`glm-5.2` on Codex, `gpt-5.5` on Z.AI): a preset moves them TOGETHER in
+        # one step. The operator can still fine-tune manually afterwards.
         "presets": [
             {"id": "cc_zai", "label": "Claude Code + Z.AI (GLM-5.2)", "provider": "claude_code",
              "base_url": "https://api.z.ai/api/anthropic", "model": "glm-5.2", "key_env": "Z_AI_API_KEY",
@@ -118,7 +118,7 @@ _PROVIDER_CATALOG = {
         "note": "Headless agent that drives tasks (memory/web/code). Per-task-type model optional. "
                 "Each provider serves ONLY its own models. Pick a preset to move CLI + endpoint + model together.",
     },
-    "memory_processor": {           # CORAZÓN de escritura (mem_processor / distiller de píldoras)
+    "memory_processor": {           # write HEART (mem_processor / pill distiller)
         "providers": [
             {"id": "aimlapi", "label": "AIMLAPI (broker — the one account we manage)",
              "base_url": "https://api.aimlapi.com/v1", "key_env": "AIMLAPI_KEY", "cloud": True,
@@ -126,8 +126,8 @@ _PROVIDER_CATALOG = {
             {"id": "ollama", "label": "Ollama (local — only if local usage is accepted)", "base_url": "http://localhost:11434/v1",
              "key_env": "", "cloud": False, "models": ["qwen2.5:7b-instruct", "qwen2.5:3b"]},
         ],
-        # Actualizado 2026-08-09: la etiqueta anterior («RULE: memory ALWAYS OpenAI») quedó DEROGADA por el bench
-        # §12.3 y por la norma de una sola cuenta de API. Se elige con datos, no por reputación del proveedor.
+        # Updated 2026-08-09: the previous label ("RULE: memory ALWAYS OpenAI") was OVERRULED by benchmark §12.3
+        # and by the single-API-account rule. Choose with data, not by provider reputation.
         "note": "Off-hot-path (does not touch voice latency) but WRITE-COMPLETENESS is the nº1 lever of recall. "
                 "BENCHMARKED 2026-08-09 (21 candidates × 34 cases, see zaelar-model-benchmarks.md §12.3): "
                 "deepseek-v4-flash ties gpt-4.1-mini on capture (98.5 vs 98.9%) and precision (100%) for −55% cost "
@@ -135,7 +135,7 @@ _PROVIDER_CATALOG = {
                 "under slot=operator.diet, and a slot invalidates every earlier pill with that slot — a later diet "
                 "change would erase the allergy. Everything goes through the AIMLAPI broker (one account).",
     },
-    "triage": {                     # clasificador de mensajería (relevancia WhatsApp/Telegram)
+    "triage": {                     # messaging classifier (WhatsApp/Telegram relevance)
         "providers": [
             {"id": "xai", "label": "xAI grok (cheap, uses existing credit)", "base_url": "https://api.x.ai/v1",
              "key_env": "XAI_API_KEY", "cloud": True, "models": ["grok-4.20-0309-non-reasoning"]},
@@ -147,7 +147,7 @@ _PROVIDER_CATALOG = {
         "note": "⚠️ PRIVACY: in external mode, personal messages LEAVE to the cloud (that is why it used to be local). "
                 "Simple classification task (no tool-routing) → grok is fine. Operator accepted the tradeoff (battery).",
     },
-    "susurro": {                    # «Susurro» (V2-053) — auditor conversacional off-hot-path
+    "susurro": {                    # «Susurro» (V2-053) — off-hot-path conversational auditor
         "providers": [
             {"id": "aimlapi", "label": "AIMLAPI (broker — the one account we manage)",
              "base_url": "https://api.aimlapi.com/v1", "key_env": "AIMLAPI_KEY", "cloud": True,
@@ -185,13 +185,13 @@ _PROVIDER_CATALOG = {
 
 
 def _detected_code_agents() -> dict:
-    """¿Qué CLI de Brain Worker está instalado en ESTA máquina, y con qué versión/modelo por defecto?
+    """Which Brain Worker CLI is installed on THIS machine, and with which default version/model?
 
-    Existe porque la UI ofrecía los dos proveedores por igual sin que nada comprobara si el binario estaba: el
-    operador elegía Codex, guardaba, y el fallo aparecía minutos después dentro de una tarea muerta. Elegir un
-    proveedor que no está instalado tiene que verse ANTES de guardar, en el propio desplegable.
+    This exists because the UI offered both providers equally without checking whether the binary was present: the
+    operator picked Codex, saved, and the failure appeared minutes later inside a dead task. Choosing a provider that
+    is not installed must be visible BEFORE saving, in the dropdown itself.
 
-    Barato (`--version` local) y NUNCA lanza: si la detección falla, la UI simplemente no marca nada."""
+    Cheap (local `--version`) and NEVER raises: if detection fails, the UI simply marks nothing."""
     det: dict = {}
     try:
         from nucleo.workers import codex_session as _cx
@@ -205,9 +205,10 @@ def _detected_code_agents() -> dict:
         path = _cc._find_claude()
         det["claude_code"] = {"installed": bool(path), "path": path, "version": "", "default_model": ""}
         if path:
-            # La versión también AQUÍ. Codex y Grok la enseñaban y Claude Code no, así que en el panel el proveedor
-            # de PRODUCCIÓN era el único sin sello — que es justo la asimetría que hace dudar de si está detectado
-            # de verdad. `claude --version` responde «2.1.212 (Claude Code)»: el primer token es la versión.
+            # Show the version HERE too. Codex and Grok showed it while Claude Code did not, so in the panel the
+            # PRODUCTION provider was the only one without a badge — exactly the asymmetry that makes you doubt
+            # whether it was really detected. `claude --version` answers "2.1.212 (Claude Code)": the first token is
+            # the version.
             try:
                 r = subprocess.run([path, "--version"], capture_output=True, text=True, timeout=8)
                 det["claude_code"]["version"] = ((r.stdout or r.stderr or "").strip().split() or [""])[0]
@@ -224,8 +225,8 @@ def _detected_code_agents() -> dict:
 
 
 def _catalog_for_ui() -> dict:
-    """El catálogo con la detección de CLIs INYECTADA en cada proveedor de `code_agent` (copia superficial: el
-    catálogo del módulo es una constante y no se muta)."""
+    """The catalog with CLI detection INJECTED into each `code_agent` provider (shallow copy: the module catalog is
+    a constant and is not mutated)."""
     cat = dict(_PROVIDER_CATALOG)
     try:
         det = _detected_code_agents()
@@ -237,10 +238,11 @@ def _catalog_for_ui() -> dict:
             p["detected"] = bool(d.get("installed"))
             if d.get("version"):
                 p["version"] = d["version"]
-            # Un default que el propio CLI ya usa gana a cualquiera que eligiéramos nosotros — PERO solo si ese
-            # modelo existe. El caso real que motiva la guarda: `~/.codex/config.toml` pedía `gpt-5.6-sol`, que la
-            # API no sirve para esta cuenta; usarlo de default habría propuesto en la UI un modelo condenado a
-            # fallar, y descartarlo en silencio habría escondido que su config apunta a algo que no existe.
+            # A default already used by the CLI beats anything we would choose — BUT only if that model exists. The
+            # real case motivating this guard: `~/.codex/config.toml` requested `gpt-5.6-sol`, which the API does
+            # not serve for this account; using it as the default would have proposed a model in the UI that was
+            # doomed to fail, while silently discarding it would have hidden that the config points at something
+            # nonexistent.
             dm = d.get("default_model") or ""
             if dm:
                 if dm in (p.get("models") or []):
@@ -249,9 +251,9 @@ def _catalog_for_ui() -> dict:
                     p["stale_default"] = dm
             provs.append(p)
         ca["providers"] = provs
-        # PRESETS: cada uno se marca READY o no, y por qué. Un preset que no puede funcionar (CLI ausente o clave
-        # sin poner) tiene que verse ANTES de elegirlo: elegirlo a ciegas es lo que producía una tarea muerta sin
-        # relación aparente con lo que el operador había guardado.
+        # PRESETS: each one is marked READY or not, and why. A preset that cannot work (missing CLI or missing key)
+        # must be visible BEFORE selection: choosing it blindly is what produced a dead task with no apparent
+        # relation to what the operator had saved.
         import os as _os
         pres = []
         for p in ca.get("presets", []):
@@ -272,7 +274,7 @@ def _catalog_for_ui() -> dict:
 
 @router.get("/api/config")
 async def get_config():
-    """Vista agregada REDACTADA para el área de configuración. NUNCA contiene una API key en claro."""
+    """REDACTED aggregate view for the configuration area. NEVER contains a cleartext API key."""
     out: dict = {}
     try:
         from config import v2
@@ -318,15 +320,15 @@ _MODEL_FIELDS = {"fast": ("model",),
 
 
 def _model_mismatch(section: str, patch: dict) -> str:
-    """¿Se está guardando un modelo que el proveedor elegido NO sirve? Devuelve el motivo, o "" si todo cuadra.
+    """Is a model being saved that the selected provider DOES NOT serve? Return the reason, or "" if it matches.
 
-    El fallo que cierra: al cambiar de proveedor, los modelos del anterior se quedaban puestos (Codex con cinco
-    campos a `glm-5.2`). Guardar salía OK y el error aparecía minutos después, DENTRO de una tarea, como «There's
-    an issue with the selected model» — el operador no tiene forma de relacionar eso con lo que guardó. Un
-    desajuste de config se rechaza AQUÍ, con el nombre de lo que sobra.
+    The bug this closes: when changing provider, models from the previous one remained set (Codex with five fields
+    at `glm-5.2`). Saving was OK and the error appeared minutes later, INSIDE a task, as "There's an issue with the
+    selected model" — the operator has no way to connect that with what they saved. A config mismatch is rejected
+    HERE, with the name of the offending value.
 
-    Solo aplica a las secciones de lista CERRADA y solo si el proveedor declara modelos: un proveedor sin lista
-    (o una sección abierta) sigue aceptando lo que el llamador ponga — esto valida, no encierra."""
+    Only applies to CLOSED-list sections and only if the provider declares models: a provider without a list (or an
+    open section) still accepts whatever the caller sends — this validates, it does not lock in."""
     conf = _PROVIDER_CATALOG.get(section) or {}
     if not conf.get("closed_models"):
         return ""
@@ -349,8 +351,8 @@ def _model_mismatch(section: str, patch: dict) -> str:
 
 @router.post("/api/config/v2")
 async def set_v2(payload: dict | None = None):
-    """Escribe una sección de v2 (fast/code_agent/memory/flags) por pieza. `{section, patch}`. Devuelve la vista
-    pública (redactada) de esa sección. Los cambios son POR INVOCACIÓN → aplican sin reconectar."""
+    """Write one v2 section (fast/code_agent/memory/flags) per piece. `{section, patch}`. Returns the public
+    (redacted) view of that section. Changes are PER INVOCATION → they apply without reconnecting."""
     payload = payload or {}
     section = (payload.get("section") or "").strip()
     patch = payload.get("patch") or {}
@@ -381,9 +383,9 @@ async def set_v2(payload: dict | None = None):
 
 @router.post("/api/config/credential")
 async def set_credential(payload: dict | None = None):
-    """Guarda/actualiza una credencial en el store (chmod 600). `{key|provider, value}`. Resuelve un `provider`
-    conocido (aimlapi/xai/groq/elevenlabs…) a su variable de entorno principal vía el catálogo de doctor; o acepta
-    un nombre de env literal (power-user). Valor vacío = borra. NUNCA devuelve el valor."""
+    """Save/update a credential in the store (chmod 600). `{key|provider, value}`. Resolves a known `provider`
+    (aimlapi/xai/groq/elevenlabs…) to its main environment variable through the doctor catalog, or accepts a literal
+    env name (power-user). Empty value = delete. NEVER returns the value."""
     payload = payload or {}
     raw = (payload.get("key") or payload.get("provider") or "").strip()
     value = payload.get("value")
@@ -394,7 +396,7 @@ async def set_credential(payload: dict | None = None):
         from config import doctor
         for c in doctor.CREDENTIALS:
             if c["key"] == raw and c.get("env"):
-                env_name = c["env"][0]           # variable principal del proveedor
+                env_name = c["env"][0]           # provider's main variable
                 break
     except Exception:
         pass
@@ -408,8 +410,8 @@ async def set_credential(payload: dict | None = None):
 
 @router.get("/api/config/benchmarks")
 async def get_benchmarks():
-    """Réplica CURADA (solo lectura) de las decisiones de modelo — de dónde sale cada elección, coste, latencia,
-    fiabilidad de tool-calling/alucinación, y qué candidatos se han evaluado. Ver `config/model_benchmarks.py`."""
+    """CURATED read-only replica of model decisions — where each choice comes from, cost, latency, tool-calling/
+    hallucination reliability, and which candidates were evaluated. See `config/model_benchmarks.py`."""
     try:
         from config import model_benchmarks
         return JSONResponse(model_benchmarks.snapshot())
@@ -419,8 +421,8 @@ async def get_benchmarks():
 
 @router.get("/api/config/apis")
 async def get_apis(refresh: bool = False):
-    """Resumen de APIs/servicios externos con SALDO (proactivo donde se expone + reactivo por último error).
-    Para el resumen de la config y las alertas del diálogo de estado. `refresh=1` fuerza resondeo."""
+    """External API/service summary with BALANCE (proactive where exposed + reactive from last error). For the config
+    summary and status-dialog alerts. `refresh=1` forces probing again."""
     try:
         from config import balances
         return JSONResponse({"apis": balances.summary_with_workers(refresh=refresh), "alerts": balances.alerts(refresh=refresh)})
@@ -428,12 +430,12 @@ async def get_apis(refresh: bool = False):
         return JSONResponse({"apis": [], "alerts": [], "error": str(e)[:120]})
 
 
-# ── Conectores (V2-083) — registro único + control de los que se autentican por TOKEN dinámico ──────────────
+# ── Connectors (V2-083) — single registry + control for those authenticated by dynamic TOKEN ────────────────
 @router.get("/api/connectors")
 async def get_connectors():
-    """Inventario ÚNICO de conectores (mensajería/música/infra) con estado + config REDACTADA — para la pestaña
-    Conectores. Las escrituras van por los endpoints de cada familia (`/api/messaging/*`, `/api/spotify/*`,
-    `/api/meshkore/*`) + los de architect de aquí abajo."""
+    """SINGLE connector inventory (messaging/music/infra) with status + REDACTED config — for the Connectors tab.
+    Writes go through each family's endpoints (`/api/messaging/*`, `/api/spotify/*`, `/api/meshkore/*`) plus the
+    architect endpoints below."""
     try:
         from connectors import registry
         return JSONResponse({"connectors": registry.descriptors()})
@@ -443,8 +445,8 @@ async def get_connectors():
 
 @router.post("/api/connectors/architect/connect")
 async def architect_connect(payload: dict):
-    """Fija el TOKEN (y url opcional) del daemon Architect en el store DINÁMICO (config/connectors.json), NO en
-    .env — configurable/revocable desde la UI. El token es secreto (se redacta al leer)."""
+    """Set the Architect daemon TOKEN (and optional URL) in the DYNAMIC store (config/connectors.json), NOT in .env —
+    configurable/revocable from the UI. The token is secret (redacted on read)."""
     from config import connectors as cfg
     tok = str((payload or {}).get("token") or "").strip()
     if not tok:
@@ -459,7 +461,7 @@ async def architect_connect(payload: dict):
 
 @router.post("/api/connectors/architect/disconnect")
 async def architect_disconnect():
-    """REVOCA el token de Architect (lo borra del store). Deja el conector desconectado."""
+    """REVOKE the Architect token (delete it from the store). Leaves the connector disconnected."""
     from config import connectors as cfg
     cfg.set("architect", {"token": "", "enabled": False})
     return JSONResponse({"ok": True, "id": "architect", "config": cfg.public("architect")})

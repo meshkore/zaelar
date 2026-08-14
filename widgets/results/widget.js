@@ -1,25 +1,25 @@
-// Results widget — LA SUPERFICIE GENÉRICA donde zaelar enseña lo que ha encontrado. La rellena quien hizo el
-// trabajo (un Brain Worker, el navegador, el cerebro) con acciones declaradas; esto solo PINTA. Nunca busca nada.
+// Results widget — the GENERIC SURFACE where zaelar shows what it found. Whoever did the work (a Brain Worker, the
+// browser, the brain) fills it through declared actions; this only RENDERS. It never searches by itself.
 //
-// CUATRO PESTAÑAS (2026-08-12) — porque una búsqueda compleja no es solo su resultado:
-//   · RESULTADOS — las fichas, y el expediente completo de una al abrirla (segunda página, con su "volver").
-//   · SUMARIO    — en qué punto va, cuántos candidatos ha explorado, cuántos quedan, y qué ha hecho.
-//   · FUENTES    — en qué webs ha entrado y QUÉ PASÓ en cada una (entró · le limitaron a 50 · pedía login · error).
-//   · CRITERIOS  — el encargo tal y como se está ejecutando, con las correcciones que el operador fue soltando.
-// La pestaña activa vive en el payload PERSISTIDO (como `view`/`focus`), no en una variable de este fichero: por
-// eso «enséñame de dónde has sacado esto» —una frase de voz, que llega por el cerebro— mueve la pantalla, y por
-// eso la hoja sobrevive a un re-render, a reconectar y a reiniciar. El clic local se pinta YA y además persiste,
-// así que la pestaña no parpadea esperando al servidor pero tampoco se pierde.
+// FOUR TABS (2026-08-12) — because a complex search is not just its result:
+//   · RESULTS — the cards, and a full record when one is opened (second page, with its "back").
+//   · SUMMARY — where the work stands, how many candidates it explored, how many remain, and what it did.
+//   · SOURCES — which websites it entered and WHAT HAPPENED on each one (entered · capped at 50 · required login · error).
+//   · CRITERIA — the task as currently executed, with corrections the operator gave along the way.
+// The active tab lives in the PERSISTED payload (like `view`/`focus`), not in a variable in this file: this is why
+// "show me where you got this from" —a voice phrase that arrives through the brain— moves the screen, and why the
+// sheet survives re-render, reconnect, and restart. The local click is rendered IMMEDIATELY and also persisted, so
+// the tab does not blink waiting for the server and is not lost either.
 //
-// FICHA DINÁMICA. Un barco no se lee como un paper ni como un correo: además de los campos fijos, un item puede
-// traer `blocks` — una lista de piezas de composición de vocabulario CERRADO (text · facts · chips · gallery ·
-// meter · table · link · section). Es la libertad de "una ficha HTML distinta por tipo de resultado" SIN aceptar
-// HTML de un tercero: este payload viene de la web abierta, y todo se pinta con textContent.
+// DYNAMIC RECORD. A boat does not read like a paper or an email: beyond fixed fields, an item may bring `blocks` — a
+// list of composition pieces from a CLOSED vocabulary (text · facts · chips · gallery · meter · table · link ·
+// section). This gives the freedom of "a different HTML record per result type" WITHOUT accepting third-party HTML:
+// this payload comes from the open web, and everything is rendered with textContent.
 //
-// ANCHO FLUIDO. La hoja ya no tiene ancho propio (antes: 620px fijos, así que ponerla a pantalla completa dejaba
-// una columna estrecha en medio de la pantalla). Ocupa el 100% de su tarjeta y el reparto en columnas lo hace el
-// CSS por el ANCHO REAL disponible — con un mínimo por tipo de tarjeta y un TOPE de columnas, así que ni se
-// estrangula al encogerla ni se convierte en ocho columnas de confeti al maximizarla.
+// FLUID WIDTH. The sheet no longer owns its width (before: fixed 620px, so fullscreen left a narrow column in the
+// middle of the screen). It takes 100% of its card and CSS distributes columns by the REAL available width — with a
+// minimum per card type and a column CAP, so it neither strangles when shrunk nor turns into eight confetti columns
+// when maximized.
 //
 // SECURITY: item text is web/3rd-party-sourced → built with textContent ONLY (never innerHTML).
 
@@ -30,8 +30,8 @@ const TABS = [
   {id: "criteria", label: "Criterios"},
 ];
 
-// Estado de una fuente → cómo se dice y de qué color. El vocabulario es cerrado en el backend; aquí solo se
-// traduce. La distinción importa: «no pude entrar» y «entré pero me cortó a 50» son resultados MUY distintos.
+// Source state → how it is phrased and colored. The vocabulary is closed in the backend; here it is only translated.
+// The distinction matters: "could not enter" and "entered but was capped at 50" are VERY different outcomes.
 const SOURCE_STATUS = {
   ok:      {label: "Entró",              cls: "ok"},
   partial: {label: "Entró con límite",   cls: "warn"},
@@ -54,28 +54,28 @@ function injectStyles(){
   if(document.getElementById("hb-results-css"))return;
   const s=document.createElement("style"); s.id="hb-results-css"; s.textContent=`
   /* ─────────────────────────────────────────────────────────────────────────────────────────────────────────────
-     SISTEMA, no números sueltos. La versión anterior acumulaba trece tamaños de letra (10.5, 11, 11.5, 12, 12.5,
-     13, 13.5, 14, 15, 15.5, 18, 21…) y márgenes de 3, 5, 6, 7, 8, 9, 10, 11px elegidos uno a uno: eso no se lee
-     como una superficie, se lee como parches. Aquí hay UNA escala tipográfica de cuatro pasos y UNA rejilla de
-     espaciado de 4px, en variables locales, así que todo cae en el mismo ritmo y un cambio de densidad es una
-     línea. El resto del CSS ya no lleva magnitudes crudas.
-     Los COLORES son todos del contrato --hb-* del tema (nunca hex): la tarjeta se repinta sola al cambiar de tema.
-     OJO al editar: esto es un template literal — nada de acentos graves aquí dentro.
+     SYSTEM, not loose numbers. The previous version accumulated thirteen font sizes (10.5, 11, 11.5, 12, 12.5, 13,
+     13.5, 14, 15, 15.5, 18, 21...) and margins of 3, 5, 6, 7, 8, 9, 10, 11px chosen one by one: that does not read
+     like a surface, it reads like patches. Here there is ONE four-step type scale and ONE 4px spacing grid in local
+     variables, so everything follows the same rhythm and changing density is one line. The rest of CSS no longer
+     carries raw magnitudes.
+     COLORS all come from the theme --hb-* contract (never hex): the card repaints itself on theme changes.
+     CAREFUL when editing: this is a template literal — no backticks inside.
      ───────────────────────────────────────────────────────────────────────────────────────────────────────────── */
   .hb-results{
-    --s1:5px; --s2:9px; --s3:14px; --s4:18px; --s5:26px;      /* rejilla de ~4-5, con más aire (2026-08-12) */
-    --f-micro:11px;                                           /* rótulos en versal, con tracking */
-    --f-sm:13px;                                              /* metadatos, estados (+1.5px) */
-    --f-body:14.5px;                                          /* el cuerpo de todo (+2px, legibilidad) */
-    --f-md:16px;                                              /* título de ficha (+2px) */
+    --s1:5px; --s2:9px; --s3:14px; --s4:18px; --s5:26px;      /* ~4-5 grid, with more air (2026-08-12) */
+    --f-micro:11px;                                           /* uppercase labels, with tracking */
+    --f-sm:13px;                                              /* metadata, states (+1.5px) */
+    --f-body:14.5px;                                          /* body for everything (+2px, readability) */
+    --f-md:16px;                                              /* record title (+2px) */
     --f-lg:19px; --f-xl:23px;                                 /* expediente y cifras del sumario */
     --r-sm:7px; --r-md:10px; --r-lg:13px; --r-pill:99px;       /* radios */
     --line:1px solid var(--hb-line,#e3e8f0);
     font-family:var(--sans,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif);
     color:var(--hb-ink,#0d1622);font-size:var(--f-body);line-height:1.62;
     width:100%;min-width:0;display:flex;flex-direction:column}
-  /* Toda cifra que se COMPARA va en cifras tabulares. En una superficie cuyo trabajo es poner precios y notas
-     unos debajo de otros, dígitos de anchura distinta obligan a releer para saber cuál es mayor. */
+  /* Every COMPARED number uses tabular figures. On a surface whose job is stacking prices and scores, variable-width
+     digits force rereading to know which is greater. */
   .hb-results .hr-price,.hb-results .hr-score,.hb-results .hr-pp,.hb-results .hr-n,
   .hb-results .hr-stat b,.hb-results .hr-sn,.hb-results .hr-tbl td,.hb-results .hr-dprice{
     font-variant-numeric:tabular-nums}
@@ -83,27 +83,27 @@ function injectStyles(){
     font-size:var(--f-micro);font-weight:700;letter-spacing:.06em;text-transform:uppercase;
     color:var(--hb-muted-2,#9aa7b8)}
 
-  /* ── CABECERA FIJA ──────────────────────────────────────────────────────────────────────────────────────────
-     Una hoja de diez resultados se recorre con scroll, y con la cabecera en el flujo las pestañas se iban por
-     arriba justo cuando más falta hacen (mirar la última ficha y saltar a Fuentes). El scroll lo pone la tarjeta
-     (.hb-scroll del canvas); aquí solo nos pegamos a su borde. El fondo OPACO no es decoración: sin él las fichas
-     se leerían por debajo del título al desplazar. */
+  /* ── STICKY HEADER ──────────────────────────────────────────────────────────────────────────────────────────
+     A ten-result sheet is scrolled, and with the header in flow the tabs disappeared upward exactly when they were
+     needed most (look at the last card and jump to Sources). The card provides scrolling (.hb-scroll from canvas);
+     here we only stick to its edge. The OPAQUE background is not decoration: without it, cards would read underneath
+     the title while scrolling. */
   .hb-results .hr-top{position:sticky;top:0;z-index:5;background:var(--hb-bg,#fff);
     padding-top:2px;margin:-2px 0 0}
   .hb-results .hr-hd{font-size:var(--f-md);font-weight:650;letter-spacing:-.01em;margin:0;word-break:break-word}
   .hb-results .hr-sub{font-size:var(--f-sm);color:var(--hb-muted-2,#9aa7b8);margin:var(--s1) 0 0}
-  /* Con la TAREA ya en la cabecera de la tarjeta, el subtítulo es la primera línea de la hoja: sin margen arriba. */
+  /* With the TASK already in the card header, the subtitle is the sheet's first line: no top margin. */
   .hb-results .hr-top>.hr-sub:first-child{margin-top:0}
   .hb-results .hr-sub.clamp2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-  /* Un subtítulo suelto dentro de un panel necesita aire POR DEBAJO: sin él, la línea de contexto («náutica de
-     recreo · amplitud mínima 40») quedaba pegada al rótulo siguiente y se leían como una sola cosa. */
+  /* A standalone subtitle inside a panel needs air BELOW: without it, the context line ("recreational boating ·
+     minimum width 40") stuck to the next label and they read as a single thing. */
   .hb-results .hr-panel>.hr-sub{margin-bottom:var(--s4)}
   .hb-results .hr-panel>.hr-why{margin-bottom:var(--s4)}
 
-  /* ── IDENTIFICADORES DE LA SESIÓN (cabecera) ────────────────────────────────────────────────────────────────
-     El usuario y la sesión de esta instalación, con un botón que copia AMBOS juntos: el operador se los pasa a un
-     agente de código para que audite la sesión (si fue bien/mal, dónde falló). Se muestran ABREVIADOS (con el id
-     completo en el 'title' al pasar por encima) y se COPIAN completos. Del contrato --hb-* del tema. */
+  /* ── SESSION IDENTIFIERS (header) ───────────────────────────────────────────────────────────────────────────
+     User and session for this installation, with a button that copies BOTH together: the operator passes them to a
+     code agent to audit the session (whether it went well/badly, where it failed). Displayed SHORTENED (full id in
+     the hover 'title') and copied in full. From the theme --hb-* contract. */
   .hb-results .hr-ident{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s2);margin-top:var(--s3);
     font-size:var(--f-sm)}
   .hb-results .hr-idbit{display:inline-flex;align-items:center;gap:6px;
@@ -122,7 +122,7 @@ function injectStyles(){
     border-color:color-mix(in srgb,var(--hb-ok,#1f9d55) 42%,transparent);
     background:color-mix(in srgb,var(--hb-ok,#1f9d55) 14%,transparent)}
 
-  /* ── PESTAÑAS ── el subrayado activo hace de continuación de la línea inferior, no de caja aparte. */
+  /* ── TABS ── the active underline continues the bottom line, instead of becoming a separate box. */
   .hb-results .hr-tabs{display:flex;gap:2px;border-bottom:var(--line);margin:var(--s3) 0 var(--s4);
     overflow-x:auto;scrollbar-width:none}
   .hb-results .hr-tabs::-webkit-scrollbar{display:none}
@@ -139,19 +139,19 @@ function injectStyles(){
   .hb-results .hr-tab .hr-n.bad{background:color-mix(in srgb,var(--hb-risk,#e5484d) 15%,transparent);
     color:var(--hb-risk,#e5484d)}
 
-  /* ── REJILLA Y FICHAS ───────────────────────────────────────────────────────────────────────────────────────
-     El filete de acento se queda SOLO en la destacada. Con diez resultados —el nuevo defecto de entrega— diez
-     barras azules en vertical se leen como un código de barras y dejan de destacar nada: si todo grita, no grita
-     nadie. Las demás llevan un hilo de 1px y se levantan al pasar por encima solo si el clic hace algo. */
+  /* ── GRID AND RECORDS ──────────────────────────────────────────────────────────────────────────────────────
+     The accent strip remains ONLY on the featured card. With ten results —the new delivery default— ten vertical
+     blue bars read like a barcode and stop highlighting anything: if everything shouts, nothing shouts. The others
+     carry a 1px line and lift on hover only if clicking does something. */
   .hb-results .hr-grid{display:grid;gap:var(--s3);min-width:0}
   .hb-results .hr-grid + .hr-grid{margin-top:var(--s3)}
   .hb-results .hr-card{position:relative;display:block;text-decoration:none;color:inherit;
     border:var(--line);border-radius:var(--r-lg);padding:var(--s3) var(--s4);background:var(--hb-bg,#fff);
     min-width:0;transition:border-color .15s,box-shadow .15s,transform .15s}
-  /* La destacada se marca con borde y fondo, y punto. Se probó además un filete de color asomando por arriba
-     («pestaña de etiqueta»): con el radio de la tarjeta quedaba como un guion suelto FLOTANDO sobre el borde, o
-     sea un defecto de maquetación. El fondo templado + el borde turquesa + su badge ya la distinguen de nueve
-     hermanas; un adorno más no destacaba mejor, solo añadía algo que podía verse roto. */
+  /* The featured card is marked with border and background, period. A color strip peeking from the top ("label tab")
+     was also tried: with the card radius it looked like a loose dash FLOATING above the border, i.e. a layout defect.
+     The tempered background + turquoise border + badge already distinguish it from nine siblings; one more ornament
+     did not highlight better, it only added something that could look broken. */
   .hb-results .hr-card.primary{border-color:color-mix(in srgb,var(--hb-accent2,#16B8A6) 42%,var(--hb-line,#e3e8f0));
     background:var(--hb-bg-soft,#fbfdff)}
   .hb-results a.hr-card:hover,.hb-results .hr-card.choosable:hover{border-color:var(--hb-accent,#3D6FE0);
@@ -163,19 +163,20 @@ function injectStyles(){
     flex-wrap:wrap}
   .hb-results .hr-t{font-size:var(--f-md);font-weight:650;line-height:1.3;letter-spacing:-.01em;
     word-break:break-word;flex:1 1 8em;min-width:0}
-  /* La destacada NO lleva tamaño propio. Lo llevaba (15.5px, de cuando el cuerpo era 14) y al subir la escala se
-     quedó por DEBAJO del título normal —16px—: la ficha recomendada con la letra más pequeña que sus hermanas. Un
-     número fuera de la escala no se entera de que la escala cambió; hereda y ya destaca por fondo, borde y badge. */
+  /* The featured card does NOT carry its own size. It used to (15.5px, from when body was 14), and when the scale was
+     raised it ended BELOW the normal title —16px—: the recommended card had smaller type than its siblings. A number
+     outside the scale does not know the scale changed; it inherits and already stands out by background, border, and
+     badge. */
   .hb-results .hr-price{flex:none;font-size:var(--f-md);font-weight:700;color:var(--hb-ink,#0d1622);
     white-space:nowrap;letter-spacing:-.01em}
-  /* El subtítulo NO grita (no es turquesa ni negrita: en una ficha solo un dato gana, y ese es el precio), pero
-     SÍ tiene que leerse: el gris claro sobre blanco entre acentos azules era justo el contraste flojo que costaba
-     leer (2026-08-12). Sube a un tono casi-tinta, contexto pero nítido. */
+  /* The subtitle does NOT shout (not turquoise or bold: in one card only one fact wins, and that is the price), but it
+     DOES need to read: light gray on white between blue accents was exactly the weak contrast that was hard to read
+     (2026-08-12). Raise it to a near-ink tone: context, but crisp. */
   .hb-results .hr-s{font-size:var(--f-sm);color:color-mix(in srgb,var(--hb-ink,#0d1622) 74%,var(--hb-muted,#5f6b7c))}
-  /* Subtítulo y badge en la MISMA línea, alineados por su base: es la fila de metadatos del resultado. */
+  /* Subtitle and badge on the SAME line, baseline-aligned: this is the result metadata row. */
   .hb-results .hr-metarow{display:flex;flex-wrap:wrap;align-items:center;gap:var(--s1) var(--s2);
     margin-top:var(--s2)}
-  /* El cuerpo se lee en TINTA, no en gris: es el texto del resultado, no un pie de página. */
+  /* Body reads in INK, not gray: it is result text, not a footnote. */
   .hb-results .hr-ln{font-size:var(--f-body);color:var(--hb-ink,#0d1622);margin-top:var(--s1);
     overflow-wrap:break-word}
   .hb-results .hr-ln.strong{color:var(--hb-ink,#0d1622);font-weight:600}
@@ -191,10 +192,10 @@ function injectStyles(){
   .hb-results .hr-chosen-tag{display:inline-block;font-size:var(--f-sm);font-weight:700;
     color:var(--hb-accent2,#16B8A6);margin-top:var(--s2)}
 
-  /* ── PIEZAS de una propuesta compuesta ── una fila etiquetada cada una, para comparar propuesta a propuesta. */
+  /* ── PIECES of a composite proposal ── one labeled row each, to compare proposal by proposal. */
   .hb-results .hr-parts{margin-top:var(--s3);padding-top:var(--s3);border-top:var(--line);display:grid;gap:var(--s2)}
-  /* wrap + min-width: en una ficha estrecha el precio (nowrap, empujado a la derecha) estrangulaba el título
-     hasta partirlo letra a letra («Valenci / a → / Palma»). Con wrap el precio baja de línea entero. */
+  /* wrap + min-width: in a narrow card the price (nowrap, pushed to the right) strangled the title until it split
+     letter by letter ("Valenci / a → / Palma"). With wrap, the price moves down as a whole line. */
   .hb-results .hr-part{display:flex;flex-wrap:wrap;align-items:baseline;gap:var(--s1) var(--s2);
     font-size:var(--f-body);line-height:1.4}
   .hb-results .hr-pk{flex:none;background:var(--hb-bubble,#f1f4f9);border-radius:var(--r-sm);padding:2px 6px;
@@ -207,7 +208,7 @@ function injectStyles(){
   .hb-results .hr-more:hover{border-color:var(--hb-accent,#3D6FE0);
     background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 8%,transparent)}
 
-  /* ── VALORACIÓN ── la nota junto al título; el porqué, en el expediente. Sin el porqué no se puede discutir. */
+  /* ── RATING ── score next to the title; the reason in the record. Without the reason, it cannot be discussed. */
   .hb-results .hr-score{flex:none;display:inline-flex;align-items:baseline;gap:1px;font-weight:700;
     font-size:var(--f-sm);color:var(--hb-accent,#3D6FE0);
     background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 10%,transparent);
@@ -217,11 +218,11 @@ function injectStyles(){
     margin:var(--s2) 0 var(--s1);overflow:hidden}
   .hb-results .hr-bar i{display:block;height:100%;border-radius:var(--r-pill);
     background:linear-gradient(90deg,var(--hb-accent,#3D6FE0),var(--hb-accent2,#16B8A6))}
-  /* El PORQUÉ es texto de cuerpo, se lee en tinta: gris claro entre pastillas azules era el combo azul+gris+blanco
-     que costaba leer (2026-08-12). Un pelín de aire arriba para separarlo de la barra. */
+  /* The WHY is body text and reads in ink: light gray between blue pills was the blue+gray+white combo that was hard
+     to read (2026-08-12). A little air above separates it from the bar. */
   .hb-results .hr-why{font-size:var(--f-body);color:var(--hb-ink,#0d1622);margin-top:var(--s1)}
 
-  /* ── BLOQUES de la ficha a medida ── */
+  /* ── BLOCKS for the custom record ── */
   .hb-results .hr-blocks{display:grid;gap:var(--s3);margin-top:var(--s3)}
   .hb-results .hr-bt{margin-bottom:var(--s1)}
   .hb-results .hr-chips{display:flex;flex-wrap:wrap;gap:5px}
@@ -230,8 +231,8 @@ function injectStyles(){
   .hb-results .hr-strip{display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:5px}
   .hb-results .hr-strip img{width:100%;height:62px;object-fit:cover;border-radius:var(--r-sm);
     background:var(--hb-bubble,#f1f4f9)}
-  /* La tabla va en su PROPIO contenedor con scroll: hacerla display:block para que desbordara le quitaba su
-     comportamiento de tabla (las columnas dejaban de alinearse entre filas, que es todo lo que aporta). */
+  /* The table lives in its OWN scroll container: making it display:block to overflow removed its table behavior (the
+     columns stopped aligning across rows, which is the whole point of a table). */
   .hb-results .hr-tblwrap{overflow-x:auto;scrollbar-width:thin}
   .hb-results .hr-tbl{border-collapse:collapse;font-size:var(--f-body);min-width:100%}
   .hb-results .hr-tbl th,.hb-results .hr-tbl td{text-align:left;padding:5px var(--s3) 5px 0;
@@ -243,11 +244,11 @@ function injectStyles(){
   .hb-results .hr-sub-sec{border-left:2px solid var(--hb-line,#e3e8f0);padding-left:var(--s3);display:grid;
     gap:var(--s2)}
 
-  /* ── FICHA DE DATOS (compartida por tarjeta, expediente y bloques) ──
-     Va en un PANEL templado con su propio color, no como texto suelto sobre el fondo: separa los datos duros del
-     resto de la tarjeta y le da el "juego" de color que se pidió (2026-08-12), sin gritar. La ETIQUETA en acento
-     (no en gris claro): así el par etiqueta→valor se lee como acento→tinta, con contraste, en vez de gris+azul+
-     blanco revueltos. El VALOR siempre en tinta. */
+  /* ── DATA SHEET (shared by card, record, and blocks) ──
+     It sits in a tempered PANEL with its own color, not as loose text on the background: it separates hard data from
+     the rest of the card and gives the requested color "play" (2026-08-12), without shouting. LABEL in accent (not
+     light gray): this way the label→value pair reads as accent→ink, with contrast, instead of muddled
+     gray+blue+white. VALUE always in ink. */
   .hb-results .hr-facts{display:grid;grid-template-columns:auto 1fr;gap:var(--s1) var(--s3);
     margin:var(--s3) 0;font-size:var(--f-body);min-width:0;
     background:color-mix(in srgb,var(--hb-accent,#3D6FE0) 5%,var(--hb-bg-soft,#fbfdff));
@@ -255,10 +256,10 @@ function injectStyles(){
     border-radius:var(--r-md);padding:var(--s3) var(--s4)}
   .hb-results .hr-fl{color:var(--hb-accent,#3D6FE0);font-weight:600}
   .hb-results .hr-fv{color:var(--hb-ink,#0d1622);word-break:break-word}
-  /* En un bloque 'facts' (renderBlock) el panel ya lo envuelve el propio bloque: ahí la ficha va sin caja doble. */
+  /* In a 'facts' block (renderBlock), the block already wraps the panel: there the sheet uses no double box. */
   .hb-results .hr-blocks .hr-facts{background:none;border:none;padding:0}
 
-  /* ── EXPEDIENTE (página 2) ── */
+  /* ── RECORD (page 2) ── */
   .hb-results .hr-back{display:inline-flex;align-items:center;gap:5px;font:600 var(--f-sm)/1 inherit;
     color:var(--hb-muted,#5f6b7c);background:none;border:none;padding:0 0 var(--s3);cursor:pointer}
   .hb-results .hr-back:hover{color:var(--hb-accent,#3D6FE0)}
@@ -296,7 +297,7 @@ function injectStyles(){
   .hb-results .hr-stat.dim b{color:var(--hb-muted-2,#9aa7b8)}
   .hb-results .hr-stat.warn{border-color:color-mix(in srgb,var(--hb-warn,#c98a00) 34%,var(--hb-line,#e3e8f0))}
   .hb-results .hr-stat.warn b{color:var(--hb-warn-ink,#9a5b1b)}
-  /* Bitácora: una línea de tiempo con el hito ACTUAL marcado — leer «por dónde va» no debería exigir contar. */
+  /* Logbook: a timeline with the CURRENT milestone marked — reading "where it is" should not require counting. */
   .hb-results .hr-steps{list-style:none;margin:var(--s2) 0 0;padding:0;display:grid}
   .hb-results .hr-steps li{position:relative;padding:0 0 var(--s3) var(--s4);color:var(--hb-muted,#5f6b7c)}
   .hb-results .hr-steps li::before{content:"";position:absolute;left:2px;top:6px;width:6px;height:6px;
@@ -327,8 +328,8 @@ function injectStyles(){
   .hb-results .hr-sn{text-align:right;font-size:var(--f-md);font-weight:700;color:var(--hb-ink,#0d1622);
     white-space:nowrap;line-height:1.2}
   .hb-results .hr-sn.zero{color:var(--hb-muted-2,#9aa7b8)}
-  /* La unidad se repite en cada fila, así que va en minúscula y sin tracking: en versalitas competía en peso con
-     la propia cifra y seis «RESULTADOS» seguidos gritaban más que los números, que es lo que hay que leer. */
+  /* The unit repeats on every row, so it is lowercase and without tracking: in small caps it competed in weight with
+     the number itself, and six "RESULTS" in a row shouted more than the numbers, which are what must be read. */
   .hb-results .hr-sn small{display:block;font-size:var(--f-micro);font-weight:500;
     color:var(--hb-muted-2,#9aa7b8);margin-top:1px}
 
@@ -351,7 +352,7 @@ function injectStyles(){
   `; document.head.appendChild(s);
 }
 
-// ── primitivas seguras ────────────────────────────────────────────────────────────────────────────────────────
+// ── safe primitives ─────────────────────────────────────────────────────────────────────────────────────────
 function elem(tag, cls, text){
   const e=document.createElement(tag);
   if(cls) e.className=cls;
@@ -359,9 +360,9 @@ function elem(tag, cls, text){
   return e;
 }
 
-// ── IDENTIFICADORES de la instalación y la sesión ───────────────────────────────────────────────────────────────
-// Los sirve `GET /api/observability/identity` (abierto en loopback). Se cachea a nivel de módulo: el header se
-// repinta en cada refresco de datos y no tiene sentido re-preguntar quién soy en cada uno.
+// ── installation and session identifiers ─────────────────────────────────────────────────────────────────────
+// Served by `GET /api/observability/identity` (open on loopback). Cached at module level: the header repaints on each
+// data refresh and there is no point asking who I am every time.
 let IDENT = null, IDENT_PROMISE = null;
 function fetchIdentity(){
   if(IDENT) return Promise.resolve(IDENT);
@@ -378,9 +379,9 @@ function shortId(id){
   return id.length > 13 ? id.slice(0,8) + "…" : (id || "—");
 }
 
-// La tira de la cabecera: Usuario · Sesión · Copiar. El botón copia AMBOS ids COMPLETOS, en un formato que un
-// agente de código entiende de un vistazo. Se pinta ya (con "…") y se rellena cuando llega el fetch; si no hay
-// identidad (endpoint caído), la tira se retira sola en vez de dejar un hueco vacío.
+// Header strip: User · Session · Copy. The button copies BOTH FULL ids, in a format a code agent understands at a
+// glance. It is painted immediately (with "...") and filled when fetch returns; if there is no identity (endpoint
+// down), the strip removes itself instead of leaving an empty gap.
 function identityStrip(){
   const strip = elem("div","hr-ident");
   const uBit = elem("span","hr-idbit"); const uCode = elem("code","","…"); uBit.append(elem("b","","Usuario"), uCode);
@@ -398,7 +399,7 @@ function identityStrip(){
       const text = `user_id: ${id.user_id||""}\nsession_id: ${id.session_id||""}`;
       let ok = true;
       try{ await navigator.clipboard.writeText(text); }
-      catch(_){                                    // sin Clipboard API (contexto no seguro) → textarea + execCommand
+      catch(_){                                    // no Clipboard API (insecure context) → textarea + execCommand
         try{
           const ta = document.createElement("textarea");
           ta.value = text; ta.style.position = "fixed"; ta.style.opacity = "0";
@@ -437,7 +438,7 @@ function pct(v, max){
   return Math.max(0, Math.min(100, (n/m)*100));
 }
 
-// La VALORACIÓN como etiqueta compacta (para la cabecera de una tarjeta).
+// RATING as a compact label (for a card header).
 function scoreTag(score){
   if(!score) return null;
   if(score.value == null) return score.label ? elem("span","hr-score",score.label) : null;
@@ -447,7 +448,7 @@ function scoreTag(score){
   return tag;
 }
 
-// …y como bloque explicado (para el expediente): la nota, la barra y EL PORQUÉ.
+// ...and as an explained block (for the record): score, bar, and WHY.
 function scoreBlock(score){
   if(!score || (score.value==null && !score.label && !score.why)) return null;
   const box=elem("div","");
@@ -466,9 +467,9 @@ function scoreBlock(score){
   return box;
 }
 
-// ── FICHA DINÁMICA: los bloques ───────────────────────────────────────────────────────────────────────────────
-// Vocabulario cerrado, saneado ya en data.py. Cada bloque se pinta con primitivas nuestras: el worker compone la
-// ficha que necesita su tipo de resultado, pero no aporta ni una etiqueta de HTML.
+// ── DYNAMIC RECORD: blocks ──────────────────────────────────────────────────────────────────────────────────
+// Closed vocabulary, already sanitized in data.py. Each block is rendered with our primitives: the worker composes
+// the record its result type needs, but does not provide even one HTML tag.
 function renderBlock(b, depth){
   if(!b || !b.kind) return null;
   const wrap=elem("div","");
@@ -500,9 +501,8 @@ function renderBlock(b, depth){
       break;
     }
     case "table": {
-      // La tabla vive en su PROPIO contenedor con scroll. Antes se le ponía `display:block` para que desbordara,
-      // y eso le quita su comportamiento de tabla: las columnas dejan de alinearse entre filas, que es lo único
-      // que aporta una tabla sobre una lista.
+      // The table lives in its OWN scroll container. It used to get `display:block` to overflow, and that removes its
+      // table behavior: columns stop aligning across rows, which is the only thing a table adds over a list.
       const box=elem("div","hr-tblwrap");
       const t=elem("table","hr-tbl");
       if(b.columns && b.columns.length){
@@ -532,12 +532,12 @@ function renderBlock(b, depth){
   return wrap.childElementCount ? wrap : null;
 }
 
-// En la LISTA no cabe el expediente. Visto en pantalla: una ficha con su tabla de costes, su medidor y su sección
-// de documentación ocupaba la tarjeta ENTERA, y con diez resultados —el defecto de entrega desde el 2026-08-12— la
-// lista deja de poder BARRERSE, que es lo único que una lista tiene que saber hacer. Así que la lista se queda con
-// los bloques LIGEROS y el resto es lo que uno va a buscar al abrir la ficha.
-// La excepción es un `text` con tono de AVISO: una salvedad importante escondida detrás de un clic es justo lo que
-// prohíbe la regla de presentación («nada importante al final de un campo largo»).
+// The LIST has no room for the full record. Seen on screen: a card with its cost table, meter, and documentation
+// section occupied the ENTIRE card, and with ten results —the delivery default since 2026-08-12— the list stops being
+// SCANNABLE, which is the only thing a list must do. So the list keeps LIGHT blocks and the rest is what you open the
+// record to inspect.
+// The exception is `text` with WARNING tone: an important caveat hidden behind a click is exactly what the
+// presentation rule forbids ("nothing important at the end of a long field").
 const LIGHT_BLOCKS = new Set(["chips"]);
 function isLight(b){
   if(!b) return false;
@@ -553,12 +553,12 @@ function renderBlocks(blocks, {compact = false} = {}){
   return box.childElementCount ? box : null;
 }
 
-// ── reparto en columnas: lo decide el ANCHO REAL, no un parámetro adivinado ────────────────────────────────────
-// Antes la hoja tenía 620px fijos y el nº de columnas se calculaba a ojo desde la forma del contenido. Ahora la
-// tarjeta es redimensionable (y puede ir a pantalla completa), así que quien manda es el ancho disponible: cada
-// columna tiene un MÍNIMO según lo rica que sea la tarjeta y hay un TOPE de columnas para que maximizar no
-// produzca ocho columnas de confeti. Se expresa en CSS puro (`auto-fill` + `minmax` con un suelo de 100%/tope),
-// así que reflowea sola al arrastrar la esquina — sin medir nada desde JS ni escuchar resizes.
+// ── column distribution: decided by REAL WIDTH, not a guessed parameter ──────────────────────────────────────
+// The sheet used to have a fixed 620px width and the number of columns was eyeballed from content shape. Now the card
+// is resizable (and can go fullscreen), so available width rules: each column has a MINIMUM based on how rich the card
+// is and there is a column CAP so maximizing does not create eight confetti columns. Expressed in pure CSS
+// (`auto-fill` + `minmax` with a 100%/cap floor), so it reflows by itself when dragging the corner — without measuring
+// anything from JS or listening to resizes.
 function gridStyle(items, cap){
   const rich = items.some(it => it && (
     (it.parts && it.parts.length) ||
@@ -573,15 +573,15 @@ function gridStyle(items, cap){
   const n = Number(cap);
   if(Number.isFinite(n) && n >= 1) maxCols = Math.min(maxCols, Math.floor(n));
   maxCols = Math.max(1, maxCols);
-  // El HUECO sale de la MISMA variable que lo pinta (`--s3`), no de un número copiado aquí. Tenerlo dos veces
-  // costó una columna: al subir la rejilla de 12 a 14px, este cálculo siguió restando 12, así que el suelo de cada
-  // pista quedaba 2px por encima de lo que de verdad cabía y `auto-fill` bajaba de dos columnas a UNA en una hoja
-  // de 1.420px. Un desajuste de dos píxeles que se ve como «maximizar ya no aprovecha el ancho».
+  // The GAP comes from the SAME variable that paints it (`--s3`), not from a copied number here. Having it twice cost
+  // one column: when the grid rose from 12 to 14px, this calculation kept subtracting 12, so each track floor was 2px
+  // above what truly fit and `auto-fill` dropped from two columns to ONE on a 1,420px sheet. A two-pixel mismatch that
+  // appears as "maximize no longer uses the width".
   const floor = `calc((100% - ${maxCols - 1} * var(--s3)) / ${maxCols})`;
   return `repeat(auto-fill,minmax(max(min(100%,${min}px),${floor}),1fr))`;
 }
 
-// ── una tarjeta ───────────────────────────────────────────────────────────────────────────────────────────────
+// ── one card ────────────────────────────────────────────────────────────────────────────────────────────────
 function makeCard(it, isPrimary, choose, ctx){
   const parts = Array.isArray(it.parts) ? it.parts : [];
   const blocks = Array.isArray(it.blocks) ? it.blocks : [];
@@ -600,14 +600,14 @@ function makeCard(it, isPrimary, choose, ctx){
   const sc = scoreTag(it.score); if(sc) head.appendChild(sc);
   if(it.price) head.appendChild(elem("div","hr-price", it.price));
   card.appendChild(head);
-  // El BADGE va con el título, no al pie. Es una etiqueta que CALIFICA el resultado («Mejor conjunto»), y abajo
-  // acababa junto al botón de detalle, donde se leía como un segundo botón.
+  // The BADGE goes with the title, not the footer. It is a label that QUALIFIES the result ("Best set"), and below it
+  // ended up next to the detail button, where it read like a second button.
   const meta = elem("div","hr-metarow");
   if(it.subtitle) meta.appendChild(elem("span","hr-s", it.subtitle));
   if(it.badge) meta.appendChild(elem("span","hr-badge", it.badge));
   if(meta.childElementCount) card.appendChild(meta);
   // 80 lines (data.py's cap) so a full block of text — e.g. a song's lyrics — fits in one item's body, not just
-  // a handful of spec-sheet bullets (2026-08-03). En la lista se acotan: el bloque entero es del expediente.
+  // a handful of spec-sheet bullets (2026-08-03). In the list they are bounded: the full block belongs to the record.
   (Array.isArray(it.lines) ? it.lines : []).slice(0, hasDetail ? 3 : 80)
     .forEach(l=>card.appendChild(elem("div","hr-ln", l)));
 
@@ -647,9 +647,9 @@ function makeCard(it, isPrimary, choose, ctx){
   return card;
 }
 
-// ── página 2: UN item, en full ────────────────────────────────────────────────────────────────────────────────
-// Esto es lo que pinta "enséñame en detalle la propuesta uno": cada foto, cada dato, LA VALORACIÓN con su porqué,
-// la ficha dinámica entera y cada pieza del paquete desplegada con su precio, horarios y enlace real.
+// ── page 2: ONE item, in full ────────────────────────────────────────────────────────────────────────────────
+// This renders "show me proposal one in detail": every photo, every datum, THE RATING with its reason, the whole
+// dynamic record, and each package piece expanded with its price, times, and real link.
 function renderDetail(panel, it, ctx){
   const back=elem("button","hr-back","← Volver a la lista"); back.type="button";
   back.addEventListener("click", async ()=>{ await ctx.action("list", {}); });
@@ -662,8 +662,8 @@ function renderDetail(panel, it, ctx){
   if(it.badge) dmeta.appendChild(elem("span","hr-badge", it.badge));
   if(dmeta.childElementCount) panel.appendChild(dmeta);
 
-  // LA VALORACIÓN va ARRIBA, antes de las fotos: es el VEREDICTO. Debajo de la galería se leía como un dato más
-  // al final de la ficha, cuando es justo lo que responde «¿por qué esta y no otra?».
+  // THE RATING goes ABOVE, before photos: it is the VERDICT. Below the gallery it read like one more datum at the end
+  // of the record, when it is exactly what answers "why this one and not another?"
   const sb=scoreBlock(it.score);
   if(sb){ const sec=elem("div","hr-sec"); sec.appendChild(sb); panel.appendChild(sec); }
 
@@ -709,7 +709,7 @@ function findFocused(items, focus){
       || null;
 }
 
-// ── PESTAÑA 1 · RESULTADOS ────────────────────────────────────────────────────────────────────────────────────
+// ── TAB 1 · RESULTS ─────────────────────────────────────────────────────────────────────────────────────────
 function paintResults(panel, data, ctx){
   const items = Array.isArray(data.items) ? data.items : [];
 
@@ -730,7 +730,7 @@ function paintResults(panel, data, ctx){
   const rest = all.filter(it => !it || !it.primary);
   const choose = data.choosable ? { root: panel, ctx, chosenTitle: data.chosen } : null;
 
-  // primary items: comparten la fila de arriba y mandan sobre el ancho (una destacada ocupa la hoja entera).
+  // primary items: share the top row and decide width (one featured item occupies the whole sheet).
   if(primary.length){
     const pgrid = elem("div","hr-grid");
     pgrid.style.gridTemplateColumns = gridStyle(primary, primary.length === 1 ? 1 : 2);
@@ -754,9 +754,9 @@ function paintResults(panel, data, ctx){
   }
 }
 
-// ── PESTAÑA 2 · SUMARIO ───────────────────────────────────────────────────────────────────────────────────────
-// Lo REPORTADO y lo DERIVADO se pintan por separado a propósito: «explorados» solo lo sabe quien trabajó, y si
-// nadie lo dijo la pestaña lo DICE en vez de enseñar el número de tarjetas como si fuera la amplitud.
+// ── TAB 2 · SUMMARY ─────────────────────────────────────────────────────────────────────────────────────────
+// REPORTED and DERIVED data are rendered separately on purpose: "explored" is only known by the worker, and if nobody
+// said it the tab SAYS so instead of showing the number of cards as if it were the breadth.
 function paintSummary(panel, data){
   const s = data.summary || {}, c = data.counts || {};
   const hasAny = Object.keys(s).length || c.shown || c.sources;
@@ -785,9 +785,9 @@ function paintSummary(panel, data){
   add(c.shown || 0, "en pantalla");
   if(s.discarded != null) add(s.discarded, "descartados");
   if(c.sources) add(c.sources, "fuentes");
-  // Las fuentes con problema van en su PROPIA casilla y en color de aviso. Metidas en la etiqueta de «fuentes»
-  // hacían un rótulo de dos líneas («FUENTES · 3 CON / PROBLEMA») que rompía la fila, y además escondían dentro
-  // del pie de otro número el único dato de aquí que pide una decisión del operador.
+  // Problem sources go in their OWN cell and warning color. Stuffed into the "sources" label, they made a two-line
+  // label ("SOURCES · 3 WITH / PROBLEM") that broke the row, and also hid the only datum here that asks the operator
+  // for a decision inside another number's footer.
   if(c.sources_failed) add(c.sources_failed, "sin aprovechar", "warn");
   if(s.round && s.round > 1) add(s.round, "ronda");
   panel.appendChild(stats);
@@ -802,9 +802,9 @@ function paintSummary(panel, data){
   }
 }
 
-// ── PESTAÑA 3 · FUENTES ───────────────────────────────────────────────────────────────────────────────────────
-// De dónde salen los datos y QUÉ pasó en cada sitio. Es lo que convierte un «no he encontrado nada» en un dato
-// que se puede auditar y corregir («entra tú en esa, que pide login»).
+// ── TAB 3 · SOURCES ─────────────────────────────────────────────────────────────────────────────────────────
+// Where data comes from and WHAT happened at each site. This turns "I found nothing" into data that can be audited
+// and corrected ("you enter that one, it asks for login").
 function paintSources(panel, data){
   const src = Array.isArray(data.sources) ? data.sources : [];
   if(!src.length){
@@ -818,8 +818,8 @@ function paintSources(panel, data){
     `${src.length} fuente${src.length===1?"":"s"}`
     + (c.sources_failed ? ` · ${c.sources_failed} sin poder aprovechar` : "")
     + (c.from_sources ? ` · ${c.from_sources} resultados reunidos` : "")));
-  // Las que NO se pudieron aprovechar, PRIMERO. Son las que piden una decisión del operador («esa pide login,
-  // entro yo»); las que fueron bien solo necesitan estar contadas. Orden estable dentro de cada grupo.
+  // Sources that could NOT be used, FIRST. They are the ones asking for an operator decision ("that one asks for
+  // login, I will enter"); successful ones only need to be counted. Stable order within each group.
   const rank = {bad: 0, warn: 1, idle: 2, ok: 3};
   const ordered = src.map((s, i) => [s, i]).sort((a, b) => {
     const ra = rank[(SOURCE_STATUS[a[0].status] || SOURCE_STATUS.ok).cls] ?? 3;
@@ -851,9 +851,9 @@ function paintSources(panel, data){
   panel.appendChild(list);
 }
 
-// ── PESTAÑA 4 · CRITERIOS ─────────────────────────────────────────────────────────────────────────────────────
-// El encargo tal y como se está ejecutando AHORA. No es el histórico de la conversación: es con qué se está
-// buscando en este momento, para poder verlo y corregirlo («que sean de 42 a 49 pies»).
+// ── TAB 4 · CRITERIA ────────────────────────────────────────────────────────────────────────────────────────
+// The task as it is being executed NOW. Not the conversation history: the active search criteria at this moment, so
+// they can be seen and corrected ("make them 42 to 49 feet").
 function paintCriteria(panel, data){
   const c = data.criteria || {};
   const any = c.goal || CRIT_SECTIONS.some(s=>Array.isArray(c[s.key]) && c[s.key].length);
@@ -887,10 +887,10 @@ function paintCriteria(panel, data){
 
 const PAINT = {results: paintResults, summary: paintSummary, sources: paintSources, criteria: paintCriteria};
 
-// ¿Esta pintada es una NAVEGACIÓN o un refresco de datos? Importa para el scroll: «Ver detalle →» vive al final
-// de una tarjeta, así que sin volver arriba el expediente se abre por la mitad (y saltar de pestaña te dejaba a
-// media lista). Pero un `append` del worker mientras el operador lee NO puede moverle la página. Se compara solo
-// la posición en la hoja —pestaña y página—, nunca el contenido. WeakMap: si la tarjeta muere, esto se va con ella.
+// Is this paint a NAVIGATION or a data refresh? It matters for scroll: "View detail →" lives at the end of a card, so
+// without returning to top the record opens halfway down (and switching tabs left you mid-list). But a worker `append`
+// while the operator is reading must NOT move the page. Compare only the sheet position —tab and page—, never content.
+// WeakMap: if the card dies, this goes with it.
 const WHERE = new WeakMap();
 function navigated(el, data, cur){
   const now = [cur, data.view || "list", data.focus || ""].join("|");
@@ -899,8 +899,8 @@ function navigated(el, data, cur){
   return was !== undefined && was !== now;
 }
 
-// Contador que se pinta en cada pestaña. Solo cuando dice algo: un «0» en cuatro pestañas es ruido, y un número
-// rojo en Fuentes es justo lo que hace mirar («3 webs no me dejaron entrar»).
+// Counter painted on each tab. Only when it says something: a "0" on four tabs is noise, and a red number on Sources
+// is exactly what draws attention ("3 sites did not let me in").
 function tabCount(id, data){
   const c = data.counts || {}, s = data.summary || {};
   if(id === "results") return c.shown ? {n: c.shown} : null;
@@ -920,27 +920,26 @@ export function render(el, data, ctx){
   el.className = "hb-results";
   el.textContent = "";
 
-  // Título y pestañas van juntos en una cabecera PEGAJOSA: con varias decenas de resultados la hoja se recorre
-  // con scroll y las pestañas tienen que seguir ahí (mirar la última ficha y saltar a Fuentes es un caso normal).
+  // Title and tabs live together in a STICKY header: with several dozen results the sheet scrolls and tabs must stay
+  // there (looking at the last card and jumping to Sources is a normal case).
   const top = elem("div","hr-top");
-  // EL TÍTULO SE DICE UNA VEZ. Si la tarjeta ya lleva la TAREA en su cabecera (el canvas lo marca con
-  // `data-host-title` cuando el manifest declara `live_title`), repetirla aquí en cuerpo mayor era el mismo texto
-  // dos veces a 4px de diferencia: ruido, y una línea de alto perdida en la parte más valiosa de la hoja. Se
-  // conserva el pintado propio como RESPALDO: si algún día esta superficie se monta sin la cabecera del canvas, la
-  // tarea no puede desaparecer de la pantalla.
+  // THE TITLE IS SAID ONCE. If the card already carries the TASK in its header (canvas marks it with
+  // `data-host-title` when the manifest declares `live_title`), repeating it here in larger body text was the same
+  // text twice 4px apart: noise, and one lost line of height in the most valuable part of the sheet. Own rendering is
+  // kept as BACKUP: if this surface is ever mounted without the canvas header, the task cannot disappear.
   if(el.dataset.hostTitle !== "1"){
     top.appendChild(elem("div","hr-hd", data.title || "Resultados"));
   }
   if(data.subtitle){
-    // La cabecera es PEGAJOSA: cada línea que ocupa se la quita a los resultados en TODO el scroll. Un subtítulo
-    // real («8 anuncios reales del Levante (SUV, ~5,00 m largo…), de coches.net y coches.com. Ordenados de…»)
-    // llegaba a tres líneas. Se acota a DOS en pantalla y el texto íntegro queda en el tooltip: se controla el
-    // espacio sin perder el dato, que es distinto de recortarlo.
+    // The header is STICKY: every line it occupies is taken away from results throughout scrolling. A real subtitle
+    // ("8 real listings from Levante (SUV, ~5.00 m long...), from coches.net and coches.com. Ordered by...") reached
+    // three lines. Bound to TWO on screen and keep the full text in the tooltip: control space without losing data,
+    // which is different from clipping it.
     const sub = elem("div","hr-sub clamp2", data.subtitle);
     sub.title = data.subtitle;
     top.appendChild(sub);
   }
-  // Identificadores de usuario/sesión + Copiar: para pasárselos a un agente que audite esta sesión.
+  // User/session identifiers + Copy: to pass them to an agent auditing this session.
   top.appendChild(identityStrip());
 
   let cur = TABS.some(t=>t.id===data.tab) ? data.tab : "results";
@@ -962,9 +961,9 @@ export function render(el, data, ctx){
     b.addEventListener("click", ()=>{
       if(cur===t.id) return;
       cur=t.id;
-      // Se pinta YA (la pestaña no puede parpadear esperando al servidor) y ADEMÁS se persiste, porque el estado
-      // de esta hoja no vive en el navegador: así el cerebro sabe qué está mirando el operador y una recarga o un
-      // «vuelve a los resultados» por voz siguen cuadrando con la pantalla.
+      // Paint IMMEDIATELY (the tab cannot blink while waiting for the server) and ALSO persist, because this sheet's
+      // state does not live in the browser: this way the brain knows what the operator is looking at, and a reload or
+      // "go back to results" by voice still matches the screen.
       paint(true);
       if(ctx && ctx.action) ctx.action("tab", {tab: t.id});
     });

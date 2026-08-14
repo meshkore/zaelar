@@ -1,12 +1,12 @@
 #
-# brief.py — lo que el BRAIN necesita saber de la mensajería: el protocolo de tags [[msg.*]] + la lista NUMERADA
-# viva del store unificado (WhatsApp + Telegram + …), AGRUPADA POR CHAT (2026-07-08) — la misma agrupación que ve
-# el operador en el widget. Cuando NO hay ningún chat abierto, la lista numerada es de CHATS (uno por conversación,
-# con cuántos mensajes tiene pendientes) y el N direcciona [[msg.open:N]]/[[msg.readchat:N]]. Cuando el operador
-# (o una voz anterior) abrió un chat, la lista numerada pasa a ser la de MENSAJES de ESE chat y el N direcciona
-# [[msg.read:N]]/[[msg.dismiss:N]] — son dos numeraciones DISTINTAS, nunca activas a la vez.
+# brief.py — what the BRAIN needs to know about messaging: the [[msg.*]] tag protocol + the live NUMBERED list from
+# the unified store (WhatsApp + Telegram + ...), GROUPED BY CHAT (2026-07-08) — the same grouping the operator sees
+# in the widget. When NO chat is open, the numbered list is CHATS (one per conversation, with its pending count) and
+# N targets [[msg.open:N]]/[[msg.readchat:N]]. When the operator (or prior voice turn) opened a chat, the numbered
+# list becomes MESSAGES for THAT chat and N targets [[msg.read:N]]/[[msg.dismiss:N]] — two DIFFERENT numberings,
+# never active at the same time.
 #
-# COMPACTO y NO BLOQUEANTE: lee el store unificado (stdlib, rápido); se re-inyecta cada turno. Nunca lanza.
+# COMPACT and NON-BLOCKING: reads the unified store (stdlib, fast); re-injected every turn. Never raises.
 #
 _LABEL = {"whatsapp": "WhatsApp", "telegram": "Telegram", "email": "Email"}
 
@@ -24,7 +24,7 @@ Si el operador se refiere a alguien por nombre ("lo de mi madre", "el chat de fu
 
 
 def _platform_states() -> str:
-    """Una línea por plataforma con su estado de vínculo, para que el brain sepa si hay que enseñar un QR."""
+    """One line per platform with its link state, so the brain knows whether a QR should be shown."""
     try:
         from connectors.whatsapp import service as wa
         wa_on = wa.enabled()
@@ -45,7 +45,7 @@ def _platform_states() -> str:
         plats = store.load().get("platforms", {})
     except Exception:
         plats = {}
-    # Estado por-app: `enabled` = activado por el usuario desde la UI; el status vivo lo escribe el motor.
+    # Per-app state: `enabled` = activated by the user from the UI; live status is written by the engine.
     hint = {"off": "SIN conectar", "no_creds": "sin conectar (falta introducir credenciales)",
             "starting": "arrancando", "connecting": "esperando que escanees el QR", "connected": "conectado"}
     lines = []
@@ -56,8 +56,8 @@ def _platform_states() -> str:
     tail = (" NINGUNA app requiere que el operador toque ficheros: si quiere conectar/ver una app, emite "
             "[[show:mensajeria]] y el widget le GUÍA paso a paso (credenciales si hacen falta → QR). Guíale tú "
             "también de palabra ('te abro Mensajería, ahí tienes los pasos').")
-    # Prefijo con "CONECTORES" (no solo "Mensajería"): el operador pregunta "¿qué conectores tienes activos?" y
-    # el modelo debe mapear ESA pregunta a ESTE dato (que ya lo tiene) en vez de irse a web_search.
+    # Prefix with "CONNECTORS" (not just "Messaging"): the operator asks "which connectors are active?" and the
+    # model must map THAT question to THIS data (which it already has) instead of going to web_search.
     return "[CONECTORES activos (mensajería: WhatsApp/Telegram/Email) — respóndelo de aquí, no lo busques] " \
         + " ".join(lines) + tail
 
@@ -72,8 +72,8 @@ def for_brain() -> str:
 
     active = v.get("active_chat")
     if active:
-        # Chat abierto (por clic o por [[msg.open:N]] de un turno anterior): la lista numerada pasa a ser la de
-        # MENSAJES de ese chat — msg.read/msg.dismiss direccionan aquí, no a la lista de chats.
+        # Open chat (by click or by [[msg.open:N]] from a previous turn): the numbered list becomes the MESSAGES in
+        # that chat — msg.read/msg.dismiss target this list, not the chat list.
         items = v.get("active_items", [])
         plat = _LABEL.get(active.get("platform"), active.get("platform") or "?")
         name = next((it.get("group") or it.get("from") for it in items if it.get("group") or it.get("from")), "?")

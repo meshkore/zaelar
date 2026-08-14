@@ -1,25 +1,24 @@
 #
-# System surfaces — ESPEJO BACKEND de las superficies NATIVAS del frontend (V2-082).
+# System surfaces — BACKEND MIRROR of native frontend surfaces (V2-082).
 #
-# La FUENTE DE VERDAD es `frontend/app/core/system-surfaces.js` (`SYSTEM_SURFACES`): el front es "el cuerpo", su
-# genética viene programada. Este módulo replica SOLO la identidad DIRIGIBLE POR VOZ (id + nombre + alias FIJOS) de
-# esas superficies, para que el resolver de nombres del backend (`widgets/runtime.py::identify`) pueda unificar en un
-# solo espacio de nombres los WIDGETS DE USUARIO (catálogo, alias editables) y las SUPERFICIES DE SISTEMA (alias
-# hardcodeados, NO editables). Así "abre el chat" resuelve al sistema y "abre el widget de mensajería" al catálogo, y
-# jamás se confunden.
+# The SOURCE OF TRUTH is `frontend/app/core/system-surfaces.js` (`SYSTEM_SURFACES`): the front is "the body", its
+# genetics are programmed. This module replicates ONLY the VOICE-ADDRESSABLE identity (id + name + FIXED aliases) of
+# those surfaces, so the backend name resolver (`widgets/runtime.py::identify`) can unify USER WIDGETS (catalog,
+# editable aliases) and SYSTEM SURFACES (hardcoded, NOT editable aliases) in one namespace. Thus "open chat" resolves
+# to system and "open the messaging widget" to the catalog, and they are never confused.
 #
-# Solo se listan las superficies con `name`+`aliases` no nulos en el JS (las dirigibles por voz). Las transitorias /
-# de andamiaje (activity-strip, topbar, connstatus, alert, boot) NO entran — no se abren por nombre.
+# Only surfaces with non-null `name`+`aliases` in JS are listed (voice-addressable ones). Transitional/scaffolding
+# surfaces (activity-strip, topbar, connstatus, alert, boot) do NOT enter — they are not opened by name.
 #
-# INVARIANTE de sincronía: `test_system_surfaces_sync.py` compara este espejo contra el JS y FALLA si divergen —
-# añadir/editar una superficie dirigible obliga a tocar los dos sitios (o el test lo canta). Los alias de sistema son
-# INTOCABLES por el usuario (a diferencia de los de widget); no hay endpoint que los edite.
+# Synchronization INVARIANT: `test_system_surfaces_sync.py` compares this mirror against JS and FAILS if they diverge —
+# adding/editing an addressable surface requires touching both places (or the test calls it out). System aliases are
+# UNTOUCHABLE by the user (unlike widget aliases); there is no endpoint to edit them.
 #
 from __future__ import annotations
 
-# id → {name, aliases}. Réplica EXACTA de las entradas con name!=null de SYSTEM_SURFACES (frontend). El ruteo de las
-# pestañas del chat (Procesos/Crons) NO vive aquí: lo hace la tool show_panel (router._canon_panel) — estos alias del
-# chat abren la superficie (pestaña por defecto).
+# id → {name, aliases}. EXACT replica of entries with name!=null from SYSTEM_SURFACES (frontend). Chat tab routing
+# (Processes/Crons) does NOT live here: tool show_panel does it (router._canon_panel) — these chat aliases open the
+# surface (default tab).
 SYSTEM_SURFACES: dict[str, dict] = {
     "orb": {
         "name": "Orb",

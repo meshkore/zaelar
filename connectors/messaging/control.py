@@ -1,11 +1,11 @@
 #
-# control.py — la lógica de CONECTAR/DESCONECTAR un conector desde la UI (INI-015), en un solo sitio. La usan DOS
-# entradas: (a) la API HTTP (server_api.py, para uso programático) y (b) el supervisor (supervisor.py), que drena
-# las órdenes que el WIDGET encola en el store (el widget solo puede hablar por ctx.action → data.py → store; no
-# puede hacer fetch, por el contrato de aislamiento de widgets). Ambas convergen aquí → una sola verdad.
+# control.py — CONNECT/DISCONNECT logic for a connector from the UI (INI-015), in one place. Used by TWO entries:
+# (a) the HTTP API (server_api.py, for programmatic use) and (b) the supervisor (supervisor.py), which drains orders
+# the WIDGET enqueues in the store (the widget can only speak through ctx.action -> data.py -> store; it cannot fetch,
+# by the widget isolation contract). Both converge here -> one source of truth.
 #
-# "Conectar" = persistir config en el store frontend-managed (config/connectors.py) + arrancar el conector EN
-# CALIENTE. "Desconectar" = pararlo + desactivar (opcionalmente olvidar sesión/credenciales). Nunca toca .env.
+# "Connect" = persist config in the frontend-managed store (config/connectors.py) + start the connector HOT.
+# "Disconnect" = stop it + deactivate it (optionally forget session/credentials). Never touches .env.
 #
 from loguru import logger
 
@@ -22,7 +22,7 @@ def _services():
 
 
 def validate_connect(platform: str, payload: dict) -> str | None:
-    """Devuelve un mensaje de error si la petición de conexión es inválida; None si es válida."""
+    """Return an error message if the connection request is invalid; None if it is valid."""
     if platform not in PLATFORMS:
         return f"unknown platform: {platform}"
     if platform == "telegram":
@@ -44,7 +44,7 @@ def validate_connect(platform: str, payload: dict) -> str | None:
         from connectors.email.mailbox import PRESETS
         if prov not in PRESETS and prov not in ("", "otro", "other"):
             return f"unknown provider: {prov}"
-        # Si no hay preset explícito y el payload no trae hosts, exige que el dominio de la dirección sea deducible.
+        # If there is no explicit preset and the payload has no hosts, require the address domain to be deducible.
         has_hosts = bool(str(p.get("imap_host") or "").strip() and str(p.get("smtp_host") or "").strip())
         if prov not in PRESETS and not has_hosts:
             domain = addr.split("@")[-1].lower()
@@ -57,7 +57,7 @@ def validate_connect(platform: str, payload: dict) -> str | None:
 
 
 async def apply_connect(platform: str, payload: dict | None = None) -> dict:
-    """Persiste config + (re)arranca el conector. Devuelve {ok, ...}. Idempotente ante un conector ya corriendo."""
+    """Persist config + (re)start the connector. Returns {ok, ...}. Idempotent with an already-running connector."""
     payload = payload or {}
     err = validate_connect(platform, payload)
     if err:
@@ -71,7 +71,7 @@ async def apply_connect(platform: str, payload: dict | None = None) -> dict:
         patch.update({"email_address": str(payload.get("email_address") or "").strip(),
                       "email_password": str(payload.get("email_password") or ""),
                       "provider": str(payload.get("provider") or "").strip().lower()})
-        for k in ("imap_host", "imap_port", "smtp_host", "smtp_port"):     # solo si el usuario los dio (proveedor 'otro')
+        for k in ("imap_host", "imap_port", "smtp_host", "smtp_port"):     # only if the user provided them (provider 'other')
             v = payload.get(k)
             if v not in (None, ""):
                 patch[k] = str(v).strip() if "host" in k else int(v)
@@ -81,7 +81,7 @@ async def apply_connect(platform: str, payload: dict | None = None) -> dict:
 
     svc = _services()[platform]
     try:
-        await svc.stop()          # reinicio limpio si ya estaba corriendo (toma la config nueva)
+        await svc.stop()          # clean restart if already running (picks up the new config)
     except Exception:
         pass
     try:
@@ -94,7 +94,7 @@ async def apply_connect(platform: str, payload: dict | None = None) -> dict:
 
 
 async def apply_disconnect(platform: str, payload: dict | None = None) -> dict:
-    """Para el conector + lo desactiva. Con {forget:true} borra sesión (y credenciales de Telegram)."""
+    """Stop the connector + deactivate it. With {forget:true}, delete session (and Telegram credentials)."""
     if platform not in PLATFORMS:
         return {"ok": False, "error": f"plataforma desconocida: {platform}"}
     payload = payload or {}

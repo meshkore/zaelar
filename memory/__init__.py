@@ -1,25 +1,25 @@
-"""memory/ — MEMORIA CENTRAL de zaelar v2 «Colmena» (EPIC-v2-colmena, INI V2-002).
+"""memory/ — zaelar v2 "Hive" CENTRAL MEMORY (EPIC-v2-colmena, INI V2-002).
 
-Módulo **top-level** (hermano de `voice/`, `widgets/`, `bus/`), NO parte del cerebro: es el **substrato
-compartido** que escriben FlashBrain, el agente de memoria del SlowBrain y los widgets, y que lee el
-retriever en la ruta caliente (ms). Memoria **tipo humana**, **100% local**, un solo fichero SQLite
-`zaelar.db` (WAL) — sin servidor ni broker (multiplataforma; móvil a futuro).
+**Top-level** module (sibling of `voice/`, `widgets/`, `bus/`), NOT part of the brain: it is the **shared substrate**
+written by FlashBrain, the SlowBrain memory agent, and widgets, and read by the retriever on the hot path (ms).
+**Human-like**, **100% local** memory, a single SQLite file `zaelar.db` (WAL) — no server or broker (cross-platform;
+mobile in the future).
 
-> Diseño completo (no reabrir): `.meshkore/docs/architecture/zaelar-memory.md`. Esta iniciativa (V2-002)
-> CONSTRUYE ese diseño; la versión pública/curada del diagrama vive en `web/` bajo `/technology/memory`.
+> Full design (do not reopen): `.meshkore/docs/architecture/zaelar-memory.md`. This initiative (V2-002) BUILDS that
+> design; the public/curated diagram version lives in `web/` under `/technology/memory`.
 
-Piezas (se construyen a lo largo de V2-002):
-  - `db.py`          — conexión SQLite (WAL) + carga de sqlite-vec + migraciones.
+Pieces (built throughout V2-002):
+  - `db.py`          — SQLite connection (WAL) + sqlite-vec loading + migrations.
   - `schema.py`      — DDL: state · memories · vec_memories · fts_memories · edges · episodic · journal.
-  - `queue.py`       — cola async: TODAS las escrituras entran aquí.
-  - `writer.py`      — ÚNICO escritor → BD; embeddings locales al insertar.
-  - `embeddings.py`  — cliente de embeddings locales (Ollama embeddinggemma 768 · fallback fastembed).
-  - `retriever.py`   — ruta caliente: vec ∥ fts → RRF → score ponderado → graph_expand.
-  - `state.py`       — tabla fija de estado (lectura µs, sin búsqueda).
-  - `graph.py`       — aristas (link/expand).
-  - `episodic.py`    — ficheros/PDF: resumen embebido buscable + carga lazy del binario.
-  - `consolidator.py`— job "sueño": compresión/dedup/conflictos/decay/eviction.
-  - `api.py`         — fachada pública (write/query/state/reinforce/pin/unpin/link/load_episode/consolidate).
+  - `queue.py`       — async queue: ALL writes enter here.
+  - `writer.py`      — SINGLE writer -> DB; local embeddings on insert.
+  - `embeddings.py`  — local embeddings client (Ollama embeddinggemma 768 · fastembed fallback).
+  - `retriever.py`   — hot path: vec ∥ fts -> RRF -> weighted score -> graph_expand.
+  - `state.py`       — fixed state table (µs read, no search).
+  - `graph.py`       — edges (link/expand).
+  - `episodic.py`    — files/PDF: searchable embedded summary + lazy binary load.
+  - `consolidator.py`— "sleep" job: compression/dedup/conflicts/decay/eviction.
+  - `api.py`         — public facade (write/query/state/reinforce/pin/unpin/link/load_episode/consolidate).
 
-Datos: `memory/_data/zaelar.db` (gitignored). Override por `ZAELAR_DB`.
+Data: `memory/_data/zaelar.db` (gitignored). Override through `ZAELAR_DB`.
 """

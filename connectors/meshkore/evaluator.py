@@ -1,20 +1,20 @@
 #
-# evaluator.py — el CRITERIO de conversación por INTELIGENCIA (V2-075). Genérico: juzga la SALUD de una conversación
-# con CUALQUIER agente leyéndola con un modelo, NO con patrones hardcodeados. Un regex de frases ("Poli", "503",
-# "estamos en fase") solo nos adaptaría a UN peer y fallaría con el siguiente; las formas de degenerar son infinitas
-# (bucle, sinsentido, desajuste de capacidad, bloqueo por dependencia, pasividad, malentendido…). Eso lo decide un
-# modelo, como lo haría un humano que da un paso atrás y valora si la cosa fluye.
+# evaluator.py — INTELLIGENCE-based conversation CRITERION (V2-075). Generic: judges the HEALTH of a conversation
+# with ANY agent by reading it with a model, NOT with hardcoded patterns. A phrase regex ("Poli", "503",
+# "we are in phase") would only adapt us to ONE peer and fail with the next; degeneration can take infinitely many
+# forms (looping, nonsense, capability mismatch, dependency block, passivity, misunderstanding...). A model decides
+# that, the way a human would step back and judge whether things are flowing.
 #
-# Es un EVALUADOR INDEPENDIENTE (2ª perspectiva, no el que conduce) + READ-ONLY: solo emite un veredicto de catálogo
-# CERRADO, sin tools ni acciones → SEGURO sobre contenido no confiable (a diferencia de Susurro con worker_action,
-# que sigue diferido a V2-010). El bridge APLICA el veredicto de forma determinista; la DECISIÓN es del modelo.
+# It is an INDEPENDENT EVALUATOR (2nd perspective, not the one conducting) + READ-ONLY: it only emits a verdict from
+# a CLOSED catalog, with no tools or actions -> SAFE over untrusted content (unlike Susurro with worker_action, still
+# deferred to V2-010). The bridge APPLIES the verdict deterministically; the DECISION belongs to the model.
 #
-# Corre OFF-hot-path (periódico, desde el heartbeat), no en cada turno — un juicio de "paso atrás", no un reflejo.
+# Runs OFF-hot-path (periodically, from the heartbeat), not every turn — a "step back" judgment, not a reflex.
 #
 import json
 import re
 
-# Catálogo CERRADO (el modelo elige de aquí; no inventa acciones).
+# CLOSED catalog (the model chooses from here; it does not invent actions).
 HEALTHS = ("flowing", "stuck", "dead_end", "imbalanced", "off_track")
 ACTIONS = ("continue", "concise", "hand_back", "pause")
 
@@ -40,8 +40,8 @@ _SYSTEM = (
 
 
 def build_messages(window: list[dict], metrics: dict) -> list[dict]:
-    """Compone la petición al evaluador: métricas estructurales (números, objetivas) + la ventana reciente de la
-    conversación como DATO a evaluar. `window` = [{"who":"peer"|"us","text":str}, ...] (orden cronológico)."""
+    """Compose the evaluator request: structural metrics (numeric, objective) + the recent conversation window as
+    DATA to evaluate. `window` = [{"who":"peer"|"us","text":str}, ...] (chronological order)."""
     lines = []
     for m in window[-12:]:
         who = "PEER" if m.get("who") == "peer" else "NOSOTROS"
@@ -57,7 +57,7 @@ def build_messages(window: list[dict], metrics: dict) -> list[dict]:
 
 
 def parse(out: str) -> dict:
-    """Extrae y VALIDA el veredicto contra el catálogo cerrado. Fail-open a continue si no encaja."""
+    """Extract and VALIDATE the verdict against the closed catalog. Fail open to continue if it does not fit."""
     default = {"health": "flowing", "action": "continue", "reason": "sin veredicto (fail-open)"}
     if not out:
         return default
@@ -76,8 +76,8 @@ def parse(out: str) -> dict:
 
 
 async def evaluate(window: list[dict], metrics: dict, *, spec, timeout: float = 30.0) -> dict:
-    """Juicio del evaluador (modelo). Read-only, fail-open DURO — si el modelo falla, 'continue' (nunca corta por un
-    error de infra). `spec` = ModelSpec del tier off-voz (puede razonar; corre fuera del turno)."""
+    """Evaluator judgment (model). Read-only, HARD fail-open — if the model fails, 'continue' (never cut because of
+    infrastructure error). `spec` = ModelSpec for the off-voice tier (can reason; runs outside the turn)."""
     try:
         from nucleo.flash.fast_client import FastClient
         out = await FastClient().complete(build_messages(window, metrics), spec=spec, max_tokens=200)

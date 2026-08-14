@@ -1,15 +1,15 @@
-"""server/spotify_api.py — plano de control OAuth + estado del conector Spotify (V2-041).
+"""server/spotify_api.py — OAuth control plane + Spotify connector state (V2-041).
 
-Config gestionada por la UI (invariante de producto): el operador conecta Spotify DESDE la interfaz, nunca editando
-ficheros. Flujo:
-  1. `POST /api/spotify/connect {client_id}` → guarda el client_id en el credential store y devuelve la URL de
-     autorización de Spotify (PKCE). El frontend la abre en una ventana.
-  2. Spotify redirige a `GET /api/spotify/callback?code&state` (este mismo servidor) → canjea el code por tokens.
-  3. `GET /api/spotify/status` → presencia de client_id + si hay sesión (REDACTADO, nunca el token).
-  4. `POST /api/spotify/disconnect` → borra los tokens.
+UI-managed config (product invariant): the operator connects Spotify FROM the interface, never by editing files.
+Flow:
+  1. `POST /api/spotify/connect {client_id}` → saves the client_id in the credential store and returns the Spotify
+     authorization URL (PKCE). The frontend opens it in a window.
+  2. Spotify redirects to `GET /api/spotify/callback?code&state` (this same server) → exchanges the code for tokens.
+  3. `GET /api/spotify/status` → client_id presence + whether there is a session (REDACTED, never the token).
+  4. `POST /api/spotify/disconnect` → deletes the tokens.
 
-Loopback (app de escritorio local single-user), como el resto de la API de zaelar. El seam genérico de música
-(`GET /api/music/state`) queda para el widget de música (pieza SEPARADA) y el diagnóstico.
+Loopback (single-user local desktop app), like the rest of the zaelar API. The generic music seam
+(`GET /api/music/state`) remains for the music widget (SEPARATE piece) and diagnostics.
 """
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse, JSONResponse
@@ -26,7 +26,7 @@ async def status():
 
 @router.post("/api/spotify/connect")
 async def connect(payload: dict | None = None):
-    """Guarda el client_id (si viene) y arranca el login PKCE. Devuelve la URL de autorización a abrir."""
+    """Save the client_id (if provided) and start PKCE login. Returns the authorization URL to open."""
     payload = payload or {}
     cid = (payload.get("client_id") or "").strip()
     if cid:
@@ -44,7 +44,7 @@ async def connect(payload: dict | None = None):
 
 @router.get("/api/spotify/callback")
 async def callback(code: str = "", state: str = "", error: str = ""):
-    """Vuelta de Spotify tras el consentimiento. Canjea el code y muestra una página de cierre."""
+    """Return from Spotify after consent. Exchanges the code and shows a closing page."""
     if error:
         return HTMLResponse(_page(False, f"Spotify devolvió un error: {error}"))
     res = auth.complete_login(code, state)
@@ -60,7 +60,7 @@ async def disconnect():
 
 @router.get("/api/music/state")
 async def music_state():
-    """Estado del seam de música (todos los proveedores conocidos + los conectados). Para el widget futuro."""
+    """Music seam state (all known providers + connected ones). For the future widget."""
     from connectors import music
     return JSONResponse(music.status())
 

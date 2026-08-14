@@ -1,13 +1,13 @@
 #
-# service.py — el MOTOR del conector Telegram integrado en zaelar (INI-015). Corre EN PROCESO en el lifespan del
-# server (gated TG_ENABLED, siempre-on), como una tarea asyncio — Telethon es un cliente asyncio puro, NO hay
-# subproceso Node ni bridge que vendorizar (a diferencia de WhatsApp). Telegram es "black-box lib": una librería
-# de terceros (Telethon), sin ninguna dependencia de Hermes.
+# service.py — Telegram connector ENGINE integrated into zaelar (INI-015). Runs IN-PROCESS in the server lifespan
+# (gated by TG_ENABLED, always-on), as an asyncio task — Telethon is a pure asyncio client, with NO Node subprocess
+# or bridge to vendor (unlike WhatsApp). Telegram is "black-box lib": a third-party library (Telethon), with no Hermes
+# dependency.
 #
-# Flujo: login por QR (client.qr_login(), QR pintado EN EL WIDGET vía segno) → escucha events.NewMessage →
-# clasifica con el modelo LOCAL COMPARTIDO (connectors/messaging/triage) → escribe el store UNIFICADO
-# (widgets/_data/mensajeria.json, platform="telegram") → drena pending_read marcando leído (send_read_acknowledge).
-# El clasificador NO pasa por el agente Hermes (privacidad + invariante ACP de voz). Read-only + mark-read.
+# Flow: QR login (client.qr_login(), QR rendered IN THE WIDGET via segno) -> listen to events.NewMessage -> classify
+# with the SHARED LOCAL model (connectors/messaging/triage) -> write the UNIFIED store
+# (widgets/_data/mensajeria.json, platform="telegram") -> drain pending_read by marking read (send_read_acknowledge).
+# The classifier does NOT go through the Hermes agent (privacy + voice ACP invariant). Read-only + mark-read.
 #
 import asyncio
 import base64
@@ -19,10 +19,10 @@ from connectors.messaging import ingest, notify, store, triage
 from connectors.telegram import config
 
 _task: asyncio.Task | None = None
-_client = None                   # telethon.TelegramClient una vez arrancado
-_inbox: list[dict] = []          # buffer de entrantes pendientes de triar (batching)
-_seen: set[str] = set()          # messageIds ya mostrados (no resucitar lo que el operador quitó)
-_mark_inbox = None               # v2 stateless: suscripción a msg.mark_read (creada en el loop, ver ingest.py)
+_client = None                   # telethon.TelegramClient once started
+_inbox: list[dict] = []          # inbound buffer pending triage (batching)
+_seen: set[str] = set()          # already shown messageIds (do not resurrect what the operator removed)
+_mark_inbox = None               # v2 stateless: msg.mark_read subscription (created in the loop; see ingest.py)
 
 
 def enabled() -> bool:
@@ -32,7 +32,7 @@ def enabled() -> bool:
 def _set_status(status: str, qr=None) -> None:
     try:
         if ingest.v2_enabled():
-            ingest.publish_status("telegram", status, qr)   # stateless: el widget refleja estado+QR
+            ingest.publish_status("telegram", status, qr)   # stateless: widget reflects state+QR
         else:
             store.set_platform_status("telegram", status, qr)
     except Exception as e:
@@ -40,7 +40,7 @@ def _set_status(status: str, qr=None) -> None:
 
 
 def _qr_datauri(url: str) -> str | None:
-    """QR (data-URI PNG) del tg://login URL, con segno (pura Python, PNG nativo — sin PIL). El widget pinta <img>."""
+    """QR (PNG data-URI) for the tg://login URL, with segno (pure Python, native PNG — no PIL). Widget renders <img>."""
     try:
         import segno
         buf = io.BytesIO()
@@ -52,8 +52,8 @@ def _qr_datauri(url: str) -> str | None:
 
 
 def _ensure_deps() -> bool:
-    """Auto-instala telethon+segno si faltan (mismo espíritu que el self-heal del bridge de WhatsApp). Best-effort;
-    devuelve True si el import funciona tras el intento."""
+    """Auto-install telethon+segno if missing (same spirit as WhatsApp bridge self-heal). Best-effort; returns True
+    if import works after the attempt."""
     try:
         import telethon  # noqa: F401
         import segno      # noqa: F401
@@ -76,7 +76,7 @@ def _ensure_deps() -> bool:
 
 
 async def _normalize(event) -> dict:
-    """events.NewMessage → dict que el triaje entiende ({senderName, chatName?, isGroup, body} + ids)."""
+    """events.NewMessage -> dict understood by triage ({senderName, chatName?, isGroup, body} + ids)."""
     from telethon import utils
     msg = event.message
     is_group = bool(event.is_group or event.is_channel)
@@ -95,7 +95,7 @@ async def _normalize(event) -> dict:
     return {
         "senderName": sender_name, "chatName": chat_name, "isGroup": is_group,
         "body": event.raw_text or "",
-        "messageId": f"{chat_id}:{msg.id}",          # único global (id de Telegram es por-chat)
+        "messageId": f"{chat_id}:{msg.id}",          # globally unique (Telegram id is per-chat)
         "chatId": chat_id, "senderId": getattr(sender, "id", None),
     }
 
@@ -106,7 +106,7 @@ async def _drain_inbox() -> None:
     batch = _inbox[:]
     _inbox.clear()
     if ingest.v2_enabled():
-        # STATELESS: publicar los entrantes al bus (eventos ya nuevos, sin re-publicación) — triaje en el widget.
+        # STATELESS: publish inbound messages to the bus (already-new events, no re-publication) — triage in widget.
         for m in batch:
             ingest.publish_msg("telegram", m)
         return
@@ -129,21 +129,21 @@ async def _drain_reads() -> None:
     failed = []
     for k in keys:
         try:
-            await _client.send_read_acknowledge(int(k["chatId"]))   # marca leído el chat hasta el último
+            await _client.send_read_acknowledge(int(k["chatId"]))   # mark chat read up to latest
         except Exception as e:
             logger.warning(f"Telegram mark-read falló (reintento luego): {e}")
             failed.append(k)
     if failed:
         if v2:
-            for k in failed:                     # re-publicar al bus → reintento en el siguiente tick
+            for k in failed:                     # re-publish to bus -> retry on next tick
                 ingest.publish_mark_read(k)
         else:
             store.requeue_pending_read(failed)
 
 
 async def _login_qr() -> bool:
-    """Login por QR (Telethon). Pinta el QR en el widget y lo refresca al caducar. Devuelve True si autoriza.
-    2FA (contraseña) queda fuera de alcance → se registra y se pide al operador desactivarla o loguear a mano."""
+    """QR login (Telethon). Render QR in the widget and refresh it on expiry. Returns True if authorized.
+    2FA (password) is out of scope -> log it and ask the operator to disable it or log in manually."""
     from telethon.errors import SessionPasswordNeededError
     qr = await _client.qr_login()
     while True:
@@ -153,7 +153,7 @@ async def _login_qr() -> bool:
             return True
         except asyncio.TimeoutError:
             try:
-                await qr.recreate()                                 # el QR caducó → uno nuevo
+                await qr.recreate()                                 # QR expired -> new one
             except Exception:
                 qr = await _client.qr_login()
         except SessionPasswordNeededError:
@@ -197,9 +197,9 @@ async def _loop() -> None:
 
     global _mark_inbox
     if ingest.v2_enabled() and _mark_inbox is None:
-        _mark_inbox = ingest.MarkReadInbox("telegram")   # suscripción en ESTE loop (server) → entrega directa
+        _mark_inbox = ingest.MarkReadInbox("telegram")   # subscription in THIS loop (server) -> direct delivery
     _set_status("connected", None)
-    # Telethon despacha los updates solo mientras el loop corre; esta tarea de batching coexiste con esa entrega.
+    # Telethon dispatches updates only while the loop runs; this batching task coexists with that delivery.
     while True:
         await asyncio.sleep(config.batch_interval())
         if not _client.is_connected():
@@ -219,7 +219,7 @@ async def _loop() -> None:
 
 
 def start() -> None:
-    """Arranca el motor como tarea de fondo (llamar desde el lifespan del server si TG_ENABLED=1)."""
+    """Start the engine as a background task (call from server lifespan if TG_ENABLED=1)."""
     global _task
     if not enabled():
         _set_status("off", None)

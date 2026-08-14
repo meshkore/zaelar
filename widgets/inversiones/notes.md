@@ -1,27 +1,24 @@
-# Inversiones — notas de diseño
+# Investments: design notes
 
-## Origen (2026-08-10)
-- El operador pedía mejorar un "dashboard de investments/tokens" con disco/donut + cajitas
-  de texto. **No existía ningún widget de inversiones en el sistema** (verificado en `widgets/`,
-  `results`, `navegador` y memoria). Se construye desde cero ya con las mejoras pedidas.
-- Datos de **ejemplo** (sample=true): BTC/ETH/SOL/ADA. Pendiente que el operador pase sus
-  posiciones reales → action `set_holdings`.
+## Origin (2026-08-10)
+- The operator asked to improve an investments/tokens dashboard with a disk/donut plus small text boxes.
+  **No investments widget existed in the system** (verified in `widgets/`, `results`, `navegador`, and memory).
+  It was built from scratch with the requested improvements already included.
+- **Example** data (sample=true): BTC/ETH/SOL/ADA. Pending: the operator must provide real positions through
+  action `set_holdings`.
 
-## Decisiones de diseño (lo que pidió el operador — NO regresar)
-- **Disco grande con márgenes equilibrados:** el panel del donut lleva `padding-left` ==
-  `padding-bottom` (26==26). El donut es generoso (r=80, stroke 34, ~212px). No volver a un
-  donut pequeño ni a márgenes asimétricos.
-- **Texto desplazado a la derecha dentro de las cajitas:** cada tarjeta tiene barra de color
-  a la izquierda + `padding-left` amplio (20px). El contenido arranca separado del borde izq.
-- **4 datos como 2 filas × 2, NO 4 columnas:** cada posición es SU tarjeta (fondo + borde),
-  en rejilla 2×2 con `gap` generoso (13px). Dentro de la tarjeta, nombre+valor van agrupados
-  (misma unidad); entre tarjetas, separación clara → imposible confundir el valor de un token
-  con el nombre del siguiente.
-- **Recursos gráficos:** glifos por ticker (₿ Ξ ◎ ₳ …), barra de color = segmento del donut,
-  tipografía monoespaciada para cifras, variación ▲/▼ verde/rojo, swatch-icono circular.
+## Design Decisions (what the operator asked for; do not regress)
+- **Large disk with balanced margins:** the donut panel has `padding-left` == `padding-bottom` (26==26). The donut
+  is generous (r=80, stroke 34, about 212px). Do not return to a small donut or asymmetric margins.
+- **Text shifted right inside the boxes:** each card has a color bar on the left plus wide `padding-left` (20px).
+  Content starts separated from the left edge.
+- **4 data items as 2 rows x 2, NOT 4 columns:** each position is its own card (background + border), in a 2x2 grid
+  with generous `gap` (13px). Inside the card, name+value are grouped as one unit; between cards, separation is
+  clear, making it impossible to confuse one token's value with the next token's name.
+- **Graphic resources:** ticker glyphs (BTC/ETH/SOL/ADA-style glyphs), color bar = donut segment, monospaced
+  typography for figures, green/red up/down variation, circular swatch icon.
 
-## Estructura
-- `view_data()` lee de `store` (siembra ejemplo si vacío). `apply_action("set_holdings")`
-  reemplaza la cartera entera (carga de datos reales). Passive, foreground-only.
-- Colores: `COLORS` = accent / accent2 / violeta #8B5CF6 / ámbar #F59E0B (+ extras). Legibles
-  en tema claro y oscuro.
+## Structure
+- `view_data()` reads from `store` and seeds the example if empty. `apply_action("set_holdings")` replaces the
+  whole portfolio with real data. Passive, foreground-only.
+- Colors: `COLORS` = accent / accent2 / violet #8B5CF6 / amber #F59E0B (+ extras). Readable in light and dark themes.

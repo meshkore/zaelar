@@ -108,7 +108,7 @@ def save(widget_id: str, data: dict) -> dict:
     try:
         from voice.observer import emit
         from widgets.provenance import who
-        emit("widget", "data", extra={"id": widget_id, "src": who(widget_id)})   # V2-039: QUIÉN cambió el dato
+        emit("widget", "data", extra={"id": widget_id, "src": who(widget_id)})   # V2-039: WHO changed the data
     except Exception:
         pass
     return data
@@ -119,10 +119,9 @@ def exists(widget_id: str) -> bool:
 
 
 def forget(widget_id: str) -> None:
-    """Olvida la huella del último guardado. Hay que llamarla cuando el `state.json` se toca POR FUERA de `save()`
-    (hoy: el reset lo borra para dejar la superficie en blanco) — si no, el anti-flood de `save` cree que lo que
-    hay en disco es lo último que escribió y se SALTA el siguiente guardado idéntico, dejando el widget vacío en
-    pantalla con datos nuevos que nunca llegaron a escribirse."""
+    """Forget the last-save fingerprint. Must be called when `state.json` is touched OUTSIDE `save()` (today: reset
+    deletes it to leave the surface blank) — otherwise `save` anti-flood thinks what is on disk is the last thing it
+    wrote and SKIPS the next identical save, leaving the widget empty on screen with new data that was never written."""
     with _lock:
         _last_hash.pop(widget_id, None)
 

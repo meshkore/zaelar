@@ -97,9 +97,9 @@ const _MONTHS=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto"
 const _DOW=["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
 const _pad=n=>String(n).padStart(2,"0");
 
-// Vista MES completa: calendario del mes con sus citas de un vistazo. Navega prev/próx mes EN CLIENTE (todas las
-// citas datadas ya vienen en `data.meetings`, sin otra petición). Un día dentro del horizonte (Hoy..+6) es
-// clicable y salta a su pestaña (data-sel → el handler genérico re-renderiza).
+// Full MONTH view: calendar with meetings at a glance. Previous/next month navigation stays client-side because
+// all dated meetings already arrive in `data.meetings`, without another request. A day inside the horizon
+// (Today..+6) is clickable and jumps to its tab (data-sel -> the generic handler re-renders).
 function renderMonth(el, data, ctx, days){
   const wrap=el2("div","agmonth");
   const [ty,tm]=(data.date||"").split("-").map(Number);
@@ -114,14 +114,14 @@ function renderMonth(el, data, ctx, days){
   nav.append(prev, el2("b",null,`${_MONTHS[dm]} ${dy}`), next);
   wrap.appendChild(nav);
 
-  // citas por fecha (YYYY-MM-DD), ordenadas por hora
+  // Meetings by date (YYYY-MM-DD), sorted by time.
   const byDate={};
   (data.meetings||[]).forEach(m=>{ if(m&&m.date){ (byDate[m.date]=byDate[m.date]||[]).push(m); } });
   Object.values(byDate).forEach(a=>a.sort((x,y)=>String(x.startTime||"").localeCompare(String(y.startTime||""))));
 
   const grid=el2("div","aggrid");
   _DOW.forEach(d=>grid.appendChild(el2("div","agdow",d)));
-  const lead=(new Date(dy,dm,1).getDay()+6)%7;               // getDay Dom=0 → lunes=0
+  const lead=(new Date(dy,dm,1).getDay()+6)%7;               // getDay Sunday=0 -> Monday=0
   const nDays=new Date(dy,dm+1,0).getDate();
   for(let i=0;i<lead;i++) grid.appendChild(el2("div","agcell agpad"));
   for(let dn=1;dn<=nDays;dn++){
@@ -132,7 +132,7 @@ function renderMonth(el, data, ctx, days){
     evs.slice(0,2).forEach(m=>cell.appendChild(
       el2("div","agev",`${m.startTime?m.startTime+" ":""}${m.title!=null?m.title:""}`)));
     if(evs.length>2) cell.appendChild(el2("div","agmore",`+${evs.length-2} más`));
-    const hi=days.findIndex(d=>d.date===dateStr);            // ¿está en el horizonte? → clicable, salta a su día
+    const hi=days.findIndex(d=>d.date===dateStr);            // in the horizon -> clickable, jumps to its day
     if(hi>=0){ cell.classList.add("aghas"); cell.dataset.sel=String(hi); }
     grid.appendChild(cell);
   }
@@ -144,7 +144,7 @@ export function render(el, data, ctx){
   injectStyles();
   if(el._timer){clearInterval(el._timer);el._timer=null;}
 
-  // Horizonte temporal: días pre-computados (hoy + próximos). Compat: si no viene `days`, envuelve el plan de hoy.
+  // Time horizon: precomputed days (today + upcoming). Compatibility: if `days` is missing, wrap today's plan.
   const days = (data.days&&data.days.length) ? data.days
     : [{date:data.date, label:"Hoy", weekday:"", plan:data.plan||{}}];
   const todayIdx = data.todayIndex||0;
@@ -164,7 +164,7 @@ export function render(el, data, ctx){
     el2("span","warn",onWeek?"Vista semana":(onMonth?"Vista mes":(day.date||""))),
     el2("span","now",isToday?(data.now||""):"")); el.appendChild(hd);
 
-  // pestañas: un día por pestaña (Hoy · Mañana · Mié…) + vista Semana; conmutan en cliente sin otra petición.
+  // Tabs: one day per tab plus Week view; switching stays client-side without another request.
   const tabs=el2("div","agtabs");
   days.forEach((d,i)=>{ const t=el2("button","agtab"+(sel===i?" on":""),d.label); t.dataset.sel=String(i); tabs.appendChild(t); });
   const wkTab=el2("button","agtab"+(onWeek?" on":""),"Semana"); wkTab.dataset.sel="week"; tabs.appendChild(wkTab);
@@ -222,12 +222,12 @@ export function render(el, data, ctx){
     el.appendChild(cols);
   }
 
-  // live countdown for the active block (solo hoy)
+  // Live countdown for the active block (today only).
   if(active){ let rem=(active.remaining_min||0)*60;
     el._timer=setInterval(()=>{rem-=1;const c=el.querySelector("#hb-count");if(c)c.textContent=fmt(rem/60);
       if(rem<=0)clearInterval(el._timer);},1000); }
 
-  // pestañas / filas de semana → re-render desde los MISMOS datos ya traídos (sin red)
+  // Tabs / week rows: re-render from the same already-fetched data, without network.
   el.querySelectorAll("[data-sel]").forEach(btn=>btn.onclick=()=>{
     const v=btn.dataset.sel; el._agSel=(v==="week"||v==="month")?v:Number(v); render(el,data,ctx);
   });

@@ -1,13 +1,12 @@
-"""memory/journal.py — la tabla `journal` de continuidad de tarea (V2-005 · T71).
+"""memory/journal.py — `journal` table for task continuity (V2-005 · T71).
 
-La memoria central ya declara la tabla `journal` (V2-002 · schema.py): id · title · status
-(`pending`|`in_progress`|`done`) · detail · created · updated. Este módulo es su **cara de acceso**
-(CRUD directo, hot path — sqlite sub-ms, sin cola): lo usa el **scheduler del loop orquestador**
-(`nucleo/scheduler.py`) para respaldar las tareas programadas ("cron propio" que sustituye al de Hermes),
-y queda disponible para el journal de continuidad de tareas del SlowBrain (V2-006/007).
+Central memory already declares the `journal` table (V2-002 · schema.py): id · title · status
+(`pending`|`in_progress`|`done`) · detail · created · updated. This module is its **access face** (direct CRUD, hot
+path — sub-ms sqlite, no queue): used by the **orchestrator-loop scheduler** (`nucleo/scheduler.py`) to back
+scheduled tasks ("own cron" replacing Hermes's), and available for SlowBrain task-continuity journal (V2-006/007).
 
-`detail` guarda un blob JSON libre (para el scheduler: `{"kind":"scheduled","schedule":{...},"prompt":...}`).
-Se serializa/deserializa aquí para que el llamador maneje dicts, no strings.
+`detail` stores a free JSON blob (for the scheduler: `{"kind":"scheduled","schedule":{...},"prompt":...}`). It is
+serialized/deserialized here so the caller handles dicts, not strings.
 """
 from __future__ import annotations
 
@@ -38,7 +37,7 @@ def _row_to_dict(row) -> dict:
 
 
 def add(title: str, *, status: str = "pending", detail: dict | None = None) -> int:
-    """Crea una entrada de journal y devuelve su id. `detail` se serializa a JSON."""
+    """Create a journal entry and return its id. `detail` is serialized to JSON."""
     if status not in _STATUSES:
         status = "pending"
     ts = _now()
@@ -55,7 +54,7 @@ def get(jid: int) -> dict | None:
 
 
 def list_entries(status: str | None = None, limit: int = 200) -> list[dict]:
-    """Lista entradas (más recientes primero), filtrando por estado si se pide."""
+    """List entries (newest first), filtering by status if requested."""
     if status:
         rows = _db.get_db().query(
             "SELECT * FROM journal WHERE status=? ORDER BY updated DESC LIMIT ?", (status, int(limit)))
@@ -67,7 +66,7 @@ def list_entries(status: str | None = None, limit: int = 200) -> list[dict]:
 
 def update(jid: int, *, title: str | None = None, status: str | None = None,
            detail: dict | None = None) -> None:
-    """Actualiza los campos dados (los None se dejan intactos). `detail` REEMPLAZA el blob entero."""
+    """Update the given fields (None values remain untouched). `detail` REPLACES the whole blob."""
     sets, params = [], []
     if title is not None:
         sets.append("title=?"); params.append(title)

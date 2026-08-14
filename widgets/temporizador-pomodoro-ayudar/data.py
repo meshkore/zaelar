@@ -1,11 +1,11 @@
 #
-# Pomodoro widget — backend. A classic Pomodoro timer to manage focus/break blocks: 25 min de concentración,
-# 5 min de descanso corto y 15 min de descanso largo tras 4 pomodoros. Stdlib only, never raises.
+# Pomodoro widget — backend. A classic Pomodoro timer to manage focus/break blocks: 25 min of focus, 5 min of short
+# break, and 15 min of long break after 4 pomodoros. Stdlib only, never raises.
 #
 # Storage model: we persist the SESSION, not a per-second countdown. `ends_at` (epoch) is the moment the current
 # running phase finishes; the remaining seconds are derived from it (widget.js ticks the display locally — that's
 # cosmetic, not polling). When paused we store the frozen `remaining`. The background tick() settles a phase that
-# elapsed off-screen and writes the current state to central memory so a voice question ("¿cuánto queda del
+# elapsed off-screen and writes the current state to central memory so a voice question ("how much time is left in the
 # pomodoro?") answers with fresh data even if the card was never opened.
 #
 import time
@@ -14,10 +14,10 @@ from .. import store
 
 WID = "temporizador-pomodoro-ayudar"
 
-WORK = 25 * 60          # concentración
-SHORT = 5 * 60          # descanso corto
-LONG = 15 * 60          # descanso largo
-LONG_EVERY = 4          # descanso largo tras cada 4 pomodoros de concentración
+WORK = 25 * 60          # focus
+SHORT = 5 * 60          # short break
+LONG = 15 * 60          # long break
+LONG_EVERY = 4          # long break after every 4 focus pomodoros
 
 _LABELS = {"work": "Concentración", "short_break": "Descanso corto", "long_break": "Descanso largo"}
 _DURATIONS = {"work": WORK, "short_break": SHORT, "long_break": LONG}
@@ -40,7 +40,7 @@ def _remaining_now(db: dict) -> int:
 
 
 def _advance(db: dict) -> dict:
-    """Move to the next phase. Leaving a CONCENTRACIÓN phase counts a completed pomodoro."""
+    """Move to the next phase. Leaving a FOCUS phase counts a completed pomodoro."""
     if db.get("phase") == "work":
         db["completed"] = int(db.get("completed", 0)) + 1
         db["cycle"] = int(db.get("cycle", 0)) + 1

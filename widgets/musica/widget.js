@@ -1,17 +1,18 @@
-// musica — CARA del conector de música (V2-041) con ESTÉTICA SPOTIFY (V2-058, Fase 1). Contrato: render(el, data, ctx).
-// data = GET /widgets/musica/data → {mode:"spotify"|"youtube"|"idle", connected, can_connect, own_client_id_set,
+// musica: face of the music connector (V2-041) with Spotify-style aesthetics (V2-058, Phase 1). Contract:
+// render(el, data, ctx).
+// data = GET /widgets/musica/data -> {mode:"spotify"|"youtube"|"idle", connected, can_connect, own_client_id_set,
 //   default_available, redirect_uri, now_playing (spotify)|null, yt:{videoId,title,paused,muted,volume,cmd_seq},
 //   playlists:[{id,name,art,tracks:[{title,artist,album,art,query,uri,videoId}]}], recent:[track], top:[track+count],
-//   view:{kind:"home|playlist|...",id}}.  ctx.action(name,payload) → POST /widgets/musica/action (JSON).
+//   view:{kind:"home|playlist|...",id}}.  ctx.action(name,payload) -> POST /widgets/musica/action (JSON).
 //
-// Vistas: HOME (Tus listas + Más escuchadas + Recientes) y PLAYLIST (portada + tracklist). La `view` del estado
-// manda lo que se pinta; play_playlist / open_view / back la cambian (data-ops del FlashBrain o clicks). Barra de
-// reproducción abajo (Spotify/YouTube). REPRODUCCIÓN = el conector (ctx.action → connectors.music.control); aquí
-// NO se reinventa el backend.
+// Views: HOME (lists + top tracks + recent) and PLAYLIST (cover + tracklist). State `view` controls what is
+// rendered; play_playlist / open_view / back change it through FlashBrain data-ops or clicks. Playback bar at the
+// bottom (Spotify/YouTube). PLAYBACK = the connector (ctx.action -> connectors.music.control); do not reinvent the
+// backend here.
 //
-// El reproductor de YouTube-audio OCULTO se REUSA entre re-renders (host persistente `_ytHost`): reconstruir la
-// vista NUNCA recarga el iframe (que reiniciaría la canción). Solo se recrea si cambia el videoId; si cambia el
-// cmd_seq se aplica el comando (pausa/volumen) por postMessage. La conexión de Spotify se conserva intacta.
+// The hidden YouTube-audio player is reused between re-renders (persistent `_ytHost`): rebuilding the view never
+// reloads the iframe, which would restart the song. It is recreated only when videoId changes; if cmd_seq changes,
+// the pause/volume command is applied by postMessage. Spotify connection remains intact.
 
 function injectStyles(){
   if(document.getElementById("hb-mus2-css")) return;
@@ -107,7 +108,7 @@ function h(tag, cls, text){
   return e;
 }
 
-// portada: imagen (URL de Spotify) o emoji de reserva. La URL va en img.src (nunca innerHTML).
+// Cover art: image (Spotify URL) or fallback emoji. URL goes into img.src, never innerHTML.
 function artNode(art, fallback){
   const a = h("div", "hb-mus2-art");
   if(art){ const img = document.createElement("img"); img.src = art; img.alt = ""; a.appendChild(img); }
@@ -119,13 +120,13 @@ function ytPost(iframe, func, args){
   try{ if(iframe && iframe.contentWindow)
     iframe.contentWindow.postMessage(JSON.stringify({event:"command", func:func, args:args||[]}), "*"); }catch(_){}
 }
-// Asegura que el player SUENA (quita mute + fija volumen): al montar y en CADA comando → «no se oye» despierta de verdad.
+// Ensure the player is audible (unmute + set volume): on mount and every command, so "no audio" actually wakes up.
 function ytEnsureAudible(iframe, vol){
   ytPost(iframe, "unMute");
   ytPost(iframe, "setVolume", [Math.max(0, Math.min(100, vol||70))]);
 }
 
-// ── EVENTOS del reproductor de YouTube (V2-047 F4/F10): handshake `listening` → onReady/onStateChange(ENDED) ──
+// YouTube player events (V2-047 F4/F10): `listening` handshake -> onReady/onStateChange(ENDED).
 let _ytReady = null, _ytEnded = null;
 function ytStartListening(iframe){
   try{ iframe.contentWindow.postMessage(JSON.stringify({event:"listening", id:"hb-musica", channel:"widget"}), "*"); }catch(_){}
@@ -140,23 +141,23 @@ if (typeof window !== "undefined" && !window.__hbMusicaYtBound){
   });
 }
 
-// El player OCULTO vive en un host persistente (`el._ytHost`) que NO se reconstruye al re-renderizar la vista →
-// reordenar/navegar nunca reinicia la canción. Solo se recrea el iframe si cambia el videoId.
-// ¿Está el agente PARADO? (V2-092) — con el ⏻ apagado la música no suena, y sobre todo no vuelve a sonar sola al
-// RECARGAR la página (era el bug: el estado guardado decía «suena» y el iframe nacía con `autoplay=1`). `ctx.running`
-// es un getter vivo del canvas que refleja la verdad del servidor (nucleo/runstate.py). «Parado» solo si lo dice
-// explícitamente: un ctx sin el campo no puede dejar el reproductor mudo para siempre.
+// The hidden player lives in a persistent host (`el._ytHost`) that is NOT rebuilt when the view re-renders, so
+// reorder/navigation never restarts the song. The iframe is recreated only if videoId changes.
+// Is the agent STOPPED? (V2-092): when power is off, music should not play, and especially should not start by
+// itself on page reload. The bug was that saved state said "playing" and the iframe was born with `autoplay=1`.
+// `ctx.running` is a live canvas getter reflecting server truth (nucleo/runstate.py). Treat it as stopped only when
+// explicit; a ctx without the field must not leave the player muted forever.
 function halted(ctx){ return !!(ctx && ctx.running === false); }
 
 function syncYtPlayer(el, data, ctx){
   const yt = data.yt || {};
   const host = el._ytHost;
   const stopped = halted(ctx);
-  if(!yt.videoId){                                   // nada sonando por YouTube → suelta el frame
+  if(!yt.videoId){                                   // nothing playing through YouTube -> release the frame
     if(el._hbFrame){ host.textContent = ""; el._hbFrame = null; el._hbVid = null; el._hbSeq = null; }
     return;
   }
-  if(el._hbVid === yt.videoId && el._hbFrame){       // mismo vídeo → solo aplica el comando nuevo
+  if(el._hbVid === yt.videoId && el._hbFrame){       // same video -> only apply the new command
     if(el._hbSeq !== yt.cmd_seq){
       el._hbSeq = yt.cmd_seq;
       if(yt.paused || stopped){ ytPost(el._hbFrame, "pauseVideo"); }
@@ -164,10 +165,9 @@ function syncYtPlayer(el, data, ctx){
     }
     return;
   }
-  // vídeo nuevo → iframe OCULTO. ARRANQUE GARANTIZADO: mute=1 (autoplay silenciado siempre permitido) y se
-  // des-silencia al instante por la API (la página ya tiene interacción del operador → el unMute se honra).
-  // Con el agente parado el `autoplay` se apaga en el propio `src`: cualquier pausa posterior llegaría tarde y se
-  // oiría el arranque.
+  // New video -> hidden iframe. Guaranteed start: mute=1 because muted autoplay is always allowed, then unmute
+  // immediately through the API because the page already has operator interaction. With the agent stopped,
+  // `autoplay` is disabled in the `src` itself; any later pause would arrive too late and the start would be heard.
   host.textContent = "";
   const frame = document.createElement("iframe");
   frame.className = "hb-mus2-frame";
@@ -179,15 +179,15 @@ function syncYtPlayer(el, data, ctx){
   host.appendChild(frame);
   el._hbFrame = frame; el._hbVid = yt.videoId; el._hbSeq = yt.cmd_seq;
   const wake = () => {
-    if(halted(ctx)){ ytPost(frame, "pauseVideo"); return; }   // se re-lee: `wake` corre en timeouts de hasta 2,6s
+    if(halted(ctx)){ ytPost(frame, "pauseVideo"); return; }   // re-read because `wake` runs in timeouts up to 2.6s
     ytEnsureAudible(frame, yt.volume); if(!yt.paused) ytPost(frame, "playVideo");
   };
-  _ytReady = wake;                                   // el onReady REAL es el momento exacto (los timeouts respaldan)
-  _ytEnded = () => { try{ ctx.action("ended"); }catch(_){} };   // F4: al terminar → avanza la cola en el servidor
+  _ytReady = wake;                                   // real onReady is the exact moment; timeouts back it up
+  _ytEnded = () => { try{ ctx.action("ended"); }catch(_){} };   // F4: on end -> advance queue on the server
   setTimeout(wake, 1200); setTimeout(wake, 2600);
 }
 
-// ── conexión de Spotify (intacta respecto a V2-041) ────────────────────────────────────────────────────────
+// Spotify connection, intact from V2-041.
 async function doConnect(ctx, client_id, btn, adv){
   if(btn){ btn.disabled = true; btn.textContent = "Abriendo Spotify…"; }
   const res = await ctx.action("connect", client_id ? {client_id} : {});
@@ -229,7 +229,7 @@ function connectBlock(data, ctx, {compact=false} = {}){
   return frag;
 }
 
-// ── barra de reproducción (Spotify o YouTube) ──────────────────────────────────────────────────────────────
+// Playback bar (Spotify or YouTube).
 function nowPlaying(data){
   if(data.now_playing && data.now_playing.title) return data.now_playing;
   const yt = data.yt || {};
@@ -247,7 +247,7 @@ function playbackBar(data, ctx){
   bar.appendChild(meta);
   const ctrls = h("div", "hb-mus2-barc");
   const mk = (label, action, cls) => { const b = h("button", "hb-mus2-cbtn" + (cls ? " " + cls : ""), label);
-    b.onclick = () => ctx.action(action); return b; };     // control = fire-and-forget; el SSE re-renderiza
+    b.onclick = () => ctx.action(action); return b; };     // control = fire-and-forget; SSE re-renders
   ctrls.appendChild(mk("⏮", "previous"));
   const playing = !!(np && np.playing);
   ctrls.appendChild(mk(playing ? "⏸" : "▶", playing ? "pause" : "resume", "main"));
@@ -259,7 +259,7 @@ function playbackBar(data, ctx){
   return bar;
 }
 
-// ── filas de tracks (recientes / más-escuchadas / tracklist de una lista) ────────────────────────────────
+// Track rows (recent / top tracks / playlist tracklist).
 function trackRow(t, ctx, opts){
   opts = opts || {};
   const row = h("div", "hb-mus2-tr");
@@ -279,7 +279,7 @@ function trackRow(t, ctx, opts){
   return row;
 }
 
-// ── HOME: Tus listas + Más escuchadas + Recientes ──────────────────────────────────────────────────────────
+// HOME: lists + top tracks + recent.
 function homeView(host, data, ctx){
   const wrap = h("div", "hb-mus2");
   const scroll = h("div", "hb-mus2-scroll");
@@ -301,7 +301,7 @@ function homeView(host, data, ctx){
     scroll.appendChild(cx);
   }
 
-  // Tus listas (portadas + tarjeta "Nueva lista")
+  // Lists: covers + "New list" card.
   const secL = h("div", "hb-mus2-sec");
   secL.appendChild(h("div", "hb-mus2-sech", "Tus listas"));
   const lists = h("div", "hb-mus2-lists");
@@ -318,7 +318,7 @@ function homeView(host, data, ctx){
   secL.appendChild(lists);
   scroll.appendChild(secL);
 
-  // Más escuchadas
+  // Top tracks.
   if((data.top || []).length){
     const s = h("div", "hb-mus2-sec");
     s.appendChild(h("div", "hb-mus2-sech", "Más escuchadas"));
@@ -327,7 +327,7 @@ function homeView(host, data, ctx){
     s.appendChild(g); scroll.appendChild(s);
   }
 
-  // Recientes
+  // Recent.
   if((data.recent || []).length){
     const s = h("div", "hb-mus2-sec");
     s.appendChild(h("div", "hb-mus2-sech", "Recientes"));
@@ -346,7 +346,7 @@ function newListCard(lists, ctx){
   card.appendChild(artNode(null, "＋"));
   card.appendChild(h("div", "hb-mus2-plname", "Nueva lista"));
   card.onclick = () => {
-    // inline: un input reemplaza el gesto de crear; Enter/blur → create_playlist (el SSE re-renderiza a la lista).
+    // Inline: an input replaces the create gesture; Enter/blur -> create_playlist, then SSE re-renders the list.
     const box = h("div", "hb-mus2-pl");
     const inp = h("input", "hb-mus2-inp hb-mus2-newinp"); inp.placeholder = "Nombre";
     box.appendChild(inp);
@@ -361,7 +361,7 @@ function newListCard(lists, ctx){
   return card;
 }
 
-// ── PLAYLIST: portada + tracklist ──────────────────────────────────────────────────────────────────────────
+// PLAYLIST: cover + tracklist.
 function playlistView(host, data, ctx, pl){
   const wrap = h("div", "hb-mus2");
   const scroll = h("div", "hb-mus2-scroll");

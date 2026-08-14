@@ -1,19 +1,19 @@
 #
-# musica — CARA del conector de música (V2-041) + LISTAS estilo Spotify (V2-058, Fase 1). Widget de SISTEMA
-# hand-built (no generado): SÍ importa el core (connectors.music / connectors.spotify / config.credentials) porque
-# corre en el proceso del server — igual que el owner de `mensajeria`.
+# musica: face of the music connector (V2-041) + Spotify-style LISTS (V2-058, Phase 1). Hand-built SYSTEM widget,
+# not generated: it DOES import core modules (connectors.music / connectors.spotify / config.credentials) because it
+# runs in the server process, like the `mensajeria` owner.
 #
-# DOS responsabilidades:
-#  · Conexión de Spotify (flujo guiado como los QR de mensajería) + control de reproducción (botones de la tarjeta).
-#  · LISTAS/recientes/más-escuchadas persistidas en el estado del widget (widgets/_data/musica/state.json).
+# Two responsibilities:
+#  - Spotify connection (guided flow like messaging QRs) + playback control (card buttons).
+#  - Lists/recent/top tracks persisted in widget state (widgets/_data/musica/state.json).
 #
-# REPRODUCCIÓN = el conector existente (connectors.music.control()); NUNCA se reinventa aquí. La reproducción por
-# VOZ va por la tool play_music del FlashBrain; play_playlist/play desde el widget también convergen en ese seam.
+# PLAYBACK = the existing connector (connectors.music.control()); never reinvent it here. Voice playback goes
+# through the FlashBrain play_music tool; play_playlist/play from the widget also converge on that seam.
 #
-# Invariante de persistencia: el bloque `yt` (audio oculto de YouTube) y las listas conviven en el MISMO store.
-# view_data compone {db persistido} + {estado vivo (connected/mode/now_playing)} → guardar el compuesto preserva
-# TODO (yt + playlists + counts). El proveedor youtube_audio hace read-modify-write del `yt`, así que respetamos
-# el mismo contrato: nunca pisamos claves persistidas.
+# Persistence invariant: the `yt` block (hidden YouTube audio) and lists share the SAME store. view_data composes
+# {persisted db} + {live state (connected/mode/now_playing)}, so saving the compound preserves everything
+# (yt + playlists + counts). The youtube_audio provider performs read-modify-write on `yt`, so respect the same
+# contract: never overwrite persisted keys.
 #
 import re
 import time
@@ -30,7 +30,7 @@ _RECENT_CAP = 30
 _TOP_CAP = 8
 
 
-# ── helpers de normalización ────────────────────────────────────────────────────────────────────────────────
+# Normalization helpers.
 def _norm(s: str) -> str:
     s = unicodedata.normalize("NFKD", str(s or "")).encode("ascii", "ignore").decode()
     return s.lower().strip()
@@ -41,7 +41,7 @@ def _slug(s: str) -> str:
     return base or "lista"
 
 
-# ── store: db persistido (yt + playlists + recent + counts + view) ──────────────────────────────────────────
+# Store: persisted db (yt + playlists + recent + counts + view).
 def _load_db() -> dict:
     try:
         db = store.load(WID, {}) or {}
@@ -66,7 +66,7 @@ def _spotify_status() -> dict:
 
 
 def _now_playing() -> "dict | None":
-    """Lo que suena AHORA (solo si hay cuenta Spotify conectada). Fail-open: nunca rompe la tarjeta."""
+    """What is playing NOW, only if a Spotify account is connected. Fail-open: never breaks the card."""
     try:
         from connectors import music
         np = music.now_playing()
@@ -81,11 +81,11 @@ def _now_playing() -> "dict | None":
 
 
 def _live_fields(db: dict) -> dict:
-    """Estado VIVO (recomputado cada lectura): conexión de Spotify + qué modo pinta la tarjeta + now_playing."""
+    """Live state recomputed on each read: Spotify connection + card display mode + now_playing."""
     st = _spotify_status()
     connected = bool(st.get("logged_in"))
     yt = dict(db.get("yt") or {})
-    # mode = qué muestra la barra: spotify (dispositivo remoto) · youtube (audio oculto) · idle.
+    # mode = what the bar shows: spotify (remote device), youtube (hidden audio), or idle.
     mode = "spotify" if connected else ("youtube" if yt.get("videoId") else "idle")
     return {
         **_SEED,
@@ -101,14 +101,14 @@ def _live_fields(db: dict) -> dict:
 
 
 def _derive_top(db: dict) -> list:
-    """Más escuchadas = derivado de los contadores de reproducción (counts), orden desc por count."""
+    """Top tracks are derived from playback counters (counts), descending by count."""
     counts = db.get("counts") or {}
     items = sorted(counts.values(), key=lambda c: (-int(c.get("count") or 0), _norm(c.get("title"))))
     return [dict(c) for c in items[:_TOP_CAP]]
 
 
 def _compose(db: dict) -> dict:
-    """El blob EXACTO que ve la tarjeta: db persistido + estado vivo + más-escuchadas derivadas."""
+    """Exact blob seen by the card: persisted db + live state + derived top tracks."""
     return {**db, **_live_fields(db), "top": _derive_top(db)}
 
 
@@ -117,7 +117,7 @@ def view_data(q: str = "") -> dict:
 
 
 def _persist(db: dict) -> None:
-    """Guarda el compuesto (preserva yt + playlists + counts y refleja conexión) → dispara SSE = re-render."""
+    """Save the compound state, preserving yt + playlists + counts and reflecting connection; triggers SSE re-render."""
     try:
         store.save(WID, _compose(db))
     except Exception:
@@ -128,7 +128,7 @@ def _save_view() -> None:
     _persist(_load_db())
 
 
-# ── modelo de tracks / listas ───────────────────────────────────────────────────────────────────────────────
+# Track / list model.
 def _track_query(t: dict) -> str:
     q = (t.get("query") or "").strip()
     if q:
@@ -138,7 +138,7 @@ def _track_query(t: dict) -> str:
 
 
 def _track_from_payload(p: dict) -> "dict | None":
-    """Construye un track desde un payload flexible: {track:{...}} o {query|title[,artist,album]}."""
+    """Build a track from flexible payload: {track:{...}} or {query|title[,artist,album]}."""
     src = p.get("track")
     if isinstance(src, dict):
         title = (src.get("title") or p.get("query") or "").strip()
@@ -155,7 +155,7 @@ def _track_from_payload(p: dict) -> "dict | None":
 
 
 def _current_track(db: dict) -> "dict | None":
-    """La canción sonando AHORA (Spotify o YouTube-audio), para poder guardarla en una lista de favoritos."""
+    """Currently playing song (Spotify or YouTube-audio), so it can be saved into a favorites list."""
     live = _live_fields(db)
     np = live.get("now_playing")
     if np and np.get("title"):
@@ -189,7 +189,7 @@ def _find_playlist(db: dict, ref) -> "dict | None":
 
 
 def _resolve_track_index(tracks: list, item) -> "int | None":
-    """item = índice 1-based ('2') o texto que casa con el título/query de un track de la lista."""
+    """item = 1-based index ('2') or text matching a track title/query in the list."""
     if item is None:
         return None
     s = str(item).strip()
@@ -210,7 +210,7 @@ def _resolve_track_index(tracks: list, item) -> "int | None":
 
 
 def _push_recent(db: dict, t: dict) -> None:
-    """Registra una reproducción: recientes (dedup por título+artista, cap) + contador para 'más escuchadas'."""
+    """Record playback: recent tracks (dedup by title+artist, capped) + counter for top tracks."""
     title = (t.get("title") or t.get("query") or "").strip()
     if not title:
         return
@@ -237,7 +237,7 @@ def _play_track(track: dict) -> "dict":
             "reason": getattr(r, "reason", "")}
 
 
-# ── ref_index (V2-026): las listas son referenciables por voz por su NOMBRE ────────────────────────────────
+# ref_index (V2-026): playlists are voice-referenceable by name.
 def ref_index() -> list:
     try:
         db = _load_db()
@@ -254,7 +254,7 @@ def ref_index() -> list:
 def apply_action(action: str, payload: dict = None) -> dict:
     p = payload or {}
 
-    # ── conexión de Spotify (sin cambios respecto a V2-041) ──────────────────────────────────────────────
+    # Spotify connection, unchanged from V2-041.
     if action == "connect":
         cid = (p.get("client_id") or "").strip()
         if cid:
@@ -265,11 +265,11 @@ def apply_action(action: str, payload: dict = None) -> dict:
                 return {"ok": False, "error": f"credential_store:{e}"[:120]}
         try:
             from connectors.spotify import auth
-            res = auth.begin_login()          # {ok, url} o {ok:False, error:'no_client_id'}
+            res = auth.begin_login()          # {ok, url} or {ok:False, error:'no_client_id'}
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": str(e)[:120]}
         if not res.get("ok") and res.get("error") == "no_client_id":
-            res["need_client_id"] = True      # el widget muestra el campo avanzado
+            res["need_client_id"] = True      # widget shows the advanced field
         return res
 
     if action == "disconnect":
@@ -285,7 +285,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
         _save_view()
         return {"ok": True}
 
-    # ── LISTAS (V2-058, Fase 1) ──────────────────────────────────────────────────────────────────────────
+    # Lists (V2-058, Phase 1).
     if action == "create_playlist":
         name = (p.get("name") or p.get("playlist") or "").strip() or "Nueva lista"
         db = _load_db()
@@ -294,7 +294,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
         while pid in used:
             pid = f"{base}-{i}"; i += 1
         db["playlists"].append({"id": pid, "name": name, "art": "", "tracks": []})
-        db["view"] = {"kind": "playlist", "id": pid}          # la pantalla se adapta a la lista nueva
+        db["view"] = {"kind": "playlist", "id": pid}          # screen adapts to the new playlist
         _persist(db)
         return {"ok": True, "playlist": pid, "name": name}
 
@@ -353,9 +353,9 @@ def apply_action(action: str, payload: dict = None) -> dict:
         if not tracks:
             return {"ok": False, "error": "empty_playlist", "playlist": pl["id"]}
         try:
-            r = _play_track(tracks[0])                          # la 1ª suena YA
+            r = _play_track(tracks[0])                          # first track starts now
             from connectors import music
-            for t in tracks[1:]:                                # el resto a la cola (V2-047 F4)
+            for t in tracks[1:]:                                # rest goes to queue (V2-047 F4)
                 try:
                     music.control("queue", query=_track_query(t), uri=t.get("uri") or "")
                 except Exception:
@@ -374,7 +374,7 @@ def apply_action(action: str, payload: dict = None) -> dict:
         db = _load_db()
         vid = str(p.get("id") or "").strip()
         if kind == "playlist" and vid:
-            pl = _find_playlist(db, vid)                        # nombre → id real
+            pl = _find_playlist(db, vid)                        # name -> real id
             vid = pl["id"] if pl else vid
         db["view"] = {"kind": kind, "id": vid}
         _persist(db)
@@ -386,8 +386,8 @@ def apply_action(action: str, payload: dict = None) -> dict:
         _persist(db)
         return {"ok": True, "view": db["view"]}
 
-    # ── control de reproducción (botones de la tarjeta). La voz usa play_music. Converge en el seam. ──────
-    # `ended` (V2-047 F4): lo dispara el propio widget al terminar la canción → el seam avanza la cola.
+    # Playback control from card buttons. Voice uses play_music. Converges on the same seam.
+    # `ended` (V2-047 F4): fired by the widget when the song ends; the seam advances the queue.
     if action in ("play", "pause", "resume", "next", "previous", "volume_up", "volume_down", "set_volume",
                   "queue", "ended"):
         try:
@@ -395,8 +395,8 @@ def apply_action(action: str, payload: dict = None) -> dict:
             query = str(p.get("query") or "")
             r = music.control(action, query=query, percent=int(p.get("level") or 0))
             ok = bool(getattr(r, "ok", False))
-            # reproducir un track suelto desde la tarjeta (recientes/más-escuchadas/fila de lista) alimenta
-            # recientes + más-escuchadas. La voz (play_music) va por otro camino y no pasa por aquí (Fase 1).
+            # Playing a standalone track from the card (recent/top/list row) feeds recent + top tracks. Voice
+            # (play_music) goes through another path and does not pass here (Phase 1).
             if action == "play" and ok and query:
                 db = _load_db()
                 _push_recent(db, {"title": query, "query": query})

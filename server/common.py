@@ -13,8 +13,7 @@ if ZAELAR_DIR not in sys.path:
     sys.path.insert(0, ZAELAR_DIR)
 # zaelar is self-contained: its own .env (seeded from the interview prototype's keys).
 load_dotenv(os.path.join(ZAELAR_DIR, ".env"), override=True)
-# DURABLE credential store (convención del operador 2026-07-08): los secretos del core viven en
-# .meshkore/credentials/zaelar.env (gitignored, chmod 600) para no perderlos nunca — desde ahí se cargan.
-# Se carga DESPUÉS de .env con override=True → el store MANDA sobre .env (mismo criterio que config/connectors).
+# DURABLE credential store (operator convention 2026-07-08): core secrets live in
+# .meshkore/credentials/zaelar.env (gitignored, chmod 600) so they are never lost — they are loaded from there.
+# Loaded AFTER .env with override=True → the store WINS over .env (same criterion as config/connectors).
 load_dotenv(os.path.join(ZAELAR_DIR, ".meshkore", "credentials", "zaelar.env"), override=True)
-

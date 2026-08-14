@@ -1,7 +1,7 @@
 #
-# store.py — el store UNIFICADO de mensajería (INI-015). UN solo archivo (widgets/_data/mensajeria.json) donde
-# TODOS los conectores (WhatsApp, Telegram, …) escriben, y del que el widget único LEE. Reusa la primitiva
-# atómica de widgets/store.py (escritura por tmp+rename → lectores nunca ven medio escrito).
+# store.py — the UNIFIED messaging store (INI-015). ONE file (widgets/_data/mensajeria.json) where ALL connectors
+# (WhatsApp, Telegram, ...) write, and which the single widget READS. Reuses the atomic primitive from
+# widgets/store.py (tmp+rename write -> readers never see a half-written file).
 #
 # Forma:
 #   { platforms: { whatsapp:{status,qr}, telegram:{status,qr} },
@@ -9,14 +9,14 @@
 #     items:[{n, platform, from, group, isGroup, body, urgencia, dirigido_a_mi, motivo, messageId, chatId, senderId}],
 #     pending_read:[{platform, chatId, messageId, senderId}] }
 #
-# CONCURRENCIA: proceso único, todos los conectores en el mismo loop. Cada helper es un read-modify-write SÍNCRONO
-# sin await en medio → no hay interleaving dentro de una operación. `n` NO se persiste como identidad: lo asigna
-# view_data/_renumber por orden de urgencia, así el número que ve el operador == el número que usa el brain.
+# CONCURRENCY: single process, all connectors in the same loop. Each helper is a SYNCHRONOUS read-modify-write with
+# no await in the middle -> no interleaving inside one operation. `n` is NOT persisted as identity: view_data/_renumber
+# assigns it by urgency order, so the number the operator sees == the number the brain uses.
 #
 import time
 
 WIDGET_ID = "mensajeria"
-PLATFORMS = ("whatsapp", "telegram", "email")  # email: V2-051 (IMAP/SMTP, misma forma unificada)
+PLATFORMS = ("whatsapp", "telegram", "email")  # email: V2-051 (IMAP/SMTP, same unified shape)
 _RANK = {"alta": 0, "media": 1, "baja": 2}
 
 
@@ -37,7 +37,7 @@ def _empty() -> dict:
 
 
 def _wstore():
-    # lazy: no acoplar el import-time de messaging al dominio widgets (audit de modularidad 2026-07-17)
+    # lazy: do not couple messaging import-time to the widgets domain (2026-07-17 modularity audit)
     from widgets import store
     return store
 
@@ -73,37 +73,37 @@ def _key(it: dict) -> dict:
             "messageId": it.get("messageId"), "senderId": it.get("senderId")}
 
 
-# ── Escritura por los conectores ────────────────────────────────────────────
+# ── Writes by connectors ────────────────────────────────────────────────────
 def set_platform_status(platform: str, status: str, qr=None, detail=None) -> dict:
-    """Estado de vínculo de UNA plataforma (off | no_creds | starting | connecting | connected | error). `qr` es un
-    data-URI PNG o None. `detail` = mensaje HUMANO para el usuario (qué está pasando o por qué falló) — el widget lo
-    muestra bajo el loader / en el card de error. No toca las otras plataformas ni la lista de items."""
+    """Link state for ONE platform (off | no_creds | starting | connecting | connected | error). `qr` is a PNG
+    data-URI or None. `detail` = HUMAN message for the user (what is happening or why it failed) — the widget shows
+    it below the loader / in the error card. Does not touch other platforms or the item list."""
     db = load()
     cur = (db.get("platforms") or {}).get(platform) or {}
     if cur.get("status") == status and cur.get("qr") == qr and cur.get("detail") == detail:
-        return db      # SIN cambio real (p.ej. el poll de "Waiting for scan" repite el mismo estado) → no re-guardes:
-                       # el bump de `updated` cada segundo defraudaría el change-gate de widgets/store.py y floodearía el SSE.
+        return db      # NO real change (e.g. "Waiting for scan" poll repeats same state) -> do not re-save:
+                       # bumping `updated` every second would defeat widgets/store.py's change-gate and flood SSE.
     db["platforms"][platform] = {"status": status, "qr": qr, "detail": detail}
     db["updated"] = _now()
     return save(db)
 
 
 def upsert_items(platform: str, new_items: list[dict]) -> dict:
-    """Añade items ya triados de `platform` a la lista común (dedupe por (platform, messageId)) y re-ordena por
-    urgencia. Normaliza desde el veredicto crudo del triaje (senderName/chatName) a la forma del store.
-    Salta items de canales silenciados (muted_channels) para que nunca entren al store."""
+    """Add already-triaged items from `platform` to the common list (dedupe by (platform, messageId)) and re-sort by
+    urgency. Normalize from the raw triage verdict (senderName/chatName) to the store shape. Skip items from muted
+    channels (muted_channels) so they never enter the store."""
     db = load()
     muted_keys = {(m.get("platform"), str(m.get("chatId")))
                   for m in db.get("muted_channels", [])}
     items = db["items"]
     have = {(it.get("platform"), it.get("messageId")) for it in items}
     added = False
-    fresh: list[dict] = []      # los realmente NUEVOS, para volcar a memoria (V2-003 · T57)
+    fresh: list[dict] = []      # truly NEW items, to dump into memory (V2-003 · T57)
     for m in new_items:
         key = (platform, m.get("messageId"))
         if key[1] is None or key in have:
             continue
-        # Saltar canales silenciados (no entran al store)
+        # Skip muted channels (they do not enter the store)
         if (platform, str(m.get("chatId"))) in muted_keys:
             continue
         have.add(key)
@@ -117,8 +117,8 @@ def upsert_items(platform: str, new_items: list[dict]) -> dict:
             "body": m.get("body", ""), "urgencia": m.get("urgencia", "media"),
             "dirigido_a_mi": bool(m.get("dirigido_a_mi")), "motivo": m.get("motivo", ""),
         }
-        # Metadatos de EMAIL para poder RESPONDER con threading (V2-051): asunto + Message-ID RFC. Solo email los
-        # trae; el resto de plataformas los ignora (campos opcionales).
+        # EMAIL metadata to enable threaded REPLIES (V2-051): subject + RFC Message-ID. Only email carries these;
+        # other platforms ignore them (optional fields).
         if m.get("subject") is not None:
             entry["subject"] = m.get("subject")
         if m.get("msgid"):
@@ -126,23 +126,23 @@ def upsert_items(platform: str, new_items: list[dict]) -> dict:
         items.append(entry)
         fresh.append(entry)
     if not added:
-        return db      # nada nuevo que triar → no re-guardes (evita bump de `updated` + emit por poll sin cambio)
+        return db      # nothing new to triage -> do not re-save (avoids `updated` bump + emit from unchanged poll)
     items.sort(key=lambda it: _RANK.get(it.get("urgencia"), 3))
     db["items"] = items
     db["updated"] = _now()
-    out = save(db)     # SSE de UI intacto: el store por-widget sigue mandando la cara
-    _to_memory(fresh)  # ADEMÁS, lo durable va a la memoria central (recall del cerebro)
+    out = save(db)     # UI SSE intact: the per-widget store still sends the face
+    _to_memory(fresh)  # ALSO, durable content goes to central memory (brain recall)
     return out
 
 
 def _to_memory(items: list[dict]) -> None:
-    """Vuelca los mensajes entrantes a la memoria central como recuerdos `kind='msg'` nivel `short`
-    (V2-003 · T57). Fire-and-forget por la cola de memoria; best-effort — un fallo aquí NO afecta al store de
-    UI ni al triaje. El store por-widget se mantiene para el estado de UI; la memoria es para el recall.
+    """Dump inbound messages into central memory as `kind='msg'` memories at `short` level (V2-003 · T57).
+    Fire-and-forget through the memory queue; best-effort — a failure here does NOT affect the UI store or triage.
+    The per-widget store remains for UI state; memory is for recall.
 
-    Pasa por `memory.ingest_message` (la vía TIPADA unificada, multi-fuente 2026-07-10): indexa `source`
-    (plataforma) + `entity` (remitente) en `meta` → el cerebro puede consultar POR TIPO ("¿qué me han escrito por
-    WhatsApp?") con `recent_by_source`, sin retriever. `trust='external'` = conector personal del dueño."""
+    Goes through `memory.ingest_message` (the unified TYPED path, multi-source 2026-07-10): indexes `source`
+    (platform) + `entity` (sender) in `meta` -> the brain can query BY TYPE with `recent_by_source`, without the
+    retriever. `trust='external'` = owner's personal connector."""
     if not items:
         return
     try:
@@ -161,10 +161,10 @@ def _to_memory(items: list[dict]) -> None:
             continue
 
 
-# ── Drenaje del pending_read por los conectores ─────────────────────────────
+# ── pending_read drain by connectors ────────────────────────────────────────
 def take_pending_read(platform: str | None = None) -> list[dict]:
-    """Devuelve (y QUITA) las claves de pending_read; si `platform` se da, solo las suyas. Cada conector llama con
-    su plataforma, marca leído en su app y, si falla, re-encola con requeue_pending_read()."""
+    """Return (and REMOVE) pending_read keys; if `platform` is given, only its own. Each connector calls with its
+    platform, marks read in its app, and if it fails, re-enqueues with requeue_pending_read()."""
     db = load()
     pending = db.get("pending_read", [])
     if platform is None:
@@ -178,8 +178,8 @@ def take_pending_read(platform: str | None = None) -> list[dict]:
 
 
 def take_pending_reply(platform: str | None = None) -> list[dict]:
-    """Devuelve (y QUITA) las respuestas pendientes de enviar; si `platform` se da, solo las suyas. Cada conector
-    con capacidad de envío (hoy email) llama con su plataforma, envía en su app y, si falla, re-encola.
+    """Return (and REMOVE) pending replies to send; if `platform` is given, only its own. Each send-capable connector
+    (email today) calls with its platform, sends in its app, and if it fails, re-enqueues.
     Cada orden: {platform, chatId, to, messageId, subject, msgid, text}."""
     db = load()
     pending = db.get("pending_reply", [])
@@ -194,9 +194,9 @@ def take_pending_reply(platform: str | None = None) -> list[dict]:
 
 
 def take_control() -> list[dict]:
-    """Devuelve (y QUITA) las órdenes de control encoladas por el WIDGET (connect/disconnect). Las drena el
-    supervisor. Cada orden: {platform, cmd:"connect"|"disconnect", api_id?, api_hash?, forget?}. Al quitarlas del
-    store, los secretos (api_hash) NO quedan residentes en el fichero de mensajes (van a config/connectors.json)."""
+    """Return (and REMOVE) control orders enqueued by the WIDGET (connect/disconnect). Drained by the supervisor.
+    Each order: {platform, cmd:"connect"|"disconnect", api_id?, api_hash?, forget?}. Removing them from the store
+    means secrets (api_hash) do NOT remain resident in the message file (they go to config/connectors.json)."""
     db = load()
     cmds = list(db.get("pending_control", []))
     if cmds:
@@ -206,7 +206,7 @@ def take_control() -> list[dict]:
 
 
 def requeue_pending_read(keys: list[dict]) -> dict:
-    """Re-encola claves cuyo mark-read falló (reintento en el siguiente tick). Idempotente."""
+    """Re-enqueue keys whose mark-read failed (retry on the next tick). Idempotent."""
     if not keys:
         return load()
     db = load()
@@ -221,10 +221,10 @@ def requeue_pending_read(keys: list[dict]) -> dict:
     return save(db)
 
 
-# ── Acciones del operador (widget / voz) ────────────────────────────────────
+# ── Operator actions (widget / voice) ───────────────────────────────────────
 def remove_item(n: int, mark_read: bool = True) -> dict:
-    """Quita el item número `n` (numeración por orden actual). Si mark_read, encola su clave (con platform) en
-    pending_read para que el conector correcto lo marque leído en su app."""
+    """Remove item number `n` (numbering by current order). If mark_read, enqueue its key (with platform) in
+    pending_read so the right connector marks it read in its app."""
     db = load()
     items = _renumber(db.get("items", []))
     keep, hit = [], None
@@ -241,7 +241,7 @@ def remove_item(n: int, mark_read: bool = True) -> dict:
 
 
 def clear() -> dict:
-    """Marca leído TODO lo visible (encola cada clave con su platform) y vacía la lista."""
+    """Mark EVERYTHING visible as read (enqueue each key with its platform) and clear the list."""
     db = load()
     for it in db.get("items", []):
         db.setdefault("pending_read", []).append(_key(it))

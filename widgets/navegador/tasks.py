@@ -1,14 +1,14 @@
 #
-# tasks.py — REGISTRO de TAREAS del navegador (INI-016, Fase multi-tarea). Cada tarea = un objetivo que se conduce
-# en SU PROPIA pestaña, con un feed vivo (eventos), resultados estructurados y una pregunta opcional al operador.
+# tasks.py — browser TASK REGISTRY (INI-016, multi-task phase). Each task = one objective driven in ITS OWN tab, with
+# a live feed (events), structured results, and an optional question for the operator.
 #
-# Reparto (decidido con el operador 2026-07-08): el ORQUESTADOR (capa rápida, brains/duo) posee la FLOTA — crea
-# tareas, enruta las respuestas del operador y sabe qué está en curso / hecho / esperando; Hermes planifica/analiza
-# cada tarea; owner.py la EJECUTA en su pestaña y escribe aquí el progreso; data.py sirve el estado por-tarea a la
-# tarjeta del canvas. Correspondencia 1:1  tarjeta(canvas) ↔ pestaña(Chrome) ↔ tarea(este registro).
+# Split (decided with the operator on 2026-07-08): the ORCHESTRATOR (fast layer, brains/duo) owns the FLEET — creates
+# tasks, routes operator answers, and knows what is in progress / done / waiting; Hermes plans/analyzes each task;
+# owner.py EXECUTES it in its tab and writes progress here; data.py serves per-task state to the canvas card.
+# 1:1 mapping: card(canvas) ↔ tab(Chrome) ↔ task(this registry).
 #
-# En memoria a propósito: una tarea vive mientras vive su pestaña; un reinicio mata las pestañas, así que no tiene
-# sentido persistirlas. Mismo proceso para owner/data/duo → todos comparten este módulo (un solo dict).
+# Intentionally in-memory: a task lives while its tab lives; a restart kills tabs, so persisting them makes no sense.
+# Same process for owner/data/duo → they all share this module (one dict).
 #
 import itertools
 import threading
@@ -16,15 +16,15 @@ import time
 
 WID = "navegador"
 _lock = threading.RLock()
-_tasks: dict[str, dict] = {}          # task_id -> estado
+_tasks: dict[str, dict] = {}          # task_id -> state
 _counter = itertools.count(1)
 _MAX_EVENTS = 60
 
-# Estados: queued (creada) · working (ejecutando) · needs_input (espera respuesta) · done · failed · cancelled.
+# States: queued (created) · working (executing) · needs_input (waiting for answer) · done · failed · cancelled.
 
 
 def inst_id(task_id: str) -> str:
-    """Id de INSTANCIA de la tarjeta en el canvas para esta tarea (una tarjeta arrastrable por tarea)."""
+    """Canvas card INSTANCE id for this task (one draggable card per task)."""
     return f"{WID}::{task_id}"
 
 
@@ -33,11 +33,11 @@ def _clock() -> str:
 
 
 def _notify(task_id: str) -> None:
-    """Un cambio en la tarea → refresca SOLO su tarjeta (SSE widget/data con el id de instancia). Best-effort."""
+    """A task change → refresh ONLY its card (SSE widget/data with the instance id). Best-effort."""
     try:
         from voice.observer import emit
-        extra = {"id": inst_id(task_id), "src": f"worker:{task_id}"}   # V2-039: conducida por el worker de navegación
-        _tid = trace_of(task_id)                                       # V2-044: encadena a la frase que pidió la tarea
+        extra = {"id": inst_id(task_id), "src": f"worker:{task_id}"}   # V2-039: driven by the navigation worker
+        _tid = trace_of(task_id)                                       # V2-044: chain to the phrase that requested the task
         if _tid:
             extra["trace"] = _tid
             extra["span"] = f"web:{task_id}"
@@ -47,8 +47,8 @@ def _notify(task_id: str) -> None:
 
 
 def trace_of(task_id: str) -> str:
-    """Trace id de la frase del operador que originó esta tarea ("" si no hay). V2-044 — lo usan `_notify` y el
-    `_TaskBrowser._emit` del owner para encadenar cada paso de navegación a su frase en el árbol de Trazas."""
+    """Trace id of the operator phrase that originated this task ("" if none). V2-044 — used by `_notify` and owner's
+    `_TaskBrowser._emit` to chain each navigation step to its phrase in the Traces tree."""
     with _lock:
         t = _tasks.get(task_id)
         return (t or {}).get("trace") or ""
@@ -71,14 +71,14 @@ def create(goal: str, title: str = "") -> str:
             "status": "queued", "phase": "", "phase_active": False, "events": [], "results": None,
             "question": "", "answer": "", "url": "", "page_title": "", "shot_rev": 0,
             "awaiting_login": False, "created": time.time(),
-            "trace": _current_trace(),     # V2-044: la tarea nace del contexto de la frase (o de la sesión adoptada)
+            "trace": _current_trace(),     # V2-044: the task is born from the phrase context (or adopted session)
         }
     return tid
 
 
 def ensure(task_id: str, goal: str = "", title: str = "") -> str:
-    """Crea la tarea con un id FIJO si no existe, o la reutiliza (para tarjetas SINGLETON como la de navegación a
-    mano: una sola tarjeta reutilizada en vez de una nueva por cada open/search → no proliferan widgets)."""
+    """Create the task with a FIXED id if it does not exist, or reuse it (for SINGLETON cards like manual navigation:
+    one reused card instead of a new one for each open/search → no widget proliferation)."""
     with _lock:
         t = _tasks.get(task_id)
         if t:
@@ -116,9 +116,9 @@ def _words(s: str) -> set:
     import re as _re
     global _COEXIST_RE
     if _COEXIST_RE is None:
-        # Recorta las CLÁUSULAS que hablan de OTRA tarea ("sin parar la tarea de motos", "sin cerrar la de X",
-        # "aparte de la búsqueda de Y", "además de lo de Z") — su sujeto es de OTRA tarea y contaminaba el matching
-        # (bug 2026-07-13: "cara de perro SIN PARAR la tarea de motos" casaba con la moto por la palabra "motos").
+        # Trim CLAUSES that talk about ANOTHER task ("without stopping the motorcycle task", "without closing X",
+        # "apart from the search for Y", "besides Z") — their subject belongs to ANOTHER task and polluted matching
+        # (bug 2026-07-13: "dog face WITHOUT STOPPING the motorcycle task" matched the bike because of "motorcycles").
         _COEXIST_RE = _re.compile(
             r"\b(sin (parar|detener|cerrar|tocar|cancelar)|aparte de|adem[aá]s de|dejando|manteniendo)\b.*$",
             _re.I)
@@ -126,20 +126,20 @@ def _words(s: str) -> set:
     return {w for w in _re.split(r"[^0-9a-záéíóúñ]+", s) if len(w) > 2}
 
 
-# Palabras que NO identifican el SUJETO de la búsqueda: relleno + verbos de buscar + NOMBRES DE MARKETPLACE (dos
-# búsquedas distintas —una moto, un sofá— comparten "wallapop" pero NO son el mismo tema) + stopwords. El sujeto
-# real (moto/enduro/coche/piso/sofá…) es lo que ancla "es la MISMA búsqueda". Así una aclaración corta ("no, de
-# enduro") sigue anclada a la moto por la palabra "moto", pero "moto" y "piso" nunca se fusionan.
+# Words that do NOT identify the search SUBJECT: filler + search verbs + MARKETPLACE NAMES (two different searches —
+# a motorcycle, a sofa— share "wallapop" but are NOT the same topic) + stopwords. The real subject
+# (motorcycle/enduro/car/apartment/sofa...) anchors "this is the SAME search". Thus a short clarification ("no,
+# enduro") stays anchored to the motorcycle through the word "motorcycle", but "motorcycle" and "apartment" never merge.
 _STOP = {
-    # verbos/relleno de búsqueda
+    # search verbs/filler
     "buscar", "busca", "busque", "busques", "buscame", "buscando", "mostrar", "muestra", "dame", "encuentra",
     "encuentrame", "resultados", "segunda", "mano", "venta", "vender", "comprar", "quiero", "quiere", "necesito",
     "operador", "abrir", "abre", "navegador", "web", "pagina", "página", "internet", "mejores", "opciones",
     "candidatas", "anteriores", "rechaza", "cerca", "tarea", "tareas", "ventana", "ventanas", "pestaña", "pestana",
     "pestañas", "pestanas", "busqueda", "búsqueda",
-    # marketplaces (el CANAL, no el sujeto)
+    # marketplaces (the CHANNEL, not the subject)
     "wallapop", "milanuncios", "idealista", "amazon", "ebay", "aliexpress", "fotocasa", "vibbo",
-    # stopwords castellano frecuentes
+    # frequent Spanish stopwords
     "una", "uno", "unos", "unas", "los", "las", "del", "para", "con", "por", "que", "eso", "esa", "ese", "esta",
     "este", "esto", "más", "mas", "muy", "dos", "tres", "todo", "toda", "todas", "todos", "sus", "porque", "son",
     "como", "pero", "the", "and", "for",
@@ -147,8 +147,8 @@ _STOP = {
 
 
 def _stem(w: str) -> str:
-    """Singularización tosca (sin dependencias): moto/motos, coche/coches → misma raíz. Solo quita una 's' final en
-    palabras largas (len>4) → no toca "los"/"las" ni "moto"."""
+    """Rough singularization (no dependencies): moto/motos, coche/coches → same root. Only removes a final 's' from
+    long words (len>4) → does not touch "los"/"las" or "moto"."""
     return w[:-1] if len(w) > 4 and w.endswith("s") else w
 
 
@@ -156,21 +156,20 @@ _STOP_STEMMED = {_stem(w) for w in _STOP}
 
 
 def _similar(g: set, other_goal: str) -> bool:
-    """True si el set de palabras `g` y el objetivo `other_goal` son la MISMA búsqueda. Ancla en el SUJETO común
-    (raíces len≥4, no stopword/marketplace). Para NO fusionar temas distintos por una mención incidental (bug
-    2026-07-13: "cara de perro sin parar la tarea de motos" casaba con la moto por "motos"), el anclaje de UNA sola
-    palabra solo vale para ACLARACIONES CORTAS (`g` ≤3 palabras de contenido, p.ej. "no, de enduro"); una petición
-    con cuerpo exige ≥2 sujetos compartidos o Jaccard ≥0.4. Dos temas distintos (moto vs piso, moto vs perro) no
-    casan."""
+    """True if word set `g` and `other_goal` are the SAME search. Anchor on the shared SUBJECT (roots len≥4, not
+    stopword/marketplace). To avoid merging different topics through an incidental mention (bug 2026-07-13: "dog face
+    without stopping the motorcycle task" matched the bike through "motorcycles"), a ONE-word anchor only counts for
+    SHORT CLARIFICATIONS (`g` ≤3 content words, e.g. "no, enduro"); a fuller request requires ≥2 shared subjects or
+    Jaccard ≥0.4. Two different topics (motorcycle vs apartment, motorcycle vs dog) do not match."""
     gs = {_stem(w) for w in g}
     os_ = {_stem(w) for w in _words(other_goal)}
     if not gs or not os_:
         return False
     shared = gs & os_
-    subject = {w for w in shared if len(w) >= 4 and w not in _STOP_STEMMED}   # sujeto(s) común (moto, enduro, coche…)
-    # aclaración CORTA → basta 1 sujeto (mantiene "no, de enduro" anclado a la moto); petición con cuerpo → ≥2.
-    # "Corta" se mide en palabras de CONTENIDO (como dice el contrato de arriba), NO en palabras totales: "no,
-    # quiero una moto de enduro 300" está llena de relleno pero su contenido son 2 palabras — es una aclaración.
+    subject = {w for w in shared if len(w) >= 4 and w not in _STOP_STEMMED}   # shared subject(s) (moto, enduro, car...)
+    # SHORT clarification → 1 subject is enough (keeps "no, enduro" anchored to the bike); fuller request → ≥2.
+    # "Short" is measured in CONTENT words (as the contract above says), NOT total words: "no, I want a 300 enduro
+    # motorcycle" has filler but its content is 2 words — it is a clarification.
     content = {w for w in gs if len(w) >= 4 and w not in _STOP_STEMMED}
     if subject and (len(content) <= 3 or len(subject) >= 2):
         return True
@@ -178,21 +177,20 @@ def _similar(g: set, other_goal: str) -> bool:
     return (len(shared) / union if union else 0) >= 0.4
 
 
-# Una tarea de navegador ACTIVA es "lo que estamos haciendo AHORA MISMO": mientras viva, cualquier petición
-# parecida se enruta a ELLA — nunca se abre un SEGUNDO navegador para lo mismo (control de estado, 2026-07-12).
-# El único límite es un guard anti-ZOMBIE: una tarea colgada más de _ZOMBIE_MAX no debe bloquear búsquedas nuevas
-# para siempre. Antes la dedup solo miraba los primeros 45-90 s DESDE LA CREACIÓN → una tarea larga (los
-# marketplaces tardan MINUTOS) dejaba de estar protegida y un refinamiento tardío ("sube el precio", "analízalas")
-# spawneaba un navegador GEMELO haciendo la misma búsqueda (bug de la sesión del 2026-07-12: una sola búsqueda de
-# moto acabó abriendo t1 + t2 en paralelo).
-_ZOMBIE_MAX = 1800.0   # s (30 min): por encima, una tarea "activa" se considera colgada y ya no deduplica.
+# An ACTIVE browser task is "what we are doing RIGHT NOW": while it lives, any similar request is routed to IT — never
+# open a SECOND browser for the same thing (state control, 2026-07-12). The only limit is an anti-ZOMBIE guard: a task
+# hung for longer than _ZOMBIE_MAX must not block new searches forever. Previously dedup only looked at the first
+# 45-90 s FROM CREATION → a long task (marketplaces take MINUTES) stopped being protected and a late refinement ("raise
+# the price", "analyze them") spawned a TWIN browser doing the same search (bug from the 2026-07-12 session: one bike
+# search ended up opening t1 + t2 in parallel).
+_ZOMBIE_MAX = 1800.0   # s (30 min): beyond this, an "active" task is considered hung and no longer deduplicates.
 
 
 def similar_active(goal: str, within: float = _ZOMBIE_MAX) -> str | None:
-    """Id de una tarea ACTIVA (queued/working/needs_input) cuyo objetivo se PARECE mucho a `goal` — para que una
-    MISMA búsqueda NO abra un SEGUNDO navegador aunque el operador la refine turnos —o MINUTOS— después, mientras
-    el navegador sigue trabajando. Una tarea activa deduplica durante TODA su vida (hasta `within`, solo guard
-    anti-zombie). Devuelve None si no hay parecida (dos tareas distintas —moto vs piso— NO se fusionan)."""
+    """Id of an ACTIVE task (queued/working/needs_input) whose objective looks very similar to `goal` — so the SAME
+    search does NOT open a SECOND browser even if the operator refines it turns —or MINUTES— later while the browser is
+    still working. An active task deduplicates throughout its WHOLE life (up to `within`, only anti-zombie guard).
+    Returns None if there is no similar one (two different tasks —motorcycle vs apartment— do NOT merge)."""
     g = _words(goal)
     if not g:
         return None
@@ -201,36 +199,37 @@ def similar_active(goal: str, within: float = _ZOMBIE_MAX) -> str | None:
         for tid, t in _tasks.items():
             if t.get("status") not in ("queued", "working", "needs_input"):
                 continue
-            if now - t.get("created", 0) > within:   # guard anti-zombie (tarea colgada); NO una ventana de dedup
+            if now - t.get("created", 0) > within:   # anti-zombie guard (hung task); NOT a dedup window
                 continue
             if _similar(g, t.get("goal", "")):
                 return tid
     return None
 
 
-# CONTINUIDAD: una tarea recién TERMINADA sigue siendo "la búsqueda de la que hablamos" durante esta ventana → un
-# follow-up del mismo tema la RE-LANZA en su MISMA tarjeta (no abre un segundo navegador). Fuera de la ventana, un
-# "otra vez lo de la moto" ya es una búsqueda nueva.
+# CONTINUITY: a recently FINISHED task remains "the search we are talking about" during this window → a follow-up on
+# the same topic RE-LAUNCHES it in the SAME card (does not open a second browser). Outside the window, "the motorcycle
+# thing again" is already a new search.
 _CONTINUATION_MAX = 600.0   # s (10 min)
 
 
 def find_continuation(goal: str) -> tuple[str, str] | None:
-    """(tid, status) de la tarea que este `goal` CONTINÚA — para que las ACLARACIONES del operador MODIFIQUEN la
-    tarea en curso en vez de abrir otro navegador:
-      · una tarea ACTIVA parecida  → se refina EN MARCHA (el bucle re-lee el objetivo);
-      · una recién TERMINADA parecida (≤_CONTINUATION_MAX) → se RE-LANZA en su misma tarjeta.
-    Prioriza la activa; si no, la terminada más reciente. None si no hay ninguna del mismo tema (moto vs piso no
-    casan). Es el CONTROL DE ESTADO: "cuando busco una moto y digo «no, enduro», modifica la tarea, no abras otra"."""
+    """(tid, status) of the task that this `goal` CONTINUES — so operator CLARIFICATIONS MODIFY the current task
+    instead of opening another browser:
+      · similar ACTIVE task → refined WHILE RUNNING (the loop re-reads the objective);
+      · similar recently FINISHED task (≤_CONTINUATION_MAX) → RE-LAUNCHED in the same card.
+    Prioritize active; otherwise the most recent finished one. None if there is no same-topic task (motorcycle vs
+    apartment do not match). This is STATE CONTROL: "when I search for a bike and say «no, enduro», modify the task,
+    do not open another one"."""
     g = _words(goal)
     if not g:
         return None
     now = time.time()
     with _lock:
-        for tid, t in _tasks.items():   # 1) activa (prioridad) → refinar en marcha
+        for tid, t in _tasks.items():   # 1) active (priority) → refine while running
             if t.get("status") in ("queued", "working", "needs_input") \
                     and now - t.get("created", 0) <= _ZOMBIE_MAX and _similar(g, t.get("goal", "")):
                 return (tid, t["status"])
-        best = None                     # 2) recién terminada → re-lanzar en su tarjeta (la más reciente)
+        best = None                     # 2) recently finished → re-launch in its card (most recent)
         for tid, t in _tasks.items():
             if t.get("status") not in ("done", "failed"):
                 continue
@@ -244,8 +243,8 @@ def find_continuation(goal: str) -> tuple[str, str] | None:
 
 
 def active_summaries(limit: int = 3) -> list[tuple[str, str]]:
-    """(id, objetivo) de las tareas ACTIVAS ahora — para que el ESTADO del cerebro diga EXPLÍCITAMENTE qué está en
-    curso (no solo "hay N tareas") y no relance una búsqueda que ya corre. Las más recientes primero."""
+    """(id, objective) for tasks ACTIVE now — so brain STATE says EXPLICITLY what is in progress (not just "there are N
+    tasks") and does not relaunch a search that is already running. Most recent first."""
     with _lock:
         act = [(tid, (t.get("goal") or "").strip())
                for tid, t in _tasks.items() if t.get("status") in ("queued", "working", "needs_input")]
@@ -253,21 +252,21 @@ def active_summaries(limit: int = 3) -> list[tuple[str, str]]:
 
 
 def active_ids() -> list[str]:
-    """Tareas que aún no terminaron (para enrutar respuestas / cancelar / listar)."""
+    """Tasks that have not finished yet (for routing answers / cancelling / listing)."""
     with _lock:
         return [tid for tid, t in _tasks.items() if t["status"] in ("queued", "working", "needs_input")]
 
 
 def waiting_id() -> str | None:
-    """La tarea que espera una respuesta del operador (la más reciente si hay varias)."""
+    """The task waiting for an operator answer (most recent if several exist)."""
     with _lock:
         w = [tid for tid, t in _tasks.items() if t["status"] == "needs_input"]
         return w[-1] if w else None
 
 
 def login_waiting_id() -> str | None:
-    """La tarea que espera a que el operador INICIE SESIÓN en la ventana visible (awaiting_login). La más reciente
-    si hay varias. Sirve para enrutar el 'ya estoy dentro' por voz al auth_done de esa tarea."""
+    """The task waiting for the operator to SIGN IN in the visible window (awaiting_login). Most recent if several
+    exist. Used to route the voice "I'm already in" to that task's auth_done."""
     with _lock:
         w = [tid for tid, t in _tasks.items() if t.get("awaiting_login")]
         return w[-1] if w else None
@@ -284,8 +283,8 @@ def add_event(task_id: str, text: str) -> None:
 
 
 def set_phase(task_id: str, phase: str, active: bool = True) -> None:
-    """FASE del proceso (lo que el operador quiere ver, no cada clic): 'buscando…', 'recopilando resultados',
-    'investigando los mejores', 'listo'. `active`=True → spinner en la tarjeta. Refresca la tarjeta."""
+    """Process PHASE (what the operator wants to see, not every click): 'searching...', 'collecting results',
+    'investigating the best', 'ready'. `active`=True → spinner in the card. Refreshes the card."""
     with _lock:
         t = _tasks.get(task_id)
         if not t:
@@ -296,7 +295,7 @@ def set_phase(task_id: str, phase: str, active: bool = True) -> None:
 
 
 def set_login_wait(task_id: str, on: bool) -> None:
-    """La tarjeta espera a que el operador inicie sesión en la ventana visible (muestra un botón 'ya entré')."""
+    """The card waits for the operator to sign in in the visible window (shows an 'I'm in' button)."""
     with _lock:
         t = _tasks.get(task_id)
         if not t:
@@ -306,13 +305,12 @@ def set_login_wait(task_id: str, on: bool) -> None:
 
 
 def milestone(task_id: str, text: str) -> None:
-    """Un HITO del proceso (p.ej. '34 anuncios encontrados', 'analizando 10 finalistas') — NO cada acción de
-    navegador.
+    """A process MILESTONE (e.g. '34 listings found', 'analyzing 10 finalists') — NOT every browser action.
 
-    Va a DOS sitios (2026-08-10): al feed de la tarjeta (que es efímero, en memoria, y muere con la tarea) y al
-    registro de eventos, que es lo que se puede auditar después. Antes solo iba a la tarjeta: los hitos que
-    cuentan lo que la tarea ENCONTRÓ y lo que DESCARTÓ —justo la evidencia de si la búsqueda trajo lo pedido—
-    desaparecían al cerrarla. Ahora quedan, con el trace de la frase que pidió la tarea y el `span` del actor."""
+    Goes to TWO places (2026-08-10): the card feed (ephemeral, in memory, dies with the task) and the event registry,
+    which is what can be audited later. Previously it only went to the card: milestones describing what the task FOUND
+    and DISCARDED —exactly the evidence of whether the search returned what was requested— disappeared when closing
+    it. Now they remain, with the trace of the phrase that requested the task and the actor `span`."""
     add_event(task_id, text)
     try:
         from voice.observer import emit
@@ -332,14 +330,14 @@ def set_status(task_id: str, status: str) -> None:
             return
         t["status"] = status
         if status in ("done", "failed", "cancelled"):
-            t["finished"] = time.time()   # marca la ventana de CONTINUIDAD (find_continuation)
+            t["finished"] = time.time()   # mark the CONTINUITY window (find_continuation)
     _notify(task_id)
 
 
 def set_goal(task_id: str, goal: str) -> None:
-    """Actualiza el OBJETIVO de una tarea (las aclaraciones del operador lo MODIFICAN). El bucle del automatizador
-    re-lee el objetivo cada paso (agent.run_task) → una aclaración sobre una tarea VIVA cambia lo que busca sin
-    abrir otro navegador. No toca el título (la tarjeta conserva su nombre)."""
+    """Update a task OBJECTIVE (operator clarifications MODIFY it). The automator loop re-reads the objective on every
+    step (agent.run_task) → a clarification about a LIVE task changes what it searches without opening another
+    browser. Does not touch the title (the card keeps its name)."""
     goal = (goal or "").strip()
     if not goal:
         return
@@ -352,9 +350,9 @@ def set_goal(task_id: str, goal: str) -> None:
 
 
 def set_goal_summary(task_id: str, summary: str) -> None:
-    """Fija la ESENCIA sintetizada del objetivo (objetivo + criterios, comprimido por LLM) para MOSTRAR en la
-    tarjeta — el `goal` completo se conserva intacto como texto operativo que guía la búsqueda. Best-effort: si la
-    síntesis falla, la tarjeta cae al `goal` crudo."""
+    """Set the synthesized ESSENCE of the objective (objective + criteria, compressed by LLM) for DISPLAY in the card —
+    the full `goal` remains intact as operational text guiding the search. Best-effort: if synthesis fails, the card
+    falls back to the raw `goal`."""
     summary = (summary or "").strip()
     if not summary:
         return
@@ -363,12 +361,12 @@ def set_goal_summary(task_id: str, summary: str) -> None:
         if not t:
             return
         t["goal_summary"] = summary[:200]
-        t["title"] = summary[:60]   # el título de la tarjeta también usa la esencia (antes truncaba el crudo)
+        t["title"] = summary[:60]   # the card title also uses the essence (previously truncated the raw goal)
     _notify(task_id)
 
 
 def set_results(task_id: str, results) -> None:
-    """`results` estructurados (p.ej. {"conclusion": "...", "items": [{title,subtitle,price,url,image}]})."""
+    """Structured `results` (e.g. {"conclusion": "...", "items": [{title,subtitle,price,url,image}]})."""
     with _lock:
         t = _tasks.get(task_id)
         if not t:
@@ -378,7 +376,7 @@ def set_results(task_id: str, results) -> None:
 
 
 def update_view(task_id: str, url: str = "", page_title: str = "", shot_rev: int | None = None) -> None:
-    """El navegador de esta tarea cambió de vista (nueva captura) → refresca su tarjeta."""
+    """This task's browser changed view (new capture) → refresh its card."""
     with _lock:
         t = _tasks.get(task_id)
         if not t:
@@ -393,7 +391,7 @@ def update_view(task_id: str, url: str = "", page_title: str = "", shot_rev: int
 
 
 def ask(task_id: str, question: str) -> None:
-    """La tarea necesita un dato del operador → estado needs_input + pregunta (sale en su feed y por voz)."""
+    """The task needs data from the operator → needs_input status + question (appears in its feed and by voice)."""
     with _lock:
         t = _tasks.get(task_id)
         if not t:
@@ -405,7 +403,7 @@ def ask(task_id: str, question: str) -> None:
 
 
 def answer(task_id: str, text: str) -> None:
-    """El operador respondió a la pregunta de esta tarea → el bucle lo recogerá (poll de `answer`)."""
+    """The operator answered this task's question → the loop will pick it up (`answer` poll)."""
     with _lock:
         t = _tasks.get(task_id)
         if not t:
@@ -418,7 +416,7 @@ def answer(task_id: str, text: str) -> None:
 
 
 def take_answer(task_id: str) -> str:
-    """El bucle consume la respuesta pendiente (una sola vez)."""
+    """The loop consumes the pending answer (once only)."""
     with _lock:
         t = _tasks.get(task_id)
         if not t:
@@ -440,7 +438,7 @@ def cancel(task_id: str) -> None:
 
 
 def finish(task_id: str, status: str, summary: str = "") -> None:
-    """Cierra la tarea (done|failed) y deja el resumen en el feed."""
+    """Close the task (done|failed) and leave the summary in the feed."""
     if summary:
         add_event(task_id, summary)
     set_status(task_id, status if status in ("done", "failed") else "done")

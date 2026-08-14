@@ -1,16 +1,16 @@
-"""config/v2.py — esquema de configuración v2 «Colmena» (ADITIVO, INI V2-001).
+"""config/v2.py — v2 «Colmena» configuration schema (ADDITIVE, INI V2-001).
 
-Convive con `config/settings.py` (⚙: STT/TTS/voz/idioma) y `config/connectors.py` sin tocarlos — nada se
-borra todavía (la limpieza de la config de Hermes/duo es V2-009). Aquí vive lo NUEVO del cerebro v2:
+Coexists with `config/settings.py` (⚙: STT/TTS/voice/language) and `config/connectors.py` without touching them —
+nothing is deleted yet (Hermes/duo config cleanup is V2-009). The NEW v2 brain config lives here:
 
-  - **routing de modelos** — el modelo del FlashBrain (capa rápida no-razonadora) y el del CodeAgent del
-    SlowBrain. **Modelo POR INVOCACIÓN** (regla dura): esto guarda los DEFAULTS que el llamador lee y pasa en
-    cada invocación; NUNCA una env global de modelo que fuerce a todas las sesiones a la vez.
-  - **flags** — interruptores de despliegue v2 (memoria, loop orquestador…), para la estrategia strangler-fig.
+  - **model routing** — the FlashBrain model (fast non-reasoning layer) and the SlowBrain CodeAgent model.
+    **Model PER INVOCATION** (hard rule): this stores DEFAULTS that the caller reads and passes for each invocation;
+    NEVER a global model env var that forces every session at once.
+  - **flags** — v2 deployment switches (memory, orchestrator loop…), for the strangler-fig strategy.
 
-Igual que el resto de config de zaelar: **la gestiona la UI**, persiste en `config/v2.json` (gitignored, lleva
-credenciales), y el store MANDA sobre `.env` (env = fallback power-user/headless). **Vista pública REDACTADA**:
-las API keys nunca salen al frontend → `<key>_set: bool`.
+Like the rest of zaelar config: **the UI manages it**, it persists in `config/v2.json` (gitignored, carries
+credentials), and the store WINS over `.env` (env = power-user/headless fallback). **REDACTED public view**: API keys
+never reach the frontend → `<key>_set: bool`.
 """
 import json
 import os
@@ -24,177 +24,176 @@ from nucleo import workspace as _workspace
 _PATH = _workspace.root() / "config" / "v2.json"
 _lock = threading.Lock()
 
-# Forma por sección + defaults. Añadir una capacidad = una entrada aquí.
-# NB: los `*_model` son DEFAULTS; el cerebro los pasa POR INVOCACIÓN (nunca una env global de modelo).
+# Shape by section + defaults. Adding a capability = one entry here.
+# NB: `*_model` values are DEFAULTS; the brain passes them PER INVOCATION (never a global model env var).
 _DEFAULTS: dict[str, dict] = {
-    # FlashBrain — capa rápida no-razonadora (provider `nucleo`, V2-004). Solo no-razonadores.
+    # FlashBrain — fast non-reasoning layer (provider `nucleo`, V2-004). Non-reasoners only.
     "fast": {
-        "provider": "aimlapi",                              # 'ollama' (local) | 'aimlapi' (nube)
-        # V2-034 (2026-07-12): default = claude-haiku-4.5. El A/B en el canal de prueba (nucleo/flash/probe.py) sobre
-        # la sesión manual del operador mostró que grok-4-fast-non-reasoning "parece tonto": no busca cuando debe
-        # (alucina), no razona sobre su propia contradicción y reacciona con acciones espurias a preguntas META.
-        # Haiku 4.5 (NO-razonador, validado en AIMLAPI) busca fiable, INTROSPECCIONA sus errores y explica en vez de
-        # actuar, a latencia comparable (~2-3s). Sigue siendo POR INVOCACIÓN; se cambia por la UI/config.
-        "model": "anthropic/claude-haiku-4.5",              # default; se pasa por invocación
+        "provider": "aimlapi",                              # 'ollama' (local) | 'aimlapi' (cloud)
+        # V2-034 (2026-07-12): default = claude-haiku-4.5. The A/B in the test channel (nucleo/flash/probe.py) on
+        # the operator's manual session showed grok-4-fast-non-reasoning "seems dumb": it does not search when it
+        # should (hallucinates), does not reason about its own contradiction, and reacts with spurious actions to
+        # META questions. Haiku 4.5 (NON-reasoner, validated on AIMLAPI) searches reliably, INTROSPECTS its errors,
+        # and explains instead of acting, at comparable latency (~2-3s). Still PER INVOCATION; changed via UI/config.
+        "model": "anthropic/claude-haiku-4.5",              # default; passed per invocation
         "base_url": "",
         "api_key": "",
     },
-    # SlowBrain — agente de código headless tras la interfaz CodeAgent (V2-006).
-    # Modelo POR INVOCACIÓN: `model` es el default global; `model_<kind>` permite un modelo distinto por tipo de
-    # tarea (memoria/web/código) — vacío = cae a `model`, y `model` vacío = default del proveedor. El dispatcher
-    # los LEE y los pasa en cada `RunSpec` (nunca fija una env global de modelo).
+    # SlowBrain — headless code agent behind the CodeAgent interface (V2-006).
+    # Model PER INVOCATION: `model` is the global default; `model_<kind>` allows a different model by task type
+    # (memory/web/code) — empty = falls back to `model`, and empty `model` = provider default. The dispatcher READS
+    # them and passes them in each `RunSpec` (never sets a global model env var).
     "code_agent": {
         "provider": "claude_code",                          # 'claude_code' | 'codex'
-        "model": "",                                        # default global; vacío = default del proveedor
-        "model_memory": "",                                 # agente de MEMORIA ★ (trabajo barato/mecánico)
-        "model_web": "",                                    # agentes de trabajo web (V2-007)
-        "model_code": "",                                   # agentes de trabajo de código (V2-007)
+        "model": "",                                        # global default; empty = provider default
+        "model_memory": "",                                 # MEMORY agent ★ (cheap/mechanical work)
+        "model_web": "",                                    # web work agents (V2-007)
+        "model_code": "",                                   # code work agents (V2-007)
         "api_key": "",
-        # base_url: endpoint Anthropic-compatible EXTERNO para los workers `claude` (2026-07-31). Vacío = la
-        # cuenta Anthropic normal del sistema. Si apunta a un proveedor compatible (p.ej. Z.AI GLM coding plan,
-        # "una API para usar desde Claude Code"), el worker lo usa vía ANTHROPIC_BASE_URL + ANTHROPIC_AUTH_TOKEN;
-        # el token se resuelve del credential store por endpoint (z.ai → Z_AI_API_KEY), nunca desde este JSON.
+        # base_url: EXTERNAL Anthropic-compatible endpoint for `claude` workers (2026-07-31). Empty = the system's
+        # normal Anthropic account. If it points at a compatible provider (e.g. Z.AI GLM coding plan, "one API to
+        # use from Claude Code"), the worker uses it through ANTHROPIC_BASE_URL + ANTHROPIC_AUTH_TOKEN; the token is
+        # resolved from the credential store by endpoint (z.ai → Z_AI_API_KEY), never from this JSON.
         "base_url": "",
-        "max_parallel": 3,                                  # POOL: máx sesiones Claude Code concurrentes (V2-036) —
-        #                                                     no saturar equipo/tokens; env CODE_AGENT_MAX_PARALLEL.
-        # Cadena de RELEVO explícita (2026-08-03): el operador ordena a mano principal→failover→failover (cada uno
-        # {name, base_url, env|api_key, model, plan}). `nucleo.workers.providers.chain()` la lee si NO está vacía;
-        # vacío (default) = comportamiento de siempre (base_url de arriba + catálogo KNOWN + licencia local).
+        "max_parallel": 3,                                  # POOL: max concurrent Claude Code sessions (V2-036) —
+        #                                                     avoid saturating machine/tokens; env CODE_AGENT_MAX_PARALLEL.
+        # Explicit RELAY chain (2026-08-03): the operator manually orders primary→failover→failover (each one
+        # {name, base_url, env|api_key, model, plan}). `nucleo.workers.providers.chain()` reads it if NOT empty;
+        # empty (default) = usual behavior (base_url above + KNOWN catalog + local license).
         "providers": [],
     },
-    # Cadena del CEREBRO DE CLUSTER (V2-069 «una sola mente», off-voz — `nucleo.flash.provider_chain`, 2026-08-03).
-    # Motiva esto el incidente del 429 de Z.AI: un turno de cluster (heartbeat/reply a un peer) solo tenía UN tier
-    # fijado al arrancar el server (`connectors/meshkore/brain.py`), sin relevo — agotada su cuota, el turno moría
-    # y se reintentaba SIEMPRE contra el mismo proveedor roto. `providers` (vacío = default) deja al operador fijar
-    # a mano principal→failover→failover ({name, base_url, env|api_key, model, plan}); vacío = cadena por defecto
-    # construida de las credenciales presentes (Z.AI directo → AIMLAPI/DeepSeek → xAI → Groq), igual que siempre.
+    # CLUSTER BRAIN chain (V2-069 "one mind", off-voice — `nucleo.flash.provider_chain`, 2026-08-03). Motivated by
+    # the Z.AI 429 incident: a cluster turn (heartbeat/reply to a peer) had only ONE tier fixed at server boot
+    # (`connectors/meshkore/brain.py`), without relay — once its quota was exhausted, the turn died and was retried
+    # ALWAYS against the same broken provider. `providers` (empty = default) lets the operator manually set
+    # primary→failover→failover ({name, base_url, env|api_key, model, plan}); empty = default chain built from
+    # present credentials (direct Z.AI → AIMLAPI/DeepSeek → xAI → Groq), as before.
     "cluster": {
         "providers": [],
     },
-    # Memoria — modelos de RECUPERACIÓN (embedding + reranker), MODEL-AGNOSTIC (V2-030). Igual que `fast`/
-    # `code_agent`: DEFAULTS que la memoria lee; local por defecto (autosuficiente con nuestra GPU/CPU), listo
-    # para cloud/APIs externas cambiando solo el `*_provider`. Detalle en `zaelar-memory.md §Recuperación`.
+    # Memory — RETRIEVAL models (embedding + reranker), MODEL-AGNOSTIC (V2-030). Same as `fast`/`code_agent`:
+    # DEFAULTS that memory reads; local by default (self-sufficient with our GPU/CPU), ready for cloud/external APIs
+    # by changing only the `*_provider`. Details in `zaelar-memory.md §Retrieval`.
     "memory": {
-        # Reranker del recall LARGO (off-hot-path, fail-open). Sube el correcto del top-10 al top-1/3.
+        # LONG-recall reranker (off-hot-path, fail-open). Moves the correct item from top-10 to top-1/3.
         # DEFAULT `local` (V2-030): jina-reranker-v2-multilingual en CPU sube recall@1 41.6→56.2% y recall@3
         # empata al techo OpenAI (68.7 vs 69.0%) — gratis, 100% local, sin GPU. `openai` = techo cloud opcional.
         "rerank_provider": "local",            # 'off' | 'local' (fastembed CPU, default) | 'openai' (LLM listwise) | 'cohere'/'voyage'
-        "rerank_model": "",                    # vacío = default del proveedor (openai→gpt-4o-mini, local→bge-reranker-base)
-        "rerank_base_url": "",                 # endpoint OpenAI-compatible alternativo (vacío = OpenAI)
+        "rerank_model": "",                    # empty = provider default (openai→gpt-4o-mini, local→bge-reranker-base)
+        "rerank_base_url": "",                 # alternative OpenAI-compatible endpoint (empty = OpenAI)
         "rerank_top_n": 20,                    # nº de candidatos del tope que se reordenan
         "rerank_blend": 0.85,                  # peso del rerank vs score original (recencia/importancia)
-        "rerank_api_key": "",                  # secreto (redactado); vacío = OPENAI_API_KEY del entorno
-        # Embedding de la memoria (Fase 3: abstracción; el default sigue local, sin re-embed automático).
+        "rerank_api_key": "",                  # secret (redacted); empty = OPENAI_API_KEY from env
+        # Memory embedding (Phase 3: abstraction; default remains local, without automatic re-embed).
         "embed_provider": "auto",              # 'auto' (ollama→fastembed→hash) | 'ollama' | 'fastembed' | 'voyage'/'openai' (cloud)
         "embed_model": "embeddinggemma",       # modelo de embedding; cambiarlo EXIGE re-embed (memory/reembed.py)
-        "embed_api_key": "",                   # secreto (redactado); solo para proveedores cloud
-        # El CORAZÓN de escritura (mem_processor): destila cada turno en píldoras. Va OFF-HOT-PATH (cola async) →
-        # **su latencia NO la paga la voz**, y la LECTURA no usa ningún LLM. Por eso el eje de elección es
-        # calidad-vs-PRECIO, nunca velocidad: aquí un modelo lento y barato es perfectamente válido.
+        "embed_api_key": "",                   # secret (redacted); cloud providers only
+        # The write HEART (mem_processor): distills each turn into pills. It runs OFF-HOT-PATH (async queue) →
+        # **voice does NOT pay its latency**, and READS use no LLM. That is why the choice axis is quality-vs-PRICE,
+        # never speed: here a slow and cheap model is perfectly valid.
         #
-        # **DEFAULT = `deepseek/deepseek-v4-flash` vía AIMLAPI** (ronda 2026-08-09, benchmarks §12.3). Barrido de 21
-        # candidatos comerciales × 34 casos × 4 ejes (`tests/memory/e2e/bot/distiller_bench.py`), 3 pasadas a los
-        # finalistas. Sustituye a `gpt-4.1-mini` **por precio a igualdad de calidad útil**: completeness 98,5% vs
-        # 98,9% (un solo hecho de diferencia, dentro del ruido), precisión 100% vs 100% (ninguno de los dos ensucia
-        # jamás un descarte) y **$0,68 vs $1,516 por 1.000 turnos → −55%**. Deroga la directriz previa «memoria =
-        # SIEMPRE OpenAI» (2026-07-17), que se tomó cuando el único contendiente barato medido era gpt-4o-mini.
-        #   · Capa/slot 94,4% vs 100% del titular — sus DOS únicos fallos, reproducibles: pierde el «somos cinco» de
-        #     una enumeración familiar (el resto de nombres sí los guarda) y no marca `change=update` en una
-        #     NEGACIÓN pura («ya no trabajo en X», donde no hay valor nuevo con el que superseder). Ninguno destruye
-        #     datos ya guardados.
-        #   · ⛔ `gpt-4o-mini` es más barato aún ($0,567) y quedó VETADO: con la alergia dicha en INGLÉS le pone
-        #     `slot=operator.diet` (3/3 pasadas + 3/3 en reproducción directa). Un slot INVALIDA todo lo anterior con
-        #     ese slot → un futuro «ahora soy vegetariano» borraría la alergia. Es el error que el prompt advierte
-        #     por escrito, y en una memoria personal es pérdida de datos silenciosa, no un punto porcentual.
+        # **DEFAULT = `deepseek/deepseek-v4-flash` via AIMLAPI** (2026-08-09 round, benchmarks §12.3). Sweep of 21
+        # commercial candidates × 34 cases × 4 axes (`tests/memory/e2e/bot/distiller_bench.py`), 3 passes over the
+        # finalists. Replaces `gpt-4.1-mini` **on price at equal useful quality**: completeness 98.5% vs 98.9% (one
+        # fact of difference, within noise), precision 100% vs 100% (neither ever pollutes a discard), and **$0.68
+        # vs $1.516 per 1,000 turns → −55%**. Overrides the previous "memory = ALWAYS OpenAI" directive
+        # (2026-07-17), which was made when the only measured cheap contender was gpt-4o-mini.
+        #   · Layer/slot 94.4% vs incumbent 100% — its TWO only reproducible failures: loses "there are five of us"
+        #     from a family enumeration (it saves the rest of the names) and does not mark `change=update` on a pure
+        #     NEGATION ("I no longer work at X", where there is no new value to supersede with). Neither destroys
+        #     already-saved data.
+        #   · ⛔ `gpt-4o-mini` is even cheaper ($0.567) and was VETOED: with the allergy stated in ENGLISH it assigns
+        #     `slot=operator.diet` (3/3 passes + 3/3 direct reproduction). A slot INVALIDATES everything previous
+        #     with that slot → a future "now I am vegetarian" would erase the allergy. This is the exact error the
+        #     prompt warns about, and in personal memory it is silent data loss, not a percentage point.
         #   · Fallback si AIMLAPI/DeepSeek cae: `google/gemini-2.5-flash` (96,7/100/100) → `openai/gpt-4.1-mini`.
-        #   · MISMO modelo en self-host y en la nube (decisión del operador 2026-08-09: un solo modelo comercial que
-        #     sirva en los dos sitios). Los sitios que lo fijan por env en cloud —`engine/fly.accounts.toml` y
-        #     `cloud/provisioner/src/machineConfig.js`— van sincronizados con este default.
-        #   · La opción LOCAL (Ollama) sigue disponible apuntando `mem_processor_base_url` a `localhost:11434`.
-        "mem_processor_model": "deepseek/deepseek-v4-flash",     # vacío = env MEM_PROCESSOR_MODEL o el fallback
+        #   · SAME model in self-host and cloud (operator decision 2026-08-09: one commercial model that works in
+        #     both places). The sites that set it by env in cloud —`engine/fly.accounts.toml` and
+        #     `cloud/provisioner/src/machineConfig.js`— are synchronized with this default.
+        #   · The LOCAL option (Ollama) remains available by pointing `mem_processor_base_url` to `localhost:11434`.
+        "mem_processor_model": "deepseek/deepseek-v4-flash",     # empty = env MEM_PROCESSOR_MODEL or fallback
         "mem_processor_base_url": "https://api.aimlapi.com/v1",  # endpoint OpenAI-compatible; a Ollama = local
-        "mem_processor_api_key": "",                     # secreto (redactado); vacío = key POR ENDPOINT (AIMLAPI_KEY)
-        # Sueño PROFUNDO «fase REM» (V2-056, memory/rem.py): consolidación diaria con LLM — síntesis de clusters
-        # de píldoras en INSIGHTS de alto nivel (kind='insight', slot insight:<concepto>, supersede por sueño).
-        # Off-hot-path total (lo dispara el loop); modelo por tarea (router nucleo/memllm.py, key por endpoint).
-        # Bench de síntesis 2026-07-20 → ver zaelar-model-benchmarks.md §12.2.
-        # MODELO sin cambios (§12.2 dio gpt-4.1-mini 100% y no se ha vuelto a medir); lo que cambia el 2026-08-09
-        # es la CUENTA: pasa de OpenAI directo a AIMLAPI, la misma que el CORAZÓN, por tres razones concretas:
-        #   (1) REM **no tiene variable de entorno** (no está en _ENV_MAP), así que este default es lo ÚNICO que
-        #       gobierna la nube — y allí no hay `OPENAI_API_KEY` entre los secretos (los que inyecta el
-        #       provisioner son AIMLAPI/Z_AI/ELEVENLABS/XAI/MISTRAL/DEEPGRAM): apuntando a OpenAI, el sueño
-        #       profundo fallaba en silencio en cada máquina cloud.
-        #   (2) una sola cuenta de proveedor para todo el módulo de memoria (la razón por la que el CORAZÓN ya
-        #       estaba en AIMLAPI), en vez de dos facturas para dos tareas de la misma pieza.
-        #   (3) esa cuenta de OpenAI directo va muy limitada de tasa (429 con pocas llamadas en vuelo, p50 de
-        #       20 s medido en el barrido §12.3) — mal sitio para una consolidación que procesa lotes.
+        "mem_processor_api_key": "",                     # secret (redacted); empty = PER-ENDPOINT key (AIMLAPI_KEY)
+        # DEEP sleep «REM phase» (V2-056, memory/rem.py): daily LLM consolidation — synthesis of pill clusters into
+        # high-level INSIGHTS (kind='insight', slot insight:<concept>, superseded by sleep). Fully off-hot-path
+        # (triggered by the loop); model per task (router nucleo/memllm.py, key by endpoint). Synthesis benchmark
+        # 2026-07-20 → see zaelar-model-benchmarks.md §12.2.
+        # MODEL unchanged (§12.2 gave gpt-4.1-mini 100% and it has not been remeasured); what changes on 2026-08-09
+        # is the ACCOUNT: from direct OpenAI to AIMLAPI, same as the HEART, for three concrete reasons:
+        #   (1) REM **has no environment variable** (not in _ENV_MAP), so this default is the ONLY thing governing
+        #       cloud — and there is no `OPENAI_API_KEY` among cloud secrets (the provisioner injects
+        #       AIMLAPI/Z_AI/ELEVENLABS/XAI/MISTRAL/DEEPGRAM): pointed at OpenAI, deep sleep silently failed on
+        #       every cloud machine.
+        #   (2) one provider account for the whole memory module (the reason the HEART was already on AIMLAPI),
+        #       instead of two invoices for two tasks in the same piece.
+        #   (3) that direct OpenAI account is heavily rate-limited (429 with few calls in flight, 20s p50 measured
+        #       in the §12.3 sweep) — a bad place for consolidation that processes batches.
         "rem_model": "deepseek/deepseek-v4-flash",
         "rem_base_url": "https://api.aimlapi.com/v1",
-        "rem_api_key": "",                               # secreto (redactado); vacío = key por endpoint
-        "rem_every_hours": 24,                           # cadencia del sueño profundo (mín 1h)
+        "rem_api_key": "",                               # secret (redacted); empty = key by endpoint
+        "rem_every_hours": 24,                           # deep-sleep cadence (min 1h)
     },
-    # Triaje de mensajería (clasificador de relevancia de WhatsApp/Telegram). ⚠️ Antes LOCAL (qwen2.5:3b) por
-    # PRIVACIDAD (nada personal salía de la máquina). El operador pidió CERO ejecución local (batería) → pasa a
-    # EXTERNO; el mensaje personal ahora SÍ sale a la nube (tradeoff aceptado explícitamente 2026-07-17). Tarea de
-    # clasificación simple (no tool-routing) → grok vale y aprovecha el saldo de xAI. Configurable por pieza.
+    # Messaging triage (WhatsApp/Telegram relevance classifier). ⚠️ Previously LOCAL (qwen2.5:3b) for PRIVACY
+    # (nothing personal left the machine). The operator requested ZERO local execution (battery) → moved to
+    # EXTERNAL; the personal message now DOES leave to the cloud (tradeoff explicitly accepted 2026-07-17). Simple
+    # classification task (no tool-routing) → grok is fine and uses xAI credit. Configurable per piece.
     "triage": {
         "provider": "xai",
         "model": "grok-4.20-0309-non-reasoning",
         "base_url": "https://api.x.ai/v1",
-        "api_key": "",                                    # secreto (redactado); vacío = XAI_API_KEY del entorno
+        "api_key": "",                                    # secret (redacted); empty = XAI_API_KEY from env
     },
-    # «Susurro» (V2-053) — auditor conversacional off-hot-path: un modelo POTENTE (aquí SÍ puede ser razonador,
-    # está FUERA del camino de voz) recibe conversación+eventos cuando hay FRICCIÓN (queja/repetición/turno
-    # degradado/rail fail/worker encallado) y devuelve correcciones de un catálogo CERRADO (F1: repair_say +
-    # finding). Kill-switch de 1ª clase: `enabled` (UI) + env ZAELAR_SUSURRO. Fail-open duro: sin key/timeout →
-    # no pasa nada. NUNCA modifica BRAIN RULES en runtime (invariante V2-053 §3d).
+    # «Susurro» (V2-053) — off-hot-path conversational auditor: a POWERFUL model (here it CAN be a reasoner,
+    # because it is OUTSIDE the voice path) receives conversation+events when there is FRICTION (complaint/
+    # repetition/degraded turn/rail fail/stuck worker) and returns corrections from a CLOSED catalog (F1:
+    # repair_say + finding). First-class kill switch: `enabled` (UI) + env ZAELAR_SUSURRO. Hard fail-open: no
+    # key/timeout → nothing happens. NEVER modifies BRAIN RULES at runtime (V2-053 §3d invariant).
     "susurro": {
         "enabled": True,
         "provider": "aimlapi",
-        # 2026-08-09 — por el BROKER, no por OpenAI directo. Norma del operador: una sola cuenta de API que
-        # gestionar (AIMLAPI); Z.AI y Groq van aparte y solo donde hacen falta. El MODELO no cambia (gpt-4.1-mini,
-        # el mismo que se venía usando), solo el camino — así que no hay regresión de calidad que medir. Motivo
-        # extra: la cuenta de OpenAI directo va muy limitada de tasa (429 con pocas llamadas en vuelo, p50 de 20s
-        # medido en el barrido §12.3), lo que disfrazaba de "mal modelo" lo que era el endpoint. Benchmark §10
-        # (elegir el modelo de Susurro con datos) sigue pendiente.
+        # 2026-08-09 — through the BROKER, not direct OpenAI. Operator rule: one API account to manage (AIMLAPI);
+        # Z.AI and Groq are separate and only where needed. The MODEL does not change (gpt-4.1-mini, same as before),
+        # only the path — so there is no quality regression to measure. Extra reason: the direct OpenAI account is
+        # heavily rate-limited (429 with few calls in flight, 20s p50 measured in the §12.3 sweep), which disguised
+        # an endpoint issue as a "bad model". Benchmark §10 (choosing the Susurro model with data) is still pending.
         "model": "openai/gpt-4.1-mini",
         "base_url": "https://api.aimlapi.com/v1",
-        "api_key": "",                          # secreto (redactado); vacío = resuelta por endpoint (OPENAI_API_KEY…)
-        "pulse_turns": 0,                       # 0 = solo fricción; N = auditoría ligera además cada N turnos
-        "cooldown_s": 60,                       # mínimo entre auditorías (anti-ráfaga)
-        "window_turns": 8,                      # turnos de conversación verbatim en la ventana de auditoría
-        "recency_window_s": 120,                # solo turnos/eventos de esta ventana entran a la auditoría (anti-contaminación)
+        "api_key": "",                          # secret (redacted); empty = resolved by endpoint (OPENAI_API_KEY…)
+        "pulse_turns": 0,                       # 0 = friction only; N = also light audit every N turns
+        "cooldown_s": 60,                       # minimum between audits (anti-burst)
+        "window_turns": 8,                      # verbatim conversation turns in the audit window
+        "recency_window_s": 120,                # only turns/events from this window enter the audit (anti-contamination)
     },
-    # DIRECTOR DE INVESTIGACIÓN (nucleo/research.py) — compone el BRIEF con el que un Brain Worker ejecuta una
-    # SELECCIÓN (criterios duros/blandos separados, enriquecimientos de experto, amplitud mínima de candidatos,
-    # baremo de calidad, forma del entregable). Corre en el pre-vuelo ASÍNCRONO de la escalada, nunca en el turno
-    # de voz, así que aquí SÍ puede razonar. Vacío = va por la CADENA del tier de razonamiento
-    # (nucleo/flash/provider_chain.py), que además releva de proveedor si el principal se queda sin cuota; rellena
-    # model+base_url solo para FIJAR uno concreto. Fail-open: sin brief el worker sale como salía antes.
+    # RESEARCH DIRECTOR (nucleo/research.py) — composes the BRIEF with which a Brain Worker executes a SELECTION
+    # (hard/soft criteria separated, expert enrichments, minimum candidate breadth, quality rubric, deliverable
+    # shape). Runs in the ASYNC pre-flight of escalation, never in the voice turn, so here it CAN reason. Empty =
+    # goes through the reasoning-tier CHAIN (nucleo/flash/provider_chain.py), which also relays provider if the
+    # primary runs out of quota; fill model+base_url only to PIN a concrete one. Fail-open: without a brief the
+    # worker starts as before.
     "research": {
-        "enabled": True,                        # kill-switch de 1ª clase (UI) + env ZAELAR_RESEARCH=0
+        "enabled": True,                        # first-class kill switch (UI) + env ZAELAR_RESEARCH=0
         "model": "",
         "base_url": "",
-        "api_key": "",                          # secreto (redactado); vacío = key por endpoint
+        "api_key": "",                          # secret (redacted); empty = key by endpoint
     },
-    # Flags de despliegue v2. Tras el entierro de Hermes (V2-009) el cerebro por defecto es el propio «Colmena».
+    # v2 deployment flags. After Hermes' burial (V2-009), the default brain is «Colmena» itself.
     "flags": {
-        "brain": "nucleo",                                  # cerebro activo: 'nucleo' (propio) · 'direct'/'local' (baselines)
+        "brain": "nucleo",                                  # active brain: 'nucleo' (own) · 'direct'/'local' (baselines)
         "memory_enabled": True,                             # memoria central (V2-002/003)
         "loop_enabled": True,                               # loop orquestador (V2-005)
     },
 }
 
-# Claves que NUNCA se devuelven al frontend (→ `<key>_set: bool`). Fail-safe de privacidad. Cualquier clave que
-# TERMINE en `api_key` (api_key/rerank_api_key/embed_api_key…) se redacta — no hay que listarlas una a una.
-# NB: usar un literal, no builtins.set() — el módulo define una función `set()` que lo sombrearía.
+# Keys that are NEVER returned to the frontend (→ `<key>_set: bool`). Privacy fail-safe. Any key that ENDS in
+# `api_key` (api_key/rerank_api_key/embed_api_key…) is redacted — no need to list them one by one.
+# NB: use a literal, not builtins.set() — this module defines a `set()` function that would shadow it.
 _SECRET_KEYS = {"api_key"}
 
 
 def _is_secret(key: str) -> bool:
     return key in _SECRET_KEYS or key.endswith("api_key")
 
-# env var de FALLBACK por clave (back-compat / power-user). Solo se consulta si el store no dice nada.
+# FALLBACK env var by key (back-compat / power-user). Queried only if the store says nothing.
 _ENV_FALLBACK = {
     ("fast", "provider"): "FAST_PROVIDER",
     ("fast", "model"): "FAST_MODEL",
@@ -249,7 +248,7 @@ def _write(data: dict) -> None:
 
 
 def get(section: str) -> dict:
-    """Config efectiva de una sección (defaults + store + fallback env). Incluye secretos → uso INTERNO."""
+    """Effective config for a section (defaults + store + fallback env). Includes secrets → INTERNAL use."""
     base = dict(_DEFAULTS.get(section, {}))
     stored = _read().get(section, {}) or {}
     for k in base:
@@ -263,7 +262,7 @@ def get(section: str) -> dict:
 
 
 def set(section: str, patch: dict) -> dict:
-    """Aplica un patch a una sección (read-modify-write atómico). Solo claves declaradas en _DEFAULTS."""
+    """Apply a patch to a section (atomic read-modify-write). Only keys declared in _DEFAULTS."""
     if section not in _DEFAULTS:
         raise KeyError(f"config/v2: sección desconocida {section!r}")
     allowed = set_keys(section)
@@ -278,12 +277,12 @@ def set(section: str, patch: dict) -> dict:
 
 
 def set_keys(section: str) -> frozenset:
-    # literal, NO builtins.set() — el nombre `set` está sombreado por la función `set()` de arriba.
+    # literal, NOT builtins.set() — the name `set` is shadowed by the function `set()` above.
     return frozenset(_DEFAULTS.get(section, {}).keys())
 
 
 def public(section: str) -> dict:
-    """Vista REDACTADA para el frontend: los secretos NUNCA salen (→ `<key>_set: bool`)."""
+    """REDACTED frontend view: secrets NEVER leave (→ `<key>_set: bool`)."""
     cfg = get(section)
     out = {}
     for k, val in cfg.items():
@@ -295,13 +294,13 @@ def public(section: str) -> dict:
 
 
 def public_all() -> dict:
-    """Toda la config v2 para el frontend, redactada. NUNCA contiene una API key en claro."""
+    """All v2 config for the frontend, redacted. NEVER contains a cleartext API key."""
     return {s: public(s) for s in _DEFAULTS}
 
 
-# ── accesos de conveniencia para el cerebro (modelo POR INVOCACIÓN) ─────────────────────────────────────
+# ── brain convenience accessors (model PER INVOCATION) ───────────────────────────────────────────────────
 def fast_model_spec() -> dict:
-    """Selección de modelo del FlashBrain para pasar POR INVOCACIÓN (no fija ninguna env global)."""
+    """FlashBrain model selection to pass PER INVOCATION (sets no global env var)."""
     return get("fast")
 
 
@@ -310,20 +309,20 @@ def code_agent_spec() -> dict:
 
 
 def code_agent_model(kind: str = "generic") -> str:
-    """Modelo del CodeAgent para un TIPO de tarea, para pasar POR INVOCACIÓN. Cae en cascada:
-    `model_<kind>` → `model` (default global) → "" (default del proveedor). Nunca fija una env global."""
+    """CodeAgent model for one task TYPE, to pass PER INVOCATION. Cascades:
+    `model_<kind>` → `model` (global default) → "" (provider default). Never sets a global env var."""
     cfg = get("code_agent")
     per_kind = (cfg.get(f"model_{kind}") or "").strip()
     return per_kind or (cfg.get("model") or "").strip()
 
 
 def external_worker_env() -> dict:
-    """Env vars para que un agente `claude` HEADLESS (brain worker o generador de widgets) use el endpoint
-    Anthropic-compatible EXTERNO de §code_agent (p.ej. Z.AI GLM coding plan) en vez de la cuenta/licencia Claude
-    del sistema — así los agentes headless NO consumen tokens de la licencia Claude Teams (regla del operador
-    2026-07-31). Devuelve {} si `base_url` no está configurado (→ comportamiento normal). Fuente ÚNICA para TODOS
-    los spawns de `claude` del repo, para que ninguno se quede fuera. El token se resuelve del credential store
-    POR ENDPOINT (z.ai → `Z_AI_API_KEY`), NUNCA desde el JSON de config. Fail-open (cualquier fallo → {})."""
+    """Env vars for a HEADLESS `claude` agent (brain worker or widget generator) to use the EXTERNAL
+    Anthropic-compatible §code_agent endpoint (e.g. Z.AI GLM coding plan) instead of the system Claude
+    account/license — so headless agents do NOT consume Claude Teams license tokens (operator rule 2026-07-31).
+    Returns {} if `base_url` is not configured (→ normal behavior). SINGLE source for ALL repo `claude` spawns, so
+    none are left out. Token is resolved from the credential store BY ENDPOINT (z.ai → `Z_AI_API_KEY`), NEVER from
+    config JSON. Fail-open (any failure → {})."""
     try:
         cfg = get("code_agent")
         base = (cfg.get("base_url") or "").strip()
@@ -333,8 +332,9 @@ def external_worker_env() -> dict:
         if not tok and "z.ai" in base.lower():
             tok = os.getenv("Z_AI_API_KEY", "")
         if not tok:
-            # base_url CONFIGURADO pero sin token resoluble → si devolviéramos {} el agente headless caería a la
-            # licencia Claude Teams EN SILENCIO (justo lo que el operador quiere evitar). Avisar FUERTE (fail-loud).
+            # CONFIGURED base_url but no resolvable token → if we returned {}, the headless agent would silently
+            # fall back to the Claude Teams license (exactly what the operator wants to avoid). Warn LOUDLY
+            # (fail-loud).
             try:
                 from loguru import logger
                 logger.warning(f"code_agent.base_url={base!r} configurado pero SIN token resoluble "
@@ -350,9 +350,9 @@ def external_worker_env() -> dict:
 
 
 def active_brain() -> str:
-    """El cerebro seleccionado para este run. Fuente ÚNICA tras el entierro de Hermes (V2-009): antes vivía en
-    `brains/__init__.py`. Env-first (`BRAIN`, lo que fija `make run` = nucleo) → store `flags.brain` → default
-    `nucleo`. Se lee DESPUÉS de `config.settings.load_into_env()` para honrar overrides en caliente."""
+    """Selected brain for this run. SINGLE source after Hermes' burial (V2-009): it used to live in
+    `brains/__init__.py`. Env-first (`BRAIN`, what `make run` sets = nucleo) → store `flags.brain` → default
+    `nucleo`. Read AFTER `config.settings.load_into_env()` so live overrides are honored."""
     env = os.getenv("BRAIN")
     if env:
         return env.lower()

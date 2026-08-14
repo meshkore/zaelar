@@ -1,11 +1,11 @@
 #
-# connectors/email — conector de EMAIL personal del operador (V2-051), integrado en el widget `mensajeria`.
+# connectors/email — operator personal EMAIL connector (V2-051), integrated into the `mensajeria` widget.
 #
-# El conector más LIMPIO de los tres canales: stdlib puro (imaplib/smtplib), SIN bridge Node (WhatsApp) ni lib de
-# terceros (Telethon). Lógica de red vendorizada/adaptada del adaptador de email de Hermes (mailbox.py). Lee el
-# buzón por IMAP (triaje LOCAL, como WhatsApp/Telegram) y responde por SMTP con threading (capacidad de responder,
-# V2-051). Auth = IMAP/SMTP + app-password con presets (Gmail/Outlook/iCloud/Yahoo/otro); OAuth2 = Fase 2 futura.
-# Config MANEJADA POR LA INTERFAZ (config/connectors.py, gitignored + redactado); `.env` = fallback power-user.
+# The CLEANEST of the three channel connectors: pure stdlib (imaplib/smtplib), NO Node bridge (WhatsApp) and no
+# third-party lib (Telethon). Network logic vendored/adapted from Hermes' email adapter (mailbox.py). Reads the
+# mailbox over IMAP (LOCAL triage, like WhatsApp/Telegram) and replies by SMTP with threading (reply capability,
+# V2-051). Auth = IMAP/SMTP + app-password with presets (Gmail/Outlook/iCloud/Yahoo/other); OAuth2 = future Phase 2.
+# Config MANAGED BY THE INTERFACE (config/connectors.py, gitignored + redacted); `.env` = power-user fallback.
 #
-# Piezas: config.py (knobs + presets), mailbox.py (IMAP/SMTP puro, testeable sin red), service.py (motor asyncio).
+# Pieces: config.py (knobs + presets), mailbox.py (pure IMAP/SMTP, testable without network), service.py (asyncio engine).
 #

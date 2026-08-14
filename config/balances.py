@@ -1,14 +1,14 @@
-"""config/balances.py — SALDO/estado de las APIs externas (V2-043).
+"""config/balances.py — BALANCE/status for external APIs (V2-043).
 
-Doble naturaleza, honesta sobre lo que cada proveedor deja saber:
-  · PROACTIVO — para las APIs que EXPONEN saldo/uso, se sondea y se devuelve el número (ElevenLabs
-    `/v1/user/subscription` da caracteres usados/límite). Cacheado con TTL (no se sondea en cada request) y
-    FAIL-OPEN (una sonda que falla/no existe = `unknown`, nunca una excepción que tumbe nada).
-  · REACTIVO — para las que NO exponen saldo (AIMLAPI, xAI, Groq, buscadores…), el único aviso posible es el
-    ÚLTIMO error clasificado (`voice/health_state` + `voice/llm_health.classify`): `credit` → «SIN SALDO».
+Dual nature, honest about what each provider lets us know:
+  · PROACTIVE — for APIs that EXPOSE balance/usage, probe and return the number (ElevenLabs
+    `/v1/user/subscription` gives used/limit characters). Cached with TTL (not probed on every request) and
+    FAIL-OPEN (a failing/missing probe = `unknown`, never an exception that brings anything down).
+  · REACTIVE — for APIs that DO NOT expose balance (AIMLAPI, xAI, Groq, search providers…), the only possible alert
+    is the LAST classified error (`voice/health_state` + `voice/llm_health.classify`): `credit` → "NO BALANCE".
 
-`summary()` funde ambas cosas en una lista por servicio, lista para el diálogo de estado (alertas) y para el
-resumen de APIs del área de configuración (importes/datos extendidos). NO expone ninguna key (solo presencia).
+`summary()` merges both into one list per service, ready for the status dialog (alerts) and the configuration
+area's API summary (amounts/extended data). It exposes NO key (presence only).
 """
 from __future__ import annotations
 
@@ -18,22 +18,22 @@ import time
 
 import httpx
 
-_TTL = 300.0                       # s — cada saldo se resondea como mucho cada 5 min
+_TTL = 300.0                       # s — each balance is probed at most every 5 min
 _TIMEOUT = 6.0
 _lock = threading.Lock()
 _cache: dict[str, tuple[float, dict]] = {}    # service -> (ts, result)
 
 
-# ── sondas por proveedor (solo las que EXPONEN saldo) ────────────────────────────────────────────────────
+# ── provider probes (only those that EXPOSE balance) ───────────────────────────────────────────────────────
 def _probe_elevenlabs(key: str) -> dict | None:
-    """ElevenLabs expone caracteres usados/límite del ciclo en /v1/user/subscription."""
+    """ElevenLabs exposes cycle used/limit characters at /v1/user/subscription."""
     try:
         r = httpx.get("https://api.elevenlabs.io/v1/user/subscription",
                       headers={"xi-api-key": key}, timeout=_TIMEOUT)
         if r.status_code in (401, 403):
-            # Distinguir key INVÁLIDA de key VÁLIDA pero con permisos restringidos (scoped): ElevenLabs permite
-            # keys sin `user_read` que SÍ hacen TTS pero no pueden leer el saldo → NO es una alerta, es "activa,
-            # sin permiso de lectura de saldo" (unknown). Solo un fallo de auth REAL es error.
+            # Distinguish an INVALID key from a VALID but scoped/restricted key: ElevenLabs allows keys without
+            # `user_read` that DO perform TTS but cannot read the balance → NOT an alert, just "active, no balance
+            # read permission" (unknown). Only a REAL auth failure is an error.
             body = (r.text or "").lower()
             if "missing_permission" in body or "user_read" in body or "permission" in body:
                 return {"state": "unknown", "detail": "activa · la key no puede leer el saldo (permiso user_read)"}
@@ -59,7 +59,7 @@ def _probe_elevenlabs(key: str) -> dict | None:
         return None                                # fail-open → unknown
 
 
-# service -> (env vars que aportan la key, sonda). Solo servicios con saldo consultable.
+# service -> (env vars that provide the key, probe). Only services with queryable balance.
 _PROBES = {
     "elevenlabs": (["ELEVENLABS_API_KEY"], _probe_elevenlabs),
 }
@@ -74,7 +74,7 @@ def _key_for(envs: list[str]) -> str:
 
 
 def balance(service: str, refresh: bool = False) -> dict:
-    """Saldo de UN servicio (cacheado). `{state: ok|warn|error|unknown|no_key, ...}`. Nunca lanza."""
+    """Balance for ONE service (cached). `{state: ok|warn|error|unknown|no_key, ...}`. Never raises."""
     envs, probe = _PROBES.get(service, (None, None))
     if probe is None:
         return {"state": "unknown", "detail": "el proveedor no expone saldo"}
@@ -93,16 +93,16 @@ def balance(service: str, refresh: bool = False) -> dict:
     return res
 
 
-# ── estado REACTIVO (último error clasificado) para las que no exponen saldo ─────────────────────────────
+# ── REACTIVE state (last classified error) for services that do not expose balance ─────────────────────────
 def _reactive(service_keys: list[str]) -> dict:
-    """Lee el último fallo registrado en health_state para estos servicios internos (llm/stt/tts) y lo
-    traduce a estado de crédito. `credit` → error 'sin saldo'; `auth` → credencial; `outage`/error → problema."""
+    """Read the last failure recorded in health_state for these internal services (llm/stt/tts) and translate it to
+    credit state. `credit` → no-balance error; `auth` → credential; `outage`/error → provider issue."""
     try:
         from voice import health_state
     except Exception:
         return {}
     worst = {}
-    rank = {"credit": 3, "auth": 2, "outage": 1, "error": 1, "slow": 0}   # un turno atascado nunca tapa una caída
+    rank = {"credit": 3, "auth": 2, "outage": 1, "error": 1, "slow": 0}   # one stuck turn never hides an outage
     for sk in service_keys:
         rec = health_state.get(sk)
         if not rec:
@@ -113,22 +113,22 @@ def _reactive(service_keys: list[str]) -> dict:
     return worst
 
 
-# mapea servicio EXTERNO → los servicios INTERNOS (health_state) por los que se manifiesta un error suyo.
+# maps EXTERNAL service → INTERNAL services (health_state) through which its errors manifest.
 _REACTIVE_MAP = {
     "aimlapi": ["llm"], "xai": ["llm"], "groq": ["llm"], "gemini": ["llm"],
     "deepgram": ["stt", "tts"], "mistral": ["stt"], "cartesia": ["tts"], "elevenlabs": ["tts"],
 }
 _CREDIT_KIND = {"credit": ("error", "SIN SALDO/cuota"), "auth": ("error", "credencial inválida"),
                 "outage": ("warn", "el proveedor no responde"),
-                # `slow` (2026-08-12) = UN turno se atascó y se cortó. Es un aviso, no una caída del proveedor:
-                # decir «no responde» de algo que contesta bien antes y después manda a buscar una avería que no hay.
+                # `slow` (2026-08-12) = ONE turn got stuck and was cut. It is a warning, not a provider outage:
+                # saying "not responding" about something that answers before and after sends us hunting a non-bug.
                 "slow": ("warn", "un turno se atascó")}
 
 
 def summary(refresh: bool = False) -> list[dict]:
-    """Estado por servicio externo para el diálogo de estado + el resumen de APIs de la config.
-    Funde: presencia de key (doctor), saldo proactivo (si se expone) y último error clasificado (reactivo).
-    `[{key, enables, set, state, detail, balance?}]`. Nunca lanza; nunca expone la key."""
+    """External-service state for the status dialog + the config API summary. Merges: key presence (doctor),
+    proactive balance (if exposed), and last classified error (reactive). `[{key, enables, set, state, detail,
+    balance?}]`. Never raises; never exposes the key."""
     try:
         from config import doctor
         creds = doctor.credentials()
@@ -144,7 +144,7 @@ def summary(refresh: bool = False) -> list[dict]:
             item["detail"] = "sin credencial"
             out.append(item)
             continue
-        # 1) saldo proactivo si el proveedor lo expone
+        # 1) proactive balance if the provider exposes it
         bal = balance(svc, refresh=refresh) if svc in _PROBES else None
         if bal and bal.get("state") not in (None, "no_key", "unknown"):
             item["state"] = bal["state"]
@@ -153,7 +153,7 @@ def summary(refresh: bool = False) -> list[dict]:
         else:
             item["state"] = "ok"
             item["detail"] = "activa" + (" · no expone saldo" if svc not in _PROBES else "")
-        # 2) reactivo: un error reciente (crédito/auth) MANDA sobre "ok"
+        # 2) reactive: a recent error (credit/auth) WINS over "ok"
         react = _reactive(_REACTIVE_MAP.get(svc, []))
         if react:
             st, txt = _CREDIT_KIND.get(react["kind"], ("warn", "problema reciente"))
@@ -165,11 +165,11 @@ def summary(refresh: bool = False) -> list[dict]:
 
 
 def worker_providers() -> list[dict]:
-    """Escalones del proveedor de los BRAIN WORKERS, en el mismo formato que el resto de servicios.
+    """BRAIN WORKER provider tiers, in the same format as the rest of the services.
 
-    Faltaba justo esto (2026-08-02): el plan de Z.AI agotó su cuota semanal en mitad de una tarea y el panel de
-    alertas —que existe para avisar de esto— no dijo nada, porque el proveedor de los workers no estaba en
-    ningún mapa. El operador se enteró leyendo un «API Error … Weekly Limit Exhausted» donde esperaba su informe."""
+    This exact piece was missing (2026-08-02): the Z.AI plan exhausted its weekly quota mid-task and the alerts
+    panel — which exists to warn about this — said nothing, because the worker provider was not in any map. The
+    operator found out by reading "API Error … Weekly Limit Exhausted" where they expected their report."""
     try:
         from nucleo.workers import providers as prov
         tiers = prov.status()
@@ -177,18 +177,19 @@ def worker_providers() -> list[dict]:
         return []
     out = []
     for t in tiers:
-        # «EN USO» significa que está TRABAJANDO, no que sería el elegido — son dos cosas distintas y confundirlas
-        # hacía que la fila mintiera en las dos mitades: decía «EN USO · disponible» de un proveedor que no estaba
-        # sirviendo a nadie (el relevo lo había apartado) y cuya ventana seguía agotada.
+        # "IN USE" means it is WORKING, not that it would be chosen — those are two different things, and confusing
+        # them made the row lie in both halves: it said "IN USE · available" for a provider that was serving nobody
+        # (the relay had moved it aside) and whose window was still exhausted.
         mark = "EN USO · " if t.get("serving") else ("PRÓXIMO · " if t.get("active") else "")
         out.append({"key": f"worker:{t['name']}", "enables": f"procesos de fondo · {t.get('plan', '')}",
                     "set": True, "state": t["state"], "detail": mark + t.get("detail", "")})
     if tiers and all(t["state"] != "ok" for t in tiers):
         out.append({"key": "worker:sin-relevo", "enables": "procesos de fondo", "set": True, "state": "error",
                     "detail": "NINGÚN proveedor con cuota — los procesos de fondo no pueden correr"})
-    # CIEGO ≠ CAÍDO (2026-08-10). Fila propia porque es otro problema con otra solución: el modelo del proveedor
-    # responde, pero sus herramientas de búsqueda/lectura están sin cuota → el worker razona sin poder mirar nada.
-    # Sin esta fila el panel decía «todo ok» mientras el worker entregaba conclusiones sin material.
+    # BLIND ≠ DOWN (2026-08-10). Separate row because it is a different problem with a different fix: the provider's
+    # model responds, but its search/read tools are out of quota → the worker reasons without being able to inspect
+    # anything. Without this row, the panel said "everything ok" while the worker delivered conclusions without
+    # material.
     try:
         from voice import health_state
         rec = health_state.get("worker_tools")
@@ -201,10 +202,10 @@ def worker_providers() -> list[dict]:
 
 
 def cluster_providers() -> list[dict]:
-    """Escalones del proveedor del CEREBRO DE CLUSTER (`nucleo.flash.provider_chain`, 2026-08-03), mismo formato
-    que `worker_providers()`. Faltaba justo esto: un 429 de Z.AI en el turno de cluster (el heartbeat insistiendo
-    en responder a un peer) no aparecía en ningún sitio del panel — el operador solo lo veía en el log crudo
-    («cluster brain turn failed: 429»), en bucle, cada vez que el heartbeat volvía a intentar."""
+    """Provider tiers for the CLUSTER BRAIN (`nucleo.flash.provider_chain`, 2026-08-03), same format as
+    `worker_providers()`. This exact piece was missing: a Z.AI 429 in the cluster turn (heartbeat insisting on
+    replying to a peer) did not appear anywhere in the panel — the operator only saw it in the raw log ("cluster
+    brain turn failed: 429"), looping every time the heartbeat retried."""
     try:
         from nucleo.flash import provider_chain as pc
         tiers = pc.status()
@@ -222,11 +223,11 @@ def cluster_providers() -> list[dict]:
 
 
 def summary_with_workers(refresh: bool = False) -> list[dict]:
-    """summary() + los escalones de los workers + los del cerebro de cluster. Lo que debe pintar el diálogo de
-    estado. (El nombre quedó corto tras sumar `cluster_providers()` — se conserva para no tocar los llamadores.)"""
+    """summary() + worker tiers + cluster-brain tiers. What the status dialog should render. (The name became too
+    narrow after adding `cluster_providers()` — kept to avoid touching callers.)"""
     return summary(refresh=refresh) + worker_providers() + cluster_providers()
 
 
 def alerts(refresh: bool = False) -> list[dict]:
-    """Solo los servicios en estado warn/error (para el diálogo de estado). Subconjunto de summary()."""
+    """Only services in warn/error state (for the status dialog). Subset of summary()."""
     return [s for s in summary_with_workers(refresh=refresh) if s.get("state") in ("warn", "error")]

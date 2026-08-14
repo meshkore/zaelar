@@ -65,8 +65,8 @@ async def _run_widget(wid: str, fn: str, caller):
         return {"error": f"widget '{wid}' failed: {type(e).__name__}: {e}"}
 
 
-# Fachada PÚBLICA para otros dominios (nucleo/worker_api, Susurro…): correr un hook de un widget con el MISMO
-# aislamiento (pool acotado + timeout) sin importar privados de este módulo.
+# PUBLIC facade for other domains (nucleo/worker_api, Susurro...): run a widget hook with the SAME isolation (bounded
+# pool + timeout) without importing private functions from this module.
 MISSING = _MISSING
 
 
@@ -74,20 +74,20 @@ async def run_widget_hook(wid: str, fn: str, caller):
     return await _run_widget(wid, fn, caller)
 
 
-# Campos del ÍNDICE compacto (V2-085). Lo mínimo para RESOLVER e IDENTIFICAR un widget sin descargar su manifest:
-# quién es (id/name/title), para qué (whenToUse, recortado), cómo se le llama (aliases), de dónde viene (origin) y
-# si es efímero (transient — el frontend rutea las tarjetas de actividad por ahí). NADA de `actions`, payload
-# schemas, `usage`, `refs` ni prosa: eso es carga bajo demanda vía /widgets/{id}/manifest.
-# `size`/`fullscreen` entran aquí (2026-08-12) porque los consume el CANVAS al montar la tarjeta, antes de que
-# nadie pida el manifest completo: el tamaño preferido de una superficie de ancho fluido y si "pantalla completa"
-# significa la nativa (vídeo) o maximizar dentro de la app. Son dos campos diminutos; pedir el manifest entero
-# para leerlos devolvería el O(N·manifest) que V2-085 quitó.
+# COMPACT index fields (V2-085). The minimum needed to RESOLVE and IDENTIFY a widget without downloading its manifest:
+# who it is (id/name/title), what it is for (whenToUse, clipped), how it is called (aliases), where it comes from
+# (origin), and whether it is ephemeral (transient — frontend routes activity cards through that). NO `actions`,
+# payload schemas, `usage`, `refs`, or prose: that is on-demand load through /widgets/{id}/manifest.
+# `size`/`fullscreen` enter here (2026-08-12) because the CANVAS consumes them when mounting the card, before anyone
+# requests the full manifest: preferred size for a fluid-width surface and whether "fullscreen" means native (video)
+# or maximize inside the app. These are two tiny fields; requesting the whole manifest to read them would bring back
+# the O(N·manifest) that V2-085 removed.
 _INDEX_FIELDS = ("id", "title", "name", "transient", "kind", "icon", "size", "fullscreen", "live_title")
 _INDEX_PURPOSE_MAX = 120
 
 
 def _index_row(w: dict) -> dict:
-    """Una fila del índice compacto a partir de un manifest completo."""
+    """One compact-index row from a full manifest."""
     from . import registry as _registry
     row = {k: w[k] for k in _INDEX_FIELDS if k in w}
     row["id"] = str(w.get("id") or "")
@@ -101,21 +101,21 @@ def _index_row(w: dict) -> dict:
 
 @router.get("/widgets")
 async def list_widgets(full: int = 0, q: str = "", limit: int = 0):
-    """ÍNDICE COMPACTO del catálogo (V2-085) — por defecto, NO los manifests completos.
+    """COMPACT catalog INDEX (V2-085) — by default, NOT full manifests.
 
-    Medido 2026-08-01: con 16 widgets este endpoint devolvía 25.639 chars de manifests íntegros y su único
-    consumidor real (`frontend/app/widgets/desktop.js::_resolve`) solo quería los **ids** y cuatro campos de
-    cabecera. O(N) sobre el manifest ENTERO: con miles de widgets, cada arranque del canvas se descargaba megas
-    para resolver un id. El índice lleva solo identidad + propósito recortado (~10× menos) y el manifest completo
-    se pide por widget cuando de verdad hace falta: `GET /widgets/{id}/manifest`.
+    Measured 2026-08-01: with 16 widgets this endpoint returned 25,639 chars of full manifests, and its only real
+    consumer (`frontend/app/widgets/desktop.js::_resolve`) only wanted **ids** and four header fields. O(N) over the
+    WHOLE manifest: with thousands of widgets, each canvas startup downloaded megabytes to resolve one id. The index
+    carries only identity + clipped purpose (~10× less), and the full manifest is requested per widget when truly
+    needed: `GET /widgets/{id}/manifest`.
 
-    `?full=1` = escotilla ADMINISTRATIVA explícita (depuración, export, herramientas). Nunca es el camino por
-    defecto: si algo la necesita en caliente, es que le falta una carga bajo demanda.
+    `?full=1` = explicit ADMINISTRATIVE escape hatch (debugging, export, tools). Never the default path: if something
+    needs it hot, it is missing an on-demand load.
 
-    `?q=` + `?limit=` acotan el índice server-side (mismo ranking por nombre/alias que el resolver de voz). El
-    índice sigue siendo O(N) por naturaleza — es el inventario —, así que un consumidor que no pueda con miles de
-    filas debe paginar/buscar por aquí en vez de descargarlo entero. `count` es SIEMPRE el total real del
-    catálogo, no el número de filas devueltas: nadie debe confundir un extracto con el inventario."""
+    `?q=` + `?limit=` bound the index server-side (same name/alias ranking as the voice resolver). The index remains
+    O(N) by nature — it is the inventory — so a consumer that cannot handle thousands of rows must paginate/search
+    here instead of downloading everything. `count` is ALWAYS the real catalog total, not the returned row count: no
+    one should confuse an excerpt with the inventory."""
     cat = runtime.catalog()
     total = len(cat)
     if full:
@@ -139,9 +139,9 @@ async def identify(q: str = ""):
 
 @router.get("/widgets/registry")
 async def registry_endpoint():
-    """Registro UNIFICADO de nombres + alias (V2-082): widgets de usuario (catálogo, alias editables) + superficies
-    de sistema (alias fijos). Cada entrada {id, name, aliases, surface}. Lo consume el header del frontend (botón-
-    nombre + desplegable de alias). De paso refresca la proyección de visibilidad en el estado."""
+    """UNIFIED name + alias registry (V2-082): user widgets (catalog, editable aliases) + system surfaces (fixed
+    aliases). Each entry {id, name, aliases, surface}. Consumed by the frontend header (name button + alias dropdown).
+    Also refreshes the visibility projection in state."""
     from . import registry as _registry
     rows = _registry.registry()
     try:
@@ -158,8 +158,8 @@ async def manifest(wid: str):
 
 
 def _emit_alias_change(wid: str, res: dict) -> None:
-    """Avisa al frontend (SSE) de que cambiaron los alias de un widget → el header refresca su desplegable en vivo.
-    Best-effort (un fallo de notificación no rompe la escritura, que ya está hecha en disco)."""
+    """Tell the frontend (SSE) that a widget's aliases changed → the header refreshes its dropdown live.
+    Best-effort (notification failure does not break the write, which is already on disk)."""
     try:
         from voice.observer import emit
         emit("widget", "alias", extra={"id": wid, "aliases": res.get("aliases") or []})
@@ -169,8 +169,8 @@ def _emit_alias_change(wid: str, res: dict) -> None:
 
 @router.post("/widgets/{wid}/aliases")
 async def add_alias(wid: str, payload: dict):
-    """Añade un alias al widget (V2-082) — desde el header del canvas (texto) o el flujo de voz. Escritura
-    quirúrgica del manifest con guard de colisión (un alias = una sola pieza). 409 si ya lo usa otra pieza."""
+    """Add an alias to the widget (V2-082) — from the canvas header (text) or voice flow. Surgical manifest write with
+    collision guard (one alias = one piece). 409 if another piece already uses it."""
     from . import aliases
     res = aliases.add(_safe(wid), str((payload or {}).get("alias") or ""))
     if res.get("ok"):
@@ -182,7 +182,7 @@ async def add_alias(wid: str, payload: dict):
 
 @router.delete("/widgets/{wid}/aliases/{alias}")
 async def remove_alias(wid: str, alias: str):
-    """Quita un alias del widget (V2-082). No permite quitar el NOMBRE canónico (sin nombre no se abre)."""
+    """Remove a widget alias (V2-082). Does not allow removing the canonical NAME (without a name it cannot open)."""
     from . import aliases
     res = aliases.remove(_safe(wid), alias)
     if res.get("ok"):
@@ -247,30 +247,30 @@ def _route_backed(wid: str, action: str, payload: dict):
 
 
 async def dispatch_raw(wid: str, action: str, payload: dict):
-    """La mutación DESNUDA de un widget: enruta a su owner si es `backed`, o llama a su `apply_action` fuera del
-    loop. SIN la puerta del run-state ni la exclusividad de canal (ver `_dispatch`).
+    """The RAW widget mutation: route to its owner if `backed`, or call its `apply_action` off-loop. WITHOUT the
+    run-state gate or channel exclusivity (see `_dispatch`).
 
-    Existe separada porque la PARADA necesita este camino: si suspender un widget pasara por la misma puerta que
-    gatea las acciones, parar con el agente ya parado se rechazaría a sí mismo. Único usuario legítimo del atajo:
-    `widgets/producers.py`. Todo lo que venga de fuera (UI, cerebro, cron) entra por `_dispatch`."""
+    Exists separately because STOP needs this path: if suspending a widget went through the same gate that gates
+    actions, stopping while the agent is already stopped would reject itself. Only legitimate shortcut user:
+    `widgets/producers.py`. Everything external (UI, brain, cron) enters through `_dispatch`."""
     wid = _safe(wid)
-    routed = _route_backed(wid, action, payload or {})      # backed widget → mailbox de su owner
+    routed = _route_backed(wid, action, payload or {})      # backed widget → owner's mailbox
     if routed is not None:
         return routed
     return await _run_widget(wid, "apply_action", lambda fn: fn(action, payload or {}))
 
 
 async def _dispatch(wid: str, action: str, payload: dict):
-    """EMBUDO ÚNICO de toda mutación de widget que venga de fuera (V2-092). Tres pasos, en este orden:
+    """SINGLE FUNNEL for every widget mutation coming from outside (V2-092). Three steps, in this order:
 
-    1. **Puerta**: con el agente PARADO, una acción que pondría el widget a producir se rechaza (no se aplica a
-       medias y se deshace después: eso dejaría rastro raro en su store y, en algo como `load`, habría hecho ya el
-       trabajo de red).
-    2. **La acción**, por el camino de siempre.
-    3. **Exclusividad**: si acaba de tomar un canal exclusivo (el altavoz), se calla a los demás de ese canal.
-       Después de aplicarla, porque quién ocupa el canal se lee del estado REAL, no de la intención.
+    1. **Gate**: with the agent STOPPED, an action that would make the widget produce is rejected (not half-applied
+       and undone later: that would leave weird traces in its store and, for something like `load`, would already have
+       done network work).
+    2. **The action**, through the usual path.
+    3. **Exclusivity**: if it just took an exclusive channel (the speaker), silence the others on that channel. After
+       applying it, because who occupies the channel is read from REAL state, not intent.
 
-    Los pasos 1 y 3 son best-effort: un fallo en la política de producción no puede tumbar una data-op normal."""
+    Steps 1 and 3 are best-effort: production-policy failure cannot crash a normal data-op."""
     try:
         from . import producers
         denied = producers.gate(wid, action)
@@ -291,8 +291,8 @@ async def _dispatch(wid: str, action: str, payload: dict):
 async def widget_action(wid: str, payload: dict):
     wid = _safe(wid)
     action, data = payload.get("action", ""), payload.get("payload") or {}
-    # V2-039: esta ruta la dispara la UI (el operador pulsa un botón de la tarjeta) → anota la procedencia para que
-    # el evento widget/data resultante (store.save) quede atribuido a "user". Emite además el ACTO de la acción.
+    # V2-039: this route is triggered by the UI (operator presses a card button) → note provenance so the resulting
+    # widget/data event (store.save) is attributed to "user". Also emit the action ACT.
     try:
         from widgets import provenance as _prov
         from voice.observer import emit as _emit
@@ -317,11 +317,11 @@ async def brain_action(wid: str, action: str, payload: dict) -> dict:
 
 @router.delete("/widgets/{wid}")
 async def delete_widget(wid: str):
-    """Borrado del widget — DELEGA en `widgets/lifecycle.delete_widget`: quita carpeta + store privado, invalida
-    el catálogo, cierra la tarjeta (SSE) y escribe la LÁPIDA en memoria (histórico conservado — "lo borraste el
-    <fecha>"). Un solo camino de borrado en todo zaelar. El catálogo/brief dejan de conocer el id al instante."""
+    """Widget deletion — DELEGATES to `widgets/lifecycle.delete_widget`: removes folder + private store, invalidates
+    the catalog, closes the card (SSE), and writes the TOMBSTONE to memory (history preserved — "you deleted it on
+    <date>"). One deletion path in all zaelar. Catalog/brief stop knowing the id immediately."""
     from . import lifecycle
-    res = await lifecycle.delete_widget(_safe(wid), "user")   # V2-039: borrado disparado por la UI del operador
+    res = await lifecycle.delete_widget(_safe(wid), "user")   # V2-039: deletion triggered by operator UI
     if not res.get("ok"):
         code = 404 if res.get("error") == "widget no encontrado" else 500
         return JSONResponse(res, status_code=code)
@@ -330,9 +330,9 @@ async def delete_widget(wid: str):
 
 @router.post("/widgets/{wid}/confirm")
 async def confirm_widget(wid: str, payload: dict):
-    """Resuelve la CONFIRMACIÓN pendiente de una acción irreversible del widget (hoy: borrar), disparada por el
-    botón «Sí/No» de la tarjeta. `{ok: bool}`. Con `ok` → ejecuta el borrado determinista (memoria incluida); sin
-    `ok` → cancela y quita el overlay. Mismo camino que el "sí/no" por voz (ver `widgets/confirm.py`)."""
+    """Resolve pending CONFIRMATION for an irreversible widget action (today: delete), triggered by the card's Yes/No
+    button. `{ok: bool}`. With `ok` → execute deterministic deletion (memory included); without `ok` → cancel and
+    remove overlay. Same path as voice "yes/no" (see `widgets/confirm.py`)."""
     from . import confirm, lifecycle
     wid = _safe(wid)
     ok = bool((payload or {}).get("ok"))
@@ -342,7 +342,7 @@ async def confirm_widget(wid: str, payload: dict):
     if not ok:
         return JSONResponse({"ok": True, "cancelled": True, "id": p["widget_id"]})
     if p.get("action") == "delete":
-        res = await lifecycle.delete_widget(p["widget_id"], "user")   # V2-039: confirmado por botón Sí/No del operador
+        res = await lifecycle.delete_widget(p["widget_id"], "user")   # V2-039: confirmed by operator Yes/No button
         return JSONResponse(res, status_code=200 if res.get("ok") else 500)
     return JSONResponse({"ok": False, "error": f"acción no soportada: {p.get('action')}"}, status_code=400)
 
@@ -403,8 +403,8 @@ async def _run_generator(kind: str, wid_hint: str, call):
             gen_ms = round((time.monotonic() - t0) * 1000)
             try:
                 from voice.observer import emit
-                # V2-039: auditoría de CREAR/MODIFICAR código de widget. Label NO-canónico a propósito (no colisiona
-                # con el handler create/modify del frontend, que espera spec/change); op + src lo hacen filtrable.
+                # V2-039: audit CREATE/MODIFY widget code. Intentionally NON-canonical label (does not collide with
+                # the frontend create/modify handler, which expects spec/change); op + src make it filterable.
                 emit("widget", f"🛠️ generator ({kind}): {wid_hint}",
                      extra={"id": wid_hint, "op": kind, "gen_ms": gen_ms, "src": "worker"})
             except Exception:
@@ -436,7 +436,7 @@ async def generate(payload: dict):
 
 @router.post("/widgets/modify")
 async def modify(payload: dict):
-    """Modify an EXISTING widget with the atomic agent (e.g. 'añade una columna con precio y vendedor')."""
+    """Modify an EXISTING widget with the atomic agent (e.g. 'add a column with price and seller')."""
     from .generator import modify_widget
     wid = str(payload.get("id") or "")
     change = str(payload.get("change") or payload.get("spec") or "").strip()

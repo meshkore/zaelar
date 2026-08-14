@@ -1,11 +1,11 @@
-"""connectors/music/registry.py — registro de proveedores de música (V2-041).
+"""connectors/music/registry.py — music provider registry (V2-041).
 
-Un solo sitio donde viven las implementaciones de `MusicProvider`. Los proveedores de fábrica se cargan de forma
-PEREZOSA (`_ensure_loaded`) para no acoplar el import del seam a ningún conector concreto (ni pagar su coste si
-nadie lo usa). Añadir un proveedor nuevo = registrarlo en `_BUILTIN`.
+One place where `MusicProvider` implementations live. Built-in providers load LAZILY (`_ensure_loaded`) so seam
+imports are not coupled to any specific connector (nor pay its cost if nobody uses it). Add a new provider =
+register it in `_BUILTIN`.
 
-`active()` elige el proveedor a usar ESTE turno: el primero CONECTADO (preferencia opcional por nombre, p.ej. la
-que el operador tenga fijada). Determinista y barato — sin red (solo mira credenciales/sesión en disco).
+`active()` chooses the provider to use THIS turn: the first CONNECTED one (optional preference by name, e.g. the one
+set by the operator). Deterministic and cheap — no network (only checks credentials/session on disk).
 """
 from __future__ import annotations
 
@@ -15,9 +15,9 @@ from .base import MusicProvider
 
 logger = logging.getLogger("zaelar.music")
 
-# nombre → factoría (callable sin args → instancia). Perezoso: no se importa el conector hasta que hace falta.
-# ORDEN = PRIORIDAD de `active()`: Spotify PRIMERO (si hay sesión) → YouTube-audio como fallback GRATIS (siempre
-# disponible, sin login, en el navegador). Así "pon música" SIEMPRE suena algo aunque no haya cuenta conectada.
+# name -> factory (zero-arg callable -> instance). Lazy: do not import the connector until needed.
+# ORDER = PRIORITY for `active()`: Spotify FIRST (if session exists) -> YouTube-audio as FREE fallback (always
+# available, no login, in the browser). This way "play music" ALWAYS plays something even with no connected account.
 _BUILTIN: "dict[str, str]" = {
     "spotify": "connectors.spotify:provider",
     "youtube": "connectors.music.youtube_audio:YouTubeAudioProvider",
@@ -28,7 +28,7 @@ _loaded = False
 
 
 def register(provider: MusicProvider) -> None:
-    """Registra una instancia de proveedor (idempotente por `name`)."""
+    """Register a provider instance (idempotent by `name`)."""
     if provider and getattr(provider, "name", ""):
         _PROVIDERS[provider.name] = provider
 
@@ -47,7 +47,7 @@ def _ensure_loaded() -> None:
             prov = getattr(mod, attr)
             prov = prov() if callable(prov) and not isinstance(prov, MusicProvider) else prov
             register(prov)
-        except Exception as e:  # noqa: BLE001 — un proveedor roto no tumba el resto ni la voz
+        except Exception as e:  # noqa: BLE001 — a broken provider does not take down the rest or voice
             logger.warning(f"proveedor de música '{name}' no cargó: {e!r}")
 
 
@@ -62,7 +62,7 @@ def get(name: str) -> "MusicProvider | None":
 
 
 def available() -> "list[MusicProvider]":
-    """Los proveedores CONECTADOS ahora mismo (pueden reproducir ya)."""
+    """Providers CONNECTED right now (can play immediately)."""
     out = []
     for p in providers():
         try:
@@ -74,7 +74,7 @@ def available() -> "list[MusicProvider]":
 
 
 def active(prefer: str = "") -> "MusicProvider | None":
-    """El proveedor a usar este turno: el preferido si está conectado, si no el primer conectado. None = ninguno."""
+    """Provider to use this turn: preferred if connected, otherwise the first connected one. None = none."""
     avail = available()
     if not avail:
         return None

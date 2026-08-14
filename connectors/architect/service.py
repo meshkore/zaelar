@@ -1,13 +1,14 @@
 #
-# service.py — encargos al Architect: lanza el ask, hace poll (30s-10min por turno) y cierra el bucle.
+# service.py — Architect tasks: launch ask, poll (30s-10min per turn), and close the loop.
 #
-# Mismo patrón que la generación de widgets (widgets/server_api.py): la acción es fire-and-forget para el brain
-# (emite la tag y sigue hablando), y el RESULTADO vuelve por dos vías cuando llega — voz+UI (voice/proactive,
-# que ya preempta y degrada solo) y una nota [SISTEMA] al siguiente turno (voice/brain_notes) para que el brain
-# sepa el desenlace REAL y pueda responder follow-ups sin inventar ni cantar "hecho" antes de tiempo.
+# Same pattern as widget generation (widgets/server_api.py): the action is fire-and-forget for the brain (it emits
+# the tag and keeps talking), and the RESULT comes back through two paths when it arrives — voice+UI
+# (voice/proactive, which already preempts and degrades by itself) and a [SYSTEM] note on the next turn
+# (voice/brain_notes), so the brain knows the REAL outcome and can answer follow-ups without inventing or saying
+# "done" too early.
 #
-# Un encargo a la vez POR PROYECTO (regla del daemon: nunca dos asks en paralelo al mismo manager); un segundo
-# encargo al mismo proyecto no se encola aquí — se rechaza con nota para que el brain lo gestione en conversación.
+# One task at a time PER PROJECT (daemon rule: never two asks in parallel to the same manager); a second task for
+# the same project is not queued here — it is rejected with a note so the brain can handle it in conversation.
 #
 import asyncio
 import os
@@ -18,15 +19,15 @@ from loguru import logger
 from connectors.architect import client
 from connectors.architect.client import ArchitectBusy, ArchitectError
 
-ASK_TIMEOUT = float(os.getenv("ARCHITECT_ASK_TIMEOUT", "900"))   # un turno del manager puede tardar ~10 min
-_POLL_FAST, _POLL_SLOW = 3.0, 5.0                                # cadencia de poll: fina el 1er minuto, luego suave
-_SPOKEN_MAX = 600            # respuestas más largas se hablan recortadas; el texto íntegro va en la nota [SISTEMA]
+ASK_TIMEOUT = float(os.getenv("ARCHITECT_ASK_TIMEOUT", "900"))   # a manager turn can take ~10 min
+_POLL_FAST, _POLL_SLOW = 3.0, 5.0                                # poll cadence: fine in 1st minute, then gentler
+_SPOKEN_MAX = 600            # longer replies are spoken trimmed; full text goes into the [SYSTEM] note
 
 _inflight: dict[str, dict] = {}          # project -> {"text": str, "t0": float}
 
 
 def inflight() -> dict[str, dict]:
-    """Encargos en vuelo (para el brief del brain: que pueda responder '¿cómo va?' sin inventar)."""
+    """In-flight tasks (for the brain brief: so it can answer "how is it going?" without inventing)."""
     return dict(_inflight)
 
 
@@ -47,7 +48,7 @@ def _note(text: str) -> None:
 
 
 async def ask(project: str, request: str) -> None:
-    """Encargo (pregunta u orden, lenguaje natural) al architect-master de *project*. Corre hasta el desenlace."""
+    """Task (question or command, natural language) to *project*'s architect-master. Runs until the outcome."""
     project = (project or "").strip().lower()
     request = (request or "").strip()
     if not project or not request:
@@ -91,7 +92,7 @@ async def _run_ask(project: str, request: str) -> None:
             st = await client.poll(project, rid)
             last_err = None
         except Exception as e:
-            last_err = e                 # transitorio (daemon reiniciando, red): seguimos hasta el timeout
+            last_err = e                 # transient (daemon restarting, network): keep going until timeout
             continue
         status = (st.get("status") or "").lower()
         if status == "done":
@@ -122,7 +123,7 @@ async def _deliver(project: str, result: str) -> None:
 
 
 async def new_project(data: dict | None) -> None:
-    """[[architect.new]]{"name", "parent"?} — crear un proyecto nuevo; parent cae a ARCHITECT_PARENT (.env)."""
+    """[[architect.new]]{"name", "parent"?} — create a new project; parent falls back to ARCHITECT_PARENT (.env)."""
     from voice import proactive
     data = data or {}
     name = (data.get("name") or "").strip()

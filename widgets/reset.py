@@ -1,33 +1,32 @@
-"""widgets/reset.py — DEJAR LAS SUPERFICIES EN BLANCO cuando el operador aprieta Reset.
+"""widgets/reset.py — LEAVE SURFACES BLANK when the operator presses Reset.
 
-Hasta hoy el reset cerraba las tarjetas pero NO tocaba sus datos, así que el contenido seguía ahí esperando: el
-operador reseteó «para empezar de cero», pidió una búsqueda nueva y al abrirse la hoja de resultados le salió
-ENTERA la búsqueda anterior (los ferrys a Ibiza del 10 de agosto) mientras el worker de la nueva todavía trabajaba.
-Un widget que muestra el trabajo de antes como si fuera el de ahora es el mismo tipo de fallo que un agente caído
-pintado en azul: no es feo, es que ENGAÑA.
+Until now, reset closed cards but did NOT touch their data, so content remained waiting there: the operator reset "to
+start from scratch", requested a new search, and when the results sheet opened it showed the ENTIRE previous search
+(Ibiza ferries from August 10) while the worker for the new one was still running. A widget showing previous work as
+if it were current work is the same kind of failure as a down agent painted blue: it is not ugly, it is MISLEADING.
 
-**Qué se vacía y qué no.** El reset conserva credenciales y autenticación (es su contrato, y lo dice el diálogo),
-así que aquí solo se toca `state.json` de cada widget — nunca su `data_dir`, donde viven las capturas y, sobre
-todo, **el perfil de Chromium del navegador con las sesiones que el operador abrió a mano**. Borrar la carpeta
-entera (lo que hace `store.delete`, pensado para cuando el widget MUERE) le costaría todos sus logins.
+**What is emptied and what is not.** Reset preserves credentials and authentication (that is its contract, and the
+dialog says so), so here only each widget's `state.json` is touched — never its `data_dir`, where captures and,
+especially, **the browser's Chromium profile with sessions manually opened by the operator** live. Deleting the whole
+folder (what `store.delete` does, intended for when the widget DIES) would cost them all their logins.
 
-Y hay una frontera que el operador tiene que poder mover sin tocar código: **datos DERIVADOS vs REGISTRO del
-operador**. Una hoja de resultados, un informe o una gráfica son la salida de un trabajo — reproducibles, y
-vaciarlas no pierde nada. La agenda, en cambio, son sus proyectos, sus tareas y sus citas REALES: eso no es la
-salida de nada y borrarlo sí es pérdida. Un widget lo declara en su manifest:
+And there is a boundary the operator must be able to move without touching code: **DERIVED data vs the operator's
+RECORD**. A results sheet, report, or chart is the output of work — reproducible, and emptying it loses nothing. The
+agenda, however, is their REAL projects, tasks, and appointments: that is not the output of anything, and deleting it
+would be loss. A widget declares this in its manifest:
 
     "data": { "durable": true }     → el reset NO lo toca (es el registro del operador)
 
-Sin declararlo, se vacía. Ese es el defecto que pidió el operador («todos los widgets de resultados, de
-visualizaciones, etc. se tienen que inicializar en blanco»), y deja la excepción explícita, revisable y en el
-propio widget en vez de en una lista escondida aquí.
+Without declaring it, it is emptied. That is the default the operator requested ("all result/visualization/etc.
+widgets must initialize blank"), and it leaves the exception explicit, reviewable, and in the widget itself instead
+of a hidden list here.
 
-**Cómo se vacía** (de más específico a más genérico, primero que gane):
-  1. `data.py::blank()` — el widget decide qué es «en blanco» para él. Lo necesita mensajería: sus mensajes se van,
-     pero el estado de CONEXIÓN de cada plataforma se queda (si no, un reset parecería desconectarte de WhatsApp).
-  2. `data.py::_empty()` — la convención que ya existía en varios widgets para su estado semilla.
-  3. borrar `state.json` — genérico y seguro: `store.load` cae al default que el propio widget pasa, o sea a su
-     hoja vacía. Nunca toca el resto del `data_dir`.
+**How it is emptied** (from most specific to most generic, first winner):
+  1. `data.py::blank()` — the widget decides what "blank" means for it. Messaging needs this: its messages go away,
+     but each platform's CONNECTION state remains (otherwise reset would look like disconnecting you from WhatsApp).
+  2. `data.py::_empty()` — the convention that already existed in several widgets for their seed state.
+  3. delete `state.json` — generic and safe: `store.load` falls back to the default passed by the widget itself, i.e.
+     its empty sheet. Never touches the rest of `data_dir`.
 """
 from __future__ import annotations
 
@@ -51,8 +50,8 @@ def _manifest(widget_id: str) -> dict:
 
 
 def is_durable(widget_id: str) -> bool:
-    """¿Su contenido es el REGISTRO del operador (agenda, contactos…) en vez de la salida de un trabajo?
-    Solo True si el widget lo DECLARA. Ante la duda, se vacía: es lo que pidió el operador."""
+    """Is its content the operator's RECORD (agenda, contacts...) instead of the output of work?
+    Only True if the widget DECLARES it. When in doubt, empty it: that is what the operator requested."""
     return bool((_manifest(widget_id).get("data") or {}).get("durable"))
 
 
@@ -61,25 +60,25 @@ def _has_state(widget_id: str) -> bool:
 
 
 def _blank_one(widget_id: str) -> str:
-    """Vacía UN widget. Devuelve cómo se hizo ('blank' | 'empty' | 'wiped' | 'error'). Nunca lanza."""
-    mod = _data_module(widget_id)          # None si el widget no tiene data.py (o ya no existe su código)
-    # (1) el widget sabe qué es «en blanco» para él (conserva lo que no es contenido: conexiones, ajustes…)
+    """Empty ONE widget. Returns how it was done ('blank' | 'empty' | 'wiped' | 'error'). Never raises."""
+    mod = _data_module(widget_id)          # None if the widget has no data.py (or its code no longer exists)
+    # (1) the widget knows what "blank" means for it (preserves non-content: connections, settings...)
     for name in ("blank", "_empty"):
         fn = getattr(mod, name, None) if mod else None
         if not callable(fn):
             continue
         try:
-            if inspect.signature(fn).parameters:      # `_empty(reason)` y compañía: no es un estado semilla vacío
+            if inspect.signature(fn).parameters:      # `_empty(reason)` and friends: not an empty seed state
                 continue
             data = fn()
             if isinstance(data, dict):
-                store.save(widget_id, data)                # ya anuncia el cambio al canvas (`widget/data`)
-                # …pero un `data` a secas no dice que esto fue un RESET: la fila de auditoría la pone `_announce`.
+                store.save(widget_id, data)                # already announces the change to the canvas (`widget/data`)
+                # ...but plain `data` does not say this was a RESET: `_announce` writes the audit row.
                 _announce(widget_id, "blank" if name == "blank" else "empty", refresh=False)
                 return "blank" if name == "blank" else "empty"
         except Exception as e:  # noqa: BLE001
             logger.warning(f"widgets.reset: {widget_id}.{name}() falló: {e}")
-    # (2) genérico: fuera el estado, que el widget lo recomponga vacío. SOLO state.json.
+    # (2) generic: remove state and let the widget rebuild it blank. ONLY state.json.
     try:
         p = os.path.join(store.data_dir(widget_id), "state.json")
         if os.path.exists(p):
@@ -93,37 +92,37 @@ def _blank_one(widget_id: str) -> str:
 
 
 def _announce(widget_id: str, how: str, refresh: bool = True) -> None:
-    """Este camino MUTA los datos de un widget SIN pasar por `store.save()` — y `save()` es el único punto que
-    anuncia «este widget ha cambiado». O sea que borrar el `state.json` era una mutación INVISIBLE: ni evento en el
-    registro, ni señal al canvas, ni una línea que lo explique. Punto ciego encontrado en carne propia (2026-08-10):
-    a otra sesión se le vació la hoja de resultados dos veces en mitad de una prueba y, sin rastro de reset, parecía
-    un fallo de persistencia del widget — se fue un buen rato en buscar una avería que no existía.
+    """This path MUTATES widget data WITHOUT going through `store.save()` — and `save()` is the only point that
+    announces "this widget changed". So deleting `state.json` was an INVISIBLE mutation: no event in the registry, no
+    signal to the canvas, no line explaining it. Blind spot found firsthand (2026-08-10): another session had its
+    results sheet emptied twice during a test and, with no reset trace, it looked like a widget persistence failure —
+    a good while was spent looking for a bug that did not exist.
 
-    Se anuncia por la MISMA puerta y con dos propósitos distintos, y hacen falta los dos:
-      · `blank` → la fila de AUDITORÍA: qué widget se vació, cómo y por orden de quién (`src`, provenance).
-      · `data`  → la señal que el canvas escucha (`sse.js` → `desktop.refreshData`), para que la tarjeta abierta se
-        repinte YA en vez de seguir mostrando datos que en disco ya no existen.
-    Best-effort: vaciar un widget nunca puede fallar porque no se pudiera contar."""
+    It is announced through the SAME gate with two different purposes, both required:
+      · `blank` → AUDIT row: which widget was emptied, how, and by whose order (`src`, provenance).
+      · `data`  → signal listened to by the canvas (`sse.js` → `desktop.refreshData`), so the open card repaints NOW
+        instead of continuing to show data that no longer exists on disk.
+    Best-effort: emptying a widget must never fail because it could not be reported."""
     try:
         from voice.observer import emit
         from widgets.provenance import who
         src = who(widget_id)
         emit("widget", "blank", extra={"id": widget_id, "src": src, "how": how})
-        if refresh:                                   # el camino que pasa por `save()` ya lo ha emitido él
+        if refresh:                                   # the path through `save()` has already emitted it
             emit("widget", "data", extra={"id": widget_id, "src": src})
     except Exception:
         pass
 
 
 def blank_all() -> dict:
-    """Deja EN BLANCO el contenido de todos los widgets que no declaren que su dato es del operador.
+    """Leave BLANK the content of all widgets that do not declare their data belongs to the operator.
 
-    Devuelve `{"blanked": [...], "kept": [...]}` — para el resumen del reset y para que el operador pueda VER qué
-    se respetó (una lista de lo conservado es la parte que evita la sorpresa)."""
+    Returns `{"blanked": [...], "kept": [...]}` — for the reset summary and so the operator can SEE what was respected
+    (a list of kept items is the part that prevents surprise)."""
     blanked, kept = [], []
     for wid in _widget_ids():
         if not _has_state(wid):
-            continue                       # nada guardado → nada que vaciar (no crea ficheros por el camino)
+            continue                       # nothing saved → nothing to empty (does not create files along the way)
         if is_durable(wid):
             kept.append(wid)
             continue
@@ -136,8 +135,8 @@ def blank_all() -> dict:
 
 
 def _widget_ids() -> list[str]:
-    """Ids con datos guardados. Se recorre `widgets/_data/` y NO el catálogo: ahí quedan también los datos de
-    widgets ya borrados, y son justo los que nadie volvería a limpiar nunca."""
+    """Ids with saved data. Walk `widgets/_data/`, NOT the catalog: data for deleted widgets also remains there, and
+    that is exactly what nobody would ever clean again."""
     out = []
     try:
         base = store.DATA_DIR

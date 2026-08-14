@@ -1,15 +1,15 @@
-// Mensajería widget — client render. Contract: render(el, data, ctx).
-// data = GET /widgets/mensajeria/data. NO hay poll: el host (desktop.js) re-renderiza solo cuando store.py
-//   emite el aviso SSE de que ESTE widget cambió — QR, estado y mensajes se refrescan solos sin timers.
+// Messaging widget client render. Contract: render(el, data, ctx).
+// data = GET /widgets/mensajeria/data. No polling: the host (desktop.js) re-renders only when store.py emits the
+//   SSE notice that this widget changed; QR, status, and messages refresh by themselves without timers.
 //   data.platforms = { whatsapp:{status,qr}, telegram:{status,qr} }   data.items = [{n,platform,from,group,isGroup,body,urgencia,dirigido_a_mi,motivo}]
-// ctx.action(name,payload) -> mutación del store (read/dismiss/clear). La CONEXIÓN de un conector se hace por la
-//   API de mensajería (fetch same-origin /api/messaging/*) → NADA de editar .env: el usuario conecta desde aquí.
-// SEGURIDAD: los cuerpos son NO CONFIABLES (WhatsApp/Telegram) → SIEMPRE textContent/createTextNode, nunca
-//   innerHTML (anti-XSS) — incluso al enlazar URLs detectadas dentro de un cuerpo (ver `linkify`).
+// ctx.action(name,payload) -> store mutation (read/dismiss/clear). Connector CONNECTION uses the messaging API
+//   (same-origin fetch /api/messaging/*), so no .env editing; the user connects from here.
+// SECURITY: bodies are UNTRUSTED (WhatsApp/Telegram). Always use textContent/createTextNode, never innerHTML
+//   (anti-XSS), including when linking detected URLs inside a body (see `linkify`).
 //
-// PERFIL (2026-07-08): "simple" (por defecto, minimal/timeline, sin bordes por mensaje) vs "completo" (el diseño
-// original, tarjetas con borde + badges de color). Preferencia LOCAL (localStorage, solo cosmético) — no toca el
-// contrato del store ni pasa por Hermes. Ajustes (⚙) sustituye al antiguo pie con los chips de "conectado".
+// PROFILE (2026-07-08): "simple" (default, minimal/timeline, no per-message borders) vs "completo" (original
+// design, bordered cards + color badges). LOCAL preference (localStorage, cosmetic only); does not touch the store
+// contract or pass through Hermes. Settings replaces the old footer with "connected" chips.
 
 const URG = {
   alta:  {dot: "var(--hb-risk,#e5484d)",   lb: "urgente"},
@@ -17,8 +17,8 @@ const URG = {
   baja:  {dot: "var(--hb-muted-2,#9aa7b8)",lb: ""},
 };
 
-// Una definición por plataforma: etiqueta, color del badge, si necesita credenciales (setup guiado) y las
-// instrucciones (guía de credenciales + pasos para escanear el QR). Añadir una plataforma = una entrada aquí.
+// One definition per platform: label, badge color, whether credentials are needed (guided setup), and instructions
+// (credentials guide + QR scan steps). Adding a platform means adding one entry here.
 const PLAT = {
   whatsapp: {
     label: "WhatsApp", bg: "var(--hb-accent2,#16B8A6)", requiresCreds: false,
@@ -33,9 +33,9 @@ const PLAT = {
 };
 const ORDER = ["whatsapp", "telegram", "email"];
 
-// Logos de marca reales (trazo oficial, simple-icons.org — licencia CC0), inline como <path> para que el widget
-// siga siendo self-contained (sin red/CDN desde widget.js). Coloreados vía currentColor + var(--hb-accent*) para
-// mantener la misma paleta que el resto del widget (chips por mensaje, dots de estado).
+// Real brand logos (official simple-icons.org outline, CC0), inline as <path> so the widget stays self-contained
+// with no network/CDN from widget.js. Colored through currentColor + var(--hb-accent*) to keep the same palette as
+// the rest of the widget (message chips, status dots).
 const SVG_NS = "http://www.w3.org/2000/svg";
 const BRAND_SVG = {
   whatsapp: {
@@ -48,22 +48,22 @@ const BRAND_SVG = {
   },
 };
 
-// Borrador de credenciales que sobrevive a los re-render (para no borrar lo que el usuario está escribiendo).
+// Credential draft that survives re-renders, so user input is not wiped while typing.
 const _draft = {telegram: {api_id: "", api_hash: ""},
                 email: {email_address: "", email_password: "", provider: "gmail", imap_host: "", smtp_host: ""}};
-// Proveedores de email con preset de hosts (server-side); "otro" pide IMAP/SMTP a mano.
+// Email providers with server-side host presets; "otro" asks for IMAP/SMTP manually.
 const EMAIL_PROVIDERS = [["gmail","Gmail"], ["outlook","Outlook / Hotmail"], ["icloud","iCloud"],
                          ["yahoo","Yahoo"], ["otro","Otro (IMAP/SMTP)"]];
-const _busy = {};   // platform -> true mientras una conexión está en curso (feedback en el botón)
+const _busy = {};   // platform -> true while a connection is in progress, for button feedback
 
-// Estado LOCAL de presentación (cosmético, no toca el store): perfil elegido, panel de ajustes abierto, mensajes
-// expandidos. Sobrevive entre re-renders porque el módulo se carga una sola vez.
+// LOCAL presentation state (cosmetic, does not touch the store): selected profile, settings panel open, expanded
+// messages. Survives re-renders because the module loads once.
 let _profile = "simple";
-try { _profile = localStorage.getItem("hb-msg-profile") || "simple"; } catch { /* storage bloqueado: usa "simple" */ }
+try { _profile = localStorage.getItem("hb-msg-profile") || "simple"; } catch { /* storage blocked: use "simple" */ }
 let _settingsOpen = false;
-let _connectorsOpen = false;         // panel de "Canales disponibles" abierto desde el header (🔌)
-const _expandConnect = new Set();    // canales cuyo formulario de conexión está desplegado en el panel
-let _confirmDisconnect = null;       // plataforma con confirmación de desconexión pendiente
+let _connectorsOpen = false;         // "Available channels" panel opened from the header
+const _expandConnect = new Set();    // channels whose connection form is expanded in the panel
+let _confirmDisconnect = null;       // platform with a pending disconnect confirmation
 const _expanded = new Set();   // claves de mensajes con el cuerpo desplegado
 
 function injectStyles(){
@@ -84,7 +84,7 @@ function injectStyles(){
   .hb-msg .clr{border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);border-radius:8px;padding:4px 9px;font-size:12px;cursor:pointer;color:var(--hb-muted,#3a4757)}
   .hb-msg .clr:hover{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0)}
 
-  /* ── Ajustes (⚙) ─────────────────────────────────────────────────────── */
+  /* Settings. */
   .hb-msg .settings{border:1px solid var(--hb-line,#eef1f6);border-radius:11px;padding:11px 12px;margin-bottom:11px;background:var(--hb-bg-soft,#fbfdff)}
   .hb-msg .stitle{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--hb-muted-2,#9aa7b8);margin:9px 0 6px}
   .hb-msg .stitle:first-child{margin-top:0}
@@ -93,7 +93,7 @@ function injectStyles(){
   .hb-msg .segbtn+.segbtn{border-left:1px solid var(--hb-line,#e3e8f0)}
   .hb-msg .segbtn.active{background:var(--hb-accent,#3D6FE0);color:#fff}
 
-  /* ── Perfil COMPLETO (original) ──────────────────────────────────────── */
+  /* COMPLETE profile (original). */
   .hb-msg .list{display:flex;flex-direction:column;gap:7px;max-height:52vh;overflow:auto}
   .hb-msg .row{display:flex;gap:9px;align-items:flex-start;padding:9px 10px;border:1px solid var(--hb-line,#eef1f6);border-radius:11px;background:var(--hb-bg,#fff)}
   .hb-msg .row.mine{background:var(--hb-warn-bg,#fff7e8);border-color:var(--hb-warn-border,#f2dca6)}
@@ -111,7 +111,7 @@ function injectStyles(){
   .hb-msg .acts .mute{font-size:11px;color:var(--hb-muted-2,#9aa7b8)}
   .hb-msg .acts .mute:hover{border-color:var(--hb-risk,#e5484d);color:var(--hb-risk,#e5484d)}
 
-  /* ── Perfil SIMPLE (timeline minimal, tipo Claude Code / VS Code) ────── */
+  /* SIMPLE profile: minimal timeline, Claude Code / VS Code style. */
   .hb-msg .tl{display:flex;flex-direction:column;max-height:56vh;overflow:auto}
   .hb-msg .trow{display:flex;gap:10px;align-items:flex-start;padding:11px 2px;border-bottom:1px solid var(--hb-line,#eef1f6)}
   .hb-msg .trow:last-child{border-bottom:0}
@@ -134,7 +134,7 @@ function injectStyles(){
   .hb-msg .tacts button{border:0;background:transparent;border-radius:7px;width:26px;height:24px;font-size:12.5px;cursor:pointer;color:var(--hb-muted,#5b6b82);line-height:1}
   .hb-msg .tacts button:hover{background:var(--hb-hover,#eef3f9);color:var(--hb-ink,#0d1622)}
 
-  /* ── Lista de CHATS (agrupada) + hilo abierto ────────────────────────── */
+  /* Grouped CHAT list + open thread. */
   .hb-msg .chatrow{cursor:pointer;margin:0 -8px;padding-left:8px;padding-right:8px;border-radius:9px}
   .hb-msg .chatrow:hover{background:var(--hb-hover,#eef3f9)}
   .hb-msg .tcount{background:var(--hb-neutral,#3a4a5c);color:#fff;font-size:10.5px;font-weight:700;border-radius:999px;
@@ -163,18 +163,18 @@ function injectStyles(){
   .hb-msg .qr-wrap .cap{font-size:12.5px;color:var(--hb-muted,#3a4757);margin-top:9px;line-height:1.55}
   .hb-msg .qr-wrap .cap b{color:var(--hb-ink,#0d1622)}
   .hb-msg .waiting{color:var(--hb-muted-2,#7d8a9c);font-size:12.5px;padding:6px 0;text-align:center}
-  /* ── Loader (spinner) + detalle de conexión ──────────────────────────── */
+  /* Loader (spinner) + connection detail. */
   .hb-msg .spin{display:inline-block;width:15px;height:15px;border-radius:50%;vertical-align:-2px;margin-right:7px;
     border:2px solid var(--hb-line,#e3e8f0);border-top-color:var(--hb-accent,#3D6FE0);animation:hbspin .7s linear infinite}
   @keyframes hbspin{to{transform:rotate(360deg)}}
   .hb-msg .waitbox{display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 0;text-align:center}
   .hb-msg .waitbox .lbl{font-size:13px;color:var(--hb-ink,#0d1622);font-weight:600}
   .hb-msg .waitbox .det{font-size:12px;color:var(--hb-muted,#5b6b82);line-height:1.5;max-width:320px}
-  /* ── Card de error de conexión ───────────────────────────────────────── */
+  /* Connection error card. */
   .hb-msg .errcard{border:1px solid var(--hb-risk,#e5484d);border-radius:10px;padding:11px 12px;margin-top:8px;background:color-mix(in srgb,var(--hb-risk,#e5484d) 8%,transparent)}
   .hb-msg .errcard .et{font-size:12.5px;color:var(--hb-ink,#0d1622);line-height:1.5;margin-bottom:9px}
   .hb-msg .errcard .et b{color:var(--hb-risk,#e5484d)}
-  /* ── Panel de canales / conectores ───────────────────────────────────── */
+  /* Channels / connectors panel. */
   .hb-msg .chanhead{display:flex;align-items:center;gap:8px;margin:2px 0 10px}
   .hb-msg .chanhead b{font-size:14px} .hb-msg .chanhead .back{margin-left:auto;font-size:12px;color:var(--hb-accent,#3D6FE0);cursor:pointer}
   .hb-msg .chanhead .hint{font-size:12px;color:var(--hb-muted-2,#7d8a9c)}
@@ -210,8 +210,8 @@ function badge(platform){
   const b=el("span","badge",p.label); b.style.background=p.bg; return b;
 }
 
-// Círculo pequeño con la inicial de la plataforma — usado en la cabecera (estado de conexión, "on"=verde) y en
-// cada fila del perfil simple (color de marca fijo, informativo, no de estado).
+// Small circle with the platform initial, used in the header (connection state, "on"=green) and in each simple
+// profile row (fixed brand color, informational rather than state).
 function miniDot(platform, on){
   const p=PLAT[platform]||{label:"?"};
   const d=el("span","pdot"+(on?" on":""), p.label[0]);
@@ -225,8 +225,8 @@ function platformChip(platform){
   return c;
 }
 
-// Icono de marca real para la cabecera (estado de conexión). `on` solo cambia la opacidad (atenuado = no
-// conectado) — el color de marca se mantiene siempre, así se reconoce la app aunque esté desvinculada.
+// Real brand icon for the header connection state. `on` only changes opacity (dimmed = disconnected); brand color
+// always remains, so the app stays recognizable even when unlinked.
 function brandIcon(platform, on){
   const p=PLAT[platform]||{label:platform||"?",bg:"var(--hb-muted,#6b7b92)"};
   const spec=BRAND_SVG[platform];
@@ -246,8 +246,8 @@ function brandIcon(platform, on){
   return wrap;
 }
 
-// Separa un "título" corto de mensaje (p.ej. "Visión semanal") del resto del cuerpo cuando vienen unidos por una
-// línea en blanco — patrón habitual de los mensajes triados. Si no encaja el patrón, todo es "resto" sin título.
+// Split a short message title from the rest of the body when they are joined by a blank line, a common pattern in
+// triaged messages. If the pattern does not fit, everything is body text with no title.
 function splitBody(body){
   const idx = body.indexOf("\n\n");
   if(idx > 0 && idx <= 100){
@@ -258,16 +258,16 @@ function splitBody(body){
   return {title: "", rest: body};
 }
 
-// Limpieza mínima del texto entrante: colapsa saltos de línea excesivos (3+) para que no queden huecos enormes.
-// NUNCA toca emojis/enlaces/contenido — solo espaciado.
+// Minimal incoming-text cleanup: collapse excessive line breaks (3+) so huge gaps do not appear. Never touches
+// emojis/links/content, only spacing.
 function cleanBody(text){
   return String(text==null?"":text).replace(/\n{3,}/g, "\n\n").trim();
 }
 
 const URL_RE = /(https?:\/\/[^\s]+)/g;
 
-// Construye el cuerpo del mensaje como nodos de texto + <a> para cada URL detectada — SIN innerHTML (los cuerpos
-// son de terceros, no confiables). El texto normal permanece como TextNode plano.
+// Build the message body as text nodes plus <a> for each detected URL. No innerHTML because bodies come from
+// third parties and are untrusted. Normal text remains a plain TextNode.
 function linkify(container, text){
   const t = String(text==null ? "" : text);
   let last = 0, m;
@@ -288,12 +288,13 @@ function linkify(container, text){
   if(last < t.length) container.appendChild(document.createTextNode(t.slice(last)));
 }
 
-// Conectar/desconectar SIN tocar .env. El widget solo puede hablar por ctx.action (contrato de aislamiento: sin
-// red/fetch desde el cliente) → encola la orden en el store; el SUPERVISOR del server la drena y hace el connect
-// real. El QR/estado aparecen solos en el canvas — store.py emite el aviso SSE en cuanto el supervisor guarda el
-// nuevo estado, y desktop.js re-pinta esta MISMA tarjeta una vez (nunca un poll, nunca una ventana aparte).
+// Connect/disconnect without touching .env. The widget can only talk through ctx.action (isolation contract: no
+// network/fetch from the client), which queues the order in the store; the server supervisor drains it and performs
+// the real connect. QR/status appear by themselves on the canvas: store.py emits the SSE notice as soon as the
+// supervisor saves the new state, and desktop.js repaints this same card once (never polling, never a separate
+// window).
 
-// ── Tarjeta: formulario de credenciales (Telegram) — guía como a un usuario doméstico ───────────────────────
+// Card: credentials form (Telegram), guided for a non-technical user.
 function credsCard(platform, ctx){
   const p=PLAT[platform];
   const card=el("div","linkcard");
@@ -329,7 +330,7 @@ function credsCard(platform, ctx){
       err.textContent="Necesito el api_id (solo números) y el api_hash."; err.style.display="block"; return;
     }
     _busy[platform]=true; btn.disabled=true; btn.textContent="Conectando…"; err.style.display="none";
-    ctx.action("connect", {platform, api_id, api_hash});   // → store → supervisor → connect real; QR llega por SSE
+    ctx.action("connect", {platform, api_id, api_hash});   // -> store -> supervisor -> real connect; QR arrives by SSE
     _draft.telegram={api_id:"", api_hash:""};
     card.textContent=""; card.append(ch, el("div","waiting","Conectando con "+p.label+"… te muestro el QR en un momento."));
   };
@@ -337,7 +338,7 @@ function credsCard(platform, ctx){
   return card;
 }
 
-// ── Tarjeta: formulario de EMAIL (V2-051) — proveedor + correo + contraseña de aplicación (no QR) ────────────
+// Card: EMAIL form (V2-051), provider + address + app password (no QR).
 function emailCard(platform, ctx){
   const p=PLAT[platform];
   const d=_draft.email;
@@ -346,19 +347,19 @@ function emailCard(platform, ctx){
   card.appendChild(el("div",null,"Leo tu correo y puedes responder por voz. En Gmail/Outlook necesitas una "
     +"«contraseña de aplicación» (con la verificación en 2 pasos activada) — no tu contraseña normal."));
 
-  // Proveedor
+  // Provider.
   const provL=el("label","f","Proveedor"); const prov=document.createElement("select"); prov.className="f";
   EMAIL_PROVIDERS.forEach(([v,lab])=>{ const o=document.createElement("option"); o.value=v; o.textContent=lab;
     if(v===d.provider) o.selected=true; prov.appendChild(o); });
-  // Dirección
+  // Address.
   const addrL=el("label","f","Correo"); const addr=document.createElement("input");
   addr.className="f"; addr.type="email"; addr.placeholder="tucuenta@gmail.com"; addr.autocomplete="off";
   addr.value=d.email_address||""; addr.oninput=()=>{d.email_address=addr.value;};
-  // Contraseña
+  // Password.
   const pwL=el("label","f","Contraseña de aplicación"); const pw=document.createElement("input");
   pw.className="f"; pw.type="password"; pw.placeholder="pega aquí la contraseña de aplicación"; pw.autocomplete="off";
   pw.value=d.email_password||""; pw.oninput=()=>{d.email_password=pw.value;};
-  // Hosts (solo "otro")
+  // Hosts ("otro" only).
   const imapL=el("label","f","Servidor IMAP"); const imap=document.createElement("input");
   imap.className="f"; imap.type="text"; imap.placeholder="imap.tudominio.com";
   imap.value=d.imap_host||""; imap.oninput=()=>{d.imap_host=imap.value;};
@@ -387,7 +388,7 @@ function emailCard(platform, ctx){
       payload.imap_host=imap.value.trim(); payload.smtp_host=smtp.value.trim();
     }
     _busy[platform]=true; btn.disabled=true; btn.textContent="Conectando…"; err.style.display="none";
-    ctx.action("connect", payload);                            // → store → supervisor → connect real (IMAP/SMTP)
+    ctx.action("connect", payload);                            // -> store -> supervisor -> real connect (IMAP/SMTP)
     _draft.email={email_address:"", email_password:"", provider:prov.value, imap_host:"", smtp_host:""};
     card.textContent=""; card.append(ch, el("div","waiting","Conectando con tu correo… un momento."));
   };
@@ -395,7 +396,7 @@ function emailCard(platform, ctx){
   return card;
 }
 
-// ── Tarjeta: botón simple de conectar (WhatsApp — no necesita credenciales) ─────────────────────────────────
+// Card: simple connect button (WhatsApp, no credentials needed).
 function connectCard(platform, ctx){
   const p=PLAT[platform];
   const card=el("div","linkcard");
@@ -412,7 +413,7 @@ function connectCard(platform, ctx){
   return card;
 }
 
-// ── Tarjeta: QR para escanear (guía de vinculación del dispositivo) ──────────────────────────────────────────
+// Card: QR to scan, with device-linking guide.
 function qrCard(platform, pd){
   const p=PLAT[platform];
   const card=el("div","linkcard");
@@ -433,9 +434,8 @@ function qrCard(platform, pd){
   return card;
 }
 
-// ── Panel de ajustes (⚙): perfil simple/completo + plataformas conectadas + canales silenciados ─────────────
-// Sustituye al antiguo pie fijo (chips "conectado"/"desvincular" siempre visibles) por algo que no distrae salvo
-// que el usuario lo pida.
+// Settings panel: simple/complete profile + connected platforms + muted channels. Replaces the old fixed footer
+// (always-visible "connected"/"unlink" chips) with something that does not distract unless the user asks for it.
 function settingsPanel(platforms, data, ctx, rerender){
   const wrap = el("div","settings");
 
@@ -446,15 +446,15 @@ function settingsPanel(platforms, data, ctx, rerender){
     b.onclick=()=>{
       if(_profile===key) return;
       _profile=key;
-      try{ localStorage.setItem("hb-msg-profile", key); }catch{ /* storage bloqueado: solo afecta a esta sesión */ }
+      try{ localStorage.setItem("hb-msg-profile", key); }catch{ /* storage blocked: only affects this session */ }
       rerender();
     };
     seg.appendChild(b);
   });
   wrap.appendChild(seg);
 
-  // (Conectar/desconectar vive en el panel de CANALES — botón 🔌 del header, con confirmación de borrado de
-  //  credenciales. Ajustes solo lleva perfil + silenciados, para no tener dos vías de desconexión distintas.)
+  // Connect/disconnect lives in the CHANNELS panel from the header button, with credential-deletion confirmation.
+  // Settings only contains profile + muted channels, to avoid two different disconnection paths.
 
   const muted = data.muted_channels||[];
   if(muted.length){
@@ -463,8 +463,8 @@ function settingsPanel(platforms, data, ctx, rerender){
     muted.forEach(m=>{
       const chip=el("span","ok"); chip.append(document.createTextNode("🔇 "+m.group));
       const lk=el("span","lk","reactivar");
-      // ZAELAR-FIX (2026-07-08): antes se enviaba chatId:null y unhide nunca reactivaba nada (data.py exige
-      // chat_id is not None). m.chatId viene del propio view_data — hay que reenviarlo.
+      // ZAELAR-FIX (2026-07-08): previously chatId:null was sent, so unhide never reactivated anything because
+      // data.py requires chat_id is not None. m.chatId comes from view_data itself and must be sent back.
       lk.onclick=()=>{ lk.textContent="…"; ctx.action("unhide", {platform:m.platform, chatId:m.chatId}); };
       chip.append(document.createTextNode(" · "), lk);
       row.appendChild(chip);
@@ -475,7 +475,7 @@ function settingsPanel(platforms, data, ctx, rerender){
   return wrap;
 }
 
-// ── Lista, perfil COMPLETO (diseño original: tarjetas con borde + badges de color) ──────────────────────────
+// COMPLETE profile list: original design with bordered cards and color badges.
 function richList(items, ctx){
   const list=el("div","list");
   items.forEach(it=>{
@@ -507,7 +507,7 @@ function richList(items, ctx){
   return list;
 }
 
-// ── Fila de UN mensaje (timeline vertical sin bordes) — usada dentro de un hilo abierto (perfil simple) ──────
+// Single message row: borderless vertical timeline, used inside an open thread in simple profile.
 function messageRow(it, ctx, rerender){
   const mine = !!it.dirigido_a_mi;
   const urgente = it.urgencia === "alta";
@@ -549,8 +549,8 @@ function messageRow(it, ctx, rerender){
   return row;
 }
 
-// ── Lista de CHATS (perfil simple, por defecto) — un item por conversación, no por mensaje: nombre, cuántos
-// pendientes y el último mensaje como preview. Clic (o [[msg.open:N]] por voz) entra en el hilo completo. ────
+// CHAT list (simple profile, default): one item per conversation instead of per message. Shows name, pending
+// count, and the last message as preview. Click, or [[msg.open:N]] by voice, enters the full thread.
 function chatList(chats, ctx){
   const wrap = el("div","tl");
   chats.forEach(c=>{
@@ -587,8 +587,8 @@ function chatList(chats, ctx){
   return wrap;
 }
 
-// ── Hilo abierto: cabecera (← volver + plataforma + nombre) y sus mensajes uno a uno. `close` vuelve a la
-// lista de chats — también direccionable por voz ([[msg.close]]), converge en el mismo ctx.action. ──────────
+// Open thread: header (back + platform + name) and its messages one by one. `close` returns to the chat list,
+// is also addressable by voice ([[msg.close]]), and converges on the same ctx.action.
 function threadView(active, items, ctx, rerender){
   const wrap = el("div","thread");
   const hd = el("div","thd");
@@ -606,7 +606,7 @@ function threadView(active, items, ctx, rerender){
   return wrap;
 }
 
-// ── Loader + estado humano de conexión ────────────────────────────────────────────────────────────────────────
+// Loader + human-readable connection state.
 const _ST_LABEL = {off:"Sin conectar", no_creds:"Sin conectar", starting:"Conectando…",
                    connecting:"Esperando escaneo del QR…", connected:"Conectado", error:"No se pudo conectar"};
 
@@ -637,9 +637,9 @@ function _connectForm(pl, ctx){
 }
 function _expandWrap(node){ const d=el("div","expand"); d.appendChild(node); return d; }
 
-// ── Panel de CANALES / conectores (V2-051) ────────────────────────────────────────────────────────────────────
-// Onboarding cuando NADA está conectado (lista "Canales disponibles"); y accesible siempre desde el 🔌 del header.
-// Cada canal: icono + nombre + estado; conectar por click (o por voz); DESCONECTAR con confirmación (borra creds).
+// CHANNELS / connectors panel (V2-051). Onboarding when nothing is connected ("Available channels" list), and
+// always accessible from the header connector button. Each channel: icon + name + status; connect by click or
+// voice; disconnect with confirmation because it deletes credentials.
 function channelsPanel(platforms, ctx, rerender, connectedCount){
   const wrap=el("div");
   const head=el("div","chanhead");
@@ -652,7 +652,7 @@ function channelsPanel(platforms, ctx, rerender, connectedCount){
     const p=PLAT[pl]; if(!p) return;
     const pd=platforms[pl]||{status:"off"};
     const st=pd.status||"off";
-    if(st!=="off"&&st!=="no_creds"&&st!=="error") _busy[pl]=false;   // el motor avanzó → limpia el "conectando" local
+    if(st!=="off"&&st!=="no_creds"&&st!=="error") _busy[pl]=false;   // engine advanced -> clear local "connecting"
 
     const card=el("div","chan");
     const top=el("div","top");
@@ -672,7 +672,7 @@ function channelsPanel(platforms, ctx, rerender, connectedCount){
     top.appendChild(act);
     card.appendChild(top);
 
-    // Confirmación de DESCONEXIÓN (borra credenciales) — diálogo inline.
+    // DISCONNECT confirmation, deletes credentials; inline dialog.
     if(_confirmDisconnect===pl){
       const cfm=el("div","cfm");
       cfm.appendChild(document.createTextNode(`¿Eliminar las credenciales de ${p.label}? Tendrás que volver a conectarlo.`));
@@ -683,13 +683,13 @@ function channelsPanel(platforms, ctx, rerender, connectedCount){
       row.append(y,n); cfm.appendChild(row); card.appendChild(cfm);
     }
 
-    // Estado en vivo / formulario de conexión.
+    // Live state / connection form.
     if(_busy[pl] && (st==="off"||st==="no_creds")){
       card.appendChild(_expandWrap(waitBox("Conectando…", "Un momento, contactando con el servicio…")));
     } else if(st==="starting"){
       card.appendChild(_expandWrap(waitBox("Conectando…", pd.detail||"")));
     } else if(st==="connecting"){
-      card.appendChild(_expandWrap(qrCard(pl, pd)));           // WA/TG → QR para escanear
+      card.appendChild(_expandWrap(qrCard(pl, pd)));           // WA/TG -> QR to scan
     } else if(st==="error"){
       card.appendChild(_expandWrap(errorCard(pl, pd.detail, ctx, rerender)));
       if(_expandConnect.has(pl)) card.appendChild(_expandWrap(_connectForm(pl, ctx)));
@@ -711,7 +711,7 @@ export function render(root, data, ctx){
   const rerender=()=>render(root, data, ctx);
   const connectedCount = ORDER.filter(pl=>(platforms[pl]||{}).status==="connected").length;
 
-  // Cabecera: título + contador · SOLO iconos de lo CONECTADO · 🔌 conectores · ⚙ ajustes · Limpiar.
+  // Header: title + counter, connected icons only, connectors, settings, clear.
   const hd=el("div","hd");
   hd.append(el("b",null,"Mensajería"),
             el("span","sub", items.length ? `${items.length} para ti` : (connectedCount ? "al día" : "sin conectar")));
@@ -732,15 +732,15 @@ export function render(root, data, ctx){
 
   if(_settingsOpen) root.appendChild(settingsPanel(platforms, data, ctx, rerender));
 
-  // Panel de CANALES: onboarding cuando NADA está conectado, o cuando el usuario lo abre desde el 🔌. La mensajería
-  // arranca VACÍA — no volcamos todos los formularios de conexión encima por defecto (decisión de producto V2-051).
+  // CHANNELS panel: onboarding when nothing is connected, or when the user opens it from the header connector
+  // button. Messaging starts EMPTY; do not dump every connection form by default (V2-051 product decision).
   const showChannels = _connectorsOpen || connectedCount===0;
   if(showChannels){
     root.appendChild(channelsPanel(platforms, ctx, rerender, connectedCount));
     return;
   }
 
-  // Vista de MENSAJES (hay ≥1 canal conectado) — siempre partimos de aquí.
+  // MESSAGES view, reached whenever at least one channel is connected.
   if(_profile==="completo"){
     if(items.length) root.appendChild(richList(items, ctx));
     else root.appendChild(el("div","empty","Nada que atender ahora ✓"));

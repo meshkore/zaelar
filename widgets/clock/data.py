@@ -1,6 +1,6 @@
 #
-# Clock widget — backend. El reloj real lo pinta el navegador con la hora local del cliente.
-# Devolvemos sólo metadatos por si el host quiere snapshot inicial; sin red, sin estado.
+# Clock widget backend. The browser renders the real clock using the client's local time.
+# Return only metadata in case the host wants an initial snapshot; no network, no state.
 #
 import time
 

@@ -1,24 +1,24 @@
 #
-# mem_ingest.py — OBSERVACIÓN PASIVA del canal de cluster → memoria CUARENTENADA y COMPRIMIDA (V2-021 · T170).
+# mem_ingest.py — PASSIVE OBSERVATION from the cluster channel -> QUARANTINED and COMPRESSED memory (V2-021 · T170).
 #
-# El canal de cluster habla con agentes externos NO confiables. El canal NO tiene tools (perfil untrusted)
-# (postura fail-closed): esto NO le da capacidades ni estado. Es un side-effect de OBSERVACIÓN que corre
-# OFF-HOT-PATH (fuera del turno síncrono y del loop de voz), fire-and-forget, best-effort/fail-open.
+# The cluster channel talks to UNTRUSTED external agents. The channel has NO tools (untrusted profile)
+# (fail-closed posture): this grants it NO capabilities or state. It is an OBSERVATION side-effect that runs
+# OFF-HOT-PATH (outside the synchronous turn and voice loop), fire-and-forget, best-effort/fail-open.
 #
-# Qué hace: por cada intercambio (peer→zaelar + zaelar→peer) con un par (cluster, peer), DESTILA una SÍNTESIS
-# curada de QUÉ se habla (temas/acuerdos/datos) — no cada frase — y la guarda como UNA píldora viva por peer,
-# bajo el slot canónico `cluster:<cluster>:<peer>` (supersede EXACTO → cada intercambio reescribe la síntesis, no
-# genera memoria basura). Así el operador puede preguntar por voz "¿qué has hablado con Zalo?" y el FlashBrain la
-# recupera con `memory.recent_by_source("cluster", "Zalo")`.
+# What it does: for each exchange (peer -> zaelar + zaelar -> peer) with a (cluster, peer) pair, DISTILLS a curated
+# SYNTHESIS of WHAT was discussed (topics/agreements/data) — not every sentence — and stores it as ONE live pill per
+# peer, under the canonical slot `cluster:<cluster>:<peer>` (EXACT supersede -> each exchange rewrites the synthesis,
+# does not create memory junk). This lets the operator later ask by voice what was discussed with Zalo, and
+# FlashBrain retrieves it with `memory.recent_by_source("cluster", "Zalo")`.
 #
-# CUARENTENA (invariante FUERTE, V2-021): la píldora entra con `trust="untrusted"` → NUNCA en el bloque pasivo del
-# FlashBrain (`recent_short`/`salient_long`) ni en el recall semántico (`retriever` la excluye). Solo aflora por
-# consulta EXPLÍCITA (`recent_by_source`). Anti prompt-injection: el contenido de un peer no se cuela como
-# instrucción en el prompt del operador.
+# QUARANTINE (STRONG invariant, V2-021): the pill enters with `trust="untrusted"` -> NEVER in the FlashBrain passive
+# block (`recent_short`/`salient_long`) nor in semantic recall (`retriever` excludes it). It only surfaces through
+# EXPLICIT query (`recent_by_source`). Anti prompt-injection: peer content cannot slip into the operator prompt as an
+# instruction.
 #
-# Compresión: modelo LOCAL por defecto (Ollama, mismo patrón que `mem_processor`/`triage`) — nada personal sale de
-# la máquina; el peer ya es untrusted. Fail-open: si el modelo no está, cae a una fusión DETERMINISTA y ACOTADA
-# (nunca crece sin límite) para que la memoria siga siendo compacta aun sin LLM.
+# Compression: LOCAL model by default (Ollama, same pattern as `mem_processor`/`triage`) — nothing personal leaves
+# the machine; the peer is already untrusted. Fail-open: if the model is unavailable, fall back to a DETERMINISTIC
+# and BOUNDED merge (never grows without limit) so memory stays compact even without an LLM.
 #
 import asyncio
 import json
@@ -30,15 +30,15 @@ from loguru import logger
 
 from connectors.meshkore import store, security
 
-_MAX_SYNTH = 700            # chars: techo DURO de la síntesis por peer (compacta, evolutiva)
-_MAX_EXCERPT = 400          # chars por lado del intercambio que ve el modelo (destila, no necesita todo)
+_MAX_SYNTH = 700            # chars: HARD ceiling for each peer synthesis (compact, evolving)
+_MAX_EXCERPT = 400          # chars per exchange side visible to the model (it distills; it does not need all)
 _TIMEOUT = float(os.getenv("MESHKORE_MEMORY_TIMEOUT", "30"))   # off-hot-path → generoso pero acotado
-_tasks: set = set()         # mantiene vivas las tareas fire-and-forget (evita GC)
+_tasks: set = set()         # keeps fire-and-forget tasks alive (prevents GC)
 
 
 def enabled() -> bool:
-    """La observación cluster→memoria se puede apagar (`MESHKORE_MEMORY=0`) — superficie de seguridad. Default ON:
-    la memoria queda CUARENTENADA (nunca en el prompt pasivo) y el canal no tiene tools, así que es seguro."""
+    """Cluster-to-memory observation can be disabled (`MESHKORE_MEMORY=0`) — security surface. Default ON: memory is
+    QUARANTINED (never in the passive prompt) and the channel has no tools, so it is safe."""
     return os.getenv("MESHKORE_MEMORY", "1").strip().lower() not in ("0", "false", "no", "off")
 
 
@@ -46,7 +46,7 @@ def slot_for(cluster: str, peer: str) -> str:
     return f"cluster:{cluster}:{peer}"
 
 
-# ── config del modelo (LOCAL por defecto, OpenAI-compatible; mismo endpoint que el perfil `local`) ─────────────
+# ── model config (LOCAL by default, OpenAI-compatible; same endpoint as the `local` profile) ───────────────────
 def _url() -> str:
     return (os.getenv("MESHKORE_MEMORY_URL")
             or os.getenv("MEM_PROCESSOR_URL")
@@ -61,7 +61,7 @@ def _key() -> str:
     return os.getenv("MESHKORE_MEMORY_KEY") or os.getenv("MEM_PROCESSOR_KEY", "local")
 
 
-# ── el prompt del sintetizador (afinable) ─────────────────────────────────────────────────────────────────────
+# ── synthesizer prompt (tunable) ───────────────────────────────────────────────────────────────────────────────
 _SYSTEM = """Eres el SINTETIZADOR de memoria del canal de cluster de un asistente. El asistente conversa con OTROS
 agentes de IA externos (peers) sobre temas concretos. Tu trabajo: mantener UNA síntesis breve, viva y curada de
 QUÉ se ha hablado con un peer concreto, para que el dueño pueda preguntar más tarde "¿qué has hablado con ese
@@ -90,8 +90,8 @@ def _render(peer: str, prev: str, inbound: str, outbound: str) -> str:
 
 
 async def _summarize(peer: str, prev: str, inbound: str, outbound: str) -> str | None:
-    """Destila la síntesis evolutiva vía el modelo LOCAL. Devuelve la síntesis (str) o None si el modelo no está /
-    falla (→ el llamador cae al merge determinista). NUNCA lanza."""
+    """Distill the evolving synthesis through the LOCAL model. Returns the synthesis (str), or None if the model is
+    unavailable/fails (-> caller falls back to deterministic merge). NEVER raises."""
     if not enabled():
         return None
     payload = {
@@ -111,10 +111,10 @@ async def _summarize(peer: str, prev: str, inbound: str, outbound: str) -> str |
             async with s.post(url, headers={"Authorization": f"Bearer {_key()}"}, json=payload) as r:
                 data = await r.json()
         out = (data["choices"][0]["message"]["content"] or "").strip()
-        # A ENERGY (2026-08-13). Local por defecto → `energy_meter` devuelve None y no cuesta nada.
-        # Se reporta porque el endpoint es CONFIGURABLE y porque este destilador lo dispara un PEER
-        # externo, no el operador: es la única llamada de pago del sistema cuyo ritmo lo marca alguien
-        # de fuera. Sin medirla, un peer parlanchín gastaría el saldo del operador sin dejar rastro.
+        # ENERGY (2026-08-13). Local by default -> `energy_meter` returns None and costs nothing.
+        # Reported because the endpoint is CONFIGURABLE and because this distiller is triggered by an external PEER,
+        # not the operator: it is the only paid system call whose pace is set by someone outside. Without measuring
+        # it, a chatty peer could spend the operator's balance without leaving a trace.
         try:
             from nucleo import energy_meter as _energy
             usage = (data.get("usage") or {}) if isinstance(data, dict) else {}
@@ -141,25 +141,25 @@ async def _summarize(peer: str, prev: str, inbound: str, outbound: str) -> str |
 
 
 def _merge_fallback(peer: str, prev: str, inbound: str, outbound: str) -> str:
-    """Fusión DETERMINISTA y ACOTADA cuando el modelo no está (fail-open). No comprime como el LLM, pero MANTIENE
-    la síntesis compacta (techo duro `_MAX_SYNTH`) para que la memoria no crezca sin límite ni se llene de basura.
-    Conserva la síntesis previa y añade una línea breve del intercambio nuevo."""
+    """DETERMINISTIC and BOUNDED merge when the model is unavailable (fail-open). It does not compress like the LLM,
+    but KEEPS the synthesis compact (hard `_MAX_SYNTH` ceiling) so memory does not grow without limit or fill with
+    junk. Preserves the previous synthesis and adds a short line for the new exchange."""
     prev = (prev or "").strip()
     snippet = (inbound or outbound or "").strip().replace("\n", " ")
     if not snippet:
         return prev
     line = f"· {peer} habló de: {snippet[:160]}"
     merged = (prev + "\n" + line).strip() if prev else line
-    if len(merged) > _MAX_SYNTH:      # mantén lo MÁS RECIENTE (recorta por delante), acotado
+    if len(merged) > _MAX_SYNTH:      # keep the MOST RECENT content (trim from the front), bounded
         merged = "…\n" + merged[-(_MAX_SYNTH - 2):]
     return merged
 
 
 def known_peer(cluster: str, peer: str) -> bool:
-    """True si YA hay una síntesis de intercambios previos con este peer en este cluster (memoria durable, no
-    estado de proceso) — V2-067, 2026-07-24: el operador pidió que zaelar se anuncie (nombre+capacidades) solo la
-    PRIMERA vez que se cruza con un peer; en reconexiones posteriores del mismo cluster sería absurdo repetirlo.
-    `False` = nunca hemos hablado (o memoria apagada/vacía) → toca presentarse."""
+    """True if there is ALREADY a synthesis of prior exchanges with this peer in this cluster (durable memory, not
+    process state) — V2-067, 2026-07-24: the operator asked zaelar to announce itself (name+capabilities) only the
+    FIRST time it meets a peer; repeating it on later reconnects to the same cluster would be absurd. `False` = we
+    have never talked (or memory is off/empty) -> introduce ourselves."""
     if not enabled():
         return False
     return bool(_current_synthesis(cluster, peer))
@@ -173,8 +173,8 @@ def synthesis_for(cluster: str, peer: str) -> str:
 
 
 def _current_synthesis(cluster: str, peer: str) -> str:
-    """La síntesis VIGENTE de este peer (la única fila válida bajo el slot), sin el prefijo `[cluster] peer:`.
-    Lee por el índice de fuente (supersede deja una sola fila válida por slot). Tolera BD vacía → ''."""
+    """Current synthesis for this peer (the only valid row under the slot), without the `[cluster] peer:` prefix.
+    Reads through the source index (supersede leaves one valid row per slot). Tolerates empty DB -> ''."""
     try:
         from memory import api as memory
         rows = memory.recent_by_source("cluster", peer, limit=1)
@@ -183,17 +183,17 @@ def _current_synthesis(cluster: str, peer: str) -> str:
     if not rows:
         return ""
     txt = (rows[0].get("text") or "").strip()
-    # el texto guardado es `[cluster] <peer>: <síntesis>` → devolver solo la síntesis
+    # stored text is `[cluster] <peer>: <synthesis>` -> return only the synthesis
     return txt.split(": ", 1)[-1] if ": " in txt else txt
 
 
 async def _run(cluster: str, peer: str, inbound: str, outbound: str) -> None:
-    """El trabajo real (async, off-hot-path). Redacta, destila y guarda la síntesis CUARENTENADA. NUNCA lanza."""
+    """The real work (async, off-hot-path). Redacts, distills, and stores the QUARANTINED synthesis. NEVER raises."""
     if not enabled():
         return
     try:
-        # REDACTA antes de tocar la memoria: el contenido del peer (o el eco de un secreto nuestro) no debe
-        # persistir en claro. Misma política que el journal/timeline del canal.
+        # REDACT before touching memory: peer content (or the echo of one of our secrets) must not persist in clear
+        # text. Same policy as the channel journal/timeline.
         inbound = store.redact((inbound or "").strip())
         outbound = store.redact((outbound or "").strip())
         if not inbound and not outbound:
@@ -204,11 +204,11 @@ async def _run(cluster: str, peer: str, inbound: str, outbound: str) -> None:
             synthesis = _merge_fallback(peer, prev, inbound, outbound)
         synthesis = (synthesis or "").strip()
         if not synthesis or synthesis == prev:
-            return                                   # nada nuevo → no reescribas (evita ruido en el visor)
+            return                                   # nothing new -> do not rewrite (avoids viewer noise)
         from memory import api as memory
-        # UNA píldora viva por peer: slot canónico → supersede EXACTO (reescribe, no acumula filas). Durable (mid)
-        # para que persista; CUARENTENADA (trust=untrusted) → fuera del prompt pasivo y del recall; concepto
-        # "cluster" para agrupar todos los peers ("¿con qué agentes he hablado?"). directed=False (no es del dueño).
+        # ONE live pill per peer: canonical slot -> EXACT supersede (rewrite, do not accumulate rows). Durable (mid)
+        # so it persists; QUARANTINED (trust=untrusted) -> outside passive prompt and recall; "cluster" concept to
+        # group all peers. directed=False (not from the owner).
         memory.ingest_message("cluster", peer, synthesis, trust="untrusted", durable=True,
                               directed=False, slot=slot_for(cluster, peer), concepts=["cluster"])
     except Exception as e:  # noqa: BLE001
@@ -216,8 +216,8 @@ async def _run(cluster: str, peer: str, inbound: str, outbound: str) -> None:
 
 
 def observe_exchange(cluster: str, peer: str, inbound: str, outbound: str) -> None:
-    """Punto de entrada FIRE-AND-FORGET desde el bridge. Encola el trabajo off-hot-path y retorna al instante — el
-    turno de cluster (y por tanto la voz) nunca espera aquí. Best-effort: si no hay loop o algo falla, no pasa nada."""
+    """FIRE-AND-FORGET entry point from the bridge. Queues off-hot-path work and returns instantly — the cluster turn
+    (and therefore voice) never waits here. Best-effort: if there is no loop or something fails, nothing happens."""
     if not enabled() or not (peer or "").strip():
         return
     try:
@@ -225,4 +225,4 @@ def observe_exchange(cluster: str, peer: str, inbound: str, outbound: str) -> No
         _tasks.add(t)
         t.add_done_callback(_tasks.discard)
     except RuntimeError:
-        pass    # sin event loop (contexto no-async) → se omite silenciosamente
+        pass    # no event loop (non-async context) -> silently skipped

@@ -1,16 +1,16 @@
 #
-# connectors.py — config de conectores MANEJADA POR LA INTERFAZ (INI-015). Principio de producto de zaelar:
-# **el usuario instala el producto UNA vez y a partir de ahí TODO se maneja desde la interfaz** — nunca edita
-# ficheros de entorno. Cuando dice "conéctame Telegram", el widget de mensajería le guía paso a paso (formulario
-# de credenciales si hace falta → QR → conectado), y estas variables se persisten AQUÍ, no en `.env`.
+# connectors.py — connector config MANAGED BY THE INTERFACE (INI-015). zaelar product principle:
+# **the user installs the product ONCE and from then on EVERYTHING is managed from the interface** — they never edit
+# environment files. When they say "connect me to Telegram", the messaging widget guides them step by step
+# (credential form if needed → QR → connected), and these variables are persisted HERE, not in `.env`.
 #
-# Persiste en config/connectors.json (gitignored — lleva credenciales personales). Lo ESCRIBE la API de mensajería
-# (connectors/messaging/server_api.py) desde el frontend; lo LEEN los conectores (whatsapp/telegram). `.env` sigue
-# funcionando como **fallback de power-user / back-compat**: si el store no dice nada de una plataforma, se mira la
-# env var correspondiente. El store SIEMPRE gana sobre `.env`.
+# Persists in config/connectors.json (gitignored — contains personal credentials). The messaging API
+# (connectors/messaging/server_api.py) WRITES it from the frontend; connectors (whatsapp/telegram) READ it. `.env`
+# still works as a **power-user / back-compat fallback**: if the store says nothing about a platform, the
+# corresponding env var is checked. The store ALWAYS wins over `.env`.
 #
-# Patrón reutilizable para CUALQUIER conector futuro (email, LinkedIn, X): declara su forma en _DEFAULTS, sus
-# secretos en _SECRET_KEYS (para que nunca salgan al frontend), y añade su flujo de setup guiado al widget.
+# Reusable pattern for ANY future connector (email, LinkedIn, X): declare its shape in _DEFAULTS, its secrets in
+# _SECRET_KEYS (so they never reach the frontend), and add its guided setup flow to the widget.
 #
 import json
 import os
@@ -24,19 +24,19 @@ from nucleo import workspace as _workspace
 _PATH = _workspace.root() / "config" / "connectors.json"
 _lock = threading.Lock()
 
-# Forma por plataforma + valores por defecto. Añadir un conector = una entrada aquí.
+# Shape per platform + default values. Adding a connector = one entry here.
 _DEFAULTS = {
-    "whatsapp": {"enabled": False},                                  # WhatsApp no necesita credenciales (solo QR)
+    "whatsapp": {"enabled": False},                                  # WhatsApp needs no credentials (QR only)
     "telegram": {"enabled": False, "api_id": "", "api_hash": ""},    # Telegram: api_id/api_hash de my.telegram.org
     "email": {"enabled": False, "email_address": "", "email_password": "", "provider": "",   # V2-051: IMAP/SMTP
               "imap_host": "", "imap_port": 0, "smtp_host": "", "smtp_port": 0, "autoreply": False},
-    # V2-083: el token del daemon Architect vive AQUÍ (store dinámico), NO en .env — configurable/revocable desde
-    # la pestaña Conectores. `url` opcional (default loopback). `token` es SECRETO (se redacta al frontend).
+    # V2-083: the Architect daemon token lives HERE (dynamic store), NOT in .env — configurable/revocable from the
+    # Connectors tab. Optional `url` (default loopback). `token` is SECRET (redacted to the frontend).
     "architect": {"enabled": False, "token": "", "url": ""},
 }
-# Claves que NUNCA se devuelven al frontend (se sustituyen por un booleano `<key>_set`). Fail-safe de privacidad.
+# Keys that are NEVER returned to the frontend (replaced by a `<key>_set` boolean). Privacy fail-safe.
 _SECRET_KEYS = {"api_hash", "email_password", "token"}
-# env var que hace de FALLBACK del flag `enabled` cuando el store no dice nada (back-compat / power-user).
+# env var used as FALLBACK for the `enabled` flag when the store says nothing (back-compat / power-user).
 _ENABLED_ENV = {"whatsapp": "WA_ENABLED", "telegram": "TG_ENABLED", "email": "EMAIL_ENABLED"}
 
 
@@ -59,14 +59,14 @@ def _write(data: dict) -> None:
 
 
 def get(platform: str) -> dict:
-    """Config efectiva de una plataforma (defaults + lo persistido). Incluye secretos → uso INTERNO (conectores)."""
+    """Effective config for a platform (defaults + persisted values). Includes secrets → INTERNAL connector use."""
     base = dict(_DEFAULTS.get(platform, {}))
     base.update(_read().get(platform, {}) or {})
     return base
 
 
 def set(platform: str, patch: dict) -> dict:
-    """Aplica un patch a la config de una plataforma (read-modify-write atómico). Devuelve la config efectiva."""
+    """Apply a patch to a platform config (atomic read-modify-write). Return the effective config."""
     data = _read()
     cur = dict(data.get(platform, {}) or {})
     cur.update(patch or {})
@@ -76,7 +76,7 @@ def set(platform: str, patch: dict) -> dict:
 
 
 def enabled(platform: str) -> bool:
-    """¿Está activado el conector? El store MANDA; si no dice nada, cae a la env var (back-compat / power-user)."""
+    """Is the connector enabled? The store WINS; if it says nothing, fall back to env var (back-compat / power-user)."""
     v = _read().get(platform, {}).get("enabled")
     if v is not None:
         return bool(v)
@@ -84,7 +84,7 @@ def enabled(platform: str) -> bool:
 
 
 def public(platform: str) -> dict:
-    """Vista REDACTADA para el frontend: los secretos NUNCA salen — se sustituyen por `<key>_set: bool`."""
+    """REDACTED frontend view: secrets NEVER leave — they are replaced by `<key>_set: bool`."""
     cfg = get(platform)
     out = {}
     for k, val in cfg.items():

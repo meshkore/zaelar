@@ -1,19 +1,19 @@
 #
-# owner.py — backend VIVO del widget mensajería (V2-008, kind:"backed", gate:"nucleo"). Es la pieza que cierra el
-# reshape v2 del diagrama central: los conectores (WhatsApp/Telegram) publican mensajes entrantes al bus
-# (connector.msg) y su estado de vínculo (connector.status); ESTE owner los consume, los TRÍA con su agente
-# interno (modelo LOCAL, privacidad), vuelca el contenido durable a la MEMORIA central, avisa proactivamente solo
-# lo relevante, y refleja todo en el store de UI del widget. Es el ÚNICO ESCRITOR de widgets/_data/mensajeria/
-# (contrato backed: la cara data.py/widget.js pasa a leer + encolar; las acciones del operador/brain llegan por el
-# buzón del supervisor → handle()).
+# owner.py: live backend for the messaging widget (V2-008, kind:"backed", gate:"nucleo"). This closes the v2
+# central-diagram reshape: connectors (WhatsApp/Telegram) publish incoming messages to the bus (connector.msg) and
+# their link status (connector.status); this owner consumes them, triages with its internal agent (LOCAL model,
+# privacy), dumps durable content to central memory, proactively notifies only relevant items, and reflects
+# everything into the widget UI store. It is the ONLY WRITER of widgets/_data/mensajeria/ (backed contract:
+# data.py/widget.js become read + enqueue faces; operator/brain actions arrive through the supervisor mailbox ->
+# handle()).
 #
-# Marcar leído es simétrico: una acción read/clear/readchat NO habla con ninguna app directamente — publica
-# msg.mark_read al bus, que el conector de la plataforma correcta drena y ejecuta en su app. El owner no conoce
-# WhatsApp ni Telegram: solo el bus. Conectores STATELESS de verdad.
+# Mark-read is symmetrical: a read/clear/readchat action does NOT talk to any app directly. It publishes
+# msg.mark_read to the bus, which the connector for the correct platform drains and executes in its app. The owner
+# does not know WhatsApp or Telegram, only the bus. Connectors are genuinely stateless.
 #
-# STRANGLER-FIG: el supervisor solo arranca este owner con BRAIN=nucleo (gate del manifest). Bajo duo/hermes el
-# widget se comporta como el passive de siempre (owner NO corre → las acciones caen a data.apply_action y los
-# conectores escriben el store por su camino directo). Cero regresión hasta el entierro (V2-009).
+# STRANGLER-FIG: the supervisor only starts this owner with BRAIN=nucleo (manifest gate). Under duo/hermes, the
+# widget behaves as the previous passive version (owner does NOT run -> actions fall to data.apply_action and
+# connectors write the store through their direct path). Zero regression until burial (V2-009).
 #
 import asyncio
 import os
@@ -25,7 +25,7 @@ from connectors.messaging import ingest, notify
 from connectors.messaging import store as msgstore
 
 _LABEL = {"whatsapp": "WhatsApp", "telegram": "Telegram", "email": "Email"}
-_BATCH = float(os.getenv("MSG_TRIAGE_BATCH", "2.0"))   # s entre lotes de triaje (agrupa ráfagas → 1 sola llamada)
+_BATCH = float(os.getenv("MSG_TRIAGE_BATCH", "2.0"))   # seconds between triage batches; groups bursts into one call
 
 
 def _origin(m: dict) -> tuple[str, str | None]:
@@ -35,17 +35,17 @@ def _origin(m: dict) -> tuple[str, str | None]:
 
 
 class _Owner:
-    """El dueño del widget mensajería. Vida gobernada por widgets/supervisor.py (start/stop/handle + reinicio)."""
+    """Owner of the messaging widget. Lifecycle governed by widgets/supervisor.py (start/stop/handle + restart)."""
 
     def __init__(self):
         self._msg_sub = None
         self._status_sub = None
         self._task: asyncio.Task | None = None
-        self._seen: set[str] = set()      # messageIds ya sacados a flote (no resucitar lo que el operador quitó)
+        self._seen: set[str] = set()      # already surfaced messageIds; do not resurrect what the operator removed
 
-    # ── ciclo de vida ────────────────────────────────────────────────────────────────────────────────────
+    # Lifecycle.
     async def start(self) -> None:
-        """Barato: solo suscribe al bus y lanza el consumidor. Idempotente (el supervisor puede reiniciarnos)."""
+        """Cheap: only subscribe to the bus and launch the consumer. Idempotent; the supervisor may restart us."""
         import bus
         if self._msg_sub is None:
             self._msg_sub = bus.subscribe(ingest.TOPIC_MSG)
@@ -53,7 +53,7 @@ class _Owner:
             self._status_sub = bus.subscribe(ingest.TOPIC_STATUS)
         if self._task is None or self._task.done():
             self._task = asyncio.create_task(self._consume())
-        logger.info("mensajeria owner arrancado (triaje en el widget · conectores stateless)")
+        logger.info("mensajeria owner started (triage in widget; stateless connectors)")
 
     async def stop(self) -> None:
         if self._task:
@@ -67,7 +67,7 @@ class _Owner:
                 pass
         self._msg_sub = self._status_sub = None
 
-    # ── consumo del bus (entrantes + estado) ───────────────────────────────────────────────────────────────
+    # Bus consumption: incoming messages + status.
     async def _consume(self) -> None:
         while True:
             await asyncio.sleep(_BATCH)
@@ -81,7 +81,7 @@ class _Owner:
                 logger.debug(f"mensajeria owner triage: {e}")
 
     def _apply_status(self) -> None:
-        """Refleja los connector.status pendientes en el store de UI (el owner es el único escritor)."""
+        """Reflect pending connector.status events into the UI store; the owner is the only writer."""
         q = self._status_sub.queue if self._status_sub else None
         if q is None:
             return
@@ -95,8 +95,8 @@ class _Owner:
                 msgstore.set_platform_status(platform, ev.get("status", "off"), ev.get("qr"), ev.get("detail"))
 
     async def _triage_batch(self) -> None:
-        """Drena el lote de mensajes entrantes acumulados, los tría, saca a flote los relevantes, los guarda
-        (store de UI + memoria) y avisa. Agrupado por plataforma para el upsert y el aviso."""
+        """Drain the accumulated incoming-message batch, triage it, surface relevant items, save them to UI store
+        and memory, and notify. Grouped by platform for upsert and notification."""
         from . import triage_agent
 
         q = self._msg_sub.queue if self._msg_sub else None
@@ -115,7 +115,7 @@ class _Owner:
         surfaced = notify.surface(verdicts, self._seen)
         if not surfaced:
             return
-        # Normaliza a la forma del store y agrupa por plataforma.
+        # Normalize to store shape and group by platform.
         by_platform: dict[str, list[dict]] = {}
         for v in surfaced:
             self._seen.add(v.get("messageId"))
@@ -125,29 +125,29 @@ class _Owner:
         for platform, items in by_platform.items():
             if platform == "?":
                 continue
-            msgstore.upsert_items(platform, items)   # store de UI + volcado a memoria (kind='msg')
-            logger.info(f"mensajeria: +{len(items)} de {platform} para ti")
+            msgstore.upsert_items(platform, items)   # UI store + memory dump (kind='msg')
+            logger.info(f"mensajeria: +{len(items)} from {platform} for you")
             await notify.announce(_LABEL.get(platform, platform), items)
 
-    # ── acciones del operador / brain (buzón del supervisor) ─────────────────────────────────────────────────
+    # Operator / brain actions through the supervisor mailbox.
     async def handle(self, action: str, payload: dict) -> None:
-        """Aplica una acción y, si marcó algo como leído, publica msg.mark_read para que el conector correcto lo
-        marque en su app. Reusa la MISMA lógica de mutación que la UI (data.apply_action) — el owner es el único
-        escritor, así que aplicarla aquí no compite con nadie."""
+        """Apply an action and, if something was marked read, publish msg.mark_read so the correct connector marks
+        it in its app. Reuses the same mutation logic as the UI (data.apply_action). The owner is the only writer,
+        so applying it here does not compete with anyone."""
         from . import data
-        # Mutación (mismo vocabulario que los botones de la UI y las tags [[msg.*]]).
+        # Mutation using the same vocabulary as UI buttons and [[msg.*]] tags.
         try:
             data.apply_action(action, payload or {})
         except Exception as e:
             logger.warning(f"mensajeria handle {action!r}: {e}")
             return
-        # Todo lo que la mutación encoló como "marcar leído" sale al bus (los conectores lo drenan por plataforma).
+        # Everything the mutation queued as mark-read goes to the bus; connectors drain it by platform.
         try:
             for key in msgstore.take_pending_read():
                 ingest.publish_mark_read(key)
         except Exception as e:
             logger.debug(f"mensajeria mark_read flush: {e}")
-        # Idem para las RESPUESTAS a enviar (V2-051): el conector de esa plataforma (hoy email) las envía.
+        # Same for replies to send (V2-051): that platform's connector, today email, sends them.
         try:
             for rep in msgstore.take_pending_reply():
                 ingest.publish_reply(rep)
@@ -155,7 +155,7 @@ class _Owner:
             logger.debug(f"mensajeria reply flush: {e}")
 
 
-# Instancia única que el supervisor gobierna (contrato: async start()/stop()/handle(action,payload)).
+# Single instance governed by the supervisor (contract: async start()/stop()/handle(action,payload)).
 _OWNER = _Owner()
 
 

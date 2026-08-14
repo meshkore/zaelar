@@ -1,19 +1,19 @@
-"""server/wizard_api.py — API del WIZARD de primer arranque (V2-040, Fase 2).
+"""server/wizard_api.py — first-run WIZARD API (V2-040, Phase 2).
 
-Sirve al overlay web del wizard (Fase 3) y comparte el DETECTOR con el CLI `python -m config.doctor`. El server es
-LOCAL, así que puede (a) RE-EJECUTAR el detector en caliente (botón «re-analizar»), (b) aplicar un PERFIL coordinado
-(local/cloud), (c) guardar CREDENCIALES en el store (chmod 600, redactadas), y (d) EJECUTAR los instaladores acotados
-al proyecto (pip/playwright/ollama pull) o DEVOLVER el comando para los de sistema (brew/apt/npm). Decisiones del
-operador 2026-07-15: web + script de sistema; automatizar la instalación en lo posible, comandos si no.
+Serves the wizard web overlay (Phase 3) and shares the DETECTOR with the `python -m config.doctor` CLI. The server
+is LOCAL, so it can (a) RE-RUN the detector live ("re-analyze" button), (b) apply a coordinated PROFILE
+(local/cloud), (c) save CREDENTIALS in the store (chmod 600, redacted), and (d) RUN project-scoped installers
+(pip/playwright/ollama pull) or RETURN the command for system-level ones (brew/apt/npm). Operator decisions
+2026-07-15: web + system script; automate installation where possible, commands otherwise.
 
 Endpoints (todos bajo /api/wizard):
   GET  /state                → {first_run, active_profile, profiles[], report, installers[]}
-  POST /report   {refresh}   → re-analiza el sistema (doctor) y devuelve el informe
-  POST /profile  {name}      → aplica el perfil coordinado (settings+v2) y devuelve sus requisitos
-  POST /credential {key|provider, value} → guarda/actualiza una API key (redactado; valor vacío = borra)
-  POST /install  {id, model?} → lanza un instalador ejecutable (job en background) o devuelve el comando
-  GET  /install/{job}        → estado de un job de instalación
-  POST /complete             → marca el wizard como hecho (fin del gate de primer arranque)
+  POST /report   {refresh}   → re-analyzes the system (doctor) and returns the report
+  POST /profile  {name}      → applies the coordinated profile (settings+v2) and returns its requirements
+  POST /credential {key|provider, value} → saves/updates an API key (redacted; empty value = delete)
+  POST /install  {id, model?} → launches an executable installer (background job) or returns the command
+  GET  /install/{job}        → installation job status
+  POST /complete             → marks the wizard as done (end of first-run gate)
 """
 from __future__ import annotations
 
@@ -34,7 +34,7 @@ if not os.path.exists(_PY):
     _PY = "python3"
 
 
-# ── first-run marker (en settings.json, como config_profile de profiles.apply) ─────────────────────────────
+# ── first-run marker (in settings.json, like config_profile from profiles.apply) ────────────────────────────
 def _first_run() -> bool:
     if cloud_account.is_cloud_account():
         # A real account Machine boots fresh (persisted Volume, but no settings.json of its own)
@@ -54,9 +54,9 @@ def _mark_done(done: bool = True) -> None:
     settings._write({**settings._read(), "wizard_done": bool(done)})
 
 
-# ── catálogo de INSTALADORES: qué se puede automatizar vs qué es comando ──────────────────────────────────
-# `run` = lista argv ejecutable EN EL SERVER (acotado al proyecto: venv/ollama). `cmd` = string para copiar
-# (sistema: brew/curl/npm — permisos/OS-específico, no lo ejecuta la app). `needs` = binario que debe existir.
+# ── INSTALLER catalog: what can be automated vs what is a command ──────────────────────────────────────────
+# `run` = argv list executable ON THE SERVER (project-scoped: venv/ollama). `cmd` = string to copy (system-level:
+# brew/curl/npm — permissions/OS-specific, not executed by the app). `needs` = binary that must exist.
 def installers() -> list[dict]:
     return [
         {"id": "playwright", "label": "Navegador Chromium (Playwright)", "runnable": True,
@@ -68,7 +68,7 @@ def installers() -> list[dict]:
          "run": ["make", "install-tts"], "why": "texto→voz privado y gratis"},
         {"id": "ollama_model", "label": "Modelo de Ollama (pull)", "runnable": True, "needs": "ollama",
          "run": ["ollama", "pull", "{model}"], "why": "modelo local para cerebro/memoria (requiere Ollama)"},
-        # sistema → comando para copiar (no lo ejecuta la app)
+        # system-level → command to copy (the app does not execute it)
         {"id": "ollama", "label": "Ollama (servicio local)", "runnable": False,
          "cmd": "curl -fsSL https://ollama.com/install.sh | sh   # macOS: brew install ollama",
          "why": "motor de modelos locales (perfil local)"},
@@ -83,7 +83,7 @@ def _installer(iid: str) -> dict | None:
     return next((i for i in installers() if i["id"] == iid), None)
 
 
-# ── jobs de instalación en background (subprocess; poll de estado) ─────────────────────────────────────────
+# ── background installation jobs (subprocess; status polling) ───────────────────────────────────────────────
 _JOBS: dict[str, dict] = {}
 _job_seq = {"n": 0}
 
@@ -98,7 +98,7 @@ async def _run_job(job_id: str, argv: list[str]) -> None:
         assert proc.stdout is not None
         async for line in proc.stdout:
             out += line
-            if len(out) > 60000:                 # cap: no acumular MB de salida
+            if len(out) > 60000:                 # cap: do not accumulate MB of output
                 del out[:20000]
             _JOBS[job_id]["tail"] = out.decode("utf-8", "replace")[-4000:]
         rc = await proc.wait()
@@ -125,7 +125,7 @@ async def state() -> dict:
 @router.post("/api/wizard/report")
 async def report(refresh: bool = Body(True, embed=True)) -> dict:
     from config import doctor
-    return await asyncio.to_thread(doctor.report, refresh)   # el detector hace I/O (Ollama/http) → fuera del loop
+    return await asyncio.to_thread(doctor.report, refresh)   # the detector does I/O (Ollama/http) → off the loop
 
 
 @router.post("/api/wizard/profile")
@@ -139,8 +139,8 @@ async def profile(name: str = Body(..., embed=True)) -> dict:
 @router.post("/api/wizard/credential")
 async def credential(key: str = Body("", embed=True), provider: str = Body("", embed=True),
                      value: str = Body("", embed=True)) -> dict:
-    """Guarda una API key. Acepta `key` (nombre de env directo) o `provider` (un id del catálogo de doctor →
-    su env principal). Devuelve solo presencia, nunca el valor."""
+    """Save an API key. Accepts `key` (direct env name) or `provider` (an id from the doctor catalog → its main env).
+    Returns presence only, never the value."""
     from config import credentials, doctor
     env_name = (key or "").strip()
     if not env_name and provider:
@@ -155,8 +155,8 @@ async def credential(key: str = Body("", embed=True), provider: str = Body("", e
 
 @router.post("/api/wizard/install")
 async def install(id: str = Body(..., embed=True), model: str = Body("", embed=True)) -> dict:
-    """Lanza un instalador EJECUTABLE (job en background → poll en /install/{job}) o devuelve el COMANDO para
-    copiar si es de sistema. Solo ids del catálogo (allowlist) — nunca un comando arbitrario."""
+    """Launch an EXECUTABLE installer (background job → poll at /install/{job}) or return the COMMAND to copy if it
+    is system-level. Catalog ids only (allowlist) — never an arbitrary command."""
     spec = _installer(id)
     if not spec:
         return {"ok": False, "error": f"instalador desconocido: {id}"}

@@ -1,8 +1,8 @@
 #
-# data.py — la CARA (solo-lectura) del widget "navegador". Es un widget "backed" (kind:"backed"): el estado lo
-# escribe SOLO el backend vivo (owner.py, un Chromium headless), y las acciones NO se aplican aquí: el host las
-# encola en el buzón del owner (widgets/supervisor.py) — por eso apply_action NO muta el store, solo existe como
-# red de seguridad si el backend no está vivo. Este módulo es stdlib puro y NUNCA revienta (contrato de widget).
+# data.py: read-only face of the "navegador" widget. It is a backed widget (kind:"backed"): state is written ONLY
+# by the live backend (owner.py, a headless Chromium), and actions are NOT applied here. The host enqueues them in
+# the owner's mailbox (widgets/supervisor.py), so apply_action does NOT mutate the store and only exists as a safety
+# net when the backend is not alive. This module is pure stdlib and NEVER crashes, per widget contract.
 #
 from .. import store
 
@@ -15,8 +15,8 @@ _SEED = {
 
 
 def _task_view(t: dict) -> dict:
-    """Vista de una TARJETA DE TAREA (una tarea = una pestaña = una tarjeta): mini-navegador arriba (captura de SU
-    pestaña) + feed abajo (progreso/pregunta/resultados). La pinta widget.js cuando kind == 'task'."""
+    """View for a TASK CARD: one task = one tab = one card. Mini-browser on top (capture of its tab) plus feed below
+    (progress/question/results). Rendered by widget.js when kind == 'task'."""
     return {
         "kind": "task",
         "id": t.get("id", ""), "title": t.get("title", ""), "goal": t.get("goal", ""),
@@ -33,8 +33,8 @@ def _task_view(t: dict) -> dict:
 
 
 def view_data(q: str = "") -> dict:
-    """Estado del navegador. Si `q` es el id de una TAREA activa → vista de su tarjeta (mini-navegador + feed).
-    Si no, el estado del tab PRINCIPAL (browse_web): barra de direcciones + captura/YouTube. Nunca lanza."""
+    """Browser state. If `q` is an active TASK id, return its card view (mini-browser + feed). Otherwise return the
+    MAIN tab state (browse_web): address bar + capture/YouTube. Never raises."""
     q = (q or "").strip()
     if q:
         try:
@@ -51,9 +51,9 @@ def view_data(q: str = "") -> dict:
 
 
 def apply_action(action: str, payload: dict | None = None) -> dict:
-    """Red de seguridad: en un widget backed las acciones las encola el host en el buzón del owner ANTES de
-    llegar aquí (widgets/server_api._route_backed). Si caemos aquí es que el backend no está vivo → informa sin
-    tocar nada. No escribimos el store (el owner es el único escritor)."""
+    """Safety net: in a backed widget, actions are enqueued by the host into the owner's mailbox BEFORE reaching
+    here (widgets/server_api._route_backed). If execution falls here, the backend is not alive, so report without
+    touching anything. Do not write the store; the owner is the only writer."""
     data = view_data()
     if action in ("open", "search", "youtube", "back", "forward", "reload", "scroll", "click", "type", "press"):
         return {**data, "error": "El navegador no está activo ahora mismo. Reinténtalo en un momento."}
@@ -61,7 +61,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
 
 
 def coach_context() -> str:
-    return ("El widget 'navegador' es un navegador web dentro de zaelar. Puedes abrir cualquier web (open), "
-            "buscar en Google (search) o reproducir YouTube (youtube); atrás/adelante/recargar y desplazar la "
-            "página son seguros. Para navegar por DENTRO de una web (clic/escribir/enviar formularios) usa "
-            "click/type/press. La página se ve como una captura en vivo; YouTube se reproduce embebido.")
+    return ("The 'navegador' widget is a web browser inside zaelar. You can open any website (open), search Google "
+            "(search), or play YouTube (youtube); back/forward/reload and page scrolling are safe. To navigate "
+            "inside a website (click/type/submit forms), use click/type/press. The page appears as a live capture; "
+            "YouTube plays embedded.")

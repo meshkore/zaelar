@@ -1,8 +1,8 @@
 #
-# Serpiente (Snake) — backend. El juego es 100% CLIENTE (todo el estado vive en widget.js: posición de la
-# serpiente, comida, puntos; el récord en localStorage del navegador). Este widget es PASIVO y AUTÓNOMO: no
-# hay mutaciones de servidor, ni fetch, ni fondo → no hay apply_action ni tick. view_data solo entrega la
-# configuración estática de la partida para que el cliente arranque. Nunca lanza excepción.
+# Snake backend. The game is 100% client-side: all state lives in widget.js (snake position, food, score; the
+# record lives in browser localStorage). This widget is passive and autonomous: no server mutations, no fetch, no
+# background cycle, therefore no apply_action and no tick. view_data only returns static game configuration so the
+# client can start. Never raises.
 #
 
 

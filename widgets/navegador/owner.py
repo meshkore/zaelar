@@ -1,21 +1,21 @@
 #
-# owner.py — el BACKEND vivo del widget "navegador" (kind:"backed", INI-016). Es el ÚNICO escritor de
-# widgets/_data/navegador/ (contrato de widget-app: zaelar-modules.md §Widget-apps). El supervisor
-# (widgets/supervisor.py) lo arranca en el loop del server y le pasa las órdenes del buzón por handle().
+# owner.py — live BACKEND for the "navegador" widget (kind:"backed", INI-016). It is the ONLY writer to
+# widgets/_data/navegador/ (widget-app contract: zaelar-modules.md §Widget-apps). The supervisor
+# (widgets/supervisor.py) starts it in the server loop and passes mailbox commands to handle().
 #
-# Por qué un backend y no un iframe: casi ninguna web (Google, Wallapop, la RAE, tiendas…) se deja incrustar en
-# un <iframe> (mandan X-Frame-Options/CSP frame-ancestors). Así que el navegador REAL vive aquí (Chromium
-# headless por Playwright): navega la página de verdad en el servidor, la fotografía y el widget muestra esa
-# captura. Los clics/scroll/tecleo del operador se mapean de vuelta a coordenadas de la página → Chromium →
-# nueva captura. Como el backend conduce la página por código, la VOZ y la AUTOMATIZACIÓN se enchufan encima
-# más adelante (ese es el objetivo: "abre Wallapop y búscame una moto <5000€ de 2020 para arriba").
+# Why a backend instead of an iframe: almost no website (Google, Wallapop, RAE, stores...) allows being embedded in
+# an <iframe> (they send X-Frame-Options/CSP frame-ancestors). So the REAL browser lives here (headless Chromium via
+# Playwright): it navigates the actual page on the server, screenshots it, and the widget displays that capture.
+# Operator clicks/scroll/typing are mapped back to page coordinates → Chromium → new capture. Because the backend
+# drives the page through code, VOICE and AUTOMATION can be plugged on top later (that is the goal: "open Wallapop
+# and find me a motorcycle under €5000 from 2020 onward").
 #
-# YouTube es la EXCEPCIÓN: una captura estática no reproduce vídeo/audio → se resuelve el id del vídeo y el
-# widget monta el reproductor embed real (youtube-nocookie) en cliente. Todo lo demás va por captura.
+# YouTube is the EXCEPTION: a static screenshot cannot play video/audio → the video id is resolved and the widget
+# mounts the real embedded player (youtube-nocookie) on the client. Everything else uses screenshots.
 #
-# Arranque PEREZOSO: start() es barato (no lanza Chromium); el navegador se levanta en la primera orden, de modo
-# que un navegador que nunca se abre no cuesta un proceso Chromium. Resiliente: un fallo de UNA página (URL mala,
-# timeout) escribe un error en el estado y NO tira el backend; el navegador se auto-relanza si Chromium muere.
+# LAZY startup: start() is cheap (it does not launch Chromium); the browser starts on the first command, so a browser
+# that is never opened does not cost a Chromium process. Resilient: a failure on ONE page (bad URL, timeout) writes an
+# error to state and does NOT crash the backend; the browser auto-relaunches if Chromium dies.
 #
 import asyncio
 import os
@@ -32,19 +32,19 @@ from .. import store
 WID = "navegador"
 VIEWPORT = {"width": 1280, "height": 800}
 HOME = {"mode": "blank", "url": "", "title": "Nuevo navegador"}
-_NAV_TIMEOUT = 20_000   # ms — tope de goto; una web lenta no debe colgar el buzón
+_NAV_TIMEOUT = 20_000   # ms — goto cap; a slow website must not block the mailbox
 
-# Selectores de banners de cookies/consentimiento para auto-dismiss tras navegar (mejor esfuerzo).
-# Cualquier selector que falle es un no-op rápido. Ordenados de más específico a más genérico.
+# Cookie/consent banner selectors for auto-dismiss after navigation (best effort).
+# Any failing selector is a quick no-op. Ordered from most specific to most generic.
 _COOKIE_SELECTORS = [
-    # OneTrust (el sistema de consentimiento más común en Europa)
+    # OneTrust (the most common consent system in Europe)
     "#onetrust-accept-btn-handler",
     "#onetrust-reject-all-handler",
     "#onetrust-group-btn #accept-recommended-btn-handler",
     # Didomi
     ".didomi-components-button--accept",
     "#didomi-notice-agree-button",
-    # Botones por texto — variantes en español que cubren Wallapop, El País, etc.
+    # Text-based buttons — Spanish variants covering Wallapop, El Pais, etc.
     "button:has-text(\"Aceptar y continuar\")",
     "button:has-text(\"Aceptar todas\")",
     "button:has-text(\"Aceptar cookies\")",
@@ -55,49 +55,49 @@ _COOKIE_SELECTORS = [
     "button:has-text(\"Permitir todas\")",
     "button:has-text(\"Continuar\")",
     "button:has-text(\"Cerrar\")",
-    # Enlaces que actúan como botón de aceptar
+    # Links that act like an accept button
     "a:has-text(\"Aceptar\")",
     "a:has-text(\"Acepto\")",
-    # Selectores de clase/id genéricos con 'cookie' o 'consent'
+    # Generic class/id selectors containing 'cookie' or 'consent'
     "[class*=\"cookie\"] button",
     "[class*=\"consent\"] button",
     "[id*=\"cookie\"] button",
     "[data-testid*=\"cookie\"] button",
-    # Selector específico Wallapop: su banner personalizado (no OneTrust)
+    # Wallapop-specific selector: its custom banner (not OneTrust)
     "button:has-text(\"Configurar\")",
     "[class*=\"CookieConsent\"] button",
     "[class*=\"cookie-consent\"] button",
     "[class*=\"cookieBanner\"] button",
     "[class*=\"consent-modal\"] button",
-    # Cualquier botón que esté DENTRO de un banner/dialog con texto de cookies
+    # Any button INSIDE a banner/dialog with cookie text
     "[class*=\"cookie-banner\"] button",
     "[class*=\"cookies-banner\"] button",
     "[role=\"dialog\"] button:has-text(\"Aceptar\")",
     "[role=\"dialog\"] button:has-text(\"Continuar\")",
     "[aria-label*=\"cookie\" i] button",
-    # Wallapop: su capa modal con botones específicos
+    # Wallapop: its modal layer with specific buttons
     "div[class*=\"modal\"] button:has-text(\"Aceptar\")",
     "div[class*=\"modal\"] button:has-text(\"Continuar\")",
-    # Wallapop banner de app/store
+    # Wallapop app/store banner
     "button[aria-label=\"Cerrar\"]",
 ]
 
-# Motor de búsqueda: Google CAPTCHEA a Chromium headless (/sorry/index) y DuckDuckGo lo bloquea (418) → una
-# búsqueda saldría rota justo cuando los testers más la usan. Bing renderiza una página de resultados NORMAL de
-# forma fiable headless. Google sigue accesible con `open google.com`. Configurable por env por si cambia.
+# Search engine: Google CAPTCHAs headless Chromium (/sorry/index) and DuckDuckGo blocks it (418) → search would break
+# right where testers use it most. Bing reliably renders a NORMAL results page headless. Google remains accessible via
+# `open google.com`. Configurable by env in case this changes.
 _SEARCH_URL = os.environ.get("NAVEGADOR_SEARCH", "https://www.bing.com/search?q={q}")
 
-# Estado vivo del backend (un solo Chromium compartido). El buzón serializa las órdenes → sin concurrencia aquí.
+# Live backend state (one shared Chromium). The mailbox serializes commands → no concurrency here.
 _pw = None
 _browser = None
 _context = None
 _page = None
-_hist: list[str] = []   # historial propio para los flags atrás/adelante (Chromium mueve; nosotros derivamos)
+_hist: list[str] = []   # own history for back/forward flags (Chromium moves; we derive)
 _idx = -1
 _rev = 0
-_refs: dict = {}        # ref numérica → ElementHandle del ÚLTIMO snapshot (el automatizador resuelve refs aquí)
-_mouse = {"x": 0.0, "y": 0.0}   # posición simulada del ratón, para mover con trayectoria humana entre puntos
-_automating = False             # True mientras corre una tarea del automatizador → pinta el cursor en la captura
+_refs: dict = {}        # numeric ref → ElementHandle from the LAST snapshot (the automator resolves refs here)
+_mouse = {"x": 0.0, "y": 0.0}   # simulated mouse position, used to move between points with a human-like trajectory
+_automating = False             # True while an automator task is running → draws the cursor in the capture
 
 
 def _now() -> str:
@@ -110,7 +110,7 @@ def _read() -> dict:
 
 
 def _write(**changes) -> None:
-    """El ÚNICO punto de escritura del estado → store.save emite el refresco SSE de la tarjeta abierta."""
+    """The ONLY state write point → store.save emits the SSE refresh for the open card."""
     db = _read()
     db.update(changes)
     db["updated"] = _now()
@@ -127,27 +127,27 @@ def _emit(label: str, text: str = "", **extra) -> None:
         pass
 
 
-# ── utilidades de página ─────────────────────────────────────────────────────────────────────────────────────
-# Botones de ACEPTAR de los CMP más comunes (id/clase estables). consentmanager.net (lo usa Wallapop) pinta un
-# <a class="cmpboxbtnyes">Aceptar todo</a>; OneTrust/Didomi tienen sus ids. Se ESPERA a que el CMP los inyecte
-# (llegan por JS DESPUÉS de domcontentloaded — por eso el intento inmediato no encontraba nada y el muro se quedaba).
+# ── page utilities ───────────────────────────────────────────────────────────────────────────────────────────
+# ACCEPT buttons for the most common CMPs (stable id/class). consentmanager.net (used by Wallapop) renders an
+# <a class="cmpboxbtnyes">Aceptar todo</a>; OneTrust/Didomi have their ids. We WAIT for the CMP to inject them
+# (they arrive via JS AFTER domcontentloaded — this is why the immediate attempt found nothing and the wall stayed).
 _CMP_ACCEPT = (".cmpboxbtnyes", "#onetrust-accept-btn-handler", "#didomi-notice-agree-button",
                ".didomi-components-button--accept")
 
 
 async def _dismiss_overlays(page) -> None:
-    """Acepta el banner de cookies/consentimiento que TAPA la web. Los CMP inyectan el banner por JS tras cargar →
-    esperamos a que aparezca el botón de aceptar (bounded) y lo pulsamos; si no, un barrido rápido por texto en
-    todos los frames. Best-effort: nunca lanza, no-op si no hay banner (paga el timeout una vez por navegación)."""
-    # 1) CMP conocido: wait_for_selector devuelve EN CUANTO aparece (o corta al timeout si la web no tiene banner).
+    """Accept the cookie/consent banner that COVERS the website. CMPs inject the banner through JS after load → we
+    wait for the accept button to appear (bounded) and click it; otherwise, do a quick text sweep across all frames.
+    Best-effort: never raises, no-op if there is no banner (pays the timeout once per navigation)."""
+    # 1) Known CMP: wait_for_selector returns AS SOON AS it appears (or cuts at timeout if the site has no banner).
     try:
         combined = ", ".join(_CMP_ACCEPT)
         btn = await page.wait_for_selector(combined, timeout=2500, state="visible")
         if btn:
             await btn.click(timeout=2000)
             _emit("dismiss_overlay", "cmp-accept")
-            # ESPERA a que el banner se CIERRE del todo antes de devolver (si no, la captura sale con el muro aún
-            # puesto — el cierre de consentmanager tarda ~1-2s, más que el sleep fijo anterior de 0.4s).
+            # WAIT until the banner is fully CLOSED before returning (otherwise the screenshot still shows the wall —
+            # consentmanager close takes ~1-2s, longer than the previous fixed 0.4s sleep).
             try:
                 await page.wait_for_selector(combined, state="hidden", timeout=2500)
             except Exception:
@@ -155,7 +155,7 @@ async def _dismiss_overlays(page) -> None:
             return
     except Exception:
         pass
-    # 2) Fallback por texto/selectores genéricos, en TODOS los frames (algunos CMP viven en un iframe), sin esperas.
+    # 2) Text/generic-selector fallback, in ALL frames (some CMPs live in an iframe), without waits.
     for fr in page.frames:
         for sel in _COOKIE_SELECTORS:
             try:
@@ -169,14 +169,14 @@ async def _dismiss_overlays(page) -> None:
                 continue
 
 
-# ── ciclo de vida ────────────────────────────────────────────────────────────────────────────────────────────
+# ── lifecycle ────────────────────────────────────────────────────────────────────────────────────────────────
 async def start() -> None:
-    """Barato a propósito: no lanza Chromium (arranque perezoso en el primer handle). Deja el estado en 'listo'."""
+    """Intentionally cheap: does not launch Chromium (lazy start on first handle). Leaves the state as 'ready'."""
     _write(loading=False, error="")
     _emit("ready", "navegador listo (Chromium se lanza al primer uso)")
-    # RECUPERACIÓN tras reinicio: las tareas viven en RAM y mueren con el proceso, pero un login A MEDIAS deja una
-    # miga DURABLE en memoria → al arrancar se lo recordamos al operador una vez (no podemos reanudarlo solos porque
-    # la tarea ya no existe; él decide si lo retoma). Best-effort: nunca rompe el arranque del widget.
+    # RECOVERY after restart: tasks live in RAM and die with the process, but a HALF-FINISHED login leaves a DURABLE
+    # breadcrumb in memory → on startup we remind the operator once (we cannot resume it ourselves because the task no
+    # longer exists; the operator decides whether to resume). Best-effort: never breaks widget startup.
     try:
         from . import auth_memory
         pend = auth_memory.read_auth_pending()
@@ -184,7 +184,7 @@ async def start() -> None:
             from voice import proactive
             await proactive.notify("navegador", f"Antes dejaste a medias el inicio de sesión en "
                                    f"{pend['sitio']}. Si quieres, lo retomamos.", kind="notify")
-            auth_memory.clear_auth_pending()          # ya avisado → no repetir el recordatorio en cada arranque
+            auth_memory.clear_auth_pending()          # already notified → do not repeat the reminder on every startup
     except Exception:
         pass
 
@@ -205,23 +205,23 @@ async def stop() -> None:
 
 
 async def _close_browser() -> None:
-    """Cierra la VENTANA del navegador a petición del operador ("cierra el navegador"), SIN borrar el perfil →
-    cookies/sesión se conservan y al volver a navegar se relanza con la sesión intacta. Deja el escritorio limpio."""
-    await stop()                                      # cierra la única ventana; el perfil persiste en disco
+    """Close the browser WINDOW at the operator's request ("close the browser"), WITHOUT deleting the profile →
+    cookies/session are preserved and the next navigation relaunches with the session intact. Leaves the desktop clean."""
+    await stop()                                      # close the only window; the profile persists on disk
     _write(mode="blank", url="", title="Navegador cerrado", loading=False, error="",
            youtube_id="", youtube_title="")
     _emit("closed_window", "ventana cerrada (sesión guardada)")
 
 
-_visible_override = None   # None = normal; True = forzar visible (login); False = forzar headless. Lo usa authenticate.
+_visible_override = None   # None = normal; True = force visible (login); False = force headless. Used by authenticate.
 
 
 def _headless() -> bool:
-    """HEADLESS por DEFECTO (2026-07-08): corre POR DETRÁS, sin ventana → no roba el foco/cursor del operador
-    (podía escribir en su ordenador mientras el bot automatiza) y no hay que verlo — bastan las capturas. Para
-    VERLO (conducir a mano / LOGIN), activa modo visible: store `navegador_visible=true` o env
-    ZAELAR_NAVEGADOR_VISIBLE=1, o el override runtime de authenticate."""
-    if _visible_override is not None:      # authenticate fuerza visible para el login, luego vuelve a headless
+    """HEADLESS by DEFAULT (2026-07-08): runs IN THE BACKGROUND, without a window → it does not steal the operator's
+    focus/cursor (they can type on their computer while the bot automates) and it does not need to be watched —
+    screenshots are enough. To SEE IT (manual driving / LOGIN), enable visible mode: store `navegador_visible=true`,
+    env ZAELAR_NAVEGADOR_VISIBLE=1, or authenticate's runtime override."""
+    if _visible_override is not None:      # authenticate forces visible for login, then returns to headless
         return not _visible_override
     if os.environ.get("ZAELAR_NAVEGADOR_VISIBLE", "").strip().lower() in ("1", "true", "yes"):
         return False
@@ -235,22 +235,22 @@ def _headless() -> bool:
         pass
     if os.environ.get("ZAELAR_NAVEGADOR_HEADLESS", "").strip().lower() in ("0", "false", "no"):
         return False
-    return True   # por defecto: headless (por detrás)
+    return True   # default: headless (in the background)
 
 
 def _profile_dir() -> str:
-    """Perfil PERSISTENTE y AISLADO (cookies/sesión/logins se guardan en disco → no re-meter credenciales cada vez).
-    Vive dentro del widget, separado de tu Chrome y de tu automatización del 9222: NO comparte perfil con nada tuyo."""
+    """PERSISTENT and ISOLATED profile (cookies/session/logins are saved on disk → no need to re-enter credentials).
+    Lives inside the widget, separate from your Chrome and your 9222 automation: it NEVER shares your own profile."""
     d = os.path.join(store.data_dir(WID), "profile")
     os.makedirs(d, exist_ok=True)
     return d
 
 
 def _remote_port() -> str:
-    """Puerto de depuración remota del navegador — CONTROLABLE POR CONFIGURACIÓN (la UI escribe config/settings.json).
-    Orden: store `navegador_remote_port` → env `NAVEGADOR_REMOTE_PORT` → vacío (pipe interno, sin puerto TCP).
-    NUNCA usa 9222/9200 (puertos típicos de la automatización del operador): si alguien los pone, se ignoran y se
-    vuelve a pipe, para no pisar jamás su navegador. Best-effort: cualquier fallo de lectura → env/vacío."""
+    """Browser remote-debugging port — CONFIGURATION-CONTROLLABLE (the UI writes config/settings.json).
+    Order: store `navegador_remote_port` → env `NAVEGADOR_REMOTE_PORT` → empty (internal pipe, no TCP port).
+    NEVER uses 9222/9200 (typical operator automation ports): if someone sets them, they are ignored and it falls
+    back to pipe, so it never steps on their browser. Best-effort: any read failure → env/empty."""
     val = ""
     try:
         import json as _json
@@ -269,12 +269,12 @@ _UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
 _LAUNCH_ARGS = ["--no-sandbox", "--disable-dev-shm-usage", "--disable-blink-features=AutomationControlled",
                 "--window-size=1296,900", "--window-position=60,60"]
 
-# NAVEGAR COMO UN HUMANO, no scrapear (regla del operador 2026-07-21): un asistente DISCRETO que hace búsquedas
-# como una persona y pasa los filtros anti-bot de forma NATURAL — nunca patrones de scraper. Este init-script borra
-# las huellas que delatan a un Chromium automatizado (DataDome/idealista, PerimeterX, Cloudflare las miran):
-# navigator.webdriver, objeto chrome ausente, plugins/idiomas vacíos, WebGL "SwiftShader" del headless. Se combina
-# con el Chrome REAL (channel), el ratón Bézier+jitter y el tecleo con delay que YA existen. No hackea nada: hace
-# que un navegador de verdad, conducido despacio, parezca lo que es — una persona navegando.
+# BROWSE LIKE A HUMAN, not like a scraper (operator rule 2026-07-21): a DISCREET assistant that searches like a person
+# and naturally passes anti-bot filters — never scraper patterns. This init script removes fingerprints that expose an
+# automated Chromium (DataDome/idealista, PerimeterX, Cloudflare check these): navigator.webdriver, missing chrome
+# object, empty plugins/languages, headless WebGL "SwiftShader". It combines with REAL Chrome (channel), Bezier+jitter
+# mouse movement, and delayed typing that ALREADY exist. It does not hack anything: it makes a real browser, driven
+# slowly, look like what it is — a person browsing.
 _STEALTH_JS = """
 (() => {
   try { Object.defineProperty(navigator, 'webdriver', {get: () => undefined}); } catch (e) {}
@@ -299,10 +299,10 @@ _STEALTH_JS = """
 
 
 async def _ensure_page():
-    """UNA SOLA ventana real (headed) con PERFIL PERSISTENTE, arranque perezoso. Reutiliza la ventana/pestaña que
-    ya haya (nunca abre una ventana por petición → no llena el escritorio). Perfil aislado: no toca tu Chrome ni tu
-    navegador del 9222/9200 (proceso e instancia propios). Si la ventana real falla (sin display), degrada a headless
-    para no dejar el widget muerto. Import perezoso de playwright: si falta la dep, degrada este widget solo."""
+    """ONE real window (headed) with a PERSISTENT PROFILE and lazy startup. Reuses any existing window/tab (never opens
+    one window per request → no desktop clutter). Isolated profile: does not touch your Chrome or your 9222/9200
+    browser (own process and instance). If the real window fails (no display), degrades to headless so the widget is
+    not left dead. Lazy Playwright import: if the dependency is missing, only this widget degrades."""
     global _pw, _browser, _context, _page
     if _page is not None and not _page.is_closed():
         return _page
@@ -310,8 +310,8 @@ async def _ensure_page():
     if _pw is None:
         _pw = await async_playwright().start()
     if _context is None:
-        # Puerto de depuración OPCIONAL y elegido por env — NUNCA los tuyos (9222/9200). Vacío = pipe interno de
-        # Playwright (cero puerto, cero colisión). Si quieres engancharte tú, pon NAVEGADOR_REMOTE_PORT a otro puerto.
+        # OPTIONAL debugging port chosen by env — NEVER yours (9222/9200). Empty = Playwright internal pipe
+        # (zero ports, zero collisions). If you want to attach, set NAVEGADOR_REMOTE_PORT to a different port.
         args = list(_LAUNCH_ARGS)
         port = _remote_port()                         # configurable por UI (settings.json) / env; nunca 9222/9200
         if port:
@@ -319,16 +319,16 @@ async def _ensure_page():
             _emit("remote_port", f"puerto de depuración {port}")
 
         async def _launch(headless: bool, channel: str | None):
-            # channel="chrome" = el Chrome REAL instalado (fingerprint de navegador de verdad, no el Chromium
-            # de Playwright que los anti-bot reconocen). timezone_id fija la zona coherente con locale es-ES.
+            # channel="chrome" = the installed REAL Chrome (real-browser fingerprint, not Playwright's Chromium that
+            # anti-bot systems recognize). timezone_id keeps the zone consistent with locale es-ES.
             kw = dict(headless=headless, viewport=VIEWPORT, locale="es-ES",
                       timezone_id="Europe/Madrid", user_agent=_UA, args=args)
             if channel:
                 kw["channel"] = channel
             return await _pw.chromium.launch_persistent_context(_profile_dir(), **kw)
 
-        # Preferimos el Chrome REAL (menos detectable). Si no está instalado, caemos al Chromium de Playwright;
-        # si no hay display (headed falla), caemos a headless. Nunca dejamos el widget muerto.
+        # Prefer REAL Chrome (less detectable). If it is not installed, fall back to Playwright's Chromium; if there
+        # is no display (headed fails), fall back to headless. Never leave the widget dead.
         _context = None
         for _ch in ("chrome", None):
             try:
@@ -339,33 +339,33 @@ async def _ensure_page():
                                f"({str(e).splitlines()[0][:100]})")
         if _context is None:
             try:
-                _context = await _launch(True, None)      # último recurso: chromium headless
+                _context = await _launch(True, None)      # last resort: headless chromium
             except Exception as e:
                 logger.warning(f"navegador: headless también falló ({str(e).splitlines()[0][:100]})")
                 raise
-        _browser = None                               # el contexto persistente ES el navegador (no hay objeto aparte)
+        _browser = None                               # the persistent context IS the browser (no separate object)
         try:
-            await _context.add_init_script(_STEALTH_JS)   # sigilo: navegar como humano, no como scraper
+            await _context.add_init_script(_STEALTH_JS)   # stealth: browse like a human, not like a scraper
         except Exception:
             pass
         _context.set_default_navigation_timeout(_NAV_TIMEOUT)
         _context.set_default_timeout(_NAV_TIMEOUT)
-        # Consent de Google/YouTube en la UE: coockies que evitan el muro (mejor esfuerzo). Con perfil persistente,
-        # además, una vez que se acepta un banner una vez queda guardado → deja de salir en visitas siguientes.
+        # Google/YouTube consent in the EU: cookies that avoid the wall (best effort). With the persistent profile,
+        # once a banner is accepted it is also saved → it stops appearing on subsequent visits.
         try:
             await _context.add_cookies([
                 {"name": "SOCS", "value": "CAI", "domain": ".youtube.com", "path": "/"},
                 {"name": "SOCS", "value": "CAI", "domain": ".google.com", "path": "/"},
                 {"name": "CONSENT", "value": "YES+", "domain": ".youtube.com", "path": "/"},
                 {"name": "CONSENT", "value": "YES+", "domain": ".google.com", "path": "/"},
-                # Wallapop: OptanonConsent (OneTrust) + cookie propia del consentimiento UE
+                # Wallapop: OptanonConsent (OneTrust) + its own EU consent cookie
                 {"name": "OptanonConsent",
                  "value": "isGpcEnabled=0&datestamp=Tue+Jul+2026+12%3A00%3A00+GMT%2B0200&version=6.29.0&isIABGlobal=false&hosts=&consentId=&interactionCount=1&landingPath=NotLandingPage&groups=C0001%3A1%2CC0002%3A1%2CC0003%3A1%2CC0004%3A1%2CC0005%3A1",
                  "domain": ".wallapop.com", "path": "/"},
                 {"name": "euconsent-v2",
-                 "value": "CQ...",  # placeholder — el auto-click es el mecanismo real
+                 "value": "CQ...",  # placeholder — auto-click is the real mechanism
                  "domain": ".wallapop.com", "path": "/"},
-                # Wallapop: marcador de banner aceptado (cubre su propio sistema cuando OneTrust no está)
+                # Wallapop: accepted-banner marker (covers its own system when OneTrust is absent)
                 {"name": "wp_consent", "value": "1", "domain": ".wallapop.com", "path": "/"},
                 {"name": "_consent", "value": "1", "domain": ".wallapop.com", "path": "/"},
                 {"name": "user_consent", "value": "true", "domain": ".wallapop.com", "path": "/"},
@@ -373,13 +373,13 @@ async def _ensure_page():
             ])
         except Exception:
             pass
-    # UNA pestaña: reutiliza la que el contexto persistente ya trae en vez de abrir otra → sin pestañas de sobra.
+    # ONE tab: reuse the one the persistent context already brings instead of opening another → no extra tabs.
     _page = _context.pages[0] if _context.pages else await _context.new_page()
     _emit("launched", f"navegador {'headless' if _headless() else 'ventana real'} · perfil persistente")
     return _page
 
 
-# ── utilidades ───────────────────────────────────────────────────────────────────────────────────────────────
+# ── utilities ────────────────────────────────────────────────────────────────────────────────────────────────
 _YT_RE = re.compile(r"(?:youtube\.com/watch\?v=|youtu\.be/|youtube\.com/embed/)([0-9A-Za-z_-]{11})")
 _YT_ID_RE = re.compile(r'"videoId":"([0-9A-Za-z_-]{11})"')
 
@@ -390,7 +390,7 @@ def _looks_like_url(s: str) -> bool:
         return False
     if s.startswith(("http://", "https://")):
         return True
-    return bool(re.match(r"^[a-z0-9-]+(\.[a-z0-9-]+)+(/.*)?$", s, re.I))   # dominio con TLD
+    return bool(re.match(r"^[a-z0-9-]+(\.[a-z0-9-]+)+(/.*)?$", s, re.I))   # domain with TLD
 
 
 def _normalize_url(s: str) -> str:
@@ -406,9 +406,9 @@ def _youtube_id(s: str) -> str:
 
 
 def _draw_cursor(path: str, x: float, y: float) -> None:
-    """Dibuja un cursor de ratón (flecha estilo SO) sobre la captura, en la posición del ratón VIRTUAL, para que
-    el operador VEA dónde actúa el automatizador (el ratón vive dentro del Chromium del servidor, invisible en la
-    foto; esto lo hace visible). Best-effort: si Pillow falla, deja la captura tal cual."""
+    """Draw a mouse cursor (OS-style arrow) over the screenshot, at the VIRTUAL mouse position, so the operator can
+    SEE where the automator is acting (the mouse lives inside server-side Chromium, invisible in the photo; this makes
+    it visible). Best-effort: if Pillow fails, leave the screenshot as-is."""
     try:
         from PIL import Image, ImageDraw
         img = Image.open(path).convert("RGBA")
@@ -417,9 +417,9 @@ def _draw_cursor(path: str, x: float, y: float) -> None:
         x, y = int(x), int(y)
         arrow = [(x, y), (x, y + 18), (x + 5, y + 13), (x + 9, y + 20),
                  (x + 12, y + 18), (x + 8, y + 12), (x + 14, y + 12)]
-        d.polygon(arrow, fill=(250, 250, 250, 255))     # relleno claro
-        d.line(arrow + [arrow[0]], fill=(20, 20, 20, 255), width=2, joint="curve")   # contorno oscuro (visible en todo fondo)
-        d.ellipse([x - 6, y - 6, x + 6, y + 6], outline=(255, 70, 70, 230), width=2)  # halo para captar la vista
+        d.polygon(arrow, fill=(250, 250, 250, 255))     # light fill
+        d.line(arrow + [arrow[0]], fill=(20, 20, 20, 255), width=2, joint="curve")   # dark outline (visible on any background)
+        d.ellipse([x - 6, y - 6, x + 6, y + 6], outline=(255, 70, 70, 230), width=2)  # halo to draw the eye
         img.alpha_composite(ov)
         img.convert("RGB").save(path)
     except Exception:
@@ -427,14 +427,14 @@ def _draw_cursor(path: str, x: float, y: float) -> None:
 
 
 async def _capture() -> None:
-    """Fotografía la viewport → widgets/_data/navegador/shot.png y sube rev (cache-bust del <img> en cliente)."""
+    """Screenshot the viewport → widgets/_data/navegador/shot.png and bump rev (client <img> cache-bust)."""
     global _rev
     page = _page
     shot = f"{store.data_dir(WID)}/shot.png"
     await page.screenshot(path=shot, type="png", full_page=False)
-    if _automating:                                     # tarea en curso → pinta el cursor virtual donde está actuando
-        # OFF-LOOP (V2-035): el composite PIL es CPU síncrono que retenía el GIL en el loop de uvicorn y hambreaba
-        # el pump de audio del TTS (voz entrecortada). A un hilo → no bloquea la voz.
+    if _automating:                                     # running task → draw the virtual cursor where it is acting
+        # OFF-LOOP (V2-035): the PIL composite is synchronous CPU work that held the GIL in the uvicorn loop and
+        # starved the TTS audio pump (choppy voice). Move it to a thread → it does not block voice.
         await asyncio.to_thread(_draw_cursor, shot, _mouse["x"], _mouse["y"])
     _rev += 1
     title = ""
@@ -454,8 +454,8 @@ async def _goto(url: str, push: bool = True) -> None:
     _emit("navigate", url)
     try:
         await page.goto(url, wait_until="domcontentloaded")
-        await _dismiss_overlays(page)                    # cierra banners de cookies que bloquean la web
-        await asyncio.sleep(0.35)                     # deja pintar el above-the-fold antes de la foto
+        await _dismiss_overlays(page)                    # close cookie banners that block the website
+        await asyncio.sleep(0.35)                     # let the above-the-fold render before the screenshot
     except Exception as e:
         _write(loading=False, error=f"No pude abrir la página: {str(e).splitlines()[0][:200]}")
         _emit("nav_error", url, error=str(e)[:200])
@@ -466,7 +466,7 @@ async def _goto(url: str, push: bool = True) -> None:
     await _capture()
 
 
-# ── órdenes del buzón ────────────────────────────────────────────────────────────────────────────────────────
+# ── mailbox commands ────────────────────────────────────────────────────────────────────────────────────────
 async def handle(action: str, payload: dict) -> None:
     payload = payload or {}
     if action == "open":
@@ -479,7 +479,7 @@ async def handle(action: str, payload: dict) -> None:
         elif _looks_like_url(raw):
             await _goto(_normalize_url(raw))
         else:
-            await _search(raw)                        # texto suelto en la barra → búsqueda en Google
+            await _search(raw)                        # loose text in the bar → web search
     elif action == "search":
         await _search(str(payload.get("q") or payload.get("url") or "").strip())
     elif action == "youtube":
@@ -507,15 +507,15 @@ async def handle(action: str, payload: dict) -> None:
     elif action in ("close", "quit", "close_browser"):
         await _close_browser()
     elif action == "automate":
-        # SPAWN (no await): el buzón del owner es SERIAL — si esperáramos el bucle entero, las tareas no correrían
-        # en PARALELO. Lanzamos la tarea en segundo plano y liberamos el buzón para el siguiente comando → N tareas
-        # concurrentes, cada una en su pestaña. Guardamos la ref para que no la recoja el GC.
+        # SPAWN (no await): the owner's mailbox is SERIAL — if we waited for the whole loop, tasks would not run in
+        # PARALLEL. Launch the task in the background and free the mailbox for the next command → N concurrent tasks,
+        # each in its own tab. Keep the ref so GC does not collect it.
         _t = asyncio.create_task(_automate(str(payload.get("goal") or payload.get("task") or ""),
                                            str(payload.get("plan") or ""), str(payload.get("task_id") or "")))
         _running.add(_t)
         _t.add_done_callback(_running.discard)
     elif action == "browse":
-        # Navegación SIMPLE de una tarea/tab (sin bucle): abre/busca/youtube en SU pestaña → tarjeta vertical.
+        # SIMPLE navigation for a task/tab (no loop): open/search/youtube in ITS tab → vertical card.
         _t = asyncio.create_task(_browse(str(payload.get("task_id") or ""), str(payload.get("mode") or "open"),
                                          str(payload.get("url") or ""), str(payload.get("q") or "")))
         _running.add(_t)
@@ -533,21 +533,21 @@ async def handle(action: str, payload: dict) -> None:
         logger.debug(f"navegador: orden desconocida {action!r}")
 
 
-_task_browsers: dict = {}   # task_id -> TaskBrowser (para cerrar la pestaña al cerrar la tarjeta / cancelar)
-_running: set = set()       # tareas asyncio en vuelo (evita que el GC las recoja)
-_shot_lock = asyncio.Lock()  # serializa bring_to_front+captura entre tareas paralelas (headed pinta 1 tab a la vez)
+_task_browsers: dict = {}   # task_id -> TaskBrowser (to close the tab when closing/canceling the card)
+_running: set = set()       # in-flight asyncio tasks (prevents GC from collecting them)
+_shot_lock = asyncio.Lock()  # serialize bring_to_front+capture across parallel tasks (headed paints one tab at a time)
 
-# AUTENTICACIÓN — estado de control (una sola ventana → un solo login a la vez; reanudación tras auth_done).
-_LOGIN_TIMEOUT = float(os.environ.get("NAVEGADOR_LOGIN_TIMEOUT", "600"))  # 10 min sin terminar → recordatorio (no mata)
-_LOGIN_POLL = float(os.environ.get("NAVEGADOR_LOGIN_POLL", "2.5"))        # cada cuánto vigila la ventana de login
-_auth_resume: dict = {}     # task_id -> {"goal","plan","site"} de tareas a REANUDAR tras el login (la que lo pidió + las pausadas)
-_auth_active: str = ""      # sitio del login EN CURSO ("" = ninguno) — serializa: no abrimos dos ventanas de login
-_login_timeouts: dict = {}  # task_id -> asyncio.Task del watcher/poller de login (auto-detección + timeout)
-_auth_baseline_cookies: dict = {}  # task_id -> set((domain,name)) al abrir el login → detectar cookies NUEVAS = sesión dada
+# AUTHENTICATION — control state (one window → one login at a time; resume after auth_done).
+_LOGIN_TIMEOUT = float(os.environ.get("NAVEGADOR_LOGIN_TIMEOUT", "600"))  # 10 min unfinished → reminder (does not kill)
+_LOGIN_POLL = float(os.environ.get("NAVEGADOR_LOGIN_POLL", "2.5"))        # how often to watch the login window
+_auth_resume: dict = {}     # task_id -> {"goal","plan","site"} for tasks to RESUME after login (requester + paused tasks)
+_auth_active: str = ""      # site of the login IN PROGRESS ("" = none) — serializes: never open two login windows
+_login_timeouts: dict = {}  # task_id -> asyncio.Task for the login watcher/poller (auto-detection + timeout)
+_auth_baseline_cookies: dict = {}  # task_id -> set((domain,name)) when login opens → detect NEW cookies = session present
 
-# Reaching-the-login es DISTINTO en cada web → enfoque VERSÁTIL: (1) URL de login conocida para los sitios comunes;
-# (2) si no hay o no acierta, se abre el dominio y se BUSCA en la página el enlace/botón de "iniciar sesión" (por
-# texto, multi-idioma) EVITANDO el de registro, y se clica. Nunca aterriza en la página de REGISTRO.
+# Reaching login is DIFFERENT on every site → VERSATILE approach: (1) known login URL for common sites; (2) if none
+# exists or it misses, open the domain and SEARCH the page for the "sign in" link/button (by text, multi-language)
+# while AVOIDING registration, then click it. Never intentionally lands on the SIGN-UP page.
 _LOGIN_URLS = {
     "google.com": "https://accounts.google.com/signin",
     "gmail.com": "https://accounts.google.com/signin/v2/identifier?service=mail",
@@ -569,23 +569,23 @@ _REGISTER_TEXT_RE = re.compile(r"(regist|reg[ií]strate|sign ?up|crear cuenta|cr
 
 
 async def _automate(goal: str, plan: str = "", task_id: str = "") -> None:
-    """Ejecuta el bucle HÍBRIDO DOM+visión (agent.py) para UNA tarea, en SU PROPIA pestaña (TaskBrowser). El
-    progreso va al feed de la tarea (tasks.add_event vía TaskBrowser._emit) y su tarjeta se refresca sola; al
-    terminar, resultados + aviso proactivo (voz+UI). La pestaña queda ABIERTA para que el operador la vea; se
-    cierra al cerrar la tarjeta. `plan` = guía de alto nivel de Hermes (best-effort)."""
+    """Run the HYBRID DOM+vision loop (agent.py) for ONE task, in ITS OWN tab (TaskBrowser). Progress goes to the
+    task feed (tasks.add_event via TaskBrowser._emit) and its card refreshes itself; when it finishes, results +
+    proactive notice (voice+UI). The tab stays OPEN so the operator can see it; it closes when the card is closed.
+    `plan` = Hermes high-level guide (best-effort)."""
     if not goal:
         return
     from . import agent, tasks
     if not task_id:
         task_id = tasks.create(goal)
     tasks.set_status(task_id, "working")
-    tasks.set_phase(task_id, "buscando resultados", True)     # FASE (spinner): el operador ve el PROCESO, no clics
+    tasks.set_phase(task_id, "buscando resultados", True)     # PHASE (spinner): the operator sees the PROCESS, not clicks
     tb = TaskBrowser(task_id)
     _task_browsers[task_id] = tb
-    # ROBUSTEZ (V2-035): si el plan trae una URL de resultados ya FILTRADA (primera línea `URL: …`, la compone el
-    # planificador con las keywords depuradas + precio), arranca el navegador DIRECTO en la rejilla de resultados
-    # en vez de teclear en la caja y navegar a mano (lo frágil que se atascaba en Wallapop). El resto del plan
-    # sigue como guía del bucle.
+    # ROBUSTNESS (V2-035): if the plan includes an already FILTERED results URL (first line `URL: …`, composed by the
+    # planner from refined keywords + price), start the browser DIRECTLY on the results grid instead of typing into the
+    # search box and navigating manually (the fragile path that got stuck on Wallapop). The rest of the plan remains
+    # the loop guide.
     start_url = ""
     if plan:
         _m = re.match(r"\s*URL:\s*(\S+)", plan, re.I)
@@ -602,30 +602,31 @@ async def _automate(goal: str, plan: str = "", task_id: str = "") -> None:
         res = await agent.run_task(goal, tb, plan=plan)
     except Exception as e:  # noqa: BLE001
         res = {"ok": False, "summary": f"error del automatizador: {str(e).splitlines()[0][:160]}"}
-    # MURO DE LOGIN: el bucle chocó con un inicio de sesión y NO tecleó credenciales. Abrimos la ventana real para
-    # que el operador entre a mano; la tarea NO se cierra — queda pausada y se reanuda sola tras auth_done.
+    # LOGIN WALL: the loop hit a sign-in page and did NOT type credentials. Open the real window so the operator can
+    # sign in manually; the task is NOT closed — it remains paused and resumes by itself after auth_done.
     if res.get("needs_login"):
         await _begin_login(task_id, res.get("site", ""), res.get("login_url", ""), goal, plan)
         return
     summary = str(res.get("summary") or "")
     ok, success = bool(res.get("ok")), bool(res.get("success"))
     results = res.get("results")
-    # Resultados RICOS: rasca los anuncios de la página final + el modelo barato elige los mejores + conclusión.
-    # Fases visibles: recopilando → (N anuncios) → investigando los mejores. Best-effort.
+    # RICH RESULTS: scrape listings from the final page + cheap model picks the best ones + conclusion.
+    # Visible phases: collecting → (N listings) → investigating the best. Best-effort.
     if not results and ok:
         try:
             tasks.set_phase(task_id, "recopilando anuncios", True)
             items = await tb.extract_listings()
             if items:
-                # OBSERVABILIDAD (V2-035): deja en el feed QUÉ candidatos se extrajeron (para poder revisar después
-                # si la búsqueda trajo lo pedido —p.ej. enduro— o categoría equivocada), no solo "N anuncios".
+                # OBSERVABILITY (V2-035): leave WHICH candidates were extracted in the feed (so we can later review
+                # whether the search returned the requested thing —e.g. enduro— or the wrong category), not just
+                # "N listings".
                 _sample = "; ".join(
                     f"{(it.get('title') or '')[:40]}{(' · '+it.get('price')) if it.get('price') else ''}"
                     for it in items[:6])
                 tasks.milestone(task_id, f"📋 {len(items)} anuncios encontrados: {_sample}")
-                # EVIDENCIA (2026-08-10): el hito lleva un muestreo legible, pero para AUDITAR hace falta la
-                # fuente — la URL de cada candidato, que es lo que permite volver y comprobar si el precio y la
-                # descripción eran los que dijo. Presupuestado (`observability.evidence`), best-effort.
+                # EVIDENCE (2026-08-10): the milestone carries a readable sample, but AUDITING needs the source —
+                # each candidate URL, which allows revisiting and checking whether the price and description were what
+                # it claimed. Budgeted (`observability.evidence`), best-effort.
                 try:
                     from observability import evidence as _evd
                     from voice.observer import emit as _emit_obs
@@ -639,8 +640,8 @@ async def _automate(goal: str, plan: str = "", task_id: str = "") -> None:
                 tasks.set_phase(task_id, "investigando los mejores", True)
                 results = await agent.summarize_results(goal, items)
                 if results and results.get("discarded"):
-                    # OBSERVABILIDAD (V2-035): qué se DESCARTÓ y POR QUÉ (p.ej. "moto de trial — no es enduro"),
-                    # para poder revisar que el filtro de relevancia hizo lo correcto.
+                    # OBSERVABILITY (V2-035): what was DISCARDED and WHY (e.g. "trial motorcycle — not enduro"), so
+                    # the relevance filter can be reviewed.
                     _dis = "; ".join(f"{d.get('title', '')[:32]} ({d.get('reason', '')[:40]})"
                                      for d in results["discarded"][:5])
                     tasks.milestone(task_id, f"🚫 descartados {len(results['discarded'])} por no encajar: {_dis}")
@@ -649,9 +650,9 @@ async def _automate(goal: str, plan: str = "", task_id: str = "") -> None:
                     tasks.milestone(task_id, f"⭐ seleccionados {len(results['items'])}: {_sel}")
         except Exception as e:  # noqa: BLE001
             logger.warning(f"extracción de resultados falló: {e}")
-    # ÉXITO por RESULTADO, no por lo que reporte el modelo: si conseguimos anuncios rankeados, la tarea SÍ se
-    # completó (el bucle a veces cierra con done {} vacío → success False aunque llegó a la rejilla). Fix del
-    # "no pude completar del todo" pese a traer resultados.
+    # SUCCESS by RESULT, not by what the model reports: if we got ranked listings, the task DID complete (the loop
+    # sometimes closes with empty done {} → success False even though it reached the grid). Fix for saying "could not
+    # fully complete" despite having results.
     if results and results.get("items"):
         success = True
         if not summary:
@@ -670,11 +671,11 @@ async def _automate(goal: str, plan: str = "", task_id: str = "") -> None:
         pass
     try:
         from voice import proactive
-        # La notificación proactiva se DICE EN VOZ tal cual (no pasa por el FlashBrain que la puliría): NUNCA
-        # debe filtrar el fraseo INTERNO de la tarea («{goal}» viene en 3ª persona de ingeniería, "Alex quiere
-        # buscar casas…") — se oía "Lo intenté con «Alex quiere buscar…»: …", exponiendo las tripas (hallazgo del
-        # juez, conv navegador). Mensaje user-facing = solo el resumen (que ya es de cara al usuario); el objetivo
-        # crudo se queda en la nota [SISTEMA] (contexto para el cerebro), no en la voz.
+        # The proactive notification is SPOKEN AS-IS (it does not go through FlashBrain for polishing): it must NEVER
+        # leak the task's INTERNAL phrasing (`{goal}` comes in engineering third person, "Alex wants to search for
+        # houses...") — it used to say "I tried with «Alex wants to search...»: ...", exposing internals (judge finding,
+        # browser convo). User-facing message = summary only (already user-facing); raw objective stays in the
+        # [SYSTEM] note (brain context), not in voice.
         tail_ = (summary or "").strip()
         if (ok and success):
             msg = f"Listo. {tail_}" if tail_ and tail_ != "sin resumen" else "Listo, lo tienes en su tarjeta."
@@ -687,8 +688,8 @@ async def _automate(goal: str, plan: str = "", task_id: str = "") -> None:
 
 
 async def _browse(task_id: str, mode: str, url: str, q: str) -> None:
-    """Navegación simple de una tarea/tab (browse, sin bucle de automatización) → su tarjeta vertical muestra la
-    captura + barra. Reutiliza TaskBrowser (una pestaña por tarea, misma ventana). No lanza."""
+    """Simple navigation for one task/tab (browse, no automation loop) → its vertical card shows the screenshot + bar.
+    Reuses TaskBrowser (one tab per task, same window). Does not raise."""
     if not task_id:
         return
     from . import tasks
@@ -710,7 +711,7 @@ async def _browse(task_id: str, mode: str, url: str, q: str) -> None:
 
 
 def _login_url_for(site: str) -> str | None:
-    """URL de login CONOCIDA para `site` (dominio), o None. Empareja por dominio base (sub.dominio.tld → dominio.tld)."""
+    """KNOWN login URL for `site` (domain), or None. Matches by base domain (sub.domain.tld → domain.tld)."""
     host = (site or "").strip().lower()
     host = host.replace("https://", "").replace("http://", "").split("/")[0]
     if host.startswith("www."):
@@ -722,8 +723,8 @@ def _login_url_for(site: str) -> str | None:
 
 
 async def _click_login_affordance(page) -> bool:
-    """VERSÁTIL: busca en la página el enlace/botón que lleva al LOGIN (por texto, multi-idioma) EVITANDO el de
-    registro, y lo clica. Devuelve True si clicó algo. Así llegamos al login aunque no tengamos su URL exacta."""
+    """VERSATILE: search the page for the link/button that leads to LOGIN (by text, multi-language) while AVOIDING
+    registration, and click it. Returns True if it clicked something. This reaches login even without its exact URL."""
     try:
         cands = await page.query_selector_all("a, button, [role=button]")
     except Exception:
@@ -737,11 +738,11 @@ async def _click_login_affordance(page) -> bool:
             continue
         if not blob.strip() or not _LOGIN_TEXT_RE.search(blob):
             continue
-        # es de REGISTRO (y el texto propio no dice login) → sáltalo, nunca aterrizamos en registro
+        # registration affordance (and its own text does not say login) → skip it, never land on registration
         if _REGISTER_TEXT_RE.search(blob) and not _LOGIN_TEXT_RE.search(txt):
             continue
         best = el
-        if _LOGIN_TEXT_RE.search(txt):                # prioriza el que dice "iniciar sesión" en su propio texto
+        if _LOGIN_TEXT_RE.search(txt):                # prioritize the element whose own text says "sign in"
             break
     if best is None:
         return False
@@ -754,8 +755,8 @@ async def _click_login_affordance(page) -> bool:
 
 
 async def _reach_login(tb, site: str) -> None:
-    """Lleva la pestaña a la página de LOGIN de `site`, VERSÁTIL (cada web es distinta) y NUNCA a registro:
-    (1) URL de login conocida; (2) si no acierta, abre el dominio y clica el enlace/botón de iniciar sesión."""
+    """Take the tab to the LOGIN page for `site`, VERSATILE (every site is different) and NEVER to registration:
+    (1) known login URL; (2) if it misses, open the domain and click the sign-in link/button."""
     from . import agent
     known = _login_url_for(site)
     target = known or (site if site.startswith("http") else f"https://{site.strip('/')}")
@@ -771,13 +772,13 @@ async def _reach_login(tb, site: str) -> None:
     except Exception:
         state = {"url": tb.page.url, "elements": ""}
     if agent._looks_like_login(state.get("url", ""), state.get("elements", "")):
-        return                                        # la URL conocida ya nos dejó en el login
-    await _click_login_affordance(tb.page)            # versátil: encuentra y clica "iniciar sesión"
+        return                                        # the known URL already left us on login
+    await _click_login_affordance(tb.page)            # versatile: find and click "sign in"
     await _dismiss_overlays(tb.page)
 
 
 async def _cookie_fingerprint(tb) -> set:
-    """Huella (domain,name) de las cookies actuales del perfil — para detectar cookies NUEVAS tras el login."""
+    """Fingerprint (domain,name) of current profile cookies — used to detect NEW cookies after login."""
     try:
         cookies = await tb.page.context.cookies()
         return {(c.get("domain", ""), c.get("name", "")) for c in cookies}
@@ -786,10 +787,10 @@ async def _cookie_fingerprint(tb) -> set:
 
 
 async def _authenticate(task_id: str, url: str, *, site: str = "", goal: str = "", plan: str = "") -> None:
-    """Abre la VENTANA REAL (visible) directamente en el LOGIN del sitio y se queda VIGILÁNDOLA: cuando detecta que
-    la sesión ya está dada (dejó el login/registro + aparecieron cookies nuevas), cierra sola y vuelve a headless —
-    CERO pasos manuales. La sesión se guarda en el perfil PERSISTENTE (no hay que copiar cookies del Chrome del
-    sistema). `url` = URL de login ya detectada (ruta need_login) o el sitio/dominio a resolver (authenticate_web)."""
+    """Open the REAL WINDOW (visible) directly on the site's LOGIN and WATCH it: once it detects the session is
+    established (left login/registration + new cookies appeared), it closes by itself and returns to headless —
+    ZERO manual steps. The session is saved in the PERSISTENT profile (no need to copy cookies from system Chrome).
+    `url` = already detected login URL (need_login path) or the site/domain to resolve (authenticate_web)."""
     global _visible_override, _auth_active
     from . import agent, auth_memory, tasks
     url = (url or "wallapop.com").strip()
@@ -797,11 +798,11 @@ async def _authenticate(task_id: str, url: str, *, site: str = "", goal: str = "
     if not task_id:
         task_id = tasks.create(f"Iniciar sesión · {site or url}", title=f"Login · {site or url}")
     _auth_resume.setdefault(task_id, {"goal": goal, "plan": plan, "site": site})
-    # GUARDA: ¿YA hay sesión? entonces NO abras ningún login — confírmalo y sigue con la tarea (bug: reabría el
-    # login de Wallapop estando ya autenticado). Comprobación headless, sin ventana.
+    # GUARD: is there ALREADY a session? Then do NOT open any login — confirm it and continue the task (bug: it
+    # reopened Wallapop login while already authenticated). Headless check, no window.
     if await _already_authenticated(site):
         auth_memory.record_session_established(site)
-        # objetivo de búsqueda a retomar: el de la tarea, o el que quedó en el checkpoint de memoria (auth_pendiente).
+        # search objective to resume: the task's objective, or the one left in the memory checkpoint (auth_pendiente).
         pend = auth_memory.read_auth_pending() or {}
         goal_to_run = ((_auth_resume.get(task_id) or {}).get("goal") or goal or pend.get("objetivo") or "").strip()
         auth_memory.clear_auth_pending()
@@ -813,22 +814,22 @@ async def _authenticate(task_id: str, url: str, *, site: str = "", goal: str = "
                                    kind="notify")
         except Exception:
             pass
-        if goal_to_run:                                          # hay búsqueda que retomar → lánzala ya (autenticado)
+        if goal_to_run:                                          # search to resume → launch it now (authenticated)
             tasks.set_phase(task_id, "retomando la búsqueda", True)
             _auth_resume.pop(task_id, None)
             _t = asyncio.create_task(_automate(goal_to_run, "", task_id))
             _running.add(_t)
             _t.add_done_callback(_running.discard)
-        else:                                                     # sin objetivo (login suelto) → cierra la tarjeta, no colgada
+        else:                                                     # no objective (standalone login) → close the card, not left hanging
             tasks.set_phase(task_id, "ya tenías sesión", False)
             tasks.finish(task_id, "done", "Ya tenías sesión iniciada.")
-        await _resume_paused_tasks()                              # reanuda OTRAS tareas pausadas por el login (si las hubo)
+        await _resume_paused_tasks()                              # resume OTHER tasks paused by login (if any)
         return
     if _in_container():
-        # 2026-08-03: en un contenedor headless (cloud) no hay display → el relanzado "headed" de más abajo
-        # SIEMPRE degrada a headless en silencio (`_ensure_page`), y la tarea se queda esperando un login que
-        # nunca puede pasar — antes esto se quedaba embuclado para siempre (voz Y widget colgados, visto en vivo
-        # con Wallapop). Cortar aquí, ANTES de intentarlo, con un mensaje claro en vez de un intento fantasma.
+        # 2026-08-03: in a headless container (cloud) there is no display → the "headed" relaunch below ALWAYS
+        # silently degrades to headless (`_ensure_page`), and the task waits for a login that can never happen —
+        # previously this looped forever (voice AND widget hung, observed live with Wallapop). Stop here, BEFORE
+        # trying, with a clear message instead of a phantom attempt.
         msg = (f"Para entrar en {site or url} hace falta iniciar sesión, y eso todavía no lo puedo hacer desde la "
                "nube — necesitaría abrir una ventana de navegador que aquí no existe. Instala la versión local "
                "(desde GitHub) si quieres usar sitios que exigen iniciar sesión.")
@@ -840,9 +841,9 @@ async def _authenticate(task_id: str, url: str, *, site: str = "", goal: str = "
             pass
         return
     _auth_active = site
-    auth_memory.checkpoint_auth_pending(site, task_id, goal)       # miga durable (sobrevive a crash/reinicio)
-    _visible_override = True                                       # fuerza VISIBLE para el login
-    await stop()                                                  # relanza headed (el perfil/cookies persisten)
+    auth_memory.checkpoint_auth_pending(site, task_id, goal)       # durable breadcrumb (survives crash/restart)
+    _visible_override = True                                       # force VISIBLE for login
+    await stop()                                                  # relaunch headed (profile/cookies persist)
     _task_browsers.pop(task_id, None)
     tb = TaskBrowser(task_id)
     _task_browsers[task_id] = tb
@@ -850,11 +851,11 @@ async def _authenticate(task_id: str, url: str, *, site: str = "", goal: str = "
     tasks.set_phase(task_id, "esperando tu inicio de sesión", True)
     tasks.set_login_wait(task_id, True)
     try:
-        if agent._LOGIN_URL_RE.search(url.lower()):               # ya ES una URL de login (ruta need_login) → ábrela
+        if agent._LOGIN_URL_RE.search(url.lower()):               # already IS a login URL (need_login path) → open it
             await tb.open_target(url)
             if tb.page is not None:
                 await _dismiss_overlays(tb.page)
-        else:                                                     # es un sitio/dominio → RESUELVE el login (versátil)
+        else:                                                     # site/domain → RESOLVE login (versatile)
             await _reach_login(tb, site or url)
     except Exception as e:  # noqa: BLE001
         tasks.milestone(task_id, f"⚠️ {str(e).splitlines()[0][:100]}")
@@ -866,12 +867,12 @@ async def _authenticate(task_id: str, url: str, *, site: str = "", goal: str = "
                                "sigo yo solo.", speak=True)
     except Exception:
         pass
-    _arm_login_watch(task_id, site)                               # VIGILA la ventana → auto-detecta el login
+    _arm_login_watch(task_id, site)                               # WATCH the window → auto-detect login
 
 
 async def _begin_login(task_id: str, site: str, login_url: str, goal: str = "", plan: str = "") -> None:
-    """Un muro de login paró una tarea. PAUSA las demás tareas activas (una sola ventana → el relanzado headed mata
-    sus pestañas) apuntándolas para reanudar, y abre la ventana de login (que ya vigila sola). Se reanudan en auth_done."""
+    """A login wall stopped a task. PAUSE the other active tasks (one window → headed relaunch kills their tabs), record
+    them for resumption, and open the login window (which watches itself). They resume in auth_done."""
     from . import tasks
     site = (site or _login_site_of(login_url)).strip().lower()
     _auth_resume[task_id] = {"goal": goal, "plan": plan, "site": site}
@@ -887,7 +888,7 @@ async def _begin_login(task_id: str, site: str, login_url: str, goal: str = "", 
 
 
 def _arm_login_watch(task_id: str, site: str) -> None:
-    """(Re)arma el POLLER que vigila la ventana de login (auto-detección + timeout suave)."""
+    """(Re)arm the POLLER that watches the login window (auto-detection + soft timeout)."""
     old = _login_timeouts.pop(task_id, None)
     if old:
         old.cancel()
@@ -898,9 +899,9 @@ def _arm_login_watch(task_id: str, site: str) -> None:
 
 
 async def _is_logged_in(task_id: str, tb, site: str) -> bool:
-    """¿La sesión ya está dada? Señal VERSÁTIL (sin adivinar nombres de cookie por sitio): la página YA NO es un
-    login/registro Y han aparecido cookies NUEVAS respecto al momento de abrir el login (el navegar el login por sí
-    solo no crea sesión; el login sí deja cookies y redirige fuera del formulario)."""
+    """Is the session established? VERSATILE signal (without guessing per-site cookie names): the page is NO LONGER a
+    login/registration page AND NEW cookies appeared compared with the moment login opened (navigating login by itself
+    does not create a session; signing in does leave cookies and redirects away from the form)."""
     from . import agent
     try:
         state = await tb.snapshot_for_agent()
@@ -908,15 +909,15 @@ async def _is_logged_in(task_id: str, tb, site: str) -> bool:
         return False
     url = state.get("url", "")
     if agent._looks_like_login(url, state.get("elements", "")) or _REGISTER_TEXT_RE.search(url):
-        return False                                              # sigue en login/registro
+        return False                                              # still on login/registration
     new_cookies = await _cookie_fingerprint(tb) - _auth_baseline_cookies.get(task_id, set())
     return len(new_cookies) >= 1
 
 
 async def _login_watch(task_id: str, site: str) -> None:
-    """VIGILA la ventana de login: cada `_LOGIN_POLL`s captura la página (la tarjeta la muestra en vivo) y comprueba
-    si la sesión ya está dada; con 2 lecturas seguidas positivas dispara `_auth_done` SOLO (cero pasos manuales).
-    `_LOGIN_TIMEOUT` sin terminar → recordatorio suave, sin matar. El botón/voz siguen como red de seguridad."""
+    """WATCH the login window: every `_LOGIN_POLL`s, capture the page (the card shows it live) and check whether the
+    session is established; 2 consecutive positive reads trigger `_auth_done` ALONE (zero manual steps).
+    `_LOGIN_TIMEOUT` unfinished → soft reminder, no kill. The button/voice remain as a safety net."""
     from . import tasks
     stable = 0
     waited = 0.0
@@ -927,16 +928,16 @@ async def _login_watch(task_id: str, site: str) -> None:
             waited += _LOGIN_POLL
             t = tasks.get(task_id)
             if not t or not t.get("awaiting_login"):
-                return                                            # resuelto por otra vía (botón/voz/cancel)
+                return                                            # resolved another way (button/voice/cancel)
             tb = _task_browsers.get(task_id)
             if tb is None:
                 return
             try:
-                await tb._capture()                               # refresca la captura viva en la tarjeta
+                await tb._capture()                               # refresh the live capture in the card
             except Exception:
                 pass
             stable = stable + 1 if await _is_logged_in(task_id, tb, site) else 0
-            if stable >= 2:                                       # confirmado en 2 lecturas → cierra solo
+            if stable >= 2:                                       # confirmed in 2 reads → close by itself
                 tasks.milestone(task_id, "✅ Detecté que ya iniciaste sesión")
                 await _auth_done(task_id)
                 return
@@ -954,24 +955,24 @@ async def _login_watch(task_id: str, site: str) -> None:
 
 
 async def _auth_done(task_id: str) -> None:
-    """El operador terminó de loguearse → vuelve a HEADLESS; la sesión queda en el perfil persistente (cookies en
-    disco). SONDA que la sesión cuajó de verdad; si sí, graba la miga de ALTA en memoria, limpia el checkpoint de
-    'a medias' y REANUDA (automático) las tareas que quedaron pausadas. Cierra la ventana visible (escritorio limpio)."""
+    """The operator finished signing in → return to HEADLESS; the session remains in the persistent profile (cookies on
+    disk). PROBE that the session really stuck; if so, record the ESTABLISHED breadcrumb in memory, clear the
+    half-finished checkpoint, and RESUME (automatically) the paused tasks. Close the visible window (clean desktop)."""
     global _visible_override, _auth_active
     from . import auth_memory, tasks
     w = _login_timeouts.pop(task_id, None)
     if w and w is not asyncio.current_task():
-        w.cancel()                                    # para el poller (salvo que sea él quien nos llama)
+        w.cancel()                                    # stop the poller (unless it is the caller)
     _auth_baseline_cookies.pop(task_id, None)
-    _visible_override = False                         # vuelve a headless
+    _visible_override = False                         # return to headless
     if task_id:
         tasks.set_login_wait(task_id, False)
         tasks.set_phase(task_id, "sesión guardada", False)
         tasks.milestone(task_id, "✅ Sesión guardada en el perfil")
         _task_browsers.pop(task_id, None)
-    await stop()                                      # cierra la ventana; el perfil (cookies) persiste → relanza headless
+    await stop()                                      # close the window; the profile (cookies) persists → relaunch headless
     site = _auth_active or (_auth_resume.get(task_id) or {}).get("site") or ""
-    # SONDA POST-LOGIN: ¿la sesión cuajó o rebotamos al login? (best-effort → ante duda asume OK, no bloquea).
+    # POST-LOGIN PROBE: did the session stick or did we bounce back to login? (best-effort → if unsure assume OK, do not block).
     if site and not await _probe_logged_in(site):
         tasks.milestone(task_id, "⚠️ No detecté la sesión iniciada; puede que el login no se completara.")
         auth_memory.checkpoint_auth_pending(site, task_id, (_auth_resume.get(task_id) or {}).get("goal", ""))
@@ -984,7 +985,7 @@ async def _auth_done(task_id: str) -> None:
             pass
         return
     if site:
-        auth_memory.record_session_established(site)  # ALTA recallable (el secreto sigue solo en el perfil)
+        auth_memory.record_session_established(site)  # recallable ESTABLISHED marker (the secret stays only in the profile)
     auth_memory.clear_auth_pending()
     _auth_active = ""
     await _resume_paused_tasks()
@@ -996,8 +997,8 @@ async def _auth_done(task_id: str) -> None:
 
 
 async def _resume_paused_tasks() -> None:
-    """Reanuda (re-encola `automate`) TODAS las tareas apuntadas al empezar el login: la que lo pidió + las que se
-    pausaron. Drena `_auth_resume`. Las canceladas o sin objetivo se descartan."""
+    """Resume (re-enqueue `automate`) ALL tasks recorded when login started: the requester + paused tasks. Drains
+    `_auth_resume`. Cancelled tasks or tasks without an objective are discarded."""
     from . import tasks
     items = list(_auth_resume.items())
     _auth_resume.clear()
@@ -1013,9 +1014,9 @@ async def _resume_paused_tasks() -> None:
 
 
 def _in_container() -> bool:
-    """¿Corremos en un contenedor headless (cloud), sin display para una ventana real? Mismo accessor que
-    `nucleo/workers/providers.py::_is_container()` — la licencia local de Claude Code y la ventana de login
-    comparten la misma limitación: ninguna de las dos existe dentro de un contenedor."""
+    """Are we running in a headless container (cloud), without a display for a real window? Same accessor as
+    `nucleo/workers/providers.py::_is_container()` — the local Claude Code license and the login window share the same
+    limitation: neither exists inside a container."""
     try:
         from config import doctor
         return bool(doctor.hardware().get("container"))
@@ -1024,9 +1025,9 @@ def _in_container() -> bool:
 
 
 async def _fail_paused_tasks(message: str) -> None:
-    """Cierra en LIMPIO la tarea que pidió el login + las que se pausaron esperándolo — hermana de
-    `_resume_paused_tasks`, para cuando el login NO puede resolverse en este entorno (en vez de dejarlas
-    colgadas para siempre esperando un login que nunca va a llegar)."""
+    """Cleanly close the task that requested login + tasks paused waiting for it — sibling of `_resume_paused_tasks`,
+    for cases where login CANNOT be resolved in this environment (instead of leaving them hanging forever waiting for
+    a login that will never happen)."""
     from . import tasks
     items = list(_auth_resume.items())
     _auth_resume.clear()
@@ -1037,14 +1038,14 @@ async def _fail_paused_tasks(message: str) -> None:
         tasks.finish(tid, "failed", message)
 
 
-# Solo intención FUERTE de login para detectar "hay que iniciar sesión" (no ambiguos como "mi cuenta"/"entrar",
-# que también salen ESTANDO logueado → falsos positivos).
+# Only STRONG login intent for detecting "sign-in required" (not ambiguous text like "my account"/"enter", which also
+# appears WHILE logged in → false positives).
 _LOGIN_STRICT_RE = re.compile(r"(iniciar sesi[oó]n|inicia sesi[oó]n|log ?in|sign ?in)", re.I)
 
 
 async def _find_login_affordance(page) -> bool:
-    """¿Hay en la página un enlace/botón VISIBLE de 'iniciar sesión'? Presencia = NO hay sesión (la web te invita a
-    entrar); ausencia (en una página que no es login) = ya estás dentro (te muestra tu menú de cuenta)."""
+    """Is there a VISIBLE 'sign in' link/button on the page? Presence = NO session (the site invites you to enter);
+    absence (on a page that is not login) = you are already in (it shows your account menu)."""
     try:
         cands = await page.query_selector_all("a, button, [role=button]")
     except Exception:
@@ -1064,10 +1065,10 @@ async def _find_login_affordance(page) -> bool:
 
 
 async def _already_authenticated(site: str) -> bool:
-    """¿YA hay sesión en `site`? Navega headless y comprueba que NO es una pantalla de login Y que NO hay un botón
-    de 'iniciar sesión' visible (la web ya te muestra tu cuenta). Evita reabrir el login cuando ya estás dentro
-    (bug 2026-07-10: reanudó la búsqueda y reabrió el login de Wallapop estando ya autenticado). Best-effort: ante
-    duda devuelve False (mejor comprobar el login que actuar sin cuenta)."""
+    """Is there ALREADY a session on `site`? Navigate headless and verify that it is NOT a login screen AND there is
+    NO visible 'sign in' button (the site already shows your account). Avoids reopening login when already inside
+    (bug 2026-07-10: resumed the search and reopened Wallapop login while already authenticated). Best-effort: if in
+    doubt return False (better to check login than act without an account)."""
     if not site:
         return False
     from . import agent
@@ -1085,8 +1086,8 @@ async def _already_authenticated(site: str) -> bool:
 
 
 async def _probe_logged_in(site: str) -> bool:
-    """Navega al sitio (headless) y comprueba que NO rebota a una pantalla de login → la sesión cuajó. Reutiliza el
-    detector de `agent._looks_like_login`. Best-effort: cualquier fallo → True (no bloquea por una sonda dudosa)."""
+    """Navigate to the site (headless) and verify it does NOT bounce to a login screen → the session stuck. Reuses the
+    `agent._looks_like_login` detector. Best-effort: any failure → True (do not block on a doubtful probe)."""
     if not site:
         return True
     from . import agent
@@ -1102,7 +1103,7 @@ async def _probe_logged_in(site: str) -> bool:
 
 
 def _login_site_of(url: str) -> str:
-    """Host legible (sin www) de una URL de login, para nombrar el sitio si el bucle no lo pasó."""
+    """Readable host (without www) from a login URL, used to name the site if the loop did not pass it."""
     try:
         from urllib.parse import urlsplit
         host = (urlsplit(url).hostname or "").lower()
@@ -1112,7 +1113,7 @@ def _login_site_of(url: str) -> str:
 
 
 async def _close_task(task_id: str) -> None:
-    """Cierra la pestaña de una tarea y la marca cancelada (al cerrar su tarjeta o por orden del operador)."""
+    """Close a task tab and mark it cancelled (when closing its card or by operator command)."""
     from . import tasks
     tb = _task_browsers.pop(task_id, None)
     if tb:
@@ -1161,12 +1162,12 @@ async def _click(x: float, y: float) -> None:
     _emit("click", f"{int(x)},{int(y)}")
     try:
         await page.mouse.click(x, y)
-        await asyncio.sleep(0.6)                       # deja que un clic que navega asiente
+        await asyncio.sleep(0.6)                       # let a navigating click settle
     except Exception as e:
         _write(loading=False, error=f"No pude hacer clic: {str(e).splitlines()[0][:160]}")
         return
     if page.url and (not _hist or page.url != _hist[_idx if 0 <= _idx < len(_hist) else -1]):
-        _hist = _hist[:_idx + 1] + [page.url]          # un clic que navegó empuja al historial
+        _hist = _hist[:_idx + 1] + [page.url]          # a click that navigated pushes to history
         _idx = len(_hist) - 1
     await _capture()
 
@@ -1191,7 +1192,7 @@ async def _press(key: str) -> None:
     await _capture()
 
 
-# ── YouTube (reproductor embed, no captura) ──────────────────────────────────────────────────────────────────
+# ── YouTube (embedded player, not screenshot) ────────────────────────────────────────────────────────────────
 async def _youtube(q: str, url: str) -> None:
     yid = _youtube_id(url) or (url if re.fullmatch(r"[0-9A-Za-z_-]{11}", url or "") else "")
     if yid:
@@ -1199,7 +1200,7 @@ async def _youtube(q: str, url: str) -> None:
         return
     if not q:
         return
-    # Resuelve el primer vídeo de la búsqueda con Chromium (sin API key): raspa "videoId" del HTML de resultados.
+    # Resolve the first search video with Chromium (no API key): scrape "videoId" from the results HTML.
     page = await _ensure_page()
     _write(loading=True, error="")
     _emit("yt_search", q)
@@ -1216,7 +1217,7 @@ async def _youtube(q: str, url: str) -> None:
     if m:
         await _show_youtube(m.group(1), q)
     else:
-        await _capture()                               # sin id → al menos muestra los resultados como página
+        await _capture()                               # no id → at least show the results as a page
 
 
 async def _show_youtube(video_id: str, title: str) -> None:
@@ -1229,22 +1230,22 @@ async def _show_youtube(video_id: str, title: str) -> None:
     _emit("youtube", video_id, title=title)
 
 
-# Acciones IRREVERSIBLES que exigen OK del operador antes de ejecutarse (confirm-gate). Conservador a propósito
-# (no gatear navegación normal): solo compra/pago/publicación/borrado explícitos.
+# IRREVERSIBLE actions that require operator OK before execution (confirm-gate). Intentionally conservative
+# (do not gate normal navigation): only explicit purchase/payment/publishing/deletion.
 _DANGER_RE = re.compile(
     r"\b(comprar|pagar|pagó|finalizar compra|realizar pedido|tramitar pedido|confirmar pedido|confirmar compra|"
     r"proceder al pago|publicar|eliminar cuenta|borrar cuenta|eliminar|borrar|checkout|buy now|buy|pay|purchase|"
     r"place order|confirm order|complete purchase|publish|delete account|delete)\b", re.I)
 
-# ── Automatizador: snapshot de accesibilidad + input humano + ejecutor de acciones (agent.py) ────────────────
+# ── Automator: accessibility snapshot + human input + action executor (agent.py) ────────────────────────────
 _INTERACTIVE = ("a, button, input, textarea, select, [role=button], [role=link], [role=textbox], "
                 "[role=checkbox], [role=radio], [role=tab], [role=menuitem], [role=combobox], [role=option]")
 
-# Extractor de ANUNCIOS reales de una rejilla de resultados (corre en la página) → {title,price,url,image}.
-# Endurecido (TASK 4): EXIGE precio (un anuncio tiene precio → fuera logos/nav/menús), EXCLUYE anuncios/tracking
-# (doubleclick/googleads/…/utm de campaña), y **dedup por FICHA** (mismo /item/ o mismo pathname → 1 sola vez, así
-# 30 tabs del mismo anuncio colapsan a uno). Prioriza enlaces de ficha (/item/, /p/, /producto, /anuncio). El
-# filtrado FINO por relevancia (esto es una moto de enduro, no un móvil "Moto G") lo hace el modelo en summarize.
+# Extractor for real LISTINGS from a results grid (runs in the page) → {title,price,url,image}.
+# Hardened (TASK 4): REQUIRE price (a listing has a price → exclude logos/nav/menus), EXCLUDE ads/tracking
+# (doubleclick/googleads/.../campaign utm), and **dedup by LISTING** (same /item/ or same pathname → 1 only, so
+# 30 links to the same listing collapse into one). Prioritize listing links (/item/, /p/, /producto, /anuncio).
+# The FINE relevance filtering (this is an enduro bike, not a "Moto G" phone) is done by the model in summarize.
 _JS_EXTRACT = r"""
 (limit) => {
   const out=[], seen=new Set();
@@ -1259,16 +1260,16 @@ _JS_EXTRACT = r"""
     const img=a.querySelector('img');
     const text=(a.innerText||'').trim();
     const pm=text.match(priceRe);
-    if(!pm) continue;                                   // SIN precio no es un anuncio (fuera logo/nav/banners sin €)
+    if(!pm) continue;                                   // Without a price, it is not a listing (exclude logo/nav/banners without €)
     let title=((img&&(img.alt||''))||text.split('\n').map(s=>s.trim()).find(s=>s.length>2 && !priceRe.test(s))||'').slice(0,90);
-    // clave de dedup: la FICHA (pathname sin query) → 30 enlaces al mismo anuncio = 1
+    // dedup key: the LISTING (pathname without query) → 30 links to the same listing = 1
     let key; try{ const u=new URL(href); key=u.origin+u.pathname; }catch(_){ key=href; }
     if(seen.has(key)) continue;
     let image=''; if(img){ try{ image=img.currentSrc||img.src||''; }catch(_){} }
     cands.push({title, price: pm[0].replace(/\s+/g,' ').trim(), url:href, image, _item: ITEM.test(href)});
     seen.add(key);
   }
-  // Si hay enlaces de FICHA de verdad, quédate solo con esos (descarta el resto de ruido con precio).
+  // If there are real LISTING links, keep only those (discard the remaining price-bearing noise).
   const items = cands.filter(c=>c._item);
   const list = (items.length ? items : cands).map(({_item, ...c})=>c);
   return list.slice(0, limit);
@@ -1277,7 +1278,7 @@ _JS_EXTRACT = r"""
 
 
 async def _describe_el(h) -> tuple[str, str]:
-    """Rol + nombre accesible de un elemento, para el snapshot de texto que lee el modelo."""
+    """Role + accessible name for an element, for the text snapshot read by the model."""
     tag = (await h.evaluate("e => e.tagName ? e.tagName.toLowerCase() : ''")) or ""
     role = await h.get_attribute("role")
     typ = (await h.get_attribute("type") or "").lower()
@@ -1306,9 +1307,9 @@ async def _describe_el(h) -> tuple[str, str]:
     return role, " ".join((name or "").split())
 
 
-# Descripción en BLOQUE (V2-036, fix de rendimiento #1): el `_describe_el` per-elemento hacía ~7 `await` por cada
-# uno × hasta 60 = cientos de round-trips que RETIENEN el GIL en el loop de uvicorn → hambreaban el pump de audio de
-# la voz (entrecortada). Este JS calcula rol+nombre+visibilidad de TODOS los interactivos en UNA sola llamada.
+# BULK description (V2-036, performance fix #1): per-element `_describe_el` did ~7 `await`s each × up to 60 = hundreds
+# of round trips that HELD the GIL in the uvicorn loop → starving the voice audio pump (choppy). This JS computes
+# role+name+visibility for ALL interactive elements in ONE call.
 _JS_DESCRIBE = r"""
 els => els.map(e => {
   const tag = e.tagName ? e.tagName.toLowerCase() : '';
@@ -1334,8 +1335,8 @@ els => els.map(e => {
 
 
 async def _bulk_metas(page) -> list:
-    """rol+nombre+visible de todos los interactivos en UNA llamada, alineado por índice con
-    query_selector_all(_INTERACTIVE) (mismo selector → mismo orden de documento). Fail-open a []."""
+    """role+name+visible for all interactive elements in ONE call, aligned by index with
+    query_selector_all(_INTERACTIVE) (same selector → same document order). Fail-open to []."""
     try:
         return await page.eval_on_selector_all(_INTERACTIVE, _JS_DESCRIBE)
     except Exception:
@@ -1343,8 +1344,8 @@ async def _bulk_metas(page) -> list:
 
 
 def _snapshot_lines(handles: list, metas: list, refmap: dict) -> list:
-    """Compone las líneas [ref] rol \"nombre\" a partir de los handles + sus metas en bloque, y rellena refmap
-    (ref→handle) para que agent_act resuelva la ref de ESTE paso. Cap a 60. Sin awaits (todo el I/O ya se hizo)."""
+    """Compose [ref] role \"name\" lines from handles + their bulk metadata, and fill refmap (ref→handle) so
+    agent_act resolves this step's ref. Cap at 60. No awaits (all I/O is already done)."""
     lines: list = []
     ref = 0
     for i, h in enumerate(handles):
@@ -1364,10 +1365,10 @@ def _snapshot_lines(handles: list, metas: list, refmap: dict) -> list:
 
 
 async def snapshot_for_agent() -> dict:
-    """Devuelve {url, title, elements} — la lista compacta de elementos interactivos VISIBLES con ref numérica,
-    y rellena _refs (ref → handle) para que agent_act resuelva la ref de ESTE paso. Cap a 60 para acotar tokens.
-    ANTES del snapshot, cierra banners de cookies que puedan bloquear la interacción — el automatizador llama a
-    esto en cada paso, así que es el punto único y fiable de limpieza."""
+    """Return {url, title, elements} — the compact list of VISIBLE interactive elements with numeric refs, and fill
+    _refs (ref → handle) so agent_act resolves the ref for THIS step. Cap at 60 to bound tokens. BEFORE the snapshot,
+    close cookie banners that may block interaction — the automator calls this on every step, so this is the single
+    reliable cleanup point."""
     global _refs
     page = await _ensure_page()
     await _dismiss_overlays(page)
@@ -1376,7 +1377,7 @@ async def snapshot_for_agent() -> dict:
         handles = await page.query_selector_all(_INTERACTIVE)
     except Exception:
         handles = []
-    metas = await _bulk_metas(page)          # UNA llamada (no ~7×N) → no hambrea la voz por GIL
+    metas = await _bulk_metas(page)          # ONE call (not ~7×N) → does not starve voice through the GIL
     lines = _snapshot_lines(handles, metas, _refs)
     title = ""
     try:
@@ -1387,13 +1388,13 @@ async def snapshot_for_agent() -> dict:
 
 
 async def _human_move(page, tx: float, ty: float, mouse: dict | None = None) -> None:
-    """Mueve el ratón de la posición actual a (tx,ty) por una curva Bézier con jitter y micro-pausas — parece
-    humano y NO cuesta tokens (vive aquí, no en el modelo). `mouse` = dict de posición POR PESTAÑA (cada tarea
-    tiene su ratón); por defecto el del tab principal (browse_web)."""
+    """Move the mouse from its current position to (tx,ty) along a Bezier curve with jitter and micro-pauses — it looks
+    human and costs NO tokens (lives here, not in the model). `mouse` = position dict PER TAB (each task has its
+    mouse); defaults to the main tab's mouse (browse_web)."""
     m = mouse if mouse is not None else _mouse
     sx, sy = m["x"], m["y"]
     steps = random.randint(8, 18)
-    cx = (sx + tx) / 2 + random.uniform(-60, 60)       # punto de control aleatorio → trayectoria curva
+    cx = (sx + tx) / 2 + random.uniform(-60, 60)       # random control point → curved trajectory
     cy = (sy + ty) / 2 + random.uniform(-40, 40)
     for i in range(1, steps + 1):
         t = i / steps
@@ -1417,24 +1418,24 @@ async def _human_click_handle(page, h, mouse: dict | None = None) -> None:
         await asyncio.sleep(random.uniform(0.05, 0.18))
         await page.mouse.click(tx, ty, delay=random.randint(40, 110))
     else:
-        await h.click(timeout=5000)                    # fallback si no hay caja (elemento sin layout)
+        await h.click(timeout=5000)                    # fallback if there is no box (element without layout)
 
 
 async def _human_type_handle(page, h, text: str, submit: bool, mouse: dict | None = None) -> None:
-    await _human_click_handle(page, h, mouse)          # enfoca haciendo clic, como un humano
+    await _human_click_handle(page, h, mouse)          # focus by clicking, like a human
     try:
-        await h.fill("")                               # limpia el campo antes de teclear
+        await h.fill("")                               # clear the field before typing
     except Exception:
         pass
-    await page.keyboard.type(text, delay=random.randint(40, 120))   # tecleo con jitter
+    await page.keyboard.type(text, delay=random.randint(40, 120))   # typing with jitter
     if submit:
         await asyncio.sleep(random.uniform(0.2, 0.5))
         await page.keyboard.press("Enter")
 
 
 async def screenshot_b64() -> str:
-    """Captura FRESCA del viewport (1280×800) en base64 — la usa el modo VISIÓN del automatizador cuando el DOM no
-    basta (need_vision). No escribe a disco (eso lo hace _capture para el widget); aquí solo se necesitan los bytes."""
+    """FRESH viewport capture (1280×800) in base64 — used by the automator's VISION mode when the DOM is not enough
+    (need_vision). Does not write to disk (_capture does that for the widget); only bytes are needed here."""
     import base64
     page = await _ensure_page()
     png = await page.screenshot(type="png", full_page=False)
@@ -1442,7 +1443,7 @@ async def screenshot_b64() -> str:
 
 
 async def _human_click_at(page, x: float, y: float, mouse: dict | None = None) -> None:
-    """Clic humano en coordenadas ABSOLUTAS del viewport (modo visión: el modelo mira la captura y da píxeles)."""
+    """Human click at ABSOLUTE viewport coordinates (vision mode: the model sees the screenshot and returns pixels)."""
     m = mouse if mouse is not None else _mouse
     await _human_move(page, x + random.uniform(-3, 3), y + random.uniform(-3, 3), m)
     await asyncio.sleep(random.uniform(0.05, 0.18))
@@ -1450,8 +1451,8 @@ async def _human_click_at(page, x: float, y: float, mouse: dict | None = None) -
 
 
 async def agent_act(action: str, args: dict) -> tuple[bool, str]:
-    """Ejecuta UNA acción del automatizador con comportamiento humano. Devuelve (ok, nota). No lanza.
-    Acciones DOM (ref del snapshot): click/type. Acciones VISIÓN (coordenadas de la captura): click_at/type_at."""
+    """Execute ONE automator action with human-like behavior. Returns (ok, note). Does not raise.
+    DOM actions (snapshot ref): click/type. VISION actions (screenshot coordinates): click_at/type_at."""
     page = await _ensure_page()
     try:
         if action == "navigate":
@@ -1463,7 +1464,7 @@ async def agent_act(action: str, args: dict) -> tuple[bool, str]:
         if action == "press":
             await _press(str(args.get("key", "Enter")))
             return True, "tecla pulsada"
-        if action in ("click_at", "type_at"):                  # modo VISIÓN — coordenadas de la captura
+        if action in ("click_at", "type_at"):                  # VISION mode — screenshot coordinates
             x, y = float(args.get("x", 0)), float(args.get("y", 0))
             _write(loading=True)
             _emit("vision_" + ("click" if action == "click_at" else "type"), f"{int(x)},{int(y)}")
@@ -1498,32 +1499,32 @@ async def agent_act(action: str, args: dict) -> tuple[bool, str]:
     return False, f"acción desconocida: {action}"
 
 
-# ── TaskBrowser: UNA PESTAÑA dedicada a una tarea ────────────────────────────────────────────────────────────
-# Encapsula su page + ratón + refs y expone la MISMA interfaz que agent.py espera de `owner` (snapshot_for_agent /
-# agent_act / screenshot_b64 / _emit), para conducir SU pestaña sin tocar el estado del tab principal (browse_web).
-# Correspondencia 1:1  tarea ↔ pestaña ↔ tarjeta del canvas. Todas las pestañas viven en la MISMA ventana (contexto
-# persistente compartido). Reutiliza los helpers page-paramétricos (_human_*, _dismiss_overlays, _describe_el).
+# ── TaskBrowser: ONE TAB dedicated to a task ─────────────────────────────────────────────────────────────────
+# Encapsulates its page + mouse + refs and exposes the SAME interface that agent.py expects from `owner`
+# (snapshot_for_agent / agent_act / screenshot_b64 / _emit), so it can drive ITS tab without touching the main tab
+# state (browse_web). 1:1 mapping: task ↔ tab ↔ canvas card. All tabs live in the SAME window (shared persistent
+# context). Reuses page-parametric helpers (_human_*, _dismiss_overlays, _describe_el).
 class TaskBrowser:
     def __init__(self, task_id: str):
         self.task_id = task_id
         self.page = None
-        self.mouse = {"x": 0.0, "y": 0.0}   # ratón PROPIO de esta pestaña
+        self.mouse = {"x": 0.0, "y": 0.0}   # this tab's OWN mouse
         self.refs: dict = {}
         self.rev = 0
 
     async def ensure(self):
         if self.page is not None and not self.page.is_closed():
             return self.page
-        await _ensure_page()                 # garantiza la ventana (contexto persistente) + tab principal
-        self.page = await _context.new_page()   # nueva PESTAÑA en la MISMA ventana
+        await _ensure_page()                 # ensure the window (persistent context) + main tab
+        self.page = await _context.new_page()   # new TAB in the SAME window
         self._emit("tab_open", f"pestaña de la tarea {self.task_id}")
         return self.page
 
     def _emit(self, label: str, text: str = "", **extra) -> None:
-        # SOLO observador (/debug). Los clics/navegaciones/capturas NO van al feed de la tarjeta: el feed cuenta el
-        # PROCESO (fases + hitos), no cada acción. Los hitos los empuja el flujo (_automate) con tasks.milestone.
-        # V2-044: cada paso de navegación se encadena a la frase que pidió la tarea (el owner corre en el loop del
-        # server, sin contexto del turno → el trace vive en el registro de tareas).
+        # Observer only (/debug). Clicks/navigation/captures do NOT go to the card feed: the feed tells the PROCESS
+        # (phases + milestones), not every action. Milestones are pushed by the flow (_automate) with tasks.milestone.
+        # V2-044: each navigation step is chained to the phrase that requested the task (the owner runs in the server
+        # loop, without turn context → the trace lives in the task registry).
         if "trace" not in extra:
             try:
                 from widgets.navegador import tasks as _tasks
@@ -1538,11 +1539,11 @@ class TaskBrowser:
     async def _capture(self) -> None:
         page = self.page
         shot = f"{store.data_dir(WID)}/shot-{self.task_id}.png"
-        async with _shot_lock:               # serializa capturas entre tareas paralelas
-            # SIN bring_to_front: en headless (por defecto) todas las pestañas pintan; y traerla al frente robaba
-            # el foco/cursor del operador (no podía escribir en su ordenador). Playwright fotografía tabs de fondo.
+        async with _shot_lock:               # serialize captures across parallel tasks
+            # NO bring_to_front: in headless (default) all tabs render; bringing it to front also stole the operator's
+            # focus/cursor (they could not type on their computer). Playwright screenshots background tabs.
             await page.screenshot(path=shot, type="png", full_page=False)
-        # OFF-LOOP (V2-035): el composite PIL del cursor a un hilo → no roba GIL al pump de audio del TTS (voz).
+        # OFF-LOOP (V2-035): move PIL cursor compositing to a thread → does not steal GIL from the TTS audio pump.
         await asyncio.to_thread(_draw_cursor, shot, self.mouse["x"], self.mouse["y"])
         self.rev += 1
         title = ""
@@ -1567,9 +1568,9 @@ class TaskBrowser:
         await self._capture()
 
     async def _reap_popups(self) -> None:
-        """TASK 3 — no acumular pestañas: cierra los popups (target=_blank) que la web abre al hacer clic (visto:
-        30 pestañas en un estudio). Si el popup era la ficha que íbamos a ver, ABSORBE su URL en NUESTRA pestaña y
-        lo cierra → una ficha = misma pestaña, se procesa y se descarta. Nunca toca la pestaña de otra tarea."""
+        """TASK 3 — avoid accumulating tabs: close popups (target=_blank) that the website opens after clicking (seen:
+        30 tabs in one study). If the popup was the listing we meant to view, ABSORB its URL into OUR tab and close it
+        → one listing = same tab, processed and discarded. Never touches another task's tab."""
         try:
             ctx = self.page.context
         except Exception:
@@ -1594,7 +1595,7 @@ class TaskBrowser:
                 pass
 
     async def open_target(self, raw: str) -> None:
-        """Navegación simple (browse, sin bucle): abre una URL/dominio, o busca si es texto suelto, o YouTube."""
+        """Simple navigation (browse, no loop): open a URL/domain, or search if it is loose text, or YouTube."""
         raw = (raw or "").strip()
         if not raw:
             return
@@ -1634,7 +1635,7 @@ class TaskBrowser:
             handles = await page.query_selector_all(_INTERACTIVE)
         except Exception:
             handles = []
-        metas = await _bulk_metas(page)          # UNA llamada (no ~7×N) → no hambrea la voz por GIL (V2-036 fix #1)
+        metas = await _bulk_metas(page)          # ONE call (not ~7×N) → does not starve voice through the GIL (V2-036 fix #1)
         lines = _snapshot_lines(handles, metas, self.refs)
         title = ""
         try:
@@ -1689,8 +1690,8 @@ class TaskBrowser:
             if h is None:
                 return False, f"ref {ref} no existe en el snapshot actual"
             if action == "click":
-                # CONFIRM-GATE (seguridad): si el botón parece IRREVERSIBLE (comprar/pagar/publicar/borrar…), PARA
-                # y pide OK al operador ANTES de pulsar. El automatizador nunca compra/publica/borra a ciegas.
+                # CONFIRM-GATE (safety): if the button looks IRREVERSIBLE (buy/pay/publish/delete...), STOP and ask
+                # the operator for OK BEFORE clicking. The automator never buys/publishes/deletes blindly.
                 try:
                     _, _name = await _describe_el(h)
                 except Exception:
@@ -1700,7 +1701,7 @@ class TaskBrowser:
                         return False, f"acción «{_name[:40]}» NO confirmada por el operador"
                 await _human_click_handle(page, h, self.mouse)
                 await asyncio.sleep(0.7)
-                await self._reap_popups()                     # TASK 3: absorbe/cierra popups → sin acumular tabs
+                await self._reap_popups()                     # TASK 3: absorb/close popups → no accumulated tabs
                 await self._capture()
                 return True, "clic hecho"
             if action == "type":
@@ -1709,9 +1710,9 @@ class TaskBrowser:
                 await self._capture()
                 return True, "texto escrito"
             if action == "select_option":
-                # <select> NATIVO: no se rellena con type/click_at (el popup nativo no es scrapeable). Playwright
-                # `select_option` lo resuelve por LABEL (texto visible), value o índice. Sin esto, un desplegable
-                # obligatorio de un formulario (motivo de anulación ITV, fechas…) BLOQUEA al worker → timeout.
+                # NATIVE <select>: cannot be filled with type/click_at (the native popup is not scrapeable).
+                # Playwright `select_option` resolves it by LABEL (visible text), value, or index. Without this, a
+                # required form dropdown (ITV cancellation reason, dates...) BLOCKS the worker → timeout.
                 val = str(args.get("value") or args.get("text") or args.get("label") or "").strip()
                 idx = args.get("index")
                 try:
@@ -1721,7 +1722,7 @@ class TaskBrowser:
                         try:
                             await h.select_option(label=val)
                         except Exception:
-                            await h.select_option(val)   # value o label genérico (fallback)
+                            await h.select_option(val)   # value or generic label (fallback)
                 except Exception as e:  # noqa: BLE001
                     return False, f"no pude seleccionar «{val or idx}» en el desplegable: {str(e).splitlines()[0][:80]}"
                 await asyncio.sleep(0.4)
@@ -1732,8 +1733,8 @@ class TaskBrowser:
         return False, f"acción desconocida: {action}"
 
     async def _confirm(self, label: str) -> bool:
-        """Pide OK al operador para una acción irreversible y ESPERA su respuesta (por voz, enrutada a esta tarea).
-        Devuelve True si la aprueba. Timeout ~60s → no ejecuta (fail-safe). Cancelable."""
+        """Ask the operator for OK on an irreversible action and WAIT for the response (by voice, routed to this task).
+        Returns True if approved. Timeout ~60s → do not execute (fail-safe). Cancellable."""
         from . import tasks
         tasks.ask(self.task_id, f"Voy a pulsar «{label[:50]}». ¿Lo confirmo? (dime sí o no)")
         try:
@@ -1758,8 +1759,8 @@ class TaskBrowser:
         return False
 
     async def extract_listings(self, limit: int = 14) -> list:
-        """Raspa la página ACTUAL en busca de 'anuncios'/resultados: enlaces con imagen y/o precio (genérico —
-        Wallapop, Idealista, tiendas). Devuelve [{title, price, url, image}]. No lanza."""
+        """Scrape the CURRENT page for 'listings'/results: links with image and/or price (generic — Wallapop,
+        Idealista, stores). Returns [{title, price, url, image}]. Does not raise."""
         try:
             return await self.page.evaluate(_JS_EXTRACT, limit) or []
         except Exception:

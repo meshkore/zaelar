@@ -1,22 +1,22 @@
-"""widgets/lifecycle.py — CICLO DE VIDA de un widget + su integración con la MEMORIA (V2-017).
+"""widgets/lifecycle.py: widget lifecycle plus memory integration (V2-017).
 
-Un widget nace (CREATE), cambia (MODIFY) y muere (DELETE). Cada transición tiene que dejar rastro en la
-**memoria central** (`memory/`) — no para que el widget "exista" en memoria (el catálogo vivo es la fuente de
-verdad de qué hay en el canvas), sino para que zaelar tenga MEMORIA HUMANA de lo que hizo: si mañana el operador
-pregunta "¿dónde está el widget de aquel que teníamos?", zaelar debe poder decir "lo mandaste borrar el <fecha>".
+A widget is born (CREATE), changes (MODIFY), and dies (DELETE). Each transition must leave a trace in central
+memory (`memory/`), not so the widget "exists" in memory (the live catalog is the source of truth for what is on
+the canvas), but so zaelar has human memory of what it did: if tomorrow the operator asks where an old widget went,
+zaelar can answer that it was deleted on a specific date.
 
-Reglas (ver `zaelar-memory.md §Acciones ↔ memoria`):
-  - **Nunca se borra el histórico.** Borrar un widget elimina su CÓDIGO y sus DATOS del disco, pero escribe un
-    evento de memoria («borrado el <fecha> a petición del operador»). El recuerdo de su creación se conserva —
-    tener ambos (creado el X, borrado el Y) ES la historia. El retriever los sirve; el catálogo vivo ya NO lo
-    lista, así que zaelar no alucina que sigue ahí.
-  - **La memoria la escriben los widgets por la fachada** (`memory.write`, cola async loop-agnóstica) — los
-    widgets durables son escritores sancionados de la memoria (ver CLAUDE.md).
+Rules (see `zaelar-memory.md` actions <-> memory section):
+  - **History is never deleted.** Deleting a widget removes its CODE and DATA from disk, but writes a memory event
+    saying it was deleted on the date at the operator's request. The creation memory is preserved; having both
+    created-at and deleted-at is the history. The retriever serves them; the live catalog no longer lists it, so
+    zaelar does not hallucinate that it is still present.
+  - **Widgets write memory through the facade** (`memory.write`, loop-agnostic async queue); durable widgets are
+    sanctioned memory writers (see CLAUDE.md).
 
-BORRAR es DETERMINISTA (rm de carpeta + `store.delete` + invalidar catálogo + cerrar la tarjeta): NO necesita el
-agente de código headless (eso es solo para CREAR/MODIFICAR, que escriben código). Por eso lo puede disparar el
-FlashBrain al instante (tras confirmación — ver `widgets/confirm.py`), en el loop que resuelva la confirmación
-(job-thread de voz o loop del server): `delete_widget` es una corrutina que corre el I/O de disco en un hilo.
+DELETE is deterministic (rm folder + `store.delete` + invalidate catalog + close the card). It does NOT need the
+headless code agent, which is only for CREATE/MODIFY because those write code. Therefore FlashBrain can trigger it
+instantly after confirmation (see `widgets/confirm.py`) in the loop resolving confirmation, either the voice
+job-thread or the server loop: `delete_widget` is a coroutine that runs disk I/O in a thread.
 """
 from __future__ import annotations
 
@@ -33,8 +33,8 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 
 
 def _emit_widget(action: str, wid: str, src: str = "system") -> None:
-    """Evento de canvas (observer → SSE /events): el frontend cierra/actualiza la tarjeta. Best-effort.
-    V2-039: `src` = quién ordenó el borrado (flash / user / worker / system)."""
+    """Canvas event (observer -> SSE /events): the frontend closes/updates the card. Best-effort.
+    V2-039: `src` = who ordered deletion (flash / user / worker / system)."""
     try:
         from voice.observer import emit
         emit("widget", action, extra={"id": wid, "src": src})
@@ -43,8 +43,8 @@ def _emit_widget(action: str, wid: str, src: str = "system") -> None:
 
 
 def _mem_write(text: str, importance: float) -> None:
-    """Escribe un evento de ciclo de vida en la memoria central. `memory.write` encola de forma loop-agnóstica
-    (call_soon_threadsafe), así que es seguro llamarlo desde el job-thread de voz o el loop del server."""
+    """Write a lifecycle event to central memory. `memory.write` enqueues loop-agnostically
+    (call_soon_threadsafe), so it is safe from the voice job-thread or the server loop."""
     try:
         from memory import api as memory
         memory.write(text, kind="event", level="mid", importance=importance)
@@ -53,8 +53,8 @@ def _mem_write(text: str, importance: float) -> None:
 
 
 def record_created(widget_id: str, spec: str = "") -> None:
-    """Da de ALTA en memoria un widget recién creado (evento recallable, con id + qué muestra + fecha). Lo llama
-    el agente de código del SlowBrain tras generar el widget. Best-effort."""
+    """Register a newly created widget in memory as a recallable event with id, purpose, and date. Called by the
+    SlowBrain code agent after generation. Best-effort."""
     wid = (widget_id or "").strip().lower()
     if not wid:
         return
@@ -62,15 +62,15 @@ def record_created(widget_id: str, spec: str = "") -> None:
     title = meta.get("title") or wid
     what = (meta.get("whenToUse") or "").strip() or (spec or "").strip()[:100]
     when = time.strftime("%Y-%m-%d")
-    tail = f" para: {what}." if what else "."
-    _mem_write(f"[widget:{wid}] El widget «{title}» fue CREADO el {when}{tail}", importance=0.5)
+    tail = f" for: {what}." if what else "."
+    _mem_write(f"[widget:{wid}] Widget '{title}' was CREATED on {when}{tail}", importance=0.5)
 
 
 async def delete_widget(widget_id: str, src: str = "system") -> dict:
-    """BORRA un widget para siempre: quita su carpeta (`widgets/<id>/`) y su store privado (`_data/<id>/`),
-    invalida el catálogo, cierra su tarjeta en el canvas y escribe la LÁPIDA en memoria (histórico conservado).
-    Determinista, sin agente headless. Corre el I/O de disco en un hilo. Nunca lanza.
-    V2-039: `src` = quién ordenó el borrado (para la auditoría del canvas)."""
+    """Delete a widget forever: remove its folder (`widgets/<id>/`) and private store (`_data/<id>/`), invalidate
+    the catalog, close its card on the canvas, and write the tombstone to memory with history preserved.
+    Deterministic, no headless agent. Runs disk I/O in a thread. Never raises.
+    V2-039: `src` = who ordered deletion for canvas audit."""
     wid = (widget_id or "").strip().lower()
     if not wid:
         return {"ok": False, "error": "id vacío"}
@@ -88,21 +88,21 @@ async def delete_widget(widget_id: str, src: str = "system") -> dict:
             except Exception as e:  # noqa: BLE001
                 logger.warning(f"widget lifecycle: rmtree {folder} falló: {e}")
         try:
-            store.delete(wid)          # su store privado muere con él (state.json + media)
+            store.delete(wid)          # its private store dies with it (state.json + media)
         except Exception:
             pass
 
     await asyncio.to_thread(_rm)
-    runtime.invalidate()               # el catálogo/identify dejan de conocerlo YA (el cerebro no lo mostrará)
-    _emit_widget("delete", wid, src)   # cierra la tarjeta abierta en el canvas (con procedencia)
+    runtime.invalidate()               # catalog/identify stop knowing it immediately; the brain will not show it
+    _emit_widget("delete", wid, src)   # close the open card on the canvas, with provenance
 
-    # LÁPIDA en memoria: NO borramos el histórico. Evento recallable → "lo mandaste borrar el <fecha>".
+    # Memory tombstone: do NOT delete history. Recallable event saying the operator ordered deletion on this date.
     when = time.strftime("%Y-%m-%d")
     desc = f" ({what})" if what else ""
     _mem_write(
-        f"[widget:{wid}] El widget «{title}»{desc} fue BORRADO el {when} a petición del operador. Ya no existe "
-        f"en el canvas; si el operador pregunta por él, recuérdale que lo mandó borrar.",
+        f"[widget:{wid}] Widget '{title}'{desc} was DELETED on {when} at the operator's request. It no longer "
+        f"exists on the canvas; if the operator asks about it, remind them they ordered its deletion.",
         importance=0.55,
     )
-    logger.info(f"widget lifecycle: BORRADO '{wid}' (carpeta+store+lápida en memoria)")
+    logger.info(f"widget lifecycle: DELETED '{wid}' (folder+store+memory tombstone)")
     return {"ok": True, "id": wid, "title": title}

@@ -1,18 +1,18 @@
-"""config/doctor.py — DETECTOR de capacidades del sistema (V2-040).
+"""config/doctor.py — system capability DETECTOR (V2-040).
 
-Evalúa la máquina y el software instalado para que el **wizard de primer arranque** (y un deploy headless) sepan
-QUÉ se puede usar y qué falta: hardware (Apple Silicon/CUDA/RAM), servicios locales (Ollama + sus modelos), binarios
-(`claude` CLI, `livekit-server`, Chromium de Playwright), dependencias Python opcionales, y qué **credenciales** hay
-puestas (solo el HECHO, nunca el secreto). Recomienda un perfil (`local` si hay Ollama + Apple Silicon; si no,
-`cloud`).
+Evaluates the machine and installed software so the **first-run wizard** (and a headless deploy) know WHAT can be
+used and what is missing: hardware (Apple Silicon/CUDA/RAM), local services (Ollama + its models), binaries
+(`claude` CLI, `livekit-server`, Playwright Chromium), optional Python dependencies, and which **credentials** are
+set (only the FACT, never the secret). Recommends a profile (`local` if Ollama + Apple Silicon are present;
+otherwise `cloud`).
 
-DOS bocas, un solo detector (decisión del operador 2026-07-15):
-  - **CLI**:  `python -m config.doctor`  → escribe el informe JSON a `.meshkore/logs/system-report.json` y lo
-    imprime legible. Usable en la instalación o en un arranque headless/cloud.
-  - **Web**:  el server (local) lo llama en caliente (`report(refresh=True)`) desde el wizard — un botón «re-analizar».
+TWO mouths, one detector (operator decision 2026-07-15):
+  - **CLI**:  `python -m config.doctor`  → writes the JSON report to `.meshkore/logs/system-report.json` and prints
+    it readably. Usable during installation or on a headless/cloud boot.
+  - **Web**:  the (local) server calls it live (`report(refresh=True)`) from the wizard — a "re-analyze" button.
 
-Diseño: import-LIGERO y DEFENSIVO. Nada de importar los plugins pesados de LiveKit solo para sondear; cada sonda
-falla-blando (una capacidad no detectada = `False`/`"unknown"`, nunca una excepción que tumbe el arranque).
+Design: LIGHT and DEFENSIVE imports. Do not import heavy LiveKit plugins just to probe; every probe fails softly
+(an undetected capability = `False`/`"unknown"`, never an exception that breaks boot).
 """
 from __future__ import annotations
 
@@ -26,13 +26,13 @@ _HERE = Path(__file__).resolve().parent
 _ROOT = _HERE.parent
 REPORT_PATH = _ROOT / ".meshkore" / "logs" / "system-report.json"
 
-# Formato del informe: subir la versión cuando cambie el esquema para que la web sepa releer.
+# Report format: bump the version when the schema changes so the web knows to reread.
 SCHEMA = 2
 
 
-# ── credenciales conocidas (solo presencia, jamás el valor) ────────────────────────────────────────────────
-# Catálogo de las keys que el sistema entiende, con QUÉ habilita cada una y en qué perfil es RELEVANTE. La web lo
-# usa para pedir solo lo que falta del perfil elegido. `env` = variable(s) que la aportan (la 1ª no vacía cuenta).
+# ── known credentials (presence only, never the value) ─────────────────────────────────────────────────────
+# Catalog of keys the system understands, WHAT each enables, and which profile it is RELEVANT for. The web uses it
+# to ask only for what the chosen profile lacks. `env` = variable(s) that provide it (the 1st non-empty one counts).
 CREDENTIALS = [
     {"key": "aimlapi", "env": ["AIMLAPI_KEY", "FAST_API_KEY"], "enables": "FlashBrain en la nube (Haiku/Grok)",
      "profiles": ["cloud"]},
@@ -60,17 +60,17 @@ def _key_present(spec: dict) -> bool:
 
 
 def credentials() -> list[dict]:
-    """Estado (redactado) de cada credencial conocida: `{key, enables, profiles, set: bool, env}`. `set` es solo el
-    HECHO de que hay valor — el secreto NUNCA sale. Lee la cadena de env que ya carga `server/common.py` (store de
-    credenciales > .env > proceso)."""
+    """REDACTED state for each known credential: `{key, enables, profiles, set: bool, env}`. `set` is only the FACT
+    that a value exists — the secret NEVER leaves. Reads the env chain already loaded by `server/common.py`
+    (credential store > .env > process)."""
     return [{"key": c["key"], "enables": c["enables"], "profiles": c["profiles"],
              "env": c["env"], "set": _key_present(c)} for c in CREDENTIALS]
 
 
 # ── hardware ───────────────────────────────────────────────────────────────────────────────────────────────
 def hardware() -> dict:
-    """Aceleración local disponible. Reusa el detector del motor de voz (`accel.detect`) y añade el tipo de host —
-    contenedor vs bare-metal — porque el deploy cloud (Linux/contenedor) NO tiene ninguna ruta Metal."""
+    """Available local acceleration. Reuses the voice-engine detector (`accel.detect`) and adds host type —
+    container vs bare-metal — because cloud deploys (Linux/container) have NO Metal path."""
     hw: dict = {"platform": "unknown", "arch": "unknown", "apple_silicon": False,
                 "metal": False, "cuda": False, "rocm": False, "ram_gb": None}
     try:
@@ -96,16 +96,16 @@ def _in_container() -> bool:
     return False
 
 
-# ── Ollama (servicio local + modelos) ────────────────────────────────────────────────────────────────────
+# ── Ollama (local service + models) ───────────────────────────────────────────────────────────────────────
 def _ollama_url() -> str:
     base = (os.getenv("ZAELAR_EMBED_HOST") or os.getenv("OLLAMA_HOST")
             or os.getenv("ZAELAR_LOCAL_LLM_URL") or "http://localhost:11434").strip()
-    # normaliza un `/v1` colgando (la API de tags vive en la raíz, no en el shim OpenAI)
+    # normalize a dangling `/v1` (the tags API lives at the root, not in the OpenAI shim)
     return base[:-3].rstrip("/") if base.endswith("/v1") else base.rstrip("/")
 
 
 def ollama(timeout: float = 2.0) -> dict:
-    """¿Corre Ollama? ¿qué modelos tiene pulled? — para saber si el perfil `local` es viable sin tirar nada."""
+    """Is Ollama running? Which models are pulled? — used to know whether the `local` profile is viable safely."""
     url = _ollama_url()
     out = {"reachable": False, "url": url, "models": []}
     try:
@@ -120,8 +120,8 @@ def ollama(timeout: float = 2.0) -> dict:
 
 
 def _has_ollama_model(models: list[str], want: str) -> bool:
-    """¿Está `want` (p.ej. 'qwen2.5:7b-instruct' o 'embeddinggemma') entre los modelos? Casa por prefijo de tag
-    (un `qwen2.5:7b-instruct` cumple 'qwen2.5' y viceversa el nombre pelado casa cualquier tag)."""
+    """Is `want` (e.g. 'qwen2.5:7b-instruct' or 'embeddinggemma') among the models? Matches by tag prefix (a
+    `qwen2.5:7b-instruct` satisfies 'qwen2.5', and conversely a bare name matches any tag)."""
     w = (want or "").strip().lower()
     wbase = w.split(":")[0]
     for m in models:
@@ -131,9 +131,9 @@ def _has_ollama_model(models: list[str], want: str) -> bool:
     return False
 
 
-# ── binarios / tooling ──────────────────────────────────────────────────────────────────────────────────
+# ── binaries / tooling ──────────────────────────────────────────────────────────────────────────────────
 def _find_claude() -> str | None:
-    """Localiza el `claude` CLI (Claude Code) igual que los workers (`nucleo/workers/claude_session`)."""
+    """Locate the `claude` CLI (Claude Code) the same way workers do (`nucleo/workers/claude_session`)."""
     env = (os.getenv("CLAUDE_BIN") or "").strip()
     if env and Path(env).exists():
         return env
@@ -151,12 +151,12 @@ def _find_claude() -> str | None:
 
 
 def _playwright_chromium() -> bool:
-    """¿Está el binario de Chromium de Playwright instalado (no solo el paquete pip)?"""
+    """Is the Playwright Chromium binary installed (not just the pip package)?"""
     try:
         from playwright._impl._driver import compute_driver_executable  # noqa: F401
     except Exception:
         return False
-    # ~/.cache/ms-playwright/chromium-* (Linux/Mac) o %USERPROFILE%\AppData\Local\ms-playwright (Win)
+    # ~/.cache/ms-playwright/chromium-* (Linux/Mac) or %USERPROFILE%\AppData\Local\ms-playwright (Win)
     import glob
     roots = [Path.home() / ".cache" / "ms-playwright",
              Path.home() / "Library" / "Caches" / "ms-playwright",
@@ -182,7 +182,7 @@ def tooling() -> dict:
         "codex_cli": shutil.which(os.getenv("CODEX_BIN", "codex")),
         "livekit_server": shutil.which("livekit-server"),      # media server nativo (si no, Docker fallback)
         "docker": shutil.which("docker"),
-        "playwright_chromium": _playwright_chromium(),         # navegador + búsqueda Google gratis
+        "playwright_chromium": _playwright_chromium(),         # browser + free Google search
         "deps": {
             "mlx_whisper": _pip_has("mlx_whisper"),             # STT Metal (Apple Silicon)
             "mlx_audio": _pip_has("mlx_audio"),                # TTS Metal (Apple Silicon)
@@ -195,10 +195,10 @@ def tooling() -> dict:
     }
 
 
-# ── config actual (qué está seleccionado ahora) ──────────────────────────────────────────────────────────
+# ── current config (what is selected now) ─────────────────────────────────────────────────────────────────
 def current_config() -> dict:
-    """Lo que el sistema tiene seleccionado AHORA (perfil, cerebro, proveedores) — para que el wizard muestre el
-    estado de partida y detecte incoherencias."""
+    """What the system has selected NOW (profile, brain, providers) — so the wizard can show the starting state and
+    detect inconsistencies."""
     cfg: dict = {"profile": os.getenv("ZAELAR_PROFILE", "remote")}
     try:
         from config import v2
@@ -219,10 +219,10 @@ def current_config() -> dict:
     return cfg
 
 
-# ── recomendación de perfil ───────────────────────────────────────────────────────────────────────────────
+# ── profile recommendation ───────────────────────────────────────────────────────────────────────────────
 def recommend(hw: dict, oll: dict, tool: dict) -> dict:
-    """Perfil sugerido + por qué. `local` si hay músculo local real (Apple Silicon con Metal o CUDA) Y Ollama
-    corriendo; si no, `cloud` (el objetivo del deploy). Nunca decide por el usuario — solo pre-selecciona."""
+    """Suggested profile + why. `local` if there is real local muscle (Apple Silicon with Metal or CUDA) AND Ollama
+    is running; otherwise `cloud` (the deploy target). Never decides for the user — only pre-selects."""
     local_hw = bool(hw.get("metal") or hw.get("cuda"))
     ollama_up = bool(oll.get("reachable"))
     if hw.get("container"):
@@ -236,9 +236,9 @@ def recommend(hw: dict, oll: dict, tool: dict) -> dict:
     return {"profile": "cloud", "why": "sin aceleración local detectada → proveedores en la nube (keys)."}
 
 
-# ── informe completo ─────────────────────────────────────────────────────────────────────────────────────
+# ── full report ──────────────────────────────────────────────────────────────────────────────────────────
 def build() -> dict:
-    """Compone el informe COMPLETO (no escribe a disco). Todas las sondas son fail-open."""
+    """Compose the FULL report (does not write to disk). All probes are fail-open."""
     hw = hardware()
     oll = ollama()
     tool = tooling()
@@ -255,7 +255,7 @@ def build() -> dict:
 
 
 def write(report: dict | None = None, path: Path | None = None) -> Path:
-    """Persiste el informe a `path` (default `.meshkore/logs/system-report.json`) para que la web lo lea. Atómico."""
+    """Persist the report to `path` (default `.meshkore/logs/system-report.json`) so the web can read it. Atomic."""
     report = report or build()
     p = path or REPORT_PATH
     p.parent.mkdir(parents=True, exist_ok=True)
@@ -266,8 +266,8 @@ def write(report: dict | None = None, path: Path | None = None) -> Path:
 
 
 def report(refresh: bool = False, max_age_s: int = 3600) -> dict:
-    """Devuelve el informe para la web: el de disco si es reciente, o uno nuevo (y lo persiste) si `refresh` o si
-    está viejo/ausente. El botón «re-analizar» de la web pasa `refresh=True`."""
+    """Return the web report: disk copy if recent, or a new one (and persist it) if `refresh` or stale/missing. The
+    web "re-analyze" button passes `refresh=True`."""
     if not refresh and REPORT_PATH.exists():
         try:
             data = json.loads(REPORT_PATH.read_text(encoding="utf-8"))

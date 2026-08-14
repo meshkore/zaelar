@@ -13,8 +13,8 @@
 #
 # HISTORY (2026-08-02): view_data() used to return a hardcoded demo list of the operator's projects
 # (Pricewaterhouse / Mage Core / MeshKore…). Showing the widget for a pool search therefore painted "Proyectos" —
-# which is exactly what the operator saw and reported ("solo veo el widget de proyectos abierto, que no tiene
-# nada que ver"). A generic presentation surface has NO content of its own: with nothing pushed it is an EMPTY
+# which is exactly what the operator saw and reported ("I only see the projects widget open; it has nothing to do
+# with this"). A generic presentation surface has NO content of its own: with nothing pushed it is an EMPTY
 # SHEET, never someone else's data.
 #
 # HISTORY (2026-08-09): a result was strictly FLAT — one card = one thing. That cannot express what a real
@@ -22,32 +22,31 @@
 # that ferry crossing + maybe a restaurant), each piece with its own price, photo, link and times. Flattening a
 # bundle into free text loses the structure the operator wants to compare on. So an item may now carry `parts`
 # (the pieces it is made of) plus, for the DRILL-DOWN, `images`/`facts` (a photo gallery and the label→value
-# sheet: check-in, port, cancellation policy…). And `view`/`focus` give the sheet a SECOND PAGE: "enséñame en
-# detalle la propuesta 1" switches this same widget to the full dossier of one item instead of the compact grid.
+# sheet: check-in, port, cancellation policy...). And `view`/`focus` give the sheet a SECOND PAGE: "show me proposal
+# 1 in detail" switches this same widget to the full dossier of one item instead of the compact grid.
 #
-# HISTORY (2026-08-12) — LA HOJA TIENE CUATRO PESTAÑAS, no solo la lista. Norma del operador: esta superficie se va
-# a usar de forma genérica para MUCHAS búsquedas complejas, y una búsqueda compleja no es solo su resultado. Es
-# también CÓMO va, CON QUÉ criterio y DE DÓNDE salen los datos. Hasta hoy las tres últimas cosas solo existían de
-# palabra —había que preguntárselas al agente— y por tanto no se podían comprobar:
+# HISTORY (2026-08-12) — THE SHEET HAS FOUR TABS, not only the list. Operator rule: this surface will be used
+# generically for MANY complex searches, and a complex search is not just its result. It is also HOW it is going, WITH
+# WHICH criteria, and WHERE the data comes from. Until today the last three only existed verbally —you had to ask the
+# agent— and therefore could not be checked:
 #
-#   · RESULTADOS (la importante) — las fichas, y el expediente de una al abrirla.
-#   · SUMARIO    — estado del trabajo + cuántos candidatos ha explorado, cuántos quedan en pantalla, qué ha hecho.
-#   · FUENTES    — en qué webs ha entrado y QUÉ PASÓ en cada una: entró, no pudo por autenticación, le limitaron
-#                  a 50 resultados, dio error. Es lo que convierte «no encontré nada» en un dato auditable.
-#   · CRITERIOS  — el encargo tal y como se está ejecutando (duros/blandos/asumidos/baremo) MÁS las correcciones
-#                  que el operador va soltando por voz («que sean de 42 a 49 pies»). Se siembran solos desde el
-#                  BRIEF (`nucleo/research.py`), así que no dependen de que el worker se acuerde de escribirlos.
+#   · RESULTS (the important one) — cards, and a card's full record when opened.
+#   · SUMMARY — work status + how many candidates were explored, how many remain on screen, what was done.
+#   · SOURCES — which websites it entered and WHAT HAPPENED on each one: entered, could not due to auth, limited to
+#               50 results, errored. This turns "I found nothing" into auditable data.
+#   · CRITERIA — the task as currently executed (hard/soft/assumed/rubric) PLUS corrections the operator gives by
+#                voice ("they should be 42 to 49 feet"). Seeded automatically from the BRIEF (`nucleo/research.py`),
+#                so they do not depend on the worker remembering to write them.
 #
-# Las cuatro viven en el MISMO payload persistido que la lista, y la pestaña activa (`tab`) también — igual que
-# `view`/`focus`: así «enséñame de dónde has sacado esto» es una orden de voz que mueve la pantalla, y el estado
-# sobrevive al re-render, a reconectar y a reiniciar. Cero protocolo nuevo: todo entra por acciones DECLARADAS.
+# All four live in the SAME persisted payload as the list, and so does the active tab (`tab`) — just like
+# `view`/`focus`: this way "show me where you got this from" is a voice command that moves the screen, and state
+# survives re-render, reconnect, and restart. Zero new protocol: everything enters through DECLARED actions.
 #
-# Y la FICHA es DINÁMICA (`blocks`): cada tipo de resultado necesita enseñarse distinto — un barco no se lee como
-# un paper ni como un correo. En vez de un esquema fijo (que obliga a disolver lo que no encaje en prosa) o de HTML
-# crudo del worker (que es una inyección esperando a ocurrir: este payload viene de la web abierta), un item puede
-# traer una LISTA DE BLOQUES de un vocabulario cerrado —texto, ficha de datos, etiquetas, galería, medidor,
-# tabla, enlace, sección— que la superficie pinta con `textContent`. Es la misma libertad de composición sin
-# ceder la superficie a un tercero.
+# And the RECORD is DYNAMIC (`blocks`): each result type needs to be shown differently — a boat does not read like a
+# paper or an email. Instead of a fixed schema (which forces anything that does not fit into prose) or raw worker HTML
+# (an injection waiting to happen: this payload comes from the open web), an item may bring a LIST OF BLOCKS from a
+# closed vocabulary —text, facts, tags, gallery, meter, table, link, section— that the surface paints with
+# `textContent`. Same composition freedom without handing the surface to a third party.
 #
 from .. import store
 
@@ -62,13 +61,13 @@ _ITEM_FIELDS = ("title", "subtitle", "price", "badge", "url", "image", "primary"
 # closed-schema discipline; `kind` is the piece's role ("Hotel", "Ferry", "Restaurante") so the card can label it.
 _PART_FIELDS = ("kind", "title", "subtitle", "price", "url", "image", "lines", "facts")
 
-# ── FICHA DINÁMICA: vocabulario CERRADO de bloques ────────────────────────────────────────────────────────────
-# Un tipo de resultado distinto necesita una ficha distinta, y el esquema fijo obligaba a disolver en prosa todo
-# lo que no encajara. Esto lo resuelve SIN aceptar HTML del worker: son piezas de composición que la superficie
-# pinta con textContent. Cualquier `kind` fuera de esta lista se descarta entero (no se degrada a texto: un bloque
-# que el operador no verá es mejor que uno que se ve donde no debe).
+# ── DYNAMIC RECORD: CLOSED block vocabulary ──────────────────────────────────────────────────────────────────
+# A different result type needs a different record, and the fixed schema forced everything that did not fit into
+# prose. This solves it WITHOUT accepting HTML from the worker: these are composition pieces the surface paints with
+# textContent. Any `kind` outside this list is discarded entirely (not degraded to text: a block the operator will not
+# see is better than one displayed where it should not be).
 _BLOCK_KINDS = ("text", "facts", "chips", "gallery", "meter", "table", "link", "section")
-_MAX_BLOCKS = 14         # una ficha, no un documento
+_MAX_BLOCKS = 14         # a record, not a document
 _MAX_CHIPS = 14
 _MAX_TABLE_ROWS = 24
 _MAX_TABLE_COLS = 6
@@ -80,46 +79,45 @@ _MAX_ITEMS = 60          # a report the operator can actually read; widget.js re
 # so a worker can't paste an entire scraped page into a card.
 _MAX_LINES = 80
 _MAX_LINE_CHARS = 300
-_MAX_PARTS = 6           # a plan is a handful of pieces (hotel+ferry+restaurante), never a list in disguise
+_MAX_PARTS = 6           # a plan is a handful of pieces (hotel+ferry+restaurant), never a list in disguise
 _MAX_PART_LINES = 20
 _MAX_IMAGES = 12         # the detail page's photo gallery
-_MAX_FACTS = 30          # label→value sheet (check-in, puerto, política de cancelación…)
+_MAX_FACTS = 30          # label→value sheet (check-in, port, cancellation policy...)
 _MAX_FACT_CHARS = 200
 
-# ── LAS OTRAS TRES PESTAÑAS ────────────────────────────────────────────────────────────────────────────────────
+# ── THE OTHER THREE TABS ─────────────────────────────────────────────────────────────────────────────────────
 _TABS = ("results", "summary", "sources", "criteria")
 
-# Una FUENTE es una web/origen que se ha intentado, con lo que PASÓ ahí. El estado es un vocabulario cerrado
-# porque de él depende el color y, sobre todo, la lectura: «no pude entrar» y «entré pero me cortó a 50» son
-# resultados MUY distintos y hasta hoy los dos se contaban como «nada».
+# A SOURCE is a website/origin that was attempted, with what HAPPENED there. Status is a closed vocabulary because
+# color depends on it and, above all, reading does: "could not enter" and "entered but was capped at 50" are VERY
+# different outcomes, yet until today both counted as "nothing".
 _SOURCE_FIELDS = ("name", "url", "status", "detail", "found")
 _SOURCE_STATUS = ("ok", "partial", "auth", "blocked", "error", "pending")
 _MAX_SOURCES = 40
 _MAX_DETAIL_CHARS = 200
 
-# El SUMARIO: estado global + recuentos + lo que se ha ido haciendo. `explored`/`selected`/`discarded` los REPORTA
-# quien trabaja (solo él sabe cuántos candidatos miró de verdad); lo que se puede derivar se deriva y se etiqueta
-# como derivado, nunca se confunden (ver `_counts`).
+# SUMMARY: global state + counts + what has been done. `explored`/`selected`/`discarded` are REPORTED by whoever is
+# working (only they know how many candidates were truly looked at); what can be derived is derived and labeled as
+# derived, never confused (see `_counts`).
 _SUMMARY_NUMS = ("explored", "selected", "discarded", "round")
 _SUMMARY_TEXT = ("state", "note")
-_MAX_STEPS = 24          # bitácora de lo hecho: los hitos, no cada clic
+_MAX_STEPS = 24          # logbook of what was done: milestones, not every click
 _MAX_STEP_CHARS = 160
 
-# Los CRITERIOS con los que se está ejecutando el encargo. Mismos nombres que el brief de `nucleo/research.py`
-# (de ahí se siembran) + `changes`: las correcciones que el operador va soltando MIENTRAS se busca, que son
-# justo las que hasta ahora se perdían en la conversación.
+# CRITERIA used to execute the task. Same names as the `nucleo/research.py` brief (seeded from there) + `changes`:
+# corrections the operator gives WHILE searching, which are exactly what used to get lost in conversation.
 _CRIT_LISTS = ("hard", "soft", "assumed", "enrichments", "quality_bar", "changes")
 _MAX_CRIT = 14
 _MAX_CRIT_CHARS = 220
 
 
-# ── CONTROL DE CALIDAD DE PRESENTACIÓN (2026-08-10) ───────────────────────────────────────────────────────────────
-# Los presupuestos de campo y las reglas viven en `widgets/presentation.py` (compartidas por TODA superficie en
-# blanco); aquí solo se aplican. Dos cosas cambian respecto a antes:
-#   · el recorte va por frontera de PALABRA y se marca. El `[:200]` de antes cortó un aviso real del worker
-#     («⚠️ Llevar tu cadena…») dejándolo en «⚠️ Llevar tu c»: una salvedad amputada engaña más que su ausencia.
-#   · un payload que rompe la tarjeta deja RASTRO. Un prompt es una petición, no una garantía: si el título trae
-#     tres ideas dentro, se registra y vuelve en la respuesta de la acción, así el worker puede corregirlo.
+# ── PRESENTATION QUALITY CONTROL (2026-08-10) ────────────────────────────────────────────────────────────────
+# Field budgets and rules live in `widgets/presentation.py` (shared by EVERY blank surface); they are only applied
+# here. Two things change compared with before:
+#   · clipping happens on WORD boundaries and is marked. The old `[:200]` cut a real worker warning
+#     ("⚠️ Llevar tu cadena...") into "⚠️ Llevar tu c": an amputated caveat misleads more than its absence.
+#   · a payload that breaks the card leaves a TRACE. A prompt is a request, not a guarantee: if a title contains
+#     three ideas, it is logged and returned in the action response, so the worker can correct it.
 def _clip(text, key: str) -> str:
     try:
         from widgets import presentation
@@ -146,7 +144,7 @@ def _audit(payload: dict) -> list[str]:
 
 def _clean_facts(raw) -> list[dict]:
     """`facts` is the STRUCTURED half of a result — the part the operator asks precise questions about later
-    ("¿a qué hora es el check-in?", "¿lleva desayuno?"). Written naturally as {label: value} by whoever found it,
+    ("what time is check-in?", "does it include breakfast?"). Written naturally as {label: value} by whoever found it,
     but STORED as an ordered list so the order the researcher chose survives the round-trip (and so a label can
     repeat, which a dict silently swallows). A list of pairs or of {label,value} dicts is accepted too — the
     payload comes from an LLM and all three shapes are things it plausibly emits."""
@@ -193,17 +191,17 @@ def _num(raw, default=None):
         v = float(raw)
     except (TypeError, ValueError):
         return default
-    if v != v or v in (float("inf"), float("-inf")):     # NaN/inf: un número que no se puede pintar ni comparar
+    if v != v or v in (float("inf"), float("-inf")):     # NaN/inf: a number that cannot be painted or compared
         return default
     return int(v) if float(v).is_integer() else round(v, 2)
 
 
 def _clean_score(raw) -> dict | None:
-    """LA VALORACIÓN. El operador la pidió explícitamente en la ficha de detalle, y estaba en el esquema desde
-    hace meses SIN pintarse en ningún sitio — se guardaba y se perdía.
+    """THE RATING. The operator explicitly requested it in the detail record, and it had been in the schema for
+    months WITHOUT being rendered anywhere — it was saved and lost.
 
-    Se acepta como número suelto (`8.7`), como texto («8,7/10») o como objeto `{value,max,label,why}`. El `why`
-    es lo que la hace útil de verdad: una nota sin el porqué no se puede discutir ni corregir."""
+    Accept as a bare number (`8.7`), text ("8.7/10"), or object `{value,max,label,why}`. `why` is what makes it truly
+    useful: a score without its reason cannot be discussed or corrected."""
     if raw in (None, ""):
         return None
     if isinstance(raw, (int, float)) and not isinstance(raw, bool):
@@ -216,7 +214,7 @@ def _clean_score(raw) -> dict | None:
         body, _, mx = s.partition("/")
         v = _num(body.replace(",", "."))
         if v is None:
-            return {"label": s}                          # «Excelente», «A+»: vale como etiqueta, no como número
+            return {"label": s}                          # "Excellent", "A+": valid as a label, not as a number
         out = {"value": v, "max": _num(mx) or (10 if v <= 10 else 100)}
         return out
     if isinstance(raw, dict):
@@ -233,7 +231,7 @@ def _clean_score(raw) -> dict | None:
 
 
 def _clean_block(raw, depth: int = 0) -> dict | None:
-    """UN bloque de una ficha dinámica. Vocabulario cerrado: un `kind` desconocido no se degrada a texto, se cae."""
+    """ONE block in a dynamic record. Closed vocabulary: an unknown `kind` is not degraded to text, it is dropped."""
     if not isinstance(raw, dict):
         return None
     kind = str(raw.get("kind") or "").strip().lower()
@@ -300,7 +298,7 @@ def _clean_block(raw, depth: int = 0) -> dict | None:
         b["url"] = url
         b["label"] = str(raw.get("label") or url)[:120]
     elif kind == "section":
-        if depth:                                        # UN nivel de anidamiento: una ficha, no un árbol
+        if depth:                                        # ONE nesting level: a record, not a tree
             return None
         inner = _clean_blocks(raw.get("blocks"), depth + 1)
         if not inner:
@@ -420,9 +418,9 @@ def _clean_source(raw) -> dict | None:
         else:
             s[k] = str(v)[:300]
     if not s.get("name") and s.get("url"):
-        s["name"] = s["url"].split("//")[-1].split("/")[0]      # sin nombre, el dominio ya identifica la fuente
+        s["name"] = s["url"].split("//")[-1].split("/")[0]      # without a name, the domain identifies the source
     if not s.get("name"):
-        return None                              # una fuente que no se puede nombrar no se puede leer ni auditar
+        return None                              # a source that cannot be named cannot be read or audited
     s.setdefault("status", "ok")
     return s
 
@@ -490,10 +488,10 @@ def _empty() -> dict:
 
 
 def _counts(data: dict) -> dict:
-    """Recuentos DERIVADOS, separados de los reportados a propósito. «Cuántos ha explorado» solo lo sabe quien
-    trabajó (lo reporta en el sumario); «cuántos hay en pantalla» y «cuántas fuentes» los sabe la hoja. Mezclarlos
-    en un solo número sería inventarse la mitad: si nadie reportó amplitud, el sumario lo DICE en vez de enseñar
-    el número de tarjetas como si fuera lo explorado."""
+    """DERIVED counts, intentionally separate from reported ones. "How many were explored" is only known by the
+    worker (reported in summary); "how many are on screen" and "how many sources" are known by the sheet. Mixing them
+    into one number would invent half of it: if nobody reported breadth, the summary SAYS so instead of showing the
+    number of cards as if it were the explored count."""
     items = data.get("items") or []
     sources = data.get("sources") or []
     summary = data.get("summary") or {}
@@ -504,8 +502,8 @@ def _counts(data: dict) -> dict:
         "sources": len(sources),
         "sources_ok": len(ok),
         "sources_failed": len([s for s in sources if s.get("status") in ("auth", "blocked", "error")]),
-        "from_sources": got,                     # candidatos vistos SEGÚN las fuentes reportadas
-        "explored": summary.get("explored"),     # lo que el trabajador declara haber evaluado de verdad
+        "from_sources": got,                     # candidates seen ACCORDING TO reported sources
+        "explored": summary.get("explored"),     # what the worker declares to have truly evaluated
         "selected": summary.get("selected", len(items) or None),
     }
 
@@ -522,7 +520,7 @@ def view_data(q: str = "") -> dict:
     data["summary"] = _clean_summary(data.get("summary"))
     data["criteria"] = _clean_criteria(data.get("criteria"))
     if data.get("tab") not in _TABS:
-        data.pop("tab", None)                    # sin pestaña válida manda la de resultados (el widget decide)
+        data.pop("tab", None)                    # without a valid tab, results wins (the widget decides)
     if not data["items"]:
         data.setdefault("note", "Sin resultados todavía.")
         data.pop("view", None)                   # no items ⇒ there is nothing to be showing the detail OF
@@ -532,19 +530,19 @@ def view_data(q: str = "") -> dict:
 
 
 def _save(data: dict) -> None:
-    """Persistir SIN los campos derivados: `counts` se recalcula al leer, y guardarlo lo dejaría rancio en cuanto
-    cambie cualquier otra cosa (un número viejo en pantalla es peor que ninguno)."""
+    """Persist WITHOUT derived fields: `counts` is recalculated on read, and storing it would make it stale as soon as
+    anything else changes (an old number on screen is worse than no number)."""
     d = dict(data)
     d.pop("counts", None)
     for k in ("sources", "summary", "criteria"):
         if not d.get(k):
-            d.pop(k, None)                       # secciones vacías fuera: la hoja en blanco sigue siendo blanca
+            d.pop(k, None)                       # remove empty sections: the blank sheet remains blank
     store.save(WIDGET_ID, d)
 
 
 def _find(items: list[dict], title: str = "", index=None) -> dict | None:
     """Resolve WHICH item the operator means. By exact title, else by a forgiving contains-match, else by ordinal.
-    The ordinal matters because this arrives from VOICE: "enséñame la propuesta número uno" is far more likely to
+    The ordinal matters because this arrives from VOICE: "show me proposal number one" is far more likely to
     survive STT intact than a hotel's full commercial name, so the caller may pass index=1 instead of a title."""
     if isinstance(index, (int, float)) and not isinstance(index, bool):
         i = int(index)
@@ -563,13 +561,13 @@ def _find(items: list[dict], title: str = "", index=None) -> dict | None:
 
 
 def ref_index() -> list[dict]:
-    """The items currently ON SCREEN, so the brain can (a) let the operator pick one by talking about it ("quédate
-    con la del beach club") and (b) — just as important — SEE that the sheet is empty. Before this, an open but
+    """The items currently ON SCREEN, so the brain can (a) let the operator pick one by talking about it ("keep
+    the beach club one") and (b) — just as important — SEE that the sheet is empty. Before this, an open but
     blank results card was indistinguishable from a card that simply doesn't publish its items, and the brain
-    answered "aquí lo tienes" over an empty screen (real session, 12:57:57).
+    answered "here it is" over an empty screen (real session, 12:57:57).
 
-    The hint leads with the ORDINAL because that is how the operator refers to a proposal out loud ("la número
-    dos"); without it the brain had to guess which card "the second one" was."""
+    The hint leads with the ORDINAL because that is how the operator refers to a proposal out loud ("number two");
+    without it the brain had to guess which card "the second one" was."""
     out = []
     for n, it in enumerate(view_data().get("items", []), 1):
         bits = [f"#{n}"]
@@ -594,9 +592,9 @@ _MAX_HEAD_ITEM = 90
 
 
 def _head_list(items, label: str) -> str:
-    """Una lista de la cabecera, acotada Y contada. Enumerar los 14 criterios duros a 220 chars cada uno son 3 KB
-    en el prompt de CADA turno — y encima se comerían el presupuesto del digest, dejando fuera justo los
-    resultados. Se enseñan los primeros y se DICE cuántos quedan (callarse el resto haría creer que no hay más)."""
+    """A header list, bounded AND counted. Enumerating 14 hard criteria at 220 chars each is 3 KB in EVERY turn prompt
+    — and would also consume the digest budget, leaving out the actual results. Show the first ones and SAY how many
+    remain (silencing the rest would imply there are no more)."""
     xs = [str(x)[:_MAX_HEAD_ITEM] for x in (items or [])]
     if not xs:
         return ""
@@ -607,20 +605,20 @@ def _head_list(items, label: str) -> str:
 
 
 def _digest_head(data: dict) -> str:
-    """Las TRES pestañas que no son la lista, comprimidas para el prompt. Es lo que permite responder «¿por qué no
-    sale nada de esa web?» o «¿con qué criterio has descartado?» SIN volver a buscar: el dato ya está en pantalla,
-    solo faltaba que el cerebro lo tuviera delante.
+    """The THREE tabs that are not the list, compressed for the prompt. This enables answering "why is nothing coming
+    from that website?" or "what criterion did you discard by?" WITHOUT searching again: the data is already on screen,
+    the brain only needed it in front of it.
 
-    ACOTADO CON TECHO PROPIO, no solo por el tope global del digest: este encabezado va DELANTE, así que sin límite
-    propio unos criterios largos empujarían los resultados fuera del recorte — el cerebro sabría con qué se busca
-    pero no qué se ha encontrado, que es exactamente al revés de lo útil."""
+    BOUNDED WITH ITS OWN CEILING, not only by the global digest cap: this header goes FIRST, so without its own limit
+    long criteria would push results out of the clipping — the brain would know what is being searched for but not
+    what was found, which is exactly the opposite of useful."""
     L: list[str] = []
     tab = data.get("tab") or "results"
     if tab != "results":
         L.append(f"[el operador está viendo la pestaña «{tab}»]")
     s, c = data.get("summary") or {}, data.get("counts") or {}
-    # Solo lo REPORTADO abre la línea de sumario. Cuántas tarjetas hay en pantalla ya se ve en la lista que viene
-    # justo debajo: anunciarlo aparte engordaba el prompt de CADA turno con la hoja abierta sin decir nada nuevo.
+    # Only REPORTED data opens the summary line. How many cards are on screen is already visible in the list right
+    # below: announcing it separately bloated EVERY turn prompt while the sheet was open without saying anything new.
     bits = []
     if s.get("state"):
         bits.append(str(s["state"]))
@@ -634,14 +632,14 @@ def _digest_head(data: dict) -> str:
         L.append("SUMARIO: " + " · ".join(bits))
     if s.get("note"):
         L.append(f"  {s['note'][:_MAX_HEAD_ITEM * 2]}")
-    # ORDEN POR IRREEMPLAZABILIDAD, no por importancia abstracta: lo primero es lo que NO existe en ningún otro
-    # sitio. El estado de una fuente («Wallapop pedía login») solo lo sabe esta pantalla; los criterios, en cambio,
-    # se dijeron en voz alta y el cerebro los tiene en la conversación reciente. Así que si el techo obliga a
-    # recortar, se recorta el criterio y sobrevive la fuente — y no al revés, que era el orden que había.
+    # ORDER BY IRREPLACEABILITY, not by abstract importance: first comes what exists NOWHERE else. A source's status
+    # ("Wallapop required login") is only known by this screen; criteria, by contrast, were said aloud and the brain
+    # has them in recent conversation. So if the ceiling forces clipping, criteria are clipped and sources survive —
+    # not the reverse, which was the old order.
     src = data.get("sources") or []
     if src:
-        # Y dentro de las fuentes, las FALLIDAS primero: son las que cambian una respuesta. Que Yachtworld fuera
-        # bien no aporta nada al razonamiento.
+        # And within sources, FAILED ones first: they are the ones that change an answer. Yachtworld going well adds
+        # nothing to reasoning.
         order = sorted(src, key=lambda s0: 0 if s0.get("status") in ("auth", "blocked", "error", "partial") else 1)
         L.append(f"FUENTES ({len(src)}):")
         for s0 in order[:6]:
@@ -671,7 +669,7 @@ def prompt_digest() -> str:
     """What is ACTUALLY on screen, compact enough to ride in every prompt while this widget is open.
 
     Why this exists: `ref_index()` only publishes title+hint, so the brain could name the items but knew nothing
-    about them. Asked "¿el hotel de la propuesta 2 tiene wifi?" — about a result already on screen, whose own
+    about them. Asked "does the hotel in proposal 2 have wifi?" — about a result already on screen, whose own
     card says so — it had to either guess or escalate a whole new search for a fact it was already holding. That
     is the difference between a screen the agent can SEE and one it merely painted. Bounded on purpose: this is
     a digest for reasoning over, not the full dossier (that lives in the detail view)."""
@@ -710,9 +708,9 @@ def prompt_digest() -> str:
     return "\n".join(lines)
 
 
-# La pestaña llega por VOZ («enséñame las fuentes», «¿cómo va?»), así que el nombre viene en el idioma del
-# operador y a través del STT. No es una tabla de intención —eso lo decide el modelo— sino la normalización del
-# argumento que ya eligió: el mismo papel que juega el ordinal en `detail`.
+# The tab arrives by VOICE ("show me the sources", "how is it going?"), so the name comes in the operator's language
+# and through STT. This is not an intent table —the model decides that— but normalization of the argument it already
+# chose: the same role the ordinal plays in `detail`.
 _TAB_ALIASES = {
     "resultados": "results", "resultado": "results", "lista": "results", "fichas": "results",
     "sumario": "summary", "resumen": "summary", "estado": "summary", "progreso": "summary",
@@ -722,8 +720,8 @@ _TAB_ALIASES = {
 
 
 def _merge_sections(data: dict, payload: dict) -> None:
-    """`sources`/`summary`/`criteria` entregadas DE PASO dentro de un present/append. Se mezclan sobre lo que ya
-    había: quien entrega resultados no siempre tiene delante lo que reportó hace cinco minutos."""
+    """`sources`/`summary`/`criteria` delivered ALONGSIDE present/append. They are merged over what already existed:
+    whoever delivers results does not always have in front of them what they reported five minutes ago."""
     src = _clean_sources(payload.get("sources"))
     if src:
         cur = list(data.get("sources") or [])
@@ -769,17 +767,17 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             "subtitle": _clip(payload.get("subtitle"), "sheet_subtitle"),
             "items": items,
         }
-        # Las OTRAS pestañas SOBREVIVEN a un `present`. Durante un trabajo largo hay varios `present` (provisional
-        # → final) y borrar en cada uno las fuentes y el sumario que ya se habían reportado sería perder datos que
-        # costaron minutos de navegación. Quien las vacía es `clear`, o el arranque de una investigación NUEVA
-        # (un `criteria` con otro objetivo) — dos momentos explícitos, no un efecto colateral.
+        # The OTHER tabs SURVIVE a `present`. During long work there are several `present`s (provisional → final), and
+        # deleting sources and summary already reported on each one would lose data that took minutes of browsing.
+        # They are emptied by `clear`, or at the start of a NEW investigation (`criteria` with another objective) —
+        # two explicit moments, not a side effect.
         for k in ("sources", "summary", "criteria"):
             if prev.get(k):
                 data[k] = prev[k]
         if prev.get("tab") in _TABS:
             data["tab"] = prev["tab"]
-        # `columns` se conserva como TOPE (la superficie decide el reparto por la forma del contenido, ver
-        # widget.js::columnsFor), nunca como orden — un 2 adivinado dejaba 3 tarjetas ricas con una huérfana.
+        # `columns` is preserved as a CAP (the surface decides distribution from content shape, see
+        # widget.js::columnsFor), never as an order — a guessed 2 left 3 rich cards with one orphan.
         cols = payload.get("columns")
         if isinstance(cols, int) and 1 <= cols <= 3:
             data["columns"] = cols
@@ -787,8 +785,8 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             data["choosable"] = True
         if not items:
             data["note"] = _clip(payload.get("note") or "Sin resultados.", "sheet_subtitle")
-        # Un `present` puede traer de paso las otras secciones (entregar todo de una vez es un viaje menos para
-        # quien trabaja). Se MEZCLAN sobre lo que hubiera, no lo reemplazan a ciegas.
+        # A `present` may also deliver the other sections (delivering everything at once is one less round trip for
+        # the worker). They are MERGED over existing data, not blindly replaced.
         _merge_sections(data, payload)
         _save(data)
         return {"ok": True, "shown": len(items), "presentation": issues}
@@ -835,7 +833,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             return {"ok": False, "error": "no encuentro ese resultado en la hoja (pasa el title o index 1-based)"}
         data["view"] = "detail"
         data["focus"] = it["title"]
-        data["tab"] = "results"                  # abrir un expediente es volver a la lista, no quedarse en fuentes
+        data["tab"] = "results"                  # opening a record means returning to the list, not staying on sources
         _save(data)
         return {"ok": True, "detail": it["title"]}
 
@@ -846,7 +844,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         _save(data)
         return {"ok": True, "view": "list"}
 
-    # ── LAS OTRAS TRES PESTAÑAS ────────────────────────────────────────────────────────────────────────────────
+    # ── THE OTHER THREE TABS ─────────────────────────────────────────────────────────────────────────────────
     if action == "tab":
         tab = str(payload.get("tab") or payload.get("name") or "").strip().lower()
         tab = _TAB_ALIASES.get(tab, tab)
@@ -855,7 +853,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         data = view_data()
         data["tab"] = tab
         if tab != "results":
-            data.pop("view", None)               # el detalle es una página de RESULTADOS: irse de pestaña la cierra
+            data.pop("view", None)               # detail is a RESULTS page: leaving the tab closes it
             data.pop("focus", None)
         _save(data)
         return {"ok": True, "tab": tab}
@@ -867,8 +865,8 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         data = view_data()
         cur = data.get("sources") or []
         for s in add:
-            # UPSERT: una fuente se reporta varias veces durante el trabajo («entrando…» → «50 resultados, me
-            # cortó ahí»). Si cada reporte creara una fila, la pestaña sería un log y no un estado.
+            # UPSERT: a source is reported several times during work ("entering..." → "50 results, capped there").
+            # If each report created a row, the tab would be a log instead of state.
             key = (s.get("url") or "").strip().lower() or (s.get("name") or "").strip().lower()
             hit = next((c for c in cur
                         if ((c.get("url") or "").strip().lower() or (c.get("name") or "").strip().lower()) == key),
@@ -890,7 +888,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         steps = list(cur.get("steps") or [])
         new_steps = upd.pop("steps", [])
         for st in new_steps:
-            if not steps or steps[-1] != st:     # el mismo hito repetido no es progreso
+            if not steps or steps[-1] != st:     # the same repeated milestone is not progress
                 steps.append(st)
         cur.update(upd)
         if steps:
@@ -905,9 +903,9 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             return {"ok": False, "error": "criteria necesita goal y/o listas hard/soft/assumed/quality_bar/changes"}
         data = view_data()
         cur = dict(data.get("criteria") or {})
-        # ¿Es OTRA investigación? El objetivo es la firma del encargo: si cambia, lo que hay en pantalla es de la
-        # búsqueda anterior y engaña (el operador ya se comió una hoja rancia una vez). Una RONDA 2 conserva el
-        # objetivo, así que «sigue buscando» no borra nada. `reset:false` lo desactiva para correcciones finas.
+        # Is this ANOTHER investigation? The objective is the task signature: if it changes, what is on screen belongs
+        # to the previous search and misleads (the operator already got a stale sheet once). ROUND 2 keeps the
+        # objective, so "keep searching" does not delete anything. `reset:false` disables this for fine corrections.
         new_goal = (upd.get("goal") or "").strip().lower()
         old_goal = (cur.get("goal") or "").strip().lower()
         fresh = bool(new_goal and old_goal and new_goal != old_goal)
@@ -915,13 +913,13 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             fresh = bool(payload.get("reset"))
         if fresh:
             data = _empty()
-            # RECORTADO: el `goal` del brief es un párrafo autocontenido («…y reportar el estado de cada fuente
-            # consultada»), no un titular. Puesto crudo como título de la hoja ocupaba cinco líneas antes de
-            # empezar a enseñar nada. El texto íntegro sigue completo en la pestaña CRITERIOS, que es su sitio.
+            # CLIPPED: the brief `goal` is a self-contained paragraph ("...and report each consulted source's state"),
+            # not a headline. Placed raw as the sheet title, it took five lines before showing anything. The full text
+            # remains complete in the CRITERIA tab, which is where it belongs.
             data["title"] = _clip(upd.get("goal") or "Resultados", "sheet_title") or "Resultados"
             cur = {}
         cur.update(upd)
-        for k in _CRIT_LISTS:                    # las listas se REEMPLAZAN salvo `changes`, que se acumula
+        for k in _CRIT_LISTS:                    # lists are REPLACED except `changes`, which accumulates
             if k == "changes":
                 continue
             if k in upd:

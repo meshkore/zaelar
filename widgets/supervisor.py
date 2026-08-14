@@ -1,18 +1,18 @@
 #
-# supervisor.py — el HOST de los widgets "backed" (kind:"backed"), diseñado en zaelar-modules.md §Widget-apps y
-# construido con el navegador (INI-016, primer backed widget). Un widget "passive" (los de siempre) no tiene proceso:
-# view_data lee bajo demanda y el único escritor es su propio ctx.action o Hermes. Un widget "backed" es una
-# pequeña APP con backend vivo (el navegador tiene un Chromium headless por dentro): su carpeta trae un
-# `owner.py` con `async start()/stop()/handle(action,payload)`, y ESTE supervisor —arrancado en el lifespan del
-# server, en el MISMO loop que la voz— lo descubre en el catálogo, lo importa y lo gobierna:
+# supervisor.py — HOST for "backed" widgets (kind:"backed"), designed in zaelar-modules.md §Widget-apps and built
+# with the browser (INI-016, first backed widget). A "passive" widget (the usual kind) has no process: view_data reads
+# on demand and its only writer is its own ctx.action or Hermes. A "backed" widget is a small APP with a live backend
+# (the browser has a headless Chromium inside): its folder provides an `owner.py` with
+# `async start()/stop()/handle(action,payload)`, and THIS supervisor —started in server lifespan, in the SAME loop as
+# voice— discovers it in the catalog, imports it, and governs it:
 #
-#   • ÚNICO ESCRITOR por construcción: el owner es el único que escribe en widgets/_data/<id>/ (via store.save →
-#     refresco SSE de la tarjeta abierta). La cara (data.py + widget.js) pasa a ser SOLO-LECTURA + ENCOLAR: una
-#     acción del operador (ctx.action) o de Hermes ([[widget.data]]) NO toca el store, deja la orden en el BUZÓN
-#     (una asyncio.Queue) que el owner drena en orden. Elimina la carrera de dos escritores por diseño, no con locks.
-#   • SUPERVISIÓN: si el owner revienta, se reintenta con backoff exponencial; tras MAX_FAILS fallos seguidos se
-#     DESACTIVA (degrada a último estado conocido, congelado, en vez de martillear) — un owner caído nunca puede
-#     tumbar la voz ni otro widget. Todo se traza por voice/observer (kind "backed") para los testers.
+#   • SINGLE WRITER by construction: the owner is the only writer to widgets/_data/<id>/ (via store.save → SSE refresh
+#     of the open card). The face (data.py + widget.js) becomes READ-ONLY + ENQUEUE: an operator action (ctx.action) or
+#     Hermes ([[widget.data]]) does NOT touch the store; it leaves the command in the MAILBOX (an asyncio.Queue) that
+#     the owner drains in order. Removes the two-writer race by design, not with locks.
+#   • SUPERVISION: if the owner blows up, retry with exponential backoff; after MAX_FAILS consecutive failures,
+#     DISABLE it (degrade to last known frozen state instead of hammering) — a down owner can never bring down voice or
+#     another widget. Everything is traced through voice/observer (kind "backed") for testers.
 #
 import asyncio
 import importlib
@@ -22,12 +22,12 @@ from loguru import logger
 
 from . import runtime
 
-_MAX_FAILS = int(os.environ.get("WIDGETS_BACKED_MAX_FAILS", "4"))   # fallos seguidos de start() antes de desactivar
+_MAX_FAILS = int(os.environ.get("WIDGETS_BACKED_MAX_FAILS", "4"))   # consecutive start() failures before disabling
 _QUEUE_MAX = int(os.environ.get("WIDGETS_BACKED_QUEUE", "128"))
 
 
 def _emit(label: str, wid: str, text: str = "") -> None:
-    """Observabilidad del ciclo de vida backed → /events + /api/debug (kind 'backed'). Nunca revienta."""
+    """Backed lifecycle observability → /events + /api/debug (kind 'backed'). Never raises."""
     try:
         from voice.observer import emit
         emit("backed", label, text=(f"{wid}: {text}" if text else wid), extra={"id": wid})
@@ -36,8 +36,8 @@ def _emit(label: str, wid: str, text: str = "") -> None:
 
 
 class _Service:
-    """Un widget backed vivo: su owner + su buzón + su tarea supervisada. El buzón (Queue) SOBREVIVE a los
-    reinicios del owner (vive en el _Service, no dentro del _run) — un crash no pierde las órdenes ya encoladas."""
+    """A live backed widget: its owner + mailbox + supervised task. The mailbox (Queue) SURVIVES owner restarts (lives
+    in _Service, not inside _run) — a crash does not lose already queued commands."""
 
     def __init__(self, wid: str, owner):
         self.wid = wid
@@ -55,18 +55,18 @@ class _Service:
                 _emit("start", self.wid)
                 self.fails = 0
                 backoff = 1.0
-                while True:                                   # buzón: drena órdenes en orden, una a una
+                while True:                                   # mailbox: drain commands in order, one by one
                     action, payload = await self.queue.get()
                     try:
                         await self.owner.handle(action, payload)
                     except asyncio.CancelledError:
                         raise
-                    except Exception as e:                    # un fallo de UNA orden (URL mala, timeout) NO reinicia
+                    except Exception as e:                    # a failure in ONE command (bad URL, timeout) does NOT restart
                         _emit("cmd_error", self.wid, f"{action}: {e}")
                         logger.warning(f"backed[{self.wid}] handle {action!r} falló: {e}")
             except asyncio.CancelledError:
                 break
-            except Exception as e:                            # crash del owner (start o algo fatal) → reintento
+            except Exception as e:                            # owner crash (start or something fatal) → retry
                 self.fails += 1
                 _emit("crash", self.wid, f"{e} (fallo {self.fails}/{_MAX_FAILS})")
                 logger.warning(f"backed[{self.wid}] cayó: {e} (fallo {self.fails}/{_MAX_FAILS})")
@@ -99,8 +99,8 @@ _services: dict[str, _Service] = {}
 
 
 def _load_owner(wid: str):
-    """Importa widgets/<id>/owner.py. Import perezoso: un owner que no importa (p.ej. falta una dep) desactiva
-    SOLO ese widget, nunca el arranque del server."""
+    """Import widgets/<id>/owner.py. Lazy import: an owner that does not import (e.g. missing dependency) disables ONLY
+    that widget, never server startup."""
     try:
         return importlib.import_module(f"widgets.{wid}.owner")
     except Exception as e:
@@ -110,18 +110,18 @@ def _load_owner(wid: str):
 
 
 def start() -> None:
-    """Arranca (en el lifespan del server) todos los widgets backed del catálogo. Idempotente. Cada owner corre
-    bajo su propia tarea supervisada en ESTE loop (el de la voz) — start() del owner debe ser barato (arranque
-    perezoso del backend pesado en el primer handle), para no pagar el coste si el widget nunca se usa."""
+    """Start (in server lifespan) all backed widgets in the catalog. Idempotent. Each owner runs under its own
+    supervised task in THIS loop (the voice loop) — owner start() must be cheap (lazy heavy-backend start on first
+    handle), so unused widgets do not pay the cost."""
     for w in runtime.catalog():
         if (w.get("kind") or "passive") != "backed":
             continue
         wid = w.get("id") or ""
         if not wid or wid in _services:
             continue
-        # GATE opcional (V2-008): un backed widget puede exigir un modo de cerebro (p.ej. `mensajeria` solo
-        # arranca su owner v2 stateless con BRAIN=nucleo; con un baseline direct/local cae al passive de siempre).
-        # Sin gate = siempre. Mecanismo GENERAL, no un caso especial de un widget.
+        # Optional GATE (V2-008): a backed widget may require a brain mode (e.g. `mensajeria` only starts its v2
+        # stateless owner with BRAIN=nucleo; with a direct/local baseline it falls back to the usual passive mode).
+        # No gate = always. GENERAL mechanism, not a widget special case.
         gate = (w.get("backend") or {}).get("gate")
         if gate == "nucleo":
             try:
@@ -141,7 +141,7 @@ def start() -> None:
 
 
 async def stop() -> None:
-    """Para todos los owners limpiamente (finally del lifespan)."""
+    """Stop all owners cleanly (lifespan finally)."""
     for wid, svc in list(_services.items()):
         if svc.task:
             svc.task.cancel()
@@ -158,8 +158,8 @@ def is_backed(wid: str) -> bool:
 
 
 def enqueue(wid: str, action: str, payload: dict) -> bool:
-    """Deja una orden en el buzón del owner. Devuelve True si se encoló (widget backed y vivo), False si no
-    (widget passive, no arrancado o desactivado) → el llamador (server_api) cae al camino normal de apply_action."""
+    """Leave a command in the owner mailbox. Return True if queued (backed and live widget), False otherwise (passive,
+    not started, or disabled widget) → caller (server_api) falls back to the normal apply_action path."""
     svc = _services.get(wid)
     if svc is None:
         return False
@@ -167,9 +167,9 @@ def enqueue(wid: str, action: str, payload: dict) -> bool:
 
 
 def info(wid: str) -> dict:
-    """Estado del owner supervisado de un widget backed (para el bridge del FlashBrain, `nucleo/flash/procs.py`).
-    `running` = tiene una tarea supervisada viva; `disabled` = desactivado tras MAX_FAILS. `backed=False` si el
-    widget no es backed / no está bajo supervisión."""
+    """Supervised owner state for a backed widget (for the FlashBrain bridge, `nucleo/flash/procs.py`). `running` =
+    has a live supervised task; `disabled` = disabled after MAX_FAILS. `backed=False` if the widget is not backed /
+    not under supervision."""
     svc = _services.get(wid)
     if svc is None:
         return {"backed": is_backed(wid), "running": False, "disabled": False, "fails": 0}
@@ -178,5 +178,5 @@ def info(wid: str) -> dict:
 
 
 def running() -> list[str]:
-    """Ids de widgets backed con owner vivo bajo supervisión."""
+    """Ids of backed widgets with a live supervised owner."""
     return [wid for wid, svc in _services.items() if svc.task and not svc.task.done() and not svc.disabled]

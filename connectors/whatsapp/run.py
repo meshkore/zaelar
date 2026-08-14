@@ -1,11 +1,11 @@
 #
-# run.py — runnable STANDALONE de la Fase 1 (INI-014): arranca el bridge, te muestra el QR para vincular
-# WhatsApp, y a partir de ahí lee tu buzón, tría cada lote con el modelo LOCAL y te imprime un digest de "solo
-# lo que importa", marcando como leído lo ya resumido. NO responde a nadie (read-only + mark-read).
+# run.py — STANDALONE Phase 1 runnable (INI-014): starts the bridge, shows the QR to link WhatsApp, then reads your
+# inbox, triages each batch with the LOCAL model, and prints a digest of "only what matters", marking already
+# summarized content as read. Does NOT reply to anyone (read-only + mark-read).
 #
 # Uso:   python -m connectors.whatsapp
-# La 1ª vez: escanea el QR (WhatsApp → Ajustes → Dispositivos vinculados). Luego la sesión persiste.
-# Corta con Ctrl-C.
+# First time: scan the QR (WhatsApp -> Settings -> Linked devices). Then the session persists.
+# Stop with Ctrl-C.
 #
 import asyncio
 
@@ -29,7 +29,7 @@ async def _tick() -> None:
     if not msgs:
         return
     verdicts = await triage.classify(msgs)
-    # "merece atención" = importante Y (dirigido a mí o urgencia alta). Afinable.
+    # "deserves attention" = important AND (addressed to me or high urgency). Tunable.
     surfaced = [v for v in verdicts
                 if v.get("importante") and (v.get("dirigido_a_mi") or v.get("urgencia") == "alta")]
     ignored = [v for v in verdicts if v not in surfaced]
@@ -42,7 +42,7 @@ async def _tick() -> None:
     else:
         logger.info(f"{len(msgs)} mensaje(s) nuevos, nada que merezca atención")
 
-    # Marcar leído SOLO lo ya triado y resumido (lo que te mostramos). Lo filtrado se deja sin tocar por ahora.
+    # Mark read ONLY what was already triaged and summarized (what we show). Filtered content is left untouched for now.
     keys = [{"chatId": v["chatId"], "messageId": v["messageId"], "senderId": v.get("senderId")}
             for v in surfaced if v.get("chatId") and v.get("messageId")]
     if keys:

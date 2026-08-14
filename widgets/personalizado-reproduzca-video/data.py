@@ -1,14 +1,14 @@
 #
-# personalizado-reproduzca-video — reproductor de YouTube EMBEBIDO dedicado en exclusiva al gol de la
-# "Mano de Dios" de Maradona: a diferencia del widget genérico `youtube`, este NO admite cargar otro vídeo,
-# solo controlar la reproducción del suyo (play/pausa/volumen/silencio/reinicio). data.py es servidor puro
-# (stdlib) — nunca toca el reproductor; el cliente (widget.js) aplica los comandos por postMessage.
+# personalizado-reproduzca-video — EMBEDDED YouTube player dedicated exclusively to Maradona's
+# "Hand of God" goal: unlike the generic `youtube` widget, this one does NOT allow loading another video,
+# only controlling its own playback (play/pause/volume/mute/restart). data.py is pure server code
+# (stdlib) — it never touches the player; the client (widget.js) applies commands through postMessage.
 #
 from .. import store
 
 WID = "personalizado-reproduzca-video"
 
-# Fijo: el gol de la "Mano de Dios" de Maradona (Argentina 2-1 Inglaterra, México 86).
+# Fixed: Maradona's "Hand of God" goal (Argentina 2-1 England, Mexico 86).
 _VIDEO_ID = "uq6IJTtsz_Q"
 _TITLE = "Gol de la Mano de Dios — Maradona (Argentina 2-1 Inglaterra, México 86)"
 
@@ -17,8 +17,8 @@ _SEED = {
     "title": _TITLE,
     "url": "https://www.youtube.com/watch?v=" + _VIDEO_ID,
     "volume": 70,
-    "muted": True,      # el autoplay del navegador exige empezar en silencio; "quita el silencio" para oírlo
-    "paused": False,    # listo para reproducirse en cuanto se abre la tarjeta
+    "muted": True,      # browser autoplay requires starting muted; "unmute" to hear it
+    "paused": False,    # ready to play as soon as the card opens
     "last_cmd": "load",
     "cmd_seq": 0,
 }
@@ -26,9 +26,9 @@ _SEED = {
 
 def _load() -> dict:
     db = store.load(WID, dict(_SEED))
-    for k, v in _SEED.items():                          # normaliza campos ausentes (store antiguo)
+    for k, v in _SEED.items():                          # normalize missing fields (old store)
         db.setdefault(k, v)
-    db["videoId"] = _VIDEO_ID                            # vídeo fijo: nunca lo cambia un store viejo
+    db["videoId"] = _VIDEO_ID                            # fixed video: an old store never changes it
     db["title"] = _TITLE
     db["url"] = _SEED["url"]
     return db

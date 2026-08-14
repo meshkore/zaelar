@@ -1,16 +1,16 @@
-"""config/credentials.py — ESCRITOR del credential store (V2-040, sensible).
+"""config/credentials.py — credential-store WRITER (V2-040, sensitive).
 
-Hasta ahora `.meshkore/credentials/zaelar.env` solo se LEÍA (`server/common.py` lo carga con `override=True`, así
-MANDA sobre `.env`). El wizard necesita ESCRIBIR ahí las API keys que el usuario introduce, sin que el usuario
-edite ficheros a mano (invariante de producto «config gestionada por la UI»). Este módulo es el único escritor.
+Until now `.meshkore/credentials/zaelar.env` was only READ (`server/common.py` loads it with `override=True`, so it
+WINS over `.env`). The wizard needs to WRITE the API keys the user enters there, without the user manually editing
+files (product invariant: "config managed by the UI"). This module is the only writer.
 
-Reglas DURAS:
-  · El fichero es gitignored y se guarda con **chmod 600** (solo el dueño lo lee) — nunca en el repo, nunca al log.
-  · La vista pública devuelve **solo presencia** (`<clave>_set: bool`), JAMÁS el valor (misma redacción que v2/
-    connectors). Un `get()` con el valor es para uso INTERNO.
-  · `set_key` aplica el valor **en caliente** a `os.environ` además de persistirlo → surte efecto sin reiniciar
-    (igual que el store MANDA sobre `.env`). Solo se aceptan nombres de clave con forma de env var.
-  · Escritura ATÓMICA (tmp + os.replace) preservando el resto de líneas del fichero (comentarios incluidos).
+HARD rules:
+  · The file is gitignored and stored with **chmod 600** (owner-readable only) — never in the repo, never in logs.
+  · The public view returns **presence only** (`<key>_set: bool`), NEVER the value (same redaction as v2/connectors).
+    A value-returning `get()` is for INTERNAL use.
+  · `set_key` applies the value **live** to `os.environ` in addition to persisting it → takes effect without restart
+    (same idea: the store WINS over `.env`). Only env-var-shaped key names are accepted.
+  · ATOMIC write (tmp + os.replace), preserving the rest of the file lines (comments included).
 """
 from __future__ import annotations
 
@@ -41,10 +41,10 @@ STORE = _store_path()
 
 _lock = threading.Lock()
 
-# Nombre de clave válido = env var (LETRAS/dígitos/_ , empieza por letra). Evita inyección de líneas/rutas raras.
+# Valid key name = env var (LETTERS/digits/_, starts with a letter). Prevents odd line/path injection.
 _KEY_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
-# Una clave es SECRETO (nunca sale su valor) si termina en estos sufijos o es una key conocida. Alineado con la
-# convención de config/v2 (`endswith('api_key')`), ampliado a los nombres reales del store (…_KEY/_TOKEN/_SECRET…).
+# A key is SECRET (its value never leaves) if it ends with these suffixes or is a known key. Aligned with the
+# config/v2 convention (`endswith('api_key')`), expanded to real store names (…_KEY/_TOKEN/_SECRET…).
 _SECRET_SUFFIX = ("_KEY", "_TOKEN", "_SECRET", "_HASH", "_PASSWORD", "API_KEY")
 
 
@@ -54,13 +54,13 @@ def is_secret(key: str) -> bool:
 
 
 def _parse(text: str) -> "list[tuple[str, str | None]]":
-    """Devuelve las líneas del .env como pares (clave, valor) preservando comentarios/blancos como (None, línea)."""
+    """Return .env lines as pairs (key, value), preserving comments/blanks as (None, line)."""
     out: list[tuple[str, str | None]] = []
     for raw in (text or "").splitlines():
         line = raw.rstrip("\n")
         s = line.strip()
         if not s or s.startswith("#") or "=" not in s:
-            out.append((None, line))            # comentario/blanco → se preserva verbatim
+            out.append((None, line))            # comment/blank → preserved verbatim
             continue
         k, v = line.split("=", 1)
         out.append((k.strip(), v))
@@ -75,7 +75,7 @@ def _read_text() -> str:
 
 
 def _values() -> dict[str, str]:
-    """Pares clave→valor efectivos del STORE (solo del fichero; uso interno)."""
+    """Effective key→value pairs from the STORE (file only; internal use)."""
     d: dict[str, str] = {}
     for k, v in _parse(_read_text()):
         if k is not None:
@@ -94,8 +94,8 @@ def _needs_quote(v: str) -> bool:
 
 
 def set_key(name: str, value: str) -> dict:
-    """Fija/actualiza una credencial (persistente + en caliente). Devuelve {ok, key, set}. Nunca el valor.
-    value vacío = BORRA la clave del store (para 'quitar' una key). NUNCA lanza al llamante (fail-safe)."""
+    """Set/update a credential (persistent + live). Returns {ok, key, set}. Never the value.
+    Empty value = DELETE the key from the store (to "remove" a key). NEVER raises to the caller (fail-safe)."""
     name = (name or "").strip()
     if not _KEY_RE.match(name):
         return {"ok": False, "error": "nombre de clave inválido"}
@@ -113,7 +113,7 @@ def set_key(name: str, value: str) -> dict:
                 if k == name:
                     found = True
                     if value == "":
-                        continue                 # borrar → omite la línea
+                        continue                 # delete → omit the line
                     new.append(f"{name}={_quote(value)}")
                 else:
                     new.append(f"{k}={v}" if v is not None else k)
@@ -122,13 +122,13 @@ def set_key(name: str, value: str) -> dict:
             content = "\n".join(new).rstrip("\n") + "\n"
             tmp = str(STORE) + ".tmp"
             Path(tmp).write_text(content, encoding="utf-8")
-            os.chmod(tmp, 0o600)                 # secreto: solo el dueño (antes del replace, sin ventana 644)
+            os.chmod(tmp, 0o600)                 # secret: owner only (before replace, no 644 window)
             os.replace(tmp, STORE)
             try:
                 os.chmod(STORE, 0o600)
             except Exception:
                 pass
-            # aplica en caliente: el store MANDA sobre .env (server/common override=True) → surte efecto sin reiniciar
+            # apply live: the store WINS over .env (server/common override=True) → takes effect without restart
             if value == "":
                 os.environ.pop(name, None)
             else:
@@ -149,8 +149,8 @@ def get(name: str) -> str:
 
 
 def status(names: "list[str] | None" = None) -> dict:
-    """Vista PÚBLICA redactada: `{clave: {set: bool, secret: bool}}` para las claves pedidas (o todas las del
-    store). SOLO presencia — el valor NUNCA sale. `set` mira store Y entorno (una key puede venir de .env)."""
+    """REDACTED PUBLIC view: `{key: {set: bool, secret: bool}}` for requested keys (or all store keys). Presence
+    ONLY — the value NEVER leaves. `set` checks store AND environment (a key can come from .env)."""
     vals = _values()
     keys = list(names) if names else sorted(vals.keys())
     out = {}

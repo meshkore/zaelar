@@ -1,7 +1,7 @@
-// Meteo Tarragona — gráfico de 14 días con la temperatura a las 12 h y 18 h.
-// Dos líneas (12h en azul #3D6FE0, 18h en teal #16B8A6) sobre un eje X de días.
-// Self-contained: estilos inyectados una vez, SVG generado en cliente, sin librerías
-// externas ni red desde JS. Cualquier texto del servidor se inserta con textContent (XSS-safe).
+// Meteo Tarragona: 14-day chart with temperature at 12 h and 18 h.
+// Two lines (12h in blue #3D6FE0, 18h in teal #16B8A6) over a day-based X axis.
+// Self-contained: styles injected once, client-generated SVG, no external libraries and no JS-side network.
+// Any server text is inserted with textContent (XSS-safe).
 
 function injectStyles(){
   if(document.getElementById("hb-meteo-tgn-graf-css"))return;
@@ -55,14 +55,14 @@ export function render(el, data, ctx){
 
   const make=(tag,cls,txt)=>{const e=document.createElement(tag);if(cls)e.className=cls;if(txt!=null)e.textContent=txt;return e;};
 
-  // Cabecera
+  // Header.
   const hd=make("div","hd");
   hd.appendChild(make("b",null,"Meteo · " + (data.location || "Tarragona")));
   hd.appendChild(make("span","sub","previsión 14 días — 12 h y 18 h"));
   hd.appendChild(make("span","now", data.now || ""));
   el.appendChild(hd);
 
-  // Estado de error
+  // Error state.
   if(data.error){
     el.appendChild(make("div","empty","No he podido cargar la previsión: " + data.error));
     return;
@@ -74,7 +74,7 @@ export function render(el, data, ctx){
     return;
   }
 
-  // Leyenda + rango
+  // Legend + range.
   const rng = data.range || {};
   const lg = make("div","legend");
   const i1 = make("span","it");
@@ -88,7 +88,7 @@ export function render(el, data, ctx){
   }
   el.appendChild(lg);
 
-  // Escala Y con un margen alrededor del rango
+  // Y scale with margin around the range.
   let tmin = (rng.tmin != null) ? rng.tmin : 0;
   let tmax = (rng.tmax != null) ? rng.tmax : 30;
   if(tmax - tmin < 4){ const c=(tmax+tmin)/2; tmin=c-2; tmax=c+2; }
@@ -96,7 +96,7 @@ export function render(el, data, ctx){
   tmin = Math.floor(tmin - pad);
   tmax = Math.ceil(tmax + pad);
 
-  // Gráfico SVG
+  // SVG chart.
   const COL_W = 50;
   const LEFT = 32, RIGHT = 12, TOP = 18, BOT = 38;
   const W = LEFT + RIGHT + COL_W * days.length;
@@ -109,11 +109,11 @@ export function render(el, data, ctx){
   const host = make("div","chart");
   const root = svg("svg", {viewBox:`0 0 ${W} ${H}`, width:String(W), height:String(H), preserveAspectRatio:"xMinYMid meet"});
 
-  // Resalte sutil de la columna de hoy (offset 0)
+  // Subtle highlight for today's column (offset 0).
   const todayX = LEFT + 0 * COL_W;
   root.appendChild(svg("rect", {class:"today-bg", x:String(todayX+1), y:String(TOP), width:String(COL_W-2), height:String(plotH), rx:"6", ry:"6"}));
 
-  // Rejilla + etiquetas Y (4 niveles)
+  // Grid + Y labels (4 levels).
   const grid = svg("g", {class:"grid"});
   const ylab = svg("g", {class:"ylab"});
   const ticks = 4;
@@ -128,7 +128,7 @@ export function render(el, data, ctx){
   root.appendChild(grid);
   root.appendChild(ylab);
 
-  // Líneas (sólo trazos entre puntos con valor)
+  // Lines: only strokes between points that have values.
   function pathFor(slot){
     let d = "", penDown = false;
     days.forEach((day, i) => {
@@ -145,7 +145,7 @@ export function render(el, data, ctx){
   root.appendChild(p18);
   root.appendChild(p12);
 
-  // Puntos + valores numéricos
+  // Points + numeric values.
   const dotsG = svg("g");
   days.forEach((day, i) => {
     const x = xFor(i);
@@ -166,7 +166,7 @@ export function render(el, data, ctx){
   });
   root.appendChild(dotsG);
 
-  // Eje X: día de la semana + dd/mm
+  // X axis: weekday + dd/mm.
   const dowG = svg("g", {class:"dow"});
   const dayG = svg("g", {class:"day"});
   days.forEach((day, i) => {

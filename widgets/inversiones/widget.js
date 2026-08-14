@@ -1,10 +1,10 @@
-// Inversiones — dashboard de cartera de tokens.
-// DONUT (asignación) + rejilla 2×2 de tarjetas (una por posición).
-// Self-contained: estilos inyectados una vez (id-guard), SVG en cliente, sin libs ni red.
-// Todo texto del servidor → textContent (XSS-safe). Tema vía vars --hb-* con fallback hex.
+// Investments: token portfolio dashboard.
+// DONUT allocation chart + 2x2 card grid, one card per position.
+// Self-contained: styles injected once (id-guard), client-side SVG, no libraries or network.
+// All server text -> textContent (XSS-safe). Theme through --hb-* vars with hex fallbacks.
 
 const GLYPH = { BTC: "₿", ETH: "Ξ", SOL: "◎", ADA: "₳", USDT: "₮", BNB: "ⓑ", XRP: "✕", DOT: "●", LINK: "🔗", MATIC: "⬡" };
-// 4 colores distintos y legibles en tema claro Y oscuro (acentos del host + violeta/ámbar fijos).
+// Four distinct colors that remain readable in light and dark themes (host accents + fixed violet/amber).
 const COLORS = ["var(--hb-accent,#3D6FE0)", "var(--hb-accent2,#16B8A6)", "#8B5CF6", "#F59E0B", "#EC4899", "#10B981"];
 
 function injectStyles(){
@@ -16,14 +16,14 @@ function injectStyles(){
   .hb-inv .hd .sub{font-size:12px;color:var(--hb-muted,#3a4757)}
   .hb-inv .hd .tot{margin-left:auto;font-family:ui-monospace,Menlo,monospace;font-size:15px;font-weight:700}
   .hb-inv .body{display:flex;gap:18px;flex-wrap:wrap;align-items:center}
-  /* Panel del disco: padding IZQ == padding INF (26==26) → disco centrado y grande */
+  /* Donut panel: left padding == bottom padding (26==26), keeping the chart large and centered. */
   .hb-inv .donut-wrap{padding:10px 6px 26px 26px;display:flex;align-items:center;justify-content:center}
   .hb-inv .donut-wrap svg{display:block;width:212px;height:212px;max-width:46vw}
   .hb-inv .hole{fill:var(--hb-bg,#fff)}
   .hb-inv .seg{fill:none;stroke-width:34;transition:stroke-dasharray .3s}
   .hb-inv .ctr-t{font-size:11px;fill:var(--hb-muted-2,#7d8a9c);text-anchor:middle;font-family:-apple-system,inherit,sans-serif}
   .hb-inv .ctr-v{font-size:21px;fill:var(--hb-ink,#0d1622);text-anchor:middle;font-weight:700;font-family:ui-monospace,Menlo,monospace}
-  /* Rejilla 2×2 — cada posición es SU tarjeta (borde + fondo), gap generoso → 4 datos, no 4 columnas */
+  /* 2x2 grid: each position is its own card (border + background), with generous gaps; 4 data items, not 4 columns. */
   .hb-inv .grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;flex:1 1 260px;min-width:240px}
   .hb-inv .box{position:relative;background:var(--hb-bg-soft,#f3f6fb);border:1px solid var(--hb-line,#eef1f6);border-radius:13px;padding:12px 14px 12px 20px;overflow:hidden}
   .hb-inv .box .bar{position:absolute;left:0;top:0;bottom:0;width:4px}
@@ -70,7 +70,7 @@ export function render(el, data, ctx){
   const cur = data.currency || "€";
   const holdings = Array.isArray(data.holdings) ? data.holdings : [];
 
-  // Cabecera
+  // Header.
   const hd = mk("div", "hd");
   hd.appendChild(mk("b", null, data.title || "Cartera de inversiones"));
   hd.appendChild(mk("span", "sub", holdings.length + (holdings.length === 1 ? " posición" : " posiciones")));
@@ -85,8 +85,8 @@ export function render(el, data, ctx){
   const body = mk("div", "body");
 
   // ---- DONUT ----
-  const C = 2 * Math.PI * 80;            // circunferencia (r=80)
-  const GAP = 1.6;                        // hueco visual entre segmentos
+  const C = 2 * Math.PI * 80;            // circumference (r=80)
+  const GAP = 1.6;                        // visual gap between segments
   const dwrap = mk("div", "donut-wrap");
   const root = svg("svg", {viewBox: "0 0 240 240", preserveAspectRatio: "xMidYMid meet", role: "img", "aria-label": "Asignación de la cartera"});
   const g = svg("g", {transform: "rotate(-90 120 120)"});
@@ -107,7 +107,7 @@ export function render(el, data, ctx){
     acc += frac * C;
   });
   root.appendChild(g);
-  // Centro: total en el hueco
+  // Center: total in the hole.
   const lblT = svg("text", {class: "ctr-t", x: "120", y: "108"}); lblT.textContent = "Total"; root.appendChild(lblT);
   const lblV = svg("text", {class: "ctr-v", x: "120", y: "135"});
   lblV.textContent = fmtMoney(data.total || 0, cur);
@@ -115,7 +115,7 @@ export function render(el, data, ctx){
   dwrap.appendChild(root);
   body.appendChild(dwrap);
 
-  // ---- REJILLA 2×2 ----
+  // ---- 2x2 GRID ----
   const grid = mk("div", "grid");
   holdings.forEach((h, i) => {
     const color = COLORS[i % COLORS.length];

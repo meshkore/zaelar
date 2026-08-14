@@ -1,11 +1,10 @@
-"""widgets/navegador/act_api.py — PUENTE DE NAVEGADOR para agentes Claude Code (V2-036 F3).
+"""widgets/navegador/act_api.py: BROWSER BRIDGE for Claude Code agents (V2-036 F3).
 
-Expone las primitivas del `TaskBrowser` del owner como una API request/response SÍNCRONA para que un agente Claude
-Code headless DIRIJA el Chromium de zaelar paso a paso (navigate/click/type/scroll/snapshot/extract) con su propia
-inteligencia — sustituye al bucle barato DOM→visión (Haiku). Corre en el loop de uvicorn, el MISMO que el owner del
-navegador (backed), así que puede llamar a los métodos del `TaskBrowser` directamente (no por el mailbox
-fire-and-forget). Lo invoca el CLI `nucleo/nav_cli.py` (`hbweb`). Local/loopback: mismo modelo de confianza que el
-resto de la API.
+Exposes the owner's `TaskBrowser` primitives as a synchronous request/response API so a headless Claude Code agent
+can drive zaelar's Chromium step by step (navigate/click/type/scroll/snapshot/extract) with its own intelligence.
+This replaces the cheap DOM->vision loop (Haiku). It runs in the uvicorn loop, the same loop as the backed browser
+owner, so it can call `TaskBrowser` methods directly rather than through the fire-and-forget mailbox. Invoked by
+the `nucleo/nav_cli.py` CLI (`hbweb`). Local/loopback: same trust model as the rest of the API.
 """
 from fastapi import APIRouter, Body
 from fastapi.responses import JSONResponse
@@ -14,8 +13,8 @@ router = APIRouter()
 
 
 def _shot_path(task_id: str) -> str:
-    """Ruta ABSOLUTA del PNG de la viewport de esta pestaña (lo escribe TaskBrowser._capture tras cada acción) →
-    el worker la LEE con Read. Best-effort: si algo falla devuelve '' (el worker sigue con el snapshot de texto)."""
+    """Absolute PNG path for this tab's viewport, written by TaskBrowser._capture after each action, so the worker
+    can read it with Read. Best-effort: if anything fails, return '' and the worker continues with text snapshot."""
     try:
         import os
         from widgets import store
@@ -26,9 +25,10 @@ def _shot_path(task_id: str) -> str:
 
 
 def _emit_nav(nav_tid: str, label: str, text: str) -> None:
-    """V2-048: fila de observabilidad del RESULTADO de una acción de navegador — a qué PÁGINA llegó / qué ENCONTRÓ
-    (lo que el comando NO dice, solo lo sabe el browser). Label distinto del `step` de intención → sin colisión con
-    el flood-dedup de `navegador`. Sella trace/span del worker dueño de la pestaña. Best-effort, nunca lanza."""
+    """V2-048: observability row for a browser action result: which page it reached / what it found. This is what
+    the command itself does NOT say and only the browser knows. Label differs from the intent `step`, avoiding
+    collisions with `navegador` flood-dedup. Stamps trace/span for the worker owning the tab. Best-effort, never
+    raises."""
     try:
         from voice.observer import emit
         from nucleo import dispatch
@@ -45,10 +45,10 @@ def _emit_nav(nav_tid: str, label: str, text: str) -> None:
 @router.post("/api/navegador/act")
 async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body(..., embed=True),
                         args: dict = Body(default_factory=dict, embed=True)):
-    """Ejecuta UNA acción de navegador en la pestaña de `task_id` y devuelve el ESTADO resultante para que el agente
-    razone el siguiente paso. Acciones: snapshot | navigate{url} | click{ref} | type{ref,text,submit} | scroll{dy} |
-    press{key} | extract{limit}. `click`/`type` usan las refs del ÚLTIMO snapshot → pide snapshot antes de actuar.
-    El confirm-gate de acciones irreversibles del owner sigue aplicando. Best-effort: nunca lanza."""
+    """Execute one browser action in the `task_id` tab and return resulting state so the agent can reason about the
+    next step. Actions: snapshot | navigate{url} | click{ref} | type{ref,text,submit} | scroll{dy} | press{key} |
+    extract{limit}. `click`/`type` use refs from the latest snapshot, so request snapshot before acting. The owner's
+    confirmation gate for irreversible actions still applies. Best-effort: never raises."""
     action = (action or "").strip()
     args = args or {}
     try:
@@ -66,9 +66,9 @@ async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body
             snap = await tb.snapshot_for_agent()
             return {"ok": True, "shot": _shot_path(task_id), **snap}
         if action == "look":
-            # V2-049 VISIÓN: captura FRESCA del viewport a disco → el worker la LEE con su tool Read (ve la página
-            # como un humano) y actúa por coordenadas (click_at/type_at). Es el camino robusto para formularios/
-            # date-pickers/selects que el snapshot de texto no basta a describir.
+            # V2-049 VISION: fresh viewport capture to disk. The worker reads it with its Read tool, sees the page
+            # like a human, and acts by coordinates (click_at/type_at). This is the robust path for forms,
+            # date-pickers, and selects that the text snapshot cannot describe well enough.
             await tb._capture()
             snap = {}
             try:
@@ -83,18 +83,18 @@ async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body
             return {"ok": True, "listings": items, "n": len(items)}
         if action in ("navigate", "click", "type", "select_option", "scroll", "press", "click_at", "type_at"):
             ok, msg = await tb.agent_act(action, args)
-            # devuelve el estado FRESCO tras la acción → el agente ve el resultado y decide el siguiente paso.
+            # Return fresh state after the action so the agent sees the result and decides the next step.
             snap = {}
             try:
                 snap = await tb.snapshot_for_agent()
             except Exception:
                 pass
-            # observabilidad: a qué PÁGINA llevó la acción (título · url) — solo el browser lo sabe (V2-048).
+            # Observability: which page the action reached (title + url); only the browser knows this (V2-048).
             page = " · ".join(x for x in (str(snap.get("title") or "").strip(),
                                           str(snap.get("url") or "").strip()) if x)
             if page:
                 _emit_nav(task_id, "🧭 página", page)
-            # la ruta del PNG FRESCO (cada acción llama a _capture) → el worker puede Read la vista tras actuar.
+            # Fresh PNG path; every action calls _capture, so the worker can Read the view after acting.
             return {"ok": bool(ok), "msg": msg, "shot": _shot_path(task_id), **snap}
         return JSONResponse({"ok": False, "error": f"acción desconocida: {action}"}, status_code=400)
     except Exception as e:  # noqa: BLE001

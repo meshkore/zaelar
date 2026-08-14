@@ -1,11 +1,11 @@
-# concepts.py — VOCABULARIO DE CONCEPTOS de la memoria central (V2-013 T126). Substrato compartido:
-#   • el ESCRITOR (nucleo/memory_agent._derive_concepts) lo usa como backstop determinista del etiquetado del LLM,
-#   • el VISOR (memory/api.map) lo usa para derivar el MAPA CONCEPTUAL de CORTO PLAZO al vuelo (el corto no tiene
-#     aristas de concepto persistidas — son píldoras efímeras; el largo sí las tiene en `edges`).
-# Un solo sitio para la taxonomía → cero divergencia entre cómo se ESCRIBE y cómo se DIBUJA la organización.
+# concepts.py — central-memory CONCEPT VOCABULARY (V2-013 T126). Shared substrate:
+#   • the WRITER (nucleo/memory_agent._derive_concepts) uses it as deterministic backstop for LLM labeling,
+#   • the VIEWER (memory/api.map) uses it to derive the SHORT-TERM CONCEPT MAP on the fly (short-term has no
+#     persisted concept edges — those are ephemeral pills; long-term does have them in `edges`).
+# One place for the taxonomy -> zero divergence between how organization is WRITTEN and DRAWN.
 import re
 
-# (concepto, regex de keywords) — orden estable (define prioridad al recortar a 3).
+# (concept, keyword regex) — stable order (defines priority when trimming to 3).
 CONCEPT_MAP: list[tuple[str, str]] = [
     ("trabajo", r"trabaj|curro|jef[ae]|oficina|empresa|ascend|becari|compañer|n[oó]mina|despid|contrat|reuni[oó]n|colega|carrera profesional|proyecto empresarial|negocio|emprend|startup|cliente"),
     ("salud", r"salud|m[eé]dic|enferm|al[eé]rg|operaci[oó]n|\boperad[oa]\b|\boperaron\b|cirug[íi]a|quir[úu]rg|dolor|tensi[oó]n|hospital|anal[ií]tica|dentista|pastilla|lesi[oó]n|coraz[oó]n|s[ií]ntoma|receta m[eé]dica|fisio|rehabilit|espalda|vacuna|cita m[eé]dica|h[aá]bito saludable|descanso|dormir"),
@@ -28,8 +28,8 @@ CONCEPT_RES = [(c, re.compile(p, re.I)) for c, p in CONCEPT_MAP]
 
 
 def derive_concepts(text: str, cap: int = 3) -> list[str]:
-    """Deriva 1..cap conceptos de un texto por keywords (determinista, barato). Backstop del etiquetado del LLM
-    en la ESCRITURA y motor del mapa conceptual de CORTO en el VISOR."""
+    """Derive 1..cap concepts from text by keywords (deterministic, cheap). Backstop for LLM labeling on WRITE and
+    engine for the SHORT-term concept map in the VIEWER."""
     t = text or ""
     out = [c for c, rx in CONCEPT_RES if rx.search(t)]
     return out[:cap]

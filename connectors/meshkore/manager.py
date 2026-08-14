@@ -29,7 +29,7 @@ class MeshKoreManager:
 
     async def connect(self, name: str, cluster_id: str, token: str,
                       handle: str = None, did: str = None, vis: str = "") -> MeshKoreClient:
-        """Open (or replace) the connection aliased `name`. `vis="public"` = cluster abierto sin token (V2-086)."""
+        """Open (or replace) the connection aliased `name`. `vis="public"` = open cluster without token (V2-086)."""
         if name in self._clients:
             await self.disconnect(name)
         did = did or identity.did_key()          # stable did:key so peers recognise zaelar (auto, no brain input)
@@ -78,15 +78,15 @@ class MeshKoreManager:
         return list(self._clients)
 
     def clusters(self) -> list[dict]:
-        """Snapshot para el endpoint de estado, el brief del cerebro y la pestaña nativa «Clusters» (V2-086).
+        """Snapshot for the status endpoint, the brain brief, and the native "Clusters" tab (V2-086).
 
-        Incluye los clusters de los que hay CREDENCIALES GUARDADAS aunque no haya cliente vivo — un cluster que
-        el operador dio de alta pero está caído debe VERSE como «desconectado», no desaparecer de la lista (era
-        el comportamiento anterior: solo se listaba `self._clients`, así que un fallo de conexión lo volvía
-        invisible justo cuando más falta hacía saber que existe).
+        Includes clusters with SAVED CREDENTIALS even when there is no live client — a cluster that the operator
+        registered but is down must be SEEN as "disconnected", not disappear from the list (the old behavior only
+        listed `self._clients`, so a connection failure made it invisible exactly when knowing it exists mattered
+        most).
 
-        Nunca expone el token: solo `public` (si el cluster es abierto) y el `cluster_id`, que no es secreto —
-        viaja en la propia URL de invitación."""
+        Never exposes the token: only `public` (if the cluster is open) and the `cluster_id`, which is not secret —
+        it travels in the invite URL itself."""
         rows, seen = [], set()
         for c in self._clients.values():
             seen.add(c.name)

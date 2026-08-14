@@ -1,15 +1,15 @@
 #
-# oauth.py — OAuth2 (authorization-code + PKCE) para el email, MODEL-AGNÓSTICO por proveedor (V2-055). Gmail y
-# Outlook/Microsoft comparten el MISMO flujo (endpoints/scopes vienen del registro `providers.py`), y el transporte
-# sigue siendo IMAP/SMTP con SASL XOAUTH2 (el access token sustituye a la contraseña, ver `mailbox.xoauth2_sasl`).
+# oauth.py — OAuth2 (authorization-code + PKCE) for email, provider MODEL-AGNOSTIC (V2-055). Gmail and
+# Outlook/Microsoft share the SAME flow (endpoints/scopes come from the `providers.py` registry), and transport
+# remains IMAP/SMTP with SASL XOAUTH2 (the access token replaces the password; see `mailbox.xoauth2_sasl`).
 #
-# Patrón calcado de `connectors/spotify/auth.py` (V2-041): PKCE S256 (sin exponer secret en apps instaladas), el
-# callback lo sirve el PROPIO servidor de zaelar (`server/email_api.py` → /api/email/callback), tokens en el
-# credential store (`.meshkore/credentials/email_oauth.json`, chmod 600, gitignored — NUNCA en el repo ni al
-# frontend). Config gestionada por la UI: el `client_id`/`secret` de la app (Google Cloud / Microsoft Entra) los
-# pone el operador UNA vez; DORMANTE hasta entonces (como Spotify).
+# Pattern copied from `connectors/spotify/auth.py` (V2-041): PKCE S256 (without exposing a secret in installed apps),
+# callback served by zaelar's OWN server (`server/email_api.py` → /api/email/callback), tokens in the credential
+# store (`.meshkore/credentials/email_oauth.json`, chmod 600, gitignored — NEVER in the repo or frontend).
+# UI-managed config: app `client_id`/`secret` (Google Cloud / Microsoft Entra) are set by the operator ONCE;
+# DORMANT until then (like Spotify).
 #
-# Todas las funciones son SÍNCRONAS y FAIL-SAFE (devuelven {ok:False,...} o None; nunca lanzan al llamante).
+# All functions are SYNCHRONOUS and FAIL-SAFE (return {ok:False,...} or None; never raise to the caller).
 #
 from __future__ import annotations
 
@@ -32,7 +32,7 @@ _REFRESH_SKEW = 120                      # refresca 2 min antes de caducar
 _DEFAULT_REDIRECT = "http://127.0.0.1:43917/api/email/callback"
 
 
-# ── Credenciales de la app (credential store; dormante si vacías) ────────────────────────────────────────────────
+# ── App credentials (credential store; dormant if empty) ────────────────────────────────────────────────────────
 def _cred(name: str) -> str:
     try:
         from config import credentials as store
@@ -53,7 +53,7 @@ def client_secret(provider_id: str) -> str:
 
 
 def configured(provider_id: str) -> bool:
-    """¿Hay app OAuth registrada para este proveedor? (si no, el widget ofrece la vía app-password)."""
+    """Is there an OAuth app registered for this provider? (if not, the widget offers the app-password path)."""
     p = _pv.get(provider_id)
     if not p or not p.oauth:
         return False
@@ -70,13 +70,13 @@ def _b64url(raw: bytes) -> str:
 
 
 def make_pkce(seed: bytes | None = None) -> tuple[str, str]:
-    """(verifier, challenge S256). `seed` inyectable para tests deterministas; en producción = os.urandom."""
+    """(verifier, S256 challenge). `seed` injectable for deterministic tests; production = os.urandom."""
     verifier = _b64url(seed if seed is not None else os.urandom(48))
     challenge = _b64url(hashlib.sha256(verifier.encode("ascii")).digest())
     return verifier, challenge
 
 
-# ── Store de tokens + pendientes (por proveedor:cuenta) ──────────────────────────────────────────────────────────
+# ── Token + pending store (per provider:account) ────────────────────────────────────────────────────────────────
 def _load() -> dict:
     try:
         if STORE.exists():
@@ -114,10 +114,10 @@ def forget(provider_id: str, address: str) -> None:
     _save(data)
 
 
-# ── Flujo authorization-code ─────────────────────────────────────────────────────────────────────────────────────
+# ── authorization-code flow ────────────────────────────────────────────────────────────────────────────────────
 def authorize_url(provider_id: str, address: str = "") -> dict:
-    """Devuelve {ok, url} — la URL de consentimiento a la que mandar al usuario. Stashea el verifier PKCE + el
-    proveedor/cuenta bajo un `state` aleatorio (para el callback)."""
+    """Return {ok, url} — the consent URL to send the user to. Stashes the PKCE verifier + provider/account under a
+    random `state` (for the callback)."""
     p = _pv.get(provider_id)
     if not p or not p.oauth:
         return {"ok": False, "error": f"proveedor sin OAuth: {provider_id}"}
@@ -134,7 +134,7 @@ def authorize_url(provider_id: str, address: str = "") -> dict:
         "client_id": cid, "response_type": "code", "redirect_uri": redirect_uri(),
         "scope": " ".join(p.oauth.scopes), "state": state,
         "code_challenge": challenge, "code_challenge_method": "S256",
-        "access_type": "offline", "prompt": "consent",       # Google: fuerza refresh_token; Microsoft lo ignora
+        "access_type": "offline", "prompt": "consent",       # Google: forces refresh_token; Microsoft ignores it
     }
     if address:
         params["login_hint"] = address
@@ -142,8 +142,8 @@ def authorize_url(provider_id: str, address: str = "") -> dict:
 
 
 def exchange_code(code: str, state: str) -> dict:
-    """Callback: canjea el `code` por tokens usando el `state` pendiente. Guarda access/refresh/expiry por cuenta.
-    Devuelve {ok, provider, address}."""
+    """Callback: exchange `code` for tokens using the pending `state`. Saves access/refresh/expiry per account.
+    Returns {ok, provider, address}."""
     import httpx
     data = _load()
     pend = (data.get("pending", {}) or {}).pop(state, None)
@@ -179,7 +179,7 @@ def _store_tokens(provider_id: str, address: str, tok: dict) -> None:
     cur = accts.get(_acct_key(provider_id, address), {})
     entry = {
         "access_token": tok.get("access_token", ""),
-        # el refresh_token no siempre vuelve en un refresh → conserva el anterior
+        # refresh_token does not always return on refresh → preserve the previous one
         "refresh_token": tok.get("refresh_token") or cur.get("refresh_token", ""),
         "expires_at": int(time.time()) + int(tok.get("expires_in", 3600)),
     }
@@ -188,7 +188,7 @@ def _store_tokens(provider_id: str, address: str, tok: dict) -> None:
 
 
 def access_token(provider_id: str, address: str) -> str | None:
-    """Devuelve un access token VÁLIDO (refrescándolo si caducó) o None. Lo usa el conector para XOAUTH2."""
+    """Return a VALID access token (refreshing if expired) or None. Used by the connector for XOAUTH2."""
     import httpx
     acct = (_load().get("accounts", {}) or {}).get(_acct_key(provider_id, address))
     if not acct:

@@ -1,19 +1,19 @@
-"""memory/db.py — conexión SQLite de la memoria central (V2-002).
+"""memory/db.py — SQLite connection for central memory (V2-002).
 
-Un **solo fichero** `zaelar.db` (WAL) compartido con el log durable del bus (`bus/log.py` usa el mismo path).
-Sin servidor ni broker. Este módulo:
+A **single file** `zaelar.db` (WAL) shared with the durable bus log (`bus/log.py` uses the same path). No server or
+broker. This module:
 
-  - resuelve la ruta (`db_path()`, override `ZAELAR_DB`; por defecto `memory/_data/zaelar.db`, gitignored),
-  - abre la conexión en **WAL** (`synchronous=NORMAL`) para leer mientras se escribe,
-  - carga la extensión **sqlite-vec** (best-effort → `Database.vec_available`; si falta, la memoria degrada a
-    búsqueda solo-FTS/keyword sin romperse),
-  - crea el schema (`memory/schema.py`) de forma idempotente y lleva la versión en `PRAGMA user_version`.
+  - resolves the path (`db_path()`, `ZAELAR_DB` override; default `memory/_data/zaelar.db`, gitignored),
+  - opens the connection in **WAL** (`synchronous=NORMAL`) so reads can happen while writes happen,
+  - loads the **sqlite-vec** extension (best-effort -> `Database.vec_available`; if missing, memory degrades to
+    FTS/keyword-only search without breaking),
+  - creates the schema (`memory/schema.py`) idempotently and tracks the version in `PRAGMA user_version`.
 
-**Concurrencia**: zaelar es un solo proceso con dos loops (uvicorn + job-thread de LiveKit). El ÚNICO escritor
-es la cola (`memory/writer.py`); los lectores (retriever/state) van directos. Compartimos UNA conexión
-(`check_same_thread=False`) serializada por un `threading.RLock`: a nuestra escala (un usuario, decenas de
-miles de recuerdos) los hold-times son sub-ms, y evita las trampas de compartir un `sqlite3.Connection` entre
-hilos. WAL permite además que un futuro split lector/escritor no requiera cambios de schema.
+**Concurrency**: zaelar is one process with two loops (uvicorn + LiveKit job-thread). The ONLY writer is the queue
+(`memory/writer.py`); readers (retriever/state) go direct. We share ONE connection (`check_same_thread=False`)
+serialized by a `threading.RLock`: at our scale (one user, tens of thousands of memories) hold times are sub-ms, and
+it avoids traps from sharing a `sqlite3.Connection` across threads. WAL also lets a future reader/writer split avoid
+schema changes.
 """
 import os
 import sqlite3
@@ -26,11 +26,10 @@ from nucleo import workspace as _workspace
 
 
 def db_path() -> Path:
-    """Ruta del fichero SQLite compartido. Override por `ZAELAR_DB` (power-user/headless/tests); por defecto
-    `<workspace>/memory/_data/zaelar.db` (gitignored) — `<workspace>` es la raíz del repo salvo que
-    `ZAELAR_WORKSPACE` apunte a un volumen montado (Fase 3, cuentas de pago reales) — sin esa env var
-    esto es BYTE IDÉNTICO a la ruta de siempre. El directorio se crea perezosamente. MISMO path que
-    `bus/log.py`."""
+    """Shared SQLite file path. Override with `ZAELAR_DB` (power-user/headless/tests); default
+    `<workspace>/memory/_data/zaelar.db` (gitignored) — `<workspace>` is the repo root unless `ZAELAR_WORKSPACE`
+    points to a mounted volume (Phase 3, real paid accounts) — without that env var this is BYTE-IDENTICAL to the
+    previous path. Directory is created lazily. SAME path as `bus/log.py`."""
     env = os.getenv("ZAELAR_DB")
     if env:
         return Path(env)
@@ -38,7 +37,7 @@ def db_path() -> Path:
 
 
 def _try_load_vec(conn: sqlite3.Connection) -> bool:
-    """Carga la extensión sqlite-vec en la conexión. Best-effort → devuelve si está disponible."""
+    """Load the sqlite-vec extension into the connection. Best-effort -> returns whether it is available."""
     try:
         import sqlite_vec  # noqa
     except Exception:
@@ -70,7 +69,7 @@ def _has_fts5(conn: sqlite3.Connection) -> bool:
 
 
 class Database:
-    """Envoltorio de la conexión a `zaelar.db`. Normalmente se usa el singleton `get_db()`."""
+    """Wrapper around the `zaelar.db` connection. Usually the `get_db()` singleton is used."""
 
     def __init__(self, path: Path | None = None):
         self.path = Path(path) if path else db_path()
@@ -78,9 +77,9 @@ class Database:
         self._lock = threading.RLock()
         self.conn = sqlite3.connect(str(self.path), check_same_thread=False)
         self.conn.row_factory = sqlite3.Row
-        # `lower()` de SQLite es SOLO-ASCII → `lower('Álvaro')` deja la Á y NO casa con el `.lower()` de Python
-        # ('álvaro'). Toda comparación case-insensitive sobre nombres con tilde/ñ (entidades: Álvaro, María, mamá…)
-        # fallaría en silencio. `pylower` aplica la semántica Unicode de Python en SQL para que ambos lados casen.
+        # SQLite `lower()` is ASCII-ONLY, so accented uppercase letters do NOT match Python `.lower()`. Any
+        # case-insensitive comparison over names with accents/Spanish enye would silently fail. `pylower` applies
+        # Python Unicode semantics in SQL so both sides match.
         try:
             self.conn.create_function(
                 "pylower", 1, lambda s: s.lower() if isinstance(s, str) else s, deterministic=True)
@@ -96,7 +95,7 @@ class Database:
         self.fts_available = _has_fts5(self.conn)
         self._migrate()
 
-    # ── migraciones / schema ─────────────────────────────────────────────────────────────────────────────
+    # ── migrations / schema ──────────────────────────────────────────────────────────────────────────────
     def _migrate(self):
         with self._lock:
             cur = self.conn.execute("PRAGMA user_version").fetchone()
@@ -104,20 +103,20 @@ class Database:
             for stmt in _schema.BASE_DDL:
                 self.conn.execute(stmt)
             if self.vec_available:
-                # dim provider-driven (V2-031): la tabla vec se crea con la dim del embedding ACTIVO (embeddinggemma
-                # 768 / bge-m3·e5-large 1024…). IF NOT EXISTS conserva la existente → un cambio de modelo exige
-                # `memory/reembed.py` (drop+recreate), avisado por `reembed.check()` al arrancar. Import perezoso.
+                # provider-driven dim (V2-031): vec table is created with the ACTIVE embedding dim (embeddinggemma
+                # 768 / bge-m3·e5-large 1024...). IF NOT EXISTS preserves the existing one -> a model change requires
+                # `memory/reembed.py` (drop+recreate), flagged by `reembed.check()` at startup. Lazy import.
                 from . import embeddings as _emb
                 self.conn.execute(_schema.vec_memories_ddl(_emb.dim()))
             if self.fts_available:
                 self.conn.execute(_schema.FTS_MEMORIES)
-            # v1→v2 (V2-013): la memoria es una PÍLDORA — añade `slot`/`meta` si faltan (ALTER idempotente, no
-            # destructivo; SQLite no tiene ADD COLUMN IF NOT EXISTS → miramos las columnas presentes primero).
+            # v1->v2 (V2-013): memory is a PILL — add `slot`/`meta` if missing (idempotent, non-destructive ALTER;
+            # SQLite has no ADD COLUMN IF NOT EXISTS -> inspect existing columns first).
             cols = {r[1] for r in self.conn.execute("PRAGMA table_info(memories)").fetchall()}
             for name, stmt in _schema.MEMORIES_V2_COLUMNS:
                 if name not in cols:
                     self.conn.execute(stmt)
-            for stmt in _schema.MEMORIES_V2_INDEXES:   # índices que dependen de las columnas v2 (tras el ALTER)
+            for stmt in _schema.MEMORIES_V2_INDEXES:   # indexes depending on v2 columns (after ALTER)
                 self.conn.execute(stmt)
             if version < _schema.SCHEMA_VERSION:
                 self.conn.execute(f"PRAGMA user_version={_schema.SCHEMA_VERSION}")
@@ -134,10 +133,10 @@ class Database:
             ).fetchall()
         return {r[0] for r in rows}
 
-    # ── acceso serializado ───────────────────────────────────────────────────────────────────────────────
+    # ── serialized access ────────────────────────────────────────────────────────────────────────────────
     @contextmanager
     def cursor(self):
-        """Cursor bajo el lock. Hace commit al salir sin excepción, rollback si la hay."""
+        """Cursor under the lock. Commits on clean exit, rolls back on exception."""
         with self._lock:
             cur = self.conn.cursor()
             try:
@@ -149,7 +148,7 @@ class Database:
             finally:
                 cur.close()
 
-    def execute(self, sql: str, params: tuple | list = ()):  # escritura simple con commit
+    def execute(self, sql: str, params: tuple | list = ()):  # simple write with commit
         with self.cursor() as cur:
             cur.execute(sql, params)
             return cur.lastrowid
@@ -170,7 +169,7 @@ class Database:
                 pass
 
 
-# ── singleton de módulo ─────────────────────────────────────────────────────────────────────────────────
+# ── module singleton ────────────────────────────────────────────────────────────────────────────────────
 _DB: Database | None = None
 _DB_LOCK = threading.Lock()
 
@@ -184,7 +183,7 @@ def get_db() -> Database:
 
 
 def reset_db():
-    """Cierra el singleton (tests / cambio de ZAELAR_DB). La próxima `get_db()` reabre."""
+    """Close the singleton (tests / ZAELAR_DB change). The next `get_db()` reopens it."""
     global _DB
     with _DB_LOCK:
         if _DB is not None:

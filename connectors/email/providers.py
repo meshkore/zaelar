@@ -1,31 +1,31 @@
 #
-# providers.py — REGISTRO ÚNICO de proveedores de email (V2-055). La "lista de conectores de email" del producto:
-# una entrada por proveedor con sus servidores IMAP/SMTP + los MÉTODOS DE AUTENTICACIÓN que soporta + (si aplica)
-# su configuración OAuth2. Lo consumen config.py (resolver hosts + método), el widget (pintar la lista de canales),
-# el seam OAuth (endpoints/scopes) y los tests. Una sola fuente de verdad → las capas no divergen.
+# providers.py — SINGLE email-provider registry (V2-055). The product's "email connector list": one entry per
+# provider with its IMAP/SMTP servers + supported AUTHENTICATION METHODS + (if applicable) OAuth2 config. Consumed
+# by config.py (resolve hosts + method), the widget (render channel list), the OAuth seam (endpoints/scopes), and
+# tests. One source of truth → layers do not diverge.
 #
-# MÉTODOS DE AUTENTICACIÓN:
-#   · "password"  — IMAP/SMTP con contraseña de aplicación (app-password). Simple, sin registrar app. Gmail lo
-#                   permite con 2FA; Yahoo/iCloud igual. **Microsoft DEPRECÓ basic-auth** (sept-2024) → Outlook NO
-#                   admite password, SOLO oauth.
-#   · "oauth"     — OAuth2 (authorization-code). El transporte sigue siendo IMAP/SMTP pero con **SASL XOAUTH2**
-#                   (token en vez de contraseña) → reusa `mailbox.py`. Necesita registrar una app (Google Cloud /
-#                   Microsoft Entra) UNA vez; luego el usuario conecta con "iniciar sesión con Google/Microsoft".
+# AUTHENTICATION METHODS:
+#   · "password"  — IMAP/SMTP with application password (app-password). Simple, no app registration. Gmail allows it
+#                   with 2FA; Yahoo/iCloud too. **Microsoft DEPRECATED basic-auth** (Sept 2024) → Outlook does NOT
+#                   accept password, ONLY oauth.
+#   · "oauth"     — OAuth2 (authorization-code). Transport remains IMAP/SMTP but with **SASL XOAUTH2** (token
+#                   instead of password) → reuses `mailbox.py`. Requires registering an app (Google Cloud /
+#                   Microsoft Entra) ONCE; then the user connects with "sign in with Google/Microsoft".
 #
-# El orden de `auth_methods` es la PREFERENCIA (el primero es el recomendado para ese proveedor).
+# `auth_methods` order is PREFERENCE (the first one is recommended for that provider).
 #
 from dataclasses import dataclass, field
 
 
 @dataclass(frozen=True)
 class OAuthSpec:
-    """Config OAuth2 (authorization-code) de un proveedor. Endpoints públicos; el client_id/secret los pone el
-    operador en el credential store (dormante hasta entonces, como Spotify V2-041)."""
+    """Provider OAuth2 config (authorization-code). Public endpoints; the operator sets client_id/secret in the
+    credential store (dormant until then, like Spotify V2-041)."""
     authority: str                 # base del proveedor de identidad
-    authorize_url: str             # endpoint de autorización (consent)
+    authorize_url: str             # authorization endpoint (consent)
     token_url: str                 # endpoint de intercambio/refresh de token
-    scopes: tuple[str, ...]        # scopes mínimos para leer + enviar correo (IMAP/SMTP XOAUTH2)
-    pkce: bool = True              # PKCE S256 (recomendado; Google/Microsoft lo soportan para apps instaladas)
+    scopes: tuple[str, ...]        # minimal scopes to read + send email (IMAP/SMTP XOAUTH2)
+    pkce: bool = True              # PKCE S256 (recommended; Google/Microsoft support it for installed apps)
     needs_client_secret: bool = False   # Microsoft "web" app exige secret; Google instalada/PKCE no
 
 
@@ -39,7 +39,7 @@ class EmailProvider:
     smtp_port: int = 587
     auth_methods: tuple[str, ...] = ("password",)
     oauth: OAuthSpec | None = None
-    domains: tuple[str, ...] = field(default_factory=tuple)   # dominios que deducen este proveedor
+    domains: tuple[str, ...] = field(default_factory=tuple)   # domains that infer this provider
     note: str = ""
 
     def supports(self, method: str) -> bool:
@@ -50,8 +50,8 @@ class EmailProvider:
         return self.auth_methods[0] if self.auth_methods else "password"
 
 
-# Scopes: usamos el transporte IMAP/SMTP con XOAUTH2 (reusa mailbox.py), no las APIs REST → los scopes son los de
-# "correo completo": Google `https://mail.google.com/` (IMAP+SMTP), Microsoft IMAP/SMTP + offline_access (refresh).
+# Scopes: use IMAP/SMTP transport with XOAUTH2 (reuses mailbox.py), not REST APIs → scopes are "full mail": Google
+# `https://mail.google.com/` (IMAP+SMTP), Microsoft IMAP/SMTP + offline_access (refresh).
 _GOOGLE_OAUTH = OAuthSpec(
     authority="https://accounts.google.com",
     authorize_url="https://accounts.google.com/o/oauth2/v2/auth",
@@ -64,8 +64,8 @@ _MICROSOFT_OAUTH = OAuthSpec(
     authority="https://login.microsoftonline.com/common",
     authorize_url="https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
     token_url="https://login.microsoftonline.com/common/oauth2/v2.0/token",
-    # IMAP/SMTP delegados + offline_access (refresh token) + openid/email (identidad). Microsoft exige el prefijo
-    # https://outlook.office.com/ para los scopes de correo por XOAUTH2.
+    # Delegated IMAP/SMTP + offline_access (refresh token) + openid/email (identity). Microsoft requires the
+    # https://outlook.office.com/ prefix for XOAUTH2 mail scopes.
     scopes=("https://outlook.office.com/IMAP.AccessAsUser.All",
             "https://outlook.office.com/SMTP.Send",
             "offline_access", "openid", "email"),
@@ -73,7 +73,7 @@ _MICROSOFT_OAUTH = OAuthSpec(
     needs_client_secret=False,     # app "public/native" en Entra → PKCE sin secret
 )
 
-# ── LA LISTA (todos los conectores de email del producto) ─────────────────────────────────────────────────────
+# ── THE LIST (all product email connectors) ───────────────────────────────────────────────────────────────────
 PROVIDERS: dict[str, EmailProvider] = {
     "gmail": EmailProvider(
         id="gmail", label="Gmail", imap_host="imap.gmail.com", smtp_host="smtp.gmail.com",
@@ -110,7 +110,7 @@ def get(provider_id: str) -> EmailProvider | None:
 
 
 def by_domain(address: str) -> EmailProvider | None:
-    """Deduce el proveedor por el dominio de la dirección (para el modo 'otro'/vacío)."""
+    """Infer provider from the address domain (for 'other'/empty mode)."""
     domain = (address or "").split("@")[-1].strip().lower()
     if not domain:
         return None
@@ -121,8 +121,8 @@ def by_domain(address: str) -> EmailProvider | None:
 
 
 def public_list() -> list[dict]:
-    """Lista redactada para el frontend (el widget pinta 'Canales disponibles'): id, label, métodos, nota. SIN
-    endpoints ni secretos."""
+    """Redacted list for the frontend (the widget renders 'Available channels'): id, label, methods, note. NO
+    endpoints or secrets."""
     out = []
     for p in PROVIDERS.values():
         out.append({"id": p.id, "label": p.label, "auth_methods": list(p.auth_methods),

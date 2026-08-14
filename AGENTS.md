@@ -1,5 +1,15 @@
 # Agent entrypoint
 
+## Public source-language invariant
+
+`engine/` is public. Comments, docstrings, inline explanations, and developer-facing notes must be in
+English everywhere. Before adding or changing one, run `python tools/comment_language_audit.py` on the
+touched path and translate any Spanish internal prose. Preserve Spanish only when it is intentional runtime
+product content, localization data, or a test fixture whose purpose is to exercise Spanish behavior.
+
+For the ongoing repository-wide migration, read
+`.meshkore/docs/ops/comment-language-migration.md` first and update its ledger after each completed file.
+
 This repository's complete engineering context is in `CLAUDE.md` and `.meshkore/`.
 Read the relevant canonical document before changing a subsystem.
 

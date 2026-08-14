@@ -1,7 +1,7 @@
-// Serpiente (Snake) — juego clásico, 100% cliente, autónomo y pasivo. Contrato: render(el, data, ctx).
-// No red, no store: todo el estado del juego vive en memoria del cliente (y el récord en localStorage).
-// Rejilla DOM (no canvas) para que el cambio de tema (☾/☀) re-pinte al instante vía CSS, sin tocar JS.
-// Control por flechas del teclado (foco en el propio widget, no secuestra las flechas de la página).
+// Snake: classic game, 100% client-side, autonomous and passive. Contract: render(el, data, ctx).
+// No network, no store: all game state lives in client memory, and the record lives in localStorage.
+// DOM grid, not canvas, so theme changes repaint instantly through CSS without touching JS.
+// Keyboard-arrow controls are focused on the widget itself and do not steal page-level arrows.
 
 const COLS = 18, ROWS = 18, TICK_MS = 130, BEST_KEY = "hb-snake-best";
 
@@ -38,11 +38,11 @@ function el2(tag, cls, text){ const e=document.createElement(tag); if(cls)e.clas
 
 export function render(el, data, ctx){
   injectStyles();
-  // limpieza defensiva: el host puede re-llamar a render con datos frescos → nunca dejar dos bucles/listeners vivos
+  // Defensive cleanup: the host may call render again with fresh data, so never leave two loops/listeners alive.
   if(el._snkStop) el._snkStop();
 
   el.className="hb-snake";
-  el.tabIndex=0;                       // foco propio → capturamos flechas sin robárselas a la página
+  el.tabIndex=0;                       // own focus lets us capture arrows without stealing them from the page
   el.textContent="";
 
   const hd=el2("div","snk-hd");
@@ -54,13 +54,13 @@ export function render(el, data, ctx){
 
   const wrap=el2("div","snk-wrap");
   const grid=el2("div","snk-grid");
-  const cells=[];                      // rejilla de celdas reutilizadas (índice y*COLS+x)
+  const cells=[];                      // reused cell grid (index y*COLS+x)
   for(let i=0;i<COLS*ROWS;i++){ const c=el2("div","snk-cell"); grid.appendChild(c); cells.push(c); }
   wrap.appendChild(grid);
   el.appendChild(wrap);
   el.appendChild(el2("div","snk-hint","Usa las flechas ← ↑ ↓ → para moverte."));
 
-  // ---- estado del juego ----
+  // ---- game state ----
   let snake, dir, nextDir, food, score, timer=null, alive=false;
 
   const idx=(x,y)=>y*COLS+x;
@@ -94,14 +94,14 @@ export function render(el, data, ctx){
   function step(){
     dir=nextDir;
     const head={x:snake[0].x+dir.x, y:snake[0].y+dir.y};
-    // choque con la pared
+    // Wall collision.
     if(head.x<0||head.x>=COLS||head.y<0||head.y>=ROWS){ gameOver(); return; }
-    // choque consigo misma (la cola se libera este turno salvo que comamos)
+    // Self-collision; the tail is released this turn unless the snake eats.
     const grows = food && head.x===food.x && head.y===food.y;
     const body = grows ? snake : snake.slice(0,-1);
     if(body.some(s=>s.x===head.x&&s.y===head.y)){ gameOver(); return; }
     snake.unshift(head);
-    if(grows){ score+=1; food=randFood(); if(!food){ paint(); gameOver(); return; } } // rejilla llena = victoria
+    if(grows){ score+=1; food=randFood(); if(!food){ paint(); gameOver(); return; } } // full grid = victory
     else snake.pop();
     paint();
   }
@@ -113,7 +113,7 @@ export function render(el, data, ctx){
     el.focus();
   }
 
-  // ---- overlay (inicio / game over) ----
+  // ---- overlay (start / game over) ----
   let overlay=null;
   function clearOverlay(){ if(overlay){overlay.remove();overlay=null;} }
   function showOverlay(isStart){

@@ -1,5 +1,5 @@
-// Meteo Soria — pronóstico horario para hoy en formato horizontal:
-// fila de horas con precipitación arriba y temperatura abajo. Scroll horizontal si no caben.
+// Meteo Soria: today's hourly forecast in horizontal format.
+// Hour row with precipitation above and temperature below. Horizontal scroll if it does not fit.
 // Self-contained: scoped styles, no external libs, no network from JS. data = GET /widgets/meteo-soria/data.
 // IMPORTANT: textContent for any server/text field (XSS-safe — descriptions come from the web).
 
@@ -18,7 +18,7 @@ function injectStyles(){
   .hb-meteo .top .r{margin-left:auto;text-align:right;font-size:12px;color:var(--hb-muted-2,#7d8a9c)}
   .hb-meteo .top .r b{display:block;font-size:14px;color:var(--hb-ink,#0d1622);font-weight:600}
 
-  /* Horizontal hourly strip: each column = una hora. Precipitación arriba, hora en medio, temperatura abajo. */
+  /* Horizontal hourly strip: each column = one hour. Precipitation above, hour in the middle, temperature below. */
   .hb-meteo .strip{display:flex;flex-direction:row;gap:6px;overflow-x:auto;overflow-y:hidden;padding:4px 2px 6px;
                    border:1px solid var(--hb-line,#eef1f6);border-radius:12px;background:var(--hb-bg,#fff);scroll-snap-type:x proximity}
   .hb-meteo .col{flex:0 0 auto;width:54px;display:flex;flex-direction:column;align-items:center;gap:4px;
@@ -26,18 +26,18 @@ function injectStyles(){
   .hb-meteo .col.past{opacity:.4}
   .hb-meteo .col.now{border-color:var(--hb-accent2,#16B8A6);background:var(--hb-bg-soft,#f3fbf9);box-shadow:0 0 0 1px rgba(22,184,166,.15)}
 
-  /* Precipitación (top): barra vertical + porcentaje */
+  /* Precipitation (top): vertical bar + percentage. */
   .hb-meteo .col .rain{display:flex;flex-direction:column;align-items:center;gap:3px;width:100%}
   .hb-meteo .col .rain .pct{font-size:10.5px;color:var(--hb-muted,#3a4757);font-variant-numeric:tabular-nums;line-height:1}
   .hb-meteo .col .rain .vbar{width:6px;height:36px;background:var(--hb-line,#eef1f6);border-radius:4px;overflow:hidden;position:relative}
   .hb-meteo .col .rain .vfill{position:absolute;left:0;right:0;bottom:0;background:var(--hb-accent,#3D6FE0);border-radius:4px}
   .hb-meteo .col.wet .rain .vfill{background:var(--hb-accent2,#16B8A6)}
 
-  /* Hora + icono (centro) */
+  /* Hour + icon (center). */
   .hb-meteo .col .wicon{font-size:18px;line-height:1;margin-top:2px}
   .hb-meteo .col .h{font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:var(--hb-muted,#5b6b82)}
 
-  /* Temperatura (abajo) */
+  /* Temperature (bottom). */
   .hb-meteo .col .t{font-size:14px;font-weight:600;color:var(--hb-ink,#0d1622);font-variant-numeric:tabular-nums;margin-top:2px}
 
   .hb-meteo .empty{font-size:13px;color:var(--hb-muted-2,#7d8a9c);padding:14px;text-align:center;border:1px dashed var(--hb-line,#e3e8f0);border-radius:10px}
@@ -98,7 +98,7 @@ export function render(el, data, ctx){
       const col = make("div", cls.join(" "));
       col.title = (h.desc || "") + (p!=null ? " · lluvia " + p + "%" : "");
 
-      // Precipitación arriba
+      // Precipitation above.
       const rain = make("div","rain");
       rain.appendChild(make("div","pct", (p == null) ? "—" : (p + "%")));
       const vbar = make("div","vbar");
@@ -109,11 +109,11 @@ export function render(el, data, ctx){
       rain.appendChild(vbar);
       col.appendChild(rain);
 
-      // Icono + hora (centro)
+      // Icon + hour (center).
       col.appendChild(make("div","wicon", h.icon || "•"));
       col.appendChild(make("div","h", h.label || ""));
 
-      // Temperatura abajo
+      // Temperature below.
       col.appendChild(make("div","t", fmtTemp(h.temp)));
 
       strip.appendChild(col);

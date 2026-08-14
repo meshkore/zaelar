@@ -1,9 +1,9 @@
-"""connectors/spotify/provider.py — Spotify como `MusicProvider` (V2-041).
+"""connectors/spotify/provider.py — Spotify as `MusicProvider` (V2-041).
 
-Implementa el contrato agnóstico de `connectors.music.base` sobre `client.py` + `auth.py`. Traduce los resultados
-de la Web API a `Track`/`NowPlaying`/`MusicResult` con frases HABLABLES en el idioma del operador, y resuelve el
-caso NO_ACTIVE_DEVICE (busca un dispositivo Spotify Connect y le manda la orden) sin molestar al operador salvo que
-no haya ninguno. Fail-safe: nunca lanza; cualquier fallo → `MusicResult(ok=False,...)` con una frase amable.
+Implements the agnostic `connectors.music.base` contract over `client.py` + `auth.py`. Translates Web API results to
+`Track`/`NowPlaying`/`MusicResult` with SPEAKABLE phrases in the operator language, and handles NO_ACTIVE_DEVICE
+(finds a Spotify Connect device and sends it the command) without bothering the operator unless none exists.
+Fail-safe: never raises; any failure -> `MusicResult(ok=False,...)` with a friendly sentence.
 """
 from __future__ import annotations
 
@@ -82,7 +82,7 @@ class SpotifyProvider(MusicProvider):
     def connected(self) -> bool:
         return bool(auth.client_id()) and auth.logged_in()
 
-    # ── búsqueda ───────────────────────────────────────────────────────────────────────────────────────
+    # ── search ─────────────────────────────────────────────────────────────────────────────────────────
     def search(self, query: str, limit: int = 5) -> "list[Track]":
         if not (query or "").strip():
             return []
@@ -94,9 +94,9 @@ class SpotifyProvider(MusicProvider):
         items = ((res or {}).get("tracks") or {}).get("items") or []
         return [t for t in (_track_from(i) for i in items) if t]
 
-    # ── resolución de dispositivo (NO_ACTIVE_DEVICE) ─────────────────────────────────────────────────────
+    # ── device resolution (NO_ACTIVE_DEVICE) ─────────────────────────────────────────────────────────────
     def _pick_device(self) -> str:
-        """id del dispositivo a usar: el activo, si no el primero disponible; '' si no hay ninguno."""
+        """Device id to use: active one, otherwise first available; '' if none exists."""
         try:
             devs = client.devices()
         except SpotifyError:
@@ -109,7 +109,7 @@ class SpotifyProvider(MusicProvider):
         return devs[0].get("id", "")
 
     def _run(self, fn, action: str, track: "Track | None" = None, msg_kw: dict = None) -> MusicResult:
-        """Ejecuta una acción del reproductor con recuperación de NO_ACTIVE_DEVICE (reintenta con un device_id)."""
+        """Run a player action with NO_ACTIVE_DEVICE recovery (retry with a device_id)."""
         msg_kw = msg_kw or {}
         try:
             fn("")

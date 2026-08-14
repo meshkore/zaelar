@@ -1,9 +1,8 @@
-// personalizado-reproduzca-video — reproductor de YouTube REAL embebido en el canvas (un <iframe>, no una
-// captura), dedicado EN EXCLUSIVA al gol de la "Mano de Dios" de Maradona: listo para reproducirse en cuanto
-// se abre la tarjeta. Se controla por VOZ: data.py guarda el comando deseado (last_cmd + cmd_seq) y el estado
-// (paused/muted/volume); aquí lo aplicamos al reproductor con postMessage (YouTube IFrame API, SIN librería
-// externa — solo mensajes al iframe). Contrato: render(el, data, ctx). Sin red desde JS: el <iframe> es un
-// elemento, no una petición nuestra.
+// personalizado-reproduzca-video — REAL YouTube player embedded in the canvas (an <iframe>, not a capture),
+// dedicated EXCLUSIVELY to Maradona's "Hand of God" goal: ready to play as soon as the card opens. Controlled by
+// VOICE: data.py stores the desired command (last_cmd + cmd_seq) and state (paused/muted/volume); here we apply it
+// to the player with postMessage (YouTube IFrame API, NO external library — only iframe messages). Contract:
+// render(el, data, ctx). No network from JS: the <iframe> is an element, not our own request.
 
 function injectStyles(){
   if(document.getElementById("hb-mdd-css")) return;
@@ -40,7 +39,7 @@ function post(iframe, func, args){
   }catch(_){}
 }
 
-// Reafirma el estado deseado en el reproductor (idempotente) — se usa al cargar la tarjeta.
+// Reassert the desired state in the player (idempotent) — used when loading the card.
 function applyState(iframe, data){
   if(data.muted){ post(iframe, "mute", []); }
   else { post(iframe, "unMute", []); post(iframe, "setVolume", [Number(data.volume != null ? data.volume : 70)]); }
@@ -48,7 +47,7 @@ function applyState(iframe, data){
   else post(iframe, "playVideo", []);
 }
 
-// Aplica el ÚLTIMO comando pedido por voz/click (solo cuando avanza cmd_seq).
+// Apply the LAST command requested by voice/click (only when cmd_seq advances).
 function applyCmd(iframe, data){
   const c = data.last_cmd || "";
   const vol = Number(data.volume != null ? data.volume : 70);
@@ -69,7 +68,7 @@ export function render(root, data, ctx){
   const seq = Number(data.cmd_seq || 0);
   const st = root._hbMdd || null;
 
-  // (Re)construir la tarjeta solo al primer render (el vídeo es fijo, nunca cambia de id).
+  // (Re)build the card only on first render (the video is fixed, its id never changes).
   if(!st || !root._hbMddBuilt){
     root.className = "hb-mdd";
     root.textContent = "";
@@ -90,7 +89,7 @@ export function render(root, data, ctx){
     frame.appendChild(iframe);
     root.appendChild(frame);
 
-    // Controles por click (espejo de lo que también se pide por voz).
+    // Click controls (mirror of what can also be requested by voice).
     const ctrls = el("div", "hb-mdd-ctrls");
     const btn = (label, action) => {
       const b = el("button", "hb-mdd-btn", label);
@@ -101,7 +100,7 @@ export function render(root, data, ctx){
     ctrls.appendChild(btn("❚❚ Pausa", "pause"));
     ctrls.appendChild(btn("🔉 −", "volume_down"));
     ctrls.appendChild(btn("🔊 +", "volume_up"));
-    const muteBtn = el("button", "hb-mdd-btn", "🔊 Sonido");   // acción/cartel se fijan cada render (es un toggle)
+    const muteBtn = el("button", "hb-mdd-btn", "🔊 Sonido");   // action/label are set on each render (toggle)
     ctrls.appendChild(muteBtn);
     const vol = el("div", "hb-mdd-vol", "");
     ctrls.appendChild(vol);
@@ -115,7 +114,7 @@ export function render(root, data, ctx){
     root._hbMddEls = { iframe: iframe, title: title, vol: vol, muteBtn: muteBtn };
   }
 
-  // Refresco dinámico en CADA render (botón de silencio-toggle, volumen).
+  // Dynamic refresh on EVERY render (mute-toggle button, volume).
   const E = root._hbMddEls || {};
   if(E.title) E.title.textContent = data.title || "Gol de la Mano de Dios";
   if(E.muteBtn){
@@ -124,7 +123,7 @@ export function render(root, data, ctx){
   }
   if(E.vol) E.vol.textContent = data.muted ? "silencio" : ("vol " + (data.volume != null ? data.volume : 70));
 
-  // Aplicar el último comando si avanzó el contador.
+  // Apply the last command if the counter advanced.
   if(seq !== root._hbMdd.seq){
     applyCmd(E.iframe, data);
     root._hbMdd.seq = seq;

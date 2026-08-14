@@ -1,5 +1,5 @@
-// Clock widget — reloj digital grande y centrado. Hora local del navegador, refresco cada segundo.
-// data viene del servidor pero solo se usa como fallback inicial; el reloj real lo pinta el cliente.
+// Clock widget: large centered digital clock. Browser-local time, refreshed every second.
+// Data comes from the server but is used only as an initial fallback; the client renders the real clock.
 
 function injectStyles(){
   if(document.getElementById("hb-clock-css"))return;

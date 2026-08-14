@@ -1,10 +1,10 @@
 #
-# bridge_proc.py — lifecycle del proceso Node del bridge Baileys (vendorizado, connectors/whatsapp/bridge/).
+# bridge_proc.py — lifecycle for the Baileys bridge Node process (vendored, connectors/whatsapp/bridge/).
 #
-# Arranca `node bridge.js --mode observe` (nuestro parche INI-014: reenvía TODO lo entrante para triaje, sin
-# responder). La primera vez imprime un QR en el terminal → el operador lo escanea con WhatsApp (Ajustes →
-# Dispositivos vinculados). La sesión queda en connectors/whatsapp/_session/ (gitignored) y ya no vuelve a pedir
-# QR. Heredamos stdout para que el QR sea visible; con WHATSAPP_DEBUG=1 el bridge añade logs JSON de eventos.
+# Starts `node bridge.js --mode observe` (our INI-014 patch: forwards ALL inbound content to triage, without
+# replying). The first time it prints a QR in the terminal -> the operator scans it with WhatsApp (Settings ->
+# Linked devices). The session stays in connectors/whatsapp/_session/ (gitignored) and no longer asks for QR. We
+# inherit stdout so the QR is visible; with WHATSAPP_DEBUG=1 the bridge adds JSON event logs.
 #
 import asyncio
 import os
@@ -24,7 +24,7 @@ class _Bridge:
             raise RuntimeError("node no está en el PATH — el bridge Baileys lo necesita.")
         node_modules = config.bridge_dir() / "node_modules"
         if not node_modules.exists():
-            # Self-heal: instala las deps del bridge la 1ª vez (para que `make run` no requiera un paso manual).
+            # Self-heal: install bridge deps on first run (so `make run` does not require a manual step).
             if shutil.which("npm") is None:
                 raise RuntimeError(f"Faltan deps del bridge y no hay npm. Corre: make install-whatsapp")
             logger.info("WhatsApp: instalando deps del bridge (una vez)… puede tardar ~1 min")
@@ -38,7 +38,7 @@ class _Bridge:
         config.session_dir().mkdir(parents=True, exist_ok=True)
         env = dict(os.environ)
         env["WHATSAPP_MODE"] = "observe"
-        env.setdefault("WHATSAPP_REPLY_PREFIX", "")  # en observe no respondemos; sin prefijo
+        env.setdefault("WHATSAPP_REPLY_PREFIX", "")  # in observe we do not reply; no prefix
 
         logger.info(f"WhatsApp bridge → node bridge.js (observe) port={config.bridge_port()}")
         self.proc = await asyncio.create_subprocess_exec(
@@ -48,11 +48,11 @@ class _Bridge:
             "--mode", "observe",
             cwd=str(config.bridge_dir()),
             env=env,
-            # stdout/stderr heredados → el QR de emparejamiento se ve en el terminal.
+            # inherited stdout/stderr -> pairing QR is visible in the terminal.
         )
 
     async def wait_connected(self, timeout: float = 180.0) -> bool:
-        """Espera a que el bridge reporte 'connected' (tras escanear el QR la 1ª vez)."""
+        """Wait until the bridge reports 'connected' (after scanning the QR the first time)."""
         t0 = asyncio.get_event_loop().time()
         while asyncio.get_event_loop().time() - t0 < timeout:
             if self.proc and self.proc.returncode is not None:

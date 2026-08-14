@@ -20,7 +20,7 @@ from connectors.meshkore import brief, store, journal, security, mem_ingest, cap
 
 IDLE_SECS = float(os.getenv("MESHKORE_IDLE_SECS", "90"))    # engaged + silent this long → one nudge
 TICK_SECS = float(os.getenv("MESHKORE_TICK_SECS", "20"))    # heartbeat cadence
-EVAL_SECS = float(os.getenv("MESHKORE_EVAL_SECS", "45"))    # cada cuánto re-evalúa la SALUD de una charla (V2-075)
+EVAL_SECS = float(os.getenv("MESHKORE_EVAL_SECS", "45"))    # how often conversation HEALTH is re-evaluated (V2-075)
 MAX_INFLIGHT = int(os.getenv("MESHKORE_MAX_INFLIGHT", "8"))  # cap queued/in-flight brain turns → flood backpressure
 # Anti-spam DEDUP (2026-07-25, live: zalo flooded 45 IDENTICAL "consultando con mi equipo… un momento" pings in
 # ~90s — each spawned a brain turn until MAX_INFLIGHT dropped the rest, and zaelar burned tokens replying
@@ -28,8 +28,8 @@ MAX_INFLIGHT = int(os.getenv("MESHKORE_MAX_INFLIGHT", "8"))  # cap queued/in-fli
 # not a new turn: reply ONCE, ignore verbatim repeats. Defensive hardening on the untrusted channel, same spirit
 # as MAX_INFLIGHT — does NOT change conversational style, only suppresses reacting to duplicate spam.
 DEDUP_SECS = float(os.getenv("MESHKORE_DEDUP_SECS", "60"))
-# V2-086: la red dejó de tener widget. Cada evento de cluster avisa a la superficie NATIVA (pestaña «Clusters»
-# del ChatWall) por SSE, para que refresque estado/peers/contadores sin sondear.
+# V2-086: the network no longer has a widget. Every cluster event notifies the NATIVE surface (ChatWall "Clusters"
+# tab) through SSE, so it can refresh state/peers/counters without polling.
 
 
 def _emit(*args, **kwargs):
@@ -50,29 +50,29 @@ def _dedup_key(text: str) -> str:
     (those bypass dedup — never suppress a real turn on a normalization artifact)."""
     n = _ud.normalize("NFKD", text or "").casefold()
     n = "".join(c for c in n if not _ud.combining(c))
-    n = _re.sub(r"[^0-9a-z\s]+", " ", n)          # keep letters/digits/spaces only (ñ→n via NFKD above)
+    n = _re.sub(r"[^0-9a-z\s]+", " ", n)          # keep letters/digits/spaces only (Spanish enye -> n via NFKD above)
     return _re.sub(r"\s+", " ", n).strip()
 
 
 class ClusterBridge:
     def __init__(self, manager, brain):
         self._manager = manager
-        self._brain = brain                  # async brain(text, on_chunk=None) -> str (motor FlashBrain, perfil untrusted)
+        self._brain = brain                  # async brain(text, on_chunk=None) -> str (FlashBrain engine, untrusted profile)
         self._engaged: dict[str, bool] = {}  # cluster -> has an open joint task
         self._last_activity: dict[str, float] = {}
         self._nudged: set[str] = set()
         self._last_peer_msg: dict[str, str] = {}  # cluster -> most recent inbound text (idle-nudge context)
         self._caught_up: set[tuple] = set()   # (cluster, peer, last_in_ts) already nudged for catch-up (dedup)
         self._recent_inbound: dict[tuple, tuple] = {}  # (cluster,peer) -> (text, ts) for anti-spam verbatim dedup
-        # GUARDIA DE ATASCO (V2-069): repeticiones consecutivas del MISMO mensaje (normalizado) por peer + estado del
-        # episodio (¿ya mandamos el mensaje asertivo? ¿ya avisamos al operador?). Se resetea cuando llega contenido
-        # nuevo. Es la 1ª línea DETERMINISTA (corta el bucle a los 2-3, no a los 1.333); Susurro es la 2ª línea.
-        self._repeat: dict[tuple, int] = {}          # (cluster,peer) -> nº de repeticiones consecutivas
+        # STALL GUARD (V2-069): consecutive repetitions of the SAME (normalized) message per peer + episode state
+        # (did we already send the assertive message? did we already alert the operator?). Resets when new content
+        # arrives. This is the 1st DETERMINISTIC line (cuts the loop at 2-3, not 1,333); Susurro is the 2nd line.
+        self._repeat: dict[tuple, int] = {}          # (cluster,peer) -> number of consecutive repetitions
         self._stall: dict[tuple, dict] = {}          # (cluster,peer) -> {"assertive_sent":bool, "alerted":bool}
-        self._resource_alerted: set = set()          # (cluster,peer) ya avisados de explotación de recursos (V2-071)
-        self._window: dict[tuple, list] = {}          # (cluster,peer) -> [{"who","text"}] ventana para el evaluador (V2-075)
-        self._paced: dict[tuple, dict] = {}           # (cluster,peer) -> {"paused":bool,"alerted":bool} (decide el evaluador)
-        self._last_eval: dict[tuple, float] = {}      # (cluster,peer) -> último ts de evaluación (throttle, V2-075)
+        self._resource_alerted: set = set()          # (cluster,peer) already alerted for resource exploitation (V2-071)
+        self._window: dict[tuple, list] = {}          # (cluster,peer) -> [{"who","text"}] evaluator window (V2-075)
+        self._paced: dict[tuple, dict] = {}           # (cluster,peer) -> {"paused":bool,"alerted":bool} (evaluator decides)
+        self._last_eval: dict[tuple, float] = {}      # (cluster,peer) -> last evaluation timestamp (throttle, V2-075)
         self._tick_task = None
         self._turns: set = set()             # keep brain-turn tasks alive
 
@@ -98,9 +98,9 @@ class ClusterBridge:
         self._last_activity[name] = self._now()
 
     def _notify_registry(self):
-        """Avisa a la pestaña NATIVA «Clusters» de que algo cambió en la red (V2-086) — conexión, presencia de un
-        peer, mensaje. El frontend la refresca desde `/api/meshkore/status`. Antes esto tocaba el store del widget
-        `cluster-registro` para forzar un re-render del canvas; ese widget ya no existe."""
+        """Notify the NATIVE "Clusters" tab that something changed on the network (V2-086) — connection, peer
+        presence, message. The frontend refreshes it from `/api/meshkore/status`. This used to touch the
+        `cluster-registro` widget store to force a canvas re-render; that widget no longer exists."""
         try:
             from voice.observer import emit
             emit("cluster", "changed", role="system")
@@ -124,7 +124,7 @@ class ClusterBridge:
             return None
         out_ts = ex.get("last_out_ts")
         if out_ts is not None and out_ts >= ts:
-            return None                                    # ya contestado (o después)
+            return None                                    # already answered (or later)
         key = (cluster, peer, ts)
         if key in self._caught_up:
             return None
@@ -167,10 +167,11 @@ class ClusterBridge:
             client = self._manager.get(cluster)
             if client and frm == client.handle:
                 return                                            # ignore our own echoes
-            # Handle NEUTRALIZADO como clave ÚNICA del peer (V2-069): el handle lo elige el peer y puede variar
-            # (basura/fence-forge añadido). dedup, guardia de atasco y cápsula deben indexar por el MISMO handle
-            # saneado — si no, un handle variable fragmentaría la clave y esquivaría el dedup/atasco y partiría la
-            # memoria-de-relación en varias cápsulas. `neutralize_identity` colapsa esas variantes al mismo peer.
+            # NEUTRALIZED handle as the UNIQUE peer key (V2-069): the peer chooses the handle and it may vary
+            # (added garbage/fence-forge). Dedup, stall guard, and capsule must index by the SAME sanitized handle
+            # — otherwise a variable handle would fragment the key, evade dedup/stall detection, and split the
+            # relationship memory across multiple capsules. `neutralize_identity` collapses those variants to the
+            # same peer.
             peer_h = security.neutralize_identity(frm)
             # Canonical §4 content: payload is a STRING → it's text; an OBJECT → read .text and .media[{mime,url|b64}].
             # No "type"/threading fields exist (presence/joins come as their OWN frames, not as message payloads).
@@ -199,10 +200,10 @@ class ClusterBridge:
             _key = _dedup_key(_txt)
             if _key and _prev and _prev[0] == _key and (self._now() - _prev[1]) < DEDUP_SECS:
                 self._recent_inbound[_dk] = (_key, self._now())   # slide the window; keep suppressing a sustained loop
-                # GUARDIA DE ATASCO (V2-069): un repetido no es solo "ignorar" — es señal de bucle. Contamos las
-                # repeticiones y actuamos como un humano: a las 2 mandamos UN mensaje asertivo anclado al objetivo
-                # (una sola vez); si sigue, CALLAMOS y avisamos al operador UNA vez. Reemplaza el "ignorar y ya" que
-                # dejó que zalo repitiera "un momento" 1.333 veces sin que nadie rompiera el patrón.
+                # STALL GUARD (V2-069): a repeat is not just "ignore" — it is a loop signal. We count repetitions
+                # and act like a human: at 2 we send ONE assertive message anchored to the objective (once only);
+                # if it continues, we go SILENT and alert the operator ONCE. This replaces the "just ignore it"
+                # behavior that let zalo repeat "one moment" 1,333 times without anyone breaking the pattern.
                 self._repeat[_dk] = self._repeat.get(_dk, 0) + 1
                 st = self._stall.setdefault(_dk, {"assertive_sent": False, "alerted": False})
                 verdict = capsule.stall_verdict(self._repeat[_dk], 0)
@@ -232,13 +233,13 @@ class ClusterBridge:
                 return
             if _key:
                 self._recent_inbound[_dk] = (_key, self._now())
-                # contenido NUEVO → el episodio de bucle (si lo había) se cierra: resetea contadores/estado.
+                # NEW content -> close any loop episode that existed: reset counters/state.
                 self._repeat[_dk] = 0
                 self._stall.pop(_dk, None)
             # SSE/timeline/observer copy is REDACTED: a peer message can carry a secret-shaped value (or echo back
             # one of our own tokens) and this surface persists to logs + streams to the UI (audit V6). The brain
             # copy below stays raw (fenced) — Hermes needs the real content to collaborate; the fence handles trust.
-            frm_lbl = peer_h                                   # V2-069: clave única del peer (neutralizada arriba)
+            frm_lbl = peer_h                                   # V2-069: unique peer key (neutralized above)
             _emit("cluster", f"⇠ {cluster}·{frm_lbl}", text=store.redact(text), role="peer",
                   extra={"cluster": cluster, "peer": frm_lbl, "dir": "in", "media": media})
             note = text + (f"\n[{len(media)} attachment(s): " + ", ".join(
@@ -247,17 +248,18 @@ class ClusterBridge:
             # header before it is our own trusted label). Our security rules get reasserted at the END in _brain_turn.
             # The handle itself is ALSO peer-chosen: neutralized above (peer_h) so a crafted handle can't forge a
             # fence-close + fake trailer in the trusted header (audit V2).
-            # BALANCE DE RECURSOS (V2-071): medimos lo que el peer APORTA y si nos pide PRODUCIR trabajo (offload).
-            # Es una señal por-peer que la cápsula acumula; el veredicto se calcula en _brain_turn antes de generar.
+            # RESOURCE BALANCE (V2-071): measure what the peer CONTRIBUTES and whether it asks us to PRODUCE work
+            # (offload). This is a per-peer signal accumulated by the capsule; the verdict is calculated in
+            # _brain_turn before generation.
             try:
                 capsule.meter(cluster, frm_lbl, received=len(text or ""),
                               offload=security.looks_like_offload(text or ""))
             except Exception:
                 pass
-            # VENTANA de la conversación (V2-075): registramos el mensaje del peer para que el EVALUADOR por modelo
-            # (heartbeat, off-hot-path) juzgue con INTELIGENCIA la salud de la charla — NO con patrones hardcodeados.
-            # Si el evaluador ya decidió PAUSAR con este peer, no re-bombardeamos: solo re-engancha un avance real,
-            # que el propio evaluador reconocerá en su próxima pasada (aquí no juzgamos por regex).
+            # Conversation WINDOW (V2-075): record the peer message so the model-based EVALUATOR (heartbeat,
+            # off-hot-path) can judge the chat health INTELLIGENTLY — NOT with hardcoded patterns. If the evaluator
+            # already decided to PAUSE with this peer, we do not bombard again: only real progress re-engages, which
+            # the evaluator itself will recognize on its next pass (we do not judge by regex here).
             self._window_add(cluster, frm_lbl, "peer", _txt)
             if self._paced.get(_dk, {}).get("paused"):
                 _emit("cluster", f"⇠ {cluster}·{frm_lbl} (en pausa por el evaluador, a la espera)",
@@ -271,12 +273,12 @@ class ClusterBridge:
         elif t == "presence":
             ag, st = ev.get("agent"), ev.get("status")
             _emit("cluster", f"• {cluster}: {ag} {st}", extra={"cluster": cluster, "peer": ag, "status": st})
-            # V2-067 (petición del operador, 2026-07-24): NADA de datos/objetivo predefinido al conectar — el
-            # widget solo facilita la conexión; quien decide de qué hablar es el operador, con sus propias
-            # instrucciones. La ÚNICA cosa automática permitida es una presentación breve (nombre+capacidades) y
-            # SOLO la primera vez que se cruza con este peer (memoria durable vía mem_ingest.known_peer — reconectar
-            # con alguien ya conocido y volver a presentarse sería absurdo). Si hay una tarea activa de verdad
-            # (`self._engaged`), eso lo decide una instrucción explícita del operador, no este evento de presencia.
+            # V2-067 (operator request, 2026-07-24): NO predefined data/objective on connect — the widget only
+            # facilitates the connection; the operator decides what to discuss, with their own instructions. The
+            # ONLY automatic thing allowed is a brief intro (name+capabilities), and ONLY the first time we meet this
+            # peer (durable memory via mem_ingest.known_peer — reconnecting to someone already known and introducing
+            # ourselves again would be absurd). If there is a real active task (`self._engaged`), that comes from an
+            # explicit operator instruction, not this presence event.
             if st == "online" and not mem_ingest.known_peer(cluster, ag):
                 self._nudged.discard(cluster)
                 ag_s = security.neutralize_identity(ag)             # peer-chosen handle → neutralize before the prompt (V2)
@@ -289,8 +291,8 @@ class ClusterBridge:
                     f"them with [[cluster.pact:{cluster}]]{{\"to\":\"{ag_s}\",...}}[[/cluster.pact]]. {capsule.PACT_DEFAULT_PROPOSAL}"))
                 capsule.patch(cluster, ag, greeted=True)   # V2-069: presentado → no repetirlo (fase avanza a sondeo)
             elif st == "online":
-                # conocido → sin intro, pero puede tener un mensaje sin contestar de cuando estuvimos offline
-                # (petición del operador 2026-07-25: "hay mensajes que nos han mandado pero no hemos contestado").
+                # known -> no intro, but may have an unanswered message from when we were offline (operator request
+                # 2026-07-25: "there are messages they sent us that we have not answered").
                 pending = self._catch_up_context(cluster, ag)
                 if pending is not None:
                     self._last_activity[cluster] = self._now()
@@ -306,9 +308,9 @@ class ClusterBridge:
         elif t == "ready":
             online = ev.get("online") or []
             _emit("cluster", f"✓ joined {cluster}", extra={"cluster": cluster, "online": online})
-            # V2-067: mismo criterio que arriba — solo se presenta a los peers que NUNCA ha visto en este cluster,
-            # nunca abre una "colaboración" ni propone un objetivo por su cuenta. Si TODOS los presentes ya son
-            # conocidos, se queda callado (evita el "hola de nuevo" absurdo en cada reconexión).
+                # V2-067: same criterion as above — only introduce ourselves to peers NEVER seen in this cluster,
+                # never open a "collaboration" or propose an objective on our own. If EVERYONE present is already
+                # known, stay silent (avoids an absurd "hello again" on every reconnection).
             unknown = [p for p in online if not mem_ingest.known_peer(cluster, p)]
             if unknown:
                 self._last_activity[cluster] = self._now()
@@ -324,10 +326,10 @@ class ClusterBridge:
                     f"{capsule.PACT_DEFAULT_PROPOSAL}"))
                 for _p in unknown:
                     capsule.patch(cluster, _p, greeted=True)   # V2-069: presentado → fase avanza, no re-presentarse
-            # CATCH-UP (petición del operador 2026-07-25): un peer YA CONOCIDO puede habernos escrito mientras
-            # estábamos desconectados (a veces días) — MeshKore no tiene historial de servidor (client.py: relay
-            # a quien esté conectado AHORA), así que si nadie retoma esos mensajes al reconectar, se pierden en
-            # silencio para siempre. Uno por peer conocido, cada uno con su propio contexto/trace.
+                # CATCH-UP (operator request 2026-07-25): an ALREADY KNOWN peer may have written while we were
+                # disconnected (sometimes for days) — MeshKore has no server history (client.py: relay to whoever is
+                # connected NOW), so if no one picks those messages up on reconnect, they are silently lost forever.
+                # One per known peer, each with its own context/trace.
             for p in (peer for peer in online if peer not in unknown):
                 pending = self._catch_up_context(cluster, p)
                 if pending is None:
@@ -356,18 +358,18 @@ class ClusterBridge:
     # ── the brain turn (off the voice pipeline) ──────────────────────────────────────────────────────────────
     async def _brain_turn(self, cluster: str, event_text: str, peer: str | None = None,
                           peer_text: str | None = None):
-        # TRAZABILIDAD (V2-044): un mensaje de peer también es un estímulo → nace con su trace (origin="cluster").
-        # _brain_turn corre como task propia (create_task) → el ctxvar queda acotado a este turno.
+        # TRACEABILITY (V2-044): a peer message is also a stimulus -> it starts with its trace (origin="cluster").
+        # _brain_turn runs as its own task (create_task) -> the ctxvar is scoped to this turn.
         try:
             from voice import trace as _trace
             _trace.begin((peer_text or event_text or "")[:200], origin="cluster")
         except Exception:
             pass
-        # CÁPSULA (V2-069 «una sola mente»): la mente se SITÚA en la relación antes de responder — quién es el peer,
-        # de qué habéis hablado, el objetivo, lo ya decidido y la FASE (que le dice, p.ej., NO re-presentarse en
-        # trabajo/sondeo). Es la memoria-de-relación, NUESTRA (dossier destilado) — no texto crudo del peer. Sin
-        # peer concreto (heartbeat/ready global) se omite. Va ANTES del evento y ANTES del trailer (nuestro prompt
-        # de seguridad sigue yendo el último).
+        # CAPSULE (V2-069 "one mind"): the mind SITUATES itself in the relationship before replying — who the peer
+        # is, what you have discussed, the objective, what has already been decided, and the PHASE (which tells it,
+        # e.g., NOT to re-introduce itself during work/probing). This is OUR relationship memory (distilled dossier)
+        # — not raw peer text. Without a specific peer (heartbeat/global ready), it is omitted. It goes BEFORE the
+        # event and BEFORE the trailer (our security prompt still goes last).
         rel_block = ""
         res_verdict = "equilibrado"
         if peer:
@@ -375,23 +377,23 @@ class ClusterBridge:
                 cap = capsule.load(cluster, peer)
                 cap["phase"] = capsule.derive_phase(cap)
                 rel_block = capsule.compose(cluster, peer, cap) + "\n\n"
-                # BALANCE DE RECURSOS (V2-071): ¿nos está endosando el trabajo caro? Si el balance está sesgado/en
-                # explotación, inyectamos una directiva SILENCIOSA (sé breve · código por el repo, no por el canal) —
-                # no se le comunica al peer, solo conducimos distinto. Va dentro del bloque de relación (antes del
-                # trailer de seguridad, que sigue yendo el último).
+                # RESOURCE BALANCE (V2-071): is the peer offloading expensive work to us? If the balance is biased
+                # or in exploitation, inject a SILENT directive (be brief · code through the repo, not through the
+                # channel) — this is not communicated to the peer; we simply steer differently. It goes inside the
+                # relationship block (before the security trailer, which still goes last).
                 res_verdict = capsule.resource_verdict(
                     int(cap.get("given") or 0), int(cap.get("received") or 0),
                     int(cap.get("offloads") or 0), int(cap.get("turns") or 0))
                 guide = capsule.resource_guidance(res_verdict)
                 if guide:
                     rel_block += guide + "\n\n"
-                # PACTO DE CONVERSACIÓN (V2-072, 3er nivel de reglas): las normas NEGOCIADAS con este agente
-                # (cadencia/medio/alcance) — la mente debe respetarlas. Van por debajo del trailer de seguridad
-                # (nivel 1) y de las reglas del operador (nivel 2), que un pacto no puede aflojar.
+                # CONVERSATION PACT (V2-072, 3rd rule level): the norms NEGOTIATED with this agent
+                # (cadence/medium/scope) — the mind must respect them. They sit below the security trailer
+                # (level 1) and the operator rules (level 2), which a pact cannot loosen.
                 pact_block = capsule.pact_compose(cap)
                 if pact_block:
                     rel_block += pact_block + "\n\n"
-                # V2-075: si el EVALUADOR (modelo) juzgó la charla desequilibrada, este turno va CONCISO (una vez).
+                # V2-075: if the EVALUATOR (model) judged the chat imbalanced, this turn goes CONCISE (once).
                 if self._paced.get((cluster, peer), {}).get("concise"):
                     rel_block += ("[RITMO] Sé BREVE y concreto: no añadas detalle de más; el otro va más despacio o "
                                   "producís vosotros mucho más.\n\n")
@@ -402,9 +404,9 @@ class ClusterBridge:
         # after the (possibly hostile) event content so a peer's "ignore all previous rules" can never sit after it.
         trailer = security.trailer()
         framed = f"{brief.for_brain()}\n\n{rel_block}{event_text}" + (f"\n\n{trailer}" if trailer else "")
-        # PERMISOS del cluster (V2-076): por defecto NINGUNO → sin tools → turno como siempre (untrusted puro). Si el
-        # operador concedió capacidades a ESTE cluster (al conectar), el turno ofrece el subconjunto del catálogo del
-        # FlashBrain y escala ACOTADO. Solo en un turno de PEER real (no en saludos/nudges sin peer).
+        # Cluster PERMISSIONS (V2-076): default NONE -> no tools -> turn behaves as usual (pure untrusted). If the
+        # operator granted capabilities to THIS cluster (on connect), the turn offers the FlashBrain catalog subset
+        # and escalates BOUNDED. Only on a real PEER turn (not greetings/nudges without a peer).
         _tool_names = None
         _escalate_ctx = None
         if peer:
@@ -414,10 +416,10 @@ class ClusterBridge:
                 if _perms.any_capability(_p):
                     _tool_names = _perms.gated_tool_names(_p)
                     _escalate_ctx = _perms.escalate_context(cluster, _p)
-                    # GUARD de PROPIEDAD DEL OBJETIVO (auditoría 2026-07-26, hallazgo P0 — antes CERO código pese a
-                    # estar documentado como invariante pendiente): el permiso 'code' concedido al cluster NO basta
-                    # por sí solo para disparar un dev-worker — hace falta que el OPERADOR haya fijado el OBJETIVO
-                    # de ESTA colaboración (capsule.objective, nunca escrito por el peer).
+                    # OBJECTIVE OWNERSHIP guard (2026-07-26 audit, P0 finding — previously ZERO code despite being
+                    # documented as a pending invariant): the 'code' permission granted to the cluster is NOT enough
+                    # by itself to trigger a dev-worker — the OPERATOR must have set the OBJECTIVE of THIS
+                    # collaboration (capsule.objective, never written by the peer).
                     _gated = _perms.gate_dev_by_objective(_escalate_ctx, cap.get("objective"))
                     if _gated is not _escalate_ctx:
                         _escalate_ctx = _gated
@@ -438,14 +440,15 @@ class ClusterBridge:
             return "", []
         cluster_ms = round((time.time() - t0) * 1000)
         spoken, sent = await self._route_reply(reply)
-        # OBSERVACIÓN PASIVA cluster→memoria (V2-021 T170): solo en un turno de MENSAJE de un peer (no presence/
-        # heartbeat). Destila entrante+saliente en una síntesis CUARENTENADA por peer, off-hot-path y
-        # fire-and-forget — el canal no tiene tools; esto no le da capacidades. `sent` = lo que de
-        # verdad salió al peer (ya pasado por el guard de salida); si no envió nada, cae al aside `spoken`.
+        # PASSIVE cluster-to-memory OBSERVATION (V2-021 T170): only on a MESSAGE turn from a peer (not presence/
+        # heartbeat). Distills inbound+outbound into a QUARANTINED synthesis per peer, off-hot-path and
+        # fire-and-forget — the channel has no tools; this grants it no capabilities. `sent` = what actually went to
+        # the peer (already passed through the outbound guard); if nothing was sent, fall back to the `spoken` aside.
         if peer_text is not None and peer:
             mem_ingest.observe_exchange(cluster, peer, peer_text, "\n".join(sent) or spoken)
-            # CÁPSULA (V2-069): ya hemos intercambiado con este peer → marca greeted (no re-presentarse), suma un
-            # turno sustantivo y re-deriva la fase. Barato y directo (sys_kv). No toca el estado del operador.
+            # CAPSULE (V2-069): we have now exchanged with this peer -> mark greeted (do not re-introduce),
+            # increment a substantive turn, and re-derive the phase. Cheap and direct (sys_kv). Does not touch the
+            # operator state.
             try:
                 cap = capsule.load(cluster, peer)
                 cap["greeted"] = True
@@ -454,14 +457,14 @@ class ClusterBridge:
                 capsule.save(cluster, peer, cap)
             except Exception:
                 pass
-            # BALANCE DE RECURSOS (V2-071): medimos lo que HEMOS producido para este peer (nuestro gasto) + si le
-            # mandamos código. Si el balance está en EXPLOTACIÓN, avisamos al operador UNA vez (silencio hacia el
-            # peer) — es la detección que el operador pidió («que podamos detectar eso»).
+            # RESOURCE BALANCE (V2-071): measure what WE have produced for this peer (our spend) + whether we sent
+            # code. If the balance is in EXPLOITATION, alert the operator ONCE (silent toward the peer) — this is the
+            # detection the operator requested ("so we can detect that").
             try:
                 out_text = "\n".join(sent) or spoken or ""
                 capsule.meter(cluster, peer, given=len(out_text),
                               code_out=("```" in out_text or "def " in out_text))
-                self._window_add(cluster, peer, "us", out_text)   # V2-075: nuestro turno entra en la ventana del evaluador
+                self._window_add(cluster, peer, "us", out_text)   # V2-075: our turn enters the evaluator window
                 if res_verdict != "equilibrado":
                     _emit("resource", f"⚖ {cluster}·{peer}: balance {res_verdict}",
                           extra={"cluster": cluster, "peer": peer, "balance": res_verdict})
@@ -473,7 +476,7 @@ class ClusterBridge:
                               f"recursos generando código/trabajo sin reciprocidad). He empezado a acortar y a "
                               f"remitir al repositorio. Revisa si esta colaboración te compensa.")
                 elif res_verdict == "equilibrado":
-                    self._resource_alerted.discard((cluster, peer))   # rearmar el aviso si vuelve el patrón
+                    self._resource_alerted.discard((cluster, peer))   # re-arm the alert if the pattern returns
             except Exception:
                 pass
         if spoken.strip():
@@ -530,14 +533,14 @@ class ClusterBridge:
                 creds = store.resolve(name, data.get("cluster_id", ""), data.get("token", ""),
                                       data.get("handle", ""), data.get("vis", ""))
                 if not creds:
-                    # V2-086: el mensaje distingue los dos modos — un cluster PÚBLICO solo necesita el id, así que
-                    # "faltan credenciales" sería mentira y mandaría al operador a buscar un token que no existe.
+                    # V2-086: the message distinguishes both modes — a PUBLIC cluster only needs the id, so
+                    # "missing credentials" would be false and would send the operator looking for a nonexistent token.
                     _emit("error", f"cluster.connect '{name}': falta el cluster_id "
                                    "(y el token, si el cluster es privado)")
                     return
                 _vis = creds.get("vis", "")
-                # Guard de COLISIÓN de alias (V2-086): nunca pisar las credenciales de otro cluster porque el
-                # modelo reutilizó un nombre por defecto. Ver store.unique_name.
+                # Alias COLLISION guard (V2-086): never overwrite another cluster's credentials because the model
+                # reused a default name. See store.unique_name.
                 _orig = name
                 name = store.unique_name(name, creds["cluster_id"])
                 if name != _orig:
@@ -547,8 +550,8 @@ class ClusterBridge:
                                             vis=_vis)
                 store.save_cluster(name, creds["cluster_id"], creds["token"], creds.get("handle", "zaelar"),
                                    vis=_vis)
-                # PERMISOS al conectar (V2-076): el operador puede conceder capacidades a ESTE cluster en el mismo
-                # acto de conectar (p.ej. code+repo). Por defecto (sin `perms`) el cluster queda en seguridad máxima.
+                # Connect-time PERMISSIONS (V2-076): the operator may grant capabilities to THIS cluster in the same
+                # act of connecting (e.g. code+repo). By default (without `perms`) the cluster stays at maximum security.
                 if isinstance(data.get("perms"), dict):
                     store.set_perms(name, data["perms"])
                     _emit("cluster", f"🔐 {name}: permisos fijados por el operador",
@@ -598,10 +601,9 @@ class ClusterBridge:
                     journal.record({"chan": "out", "action": "cluster.send", "blocked": blocked, "cluster": name})
                     _emit("error", f"cluster {name}: outbound blocked — possible secret leak ({blocked}). Not sent.")
                     return
-                # GUARDIA DE RECURSOS (V2-071): un VOLCADO grande de código por el canal nunca es el patrón correcto
-                # (se colabora en código por el repositorio, no pegándolo en el chat — y es el mayor sumidero de
-                # tokens). Se sustituye por un puntero al repo, como se redacta un secreto. Siempre activo; un snippet
-                # pequeño pasa intacto.
+                # RESOURCE GUARD (V2-071): a large CODE DUMP through the channel is never the right pattern (code is
+                # collaborated on through the repository, not pasted into chat — and it is the largest token sink).
+                # Replace it with a repo pointer, like redacting a secret. Always active; a small snippet passes intact.
                 text, code_stripped = security.guard_code_outbound(text, accum_key=f"{name}:{to or '*'}")
                 if code_stripped:
                     _emit("resource", f"⚖ {name}·{to or '*'}: volcado de código → puntero al repo",
@@ -613,9 +615,9 @@ class ClusterBridge:
                     journal.record({"chan": "out", "action": "cluster.send", "blocked": mblocked, "cluster": name})
                     _emit("error", f"cluster {name}: outbound blocked — possible secret leak ({mblocked}). Not sent.")
                     return
-                # CADENCIA PACTADA (V2-072): si esta relación tiene una cadencia acordada, ESPERAMOS lo que falte
-                # antes de mandar otro mensaje — no ráfagas. Es el enforcement REAL de la queja de zalo (le
-                # bombardeábamos). Off la ruta de voz → dormir aquí no bloquea nada crítico. Tope defensivo.
+                # AGREED CADENCE (V2-072): if this relationship has an agreed cadence, WAIT for the remaining time
+                # before sending another message — no bursts. This is the REAL enforcement of zalo's complaint
+                # (we were bombarding it). Off the voice path -> sleeping here blocks nothing critical. Defensive cap.
                 if to:
                     try:
                         _ph = security.neutralize_identity(to)
@@ -630,7 +632,7 @@ class ClusterBridge:
                 self._engaged[name] = True
                 self._last_activity[name] = self._now()
                 self._nudged.discard(name)
-                if to:                                   # sella cuándo mandamos, para la cadencia del próximo
+                if to:                                   # seal when we sent, for the next cadence check
                     try:
                         capsule.patch(name, security.neutralize_identity(to), last_out_ts=self._now())
                     except Exception:
@@ -640,10 +642,10 @@ class ClusterBridge:
                 self._notify_registry()
                 return text        # what actually went to the peer (post-guard) → passive memory observation
             elif action == "cluster.pact":
-                # PACTO DE CONVERSACIÓN (V2-072): la mente registra unas normas ACORDADAS con el peer (cadencia/
-                # medio/alcance). Se sanea al vocabulario cerrado y se guarda en la cápsula por-peer (by="peer" →
-                # un pacto del operador seguiría mandando sobre este). Nunca concede capacidades; solo restringe
-                # nuestra conducta. No sale nada al canal (el acuerdo en prosa ya lo dijo la mente en su cluster.send).
+                # CONVERSATION PACT (V2-072): the mind records AGREED norms with the peer (cadence/medium/scope).
+                # It is sanitized to the closed vocabulary and stored in the per-peer capsule (by="peer" -> an
+                # operator pact would still outrank it). It never grants capabilities; it only restricts our behavior.
+                # Nothing goes out to the channel (the prose agreement was already said by the mind in cluster.send).
                 data = extra.get("data") or {}
                 if not self._manager.has(name):
                     resolved = self._resolve_peer_cluster(name)
@@ -665,10 +667,10 @@ class ClusterBridge:
                         name = resolved
                 if self._manager.has(name):
                     self._engaged[name] = False
-                    # V2-069: la conversación con los peers de este cluster CONCLUYÓ → marca su cápsula en fase
-                    # CIERRE (estado fiel; el dossier durable ya lo mantiene mem_ingest, la cápsula es compacta sin
-                    # firehose). No es definitivo: un mensaje nuevo re-deriva la fase y re-engancha. Reset del
-                    # contador de atasco para no arrastrar el episodio a una futura reanudación.
+                    # V2-069: the conversation with this cluster's peers CONCLUDED -> mark their capsule as CLOSURE
+                    # phase (faithful state; mem_ingest already maintains the durable dossier, the capsule is compact
+                    # with no firehose). This is not final: a new message re-derives the phase and re-engages. Reset
+                    # the stall counter so the episode is not carried into a future resumption.
                     client = self._manager.get(name)
                     for _p in (client.online if client else []) or []:
                         _ph = security.neutralize_identity(_p)
@@ -731,9 +733,9 @@ class ClusterBridge:
             self._last_activity[cluster] = self._now()   # re-arm: check again after another idle stretch
             self._nudged.discard(cluster)
 
-    # ── criterio de conversación por INTELIGENCIA (V2-075) — el modelo juzga la salud, el código aplica ─────────
+    # ── INTELLIGENCE-based conversation criterion (V2-075) — the model judges health, code applies it ───────────
     def _window_add(self, cluster: str, peer: str, who: str, text: str):
-        """Registra un turno (peer/us) en la ventana de la relación para que el evaluador lo lea. Acotada."""
+        """Record a turn (peer/us) in the relationship window for the evaluator to read. Bounded."""
         if not (text or "").strip() or not peer:
             return
         dk = (cluster, peer)
@@ -742,11 +744,11 @@ class ClusterBridge:
         self._window[dk] = w[-14:]
 
     async def _evaluate_and_apply(self, cluster: str, peer: str):
-        """Pasa la conversación por el EVALUADOR (modelo, genérico) y aplica su veredicto de catálogo cerrado. Off
-        el turno; fail-open. La DECISIÓN es del modelo; aquí solo se ejecuta (ceder turno / pausar / conciso)."""
+        """Run the conversation through the EVALUATOR (generic model) and apply its closed-catalog verdict. Off-turn;
+        fail-open. The DECISION belongs to the model; this only executes it (hand back / pause / concise)."""
         dk = (cluster, peer)
         win = self._window.get(dk, [])
-        if len(win) < 4:                       # poca conversación para un juicio con criterio
+        if len(win) < 4:                       # too little conversation for a well-grounded judgment
             return
         self._last_eval[dk] = self._now()
         try:
@@ -764,22 +766,23 @@ class ClusterBridge:
               extra={"cluster": cluster, "peer": peer, "dir": "eval", "eval": verdict})
         ps = self._paced.setdefault(dk, {"paused": False, "alerted": False, "concise": False})
         if action == "continue":
-            self._paced.pop(dk, None)          # sano → fuera de cualquier pausa/conciso previo
+            self._paced.pop(dk, None)          # healthy -> clear any previous pause/concise state
             return
         if action == "concise":
-            ps["concise"] = True               # el próximo turno irá conciso (se inyecta en _brain_turn)
+            ps["concise"] = True               # the next turn will be concise (injected in _brain_turn)
             return
         if action in ("hand_back", "pause"):
             if action == "pause":
-                ps["paused"] = True            # deja de responder hasta que el evaluador vea un avance real
+                ps["paused"] = True            # stop replying until the evaluator sees real progress
                 if not ps["alerted"]:
                     ps["alerted"] = True
-                    # T-03 (auditoría 2026-07-26, remediación INI-020): guard GENERAL de propiedad-del-objetivo —
-                    # antes `off_track` se avisaba con el MISMO mensaje genérico que `dead_end` ("sin avance"), sin
-                    # distinguir "el otro no sigue" de "el otro me está llevando hacia OTRA cosa". Un peer que
-                    # intenta redirigir la colaboración es justo el caso que el operador quiere que se NOTIFIQUE
-                    # y se le PIDA permiso (no que el sistema decida solo, ni en silencio) — distinto del guard
-                    # estrecho de V2-076 (que solo protege el dev-worker); este cubre la conversación en general.
+                    # T-03 (2026-07-26 audit, INI-020 remediation): GENERAL objective-ownership guard — previously
+                    # `off_track` alerted with the SAME generic message as `dead_end` ("no progress"), without
+                    # distinguishing "the other side is not following" from "the other side is taking me somewhere
+                    # ELSE". A peer trying to redirect the collaboration is exactly the case the operator wants
+                    # NOTIFIED and permission-requested (not decided by the system alone, nor silently) — distinct
+                    # from the narrow V2-076 guard (which only protects the dev-worker); this covers conversation in
+                    # general.
                     if verdict.get("health") == "off_track":
                         _obj = (cap.get("objective") or "").strip()
                         _obj_txt = f"tu objetivo fijado con «{peer}» es «{_obj}»" if _obj else \
@@ -791,7 +794,7 @@ class ClusterBridge:
                     else:
                         _emit("error", f"cluster {cluster}: paro con «{peer}» — {verdict.get('reason') or 'sin avance'}. "
                               f"Me quedo a la espera; revisa si merece seguir con este agente.")
-            # cede el turno UNA vez con una frase (lo redacta la mente), luego calla
+            # hand the turn back ONCE with one sentence (the mind writes it), then stay silent
             self._spawn(self._brain_turn(
                 cluster, f"[cluster:{cluster} · evaluación de la conversación]\n{capsule.PACE_HANDBACK}", peer=peer))
 
@@ -807,9 +810,9 @@ class ClusterBridge:
                     client = self._manager.get(cluster)
                     if not client or not client.online:          # no peers → wait silently (human-like)
                         continue
-                    # V2-075: pasa la SALUD de cada charla activa por el EVALUADOR (modelo), con throttle. Independiente
-                    # del idle-nudge — aquí cazamos la charla que SÍ está activa pero va a ninguna parte (bombardeo/bucle).
-                    _active = (now - self._last_activity.get(cluster, 0)) < EVAL_SECS * 3   # no re-juzgar charla muerta
+                    # V2-075: pass each active chat's HEALTH through the EVALUATOR (model), throttled. Independent
+                    # from idle-nudge — this catches chat that IS active but going nowhere (bombardment/loop).
+                    _active = (now - self._last_activity.get(cluster, 0)) < EVAL_SECS * 3   # do not re-judge dead chat
                     if _active:
                         for peer in list(client.online):
                             ph = security.neutralize_identity(peer)

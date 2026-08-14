@@ -1,30 +1,29 @@
-"""bus/ — Sistema Nervioso de zaelar v2 «Colmena» (EPIC-v2-colmena, INI V2-001).
+"""bus/ — zaelar v2 «Colmena» Nervous System (EPIC-v2-colmena, INI V2-001).
 
-Pub/sub de señales **in-process** (asyncio) — la generalización de `voice/observer.py`. Transporte
-**HÍBRIDO**: la ruta caliente de la voz sigue por llamada directa (latencia); el bus es para señales
-async/fan-out (memoria actualizada, widgets, escalados, ticks del loop). **NADA de Kafka/broker** — todo
-vive dentro de este proceso.
+**In-process** signal pub/sub (asyncio) — the generalized form of `voice/observer.py`. **HYBRID** transport: the
+voice hot path still uses direct calls (latency); the bus is for async/fan-out signals (memory updates, widgets,
+escalations, loop ticks). **NO Kafka/broker** — everything lives inside this process.
 
-Contrato público:
-  - `publish(topic, payload)`      — corutina; entrega `payload` a los suscriptores cuyo patrón casa `topic`.
-  - `emit_sync(topic, payload)`    — versión **loop-agnóstica** para hilos que NO son el loop principal
-                                     (p. ej. el job-thread de LiveKit), igual patrón que `runtime.locked_ask`.
-  - `subscribe(pattern="*")`       — devuelve una `Subscription` (async-iterator + `.get()`), sin bloquear.
-  - `unsubscribe(sub)`             — cierra una suscripción (equivalente a `sub.close()`).
-  - `add_sink(fn)` / `remove_sink` — sink SÍNCRONO llamado en CADA evento (lo usa `bus/log.py` para el log
-                                     durable en SQLite; loop-agnóstico, corre en el hilo que publica).
+Public contract:
+  - `publish(topic, payload)`      — coroutine; delivers `payload` to subscribers whose pattern matches `topic`.
+  - `emit_sync(topic, payload)`    — **loop-agnostic** version for threads that are NOT the main loop (e.g. the
+                                     LiveKit job-thread), same pattern as `runtime.locked_ask`.
+  - `subscribe(pattern="*")`       — returns a `Subscription` (async iterator + `.get()`), non-blocking.
+  - `unsubscribe(sub)`             — closes a subscription (equivalent to `sub.close()`).
+  - `add_sink(fn)` / `remove_sink` — SYNCHRONOUS sink called on EVERY event (`bus/log.py` uses it for the durable
+                                     SQLite log; loop-agnostic, runs on the publishing thread).
 
-**Loop-agnóstico**: cada `Subscription` recuerda el event-loop en el que se creó; la entrega usa
-`loop.call_soon_threadsafe` cuando el publicador corre en OTRO hilo/loop (arregla, de paso, la entrega
-cross-loop que el viejo `observer` hacía con `put_nowait` a pelo). Los sinks se invocan síncronos en el
-hilo publicador — deben ser baratos y no bloquear (el de SQLite usa su propia conexión + lock).
+**Loop-agnostic**: each `Subscription` remembers the event loop where it was created; delivery uses
+`loop.call_soon_threadsafe` when the publisher runs on ANOTHER thread/loop (also fixing the cross-loop delivery the
+old `observer` did with raw `put_nowait`). Sinks are invoked synchronously on the publishing thread — they must be
+cheap and non-blocking (the SQLite one uses its own connection + lock).
 
-Topics REALES en producción (convención `dominio.suceso`, wildcard estilo fnmatch; verificado por grep 2026-07-26
-— corrige una lista aspiracional/stale que mencionaba `widget.*`/`brain.*`, que NUNCA existieron como topics):
+REAL production topics (`domain.event` convention, fnmatch-style wildcard; verified by grep 2026-07-26 — fixes an
+aspirational/stale list that mentioned `widget.*`/`brain.*`, which NEVER existed as topics):
 `memory.updated`, `connector.msg`/`connector.status`, `loop.tick`, `escalate.requested`, `turn.completed`
 (Susurro), `worker.stuck`/`worker.budget_kill`, `susurro.finding`, y `observer` — el puente SSE del frontend, que
-NO es un topic por-dominio: lleva TODOS los eventos del timeline (voz, widgets, brain, cluster…) con su `kind`
-como campo del payload (p.ej. `{"kind":"widget", ...}`), no como parte del nombre del topic.
+is NOT a per-domain topic: it carries ALL timeline events (voice, widgets, brain, cluster…) with their `kind` as a
+payload field (e.g. `{"kind":"widget", ...}`), not as part of the topic name.
 """
 import asyncio
 import fnmatch
@@ -49,8 +48,8 @@ def now_ms() -> float:
 
 
 class Subscription:
-    """Una suscripción viva a un patrón de topic. Es un async-iterator (`async for ev in sub`) y además
-    expone `.get()` (compat con el viejo `observer.subscribe()` que devolvía una `asyncio.Queue`)."""
+    """A live subscription to a topic pattern. It is an async iterator (`async for ev in sub`) and also exposes
+    `.get()` (compat with the old `observer.subscribe()`, which returned an `asyncio.Queue`)."""
 
     def __init__(self, bus: "Bus", pattern: str, maxsize: int = 0):
         self._bus = bus
@@ -59,10 +58,10 @@ class Subscription:
         try:
             self._loop = asyncio.get_running_loop()
         except RuntimeError:
-            self._loop = None  # creada fuera de un loop (raro); se resolverá en el primer get()
+            self._loop = None  # created outside a loop (rare); resolved on first get()
         self._closed = False
 
-    # entrega loop-safe: la llama el bus desde el hilo/loop del publicador.
+    # loop-safe delivery: called by the bus from the publisher's thread/loop.
     def _deliver(self, ev: Any):
         if self._closed:
             return
@@ -73,19 +72,19 @@ class Subscription:
             except RuntimeError:
                 running = None
             if running is loop:
-                # mismo loop → encolar directo
+                # same loop → enqueue directly
                 try:
                     self.queue.put_nowait(ev)
                 except asyncio.QueueFull:
                     pass
             else:
-                # otro hilo/loop → cruzar de forma segura
+                # other thread/loop → cross safely
                 try:
                     loop.call_soon_threadsafe(self._safe_put, ev)
                 except RuntimeError:
                     pass
         else:
-            # sin loop conocido: mejor esfuerzo
+            # no known loop: best effort
             try:
                 self.queue.put_nowait(ev)
             except Exception:
@@ -114,7 +113,7 @@ class Subscription:
         self._closed = True
         self._bus._remove(self)
 
-    # context-manager azúcar
+    # context-manager sugar
     def __enter__(self):
         return self
 
@@ -124,15 +123,15 @@ class Subscription:
 
 
 class Bus:
-    """El bus in-process. Normalmente se usa el singleton de módulo (`publish`/`subscribe`/…), pero la clase
-    es instanciable para tests aislados."""
+    """The in-process bus. Normally the module singleton is used (`publish`/`subscribe`/…), but the class can be
+    instantiated for isolated tests."""
 
     def __init__(self):
         self._subs: list[Subscription] = []
         self._sinks: list[Callable[[dict], None]] = []
-        self._lock = threading.Lock()  # protege las listas (se tocan desde varios hilos)
+        self._lock = threading.Lock()  # protects lists (touched from multiple threads)
 
-    # ── suscripción ───────────────────────────────────────────────────────────────────────────────────
+    # ── subscription ──────────────────────────────────────────────────────────────────────────────────
     def subscribe(self, pattern: str = "*", maxsize: int = 0) -> Subscription:
         sub = Subscription(self, pattern, maxsize=maxsize)
         with self._lock:
@@ -158,16 +157,16 @@ class Bus:
             if fn in self._sinks:
                 self._sinks.remove(fn)
 
-    # ── publicación ───────────────────────────────────────────────────────────────────────────────────
+    # ── publication ───────────────────────────────────────────────────────────────────────────────────
     def _dispatch(self, topic: str, payload: Any):
-        """Reparto síncrono (no bloquea, solo encola / llama sinks). Compartido por publish + emit_sync."""
+        """Synchronous dispatch (does not block, only enqueues / calls sinks). Shared by publish + emit_sync."""
         with self._lock:
             subs = list(self._subs)
             sinks = list(self._sinks)
         for sub in subs:
             if _match(sub.pattern, topic):
                 sub._deliver(payload)
-        # sinks: log durable + cualquier consumidor síncrono. El evento del sink SÍ lleva metadatos.
+        # sinks: durable log + any synchronous consumer. The sink event DOES carry metadata.
         if sinks:
             rec = {"topic": topic, "ts_ms": now_ms(), "payload": payload}
             for fn in sinks:
@@ -177,16 +176,16 @@ class Bus:
                     pass
 
     async def publish(self, topic: str, payload: Any = None):
-        """Publica un evento. Async por contrato, pero el reparto es no-bloqueante (solo encola)."""
+        """Publish an event. Async by contract, but dispatch is non-blocking (only enqueues)."""
         self._dispatch(topic, payload)
 
     def emit_sync(self, topic: str, payload: Any = None):
-        """Publica desde CUALQUIER hilo/loop (job-thread de LiveKit, subprocess callbacks…). Loop-agnóstico:
-        cada suscriptor recibe la entrega en SU loop vía call_soon_threadsafe."""
+        """Publish from ANY thread/loop (LiveKit job-thread, subprocess callbacks…). Loop-agnostic: each subscriber
+        receives delivery on ITS loop through call_soon_threadsafe."""
         self._dispatch(topic, payload)
 
     def reset(self):
-        """Vacía suscriptores y sinks (para tests)."""
+        """Clear subscribers and sinks (for tests)."""
         with self._lock:
             for s in self._subs:
                 s._closed = True
@@ -200,7 +199,7 @@ def _match(pattern: str, topic: str) -> bool:
     return fnmatch.fnmatchcase(topic, pattern)
 
 
-# ── singleton de módulo ─────────────────────────────────────────────────────────────────────────────────
+# ── module singleton ────────────────────────────────────────────────────────────────────────────────────
 _BUS = Bus()
 
 

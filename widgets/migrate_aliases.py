@@ -1,14 +1,14 @@
 #
-# One-shot migration (V2-082): dota a cada widget del catálogo de identidad canónica `name` + `aliases`.
+# One-shot migration (V2-082): give each catalog widget a canonical identity through `name` + `aliases`.
 #
-# NO pliega los `keywords` a ciegas: los keywords viejos eran TEMÁTICOS (video, opciones, internet, "gol de
-# maradona"…) y se pisaban entre widgets → justo la confusión que V2-082 elimina. En su lugar, un mapa CURADO y
-# ÚNICO por widget = nombre + sinónimos de IDENTIDAD (no de tema). Cada alias pertenece a UNA sola pieza → certeza
-# del enrutamiento. ADITIVO e idempotente: escribe `name`+`aliases`, MANTIENE `keywords` como legacy (Fase 1 no
-# cambia comportamiento; el resolver de Fase 2 preferirá `aliases`). No toca `widget.js`/`data.py`.
+# Do NOT blindly fold `keywords`: old keywords were THEMATIC (video, options, internet, a famous goal, etc.) and
+# overlapped between widgets, which is exactly the confusion V2-082 removes. Instead, use a curated and UNIQUE map
+# per widget: name + identity synonyms, not topic synonyms. Each alias belongs to exactly one piece, giving routing
+# certainty. Additive and idempotent: writes `name`+`aliases`, keeps `keywords` as legacy (Phase 1 does not change
+# behavior; the Phase 2 resolver will prefer `aliases`). Does not touch `widget.js`/`data.py`.
 #
-# Uso: python -m widgets.migrate_aliases            (aplica)
-#      python -m widgets.migrate_aliases --dry-run  (solo reporta)
+# Usage: python -m widgets.migrate_aliases            (apply)
+#        python -m widgets.migrate_aliases --dry-run  (report only)
 #
 from __future__ import annotations
 
@@ -19,11 +19,11 @@ import unicodedata
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 
-# Mapa CURADO: id → {"name": nombre canónico, "aliases": [sinónimos de IDENTIDAD, únicos]}. El nombre se añade solo
-# como alias implícito (no hace falta repetirlo). Colisiones resueltas a mano: el tema genérico va al widget que lo
-# "posee" de verdad (internet/web/google→navegador; vídeo/clip→youtube; el gol del 86→su widget dedicado; whatsapp/
-# x/twitter→mensajería; cuenta-atrás→timer; pomodoro-específico→pomodoro). Los términos de mando ("pon música") NO
-# son alias de apertura: los enruta su rail/tool, no el nombre del widget.
+# CURATED map: id -> {"name": canonical name, "aliases": [unique IDENTITY synonyms]}. The name is added as an
+# implicit alias, so it does not need to be repeated. Collisions resolved by hand: generic topics go to the widget
+# that truly owns them (internet/web/google -> navegador; video/clip -> youtube; the 1986 goal -> its dedicated
+# widget; whatsapp/x/twitter -> mensajeria; countdown -> timer; pomodoro-specific -> pomodoro). Command terms are
+# NOT opening aliases; their rail/tool routes them, not the widget name.
 CURATED: dict[str, dict] = {
     "agenda": {"name": "Agenda del día",
                "aliases": ["agenda", "agenda del día", "mi día", "plan del día", "planning"]},
@@ -101,21 +101,21 @@ def migrate(dry_run: bool = False) -> dict:
         try:
             man = json.load(open(mpath, encoding="utf-8"))
         except Exception as e:
-            print(f"  ! {name}: manifest ilegible ({e})")
+            print(f"  ! {name}: unreadable manifest ({e})")
             continue
         wid = str(man.get("id") or name)
         spec = CURATED.get(wid)
         if not spec:
-            skipped.append(wid)             # widget nuevo sin curar → lo cubre el generador/keywords legacy
+            skipped.append(wid)             # new uncurated widget -> covered by generator/legacy keywords
             continue
         canon = spec["name"]
         aliases = _dedup([canon, *spec["aliases"]])
         for a in aliases:
             an = _norm(a)
             if an in sys_alias:
-                collisions.append(f"[{wid}] alias '{a}' colisiona con la superficie de sistema '{sys_alias[an]}'")
+                collisions.append(f"[{wid}] alias '{a}' collides with system surface '{sys_alias[an]}'")
             elif an in owner and owner[an] != wid:
-                collisions.append(f"[{wid}] alias '{a}' ya pertenece al widget '{owner[an]}'")
+                collisions.append(f"[{wid}] alias '{a}' already belongs to widget '{owner[an]}'")
             else:
                 owner.setdefault(an, wid)
         if man.get("name") == canon and man.get("aliases") == aliases:
@@ -133,12 +133,12 @@ def migrate(dry_run: bool = False) -> dict:
 if __name__ == "__main__":
     dry = "--dry-run" in sys.argv
     res = migrate(dry_run=dry)
-    print(f"{'[DRY-RUN] ' if dry else ''}Widgets migrados ({len(res['changed'])}): {', '.join(res['changed']) or '—'}")
+    print(f"{'[DRY-RUN] ' if dry else ''}Migrated widgets ({len(res['changed'])}): {', '.join(res['changed']) or '—'}")
     if res["skipped"]:
-        print(f"Sin curar (legacy keywords): {', '.join(res['skipped'])}")
+        print(f"Uncurated (legacy keywords): {', '.join(res['skipped'])}")
     if res["collisions"]:
-        print(f"\n⚠️  COLISIONES DE ALIAS ({len(res['collisions'])}) — resolver a mano:")
+        print(f"\nALIAS COLLISIONS ({len(res['collisions'])}) — resolve by hand:")
         for c in res["collisions"]:
             print(f"    {c}")
     else:
-        print("Sin colisiones de alias. ✅  Cada alias pertenece a UNA sola pieza.")
+        print("No alias collisions. Each alias belongs to exactly one piece.")

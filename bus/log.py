@@ -1,15 +1,14 @@
-"""bus/log.py — log DURABLE de eventos del Sistema Nervioso (V2-001).
+"""bus/log.py — DURABLE Nervous System event log (V2-001).
 
-Cada evento que pasa por el bus se persiste en una tabla `events` de SQLite. Va al MISMO fichero
-`zaelar.db` de la memoria central (V2-002) — un solo fichero local, sin servidor ni broker (principio
-de diseño de `zaelar-memory.md`). Como `memory/` aún no existe cuando se construye V2-001, este módulo
-resuelve la ruta él mismo (`db_path()`) y crea el fichero/tablas de forma perezosa; V2-002 reutilizará
-esa misma ruta (`ZAELAR_DB` / `memory/_data/zaelar.db`).
+Every event that passes through the bus is persisted into an SQLite `events` table. It goes to the SAME `zaelar.db`
+file as central memory (V2-002) — one local file, no server or broker (`zaelar-memory.md` design principle). Since
+`memory/` does not exist yet when V2-001 is built, this module resolves the path itself (`db_path()`) and lazily
+creates the file/tables; V2-002 will reuse that same path (`ZAELAR_DB` / `memory/_data/zaelar.db`).
 
-Se engancha como un **sink SÍNCRONO** del bus (`bus.add_sink`): el bus llama a `_write(rec)` en el hilo
-que publica (loop-agnóstico). Usa una conexión SQLite propia con `check_same_thread=False` + un
-`threading.Lock`, y WAL para que los lectores no se bloqueen. El log es best-effort: un fallo de escritura
-NUNCA revienta el reparto de eventos (el sink del bus ya está protegido por try/except).
+It attaches as a **SYNCHRONOUS** bus sink (`bus.add_sink`): the bus calls `_write(rec)` on the publishing thread
+(loop-agnostic). It uses its own SQLite connection with `check_same_thread=False` + a `threading.Lock`, and WAL so
+readers do not block. The log is best-effort: a write failure NEVER breaks event dispatch (the bus sink is already
+protected by try/except).
 """
 import json
 import os
@@ -27,9 +26,9 @@ _attached = False
 
 
 def db_path() -> Path:
-    """Ruta del fichero SQLite compartido. Override por `ZAELAR_DB` (power-user/headless/tests); por defecto
-    `<workspace>/memory/_data/zaelar.db` (gitignored) — sin `ZAELAR_WORKSPACE` esto es BYTE IDÉNTICO a
-    la ruta de siempre. El directorio se crea perezosamente. MISMO fichero que `memory/db.py`."""
+    """Shared SQLite file path. Overridden by `ZAELAR_DB` (power-user/headless/tests); defaults to
+    `<workspace>/memory/_data/zaelar.db` (gitignored) — without `ZAELAR_WORKSPACE` this is BYTE-IDENTICAL to the old
+    path. The directory is created lazily. SAME file as `memory/db.py`."""
     env = os.getenv("ZAELAR_DB")
     if env:
         return Path(env)
@@ -66,32 +65,32 @@ def _connect() -> sqlite3.Connection:
     return conn
 
 
-# COLUMNAS DE ANÁLISIS (2026-08-09). Hasta aquí un evento era `(ts, topic, payload-JSON)`: para responder «dame
-# todo el flujo de "enséñame el tiempo en Soria"» o «¿qué hizo este usuario en la sesión del martes?» había que
-# escanear y parsear TODO el JSON. Estos campos SUBEN del payload a columnas indexadas — el JSON completo se
-# sigue guardando intacto (es la fuente de verdad; esto es una proyección para consultar).
+# ANALYSIS COLUMNS (2026-08-09). Until now an event was `(ts, topic, payload-JSON)`: to answer "give me the whole
+# flow for 'show me the weather in Soria'" or "what did this user do in Tuesday's session?", we had to scan and
+# parse ALL JSON. These fields are PROMOTED from payload to indexed columns — the full JSON is still stored intact
+# (it is the source of truth; this is a query projection).
 #
-# Se añaden con ALTER TABLE idempotente en vez de recrear la tabla: una instalación viva no puede perder su
-# histórico por una migración, y SQLite añade columnas NULL sin reescribir el fichero. Las filas antiguas quedan
-# con NULL — correcto y honesto: ese dato no existía cuando se registraron.
+# Added with idempotent ALTER TABLE instead of recreating the table: a live installation cannot lose its history to
+# a migration, and SQLite adds NULL columns without rewriting the file. Old rows keep NULL — correct and honest:
+# that data did not exist when they were recorded.
 _COLUMNS = (
     ("corr_id", "TEXT"),      # CORRELATION ID = el flujo completo de inicio a fin (voice/trace.py)
-    ("session_id", "TEXT"),   # sesión de trabajo del operador (observability/identity.py)
-    ("user_id", "TEXT"),      # instalación / cuenta
+    ("session_id", "TEXT"),   # operator work session (observability/identity.py)
+    ("user_id", "TEXT"),      # installation / account
     ("cat", "TEXT"),          # familia: flash · worker · memory · widget · system · pulse
     ("kind", "TEXT"),         # tipo concreto dentro de la familia
-    ("label", "TEXT"),        # qué pasó, en una línea
+    ("label", "TEXT"),        # what happened, in one line
     ("span", "TEXT"),         # ACTOR dentro del flujo: worker:5 · rail:music · web:t2
-    ("ms", "REAL"),           # duración REAL de la operación, cuando el evento la trae
-    ("model", "TEXT"),        # modelo que sirvió el turno/paso
+    ("ms", "REAL"),           # REAL operation duration, when the event carries it
+    ("model", "TEXT"),        # model that served the turn/step
     ("tokens_in", "INTEGER"),
     ("tokens_out", "INTEGER"),
-    ("ver", "TEXT"),          # versión del código que lo generó (V2-074)
+    ("ver", "TEXT"),          # code version that generated it (V2-074)
 )
 
 
 def _migrate_columns(conn: sqlite3.Connection) -> None:
-    """Añade las columnas que falten. Idempotente y no destructivo: se puede llamar en cada arranque."""
+    """Add missing columns. Idempotent and non-destructive: can be called on every boot."""
     try:
         have = {r[1] for r in conn.execute("PRAGMA table_info(events)").fetchall()}
     except Exception:
@@ -110,14 +109,14 @@ def _migrate_columns(conn: sqlite3.Connection) -> None:
             pass
 
 
-# `ms` no tiene un nombre único: cada sitio estampa el suyo (brain_ms, tts_ms, gen_ms…). Mismo orden de
-# preferencia que usa el visor — una duración TOTAL gana a una parcial (`ttft_ms` = solo el primer token).
+# `ms` has no single name: each site stamps its own (brain_ms, tts_ms, gen_ms…). Same preference order the viewer
+# uses — a TOTAL duration beats a partial one (`ttft_ms` = first token only).
 _MS_FIELDS = ("brain_ms", "fast_ms", "deep_ms", "tts_ms", "stt_ms", "gen_ms",
               "architect_ms", "cluster_ms", "triage_ms", "mem_ms", "ttft_ms")
 
 
 def _columns_from(payload) -> tuple:
-    """Proyecta un payload de evento a la tupla de columnas. Tolerante: lo que no venga queda a NULL."""
+    """Project an event payload to the column tuple. Tolerant: missing values stay NULL."""
     if not isinstance(payload, dict):
         return (None,) * len(_COLUMNS)
     ms = None
@@ -140,14 +139,14 @@ def _columns_from(payload) -> tuple:
             _i("prompt_tokens"), _i("completion_tokens"), _s("ver", 40))
 
 
-# ESCRITURA OFF-THREAD (2026-08-09). El sink lo llama el bus EN EL HILO QUE PUBLICA — y ese hilo es, muchas
-# veces, el de la voz. Un INSERT síncrono por evento ahí es exactamente el fallo que V2-035 sacó del observador:
-# las escrituras síncronas retenían el GIL en ráfagas de eventos y ahogaban el pump de audio del TTS (voz
-# entrecortada). Por eso el log durable llevaba desde V2-001 APAGADO por defecto «para no tocar el hot path».
+# OFF-THREAD WRITE (2026-08-09). The sink is called by the bus ON THE PUBLISHING THREAD — and that thread is often
+# the voice thread. One synchronous INSERT per event there is exactly the failure V2-035 pulled out of the observer:
+# synchronous writes held the GIL during event bursts and choked the TTS audio pump (choppy voice). That is why the
+# durable log had been OFF by default since V2-001 "to avoid touching the hot path".
 #
-# La solución no es dejarlo apagado —sin él no hay nada que analizar— sino que el sink solo ENCOLE (operación de
-# microsegundos que nunca bloquea) y un hilo dedicado drene en orden. Cola ACOTADA: bajo una ráfaga se pierden
-# eventos de log antes que ralentizar la voz. Esa es la prioridad correcta.
+# The solution is not to leave it off — without it there is nothing to analyze — but for the sink to only ENQUEUE
+# (microsecond operation that never blocks) and a dedicated thread to drain in order. BOUNDED queue: under a burst,
+# log events are dropped before slowing voice. That is the correct priority.
 _q: "queue.Queue" = queue.Queue(maxsize=20000)
 _dropped = {"n": 0}
 
@@ -161,7 +160,7 @@ def _writer_loop():
         except Exception:
             pass
         finally:
-            _q.task_done()      # permite Queue.join() — los tests esperan el drenado antes de leer
+            _q.task_done()      # enables Queue.join() — tests wait for draining before reading
 
 
 _writer_thread = threading.Thread(target=_writer_loop, name="bus-log-writer", daemon=True)
@@ -169,18 +168,18 @@ _writer_thread.start()
 
 
 def drain(timeout: float = 2.0) -> None:
-    """Espera a que la cola se vacíe. Para tests y para el apagado ordenado; nunca se llama en el hot path."""
+    """Wait for the queue to empty. For tests and orderly shutdown; never called on the hot path."""
     import time as _t
     t0 = _t.time()
     while not _q.empty() and (_t.time() - t0) < timeout:
         _t.sleep(0.01)
 
 
-# QUÉ MERECE PERSISTIRSE (la pregunta que V2-001 dejó abierta al poner el log en standby). El LATIDO no: el
-# loop orquestador tiquea a ~1 Hz, así que `loop.tick` y su reflejo `kind="pulse"` meterían ~140.000 filas al día
-# de un evento que no lleva ningún dato — ahogando lo que sí importa y comiéndose la retención entera. El latido
-# existe para la UI en vivo (el ECG del orbe), que lo recibe por SSE igual; para el REGISTRO no aporta nada.
-# Cualquier otro topic sí se guarda: ante la duda, se registra.
+# WHAT DESERVES PERSISTENCE (the question V2-001 left open when putting the log on standby). The HEARTBEAT does not:
+# the orchestrator loop ticks at ~1 Hz, so `loop.tick` and its `kind="pulse"` reflection would insert ~140,000 rows
+# per day for an event carrying no data — drowning what matters and eating the whole retention window. The heartbeat
+# exists for the live UI (the orb ECG), which receives it by SSE anyway; it adds nothing to the RECORD. Any other
+# topic is stored: when in doubt, record it.
 _SKIP_TOPICS = {"loop.tick"}
 _SKIP_KINDS = {"pulse"}
 
@@ -193,17 +192,17 @@ def _worth_persisting(rec: dict) -> bool:
 
 
 def _write(rec: dict):
-    """Sink del bus: ENCOLA el evento. Nunca bloquea al que publica (ver la nota de arriba)."""
+    """Bus sink: ENQUEUE the event. Never blocks the publisher (see the note above)."""
     if not _worth_persisting(rec):
         return
     try:
         _q.put_nowait(rec)
     except queue.Full:
-        _dropped["n"] += 1      # visible en `stats()`: mejor perder log que frenar la voz
+        _dropped["n"] += 1      # visible in `stats()`: better to lose log than slow voice
 
 
 def _write_now(rec: dict):
-    """Persistencia real, en el hilo del writer. `rec` = {topic, ts_ms, payload}. Best-effort."""
+    """Real persistence, on the writer thread. `rec` = {topic, ts_ms, payload}. Best-effort."""
     try:
         payload = rec.get("payload")
         try:
@@ -224,17 +223,17 @@ def _write_now(rec: dict):
         pass
 
 
-# RETENCIÓN (2026-08-09). La otra razón por la que el log durable estaba apagado: «crecimiento sin límite de
-# zaelar.db». Con el log encendido esto deja de ser hipotético — una sesión activa genera miles de filas al día —
-# y ahora además es el ÚNICO sitio donde viven los eventos. Se poda por antigüedad y con un techo duro de filas,
-# ambos configurables. Corre al enganchar el sink (arranque) en el hilo del writer: nunca en el de la voz.
+# RETENTION (2026-08-09). The other reason the durable log was off: "unbounded zaelar.db growth". With the log on,
+# this stops being hypothetical — an active session generates thousands of rows per day — and now it is also the
+# ONLY place where events live. Prune by age and with a hard row cap, both configurable. Runs when attaching the
+# sink (boot) on the writer thread: never on the voice thread.
 _RETENTION_DAYS = float(os.getenv("ZAELAR_EVENTS_RETENTION_DAYS", "30"))
 _MAX_ROWS = int(os.getenv("ZAELAR_EVENTS_MAX_ROWS", "500000"))
 
 
 def prune() -> int:
-    """Borra lo viejo y lo que pase del techo. Devuelve cuántas filas se fueron. Best-effort: un fallo podando
-    NUNCA puede impedir que se sigan registrando eventos."""
+    """Delete old rows and anything past the cap. Returns how many rows went away. Best-effort: a pruning failure
+    can NEVER prevent events from continuing to be recorded."""
     gone = 0
     try:
         with _lock:
@@ -243,7 +242,7 @@ def prune() -> int:
                 cutoff = (time.time() - _RETENTION_DAYS * 86400) * 1000.0
                 gone += conn.execute("DELETE FROM events WHERE ts_ms < ?", (cutoff,)).rowcount or 0
             if _MAX_ROWS > 0:
-                # Por id (autoincremental) y no por ts_ms: es el orden real de inserción y usa la PK.
+                # By id (autoincremental), not ts_ms: this is the real insertion order and uses the PK.
                 row = conn.execute(
                     "SELECT id FROM events ORDER BY id DESC LIMIT 1 OFFSET ?", (_MAX_ROWS,)).fetchone()
                 if row:
@@ -255,12 +254,12 @@ def prune() -> int:
 
 
 def stats() -> dict:
-    """Salud del propio log: cuánto hay, cuánto se ha descartado por saturación y cuánto queda en cola."""
+    """Health of the log itself: how much exists, how much was dropped due to saturation, and how much remains queued."""
     return {"rows": count(), "dropped": _dropped["n"], "queued": _q.qsize()}
 
 
 def attach(bus_mod=None):
-    """Engancha el log al bus (idempotente). Llamado desde el lifespan del server (T40)."""
+    """Attach the log to the bus (idempotent). Called from the server lifespan (T40)."""
     global _attached
     if _attached:
         return
@@ -268,7 +267,7 @@ def attach(bus_mod=None):
         import bus as bus_mod  # noqa
     bus_mod.add_sink(_write)
     _attached = True
-    # Poda al arrancar, en su propio hilo: con 500k filas el DELETE puede tardar y no puede retrasar el boot.
+    # Prune at boot, on its own thread: with 500k rows DELETE can take time and must not delay boot.
     threading.Thread(target=prune, name="bus-log-prune", daemon=True).start()
 
 
@@ -280,9 +279,9 @@ def detach(bus_mod=None):
     _attached = False
 
 
-# ── lectura (para /debug futuro, tests, y el retriever de memoria) ─────────────────────────────────────
+# ── reads (for future /debug, tests, and the memory retriever) ──────────────────────────────────────────
 def recent(limit: int = 100, topic: str = "") -> list[dict]:
-    """Últimos eventos (más nuevos primero). Filtro opcional por topic exacto o prefijo con `*` al final."""
+    """Latest events (newest first). Optional filter by exact topic or prefix ending with `*`."""
     with _lock:
         conn = _connect()
         if topic.endswith("*"):
@@ -319,7 +318,7 @@ def count(topic: str = "") -> int:
 
 
 def close():
-    """Cierra la conexión (tests / shutdown). Idempotente."""
+    """Close the connection (tests / shutdown). Idempotent."""
     global _conn
     with _lock:
         if _conn is not None:

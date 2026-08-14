@@ -1,12 +1,12 @@
 #
-# supervisor.py — el puente WIDGET → conectores (INI-015). El widget de mensajería NO puede hacer fetch (contrato
-# de aislamiento de widgets: sin red desde el cliente), así que cuando el usuario pulsa "Conectar Telegram/WhatsApp"
-# el widget encola la orden por ctx.action → data.apply_action → store (pending_control). Este supervisor corre en
-# el lifespan del server, drena esas órdenes cada ~1s y ejecuta el connect/disconnect real (control.py: persiste
-# config en config/connectors.py + arranca/para el conector en caliente). Así todo se maneja desde la UI, sin .env.
+# supervisor.py — WIDGET -> connectors bridge (INI-015). The messaging widget CANNOT fetch (widget isolation
+# contract: no client-side network), so when the user clicks "Connect Telegram/WhatsApp" the widget enqueues the
+# order via ctx.action -> data.apply_action -> store (pending_control). This supervisor runs in the server lifespan,
+# drains those orders every ~1s, and executes the real connect/disconnect (control.py: persists config in
+# config/connectors.py + starts/stops the connector hot). This keeps everything manageable from the UI, without .env.
 #
-# También arranca los conectores que YA estaban activados (config/connectors.json) en el primer tick — de modo que
-# tras un reinicio del server, lo que el usuario dejó conectado vuelve solo.
+# It also starts connectors that were ALREADY enabled (config/connectors.json) on the first tick — so after a server
+# restart, what the user left connected comes back by itself.
 #
 import asyncio
 
@@ -28,13 +28,13 @@ async def _drain_once() -> None:
             elif kind == "disconnect":
                 await control.apply_disconnect(platform, cmd)
             else:
-                logger.debug(f"supervisor: orden desconocida {cmd!r}")
+                logger.debug(f"supervisor: unknown order {cmd!r}")
         except Exception as e:
-            logger.warning(f"supervisor: orden {kind} {platform} falló: {e}")
+            logger.warning(f"supervisor: order {kind} {platform} failed: {e}")
 
 
 async def _loop() -> None:
-    # Arranque inicial: lo que el usuario dejó activado en la UI vuelve a levantarse tras un reinicio.
+    # Initial startup: what the user left enabled in the UI comes back up after a restart.
     for p in control.PLATFORMS:
         try:
             from config import connectors as cfg

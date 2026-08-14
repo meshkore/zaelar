@@ -1,20 +1,20 @@
 #
-# Connectors registry — inventario ÚNICO y tipado de TODOS los conectores del agente (V2-083).
+# Connectors registry — SINGLE typed inventory of ALL agent connectors (V2-083).
 #
-# Antes el catálogo estaba disperso (config/connectors.py=mensajería, spotify/auth, meshkore, architect). Esto lo
-# unifica en UN punto para la pestaña "Conectores" de Configuración: cada conector con su familia, método de auth,
-# estado (conectado/autenticado) y qué credenciales tiene puestas (REDACTADAS). Los conectores son NATIVOS: el
-# código de conexión vive en `connectors/<x>/`, pero TODA su configuración/credenciales es DINÁMICA, visible,
-# revocable y autenticable desde el frontend — NADA en `.env` (env solo fallback power-user).
+# Previously the catalog was scattered (config/connectors.py=messaging, spotify/auth, meshkore, architect). This
+# unifies it in ONE point for the Configuration "Connectors" tab: each connector with family, auth method, state
+# (connected/authenticated), and which credentials are set (REDACTED). Connectors are NATIVE: connection code lives
+# in `connectors/<x>/`, but ALL configuration/credentials are DYNAMIC, visible, revocable, and authenticatable from
+# the frontend — NOTHING in `.env` (env only as power-user fallback).
 #
-# Read-only: este módulo solo LEE estado. Las ESCRITURAS (connect/disconnect/revoke) van por los endpoints ya
-# existentes de cada familia (`/api/messaging/*`, `/api/spotify/*`, `/api/meshkore/*`) + los de architect (V2-083).
+# Read-only: this module only READS state. WRITES (connect/disconnect/revoke) go through the existing endpoints for
+# each family (`/api/messaging/*`, `/api/spotify/*`, `/api/meshkore/*`) + architect endpoints (V2-083).
 #
 from __future__ import annotations
 
-# Descriptor de cada conector:
+# Descriptor for each connector:
 #   id · label · family (mensajeria|musica|infra) · auth (qr|app-password|oauth|token|cluster)
-#   connected (bool) · detail (str humano) · config (dict REDACTADO) · [clusters] (solo meshkore)
+#   connected (bool) · detail (human str) · config (REDACTED dict) · [clusters] (meshkore only)
 
 
 def _messaging() -> list[dict]:
@@ -74,7 +74,7 @@ def _meshkore() -> list[dict]:
         from connectors import meshkore
         mgr = meshkore.get_manager()
         clusters = mgr.clusters() if mgr else []
-        # `clusters()` da la lista de clusters conocidos/conectados; la normalizamos a {name, connected}.
+        # `clusters()` gives the known/connected cluster list; normalize it to {name, connected}.
         norm = []
         for c in (clusters or []):
             if isinstance(c, dict):
@@ -91,8 +91,8 @@ def _meshkore() -> list[dict]:
                  "connected": False, "status": "error", "detail": str(e), "clusters": [], "config": {}}]
 
 
-# Orden estable por familia (mensajería → música → infra) para la pestaña.
+# Stable family order (messaging -> music -> infra) for the tab.
 def descriptors() -> list[dict]:
-    """Inventario completo de conectores con estado + config redactada. Cada fuente aislada (un conector roto no
-    tumba el registro)."""
+    """Complete connector inventory with state + redacted config. Each source is isolated (a broken connector does
+    not take down the registry)."""
     return [*_messaging(), *_music(), *_architect(), *_meshkore()]

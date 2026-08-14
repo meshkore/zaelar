@@ -1,7 +1,7 @@
 """
 Timer/countdown widget — backend.
-Persiste el temporizador en store para que sobreviva a refrescos.
-El brain fija el tiempo con apply_action("set", {"seconds": N, "label": "..."}).
+Persists the timer in store so it survives refreshes.
+The brain sets time with apply_action("set", {"seconds": N, "label": "..."}).
 """
 from __future__ import annotations
 

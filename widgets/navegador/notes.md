@@ -1,59 +1,60 @@
-# navegador — notas de contexto
+# navegador: Context Notes
 
-Navegador web dentro de zaelar. **Primer widget `kind:"backed"`** (INI-016) — estrena la infraestructura de
-widget-apps con backend vivo diseñada en `zaelar-modules.md §Widget-apps`.
+Web browser inside zaelar. **First `kind:"backed"` widget** (INI-016), introducing the live-backend widget-app
+infrastructure designed in `zaelar-modules.md` Widget-apps section.
 
-## Por qué un backend (no un iframe)
-Casi ninguna web se deja incrustar en un `<iframe>` (X-Frame-Options / CSP `frame-ancestors`): Google, Wallapop,
-la RAE, tiendas… Por eso el navegador REAL vive en `owner.py` = un **Chromium headless (Playwright)** en el
-servidor. Navega de verdad, **fotografía** la viewport (1280×800) y el widget muestra esa captura. Los
-clics/scroll del operador se mapean a coordenadas de página → Chromium → nueva captura.
+## Why a Backend, Not an Iframe
+Almost no major website allows embedding in an `<iframe>` (X-Frame-Options / CSP `frame-ancestors`): Google,
+Wallapop, RAE, shops, and many others. Therefore the REAL browser lives in `owner.py`: a **headless Chromium
+(Playwright)** on the server. It navigates for real, photographs the viewport (1280x800), and the widget shows that
+capture. Operator clicks/scrolls map back to page coordinates -> Chromium -> new capture.
 
-## Piezas
-- `owner.py` — backend vivo. **Único escritor** de `_data/navegador/` (state.json + `shot.png`). Arranque
-  perezoso: Chromium se lanza en la primera orden. Órdenes: `open/search/youtube/back/forward/reload/scroll/
-  click/type/press`. Lo gobierna `widgets/supervisor.py` (buzón + restart con backoff + desactivación tras N
-  fallos). Emite observabilidad `kind:"navegador"` (navigate/screenshot/youtube/click/nav_error…) a `/debug`.
-- `data.py` — **solo lectura** (`view_data`). `apply_action` es red de seguridad: en un backed widget el host
-  encola en el buzón del owner ANTES de tocar data.py (`server_api._route_backed`).
-- `widget.js` — barra de direcciones + atrás/adelante/recargar, viewport (captura clicable con scroll, o
-  reproductor **YouTube embed** cuando `mode==="youtube"`), y estado inicial con atajos.
-- `manifest.json` — `kind:"backed"`, `backend.owner`. Navegación (`open/search/youtube/back/forward/reload/
-  scroll`) es `safe:true` → la capa rápida de voz la conduce. `click/type/press` es `safe:false` → automatización
-  dentro de una web (rellenar formularios) la escala Hermes.
+## Pieces
+- `owner.py`: live backend. **Only writer** of `_data/navegador/` (`state.json` + `shot.png`). Lazy startup:
+  Chromium launches on the first order. Orders: `open/search/youtube/back/forward/reload/scroll/click/type/press`.
+  Governed by `widgets/supervisor.py` (mailbox + restart with backoff + disable after N failures). Emits
+  observability `kind:"navegador"` (navigate/screenshot/youtube/click/nav_error...) to `/debug`.
+- `data.py`: **read-only** (`view_data`). `apply_action` is a safety net: in a backed widget, the host enqueues into
+  the owner's mailbox BEFORE touching data.py (`server_api._route_backed`).
+- `widget.js`: address bar + back/forward/reload, viewport (clickable capture with scroll, or **YouTube embed**
+  player when `mode==="youtube"`), and initial state with shortcuts.
+- `manifest.json`: `kind:"backed"`, `backend.owner`. Navigation (`open/search/youtube/back/forward/reload/scroll`)
+  is `safe:true`, so the fast voice layer drives it. `click/type/press` is `safe:false`, so automation inside a
+  website (filling forms) escalates to Hermes.
 
 ## YouTube
-Excepción: una captura no reproduce vídeo/audio → el owner resuelve el `videoId` (raspa el HTML de resultados,
-sin API key) y el widget monta el reproductor embed real (`youtube-nocookie`). `open` detecta URLs de YouTube.
+Exception: a capture does not play video/audio, so the owner resolves `videoId` by scraping result HTML with no API
+key, and the widget mounts the real embed player (`youtube-nocookie`). `open` detects YouTube URLs.
 
-## Autenticación — sesiones con la cuenta del operador (INI-016)
-Muchas tareas necesitan la cuenta del operador (sacar una API key en Google Cloud, comprar en Wallapop, leer un
-mail). El Chromium headless arranca **sin sesión**. Solución (perfil propio + login manual una vez, NO copiar las
-cookies del Chrome del sistema — cifradas por el Keychain, frágiles):
+## Authentication: Sessions With the Operator's Account (INI-016)
+Many tasks need the operator's account (creating a Google Cloud API key, buying on Wallapop, reading email). The
+headless Chromium starts **without a session**. Solution: its own profile + one manual login, NOT copying cookies
+from system Chrome because they are Keychain-encrypted and fragile.
 
-- **Detección** (`agent.py::_looks_like_login`): DETERMINISTA (URL de login conocida + campo password en el
-  snapshot) **antes** de dejar actuar al modelo. El bucle **NUNCA teclea credenciales inventadas** (bug 2026-07-10:
-  tecleó `user@gmail.com` en el login de Google y giró en círculos). También hay la acción `need_login` por si el
-  modelo detecta un login que la URL no delata.
-- **Ventana real** (`owner.py::_begin_login`→`_authenticate`): relanza el MISMO Chromium **visible** en la página
-  de login (`_visible_override`), la tarjeta muestra «Ya he iniciado sesión», y avisa por voz. El operador entra a
-  mano → la sesión (cookies) se guarda SOLA en el **perfil persistente** (`_data/navegador/profile/`).
-- **Vuelta** (`_auth_done`, por el botón o el tool de voz `login_done`): **sonda post-login** (¿la sesión cuajó o
-  rebota al login?), vuelve a headless y **reanuda automático** la(s) tarea(s) pausada(s).
-- **Bajo control**: una sola ventana → un login a la vez (pausa+reanuda las otras tareas, porque `stop()` mata sus
-  pestañas); **timeout 10 min** sin terminar → recordatorio, nunca mata la tarea; **crash/reinicio** → miga durable
-  en memoria (`auth_memory.checkpoint_auth_pending`) → al arrancar recuerda «dejaste el login de X a medias».
-- **Memoria** (`auth_memory.py`, vía fachada `memory.write`/`set_state`): el SECRETO (cookies) NUNCA entra en
-  memoria (vive en el perfil, cifrado por el SO); solo el **hecho** de la sesión (`record_session_established`,
-  `slot=navegador.session.<sitio>` → supersede) y el **checkpoint** recuperable. Calca `widgets/lifecycle.py`
-  (ALTA) y `nucleo/reset.py` (congelar→registrar).
-- **FlashBrain**: tools `authenticate_web(site)` (abre el login a petición: «conéctame a Wallapop») y `login_done`
-  («ya estoy dentro»). Operator-only por construcción (el reasoner de cluster no tiene tools). Confirm-gate de
-  acciones irreversibles (comprar/pagar/publicar) sigue en `nucleo/danger.py`.
+- **Detection** (`agent.py::_looks_like_login`): deterministic (known login URL + password field in the snapshot)
+  before letting the model act. The loop **NEVER types invented credentials** (2026-07-10 bug: it typed
+  `user@gmail.com` into Google login and spun). There is also a `need_login` action for cases where the model
+  detects a login the URL does not reveal.
+- **Real window** (`owner.py::_begin_login` -> `_authenticate`): relaunches the SAME Chromium **visible** on the
+  login page (`_visible_override`), the card shows "I have logged in", and voice notifies the operator. The operator
+  logs in manually, and the session cookies are saved automatically in the **persistent profile**
+  (`_data/navegador/profile/`).
+- **Return** (`_auth_done`, through the button or the `login_done` voice tool): post-login probe checks whether the
+  session stuck or bounced back to login, returns to headless, and automatically resumes paused task(s).
+- **Controlled**: one window -> one login at a time (pause+resume other tasks because `stop()` kills their tabs);
+  **10 min timeout** without completion -> reminder, never kills the task; **crash/restart** -> durable memory crumb
+  (`auth_memory.checkpoint_auth_pending`) -> startup remembers the half-done login.
+- **Memory** (`auth_memory.py`, through `memory.write`/`set_state` facade): the SECRET (cookies) NEVER enters
+  memory; it lives in the profile, encrypted by the OS. Memory stores only the **fact** of the session
+  (`record_session_established`, `slot=navegador.session.<site>` -> supersede) and the recoverable checkpoint.
+  Mirrors `widgets/lifecycle.py` (registration) and `nucleo/reset.py` (freeze->record).
+- **FlashBrain**: tools `authenticate_web(site)` (open login on request, e.g. "connect me to Wallapop") and
+  `login_done` ("I am in"). Operator-only by construction; the cluster reasoner has no tools. Confirmation gate for
+  irreversible actions (buy/pay/publish) remains in `nucleo/danger.py`.
 
-## Estado / futuro
-- v0.1.0: abrir web, buscar en Google, reproducir YouTube, clic/scroll sobre la captura, atrás/adelante. Base
-  para la visión: **conducir la navegación por voz y automatizar** ("abre Wallapop y búscame una moto <5000€ de
-  2020 para arriba") — se apoya en las acciones `click/type/press` + escalado a Hermes.
-- Chromium queda vivo tras el primer uso (reabrir es instantáneo). Futuro: cerrar por inactividad para liberar
-  RAM; navegación semántica ("haz clic en el segundo resultado") vía Hermes leyendo el DOM.
+## State / Future
+- v0.1.0: open website, search Google, play YouTube, click/scroll over the capture, back/forward. Base for vision:
+  **drive navigation by voice and automate** (for example, opening Wallapop and searching for a motorcycle under a
+  budget/year constraint), based on `click/type/press` actions plus Hermes escalation.
+- Chromium stays alive after first use, so reopening is instant. Future: close on inactivity to free RAM; semantic
+  navigation ("click the second result") through Hermes reading the DOM.

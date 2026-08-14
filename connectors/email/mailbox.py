@@ -1,15 +1,17 @@
 #
-# mailbox.py — lógica IMAP/SMTP PURA del conector email (V2-051). VENDORIZADA + adaptada del adaptador de email de
-# Hermes (~/.hermes/hermes-agent/plugins/platforms/email/adapter.py), que es stdlib puro (imaplib/smtplib). Aquí NO
-# hay asyncio ni bus: son funciones/clase SÍNCRONAS y bloqueantes (el service.py las corre en asyncio.to_thread) y
-# 100% testeables sin red (los parsers son puros). No depende de ninguna clase interna de Hermes.
+# mailbox.py — PURE IMAP/SMTP logic for the email connector (V2-051). VENDORED + adapted from Hermes' email adapter
+# (~/.hermes/hermes-agent/plugins/platforms/email/adapter.py), which is pure stdlib (imaplib/smtplib). There is NO
+# asyncio or bus here: these are SYNCHRONOUS and blocking functions/classes (service.py runs them in
+# asyncio.to_thread), and 100% testable without network (parsers are pure). Does not depend on any internal Hermes
+# class.
 #
-# Diferencias con Hermes (a propósito):
-#   · Leemos el BUZÓN PROPIO del operador (no aceptamos órdenes de remitentes) → la verificación SPF/DKIM/DMARC es
-#     un METADATO de confianza (`authenticated`), NO un gate de autorización.
-#   · FETCH con BODY.PEEK[] → NO marca \Seen al leer; marcar leído es una acción EXPLÍCITA del operador (mark_seen).
-#   · Dedup por UID de IMAP (estable por buzón) = el `messageId` del store; el Message-ID RFC se guarda aparte
-#     (`msgid`) para el threading de la respuesta.
+# Differences from Hermes (on purpose):
+#   · We read the operator's OWN MAILBOX (we do not accept commands from senders) → SPF/DKIM/DMARC verification is
+#     a trust METADATA field (`authenticated`), NOT an authorization gate.
+#   · FETCH with BODY.PEEK[] → does NOT mark \Seen when reading; marking read is an EXPLICIT operator action
+#     (mark_seen).
+#   · Dedup by IMAP UID (stable per mailbox) = the store `messageId`; RFC Message-ID is stored separately (`msgid`)
+#     for reply threading.
 #
 import base64
 import email as email_lib
@@ -27,24 +29,24 @@ from email.header import decode_header
 from email.mime.text import MIMEText
 from email.utils import formatdate
 
-# ── Presets de proveedor (host IMAP/SMTP) ────────────────────────────────────────────────────────────────────────
-# El REGISTRO ÚNICO de proveedores vive en `providers.py` (V2-055). Aquí se re-exporta el mapa de hosts legacy
-# `PRESETS` para compatibilidad con quien lo importaba de este módulo (config.py).
+# ── Provider presets (IMAP/SMTP host) ───────────────────────────────────────────────────────────────────────────
+# The SINGLE provider registry lives in `providers.py` (V2-055). Here we re-export the legacy hosts map `PRESETS`
+# for compatibility with callers that imported it from this module (config.py).
 from connectors.email.providers import PRESETS  # noqa: E402,F401  (re-export de compat)
 
 
 def xoauth2_sasl(user: str, token: str) -> str:
-    """String SASL XOAUTH2 (RFC 7628) para IMAP/SMTP con OAuth2 — Gmail y Outlook lo usan sobre el MISMO transporte
-    IMAP/SMTP (el token sustituye a la contraseña). Formato: 'user=<u>^Aauth=Bearer <t>^A^A'. Puro/testeable."""
+    """SASL XOAUTH2 string (RFC 7628) for IMAP/SMTP with OAuth2 — Gmail and Outlook use it over the SAME IMAP/SMTP
+    transport (the token replaces the password). Format: 'user=<u>^Aauth=Bearer <t>^A^A'. Pure/testable."""
     return f"user={user}\x01auth=Bearer {token}\x01\x01"
 
-# Remitentes automáticos — su correo se ignora en silencio (nunca es un mensaje personal que triar/responder).
+# Automatic senders — their mail is silently ignored (never a personal message to triage/reply to).
 _NOREPLY_PATTERNS = (
     "noreply", "no-reply", "no_reply", "donotreply", "do-not-reply",
     "mailer-daemon", "postmaster", "bounce", "notifications@",
     "automated@", "auto-confirm", "auto-reply", "automailer",
 )
-# Headers RFC que delatan correo masivo/automático.
+# RFC headers that reveal bulk/automatic email.
 _AUTOMATED_HEADERS = {
     "Auto-Submitted": lambda v: v.lower() != "no",
     "Precedence": lambda v: v.lower() in {"bulk", "list", "junk"},
@@ -54,12 +56,12 @@ _AUTOMATED_HEADERS = {
 
 _IMAP_TIMEOUT = 30
 _SMTP_CONNECT_TIMEOUT = 30
-MAX_BODY_LENGTH = 20_000          # el triaje solo necesita el cuerpo; recortamos correos gigantes
+MAX_BODY_LENGTH = 20_000          # triage only needs the body; trim huge emails
 
 
-# ── Parsers puros (testeables sin red) ────────────────────────────────────────────────────────────────────────────
+# ── Pure parsers (testable without network) ─────────────────────────────────────────────────────────────────────
 def decode_header_value(raw: str) -> str:
-    """Decodifica un header RFC 2047 (=?UTF-8?...) a texto plano."""
+    """Decode an RFC 2047 header (=?UTF-8?...) to plain text."""
     if not raw:
         return ""
     out = []
@@ -72,7 +74,7 @@ def decode_header_value(raw: str) -> str:
 
 
 def strip_html(html: str) -> str:
-    """Quita tags HTML de forma ingenua (fallback cuando no hay text/plain)."""
+    """Naively remove HTML tags (fallback when text/plain is missing)."""
     text = re.sub(r"<br\s*/?>", "\n", html, flags=re.IGNORECASE)
     text = re.sub(r"</?p[^>]*>", "\n", text, flags=re.IGNORECASE)
     text = re.sub(r"<[^>]+>", "", text)
@@ -107,13 +109,13 @@ def extract_text_body(msg) -> str:
 
 
 def extract_email_address(raw: str) -> str:
-    """'Nombre <addr@x>' → 'addr@x' (minúsculas)."""
+    """'Name <addr@x>' → 'addr@x' (lowercase)."""
     m = re.search(r"<([^>]+)>", raw or "")
     return (m.group(1) if m else (raw or "")).strip().lower()
 
 
 def display_name(raw: str, fallback: str) -> str:
-    """Nombre visible del remitente ('Nombre <addr>' → 'Nombre'), o el fallback (la dirección)."""
+    """Visible sender name ('Name <addr>' → 'Name'), or fallback (the address)."""
     name = decode_header_value(raw or "")
     if "<" in name:
         name = name.split("<")[0].strip().strip('"')
@@ -121,7 +123,7 @@ def display_name(raw: str, fallback: str) -> str:
 
 
 def is_automated_sender(address: str, headers: dict) -> bool:
-    """True si el correo es de un remitente automático/noreply o marcado como masivo por headers."""
+    """True if the email comes from an automatic/noreply sender or is marked as bulk by headers."""
     addr = (address or "").lower()
     if any(p in addr for p in _NOREPLY_PATTERNS):
         return True
@@ -132,7 +134,7 @@ def is_automated_sender(address: str, headers: dict) -> bool:
     return False
 
 
-# ── Verificación SPF/DKIM/DMARC (metadato de confianza) ─────────────────────────────────────────────────────────
+# ── SPF/DKIM/DMARC verification (trust metadata) ────────────────────────────────────────────────────────────────
 def _domain_of(address: str) -> str:
     _, _, domain = (address or "").rpartition("@")
     return domain.strip().lower()
@@ -152,16 +154,16 @@ _AUTH_PROP_RE = re.compile(
 
 
 def verify_sender_authentication(msg, from_addr: str) -> tuple[bool, str]:
-    """¿El dominio del From: está autenticado (SPF/DKIM/DMARC) según el header Authentication-Results que estampa
-    NUESTRO servidor receptor? El From: es falsificable; este es el único indicador fiable. Devuelve (ok, motivo).
-    Sin header → (False, 'no Authentication-Results') — no bloquea nada, solo marca el metadato."""
+    """Is the From: domain authenticated (SPF/DKIM/DMARC) according to the Authentication-Results header stamped by
+    OUR receiving server? From: is forgeable; this is the only reliable indicator. Returns (ok, reason). Missing
+    header → (False, 'no Authentication-Results') — blocks nothing, only marks metadata."""
     from_domain = _domain_of(from_addr)
     if not from_domain:
         return False, "missing From domain"
     headers = msg.get_all("Authentication-Results") or []
     if not headers:
         return False, "no Authentication-Results header"
-    trusted = " ".join(str(headers[0]).split())        # el receptor lo antepone → el PRIMERO es el de confianza
+    trusted = " ".join(str(headers[0]).split())        # receiver prepends it → FIRST one is trusted
     methods = {m.lower(): r.lower() for m, r in _AUTH_METHOD_RE.findall(trusted)}
     props = {p.lower(): v.strip().strip('"') for p, v in _AUTH_PROP_RE.findall(trusted)}
     if methods.get("dmarc") == "pass":
@@ -178,8 +180,8 @@ def verify_sender_authentication(msg, from_addr: str) -> tuple[bool, str]:
 
 
 def parse_message(uid: str, raw_bytes: bytes) -> dict | None:
-    """Un email crudo (RFC822) → dict normalizado para el triaje/store, o None si hay que ignorarlo (automático).
-    `uid` = UID de IMAP (str) → se usa como messageId (estable por buzón). El Message-ID RFC va en `msgid`."""
+    """Raw email (RFC822) → normalized dict for triage/store, or None if it should be ignored (automatic).
+    `uid` = IMAP UID (str) → used as messageId (stable per mailbox). RFC Message-ID goes in `msgid`."""
     msg = email_lib.message_from_bytes(raw_bytes)
     from_raw = msg.get("From", "")
     from_addr = extract_email_address(from_raw)
@@ -191,20 +193,20 @@ def parse_message(uid: str, raw_bytes: bytes) -> dict | None:
     authok, why = verify_sender_authentication(msg, from_addr)
     return {
         "senderName": display_name(from_raw, from_addr),
-        "isGroup": False,                     # el correo personal es 1:1 (el hilo es el "chat")
+        "isGroup": False,                     # personal email is 1:1 (the thread is the "chat")
         "chatName": None,
         "body": (f"[Asunto: {subject}]\n{body}" if subject and not subject.startswith("Re:") else body) or "(vacío)",
-        "messageId": str(uid),                # UID de IMAP → dedup + mark-seen
-        "chatId": from_addr,                  # el remitente ES el hilo/chat
+        "messageId": str(uid),                # IMAP UID → dedup + mark-seen
+        "chatId": from_addr,                  # the sender IS the thread/chat
         "senderId": from_addr,
         "subject": subject,
-        "msgid": msg.get("Message-ID", ""),   # Message-ID RFC → threading de la respuesta
+        "msgid": msg.get("Message-ID", ""),   # RFC Message-ID → reply threading
         "authenticated": authok,
         "auth_reason": why,
     }
 
 
-# ── SMTP con IPv4-fallback (redes sin ruta IPv6 cuelgan hasta el timeout) ────────────────────────────────────────
+# ── SMTP with IPv4 fallback (networks without IPv6 route hang until timeout) ────────────────────────────────────
 def _ipv4_connection(host: str, port: int, timeout: float):
     last = None
     for family, socktype, proto, _c, sockaddr in socket.getaddrinfo(host, port, socket.AF_INET, socket.SOCK_STREAM):
@@ -230,10 +232,10 @@ class _IPv4SMTP_SSL(smtplib.SMTP_SSL):
                                         server_hostname=getattr(self, "_host", host))
 
 
-# ── El buzón: conexión + operaciones (bloqueantes; el service las corre en to_thread) ────────────────────────────
+# ── The mailbox: connection + operations (blocking; service runs them in to_thread) ─────────────────────────────
 class Mailbox:
-    """Conexión IMAP (leer) + SMTP (enviar). Sin estado de red persistente: cada operación abre/cierra su conexión
-    (robusto ante caídas de red; el poll es cada N s, no una conexión IDLE viva)."""
+    """IMAP (read) + SMTP (send) connection. No persistent network state: each operation opens/closes its connection
+    (robust to network drops; polling is every N seconds, not a live IDLE connection)."""
 
     def __init__(self, address: str, password: str, imap_host: str, imap_port: int,
                  smtp_host: str, smtp_port: int, auth_mode: str = "password", token: str = ""):
@@ -244,20 +246,20 @@ class Mailbox:
         self.smtp_host = (smtp_host or "").strip()
         self.smtp_port = int(smtp_port or 587)
         self.auth_mode = (auth_mode or "password").strip().lower()   # "password" | "oauth"
-        self.token = token or ""                                     # access token (OAuth) — usado con XOAUTH2
+        self.token = token or ""                                     # access token (OAuth) — used with XOAUTH2
 
     # -- IMAP ------------------------------------------------------------------------------------------------------
     def _imap(self) -> imaplib.IMAP4_SSL:
         im = imaplib.IMAP4_SSL(self.imap_host, self.imap_port, timeout=_IMAP_TIMEOUT)
         if self.auth_mode == "oauth":
-            # SASL XOAUTH2: imaplib base64-codifica lo que devuelve el authobject; devolvemos la SASL cruda en bytes.
+            # SASL XOAUTH2: imaplib base64-encodes what the authobject returns; return raw SASL bytes.
             im.authenticate("XOAUTH2", lambda _=None: xoauth2_sasl(self.address, self.token).encode())
         else:
             im.login(self.address, self.password)
         return im
 
     def _smtp_login(self, s: smtplib.SMTP) -> None:
-        """Autentica una conexión SMTP ya establecida: password o XOAUTH2 (OAuth)."""
+        """Authenticate an already-established SMTP connection: password or XOAUTH2 (OAuth)."""
         if self.auth_mode == "oauth":
             s.ehlo()
             sasl = xoauth2_sasl(self.address, self.token).encode()
@@ -268,7 +270,7 @@ class Mailbox:
             s.login(self.address, self.password)
 
     def test_connection(self) -> tuple[bool, str]:
-        """Prueba IMAP+SMTP login. Devuelve (ok, motivo) — para validar la conexión al conectar desde la UI."""
+        """Test IMAP+SMTP login. Returns (ok, reason) — to validate the connection when connecting from the UI."""
         cred = ("token", self.token) if self.auth_mode == "oauth" else ("contraseña", self.password)
         missing = [n for n, v in (("dirección", self.address), cred,
                                    ("IMAP host", self.imap_host), ("SMTP host", self.smtp_host)) if not v]
@@ -290,7 +292,7 @@ class Mailbox:
         return True, "ok"
 
     def all_uids(self) -> set[str]:
-        """Todos los UID actuales de INBOX (para sembrar el `seen` al conectar → solo triamos correo NUEVO)."""
+        """All current INBOX UIDs (to seed `seen` on connect → only triage NEW mail)."""
         out: set[str] = set()
         try:
             im = self._imap()
@@ -306,8 +308,8 @@ class Mailbox:
         return out
 
     def fetch_new(self, seen: set[str]) -> list[dict]:
-        """Devuelve los correos de INBOX cuyo UID no está en `seen`, parseados y normalizados (sin marcar \\Seen —
-        usa BODY.PEEK). NO muta `seen` (lo hace el llamante tras publicar). Nunca lanza hacia arriba."""
+        """Return INBOX emails whose UID is not in `seen`, parsed and normalized (without marking \\Seen — uses
+        BODY.PEEK). Does NOT mutate `seen` (caller does it after publishing). Never raises upward."""
         results: list[dict] = []
         try:
             im = self._imap()
@@ -341,7 +343,7 @@ class Mailbox:
         return results
 
     def mark_seen(self, uids: list[str]) -> bool:
-        """Marca \\Seen (leído en el servidor) los UID dados. True si OK (best-effort en lote)."""
+        """Mark the given UIDs as \\Seen (read on the server). True if OK (batch best-effort)."""
         uids = [u for u in (uids or []) if u]
         if not uids:
             return True
@@ -381,11 +383,11 @@ class Mailbox:
         except ssl.SSLError:
             raise
         except (socket.timeout, TimeoutError, ConnectionError, OSError):
-            return _do(ipv4=True)          # reintento IPv4 (IPv6 inalcanzable)
+            return _do(ipv4=True)          # IPv4 retry (unreachable IPv6)
 
     def send_reply(self, to_addr: str, subject: str, body: str, in_reply_to: str = "") -> tuple[bool, str]:
-        """Envía una respuesta por SMTP con threading correcto (In-Reply-To/References, Re: del asunto).
-        Devuelve (ok, message_id|error)."""
+        """Send a reply by SMTP with correct threading (In-Reply-To/References, subject Re:). Returns
+        (ok, message_id|error)."""
         to_addr = (to_addr or "").strip()
         if not to_addr:
             return False, "sin destinatario"

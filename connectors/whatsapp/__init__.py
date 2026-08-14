@@ -1,13 +1,13 @@
 #
-# WhatsApp triage connector (INI-014; store unificado en INI-015) — zaelar lee el WhatsApp personal del operador y
-# solo le interrumpe con lo que MERECE atención, marcando leído lo ya resumido. Read-only + mark-read.
+# WhatsApp triage connector (INI-014; unified store in INI-015) — zaelar reads the operator's personal WhatsApp and
+# only interrupts with what DESERVES attention, marking already-summarized content as read. Read-only + mark-read.
 #
-# Frontera con Hermes (doc: .meshkore/docs/architecture/zaelar-hermes-federation.md): el bridge Baileys es una
-# COPIA vendorizada de Hermes en connectors/whatsapp/bridge/ (parches marcados // ZAELAR-PATCH), inmune a
-# `hermes update`. El clasificador es el COMPARTIDO (connectors/messaging), LOCAL por defecto (Ollama) y NO pasa
-# por el agente Hermes → nada personal sale de la máquina y se preserva el invariante ACP de la voz.
+# Boundary with Hermes (doc: .meshkore/docs/architecture/zaelar-hermes-federation.md): the Baileys bridge is a
+# vendored COPY from Hermes in connectors/whatsapp/bridge/ (patches marked // ZAELAR-PATCH), immune to
+# `hermes update`. The classifier is SHARED (connectors/messaging), LOCAL by default (Ollama), and does NOT go
+# through the Hermes agent -> nothing personal leaves the machine and the voice ACP invariant is preserved.
 #
-# Módulos: bridge/ (Node, vendorizado) · bridge_proc (lifecycle+QR) · client (HTTP) · service (motor). El triaje,
-# el store unificado, el aviso proactivo, el brief y el dispatch de tags viven en connectors/messaging/ (comunes a
-# todas las plataformas). Config del bridge en config.py.
+# Modules: bridge/ (Node, vendored) · bridge_proc (lifecycle+QR) · client (HTTP) · service (engine). Triage, the
+# unified store, proactive notice, brief, and tag dispatch live in connectors/messaging/ (common to all platforms).
+# Bridge config is in config.py.
 #

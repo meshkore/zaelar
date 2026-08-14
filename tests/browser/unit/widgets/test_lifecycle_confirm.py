@@ -70,7 +70,7 @@ def test_delete_widget_removes_folder_and_tombstones(monkeypatch):
         assert res["ok"] is True and res["id"] == wid
         assert not os.path.isdir(folder)                           # carpeta borrada del disco
         assert ("delete", wid) in emitted                          # cierra la tarjeta en el canvas
-        assert "BORRADO" in written["text"] and wid in written["text"]   # lápida en memoria (histórico)
+        assert "DELETED" in written["text"] and wid in written["text"]   # memory tombstone (history)
     finally:
         import shutil
         shutil.rmtree(folder, ignore_errors=True)

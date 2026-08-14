@@ -8,7 +8,7 @@ How it applies:
   live + persist to config/settings.json (loaded at boot). Effect: RECONNECT the voice session to apply.
 
 The BRAIN's model routing (fast layer + brain-worker CodeAgent) is NOT here — it lives in `config/v2.py` (its own
-UI-managed store with a redacted public view, model POR INVOCACIÓN). This panel is only the voice knobs.
+UI-managed store with a redacted public view, model PER INVOCATION). This panel is only the voice knobs.
 
 Whitelisted on purpose: only these knobs are settable from the web. No secrets here (keys stay in the
 credentials store / .env fallback).
@@ -27,30 +27,31 @@ SETTINGS_FILE = _workspace.root() / "config" / "settings.json"
 
 # knob -> env var it overrides (applied to os.environ at boot + on save). Since the LiveKit engine reads
 # its config from ZAELAR_* env vars (voice/engine/core/config.py SETTINGS), the ⚙ writes THOSE names. NOTE:
-# SETTINGS is frozen at process import, so an STT/TTS/idioma change takes full effect on the next zaelar start;
+# SETTINGS is frozen at process import, so an STT/TTS/language change takes full effect on the next zaelar start;
 # the env write is what the engine reads then. The TTS *voice* is handled apart (see below): it's an INDEX into
 # the chosen provider's voice list (server.state["voice"], the lever the orb cycles), not a plain env var.
 ENV_KEYS = {
     "stt_provider": "ZAELAR_STT",
     "tts_provider": "ZAELAR_TTS",
     "stt_language": "ZAELAR_LANGUAGE",
-    # Perfil del motor de voz (V2-040): lo escribe `config/profiles.apply()` como parte del paquete coordinado, y
-    # `load_into_env()` lo re-aplica en el arranque → el dataclass congelado (voice/engine/core/profile) lo lee.
+    # Voice-engine profile (V2-040): written by `config/profiles.apply()` as part of the coordinated package, and
+    # `load_into_env()` reapplies it on boot → the frozen dataclass (voice/engine/core/profile) reads it.
     "zaelar_profile": "ZAELAR_PROFILE",
-    # Gate de atención (V2-015): con el micro siempre abierto, decide qué turno va DIRIGIDO a zaelar. Se aplica
-    # AL INSTANTE (voice/attention.py lee estas env cada turno) — no requiere reconectar.
+    # Attention gate (V2-015): with the mic always open, decides which turn is ADDRESSED to zaelar. Applies
+    # INSTANTLY (voice/attention.py reads these envs each turn) — no reconnect required.
     "attention_mode": "ZAELAR_ATTENTION",
     "attention_window": "ZAELAR_ATTENTION_WINDOW",
 }
 
 # Boolean knobs (not env-provider mapped): persisted in settings.json, default when absent. Read via get().
-# `memory_observability` (V2-014): capa de tintado en vivo del visor de memoria (alta/sobrescritura/query).
-# Default ON; se puede apagar desde la UI si añade tráfico fino no deseado. env fallback ZAELAR_MEM_OBSERVABILITY.
+# `memory_observability` (V2-014): live tinting layer for the memory viewer (create/overwrite/query).
+# Default ON; can be disabled from the UI if it adds unwanted fine-grained traffic. env fallback
+# ZAELAR_MEM_OBSERVABILITY.
 BOOL_DEFAULTS = {"memory_observability": True}
 
 
 def get(key: str, default=None):
-    """Lee un knob persistido (settings.json). Para knobs booleanos, cae al default declarado si no está."""
+    """Read a persisted knob (settings.json). For boolean knobs, falls back to the declared default when absent."""
     d = _read()
     if key in d:
         return d[key]

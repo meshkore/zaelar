@@ -1,14 +1,14 @@
 #
-# triage.py — el clasificador COMPARTIDO (promovido de connectors/whatsapp, INI-015). Dado un lote de mensajes
-# entrantes de CUALQUIER plataforma (WhatsApp, Telegram, …), devuelve para cada uno si MERECE la atención del
-# operador y si va DIRIGIDO a él. Llamada DIRECTA a un modelo (por defecto LOCAL, Ollama) vía endpoint
-# OpenAI-compatible — NO pasa por el agente Hermes (privacidad + invariante ACP de voz intactos).
+# triage.py — SHARED classifier (promoted from connectors/whatsapp, INI-015). Given a batch of inbound messages from
+# ANY platform (WhatsApp, Telegram, ...), returns for each one whether it DESERVES the operator's attention and
+# whether it is ADDRESSED to them. DIRECT call to a model (LOCAL by default, Ollama) through an OpenAI-compatible
+# endpoint — does NOT go through the Hermes agent (privacy + voice ACP invariant intact).
 #
-# Es agnóstico de plataforma: recibe dicts con {senderName, chatName?, isGroup, body} y devuelve la misma lista
-# enriquecida con {importante, dirigido_a_mi, urgencia, motivo}. El conector añade luego platform/ids.
+# It is platform-agnostic: receives dicts with {senderName, chatName?, isGroup, body} and returns the same list
+# enriched with {importante, dirigido_a_mi, urgencia, motivo}. The connector adds platform/ids later.
 #
-# Salida por mensaje: {"i", "importante": bool, "dirigido_a_mi": bool, "urgencia": "alta|media|baja", "motivo"}.
-# Es solo un prompt afinable: si el modelo local no clasifica bien, se cambia MSG_TRIAGE_MODEL (una variable).
+# Output per message: {"i", "importante": bool, "dirigido_a_mi": bool, "urgencia": "alta|media|baja", "motivo"}.
+# It is only a tunable prompt: if the local model does not classify well, change MSG_TRIAGE_MODEL (one variable).
 #
 import json
 import time
@@ -18,7 +18,7 @@ from loguru import logger
 
 from connectors.messaging import config
 
-# ── El prompt (editable; se afina sobre mensajes reales) ────────────────────
+# ── Prompt (editable; tuned on real messages) ───────────────────────────────
 _SYSTEM = """Eres un triador de mensajes personales para un asistente de voz. Los mensajes llegan de varias apps
 (WhatsApp, Telegram, …); trátalos igual. Para CADA mensaje decides:
 - importante: ¿merece la atención del dueño AHORA? (algo que requiere respuesta, una cita, un tema personal o
@@ -62,8 +62,8 @@ def _render_batch(messages: list[dict], operator_name: str) -> str:
 
 
 async def classify(messages: list[dict], operator_name: str | None = None) -> list[dict]:
-    """Clasifica un lote. Devuelve la lista de veredictos alineada por índice (defensivo ante JSON imperfecto).
-    `operator_name` ayuda al "¿va dirigido a mí?"; si es None cae al nombre común (config.operator_name())."""
+    """Classify a batch. Returns verdicts aligned by index (defensive against imperfect JSON). `operator_name` helps
+    with "is it addressed to me?"; if None, falls back to the common name (config.operator_name())."""
     if not messages:
         return []
     who = config.operator_name() if operator_name is None else (operator_name or "").strip()
@@ -89,11 +89,10 @@ async def classify(messages: list[dict], operator_name: str | None = None) -> li
                 data = await r.json()
         content = data["choices"][0]["message"]["content"]
         verdicts = _parse(content)
-        # A ENERGY (2026-08-13). El default es LOCAL (Ollama) y `energy_meter` devuelve None para un
-        # endpoint local, así que el caso normal sigue costando cero y no hace ni una llamada de red.
-        # Se reporta igualmente porque `MSG_TRIAGE_MODEL` puede apuntar a un endpoint REMOTO —y en la
-        # nube no hay Ollama—: sin esto, mover esa variable convierte el triaje en gasto invisible, y
-        # el triaje corre por CADA lote de mensajes entrantes, no por petición del operador.
+        # ENERGY (2026-08-13). The default is LOCAL (Ollama) and `energy_meter` returns None for a local endpoint, so
+        # the normal case still costs zero and makes no network call. Still reported because `MSG_TRIAGE_MODEL` may
+        # point at a REMOTE endpoint — and there is no Ollama in the cloud: without this, moving that variable turns
+        # triage into invisible spend, and triage runs for EVERY inbound message batch, not by operator request.
         try:
             from nucleo import energy_meter as _energy
             usage = (data.get("usage") or {}) if isinstance(data, dict) else {}
@@ -113,13 +112,13 @@ async def classify(messages: list[dict], operator_name: str | None = None) -> li
         logger.warning(f"triaje falló ({config.triage_model()}): {e} — marco todo como incierto")
         verdicts = {}
 
-    # Alinear por índice; lo que el modelo no devolvió → incierto (no lo silenciamos por error).
+    # Align by index; anything the model did not return -> uncertain (do not silence it by mistake).
     out = []
     for i, m in enumerate(messages):
         v = verdicts.get(i, {})
         out.append({
             **m,
-            "importante": bool(v.get("importante", True)),      # ante duda, mostrar (fail-open hacia el operador)
+            "importante": bool(v.get("importante", True)),      # when unsure, show it (fail-open toward operator)
             "dirigido_a_mi": bool(v.get("dirigido_a_mi", False)),
             "urgencia": v.get("urgencia", "media"),
             "motivo": v.get("motivo", "(sin clasificar — el modelo no respondió)"),
@@ -128,7 +127,7 @@ async def classify(messages: list[dict], operator_name: str | None = None) -> li
 
 
 def _parse(content: str) -> dict[int, dict]:
-    """Extrae el array JSON aunque venga con texto/```json alrededor. Indexado por 'i'."""
+    """Extract the JSON array even if surrounded by text/```json. Indexed by 'i'."""
     txt = content.strip()
     start, end = txt.find("["), txt.rfind("]")
     if start == -1 or end == -1:

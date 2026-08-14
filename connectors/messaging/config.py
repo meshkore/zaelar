@@ -1,10 +1,10 @@
 #
-# config.py — knobs COMPARTIDOS del clasificador de mensajería (INI-015).
+# config.py — SHARED knobs for the messaging classifier (INI-015).
 #
-# ⚠️ HISTÓRICO: el clasificador apuntaba por DEFECTO al modelo LOCAL (Ollama qwen2.5:3b) por PRIVACIDAD (nada
-# personal salía de la máquina). El operador pidió CERO ejecución local (batería, 2026-07-17) → ahora el DEFAULT es
-# EXTERNO (`config/v2.py §triage`, grok vía xAI por defecto). TRADEOFF aceptado: el mensaje personal SALE a la nube.
-# Fuente de verdad = `config/v2 §triage` (UI-managed); env `MSG_TRIAGE_*`/`WA_TRIAGE_*` = fallback power-user.
+# HISTORICAL NOTE: the classifier DEFAULTED to the LOCAL model (Ollama qwen2.5:3b) for PRIVACY (nothing personal left
+# the machine). The operator requested ZERO local execution (battery, 2026-07-17) -> DEFAULT is now EXTERNAL
+# (`config/v2.py §triage`, grok via xAI by default). Accepted TRADEOFF: the personal message DOES go to the cloud.
+# Source of truth = `config/v2 §triage` (UI-managed); env `MSG_TRIAGE_*`/`WA_TRIAGE_*` = power-user fallback.
 #
 import os
 
@@ -18,7 +18,7 @@ def _cfg(key: str) -> str:
 
 
 def triage_url() -> str:
-    # OpenAI-compatible. Config §triage.base_url → env → localhost (solo si alguien vuelve a apuntar a Ollama).
+    # OpenAI-compatible. Config §triage.base_url -> env -> localhost (only if someone points back to Ollama).
     return (_cfg("base_url") or os.getenv("MSG_TRIAGE_URL") or os.getenv("WA_TRIAGE_URL")
             or os.getenv("ZAELAR_LOCAL_LLM_URL", "http://localhost:11434/v1"))
 
@@ -29,7 +29,7 @@ def triage_model() -> str:
 
 
 def triage_key() -> str:
-    # Config §triage.api_key (inline) → env → si el endpoint es xAI/OpenAI y no hay key, la del entorno → "local".
+    # Config §triage.api_key (inline) -> env -> if endpoint is xAI/OpenAI and no key exists, use env key -> "local".
     k = _cfg("api_key") or os.getenv("MSG_TRIAGE_KEY") or os.getenv("WA_TRIAGE_KEY", "")
     if k:
         return k
@@ -42,6 +42,6 @@ def triage_key() -> str:
 
 
 def operator_name() -> str:
-    # Nombre del operador — ayuda al clasificador a decidir "¿va dirigido a mí?". Cada conector puede pasar el suyo
-    # (WA_MY_NAME / TG_MY_NAME); este es el fallback común.
+    # Operator name — helps the classifier decide whether it is addressed to me. Each connector can pass its own
+    # (WA_MY_NAME / TG_MY_NAME); this is the common fallback.
     return (os.getenv("MSG_MY_NAME") or os.getenv("WA_MY_NAME") or "").strip()

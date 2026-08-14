@@ -1,8 +1,8 @@
 #
-# config.py — knobs del conector WhatsApp (INI-014). Todo por .env (gitignored); valores por defecto sanos.
+# config.py — WhatsApp connector knobs (INI-014). Everything through .env (gitignored); sane defaults.
 #
-# El clasificador apunta por DEFECTO al modelo LOCAL (Ollama) — nada personal sale de la máquina. Cambiar a un
-# modelo remoto es SOLO cambiar WA_TRIAGE_MODEL/WA_TRIAGE_URL/WA_TRIAGE_KEY (p.ej. AIMLAPI). No cambia el diseño.
+# The classifier DEFAULTS to the LOCAL model (Ollama) — nothing personal leaves the machine. Switching to a remote
+# model is ONLY changing WA_TRIAGE_MODEL/WA_TRIAGE_URL/WA_TRIAGE_KEY (e.g. AIMLAPI). The design does not change.
 #
 import os
 from pathlib import Path
@@ -11,7 +11,7 @@ _HERE = Path(__file__).resolve().parent
 
 
 def bridge_port() -> int:
-    # 3111 por defecto para NO chocar con el bridge de `hermes gateway` (que usa :3000).
+    # 3111 by default to avoid colliding with the `hermes gateway` bridge (which uses :3000).
     return int(os.getenv("WA_BRIDGE_PORT", "3111"))
 
 
@@ -20,7 +20,7 @@ def bridge_url() -> str:
 
 
 def session_dir() -> Path:
-    # Sesión de pairing PROPIA de zaelar (credenciales personales, gitignored). No compartimos la de Hermes.
+    # zaelar's OWN pairing session (personal credentials, gitignored). We do not share Hermes's.
     d = os.getenv("WA_SESSION_DIR") or str(_HERE / "_session")
     return Path(d)
 
@@ -29,9 +29,9 @@ def bridge_dir() -> Path:
     return _HERE / "bridge"
 
 
-# ── Clasificador (triaje) ──────────────────────────────────────────────────
+# ── Classifier (triage) ────────────────────────────────────────────────────
 def triage_url() -> str:
-    # OpenAI-compatible. Local Ollama por defecto (mismo endpoint que el perfil `local` del motor de voz).
+    # OpenAI-compatible. Local Ollama by default (same endpoint as the voice engine's `local` profile).
     return os.getenv("WA_TRIAGE_URL") or os.getenv("ZAELAR_LOCAL_LLM_URL", "http://localhost:11434/v1")
 
 
@@ -40,12 +40,12 @@ def triage_model() -> str:
 
 
 def triage_key() -> str:
-    # Ollama ignora el valor pero exige uno no vacío. Para un backend remoto, pon la API key aquí.
+    # Ollama ignores the value but requires a non-empty one. For a remote backend, put the API key here.
     return os.getenv("WA_TRIAGE_KEY", "local")
 
 
 def operator_name() -> str:
-    # Ayuda al clasificador a decidir "¿va dirigido a mí?". Opcional.
+    # Helps the classifier decide whether it is addressed to me. Optional.
     return os.getenv("WA_MY_NAME", "").strip()
 
 

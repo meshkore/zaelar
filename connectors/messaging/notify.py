@@ -1,36 +1,36 @@
 #
-# notify.py — el AVISO PROACTIVO compartido (INI-015, promovido de connectors/whatsapp.service._announce). Cuando
-# entra algo relevante de CUALQUIER plataforma y el operador no tiene el widget delante: voz por voice/proactive
-# (throttle común ~45s) + nota [SISTEMA] por voice/brain_notes (SIEMPRE, para que el brain no invente el desenlace).
+# notify.py — shared PROACTIVE NOTICE (INI-015, promoted from connectors/whatsapp.service._announce). When something
+# relevant arrives from ANY platform and the operator does not have the widget in front: voice via voice/proactive
+# (shared throttle ~45s) + [SYSTEM] note via voice/brain_notes (ALWAYS, so the brain does not invent the outcome).
 #
-# El throttle es COMPARTIDO entre plataformas a propósito: no queremos que WhatsApp y Telegram griten a la vez.
+# The throttle is SHARED across platforms on purpose: we do not want WhatsApp and Telegram shouting at once.
 #
 import time
 
 from loguru import logger
 
-_last_announce = 0.0             # throttle del aviso hablado (compartido por todas las plataformas)
-_ANNOUNCE_GAP = 45.0             # s mínimos entre avisos hablados
-_last_note = 0.0                 # throttle de la NOTA [SISTEMA] al brain (V2-015 · T137)
-_NOTE_GAP = 90.0                 # s mínimos entre notas al brain — se AGRUPAN, no una por cada batch/turno
+_last_announce = 0.0             # spoken-notice throttle (shared across all platforms)
+_ANNOUNCE_GAP = 45.0             # minimum seconds between spoken notices
+_last_note = 0.0                 # [SYSTEM] note throttle to the brain (V2-015 · T137)
+_NOTE_GAP = 90.0                 # minimum seconds between brain notes — GROUPED, not one per batch/turn
 
 
 def surface(verdicts: list[dict], seen: set) -> list[dict]:
-    """Filtro común de 'merece atención': importante Y (dirigido a mí O urgencia alta) Y no visto ya.
-    `seen` es el set de messageIds que el conector ya mostró (para no resucitar lo que el operador quitó)."""
+    """Common 'deserves attention' filter: important AND (addressed to me OR high urgency) AND not already seen.
+    `seen` is the set of messageIds already shown by the connector (to avoid resurrecting what the operator removed)."""
     return [v for v in verdicts
             if v.get("importante") and (v.get("dirigido_a_mi") or v.get("urgencia") == "alta")
             and v.get("messageId") not in seen]
 
 
 async def announce(platform_label: str, new_items: list[dict]) -> None:
-    """Aviso proactivo (voz + nota [SISTEMA]). Throttle: no habla más de una vez cada _ANNOUNCE_GAP; la nota al
-    brain SIEMPRE se deja. `platform_label` = "WhatsApp" | "Telegram" (para el texto hablado/nota).
-    Filtra canales silenciados (muted_channels) para no interrumpir. Nunca lanza."""
+    """Proactive notice (voice + [SYSTEM] note). Throttle: speaks at most once every _ANNOUNCE_GAP; the brain note is
+    ALWAYS left. `platform_label` = "WhatsApp" | "Telegram" (for spoken/note text). Filters muted channels
+    (muted_channels) to avoid interruption. Never raises."""
     global _last_announce, _last_note
     if not new_items:
         return
-    # Filtrar canales silenciados
+    # Filter muted channels
     try:
         from connectors.messaging import store as msg_store
         db = msg_store.load()
@@ -44,10 +44,10 @@ async def announce(platform_label: str, new_items: list[dict]) -> None:
         pass
     if not new_items:
         return
-    # Nota [SISTEMA]: el brain sabe qué entró (para responder follow-ups sin inventar). THROTTLE (T137): NO se
-    # inyecta una nota por cada batch/turno — se AGRUPAN por ventana (_NOTE_GAP). El detalle vive siempre en el
-    # widget 'mensajeria', así que saltarse una nota no pierde información; sí evita inundar el FlashBrain (era
-    # una causa de los turnos gigantes que enterraban los comandos).
+    # [SYSTEM] note: the brain knows what came in (to answer follow-ups without inventing). THROTTLE (T137): do NOT
+    # inject one note per batch/turn — GROUP them by window (_NOTE_GAP). Detail always lives in the 'mensajeria'
+    # widget, so skipping a note loses no information; it does avoid flooding FlashBrain (one cause of giant turns
+    # that buried commands).
     now = time.time()
     if now - _last_note >= _NOTE_GAP:
         try:
@@ -61,7 +61,7 @@ async def announce(platform_label: str, new_items: list[dict]) -> None:
             _last_note = now
         except Exception:
             pass
-    # Voz: solo si hay hueco (anti-spam) y algo urgente o dirigido a él.
+    # Voice: only if there is room (anti-spam) and something is urgent or addressed to the operator.
     worth_speaking = any(i.get("urgencia") == "alta" or i.get("dirigido_a_mi") for i in new_items)
     if not worth_speaking or now - _last_announce < _ANNOUNCE_GAP:
         return

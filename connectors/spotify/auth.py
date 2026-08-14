@@ -1,17 +1,16 @@
-"""connectors/spotify/auth.py — OAuth 2.0 (Authorization Code + PKCE) para Spotify (V2-041).
+"""connectors/spotify/auth.py — OAuth 2.0 (Authorization Code + PKCE) for Spotify (V2-041).
 
-Spotify controla la reproducción con un token de USUARIO. El flujo es PKCE (S256, SIN client-secret: seguro para
-una app instalada) y lo sirve el propio servidor de zaelar (`server/spotify_api.py`) — no un hilo HTTP aparte como
-en el donante Hermes: el redirect vuelve a `http://127.0.0.1:<puerto>/api/spotify/callback`, que YA es un endpoint
-nuestro.
+Spotify controls playback with a USER token. The flow is PKCE (S256, NO client-secret: safe for an installed app)
+and is served by zaelar's own server (`server/spotify_api.py`) — not a separate HTTP thread like in the Hermes donor:
+the redirect returns to `http://127.0.0.1:<port>/api/spotify/callback`, which is ALREADY our endpoint.
 
-Config gestionada por la UI (invariante de producto):
-  · `SPOTIFY_CLIENT_ID` vive en el credential store (`config/credentials.py`, chmod 600). El client_id NO es un
-    secreto en PKCE (es público), pero se guarda junto al resto para un solo sitio de config.
-  · Los TOKENS (access/refresh, rotan) viven en `.meshkore/credentials/spotify.json` (gitignored, chmod 600) —
-    NUNCA en el repo, NUNCA al frontend (la vista pública es solo-presencia).
+UI-managed config (product invariant):
+  · `SPOTIFY_CLIENT_ID` lives in the credential store (`config/credentials.py`, chmod 600). The client_id is NOT a
+    secret in PKCE (it is public), but it is stored with the rest so config has one home.
+  · TOKENS (access/refresh, rotating) live in `.meshkore/credentials/spotify.json` (gitignored, chmod 600) — NEVER in
+    the repo, NEVER to the frontend (public view is presence-only).
 
-Todas las funciones son SÍNCRONAS y FAIL-SAFE (devuelven {ok:False,...} o None, nunca lanzan al llamante).
+All functions are SYNCHRONOUS and FAIL-SAFE (return {ok:False,...} or None, never raise to the caller).
 """
 from __future__ import annotations
 
@@ -34,18 +33,18 @@ STORE = _ROOT / ".meshkore" / "credentials" / "spotify.json"
 
 _ACCOUNTS = "https://accounts.spotify.com"
 _SCOPE = "user-read-playback-state user-modify-playback-state user-read-currently-playing"
-_REFRESH_SKEW = 120                          # refresca 2 min antes de caducar
+_REFRESH_SKEW = 120                          # refresh 2 min before expiry
 _DEFAULT_REDIRECT = "http://127.0.0.1:43917/api/spotify/callback"
 
-# client_id de la APP de zaelar (PKCE → el client_id NO es secreto): si se rellena (aquí o por
-# SPOTIFY_DEFAULT_CLIENT_ID), el usuario conecta con UN CLIC (solo inicia sesión con su propia cuenta de Spotify),
-# sin registrar ninguna app de developer. Es el camino MÁS CORTO para el usuario final. Se deja vacío hasta que el
-# operador registre la app de zaelar en developer.spotify.com (una vez) y ponga aquí su client_id — momento en el
-# que TODOS los usuarios tienen "conectar con un clic". El campo "usa tu propia app" del widget es el fallback.
-# (Spotify limita una app en modo Development a 25 usuarios; para SaaS multiusuario se pide Extended Quota.)
-# App "jarvenn" (developer.spotify.com, cuenta Premium del operador, registrada 2026-07-15 — Web API habilitada,
-# sin bloqueo). El client_id es PÚBLICO en PKCE (sale en cada URL de /authorize) → seguro en el repo. El
-# client_SECRET NO se usa ni se guarda (PKCE no lo necesita).
+# client_id for the zaelar APP (PKCE -> client_id is NOT secret): if filled here or through
+# SPOTIFY_DEFAULT_CLIENT_ID, the user connects with ONE CLICK (only signs in with their own Spotify account), without
+# registering any developer app. This is the SHORTEST path for the end user. It stays empty until the operator
+# registers the zaelar app on developer.spotify.com (once) and puts its client_id here — then ALL users get "connect
+# with one click". The widget's "use your own app" field is the fallback.
+# (Spotify limits a Development-mode app to 25 users; multi-user SaaS requires Extended Quota.)
+# App "jarvenn" (developer.spotify.com, operator Premium account, registered 2026-07-15 — Web API enabled, unblocked).
+# The client_id is PUBLIC in PKCE (appears in every /authorize URL) -> safe in the repo. client_SECRET is NOT used or
+# stored (PKCE does not need it).
 _DEFAULT_CLIENT_ID = "7feacada544247f693812e78cb7878c2"
 
 _lock = threading.Lock()
@@ -53,7 +52,7 @@ _lock = threading.Lock()
 
 # ── config (client_id / redirect) ────────────────────────────────────────────────────────────────────────
 def client_id() -> str:
-    """client_id efectivo: el que puso el usuario (credential store) → env → el DEFAULT de zaelar (un clic)."""
+    """Effective client_id: user-provided (credential store) -> env -> zaelar DEFAULT (one click)."""
     try:
         from config import credentials
         cid = credentials.get("SPOTIFY_CLIENT_ID")
@@ -67,12 +66,12 @@ def client_id() -> str:
 
 
 def has_default_client_id() -> bool:
-    """¿Hay un client_id de zaelar (default) → el usuario puede conectar con UN CLIC sin registrar app propia?"""
+    """Is there a zaelar client_id (default) -> user can connect with ONE CLICK without registering their own app?"""
     return bool((os.getenv("SPOTIFY_DEFAULT_CLIENT_ID") or "").strip() or _DEFAULT_CLIENT_ID.strip())
 
 
 def user_client_id_set() -> bool:
-    """¿El usuario puso SU PROPIO client_id (credential store / env), aparte del default de zaelar?"""
+    """Did the user set THEIR OWN client_id (credential store / env), apart from zaelar's default?"""
     try:
         from config import credentials
         if (credentials.get("SPOTIFY_CLIENT_ID") or "").strip():
@@ -86,7 +85,7 @@ def redirect_uri() -> str:
     return (os.getenv("SPOTIFY_REDIRECT_URI") or _DEFAULT_REDIRECT).strip()
 
 
-# ── token store (chmod 600, atómico) ─────────────────────────────────────────────────────────────────────
+# ── token store (chmod 600, atomic) ──────────────────────────────────────────────────────────────────────
 def _load() -> dict:
     try:
         return json.loads(STORE.read_text(encoding="utf-8"))
@@ -100,7 +99,7 @@ def _save(data: dict) -> None:
             STORE.parent.mkdir(parents=True, exist_ok=True)
             tmp = str(STORE) + ".tmp"
             Path(tmp).write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-            os.chmod(tmp, 0o600)             # secreto antes del replace (sin ventana 644)
+            os.chmod(tmp, 0o600)             # secret before replace (no 644 window)
             os.replace(tmp, STORE)
             try:
                 os.chmod(STORE, 0o600)
@@ -121,10 +120,10 @@ def _challenge(verifier: str) -> str:
     return base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
 
 
-# ── login (2 pasos: authorize URL → callback) ────────────────────────────────────────────────────────────
+# ── login (2 steps: authorize URL -> callback) ───────────────────────────────────────────────────────────
 def begin_login() -> dict:
-    """Paso 1: genera verifier/challenge/state, los guarda como `pending`, y devuelve la URL de autorización que
-    el frontend abre en una ventana. `{ok, url}` o `{ok:False, error}`."""
+    """Step 1: generate verifier/challenge/state, save them as `pending`, and return the authorization URL opened by
+    the frontend in a window. `{ok, url}` or `{ok:False, error}`."""
     cid = client_id()
     if not cid:
         return {"ok": False, "error": "no_client_id"}
@@ -146,8 +145,8 @@ def begin_login() -> dict:
 
 
 def complete_login(code: str, state: str) -> dict:
-    """Paso 2 (callback): verifica el `state`, canjea el `code` por tokens con el verifier guardado, persiste.
-    `{ok}` o `{ok:False, error}`."""
+    """Step 2 (callback): verify `state`, exchange `code` for tokens using the saved verifier, persist. `{ok}` or
+    `{ok:False, error}`."""
     data = _load()
     pending = data.get("pending") or {}
     if not pending or not state or pending.get("state") != state:
@@ -182,7 +181,7 @@ def complete_login(code: str, state: str) -> dict:
 
 
 def _refresh(tokens: dict) -> dict:
-    """Refresca el access_token con el refresh_token. Devuelve los tokens actualizados o {} si falla."""
+    """Refresh the access_token with the refresh_token. Return updated tokens or {} if it fails."""
     rt = tokens.get("refresh_token", "")
     if not rt:
         return {}
@@ -200,14 +199,14 @@ def _refresh(tokens: dict) -> dict:
     now = int(time.time())
     updated = dict(tokens)
     updated["access_token"] = tok.get("access_token", tokens.get("access_token", ""))
-    updated["refresh_token"] = tok.get("refresh_token") or rt      # el refresh puede no devolver uno nuevo
+    updated["refresh_token"] = tok.get("refresh_token") or rt      # refresh may not return a new one
     updated["expires_at"] = now + int(tok.get("expires_in", 3600))
     updated["obtained_at"] = now
     return updated
 
 
 def access_token() -> str:
-    """Devuelve un access_token VÁLIDO (refresca si está a punto de caducar). '' si no hay sesión."""
+    """Return a VALID access_token (refreshes if it is about to expire). '' if there is no session."""
     data = _load()
     tokens = data.get("tokens") or {}
     if not tokens.get("access_token") and not tokens.get("refresh_token"):
@@ -219,7 +218,7 @@ def access_token() -> str:
             _save(data)
             tokens = updated
         elif int(time.time()) >= int(tokens.get("expires_at", 0)):
-            return ""                                              # caducado y no se pudo refrescar
+            return ""                                              # expired and could not refresh
     return tokens.get("access_token", "")
 
 
@@ -229,7 +228,7 @@ def logged_in() -> bool:
 
 
 def disconnect() -> dict:
-    """Borra los tokens (deja el client_id en el credential store para reconectar sin re-pegarlo)."""
+    """Delete tokens (leave client_id in the credential store to reconnect without pasting it again)."""
     data = _load()
     data.pop("tokens", None)
     data.pop("pending", None)
@@ -238,9 +237,10 @@ def disconnect() -> dict:
 
 
 def status() -> dict:
-    """Vista PÚBLICA (redactada): presencia de client_id + si hay sesión. NUNCA el token.
-    `can_connect` = hay algún client_id (default de zaelar o propio) → el botón "Conectar" ya funciona sin pedir nada.
-    `own_client_id_set` = el usuario puso el suyo. `default_available` = zaelar trae un client_id de fábrica."""
+    """PUBLIC (redacted) view: client_id presence + whether a session exists. NEVER the token.
+    `can_connect` = some client_id exists (zaelar default or own) -> the "Connect" button already works without
+    asking for anything. `own_client_id_set` = user provided their own. `default_available` = zaelar ships a built-in
+    client_id."""
     return {"client_id_set": bool(client_id()), "logged_in": logged_in(),
             "can_connect": bool(client_id()), "own_client_id_set": user_client_id_set(),
             "default_available": has_default_client_id(), "redirect_uri": redirect_uri()}

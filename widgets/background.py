@@ -1,37 +1,37 @@
-"""widgets/background.py — EJECUCIÓN EN BACKGROUND de widgets con CICLO (V2-034).
+"""widgets/background.py: BACKGROUND EXECUTION for widgets with a CYCLE (V2-034).
 
-Un widget no siempre trabaja solo cuando está a la vista. Algunos deben seguir vivos AUNQUE la tarjeta esté
-cerrada: el de mensajería recibe mensajes de sus conectores, los tría y **escribe lo nuevo en la memoria**, de
-modo que si el operador pregunta por voz "¿tengo mensajes?" zaelar responde con datos ACTUALES aunque nunca haya
-abierto el widget. Esa es una capacidad de PRIMER NIVEL del sistema de widgets: **background execution con un
-CICLO declarado** (cada 1s / 1m / 1h…).
+A widget does not always work only while it is visible. Some must stay alive even when their card is closed: a
+messaging widget receives connector messages, triages them, and writes new information to memory, so if the
+operator asks by voice whether there are messages, zaelar answers with current data even if the widget was never
+opened. This is a first-class widget-system capability: background execution with a declared cycle
+(every 1s / 1m / 1h...).
 
-## Dos formas de "correr en background" (una sola idea declarativa)
+## Two ways to run in the background (one declarative idea)
 
-Un widget declara su ciclo en el `manifest.json`:
+A widget declares its cycle in `manifest.json`:
 
-    "background": { "every": "1m" }          # objeto (o el atajo string "background": "1m", o segundos: 60)
+    "background": { "every": "1m" }          # object, or shortcut string "background": "1m", or seconds: 60
 
-  - **passive + `background`** — la forma LIGERA (nueva en V2-034): NO hay proceso propio; este planificador
-    llama a `data.py:tick()` cada `every`, **fuera del camino caliente de voz** (`asyncio.to_thread`, porque
-    `data.py` es síncrono stdlib). El `tick()` refresca datos (`store.save()` solo si cambian → refresco SSE de
-    la tarjeta abierta, sin flood porque el save es idempotente) y **vuelca a la memoria** lo relevante
-    (`memory.ingest_message`/`memory.write` con `slot` para supersede). Ideal para pollers/refrescos/volcados
-    que NO necesitan una conexión viva.
-  - **backed** — la forma PESADA (ya existente, `widgets/supervisor.py`): un `owner.py` con proceso propio y
-    conexión viva (Chromium del navegador, conectores de mensajería). Un backed ES background por naturaleza: su
-    owner se auto-agenda. Si además declara `background`, este planificador le encola un comando `"tick"` en su
-    buzón cada `every` (el owner lo maneja si quiere; si no lo declara, no se le molesta — mensajería, p.ej., se
-    auto-agenda y NO declara `background`).
+  - **passive + `background`**: the lightweight path (new in V2-034). There is no owned process; this scheduler
+    calls `data.py:tick()` every `every`, outside the voice hot path (`asyncio.to_thread`, because `data.py` is
+    synchronous stdlib code). `tick()` refreshes data (`store.save()` only when it changes -> SSE refresh for the
+    open card, no flood because save is idempotent) and writes relevant information to memory
+    (`memory.ingest_message`/`memory.write` with `slot` for supersede). Best for pollers/refreshers/dumps that do
+    NOT need a live connection.
+  - **backed**: the heavier path (already existing, `widgets/supervisor.py`). An `owner.py` has its own process
+    and live connection (browser Chromium, messaging connectors). A backed widget is background by nature: its
+    owner self-schedules. If it also declares `background`, this scheduler enqueues a `"tick"` command in its
+    mailbox every `every`; the owner handles it if it wants to. If it does not declare it, it is not bothered.
 
-## Invariantes
+## Invariants
 
-  - **Fuera del hot path.** Corre en el loop del server (lifespan, MISMO que la voz y el supervisor backed) pero
-    los `tick()` passive van a un hilo (`to_thread`) → nunca bloquean el event loop ni el turno de voz.
-  - **Aislamiento total.** Un `tick()` que revienta o tarda NO tumba la voz, ni otro widget, ni el planificador:
-    se captura, se traza (`observer`, kind `background`) y se sigue. Solape evitado por widget (si el tick
-    anterior sigue corriendo, se salta ese ciclo).
-  - **Periodo mínimo = 1s.** `every` se normaliza a segundos (≥1).
+  - **Outside the hot path.** Runs in the server loop (lifespan, the same loop as voice and the backed
+    supervisor), but passive `tick()` calls go to a thread (`to_thread`), so they never block the event loop or
+    the voice turn.
+  - **Total isolation.** A `tick()` that crashes or runs long does NOT bring down voice, another widget, or the
+    scheduler: it is caught, traced (`observer`, kind `background`), and the scheduler continues. Per-widget
+    overlap is avoided; if the previous tick is still running, that cycle is skipped.
+  - **Minimum period = 1s.** `every` is normalized to seconds (>=1).
 """
 from __future__ import annotations
 
@@ -45,16 +45,16 @@ from loguru import logger
 from . import runtime
 
 _UNITS = {"s": 1, "m": 60, "h": 3600, "d": 86400}
-_tasks: dict[str, asyncio.Task] = {}       # wid -> tarea periódica supervisada
-_inflight: set[str] = set()                # wids cuyo tick sigue corriendo (evita solape)
+_tasks: dict[str, asyncio.Task] = {}       # wid -> supervised periodic task
+_inflight: set[str] = set()                # wids whose tick is still running (prevents overlap)
 
 
 def parse_period(v) -> int | None:
-    """Normaliza una especificación de ciclo a SEGUNDOS (mínimo 1). Acepta int/float (segundos), un dict
-    `{"every": …}`, o un string `"90"`, `"30s"`, `"5m"`, `"1h"`, `"1d"`. None si no es válida."""
+    """Normalize a cycle spec to seconds (minimum 1). Accepts int/float seconds, a dict `{"every": ...}`, or a
+    string `"90"`, `"30s"`, `"5m"`, `"1h"`, `"1d"`. Returns None when invalid."""
     if isinstance(v, dict):
         v = v.get("every")
-    if isinstance(v, bool):                # bool es subtipo de int: descártalo explícitamente
+    if isinstance(v, bool):                # bool is a subtype of int; reject it explicitly
         return None
     if isinstance(v, (int, float)):
         return max(1, int(v))
@@ -66,7 +66,7 @@ def parse_period(v) -> int | None:
 
 
 def background_period(w: dict) -> int | None:
-    """El ciclo (segundos) declarado por el manifest de un widget, o None si no corre en background."""
+    """The cycle in seconds declared by a widget manifest, or None if it does not run in the background."""
     return parse_period(w.get("background")) if w.get("background") is not None else None
 
 
@@ -79,42 +79,42 @@ def _emit(label: str, wid: str, text: str = "") -> None:
 
 
 class TickCtx:
-    """Contexto que el planificador pasa a `tick(ctx)` — la capa SANCIONADA para que un widget passive vuelque a
-    la MEMORIA sin importar el core en su data.py (que es stdlib-only por diseño; el gate del generador lo exige).
-    Espejo del `ctx` de `widget.js`. Todo best-effort: un fallo de escritura no rompe el tick."""
+    """Context passed by the scheduler to `tick(ctx)`: the sanctioned layer for a passive widget to write to
+    memory without importing the core from its data.py (stdlib-only by design; the generator gate enforces it).
+    Mirrors the `ctx` in `widget.js`. Everything is best-effort: a write failure does not break the tick."""
 
     def __init__(self, wid: str):
         self.widget_id = wid
 
     def remember(self, text: str, *, slot: str | None = None, kind: str = "note",
                  importance: float = 0.4, level: str = "mid", **extra) -> None:
-        """Vuelca un dato a la memoria central. Usa `slot` (p.ej. 'weather:soria') para SUPERSEDE (el más reciente
-        MANDA, no se acumula). El texto queda disponible al recall/estado → una pregunta por voz responde fresco."""
+        """Write data to central memory. Use `slot` (for example 'weather:soria') for supersede: the latest value
+        wins instead of accumulating. Text becomes available to recall/state so voice questions answer fresh data."""
         try:
             from memory import api as memory
             meta = {"widget": self.widget_id, **(extra.pop("meta", None) or {})}
             memory.write(text, kind=kind, level=level, importance=importance, slot=slot, meta=meta, **extra)
         except Exception as e:  # noqa: BLE001
-            logger.warning(f"background[{self.widget_id}] ctx.remember falló: {e}")
+            logger.warning(f"background[{self.widget_id}] ctx.remember failed: {e}")
 
     def ingest(self, source: str, entity: str, text: str, **kw):
-        """Vuelca un dato ENTRANTE de una fuente (mensajería/feed…) por la vía tipada de la memoria."""
+        """Write incoming data from a source (messaging/feed...) through the typed memory path."""
         try:
             from memory import api as memory
             return memory.ingest_message(source, entity, text, **kw)
         except Exception as e:  # noqa: BLE001
-            logger.warning(f"background[{self.widget_id}] ctx.ingest falló: {e}")
+            logger.warning(f"background[{self.widget_id}] ctx.ingest failed: {e}")
             return None
 
     def save(self, data: dict):
-        """Persiste el store del widget (idempotente → SSE solo si cambió)."""
+        """Persist the widget store; idempotent, so SSE emits only when it changed."""
         from . import store
         return store.save(self.widget_id, data)
 
 
 def _call_tick(wid: str):
-    """Llama a `data.py:tick(ctx)` del widget (síncrono, stdlib). Corre en un hilo (`to_thread`). Acepta tanto
-    `tick(ctx)` (con acceso a memoria) como `tick()` sin argumentos (compat)."""
+    """Call the widget's `data.py:tick(ctx)` (synchronous stdlib). Runs in a thread (`to_thread`). Accepts both
+    `tick(ctx)` with memory access and `tick()` with no arguments for compatibility."""
     import inspect
     mod = importlib.import_module(f"widgets.{wid}.data")
     fn = getattr(mod, "tick", None)
@@ -128,24 +128,24 @@ def _call_tick(wid: str):
 
 
 async def _tick_once(wid: str, kind: str) -> None:
-    # V2-092: con el agente PARADO (⏻) no hay ciclos. Un «agente parado» que sigue sondeando conectores y
-    # escribiendo en la memoria no está parado — y era justo lo que pasaba. El bucle NO se cancela: sigue
-    # despierto contando, así que arrancar reanuda los ticks sin reconstruir el planificador.
+    # V2-092: when the agent is stopped, cycles do not run. A "stopped agent" that keeps polling connectors and
+    # writing to memory is not really stopped. The loop is NOT cancelled; it stays awake counting, so starting
+    # again resumes ticks without rebuilding the scheduler.
     try:
         from nucleo import runstate
         if runstate.stopped():
             return
     except Exception:
         pass
-    if wid in _inflight:                    # el ciclo anterior aún corre → salta este (no encolar trabajo lento)
-        _emit("skip", wid, "tick anterior en curso")
+    if wid in _inflight:                    # previous cycle is still running -> skip this one; do not queue slow work
+        _emit("skip", wid, "previous tick in progress")
         return
     _inflight.add(wid)
     try:
         if kind == "backed":
             from . import supervisor
-            supervisor.enqueue(wid, "tick", {})     # el owner decide si lo maneja
-            _emit("tick", wid, "→ owner")
+            supervisor.enqueue(wid, "tick", {})     # owner decides whether to handle it
+            _emit("tick", wid, "-> owner")
         else:
             t0 = time.time()
             await asyncio.to_thread(_call_tick, wid)
@@ -154,13 +154,13 @@ async def _tick_once(wid: str, kind: str) -> None:
         raise
     except Exception as e:  # noqa: BLE001
         _emit("error", wid, str(e))
-        logger.warning(f"background[{wid}] tick falló (aislado): {e}")
+        logger.warning(f"background[{wid}] tick failed (isolated): {e}")
     finally:
         _inflight.discard(wid)
 
 
 async def _run_widget(wid: str, period: int, kind: str) -> None:
-    """Bucle periódico de UN widget. Espera un poco al arranque (escalona los ticks) y luego cada `period`s."""
+    """Periodic loop for one widget. Waits a little at startup to stagger ticks, then runs every `period`s."""
     await asyncio.sleep(min(period, 2.0))
     while True:
         try:
@@ -171,9 +171,9 @@ async def _run_widget(wid: str, period: int, kind: str) -> None:
 
 
 def start() -> None:
-    """Arranca (en el lifespan del server) el planificador de background de cada widget que declara `background`.
-    Idempotente. Un widget passive con `background` DEBE tener `tick()` en su data.py (si no, se omite con aviso —
-    nunca rompe el arranque)."""
+    """Start, during server lifespan, the background scheduler for every widget declaring `background`.
+    Idempotent. A passive widget with `background` MUST have `tick()` in data.py; otherwise it is skipped with a
+    warning and never breaks startup."""
     for w in runtime.catalog():
         period = background_period(w)
         if not period:
@@ -186,19 +186,19 @@ def start() -> None:
             try:
                 mod = importlib.import_module(f"widgets.{wid}.data")
                 if not callable(getattr(mod, "tick", None)):
-                    logger.warning(f"background[{wid}] declara 'background' pero data.py no tiene tick() — omitido")
+                    logger.warning(f"background[{wid}] declares 'background' but data.py has no tick(); skipped")
                     _emit("no_tick", wid)
                     continue
             except Exception as e:  # noqa: BLE001
-                logger.warning(f"background[{wid}] no se pudo importar data.py: {e}")
+                logger.warning(f"background[{wid}] could not import data.py: {e}")
                 continue
         _tasks[wid] = asyncio.create_task(_run_widget(wid, period, kind))
-        logger.info(f"background[{wid}] cada {period}s ({kind})")
-        _emit("start", wid, f"cada {period}s ({kind})")
+        logger.info(f"background[{wid}] every {period}s ({kind})")
+        _emit("start", wid, f"every {period}s ({kind})")
 
 
 async def stop() -> None:
-    """Cancela todos los bucles periódicos (finally del lifespan)."""
+    """Cancel all periodic loops (lifespan finally)."""
     for wid, task in list(_tasks.items()):
         task.cancel()
     _tasks.clear()
@@ -206,5 +206,5 @@ async def stop() -> None:
 
 
 def scheduled() -> list[str]:
-    """Ids de widgets con un bucle de background vivo (para observabilidad / tests)."""
+    """Ids of widgets with a live background loop, for observability/tests."""
     return [wid for wid, t in _tasks.items() if not t.done()]

@@ -122,7 +122,7 @@ async def providers():
             opt("Cartesia Sonic", "paid", has("CARTESIA_API_KEY"), tts_cur == "cartesia", "CARTESIA_API_KEY"),
             opt("Kokoro local (es/en · privado)", "free·local", kokoro_reachable, tts_cur == "kokoro_local", "Kokoro-FastAPI local")]},
         {"fn": "LLM · modelo (cerebro)", "options": [
-            # Solo no-razonadores en el path de voz (regla dura): un razonador no cierra el turno → zaelar muda.
+            # Non-reasoners only on the voice path (hard rule): a reasoner does not close the turn → zaelar goes mute.
             opt(f"{os.getenv('LLM_MODEL','deepseek/deepseek-v4-flash')} · AIMLAPI", "paid·barato", has("AIMLAPI_KEY", "LLM_API_KEY"), True, "AIMLAPI_KEY"),
             opt("gpt-4.1 · AIMLAPI (validado · más caro)", "paid", has("AIMLAPI_KEY"), False, "AIMLAPI_KEY"),
             opt("Cualquier endpoint OpenAI-compatible", "varía", True, False, "LLM_BASE_URL + LLM_API_KEY")]},
@@ -147,12 +147,12 @@ async def status():
 
     items = []
 
-    # ── Servidor (FastAPI) ────────────────────────────────────────────────────────────────────────────────────
+    # ── Server (FastAPI) ──────────────────────────────────────────────────────────────────────────────────────
     # If this responds at all the server is up — but the operator asked to SEE it listed, so we surface it plainly.
     items.append({"key": "server", "label": "Servidor · FastAPI",
                   "state": "ok", "detail": f"en línea · puerto {os.getenv('PORT', '43917')}"})
 
-    # ── Versión (V2-074) — qué código corre en ESTA instancia (certeza de que el reinicio cargó lo nuevo) ─────────
+    # ── Version (V2-074) — which code runs on THIS instance (certainty that restart loaded the new code) ──────
     try:
         import version as _ver
         _vi = _ver.info()
@@ -163,7 +163,7 @@ async def status():
     except Exception as e:  # noqa: BLE001
         items.append({"key": "version", "label": "Versión", "state": "warn", "detail": f"desconocida ({e})"})
 
-    # ── Cerebro «Colmena» ─────────────────────────────────────────────────────────────────────────────────────
+    # ── «Colmena» brain ───────────────────────────────────────────────────────────────────────────────────────
     from config.v2 import active_brain
     brain = active_brain()
     _brain_detail = {"nucleo": "«Colmena» · FlashBrain + brain workers + memoria propia"}.get(brain, f"modo {brain}")
@@ -174,17 +174,17 @@ async def status():
         live = active.count() > 0
     except Exception:
         live = False
-    # Voz SIEMPRE ENCENDIDA (2026-07-07): ya no hay botón "Activar" — la sesión arranca sola al abrir la web.
+    # Voice ALWAYS ON (2026-07-07): there is no longer an "Activate" button — the session starts when the web opens.
     items.append({"key": "voice", "label": "Sistema de voz",
                   "state": "ok" if live else "off",
                   "detail": "sesión activa" if live else "en espera · se activa al abrir la web"})
 
     # ── LLM provider (the fast-layer model driving the conversation) ─────────────────────────────────────────
-    # Con BRAIN=nucleo el modelo de la capa rápida es POR INVOCACIÓN (config/v2 `fast`, gestionado por la UI);
-    # aquí mostramos el default configurado.
+    # With BRAIN=nucleo, the fast-layer model is PER INVOCATION (config/v2 `fast`, UI-managed); here we show the
+    # configured default.
     llm_err = health_state.get("llm")
-    # Proveedor + key REALES desde el ModelSpec de la capa rápida (provider-agnóstico: xAI / Groq / AIMLAPI /
-    # Gemini / Ollama-local) — no hardcodear "AIMLAPI" (invariante: el estado refleja el proveedor en uso).
+    # REAL provider + key from the fast-layer ModelSpec (provider-agnostic: xAI / Groq / AIMLAPI / Gemini /
+    # Ollama-local) — do not hardcode "AIMLAPI" (invariant: status reflects the provider in use).
     prov_label = "nube"; llm_key = True; model_name = SETTINGS.llm_model or os.getenv("LLM_MODEL", "?")
     if brain == "nucleo":
         try:
@@ -202,9 +202,9 @@ async def status():
         llm_key = has("AIMLAPI_KEY", "LLM_API_KEY")
     llm_detail = f"{model_name} · {prov_label}"
     if llm_err and llm_err.get("kind") == "slow":
-        # UN TURNO ATASCADO ≠ EL PROVEEDOR NO RESPONDE (2026-08-12). El plazo de silencio del turno registraba el
-        # corte como si el modelo estuviera caído → el ◉ se quedaba ROJO con «no responde» mientras el modelo
-        # contestaba perfectamente antes y después. Es un AVISO con el hecho concreto, no un diagnóstico de caída.
+        # ONE STUCK TURN ≠ PROVIDER NOT RESPONDING (2026-08-12). The turn silence deadline recorded the cut as if
+        # the model were down → the ◉ stayed RED with "not responding" while the model answered perfectly before
+        # and after. This is a WARNING with the concrete fact, not an outage diagnosis.
         state = "warn"; llm_detail += " · " + (llm_err.get("text") or "un turno se atascó")
     elif llm_err:
         state = "error"
@@ -215,7 +215,7 @@ async def status():
         state = "ok"; llm_detail += " · key ✓"
     items.append({"key": "llm", "label": "Modelo LLM", "state": state, "detail": llm_detail})
 
-    # ── Memoria · CORAZÓN de escritura (V2-066, petición del operador: sin banner, solo el ◉ de estado) ────────
+    # ── Memory · write HEART (V2-066, operator request: no banner, only the status ◉) ─────────────────────────
     try:
         from nucleo import mem_processor
         _mp = mem_processor.status()
@@ -260,7 +260,7 @@ async def status():
         tts_state, tts_detail = "ok", f"{prov} · {cur}"
     items.append({"key": "tts", "label": "TTS · texto→voz", "state": tts_state, "detail": tts_detail})
 
-    # ── Crons (proactividad · loop orquestador PROPIO, nucleo/) ──────────────────────────────────────────────
+    # ── Crons (proactivity · OWN orchestrator loop, nucleo/) ─────────────────────────────────────────────────
     if brain == "nucleo":
         try:
             from nucleo import loop as nucleo_loop
@@ -274,7 +274,7 @@ async def status():
         except Exception:
             items.append({"key": "cron", "label": "Crons · proactividad", "state": "warn", "detail": "no disponible"})
 
-    # ── Widgets (servicio full-stack) ────────────────────────────────────────────────────────────────────────
+    # ── Widgets (full-stack service) ─────────────────────────────────────────────────────────────────────────
     try:
         from widgets import runtime as widgets_runtime
         wcount = len(widgets_runtime.catalog())
@@ -345,18 +345,18 @@ async def client_log(payload: dict):
 
 @router.post("/api/ui-event")
 async def ui_event(payload: dict):
-    """V2-039 — AUDITORÍA de lo que pasa en el frontend, en la MISMA línea de tiempo que las órdenes del FlashBrain
-    y los workers. Dos cosas distintas entran por aquí y se distinguen por `src`:
+    """V2-039 — AUDIT of what happens in the frontend, on the SAME timeline as FlashBrain and worker orders. Two
+    different things enter here and are distinguished by `src`:
 
-    - **`src="user"`** (por defecto): lo que HACE el operador — taps de los iconos del orbe/TopBar (kind="ui") y
-      geometría de widgets a mano (mover/redimensionar, kind="widget").
-    - **`src="frontend"`** (2026-08-10): TRANSICIONES DE ESTADO del propio cliente — el agente pasa a
-      `live`/`stalled`, se abre o se suelta el analizador de micro, se engancha o se suelta la pista de audio del
-      bot, la pestaña se va al fondo. No son actividad, son estado: pocos eventos y solo cuando algo cambia de
-      verdad. Sin ellos un agente CAÍDO que se pinta vivo, un altavoz zombi o un micro que no se libera no dejan
-      ni una línea (el log solo tenía la INTENCIÓN del operador, `orb:power`, no la realidad).
+    - **`src="user"`** (default): what the operator DOES — taps on orb/TopBar icons (kind="ui") and manual widget
+      geometry (move/resize, kind="widget").
+    - **`src="frontend"`** (2026-08-10): STATE TRANSITIONS from the client itself — the agent moves to
+      `live`/`stalled`, the mic analyzer opens/releases, the bot audio track attaches/detaches, the tab goes to the
+      background. They are not activity, they are state: few events and only when something really changes. Without
+      them, a DOWN agent painted as live, a zombie speaker, or a mic that is not released leave no line at all (the
+      log only had the operator INTENTION, `orb:power`, not reality).
 
-    Best-effort: esto nunca puede romper el frontend que lo reporta."""
+    Best-effort: this can never break the frontend reporting it."""
     kind = str((payload or {}).get("kind") or "ui")
     if kind not in ("ui", "widget"):
         kind = "ui"
@@ -366,8 +366,8 @@ async def ui_event(payload: dict):
     wid = (payload or {}).get("id")
     if wid:
         extra["id"] = str(wid).split("::", 1)[0].strip().lower()
-    # `prev`/`reason`/`cause` son los que hacen LEGIBLE una transición: de qué estado venía y por qué se movió.
-    # Sin ellos, `agent:state stalled` no dice si veníamos de `live` (se ha caído) o de `starting` (no llegó a subir).
+    # `prev`/`reason`/`cause` make a transition READABLE: which state it came from and why it moved. Without them,
+    # `agent:state stalled` does not say whether we came from `live` (it fell) or from `starting` (it never came up).
     for k in ("where", "state", "detail", "prev", "reason", "cause"):
         v = (payload or {}).get(k)
         if v is not None:
@@ -377,13 +377,14 @@ async def ui_event(payload: dict):
 
 @router.post("/api/canvas/state")
 async def canvas_state(payload: dict):
-    """El frontend (autoritativo del canvas) reporta qué widgets tiene ABIERTOS el operador → se guarda en el
-    ESTADO de la memoria (`open_widgets`), que viaja SIEMPRE en el prompt (memory_cache) y se ve en el mapa. Así el
-    cerebro sabe "lo que el operador tiene delante" y resuelve "modifica el widget de X" sin preguntar. Best-effort,
-    fire-and-forget desde `desktop._persist()`. Normaliza ids de instancia (navegador::t3 → navegador) y dedup."""
+    """The frontend (authoritative for the canvas) reports which widgets the operator has OPEN → stored in memory
+    STATE (`open_widgets`), which ALWAYS travels in the prompt (memory_cache) and appears in the map. This lets the
+    brain know "what the operator has in front of them" and resolve "modify the X widget" without asking.
+    Best-effort, fire-and-forget from `desktop._persist()`. Normalizes instance ids (navegador::t3 → navegador)
+    and dedupes."""
     raw = payload.get("open") or []
     seen: list[str] = []
-    inst: list[str] = []                        # V2-047 F9: ids de INSTANCIA completos, tal cual (navegador::t1)
+    inst: list[str] = []                        # V2-047 F9: full INSTANCE ids, as-is (navegador::t1)
     for wid in raw:
         w = str(wid or "").strip()
         if w and w not in inst:
@@ -391,9 +392,9 @@ async def canvas_state(payload: dict):
         base = w.split("::", 1)[0].strip().lower()
         if base and base not in seen:
             seen.append(base)
-    # V2-047 F9 (sesión 23:15 «dos navegadores, uno en blanco»): el set NORMALIZADO colapsa navegador::t1 y
-    # navegador::t2 en un solo «navegador» → era imposible saber a posteriori si de verdad había DOS tarjetas.
-    # Registramos las instancias crudas en un evento `ui` (barato, solo al cambiar el canvas) para diagnosticar.
+    # V2-047 F9 (23:15 session, "two browsers, one blank"): the NORMALIZED set collapses navegador::t1 and
+    # navegador::t2 into one "navegador" → it was impossible afterwards to know whether there were really TWO
+    # cards. Record raw instances in a `ui` event (cheap, only when the canvas changes) for diagnostics.
     try:
         from voice.observer import emit as _emit_inst
         _prev_inst = getattr(canvas_state, "_last_inst", None)
@@ -403,16 +404,16 @@ async def canvas_state(payload: dict):
                        extra={"instances": inst, "n": len(inst), "cat": "main"})
     except Exception:
         pass
-    # V2-039 — AUDITORÍA de las órdenes del OPERADOR sobre el canvas: el frontend es autoritativo y reporta el set
-    # ABIERTO en cada cambio; comparándolo con el anterior sabemos qué abrió/cerró el usuario (a mano, arrastrando o
-    # con el aspa) y lo registramos en la línea de tiempo con procedencia "user" — antes eran acciones SILENCIOSAS.
+    # V2-039 — AUDIT of the OPERATOR's canvas orders: the frontend is authoritative and reports the OPEN set on each
+    # change; comparing it with the previous set tells us what the user opened/closed (manually, by dragging, or via
+    # the close button), and we record it on the timeline with "user" provenance — these used to be SILENT actions.
     try:
         from memory import api as memory
         prev = set((memory.state() or {}).get("open_widgets") or [])
         now = set(seen)
         from voice.observer import emit
-        # V2-044: una acción MANUAL del operador sobre el canvas también es un estímulo → nace con su trace
-        # (origin="ui"). Contexto HTTP fresco por request — el ctxvar queda acotado solo. Solo si hay diff real.
+        # V2-044: a MANUAL operator action on the canvas is also a stimulus → it gets its trace (origin="ui").
+        # Fresh HTTP context per request — the ctxvar remains scoped by itself. Only when there is a real diff.
         if (now - prev) or (prev - now):
             try:
                 from voice import trace as _trace
@@ -425,9 +426,9 @@ async def canvas_state(payload: dict):
         for wid in (prev - now):
             emit("widget", "close", extra={"id": wid, "src": "user"})
         memory.set_state({"open_widgets": seen})
-        # V2-078: los que PASAN a abiertos entran al MRU `recent_widgets` (2ª capa de acotación open>reciente>
-        # catálogo). Persiste tras cerrarse → "el que usé hace un momento" sigue teniendo prioridad. Único hook:
-        # todo show (del operador O del cerebro vía [[show]]) re-reporta el canvas por aquí.
+        # V2-078: widgets that BECOME open enter the `recent_widgets` MRU (2nd scoping layer open>recent>catalog).
+        # It persists after closing → "the one I used a moment ago" still has priority. Single hook: every show
+        # (from the operator OR the brain via [[show]]) re-reports the canvas here.
         if (now - prev):
             try:
                 memory.note_widgets_used(sorted(now - prev))
@@ -435,13 +436,13 @@ async def canvas_state(payload: dict):
                 pass
     except Exception:  # noqa: BLE001
         pass
-    # REHIDRATACIÓN DEL ESCRITORIO (2026-08-12): el frontend manda además la GEOMETRÍA (qué tarjeta, dónde, con qué
-    # consulta) y se guarda como RED DE SEGURIDAD del `localStorage`, que es de donde se restaura normalmente. El
-    # localStorage es per-ORIGEN y per-navegador: el mismo zaelar servido en `https://local.zaelar.com:44317` y en
-    # `http://localhost:43917` son dos escritorios distintos, y desde otro navegador/perfil no hay ninguno. Cuando el
-    # operador cree que «se ha perdido el escritorio», casi siempre está mirando un almacén vacío que no es el suyo.
-    # Va a `sys_kv` (estado de UI, NO el estado raíz que viaja en cada prompt: al cerebro no le importan las
-    # coordenadas de una tarjeta). Solo se ESCRIBE aquí; quien restaura es `GET /api/canvas/layout`.
+    # DESKTOP REHYDRATION (2026-08-12): the frontend also sends GEOMETRY (which card, where, with which query) and
+    # it is saved as a SAFETY NET for `localStorage`, which is where restoration normally comes from. localStorage is
+    # per-ORIGIN and per-browser: the same zaelar served at `https://local.zaelar.com:44317` and
+    # `http://localhost:43917` are two different desktops, and another browser/profile has none. When the operator
+    # thinks "the desktop was lost", they are almost always looking at an empty store that is not theirs. It goes to
+    # `sys_kv` (UI state, NOT the root state that travels in every prompt: the brain does not care about a card's
+    # coordinates). It is only WRITTEN here; `GET /api/canvas/layout` restores it.
     try:
         items = (payload or {}).get("layout")
         if isinstance(items, list):
@@ -459,9 +460,9 @@ async def canvas_state(payload: dict):
 
 @router.get("/api/canvas/layout")
 async def canvas_layout():
-    """El escritorio TAL COMO lo dejó el operador (tarjetas + posiciones). Es el fallback de restauración cuando el
-    `localStorage` del navegador no lo tiene — otro navegador, otro perfil, o el mismo zaelar por otro origen
-    (localhost:43917 vs local.zaelar.com:44317, dos almacenes distintos para el mismo escritorio). Read-only."""
+    """The desktop AS the operator left it (cards + positions). Restoration fallback when browser `localStorage`
+    does not have it — another browser, another profile, or the same zaelar through another origin
+    (localhost:43917 vs local.zaelar.com:44317, two distinct stores for the same desktop). Read-only."""
     try:
         from memory import api as memory
         snap = memory.kv_get("canvas_layout")
@@ -474,19 +475,19 @@ async def canvas_layout():
 
 @router.get("/api/energy")
 async def energy():
-    """El saldo de Energy de la cuenta, para la PILA de la barra superior. Read-only, no-cache.
+    """The account Energy balance, for the top-bar BATTERY. Read-only, no-cache.
 
-    Devuelve HECHOS (saldo, de cuánto se partía, si esta instalación tiene cuenta de nube) y NO la escala con la
-    que se dibuja: cuántos huecos tiene la pila, cuánto vale cada rayita y de qué color es son decisiones de
-    PRESENTACIÓN y viven en el frontend (`EnergyGauge.js`). Así el servidor no tiene que saber nada de colores y
-    la escala se puede cambiar sin tocar Python.
+    Returns FACTS (balance, starting amount, whether this installation has a cloud account) and NOT the drawing
+    scale: how many slots the battery has, how much each tick is worth, and which color it uses are PRESENTATION
+    decisions that live in the frontend (`EnergyGauge.js`). That way the server does not need to know about colors
+    and the scale can change without touching Python.
 
-    En self-host devuelve `cloud:false` y el frontend no pinta nada: no hay saldo que gastar."""
+    On self-host it returns `cloud:false` and the frontend renders nothing: there is no balance to spend."""
     try:
         from nucleo import energy_lease, energy_meter
-        # El ARRIENDO viaja junto al saldo porque son la misma pregunta vista a dos distancias: el saldo
-        # es lo que le queda a la CUENTA, el arriendo lo que puede gastar ESTA máquina antes de volver a
-        # pedir permiso. Con el enlace caído solo el segundo es un hecho comprobable desde aquí.
+        # The LEASE travels alongside the balance because they are the same question seen at two distances: the
+        # balance is what the ACCOUNT has left, while the lease is what THIS machine may spend before asking again.
+        # With the link down, only the second one is a locally verifiable fact.
         return JSONResponse({**energy_meter.snapshot(), "lease": energy_lease.snapshot()},
                             headers={"Cache-Control": "no-cache"})
     except Exception:
@@ -495,9 +496,9 @@ async def energy():
 
 @router.get("/api/tasks")
 async def tasks():
-    """Sesiones de Brain Workers VIVAS ahora — lee el REGISTRO EN RAM de dispatch (la FUENTE DE VERDAD, §v2·C),
-    no el ESTADO proyectado. El frontend RECONCILIA sus chips contra esto al (re)conectar → fin de los chips
-    huérfanos (V2-038). Read-only, no-cache."""
+    """Brain Worker sessions LIVE now — reads dispatch's IN-MEMORY REGISTRY (the SOURCE OF TRUTH, §v2·C), not the
+    projected STATE. The frontend RECONCILES its chips against this on (re)connect → no more orphan chips (V2-038).
+    Read-only, no-cache."""
     try:
         from nucleo import dispatch
         return JSONResponse({"sessions": dispatch.active_sessions()},
@@ -508,8 +509,8 @@ async def tasks():
 
 @router.get("/api/workers/history")
 async def workers_history():
-    """V2-079: HISTÓRICO de Brain Workers TERMINADOS (ledger durable) — para la pestaña «Procesos» del ChatWall,
-    que da PERSPECTIVA de lo hecho hoy/ayer/hace días (los vivos van por /api/tasks). Read-only, no-cache."""
+    """V2-079: HISTORY of FINISHED Brain Workers (durable ledger) — for the ChatWall «Processes» tab, which gives
+    PERSPECTIVE on what was done today/yesterday/days ago (live ones go through /api/tasks). Read-only, no-cache."""
     try:
         from nucleo.workers import ledger
         return JSONResponse({"history": ledger.history()}, headers={"Cache-Control": "no-cache"})
@@ -519,9 +520,9 @@ async def workers_history():
 
 @router.post("/api/workers/pause")
 async def workers_pause():
-    """V2-065 (botón ⏻ del operador): congela los Brain Workers vivos SIN matarlos (SIGSTOP al backend) — a
-    diferencia de /reset/hard, esto es reversible con /api/workers/resume. Voz/mic los apaga `session.stop()` en
-    el cliente; este endpoint congela lo que ya estaba trabajando en segundo plano."""
+    """V2-065 (operator ⏻ button): freezes live Brain Workers WITHOUT killing them (SIGSTOP to the backend) — unlike
+    /reset/hard, this is reversible with /api/workers/resume. Voice/mic are stopped by `session.stop()` on the
+    client; this endpoint freezes what was already working in the background."""
     try:
         from nucleo import dispatch
         return JSONResponse({"ok": True, "paused": dispatch.pause_all()})
@@ -531,8 +532,8 @@ async def workers_pause():
 
 @router.post("/api/workers/resume")
 async def workers_resume():
-    """Reanuda (SIGCONT) los workers que /api/workers/pause dejó congelados. Continúan exactamente donde
-    estaban — no reinicia nada."""
+    """Resume (SIGCONT) the workers that /api/workers/pause left frozen. They continue exactly where they were — no
+    restart."""
     try:
         from nucleo import dispatch
         return JSONResponse({"ok": True, "resumed": dispatch.resume_all()})
@@ -542,18 +543,18 @@ async def workers_resume():
 
 @router.get("/api/run")
 async def run_get():
-    """V2-092: ¿está el agente EN MARCHA o PARADO? La verdad la tiene el servidor (`nucleo/runstate.py`), no el
-    `localStorage` del navegador — el frontend siembra de aquí al arrancar, así que recargar la página (o abrirla en
-    otro navegador) hereda el estado real en vez de resucitar un agente que el operador había parado."""
+    """V2-092: is the agent RUNNING or STOPPED? The server owns the truth (`nucleo/runstate.py`), not browser
+    `localStorage` — the frontend seeds from here on boot, so reloading the page (or opening it in another browser)
+    inherits the real state instead of resurrecting an agent the operator had stopped."""
     from nucleo import runstate
     return JSONResponse(runstate.snapshot(), headers={"Cache-Control": "no-cache"})
 
 
 @router.post("/api/run/stop")
 async def run_stop():
-    """PARA el agente: congela los Brain Workers (SIGSTOP, reversible) y SUSPENDE los widgets que estén
-    produciendo (música, vídeo…). Sustituye a /api/workers/pause en el botón ⏻ — hace lo mismo y además todo lo
-    demás. Devuelve qué se congeló, para que el log del operador no sea una lista de intenciones."""
+    """STOP the agent: freeze Brain Workers (SIGSTOP, reversible) and SUSPEND widgets that are producing (music,
+    video…). Replaces /api/workers/pause on the ⏻ button — same thing plus everything else. Returns what was frozen,
+    so the operator log is not a list of intentions."""
     try:
         from nucleo import runstate
         return JSONResponse(await runstate.stop("operator"))
@@ -563,8 +564,8 @@ async def run_stop():
 
 @router.post("/api/run/start")
 async def run_start():
-    """ARRANCA el agente: los workers congelados CONTINÚAN donde estaban. Los widgets NO se reanudan a propósito —
-    volver a poner la música es un gesto del operador (ver `nucleo/runstate.py`, «asimetría deliberada»)."""
+    """START the agent: frozen workers CONTINUE where they were. Widgets are deliberately NOT resumed — starting the
+    music again is an operator gesture (see `nucleo/runstate.py`, "deliberate asymmetry")."""
     try:
         from nucleo import runstate
         return JSONResponse(await runstate.start("operator"))
@@ -574,9 +575,9 @@ async def run_start():
 
 @router.get("/api/desktop/epoch")
 async def desktop_epoch():
-    """Época de WIPE del escritorio: `scripts/reset-memory.sh` la bumpea en cada wipeout. El frontend la compara con
-    la que guardó en localStorage y, si es NUEVA, arranca con el escritorio VACÍO (sesión en blanco tras un reset —
-    los widgets abiertos viven en el localStorage del navegador, que un borrado de servidor no alcanza)."""
+    """Desktop WIPE epoch: `scripts/reset-memory.sh` bumps it on every wipeout. The frontend compares it with the
+    value stored in localStorage and, if it is NEW, starts with an EMPTY desktop (blank session after a reset — open
+    widgets live in browser localStorage, which a server-side deletion cannot reach)."""
     epoch = "0"
     try:
         _p = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -590,7 +591,7 @@ async def desktop_epoch():
 
 @router.post("/reset")
 async def reset():
-    # Reset LIGERO (lo usa también el reconnect): limpia sesión + log. NO mata trabajo de fondo ni escribe memoria.
+    # LIGHT reset (also used by reconnect): clears session + log. Does NOT kill background work or write memory.
     S.reset_session_state()
     clear_log()
     return JSONResponse(emit("session", "RESET"))
@@ -598,52 +599,51 @@ async def reset():
 
 @router.post("/reset/hard")
 async def reset_hard():
-    """HARD RESET deliberado (botón «Reset» del frontend, tras confirmación). Secuencia cautelosa: CONGELA el
-    trabajo en curso en la memoria de ESTADO, deja el REGISTRO de la orden en CORTO plazo, MATA los procesos de
-    fondo, y luego limpia el canvas (cierra todos los widgets) + la sesión + el log. Ver `nucleo/reset.py`."""
+    """Deliberate HARD RESET (frontend «Reset» button, after confirmation). Careful sequence: FREEZE in-flight work
+    in STATE memory, leave the order RECORD in short-term memory, KILL background processes, then clear the canvas
+    (close all widgets) + session + log. See `nucleo/reset.py`."""
     try:
         from nucleo import reset as _reset
         summary = _reset.reset_all()
     except Exception:  # noqa: BLE001
         summary = {"frozen": 0, "killed": {}, "error": True}
     S.reset_session_state()
-    ses = rotate_session("reset")          # SESIÓN NUEVA (id nuevo + observabilidad a cero), no solo log limpio
-    emit("widget", "close", extra={})      # cierra TODAS las tarjetas del canvas (frontend: desktop.closeAll())
+    ses = rotate_session("reset")          # NEW SESSION (new id + observability reset), not just a clean log
+    emit("widget", "close", extra={})      # close ALL canvas cards (frontend: desktop.closeAll())
     return JSONResponse(emit("session", "RESET", extra={"hard": True, "reset": summary,
                                                         "session": ses.get("session_id", "")}))
 
 
 @router.post("/api/reset/full")
 async def reset_full(payload: dict | None = None):
-    """Diálogo de Reset con CHECKBOXES (V2-063, petición del operador 2026-07-23): además de la base de
-    SIEMPRE (observabilidad + escritorio en blanco, igual que /reset/hard), permite borrar opcionalmente
-    `wipe_memory` (state/corto/largo plazo — un solo botón "Memoria") y/o `wipe_credentials` (WhatsApp/Telegram/
-    navegador/búsqueda). Borrar memoria/credenciales exige que el proceso muera (SQLite en uso, perfiles de
-    navegador abiertos) → si se pide CUALQUIERA de los dos, se lanza un reinicio AUTOMÁTICO en segundo plano
-    (`scripts/reset-memory.sh` + `make run`, detached) y se responde `restarting:true` ANTES de que el server
-    muera, para que el frontend pueda mostrar "reiniciando…" y reconectar solo cuando vuelva. Sin ninguna de las
-    dos, es EXACTAMENTE `/reset/hard` (live, sin reinicio)."""
+    """Reset dialog with CHECKBOXES (V2-063, operator request 2026-07-23): besides the ALWAYS base (observability +
+    blank desktop, same as /reset/hard), it can optionally delete `wipe_memory` (state/short/long term — one
+    "Memory" button) and/or `wipe_credentials` (WhatsApp/Telegram/browser/search). Deleting memory/credentials
+    requires the process to die (SQLite in use, browser profiles open) → if EITHER is requested, an AUTOMATIC
+    restart is launched in the background (`scripts/reset-memory.sh` + `make run`, detached) and `restarting:true`
+    is returned BEFORE the server dies, so the frontend can show "restarting…" and reconnect only when it comes
+    back. If neither is requested, it is EXACTLY `/reset/hard` (live, no restart)."""
     p = payload or {}
     wipe_memory = bool(p.get("wipe_memory"))
     wipe_credentials = bool(p.get("wipe_credentials"))
 
-    # Base SIEMPRE (observabilidad + escritorio): la misma secuencia que /reset/hard, live, sin reinicio.
+    # ALWAYS base (observability + desktop): same sequence as /reset/hard, live, no restart.
     try:
         from nucleo import reset as _reset
         summary = _reset.reset_all()
     except Exception:  # noqa: BLE001
         summary = {"frozen": 0, "killed": {}, "error": True}
     S.reset_session_state()
-    ses = rotate_session("reset")           # SESIÓN NUEVA (id nuevo + observabilidad a cero), no solo log limpio
+    ses = rotate_session("reset")           # NEW SESSION (new id + observability reset), not just a clean log
     emit("widget", "close", extra={})
 
     if not wipe_memory and not wipe_credentials:
         return JSONResponse(emit("session", "RESET", extra={"hard": True, "reset": summary, "restarting": False,
                                                             "session": ses.get("session_id", "")}))
 
-    # Memoria y/o credenciales: reinicio AUTOMÁTICO en un proceso DETACHED (sobrevive a que este muera).
-    # `reset-memory.sh` para el server él mismo (busca el PID por puerto), borra, y bumpea desktop-epoch; tras
-    # eso relanzamos con un `make run` normal, con log a fichero (mismo patrón que los reinicios manuales).
+    # Memory and/or credentials: AUTOMATIC restart in a DETACHED process (survives this process dying).
+    # `reset-memory.sh` stops the server itself (finds the PID by port), deletes, and bumps desktop-epoch; then we
+    # relaunch with a normal `make run`, logging to a file (same pattern as manual restarts).
     import subprocess
     import time as _time
     engine_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

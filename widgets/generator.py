@@ -23,13 +23,13 @@ from nucleo import workspace as _workspace
 HERE = os.path.dirname(os.path.abspath(__file__))          # …/zaelar/widgets
 ZAELAR = os.path.dirname(HERE)                             # …/zaelar  (the agent's cwd — widget CODE
                                                              # generation stays repo-relative; see the
-                                                             # Fase 3 plan's M10, deliberately out of
+                                                             # Phase 3 plan's M10, deliberately out of
                                                              # scope for the M0 workspace-root refactor)
 GEN_TIMEOUT = float(os.getenv("WIDGET_GEN_TIMEOUT", "240"))
 GEN_MODEL = os.getenv("WIDGET_GEN_MODEL", "")              # optional override, e.g. "sonnet"
 
 _RESERVED = {"generator", "server_api", "runtime", "store", "brief", "_data", "__pycache__"}
-_lock = threading.Lock()                                   # ONE agent at a time (the "solo 1 agente" rule)
+_lock = threading.Lock()                                   # one agent at a time
 
 # In-flight generation journal — a server restart kills the headless agent mid-build with no trace. Each job is
 # recorded here when it starts and removed when it ends, so on boot resume_interrupted_generations() (server_api)
@@ -105,9 +105,8 @@ def safe_id(raw: str) -> str:
     return s[:40]
 
 
-# Palabras de relleno que NO deben entrar en el id de un widget nuevo (crea/un/widget/de/que/para/el…): sin
-# esto, derivar el id de la petición entera daba ids-basura tipo `implementar-en-el-widget-youtube-la-capa`
-# (sesión 2026-07-15). Bilingüe es/en. El id se queda en las 3 primeras palabras de CONTENIDO.
+# Filler words that must NOT enter a new widget id. Without this, deriving the id from the whole request produced
+# junk ids from the instruction text itself (2026-07-15 session). Bilingual es/en. Keep the first 3 content words.
 _ID_FILLER = {
     "crea", "crear", "cree", "creame", "haz", "hazme", "hacer", "genera", "generar", "generame", "monta", "montame",
     "construye", "disena", "nuevo", "nueva", "widget", "tarjeta", "panel", "cuadro", "implementar", "implementa",
@@ -118,9 +117,8 @@ _ID_FILLER = {
 
 
 def _concise_id(spec: str) -> str:
-    """Deriva un id CORTO y con sentido de la petición: normaliza acentos, quita relleno y se queda con las 3
-    primeras palabras de contenido (p.ej. 'crea un widget del tiempo en Soria' → 'tiempo-soria'). Fallback al
-    slug crudo si no queda nada. Evita ids-basura derivados de la instrucción entera."""
+    """Derive a short meaningful id from the request: normalize accents, remove filler, and keep the first 3
+    content words. Fall back to the raw slug if nothing remains. Avoid junk ids derived from the whole instruction."""
     import unicodedata
     n = "".join(c for c in unicodedata.normalize("NFKD", (spec or "")) if not unicodedata.combining(c)).lower()
     toks = [t for t in re.split(r"[^a-z0-9]+", n) if t and t not in _ID_FILLER and len(t) > 1]
@@ -167,14 +165,14 @@ _MODIFY_PROMPT = (
 )
 
 
-# V2-038: procesos de generación MATABLES por token (= task_id del Brain Worker). Un `stop_worker`/`cancel_session`
-# sobre una tarea `code` mata el subproceso `claude` del generador (que corre en un HILO to_thread NO cancelable).
+# V2-038: generation processes are killable by token (= Brain Worker task_id). A `stop_worker`/`cancel_session` on
+# a `code` task kills the generator's `claude` subprocess, which runs inside a non-cancellable `to_thread` thread.
 _PROCS: dict = {}          # token -> subprocess.Popen
 _PROCS_LOCK = threading.Lock()
 
 
 def kill(token: str) -> bool:
-    """Mata el subproceso de generación asociado a `token` (con cortesía: terminate → kill). Idempotente."""
+    """Kill the generation subprocess associated with `token`, politely via terminate then kill. Idempotent."""
     with _PROCS_LOCK:
         p = _PROCS.get(str(token))
     if p is None:
@@ -199,8 +197,9 @@ def kill_all() -> int:
 
 def _run_agent(prompt: str, token: str = "") -> tuple[bool, str]:
     """Spawn ONE atomic headless Claude Code agent. Prompt via STDIN (claude 2.1.x truncates large positional
-    prompts — MeshKore hit this). File tools only, cwd = zaelar, hard timeout. MATABLE por `token` (V2-038):
-    Popen + communicate registrado en _PROCS → `kill(token)` lo termina desde otro hilo. Returns (ran, error)."""
+    prompts; MeshKore hit this). File tools only, cwd = zaelar, hard timeout. Killable by `token` (V2-038):
+    Popen + communicate registered in _PROCS, so `kill(token)` can terminate it from another thread. Returns
+    (ran, error)."""
     claude = _find_claude()
     if not claude:
         return False, "Claude Code CLI not found (set CLAUDE_BIN)"
@@ -208,11 +207,11 @@ def _run_agent(prompt: str, token: str = "") -> tuple[bool, str]:
            "--permission-mode", "acceptEdits", "--output-format", "json"]
     env = dict(os.environ)
     env["PATH"] = os.path.dirname(claude) + os.pathsep + env.get("PATH", "")
-    # Enruta la generación de widgets por el endpoint externo de §code_agent (Z.AI GLM) si está configurado, para
-    # que este agente headless TAMPOCO consuma tokens de la licencia Claude Teams (operador 2026-07-31). Helper
-    # ÚNICO compartido con los brain workers. Si se enruta y no hay override explícito, usa el modelo de §code_agent.
+    # Route widget generation through the external §code_agent endpoint (Z.AI GLM) when configured, so this
+    # headless agent also avoids consuming Claude Teams license tokens (operator, 2026-07-31). Shared helper with
+    # brain workers. If routed and there is no explicit override, use the §code_agent model.
     model = GEN_MODEL
-    base_url = ""       # endpoint realmente usado (para el metering de Energy más abajo — "" = licencia local)
+    base_url = ""       # actual endpoint used for Energy metering below; "" means local license
     try:
         from config import v2 as _v2
         _ext = _v2.external_worker_env()
@@ -250,14 +249,14 @@ def _run_agent(prompt: str, token: str = "") -> tuple[bool, str]:
                 _PROCS.pop(str(token), None)
     if p.returncode not in (0, None):
         logger.warning(f"widget-agent: claude exited {p.returncode}: {(stderr or '')[:300]}")
-        # un proceso MATADO (terminate/kill) devuelve rc≠0 → lo tratamos como 'no completó' para que _discard limpie.
+        # A killed process (terminate/kill) returns rc!=0, so treat it as incomplete and let _discard clean up.
         if p.returncode and p.returncode < 0:
             return False, "generation cancelled"
-    # Energy metering (2026-08-05, cierra el gap anotado en INI-019 addenda): `--output-format json` YA trae
-    # `usage`/`model` (mismo shape que el "result" de stream-json que sí se metraba en los Brain Workers
-    # interactivos, ver nucleo/workers/session.py) — antes se tiraba el stdout entero sin leerlo, así que la
-    # generación/modificación de widgets nunca descontaba Energy pese a costar tokens reales. Best-effort: un
-    # stdout no-JSON o sin `usage` no debe romper la generación, que ya terminó bien.
+    # Energy metering (2026-08-05, closes the gap noted in INI-019 addenda): `--output-format json` already includes
+    # `usage`/`model`, with the same shape as the stream-json "result" metered for interactive Brain Workers (see
+    # nucleo/workers/session.py). Previously stdout was discarded unread, so widget generation/modification never
+    # charged Energy despite costing real tokens. Best-effort: non-JSON stdout or missing `usage` must not break a
+    # generation that already completed successfully.
     if p.returncode == 0 and stdout:
         try:
             import json as _json
@@ -520,7 +519,7 @@ def _apply_action_names(src: str) -> set[str] | None:
 
 
 def _defines_function(src: str, name: str) -> bool:
-    """True si el módulo define `def <name>(` a nivel superior (AST, sin ejecutar)."""
+    """True if the module defines top-level `def <name>(`, checked by AST without executing it."""
     import ast
     try:
         tree = ast.parse(src)
@@ -530,20 +529,20 @@ def _defines_function(src: str, name: str) -> bool:
 
 
 def _validate_background(man: dict, src: str) -> str | None:
-    """Un widget que declara `background` (ejecución off-screen con ciclo, V2-034) debe ser válido: el ciclo
-    `every` tiene que parsear a un periodo (≥1s), y un widget PASSIVE con background DEBE tener `def tick()` en su
-    data.py (la función que el planificador llama cada ciclo). Un `backed` con background se atiende por su owner
-    (comando `tick` en el buzón), así que no exige tick() en data.py."""
+    """A widget declaring `background` (cyclic off-screen execution, V2-034) must be valid: `every` must parse to a
+    period (>=1s), and a PASSIVE widget with background MUST have `def tick()` in data.py, the function called by the
+    scheduler each cycle. A `backed` widget with background is served by its owner (`tick` command in the mailbox),
+    so tick() is not required in data.py."""
     if man.get("background") is None:
         return None
     from . import background as _bg
     period = _bg.parse_period(man.get("background"))
     if not period:
-        return (f"'background' inválido ({man.get('background')!r}) — usa \"1s\"/\"5m\"/\"1h\", un nº de segundos, "
-                f"o {{\"every\":\"1m\"}} (mínimo 1s)")
+        return (f"'background' invalid ({man.get('background')!r}); use \"1s\"/\"5m\"/\"1h\", a number of seconds, "
+                f"or {{\"every\":\"1m\"}} (minimum 1s)")
     if (man.get("kind") or "passive") != "backed" and not _defines_function(src, "tick"):
-        return ("el manifest declara 'background' (ciclo off-screen) pero data.py no define `def tick()` — "
-                "añade tick() (refresca datos + vuelca a memoria) o quita 'background'")
+        return ("manifest declares 'background' (off-screen cycle) but data.py does not define `def tick()`; "
+                "add tick() to refresh data and write to memory, or remove 'background'")
     return None
 
 
@@ -574,9 +573,9 @@ def _validate_actions_sync(man: dict, src: str) -> str | None:
     return None
 
 
-# stdlib-only is the contract for GENERATED widgets (an LLM-authored data.py must never reach into `connectors/` —
+# stdlib-only is the contract for GENERATED widgets (an LLM-authored data.py must never reach into `connectors/`:
 # that's the isolation invariant AGENTS.md/CLAUDE.md rely on). `musica` is the ONE hand-built, human-reviewed
-# exception: real playback control has no stdlib equivalent — it has to call connectors.music/connectors.spotify
+# exception: real playback control has no stdlib equivalent, so it has to call connectors.music/connectors.spotify
 # directly (see its own data.py header). This allowlist is a hardcoded id, never a manifest field, precisely so a
 # generated widget can't grant itself the exemption.
 _STDLIB_EXEMPT = {"musica"}
@@ -599,7 +598,7 @@ def _scan_data_py(src: str, wid: str = "") -> str | None:
                         return f"data.py imports non-stdlib '{top}' (data.py must be stdlib-only)"
             elif isinstance(node, ast.ImportFrom):
                 if node.level and node.level > 0:
-                    continue                               # relative import (from .. import store) → allowed
+                    continue                               # relative import (from .. import store) is allowed
                 top = (node.module or "").split(".")[0]
                 if top and top not in stdlib and top != "widgets":
                     return f"data.py imports non-stdlib '{top}' (data.py must be stdlib-only)"
@@ -622,7 +621,7 @@ def _validate(wid: str) -> tuple[bool, str]:
     if not man.get("title") or not isinstance(man.get("keywords"), list) or not man.get("keywords"):
         return False, "manifest missing title/keywords"
     # Keyword anti-collision: if EVERY keyword is already owned by other widgets, this one is unidentifiable by
-    # voice (or hijacks an existing identity) → reject. Partial overlaps are allowed but logged — identify()
+    # voice (or hijacks an existing identity) -> reject. Partial overlaps are allowed but logged; identify()
     # handles them with disambiguation candidates, and stripping them here would regress older widgets' recall.
     kws = [str(k).strip() for k in man["keywords"] if str(k).strip()]
     coll = _keyword_collisions(wid, kws)
@@ -632,8 +631,8 @@ def _validate(wid: str) -> tuple[bool, str]:
                        f"the widget would be unidentifiable; use distinctive keywords")
     if coll:
         logger.warning(f"widget-agent: '{wid}' keyword collisions (identify() will disambiguate): {coll}")
-    # folder name is authoritative + este widget lo CREA el usuario (V2-083) → estampa origin:"user" para que la
-    # pestaña Widgets de Config lo liste como "tuyo" (los de serie llevan la lista curada de registry._BUILTINS).
+    # Folder name is authoritative, and this widget is created by the user (V2-083), so stamp origin:"user" so the
+    # Config Widgets tab lists it as user-owned. Built-ins use the curated registry._BUILTINS list.
     _dirty = False
     if man.get("id") != wid:
         man["id"] = wid
@@ -656,7 +655,7 @@ def _validate(wid: str) -> tuple[bool, str]:
         data_bad = _scan_data_py(data_src, wid)          # stdlib-only + no hardcoded secrets
         if data_bad:
             return False, data_bad
-        sync_bad = _validate_actions_sync(man, data_src)   # declared actions ↔ apply_action must match (V2-025)
+        sync_bad = _validate_actions_sync(man, data_src)   # declared actions <-> apply_action must match (V2-025)
         if sync_bad:
             return False, sync_bad
         import py_compile
@@ -665,7 +664,7 @@ def _validate(wid: str) -> tuple[bool, str]:
         except Exception as e:
             return False, f"data.py does not compile: {e}"
         # Runtime smoke-test: view_data(q="") must RUN and RETURN a dict — never raise. This is the isolation gate:
-        # a widget that blows up at runtime never reaches the catalog (a friendly {"error": …} state is fine).
+        # a widget that blows up at runtime never reaches the catalog (a friendly {"error": ...} state is fine).
         try:
             import importlib
             mod = importlib.import_module(f"widgets.{wid}.data")

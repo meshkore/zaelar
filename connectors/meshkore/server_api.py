@@ -55,13 +55,13 @@ class ConnectBody(BaseModel):
     cluster_id: str = ""
     token: str = ""
     handle: str = "zaelar"
-    vis: str = ""            # "public" → cluster abierto, sin token (V2-086)
+    vis: str = ""            # "public" -> open cluster, no token (V2-086)
 
 
 class StageBody(BaseModel):
     name: str
     cluster_id: str
-    token: str = ""          # V2-086: vacío en un cluster público — no falta, es que no existe
+    token: str = ""          # V2-086: empty in a public cluster — not missing, nonexistent
     handle: str = "zaelar"
     vis: str = ""
 
@@ -109,12 +109,12 @@ async def connect(body: ConnectBody, _=Depends(_guard)):
 
 @router.post("/api/meshkore/confirm")
 async def confirm(body: dict, _=Depends(_guard)):
-    """Resuelve la confirmación Sí/No de CONECTAR a un cluster desde la pestaña nativa «Clusters» (V2-086).
+    """Resolve the Yes/No confirmation to CONNECT to a cluster from the native "Clusters" tab (V2-086).
 
-    Antes esto no existía: la confirmación se pedía sobre la tarjeta del widget `cluster-registro`, pero
-    `/widgets/{id}/confirm` solo sabía resolver BORRADOS — así que el botón nunca conectaba nada y el único
-    camino que cerraba el círculo era decir «sí» por voz. Ahora el botón funciona, por el MISMO camino
-    (`dispatch_tag("cluster.connect")`) y con el mismo gate: sin un «sí» explícito no se abre ningún socket."""
+    This did not exist before: confirmation was requested on the `cluster-registro` widget card, but
+    `/widgets/{id}/confirm` only knew how to resolve DELETES — so the button never connected anything and the only
+    path that closed the loop was saying "yes" by voice. Now the button works through the SAME path
+    (`dispatch_tag("cluster.connect")`) and with the same gate: no socket opens without an explicit "yes"."""
     from widgets import confirm as _confirm
     ok = bool((body or {}).get("ok"))
     p = _confirm.resolve(_confirm.NATIVE_CLUSTERS, ok)
@@ -140,10 +140,10 @@ async def send(body: SendBody, _=Depends(_guard)):
         await meshkore.get_manager().send(body.name, to=body.to, text=text)
     except Exception as e:
         return JSONResponse({"ok": False, "error": str(e)}, status_code=400)
-    # OBSERVABILIDAD (2026-07-25, petición del operador "verificar que se haya enviado"): la ruta REST/widget de
-    # envío NO dejaba rastro — solo journalizaba el bridge (`bridge.dispatch`), así que un "manda a zalo …" del
-    # operador salía SIN registro y era imposible confirmar qué/si se mandó. Registramos aquí el envío igual que
-    # el bridge (journal DURABLE + evento `cluster` en el timeline/UI), marcado `via:"rest"` para distinguir origen.
+    # OBSERVABILITY (2026-07-25, operator request to verify a send): the REST/widget send path left NO trace — only
+    # the bridge (`bridge.dispatch`) journaled, so an operator request to send something to zalo went out WITHOUT a
+    # record and it was impossible to confirm what/whether it was sent. Record the send here just like the bridge
+    # does (DURABLE journal + `cluster` event in the timeline/UI), marked `via:"rest"` to distinguish origin.
     try:
         from connectors.meshkore import journal
         journal.record({"chan": "out", "action": "cluster.send", "via": "rest",

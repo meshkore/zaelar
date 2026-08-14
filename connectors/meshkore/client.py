@@ -35,31 +35,31 @@ class MeshKoreClient:
         self._token = token
         self.handle = handle
         self._did = did
-        self._vis = (vis or "").strip().lower()   # "public" → cluster ABIERTO, sin token (V2-086)
+        self._vis = (vis or "").strip().lower()   # "public" → OPEN cluster, no token (V2-086)
         self._on_event = on_event       # async callable(event: dict)
         self._ws = None
         self._task = None
         self._closing = False
         self.online: set[str] = set()   # handles currently present (excludes us)
         self.connected = False
-        # Contadores de TRÁFICO (V2-086) — lo único que la pestaña nativa «Clusters» necesita saber del volumen.
-        # Deliberadamente NO guardamos las conversaciones: los clusters ya tienen su propio monitor, y replicar
-        # aquí el histórico solo duplicaría estado (decisión del operador). Contar es barato y no retiene contenido.
+        # TRAFFIC counters (V2-086) — the only volume data the native «Clusters» tab needs. Deliberately do NOT store
+        # conversations: clusters already have their own monitor, and replicating history here would only duplicate
+        # state (operator decision). Counting is cheap and retains no content.
         self.msgs_in = 0
         self.msgs_out = 0
 
     @property
     def public(self) -> bool:
-        """Cluster PÚBLICO (tokenless). Se deduce de `vis=public` o, en su defecto, de no tener token: la
-        distinción es real en el protocolo, no cosmética — cambia la query de conexión."""
+        """PUBLIC cluster (tokenless). Inferred from `vis=public` or, failing that, from having no token: the
+        distinction is real in the protocol, not cosmetic — it changes the connection query."""
         return self._vis == "public" or not self._token
 
     def _url(self) -> str:
-        """Query de conexión. DOS modos (V2-086):
-          · PRIVADO  — `?token=…&agent=…`  (el de siempre: la credencial autoriza).
-          · PÚBLICO  — `?agent=…&vis=public` (MeshKore Commons y similares: sin token, eliges tu handle).
-        Mandar `token=` VACÍO en un cluster público no es equivalente: el servidor lo interpreta como un intento
-        de auth fallido, no como una entrada anónima. Por eso la clave se OMITE, no se manda en blanco."""
+        """Connection query. TWO modes (V2-086):
+          · PRIVATE — `?token=…&agent=…`  (as before: credential authorizes).
+          · PUBLIC  — `?agent=…&vis=public` (MeshKore Commons and similar: no token, choose your handle).
+        Sending EMPTY `token=` on a public cluster is not equivalent: the server interprets it as a failed auth
+        attempt, not as anonymous entry. That is why the key is OMITTED, not sent blank."""
         q = {"agent": self.handle}
         if self.public:
             q["vis"] = self._vis or "public"
@@ -188,7 +188,7 @@ class MeshKoreClient:
         if len(data.encode("utf-8")) > MAX_FRAME:
             raise ValueError("MeshKore frame exceeds 64 KB limit")
         await self._ws.send(data)
-        self.msgs_out += 1                                  # solo tras un send REAL (V2-086)
+        self.msgs_out += 1                                  # only after a REAL send (V2-086)
 
     async def stop(self):
         self._closing = True

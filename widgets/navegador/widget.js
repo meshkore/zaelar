@@ -1,13 +1,13 @@
 // Navegador — client render. Contract: render(el, data, ctx).
-//   data = GET /widgets/navegador/data (lo escribe el backend owner.py). NO hay poll: desktop.js re-pinta cuando
-//   store.save emite el aviso SSE. La página se ve como CAPTURA en vivo (GET /widgets/navegador/asset/shot.png,
-//   cache-busted por data.rev); YouTube se reproduce EMBEBIDO (iframe youtube-nocookie) porque una captura no da
-//   vídeo/audio. Clic/scroll sobre la captura → coordenadas de página → ctx.action → owner → nueva captura.
-//   ctx.action(name,payload): open/search/youtube/back/forward/reload/scroll/click/press. NADA de fetch (contrato
-//   de aislamiento): el <img> same-origin y el <iframe> de YouTube son elementos, no peticiones nuestras.
-const VP = {w: 1280, h: 800};        // viewport del Chromium del backend — base para mapear coordenadas de clic
-let _editing = false;                // el operador está escribiendo en la barra → no le pisamos el valor al re-pintar
-let _wheelAt = 0;                    // throttle simple del scroll por rueda
+//   data = GET /widgets/navegador/data (written by backend owner.py). NO polling: desktop.js repaints when
+//   store.save emits the SSE notice. The page is shown as a live CAPTURE (GET /widgets/navegador/asset/shot.png,
+//   cache-busted by data.rev); YouTube plays EMBEDDED (youtube-nocookie iframe) because a capture does not provide
+//   video/audio. Click/scroll on the capture → page coordinates → ctx.action → owner → new capture.
+//   ctx.action(name,payload): open/search/youtube/back/forward/reload/scroll/click/press. NO fetch (isolation
+//   contract): the same-origin <img> and YouTube <iframe> are elements, not our own requests.
+const VP = {w: 1280, h: 800};        // backend Chromium viewport — basis for mapping click coordinates
+let _editing = false;                // operator is typing in the bar → do not overwrite its value while repainting
+let _wheelAt = 0;                    // simple mouse-wheel scroll throttle
 
 function injectStyles(){
   if(document.getElementById("hb-nav-css")) return;
@@ -34,7 +34,7 @@ function injectStyles(){
   .hb-nav-scroll{position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;gap:6px}
   .hb-nav-scroll button{width:30px;height:30px;border-radius:8px;border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);color:var(--hb-muted,#3a4757);cursor:pointer;font-size:13px;opacity:.85}
   .hb-nav-scroll button:hover{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0);opacity:1}
-  /* ── TARJETA DE TAREA (kind:"task"): vertical, mini-navegador arriba + feed abajo. Una por tarea/pestaña. ── */
+  /* ── TASK CARD (kind:"task"): vertical, mini-browser above + feed below. One per task/tab. ── */
   .hb-navt{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--hb-ink,#0d1622);width:560px;max-width:92vw}
   .hb-navt-head{display:flex;align-items:center;gap:7px;margin-bottom:7px}
   .hb-navt-status{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:2px 7px;border-radius:999px;background:var(--hb-bubble,#f1f4f9);color:var(--hb-muted,#5b6b82);flex:0 0 auto}
@@ -46,7 +46,7 @@ function injectStyles(){
   .hb-navt-view{position:relative;border:1px solid var(--hb-line,#e3e8f0);border-radius:10px;overflow:hidden;background:var(--hb-bg-soft,#f5f7fb);height:300px}
   .hb-navt-img{display:block;width:100%;height:100%;object-fit:cover;object-position:top}
   .hb-navt-ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--hb-muted-2,#7d8a9c);font-size:12px}
-  /* Línea de FASE con spinner (el estado del proceso: buscando/recopilando/investigando/listo) */
+  /* PHASE line with spinner (process state: searching/collecting/investigating/ready) */
   .hb-navt-phase{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12.5px;color:var(--hb-ink,#0d1622);font-weight:600}
   .hb-navt-phase.active{color:var(--hb-accent,#3D6FE0)}
   .hb-navt-spin{width:14px;height:14px;border-radius:50%;flex:0 0 auto;border:2px solid var(--hb-line,#e3e8f0);border-top-color:var(--hb-accent,#3D6FE0);animation:hbnavspin .8s linear infinite}
@@ -81,8 +81,8 @@ function el(tag, cls, text){ const e = document.createElement(tag); if(cls) e.cl
 const STATUS_LABEL = {queued:"en cola", working:"trabajando", needs_input:"pregunta", open:"abierto",
                       done:"hecho", failed:"falló", cancelled:"cancelada"};
 
-// TARJETA DE TAREA (kind:"task"): mini-navegador (captura de SU pestaña) arriba + feed de progreso/resultados abajo.
-// Una tarjeta por tarea (id navegador::<taskid>). Solo textContent + <img> same-origin (contrato de aislamiento).
+// TASK CARD (kind:"task"): mini-browser (capture of ITS tab) above + progress/results feed below.
+// One card per task (id navegador::<taskid>). Only textContent + same-origin <img> (isolation contract).
 function renderTask(root, data, ctx){
   root.className = "hb-navt";
   root.textContent = "";
@@ -102,10 +102,10 @@ function renderTask(root, data, ctx){
   root.appendChild(view);
   if(data.url || data.page_title) root.appendChild(el("div", "hb-navt-urlline", data.page_title || data.url));
 
-  // TAREA PRINCIPAL siempre VISIBLE bajo la captura (V2-035): la ESENCIA sintetizada del objetivo (objetivo +
-  // criterios, comprimido por LLM) — cae al goal crudo si aún no se computó. Así, si el cerebro deriva de lo pedido
-  // (p.ej. "moto de enduro" → "trial/carretera"), el operador lo VE y puede corregirlo por voz ("te dije enduro"),
-  // y el cerebro refina esta MISMA tarea (continuidad V2-032). SIN tooltip de hover (era el texto duplicado).
+  // MAIN TASK always VISIBLE below the capture (V2-035): synthesized ESSENCE of the objective (objective + criteria,
+  // compressed by LLM) — falls back to the raw goal if not computed yet. Thus, if the brain drifts from the request
+  // (e.g. "enduro motorcycle" → "trial/road"), the operator SEES it and can correct it by voice ("I said enduro"),
+  // and the brain refines this SAME task (continuity V2-032). NO hover tooltip (it duplicated the text).
   const _goalText = data.goal_summary || data.goal;
   if(_goalText){
     const g = el("div", "hb-navt-goal", "🎯 " + _goalText);
@@ -114,7 +114,7 @@ function renderTask(root, data, ctx){
     root.appendChild(g);
   }
 
-  // FASE del proceso + spinner: QUÉ estamos haciendo ahora (buscando / recopilando / investigando / listo).
+  // Process PHASE + spinner: WHAT we are doing now (searching / collecting / investigating / ready).
   if(data.phase){
     const ph = el("div", "hb-navt-phase" + (data.phase_active ? " active" : ""));
     if(data.phase_active){ ph.appendChild(el("span", "hb-navt-spin")); }
@@ -123,7 +123,7 @@ function renderTask(root, data, ctx){
     root.appendChild(ph);
   }
 
-  // LOGIN: la tarea espera a que el operador inicie sesión en la ventana real → botón de confirmación.
+  // LOGIN: the task waits for the operator to sign in in the real window → confirmation button.
   if(data.awaiting_login){
     const box = el("div", "hb-navt-login");
     box.appendChild(el("div", "hb-navt-login-t",
@@ -134,7 +134,7 @@ function renderTask(root, data, ctx){
     root.appendChild(box);
   }
 
-  // Resultados ricos (Fase 4): conclusión + anuncios con foto/precio/enlace.
+  // Rich results (Phase 4): conclusion + listings with photo/price/link.
   const res = data.results;
   if(res && Array.isArray(res.items) && res.items.length){
     const rz = el("div", "hb-navt-results");
@@ -152,7 +152,7 @@ function renderTask(root, data, ctx){
     root.appendChild(rz);
   }
 
-  // Pregunta pendiente al operador (se responde POR VOZ; el orquestador la enruta a esta tarea).
+  // Pending question for the operator (answered BY VOICE; the orchestrator routes it to this task).
   if(data.question){
     const q = el("div", "hb-navt-q");
     q.appendChild(el("div", "hb-navt-q-t", "❓ " + data.question));
@@ -160,7 +160,7 @@ function renderTask(root, data, ctx){
     root.appendChild(q);
   }
 
-  // Feed vivo de la tarea (progreso). Autoscroll al último evento.
+  // Live task feed (progress). Autoscroll to the last event.
   const feed = el("div", "hb-navt-feed");
   (data.events || []).slice(-16).forEach(ev => {
     const line = el("div", "hb-navt-ev");
@@ -172,8 +172,8 @@ function renderTask(root, data, ctx){
   requestAnimationFrame(() => { feed.scrollTop = feed.scrollHeight; });
 }
 
-// FORMATO ÚNICO: tarjeta vertical (mini-navegador + feed), una por tab/tarea. Ya no hay vista grande — si quieres
-// conducir/mirar el navegador de verdad, miras la VENTANA de Chrome real; la tarjeta es el monitor + feed.
+// SINGLE FORMAT: vertical card (mini-browser + feed), one per tab/task. There is no large view anymore — if you want
+// to drive/watch the real browser, look at the real Chrome WINDOW; the card is the monitor + feed.
 export function render(root, data, ctx){
   injectStyles();
   renderTask(root, data || {}, ctx);

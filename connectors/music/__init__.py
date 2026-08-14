@@ -1,9 +1,9 @@
-"""connectors/music/ — capa COMPARTIDA de música, agnóstica del proveedor (V2-041).
+"""connectors/music/ — SHARED music layer, provider-agnostic (V2-041).
 
-Fachada única que usan el FlashBrain (tool `play_music`) y —pieza SEPARADA, más adelante— el widget de música.
-Enruta la intención ("pon música", "ponme a Frank Sinatra", "pausa", "sube el volumen") al proveedor CONECTADO
-(hoy Spotify; el seam admite cualquier conector de streaming). Nunca lanza al llamante: devuelve un `MusicResult`
-con una frase hablable. I/O de red → el llamante la corre con `asyncio.to_thread` (respeta V2-011).
+Single facade used by FlashBrain (tool `play_music`) and — as a SEPARATE piece, later — the music widget. Routes the
+intent ("play music", "play Frank Sinatra", "pause", "turn up the volume") to the CONNECTED provider (Spotify today;
+the seam accepts any streaming connector). Never raises to the caller: returns a `MusicResult` with a speakable
+sentence. Network I/O -> caller runs it with `asyncio.to_thread` (respects V2-011).
 """
 from __future__ import annotations
 
@@ -14,12 +14,12 @@ from .base import MusicProvider, MusicResult, NowPlaying, Track
 
 logger = logging.getLogger("zaelar.music")
 
-# Acciones de control SIN datos (todas menos 'play', que puede llevar query/uri).
+# Control actions WITHOUT data (all except 'play', which may carry query/uri).
 _CONTROL = {"pause", "resume", "next", "previous", "stop"}
 _VOLUME = {"volume_up", "volume_down", "set_volume"}
 
-# Mensajes hablables por idioma del operador (monolingüe, V2-013; es/en son los idiomas con voz verificada). El
-# proveedor rellena sus propios `message`; estos cubren los casos del seam (sin proveedor / sin idioma soportado).
+# Speakable messages by operator language (monolingual, V2-013; es/en are the verified voice languages). The provider
+# fills its own `message`; these cover seam cases (no provider / unsupported language).
 _MSG = {
     "es": {
         "no_provider": ("No tengo ninguna cuenta de música conectada. Conéctame Spotify (u otra) desde la "
@@ -52,13 +52,13 @@ def active_provider(prefer: str = "") -> "MusicProvider | None":
 
 
 def available() -> "list[str]":
-    """Nombres de los proveedores conectados ahora mismo."""
+    """Names of providers connected right now."""
     return [p.name for p in registry.available()]
 
 
 def control(action: str, query: str = "", uri: str = "", percent: int = 0, prefer: str = "") -> MusicResult:
-    """Ejecuta UNA acción de música contra el proveedor activo. `action`: play|pause|resume|next|previous|stop|
-    volume_up|volume_down|set_volume. Fachada del FlashBrain — fail-safe, nunca lanza."""
+    """Execute ONE music action against the active provider. `action`: play|pause|resume|next|previous|stop|
+    volume_up|volume_down|set_volume. FlashBrain facade — fail-safe, never raises."""
     action = (action or "play").strip().lower()
     prov = active_provider(prefer)
     if prov is None:
@@ -74,11 +74,11 @@ def control(action: str, query: str = "", uri: str = "", percent: int = 0, prefe
             return prov.next()
         if action in ("previous", "prev", "back"):
             return prov.previous()
-        if action == "stop":                       # 'stop' = pausar (parar la música, no matar procesos)
+        if action == "stop":                       # 'stop' = pause (stop music, not kill processes)
             return prov.pause()
-        if action == "queue":                       # V2-047 F4: añade a la cola (una detrás de otra)
+        if action == "queue":                       # V2-047 F4: add to queue (one after another)
             return prov.enqueue(query=query, uri=uri)
-        if action == "ended":                       # V2-047 F4: el widget avisa que terminó → siguiente de la cola
+        if action == "ended":                       # V2-047 F4: widget says it ended -> next from queue
             return prov.on_ended()
         if action == "volume_up":
             np = prov.now_playing()
@@ -90,7 +90,7 @@ def control(action: str, query: str = "", uri: str = "", percent: int = 0, prefe
             return prov.set_volume(max(0, cur - 15))
         if action == "set_volume":
             return prov.set_volume(max(0, min(100, int(percent or 0))))
-    except Exception as e:  # noqa: BLE001 — un fallo del proveedor nunca rompe la voz
+    except Exception as e:  # noqa: BLE001 — a provider failure never breaks voice
         logger.warning(f"music.control({action}) falló: {e!r}")
         return MusicResult(ok=False, provider=prov.name, action=action, reason="error",
                            message=_msg("done"))
@@ -108,7 +108,7 @@ def now_playing(prefer: str = "") -> "NowPlaying | None":
 
 
 def status() -> dict:
-    """Estado de TODOS los proveedores conocidos (para la UI/wizard/diagnóstico)."""
+    """State of ALL known providers (for UI/wizard/diagnostics)."""
     out = {}
     for p in registry.providers():
         try:

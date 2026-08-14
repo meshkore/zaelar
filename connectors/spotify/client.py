@@ -1,14 +1,14 @@
-"""connectors/spotify/client.py — cliente REST de la Spotify Web API (V2-041).
+"""connectors/spotify/client.py — REST client for the Spotify Web API (V2-041).
 
-Envoltorio fino y SÍNCRONO (httpx) sobre los endpoints que necesita la reproducción por voz: buscar una pista y
-controlar el reproductor del operador (play/pause/next/prev/volumen/estado). El token lo resuelve
-`connectors.spotify.auth` (refresco automático). Solo cubre lo que usamos — no es un SDK completo.
+Thin SYNCHRONOUS wrapper (httpx) around the endpoints voice playback needs: search for a track and control the
+operator's player (play/pause/next/prev/volume/state). Token is resolved by `connectors.spotify.auth` (automatic
+refresh). Covers only what we use — not a full SDK.
 
-Notas de la API (todas verificadas contra la doc oficial):
-  · Controlar el reproductor exige **Premium + un dispositivo Spotify Connect activo**. Sin dispositivo activo,
-    `PUT /me/player/play` responde **404 NO_ACTIVE_DEVICE** → el proveedor lo resuelve buscando un dispositivo y
-    pasándole el `device_id` (o pidiendo al operador que abra Spotify).
-  · La búsqueda (`/search`) funciona con cualquier token de usuario, sin scope especial.
+API notes (all verified against official docs):
+  · Controlling playback requires **Premium + an active Spotify Connect device**. Without an active device,
+    `PUT /me/player/play` returns **404 NO_ACTIVE_DEVICE** -> the provider resolves it by finding a device and
+    passing `device_id` (or asking the operator to open Spotify).
+  · Search (`/search`) works with any user token, with no special scope.
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ _API = "https://api.spotify.com/v1"
 class SpotifyError(Exception):
     def __init__(self, status: int, code: str = "", message: str = ""):
         self.status = status
-        self.code = code                     # estable: no_device | premium | auth | rate_limit | http
+        self.code = code                     # stable: no_device | premium | auth | rate_limit | http
         self.message = message
         super().__init__(f"{status} {code}: {message}")
 
@@ -42,12 +42,12 @@ def _classify(status: int, path: str, body: str) -> str:
     if status == 404 and "/me/player" in path:
         return "no_device"                   # NO_ACTIVE_DEVICE
     if status == 403 and "/me/player" in path:
-        return "premium"                     # control de reproducción sin Premium
+        return "premium"                     # playback control without Premium
     return "http"
 
 
 def _request(method: str, path: str, *, params: dict = None, json_body: dict = None, retry_401: bool = True):
-    """Petición cruda. Devuelve el JSON (o {} en 204). Lanza SpotifyError en >=400 (con código estable)."""
+    """Raw request. Returns JSON (or {} on 204). Raises SpotifyError on >=400 (with stable code)."""
     url = _API + path
     params = {k: v for k, v in (params or {}).items() if v is not None}
     json_body = {k: v for k, v in (json_body or {}).items() if v is not None} or None
@@ -56,7 +56,7 @@ def _request(method: str, path: str, *, params: dict = None, json_body: dict = N
     except httpx.HTTPError as e:
         raise SpotifyError(0, "http", str(e)[:120])
     if r.status_code == 401 and retry_401:
-        auth.access_token()                  # fuerza refresco y reintenta una vez
+        auth.access_token()                  # force refresh and retry once
         return _request(method, path, params=params, json_body=json_body, retry_401=False)
     if r.status_code >= 400:
         raise SpotifyError(r.status_code, _classify(r.status_code, path, r.text), r.text[:160])
@@ -68,12 +68,12 @@ def _request(method: str, path: str, *, params: dict = None, json_body: dict = N
         return {}
 
 
-# ── búsqueda ─────────────────────────────────────────────────────────────────────────────────────────────
+# ── search ───────────────────────────────────────────────────────────────────────────────────────────────
 def search(query: str, types: str = "track", limit: int = 5) -> dict:
     return _request("GET", "/search", params={"q": query, "type": types, "limit": limit})
 
 
-# ── dispositivos ─────────────────────────────────────────────────────────────────────────────────────────
+# ── devices ──────────────────────────────────────────────────────────────────────────────────────────────
 def devices() -> list:
     return (_request("GET", "/me/player/devices") or {}).get("devices", [])
 
@@ -82,7 +82,7 @@ def transfer(device_id: str, play: bool = True) -> dict:
     return _request("PUT", "/me/player", json_body={"device_ids": [device_id], "play": play})
 
 
-# ── reproducción ─────────────────────────────────────────────────────────────────────────────────────────
+# ── playback ─────────────────────────────────────────────────────────────────────────────────────────────
 def play(uris: list = None, context_uri: str = "", device_id: str = "") -> dict:
     body = {}
     if uris:

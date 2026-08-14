@@ -1,26 +1,25 @@
-"""memory/graph.py — el grafo de la memoria (V2-002 · T50).
+"""memory/graph.py — the memory graph (V2-002 · T50).
 
-El grafo son **aristas en el MISMO fichero** SQLite (tabla `edges`, nada de Neo4j). Este módulo es la cara de
-LECTURA/enlace del grafo:
+The graph is **edges in the SAME SQLite file** (`edges` table, no Neo4j). This module is the graph's READ/link face:
 
-  - `link(from, to, type, weight)` — crea/actualiza una arista. La ESCRITURA real la hace el writer (único
-    escritor); por la ruta async se encola vía `memory/api.py`. Aquí se ofrece el atajo directo (delegando en
-    `writer.link`) para el consolidador/agente de memoria y los tests.
-  - `neighbors(id, type=None)` — aristas salientes de un nodo (ordenadas por peso).
-  - `expand(ids, depth=1)` — expansión por vecindad (BFS acotado) → conjunto de ids alcanzables. Lo usa el
-    retriever para traer recuerdos vecinos relevantes (top-K) sin volver a buscar.
+  - `link(from, to, type, weight)` — create/update an edge. The real WRITE is done by the writer (single writer);
+    through the async path it is queued via `memory/api.py`. This direct shortcut (delegating to `writer.link`) is
+    offered for the consolidator/memory agent and tests.
+  - `neighbors(id, type=None)` — outgoing edges from a node (ordered by weight).
+  - `expand(ids, depth=1)` — neighborhood expansion (bounded BFS) -> reachable id set. Used by the retriever to
+    bring relevant neighbor memories (top-K) without searching again.
 """
 from . import db as _db
 from . import writer as _writer
 
 
 def link(from_id: int, to_id: int, type: str = "about", weight: float = 1.0) -> None:
-    """Crea/actualiza una arista (idempotente). Atajo directo → writer (único escritor)."""
+    """Create/update an edge (idempotent). Direct shortcut -> writer (single writer)."""
     _writer.link(from_id, to_id, type, weight)
 
 
 def neighbors(mid: int, type: str | None = None, limit: int = 20) -> list[dict]:
-    """Aristas salientes de `mid`, mejor peso primero. Filtro opcional por tipo."""
+    """Outgoing edges from `mid`, highest weight first. Optional type filter."""
     db = _db.get_db()
     if type is None:
         rows = db.query(
@@ -36,7 +35,7 @@ def neighbors(mid: int, type: str | None = None, limit: int = 20) -> list[dict]:
 
 
 def expand(ids: list[int], depth: int = 1, per_node: int = 5) -> set[int]:
-    """BFS acotado desde `ids`. Devuelve los ids VECINOS alcanzados (sin incluir los de partida)."""
+    """Bounded BFS from `ids`. Return reached NEIGHBOR ids (excluding starting ids)."""
     if not ids or depth < 1:
         return set()
     seen: set[int] = set(int(i) for i in ids)

@@ -1,12 +1,12 @@
 #
-# service.py — el MOTOR del conector WhatsApp integrado en zaelar (INI-014; store unificado en INI-015). Corre en
-# el lifespan del server (gated WA_ENABLED, siempre-on). Arranca el bridge (observe), y en bucle: lee estado+QR,
-# tría los mensajes nuevos con el modelo LOCAL COMPARTIDO, y ESCRIBE el store UNIFICADO de mensajería
-# (widgets/_data/mensajeria.json, platform="whatsapp") — el mismo del que también escribe Telegram. También drena
-# las órdenes del operador (pending_read de su plataforma) llamando al bridge (mark-read real).
+# service.py — WhatsApp connector ENGINE integrated into zaelar (INI-014; unified store in INI-015). Runs in the
+# server lifespan (gated by WA_ENABLED, always-on). Starts the bridge (observe), then loops: reads state+QR, triages
+# new messages with the SHARED LOCAL model, and WRITES the UNIFIED messaging store
+# (widgets/_data/mensajeria.json, platform="whatsapp") — the same one Telegram also writes. Also drains operator
+# orders (pending_read for its platform) by calling the bridge (actual mark-read).
 #
-# Frontera: nada de esto toca ~/.hermes/hermes-agent (bridge vendorizado). El triaje NO pasa por el agente Hermes
-# (privacidad + invariante ACP de voz). Ver .meshkore/docs/architecture/zaelar-hermes-federation.md.
+# Boundary: none of this touches ~/.hermes/hermes-agent (vendored bridge). Triage does NOT go through the Hermes
+# agent (privacy + voice ACP invariant). See .meshkore/docs/architecture/zaelar-hermes-federation.md.
 #
 import asyncio
 
@@ -19,14 +19,14 @@ from connectors.whatsapp.bridge_proc import bridge
 PLATFORM = "whatsapp"
 
 _task: asyncio.Task | None = None
-_seen: set[str] = set()          # messageIds ya mostrados (para no resucitar lo que el operador quitó)
-_published: set[str] = set()     # v2 stateless: messageIds ya publicados al bus (dedup antes de triar en el widget)
-_mark_inbox = None               # v2 stateless: suscripción a msg.mark_read (creada en el loop, ver ingest.py)
+_seen: set[str] = set()          # already shown messageIds (to avoid resurrecting what the operator removed)
+_published: set[str] = set()     # v2 stateless: messageIds already published to bus (dedup before widget triage)
+_mark_inbox = None               # v2 stateless: msg.mark_read subscription (created in the loop; see ingest.py)
 
 
 def enabled() -> bool:
-    # Config MANEJADA POR LA INTERFAZ: el store (escrito por la UI al pulsar "Conectar WhatsApp") manda; si no
-    # dice nada, cae a WA_ENABLED (back-compat / power-user). Ver config/connectors.py.
+    # UI-MANAGED CONFIG: store (written by the UI when clicking "Connect WhatsApp") wins; if it says nothing, fall
+    # back to WA_ENABLED (back-compat / power-user). See config/connectors.py.
     from config import connectors as _store
     return _store.enabled("whatsapp")
 
@@ -34,7 +34,7 @@ def enabled() -> bool:
 def _set_status(status: str, qr=None) -> None:
     try:
         if ingest.v2_enabled():
-            ingest.publish_status(PLATFORM, status, qr)     # stateless: el widget refleja estado+QR
+            ingest.publish_status(PLATFORM, status, qr)     # stateless: widget reflects state+QR
         else:
             store.set_platform_status(PLATFORM, status, qr)
     except Exception as e:
@@ -52,8 +52,8 @@ async def _ingest_new() -> None:
     if not msgs:
         return
     if ingest.v2_enabled():
-        # STATELESS: publicar los NUEVOS al bus (dedup por messageId antes de triar) — el widget mensajería
-        # los tría, guarda y avisa. El conector no tría ni guarda estado.
+        # STATELESS: publish NEW messages to the bus (dedup by messageId before triage) — the messaging widget
+        # triages, stores, and notifies. The connector does not triage or store state.
         for m in msgs:
             mid = m.get("messageId")
             if mid and mid not in _published:
@@ -67,7 +67,7 @@ async def _ingest_new() -> None:
     for v in surfaced:
         _seen.add(v.get("messageId"))
         who, group = _origin(v)
-        v["from"], v["group"] = who, group          # normaliza a la forma del store unificado
+        v["from"], v["group"] = who, group          # normalize to unified-store shape
     store.upsert_items(PLATFORM, surfaced)
     logger.info(f"WhatsApp: +{len(surfaced)} para ti")
     await notify.announce("WhatsApp", surfaced)
@@ -78,7 +78,7 @@ async def _drain_reads() -> None:
     keys = (_mark_inbox.drain() if _mark_inbox else []) if v2 else store.take_pending_read(PLATFORM)
     if not keys:
         return
-    # El bridge espera {chatId, messageId, senderId}; la clave añade `platform` → lo quitamos antes de enviarlo.
+    # The bridge expects {chatId, messageId, senderId}; the key adds `platform` -> remove it before sending.
     payload = [{"chatId": k.get("chatId"), "messageId": k.get("messageId"), "senderId": k.get("senderId")}
                for k in keys]
     try:
@@ -86,7 +86,7 @@ async def _drain_reads() -> None:
     except Exception as e:
         logger.warning(f"WhatsApp mark-read falló (reintento luego): {e}")
         if v2:
-            for k in keys:                       # re-publicar al bus → reintento en el siguiente tick
+            for k in keys:                       # re-publish to bus -> retry on next tick
                 ingest.publish_mark_read(k)
         else:
             store.requeue_pending_read(keys)
@@ -96,7 +96,7 @@ async def _loop() -> None:
     global _mark_inbox
     _set_status("starting", None)
     if ingest.v2_enabled() and _mark_inbox is None:
-        _mark_inbox = ingest.MarkReadInbox(PLATFORM)     # suscripción en ESTE loop (server) → entrega directa
+        _mark_inbox = ingest.MarkReadInbox(PLATFORM)     # subscription in THIS loop (server) -> direct delivery
     try:
         await bridge.start()
     except Exception as e:
@@ -124,7 +124,7 @@ async def _loop() -> None:
 
 
 def start() -> None:
-    """Arranca el motor como tarea de fondo (llamar desde el lifespan del server si WA_ENABLED=1)."""
+    """Start the engine as a background task (call from server lifespan if WA_ENABLED=1)."""
     global _task
     if not enabled():
         _set_status("off", None)

@@ -18,14 +18,14 @@ from nucleo import workspace as _workspace
 
 
 def _config_file() -> Path:
-    """Dónde viven las credenciales de cluster. Mismo criterio que `config/credentials.py::_store_path()` y
-    `meshkore/identity.py::_key_file()`: con `ZAELAR_WORKSPACE` puesto, el fichero se mueve al workspace.
+    """Where cluster credentials live. Same criterion as `config/credentials.py::_store_path()` and
+    `meshkore/identity.py::_key_file()`: when `ZAELAR_WORKSPACE` is set, the file moves to the workspace.
 
-    V2-086 — esto era una ruta ABSOLUTA fija, y se le escapaba al aislamiento. El motor desechable del `journey`
-    corre con `ZAELAR_WORKSPACE` en un temporal (DB, memoria, canvas…), pero este módulo seguía leyendo el
-    `config/meshkore.json` REAL del operador: los tests veían sus clusters de verdad y —peor— un caso que
-    llegara a conectar habría SOBRESCRITO sus credenciales desde una batería de pruebas. Sin la env var
-    (self-host, hoy) la ruta es byte a byte la de siempre."""
+    V2-086 — this used to be a fixed ABSOLUTE path, escaping isolation. The disposable `journey` engine runs with
+    `ZAELAR_WORKSPACE` in a temp location (DB, memory, canvas...), but this module kept reading the operator's REAL
+    `config/meshkore.json`: tests saw their real clusters and — worse — a case that managed to connect would have
+    OVERWRITTEN their credentials from a test suite. Without the env var (self-host today), the path is byte-for-byte
+    the same as before."""
     if os.getenv("ZAELAR_WORKSPACE"):
         return _workspace.root() / "config" / "meshkore.json"
     return Path(__file__).resolve().parents[2] / "config" / "meshkore.json"
@@ -54,13 +54,13 @@ def _write(d: dict):
 
 
 def unique_name(name: str, cluster_id: str) -> str:
-    """Alias LIBRE para `cluster_id`, sin pisar a otro cluster (V2-086).
+    """Free alias for `cluster_id`, without overwriting another cluster (V2-086).
 
-    Bug real cazado probando el flujo: el modelo, al conectar a MeshKore Commons, eligió el alias por defecto
-    `meshcore` — que ya era el del cluster PRIVADO del operador. Guardar ahí habría SOBRESCRITO sus credenciales
-    (token incluido) por las de un cluster público. El alias lo elige un modelo, así que la unicidad no puede
-    depender de que acierte: se garantiza aquí, en código. Mismo nombre + mismo cluster_id = reconexión legítima
-    (se reutiliza); mismo nombre + OTRO cluster_id = colisión → se sufija (`meshcore-2`)."""
+    Real bug caught while testing the flow: when connecting to MeshKore Commons, the model chose the default alias
+    `meshcore` — already used by the operator's PRIVATE cluster. Saving there would have OVERWRITTEN their
+    credentials (token included) with a public cluster's credentials. A model chooses the alias, so uniqueness cannot
+    depend on it guessing right: it is guaranteed here, in code. Same name + same cluster_id = legitimate reconnect
+    (reuse); same name + OTHER cluster_id = collision -> suffix (`meshcore-2`)."""
     name = (name or "").strip() or "cluster"
     d = _read()
     prev = d.get(name)
@@ -75,35 +75,35 @@ def unique_name(name: str, cluster_id: str) -> str:
 
 
 def save_cluster(name: str, cluster_id: str, token: str, handle: str = "zaelar", vis: str = ""):
-    """Persiste las credenciales de un cluster. `vis="public"` (V2-086) marca un cluster ABIERTO: se guarda con
-    `token` vacío a propósito — no es un dato que falte, es que ese cluster no usa credencial."""
+    """Persist a cluster's credentials. `vis="public"` (V2-086) marks an OPEN cluster: saved with an intentionally
+    empty `token` — it is not missing data; that cluster uses no credential."""
     d = _read()
     prev = d.get(name) or {}
     entry = {"cluster_id": cluster_id, "token": token, "handle": handle}
     if vis:
         entry["vis"] = vis
-    if prev.get("perms"):                       # NO pisar el perfil de permisos al re-guardar creds (V2-076)
+    if prev.get("perms"):                       # do NOT overwrite the permission profile when re-saving creds (V2-076)
         entry["perms"] = prev["perms"]
     d[name] = entry
     _write(d)
 
 
-# ── PERMISOS por-CLUSTER (V2-076) — perfil de capacidades que el OPERADOR concede a un cluster ────────────────
-# Por defecto: DENEGAR TODO (un cluster nuevo = seguridad máxima; sin workers, sin código, sin ejecución). El
-# operador lo eleva al CONECTAR (confirm-gate). Vive junto a las creds en config/meshkore.json (chmod 600), lo lee
-# el autoreconnect sin plumbing nuevo. Vocabulario CERRADO: un permiso solo AMPLÍA capacidad, nunca la del peer;
-# lo concede el operador, nunca el peer. NO se mezcla con el PACTO (por-peer, cápsula) — esto es por-cluster.
+# ── per-CLUSTER PERMISSIONS (V2-076) — capability profile the OPERATOR grants to a cluster ─────────────────────
+# Default: DENY ALL (new cluster = maximum security; no workers, no code, no execution). The operator elevates it on
+# CONNECT (confirm-gate). Lives beside creds in config/meshkore.json (chmod 600), read by autoreconnect without new
+# plumbing. CLOSED vocabulary: a permission only EXPANDS capability, never the peer's; granted by the operator, never
+# the peer. Does NOT mix with the PACT (per-peer, capsule) — this is per-cluster.
 DEFAULT_PERMS = {
-    "workers": False,    # ¿puede escalar a un brainworker (investigación/tareas)?
-    "code": False,       # ¿puede un dev worker escribir/probar código?
-    "repo": None,        # repo autorizado para git push (p.ej. "meshkore/zalo-...") o None
-    "execute": False,    # ¿puede ejecutar código en el sandbox?
-    "deploy": False,     # ¿puede desplegar?
+    "workers": False,    # can it escalate to a brainworker (research/tasks)?
+    "code": False,       # can a dev worker write/test code?
+    "repo": None,        # authorized repo for git push (e.g. "meshkore/zalo-...") or None
+    "execute": False,    # can it execute code in the sandbox?
+    "deploy": False,     # can it deploy?
 }
 
 
 def get_perms(name: str) -> dict:
-    """Perfil de permisos VIGENTE del cluster (defaults DENY si no hay). Siempre devuelve las claves completas."""
+    """Current cluster permission profile (DENY defaults if absent). Always returns the complete key set."""
     p = dict(DEFAULT_PERMS)
     stored = (_read().get(name) or {}).get("perms")
     if isinstance(stored, dict):
@@ -112,7 +112,7 @@ def get_perms(name: str) -> dict:
 
 
 def set_perms(name: str, perms: dict) -> dict:
-    """Fija/actualiza (merge) el perfil de permisos del cluster. Solo claves del vocabulario cerrado. Persiste."""
+    """Set/update (merge) the cluster permission profile. Only closed-vocabulary keys. Persists."""
     d = _read()
     entry = d.get(name) or {}
     cur = dict(entry.get("perms") or DEFAULT_PERMS)
@@ -152,14 +152,15 @@ def take_staged(name: str) -> dict | None:
 
 def resolve(name: str, cluster_id: str = "", token: str = "", handle: str = "",
             vis: str = "") -> dict | None:
-    """Mejor fuente para un connect: args explícitos > staged > persistido. None si no hay con qué conectar.
+    """Best source for connect: explicit args > staged > persisted. None if there is nothing to connect with.
 
-    V2-086 — DOS clases de cluster, y la diferencia importa:
-      · PRIVADO: hace falta `cluster_id` + `token`. Sin token no hay nada que hacer.
-      · PÚBLICO (`vis="public"`, p.ej. MeshKore Commons): basta el `cluster_id`; el token NO existe y exigirlo
-        era justo lo que impedía entrar. El handle lo eliges tú.
-    Antes la condición era `if cluster_id and token`, así que un cluster público caía al `take_staged/get_cluster`
-    y acababa en «no cluster_id/token (paste them first)» aunque el operador hubiera dado el id correcto."""
+    V2-086 — TWO cluster classes, and the difference matters:
+      · PRIVATE: requires `cluster_id` + `token`. Without token, there is nothing to do.
+      · PUBLIC (`vis="public"`, e.g. MeshKore Commons): `cluster_id` is enough; the token does NOT exist and requiring
+        it was exactly what blocked entry. You choose the handle.
+    Previously the condition was `if cluster_id and token`, so a public cluster fell through to
+    `take_staged/get_cluster` and ended at "no cluster_id/token (paste them first)" even if the operator had provided
+    the correct id."""
     if cluster_id and (token or vis == "public"):
         return {"cluster_id": cluster_id, "token": token, "handle": handle or "zaelar", "vis": vis}
     return take_staged(name) or get_cluster(name)

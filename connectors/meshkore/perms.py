@@ -1,53 +1,54 @@
 #
-# perms.py — traducción del PERFIL DE PERMISOS por-cluster (V2-076) al catálogo de acciones del FlashBrain y al
-# contexto de escalada. Es la pieza de acoplamiento que hace que el turno de cluster REUSE los túneles del FlashBrain
-# (router.TOOLS + escalate + dispatch) SIN duplicar nada: el perfil solo decide QUÉ subconjunto del catálogo se
-# ofrece y con qué ACOTACIÓN se escala. Permiso cero → conjunto vacío → el turno de cluster se queda EXACTAMENTE como
-# hoy (bare complete, sin tools) = cero regresión.
+# perms.py — translation of the per-cluster PERMISSION PROFILE (V2-076) into the FlashBrain action catalog and
+# escalation context. This coupling piece lets the cluster turn REUSE the FlashBrain tunnels (router.TOOLS +
+# escalate + dispatch) WITHOUT duplicating anything: the profile only decides WHICH subset of the catalog is offered
+# and with which BOUNDS escalation runs. Zero permission -> empty set -> the cluster turn remains EXACTLY as it is
+# today (bare complete, no tools) = zero regression.
 #
-# Vocabulario cerrado; un permiso solo AMPLÍA lo que el OPERADOR concede a ese cluster, nunca lo que el peer pide.
+# Closed vocabulary; a permission only EXPANDS what the OPERATOR grants that cluster, never what the peer requests.
 #
 
-# Qué tools del catálogo del FlashBrain (router.TOOLS) puede ofrecerse un turno de cluster, según el perfil. El
-# canal agente-agente NO recibe tools de canvas/música/memoria-del-operador — solo la VÍA A WORKER (escalate) y, si
-# hay workers permitidos, la búsqueda en turno. La ejecución real la acota `dispatch` (worker dev sandboxeado).
+# Which tools from the FlashBrain catalog (router.TOOLS) may be offered to a cluster turn, according to the profile.
+# The agent-to-agent channel does NOT receive canvas/music/operator-memory tools — only the PATH TO WORKER
+# (escalate) and, if workers are allowed, in-turn search. Actual execution is bounded by `dispatch` (sandboxed dev
+# worker).
 def gated_tool_names(perms: dict) -> set[str]:
     perms = perms or {}
     names: set[str] = set()
     if perms.get("code") or perms.get("workers"):
-        names.add("escalate_to_slowbrain")          # el GATEWAY a un brainworker acotado
+        names.add("escalate_to_slowbrain")          # the GATEWAY to a bounded brainworker
     if perms.get("workers"):
-        names.add("web_search")                      # investigación en turno (barata, sin worker)
+        names.add("web_search")                      # in-turn research (cheap, no worker)
     return names
 
 
 def any_capability(perms: dict) -> bool:
-    """¿El cluster tiene ALGÚN permiso que justifique ofrecer catálogo? Si no, el turno se queda como hoy (sin tools)."""
+    """Does the cluster have ANY permission that justifies offering a catalog? If not, the turn stays tool-free."""
     return bool(gated_tool_names(perms))
 
 
 def gate_dev_by_objective(ctx: dict, objective: str | None) -> dict:
-    """Guard de PROPIEDAD DEL OBJETIVO (auditoría 2026-07-26): el permiso `code` concedido a un cluster no basta
-    por sí solo para disparar un dev-worker — hace falta que el OPERADOR haya fijado el objetivo de la relación
-    (`capsule.objective`, que el peer nunca puede escribir). Sin objetivo, un peer con permiso `code` podría
-    dirigir unilateralmente la colaboración hacia cualquier tarea de código dentro del repo autorizado. Devuelve
-    el MISMO dict si no hay nada que degradar (permite comparar por identidad en el llamador)."""
+    """OBJECTIVE OWNERSHIP guard (2026-07-26 audit): the `code` permission granted to a cluster is not enough by
+    itself to trigger a dev-worker — the OPERATOR must have set the relationship objective (`capsule.objective`,
+    which the peer can never write). Without an objective, a peer with `code` permission could unilaterally steer
+    collaboration toward any code task inside the authorized repo. Returns the SAME dict if there is nothing to
+    downgrade (allowing the caller to compare by identity)."""
     if ctx and ctx.get("dev") and not (objective or "").strip():
         return dict(ctx, dev=False)
     return ctx
 
 
 def escalate_context(cluster: str, perms: dict) -> dict:
-    """Contexto que viaja con una escalada ORIGINADA en un turno de cluster. NUNCA `trusted=True` (no es el operador):
-    lleva las capacidades ACOTADAS que el perfil concede, para que `dispatch` monte un worker dev sandboxeado con el
-    alcance justo (código sí/no, repo autorizado, ejecutar sí/no, deploy sí/no)."""
+    """Context carried by an escalation ORIGINATED in a cluster turn. NEVER `trusted=True` (it is not the operator):
+    carries the BOUNDED capabilities the profile grants, so `dispatch` can mount a sandboxed dev worker with the
+    exact scope (code yes/no, authorized repo, execute yes/no, deploy yes/no)."""
     perms = perms or {}
     return {
         "src": "cluster",
         "cluster": cluster,
-        "trusted": False,                            # una escalada de cluster jamás hereda la confianza del operador
-        "dev": bool(perms.get("code")),              # habilita el worker dev acotado (código + git al repo autorizado)
-        "repo": perms.get("repo"),                   # git push SOLO a este repo
-        "execute": bool(perms.get("execute")),       # ejecutar en el sandbox (Parte B)
+        "trusted": False,                            # a cluster escalation never inherits operator trust
+        "dev": bool(perms.get("code")),              # enables the bounded dev worker (code + git to authorized repo)
+        "repo": perms.get("repo"),                   # git push ONLY to this repo
+        "execute": bool(perms.get("execute")),       # execute in the sandbox (Part B)
         "deploy": bool(perms.get("deploy")),
     }

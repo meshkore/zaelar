@@ -1,26 +1,26 @@
-"""config/profiles.py — el PERFIL como paquete COORDINADO de config (V2-040).
+"""config/profiles.py — PROFILE as a COORDINATED config package (V2-040).
 
-Hoy "local vs cloud" son TRES interruptores desconectados: `voice/engine/core/profile.py` (`ZAELAR_PROFILE` → STT/
-TTS/LLM del motor de voz), `config/v2.py` (routing del cerebro + memoria embed/rerank/CORAZÓN) y `config/settings.py`
-(⚙ → ZAELAR_STT/TTS/LANGUAGE). Elegir "local" fijaba la voz pero dejaba embeddings/rerank/CORAZÓN/FlashBrain donde
-estuvieran. Este módulo los UNIFICA: un nombre de perfil → el set COMPLETO de defaults coordinados a través de los
-tres ejes, aplicable de una sola vez (`apply`).
+Today "local vs cloud" is THREE disconnected switches: `voice/engine/core/profile.py` (`ZAELAR_PROFILE` → voice
+engine STT/TTS/LLM), `config/v2.py` (brain routing + memory embed/rerank/HEART), and `config/settings.py`
+(⚙ → ZAELAR_STT/TTS/LANGUAGE). Choosing "local" fixed voice but left embeddings/rerank/HEART/FlashBrain wherever
+they were. This module UNIFIES them: profile name → the COMPLETE set of coordinated defaults across the three axes,
+applicable in one step (`apply`).
 
-**El perfil solo mueve DEFAULTS.** Sigue valiendo el override por-componente (env/UI) — es lo que hace posibles los
-HÍBRIDOS (p.ej. `local` + `ZAELAR_LLM_PROVIDER=aimlapi` en una máquina floja). `apply` escribe en los MISMOS stores
-que la UI (`settings.json` + `v2.json`), así que nada se hardcodea en código y todo sigue siendo configurable a mano
-después.
+**The profile only moves DEFAULTS.** Per-component override (env/UI) remains valid — that is what makes HYBRIDS
+possible (e.g. `local` + `ZAELAR_LLM_PROVIDER=aimlapi` on a weak machine). `apply` writes to the SAME stores as the
+UI (`settings.json` + `v2.json`), so nothing is hardcoded in code and everything remains manually configurable
+afterwards.
 
-Dos perfiles de fábrica:
-  - **local** — voz y memoria EN LA MÁQUINA (whisper + kokoro + FlashBrain Ollama + embeddings Ollama + rerank local
-    + CORAZÓN local). Cero keys de nube para voz/memoria. (El SlowBrain = `claude` CLI sigue necesitando su auth.)
-  - **cloud** — todo por proveedores de nube (voxtral/deepgram + cartesia/elevenlabs + FlashBrain AIMLAPI + embed/
-    rerank/proc de nube). Solo keys, sin modelos locales. **= objetivo del deploy.** `remote` = ALIAS de `cloud`.
+Two built-in profiles:
+  - **local** — voice and memory ON THE MACHINE (whisper + kokoro + Ollama FlashBrain + Ollama embeddings + local
+    rerank + local HEART). Zero cloud keys for voice/memory. (SlowBrain = `claude` CLI still needs its auth.)
+  - **cloud** — everything through cloud providers (voxtral/deepgram + cartesia/elevenlabs + AIMLAPI FlashBrain +
+    cloud embed/rerank/proc). Keys only, no local models. **= deploy target.** `remote` = ALIAS of `cloud`.
 """
 from __future__ import annotations
 
-# Perfil → paquete coordinado. `voice` = lo que ve el motor (se materializa como ZAELAR_* vía settings.json). `v2`
-# = patch por sección de config/v2.py. Un valor VACÍO significa "default del proveedor" (no lo forzamos).
+# Profile → coordinated package. `voice` = what the engine sees (materialized as ZAELAR_* through settings.json).
+# `v2` = patch by config/v2.py section. An EMPTY value means "provider default" (we do not force it).
 _PROFILES: dict[str, dict] = {
     "local": {
         "label": "Local · privado y gratis",
@@ -57,8 +57,9 @@ def names() -> list[str]:
 
 
 def canon(name: str) -> str:
-    """Normaliza un nombre de perfil (alias incluidos). Un nombre DESCONOCIDO no degrada en silencio: cae al DEFAULT
-    con un aviso al llamante (que puede loguearlo) — a diferencia del `ZAELAR_PROFILE` viejo que caía mudo a remote."""
+    """Normalize a profile name (aliases included). An UNKNOWN name does not silently degrade: it falls back to
+    DEFAULT with a warning to the caller (which may log it) — unlike old `ZAELAR_PROFILE`, which silently fell back
+    to remote."""
     n = (name or "").strip().lower()
     n = _ALIASES.get(n, n)
     return n if n in _PROFILES else DEFAULT
@@ -69,13 +70,13 @@ def get(name: str) -> dict:
 
 
 def _no_secrets(d: dict) -> dict:
-    """Quita del dict cualquier campo de secreto (termina en api_key) — el paquete no los lleva (van vacíos), pero
-    ni el NOMBRE del campo sale al frontend (misma convención de redacción que config/v2.public)."""
+    """Remove secret fields (ending in api_key) from the dict — the package does not carry them (they are empty), but
+    not even the field NAME reaches the frontend (same redaction convention as config/v2.public)."""
     return {k: v for k, v in d.items() if not k.endswith("api_key")}
 
 
 def public() -> list[dict]:
-    """Perfiles para el frontend (nombre + etiqueta + resumen + qué proveedores fija). Sin campos de secreto."""
+    """Profiles for the frontend (name + label + summary + which providers it sets). No secret fields."""
     out = []
     for n, p in _PROFILES.items():
         out.append({"name": n, "label": p["label"], "summary": p["summary"],
@@ -84,7 +85,7 @@ def public() -> list[dict]:
 
 
 def requirements(name: str) -> dict:
-    """Qué necesita este perfil para funcionar — para que el wizard muestre los HUECOS. Devuelve:
+    """What this profile needs to work — so the wizard can show the GAPS. Returns:
       {needs_ollama, ollama_models, needs_local_accel, credentials:[keys relevantes], claude_cli}
     Todo derivado del propio paquete del perfil (no hay una lista aparte que pueda divergir)."""
     p = get(name)
@@ -99,7 +100,7 @@ def requirements(name: str) -> dict:
     if (mem.get("mem_processor_model") or "").strip() and n == "local":
         models.append(mem["mem_processor_model"])
     needs_ollama = bool(models)
-    # credenciales relevantes del perfil (del catálogo de doctor)
+    # profile-relevant credentials (from the doctor catalog)
     creds: list[str] = []
     try:
         from config.doctor import CREDENTIALS
@@ -117,14 +118,14 @@ def requirements(name: str) -> dict:
 
 
 def apply(name: str) -> dict:
-    """Aplica el perfil a los STORES (settings.json + v2.json) — un solo lever, coordinado. NO toca secretos (las
-    keys se gestionan aparte). Devuelve `{profile, applied}`. Idempotente. El override por-componente que el usuario
-    ponga DESPUÉS sigue ganando (los stores son la capa que la UI edita a mano)."""
+    """Apply the profile to STORES (settings.json + v2.json) — one coordinated lever. Does NOT touch secrets (keys
+    are managed separately). Returns `{profile, applied}`. Idempotent. Per-component overrides the user sets AFTER
+    still win (stores are the layer the UI edits manually)."""
     n = canon(name)
     p = _PROFILES[n]
     applied: dict = {}
 
-    # 1) eje VOZ → config/settings.py (que a su vez escribe ZAELAR_STT/TTS en os.environ y persiste)
+    # 1) VOICE axis → config/settings.py (which in turn writes ZAELAR_STT/TTS to os.environ and persists)
     try:
         from config import settings
         res = settings.update(dict(p["voice"]))
@@ -133,19 +134,19 @@ def apply(name: str) -> dict:
     except Exception as e:  # noqa: BLE001
         applied["voice"] = {"ok": False, "error": str(e)[:200]}
 
-    # 2) eje ROUTING/MEMORIA → config/v2.py (por sección; solo claves declaradas, whitelisted por v2.set)
+    # 2) ROUTING/MEMORY axis → config/v2.py (by section; declared keys only, whitelisted by v2.set)
     try:
         from config import v2
         for section, patch in p["v2"].items():
             v2.set(section, patch)
-        # el cerebro por defecto del perfil es siempre el propio «Colmena»
+        # the profile's default brain is always «Colmena» itself
         v2.set("flags", {"brain": "nucleo"})
         applied["v2"] = {"ok": True, "sections": list(p["v2"].keys()) + ["flags"]}
     except Exception as e:  # noqa: BLE001
         applied["v2"] = {"ok": False, "error": str(e)[:200]}
 
-    # 3) eje MOTOR → ZAELAR_PROFILE (afecta a los defaults del dataclass congelado; aplica en el próximo arranque).
-    #    Lo persistimos como knob de settings para que `load_into_env` lo re-aplique al boot.
+    # 3) ENGINE axis → ZAELAR_PROFILE (affects frozen dataclass defaults; applies on next boot).
+    #    Persist it as a settings knob so `load_into_env` reapplies it on boot.
     try:
         from config import settings
         settings._write({**settings._read(), "zaelar_profile": p["engine_profile"], "config_profile": n})
@@ -159,7 +160,7 @@ def apply(name: str) -> dict:
 
 
 def active() -> str:
-    """El perfil de config activo (el que se aplicó por última vez), desde el store; default DEFAULT."""
+    """Active config profile (the one applied last), from the store; default DEFAULT."""
     try:
         from config import settings
         return canon(settings.get("config_profile") or DEFAULT)

@@ -1,6 +1,6 @@
 #
-# connectors — conectores externos de zaelar (3er I/O junto a voz + chat): mensajería personal (whatsapp/telegram/
-# email sobre la capa compartida messaging), música (spotify), canal de cluster (meshkore) y proveedor de código
-# (architect). Paquete regular (no namespace) para que `connectors.email` sea nuestro subpaquete y NO colisione con
-# el módulo `email` de la stdlib al recolectar tests. Ver .meshkore/docs/modules/zaelar-modules.md §Connectors.
+# connectors — zaelar external connectors (3rd I/O next to voice + chat): personal messaging (whatsapp/telegram/
+# email over the shared messaging layer), music (spotify), cluster channel (meshkore), and code provider
+# (architect). Regular package (not namespace) so `connectors.email` is our subpackage and does NOT collide with
+# stdlib `email` when collecting tests. See .meshkore/docs/modules/zaelar-modules.md §Connectors.
 #

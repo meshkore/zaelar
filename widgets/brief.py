@@ -1,6 +1,5 @@
 #
-# brief.py — THE BRIDGE the widget layer exposes TO THE BOT (HANDOFF: "el código de interface entre el canvas y
-# el bot, para que se adapte y los prompts lo tengan en cuenta"). It renders, from the live catalog, a compact
+# brief.py: THE BRIDGE the widget layer exposes TO THE BOT. It renders, from the live catalog, a compact
 # text the assistant gets so it KNOWS which widgets exist and HOW to surface them — plus a snapshot of any widget
 # that offers coach context (the agenda). The brain stays decoupled from rendering: it only learns capabilities
 # and emits silent tags; the desktop does the drawing.
@@ -11,14 +10,14 @@ from . import runtime
 
 # Silent control tags the assistant emits in its reply; stripped before speech, turned into desktop actions.
 # COMPACT on purpose: this brief lands in the conversation and is re-sent to the model on EVERY turn, so verbose
-# prose = tokens + € on every request. Keep it to the tag syntax + one example + the voice→action map. Full
+# prose = tokens + EUR on every request. Keep it to the tag syntax + one example + the voice->action map. Full
 # rationale lives once in the persona, not here.
 #
-# TWO-SPEED BRAIN (v2 «Colmena»): this brief is read by the FAST layer (FlashBrain). V2-025 — the fast layer owns
+# TWO-SPEED BRAIN (v2 Hive): this brief is read by the FAST layer (FlashBrain). V2-025: the fast layer owns
 # show/close/move AND every DECLARED data action of a widget (its `apply_action` vocabulary): it executes them
-# itself, instantly, NEVER escalating a data mutation to a code agent. The only thing it ESCALATES is CREATING or
-# MODIFYING a widget's CODE (the SlowBrain writes code). Some data actions are marked (confirmar) — irreversible,
-# so the fast layer still does them but asks first; the rest are (directa). The provider
+# itself, instantly, NEVER escalating a data mutation to a code agent. It only ESCALATES widget CODE creation or
+# modification (the SlowBrain writes code). Some data actions are marked for confirmation because they are
+# irreversible, so the fast layer still performs them but asks first; the rest are direct. The provider
 # (`voice/engine/llm/providers/nucleo.py`) enforces this in code (see widgets/actions.py for the FAST/CONFIRM/
 # ESCALATE semantics): a [[create]]/[[modify]]/[[push]] tag auto-escalates; a declared data-op never does.
 TAG_PROTOCOL = (
@@ -80,8 +79,8 @@ def _actions_brief() -> str:
         if usage:
             head += f" [{usage}]"
         block = head + ": " + " · ".join(parts)
-        # V2-026: items VIVOS del widget (para que el modelo sepa QUÉ existe y lo referencie por lenguaje natural
-        # en `widget_data(item=…)`, sin inventar ids). Best-effort: si el widget no expone `ref_index`, no aparece.
+        # Live widget items let the model know what exists and reference it by natural language in
+        # `widget_data(item=...)` without inventing ids. Best-effort: widgets without `ref_index` do not appear.
         try:
             items = refs.items_line(w.get("id"))
             if items:
@@ -93,34 +92,34 @@ def _actions_brief() -> str:
 
 
 def for_prompt(open_ids=None, recent_ids=None, query: str = "", stats: dict | None = None) -> str:
-    """TERSE widget view for the FlashBrain turn prompt (V2-027 — prompt de ~30 líneas). Data-driven from the live
+    """TERSE widget view for the FlashBrain turn prompt (V2-027, about 30 lines). Data-driven from the live
     catalog, deliberately small: the old `for_brain()` dumped, on EVERY turn, the tag protocol + full payload JSON +
     usage prose + live items + agenda coach for ALL widgets (~40+ lines). This trims to what routing actually needs:
 
-      1. **Candidatos** (top-K, ya NO el catálogo entero — V2-085): `id — one-line mission`. Lets the model pick the
+      1. **Candidates** (top-K, no longer the whole catalog; V2-085): `id — one-line mission`. Lets the model pick the
          right `[[show]]`/widget_id.
-      2. **Action NAMES** (de los candidatos que declaran actions): `id: act1 · act2 · act3(confirmar)`. El tool
-         `widget_data` points here for valid action names; names are cheap, payload SHAPES are NOT dumped (the tool
+      2. **Action NAMES** (for candidates declaring actions): `id: act1 · act2 · act3(confirmar)`. The
+         `widget_data` tool points here for valid action names; names are cheap, payload SHAPES are NOT dumped (the tool
          description carries the generic payload example, and `agenda.data`/`refs` normalise natural values, V2-026).
       3. **Live items** — ONLY for OPEN widgets (`open_ids`): the `item` reference in natural language matters for
          what's ON SCREEN; dumping every widget's items each turn was the biggest cost.
       4. **Coach context** — ONLY if that widget (today: agenda) is OPEN.
 
-    ACOTACIÓN POR PRIORIDAD (V2-078, idea del operador — genérica, no hardcodea widgets): las filas se ORDENAN y
-    ANOTAN por capas para que el modelo elija bien sin tabla de casos — **EN PANTALLA** (abiertos ahora) primero,
-    **lo que el operador acaba de NOMBRAR**, **usado hace poco** (MRU) después, y relleno del catálogo al final. Con
-    100 widgets, "añade una cita" cae en la agenda que tiene delante o tocó hace nada, no en un homónimo. El nombre
-    inequívoco ("el del tiempo") sigue valiendo esté donde esté — esto es una PISTA de prioridad, no una restricción.
+    PRIORITY SCOPING (V2-078, generic operator idea with no widget hardcoding): rows are ordered and annotated by
+    layers so the model can choose well without a case table: currently on screen first, what the operator just
+    named, recently used (MRU) next, and catalog filler last. With 100 widgets, "add an appointment" lands on the
+    agenda that is on screen or was touched recently, not on a homonym. An unambiguous name still works wherever it
+    is; this is a priority hint, not a restriction.
 
-    SELECCIÓN PROGRESIVA (V2-085): la lista es **O(K), no O(N)** — la elige `widgets/selection.py` a partir de
-    `query` (la frase del turno: lo que el operador NOMBRA se promociona aunque esté en la posición 4.000 del
-    catálogo). Si queda catálogo fuera, se dice explícitamente y se recuerda la escotilla: `show_widget`/
-    `widget_data` resuelven el nombre server-side contra el catálogo COMPLETO, así que recortar el prompt no
-    recorta lo que el sistema puede abrir.
+    PROGRESSIVE SELECTION (V2-085): the list is O(K), not O(N), selected by `widgets/selection.py` from `query`
+    (the turn phrase: what the operator names is promoted even if it is at position 4,000 in the catalog). If part
+    of the catalog is hidden, this is stated explicitly along with the escape hatch: `show_widget`/`widget_data`
+    resolve the name server-side against the COMPLETE catalog, so trimming the prompt does not trim what the system
+    can open.
 
-    `open_ids`/`recent_ids` = ids de `memory.state().open_widgets` / `.recent_widgets`. None/empty = sin acotar.
-    `query` = transcripción del turno (opcional; sin ella se pierde la capa `named`, no la corrección).
-    `stats` = dict de salida opcional con el desglose de la selección (observabilidad por turno).
+    `open_ids`/`recent_ids` = ids from `memory.state().open_widgets` / `.recent_widgets`. None/empty = unscoped.
+    `query` = turn transcript (optional; without it the `named` layer is lost, not correctness).
+    `stats` = optional output dict with selection breakdown for per-turn observability.
     Best-effort: never raises (a broken widget can't break the turn)."""
     from . import actions as wactions, refs, selection
     opened = {str(w).strip().lower() for w in (open_ids or []) if str(w).strip()}
@@ -140,8 +139,8 @@ def for_prompt(open_ids=None, recent_ids=None, query: str = "", stats: dict | No
         purpose = str(w.get("whenToUse") or w.get("title") or "").strip().replace("\n", " ")
         tag = "  ◀ EN PANTALLA" if widl in opened else ("  · usado hace poco" if widl in recent else "")
         row = f"- {wid} — {purpose[:80]}{tag}"
-        # Acciones DECLARADAS (SOLO los nombres, inline): el vocabulario que la tool widget_data referencia. Los
-        # payload SHAPES no van (el modelo los infiere del ejemplo de la tool; agenda.data/refs normalizan, V2-026).
+        # Declared actions (names only, inline): the vocabulary referenced by the widget_data tool. Payload shapes
+        # are omitted; the model infers them from the tool example, and agenda.data/refs normalize values (V2-026).
         acts = w.get("actions")
         if isinstance(acts, dict) and acts:
             names = []
@@ -151,25 +150,25 @@ def for_prompt(open_ids=None, recent_ids=None, query: str = "", stats: dict | No
                 names.append(f"{name}{mark}")
             row += "  · datos: " + ", ".join(names)
         lines.append(row)
-        # USAGE (V2-027 tersening había quitado esto del todo — bug real 2026-07-23: "no oigo nada" con youtube
-        # ABIERTO no llevaba el aviso "empieza en silencio, usa unmute/volume_up" → el modelo pequeño no tenía cómo
-        # deducir cuál de mute/unmute/volume_up resuelve "no suena" y acabó escalando a regenerar el widget. Solo
-        # para widgets ABIERTOS (mismo criterio que items/coach) — coste de prompt nulo si no está en pantalla.
+        # USAGE: V2-027 tersening had removed this entirely. A real 2026-07-23 bug with an open YouTube widget
+        # lacked the "starts muted, use unmute/volume_up" hint, so the smaller model could not infer which action
+        # solved the audio issue and escalated to regenerate the widget. Only for open widgets, using the same
+        # criterion as items/coach; no prompt cost when not on screen.
         if widl in opened:
             usage = str(w.get("usage") or "").strip()
             if usage:
                 lines.append(f"  [{wid}] {usage}")
 
-    # Items VIVOS + coach — SOLO de los widgets ABIERTOS (referir un item existente por lenguaje natural en `item`).
+    # Live items + coach: only for open widgets, so existing items can be referenced by natural language in `item`.
     item_lines: list[str] = []
     for w in cat:
         wid = str(w.get("id") or "").strip().lower()
         if wid not in opened:
             continue
         try:
-            # Un widget puede publicar un DIGEST de su contenido (refs.prompt_digest): entonces gana, porque
-            # `items_line` solo da «label (pista)» y con eso el cerebro sabe NOMBRAR lo que hay en pantalla pero
-            # no RESPONDER sobre ello. Sin digest se mantiene la línea de items de siempre.
+            # A widget can publish a content digest (`refs.prompt_digest`), which takes precedence because
+            # `items_line` only provides label/hint pairs. That lets the brain name what's on screen, but not
+            # answer about it. Without a digest, keep the usual items line.
             digest = refs.prompt_digest(w.get("id"))
             if digest:
                 item_lines.append(f"- {w.get('id')} (contenido en pantalla):\n{digest}")
@@ -193,11 +192,11 @@ def for_prompt(open_ids=None, recent_ids=None, query: str = "", stats: dict | No
         except Exception:
             pass
 
-    # CATÁLOGO OCULTO (V2-085): la lista de arriba es un TOP-K, no el inventario. Decirlo importa por dos motivos
-    # opuestos y ambos reales — (a) sin el aviso el modelo NIEGA capacidades que sí existen ("no tienes ningún
-    # widget de X") cuando solo es que no lo listamos; (b) con el aviso pero sin la escotilla, se pondría a
-    # inventar ids. La escotilla es que `show_widget`/`widget_data` resuelven el NOMBRE contra el catálogo
-    # completo server-side (`runtime.identify`), así que basta con pasar las palabras del operador.
+    # HIDDEN CATALOG (V2-085): the list above is a top-K, not the inventory. Saying this matters for two opposite
+    # and real reasons: without the notice, the model denies capabilities that do exist when we merely did not list
+    # them; with the notice but without the escape hatch, it would invent ids. The escape hatch is that
+    # `show_widget`/`widget_data` resolve the name server-side against the full catalog (`runtime.identify`), so
+    # passing the operator's words is enough.
     if hidden > 0:
         lines += ["", f"(La lista es un EXTRACTO: hay {hidden} widgets más que no caben aquí. Si el operador nombra "
                       "uno que no ves, NO digas que no existe ni inventes un id: llama a show_widget / widget_data "

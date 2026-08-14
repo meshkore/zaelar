@@ -1,9 +1,9 @@
 #
-# brief.py — lo que el BRAIN necesita saber del proveedor Architect: tags + proyectos vivos + encargos en curso.
+# brief.py — what the BRAIN needs to know about the Architect provider: tags + live projects + in-flight tasks.
 #
-# COMPACTO: se re-inyecta cada turno (duo reconstruye su system prompt por turno) y NO puede bloquear —
-# build_fast_system() es síncrono — así que la lista de proyectos se sirve de una caché y se refresca en
-# background cuando caduca. El token JAMÁS aparece aquí.
+# COMPACT: re-injected every turn (duo rebuilds its system prompt per turn) and MUST NOT block —
+# build_fast_system() is synchronous — so the project list is served from cache and refreshed in the background
+# when it expires. The token NEVER appears here.
 #
 import asyncio
 import time
@@ -18,11 +18,11 @@ Un encargo a la vez por proyecto. El manager recuerda su conversación: para seg
 _TTL = 60.0
 _cache = {"projects": None, "ts": 0.0}
 _refreshing = {"v": False}
-_TASKS: set = set()          # strong refs: asyncio solo guarda refs débiles a las tasks
+_TASKS: set = set()          # strong refs: asyncio only keeps weak refs to tasks
 
 
 def invalidate() -> None:
-    """Fuerza re-listar proyectos en el próximo brief (p.ej. tras crear uno nuevo)."""
+    """Force project relisting on the next brief (e.g. after creating a new one)."""
     _cache["ts"] = 0.0
 
 
@@ -32,7 +32,7 @@ def _refresh_soon() -> None:
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
-        return                          # sin loop (tests/CLI): seguimos con la caché que haya
+        return                          # no loop (tests/CLI): keep whatever cache exists
 
     async def _do():
         try:
@@ -42,7 +42,7 @@ def _refresh_soon() -> None:
             _cache["ts"] = time.time()
         except Exception as e:
             logger.debug(f"architect brief refresh failed: {e}")
-            _cache["ts"] = time.time() - _TTL + 15.0    # reintenta en ~15s, sin martillear al daemon
+            _cache["ts"] = time.time() - _TTL + 15.0    # retry in ~15s, without hammering the daemon
         finally:
             _refreshing["v"] = False
 
@@ -53,7 +53,7 @@ def _refresh_soon() -> None:
 
 
 def for_brain() -> str:
-    """Protocol + proyectos vivos (cacheado) + encargos en vuelo, para el contexto del brain. Nunca bloquea."""
+    """Protocol + live projects (cached) + in-flight tasks, for brain context. Never blocks."""
     from connectors.architect import client, service
     if not client.configured():
         return PROTOCOL + "\n[Architect ahora] SIN token (ARCHITECT_TOKEN en .env) — canal no operativo."

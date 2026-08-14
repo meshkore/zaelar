@@ -1,9 +1,9 @@
 #
-# client.py — cliente HTTP (loopback) del bridge Baileys vendorizado (connectors/whatsapp/bridge/).
+# client.py — HTTP client (loopback) for the vendored Baileys bridge (connectors/whatsapp/bridge/).
 #
-# El bridge bindea SOLO 127.0.0.1 y valida el Host header (anti DNS-rebind). Endpoints que usamos en INI-014
-# (read-only + mark-read): GET /messages (drena la cola de entrantes), POST /mark-read (marca leído), GET /health.
-# NO usamos /send en esta iniciativa (el autorespondedor es Fase 4, con go-ahead aparte).
+# The bridge binds ONLY 127.0.0.1 and validates the Host header (anti DNS-rebind). Endpoints used in INI-014
+# (read-only + mark-read): GET /messages (drains inbound queue), POST /mark-read (marks read), GET /health. We do
+# NOT use /send in this initiative (autoresponder is Phase 4, with separate go-ahead).
 #
 import aiohttp
 
@@ -29,13 +29,13 @@ async def health() -> dict:
 
 
 async def get_messages() -> list[dict]:
-    """Devuelve (y vacía) la cola de mensajes entrantes acumulados desde el último poll."""
+    """Return (and clear) the inbound-message queue accumulated since the last poll."""
     msgs = await _request("GET", "/messages")
     return msgs or []
 
 
 async def mark_read(keys: list[dict]) -> dict:
-    """Marca como leídos los mensajes indicados. Cada key: {chatId, messageId, senderId?}."""
+    """Mark the indicated messages as read. Each key: {chatId, messageId, senderId?}."""
     if not keys:
         return {"success": True, "marked": 0}
     return await _request("POST", "/mark-read", body={"keys": keys})

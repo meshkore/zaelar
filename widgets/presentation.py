@@ -1,42 +1,41 @@
 #
-# presentation.py — CONTROL DE CALIDAD de cómo se PRESENTAN los datos en una superficie en blanco.
+# presentation.py — QUALITY CONTROL for how data is PRESENTED on a blank surface.
 #
-# Nace del incidente del 2026-08-10 (sesión 14:08:26). Un Brain Worker hizo un trabajo impecable —45 candidatos
-# comparados, 3 propuestas con ida y vuelta, precios y sobrecoste por altura del coche— y lo pintó FEO: tres tarjetas
-# ricas metidas en dos columnas (una huérfana en la última fila), títulos con tres ideas dentro que envolvían a cuatro
-# líneas y chocaban con el precio, y un aviso importante cortado a media palabra («⚠️ Llevar tu c»).
+# Born from the 2026-08-10 incident (14:08:26 session). A Brain Worker did impeccable work —45 candidates compared,
+# 3 proposals with round trips, prices, and surcharge for car height— and rendered it BADLY: three rich cards squeezed
+# into two columns (one orphan in the last row), titles with three ideas inside wrapping to four lines and colliding
+# with the price, and an important warning cut mid-word ("⚠️ Llevar tu c").
 #
-# El diagnóstico NO fue «al modelo le parece bonito así». Fue que NADIE tomaba la decisión:
-#   · el `columns:2` era una suposición del modelo que PISABA la heurística correcta del propio widget (3 tarjetas
-#     → 1 columna, o sea las tres filas horizontales que el operador esperaba);
-#   · nadie le había dicho al worker cuánto cabe en un título — esa información vivía solo en el CSS;
-#   · y nuestro propio tope `[:200]` cortaba en silencio, en mitad de un aviso.
+# The diagnosis was NOT "the model thinks it looks nice this way". It was that NOBODY was making the decision:
+#   · `columns:2` was a model guess that OVERRAN the widget's own correct heuristic (3 cards → 1 column, i.e. the three
+#     horizontal rows the operator expected);
+#   · nobody had told the worker how much fits in a title — that information lived only in CSS;
+#   · and our own `[:200]` cap silently cut text in the middle of a warning.
 #
-# De ahí las tres reglas de este módulo:
+# Hence this module's three rules:
 #
-#   1. LA SUPERFICIE MANDA EN EL LAYOUT. Quien rellena describe el CONTENIDO; cuántas columnas, cómo se reparten y
-#      qué entra en cada fila lo decide el widget a partir de la FORMA del contenido. El layout no es un parámetro
-#      que se pueda adivinar mal desde fuera.
-#   2. LOS PRESUPUESTOS SE DECLARAN, NO SE ADIVINAN. Cada superficie en blanco publica en su manifest cuánto cabe
-#      en cada campo, y eso viaja al prompt de quien la va a rellenar. Un modelo no puede respetar un límite que
-#      nadie le ha dicho.
-#   3. RECORTAR EN SILENCIO ESTÁ PROHIBIDO. Si algo no cabe se corta por frontera de palabra, se marca con «…» y
-#      queda registrado como incidencia. Un aviso cortado a media palabra es peor que no ponerlo.
+#   1. THE SURFACE OWNS LAYOUT. The filler describes CONTENT; how many columns, how they are distributed, and what
+#      enters each row are decided by the widget from the SHAPE of the content. Layout is not a parameter to guess
+#      wrong from outside.
+#   2. BUDGETS ARE DECLARED, NOT GUESSED. Each blank surface publishes in its manifest how much fits in each field,
+#      and that travels to the prompt of whoever will fill it. A model cannot respect a limit nobody told it.
+#   3. SILENT CLIPPING IS FORBIDDEN. If something does not fit, cut on a word boundary, mark it with "...", and record
+#      it as an incident. A warning cut mid-word is worse than omitting it.
 #
-# GENÉRICO a propósito: no sabe nada de ferries, hoteles ni resultados. Un widget del tiempo puede seguir siendo un
-# formato rígido y permanente (no declara `presentation` y aquí no pasa nada); las hojas en blanco donde se presentan
-# hallazgos, informes o gráficos son las que necesitan esta flexibilidad CON control de calidad.
+# Intentionally GENERIC: it knows nothing about ferries, hotels, or results. A weather widget can remain a rigid,
+# permanent format (does not declare `presentation` and nothing happens here); blank sheets that present findings,
+# reports, or charts are the ones that need this flexibility WITH quality control.
 #
 from __future__ import annotations
 
-# Presupuestos por defecto de una tarjeta legible. Son los que aplica una superficie que no declara los suyos.
-# Salen de medir el caso real: un título de 53 chars con tres ideas dentro envolvía a 4 líneas y chocaba con el
-# precio; a ~34 cabe en una o dos y respira.
+# Default budgets for a readable card. Applied by surfaces that do not declare their own.
+# Derived from measuring the real case: a 53-char title with three ideas wrapped to 4 lines and collided with the
+# price; at ~34 it fits in one or two lines and breathes.
 DEFAULTS: dict = {
-    "sheet_title": 70,       # cabecera de la hoja: DE QUÉ va, no el enunciado entero del encargo
-    "sheet_subtitle": 220,   # una o dos frases de contexto/salvedades
+    "sheet_title": 70,       # sheet header: WHAT it is about, not the whole task statement
+    "sheet_subtitle": 220,   # one or two context/caveat sentences
     "title": 34,             # nombre del resultado. UNA idea
-    "subtitle": 70,          # una línea de contexto
+    "subtitle": 70,          # one line of context
     "price": 16,             # etiqueta destacada; no envuelve nunca
     "badge": 16,             # etiqueta corta
     "part_title": 40,        # el nombre de una pieza dentro de una propuesta
@@ -44,8 +43,8 @@ DEFAULTS: dict = {
     "fact_value": 90,
 }
 
-# Reglas UNIVERSALES de presentar datos en una superficie en blanco. Es el preset que garantiza la calidad: no
-# describe NINGÚN dominio, solo cómo se reparte información en tarjetas para que se lea de un vistazo.
+# UNIVERSAL rules for presenting data on a blank surface. This is the preset that guarantees quality: it describes NO
+# domain, only how information is distributed across cards so it can be read at a glance.
 _UNIVERSAL = """PRESENTACIÓN (control de calidad — aplica SIEMPRE que rellenes una superficie de datos)
 Tu trabajo no acaba con encontrar el dato: acaba cuando se LEE de un vistazo. Reglas:
 · UNA IDEA POR CAMPO. El `title` es el NOMBRE del resultado y nada más. La ruta, la compañía, el barco, el horario
@@ -70,7 +69,7 @@ def _manifest(widget_id: str) -> dict:
 
 
 def contract(widget_id: str) -> dict:
-    """Presupuestos de campo de esta superficie: lo que declare su manifest sobre los defaults."""
+    """Field budgets for this surface: what its manifest declares over the defaults."""
     declared = (_manifest(widget_id).get("presentation") or {}).get("budgets") or {}
     out = dict(DEFAULTS)
     for k, v in declared.items():
@@ -84,17 +83,17 @@ def contract(widget_id: str) -> dict:
 
 
 def is_blank_sheet(widget_id: str) -> bool:
-    """¿Es una superficie EN BLANCO (su forma la decide el contenido) o un formato rígido?
+    """Is this a BLANK surface (content decides its shape) or a rigid format?
 
-    Un widget del tiempo es rígido: temperatura, horas, iconos, siempre igual — y está bien que lo sea. El control
-    de calidad de presentación solo tiene sentido donde la forma se decide en cada entrega.
+    A weather widget is rigid: temperature, hours, icons, always the same — and that is fine. Presentation quality
+    control only makes sense where the shape is decided on each delivery.
     """
     return bool((_manifest(widget_id).get("presentation") or {}).get("blank_sheet"))
 
 
 def directive(widget_id: str = "") -> str:
-    """El bloque de prompt que garantiza la calidad de presentación. Reglas universales + los presupuestos REALES
-    de esta superficie. Es lo único que se presetea: los formatos siguen siendo libres."""
+    """Prompt block that guarantees presentation quality. Universal rules + this surface's REAL budgets. This is the
+    only preset: formats remain free."""
     lines = [_UNIVERSAL]
     if widget_id:
         c = contract(widget_id)
@@ -110,8 +109,8 @@ def directive(widget_id: str = "") -> str:
 
 
 def blank_sheets() -> list[str]:
-    """Superficies EN BLANCO del catálogo. Se descubren por su manifest, no por una lista hardcodeada: un widget
-    nuevo entra solo declarando `presentation.blank_sheet`."""
+    """BLANK surfaces from the catalog. Discovered by manifest, not by a hardcoded list: a new widget joins simply by
+    declaring `presentation.blank_sheet`."""
     try:
         from widgets import runtime
         ids = [w.get("id") for w in (runtime.catalog() or [])]
@@ -121,11 +120,11 @@ def blank_sheets() -> list[str]:
 
 
 def directive_for(text: str) -> str:
-    """La directiva de presentación de las superficies en blanco que MENCIONE este prompt.
+    """Presentation directive for the blank surfaces MENTIONED by this prompt.
 
-    Así el control de calidad viaja con la tarea sin engordar todos los prompts: un worker que solo tiene que
-    escribir un fichero no recibe reglas de maquetación de tarjetas. Y no hay cableado por-widget: si el prompt
-    nombra una hoja en blanco, sus presupuestos entran solos.
+    This lets quality control travel with the task without bloating every prompt: a worker that only needs to write a
+    file does not receive card layout rules. And there is no per-widget wiring: if the prompt names a blank sheet, its
+    budgets enter automatically.
     """
     low = (text or "").lower()
     hit = [w for w in blank_sheets() if w.lower() in low]
@@ -135,35 +134,35 @@ def directive_for(text: str) -> str:
 
 
 def clip(text, limit: int) -> tuple[str, bool]:
-    """Recorta por frontera de PALABRA y marca el corte. Devuelve (texto, se_recortó).
+    """Clip on a WORD boundary and mark the cut. Returns (text, was_clipped).
 
-    Sustituye a los `str(x)[:N]` sueltos, que cortaban a media palabra y sin decirlo: así se perdió el aviso
-    «⚠️ Llevar tu cadena…» del caso real, que quedó en «⚠️ Llevar tu c».
+    Replaces scattered `str(x)[:N]`, which cut mid-word without saying so: that is how the real-case warning
+    "⚠️ Llevar tu cadena..." was lost and became "⚠️ Llevar tu c".
     """
     s = "" if text is None else str(text).strip()
     if limit <= 0 or len(s) <= limit:
         return s, False
     cut = s[:limit]
     sp = cut.rfind(" ")
-    if sp > limit * 0.6:          # hay una palabra entera donde cortar; si no, mejor el corte duro que una palabra sola
+    if sp > limit * 0.6:          # there is a whole word to cut at; otherwise, a hard cut is better than one word
         cut = cut[:sp]
     return cut.rstrip(" ,;:·-") + "…", True
 
 
 def audit(widget_id: str, payload: dict) -> list[str]:
-    """Revisa un payload ANTES de pintarlo y devuelve las incidencias de presentación en lenguaje llano.
+    """Review a payload BEFORE rendering it and return presentation incidents in plain language.
 
-    En código, no solo en el prompt: un prompt es una petición, no una garantía. Lo que salga de aquí se registra
-    en la observabilidad (y se le puede devolver al worker para que lo arregle), así que un payload que rompe la
-    tarjeta deja de ser invisible.
+    In code, not only in the prompt: a prompt is a request, not a guarantee. Output from here is recorded in
+    observability (and can be returned to the worker for fixing), so a payload that breaks the card stops being
+    invisible.
     """
     c = contract(widget_id)
     out: list[str] = []
 
     def _check(label: str, value, key: str, *, clipped: bool = False) -> None:
-        """`clipped` distingue lo que de verdad se RECORTA (la cabecera de la hoja, que pasa por `clip`) de lo que
-        simplemente NO CABE y envuelve rompiendo la tarjeta. Decir «se recortará» de un campo que en realidad se
-        conserva entero mandaría a buscar una pérdida de datos que no existe."""
+        """`clipped` distinguishes what is actually CLIPPED (the sheet header, which goes through `clip`) from what
+        simply DOES NOT FIT and wraps, breaking the card. Saying "will be clipped" for a field that is actually kept
+        whole would send people looking for data loss that does not exist."""
         s = "" if value is None else str(value).strip()
         if s and len(s) > c[key]:
             what = "se recortará" if clipped else "envolverá y descuadrará la tarjeta"
@@ -191,7 +190,7 @@ def audit(widget_id: str, payload: dict) -> list[str]:
                 _check(f"item {n} · pieza «{str(p.get('kind') or '')[:12]}»", p.get("title"), "part_title")
         shapes.append((bool(it.get("parts")), bool(it.get("price")), bool(it.get("facts"))))
 
-    # Comparar exige columnas comparables: si un item trae precio y otro no, la tabla mental se rompe.
+    # Comparing requires comparable columns: if one item has a price and another does not, the mental table breaks.
     if len(shapes) > 1:
         for idx, name in ((1, "price"), (2, "facts")):
             vals = {s[idx] for s in shapes}

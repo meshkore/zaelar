@@ -1,7 +1,6 @@
 #
-# Meteo Tarragona — gráfico 14 días. Previsión de temperatura a las 12 h y 18 h para
-# los próximos 14 días en Tarragona. Open-Meteo (sin clave), stdlib only, 6 s timeout.
-# Nunca lanza: ante error devuelve un dict con "error" y campos vacíos.
+# Meteo Tarragona: 14-day chart. Temperature forecast at 12 h and 18 h for the next 14 days in Tarragona.
+# Open-Meteo, no key, stdlib only, 6 s timeout. Never raises: on error, returns a dict with "error" and empty fields.
 #
 import datetime as _dt
 import json
@@ -11,7 +10,7 @@ import urllib.request
 
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
 
-# Tarragona capital (España): lat 41.1189, lon 1.2445. Zona horaria Europa/Madrid.
+# Tarragona city (Spain): lat 41.1189, lon 1.2445. Europe/Madrid timezone.
 LAT, LON = 41.1189, 1.2445
 TZ = "Europe/Madrid"
 DAYS = 14

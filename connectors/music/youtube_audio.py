@@ -1,14 +1,14 @@
-"""connectors/music/youtube_audio.py — proveedor de música GRATIS, en el navegador (V2-041).
+"""connectors/music/youtube_audio.py — FREE in-browser music provider (V2-041).
 
-Fallback cuando NO hay Spotify: resuelve una canción a un vídeo de YouTube y reproduce **solo su AUDIO**, oculto,
-DENTRO del widget `musica` (nunca el widget de YouTube — son cosas distintas). No controla un dispositivo remoto
-como Spotify: la reproducción vive en el navegador, así que su "surface" es el widget (el cliente monta un iframe
-oculto y aplica los comandos). Este proveedor es la CARA-servidor: resuelve el `videoId` y deja el comando en el
-store del widget `musica`; el `widget.js` lo aplica.
+Fallback when Spotify is NOT available: resolves a song to a YouTube video and plays **only its AUDIO**, hidden,
+INSIDE the `musica` widget (never the YouTube widget — these are separate things). It does not control a remote
+device like Spotify: playback lives in the browser, so its "surface" is the widget (the client mounts a hidden iframe
+and applies commands). This provider is the server-side FACE: resolves the `videoId` and leaves the command in the
+`musica` widget store; `widget.js` applies it.
 
-Siempre disponible (sin login) → es el proveedor por DEFECTO cuando Spotify no está conectado, para que "pon música"
-SIEMPRE suene algo. Resolución del vídeo: **YouTube Data API** si hay `YOUTUBE_API_KEY` (rápida y fiable), si no un
-scrape stdlib de la página de resultados (best-effort, fail-open) — copia PROPIA, no toca el widget de YouTube.
+Always available (no login) -> DEFAULT provider when Spotify is not connected, so "play music" ALWAYS plays
+something. Video resolution: **YouTube Data API** if `YOUTUBE_API_KEY` exists (fast and reliable), otherwise a stdlib
+scrape of the results page (best-effort, fail-open) — OWN copy, does not touch the YouTube widget.
 """
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ from .base import MusicProvider, MusicResult, NowPlaying, Track
 
 logger = logging.getLogger("zaelar.music.youtube")
 
-_WID = "musica"                              # el AUDIO oculto vive en el widget de MÚSICA (no el de YouTube)
+_WID = "musica"                              # hidden AUDIO lives in the MUSIC widget (not the YouTube widget)
 _MSG = {
     "es": {"play": "Suena {label}.", "pause": "Pausado.", "resume": "Sigo.", "volume": "Volumen al {n} por ciento.",
            "no_track": "No he encontrado «{q}».", "unsupported": "Con esta fuente gratis no puedo saltar de canción; "
@@ -36,7 +36,7 @@ _MSG = {
 
 
 def _norm_q(s: str) -> str:
-    """Normaliza una query para comparar (F5 no-restart): minúsculas, sin acentos, sin espacios extra."""
+    """Normalize a query for comparison (F5 no-restart): lowercase, no accents, no extra spaces."""
     import unicodedata
     s = "".join(c for c in unicodedata.normalize("NFKD", s or "") if not unicodedata.combining(c))
     return " ".join(s.lower().split())
@@ -55,7 +55,7 @@ def _t(key: str, **kw) -> str:
     return _MSG[_lang()][key].format(**kw)
 
 
-# ── resolución query → (videoId, title) ──────────────────────────────────────────────────────────────────
+# ── query resolution -> (videoId, title) ─────────────────────────────────────────────────────────────────
 _YT_ID_RE = re.compile(r'"videoId":"([0-9A-Za-z_-]{11})"')
 _YT_TITLE_RE = r'"videoId":"{vid}".*?"text":"([^"]{{3,120}})"'
 
@@ -115,7 +115,7 @@ def _extract_id(uri: str) -> str:
     return m.group(1) if m else ""
 
 
-# ── estado en el store del widget musica (bloque 'yt') ─────────────────────────────────────────────────────
+# ── state in the musica widget store ('yt' block) ─────────────────────────────────────────────────────────
 def _load_yt() -> dict:
     try:
         from widgets import store
@@ -126,12 +126,12 @@ def _load_yt() -> dict:
 
 
 def _save_yt(yt: dict) -> None:
-    """Persiste el bloque 'yt' en el store del widget musica (dispara SSE → el widget re-renderiza y aplica)."""
+    """Persist the 'yt' block in the musica widget store (fires SSE -> widget re-renders and applies)."""
     try:
         from widgets import store
         db = store.load(_WID, {})
         db["yt"] = yt
-        store.save(_WID, db)               # ÚNICO punto que emite "cambió el widget" (V2-017)
+        store.save(_WID, db)               # ONLY point that emits "widget changed" (V2-017)
     except Exception as e:  # noqa: BLE001
         logger.warning(f"no pude escribir el estado yt del widget musica: {e!r}")
 
@@ -147,7 +147,7 @@ class YouTubeAudioProvider(MusicProvider):
     name = "youtube"
 
     def connected(self) -> bool:
-        return True                        # gratis, sin login → SIEMPRE disponible (es el fallback por defecto)
+        return True                        # free, no login -> ALWAYS available (default fallback)
 
     def search(self, query: str, limit: int = 5) -> "list[Track]":
         vid, title = _resolve(query)
@@ -157,10 +157,10 @@ class YouTubeAudioProvider(MusicProvider):
         vid = _extract_id(uri)
         title = ""
         yt = _load_yt()
-        # GUARD NO-REINICIAR (V2-047 F5): si el operador pide reproducir con la MISMA query que ya está sonando
-        # (una queja o un re-lanzamiento del modelo no-razonador: T27/T31 sesión 23:15 reiniciaban la canción),
-        # NO re-resolvemos ni recargamos el iframe → no se corta la música. Determinista sobre la query normalizada
-        # (no una tabla de palabras): "Shakira"==query previa → no-op; "otra de Shakira" ≠ → sí reproduce nueva.
+        # NO-RESTART GUARD (V2-047 F5): if the operator asks to play the SAME query already playing (a complaint or
+        # a non-reasoning model re-launch: T27/T31 session 23:15 restarted the song), do NOT re-resolve or reload the
+        # iframe -> music is not cut off. Deterministic on normalized query (not a word table): "Shakira" == previous
+        # query -> no-op; "another by Shakira" != -> play a new one.
         nq = _norm_q(query)
         if nq and not uri and nq == _norm_q(yt.get("query") or "") and yt.get("videoId") and not yt.get("paused"):
             return MusicResult(ok=True, provider=self.name, action="play",
@@ -182,15 +182,15 @@ class YouTubeAudioProvider(MusicProvider):
                            extra={"surface": "widget", "widget": _WID, "videoId": vid})
 
     def enqueue(self, query: str = "", uri: str = "") -> MusicResult:
-        """Añade a la cola del store (V2-047 F4). Si NO hay nada sonando, arranca ya (encolar sin reproducir sería
-        mudo). Si suena algo, se queda en cola y el evento `ended` del widget la avanzará."""
+        """Add to the store queue (V2-047 F4). If NOTHING is playing, start now (queueing without playback would be
+        mute). If something is playing, it stays queued and the widget's `ended` event will advance it."""
         q = (query or uri or "").strip()
         if not q:
             return MusicResult(ok=False, provider=self.name, action="queue", reason="no_track",
                                message=_t("no_track", q=""))
         yt = _load_yt()
         if not yt.get("videoId"):
-            return self.play(query=query, uri=uri)      # nada sonando → reproducir en vez de encolar
+            return self.play(query=query, uri=uri)      # nothing playing -> play instead of queueing
         queue = list(yt.get("queue") or [])
         queue.append(q)
         yt["queue"] = queue
@@ -200,8 +200,8 @@ class YouTubeAudioProvider(MusicProvider):
                            extra={"surface": "widget", "widget": _WID, "queued": q, "queue_len": len(queue)})
 
     def on_ended(self) -> MusicResult:
-        """La pista terminó (lo avisa el widget) → reproduce la siguiente de la cola. Si la cola está vacía, no
-        hace nada (deja el último tema cargado, en pausa implícita al acabar)."""
+        """The track ended (reported by the widget) -> play the next from the queue. If the queue is empty, do
+        nothing (leave the last track loaded, implicitly paused after ending)."""
         yt = _load_yt()
         queue = list(yt.get("queue") or [])
         if not queue:
@@ -210,7 +210,7 @@ class YouTubeAudioProvider(MusicProvider):
         nxt = queue.pop(0)
         vid, title = _resolve(nxt)
         if not vid:
-            # esa no se pudo resolver → sáltala y prueba la siguiente (recursivo acotado por el pop)
+            # that one could not be resolved -> skip it and try the next (recursion bounded by the pop)
             yt["queue"] = queue
             _save_yt(yt)
             return self.on_ended()

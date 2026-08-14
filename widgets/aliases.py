@@ -1,11 +1,11 @@
 #
-# Alias de widget — edición QUIRÚRGICA del manifest (V2-082, D1 keyword≡alias).
+# Widget aliases: surgical manifest editing (V2-082, D1 keyword == alias).
 #
-# "Añade el alias WhatsApp al widget de mensajería" (voz o texto) NO regenera el widget: es una escritura ATÓMICA
-# del campo `manifest["aliases"]`, hermana de `widget_data` (que toca datos) pero sobre la IDENTIDAD. Barata,
-# determinista, sin agente headless. Con GUARD de colisión: un alias pertenece a UNA sola pieza (widget o superficie
-# de sistema) → preserva la certeza del resolver. Migración perezosa: si el widget aún no tiene `aliases`, se siembra
-# de `name`+`keywords` en la primera edición (una sola lista de identidad).
+# Adding an alias by voice or text must NOT regenerate the widget: it is an ATOMIC write to
+# `manifest["aliases"]`, sibling to `widget_data` (which touches data) but scoped to IDENTITY. Cheap,
+# deterministic, with no headless agent. Collision guard: an alias belongs to exactly one piece (widget or system
+# surface), preserving resolver certainty. Lazy migration seeds `aliases` from `name` + `keywords` on first edit
+# when the widget does not have the field yet, creating one identity list.
 #
 from __future__ import annotations
 
@@ -40,15 +40,15 @@ def _load(wid: str):
 
 
 def _current_aliases(man: dict) -> list[str]:
-    """Alias vigentes del manifest, sembrando de name+keywords si aún no existe el campo (migración perezosa)."""
+    """Current manifest aliases, seeding from name+keywords if the field does not exist yet (lazy migration)."""
     from . import registry
     if man.get("aliases"):
         return list(man["aliases"])
-    return registry.widget_identity(man)["aliases"]        # name + keywords, dedup, casing preservado
+    return registry.widget_identity(man)["aliases"]        # name + keywords, deduped, casing preserved
 
 
 def _owner_of(alias: str, exclude_id: str):
-    """(owner_id, surface) de quién posee ya `alias` (widget o superficie), o (None, None). Excluye `exclude_id`."""
+    """(owner_id, surface) for whoever already owns `alias` (widget or surface), or (None, None). Excludes `exclude_id`."""
     from . import registry
     an = _norm(alias)
     for r in registry.registry():
@@ -60,7 +60,7 @@ def _owner_of(alias: str, exclude_id: str):
 
 
 def _write(man: dict, path: str, aliases: list[str]) -> None:
-    """Escribe `aliases` en el manifest de forma ATÓMICA (tmp + os.replace) e invalida las cachés del resolver."""
+    """Write `aliases` into the manifest atomically (tmp + os.replace) and invalidate resolver caches."""
     man = dict(man)
     man["aliases"] = aliases
     tmp = path + ".tmp"
@@ -78,8 +78,8 @@ def _write(man: dict, path: str, aliases: list[str]) -> None:
 
 
 def add(widget_id: str, alias: str) -> dict:
-    """Añade un alias al widget. Rechaza si colisiona con otro widget o una superficie de sistema. Idempotente
-    (si ya lo tiene, ok sin cambios). Devuelve {ok, aliases} o {ok:False, error[, owner]}."""
+    """Add an alias to the widget. Reject collisions with another widget or a system surface. Idempotent
+    if already present. Returns {ok, aliases} or {ok:False, error[, owner]}."""
     wid = _safe(widget_id)
     alias = str(alias or "").strip()
     if not alias:
@@ -100,7 +100,7 @@ def add(widget_id: str, alias: str) -> dict:
 
 
 def remove(widget_id: str, alias: str) -> dict:
-    """Quita un alias del widget. NO permite quitar el NOMBRE canónico (sin nombre no se abre). Idempotente."""
+    """Remove a widget alias. Does NOT allow removing the canonical name, because the widget needs a name to open. Idempotent."""
     wid = _safe(widget_id)
     alias = str(alias or "").strip()
     man, path = _load(wid)
@@ -118,7 +118,7 @@ def remove(widget_id: str, alias: str) -> dict:
 
 
 def check_collision(widget_id: str, alias: str) -> str | None:
-    """Fachada para el generador: devuelve el id que YA posee `alias` (widget/superficie) o None. Reutilizable
-    para rechazar al CREAR un widget con un alias ocupado."""
+    """Generator facade: return the id that already owns `alias` (widget/surface), or None. Reusable to reject
+    creation of a widget with an occupied alias."""
     owner, _ = _owner_of(alias, _safe(widget_id))
     return owner

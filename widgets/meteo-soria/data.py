@@ -1,6 +1,6 @@
 #
-# Meteo Soria — backend. Pronóstico horario para Soria hoy (temperatura, estado del cielo,
-# probabilidad de lluvia). Open-Meteo, sin clave, stdlib only, 6 s timeout. Nunca lanza.
+# Meteo Soria backend. Hourly forecast for Soria today: temperature, sky state, rain probability. Open-Meteo,
+# no key, stdlib only, 6 s timeout. Never raises.
 #
 import json
 import time
@@ -8,11 +8,11 @@ import urllib.request
 
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
 
-# Soria capital (España): lat 41.7665, lon -2.4790. Zona horaria Europa/Madrid.
+# Soria city (Spain): lat 41.7665, lon -2.4790. Europe/Madrid timezone.
 LAT, LON = 41.7665, -2.4790
 TZ = "Europe/Madrid"
 
-# WMO weather codes → (descripción corta en castellano, emoji)
+# WMO weather codes -> short Spanish description for UI, emoji.
 WMO = {
     0:  ("despejado", "☀"),
     1:  ("casi despejado", "🌤"),
@@ -87,7 +87,7 @@ def view_data(q: str = "") -> dict:
     now_hour = int(time.strftime("%H"))
     hours = []
     for i, t in enumerate(times):
-        # t tiene formato "YYYY-MM-DDTHH:MM"
+        # t has "YYYY-MM-DDTHH:MM" format.
         if not isinstance(t, str) or len(t) < 13 or not t.startswith(today):
             continue
         try:
@@ -117,7 +117,7 @@ def view_data(q: str = "") -> dict:
     cur_desc, cur_icon = WMO.get(cur_code, ("—", "•"))
     cur_temp = current.get("temperature_2m")
 
-    # descripción dominante del día: el código que más se repita en horas diurnas (8-22)
+    # Dominant daily description: the code most repeated during daytime hours (8-22).
     daytime = [h_["code"] for h_ in hours if 8 <= h_["hour"] <= 22 and h_["code"] is not None]
     if daytime:
         dom = max(set(daytime), key=daytime.count)
@@ -146,12 +146,11 @@ def view_data(q: str = "") -> dict:
 
 
 def tick(ctx=None) -> None:
-    """BACKGROUND (V2-034): el planificador de `widgets/background.py` llama a esto cada ciclo (manifest
-    `"background": {"every": "1h"}`), FUERA del camino caliente. Refresca el tiempo y vuelca un resumen a la
-    memoria central con `slot="weather:soria"` (SUPERSEDE: no se acumula, el más reciente manda) usando el `ctx`
-    sancionado — así una pregunta por voz ("¿qué tiempo hace en Soria?") responde con datos ACTUALES aunque la
-    tarjeta nunca se haya abierto. data.py sigue stdlib-only: el acceso a memoria entra por `ctx`, no por import.
-    Nunca lanza."""
+    """BACKGROUND (V2-034): the `widgets/background.py` scheduler calls this each cycle (manifest
+    `"background": {"every": "1h"}`), outside the hot path. Refreshes weather and writes a summary to central
+    memory with `slot="weather:soria"` (SUPERSEDE: no accumulation, latest wins) using the sanctioned `ctx`, so a
+    voice question about Soria weather answers with current data even when the card was never opened. data.py stays
+    stdlib-only: memory access enters through `ctx`, not an import. Never raises."""
     try:
         d = view_data()
         if d.get("error") or ctx is None:
@@ -159,10 +158,10 @@ def tick(ctx=None) -> None:
         cur = d.get("current") or {}
         s = d.get("summary") or {}
         temp, desc = cur.get("temp"), (cur.get("desc") or s.get("desc") or "—")
-        text = f"Tiempo en Soria ahora: {temp}°C, {desc}"
+        text = f"Weather in Soria now: {temp}°C, {desc}"
         mn, mx, rain = s.get("temp_min"), s.get("temp_max"), s.get("rain_max")
         if mn is not None and mx is not None:
-            text += f" (hoy {mn}–{mx}°C" + (f", lluvia máx {rain}%" if rain is not None else "") + ")"
+            text += f" (today {mn}–{mx}°C" + (f", max rain {rain}%" if rain is not None else "") + ")"
         ctx.remember(text + ".", slot="weather:soria", kind="note", importance=0.3)
     except Exception:
         pass

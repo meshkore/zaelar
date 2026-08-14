@@ -22,13 +22,13 @@ from voice.engine.core.config import SETTINGS
 
 router = APIRouter()
 
-# ── UNA SOLA SESIÓN DE VOZ VIVA POR MÁQUINA (2026-07-12) ────────────────────────────────────────────────────
-# Dos pestañas/navegadores con el micro abierto a la vez vuelven loco el pipeline (dos agentes, dos micros, doble
-# stream de eventos). En localhost TODAS las conexiones son el MISMO ordenador → el server es el árbitro. Un lock
-# in-process con LATIDO: la pestaña VIVA renueva cada ~4s; si otra intenta arrancar, se le niega y la UI le dice
-# "ciérralo para usarlo aquí". El lock caduca solo (TTL) si la pestaña viva se cierra/cuelga sin soltar. Cross-browser
-# porque es server-side (no localStorage). El tester (2º participante) NO pide lock → no le afecta.
-_LOCK_TTL = float(os.getenv("ZAELAR_SESSION_TTL", "12"))   # s; con latido ~4s, 3 fallos seguidos = caducado
+# ── ONE LIVE VOICE SESSION PER MACHINE (2026-07-12) ─────────────────────────────────────────────────────────
+# Two tabs/browsers with the mic open at the same time drive the pipeline crazy (two agents, two mics, double event
+# stream). On localhost ALL connections are the SAME computer → the server arbitrates. An in-process lock with
+# HEARTBEAT: the LIVE tab renews every ~4s; if another tries to start, it is denied and the UI tells it to close the
+# other one. The lock expires by itself (TTL) if the live tab closes/hangs without releasing. Cross-browser because
+# it is server-side (not localStorage). The tester (2nd participant) does NOT request the lock → unaffected.
+_LOCK_TTL = float(os.getenv("ZAELAR_SESSION_TTL", "12"))   # s; with ~4s heartbeat, 3 misses in a row = expired
 _lock_mx = threading.Lock()
 _active = {"sid": None, "ts": 0.0}
 
@@ -39,8 +39,8 @@ def _free(now: float) -> bool:
 
 @router.post("/api/session/acquire")
 def session_acquire(sid: str = Body(..., embed=True)) -> dict:
-    """Pide ser la ÚNICA sesión viva. ok=True si el lock estaba libre/caducado o ya es tuyo; ok=False (held) si
-    otra pestaña/navegador está viva. Atómico (lock de hilos: los handlers sync corren en un threadpool)."""
+    """Ask to become the ONLY live session. ok=True if the lock was free/expired or already yours; ok=False (held)
+    if another tab/browser is live. Atomic (thread lock: sync handlers run in a threadpool)."""
     now = _time.time()
     with _lock_mx:
         if _free(now) or _active["sid"] == sid:
@@ -51,8 +51,8 @@ def session_acquire(sid: str = Body(..., embed=True)) -> dict:
 
 @router.post("/api/session/heartbeat")
 def session_heartbeat(sid: str = Body(..., embed=True)) -> dict:
-    """Renueva el lock (la pestaña viva late cada ~4s). Si lo perdió pero está libre, lo re-toma; si lo tiene otra
-    viva, ok=False → la UI debe soltar (perdió la carrera)."""
+    """Renew the lock (the live tab beats every ~4s). If it lost it but the lock is free, it retakes it; if another
+    live tab owns it, ok=False → the UI must release (it lost the race)."""
     now = _time.time()
     with _lock_mx:
         if _active["sid"] == sid or _free(now):
@@ -63,7 +63,7 @@ def session_heartbeat(sid: str = Body(..., embed=True)) -> dict:
 
 @router.post("/api/session/release")
 def session_release(sid: str = Body(..., embed=True)) -> dict:
-    """Suelta el lock si es tuyo (al cerrar la pestaña, vía sendBeacon). Idempotente."""
+    """Release the lock if it is yours (when closing the tab, via sendBeacon). Idempotent."""
     with _lock_mx:
         if _active["sid"] == sid:
             _active["sid"], _active["ts"] = None, 0.0

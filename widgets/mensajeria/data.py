@@ -1,19 +1,18 @@
 #
-# Mensajería widget — data layer (INI-015). LEE/muta el store UNIFICADO (widgets/_data/mensajeria.json), que
-# ESCRIBEN los motores de los conectores (connectors/whatsapp/service.py y connectors/telegram/service.py vía
-# connectors/messaging/store.py). El widget es la cara; los conectores son los motores. Una sola lista para TODAS
-# las plataformas.
+# Messaging widget data layer (INI-015). Reads/mutates the unified store (widgets/_data/mensajeria.json), written
+# by connector engines (connectors/whatsapp/service.py and connectors/telegram/service.py through
+# connectors/messaging/store.py). The widget is the face; connectors are the engines. One list for all platforms.
 #
-# CONTRATO de widgets: data.py es stdlib-only + el paquete `widgets` (aislamiento). Por eso NO importa `connectors`:
-# usa `widgets.store` directamente sobre el MISMO fichero/id que el conector. view_data NUNCA lanza. Las acciones
-# del operador encolan la clave (CON su `platform`) en `pending_read`; el conector correcto la drena y marca leído
-# en su app. Un fallo de una plataforma no tumba la otra ni la voz.
+# Widget contract: data.py is stdlib-only plus the `widgets` package for isolation, so it does NOT import
+# `connectors`. It uses `widgets.store` directly on the same file/id as the connector. view_data never raises. The
+# operator's actions enqueue the key, including `platform`, into `pending_read`; the correct connector drains it and
+# marks the message read in its app. A platform failure does not bring down another platform or voice.
 #
 from .. import store
 
 WIDGET_ID = "mensajeria"
 _PLATFORMS = ("whatsapp", "telegram", "email")   # email: V2-051
-_URG_RANK = {"alta": 0, "media": 1, "baja": 2}   # copia local (data.py es stdlib-only, no importa connectors)
+_URG_RANK = {"alta": 0, "media": 1, "baja": 2}   # local copy; data.py is stdlib-only and does not import connectors
 
 
 def _empty() -> dict:
@@ -24,16 +23,15 @@ def _empty() -> dict:
         "pending_read": [],
         "pending_reply": [],
         "pending_control": [],
-        "active_chat": None,   # {"platform":..., "chatId":...} | None — hilo abierto en el widget (clic o voz)
+        "active_chat": None,   # {"platform":..., "chatId":...} | None: open thread in the widget (click or voice)
     }
 
 
 def blank() -> dict:
-    """Estado EN BLANCO para un reset del operador: fuera los mensajes y las colas, **pero se conserva el estado de
-    CONEXIÓN de cada plataforma**. El reset promete no tocar credenciales ni autenticación (lo dice su diálogo), y
-    un `_empty()` a secas deja las tres plataformas en `status:"off"` → parecería que el reset te ha desconectado de
-    WhatsApp cuando la cuenta sigue enlazada. Lo llama `widgets/reset.py`, que prefiere esta función precisamente
-    para que cada widget decida qué significa «en blanco» para él."""
+    """Blank state for an operator reset: remove messages and queues, but preserve each platform's connection
+    state. The reset promises not to touch credentials or authentication, and a plain `_empty()` would leave all
+    three platforms at `status:"off"`, making it look like the reset disconnected WhatsApp while the account remains
+    linked. Called by `widgets/reset.py`, which prefers this function so each widget decides what "blank" means."""
     fresh = _empty()
     cur = store.load(WIDGET_ID, {})
     if isinstance(cur.get("platforms"), dict):
@@ -68,7 +66,7 @@ def _key(it: dict) -> dict:
 
 
 def _visible_items(db: dict) -> list:
-    """Items no silenciados, renumerados — la MISMA lista base que ve el widget y el brain."""
+    """Non-muted, renumbered items: the same base list seen by the widget and the brain."""
     muted_channels = db.get("muted_channels", [])
     muted_keys = {(m.get("platform"), str(m.get("chatId"))) for m in muted_channels}
     return _renumber([
@@ -78,10 +76,10 @@ def _visible_items(db: dict) -> list:
 
 
 def _group_chats(items: list) -> list:
-    """Agrupa la lista PLANA (ya renumerada) por (platform, chatId), preservando el orden de aparición — un
-    item por CHAT en vez de uno por mensaje. Cada chat lleva su propio `n`: un addressing space DISTINTO del
-    de `items` ([[msg.open:N]]/[[msg.readchat:N]] usan este; [[msg.read:N]]/[[msg.dismiss:N]] siguen usando el
-    `n` de `items`, solo direccionable con el chat abierto)."""
+    """Group the flat, already renumbered list by (platform, chatId), preserving appearance order: one item per
+    chat instead of one per message. Each chat has its own `n`, a separate addressing space from `items`
+    ([[msg.open:N]]/[[msg.readchat:N]] use this; [[msg.read:N]]/[[msg.dismiss:N]] still use the `items` `n`, only
+    addressable when the chat is open)."""
     order, by_key = [], {}
     for it in items:
         key = (it.get("platform"), str(it.get("chatId")))
@@ -95,7 +93,7 @@ def _group_chats(items: list) -> list:
         g["count"] += 1
         g["rank"] = min(g["rank"], _URG_RANK.get(it.get("urgencia"), 3))
         g["dirigido_a_mi"] = g["dirigido_a_mi"] or bool(it.get("dirigido_a_mi"))
-        g["last"] = it   # el más reciente EN ORDEN DE APARICIÓN (no hay timestamp en el store)
+        g["last"] = it   # most recent by appearance order; the store has no timestamp
     rank_to_urg = {0: "alta", 1: "media", 2: "baja"}
     chats = []
     for i, key in enumerate(order, 1):
@@ -121,9 +119,9 @@ def view_data(q: str = "") -> dict:
     active_items = [it for it in items if (it.get("platform"), str(it.get("chatId"))) == active_key] \
         if active_key else []
     if active and not active_items:
-        # El chat abierto se quedó sin mensajes (se leyeron/descartaron todos) — ciérralo solo, no dejar un
-        # hilo vacío esperando a que el operador pulse "volver" (y evita que resucite si llega un mensaje nuevo
-        # mucho más tarde en ese mismo chat, cuando el operador ya lo dio por cerrado).
+        # The open chat ran out of messages after all were read/dismissed. Close it automatically instead of
+        # leaving an empty thread waiting for the operator to press "back", and avoid resurrecting it if a much
+        # later message arrives in the same chat after the operator considered it closed.
         db["active_chat"] = None
         store.save(WIDGET_ID, db)
         active = None
@@ -145,14 +143,14 @@ def view_data(q: str = "") -> dict:
 
 
 def apply_action(action: str, payload: dict | None = None) -> dict:
-    """Acciones del operador desde el widget (ÚNICO canal widget→backend; el widget no puede hacer fetch):
-    - read/dismiss/clear → mutan la lista (marcar leído encola en `pending_read`, drenado por el conector).
-    - connect/disconnect → encolan una orden de control en `pending_control` (plataforma + credenciales); el
-      SUPERVISOR (server-side) la drena y hace el connect/disconnect real (config/connectors.py + arrancar/parar).
-      Así el usuario conecta Telegram/WhatsApp desde la UI, sin tocar .env. data.py sigue siendo stdlib-only."""
+    """Operator actions from the widget, the only widget->backend channel; the widget cannot fetch:
+    - read/dismiss/clear mutate the list; marking read enqueues into `pending_read`, drained by the connector.
+    - connect/disconnect enqueue a control command into `pending_control` (platform + credentials); the server-side
+      supervisor drains it and performs the real connect/disconnect (config/connectors.py + start/stop). This lets
+      the user connect Telegram/WhatsApp from the UI without touching .env. data.py remains stdlib-only."""
     payload = payload or {}
 
-    # ── Control de conexión (lo ejecuta el supervisor, no el widget) ─────────
+    # Connection control, executed by the supervisor, not the widget.
     if action in ("connect", "disconnect"):
         platform = (payload.get("platform") or "").lower()
         if platform in _PLATFORMS:
@@ -162,7 +160,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                 cmd["api_id"] = str(payload.get("api_id") or "").strip()
                 cmd["api_hash"] = str(payload.get("api_hash") or "").strip()
             if action == "connect" and platform == "email":
-                # Credenciales del formulario del widget (V2-051). El supervisor→control.py las persiste redactadas.
+                # Credentials from the widget form (V2-051). supervisor->control.py persists them redacted.
                 for k in ("email_address", "email_password", "provider",
                           "imap_host", "imap_port", "smtp_host", "smtp_port"):
                     if payload.get(k) not in (None, ""):
@@ -173,10 +171,10 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             store.save(WIDGET_ID, db)
         return view_data()
 
-    # ── RESPONDER a un mensaje (V2-051) — encola en pending_reply para que el conector de esa plataforma lo ENVÍE.
-    #    `n` sigue la MISMA dualidad que read/dismiss: con un chat ABIERTO es un `n` de MENSAJE (items); con la
-    #    lista de chats es un `n` de CHAT (→ su último mensaje). El envío real (hoy email) lo hace el conector; el
-    #    gate CONFIRM (V2-025) ya pidió OK antes de llegar aquí. ─────────────────────────────────────────────────
+    # Reply to a message (V2-051): enqueue into pending_reply so that platform's connector sends it. `n` follows
+    # the same duality as read/dismiss: with an open chat it is a message `n` from items; with the chat list it is
+    # a chat `n` pointing to its last message. The connector performs the real send; the CONFIRM gate (V2-025)
+    # already asked for OK before reaching this branch.
     if action == "reply":
         n = payload.get("n")
         text = (payload.get("text") or "").strip()
@@ -187,7 +185,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                 target = next((it for it in _renumber(db.get("items", [])) if it.get("n") == n), None)
             else:
                 chat = next((c for c in _group_chats(_visible_items(db)) if c.get("n") == n), None)
-                if chat:                       # el chat → su último mensaje (para el threading / destinatario)
+                if chat:                       # chat -> its last message, for threading/recipient
                     key = (chat["platform"], str(chat["chatId"]))
                     msgs = [it for it in db.get("items", [])
                             if (it.get("platform"), str(it.get("chatId"))) == key]
@@ -202,15 +200,15 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                     "msgid": target.get("msgid", ""),
                     "text": text,
                 })
-                # Responder implica LEÍDO: encola también el mark-read de ese mensaje y quítalo de la lista.
+                # Reply implies READ: also enqueue mark-read for that message and remove it from the list.
                 db.setdefault("pending_read", []).append(_key(target))
                 db["items"] = [it for it in db.get("items", []) if it is not target]
                 store.save(WIDGET_ID, db)
         return view_data()
 
-    # ── Silenciar canal — N direcciona lo mismo que read/dismiss según el contexto: con un chat ABIERTO es un
-    #    `n` de MENSAJE (numeración de `items`); con la lista de chats es un `n` de CHAT (numeración de
-    #    `_group_chats`). Misma dualidad ya documentada en brief.py para read/dismiss/hide. ──────────────────
+    # Mute channel: N addresses the same way as read/dismiss depending on context. With an open chat it is a
+    # message `n` from `items`; with the chat list it is a chat `n` from `_group_chats`. Same duality already
+    # documented in brief.py for read/dismiss/hide.
     if action == "hide":
         n = payload.get("n")
         if n is not None:
@@ -248,8 +246,8 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             store.save(WIDGET_ID, db)
         return view_data()
 
-    # ── Abrir/cerrar el hilo de un chat — navegación pura, direccionable por clic o por voz
-    #    ([[msg.open:N]]/[[msg.close]], N = el `n` del CHAT, ver _group_chats) ─────────────
+    # Open/close a chat thread: pure navigation, addressable by click or voice
+    # ([[msg.open:N]]/[[msg.close]], N = the CHAT `n`; see _group_chats).
     if action == "open":
         n = payload.get("n")
         if n is not None:
@@ -267,7 +265,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             store.save(WIDGET_ID, db)
         return view_data()
 
-    # ── Marcar leído un chat ENTERO sin abrirlo (voz: [[msg.readchat:N]], N = el `n` del CHAT) ──
+    # Mark an entire chat read without opening it (voice: [[msg.readchat:N]], N = the CHAT `n`).
     if action == "readchat":
         n = payload.get("n")
         if n is not None:
@@ -288,7 +286,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         return view_data()
 
     db = load_db()
-    items = _renumber(db.get("items", []))   # alinear n con lo que el widget mostró (view_data numera por orden)
+    items = _renumber(db.get("items", []))   # align n with what the widget displayed; view_data numbers by order
     pending = db.get("pending_read", [])
 
     if action in ("read", "dismiss"):

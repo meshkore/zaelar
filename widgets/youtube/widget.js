@@ -1,7 +1,7 @@
-// youtube — reproductor de YouTube REAL embebido en el canvas (un <iframe>, no una captura). Se controla por
-// VOZ: data.py guarda el comando deseado (last_cmd + cmd_seq) y el estado (paused/muted/volume); aquí lo
-// aplicamos al reproductor con postMessage (YouTube IFrame API, SIN librería externa — solo mensajes al iframe).
-// Contrato: render(el, data, ctx). Sin red desde JS: el <iframe> es un elemento, no una petición nuestra.
+// youtube — REAL YouTube player embedded in the canvas (an <iframe>, not a capture). Controlled by VOICE: data.py
+// stores the desired command (last_cmd + cmd_seq) and state (paused/muted/volume); here we apply it to the player
+// with postMessage (YouTube IFrame API, NO external library — only iframe messages). Contract: render(el, data, ctx).
+// No network from JS: the <iframe> is an element, not our own request.
 
 function injectStyles(){
   if(document.getElementById("hb-yt-css")) return;
@@ -53,30 +53,30 @@ function post(iframe, func, args){
   }catch(_){}
 }
 
-// ¿Está el agente PARADO? (V2-092) — con el ⏻ apagado este widget NO puede reproducir nada. El caso que lo hizo
-// falta es el MONTAJE: el operador paró el agente, RECARGÓ la página y el vídeo volvió a arrancar solo, porque el
-// <iframe> nace con `autoplay=1` y nadie le había dicho que el agente estaba parado. `ctx.running` es un getter
-// vivo del canvas (widgets/desktop.js) que refleja la verdad del servidor (nucleo/runstate.py).
-// Se lee como «parado SOLO si lo dice explícitamente»: un ctx antiguo sin el campo (undefined) no debe dejar el
-// reproductor mudo para siempre.
+// Is the agent STOPPED? (V2-092) — with ⏻ off, this widget must NOT play anything. The case that made this necessary
+// is MOUNT: the operator stopped the agent, RELOADED the page, and the video started again by itself, because the
+// <iframe> is born with `autoplay=1` and nobody had told it the agent was stopped. `ctx.running` is a live canvas
+// getter (widgets/desktop.js) reflecting server truth (nucleo/runstate.py).
+// Read as "stopped ONLY if explicitly stated": an old ctx without the field (undefined) must not leave the player
+// muted forever.
 function halted(ctx){ return !!(ctx && ctx.running === false); }
 
-// Reafirma el estado deseado en el reproductor (idempotente) — se usa al cargar un vídeo nuevo.
+// Reassert desired state in the player (idempotent) — used when loading a new video.
 function applyState(iframe, data, ctx){
   if(data.muted){ post(iframe, "mute", []); }
   else { post(iframe, "unMute", []); post(iframe, "setVolume", [Number(data.volume != null ? data.volume : 70)]); }
-  // Con el agente parado se PAUSA siempre, diga lo que diga el estado guardado: es la última línea de defensa por
-  // si el store quedó con `paused:false` de antes de la parada (o de una versión anterior del motor).
+  // With the agent stopped, ALWAYS pause, whatever saved state says: this is the last line of defense in case the
+  // store kept `paused:false` from before stop (or from an older engine version).
   if(data.paused || halted(ctx)) post(iframe, "pauseVideo", []);
   else post(iframe, "playVideo", []);
 }
 
-// Aplica el ÚLTIMO comando pedido por voz/click (solo cuando avanza cmd_seq).
+// Apply the LAST command requested by voice/click (only when cmd_seq advances).
 function applyCmd(iframe, data, ctx){
   const c = data.last_cmd || "";
-  // Un comando que haría sonar el vídeo se ignora con el agente parado. El servidor ya los rechaza en el embudo
-  // (widgets/producers.py::gate), así que esto solo cubre el estado que ya estuviera guardado — pero pausar de
-  // más nunca hace daño y sonar de menos sí.
+  // A command that would make the video play is ignored while the agent is stopped. The server already rejects them
+  // in the funnel (widgets/producers.py::gate), so this only covers already saved state — but pausing too much never
+  // hurts, while playing too much does.
   if(halted(ctx) && (c === "play" || c === "load" || c === "restart" || c === "unmute"
                      || c === "volume_up" || c === "set_volume")){
     post(iframe, "pauseVideo", []);
@@ -101,15 +101,15 @@ export function render(root, data, ctx){
   const loading = !!data.loading;
   const st = root._hbYt || null;
 
-  // (Re)construir la tarjeta cuando cambia el vídeo, o entra/sale del estado "buscando" (bug real 2026-07-23:
-  // sin esto la tarjeta se veía TOTALMENTE vacía mientras el load buscaba en YouTube, sin ninguna señal).
+  // (Re)build the card when the video changes, or when entering/leaving "searching" state (real bug 2026-07-23:
+  // without this the card looked COMPLETELY empty while load searched YouTube, with no signal).
   if(!st || st.id !== id || st.loading !== loading || !root._hbYtBuilt){
     root.className = "hb-yt";
     root.textContent = "";
 
     const title = el("div", "hb-yt-title", data.title || "YouTube");
     root.appendChild(title);
-    const meta = el("div", "hb-yt-meta", "");            // canal · fecha de publicación (verificable, V2-057)
+    const meta = el("div", "hb-yt-meta", "");            // channel · publication date (verifiable, V2-057)
     root.appendChild(meta);
 
     const frame = el("div", "hb-yt-frame");
@@ -125,9 +125,9 @@ export function render(root, data, ctx){
       iframe.title = data.title || "YouTube";
       iframe.allow = "autoplay; encrypted-media; fullscreen; picture-in-picture";
       iframe.setAttribute("allowfullscreen", "");
-      // `autoplay` SOLO si hay agente en marcha y el vídeo no estaba pausado. Antes iba fijo a 1: al recargar con el
-      // agente parado, el vídeo arrancaba ANTES de que llegara cualquier orden de pausa (los 700ms de abajo) — se
-      // oía el arranque. Quitarlo del propio `src` es la única forma de que no suene NI UN INSTANTE.
+      // `autoplay` ONLY if the agent is running and the video was not paused. It used to be fixed to 1: when reloading
+      // with the agent stopped, the video started BEFORE any pause command arrived (the 700ms below) — the start was
+      // audible. Removing it from the `src` itself is the only way to avoid playing EVEN FOR AN INSTANT.
       const auto = (!data.paused && !halted(ctx)) ? 1 : 0;
       const params = "enablejsapi=1&rel=0&modestbranding=1&playsinline=1&autoplay=" + auto + "&mute=1&origin="
                      + encodeURIComponent(location.origin);
@@ -135,9 +135,9 @@ export function render(root, data, ctx){
       const d0 = data, c0 = ctx;
       iframe.addEventListener("load", function(){ setTimeout(function(){ applyState(iframe, d0, c0); }, 700); });
       frame.appendChild(iframe);
-      // El navegador exige un TOQUE real para dar sonido a un autoplay que empezó muted (el "unmute" pedido
-      // por VOZ no cuenta como gesto de usuario y el audio puede quedarse bloqueado en silencio sin avisar).
-      // Este botón sí es un click real → desbloquea el audio YA, en el mismo gesto.
+      // The browser requires a real TOUCH to give sound to an autoplay that started muted (voice-requested "unmute"
+      // does not count as a user gesture and audio may stay silently blocked). This button is a real click → unlock
+      // audio NOW, in the same gesture.
       unmuteHint = el("div", "hb-yt-unmute", "");
       unmuteHint.appendChild(el("span", "", "🔊"));
       unmuteHint.appendChild(el("span", "", "Toca para activar el sonido"));
@@ -147,7 +147,7 @@ export function render(root, data, ctx){
     }
     root.appendChild(frame);
 
-    // Controles por click (espejo de lo que también se pide por voz).
+    // Click controls (mirror of what can also be requested by voice).
     const ctrls = el("div", "hb-yt-ctrls");
     const btn = (label, action) => {
       const b = el("button", "hb-yt-btn", label);
@@ -158,7 +158,7 @@ export function render(root, data, ctx){
     ctrls.appendChild(btn("❚❚ Pausa", "pause"));
     ctrls.appendChild(btn("🔉 −", "volume_down"));
     ctrls.appendChild(btn("🔊 +", "volume_up"));
-    const muteBtn = el("button", "hb-yt-btn", "🔇 Silencio");   // acción/cartel se fijan cada render (es un toggle)
+    const muteBtn = el("button", "hb-yt-btn", "🔇 Silencio");   // action/label are set on each render (toggle)
     ctrls.appendChild(muteBtn);
     const vol = el("div", "hb-yt-vol", "");
     ctrls.appendChild(vol);
@@ -167,12 +167,12 @@ export function render(root, data, ctx){
     root.appendChild(el("div", "hb-yt-hint",
       "Por voz: «pon el vídeo de…», «pausa», «quita el silencio», «sube/baja el volumen», «reinícialo»."));
 
-    root._hbYt = { id: id, seq: seq, loading: loading };   // el "load" ya lo cubre el src nuevo → no re-postear como comando
+    root._hbYt = { id: id, seq: seq, loading: loading };   // "load" is already covered by new src → do not re-post as command
     root._hbYtBuilt = true;
     root._hbYtEls = { iframe: iframe, title: title, meta: meta, vol: vol, muteBtn: muteBtn, unmuteHint: unmuteHint };
   }
 
-  // Refresco dinámico en CADA render (título, metadatos verificables, botón de silencio-toggle, volumen).
+  // Dynamic refresh on EVERY render (title, verifiable metadata, mute-toggle button, volume).
   const E = root._hbYtEls || {};
   if(E.title) E.title.textContent = data.title || "YouTube";
   if(E.meta){
@@ -186,8 +186,8 @@ export function render(root, data, ctx){
   if(E.muteBtn){
     E.muteBtn.textContent = data.muted ? "🔊 Sonido" : "🔇 Silencio";
     E.muteBtn.onclick = () => {
-      // El `post` directo (no pasa por el servidor: es el click REAL que desbloquea el audio del navegador) también
-      // se gatea — si no, con el agente parado este botón haría sonar el vídeo por la puerta de atrás.
+      // Direct `post` (does not go through the server: it is the REAL click that unlocks browser audio) is also gated
+      // — otherwise, with the agent stopped, this button would make the video play through the back door.
       if(data.muted && !halted(ctx)){ post(E.iframe, "unMute", []); post(E.iframe, "setVolume", [vol0]); }
       if(ctx && ctx.action) ctx.action(data.muted ? "unmute" : "mute");
     };
@@ -201,7 +201,7 @@ export function render(root, data, ctx){
   }
   if(E.vol) E.vol.textContent = data.muted ? "silencio" : ("vol " + (data.volume != null ? data.volume : 70));
 
-  // Aplicar el último comando si avanzó el contador (mismo vídeo; el cambio de vídeo lo cubre el src nuevo).
+  // Apply the last command if the counter advanced (same video; video changes are covered by the new src).
   if(seq !== root._hbYt.seq){
     applyCmd(E.iframe, data, ctx);
     root._hbYt.seq = seq;

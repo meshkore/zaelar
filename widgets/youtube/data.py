@@ -1,8 +1,8 @@
 #
-# youtube — reproductor de YouTube EMBEBIDO en el canvas (un <iframe> real que REPRODUCE, no una captura).
-# El vídeo se controla por VOZ: el FlashBrain llama a apply_action (tool widget_data) y aquí guardamos el
-# ESTADO/comando deseado en el store; el cliente (widget.js) lo aplica al reproductor por postMessage (YouTube
-# IFrame API, SIN librería). data.py es servidor puro (stdlib) — nunca toca el reproductor.
+# youtube — EMBEDDED YouTube player in the canvas (a real <iframe> that PLAYS, not a capture).
+# Video is controlled by VOICE: FlashBrain calls apply_action (tool widget_data) and here we store desired
+# STATE/command in the store; the client (widget.js) applies it to the player through postMessage (YouTube IFrame API,
+# NO library). data.py is pure server code (stdlib) — it never touches the player.
 #
 import re
 import urllib.parse
@@ -12,7 +12,7 @@ from .. import store
 
 WID = "youtube"
 
-# Semilla: reproductor EN BLANCO por defecto (sin vídeo) hasta que el operador pida uno.
+# Seed: BLANK player by default (no video) until the operator requests one.
 _SEED = {
     "videoId": "",
     "title": "",
@@ -21,12 +21,12 @@ _SEED = {
     "published": "",
     "latest": False,
     "volume": 70,
-    "muted": True,      # el autoplay del navegador exige empezar en silencio; "quita el silencio" para oírlo
+    "muted": True,      # browser autoplay requires starting muted; "unmute" to hear it
     "paused": True,
     "last_cmd": "",
     "cmd_seq": 0,
-    "loading": False,     # V2-062 fix: la búsqueda de "load" tarda unos segundos (red); sin esto la tarjeta se
-    "loading_query": "",  # veía TOTALMENTE vacía sin ninguna señal de que algo estaba pasando (bug real 2026-07-23).
+    "loading": False,     # V2-062 fix: "load" search takes a few seconds (network); without this, the card looked
+    "loading_query": "",  # COMPLETELY empty with no signal that something was happening (real bug 2026-07-23).
 }
 
 _YT_RE = re.compile(
@@ -41,25 +41,25 @@ def _extract_id(s: str) -> str:
     m = _YT_RE.search(s)
     if m:
         return m.group(1)
-    if re.fullmatch(r"[0-9A-Za-z_-]{11}", s):          # ya es un id pelado
+    if re.fullmatch(r"[0-9A-Za-z_-]{11}", s):          # already a bare id
         return s
     return ""
 
 
-# Pide el vídeo MÁS RECIENTE (p. ej. "el último vídeo de José Luis Cárpatos") → orden por fecha de subida.
+# Requests the MOST RECENT video (e.g. "the latest video by Jose Luis Carpatos") → sort by upload date.
 _LATEST_RE = re.compile(r"\b(?:[uú]ltim[oa]s?|m[aá]s\s+recientes?|reciente|nuevo|last|latest|newest)\b", re.I)
 
 
 def _unesc(s: str) -> str:
-    """Decodifica los \\uXXXX que YouTube a veces embebe en el JSON, sin tocar el UTF-8 ya decodificado."""
+    """Decode \\uXXXX sequences that YouTube sometimes embeds in JSON, without touching already decoded UTF-8."""
     return re.sub(r"\\u([0-9a-fA-F]{4})", lambda m: chr(int(m.group(1), 16)), s or "")
 
 
 def _search_id(q: str) -> dict:
-    """Best-effort: resuelve una frase ("el gol de Messi") al primer vídeo de YouTube. Stdlib, 6s, fail-open.
-    Si la frase pide el vídeo MÁS RECIENTE de alguien ("el último de …"), ordena por fecha de subida.
-    Devuelve {videoId,title,channel,published,latest} — la fecha de publicación permite VERIFICAR que es el
-    vídeo correcto (V2-057: no ejecutar a ciegas; entregar un resultado comprobable de un vistazo)."""
+    """Best-effort: resolve a phrase ("Messi goal") to the first YouTube video. Stdlib, 6s, fail-open.
+    If the phrase asks for someone's MOST RECENT video ("the latest from ..."), sort by upload date.
+    Returns {videoId,title,channel,published,latest} — publication date lets the operator VERIFY it is the correct
+    video (V2-057: do not execute blindly; deliver a checkable result at a glance)."""
     q = (q or "").strip()
     out = {"videoId": "", "title": "", "channel": "", "published": "", "latest": False}
     if not q:
@@ -68,7 +68,7 @@ def _search_id(q: str) -> dict:
     out["latest"] = latest
     try:
         url = "https://www.youtube.com/results?search_query=" + urllib.parse.quote_plus(q)
-        if latest:                                       # ordenar por fecha de subida (sp=CAI%3D)
+        if latest:                                       # sort by upload date (sp=CAI%3D)
             url += "&sp=CAI%3D"
         req = urllib.request.Request(url, headers={
             "User-Agent": ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
@@ -81,7 +81,7 @@ def _search_id(q: str) -> dict:
             return out
         vid = m.group(1)
         out["videoId"] = vid
-        # Bloque del videoRenderer de ESTE vídeo: de ahí sacamos título, canal y fecha de publicación.
+        # videoRenderer block for THIS video: title, channel, and publication date are extracted from it.
         blk = html[m.start(): m.start() + 2500]
         t = re.search(r'"title":\{"runs":\[\{"text":"([^"]{2,140})"', blk) \
             or re.search(r'"videoId":"' + re.escape(vid) + r'".*?"text":"([^"]{3,120})"', html)
@@ -97,7 +97,7 @@ def _search_id(q: str) -> dict:
 
 def _load() -> dict:
     db = store.load(WID, dict(_SEED))
-    for k, v in _SEED.items():                          # normaliza campos ausentes (store antiguo)
+    for k, v in _SEED.items():                          # normalize missing fields (old store)
         db.setdefault(k, v)
     return db
 
@@ -126,12 +126,12 @@ def apply_action(action: str, payload: dict = None) -> dict:
         vid = _extract_id(raw)
         title = str(p.get("title") or "").strip()
         channel, published, latest = "", "", False
-        if not vid:                                     # no era URL/id → buscar por nombre
+        if not vid:                                     # not URL/id → search by name
             q = str(p.get("query") or p.get("q") or raw or "").strip()
-            # LOADER real (bug 2026-07-23, "no hay ningún loader que indique que estás buscando"): _search_id
-            # scrapea la red (varios segundos) — sin esto la tarjeta se veía TOTALMENTE vacía mientras tanto,
-            # indistinguible de "no hay nada pedido". Guarda+emite YA (antes de la red) para que widget.js pinte
-            # el spinner de inmediato; el load final lo apaga.
+            # Real LOADER (bug 2026-07-23, "there is no loader showing that you are searching"): _search_id scrapes
+            # the network (several seconds) — without this the card looked COMPLETELY empty in the meantime,
+            # indistinguishable from "nothing requested". Save+emit NOW (before network) so widget.js paints the
+            # spinner immediately; the final load turns it off.
             db["loading"], db["loading_query"] = True, q
             store.save(WID, db)
             r = _search_id(q)
@@ -142,14 +142,14 @@ def apply_action(action: str, payload: dict = None) -> dict:
             channel, published = r["channel"], r["published"]
         db["loading"], db["loading_query"] = False, ""
         if not vid:
-            store.save(WID, db)                          # apaga el loader aunque no se encontrara nada
+            store.save(WID, db)                          # turn off loader even if nothing was found
             return {"ok": False, "error": "no_video", "message": "No encontré ese vídeo."}
         db["videoId"] = vid
         db["url"] = "https://www.youtube.com/watch?v=" + vid
         db["title"] = title or db["url"]
-        db["channel"] = channel                          # V2-057: metadatos VERIFICABLES en la tarjeta
-        db["published"] = published                      # p. ej. "hace 2 días" — confirma que es el correcto
-        db["latest"] = latest                            # se pidió el más reciente (orden por fecha)
+        db["channel"] = channel                          # V2-057: VERIFIABLE metadata in the card
+        db["published"] = published                      # e.g. "2 days ago" — confirms it is the correct one
+        db["latest"] = latest                            # most recent requested (date order)
         db["paused"] = False
         return _bump(db, "load")
 
@@ -184,8 +184,8 @@ def apply_action(action: str, payload: dict = None) -> dict:
         db["paused"] = False
         return _bump(db, "restart")
     if action == "close":
-        # Vacía el vídeo → widget.js detecta videoId="" y RECONSTRUYE la tarjeta sin <iframe>: el vídeo deja de
-        # reproducirse DE VERDAD en el navegador (no es solo borrar datos), y la tarjeta pasa al estado vacío.
+        # Empty the video → widget.js detects videoId="" and REBUILDS the card without <iframe>: the video REALLY
+        # stops playing in the browser (not just data deletion), and the card moves to empty state.
         db["videoId"] = ""
         db["title"] = ""
         db["url"] = ""
