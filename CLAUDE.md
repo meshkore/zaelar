@@ -1310,6 +1310,20 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **La equivalencia, el margen y el precio de venta son decisiones de NEGOCIO y NO se documentan aquí** (este
     repo es público): viven en `.meshkore/docs/ops/zaelar-energy-accounting.md` de la RAÍZ del workspace, junto a
     la tabla de Energy por millón de tokens y la lista de lo que sigue sin cobrarse. Aquí solo el mecanismo.
+  - **QUINTO agujero, misma familia: el turno CANCELADO se cobraba un 16% de menos (2026-08-14).** Un turno cortado
+    por barge-in ya se le pidió al proveedor y ya se pagó — en una sesión de dictado son **38 de 54**. Sí se
+    factura (el reporte vive en un `finally` y hay un estimado sembrado ANTES de la petición, así que la parte
+    difícil ya estaba bien; la afirmación de que «no se facturaban ~400k de input» era MÍA y era falsa). Lo que
+    estaba mal es el NÚMERO: el `usage` real del proveedor viaja en el ÚLTIMO chunk del stream y un turno cancelado
+    no lo recibe nunca, así que lo factura `est_tokens`… que asumía **4 chars/token**, la regla del pulgar del
+    INGLÉS. Medido contra 114 turnos reales que traían el `usage` del proveedor Y sus chars, nuestro input va a
+    **3,36 chars/token** (castellano con tildes + el JSON del catálogo de tools), y el sesgo era sistemático, no
+    ruido: el ratio cabía entre 0,823 y 0,857 en las 114 muestras. `_CHARS_PER_TOKEN = 3.3` (se redondea hacia
+    abajo a propósito: estima de MÁS, el lado seguro, igual que la tarifa de seguridad). Y `turn_perf` emite ahora
+    `usage_source`/`prompt_tokens_est`/`prompt_chars`/`tools_chars`, porque **un número que se factura tiene que
+    poder compararse con la verdad en su propia fila**: reconstruir este sesgo exigió cruzar campos que solo
+    coincidían en 114 de 1.070 eventos. Nodo 2.14, con las dos ramas (cancelado→estimado, completo→verdad del
+    proveedor, y que la verdad GANE) — sin la segunda, la primera la aprobaría un medidor que siempre adivina.
 - **Control central de proveedores en el perfil cloud** (`server/config_api.py` + `ConfigPanel.js`,
   2026-08-05, INI-019 "Cambio B"): en self-host el usuario elige proveedor/modelo por pieza
   (`_PROVIDER_CATALOG`: fast/code_agent/memory/triage/susurro); en una cuenta cloud esa elección la fija
@@ -1716,13 +1730,34 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - **Y no hizo falta modelo**: mirando los 89 fragmentos reales, los que van a medias acaban en palabra función o
     en coma. Regla léxica → **43/89 = 48% de llamadas evitadas** a coste y latencia cero. La capa de modelo queda
     OPT-IN (`ZAELAR_SEGMENTER_MODEL`).
-  - **Se cablea como detector de turno de LiveKit** (`turn_provider=semantic`), no en el proveedor, y eso es lo que
-    lo hace seguro: devuelve una PROBABILIDAD y `max_delay` es el tope duro → puede RETRASAR un turno, nunca
-    perderlo. Compone con el ONNX quedándose la probabilidad más baja.
-  - **Dos falsos positivos que se cazaron MIDIENDO**: la regla «corta y sin cerrar» retenía TODAS las órdenes
-    cortas («pon música», «abre la agenda»); y «sí»/«si» son la misma palabra al quitar acentos, con «Sí, te
-    autorizo a borrar toda la agenda» —la frase que autorizó al worker— del lado equivocado. 0 falsos positivos
-    tras arreglarlo. **Techo conocido**: `max_delay` son 2,2 s, así que el veto añade ~1 s como mucho; subirlo
+  - **Se cablea como detector de turno de LiveKit** (`turn_provider=semantic`, **el DEFECTO desde 2026-08-14**), no
+    en el proveedor, y eso es lo que lo hace seguro: devuelve una PROBABILIDAD y `max_delay` es el tope duro → puede
+    RETRASAR un turno, nunca perderlo. El ONNX de LiveKit sería un segundo veto (se toma la probabilidad más baja)
+    pero está **opt-in y apagado** (`ZAELAR_TURN_ONNX=1`): exige registrar su `InferenceRunner` en el hilo
+    PRINCIPAL y el job corre en un HILO (INI-012), así que aquí no puede cargar — verificado, revienta con
+    «InferenceRunner must be registered on the main thread». La capa léxica es Python puro y corre donde él no.
+  - ⚠️ **NACIÓ MUERTA y hubo que arreglarlo**: se entregó con el detector registrado y `turn_provider` en
+    `disabled`, o sea **nada lo seleccionaba** — la capa léxica no corría en ninguna sesión. El mismo fallo que
+    Susurro leyendo claves inexistentes, repetido dos commits después de documentarlo. La regla que deja: **una
+    capacidad cuyo defecto está apagado es una capacidad que nadie tiene**, y el guarda va sobre el DEFECTO, no
+    sobre el valor del entorno de la máquina.
+  - **Tres falsos positivos, los tres cazados MIDIENDO** (los dos últimos solo aparecieron al replicar contra las
+    **195 sesiones** del registro local, 804 transcripciones — una regla afinada sobre UNA sesión está ajustada a
+    esa sesión): (a) la regla «corta y sin cerrar» retenía TODAS las órdenes cortas («pon música», «abre la
+    agenda»); (b) **«Y que lo pares todo.» se RETENÍA** por acabar en «todo» — retrasar una orden de parar es
+    justo lo que prohíbe V2-092; (c) «sí»/«si» y **«estás»/«estas»** colapsan al quitar acentos, con «Sí, te
+    autorizo a borrar toda la agenda» y «¿Cómo estás?» del lado equivocado. Arreglado partiendo las palabras
+    función en **`_HARD`** (no cierran frase NUNCA, con punto o sin él: «de.» sigue siendo un fragmento) y
+    **`_SOFT`** (sí pueden cerrarla, así que solo delatan si el STT no cerró). La puntuación final es señal medida:
+    la llevan el **74%** de los enunciados completos y el **29%** de los fragmentos.
+  - **Lo que la medición NO puede afirmar, dicho en voz alta**: la etiqueta de producción está contaminada por los
+    dos lados (que el agente contestara un fragmento ES el bug; y 79 de 275 «incompletos» acaban en punto porque
+    son frases ACABADAS con otra detrás — dictado multi-frase, otro problema). El número honesto es sobre la clase
+    que esta regla gobierna: **196 fragmentos sin puntuación final, recall 79%**. Un recall mezclado habría sonado
+    mejor y habría acreditado a la regla por una clase que no alcanza.
+  - **El corpus NO se commitea** (son grabaciones verbatim del operador con planes de viaje y citas; este repo es
+    público): el guarda lee el registro en RUNTIME y se SALTA donde no hay, como `test_roadmap_closure.py`.
+  - **Techo conocido**: `max_delay` son 2,2 s, así que el veto añade ~1 s como mucho; subirlo
     (`ZAELAR_ENDPOINT_MAX_S`) retrasa TODOS los turnos y se deja al operador.
   - **Pendiente de la misma petición**: la selección DETERMINISTA de tools/widgets por turno (el catálogo son 17.335
     de 31.772 chars = 55% del input). Pieza propia, con el nodo 2.13 como puerta (hoy 12/12).
