@@ -1760,7 +1760,32 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - **Techo conocido**: `max_delay` son 2,2 s, así que el veto añade ~1 s como mucho; subirlo
     (`ZAELAR_ENDPOINT_MAX_S`) retrasa TODOS los turnos y se deja al operador.
   - **Pendiente de la misma petición**: la selección DETERMINISTA de tools/widgets por turno (el catálogo son 17.335
-    de 31.772 chars = 55% del input). Pieza propia, con el nodo 2.13 como puerta (hoy 12/12).
+    de 31.772 chars = 55% del input). Pieza propia, con el nodo 2.13 como puerta (hoy 12/12). Diseño en V2-096 §Fase 2.
+- **Una frase en DOS TIEMPOS es UNA petición — y el fragmento no genera nada** (V2-096,
+  `nucleo/flash/accumulator.py`, iniciativa `V2-096-conversacion-progresiva.md`): V2-095 resolvía esto RETRASANDO el
+  turno, y el operador señaló el defecto antes de que lo midiéramos — *«no podemos tener un tiempo fijo esperando que
+  todas las conversaciones y todas las personas van a actuar igual»*. Medido sobre **372 pausas reales** del registro:
+  p50 **2,3 s** · p75 3,5 s · p90 **4,9 s** · max 19,5 s, así que el `max_delay` de 2,2 s cubría **48,7%** — menos de
+  la mitad, por construcción. Y subirlo retrasa TODOS los turnos, también los ya completos.
+  - **La solución no es esperar mejor, es NO esperar.** El turno acústico se cierra cuando quiera; lo que cambia es
+    que un fragmento **no GENERA nada** (ni voz, ni tool, ni widget, ni worker, ni memoria) y se GUARDA. Al llegar el
+    trozo siguiente se juzgan JUNTOS → la pausa sale de la ecuación. **156 frases recompuestas** en las 79 cadenas
+    multi-fragmento reales. Va tras `hard_interrupt` y el gate de atención, y **antes de `ingest_utterance`**.
+  - **Sin flush por tiempo, a propósito**: callar ante un fragmento abandonado es la conducta CORRECTA, no un efecto
+    que compensar con un temporizador (norma del operador, con su ejemplo: *«ahora vamos a…» y me paro ahí → no debe
+    generar nada*). Las válvulas (hueco 25 s / 6 trozos / 1200 chars) solo evitan que el buffer crezca o contamine
+    una petición posterior.
+  - ⚠️ **Fallo de seguridad cazado por su propio test**: «ciérralo todo» SIN punto final se RETENÍA («todo» es
+    función blanda y el léxico solo la absuelve si el STT cerró la frase — y el STT pone el punto cuando le parece).
+    **Un invariante de seguridad no puede depender de la puntuación del STT**: el predicado consulta ahora
+    `attention.hard_interrupt`, la lista CANÓNICA, en vez de mantener una copia que estaba garantizado que divergiera.
+  - **El número grande de coste, y no lo consigue ningún rediseño de prompt**: de los 471 prompts al FlashBrain del
+    registro, **192 (41%) eran fragmentos a medias** → ~1,8M de tokens de input que dejan de enviarse, con una regla
+    léxica de coste CERO.
+  - **Límite conocido, escrito como test** (nodo 3.9) en vez de descubrirse en una sesión: el léxico ve si la frase
+    CUELGA, no si hay **acción/pregunta/petición clara** — «quiero que busques» cierra sintácticamente sin decir qué.
+    Esa capa PRAGMÁTICA entra por `accumulator.set_predicate()` (ya construido) y corre MIENTRAS el operador habla,
+    que es lo que la separa de la doble pasada descartada el 2026-08-02.
 
 ## Testing y rueda de mejora (INI-013)
 
