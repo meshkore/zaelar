@@ -1,23 +1,22 @@
-"""widgets/refs.py — resolución de REFERENCIAS a items en lenguaje natural (V2-026).
+"""widgets/refs.py — resolving natural-language REFERENCES to items (V2-026).
 
-El operador habla en lenguaje natural ("marca hecha la tarea del daemon", "aplaza lo de Reddit"); NO conoce los
-ids internos de los items de un widget, y un modelo rápido que intenta adivinarlos los INVENTA (el bug V2-026: el
-FlashBrain emitió `done` con `taskId="09:00–11:00"` —el rango horario— en vez de "t_daemon"). Solución: el modelo
-pasa una REFERENCIA en lenguaje natural (`item`) y AQUÍ se resuelve al id REAL contra los items VIVOS del widget.
+The operator speaks natural language ("mark the daemon task done", "postpone the Reddit thing"); they do NOT know a
+widget item's internal ids, and a fast model that tries to guess them INVENTS them (V2-026 bug: FlashBrain emitted
+`done` with `taskId="09:00–11:00"` —the time range— instead of "t_daemon"). Solution: the model passes a
+natural-language REFERENCE (`item`) and HERE it is resolved to the REAL id against the widget's LIVE items.
 
-Contrato del widget (OPCIONAL, en su `data.py`):
+Widget contract (OPTIONAL, in its `data.py`):
 
     def ref_index() -> list[dict]:
-        '''Items referenciables por voz: [{"id","label","field"[,"hint"]}]. `field` = la clave del payload que
-        identifica a ese item en las acciones del manifest (p.ej. "taskId" para una tarea, "projectId" para un
-        proyecto). `label` = texto humano para casar la referencia (título de la tarea, nombre del proyecto…).
-        `hint` opcional = contexto extra para el brief (estado, hora…).'''
+        '''Voice-referenceable items: [{"id","label","field"[,"hint"]}]. `field` = the payload key that identifies
+        that item in manifest actions (e.g. "taskId" for a task, "projectId" for a project). `label` = human text for
+        matching the reference (task title, project name...). Optional `hint` = extra brief context (status, time...).'''
 
-Qué campo hay que rellenar se deduce del PROPIO manifest: el `payload` declarado de la acción ya nombra su campo
-id (agenda `done`→{"taskId":…}, `drop_project`→{"projectId":…}). Se resuelve la referencia SOLO contra los items
-cuyo `field` coincide con ese campo → "descarta el proyecto CryptoKnight" (`drop_project`→`projectId`) apunta al
-PROYECTO, no a la tarea "Revisión de CryptoKnight". Fuzzy stdlib (solape de tokens + difflib), acento-insensible.
-Devuelve una señal de AMBIGÜEDAD/NO-MATCH en vez de adivinar (mejor preguntar que actuar sobre el item equivocado).
+The field to fill is inferred from the OWN manifest: the action's declared `payload` already names its id field
+(agenda `done`→{"taskId":...}, `drop_project`→{"projectId":...}). The reference is resolved ONLY against items whose
+`field` matches that field → "discard the Atlas project" (`drop_project`→`projectId`) points to the PROJECT,
+not to the "Atlas review" task. Stdlib fuzzy matching (token overlap + difflib), accent-insensitive. Returns an
+AMBIGUITY/NO-MATCH signal instead of guessing (better to ask than act on the wrong item).
 """
 from __future__ import annotations
 
@@ -51,7 +50,7 @@ def _ref_index(widget_id: str) -> list[dict]:
 
 
 def _exposes_ref_index(widget_id: str) -> bool:
-    """¿Este widget PUBLICA sus items? (para poder distinguir «vacío» de «no publica» — ver items_line)."""
+    """Does this widget PUBLISH its items? (to distinguish "empty" from "does not publish" — see items_line)."""
     try:
         import importlib
         return hasattr(importlib.import_module(f"widgets.{widget_id}.data"), "ref_index")
@@ -60,9 +59,9 @@ def _exposes_ref_index(widget_id: str) -> bool:
 
 
 def id_field_for_action(widget_id: str, action: str) -> str | None:
-    """La clave del payload de esta acción que identifica a un item existente (termina en 'Id', p.ej. `taskId`,
-    `projectId`, `chatId`), leída del manifest. None si la acción no actúa sobre un item preexistente (p.ej.
-    `add_meeting`, que CREA uno) → no hay nada que resolver."""
+    """Payload key for this action that identifies an existing item (ends in 'Id', e.g. `taskId`, `projectId`,
+    `chatId`), read from the manifest. None if the action does not operate on a preexisting item (e.g. `add_meeting`,
+    which CREATES one) → there is nothing to resolve."""
     try:
         spec = ((runtime.get(widget_id) or {}).get("actions") or {}).get(action) or {}
         payload = spec.get("payload")
@@ -89,39 +88,39 @@ def _score(ref_n: str, label_n: str) -> float:
             hits += 1
         elif difflib.get_close_matches(t, l_tokens, n=1, cutoff=0.82):
             hits += 0.8
-    token_score = hits / len(r_tokens)                       # fracción de la referencia cubierta
+    token_score = hits / len(r_tokens)                       # fraction of the reference covered
     ratio = difflib.SequenceMatcher(None, ref_n, label_n).ratio()
-    return token_score * 2.0 + ratio                          # el solape de tokens pesa más que el ratio bruto
+    return token_score * 2.0 + ratio                          # token overlap weighs more than the raw ratio
 
 
-# Resultado de una resolución de referencia.
+# Result of reference resolution.
 class RefResult:
     def __init__(self, ok, payload=None, needs=None, candidates=None):
-        self.ok = ok                    # True si se resolvió (o no hacía falta resolver)
+        self.ok = ok                    # True if resolved (or no resolution was needed)
         self.payload = payload          # payload actualizado con el id real (si ok)
-        self.needs = needs              # 'ref' | 'ambiguous' | 'no_match' cuando ok=False
-        self.candidates = candidates or []   # etiquetas candidatas (para preguntar al operador)
+        self.needs = needs              # 'ref' | 'ambiguous' | 'no_match' when ok=False
+        self.candidates = candidates or []   # candidate labels (to ask the operator)
 
 
 def resolve(widget_id: str, action: str, ref: str, payload: dict | None = None) -> RefResult:
-    """Resuelve una referencia en lenguaje natural al id real del item para `action`. Devuelve un `RefResult`:
-    - ok=True + payload (con el id real relleno) si se resolvió, o si la acción no actúa sobre un item existente.
-    - ok=False con `needs` ('ref'|'ambiguous'|'no_match') y `candidates` para que el llamante PREGUNTE en vez de
-      inventar un id. NUNCA lanza."""
+    """Resolve a natural-language reference to the real item id for `action`. Returns a `RefResult`:
+    - ok=True + payload (with the real id filled) if resolved, or if the action does not act on an existing item.
+    - ok=False with `needs` ('ref'|'ambiguous'|'no_match') and `candidates` so the caller ASKS instead of inventing
+      an id. NEVER raises."""
     payload = dict(payload or {})
     field = id_field_for_action(widget_id, action)
     if not field:
-        return RefResult(True, payload)                       # nada que resolver (p.ej. add_meeting)
+        return RefResult(True, payload)                       # nothing to resolve (e.g. add_meeting)
 
     idx = [i for i in _ref_index(widget_id) if i.get("field") == field]
 
-    # Si el modelo YA dio un id que EXISTE de verdad, respétalo (no lo pises).
+    # If the model ALREADY gave an id that really EXISTS, respect it (do not overwrite it).
     given = str(payload.get(field) or "").strip()
     if given and any(i["id"] == given for i in idx):
         return RefResult(True, payload)
 
-    # Texto por el que buscar: la ref explícita del modelo, o —si no la dio— lo que puso en el campo id (que suele
-    # ser una descripción/valor inventado que a veces casa por texto, p.ej. el título de la tarea).
+    # Text to search for: the model's explicit ref, or —if it did not give one— what it put in the id field (often an
+    # invented description/value that sometimes matches by text, e.g. the task title).
     query = _norm(ref) or _norm(given)
     if not query:
         return RefResult(False, needs="ref", candidates=[i["label"] for i in idx][:6])
@@ -133,7 +132,7 @@ def resolve(widget_id: str, action: str, ref: str, payload: dict | None = None) 
     second = scored[1][0] if len(scored) > 1 else 0.0
     if best_score < 1.0:
         return RefResult(False, needs="no_match", candidates=[i["label"] for i in idx][:6])
-    if len(scored) > 1 and (best_score - second) < 0.5:       # empate → no adivines, pregunta
+    if len(scored) > 1 and (best_score - second) < 0.5:       # tie → do not guess, ask
         close = [i["label"] for s, i in scored if best_score - s < 0.5][:4]
         return RefResult(False, needs="ambiguous", candidates=close)
     payload[field] = best["id"]
@@ -141,8 +140,8 @@ def resolve(widget_id: str, action: str, ref: str, payload: dict | None = None) 
 
 
 def label_for(widget_id: str, field: str, item_id: str) -> str:
-    """Etiqueta HUMANA del item `item_id` (campo `field`) del widget — para componer un mensaje legible (p.ej. el
-    texto de una confirmación) sin exponer el id interno. '' si no se encuentra. Genérico (lee `ref_index`)."""
+    """HUMAN label for widget item `item_id` (`field`) — to compose a readable message (e.g. confirmation text)
+    without exposing the internal id. '' if not found. Generic (reads `ref_index`)."""
     iid = str(item_id or "").strip()
     if not iid:
         return ""
@@ -156,21 +155,21 @@ _MAX_DIGEST_CHARS = 1800
 
 
 def prompt_digest(widget_id: str) -> str:
-    """Contenido REAL de un widget ABIERTO, para que el cerebro pueda RAZONAR sobre lo que el operador tiene delante
-    — no solo nombrarlo. Contrato OPCIONAL en el `data.py` del widget:
+    """REAL content of an OPEN widget, so the brain can REASON about what the operator has in front of them — not just
+    name it. OPTIONAL contract in the widget's `data.py`:
 
         def prompt_digest() -> str:
-            '''Resumen en texto de lo que hay dentro AHORA. Compacto: viaja en el prompt de cada turno.'''
+            '''Text summary of what is inside NOW. Compact: travels in every turn prompt.'''
 
-    Por qué existe (2026-08-09): `items_line` publica solo `label (hint)`, así que ante «¿el hotel de la propuesta 2
-    tiene wifi?» —un dato que está ESCRITO en la tarjeta que el operador está mirando— el cerebro no lo tenía en el
-    prompt: o lo adivinaba o escalaba una búsqueda nueva para recuperar algo que ya poseía. Esa es la diferencia
-    entre una pantalla que el agente VE y una que solo ha pintado.
+    Why it exists (2026-08-09): `items_line` only publishes `label (hint)`, so when asked "does the hotel in proposal
+    2 have wifi?" —a fact WRITTEN in the card the operator is looking at— the brain did not have it in the prompt:
+    it either guessed or escalated a new search to recover something it already had. That is the difference between a
+    screen the agent SEES and one it has merely rendered.
 
-    Acotado a propósito (`_MAX_DIGEST_CHARS`): es un resumen para razonar, no el expediente completo — el detalle
-    íntegro vive en el propio widget (su vista de detalle), no en cada turno del prompt. Solo se pide para widgets
-    ABIERTOS, así que un catálogo grande no paga nada por esto.
-    Best-effort: un widget roto no puede romper el turno."""
+    Intentionally bounded (`_MAX_DIGEST_CHARS`): this is a summary for reasoning, not the full record — complete
+    detail lives in the widget itself (its detail view), not in every turn prompt. Only requested for OPEN widgets, so
+    a large catalog pays nothing for this.
+    Best-effort: a broken widget cannot break the turn."""
     try:
         import importlib
         mod = importlib.import_module(f"widgets.{widget_id}.data")
@@ -186,13 +185,13 @@ def prompt_digest(widget_id: str) -> str:
 
 
 def items_line(widget_id: str) -> str:
-    """Línea compacta con los items VIVOS del widget (label + hint) para el brief del cerebro, de modo que sepa
-    QUÉ existe y pueda referenciarlo con naturalidad. Sin ids internos (el modelo referencia por lenguaje).
+    """Compact line with the widget's LIVE items (label + hint) for the brain brief, so it knows WHAT exists and can
+    reference it naturally. No internal ids (the model references by language).
 
-    VACÍO ≠ SIN ÍNDICE (fix 2026-08-02): un widget que expone `ref_index` pero no tiene nada dentro lo DICE. Antes
-    devolvía "" en los dos casos, así que el cerebro no podía distinguir «esta tarjeta está abierta y vacía» de
-    «esta tarjeta no publica sus items» — y con la hoja de resultados abierta y en blanco contestaba «aquí lo
-    tienes» al operador, que no veía nada. Un widget vacío es un hecho que el cerebro tiene que ver."""
+    EMPTY ≠ NO INDEX (fix 2026-08-02): a widget that exposes `ref_index` but has nothing inside SAYS so. Previously it
+    returned "" in both cases, so the brain could not distinguish "this card is open and empty" from "this card does
+    not publish its items" — and with the results sheet open and blank it answered "here it is" to the operator, who
+    saw nothing. An empty widget is a fact the brain must see."""
     if not _exposes_ref_index(widget_id):
         return ""
     idx = _ref_index(widget_id)

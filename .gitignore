@@ -103,3 +103,26 @@ i18n/generated/
 # tenerla limpia — así que cualquier `.json` suelto ahí es un borrador de worker. Si algún día hace falta uno de
 # verdad, se des-ignora explícitamente con `!nombre.json`, que es una decisión visible en vez de un descuido.
 /*.json
+
+# ── NUESTRO PASADO Y NUESTRO FUTURO NO VAN AL REPO PÚBLICO (2026-08-14, norma del operador) ──────────
+# Regla: aquí vive lo que ayuda a entender y correr el motor HOY. Ni el historial de cómo llegamos, ni
+# los planes de a dónde vamos. A quien clona esto le sirve la arquitectura y las convenciones; no le
+# sirve —y no le incumbe— con quién hablamos, qué probamos el 22 de julio ni qué pensamos construir.
+#
+# Lo destapó una fuga concreta: los informes de la batería de voz son TRANSCRIPCIONES de sesiones
+# reales, y 110 de 186 llevaban dentro el nombre del operador y las tareas de su agenda. El mismo
+# fallo que ya documenta el bloque de arriba sobre los borradores de worker — un artefacto de trabajo
+# que se cuela como si fuera fuente.
+#
+# Nada de esto se borra del disco: se deja de PUBLICAR. Sigue estando aquí para nosotros.
+#
+# Informes/diarios de ejecuciones de test (el CATÁLOGO de qué se prueba sí es público: tests/README.md,
+# tests/TESTMAP.md y el catálogo de escenarios).
+tests/voice/e2e/agent/reports/
+tester/reports/
+# Bitácoras y tareas por módulo (el pasado) y roadmap/iniciativas (el futuro).
+.meshkore/modules/*/logs/
+.meshkore/modules/*/tasks/
+.meshkore/roadmap/
+# Roles internos de los agentes del equipo.
+.meshkore/team/

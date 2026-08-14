@@ -1,5 +1,14 @@
 # zaelar
 
+## Public repository language rule
+
+This repository is public. All source-code comments, docstrings, inline explanations, developer-facing
+instructions, and maintenance notes MUST be written in English, recursively throughout `engine/`. Before
+finishing a change, search the touched area for Spanish comments and translate every one. Do not introduce
+new Spanish comments or developer documentation. Spanish user-facing labels, voice responses, localization
+catalogues, and intentional multilingual product content are runtime data and remain subject to the i18n
+rules rather than this comment-language rule.
+
 > **`.meshkore/` es una CARPETA REAL de ESTE repo** (2026-07-28, antes era un symlink a `../.meshkore`). engine
 > es el repo PÚBLICO OSS y lleva SU propio `.meshkore/` con el contexto MeshKore Standard del MOTOR —
 > arquitectura, convenciones, módulos, seguridad, roadmap del motor, roles de agente (`team/`), `public/cluster.yaml`
@@ -8,6 +17,23 @@
 > `timeline/`, `snapshots/`, `.runtime/`, `agents/`) — sus propias claves/logs, nunca al repo.
 > **Lo que NO vive aquí:** la gestión de NEGOCIO/proyecto entero (cloud/GTM, `launch-readiness`, coordinación
 > engine+web+cloud) vive en `../.meshkore/` de la RAÍZ del workspace (repo aparte, privado) — ver `../CLAUDE.md`.
+
+> ⚠️ **NI NUESTRO PASADO NI NUESTRO FUTURO SE PUBLICAN** (2026-08-14, norma del operador). Este repo guarda lo
+> que ayuda a entender y correr el motor **HOY**. Lo que cuenta cómo llegamos o a dónde vamos existe en local
+> pero está **gitignoreado**, así que quien clone el repo NO lo tiene y muchas referencias de estos documentos
+> le apuntarán a carpetas vacías. Es deliberado, no un despiste:
+>
+> | No se publica (existe en local) | Sí se publica |
+> |---|---|
+> | `.meshkore/roadmap/` — iniciativas y plan | `.meshkore/docs/` — arquitectura, convenciones, módulos, ops, seguridad |
+> | `.meshkore/modules/*/tasks/` y `*/logs/` — tareas y bitácoras | `.meshkore/public/cluster.yaml`, `STANDARD_VERSION` |
+> | `.meshkore/team/` — roles internos de nuestros agentes | `CLAUDE.md`, `README.md` |
+> | `tests/voice/e2e/agent/reports/` — informes de ejecuciones | `tests/README.md`, `tests/TESTMAP.md`, catálogo de escenarios |
+>
+> El detonante fue una fuga real: los informes de la batería de voz son **transcripciones de sesiones**, y 110
+> de 186 llevaban dentro el nombre del operador y las tareas de su agenda. La regla general que deja: el
+> CATÁLOGO de qué se prueba es público y útil; el DIARIO de lo que se probó es nuestro. Igual con el roadmap —
+> saber cómo está construido el motor le sirve a quien lo clona; saber qué pensamos construir, no.
 
 Asistente personal por voz **multidioma** (**inglés por defecto**, y se pasa SOLO al idioma del operador en
 cuanto lo detecta — ver «Arranque idiomático» abajo), siempre activo. Arquitectura: STT →
@@ -997,10 +1023,10 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   **Fix:** (1) las data-ops se invocan por una **tool** `widget_data(widget_id, action, item, payload)` (camino
   PRINCIPAL; el tag inline queda de RESERVA) — ambos convergen en `_apply_widget_data` del provider, que respeta el
   gate FAST/CONFIRM/ESCALATE de V2-025. (2) **Referencias a items en lenguaje natural**: el operador no sabe ids;
-  el modelo pasa `item` en lenguaje natural ("la tarea del daemon", "el proyecto CryptoKnight") y `widgets/refs.py`
+  el modelo pasa `item` en lenguaje natural ("la tarea de la migración", "el proyecto Atlas") y `widgets/refs.py`
   lo resuelve al **id REAL** contra los items VIVOS del widget (`data.py:ref_index()` → `[{id,label,field}]`), NUNCA
   lo inventa; el campo a rellenar (`taskId`/`projectId`…) se deduce del `payload` declarado en el manifest, así
-  "descarta el proyecto CryptoKnight" (→`projectId`) apunta al proyecto y no a la tarea homónima. Fuzzy stdlib
+  "descarta el proyecto Atlas" (→`projectId`) apunta al proyecto y no a la tarea homónima. Fuzzy stdlib
   (difflib + tokens, acento-insensible); si es **ambiguo/no existe, PREGUNTA** en vez de actuar sobre el item
   equivocado. El brief expone `items ahora:` por widget (labels vivos) para que el modelo referencie con
   naturalidad. (3) **Fechas/horas del habla**: `live_state` da la fecha EXPLÍCITA (hoy+mañana en YYYY-MM-DD, el

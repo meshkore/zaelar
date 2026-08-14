@@ -318,7 +318,7 @@ speaks in natural language ("mark the daemon task done", "snooze the Reddit thin
 natural-language `item`; `refs.resolve(widget_id, action, ref)` matches it (fuzzy, stdlib difflib + token overlap,
 accent-insensitive) against the widget's LIVE items and fills the real id. The widget exposes them via an optional
 `data.py:ref_index() -> [{"id","label","field"}]`; the id field to fill (`taskId` vs `projectId`) is read from the
-action's declared `payload`, so `drop_project` (→`projectId`) targets the *project* CryptoKnight, not the same-named
+action's declared `payload`, so `drop_project` (→`projectId`) targets the *project* Atlas, not the same-named
 task. Ambiguous/no-match → the brain ASKS instead of acting on the wrong item. The brief also lists `items ahora:` per
 widget so the model knows what exists. Relative dates/times ("mañana", "a las cinco") are normalised in the widget
 layer (`agenda.data._resolve_date/_resolve_time`), and `live_state` gives the model today+tomorrow explicitly so it
