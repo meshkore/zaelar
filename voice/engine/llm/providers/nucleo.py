@@ -337,6 +337,41 @@ class NucleoLLMStream(llm.LLMStream):
             brain._utterance = {"text": text, "at": time.time()}
             self._turn_text = text
 
+        # ACUMULADOR DE FRASE PARTIDA (V2-096). Hermano de la guarda de arriba, para el caso que ella NO cubre: la
+        # guarda mata un fragmento cuando ya llegó su continuación; esto decide qué hacer cuando la continuación
+        # AÚN NO ha llegado. Antes se actuaba sobre el trozo.
+        #
+        # V2-095 lo intentaba RETRASANDO el turno, y eso es un tiempo fijo: medido sobre 372 pausas reales, el
+        # `max_delay` de 2,2 s solo cubría el 48,7% (p50 2,3 s · p90 4,9 s · max 19,5 s). Acumular saca el reloj de
+        # la ecuación — la pausa puede durar lo que quiera, porque lo que se juzga son los trozos JUNTOS.
+        #
+        # Va AQUÍ, y el sitio es la mitad del arreglo: por delante ya pasaron la interrupción DURA (una orden de
+        # parar nunca se retiene) y el gate de atención; por detrás viene `ingest_utterance`, así que un trozo a
+        # medias tampoco entra en la MEMORIA. Un fragmento no habla, no actúa y no se recuerda.
+        if not first_turn:
+            from nucleo.flash import accumulator as _acc
+            if getattr(brain, "_acc", None) is None:
+                brain._acc = _acc.Accumulator()
+            _n_before = len(brain._acc.fragments)
+            _action, _merged, _why = brain._acc.offer(text)
+            if _action == "hold":
+                # Callar es la conducta CORRECTA aquí, no un efecto colateral que haya que compensar con un
+                # temporizador. Norma del operador, con su propio ejemplo: «si digo "oye, ¿qué tal? ahora vamos
+                # a…" y me paro ahí, obviamente esa frase no genera absolutamente nada NI DEBE GENERARLO».
+                # Por eso no hay flush por tiempo: un fragmento abandonado se queda sin respuesta a propósito, y
+                # las válvulas del acumulador (hueco máximo, nº de trozos, tamaño) son solo para que el buffer no
+                # crezca ni contamine una petición posterior que no tiene nada que ver.
+                # Y se VE: el trozo retenido y el motivo salen al timeline (⏸), que es la diferencia entre «está
+                # esperando a que acabes» y «se ha quedado colgado».
+                emit("brain", "⏸ frase a medias — espero a que termines", text=text[:200], role="system",
+                     extra={"cat": "flash", "why": _why, "trozos": len(brain._acc.fragments),
+                            "acumulado": brain._acc.text()[:300]})
+                return
+            if _n_before:
+                emit("brain", "🧩 frase completada en varios tiempos", text=_merged[:300], role="user",
+                     extra={"cat": "flash", "trozos": _n_before + 1, "motivo": _why})
+            text = _merged
+
         # V2-013: el "corazón" (agente de memoria) clasifica en background lo que dijo el operador y, si es
         # perfil (nombre/ubicación/trato/hardware/coche) o deseo durable, lo lleva a `state`/`long` sin
         # bloquear el turno. Fire-and-forget: regex µs + escritura por la cola async → cero coste en TTFB.

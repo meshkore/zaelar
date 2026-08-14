@@ -189,6 +189,14 @@ DOMAINS: list[dict] = [
         {"id": "3.8", "title": "Turnos por SENTIDO: la frase se cierra cuando está acabada, no cuando hay silencio",
             "ch": VOICE, "paths": ["tests/voice/unit/test_segmenter.py",
                                    "tests/voice/unit/test_segmenter_corpus.py"]},
+        # V2-096 (2026-08-14): V2-095 resolvía esto RETRASANDO el turno, o sea con un TIEMPO FIJO — y medido sobre
+        # 372 pausas reales del registro el `max_delay` de 2,2 s solo cubría el 48,7% (p50 2,3 s · p90 4,9 s · max
+        # 19,5 s). Acumular el trozo saca el reloj de la ecuación: la pausa dura lo que quiera porque lo que se juzga
+        # son los trozos JUNTOS (156 frases recompuestas sobre 79 cadenas reales). Los tres primeros tests son de
+        # SEGURIDAD (una orden de parar o una autorización tragadas serían peores que el bug que arregla) y uno
+        # documenta a propósito el límite del léxico: no ve que falte el OBJETO («quiero que busques»).
+        {"id": "3.9", "title": "Frase partida en dos tiempos = UNA petición (el fragmento no genera nada)",
+            "ch": VOICE, "paths": ["tests/voice/unit/test_accumulator.py"]},
     ]},
     {"id": "4", "name": "WIDGETS", "nodes": [
         {"id": "4.1", "title": "Ciclo de vida / acciones / refs / generador / background", "ch": UNIT, "paths": [
