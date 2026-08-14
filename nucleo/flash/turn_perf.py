@@ -6,7 +6,7 @@ respuesta: para saber por qué un turno tardó 8 s había que exportar el jsonl 
 
 Esto no mide nada nuevo — LEE lo que ya se mide y responde en una línea la única pregunta que importa en vivo:
 
-    ¿este turno fue lento por el PROMPT, por el PROVEEDOR, o por arranque en frío?
+    ¿este turno fue lento ANTES del primer token, por el PROMPT, por el PROVEEDOR, o por arranque en frío?
 
 Premisa del operador (2026-08-02): «DeepSeek Flash es bastante rápido; si un turno pasa de 1-2 s es porque le
 estamos lanzando un prompt demasiado extenso o porque el proveedor ha tenido un fallo puntual». El veredicto
@@ -24,6 +24,22 @@ BIG_PROMPT_TOKENS = 6000
 SLOW_TOKS_PER_S = 8.0
 # Silencio largo antes del turno → la primera llamada paga handshake/arranque del modelo.
 COLD_GAP_S = 90.0
+
+# ── TTFT: el sospechoso que este veredicto no sabía nombrar (2026-08-14) ──────────────────────────────────────
+# El orden de las ramas era frío → prompt → proveedor, y `prompt` gana con `ptok >= 6000`. Como el prompt de VOZ
+# es SIEMPRE de 9-10k tokens, **la rama `proveedor` era inalcanzable en el camino de voz, por construcción**: los
+# 10 turnos lentos de la sesión b70a45d0 se etiquetaron «PROMPT GRANDE» con un prompt constante (9.363-10.314 tok,
+# ±9%) y un TTFT que iba de 0 a 25.703 ms. Un input plano no puede explicar un factor 10; lo explicaba la
+# DIFICULTAD de la decisión (los dos picos de 25,6 s son los dos turnos más duros de la sesión), que es la firma
+# del razonamiento oculto de V4 Flash ya medido el 2026-08-02 («razona aunque se le pida que no»).
+#
+# Así que el veredicto deja de decidir por el TAMAÑO del prompt y pasa a mirar DÓNDE se fue el tiempo:
+#   · casi todo antes del primer token (TTFT/total alto) → el modelo estaba PENSANDO o el proveedor encolando;
+#   · repartido, con throughput bajo → el proveedor genera lento;
+#   · repartido, con throughput normal → el prompt/el trabajo.
+# El tamaño del prompt sigue nombrándose, pero como DATO, no como culpable: está medido que vale ~150 ms.
+TTFT_DOMINATES = 0.70      # fracción del turno gastada antes del primer token para culpar al pre-token
+TTFT_SLOW_MS = 4000        # …y a partir de aquí en absoluto (por debajo, un turno de 3 s no es un problema)
 
 # Bloques que componen el prompt, en el orden en que se nombran al operador. `sz_*` son chars ya medidos por el
 # constructor del prompt; `tools_chars` lo aporta el catálogo de tools ofrecido en ESTE turno.
@@ -59,7 +75,8 @@ def biggest_block(m: dict) -> tuple[str, int]:
 def verdict(m: dict) -> dict:
     """Diagnóstico del turno a partir de las métricas YA recogidas. Devuelve `{slow, cause, label, …}`.
 
-    `cause` ∈ frio · prompt · proveedor · trabajo · ok — y el `label` es la línea que se lee en el visor.
+    `cause` ∈ frio · pre_token · proveedor · trabajo · prompt · reparto · ok — y el `label` es la línea que se
+    lee en el visor. El orden de las ramas ES la decisión de diseño: ver la nota de `TTFT_DOMINATES`.
     """
     total = _num(m, "total_ms", "fast_ms", default=0) or 0
     ttft = _num(m, "ttft_ms", default=0) or 0
@@ -74,17 +91,26 @@ def verdict(m: dict) -> dict:
     block, block_n = biggest_block(m)
     slow = total >= SLOW_MS
 
+    # ¿Cuánto del turno se fue ANTES del primer token? Es la pregunta que separa «piensa mucho» de «escribe
+    # despacio», y la que faltaba. Sin ttft medido no se puede afirmar nada → 0.0 (no culpa a nadie).
+    ttft_frac = (ttft / total) if (ttft and total) else 0.0
+    ttft_bound = ttft >= TTFT_SLOW_MS and ttft_frac >= TTFT_DOMINATES
+
     if not slow:
         cause = "ok"
-        label = f"⏱ turno {int(total)} ms · prompt {int(ptok)} tok"
+        label = f"⏱ turno {int(total)} ms · prompt {int(ptok)} tok · TTFT {int(ttft)} ms"
     elif cold:
         cause = "frio"
         label = (f"⏱ turno LENTO {int(total)} ms — ARRANQUE EN FRÍO "
                  f"({int(gap)} s sin hablar; la 1ª llamada paga handshake)")
-    elif ptok >= BIG_PROMPT_TOKENS:
-        cause = "prompt"
-        label = (f"⏱ turno LENTO {int(total)} ms — PROMPT GRANDE: {int(ptok)} tok"
-                 + (f", lo que más pesa es «{block}» ({block_n} chars)" if block else ""))
+    elif ttft_bound:
+        # ANTES DEL PRIMER TOKEN se fue casi todo. En este cerebro eso es razonamiento oculto (V4 Flash razona
+        # aunque se le pida que no: medido el 2026-08-02, `thinking:disabled` lo reduce a la mitad y no lo apaga)
+        # o cola del proveedor. Se nombran las DOS y se da el dato que las distingue, en vez de culpar al prompt.
+        cause = "pre_token"
+        label = (f"⏱ turno LENTO {int(total)} ms — TODO ANTES DEL 1er TOKEN: TTFT {int(ttft)} ms "
+                 f"({int(ttft_frac * 100)}% del turno) con {tps if tps is not None else '?'} tok/s después. "
+                 f"Razonamiento oculto o cola del proveedor — el prompt ({int(ptok)} tok) no lo explica")
     elif tps is not None and tps < SLOW_TOKS_PER_S:
         cause = "proveedor"
         label = (f"⏱ turno LENTO {int(total)} ms — PROVEEDOR LENTO: {tps} tok/s con un prompt normal "
@@ -93,14 +119,27 @@ def verdict(m: dict) -> dict:
         cause = "trabajo"
         label = (f"⏱ turno {int(total)} ms — con TRABAJO en el turno "
                  f"({'escalada' if m.get('escalated') else 'búsqueda'}, 2º pase): normal que suba")
+    elif ptok >= BIG_PROMPT_TOKENS and ttft_frac < TTFT_DOMINATES:
+        # El prompt solo se culpa cuando el tiempo se repartió DE VERDAD. Si se fue casi todo antes del primer
+        # token, el culpable es el pre-token aunque el prompt sea grande — es exactamente el sesgo que hacía que
+        # `proveedor` no pudiera salir nunca en voz.
+        cause = "prompt"
+        label = (f"⏱ turno LENTO {int(total)} ms — PROMPT GRANDE: {int(ptok)} tok"
+                 + (f", lo que más pesa es «{block}» ({block_n} chars)" if block else "")
+                 + f" · TTFT {int(ttft)} ms ({int(ttft_frac * 100)}%)")
     else:
-        cause = "proveedor"
-        label = (f"⏱ turno LENTO {int(total)} ms — ni prompt grande ({int(ptok)} tok) ni frío: "
-                 f"apunta a un fallo puntual del proveedor · TTFT {int(ttft)} ms")
+        # Lento y sin causa dominante. Antes esto se resolvía culpando al prompt o al proveedor por descarte; decir
+        # «no lo sé, aquí están los números» es más útil que un culpable inventado.
+        cause = "reparto"
+        label = (f"⏱ turno LENTO {int(total)} ms — sin causa dominante: TTFT {int(ttft)} ms "
+                 f"({int(ttft_frac * 100)}%) · {tps if tps is not None else '?'} tok/s · prompt {int(ptok)} tok")
 
     return {"slow": slow, "cause": cause, "label": label, "total_ms": int(total), "ttft_ms": int(ttft),
             "gen_ms": int(gen), "prompt_tokens": int(ptok), "tok_per_s": tps, "gap_since_last_s": round(gap, 1),
             "cold": cold, "top_block": block, "top_block_chars": block_n,
+            # `ttft_frac` viaja en el evento: es la serie que gobierna el circuito de latencia del failover
+            # (`provider_chain.note_slow`) y la que permite ver la VARIANZA del TTFT a prompt constante.
+            "ttft_frac": round(ttft_frac, 3),
             "model": m.get("model") or "", "engine": m.get("engine") or m.get("provider") or ""}
 
 
