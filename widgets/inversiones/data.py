@@ -1,33 +1,30 @@
 #
-# Inversiones — dashboard de cartera de tokens. Disco/donut con la asignación + rejilla
-# 2×2 de tarjetas (una por token) para que cada posición se lea como un dato separado.
-# PASSIVE: view_data() lee de store (siembra ejemplo si está vacío). set_holdings reemplaza
-# la cartera entera (carga de datos reales por voz/desde un worker). Stdlib only, nunca lanza.
+# Investments: token portfolio dashboard. Donut allocation chart + 2x2 card grid, one card per token, so each
+# position reads as a separate datum.
+# PASSIVE: view_data() reads from store and seeds an example when empty. set_holdings replaces the whole portfolio
+# with real data loaded by voice or from a worker. Stdlib only, never raises.
 #
 from .. import store
 
 WID = "inversiones"
 
-# Cartera de EJEMPLO (marcada sample=True). El operador no ha pasado aún sus posiciones
-# reales; cuando lo haga vía set_holdings, sample pasa a False.
-_SAMPLE = {
+# EMPTY portfolio. It used to seed an example one — BTC/ETH/SOL/ADA adding up to about EUR 70,000 — flagged
+# `sample: True` so the code knew it was fake. The screen did not: a brand-new account opened this widget and
+# saw a portfolio, and the one thing a portfolio must never do is show a number that is not yours. A widget's
+# data is USER data drawn as a widget; a fresh account owns nothing. Real positions arrive through
+# `set_holdings` (voice or a worker), and until then the honest answer is an empty state.
+_EMPTY = {
     "title": "Cartera de inversiones",
     "currency": "€",
-    "sample": True,
-    "holdings": [
-        {"name": "Bitcoin",  "ticker": "BTC", "value": 42000, "change": 2.4},
-        {"name": "Ethereum", "ticker": "ETH", "value": 18500, "change": -0.8},
-        {"name": "Solana",   "ticker": "SOL", "value": 6200,  "change": 5.1},
-        {"name": "Cardano",  "ticker": "ADA", "value": 3300,  "change": 1.2},
-    ],
+    "sample": False,
+    "holdings": [],
 }
 
 
 def _seed() -> dict:
     db = store.load(WID, {})
-    if not db or not db.get("holdings"):
-        db = dict(_SAMPLE)
-        db["sample"] = True
+    if not db:
+        db = dict(_EMPTY)
         store.save(WID, db)
     return db
 
@@ -35,7 +32,7 @@ def _seed() -> dict:
 def view_data(q: str = "") -> dict:
     db = _seed()
     holdings = list(db.get("holdings") or [])
-    # Limite blando de seguridad: nada de valores no numéricos al render.
+    # Soft safety limit: no non-numeric values reach render.
     clean = []
     for h in holdings:
         try:
@@ -65,8 +62,8 @@ def view_data(q: str = "") -> dict:
 
 
 def apply_action(action: str, payload: dict) -> dict:
-    # Reemplaza toda la cartera. payload: {"holdings":[{"name","ticker","value","change"}, ...]}
-    # Un worker o la voz lo usan para cargar las posiciones reales del operador.
+    # Replace the whole portfolio. payload: {"holdings":[{"name","ticker","value","change"}, ...]}
+    # A worker or voice uses this to load the operator's real positions.
     if action == "set_holdings":
         raw = (payload or {}).get("holdings") or []
         norm = []
