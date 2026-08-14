@@ -25,18 +25,27 @@ from voice.engine.core import langs
 
 def _pushed(*chunks: str) -> list[str]:
     """Segmentos que el tokenizador de LiveKit ENTREGA A TTS tras empujar `chunks`, SIN cerrar el stream — que es
-    la única situación que importa: mientras el turno sigue vivo, nadie hace flush."""
-    from livekit.agents.tokenize import basic
-    st = basic.SentenceTokenizer().stream()
-    for c in chunks:
-        st.push_text(c)
-    out = []
-    try:
-        while True:
-            out.append(st._event_ch.recv_nowait().token)
-    except Exception:
-        pass
-    return out
+    la única situación que importa: mientras el turno sigue vivo, nadie hace flush.
+
+    Va DENTRO de un `asyncio.run`: el canal de LiveKit se construye con `asyncio.get_event_loop()`, que revienta si
+    el hilo no tiene loop actual — y basta con que otro test de la suite haya cerrado el suyo para que esto falle
+    solo al correr en conjunto (pasó al añadirlo: verde en solitario, rojo en suite)."""
+    import asyncio
+
+    async def _go():
+        from livekit.agents.tokenize import basic
+        st = basic.SentenceTokenizer().stream()
+        for c in chunks:
+            st.push_text(c)
+        out = []
+        try:
+            while True:
+                out.append(st._event_ch.recv_nowait().token)
+        except Exception:
+            pass
+        return out
+
+    return asyncio.run(_go())
 
 
 REPLY = "Sí, te he oído y vacío la agenda entera. Ya está todo limpio del todo. "
