@@ -216,6 +216,36 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                 and (not date or m.get("date") == date)
             )
         ]
+    elif action == "clear_all":
+        # VACIAR LA AGENDA ENTERA, en UNA acción (2026-08-14, sesión b70a45d0).
+        #
+        # El operador pidió «vacía la agenda por completo, hoy y siempre» SEIS veces en cuatro minutos y no se
+        # vació. No era un fallo del modelo: es que esta API **no sabía expresar esa intención**. Solo había
+        # acciones de UN elemento (`drop` una tarea, `cancel_meeting` una cita, `drop_project` un proyecto), así
+        # que el FlashBrain solo podía tirar una cosa por turno — y cada turno decía «hecho», que era verdad de la
+        # acción que había disparado y mentira de lo que le habían pedido. Al 4º intento acabó escalando a un
+        # worker, que murió con la autorización en la mano por otro fallo distinto.
+        #
+        # Cuando una intención frecuente no cabe en el vocabulario declarado, el modelo no tiene forma de acertar:
+        # la respuesta es ampliar el vocabulario, no afinar el prompt. Los dos turnos más lentos de la sesión
+        # (25,6 s de TTFT cada uno) fueron precisamente los de esta decisión imposible.
+        #
+        # IRREVERSIBLE → el manifest la marca `confirm:true` y el gate de `widgets/confirm.py` pide un sí/no antes.
+        # Se vacían las TRES listas: sin ellas «por completo» seguiría siendo mentira. Los proyectos se CONGELAN
+        # (`frozen`, el mismo estado que `drop_project`) en vez de borrarse: son la memoria de trabajo del
+        # operador, y él pidió una agenda vacía, no perder de qué iba cada proyecto.
+        for t in db.get("tasks", []):
+            if t.get("status") in (None, "todo", "in_progress"):
+                t["status"] = "dropped"
+                t["updatedAt"] = _today()
+        for p in db.get("projects", []):
+            p["status"] = "frozen"
+        db["meetings"] = []
+        db["blocks"] = []
+        # NO se toca el MARCO del día (horario laboral, hora de comer): eso sale de su configuración
+        # (`lunchStart`/`lunchEnd`), no de nada que él haya agendado. Borrárselo por pedir una agenda vacía le
+        # dejaría el horario roto mañana sin saber por qué. Cambiar el marco es «cambia mi horario».
+
     # 'replan' (and any action) just recomputes below
     db["currentPlan"] = compute_plan(db)  # persist the updated plan too, not just the mutation
     store.save(WIDGET_ID, db)   # persist the mutation; the plan is derived fresh in view_data()

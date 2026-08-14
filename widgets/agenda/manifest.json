@@ -28,7 +28,7 @@
   ],
   "entry": "widget.js",
   "dataSchemaRef": "schema:DB",
-  "usage": "Añade citas con add_meeting, cancélalas con cancel_meeting (título + fecha opcional) y gestiona el estado de una tarea con done/snooze/not_now/drop (necesitan su taskId). Todas son data-ops instantáneas menos drop_project, que descarta un proyecto entero y pide confirmación.",
+  "usage": "Añade citas con add_meeting, cancélalas con cancel_meeting (título + fecha opcional) y gestiona el estado de una tarea con done/snooze/not_now/drop (necesitan su taskId). Todas son data-ops instantáneas menos drop_project, que descarta un proyecto entero y pide confirmación. Para VACIARLA ENTERA («déjala vacía por completo», «hoy y siempre») usa clear_all — una sola acción, sin payload: pide confirmación y deja tareas descartadas, proyectos congelados y cero citas. NO vayas tirando elementos de uno en uno para eso.",
   "actions": {
     "add_meeting": {
       "desc": "añade una cita/reunión al día",
@@ -75,6 +75,11 @@
       "payload": {
         "projectId": "string"
       },
+      "confirm": true
+    },
+    "clear_all": {
+      "desc": "VACÍA la agenda entera de una vez: descarta todas las tareas pendientes, congela todos los proyectos y borra todas las citas y bloques. Úsala cuando el operador pida dejarla vacía «del todo»/«por completo»/«hoy y siempre», en vez de ir tirando elementos uno a uno",
+      "payload": {},
       "confirm": true
     }
   },
