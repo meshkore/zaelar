@@ -97,6 +97,16 @@ async def lock(code: str) -> dict:
     except Exception as e:  # noqa: BLE001
         logger.warning(f"i18n.detect: settings.update failed: {e}")
     _should_cache = False                           # stop detecting
+    # THE MEMORY'S CANONICAL LANGUAGE. Locking used to move the voice, the STT and the UI and leave the memory
+    # behind: `state.language` is what `mem_processor._render` reads to decide the language every pill is written
+    # in, and nothing here ever wrote it. So a French operator got French speech, French STT and a French UI —
+    # while their memory was distilled, forever, into whatever the default happened to be. The memory is
+    # deliberately MONOLINGUAL in the operator's language (2026-07-10); that only holds if detection moves it too.
+    try:
+        from memory import api as _memory
+        _memory.set_state({"language": code})
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"i18n.detect: could not set the memory's canonical language: {e}")
     try:
         from i18n import init as _init
         await _init.prepare(code)                   # generate/upgrade the UI bundle (preset → instant)

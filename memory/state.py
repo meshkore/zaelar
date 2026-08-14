@@ -14,11 +14,18 @@ import json
 
 from . import db as _db
 
-# Estado por defecto: castellano, sin datos personales todavía (los siembra el agente de memoria / V2-003).
+# Default state: no personal data yet (the memory agent seeds it / V2-003), and ENGLISH.
+#
+# This is the FOURTH place the language bootstrap contract lives, and it was the one out of step. The other
+# three — `langs.DEFAULT_LANG`, the frontend's `store.lang()`, and the engine settings — all say "en"; this one
+# said "es", and it is the field the memory CORAZÓN reads to decide the canonical language it distils pills in
+# (`mem_processor._render`). So a brand-new account, before the operator had said a single word, was already
+# committed to writing their memory in Spanish. The product opens in English and switches to the operator's real
+# language on their first sentence; the memory has to start from the same place as everything else.
 _DEFAULT: dict = {
     "assistant_name": "Zaelar",
     "operator_name": None,
-    "language": "es",
+    "language": "en",
     # MISIÓN/identidad de zaelar (sección A del ESTADO compuesto, `memory.compose_state`). VIVE en la memoria:
     # se SIEMBRA al arrancar desde el catálogo de idioma (`langs.LangSpec.mission`, en el idioma del operador) por
     # `nucleo/flash/memory_cache.prime()`; nunca se hardcodea en un prompt inglés. None = aún sin sembrar (compose

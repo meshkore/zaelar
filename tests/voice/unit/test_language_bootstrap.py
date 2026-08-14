@@ -79,3 +79,52 @@ def test_voxtral_omits_language_only_while_detecting(monkeypatch, detecting):
         assert "language" not in kw, "pasar un idioma en primera ejecución mata la autodetección"
     else:
         assert kw["language"] == "es"
+
+
+# 3. **Locking the language MOVES THE MEMORY TOO.** The third invariant, added 2026-08-14 after the operator
+#    asked what a brand-new account actually starts from. `lock()` persisted the setting, built the UI bundle
+#    and told the frontend to switch — and left `state.language` untouched. That field is what
+#    `nucleo/mem_processor._render` reads to pick the language every pill is written in, so a French operator
+#    got French speech, French STT and a French UI while their memory was distilled, forever, into the default.
+#    The memory is deliberately MONOLINGUAL in the operator's language; that only holds if detection moves it.
+
+def test_a_brand_new_account_starts_in_english():
+    """The fourth place the bootstrap contract lives — and the one that was out of step, saying "es"."""
+    from memory import state as mstate
+    assert mstate._DEFAULT["language"] == langs.DEFAULT_LANG == "en"
+
+
+def test_locking_the_language_also_moves_the_memory(monkeypatch):
+    import asyncio
+    from i18n.init import detect
+
+    written = {}
+    monkeypatch.setattr(detect, "_should_cache", None, raising=False)
+    # Isolate the three side effects we are NOT testing here (settings file, bundle generation, SSE).
+    import config.settings as cs
+    monkeypatch.setattr(cs, "update", lambda d: None)
+    import i18n.init as i18n_init
+
+    async def _noop(code):
+        return None
+
+    monkeypatch.setattr(i18n_init, "prepare", _noop)
+    from memory import api as memapi
+    monkeypatch.setattr(memapi, "set_state", lambda fields: written.update(fields))
+
+    res = asyncio.run(detect.lock("fr"))
+    assert res["ok"] is True
+    assert written.get("language") == "fr", (
+        "detection moved the voice and the UI but not the memory: pills would keep being written in the "
+        "previous language forever"
+    )
+
+
+def test_the_memory_language_is_never_hardcoded_to_spanish():
+    """Both readers used to fall back to a literal "es" when the state had no language yet — which is exactly
+    the state a cold first run is in. The fallback has to be the engine's single source of truth."""
+    import pathlib
+    root = pathlib.Path(__file__).resolve().parents[3]
+    for rel in ("nucleo/mem_processor.py", "nucleo/memllm.py"):
+        src = (root / rel).read_text(encoding="utf-8")
+        assert 'or "es"' not in src, f"{rel} still hardcodes Spanish as the fallback language"

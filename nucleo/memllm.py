@@ -160,14 +160,26 @@ _REM_SYSTEM = (
 )
 
 
+def _default_lang() -> str:
+    """`langs.current_code()` already reads ZAELAR_LANGUAGE and falls back to DEFAULT_LANG ("en")."""
+    try:
+        from voice.engine.core import langs
+        return langs.current_code()
+    except Exception:
+        return "en"
+
+
 def _canonical_lang_native() -> str:
     """Nombre nativo del idioma CANÓNICO de la memoria (decisión 2026-07-10: la memoria es MONOLINGÜE, en el
     idioma del operador — mismo campo `state.language` que lee `nucleo/mem_processor.py::_render` para el
     CORAZÓN de escritura). Fail-open a español si la memoria o el catálogo de idiomas no están disponibles."""
-    code = "es"
+    # The fallback is the ENGINE's single source of truth, not a hardcoded language. Writing "es" here made
+    # this yet another independent opinion about which language the product speaks — and the one that wins when
+    # the memory is unreachable, i.e. exactly on a cold first run.
+    code = _default_lang()
     try:
         from memory import api as _memory
-        code = (_memory.state().get("language") or "es")
+        code = (_memory.state().get("language") or code)
     except Exception:
         pass
     try:

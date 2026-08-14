@@ -14,11 +14,19 @@ def fresh_db(tmp_path, monkeypatch):
     memdb.reset_db()
 
 
-def test_default_is_spanish(fresh_db):
+def test_a_new_account_starts_in_english_and_empty(fresh_db):
+    """This test used to be called `test_default_is_spanish` and asserted exactly that — it encoded the bug
+    rather than the contract. The product opens in ENGLISH and switches to the operator's real language on
+    their first sentence (see tests/voice/unit/test_language_bootstrap.py). This field is the one the memory
+    CORAZÓN reads to pick the language it distils every pill in, so a state that starts in Spanish commits a
+    brand-new account's memory to a language its owner never chose."""
     s = memstate.read()
-    assert s["language"] == "es"
+    assert s["language"] == "en"
     assert s["assistant_name"] == "Zaelar"
+    # And EMPTY: a fresh account owns no identity, no mission and no rules yet.
     assert s["operator_name"] is None
+    assert s["mission"] is None
+    assert not s.get("rules")
 
 
 def test_write_and_read_roundtrip(fresh_db):
@@ -26,7 +34,7 @@ def test_write_and_read_roundtrip(fresh_db):
     s = memstate.read()
     assert s["operator_name"] == "Ricart"
     assert s["location"] == "Barcelona"
-    assert s["language"] == "es"  # default conservado
+    assert s["language"] == "en"  # el default se conserva al escribir otros campos
 
 
 def test_patch_is_shallow_merge(fresh_db):

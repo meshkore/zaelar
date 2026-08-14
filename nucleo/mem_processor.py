@@ -397,6 +397,14 @@ _LANG_NAME = {"es": "castellano", "en": "English", "de": "Deutsch", "fr": "fran�
               "pt": "português", "ca": "català"}
 
 
+def _default_code() -> str:
+    try:
+        from voice.engine.core import langs
+        return langs.current_code()
+    except Exception:
+        return "en"
+
+
 def _render(text: str, state: dict | None) -> str:
     st = state or {}
     keep = {k: st.get(k) for k in ("operator_name", "location", "treatment", "objetivo", "proyecto")
@@ -405,7 +413,10 @@ def _render(text: str, state: dict | None) -> str:
     # IDIOMA CANÓNICO de la memoria = el del operador (decisión 2026-07-10: la memoria es MONOLINGÜE, en el idioma
     # de la persona; el sistema entero se adapta a ese idioma). Si el operador suelta algo en otro idioma, se DESTILA
     # igualmente traduciendo la píldora al idioma canónico — NUNCA se descarta un dato durable por venir en otro idioma.
-    lang = _LANG_NAME.get((st.get("language") or "es"), "castellano")
+    # Same fix as memllm: no hardcoded language. An unseeded state must not silently mean Spanish — that is
+    # what committed a brand-new account's memory to a language its owner had not chosen.
+    code = st.get("language") or _default_code()
+    lang = _LANG_NAME.get(code, _LANG_NAME["en"])
     return (f"ESTADO actual: {snap}\n"
             f"IDIOMA DE LA MEMORIA: {lang}. Escribe SIEMPRE las píldoras en {lang}, aunque el operador hable en "
             f"otro idioma (tradúcelo). Un dato memorable dicho en otro idioma NO se descarta: se guarda en {lang}.\n"
