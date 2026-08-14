@@ -46,25 +46,48 @@ import unicodedata
 # a mitad («…y ponerlo en la») no puede quedarse sin respuesta para siempre por una coma.
 MAX_HOLD_S = float(os.getenv("ZAELAR_SEGMENTER_MAX_HOLD_S", "6.0"))
 
-# Palabras FUNCIÓN: si la frase acaba en una de estas, falta lo que gobiernan. Salen de los fragmentos REALES de la
-# sesión, no de una gramática: preposiciones, artículos, determinantes, conjunciones y relativos.
-_DANGLING = {
+# Palabras FUNCIÓN en DOS clases, y la distinción NO es cosmética — es la que separa retener un dictado a medias de
+# retener una orden de parar. Salió de medir contra las 195 sesiones del registro (ver `should_hold`): la primera
+# versión tenía UNA sola lista y trataba el punto final como irrelevante, así que **«Y que lo pares todo.» y
+# «Ciérralo todo y páralo todo.» se retenían** por acabar en «todo». Retrasar una orden de PARAR es exactamente lo
+# que V2-092 («parar es parar») prohíbe, y era el peor caso posible de esta capa.
+#
+# _HARD = no pueden cerrar un enunciado en castellano NUNCA, diga lo que diga la puntuación. «de.» sigue siendo un
+# fragmento aunque el STT le ponga un punto (y se lo pone: pone puntos donde le parece).
+_HARD = {
     # preposiciones y locuciones
     "a", "ante", "bajo", "con", "contra", "de", "del", "desde", "durante", "en", "entre", "hacia", "hasta",
     "mediante", "para", "por", "segun", "sin", "sobre", "tras", "al",
-    # artículos y determinantes
+    # artículos y posesivos
     "el", "la", "los", "las", "un", "una", "unos", "unas", "lo", "mi", "mis", "tu", "tus", "su", "sus",
+    # conjunciones y relativos
+    "y", "e", "o", "u", "ni", "que", "quien", "quienes", "cuyo", "cuya", "porque", "pero", "aunque", "pues",
+    # inglés (el operador mezcla)
+    "the", "an", "of", "to", "for", "with", "and", "or", "but", "in", "on", "at", "from", "by", "that",
+    "which", "who",
+}
+
+# _SOFT = suelen continuar, pero SÍ pueden cerrar una frase legítima («páralo todo.», «no quiero más.», «¿cómo?»).
+# Para estas la puntuación final MANDA: solo delatan continuación si el STT no cerró la frase. La puntuación es una
+# señal REAL, medida en el corpus — la llevan el 74% de los enunciados completos y solo el 29% de los fragmentos.
+_SOFT = {
     "este", "esta", "estos", "estas", "ese", "esa", "esos", "esas", "aquel", "aquella",
     "otro", "otra", "otros", "otras", "mucho", "mucha", "muchos", "muchas", "todo", "toda", "todos", "todas",
     "cada", "cualquier", "algun", "alguna", "algunos", "algunas", "ningun", "ninguna",
-    # conjunciones, relativos y adverbios de enlace
-    "y", "e", "o", "u", "ni", "que", "quien", "quienes", "cuyo", "cuya", "como", "cuando", "donde", "porque",
-    "pero", "aunque", "si", "pues", "entonces", "ademas", "tambien", "tampoco", "ya", "mas", "menos",
+    "como", "cuando", "donde", "si", "entonces", "ademas", "tambien", "tampoco", "ya", "mas", "menos",
     "muy", "tan", "casi", "solo", "incluso", "asi",
-    # inglés (el operador mezcla)
-    "the", "a", "an", "of", "to", "for", "with", "and", "or", "but", "in", "on", "at", "from", "by", "that",
-    "which", "who", "very", "so", "then", "also",
+    "very", "so", "then", "also",
 }
+
+_DANGLING = _HARD | _SOFT
+
+# El **acento diacrítico** distingue pares que al normalizar se vuelven la MISMA palabra, y en cada par uno de los
+# dos es función y el otro no. Ya costó un fallo con «sí»/«si» (la frase que autorizó al worker en la sesión real
+# era «Sí, te autorizo a borrar toda la agenda»), y el corpus grande sacó el mismo patrón con «estás»/«estas»:
+# «¿Qué tal? ¿Cómo estás?» se retenía por leerse como el demostrativo. Se mira el token CRUDO, con su tilde.
+# OJO: NO se puede generalizar a «cualquier palabra con tilde no es función» — `según`, `además`, `también`, `así`,
+# `algún` y `ningún` llevan tilde y SÍ lo son.
+_ACCENTED_NOT_FUNCTION = {"sí", "está", "estás", "él", "tú", "mí", "sé", "dé", "té", "más", "aún", "sólo"}
 
 # Verbos/auxiliares que EXIGEN complemento: «y tiene que haber», «puedes mover eso sin grandes» → falta el objeto.
 _NEEDS_OBJECT = {"haber", "hacer", "poner", "dar", "tener", "ser", "estar", "ir", "decir", "ver", "querer"}
@@ -85,6 +108,12 @@ def _norm(s: str) -> str:
 
 def _words(s: str) -> list[str]:
     return [w for w in _WORD_RE.sub(" ", _norm(s)).split() if w]
+
+
+def _raw_last(s: str) -> str:
+    """El último token CON su tilde (para `_ACCENTED_NOT_FUNCTION`). `_words` normaliza y perdería la información."""
+    toks = _WORD_RE.sub(" ", s or "").split()
+    return toks[-1].lower() if toks else ""
 
 
 def looks_incomplete(text: str) -> tuple[bool, str]:
@@ -115,15 +144,23 @@ def looks_incomplete(text: str) -> tuple[bool, str]:
     if re.search(r"[,;:]\s*$", raw):
         return True, "acaba en coma"
 
-    # 2) Acaba en PALABRA FUNCIÓN, con o sin punto detrás. Salvo que sea UNA SOLA palabra que también es verbo:
-    #    «para» a secas es una orden de parar, no una preposición colgada — y es de las más importantes que existen.
+    # 2) Salvo que sea UNA SOLA palabra que también es verbo: «para» a secas es una orden de parar, no una
+    #    preposición colgada — y es de las más importantes que existen.
     if len(ws) == 1 and ws[0] in _ALSO_A_VERB:
         return False, ""
 
-    # 2b) Acaba en PALABRA FUNCIÓN, con o sin punto detrás. Lo de «con o sin» importa: el STT pone puntos donde le
-    #    parece, y «No el widget, los datos de la.» o «planning de...» llevan punto y están a medias igual.
-    if ws[-1] in _DANGLING:
-        return True, f"acaba en «{ws[-1]}», que gobierna algo que aún no ha dicho"
+    closed = bool(_TERMINAL_RE.search(raw))
+    last_raw = _raw_last(raw)
+
+    # 2b) Acaba en palabra función DURA → a medias, con punto o sin él. El STT pone puntos donde le parece, y
+    #     «No el widget, los datos de la.» o «planning de...» llevan punto y están a medias igual.
+    # 2c) Acaba en palabra función BLANDA → solo si el STT no cerró la frase. Sin esta rama se retenían órdenes de
+    #     PARAR («páralo todo.») y preguntas cerradas («¿cómo estás?»); ver el comentario de `_SOFT`/`_HARD`.
+    if last_raw not in _ACCENTED_NOT_FUNCTION:
+        if ws[-1] in _HARD:
+            return True, f"acaba en «{ws[-1]}», que gobierna algo que aún no ha dicho"
+        if ws[-1] in _SOFT and not closed:
+            return True, f"acaba en «{ws[-1]}» y la frase no está cerrada"
 
     # 3) Una sola palabra FUNCIÓN («del», «a», «que»): no puede ser un turno. Cualquier otra palabra suelta SÍ
     #    puede serlo —«Cancélalo», «Sigue», «Gracias»— y se deja pasar a propósito: el coste es asimétrico. Colar un
@@ -133,7 +170,7 @@ def looks_incomplete(text: str) -> tuple[bool, str]:
         return True, f"una sola palabra función («{ws[0]}»)"
 
     # 4) Acaba en un verbo que pide complemento y no hay cierre: «Y tiene que haber».
-    if not _TERMINAL_RE.search(raw) and ws[-1] in _NEEDS_OBJECT:
+    if not closed and ws[-1] in _NEEDS_OBJECT:
         return True, f"acaba en «{ws[-1]}» y falta el complemento"
 
     # 5) EMPIEZA por palabra función y no cierra: es la CONTINUACIÓN del fragmento anterior, no una frase nueva —
@@ -143,12 +180,12 @@ def looks_incomplete(text: str) -> tuple[bool, str]:
     #    frecuente que dice el operador. El techo de 6 s lo habría degradado a un retraso en vez de una pérdida,
     #    pero 6 s de espera en «pon música» es una regresión gorda. Lo que de verdad tienen en común esos
     #    fragmentos no es ser cortos: es EMPEZAR por una palabra que solo tiene sentido pegada a lo anterior.
-    # OJO al acento: «sí» (confirmación) y «si» (conjunción) se escriben igual una vez normalizado, y la frase que
-    # autorizó al worker en la sesión era «Sí, te autorizo a borrar toda la agenda» — retenerla habría sido
-    # exactamente el fallo que estamos arreglando, por el otro lado. Se mira el texto CRUDO para no perder la tilde.
+    # OJO al acento (mismo motivo que en 2b/2c, ver `_ACCENTED_NOT_FUNCTION`): «sí» y «si» se escriben igual una vez
+    # normalizado, y la frase que autorizó al worker en la sesión era «Sí, te autorizo a borrar toda la agenda» —
+    # retenerla habría sido exactamente el fallo que estamos arreglando, por el otro lado.
     _first_raw = (_WORD_RE.sub(" ", raw).split() or [""])[0].lower()
-    if (not _TERMINAL_RE.search(raw) and ws[0] in _DANGLING and ws[0] not in _ALSO_A_VERB
-            and _first_raw not in ("sí", "sí,", "mas")):
+    if (not closed and ws[0] in _DANGLING and ws[0] not in _ALSO_A_VERB
+            and _first_raw not in _ACCENTED_NOT_FUNCTION):
         return True, f"empieza por «{ws[0]}»: continúa lo anterior"
 
     return False, ""

@@ -176,8 +176,13 @@ DOMAINS: list[dict] = [
         # respuestas en 161 s de dictado. El corpus del test son las 89 transcripciones REALES de esa sesión: la
         # regla léxica reconoce 43 como incompletas (48% de llamadas evitadas) con CERO falsos positivos sobre las
         # órdenes cortas, que es lo único que no se puede retener.
+        # `test_segmenter_corpus.py` es el MISMO contrato medido contra las 195 sesiones del registro LOCAL (804
+        # transcripciones) en vez de contra una sola: una regla afinada sobre una sesión está ajustada a esa sesión,
+        # y así se cazó que «Y que lo pares todo.» se RETENÍA (acaba en «todo»), justo lo que V2-092 prohíbe. Se
+        # SALTA en un clon limpio — el registro es del operador y no se publica (ver el docstring).
         {"id": "3.8", "title": "Turnos por SENTIDO: la frase se cierra cuando está acabada, no cuando hay silencio",
-            "ch": VOICE, "paths": ["tests/voice/unit/test_segmenter.py"]},
+            "ch": VOICE, "paths": ["tests/voice/unit/test_segmenter.py",
+                                   "tests/voice/unit/test_segmenter_corpus.py"]},
     ]},
     {"id": "4", "name": "WIDGETS", "nodes": [
         {"id": "4.1", "title": "Ciclo de vida / acciones / refs / generador / background", "ch": UNIT, "paths": [
