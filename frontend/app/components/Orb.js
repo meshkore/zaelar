@@ -128,6 +128,10 @@ export function Orb() {
         title: () => t("orb.power_" + store.agentState()),
         onClick: () => {
           const off = !store.powerOff();
+          // Stamp the command BEFORE applying it: from here on, any server reconciliation that went to fetch the
+          // state before this instant is holding a stale snapshot and must stay quiet (see store.js and the
+          // seeding in main.js). Without this, a cold start tore down the session just asked for.
+          store.markPowerCommand();
           store.setPowerOff(off);
           if (off) {
             // V2-066 (2026-07-24, petición explícita del operador tras un fallo real: "el botón principal tiene

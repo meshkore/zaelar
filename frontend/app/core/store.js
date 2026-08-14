@@ -48,6 +48,16 @@ export const [botMuted, setBotMuted]   = createSignal(localStorage.getItem("hb_b
 export const [powerOff, setPowerOffRaw] = createSignal(localStorage.getItem("hb_power_off") === "1");
 export const setPowerOff = (off) => { setPowerOffRaw(off); localStorage.setItem("hb_power_off", off ? "1" : "0"); };
 
+// STAMP OF THE OPERATOR'S LAST ⏻ COMMAND (2026-08-14, real failure captured by the operator).
+// The server reconciliation in main.js is ASYNCHRONOUS, and on a machine waking from cold it takes seconds.
+// If the operator presses ⏻ inside that window, the reply — a snapshot of the state BEFORE the click — landed
+// afterwards and set `powerOff` again, tearing down the very session the operator had just asked for. It is the
+// classic last-write-wins failure between two clocks: the SLOWEST message won, not the NEWEST one.
+// With this stamp the seeding can ask "has the operator commanded anything since I went to fetch this?" and stay
+// quiet when the answer is yes. NOT touched by the SSE `run` event: that one IS the server's truth and must win.
+export const [powerCmdAt, setPowerCmdAt] = createSignal(0);
+export const markPowerCommand = () => setPowerCmdAt(Date.now());
+
 export const [botSpeaking, setBotSpeaking] = createSignal(false);            // gates person-voice visuals
 export const [micBlocked, setMicBlocked]   = createSignal({ show: false, msg: "" });  // 🚫 ring over the orb
 export const [micLevel, setMicLevel]       = createSignal(0);               // true mic RMS (0..1) for the meter

@@ -141,10 +141,21 @@ window.addEventListener("pointerdown", ensureVoice);
 //   · servidor EN MARCHA con el ⏻ apagado AQUÍ → propagar nuestra intención al servidor (POST /api/run/stop) en vez
 //     de encender solos. Nunca al revés: un arranque que el operador no pidió es peor que un estado desactualizado,
 //     y esto cubre además la migración (un ⏻ apagado antes de que el servidor supiera de esto).
+//
+// And a third rule, learned from a failure the operator captured (2026-08-14): this reply is a SNAPSHOT of the
+// moment it was requested, not of the moment it arrives. On a machine waking from cold that takes seconds, and the
+// operator — who is staring at the screen precisely because it will not start — presses ⏻ inside that window. The
+// snapshot landed afterwards, said "stopped" (true BEFORE the click), and tore down the session they had just asked
+// for: the mic was already open, `stop()` closed it mid-startup and `start()` blew up with an error that mentions
+// neither ⏻ nor startup. The SLOWEST message won instead of the NEWEST one.
+//   → Stamp the instant BEFORE asking, and drop the reply if the operator commanded anything meanwhile. Their
+//     command already travels to the server by its own path (`api.runStart()` in the ⏻), so nothing is lost.
 (async () => {
   try {
+    const askedAt = Date.now();
     const r = await api.runState();
     if (!r || typeof r.running !== "boolean") return;
+    if (store.powerCmdAt() > askedAt) return;   // the operator commanded LATER: this snapshot is history
     if (!r.running) { store.setPowerOff(true); store.setMicMuted(true); store.setBotMuted(true); }
     else if (store.powerOff()) api.runStop();
   } catch { /* el servidor aún no responde: manda el estado local, que ya está aplicado */ }

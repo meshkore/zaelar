@@ -163,3 +163,49 @@ def test_el_fusible_arranca_un_reintento_o_seria_una_trampa(monkeypatch):
     monkeypatch.setattr(energy_lease, "_start_retry", lambda: arrancado.append(1))
     energy_lease._blow_fuse()
     assert arrancado, "el fusible saltó sin dejar forma de volver"
+
+
+# ── EXPIRED IS NOT EXHAUSTED ──────────────────────────────────────────────────────────────────────
+# The three below come from a REAL production failure (2026-08-14): the machine spent the night powered
+# on without spending, its lease ran out at 17:28, and by morning the agent sat stopped with 1,987
+# Energy in the account. No alert, no reason on screen: the operator only saw that it would not start.
+# The cause was treating "my clock ran out" the same as "I ran out of energy".
+
+def test_expiry_asks_for_another_lease_instead_of_stopping(monkeypatch):
+    """With leased balance still unspent, running out by CLOCK must renew. Stopping here shuts down the
+    agent of someone whose account is full, and the retry loop takes a minute to even try."""
+    _con_arriendo(monkeypatch, granted=100.0, ttl=-1)
+    stopped, renewed = [], []
+    monkeypatch.setattr(energy_lease, "_blow_fuse", lambda: stopped.append(1))
+    monkeypatch.setattr(energy_lease, "_schedule", lambda c: (renewed.append(c.__name__), c.close()))
+    energy_lease.note_spend(1.0)
+    assert renewed == ["_renew_or_blow"], "an expired lease with balance must be RENEWED, not stopped"
+    assert not stopped
+
+
+def test_but_if_the_renewal_never_lands_it_DOES_stop(monkeypatch):
+    """The other half: renewing is the attempt, not the guarantee. If the cloud refuses or stays silent the
+    lease is still expired and the fuse has to blow — precisely the case the fuse exists to cover."""
+    _con_arriendo(monkeypatch, granted=100.0, ttl=-1)
+    stopped = []
+    monkeypatch.setattr(energy_lease, "_blow_fuse", lambda: stopped.append(1))
+
+    async def fails(**kw):
+        return False   # like a timeout against the cloud: nothing was renewed
+
+    monkeypatch.setattr(energy_lease, "ensure", fails)
+    import asyncio
+    asyncio.run(energy_lease._renew_or_blow())
+    assert stopped, "no renewal and an expired lease must stop: fail-closed"
+
+
+def test_renewal_happens_BEFORE_expiry_not_after(monkeypatch):
+    """`_EXPIRY_MARGIN_S` sat declared and unused: the intent written, the wire never run. A machine that
+    spends little never reached the 50% mark and watched its lease expire with energy to spare."""
+    _con_arriendo(monkeypatch, granted=100.0, ttl=energy_lease._EXPIRY_MARGIN_S / 2)
+    assert energy_lease._near_expiry() is True
+    assert energy_lease.expired() is False, "still usable — which is why it must renew NOW, not at expiry"
+    asked = []
+    monkeypatch.setattr(energy_lease, "_schedule", lambda c: (asked.append(1), c.close()))
+    energy_lease.note_spend(1.0)   # far below 50%: only the clock can trigger this
+    assert asked, "a lease that was still usable was allowed to expire"

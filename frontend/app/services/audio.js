@@ -21,6 +21,14 @@ export function botAnalyser() { return botAn; }
 
 // Create the AudioContext + the mic analyser from the live stream. fftSize 2048 → enough for pitch (speaker gate).
 export function initMic(stream) {
+  // Without this, a null `stream` — the session was stopped mid-startup — surfaced as "Failed to execute
+  // 'createMediaStreamSource': parameter 1 is not of type 'MediaStream'": a browser message that mentions neither
+  // the session, nor ⏻, nor the stop, and that cost an operator a whole session read backwards. The error is still
+  // thrown (there is no continuing from here), but it now says what actually happened.
+  if (!(stream instanceof MediaStream)) {
+    throw new Error("audio.initMic: no MediaStream — the voice session was stopped while starting up "
+                    + `(received: ${stream === null ? "null" : typeof stream})`);
+  }
   // Un `start()` sin `stop()` previo (reconexión) dejaba el AudioContext anterior VIVO y colgado: Chrome corta a
   // ~6 por página, así que unas cuantas reconexiones y `new AudioContext()` empieza a lanzar → el medidor de micro
   // y el orbe se quedan muertos para el resto de la vida de la pestaña. Se cierra el anterior antes de abrir otro.

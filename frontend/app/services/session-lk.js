@@ -29,6 +29,19 @@ import { t } from "../core/i18n.js?v=1";
 
 let room = null, stream = null, videoEl = null, botAudioEl = null;
 let started = false, starting = false;
+
+// SESSION GENERATION. Bumped by every `stop()`, invalidating any `start()` still in flight.
+//
+// Born from a real failure (operator, 2026-08-14): `start()` has SIX `await`s between asking for the mic and using
+// it (permission, device enumeration, camera, token, connect), and during that stretch the session can be torn
+// down from outside — ⏻ in another tab, the SSE `run` event, the server reconciliation, the energy fuse. `stop()`
+// sets `stream = null`, so the `start()` still running reached `audio.initMic(stream)` holding `null` and blew up
+// with "parameter 1 is not of type 'MediaStream'": an error naming neither the stop nor ⏻, and which on top of
+// that left the JUST-OPENED mic running (`stop()` had already gone by, with `stream` still empty).
+//
+// The counter is the cheap way for a `start()` to know it is no longer the current one. `started/starting` cannot
+// do it: `stop()` sets them false, which is indistinguishable from "I have not finished coming up yet".
+let _gen = 0;
 let micDeviceId = localStorage.getItem("zaelar_mic") || null;
 const audit = { silent: false };
 
@@ -208,8 +221,23 @@ function populateMicModePicker() {
   };
 }
 
+// Clean exit from a `start()` that has already been invalidated. Releases whatever this startup opened, and leaves.
+//
+// WHAT IT DELIBERATELY DOES **NOT** DO: touch `started`/`starting`. The one who invalidated us was `stop()`, which
+// already left them as it should; and by the time we get here there may be ANOTHER `start()` under way — the
+// `stop(); setTimeout(start, 350)` pattern of a mic swap or a reconnect — whose flags we would trample. Fixing one
+// race cannot consist of opening the next.
+function _abortedStartup(gen, captured) {
+  try { if (captured) captured.getTracks().forEach(tr => tr.stop()); } catch (_) {}
+  // Visible, not silent: if this shows up often, something is stopping the session behind the operator's back.
+  console.warn(`session.start: aborted mid-startup — the session was stopped while coming up (gen ${gen} ≠ ${_gen})`);
+  try { api.clientLog("⏹️ startup aborted", { text: `the session was stopped while coming up (gen ${gen}≠${_gen})`, state: "aborted" }); } catch (_) {}
+}
+
 export async function start() {
-  if (started || starting) return; starting = true; store.setStarting(true); store.setConnState(t("voice.conn_requesting"));
+  if (started || starting) return;
+  const gen = _gen;   // see the SESSION GENERATION note above: if it bumps, this startup is no longer the current one
+  starting = true; store.setStarting(true); store.setConnState(t("voice.conn_requesting"));
   audit.silent = false; store.setMicBlocked({ show: false, msg: "" });
 
   // GATE de SESIÓN ÚNICA: antes de tocar el micro, pide ser la única sesión viva. Si otra pestaña/navegador la
@@ -237,7 +265,12 @@ export async function start() {
     const mode = micMode();
     const ad = { ..._MIC_MODES[mode], channelCount: 1 };
     if (micDeviceId) ad.deviceId = { ideal: micDeviceId };
-    stream = await navigator.mediaDevices.getUserMedia({ audio: ad });
+    const captured = await navigator.mediaDevices.getUserMedia({ audio: ad });
+    // An open mic is a RESOURCE, not a value: if the session was stopped while the browser asked for permission,
+    // it has to be closed here and now. `stop()` already went by — when it ran, `stream` was still null — and
+    // nobody else will do it: the operator would be left with the browser's red dot lit over a stopped agent.
+    if (gen !== _gen) return _abortedStartup(gen, captured);
+    stream = captured;
     _bootPhase("voz");   // mic granted — the voice link is coming up (frontend-known milestone)
     await populateMicPicker();
     populateMicModePicker();
@@ -245,6 +278,9 @@ export async function start() {
       try { const vs = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: "user" } }); vs.getVideoTracks().forEach(t => stream.addTrack(t)); }
       catch (e) { console.warn("camera unavailable (audio continues):", e); }
     }
+    // After enumerating devices and (maybe) asking for the camera, two more `await`s have gone by. Here `stop()`
+    // would have closed the mic and set `stream = null`, so carrying on means `initMic(null)` — the original error.
+    if (gen !== _gen) return _abortedStartup(gen, null);
     if (videoEl) videoEl.srcObject = stream;
     started = true; store.setStarted(true);
     api.obsSessionStart("voice");   // abre (o reengancha) la sesión de trabajo que agrupa los eventos — ver api.js
@@ -252,6 +288,7 @@ export async function start() {
 
     // --- LiveKit room ---
     const { token, url } = await api.lkToken();
+    if (gen !== _gen) return _abortedStartup(gen, null);   // do not build a room for a session that no longer exists
     room = new Room({ adaptiveStream: false, dynacast: false });
     room.on(RoomEvent.TrackSubscribed, (track) => {
       // INSTRUMENTACIÓN (2026-07-23, "no suena nada" sin causa server-side aparente): el server confirma TTS
@@ -337,6 +374,9 @@ export async function start() {
 
     store.setConnState(t("voice.conn_connecting"));
     await room.connect(url, token);
+    // Connecting to the room is the longest `await` of all. If we were invalidated during it, `stream` is null and
+    // this very line would blow up just like the `initMic` one — and we would leave a connected room behind as well.
+    if (gen !== _gen) { try { await room.disconnect(); } catch (_) {} return _abortedStartup(gen, null); }
     // Publish the mic track we already captured (so the analyser and the published audio are the SAME track).
     const micTrack = stream.getAudioTracks()[0];
     if (micTrack) await room.localParticipant.publishTrack(new LocalAudioTrack(micTrack));
@@ -386,6 +426,7 @@ try {
 } catch (_) {}
 
 export async function stop() {
+  _gen++;   // invalidates any `start()` in flight — see the SESSION GENERATION note above
   const a = botAudioEl;
   try { if (a) { a.pause(); a.srcObject = null; a.removeAttribute("src"); a.load(); } } catch (_) {}
   _stopHeartbeat();   // deja de renovar el lock; el TTL del server lo libera solo, o `pagehide` al cerrar la pestaña

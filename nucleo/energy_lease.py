@@ -105,6 +105,17 @@ def expired() -> bool:
     return exp > 0 and time.time() >= exp
 
 
+def _near_expiry() -> bool:
+    """Is the lease running out by CLOCK (not by balance)?
+
+    Renewal only ever fired at the half-spent mark, so a machine that spends little watched its lease
+    expire with plenty of energy left without ever asking for another. `_EXPIRY_MARGIN_S` existed from
+    day one for exactly this and **nobody read it**: the intent was written, the wire was never run."""
+    _load_once()
+    exp = float(_state["expires_at"] or 0.0)
+    return exp > 0 and time.time() >= exp - _EXPIRY_MARGIN_S
+
+
 def allowed() -> bool:
     """¿Puede esta máquina empezar algo que cueste dinero?
 
@@ -125,12 +136,34 @@ def note_spend(energy: float) -> None:
         _load_once()
         _state["spent"] = float(_state["spent"]) + float(energy)
         _persist()
-        if remaining() <= 0 or expired():
-            _blow_fuse()
-        elif float(_state["spent"]) >= float(_state["granted"]) * _RENEW_AT:
+        if remaining() <= 0:
+            _blow_fuse()                              # truly exhausted: no leased energy left
+        elif expired():
+            # EXPIRED IS NOT EXHAUSTED, and conflating them cost a daily outage. A machine left on
+            # overnight without spending wakes up with a stale lease and an untouched balance; stopping
+            # there shuts down the agent of someone whose account is full, and the retry loop sleeps a
+            # whole minute before its first attempt. Ask for another lease, and stop ONLY if the cloud
+            # says no or does not answer — which is what the fuse exists to cover.
+            _schedule(_renew_or_blow())
+        elif float(_state["spent"]) >= float(_state["granted"]) * _RENEW_AT or _near_expiry():
             _schedule(ensure(reason="half_spent"))
     except Exception as e:  # noqa: BLE001 — contar jamás puede tumbar el turno que lo disparó
         logger.warning(f"energy_lease.note_spend falló (no fatal): {e}")
+
+
+async def _renew_or_blow() -> None:
+    """The lease ran out by CLOCK. Ask for another, then ask the question that actually matters.
+
+    We do not check whether `ensure` returned True, we check `allowed()`. The difference matters: on a
+    NETWORK failure `ensure` answers "there is still leased balance" — correct while the lease is alive,
+    useless once it has expired. `allowed()` is the predicate every caller obeys, so an outage against
+    the cloud still ends in a stop. Fail-closed without giving up the normal case."""
+    try:
+        await ensure(reason="expired", force=True)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"energy_lease: renewal after expiry failed: {e}")
+    if not allowed():
+        _blow_fuse()
 
 
 def _schedule(coro) -> None:
@@ -214,7 +247,7 @@ async def ensure(*, reason: str = "boot", force: bool = False) -> bool:
     if not enabled():
         return True
     _load_once()
-    if not force and remaining() > 0 and not expired() and \
+    if not force and remaining() > 0 and not _near_expiry() and \
             float(_state["spent"]) < float(_state["granted"]) * _RENEW_AT:
         return True
     if _renewing:
