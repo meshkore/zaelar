@@ -21,6 +21,24 @@ def _hash_backend(monkeypatch):
     mememb.reset()
 
 
+def _assert_state_presente(state: dict) -> None:
+    """Lo que estas dos aserciones querían decir siempre («estado SIEMPRE») es que `query()`/`map()` traen el bloque
+    de ESTADO poblado — nunca vacío, porque el prompt de cada turno lo lleva y un estado vacío borra la identidad
+    del operador (el fallo del suelo de identidad de V2-035).
+
+    Estaba escrito como `state["language"] == "es"`, que era un proxy cómodo… hasta que el idioma por defecto del
+    producto pasó a INGLÉS a propósito («arranque idiomático», `langs.DEFAULT_LANG="en"`). Entonces el test se
+    quedó ROJO afirmando algo que la decisión de producto ya había cambiado, y su intención seguía siendo válida.
+    Ahora se comprueba la intención, y el idioma se compara contra la CONFIGURACIÓN en vez de contra una constante:
+    así el día que el defecto cambie otra vez, este test no vuelve a mentir.
+    """
+    assert isinstance(state, dict) and state, "el bloque de ESTADO llegó vacío"
+    from voice.engine.core import langs
+    assert state.get("language") == langs.current_code(), (
+        f"el estado dice language={state.get('language')!r} y la configuración activa es "
+        f"{langs.current_code()!r}: el estado no refleja el idioma real")
+
+
 @pytest.fixture
 def fresh_db(tmp_path, monkeypatch):
     monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
@@ -33,7 +51,7 @@ def fresh_db(tmp_path, monkeypatch):
 def test_write_now_then_query_roundtrip(fresh_db):
     mid = memapi.write_now("el operador se llama Ricart y vive en Barcelona", kind="fact", level="long")
     out = memapi.query("¿cómo se llama el operador?", reinforce_used=False)
-    assert out["state"]["language"] == "es"          # estado SIEMPRE
+    _assert_state_presente(out["state"])            # estado SIEMPRE
     assert mid in out["ids"]
     assert any("Ricart" in m["text"] for m in out["memories"])
 
@@ -214,7 +232,7 @@ def test_map_groups_by_layer_with_metadata(fresh_db):
     # grafo
     assert any(e["from_id"] == a and e["to_id"] == b for e in m["edges"])
     # estado SIEMPRE presente
-    assert m["state"]["language"] == "es"
+    _assert_state_presente(m["state"])
 
 
 def test_map_empty_db_is_graceful(fresh_db):
