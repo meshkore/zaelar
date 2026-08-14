@@ -76,7 +76,13 @@ def _load_once() -> None:
         return
     _loaded = True
     try:
-        import memory
+        # `from memory import api` — NOT a bare `import memory`. The `memory/__init__.py` facade is a
+        # docstring and re-exports nothing, so `memory.kv_get` raises AttributeError, the except below
+        # swallows it into a debug line, and the lease silently stops persisting. Found in production
+        # on 2026-08-14: seven leases in a row, every one `reported_spent = 0`, because each restart
+        # forgot the counter and asked for a fresh 50 Energy — the restart loop with uncapped spend
+        # that this very persistence exists to close. `nucleo/runstate.py` already imported it right.
+        from memory import api as memory
         raw = memory.kv_get(_KV_KEY)
         if isinstance(raw, dict):
             _state.update({k: raw.get(k, _state[k]) for k in _state})
@@ -86,7 +92,7 @@ def _load_once() -> None:
 
 def _persist() -> None:
     try:
-        import memory
+        from memory import api as memory   # see the note in `_load_once`: the bare import is a no-op
         memory.kv_set(_KV_KEY, dict(_state))
     except Exception as e:  # noqa: BLE001
         logger.debug(f"energy_lease: no se pudo guardar el arriendo: {e}")

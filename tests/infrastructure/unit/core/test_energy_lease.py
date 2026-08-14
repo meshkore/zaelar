@@ -209,3 +209,29 @@ def test_renewal_happens_BEFORE_expiry_not_after(monkeypatch):
     monkeypatch.setattr(energy_lease, "_schedule", lambda c: (asked.append(1), c.close()))
     energy_lease.note_spend(1.0)   # far below 50%: only the clock can trigger this
     assert asked, "a lease that was still usable was allowed to expire"
+
+
+# Captured at IMPORT time, before the autouse fixture swaps `_persist` for a no-op — this is the only
+# way to get a handle on the real function from inside a test.
+_REAL_PERSIST = energy_lease._persist
+
+
+def test_the_lease_really_persists_to_sys_kv(monkeypatch):
+    """The durable counter is what stops a restart LOOP from being uncapped spend: without it every boot
+    puts `spent` back to zero and asks for a fresh lease.
+
+    It was broken in production for a day by a bare `import memory` — that facade is a docstring and
+    re-exports nothing, so `memory.kv_get` raised AttributeError, the `except` downgraded it to a debug
+    line, and persistence quietly stopped happening. The evidence was in the cloud, not in any test:
+    seven consecutive leases, every one `reported_spent = 0`.
+
+    `_persist` swallows everything on purpose (saving must never break a turn), so asserting "it did not
+    raise" proves nothing at all. The only assertion worth making is that the write LANDED.
+    """
+    from memory import api as memapi
+    written = {}
+    monkeypatch.setattr(memapi, "kv_set", lambda k, v: written.update({k: v}))
+    energy_lease._state.update({"lease_id": "L1", "granted": 100.0, "spent": 3.0})
+    _REAL_PERSIST()
+    assert energy_lease._KV_KEY in written, "the lease never reached sys_kv: a restart would forget it"
+    assert written[energy_lease._KV_KEY]["spent"] == 3.0
