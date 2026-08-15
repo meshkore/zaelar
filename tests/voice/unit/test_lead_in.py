@@ -105,11 +105,70 @@ def test_el_proveedor_manda_el_relleno_FUERA_DE_BANDA():
 
     src = Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py"
     body = src.read_text(encoding="utf-8")
+    # El bloque se acota por su FINAL real, no por un número de caracteres. Antes cortaba a 3.200 y el test se
+    # rompía en cuanto la función crecía —le pasó el 2026-08-15 al añadirle la guarda de «no hablar encima del
+    # operador»—, o sea que fallaba por el tamaño del comentario y no por lo que dice vigilar.
     i = body.index("async def _lead_in_filler")
-    block = body[i:i + 3200]
+    block = body[i:body.index("# NO en el kickoff", i)]
     assert "proactive.speaker()" in block, "el relleno ya no sale fuera de banda: volvería a no oírse nunca"
     assert "create_task(_spk(" in block, "el say tiene que dispararse sin bloquear el turno"
     # El ChatChunk sigue existiendo, pero SOLO como respaldo: dentro de un `else`.
     j = block.index("ChatChunk", block.index("create_task(_spk("))
     assert "else:" in block[block.index("create_task(_spk("):j], \
         "el ChatChunk tiene que quedar en la rama de respaldo, no en el camino normal"
+
+
+# ── AL OPERADOR NO SE LE HABLA ENCIMA (2026-08-15, sesión 319252e7) ───────────────────────────────────────────
+# El operador: *«el audio se corta bastante, se cortan las frases antes de terminarse… creo que aquí se está
+# interrumpiendo la voz por procesos internos o por el propio agente, pero eso no debería ser así»*.
+#
+# No era el TTS cortándose: era el AGENTE arrancando a hablar encima de él. Medido sobre esa sesión, contando el
+# evento `say (entrega proactiva)` que la instrumentación de V2-047 F7 ya registraba: **2 de 10 rellenos salieron
+# con `user_in_flight: true`**, y el barge-in resultante dejó 3 turnos cancelados por «overlap». Aquella
+# instrumentación decía literalmente «solo telemetría; no cambia el comportamiento todavía» — ya hay datos.
+def test_hay_una_sonda_de_si_el_operador_esta_hablando():
+    """Separada del busy-probe a propósito: aquél es «hay algo en vuelo» y sirve para ESPERAR hueco; el relleno se
+    salta esa espera por diseño, así que necesita la mitad que no admite excepción."""
+    from voice import proactive
+
+    assert proactive.user_speaking() is False, "sin sonda registrada, no se asume que habla (dejaría mudo al agente)"
+    proactive.register_user_probe(lambda: True)
+    try:
+        assert proactive.user_speaking() is True
+    finally:
+        proactive.clear_speaker()
+    assert proactive.user_speaking() is False, "al cerrar la sesión la sonda se suelta"
+
+
+def test_una_sonda_que_revienta_no_deja_mudo_al_agente():
+    from voice import proactive
+
+    def _rota():
+        raise RuntimeError("sesión a medio morir")
+
+    proactive.register_user_probe(_rota)
+    try:
+        assert proactive.user_speaking() is False, "fail-open: medir mal no puede callar al agente"
+    finally:
+        proactive.clear_speaker()
+
+
+def test_el_relleno_consulta_la_sonda_y_muere_con_su_turno():
+    """Guarda de CÓDIGO, por el mismo motivo que la de arriba (montar el proveedor exige media sesión LiveKit).
+    Vigila las dos mitades del arreglo: (1) no arrancar si el operador habla, y (2) que la locución ya lanzada se
+    cancele con el turno — era fire-and-forget, así que cancelar el TEMPORIZADOR no paraba nada y el relleno de un
+    turno muerto seguía sonando DESPUÉS de que el operador hubiera dicho otra cosa."""
+    from pathlib import Path
+
+    src = Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py"
+    body = src.read_text(encoding="utf-8")
+    i = body.index("async def _lead_in_filler")
+    block = body[i:body.index("# NO en el kickoff", i)]
+    assert "user_speaking()" in block, "el relleno volvería a hablar encima del operador"
+    assert "_superseded()" in block, "un turno superado no puede soltar su relleno"
+    assert '_filler_say["task"] = asyncio.create_task(_spk(' in block, \
+        "sin guardar el handle, la locución sobrevive a la cancelación del turno"
+    # …y alguien tiene que cancelarlo en el barge-in.
+    cancel = body.index("✂️ turno cancelado (barge-in/overlap)")
+    assert "_say_t.cancel()" in body[cancel - 1200:cancel], \
+        "el relleno de un turno cancelado por barge-in tiene que morir con él"

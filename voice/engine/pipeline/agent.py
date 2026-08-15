@@ -450,6 +450,9 @@ async def entrypoint(ctx: JobContext) -> None:
 
     _proactive.register_speaker(_speak)
     _proactive.register_busy_probe(lambda: _busy["bot"] or _busy["user"])   # don't talk over a live turn
+    # …y la mitad que no admite excepción, por separado: al OPERADOR no se le habla encima ni con un relleno de
+    # espera (2026-08-15). El relleno se salta la espera de hueco por diseño, así que necesita esta señal propia.
+    _proactive.register_user_probe(lambda: bool(_busy["user"]))
 
     # ACCOUNT ENERGY CAP (2026-08-09): closer registry, same shape as the proactive speaker above.
     # Fires ASYNCHRONOUSLY from energy_meter.py's fire-and-forget usage report, well after the

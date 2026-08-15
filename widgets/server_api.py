@@ -330,9 +330,22 @@ async def delete_widget(wid: str):
 
 @router.post("/widgets/{wid}/confirm")
 async def confirm_widget(wid: str, payload: dict):
-    """Resolve pending CONFIRMATION for an irreversible widget action (today: delete), triggered by the card's Yes/No
-    button. `{ok: bool}`. With `ok` → execute deterministic deletion (memory included); without `ok` → cancel and
-    remove overlay. Same path as voice "yes/no" (see `widgets/confirm.py`)."""
+    """Resolve pending CONFIRMATION for an irreversible widget action, triggered by the card's Yes/No button.
+    `{ok: bool}`. With `ok` → execute; without `ok` → cancel and remove the overlay. Two classes, and BOTH have
+    to execute here (`widgets/confirm.py`): `delete` (the whole widget) and `data` (an irreversible data-op
+    declared `confirm:true` in the manifest, V2-025).
+
+    ⚠️ **`data` no se ejecutaba desde el BOTÓN, y era peor que no hacer nada** (encontrado en la sesión
+    319252e7, 2026-08-15). Este endpoint solo sabía de `delete`; con una data-op devolvía `400 acción no
+    soportada: data` — pero `confirm.resolve()` ya había CONSUMIDO la confirmación pendiente. O sea que pulsar
+    «Sí» destruía la mutación guardada y no ejecutaba nada: la única salida era volver a pedirlo, que abría otra
+    confirmación, y así en bucle. El operador dijo «Lo he confirmado yo con el botón» y la agenda seguía llena;
+    el Susurro lo diagnosticó bien («el sistema no ejecutó la acción real tras la confirmación, repitiendo la
+    pregunta sin avanzar») y escaló a un worker, que chocó con el MISMO gate.
+
+    La mitad por VOZ sí estaba completa (`providers/nucleo.py::_resolve_confirm`), y esa asimetría es lo que
+    hizo el fallo difícil de ver: la misma acción funcionaba diciendo «sí» y no funcionaba pulsando «Sí».
+    """
     from . import confirm, lifecycle
     wid = _safe(wid)
     ok = bool((payload or {}).get("ok"))
@@ -344,7 +357,27 @@ async def confirm_widget(wid: str, payload: dict):
     if p.get("action") == "delete":
         res = await lifecycle.delete_widget(p["widget_id"], "user")   # V2-039: confirmed by operator Yes/No button
         return JSONResponse(res, status_code=200 if res.get("ok") else 500)
+    if p.get("action") == "data" and isinstance(p.get("op"), dict):
+        op = p["op"]
+        name = str(op.get("action") or "").strip()
+        if not name:
+            return JSONResponse({"ok": False, "error": "confirmación sin acción guardada"}, status_code=400)
+        # Mismo despacho que la rama de voz: la mutación va por `apply_action` del propio widget, JAMÁS a código.
+        res = await brain_action(p["widget_id"], name, op.get("payload") or {})
+        _emit_confirmed(p["widget_id"], name)
+        return JSONResponse({"ok": not (isinstance(res, dict) and res.get("error")),
+                             "id": p["widget_id"], "action": name, "result": res})
     return JSONResponse({"ok": False, "error": f"acción no soportada: {p.get('action')}"}, status_code=400)
+
+
+def _emit_confirmed(wid: str, action: str) -> None:
+    """El operador tiene que VER que su «Sí» ejecutó algo. Sin esta traza, el bucle de arriba era invisible en el
+    visor: se veía la confirmación pedida una y otra vez y nunca una ejecución ([[feedback_visible_state_over_silent_state]])."""
+    try:
+        from voice.observer import emit
+        emit("brain", "✅ acción irreversible confirmada (botón)", role="system", text=f"{wid}:{action}")
+    except Exception:
+        pass
 
 
 @router.get("/widgets/{wid}/context")

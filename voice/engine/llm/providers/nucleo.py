@@ -1656,10 +1656,35 @@ class NucleoLLMStream(llm.LLMStream):
         except Exception:
             _filler_ms = 600
 
+        _filler_say = {"task": None}          # el task que HABLA (distinto del temporizador) — ver el `finally`
+
         async def _lead_in_filler():
             try:
                 await asyncio.sleep(_filler_ms / 1000.0)
                 if _real_started["v"]:
+                    return
+                # ── NO SE LE HABLA ENCIMA AL OPERADOR (2026-08-15, sesión 319252e7) ─────────────────────────────
+                # El relleno solo miraba si había empezado la respuesta. Medido en esa sesión: **2 de 10 rellenos
+                # sonaron con el operador HABLANDO** (`user_in_flight: true` en el propio evento `say`) — y esos
+                # dos son los que produjeron el síntoma que reportó: «el audio se corta, se cortan las frases
+                # antes de terminarse… se está interrumpiendo la voz por procesos internos». No era el TTS
+                # cortándose: era el agente arrancando a hablar encima, y el barge-in resultante cancelando el
+                # turno vivo (3 cortes «barge-in/overlap» en la sesión).
+                #
+                # La instrumentación que lo demuestra existía desde V2-047 F7 y decía literalmente «solo
+                # telemetría; no cambia el comportamiento todavía». Ya hay datos, así que ya cambia.
+                #
+                # Y si la frase del operador siguió creciendo, este turno está muerto: soltar su relleno sería
+                # hablar por un turno que ya no existe.
+                try:
+                    from voice import proactive as _pro
+                    if _pro.user_speaking():
+                        emit("brain", "🤫 relleno omitido — el operador está hablando", role="system",
+                             extra={"cat": "flash"})
+                        return
+                except Exception:
+                    pass
+                if self._superseded():
                     return
                 from voice.engine.core import langs as _lgm
                 _ph = _lgm.pick_filler(getattr(brain, "_last_filler", ""))
@@ -1691,7 +1716,11 @@ class NucleoLLMStream(llm.LLMStream):
                     if _spk is not None:
                         # Sin esperar hueco y sin await bloqueante: el relleno vale por sonar YA, y este task no
                         # puede quedarse enganchado a la reproducción mientras el turno sigue generándose.
-                        asyncio.create_task(_spk(_ph))
+                        # PERO se guarda el handle: era fire-and-forget, así que cancelar el TEMPORIZADOR no
+                        # paraba la locución ya lanzada y el relleno de un turno CANCELADO seguía sonando —
+                        # después de que el operador ya hubiera dicho otra cosa (visto a las 12:18:44 de la
+                        # sesión 319252e7: el turno se cancela a las :44.783 y el relleno empieza a las :44.977).
+                        _filler_say["task"] = asyncio.create_task(_spk(_ph))
                     else:
                         self._event_ch.send_nowait(
                             ChatChunk(id=utils.shortuuid(), delta=ChoiceDelta(role="assistant", content=_ph + " ")))
@@ -1799,6 +1828,11 @@ class NucleoLLMStream(llm.LLMStream):
             # trozos acumulativos del STT no duplican la frase.
             _dialog.push_user(brain._window, text)
             del brain._window[:-_WINDOW_MAX]
+            # El relleno de ESTE turno se va con él. Un turno cancelado por barge-in es el operador tomando la
+            # palabra, y seguir soltando su «a ver…» encima es precisamente hablarle encima.
+            _say_t = _filler_say.get("task")
+            if _say_t is not None and not _say_t.done():
+                _say_t.cancel()
             self._death_logged = True   # ya se relata aquí, con métricas; la envoltura de `_run` no duplica
             emit("brain", "✂️ turno cancelado (barge-in/overlap)", role="system",
                  extra={"cat": "flash", "partial_chars": len("".join(spoken)),
@@ -2630,10 +2664,12 @@ def _human_confirm_question(wid: str, action: str, payload: dict) -> str:
         return f"Voy a responder{dest}: «{draft}». ¿Lo envío?"
 
     desc = ""
+    human = ""
     label = ""
     try:
         from widgets import refs, runtime
         spec = ((runtime.get(wid) or {}).get("actions") or {}).get(action) or {}
+        human = str(spec.get("confirm_q") or "").strip()
         desc = str(spec.get("desc") or "").strip().rstrip(".")
         field = refs.id_field_for_action(wid, action)
         if field:
@@ -2641,8 +2677,26 @@ def _human_confirm_question(wid: str, action: str, payload: dict) -> str:
     except Exception:
         pass
     tail = f" («{label}»)" if label else ""
-    if desc:                                  # el desc del manifest viene conjugado → se cita, no se prefija
-        return f"Ojo, esto es permanente: «{desc}»{tail}. ¿Lo confirmo?"
+    # `confirm_q` MANDA: es la pregunta escrita PARA EL OPERADOR (2026-08-15, sesión 319252e7). El `desc` del
+    # manifest es la descripción de la tool, o sea texto escrito PARA EL MODELO — y leerlo en voz alta es un error
+    # de categoría que el operador oyó entero: «VACÍA la agenda entera de una vez: descarta todas las tareas…
+    # **Úsala cuando el operador pida** dejarla vacía «del todo»/«por completo»…». Le estábamos recitando nuestras
+    # instrucciones internas y pidiéndole que dijera «sí» a eso.
+    if human:
+        # `{item}` deja que el autor del widget coloque el elemento DONDE suena bien al oído, en vez de pegarlo
+        # al final: «¿Congelo el proyecto «Reddit» entero?» en vez de «…entero. («Reddit»)». Si no hay item
+        # resuelto, la frase se queda sin él antes que decir «el proyecto «»».
+        if "{item}" in human:
+            q = human.replace(" «{item}»", f" «{label}»" if label else "").replace("{item}", label)
+        else:
+            q = f"{human}{tail}"
+        return q if "?" in q else f"{q} ¿Lo confirmo?"
+    if desc:
+        # Sin `confirm_q`, se cita SOLO la primera frase del desc: la guía de uso («Úsala cuando…») vive a partir
+        # del primer punto y no es asunto del operador. Mejor que la jerga cruda de 2026-07-15 («¿Confirmas
+        # drop_project?»), que es lo que esta rama vino a arreglar, y sin arrastrar el resto del prompt.
+        primera = desc.split(". ")[0].rstrip(".")
+        return f"Ojo, esto es permanente: «{primera}»{tail}. ¿Lo confirmo?"
     return f"Ojo, la acción «{action}»{tail} es permanente. ¿La confirmo?"
 
 

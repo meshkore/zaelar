@@ -15,6 +15,7 @@ from loguru import logger
 
 _speaker = None            # async callable(text) -> None, set by the live voice session (voice/engine entrypoint)
 _busy_probe = None         # callable() -> bool, True if the operator/bot is mid-turn right now (engine-provided)
+_user_probe = None         # callable() -> bool, True if the OPERATOR is speaking RIGHT NOW (engine-provided)
 
 
 def register_speaker(fn) -> None:
@@ -30,12 +31,33 @@ def register_busy_probe(fn) -> None:
     _busy_probe = fn
 
 
+def register_user_probe(fn) -> None:
+    """La sesión viva registra si el OPERADOR está hablando AHORA MISMO.
+
+    Distinto del busy-probe a propósito: aquél es «hay algo en vuelo» (bot O usuario) y sirve para que una entrega
+    proactiva espere hueco. Éste separa la mitad que NO admite excepción — al operador **no se le habla encima
+    nunca**, ni siquiera con un relleno de espera, que es justo el caso que el busy-probe no cubría porque el
+    relleno se salta la espera de hueco por diseño (`speaker()`)."""
+    global _user_probe
+    _user_probe = fn
+
+
+def user_speaking() -> bool:
+    """True si el operador está hablando ahora. Sin probe (sesión sin instrumentar, tests) → False: asumir que
+    habla y callarse dejaría mudo al agente en cualquier entorno sin instrumentar, que es peor."""
+    try:
+        return bool(_user_probe()) if _user_probe is not None else False
+    except Exception:
+        return False
+
+
 def clear_speaker(fn=None) -> None:
     """Session teardown clears it (only if it still owns the slot, to avoid a race with a newer session)."""
-    global _speaker, _busy_probe
+    global _speaker, _busy_probe, _user_probe
     if fn is None or _speaker is fn:
         _speaker = None
         _busy_probe = None
+        _user_probe = None
 
 
 def has_voice() -> bool:

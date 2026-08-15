@@ -75,12 +75,14 @@
       "payload": {
         "projectId": "string"
       },
-      "confirm": true
+      "confirm": true,
+      "confirm_q": "¿Congelo el proyecto «{item}» entero y descarto sus tareas pendientes?"
     },
     "clear_all": {
       "desc": "VACÍA la agenda entera de una vez: descarta todas las tareas pendientes, congela todos los proyectos y borra todas las citas y bloques. Úsala cuando el operador pida dejarla vacía «del todo»/«por completo»/«hoy y siempre», en vez de ir tirando elementos uno a uno",
       "payload": {},
-      "confirm": true
+      "confirm": true,
+      "confirm_q": "¿Vacío la agenda entera? Es permanente."
     }
   },
   "name": "Agenda del día",
