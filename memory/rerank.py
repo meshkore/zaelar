@@ -144,16 +144,8 @@ def _order_openai(query: str, texts: list[str]) -> list[int] | None:
         # dormida y por eso pasó desapercibida — pero es una elección de CONFIG (`rerank_provider`), no
         # una imposibilidad: el día que se ponga en remoto empezaría a costar dinero real sin aparecer en
         # ninguna factura. Se mide ahora, dormida, para que encenderla no sea gratis por descuido.
-        try:
-            from nucleo import energy_meter as _energy
-            u = getattr(resp, "usage", None)
-            _energy.report_llm_usage(
-                base_url=base_url or "", model=_model(),
-                prompt_tokens=getattr(u, "prompt_tokens", None),
-                completion_tokens=getattr(u, "completion_tokens", None),
-            )
-        except Exception:  # noqa: BLE001 — fail-open: el reranker nunca rompe el recall
-            pass
+        from nucleo import energy_meter as _energy
+        _energy.meter_openai_response(resp, base_url=base_url or "", model=_model())
     except Exception as e:
         logger.debug("rerank openai falló: %s", e)
         return None

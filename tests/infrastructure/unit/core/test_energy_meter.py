@@ -41,8 +41,15 @@ def test_llm_cost_to_energy_aimlapi_uses_per_model_rate(monkeypatch):
         prompt_tokens=1_000_000,
         completion_tokens=1_000_000,
     )
-    # $0.14 + $0.28 = $0.42 raw * 4 margin = €1.68 / €0.01 = 168 Energy — NOT None, NOT zero.
-    assert energy == pytest.approx(168.0)
+    # $0.14 + $0.28 = $0.42 NATIVOS, × el margen ×1,30 del broker = $0.546 · × 4 de margen comercial = €2,184
+    # / €0,01 = 218,4 Energy — NOT None, NOT zero.
+    #
+    # Los 168 de antes (2026-08-05 → 2026-08-15) eran la tarifa NATIVA de DeepSeek cobrada a una llamada que se
+    # le compró a AIMLAPI. La tabla es del proveedor porque así se comparan los candidatos entre sí en los
+    # benchmarks; la FACTURA tiene que llevar además lo que el revendedor cobra encima (medido el 2026-08-09:
+    # 0,14 → 0,182). Esta línea es la que hacía invisible el agujero, porque afirmaba como correcto exactamente
+    # el número que sub-cobraba un 30% en la llamada más frecuente del producto.
+    assert energy == pytest.approx(218.4)
 
 
 def test_llm_cost_to_energy_aimlapi_unknown_model_uses_fallback_not_none(monkeypatch):
@@ -306,6 +313,39 @@ def test_the_most_specific_model_pattern_wins():
     $2/$6 model at the $0.20/$0.50 fast tier depending on dict order. Longest pattern first, deterministically."""
     assert energy_meter._rate_for("", "grok-4-fast-non-reasoning") == (0.20, 0.50)
     assert energy_meter._rate_for("", "grok-4.5") == (2.00, 6.00)
+
+
+# ── El margen del BROKER (2026-08-15) ────────────────────────────────────────────────────────────────────────
+# Las tablas de tarifas son del proveedor NATIVO, porque eso es lo que hace comparables a los candidatos en los
+# benchmarks. Pero producción no le compra al proveedor: el titular del FlashBrain va por AIMLAPI, que revende con
+# margen. Las dos rutas caían en la misma fila, así que el mismo modelo se facturaba igual viniera de donde
+# viniera — una sub-cobranza de ~30% en la llamada más frecuente del producto, y en el sentido PROHIBIDO por la
+# política de 2026-08-13 (sobre-cobrar un poco antes que sub-cobrar).
+def test_el_broker_cobra_su_margen_y_el_directo_no():
+    """El MISMO modelo por dos rutas ya no cuesta lo mismo, que es justo el hecho que hacía invisible el agujero."""
+    directo = energy_meter._rate_for("https://api.deepseek.com", "deepseek-v4-flash")
+    broker = energy_meter._rate_for("https://api.aimlapi.com/v1", "deepseek/deepseek-v4-flash")
+    assert directo == (0.14, 0.28)
+    assert broker == pytest.approx((0.182, 0.364))
+    assert broker[0] > directo[0], "por el broker tiene que costar MÁS, no igual"
+
+
+def test_el_margen_del_broker_es_POR_MODELO_no_una_constante():
+    """Medido el 2026-08-09 (`tests/memory/e2e/bot/prices.json`): el broker no cobra lo mismo por todo. Aplicar
+    un ×1,3 plano sobre-cobraría un 30% a gemini, que el broker sirve SIN margen."""
+    assert energy_meter._broker_markup("https://api.aimlapi.com/v1", "deepseek-v4-flash") == 1.30
+    assert energy_meter._broker_markup("https://api.aimlapi.com/v1", "x-ai/grok-4-fast") == 1.05
+    assert energy_meter._broker_markup("https://api.aimlapi.com/v1", "google/gemini-2.5-flash") == 1.00
+    # un modelo del broker que no está medido toma el PEOR margen visto, no el mejor
+    assert energy_meter._broker_markup("https://api.aimlapi.com/v1", "loquesea/modelo-nuevo") == 1.30
+    # y fuera del broker no hay margen que aplicar
+    assert energy_meter._broker_markup("https://api.deepseek.com", "deepseek-v4-flash") == 1.0
+
+
+def test_el_fallback_no_acumula_el_margen_encima():
+    """Dos rellenos de seguridad multiplicándose dejan de ser «un poco por el lado seguro»."""
+    assert energy_meter._rate_for("https://api.aimlapi.com/v1", "modelo-desconocido-del-todo") == \
+        energy_meter._FALLBACK_RATE_USD
 
 
 def test_an_unknown_model_still_costs_something_and_says_so(caplog):

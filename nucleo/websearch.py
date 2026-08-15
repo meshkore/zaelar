@@ -122,11 +122,8 @@ def _meter_search(src: str) -> None:
     el proveedor ya lo contara, se detectaría en la reconciliación)."""
     if src not in _PAID_BACKENDS:
         return
-    try:
-        from nucleo import energy_meter as _energy
-        _energy.report_search_usage(provider=src)
-    except Exception:  # noqa: BLE001 — medir jamás rompe una búsqueda
-        pass
+    from nucleo import energy_meter as _energy
+    _energy.report_search_usage(provider=src)   # el contador no lanza: `@_never_raises` vive en el módulo
 
 
 def _order() -> list[str]:

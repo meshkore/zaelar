@@ -115,14 +115,8 @@ async def _summarize(peer: str, prev: str, inbound: str, outbound: str) -> str |
         # Reported because the endpoint is CONFIGURABLE and because this distiller is triggered by an external PEER,
         # not the operator: it is the only paid system call whose pace is set by someone outside. Without measuring
         # it, a chatty peer could spend the operator's balance without leaving a trace.
-        try:
-            from nucleo import energy_meter as _energy
-            usage = (data.get("usage") or {}) if isinstance(data, dict) else {}
-            _energy.report_llm_usage(base_url=url, model=_model(),
-                                     prompt_tokens=usage.get("prompt_tokens"),
-                                     completion_tokens=usage.get("completion_tokens"))
-        except Exception:  # noqa: BLE001
-            pass
+        from nucleo import energy_meter as _energy
+        _energy.meter_openai_response(data, base_url=url, model=_model())
     except Exception as e:  # noqa: BLE001
         logger.debug(f"cluster→memoria: sintetizador no disponible/falló ({_model()}): {e} → merge determinista")
         return None

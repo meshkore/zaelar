@@ -1738,6 +1738,27 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     «conversaciones absurdas». Entra como **primer escalón de relevo por latencia** (V2-094): un relevo solo actúa
     con el titular ya lento, y ahí el canje «enrutado algo peor» vs «el turno llega» sí compensa — además no
     encarece (misma tarifa, sin el ×1,4 de Grok Fast). Promoverlo exige el banco a 3 rondas.
+  - **El banco a 3 rondas NO EXISTÍA cuando esto se escribió** (corregido el 2026-08-15): `exp_routing` ignoraba
+    `--reps` y corría cada caso UNA vez, así que «12/14 contra 14/14» eran dos muestras sueltas y la decisión que
+    colgaba de ellas no era medible. Ahora `--reps` llega al enrutado, los fallos se reportan con su FRECUENCIA
+    (`caso→tools (2/3)` — fallar 3 de 3 es un defecto, 1 de 3 es ruido, y la diferencia es la que decide) y hay
+    `--models` para medir DOS brazos: los 20 candidatos a 3 rondas son 840 llamadas y los proveedores devuelven
+    429 a media tabla, o sea números contaminados. Medido de verdad (42 turnos por brazo):
+
+    | brazo | enrutado | graves | TTFT p50 |
+    |---|---|---|---|
+    | AIMLAPI `deepseek-v4-flash` (titular) | **41/42** | **0** | 8.659 ms |
+    | DIRECTO `deepseek-v4-pro` | **41/42** | 1 | **1.158 ms** |
+    | DIRECTO `deepseek-v4-flash` | 38/42 | 1 | 934 ms |
+    | AIMLAPI `haiku-4.5` | 31/42 | 0 | 1.297 ms |
+
+    **El escalón de relevo pasa a V4 PRO**: Flash directo fallaba `mostrar widget` **3 de 3**, y un relevo salta
+    justo en los turnos difíciles — «total, es solo el relevo» es como se acepta un defecto reproducible. Pro
+    iguala el enrutado del titular por 224 ms más de TTFT, así que el relevo deja de costar precisión.
+    **El titular no se toca**: el broker marca 0 graves en 42 y los directos 1, y ese grave es
+    `pregunta memoria → widget_data`, el fallo exacto que baneó a grok. Apagar el razonamiento parece costar justo
+    la discriminación pregunta/orden. Lo que falta para promover Pro **no es otra medición sino una decisión de
+    tarifa**: dobla el coste del turno de voz (~0,5 → ~1 Energy) a cambio de 8,6 s → 1,2 s al primer token.
   - ⚠️ **El escalón DeepSeek de los WORKERS estaba ROTO y era imposible saberlo**: escrito el 2026-08-13, solo se
     activa con la credencial puesta → nunca se ejecutó. Declaraba `model="sonnet"` sobre la creencia de que su
     gateway mapea alias de Claude, y **no los mapea** (400: «supported API model names are deepseek-v4-pro or
@@ -1756,6 +1777,16 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     factura con un dato inventado va en el sentido peligroso). ⚠️ Pendientes del operador: el pico/valle de DeepSeek
     del 2026-08-17 (hoy se factura siempre a PICO — sobre-cobra hasta 2× en valle, acotado y en el lado seguro) y el
     precio de cache-hit de V4.
+  - **Energy — el margen del BROKER no se cobraba: ~30% de sub-cobranza en la llamada más frecuente del producto**
+    (2026-08-15). Las tablas de `energy_meter` son tarifas del proveedor NATIVO, y tienen que serlo: es lo que hace
+    comparables a los candidatos en los benchmarks. Pero producción no le compra al proveedor —el titular va por
+    AIMLAPI, que revende con margen— y las dos rutas caían en la MISMA fila, así que `deepseek-v4-flash` facturaba
+    $0,14 viniera de `api.deepseek.com` o del broker que cobra $0,182 por él. Invisible porque el test lo afirmaba
+    como correcto. Arreglado con `_broker_markup()`, y con tres detalles que son la decisión: el margen es **por
+    modelo** (medido: flash ×1,30, haiku ×1,30, grok-4-fast ×1,05, gemini-2.5-flash **×1,00** — un ×1,3 plano
+    sobre-cobraría un 30% a gemini), un modelo del broker sin medir toma el **peor** margen visto, y **el fallback
+    NO se multiplica** porque apilar dos rellenos de seguridad deja de ser «un poco por el lado seguro». De paso
+    responde a la pregunta de si el directo sale más caro: es ~30% **más barato** que el mismo modelo por el broker.
 - **El turno se cierra cuando la frase ACABA, no cuando hay silencio** (V2-095, `nucleo/flash/segmenter.py` +
   `voice/engine/speech/turn/semantic.py`, iniciativa `V2-095-turnos-por-sentido.md`): el límite era solo acústico,
   así que quien piensa en voz alta abría un turno por pausa y el siguiente fragmento lo cancelaba — **22 prompts,

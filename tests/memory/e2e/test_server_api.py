@@ -66,4 +66,9 @@ def test_memory_map_endpoint(client):
     body = r.json()
     assert set(body) >= {"state", "layers", "edges", "counts"}
     assert body["counts"]["short"] >= 1 and body["counts"]["long"] >= 1
-    assert body["state"]["language"] == "es"
+    # El mapa tiene que reflejar el idioma REAL del operador, no uno fijo. Este assert decía "es" de cuando el
+    # producto tenía el castellano por defecto; con el default en inglés (V2-089) fallaba sin que nada estuviera
+    # roto. Lo que se prueba aquí es que el endpoint no invente el idioma, y eso se comprueba contra la fuente.
+    from voice.engine.core import langs
+    assert body["state"]["language"] == langs.current_code(), (
+        f"el mapa dice {body['state']['language']!r} y el idioma del operador es {langs.current_code()!r}")

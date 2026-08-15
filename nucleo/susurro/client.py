@@ -92,13 +92,8 @@ async def audit_llm(window_text: str) -> tuple[str | None, dict]:
         # y moría en un chip de UI. Susurro corre ante fricción, con un modelo POTENTE y una ventana
         # grande de conversación: es de las llamadas más caras por unidad. Un intento rechazado antes del
         # reintento sin `response_format` no se cobra (un 400 no trae `usage`).
-        try:
-            from nucleo import energy_meter as _energy
-            _energy.report_llm_usage(base_url=base, model=model,
-                                     prompt_tokens=usage.get("prompt_tokens"),
-                                     completion_tokens=usage.get("completion_tokens"))
-        except Exception:  # noqa: BLE001 — medir nunca tumba la auditoría
-            pass
+        from nucleo import energy_meter as _energy
+        _energy.meter_openai_response({"usage": usage}, base_url=base, model=model)
         return content, meta
     except Exception as e:  # noqa: BLE001 — fail-open duro
         meta.update(ms=round((time.time() - t0) * 1000), error=f"{type(e).__name__}: {e}")

@@ -240,14 +240,11 @@ class WorkerSession:
         # fuera (211k cacheados frente a 74k de input). Se pasa al metro, que lo tariffa a su precio propio.
         cached = u.get("cache_read_input_tokens")
         if pt or ct or cached:
-            try:
-                from nucleo import energy_meter as _energy
-                _energy.report_worker_usage(
-                    base_url=self._base_url, model=self._model,
-                    prompt_tokens=pt, completion_tokens=ct, cached_tokens=cached,
-                )
-            except Exception:
-                pass
+            from nucleo import energy_meter as _energy
+            _energy.report_worker_usage(
+                base_url=self._base_url, model=self._model,
+                prompt_tokens=pt, completion_tokens=ct, cached_tokens=cached,
+            )
         # una sesión CANCELADA ya emitió su chip end (ok=False) desde dispatch.cancel_session — re-emitir aquí
         # producía DOS end contradictorios (ok=False y ok=True un segundo después, visto en la demo 2026-07-14).
         if rec.status != "cancelled":

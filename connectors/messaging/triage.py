@@ -93,14 +93,8 @@ async def classify(messages: list[dict], operator_name: str | None = None) -> li
         # the normal case still costs zero and makes no network call. Still reported because `MSG_TRIAGE_MODEL` may
         # point at a REMOTE endpoint — and there is no Ollama in the cloud: without this, moving that variable turns
         # triage into invisible spend, and triage runs for EVERY inbound message batch, not by operator request.
-        try:
-            from nucleo import energy_meter as _energy
-            usage = (data.get("usage") or {}) if isinstance(data, dict) else {}
-            _energy.report_llm_usage(base_url=url, model=config.triage_model(),
-                                     prompt_tokens=usage.get("prompt_tokens"),
-                                     completion_tokens=usage.get("completion_tokens"))
-        except Exception:  # noqa: BLE001
-            pass
+        from nucleo import energy_meter as _energy
+        _energy.meter_openai_response(data, base_url=url, model=config.triage_model())
         try:
             from voice.observer import emit
             emit("brain", f"📨 Triaje mensajería ({len(messages)})",

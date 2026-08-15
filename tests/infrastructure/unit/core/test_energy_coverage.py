@@ -110,6 +110,47 @@ def test_una_exencion_lleva_motivo_de_verdad(rel):
     assert len(_EXENTOS[rel].strip()) > 20, f"la exención de {rel} no explica nada"
 
 
+# ── LA PUERTA (arquitectura, 2026-08-15) ─────────────────────────────────────────────────────────────────────
+# Petición del operador: *«el módulo de cobro tiene que ser un módulo totalmente separado, a modo de gateway, y
+# que cuando haya llamadas a servicios que consumen dinero se pase por ahí»*. Estaba separado, pero sin puerta:
+# los once llamantes repetían el mismo bloque de ocho líneas, y esa copia-pega tenía coste medible (solo uno de
+# los once leía `prompt_cache_hit_tokens`). Estos tests defienden la forma, no la aritmética.
+def test_medir_una_llamada_es_UNA_linea_y_el_contador_sabe_de_cache():
+    """La puerta saca `usage` de la respuesta cruda del proveedor — el llamante no desempaqueta nada, que es
+    justo el conocimiento que se le escapaba a diez de los once."""
+    from nucleo import energy_meter as em
+    visto = {}
+    orig = em.report_llm_usage
+    try:
+        em.report_llm_usage = lambda **kw: visto.update(kw)
+        em.meter_openai_response(
+            {"usage": {"prompt_tokens": 900, "completion_tokens": 40, "prompt_cache_hit_tokens": 830}},
+            base_url="https://api.deepseek.com", model="deepseek-v4-flash")
+    finally:
+        em.report_llm_usage = orig
+    assert visto["prompt_tokens"] == 900 and visto["completion_tokens"] == 40
+    assert visto["cache_hit_tokens"] == 830, "la caché es del contador, no de cada llamante"
+
+
+def test_la_puerta_traga_una_respuesta_rara_sin_tumbar_al_llamante():
+    """«Medir nunca tumba la llamada que estaba midiendo» es propiedad del MÓDULO. Antes era un `try/except`
+    copiado once veces: un llamante nuevo que se olvidara convertía un fallo de contabilidad en caída."""
+    from nucleo import energy_meter as em
+    for payload in (None, "no soy una respuesta", {"usage": None}, object()):
+        em.meter_openai_response(payload, base_url="https://api.x.ai/v1", model="grok-4-fast")
+
+
+def test_ninguna_puerta_publica_del_contador_puede_lanzar():
+    """Se comprueba la PROPIEDAD sobre todas a la vez, para que añadir una puerta nueva sin el decorador se note
+    aquí y no en producción."""
+    from nucleo import energy_meter as em
+    puertas = [n for n in dir(em) if n.startswith("report_") or n.startswith("meter_")]
+    assert len(puertas) >= 6, f"esperaba las puertas públicas del contador, encontré {puertas}"
+    for n in puertas:
+        assert getattr(getattr(em, n), "__wrapped__", None) is not None, \
+            f"«{n}» es una puerta pública del contador y le falta @_never_raises"
+
+
 def test_todo_proveedor_de_busqueda_de_pago_tiene_tarifa():
     """La cadena de búsqueda degrada por CALIDAD, así que añadir un buscador de pago es tentador y
     barato. Sin tarifa se cobraría al catch-all — que existe para que nada sea gratis, no para ser el

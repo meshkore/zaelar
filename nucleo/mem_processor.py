@@ -239,13 +239,8 @@ def _record_usage(usage: dict | None) -> None:
         _last_usage = {}
         return
     _last_usage = {k: usage.get(k) for k in ("prompt_tokens", "completion_tokens", "total_tokens")}
-    try:
-        from nucleo import energy_meter as _energy
-        _energy.report_llm_usage(base_url=_url(), model=_model(),
-                                 prompt_tokens=_last_usage.get("prompt_tokens"),
-                                 completion_tokens=_last_usage.get("completion_tokens"))
-    except Exception:  # noqa: BLE001  — medir NUNCA puede romper una escritura de memoria
-        pass
+    from nucleo import energy_meter as _energy
+    _energy.meter_openai_response({"usage": usage}, base_url=_url(), model=_model())
 
 
 # ── prompt (afinable; se destila sobre turnos reales) ───────────────────────────────────────────────────────

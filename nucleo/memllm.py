@@ -138,13 +138,8 @@ def _record_usage(usage: dict | None, base_url: str, model: str) -> None:
         usage = {}
     else:
         _last_usage = {k: usage.get(k) for k in ("prompt_tokens", "completion_tokens", "total_tokens")}
-    try:
-        from nucleo import energy_meter as _energy
-        _energy.report_llm_usage(base_url=base_url, model=model,
-                                 prompt_tokens=_last_usage.get("prompt_tokens"),
-                                 completion_tokens=_last_usage.get("completion_tokens"))
-    except Exception:  # noqa: BLE001
-        pass
+    from nucleo import energy_meter as _energy
+    _energy.meter_openai_response({"usage": usage}, base_url=base_url, model=model)
 
 
 # ── SÍNTESIS del sueño REM (el hook que el loop inyecta en memory/rem.py) ─────────────────────────────────────

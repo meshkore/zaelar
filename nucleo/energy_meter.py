@@ -37,6 +37,7 @@
 #     mildly over-meter an unknown provider (logged loudly so it gets a real rate added) than to ever
 #     silently meter it as free.
 #
+import functools
 import os
 import time
 
@@ -159,12 +160,50 @@ def _resolve_tokens(
     return prompt_tokens or 0, completion_tokens or 0, False
 
 
+def _broker_markup(base_url: str, model: str) -> float:
+    """The BROKER's cut, as a multiplier on the native model rate.
+
+    Every row in the tables above is the price the MODEL'S OWN provider charges — that is what makes the
+    candidates comparable to each other in the benchmarks. But production does not buy from the provider: the
+    FlashBrain's titular goes through AIMLAPI, which resells at a margin. The tables were therefore correct as a
+    RANKING and wrong as a BILL, and the difference was invisible because both routes resolve to the same row —
+    `deepseek-v4-flash` bills $0.14/1M whether it came from `api.deepseek.com` or from the broker that charges
+    $0.182 for it. That is a ~30% UNDER-charge on the busiest call in the product, which is the wrong direction:
+    the standing policy (2026-08-13) is to over-charge slightly rather than under-charge.
+
+    Measured margins (verified 2026-08-09, `tests/memory/e2e/bot/prices.json`): they are NOT a constant — the
+    broker's cut depends on the model (deepseek-v4-flash ×1.30, haiku ×1.30, grok-4-fast ×1.05,
+    gemini-2.5-flash ×1.00). An unknown model on the broker takes the WORST observed margin, for the same
+    never-silently-cheap reason as `_FALLBACK_RATE_USD`.
+
+    This also answers, in code, why the direct endpoint is not just faster: it is ~30% CHEAPER than the same
+    model through the broker.
+    """
+    if "aimlapi" not in (base_url or "").lower():
+        return 1.0
+    for needle, mult in sorted(_BROKER_MARKUP_AIMLAPI.items(), key=lambda kv: -len(kv[0])):
+        if needle in model:
+            return mult
+    return _BROKER_MARKUP_DEFAULT
+
+
+_BROKER_MARKUP_AIMLAPI: dict[str, float] = {
+    "deepseek-v4-flash": 1.30,      # 0.14 nativo → 0.182 por el broker
+    "claude-haiku-4.5": 1.30,       # 1.00 → 1.30
+    "grok-4-fast": 1.05,            # 0.20 → 0.21
+    "gemini-2.5-flash": 1.00,       # 0.30 → 0.30 (sin margen)
+}
+_BROKER_MARKUP_DEFAULT = 1.30       # el peor margen observado; over-charge antes que under-charge
+
+
 def _rate_for(base_url: str, model: str | None) -> tuple[float, float]:
     """Never returns None — local endpoints are filtered by the caller BEFORE this is reached
     (llm_cost_to_energy). Every real cloud endpoint gets a rate: exact if we have one, a per-model
-    AIMLAPI rate if the broker is AIMLAPI, else the fallback (logged once)."""
+    AIMLAPI rate if the broker is AIMLAPI, else the fallback (logged once). The rate is the NATIVE
+    provider's; if the call went through a broker, its margin is applied on top (`_broker_markup`)."""
     u = (base_url or "").lower()
     m = (model or "").lower()
+    mk = _broker_markup(u, m)
     # EL MODELO MANDA (2026-08-13). Antes esta tabla solo se consultaba si el endpoint era AIMLAPI, y por
     # eso un worker de Grok Build —que no reporta base_url, porque su CLI habla con xAI directamente— caía
     # al fallback y se cobraba a la mitad. El precio es del MODELO; el endpoint solo es dónde se sirve.
@@ -172,10 +211,11 @@ def _rate_for(base_url: str, model: str | None) -> tuple[float, float]:
     if m:
         for needle in sorted(_MODEL_RATES, key=len, reverse=True):
             if needle in m:
-                return _MODEL_RATES[needle]
+                i, o = _MODEL_RATES[needle]
+                return i * mk, o * mk
     for needle, rates in _RATES_PER_1M_TOKENS_USD.items():
         if needle in u:
-            return rates
+            return rates[0] * mk, rates[1] * mk
     key = f"{u}::{m}"
     if key not in _warned_unmapped:
         _warned_unmapped.add(key)
@@ -183,6 +223,8 @@ def _rate_for(base_url: str, model: str | None) -> tuple[float, float]:
             f"energy_meter: no rate row for base_url={base_url!r} model={model!r} — charging the "
             f"fallback rate {_FALLBACK_RATE_USD} $/1M tokens. Add a real rate to energy_meter.py."
         )
+    # Deliberately NOT marked up: the fallback is already a punitive catch-all, and stacking the broker's
+    # margin on top would compound two paddings that each exist for the same "never under-charge" reason.
     return _FALLBACK_RATE_USD
 
 
@@ -498,6 +540,28 @@ def _fire_and_forget(energy: float, kind: str, meta: dict | None = None) -> None
     asyncio.create_task(_post_usage(energy, kind, meta))
 
 
+def _never_raises(fn):
+    """Todas las puertas públicas del contador tragan sus propias excepciones.
+
+    «Medir nunca puede tumbar la llamada que estaba midiendo» era ya la regla, pero vivía como un `try/except`
+    COPIADO en cada llamante — once veces la misma línea, y un llamante nuevo que se olvidara convertía un fallo
+    de contabilidad en una caída de producto. Es una propiedad del MÓDULO, así que se garantiza aquí y los
+    llamantes se limitan a llamar (operador, 2026-08-15).
+
+    Se registra en DEBUG, no en silencio: un contador que falla siempre y no lo dice es la forma cara de este
+    fallo — medir de menos es indistinguible de funcionar bien (`test_energy_coverage.py`).
+    """
+    @functools.wraps(fn)
+    def _wrapped(*a, **kw):
+        try:
+            return fn(*a, **kw)
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"energy_meter.{fn.__name__}: no pude medir ({type(e).__name__}: {e})")
+            return None
+    return _wrapped
+
+
+@_never_raises
 def report_llm_usage(
     *, base_url: str, model: str | None = None, prompt_tokens: int | None, completion_tokens: int | None,
     cache_hit_tokens: int | None = None,
@@ -521,6 +585,47 @@ def report_llm_usage(
     _fire_and_forget(energy, "llm", meta)
 
 
+@_never_raises
+def meter_openai_response(payload, *, base_url: str, model: str | None = None) -> None:
+    """**LA PUERTA.** Hand it the provider's raw response and forget about billing.
+
+    Decisión de arquitectura del operador (2026-08-15): *«el módulo de cobro tiene que ser un módulo totalmente
+    separado, a modo de gateway, y que cuando haya llamadas a servicios que consumen dinero se pase por ahí»*.
+    El módulo ya estaba separado; lo que NO estaba era la puerta. Cada uno de los 11 llamantes repetía el mismo
+    bloque de ocho líneas —importar el contador, sacar `usage`, desempaquetar dos campos, tragarse la
+    excepción— y esa copia-pega tenía un coste medible, no solo estético:
+
+    - **Solo `fast_client` leía `prompt_cache_hit_tokens`.** Los otros diez llamantes facturaban el input
+      cacheado a precio de input fresco, o sea sobre-cobrando (el lado seguro, pero mal). El conocimiento de
+      QUÉ campos trae una respuesta pertenece al contador, no a cada llamante.
+    - Un llamante nuevo copiaba la versión que tuviera delante, así que los arreglos no se propagaban: es
+      exactamente el mecanismo por el que la cobertura se ha tenido que arreglar tres veces (2026-08-05,
+      2026-08-13, 2026-08-15).
+
+    Con esto, medir una llamada nueva es **una línea** y no hay nada que recordar. `payload` es el JSON tal cual
+    lo devolvió el proveedor (dict) o cualquier objeto con `.usage`; los nombres son los de la familia
+    OpenAI, que es la que hablan todos nuestros endpoints —incluidos los brokers y DeepSeek directo—.
+
+    **Nunca lanza** (`@_never_raises`, como todas las puertas de este módulo): medir no puede tumbar la llamada
+    que estaba midiendo. Ésa era la razón del `except` que había en los once sitios, y ahora vive en uno.
+    """
+    usage = payload.get("usage") if isinstance(payload, dict) else getattr(payload, "usage", None)
+    if usage is not None and not isinstance(usage, dict):
+        # Los SDK devuelven un objeto, no un dict (`resp.usage` de OpenAI). Se normaliza aquí para que el
+        # llamante no tenga que saber si le tocó cliente HTTP crudo o SDK.
+        usage = getattr(usage, "model_dump", getattr(usage, "dict", dict))() or {}
+    usage = usage or {}
+    report_llm_usage(
+        base_url=base_url, model=model,
+        prompt_tokens=usage.get("prompt_tokens"),
+        completion_tokens=usage.get("completion_tokens"),
+        # DENTRO de prompt_tokens (verificado: pt = hit + miss) → se DESCUENTA. Ver la nota sobre la
+        # aritmética opuesta de los dos contadores de caché en `llm_cost_to_energy`.
+        cache_hit_tokens=usage.get("prompt_cache_hit_tokens"),
+    )
+
+
+@_never_raises
 def report_worker_usage(
     *, base_url: str, model: str | None = None, prompt_tokens: int | None, completion_tokens: int | None,
     cached_tokens: int | None = None,
@@ -546,6 +651,7 @@ def report_worker_usage(
     _fire_and_forget(energy, "worker", meta)
 
 
+@_never_raises
 def report_tts_usage(*, characters: int | None) -> None:
     """Call from the TTSMetrics branch of agent.py's metrics_collected hook, AFTER the caller has
     already excluded local backends (kokoro_local — free, not metered). Same no-op/fire-and-forget
@@ -558,6 +664,7 @@ def report_tts_usage(*, characters: int | None) -> None:
     _fire_and_forget(energy, "tts")
 
 
+@_never_raises
 def report_stt_usage(*, audio_seconds: float | None) -> None:
     """Call from the STTMetrics branch of agent.py's metrics_collected hook, AFTER the caller has
     already excluded local backends (whisper_local — free, not metered). Same no-op/fire-and-forget
@@ -570,6 +677,7 @@ def report_stt_usage(*, audio_seconds: float | None) -> None:
     _fire_and_forget(energy, "stt")
 
 
+@_never_raises
 def report_search_usage(*, provider: str) -> None:
     """Call from a PAID web-search provider's call site, after it answered. Same no-op/fire-and-forget
     contract as report_llm_usage. The caller must not invoke this for a free provider (Google via our
