@@ -438,10 +438,10 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 @media (prefers-reduced-motion:reduce){ .orbic.vu svg{transform:none} }
 .orbic.pwr-stalled{color:var(--hb-warn);opacity:1;animation:pwrAlert 1.6s ease-in-out infinite}
 .orbic.pwr-starting{color:var(--hb-muted);opacity:.85;animation:pwrBoot 1.4s ease-in-out infinite}
-/* "pausing" (V2-092 addenda, 2026-08-15): una parada pedida con un turno en vuelo — el agente sigue funcionando
-   de VERDAD por dentro (nada se ha congelado todavía), así que se pinta distinto de `stalled` (que SÍ es una
-   avería) a propósito: mismo tono ámbar de la familia --hb-warn pero el MÁS SUAVE (--hb-warn-ink) y un respiro
-   lento en vez del parpadeo de alarma, para que no se confunda "esperando a que termine" con "algo se ha roto". */
+/* "pausing" (V2-092 addenda, 2026-08-15): a stop requested with a turn in flight — the agent keeps genuinely
+   running underneath (nothing has been frozen yet), so it's deliberately painted differently from `stalled`
+   (a REAL fault): same amber family as --hb-warn but the SOFTER tone (--hb-warn-ink) and a slow breathe instead
+   of the alert blink, so "waiting for it to finish" doesn't read as "something broke". */
 .orbic.pwr-pausing{color:var(--hb-warn-ink,#e8b673);opacity:1;animation:pwrPausing 1.2s ease-in-out infinite}
 @keyframes pwrAlert{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.45;transform:scale(.93)}}
 @keyframes pwrBoot{0%,100%{opacity:.45}50%{opacity:.95}}

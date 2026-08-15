@@ -366,11 +366,11 @@ def stamp_identity(ev: dict) -> dict:
         from observability import identity as _ident
         ev.setdefault("uid", _ident.user_id())
         if ev.get("cat") in ("system", "pulse"):
-            # Ruido de fondo NUNCA fabrica una sesión (2026-08-15, hallazgo real: cerrar una sesión emite su
-            # propio evento "end", categoría `system` — con el `setdefault` de abajo eso REABRÍA una sesión
-            # nueva en el acto de cerrar la anterior, y lo mismo con cualquier evento del ⏻ (`run`/stop/start)
-            # disparado con el agente parado. `session_info()` SOLO LEE (nunca abre); si no hay ninguna, el
-            # evento sale sin `sid` en vez de mentir con uno recién inventado.
+            # Background noise NEVER fabricates a session (2026-08-15, real finding: closing a session emits
+            # its own "end" event, category `system` — with the `setdefault` below that REOPENED a new session
+            # in the act of closing the previous one, and the same with any ⏻ event (`run`/stop/start) fired
+            # while the agent is stopped. `session_info()` ONLY READS (never opens); with none open, the event
+            # goes out with no `sid` instead of lying with a freshly-invented one.
             ev.setdefault("sid", _ident.session_info().get("session_id") or "")
         else:
             ev.setdefault("sid", _ident.session_id())

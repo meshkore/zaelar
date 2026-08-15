@@ -58,12 +58,11 @@ export const setPowerOff = (off) => { setPowerOffRaw(off); localStorage.setItem(
 export const [powerCmdAt, setPowerCmdAt] = createSignal(0);
 export const markPowerCommand = () => setPowerCmdAt(Date.now());
 
-// ⏻ PAUSANDO (V2-092 addenda, 2026-08-15): una parada pedida con un turno REALMENTE en vuelo (una llamada de
-// red al modelo, `nucleo/runstate.py`'s `_inflight`) no corta nada a medias — se DIFIERE hasta que ese turno
-// termine solo, nunca por un reloj. Mientras tanto el agente sigue funcionando de verdad por dentro (nada se ha
-// congelado): esto es solo la señal para que el ⏻ lo enseñe (parpadeo ámbar) en vez de mentir pintándose ya
-// apagado. La pone el evento SSE `run` (label "pausing"/"resumed") — llega a TODAS las pestañas por igual,
-// haya o no pulsado ⏻ esta.
+// ⏻ PAUSING (V2-092 addenda, 2026-08-15): a stop requested while a turn's model call is REALLY in flight
+// (`nucleo/runstate.py`'s `_inflight`) doesn't cut anything mid-way — it's DEFERRED until that turn ends on its
+// own, never on a timer. Meanwhile the agent keeps genuinely running underneath (nothing has been frozen): this
+// is just the signal for ⏻ to show that (amber blink) instead of lying by painting itself already off. Set by
+// the `run` SSE event (label "pausing"/"resumed") — reaches EVERY tab alike, whether or not it clicked ⏻.
 export const [pausing, setPausing] = createSignal(false);
 
 export const [botSpeaking, setBotSpeaking] = createSignal(false);            // gates person-voice visuals
@@ -80,15 +79,15 @@ export const [micLevel, setMicLevel]       = createSignal(0);               // t
 // yo veía el micrófono encendido, el del altavoz encendido y el de la transcripción encendida, pensaba que estabas
 // operativo». No era un fallo de audio: era un estado invisible.
 //
-// Cinco estados — el quinto (V2-092 addenda, 2026-08-15) es OTRO tránsito, no un estado inventado: una parada
-// pedida con un turno en vuelo que el servidor difiere hasta que termine solo (ver `pausing` arriba). Va ANTES
-// que `off` a propósito: por dentro el agente sigue funcionando de verdad mientras dura, así que pintarlo ya
-// apagado sería la misma mentira visual que `stalled` vino a corregir.
-//   pausing  → parada pedida, esperando a que el turno en vuelo termine (o a que el operador la cancele).
-//   off      → el operador lo paró (⏻). Todo debe verse y estar CONGELADO.
-//   starting → levantándose (conectando sala/micro). Ni vivo ni parado: en tránsito.
-//   live     → sesión REALMENTE en marcha. Lo único que autoriza a pintar algo «encendido».
-//   stalled  → debería estar encendido y NO lo está. ESTE es el que no existía; ahora se ve.
+// Five states — the fifth (V2-092 addenda, 2026-08-15) is ANOTHER transition, not a made-up state: a stop
+// requested with a turn in flight that the server defers until it ends on its own (see `pausing` above). It goes
+// BEFORE `off` on purpose: underneath, the agent keeps genuinely running while it lasts, so painting it already
+// off would be the same visual lie that `stalled` exists to correct.
+//   pausing  → stop requested, waiting for the in-flight turn to end (or for the operator to cancel it).
+//   off      → the operator stopped it (⏻). Everything must look and be FROZEN.
+//   starting → coming up (connecting room/mic). Neither alive nor stopped: in transit.
+//   live     → a session REALLY in progress. The only thing that authorizes painting anything as "on".
+//   stalled  → should be on and ISN'T. This is the one that didn't exist; now it's visible.
 export const agentState = () => {
   if (pausing()) return "pausing";
   if (powerOff()) return "off";

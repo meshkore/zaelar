@@ -44,6 +44,21 @@ _session: dict = {"id": None, "started_ms": None, "source": ""}
 IDLE_TIMEOUT_MS = int(os.getenv("ZAELAR_SESSION_IDLE_MIN", "5")) * 60_000
 _last_real_activity_ms: dict = {"v": None}
 
+# HEARTBEAT to the control-plane (2026-08-15, operator's proposal). The explicit session close
+# (`_report_to_control_plane("end", ...)`) is best-effort: if the Machine dies hard (OOM, `kill -9`) it never
+# arrives, and the backoffice (`cloud/backoffice/src/flyQuery.js`) had to GUESS "is this account still alive?"
+# from the timestamp of the most recent event in the account's own SQLite — a 60s window polluted by background
+# noise (homeostasis/cron), not a signal designed for this. No need to invent anything: the same "start" report
+# already sent on open (`_report_to_control_plane`) already touches `last_seen_at` on the control-plane
+# (`userSessions.touch`, idempotent — no new row, no `energy`/`events` duplication with `energy=0`). Repeating
+# it every `_HEARTBEAT_INTERVAL_S` while the session stays open gives that mark the precision it was missing,
+# with no new verb on the control-plane. Still a total no-op on a local install without
+# `CONTROL_PLANE_URL`/`ZAELAR_USER_ID` (same guard as `_report_to_control_plane`) — one single piece of code
+# serves both the self-hosted engine and the one deployed on Fly. Do NOT confuse this with the 4s heartbeat in
+# `server/livekit_api.py` (an in-memory "one tab per machine" lock, no control-plane involved).
+_HEARTBEAT_INTERVAL_S = float(os.getenv("ZAELAR_SESSION_HEARTBEAT_S", "15"))
+_heartbeat: dict = {"task": None}
+
 
 def _identity_file() -> Path:
     return _workspace.root() / "config" / "identity.json"
@@ -107,6 +122,7 @@ def begin_session(source: str = "frontend", force: bool = False) -> dict:
         info = dict(_session)
     _emit_session("start", info, extra={"source": info["source"]})
     _report_to_control_plane("start", info)
+    _start_heartbeat(info)
     return info
 
 
@@ -118,6 +134,7 @@ def end_session(reason: str = "frontend") -> dict:
         _session["id"] = None
         _session["started_ms"] = None
         _session["source"] = ""
+    _stop_heartbeat()
     if info.get("id"):
         dur = round(time.time() * 1000) - (info.get("started_ms") or 0)
         _emit_session("end", info, extra={"reason": (reason or "")[:40], "duration_ms": dur})
@@ -184,6 +201,36 @@ def _report_to_control_plane(label: str, info: dict) -> None:
         pass          # sin loop (arranque, test) — el registro de actividad no vale una excepción
     except Exception:
         pass
+
+
+async def _heartbeat_loop(info: dict) -> None:
+    """Repeats the "start" report every `_HEARTBEAT_INTERVAL_S` while the session stays alive — see the
+    `_heartbeat`/`_HEARTBEAT_INTERVAL_S` comment above. `_report_to_control_plane` is already a no-op when
+    unconfigured, so this loop costs nothing on a local install: it just sleeps and sends not a single byte."""
+    import asyncio
+    try:
+        while True:
+            await asyncio.sleep(_HEARTBEAT_INTERVAL_S)
+            _report_to_control_plane("start", info)
+    except asyncio.CancelledError:
+        pass
+
+
+def _start_heartbeat(info: dict) -> None:
+    _stop_heartbeat()
+    try:
+        import asyncio
+        loop = asyncio.get_running_loop()
+        _heartbeat["task"] = loop.create_task(_heartbeat_loop(info))
+    except RuntimeError:
+        pass          # no loop (startup, a test) — no heartbeat to launch, and none needed
+
+
+def _stop_heartbeat() -> None:
+    t = _heartbeat["task"]
+    if t is not None:
+        t.cancel()
+    _heartbeat["task"] = None
 
 
 def _emit_session(label: str, info: dict, extra: dict | None = None) -> None:

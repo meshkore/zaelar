@@ -240,19 +240,19 @@ export async function start() {
   starting = true; store.setStarting(true); store.setConnState(t("voice.conn_requesting"));
   audit.silent = false; store.setMicBlocked({ show: false, msg: "" });
 
-  // ⏻ GATE contra la VERDAD DEL SERVIDOR (V2-092 gap, 2026-08-15). `store.powerOff()` es un espejo LOCAL
-  // (localStorage) que empieza en `false` en cualquier pestaña/perfil que nunca haya pulsado ⏻ EN SÍ MISMA —
-  // una ventana nueva con el motor parado por otro lado igualmente llega hasta aquí. Sin este gate, el micro ya
-  // se pide y `api.obsSessionStart()` (más abajo) ya abre una sesión de observabilidad real ANTES de que la
-  // reconciliación asíncrona de main.js (que corre en paralelo, no antes) se entere de que el servidor está
-  // parado y la tumbe — de ahí la sesión fantasma que ve el master. Preguntar la verdad del servidor AQUÍ,
-  // antes de tocar nada, hace que "parado" signifique que no pasa nada, no que algo pase y se deshaga después.
+  // ⏻ GATE against the SERVER'S TRUTH (V2-092 gap, 2026-08-15). `store.powerOff()` is a LOCAL mirror
+  // (localStorage) that starts at `false` on any tab/profile that never clicked ⏻ ITSELF — a fresh window
+  // reaches here just the same while the engine is stopped elsewhere. Without this gate, the mic is already
+  // requested and `api.obsSessionStart()` (below) already opens a real observability session BEFORE main.js's
+  // async reconciliation (which runs in parallel, not before) finds out the server is stopped and tears it
+  // down — that's the ghost session the master used to show. Asking the server's truth HERE, before touching
+  // anything, makes "stopped" mean nothing happens, not "something happens and gets undone afterwards".
   try {
     const rs = await api.runState();
     if (rs && rs.running === false) {
       store.setPowerOff(true); store.setMicMuted(true); store.setBotMuted(true);
       starting = false; store.setStarting(false); store.setConnState("—");
-      if (!_everBooted) _unblockBoot();   // no dejar la UI atrapada en el splash: no hay arranque que esperar
+      if (!_everBooted) _unblockBoot();   // don't leave the UI stuck on the splash: there's nothing to wait for
       return;
     }
   } catch (_) { /* verdad del servidor desconocida (aún no responde) — seguir con el estado local, como siempre */ }
@@ -305,9 +305,9 @@ export async function start() {
 
     // --- LiveKit room ---
     const { token, url, ok } = await api.lkToken();
-    // Respaldo del gate de arriba: si el servidor se paró justo en este hueco (entre el check inicial y aquí),
-    // `/api/token` lo dice con un 409 en vez de devolver un JWT. Deshacer lo que YA se abrió (mic + sesión de
-    // observabilidad) en vez de seguir con `token: undefined` hacia una sala de LiveKit que nunca va a conectar.
+    // Backstop for the gate above: if the server stopped right in this gap (between the initial check and
+    // here), `/api/token` says so with a 409 instead of a JWT. Undo what's ALREADY open (mic + observability
+    // session) instead of carrying `token: undefined` forward into a LiveKit room that will never connect.
     if (!ok) {
       started = false; store.setStarted(false);
       store.setPowerOff(true); store.setMicMuted(true); store.setBotMuted(true);

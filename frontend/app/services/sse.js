@@ -140,10 +140,10 @@ export function openSSE(desktop) {
       // Solo se refleja el ESTADO; de tumbar/levantar la sesión de voz se encarga el efecto de main.js que
       // observa `powerOff` (aquí no se importa `session`: sse.js lo importa session.js, y el ciclo sería mutuo).
       //
-      // Addenda V2-092 (2026-08-15): "pausing"/"resumed" son un TERCER par de labels, no una variante de
-      // start/stop — una parada diferida (turno en vuelo) deja el agente RUNNING de verdad por dentro, así que
-      // tratarla como "no es stop → es start" pintaría el ⏻ como si nada estuviera pasando. Se resuelven ANTES
-      // de tocar `powerOff`, que ese par ni siquiera toca.
+      // V2-092 addenda (2026-08-15): "pausing"/"resumed" are a THIRD pair of labels, not a start/stop variant —
+      // a deferred stop (turn in flight) leaves the agent genuinely RUNNING underneath, so treating it as "not
+      // stop → must be start" would paint ⏻ as if nothing were happening. Resolved BEFORE touching `powerOff`,
+      // which that pair doesn't even touch.
       const label = String(d.label || "");
       if (label === "pausing") {
         store.setPausing(true);

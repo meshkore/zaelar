@@ -1727,6 +1727,40 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - Contrato para widgets nuevos en `widgets/AGENTS.md` + el prompt del generador, junto a la decisión hermana de
     background: son la misma pregunta — ¿esto sigue haciendo algo cuando el operador deja de mirar?
 
+- **PARAR ES PARAR, de verdad: ni sesión fantasma con el agente parado, ni turno cortado a medias** (V2-092
+  addenda, 2026-08-15, dos fallos reales del operador probando en vivo):
+  - **Gap real: "parado" nunca gateaba la conexión de voz.** `runstate.stopped()` se consultaba en workers/
+    background/crons/widgets pero NUNCA en `server/livekit_api.py::token()` — una ventana nueva (perfil sin su
+    propio `hb_power_off` en `localStorage`) siempre podía levantar sala LiveKit + kickoff aunque el servidor
+    tuviera el agente parado, y el master la veía "EN CURSO". `token()` ahora responde 409 `engine_stopped` en
+    vez de un JWT; `session-lk.js::start()` pregunta la verdad del servidor (`api.runState()`) ANTES de tocar el
+    micro (no después, como hacía la reconciliación de `main.js` — sin esto había una ventana de carrera real
+    donde el micro y la sesión de observabilidad ya se habían abierto antes de que la reconciliación los tumbara).
+  - **Parada DIFERIDA para un turno con el modelo REALMENTE en vuelo.** Cortar `FastClient.stream()` a media
+    respuesta no es aceptable, pero tampoco vale un temporizador (petición explícita del operador: la finalización
+    la dispara una ACCIÓN CONCRETA — el turno terminando de verdad — nunca un reloj). `nucleo/runstate.py` lleva
+    ahora un contador de turnos en vuelo (`enter_inflight`/`exit_inflight`, incrementado/decrementado por un
+    envoltorio fino de `stream()` — la lógica de streaming real vive intacta en `_stream_inner()`): con el
+    contador > 0, `stop()` NO congela nada todavía (estado `"pausing"`, nada se persiste ni se suspende), y
+    `exit_inflight()` completa la parada real en el momento exacto en que el ÚLTIMO turno en vuelo termina.
+    Pulsar ⏻ otra vez durante `"pausing"` CANCELA (nada se había tocado, no hay nada que deshacer) — y como el
+    clic del frontend en ese momento en realidad llama a `start()` (ve `powerOff` ya en `true` desde el primer
+    clic), `start()` también sabe cancelar una parada pendiente. El Orb gana un QUINTO estado (`pausing`,
+    parpadeo ámbar con `--hb-warn-ink`, deliberadamente distinto del rojo/alerta de `stalled`: por dentro el
+    agente sigue funcionando de verdad, no es una avería).
+  - **Una sesión resucitándose a sí misma al cerrar.** `voice/observer.py::stamp_identity()` estampaba `sid` con
+    `identity.session_id()` (que se ABRE sola) para CUALQUIER evento, incluido el propio evento `"end"` que
+    `end_session()` emite al cerrar — así que cerrar una sesión reabría una nueva en el acto, y lo mismo con
+    cualquier evento `run` (stop/start/pausing/resumed) disparado con el agente ya parado. Ahora los eventos de
+    categoría `system`/`pulse` leen `session_info()` (que SOLO LEE, nunca abre) en vez de `session_id()`; la
+    actividad real (flash/worker/memory/widget) se sigue abriendo sola, sin cambios.
+  - **Heartbeat hacia el control-plane** (propuesta del operador): `identity.begin_session()` repite el mismo
+    aviso de "start" cada ~15s (`ZAELAR_SESSION_HEARTBEAT_S`) mientras la sesión siga abierta — cero verbo nuevo,
+    `userSessions.touch()` ya era idempotente. No-op total sin `CONTROL_PLANE_URL`/`ZAELAR_USER_ID` configurados
+    (local puro). El backoffice (`cloud/backoffice`, repo privado) ahora prefiere ese latido —fresco (< 45s)—
+    sobre la recencia-por-ruido-de-fondo de `flyQuery.js` (contaminada por homeostasis/cron), solo para SUMAR
+    certeza de "viva", nunca para quitarla.
+
 - **La ESPERA se oye, y el veredicto de latencia ya puede culpar al proveedor** (V2-093, `voice/proactive.py`
   + `nucleo/flash/turn_perf.py`, iniciativa `V2-093-la-espera-se-oye.md`; sesión b70a45d0):
   - **El relleno de espera llevaba desde julio SIN SONAR.** Viajaba como `ChatChunk` por el stream de la respuesta,

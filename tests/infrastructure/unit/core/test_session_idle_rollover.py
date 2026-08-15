@@ -67,30 +67,31 @@ def test_reconnection_within_the_window_keeps_the_same_session(_clean_identity_s
     assert soon["sid"] == "s0", "una reconexión por un bache no puede partir la sesión en dos"
 
 
-# ── ruido de fondo NUNCA fabrica una sesión por sí solo (2026-08-15) ────────────────────────────────────────
-# Hallazgo real probando en vivo el ⏻ (V2-092): `identity.end_session()` cierra la sesión (`_session["id"]` a
-# None) y acto seguido emite SU PROPIO evento "end" — categoría `system`. Con `session_id()` (que SE ABRE sola)
-# como fuente del `sid`, ese mismo evento de cierre reabría una sesión NUEVA en el acto de cerrar la anterior —
-# el master seguía viendo "EN CURSO" un segundo después de terminar. Lo mismo le pasaba a cualquier evento
-# `run` del ⏻ (stop/start/pausing/resumed) disparado con el agente ya parado. La sesión debe quedarse CERRADA
-# hasta que actividad REAL (no plomería) la vuelva a abrir.
+# ── background noise NEVER fabricates a session by itself (2026-08-15) ─────────────────────────────────────
+# Real finding while live-testing ⏻ (V2-092): `identity.end_session()` closes the session (`_session["id"]` to
+# None) and right after emits ITS OWN "end" event — category `system`. With `session_id()` (which SELF-OPENS)
+# as the source of `sid`, that same close event would reopen a NEW session in the act of closing the previous
+# one — the master kept showing "EN CURSO" a second after finishing. The same happened with any ⏻ `run` event
+# (stop/start/pausing/resumed) fired while the agent was already stopped. The session must stay CLOSED until
+# REAL activity (not plumbing) reopens it.
 def test_system_noise_does_not_resurrect_a_closed_session(monkeypatch):
     from observability import identity
 
     monkeypatch.setattr(identity, "_session", {"id": None, "started_ms": None, "source": ""})
     ev = {"kind": "run", "cat": "system"}
     observer.stamp_identity(ev)
-    assert ev["sid"] == "", "un evento de plomería no puede reabrir lo que se acaba de cerrar"
-    assert identity._session["id"] is None, "y desde luego no debe dejar una sesión nueva puesta en su lugar"
+    assert ev["sid"] == "", "a plumbing event can't reopen what just closed"
+    assert identity._session["id"] is None, "and certainly must not leave a new session in its place"
 
 
 def test_real_activity_still_opens_a_session_that_was_closed(monkeypatch):
-    """El contraste: el ruido de fondo no abre nada, pero actividad REAL sigue abriendo sola una sesión nueva
-    tras un cierre — la garantía original ("un evento nunca queda sin sesión") sigue viva para lo que importa."""
+    """The contrast: background noise opens nothing, but REAL activity still opens a new session on its own
+    after a close — the original guarantee ("an event never goes without a session") is still alive where it
+    matters."""
     from observability import identity
 
     monkeypatch.setattr(identity, "_session", {"id": None, "started_ms": None, "source": ""})
     ev = {"kind": "brain", "cat": "flash"}
     observer.stamp_identity(ev)
-    assert ev["sid"], "actividad real SÍ tiene que abrir una sesión si no había ninguna"
+    assert ev["sid"], "real activity DOES have to open a session if none was open"
     assert identity._session["id"] == ev["sid"]

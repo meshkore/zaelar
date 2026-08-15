@@ -239,12 +239,12 @@ def test_no_se_abre_trabajo_nuevo_con_el_agente_parado(piezas, monkeypatch):
     assert dispatch.get_record("t-nueva") is None, "con el agente parado no debe nacer ninguna sesión"
 
 
-# ── nada de sesión de voz con el agente parado (2026-08-15) ─────────────────────────────────────────────────
-# Real: el operador reinició el motor, vio el ⏻ apagado y abrió una segunda ventana/perfil — el master mostró
-# una sesión "EN CURSO" de todas formas. Causa: `/api/token` (server/livekit_api.py) emitía el JWT de LiveKit sin
-# mirar el interruptor global — una ventana sin `hb_power_off` en su propio localStorage siempre podía levantar
-# una sala + kickoff, aunque el servidor tuviera el agente parado. Sin token no hay sala, sin sala no hay kickoff.
-def test_token_se_niega_con_el_agente_parado(piezas):
+# ── no voice session while the agent is stopped (2026-08-15) ───────────────────────────────────────────────
+# Real: the operator restarted the engine, saw ⏻ off, and opened a second window/profile — the master showed a
+# session "EN CURSO" anyway. Cause: `/api/token` (server/livekit_api.py) minted the LiveKit JWT without checking
+# the global switch — a window without its own `hb_power_off` in localStorage could always open a room + kickoff,
+# even with the server considering the agent stopped. No token, no room; no room, no kickoff.
+def test_token_is_refused_while_the_agent_is_stopped(piezas):
     from server import livekit_api
 
     asyncio.run(runstate.stop())
@@ -253,7 +253,7 @@ def test_token_se_niega_con_el_agente_parado(piezas):
     assert json.loads(resp.body) == {"error": "engine_stopped"}
 
 
-def test_token_se_concede_en_marcha():
+def test_token_is_granted_while_running():
     from server import livekit_api
 
     resp = livekit_api.token()
@@ -262,60 +262,60 @@ def test_token_se_concede_en_marcha():
     assert body["token"] and body["room"].startswith(livekit_api.SETTINGS.room_name)
 
 
-# ── parada DIFERIDA: un turno en vuelo no se corta a medias, y no hace falta ningún reloj (2026-08-15) ─────────
-# El operador fue explícito: la finalización de la parada debe dispararla una ACCIÓN CONCRETA (el turno
-# terminando de verdad), no un temporizador — un reloj solo vale para el caso, ya cubierto en otro sitio
-# (`observability/identity.py`), en que ninguna señal de cierre llega nunca.
-def test_parar_con_turno_en_vuelo_se_difiere_y_no_congela_nada_todavia(piezas):
+# ── DEFERRED stop: a turn in flight doesn't get cut mid-way, and no clock is needed for it (2026-08-15) ────────
+# The operator was explicit: the stop's completion must be triggered by a CONCRETE ACTION (the turn genuinely
+# ending), not a timer — a clock only applies to the case, already covered elsewhere
+# (`observability/identity.py`), where no close signal ever arrives.
+def test_stopping_with_a_turn_in_flight_defers_and_freezes_nothing_yet(piezas):
     runstate.enter_inflight()
     res = asyncio.run(runstate.stop("operator"))
     assert res == {"ok": True, "state": "pausing"}
-    assert runstate.stopped() is False, "por dentro sigue EN MARCHA — nada se ha congelado todavía"
+    assert runstate.stopped() is False, "underneath it's still RUNNING — nothing has been frozen yet"
     assert piezas["pause"] == 0 and piezas["suspend"] == []
     assert runstate.pending_stop() is True
     assert runstate.snapshot()["state"] == "pausing"
     assert runstate.snapshot()["running"] is True
 
 
-def test_pulsar_otra_vez_durante_pausing_cancela_la_parada(piezas):
+def test_pressing_again_during_pausing_cancels_the_stop(piezas):
     runstate.enter_inflight()
     asyncio.run(runstate.stop("operator"))
     res = asyncio.run(runstate.stop("operator"))
     assert res == {"ok": True, "state": runstate.RUNNING, "cancelled": True}
     assert runstate.pending_stop() is False
     assert runstate.stopped() is False
-    assert piezas["pause"] == 0 and piezas["suspend"] == [], "no había nada que deshacer: nunca se congeló nada"
-    asyncio.run(runstate.exit_inflight())          # el turno termina — no debe pasar NADA, se canceló
+    assert piezas["pause"] == 0 and piezas["suspend"] == [], "nothing to undo: nothing was ever frozen"
+    asyncio.run(runstate.exit_inflight())          # the turn ends — NOTHING should happen, it was cancelled
     assert runstate.stopped() is False
 
 
-def test_el_ultimo_turno_en_terminar_completa_la_parada_diferida(piezas):
+def test_the_last_turn_to_finish_completes_the_deferred_stop(piezas):
     runstate.enter_inflight()
-    runstate.enter_inflight()                      # dos turnos de DOS salas distintas, el interruptor es global
+    runstate.enter_inflight()                      # two turns from TWO different rooms — the switch is global
     asyncio.run(runstate.stop("operator"))
-    asyncio.run(runstate.exit_inflight())           # termina el primero — el segundo sigue en vuelo
-    assert runstate.stopped() is False and piezas["pause"] == 0, "todavía queda un turno en vuelo"
-    asyncio.run(runstate.exit_inflight())           # termina el ÚLTIMO — AHORA sí completa la parada
+    asyncio.run(runstate.exit_inflight())           # the first one ends — the second is still in flight
+    assert runstate.stopped() is False and piezas["pause"] == 0, "a turn is still in flight"
+    asyncio.run(runstate.exit_inflight())           # the LAST one ends — NOW it completes the stop
     assert runstate.stopped() is True
     assert piezas["pause"] == 1 and piezas["suspend"] == ["agent_stopped"]
 
 
-def test_arrancar_tambien_cancela_una_parada_diferida(piezas):
-    """El ⏻ del frontend, al pulsarse una segunda vez durante "pausing", llama al mismo endpoint que "encender"
-    (ve `store.powerOff()` ya en `true` desde el primer clic) — así que `start()`, no solo `stop()` otra vez,
-    tiene que saber cancelar una parada pendiente."""
+def test_starting_also_cancels_a_deferred_stop(piezas):
+    """The frontend's ⏻, on a second click during "pausing", calls the same endpoint as "turn on" (it sees
+    `store.powerOff()` already `true` from the first click) — so `start()`, not just `stop()` again, has to
+    know how to cancel a pending stop."""
     runstate.enter_inflight()
     asyncio.run(runstate.stop("operator"))
     assert runstate.pending_stop() is True
     res = asyncio.run(runstate.start("operator"))
     assert res["state"] == runstate.RUNNING
     assert runstate.pending_stop() is False
-    assert piezas["pause"] == 0 and piezas["suspend"] == [], "nunca se congeló nada: no había nada que reanudar"
-    asyncio.run(runstate.exit_inflight())          # el turno termina — cancelado, no debe parar nada
+    assert piezas["pause"] == 0 and piezas["suspend"] == [], "nothing was ever frozen: nothing to resume"
+    asyncio.run(runstate.exit_inflight())          # the turn ends — cancelled, nothing should stop
     assert runstate.stopped() is False
 
 
-def test_sin_turnos_en_vuelo_parar_es_instantaneo_como_siempre(piezas):
+def test_with_no_turns_in_flight_stopping_is_instant_as_always(piezas):
     assert runstate.inflight_count() == 0
     res = asyncio.run(runstate.stop("operator"))
     assert res["state"] == runstate.STOPPED

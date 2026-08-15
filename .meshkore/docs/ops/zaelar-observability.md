@@ -44,7 +44,11 @@ tokens, errores), `flow/{corr_id}` (detalle cronológico), `sessions`, `catalog`
 (gitignored). Aleatorio y no correlativo a propósito — no identifica a nadie por sí mismo. Va a un JSON y no a la
 base de datos porque un reset con «borrar memoria» destruye `zaelar.db`, y perder la identidad al limpiar la
 memoria haría inútil cualquier análisis longitudinal. `session_id` es un UUID4 por **sesión de trabajo**: la abre
-el frontend al conectar y la cierran ⏻ o cerrar la pestaña; una reconexión NO la parte en dos.
+el frontend al conectar y la cierran ⏻ o cerrar la pestaña; una reconexión NO la parte en dos. Con inactividad
+REAL más allá de `ZAELAR_SESSION_IDLE_MIN` (def. 5 min) se cierra sola (`identity.note_real_activity`) — pero
+solo la actividad REAL cuenta para ese reloj, y solo la actividad REAL puede volver a abrir una sesión que ya
+está cerrada: un evento de plomería (`cat` `system`/`pulse` — incluido el propio evento de cierre) NO reabre
+nada (V2-092 addenda, 2026-08-15; antes sí lo hacía, y una sesión terminada resucitaba en el acto de cerrarla).
 
 ## El bus único de eventos
 

@@ -370,6 +370,15 @@ DOMAINS: list[dict] = [
             "cmd": "./.venv/bin/python tests/infrastructure/e2e/smoke/run_chat_over_livekit.py"},
         {"id": "7.4", "title": "Smoke INTEGRAL de salud", "ch": HTTP, "live": True,
             "cmd": "./.venv/bin/python tests/infrastructure/e2e/smoke/run_full_smoke.py"},
+        # 2026-08-15 (V2-092 addenda): la sesión de trabajo se cierra por techo de INACTIVIDAD REAL (el ruido de
+        # fondo no cuenta ni para el reloj ni, desde este cambio, para reabrir una sesión que se acaba de cerrar
+        # — hallazgo real: el propio evento "end" resucitaba una sesión nueva en el acto) y se anuncia al
+        # control-plane con un LATIDO periódico mientras siga abierta (reemplaza la adivinanza-por-ruido de la
+        # nube por una señal pensada para esto). Este nodo faltaba del mapa — ninguno de los dos ficheros estaba
+        # registrado — así que "tests run infrastructure" nunca los ejecutaba pese a existir.
+        {"id": "7.13", "title": "Sesión de trabajo: cierre por inactividad real + latido hacia el control-plane",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/core/test_session_idle_rollover.py",
+                                  "tests/infrastructure/unit/core/test_session_heartbeat.py"]},
     ]},
     {"id": "8", "name": "ENERGÍA / CONFIG", "nodes": [
         {"id": "8.1", "title": "Medidor de energía y límites de cuenta", "ch": UNIT, "paths": [
