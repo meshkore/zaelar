@@ -108,8 +108,20 @@ def token(identity: str = "operator", name: str = "You") -> JSONResponse:
     session can block a new dispatch (the browser joins but no agent shows up).
     The worker's request_fnc accepts rooms prefixed with SETTINGS.room_name, so
     ``zaelar-<uuid>`` is serviced while other projects' rooms are rejected.
+
+    Refuses while the global ⏻ switch (`nucleo.runstate`) is stopped: this is the
+    ONLY place that decides whether a browser gets to open a voice session at all,
+    so it's the right choke point to make "stopped" mean nothing connects, not
+    just "workers are frozen once something already did". Without a token there's
+    no room join, no agent dispatch, no kickoff, no observability session — instead
+    of a live session appearing and getting torn down a moment later once the
+    frontend's async reconciliation with the server catches up.
     """
     import uuid
+
+    from nucleo import runstate
+    if runstate.stopped():
+        return JSONResponse({"error": "engine_stopped"}, status_code=409)
 
     room = f"{SETTINGS.room_name}-{uuid.uuid4().hex[:8]}"
     grant = api.VideoGrants(

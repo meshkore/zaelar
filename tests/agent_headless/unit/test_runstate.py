@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 
 import pytest
 
@@ -236,3 +237,26 @@ def test_no_se_abre_trabajo_nuevo_con_el_agente_parado(piezas, monkeypatch):
     asyncio.run(runstate.stop())
     _escalar("t-nueva")
     assert dispatch.get_record("t-nueva") is None, "con el agente parado no debe nacer ninguna sesión"
+
+
+# ── nada de sesión de voz con el agente parado (2026-08-15) ─────────────────────────────────────────────────
+# Real: el operador reinició el motor, vio el ⏻ apagado y abrió una segunda ventana/perfil — el master mostró
+# una sesión "EN CURSO" de todas formas. Causa: `/api/token` (server/livekit_api.py) emitía el JWT de LiveKit sin
+# mirar el interruptor global — una ventana sin `hb_power_off` en su propio localStorage siempre podía levantar
+# una sala + kickoff, aunque el servidor tuviera el agente parado. Sin token no hay sala, sin sala no hay kickoff.
+def test_token_se_niega_con_el_agente_parado(piezas):
+    from server import livekit_api
+
+    asyncio.run(runstate.stop())
+    resp = livekit_api.token()
+    assert resp.status_code == 409
+    assert json.loads(resp.body) == {"error": "engine_stopped"}
+
+
+def test_token_se_concede_en_marcha():
+    from server import livekit_api
+
+    resp = livekit_api.token()
+    assert resp.status_code == 200
+    body = json.loads(resp.body)
+    assert body["token"] and body["room"].startswith(livekit_api.SETTINGS.room_name)
