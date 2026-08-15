@@ -11,10 +11,10 @@ import os
 import subprocess
 import time
 
-# Versión semántica del motor — súbela al cerrar un bloque de cambios notable (última: ADMISIÓN de peticiones —
-# un proceso que comparte hostname con otros solo sirve una petición cuya sesión ha verificado que es suya; el
-# resolver pasa a responder tres valores en vez de un Optional, porque un timeout no es una autorización).
-VERSION = "3.04"
+# Versión semántica del motor — súbela al cerrar un bloque de cambios notable (última: CONVERSACIÓN PROGRESIVA —
+# un fragmento de frase no genera nada y espera al resto, y el turno solo lleva las tools hacia las que va; más
+# una sola puerta de cobro por la que pasa todo lo que gasta dinero).
+VERSION = "3.05"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CACHE: dict = {}
