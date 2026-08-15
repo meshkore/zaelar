@@ -1366,6 +1366,18 @@ class NucleoLLMStream(llm.LLMStream):
                         _d.inject_soon(which or "todo", msg)
                         worker_acted["v"] = "inject"
                         emit("brain", "↪️ inyección a worker", text=f"{which}: {msg}"[:120], role="system")
+                        # Observability (V2-090 gap): this correction continues a LIVE task — its own dialogue
+                        # exchange should show up INSIDE that task's flow instead of opening a fresh one. Only
+                        # when the target is unambiguous (resolve_sessions picks exactly one): with several live
+                        # sessions, forcing a merge would be guessing which one this belongs to.
+                        try:
+                            _targets = _d.resolve_sessions(which or "todo")
+                            if len(_targets) == 1:
+                                _target_trace = _d.trace_of(_targets[0])
+                                if _target_trace:
+                                    _trace.adopt(_target_trace)
+                        except Exception:
+                            pass
                     except Exception as e:  # noqa: BLE001
                         logger.warning(f"send_to_worker falló: {e}")
             elif name == "stop_worker":

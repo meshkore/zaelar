@@ -509,3 +509,42 @@ def test_the_fail_open_still_lets_the_task_out():
     src = pathlib.Path(dispatch.__file__).read_text(encoding="utf-8")
     assert "except research.ComposerUnavailable:" in src
     assert "raise research.ComposerUnavailable" not in src      # dispatch la ATIENDE, nunca la propaga al operador
+
+
+# ── flow/trace continuity for corrections on a live task (V2-090 gap) ───────────────────────────────────────────
+# A correction spoken while a task is still running ("now make it have 3 wheels" on top of an in-flight "find me
+# a motorbike" search) should show up INSIDE that task's flow, not open a brand-new one. The voice provider
+# (nucleo.py::_on_tool_call, "send_to_worker" branch) achieves this by composing exactly two dispatch primitives:
+# resolve the target session, then read its trace_id. Both are tested here in isolation, since the provider glue
+# itself is a thin, hard-to-unit-test closure inside a much larger LiveKit pipeline.
+def test_trace_of_reads_a_live_sessions_trace_id(monkeypatch):
+    from nucleo.workers.session import SessionRecord
+    monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
+    dispatch._SESSIONS["m1"] = SessionRecord(task_id="m1", kind="web", status="running",
+                                              goal="find a second-hand motorbike", trace_id="T7·ab12")
+    assert dispatch.trace_of("m1") == "T7·ab12"
+    assert dispatch.trace_of("does-not-exist") == ""
+
+
+def test_resolve_sessions_picks_the_only_live_task_even_with_no_word_overlap(monkeypatch):
+    """The load-bearing assumption behind the merge: with exactly ONE live task, `resolve_sessions` returns it
+    regardless of the query's wording (see its own docstring, "una sola viva → esa") — a correction almost never
+    shares words with the original request ("3 wheels instead of 2" vs. "find me a motorbike"). Pinning this down
+    so a future change to the word-overlap heuristic can't silently break trace continuity for the common case."""
+    from nucleo.workers.session import SessionRecord
+    monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
+    dispatch._SESSIONS["m1"] = SessionRecord(task_id="m1", kind="web", status="running",
+                                              goal="find a second-hand motorbike", trace_id="T7·ab12")
+    assert dispatch.resolve_sessions("now make it have 3 wheels instead of 2") == ["m1"]
+
+
+def test_resolve_sessions_does_not_pick_one_among_several_unrelated_tasks(monkeypatch):
+    """With MULTIPLE live tasks and a correction that matches none of them, nothing is returned — the provider's
+    merge guard (`len(_targets) == 1`) then correctly skips adopting any trace rather than guessing."""
+    from nucleo.workers.session import SessionRecord
+    monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
+    dispatch._SESSIONS["m1"] = SessionRecord(task_id="m1", kind="web", status="running",
+                                              goal="find a second-hand motorbike", trace_id="T7·ab12")
+    dispatch._SESSIONS["m2"] = SessionRecord(task_id="m2", kind="code", status="running",
+                                              goal="build a widget for tracking expenses", trace_id="T9·cd34")
+    assert dispatch.resolve_sessions("now make it have 3 wheels instead of 2") == ["m1", "m2"]

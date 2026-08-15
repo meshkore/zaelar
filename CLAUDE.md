@@ -265,9 +265,16 @@ arranque `make run` → `python -m server`.
   a punta, familias, actores, tokens y errores; detalle cronológico; sesiones; cobertura) · `api.py`
   (`/api/observability/*`). **El correlation id NO es un id nuevo: es el `trace` de V2-044 PROMOVIDO** de campo
   del JSON a columna indexada (`events.corr_id`) — un segundo id paralelo se habría separado del primero en la
-  primera costura cross-loop sin coser. Un flujo nuevo nace con cada petición del operador (aunque corrija una
-  anterior); lo que continúa un flujo vivo hereda el suyo. SOLO LECTURA: el único escritor de `events` sigue
-  siendo el sink del bus. Fase LOCAL entregada; nube + privacidad en `INI-021` (raíz del workspace).
+  primera costura cross-loop sin coser. Un flujo nuevo nace con cada petición del operador; lo que continúa un
+  flujo vivo hereda el suyo. **A correction spoken while a task is still live MERGES into that task's `corr_id`
+  instead of opening a new one** (2026-08-15): `send_to_worker`'s handler (`nucleo.py::_on_tool_call`) already
+  resolves its target via `dispatch.resolve_sessions()`; when that resolves to exactly one live session, this
+  turn adopts its `trace_id` (`dispatch.trace_of` + `trace.adopt`) instead of keeping the fresh one `trace.begin()`
+  opened at turn start. With several live sessions and no unambiguous match, nothing merges — a stray extra flow
+  beats guessing which task a correction belongs to. A flow's end is now also EXPLICIT (`kind="flow"`, emitted
+  where the worker session that spawned it finishes), not just inferred from silence. SOLO LECTURA: el único
+  escritor de `events` sigue siendo el sink del bus. Fase LOCAL entregada; nube + privacidad en `INI-021` (raíz
+  del workspace).
 - `bus/` — **Sistema Nervioso**: pub/sub de señales in-process (asyncio, patrones fnmatch + `emit_sync`
   loop-agnóstico vía `call_soon_threadsafe` para entrega cross-loop job-thread↔uvicorn). `bus/log.py` = log durable
   de eventos en SQLite (`zaelar.db`, tabla `events`, WAL). `bus/sse.py` = puente SSE al frontend (`GET /events`).

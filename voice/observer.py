@@ -40,6 +40,9 @@ _CAT = {
     # operador «abrir el navegador» no es una familia propia, es lo que hace un worker cuando le hace falta.
     "task": "worker", "worker_start": "worker", "navegador": "worker",
     "background": "worker", "backed": "worker",
+    # `flow` = EXPLICIT flow closure (V2-090/observability): before this, "closed" was only ever INFERRED from the
+    # absence of new events under its corr_id; this marks it for real when the worker that spawned it finishes.
+    "flow": "worker",
     # ── Memoria (ON)
     "memory": "memory",
     # ── Widgets (ON) — TODA orden contra el canvas: show/close/move, data-ops (subir volumen, maximizar…),
@@ -348,9 +351,9 @@ def stamp_identity(ev: dict) -> dict:
     # `cat`, o sea a la fila «Sin clasificar» — que es justo lo que el operador vio con los eventos de memoria.
     if "cat" not in ev:
         ev["cat"] = _CAT.get(str(ev.get("kind") or ""), "other")
-    # Techo de inactividad (2026-08-13): solo la actividad REAL (no ruido de fondo `system`/`pulse`) cuenta para
-    # el reloj de sesión — va ANTES de resolver `sid` para que, si toca rotar, este mismo evento ya se estampe
-    # con la sesión NUEVA. Ver `observability/identity.py::note_real_activity`.
+    # Idle timeout (2026-08-13): only REAL activity (not `system`/`pulse` background noise) counts toward the
+    # session clock — runs BEFORE resolving `sid` so that, if a rollover happens, this very event already gets
+    # stamped with the NEW session. See `observability/identity.py::note_real_activity`.
     try:
         if ev.get("cat") not in ("system", "pulse"):
             from observability import identity as _ident

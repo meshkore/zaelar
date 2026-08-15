@@ -42,6 +42,7 @@ def flows(limit: int = 50, session_id: str = "", user_id: str = "") -> list[dict
         f"""
         SELECT corr_id,
                MIN(ts_ms)                         AS started_ms,
+               MAX(ts_ms)                         AS last_ms,
                MAX(ts_ms) - MIN(ts_ms)            AS t_ms,
                COUNT(*)                           AS events,
                COUNT(DISTINCT cat)                AS families_n,
@@ -50,6 +51,7 @@ def flows(limit: int = 50, session_id: str = "", user_id: str = "") -> list[dict
                SUM(COALESCE(tokens_in, 0))        AS tokens_in,
                SUM(COALESCE(tokens_out, 0))       AS tokens_out,
                SUM(CASE WHEN kind IN ('error', 'alert') THEN 1 ELSE 0 END) AS errors,
+               SUM(CASE WHEN kind = 'flow' AND label = 'end' THEN 1 ELSE 0 END) AS ended_events,
                MAX(session_id)                    AS session_id,
                MAX(user_id)                       AS user_id
         FROM events

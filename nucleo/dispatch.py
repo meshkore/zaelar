@@ -573,6 +573,14 @@ def _target_widget(request: str) -> str:
         return ""
 
 
+def trace_of(tid: str) -> str:
+    """`trace_id` of a live session by its tid ('' if it doesn't exist or has none yet). The single cross-module
+    accessor to `_SESSIONS` for this field — keeps the caller (the voice provider) from reaching into the private
+    dict directly."""
+    r = _SESSIONS.get(str(tid))
+    return str(getattr(r, "trace_id", "") or "") if r else ""
+
+
 def find_duplicate(request: str, kind: str) -> str | None:
     """tid de una sesión VIVA que ya está atendiendo ESTA misma petición ('' → None). El dedup vive AQUÍ, en la
     fuente de verdad (registro RAM), NO en el snapshot de inicio de turno del provider de voz (que falló la
@@ -1428,6 +1436,22 @@ async def _run_session(task: "Task") -> None:
                                       trace_id=str(getattr(rec, "trace_id", "") or ""), ok=bool(rec.ok))
             except Exception:
                 pass
+            # EXPLICIT flow-close signal (observability, V2-090): without this a flow only ever looks "closed" by
+            # the ABSENCE of new events — an inference from silence, never a fact. The ledger above already records
+            # this worker session's own end; this event is for the FLOW (`corr_id`) that spawned it, so the
+            # master's board can mark the column closed for real instead of guessing from recency.
+            if getattr(rec, "trace_id", ""):
+                try:
+                    from voice import trace as _trace2
+                    from voice.observer import emit as _emit_flow_end
+                    # `trace.scope()` FORCES this event's corr_id to `rec.trace_id`, rather than trusting whatever
+                    # trace happens to be ambient in this task's context at finally-time — `emit()` always reads
+                    # `trace.current()` for the indexed `corr_id` column, never an `extra` field.
+                    with _trace2.scope(rec.trace_id):
+                        _emit_flow_end("flow", "end", role="system",
+                                        extra={"ok": bool(rec.ok), "status": str(rec.status or "")})
+                except Exception:
+                    pass
             _SESSIONS.pop(key, None)
             try:
                 from nucleo import worker_api
