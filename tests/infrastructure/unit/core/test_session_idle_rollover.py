@@ -65,3 +65,32 @@ def test_reconnection_within_the_window_keeps_the_same_session(_clean_identity_s
     _stamp("flash", clock, 0)
     soon = _stamp("flash", clock, 2 * 60_000)  # 2 min < 5 min de techo
     assert soon["sid"] == "s0", "una reconexión por un bache no puede partir la sesión en dos"
+
+
+# ── ruido de fondo NUNCA fabrica una sesión por sí solo (2026-08-15) ────────────────────────────────────────
+# Hallazgo real probando en vivo el ⏻ (V2-092): `identity.end_session()` cierra la sesión (`_session["id"]` a
+# None) y acto seguido emite SU PROPIO evento "end" — categoría `system`. Con `session_id()` (que SE ABRE sola)
+# como fuente del `sid`, ese mismo evento de cierre reabría una sesión NUEVA en el acto de cerrar la anterior —
+# el master seguía viendo "EN CURSO" un segundo después de terminar. Lo mismo le pasaba a cualquier evento
+# `run` del ⏻ (stop/start/pausing/resumed) disparado con el agente ya parado. La sesión debe quedarse CERRADA
+# hasta que actividad REAL (no plomería) la vuelva a abrir.
+def test_system_noise_does_not_resurrect_a_closed_session(monkeypatch):
+    from observability import identity
+
+    monkeypatch.setattr(identity, "_session", {"id": None, "started_ms": None, "source": ""})
+    ev = {"kind": "run", "cat": "system"}
+    observer.stamp_identity(ev)
+    assert ev["sid"] == "", "un evento de plomería no puede reabrir lo que se acaba de cerrar"
+    assert identity._session["id"] is None, "y desde luego no debe dejar una sesión nueva puesta en su lugar"
+
+
+def test_real_activity_still_opens_a_session_that_was_closed(monkeypatch):
+    """El contraste: el ruido de fondo no abre nada, pero actividad REAL sigue abriendo sola una sesión nueva
+    tras un cierre — la garantía original ("un evento nunca queda sin sesión") sigue viva para lo que importa."""
+    from observability import identity
+
+    monkeypatch.setattr(identity, "_session", {"id": None, "started_ms": None, "source": ""})
+    ev = {"kind": "brain", "cat": "flash"}
+    observer.stamp_identity(ev)
+    assert ev["sid"], "actividad real SÍ tiene que abrir una sesión si no había ninguna"
+    assert identity._session["id"] == ev["sid"]

@@ -320,10 +320,13 @@ def test_a_provider_that_never_answers_is_still_a_stall():
 
 
 def test_the_stream_stamps_its_heartbeat_on_every_chunk():
-    """El sello lo tiene que poner quien VE cada chunk (`fast_client`), no quien solo recibe los que traen texto."""
+    """El sello lo tiene que poner quien VE cada chunk (`fast_client`), no quien solo recibe los que traen texto.
+
+    `stream()` es un envoltorio fino (V2-092 addenda, 2026-08-15: cuenta turnos en vuelo para la parada diferida
+    del ⏻) que delega en `_stream_inner()` — la lógica de streaming real, sin cambios, sigue ahí."""
     import inspect
     from nucleo.flash.fast_client import FastClient
-    src = inspect.getsource(FastClient.stream)
+    src = inspect.getsource(FastClient._stream_inner)
     body = src[src.index("async for chunk in stream:"):]
     head = body[:body.index("text = getattr(delta")]
     assert "last_chunk_ts" in head, "el latido se sella ANTES de filtrar por texto, o los turnos de acción no cuentan"

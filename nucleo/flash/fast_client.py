@@ -545,6 +545,36 @@ class FastClient:
         metrics: dict | None = None,
         **kwargs: Any,
     ) -> AsyncIterator[str]:
+        """Thin wrapper over `_stream_inner()` that tracks "a real model request is in flight" for
+        `nucleo.runstate`'s deferred stop (V2-092 addenda, 2026-08-15): the ⏻ switch must never cut a request
+        mid network-call, but the wait is NOT a timer — it is this counter reaching zero, which only ever
+        happens when a real stream actually ends (success, provider error, or cancellation). One choke point
+        for both branches of `_stream_inner` (the Z.AI SSE path and the OpenAI-compatible path), since a
+        `try/finally` around a delegating `async for` covers whatever the inner generator does, wherever inside
+        it something raises. See `_stream_inner` for the unchanged streaming logic."""
+        from nucleo import runstate
+
+        runstate.enter_inflight()
+        try:
+            async for chunk in self._stream_inner(
+                messages, spec=spec, tools=tools, on_tool_call=on_tool_call,
+                max_tokens=max_tokens, metrics=metrics, **kwargs,
+            ):
+                yield chunk
+        finally:
+            await runstate.exit_inflight()
+
+    async def _stream_inner(
+        self,
+        messages: list[dict],
+        *,
+        spec: ModelSpec | None = None,
+        tools: list[dict] | None = None,
+        on_tool_call=None,
+        max_tokens: int | None = None,
+        metrics: dict | None = None,
+        **kwargs: Any,
+    ) -> AsyncIterator[str]:
         """Generador async: emite el texto de cada chunk según llega (para empujarlo a TTS al instante). Lanza
         ante error de transporte/proveedor (el llamador habla una reserva limpia — nunca el error crudo).
 

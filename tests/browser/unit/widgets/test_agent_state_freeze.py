@@ -279,3 +279,62 @@ def test_the_rearm_does_not_fight_the_server_restart():
     restarting = full[full.index("store.setRestarting(true)"):]
     assert "_rearmVoiceAfterReset" not in restarting
     assert "location.reload()" in restarting
+
+
+# ── 7) UNA PARADA CON UN TURNO EN VUELO NO MIENTE PINTÁNDOSE YA APAGADA (V2-092 addenda, 2026-08-15) ────────────
+# El operador fue explícito: si hay una petición al modelo en vuelo, pedir la parada debe ESPERAR a que termine
+# (nunca cortarla a medias), y el ⏻ tiene que ENSEÑARLO — parpadeo ámbar — en vez de pintarse ya apagado, hasta
+# que la parada se complete sola o el operador la cancele pulsando otra vez. `pausing` es un QUINTO estado, no
+# una variante de `off`: por dentro el agente sigue funcionando de verdad mientras dura.
+SSE = APP / "services" / "sse.js"
+
+
+def test_pausing_is_a_real_fifth_state_checked_before_off():
+    """Si se comprobara DESPUÉS de `powerOff`, un clic que ya puso `powerOff=true` de forma optimista pintaría
+    "apagado" en vez de "pausando" — justo la mentira visual que este estado existe para evitar."""
+    body = STORE.read_text(encoding="utf-8")
+    i = body.index("export const agentState")
+    fn = body[i:body.index("\n};", i)]
+    assert 'pausing()' in fn and '"pausing"' in fn
+    assert fn.index("pausing()") < fn.index("powerOff()"), \
+        "pausing debe consultarse ANTES que powerOff, o un clic optimista lo taparía"
+
+
+def test_pausing_has_its_own_signal_not_a_reuse_of_power_off():
+    code = _code(STORE)
+    assert any("setPausing" in l for l in code), "pausing necesita su propio signal — no es un alias de powerOff"
+
+
+def test_pausing_has_a_title_in_every_bundle():
+    """Mismo contrato que `test_every_agent_state_has_a_title_in_both_bundles`, extendido al estado nuevo — un
+    icono ámbar sin explicación no sirve de nada."""
+    import json
+    for path in (ENGINE / "i18n" / "bundles" / "en.json", ENGINE / "i18n" / "bundles" / "es.json"):
+        b = json.loads(path.read_text(encoding="utf-8"))
+        assert b.get("orb.power_pausing", "").strip(), f"falta orb.power_pausing en {path.name}"
+
+
+def test_pausing_looks_different_from_a_real_fault():
+    """`stalled` es una AVERÍA (el agente debería estar arriba y no lo está); `pausing` es el agente funcionando
+    de verdad mientras una parada pedida espera su turno. Pintarlos igual confundiría "todo va bien, un momento"
+    con "algo se ha roto" — lo contrario de lo que este estado existe para comunicar."""
+    css = (APP / "styles.css").read_text(encoding="utf-8")
+    assert ".orbic.pwr-pausing" in css
+    i = css.index(".orbic.pwr-pausing")
+    rule = css[i:css.index("}", i) + 1]
+    stalled_i = css.index(".orbic.pwr-stalled")
+    stalled_rule = css[stalled_i:css.index("}", stalled_i) + 1]
+    assert rule != stalled_rule, "pausing no puede ser una copia literal de la regla de stalled"
+
+
+def test_the_run_sse_event_resolves_pausing_and_resumed_before_falling_back_to_stop_start():
+    """Antes de este cambio, CUALQUIER label que no fuera literalmente "stop" caía en la rama de "start" — con
+    "pausing"/"resumed" nuevos eso habría apagado `pausing` de golpe y encendido `powerOff=false`, perdiendo la
+    señal por completo. Tienen que resolverse ANTES, no colarse por el else de siempre."""
+    body = SSE.read_text(encoding="utf-8")
+    i = body.index('d.kind === "run"')
+    block = body[i:body.index('} else if (d.kind === "notify"', i)]
+    assert '"pausing"' in block and "setPausing(true)" in block
+    assert '"resumed"' in block and "setPausing(false)" in block
+    assert block.index('"pausing"') < block.index("setPowerOff"), \
+        "pausing/resumed deben resolverse antes de la rama que toca powerOff"

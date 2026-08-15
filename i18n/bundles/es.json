@@ -355,6 +355,7 @@
   "orb.memory": "Mapa de memoria (estado · corto · largo plazo · grafo)",
   "orb.power_live": "zaelar está funcionando — pulsa para detenerlo todo (micro, voz y trabajo de fondo)",
   "orb.power_off": "zaelar apagado — pulsa para encender",
+  "orb.power_pausing": "Parando — esperando a que termine la petición en curso. Pulsa otra vez para cancelar",
   "orb.power_stalled": "zaelar DEBERÍA estar funcionando y no lo está — nadie te escucha. Pulsa para rearrancarlo",
   "orb.power_starting": "zaelar está arrancando…",
   "orb.speaker_muted": "Silenciado — pulsa para volver a oírlo",

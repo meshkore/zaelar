@@ -260,3 +260,63 @@ def test_token_se_concede_en_marcha():
     assert resp.status_code == 200
     body = json.loads(resp.body)
     assert body["token"] and body["room"].startswith(livekit_api.SETTINGS.room_name)
+
+
+# ── parada DIFERIDA: un turno en vuelo no se corta a medias, y no hace falta ningún reloj (2026-08-15) ─────────
+# El operador fue explícito: la finalización de la parada debe dispararla una ACCIÓN CONCRETA (el turno
+# terminando de verdad), no un temporizador — un reloj solo vale para el caso, ya cubierto en otro sitio
+# (`observability/identity.py`), en que ninguna señal de cierre llega nunca.
+def test_parar_con_turno_en_vuelo_se_difiere_y_no_congela_nada_todavia(piezas):
+    runstate.enter_inflight()
+    res = asyncio.run(runstate.stop("operator"))
+    assert res == {"ok": True, "state": "pausing"}
+    assert runstate.stopped() is False, "por dentro sigue EN MARCHA — nada se ha congelado todavía"
+    assert piezas["pause"] == 0 and piezas["suspend"] == []
+    assert runstate.pending_stop() is True
+    assert runstate.snapshot()["state"] == "pausing"
+    assert runstate.snapshot()["running"] is True
+
+
+def test_pulsar_otra_vez_durante_pausing_cancela_la_parada(piezas):
+    runstate.enter_inflight()
+    asyncio.run(runstate.stop("operator"))
+    res = asyncio.run(runstate.stop("operator"))
+    assert res == {"ok": True, "state": runstate.RUNNING, "cancelled": True}
+    assert runstate.pending_stop() is False
+    assert runstate.stopped() is False
+    assert piezas["pause"] == 0 and piezas["suspend"] == [], "no había nada que deshacer: nunca se congeló nada"
+    asyncio.run(runstate.exit_inflight())          # el turno termina — no debe pasar NADA, se canceló
+    assert runstate.stopped() is False
+
+
+def test_el_ultimo_turno_en_terminar_completa_la_parada_diferida(piezas):
+    runstate.enter_inflight()
+    runstate.enter_inflight()                      # dos turnos de DOS salas distintas, el interruptor es global
+    asyncio.run(runstate.stop("operator"))
+    asyncio.run(runstate.exit_inflight())           # termina el primero — el segundo sigue en vuelo
+    assert runstate.stopped() is False and piezas["pause"] == 0, "todavía queda un turno en vuelo"
+    asyncio.run(runstate.exit_inflight())           # termina el ÚLTIMO — AHORA sí completa la parada
+    assert runstate.stopped() is True
+    assert piezas["pause"] == 1 and piezas["suspend"] == ["agent_stopped"]
+
+
+def test_arrancar_tambien_cancela_una_parada_diferida(piezas):
+    """El ⏻ del frontend, al pulsarse una segunda vez durante "pausing", llama al mismo endpoint que "encender"
+    (ve `store.powerOff()` ya en `true` desde el primer clic) — así que `start()`, no solo `stop()` otra vez,
+    tiene que saber cancelar una parada pendiente."""
+    runstate.enter_inflight()
+    asyncio.run(runstate.stop("operator"))
+    assert runstate.pending_stop() is True
+    res = asyncio.run(runstate.start("operator"))
+    assert res["state"] == runstate.RUNNING
+    assert runstate.pending_stop() is False
+    assert piezas["pause"] == 0 and piezas["suspend"] == [], "nunca se congeló nada: no había nada que reanudar"
+    asyncio.run(runstate.exit_inflight())          # el turno termina — cancelado, no debe parar nada
+    assert runstate.stopped() is False
+
+
+def test_sin_turnos_en_vuelo_parar_es_instantaneo_como_siempre(piezas):
+    assert runstate.inflight_count() == 0
+    res = asyncio.run(runstate.stop("operator"))
+    assert res["state"] == runstate.STOPPED
+    assert piezas["pause"] == 1

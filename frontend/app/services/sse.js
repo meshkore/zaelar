@@ -139,8 +139,21 @@ export function openSSE(desktop) {
       // Solo se refleja el estado; NO se vuelve a llamar al endpoint (el ⏻ es quien ordena, esto solo obedece).
       // Solo se refleja el ESTADO; de tumbar/levantar la sesión de voz se encarga el efecto de main.js que
       // observa `powerOff` (aquí no se importa `session`: sse.js lo importa session.js, y el ciclo sería mutuo).
-      const off = String(d.label || "") === "stop";
-      if (off !== store.powerOff()) store.setPowerOff(off);
+      //
+      // Addenda V2-092 (2026-08-15): "pausing"/"resumed" son un TERCER par de labels, no una variante de
+      // start/stop — una parada diferida (turno en vuelo) deja el agente RUNNING de verdad por dentro, así que
+      // tratarla como "no es stop → es start" pintaría el ⏻ como si nada estuviera pasando. Se resuelven ANTES
+      // de tocar `powerOff`, que ese par ni siquiera toca.
+      const label = String(d.label || "");
+      if (label === "pausing") {
+        store.setPausing(true);
+      } else if (label === "resumed") {
+        store.setPausing(false);
+      } else {
+        store.setPausing(false);
+        const off = label === "stop";
+        if (off !== store.powerOff()) store.setPowerOff(off);
+      }
     } else if (d.kind === "notify") {                                             // proactive push (a native cron fired)
       // NO floating toast. When a voice session is live, zaelar SPEAKS it → the live caption comes from the
       // audio-synced transcription (session-lk.js), same as any turn. Here we just keep it in the chat wall as

@@ -55,6 +55,40 @@ _KV_KEY = "run:state"
 # lectura: este proceso es el único que escribe el interruptor.
 _state: dict = {"value": None, "at": 0.0, "src": ""}
 
+# ── Parada DIFERIDA (V2-092 addenda, 2026-08-15) ────────────────────────────────────────────────────────────
+# Un turno de voz con un modelo REALMENTE en vuelo (`FastClient.stream()`, la llamada de red, no el resto del
+# turno) no puede cortarse a media respuesta. Pero el operador fue explícito: la finalización de la parada no
+# es cosa de un TEMPORIZADOR — la dispara una ACCIÓN CONCRETA (ese turno terminando de verdad), y un reloj solo
+# vale para el caso en que ninguna señal de cierre llega nunca (ver `observability/identity.py`). Por eso este
+# contador es puramente en memoria (no `sys_kv`): un reinicio del proceso ya mata cualquier turno en vuelo, así
+# que perder la intención de parada diferida en ese caso es lo correcto, no un fallo.
+_inflight: dict = {"n": 0}
+_pending: dict = {"stop": False, "src": ""}
+
+
+def inflight_count() -> int:
+    return _inflight["n"]
+
+
+def pending_stop() -> bool:
+    return _pending["stop"]
+
+
+def enter_inflight() -> None:
+    """Un turno acaba de empezar una llamada de red real al modelo. Llamar UNA vez por llamada saliente."""
+    _inflight["n"] += 1
+
+
+async def exit_inflight() -> None:
+    """Esa llamada de red acaba de terminar (éxito, error del proveedor o cancelación — da igual cuál). Si es
+    la ÚLTIMA en vuelo y había una parada pendiente, esto es lo que la completa — nunca un reloj."""
+    _inflight["n"] = max(0, _inflight["n"] - 1)
+    if _inflight["n"] == 0 and _pending["stop"]:
+        src = _pending["src"]
+        _pending["stop"] = False
+        _pending["src"] = ""
+        await _do_stop(src)
+
 
 def _load() -> str:
     if _state["value"] is not None:
@@ -102,9 +136,14 @@ def running() -> bool:
 
 
 def snapshot() -> dict:
-    """Lo que ve el frontend (`GET /api/run`): el estado, cuándo cambió y quién lo cambió."""
+    """Lo que ve el frontend (`GET /api/run`): el estado, cuándo cambió y quién lo cambió.
+
+    `state` puede valer `"pausing"` — RUNNING de verdad por dentro (nada se ha congelado todavía: ver
+    `_pending`), pero con una parada pedida esperando a que el último turno en vuelo termine. `running` se queda
+    en `True` durante ese tramo a propósito: por dentro nada se ha parado aún."""
     val = state()
-    return {"state": val, "running": val == RUNNING, "at": _state["at"], "src": _state["src"]}
+    effective = "pausing" if (val == RUNNING and _pending["stop"]) else val
+    return {"state": effective, "running": val == RUNNING, "at": _state["at"], "src": _state["src"]}
 
 
 def _emit(label: str, text: str, extra: dict) -> None:
@@ -116,7 +155,27 @@ def _emit(label: str, text: str, extra: dict) -> None:
 
 
 async def stop(src: str = "operator") -> dict:
-    """PARA EL AGENTE. Congela a todo el que pueda estar trabajando o produciendo, en un orden que importa:
+    """Pide la parada. Con algún turno REALMENTE en vuelo (`_inflight`, ver arriba), no para en el sitio: la
+    DIFIERE (`_pending["stop"] = True`, estado `"pausing"` — nada se congela todavía) hasta que `exit_inflight()`
+    la complete sola. Pulsar ⏻ otra vez mientras está en `"pausing"` la CANCELA (como nada se ha tocado aún, no
+    hay nada que deshacer). Sin turnos en vuelo, es la parada de siempre — ver `_do_stop`."""
+    if _inflight["n"] > 0:
+        if _pending["stop"]:
+            _pending["stop"] = False
+            _pending["src"] = ""
+            _emit("resumed", f"parada cancelada por {src} — sigue en marcha", {"src": src})
+            return {"ok": True, "state": RUNNING, "cancelled": True}
+        _pending["stop"] = True
+        _pending["src"] = src
+        _emit("pausing", f"turno en vuelo — la parada pedida por {src} espera a que termine",
+              {"src": src, "inflight": _inflight["n"]})
+        return {"ok": True, "state": "pausing"}
+    return await _do_stop(src)
+
+
+async def _do_stop(src: str = "operator") -> dict:
+    """PARA EL AGENTE de verdad. Congela a todo el que pueda estar trabajando o produciendo, en un orden que
+    importa:
 
     1. **El interruptor primero.** Mientras se para todo lo demás pueden llegar acciones nuevas; con el flag ya
        puesto, el embudo de acciones (`widgets/server_api.py`) las rechaza en vez de arrancar algo justo detrás
@@ -149,7 +208,16 @@ async def start(src: str = "operator") -> dict:
     """ARRANCA EL AGENTE. Continúa el TRABAJO congelado (SIGCONT) y vuelve a permitir background/crons/acciones.
 
     **NO reanuda los widgets a propósito** — ver la asimetría documentada arriba. Volver a poner la música es un
-    gesto del operador, no una consecuencia de encender."""
+    gesto del operador, no una consecuencia de encender.
+
+    También es como se CANCELA una parada diferida (`_pending`, ver `stop()`): el frontend, al pulsar ⏻ una
+    segunda vez mientras parpadea "pausing", llama a este mismo endpoint (es el botón de "encender" desde su
+    punto de vista, no uno nuevo). Como nada se llegó a congelar todavía, cancelar es gratis — el resto de este
+    cuerpo (idempotente) simplemente confirma que sigue en marcha."""
+    if _pending["stop"]:
+        _pending["stop"] = False
+        _pending["src"] = ""
+        _emit("resumed", f"parada cancelada por {src} — sigue en marcha", {"src": src})
     _persist(RUNNING, src)
     resumed = 0
     try:
@@ -164,5 +232,8 @@ async def start(src: str = "operator") -> dict:
 
 
 def _reset_for_tests() -> None:
-    """Solo para los tests: olvida la caché en proceso para que el siguiente `state()` relea el `sys_kv`."""
+    """Solo para los tests: olvida la caché en proceso para que el siguiente `state()` relea el `sys_kv`, y
+    limpia cualquier turno en vuelo/parada diferida que un test anterior haya dejado a medias."""
     _state.update({"value": None, "at": 0.0, "src": ""})
+    _inflight.update({"n": 0})
+    _pending.update({"stop": False, "src": ""})

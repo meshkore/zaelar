@@ -355,6 +355,7 @@
   "orb.memory": "Memory map (state · short · long term · graph)",
   "orb.power_live": "zaelar is running — click to stop everything (mic, voice and background work)",
   "orb.power_off": "zaelar off — click to turn on",
+  "orb.power_pausing": "Stopping — waiting for the current request to finish. Click again to cancel",
   "orb.power_stalled": "zaelar should be running but ISN'T — nobody is listening. Click to restart it",
   "orb.power_starting": "zaelar is starting up…",
   "orb.speaker_muted": "Muted — click to hear it again",

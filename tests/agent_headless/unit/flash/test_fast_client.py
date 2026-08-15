@@ -87,6 +87,33 @@ def test_stream_yields_text(monkeypatch):
     assert asyncio.run(run()) == ["Hola", " mundo"]
 
 
+def test_stream_tracks_inflight_around_the_network_call(monkeypatch):
+    """V2-092 addenda (2026-08-15): the ⏻ switch's deferred stop needs to know when a real model call is in
+    flight, so it can wait for it to finish instead of cutting it mid-response or waiting on a timer. `stream()`
+    must bracket the whole call — `enter_inflight()` before, `exit_inflight()` after — regardless of which
+    branch of `_stream_inner` actually runs. See `nucleo/runstate.py` for the counter itself."""
+    rec = {}
+    _patch_client(monkeypatch, [_chunk("hola")], rec)
+    from nucleo import runstate
+    calls = []
+    monkeypatch.setattr(runstate, "enter_inflight", lambda: calls.append("enter"))
+
+    async def fake_exit():
+        calls.append("exit")
+    monkeypatch.setattr(runstate, "exit_inflight", fake_exit)
+
+    async def run():
+        out = []
+        async for t in FastClient().stream([{"role": "user", "content": "hi"}],
+                                           spec=ModelSpec(model="m", api_key="k")):
+            out.append(t)
+            assert calls == ["enter"], "exit_inflight must not fire before the stream is done yielding"
+        return out
+
+    assert asyncio.run(run()) == ["hola"]
+    assert calls == ["enter", "exit"]
+
+
 def test_model_passed_per_invocation(monkeypatch):
     """El modelo del spec llega al request — no una env global."""
     rec = {}
