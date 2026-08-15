@@ -1718,8 +1718,44 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     El orden es por (rapidez al 1er token, precio de ENTRADA): el input domina **14:1** en este cerebro, así que
     `grok-4-fast` está a 1,4× y **`grok-4.5` a 14,3× — fuera del defecto** (la sesión de 11 min habría pasado de
     ~31 a ~460 Energy). Precios en `energy_meter.py`; el producto, en la raíz privada.
-  - **Esto NO cura el TTFT**: es razonamiento oculto del modelo, no cola. La cura sigue siendo `api.deepseek.com`
-    directo (parámetro nativo; AIMLAPI lo rechaza con 400) y sigue **bloqueada sin `DEEPSEEK_API_KEY`**.
+  - **Esto NO cura el TTFT**: es razonamiento oculto del modelo, no cola. La cura era `api.deepseek.com` directo
+    — **desbloqueada el 2026-08-14, ver V2-097 justo abajo**.
+- **DeepSeek DIRECTO cura el TTFT, y por eso es RELEVO y no titular** (V2-097, 2026-08-14; iniciativa
+  `V2-097-catalogo-modelos-agosto.md`). Con la credencial que faltaba desde el 2026-08-02, medido con el prompt REAL
+  de voz (13.630 chars, 23 tools), 6 turnos por brazo:
+
+  | brazo | TTFT p50 | peor caso | razonamiento | enrutado (nodo 2.13) |
+  |---|---|---|---|---|
+  | AIMLAPI `thinking:disabled` | 4,24 s | **14,71 s** | **2.138 tok** | **14/14** |
+  | `api.deepseek.com` directo | **1,01 s** | **1,30 s** | **0** | 12/14 |
+
+  - **El broker ACEPTA el parámetro de no-razonar y razona igual; el endpoint propio lo OBEDECE.** Y ya no se
+    infiere del tiempo: `usage.completion_tokens_details.reasoning_tokens` lo LEE — el instrumento que faltaba para
+    cerrar el diagnóstico de agosto («lo reduce, no lo apaga»). Medido además: `reasoning_effort:"minimal"` NO lo
+    apaga y `enable_thinking:false` se ignora; solo valen `thinking:{"type":"disabled"}` y `reasoning_effort:"none"`.
+  - **NO es el titular aunque la latencia sea el síntoma nº1**, porque bajó el enrutado 2 casos y la regla escrita
+    es «si el nodo 2.13 baja, no se despliega». Ser rápido haciendo lo que no es fue justo lo que el operador llamó
+    «conversaciones absurdas». Entra como **primer escalón de relevo por latencia** (V2-094): un relevo solo actúa
+    con el titular ya lento, y ahí el canje «enrutado algo peor» vs «el turno llega» sí compensa — además no
+    encarece (misma tarifa, sin el ×1,4 de Grok Fast). Promoverlo exige el banco a 3 rondas.
+  - ⚠️ **El escalón DeepSeek de los WORKERS estaba ROTO y era imposible saberlo**: escrito el 2026-08-13, solo se
+    activa con la credencial puesta → nunca se ejecutó. Declaraba `model="sonnet"` sobre la creencia de que su
+    gateway mapea alias de Claude, y **no los mapea** (400: «supported API model names are deepseek-v4-pro or
+    deepseek-v4-flash»). Habría dado 400 en cada petición desde que entrara la clave, **y solo se usa cuando el
+    titular ya cayó** → caída parcial convertida en total. Regla: **un relevo sin probar es peor que no tener
+    relevo**; compatible en el PROTOCOLO no es compatible en el CATÁLOGO. Guarda estático, nodo 2.5.
+  - **GLM-5.3** (workers): pedir `glm-5.2` ya devolvía `glm-5.3` — Z.ai subió el alias por debajo y la config
+    documentaba un modelo que no corría. Solo el endpoint **Anthropic** lo tiene (su API OpenAI-compat sigue en 5.2),
+    y **es RAZONADOR** → workers sí, voz jamás. **Gemini 3.7 Flash**: en el catálogo del broker como CANDIDATO sin
+    avalar — su familia siempre fue rápida y siempre enrutó peor aquí (3.6-flash 6/14, 3.5-flash 8/14).
+  - **Energy — los dos contadores de caché tienen aritmética OPUESTA**, y confundirlos cobra dos veces:
+    `cache_read_input_tokens` (Anthropic) va FUERA de `prompt_tokens` → se SUMA; `prompt_cache_hit_tokens`
+    (OpenAI/DeepSeek) va DENTRO (verificado: `pt = hit + miss`) → se DESCUENTA. Son parámetros distintos a propósito.
+    Importa aquí más que en ningún sitio: el prompt de voz son ~10k tokens CONSTANTES, así que en conversación real
+    casi todo el input es un hit y el input domina 14:1. Con tokens ESTIMADOS no se aplica el descuento (rebajar la
+    factura con un dato inventado va en el sentido peligroso). ⚠️ Pendientes del operador: el pico/valle de DeepSeek
+    del 2026-08-17 (hoy se factura siempre a PICO — sobre-cobra hasta 2× en valle, acotado y en el lado seguro) y el
+    precio de cache-hit de V4.
 - **El turno se cierra cuando la frase ACABA, no cuando hay silencio** (V2-095, `nucleo/flash/segmenter.py` +
   `voice/engine/speech/turn/semantic.py`, iniciativa `V2-095-turnos-por-sentido.md`): el límite era solo acústico,
   así que quien piensa en voz alta abría un turno por pausa y el siguiente fragmento lo cancelaba — **22 prompts,
@@ -1786,6 +1822,29 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     CUELGA, no si hay **acción/pregunta/petición clara** — «quiero que busques» cierra sintácticamente sin decir qué.
     Esa capa PRAGMÁTICA entra por `accumulator.set_predicate()` (ya construido) y corre MIENTRAS el operador habla,
     que es lo que la separa de la doble pasada descartada el 2026-08-02.
+- **SELECCIÓN PROGRESIVA de tools — el turno lleva su RUMBO, no el catálogo entero** (V2-096 Fase 2,
+  `nucleo/flash/tool_selection.py`, nodo 3.10): *«cuando alguien dice "hola, ¿qué tal?" no le vamos a mandar todos
+  los widgets, todas las tools… ir encaminando la dirección»* (operador). Pasa su propia puerta —el nodo 2.13 con
+  el prompt y el titular reales—: **14/14 de enrutado, 0 graves, −28% de tokens de input** (−51% de chars de
+  catálogo), latencia idéntica y **cero segundos viajes** sobre los 14 casos.
+  - **NO es una segunda llamada al modelo.** Esa idea se midió y perdió el 2026-08-02 (prompt 9.729→1.221 tok pero
+    turno 1.938→**6.208 ms**). El «abanico de posibilidades» se resuelve sin viaje extra porque de sus tres piezas
+    solo una necesita modelo: la completitud es LÉXICA (F1), la selección de tools es RECUPERACIÓN O(K) —esto—, y
+    la única que querría modelo («¿hay petición clara?») sigue declarada como hueco enchufable.
+  - **Recuperar no es comprender, y por eso hay ESCOTILLA.** V2-085 fija que un GATE mira ESTADO y jamás las
+    palabras del turno; esto **no es un gate**: es la misma recuperación que `widgets/selection.py` ya hace con su
+    capa `named`. La distinción es la que autoriza usar palabras aquí — un gate DECIDE que algo no existe, una
+    recuperación PROPONE y tiene que degradar bien. `need_capability` (tool minúscula, añadida SOLO si se recortó)
+    deja al modelo pedir la familia que le falta → **un segundo viaje MEDIBLE** en vez de una capacidad negada en
+    silencio, que es el fallo que de verdad rompe una conversación. El reintento va **después** del stream (ese
+    bucle tiene tarea bomba, cola y plazo de silencio) y **una sola vez**.
+  - **`core`/`web`/`memory` no se recortan NUNCA**: sirven turnos que no se anuncian ni en el estado ni en las
+    palabras («¿cuánto cuesta la entrada?», «¿cuándo es la cita de la ITV»). Cambiar coste por contestar mal es el
+    intercambio equivocado. Capas: ALWAYS → estado (lo que tiene DELANTE) → forzado → nombrado → reciente (MRU, para
+    que una charla que iba de música no la pierda al decir «la siguiente»).
+  - **Kill-switch `ZAELAR_TOOL_SELECTION=0`** — un cambio que toca el ENRUTADO tiene que poder apagarse sin
+    desplegar código. Y un guarda de deuda silenciosa: toda tool debe tener familia en `router.FAMILIES`, porque una
+    sin familia se colaría siempre y no se podría recortar jamás.
 
 ## Testing y rueda de mejora (INI-013)
 
