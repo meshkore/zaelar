@@ -156,6 +156,28 @@ def test_en_la_nube_la_cadena_es_barata_y_rapida(monkeypatch):
     assert not any("grok-4.5" in str(m) for m in modelos), "un escalón de 14× no puede ser el defecto"
 
 
+def test_el_primer_escalon_de_relevo_es_el_que_pasa_la_puerta_de_enrutado(monkeypatch):
+    """Un relevo por latencia salta en los turnos DIFÍCILES, así que el escalón no puede enrutar peor que el
+    titular «porque total, es solo el relevo».
+
+    Medido el 2026-08-15 (nodo 2.13, 3 rondas × 14 casos = 42 turnos por brazo): `deepseek-v4-flash` DIRECTO,
+    que era este escalón, fallaba `mostrar widget` **3 de 3** — 38/42 frente al 41/42 del titular. Un fallo
+    3-de-3 no es varianza, es un defecto. `deepseek-v4-pro` por el mismo endpoint iguala al titular (41/42) por
+    224 ms más de TTFT, y sigue estando 7,5× por debajo del titular en primer token. Este test fija esa
+    decisión: si alguien vuelve a poner Flash aquí para ahorrar, se entera de lo que cuesta."""
+    from nucleo import cloud_account
+    monkeypatch.setattr(cloud_account, "is_cloud_account", lambda: True)
+    monkeypatch.setattr(pc, "_token_for", lambda t: "k")
+    from nucleo.flash import fast_client
+    monkeypatch.setattr(fast_client, "spec_from_config",
+                        lambda: fast_client.ModelSpec(model="m", base_url="https://x/v1", api_key="k"))
+    relevos = [t for t in pc._voice_chain() if t["name"] != "titular"]
+    assert relevos, "en la nube tiene que haber relevo"
+    assert relevos[0]["name"] == "deepseek-directo"
+    assert relevos[0]["model"] == "deepseek-v4-pro", \
+        "el escalón directo va en V4 Pro: Flash falla `mostrar widget` 3 de 3 (38/42 contra 41/42)"
+
+
 def test_el_operador_manda_sobre_la_cadena(monkeypatch):
     """`fast.providers` explícito gana siempre: es como un self-host activa su propio relevo (otro DeepSeek, un
     modelo local, lo que quiera) sin heredar nuestras decisiones de coste."""

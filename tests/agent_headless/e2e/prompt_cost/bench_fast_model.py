@@ -12,7 +12,12 @@ lanzando peticiones en paralelo». Los benchmarks viejos medían prompts de jugu
   · y una ráfaga en PARALELO, porque un proxy que va bien de uno en uno puede encolar bajo carga.
 
 Uso (exige el server vivo para las credenciales; no toca memoria ni estado):
-    ./.venv/bin/python -m tests.agent_headless.e2e.prompt_cost.bench_fast_model [--only lat|par|route] [--reps N]
+    ./.venv/bin/python -m tests.agent_headless.e2e.prompt_cost.bench_fast_model \
+        [--only lat|par|route] [--reps N] [--models subcadena,subcadena]
+
+`--models` existe porque el banco entero son 20 candidatos: a 3 rondas × 14 casos eso son 840 llamadas y los
+proveedores empiezan a devolver 429 a media tabla — los números salen contaminados y no se puede decidir nada con
+ellos. Para resolver UNA pregunta (¿este modelo sustituye al titular?) se comparan DOS brazos y ya.
 """
 from __future__ import annotations
 
@@ -157,6 +162,15 @@ async def one_call(client: FastClient, spec: ModelSpec, system: str, user: str,
             "tok_s": (ctok / (total / 1000)) if total and ctok else 0.0}
 
 
+def _selected(only: str | None) -> list[tuple[str, ModelSpec]]:
+    """Los candidatos que se van a medir. Sin `--models`, todos (la foto panorámica). Con `--models`, los que
+    contengan alguna de las subcadenas — que es el modo en que se DECIDE algo, ver el docstring."""
+    if not only:
+        return CANDIDATES
+    pats = [p.strip().lower() for p in only.split(",") if p.strip()]
+    return [(lab, sp) for lab, sp in CANDIDATES if any(p in lab.lower() for p in pats)]
+
+
 def _usable(spec: ModelSpec) -> bool:
     try:
         return bool(spec.resolved_api_key())
@@ -164,12 +178,12 @@ def _usable(spec: ModelSpec) -> bool:
         return False
 
 
-async def exp_latency(system: str, reps: int) -> None:
+async def exp_latency(system: str, reps: int, models: str | None = None) -> None:
     print("── A · LATENCIA CON EL PROMPT REAL (secuencial, conexión caliente) ──")
     print(f"prompt real {len(system)} chars (~{len(system)//4} tok) + {len(router.TOOLS)} tools "
           f"({sum(len(json.dumps(t, ensure_ascii=False)) for t in router.TOOLS)} chars)\n")
     print(f"{'candidato':24} {'total p50':>10} {'ttft p50':>10} {'peor':>8} {'tok/s':>7}   entrada")
-    for label, spec in CANDIDATES:
+    for label, spec in _selected(models):
         if not _usable(spec):
             print(f"{label:24} — sin credencial")
             continue
@@ -194,11 +208,11 @@ async def exp_latency(system: str, reps: int) -> None:
     print()
 
 
-async def exp_parallel(system: str, n: int = 4) -> None:
+async def exp_parallel(system: str, n: int = 4, models: str | None = None) -> None:
     print(f"── B · RÁFAGA EN PARALELO ({n} peticiones a la vez) ──")
     print("un proveedor que va bien de uno en uno puede encolar bajo carga; la voz real solapa turnos.\n")
     print(f"{'candidato':24} {'1 sola':>9} {'p50 de ' + str(n):>12} {'peor de ' + str(n):>12}   degradación")
-    for label, spec in CANDIDATES:
+    for label, spec in _selected(models):
         if not _usable(spec):
             continue
         c = FastClient()
@@ -232,27 +246,35 @@ def score(got: set[str], expect: set[str], forbidden: set[str]) -> tuple[bool, b
     return ((not expect and not got) or bool(got & expect)), grave
 
 
-async def exp_routing(system: str) -> None:
-    print("── C · ENRUTADO: rápido no vale si elige mal la tool ──\n")
+async def exp_routing(system: str, reps: int = 1, models: str | None = None) -> None:
+    """El enrutado a N rondas. Hasta el 2026-08-15 este experimento IGNORABA `--reps` y corría cada caso UNA vez;
+    la doc hablaba de «3 rondas» y el código no las hacía. Con una sola muestra por caso, un 12/14 y un 14/14 no
+    son distinguibles de la varianza del propio modelo, así que la decisión de titular que colgaba de este número
+    no se podía tomar. Ahora cada caso se repite y el fallo se reporta con su FRECUENCIA (`caso→tools (2/3)`):
+    fallar 3 de 3 es un defecto de enrutado, fallar 1 de 3 es ruido, y la diferencia decide."""
+    print(f"── C · ENRUTADO: rápido no vale si elige mal la tool ({reps} ronda(s)) ──\n")
     print(f"{'candidato':28} {'acierto':>9} {'graves':>7} {'p50':>9}   fallos")
-    for label, spec in CANDIDATES:
+    for label, spec in _selected(models):
         if not _usable(spec):
             continue
         c = FastClient()
-        hits, graves, lat, miss = 0, 0, [], []
-        for name, text, expect, forbidden in CASES:
-            r = await one_call(c, spec, system, text, router.TOOLS)
-            if r.get("error"):
-                miss.append(f"{name}!")
-                continue
-            lat.append(r["total_ms"])
-            ok, grave = score(r["tools"], expect, forbidden)
-            hits += int(ok)
-            graves += int(grave)
-            if not ok:
-                miss.append(f"{'⛔' if grave else ''}{name}→{sorted(r['tools']) or '—'}")
-            await asyncio.sleep(0.4)
-        print(f"{label:28} {hits:>4}/{len(CASES)} {graves:>7} "
+        hits, graves, lat, fails = 0, 0, [], {}
+        for _ in range(reps):
+            for name, text, expect, forbidden in CASES:
+                r = await one_call(c, spec, system, text, router.TOOLS)
+                if r.get("error"):
+                    fails[f"{name}!"] = fails.get(f"{name}!", 0) + 1
+                    continue
+                lat.append(r["total_ms"])
+                ok, grave = score(r["tools"], expect, forbidden)
+                hits += int(ok)
+                graves += int(grave)
+                if not ok:
+                    k = f"{'⛔' if grave else ''}{name}→{sorted(r['tools']) or '—'}"
+                    fails[k] = fails.get(k, 0) + 1
+                await asyncio.sleep(0.4)
+        miss = [f"{k} ({n}/{reps})" for k, n in sorted(fails.items(), key=lambda kv: -kv[1])]
+        print(f"{label:28} {hits:>4}/{len(CASES) * reps} {graves:>7} "
               f"{(statistics.median(lat) if lat else 0):7.0f} ms   {', '.join(miss) or '—'}")
     print()
 
@@ -261,17 +283,18 @@ async def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--only", choices=["lat", "par", "route"])
     ap.add_argument("--reps", type=int, default=3)
+    ap.add_argument("--models", help="subcadenas separadas por coma; sin esto se miden los 20 candidatos")
     a = ap.parse_args()
     system = real_system_prompt()
     if not system:
         print("no hay prompt real en el timeline — habla una vez con el agente y repite")
         return
     if a.only in (None, "lat"):
-        await exp_latency(system, a.reps)
+        await exp_latency(system, a.reps, a.models)
     if a.only in (None, "par"):
-        await exp_parallel(system)
+        await exp_parallel(system, models=a.models)
     if a.only in (None, "route"):
-        await exp_routing(system)
+        await exp_routing(system, a.reps, a.models)
 
 
 if __name__ == "__main__":

@@ -168,14 +168,28 @@ def _voice_chain() -> list[dict]:
         # que el broker no deja apagar. Y encaja con el criterio de esta cadena mejor que nada: **no encarece** (es
         # la misma tarifa por token, sin el ×1,4 de Grok Fast ni el ×4,2 de Groq) y es el más rápido al primer token.
         #
-        # No es el TITULAR porque no pasó la puerta del nodo 2.13 (12/14 frente a 14/14 del broker: falla `estilo` y
-        # manda `pregunta memoria` a `web_search`), y la regla es que si esa puerta baja, no se despliega. Aquí sí
-        # entra: un relevo solo actúa cuando el titular YA va lento dos turnos seguidos, así que el intercambio es
-        # «enrutado algo peor» contra «el turno llega», que es el que el operador quiere en ese momento concreto.
-        # Si el banco a 3 rondas lo deja en 14/14, pasa a titular (V2-097 §1).
+        # **El modelo del escalón es V4 PRO, no Flash, y eso se decidió MIDIENDO** (2026-08-15, nodo 2.13 a 3
+        # rondas × 14 casos = 42 turnos por brazo, que es lo que hacía falta para distinguir defecto de ruido):
+        #
+        #   brazo                        enrutado  graves   TTFT p50   peor turno
+        #   AIMLAPI deepseek-v4-flash      41/42       0     8.659 ms   12.025 ms   ← titular
+        #   DIRECTO deepseek-v4-PRO        41/42       1     1.158 ms    5.582 ms   ← este escalón
+        #   DIRECTO deepseek-v4-flash      38/42       1       934 ms    2.344 ms   ← lo que había aquí
+        #   AIMLAPI haiku-4.5              31/42       0     1.297 ms    2.352 ms
+        #
+        # Flash DIRECTO fallaba `mostrar widget` **3 de 3** — o sea un defecto de enrutado reproducible, no mala
+        # suerte. Pro iguala el enrutado del titular (41/42) por 224 ms más de TTFT, así que el relevo deja de
+        # costar precisión: el intercambio que este comentario declaraba antes («enrutado algo peor a cambio de
+        # que el turno llegue») ya no hay que pagarlo. Cuesta ×2 el input, y por eso es RELEVO y no titular — un
+        # relevo tiene techo de turnos y solo actúa tras dos turnos lentos seguidos.
+        #
+        # Sigue sin ser TITULAR: el broker marca 0 graves en 42 turnos y los dos brazos directos marcan 1. El
+        # grave es `pregunta memoria → widget_data`, exactamente el fallo que baneó a grok del FlashBrain, y con
+        # el razonamiento apagado se pierde justo esa discriminación pregunta/orden. Promoverlo es decisión del
+        # operador porque además dobla el coste de CADA turno de voz (V2-097 §1).
         {"name": "deepseek-directo", "base_url": "https://api.deepseek.com", "env": ["DEEPSEEK_API_KEY"],
-         "model": os.getenv("ZAELAR_VOICE_RELAY_DEEPSEEK_MODEL", "deepseek-v4-flash"), "provider": "aimlapi",
-         "plan": "DeepSeek directo (mismo precio, sin razonamiento oculto: TTFT ×4 mejor)"},
+         "model": os.getenv("ZAELAR_VOICE_RELAY_DEEPSEEK_MODEL", "deepseek-v4-pro"), "provider": "aimlapi",
+         "plan": "DeepSeek directo V4 Pro (enrutado del titular, TTFT ×7,5 mejor)"},
         {"name": "xai-fast", "base_url": "https://api.x.ai/v1", "env": ["XAI_API_KEY"],
          "model": os.getenv("ZAELAR_VOICE_RELAY_XAI_MODEL", "grok-4-fast"), "provider": "aimlapi",
          "plan": "xAI Grok Fast (1,4× el titular)"},
