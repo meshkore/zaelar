@@ -4,6 +4,7 @@
   "title": "Agenda del día",
   "description": "Tu agenda viva del día con rol de coach de productividad: franja activa por reloj, tarea en curso con contador, y nudges hacia tu objetivo global.",
   "whenToUse": "Cuando el usuario pide su agenda, su día, qué hacer ahora, a qué ponerse, su planning o coaching de productividad.",
+  "confirm_ui": false,
   "keywords": [
     "agenda",
     "día",

@@ -286,7 +286,24 @@ arranque `make run` → `python -m server`.
   `kickoff`/`ui`/`cron`/`proactivo`/`cluster`/`probe`) and `title` (that root event's text) per flow — what the
   master's column-board (`cloud/backoffice`, private repo) uses to tell a real task apart from session
   initialization (kickoff greeting, canvas-restore reconciliation within the session's first ~10s) and to label
-  each column/rail item with more than a bare corr_id. SOLO LECTURA: el único escritor de `events` sigue siendo
+  each column/rail item with more than a bare corr_id. **A plain conversational flow now closes EXPLICITLY too**
+  (2026-08-15): only a worker-spawned flow had an explicit close before this; the master could only guess
+  liveness from recency, and guessed wrong the instant a turn finished (reported live: "restarted the system…
+  still shows seven active flows"). `_run`'s success path (never the `CancelledError` branch — a barge-in
+  cancellation may still get continued by the next fragment) calls `_maybe_close_flow()`, which closes the
+  current trace UNLESS the V2-096 accumulator still expects more on it, a confirmation asked on it is still
+  pending, or a worker is still running on it (`dispatch.has_live_trace`, the reverse of `trace_of`) — that
+  worker owns the close instead. **A confirmation's "sí"/"no" is now resolved BEFORE any slow work, not only
+  after** (2026-08-15): the old deterministic backstop (`classify_reply` + resolve) only ran after the model's
+  full response streamed — a turn cancelled by barge-in before reaching it lost the answer in total silence,
+  leaving the confirmation pending forever with the widget untouched (reproduced live: operator confirmed
+  clearing the agenda by voice, the reply's turn got barge-in-cancelled, and the agenda never changed, with zero
+  trace of it in the log). A clear yes/no is now resolved right after the hard-interrupt check, before the model
+  is even called; ambiguous replies still fall through to the old late-stage backstop. **A widget can opt out of
+  the visual Sí/No overlay** (`"confirm_ui": false` in its manifest, `nucleo.py::_confirm_ui_paints`; e.g.
+  `widgets/agenda/manifest.json`, per an explicit operator request — "the agenda widget is voice-only"): the
+  confirmation itself, and voice resolution, are completely unchanged — only the SSE emit that paints the card
+  overlay is skipped. SOLO LECTURA: el único escritor de `events` sigue siendo
   el sink del bus. Fase LOCAL entregada; nube + privacidad en `INI-021` (raíz del workspace).
 - `bus/` — **Sistema Nervioso**: pub/sub de señales in-process (asyncio, patrones fnmatch + `emit_sync`
   loop-agnóstico vía `call_soon_threadsafe` para entrega cross-loop job-thread↔uvicorn). `bus/log.py` = log durable

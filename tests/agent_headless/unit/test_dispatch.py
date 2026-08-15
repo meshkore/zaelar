@@ -526,6 +526,19 @@ def test_trace_of_reads_a_live_sessions_trace_id(monkeypatch):
     assert dispatch.trace_of("does-not-exist") == ""
 
 
+def test_has_live_trace_finds_a_worker_carrying_that_trace(monkeypatch):
+    """The reverse of `trace_of` (V2-090 addenda, 2026-08-15): a plain conversational turn that finishes cleanly
+    closes its own flow (`nucleo.py::_maybe_close_flow`) UNLESS a worker spawned on that same trace is still
+    running — the worker's own end already closes it, and closing twice would read as a contradiction."""
+    from nucleo.workers.session import SessionRecord
+    monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
+    dispatch._SESSIONS["m1"] = SessionRecord(task_id="m1", kind="web", status="running",
+                                              goal="find a second-hand motorbike", trace_id="T7·ab12")
+    assert dispatch.has_live_trace("T7·ab12") is True
+    assert dispatch.has_live_trace("T9·zzzz") is False
+    assert dispatch.has_live_trace("") is False
+
+
 def test_resolve_sessions_picks_the_only_live_task_even_with_no_word_overlap(monkeypatch):
     """The load-bearing assumption behind the merge: with exactly ONE live task, `resolve_sessions` returns it
     regardless of the query's wording (see its own docstring, "una sola viva → esa") — a correction almost never

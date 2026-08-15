@@ -116,6 +116,116 @@ def _begin_or_adopt_trace(brain: "NucleoLLM", text: str, first_turn: bool) -> No
         brain._acc_trace_id = _trace.begin(text, origin="turno")
 
 
+def _flow_should_close(tid: str, acc_trace_id: str, confirm_trace_ids, has_live_worker: bool) -> bool:
+    """Pure decision: should THIS trace's flow close now? Factored out so it is comprobable without the observer/
+    dispatch/confirm modules (see `tests/voice/unit/providers/test_nucleo_trace_merge.py`).
+
+    A plain conversational turn never gets its own explicit close from anywhere else — only a worker-spawned flow
+    does (`dispatch.py`'s `_run_session` finally block). Without this, the master can only guess "is this flow
+    still active?" from RECENCY (`last_ms` within a window), which is wrong the instant a turn finishes: a
+    completed kickoff/reply looks identical to a genuinely stuck one until the window expires minutes later —
+    reported live by the operator ("he reiniciado el sistema... pero hay siete procesos activos")."""
+    if not tid:
+        return False
+    if acc_trace_id == tid:
+        return False           # the V2-096 accumulator still expects a continuation on THIS trace
+    if tid in confirm_trace_ids:
+        return False           # a question asked on this trace is still waiting for the operator's answer
+    if has_live_worker:
+        return False           # a worker spawned on this trace is still running — IT owns the close
+    return True
+
+
+def _maybe_close_flow(brain: "NucleoLLM") -> None:
+    """Called once a turn finishes CLEANLY (V2-090 addenda, 2026-08-15) — never on a barge-in cancellation
+    (`_run`'s `except asyncio.CancelledError` branch skips this on purpose: whether a cancelled turn's trace gets
+    continued by the next fragment or abandoned isn't knowable yet at cancellation time)."""
+    try:
+        from voice import trace as _trace
+        tid = _trace.current()
+        from widgets import confirm as _confirm_close
+        from nucleo import dispatch as _disp_close
+        confirm_trace_ids = {v.get("trace_id") for v in _confirm_close.pending().values()}
+        if _flow_should_close(tid, getattr(brain, "_acc_trace_id", ""), confirm_trace_ids,
+                               _disp_close.has_live_trace(tid)):
+            from voice.observer import emit as _emit_close
+            _emit_close("flow", "end", role="system", extra={"ok": True, "reason": "turn_complete"})
+    except Exception:
+        pass
+
+
+def _confirm_ui_paints(widget_id: str) -> bool:
+    """Whether an irreversible-action confirmation on this widget should paint the card's visual Sí/No overlay.
+
+    Default True (unchanged behavior everywhere). A widget can opt out via `"confirm_ui": false` in its
+    `manifest.json` (2026-08-15, operator request: "el widget de agenda se maneja solo con la voz" — no
+    button/overlay for it). Voice resolution (`classify_reply`) never depended on the overlay existing, so
+    turning it off changes NOTHING about how "sí"/"no" gets resolved — only whether a card gets a button."""
+    try:
+        from widgets import runtime as _wruntime
+        man = _wruntime.get((widget_id or "").strip().lower())
+        if man is not None:
+            return bool(man.get("confirm_ui", True))
+    except Exception:
+        pass
+    return True
+
+
+def _resolve_pending_confirm(ok: bool) -> bool:
+    """Resuelve la confirmación pendiente (cualquier widget). Si `ok`, EJECUTA lo confirmado: un BORRADO de widget
+    (determinista, memoria incluida) o una DATA-OP irreversible (despacho por `apply_action`, NUNCA código).
+    Devuelve True si había algo que resolver.
+
+    Función de MÓDULO (no closure de `_run_inner`, V2-090 addenda 2026-08-15) precisamente para poder llamarla
+    ANTES de que el turno haga ningún trabajo lento — ver el hueco real que arregla en el sitio donde se llama
+    pronto, dentro de `_run_inner`: el backstop determinista viejo solo corría TRAS el streaming COMPLETO del
+    modelo, y un turno cancelado por barge-in antes de llegar allí perdía el "sí" EN SILENCIO — la confirmación se
+    quedaba pendiente para siempre y el widget nunca se tocaba (sesión real: «Sí, vacía la entera.» canceló por
+    seguir hablando, el operador vio "confirmar" y la agenda no cambió)."""
+    try:
+        from voice.observer import emit
+        from widgets import confirm as _confirm, lifecycle as _lifecycle
+        p = _confirm.resolve("", ok)
+        if p is None:
+            return False
+        # Observability (V2-090 addenda): esta respuesta nació en SU PROPIO turno (trace fresco) — antes de
+        # ejecutar/cancelar, adopta el trace de la pregunta para que ask→respuesta→acción sean UN flujo, no dos.
+        try:
+            _ptid = str(p.get("trace_id") or "")
+            if _ptid:
+                from voice import trace as _trace4
+                _trace4.adopt(_ptid)
+        except Exception:
+            pass
+        if not ok:
+            emit("brain", "↩️ acción cancelada", text=p.get("widget_id", ""), role="system")
+        elif p.get("action") == "data" and isinstance(p.get("op"), dict) \
+                and p["op"].get("action") == "connect_cluster":
+            try:
+                from connectors import meshkore as _mk
+                _pl = p["op"].get("payload") or {}
+                _spawn(_mk.dispatch_tag("cluster.connect", {"data": _pl}), "cluster")
+                emit("brain", "🛰 conectando cluster MeshKore (confirmado)", text=_pl.get("name", ""),
+                     role="system")
+            except Exception:
+                pass
+        elif p.get("action") == "data" and isinstance(p.get("op"), dict):
+            try:
+                import widgets
+                _spawn(widgets.dispatch_tag("widget.data", {"id": p["widget_id"], "data": p["op"]}),
+                       "widget-data-confirmed")
+                emit("brain", "✅ acción irreversible confirmada", role="system",
+                     text=f"{p['widget_id']}:{p['op'].get('action')}")
+            except Exception:
+                pass
+        elif p.get("action") == "delete":
+            _spawn(_lifecycle.delete_widget(p["widget_id"], "flash"), "widget-delete")
+            emit("brain", "🗑️ widget borrado (confirmado)", text=p["widget_id"], role="system")
+        return True
+    except Exception:
+        return False
+
+
 def _surface_is_empty(widget_id: str) -> bool:
     """¿La tarjeta que acabamos de abrir no tiene NADA que enseñar?
 
@@ -205,6 +315,8 @@ class NucleoLLMStream(llm.LLMStream):
         except asyncio.CancelledError:
             self._note_death("superado por otro turno")
             raise
+        else:
+            _maybe_close_flow(self._llm)
 
     def _superseded(self) -> bool:
         """True si ya llegó una versión MÁS LARGA de la misma frase que este turno está atendiendo — o sea, el
@@ -590,6 +702,44 @@ class NucleoLLMStream(llm.LLMStream):
             had_pending_confirm = bool(_confirm_mod.pending())
         except Exception:
             had_pending_confirm = False
+
+        def send(txt: str):
+            nonlocal first_ms
+            if not txt:
+                return
+            if first_ms is None:
+                first_ms = round((time.time() - t0) * 1000)
+            spoken.append(txt)
+            # ANTI-ECO (FASE 2): recuerda lo ÚLTIMO que zaelar dice + cuándo, para descartar el eco que el mic
+            # recaptura como turno del operador. Se actualiza en CADA salida de voz (respuesta, filler, degradado).
+            brain._last_spoken = "".join(spoken)
+            brain._last_spoke_at = time.time()
+            self._event_ch.send_nowait(
+                ChatChunk(id=utils.shortuuid(), delta=ChoiceDelta(role="assistant", content=txt))
+            )
+
+        # CONFIRMACIÓN PENDIENTE — resuelta YA, antes de CUALQUIER trabajo lento (V2-090 addenda, 2026-08-15).
+        # El backstop determinista de más abajo (RED DETERMINISTA V2-017, `classify_reply` + `_resolve_confirm`)
+        # solo corre TRAS el streaming COMPLETO del modelo — cientos de líneas y varios segundos de por medio. Si
+        # el operador sigue hablando, este turno se cancela por barge-in (como CUALQUIER turno) antes de llegar
+        # allí, y el "sí" se pierde EN SILENCIO: la confirmación se queda pendiente para siempre y el widget nunca
+        # se toca. Sesión real que lo demuestra: «Sí, vacía la entera.» se canceló por barge-in antes de resolver
+        # nada; el operador vio "confirmar" y la agenda no cambió — no era un fallo de `apply_action` (que SÍ
+        # marca los datos), era que la confirmación jamás llegó a ejecutarse. Un sí/no CLARO se resuelve AQUÍ,
+        # determinista y ANTES de llamar al modelo — mismo principio que `attention.hard_interrupt`: lo
+        # irreversible no puede depender de que el turno sobreviva entero. Ambiguo (`classify_reply` → None) cae
+        # al backstop de siempre, que sigue con el modelo por si aporta más contexto.
+        if not first_turn and had_pending_confirm:
+            try:
+                _verdict_early = _confirm_mod.classify_reply(text)
+            except Exception:
+                _verdict_early = None
+            if _verdict_early:
+                if _resolve_pending_confirm(_verdict_early == "yes"):
+                    _ack_early = "Hecho." if _verdict_early == "yes" else "Vale, no toco nada."
+                    send(speech.sanitize(_ack_early, drop_metadata=False))
+                    return
+
         # V2-029: escaladas YA en vuelo al EMPEZAR el turno — para (a) deduplicar si el operador insiste con la
         # MISMA petición mientras el SlowBrain trabaja (no abrir tareas ni entregas duplicadas) y (b) variar el
         # filler ("sigo con ello" en vez de repetir el mismo "dame un momento" turno a turno).
@@ -747,7 +897,8 @@ class NucleoLLMStream(llm.LLMStream):
                     acted["widget"] = True
                     acted["closed"] = True
                     return
-                _confirm.request("delete", wid, "¿Seguro que quieres que borre este widget?")
+                _confirm.request("delete", wid, "¿Seguro que quieres que borre este widget?",
+                                  notify_ui=_confirm_ui_paints(wid))
                 confirm_state["opened"] = f"¿Seguro que quieres que borre el widget «{wid}»?"
                 emit("brain", "🗑️ confirmación de borrado pedida", text=wid, role="system")
             except Exception as e:  # noqa: BLE001
@@ -768,7 +919,8 @@ class NucleoLLMStream(llm.LLMStream):
                 # vea si es más de lo que pidió (aquí: un PROYECTO entero, no la tarea que nombró). Genérico.
                 q = _human_confirm_question(wid, (action_name or "").strip(), payload or {})
                 _confirm.request("data", wid, q,
-                                 op={"action": (action_name or "").strip(), "payload": payload or {}})
+                                 op={"action": (action_name or "").strip(), "payload": payload or {}},
+                                 notify_ui=_confirm_ui_paints(wid))
                 confirm_state["opened"] = q
                 emit("brain", "⚠️ confirmación de acción irreversible pedida", text=f"{wid}:{action_name}",
                      role="system")
@@ -807,54 +959,14 @@ class NucleoLLMStream(llm.LLMStream):
                 logger.warning(f"cluster confirm request falló: {e}")
 
         def _resolve_confirm(ok: bool) -> bool:
-            """Resuelve la confirmación pendiente en este loop (job-thread). Si `ok`, EJECUTA lo confirmado:
-            un BORRADO de widget (determinista, memoria incluida) o una DATA-OP irreversible (despacho por
-            `apply_action`, NUNCA código). Devuelve True si había algo que resolver."""
-            try:
-                from widgets import confirm as _confirm, lifecycle as _lifecycle
-                p = _confirm.resolve("", ok)
-                if p is None:
-                    return False
-                # Observability (V2-090 addenda): esta respuesta nació en SU PROPIO turno (trace fresco) — antes
-                # de ejecutar/cancelar, adopta el trace de la pregunta para que ask→respuesta→acción sean UN
-                # flujo, no dos. Best-effort: si falla, el turno se queda con el suyo propio (peor lectura, nunca
-                # peor comportamiento).
-                try:
-                    _ptid = str(p.get("trace_id") or "")
-                    if _ptid:
-                        from voice import trace as _trace4
-                        _trace4.adopt(_ptid)
-                except Exception:
-                    pass
-                if not ok:
-                    emit("brain", "↩️ acción cancelada", text=p.get("widget_id", ""), role="system")
-                elif p.get("action") == "data" and isinstance(p.get("op"), dict) \
-                        and p["op"].get("action") == "connect_cluster":
-                    try:
-                        from connectors import meshkore as _mk
-                        _pl = p["op"].get("payload") or {}
-                        _spawn(_mk.dispatch_tag("cluster.connect", {"data": _pl}), "cluster")
-                        emit("brain", "🛰 conectando cluster MeshKore (confirmado)", text=_pl.get("name", ""),
-                             role="system")
-                    except Exception:
-                        pass
-                elif p.get("action") == "data" and isinstance(p.get("op"), dict):
-                    try:
-                        import widgets
-                        _spawn(widgets.dispatch_tag("widget.data", {"id": p["widget_id"], "data": p["op"]}),
-                               "widget-data-confirmed")
-                        emit("brain", "✅ acción irreversible confirmada", role="system",
-                             text=f"{p['widget_id']}:{p['op'].get('action')}")
-                    except Exception:
-                        pass
-                elif p.get("action") == "delete":
-                    _spawn(_lifecycle.delete_widget(p["widget_id"], "flash"), "widget-delete")
-                    emit("brain", "🗑️ widget borrado (confirmado)", text=p["widget_id"], role="system")
+            """Wrapper de turno sobre `_resolve_pending_confirm` (función de módulo, V2-090 addenda): añade el
+            bookkeeping de ESTE turno (`acted["widget"]`) que la versión de módulo no puede conocer. La lógica de
+            ejecución vive una sola vez, en `_resolve_pending_confirm` — este turno y el chequeo TEMPRANO de más
+            arriba (antes del streaming) llaman a la MISMA función, nunca a una copia."""
+            resolved = _resolve_pending_confirm(ok)
+            if resolved:
                 acted["widget"] = True
-                return True
-            except Exception as e:  # noqa: BLE001
-                logger.warning(f"confirm resolve falló: {e}")
-                return False
+            return resolved
 
         def _apply_widget_data(wid: str, action_name: str, payload: dict) -> None:
             """Ejecuta una data-op según su modo (V2-025): FAST → despacha ya (apply_action / mailbox del owner);
@@ -1529,21 +1641,6 @@ class NucleoLLMStream(llm.LLMStream):
             nonlocal buf
             out, buf = strip_tags(buf, _tag_emit, final)
             return out
-
-        def send(txt: str):
-            nonlocal first_ms
-            if not txt:
-                return
-            if first_ms is None:
-                first_ms = round((time.time() - t0) * 1000)
-            spoken.append(txt)
-            # ANTI-ECO (FASE 2): recuerda lo ÚLTIMO que zaelar dice + cuándo, para descartar el eco que el mic
-            # recaptura como turno del operador. Se actualiza en CADA salida de voz (respuesta, filler, degradado).
-            brain._last_spoken = "".join(spoken)
-            brain._last_spoke_at = time.time()
-            self._event_ch.send_nowait(
-                ChatChunk(id=utils.shortuuid(), delta=ChoiceDelta(role="assistant", content=txt))
-            )
 
         # COMANDO DE CONFIG DE SEGURIDAD (V2-060 F2): «no me digas los secretos por voz» / «modo máxima seguridad» /
         # «puedes leérmelos por voz» = USER RULE DURA — se aplica DETERMINISTA (persiste en state.security) y se

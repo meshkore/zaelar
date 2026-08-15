@@ -6,7 +6,7 @@ LiveKit stream — see `voice/engine/llm/providers/nucleo.py::_begin_or_adopt_tr
 """
 from nucleo.flash.accumulator import Accumulator
 from voice import trace
-from voice.engine.llm.providers.nucleo import NucleoLLM, _begin_or_adopt_trace
+from voice.engine.llm.providers.nucleo import NucleoLLM, _begin_or_adopt_trace, _flow_should_close
 
 
 def _fresh_brain() -> NucleoLLM:
@@ -60,3 +60,28 @@ def test_unrelated_new_utterance_after_the_chain_resolves_gets_its_own_trace():
     _begin_or_adopt_trace(brain, "qué tiempo hace en Tarragona", False)
     assert trace.current() != first_tid
     trace.adopt("")
+
+
+# ── Cierre EXPLÍCITO de un flujo conversacional (V2-090 addenda, 2026-08-15) ─────────────────────────────────────
+# Real: el operador reinició el sistema y el master seguía mostrando "7 activos" — un turno normal (o el kickoff)
+# no tenía NINGUNA forma de decir "ya terminé", así que el master solo podía ADIVINAR por RECENCIA (< 60s), y
+# adivinaba mal en cuanto el turno acababa de completarse. `_flow_should_close` es la decisión pura; la envoltura
+# real (`_maybe_close_flow`) la llama `_run` solo en el camino LIMPIO (nunca tras una cancelación por barge-in).
+def test_flow_should_close_a_plain_finished_turn():
+    assert _flow_should_close("T1·aaaa", "", set(), False) is True
+
+
+def test_flow_should_not_close_without_a_trace():
+    assert _flow_should_close("", "", set(), False) is False
+
+
+def test_flow_should_not_close_while_the_accumulator_still_expects_more():
+    assert _flow_should_close("T1·aaaa", "T1·aaaa", set(), False) is False
+
+
+def test_flow_should_not_close_with_a_confirmation_still_pending_on_it():
+    assert _flow_should_close("T1·aaaa", "", {"T1·aaaa"}, False) is False
+
+
+def test_flow_should_not_close_while_its_worker_is_still_running():
+    assert _flow_should_close("T1·aaaa", "", set(), True) is False

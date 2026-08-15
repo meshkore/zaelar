@@ -581,6 +581,18 @@ def trace_of(tid: str) -> str:
     return str(getattr(r, "trace_id", "") or "") if r else ""
 
 
+def has_live_trace(trace_id: str) -> bool:
+    """Is there a LIVE worker session carrying this trace_id? The reverse of `trace_of` — a plain conversational
+    turn that finishes cleanly can close its own flow (V2-090 addenda, `nucleo.py::_maybe_close_flow`), but only
+    once nothing spawned on this trace is still working; the worker's OWN end (`_run_session`'s finally block)
+    already emits the explicit close, and closing the flow again from here would be a stale, contradictory
+    second "end" while the session is still running."""
+    tid = (trace_id or "").strip()
+    if not tid:
+        return False
+    return any(getattr(r, "trace_id", "") == tid for r in _SESSIONS.values())
+
+
 def find_duplicate(request: str, kind: str) -> str | None:
     """tid de una sesión VIVA que ya está atendiendo ESTA misma petición ('' → None). El dedup vive AQUÍ, en la
     fuente de verdad (registro RAM), NO en el snapshot de inicio de turno del provider de voz (que falló la

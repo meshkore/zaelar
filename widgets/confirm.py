@@ -46,13 +46,20 @@ def _sweep() -> None:
 NATIVE_CLUSTERS = "clusters"
 
 
-def request(action: str, widget_id: str, question: str = "", op: dict | None = None) -> str | None:
-    """Register a pending confirmation for `widget_id` and request the card overlay through SSE. Returns the
-    normalized id, or None if the id is invalid.
+def request(action: str, widget_id: str, question: str = "", op: dict | None = None,
+            notify_ui: bool = True) -> str | None:
+    """Register a pending confirmation for `widget_id` and (unless `notify_ui=False`) request the card overlay
+    through SSE. Returns the normalized id, or None if the id is invalid.
 
     `action` is the confirmation class: `"delete"` (delete the widget) or `"data"` (an irreversible data-op).
     For `"data"`, `op` carries the real mutation ({"action": <name>, "payload": {...}}) that the resolver dispatches
-    through `apply_action` on confirmation; it never escalates to code."""
+    through `apply_action` on confirmation; it never escalates to code.
+
+    `notify_ui=False` (2026-08-15, operator request): some widgets are voice-only by DESIGN — a visual Sí/No
+    overlay pinned on the card is unwanted "chrome" for them. The confirmation itself is UNCHANGED (still
+    registered, still expires, still resolved the exact same way): this only skips the SSE emit that paints the
+    overlay, so voice ("sí"/"no") is the ONLY way to answer. The caller (`nucleo.py`) decides this per widget by
+    reading its manifest's `confirm_ui` flag — this module stays widget-agnostic."""
     _sweep()
     wid = (widget_id or "").strip().lower()
     if not wid:
@@ -68,7 +75,8 @@ def request(action: str, widget_id: str, question: str = "", op: dict | None = N
         _trace_id = ""
     _PENDING[wid] = {"action": (action or "delete").strip(), "question": (question or "").strip(),
                      "op": op if isinstance(op, dict) else None, "ts": time.time(), "trace_id": _trace_id}
-    _emit("confirm", wid, {"action": _PENDING[wid]["action"], "question": _PENDING[wid]["question"]})
+    if notify_ui:
+        _emit("confirm", wid, {"action": _PENDING[wid]["action"], "question": _PENDING[wid]["question"]})
     return wid
 
 

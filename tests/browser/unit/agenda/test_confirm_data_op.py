@@ -88,6 +88,93 @@ def test_una_confirmacion_sin_accion_guardada_no_ejecuta_a_ciegas(agenda):
     assert agenda.load_db()["meetings"], "sin acción declarada no se toca nada"
 
 
+# ── Resolución TEMPRANA, antes del streaming (V2-090 addenda, 2026-08-15) ────────────────────────────────────────
+# Sesión real f4d3c7cc: el operador dijo «Sí, vacía la entera.» y ese turno se canceló por barge-in (siguió
+# hablando) antes de llegar al backstop determinista de siempre, que solo corre TRAS el streaming completo del
+# modelo. La confirmación se quedó pendiente para siempre; la agenda no cambió, y NINGÚN evento de ejecución o
+# cancelación quedó en el registro — la respuesta se perdió en silencio, no fue rechazada. `_resolve_pending_confirm`
+# es la función que ahora se llama TEMPRANO (antes de cualquier trabajo lento) para que un sí/no claro no dependa
+# de que el turno sobreviva entero. Aquí se prueba SU lógica de ejecución directamente (sin servidor HTTP), la
+# misma que usa el endpoint del botón y el backstop tardío — una sola función, tres llamantes.
+def test_resolve_pending_confirm_ejecuta_la_data_op(agenda):
+    """La ejecución real va por `_spawn` -> `asyncio.create_task` (fire-and-forget, como en el turno de voz real):
+    hace falta un loop VIVO y un tick para que el task creado corra, igual que en producción (`_run_inner` es
+    una corrutina dentro del loop del agente, nunca una llamada síncrona a secas)."""
+    from voice.engine.llm.providers.nucleo import _resolve_pending_confirm
+    from widgets import confirm
+
+    confirm.request("data", "agenda", "¿Vacío la agenda entera?", op={"action": "clear_all", "payload": {}})
+
+    async def _run():
+        assert _resolve_pending_confirm(True) is True
+        await asyncio.sleep(0.05)   # deja correr el task fire-and-forget que despacha la mutación real
+
+    asyncio.run(_run())
+
+    db = agenda.load_db()
+    assert db["meetings"] == [], "se confirmó y la agenda sigue con citas"
+    assert all(t["status"] in ("dropped", "done") for t in db["tasks"]), "se confirmó y quedan tareas pendientes"
+
+
+def test_resolve_pending_confirm_no_hace_nada_sin_confirmacion_pendiente():
+    from voice.engine.llm.providers.nucleo import _resolve_pending_confirm
+    from widgets import confirm
+
+    confirm.reset()
+    assert _resolve_pending_confirm(True) is False
+
+
+def test_resolve_pending_confirm_adopta_el_trace_de_quien_pregunto(agenda):
+    """El ask y la respuesta corren en turnos/trace distintos — sin esto el master ve DOS flujos donde el
+    operador ve UNA sola acción (ver [[project_flows_board_and_trace_continuity]] de esta misma iniciativa)."""
+    from voice import trace
+    from voice.engine.llm.providers.nucleo import _resolve_pending_confirm
+    from widgets import confirm
+
+    trace.adopt("")
+    asking_tid = trace.begin("borra toda la agenda", origin="turno")
+    confirm.request("data", "agenda", "¿Vacío la agenda entera?", op={"action": "clear_all", "payload": {}})
+
+    trace.adopt("")   # el turno de la respuesta arranca con SU PROPIO trace, como en producción
+
+    async def _run():
+        assert _resolve_pending_confirm(True) is True
+        # La comprobación va DENTRO de la misma corrutina/contexto: `asyncio.run()` copia el contexto al entrar y
+        # no lo propaga de vuelta al salir — igual que un turno real, donde todo esto ocurre en UNA sola cadena de
+        # corrutinas sin ninguna frontera de `asyncio.run()` de por medio.
+        assert trace.current() == asking_tid
+        await asyncio.sleep(0.05)
+
+    asyncio.run(_run())
+    trace.adopt("")
+
+
+# ── Widget voz-solo: SIN overlay visual, la voz sigue igual (2026-08-15, pedido del operador) ────────────────────
+def test_confirm_ui_false_no_pinta_overlay_pero_la_confirmacion_sigue_pendiente():
+    """`agenda/manifest.json` declara `confirm_ui: false` — "el widget de agenda se maneja solo con la voz". El
+    registro de la confirmación (para que "sí"/"no" hablado la resuelva) tiene que ser IDÉNTICO; lo único que
+    cambia es que no sale el evento `widget/confirm` que la UI usa para pintar el botón."""
+    from voice.engine.llm.providers.nucleo import _confirm_ui_paints
+    from voice import observer
+    from widgets import confirm
+
+    assert _confirm_ui_paints("agenda") is False
+
+    before = len(observer.debug_events(kind="widget"))
+    confirm.request("data", "agenda", "¿Vacío la agenda entera?", op={"action": "clear_all", "payload": {}},
+                     notify_ui=_confirm_ui_paints("agenda"))
+    after = observer.debug_events(kind="widget")
+    assert len(after) == before, "confirm_ui:false no puede seguir emitiendo el evento que pinta el overlay"
+    assert confirm.pending().get("agenda"), "la confirmación sigue registrada pese a no pintar overlay"
+
+
+def test_confirm_ui_defaults_true_para_widgets_sin_el_flag():
+    from voice.engine.llm.providers.nucleo import _confirm_ui_paints
+
+    assert _confirm_ui_paints("meteo-soria") is True
+    assert _confirm_ui_paints("no-existe-este-widget") is True
+
+
 # ── La PREGUNTA que se le lee al operador ─────────────────────────────────────────────────────────────────────
 def test_la_pregunta_no_recita_las_instrucciones_del_MODELO():
     """El operador oyó esto, entero, como pregunta:
