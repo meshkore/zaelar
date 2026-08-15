@@ -28,7 +28,13 @@ def flows(limit: int = 50, session_id: str = "", user_id: str = "") -> list[dict
     eventos, qué FAMILIAS tocó, qué actores trabajaron, tokens gastados y si hubo errores.
 
     `t_ms` es la duración REAL del flujo (último evento − primero), no la suma de latencias: es lo que el
-    operador esperó. `families`/`spans` responden «¿por dónde pasó?» sin abrir el detalle."""
+    operador esperó. `families`/`spans` responden «¿por dónde pasó?» sin abrir el detalle.
+
+    `origin` es el ARGUMENTO con el que nació el flujo (`voice/trace.py::begin(origin=...)`: `turno`/`kickoff`
+    para lo que dice el operador, `ui`/`cron`/`proactivo`/`cluster`/`probe` para lo que NO es una petición
+    suya) — hay como mucho UNA fila `kind='trace'` por `corr_id` (el evento raíz), así que `MAX(CASE...)` la
+    aísla sin un JOIN. `title` es el texto de ESE mismo evento raíz (lo que disparó el flujo): deja que quien
+    lo muestra (el tablero del master) rotule la columna sin adivinar de qué iba mirando el resto de eventos."""
     where = ["corr_id IS NOT NULL", "corr_id != ''"]
     args: list = []
     if session_id:
@@ -52,6 +58,8 @@ def flows(limit: int = 50, session_id: str = "", user_id: str = "") -> list[dict
                SUM(COALESCE(tokens_out, 0))       AS tokens_out,
                SUM(CASE WHEN kind IN ('error', 'alert') THEN 1 ELSE 0 END) AS errors,
                SUM(CASE WHEN kind = 'flow' AND label = 'end' THEN 1 ELSE 0 END) AS ended_events,
+               MAX(CASE WHEN kind = 'trace' THEN label END) AS origin,
+               MAX(CASE WHEN kind = 'trace' THEN json_extract(payload, '$.text') END) AS title,
                MAX(session_id)                    AS session_id,
                MAX(user_id)                       AS user_id
         FROM events

@@ -37,6 +37,20 @@ def test_confirm_carries_data_op(monkeypatch):
     assert p and p["action"] == "data" and p["op"] == op           # la mutación sobrevive a la confirmación
 
 
+def test_confirm_carries_the_asking_turns_trace(monkeypatch):
+    """V2-090 addenda (2026-08-15): the operator's yes/no reply lands in its OWN turn/trace — a different flow
+    than the one that asked, in the master's observability, unless the resolver adopts the asking turn's trace.
+    `request()` must capture it so `resolve()` can hand it back."""
+    from voice import trace
+    trace.adopt("")
+    tid = trace.begin("borra toda la agenda", origin="turno")
+    confirm.request("data", "agenda", "¿Vacío la agenda entera?", op={"action": "clear_all", "payload": {}})
+    trace.adopt("")   # simulate the reply landing in a fresh turn, as the real provider does
+    p = confirm.resolve("agenda", ok=True)
+    assert p and p.get("trace_id") == tid
+    trace.adopt("")
+
+
 def test_confirm_classify_reply_es_en():
     assert confirm.classify_reply("sí, bórralo") == "yes"
     assert confirm.classify_reply("vale adelante") == "yes"

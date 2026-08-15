@@ -272,9 +272,22 @@ arranque `make run` → `python -m server`.
   turn adopts its `trace_id` (`dispatch.trace_of` + `trace.adopt`) instead of keeping the fresh one `trace.begin()`
   opened at turn start. With several live sessions and no unambiguous match, nothing merges — a stray extra flow
   beats guessing which task a correction belongs to. A flow's end is now also EXPLICIT (`kind="flow"`, emitted
-  where the worker session that spawned it finishes), not just inferred from silence. SOLO LECTURA: el único
-  escritor de `events` sigue siendo el sink del bus. Fase LOCAL entregada; nube + privacidad en `INI-021` (raíz
-  del workspace).
+  where the worker session that spawned it finishes), not just inferred from silence. **A single utterance split
+  across several LiveKit turns also merges (2026-08-15):** LiveKit closes one turn per STT-final segment, so a
+  long sentence spoken without pauses used to open a fresh trace per fragment — `_begin_or_adopt_trace()`
+  (`nucleo.py`) checks the V2-096 accumulator's `pending()` instead: while a fragment chain is open, the next
+  turn ADOPTS its trace rather than opening one, cleared once the chain resolves. Known limit, not solved here: if
+  the accumulator judges a sentence complete (a closing period) and the operator keeps talking about the same
+  thing right after, that reopens as a NEW chain/trace — a real improvement, not a guarantee of one flow per
+  real-world task. **A pending confirmation's answer also merges into the turn that asked** (`widgets/
+  confirm.py::request()` captures `trace.current()`, `_resolve_confirm()` adopts it before executing/cancelling)
+  — the ask/answer/action of an irreversible confirm-gate now reads as one flow even across a barge-in-cancelled
+  reply attempt in between. `flows()`'s SQL exposes `origin` (the `trace.begin(origin=...)` argument: `turno`/
+  `kickoff`/`ui`/`cron`/`proactivo`/`cluster`/`probe`) and `title` (that root event's text) per flow — what the
+  master's column-board (`cloud/backoffice`, private repo) uses to tell a real task apart from session
+  initialization (kickoff greeting, canvas-restore reconciliation within the session's first ~10s) and to label
+  each column/rail item with more than a bare corr_id. SOLO LECTURA: el único escritor de `events` sigue siendo
+  el sink del bus. Fase LOCAL entregada; nube + privacidad en `INI-021` (raíz del workspace).
 - `bus/` — **Sistema Nervioso**: pub/sub de señales in-process (asyncio, patrones fnmatch + `emit_sync`
   loop-agnóstico vía `call_soon_threadsafe` para entrega cross-loop job-thread↔uvicorn). `bus/log.py` = log durable
   de eventos en SQLite (`zaelar.db`, tabla `events`, WAL). `bus/sse.py` = puente SSE al frontend (`GET /events`).

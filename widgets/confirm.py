@@ -57,8 +57,17 @@ def request(action: str, widget_id: str, question: str = "", op: dict | None = N
     wid = (widget_id or "").strip().lower()
     if not wid:
         return None
+    # Observability (V2-090 addenda, 2026-08-15): the OPERATOR's yes/no reply lands in its OWN turn — a different
+    # trace than the one that asked — and today those show up as two unrelated flows in the master. Capturing the
+    # asking turn's trace here lets `resolve()` hand it back so the resolver can adopt it: the confirmation's
+    # whole life (ask → answer → executed action) reads as ONE flow, not two.
+    try:
+        from voice import trace as _trace
+        _trace_id = _trace.current()
+    except Exception:
+        _trace_id = ""
     _PENDING[wid] = {"action": (action or "delete").strip(), "question": (question or "").strip(),
-                     "op": op if isinstance(op, dict) else None, "ts": time.time()}
+                     "op": op if isinstance(op, dict) else None, "ts": time.time(), "trace_id": _trace_id}
     _emit("confirm", wid, {"action": _PENDING[wid]["action"], "question": _PENDING[wid]["question"]})
     return wid
 

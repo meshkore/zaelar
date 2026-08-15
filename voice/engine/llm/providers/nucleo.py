@@ -94,6 +94,28 @@ def _extends(prev: str, cur: str) -> bool:
     return bool(p) and len(c) > len(p) and c.startswith(p)
 
 
+def _begin_or_adopt_trace(brain: "NucleoLLM", text: str, first_turn: bool) -> None:
+    """Decide si este turno abre un trace NUEVO o ADOPTA el de una cadena de fragmentos ya a medias (V2-096
+    addenda, 2026-08-15). LiveKit cierra un turno por CADA segmento final del STT, así que una frase larga dicha
+    sin pausas abría un flujo nuevo por trozo — cada uno cancelado por el siguiente (barge-in) hasta que el
+    último se completaba. El ACUMULADOR (`nucleo/flash/accumulator.py`) ya sabe si hay una cadena en curso
+    (`.pending()`): mientras la tenga, este turno es esa misma frase creciendo → adopta su trace en vez de abrir
+    uno nuevo, sin repetir aquí el juicio de completitud (ya es su trabajo). Un turno que empieza cadena nueva
+    (buffer vacío) abre trace con `begin()` como siempre, y ese id pasa a ser el de la cadena hasta que se
+    resuelva (`brain._acc_trace_id`, limpiado por el llamador cuando `offer()` devuelve "act").
+
+    Función aparte (no inline en `_run_inner`) para que sea comprobable SIN un stream de LiveKit real — ver
+    `tests/voice/unit/providers/test_nucleo_trace_merge.py`."""
+    from voice import trace as _trace
+    if first_turn:
+        _trace.begin(text, origin="kickoff")
+        return
+    if getattr(brain, "_acc", None) is not None and brain._acc.pending() and brain._acc_trace_id:
+        _trace.adopt(brain._acc_trace_id)
+    else:
+        brain._acc_trace_id = _trace.begin(text, origin="turno")
+
+
 def _surface_is_empty(widget_id: str) -> bool:
     """¿La tarjeta que acabamos de abrir no tiene NADA que enseñar?
 
@@ -139,6 +161,7 @@ class NucleoLLM(llm.LLM):
         self._last_dataop = None           # (wid, action, payload, ts) última data-op EJECUTADA — guard anti
         #                                    context-bleed (round headless V2-038 #1: re-emisión cross-turno)
         self._utterance: dict = {"text": "", "at": 0.0}   # frase EN CURSO del operador (guarda de fragmentos, _extends)
+        self._acc_trace_id: str = ""       # trace del flujo mientras el acumulador (V2-096) tiene trozos a medias
         self._turn_count = 0                # turnos conversacionales completados esta sesión (INI-018 T6, demo cap)
         self._last_action = ""              # route/surface del turno anterior para referencias deícticas
         self._session_started_at = time.time()  # arranque de la sesión (INI-018 T6, demo TTL)
@@ -238,9 +261,10 @@ class NucleoLLMStream(llm.LLMStream):
         # TRAZABILIDAD (V2-044): cada frase del operador nace con un trace id — ANTES del gate, así los descartes
         # (ambient/eco/interrupción dura) también quedan encadenados a su frase y son evaluables. Todo lo que este
         # turno derive (tools, tags, rails, escaladas, memoria) hereda el id por ContextVar (create_task/to_thread).
+        # Una continuación de la MISMA frase (V2-096 addenda, ver `_begin_or_adopt_trace`) ADOPTA el trace de la
+        # cadena en vez de abrir uno nuevo por trozo.
         try:
-            from voice import trace as _trace
-            _trace.begin(text, origin="kickoff" if first_turn else "turno")
+            _begin_or_adopt_trace(brain, text, first_turn)
         except Exception:
             pass
 
@@ -370,6 +394,7 @@ class NucleoLLMStream(llm.LLMStream):
             if _n_before:
                 emit("brain", "🧩 frase completada en varios tiempos", text=_merged[:300], role="user",
                      extra={"cat": "flash", "trozos": _n_before + 1, "motivo": _why})
+            brain._acc_trace_id = ""    # cadena resuelta — el próximo turno, si es tema nuevo, abre su propio trace
             text = _merged
 
         # V2-013: el "corazón" (agente de memoria) clasifica en background lo que dijo el operador y, si es
@@ -790,6 +815,17 @@ class NucleoLLMStream(llm.LLMStream):
                 p = _confirm.resolve("", ok)
                 if p is None:
                     return False
+                # Observability (V2-090 addenda): esta respuesta nació en SU PROPIO turno (trace fresco) — antes
+                # de ejecutar/cancelar, adopta el trace de la pregunta para que ask→respuesta→acción sean UN
+                # flujo, no dos. Best-effort: si falla, el turno se queda con el suyo propio (peor lectura, nunca
+                # peor comportamiento).
+                try:
+                    _ptid = str(p.get("trace_id") or "")
+                    if _ptid:
+                        from voice import trace as _trace4
+                        _trace4.adopt(_ptid)
+                except Exception:
+                    pass
                 if not ok:
                     emit("brain", "↩️ acción cancelada", text=p.get("widget_id", ""), role="system")
                 elif p.get("action") == "data" and isinstance(p.get("op"), dict) \
