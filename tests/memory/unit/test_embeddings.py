@@ -104,6 +104,17 @@ def test_forced_backend_never_rechecks(monkeypatch):
     assert calls["n"] == 0
 
 
+# V2-031 (2026-08-17, cazado en validación con coste real): `config/v2.json` trae `embed_provider="auto"` de
+# fábrica — un string NO VACÍO — así que el `or` de precedencia lo tomaba como valor de config y NUNCA llegaba
+# a mirar `ZAELAR_EMBED_BACKEND`, aunque el comentario dijera "store > env > autodetección". El operador pidió
+# forzar `fastembed` para evitar Ollama en una tanda de pruebas y, con Ollama disponible, el env var era aire.
+def test_env_var_wins_when_config_says_auto_explicitly(monkeypatch):
+    monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "auto", "embed_model": ""})
+    monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
+    emb.reset()
+    assert emb.active_backend() == "hash"  # antes del fix: "ollama"/autodetección, el env var se ignoraba
+
+
 def test_healthy_ollama_backend_does_not_repoll(monkeypatch):
     monkeypatch.delenv("ZAELAR_EMBED_BACKEND", raising=False)
     monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "auto", "embed_model": ""})

@@ -83,6 +83,13 @@ def test_exact_repeat_across_two_real_turns_deduplicates(fresh_db, monkeypatch):
 
 # ── 2. backend de embeddings con hipo TRANSITORIO al arrancar — el bug de fondo, de punta a punta ─────────────
 def test_transient_ollama_hiccup_then_recovery_still_deduplicates(fresh_db, monkeypatch):
+    # Este test prueba AUTODETECCIÓN real (hipo→degrada→recupera) — el `ZAELAR_EMBED_BACKEND=hash` del fixture
+    # `_hash_backend` de arriba (autouse, para el resto del fichero) forzaría el backend y anularía justo el
+    # mecanismo que se quiere probar. Hasta 2026-08-17 esto "funcionaba por accidente": un bug en
+    # `_resolve_backend()` (memory/embeddings.py) ignoraba el env var siempre que la config mockeada dijera
+    # "auto" — el fix de ese bug (V2-031) hace que el env var SÍ mande cuando existe, así que aquí hay que
+    # despejarlo explícitamente para seguir probando lo que este test dice probar.
+    monkeypatch.delenv("ZAELAR_EMBED_BACKEND", raising=False)
     monkeypatch.setattr(mememb, "_mem_cfg", lambda: {"embed_provider": "auto", "embed_model": ""})
     calls = {"ollama": 0}
 

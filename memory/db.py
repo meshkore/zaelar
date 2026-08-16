@@ -108,6 +108,7 @@ class Database:
                 # `memory/reembed.py` (drop+recreate), flagged by `reembed.check()` at startup. Lazy import.
                 from . import embeddings as _emb
                 self.conn.execute(_schema.vec_memories_ddl(_emb.dim()))
+                self.conn.execute(_schema.vec_paraphrases_ddl(_emb.dim()))  # V2-031 T2
             if self.fts_available:
                 self.conn.execute(_schema.FTS_MEMORIES)
             # v1->v2 (V2-013): memory is a PILL — add `slot`/`meta` if missing (idempotent, non-destructive ALTER;

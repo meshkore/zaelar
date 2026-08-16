@@ -57,6 +57,10 @@ _DEFAULTS = {
     # profile as `turn_complete`: fires on every non-wake-word turn in the hot path, so it needs the DIRECT
     # DeepSeek endpoint's ~1s TTFT, not the ~8.6s the AIMLAPI broker gives this model.
     "directed": ("https://api.deepseek.com", "deepseek-v4-flash"),
+    # paraphrase (V2-031 T2, 2026-08-17): 1-2 reformulaciones de una píldora durable, generadas off-hot-path
+    # desde REM (nunca en el turno) para indexar vectores extra que cierren el vocab-gap en la lectura. Mismo
+    # perfil que `rem`: sin urgencia de latencia, así que hereda su default (AIMLAPI, no el endpoint directo).
+    "paraphrase": ("https://api.aimlapi.com/v1", "deepseek/deepseek-v4-flash"),
 }
 
 
@@ -275,3 +279,37 @@ def verify_insight_grounded(insight: str, pills: list[str], *, model_override: s
     if not content:
         return False
     return content.strip().lower().startswith("true")
+
+
+# ── V2-031 T2: reformulaciones para el índice de paráfrasis (off-hot-path, desde REM) ──────────────────────────
+_PARAPHRASE_SYSTEM = (
+    "Reformulas una frase de memoria de un asistente personal para dar VOCABULARIO ALTERNATIVO — sinónimos, "
+    "categoría/hiperónimo, forma de referirse al mismo hecho con OTRAS palabras — para que una pregunta con "
+    "vocabulario distinto SIGA encontrando el mismo dato (vocab-gap). NO sirve reordenar o cambiar levemente "
+    "la misma frase: 'toca la guitarra los sábados' → 'los sábados toca la guitarra' NO VALE, no aporta "
+    "vocabulario nuevo. SÍ vale: 'toca la guitarra los sábados' → 'es músico, toca un instrumento de cuerda'. "
+    "MANTIENES el significado exacto — ni añades ni quitas información, ni cifras, ni nombres — pero CAMBIAS "
+    "las palabras de contenido por su categoría o un sinónimo real. Responde SOLO un array JSON de 1 a 2 "
+    "strings, sin explicación: [\"reformulación 1\", \"reformulación 2\"]"
+)
+
+
+def generate_paraphrases(text: str, *, model_override: str | None = None,
+                         url_override: str | None = None) -> list[str]:
+    """1-2 reformulaciones de `text`, para `writer.index_paraphrases()`. Fail-open: [] si el modelo no responde
+    o la respuesta no parsea — sin paráfrasis, la píldora se sigue recuperando por su propio embedding, igual
+    que siempre; esto solo AÑADE superficie de recuperación, nunca es la única vía."""
+    text = (text or "").strip()
+    if not text:
+        return []
+    content = chat_sync("paraphrase", _PARAPHRASE_SYSTEM, text, max_tokens=300, timeout=60.0,
+                        model_override=model_override, url_override=url_override)
+    if not content:
+        return []
+    try:
+        start, end = content.find("["), content.rfind("]")
+        arr = json.loads(content[start:end + 1])
+        return [str(s).strip() for s in arr if isinstance(s, str) and str(s).strip()][:2]
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"memllm[paraphrase]: respuesta no parseable: {str(e)[:120]}")
+        return []

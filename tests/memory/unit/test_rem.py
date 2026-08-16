@@ -275,6 +275,59 @@ def test_repair_embeddings_default_raised_from_200(fresh_db):
     assert memrem._repair_limit_default() >= 1000
 
 
+# V2-031 T2 (2026-08-17): fase de backfill del índice de paráfrasis — mismo patrón inyectable que synthesize_fn.
+def test_index_paraphrases_backfills_pills_without_any(fresh_db):
+    ids = [memwriter.insert_memory(t, level="mid", kind="fact")
+           for t in ["toca la guitarra los sábados", "cocina platos italianos"]]
+    calls = []
+
+    def hook(text):
+        calls.append(text)
+        return [f"reformulación de: {text}"]
+
+    done = memrem.index_paraphrases(hook)
+    assert done == 2
+    assert set(calls) == {"toca la guitarra los sábados", "cocina platos italianos"}
+    db = memdb.get_db()
+    for mid in ids:
+        assert db.query_one("SELECT COUNT(*) c FROM paraphrase_index WHERE memory_id=?", (mid,))["c"] == 1
+
+
+def test_index_paraphrases_skips_pills_that_already_have_one(fresh_db):
+    mid = memwriter.insert_memory("dato con paráfrasis ya indexada", level="mid", kind="fact")
+    memwriter.index_paraphrases(mid, ["ya tiene una"])
+    calls = []
+
+    def hook(text):
+        calls.append(text)
+        return ["otra"]
+
+    assert memrem.index_paraphrases(hook) == 0
+    assert calls == []  # ni se le pregunta al hook — ya estaba cubierta
+
+
+def test_index_paraphrases_respects_limit_and_hook_failure(fresh_db):
+    for i in range(5):
+        memwriter.insert_memory(f"dato {i}", level="mid", kind="fact")
+
+    calls = []
+
+    def hook(text):
+        calls.append(text)
+        if "dato 1" in text:
+            raise RuntimeError("proveedor caído")
+        return [f"reformulación {text}"]
+
+    done = memrem.index_paraphrases(hook, limit=3)
+    assert len(calls) == 3          # respeta el límite
+    assert done == 2                # 1 de los 3 falló (fail-open, no cuenta, no rompe el resto)
+
+
+def test_index_paraphrases_noop_without_hook(fresh_db):
+    memwriter.insert_memory("dato", level="mid", kind="fact")
+    assert memrem.index_paraphrases(None) == 0
+
+
 # V2-103 (2026-08-16): la formación de grupos de concepto (`_concept_groups`/`synthesize`) solo se había probado
 # con 4-12 píldoras de un único concepto limpio — nunca con una distribución RUIDOSA de cientos de píldoras en
 # más conceptos que `MAX_GROUPS`, que es donde un bug de ordenación/corte se volvería invisible en un fixture

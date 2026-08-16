@@ -129,6 +129,57 @@ def repair_embeddings(limit: int | None = None) -> int:
     return fixed
 
 
+# ── fase 1b · índice de PARÁFRASIS (V2-031 T2, con LLM inyectado) ──────────────────────────────────────────
+def _paraphrase_limit_default() -> int:
+    """Presupuesto por sueño — mismo patrón que `_repair_limit_default()`, pero ESTA fase SÍ cuesta un LLM real
+    por píldora, así que el default es deliberadamente MODESTO (no 1000/noche): el backlog se vacía en varias
+    noches, no de golpe. Configurable (§memory.rem_paraphrase_limit / ZAELAR_REM_PARAPHRASE_LIMIT)."""
+    env = os.getenv("ZAELAR_REM_PARAPHRASE_LIMIT")
+    if env:
+        try:
+            return max(1, int(env))
+        except ValueError:
+            pass
+    try:
+        from config import v2 as _v2
+        return max(1, int((_v2.get("memory") or {}).get("rem_paraphrase_limit") or 30))
+    except Exception:
+        return 30
+
+
+def index_paraphrases(paraphrase_fn, limit: int | None = None) -> int:
+    """Backfill del índice de paráfrasis: durables SIN ninguna fila en `paraphrase_index` aún, hasta `limit`.
+    `paraphrase_fn(text) -> [str, …]` la inyecta el llamador (el loop → `nucleo/memllm.generate_paraphrases`,
+    mismo patrón que `synthesize_fn`). Fail-open total: sin hook, sin backend vec, o cualquier fallo por
+    píldora → esa píldora simplemente sigue sin paráfrasis (se sigue recuperando por su propio embedding,
+    igual que siempre — esto solo AÑADE superficie, nunca es la única vía). Devuelve nº de píldoras procesadas
+    con éxito (con ≥1 paráfrasis indexada)."""
+    if paraphrase_fn is None:
+        return 0
+    db = _db.get_db()
+    if not db.vec_available:
+        return 0
+    if limit is None:
+        limit = _paraphrase_limit_default()
+    rows = db.query(
+        "SELECT m.id, m.text FROM memories m "
+        "LEFT JOIN paraphrase_index p ON p.memory_id = m.id "
+        "WHERE m.valid=1 AND m.level IN ('mid','long') AND m.kind NOT IN ('conv','concept','insight') "
+        "AND p.memory_id IS NULL GROUP BY m.id LIMIT ?",
+        (limit,),
+    )
+    done = 0
+    for r in rows:
+        try:
+            variants = paraphrase_fn(r["text"]) or []
+        except Exception as e:  # noqa: BLE001
+            logger.debug(f"rem.index_paraphrases: hook falló para #{r['id']}: {str(e)[:120]}")
+            continue
+        if variants and _writer.index_paraphrases(r["id"], variants) > 0:
+            done += 1
+    return done
+
+
 # ── fase 2 · dedup SEMÁNTICO (sin LLM: coseno sobre vectores ya pagados) ────────────────────────────────────
 def _unpack(blob: bytes) -> list[float]:
     return list(struct.unpack(f"{len(blob) // 4}f", blob))
@@ -380,13 +431,14 @@ def hygiene(window_s: int = 86400) -> dict:
 
 
 # ── orquestación ────────────────────────────────────────────────────────────────────────────────────────────
-def run(synthesize_fn=None, verify_fn=None) -> dict:
+def run(synthesize_fn=None, verify_fn=None, paraphrase_fn=None) -> dict:
     """Un ciclo de sueño PROFUNDO. Síncrono (el llamador lo mete en `asyncio.to_thread`). Cada fase aislada.
     `verify_fn` (V2-104) es el segundo gate de fidelidad de `synthesize()`, opcional — el loop la cablea junto
-    a `synthesize_fn`."""
+    a `synthesize_fn`. `paraphrase_fn` (V2-031 T2) alimenta `index_paraphrases()`, opcional e independiente."""
     t0 = time.time()
     report: dict = {}
     for name, fn in (("repaired", repair_embeddings),
+                     ("paraphrased", lambda: index_paraphrases(paraphrase_fn)),
                      ("sem_deduped", semantic_dedup),
                      ("insights", lambda: synthesize(synthesize_fn, verify_fn=verify_fn)),
                      ("hygiene", hygiene)):

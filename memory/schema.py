@@ -20,7 +20,12 @@ EMBED_DIM = 768
 #   operador cifrados (contraseñas, IBAN, private keys). El VALOR va cifrado y OPACO en `vault_secrets` (nunca en
 #   `memories`); en `memories` solo vive la ETIQUETA en claro y buscable (píldora normal con `meta.vault=1`). Ambas
 #   con CREATE IF NOT EXISTS en BASE_DDL → migración idempotente, no destructiva.
-SCHEMA_VERSION = 3
+#   v3 → v4 (V2-031 T2, 2026-08-17): ÍNDICE DE PARÁFRASIS al escribir — cierra el vocab-gap ("instrumento" vs
+#   "guitarra") sin LLM en la lectura. `paraphrase_index` (real, PK sintética porque una píldora puede tener
+#   varias reformulaciones) + `vec_paraphrases` (vec0, keyed por esa PK sintética, NUNCA por `memory_id` — un
+#   `memory_id` puede necesitar N vectores, `vec_memories` exige 1). El retriever las funde en la fusión RRF
+#   mapeando de vuelta al `memory_id` real — nunca se devuelven como resultado por sí mismas.
+SCHEMA_VERSION = 4
 
 
 # ── Tablas base (siempre) ──────────────────────────────────────────────────────────────────────────────────
@@ -163,6 +168,22 @@ CREATE TABLE IF NOT EXISTS vault_secrets (
 """
 
 
+# ── Índice de paráfrasis al escribir (V2-031 T2) ────────────────────────────────────────────────────────────
+# Tabla REAL con PK sintética (`id`) — un `memory_id` puede tener 1-2 reformulaciones, así que no puede ser la
+# clave del vec0 (que exige unicidad). `vec_paraphrases` (abajo) usa ESTE `id`, nunca `memory_id`, como su PK.
+PARAPHRASE_INDEX = """
+CREATE TABLE IF NOT EXISTS paraphrase_index (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  memory_id  INTEGER NOT NULL,
+  text       TEXT NOT NULL,
+  created    INTEGER NOT NULL
+);
+"""
+PARAPHRASE_INDEXES = [
+    "CREATE INDEX IF NOT EXISTS idx_paraphrase_memory ON paraphrase_index(memory_id)",
+]
+
+
 # ── Tablas virtuales (condicionales) ────────────────────────────────────────────────────────────────────────
 
 # Vector (sqlite-vec). Solo si la extensión está cargada.
@@ -170,6 +191,14 @@ def vec_memories_ddl(dim: int = EMBED_DIM) -> str:
     return (
         f"CREATE VIRTUAL TABLE IF NOT EXISTS vec_memories USING vec0("
         f"memory_id INTEGER PRIMARY KEY, embedding FLOAT[{dim}])"
+    )
+
+
+# Vectores de PARÁFRASIS (V2-031 T2) — PK sintética (`paraphrase_index.id`), NUNCA `memory_id` (ver arriba).
+def vec_paraphrases_ddl(dim: int = EMBED_DIM) -> str:
+    return (
+        f"CREATE VIRTUAL TABLE IF NOT EXISTS vec_paraphrases USING vec0("
+        f"id INTEGER PRIMARY KEY, embedding FLOAT[{dim}])"
     )
 
 
@@ -181,4 +210,4 @@ FTS_MEMORIES = (
 
 
 BASE_DDL = [STATE, MEMORIES, *MEMORIES_INDEXES, EDGES, *EDGES_INDEXES, EPISODIC, JOURNAL, SYS_KV,
-            VAULT_META, VAULT_SECRETS]
+            VAULT_META, VAULT_SECRETS, PARAPHRASE_INDEX, *PARAPHRASE_INDEXES]

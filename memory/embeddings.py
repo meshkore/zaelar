@@ -188,8 +188,18 @@ def _resolve_backend():
         # cae al re-sondeo de abajo (no retornamos)
     # store (UI, sección `memory.embed_provider`) > env `ZAELAR_EMBED_BACKEND` > autodetección. 'ollama' (default)
     # es local; los proveedores cloud (voyage/openai) se enchufan aquí sin tocar el resto (V2-030).
-    forced = (str(_mem_cfg().get("embed_provider") or "").strip()
-              or os.getenv("ZAELAR_EMBED_BACKEND"))  # 'ollama'|'fastembed'|'hash'|… — UI/tests/power-user
+    #
+    # BUG real, cazado 2026-08-17 en validación con coste real (el operador pidió evitar Ollama y el env var no
+    # lo hacía): `config/v2.json` trae `embed_provider="auto"` de fábrica — un string NO VACÍO, así que el `or`
+    # de abajo lo tomaba como valor de config y JAMÁS llegaba a mirar `ZAELAR_EMBED_BACKEND` (el "auto"→None de
+    # la línea siguiente llegaba demasiado tarde: normalizaba el valor de CONFIG, no decidía si consultar el
+    # env). Con Ollama disponible, esto hacía que el env var fuera aire — la autodetección ganaba en silencio.
+    # Fix: cada fuente se normaliza "auto"/""→vacío ANTES del `or`, así un "auto" explícito en config SÍ cede
+    # el turno al env var, como ya decía el comentario de precedencia (que nunca se cumplía del todo).
+    cfg_val = str(_mem_cfg().get("embed_provider") or "").strip()
+    if cfg_val == "auto":
+        cfg_val = ""
+    forced = cfg_val or os.getenv("ZAELAR_EMBED_BACKEND")  # 'ollama'|'fastembed'|'hash'|… — UI/tests/power-user
     if forced in ("auto", ""):
         forced = None                               # 'auto' = autodetección (ollama→fastembed→hash), no forzar
     if forced:

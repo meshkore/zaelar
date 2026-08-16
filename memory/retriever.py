@@ -3,7 +3,7 @@
 Compone el **contexto mínimo** ante un prompt, lo más rápido posible (lectura directa, WAL, sin bloquear al
 escritor). El **estado** se inyecta SIEMPRE aparte (sin búsqueda, `memory/state.py`); aquí va lo demás:
 
-    vector (sqlite-vec, k=40)  ∥  keyword (FTS5, k=40)
+    vector (sqlite-vec, k=POOL_K)  ∥  keyword (FTS5, k=POOL_K)  ∥  paráfrasis (vec_paraphrases, k=POOL_K)
         → fusión RRF  ( rrf(doc) = Σ 1/(k+rank) , k=60 )
         → score = α·rel + β·rec + γ·imp + δ·uso    (α .45 · β .25 · γ .20 · δ .10)
         → orden desc
@@ -19,6 +19,7 @@ usados y la fachada (`memory/api.py`) los encola por la cola async. `search(...,
 la señal `memory.reinforce` por el bus (best-effort, loop-agnóstico) para quien quiera reaccionar.
 """
 import math
+import os
 import re
 import struct
 import time
@@ -33,6 +34,13 @@ GAMMA = 0.20   # importancia
 DELTA = 0.10   # peso de uso
 RRF_K = 60
 RECENCY_HALFLIFE_DAYS = 7.0
+
+# Pool de candidatos ANTES de la fusión RRF (V2-031 T2, 2026-08-17): subido de 40 a 100. El reranker
+# (`memory/rerank.py::rerank()`) SOLO cross-encodea su propio `top_n` (20 por defecto) tras la fusión — un pool
+# más ancho da a la RRF más superficie donde encontrar un candidato relevante que hoy queda fuera del corte
+# antes de llegar siquiera al reranker (found@10 medido en 70,5% con el pool de 40, `.meshkore/logs/membot/`),
+# SIN encarecer el cross-encoder (que sigue viendo como mucho `top_n` candidatos, cueste 40 o 100 traerlos).
+POOL_K = int(os.getenv("ZAELAR_RETRIEVER_POOL_K", "100"))
 
 _FTS_TOKEN = re.compile(r"\w+", re.UNICODE)
 
@@ -75,7 +83,7 @@ _FTS_STOP = frozenset(
 )
 
 
-def vec_search(query_vec: list[float], k: int = 40) -> list[tuple[int, float]]:
+def vec_search(query_vec: list[float], k: int = POOL_K) -> list[tuple[int, float]]:
     db = _db.get_db()
     if not db.vec_available:
         return []
@@ -89,7 +97,37 @@ def vec_search(query_vec: list[float], k: int = 40) -> list[tuple[int, float]]:
         return []
 
 
-def fts_search(prompt: str, k: int = 40) -> list[tuple[int, float]]:
+def vec_search_paraphrases(query_vec: list[float], k: int = POOL_K) -> list[tuple[int, float]]:
+    """V2-031 T2: como `vec_search()`, pero sobre `vec_paraphrases` — mapeando de vuelta al `memory_id` REAL vía
+    `paraphrase_index`. Una paráfrasis nunca es un resultado por sí misma, solo un canal MÁS de evidencia a
+    favor de la píldora que representa; `search()` la pasa a `rrf()` como una lista ranked independiente (igual
+    que vec/FTS) — si el vector propio Y una paráfrasis casan, el memory_id acumula señal de los dos canales,
+    el mismo principio por el que ya acumula señal de vec+FTS hoy."""
+    db = _db.get_db()
+    if not db.vec_available:
+        return []
+    try:
+        # sqlite-vec exige que el `LIMIT`/`k=?` vaya SOBRE la propia consulta KNN a la tabla virtual — un JOIN
+        # en la MISMA query rompe el reconocimiento del plan KNN (`OperationalError: A LIMIT or 'k = ?'
+        # constraint is required on vec0 knn queries`, medido). Dos pasos: KNN "pelado" sobre `vec_paraphrases`
+        # → mapear `paraphrase_index.id → memory_id` en una segunda consulta normal.
+        hits = db.query(
+            "SELECT id, distance FROM vec_paraphrases WHERE embedding MATCH ? ORDER BY distance LIMIT ?",
+            (_pack(query_vec), k),
+        )
+        if not hits:
+            return []
+        pids = [h["id"] for h in hits]
+        placeholders = ",".join("?" * len(pids))
+        rows = db.query(
+            f"SELECT id, memory_id FROM paraphrase_index WHERE id IN ({placeholders})", pids)
+        mid_by_pid = {r["id"]: r["memory_id"] for r in rows}
+        return [(mid_by_pid[h["id"]], h["distance"]) for h in hits if h["id"] in mid_by_pid]
+    except Exception:
+        return []
+
+
+def fts_search(prompt: str, k: int = POOL_K) -> list[tuple[int, float]]:
     db = _db.get_db()
     if not db.fts_available:
         return []
@@ -186,7 +224,7 @@ def graph_expand(results: list[dict], top: int = 6, max_add: int = 8, discount: 
 
 def search(
     prompt: str,
-    k: int = 40,
+    k: int = POOL_K,
     limit: int = 12,
     expand: bool = True,
     reinforce: bool = False,
@@ -199,8 +237,9 @@ def search(
     qvec = _emb.embed(prompt)
     vec = vec_search(qvec, k=k)
     kw = fts_search(prompt, k=k)
+    para = vec_search_paraphrases(qvec, k=k)  # V2-031 T2: tercer canal, mapeado a memory_id real
 
-    fused = rrf(vec, kw)
+    fused = rrf(vec, kw, para)
     if not fused:
         # degradación total (sin vec ni fts): LIKE básico sobre los tokens.
         toks = _FTS_TOKEN.findall(prompt.lower())

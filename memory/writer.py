@@ -450,6 +450,45 @@ def demote_summarized(ids: list[int], insight_id: int, factor: float = 0.6, floo
     return done
 
 
+def index_paraphrases(memory_id: int, texts: list[str]) -> int:
+    """V2-031 T2 (2026-08-17): indexa 1-2 REFORMULACIONES de una píldora durable — cierra el vocab-gap
+    ("instrumento" en la query, "guitarra" en el dato) sin LLM en la lectura. Va en tabla PROPIA
+    (`paraphrase_index` + `vec_paraphrases`, PK sintética), nunca en `vec_memories` (que exige 1 vector por
+    `memory_id`). `memory/retriever.py` las funde en la fusión RRF mapeando de vuelta al `memory_id` real —
+    nunca se devuelven como resultado por sí mismas, ni cuentan para dedup/consolidación. Off-hot-path (llamado
+    desde `memory/rem.py`, nunca desde el turno). Fail-open: backend degradado → 0 indexadas, sin romper nada."""
+    if not memory_id or not texts:
+        return 0
+    from . import embeddings as _emb
+    if getattr(_emb, "last_degraded", False):
+        return 0  # mismo criterio que repair_embeddings(): mejor sin vector que en el espacio equivocado
+    db = _db.get_db()
+    now = _now()
+    done = 0
+    for text in texts:
+        text = (text or "").strip()
+        if not text:
+            continue
+        try:
+            vec = _emb.embed(text)
+            if getattr(_emb, "last_degraded", False):
+                break  # se degradó a mitad de lote → para, no mezcles espacios vectoriales
+            with db.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO paraphrase_index (memory_id, text, created) VALUES (?, ?, ?)",
+                    (int(memory_id), text, now),
+                )
+                pid = cur.lastrowid
+                cur.execute(
+                    "INSERT INTO vec_paraphrases (id, embedding) VALUES (?, ?)",
+                    (pid, _pack(vec)),
+                )
+            done += 1
+        except Exception:
+            continue
+    return done
+
+
 def supersede(old_id: int, new_id: int) -> None:
     """Marca un recuerdo como superado por otro (conflicto temporal; el consolidador también lo usa)."""
     db = _db.get_db()

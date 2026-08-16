@@ -92,3 +92,24 @@ def test_reinforce_signal_emitted(fresh_db):
         assert "ids" in got and len(got["ids"]) >= 1
     finally:
         bus.remove_sink(sink)
+
+
+# V2-031 T2 (2026-08-17): índice de paráfrasis — un memory_id debe aparecer en `search()` cuando la QUERY casa
+# con una de sus reformulaciones aunque comparta poco vocabulario con el texto original de la píldora.
+def test_vec_search_paraphrases_maps_back_to_real_memory_id(fresh_db):
+    mid = memwriter.insert_memory("toca la guitarra los sábados por la tarde", kind="fact", level="mid")
+    memwriter.index_paraphrases(mid, ["es un músico aficionado"])
+    from memory import embeddings as _emb
+    qvec = _emb.embed("es un músico aficionado")
+    hits = memret.vec_search_paraphrases(qvec, k=10)
+    assert any(m == mid for m, _ in hits)
+
+
+def test_search_surfaces_pill_via_paraphrase_vocab_gap(fresh_db):
+    mid = memwriter.insert_memory("toca la guitarra los sábados por la tarde", kind="fact", level="mid")
+    other = memwriter.insert_memory("cocina platos italianos los domingos", kind="fact", level="mid")
+    memwriter.index_paraphrases(mid, ["es un músico aficionado"])
+    results = memret.search("es un músico aficionado", limit=5, expand=False, rerank=False)
+    ids = [r["id"] for r in results]
+    assert mid in ids
+    assert other not in ids or ids.index(mid) < ids.index(other)
