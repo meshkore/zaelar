@@ -56,6 +56,12 @@ class LangSpec:
     worker_budget_killed: str = ("He parado «{goal}»: agotó su tiempo. Te dejo en la tarjeta lo que ha "
                                  "encontrado hasta ahora.")
     worker_timeout_running: str = "El proceso «{goal}» lleva ya {minutes} minutos. ¿Quieres que lo pare o que siga?"
+    # CONFIRMATION TIMEOUT (2026-08-16): a pending irreversible-action confirmation the operator never answered
+    # (`widgets/confirm.py`'s 90s TTL) must not just vanish — the task stays undone and the operator has no way
+    # to know unless told. Spoken/chatted once by `nucleo/loop.py::_supervise_confirms`, same proactive rails as
+    # a stuck/timed-out worker above.
+    confirm_expired: str = ("Dejé de esperar tu confirmación sobre: {question} Dímelo otra vez si quieres que lo "
+                            "haga.")
     spark_pending: str = "Sigo con una cosa pendiente: {title}. ¿Lo retomamos?"
     generic_task: str = "la tarea"        # fallback de {goal} cuando el worker no tiene título propio
     someone: str = "alguien"              # fallback de {sender} cuando el conector no trae remitente
@@ -146,6 +152,8 @@ LANGUAGES: dict[str, LangSpec] = {
                               "card."),
         worker_timeout_running=("The «{goal}» process has been running for {minutes} minutes now. Want me to "
                                 "stop it or keep going?"),
+        confirm_expired=("I stopped waiting for your confirmation on: {question} Just tell me again if you still "
+                         "want me to do it."),
         spark_pending="I've still got something pending: {title}. Should we pick it back up?",
         generic_task="the task",
         someone="someone",

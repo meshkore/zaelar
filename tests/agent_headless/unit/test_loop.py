@@ -122,3 +122,47 @@ def test_spark_discarded_when_nothing_useful(fresh_db, monkeypatch):
 
 async def _noop(title, text):
     return None
+
+
+# ── expired confirmations get told to the operator, over the same proactive rails (2026-08-16) ────────────
+def test_tick_delivers_an_expired_confirmations_notice(fresh_db, monkeypatch):
+    """Real incident: a confirmation nobody ever answered (superseded, or plain silence past the 90s TTL) used
+    to just vanish — the task stayed undone with zero signal. `widgets/confirm.py::_sweep()` already closes its
+    flow synchronously; the loop's job is the other half, telling the operator, exactly like a stuck/timed-out
+    worker gets a heads-up."""
+    from widgets import confirm
+
+    delivered = []
+
+    async def deliver(title, text):
+        delivered.append((title, text))
+
+    confirm.reset()
+    confirm._EXPIRED_QUEUE.clear()
+    confirm._EXPIRED_QUEUE.append({"widget_id": "agenda", "question": "¿Vacío la agenda entera?"})
+
+    lp = nloop.OrchestratorLoop(spark_gate=_never_spark(), deliver=deliver, consolidate_every_s=1e9)
+    asyncio.run(lp.tick())
+
+    assert len(delivered) == 1
+    title, text = delivered[0]
+    assert title == "zaelar"
+    assert "¿Vacío la agenda entera?" in text
+    assert confirm.drain_expired_notices() == [], "the loop must drain the queue, not leave it for the next tick"
+
+
+def test_tick_says_nothing_when_no_confirmation_expired(fresh_db):
+    from widgets import confirm
+
+    confirm.reset()
+    confirm._EXPIRED_QUEUE.clear()
+
+    delivered = []
+
+    async def deliver(title, text):
+        delivered.append((title, text))
+
+    lp = nloop.OrchestratorLoop(spark_gate=_never_spark(), deliver=deliver, consolidate_every_s=1e9)
+    asyncio.run(lp.tick())
+
+    assert delivered == []

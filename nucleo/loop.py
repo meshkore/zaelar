@@ -126,6 +126,7 @@ class OrchestratorLoop:
         now = time.time()
         self._ticks += 1
         await self._supervise_workers(now)
+        await self._supervise_confirms(now)
         await self._fire_due(now)
         await self._maybe_spark(now)
         await self._maybe_consolidate(now)
@@ -223,6 +224,23 @@ class OrchestratorLoop:
                 self._stuck_informed.add(tid)
                 _emit("worker.stuck", {"id": tid, "age_s": age, "silent_s": int(s.get("silent_s", age))})
 
+    async def _supervise_confirms(self, now: float) -> None:
+        """A pending irreversible-action confirmation the operator never answered must not die in silence
+        (2026-08-16, operator request after a diagnosed real incident: two turns asked the same "delete all my
+        agenda data" confirmation on the same widget — split by the segmenter — and both sat stuck with no way
+        to answer either one, and no signal that anything had gone wrong). `widgets/confirm.py` already closes
+        the orphaned/expired confirmation's flow synchronously (so the master stops showing it "EN CURSO"
+        forever); this is the other half — telling the operator, over the SAME proactive rails (voice+chat) a
+        stuck/timed-out worker already uses just above, so the task doesn't just quietly stay undone."""
+        try:
+            from widgets import confirm
+            expired = confirm.drain_expired_notices()
+        except Exception:
+            return
+        for e in expired:
+            q = (e.get("question") or "").strip() or self._lang().generic_task
+            await self._deliver("zaelar", self._say("confirm_expired", question=q))
+
     @staticmethod
     def _lang():
         """El catálogo de idioma activo (`voice.engine.core.langs`) — cae a español si el import fallara."""
@@ -236,6 +254,8 @@ class OrchestratorLoop:
                 worker_budget_killed = ("He parado «{goal}»: agotó su tiempo. Te dejo en la tarjeta lo que ha "
                                        "encontrado hasta ahora.")
                 worker_timeout_running = "El proceso «{goal}» lleva ya {minutes} minutos. ¿Quieres que lo pare o que siga?"
+                confirm_expired = ("Dejé de esperar tu confirmación sobre: {question} Dímelo otra vez si quieres "
+                                   "que lo haga.")
                 generic_task = "la tarea"
             return _Fallback()
 

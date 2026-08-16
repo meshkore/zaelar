@@ -21,8 +21,17 @@ import re
 import time
 import unicodedata
 
-_PENDING: dict[str, dict] = {}     # widget_id -> {action, question, ts}
+_PENDING: dict[str, dict] = {}     # widget_id -> {action, question, ts, trace_id}
 _TTL = 90.0                        # a confirmation expires after 90s; it must not hang forever
+
+# Queue of confirmations that JUST expired unanswered, awaiting a proactive notice to the operator (2026-08-16,
+# operator request after a real diagnosed incident: two turns for the same "delete all my agenda" instruction —
+# split by the segmenter — each opened its OWN confirmation on the same widget, silently clobbering one another
+# in `_PENDING`; nothing ever told the operator, and one of the two flows sat "EN CURSO" forever with no way to
+# answer it). `_sweep()` (called constantly, from request/pending/resolve) only enqueues here; it never notifies
+# directly — that would require an async call from a function with no guaranteed running loop. `nucleo/loop.py`'s
+# ~1Hz tick, which already owns the proactive-delivery rails (voice+chat), drains this once per tick instead.
+_EXPIRED_QUEUE: list[dict] = []
 
 
 def _emit(action: str, wid: str, extra: dict | None = None) -> None:
@@ -33,10 +42,40 @@ def _emit(action: str, wid: str, extra: dict | None = None) -> None:
         pass
 
 
+def _close_flow(trace_id: str, reason: str) -> None:
+    """Emits the explicit flow-close for a confirmation's ASKING trace once it's superseded or expired
+    (2026-08-16). Without this, that flow shows "EN CURSO" in the master forever: the turn that opened it made
+    its ONE close decision (`nucleo.py::_maybe_close_flow`, at the moment IT finished) and correctly chose not
+    to close while its confirmation was alive — nothing ever revisits that decision afterward, so once the
+    confirmation disappears from `_PENDING` (superseded by a new ask on the same widget, or TTL-expired) the
+    flow would otherwise never get a close event again. Best-effort, never blocks `request()`/`_sweep()`."""
+    if not trace_id:
+        return
+    try:
+        from voice import trace as _trace, observer as _observer
+        with _trace.scope(trace_id):
+            _observer.emit("flow", "end", role="system", extra={"ok": False, "reason": reason})
+    except Exception:
+        pass
+
+
 def _sweep() -> None:
     now = time.time()
     for k in [k for k, v in _PENDING.items() if now - v["ts"] > _TTL]:
-        _PENDING.pop(k, None)
+        v = _PENDING.pop(k, None)
+        if v:
+            _close_flow(v.get("trace_id", ""), "confirm_expired")
+            _EXPIRED_QUEUE.append({"widget_id": k, **v})
+
+
+def drain_expired_notices() -> list[dict]:
+    """Pops every confirmation that just expired unanswered, for the caller to tell the operator — a pending
+    question can never just die in silence (2026-08-16 operator request). Meant to be called once per tick by
+    `nucleo/loop.py`, the only caller that acts on the return value; every other `_sweep()` call site (far more
+    frequent) only needs the flow closed, which already happened inside `_sweep()` itself."""
+    out = list(_EXPIRED_QUEUE)
+    _EXPIRED_QUEUE.clear()
+    return out
 
 
 # Reserved id for a native surface that also asks for confirmation (V2-086). It is not a catalog widget: it is the
@@ -73,6 +112,14 @@ def request(action: str, widget_id: str, question: str = "", op: dict | None = N
         _trace_id = _trace.current()
     except Exception:
         _trace_id = ""
+    # SUPERSEDE explicitly, never silently drop (2026-08-16): a second ask for the same widget before the first
+    # got answered used to overwrite the dict entry in place, orphaning the FIRST asking trace forever (see the
+    # `_EXPIRED_QUEUE` comment above for the incident). The new ask's question gets spoken/chatted the normal
+    # way (the provider's "never mute" fallback fires whenever a confirmation just opened); this only makes sure
+    # the OLD one's flow doesn't linger unclosed once it can no longer be answered.
+    _old = _PENDING.get(wid)
+    if _old and _old.get("trace_id") and _old["trace_id"] != _trace_id:
+        _close_flow(_old["trace_id"], "confirm_superseded")
     _PENDING[wid] = {"action": (action or "delete").strip(), "question": (question or "").strip(),
                      "op": op if isinstance(op, dict) else None, "ts": time.time(), "trace_id": _trace_id}
     if notify_ui:

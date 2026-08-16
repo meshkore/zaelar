@@ -51,6 +51,70 @@ def test_confirm_carries_the_asking_turns_trace(monkeypatch):
     trace.adopt("")
 
 
+# ── orphaned/expired confirmations must not leave a flow stuck "EN CURSO" forever (2026-08-16) ────────────
+# Real incident diagnosed live: "borra todos los datos de mi agenda." got split by the segmenter into TWO turns
+# (a period-terminated fragment fired immediately, the continuation a moment later reopened as a fresh trace).
+# Both asked to confirm the SAME widget's data-op; the second silently clobbered the first in `_PENDING`, and
+# the first turn's flow — which had already decided, once, to stay open "while confirm pending" — never got
+# revisited to close. It sat "EN CURSO" in the master forever, unanswerable, with no signal to the operator.
+def test_a_second_ask_on_the_same_widget_closes_the_first_ones_flow(monkeypatch):
+    from voice import observer, trace
+
+    trace.adopt("")
+    old_tid = trace.begin("borra toda la agenda", origin="turno")
+    confirm.request("data", "agenda", "¿Vacío la agenda entera?", op={"action": "clear_all", "payload": {}})
+
+    trace.adopt("")
+    new_tid = trace.begin("borra toda la agenda, pasados y futuros", origin="turno")
+    confirm.request("data", "agenda", "¿Vacío la agenda entera (pasados y futuros)?",
+                     op={"action": "clear_all", "payload": {}})
+
+    closes = [e for e in observer.debug_events(kind="flow") if e.get("trace") == old_tid]
+    assert closes, "the FIRST ask's flow never got an explicit close — it would show EN CURSO forever"
+    assert closes[-1].get("reason") == "confirm_superseded"
+
+    # the SECOND (live) confirmation is untouched — only the orphan got closed
+    p = confirm.pending().get("agenda")
+    assert p and p["trace_id"] == new_tid
+    trace.adopt("")
+
+
+def test_answering_the_same_widget_twice_in_a_row_does_not_close_its_own_live_flow():
+    """Sanity: the normal single-ask path (no supersede) must not regress — `request()` with nothing pending
+    yet closes nothing."""
+    from voice import observer, trace
+
+    trace.adopt("")
+    tid = trace.begin("borra toda la agenda", origin="turno")
+    confirm.request("data", "agenda", "¿Vacío la agenda entera?", op={"action": "clear_all", "payload": {}})
+    assert not [e for e in observer.debug_events(kind="flow") if e.get("trace") == tid]
+    trace.adopt("")
+
+
+def test_an_expired_confirmation_closes_its_flow_and_queues_a_notice(monkeypatch):
+    """The 90s TTL sweep must not just vanish the entry: the flow closes (so the master stops showing it as
+    active) AND the expiry gets queued so `nucleo/loop.py` can tell the operator (2026-08-16)."""
+    from voice import observer, trace
+
+    trace.adopt("")
+    tid = trace.begin("borra toda la agenda", origin="turno")
+    confirm.request("data", "agenda", "¿Vacío la agenda entera?", op={"action": "clear_all", "payload": {}})
+    trace.adopt("")
+
+    confirm._PENDING["agenda"]["ts"] -= (confirm._TTL + 1)   # simulate 90s+ of silence
+    confirm._sweep()
+
+    assert "agenda" not in confirm.pending()
+    closes = [e for e in observer.debug_events(kind="flow") if e.get("trace") == tid]
+    assert closes and closes[-1].get("reason") == "confirm_expired"
+
+    notices = confirm.drain_expired_notices()
+    assert len(notices) == 1
+    assert notices[0]["widget_id"] == "agenda"
+    assert notices[0]["question"] == "¿Vacío la agenda entera?"
+    assert confirm.drain_expired_notices() == [], "drain must consume, never re-deliver the same notice twice"
+
+
 def test_confirm_classify_reply_es_en():
     assert confirm.classify_reply("sí, bórralo") == "yes"
     assert confirm.classify_reply("vale adelante") == "yes"
