@@ -12,10 +12,11 @@ import subprocess
 import time
 
 # Semantic version of the engine — bump it by hand when closing a notable block of changes (latest:
-# memory write/REM self-healing, V2-103 — the embedding backend no longer stays degraded for a process's whole
-# life after one transient Ollama hiccup, exact-duplicate pills are caught synchronously at write time, and REM
-# now demotes the raw pills it summarizes instead of only ever adding an insight on top of them).
-VERSION = "3.12"
+# voice.trace.active() gives observability events an explicit trace pointer instead of relying on a ContextVar
+# that LiveKit's sibling tasks structurally can't see (root-caused at the SDK source level); V2-103's memory
+# test suite hardening closed the gap that let its 3 write/REM bugs pass unnoticed for weeks; and
+# mem_processor's DeepSeek-direct endpoint now actually disables reasoning, matching the finding from V2-102).
+VERSION = "3.13"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CACHE: dict = {}
