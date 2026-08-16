@@ -1936,9 +1936,10 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - **No es la doble pasada descartada el 2026-08-02** (prompt 9.729→1.221 tok pero turno 1.938→6.208 ms): aquello
     ponía dos llamadas en el camino crítico DESPUÉS de que el operador callara. Esto decide dónde acaba la frase
     MIENTRAS habla, en tiempo que ya estamos esperando.
-  - **Y no hizo falta modelo**: mirando los 89 fragmentos reales, los que van a medias acaban en palabra función o
-    en coma. Regla léxica → **43/89 = 48% de llamadas evitadas** a coste y latencia cero. La capa de modelo queda
-    OPT-IN (`ZAELAR_SEGMENTER_MODEL`).
+  - **Y no hizo falta modelo para la mayoría**: mirando los 89 fragmentos reales, los que van a medias acaban en
+    palabra función o en coma. Regla léxica → **43/89 = 48% de llamadas evitadas** a coste y latencia cero. La
+    capa de modelo para lo genuinamente ambiguo se declaró aquí (`ZAELAR_SEGMENTER_MODEL`) pero no se cableó a
+    nada — **superseded by V2-102** (más abajo), que la construye de verdad y ON por defecto, no opt-in.
   - **Se cablea como detector de turno de LiveKit** (`turn_provider=semantic`, **el DEFECTO desde 2026-08-14**), no
     en el proveedor, y eso es lo que lo hace seguro: devuelve una PROBABILIDAD y `max_delay` es el tope duro → puede
     RETRASAR un turno, nunca perderlo. El ONNX de LiveKit sería un segundo veto (se toma la probabilidad más baja)
@@ -2133,6 +2134,62 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     extension, both new endpoints). The kickoff branch and fail-open valve inside `agent.py`'s
     `_maybe_detect_language` closure are deliberately not unit-tested — no extracted importable unit exists
     there, same coverage shape as the rest of that file.
+- **Turn-completeness judge — real intelligence replaces "hold forever"** (V2-102, 2026-08-16; full detail in
+  `.meshkore/roadmap/initiatives/V2-102-turn-completeness-judge.md`). Live bug: "dame los datos personales
+  que conoces de mi" was silently swallowed three times — `nucleo/flash/accumulator.py` (V2-096) held it as
+  incomplete because it ends in unaccented "mi" (the possessive determiner reading), and the accumulator has
+  **no time-based flush by design** — a lexical misclassification meant a real request vanished forever, not
+  just late. That one word is fixed (`segmenter.py::_ENDING_PRONOUN_HOMOPHONE`); this closes the class of bug.
+  - **`nucleo/flash/segmenter.py::judge(text) -> (verdict, extra)`** — async, calls a fast LLM
+    (`nucleo/memllm.chat_sync`, new `"turn_complete"` task, **DeepSeek DIRECT** per the V2-097 TTFT finding —
+    the AIMLAPI broker doesn't honor `thinking:disabled` for this model, the direct endpoint does) judging by
+    MEANING in any language, never a per-language word list. Three verdicts: `complete` (act), `ask` (speak a
+    clarifying question NOW instead of waiting on something that may never come — `extra` carries the
+    question, in the operator's language), `incomplete` (agrees with layer 1, keep accumulating). Fails open
+    to `("incomplete", "")` on ANY error — strictly an extra chance, never worse than before. **Replaces the
+    dead `ZAELAR_SEGMENTER_MODEL`/`model_enabled()` stub** — declared in the V2-095 docstring, zero real
+    callers ever wired to it. Default **ON**, not opt-in (this codebase has hit "a capability whose default
+    is off is a capability nobody has" three times already — Susurro, REM, this very module); kill-switch
+    `ZAELAR_TURN_JUDGE=0`.
+  - **`Accumulator.offer()` → async, new `"ask"` action.** Layer 1 (lexical, sync, `_complete`) still decides
+    the fast path ALONE and unchanged — the judge (`_judge`, injectable via `set_judge`, mirroring
+    `set_predicate`) is only `await`ed when layer 1 says incomplete, so the common case pays nothing extra.
+    `"ask"` clears the buffer and returns the question for the caller to speak; no FlashBrain dispatch for
+    that turn — the question IS the response.
+  - **The 25s gap valve gets one LLM check before discarding anything.** `voice/engine/llm/providers/
+    nucleo.py::_speak_acc_drop` used to always speak the same generic "sorry, I missed that" when a stale
+    chain got dropped — an ACKNOWLEDGED loss of intent, still a loss. Now: `ask` speaks the clarifying
+    question directly; `complete` still speaks the generic notice (immediate signal) but ALSO pushes a
+    `[SISTEMA]` note (`voice/brain_notes.py`) so the content surfaces on the NEXT turn — never spoken
+    unprompted, and deliberately NOT a synthetic re-dispatch from this out-of-band path (no live turn context
+    to safely re-enter the pipeline from); `incomplete` keeps the plain behavior.
+  - **Deliberate scope decision, asked explicitly rather than assumed**: keep the BOUNDED wait (8s nudge, 25s
+    gap resolution) for a genuine `incomplete` verdict, rather than always resolving to ACT/ASK on the first
+    ambiguous read. 141/160 real multi-fragment pauses in the corpus resolve themselves when the next
+    fragment arrives (V2-096's own measurement) — always-resolve-immediately would reintroduce the
+    over-eager-interruption problem V2-096 fixed, now as a spoken question instead of a wrong action. "Never
+    retained forever" is still literally true: every fragment ends in ACT, ASK, or an LLM-confirmed
+    acknowledged discard — never silence with zero signal — it just doesn't have to happen on the very first
+    ambiguous read.
+  - **Fixed an adjacent Energy-metering gap found while tracing the call path.** `memllm.chat_sync` is
+    documented to run inside `asyncio.to_thread`, but `energy_meter._fire_and_forget` required a running loop
+    in the CURRENT thread — a `to_thread` worker has none, so the control-plane usage POST silently never
+    fired (the local lease deduction still happened; only billing visibility was lost). Already affected i18n
+    bundle generation and nightly REM synthesis. Fixed at the root with the SAME `set_loop()`/
+    `run_coroutine_threadsafe` bridge `nucleo/browser_search.py` already uses for the identical problem,
+    called once from `server/__init__.py`'s lifespan, rather than working around it per-caller.
+  - **Cheap first filter, small addition**: `voice/endpointing.py::is_backchannel` (already existed, es/en,
+    free) gained "uh", "uhh", "oops", "wow", "damn", "shit", "fuck", "good" — named explicitly when scoping
+    this. Deliberately NOT a broad multilingual profanity dictionary: an interjection in an uncovered language
+    just costs one `judge()` call and gets classified correctly by meaning — that fallback is the point of
+    this whole feature, not a gap to patch with more hardcoded lists.
+  - Tests: `test_segmenter.py` (judge + parse + default-on/kill-switch), `test_accumulator.py` (3-way verdict,
+    injection, fail-open, cost — judge never called when layer 1 already says complete),
+    `test_energy_meter.py` (the bridge, both branches), `test_nucleo_accumulator_notice.py` (the `"ask"`
+    action's pure logic), new `test_nucleo_speak_acc_drop.py` (the gap-valve's upgraded behavior, all three
+    verdicts). Also fixed three now-broken synchronous `.offer()` calls in
+    `tests/voice/unit/providers/test_nucleo_trace_merge.py` (a concurrent session's uncommitted work) —
+    `offer()` becoming async broke them structurally; fixed alongside, nothing else in that file touched.
 
 ## Testing y rueda de mejora (INI-013)
 

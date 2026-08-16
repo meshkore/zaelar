@@ -475,6 +475,17 @@ _KV_KEY = "energy:balance"
 _state: dict = {"balance": None, "capacity": None, "at": 0.0}
 _loaded = False
 
+# The server's event loop (V2-102), for the SAME cross-thread bridge problem `nucleo/browser_search.py::set_loop`
+# already solves — captured once, sync, from the lifespan.
+_loop = None
+
+
+def set_loop(loop) -> None:
+    """Captures the server's loop so `_fire_and_forget` can still schedule its POST when called from a thread
+    that has none of its own (`asyncio.to_thread`) — see `_fire_and_forget` for why this exists."""
+    global _loop
+    _loop = loop
+
 
 def _load_once() -> None:
     global _loaded
@@ -554,9 +565,20 @@ def _fire_and_forget(energy: float, kind: str, meta: dict | None = None) -> None
 
     try:
         asyncio.get_running_loop()
-    except RuntimeError:
+        asyncio.create_task(_post_usage(energy, kind, meta))
         return
-    asyncio.create_task(_post_usage(energy, kind, meta))
+    except RuntimeError:
+        pass
+    # No loop in THIS thread — the caller is inside `asyncio.to_thread` (V2-102: `nucleo/memllm.chat_sync` is
+    # documented to run there, and every one of its callers metered through this path silently lost their
+    # report — the local lease deduction above still happened, only the control-plane POST vanished). Same
+    # bridge `nucleo/browser_search.py::set_loop`/`run_coroutine_threadsafe` already uses for the identical
+    # problem. No loop captured yet (`set_loop` not called — e.g. a unit test) → drop, same as before.
+    if _loop is not None:
+        try:
+            asyncio.run_coroutine_threadsafe(_post_usage(energy, kind, meta), _loop)
+        except Exception:  # noqa: BLE001
+            pass
 
 
 def _never_raises(fn):

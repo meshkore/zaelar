@@ -407,6 +407,29 @@ mensajes personales SALEN a la nube.
 `fast`=OpenAI gpt-4o-mini · `memory`=OpenAI gpt-4.1-mini · `triage`=xAI grok · `code_agent`=claude_code ·
 `rerank`=local jina (CPU) · `embed`=fastembed (CPU) · **STT=whisper_local (GPU) ← único local pesado pendiente**.
 
+### 9.6 Turn-completeness judge (`config §memory.turn_complete_*`, V2-102, 2026-08-16)
+
+`nucleo/flash/segmenter.py::judge` — the safety net for a fragment `nucleo/flash/accumulator.py`'s lexical
+layer can't confidently call complete. The ONE `memllm` task where latency is genuinely user-visible mid-
+conversation (every other task here — REM, i18n — runs off-schedule, not mid-turn), so the endpoint choice
+matters more than for any other task on this page.
+
+**`api.deepseek.com` DIRECT, not the AIMLAPI broker — same model, same price, obedient vs not.** Reusing
+§11's own finding rather than re-measuring: with the real voice prompt, the broker's `deepseek-v4-flash`
+ignores `thinking:disabled` (TTFT p50 4.24s, up to 14.71s, 2138 reasoning tokens) while the direct endpoint
+honors it (TTFT p50 1.01s, max 1.30s, 0 reasoning tokens). This task's prompt is much smaller than the full
+voice prompt (a single fragment, no tool catalog) — the gap only gets more favorable to the direct endpoint.
+`memllm.chat_sync` now sets `thinking:{"type":"disabled"}` automatically whenever the resolved URL is
+`api.deepseek.com`, scoped to that endpoint (REM's own `deepseek-v4-flash` call goes through the broker,
+which ignores the field anyway, and was benchmarked §12.4 WITH reasoning on — scoping avoids silently
+changing that path's already-measured quality).
+
+Not (yet) independently benchmarked against alternatives for THIS specific task (a 3-way completeness
+classification is a different shape of problem than turn-routing §11 or synthesis §12) — chosen on the
+strength of the endpoint-obedience finding plus already-resolved credentials/plumbing. If routing/precision
+complaints surface for this task specifically, bench it the same way §11 benched turn-routing: real
+fragments, `--reps` for frequency not single samples, compare against the broker and against Haiku.
+
 ## 10. «Susurro» (V2-053) — modelo del auditor conversacional
 
 Carril NUEVO fuera del camino de voz → **aquí un RAZONADOR sí vale** (la regla dura solo veta el path de voz).

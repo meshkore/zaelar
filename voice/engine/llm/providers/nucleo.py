@@ -135,18 +135,42 @@ def _acc_notice_plan(action: str, dropped: str, n_before: int) -> tuple[bool, bo
 
 
 async def _speak_acc_drop(dropped: str) -> None:
-    """A stale fragment chain just got silently discarded (`Accumulator`'s gap valve, > MAX_GAP_S). Silence here
-    IS the bug: acknowledge it out of band (`voice.proactive.speaker()`, the same lead-in channel V2-093 uses for
-    fillers) so the operator learns their earlier words were lost, instead of hearing a reply that ignores them
-    with no explanation. Best-effort: no live speaker (probe/text channel, no session) → no-op; never talks over
-    the operator mid-sentence (`proactive.user_speaking()`)."""
+    """A stale fragment chain just got discarded (`Accumulator`'s gap valve, > MAX_GAP_S). Silence here IS the
+    bug: acknowledge it out of band (`voice.proactive.speaker()`, the same lead-in channel V2-093 uses for
+    fillers) so the operator learns their earlier words weren't just ignored. Best-effort: no live speaker
+    (probe/text channel, no session) → no-op; never talks over the operator mid-sentence
+    (`proactive.user_speaking()`).
+
+    V2-102: before settling for the generic "I missed that", give the JUDGE one more look at what got dropped —
+    a genuinely complete or clarification-worthy request shouldn't get the same shrug as real gibberish just
+    because the operator paused too long. `ASK` speaks the clarifying question right here, same as the live
+    path. `COMPLETE` still speaks the generic notice (the operator needs SOME immediate signal) but ALSO pushes
+    a `[SISTEMA]` note (`voice/brain_notes.py`) so the content itself surfaces on the NEXT turn instead of
+    vanishing — never spoken unprompted, since nothing was just asked. Only a genuine `INCOMPLETE` verdict (the
+    judge agrees there's nothing worth resurrecting) keeps today's plain behavior."""
     try:
         from voice import proactive
         speak = proactive.speaker()
         if speak is None or proactive.user_speaking():
             return
         from voice.engine.core import langs
-        r = speak(langs.current_language().acc_fragment_dropped)
+        text = langs.current_language().acc_fragment_dropped
+        try:
+            from nucleo.flash import segmenter
+            verdict, extra = await segmenter.judge(dropped)
+            if verdict == "ask" and extra:
+                text = extra
+            elif verdict == "complete":
+                try:
+                    from voice import brain_notes
+                    brain_notes.push(
+                        f'[SISTEMA] El operador dijo esto antes de una pausa larga y no llegó a procesarse: '
+                        f'"{dropped}". Si sigue vigente, atiéndelo en tu próxima respuesta.')
+                except Exception:
+                    pass
+        except Exception:
+            pass          # judge unavailable → fall back to the plain generic notice, same as before V2-102
+        r = speak(text)
         if asyncio.iscoroutine(r):
             await r
     except Exception:
@@ -579,7 +603,7 @@ class NucleoLLMStream(llm.LLMStream):
             if getattr(brain, "_acc", None) is None:
                 brain._acc = _acc.Accumulator()
             _n_before = len(brain._acc.fragments)
-            _action, _merged, _why, _dropped = brain._acc.offer(text)
+            _action, _merged, _why, _dropped = await brain._acc.offer(text)
 
             # BUG FIX (2026-08-15, session d4b2bc35): a stale chain that got silently discarded (gap > MAX_GAP_S)
             # used to only ever surface — muted, in `extra`, never spoken — when the CALL AFTER the drop happened
@@ -612,6 +636,28 @@ class NucleoLLMStream(llm.LLMStream):
                      extra={"cat": "flash", "why": _why, "trozos": len(brain._acc.fragments),
                             "acumulado": brain._acc.text()[:300]})
                 return
+
+            if _action == "ask":
+                # V2-102: layer 2 (the LLM judge) says this looks actionable but is missing something concrete
+                # enough that a real assistant would ASK rather than guess or wait in silence. `_why` carries the
+                # question text here (repurposed — see `Accumulator.offer`'s docstring). Speaks it exactly like
+                # the drop-notice/nudge do (`voice.proactive.speaker()`, never over the operator mid-sentence)
+                # and RETURNS — the question IS this turn's response, no FlashBrain dispatch, no memory ingest.
+                brain._acc_gen += 1
+                brain._acc_trace_id = ""
+                emit("brain", "❓ pidiendo aclaración", text=_why[:200], role="system",
+                     extra={"cat": "flash", "acumulado": _merged[:300]})
+                try:
+                    from voice import proactive
+                    speak = proactive.speaker()
+                    if speak is not None and not proactive.user_speaking():
+                        r = speak(_why)
+                        if asyncio.iscoroutine(r):
+                            await r
+                except Exception:
+                    pass
+                return
+
             if _n_before and not _dropped:
                 emit("brain", "🧩 frase completada en varios tiempos", text=_merged[:300], role="user",
                      extra={"cat": "flash", "trozos": _n_before + 1, "motivo": _why})

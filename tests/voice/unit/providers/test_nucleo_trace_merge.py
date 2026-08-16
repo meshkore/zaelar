@@ -4,11 +4,36 @@ separate corr_ids, because LiveKit closes a turn per STT-final segment and `trac
 per turn. `_begin_or_adopt_trace` is factored out of `_run_inner` precisely so this is testable without a live
 LiveKit stream — see `voice/engine/llm/providers/nucleo.py::_begin_or_adopt_trace`.
 """
+import asyncio
+
+import pytest
+
+from nucleo.flash import accumulator as acc_mod
 from nucleo.flash.accumulator import Accumulator
 from voice import trace
 from voice.engine.llm.providers.nucleo import (
     NucleoLLM, _begin_or_adopt_trace, _flow_should_close, _release_acc_trace_if_fresh,
 )
+
+
+async def _stub_incomplete(text: str) -> tuple[str, str]:
+    return "incomplete", ""
+
+
+@pytest.fixture(autouse=True)
+def _no_real_judge_calls():
+    """Fast, network-free layer-2 stub for every test here — several fixtures below offer lexically-incomplete
+    fragments ("Pues mira, me vas a borrar" starts with the dangling «pues»), which since V2-102 fall through to
+    `Accumulator.offer()`'s judge call. Without this, they'd hit the real model over the network."""
+    acc_mod.set_judge(_stub_incomplete)
+    yield
+    acc_mod.set_judge(None)
+
+
+def _offer(acc: Accumulator, *args, **kwargs):
+    """`Accumulator.offer()` is async since V2-102 — same `asyncio.run(...)`-per-call convention used elsewhere
+    in this suite for a sync test that needs one async result."""
+    return asyncio.run(acc.offer(*args, **kwargs))
 
 
 def _fresh_brain() -> NucleoLLM:
@@ -39,7 +64,7 @@ def test_turn_offered_while_the_chain_is_pending_adopts_the_chains_trace():
     brain._acc = Accumulator()
     _begin_or_adopt_trace(brain, "Pues mira, me vas a borrar", False)
     first_tid = trace.current()
-    brain._acc.offer("Pues mira, me vas a borrar")   # incomplete -> "hold", buffer now non-empty
+    _offer(brain._acc, "Pues mira, me vas a borrar")   # incomplete -> "hold", buffer now non-empty
     assert brain._acc.pending()
 
     trace.adopt("")   # simulate a fresh turn's context, as a new NucleoLLMStream would start with
@@ -54,7 +79,7 @@ def test_unrelated_new_utterance_after_the_chain_resolves_gets_its_own_trace():
     brain._acc = Accumulator()
     _begin_or_adopt_trace(brain, "busca una moto de segunda mano", False)
     first_tid = trace.current()
-    action, _merged, _why, _dropped = brain._acc.offer("busca una moto de segunda mano.")
+    action, _merged, _why, _dropped = _offer(brain._acc, "busca una moto de segunda mano.")
     assert action == "act"                 # closes the chain in one shot (already looks complete)
     brain._acc_trace_id = ""               # this is what the real call site does right after "act"
 
@@ -117,7 +142,7 @@ def test_release_does_not_end_a_genuinely_pending_chain_it_only_adopted():
     brain._acc = Accumulator()
     _begin_or_adopt_trace(brain, "Pues mira, me vas a borrar", False)
     chain_tid = trace.current()
-    brain._acc.offer("Pues mira, me vas a borrar")   # incomplete -> "hold": a real chain is now pending
+    _offer(brain._acc, "Pues mira, me vas a borrar")   # incomplete -> "hold": a real chain is now pending
     assert brain._acc.pending()
 
     trace.adopt("")

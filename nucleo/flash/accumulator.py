@@ -27,15 +27,25 @@ terminan sin cerrar (y esas salen por la válvula). Ejemplos reales, tal cual:
     «Busca también en todas las»  +  «páginas que puedas, ¿vale?»
     «De un mínimo de cuarenta y cinco pies, y me hagas una selección de los»  +  «cinco mejores.»
 
-## Lo que este módulo NO resuelve, y hay que decirlo
+## Layer 2, the LLM judge (V2-102, 2026-08-16) — never again "incomplete" by a lexical rule's final word
 
-Juzga la completitud **SINTÁCTICA** (¿cuelga la frase?), que es léxica y gratis. No juzga si hay una **acción, una
-pregunta o una petición CLARA**, que es la otra mitad de lo que pidió el operador. Se ve en los propios datos:
-pegando sale `'Mora, is there project'`, que cierra sintácticamente y no es accionable.
+Layer 1 (`_predicate`) judges **SYNTACTIC** completeness (does the sentence dangle?), which is lexical, free,
+and only covers es/en. A REAL bug exposed it: "dame los datos personales que conoces de mi" (give me the
+personal data you know about me) got held THREE times without ever generating a reply — unaccented "mi" is
+phonetically «mí» (the pronoun, a COMPLETE sentence) but the lexical rule reads it as the possessive ("mi
+coche", incomplete), and this module has NO time-based flush, by design: a bad lexical read meant a real
+request was lost FOREVER, not just late.
 
-Por eso el predicado es **INYECTABLE** (`set_predicate`): la capa pragmática —con modelo, y corriendo mientras el
-operador habla, fuera del camino crítico— entra aquí sin tocar el resto. Ver la iniciativa V2-096 para el diseño y
-su análisis de coste.
+When layer 1 says incomplete, `offer()` now `await`s layer 2 (`_judge`, a real model, any language — no
+per-language word tables) for a second opinion: `"complete"` (act on it), `"ask"` (speak a clarifying
+question RIGHT NOW instead of waiting in silence for something that may never come), or `"incomplete"`
+(layer 1 was right, keep accumulating). The gap valve (§VALVES) also consults the judge before discarding —
+see `_speak_acc_drop` in `voice/engine/llm/providers/nucleo.py`. With this, **no fragment ever ends in
+silence without an intelligent decision**: it ends in ACTING, ASKING, or an acknowledged discard the judge
+confirmed truly has nothing actionable in it — never "got no reply and nobody knows why".
+
+Injectable (`set_judge`), same as layer 1 (`set_predicate`) — see the V2-102 initiative for the design and
+why the bounded layer-1 wait was kept instead of always resolving on the first judgment.
 
 ## Invariantes (todos con test, y los tres primeros son de seguridad)
 
@@ -59,7 +69,10 @@ from dataclasses import dataclass, field
 # GENERARLO». Un flush por tiempo haría justo lo contrario: contestar a media frase unos segundos más tarde.
 #
 # Las válvulas de abajo NO existen para acabar respondiendo, sino para que el buffer no crezca sin fin ni se pegue a
-# una petición posterior que no tiene nada que ver.
+# una petición posterior que no tiene nada que ver. There is still no TIMER that fires `offer()` on its own — the
+# gap valve stays reactive, evaluated on the NEXT call, never on a clock of its own. What DOES change (V2-102):
+# before a discard turns into a generic "lost it" notice, the caller (`_speak_acc_drop`) gives the JUDGE one
+# last look — see the module docstring, §layer 2.
 #
 # Topes duros contra el caso patológico (STT picando una parrafada en trozos que nunca cierran).
 MAX_FRAGMENTS = int(os.getenv("ZAELAR_ACC_MAX_FRAGMENTS", "6"))
@@ -109,20 +122,31 @@ class Accumulator:
         self.first_at = self.last_at = 0.0
 
     # ── la decisión ─────────────────────────────────────────────────────────────────────────────────────────
-    def offer(self, incoming: str, *, now: float | None = None) -> tuple[str, str, str, str]:
-        """Ofrece la transcripción de un turno recién cerrado.
+    async def offer(self, incoming: str, *, now: float | None = None) -> tuple[str, str, str, str]:
+        """Offers the transcript of a turn that just closed.
 
-        Devuelve `(accion, texto, motivo, descartado)`:
-          * `("act", texto_completo, "", descartado)` — hay una petición entera; el turno sigue con ESE texto
-            (que puede incluir lo acumulado antes).
-          * `("hold", "", motivo, descartado)` — es un trozo; NO se habla, NO se actúa, NO se escribe en memoria.
-            El llamador programa un flush por si el operador ya no continúa.
+        Returns `(action, text, reason, dropped)`:
+          * `("act", full_text, "", dropped)` — there's a whole request; the turn continues with THAT text
+            (which may include what was accumulated before).
+          * `("ask", accumulated_text, question, dropped)` — (V2-102) looks like a request but is missing
+            something concrete; `question` is what needs to be SAID right now (out of band) instead of
+            waiting in silence. NOT written to memory nor dispatched to the FlashBrain for this turn — the
+            question IS the response.
+          * `("hold", "", reason, dropped)` — it's a fragment; nothing is spoken, acted on, or written to
+            memory. The caller schedules a flush in case the operator never continues it.
 
         `descartado` (2026-08-15 fix): non-empty in EITHER branch, it carries whatever this call's gap valve
         (> MAX_GAP_S) just discarded. It used to travel embedded in the "act" branch's `motivo` only, so a call
         that landed on "hold" instead — the common case: the fragment that triggers a drop is usually itself
         incomplete — lost it with no trace at all. A field of its own, independent of the hold reason, so the
         caller can ALWAYS surface a discard without having to parse a sentence to find it.
+
+        Async since V2-102: layer 1 (`_complete`, lexical, sync) still decides the FAST path alone — this only
+        awaits the layer-2 JUDGE (`_judge`, real LLM, any language) when layer 1 says incomplete. A misjudged
+        "incomplete" from layer 1 alone used to mean a real request held FOREVER (`accumulator.py` has no
+        time-based flush, by design) — the judge is what makes that never literally true anymore: either it
+        upgrades the verdict here, or the gap valve (see the caller's `_speak_acc_drop`) gets one more chance
+        at it before anything is actually discarded.
         """
         now = time.time() if now is None else now
         incoming = (incoming or "").strip()
@@ -147,6 +171,21 @@ class Accumulator:
         if _complete(candidate):
             self.clear()
             return "act", candidate, "", dropped
+
+        # LAYER 2 (V2-102): layer 1 says incomplete — don't just trust a word list. `segmenter.judge` (the
+        # default `_judge`) is already internally fail-open, but `set_judge` accepts ANY injected callable
+        # (tests, a future alternate judge) — the invariant has to hold here too, the same way `_complete()`
+        # wraps `_predicate()`, or a broken injected judge could turn "hold briefly" into "hang the turn".
+        try:
+            verdict, extra = await _judge(candidate)
+        except Exception:
+            verdict, extra = "incomplete", ""
+        if verdict == "complete":
+            self.clear()
+            return "act", candidate, "", dropped
+        if verdict == "ask" and extra:
+            self.clear()
+            return "ask", candidate, extra, dropped
 
         # Sigue a medias → acumula. Las válvulas se comprueban DESPUÉS de añadir: lo que se entrega es todo lo que
         # hay, nunca un buffer a medio vaciar.
@@ -211,9 +250,13 @@ _predicate = _default_complete
 
 
 def set_predicate(fn) -> None:
-    """Sustituye el juez de completitud. Es el punto de entrada de la capa PRAGMÁTICA (¿hay acción/pregunta/petición
-    clara?), que necesita modelo y corre mientras el operador habla. Firma: `(str) -> (completo: bool, motivo: str)`.
-    Pasar `None` restaura el léxico."""
+    """Replaces layer 1's completeness judge (lexical, sync, free). Signature: `(str) -> (complete: bool,
+    reason: str)`. Passing `None` restores the default lexical judge.
+
+    ⚠️ No longer the pragmatic layer's entry point (this docstring used to say that, back when the hook was
+    declared but unimplemented) — that layer now lives in `_judge`/`set_judge`, is ASYNC, and has three
+    verdicts, not two. This predicate remains the FAST filter that decides whether calling the model is
+    needed at all."""
     global _predicate
     _predicate = fn or _default_complete
 
@@ -234,3 +277,21 @@ def _why(text: str) -> str:
         return why or "la frase no ha acabado"
     except Exception:
         return "la frase no ha acabado"
+
+
+# ── EL JUEZ, capa 2 (inyectable, ASÍNCRONO) — V2-102 ───────────────────────────────────────────────────────────
+async def _default_judge(text: str) -> tuple[str, str]:
+    from nucleo.flash import segmenter
+    return await segmenter.judge(text)
+
+
+_judge = _default_judge
+
+
+def set_judge(fn) -> None:
+    """Replaces layer 2's judge (a real LLM, any language). Signature: `async (str) -> (verdict, extra)` with
+    verdict in `"complete"|"ask"|"incomplete"`. Only called when layer 1 says incomplete — injectable for
+    tests (avoids a real network/model call) and for an alternate judge if ever needed. `None` restores
+    `segmenter.judge`."""
+    global _judge
+    _judge = fn or _default_judge

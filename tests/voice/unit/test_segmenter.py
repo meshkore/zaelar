@@ -91,6 +91,32 @@ def test_las_peticiones_completas_pasan(frase):
     assert hold is False, f"«{frase}» está completa y se retendría por «{why}»"
 
 
+# ── «mi»/«mí» — el detector ignoraba al operador de verdad (2026-08-16, sesión 1021eeee) ─────────────────────────
+# «dame los datos personales que conoces de mi» se retuvo TRES veces seguidas sin generar ni voz ni acción — el
+# accumulator (V2-096) no tiene válvula de tiempo por diseño, así que una frase mal clasificada como incompleta se
+# queda sin respuesta PARA SIEMPRE, no solo retrasada. Causa: «mí» (pronombre, «de mí»/«sobre mí»/«para mí») es
+# fonéticamente IDÉNTICO a la posesiva «mi» sin tilde, y el STT rara vez conserva la tilde en un monosílabo — la
+# excepción por acento (`_ACCENTED_NOT_FUNCTION`) solo protegía el caso raro en que SÍ la conservaba.
+@pytest.mark.parametrize("frase", [
+    "dame los datos personales que conoces de mi",
+    "cuéntame lo que sabes de mi",
+    "¿qué opinas de mi?",
+    "esto es para mi",
+    "habla de mi",
+    "dame los datos personales que conoces de mí",   # con tilde: ya funcionaba, no debe regresar
+])
+def test_terminar_en_mi_sin_tilde_no_se_retiene_para_siempre(frase):
+    hold, why = sg.should_hold(frase)
+    assert hold is False, f"«{frase}» es una petición completa (pronombre «mí») y se retendría por «{why}»"
+
+
+def test_mi_posesiva_sigue_incompleta_como_palabra_suelta():
+    """El fix es SOLO para «mi» al final de la frase — como palabra suelta («mi» a secas) sigue sin ser un turno,
+    y «mi» posesiva seguida de sustantivo («mi coche…») nunca llega a este caso porque no termina en «mi»."""
+    hold, why = sg.should_hold("mi")
+    assert hold is True, "una «mi» suelta sigue siendo ambigua, no una petición"
+
+
 # ── LOS INVARIANTES ────────────────────────────────────────────────────────────────────────────────────────────
 def test_el_techo_de_retencion_entrega_siempre():
     """La capa semántica puede RETRASAR un turno, nunca perderlo. Un operador que se corta a mitad («…y ponerlo
@@ -106,13 +132,78 @@ def test_fail_open_ante_cualquier_cosa_rara():
         assert sg.should_hold(raro)[0] is False, repr(raro)
 
 
-def test_el_modelo_es_OPT_IN(monkeypatch):
-    """La capa 2 (modelo) no gasta un token mientras nadie la active. Los cortes observados los cubre la capa
-    léxica, y meter una llamada por parcial sin medirlo sería repetir el error de las dos pasadas de 2026-08-02."""
-    monkeypatch.delenv("ZAELAR_SEGMENTER_MODEL", raising=False)
-    assert sg.model_enabled() is False
-    monkeypatch.setenv("ZAELAR_SEGMENTER_MODEL", "algo")
-    assert sg.model_enabled() is True
+def test_el_juez_esta_ENCENDIDO_por_defecto(monkeypatch):
+    """V2-102: ya no es opt-in (`ZAELAR_SEGMENTER_MODEL`, que nadie llegó a leer nunca — un hueco declarado y
+    jamás cableado). Este codebase ya se ha encontrado tres veces con "una capacidad cuyo defecto está apagado es
+    una capacidad que nadie tiene" (Susurro, REM, el propio segmentador) — la cuarta no iba a ser esta. Sigue
+    habiendo un escape manual, `ZAELAR_TURN_JUDGE=0`, para emergencias."""
+    monkeypatch.delenv("ZAELAR_TURN_JUDGE", raising=False)
+    assert sg.judge_enabled() is True
+    monkeypatch.setenv("ZAELAR_TURN_JUDGE", "0")
+    assert sg.judge_enabled() is False
+    monkeypatch.setenv("ZAELAR_TURN_JUDGE", "1")
+    assert sg.judge_enabled() is True
+
+
+def test_parse_judge_lee_los_tres_veredictos():
+    assert sg._parse_judge('{"verdict": "COMPLETE", "question": null}') == ("complete", "")
+    assert sg._parse_judge('{"verdict": "INCOMPLETE", "question": null}') == ("incomplete", "")
+    assert sg._parse_judge('{"verdict": "ASK", "question": "¿Qué canción?"}') == ("ask", "¿Qué canción?")
+
+
+def test_parse_judge_ASK_sin_pregunta_hace_fail_open():
+    """Un ASK sin texto de pregunta no es accionable — no hay nada que decir en voz alta."""
+    assert sg._parse_judge('{"verdict": "ASK", "question": null}') == ("incomplete", "")
+
+
+def test_parse_judge_tolera_code_fences_como_el_de_i18n():
+    raw = '```json\n{"verdict": "COMPLETE", "question": null}\n```'
+    assert sg._parse_judge(raw) == ("complete", "")
+
+
+@pytest.mark.parametrize("raw", [None, "", "no es json", '{"verdict": "MAYBE"}', "{"])
+def test_parse_judge_fail_open_ante_basura(raw):
+    assert sg._parse_judge(raw) == ("incomplete", "")
+
+
+def test_judge_deshabilitado_no_llama_a_nadie(monkeypatch):
+    monkeypatch.setenv("ZAELAR_TURN_JUDGE", "0")
+
+    async def _boom(*a, **kw):
+        raise AssertionError("no debía llamar al modelo con el juez apagado")
+    monkeypatch.setattr(asyncio, "to_thread", _boom)
+    assert asyncio.run(sg.judge("dame los datos personales que conoces de mi")) == ("incomplete", "")
+
+
+def test_judge_texto_vacio_no_llama_a_nadie(monkeypatch):
+    async def _boom(*a, **kw):
+        raise AssertionError("no debía llamar al modelo con texto vacío")
+    monkeypatch.setattr(asyncio, "to_thread", _boom)
+    assert asyncio.run(sg.judge("   ")) == ("incomplete", "")
+
+
+def test_judge_llama_al_modelo_y_parsea_su_respuesta(monkeypatch):
+    """El caso real que motivó todo esto: la capa léxica ya dijo incompleta (ver test_segmenter.py de arriba),
+    el juez la corrige."""
+    captured = {}
+
+    async def _fake_to_thread(fn, *args, **kwargs):
+        captured["task"] = args[0]
+        captured["text"] = args[2]
+        return '{"verdict": "COMPLETE", "question": null}'
+    monkeypatch.setattr(asyncio, "to_thread", _fake_to_thread)
+    verdict, extra = asyncio.run(sg.judge("dame los datos personales que conoces de mi"))
+    assert verdict == "complete"
+    assert extra == ""
+    assert captured["task"] == "turn_complete"
+    assert captured["text"] == "dame los datos personales que conoces de mi"
+
+
+def test_judge_fail_open_si_el_modelo_revienta(monkeypatch):
+    async def _boom(*a, **kw):
+        raise RuntimeError("red caída")
+    monkeypatch.setattr(asyncio, "to_thread", _boom)
+    assert asyncio.run(sg.judge("Ahora vamos a")) == ("incomplete", "")
 
 
 # ── EL DETECTOR DE LIVEKIT ────────────────────────────────────────────────────────────────────────────────────

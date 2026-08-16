@@ -43,6 +43,13 @@ _DEFAULTS = {
     #                                  no compensa porque la tarea se paga UNA vez por idioma (514 claves = 11
     #                                  lotes ≈ $0,08 con haiku) y la fiabilidad vale más que el precio.
     "i18n": ("https://api.aimlapi.com/v1", "anthropic/claude-haiku-4.5"),
+    # turn_complete (V2-102): the voice pipeline's turn-completeness judge (nucleo/flash/segmenter.py::judge).
+    # Fires per AMBIGUOUS fragment, mid-conversation — the ONE memllm task where latency is user-visible (every
+    # other task here runs off-schedule: REM nightly, i18n once per language). DeepSeek DIRECT, not the AIMLAPI
+    # broker: per zaelar-model-benchmarks.md §11/CLAUDE.md's V2-097 finding, the broker doesn't honor
+    # `thinking:disabled` for this model (~8.6s TTFT) while the direct endpoint does (~1s) — the same model,
+    # the same price, just obedient. `DEEPSEEK_API_KEY` already resolves via `nucleo/provider_keys.py`.
+    "turn_complete": ("https://api.deepseek.com", "deepseek-v4-flash"),
 }
 
 
@@ -85,6 +92,14 @@ def chat_sync(task: str, system: str, user: str, *, max_tokens: int = 900,
         "max_tokens": max_tokens,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
     }
+    # DeepSeek REASONS even when told the turn can't afford it (same finding as `fast_client.py`'s voice path,
+    # V2-097) — but ONLY via `api.deepseek.com` DIRECT does this field actually get honored; AIMLAPI ignores it.
+    # Scoped to the direct endpoint on purpose: REM's `deepseek-v4-flash` call goes through the AIMLAPI broker
+    # and was benchmarked (§12.4) WITH reasoning on — disabling it there would silently change synthesis
+    # quality nobody re-measured. Since the broker ignores this field anyway, scoping costs nothing either way,
+    # it just avoids relying on that as an assumption.
+    if "deepseek" in model.lower() and "api.deepseek.com" in url.lower():
+        payload["thinking"] = {"type": "disabled"}
     # EGRESS (T304): si el despliegue media la salida, ni la URL ni la clave son las del proveedor.
     from nucleo import llm_egress
     url, key, _extra = llm_egress.route(url, key)

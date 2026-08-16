@@ -325,9 +325,14 @@ async def _lifespan(app: FastAPI):
     if active_brain() == "nucleo":
         try:
             import asyncio
-            from nucleo import browser_search
+            from nucleo import browser_search, energy_meter
             from nucleo.flash import prewarm as flash_prewarm
-            browser_search.set_loop(asyncio.get_running_loop())
+            _running_loop = asyncio.get_running_loop()
+            browser_search.set_loop(_running_loop)
+            # V2-102: same cross-thread bridge, for `energy_meter._fire_and_forget` — without it, every
+            # `nucleo/memllm.chat_sync` caller running inside `asyncio.to_thread` (i18n bundle generation,
+            # nightly REM synthesis, the new turn-completeness judge) silently lost its usage report.
+            energy_meter.set_loop(_running_loop)
             app.state.prewarm_task = asyncio.create_task(flash_prewarm.run())
         except Exception as e:
             logger.warning(f"prewarm skipped (voice/chat unaffected): {e}")

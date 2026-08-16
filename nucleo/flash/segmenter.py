@@ -23,9 +23,12 @@ que ya estamos esperando. No añade latencia percibida porque no está en el cam
 
 Y hay una segunda diferencia que sale de mirar los datos antes de escribir el código: **la mayoría de los cortes no
 necesitan un modelo**. De los 89 fragmentos reales, los que iban a medias acaban en palabra función («del», «a»,
-«para que», «los») o en coma. Eso es una regla léxica, determinista, de coste cero y latencia cero. El modelo se
-reserva para lo genuinamente ambiguo y es OPT-IN (`ZAELAR_SEGMENTER_MODEL`): mientras nadie lo active, esta capa no
-gasta un token.
+«para que», «los») o en coma. Eso es una regla léxica, determinista, de coste cero y latencia cero.
+
+The model (layer 2, `judge()`, V2-102) is reserved for the genuinely ambiguous case — called from
+`nucleo/flash/accumulator.py::offer()` ONLY when this layer 1 says incomplete, so most turns still spend no
+token at all. No longer opt-in: `judge_enabled()` is ON by default (kill-switch `ZAELAR_TURN_JUDGE=0`) — see
+the section below.
 
 ## Invariantes
 
@@ -38,9 +41,13 @@ gasta un token.
 """
 from __future__ import annotations
 
+import asyncio
+import json
 import os
 import re
 import unicodedata
+
+from loguru import logger
 
 # Techo de retención: por encima de esto se entrega SIEMPRE, diga lo que diga el análisis. Un operador que se corta
 # a mitad («…y ponerlo en la») no puede quedarse sin respuesta para siempre por una coma.
@@ -88,6 +95,19 @@ _DANGLING = _HARD | _SOFT
 # OJO: NO se puede generalizar a «cualquier palabra con tilde no es función» — `según`, `además`, `también`, `así`,
 # `algún` y `ningún` llevan tilde y SÍ lo son.
 _ACCENTED_NOT_FUNCTION = {"sí", "está", "estás", "él", "tú", "mí", "sé", "dé", "té", "más", "aún", "sólo"}
+
+# `mí` (disjunctive pronoun: «de mí», «sobre mí», «para mí» — extremely common on "what do you know about me"
+# asks) is PHONETICALLY IDENTICAL to the possessive determiner «mi» once the tilde is gone, and STT drops
+# accents on monosyllables far more often than it keeps them — so gating the exemption on `_ACCENTED_NOT_FUNCTION`
+# (which only fires when the tilde survived) missed the common case and held these turns FOREVER (no ceiling
+# applies here — see `accumulator.py`'s "no hay válvula de tiempo" — reproduced live 2026-08-16: «dame los datos
+# personales que conoces de mi» repeated three times, zero responses). The fix doesn't need the accent at all: a
+# possessive determiner can NEVER legally be the LAST word of a Spanish sentence (it always needs a following
+# noun — «mi coche», never bare «mi»), so trailing «mi» always means either the pronoun or a genuine mid-word
+# cut. Same asymmetric-cost call as `_ALSO_A_VERB`: retaining a real request forever is worse than occasionally
+# firing early on someone who got cut off naming the noun. Scoped to the ENDING check only (rules 2b/2c below) —
+# a fragment that STARTS with «mi» and doesn't close (rule 5, "continues the previous chunk") is unaffected.
+_ENDING_PRONOUN_HOMOPHONE = {"mi"}
 
 # Verbos/auxiliares que EXIGEN complemento: «y tiene que haber», «puedes mover eso sin grandes» → falta el objeto.
 _NEEDS_OBJECT = {"haber", "hacer", "poner", "dar", "tener", "ser", "estar", "ir", "decir", "ver", "querer"}
@@ -156,7 +176,7 @@ def looks_incomplete(text: str) -> tuple[bool, str]:
     #     «No el widget, los datos de la.» o «planning de...» llevan punto y están a medias igual.
     # 2c) Acaba en palabra función BLANDA → solo si el STT no cerró la frase. Sin esta rama se retenían órdenes de
     #     PARAR («páralo todo.») y preguntas cerradas («¿cómo estás?»); ver el comentario de `_SOFT`/`_HARD`.
-    if last_raw not in _ACCENTED_NOT_FUNCTION:
+    if ws[-1] not in _ENDING_PRONOUN_HOMOPHONE and last_raw not in _ACCENTED_NOT_FUNCTION:
         if ws[-1] in _HARD:
             return True, f"acaba en «{ws[-1]}», que gobierna algo que aún no ha dicho"
         if ws[-1] in _SOFT and not closed:
@@ -221,9 +241,82 @@ def should_hold(text: str, *, held_s: float = 0.0) -> tuple[bool, str]:
     return inc, why
 
 
-def model_enabled() -> bool:
-    """¿Está activada la capa 2 (modelo)? OPT-IN: mientras nadie ponga `ZAELAR_SEGMENTER_MODEL`, el segmentador no
-    gasta un solo token. La capa 1 cubre los cortes observados en la sesión real; el modelo se reserva para lo
-    genuinamente ambiguo, y su sitio es AQUÍ —fuera del camino crítico, mientras el operador habla— no en el camino
-    que se midió y se descartó el 2026-08-02 (dos llamadas DESPUÉS de que callara: +4,3 s)."""
-    return bool((os.getenv("ZAELAR_SEGMENTER_MODEL") or "").strip())
+def judge_enabled() -> bool:
+    """Layer 2 (LLM) — ON by default (V2-102, 2026-08-16). Used to be OPT-IN behind `ZAELAR_SEGMENTER_MODEL`,
+    which NOTHING ever read to actually call a model — a declared, never-wired extension point (confirmed by
+    grep: zero real callers). This codebase has hit "a capability whose default is off is a capability nobody
+    has" three times already (Susurro, REM, this very module's own turn-detector wiring) — an opt-in judge would
+    just be the fourth. Kill-switch `ZAELAR_TURN_JUDGE=0` for emergencies (a broken/unreachable model must not
+    block voice — `judge()` fails open to "incomplete" regardless, this flag is a manual escape hatch on top)."""
+    return os.getenv("ZAELAR_TURN_JUDGE", "1") == "1"
+
+
+_JUDGE_SYSTEM = (
+    "You judge whether a voice assistant's user has FINISHED a request, or is still mid-sentence. You get the "
+    "text of their utterance so far (it may be a fragment, possibly built by gluing several pauses together). "
+    "The person may speak ANY language — judge by MEANING, never by a fixed word list.\n\n"
+    "Give exactly ONE verdict:\n"
+    "  COMPLETE — a full, actionable request or question. Casual/short is fine. Includes a sentence that trails "
+    "off on a dropped-accent pronoun or a subject casual speech omits (e.g. Spanish ending in unaccented \"mi\" "
+    "meaning \"mí\" — \"give me what you know about mi\" reads oddly in English but is complete in Spanish).\n"
+    "  ASK — actionable-shaped, but missing one specific piece a real assistant would need and would ask about, "
+    "rather than silently guess or silently wait.\n"
+    "  INCOMPLETE — clearly trails off mid-thought (an unfinished clause, a dangling connector) and the person "
+    "is very likely about to keep talking.\n\n"
+    "Reply with STRICT JSON only, no prose, no code fences: "
+    "{\"verdict\": \"COMPLETE\"|\"ASK\"|\"INCOMPLETE\", \"question\": string or null}. "
+    "`question` is a SHORT, natural clarifying question IN THE SAME LANGUAGE as the utterance, ONLY when verdict "
+    "is ASK — otherwise null."
+)
+
+
+def _parse_judge(raw: str | None) -> tuple[str, str]:
+    """Strict-ish JSON parse with the same tolerant brace-slicing `i18n/init/generate.py::_parse` uses (a model
+    occasionally wraps its answer in a code fence despite the instruction not to). Fail-open to "incomplete"."""
+    if not raw:
+        return "incomplete", ""
+    s = raw.strip()
+    if s.startswith("```"):
+        s = s.split("```", 2)[1] if s.count("```") >= 2 else s.strip("`")
+        if s.lstrip().lower().startswith("json"):
+            s = s.lstrip()[4:]
+    i, j = s.find("{"), s.rfind("}")
+    if i >= 0 and j > i:
+        s = s[i:j + 1]
+    try:
+        d = json.loads(s)
+    except Exception:
+        return "incomplete", ""
+    verdict = str(d.get("verdict") or "").strip().upper()
+    if verdict == "COMPLETE":
+        return "complete", ""
+    if verdict == "ASK":
+        q = d.get("question")
+        q = str(q).strip() if isinstance(q, str) else ""
+        return ("ask", q) if q else ("incomplete", "")   # ASK with no question text isn't actionable — fail open
+    return "incomplete", ""
+
+
+async def judge(text: str) -> tuple[str, str]:
+    """Layer 2, LLM: the safety net for whatever layer 1 (`looks_incomplete`) called ambiguous. Real intelligence
+    instead of more hardcoded rules — works in any language the operator speaks, not just the es/en `_HARD`/
+    `_SOFT` vocabularies above. Returns `(verdict, extra)`: verdict ∈ "complete"|"ask"|"incomplete"; `extra` is
+    the clarifying question (only for "ask") or "". Off the hot path (`asyncio.to_thread`, same pattern as
+    `i18n/init/detect.py::_by_llm`) and DELIBERATELY fail-open to `("incomplete", "")` on ANY error (unreachable
+    model, malformed JSON, disabled) — never let a broken judge block or mis-fire a turn; `accumulator.py`'s gap
+    valve still gets a second `judge()` call before anything is discarded, so "incomplete" here is never final."""
+    if not judge_enabled():
+        return "incomplete", ""
+    text = (text or "").strip()
+    if not text:
+        return "incomplete", ""
+    try:
+        from nucleo import memllm
+        raw = await asyncio.to_thread(
+            memllm.chat_sync, "turn_complete", _JUDGE_SYSTEM, text,
+            max_tokens=120, temperature=0.0, timeout=6.0,
+        )
+        return _parse_judge(raw)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"segmenter.judge: failed ({str(e)[:160]}) — fail-open to incomplete")
+        return "incomplete", ""

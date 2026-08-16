@@ -157,6 +157,55 @@ def test_report_llm_usage_noop_without_running_loop(monkeypatch):
     energy_meter.report_llm_usage(base_url="https://api.x.ai/v1", prompt_tokens=100, completion_tokens=100)
 
 
+def test_fire_and_forget_drops_silently_without_set_loop(monkeypatch):
+    """Baseline, unchanged from before V2-102: a sync context with no running loop AND no `set_loop()` ever
+    called must still degrade silently — same as `test_report_llm_usage_noop_without_running_loop`, but
+    exercising `_fire_and_forget` directly."""
+    assert energy_meter._loop is None, "a previous test leaked a loop reference — check its cleanup"
+    energy_meter._fire_and_forget(5.0, "llm", {"model": "x"})  # must not raise
+
+
+@pytest.mark.anyio
+async def test_fire_and_forget_bridges_from_a_to_thread_worker(monkeypatch):
+    """V2-102: `nucleo/memllm.chat_sync` is documented to run inside `asyncio.to_thread` (the turn-completeness
+    judge, i18n bundle generation, nightly REM synthesis) — a worker thread has no running loop of its own, so
+    without this bridge the usage report vanished silently every time (confirmed gap, fixed at the root instead
+    of worked around per-caller). `set_loop()` (called once from the server lifespan) is what makes the bridge
+    possible."""
+    posted = []
+
+    async def _fake_post_usage(energy, kind, meta=None):
+        posted.append((energy, kind, meta))
+
+    monkeypatch.setattr(energy_meter, "_post_usage", _fake_post_usage)
+    energy_meter.set_loop(asyncio.get_running_loop())
+    try:
+        await asyncio.to_thread(energy_meter._fire_and_forget, 5.0, "llm", {"model": "x"})
+        await asyncio.sleep(0.05)   # let the bridged coroutine actually run on the captured loop
+        assert posted == [(5.0, "llm", {"model": "x"})]
+    finally:
+        energy_meter.set_loop(None)
+
+
+def test_fire_and_forget_still_takes_the_fast_path_when_a_loop_IS_running(monkeypatch):
+    """The bridge is a FALLBACK, not a replacement: a caller already on the loop (the normal streaming turn
+    path, `fast_client.py`) must keep using `create_task` directly, never the thread-safe bridge — scheduling
+    onto your OWN loop via `run_coroutine_threadsafe` would still work, but it's the wrong tool and worth
+    keeping the distinction under test."""
+    async def _run():
+        energy_meter.set_loop(asyncio.get_running_loop())
+        try:
+            calls = []
+            monkeypatch.setattr(asyncio, "run_coroutine_threadsafe",
+                                lambda *a, **kw: calls.append(1) or None)
+            energy_meter._fire_and_forget(5.0, "llm", {"model": "x"})
+            await asyncio.sleep(0.05)
+            assert calls == [], "took the cross-thread bridge while already on the loop — should have used create_task"
+        finally:
+            energy_meter.set_loop(None)
+    asyncio.run(_run())
+
+
 @pytest.mark.anyio
 async def test_post_usage_fails_open_on_network_error(monkeypatch):
     monkeypatch.setenv("ZAELAR_USER_ID", "did:key:z6MkExample")

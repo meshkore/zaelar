@@ -48,6 +48,12 @@ _BACKCHANNEL_WORDS = {
     "ok", "okay", "okey", "vale", "va", "sí", "si", "no", "ya", "ajá", "aja", "mmm", "hmm", "eh",
     "claro", "perfecto", "genial", "guay", "bien", "bueno", "exacto", "eso", "gracias", "venga",
     "entiendo", "entendido", "ah", "oh", "uy", "madre", "jo", "joder", "yes", "yep", "yeah", "right", "thanks",
+    # V2-102: filler/interjections named explicitly by the operator when scoping the turn-completeness judge —
+    # cheap, unambiguous, still es/en only ON PURPOSE. Broader other-language coverage is NOT attempted here: an
+    # interjection in an uncovered language just costs one `segmenter.judge()` call and gets classified
+    # correctly by MEANING — that fallback is the point of this whole feature, not a gap to patch with more
+    # hardcoded lists (same "local accelerator, LLM is the real mechanism" pattern as everywhere else in i18n).
+    "uh", "uhh", "oops", "wow", "damn", "shit", "fuck", "good",
 }
 _PUNCT_RE = re.compile(r"[^\wáéíóúüñ ]+", re.UNICODE)
 

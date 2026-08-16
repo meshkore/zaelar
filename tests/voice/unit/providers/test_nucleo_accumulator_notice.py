@@ -43,3 +43,16 @@ def test_a_hold_continuing_an_existing_chain_is_not_fresh():
 def test_act_never_starts_a_fresh_chain():
     speak, fresh = _acc_notice_plan("act", "", n_before=0)
     assert fresh is False
+
+
+def test_ask_never_starts_a_fresh_chain():
+    """V2-102's new action: like "act", "ask" already RESOLVED this turn (a clarifying question was asked) —
+    no pending chain to nudge later."""
+    speak, fresh = _acc_notice_plan("ask", "", n_before=0)
+    assert fresh is False
+
+
+def test_a_drop_that_resolves_into_ask_also_speaks():
+    speak, fresh = _acc_notice_plan("ask", "algo que se perdió", n_before=3)
+    assert speak is True
+    assert fresh is False
