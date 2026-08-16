@@ -24,8 +24,10 @@ def _case_dict(case: UseCase, ordinal: int) -> dict[str, Any]:
         "id": f"use_cases::{case.locale}::{case.id}",
         "ordinal": ordinal,
         "title": case.title,
-        "type": "use-case",
-        "dimension": f"tier-{case.tier}",
+        # No "type" label: every case in this suite is a use-case, so a static
+        # per-row "USE-CASE" tag adds no information — only the tier does.
+        "type": "",
+        "dimension": f"Tier {case.tier}",
         "input": {"locale": case.locale, "tier": case.tier, "utterance": case.utterance},
         "expected": {"outcome": case.expected},
         "verification": "backlog entry — no runner wired yet, see tests/use_cases/CASES.md",
