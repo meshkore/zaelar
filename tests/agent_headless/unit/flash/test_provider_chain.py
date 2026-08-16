@@ -150,3 +150,65 @@ def test_no_tier_left_is_its_own_loud_alert(monkeypatch):
     pc.note_failure(REAL_429_EXHAUSTED, {"name": "z.ai", "base_url": "x"})
     from config import balances
     assert any(r["key"] == "cluster:sin-relevo" for r in balances.cluster_providers())
+
+
+# ── HARD failure on the VOICE role, not just a slow turn (2026-08-15 addendum) ──────────────────────────────
+# `note_slow` already had a `role` param and was wired into the voice turn; `note_failure` was hardcoded to the
+# cluster brain, so a real provider error (no balance, bad credential) on the FlashBrain's titular used to just
+# repeat against the same broken tier every turn — nothing ever relayed it. Mirrors the cluster tests above,
+# against `fast.providers` instead of `cluster.providers`.
+def _cfg_fast(monkeypatch, providers=None):
+    import config.v2 as v2
+    monkeypatch.setattr(v2, "get", lambda k: {"providers": providers or []} if k == "fast" else {})
+
+
+def test_voice_role_reads_the_fast_chain_not_cluster(monkeypatch):
+    _cfg_fast(monkeypatch, providers=[
+        {"name": "deepseek-directo", "base_url": "https://api.deepseek.com", "env": ["DEEPSEEK_API_KEY"]},
+        {"name": "aimlapi-failover", "base_url": "https://api.aimlapi.com/v1", "env": ["AIMLAPI_KEY"]},
+    ])
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "d")
+    monkeypatch.setenv("AIMLAPI_KEY", "a")
+    assert [t["name"] for t in pc.chain(pc.ROLE_VOICE)] == ["deepseek-directo", "aimlapi-failover"]
+    assert pc.pick(pc.ROLE_VOICE)["name"] == "deepseek-directo"
+
+
+def test_a_hard_failure_on_voice_relays_to_the_next_fast_tier(monkeypatch):
+    _cfg_fast(monkeypatch, providers=[
+        {"name": "deepseek-directo", "base_url": "https://api.deepseek.com", "env": ["DEEPSEEK_API_KEY"]},
+        {"name": "aimlapi-failover", "base_url": "https://api.aimlapi.com/v1", "env": ["AIMLAPI_KEY"]},
+    ])
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "d")
+    monkeypatch.setenv("AIMLAPI_KEY", "a")
+    assert pc.pick(pc.ROLE_VOICE)["name"] == "deepseek-directo"
+
+    nxt = pc.note_failure(REAL_429_EXHAUSTED, {"name": "deepseek-directo", "base_url": "https://api.deepseek.com"},
+                           role=pc.ROLE_VOICE)
+    assert nxt["name"] == "aimlapi-failover"
+    assert pc.pick(pc.ROLE_VOICE)["name"] == "aimlapi-failover"      # sticky: the next turn starts here
+
+
+def test_note_failure_defaults_to_cluster_role_for_backward_compat(monkeypatch):
+    """The original single caller (`connectors/meshkore/brain.py`) never passes `role` — it must keep hitting the
+    cluster chain exactly as before."""
+    _cfg(monkeypatch)
+    monkeypatch.setenv("Z_AI_API_KEY", "k")
+    monkeypatch.setenv("AIMLAPI_KEY", "k2")
+    nxt = pc.note_failure(REAL_429_EXHAUSTED, {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic"})
+    assert nxt["name"] == "aimlapi"
+
+
+def test_a_voice_failure_does_not_burn_the_cluster_chain(monkeypatch):
+    """The cooldown dict is shared by NAME (by design — same account, same outage), but a role mismatch on the
+    HEALTH-STATE key/label must not happen: a voice failure records under "llm", never "cluster_brain"."""
+    _cfg_fast(monkeypatch, providers=[
+        {"name": "deepseek-directo", "base_url": "https://api.deepseek.com", "env": ["DEEPSEEK_API_KEY"]},
+    ])
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "d")
+    from voice import health_state
+    health_state.clear("cluster_brain")
+    health_state.clear("llm")
+    pc.note_failure(REAL_429_EXHAUSTED, {"name": "deepseek-directo", "base_url": "https://api.deepseek.com"},
+                     role=pc.ROLE_VOICE)
+    assert health_state.get("llm") is not None
+    assert health_state.get("cluster_brain") is None

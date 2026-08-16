@@ -195,7 +195,23 @@ def should_hold(text: str, *, held_s: float = 0.0) -> tuple[bool, str]:
     """¿RETENER el turno en vez de dispararlo ya? Es la pregunta que responde a la acústica.
 
     `held_s` = cuánto llevamos ya retenido este mismo enunciado. Pasado `MAX_HOLD_S` se entrega SIEMPRE: la capa
-    semántica puede retrasar un turno, nunca perderlo."""
+    semántica puede retrasar un turno, nunca perderlo.
+
+    ⚠️ **Investigated 2026-08-15 (session d4b2bc35): NO production caller ever passes `held_s`, so this ceiling
+    is never actually reached — and that is not an oversight, it's REDUNDANT by construction.** The only site
+    that vetoes an individual ACOUSTIC turn's close is `voice/engine/speech/turn/semantic.py`, which calls
+    `looks_incomplete()` directly (no `held_s`); but LiveKit already imposes its OWN, smaller ceiling ahead of
+    it — `HOLD_MAX` in `voice/endpointing.py`, **2.2s by default**, always below `MAX_HOLD_S` (6s) — so the
+    semantic veto never gets to wait long enough for `MAX_HOLD_S` to matter. "The acoustics remain the ceiling"
+    (the invariant above) is true, but the ceiling doing the actual work is LiveKit's, not this function's. The
+    FULL fragment chain (V2-096, `nucleo/flash/accumulator.py`) doesn't use it either, and there it's deliberate:
+    that layer replaced "delay with a ceiling" with "accumulate with no clock" (see the accumulator module's
+    docstring) precisely because a fixed ceiling covered less than half the real pauses measured. Conclusion: no
+    need to wire `should_hold` in anywhere new — `HOLD_MAX`'s 2.2s already keeps the promise this docstring
+    makes, by a different route. The function (and its tests) stay because they document a real invariant and
+    remain the right call for the day `ZAELAR_ENDPOINT_MAX_S` is raised past 6s; today it is pure code with no
+    observable effect, not a security gap.
+    """
     if held_s >= MAX_HOLD_S:
         return False, "techo de retención"
     try:

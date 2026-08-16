@@ -69,6 +69,26 @@ MAX_CHARS = int(os.getenv("ZAELAR_ACC_MAX_CHARS", "1200"))
 MAX_GAP_S = float(os.getenv("ZAELAR_ACC_MAX_GAP_S", "25.0"))
 
 
+def _norm_text(s: str) -> str:
+    return " ".join((s or "").lower().split())
+
+
+def _grows(prev: str, cur: str) -> bool:
+    """True if `cur` is the SAME utterance as `prev`, only longer (2026-08-15 finding, session `d4b2bc35`).
+
+    The acoustic layer can keep a turn open across several STT finals while its own turn-detector — the SAME
+    lexical predicate this module uses (`segmenter.looks_incomplete`, wired into `SemanticTurnDetector`) — keeps
+    vetoing closure. When it does, `incoming` on the NEXT `offer()` call is the whole utterance so far, not a
+    fresh delta: LiveKit's `ChatContext` already grew it. Blindly appending on top would double-count the shared
+    prefix. Reproduced verbatim on that session: fragment 1 `"Me refería a mi información,"`, fragment 2
+    `"Me refería a mi información, personal, dónde vivo, en qué trabajo,"` (already the full turn) — appended
+    naively, `text()` became `"Me refería a mi información, Me refería a mi información, personal…"`. Structural,
+    not semantic — mirrors `_extends()` in `voice/engine/llm/providers/nucleo.py`, which detects the identical
+    pattern one layer up (a stale in-flight turn superseded by a longer one)."""
+    p, c = _norm_text(prev), _norm_text(cur)
+    return bool(p) and len(c) > len(p) and c.startswith(p)
+
+
 @dataclass
 class Accumulator:
     """Estado por sesión. Sin I/O y sin reloj propio (el `now` se inyecta) → se prueba entero sin motor ni voz."""
@@ -89,19 +109,25 @@ class Accumulator:
         self.first_at = self.last_at = 0.0
 
     # ── la decisión ─────────────────────────────────────────────────────────────────────────────────────────
-    def offer(self, incoming: str, *, now: float | None = None) -> tuple[str, str, str]:
+    def offer(self, incoming: str, *, now: float | None = None) -> tuple[str, str, str, str]:
         """Ofrece la transcripción de un turno recién cerrado.
 
-        Devuelve `(accion, texto, motivo)`:
-          * `("act", texto_completo, "")` — hay una petición entera; el turno sigue con ESE texto (que puede
-            incluir lo acumulado antes).
-          * `("hold", "", motivo)` — es un trozo; NO se habla, NO se actúa, NO se escribe en memoria. El llamador
-            programa un flush por si el operador ya no continúa.
+        Devuelve `(accion, texto, motivo, descartado)`:
+          * `("act", texto_completo, "", descartado)` — hay una petición entera; el turno sigue con ESE texto
+            (que puede incluir lo acumulado antes).
+          * `("hold", "", motivo, descartado)` — es un trozo; NO se habla, NO se actúa, NO se escribe en memoria.
+            El llamador programa un flush por si el operador ya no continúa.
+
+        `descartado` (2026-08-15 fix): non-empty in EITHER branch, it carries whatever this call's gap valve
+        (> MAX_GAP_S) just discarded. It used to travel embedded in the "act" branch's `motivo` only, so a call
+        that landed on "hold" instead — the common case: the fragment that triggers a drop is usually itself
+        incomplete — lost it with no trace at all. A field of its own, independent of the hold reason, so the
+        caller can ALWAYS surface a discard without having to parse a sentence to find it.
         """
         now = time.time() if now is None else now
         incoming = (incoming or "").strip()
         if not incoming:
-            return "act", incoming, ""
+            return "act", incoming, "", ""
 
         # Un hueco enorme rompe la cadena: lo de antes era otra cosa. Se DESCARTA en vez de pegarse — y se dice,
         # porque perder texto del operador en silencio es peor que responder raro.
@@ -110,29 +136,38 @@ class Accumulator:
             dropped = self.text()
             self.clear()
 
-        candidate = (self.text() + " " + incoming).strip() if self.fragments else incoming
+        # See `_grows`: if what just arrived already CONTAINS what's buffered as a prefix, it's the SAME sentence
+        # the acoustic layer handed back longer — REPLACE, don't append on top (or it gets double-counted).
+        grows = bool(self.fragments) and _grows(self.text(), incoming)
+        if grows or not self.fragments:
+            candidate = incoming
+        else:
+            candidate = (self.text() + " " + incoming).strip()
 
         if _complete(candidate):
             self.clear()
-            return "act", candidate, (f"hueco>{MAX_GAP_S:.0f}s: descartado {dropped!r}" if dropped else "")
+            return "act", candidate, "", dropped
 
         # Sigue a medias → acumula. Las válvulas se comprueban DESPUÉS de añadir: lo que se entrega es todo lo que
         # hay, nunca un buffer a medio vaciar.
         if not self.fragments:
             self.first_at = now
-        self.fragments.append(incoming)
+        if grows:
+            self.fragments[:] = [incoming]     # replaces the whole growing tail, doesn't double it up
+        else:
+            self.fragments.append(incoming)
         self.last_at = now
 
         if len(self.fragments) >= MAX_FRAGMENTS:
             out = self.text()
             self.clear()
-            return "act", out, f"válvula: {MAX_FRAGMENTS} trozos"
+            return "act", out, f"válvula: {MAX_FRAGMENTS} trozos", dropped
         if len(self.text()) >= MAX_CHARS:
             out = self.text()
             self.clear()
-            return "act", out, f"válvula: {MAX_CHARS} chars"
+            return "act", out, f"válvula: {MAX_CHARS} chars", dropped
 
-        return "hold", "", _why(candidate)
+        return "hold", "", _why(candidate), dropped
 
     def flush(self) -> str:
         """Entrega lo acumulado tal cual y vacía (o «» si no había nada).

@@ -52,7 +52,7 @@ def test_unrelated_new_utterance_after_the_chain_resolves_gets_its_own_trace():
     brain._acc = Accumulator()
     _begin_or_adopt_trace(brain, "busca una moto de segunda mano", False)
     first_tid = trace.current()
-    action, _merged, _why = brain._acc.offer("busca una moto de segunda mano.")
+    action, _merged, _why, _dropped = brain._acc.offer("busca una moto de segunda mano.")
     assert action == "act"                 # closes the chain in one shot (already looks complete)
     brain._acc_trace_id = ""               # this is what the real call site does right after "act"
 

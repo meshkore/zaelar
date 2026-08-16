@@ -83,6 +83,15 @@ class LangSpec:
                               "para tu bóveda. Te la abro.")                        # querer guardar sin bóveda aún
     energy_exhausted: str = ("Se ha agotado tu Energía. Paga una cuota o compra más para seguir usando tu "
                              "agente.")                                             # 2026-08-09, solo cuentas reales
+    # SPLIT-FRAGMENT ACCUMULATOR (V2-096, fix 2026-08-15): two SPOKEN lines, delivered out of band
+    # (`voice/proactive.speaker()`, same channel as V2-093's lead-in filler), that only exist because staying
+    # completely silent left the operator with no way to tell "still listening" from "hung".
+    acc_fragment_dropped: str = ("Perdona, no cogí bien lo que dijiste antes de la pausa. ¿Me lo repites?")
+    #   spoken ONCE when a mid-chain fragment gets discarded by the gap valve (> MAX_GAP_S, 25s) — the reply that
+    #   follows never proceeds as if those words never existed.
+    acc_still_listening: str = "Sigo aquí, cuando quieras sigue."
+    #   spoken ONCE if a hold drags on longer than usual (ZAELAR_ACC_NUDGE_S, def 8s — above the real-world p90
+    #   pause, 4.9s) — a reassurance, not an action: it never touches the buffer or forces the turn.
     kokoro_voices: list = field(default_factory=list)  # [{label, voice, gender}] native to this language
     kokoro_default: str = ""       # the reliable default voice for this language
 
@@ -179,6 +188,8 @@ LANGUAGES: dict[str, LangSpec] = {
         secret_need_vault=("I can keep it encrypted, but first you need to create a master passphrase for your "
                            "vault. Opening it now."),
         energy_exhausted="You're out of Energy. Pay for a plan or buy more to keep using your agent.",
+        acc_fragment_dropped="Sorry, I didn't catch what you said before the pause — can you say that again?",
+        acc_still_listening="Still here, go ahead whenever you're ready.",
         kokoro_voices=[
             {"label": "Bella (en, f)",   "voice": "af_bella",   "gender": "f"},
             {"label": "Nicole (en, f)",  "voice": "af_nicole",  "gender": "f"},

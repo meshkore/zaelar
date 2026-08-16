@@ -116,6 +116,72 @@ def _begin_or_adopt_trace(brain: "NucleoLLM", text: str, first_turn: bool) -> No
         brain._acc_trace_id = _trace.begin(text, origin="turno")
 
 
+_ACC_NUDGE_S = float(os.getenv("ZAELAR_ACC_NUDGE_S", "8.0"))
+
+
+def _acc_notice_plan(action: str, dropped: str, n_before: int) -> tuple[bool, bool]:
+    """Pure decision extracted from one `Accumulator.offer()` outcome (2026-08-15 fix): (speak_drop_notice,
+    start_fresh_chain). Kept separate from the async plumbing (`_speak_acc_drop`/`_schedule_acc_nudge`) so it is
+    testable without an event loop or a live voice session.
+
+    `speak_drop_notice` fires whenever this call's `dropped` is non-empty, in EITHER branch — the bug this fixes
+    is exactly that it used to only ever surface on "act" (see `Accumulator.offer` docstring). `start_fresh_chain`
+    is true when this "hold" begins a chain with no prior context to lean on: either nothing was buffered before
+    (`n_before == 0`) or what WAS buffered just got wiped by the drop — in both cases the operator is now waiting
+    on a reply to a fragment the system has never seen the rest of, which is the case that needs a nudge if it
+    drags on. `action != "hold"` never starts a chain (it just resolved one)."""
+    fresh_chain = action == "hold" and (bool(dropped) or n_before == 0)
+    return bool(dropped), fresh_chain
+
+
+async def _speak_acc_drop(dropped: str) -> None:
+    """A stale fragment chain just got silently discarded (`Accumulator`'s gap valve, > MAX_GAP_S). Silence here
+    IS the bug: acknowledge it out of band (`voice.proactive.speaker()`, the same lead-in channel V2-093 uses for
+    fillers) so the operator learns their earlier words were lost, instead of hearing a reply that ignores them
+    with no explanation. Best-effort: no live speaker (probe/text channel, no session) → no-op; never talks over
+    the operator mid-sentence (`proactive.user_speaking()`)."""
+    try:
+        from voice import proactive
+        speak = proactive.speaker()
+        if speak is None or proactive.user_speaking():
+            return
+        from voice.engine.core import langs
+        r = speak(langs.current_language().acc_fragment_dropped)
+        if asyncio.iscoroutine(r):
+            await r
+    except Exception:
+        pass
+
+
+def _schedule_acc_nudge(brain: "NucleoLLM", gen: int) -> None:
+    """Give the operator ONE gentle audible sign that a long HOLD is still "listening", not hung (the silence
+    reported live: a 64s gap with zero signal either way). A pure reassurance ping, never an action: it never
+    touches the accumulator's buffer, so it can't violate V2-096's no-timed-flush invariant — a fragment that
+    never continues still gets no reply, only an acknowledgement that the system is waiting on it.
+
+    `gen` pins the nudge to THIS chain (`brain._acc_gen`, bumped by the caller every time a chain resolves or gets
+    dropped): if the chain already moved on by the time the delay elapses, the nudge checks the counter and
+    no-ops instead of firing after the fact for a conversation that has already continued elsewhere."""
+    async def _run() -> None:
+        await asyncio.sleep(_ACC_NUDGE_S)
+        if getattr(brain, "_acc_gen", None) != gen or not brain._acc.pending():
+            return
+        try:
+            from voice import proactive
+            speak = proactive.speaker()
+            if speak is None or proactive.user_speaking():
+                return
+            from voice.engine.core import langs
+            r = speak(langs.current_language().acc_still_listening)
+            if asyncio.iscoroutine(r):
+                await r
+            from voice.observer import emit
+            emit("brain", "🕒 sigo esperando el resto de la frase", role="system", extra={"cat": "flash"})
+        except Exception:
+            pass
+    _spawn(_run(), "acc_nudge")
+
+
 def _flow_should_close(tid: str, acc_trace_id: str, confirm_trace_ids, has_live_worker: bool) -> bool:
     """Pure decision: should THIS trace's flow close now? Factored out so it is comprobable without the observer/
     dispatch/confirm modules (see `tests/voice/unit/providers/test_nucleo_trace_merge.py`).
@@ -272,6 +338,9 @@ class NucleoLLM(llm.LLM):
         #                                    context-bleed (round headless V2-038 #1: re-emisión cross-turno)
         self._utterance: dict = {"text": "", "at": 0.0}   # frase EN CURSO del operador (guarda de fragmentos, _extends)
         self._acc_trace_id: str = ""       # trace del flujo mientras el acumulador (V2-096) tiene trozos a medias
+        self._acc_gen: int = 0             # accumulator chain generation (2026-08-15, see `_schedule_acc_nudge`):
+        #                                    bumped every time a chain resolves or gets dropped, so a nudge
+        #                                    scheduled for it and now stale doesn't fire late
         self._turn_count = 0                # turnos conversacionales completados esta sesión (INI-018 T6, demo cap)
         self._last_action = ""              # route/surface del turno anterior para referencias deícticas
         self._session_started_at = time.time()  # arranque de la sesión (INI-018 T6, demo TTL)
@@ -489,7 +558,21 @@ class NucleoLLMStream(llm.LLMStream):
             if getattr(brain, "_acc", None) is None:
                 brain._acc = _acc.Accumulator()
             _n_before = len(brain._acc.fragments)
-            _action, _merged, _why = brain._acc.offer(text)
+            _action, _merged, _why, _dropped = brain._acc.offer(text)
+
+            # BUG FIX (2026-08-15, session d4b2bc35): a stale chain that got silently discarded (gap > MAX_GAP_S)
+            # used to only ever surface — muted, in `extra`, never spoken — when the CALL AFTER the drop happened
+            # to land on "act". The far more common case is that the fragment causing the drop is itself
+            # incomplete and falls to "hold" a few lines below, which carried no drop info at all: the operator's
+            # words vanished with zero trace anywhere, timeline included. `Accumulator.offer()` now reports
+            # `_dropped` on EITHER branch, so this fires every time regardless of what this call goes on to do.
+            _speak_drop, _fresh_chain = _acc_notice_plan(_action, _dropped, _n_before)
+            if _dropped:
+                emit("brain", "🕳️ frase anterior descartada por el hueco", text=_dropped[:200], role="system",
+                     extra={"cat": "flash", "gap_s": _acc.MAX_GAP_S})
+            if _speak_drop:
+                _spawn(_speak_acc_drop(_dropped), "acc_drop_notice")
+
             if _action == "hold":
                 # Callar es la conducta CORRECTA aquí, no un efecto colateral que haya que compensar con un
                 # temporizador. Norma del operador, con su propio ejemplo: «si digo "oye, ¿qué tal? ahora vamos
@@ -499,13 +582,19 @@ class NucleoLLMStream(llm.LLMStream):
                 # crezca ni contamine una petición posterior que no tiene nada que ver.
                 # Y se VE: el trozo retenido y el motivo salen al timeline (⏸), que es la diferencia entre «está
                 # esperando a que acabes» y «se ha quedado colgado».
+                # 2026-08-15: and if the wait drags on, it's now also HEARD (`_schedule_acc_nudge` below) — the
+                # real session's 64s gap had neither signal.
+                if _fresh_chain:
+                    brain._acc_gen += 1
+                    _schedule_acc_nudge(brain, brain._acc_gen)
                 emit("brain", "⏸ frase a medias — espero a que termines", text=text[:200], role="system",
                      extra={"cat": "flash", "why": _why, "trozos": len(brain._acc.fragments),
                             "acumulado": brain._acc.text()[:300]})
                 return
-            if _n_before:
+            if _n_before and not _dropped:
                 emit("brain", "🧩 frase completada en varios tiempos", text=_merged[:300], role="user",
                      extra={"cat": "flash", "trozos": _n_before + 1, "motivo": _why})
+            brain._acc_gen += 1          # cadena resuelta — un aviso pendiente para ella queda obsoleto
             brain._acc_trace_id = ""    # cadena resuelta — el próximo turno, si es tema nuevo, abre su propio trace
             text = _merged
 
@@ -2010,6 +2099,17 @@ class NucleoLLMStream(llm.LLMStream):
                     health_state.record("llm", kind, err_text[:200] or "flash brain down")
             except Exception:
                 pass
+            # RELAY on a HARD failure, not just a slow one (2026-08-15 addendum to V2-094): `note_slow` below
+            # already relays a titular that's merely lagging, but a real provider error — no balance, bad
+            # credential, an outage — used to just repeat against the same broken tier turn after turn, because
+            # `note_failure` was hardcoded to the CLUSTER role. Cooldown is sticky (`pick()` is O(1)), so this
+            # only needs to fire once per failure — the NEXT turn already starts on the relay.
+            if not stalled:
+                try:
+                    from nucleo.flash import provider_chain as _pchain1
+                    _pchain1.note_failure(err_text, role=_pchain1.ROLE_VOICE)
+                except Exception:
+                    pass
             if stalled:
                 emit("alert", "Un turno se atascó y lo corté — sigo operativo.", text="flash turn stalled")
             else:

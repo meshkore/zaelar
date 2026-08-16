@@ -72,10 +72,10 @@ def test_el_ejemplo_literal_del_operador():
     """«oye, ¿qué tal? Ahora vamos a…» + [pausa] + «buscar un libro del autor X»."""
     a = _a()
     assert a.offer("Oye, ¿qué tal?", now=100.0)[0] == "act"          # saludo completo: se contesta
-    action, text, why = a.offer("Ahora vamos a", now=101.0)
-    assert action == "hold" and text == "" and why, "«Ahora vamos a» tenía que quedarse callado"
+    action, text, why, dropped = a.offer("Ahora vamos a", now=101.0)
+    assert action == "hold" and text == "" and why and not dropped, "«Ahora vamos a» tenía que quedarse callado"
     # La pausa dura CUATRO SEGUNDOS — más que `max_delay`, que es justo el caso que antes se perdía.
-    action, text, _ = a.offer("buscar un libro del autor X.", now=105.0)
+    action, text, _, _ = a.offer("buscar un libro del autor X.", now=105.0)
     assert action == "act"
     assert text == "Ahora vamos a buscar un libro del autor X."
     assert not a.pending()
@@ -86,7 +86,7 @@ def test_la_pausa_puede_durar_lo_que_quiera():
     for gap in (0.3, 2.2, 4.9, 12.0, 19.5):
         a = _a()
         assert a.offer("Busca también en todas las", now=0.0)[0] == "hold"
-        action, text, _ = a.offer("páginas que puedas, ¿vale?", now=gap)
+        action, text, _, _ = a.offer("páginas que puedas, ¿vale?", now=gap)
         assert action == "act", f"con un hueco de {gap}s no se recompuso la frase"
         assert text == "Busca también en todas las páginas que puedas, ¿vale?"
 
@@ -95,7 +95,7 @@ def test_tres_trozos_seguidos_se_juntan():
     a = _a()
     assert a.offer("Quiero que me busques un", now=0.0)[0] == "hold"
     assert a.offer("velero de", now=2.0)[0] == "hold"
-    action, text, _ = a.offer("unos cuarenta pies.", now=5.0)
+    action, text, _, _ = a.offer("unos cuarenta pies.", now=5.0)
     assert action == "act" and text == "Quiero que me busques un velero de unos cuarenta pies."
 
 
@@ -122,10 +122,76 @@ def test_un_hueco_ENORME_no_se_pega_a_lo_de_antes():
     Se descarta lo viejo — y se DICE en el motivo, porque perder texto del operador en silencio es peor."""
     a = _a()
     a.offer("y ponerlo en la", now=0.0)
-    action, text, why = a.offer("Abre la agenda.", now=acc.MAX_GAP_S + 5)
+    action, text, why, dropped = a.offer("Abre la agenda.", now=acc.MAX_GAP_S + 5)
     assert action == "act"
     assert text == "Abre la agenda.", "se contaminó la petición nueva con el fragmento viejo"
-    assert "descartado" in why
+    # 2026-08-15: the drop reason moved to its own field (see the test right below — a "hold" outcome needs it
+    # just as much, and used to lose it entirely).
+    assert dropped == "y ponerlo en la"
+    assert not why, "a clean act needs no hold-reason — the discard lives in its own field now"
+
+
+def test_a_drop_that_lands_on_HOLD_still_reports_the_discard():
+    """THE ACTUAL BUG (session d4b2bc35, 2026-08-15): the fragment that TRIGGERS a drop is, more often than not,
+    itself incomplete — it falls to the "hold" branch a few lines further down, which used to carry NO discard
+    info at all. The operator's words vanished with no trace anywhere, not even the timeline: reproduced verbatim
+    from the real session, where a 3-fragment question got lost entirely after a 64s gap, and the next turn
+    ("qué edad tengo," and friends) got answered as if it had never been said, with zero "descartado"/"hueco"
+    event anywhere in the whole log."""
+    a = _a()
+    a.offer("Me refería a mi información,", now=0.0)
+    action, text, why, dropped = a.offer("del software,", now=acc.MAX_GAP_S + 10)
+    assert action == "hold", "«del software,» alone is still mid-sentence — this is how the real bug reproduced"
+    assert dropped == "Me refería a mi información,", (
+        "the discard must be visible EVEN WHEN this call ends in hold, not only when it ends in act")
+    assert why, "there is still a hold reason of its own, independent from the discard"
+
+
+# ── THE GROWING CHAIN (LiveKit hands back the whole turn, not just what's new) ──────────────────────────────────
+# Second cause, found while reading the REAL session (d4b2bc35) to reproduce the bug above: when the semantic
+# detector vetoes closing an ACOUSTIC turn (the same lexical predicate this module uses), LiveKit does not close
+# the sentence between fragments — its `ChatContext` keeps growing it, so what reaches `offer()` on the NEXT call
+# is the WHOLE utterance so far, not a fresh delta. Without this fix the accumulator appended on top of what was
+# already appended, and that session's `acumulado` field literally read
+# "Me refería a mi información, Me refería a mi información, personal, dónde vivo, en qué trabajo," — duplicated.
+def test_a_GROWING_fragment_does_not_get_duplicated():
+    a = _a()
+    action, _, _, _ = a.offer("Me refería a mi información,", now=0.0)
+    assert action == "hold"
+    action, _, _, _ = a.offer("Me refería a mi información, personal, dónde vivo, en qué trabajo,", now=2.3)
+    assert action == "hold"
+    assert a.text() == "Me refería a mi información, personal, dónde vivo, en qué trabajo,", (
+        f"duplicated: {a.text()!r}")
+    action, _, _, _ = a.offer(
+        "Me refería a mi información, personal, dónde vivo, en qué trabajo, qué edad tengo,", now=4.6)
+    assert action == "hold"
+    assert a.text() == "Me refería a mi información, personal, dónde vivo, en qué trabajo, qué edad tengo,", (
+        f"duplicated again: {a.text()!r}")
+    assert len(a.fragments) == 1, "a turn that only GROWS is one chain, not several fragments stacked up"
+
+
+def test_the_full_real_session_discards_CLEAN_not_tripled():
+    """The end-to-end reproduction of the incident: the 3 real growing fragments, the 64s gap, then a 4th
+    fragment on a new topic. Before this fix, the discarded content arrived tripled (see the test above); now
+    it's exactly what the operator said, once — which is in turn what `acc_fragment_dropped`
+    (voice/engine/llm/providers/nucleo.py) ends up saying out loud."""
+    a = _a()
+    a.offer("Me refería a mi información,", now=0.0)
+    a.offer("Me refería a mi información, personal, dónde vivo, en qué trabajo,", now=2.3)
+    a.offer("Me refería a mi información, personal, dónde vivo, en qué trabajo, qué edad tengo,", now=4.6)
+    _, _, _, dropped = a.offer("Está tontado de ríos.", now=4.6 + acc.MAX_GAP_S + 39)
+    assert dropped == "Me refería a mi información, personal, dónde vivo, en qué trabajo, qué edad tengo,", (
+        f"the discarded content arrived corrupted: {dropped!r}")
+
+
+def test_a_NEW_fragment_that_does_not_extend_still_concatenates():
+    """`_grows` is purely structural (prefix match): two genuinely distinct fragments — neither a prefix of the
+    other — still have to CONCATENATE like before, never replace each other."""
+    a = _a()
+    a.offer("Quiero que me busques un", now=0.0)
+    action, _, _, _ = a.offer("velero de", now=1.0)
+    assert action == "hold"
+    assert a.text() == "Quiero que me busques un velero de", "a fragment that does NOT grow must keep appending"
 
 
 def test_la_valvula_de_TROZOS_entrega_todo_lo_que_hay():
@@ -136,6 +202,7 @@ def test_la_valvula_de_TROZOS_entrega_todo_lo_que_hay():
     outs = [a.offer(t, now=float(i)) for i, t in enumerate(trozos)]
     assert outs[-1][0] == "act", "la válvula no disparó"
     assert "válvula" in outs[-1][2]
+    assert not outs[-1][3], "no gap happened here — no discard should be reported"
     for t in trozos:
         assert t in outs[-1][1], f"la válvula se comió {t!r}"
     assert not a.pending()
@@ -146,7 +213,7 @@ def test_la_valvula_de_TAMANO_tambien_corta(monkeypatch):
     a = _a()
     action = "hold"
     for i in range(20):
-        action, text, why = a.offer("y otra cosa más de las que", now=float(i))
+        action, text, why, _ = a.offer("y otra cosa más de las que", now=float(i))
         if action == "act":
             assert "chars" in why and len(text) >= 80
             break
@@ -217,7 +284,7 @@ def test_sobre_las_sesiones_REALES_recompone_frases_y_no_se_atasca():
     for c in chains:
         a = _a()
         for i, txt in enumerate(c):
-            action, merged, _ = a.offer(txt, now=float(i) * 2.0)
+            action, merged, _, _ = a.offer(txt, now=float(i) * 2.0)
             if action == "act" and " " in merged and merged != txt:
                 recompuestas += 1
         # (b) ninguna cadena puede dejar el acumulador retenido más allá de sus válvulas

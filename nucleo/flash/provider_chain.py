@@ -281,14 +281,27 @@ def spec_for(tier: dict):
                       api_key=tok, provider=tier.get("provider") or "aimlapi")
 
 
-def note_failure(text: str, tier: dict | None = None) -> dict | None:
-    """Un turno de cluster murió por el PROVEEDOR: marca el escalón, avisa, y devuelve el escalón de RELEVO (o
-    None). El llamador (`connectors/meshkore/brain.py`) reintenta ESE MISMO turno con el relevo devuelto — así el
-    mensaje real-time al peer no se pierde solo porque el tier de cabecera esté sin cuota."""
+# Per-role labelling for note_failure's log/panel/timeline output (2026-08-15 addendum): the function was
+# hardcoded to the cluster brain's wording — fine while it had one caller, wrong the moment a HARD failure (not
+# just a slow turn, which `note_slow` already covered per-role) needed to relay the VOICE tier too. The voice side
+# reuses the "llm" health_state key on purpose: `config/balances.py`'s reactive panel already reads it (it is
+# what nucleo.py's own degraded-turn branch records), so this doesn't need a new panel wired in.
+_ROLE_LABEL = {ROLE_CLUSTER: "cerebro de cluster", ROLE_VOICE: "cerebro de voz"}
+_ROLE_HEALTH_KEY = {ROLE_CLUSTER: "cluster_brain", ROLE_VOICE: "llm"}
+
+
+def note_failure(text: str, tier: dict | None = None, *, role: str = ROLE_CLUSTER) -> dict | None:
+    """Un turno murió por el PROVEEDOR: marca el escalón, avisa, y devuelve el escalón de RELEVO (o None).
+
+    `role` (default ROLE_CLUSTER, backward-compatible with the original single caller): decides which chain
+    `pick()` consults when `tier` isn't given, and which label/health-state key the alert uses. The caller
+    retries THIS SAME turn with the relay returned — for cluster that keeps a real-time reply to a peer from being
+    lost just because the lead tier ran out of quota; for voice it lets the NEXT turn start on the relay instead
+    of repeating the same broken call (2026-08-15, `voice/engine/llm/providers/nucleo.py`)."""
     kind = classify_failure(text)
     if not kind:
         return None
-    t = tier or pick()
+    t = tier or pick(role)
     if not t or not t.get("base_url"):
         return None
 
@@ -308,23 +321,25 @@ def note_failure(text: str, tier: dict | None = None) -> dict | None:
     _cooldown[t["name"]] = max(_cooldown.get(t["name"], 0), until)
     _save()
 
-    nxt = pick()
+    nxt = pick(role)
     when = time.strftime("%d %b %H:%M", time.localtime(until))
+    label = _ROLE_LABEL.get(role, "cerebro de cluster")
     detail = (f"«{t['name']}» ({t.get('plan', '')}) sin cuota hasta el {when}"
               + (f" → relevo a «{nxt['name']}»" if nxt else " · SIN RELEVO disponible"))
-    logger.warning(f"cerebro de cluster: {detail}")
+    logger.warning(f"{label}: {detail}")
 
     # (1) al panel de ALERTAS, mismo canal reactivo que el resto de proveedores (config/balances.py)
     try:
         from voice import health_state
-        health_state.record("cluster_brain", "credit" if kind == "exhausted" else "auth", detail)
+        health_state.record(_ROLE_HEALTH_KEY.get(role, "cluster_brain"),
+                             "credit" if kind == "exhausted" else "auth", detail)
     except Exception:
         pass
     # (2) al timeline, con el mismo peso que una degradación del motor
     try:
         from voice.observer import emit
-        emit("perf", f"🔌 cerebro de cluster: {detail}", role="system",
-             extra={"provider": t["name"], "kind": kind, "until": until,
+        emit("perf", f"🔌 {label}: {detail}", role="system",
+             extra={"provider": t["name"], "kind": kind, "until": until, "role": role,
                     "next": (nxt or {}).get("name", ""), "text": (text or "")[:300]})
     except Exception:
         pass

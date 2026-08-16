@@ -57,6 +57,16 @@ _DEFAULTS: dict[str, dict] = {
         "model": "deepseek/deepseek-v4-flash",              # default; passed per invocation
         "base_url": "",                                     # empty → the provider's own (AIMLAPI broker)
         "api_key": "",
+        # Explicit RELAY chain for the VOICE role (2026-08-15 fix): `nucleo.flash.provider_chain._voice_chain()`
+        # already read `cfg.get("providers")` on this exact key — its own docstring says "the operator activates
+        # it by putting `fast.providers` in their config" — but `set()` only accepts keys already in `_DEFAULTS`,
+        # and this one was never declared here. The promised override existed in the reader and was unreachable
+        # from the config API: any patch touching it was silently dropped, `ok: true` included. Same shape as
+        # `code_agent.providers`/`cluster.providers`: empty = automatic chain (titular above + latency relays,
+        # cloud-only by default); a non-empty list is the operator's own primary→failover→failover order, and it
+        # applies in self-host too (the cloud-only gate only zeroes the AUTOMATIC relay candidates, never an
+        # explicit list).
+        "providers": [],
     },
     # SlowBrain — headless code agent behind the CodeAgent interface (V2-006).
     # Model PER INVOCATION: `model` is the global default; `model_<kind>` allows a different model by task type
