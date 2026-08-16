@@ -43,11 +43,13 @@ for day in range(DAYS + 1):
          level="short", kind="conv", importance=0.08, weight=0.12, ttl_days=2,
          expected="buffer operativo; expira en 2 días y nunca se promociona")
 
-    # A meaningful but non-permanent episode every two weeks.
+    # A meaningful but non-permanent episode every two weeks. V2-103: etiquetado con `concepts` (antes no lo
+    # llevaba ninguna escritura de este corpus) — a día 180 quedan ~6 vigentes dentro del TTL de 90 días, por
+    # encima de `rem.MIN_GROUP=4`, así que este es el grupo que REM sintetiza/demota en los checkpoints finales.
     if day and day % 15 == 0:
         _add(day, "write", f"Día {day}: episodio relevante temporal",
              text=f"El día {day} terminé el capítulo {day // 15} del curso de estructuras ARQ-{day:03d}.",
-             level="mid", kind="event", importance=0.55, weight=0.48, ttl_days=90,
+             level="mid", kind="event", importance=0.55, weight=0.48, ttl_days=90, concepts=["estudios"],
              expected="permanece un trimestre y luego caduca")
 
     # Repeated access strengthens the house goal. Architecture is deliberately
@@ -99,8 +101,16 @@ for day in range(DAYS + 1):
         _add(day, "weight_compare", "Checkpoint final: lo usado se fortalece más",
              stronger="goal.house", weaker="goal.study_architecture",
              expected="peso/accesos de vivienda > estudios por mayor uso")
-        _add(day, "valid_count", "Checkpoint final: memoria activa acotada", maximum=180,
+        _add(day, "valid_count", "Checkpoint final: memoria activa acotada", maximum=182,
              expected="la vida de seis meses no deja crecer sin límite el working memory")
+        # V2-103: tras 180 sueños con síntesis REM activada (antes se probaba SIEMPRE apagada aquí), el grupo
+        # "estudios" (episodios ARQ-* etiquetados arriba) debe haber producido un insight vigente, y las
+        # píldoras crudas que lo alimentaron deben estar demotadas (nunca invalidadas) — REM consolidando de
+        # verdad, no solo apilando encima.
+        _add(day, "insight_exists", "Checkpoint final: REM sintetizó un insight de estudios",
+             concept="estudios", marker="estudios", expected="slot=insight:estudios vigente")
+        _add(day, "pills_demoted", "Checkpoint final: REM demotó las píldoras que resumió",
+             minimum=4, expected="≥4 píldoras con meta.summarized_by, todas siguen valid=1")
 
 
 def case_id(index: int) -> str:

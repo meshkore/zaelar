@@ -15,6 +15,19 @@ DB_PATH = ENGINE / "memory" / "_data" / "zaelar.timeline.db"
 DAY_SECONDS = 86400
 
 
+def _deterministic_hook(groups: list[dict]) -> list[dict]:
+    """V2-103 (2026-08-16): la síntesis de REM se probaba SIEMPRE apagada aquí (`rem.run(None)`) — el único run
+    largo/realista de toda la suite nunca ejercitó `synthesize()`/`demote_summarized()`. Este hook es Python
+    puro (sin red, sin LLM) — sigue cumpliendo "sin proveedor externo" (README) mientras ejercita el mecanismo
+    real en cada uno de los 180 sueños simulados, no solo en un puñado de filas de un test aislado."""
+    out = []
+    for g in groups:
+        out.append({"concept": g["concept"],
+                     "insight": f"Interés sostenido en {g['concept']} a lo largo del tiempo "
+                                f"({len(g['pills'])} referencias)."})
+    return out
+
+
 def _clean_db() -> None:
     from memory import db
     db.reset_db()
@@ -43,7 +56,7 @@ def _execute(case: dict[str, Any], now: int) -> tuple[bool, str, dict[str, Any]]
         mid = memory.write_now(case["text"], level=case.get("level", "short"), kind=case.get("kind", "event"),
                                importance=case.get("importance"), weight=case.get("weight", 0.5),
                                ttl_days=case.get("ttl_days"), pinned=case.get("pinned", False),
-                               slot=case.get("slot"))
+                               slot=case.get("slot"), concepts=case.get("concepts"))
         row = dict(db.get_db().query_one(
             "SELECT id,level,kind,importance,weight,ttl_days,pinned,valid,slot,created FROM memories WHERE id=?",
             (mid,)))
@@ -57,8 +70,20 @@ def _execute(case: dict[str, Any], now: int) -> tuple[bool, str, dict[str, Any]]
         report = memory.consolidate(limit=int(case.get("limit", 180)), now=now)
         return True, "sueño ligero · " + json.dumps(report, ensure_ascii=False), report
     if op == "rem":
-        report = rem.run(None)
+        report = rem.run(_deterministic_hook)
         return True, "REM determinista · " + json.dumps(report, ensure_ascii=False), report
+    if op == "insight_exists":
+        row = db.get_db().query_one("SELECT id, text FROM memories WHERE valid=1 AND slot=?",
+                                    (f"insight:{case['concept']}",))
+        ok = row is not None and case["marker"].lower() in (row["text"] or "").lower()
+        return ok, f"insight:{case['concept']} → {dict(row) if row else None}", {"row": dict(row) if row else None}
+    if op == "pills_demoted":
+        rows = db.get_db().query(
+            "SELECT id, weight, meta FROM memories WHERE valid=1 "
+            "AND json_extract(meta, '$.summarized_by') IS NOT NULL")
+        ok = len(rows) >= int(case.get("minimum", 1))
+        return ok, f"píldoras demotadas por REM = {len(rows)} (mínimo {case.get('minimum', 1)})", \
+            {"demoted": [dict(r) for r in rows]}
     if op in {"active", "inactive"}:
         present = case["marker"].lower() in _blob(case["marker"], valid=True)
         ok = present if op == "active" else not present

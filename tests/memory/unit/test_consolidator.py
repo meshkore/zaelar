@@ -78,6 +78,48 @@ def test_pinned_never_evicted(fresh_db):
     assert memcons.count() == 1
 
 
+# V2-103 (2026-08-16): el único test previo de eviction usaba 1-4 filas hechas a mano — nunca probó el ORDEN de
+# sacrificio a un volumen realista (cientos/miles de filas, pesos/salience/pinned mezclados), que es donde una
+# regresión en el `ORDER BY` o en el criterio de salience (`_SALIENT_IMPORTANCE`) sería invisible en un fixture
+# tan pequeño pero real a escala de producción.
+def test_evict_at_scale_preserves_salient_and_pinned_order(fresh_db):
+    import random
+    rnd = random.Random(42)
+    pinned_ids = set()
+    salient_ids = set()   # importante O con slot O kind profile/pref — protegido HASTA el final
+    trivia_ids = set()    # el resto — se sacrifica primero
+
+    for i in range(20):
+        mid = memwriter.insert_memory(f"pin-{i}", weight=rnd.uniform(0.0, 1.0), pinned=True)
+        pinned_ids.add(mid)
+    for i in range(300):
+        mid = memwriter.insert_memory(f"saliente-{i}", weight=rnd.uniform(0.0, 1.0),
+                                      importance=rnd.uniform(0.5, 1.0), kind="fact")
+        salient_ids.add(mid)
+    for i in range(600):
+        mid = memwriter.insert_memory(f"trivia-{i}", weight=rnd.uniform(0.0, 1.0),
+                                      importance=rnd.uniform(0.0, 0.49), kind="msg")
+        trivia_ids.add(mid)
+
+    total = memcons.count()
+    assert total == 920
+
+    # baja el límite hasta que solo quepa la trivia + una parte de lo saliente (nunca lo pinned)
+    removed = memcons.evict(limit=250)
+    assert removed == total - 250
+    remaining = {r["id"] for r in memdb.get_db().query("SELECT id FROM memories")}
+    assert memcons.count() == 250
+
+    assert pinned_ids <= remaining, "ningún pinned puede desaparecer, a cualquier escala"
+    # con 600 filas de trivia y solo 250 huecos, TODA la trivia debe haberse ido antes de tocar lo saliente
+    survivors_are_trivia = remaining & trivia_ids
+    assert not survivors_are_trivia, "la trivia se sacrifica ENTERA antes de tocar una sola fila saliente"
+    # de lo saliente (300) + pinned (20) = 320 candidatos "protegidos" para 250 huecos → se sacrificaron 70
+    # salientes de menor peso, nunca los pinned
+    survivors_salient = remaining & salient_ids
+    assert len(survivors_salient) == 250 - len(pinned_ids)
+
+
 def test_dedup_merges_identical_text(fresh_db):
     a = memwriter.insert_memory("El Operador  se llama Ricart", weight=0.5)
     b = memwriter.insert_memory("el operador se llama ricart", weight=0.8)  # mismo normalizado

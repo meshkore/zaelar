@@ -37,5 +37,14 @@ vivienda debe terminar por encima. La alergia a la penicilina es crítica/pinned
 ## Qué no pretende cubrir
 
 La clasificación semántica por LLM de cada frase ya se estresa en los corpus v1/v2. Esta simulación usa la API y
-el writer reales con decisiones de importancia explícitas para aislar y medir el ciclo vital. REM ejecuta reparación,
-dedup semántico e higiene; la síntesis de insights se omite para mantener el run determinista y sin proveedor externo.
+el writer reales con decisiones de importancia explícitas para aislar y medir el ciclo vital.
+
+**Síntesis de REM (V2-103, 2026-08-16):** REM ejecuta las cuatro fases —reparación, dedup semántico, síntesis e
+higiene— con un **hook determinista Python puro** (`runner.py::_deterministic_hook`, sin red/LLM: sigue sin
+proveedor externo, pero ya no deja `synthesize()`/`demote_summarized()` sin ejercitar). Antes de esto, este era
+el ÚNICO run largo/realista de toda la suite y corría con la síntesis explícitamente apagada
+(`rem.run(None)`) — el hueco que dejó pasar el hallazgo de una auditoría manual: REM nunca demotaba las píldoras
+que resumía, solo añadía el insight encima. El write recurrente "episodio relevante temporal" (cada 15 días)
+lleva `concepts=["estudios"]`; a día 180 acumula ~6-7 referencias vigentes (por encima de `rem.MIN_GROUP=4`), y
+los checkpoints finales (`insight_exists`, `pills_demoted`) verifican que REM sintetizó el insight Y demotó las
+píldoras crudas — no solo que "algo se escribió".

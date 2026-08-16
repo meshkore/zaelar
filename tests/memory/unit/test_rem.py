@@ -138,6 +138,46 @@ def test_repair_embeddings_default_raised_from_200(fresh_db):
     assert memrem._repair_limit_default() >= 1000
 
 
+# V2-103 (2026-08-16): la formación de grupos de concepto (`_concept_groups`/`synthesize`) solo se había probado
+# con 4-12 píldoras de un único concepto limpio — nunca con una distribución RUIDOSA de cientos de píldoras en
+# más conceptos que `MAX_GROUPS`, que es donde un bug de ordenación/corte se volvería invisible en un fixture
+# pequeño pero real a escala de producción.
+def test_concept_groups_at_scale_picks_largest_and_respects_cap(fresh_db):
+    import random
+    rnd = random.Random(7)
+    # 20 conceptos con tamaños de grupo DISTINTOS y solapados; solo los MAX_GROUPS=8 más poblados deben
+    # sintetizarse, y ninguno por debajo de MIN_GROUP=4 debe aparecer nunca.
+    sizes = {f"concepto{n}": n for n in range(1, 21)}   # concepto1→1 píldora … concepto20→20 píldoras
+    for concept, n in sizes.items():
+        for i in range(n):
+            memwriter.insert_memory(f"{concept} dato {i} {rnd.random()}", level="mid", kind="fact",
+                                    concepts=[concept])
+
+    groups = memrem._concept_groups(min_group=4, max_groups=8)
+    assert len(groups) == 8
+    got = {g["concept"]: len(g["pills"]) for g in groups}
+    # los 8 conceptos con MÁS píldoras (concepto13..concepto20) son los elegidos, en orden descendente
+    expected_top8 = sorted(sizes.items(), key=lambda kv: -kv[1])[:8]
+    assert set(got) == {c for c, _ in expected_top8}
+    assert all(n >= 4 for n in got.values()), "ningún grupo por debajo de MIN_GROUP debe colarse"
+    sizes_sorted = sorted(got.values(), reverse=True)
+    assert sizes_sorted == sorted(sizes_sorted, reverse=True)  # viene ya ordenado de mayor a menor
+
+    hook_seen = []
+
+    def hook(gs):
+        hook_seen.extend(g["concept"] for g in gs)
+        return [{"concept": g["concept"], "insight": f"Insight de {g['concept']} sobre {len(g['pills'])} datos."}
+                for g in gs]
+
+    written = memrem.synthesize(hook, min_group=4)
+    assert written == 8
+    assert set(hook_seen) == {c for c, _ in expected_top8}
+    db = memdb.get_db()
+    n_insights = db.query_one("SELECT COUNT(*) c FROM memories WHERE kind='insight' AND valid=1")["c"]
+    assert n_insights == 8
+
+
 def test_hygiene_alerts_on_heuristic_flood(fresh_db):
     for i in range(12):
         memwriter.insert_memory(f"crudo {i}", level="mid", kind="fact",
