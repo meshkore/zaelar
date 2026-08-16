@@ -143,12 +143,28 @@ def _pytest_case(nodeid: str, *, suite: str, step_id: str, ordinal: int) -> dict
     }, suite=suite, step_id=step_id, group_id="pytest", ordinal=ordinal)
 
 
+def owning_suite_label(nodeid: str) -> str:
+    """Best-effort "which suite owns this pytest node" label for the aggregate 'all' run.
+
+    Falls back to the raw tests/<dir> name (normalized to match a registered suite id, e.g.
+    agent_headless -> agent-headless) when the directory isn't a formally registered suite
+    (tests/platform's own self-tests, for instance) — still a useful bucket label even though
+    it never appears in SUITES.
+    """
+    parts = nodeid.split("::", 1)[0].split("/")
+    if len(parts) < 2 or parts[0] != "tests":
+        return ""
+    candidate = parts[1].replace("_", "-")
+    return candidate if candidate in SUITES else parts[1]
+
+
 def build_suite_catalog(suite_id: str, collected_tests: list[str]) -> dict[str, Any]:
     """Build the complete ordered map for one suite."""
     if suite_id == "all":
         return {
             "schema": 2, "suite": "all", "label": "Todos los tests", "steps": [],
             "tests": collected_tests, "count": len(collected_tests), "case_count": len(collected_tests),
+            "test_suite": {test: owning_suite_label(test) for test in collected_tests},
             "manifest": "catálogo agregado", "ok": True,
         }
     suite = SUITES[suite_id]

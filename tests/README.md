@@ -39,6 +39,11 @@ their owning suite, but executable testing code belongs under `tests/<suite>/`.
 5. Read the terminal exit code and failure trace. The dashboard is observability, not the source of truth for PASS.
 6. Report the exact command, passed/failed/skipped counts, live services used and remaining untested boundary.
 7. If a new behavior has no catalog case, add it in the same change and validate `tests/platform/tests`.
+8. Multiple agents/humans can share this repo and the stable Observatory port at once. Set
+   `ZAELAR_TEST_ACTOR=<your name>` before `run` (e.g. `ZAELAR_TEST_ACTOR=claude-code ./.venv/bin/python -m
+   tests run <suite> --no-open`) so whoever is watching the dashboard can tell who launched it — the header
+   otherwise falls back to OS user/host/branch/parent-process, which doesn't distinguish concurrent agents on
+   the same machine.
 
 ## Core commands
 

@@ -234,9 +234,11 @@ def serve(run_dir: Path, port: int, idle_timeout: int) -> None:
     if server.pending_launch:
         command, log_path = server.pending_launch
         log = log_path.open("ab")
+        env = os.environ.copy()
+        env.setdefault("ZAELAR_TEST_ACTOR", "dashboard-ui")
         subprocess.Popen(
             command, cwd=ENGINE, stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT,
-            start_new_session=True, close_fds=True,
+            start_new_session=True, close_fds=True, env=env,
         )
         log.close()
 

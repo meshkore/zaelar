@@ -14,6 +14,7 @@ import urllib.request
 import uuid
 import webbrowser
 from pathlib import Path
+from typing import Any
 
 from .catalog import SUITES, build_suite_catalog, deterministic_paths, find_case, suite_nodes, suite_rows
 from .events import EventWriter, read_events
@@ -103,6 +104,44 @@ def _stream(command: list[str], writer: EventWriter, env: dict[str, str], *, lab
     return code
 
 
+def _git_branch(cwd: Path) -> str:
+    """Best-effort "<branch>[*]" (dirty marker) for the directory the run was launched from."""
+    try:
+        branch = subprocess.run(["git", "rev-parse", "--abbrev-ref", "HEAD"], cwd=cwd,
+                                 capture_output=True, text=True, timeout=2).stdout.strip()
+        if not branch:
+            return ""
+        dirty = subprocess.run(["git", "status", "--porcelain"], cwd=cwd,
+                                capture_output=True, text=True, timeout=2).stdout.strip()
+        return f"{branch}{'*' if dirty else ''}"
+    except Exception:
+        return ""
+
+
+def _parent_command(pid: int) -> str:
+    """Best-effort process name of whatever spawned this CLI invocation (shell, agent runner, cron…)."""
+    try:
+        return subprocess.run(["ps", "-o", "comm=", "-p", str(pid)],
+                              capture_output=True, text=True, timeout=2).stdout.strip()
+    except Exception:
+        return ""
+
+
+def _launcher_info() -> dict[str, Any]:
+    """Who/what/from-where launched this test run — an explicit ZAELAR_TEST_ACTOR wins when set,
+    otherwise this is the best attribution available without it (see tests/README.md)."""
+    cwd = Path.cwd()
+    return {
+        "actor": os.environ.get("ZAELAR_TEST_ACTOR", ""),
+        "user": os.environ.get("USER") or os.environ.get("LOGNAME") or "",
+        "host": socket.gethostname(),
+        "cwd": str(cwd),
+        "branch": _git_branch(cwd),
+        "pid": os.getpid(),
+        "parent_command": _parent_command(os.getppid()),
+    }
+
+
 def _new_run(suite: str) -> tuple[str, Path]:
     stamp = time.strftime("%Y%m%d-%H%M%S")
     run_id = f"{stamp}-{suite}-{uuid.uuid4().hex[:6]}"
@@ -141,7 +180,12 @@ def _run(args: argparse.Namespace) -> int:
         raise ValueError("--case no puede combinarse con --live, --live-step o --node")
     case = _resolve_case(args.suite, requested_case) if requested_case else None
     run_id, run_dir = _new_run(args.suite)
-    meta = {"schema": 1, "run_id": run_id, "suite": args.suite, "created_at": time.time(), "status": "running"}
+    launched_by = _launcher_info()
+    target = (f"case · {case['id']}" if case else f"node · {', '.join(args.node)}" if args.node
+              else f"live-step · {args.live_step}" if args.live_step
+              else f"live · {args.suite}" if args.live else f"deterministic · {args.suite}")
+    meta = {"schema": 1, "run_id": run_id, "suite": args.suite, "created_at": time.time(), "status": "running",
+            "launched_by": launched_by, "target": target}
     (run_dir / "run.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     writer = EventWriter(run_dir, run_id=run_id)
     live_node = None
@@ -152,7 +196,7 @@ def _run(args: argparse.Namespace) -> int:
             print(f"El paso live {args.live_step!r} no existe en {args.suite}", file=sys.stderr)
             return 2
     mode = "case" if case else "live-step" if live_node else "live" if args.live else "deterministic"
-    writer.emit("run.started", suite=args.suite, mode=mode)
+    writer.emit("run.started", suite=args.suite, mode=mode, launched_by=launched_by, target=target)
     url = _dashboard(run_dir, args.port, open_browser=not args.no_open and not os.getenv("CI"))
     print(f"\nZaelar Test Observatory: {url}")
     print(f"Run: {run_id}\n")
