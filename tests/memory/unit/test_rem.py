@@ -78,10 +78,10 @@ def test_synthesize_writes_insight_with_supersede(fresh_db):
     assert hook_calls and hook_calls[0][0]["concept"] == "musica" and len(hook_calls[0][0]["pills"]) >= 4
     # segundo sueño → el insight se REESCRIBE (supersede por slot), no se acumula
     def hook2(groups):
-        return [{"concept": "musica", "insight": "Su música de cabecera es la canción española de los 70-80."}]
+        return [{"concept": "musica", "insight": "Su música de cabecera es la canción española de los ochenta."}]
     assert memrem.synthesize(hook2, min_group=4) == 1
     valid = db.query("SELECT text FROM memories WHERE slot='insight:musica' AND valid=1")
-    assert len(valid) == 1 and "70-80" in valid[0]["text"]
+    assert len(valid) == 1 and "ochenta" in valid[0]["text"]
 
 
 def test_synthesize_failopen_without_hook(fresh_db):
@@ -122,6 +122,97 @@ def test_synthesize_never_demotes_pinned(fresh_db):
     row = db.query_one("SELECT weight, meta FROM memories WHERE id=?", (pinned_id,))
     assert row["weight"] == 0.9
     assert "summarized_by" not in (row["meta"] or "")
+
+
+# V2-104 (2026-08-16): tras V2-103, `demote_summarized` hace que un insight desplace (no solo compita con) los
+# hechos correctos que resume — un insight INVENTADO ya no es ruido de bajo riesgo, es una fuente de error activa.
+def test_synthesize_rejects_insight_with_fabricated_proper_noun(fresh_db):
+    ids = [memwriter.insert_memory(t, level="mid", kind="fact", weight=0.8, concepts=["musica"])
+           for t in ["escuchó a Mocedades por la tarde", "escuchó a Serrat mientras trabajaba",
+                     "pidió música de los ochenta", "sonó Tómame o Déjame en YouTube"]]
+
+    def hook(groups):
+        # "Rocío" no aparece en ninguna píldora fuente — fabricación clásica de resumen por LLM.
+        return [{"concept": "musica", "insight": "A Rocío le gusta la música española clásica."}]
+
+    assert memrem.synthesize(hook, min_group=4) == 0
+    db = memdb.get_db()
+    assert db.query_one("SELECT id FROM memories WHERE slot='insight:musica' AND valid=1") is None
+    for mid in ids:
+        row = db.query_one("SELECT weight FROM memories WHERE id=?", (mid,))
+        assert row["weight"] == 0.8, "rechazado → las píldoras fuente NO se demotan"
+
+
+def test_synthesize_rejects_insight_with_fabricated_number(fresh_db):
+    for t in ["escuchó a Mocedades", "escuchó a Serrat", "música de los ochenta", "sonó una canción en YouTube"]:
+        memwriter.insert_memory(t, level="mid", kind="fact", weight=0.8, concepts=["musica"])
+
+    def hook(groups):
+        return [{"concept": "musica", "insight": "Escucha música española unas 12 veces por semana."}]
+
+    assert memrem.synthesize(hook, min_group=4) == 0
+
+
+def test_synthesize_rejects_oversized_insight(fresh_db):
+    for t in ["escuchó a Mocedades", "escuchó a Serrat", "música de los ochenta", "sonó una canción"]:
+        memwriter.insert_memory(t, level="mid", kind="fact", weight=0.8, concepts=["musica"])
+    largo = "Le gusta la música española. " * 20  # muy por encima de MAX_INSIGHT_CHARS
+
+    def hook(groups):
+        return [{"concept": "musica", "insight": largo}]
+
+    assert memrem.synthesize(hook, min_group=4) == 0
+
+
+def test_synthesize_verify_fn_rejects_even_when_deterministic_backstop_passes(fresh_db):
+    ids = [memwriter.insert_memory(t, level="mid", kind="fact", weight=0.8, concepts=["musica"])
+           for t in ["escuchó a Mocedades", "escuchó a Serrat", "música de los ochenta", "sonó una canción"]]
+
+    def hook(groups):
+        return [{"concept": "musica", "insight": "Le gusta escuchar música clásica española."}]
+
+    def verify_fn(insight, pills):
+        return False  # segunda opinión: no lo respalda, aunque no haya cifras/nombres inventados
+
+    assert memrem.synthesize(hook, min_group=4, verify_fn=verify_fn) == 0
+    db = memdb.get_db()
+    for mid in ids:
+        assert db.query_one("SELECT weight FROM memories WHERE id=?", (mid,))["weight"] == 0.8
+
+
+def test_synthesize_verify_fn_exception_treated_as_not_grounded(fresh_db):
+    for t in ["escuchó a Mocedades", "escuchó a Serrat", "música de los ochenta", "sonó una canción"]:
+        memwriter.insert_memory(t, level="mid", kind="fact", weight=0.8, concepts=["musica"])
+
+    def hook(groups):
+        return [{"concept": "musica", "insight": "Le gusta escuchar música clásica española."}]
+
+    def verify_fn(insight, pills):
+        raise RuntimeError("proveedor caído")
+
+    assert memrem.synthesize(hook, min_group=4, verify_fn=verify_fn) == 0
+
+
+def test_synthesize_writes_when_both_gates_pass(fresh_db):
+    ids = [memwriter.insert_memory(t, level="mid", kind="fact", weight=0.8, concepts=["musica"])
+           for t in ["escuchó a Mocedades", "escuchó a Serrat", "música de los ochenta", "sonó una canción"]]
+
+    def hook(groups):
+        return [{"concept": "musica", "insight": "Le gusta escuchar música clásica española."}]
+
+    def verify_fn(insight, pills):
+        return True
+
+    assert memrem.synthesize(hook, min_group=4, verify_fn=verify_fn) == 1
+    db = memdb.get_db()
+    assert db.query_one("SELECT id FROM memories WHERE slot='insight:musica' AND valid=1") is not None
+    for mid in ids:
+        assert db.query_one("SELECT weight FROM memories WHERE id=?", (mid,))["weight"] < 0.8
+
+
+def test_grounded_accepts_number_and_proper_noun_present_in_pills(fresh_db):
+    pills = ["Ricart tiene cita con el Dr. Soler el 23", "va cada 6 meses"]
+    assert memrem._grounded("Ricart visita al Dr. Soler cada 6 meses, cita el 23.", pills) is True
 
 
 def test_repair_embeddings_limit_configurable(fresh_db, monkeypatch):

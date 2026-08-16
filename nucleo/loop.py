@@ -412,7 +412,8 @@ class OrchestratorLoop:
             from memory import rem as _rem
             if await asyncio.to_thread(_rem.due):
                 from . import memllm as _memllm
-                rep = await asyncio.to_thread(_rem.run, _memllm.synthesize_concept_groups)
+                rep = await asyncio.to_thread(_rem.run, _memllm.synthesize_concept_groups,
+                                              _memllm.verify_insight_grounded)
                 _emit("loop.rem", {k: rep.get(k) for k in ("repaired", "sem_deduped", "insights", "ms")})
                 hyg = rep.get("hygiene") or {}
                 if hyg.get("alert"):

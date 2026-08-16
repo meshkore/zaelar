@@ -240,3 +240,31 @@ def synthesize_concept_groups(groups: list[dict], *, model_override: str | None 
     except Exception as e:  # noqa: BLE001
         logger.warning(f"memllm[rem]: respuesta no parseable: {str(e)[:120]}")
         return []
+
+
+# ── V2-104: segunda opinión de fidelidad — llamada FRESCA, independiente de la que generó el insight ──────────
+_GROUNDING_SYSTEM = (
+    "Verificas la fidelidad de un INSIGHT de memoria contra los DATOS que lo originaron. Responde SOLO la "
+    "palabra true si CADA afirmación del insight está respaldada directamente por los datos (sin inventar "
+    "nombres, cifras, fechas, ni generalizar más de lo que los datos permiten). Responde SOLO la palabra false "
+    "si el insight añade CUALQUIER cosa que no esté en los datos. Nada más en tu respuesta."
+)
+
+
+def verify_insight_grounded(insight: str, pills: list[str], *, model_override: str | None = None,
+                            url_override: str | None = None) -> bool:
+    """Hook opcional de `memory/rem.py::synthesize()` (inyectado por el loop junto a `synthesize_concept_groups`,
+    mismo patrón `summarize_fn`). Segunda opinión, EN OTRA LLAMADA — el autocriterio dentro de la misma
+    respuesta que generó el insight es más débil que un juicio independiente sobre el resultado ya terminado.
+    Fail-CLOSED (a diferencia del resto de tareas de memoria, que son fail-open): sin respuesta clara, se trata
+    como NO fiable — perder un insight legítimo sale más barato que dejar pasar uno inventado, ahora que
+    `writer.demote_summarized` hace que desplace los hechos correctos en vez de solo competir con ellos
+    (V2-103)."""
+    if not insight or not pills:
+        return False
+    user = json.dumps({"insight": insight, "datos": pills[:12]}, ensure_ascii=False, indent=1)
+    content = chat_sync("rem", _GROUNDING_SYSTEM, user, max_tokens=200, timeout=60.0,
+                        model_override=model_override, url_override=url_override)
+    if not content:
+        return False
+    return content.strip().lower().startswith("true")

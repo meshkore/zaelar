@@ -467,7 +467,19 @@ fallo no tumba el sueño):
    `weight` (factor 0.6, suelo 0.05, nunca toca `pinned`) y estampa `meta.summarized_by`, **sin invalidar ni
    borrar nada** (el histórico se conserva intacto, igual que siempre). Es la mitad que faltaba de "REM como
    sueño que consolida": antes el insight se apilaba ENCIMA de las píldoras crudas, que seguían compitiendo a
-   peso completo para siempre.
+   peso completo para siempre. **Precisamente porque ahora DESPLAZA en vez de solo competir (V2-103), ningún
+   insight se escribe ni demota nada sin pasar DOS gates de fidelidad (V2-104):**
+   1. **`_grounded()`** (backstop determinista, siempre activo, sin LLM): toda cifra/fecha y todo nombre propio
+      del insight debe aparecer en las píldoras fuente — capta la fabricación más burda.
+   2. **`verify_fn`** opcional (`nucleo/memllm.verify_insight_grounded`, cableado por el loop junto a
+      `synthesize_concept_groups`): una SEGUNDA llamada, FRESCA e independiente de la que generó el insight,
+      preguntando si cada afirmación está respaldada por los datos — fail-**CLOSED** (sin respuesta clara = no
+      fiable), al revés que el resto de tareas de memoria, porque aquí perder un insight legítimo sale más
+      barato que dejar pasar uno inventado que desplaza hechos correctos.
+
+   Cualquier rechazo es VISIBLE (`logger.warning` + `health_state.record`, nunca silencioso) y no cuesta el
+   concepto — se reintenta en el próximo sueño. También hay un tope de longitud (`MAX_INSIGHT_CHARS=400`): antes
+   solo había mínimo, y un insight sin techo puede crecer sueño tras sueño.
 4. **`hygiene()`** — el chequeo del día: **% de escritura heurística en 24h → ALERTA si >50%** (un CORAZÓN caído
    debe SALTAR, no otra vez 2 días en silencio — incidente 2026-07-17/19), `embed_pending` restantes, tamaños. El
    informe vuelve al llamador (el loop decide alertar) y se emite por el bus (`memory.rem`).

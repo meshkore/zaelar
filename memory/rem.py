@@ -152,6 +152,38 @@ def _conflicting_numbers(a: str, b: str) -> bool:
     return bool(na and nb and na != nb)
 
 
+# ── V2-104: fidelidad del insight — backstop determinista antes del gate por LLM ────────────────────────────
+MAX_INSIGHT_CHARS = 400  # 1-2 frases de síntesis; sin techo, un insight puede crecer sin límite sueño tras sueño
+
+
+def _proper_nouns(text: str) -> set[str]:
+    """Palabras con mayúscula inicial que NO abren su frase — candidatas a nombre propio/entidad. La mayúscula
+    de apertura de frase no cuenta (falso positivo casi seguro), el resto sí."""
+    nouns: set[str] = set()
+    for sentence in _re.split(r"(?<=[.!?])\s+", text.strip()):
+        words = sentence.split()
+        for i, w in enumerate(words):
+            core = w.strip(".,;:!?()\"'“”«»").strip()
+            if i == 0 or len(core) < 3 or not core[0].isupper() or not core.isalpha():
+                continue
+            nouns.add(core)
+    return nouns
+
+
+def _grounded(insight: str, pills: list[str]) -> bool:
+    """Backstop GRATIS (sin LLM): toda cifra/fecha y todo nombre propio del insight debe aparecer en el texto
+    de las píldoras que lo originaron. No prueba fidelidad SEMÁNTICA — solo la fabricación más burda (una cifra
+    o un nombre que no está en los datos). La verificación fina va en `nucleo/memllm.verify_insight_grounded`."""
+    source = " ".join(pills).lower()
+    for num in _NUM_RE.findall(insight):
+        if num.lower() not in source:
+            return False
+    for noun in _proper_nouns(insight):
+        if noun.lower() not in source:
+            return False
+    return True
+
+
 def semantic_dedup(threshold: float = SEM_DEDUP_THRESHOLD, cap: int = 1500) -> int:
     """Fusiona durables casi-idénticos por SIGNIFICADO: los ecos de una misma tarea/hecho dichos de N formas
     ("Reserva la cita ITV…" × 8) colapsan en el de mayor peso; el resto queda `valid=0, superseded_by` (histórico
@@ -226,10 +258,31 @@ def _concept_groups(min_group: int = MIN_GROUP, max_groups: int = MAX_GROUPS) ->
     return out[:max_groups]
 
 
-def synthesize(synthesize_fn, min_group: int = MIN_GROUP) -> int:
+def _reject(concept: str, reason: str) -> None:
+    """Un insight rechazado es un fallo de la MEMORIA, no un descarte silencioso — misma disciplina que el
+    fallo de hook de abajo (incidente 2026-07-17/19: un `logger.warning` entre miles de líneas dejó semanas sin
+    que nadie lo viera)."""
+    logger.warning(f"rem.synthesize: insight de «{concept}» rechazado — {reason}")
+    try:
+        from voice import health_state
+        health_state.record("memory", "degraded", f"insight de «{concept}» rechazado: {reason}")
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def synthesize(synthesize_fn, min_group: int = MIN_GROUP, verify_fn=None) -> int:
     """Destila 1 insight por grupo de concepto y lo escribe con `slot=insight:<concepto>` (supersede por sueño:
     el insight de un concepto se REESCRIBE, nunca se acumula). `synthesize_fn(groups)->[{concept,insight}]` la
-    inyecta el llamador (el loop → nucleo/memllm). Fail-open: sin hook o sin respuesta = 0 insights."""
+    inyecta el llamador (el loop → nucleo/memllm). Fail-open: sin hook o sin respuesta = 0 insights.
+
+    V2-104: antes de escribir y de demotar las píldoras fuente, cada insight pasa DOS gates — (1) `_grounded()`,
+    backstop determinista siempre activo (cifras/nombres propios deben anclar en los datos); (2) `verify_fn`
+    OPCIONAL (inyectado igual que `synthesize_fn`, típicamente `memllm.verify_insight_grounded`): una segunda
+    opinión por LLM en una llamada FRESCA, distinta de la que generó el insight — el autocriterio en el mismo
+    turno es más débil que un juicio independiente. Política ASIMÉTRICA ante cualquier rechazo: no se escribe
+    el insight y NO se demotan las fuentes — el grupo se reintenta en el próximo sueño. Importa más desde hoy
+    que ayer: la democión (V2-103) hace que un insight malo DESPLACE los hechos correctos, no solo compita con
+    ellos."""
     if synthesize_fn is None:
         return 0
     groups = _concept_groups(min_group=min_group)
@@ -256,6 +309,23 @@ def synthesize(synthesize_fn, min_group: int = MIN_GROUP) -> int:
         insight = (it.get("insight") or "").strip() if it.get("insight") else ""
         if not concept or not insight or len(insight) < 12:
             continue
+        if len(insight) > MAX_INSIGHT_CHARS:
+            _reject(concept, f"demasiado largo ({len(insight)} > {MAX_INSIGHT_CHARS} chars)")
+            continue
+        src = next((g for g in groups if g["concept"] == concept), None)
+        pills = src["pills"] if src else []
+        if not _grounded(insight, pills):
+            _reject(concept, "una cifra o un nombre propio no aparece en los datos fuente")
+            continue
+        if verify_fn is not None:
+            try:
+                ok = bool(verify_fn(insight, pills))
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"rem.synthesize: verify_fn falló ({str(e)[:120]}) → tratado como NO fiable")
+                ok = False
+            if not ok:
+                _reject(concept, "la verificación por LLM no lo respalda")
+                continue
         try:
             insight_id = _writer.insert_memory(
                 insight, level="long", kind="insight", importance=0.65,
@@ -266,9 +336,7 @@ def synthesize(synthesize_fn, min_group: int = MIN_GROUP) -> int:
             written += 1
             # V2-103: REM debe RETIRAR lo que resume, no solo añadir encima — demota (nunca invalida/borra) las
             # píldoras crudas de este grupo para que dejen de competir a peso completo con el insight que las
-            # suplanta. Se busca el grupo por concepto (no se arrastra el `ids` de fuera del bucle de resultados
-            # porque `results` viene del hook, no de `groups` — empareja por texto de concepto).
-            src = next((g for g in groups if g["concept"] == concept), None)
+            # suplanta. Solo llega aquí un insight que ya pasó los dos gates de fidelidad de arriba.
             if src and src.get("ids"):
                 _writer.demote_summarized(src["ids"], insight_id)
         except Exception:
@@ -301,13 +369,15 @@ def hygiene(window_s: int = 86400) -> dict:
 
 
 # ── orquestación ────────────────────────────────────────────────────────────────────────────────────────────
-def run(synthesize_fn=None) -> dict:
-    """Un ciclo de sueño PROFUNDO. Síncrono (el llamador lo mete en `asyncio.to_thread`). Cada fase aislada."""
+def run(synthesize_fn=None, verify_fn=None) -> dict:
+    """Un ciclo de sueño PROFUNDO. Síncrono (el llamador lo mete en `asyncio.to_thread`). Cada fase aislada.
+    `verify_fn` (V2-104) es el segundo gate de fidelidad de `synthesize()`, opcional — el loop la cablea junto
+    a `synthesize_fn`."""
     t0 = time.time()
     report: dict = {}
     for name, fn in (("repaired", repair_embeddings),
                      ("sem_deduped", semantic_dedup),
-                     ("insights", lambda: synthesize(synthesize_fn)),
+                     ("insights", lambda: synthesize(synthesize_fn, verify_fn=verify_fn)),
                      ("hygiene", hygiene)):
         try:
             report[name] = fn()

@@ -2270,6 +2270,20 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   reopen the 2026-07-19 P2-6 "never delete history" invariant). Tests: `test_writer_dedup.py` (new),
   `test_embeddings.py`/`test_rem.py`/`test_memory_agent.py` extended — 322 passed via
   `pytest tests/memory/ nucleo/`, 312 passed via `python -m tests run memory --no-open`.
+- **REM — gate de fidelidad antes de escribir/demotar un insight** (V2-104, 2026-08-16, mismo día que V2-103):
+  `rem.py::synthesize()` nunca verificaba que un insight fuera FIEL a las píldoras que resume — solo longitud
+  ≥12 chars. El prompt pide "no inventes nada" pero sin backstop. Importa MÁS desde el propio V2-103: ahora un
+  insight demota el peso de sus fuentes, así que uno inventado ya no compite con los hechos correctos, los
+  DESPLAZA. Dos gates en cascada, ambos antes de escribir Y antes de demotar: (1) `_grounded()` — backstop
+  determinista gratis, toda cifra/nombre propio del insight debe aparecer en las píldoras fuente; (2)
+  `nucleo/memllm.verify_insight_grounded()` — segunda opinión por LLM en una llamada FRESCA e independiente de
+  la que generó el insight (el autocriterio en el mismo turno es más débil), cableada por el loop como
+  `verify_fn` opcional de `rem.run()` — la memoria sigue sin importar cerebros. **Fail-CLOSED** (al revés que
+  el resto de tareas de memoria): sin respuesta clara, se trata como no fiable — perder un insight legítimo
+  sale más barato que dejar pasar uno inventado. Rechazo SIEMPRE visible (`health_state.record`, nunca un
+  warning silencioso), sin coste para el concepto (se reintenta el próximo sueño). Más un tope de longitud
+  (`MAX_INSIGHT_CHARS=400`, antes solo había mínimo). Verificado que los 6 tests nuevos fallan sin el gate
+  (`git stash` temporal). Tests: `test_rem.py` — 335 passed, 1 skipped.
 
 ## Testing y rueda de mejora (INI-013)
 
