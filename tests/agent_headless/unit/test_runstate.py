@@ -320,3 +320,37 @@ def test_with_no_turns_in_flight_stopping_is_instant_as_always(piezas):
     res = asyncio.run(runstate.stop("operator"))
     assert res["state"] == runstate.STOPPED
     assert piezas["pause"] == 1
+
+
+# ── stopping closes the observability session (2026-08-16) ───────────────────────────────────────────────
+# Real: with the agent stopped and the browser tab left open, background noise (the ~1Hz loop heartbeat,
+# the RAM→state projection) kept landing on whatever session was already open when ⏻ was pressed — nothing
+# ever closed it, so the backoffice master showed it "EN CURSO" indefinitely, with its flow/event counts
+# still climbing. `_do_stop` now closes the observability session; background noise afterward gets no
+# session at all (`stamp_identity`'s system/pulse guard only READS the current session, never reopens it).
+def test_stopping_closes_the_open_observability_session(piezas):
+    from observability import identity
+    identity.end_session("test")
+    identity.begin_session(source="test")
+    assert identity.session_info().get("session_id") is not None, "arrange: a session is open before stopping"
+
+    asyncio.run(runstate.stop("operator"))
+
+    assert identity.session_info().get("session_id") is None, \
+        "the session must be closed the moment the agent stops — that's what 'EN CURSO' forever was tracing back to"
+    identity.end_session("test")
+
+
+def test_background_noise_after_stop_does_not_resurrect_the_closed_session(piezas):
+    from observability import identity
+    from voice import observer
+
+    identity.end_session("test")
+    identity.begin_session(source="test")
+    asyncio.run(runstate.stop("operator"))
+    assert identity.session_info().get("session_id") is None
+
+    ev = observer.emit("pulse", "tick", extra={"cat": "pulse"})
+    assert not ev.get("sid"), "background noise after a deliberate stop must not mint a fresh session"
+    assert identity.session_info().get("session_id") is None
+    identity.end_session("test")

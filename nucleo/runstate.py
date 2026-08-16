@@ -21,7 +21,7 @@ en un `localStorage` — es per-navegador, per-origen, y el backend (widgets, ba
 INTENCIÓN del operador, no un estado de proceso). Todo lo que puede «estar en marcha» lo consulta o lo recibe:
 
     PARAR  →  workers CONGELADOS (SIGSTOP, reversible) · widgets productores SUSPENDIDOS · background sin ticks
-              · crons que no disparan · nada nuevo se arranca
+              · crons que no disparan · nada nuevo se arranca · SESIÓN DE OBSERVABILIDAD CERRADA (2026-08-16)
     ARRANCAR → workers CONTINÚAN donde estaban · background vuelve · crons vuelven
               · **los widgets NO se reanudan** (decisión explícita del operador, ver abajo)
 
@@ -180,12 +180,23 @@ async def _do_stop(src: str = "operator") -> dict:
     1. **El interruptor primero.** Mientras se para todo lo demás pueden llegar acciones nuevas; con el flag ya
        puesto, el embudo de acciones (`widgets/server_api.py`) las rechaza en vez de arrancar algo justo detrás
        de la parada.
-    2. **Workers** (SIGSTOP, reversible) — congelados en el sitio exacto, no muertos.
-    3. **Widgets productores** — cada uno por su acción declarada de suspensión (ver `widgets/producers.py`).
+    2. **La sesión de observabilidad se cierra** (2026-08-16, hallazgo real: con el agente parado y el navegador
+       abierto, el ruido de fondo —pulso ~1Hz, proyección de estado— seguía llegando a la sesión que ya estaba
+       abierta y la mantenía «EN CURSO» para siempre en el master, con sus flujos creciendo). `end_session` emite
+       su propio evento `system` de cierre —`stamp_identity` solo LEE la sesión para esa categoría, nunca la
+       reabre— así que lo que llegue DESPUÉS de parar queda sin sesión, tal como debe ser una parada deliberada.
+    3. **Workers** (SIGSTOP, reversible) — congelados en el sitio exacto, no muertos.
+    4. **Widgets productores** — cada uno por su acción declarada de suspensión (ver `widgets/producers.py`).
 
-    Idempotente: parar dos veces no rompe nada. Nunca lanza — cada paso está aislado, porque una parada a medias
-    es peor que ninguna: el operador cree que paró y algo sigue sonando."""
+    Idempotente: parar dos veces no rompe nada (una sesión ya cerrada no tiene nada que cerrar). Nunca lanza —
+    cada paso está aislado, porque una parada a medias es peor que ninguna: el operador cree que paró y algo
+    sigue sonando."""
     _persist(STOPPED, src)
+    try:
+        from observability import identity
+        identity.end_session(src)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"runstate.stop: the observability session could not be closed: {e!r}")
     frozen, suspended = 0, []
     try:
         from nucleo import dispatch
