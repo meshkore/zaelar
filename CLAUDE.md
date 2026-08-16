@@ -2190,6 +2190,22 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     verdicts). Also fixed three now-broken synchronous `.offer()` calls in
     `tests/voice/unit/providers/test_nucleo_trace_merge.py` (a concurrent session's uncommitted work) —
     `offer()` becoming async broke them structurally; fixed alongside, nothing else in that file touched.
+- **RESET left stale rows on screen and never touched the chat wall** (2026-08-16, operator report with a live
+  screenshot: debug panel still showing pre-reset ticks, chat wall still showing the pre-reset conversation).
+  Both server-side pieces were already correct — `reset_hard`/`reset_full` (`server/voice_api.py`) already call
+  `rotate_session("reset")` (new session id, observability zeroed). The gap was entirely CLIENT-side, in
+  `frontend/app/services/session-lk.js::_clearCanvasAndLog()` — the optimistic, deterministic reset path added
+  2026-07-23 to avoid depending on an SSE round-trip through a connection `stop()` is about to kill (see that
+  function's own comment). It called `clearDebugBuffer()` directly (empties `debugbus.js`'s ring) but never
+  `store.newSession()` — and `DebugPanel.js`'s RENDERED rows only clear via its OWN reactive effect on
+  `store.sessionEpoch()` (its "SESIÓN NUEVA" comment, 2026-08-10), which that bare buffer-clear never triggers.
+  Two different things both called "clearing the log", and only one of them was wired to the optimistic path.
+  Separately, `store.chatMsgs` (the chat wall's history) was never cleared by ANY reset path — checked all
+  three (`/reset`, `/reset/hard`, `/api/reset/full`) end to end. Fixed by having `_clearCanvasAndLog()` also
+  call `store.newSession()` and `store.setChatMsgs([])` — it already owns "clear everything the operator can
+  still see" for the canvas; the debug panel and chat wall are exactly that, just two more instances of it.
+  Frontend-only fix (no Python test harness reaches DOM-level assertions for this file); not live-verified
+  this session (no browser tool), flagged for a manual check.
 
 ## Testing y rueda de mejora (INI-013)
 

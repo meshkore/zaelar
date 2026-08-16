@@ -488,6 +488,16 @@ export async function reset() { await stop(); try { await api.reset(); } catch (
 function _clearCanvasAndLog() {
   try { window.__zaelarDesktop && window.__zaelarDesktop.closeAll(); } catch (_) {}
   try { clearDebugBuffer(); } catch (_) {}
+  // Two real gaps this bare `clearDebugBuffer()` left open (operator report, 2026-08-16, live session): (1) it
+  // only empties debugbus.js's own ring — `DebugPanel.js`'s RENDERED rows only clear via its own reactive effect
+  // on `store.sessionEpoch()` (see that file's "SESIÓN NUEVA" comment), which this call never bumps — so the
+  // operator kept seeing the PREVIOUS session's rows after a reset, even though the buffer feeding them was
+  // already empty. (2) the chat wall's history (`store.chatMsgs`) was never cleared by ANY reset path — a
+  // conversation from before the reset just sat there looking current. Both fixed the same way: this is the
+  // client-side, deterministic reset path (see the comment above on why it can't rely on the SSE round-trip),
+  // so it owns clearing everything the operator can still SEE, not just the debug ring.
+  try { store.newSession(); } catch (_) {}
+  try { store.setChatMsgs([]); } catch (_) {}
 }
 
 // Un reset deja el sistema LISTO PARA EMPEZAR — y eso incluye la voz (fix 2026-08-12).
