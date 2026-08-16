@@ -1,7 +1,7 @@
 ---
 title: Zaelar Modules
 category: modules
-updated: 2026-07-25
+updated: 2026-08-16
 owner: ricart
 status: current
 ---
@@ -12,6 +12,7 @@ status: current
 | nucleo     | nucleo/        | **Brain «Colmena»** (default `BRAIN=nucleo`). `flash/` = FlashBrain (sub-second voice, non-reasoning model per-invocation); `websearch.py` = SHARED web search (both brains, layered providers, V2-022); `dispatch.py`+`memory_agent.py`+`agentes/` = SlowBrain (async Claude Code/Codex `CodeAgent`, web search via native WebSearch/WebFetch); `loop.py` (orchestrator ~1 Hz) + `scheduler.py` (own cron) + `cron_api.py` (`/api/cron`) + `sparks.py`. Exposed to voice as `voice/engine/llm/providers/nucleo.py`. |
 | memory     | memory/        | **Central memory** — SQLite `zaelar.db` (sqlite-vec + FTS5 + RRF + graph + forgetting). Absorbed the old `files/` as an episodic layer. `server_api.py` = `/api/files/*` + `/api/memory/map` (memory-map visualizer, V2-014). |
 | bus        | bus/           | **Event bus** — in-process pub/sub (generalizes `voice/observer.py`) + durable SQLite log + SSE bridge. |
+| observability | observability/ | **WHO · WHEN · in which FLOW** (V2-090) — completes the event log (`bus/log.py`, which already records WHAT happens) with the axes needed to ANALYZE it: `identity.py` (stable per-install `user_id` + per-session `session_id`), `flows.py` (read by correlation id — end-to-end flows with real duration, families, actors, tokens, errors), `api.py` (`/api/observability/*`). Read-only: the bus's sink stays the sole writer to `events`. |
 | frontend   | frontend/      | Voice interface — self-contained ES-module app (no build), Solid-migration-ready (see §Frontend below) |
 | server     | server/        | FastAPI app + routers + entrypoint (`python -m server`); HTTP API (voice, ICE, settings, widgets, pages) |
 | widgets    | widgets/       | Full-stack widgets (data.py + widget.js per folder), generator, catalog, runtime |

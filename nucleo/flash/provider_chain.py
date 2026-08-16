@@ -36,8 +36,8 @@ from loguru import logger
 # 23:15:37») se resolvía a medianoche pasada y el cooldown nacía vencido — el bug que el hermano ya arregló y que
 # aquí seguía vivo. Dos copias de la misma lectura garantizan que una de ellas se quede atrás.
 from nucleo.workers.providers import _reset_epoch, classify_failure
-# Mecánica de cooldown compartida con el hermano (V2-098) — el ESTADO sigue separado a propósito (KV namespace
-# propio: un tier de MODELO caído no dice nada de un endpoint de CLI caído), solo el load/save/token/available.
+# Cooldown mechanics shared with the sibling module (V2-098) — the STATE stays separate on purpose (its own KV
+# namespace: a MODEL tier being down says nothing about a CLI endpoint being down), only load/save/token/available.
 from nucleo.provider_health import CooldownStore, token_for as _token_for
 
 

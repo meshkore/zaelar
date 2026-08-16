@@ -62,8 +62,8 @@ def resolve(task: str) -> tuple[str, str, str]:
 
 
 def _endpoint_key(url: str) -> str:
-    # Resolución POR ENDPOINT única (`nucleo/provider_keys.py`, V2-098) — antes solo conocía 4 de los ~9
-    # endpoints (faltaban gemini/mistral/z.ai/deepseek/moonshot).
+    # Single BY-ENDPOINT resolver (`nucleo/provider_keys.py`, V2-098) — this used to know only 4 of the ~9
+    # endpoints (missing gemini/mistral/z.ai/deepseek/moonshot).
     from nucleo.provider_keys import key_for_endpoint
     return key_for_endpoint(url, default="local")
 

@@ -1947,6 +1947,47 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - **Kill-switch `ZAELAR_TOOL_SELECTION=0`** — un cambio que toca el ENRUTADO tiene que poder apagarse sin
     desplegar código. Y un guarda de deuda silenciosa: toda tool debe tener familia en `router.FAMILIES`, porque una
     sin familia se colaría siempre y no se podría recortar jamás.
+- **Architecture/modularization pass — real duplication killed, three god-files split, one deliberately NOT split**
+  (V2-098, 2026-08-16; full audit + rationale in `.meshkore/roadmap/initiatives/V2-098-arquitectura-modular.md`,
+  gitignored/local). Baseline tagged `v3.06` first (1924 tests green) as the pre-refactor starting point.
+  - **Killed, not just renamed — each was a real, already-diverging bug risk, not a style complaint**: (1) two
+    secret-redaction predicates (`config/v2.py` vs `config/credentials.py`) that would have let a future `*_token`
+    config key leak unredacted — now one shared suffix list; (2) API-key-per-endpoint resolution reimplemented in
+    5 places, two of which (`susurro/client.py`, `memllm.py`) only knew 4 of ~9 endpoints — pointing either at
+    gemini/mistral/z.ai/deepseek/moonshot silently resolved an empty key — now `nucleo/provider_keys.py`, one
+    resolver; (3) two independent cooldown/circuit-breaker implementations (`nucleo/flash/provider_chain.py`,
+    `nucleo/workers/providers.py`) — now share `nucleo/provider_health.CooldownStore` mechanics while keeping
+    separate KV state (a model tier down says nothing about a worker CLI endpoint); (4) OAuth PKCE math and the
+    atomic-JSON-plus-chmod-600 secret store, each copy-pasted across `spotify/auth.py`/`email/oauth.py`/
+    `meshkore/store.py` — the last of which wrote its file with no tmp+replace step, a real truncation risk on a
+    crash mid-write, now fixed as a side effect of sharing `connectors/secure_json_store.py`.
+  - **Three god-files split where the boundary was actually clean**: `widgets/generator.py` (job orchestration)
+    → `widgets/validator.py` (static+runtime contract checks, zero shared mutable state); `nucleo/flash/probe.py`
+    (core `run_turn`) → `probe_api.py` (FastAPI router) + `probe_cli.py` (talks to the running server over plain
+    HTTP, needs none of the core's state); `nucleo/dispatch.py` (session/pool lifecycle) → `dispatch_prompts.py`
+    (pure prompt-string builders, no `SessionRecord`/pool state touched). Each kept the old call sites working via
+    re-exports — but the `dispatch.py` split still had a hidden reverse dependency (`nucleo/research.py` importing
+    a private name straight from `dispatch`) that only the FULL test suite caught, at runtime, not at import time
+    or by `grep`: a lesson for the next split, not just this one.
+  - **`voice/engine/llm/providers/nucleo.py` (the 2374-line `_run_inner`, THE voice hot path) was investigated
+    and deliberately NOT split this session.** It mixes turn-gating, tool-call dispatch, provider failover,
+    vault interception, and the streaming loop, with 110 bare `except Exception` blocks — genuinely the highest-
+    value target, and genuinely the highest-risk: unlike `dispatch.py` (async workers, doesn't block voice), a
+    mistake here shows up in every conversation, and the `dispatch.py` split's own near-miss argues for doing
+    this one as its own dedicated, extraction-by-extraction effort with the full suite green between each step —
+    not the last stretch of an already-long session. A concrete extraction plan is left in the initiative doc.
+  - **`config/` importing upward into `voice`/`server`/`nucleo`** (`config/settings.py`, `config/balances.py`) was
+    investigated and left alone on purpose: fixing it needs a registry-pattern inversion (a real design change,
+    not an extraction) since `config/balances.py` calls the full `.status()` of the provider chains, not a
+    liftable function. Documented as deliberate debt rather than forced into a bad shape.
+  - **Docs refreshed to match**: `zaelar-modules.md` gained the `observability` row it was missing;
+    `zaelar-architecture.md`'s model-routing section (§6) was rewritten off a stale 2026-07-15 snapshot naming a
+    now-banned model, and its voice-engine row picked up the turn-segmentation (V2-095) and fragment-accumulator
+    (V2-096) behavior it never mentioned. The two web diagram files (`architecture.ts`/`widgets.ts`, hand-tuned
+    SVG coordinates on zaelar.com/technology) were investigated but left untouched — no browser/screenshot tool
+    was available this session to verify a coordinate edit on a real public page, and an unverified visual change
+    there is worse than a diagram that's merely missing one recent feature.
+  - Full suite green after every step (1924 passed, 2 skipped) — never one big commit at the end.
 
 ## Testing y rueda de mejora (INI-013)
 

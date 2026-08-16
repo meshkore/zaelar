@@ -117,9 +117,9 @@ def _model() -> str:
 
 
 def _endpoint_key(url: str) -> str:
-    # Credencial POR ENDPOINT — la key sigue a la URL, nunca al revés. Resolución ÚNICA (`nucleo/provider_keys.py`,
-    # V2-098): antes reimplementada aquí y en fast_client/susurro/memllm, cada una con su propia lista y ya
-    # desincronizadas entre sí.
+    # Credential BY ENDPOINT — the key follows the URL, never the other way round. Single resolver
+    # (`nucleo/provider_keys.py`, V2-098): previously reimplemented here and in fast_client/susurro/memllm, each
+    # with its own list, already out of sync with each other.
     from nucleo.provider_keys import key_for_endpoint
     return key_for_endpoint(url, default="local")
 

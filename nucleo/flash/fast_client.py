@@ -129,7 +129,7 @@ class ModelSpec:
             return "ollama"        # Ollama acepta cualquier no-vacío
         # Nube sin key explícita → credencial DESDE EL ENTORNO (fallback power-user). La KEY es una credencial,
         # no una selección de modelo, así que leerla del env NO viola "modelo por invocación". Contrato heredado:
-        # FAST_API_KEY explícita → si no, resolución POR ENDPOINT (única, `nucleo/provider_keys.py`).
+        # Explicit FAST_API_KEY wins; otherwise resolve BY ENDPOINT (single resolver, `nucleo/provider_keys.py`).
         import os
         fast = os.getenv("FAST_API_KEY")
         if fast:

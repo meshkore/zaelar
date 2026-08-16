@@ -62,8 +62,8 @@ KNOWN: list[dict] = [
 LICENSE_TIER = {"name": "licencia-claude", "base_url": "", "env": [], "plan": "licencia local de Claude Code",
                 "local_only": True}
 
-# Mecánica de cooldown compartida con el hermano de voz/cluster (V2-098) — el ESTADO sigue separado a propósito
-# (KV namespace propio: un endpoint de CLI caído no dice nada de un tier de modelo caído), solo el
+# Cooldown mechanics shared with the voice/cluster sibling module (V2-098) — the STATE stays separate on purpose
+# (its own KV namespace: a CLI endpoint being down says nothing about a MODEL tier being down), only
 # load/save/token/available.
 from nucleo.provider_health import CooldownStore, token_for as _token_for
 

@@ -1,7 +1,7 @@
 ---
 title: Zaelar Architecture
 category: architecture
-updated: 2026-08-01
+updated: 2026-08-16
 owner: ricart
 status: current
 ---
@@ -25,7 +25,7 @@ NOT the browser UI — the user-facing audio I/O lives in `frontend/`.
 |---|---|---|
 | `frontend/` | **client** (browser) | The whole UI: captures mic + camera, draws the orb (agent voice) and the mic spectrum, shows widgets on the canvas, text chat wall, ☾/☀ dark/light theme (dark default, one `--hb-*` CSS variable namespace shared with widgets — INI-011). No business logic — a thin reactive shell (ES modules, no build). |
 | `server/` | server | FastAPI transport: serves the frontend, the WebRTC offer/ICE, `/events` SSE, settings, the widgets HTTP API, the first-run wizard (`/api/wizard/*`), the music connector control plane (`/api/spotify/*` OAuth + `/api/music/state`) and the **full-screen config area** (`/api/config*`, V2-043: per-piece API/model + API balances). Composition root + entrypoint (`python -m server`); its lifespan also starts the LiveKit agent worker (embedded), the `nucleo/` loop, the widgets supervisor and the memory queue consumer. |
-| `voice/` | server | The voice **engine** (`voice/engine/`, LiveKit AgentSession): receives mic audio → STT → brain → TTS → back to the client. Turn-taking/VAD/barge-in are governed by LiveKit (VAD Silero + turn-detector `MultilingualModel` + `allow_interruptions`). Top level = brain-agnostic contract: observer (SSE), prompt, `tag_protocol`, `brain_notes`, `proactive`, TTS/STT backends. |
+| `voice/` | server | The voice **engine** (`voice/engine/`, LiveKit AgentSession): receives mic audio → STT → brain → TTS → back to the client. Turn-taking/VAD/barge-in are governed by LiveKit (VAD Silero + `allow_interruptions`), with a lexical semantic layer on top as the default turn-detector since 2026-08-14 (V2-095: closes a turn on SENTENCE END, not just acoustic silence — ~48% of turns need no model call at all) and a fragment accumulator (V2-096, `nucleo/flash/accumulator.py`) that holds a still-growing sentence across a pause of ANY length instead of acting on a half-finished thought. Top level = brain-agnostic contract: observer (SSE), prompt, `tag_protocol`, `brain_notes`, `proactive`, TTS/STT backends. |
 | `nucleo/` | server | zaelar's **own brain** (default `BRAIN=nucleo`). Two speeds: **FlashBrain** (`nucleo/flash/`, sub-second voice layer, non-reasoning model per-invocation) + **SlowBrain** (`nucleo/dispatch.py` + `nucleo/memory_agent.py` + `nucleo/agentes/`, async Claude Code / Codex agents behind a `CodeAgent` interface). Orchestrator loop `nucleo/loop.py` (~1 Hz) + own cron `nucleo/scheduler.py` + panel `nucleo/cron_api.py` + `nucleo/sparks.py`. Exposed to the voice engine as provider `voice/engine/llm/providers/nucleo.py`. |
 | `memory/` | server | **Central memory** — SQLite `zaelar.db` (sqlite-vec + FTS5 + RRF + graph + forgetting). Absorbed the old `files/` as an episodic layer. |
 | `bus/` | server | In-process **event bus** (pub/sub, generalization of `voice/observer.py`) + durable SQLite log + SSE bridge. |
@@ -493,10 +493,18 @@ The brain (`nucleo/`) is zaelar's own, but its MODELS are pluggable behind a thi
 is woven through voice/widgets/frontend:
 - **FlashBrain model** = the fast voice-turn model, chosen **per invocation** from `config/v2.py` `fast` section
   (`FAST_PROVIDER`/`FAST_MODEL`/`FAST_BASE_URL`/`FAST_API_KEY`): a local Ollama model or a cloud model. The api-key is
-  resolved **by endpoint** in `fast_client.py` (x.ai→`XAI_API_KEY`, groq.com→`GROQ_API_KEY`, aimlapi→`AIMLAPI_KEY`,
-  gemini→`GEMINI_API_KEY`), so switching provider only needs the matching key in the credential store. **Production
-  since 2026-07-15 = `grok-4.20-0309-non-reasoning` via xAI direct** (`api.x.ai`); Haiku/AIMLAPI and Groq are
-  alternatives. NEVER a reasoning model, NEVER local on the voice path (local qwen ≈19 s/turn under GPU contention).
+  resolved **by endpoint** in `nucleo/provider_keys.py` (aimlapi→`AIMLAPI_KEY`, x.ai→`XAI_API_KEY`,
+  groq.com→`GROQ_API_KEY`, gemini→`GEMINI_API_KEY`, deepseek.com→`DEEPSEEK_API_KEY`, …), so switching provider only
+  needs the matching key in the credential store — that single resolver is shared by every LLM-calling module in
+  `nucleo/` (V2-098), not reimplemented per caller. **Production titular = `deepseek-v4-flash` via the AIMLAPI
+  broker.** `grok` is explicitly BANNED from the FlashBrain (mis-routes memory questions to `widget_data`) — NEVER
+  a reasoning model, NEVER local on the voice path (local qwen ≈19 s/turn under GPU contention).
+  - **Automatic latency relay (V2-094):** `nucleo/flash/provider_chain.py` watches the titular's TTFT; two slow
+    turns in a row relay to `api.deepseek.com` direct — same model family, but the DIRECT endpoint obeys the
+    "don't reason" flag the broker silently ignores (V2-097: ~8.6 s → ~1.2 s TTFT). A relay is capped (turn budget
+    + short cooldown) and reverts to the titular on its own. **Self-host ships with NO relay by default** — an
+    empty chain, so a self-hoster never gets silently switched to a provider they didn't choose; opt in via
+    `fast.providers`. Cloud gets the relay by default.
 - **Worker tier** (a.k.a. "SlowBrain" in older docs) = the async agent tier, configured in `config/v2.py`
   `code_agent` section (`CODE_AGENT_*`, Claude Code / Codex behind the `CodeAgent` interface in `nucleo/agentes/`).
   **V2-036: there is no separate reasoning brain anymore** — escalating LAUNCHES a headless worker that drives the

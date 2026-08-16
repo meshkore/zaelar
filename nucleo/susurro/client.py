@@ -33,10 +33,10 @@ def resolved_api_key(base_url: str, explicit: str = "") -> str:
     u = (base_url or "").lower()
     if any(h in u for h in ("11434", "localhost", "127.0.0.1")):
         return "local"
-    # Resolución POR ENDPOINT única (`nucleo/provider_keys.py`, V2-098) — antes solo conocía 4 de los ~9 endpoints
-    # (faltaban gemini/mistral/z.ai/deepseek/moonshot: apuntar el Susurro a uno de ellos habría resuelto "" en
-    # silencio). Fallback a OPENAI_API_KEY preservado — es el default histórico de este cliente concreto, no del
-    # resolver compartido.
+    # Single BY-ENDPOINT resolver (`nucleo/provider_keys.py`, V2-098) — this used to know only 4 of the ~9
+    # endpoints (missing gemini/mistral/z.ai/deepseek/moonshot: pointing Susurro at one of those would have
+    # silently resolved to ""). OPENAI_API_KEY fallback preserved — this client's own historical default, not
+    # part of the shared resolver.
     from nucleo.provider_keys import key_for_endpoint
     return key_for_endpoint(u, default="") or os.getenv("OPENAI_API_KEY", "")
 
