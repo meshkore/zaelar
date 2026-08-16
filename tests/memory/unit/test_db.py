@@ -74,6 +74,39 @@ def test_migrate_is_idempotent(tmp_path, monkeypatch):
     memdb.reset_db()
 
 
+def test_get_db_survives_reentrant_call_from_inside_migrate(tmp_path, monkeypatch):
+    """Real deadlock, 2026-08-16: on a FRESH db, Database.__init__ -> _migrate() -> embeddings.dim() ->
+    _resolve_backend() -> _ollama_embed() logs perf via voice.observer.perf() -> emit() -> stamp_identity()
+    -> nucleo.runstate.stopped() -> kv_get() -> get_db() AGAIN, same thread, before the first get_db() call
+    has returned (_DB is still None). A plain threading.Lock self-deadlocks there on every fresh boot —
+    reproduced here directly against the lock, without the full observer/runstate chain."""
+    monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
+    memdb.reset_db()
+    from memory import embeddings as memembed
+    reentered = {"n": 0}
+    real_dim = memembed.dim
+
+    def _reentrant_dim():
+        reentered["n"] += 1
+        if reentered["n"] == 1:
+            memdb.get_db()  # same thread, _DB still None, _DB_LOCK still held by the outer get_db()
+        return real_dim()
+
+    monkeypatch.setattr(memembed, "dim", _reentrant_dim)
+    import threading
+    done = threading.Event()
+
+    def _open():
+        memdb.get_db()
+        done.set()
+
+    t = threading.Thread(target=_open, daemon=True)
+    t.start()
+    t.join(timeout=5)
+    assert done.is_set(), "get_db() deadlocked on reentrant call — _DB_LOCK must be an RLock, not a Lock"
+    memdb.reset_db()
+
+
 def test_vec_search_smoke(fresh_db):
     """La tabla vec0 acepta insertar/consultar un vector de la dimensión correcta."""
     dim = memschema.EMBED_DIM

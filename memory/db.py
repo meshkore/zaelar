@@ -171,7 +171,11 @@ class Database:
 
 # ── module singleton ────────────────────────────────────────────────────────────────────────────────────
 _DB: Database | None = None
-_DB_LOCK = threading.Lock()
+# RLock, not Lock (2026-08-16): on a fresh DB, Database.__init__ -> _migrate() -> embeddings.dim() ->
+# _resolve_backend() -> _ollama_embed() logs perf via voice.observer.perf(), which walks emit() ->
+# stamp_identity() -> nucleo.runstate.stopped() -> kv_get() -> get_db() again, on the SAME thread, before
+# the first get_db() call has returned. A plain Lock self-deadlocks there every time; RLock does not.
+_DB_LOCK = threading.RLock()
 
 
 def get_db() -> Database:

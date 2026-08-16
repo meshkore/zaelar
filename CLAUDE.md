@@ -1621,6 +1621,18 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     sencillo análogo a `_active`/`_general`), así el modelo nunca necesita ver ids internos. Coherente con la
     norma de este repo de "no hardcoded, enseña al modelo" en vez de heurísticas de similitud de texto escritas
     a mano.
+- **El motor no arrancaba NUNCA en frío — deadlock de reentrancia en `memory/db.py::get_db()`** (V2-106,
+  2026-08-16, encontrado cerrando V2-105: cinco reinicios seguidos colgados, proceso vivo a 0% CPU, sin
+  traceback). En el PRIMER `get_db()` de un proceso, `Database.__init__` → `_migrate()` → `embeddings.dim()` →
+  `_resolve_backend()` → `_ollama_embed()` registra perf vía `voice.observer.perf()`, que atraviesa `emit()` →
+  `stamp_identity()` → `nucleo.runstate.stopped()` → `kv_get()` → **`get_db()` otra vez, mismo hilo**, antes de
+  que la primera llamada terminara. `_DB_LOCK` era un `threading.Lock()` plano sostenido durante TODA la
+  construcción → se autobloquea para siempre. Invisible en tests porque `_DB` es singleton de proceso: solo el
+  PRIMER `get_db()` de un arranque real dispara la rama de construcción; ningún test reutiliza ese estado.
+  Fix mínimo: `RLock()`, el mismo patrón que `Database._lock` ya usaba en el mismo fichero. Regresión:
+  `tests/memory/unit/test_db.py::test_get_db_survives_reentrant_call_from_inside_migrate` (verificado que falla
+  sin el fix). Diagnosticado con `faulthandler.dump_traceback_later()` tras descartar red/Ollama/puertos —
+  `py-spy`/`lldb` no disponibles sin sudo interactivo en esta máquina.
 - **Seguridad del canal de cluster** (`connectors/meshkore/security.py` + `bridge.py`): el cluster habla con agentes
   externos **no confiables**. Controles DUROS, no solo prompts (detalle en `zaelar-security.md`):
   - El **canal lo conduce el motor del FlashBrain en perfil UNTRUSTED** (V2-069): **tools APAGADAS en código**
