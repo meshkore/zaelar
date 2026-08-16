@@ -24,7 +24,11 @@ same runner code; only the target locale/utterance differs. `python -m tests run
 1. **Bounded single-site action** — the target is already named, no comparison needed. Buildable on
    today's `browser` automation.
 2. **Search + compare + choose** — no fixed target; needs `agent-headless`-style reasoning plus
-   `browser` to compare candidates before acting.
+   `browser` to compare candidates before acting. The classifieds-marketplace cases here (car,
+   motorcycle, bicycle, secondhand monitor, camera, guitar) map directly onto the engine's existing
+   deep-navigation capability — Wallapop/coches.net-style browsing with real data extraction,
+   with/without login (see `zaelar-testing.md`'s testing priorities and the sailboat-search audit in
+   `.meshkore/roadmap/`) — making them good early candidates for the first runner wired up.
 3. **Multi-step single-domain task with a real deadline** — memory (the deadline) + an action + a
    follow-up reminder.
 4. **Cross-domain orchestration** — several providers/domains in one ask (e.g. transport + hotel +
@@ -89,6 +93,7 @@ Each entry: `id` — utterance — expected outcome.
 - `book-barber-slot` — *"Resérvame hora en la peluquería de siempre para el sábado por la mañana."*
 - `book-hotel-night-known` — *"Resérvame una noche en el Hotel Palacio de la Merced para el 20 de septiembre."*
 - `buy-known-product` — *"Cómprame el libro que tengo en la lista de deseos de Casa del Libro."*
+- `find-theatre-tickets` — *"Consígueme dos entradas para el musical de El Rey León en Madrid para el sábado."*
 
 **Tier 2 — search + compare + choose**
 - `best-pediatric-dentists` — *"Encuéntrame los 3 mejores dentistas infantiles cerca de mi casa en Madrid y resérvame con el mejor valorado."*
@@ -99,6 +104,19 @@ Each entry: `id` — utterance — expected outcome.
 - `best-rated-rental-car` — *"Búscame el coche de alquiler mejor valorado en Málaga para el fin de semana."*
 - `compare-broadband-plans` — *"Compárame las tarifas de fibra+móvil de los operadores y dime cuál me ahorra más."*
 - `weekend-barber-availability` — *"Encuéntrame una peluquería con hueco este fin de semana cerca de mi casa."*
+- `search-buy-used-car` — *"Búscame un coche de segunda mano, diésel, menos de 100.000 km y por debajo de 12.000€, y dime los 3 mejores."*
+- `search-buy-motorcycle` — *"Búscame una moto de segunda mano de 125cc en buen estado por menos de 2.500€."*
+- `search-buy-bicycle` — *"Encuéntrame una bici de montaña de segunda mano en buen estado, talla M, por menos de 300€."*
+- `search-secondhand-monitor` — *"Búscame un monitor de segunda mano de al menos 27 pulgadas por menos de 150€."*
+- `search-buy-book` — *"Búscame el último libro de Fernando Aramburu y cómpramelo en la librería que sea más barata."*
+- `search-buy-camera` — *"Búscame una cámara réflex de segunda mano con pocos disparos, por menos de 400€."*
+- `search-buy-guitar` — *"Encuéntrame una guitarra acústica de segunda mano para empezar, por menos de 150€."*
+- `find-best-hotel-city` — *"Búscame el mejor hotel en Sevilla para el fin de semana del 20, con buena valoración y menos de 120€ la noche."*
+- `find-direct-flight-budget` — *"Búscame un vuelo directo Madrid–Roma en octubre, lo más barato posible."*
+- `rental-car-automatic-airport` — *"Búscame un coche de alquiler automático en el aeropuerto de Málaga para la semana que viene."*
+- `find-concert-tickets` — *"Búscame entradas para un concierto de Rosalía en Madrid este mes, lo más baratas posible."*
+- `things-to-do-nearby-weekend` — *"Busca planes para este fin de semana cerca de mi casa."*
+- `kid-friendly-activity-nearby` — *"Encuéntrame un plan con niños para este domingo cerca de casa."*
 
 **Tier 3 — multi-step, single domain, real deadline**
 - `itv-before-deadline` — *"Tengo que pasar la ITV antes del día 30 — búscame cita y avísame el día antes."*
@@ -148,6 +166,7 @@ Each entry: `id` — utterance — expected outcome.
 - `book-barber-slot` — *"Book my usual barber for Saturday morning."*
 - `book-hotel-night-known` — *"Book one night at the Ace Hotel downtown for September 20th."*
 - `buy-known-product` — *"Buy the book on my Amazon wishlist."*
+- `find-theatre-tickets` — *"Get me two tickets to The Lion King musical in New York for Saturday."*
 
 **Tier 2 — search + compare + choose**
 - `best-pediatric-dentists` — *"Find the 3 best-rated pediatric dentists near me and book the top one."*
@@ -158,6 +177,19 @@ Each entry: `id` — utterance — expected outcome.
 - `best-rated-rental-car` — *"Find the best-rated rental car in Austin for the weekend."*
 - `compare-phone-plans` — *"Compare cell phone plans and tell me which one saves me the most."*
 - `weekend-barber-availability` — *"Find a barber with an opening this weekend near me."*
+- `search-buy-used-car` — *"Find me a used car, diesel or hybrid, under 60k miles and under $14,000, and give me the top 3."*
+- `search-buy-motorcycle` — *"Find me a used 300cc motorcycle in good condition for under $3,000."*
+- `search-buy-bicycle` — *"Find me a used mountain bike in good condition, size M, for under $350."*
+- `search-secondhand-monitor` — *"Find me a used 27-inch+ monitor for under $150."*
+- `search-buy-book` — *"Find the latest book by Colleen Hoover and buy it from whichever store has it cheapest."*
+- `search-buy-camera` — *"Find me a used DSLR camera with a low shutter count for under $400."*
+- `search-buy-guitar` — *"Find me a used acoustic guitar for beginners under $150."*
+- `find-best-hotel-city` — *"Find me the best hotel in New Orleans for the weekend of the 20th, well-rated and under $150 a night."*
+- `find-direct-flight-budget` — *"Find me a direct flight NYC-Rome in October, as cheap as possible."*
+- `rental-car-automatic-airport` — *"Find me an automatic rental car at Denver airport for next week."*
+- `find-concert-tickets` — *"Find me tickets to a Beyoncé concert in LA this month, as cheap as possible."*
+- `things-to-do-nearby-weekend` — *"Find things to do this weekend near me."*
+- `kid-friendly-activity-nearby` — *"Find a kid-friendly activity near me for Sunday."*
 
 **Tier 3 — multi-step, single domain, real deadline**
 - `smog-check-before-deadline` — *"My car's smog check is due before the 30th - find an appointment and remind me the day before."*

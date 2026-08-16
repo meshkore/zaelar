@@ -5,7 +5,7 @@
   "description": "ES/US catalog of real end-to-end task scenarios, ordered by difficulty tier (backlog — see tests/use_cases/CASES.md)",
   "domain_ids": [],
   "requirements": [],
-  "case_count": 86,
+  "case_count": 114,
   "primary_case": "use_cases::es::restaurant-tonight-madrid",
   "steps": [
     {
