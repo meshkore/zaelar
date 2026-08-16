@@ -11,11 +11,11 @@ import os
 import subprocess
 import time
 
-# Semantic version of the engine — bump it by hand when closing a notable block of changes (latest: V2-104 —
-# REM's synthesize() now gates every insight through a deterministic groundedness check plus an independent,
-# fresh LLM verification before writing it AND before demoting the source pills it summarizes; a rejected
-# insight is visible and cheap to retry, never silent).
-VERSION = "3.14"
+# Semantic version of the engine — bump it by hand when closing a notable block of changes (latest: V2-104
+# corrected against a REAL DeepSeek V4 Flash validation run — the LLM verifier is now the arbiter of REM's
+# insight faithfulness gate, not the deterministic backstop, which was vetoing faithful word→digit paraphrases
+# ("las nueve" → "las 9") before the smarter check ever ran).
+VERSION = "3.15"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CACHE: dict = {}
