@@ -220,6 +220,24 @@ def _maybe_close_flow(brain: "NucleoLLM") -> None:
         pass
 
 
+def _release_acc_trace_if_fresh(brain: "NucleoLLM") -> None:
+    """Real bug diagnosed live (2026-08-16): "cierra todos los widgets" turns sat "EN CURSO" in the master
+    forever despite doing their job — closing the widgets — correctly. `_begin_or_adopt_trace()` sets
+    `brain._acc_trace_id` for EVERY fresh (non-continuation) turn, on the assumption that the accumulator's
+    `offer()` call further down `_run_inner` will clear it once the utterance resolves as complete. Three
+    early-exit branches (hard interrupt, echo suppression, the not-directed/ambient gate) `return` BEFORE ever
+    reaching `offer()` — their trace never gets released, and `_flow_should_close()`'s "a chain still expects a
+    continuation on THIS trace" guard (there to protect a REAL pending fragment chain) ends up blocking that
+    exact flow from EVER closing, since nothing later ever revisits the decision.
+
+    Only safe to clear when the accumulator has nothing buffered: if it does, `_acc_trace_id` may belong to a
+    genuine unresolved chain this turn merely ADOPTED (`_begin_or_adopt_trace`'s other branch, e.g. a "para"
+    said mid-fragment) — clearing it there would end that unrelated chain's protection early, not just this
+    turn's own bookkeeping."""
+    if not getattr(brain, "_acc", None) or not brain._acc.pending():
+        brain._acc_trace_id = ""
+
+
 def _confirm_ui_paints(widget_id: str) -> bool:
     """Whether an irreversible-action confirmation on this widget should paint the card's visual Sí/No overlay.
 
@@ -488,6 +506,7 @@ class NucleoLLMStream(llm.LLMStream):
                          extra={"cmd": hard, "reason": "hard_interrupt"})
                     if hard == "close":
                         emit("widget", "close", extra={"src": "flash"})   # cerrar TODOS los widgets, ya
+                    _release_acc_trace_if_fresh(brain)          # ver docstring — este turno no llega a offer()
                     return                                   # 'stop' → el barge-in ya cortó el TTS; no respondemos
 
         # SUPRESIÓN DE ECO (FASE 2, 2026-07-14): con el micro SIEMPRE abierto y sin AEC perfecto, el mic capta el
@@ -517,6 +536,7 @@ class NucleoLLMStream(llm.LLMStream):
                 if _is_echo:
                     emit("ambient", "🔇 eco descartado (zaelar se oyó a sí mismo)", text=text[:160], role="user",
                          extra={"reason": "echo", "gap_s": round(_gap, 1), "cat": "flash"})
+                    _release_acc_trace_if_fresh(brain)          # ver docstring — este turno no llega a offer()
                     return
 
         # T134 — un turno no dirigido no se atiende (ni siquiera drena notas: se preservan para el próximo).
@@ -529,6 +549,7 @@ class NucleoLLMStream(llm.LLMStream):
             if not verdict.directed:
                 emit("ambient", "🙉 ambiente — no dirigido a zaelar", text=text[:200], role="user",
                      extra={"mode": attention.mode(), "reason": verdict.reason})
+                _release_acc_trace_if_fresh(brain)              # ver docstring — este turno no llega a offer()
                 return
             attention.note_directed()   # refresca la ventana de conversación activa
 

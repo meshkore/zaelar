@@ -6,7 +6,9 @@ LiveKit stream — see `voice/engine/llm/providers/nucleo.py::_begin_or_adopt_tr
 """
 from nucleo.flash.accumulator import Accumulator
 from voice import trace
-from voice.engine.llm.providers.nucleo import NucleoLLM, _begin_or_adopt_trace, _flow_should_close
+from voice.engine.llm.providers.nucleo import (
+    NucleoLLM, _begin_or_adopt_trace, _flow_should_close, _release_acc_trace_if_fresh,
+)
 
 
 def _fresh_brain() -> NucleoLLM:
@@ -85,3 +87,44 @@ def test_flow_should_not_close_with_a_confirmation_still_pending_on_it():
 
 def test_flow_should_not_close_while_its_worker_is_still_running():
     assert _flow_should_close("T1·aaaa", "", set(), True) is False
+
+
+# ── _release_acc_trace_if_fresh (2026-08-16) — the real bug diagnosed live ──────────────────────────────────────
+# "Necesito que cierres todos los widgets..." sat "EN CURSO" in the master forever despite doing its job (closing
+# the widgets) correctly: `_begin_or_adopt_trace` sets `_acc_trace_id` for a fresh turn on the assumption that
+# the accumulator's `offer()` a few lines below will clear it once resolved — but the hard-interrupt/echo/ambient
+# early-return branches `return` BEFORE ever reaching `offer()`, so `_acc_trace_id` stays pinned to that trace
+# and `_flow_should_close`'s "a chain still expects a continuation" guard blocks it from EVER closing.
+def test_a_fresh_hard_interrupt_turn_releases_its_own_acc_trace():
+    brain = _fresh_brain()
+    brain._acc = Accumulator()
+    _begin_or_adopt_trace(brain, "cierra todos los widgets", False)
+    tid = trace.current()
+    assert brain._acc_trace_id == tid           # the bug's precondition: freshly pinned by _begin_or_adopt_trace
+
+    _release_acc_trace_if_fresh(brain)
+
+    assert brain._acc_trace_id == ""
+    assert _flow_should_close(tid, brain._acc_trace_id, set(), False) is True
+    trace.adopt("")
+
+
+def test_release_does_not_end_a_genuinely_pending_chain_it_only_adopted():
+    """If a hard interrupt ("para") lands MID a real fragment chain from a PRIOR turn, `_begin_or_adopt_trace`
+    ADOPTS that chain's trace rather than opening a fresh one — releasing it here would end an unrelated,
+    still-unresolved chain's protection early, not just this turn's own bookkeeping."""
+    brain = _fresh_brain()
+    brain._acc = Accumulator()
+    _begin_or_adopt_trace(brain, "Pues mira, me vas a borrar", False)
+    chain_tid = trace.current()
+    brain._acc.offer("Pues mira, me vas a borrar")   # incomplete -> "hold": a real chain is now pending
+    assert brain._acc.pending()
+
+    trace.adopt("")
+    _begin_or_adopt_trace(brain, "para", False)         # adopts chain_tid, does NOT open a fresh trace
+    assert trace.current() == chain_tid
+
+    _release_acc_trace_if_fresh(brain)
+
+    assert brain._acc_trace_id == chain_tid, "an in-flight chain from a PRIOR turn must survive"
+    trace.adopt("")

@@ -8,6 +8,9 @@ widgets). Es el latido propio de zaelar — reemplaza el **cron nativo de Hermes
   - 🔥 **chispas** — pensamiento espontáneo, con doble gate (frecuencia + utilidad, `nucleo/sparks.py`).
   - **consolidación** ("sueño") — dispara `memory.consolidate()` por intervalo, FUERA del hot path
     (`asyncio.to_thread`: el consolidador es sqlite síncrono y no debe bloquear la voz).
+  - **confirmaciones caducadas** y **flujos conversacionales abandonados** (2026-08-16) — revisita, en una
+    ventana propia más lenta que el pulso, decisiones de cierre que un turno solo pudo tomar UNA vez (ver
+    `_supervise_confirms`/`_supervise_stale_flows`). Nunca toca un flujo con un Brain Worker vivo encima.
   - **señales** por el bus: `loop.tick`, `loop.scheduled_fired`, `loop.spark` (observables por el tests/voice/e2e/agent/juez).
 
 Loop-agnóstico: se monta en el lifespan del server como una task (fuerte ref en app.state), como el resto de
@@ -77,6 +80,16 @@ class OrchestratorLoop:
         # (batería e2e 2026-07-17: el moto encontró listings reales pero la cita lo mató antes del top-3). El env
         # WORKER_BUDGET_WEB_SECS sigue mandando; la fase-1 (nudge "entrega ya") + la parcial en tarjeta se conservan.
         self._kind_budget_default = {"web": 1200.0, "research": 1200.0}
+        # CIERRE de flujos CONVERSACIONALES que se quedaron esperando al operador y nunca volvió (2026-08-16,
+        # diagnóstico en vivo: el operador veía "6 activos" en el master de una conversación abandonada hace
+        # rato). "La pelota está en el tejado de la gente" solo aplica mientras HAY una gente trabajando en
+        # ello — un Brain Worker vivo (`dispatch.has_live_trace`) NUNCA se toca aquí, pase el tiempo que pase;
+        # esto es solo para el turno que ya contestó y quedó a la espera de que el operador retome el tema.
+        # Comprobación DESACOPLADA del tick de 1 Hz (una query SQL de verdad, no bookkeeping en RAM) — se mira
+        # cada `_stale_flow_check_every_s`, no en cada pulso.
+        self._stale_flow_secs = float(os.getenv("ZAELAR_STALE_FLOW_SECS", "900"))       # 15 min por defecto
+        self._stale_flow_check_every_s = float(os.getenv("ZAELAR_STALE_FLOW_CHECK_SECS", "60"))
+        self._last_stale_flow_check = 0.0
 
     # ── ciclo de vida ────────────────────────────────────────────────────────────────────────────────────
     def start(self) -> None:
@@ -127,6 +140,7 @@ class OrchestratorLoop:
         self._ticks += 1
         await self._supervise_workers(now)
         await self._supervise_confirms(now)
+        await self._supervise_stale_flows(now)
         await self._fire_due(now)
         await self._maybe_spark(now)
         await self._maybe_consolidate(now)
@@ -240,6 +254,52 @@ class OrchestratorLoop:
         for e in expired:
             q = (e.get("question") or "").strip() or self._lang().generic_task
             await self._deliver("zaelar", self._say("confirm_expired", question=q))
+
+    async def _supervise_stale_flows(self, now: float) -> None:
+        """Closes a CONVERSATIONAL flow the operator started and then walked away from (2026-08-16, operator
+        request after a diagnosed real incident — the master kept showing several "en curso" flows from a
+        session the operator had abandoned minutes earlier). `_maybe_close_flow` (the per-turn path in
+        `voice/engine/llm/providers/nucleo.py`) only ever gets ONE chance to close a flow, right when its own
+        turn finishes; if that turn correctly deferred (an accumulator chain, a pending confirmation, a live
+        worker), nothing EVER revisits the decision once those conditions clear on their own. This is that
+        revisit — on a slow, deliberately-throttled timer, never the 1Hz tick itself (a real SQL query, not
+        RAM bookkeeping).
+
+        Invariant demanded by the operator, verbatim: "si es una búsqueda activa que mantiene un Brain Worker
+        en marcha, eso JAMÁS se tiene que cerrar hasta que se termine — la pelota está en el tejado de la
+        gente." `dispatch.has_live_trace` is checked FIRST and is the one condition that can NEVER be
+        overridden by staleness, no matter how long it runs."""
+        if now - self._last_stale_flow_check < self._stale_flow_check_every_s:
+            return
+        self._last_stale_flow_check = now
+        try:
+            from observability import identity, flows as _obs_flows
+            from nucleo import dispatch as _disp_stale
+            from widgets import confirm as _confirm_stale
+            from voice import trace as _trace_stale
+            from voice.observer import emit as _emit_stale
+
+            sid = identity.session_info().get("session_id")
+            if not sid:
+                return
+            confirm_trace_ids = {v.get("trace_id") for v in _confirm_stale.pending().values()}
+            for f in _obs_flows.flows(limit=200, session_id=sid):
+                corr_id = str(f.get("corr_id") or "")
+                if not corr_id or f.get("ended_events"):
+                    continue                                       # sin trace, o ya cerrado explícitamente
+                last_ms = float(f.get("last_ms") or 0)
+                age = now - last_ms / 1000.0
+                if age < self._stale_flow_secs:
+                    continue                                       # todavía dentro de la ventana de gracia
+                if _disp_stale.has_live_trace(corr_id):
+                    continue                                       # un worker vivo NUNCA se cierra por tiempo
+                if corr_id in confirm_trace_ids:
+                    continue                                       # esperando el sí/no del operador
+                with _trace_stale.scope(corr_id):
+                    _emit_stale("flow", "end", role="system",
+                                extra={"ok": True, "reason": "stale_no_input", "idle_s": int(age)})
+        except Exception as e:  # noqa: BLE001 — un fallo aquí nunca tumba el loop
+            logger.warning(f"loop: supervise_stale_flows falló (ignorado): {e}")
 
     @staticmethod
     def _lang():

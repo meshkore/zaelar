@@ -1,5 +1,6 @@
 """Tests de nucleo/loop.py (V2-005 · T70/T74/T76) — el latido: dispara vencidos, chispas, consolida, emite bus."""
 import asyncio
+import time
 
 import pytest
 
@@ -166,3 +167,109 @@ def test_tick_says_nothing_when_no_confirmation_expired(fresh_db):
     asyncio.run(lp.tick())
 
     assert delivered == []
+
+
+# ── _supervise_stale_flows (2026-08-16) — a conversational flow the operator walked away from ─────────────────
+# Real incident: the master kept showing several "en curso" flows from a session the operator had abandoned
+# minutes earlier. `_maybe_close_flow` (voice/engine/llm/providers/nucleo.py) only gets ONE chance to close a
+# flow, at the exact moment its own turn finishes — if it correctly deferred back then, nothing ever revisits
+# that decision once the deferring condition clears on its own. This is that revisit, on a slow timer.
+@pytest.fixture
+def flow_session(fresh_db):
+    """One open observability session with the bus's SQLite sink WIRED (`_supervise_stale_flows` reads
+    `observability.flows.flows()`, which queries the PERSISTED table — the in-memory ring `observer.emit()`
+    always fills is not enough here, unlike most other tests in this suite). Same fixture shape as
+    `tests/infrastructure/unit/core/test_observability_flows.py::wired`."""
+    import bus
+    from bus import log as _log
+    from observability import identity
+    from voice import observer, trace
+
+    _log._conn = None
+    _log.detach(bus)
+    _log.attach(bus)
+    identity.end_session("test")
+    observer.clear_log()
+    trace.adopt("")
+    sid = identity.session_id()   # self-opens
+    yield sid
+    identity.end_session("test")
+    observer.clear_log()
+    trace.adopt("")
+    _log.detach(bus)
+    _log._conn = None
+
+
+def _make_stale_flow(text: str) -> str:
+    import time as _t
+    from voice import trace
+    tid = trace.begin(text, origin="turno")
+    trace.adopt("")
+    _t.sleep(0.25)   # let the bus's background writer thread persist the root event before flows() queries it
+    return tid
+
+
+def test_stale_flow_with_no_worker_and_no_pending_confirm_gets_closed(flow_session):
+    from voice import observer
+
+    tid = _make_stale_flow("necesito que cierres todos los widgets")
+    lp = nloop.OrchestratorLoop(spark_gate=_never_spark(), deliver=_noop, consolidate_every_s=1e9)
+    future = time.time() + lp._stale_flow_secs + 1
+    asyncio.run(lp._supervise_stale_flows(future))
+
+    closes = [e for e in observer.debug_events(kind="flow") if e.get("trace") == tid]
+    assert closes and closes[-1].get("reason") == "stale_no_input"
+
+
+def test_a_recent_flow_within_the_grace_window_is_left_alone(flow_session):
+    from voice import observer
+
+    tid = _make_stale_flow("dame un segundo que lo pienso")
+    lp = nloop.OrchestratorLoop(spark_gate=_never_spark(), deliver=_noop, consolidate_every_s=1e9)
+    asyncio.run(lp._supervise_stale_flows(time.time() + 5))   # well under the 900s default
+
+    assert not [e for e in observer.debug_events(kind="flow") if e.get("trace") == tid]
+
+
+def test_a_stale_flow_with_a_live_worker_never_closes_no_matter_how_old(flow_session, monkeypatch):
+    """Operator's invariant, verbatim: "si es una búsqueda activa que mantiene un Brain Worker en marcha, eso
+    JAMÁS se tiene que cerrar hasta que se termine — la pelota está en el tejado de la gente." """
+    from nucleo import dispatch
+    from voice import observer
+
+    tid = _make_stale_flow("búscame un hotel para dentro de dos semanas")
+    monkeypatch.setattr(dispatch, "has_live_trace", lambda t: t == tid)
+    lp = nloop.OrchestratorLoop(spark_gate=_never_spark(), deliver=_noop, consolidate_every_s=1e9)
+    asyncio.run(lp._supervise_stale_flows(time.time() + 100_000))   # arbitrarily old — still must not close
+
+    assert not [e for e in observer.debug_events(kind="flow") if e.get("trace") == tid]
+
+
+def test_a_stale_flow_with_a_pending_confirmation_is_left_for_the_operators_answer(flow_session):
+    from widgets import confirm
+    from voice import observer
+
+    tid = _make_stale_flow("borra todos los datos de mi agenda")
+    confirm.reset()
+    confirm._PENDING["agenda"] = {"action": "data", "question": "¿seguro?", "op": None,
+                                   "ts": time.time(), "trace_id": tid}
+    try:
+        lp = nloop.OrchestratorLoop(spark_gate=_never_spark(), deliver=_noop, consolidate_every_s=1e9)
+        asyncio.run(lp._supervise_stale_flows(time.time() + lp._stale_flow_secs + 1))
+        assert not [e for e in observer.debug_events(kind="flow") if e.get("trace") == tid]
+    finally:
+        confirm.reset()
+
+
+def test_supervise_stale_flows_is_throttled_and_does_not_run_every_tick(flow_session):
+    """A real SQL query, not RAM bookkeeping — must not run on every 1Hz pulse."""
+    from voice import observer
+
+    tid = _make_stale_flow("necesito que cierres todos los widgets")
+    lp = nloop.OrchestratorLoop(spark_gate=_never_spark(), deliver=_noop, consolidate_every_s=1e9)
+    future = time.time() + lp._stale_flow_secs + 1
+    asyncio.run(lp._supervise_stale_flows(future))       # first call: runs
+    asyncio.run(lp._supervise_stale_flows(future + 1))   # immediately again: throttled, no duplicate close
+
+    closes = [e for e in observer.debug_events(kind="flow") if e.get("trace") == tid]
+    assert len(closes) == 1
