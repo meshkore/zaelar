@@ -49,8 +49,18 @@ def begin(text: str, origin: str = "turno") -> str:
     _ctx.set((tid, ""))
     try:
         from voice.observer import emit
+        # Cluster mesh housekeeping (peer heartbeat nudges, `connectors/meshkore/bridge.py`) is background
+        # plumbing, not a user turn — same family as any other `cluster`-kind event (`_CAT["cluster"]="system"`
+        # in observer.py). Without this override the root trace event inherits `cat="flash"` from `kind="trace"`
+        # regardless of origin, and `stamp_identity()`'s "background noise never fabricates a session" guard
+        # (observer.py, 2026-08-15) only checks `cat in ("system","pulse")` — so a cluster heartbeat firing
+        # after the operator stopped the agent (⏻) self-opened a brand-new "live" session, the same bug that
+        # guard was meant to close, one `origin` short of complete.
+        extra = {"trace": tid, "root": True, "origin": origin}
+        if origin == "cluster":
+            extra["cat"] = "system"
         emit("trace", origin, text=(text or "")[:300], role="user" if origin in ("turno", "probe") else "system",
-             extra={"trace": tid, "root": True, "origin": origin})
+             extra=extra)
     except Exception:
         pass
     return tid
