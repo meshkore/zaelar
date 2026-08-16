@@ -129,28 +129,13 @@ class ModelSpec:
             return "ollama"        # Ollama acepta cualquier no-vacío
         # Nube sin key explícita → credencial DESDE EL ENTORNO (fallback power-user). La KEY es una credencial,
         # no una selección de modelo, así que leerla del env NO viola "modelo por invocación". Contrato heredado:
-        # FAST_API_KEY explícita → si no, AIMLAPI_KEY (endpoint aimlapi) / GEMINI_API_KEY (endpoint gemini).
+        # FAST_API_KEY explícita → si no, resolución POR ENDPOINT (única, `nucleo/provider_keys.py`).
         import os
         fast = os.getenv("FAST_API_KEY")
         if fast:
             return fast
-        if self._is_aimlapi():
-            return os.getenv("AIMLAPI_KEY", "")
-        if self._is_gemini():
-            return os.getenv("GEMINI_API_KEY", "")
-        if self._is_xai():
-            return os.getenv("XAI_API_KEY", "")     # xAI DIRECTO (api.x.ai) — capa rápida sin proxy AIMLAPI
-        if self._is_groq():
-            return os.getenv("GROQ_API_KEY", "")
-        if self._is_openai():
-            return os.getenv("OPENAI_API_KEY", "")   # OpenAI DIRECTO (api.openai.com) — p.ej. gpt-4o-mini
-        if self._is_mistral():
-            return os.getenv("MISTRAL_API_KEY", "")  # Mistral DIRECTO (api.mistral.ai) — p.ej. mistral-small-latest
-        if self._is_zai():
-            return os.getenv("Z_AI_API_KEY", "")     # Z.AI DIRECTO (api.z.ai) — coding-plan, Anthropic Messages
-        if self._is_deepseek():
-            return os.getenv("DEEPSEEK_API_KEY", "")  # DeepSeek DIRECTO — el que SÍ obedece `thinking:disabled`
-        return ""
+        from nucleo.provider_keys import key_for_endpoint
+        return key_for_endpoint(self.resolved_base_url())
 
     def _is_aimlapi(self) -> bool:
         return "aimlapi" in self.resolved_base_url().lower()

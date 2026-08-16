@@ -24,9 +24,10 @@ REAL_429 = ("API Error: Request rejected (429) · [1310][Weekly/Monthly Limit Ex
 
 @pytest.fixture(autouse=True)
 def _clean(monkeypatch):
-    monkeypatch.setattr(prov, "_cooldown", {})
-    monkeypatch.setattr(prov, "_loaded", True)          # sin tocar la memoria real
-    monkeypatch.setattr(prov, "_save", lambda: None)
+    fresh = prov.CooldownStore(prov._KV)
+    fresh._loaded = True                                # sin tocar la memoria real
+    monkeypatch.setattr(fresh, "_save", lambda: None)
+    monkeypatch.setattr(prov, "_store", fresh)
     monkeypatch.setattr(prov, "_is_container", lambda: False)
     # La cadena mira `os.environ` para saber qué escalón EXISTE. En la batería completa alguien carga el
     # credential store real antes que este fichero → aparecía una `Z_AI_API_KEY` de verdad y dos tests fallaban
@@ -109,14 +110,14 @@ def test_exhaustion_hands_over_and_respects_the_providers_own_reset_date(monkeyp
     assert nxt["name"] == "licencia-claude"
     assert prov.pick()["name"] == "licencia-claude"          # el siguiente spawn ya arranca en el relevo
     # el cooldown sale de la FECHA que da el proveedor, no de un timeout inventado
-    assert prov._cooldown["z.ai"] == time.mktime(time.strptime(RESET_DATE, "%Y-%m-%d"))
+    assert prov._store._cooldown["z.ai"] == time.mktime(time.strptime(RESET_DATE, "%Y-%m-%d"))
 
 
 def test_without_a_reset_date_it_retries_in_a_while(monkeypatch):
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
     prov.note_failure("insufficient credit", {"name": "z.ai", "base_url": "x"})
-    assert time.time() < prov._cooldown["z.ai"] <= time.time() + prov._DEFAULT_COOLDOWN_S + 1
+    assert time.time() < prov._store._cooldown["z.ai"] <= time.time() + prov._DEFAULT_COOLDOWN_S + 1
 
 
 def test_the_local_licence_is_never_put_in_cooldown(monkeypatch):
@@ -261,9 +262,9 @@ def test_going_blind_does_NOT_put_the_model_in_cooldown(monkeypatch):
     demás — y esa política es decisión del operador, no un efecto colateral de instrumentar."""
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
-    prov._cooldown.clear()
+    prov._store._cooldown.clear()
     prov.note_tool_blindness(TOOL_429, tool="web_search_prime", provider="z.ai")
-    assert prov._cooldown == {}, "la ceguera no releva de escalón"
+    assert prov._store._cooldown == {}, "la ceguera no releva de escalón"
     assert (prov.pick() or {}).get("name") == "z.ai", "el proveedor sigue sirviendo el modelo"
 
 
@@ -328,14 +329,14 @@ def test_a_bare_time_already_gone_rolls_to_tomorrow(monkeypatch):
 def test_the_window_limit_actually_relays_and_waits(monkeypatch):
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
-    prov._cooldown.clear()
+    prov._store._cooldown.clear()
     nxt = prov.note_failure(WINDOW_429, {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic"})
     assert nxt and nxt["name"] != "z.ai", "hay que relevar, no reintentar contra el mismo"
     import time
-    assert prov._cooldown["z.ai"] > time.time() + 3600, (
+    assert prov._store._cooldown["z.ai"] > time.time() + 3600, (
         "el cooldown tiene que llegar a la hora anunciada, no a los 5-30 minutos del suelo: si no, todos los "
         "workers de las próximas horas vuelven a elegirlo y queman su reintento")
-    prov._cooldown.clear()
+    prov._store._cooldown.clear()
 
 
 # ── «EN USO» ≠ «EL QUE SE ELEGIRÍA» ──────────────────────────────────────────────────────────────────────────
@@ -347,7 +348,7 @@ def test_the_panel_does_not_claim_a_provider_is_working_when_it_is_not(monkeypat
 
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
-    prov._cooldown.clear()
+    prov._store._cooldown.clear()
     monkeypatch.setattr(prov, "_serving", lambda: set())          # nadie trabajando
     rows = {r["key"]: r for r in balances.worker_providers()}
     assert "EN USO" not in rows["worker:z.ai"]["detail"], "sin sesiones vivas, nadie está «EN USO»"

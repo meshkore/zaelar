@@ -17,6 +17,7 @@ import os
 import threading
 from pathlib import Path
 
+from config.credentials import SECRET_SUFFIXES as _SECRET_SUFFIXES
 from nucleo import workspace as _workspace
 
 # `<workspace>/config/v2.json` — unset `ZAELAR_WORKSPACE` is byte-identical to the old
@@ -213,14 +214,13 @@ _DEFAULTS: dict[str, dict] = {
     },
 }
 
-# Keys that are NEVER returned to the frontend (→ `<key>_set: bool`). Privacy fail-safe. Any key that ENDS in
-# `api_key` (api_key/rerank_api_key/embed_api_key…) is redacted — no need to list them one by one.
-# NB: use a literal, not builtins.set() — this module defines a `set()` function that would shadow it.
-_SECRET_KEYS = {"api_key"}
-
-
+# Keys that are NEVER returned to the frontend (→ `<key>_set: bool`). Privacy fail-safe. Any key ending in one
+# of config.credentials.SECRET_SUFFIXES (api_key/rerank_api_key/embed_api_key/…_token/…_secret/…) is redacted —
+# no need to list them one by one, and no need to keep a second, narrower copy of the suffix list (V2-098: this
+# used to only catch "api_key" and would have silently leaked a future *_token/*_secret config key).
 def _is_secret(key: str) -> bool:
-    return key in _SECRET_KEYS or key.endswith("api_key")
+    k = (key or "").upper()
+    return any(k.endswith(s) for s in _SECRET_SUFFIXES)
 
 # FALLBACK env var by key (back-compat / power-user). Queried only if the store says nothing.
 _ENV_FALLBACK = {

@@ -117,31 +117,11 @@ def _model() -> str:
 
 
 def _endpoint_key(url: str) -> str:
-    # Credencial POR ENDPOINT (mismo patrón que fast_client.resolved_api_key) — la key sigue a la URL, nunca al revés.
-    # El orden importa: `aimlapi` PRIMERO, porque el id del modelo del broker (openai/…, x-ai/…) no debe confundirse
-    # con el endpoint, y porque el broker sirve modelos de todos esos proveedores bajo SU propia key.
-    low = url.lower()
-    if "aimlapi" in low:
-        return os.getenv("AIMLAPI_KEY", "") or "local"
-    if "openai.com" in low:
-        return os.getenv("OPENAI_API_KEY", "") or "local"
-    if "x.ai" in low:
-        return os.getenv("XAI_API_KEY", "") or "local"
-    if "groq.com" in low:
-        return os.getenv("GROQ_API_KEY", "") or "local"
-    # Endpoints DIRECTOS añadidos en la ronda de destilación 2026-08-09 (§12.3): el barrido de precio/calidad del
-    # CORAZÓN los evalúa, así que la resolución de credencial tiene que conocerlos — misma lista que fast_client.
-    if "z.ai" in low:
-        return os.getenv("Z_AI_API_KEY", "") or "local"
-    if "mistral.ai" in low:
-        return os.getenv("MISTRAL_API_KEY", "") or "local"
-    if "generativelanguage.googleapis.com" in low or "gemini" in low:
-        return os.getenv("GEMINI_API_KEY", "") or "local"
-    if "moonshot" in low:
-        return os.getenv("MOONSHOT_API_KEY", "") or "local"
-    if "deepseek.com" in low:
-        return os.getenv("DEEPSEEK_API_KEY", "") or "local"
-    return "local"
+    # Credencial POR ENDPOINT — la key sigue a la URL, nunca al revés. Resolución ÚNICA (`nucleo/provider_keys.py`,
+    # V2-098): antes reimplementada aquí y en fast_client/susurro/memllm, cada una con su propia lista y ya
+    # desincronizadas entre sí.
+    from nucleo.provider_keys import key_for_endpoint
+    return key_for_endpoint(url, default="local")
 
 
 def _key() -> str:

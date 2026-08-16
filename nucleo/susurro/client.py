@@ -31,17 +31,14 @@ def resolved_api_key(base_url: str, explicit: str = "") -> str:
     if explicit:
         return explicit
     u = (base_url or "").lower()
-    if "openai.com" in u:
-        return os.getenv("OPENAI_API_KEY", "")
-    if "x.ai" in u:
-        return os.getenv("XAI_API_KEY", "")
-    if "groq.com" in u:
-        return os.getenv("GROQ_API_KEY", "")
-    if "aimlapi" in u:
-        return os.getenv("AIMLAPI_KEY", "")
     if any(h in u for h in ("11434", "localhost", "127.0.0.1")):
         return "local"
-    return os.getenv("OPENAI_API_KEY", "")
+    # Resolución POR ENDPOINT única (`nucleo/provider_keys.py`, V2-098) — antes solo conocía 4 de los ~9 endpoints
+    # (faltaban gemini/mistral/z.ai/deepseek/moonshot: apuntar el Susurro a uno de ellos habría resuelto "" en
+    # silencio). Fallback a OPENAI_API_KEY preservado — es el default histórico de este cliente concreto, no del
+    # resolver compartido.
+    from nucleo.provider_keys import key_for_endpoint
+    return key_for_endpoint(u, default="") or os.getenv("OPENAI_API_KEY", "")
 
 
 async def audit_llm(window_text: str) -> tuple[str | None, dict]:

@@ -62,16 +62,10 @@ def resolve(task: str) -> tuple[str, str, str]:
 
 
 def _endpoint_key(url: str) -> str:
-    low = (url or "").lower()
-    if "openai.com" in low:
-        return os.getenv("OPENAI_API_KEY", "") or "local"
-    if "aimlapi" in low:
-        return os.getenv("AIMLAPI_KEY", "") or "local"
-    if "x.ai" in low:
-        return os.getenv("XAI_API_KEY", "") or "local"
-    if "groq.com" in low:
-        return os.getenv("GROQ_API_KEY", "") or "local"
-    return "local"
+    # Resolución POR ENDPOINT única (`nucleo/provider_keys.py`, V2-098) — antes solo conocía 4 de los ~9
+    # endpoints (faltaban gemini/mistral/z.ai/deepseek/moonshot).
+    from nucleo.provider_keys import key_for_endpoint
+    return key_for_endpoint(url, default="local")
 
 
 def chat_sync(task: str, system: str, user: str, *, max_tokens: int = 900,

@@ -32,14 +32,14 @@ T3 = {"name": "ultimo", "base_url": "https://u/v1", "api_key": "k3", "model": "m
 def limpio(monkeypatch):
     """Estado en proceso a cero y sin persistencia: el cooldown se guarda en `sys_kv` y un test no puede dejarle al
     operador un proveedor castigado."""
-    pc._cooldown.clear()
+    pc._store._cooldown.clear()
     pc._slow_streak.clear()
     pc._relay_turns.clear()
-    pc._loaded = True                                  # no leas el sys_kv real
-    monkeypatch.setattr(pc, "_save", lambda: None)
+    pc._store._loaded = True                            # no leas el sys_kv real
+    monkeypatch.setattr(pc._store, "_save", lambda: None)
     monkeypatch.setattr(pc, "chain", lambda *a, **k: [dict(T1), dict(T2), dict(T3)])
     yield
-    pc._cooldown.clear()
+    pc._store._cooldown.clear()
     pc._slow_streak.clear()
     pc._relay_turns.clear()
 

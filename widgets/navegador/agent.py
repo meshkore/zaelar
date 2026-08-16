@@ -95,17 +95,14 @@ def _model_strong() -> str:
 
 
 def _api_key() -> str:
-    # Same as fast_client: an explicit key wins; otherwise use the provider key based on the base URL.
+    # Explicit key wins; otherwise the single shared endpoint→key resolver (nucleo/provider_keys.py, V2-098).
     if os.getenv("NAVEGADOR_AGENT_API_KEY"):
         return os.getenv("NAVEGADOR_AGENT_API_KEY")
     u = _base_url().lower()
-    if "aimlapi" in u:
-        return os.getenv("AIMLAPI_KEY", "")
-    if "googleapis" in u or "generativelanguage" in u:
-        return os.getenv("GEMINI_API_KEY", "")
     if "11434" in u or "localhost" in u or "127.0.0.1" in u:
         return "ollama"
-    return os.getenv("AIMLAPI_KEY", "") or os.getenv("OPENAI_API_KEY", "")
+    from nucleo.provider_keys import key_for_endpoint
+    return key_for_endpoint(u) or os.getenv("AIMLAPI_KEY", "") or os.getenv("OPENAI_API_KEY", "")
 
 
 def available() -> bool:

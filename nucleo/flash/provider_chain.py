@@ -36,14 +36,16 @@ from loguru import logger
 # 23:15:37») se resolvía a medianoche pasada y el cooldown nacía vencido — el bug que el hermano ya arregló y que
 # aquí seguía vivo. Dos copias de la misma lectura garantizan que una de ellas se quede atrás.
 from nucleo.workers.providers import _reset_epoch, classify_failure
+# Mecánica de cooldown compartida con el hermano (V2-098) — el ESTADO sigue separado a propósito (KV namespace
+# propio: un tier de MODELO caído no dice nada de un endpoint de CLI caído), solo el load/save/token/available.
+from nucleo.provider_health import CooldownStore, token_for as _token_for
 
 
 _DEFAULT_COOLDOWN_S = 30 * 60          # sin fecha de reset explícita: media hora y se reintenta
 _AUTH_COOLDOWN_S = 5 * 60              # credencial mal: puede ser un despiste, no castigues una semana
 _KV = "cluster_provider_cooldown"      # nombre histórico: el cooldown es COMPARTIDO (ver `role` abajo)
 
-_cooldown: dict[str, float] = {}       # name -> epoch en el que vuelve a estar disponible
-_loaded = False
+_store = CooldownStore(_KV)
 
 # ── DOS CONSUMIDORES, UNA MECÁNICA (V2-094, 2026-08-14) ───────────────────────────────────────────────────────
 # Este módulo nació para el cerebro de CLUSTER. El de VOZ tenía el mismo problema y ningún relevo: un turno lento
@@ -78,37 +80,6 @@ _RELAY_TURN_BUDGET = 40
 
 _slow_streak: dict[str, int] = {}      # name -> turnos lentos consecutivos de ESE escalón
 _relay_turns: dict[str, int] = {}      # name -> turnos ya servidos por ese escalón como RELEVO de latencia
-
-
-def _load() -> None:
-    global _loaded
-    if _loaded:
-        return
-    _loaded = True
-    try:
-        from memory import api as memory
-        saved = memory.kv_get(_KV) or {}
-        if isinstance(saved, dict):
-            now = time.time()
-            _cooldown.update({k: float(v) for k, v in saved.items() if float(v) > now})
-    except Exception:
-        pass
-
-
-def _save() -> None:
-    try:
-        from memory import api as memory
-        memory.kv_set(_KV, {k: v for k, v in _cooldown.items() if v > time.time()})
-    except Exception:
-        pass
-
-
-def _token_for(tier: dict) -> str:
-    for name in tier.get("env") or []:
-        v = (os.getenv(name) or "").strip()
-        if v:
-            return v
-    return ""
 
 
 # ── catálogo por defecto (SIN config explícita) — mismo orden/prioridad que `brain.py._resolve_endpoint` ────
@@ -236,11 +207,6 @@ def chain(role: str = ROLE_CLUSTER) -> list[dict]:
     return out
 
 
-def _available(t: dict) -> bool:
-    _load()
-    return _cooldown.get(t["name"], 0) <= time.time()
-
-
 def pick(role: str = ROLE_CLUSTER) -> dict | None:
     """El primer escalón SANO de la cadena. None si no hay ninguno con credencial (→ el llamador decide).
 
@@ -249,14 +215,13 @@ def pick(role: str = ROLE_CLUSTER) -> dict | None:
     dejarnos indefinidamente en un escalón más caro."""
     ch = chain(role)
     for i, t in enumerate(ch):
-        if _available(t):
+        if _store.available(t["name"]):
             # ¿Es un relevo (no el primero) al que se le acabó el presupuesto?
             if i > 0 and _relay_turns.get(t["name"], 0) >= _RELAY_TURN_BUDGET:
                 _relay_turns.pop(t["name"], None)
                 titular = ch[0]["name"]
-                if _cooldown.get(titular, 0) > time.time():
-                    _cooldown.pop(titular, None)     # devuélvele el turno al titular aunque siga lento
-                    _save()
+                if _store.until(titular) > time.time():
+                    _store.lift(titular)             # devuélvele el turno al titular aunque siga lento
                     logger.info(f"provider_chain({role}): agotado el techo de relevo de «{t['name']}» "
                                 f"({_RELAY_TURN_BUDGET} turnos) → vuelve «{titular}»")
                     try:
@@ -266,7 +231,7 @@ def pick(role: str = ROLE_CLUSTER) -> dict | None:
                              extra={"provider": titular, "relay": t["name"], "reason": "relay_budget"})
                     except Exception:
                         pass
-                    return ch[0] if _available(ch[0]) else t
+                    return ch[0] if _store.available(ch[0]["name"]) else t
             if i > 0:
                 _relay_turns[t["name"]] = _relay_turns.get(t["name"], 0) + 1
             return t
@@ -317,9 +282,7 @@ def note_failure(text: str, tier: dict | None = None, *, role: str = ROLE_CLUSTE
     else:
         return None                                  # rate-limit pasajero: no releves, se reintenta solo
 
-    _load()
-    _cooldown[t["name"]] = max(_cooldown.get(t["name"], 0), until)
-    _save()
+    _store.set(t["name"], until)
 
     nxt = pick(role)
     when = time.strftime("%d %b %H:%M", time.localtime(until))
@@ -379,10 +342,8 @@ def note_slow(verdict: dict, *, role: str = ROLE_VOICE, tier: dict | None = None
         logger.info(f"provider_chain({role}): «{name}» lento x{streak} pero es el último escalón — sin relevo")
         return None
 
-    _load()
     until = time.time() + _SLOW_COOLDOWN_S
-    _cooldown[name] = max(_cooldown.get(name, 0), until)
-    _save()
+    _store.set(name, until)
     _slow_streak.pop(name, None)
 
     nxt = pick(role)
@@ -412,12 +373,11 @@ def note_slow(verdict: dict, *, role: str = ROLE_VOICE, tier: dict | None = None
 
 def status(role: str = ROLE_CLUSTER) -> list[dict]:
     """Estado de cada escalón para el panel: `[{name, plan, state, detail, active}]`."""
-    _load()
     now = time.time()
     active = pick(role)
     out = []
     for t in chain(role):
-        until = _cooldown.get(t["name"], 0)
+        until = _store.until(t["name"])
         if until > now:
             state = "error"
             detail = f"sin cuota hasta el {time.strftime('%d %b %H:%M', time.localtime(until))}"
@@ -431,9 +391,4 @@ def status(role: str = ROLE_CLUSTER) -> list[dict]:
 
 def clear(name: str = "") -> None:
     """Levanta el cooldown (el operador recargó el plan y no quiere esperar al reset)."""
-    _load()
-    if name:
-        _cooldown.pop(name, None)
-    else:
-        _cooldown.clear()
-    _save()
+    _store.clear(name)

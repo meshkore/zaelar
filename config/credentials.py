@@ -43,14 +43,16 @@ _lock = threading.Lock()
 
 # Valid key name = env var (LETTERS/digits/_, starts with a letter). Prevents odd line/path injection.
 _KEY_RE = re.compile(r"^[A-Za-z][A-Za-z0-9_]*$")
-# A key is SECRET (its value never leaves) if it ends with these suffixes or is a known key. Aligned with the
-# config/v2 convention (`endswith('api_key')`), expanded to real store names (…_KEY/_TOKEN/_SECRET…).
-_SECRET_SUFFIX = ("_KEY", "_TOKEN", "_SECRET", "_HASH", "_PASSWORD", "API_KEY")
+# A key is SECRET (its value never leaves) if it ends with one of these suffixes, case-insensitive. Canonical
+# for the whole codebase — config/v2.py's redaction imports this instead of keeping its own narrower copy
+# (audit V2-098: the two had drifted, v2.py only caught "api_key" and would have leaked a future *_token/
+# *_secret config key in its public() view).
+SECRET_SUFFIXES = ("_KEY", "_TOKEN", "_SECRET", "_HASH", "_PASSWORD", "API_KEY")
 
 
 def is_secret(key: str) -> bool:
     k = (key or "").upper()
-    return any(k.endswith(s) for s in _SECRET_SUFFIX)
+    return any(k.endswith(s) for s in SECRET_SUFFIXES)
 
 
 def _parse(text: str) -> "list[tuple[str, str | None]]":

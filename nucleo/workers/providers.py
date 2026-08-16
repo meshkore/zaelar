@@ -62,45 +62,19 @@ KNOWN: list[dict] = [
 LICENSE_TIER = {"name": "licencia-claude", "base_url": "", "env": [], "plan": "licencia local de Claude Code",
                 "local_only": True}
 
+# Mecánica de cooldown compartida con el hermano de voz/cluster (V2-098) — el ESTADO sigue separado a propósito
+# (KV namespace propio: un endpoint de CLI caído no dice nada de un tier de modelo caído), solo el
+# load/save/token/available.
+from nucleo.provider_health import CooldownStore, token_for as _token_for
+
 _DEFAULT_COOLDOWN_S = 30 * 60          # sin fecha de reset explícita: media hora y se reintenta
 _AUTH_COOLDOWN_S = 5 * 60              # credencial mal: puede ser un despiste, no castigues una semana
 _KV = "worker_provider_cooldown"
 
-_cooldown: dict[str, float] = {}       # name -> epoch en el que vuelve a estar disponible
-_loaded = False
-
-
-# ── persistencia ligera (un reinicio no debe reintentar una cuota agotada hasta el jueves) ─────────────────
-def _load() -> None:
-    global _loaded
-    if _loaded:
-        return
-    _loaded = True
-    try:
-        from memory import api as memory
-        saved = memory.kv_get(_KV) or {}
-        if isinstance(saved, dict):
-            now = time.time()
-            _cooldown.update({k: float(v) for k, v in saved.items() if float(v) > now})
-    except Exception:
-        pass
-
-
-def _save() -> None:
-    try:
-        from memory import api as memory
-        memory.kv_set(_KV, {k: v for k, v in _cooldown.items() if v > time.time()})
-    except Exception:
-        pass
+_store = CooldownStore(_KV)
 
 
 # ── cadena ────────────────────────────────────────────────────────────────────────────────────────────────
-def _token_for(tier: dict) -> str:
-    for name in tier.get("env") or []:
-        v = (os.getenv(name) or "").strip()
-        if v:
-            return v
-    return ""
 
 
 def _is_container() -> bool:
@@ -161,15 +135,10 @@ def chain() -> list[dict]:
     return out
 
 
-def _available(t: dict) -> bool:
-    _load()
-    return _cooldown.get(t["name"], 0) <= time.time()
-
-
 def pick() -> dict | None:
     """El primer escalón SANO de la cadena. None si no hay ninguno (→ el CLI se comporta como siempre)."""
     for t in chain():
-        if _available(t):
+        if _store.available(t["name"]):
             return t
     return None
 
@@ -349,9 +318,7 @@ def note_failure(text: str, tier: dict | None = None) -> dict | None:
     else:
         return None                                  # rate-limit pasajero: no releves, se reintenta solo
 
-    _load()
-    _cooldown[t["name"]] = max(_cooldown.get(t["name"], 0), until)
-    _save()
+    _store.set(t["name"], until)
 
     nxt = pick()
     when = time.strftime("%d %b %H:%M", time.localtime(until))
@@ -403,13 +370,12 @@ def _serving() -> set[str]:
 
 def status() -> list[dict]:
     """Estado de cada escalón para el panel: `[{name, plan, state, detail, active, serving}]`."""
-    _load()
     now = time.time()
     active = pick()
     serving = _serving()
     out = []
     for t in chain():
-        until = _cooldown.get(t["name"], 0)
+        until = _store.until(t["name"])
         if until > now:
             state = "error"
             detail = f"sin cuota hasta el {time.strftime('%d %b %H:%M', time.localtime(until))}"
@@ -426,9 +392,4 @@ def status() -> list[dict]:
 
 def clear(name: str = "") -> None:
     """Levanta el cooldown (el operador recargó el plan y no quiere esperar al reset)."""
-    _load()
-    if name:
-        _cooldown.pop(name, None)
-    else:
-        _cooldown.clear()
-    _save()
+    _store.clear(name)

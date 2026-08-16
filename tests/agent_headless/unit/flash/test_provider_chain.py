@@ -22,9 +22,10 @@ BARE_429 = "429 Too Many Requests"
 
 @pytest.fixture(autouse=True)
 def _clean(monkeypatch):
-    monkeypatch.setattr(pc, "_cooldown", {})
-    monkeypatch.setattr(pc, "_loaded", True)          # sin tocar la memoria real
-    monkeypatch.setattr(pc, "_save", lambda: None)
+    fresh = pc.CooldownStore(pc._KV)
+    fresh._loaded = True                              # sin tocar la memoria real
+    monkeypatch.setattr(fresh, "_save", lambda: None)
+    monkeypatch.setattr(pc, "_store", fresh)
     for _var in ("Z_AI_API_KEY", "LLM_API_KEY", "LLM_BASE_URL", "AIMLAPI_KEY", "XAI_API_KEY", "GROQ_API_KEY",
                  "MESHKORE_MISSION_MODEL", "ASSISTANT_LLM_MODEL", "LLM_MODEL", "MESHKORE_MISSION_MODEL_ZAI"):
         monkeypatch.delenv(_var, raising=False)
@@ -96,14 +97,14 @@ def test_exhaustion_hands_over_and_respects_the_providers_own_reset_date(monkeyp
     nxt = pc.note_failure(REAL_429_EXHAUSTED, {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic"})
     assert nxt["name"] == "aimlapi"
     assert pc.pick()["name"] == "aimlapi"               # el siguiente turno ya arranca en el relevo (STICKY)
-    assert pc._cooldown["z.ai"] == time.mktime(time.strptime(RESET_DATE, "%Y-%m-%d"))
+    assert pc._store._cooldown["z.ai"] == time.mktime(time.strptime(RESET_DATE, "%Y-%m-%d"))
 
 
 def test_without_a_reset_date_it_retries_in_a_while(monkeypatch):
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
     pc.note_failure("insufficient credit", {"name": "z.ai", "base_url": "x"})
-    assert time.time() < pc._cooldown["z.ai"] <= time.time() + pc._DEFAULT_COOLDOWN_S + 1
+    assert time.time() < pc._store._cooldown["z.ai"] <= time.time() + pc._DEFAULT_COOLDOWN_S + 1
 
 
 def test_no_tier_left_returns_none(monkeypatch):
