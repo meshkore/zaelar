@@ -2053,6 +2053,48 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - Tests: `tests/infrastructure/unit/core/test_feedback_api.py` (self-host vs cloud branch, evidence
     opt-in/fail-open, empty-message guard, network fail-open — 9 cases). Full suite green: 1943 passed,
     2 skipped.
+- **First-run language onboarding — a blocking ceremony, and the alias-pack extension point finally built**
+  (V2-101, 2026-08-16; full detail in
+  `.meshkore/roadmap/initiatives/V2-101-language-onboarding.md`). Before this, a brand-new install silently
+  guessed the operator's language from whatever they said first, with no gate on the UI. Now the first boot
+  blocks the whole interface behind `frontend/app/components/LanguageOnboarding.js` (above the boot veil,
+  z-index 100020 > `.boot-ovl`'s 100010) while zaelar asks, in forced English, what language to use — the
+  kickoff branch in `voice/engine/pipeline/agent.py` checks `i18n.init.detect.should_detect()` before
+  building its greeting. The modal also offers two non-voice escape hatches
+  (`POST /api/i18n/choose/{code}` for a quick-pick chip, `POST /api/i18n/detect-text` for typed free text) —
+  a purely voice-gated first-run blocker is a real usability trap (mic denied, noisy room, hard of hearing).
+  - **Solved the loader-text chicken-and-egg by reusing the SAME translation pipeline, not a new one.** The
+    loading line has to already be in the target language, but the full 564-key bundle can take up to ~2
+    minutes to generate. `i18n.init.detect._priority_translate_loading` translates JUST the new
+    `onboarding.loading` manifest key first (~1-2s) and pushes it inline in the SSE `phase:"detected"`
+    payload, persisting it into the generated store immediately so the full `ensure_language` diff that
+    follows doesn't re-translate the same key with possibly different phrasing.
+  - **Built the alias-pack extension point `.meshkore/docs/architecture/zaelar-i18n.md` had documented as
+    deliberately deferred.** `i18n/init/aliases.py::ensure_aliases(code)` — one batched LLM call generates
+    4-6 natural voice-command words per system surface for a non-preset language, persisted to
+    `i18n/generated/<code>.aliases.json`; `widgets/system_surfaces.py::surfaces()` consults it ADDITIVELY
+    (the hardcoded es/en list is extended, never replaced) so the resolver's matching logic itself
+    (`widgets/runtime.py::identify`) needed zero changes. Scoped to `lock(..., onboarding=True)` only — a
+    plain ⚙ language switch stays exactly as cheap as it always was, no new LLM call as a side effect.
+  - **Deliberately NOT localized: `voice/attention.py`'s hard-interrupt vocabulary and
+    `nucleo/flash/router.py`'s `looks_like_*` backstop regex.** Both are safety/precision-critical
+    deterministic guards with real incident history (the anti-garble identity gates, the
+    hard-stop-must-never-be-buried invariant) — auto-translating a regex that decides "does this utterance
+    mean STOP RIGHT NOW" via LLM is a materially different, higher-risk effort than translating a widget's
+    voice aliases, and deserves its own dedicated initiative. Non-preset languages already fall back
+    correctly to the LLM router for these — just a bit slower, the same accepted tradeoff as before.
+    `nucleo/rails.py`/`music_flow.py` needed no work: confirmed they route by tool-calling, not hardcoded
+    phrase lists.
+  - **The confirmation is spoken via `voice.proactive.notify()`, not a raw `session.say`** — respects the
+    existing "never talk over the operator" quiet-wait gate. Its TEXT is correctly translated
+    (`onboarding.confirmSpoken`, generated as part of the normal bundle batch); the TTS VOICE itself stays
+    whatever the session started with, since that's fixed for the whole LiveKit session and only realigns on
+    the next reconnect — a pre-existing architecture limitation, not new here.
+  - Tests: `tests/infrastructure/unit/core/test_language_onboarding.py` (12 cases — onboarding vs plain
+    `lock()` sequencing, the PRESET fast path, alias-pack idempotency + fail-open, `surfaces()`'s additive
+    extension, both new endpoints). The kickoff branch and fail-open valve inside `agent.py`'s
+    `_maybe_detect_language` closure are deliberately not unit-tested — no extracted importable unit exists
+    there, same coverage shape as the rest of that file.
 
 ## Testing y rueda de mejora (INI-013)
 

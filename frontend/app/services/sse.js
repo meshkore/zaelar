@@ -81,7 +81,18 @@ export function openSSE(desktop) {
       store.showAlert(d.label || t("sse.llm_problem"));
       refreshStatus();                                                           // turn the ◉ status icon red now
     } else if (d.kind === "language") {                                          // V2-089 P3: idioma detectado/cambiado → toda la UI cambia EN VIVO
-      if (d.code) applyLang(d.code);                                             // el bundle ya está listo backend-side (prepare corrió antes del emit)
+      if (d.code) applyLang(d.code);                                             // fetches whatever the bundle has now — presets instant, a generating one falls back to English for missing keys until "ready"
+      // V2-101: the first-run onboarding modal tracks phases on TOP of the plain applyLang above — "detected"
+      // shows the (already-translated) loading line while the full bundle/alias-pack finish in the background,
+      // "ready" closes it. A plain language switch (⚙, or a repeat detection with no onboarding) never sets
+      // store.langOnboardOpen true in the first place, so these are no-ops for it.
+      if (d.phase === "detected") {
+        store.setLangOnboardPhase("detected");
+        store.setLangOnboardLoading(d.loading || "");
+      } else if (d.phase === "ready") {
+        store.setLangOnboardPhase("ready");
+        setTimeout(() => store.setLangOnboardOpen(false), 550);   // let the CSS fade (.gone) play, then unmount
+      }
     } else if (d.kind === "session" && d.label === "RESET") {                    // V2-084: reset → procesos EN BLANCO
       // El escritorio lo cierra el evento widget/close; aquí vaciamos la pestaña Procesos (chips vivos + histórico)
       // al instante para que "empecemos de cero" — estado/memoria/datos de widgets se conservan (backend).

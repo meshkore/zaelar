@@ -369,6 +369,8 @@
   "memory.zone_state_sub": "conciencia de sí mismo y de su entorno",
   "memory.zoom_in": "Acercar",
   "memory.zoom_out": "Alejar",
+  "onboarding.confirmSpoken": "Vale — ya está todo listo en tu idioma.",
+  "onboarding.loading": "Preparando el agente, la interfaz y las comunicaciones en tu idioma…",
   "orb.captions_hide": "Ocultar texto en vivo",
   "orb.captions_show": "Mostrar texto en vivo",
   "orb.drag": "Arrástrame para moverme",

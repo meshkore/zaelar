@@ -324,10 +324,15 @@ async def entrypoint(ctx: JobContext) -> None:
         elif new == "listening":
             _emit("vad", "… fin de voz", role="user", extra={})
 
-    # FIRST-RUN LANGUAGE AUTO-DETECTION (V2-089 P3): on a brand-new install, detect the operator's language from
-    # their first utterance(s) and lock it — no trip to settings. Fires at most once per session; a no-op after a
-    # language has been chosen (i18n.init.detect.should_detect()). Off the hot path: classify runs in a thread.
-    _lang_detect = {"busy": False, "done": False}
+    # FIRST-RUN LANGUAGE AUTO-DETECTION (V2-089 P3, extended by V2-101): on a brand-new install, detect the
+    # operator's language from their first utterance(s) and lock it — no trip to settings. Fires at most once
+    # per session; a no-op after a language has been chosen (i18n.init.detect.should_detect()). Off the hot
+    # path: classify runs in a thread. `onboarding` is flipped True by the kickoff block below when this is the
+    # explicit "what language do you want?" turn (blocking modal on the frontend) rather than the old silent
+    # background guess — it changes what `lock()` does (see detect.lock's onboarding docstring) and makes this
+    # function speak the confirmation once ready. `misses` is the fail-open valve: STT noise or an unclear
+    # answer must never leave a first-run operator stuck behind a modal forever.
+    _lang_detect = {"busy": False, "done": False, "onboarding": False, "misses": 0}
 
     def _maybe_detect_language(text: str) -> None:
         if _lang_detect["done"] or _lang_detect["busy"]:
@@ -347,9 +352,20 @@ async def entrypoint(ctx: JobContext) -> None:
         async def _run() -> None:
             try:
                 code = await asyncio.to_thread(_d.classify, text)
+                if not code and _lang_detect["onboarding"]:
+                    _lang_detect["misses"] += 1
+                    if _lang_detect["misses"] >= 3:
+                        logger.warning("i18n onboarding: 3 unclear answers — falling back to English")
+                        code = "en"
                 if code:
-                    await _d.lock(code)
+                    result = await _d.lock(code, onboarding=_lang_detect["onboarding"])
                     _lang_detect["done"] = True
+                    if _lang_detect["onboarding"] and result.get("confirm_text"):
+                        try:
+                            from voice import proactive
+                            await proactive.notify("", result["confirm_text"], kind="language")
+                        except Exception as e:  # noqa: BLE001
+                            logger.warning("i18n onboarding confirmation speech failed: %s", e)
             except Exception as e:  # noqa: BLE001
                 logger.warning("i18n first-run detect failed: %s", e)
             finally:
@@ -590,12 +606,31 @@ async def entrypoint(ctx: JobContext) -> None:
     # (`build_flash_system` → `_flash_layer`), así que volcarlo otra vez en el kickoff era el volcado VIEJO que
     # bloateaba justo el PRIMER turno (el más sensible a latencia). El saludo solo necesita la instrucción de
     # primer turno memory-aware: el cerebro ya saluda por nombre desde la memoria central.
-    kickoff_text = (f"[The operator's selected interface language is {_lang.native} — SPEAK "
-                    f"{_lang.name}.]\n"
-                    "I just connected. FIRST turn — SHORT and warm. CHECK YOUR MEMORY first: if you "
-                    "already know me (my name), greet me BY NAME and pick up naturally — do NOT ask my "
-                    f"name again. If you do NOT know me yet, introduce yourself in one line and ask my name. "
-                    f"Reply in {_lang.name}. Two sentences max. Then stop and wait for me.")
+    # FIRST-RUN LANGUAGE ONBOARDING (V2-101): before anything else — no name, no capabilities — a brand-new
+    # install must be asked what language to use. The frontend already blocks its whole UI behind a modal for
+    # exactly this turn (gated on the SAME `should_detect()`, via GET /api/i18n/state's `chosen` field), so the
+    # question HAS to go out now, in English (the product default), and nothing else. `_lang_detect["onboarding"]`
+    # tells `_maybe_detect_language` (above) that the NEXT answer is this question's answer, not idle chatter.
+    _onboarding_kickoff = False
+    try:
+        from i18n.init import detect as _d_kickoff
+        _onboarding_kickoff = _d_kickoff.should_detect()
+    except Exception:
+        _onboarding_kickoff = False
+    if _onboarding_kickoff:
+        _lang_detect["onboarding"] = True
+        kickoff_text = (
+            "[FIRST RUN — no language has been chosen yet. SPEAK ENGLISH ONLY, regardless of any other "
+            "instruction.] I just connected for the very first time. Greet briefly (one short sentence) and "
+            "ask what language I'd like you to use — nothing else this turn (no name, no capabilities, no "
+            "small talk). Then stop and wait for my answer.")
+    else:
+        kickoff_text = (f"[The operator's selected interface language is {_lang.native} — SPEAK "
+                        f"{_lang.name}.]\n"
+                        "I just connected. FIRST turn — SHORT and warm. CHECK YOUR MEMORY first: if you "
+                        "already know me (my name), greet me BY NAME and pick up naturally — do NOT ask my "
+                        f"name again. If you do NOT know me yet, introduce yourself in one line and ask my name. "
+                        f"Reply in {_lang.name}. Two sentences max. Then stop and wait for me.")
     # GUARD kickoff ÚNICO por sala (V2-047 F8, sesión 23:15: DOS «motor de voz arriba» a las 23:15:45 y :46 → dos
     # saludos generados). Una reconexión rápida del frontend / doble dispatch de LiveKit levanta dos jobs para la
     # MISMA sala; el segundo NO debe volver a saludar (el operador oía el saludo repetido). Determinista, por sala,

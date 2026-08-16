@@ -369,6 +369,8 @@
   "memory.zone_state_sub": "awareness of itself and its surroundings",
   "memory.zoom_in": "Zoom in",
   "memory.zoom_out": "Zoom out",
+  "onboarding.confirmSpoken": "Okay — everything is ready in your language now.",
+  "onboarding.loading": "Setting up the agent, the interface and communications for your language…",
   "orb.captions_hide": "Hide live text",
   "orb.captions_show": "Show live text",
   "orb.drag": "Drag me to move me",

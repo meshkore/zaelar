@@ -75,9 +75,23 @@ SYSTEM_SURFACES: dict[str, dict] = {
 
 def surfaces() -> list[dict]:
     """Lista de superficies de sistema dirigibles por voz, en la forma del registro unificado:
-    `{id, name, aliases, surface: "system"}`. Consumida por `widgets/registry.py` y el resolver."""
-    return [{"id": sid, "name": s["name"], "aliases": list(s["aliases"]), "surface": "system"}
-            for sid, s in SYSTEM_SURFACES.items()]
+    `{id, name, aliases, surface: "system"}`. Consumida por `widgets/registry.py` y el resolver.
+
+    For a non-preset active language (V2-101), the ~50ms hardcoded es/en aliases above are extended
+    ADDITIVELY with a generated alias pack (`i18n/init/aliases.py`) — never replaced, and the resolver's
+    matching logic is untouched: it just gets a longer candidate list. en/es never hit this (their aliases
+    already ARE this list); an ungenerated pack is a no-op (empty extension, LLM router still covers it)."""
+    extra: dict[str, list[str]] = {}
+    try:
+        from i18n import runtime as _rt
+        code = _rt.active_code()
+        if code not in _rt.PRESET:
+            from i18n.init import aliases as _aliases
+            extra = _aliases.read(code)
+    except Exception:
+        extra = {}
+    return [{"id": sid, "name": s["name"], "aliases": list(s["aliases"]) + list(extra.get(sid, [])),
+             "surface": "system"} for sid, s in SYSTEM_SURFACES.items()]
 
 
 def is_system_surface(sid: str) -> bool:

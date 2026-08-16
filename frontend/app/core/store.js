@@ -270,6 +270,15 @@ export const [feedbackSending, setFeedbackSending] = createSignal(false);  // PO
 export const [memPulse, setMemPulse]   = createSignal(null);
 export const pushMemPulse = (ev) => setMemPulse(ev);
 
+// ---- language onboarding (V2-101): first-run blocking modal — "ask" (English question, voice or quick-pick) →
+// "detected" (translated loading line while the full bundle/alias-pack generate) → "ready" (unblocks). Gated
+// open by main.js reading GET /api/i18n/state's `chosen` field once bootReady() flips; closed by the "ready"
+// SSE phase. Never reopened once closed — a returning operator switching language via ⚙ does NOT go through
+// this (that path already applies live without blocking anything).
+export const [langOnboardOpen, setLangOnboardOpen]   = createSignal(false);
+export const [langOnboardPhase, setLangOnboardPhase] = createSignal("ask");   // "ask" | "detected" | "ready"
+export const [langOnboardLoading, setLangOnboardLoading] = createSignal(""); // translated onboarding.loading text
+
 // ---- bóveda de secretos (V2-060): modal NATIVO (crear/desbloquear por passphrase o passkey; mostrar el valor) ----
 export const [vaultOpen, setVaultOpen]       = createSignal(false);
 export const [vaultMode, setVaultMode]       = createSignal("unlock");   // "create" | "unlock" | "reveal" | "manage"

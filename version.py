@@ -12,9 +12,9 @@ import subprocess
 import time
 
 # Semantic version of the engine — bump it by hand when closing a notable block of changes (latest:
-# floating feedback widget, V2-100 — the first native button to send suggestions to the developers,
-# local and cloud alike).
-VERSION = "3.09"
+# first-run language onboarding, V2-101 — a blocking modal that asks the operator's language and builds
+# the per-language voice-command alias-pack extension point).
+VERSION = "3.10"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CACHE: dict = {}

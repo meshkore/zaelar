@@ -93,6 +93,20 @@ try { document.getElementById("preboot")?.remove(); } catch { /* noop */ }
   }
 })();
 
+// ---- V2-101: first-run language onboarding — the SECOND blocking veil, right after the boot veil (voice must
+// be connected for zaelar to hear the answer). Checked ONCE bootReady() first flips true; GET /api/i18n/state's
+// `chosen` field says whether ANY language has ever been explicitly picked — false only on a brand-new install
+// (or one that wiped config/settings.json on reset). A returning operator, or one who already answered, never
+// sees this: the effect below fires at most once (`_langOnboardChecked` guard). ----
+let _langOnboardChecked = false;
+createEffect(() => {
+  if (_langOnboardChecked || !store.bootReady()) return;
+  _langOnboardChecked = true;
+  fetch("/api/i18n/state", { cache: "no-store" }).then(r => r.json()).then(s => {
+    if (s && s.chosen === false) store.setLangOnboardOpen(true);
+  }).catch(() => {});
+});
+
 // ---- widget desktop (independent canvas / window manager) ----
 const desktop = new Desktop($("#wstage"));
 window.__zaelarDesktop = desktop;   // the SSE/session bridge reaches the desktop through this

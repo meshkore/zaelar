@@ -32,6 +32,7 @@ import { ConfigPanel } from "../components/ConfigPanel.js?v=2";
 import { ConnStatus } from "../components/ConnStatus.js?v=2";
 import { DebugPanel } from "../components/DebugPanel.js?v=4";
 import { FeedbackWidget } from "../components/FeedbackWidget.js?v=1";
+import { LanguageOnboarding } from "../components/LanguageOnboarding.js?v=1";
 import { MemoryMap } from "../components/MemoryMap.js?v=2";
 import { Orb } from "../components/Orb.js?v=3";
 import { StatusPanel } from "../components/StatusPanel.js?v=2";
@@ -112,6 +113,13 @@ export const SYSTEM_SURFACES = [
     name: null, aliases: null },
   { id: "boot",       comp: BootOverlay,  target: "body", phase: "overlay", kind: "transient",
     toggle: "store.bootReady (startup veil)", label: "Startup splash",
+    name: null, aliases: null },
+  // V2-101 (2026-08-16): first-run "which language?" blocking modal — the SECOND veil, right after the boot
+  // veil lifts, shown only once (GET /api/i18n/state's `chosen` flag). Not voice-addressable — you can't "open"
+  // a one-time onboarding gate by name.
+  { id: "lang-onboarding", comp: LanguageOnboarding, target: "body", phase: "overlay", kind: "modal",
+    toggle: "store.langOnboardOpen (first-run only, closes on SSE language phase:ready)",
+    label: "First-run language onboarding",
     name: null, aliases: null },
 ];
 

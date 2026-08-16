@@ -834,6 +834,35 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
   color:var(--hb-muted);font-size:13px;font-weight:600;letter-spacing:.04em;
   white-space:nowrap;transition:opacity .4s ease;text-shadow:0 1px 12px var(--hb-bg)}
 
+/* ── Language onboarding (V2-101): first-run blocking modal, ABOVE the boot veil (100010) so it follows it —
+   two veils in a row, never one rebuilt. `.open` shows it; `.gone` (set once the "ready" SSE phase lands)
+   fades it the same way `.boot-ovl.gone` does. Themed via --hb-*. See LanguageOnboarding.js. ────────────── */
+.lang-onb{position:fixed;inset:0;z-index:100020;display:none;align-items:center;justify-content:center;
+  padding:16px;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);opacity:1;transition:opacity .5s ease}
+.lang-onb.open{display:flex}
+.lang-onb.gone{opacity:0;pointer-events:none}
+.lang-onb-card{width:100%;max-width:420px;background:var(--hb-bg);border:1px solid var(--hb-line);
+  border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.4);padding:26px 24px;color:var(--hb-ink)}
+.lang-onb-q{font-size:17px;font-weight:700;text-align:center}
+.lang-onb-hint{font-size:12.5px;color:var(--hb-muted);text-align:center;margin-top:6px}
+.lang-onb-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:20px}
+.lang-onb-chip{border:1px solid var(--hb-line);background:var(--hb-bg-soft);color:var(--hb-ink);
+  font-size:13px;font-weight:600;padding:7px 14px;border-radius:20px;cursor:pointer}
+.lang-onb-chip:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
+.lang-onb-chip[disabled]{opacity:.5;cursor:default}
+.lang-onb-typed{display:flex;gap:8px;margin-top:18px}
+.lang-onb-input{flex:1;box-sizing:border-box;padding:9px 12px;border:1px solid var(--hb-line);border-radius:10px;
+  background:var(--hb-bg-soft);color:var(--hb-ink);font-size:13px}
+.lang-onb-input:focus{border-color:var(--hb-accent);outline:none}
+.lang-onb-go{width:38px;border-radius:10px;border:none;cursor:pointer;color:#fff;font-weight:700;
+  background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2))}
+.lang-onb-go[disabled]{opacity:.55;cursor:default}
+.lang-onb-loading{display:flex;flex-direction:column;align-items:center;gap:16px;padding:10px 4px}
+.lang-onb-spinner{width:30px;height:30px;border-radius:50%;border:3px solid var(--hb-line);
+  border-top-color:var(--hb-accent);animation:lang-onb-spin 0.85s linear infinite}
+@keyframes lang-onb-spin{to{transform:rotate(360deg)}}
+.lang-onb-loading-text{font-size:13.5px;color:var(--hb-muted);text-align:center;line-height:1.4}
+
 /* ---------- WIDGET KIT — optional shared primitives (widgets/AGENTS.md §Visual style) ----------
    Global, `hbk-`-prefixed so they never collide with a widget's own scoped classes (`.hb-<id> …`).
    A widget.js may use these instead of hand-rolling the same card/header/chip CSS every time — same
