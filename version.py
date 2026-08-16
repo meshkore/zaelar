@@ -12,9 +12,9 @@ import subprocess
 import time
 
 # Semantic version of the engine — bump it by hand when closing a notable block of changes (latest:
-# first-run language onboarding, V2-101 — a blocking modal that asks the operator's language and builds
-# the per-language voice-command alias-pack extension point).
-VERSION = "3.10"
+# turn-completeness judge, V2-102 — a fast LLM replaces "hold an ambiguous fragment forever" with
+# act/ask/keep-waiting, fixing a real silent-drop bug and an adjacent Energy-metering gap).
+VERSION = "3.11"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CACHE: dict = {}
