@@ -27,11 +27,16 @@ por decisión del operador** — ver §Principios.
   ESCRITURA** (el CORAZÓN destilador + la síntesis del sueño REM) van por **API externa**: la calidad de escritura
   es la palanca nº1 del recall y el modelo externo la gana con claridad. **Qué modelo, se decide con el bench, no
   por reputación del proveedor** (2026-08-09, `zaelar-model-benchmarks.md §12.3`): hoy el destilador es
-  **`deepseek/deepseek-v4-flash` vía AIMLAPI** — empata con el anterior titular `gpt-4.1-mini` en captar el hecho
+  **`deepseek/deepseek-v4-flash`** — empata con el anterior titular `gpt-4.1-mini` en captar el hecho
   (98,5 vs 98,9%) y en no ensuciar (100% los dos) por un 55% menos ($0,68 vs $1,516 los 1.000 turnos). Esto
   **deroga la directriz previa «memoria SIEMPRE OpenAI»** (2026-07-17), que se tomó con un solo contendiente barato
   medido. **Un único modelo comercial sirve self-host y nube** (decisión del operador). La **opción local** (qwen
   vía Ollama) sigue disponible por config (`§memory.mem_processor_*`) para quien priorice privacidad/offline.
+  ⚠️ **El endpoint del CORAZÓN cambió de AIMLAPI a `api.deepseek.com` DIRECTO el 2026-08-16** (el broker dejó de
+  responder para este modelo, 12s+ sin respuesta, degradando cada escritura a la heurística con pérdida; el
+  endpoint directo además SÍ obedece `thinking:{"type":"disabled"}`, cosa que el broker ignora — mismo hallazgo
+  que V2-102). El **sueño REM sigue en AIMLAPI** (`§memory.rem_base_url`) — es un cambio acotado a la tarea de
+  escritura por turno, no a las dos.
 - **Inserción por cola async — puede ser lenta.** Todas las fuentes escriben en una **cola**; solo la cola
   (un **único escritor**) toca la BD → cero colisiones de escritura. Los lectores van en **WAL** sin bloquear.
 - **Búsqueda en milisegundos.** Es la **ruta caliente**: llega un prompt y hay que componer el **contexto mínimo**
@@ -501,11 +506,12 @@ cueste nada al turno de voz.
 
 | tarea | qué hace | modelo (2026-08-09) | cadencia | evidencia |
 |---|---|---|---|---|
-| **CORAZÓN** (`nucleo/mem_processor.py`) | destila cada turno en píldoras + metadatos | **`deepseek/deepseek-v4-flash`** vía AIMLAPI | **cada turno** (miles/día) | §12.3 |
+| **CORAZÓN** (`nucleo/mem_processor.py`) | destila cada turno en píldoras + metadatos | **`deepseek/deepseek-v4-flash`** DIRECTO (`api.deepseek.com`, desde 2026-08-16) | **cada turno** (miles/día) | §12.3 |
 | **Sueño REM** (`nucleo/memllm.py`) | agrupa durables por concepto → 1 insight | **`deepseek/deepseek-v4-flash`** vía AIMLAPI | **1 vez al día** | §12.4 |
 
-**Un solo modelo para las dos** (decisión del operador 2026-08-09): una cuenta, un proveedor, una cosa que vigilar.
-Y el MISMO en self-host y en nube — no hay dos ganadores según dónde corras.
+**Mismo modelo, endpoints YA DIVERGENTES** (2026-08-16): nacieron por el mismo broker (2026-08-09) pero el CORAZÓN
+se movió a DIRECTO cuando AIMLAPI dejó de responder para este modelo; REM se queda en AIMLAPI (1 llamada/día, sin
+la misma presión de disponibilidad). Self-host y nube siguen compartiendo el MISMO modelo en las dos tareas.
 
 **Una tercera tarea vive en el mismo router pero NO es memoria** — conviene no confundirlas:
 
@@ -862,7 +868,8 @@ voz — regla de V2-011). El "corazón" que decide, por cada cosa que dice el op
 `nucleo/mem_processor.py`:
 
 - **`mem_processor.process(text, state) → list|None`** — el **procesador LLM**: default actual
-  **`deepseek/deepseek-v4-flash` vía AIMLAPI** (config `§memory.mem_processor_model/_base_url/_api_key`), elegido
+  **`deepseek/deepseek-v4-flash` DIRECTO** (`api.deepseek.com`, desde 2026-08-16 — antes vía AIMLAPI, movido tras
+  un cuelgue del broker para este modelo; config `§memory.mem_processor_model/_base_url/_api_key`), elegido
   por el **bench de destilación** (`tests/memory/e2e/bot/distiller_bench.py`, `zaelar-model-benchmarks.md §12.3`,
   ronda 2026-08-09): 21 candidatos comerciales × 34 casos × **cuatro ejes separados** (write-completeness ·
   precisión/no-pollution · capa+slot · $/1k turnos con tokens reales). Empata con el titular anterior
