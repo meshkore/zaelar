@@ -93,30 +93,39 @@ def test_llm_cost_to_energy_handles_none_tokens():
     assert energy == 0.0
 
 
-def test_tts_cost_to_energy(monkeypatch):
-    monkeypatch.setenv("ENERGY_EUR_PER_UNIT", "0.01")
-    monkeypatch.setenv("ENERGY_MARGIN_MULTIPLIER", "4.0")
-    monkeypatch.setenv("ENERGY_TTS_USD_PER_1K_CHARS", "0.05")
-    # 2000 chars @ $0.05/1k = $0.10 raw, *4 margin = €0.40 (USD≈EUR) / €0.01 per unit = 40 Energy.
-    energy = energy_meter.tts_cost_to_energy(characters=2000)
-    assert energy == pytest.approx(40.0)
+def test_tts_cost_to_energy():
+    # 2000 chars @ $0.05/1k (ElevenLabs Flash v2.5) = $0.10 raw, *4 margin = €0.40 / €0.01 = 40 Energy.
+    assert energy_meter.tts_cost_to_energy(characters=2000, provider="elevenlabs") == pytest.approx(40.0)
 
 
 def test_tts_cost_to_energy_handles_none_characters():
-    assert energy_meter.tts_cost_to_energy(characters=None) == 0.0
+    assert energy_meter.tts_cost_to_energy(characters=None, provider="elevenlabs") == 0.0
 
 
-def test_stt_cost_to_energy(monkeypatch):
-    monkeypatch.setenv("ENERGY_EUR_PER_UNIT", "0.01")
-    monkeypatch.setenv("ENERGY_MARGIN_MULTIPLIER", "4.0")
-    monkeypatch.setenv("ENERGY_STT_USD_PER_MIN", "0.0048")
-    # 60 min @ $0.0048/min = $0.288 raw, *4 margin = €1.152 / €0.01 per unit = 115.2 Energy.
-    energy = energy_meter.stt_cost_to_energy(audio_seconds=3600)
-    assert energy == pytest.approx(115.2)
+def test_stt_cost_to_energy():
+    # 60 min @ $0.006/min (Voxtral realtime) = $0.36 raw, *4 margin = €1.44 / €0.01 = 144 Energy.
+    assert energy_meter.stt_cost_to_energy(audio_seconds=3600, provider="voxtral") == pytest.approx(144.0)
 
 
 def test_stt_cost_to_energy_handles_none_seconds():
-    assert energy_meter.stt_cost_to_energy(audio_seconds=None) == 0.0
+    assert energy_meter.stt_cost_to_energy(audio_seconds=None, provider="voxtral") == 0.0
+
+
+def test_the_stt_rate_FOLLOWS_the_provider_instead_of_being_one_flat_number():
+    """El defecto que motivó todo esto: había UNA tarifa plana de STT y era la de Deepgram, así que
+    producción facturó meses Voxtral al precio de otro — el 80% del coste, sin que fallara nada.
+
+    Dos proveedores con precios distintos tienen que dar números distintos. Si este test empieza a
+    ver lo mismo para los dos, alguien ha vuelto a colapsar la tabla en una constante."""
+    voxtral = energy_meter.stt_cost_to_energy(audio_seconds=600, provider="voxtral")
+    deepgram = energy_meter.stt_cost_to_energy(audio_seconds=600, provider="deepgram")
+    assert voxtral > deepgram, "Voxtral ($0.006/min) es más caro que Deepgram ($0.0048/min)"
+
+
+def test_transport_is_billed_per_participant_minute():
+    # 10 min de sesión × 2 participantes = 20 participant-min @ $0.0004 = $0.008, *4 = €0.032 = 3.2 Energy.
+    energy = energy_meter.transport_cost_to_energy(participant_seconds=1200, provider="livekit")
+    assert energy == pytest.approx(3.2)
 
 
 def test_report_tts_usage_noop_when_disabled(monkeypatch):

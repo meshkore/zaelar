@@ -139,7 +139,30 @@ def end_session(reason: str = "frontend") -> dict:
         dur = round(time.time() * 1000) - (info.get("started_ms") or 0)
         _emit_session("end", info, extra={"reason": (reason or "")[:40], "duration_ms": dur})
         _report_to_control_plane("end", info)
+        _bill_transport(dur)
     return info
+
+
+# Real-time transport (LiveKit) is billed per PARTICIPANT-minute and a voice session has TWO of them
+# (the operator and the agent), so the session's wall-clock is doubled here. It is charged per SESSION
+# rather than per turn because the room is up — and billing — during the silences between turns too,
+# which is exactly the part no per-turn hook would ever see.
+#
+# Only the duration crosses this seam: whether that costs anything, and how much, is the tariff's
+# business (`nucleo/energy_tariffs.py` — it may legitimately be zero while the deployment sits inside
+# LiveKit's included quota). Failing to bill must never break closing a session, hence the guard.
+_TRANSPORT_PARTICIPANTS = 2
+
+
+def _bill_transport(duration_ms: int) -> None:
+    if duration_ms <= 0:
+        return
+    try:
+        from nucleo import energy_meter
+        energy_meter.report_transport_usage(
+            participant_seconds=(duration_ms / 1000.0) * _TRANSPORT_PARTICIPANTS)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"identity: could not bill the transport for this session: {e}")
 
 
 def note_real_activity() -> None:

@@ -44,6 +44,8 @@ import time
 import httpx
 from loguru import logger
 
+from nucleo import energy_tariffs
+
 # $ per 1M tokens, (input, output), matched by substring against `base_url`. Covers providers that
 # serve a single (or effectively single-priced) model directly — NOT brokers like AIMLAPI, which
 # serve dozens of models at very different prices (see _MODEL_RATES below, which is consulted FIRST).
@@ -316,29 +318,46 @@ def llm_cost_to_energy(
     return retail_eur / EUR_PER_ENERGY_UNIT
 
 
-# $ per 1000 characters synthesized. Source: elevenlabs.io/pricing/api, 2026-07-24 (Flash/Turbo
-# v2.5 API pay-as-you-go rate) — RE-VERIFY periodically, provider pricing changes without notice.
-_TTS_USD_PER_1K_CHARS = float(os.getenv("ENERGY_TTS_USD_PER_1K_CHARS", "0.05"))
+# VOICE RATES MOVED OUT (2026-08-16) — they now live in `nucleo/energy_tariffs.py`, resolved PER
+# PROVIDER and authored centrally by the operator (backoffice → control-plane → piggybacked on the
+# lease). They used to be two flat constants here, and that shape was the defect: nothing tied either
+# one to the provider actually running, so the STT billed Deepgram's $0.0048/min while production ran
+# Voxtral at $0.006/min — 80% of cost, silently, for as long as nobody compared the two by hand. It is
+# the same failure as the base_url-only LLM table that metered the entire voice path at zero in August.
+# The env overrides (`ENERGY_TTS_USD_PER_1K_CHARS`/`ENERGY_STT_USD_PER_MIN`) are gone with them: an env
+# var is per-Machine and invisible, which is what made the drift impossible to notice.
 
-# $ per minute of audio, streaming/real-time. Source: deepgram.com/pricing, 2026-07-24 (Nova-3,
-# Pay-As-You-Go tier, monolingual) — RE-VERIFY periodically.
-_STT_USD_PER_MIN = float(os.getenv("ENERGY_STT_USD_PER_MIN", "0.0048"))
 
+def tts_cost_to_energy(*, characters: int | None, provider: str) -> float:
+    """Pure given the tariff table. Energy units for one TTS synthesis call.
 
-def tts_cost_to_energy(*, characters: int | None) -> float:
-    """Pure. Energy units for one TTS synthesis call. Never None — TTS has one flat rate, no
-    per-provider table (only ElevenLabs runs in the cloud profile; kokoro_local is filtered by the
-    caller before this is ever invoked, same pattern as the metrics_collected hook in agent.py)."""
+    `provider` is REQUIRED and has no default on purpose: a default here would be a second place where
+    a price silently stops matching what runs. Local backends never reach this (the caller filters
+    them — see the metrics_collected hook in agent.py); one that did would hit the never-free catch-all.
+    """
     chars = characters or 0
-    raw_usd = (chars / 1000.0) * _TTS_USD_PER_1K_CHARS
+    raw_usd = (chars / 1000.0) * energy_tariffs.rate_for("tts", provider)
     retail_eur = raw_usd * MARGIN_MULTIPLIER
     return retail_eur / EUR_PER_ENERGY_UNIT
 
 
-def stt_cost_to_energy(*, audio_seconds: float | None) -> float:
-    """Pure. Energy units for one STT transcription call (audio_duration from STTMetrics)."""
+def stt_cost_to_energy(*, audio_seconds: float | None, provider: str) -> float:
+    """Pure given the tariff table. Energy units for one STT transcription call (`audio_duration`
+    from LiveKit's STTMetrics). Same required-`provider` contract as `tts_cost_to_energy`."""
     secs = audio_seconds or 0.0
-    raw_usd = (secs / 60.0) * _STT_USD_PER_MIN
+    raw_usd = (secs / 60.0) * energy_tariffs.rate_for("stt", provider)
+    retail_eur = raw_usd * MARGIN_MULTIPLIER
+    return retail_eur / EUR_PER_ENERGY_UNIT
+
+
+def transport_cost_to_energy(*, participant_seconds: float | None, provider: str = "livekit") -> float:
+    """Pure given the tariff table. Energy for real-time transport, billed per PARTICIPANT-minute.
+
+    A voice session has two participants (operator + agent), so the caller passes the summed
+    participant-seconds — putting that multiplication here would hide it from whoever later reads a
+    bill and wonders why it is double the wall-clock."""
+    secs = participant_seconds or 0.0
+    raw_usd = (secs / 60.0) * energy_tariffs.rate_for("transport", provider)
     retail_eur = raw_usd * MARGIN_MULTIPLIER
     return retail_eur / EUR_PER_ENERGY_UNIT
 
@@ -652,29 +671,51 @@ def report_worker_usage(
 
 
 @_never_raises
-def report_tts_usage(*, characters: int | None) -> None:
+def report_tts_usage(*, characters: int | None, provider: str) -> None:
     """Call from the TTSMetrics branch of agent.py's metrics_collected hook, AFTER the caller has
     already excluded local backends (kokoro_local — free, not metered). Same no-op/fire-and-forget
-    contract as report_llm_usage."""
+    contract as report_llm_usage.
+
+    The RAW UNITS travel in `meta` alongside the Energy, deliberately: Energy is the price applied to
+    them, and a price can be wrong. Without the units the control-plane can only ever say what we
+    charged, never what it should have been — so a tariff fixed later could not be applied backwards,
+    and a bill could not be checked against the provider's own dashboard. Same reason report_llm_usage
+    already sends {model, base_url}. No content, ever — a character COUNT, never the text."""
     if not enabled():
         return
-    energy = tts_cost_to_energy(characters=characters)
+    energy = tts_cost_to_energy(characters=characters, provider=provider)
     if energy <= 0:
         return
-    _fire_and_forget(energy, "tts")
+    _fire_and_forget(energy, "tts", {"provider": provider, "characters": int(characters or 0)})
 
 
 @_never_raises
-def report_stt_usage(*, audio_seconds: float | None) -> None:
+def report_stt_usage(*, audio_seconds: float | None, provider: str) -> None:
     """Call from the STTMetrics branch of agent.py's metrics_collected hook, AFTER the caller has
     already excluded local backends (whisper_local — free, not metered). Same no-op/fire-and-forget
-    contract as report_llm_usage."""
+    and raw-units-in-meta contract as report_tts_usage."""
     if not enabled():
         return
-    energy = stt_cost_to_energy(audio_seconds=audio_seconds)
+    energy = stt_cost_to_energy(audio_seconds=audio_seconds, provider=provider)
     if energy <= 0:
         return
-    _fire_and_forget(energy, "stt")
+    _fire_and_forget(energy, "stt",
+                     {"provider": provider, "audio_seconds": round(float(audio_seconds or 0.0), 3)})
+
+
+@_never_raises
+def report_transport_usage(*, participant_seconds: float | None, provider: str = "livekit") -> None:
+    """Call when a voice SESSION closes, with the summed participant-seconds. Per-session, not
+    per-turn: transport is billed for the whole time the room is up, including the silences between
+    turns, so metering it per turn would miss exactly the part nobody watches."""
+    if not enabled():
+        return
+    energy = transport_cost_to_energy(participant_seconds=participant_seconds, provider=provider)
+    if energy <= 0:
+        return
+    _fire_and_forget(energy, "transport",
+                     {"provider": provider,
+                      "participant_seconds": round(float(participant_seconds or 0.0), 1)})
 
 
 @_never_raises

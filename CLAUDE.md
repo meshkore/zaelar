@@ -1361,6 +1361,39 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     poder compararse con la verdad en su propia fila**: reconstruir este sesgo exigió cruzar campos que solo
     coincidían en 114 de 1.070 eventos. Nodo 2.14, con las dos ramas (cancelado→estimado, completo→verdad del
     proveedor, y que la verdad GANE) — sin la segunda, la primera la aprobaría un medidor que siempre adivina.
+  - **SEXTO: la VOZ facturaba a la tarifa de otro proveedor, y el precio dejó de vivir en el código
+    (2026-08-16, `nucleo/energy_tariffs.py`).** El STT y el TTS SÍ se metraban desde julio (hook
+    `metrics_collected` de `voice/engine/pipeline/agent.py` → `report_stt_usage`/`report_tts_usage`, con las
+    métricas que LiveKit ya emite: `audio_duration` y `characters_count`). Lo que fallaba era el precio:
+    `_STT_USD_PER_MIN = 0.0048` era **Deepgram Nova-3** y producción corre **Voxtral realtime a $0,006/min**,
+    o sea el **80%** del coste. El TTS estaba bien ($0,05/1k = ElevenLabs Flash v2.5), lo que importa decir:
+    el impulso al encontrar un fallo es tocar los dos, y tocar el bueno introduce uno nuevo.
+    - **El defecto NO era el número sino su forma**: había UNA constante plana por familia y **nada la ataba
+      al proveedor que corre**. Es la tercera vez que esta casa paga la misma avería (la tabla por `base_url`
+      que metró el 100% de la voz a cero; el mapa de proveedores del master escrito a mano). Ahora la tarifa
+      se resuelve **por proveedor** desde `SETTINGS.stt_provider`/`tts_provider`, y el `provider` es un
+      argumento OBLIGATORIO sin default — un default sería un segundo sitio donde el precio deja de
+      corresponder con lo que corre.
+    - **El precio ya no se despliega: se edita.** La autoridad es una tabla del control-plane que el operador
+      cambia desde el master, y viaja a cada Machine **piggyback en la respuesta del arriendo** — la única
+      llamada periódica que el motor ya hace. Un endpoint propio habría añadido llamada, modo de fallo y reloj
+      nuevos para mover unos números que cambian una vez al mes; y el arriendo (ADR-0005) exige **cero red en
+      régimen**, así que el cálculo sigue siendo local contra una caché en `sys_kv`. Motivo de fondo: una
+      release **no llega sola a las Machines de inquilino**, así que un número que caduca no podía seguir
+      viviendo en un artefacto que se despliega a mano.
+    - **Las UNIDADES CRUDAS viajan en `meta`** (`audio_seconds`, `characters`, `participant_seconds`) junto al
+      Energy. Energy es el precio aplicado a ellas y un precio puede estar mal: sin las unidades, la central
+      solo puede decir lo que cobramos, nunca lo que debió costar — ni re-tarifar hacia atrás, ni cuadrar con
+      el panel del proveedor. Nunca contenido: un RECUENTO de caracteres, jamás el texto.
+    - **El TRANSPORTE (LiveKit) tampoco se cobraba** y ahora sí, al cerrar sesión (`observability/identity.py`),
+      por minuto de **participante** × 2 — la sala factura también los silencios entre turnos, que es justo lo
+      que ningún hook por-turno vería. Su tarifa es la más propensa a estar mal *por diseño*: con cuota
+      incluida el coste marginal real es **cero**, y eso es un hecho del PLAN del operador, no del código —
+      por eso `0` es un valor legítimo del tarifario y no un hueco.
+    - **Trinquete (nodo 8.1e)**: un test lee `BASE_PROVIDER_ENV` del provisioner y falla si el proveedor que la
+      nube declara no tiene tarifa. El defecto se detecta **al cambiar la configuración**, no tres semanas
+      después mirando una factura. Verificado rompiéndolo a mano. Y el catch-all cobra la tarifa **más cara**
+      conocida avisando una vez: sub-cobrar en silencio pierde dinero, sobre-cobrar se ve y se corrige.
 - **Control central de proveedores en el perfil cloud** (`server/config_api.py` + `ConfigPanel.js`,
   2026-08-05, INI-019 "Cambio B"): en self-host el usuario elige proveedor/modelo por pieza
   (`_PROVIDER_CATALOG`: fast/code_agent/memory/triage/susurro); en una cuenta cloud esa elección la fija

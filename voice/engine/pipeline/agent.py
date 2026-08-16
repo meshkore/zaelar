@@ -416,13 +416,17 @@ async def entrypoint(ctx: JobContext) -> None:
             if dur:
                 _emit("tts", f"🔊 {SETTINGS.tts_provider}", extra={"tts_ms": round(dur * 1000)})
             from nucleo import energy_meter as _energy
-            _energy.report_tts_usage(characters=getattr(m, "characters_count", None))
+            # The PROVIDER is passed, not looked up inside the meter: the rate has to follow whatever
+            # backend actually produced this audio, and this hook is the only place that knows it.
+            _energy.report_tts_usage(characters=getattr(m, "characters_count", None),
+                                     provider=SETTINGS.tts_provider)
         elif kind == "STTMetrics" and SETTINGS.stt_provider != "whisper_local":
             dur = getattr(m, "duration", None)
             if dur:
                 _emit("stt", f"👂 {SETTINGS.stt_provider}", extra={"stt_ms": round(dur * 1000)})
             from nucleo import energy_meter as _energy
-            _energy.report_stt_usage(audio_seconds=getattr(m, "audio_duration", None))
+            _energy.report_stt_usage(audio_seconds=getattr(m, "audio_duration", None),
+                                     provider=SETTINGS.stt_provider)
 
     @session.on("error")
     def _on_error(ev) -> None:

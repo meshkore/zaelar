@@ -389,6 +389,8 @@ DOMAINS: list[dict] = [
             "tests/infrastructure/unit/core/test_energy_lease.py"]},
         {"id": "8.1d", "title": "Egress de modelos: un código, dos despliegues", "ch": UNIT, "paths": [
             "tests/infrastructure/unit/core/test_llm_egress.py"]},
+        {"id": "8.1e", "title": "Tarifas: el precio SIGUE al proveedor que corre", "ch": UNIT, "paths": [
+            "tests/infrastructure/unit/core/test_energy_tariffs.py"]},
         {"id": "8.2", "title": "Perfiles / v2 / doctor / credenciales", "ch": UNIT, "paths": [
             "tests/infrastructure/unit/config/test_profiles.py", "tests/infrastructure/unit/config/test_v2.py",
             "tests/infrastructure/unit/config/test_doctor.py", "tests/infrastructure/unit/config/test_credentials.py"]},

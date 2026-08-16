@@ -43,6 +43,8 @@ import time
 import httpx
 from loguru import logger
 
+from nucleo import energy_tariffs
+
 # Quién nos paró. Sirve para no pisar una parada del operador al renovar (ver la asimetría de arriba).
 STOP_SRC = "energy_lease"
 
@@ -287,6 +289,18 @@ async def _request(reason: str) -> bool:
         # antes de que la nube vuelva, el fusible hace su trabajo. Eso es exactamente lo que se quería.
         logger.warning(f"energy_lease: renovación fallida ({reason}), se sigue con lo que quede: {e}")
         return remaining() > 0
+
+    # TARIFAS AL VUELO. La respuesta del arriendo trae los precios que el operador tiene puestos en el
+    # master, y se adoptan ANTES de mirar el veredicto: son válidos igualmente si la nube niega el
+    # arriendo, y perderlos por un «no gastes» dejaría a la Machine facturando con precios viejos en
+    # cuanto volviera a haber saldo. Viajan aquí, y no por un endpoint propio, porque el arriendo es la
+    # única llamada periódica que el motor YA hace: un `GET /tarifas` añadiría una llamada de red, un
+    # modo de fallo y un reloj nuevos para mover un puñado de números que cambian una vez al mes.
+    # `update()` rechaza un payload vacío o corrupto por su cuenta — ausencia no es una instrucción.
+    try:
+        energy_tariffs.update(data.get("tariffs"), source="lease")
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"energy_lease: no se pudieron aplicar las tarifas centrales: {e}")
 
     granted = float(data.get("energy") or 0.0)
     if not data.get("ok") or granted <= 0:
