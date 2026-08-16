@@ -50,6 +50,13 @@ _DEFAULTS = {
     # `thinking:disabled` for this model (~8.6s TTFT) while the direct endpoint does (~1s) — the same model,
     # the same price, just obedient. `DEEPSEEK_API_KEY` already resolves via `nucleo/provider_keys.py`.
     "turn_complete": ("https://api.deepseek.com", "deepseek-v4-flash"),
+    # directed (2026-08-16): voice/attention.py's content-based gate for "always" (open-mic) mode — with no
+    # wake-word, the only signal for "is this ambient noise or aimed at me" is the NATURE of the utterance
+    # (operator ask, live incident: 5-7 background-noise fragments each ran a full turn, one even completed a
+    # real ~3s web_search, before finally getting discarded as superseded — real cost for zero value). Same
+    # profile as `turn_complete`: fires on every non-wake-word turn in the hot path, so it needs the DIRECT
+    # DeepSeek endpoint's ~1s TTFT, not the ~8.6s the AIMLAPI broker gives this model.
+    "directed": ("https://api.deepseek.com", "deepseek-v4-flash"),
 }
 
 

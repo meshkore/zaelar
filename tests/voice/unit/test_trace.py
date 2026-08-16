@@ -98,6 +98,31 @@ def test_active_expires_and_falls_back_to_general_not_a_stale_turn():
     assert trace.active(max_age_s=60) == tid, "el margen es configurable — con uno más ancho sigue siendo válido"
 
 
+# ── merge() — dos traces resultan ser la MISMA tarea (2026-08-16) ────────────────────────────────────────────────
+# "Por la segunda o tercera frase nos demos cuenta que los dos turnos son el mismo... dejaría esa feature
+# disponible" — el operador pidió la CAPACIDAD de fundir dos flujos, con el MÁS ANTIGUO como titular siempre.
+def test_merge_keeps_the_older_trace_as_titular_regardless_of_argument_order():
+    assert trace.merge("T5·aaaa", "T9·bbbb") == "T5·aaaa"
+    assert trace.merge("T9·bbbb", "T5·aaaa") == "T5·aaaa", "el orden de los argumentos no debe importar"
+
+
+def test_merge_emits_a_marker_stamped_on_the_newer_trace_not_ambient():
+    from voice import observer
+    tid = trace.merge("T5·aaaa", "T9·bbbb")
+    assert tid == "T5·aaaa"
+    markers = [e for e in observer.debug_events(kind="trace")
+               if e.get("label") == "merge" and e.get("trace") == "T9·bbbb"]
+    assert markers, "el marcador tiene que aparecer bajo el id que se funde, no bajo el titular"
+    assert markers[-1].get("merge_into") == "T5·aaaa"
+
+
+def test_merge_with_itself_or_empty_is_a_safe_noop():
+    assert trace.merge("T5·aaaa", "T5·aaaa") == "T5·aaaa"
+    assert trace.merge("", "T5·aaaa") == "T5·aaaa"
+    assert trace.merge("T5·aaaa", "") == "T5·aaaa"
+    assert trace.merge("", "") == ""
+
+
 def test_cluster_and_pulso_origins_never_touch_active():
     """El puente MeshKore (connectors/meshkore/bridge.py) corre en el MISMO proceso y también llama begin() — si
     tocara active(), un tick de cluster le colgaría sus eventos al pipeline de VOZ (VAD/TTS/estado) del trace de

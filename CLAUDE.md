@@ -1576,6 +1576,51 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     (`nucleo/dispatch.py`) hereda el trace del turno que lo lanzó, nunca mintea uno propio — es la MISMA gestión,
     no una tarea aparte. Si algún día hace falta que una derivada compleja tenga su PROPIO trace (el operador lo
     mencionó como posible), es una decisión de producto pendiente de confirmar con un caso real, no aplicada aquí.
+- **El gate de atención en modo `always` (el default, micro SIEMPRE abierto — permanente, NO es algo a revertir
+  a wake-word) ahora JUZGA el contenido en vez de dar todo por dirigido (2026-08-16, norma del operador: "nunca
+  vamos a llamar a la gente por su nombre... el ruido de fondo se puede separar de las acciones reales
+  dependiendo de la naturaleza de las frases")**. Auditando una sesión real con niños de por medio: 5-7 frases de
+  ruido de fondo ("Mira donde tú quieras, pero dame el ya...", con "hija" de por medio) corrieron el turno
+  COMPLETO cada una —prompt, decisión de tools, y en un caso un `web_search` real que tardó 3,3s y se
+  completó— antes de descartarse como superado. Coste real, cero valor, repetido varias veces en menos de 90s.
+  - **Por qué "smart" (ventana de 30s tras el último turno dirigido) no basta**: el ruido ocurrió DENTRO de una
+    conversación activa, a segundos del último intercambio real — cualquier heurística de ventana temporal lo
+    habría dejado pasar igual. Hacía falta juzgar el CONTENIDO, no el reloj.
+  - **`voice/attention.py::evaluate_content()`** (nueva, async — `evaluate()` se queda intacta, síncrona, para
+    quien no puede pagar un round-trip: tests, probe, accumulator). En modo `always`: atajo gratis si hay
+    wake-word (no hace falta preguntarle a nadie lo obvio); si no, pregunta al modelo RÁPIDO (`nucleo/memllm.py`,
+    tarea `"directed"`, mismo perfil DeepSeek DIRECTO que `turn_complete`/V2-097 por la misma razón: TTFT ~1s
+    contra ~8,6s del broker AIMLAPI) con la frase + un apunte barato de qué se estaba haciendo
+    (`brain._last_spoken`, no la ventana entera). Fail-open SIEMPRE (excepción, timeout, JSON ilegible → tratado
+    como dirigido) — un juez roto jamás puede dejar mudo al agente; sesgado a "dirigido" ante la duda por el
+    mismo motivo. Juez inyectable (`set_directed_judge`, mismo patrón que `accumulator.py::set_judge`) para
+    tests sin red. `smart`/`wakeword`/`ptt` no cambian — su heurístico ya discrimina sin necesitar el modelo.
+  - **Dónde corta**: `nucleo.py`'s bloque T134 (línea ~613) ya existía y ya cortaba ANTES del relleno de espera,
+    la construcción del prompt y la selección de tools — solo hacía falta que la CLASIFICACIÓN fuera buena. No
+    hizo falta tocar ese corte en absoluto, solo lo que decide si dispara.
+- **Fusionar dos flujos que resultan ser la MISMA tarea — la capacidad existe, el disparo automático NO (pass 2
+  pendiente)** (2026-08-16, norma del operador: "por la segunda o tercera frase nos demos cuenta que los dos
+  turnos son el mismo... dejaría esa feature disponible").
+  - **`voice/trace.py::merge(a, b)`**: el MÁS ANTIGUO (seq más bajo del propio id — nace secuencial, sin
+    necesidad de comparar timestamps) se queda como TITULAR siempre, sea cual sea el orden de los argumentos; el
+    más nuevo se funde EN él. No reescribe nada ya escrito (el archivo es append-only a propósito) — emite un
+    MARCADOR (`kind="trace", label="merge"`, sellado con el trace NUEVO, `extra={"merge_into": <titular>}`) que
+    el lector resuelve.
+  - **Lectura**: `cloud/backoffice/src/flowAttribution.js::resolveMerges()` (sigue cadenas de fusión
+    transitivamente, protegido contra ciclos) integrado en `attributeOrphans()` — un evento de un flujo ya
+    fundido se lee como del titular, huérfanos incluidos. `handleFlowDetail` (server.js) resuelve también el
+    `corrId` de la URL: visitar el id viejo redirige al contenido combinado, no a una tabla vacía. **Pendiente,
+    a propósito**: la RAIL/tablero en vivo (`flows_detail`, vista de resumen) todavía no oculta un flujo ya
+    fundido como columna separada — solo el DETALLE (clic dentro) queda correcto; y el lado nube
+    (`observability/flows.py`) no tiene el equivalente todavía, solo el local.
+  - **Lo que falta A PROPÓSITO — el disparo automático**: qué decide fusionar y cuándo es la mitad que NO se
+    construyó esta pasada. El diseño recomendado para la siguiente: extender el ÚNICO tool-call real del turno
+    (`nucleo.py`'s stream, ver la entrada de `voice.trace.active()` arriba para el mapa completo de esa
+    llamada) con un campo booleano tipo `continues_previous_task` que el modelo declare — el motor, no el
+    modelo, resuelve A QUÉ trace concreto se refiere (el inmediatamente anterior de la sesión, un puntero
+    sencillo análogo a `_active`/`_general`), así el modelo nunca necesita ver ids internos. Coherente con la
+    norma de este repo de "no hardcoded, enseña al modelo" en vez de heurísticas de similitud de texto escritas
+    a mano.
 - **Seguridad del canal de cluster** (`connectors/meshkore/security.py` + `bridge.py`): el cluster habla con agentes
   externos **no confiables**. Controles DUROS, no solo prompts (detalle en `zaelar-security.md`):
   - El **canal lo conduce el motor del FlashBrain en perfil UNTRUSTED** (V2-069): **tools APAGADAS en código**

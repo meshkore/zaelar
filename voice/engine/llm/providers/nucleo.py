@@ -611,7 +611,12 @@ class NucleoLLMStream(llm.LLMStream):
         # que la voz ambiente se cuele como dirigida y auto-extienda la ventana. El operador abre la conversación
         # con la wake-word ("zaelar") y a partir de ahí la ventana la mantiene viva (o chat/paste, ya marcados).
         if not first_turn:
-            verdict = attention.evaluate(text)
+            # `evaluate_content()` (2026-08-16), no la `evaluate()` heurística pura: en modo `always` (el
+            # default, micro siempre abierto) lo único que distingue "me hablas a mí" de "ruido de fondo" es la
+            # NATURALEZA de la frase, así que le pregunta al modelo rápido — ver voice/attention.py. `context`
+            # es deliberadamente barato (una frase, no la ventana entera): solo hace falta saber "qué estábamos
+            # haciendo", no reconstruir el diálogo completo para esto.
+            verdict = await attention.evaluate_content(text, context=brain._last_spoken)
             if not verdict.directed:
                 emit("ambient", "🙉 ambiente — no dirigido a zaelar", text=text[:200], role="user",
                      extra={"mode": attention.mode(), "reason": verdict.reason})

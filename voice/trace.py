@@ -114,6 +114,40 @@ def begin(text: str, origin: str = "turno") -> str:
     return tid
 
 
+def _seq_of(tid: str) -> int:
+    """El número de orden dentro del id ('T29·593e' → 29). 0 si no se puede leer — nunca debe bloquear un merge,
+    solo decidir quién es más viejo cuando sí se puede."""
+    try:
+        return int(str(tid or "").split("·")[0].lstrip("T"))
+    except Exception:
+        return 0
+
+
+def merge(a: str, b: str) -> str:
+    """Dos traces resultan ser la MISMA tarea (operador, 2026-08-16: "por la segunda o tercera frase nos demos
+    cuenta que los dos turnos son el mismo... dejaría esa feature disponible"). El MÁS ANTIGUO (seq más bajo,
+    comparación numérica del propio id — nace secuencial, no hace falta guardar timestamps aparte) se queda como
+    TITULAR; el más nuevo se funde EN él, nunca al revés — así una tarea larga con varias fusiones converge
+    siempre al mismo id, el primero, en vez de ir saltando de titular en cada fusión sucesiva.
+
+    NO reescribe nada ya escrito — el archivo de eventos es append-only a propósito (ver `bus/log.py`: "un JSON
+    por línea... se lee con grep/jq diez años después"). En su lugar emite un MARCADOR (`kind="trace",
+    label="merge"`, sellado con el trace NUEVO vía `extra={"trace": ...}` — nunca ambiente, para que el marcador
+    aparezca bajo el id que se está fundiendo, no bajo el titular) que el lector resuelve: ver
+    `cloud/backoffice/src/flowAttribution.js::resolveMerges` (local) y su equivalente en `observability/
+    flows.py` para sesiones de nube. Best-effort, nunca lanza. Devuelve el id TITULAR."""
+    a, b = (a or "").strip(), (b or "").strip()
+    if not a or not b or a == b:
+        return a or b
+    older, newer = (a, b) if _seq_of(a) <= _seq_of(b) else (b, a)
+    try:
+        from voice.observer import emit
+        emit("trace", "merge", role="system", extra={"trace": newer, "merge_into": older})
+    except Exception:
+        pass
+    return older
+
+
 def current() -> str:
     """Trace id del contexto actual ("" si no hay). Lo lee `observer.emit` en cada evento — debe ser barato."""
     return _ctx.get()[0]

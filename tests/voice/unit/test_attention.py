@@ -1,6 +1,7 @@
 #
-# test_attention.py — gate de atención (V2-015 · T134/T135/T136).
+# test_attention.py — gate de atención (V2-015 · T134/T135/T136; contenido V2-??? 2026-08-16).
 #
+import asyncio
 import importlib
 
 import pytest
@@ -13,8 +14,10 @@ def _clean_env(monkeypatch):
     for k in ("ZAELAR_ATTENTION", "ZAELAR_ATTENTION_WINDOW", "ZAELAR_WAKEWORDS"):
         monkeypatch.delenv(k, raising=False)
     attention.reset()
+    attention.set_directed_judge(None)
     yield
     attention.reset()
+    attention.set_directed_judge(None)
 
 
 # ── modo ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -105,6 +108,100 @@ def test_wakeword_mode_ignores_window(monkeypatch):
 def test_always_mode_everything_directed(monkeypatch):
     monkeypatch.setenv("ZAELAR_ATTENTION", "always")
     assert attention.evaluate("cualquier cosa ambiente").directed
+
+
+# ── evaluate_content: modo `always` JUZGA el contenido (2026-08-16) ────────────────────────────────────────
+# Real, sesión en vivo: ruido de fondo ("Mira donde tú quieras, pero dame el ya...") corrió un turno COMPLETO
+# —incluido un web_search real de 3,3s— antes de descartarse como superado. `evaluate()` (arriba) sigue dando
+# TODO por dirigido en `always`; `evaluate_content()` es la que de verdad discrimina, y es la única que usa el
+# turno real de voz (nucleo.py). El juez es inyectable (`set_directed_judge`) para no pegarle a la red en tests.
+def _run(coro):
+    return asyncio.run(coro)
+
+
+def test_evaluate_content_ignores_smart_wakeword_modes_same_as_evaluate(monkeypatch):
+    """Fuera de `always` no hace falta preguntarle a ningún modelo — el heurístico de siempre basta."""
+    monkeypatch.setenv("ZAELAR_ATTENTION", "smart")
+    now = 1000.0
+    attention.note_directed(now=now)
+    v = _run(attention.evaluate_content("y mañana qué tengo", now=now + 10))
+    assert v.directed and v.reason == "active_window"
+
+
+def test_evaluate_content_wakeword_is_a_free_shortcut_no_judge_called():
+    async def _judge(text, context):
+        raise AssertionError("wake-word ya es prueba suficiente, no hace falta gastar un round-trip")
+    attention.set_directed_judge(_judge)
+    v = _run(attention.evaluate_content("zaelar, qué hora es"))
+    assert v.directed and v.reason == "wakeword"
+
+
+def test_evaluate_content_directed_when_the_judge_says_so():
+    async def _judge(text, context):
+        assert text == "cuánto vale un balón de fútbol"
+        return True
+    attention.set_directed_judge(_judge)
+    v = _run(attention.evaluate_content("cuánto vale un balón de fútbol"))
+    assert v.directed and v.reason == "always"
+
+
+def test_evaluate_content_ambient_when_the_judge_says_so():
+    """El caso real que motivó esto: ruido de fondo, el juez dice AMBIENTE, y el turno NUNCA llega a costar
+    nada (nucleo.py corta aquí, antes del prompt/tools/búsqueda)."""
+    async def _judge(text, context):
+        return False
+    attention.set_directed_judge(_judge)
+    v = _run(attention.evaluate_content("Mira donde tú quieras, pero dame el ya"))
+    assert not v.directed and v.reason == "llm_ambient"
+
+
+def test_evaluate_content_passes_context_through_to_the_judge():
+    seen = {}
+
+    async def _judge(text, context):
+        seen["context"] = context
+        return True
+    attention.set_directed_judge(_judge)
+    _run(attention.evaluate_content("de la más alta gama", context="precio del balón del mundial"))
+    assert seen["context"] == "precio del balón del mundial"
+
+
+def test_evaluate_content_fails_open_when_the_judge_raises():
+    async def _judge(text, context):
+        raise RuntimeError("modelo caído")
+    attention.set_directed_judge(_judge)
+    v = _run(attention.evaluate_content("cualquier frase"))
+    assert v.directed, "un juez roto nunca puede dejar mudo al agente"
+
+
+def test_evaluate_content_fails_open_when_the_judge_returns_none():
+    """None = no se pudo parsear la respuesta (JSON roto, modelo raro) — mismo fail-open que una excepción."""
+    async def _judge(text, context):
+        return None
+    attention.set_directed_judge(_judge)
+    assert _run(attention.evaluate_content("cualquier frase")).directed
+
+
+def test_evaluate_content_empty_text_is_ambient_without_calling_the_judge():
+    async def _judge(text, context):
+        raise AssertionError("un texto vacío no necesita juez")
+    attention.set_directed_judge(_judge)
+    v = _run(attention.evaluate_content("   "))
+    assert not v.directed
+
+
+@pytest.mark.parametrize("raw,expected", [
+    ('{"directed": true}', True),
+    ('{"directed": false}', False),
+    ('```json\n{"directed": true}\n```', True),
+    ('here you go: {"directed": false} thanks', False),
+    ("not json at all", None),
+    ("", None),
+    (None, None),
+    ('{"directed": "yes"}', None),   # no es un bool real — fail-open, no se adivina
+])
+def test_parse_directed(raw, expected):
+    assert attention._parse_directed(raw) is expected
 
 
 def test_ptt_mode(monkeypatch):

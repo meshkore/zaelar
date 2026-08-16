@@ -19,11 +19,15 @@
 #
 from __future__ import annotations
 
+import asyncio
+import json
 import os
 import re
 import time
 import unicodedata
 from dataclasses import dataclass
+
+from loguru import logger
 
 # ── configuración (UI-managed; env = fallback) ──────────────────────────────────────────────────────────
 _VALID_MODES = ("smart", "wakeword", "ptt", "always")
@@ -94,6 +98,99 @@ def evaluate(text: str, *, now: float | None = None) -> Verdict:
     if _state["last_directed"] and (now - _state["last_directed"]) <= window_s():
         return Verdict(True, "active_window")
     return Verdict(False, "ambient")
+
+
+# ── CONTENIDO, no solo modo (2026-08-16) ────────────────────────────────────────────────────────────────────
+# `evaluate()` en modo `always` (el default: micro SIEMPRE abierto, SIN wake-word — decisión permanente del
+# operador, no algo a revertir) es un no-op: TODO turno es dirigido. Con una familia real en la sala, eso hizo
+# que ruido de fondo ("Mira donde tú quieras, pero dame el ya...", frases con "hija" de por medio) corriera el
+# turno COMPLETO — prompt, decisión de tools, y en un caso real un `web_search` que tardó 3,3s y se completó —
+# antes de descartarse como superado. Coste real, cero valor.
+#
+# `evaluate_content()` es la versión que SÍ juzga: sigue sin exigir wake-word (eso no cambia), pero en `always`
+# consulta al modelo rápido —la única señal que queda cuando no hay palabra de activación es la NATURALEZA de
+# la frase: pregunta, dato concreto, continuación de una tarea en marcha = dirigido; charla ajena/ruido = no—.
+# `evaluate()` (síncrona, sin red) se queda intacta para quien no puede pagar un round-trip (tests, probe,
+# accumulator, agent.py's non-hot-path uses) — el turno REAL de voz es el único llamador de esta.
+_DIRECTED_SYSTEM = (
+    "Eres un filtro rápido para un asistente de voz con el MICRÓFONO SIEMPRE ABIERTO — no hay palabra de "
+    "activación, así que además de al operador oye conversación de fondo (familia, TV, terceros) que NO va "
+    "dirigida a ti.\n\n"
+    "Te doy la última frase transcrita y, si la hay, un apunte de qué se estaba haciendo. Decide si la frase va "
+    "DIRIGIDA a ti: es una pregunta, da datos concretos para algo, o continúa una tarea que ya estabais "
+    "haciendo. O si es AMBIENTE: conversación ajena, ruido, algo sin sentido como petición.\n\n"
+    "Ante la duda, marca DIRIGIDO — dejar sin atender una petición real es peor que procesar un poco de ruido.\n\n"
+    'Responde SOLO con JSON: {"directed": true} o {"directed": false}. Nada más.'
+)
+
+
+async def _default_directed_judge(text: str, context: str) -> bool | None:
+    """True/False, o None si el juez falló (el llamador hace fail-open a directed=True). Off el hot path del
+    turno real gracias a `asyncio.to_thread` — mismo patrón que `segmenter.judge()`."""
+    try:
+        from nucleo import memllm
+        user = f"Se estaba haciendo: {context}\n\nFrase: «{text}»" if context else f"Frase: «{text}»"
+        raw = await asyncio.to_thread(
+            memllm.chat_sync, "directed", _DIRECTED_SYSTEM, user,
+            max_tokens=20, temperature=0.0, timeout=4.0,
+        )
+        return _parse_directed(raw)
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"attention._default_directed_judge: failed ({str(e)[:160]}) — fail-open to directed")
+        return None
+
+
+def _parse_directed(raw: str | None) -> bool | None:
+    """Tolerante a un fence de código (mismo problema que `segmenter._parse_judge`). None si no se pudo leer."""
+    if not raw:
+        return None
+    s = raw.strip()
+    if s.startswith("```"):
+        s = s.split("```", 2)[1] if s.count("```") >= 2 else s.strip("`")
+        if s.lstrip().lower().startswith("json"):
+            s = s.lstrip()[4:]
+    i, j = s.find("{"), s.rfind("}")
+    if i >= 0 and j > i:
+        s = s[i:j + 1]
+    try:
+        d = json.loads(s)
+    except Exception:
+        return None
+    v = d.get("directed")
+    return bool(v) if isinstance(v, bool) else None
+
+
+_directed_judge = _default_directed_judge
+
+
+def set_directed_judge(fn) -> None:
+    """Sustituye el juez de `evaluate_content()`'s modo `always`. Firma: `async (text, context) -> bool | None`.
+    Inyectable para tests (evita una llamada de red real) y para un juez alternativo si hiciera falta algún día.
+    `None` restaura `_default_directed_judge`."""
+    global _directed_judge
+    _directed_judge = fn or _default_directed_judge
+
+
+async def evaluate_content(text: str, *, context: str = "", now: float | None = None) -> Verdict:
+    """Como `evaluate()`, pero en modo `always` juzga el CONTENIDO en vez de dar todo por dirigido — ver el
+    comentario de arriba. `smart`/`wakeword`/`ptt` no cambian (su heurístico ya discrimina sin necesitar red)."""
+    m = mode()
+    if m != "always":
+        return evaluate(text, now=now)
+    if has_wakeword(text):
+        return Verdict(True, "wakeword")   # atajo gratis — no hace falta preguntarle al modelo lo obvio
+    t = (text or "").strip()
+    if not t:
+        return Verdict(False, "ambient")
+    try:
+        directed = await _directed_judge(t, context)
+    except Exception as e:  # noqa: BLE001 — fail-open aquí TAMBIÉN cubre un juez inyectado (set_directed_judge)
+        # que reviente, no solo el default: nada que sustituya al juez puede dejar mudo al agente.
+        logger.warning(f"attention.evaluate_content: juez roto ({str(e)[:160]}) — fail-open a dirigido")
+        directed = None
+    if directed is None:
+        return Verdict(True, "always")     # fail-open: un juez roto nunca puede dejar mudo al agente
+    return Verdict(directed, "always" if directed else "llm_ambient")
 
 
 def note_directed(now: float | None = None) -> None:
