@@ -34,7 +34,7 @@ class UseCase:
     title: str
     utterance: str
     expected: str
-    status: str = "backlog"  # "backlog" | "blocked"
+    status: str = "backlog"  # "backlog" | "blocked" | "promoted" (has a real dynamic-harness runner)
     depends_on: tuple[str, ...] = field(default_factory=tuple)
     notes: str = ""
 
@@ -148,6 +148,13 @@ CASES: list[UseCase] = [
     UseCase("kid-friendly-activity-nearby", "es", 2, "Find a kid-friendly activity nearby",
             "Encuéntrame un plan con niños para este domingo cerca de casa.",
             "A kid-friendly activity near the operator's home is found for the given day."),
+    UseCase("hotel-under-15-days", "es", 2, "Find/book a hotel within 15 days (dynamic scenario)",
+            "Búscame un hotel para dentro de menos de 15 días, para dos personas, cuatro estrellas, "
+            "cuatro noches.",
+            "A real 4-star hotel candidate (or booking) for ~4 nights within 15 days is reached, verified "
+            "against real system state (worker + browser signals), not just the agent's claim — see "
+            "tests/use_cases/e2e/agent/scenarios.py for the full dynamic, non-deterministic harness.",
+            status="promoted"),
 
     # --- ES / tier 3: multi-step single-domain task with a deadline -----------------------
     UseCase("itv-before-deadline", "es", 3, "Book vehicle inspection before deadline",

@@ -108,6 +108,21 @@ that cross two or more domains. Full contract and honest boundary list: `tests/j
 
 ## Test types and state boundaries
 
+Three explicit tiers, from cheapest/most-certain to most-expensive/most-realistic:
+
+1. **Unit** — deterministic pytest under `tests/<suite>/unit/`: one function/module, isolated, fast, no
+   live server. See below.
+2. **Integration** — live/e2e suites with *scripted* expected behavior even when an LLM drives them:
+   `journey`'s causal chain, voice's goal-scripted scenarios, agent-headless personas, `cluster`'s live
+   peer dialogue. Multi-component, but the shape of success is bounded and known ahead of time.
+3. **Use cases** (`tests/use_cases/e2e/agent/`) — open-ended, non-deterministic, natural/imperfect
+   phrasing, dynamic multi-turn negotiation with the real agent (it may ask clarifying questions; the
+   tester adapts, and a mid-scenario watchdog nudges or abandons if the conversation drifts), outcome
+   **and mechanism** verified against real system state — not just what the agent claimed. This is the
+   acceptance layer: does everything promised in the catalog actually work end to end, with the
+   tools/browser/FlashBrain/workers/memory really firing. Meant to run after a meaningful change, not on
+   every commit — the most expensive tier by design. See `tests/use_cases/CASES.md`.
+
 ### Deterministic pytest
 
 Runs without the live Zaelar server unless the test explicitly declares otherwise. Fixtures must isolate DB,
@@ -164,6 +179,24 @@ curl -s http://127.0.0.1:43917/api/flash/say \
 Use a unique `session` and `ingest:false` unless persistence is the feature under test. Prefer mapped search or
 persona cases from the Observatory when the action already exists there. A direct ad-hoc curl is diagnostic and
 does not become a scored Observatory case automatically.
+
+### Use cases (dynamic, LLM-driven)
+
+Requires Zaelar live (`make run`) and the tester's own AIMLAPI/Z.AI credentials
+(`.meshkore/credentials/tester.env`, independent of Zaelar's own keys — same convention as the voice
+tester). Runs over the text/probe channel with `execute=true` (real tool/worker execution) and
+`ingest=false` (never writes test conversations into the operator's real memory):
+
+```bash
+./.venv/bin/python -m tests.use_cases.e2e.agent.run --scenario hotel-under-15-days
+./.venv/bin/python -m tests.use_cases.e2e.agent.run                      # all promoted scenarios
+```
+
+Writes a report to `tests/runs/use_cases/report_<stamp>.{md,json}`: per-scenario judge scores, a
+mechanism report (which observability families actually fired vs. what the scenario expected — the source
+of truth for whether the agent really did the work, not just claimed to), and any mid-scenario watchdog
+interventions. `cron_tick.sh` runs one scenario round-robin, unattended, same shape as voice's cron loop —
+see `tests/use_cases/CASES.md` for the full design and the tier taxonomy.
 
 ### Live browser / Playwright
 

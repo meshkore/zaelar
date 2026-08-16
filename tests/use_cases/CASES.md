@@ -5,12 +5,27 @@ This is the readable catalog for the `use_cases` suite (`tests/use_cases/suite.j
 `tests/voice/e2e/agent/anexos/catalogo-escenarios.md`'s role for the voice suite: the catalog of
 what gets tested is public and useful; per-run diaries are not (see `tests/README.md`).
 
-**Status: backlog.** Every case below is registered and browsable (`python -m tests list`, the
-Observatory at `http://127.0.0.1:8765`, `/api/catalog/use_cases`) but none is wired to a runner
-yet. They get promoted to executable cases one at a time, each picking the runner shape that fits
-— browser automation for a booking, an `agent-headless`-style live scenario for a search/compare
-task, an email exchange for a multi-agent case, etc. That choice is made per case when it's picked
-up, not decided in bulk here.
+**Status: mostly backlog, one promoted.** Every case below is registered and browsable
+(`python -m tests list`, the Observatory at `http://127.0.0.1:8765`, `/api/catalog/use_cases`).
+Cases get promoted to executable one at a time. Promotion doesn't mean "wire a simple
+request/response pytest" — these are open-ended, non-deterministic real-world tasks, so a promoted
+case gets a **dynamic harness** instead: `tests/use_cases/e2e/agent/` (driver + watchdog + verify +
+judge, full design below), reusing the voice tester's proven DRIVE+JUDGE pattern
+(`tests/voice/e2e/agent/`) rather than reinventing it.
+
+- `hotel-under-15-days` (ES, tier 2) — **promoted**, first scenario built. Deliberately
+  underspecified (no destination given) to force a real clarifying question. Live-validated
+  2026-08-16: the harness correctly ran an adaptive multi-turn negotiation and — this is the
+  point — caught a **real product bug**: zaelar claimed "me pongo con ello, tardará un poco" (a
+  search has started) but the observability data showed **zero** worker/browser activity actually
+  fired (`families_observed: [flash, system]`, no `worker`/`widget`). The judge scored this
+  correctly low (resultado 1/5, mecanismo 1/5) despite the reply sounding natural — proving the
+  "verify outcome against real system state, not the transcript" design works. Not yet root-caused
+  as a fix; flagged here as an open finding for whoever picks up hotel/search-type cases next.
+
+All other cases stay backlog until promoted, one at a time — picking the runner shape (browser
+automation, an `agent-headless`-style scenario, an email exchange for multi-agent cases) per case
+as it's picked up, not decided in bulk here.
 
 ## Two silos, one suite
 
@@ -40,6 +55,34 @@ the voice tester's multi-language wave (INI-013, wave H):
 Neither of these is built into the `use_cases` runner yet (there is no runner yet). Whoever wires the
 first case should pick one of the two approaches explicitly rather than assume the tester can pass a
 language per case — that mechanism doesn't exist and would be new work if wanted.
+
+## The dynamic harness (`tests/use_cases/e2e/agent/`)
+
+A promoted case is not a scripted request/response — it's a real negotiation. Pieces, each adapted from
+an existing proven pattern rather than invented from scratch:
+
+- **`scenarios.py`** — `UseCaseScenario(id, locale, tier, persona_brief, opening_line, success_checks,
+  expected_signals, turns, channel)`. `opening_line` is deliberately natural/underspecified, not
+  hyperperfect — a fully-specified request never forces the agent to ask a clarifying question, which
+  defeats the point.
+- **`driver.py`** — the DRIVE model (reasoning-capable tier, `deepseek-v4-pro` by default) plays the
+  person, adapted from the voice tester's `TesterBrain`: a running history where zaelar's replies become
+  the next turn's context, so a clarifying question genuinely changes what gets said next.
+- **`watchdog.py`** — mid-scenario drift detector, adapted from `connectors/meshkore/evaluator.py`
+  (V2-075): closed-vocabulary verdict (`flowing/off_track/stuck` × `continue/nudge/abandon`), fail-open,
+  independent read-only judge. Catches e.g. "zaelar searched Seville when the user never named a city"
+  and hands the driver a natural correction to say next.
+- **`verify.py`** — the genuinely new piece: polls the durable `GET /api/observability/flow/{corr_id}`
+  per turn and, for browser tasks, `GET /widgets/navegador/data?q=<task_id>` for real extracted results.
+  Produces a mechanism report — which subsystems *actually* fired — independent of the transcript.
+- **`judge.py`** — adapted from the voice tester's judge: scores against `success_checks` using the
+  mechanism report as the source of truth for any actionable claim, same principle as voice's
+  VISUAL-requires-trace rule.
+- **`run.py`** / **`cron_tick.sh`** — orchestrator + autonomous unattended runner, same shape as voice's.
+
+Runs over the **text/probe channel** (`POST /api/flash/say`, `execute=true`, `ingest=false`) by default,
+not voice — it exercises the identical FlashBrain/worker/browser/memory mechanism without STT/TTS
+overhead, noise, or writing test conversations into the operator's real memory.
 
 ## Difficulty tiers
 

@@ -20,7 +20,9 @@ def _case_dict(case: UseCase, ordinal: int) -> dict[str, Any]:
     note = ""
     if case.status == "blocked":
         note = "BLOCKED — depends on: " + "; ".join(case.depends_on)
-    return {
+    elif case.status == "promoted":
+        note = "Dynamic, non-deterministic scenario — see tests/use_cases/e2e/agent/scenarios.py"
+    entry: dict[str, Any] = {
         "id": f"use_cases::{case.locale}::{case.id}",
         "ordinal": ordinal,
         "title": case.title,
@@ -36,8 +38,22 @@ def _case_dict(case: UseCase, ordinal: int) -> dict[str, Any]:
         "note": note,
         "raw": {"tier": case.tier, "locale": case.locale, "status": case.status,
                 "depends_on": list(case.depends_on)},
-        # No "execution" key: this case is not runnable yet.
+        # No "execution" key by default: a backlog/blocked case is not runnable yet.
     }
+    if case.status == "promoted":
+        entry["verification"] = ("dynamic LLM-driven scenario: driver negotiates the goal over the "
+                                 "probe channel, a watchdog detects drift, verify.py confirms the real "
+                                 "worker/browser mechanism fired, a judge scores the outcome")
+        entry["execution_path"] = ["DRIVE model (probe channel, execute=true)", "FlashBrain",
+                                   "escalate_to_slowbrain", "Brain Worker + browser", "observability flow",
+                                   "watchdog", "judge"]
+        entry["execution"] = {
+            "kind": "command",
+            "argv": ["{python}", "-m", "tests.use_cases.e2e.agent.run", "--scenario", case.id],
+            "nested_events": False,
+            "requires_live": True,
+        }
+    return entry
 
 
 def case_groups() -> list[dict[str, Any]]:
