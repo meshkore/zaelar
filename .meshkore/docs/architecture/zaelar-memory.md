@@ -1140,6 +1140,41 @@ un juez-LLM no puede decidir):
 - **Tester en vivo** (INI-013): lo que es comportamiento del LLM del turno (abstención query-time, resolución de un
   conflicto, ironía) NO es del membot (que lee sin LLM) → se prueba con el agente que HABLA con zaelar y un juez.
 
+**Qué MODELO corre en cada capa (para no confundir con lo que haya suelto en Ollama).** Este repo puede tener
+modelos locales instalados por otras razones (self-host, pruebas ajenas al módulo de memoria) — que un `ollama
+list` muestre algo no significa que la memoria lo use. La memoria tiene DOS familias de decisión de modelo,
+completamente separadas:
+
+1. **Embeddings (vectores del retriever)** — `memory/embeddings.py`, config `§memory.embed_provider/embed_model`.
+   Es **LOCAL a propósito, en self-host Y en nube** (principio de tiers de `V2-031`: "mañana los MISMOS pesos en
+   nuestro VPS con GPU" — no es un embedding comercial hoy ni está previsto). Default `embeddinggemma` vía Ollama,
+   fallback determinista `fastembed`→`hash` si Ollama no responde (nunca mezcla espacios vectoriales en silencio,
+   `writer.py::_embed_sig_ok()`). **No participa en escribir/razonar sobre lo que se recuerda** — solo convierte
+   texto a vector para la búsqueda semántica.
+2. **Escritura/síntesis (razona sobre qué guardar o qué resumir)** — el CORAZÓN (`nucleo/mem_processor.py`) y la
+   síntesis de REM (`nucleo/memllm.py`, incluido el nuevo gate de fidelidad `verify_insight_grounded` de V2-104).
+   **Esto es SIEMPRE un modelo comercial vía API, nunca local** — ver `config/v2.json §memory`: hoy
+   `mem_processor_model=deepseek-v4-flash` DIRECTO (`api.deepseek.com`) y `rem_model=deepseek/deepseek-v4-flash`
+   vía AIMLAPI. Es la MISMA familia de modelo (DeepSeek V4) que el `fast` del FlashBrain de voz, que en esta
+   instalación corre `deepseek-v4-pro` (razonador, "Thinking") — el par **Flash/no-razona vs Pro/razona ("Thinking")**
+   es una elección real dentro del catálogo DeepSeek, no dos productos distintos.
+
+**Qué corre CADA capa de test, en concreto:**
+
+| capa | modelo real de ESCRITURA/SÍNTESIS | corre con LLM real? | coste |
+|---|---|---|---|
+| pytest (`tests/memory/unit`,`integration`) | ninguno — hooks/mocks inyectados a mano | NO | $0, cada commit |
+| bot corpus (`tests/memory/e2e/bot/`, `cases.py`/`cases2.py`/`cases3.py`) | el CORAZÓN configurado (`§memory.mem_processor_*`) | SÍ, en escritura; lectura sin LLM | real, esporádico |
+| gateway conversacional (`cases4.py`) | el CORAZÓN configurado | SÍ (extracción completa) | real, esporádico |
+| timeline (`tests/memory/e2e/timeline/`) | REM con hook DETERMINISTA Python puro (`_deterministic_hook`, V2-103) — NO LLM real | NO (a propósito, ver `README.md`) | $0 |
+| `distiller_bench.py` | BARRE candidatos comerciales para ELEGIR el CORAZÓN | SÍ, muchos modelos a la vez | real, caro, solo al re-evaluar |
+| `scale_eval.py` | ninguno — mide el retriever (embeddings+reranker), no la síntesis | NO | $0 (solo embeddings/reranker locales) |
+| tests nuevos de V2-104 (`test_rem.py`, fidelidad del insight) | `verify_fn` MOCKEADO a mano (`lambda insight, pills: True/False`) | NO — **el `verify_insight_grounded()` real contra DeepSeek nunca se ha ejercitado con una llamada de verdad todavía** | pendiente |
+
+La fila que falta — validar `verify_insight_grounded()` y el CORAZÓN contra el modelo REAL de producción
+(`deepseek-v4-flash` y, si aplica, `deepseek-v4-pro`/"Thinking") con una llamada de verdad, no un mock — es
+trabajo pendiente explícito, no un hueco escondido.
+
 **Taxonomía de 27 dimensiones (A–X + subtipos).** Cada dimensión ataca UN modo de fallo distinto y se ancla a la
 habilidad SOTA que le corresponde (tabla completa en `TAXONOMY.md`). Cubre extracción (telegráfica↔parrafada),
 estado/corto/largo, dedup/supersede, descarte/abstención, grafo/categoría, multi-fuente, cuarentena de confianza,
