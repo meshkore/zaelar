@@ -227,6 +227,15 @@ async def entrypoint(ctx: JobContext) -> None:
         # estado completo (initializing/thinking/listening/speaking) al log unificado + bot_speech para el orbe.
         _emit("state", state.value, role="system", extra={"state": state.value})
         _emit("bot_speech", "speaking" if speaking else "idle", extra={"speaking": speaking})
+        # Nada queda sonando en este instante — es el punto seguro para cerrar cualquier flujo que terminó de
+        # generar texto MIENTRAS el bot todavía narraba la respuesta (operator report, 2026-08-16: el turno
+        # desaparecía del master en pleno TTS). Ver `nucleo.py::_maybe_close_flow`/`drain_pending_flow_closes`.
+        if not speaking:
+            try:
+                from voice.engine.llm.providers.nucleo import drain_pending_flow_closes
+                drain_pending_flow_closes()
+            except Exception:
+                pass
 
     sm = StateMachine(on_change=on_state_change)
 
@@ -473,6 +482,9 @@ async def entrypoint(ctx: JobContext) -> None:
     # …y la mitad que no admite excepción, por separado: al OPERADOR no se le habla encima ni con un relleno de
     # espera (2026-08-15). El relleno se salta la espera de hueco por diseño, así que necesita esta señal propia.
     _proactive.register_user_probe(lambda: bool(_busy["user"]))
+    # Igual, pero SOLO el bot (2026-08-16): `nucleo.py::_maybe_close_flow` la usa para no cerrar el flujo de
+    # observabilidad mientras la respuesta todavía se está narrando (ver el drain en `on_state_change` abajo).
+    _proactive.register_bot_probe(lambda: bool(_busy["bot"]))
 
     # ACCOUNT ENERGY CAP (2026-08-09): closer registry, same shape as the proactive speaker above.
     # Fires ASYNCHRONOUSLY from energy_meter.py's fire-and-forget usage report, well after the

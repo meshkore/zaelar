@@ -153,3 +153,85 @@ def test_release_does_not_end_a_genuinely_pending_chain_it_only_adopted():
 
     assert brain._acc_trace_id == chain_tid, "an in-flight chain from a PRIOR turn must survive"
     trace.adopt("")
+
+
+# ── Cierre APLAZADO mientras el bot sigue hablando (2026-08-16, real: el turno desapareció del master mientras
+# zaelar todavía narraba la respuesta) — `_maybe_close_flow` ahora encola en vez de cerrar si `proactive.
+# bot_speaking()` es True; `drain_pending_flow_closes` (llamado por agent.py al volver a idle) resuelve la cola.
+def test_maybe_close_flow_queues_instead_of_closing_while_the_bot_is_still_speaking(monkeypatch):
+    from voice import proactive
+    from voice.engine.llm.providers import nucleo as nucleo_mod
+
+    closes = []
+    monkeypatch.setattr("voice.observer.emit",
+                         lambda kind, label, **kw: closes.append((kind, label)) if kind == "flow" else None)
+    trace.adopt("")
+    trace.begin("hola", origin="turno")
+    tid = trace.current()
+    brain = NucleoLLM()
+
+    proactive.register_bot_probe(lambda: True)
+    try:
+        nucleo_mod._maybe_close_flow(brain)
+        assert closes == [], "must not close while its own TTS is still narrating the answer"
+        assert tid in nucleo_mod._PENDING_FLOW_CLOSES
+    finally:
+        proactive.clear_speaker()
+        nucleo_mod._PENDING_FLOW_CLOSES.clear()
+    trace.adopt("")
+
+
+def test_maybe_close_flow_closes_immediately_when_the_bot_is_not_speaking(monkeypatch):
+    from voice.engine.llm.providers import nucleo as nucleo_mod
+
+    closes = []
+    monkeypatch.setattr("voice.observer.emit",
+                         lambda kind, label, **kw: closes.append((kind, label)) if kind == "flow" else None)
+    trace.adopt("")
+    trace.begin("hola", origin="turno")
+    brain = NucleoLLM()
+
+    nucleo_mod._maybe_close_flow(brain)   # no bot-probe registered — same as an uninstrumented test env
+
+    assert ("flow", "end") in closes
+    trace.adopt("")
+
+
+def test_drain_closes_a_queued_flow_once_speech_goes_idle(monkeypatch):
+    from voice.engine.llm.providers import nucleo as nucleo_mod
+
+    closes = []
+    monkeypatch.setattr("voice.observer.emit",
+                         lambda kind, label, **kw: closes.append((kind, label)) if kind == "flow" else None)
+    trace.adopt("")
+    trace.begin("hola", origin="turno")
+    tid = trace.current()
+    brain = NucleoLLM()
+    nucleo_mod._PENDING_FLOW_CLOSES[tid] = brain
+
+    nucleo_mod.drain_pending_flow_closes()
+
+    assert ("flow", "end") in closes
+    assert nucleo_mod._PENDING_FLOW_CLOSES == {}
+    trace.adopt("")
+
+
+def test_drain_still_respects_flow_should_close_conditions(monkeypatch):
+    """Re-checked at drain time, not just trusted from when it was queued — a worker could have started on this
+    trace while the audio was still playing out."""
+    from voice.engine.llm.providers import nucleo as nucleo_mod
+
+    closes = []
+    monkeypatch.setattr("voice.observer.emit",
+                         lambda kind, label, **kw: closes.append((kind, label)) if kind == "flow" else None)
+    monkeypatch.setattr("nucleo.dispatch.has_live_trace", lambda tid: True)
+    trace.adopt("")
+    trace.begin("hola", origin="turno")
+    tid = trace.current()
+    brain = NucleoLLM()
+    nucleo_mod._PENDING_FLOW_CLOSES[tid] = brain
+
+    nucleo_mod.drain_pending_flow_closes()
+
+    assert closes == [], "a live worker spawned on this trace owns the close now"
+    trace.adopt("")

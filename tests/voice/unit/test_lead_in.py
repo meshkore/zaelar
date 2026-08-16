@@ -153,6 +153,22 @@ def test_una_sonda_que_revienta_no_deja_mudo_al_agente():
         proactive.clear_speaker()
 
 
+# ── Sonda de "el BOT está hablando" (2026-08-16) ────────────────────────────────────────────────────────────────
+# Distinta de la del operador: `nucleo.py::_maybe_close_flow` la usa para no cerrar el flujo de observabilidad de
+# un turno mientras su propia respuesta todavía se está narrando en TTS (el turno desaparecía del master board en
+# pleno habla — ver drain_pending_flow_closes en nucleo.py y el hook en agent.py::on_state_change).
+def test_hay_una_sonda_de_si_el_bot_esta_hablando():
+    from voice import proactive
+
+    assert proactive.bot_speaking() is False, "sin sonda registrada, cerrar el flujo de inmediato es lo de siempre"
+    proactive.register_bot_probe(lambda: True)
+    try:
+        assert proactive.bot_speaking() is True
+    finally:
+        proactive.clear_speaker()
+    assert proactive.bot_speaking() is False, "al cerrar la sesión la sonda se suelta"
+
+
 def test_el_relleno_consulta_la_sonda_y_muere_con_su_turno():
     """Guarda de CÓDIGO, por el mismo motivo que la de arriba (montar el proveedor exige media sesión LiveKit).
     Vigila las dos mitades del arreglo: (1) no arrancar si el operador habla, y (2) que la locución ya lanzada se

@@ -226,20 +226,62 @@ def _flow_should_close(tid: str, acc_trace_id: str, confirm_trace_ids, has_live_
     return True
 
 
-def _maybe_close_flow(brain: "NucleoLLM") -> None:
-    """Called once a turn finishes CLEANLY (V2-090 addenda, 2026-08-15) — never on a barge-in cancellation
-    (`_run`'s `except asyncio.CancelledError` branch skips this on purpose: whether a cancelled turn's trace gets
-    continued by the next fragment or abandoned isn't knowable yet at cancellation time)."""
+# Turn TEXT can finish generating well before its own TTS finishes narrating it — closing the flow right then
+# made the master board's column vanish while the agent was still audibly speaking (operator report, 2026-08-16:
+# "le he hecho una pregunta... el turno ha desaparecido... la gente todavía me está contestando"). `_run()`'s
+# success branch used to close immediately; now, if the bot is still speaking, it only QUEUES the close here and
+# `agent.py`'s `on_state_change` drains the queue on the next speaking→idle transition (real audio playout done,
+# see `agent_activity.py`'s post-playout state update — not the LLM stream returning, which fires from a sibling
+# task and can't see it). Trace ids are captured HERE, inside this stream's OWN task, the only place
+# `voice.trace.current()` is guaranteed to be THIS turn's — a later cross-task read could already see a newer
+# turn's trace (LiveKit's `preemptive_generation`). The close itself uses `trace.scope(tid)` to stamp the event
+# explicitly rather than relying on whatever trace happens to be ambient when the queue drains.
+_PENDING_FLOW_CLOSES: dict[str, "NucleoLLM"] = {}
+
+
+def drain_pending_flow_closes() -> None:
+    """Nothing is speaking right now — safe to resolve every flow queued by `_maybe_close_flow` while its own
+    TTS was still in flight. Re-checks each one's close conditions fresh (a confirm/worker could have started
+    since it was queued), it doesn't just trust the snapshot taken at queue time."""
+    if not _PENDING_FLOW_CLOSES:
+        return
+    pending = list(_PENDING_FLOW_CLOSES.items())
+    _PENDING_FLOW_CLOSES.clear()
+    for tid, brain in pending:
+        _close_flow_now(tid, brain)
+
+
+def _close_flow_now(tid: str, brain: "NucleoLLM") -> None:
     try:
-        from voice import trace as _trace
-        tid = _trace.current()
         from widgets import confirm as _confirm_close
         from nucleo import dispatch as _disp_close
         confirm_trace_ids = {v.get("trace_id") for v in _confirm_close.pending().values()}
-        if _flow_should_close(tid, getattr(brain, "_acc_trace_id", ""), confirm_trace_ids,
-                               _disp_close.has_live_trace(tid)):
-            from voice.observer import emit as _emit_close
+        if not _flow_should_close(tid, getattr(brain, "_acc_trace_id", ""), confirm_trace_ids,
+                                   _disp_close.has_live_trace(tid)):
+            return
+        from voice import trace as _trace
+        from voice.observer import emit as _emit_close
+        with _trace.scope(tid):
             _emit_close("flow", "end", role="system", extra={"ok": True, "reason": "turn_complete"})
+    except Exception:
+        pass
+
+
+def _maybe_close_flow(brain: "NucleoLLM") -> None:
+    """Called once a turn finishes CLEANLY (V2-090 addenda, 2026-08-15) — never on a barge-in cancellation
+    (`_run`'s `except asyncio.CancelledError` branch skips this on purpose: whether a cancelled turn's trace gets
+    continued by the next fragment or abandoned isn't knowable yet at cancellation time). Queues instead of
+    closing outright when the bot is still speaking (see module comment above `_PENDING_FLOW_CLOSES`)."""
+    try:
+        from voice import trace as _trace
+        tid = _trace.current()
+        if not tid:
+            return
+        from voice import proactive as _proactive
+        if _proactive.bot_speaking():
+            _PENDING_FLOW_CLOSES[tid] = brain
+            return
+        _close_flow_now(tid, brain)
     except Exception:
         pass
 

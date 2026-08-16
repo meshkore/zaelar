@@ -16,6 +16,7 @@ from loguru import logger
 _speaker = None            # async callable(text) -> None, set by the live voice session (voice/engine entrypoint)
 _busy_probe = None         # callable() -> bool, True if the operator/bot is mid-turn right now (engine-provided)
 _user_probe = None         # callable() -> bool, True if the OPERATOR is speaking RIGHT NOW (engine-provided)
+_bot_probe = None          # callable() -> bool, True if the BOT is speaking RIGHT NOW (engine-provided)
 
 
 def register_speaker(fn) -> None:
@@ -51,13 +52,31 @@ def user_speaking() -> bool:
         return False
 
 
+def register_bot_probe(fn) -> None:
+    """La sesión viva registra si el BOT está hablando (TTS en curso) AHORA MISMO — distinto del busy-probe (bot
+    O usuario) porque `nucleo.py::_maybe_close_flow` (2026-08-16) necesita saber específicamente si SU PROPIA
+    locución sigue sonando antes de cerrar el flujo, no si hay cualquier cosa en vuelo."""
+    global _bot_probe
+    _bot_probe = fn
+
+
+def bot_speaking() -> bool:
+    """True si el bot está hablando ahora. Sin probe (sesión sin instrumentar, tests) → False: cerrar el flujo de
+    inmediato es el comportamiento de siempre en un entorno sin pipeline de voz real."""
+    try:
+        return bool(_bot_probe()) if _bot_probe is not None else False
+    except Exception:
+        return False
+
+
 def clear_speaker(fn=None) -> None:
     """Session teardown clears it (only if it still owns the slot, to avoid a race with a newer session)."""
-    global _speaker, _busy_probe, _user_probe
+    global _speaker, _busy_probe, _user_probe, _bot_probe
     if fn is None or _speaker is fn:
         _speaker = None
         _busy_probe = None
         _user_probe = None
+        _bot_probe = None
 
 
 def has_voice() -> bool:
