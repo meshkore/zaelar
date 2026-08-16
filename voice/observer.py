@@ -365,12 +365,25 @@ def stamp_identity(ev: dict) -> dict:
     try:
         from observability import identity as _ident
         ev.setdefault("uid", _ident.user_id())
-        if ev.get("cat") in ("system", "pulse"):
+        stopped = False
+        try:
+            from nucleo import runstate as _runstate
+            stopped = _runstate.stopped()
+        except Exception:
+            pass
+        if ev.get("cat") in ("system", "pulse") or stopped:
             # Background noise NEVER fabricates a session (2026-08-15, real finding: closing a session emits
             # its own "end" event, category `system` — with the `setdefault` below that REOPENED a new session
             # in the act of closing the previous one, and the same with any ⏻ event (`run`/stop/start) fired
             # while the agent is stopped. `session_info()` ONLY READS (never opens); with none open, the event
             # goes out with no `sid` instead of lying with a freshly-invented one.
+            #
+            # 2026-08-16, real finding #2: the `cat` check alone wasn't enough — reloading the browser tab with
+            # the agent globally STOPPED (⏻ off, `runstate.stopped()`) still fired ordinary `widget`/`ui` state
+            # transitions (cat="widget", not system/pulse), and THOSE self-opened a brand-new "live" session
+            # via `session_id()` below, immediately re-appearing in the backoffice master as "EN CURSO" the
+            # instant the page was refreshed. "Parar es parar" (V2-092) has to mean nothing self-opens a
+            # session while stopped, independent of what category the triggering event happens to carry.
             ev.setdefault("sid", _ident.session_info().get("session_id") or "")
         else:
             ev.setdefault("sid", _ident.session_id())
