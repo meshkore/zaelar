@@ -19,6 +19,28 @@ separate suites — they share the same tiers, the same multi-agent dependencies
 same runner code; only the target locale/utterance differs. `python -m tests run use_cases` and
 `/api/catalog/use_cases` return both groups together.
 
+## Running ES vs US: one process, one language, at a time
+
+Language is a single process-wide value today (`voice/engine/core/langs.py::current_code()` reads
+`ZAELAR_LANGUAGE` live, and the probe/text channel, `nucleo/flash/probe.py`, consults the exact same
+global) — there is no per-session or per-request language override anywhere in the engine. The
+one-time "arranque idiomático" auto-detection only runs once, before any language has ever been
+chosen for that install; after that it's a manual switch (⚙ or `ZAELAR_LANGUAGE`) that only takes
+effect on the next voice reconnect.
+
+So an `es` case and a `us` case **cannot run concurrently against one live server** — this is not a
+suite-design gap, it's how the engine works today. Two ways to run both silos, already precedented by
+the voice tester's multi-language wave (INI-013, wave H):
+- **Sequential, one process**: set `ZAELAR_LANGUAGE=es`, reconnect, run the `es` batch; flip to `en`,
+  reconnect, run the `us` batch; flip back. This is exactly what wave H did, including reverting the
+  setting afterward so the live install wasn't left in the wrong language.
+- **Two separately-configured processes**: one instance pinned to `es`, one to `en` — needed if both
+  silos must run in parallel rather than back-to-back.
+
+Neither of these is built into the `use_cases` runner yet (there is no runner yet). Whoever wires the
+first case should pick one of the two approaches explicitly rather than assume the tester can pass a
+language per case — that mechanism doesn't exist and would be new work if wanted.
+
 ## Difficulty tiers
 
 1. **Bounded single-site action** — the target is already named, no comparison needed. Buildable on
