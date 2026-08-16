@@ -87,6 +87,7 @@ platform plugin and run environment are supplied. Before handoff, repeat the mea
 | Email, messaging, Spotify, WhatsApp, architect | `connectors` | provider sandbox/live connector only when authorized |
 | Peer capsule, cluster policy, security | `cluster` | live peer conversation |
 | Bus, SSE, config, server, homeostasis | `infrastructure` | chat transport/full smoke against live Zaelar |
+| Real-world ES/US task scenarios (backlog, no runner yet) | `use_cases` | see `tests/use_cases/CASES.md` |
 
 `browser` currently contains deterministic browser/widget contracts. It must not be reported as a rendered UI
 E2E unless Chromium/Playwright was actually driven against the live application.

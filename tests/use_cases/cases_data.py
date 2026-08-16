@@ -1,0 +1,368 @@
+"""Backlog data for the ``use_cases`` suite: real-world ES/US task scenarios.
+
+This module is the single source of truth for the catalog. It is intentionally
+plain data (no pytest, no runner) — see ``tests/use_cases/CASES.md`` for the
+tier definitions and the human-readable rendering of this same list, and
+``tests/use_cases/catalog.py`` for how it is exposed to the Observatory.
+
+Every entry is a backlog case: none is wired to a runner yet. They get
+promoted to executable cases one at a time in future changes, each picking
+the runner shape (browser automation, an agent-headless live scenario, an
+email-based multi-agent exchange, …) that fits that specific task.
+
+Tiers (easy -> hard):
+  1 = bounded single-site action (target already named, no comparison)
+  2 = search + compare + choose (no fixed target)
+  3 = multi-step single-domain task with a real deadline/follow-up
+  4 = cross-domain orchestration (multiple providers/domains in one ask)
+  5 = standing/reactive task (proactive, memory-triggered, no single turn completes it)
+  6 = multi-agent coordination over email (the only connector that can send today)
+  7 = multi-agent coordination over WhatsApp/Telegram (BLOCKED: neither
+      connector can send yet, and contact resolution is only designed, not
+      built — see V2-052-contactos-red-canales.md)
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+
+
+@dataclass(frozen=True)
+class UseCase:
+    id: str
+    locale: str  # "es" | "us"
+    tier: int
+    title: str
+    utterance: str
+    expected: str
+    status: str = "backlog"  # "backlog" | "blocked"
+    depends_on: tuple[str, ...] = field(default_factory=tuple)
+    notes: str = ""
+
+
+_BLOCKED_DEPENDENCIES = (
+    "connectors/whatsapp and connectors/telegram send capability (both are read-only today)",
+    "V2-052 contact resolution (.meshkore/roadmap/initiatives/V2-052-contactos-red-canales.md, "
+    "design closed, not built)",
+    "Z∴ agent-message tagging convention (recorded in CASES.md, not implemented)",
+)
+
+CASES: list[UseCase] = [
+    # --- ES / tier 1: bounded single-site action -----------------------------------------
+    UseCase("restaurant-tonight-madrid", "es", 1, "Book a known restaurant tonight",
+            "Resérvame mesa para 2 esta noche a las 21:30 en Casa Lucio.",
+            "A table for 2 is booked at Casa Lucio for 21:30 tonight."),
+    UseCase("cancel-subscription-before-charge", "es", 1, "Cancel a subscription before renewal",
+            "Cancela mi suscripción a Netflix antes de que me cobren el día 15.",
+            "The Netflix subscription is cancelled before the next billing date."),
+    UseCase("reorder-prescription", "es", 1, "Reorder a known prescription",
+            "Pide la reposición de mi receta de la farmacia de siempre.",
+            "The usual prescription is reordered from the operator's regular pharmacy."),
+    UseCase("pay-known-bill", "es", 1, "Pay a known bill",
+            "Paga la factura de la luz de este mes antes del día 5.",
+            "This month's electricity bill is paid before the 5th."),
+    UseCase("renew-gym-membership", "es", 1, "Renew a known gym membership",
+            "Renueva mi cuota del gimnasio de este mes.",
+            "This month's gym membership fee is renewed."),
+    UseCase("book-barber-slot", "es", 1, "Book the usual barber",
+            "Resérvame hora en la peluquería de siempre para el sábado por la mañana.",
+            "A Saturday-morning slot is booked at the operator's usual barber."),
+    UseCase("book-hotel-night-known", "es", 1, "Book a specific hotel night",
+            "Resérvame una noche en el Hotel Palacio de la Merced para el 20 de septiembre.",
+            "One night is booked at the named hotel for September 20th."),
+    UseCase("buy-known-product", "es", 1, "Buy a specific listed product",
+            "Cómprame el libro que tengo en la lista de deseos de Casa del Libro.",
+            "The wishlisted book is purchased from the named store."),
+
+    # --- ES / tier 2: search + compare + choose -------------------------------------------
+    UseCase("best-pediatric-dentists", "es", 2, "Find and book the best pediatric dentist",
+            "Encuéntrame los 3 mejores dentistas infantiles cerca de mi casa en Madrid y resérvame "
+            "con el mejor valorado.",
+            "3 candidates are found and an appointment is booked with the top-rated one."),
+    UseCase("compare-flights-madrid-lisboa", "es", 2, "Compare and book the cheapest flight",
+            "Compárame vuelos Madrid–Lisboa para el puente de mayo y coge el más barato con "
+            "equipaje incluido.",
+            "Flights are compared and the cheapest option with checked baggage is booked."),
+    UseCase("best-plumber-same-day", "es", 2, "Find a same-day plumber",
+            "Búscame un fontanero que pueda venir hoy mismo y el mejor valorado.",
+            "A top-rated plumber available today is found and booked."),
+    UseCase("compare-insurance-quotes", "es", 2, "Compare insurance quotes",
+            "Compárame tres seguros de coche y dime cuál me conviene.",
+            "Three car-insurance quotes are compared with a clear recommendation."),
+    UseCase("cheapest-monitor", "es", 2, "Find the cheapest well-reviewed monitor",
+            "Encuéntrame el monitor más barato de 27 pulgadas 4K que tenga buenas reseñas.",
+            "The cheapest well-reviewed 27-inch 4K monitor is identified."),
+    UseCase("best-rated-rental-car", "es", 2, "Find the best-rated rental car",
+            "Búscame el coche de alquiler mejor valorado en Málaga para el fin de semana.",
+            "The best-rated rental car in Málaga for the weekend is found and booked."),
+    UseCase("compare-broadband-plans", "es", 2, "Compare broadband/mobile plans",
+            "Compárame las tarifas de fibra+móvil de los operadores y dime cuál me ahorra más.",
+            "Broadband+mobile bundles are compared and the cheapest is recommended."),
+    UseCase("weekend-barber-availability", "es", 2, "Find weekend barber availability",
+            "Encuéntrame una peluquería con hueco este fin de semana cerca de mi casa.",
+            "A nearby barber with a weekend opening is found and booked."),
+
+    # --- ES / tier 3: multi-step single-domain task with a deadline -----------------------
+    UseCase("itv-before-deadline", "es", 3, "Book vehicle inspection before deadline",
+            "Tengo que pasar la ITV antes del día 30 — búscame cita y avísame el día antes.",
+            "An ITV appointment before the 30th is booked and a reminder fires the day before."),
+    UseCase("renew-passport-before-expiry", "es", 3, "Renew a soon-to-expire passport",
+            "Mi pasaporte caduca en dos meses — pide cita para renovarlo y recuérdamelo.",
+            "A passport-renewal appointment is booked and a reminder is set."),
+    UseCase("track-package-reschedule", "es", 3, "Track a package and reschedule delivery",
+            "Sigue el paquete que estoy esperando y, si no voy a estar, reprograma la entrega.",
+            "The package is tracked and delivery is rescheduled if the operator will be out."),
+    UseCase("negotiate-lower-phone-bill", "es", 3, "Negotiate a lower phone bill",
+            "Llama a mi operador y consigue que me bajen la tarifa del móvil.",
+            "The phone carrier is contacted and a lower rate is negotiated."),
+    UseCase("file-expense-report", "es", 3, "File a trip expense report",
+            "Prepárame el informe de gastos del viaje de la semana pasada y envíalo a administración.",
+            "An expense report is compiled from last week's trip and sent to accounting."),
+    UseCase("split-dinner-bill-friends", "es", 3, "Split a dinner bill with friends",
+            "Divide la cuenta de la cena de anoche entre los cuatro y mándales el importe.",
+            "Last night's bill is split four ways and each share is sent to the right person."),
+
+    # --- ES / tier 4: cross-domain orchestration -------------------------------------------
+    UseCase("weekend-trip-san-sebastian", "es", 4, "Plan a weekend trip door-to-door",
+            "Organízame un fin de semana en San Sebastián: tren, hotel con desayuno y mesa el "
+            "sábado noche.",
+            "Train, breakfast-included hotel and a Saturday dinner reservation are all booked."),
+    UseCase("clean-and-reply-inbox", "es", 4, "Clean up and triage the inbox",
+            "Limpia mi bandeja de entrada de las últimas dos semanas y responde solo lo urgente.",
+            "The last two weeks of email are triaged; only genuinely urgent items get a reply."),
+    UseCase("archive-newsletters", "es", 4, "Archive a newsletter backlog",
+            "Archívame las newsletters acumuladas y déjame solo lo que importa.",
+            "Accumulated newsletters are archived, leaving only what matters in the inbox."),
+    UseCase("rebook-delayed-flight-now", "es", 4, "Rebook a flight that just got delayed",
+            "Mi vuelo se ha retrasado más de una hora — búscame otro y avísame.",
+            "An alternative flight is found and booked; the operator is notified."),
+    UseCase("found-next-apartment", "es", 4, "Find an apartment and schedule viewings",
+            "Búscame piso de alquiler en Chamberí, máximo 1200€, y agenda las visitas que encajen "
+            "con mi agenda.",
+            "Matching listings are found and viewings are scheduled around the operator's calendar."),
+    UseCase("moms-birthday-flowers-onetime", "es", 4, "Order flowers for a birthday",
+            "Es el cumpleaños de mi madre pasado mañana — pide flores y que lleguen a su casa por "
+            "la mañana.",
+            "Flowers are ordered for morning delivery two days from now."),
+
+    # --- ES / tier 5: standing / reactive over time -----------------------------------------
+    UseCase("watch-flight-rebook-automatically", "es", 5, "Watch a flight and auto-rebook",
+            "Vigila mi vuelo a Barcelona; si se retrasa más de una hora, búscame otro sin "
+            "preguntar y avísame.",
+            "The flight is monitored; a delay over an hour triggers an automatic rebook + notice."),
+    UseCase("track-price-drop-buy", "es", 5, "Buy automatically on a price drop",
+            "Vigila el precio de este monitor y cómpralo en cuanto baje de 250€.",
+            "The price is tracked continuously and the purchase fires the moment it drops below €250."),
+    UseCase("cancel-trial-before-it-charges", "es", 5, "Auto-cancel an unused trial",
+            "Tengo una prueba gratuita que se convierte en pago el viernes — cancélala tú antes "
+            "si no he vuelto a usarla.",
+            "The trial is cancelled before Friday's charge, conditional on no further use."),
+    UseCase("gym-membership-no-silent-renew", "es", 5, "Never auto-renew without asking",
+            "No dejes que la cuota del gimnasio se renueve sola sin decírmelo antes.",
+            "The membership renewal is intercepted and confirmed with the operator before charging."),
+    UseCase("moms-birthday-flowers-recurring", "es", 5, "Recurring yearly birthday reminder + order",
+            "No olvides el cumpleaños de mi madre — pide flores el día antes, cada año.",
+            "Flowers are ordered automatically the day before, every year, without being asked again."),
+    UseCase("grocery-restock-reactive", "es", 5, "Reactive grocery restock",
+            "Cuando vea que se acaba la leche o el café, pídelos otra vez sin que tenga que "
+            "decírtelo.",
+            "Milk/coffee are reordered automatically when consumption patterns say they're running low."),
+
+    # --- ES / tier 6: multi-agent coordination over email -----------------------------------
+    UseCase("coordinate-lunch-with-pedro", "es", 6, "Coordinate lunch via a friend's agent",
+            "Dile al agente de Pedro que quedamos el jueves a comer — que proponga sitio y hora "
+            "y me lo confirmes.",
+            "Pedro's agent proposes a place/time by email; the operator gets a confirmed plan."),
+    UseCase("split-airbnb-with-marta", "es", 6, "Split a shared stay via a friend's agent",
+            "Coordina con el agente de Marta un apartamento compartido para el finde en Lisboa "
+            "y divide la cuenta.",
+            "A shared listing is agreed with Marta's agent by email and the cost is split."),
+    UseCase("reschedule-meetup-conflict", "es", 6, "Resolve a scheduling conflict between agents",
+            "El agente de Javi te va a proponer quedar el sábado — mira mi agenda y negocia una "
+            "hora que me valga.",
+            "An incoming proposal is checked against the operator's calendar and renegotiated by email."),
+    UseCase("confirm-restaurant-reservation-together", "es", 6, "Avoid a double-booking with another agent",
+            "Ponte de acuerdo con el agente de Ana para reservar mesa esta noche — que ninguno "
+            "reserve dos veces.",
+            "Only one reservation is made; the other agent's attempt is avoided/cancelled by email."),
+    UseCase("plan-joint-trip-with-friend", "es", 6, "Align a joint itinerary with a friend's agent",
+            "Habla con el agente de Laura y cuadrad un itinerario común para el viaje de "
+            "septiembre.",
+            "A shared itinerary is negotiated and agreed with Laura's agent by email."),
+
+    # --- ES / tier 7: multi-agent coordination over WhatsApp/Telegram (BLOCKED) -------------
+    UseCase("coordinate-lunch-whatsapp", "es", 7, "Coordinate lunch over WhatsApp",
+            "Escríbele por WhatsApp al agente de Pedro y quedad para comer el jueves.",
+            "Pedro's agent is reached over WhatsApp and a lunch plan is confirmed.",
+            status="blocked", depends_on=_BLOCKED_DEPENDENCIES),
+    UseCase("split-trip-telegram", "es", 7, "Split a trip itinerary over Telegram",
+            "Habla por Telegram con el agente de Marta y repartid el itinerario del viaje.",
+            "Marta's agent is reached over Telegram and the itinerary is split and agreed.",
+            status="blocked", depends_on=_BLOCKED_DEPENDENCIES),
+    UseCase("group-plan-three-friends", "es", 7, "Coordinate a group plan across three agents",
+            "Coordínate con los agentes de Pedro, Marta y Javi por WhatsApp para quedar todos "
+            "el sábado.",
+            "Three agents are reached over WhatsApp and a single Saturday plan is agreed.",
+            status="blocked", depends_on=_BLOCKED_DEPENDENCIES),
+    UseCase("realtime-eta-share", "es", 7, "Share a live ETA with a friend's agent",
+            "Avisa por WhatsApp al agente de Ana en cuanto salga de casa, para que sepa a qué "
+            "hora llego.",
+            "Ana's agent is notified over WhatsApp the moment the operator leaves.",
+            status="blocked", depends_on=_BLOCKED_DEPENDENCIES),
+
+    # --- US / tier 1: bounded single-site action --------------------------------------------
+    UseCase("restaurant-tonight-nyc", "us", 1, "Book a known restaurant tonight",
+            "Book a table for 2 tonight at 7pm at Katz's Delicatessen.",
+            "A table for 2 is booked at Katz's for 7pm tonight."),
+    UseCase("cancel-subscription-before-charge", "us", 1, "Cancel a subscription before renewal",
+            "Cancel my Hulu trial before it charges me on the 15th.",
+            "The Hulu trial is cancelled before the next billing date."),
+    UseCase("reorder-prescription", "us", 1, "Reorder a known prescription",
+            "Reorder my blood-pressure prescription from CVS.",
+            "The prescription is reordered from the named CVS pharmacy."),
+    UseCase("pay-known-bill", "us", 1, "Pay a known bill",
+            "Pay this month's electric bill before it's due on the 5th.",
+            "This month's electric bill is paid before the 5th."),
+    UseCase("renew-gym-membership", "us", 1, "Renew a known gym membership",
+            "Renew this month's gym membership at Equinox.",
+            "This month's Equinox membership fee is renewed."),
+    UseCase("book-barber-slot", "us", 1, "Book the usual barber",
+            "Book my usual barber for Saturday morning.",
+            "A Saturday-morning slot is booked at the operator's usual barber."),
+    UseCase("book-hotel-night-known", "us", 1, "Book a specific hotel night",
+            "Book one night at the Ace Hotel downtown for September 20th.",
+            "One night is booked at the named hotel for September 20th."),
+    UseCase("buy-known-product", "us", 1, "Buy a specific listed product",
+            "Buy the book on my Amazon wishlist.",
+            "The wishlisted book is purchased."),
+
+    # --- US / tier 2: search + compare + choose -----------------------------------------------
+    UseCase("best-pediatric-dentists", "us", 2, "Find and book the best pediatric dentist",
+            "Find the 3 best-rated pediatric dentists near me and book the top one.",
+            "3 candidates are found and an appointment is booked with the top-rated one."),
+    UseCase("compare-flights-sf-austin", "us", 2, "Compare and book the cheapest flight",
+            "Compare flights SF-Austin for next long weekend and book the cheapest with a "
+            "carry-on included.",
+            "Flights are compared and the cheapest option with a carry-on is booked."),
+    UseCase("best-plumber-same-day", "us", 2, "Find a same-day plumber",
+            "Find a plumber who can come today, top-rated near me.",
+            "A top-rated plumber available today is found and booked."),
+    UseCase("compare-insurance-quotes", "us", 2, "Compare insurance quotes",
+            "Compare three car insurance quotes and tell me which one's the best deal.",
+            "Three car-insurance quotes are compared with a clear recommendation."),
+    UseCase("cheapest-monitor", "us", 2, "Find the cheapest well-reviewed monitor",
+            "Find the cheapest 27-inch 4K monitor with good reviews.",
+            "The cheapest well-reviewed 27-inch 4K monitor is identified."),
+    UseCase("best-rated-rental-car", "us", 2, "Find the best-rated rental car",
+            "Find the best-rated rental car in Austin for the weekend.",
+            "The best-rated rental car in Austin for the weekend is found and booked."),
+    UseCase("compare-phone-plans", "us", 2, "Compare cell phone plans",
+            "Compare cell phone plans and tell me which one saves me the most.",
+            "Phone plans are compared and the cheapest fit is recommended."),
+    UseCase("weekend-barber-availability", "us", 2, "Find weekend barber availability",
+            "Find a barber with an opening this weekend near me.",
+            "A nearby barber with a weekend opening is found and booked."),
+
+    # --- US / tier 3: multi-step single-domain task with a deadline ---------------------------
+    UseCase("smog-check-before-deadline", "us", 3, "Book vehicle inspection before deadline",
+            "My car's smog check is due before the 30th - find an appointment and remind me the "
+            "day before.",
+            "A smog-check appointment before the 30th is booked and a reminder fires the day before."),
+    UseCase("renew-passport-before-expiry", "us", 3, "Renew a soon-to-expire passport",
+            "My passport expires in two months - book a renewal appointment and remind me.",
+            "A passport-renewal appointment is booked and a reminder is set."),
+    UseCase("track-package-reschedule", "us", 3, "Track a package and reschedule delivery",
+            "Track the package I'm expecting and reschedule delivery if I won't be home.",
+            "The package is tracked and delivery is rescheduled if the operator will be out."),
+    UseCase("negotiate-lower-phone-bill", "us", 3, "Negotiate a lower phone bill",
+            "Call my carrier and get my phone bill lowered.",
+            "The phone carrier is contacted and a lower rate is negotiated."),
+    UseCase("file-expense-report", "us", 3, "File a trip expense report",
+            "Put together last week's trip expense report and send it to accounting.",
+            "An expense report is compiled from last week's trip and sent to accounting."),
+    UseCase("split-dinner-bill-friends", "us", 3, "Split a dinner bill with friends",
+            "Split last night's dinner bill four ways and send everyone their share.",
+            "Last night's bill is split four ways and each share is sent to the right person."),
+
+    # --- US / tier 4: cross-domain orchestration ------------------------------------------------
+    UseCase("weekend-trip-austin", "us", 4, "Plan a weekend trip door-to-door",
+            "Plan a weekend in Austin: flight, hotel with breakfast, dinner reservation Saturday.",
+            "Flight, breakfast-included hotel and a Saturday dinner reservation are all booked."),
+    UseCase("clean-and-reply-inbox", "us", 4, "Clean up and triage the inbox",
+            "Clean up my inbox from the last two weeks and reply to what's actually urgent.",
+            "The last two weeks of email are triaged; only genuinely urgent items get a reply."),
+    UseCase("archive-newsletters", "us", 4, "Archive a newsletter backlog",
+            "Archive my backlog of newsletters and leave only what matters.",
+            "Accumulated newsletters are archived, leaving only what matters in the inbox."),
+    UseCase("rebook-delayed-flight-now", "us", 4, "Rebook a flight that just got delayed",
+            "My flight just got delayed over an hour - find another one and let me know.",
+            "An alternative flight is found and booked; the operator is notified."),
+    UseCase("found-next-apartment", "us", 4, "Find an apartment and schedule viewings",
+            "Find me a 1-bedroom in Brooklyn under $2800 and schedule the tours that fit my "
+            "calendar.",
+            "Matching listings are found and tours are scheduled around the operator's calendar."),
+    UseCase("moms-birthday-flowers-onetime", "us", 4, "Order flowers for a birthday",
+            "It's my mom's birthday the day after tomorrow - order flowers for morning delivery.",
+            "Flowers are ordered for morning delivery two days from now."),
+
+    # --- US / tier 5: standing / reactive over time ----------------------------------------------
+    UseCase("watch-flight-rebook-automatically", "us", 5, "Watch a flight and auto-rebook",
+            "Watch my flight to Chicago; if it's delayed more than an hour, rebook me "
+            "automatically and let me know.",
+            "The flight is monitored; a delay over an hour triggers an automatic rebook + notice."),
+    UseCase("track-price-drop-buy", "us", 5, "Buy automatically on a price drop",
+            "Track this monitor's price and buy it the moment it drops below $250.",
+            "The price is tracked continuously and the purchase fires the moment it drops below $250."),
+    UseCase("cancel-trial-before-it-charges", "us", 5, "Auto-cancel an unused trial",
+            "I've got a free trial that converts to paid Friday - cancel it yourself if I "
+            "haven't used it again.",
+            "The trial is cancelled before Friday's charge, conditional on no further use."),
+    UseCase("gym-membership-no-silent-renew", "us", 5, "Never auto-renew without asking",
+            "Don't let my gym membership auto-renew without checking with me first.",
+            "The membership renewal is intercepted and confirmed with the operator before charging."),
+    UseCase("moms-birthday-flowers-recurring", "us", 5, "Recurring yearly birthday reminder + order",
+            "Never let me forget my mom's birthday - order flowers the day before, every year.",
+            "Flowers are ordered automatically the day before, every year, without being asked again."),
+    UseCase("grocery-restock-reactive", "us", 5, "Reactive grocery restock",
+            "When you notice we're low on milk or coffee, reorder it without me having to ask.",
+            "Milk/coffee are reordered automatically when consumption patterns say they're running low."),
+
+    # --- US / tier 6: multi-agent coordination over email -----------------------------------------
+    UseCase("coordinate-dinner-with-alex", "us", 6, "Coordinate dinner via a friend's agent",
+            "Ask Alex's agent to lock in Friday dinner - let them pick the place, just confirm "
+            "the time with me.",
+            "Alex's agent proposes a place/time by email; the operator gets a confirmed plan."),
+    UseCase("split-airbnb-with-jordan", "us", 6, "Split a shared stay via a friend's agent",
+            "Coordinate with Jordan's agent on a shared Airbnb for the weekend in Miami and "
+            "split the bill.",
+            "A shared listing is agreed with Jordan's agent by email and the cost is split."),
+    UseCase("resolve-meetup-conflict", "us", 6, "Resolve a scheduling conflict between agents",
+            "Sam's agent is going to propose meeting Saturday - check my calendar and negotiate "
+            "a time that works.",
+            "An incoming proposal is checked against the operator's calendar and renegotiated by email."),
+    UseCase("confirm-restaurant-together", "us", 6, "Avoid a double-booking with another agent",
+            "Sync up with Taylor's agent on tonight's reservation - make sure neither of us "
+            "double-books.",
+            "Only one reservation is made; the other agent's attempt is avoided/cancelled by email."),
+    UseCase("plan-joint-trip-with-friend", "us", 6, "Align a joint itinerary with a friend's agent",
+            "Talk to Morgan's agent and align on a shared itinerary for the September trip.",
+            "A shared itinerary is negotiated and agreed with Morgan's agent by email."),
+
+    # --- US / tier 7: multi-agent coordination over WhatsApp/Telegram (BLOCKED) --------------------
+    UseCase("coordinate-dinner-whatsapp", "us", 7, "Coordinate dinner over WhatsApp",
+            "Text Alex's agent on WhatsApp and lock in Thursday dinner.",
+            "Alex's agent is reached over WhatsApp and a dinner plan is confirmed.",
+            status="blocked", depends_on=_BLOCKED_DEPENDENCIES),
+    UseCase("split-trip-telegram", "us", 7, "Split a trip itinerary over Telegram",
+            "Message Jordan's agent on Telegram and split up the trip itinerary.",
+            "Jordan's agent is reached over Telegram and the itinerary is split and agreed.",
+            status="blocked", depends_on=_BLOCKED_DEPENDENCIES),
+    UseCase("group-plan-three-friends", "us", 7, "Coordinate a group plan across three agents",
+            "Coordinate with Alex, Jordan and Sam's agents over WhatsApp to get everyone "
+            "together Saturday.",
+            "Three agents are reached over WhatsApp and a single Saturday plan is agreed.",
+            status="blocked", depends_on=_BLOCKED_DEPENDENCIES),
+    UseCase("realtime-eta-share", "us", 7, "Share a live ETA with a friend's agent",
+            "Ping Taylor's agent on WhatsApp the moment I leave, so they know when I'll arrive.",
+            "Taylor's agent is notified over WhatsApp the moment the operator leaves.",
+            status="blocked", depends_on=_BLOCKED_DEPENDENCIES),
+]
