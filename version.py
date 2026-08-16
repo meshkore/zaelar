@@ -11,12 +11,11 @@ import os
 import subprocess
 import time
 
-# Semantic version of the engine — bump it by hand when closing a notable block of changes (latest:
-# voice.trace.active() gives observability events an explicit trace pointer instead of relying on a ContextVar
-# that LiveKit's sibling tasks structurally can't see (root-caused at the SDK source level); V2-103's memory
-# test suite hardening closed the gap that let its 3 write/REM bugs pass unnoticed for weeks; and
-# mem_processor's DeepSeek-direct endpoint now actually disables reasoning, matching the finding from V2-102).
-VERSION = "3.13"
+# Semantic version of the engine — bump it by hand when closing a notable block of changes (latest: V2-104 —
+# REM's synthesize() now gates every insight through a deterministic groundedness check plus an independent,
+# fresh LLM verification before writing it AND before demoting the source pills it summarizes; a rejected
+# insight is visible and cheap to retry, never silent).
+VERSION = "3.14"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CACHE: dict = {}
