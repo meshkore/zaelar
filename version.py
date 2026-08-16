@@ -11,9 +11,9 @@ import os
 import subprocess
 import time
 
-# Versión semántica del motor — súbela al cerrar un bloque de cambios notable (última: un turno que CRECE tras
-# una pausa ya no se pierde en silencio, y un fallo duro en el cerebro de voz ahora sí releva de proveedor).
-VERSION = "3.06"
+# Versión semántica del motor — súbela al cerrar un bloque de cambios notable (última: pasada de modularización
+# V2-098 — cuatro mecanismos duplicados y ya desincronizados unificados, tres god-files partidos por costura limpia).
+VERSION = "3.07"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CACHE: dict = {}
