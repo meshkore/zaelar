@@ -1101,15 +1101,20 @@ body.dbg-open .orbwrap{left:calc(50% - var(--dbg-w) / 2)}
    below the full-screen overlays (memmap/cfgfull/vault-modal, 9500-9600) so it never pokes through
    one of those, above the docked panels (chatwall/cronpanel/statuspanel, 9001). ─────────────────── */
 .fw-wrap{position:fixed;right:20px;bottom:20px;z-index:9200}
-.fw-launcher{width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;color:#fff;
+.fw-launcher{width:60px;height:60px;border-radius:50%;border:none;cursor:pointer;color:#fff;
   background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2));box-shadow:0 6px 18px rgba(0,0,0,.28);
   display:flex;align-items:center;justify-content:center;touch-action:none}
 .fw-launcher:hover{filter:brightness(1.08)}
-.fw-launcher svg{width:24px;height:24px}
-.fw-panel{position:fixed;right:20px;bottom:82px;z-index:9199;width:320px;max-height:min(70vh,560px);
+.fw-launcher svg{width:27px;height:27px}
+.fw-panel{position:fixed;right:20px;bottom:90px;z-index:9199;width:400px;max-height:min(78vh,660px);
   display:none;flex-direction:column;background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:16px;
   box-shadow:0 10px 30px rgba(0,0,0,.3);overflow:hidden;color:var(--hb-ink)}
 .fw-panel.open{display:flex}
+/* Mobile: the panel becomes the screen — a launcher-sized popover is unusable at phone width, and this
+   surface is also the marketing ask-for-anything entry point, so it earns the room. */
+@media (max-width:640px){
+  .fw-panel{right:0;bottom:0;left:0;top:0;width:auto;max-height:100%;border-radius:0;z-index:9250}
+}
 .fw-head{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--hb-line)}
 .fw-title{font-weight:700;font-size:14px;flex:1}
 .fw-x{border:none;background:transparent;color:var(--hb-muted);cursor:pointer;padding:4px;display:flex}
@@ -1122,7 +1127,7 @@ body.dbg-open .orbwrap{left:calc(50% - var(--dbg-w) / 2)}
 .fw-new,.fw-sent{display:none;flex-direction:column;gap:8px;padding:12px 14px;overflow-y:auto}
 .fw-panel.tab-new .fw-new{display:flex}
 .fw-panel.tab-sent .fw-sent{display:flex}
-.fw-textarea{width:100%;box-sizing:border-box;resize:vertical;min-height:70px;border:1px solid var(--hb-line);
+.fw-textarea{width:100%;box-sizing:border-box;resize:vertical;min-height:110px;border:1px solid var(--hb-line);
   border-radius:10px;background:var(--hb-bg-soft);color:var(--hb-ink);font:inherit;font-size:13px;padding:8px 10px}
 .fw-textarea:focus{border-color:var(--hb-accent);outline:none}
 .fw-row{display:flex;align-items:center}
