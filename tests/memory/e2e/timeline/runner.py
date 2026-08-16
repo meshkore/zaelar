@@ -8,7 +8,7 @@ from pathlib import Path
 import time
 from typing import Any
 
-from .cases import CASES, case_id, platform_group
+from .cases import CASES, TOTAL_DAYS, case_id, platform_group
 
 ENGINE = Path(__file__).resolve().parents[4]
 DB_PATH = ENGINE / "memory" / "_data" / "zaelar.timeline.db"
@@ -28,6 +28,16 @@ def _deterministic_hook(groups: list[dict]) -> list[dict]:
     return out
 
 
+def _rem_hooks(real: bool):
+    """V2-105 (2026-08-17), norma del operador: "todas las validaciones tienen que ser reales". `--real` cablea
+    las funciones DE VERDAD de `nucleo/memllm.py` (DeepSeek V4 Flash) en vez del hook Python puro — coste real,
+    solo para invocación explícita, nunca en el run determinista por defecto (`--all`/`--target` sin `--real`)."""
+    if not real:
+        return _deterministic_hook, None, None
+    from nucleo import memllm
+    return memllm.synthesize_concept_groups, memllm.verify_insight_grounded, memllm.generate_paraphrases
+
+
 def _clean_db() -> None:
     from memory import db
     db.reset_db()
@@ -45,7 +55,7 @@ def _blob(marker: str, *, valid: bool = True) -> str:
     return "\n".join(row["text"] or "" for row in rows).lower()
 
 
-def _execute(case: dict[str, Any], now: int) -> tuple[bool, str, dict[str, Any]]:
+def _execute(case: dict[str, Any], now: int, rem_hooks=None) -> tuple[bool, str, dict[str, Any]]:
     from memory import api as memory
     from memory import db
     from memory import rem
@@ -70,8 +80,10 @@ def _execute(case: dict[str, Any], now: int) -> tuple[bool, str, dict[str, Any]]
         report = memory.consolidate(limit=int(case.get("limit", 180)), now=now)
         return True, "sueño ligero · " + json.dumps(report, ensure_ascii=False), report
     if op == "rem":
-        report = rem.run(_deterministic_hook)
-        return True, "REM determinista · " + json.dumps(report, ensure_ascii=False), report
+        synthesize_fn, verify_fn, paraphrase_fn = rem_hooks or (_deterministic_hook, None, None)
+        report = rem.run(synthesize_fn, verify_fn=verify_fn, paraphrase_fn=paraphrase_fn)
+        label = "REM real (DeepSeek)" if verify_fn is not None else "REM determinista"
+        return True, f"{label} · " + json.dumps(report, ensure_ascii=False), report
     if op == "insight_exists":
         row = db.get_db().query_one("SELECT id, text FROM memories WHERE valid=1 AND slot=?",
                                     (f"insight:{case['concept']}",))
@@ -108,12 +120,27 @@ def _execute(case: dict[str, Any], now: int) -> tuple[bool, str, dict[str, Any]]
     return False, f"operación desconocida: {op}", {}
 
 
-def run(until: int) -> dict[str, Any]:
+def run(until: int, real: bool = False) -> dict[str, Any]:
     os.environ["ZAELAR_DB"] = str(DB_PATH)
-    os.environ.setdefault("ZAELAR_EMBED_BACKEND", "hash")
-    os.environ["MEM_SEMANTIC_DEDUP"] = "0"
+    if real:
+        # V2-105: "todas las pruebas tienen que ser reales... ollama en ninguna parte ahora" — fastembed
+        # (ONNX in-process, sin servidor) evita Ollama sin dejar la síntesis/verificación real sin vectores.
+        # `_semantic_dedup_on()` (writer.py) solo se calibró para 'ollama' — con fastembed el dedup semántico
+        # síncrono del writer sigue OFF (no depende de MEM_SEMANTIC_DEDUP, es el propio backend el que lo apaga);
+        # el dedup semántico de REM (`rem.semantic_dedup()`, nocturno) sí corre igual, backend-agnóstico.
+        os.environ["ZAELAR_EMBED_BACKEND"] = "fastembed"
+        try:  # las credenciales (AIMLAPI_KEY/DEEPSEEK_API_KEY) no llegan solas al invocar el módulo a mano
+            from dotenv import load_dotenv
+            load_dotenv(ENGINE / ".env", override=False)
+            load_dotenv(ENGINE / ".meshkore" / "credentials" / "zaelar.env", override=False)
+        except Exception:
+            pass
+    else:
+        os.environ.setdefault("ZAELAR_EMBED_BACKEND", "hash")
+        os.environ["MEM_SEMANTIC_DEDUP"] = "0"
     _clean_db()
     from memory.clock import travel
+    rem_hooks = _rem_hooks(real)
 
     observer = None
     if os.getenv("ZAELAR_TEST_RUN_DIR"):
@@ -127,7 +154,7 @@ def run(until: int) -> dict[str, Any]:
                           index=index, total=len(mapped), case=item)
         observer.emit("collection.finished", suite="memory", total=len(mapped))
 
-    base = int(time.time()) - 180 * DAY_SECONDS
+    base = int(time.time()) - TOTAL_DAYS * DAY_SECONDS
     results = []
     for index, case in enumerate(selected):
         timestamp = base + int(case["day"]) * DAY_SECONDS + index
@@ -138,7 +165,7 @@ def run(until: int) -> dict[str, Any]:
                           input=case, expectation=case.get("expected"), simulated_day=case["day"])
         try:
             with travel(timestamp):
-                ok, detail, output = _execute(case, timestamp)
+                ok, detail, output = _execute(case, timestamp, rem_hooks=rem_hooks)
         except Exception as exc:  # noqa: BLE001
             ok, detail, output = False, f"{type(exc).__name__}: {exc}", {}
         elapsed = round((time.perf_counter() - started) * 1000, 2)
@@ -163,11 +190,13 @@ def main() -> int:
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--all", action="store_true")
     group.add_argument("--target", type=int, help="reproduce desde cero hasta este índice inclusive")
+    parser.add_argument("--real", action="store_true",
+                        help="REM con hooks REALES (DeepSeek V4 Flash, coste real) en vez del hook determinista")
     args = parser.parse_args()
     until = len(CASES) - 1 if args.all else args.target
     if until is None or not 0 <= until < len(CASES):
         parser.error(f"target fuera de rango 0..{len(CASES) - 1}")
-    report = run(until)
+    report = run(until, real=args.real)
     print(f"\nCronología: {report['passed']}/{report['total']} operaciones correctas")
     return 0 if report["failed"] == 0 else 1
 

@@ -5,6 +5,7 @@ is one chronological operation and the runner always replays its required prefix
 """
 from __future__ import annotations
 
+import random
 from typing import Any
 
 
@@ -111,6 +112,162 @@ for day in range(DAYS + 1):
              concept="estudios", marker="estudios", expected="slot=insight:estudios vigente")
         _add(day, "pills_demoted", "Checkpoint final: REM demotó las píldoras que resumió",
              minimum=4, expected="≥4 píldoras con meta.summarized_by, todas siguen valid=1")
+
+
+# ── Tramo REAL, semilla-reproducible (V2-105, 2026-08-17) ──────────────────────────────────────────────────
+# El tramo de arriba (180 días) es un guion 100% fijo — perfecto para regresión, ciego a la PRÓXIMA clase de
+# bug: un usuario real de 20-30 días se corrige a destiempo, repite el mismo hecho con otras palabras semanas
+# después, o dice dos cosas casi-simultáneas que compiten por el mismo dato. Ninguna de las tres formas existía
+# aquí. Se AÑADE como tramo nuevo tras el día 180 (nunca sustituye el guion fijo — el replay-prefix del runner
+# ya reconstruye 0..N causalmente) usando `random.Random(SEED)`: reproducible para una seed dada (mismo run =
+# mismos casos siempre), variedad real si se cambia la seed — no aleatoriedad de verdad, aleatoriedad CONTROLADA.
+# Reutiliza el vocabulario de `op` YA existente (write/slot/recall/active) — no hace falta enseñarle ninguna
+# rama nueva a `runner.py::_execute()`, solo generar contenido variado con las piezas que ya hay.
+REAL_DAYS = 90              # días 181..270
+TOTAL_DAYS = DAYS + REAL_DAYS
+SEED = 20260817
+_rng = random.Random(SEED)
+
+# (slot, plantilla, [valores]) — cada contradicción usa UN slot sintético con dos valores distintos.
+_CONTRADICT_BANK = [
+    ("goal.job", "Quiero dedicarme a {v}.", ["diseño de producto", "consultoría técnica", "docencia universitaria",
+                                              "investigación aplicada"]),
+    ("pref.transport", "Para moverme por la ciudad prefiero {v}.", ["la bicicleta", "el transporte público",
+                                                                      "el coche eléctrico", "ir andando"]),
+    ("pref.diet", "Ahora mismo estoy siguiendo una dieta {v}.", ["vegetariana", "mediterránea", "sin gluten",
+                                                                    "flexitariana"]),
+    ("goal.language", "Estoy aprendiendo {v} este año.", ["alemán", "portugués", "italiano", "japonés"]),
+]
+
+# Mismo hecho, dos formas de decirlo — sin slot (el punto es probar dedup exacto/semántico, no supersede).
+# `query`/`marker`: verificación por RECALL tras la repetición — no se asume si el dedup fusiona o no (depende
+# del backend de embeddings activo, incierto de antemano), solo que el hecho SIGUE siendo recuperable.
+_PARAPHRASE_BANK = [
+    ("le encanta el senderismo de montaña los fines de semana", "los fines de semana disfruta caminando por la montaña",
+     "¿qué le gusta hacer los fines de semana?", "montaña"),
+    ("toca la guitarra española por las tardes", "por las tardes es cuando practica con su guitarra",
+     "¿toca algún instrumento?", "guitarra"),
+    ("colecciona vinilos de jazz de los años setenta", "tiene una colección de discos de jazz de esa década",
+     "¿qué colecciona?", "jazz"),
+    ("cocina platos de la cocina tailandesa casi cada semana", "casi todas las semanas prepara comida tailandesa",
+     "¿qué tipo de comida cocina?", "tailandes"),
+    ("está aprendiendo a programar en Python en su tiempo libre", "en los ratos libres estudia programación con Python",
+     "¿qué está aprendiendo?", "python"),
+]
+
+# Dos valores para el MISMO slot, escritos casi a la vez — supersede bajo ambigüedad real, no un caso limpio.
+_COMPETING_BANK = [
+    ("event.next_trip", "El próximo viaje que tiene planeado es a {v}.", ["Lisboa", "Roma", "Ámsterdam"]),
+    ("pref.weekend_plan", "Este fin de semana tiene pensado {v}.", ["visitar a sus padres", "quedarse en casa",
+                                                                      "ir a la playa"]),
+]
+
+
+def _real_tramo() -> None:
+    # Cada banco de días reserva margen suficiente para que start_day + su resolución diferida (gap/offset) NUNCA
+    # se salga de range(DAYS+1, DAYS+REAL_DAYS+1) — una resolución programada para un día que el bucle no
+    # itera se perdería en silencio (la escritura quedaría sin su comprobación). Márgenes: contradict gap≤35,
+    # paraphrase gap≤55, competing offset+check≤6.
+    contradict_days = sorted(_rng.sample(range(DAYS + 3, DAYS + REAL_DAYS - 40), 8))
+    paraphrase_days = sorted(_rng.sample(range(DAYS + 3, DAYS + REAL_DAYS - 60), 5))
+    competing_days = sorted(_rng.sample(range(DAYS + 3, DAYS + REAL_DAYS - 10), 5))
+
+    contradictions = {}
+    for i, start_day in enumerate(contradict_days):
+        slot, template, values = _CONTRADICT_BANK[i % len(_CONTRADICT_BANK)]
+        slot = f"{slot}.{i}"  # una instancia propia por caso, no comparten estado entre sí
+        a, b = _rng.sample(values, 2)  # a = primer valor escrito; b = la alternativa, nunca escrita si "confirma"
+        gap = _rng.randint(5, 35)
+        agrees = _rng.random() < 0.3  # 30% de las veces "confirma" (mismo valor), 70% corrige (valor distinto)
+        contradictions[start_day] = (slot, template, a, b, gap, agrees)
+
+    paraphrases = {}
+    for i, start_day in enumerate(paraphrase_days):
+        base, repeat, query, marker = _PARAPHRASE_BANK[i % len(_PARAPHRASE_BANK)]
+        gap = _rng.randint(14, 55)
+        paraphrases[start_day] = (base, repeat, gap, query, marker)
+
+    competing = {}
+    for i, start_day in enumerate(competing_days):
+        slot, template, values = _COMPETING_BANK[i % len(_COMPETING_BANK)]
+        slot = f"{slot}.{i}"
+        a, b = _rng.sample(values, 2)
+        offset = _rng.randint(0, 2)  # 0-2 días de separación: "casi simultáneo", no el mismo instante
+        competing[start_day] = (slot, template, a, b, offset)
+
+    resolve_at: dict[int, list[Any]] = {}  # día → lista de checkpoints diferidos a programar ese día
+
+    for day in range(DAYS + 1, DAYS + REAL_DAYS + 1):
+        _add(day, "advance", f"Día {day}: avanzar reloj (tramo real)", expected=f"reloj de memoria = día {day}")
+
+        if day in contradictions:
+            slot, template, first_val, _alt_val, gap, agrees = contradictions[day]
+            _add(day, "write", f"Día {day}: hecho inicial ({slot})", text=template.format(v=first_val),
+                 level="long", kind="pref", importance=0.75, weight=0.6, slot=slot,
+                 expected="vigente hasta que llegue (o no) una corrección diferida")
+            resolve_at.setdefault(day + gap, []).append(("contradict", slot, template, contradictions[day]))
+
+        if day in paraphrases:
+            base, _repeat, gap, _query, _marker = paraphrases[day]
+            _add(day, "write", f"Día {day}: hecho reformulable", text=base.strip().capitalize() + ".",
+                 level="mid", kind="fact", importance=0.5, weight=0.5,
+                 expected="sigue vigente; en unas semanas llega la misma idea con otras palabras")
+            resolve_at.setdefault(day + gap, []).append(("paraphrase", paraphrases[day]))
+
+        if day in competing:
+            slot, template, a, b, offset = competing[day]
+            _add(day, "write", f"Día {day}: primer valor en competencia ({slot})", text=template.format(v=a),
+                 level="mid", kind="fact", importance=0.6, weight=0.55, slot=slot,
+                 expected="puede quedar superado por un valor casi-simultáneo")
+            resolve_at.setdefault(day + offset, []).append(("competing", slot, template, b))
+            resolve_at.setdefault(day + offset + 4, []).append(("competing_check", slot, b, a))
+
+        for item in resolve_at.get(day, []):
+            kind = item[0]
+            if kind == "contradict":
+                _, slot, template, (_slot2, _tmpl2, first_val, alt_val, _gap, agrees) = item
+                # confirma → reescribe el MISMO valor (first_val); corrige → escribe el ALTERNATIVO (alt_val).
+                # `not_marker` es SIEMPRE necesario aquí: la comprobación `slot` de `_execute()` trata un
+                # `not_marker` ausente como cadena vacía, y `"" in text` es SIEMPRE cierto en Python — sin él el
+                # checkpoint fallaría SIEMPRE pase lo que pase (encontrado en la primera corrida real de esto).
+                second_val = first_val if agrees else alt_val
+                excluded_val = alt_val if agrees else first_val
+                verb = "confirma" if agrees else "corrige"
+                _add(day, "write", f"Día {day}: {verb} el hecho de «{slot}»", text=template.format(v=second_val),
+                     level="long", kind="pref", importance=0.78, weight=0.62, slot=slot,
+                     expected="supersede: solo esta versión queda vigente")
+                _add(day, "slot", f"Día {day}: comprobar «{slot}» tras {verb}", slot=slot,
+                     marker=second_val.lower(), not_marker=excluded_val.lower(),
+                     expected="una sola versión vigente, la más reciente")
+            elif kind == "paraphrase":
+                _, (base, repeat, _gap, query, marker) = item
+                _add(day, "write", f"Día {day}: la misma idea, reformulada", text=repeat.strip().capitalize() + ".",
+                     level="mid", kind="fact", importance=0.5, weight=0.5,
+                     expected="dedup exacto/semántico decide si colapsa con el original")
+                _add(day, "recall", f"Día {day}: recall tras la repetición reformulada", query=query,
+                     marker=marker, expected="el hecho sigue siendo recuperable, fusionado o no")
+            elif kind == "competing":
+                _, slot, template, b_val = item
+                _add(day, "write", f"Día {day}: segundo valor casi-simultáneo ({slot})", text=template.format(v=b_val),
+                     level="mid", kind="fact", importance=0.6, weight=0.55, slot=slot,
+                     expected="el más reciente manda, aunque la ventana sea de días, no segundos")
+            elif kind == "competing_check":
+                _, slot, b_val, a_val = item
+                _add(day, "slot", f"Día {day}: comprobar «{slot}» tras la competencia", slot=slot,
+                     marker=b_val.lower(), not_marker=a_val.lower(),
+                     expected="gana el valor escrito en último lugar")
+
+        if day % 15 == 0:
+            _add(day, "consolidate", f"Noche {day}: sueño ligero (tramo real)", limit=180,
+                 expected="promoción, dedup, decay, TTL, pruning y eviction por valor")
+        _add(day, "rem", f"Noche {day}: fase REM (tramo real)", expected="reparación, dedup semántico, síntesis")
+
+    last_day = DAYS + REAL_DAYS
+    _add(last_day, "valid_count", "Checkpoint tramo real: memoria activa sigue acotada", maximum=400,
+         expected="90 días adicionales de variedad no revientan el techo de working memory")
+
+
+_real_tramo()
 
 
 def case_id(index: int) -> str:

@@ -2349,6 +2349,24 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   feliz normal de REM. Mismo principio que V2-075 ya fijó en otro módulo: el juicio semántico lo decide un
   MODELO, no un patrón hardcodeado. Verificado que los tests nuevos fallan sin el gate (`git stash` temporal) Y
   que el escenario real corregido pasa 3/3 pruebas reales tras el fix. Tests: `test_rem.py` — 339 passed.
+- **Corpus longitudinal con contradicciones + REM real end-to-end (V2-105)** (2026-08-17): el corpus de 966
+  ops/180 días (`tests/memory/e2e/timeline/`) era 100% fijo y determinista, sin ninguna semilla aleatoria —
+  perfecto para regresión, ciego a la PRÓXIMA clase de bug (contradicciones a destiempo, paráfrasis semanas
+  después, hechos casi-simultáneos en competencia). Extendido 180→270 días
+  (`cases.py::_real_tramo()`): 90 días más generados con `random.Random(SEED)` — reproducible para una seed
+  dada, variedad real si se cambia. Reutiliza el vocabulario `write`/`slot`/`recall` YA existente, cero ramas
+  nuevas en `_execute()`. `runner.py` gana `--real` (hooks de REM REALES contra DeepSeek en vez del hook Python
+  puro), norma del operador ("todas las pruebas tienen que ser reales... no nos importa el coste"). Verificado
+  en vivo (`--target 20 --real`): 21/21 operaciones, REM real backfillando paráfrasis de verdad. **Dos bugs
+  reales cazados en la primera corrida**: (1) una resolución diferida (`gap`/`offset`) sin acotar podía caer
+  fuera del rango del bucle → la escritura quedaba sin su checkpoint, en silencio; (2) un checkpoint `slot` sin
+  `not_marker` falla SIEMPRE (`"" in text` es cierto para cualquier texto en Python) — el bug estaba en MI
+  código de generación, no en `_execute()`, pero el síntoma parecía un fallo del sistema bajo prueba. Ambos
+  fijados como regresión pura (`tests/memory/unit/test_timeline_cases.py`, 7 tests, sin tocar la BD del
+  timeline). No se corrió `--all --real` de punta a punta (270 días × REM real, potencialmente horas) —
+  verificado en una porción representativa; la corrida completa queda periódica/manual, mismo patrón que
+  `distiller_bench.py`/`scale_eval.py`. Suite: 356 passed, 1 skipped (subido de 349). Detalle:
+  `V2-105-corpus-longitudinal-contradicciones.md`.
 
 ## Testing y rueda de mejora (INI-013)
 
