@@ -2331,16 +2331,24 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   `rem.py::synthesize()` nunca verificaba que un insight fuera FIEL a las píldoras que resume — solo longitud
   ≥12 chars. El prompt pide "no inventes nada" pero sin backstop. Importa MÁS desde el propio V2-103: ahora un
   insight demota el peso de sus fuentes, así que uno inventado ya no compite con los hechos correctos, los
-  DESPLAZA. Dos gates en cascada, ambos antes de escribir Y antes de demotar: (1) `_grounded()` — backstop
-  determinista gratis, toda cifra/nombre propio del insight debe aparecer en las píldoras fuente; (2)
-  `nucleo/memllm.verify_insight_grounded()` — segunda opinión por LLM en una llamada FRESCA e independiente de
-  la que generó el insight (el autocriterio en el mismo turno es más débil), cableada por el loop como
-  `verify_fn` opcional de `rem.run()` — la memoria sigue sin importar cerebros. **Fail-CLOSED** (al revés que
-  el resto de tareas de memoria): sin respuesta clara, se trata como no fiable — perder un insight legítimo
-  sale más barato que dejar pasar uno inventado. Rechazo SIEMPRE visible (`health_state.record`, nunca un
-  warning silencioso), sin coste para el concepto (se reintenta el próximo sueño). Más un tope de longitud
-  (`MAX_INSIGHT_CHARS=400`, antes solo había mínimo). Verificado que los 6 tests nuevos fallan sin el gate
-  (`git stash` temporal). Tests: `test_rem.py` — 335 passed, 1 skipped.
+  DESPLAZA. `nucleo/memllm.verify_insight_grounded()` — segunda opinión por LLM en una llamada FRESCA e
+  independiente de la que generó el insight (el autocriterio en el mismo turno es más débil) — es el ÁRBITRO
+  cuando está cableada (por el loop, como `verify_fn` opcional de `rem.run()` — la memoria sigue sin importar
+  cerebros); `_grounded()` (backstop determinista gratis: toda cifra/nombre propio del insight debe aparecer en
+  las píldoras fuente) solo decide cuando NO hay `verify_fn` disponible. **Fail-CLOSED** (al revés que el resto
+  de tareas de memoria): sin respuesta clara, se trata como no fiable. Rechazo SIEMPRE visible
+  (`health_state.record`, nunca un warning silencioso), sin coste para el concepto (se reintenta el próximo
+  sueño). Más un tope de longitud (`MAX_INSIGHT_CHARS=400`, antes solo había mínimo).
+  ⚠️ **Corregido el MISMO día tras validación REAL** (norma del operador: "todas las validaciones tienen que
+  ser reales... no nos importa el coste"): el diseño ORIGINAL dejaba `_grounded()` vetar SIEMPRE, antes del
+  LLM. Probado contra DeepSeek V4 Flash de verdad (`tests/memory/e2e/bot/live_rem_faithfulness.py`, nuevo
+  script de validación con coste real): el modelo convierte de forma CONSISTENTE una cantidad en palabras de
+  la fuente ("las nueve") a dígito en el insight ("las 9") — paráfrasis fiel — y `_grounded()` la rechazaba
+  SIEMPRE (comparación substring sin normalizar dígito↔palabra) mientras el verificador LLM real la aceptaba
+  correctamente 3/3 veces cuando se le preguntó directamente. El backstop "de seguridad" bloqueaba el camino
+  feliz normal de REM. Mismo principio que V2-075 ya fijó en otro módulo: el juicio semántico lo decide un
+  MODELO, no un patrón hardcodeado. Verificado que los tests nuevos fallan sin el gate (`git stash` temporal) Y
+  que el escenario real corregido pasa 3/3 pruebas reales tras el fix. Tests: `test_rem.py` — 339 passed.
 
 ## Testing y rueda de mejora (INI-013)
 

@@ -215,6 +215,52 @@ def test_grounded_accepts_number_and_proper_noun_present_in_pills(fresh_db):
     assert memrem._grounded("Ricart visita al Dr. Soler cada 6 meses, cita el 23.", pills) is True
 
 
+# V2-104, corregido tras validación REAL contra DeepSeek V4 Flash (2026-08-16, live_rem_faithfulness.py): el
+# modelo convierte de forma CONSISTENTE una cantidad dicha en palabras en la fuente ("las nueve") a dígito en el
+# insight ("las 9") — paráfrasis fiel, pero `_grounded()` la rechaza por comparar substring literal sin
+# normalizar dígito↔palabra. Dejar que ese backstop vetara SIEMPRE, antes del `verify_fn`, significaba que un
+# insight fiel nunca llegaba a que el verificador REAL (que sí lo aceptaba en 3/3 intentos) tuviera la última
+# palabra. `verify_fn`, cuando existe, debe ser el ÁRBITRO — `_grounded()` solo decide sin él.
+def test_verify_fn_overrides_deterministic_backstop_false_positive(fresh_db):
+    ids = [memwriter.insert_memory(t, level="mid", kind="fact", weight=0.8, concepts=["running"])
+           for t in ["corre 8 km los domingos por el Retiro", "entrena la media maratón de Madrid",
+                     "escucha a Vetusta Morla mientras corre", "corre siempre antes de las nueve"]]
+
+    def hook(groups):
+        return [{"concept": "running", "insight": "Corre 8 km por el Retiro antes de las 9, entrenando la "
+                                                    "media maratón de Madrid con Vetusta Morla de fondo."}]
+
+    def verify_fn(insight, pills):
+        return True  # el juicio REAL: "9" ≈ "nueve" es la misma cifra, no una fabricación
+
+    pills_for_check = ["corre 8 km los domingos por el Retiro", "entrena la media maratón de Madrid",
+                       "escucha a Vetusta Morla mientras corre", "corre siempre antes de las nueve"]
+    insight_text = ("Corre 8 km por el Retiro antes de las 9, entrenando la media maratón de Madrid con "
+                    "Vetusta Morla de fondo.")
+    assert memrem._grounded(insight_text, pills_for_check) is False, \
+        "precondición: el backstop determinista SÍ rechaza este caso (dígito vs palabra) — si esto deja de " \
+        "fallar, el escenario ya no reproduce el bug real y hay que revisar el test"
+
+    assert memrem.synthesize(hook, min_group=4, verify_fn=verify_fn) == 1
+    db = memdb.get_db()
+    assert db.query_one("SELECT id FROM memories WHERE slot='insight:running' AND valid=1") is not None
+    for mid in ids:
+        assert db.query_one("SELECT weight FROM memories WHERE id=?", (mid,))["weight"] < 0.8
+
+
+def test_grounded_alone_still_gates_when_no_verify_fn(fresh_db):
+    """Sin `verify_fn` (fail-safe sin LLM disponible), `_grounded()` sigue siendo el único gate."""
+    for t in ["corre 8 km los domingos por el Retiro", "entrena la media maratón de Madrid",
+             "escucha a Vetusta Morla mientras corre", "corre siempre antes de las nueve"]:
+        memwriter.insert_memory(t, level="mid", kind="fact", weight=0.8, concepts=["running"])
+
+    def hook(groups):
+        return [{"concept": "running", "insight": "Corre 8 km por el Retiro antes de las 9, entrenando la "
+                                                    "media maratón de Madrid con Vetusta Morla de fondo."}]
+
+    assert memrem.synthesize(hook, min_group=4) == 0  # sin verify_fn → el backstop rechaza, como antes
+
+
 def test_repair_embeddings_limit_configurable(fresh_db, monkeypatch):
     monkeypatch.setenv("ZAELAR_REM_REPAIR_LIMIT", "3")
     for i in range(5):

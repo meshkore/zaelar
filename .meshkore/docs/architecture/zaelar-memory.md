@@ -468,14 +468,20 @@ fallo no tumba el sueño):
    borrar nada** (el histórico se conserva intacto, igual que siempre). Es la mitad que faltaba de "REM como
    sueño que consolida": antes el insight se apilaba ENCIMA de las píldoras crudas, que seguían compitiendo a
    peso completo para siempre. **Precisamente porque ahora DESPLAZA en vez de solo competir (V2-103), ningún
-   insight se escribe ni demota nada sin pasar DOS gates de fidelidad (V2-104):**
-   1. **`_grounded()`** (backstop determinista, siempre activo, sin LLM): toda cifra/fecha y todo nombre propio
-      del insight debe aparecer en las píldoras fuente — capta la fabricación más burda.
-   2. **`verify_fn`** opcional (`nucleo/memllm.verify_insight_grounded`, cableado por el loop junto a
-      `synthesize_concept_groups`): una SEGUNDA llamada, FRESCA e independiente de la que generó el insight,
-      preguntando si cada afirmación está respaldada por los datos — fail-**CLOSED** (sin respuesta clara = no
-      fiable), al revés que el resto de tareas de memoria, porque aquí perder un insight legítimo sale más
-      barato que dejar pasar uno inventado que desplaza hechos correctos.
+   insight se escribe ni demota nada sin pasar un gate de fidelidad (V2-104):**
+   1. **`verify_fn`** (`nucleo/memllm.verify_insight_grounded`, cableado por el loop junto a
+      `synthesize_concept_groups`) es el **ÁRBITRO cuando está disponible**: una llamada FRESCA e independiente
+      de la que generó el insight, preguntando si cada afirmación está respaldada por los datos — fail-**CLOSED**
+      (sin respuesta clara = no fiable), al revés que el resto de tareas de memoria, porque aquí perder un
+      insight legítimo sale más barato que dejar pasar uno inventado que desplaza hechos correctos.
+   2. **`_grounded()`** (backstop determinista, sin LLM, cifras/nombres propios deben anclar en los datos) solo
+      decide cuando **NO hay `verify_fn` disponible** — red de seguridad gratis para el caso sin LLM, no un veto
+      previo. **Corregido tras validación REAL (2026-08-16, medido contra DeepSeek V4 Flash):** dejarlo vetar
+      SIEMPRE antes del LLM rechazaba de forma sistemática paráfrasis fieles — el modelo convierte de forma
+      consistente "las nueve" (fuente) → "las 9" (insight), que `_grounded()` rechaza por comparar substring
+      literal sin normalizar dígito↔palabra, mientras el verificador LLM real la aceptaba correctamente en 3/3
+      intentos. El mismo principio que V2-075 ya fijó en otro módulo: el juicio semántico lo decide un MODELO,
+      no un patrón hardcodeado — dejar que el patrón vete por delante del modelo era el error.
 
    Cualquier rechazo es VISIBLE (`logger.warning` + `health_state.record`, nunca silencioso) y no cuesta el
    concepto — se reintenta en el próximo sueño. También hay un tope de longitud (`MAX_INSIGHT_CHARS=400`): antes

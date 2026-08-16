@@ -275,14 +275,16 @@ def synthesize(synthesize_fn, min_group: int = MIN_GROUP, verify_fn=None) -> int
     el insight de un concepto se REESCRIBE, nunca se acumula). `synthesize_fn(groups)->[{concept,insight}]` la
     inyecta el llamador (el loop → nucleo/memllm). Fail-open: sin hook o sin respuesta = 0 insights.
 
-    V2-104: antes de escribir y de demotar las píldoras fuente, cada insight pasa DOS gates — (1) `_grounded()`,
-    backstop determinista siempre activo (cifras/nombres propios deben anclar en los datos); (2) `verify_fn`
-    OPCIONAL (inyectado igual que `synthesize_fn`, típicamente `memllm.verify_insight_grounded`): una segunda
-    opinión por LLM en una llamada FRESCA, distinta de la que generó el insight — el autocriterio en el mismo
-    turno es más débil que un juicio independiente. Política ASIMÉTRICA ante cualquier rechazo: no se escribe
-    el insight y NO se demotan las fuentes — el grupo se reintenta en el próximo sueño. Importa más desde hoy
-    que ayer: la democión (V2-103) hace que un insight malo DESPLACE los hechos correctos, no solo compita con
-    ellos."""
+    V2-104: antes de escribir y de demotar las píldoras fuente, cada insight pasa un gate de fidelidad. Con
+    `verify_fn` cableado (típicamente `memllm.verify_insight_grounded`, inyectado igual que `synthesize_fn`), ES
+    EL ÁRBITRO — una segunda opinión por LLM en una llamada FRESCA, distinta de la que generó el insight (el
+    autocriterio en el mismo turno es más débil que un juicio independiente). `_grounded()` (backstop
+    determinista, cifras/nombres propios deben anclar en los datos) solo decide cuando NO hay `verify_fn`
+    disponible — corregido tras validación real (2026-08-16): dejarlo vetar SIEMPRE, antes del LLM, rechazaba
+    sistemáticamente paráfrasis fieles (dígito↔palabra: "nueve"→"9") que el verificador real sí reconocía bien.
+    Política ASIMÉTRICA ante cualquier rechazo: no se escribe el insight y NO se demotan las fuentes — el grupo
+    se reintenta en el próximo sueño. Importa más desde hoy que ayer: la democión (V2-103) hace que un insight
+    malo DESPLACE los hechos correctos, no solo compita con ellos."""
     if synthesize_fn is None:
         return 0
     groups = _concept_groups(min_group=min_group)
@@ -314,9 +316,15 @@ def synthesize(synthesize_fn, min_group: int = MIN_GROUP, verify_fn=None) -> int
             continue
         src = next((g for g in groups if g["concept"] == concept), None)
         pills = src["pills"] if src else []
-        if not _grounded(insight, pills):
-            _reject(concept, "una cifra o un nombre propio no aparece en los datos fuente")
-            continue
+        # V2-104 (corregido tras validación REAL, 2026-08-16): `verify_fn`, cuando existe, es el ÁRBITRO — no
+        # `_grounded()`. Medido con DeepSeek V4 Flash real: el modelo convierte de forma CONSISTENTE "las nueve"
+        # (fuente) → "las 9" (insight), una paráfrasis fiel — `_grounded()` la rechaza SIEMPRE por comparar
+        # substring literal sin normalizar dígito↔palabra, mientras el verificador LLM la acepta correctamente
+        # (3/3 intentos reales). Dejar que el backstop determinista vetara ANTES del LLM significaba que REM casi
+        # nunca podía escribir un insight sobre cualquier concepto con una cantidad dicha en palabras — el mismo
+        # error de fondo que V2-075 ya nombró en otro módulo: el juicio semántico no se hace con patrones
+        # hardcodeados, lo decide un MODELO. `_grounded()` se queda como red de seguridad GRATIS solo para cuando
+        # NO hay `verify_fn` cableado (fail-safe sin LLM disponible).
         if verify_fn is not None:
             try:
                 ok = bool(verify_fn(insight, pills))
@@ -326,6 +334,9 @@ def synthesize(synthesize_fn, min_group: int = MIN_GROUP, verify_fn=None) -> int
             if not ok:
                 _reject(concept, "la verificación por LLM no lo respalda")
                 continue
+        elif not _grounded(insight, pills):
+            _reject(concept, "una cifra o un nombre propio no aparece en los datos fuente (sin verify_fn: solo backstop)")
+            continue
         try:
             insight_id = _writer.insert_memory(
                 insight, level="long", kind="insight", importance=0.65,
