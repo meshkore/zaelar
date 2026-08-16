@@ -1096,3 +1096,63 @@ body.dbg-open .orbwrap{left:calc(50% - var(--dbg-w) / 2)}
 .cf-preset.off { opacity: .62; }
 .cf-preset-h { font-weight: 600; }
 .cf-preset .cf-hint { margin: 0; }
+
+/* ── Feedback widget (V2-099): floating launcher + panel, self-contained/deletable module. z-index
+   below the full-screen overlays (memmap/cfgfull/vault-modal, 9500-9600) so it never pokes through
+   one of those, above the docked panels (chatwall/cronpanel/statuspanel, 9001). ─────────────────── */
+.fw-wrap{position:fixed;right:20px;bottom:20px;z-index:9200}
+.fw-launcher{width:52px;height:52px;border-radius:50%;border:none;cursor:pointer;color:#fff;
+  background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2));box-shadow:0 6px 18px rgba(0,0,0,.28);
+  display:flex;align-items:center;justify-content:center;touch-action:none}
+.fw-launcher:hover{filter:brightness(1.08)}
+.fw-launcher svg{width:24px;height:24px}
+.fw-panel{position:fixed;right:20px;bottom:82px;z-index:9199;width:320px;max-height:min(70vh,560px);
+  display:none;flex-direction:column;background:var(--hb-bg);border:1px solid var(--hb-line);border-radius:16px;
+  box-shadow:0 10px 30px rgba(0,0,0,.3);overflow:hidden;color:var(--hb-ink)}
+.fw-panel.open{display:flex}
+.fw-head{display:flex;align-items:center;gap:8px;padding:11px 14px;border-bottom:1px solid var(--hb-line)}
+.fw-title{font-weight:700;font-size:14px;flex:1}
+.fw-x{border:none;background:transparent;color:var(--hb-muted);cursor:pointer;padding:4px;display:flex}
+.fw-x:hover{color:var(--hb-ink)}
+.fw-x svg{width:16px;height:16px}
+.fw-tabs{display:flex;gap:2px;background:var(--hb-hover);border-radius:9px;padding:2px;margin:10px 14px 0}
+.fw-tab{flex:1 1 auto;border:none;background:transparent;color:var(--hb-muted-2);font-size:12px;font-weight:600;
+  padding:6px 0;border-radius:7px;cursor:pointer}
+.fw-tab.on{background:var(--hb-bg);color:var(--hb-ink);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+.fw-new,.fw-sent{display:none;flex-direction:column;gap:8px;padding:12px 14px;overflow-y:auto}
+.fw-panel.tab-new .fw-new{display:flex}
+.fw-panel.tab-sent .fw-sent{display:flex}
+.fw-textarea{width:100%;box-sizing:border-box;resize:vertical;min-height:70px;border:1px solid var(--hb-line);
+  border-radius:10px;background:var(--hb-bg-soft);color:var(--hb-ink);font:inherit;font-size:13px;padding:8px 10px}
+.fw-textarea:focus{border-color:var(--hb-accent);outline:none}
+.fw-row{display:flex;align-items:center}
+.fw-check{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--hb-muted);cursor:pointer}
+.fw-hint{font-size:11px;color:var(--hb-muted-2);line-height:1.4;margin-top:-4px}
+.fw-field{display:flex;flex-direction:column;gap:3px}
+.fw-email{width:100%;box-sizing:border-box;padding:7px 10px;border:1px solid var(--hb-line);border-radius:9px;
+  background:var(--hb-bg-soft);color:var(--hb-ink);font-size:13px}
+.fw-email:focus{border-color:var(--hb-accent);outline:none}
+.fw-actions{display:flex;align-items:center;justify-content:flex-end;gap:8px;margin-top:2px}
+.fw-mic{width:34px;height:34px;border-radius:9px;border:1px solid var(--hb-line);background:var(--hb-bg);
+  color:var(--hb-muted);cursor:pointer;display:flex;align-items:center;justify-content:center}
+.fw-mic svg{width:16px;height:16px}
+.fw-mic:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
+.fw-mic.on{color:#fff;border-color:transparent;background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2))}
+.fw-mic.hidden{display:none}
+.fw-send{width:36px;height:36px;border-radius:10px;border:none;cursor:pointer;color:#fff;
+  background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2));display:flex;align-items:center;justify-content:center}
+.fw-send svg{width:16px;height:16px}
+.fw-send:hover{filter:brightness(1.08)}
+.fw-send[disabled]{opacity:.55;cursor:default;filter:none}
+.fw-thanks{font-size:12.5px;color:var(--hb-accent2);background:color-mix(in srgb,var(--hb-accent2) 12%,transparent);
+  border-radius:9px;padding:7px 10px}
+.fw-empty{color:var(--hb-muted-2);font-size:12.5px;text-align:center;padding:18px 0}
+.fw-item{border:1px solid var(--hb-line);border-radius:10px;padding:9px 11px;font-size:12.5px}
+.fw-item-msg{color:var(--hb-ink);line-height:1.4;white-space:pre-wrap;word-break:break-word}
+.fw-item-meta{color:var(--hb-muted-2);font-size:11px;margin-top:5px;display:flex;align-items:center;gap:5px}
+.fw-badge{font-size:10.5px;font-weight:700;letter-spacing:.02em;padding:1px 7px;border-radius:20px;text-transform:uppercase}
+.fw-badge-received{background:var(--hb-neutral);color:var(--hb-ink)}
+.fw-badge-in_progress{background:color-mix(in srgb,var(--hb-accent) 22%,transparent);color:var(--hb-accent)}
+.fw-badge-done{background:color-mix(in srgb,var(--hb-accent2) 22%,transparent);color:var(--hb-accent2)}
+.fw-reply{margin-top:7px;padding-top:7px;border-top:1px dashed var(--hb-line);color:var(--hb-muted)}
+.fw-reply-label{font-size:10.5px;font-weight:700;letter-spacing:.02em;color:var(--hb-accent2);margin-bottom:2px;text-transform:uppercase}

@@ -65,6 +65,11 @@ SYSTEM_SURFACES: dict[str, dict] = {
         "aliases": ["boveda", "bóveda", "secretos", "vault", "contraseñas", "caja fuerte",
                     "secrets", "passwords", "safe"],
     },
+    "feedback": {
+        "name": "Feedback",
+        "aliases": ["feedback", "sugerencia", "sugerencias", "comentarios", "opinion", "opinión",
+                    "suggestion", "suggestions", "comments"],
+    },
 }
 
 

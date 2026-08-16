@@ -11,9 +11,10 @@ import os
 import subprocess
 import time
 
-# Versión semántica del motor — súbela al cerrar un bloque de cambios notable (última: la tarifa de voz SIGUE al
-# proveedor que corre y los precios dejan de vivir en el código — llegan de la nube piggyback en el arriendo).
-VERSION = "3.08"
+# Semantic version of the engine — bump it by hand when closing a notable block of changes (latest:
+# floating feedback widget, V2-100 — the first native button to send suggestions to the developers,
+# local and cloud alike).
+VERSION = "3.09"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CACHE: dict = {}

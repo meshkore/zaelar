@@ -259,6 +259,12 @@ export const [apiAlerts, setApiAlerts]   = createSignal([]);     // subconjunto 
 export const [memOpen, setMemOpen]     = createSignal(false);  // memory map overlay visible?
 export const [memBump, setMemBump]     = createSignal(0);      // ticks on each memory.updated (real-time refresh)
 export const bumpMemory = () => setMemBump(n => n + 1);
+
+// ---- feedback widget (V2-099: floating "send feedback to the developers" launcher + panel) ----
+export const [feedbackOpen, setFeedbackOpen] = createSignal(false);         // panel visible?
+export const [feedbackTab, setFeedbackTab]   = createSignal("new");        // "new" | "sent"
+export const [feedbackItems, setFeedbackItems] = createSignal([]);         // [{id,message,status,reply_text,created_at}]
+export const [feedbackSending, setFeedbackSending] = createSignal(false);  // POST in flight?
 // Live observability (V2-014): the latest memory pulse {op, ids} — per-node tint (write=green,
 // overwrite=amber, query=blue). Separate from memBump so a query (no data change → no refetch) still tints.
 export const [memPulse, setMemPulse]   = createSignal(null);

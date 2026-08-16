@@ -40,6 +40,7 @@ from .wizard_api import router as wizard_router  # first-run wizard: local/cloud
 from .spotify_api import router as spotify_router  # Spotify music connector (OAuth PKCE + state), V2-041
 from .config_api import router as config_router  # full-screen configuration area + API balances (V2-043)
 from .i18n_api import router as i18n_router  # UI multilingüe: state + bundles preset/generados (V2-089)
+from .feedback_api import router as feedback_router  # send a suggestion to the developers (V2-100)
 
 
 @asynccontextmanager
@@ -471,7 +472,7 @@ def create_app() -> FastAPI:
     # Hermes' old /api/cron; the same frontend ⏰ panel consumes it.
     routers = [pages_router, voice_router, widgets_router, meshkore_router, messaging_router, files_router,
                vault_router, cron_router, wizard_router, spotify_router, config_router, i18n_router,
-               obs_router]
+               obs_router, feedback_router]
     # LiveKit control plane (token + connect config + session.js swap) — the default engine (INI-012).
     if os.getenv("ZAELAR_ENGINE", "livekit").lower() == "livekit":
         from .livekit_api import router as livekit_router

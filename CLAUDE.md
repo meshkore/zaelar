@@ -2021,6 +2021,38 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     was available this session to verify a coordinate edit on a real public page, and an unverified visual change
     there is worse than a diagram that's merely missing one recent feature.
   - Full suite green after every step (1924 passed, 2 skipped) — never one big commit at the end.
+- **Floating feedback widget — a self-hosted engine's first outbound call, and the control-plane's first
+  PUBLIC route that accepts real data** (V2-100, 2026-08-16; full detail in
+  `.meshkore/roadmap/initiatives/V2-100-feedback-widget.md`, local; the cloud/business side is INI-023 in
+  the workspace root's private repo). One native surface (`frontend/app/components/FeedbackWidget.js`,
+  registered in `system-surfaces.js` + mirrored in `widgets/system_surfaces.py`): a draggable launcher
+  (default bottom-right, `lib/draggable.js` mode `"bl"` — same call as the Orb, no new snap logic) opening
+  a two-tab panel (New: textarea + mic dictation + opt-in session-evidence checkbox, default OFF; Sent: a
+  static, read-only status list — never chat-shaped).
+  - **Dictation is the browser's native `SpeechRecognition`**, not a new backend endpoint: no reusable
+    one-shot "transcribe this audio" primitive exists anywhere in this codebase (every STT provider is
+    wired into LiveKit's streaming `AgentSession`), so a server-side alternative would have meant new
+    plumbing plus per-use provider cost for a convenience feature. Degrades safely (the mic button hides)
+    where unsupported, mainly Firefox. Deliberately not `services/stt.js` — an unwired, dead sketch whose
+    header comment claims a `ClientSTTInjector` that does not exist anywhere in the Python code.
+  - **The local↔cloud branch in `server/feedback_api.py` reuses the exact call shape already proven by
+    `energy_meter.py::_post_usage_cloud_account`**: a cloud engine posts with
+    `X-Service-Token: {CONTROL_PLANE_SERVICE_TOKEN}` (that env var's value on a cloud Machine is actually
+    the per-workload MACHINE credential, despite the legacy name); a self-hosted engine has neither
+    `CONTROL_PLANE_URL` nor a credential, so this is the first "phone home" call self-host makes at all —
+    every other one is gated on env vars only a cloud Machine has. It carries only the already-existing
+    per-install UUID (`observability.identity.user_id()` — no new "keypair on first boot" needed) to a
+    new, separate endpoint default (`ZAELAR_FEEDBACK_URL`), kept distinct from `CONTROL_PLANE_URL` on
+    purpose so an account-specific billing endpoint and a "everyone can reach this" endpoint never share
+    one env var's meaning.
+  - **The opt-in session-evidence bundle is built by calling `observability.flows` directly, in-process —
+    never over `/api/observability/*`.** That HTTP surface is loopback/token-guarded
+    (`_allowed()` requires `ZAELAR_OBS_TOKEN` + a header the frontend never sends), so a browser call to
+    it would silently 403 on a cloud deployment; running server-side sidesteps the guard entirely. Capped
+    to the current session only, last 200 events, fails open to no evidence on any error.
+  - Tests: `tests/infrastructure/unit/core/test_feedback_api.py` (self-host vs cloud branch, evidence
+    opt-in/fail-open, empty-message guard, network fail-open — 9 cases). Full suite green: 1943 passed,
+    2 skipped.
 
 ## Testing y rueda de mejora (INI-013)
 

@@ -31,6 +31,7 @@ import { ChatWall } from "../components/ChatWall.js?v=5";
 import { ConfigPanel } from "../components/ConfigPanel.js?v=2";
 import { ConnStatus } from "../components/ConnStatus.js?v=2";
 import { DebugPanel } from "../components/DebugPanel.js?v=4";
+import { FeedbackWidget } from "../components/FeedbackWidget.js?v=1";
 import { MemoryMap } from "../components/MemoryMap.js?v=2";
 import { Orb } from "../components/Orb.js?v=3";
 import { StatusPanel } from "../components/StatusPanel.js?v=2";
@@ -99,6 +100,12 @@ export const SYSTEM_SURFACES = [
     toggle: "SSE events kind:secret · window.zaelar.vault()", label: "Secrets vault (🔐)",
     name: "Vault", aliases: ["boveda", "bóveda", "secretos", "vault", "contraseñas", "caja fuerte",
       "secrets", "passwords", "safe"] },
+  // V2-100 (2026-08-16): floating "send feedback to the developers" launcher + panel. Self-contained —
+  // its own components/services files, ONLY these two lines register it into the app shell.
+  { id: "feedback",   comp: FeedbackWidget, target: "body", phase: "overlay", kind: "panel",
+    toggle: "store.feedbackOpen (floating launcher, bottom-right)", label: "Send feedback to the developers",
+    name: "Feedback", aliases: ["feedback", "sugerencia", "sugerencias", "comentarios", "opinion",
+      "opinión", "suggestion", "suggestions", "comments"] },
   // ── TRANSITORIOS (banner / velo de arranque) ──
   { id: "alert",      comp: Alert,        target: "body", phase: "overlay", kind: "transient",
     toggle: "store.showAlert (hard notice, e.g. no model balance)", label: "Notice banner",
