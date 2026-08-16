@@ -446,6 +446,12 @@ async def process(text: str, *, state: dict | None = None) -> list[dict] | None:
             {"role": "user", "content": _render(t, state)},
         ],
     }
+    # DeepSeek reasons even when the task can't afford it, but only api.deepseek.com DIRECT honors this field —
+    # the AIMLAPI broker ignores it (same finding as nucleo/memllm.py's turn_complete task, V2-102). 2026-08-16:
+    # the broker went fully unresponsive for this model (12s+, no reply at all), degrading every memory write to
+    # the lossy heuristic — moved this task's default to DeepSeek direct.
+    if "deepseek" in _model().lower() and "api.deepseek.com" in _url().lower():
+        payload["thinking"] = {"type": "disabled"}
     url = _url().rstrip("/") + "/chat/completions"
     local = any(h in url for h in ("11434", "localhost", "127.0.0.1"))
     t0 = time.time()
