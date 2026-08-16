@@ -208,8 +208,10 @@ def test_it_only_reaches_prompts_that_will_display_data():
 
 def test_the_worker_prompt_wires_it_in():
     import inspect
-    from nucleo import dispatch
-    src = inspect.getsource(dispatch)
+    # Prompt composition (_build_prompt/_web_prompt/_with_presentation) moved to its own module (V2-098) — the
+    # source lives in dispatch_prompts.py now, dispatch.py just imports and calls it.
+    from nucleo import dispatch_prompts
+    src = inspect.getsource(dispatch_prompts)
     assert "_with_presentation" in src
     assert src.count("_with_presentation(") >= 3, "el genérico Y el de web, más la definición"
 

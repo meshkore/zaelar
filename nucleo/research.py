@@ -324,7 +324,7 @@ async def compose(request: str, context: str = "", *, timeout: float = _COMPOSE_
         if spec is None:
             logger.warning("research: sin proveedor disponible para el compositor — el worker sale SIN brief")
             raise ComposerUnavailable("sin proveedor")
-        from nucleo.dispatch import _today_block
+        from nucleo.dispatch_prompts import _today_block  # V2-098: canonical home, moved out of dispatch.py
         out = await asyncio.wait_for(
             FastClient().complete(build_messages(req, context, _today_block()), spec=spec, max_tokens=1600),
             timeout=timeout)
