@@ -30,10 +30,6 @@ import os
 import time
 from dataclasses import dataclass, field
 
-from fastapi import APIRouter, Body
-
-router = APIRouter()
-
 _WINDOW_MAX = 10
 
 
@@ -799,104 +795,13 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     }
 
 
-# ── HTTP (dentro del server vivo) ────────────────────────────────────────────────────────────────────────
-@router.post("/api/flash/say")
-async def say(text: str = Body(..., embed=True), session: str = Body("default", embed=True),
-              ingest: bool = Body(True, embed=True), prompt: bool = Body(False, embed=True),
-              model: str = Body("", embed=True), execute: bool = Body(False, embed=True)) -> dict:
-    """Inyecta un turno de texto al FlashBrain y devuelve su respuesta + acción + latencias (canal de prueba).
-    `model` (opcional) fuerza otro modelo rápido para A/B. `execute` (V2-049) EJECUTA de verdad las acciones de
-    worker (escalada/inyección/respuesta/stop) → test e2e de gestiones web por texto, sin voz."""
-    res = await run_turn(text, sid=session, ingest=ingest, model=model, execute=execute)
-    if prompt and res.get("ok"):
-        # opcional: incluye el prompt compuesto (para inspeccionar qué estado/memoria vio el modelo)
-        from .prompt import build_flash_system, needs_recall
-        sys_txt, _ = build_flash_system(directive=_session(session).directive,
-                                        recall_query=text if needs_recall(text) else "", turn_text=text)
-        res["prompt"] = sys_txt
-    return res
-
-
-@router.post("/api/flash/reset")
-async def reset(session: str = Body("default", embed=True)) -> dict:
-    """Limpia la ventana conversacional del probe (NO toca la memoria; para eso, `make reset`)."""
-    # A reset is an explicit causal barrier in headless tests: all completed memory writes must be visible in the
-    # first turn of the new window. It does not run on the physical voice hot path.
-    from . import memory_cache
-    await memory_cache.refresh()
-    _SESSIONS.pop(session or "default", None)
-    return {"ok": True, "session": session or "default"}
-
-
-# ── CLI (habla con el server vía HTTP) ───────────────────────────────────────────────────────────────────
-def _post(path: str, payload: dict, base: str) -> dict:
-    import json
-    import urllib.request
-    req = urllib.request.Request(base + path, data=json.dumps(payload).encode(),
-                                 headers={"content-type": "application/json"}, method="POST")
-    with urllib.request.urlopen(req, timeout=60) as r:
-        return json.loads(r.read().decode())
-
-
-def _fmt(res: dict) -> str:
-    if not res.get("ok"):
-        return f"✗ {res.get('error', 'error')}"
-    t = res.get("timings", {})
-    extra = []
-    if res.get("action") != "chat":
-        extra.append(f"acción={res['action']}")
-    if res.get("degenerate"):
-        extra.append("⚠️DEGENERADO(saneado)")
-    if res.get("loop_run", 0) >= 2:
-        extra.append(f"⚠️BUCLE×{res['loop_run']}")
-    tail = ("  [" + " · ".join(extra) + "]") if extra else ""
-    # TOTALIZADORES (premisa de observabilidad): TTFT + tamaño de entrada/salida + cold, para distinguir «lento por
-    # el modelo» de «lento por prompt gigante» o «frío».
-    m = res.get("metrics", {}) or {}
-    ptok = m.get("prompt_tokens", m.get("prompt_tokens_est"))
-    ctok = m.get("completion_tokens", m.get("completion_tokens_est"))
-    cold = "❄️FRÍO" if m.get("cold_estimate") else "🔥"
-    meta = (f"ttft={t.get('ttft_ms', '?')}ms · total={t.get('total_ms', '?')}ms · "
-            f"in≈{ptok}tok/{m.get('prompt_chars', '?')}ch (+{m.get('n_tools', '?')}tools) · "
-            f"out≈{ctok}tok · {cold}")
-    return f"zaelar ▸ {res.get('reply', '')}{tail}\n         └ {meta}"
-
-
-def _main() -> None:
-    import argparse
-    import sys
-    ap = argparse.ArgumentParser(description="Canal de prueba headless del FlashBrain")
-    ap.add_argument("text", nargs="*", help="texto a inyectar (vacío = REPL)")
-    ap.add_argument("--session", default="default")
-    ap.add_argument("--base", default="http://localhost:43917")
-    ap.add_argument("--no-ingest", action="store_true", help="no escribir a memoria (charla aislada)")
-    ap.add_argument("--reset", action="store_true", help="limpia la ventana del probe y sale")
-    ap.add_argument("--json", action="store_true", help="imprime el JSON completo")
-    args = ap.parse_args()
-
-    if args.reset:
-        print(_post("/api/flash/reset", {"session": args.session}, args.base))
-        return
-
-    def _send(txt: str) -> None:
-        import json
-        res = _post("/api/flash/say",
-                    {"text": txt, "session": args.session, "ingest": not args.no_ingest}, args.base)
-        print(json.dumps(res, ensure_ascii=False, indent=2) if args.json else _fmt(res))
-
-    if args.text:
-        _send(" ".join(args.text))
-        return
-    print("FlashBrain probe — escribe y pulsa enter (Ctrl-D para salir). `/reset` limpia la ventana.")
-    for line in sys.stdin:
-        line = line.strip()
-        if not line:
-            continue
-        if line == "/reset":
-            print(_post("/api/flash/reset", {"session": args.session}, args.base))
-            continue
-        _send(line)
-
-
+# ── HTTP + CLI (V2-098 split) ────────────────────────────────────────────────────────────────────────────
+# The FastAPI router (say/reset) is a thin wrapper around run_turn()/_session()/_SESSIONS above; it lives in
+# probe_api.py, which imports THIS module for those — the mount point (server/__init__.py) now imports `router`
+# from probe_api directly, so this module does NOT import probe_api back (that would circular-import the moment
+# this runs as `__main__`: runpy loads it as `__main__` AND, transitively, as `nucleo.flash.probe`). The CLI
+# (_post/_fmt/main) needs none of this module's state — it only talks to the running server over HTTP — and
+# lives in probe_cli.py; `python -m nucleo.flash.probe` still works via the __main__ block below.
 if __name__ == "__main__":
+    from nucleo.flash.probe_cli import main as _main
     _main()
