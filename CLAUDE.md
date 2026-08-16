@@ -1577,9 +1577,9 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     no una tarea aparte. Si algún día hace falta que una derivada compleja tenga su PROPIO trace (el operador lo
     mencionó como posible), es una decisión de producto pendiente de confirmar con un caso real, no aplicada aquí.
 - **El gate de atención en modo `always` (el default, micro SIEMPRE abierto — permanente, NO es algo a revertir
-  a wake-word) ahora JUZGA el contenido en vez de dar todo por dirigido (2026-08-16, norma del operador: "nunca
+  a wake-word) ahora JUZGA el contenido en vez de dar todo por dirigido** (V2-105, 2026-08-16, norma del operador: "nunca
   vamos a llamar a la gente por su nombre... el ruido de fondo se puede separar de las acciones reales
-  dependiendo de la naturaleza de las frases")**. Auditando una sesión real con niños de por medio: 5-7 frases de
+  dependiendo de la naturaleza de las frases"). Auditando una sesión real con niños de por medio: 5-7 frases de
   ruido de fondo ("Mira donde tú quieras, pero dame el ya...", con "hija" de por medio) corrieron el turno
   COMPLETO cada una —prompt, decisión de tools, y en un caso un `web_search` real que tardó 3,3s y se
   completó— antes de descartarse como superado. Coste real, cero valor, repetido varias veces en menos de 90s.
@@ -1599,7 +1599,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     la construcción del prompt y la selección de tools — solo hacía falta que la CLASIFICACIÓN fuera buena. No
     hizo falta tocar ese corte en absoluto, solo lo que decide si dispara.
 - **Fusionar dos flujos que resultan ser la MISMA tarea — la capacidad existe, el disparo automático NO (pass 2
-  pendiente)** (2026-08-16, norma del operador: "por la segunda o tercera frase nos demos cuenta que los dos
+  pendiente)** (V2-105, 2026-08-16, norma del operador: "por la segunda o tercera frase nos demos cuenta que los dos
   turnos son el mismo... dejaría esa feature disponible").
   - **`voice/trace.py::merge(a, b)`**: el MÁS ANTIGUO (seq más bajo del propio id — nace secuencial, sin
     necesidad de comparar timestamps) se queda como TITULAR siempre, sea cual sea el orden de los argumentos; el
