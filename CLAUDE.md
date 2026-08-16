@@ -2206,6 +2206,31 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   still see" for the canvas; the debug panel and chat wall are exactly that, just two more instances of it.
   Frontend-only fix (no Python test harness reaches DOM-level assertions for this file); not live-verified
   this session (no browser tool), flagged for a manual check.
+- **Memory — write-path self-healing, and REM stops being purely additive** (V2-103, 2026-08-16; live audit
+  against the operator's real `zaelar.db` found duplicated pills, not the weather-note clutter suspected —
+  slot-based supersede was already flawless, 28/28 slots at exactly 1 valid row each). Root cause of the
+  duplicates and of 51.6% of valid memory carrying no embedding vector, TRACED TO ONE BUG:
+  `memory/embeddings.py::_resolve_backend()` resolved the backend ONCE per process and cached it forever — one
+  transient Ollama hiccup at boot locked the whole process into a degraded backend (`fastembed`/`hash`) even
+  after Ollama recovered seconds later, which silently turned off BOTH the semantic-dedup gate
+  (`writer.py::_semantic_dedup_on()`, calibrated only for `ollama`) AND `rem.py::repair_embeddings()` (self-
+  excludes on embed-signature mismatch) for that process's whole lifetime. Fixed with a TTL re-check
+  (`ZAELAR_EMBED_RECHECK_S`, def 300s) that only fires for an AUTO-detected, DEGRADED backend — never overrides
+  an explicit `embed_provider`/`ZAELAR_EMBED_BACKEND`, never re-pings a healthy one. Three more pieces closed
+  the same audit: (1) a synchronous EXACT-text dedup in `writer.insert_memory()` (new `idx_mem_text_lower`
+  index) — the hourly `consolidator.dedup()` window let two turns seconds apart both stay `valid=1` for the
+  literal same sentence; (2) `rem.py::synthesize()` now calls new `writer.demote_summarized()` after writing a
+  concept's insight — multiplies the source pills' `weight` (floor 0.05, never touches `pinned`) and stamps
+  `meta.summarized_by`, **never invalidates/deletes** (history stays intact) — REM was pure ADDITION before,
+  never retiring what it just summarized; (3) `repair_embeddings()`'s daily budget raised from a flat 200 to a
+  configurable 1000 (`§memory.rem_repair_limit`) — a zero-cost local job with no documented reason to be that
+  low. Deliberately left alone: no hard importance-threshold discard at write time (this session's failure mode
+  was over-writing, not data loss), no slot-registry expansion (the 4 separate pills about one relative's
+  hospitalization are genuinely distinct facts, not the exact-duplicate bug), no per-kind decay tuning (the
+  50k-row evict threshold isn't even close to firing yet), no hard-delete of superseded `note` rows (would
+  reopen the 2026-07-19 P2-6 "never delete history" invariant). Tests: `test_writer_dedup.py` (new),
+  `test_embeddings.py`/`test_rem.py`/`test_memory_agent.py` extended — 322 passed via
+  `pytest tests/memory/ nucleo/`, 312 passed via `python -m tests run memory --no-open`.
 
 ## Testing y rueda de mejora (INI-013)
 

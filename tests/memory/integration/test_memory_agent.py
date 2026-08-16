@@ -228,6 +228,58 @@ def test_ingest_utterance_respects_llm_discard(fresh_db, monkeypatch):
     assert res["atoms"] == 0
 
 
+def test_ingest_utterance_retries_once_before_heuristic(fresh_db, monkeypatch):
+    """V2-103 (2026-08-16): un hipo transitorio del CORAZÓN no debe degradar directo a la heurística — un solo
+    reintento (off-hot-path) protege contra el blip que produjo fragmentos crudos en una sesión real. Si el
+    reintento SÍ responde, se usan sus píldoras, no la heurística."""
+    monkeypatch.setenv("MEM_PROCESSOR", "1")
+    calls = {"n": 0}
+
+    async def flaky_process(text, *, state=None):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("blip transitorio de red")
+        return [{"text": "El operador se llama Ramón.", "dest": "state", "kind": "profile",
+                 "importance": 0.95, "ttl_days": None, "slot": "operator.name",
+                 "state_patch": {"operator_name": "Ramón"}}]
+
+    from nucleo import mem_processor
+    monkeypatch.setattr(mem_processor, "process", flaky_process)
+    res = asyncio.run(memory_agent.ingest_utterance("me llamo Ramón"))
+    assert calls["n"] == 2
+    assert res["source"] == "llm"                    # el reintento ganó, NO cayó a la heurística
+
+
+def test_ingest_utterance_falls_back_after_retry_also_fails(fresh_db, monkeypatch):
+    monkeypatch.setenv("MEM_PROCESSOR", "1")
+    calls = {"n": 0}
+
+    async def always_fails(text, *, state=None):
+        calls["n"] += 1
+        raise RuntimeError("caído de verdad")
+
+    from nucleo import mem_processor
+    monkeypatch.setattr(mem_processor, "process", always_fails)
+    res = asyncio.run(memory_agent.ingest_utterance("Vamos a ver, aquí hay un problema grave."))
+    assert calls["n"] == 2                            # intentó + reintentó, los dos fallaron
+    assert res["source"] in ("heuristic", "heuristic-demoted", "discard")   # cae a la heurística, como antes
+
+
+def test_ingest_utterance_no_retry_when_processor_disabled(fresh_db, monkeypatch):
+    # MEM_PROCESSOR=0 (el default del fixture): se llama UNA vez (process() decide internamente que está
+    # apagado) pero `enabled()` en False descarta el reintento — no tiene sentido reintentar algo apagado.
+    calls = {"n": 0}
+
+    async def counting_process(text, *, state=None):
+        calls["n"] += 1
+        return None
+
+    from nucleo import mem_processor
+    monkeypatch.setattr(mem_processor, "process", counting_process)
+    asyncio.run(memory_agent.ingest_utterance("cualquier frase"))
+    assert calls["n"] == 1    # UNA llamada, sin reintento (`enabled()` es False)
+
+
 def test_ingest_utterance_uses_llm_atoms_when_processor_on(fresh_db, monkeypatch):
     """Con el procesador LLM ON (mockeado), ingest_utterance escribe las PÍLDORAS que devuelve, no la heurística."""
     monkeypatch.setenv("MEM_PROCESSOR", "1")

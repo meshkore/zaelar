@@ -46,10 +46,21 @@ def _warn_if_degraded(backend: str, forced: bool) -> None:
                        "miles de recuerdos, T176). Recomendado: Ollama + embeddinggemma.", backend, src)
 
 
-# ── backend activo (resuelto una vez) ──────────────────────────────────────────────────────────────────────
+# ── backend activo (resuelto una vez, con re-intento si quedó DEGRADADO) ──────────────────────────────────────
 _backend: str | None = None      # 'ollama' | 'fastembed' | 'hash'
 _fastembed_model = None
 _active_dim: int | None = None   # dim del modelo ACTIVO (V2-031: provider-driven, ya no fijo a 768)
+_resolved_at: float = 0.0        # cuándo se resolvió `_backend` por última vez (para el re-intento)
+_forced: bool = False            # True = vino de config/env explícito → nunca se re-intenta (respeta al operador)
+
+# V2-103 (2026-08-16): un hipo TRANSITORIO de Ollama justo al arrancar el proceso resolvía `_backend` a
+# 'fastembed'/'hash' y lo dejaba CACHEADO ahí toda la vida del proceso (auditoría en vivo: dos hechos idénticos
+# duplicados porque el dedup semántico —solo calibrado para 'ollama'— y la reparación nocturna de vectores
+# —autoexcluida por firma discordante— quedaron apagados durante toda la sesión aunque Ollama se recuperase
+# segundos después). Solo se re-intenta si la resolución fue AUTOMÁTICA (nunca pisa un `embed_provider`/
+# `ZAELAR_EMBED_BACKEND` explícito) y el backend actual está DEGRADADO (≠ 'ollama') — un backend sano no genera
+# tráfico extra a Ollama en cada inserción.
+_BACKEND_RECHECK_S = float(os.getenv("ZAELAR_EMBED_RECHECK_S", "300"))
 
 # Dim conocida por modelo (evita una probe de red). Substring-match sobre el nombre. Los desconocidos se resuelven
 # por la longitud REAL del primer vector. embeddinggemma/nomic=768; la familia SOTA multilingüe de 1024 (bge-m3,
@@ -165,9 +176,16 @@ def _l2_normalize(vec: list[float]) -> list[float]:
 
 
 def _resolve_backend():
-    global _backend
+    global _backend, _resolved_at, _forced
+    import time as _t
     if _backend is not None:
-        return
+        # Re-intento (V2-103): solo si la resolución fue AUTOMÁTICA, el backend actual está DEGRADADO (no
+        # 'ollama') y ya pasó el TTL — nunca pisa una elección explícita, nunca re-sondea un backend sano.
+        if _forced or _backend == "ollama":
+            return
+        if (_t.time() - _resolved_at) < _BACKEND_RECHECK_S:
+            return
+        # cae al re-sondeo de abajo (no retornamos)
     # store (UI, sección `memory.embed_provider`) > env `ZAELAR_EMBED_BACKEND` > autodetección. 'ollama' (default)
     # es local; los proveedores cloud (voyage/openai) se enchufan aquí sin tocar el resto (V2-030).
     forced = (str(_mem_cfg().get("embed_provider") or "").strip()
@@ -176,14 +194,21 @@ def _resolve_backend():
         forced = None                               # 'auto' = autodetección (ollama→fastembed→hash), no forzar
     if forced:
         _backend = forced
+        _forced = True
+        _resolved_at = _t.time()
         _warn_if_degraded(_backend, forced=True)
         return
+    _forced = False
+    prev = _backend
     if _ollama_embed(["ping"]) is not None:
         _backend = "ollama"
     elif _fastembed_embed(["ping"]) is not None:
         _backend = "fastembed"
     else:
         _backend = "hash"
+    _resolved_at = _t.time()
+    if prev is not None and prev != _backend:
+        logger.info("memoria: backend de embeddings pasó de '%s' a '%s' tras re-intento", prev, _backend)
     _warn_if_degraded(_backend, forced=False)
 
 
@@ -195,10 +220,12 @@ def active_backend() -> str:
 
 def reset():
     """Olvida el backend resuelto (tests que cambian env)."""
-    global _backend, _fastembed_model, _active_dim
+    global _backend, _fastembed_model, _active_dim, _resolved_at, _forced
     _backend = None
     _fastembed_model = None
     _active_dim = None
+    _resolved_at = 0.0
+    _forced = False
 
 
 def _active_model_name() -> str:

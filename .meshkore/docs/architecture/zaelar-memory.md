@@ -441,17 +441,28 @@ fallo no tumba el sueño):
 
 1. **`repair_embeddings()`** — re-embebe píldoras SIN vector o marcadas `meta.embed_pending` (las deja así el
    enforcement de firma del writer ante modelo discordante/degradado) → el índice semántico se **auto-repara** cada
-   noche.
+   noche. Presupuesto configurable (**`§memory.rem_repair_limit` / `ZAELAR_REM_REPAIR_LIMIT`, def 1.000/sueño** —
+   V2-103, subido del tope fijo de 200 que no vaciaba un backlog de varios cientos en tiempo razonable; es un job
+   100% local sin coste, sin LLM).
 2. **`semantic_dedup()`** — dedup por SIGNIFICADO (coseno sobre los vectores ya calculados, **sin LLM**; umbral
    0.86 CALIBRADO contra la BD real + **guarda de cifras en conflicto**: dos hechos con números/fechas distintos
    jamás se fusionan): los ecos-paráfrasis de una misma tarea ("cita ITV el 23" × 8) colapsan en 1 — transfiere
    aristas, invalida el resto con `valid=0 + superseded_by` (histórico intacto). Era el pendiente declarado de V2-013.
+   **Complementado (V2-103) por un dedup EXACTO SÍNCRONO en la propia escritura** (`writer.insert_memory`,
+   `LOWER(text)=LOWER(?)` sobre las vigentes sin slot) — el dedup exacto del consolidador solo corría cada hora,
+   ventana suficiente para que el mismo hecho literal, dicho dos turnos seguidos, quedara duplicado (auditoría en
+   vivo: "Su suegro se llama Pedro." insertado 2 veces, 3s aparte, ambas `valid=1`).
 3. **`synthesize(hook)`** — la única fase con LLM, **INYECTADA por el llamador** (la memoria NO importa cerebros;
    el loop cablea `nucleo/memllm.synthesize_concept_groups`, mismo patrón que `summarize_fn`): agrupa durables por
    **CONCEPTO** (grafo `edges`) y destila **1 INSIGHT de alto nivel por grupo** (`kind='insight'`,
    **`slot=insight:<concepto>`** → se REESCRIBE en cada sueño, no se acumula). Convierte 30 hechos sueltos en "lo
    que zaelar SABE de ti" (la reflexión de Generative Agents / sleep-time compute). Hook fail-open (`[]` = sin
-   insights, el sueño sigue).
+   insights, el sueño sigue). **Ya no es pura ADICIÓN (V2-103):** tras escribir el insight, llama a
+   `writer.demote_summarized(ids, insight_id)` sobre las píldoras crudas que lo alimentaron — multiplica su
+   `weight` (factor 0.6, suelo 0.05, nunca toca `pinned`) y estampa `meta.summarized_by`, **sin invalidar ni
+   borrar nada** (el histórico se conserva intacto, igual que siempre). Es la mitad que faltaba de "REM como
+   sueño que consolida": antes el insight se apilaba ENCIMA de las píldoras crudas, que seguían compitiendo a
+   peso completo para siempre.
 4. **`hygiene()`** — el chequeo del día: **% de escritura heurística en 24h → ALERTA si >50%** (un CORAZÓN caído
    debe SALTAR, no otra vez 2 días en silencio — incidente 2026-07-17/19), `embed_pending` restantes, tamaños. El
    informe vuelve al llamador (el loop decide alertar) y se emite por el bus (`memory.rem`).

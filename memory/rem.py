@@ -78,10 +78,30 @@ def due(now: int | None = None) -> bool:
     return (now - int(float(last))) >= every_s()
 
 
+def _repair_limit_default() -> int:
+    """Presupuesto de reparación por sueño — configurable (§memory.rem_repair_limit, mismo patrón que
+    `rem_every_hours`). Es un job 100% local (Ollama/fastembed, sin LLM, sin coste) — 200/día no vaciaba una
+    cola de varios cientos en tiempo razonable (V2-103, auditoría 2026-08-16: 51,6% de la memoria válida sin
+    vector). Sin config, 1000/sueño."""
+    env = os.getenv("ZAELAR_REM_REPAIR_LIMIT")
+    if env:
+        try:
+            return max(1, int(env))
+        except ValueError:
+            pass
+    try:
+        from config import v2 as _v2
+        return max(1, int((_v2.get("memory") or {}).get("rem_repair_limit") or 1000))
+    except Exception:
+        return 1000
+
+
 # ── fase 1 · reparación de vectores ─────────────────────────────────────────────────────────────────────────
-def repair_embeddings(limit: int = 200) -> int:
+def repair_embeddings(limit: int | None = None) -> int:
     """Re-embebe píldoras válidas sin vector (o `meta.embed_pending`). Solo si la firma del backend activo casa
     con el índice (jamás repara metiendo vectores de otro espacio). Devuelve nº reparadas."""
+    if limit is None:
+        limit = _repair_limit_default()
     db = _db.get_db()
     if not db.vec_available or not _writer._embed_sig_ok():
         return 0
@@ -200,7 +220,9 @@ def _concept_groups(min_group: int = MIN_GROUP, max_groups: int = MAX_GROUPS) ->
     out = [g for g in groups.values() if len(g["pills"]) >= min_group]
     out.sort(key=lambda g: -len(g["pills"]))
     for g in out:
-        g.pop("_ids", None)
+        # V2-103: antes se descartaban — `synthesize()` las necesita para DEMOTAR las píldoras crudas que
+        # alimentaron el insight (ver `writer.demote_summarized`), no solo escribirlo encima de ellas.
+        g["ids"] = sorted(g.pop("_ids", set()))
     return out[:max_groups]
 
 
@@ -235,13 +257,20 @@ def synthesize(synthesize_fn, min_group: int = MIN_GROUP) -> int:
         if not concept or not insight or len(insight) < 12:
             continue
         try:
-            _writer.insert_memory(
+            insight_id = _writer.insert_memory(
                 insight, level="long", kind="insight", importance=0.65,
                 slot=f"insight:{concept}",
                 meta={"source": "rem", "concept": concept},
                 concepts=[concept],
             )
             written += 1
+            # V2-103: REM debe RETIRAR lo que resume, no solo añadir encima — demota (nunca invalida/borra) las
+            # píldoras crudas de este grupo para que dejen de competir a peso completo con el insight que las
+            # suplanta. Se busca el grupo por concepto (no se arrastra el `ids` de fuera del bucle de resultados
+            # porque `results` viene del hook, no de `groups` — empareja por texto de concepto).
+            src = next((g for g in groups if g["concept"] == concept), None)
+            if src and src.get("ids"):
+                _writer.demote_summarized(src["ids"], insight_id)
         except Exception:
             continue
     return written

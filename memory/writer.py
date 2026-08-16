@@ -192,6 +192,26 @@ def insert_memory(
                 return keep
             prev_ids = [int(r["id"]) for r in rows]   # dato cambió → superseder TODOS los vigentes tras insertar
 
+    # DEDUP EXACTO en la escritura (V2-103, 2026-08-16): durable + SIN slot → si el MISMO texto (normalizado por
+    # mayúsculas) ya está vigente, refuerza en vez de duplicar. Antes solo existía cada hora en
+    # `consolidator.dedup()` — la ventana de una hora dejaba pasar duplicados literales del mismo hecho escritos
+    # segundos aparte (auditoría en vivo: "Su suegro se llama Pedro." insertado dos veces, 3s de diferencia,
+    # ambas filas `valid=1`). Independiente del backend de embeddings (nunca falla en silencio si Ollama está
+    # degradado) — defensa en profundidad respecto del dedup SEMÁNTICO de abajo, que sigue cubriendo las
+    # paráfrasis. `conv` queda fuera a propósito: el buffer conversacional debe poder repetir texto literal
+    # ("sí", "vale") sin colapsar.
+    if not slot and kind != "conv":
+        exact = db.query_one(
+            "SELECT id FROM memories WHERE valid=1 AND kind != 'conv' AND LOWER(text)=LOWER(?) "
+            "ORDER BY id DESC LIMIT 1",
+            (text,),
+        )
+        if exact is not None:
+            dup_id = int(exact["id"])
+            reinforce([dup_id])
+            _link_concepts(db, dup_id, concepts, level, kind)
+            return dup_id
+
     # DEDUP SEMÁNTICO (T125): durable + SIN slot → si ya existe un recuerdo casi idéntico por SIGNIFICADO,
     # refuerza en vez de duplicar ("me llamo Ricard" = "soy Ricard" = "Ricard"). Reutiliza el embedding calculado.
     if not slot and level in ("mid", "long") and db.vec_available and _semantic_dedup_on():
@@ -398,6 +418,38 @@ def set_pinned(mid: int, pinned: bool) -> None:
     )
 
 
+def demote_summarized(ids: list[int], insight_id: int, factor: float = 0.6, floor: float = 0.05) -> int:
+    """REM (V2-103) resume un grupo de píldoras en UN insight — hasta ahora eso era pura ADICIÓN: el insight se
+    escribía y las píldoras crudas que lo alimentaron seguían compitiendo a peso completo para siempre. Esta es
+    la mitad que faltaba de "REM como sueño que consolida" (no solo apila un resumen encima): multiplica su
+    `weight` por `factor` (con suelo `floor`, nunca additive/`reinforce` — y sin tocar `access_count`/
+    `last_access`, así el decay natural sigue corriendo desde donde ya estaba) y estampa `meta.summarized_by`.
+    **NUNCA invalida ni borra** — `valid`/`superseded_by` intactos, el histórico se conserva igual que siempre;
+    solo deja de pesar tanto como el insight que las suplanta. `pinned` nunca se toca. Devuelve nº demotadas."""
+    if not ids:
+        return 0
+    db = _db.get_db()
+    now = _now()
+    done = 0
+    with db.cursor() as cur:
+        for mid in ids:
+            row = cur.execute("SELECT weight, pinned, meta FROM memories WHERE id=?", (int(mid),)).fetchone()
+            if row is None or row["pinned"]:
+                continue
+            new_weight = max(float(floor), float(row["weight"]) * float(factor))
+            try:
+                meta = json.loads(row["meta"] or "{}")
+            except Exception:
+                meta = {}
+            meta["summarized_by"] = int(insight_id)
+            cur.execute(
+                "UPDATE memories SET weight=?, meta=?, updated=? WHERE id=?",
+                (new_weight, json.dumps(meta, ensure_ascii=False), now, int(mid)),
+            )
+            done += 1
+    return done
+
+
 def supersede(old_id: int, new_id: int) -> None:
     """Marca un recuerdo como superado por otro (conflicto temporal; el consolidador también lo usa)."""
     db = _db.get_db()
@@ -446,4 +498,5 @@ OPS = {
     "unpin": lambda mid: set_pinned(mid, False),
     "supersede": supersede,
     "delete": delete_memory,
+    "demote_summarized": demote_summarized,
 }

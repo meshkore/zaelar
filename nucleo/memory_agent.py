@@ -1089,6 +1089,18 @@ async def _ingest_utterance_locked(text: str, *, role: str = "operator") -> dict
         except Exception as e:  # noqa: BLE001
             logger.debug(f"memory_agent: procesador LLM falló ({e}); caigo a la heurística")
             atoms = None
+        # V2-103 (2026-08-16): `process()` NUNCA lanza — devuelve `None` internamente ante un hipo de red/API
+        # del CORAZÓN, indistinguible aquí de "apagado a propósito". Un solo reintento (off-hot-path, no cuesta
+        # latencia percibida de voz) protege contra el blip transitorio que esta noche produjo 2 fragmentos
+        # crudos vía heurística en una sesión real. Si sigue desactivado (`enabled()` sigue False) o el segundo
+        # intento también falla, cae a la heurística exactamente como antes.
+        if atoms is None and mem_processor.enabled():
+            await asyncio.sleep(0.4)
+            try:
+                atoms = await mem_processor.process(t, state=st)
+            except Exception as e:  # noqa: BLE001
+                logger.debug(f"memory_agent: reintento del procesador LLM también falló ({e}); caigo a la heurística")
+                atoms = None
 
     if atoms is not None:                       # el LLM CORRIÓ (aunque haya devuelto [])
         for a in atoms:

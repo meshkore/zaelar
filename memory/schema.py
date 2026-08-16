@@ -62,6 +62,9 @@ MEMORIES_INDEXES = [
     "CREATE INDEX IF NOT EXISTS idx_mem_pinned  ON memories(pinned)",
     "CREATE INDEX IF NOT EXISTS idx_mem_weight  ON memories(weight)",
     "CREATE INDEX IF NOT EXISTS idx_mem_access  ON memories(last_access)",
+    # V2-103: soporta el dedup EXACTO síncrono en `writer.insert_memory` (LOWER(text)=LOWER(?), filas sin slot) —
+    # no depende de ninguna columna v2, va en BASE_DDL como los demás.
+    "CREATE INDEX IF NOT EXISTS idx_mem_text_lower ON memories(LOWER(text))",
 ]
 
 # Migraciones ALTER idempotentes por columna (v1→v2). `db.py` las aplica: añade la columna solo si falta (SQLite

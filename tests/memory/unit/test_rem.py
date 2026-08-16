@@ -88,6 +88,56 @@ def test_synthesize_failopen_without_hook(fresh_db):
     assert memrem.synthesize(None) == 0
 
 
+def test_synthesize_demotes_source_pills_without_invalidating(fresh_db):
+    # V2-103: REM debe RETIRAR lo que resume (demotar peso), no solo añadir el insight encima — las píldoras
+    # crudas siguen `valid=1` (histórico intacto) pero dejan de pesar tanto como el insight que las suplanta.
+    ids = [memwriter.insert_memory(t, level="mid", kind="fact", weight=0.8, concepts=["musica"])
+           for t in ["escuchó a Mocedades por la tarde", "escuchó a Serrat mientras trabajaba",
+                     "pidió música de los ochenta", "sonó Tómame o Déjame en YouTube"]]
+
+    def hook(groups):
+        return [{"concept": "musica", "insight": "Le gusta la música española clásica."}]
+
+    assert memrem.synthesize(hook, min_group=4) == 1
+    db = memdb.get_db()
+    insight = db.query_one("SELECT id FROM memories WHERE slot='insight:musica' AND valid=1")
+    for mid in ids:
+        row = db.query_one("SELECT valid, weight, meta FROM memories WHERE id=?", (mid,))
+        assert row["valid"] == 1                      # nunca se invalida ni se borra
+        assert row["weight"] < 0.8                     # pero pesa menos que antes
+        assert f'"summarized_by": {insight["id"]}' in (row["meta"] or "")
+
+
+def test_synthesize_never_demotes_pinned(fresh_db):
+    pinned_id = memwriter.insert_memory("hecho pinneado sobre música", level="long", kind="fact",
+                                        weight=0.9, pinned=True, concepts=["musica"])
+    for t in ["escuchó a Mocedades", "escuchó a Serrat", "música de los ochenta"]:
+        memwriter.insert_memory(t, level="mid", kind="fact", weight=0.8, concepts=["musica"])
+
+    def hook(groups):
+        return [{"concept": "musica", "insight": "Le gusta la música española clásica."}]
+
+    memrem.synthesize(hook, min_group=4)
+    db = memdb.get_db()
+    row = db.query_one("SELECT weight, meta FROM memories WHERE id=?", (pinned_id,))
+    assert row["weight"] == 0.9
+    assert "summarized_by" not in (row["meta"] or "")
+
+
+def test_repair_embeddings_limit_configurable(fresh_db, monkeypatch):
+    monkeypatch.setenv("ZAELAR_REM_REPAIR_LIMIT", "3")
+    for i in range(5):
+        memwriter.insert_memory(f"dato sin vector {i}", level="mid", kind="fact")
+    db = memdb.get_db()
+    db.execute("DELETE FROM vec_memories")   # simula backlog: todas sin vector
+    fixed = memrem.repair_embeddings()       # sin `limit=` explícito → usa el default configurable
+    assert fixed == 3
+
+
+def test_repair_embeddings_default_raised_from_200(fresh_db):
+    assert memrem._repair_limit_default() >= 1000
+
+
 def test_hygiene_alerts_on_heuristic_flood(fresh_db):
     for i in range(12):
         memwriter.insert_memory(f"crudo {i}", level="mid", kind="fact",

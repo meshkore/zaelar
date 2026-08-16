@@ -12,9 +12,10 @@ import subprocess
 import time
 
 # Semantic version of the engine — bump it by hand when closing a notable block of changes (latest:
-# turn-completeness judge, V2-102 — a fast LLM replaces "hold an ambiguous fragment forever" with
-# act/ask/keep-waiting, fixing a real silent-drop bug and an adjacent Energy-metering gap).
-VERSION = "3.11"
+# memory write/REM self-healing, V2-103 — the embedding backend no longer stays degraded for a process's whole
+# life after one transient Ollama hiccup, exact-duplicate pills are caught synchronously at write time, and REM
+# now demotes the raw pills it summarizes instead of only ever adding an insight on top of them).
+VERSION = "3.12"
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 _CACHE: dict = {}
