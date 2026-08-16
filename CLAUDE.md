@@ -1537,6 +1537,42 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     abandonado, el heartbeat de cluster decide silencio/nudge/concluir: todo eso es **vigilancia y limpieza de
     trabajo existente**, la categoría que SÍ le corresponde al pulso. Lo que no puede hacer es que esa
     vigilancia se disfrace de una tarea nueva en la observabilidad.
+- **`voice.trace.active()` — un puntero EXPLÍCITO para eventos que el ContextVar nunca puede ver (2026-08-16,
+  norma del operador: "arréglalo en el flash brain... donde se generan los eventos, siempre debemos relacionar
+  los eventos con la tarea")**. Auditando una sesión real (una conversación entera sobre conectores WhatsApp/
+  Telegram/Gmail) salió que la MAYORÍA de eventos de `voice/engine/pipeline/agent.py` llegaban SIN corr_id: de 17
+  `transcript`, 13 sin trace; `vad`, 0 de 14. Causa confirmada contra el código fuente de livekit-agents 1.6.6
+  (no una hipótesis): esos handlers (`_on_transcript`, `_on_item`, `on_state_change`, `_on_user_state`,
+  `_on_metrics`) corren en tareas de LiveKit que son **HERMANAS**, nunca descendientes, de la tarea donde
+  `NucleoLLMStream._run_inner` fija el trace (`nucleo.py::_begin_or_adopt_trace`) — `asyncio.create_task` copia
+  el ContextVar solo hacia HIJOS, así que ningún ajuste de propagación arregla esto: es cómo funciona
+  `contextvars`, no un fallo.
+  - **`voice/trace.py::active()`** (nuevo): un puntero módulo-level, NO ContextVar, que `begin()`/`adopt()`/
+    `scope()` mantienen al día y que esos handlers leen EXPLÍCITAMENTE. Caduca solo (3s por defecto) — pasado
+    eso cae al trace **GENERAL de la sesión** (`_general`, fijado por el `kickoff`), nunca a "sin traza": es
+    literalmente el "se atribuye a la charla general, bienvenida, etc" que pidió el operador para lo que no
+    tiene tarea propia, acotado en el tiempo para no reabrir un flujo que ya cerró con actividad fantasma
+    (mismo cuidado que `_maybe_close_flow`/`drain_pending_flow_closes`, arreglado el mismo día). `cluster`/
+    `pulso` (otro subsistema, mismo proceso) NUNCA tocan `_active` — si lo hicieran, un tick del puente MeshKore
+    le colgaría sus eventos al pipeline de voz.
+  - **NO todos los emisores son seguros de etiquetar** — la mitad de esta auditoría fue decidir cuáles. Un
+    evento es seguro si describe algo sobre un trace que **YA EXISTE** (TTS sonando para texto que el turno ya
+    generó, un barge-in que interrumpe una locución en marcha, el item del asistente añadido tras la cadena
+    LLM+TTS, los estados `speaking`/`listening`/`interrupted`) — se les pasa `extra={"trace": trace.active()}`.
+    Es INSEGURO si el evento **PRECEDE** al trace del turno que va a disparar (el transcript FINAL del operador,
+    "voz detectada", "fin de voz", `STTMetrics`, los estados `thinking`/`idle`) — forzar `active()` ahí le
+    pegaría el trace de la conversación ANTERIOR más a menudo que el correcto, peor que no llevar ninguno.
+    Fijado en `tests/voice/unit/test_agent_trace_source_guards.py` (guardas de fuente, mismo patrón que
+    `test_lead_in.py`: montar la sesión real exige media pila de LiveKit).
+  - **Lo que esto NO arregla, a propósito**: el transcript del operador y sus primos siguen sin trace de
+    escritura. Ahí gana la LECTURA (`cloud/backoffice/src/flowAttribution.js::attributeOrphans`, mismo día): mira
+    AMBOS lados de la ventana temporal de cada flujo y atribuye el huérfano al más cercano — más preciso que
+    cualquier heurística de escritura que solo puede mirar hacia atrás. Las dos piezas son complementarias, no
+    redundantes: escritura para lo que puede saberse bien en el momento, lectura para lo que estructuralmente no.
+  - **Derivar una tarea nueva sigue siendo SOLO al abrir un turno real** (norma de arriba): un worker spawneado
+    (`nucleo/dispatch.py`) hereda el trace del turno que lo lanzó, nunca mintea uno propio — es la MISMA gestión,
+    no una tarea aparte. Si algún día hace falta que una derivada compleja tenga su PROPIO trace (el operador lo
+    mencionó como posible), es una decisión de producto pendiente de confirmar con un caso real, no aplicada aquí.
 - **Seguridad del canal de cluster** (`connectors/meshkore/security.py` + `bridge.py`): el cluster habla con agentes
   externos **no confiables**. Controles DUROS, no solo prompts (detalle en `zaelar-security.md`):
   - El **canal lo conduce el motor del FlashBrain en perfil UNTRUSTED** (V2-069): **tools APAGADAS en código**

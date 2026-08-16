@@ -60,3 +60,50 @@ def test_no_trace_no_field():
     trace.adopt("")
     ev = observer.emit("brain", "sin-traza")
     assert "trace" not in ev
+
+
+# ── active() — el trace para lectores que NO pueden heredar el ContextVar (2026-08-16) ────────────────────────────
+# Auditoría de fuente real: los handlers de `voice/engine/pipeline/agent.py` (estado, VAD, métricas TTS/STT, el
+# transcript de zaelar) corren en tareas HERMANAS de la que fija el trace del turno — nunca lo ven por el
+# ContextVar, sea cual sea el orden temporal real (confirmado contra livekit-agents 1.6.6). `active()` es el
+# puntero explícito que arregla justo eso.
+def test_active_reflects_the_most_recently_begun_trace():
+    tid = trace.begin("hola", origin="turno")
+    assert trace.active() == tid
+    trace.adopt("")
+
+
+def test_active_reflects_an_adopted_trace_too():
+    trace.begin("x", origin="turno")
+    trace.adopt("T5·zzzz", span="worker:1")
+    assert trace.active() == "T5·zzzz"
+    trace.adopt("")
+
+
+def test_a_kickoff_becomes_the_sessions_general_fallback():
+    tid = trace.begin("motor arrancado", origin="kickoff")
+    trace.adopt("")   # el ContextVar se limpia (fin del turno de kickoff)…
+    assert trace.current() == ""
+    assert trace.active() == tid, "…pero active() sigue apuntando al kickoff mientras no haya nada más reciente"
+
+
+def test_active_expires_and_falls_back_to_general_not_a_stale_turn():
+    """Un evento que llega mucho después de que el último trace se fijara no puede colgarse de un turno que
+    probablemente ya cerró — reabriría en el master un flujo "cerrado" con actividad fantasma."""
+    kickoff = trace.begin("motor arrancado", origin="kickoff")
+    tid = trace.begin("hola", origin="turno")
+    assert trace.active() == tid
+    trace._active_at -= 10   # simula que pasaron 10s desde ese begin(), sin dormir de verdad
+    assert trace.active() == kickoff
+    assert trace.active(max_age_s=60) == tid, "el margen es configurable — con uno más ancho sigue siendo válido"
+
+
+def test_cluster_and_pulso_origins_never_touch_active():
+    """El puente MeshKore (connectors/meshkore/bridge.py) corre en el MISMO proceso y también llama begin() — si
+    tocara active(), un tick de cluster le colgaría sus eventos al pipeline de VOZ (VAD/TTS/estado) del trace de
+    una conversación de cluster que no tiene nada que ver."""
+    tid = trace.begin("hola", origin="turno")
+    trace.begin("[cluster:x] evento", origin="cluster")
+    trace.begin("[cluster:x] heartbeat", origin="pulso")
+    assert trace.active() == tid
+    trace.adopt("")

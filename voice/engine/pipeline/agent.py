@@ -220,13 +220,29 @@ async def entrypoint(ctx: JobContext) -> None:
 
     _busy = {"bot": False, "user": False}   # feeds the proactive busy-probe (don't talk over a live turn)
 
+    # Estados cuyo trace es SEGURO leer de active() (2026-08-16, auditoría de fuente): "speaking"/"listening"/
+    # "interrupted" describen algo sobre un turno que YA tiene trace (TTS solo arranca una vez hay texto que
+    # generó ESE turno; "listening" es su cola natural; "interrupted" es el barge-in QUE INTERRUMPE esa locución).
+    # "thinking"/"idle" pueden disparar ANTES de que el turno tenga trace (LiveKit los emite desde su propia tarea
+    # de orquestación, antes de invocar el LLM) — colgarles active() les pegaría el trace del turno ANTERIOR más
+    # a menudo que el correcto, así que se dejan SIN forzar (el mismo criterio que el transcript del operador,
+    # ver el comentario de active() en voice/trace.py).
+    _STATE_TRACE_SAFE = {"speaking", "listening", "interrupted"}
+
     def on_state_change(state: State) -> None:
         logger.info("STATE -> %s", state.value)
         speaking = (getattr(state, "value", state) == "speaking")
         _busy["bot"] = speaking
+        # Este handler corre en la tarea de LiveKit del pipeline, HERMANA de la que fija el trace del turno — el
+        # ContextVar ambiente nunca lo ve (auditoría de fuente 2026-08-16, ver voice/trace.py::active()).
+        _tid = ""
+        if state.value in _STATE_TRACE_SAFE:
+            from voice import trace as _trace
+            _tid = _trace.active()
         # estado completo (initializing/thinking/listening/speaking) al log unificado + bot_speech para el orbe.
-        _emit("state", state.value, role="system", extra={"state": state.value})
-        _emit("bot_speech", "speaking" if speaking else "idle", extra={"speaking": speaking})
+        _emit("state", state.value, role="system", extra={"state": state.value, **({"trace": _tid} if _tid else {})})
+        _emit("bot_speech", "speaking" if speaking else "idle",
+              extra={"speaking": speaking, **({"trace": _tid} if _tid else {})})
         # Nada queda sonando en este instante — es el punto seguro para cerrar cualquier flujo que terminó de
         # generar texto MIENTRAS el bot todavía narraba la respuesta (operator report, 2026-08-16: el turno
         # desaparecía del master en pleno TTS). Ver `nucleo.py::_maybe_close_flow`/`drain_pending_flow_closes`.
@@ -326,8 +342,15 @@ async def entrypoint(ctx: JobContext) -> None:
         # diagnosticar "un ruido cortó la locución". Ahora se ve: voz detectada · barge-in · fin de voz.
         if new == "speaking":
             if was_bot_speaking:
+                # SOLO este caso es seguro de etiquetar con active() (auditoría de fuente 2026-08-16): un barge-in
+                # interrumpe una locución que YA tiene trace — es EL MISMO turno, no uno por nacer. "voz
+                # detectada"/"fin de voz" (abajo) preceden SIEMPRE al trace del turno que van a disparar —
+                # colgarles active() les pegaría el de la conversación ANTERIOR más a menudo que el correcto; se
+                # dejan sin forzar, igual que el transcript del operador (mismo criterio, ver voice/trace.py).
+                from voice import trace as _trace
+                _tid = _trace.active()
                 _emit("vad", "✂️ barge-in — voz pisa la locución (LiveKit corta el TTS)",
-                      role="user", extra={"over_agent": True})
+                      role="user", extra={"over_agent": True, **({"trace": _tid} if _tid else {})})
             else:
                 _emit("vad", "🎤 voz detectada (VAD)", role="user", extra={"over_agent": False})
         elif new == "listening":
@@ -399,26 +422,39 @@ async def entrypoint(ctx: JobContext) -> None:
         item = ev.item
         role, text = getattr(item, "role", None), getattr(item, "text_content", None)
         if role == "assistant" and text:
-            _emit("transcript", "zaelar", text=text, role="assistant")
+            # SEGURO de etiquetar con active() (auditoría de fuente 2026-08-16, a diferencia del transcript del
+            # OPERADOR más abajo en _on_transcript): el item del asistente se añade DESPUÉS de que la cadena
+            # LLM+TTS del turno ya corrió — su trace ya existe, no está por nacer.
+            from voice import trace as _trace
+            _tid = _trace.active()
+            _emit("transcript", "zaelar", text=text, role="assistant",
+                  extra=({"trace": _tid} if _tid else None))
 
     @session.on("agent_false_interruption")
     def _on_false_interrupt(ev) -> None:
         # Un ruido/backchannel cortó la locución pero NO era una interrupción real (ni transcripción dirigida).
         # `resumed` dice si LiveKit reanudó la locución (necesita que la salida de audio soporte pause; la sala sí).
         # Si aparece `resumed=False` de forma sistemática, ESE es el bug de "se paró todo y no siguió".
+        # SEGURO de etiquetar con active() (mismo caso que el barge-in de _on_user_state): describe algo sobre
+        # una locución que YA estaba sonando, no un turno por nacer.
+        from voice import trace as _trace
+        _tid = _trace.active()
         resumed = bool(getattr(ev, "resumed", False))
         _emit("vad", "🤫 falsa interrupción (ruido) — reanudo la locución" if resumed
               else "🤫 falsa interrupción (ruido) — NO reanudo (audio sin pause)",
-              role="system", extra={"resumed": resumed})
+              role="system", extra={"resumed": resumed, **({"trace": _tid} if _tid else {})})
 
     @session.on("overlapping_speech")
     def _on_overlap(ev) -> None:
         # Voz solapada mientras zaelar habla; el detector la clasifica interrupción vs backchannel (charla de fondo).
         # Solo dispara con el detector ML de interrupción activo; inofensivo si el turno va por VAD puro.
+        # SEGURO de etiquetar con active(), mismo motivo que arriba.
+        from voice import trace as _trace
+        _tid = _trace.active()
         is_int = bool(getattr(ev, "is_interruption", False))
         _emit("vad", "🔊 voz solapada — interrupción" if is_int
               else "🔊 voz solapada — backchannel (ignorada)",
-              role="user", extra={"is_interruption": is_int})
+              role="user", extra={"is_interruption": is_int, **({"trace": _tid} if _tid else {})})
 
     @session.on("metrics_collected")
     def _on_metrics(ev) -> None:
@@ -439,7 +475,14 @@ async def entrypoint(ctx: JobContext) -> None:
         if kind == "TTSMetrics" and SETTINGS.tts_provider != "kokoro_local":
             dur = getattr(m, "duration", None)
             if dur:
-                _emit("tts", f"🔊 {SETTINGS.tts_provider}", extra={"tts_ms": round(dur * 1000)})
+                # SEGURO de etiquetar con active() (auditoría de fuente 2026-08-16): una métrica de TTS describe
+                # audio que se sintetiza para un texto que YA generó el turno — su trace ya existe. Distinto de
+                # STTMetrics (abajo, sin tocar): esa describe reconocimiento de lo que el operador está diciendo
+                # AHORA, que casi siempre precede al trace del turno que va a disparar.
+                from voice import trace as _trace
+                _tid = _trace.active()
+                _emit("tts", f"🔊 {SETTINGS.tts_provider}", extra={"tts_ms": round(dur * 1000),
+                      **({"trace": _tid} if _tid else {})})
             from nucleo import energy_meter as _energy
             # The PROVIDER is passed, not looked up inside the meter: the rate has to follow whatever
             # backend actually produced this audio, and this hook is the only place that knows it.

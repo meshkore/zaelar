@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import contextvars
 import itertools
+import time
 import uuid
 from contextlib import contextmanager
 
@@ -30,6 +31,43 @@ from contextlib import contextmanager
 _ctx: contextvars.ContextVar[tuple[str, str]] = contextvars.ContextVar("zaelar_trace", default=("", ""))
 
 _seq = itertools.count(1)
+
+# ── `active()` — el trace vigente para quien NO PUEDE heredarlo del ContextVar (2026-08-16) ──────────────────────
+# Auditoría de fuente (operador: "arréglalo en el flash brain... donde se generan los eventos"): varios handlers
+# de `voice/engine/pipeline/agent.py` (el estado del pipeline, el VAD, las métricas de TTS/STT, el transcript del
+# propio zaelar) corren en tareas de LiveKit que son HERMANAS —nunca DESCENDIENTES— de la tarea donde
+# `NucleoLLMStream._run_inner` fija el trace del turno (confirmado contra el código fuente de livekit-agents
+# 1.6.6: `AgentActivity._pipeline_reply_task`/`AudioRecognition._stt_consumer_atask` existen ANTES de que el
+# turno empiece a procesarse). `asyncio.create_task` copia el ContextVar solo hacia HIJOS — nunca hacia una tarea
+# hermana ni hacia atrás en el tiempo — así que ningún truco de propagación arregla esto: no es un fallo, es cómo
+# funciona `contextvars` por diseño. La sesión real que lo probó: de 17 transcripciones, 13 llegaban con
+# `corr_id: null`; VAD, nunca ninguna.
+#
+# `active()` es la respuesta: un puntero EXPLÍCITO (no ContextVar), que `begin()`/`adopt()` mantienen al día, y
+# que esos handlers leen a propósito en vez de fiarse del ContextVar ambiente. Caduca solo (`max_age_s`, por
+# defecto 3s): un evento que llega mucho después de que el último trace se fijara no se le cuelga a un turno que
+# probablemente ya cerró —eso reabriría en el master un flujo "cerrado" con actividad fantasma, justo el bug que
+# `_maybe_close_flow`/`drain_pending_flow_closes` (mismo día) arreglaron por el otro lado— y cae al trace GENERAL
+# de la sesión (`_general`, fijado por el kickoff) en su lugar: "se atribuye a la charla general, bienvenida, etc"
+# es literalmente lo que pidió el operador para lo que no tiene tarea propia, no un cajón sin fondo — sigue
+# acotado en el tiempo y sigue siendo un flujo normal que algún día cierra.
+#
+# Deliberadamente NO se usa para el transcript FINAL del operador ni para sus fragmentos: ese texto es la causa
+# de que el turno empiece, así que en el instante en que se emite el trace del turno TODAVÍA no existe —
+# adjuntarle `active()` ahí le pegaría el trace del turno ANTERIOR, que es peor que no llevar ninguno. Ese caso
+# se resuelve en el master, en lectura (`cloud/backoffice/src/flowAttribution.js::attributeOrphans`), que sí
+# conoce ambos lados de la ventana temporal y por eso puede decidir bien.
+_active: str = ""
+_active_at: float = 0.0
+_general: str = ""   # el trace de "charla general" (el kickoff) — suelo de active() una vez arrancada la sesión
+
+
+def active(max_age_s: float = 3.0) -> str:
+    """El trace vigente para un lector que no puede heredarlo del ContextVar. Nunca inventa uno si la sesión
+    todavía no ha arrancado (kickoff no ha corrido) — devuelve "", igual que `current()` sin traza."""
+    if _active and (time.monotonic() - _active_at) <= max_age_s:
+        return _active
+    return _general
 
 
 def reset_seq() -> None:
@@ -45,8 +83,16 @@ def begin(text: str, origin: str = "turno") -> str:
     """Nace un trace: id corto legible (`T<seq>·<hex4>`), se fija en el contexto y se emite el EVENTO RAÍZ
     (kind="trace", root=True) con la frase/motivo que lo inicia — es la raíz del árbol en la vista Trazas.
     Llamar en el punto de ENTRADA del estímulo (turno de voz/chat, probe, cron, proactivo). Devuelve el id."""
+    global _active, _active_at, _general
     tid = f"T{next(_seq)}·{uuid.uuid4().hex[:4]}"
     _ctx.set((tid, ""))
+    # `cluster`/`pulso` son OTRO subsistema (el puente MeshKore, connectors/meshkore/bridge.py) corriendo en el
+    # mismo proceso — dejarlos tocar `_active` colgaría eventos del pipeline de VOZ (VAD, TTS, estado) del trace
+    # de una conversación de cluster que no tiene nada que ver, la próxima vez que ese puente hiciera un tick.
+    if origin not in ("cluster", "pulso"):
+        _active, _active_at = tid, time.monotonic()
+        if origin == "kickoff":
+            _general = tid
     try:
         from voice.observer import emit
         # Cluster mesh housekeeping (peer heartbeat nudges, `connectors/meshkore/bridge.py`) is background
@@ -80,14 +126,22 @@ def current_span() -> str:
 def adopt(tid: str, span: str = "") -> None:
     """Re-unirse a un trace desde OTRO contexto (loop del server, hilo del writer, handler HTTP de un CLI puente).
     `span` etiqueta el ACTOR ('worker:5', 'web:t2', 'memoria'…) para el nivel 2 del árbol. Best-effort."""
-    _ctx.set(((tid or "").strip(), (span or "").strip()))
+    tid = (tid or "").strip()
+    _ctx.set((tid, (span or "").strip()))
+    if tid:
+        global _active, _active_at
+        _active, _active_at = tid, time.monotonic()
 
 
 @contextmanager
 def scope(tid: str, span: str = ""):
     """`with trace.scope(tid, 'memoria'): …` — adopta el trace SOLO durante el bloque (hilos que procesan items
     de distintas trazas en bucle, como el writer de la cola de memoria)."""
-    tok = _ctx.set(((tid or "").strip(), (span or "").strip()))
+    tid = (tid or "").strip()
+    if tid:
+        global _active, _active_at
+        _active, _active_at = tid, time.monotonic()
+    tok = _ctx.set((tid, (span or "").strip()))
     try:
         yield
     finally:
