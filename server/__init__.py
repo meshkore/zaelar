@@ -55,6 +55,19 @@ async def _lifespan(app: FastAPI):
     # anything else in this body.
     _first_lifespan_entry = not getattr(app.state, "_bridges_mounted", False)
     app.state._bridges_mounted = True
+    # LOCAL install identity (observability/identity.py) — explicit INIT, not lazy-on-first-event (operator
+    # ask, 2026-08-16): a fresh self-hosted install used to get its UUID4 the first time ANY code happened to
+    # call user_id() (an event emit, a session report…) — it worked, but the id stayed invisible until
+    # something incidental triggered it. Calling it here, once, guarantees config/identity.json exists and is
+    # logged the moment the server comes up, matching the explicitness a cloud Machine already gets for free
+    # (its ZAELAR_USER_ID arrives pre-set by the provisioner). On a cloud Machine this just confirms the
+    # override (cloud_account.my_user_id()) resolves — user_id() already prefers it over the local file.
+    if _first_lifespan_entry:
+        try:
+            from observability import identity as _identity
+            logger.info(f"Installation identity — user_id={_identity.user_id()}")
+        except Exception as e:
+            logger.warning(f"identity init failed (non-fatal): {e}")
     # v2 «Colmena» — Sistema Nervioso (bus/, V2-001). Mount the durable event log's LIFECYCLE here (attach at
     # boot, detach+close at shutdown). The bus pub/sub itself is in-memory and needs no "start"; voice/observer
     # already fans out through it (bus/sse.py) with NO new subscribers wired here — the voice hot path is

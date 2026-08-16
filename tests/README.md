@@ -235,6 +235,15 @@ engine bug; correlate the transcript, `/events`, actions and judge report first.
   password, passphrase, authorization, cookie, api_key or secret are redacted, but callers remain responsible for
   not embedding credentials inside arbitrary text.
 - Live connectors or purchases/messages require explicit authorization and test accounts.
+- **Every suite here targets a LOCAL engine** (`127.0.0.1:43917`/`8765`) with an isolated DB (fixture `tmp_path`,
+  or a dedicated fixture/timeline DB per the sections above) — never a deployed cloud account. An install's
+  identity in these runs is a throwaway id scoped to that isolated DB, generated the same lazy way a fresh
+  self-hosted install would (`observability.identity.user_id()`); it never reaches any shared/central system,
+  so it needs no special marker.
+- Verifying a change against a real DEPLOYED cloud environment (not this local harness) is a different activity
+  with a different identity boundary — that account belongs to a separate identity class this repo does not
+  document (cloud/business concerns live outside this public repo). Do not improvise a throwaway signup against
+  a live deployed environment without following that convention; ask the operator if unsure.
 
 ## Observatory lifecycle and durable evidence
 
