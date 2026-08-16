@@ -13,9 +13,6 @@
 #
 from __future__ import annotations
 
-import base64
-import hashlib
-import json
 import logging
 import os
 import time
@@ -23,6 +20,8 @@ import urllib.parse
 from pathlib import Path
 
 from connectors.email import providers as _pv
+from connectors.oauth_pkce import make_pkce, make_state
+from connectors.secure_json_store import SecureJsonStore
 
 logger = logging.getLogger("zaelar.email.oauth")
 
@@ -64,38 +63,16 @@ def redirect_uri() -> str:
     return os.getenv("EMAIL_OAUTH_REDIRECT") or _DEFAULT_REDIRECT
 
 
-# ── PKCE ──────────────────────────────────────────────────────────────────────────────────────────────────────
-def _b64url(raw: bytes) -> str:
-    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
-
-
-def make_pkce(seed: bytes | None = None) -> tuple[str, str]:
-    """(verifier, S256 challenge). `seed` injectable for deterministic tests; production = os.urandom."""
-    verifier = _b64url(seed if seed is not None else os.urandom(48))
-    challenge = _b64url(hashlib.sha256(verifier.encode("ascii")).digest())
-    return verifier, challenge
-
-
-# ── Token + pending store (per provider:account) ────────────────────────────────────────────────────────────────
+# ── Token + pending store (per provider:account) ───────────────────────────────────────────────────────────────
+# A fresh SecureJsonStore(STORE) per call, not a module-level singleton: tests monkeypatch `oauth.STORE` to a
+# tmp path, which a cached instance bound to the ORIGINAL path at import time would silently ignore.
 def _load() -> dict:
-    try:
-        if STORE.exists():
-            return json.loads(STORE.read_text(encoding="utf-8"))
-    except Exception:
-        pass
-    return {}
+    return SecureJsonStore(STORE).load()
 
 
 def _save(data: dict) -> None:
     try:
-        STORE.parent.mkdir(parents=True, exist_ok=True)
-        tmp = str(STORE) + ".tmp"
-        Path(tmp).write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-        os.replace(tmp, STORE)
-        try:
-            os.chmod(STORE, 0o600)
-        except OSError:
-            pass
+        SecureJsonStore(STORE).save(data)
     except Exception as e:
         logger.warning(f"email oauth store no guardado: {e}")
 
@@ -125,7 +102,7 @@ def authorize_url(provider_id: str, address: str = "") -> dict:
     if not cid:
         return {"ok": False, "error": f"sin app OAuth registrada para {p.label} (falta EMAIL_{provider_id.upper()}_CLIENT_ID)"}
     verifier, challenge = make_pkce()
-    state = _b64url(os.urandom(18))
+    state = make_state()
     data = _load()
     data.setdefault("pending", {})[state] = {"provider": provider_id, "address": address,
                                              "verifier": verifier, "ts": int(time.time())}

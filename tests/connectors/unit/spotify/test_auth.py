@@ -29,10 +29,12 @@ class _Resp:
 
 
 def test_pkce_challenge_matches_verifier():
-    v = auth._verifier()
+    # PKCE math moved to connectors/oauth_pkce.py (V2-098, shared with the email connector) — auth._make_pkce
+    # is the alias spotify/auth.py imports it under.
+    v, challenge = auth._make_pkce()
     assert 43 <= len(v) <= 128
     expect = base64.urlsafe_b64encode(hashlib.sha256(v.encode()).digest()).decode().rstrip("=")
-    assert auth._challenge(v) == expect
+    assert challenge == expect
 
 
 def test_begin_login_returns_authorize_url_and_persists_pending():

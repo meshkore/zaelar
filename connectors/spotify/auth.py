@@ -15,8 +15,6 @@ All functions are SYNCHRONOUS and FAIL-SAFE (return {ok:False,...} or None, neve
 from __future__ import annotations
 
 import base64
-import hashlib
-import json
 import logging
 import os
 import threading
@@ -25,6 +23,9 @@ import urllib.parse
 from pathlib import Path
 
 import httpx
+
+from connectors.oauth_pkce import make_pkce as _make_pkce
+from connectors.secure_json_store import SecureJsonStore
 
 logger = logging.getLogger("zaelar.music.spotify")
 
@@ -86,38 +87,18 @@ def redirect_uri() -> str:
 
 
 # ── token store (chmod 600, atomic) ──────────────────────────────────────────────────────────────────────
+# A fresh SecureJsonStore(STORE) per call, not a module-level singleton: tests monkeypatch `auth.STORE` to a
+# tmp path, which a cached instance bound to the ORIGINAL path at import time would silently ignore.
 def _load() -> dict:
-    try:
-        return json.loads(STORE.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
+    return SecureJsonStore(STORE).load()
 
 
 def _save(data: dict) -> None:
     with _lock:
         try:
-            STORE.parent.mkdir(parents=True, exist_ok=True)
-            tmp = str(STORE) + ".tmp"
-            Path(tmp).write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-            os.chmod(tmp, 0o600)             # secret before replace (no 644 window)
-            os.replace(tmp, STORE)
-            try:
-                os.chmod(STORE, 0o600)
-            except Exception:
-                pass
+            SecureJsonStore(STORE).save(data)
         except Exception as e:  # noqa: BLE001
             logger.warning(f"no pude guardar tokens de Spotify: {e!r}")
-
-
-# ── PKCE ─────────────────────────────────────────────────────────────────────────────────────────────────
-def _verifier() -> str:
-    raw = base64.urlsafe_b64encode(os.urandom(64)).decode("ascii")
-    return raw.rstrip("=")[:128]
-
-
-def _challenge(verifier: str) -> str:
-    digest = hashlib.sha256(verifier.encode("utf-8")).digest()
-    return base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
 
 
 # ── login (2 steps: authorize URL -> callback) ───────────────────────────────────────────────────────────
@@ -127,7 +108,7 @@ def begin_login() -> dict:
     cid = client_id()
     if not cid:
         return {"ok": False, "error": "no_client_id"}
-    verifier = _verifier()
+    verifier, _challenge_value = _make_pkce()
     state = base64.urlsafe_b64encode(os.urandom(16)).decode("ascii").rstrip("=")
     data = _load()
     data["pending"] = {"verifier": verifier, "state": state, "ts": int(time.time())}
@@ -139,7 +120,7 @@ def begin_login() -> dict:
         "scope": _SCOPE,
         "state": state,
         "code_challenge_method": "S256",
-        "code_challenge": _challenge(verifier),
+        "code_challenge": _challenge_value,
     }
     return {"ok": True, "url": f"{_ACCOUNTS}/authorize?" + urllib.parse.urlencode(params)}
 

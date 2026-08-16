@@ -7,13 +7,13 @@
 #   • a REST/paste hits POST /api/meshkore/stage → stage() (short-lived, in-memory), then a name-only connect
 #     resolves the secret from staging so the token need not travel back through the LLM output.
 #
-import json
 import os
 import re
 from pathlib import Path
 
 from loguru import logger
 
+from connectors.secure_json_store import SecureJsonStore
 from nucleo import workspace as _workspace
 
 
@@ -37,20 +37,16 @@ _staged: dict = {}   # name -> {cluster_id, token, handle} — ephemeral, proces
 
 
 # ── persisted cluster configs (for reconnect across restarts) ────────────────────────────────────────────────
+# A fresh SecureJsonStore(CONFIG_FILE) per call, not a module-level singleton: tests monkeypatch
+# `store.CONFIG_FILE` to a tmp path, which a cached instance bound to the ORIGINAL path would ignore. V2-098:
+# this used to write CONFIG_FILE directly with no tmp+replace step — a crash mid-write could truncate it; now
+# atomic, same mechanics shared with spotify/email OAuth token stores.
 def _read() -> dict:
-    try:
-        return json.loads(CONFIG_FILE.read_text(encoding="utf-8"))
-    except Exception:
-        return {}
+    return SecureJsonStore(CONFIG_FILE).load()
 
 
 def _write(d: dict):
-    CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    CONFIG_FILE.write_text(json.dumps(d, indent=2, ensure_ascii=False), encoding="utf-8")
-    try:
-        os.chmod(CONFIG_FILE, 0o600)   # tokens inside — owner-only
-    except Exception:
-        pass
+    SecureJsonStore(CONFIG_FILE).save(d)
 
 
 def unique_name(name: str, cluster_id: str) -> str:
