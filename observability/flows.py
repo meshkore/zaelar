@@ -32,7 +32,9 @@ def flows(limit: int = 50, session_id: str = "", user_id: str = "") -> list[dict
 
     `origin` es el ARGUMENTO con el que nació el flujo (`voice/trace.py::begin(origin=...)`: `turno`/`kickoff`
     para lo que dice el operador, `ui`/`cron`/`proactivo`/`cluster`/`probe` para lo que NO es una petición
-    suya) — hay como mucho UNA fila `kind='trace'` por `corr_id` (el evento raíz), así que `MAX(CASE...)` la
+    suya, `pulso` para el latido/evaluador del cluster comprobando una conversación INACTIVA por su cuenta —
+    distinto de `cluster`, que es un peer diciendo algo de verdad) — hay como mucho UNA fila `kind='trace'` por
+    `corr_id` (el evento raíz), así que `MAX(CASE...)` la
     aísla sin un JOIN. `title` es el texto de ESE mismo evento raíz (lo que disparó el flujo): deja que quien
     lo muestra (el tablero del master) rotule la columna sin adivinar de qué iba mirando el resto de eventos."""
     where = ["corr_id IS NOT NULL", "corr_id != ''"]

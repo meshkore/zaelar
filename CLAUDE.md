@@ -1502,6 +1502,41 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     objetivo de una relación (no construido aún, ver iniciativa de remediación). El guard MÁS GENERAL —
     notificar+pedir permiso ante CUALQUIER intento de un peer de redirigir la conversación (no solo hacia
     dev-worker), enganchado al veredicto `off_track` del evaluador V2-075 — sigue PENDIENTE.
+- **Una tarea/flujo SOLO nace de CUATRO fuentes — el pulso NUNCA crea trabajo por tener un loop** (norma dura del
+  operador, 2026-08-16; detonante: un flujo de cluster («Cluster · T6 · en curso») visible en el master tras
+  minutos SIN que el operador pidiera nada — "el agente está totalmente estático"). Las únicas fuentes
+  legítimas de una tarea/turno/flujo son: **(1)** una petición del OPERADOR (voz/chat/UI), **(2)** un mensaje
+  REAL entrante de un peer de un cluster MeshKore, **(3)** un CRON venciendo (`nucleo/scheduler.py`), **(4)** un
+  CONECTOR recibiendo algo (mensaje de WhatsApp/Telegram/email, evento de un widget backed). Cualquier pieza que
+  corra con un LOOP propio (el pulso `nucleo/loop.py`, el latido del cluster `bridge.py::_heartbeat`,
+  homeostasis) puede **vigilar y actuar sobre trabajo que YA existe** (cerrar un flujo inactivo, reciclar un
+  recurso, avisar) pero **JAMÁS abrir un turno de cerebro nuevo solo porque el reloj avanzó**.
+  - **El hallazgo real, y por qué NO era ninguna de las cuatro fuentes**: `bridge.py::_heartbeat()` (el latido
+    del canal de cluster, cadencia `TICK_SECS`) comprobaba cada cluster "engaged" y, si llevaba `IDLE_SECS`
+    (90s) sin actividad CON PEERS ONLINE, lanzaba `_heartbeat_nudge()` → un turno de cerebro COMPLETO (mismo
+    `_brain_turn` que un mensaje real) preguntándole al modelo si seguir esperando o concluir — un "¿sigues
+    ahí?" humano, pero **disparado por el PULSO, no por nada que el peer dijera**. Ídem
+    `_evaluate_and_apply()`'s "hand_back": corre off el mismo latido (`EVAL_SECS`), no de un mensaje nuevo.
+    `_brain_turn` etiquetaba AMBOS con `origin="cluster"` — el MISMO origen que un mensaje entrante de verdad —
+    así que el master no tenía forma de distinguir "un peer me escribió" de "el reloj decidió comprobar".
+  - **Fix, sin apagar la función humana ("¿sigues ahí?" sigue existiendo, sobre una conversación YA real)**:
+    `_brain_turn(..., origin=...)` — solo el disparo real desde un mensaje/evento de transporte entrante
+    (`t=="message"/"presence"/"ready"`) mantiene `origin="cluster"`; el nudge de idle y el hand-back del
+    evaluador pasan `origin="pulso"` (`voice/trace.py::begin` los trata igual que "cluster" para el `cat` de
+    sesión — mismo housekeeping, no fabrica sesión — pero ya son distinguibles por `origin`). El master
+    (`cloud/backoffice/src/sessionsView.js::flowIsInit`) atenúa `pulso` como NO-tarea (igual que `kickoff`/
+    `cron`/`proactivo`) y ya NO atenúa `cluster` — un peer real SÍ es una tarea legítima, no housekeeping.
+  - **Segundo agujero, mismo turno**: NINGÚN turno de cluster cerraba su flujo explícitamente — a diferencia
+    del `_maybe_close_flow` de la voz (`voice/engine/llm/providers/nucleo.py`), `_brain_turn` nunca emitía
+    `flow:end`, así que hasta un turno REAL de cluster dependía enteramente del `_supervise_stale_flows` de 15
+    min para desaparecer del master. `_close_cluster_flow(trace_id)` (nuevo, `bridge.py`) cierra al terminar
+    CADA turno de cluster —salvo que `escalate_to_slowbrain` haya dejado un worker vivo en ese trace
+    (`dispatch.has_live_trace`), que sigue mandando la regla de siempre: **la pelota está en el tejado de
+    quien trabaja, nunca se le cierra el flujo debajo**.
+  - **Esto NO prohíbe que el latido actúe** — homeostasis recicla el motor, `_supervise_stale_flows` cierra lo
+    abandonado, el heartbeat de cluster decide silencio/nudge/concluir: todo eso es **vigilancia y limpieza de
+    trabajo existente**, la categoría que SÍ le corresponde al pulso. Lo que no puede hacer es que esa
+    vigilancia se disfrace de una tarea nueva en la observabilidad.
 - **Seguridad del canal de cluster** (`connectors/meshkore/security.py` + `bridge.py`): el cluster habla con agentes
   externos **no confiables**. Controles DUROS, no solo prompts (detalle en `zaelar-security.md`):
   - El **canal lo conduce el motor del FlashBrain en perfil UNTRUSTED** (V2-069): **tools APAGADAS en código**

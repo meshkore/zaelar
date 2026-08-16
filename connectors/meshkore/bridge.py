@@ -28,6 +28,25 @@ MAX_INFLIGHT = int(os.getenv("MESHKORE_MAX_INFLIGHT", "8"))  # cap queued/in-fli
 # not a new turn: reply ONCE, ignore verbatim repeats. Defensive hardening on the untrusted channel, same spirit
 # as MAX_INFLIGHT — does NOT change conversational style, only suppresses reacting to duplicate spam.
 DEDUP_SECS = float(os.getenv("MESHKORE_DEDUP_SECS", "60"))
+
+
+def _close_cluster_flow(trace_id: str) -> None:
+    """Every cluster turn opens a trace via `trace.begin()` but this whole path — unlike the voice provider's
+    `_run` — never explicitly closed it (found live 2026-08-16: an idle heartbeat nudge sat "en curso" in the
+    master with nothing happening, and the operator had asked for nothing in minutes). Nothing here chains
+    fragments across turns the way voice does, so the close condition is simple: this turn is done, close its
+    flow UNLESS `escalate_to_slowbrain` spawned a worker that is still running on it — that worker owns the
+    close instead (same invariant as the voice path: a live worker's flow NEVER closes out from under it)."""
+    if not trace_id:
+        return
+    try:
+        from nucleo import dispatch as _dispatch
+        if _dispatch.has_live_trace(trace_id):
+            return
+        from voice import observer as _observer
+        _observer.emit("flow", "end", role="system", extra={"ok": True})
+    except Exception:
+        pass
 # V2-086: the network no longer has a widget. Every cluster event notifies the NATIVE surface (ChatWall "Clusters"
 # tab) through SSE, so it can refresh state/peers/counters without polling.
 
@@ -357,12 +376,20 @@ class ClusterBridge:
 
     # ── the brain turn (off the voice pipeline) ──────────────────────────────────────────────────────────────
     async def _brain_turn(self, cluster: str, event_text: str, peer: str | None = None,
-                          peer_text: str | None = None):
-        # TRACEABILITY (V2-044): a peer message is also a stimulus -> it starts with its trace (origin="cluster").
+                          peer_text: str | None = None, origin: str = "cluster"):
+        # TRACEABILITY (V2-044): a peer message is also a stimulus -> it starts with its trace. `origin` defaults
+        # to "cluster" (a REAL inbound peer message/reconnect) but `_heartbeat_nudge` passes "pulso" — WE decided
+        # to check in, nothing came in from the peer, and that distinction is what lets the master (and
+        # `flowIsInit`, cloud/backoffice) tell a real task apart from housekeeping instead of dimming/conflating
+        # a genuine cluster conversation with our own idle nudging (2026-08-16 operator finding: a heartbeat nudge
+        # was opening a visible "en curso" flow after minutes of total silence — the pulse must not manufacture
+        # tasks just because it has a loop running; see CLAUDE.md's "a task/flow only ever opens from one of
+        # four sources" invariant).
         # _brain_turn runs as its own task (create_task) -> the ctxvar is scoped to this turn.
+        trace_id = ""
         try:
             from voice import trace as _trace
-            _trace.begin((peer_text or event_text or "")[:200], origin="cluster")
+            trace_id = _trace.begin((peer_text or event_text or "")[:200], origin=origin)
         except Exception:
             pass
         # CAPSULE (V2-069 "one mind"): the mind SITUATES itself in the relationship before replying — who the peer
@@ -437,6 +464,7 @@ class ClusterBridge:
         except Exception as e:
             logger.warning(f"MeshKore brain turn failed: {e}")
             _emit("error", f"cluster brain turn failed: {e}")
+            _close_cluster_flow(trace_id)
             return "", []
         cluster_ms = round((time.time() - t0) * 1000)
         spoken, sent = await self._route_reply(reply)
@@ -487,6 +515,7 @@ class ClusterBridge:
             # redact in case the brain echoed a token/secret back into its operator-facing aside.
             _emit("cluster", "🧠 zaelar", text=store.redact(spoken.strip()), role="assistant",
                   extra={"cluster": cluster, "dir": "note", "cluster_ms": cluster_ms})
+        _close_cluster_flow(trace_id)
         return spoken, sent
 
     # A reply generated FROM a cluster turn is untrusted output: a peer could have prompt-injected the brain into
@@ -728,7 +757,7 @@ class ClusterBridge:
             f"\"give me a second\"), do NOT conclude — stay silent (no tags at all) and keep waiting. Only send a "
             f"gentle follow-up if genuinely stuck with no signal either way, or emit [[cluster.done:{cluster}]] "
             f"if the objective is truly finished.")
-        _, sent = await self._brain_turn(cluster, event_text)
+        _, sent = await self._brain_turn(cluster, event_text, origin="pulso")
         if not sent and self._engaged.get(cluster):
             self._last_activity[cluster] = self._now()   # re-arm: check again after another idle stretch
             self._nudged.discard(cluster)
@@ -794,9 +823,12 @@ class ClusterBridge:
                     else:
                         _emit("error", f"cluster {cluster}: paro con «{peer}» — {verdict.get('reason') or 'sin avance'}. "
                               f"Me quedo a la espera; revisa si merece seguir con este agente.")
-            # hand the turn back ONCE with one sentence (the mind writes it), then stay silent
+            # hand the turn back ONCE with one sentence (the mind writes it), then stay silent. origin="pulso":
+            # the EVALUATOR ran off the heartbeat tick (throttled by EVAL_SECS), not off a fresh peer message —
+            # same reasoning as _heartbeat_nudge below.
             self._spawn(self._brain_turn(
-                cluster, f"[cluster:{cluster} · evaluación de la conversación]\n{capsule.PACE_HANDBACK}", peer=peer))
+                cluster, f"[cluster:{cluster} · evaluación de la conversación]\n{capsule.PACE_HANDBACK}", peer=peer,
+                origin="pulso"))
 
     # ── heartbeat: nudge on idle-with-peers-present (human-like follow-up), never spam ──────────────────────
     async def _heartbeat(self):

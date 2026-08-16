@@ -55,9 +55,11 @@ def begin(text: str, origin: str = "turno") -> str:
         # regardless of origin, and `stamp_identity()`'s "background noise never fabricates a session" guard
         # (observer.py, 2026-08-15) only checks `cat in ("system","pulse")` — so a cluster heartbeat firing
         # after the operator stopped the agent (⏻) self-opened a brand-new "live" session, the same bug that
-        # guard was meant to close, one `origin` short of complete.
+        # guard was meant to close, one `origin` short of complete. "pulso" (2026-08-16) is the SAME family —
+        # the heartbeat/evaluator checking in on an idle conversation on its own timer, not a fresh peer message
+        # (see bridge.py::_brain_turn) — and gets the identical treatment.
         extra = {"trace": tid, "root": True, "origin": origin}
-        if origin == "cluster":
+        if origin in ("cluster", "pulso"):
             extra["cat"] = "system"
         emit("trace", origin, text=(text or "")[:300], role="user" if origin in ("turno", "probe") else "system",
              extra=extra)
