@@ -141,6 +141,13 @@ _DEFAULTS: dict[str, dict] = {
         #     both places). The sites that set it by env in cloud —`engine/fly.accounts.toml` and
         #     `cloud/provisioner/src/machineConfig.js`— are synchronized with this default.
         #   · The LOCAL option (Ollama) remains available by pointing `mem_processor_base_url` to `localhost:11434`.
+        # Checked-in default stays on the AIMLAPI broker ON PURPOSE (routing policy would otherwise prefer
+        # DeepSeek DIRECT, `nucleo/provider_keys.py`): this value is the ONLY thing governing memory writes in
+        # the CLOUD too (no per-env override for this task), and `DEEPSEEK_API_KEY` is not among the cloud
+        # provisioner's secrets (see the REM comment below) — pointing the shipped default at it would silently
+        # break every cloud machine's memory writes on next deploy. Local/self-host installs that want the
+        # direct-endpoint reliability fix (2026-08-16/17: AIMLAPI went fully unresponsive for this model) set
+        # this in `config/v2.json` (gitignored, per-machine) instead, same pattern as any other local override.
         "mem_processor_model": "deepseek/deepseek-v4-flash",     # empty = env MEM_PROCESSOR_MODEL or fallback
         "mem_processor_base_url": "https://api.aimlapi.com/v1",  # endpoint OpenAI-compatible; a Ollama = local
         "mem_processor_api_key": "",                     # secret (redacted); empty = PER-ENDPOINT key (AIMLAPI_KEY)
@@ -158,6 +165,8 @@ _DEFAULTS: dict[str, dict] = {
         #       instead of two invoices for two tasks in the same piece.
         #   (3) that direct OpenAI account is heavily rate-limited (429 with few calls in flight, 20s p50 measured
         #       in the §12.3 sweep) — a bad place for consolidation that processes batches.
+        # Same AIMLAPI-by-default reasoning as `mem_processor_base_url` above: no cloud env override for REM
+        # either, no DEEPSEEK_API_KEY provisioned in the cloud — checked-in default has to stay broker-routed.
         "rem_model": "deepseek/deepseek-v4-flash",
         "rem_base_url": "https://api.aimlapi.com/v1",
         "rem_api_key": "",                               # secret (redacted); empty = key by endpoint

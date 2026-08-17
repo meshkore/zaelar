@@ -25,8 +25,16 @@ from loguru import logger
 # Fallback de última instancia (si `config §memory` no se puede leer). Debe coincidir con el default de
 # `config/v2.py §memory` — apuntar a OpenAI aquí significaba, en la nube, fallar siempre: no hay OPENAI_API_KEY
 # entre los secretos que inyecta el provisioner (2026-08-09, misma corrección que en mem_processor).
+# Each entry: (base_url, model, disable_thinking). `disable_thinking` is a PER-TASK decision, not inferred
+# from the endpoint — see the routing policy note below `_ENDPOINTS` in `nucleo/provider_keys.py`. Getting this
+# wrong is a real correctness bug, not just a style choice: §12.3/§12.4 of `zaelar-model-benchmarks.md` crowned
+# `deepseek-v4-flash` for `rem`/`distill`-shaped tasks while it could ONLY reason (AIMLAPI ignored the disable
+# field) — moving a task to the direct endpoint without ALSO deciding this flag silently swaps in an unmeasured
+# reasoning-off variant of the model. `turn_complete`/`directed` are genuinely latency-critical (hot path,
+# per-turn) and were benchmarked disabled from the start — those two disable it. Every off-hot-path task keeps
+# reasoning ON by default, matching the benchmark that picked the model, even after moving off AIMLAPI.
 _DEFAULTS = {
-    "rem": ("https://api.aimlapi.com/v1", "deepseek/deepseek-v4-flash"),
+    "rem": ("https://api.deepseek.com", "deepseek-v4-flash", False),
     # i18n (V2-089): traducción del UI a un idioma nuevo en la INICIALIZACIÓN (i18n/init). Off-hot-path, calidad
     # importa (scripts no-latinos: árabe, chino, japonés…) → modelo fuerte. Override en config §memory.
     #
@@ -42,31 +50,37 @@ _DEFAULTS = {
     #                                  contenido, 50-60s por lote. Es el mismo perfil que truncaba el REM; aquí
     #                                  no compensa porque la tarea se paga UNA vez por idioma (514 claves = 11
     #                                  lotes ≈ $0,08 con haiku) y la fiabilidad vale más que el precio.
-    "i18n": ("https://api.aimlapi.com/v1", "anthropic/claude-haiku-4.5"),
+    # i18n stays on AIMLAPI: no direct Anthropic route in `nucleo/provider_keys.py` (only the providers listed
+    # there have a direct key configured) — this is the "no direct access" half of the routing policy, not an
+    # oversight. `disable_thinking` is irrelevant here (non-DeepSeek model).
+    "i18n": ("https://api.aimlapi.com/v1", "anthropic/claude-haiku-4.5", False),
     # turn_complete (V2-102): the voice pipeline's turn-completeness judge (nucleo/flash/segmenter.py::judge).
-    # Fires per AMBIGUOUS fragment, mid-conversation — the ONE memllm task where latency is user-visible (every
-    # other task here runs off-schedule: REM nightly, i18n once per language). DeepSeek DIRECT, not the AIMLAPI
-    # broker: per zaelar-model-benchmarks.md §11/CLAUDE.md's V2-097 finding, the broker doesn't honor
-    # `thinking:disabled` for this model (~8.6s TTFT) while the direct endpoint does (~1s) — the same model,
-    # the same price, just obedient. `DEEPSEEK_API_KEY` already resolves via `nucleo/provider_keys.py`.
-    "turn_complete": ("https://api.deepseek.com", "deepseek-v4-flash"),
+    # Fires per AMBIGUOUS fragment, mid-conversation — genuinely latency-critical (hot path, user-visible),
+    # benchmarked reasoning-OFF from the start. DeepSeek DIRECT: per zaelar-model-benchmarks.md §11/CLAUDE.md's
+    # V2-097 finding, the AIMLAPI broker doesn't honor `thinking:disabled` for this model (~8.6s TTFT) while the
+    # direct endpoint does (~1s) — same model, same price, just obedient. `DEEPSEEK_API_KEY` resolves via
+    # `nucleo/provider_keys.py`.
+    "turn_complete": ("https://api.deepseek.com", "deepseek-v4-flash", True),
     # directed (2026-08-16): voice/attention.py's content-based gate for "always" (open-mic) mode — with no
     # wake-word, the only signal for "is this ambient noise or aimed at me" is the NATURE of the utterance
     # (operator ask, live incident: 5-7 background-noise fragments each ran a full turn, one even completed a
     # real ~3s web_search, before finally getting discarded as superseded — real cost for zero value). Same
-    # profile as `turn_complete`: fires on every non-wake-word turn in the hot path, so it needs the DIRECT
-    # DeepSeek endpoint's ~1s TTFT, not the ~8.6s the AIMLAPI broker gives this model.
-    "directed": ("https://api.deepseek.com", "deepseek-v4-flash"),
+    # profile as `turn_complete`: fires on every non-wake-word turn in the hot path, needs the DIRECT DeepSeek
+    # endpoint's ~1s TTFT and the same reasoning-OFF choice.
+    "directed": ("https://api.deepseek.com", "deepseek-v4-flash", True),
     # paraphrase (V2-031 T2, 2026-08-17): 1-2 reformulaciones de una píldora durable, generadas off-hot-path
     # desde REM (nunca en el turno) para indexar vectores extra que cierren el vocab-gap en la lectura. Mismo
-    # perfil que `rem`: sin urgencia de latencia, así que hereda su default (AIMLAPI, no el endpoint directo).
-    "paraphrase": ("https://api.aimlapi.com/v1", "deepseek/deepseek-v4-flash"),
+    # profile as `rem`: no latency pressure → DIRECT per the routing policy, reasoning left ON (no benchmark
+    # measures this task with thinking off, so it isn't assumed).
+    "paraphrase": ("https://api.deepseek.com", "deepseek-v4-flash", False),
 }
 
 
-def resolve(task: str) -> tuple[str, str, str]:
-    """(url, model, key) para una tarea del catálogo. Config manda; key vacía → por endpoint."""
-    base_url, model = _DEFAULTS.get(task, _DEFAULTS["rem"])
+def resolve(task: str) -> tuple[str, str, str, bool]:
+    """(url, model, key, disable_thinking) for a catalog task. Config wins; empty key → resolved by endpoint.
+    `disable_thinking` is NOT config-overridable yet (it's a per-task quality decision, not an endpoint) — add
+    `{task}_disable_thinking` to config/v2.py's `memory` block if/when that's genuinely needed, not before."""
+    base_url, model, disable_thinking = _DEFAULTS.get(task, _DEFAULTS["rem"])
     key = ""
     try:
         from config import v2 as _v2
@@ -76,7 +90,7 @@ def resolve(task: str) -> tuple[str, str, str]:
         key = (mem.get(f"{task}_api_key") or "").strip()
     except Exception:
         pass
-    return base_url, model, key or _endpoint_key(base_url)
+    return base_url, model, key or _endpoint_key(base_url), disable_thinking
 
 
 def _endpoint_key(url: str) -> str:
@@ -91,7 +105,7 @@ def chat_sync(task: str, system: str, user: str, *, max_tokens: int = 900,
               model_override: str | None = None, url_override: str | None = None) -> str | None:
     """Chat SÍNCRONO (urllib, sin deps) — pensado para correr DENTRO de un `asyncio.to_thread` (el sueño REM) o
     en scripts/benches. Devuelve el content, o None si el modelo no está/falla (el llamador hace fail-open)."""
-    url, model, key = resolve(task)
+    url, model, key, disable_thinking = resolve(task)
     if url_override:
         url = url_override
         key = _endpoint_key(url)
@@ -103,13 +117,10 @@ def chat_sync(task: str, system: str, user: str, *, max_tokens: int = 900,
         "max_tokens": max_tokens,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
     }
-    # DeepSeek REASONS even when told the turn can't afford it (same finding as `fast_client.py`'s voice path,
-    # V2-097) — but ONLY via `api.deepseek.com` DIRECT does this field actually get honored; AIMLAPI ignores it.
-    # Scoped to the direct endpoint on purpose: REM's `deepseek-v4-flash` call goes through the AIMLAPI broker
-    # and was benchmarked (§12.4) WITH reasoning on — disabling it there would silently change synthesis
-    # quality nobody re-measured. Since the broker ignores this field anyway, scoping costs nothing either way,
-    # it just avoids relying on that as an assumption.
-    if "deepseek" in model.lower() and "api.deepseek.com" in url.lower():
+    # Per-task decision (see `_DEFAULTS` comment above), not inferred from the endpoint: DeepSeek reasons even
+    # when told the turn can't afford it (V2-097), and only `api.deepseek.com` DIRECT honors this field at all
+    # (AIMLAPI ignores it) — but honoring it is only correct for tasks benchmarked reasoning-OFF.
+    if disable_thinking and "deepseek" in model.lower() and "api.deepseek.com" in url.lower():
         payload["thinking"] = {"type": "disabled"}
     # EGRESS (T304): si el despliegue media la salida, ni la URL ni la clave son las del proveedor.
     from nucleo import llm_egress

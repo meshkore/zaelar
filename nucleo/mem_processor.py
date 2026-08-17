@@ -446,12 +446,14 @@ async def process(text: str, *, state: dict | None = None) -> list[dict] | None:
             {"role": "user", "content": _render(t, state)},
         ],
     }
-    # DeepSeek reasons even when the task can't afford it, but only api.deepseek.com DIRECT honors this field —
-    # the AIMLAPI broker ignores it (same finding as nucleo/memllm.py's turn_complete task, V2-102). 2026-08-16:
-    # the broker went fully unresponsive for this model (12s+, no reply at all), degrading every memory write to
-    # the lossy heuristic — moved this task's default to DeepSeek direct.
-    if "deepseek" in _model().lower() and "api.deepseek.com" in _url().lower():
-        payload["thinking"] = {"type": "disabled"}
+    # 2026-08-16/17: the AIMLAPI broker went fully unresponsive for this model (12s+, no reply at all),
+    # degrading every memory write to the lossy heuristic — moved this task's default to DeepSeek direct
+    # (routing policy: `nucleo/provider_keys.py`). Deliberately NOT disabling `thinking` here the way
+    # `turn_complete` does: §12.3 of zaelar-model-benchmarks.md crowned `deepseek-v4-flash` for THIS task
+    # (98.5% write-completeness, 100% precision) while running via a broker that could only ever reason —
+    # that benchmark is a reasoning-ON result. This task is also explicitly off-hot-path (write is async,
+    # nobody pays for its latency), so there is no speed reason to disable it, only an unmeasured quality
+    # risk if we did.
     url = _url().rstrip("/") + "/chat/completions"
     local = any(h in url for h in ("11434", "localhost", "127.0.0.1"))
     t0 = time.time()

@@ -6,6 +6,18 @@ had already drifted: `susurro/client.py` and `memllm.py` only knew 4 endpoints (
 gemini/mistral/z.ai/deepseek/moonshot entirely. Pointing either at one of the missing endpoints resolves the key
 to `""`/`"local"` and fails auth SILENTLY (fail-open masks it) instead of erroring loudly. One list, everyone reads
 it — a new endpoint gets added here once instead of in four places that can each forget it.
+
+ROUTING POLICY (operator norm, 2026-08-17, do not re-litigate without a new finding): prefer a provider's own
+DIRECT endpoint over the AIMLAPI broker whenever a direct key is registered below — reliability (AIMLAPI has
+gone fully unresponsive for specific models more than once, see CLAUDE.md's V2-102 entry) and, for some
+models/params, correctness (the broker silently ignores fields like `thinking:disabled` that the direct API
+honors). Use AIMLAPI only for a provider with NO direct entry here (e.g. Anthropic today) — that is what "no
+direct access" means in practice, not a per-call judgment call. This governs *which host to call*, never
+*whether to reason*: `nucleo/memllm.py`'s `_DEFAULTS` carries a separate, explicit per-task `disable_thinking`
+flag, because a model's benchmarked quality can assume reasoning-on (§12.3/§12.4 of
+`zaelar-model-benchmarks.md`) even when it's moved off a broker that couldn't ever turn reasoning off. Moving a
+task off AIMLAPI is a routing decision; touching `disable_thinking` is a separate, benchmark-backed one — don't
+let picking the fast host quietly relitigate the other.
 """
 from __future__ import annotations
 
