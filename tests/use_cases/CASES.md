@@ -5,7 +5,7 @@ This is the readable catalog for the `use_cases` suite (`tests/use_cases/suite.j
 `tests/voice/e2e/agent/anexos/catalogo-escenarios.md`'s role for the voice suite: the catalog of
 what gets tested is public and useful; per-run diaries are not (see `tests/README.md`).
 
-**Status: mostly backlog, one promoted.** Every case below is registered and browsable
+**Status: mostly backlog, five promoted.** Every case below is registered and browsable
 (`python -m tests list`, the Observatory at `http://127.0.0.1:8765`, `/api/catalog/use_cases`).
 Cases get promoted to executable one at a time. Promotion doesn't mean "wire a simple
 request/response pytest" — these are open-ended, non-deterministic real-world tasks, so a promoted
@@ -39,6 +39,29 @@ judge, full design below), reusing the voice tester's proven DRIVE+JUDGE pattern
   `GET /api/run` before trusting a `families_observed` result that's missing `worker` entirely.
   Not yet root-caused as a fix; flagged here as an open finding for whoever picks up
   hotel/search-type cases next.
+
+- `restaurant-tonight-madrid` (ES, tier 1), `search-buy-used-car` (ES, tier 2),
+  `compare-flights-madrid-lisboa` (ES, tier 2), `cheapest-monitor` (ES, tier 2) — **promoted
+  2026-08-17**, same dynamic harness, chosen for a spread across the categories the operator
+  explicitly asked to widen the catalog with (cars, flights, electronics) plus one tier-1 bounded
+  action (a named restaurant, no comparison) as a contrast point to the tier-2 search cases. Each
+  scenario deliberately underspecifies at least one real constraint in its opening line (city,
+  mileage, dates, baggage, screen size/budget) so the agent has to ask and the driver has to answer
+  in character — see `tests/use_cases/e2e/agent/scenarios.py` for the exact persona briefs and what
+  counts as a correction vs. a real success. Only `restaurant-tonight-madrid` was live-validated
+  this round (the engine's global run switch, ⏻, was found STOPPED before this run — started with
+  the operator's explicit go-ahead; see the ⏻ finding above, this is the second time it's been left
+  stopped from prior manual testing). Result: **2/5, and it reproduces the SAME systemic finding as
+  `hotel-under-15-days`** — `families_observed` correctly shows `worker` (no missing signals: the
+  mechanism genuinely fires, a `navegador` task really spawns), but the task never leaves
+  `status=working` within the conversation's 10-turn patience budget, so zaelar has nothing but "sigo
+  en ello" to say turn after turn, and the watchdog correctly flags it `stuck` and then `abandon`.
+  This is now two independent scenarios (hotel search, restaurant booking) hitting the identical
+  shape of failure — worker/browser mechanism fires but doesn't deliver a result the FlashBrain can
+  act on within a normal conversation's timeframe — which is stronger evidence this is a real,
+  systemic gap (missing progress check-ins and/or a timeout+fallback path) rather than a quirk of one
+  scenario. `search-buy-used-car`, `compare-flights-madrid-lisboa` and `cheapest-monitor` are wired
+  the same way but not yet run live.
 
 All other cases stay backlog until promoted, one at a time — picking the runner shape (browser
 automation, an `agent-headless`-style scenario, an email exchange for multi-agent cases) per case

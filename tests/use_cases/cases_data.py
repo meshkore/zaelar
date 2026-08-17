@@ -50,7 +50,9 @@ CASES: list[UseCase] = [
     # --- ES / tier 1: bounded single-site action -----------------------------------------
     UseCase("restaurant-tonight-madrid", "es", 1, "Book a known restaurant tonight",
             "Resérvame mesa para 2 esta noche a las 21:30 en Casa Lucio.",
-            "A table for 2 is booked at Casa Lucio for 21:30 tonight."),
+            "A table for 2 is booked at Casa Lucio for 21:30 tonight — verified against real system state "
+            "(worker signal), not just the agent's claim — see tests/use_cases/e2e/agent/scenarios.py.",
+            status="promoted"),
     UseCase("cancel-subscription-before-charge", "es", 1, "Cancel a subscription before renewal",
             "Cancela mi suscripción a Netflix antes de que me cobren el día 15.",
             "The Netflix subscription is cancelled before the next billing date."),
@@ -84,7 +86,10 @@ CASES: list[UseCase] = [
     UseCase("compare-flights-madrid-lisboa", "es", 2, "Compare and book the cheapest flight",
             "Compárame vuelos Madrid–Lisboa para el puente de mayo y coge el más barato con "
             "equipaje incluido.",
-            "Flights are compared and the cheapest option with checked baggage is booked."),
+            "Flights are compared and the cheapest option with checked baggage is booked — verified "
+            "against real system state (worker + browser signals), not just the agent's claim — see "
+            "tests/use_cases/e2e/agent/scenarios.py.",
+            status="promoted"),
     UseCase("best-plumber-same-day", "es", 2, "Find a same-day plumber",
             "Búscame un fontanero que pueda venir hoy mismo y el mejor valorado.",
             "A top-rated plumber available today is found and booked."),
@@ -93,7 +98,10 @@ CASES: list[UseCase] = [
             "Three car-insurance quotes are compared with a clear recommendation."),
     UseCase("cheapest-monitor", "es", 2, "Find the cheapest well-reviewed monitor",
             "Encuéntrame el monitor más barato de 27 pulgadas 4K que tenga buenas reseñas.",
-            "The cheapest well-reviewed 27-inch 4K monitor is identified."),
+            "The cheapest well-reviewed 27-inch 4K monitor is identified — verified against real system "
+            "state (worker + browser signals), not just the agent's claim — see "
+            "tests/use_cases/e2e/agent/scenarios.py.",
+            status="promoted"),
     UseCase("best-rated-rental-car", "es", 2, "Find the best-rated rental car",
             "Búscame el coche de alquiler mejor valorado en Málaga para el fin de semana.",
             "The best-rated rental car in Málaga for the weekend is found and booked."),
@@ -106,7 +114,10 @@ CASES: list[UseCase] = [
     UseCase("search-buy-used-car", "es", 2, "Search classifieds and buy a used car",
             "Búscame un coche de segunda mano, diésel, menos de 100.000 km y por debajo de "
             "12.000€, y dime los 3 mejores.",
-            "Listings matching the criteria are found on classifieds sites and the top 3 are presented."),
+            "Listings matching the criteria are found on classifieds sites and the top 3 are presented — "
+            "verified against real system state (worker + browser signals), not just the agent's claim — "
+            "see tests/use_cases/e2e/agent/scenarios.py.",
+            status="promoted"),
     UseCase("search-buy-motorcycle", "es", 2, "Search classifieds and buy a used motorcycle",
             "Búscame una moto de segunda mano de 125cc en buen estado por menos de 2.500€.",
             "Matching motorcycle listings are found and the best candidate is identified."),

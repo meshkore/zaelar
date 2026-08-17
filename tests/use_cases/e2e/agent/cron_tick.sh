@@ -15,7 +15,7 @@ CURSOR="$RUNS/.cron-cursor"
 URL="http://127.0.0.1:43917"
 
 # curated rotation — kept in sync with tests/use_cases/e2e/agent/scenarios.py; grows as cases get promoted
-SCENARIOS=(hotel-under-15-days)
+SCENARIOS=(hotel-under-15-days restaurant-tonight-madrid search-buy-used-car compare-flights-madrid-lisboa cheapest-monitor)
 
 say(){ echo "[cron_tick $(date +%H:%M:%S)] $*"; }
 
