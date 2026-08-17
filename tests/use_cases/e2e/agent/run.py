@@ -20,11 +20,11 @@ from . import watchdog as watchdogmod
 
 
 def _run_scenario(scenario) -> dict:
+    scenario_started_ms = time.time() * 1000
     session = f"use-cases-{scenario.id}-{uuid.uuid4().hex[:6]}"
     probe_client.reset(session)
     driver = drivermod.Driver(scenario)
     transcript: list[dict] = []
-    all_events: list[dict] = []
     watchdog_log: list[dict] = []
     pending_nudge = ""
 
@@ -41,10 +41,6 @@ def _run_scenario(scenario) -> dict:
         note("zaelar", reply_text)
         print(f"  zaelar  · {reply_text[:160]}")
         driver.hears(reply_text)
-
-        trace_id = res.get("trace") or ""
-        if trace_id:
-            all_events.extend(probe_client.flow(trace_id))
 
         if driver.done:
             break
@@ -66,6 +62,13 @@ def _run_scenario(scenario) -> dict:
     from . import verify as verifymod
     if scenario.expected_signals:
         print("  verifying mechanism (this may wait for a background worker/browser task)…")
+    # The observability session_id is a server-wide, one-at-a-time concept (see `current_session_id()`'s
+    # docstring) that spans the engine's whole uptime, not just this scenario — so it's ALSO filtered to
+    # events at/after `scenario_started_ms`, or a prior unrelated task in the same live session could donate a
+    # false "worker"/"widget" signal to a scenario that never actually triggered one itself.
+    live_session_id = probe_client.current_session_id()
+    all_events = [e for e in probe_client.session_events(live_session_id)
+                  if (e.get("ts_ms") or 0) >= scenario_started_ms]
     mech = verifymod.mechanism_report(all_events, scenario.expected_signals)
 
     run_data = {"transcript": transcript, "mechanism_report": mech, "watchdog_log": watchdog_log}

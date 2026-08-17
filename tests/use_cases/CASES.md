@@ -15,13 +15,30 @@ judge, full design below), reusing the voice tester's proven DRIVE+JUDGE pattern
 
 - `hotel-under-15-days` (ES, tier 2) — **promoted**, first scenario built. Deliberately
   underspecified (no destination given) to force a real clarifying question. Live-validated
-  2026-08-16: the harness correctly ran an adaptive multi-turn negotiation and — this is the
-  point — caught a **real product bug**: zaelar claimed "me pongo con ello, tardará un poco" (a
-  search has started) but the observability data showed **zero** worker/browser activity actually
-  fired (`families_observed: [flash, system]`, no `worker`/`widget`). The judge scored this
-  correctly low (resultado 1/5, mecanismo 1/5) despite the reply sounding natural — proving the
-  "verify outcome against real system state, not the transcript" design works. Not yet root-caused
-  as a fix; flagged here as an open finding for whoever picks up hotel/search-type cases next.
+  2026-08-16, and re-investigated 2026-08-17 after it kept reporting `families_observed: [flash,
+  system]` (worker/widget "never fired") on runs where a real browser search demonstrably DID run
+  (launched, navigated, screenshotted for two minutes). **That was a harness bug, not a product
+  bug**: `run.py` polled `/api/observability/flow/{corr_id}` per conversational turn, but a
+  dispatched worker's own steps mint FRESH corr_ids as they run (V2-044 — every stimulus is born
+  with its own trace) instead of inheriting the turn that triggered them, so a multi-step
+  background task was invisible to per-turn polling. Compounding it, the fix's first attempt
+  (session-scoped polling) also failed silently: the probe's own `session` string was never the
+  right key — `events.session_id` is the engine's *live observability session* (a server-wide,
+  one-at-a-time concept, `/api/observability/identity`), unrelated to the probe channel's dialogue
+  window. Fixed in `probe_client.py`/`run.py`: fetch the real live session_id, pull ALL its events,
+  filter to the scenario's own time window (that session spans the engine's whole uptime, not just
+  one scenario). Verified: `families_observed` now correctly includes `worker`/`widget`
+  (`missing_signals: []`, 191 real events) on a run where a search genuinely executed.
+  **The scenario still fails (1/5)**, but now for real, accurately-diagnosed reasons: the search
+  worker doesn't reliably deliver a result within the conversation's patience budget, at least once
+  it exposed an internal detail it shouldn't ("hay dos procesos en marcha... lo paro y te dejo el
+  otro" — a duplicate-dispatch smell worth checking next), and the FlashBrain doesn't proactively
+  check in with real progress, just repeats "sigo buscando". Also separately confirmed and fixed
+  2026-08-17: the engine's global run-state (⏻) was left STOPPED from earlier manual testing, which
+  alone blocks 100% of worker dispatch (`nucleo/dispatch.py`'s "agente parado" gate) — always check
+  `GET /api/run` before trusting a `families_observed` result that's missing `worker` entirely.
+  Not yet root-caused as a fix; flagged here as an open finding for whoever picks up
+  hotel/search-type cases next.
 
 All other cases stay backlog until promoted, one at a time — picking the runner shape (browser
 automation, an `agent-headless`-style scenario, an email exchange for multi-agent cases) per case

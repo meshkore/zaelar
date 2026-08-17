@@ -69,6 +69,30 @@ def flow(corr_id: str) -> list[dict]:
     return data.get("events", []) if isinstance(data, dict) else []
 
 
+def current_session_id() -> str:
+    """The engine's LIVE observability session_id (`/api/observability/identity`) — a server-wide concept, one
+    at a time, that rotates only on explicit triggers (reset, session start/end), NOT per conversation. The
+    `session` string this suite passes to `say()`/`reset()` is just the probe channel's dialogue-window key; it
+    is never written to the `events.session_id` column, so it cannot be used to scope an observability query."""
+    data = _get("/api/observability/identity")
+    return data.get("session_id", "") if isinstance(data, dict) else ""
+
+
+def session_events(session_id: str, *, limit: int = 2000) -> list[dict]:
+    """Every durable event tied to the engine's live observability session, across however many corr_ids it
+    spans. Deliberately not scoped to any one turn's trace id: a dispatched worker's own steps (browser
+    navigate/screenshot/etc.) mint FRESH corr_ids as they run (every stimulus is born with its own trace,
+    V2-044) rather than inheriting the turn that triggered them — confirmed 2026-08-17 investigating a scenario
+    where a real browser search launched, navigated and screenshotted for two minutes, yet per-turn `flow()`
+    polling reported `worker`/`widget` as entirely missing because none of that activity's corr_ids matched any
+    polled turn's trace id. Pass `current_session_id()`, not the probe's own `session` string (see its
+    docstring) — the two are unrelated identifiers."""
+    if not session_id:
+        return []
+    data = _get(f"/api/observability/events?session_id={urllib.parse.quote(session_id, safe='')}&limit={limit}")
+    return data.get("events", []) if isinstance(data, dict) else []
+
+
 def navegador_task(task_id: str) -> dict:
     """A browser task's current/final state from OUTSIDE the conversation — real extracted results if any,
     independent of the transcript. `task_id` is the navegador task id (not the escalation's worker id)."""
