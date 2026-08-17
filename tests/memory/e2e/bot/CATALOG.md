@@ -1,7 +1,7 @@
 # Catálogo del test bot de memoria (registro de requests + expectativas)
 
-> Generado desde `cases.py` (`python -m tests.e2e.memory.bot.runner --catalog`). NO editar a mano.
-> Cada **save** dice qué dice el operador y en qué CAPA debe quedar el dato (o DESCARTE). Cada **query**
+> Generado desde `cases.py` (`python -m tests.memory.e2e.bot.runner --corpus v1 --catalog`). NO editar a mano.
+> Cada **save/extract** dice qué dice el operador y qué debe extraerse, descartarse o actualizarse. Cada **query**
 > simula una pregunta como la haría el FlashBrain y qué datos debe devolver la lectura DIRECTA (sin LLM):
 > ESTADO + perfil durable + CORTO (cacheado) y, si el gate `needs_recall` dispara, el recall del LARGO.
 

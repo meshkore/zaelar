@@ -51,8 +51,15 @@ def _setup_env():
 
 
 def _long_queries() -> list[dict]:
+    """Queries de recall-largo del corpus. Excluye `stale_by_design` (V2-031, 2026-08-17): casos cuyo `want`
+    es correcto POSICIONALMENTE (justo tras escribirse, que es como los corre el bot suite normal) pero deja
+    de serlo contra el ESTADO FINAL — una batería POSTERIOR no relacionada supersede el mismo slot con otro
+    propósito (encontrado con teléfono/móvil: la GOLD reutiliza operator.phone/operator.hardware en más de un
+    sitio). No es un bug de memoria (el supersede "más reciente manda" es correcto); es un desajuste entre
+    cómo se autoraron esas dos aserciones y cómo mide scale_eval (contra el final, no contra el momento)."""
     from tests.memory.e2e.bot import cases as C
-    return [c for c in C.CASES if c.get("t") == "query" and c.get("via") == "long" and c.get("want")]
+    return [c for c in C.CASES
+            if c.get("t") == "query" and c.get("via") == "long" and c.get("want") and not c.get("stale_by_design")]
 
 
 def _rank_of(results: list[dict], wants: list[str]) -> int | None:

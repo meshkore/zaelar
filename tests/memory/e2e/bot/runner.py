@@ -435,21 +435,50 @@ async def _do_weight_check(memory, get_queue, step: dict) -> tuple[bool, str]:
 def _do_consolidate(memory, step: dict) -> tuple[bool, str]:
     """Dim L — CONSOLIDACIÓN / OLVIDO por peso: corre `memory.consolidate(limit)` (decay + dedup + eviction del de
     MENOR peso). Verifica el INVARIANTE de oro: **pinned NUNCA se evita** — el `keep` (ancla de un hecho pinned)
-    debe seguir vivo tras una poda AGRESIVA. Best-effort."""
+    debe seguir vivo tras una poda AGRESIVA. Best-effort.
+
+    AISLADO en una BD temporal (V2-031, 2026-08-17): antes de este fix, `consolidate(limit=120)` podaba
+    DIRECTAMENTE `zaelar.membot.db` en case ~382/579 — con cientos de hechos YA acumulados de otras baterías
+    (BATCH_9 "tareas encargadas" entre ellas), `evict()` borraba de VERDAD (hard delete) todo lo no-pinned por
+    debajo del límite, un daño colateral silencioso que solo `dimension C` (retención profunda, medida MUCHOS
+    casos después contra el estado FINAL) delataba — el propio `keep` de este test pasaba siempre (es pinned),
+    así que nada en la batería local avisaba de lo que se llevaba por delante. Snapshot-and-restore: se
+    checkpointea el WAL, se copia el fichero, se corre la poda AGRESIVA de verdad (la aserción sigue siendo
+    real, sobre datos reales), y se RESTAURA el snapshot al terminar — el resto del corpus nunca ve el hueco."""
+    import shutil
     limit = int(step.get("limit", 200))
     try:
         from memory import db as _db
-        before = _db.get_db().query_one("SELECT count(*) c FROM memories WHERE valid=1")["c"]
-        rep = memory.consolidate(limit=limit)
-        after = _db.get_db().query_one("SELECT count(*) c FROM memories WHERE valid=1")["c"]
+        db = _db.get_db()
+        db.conn.commit()
+        db.conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")   # vuelca el WAL al fichero principal antes de copiar
+        snapshot = str(_db.db_path()) + ".consolidate-snapshot"
+        shutil.copyfile(str(_db.db_path()), snapshot)
+        try:
+            before = db.query_one("SELECT count(*) c FROM memories WHERE valid=1")["c"]
+            rep = memory.consolidate(limit=limit)
+            after = db.query_one("SELECT count(*) c FROM memories WHERE valid=1")["c"]
+            keep = _norm(step.get("keep", ""))
+            survived = _in_long(memory, keep, step.get("keep", "")) if keep else True
+        finally:
+            # restaura SIEMPRE (incluso si la aserción falló) — el resto de la batería no puede heredar la poda.
+            # ORDEN CRÍTICO: cerrar la conexión ANTES de tocar el fichero — sobreescribir un .db con una conexión
+            # SQLite todavía abierta (WAL) es estado indefinido; `close()` puede volcar su propia caché encima
+            # del restore. Verificado en vivo: sin este orden el restore quedaba a medias (ni 23 ni 5 filas).
+            _db.reset_db()
+            shutil.copyfile(snapshot, str(_db.db_path()))
+            for suf in ("-wal", "-shm"):
+                f = pathlib.Path(str(_db.db_path()) + suf)
+                if f.exists():
+                    f.unlink()
+            os.remove(snapshot)
+            _db.get_db()
     except Exception as e:  # noqa: BLE001
         return False, f"consolidate lanzó: {e}"
-    keep = _norm(step.get("keep", ""))
-    if keep:
-        survived = _in_long(memory, keep, step.get("keep", ""))
-        if not survived:
-            return False, f"PINNED evitado indebidamente: {step.get('keep')!r} no sobrevivió a la poda (limit={limit})"
-    return True, f"consolidó (limit={limit}): {before}→{after} válidos; pinned {step.get('keep','—')!r} sobrevive OK"
+    if keep and not survived:
+        return False, f"PINNED evitado indebidamente: {step.get('keep')!r} no sobrevivió a la poda (limit={limit})"
+    return True, (f"consolidó AISLADO (limit={limit}): {before}→{after} válidos; "
+                  f"pinned {step.get('keep','—')!r} sobrevive OK; corpus compartido restaurado")
 
 
 async def _do_episode(memory, get_queue, step: dict) -> tuple[bool, str]:

@@ -85,7 +85,10 @@ BATCH_2 = [
     {"t": "query", "q": "Oye Ricart, ¿qué deportes te gustan?", "via": "long", "want": ["padel"],
      "note": "pregunta social sobre gustos → recall/perfil durable"},
     {"t": "query", "q": "¿Cómo se llama mi perro?", "via": "long", "want": ["toby"],
-     "note": "recall de un hecho personal durable"},
+     "note": "recall de un hecho personal durable", "stale_by_design": True,
+     # V2-031 (2026-08-17): mismo patrón que el case de la línea ~686 — una batería POSTERIOR (dim M) corrige
+     # el nombre a "Nala". Contra el ESTADO FINAL "toby" es el nombre RETIRADO, no el vigente.
+     },
 ]
 
 BATCH_3 = [
@@ -439,7 +442,16 @@ BATCH_13 = [
     {"t": "save", "text": "Me he cambiado de número, ahora es el 611 987 654.", "marker": "611", "in": ["long"],
      "note": "teléfono NUEVO → supersede del anterior (slot operator.phone)"},
     {"t": "query", "q": "¿Cuál es mi número de teléfono?", "via": "long", "want": ["611"], "not_want": ["600"],
-     "note": "supersede: el número nuevo manda, el viejo ya no vale"},
+     "note": "supersede: el número nuevo manda, el viejo ya no vale",
+     "stale_by_design": True,
+     # V2-031 (2026-08-17): el SLOT operator.phone lo vuelve a cambiar una batería POSTERIOR (dim M, línea
+     # ~2919: 611→622→633→644), así que el valor VIGENTE al final del corpus completo ya no es "611" — esto
+     # es correcto de verdad (más reciente manda) y comprobado en vivo, no un bug de memoria. La aserción
+     # "611 supersede a 600" sigue siendo válida POSICIONALMENTE (justo tras escribirse, que es como la
+     # corre el runner normal); lo que NO es válido es medirla contra el ESTADO FINAL (scale_eval), donde
+     # compite con una batería posterior no relacionada que pisa el MISMO slot con otro propósito. Excluida
+     # de scale_eval._long_queries() por esta bandera — sigue corriendo normal en el bot suite.
+     },
     # — MENSAJE familiar entrante + recall —
     {"t": "connector", "platform": "whatsapp", "sender": "Marta",
      "text": "el sábado es el cumple de mamá, ¿traes tú la tarta?", "marker": "tarta", "in": ["short"],
@@ -675,7 +687,13 @@ BATCH_21 = [  # COMIDA + MASCOTAS + supersede de objetivo
     {"t": "save", "text": "Toby es un labrador de tres años.", "marker": "labrador", "in": ["long"],
      "note": "detalle de la mascota → mascotas"},
     {"t": "query", "q": "¿Qué sabes de mi perro Toby?", "via": "long", "want": ["labrador"],
-     "note": "categoría mascotas + entidad"},
+     "note": "categoría mascotas + entidad", "stale_by_design": True,
+     # V2-031 (2026-08-17): una batería POSTERIOR (dim M, ~línea 1146) corrige el nombre — "el perro no se
+     # llama Toby sino Nala" — así que contra el ESTADO FINAL "Toby" es un nombre RETIRADO, no "labrador".
+     # Verificado en vivo: el retriever ya trae correctamente en el puesto 1 "Su perro se llama Nala (había
+     # quedado registrado como Toby por error)" — el sistema acierta, el `want` de este case es el que quedó
+     # desalineado con la corrección posterior. Mismo patrón que teléfono/móvil arriba.
+     },
     {"t": "save", "text": "Mi objetivo ahora es cerrar la ronda de financiación de la empresa.",
      "marker": "financiacion", "in": ["state"], "state_key": "objetivo",
      "note": "nuevo objetivo → supersede slot goal.current"},
@@ -735,7 +753,11 @@ BATCH_23 = [  # supersede múltiple + agenda + abstención + categoría salud am
     {"t": "query", "q": "¿Cuándo es mi cita con el fisio?", "via": "short", "want": ["martes"],
      "note": "recall del email"},
     {"t": "query", "q": "¿Te acuerdas de qué móvil tengo ahora?", "via": "long", "want": ["pixel"],
-     "note": "recall del móvil actual"},
+     "note": "recall del móvil actual", "stale_by_design": True,
+     # V2-031 (2026-08-17): el slot operator.hardware lo supersede una mención POSTERIOR ("un Xiaomi",
+     # ~línea 2476) — "pixel" era el móvil vigente EN ESTE PUNTO del corpus (posicionalmente correcto), pero
+     # no al final. Mismo motivo que el teléfono de arriba: excluida de scale_eval, no del bot suite normal.
+     },
     {"t": "turn", "op": "Estoy pintando el salón de un color verde salvia que me flipa.",
      "hb": "¡Qué buena elección! ¿Te ayudo a elegir la decoración?", "note": "actividad en curso → recencia"},
     {"t": "query", "q": "¿De qué color estoy pintando el salón?", "via": "short", "want": ["verde"],
