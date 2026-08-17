@@ -2516,6 +2516,33 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     `pytest tests/memory/ nucleo/`: 380 passed, 1 skipped (subido de 364). Detalle:
     `V2-111-memoria-entidades-relaciones.md §9` (las fases 0-3 de entidades/relaciones SIGUEN en diseño, sin
     construir).
+- **An escalated flow closed itself seconds after opening — a structural race, not an occasional one (V2-113,
+  2026-08-17)**: confirmed with millisecond-level trace evidence (session dd64a1a7-..., trace T5·d232) — a flow
+  escalated to a Brain Worker got its explicit `flow/end` at +184ms while the worker itself didn't start until
+  19s later. `nucleo/flash/escalate.py::escalate_to_slowbrain()` is synchronous and only publishes
+  `bus.emit_sync("escalate.requested", ...)`; `nucleo/dispatch.py::run_listener` registers the `SessionRecord`
+  that `has_live_trace()` checks for ASYNCHRONOUSLY, on its own task. `voice/engine/llm/providers/
+  nucleo.py::_close_flow_now()` checked `has_live_trace(tid)` moments later, still inside the SAME synchronous
+  turn — before the event loop had given the listener a single scheduler turn to react. Not a timing bug that
+  usually works: the producer never yields before checking, so the consumer literally cannot have run yet.
+  - **Fix carries the signal in the SAME turn, no new cross-module state.** Two designs were weighed: a shared
+    "pending worker" registry between `escalate.py` and `dispatch.py` (new coupling between two modules
+    deliberately decoupled today) vs. the call site that just decided to escalate passing that fact straight to
+    `_flow_should_close` as one more boolean, same priority as `has_live_worker` — chosen for zero new shared
+    state, consistent with that function's existing pure-decision contract. `NucleoLLM._escalated_trace_id`
+    (same ownership pattern as `_acc_trace_id`) is set right before publishing; `_flow_should_close` gains
+    `just_escalated: bool = False`.
+  - **The guard had to be BOUNDED, not indefinite, or it traded one bug for a worse one.** `run_listener` has two
+    outcomes that never create a `SessionRecord` at all: rejected while the agent is halted (⏻), or absorbed as
+    a dedup refinement into an already-live session. Left unguarded, `just_escalated` would have blocked
+    `_flow_should_close` from EVER closing those flows — permanently stuck open beats the original premature
+    close for wrongness. `nucleo/dispatch.py::_close_escalated_flow(ctx, *, ok, status)` emits the same explicit
+    `flow/end` `_run_session`'s finally block emits for a real spawn, wired into both `run_listener` branches.
+  - Tests: `tests/voice/unit/providers/test_nucleo_trace_merge.py` (pure-decision guard + `_close_flow_now`
+    reading `_escalated_trace_id`), `tests/agent_headless/unit/test_dispatch.py` (both `run_listener` branches
+    against the real bus, confirming no `SessionRecord` is ever created for the escalated trace in either case).
+    Full suite: 2076 passed, 7 skipped, no regressions. Detail:
+    `V2-113-flujo-escalada-cierre-prematuro.md`.
 
 ## Testing y rueda de mejora (INI-013)
 

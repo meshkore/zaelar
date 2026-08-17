@@ -297,6 +297,76 @@ def test_listener_dedups_second_identical_escalation(fresh_db, fake_backend, mon
     assert injected and injected[0][0] == "live" and "rápido" in injected[0][1]   # se inyectó a la viva
 
 
+# ── V2-113: an escalation that never spawns its own SessionRecord must still close ITS trace explicitly ─────────
+# Real bug: `_flow_should_close`'s `just_escalated` guard blocks the voice provider from closing a flow the
+# instant it publishes `escalate.requested` (bridges the race before `run_listener` gets a scheduler turn). If
+# `run_listener` then rejects (halted) or dedup-injects (absorbed into a live session), NEITHER path ever creates
+# a `SessionRecord` for that trace — `has_live_trace` stays False forever, and without an explicit close here the
+# flow would be stuck OPEN forever, a worse regression than the premature-close bug this whole guard exists for.
+def test_listener_closes_the_flow_explicitly_when_rejected_while_halted(fresh_db, fake_backend, monkeypatch):
+    from nucleo.flash import escalate
+    from nucleo import runstate
+
+    monkeypatch.setattr(runstate, "stopped", lambda: True)
+    closed: list = []
+
+    def _fake_emit(kind, label, **kw):
+        if kind == "flow" and label == "end":
+            closed.append(kw.get("extra"))
+    monkeypatch.setattr("voice.observer.emit", _fake_emit)
+
+    async def run():
+        bus.reset(); escalate.reset()
+        stop = asyncio.Event()
+        task = asyncio.create_task(dispatch.run_listener(stop))
+        await asyncio.sleep(0.05)
+        escalate.escalate_to_slowbrain("busca un piso", context={"trace": "T1·halted"})
+        await asyncio.sleep(0.1)
+        stop.set(); await asyncio.sleep(0.05); task.cancel()
+
+    asyncio.run(run())
+    assert closed and closed[0].get("status") == "rejected_halted"
+    assert "T1·halted" not in dispatch._SESSIONS   # no SessionRecord was ever created for it
+
+
+def test_listener_closes_the_flow_explicitly_on_dedup_inject(fresh_db, fake_backend, monkeypatch):
+    from nucleo.flash import escalate
+    from nucleo.workers.session import SessionRecord
+
+    monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
+
+    async def _fake_inject(which, msg):
+        return [which]
+    monkeypatch.setattr(dispatch, "inject", _fake_inject)
+
+    closed: list = []
+
+    def _fake_emit(kind, label, **kw):
+        if kind == "flow" and label == "end":
+            closed.append(kw.get("extra"))
+    monkeypatch.setattr("voice.observer.emit", _fake_emit)
+
+    async def run():
+        bus.reset(); escalate.reset()
+        dispatch._SESSIONS["live"] = SessionRecord(
+            task_id="live", kind="code", status="running",
+            goal="Implementar en el widget youtube la capacidad de ampliarse a pantalla completa por voz")
+        stop = asyncio.Event()
+        task = asyncio.create_task(dispatch.run_listener(stop))
+        await asyncio.sleep(0.05)
+        escalate.escalate_to_slowbrain(
+            "Implementar en el widget youtube la capacidad de ampliarse a pantalla completa por voz rápido",
+            context={"kind": "code", "trace": "T2·dedup"})
+        await asyncio.sleep(0.2)
+        new_keys = [k for k in dispatch._SESSIONS if k != "live"]
+        stop.set(); await asyncio.sleep(0.05); task.cancel()
+        return new_keys
+
+    new_keys = asyncio.run(run())
+    assert new_keys == []
+    assert closed and closed[0].get("status") == "dedup_injected"
+
+
 def test_listener_consumes_escalate_requested(fresh_db, fake_backend):
     from nucleo.flash import escalate
 

@@ -206,7 +206,8 @@ def _schedule_acc_nudge(brain: "NucleoLLM", gen: int) -> None:
     _spawn(_run(), "acc_nudge")
 
 
-def _flow_should_close(tid: str, acc_trace_id: str, confirm_trace_ids, has_live_worker: bool) -> bool:
+def _flow_should_close(tid: str, acc_trace_id: str, confirm_trace_ids, has_live_worker: bool,
+                        just_escalated: bool = False) -> bool:
     """Pure decision: should THIS trace's flow close now? Factored out so it is comprobable without the observer/
     dispatch/confirm modules (see `tests/voice/unit/providers/test_nucleo_trace_merge.py`).
 
@@ -214,7 +215,17 @@ def _flow_should_close(tid: str, acc_trace_id: str, confirm_trace_ids, has_live_
     does (`dispatch.py`'s `_run_session` finally block). Without this, the master can only guess "is this flow
     still active?" from RECENCY (`last_ms` within a window), which is wrong the instant a turn finishes: a
     completed kickoff/reply looks identical to a genuinely stuck one until the window expires minutes later —
-    reported live by the operator ("he reiniciado el sistema... pero hay siete procesos activos")."""
+    reported live by the operator ("he reiniciado el sistema... pero hay siete procesos activos").
+
+    `just_escalated` (V2-113) closes a STRUCTURAL race, not an occasional one: `escalate_to_slowbrain()` publishes
+    `escalate.requested` synchronously and returns, but `dispatch.run_listener` registers the SessionRecord that
+    `has_live_worker` checks for ASYNCHRONOUSLY, on its own task — this function runs moments later, in the SAME
+    synchronous turn that just published, before the event loop has given the listener a scheduler turn to react
+    at all. Without this guard `has_live_worker` is reliably still False and the flow closes seconds before the
+    worker it just spawned even starts (confirmed sub-ms apart on a real trace). Bounded, not indefinite: whatever
+    `run_listener` decides — spawn (its own `_run_session` finally block closes it for real), reject-while-halted,
+    or dedup-inject into a live session — always emits its own explicit close (`dispatch._close_escalated_flow`
+    for the latter two), so this never leaves a flow stuck open."""
     if not tid:
         return False
     if acc_trace_id == tid:
@@ -223,6 +234,8 @@ def _flow_should_close(tid: str, acc_trace_id: str, confirm_trace_ids, has_live_
         return False           # a question asked on this trace is still waiting for the operator's answer
     if has_live_worker:
         return False           # a worker spawned on this trace is still running — IT owns the close
+    if just_escalated:
+        return False           # escalate.requested just published on THIS trace — see docstring above
     return True
 
 
@@ -257,7 +270,8 @@ def _close_flow_now(tid: str, brain: "NucleoLLM") -> None:
         from nucleo import dispatch as _disp_close
         confirm_trace_ids = {v.get("trace_id") for v in _confirm_close.pending().values()}
         if not _flow_should_close(tid, getattr(brain, "_acc_trace_id", ""), confirm_trace_ids,
-                                   _disp_close.has_live_trace(tid)):
+                                   _disp_close.has_live_trace(tid),
+                                   just_escalated=(getattr(brain, "_escalated_trace_id", "") == tid)):
             return
         from voice import trace as _trace
         from voice.observer import emit as _emit_close
@@ -424,6 +438,9 @@ class NucleoLLM(llm.LLM):
         #                                    context-bleed (round headless V2-038 #1: re-emisión cross-turno)
         self._utterance: dict = {"text": "", "at": 0.0}   # frase EN CURSO del operador (guarda de fragmentos, _extends)
         self._acc_trace_id: str = ""       # trace del flujo mientras el acumulador (V2-096) tiene trozos a medias
+        self._escalated_trace_id: str = "" # trace que ACABA de publicar escalate.requested este turno (V2-113):
+        #                                    bridges the sync race before dispatch.run_listener gets a scheduler
+        #                                    turn to register/reject/dedup it — see `_flow_should_close`
         self._acc_gen: int = 0             # accumulator chain generation (2026-08-15, see `_schedule_acc_nudge`):
         #                                    bumped every time a chain resolves or gets dropped, so a nudge
         #                                    scheduled for it and now stale doesn't fire late
@@ -2849,6 +2866,14 @@ class NucleoLLMStream(llm.LLMStream):
                 except Exception:
                     emit("brain", "🧭 escalada duplicada ignorada", text=req, role="system")
             else:
+                # V2-113: mark THIS trace as just-escalated BEFORE publishing, so `_maybe_close_flow` (which runs
+                # moments later, still inside this same turn) doesn't close the flow while `dispatch.run_listener`
+                # hasn't had a scheduler turn to register/reject/dedup it yet — see `_flow_should_close`.
+                try:
+                    from voice import trace as _trace5
+                    brain._escalated_trace_id = _trace5.current()
+                except Exception:
+                    pass
                 _escalate_mod.escalate_to_slowbrain(req, context={"src": "voice"})
                 emit("brain", "🧭 Flash → Brain Worker (escalada registrada)", text=req, role="system")
 

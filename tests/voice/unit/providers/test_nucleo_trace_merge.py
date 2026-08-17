@@ -114,6 +114,59 @@ def test_flow_should_not_close_while_its_worker_is_still_running():
     assert _flow_should_close("T1·aaaa", "", set(), True) is False
 
 
+# ── just_escalated — a structural race, not an occasional one (V2-113, 2026-08-17) ───────────────────────────────
+# Real trace evidence (session dd64a1a7-..., trace T5·d232): `escalate.requested` published at 722148.675ms, the
+# flow's "end" fired at 722148.859ms — 184ms later, still inside the SAME synchronous turn — while the worker
+# dispatch.run_listener spawns didn't start until 741431.474ms, ~19s later. `has_live_worker` was reliably still
+# False at close-time because dispatch.run_listener never got a scheduler turn to register the SessionRecord.
+def test_flow_should_not_close_right_after_publishing_an_escalation():
+    assert _flow_should_close("T1·aaaa", "", set(), False, just_escalated=True) is False
+
+
+def test_flow_should_close_normally_once_a_worker_is_actually_registered():
+    # has_live_worker=True wins regardless of just_escalated (dispatch.run_listener finished registering).
+    assert _flow_should_close("T1·aaaa", "", set(), True, just_escalated=True) is False
+
+
+def test_flow_closes_normally_when_nothing_was_escalated_this_turn():
+    # just_escalated defaults False — a plain conversational turn is unaffected by this guard.
+    assert _flow_should_close("T1·aaaa", "", set(), False) is True
+
+
+# ── _close_flow_now reads brain._escalated_trace_id (V2-113) ──────────────────────────────────────────────────────
+def test_close_flow_now_defers_while_this_traces_escalation_is_unresolved(monkeypatch):
+    from voice.engine.llm.providers import nucleo as nmod
+
+    brain = _fresh_brain()
+    _begin_or_adopt_trace(brain, "búscame vuelos a Ibiza", True)
+    tid = trace.current()
+    brain._escalated_trace_id = tid
+
+    closed = {"v": False}
+
+    def _fake_emit(*a, **k):
+        closed["v"] = True
+
+    monkeypatch.setattr("nucleo.dispatch.has_live_trace", lambda t: False)
+    monkeypatch.setattr("widgets.confirm.pending", lambda: {})
+    monkeypatch.setattr("voice.observer.emit", _fake_emit)
+    nmod._close_flow_now(tid, brain)
+    assert closed["v"] is False, "must NOT close while the escalation's own outcome is still unknown"
+
+
+def test_close_flow_now_closes_once_a_different_traces_escalation_is_pending():
+    from voice.engine.llm.providers import nucleo as nmod
+
+    brain = _fresh_brain()
+    _begin_or_adopt_trace(brain, "búscame vuelos a Ibiza", True)
+    tid = trace.current()
+    brain._escalated_trace_id = "T9·other"   # a DIFFERENT trace's escalation is pending, not this one
+    trace.adopt("")
+    # a real close attempt for `tid` should proceed to `_flow_should_close`'s normal plain-turn verdict (True) —
+    # verified indirectly via `_flow_should_close` itself, since it's the pure decision under test here.
+    assert _flow_should_close(tid, "", set(), False, just_escalated=(brain._escalated_trace_id == tid)) is True
+
+
 # ── _release_acc_trace_if_fresh (2026-08-16) — the real bug diagnosed live ──────────────────────────────────────
 # "Necesito que cierres todos los widgets..." sat "EN CURSO" in the master forever despite doing its job (closing
 # the widgets) correctly: `_begin_or_adopt_trace` sets `_acc_trace_id` for a fresh turn on the assumption that

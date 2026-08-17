@@ -1184,6 +1184,24 @@ async def dispatch(task: "Task") -> str:
 
 
 # ── consumo de escalados del bus (FlashBrain → workers) ────────────────────────────────────────────────────
+def _close_escalated_flow(ctx: dict, *, ok: bool, status: str) -> None:
+    """Explicit flow-close for an `escalate.requested` outcome that never spawns its own `SessionRecord` —
+    rejected while the agent is halted, or absorbed as a refinement into an already-live session (V2-113). Both
+    paths leave `has_live_trace(trace_id)` False forever for THIS trace, so without an explicit close here the
+    voice provider's `just_escalated` guard (`nucleo.py::_flow_should_close`) would block the flow from EVER
+    closing — mirrors the close `_run_session`'s finally block emits for a real spawn."""
+    trace_id = str((ctx or {}).get("trace") or "")
+    if not trace_id:
+        return
+    try:
+        from voice import trace as _trace3
+        from voice.observer import emit as _emit_close2
+        with _trace3.scope(trace_id):
+            _emit_close2("flow", "end", role="system", extra={"ok": ok, "status": status})
+    except Exception:
+        pass
+
+
 async def run_listener(stop: "asyncio.Event | None" = None) -> None:
     import bus
 
@@ -1222,6 +1240,7 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                          extra={"id": key, "reason": "el agente está parado (⏻): no se abre trabajo nuevo"})
                 except Exception:
                     pass
+                _close_escalated_flow(ctx, ok=False, status="rejected_halted")
                 logger.info(f"dispatch: escalada RECHAZADA (agente parado): {request[:80]}")
                 continue
             # DEDUP en la FUENTE DE VERDAD (§sesión 2026-07-15): si ya hay una sesión viva atendiendo esta misma
@@ -1239,6 +1258,7 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                     await inject(dup, request)      # refinamiento a la sesión viva (no relanza)
                 except Exception as e:  # noqa: BLE001
                     logger.warning(f"dispatch: inject de dedup a {dup} falló: {e}")
+                _close_escalated_flow(ctx, ok=True, status="dedup_injected")
                 continue
             # V2-049 CONTINUIDAD: sin sesión viva que casar, ¿hay una gestión web INCOMPLETA reciente que ESTA
             # petición reanuda? (nudge «sigue con la ITV», o el operador aportando el dato que faltaba). Reanuda esa
