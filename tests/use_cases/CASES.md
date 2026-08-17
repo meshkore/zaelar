@@ -222,6 +222,49 @@ judge, full design below), reusing the voice tester's proven DRIVE+JUDGE pattern
   finding open (#6, FlashBrain empty-reply/echo collapse) — flagged for the operator's call on
   priority, same posture as the earlier context-window ceiling.
 
+  **Continued after operator confirmation ("sí", continue) — finding #6 root-caused and fixed**,
+  narrower and shallower than feared: not FlashBrain reliability degrading under load, but a real gap
+  in the "never mudo" (never-silent) backstop machinery both `nucleo/flash/probe.py::run_turn` and
+  `voice/engine/llm/providers/nucleo.py` already carry. Both files have an established pattern —
+  several backstops, each gated to ITS OWN action (`widget_data`→`data_ack`, canvas show/close→
+  `show_ack`, escalate-with-no-text→`filler_holding`/`filler_still_working`, style/data-op/confirm/
+  clarify → their own acks) — but **none of them is gated on plain `action=="chat"`**: a pure
+  conversational check-in turn where the model calls no tool AND returns empty text fell through
+  every single one, landing on the wire as a genuinely silent turn. Confirmed by re-reading
+  `probe.py`'s action-derivation chain (`action = "chat"` is the bare fallback when no tool fired and
+  no tag was emitted, `probe.py:492`) against the exact transcript shape of the live bug — a
+  check-in question ("¿pudiste relanzarla?") with a worker already running triggers no new
+  escalate/widget/data/style/confirm action, so `action=="chat"` and none of the existing backstops
+  apply. The follow-on echo (turn 22 repeating the tester's own words back) is the model, one turn
+  later, degenerating over a conversation window with a silent gap in it — a downstream symptom of
+  the same root cause, not a second independent bug.
+
+  Fixed with one more generic backstop in each file, appended after all the existing ones (so it only
+  fires as a genuine last resort): if the turn is STILL mute at that point, say something sensible —
+  `filler_still_working` ("sigo con ello…") if a worker/task is active
+  (`nucleo.dispatch.has_active()` in probe, `_prev_pending` in voice — both already-computed
+  turn-start signals, no new state), otherwise a plain "perdona, ¿me lo repites?". Impl PARALELA,
+  cablear en ambos (probe.py + nucleo.py), same pattern the codebase already uses for every other
+  backstop in this family.
+
+  Unit-tested on the `probe.py` side (`tests/agent_headless/unit/flash/test_probe_never_mute.py`, 2
+  cases, registered in `run_testmap.py` node 2.2) with a stub `FastClient` that streams nothing and
+  calls no tool — reproduces the exact live shape (worker active + check-in question → never-empty,
+  never-an-echo reply). The `voice/engine/llm/providers/nucleo.py` mirror is **not independently
+  unit-tested** — that ~2400-line function has no test harness for a full turn yet (see V2-098/V2-112:
+  only small, self-contained slices like `vault_intercept.py` have been extracted so far; this
+  backstop is a 12-line addition mirroring an already-proven pattern, not a new architecture to
+  validate from scratch). **Not live-restarted+re-verified this round**: the running engine
+  (`sha=757f6a2`) predates this fix, and restarting it to pick up the change risked disrupting a
+  concurrent session doing memory-domain work against the same live server at the time — deferred
+  rather than risking that collision. Full `agent-headless` (552 passed, up from 547) and `voice`
+  (307 passed, 6 skipped) suites green.
+
+  **Tally after this fix, this session**: 6 concrete, verified fixes across 7 commits (the 6 above +
+  this one, not yet committed as of writing). Still open: the context-window ceiling on long-running
+  worker sessions, and a live re-run to confirm the fix holds against the real engine (flagged for
+  whoever restarts next, or the operator directly).
+
 All other cases stay backlog until promoted, one at a time — picking the runner shape (browser
 automation, an `agent-headless`-style scenario, an email exchange for multi-agent cases) per case
 as it's picked up, not decided in bulk here.

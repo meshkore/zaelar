@@ -2684,6 +2684,24 @@ class NucleoLLMStream(llm.LLMStream):
                 spoken_text = "Sigo con ello." if _prev_pending else "Vale, dame un momento."
             send(speech.sanitize(spoken_text, drop_metadata=False))
 
+        # BACKSTOP GENÉRICO — turno de CHARLA pura que salió MUDO: ninguna tool se disparó (ninguno de los
+        # backstops de arriba — widget/data/style/confirm/clarify/escalada — encontró algo que resolver) Y el
+        # modelo no dijo NADA. Live bug (search-buy-used-car, 2026-08-17): tras varios check-ins con un worker
+        # corriendo, un turno de charla pura ("¿pudiste relanzarla?") volvió del modelo genuinamente vacío; como
+        # todo backstop anterior está gateado a SU propia acción, ninguno cubría este caso — el operador se
+        # quedó sin respuesta, y el turno SIGUIENTE, viendo ese hueco en la ventana, acabó ECOANDO la propia
+        # pregunta del operador palabra por palabra. Último recurso: si a estas alturas sigue sin haber nada
+        # que decir, dilo con sentido según si hay trabajo de fondo en marcha. Espejo del backstop genérico de
+        # `probe.py` (impl PARALELA, cablear en AMBOS).
+        if not spoken_text:
+            try:
+                from voice.engine.core import langs
+                spoken_text = langs.current_language().filler_still_working if _prev_pending \
+                    else "Perdona, ¿me lo repites?"
+            except Exception:
+                spoken_text = "Sigo con ello." if _prev_pending else "Perdona, ¿me lo repites?"
+            send(speech.sanitize(spoken_text, drop_metadata=False))
+
         # push_user (no append pelado): si el turno ANTERIOR se canceló por solape, su frase ya está registrada y
         # ésta suele ser su versión acumulada por el STT → se sustituye en vez de duplicar el prefijo.
         _dialog.push_user(brain._window, text)

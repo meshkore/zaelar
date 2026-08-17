@@ -67,7 +67,12 @@ DOMAINS: list[dict] = [
         {"id": "2.2", "title": "Bucle de diálogo y anti-degeneración", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_dialog.py", "tests/agent_headless/unit/test_loop.py",
             # veredicto de latencia del turno: prompt grande vs proveedor vs frío vs trabajo real
-            "tests/agent_headless/unit/test_turn_perf.py"]},
+            "tests/agent_headless/unit/test_turn_perf.py",
+            # el recall no busca por una nota [SISTEMA] antepuesta (2026-08-17, alucinación de un familiar)
+            "tests/agent_headless/unit/flash/test_probe_recall_notes.py",
+            # un turno de charla pura que vuelve MUDO (sin tool, sin texto) dice algo con sentido en vez de
+            # callar — sin esto el turno siguiente acababa ecoando la propia pregunta del operador (2026-08-17)
+            "tests/agent_headless/unit/flash/test_probe_never_mute.py"]},
         {"id": "2.3", "title": "Prompt / skeleton / chispas", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_prompt.py", "tests/agent_headless/unit/test_skeleton.py", "tests/agent_headless/unit/test_sparks.py"]},
         {"id": "2.4", "title": "Cliente LLM rápido, reintento y RELEVO por latencia", "ch": UNIT, "paths": [

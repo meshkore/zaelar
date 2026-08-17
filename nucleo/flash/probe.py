@@ -739,6 +739,15 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 spoken = _lg.data_ack        # ack corto en el probe; el turno real dice lo que puso el conector
             elif action == "style":
                 spoken = _lg.data_ack        # V2-046 A1: fijar/retirar una regla nunca deja el turno mudo
+            else:
+                # BACKSTOP GENÉRICO — turno de CHARLA pura (`action=="chat"` u otro no cubierto arriba) que
+                # salió MUDO: el modelo no llamó a ninguna tool Y no dijo nada. Live bug (search-buy-used-car,
+                # 2026-08-17): ninguno de los casos de arriba está gateado a `action=="chat"`, así que un turno
+                # de check-in ("¿pudiste relanzarla?") con el modelo genuinamente sin respuesta se quedaba en
+                # silencio total — y el turno SIGUIENTE, viendo ese hueco en la ventana, acabó ECOANDO la propia
+                # pregunta del operador ("Dime algo, por favor. ¿Se relanzó la búsqueda...?", literalmente sus
+                # palabras). Espejo del backstop genérico de `nucleo.py` (impl PARALELA, cablear en AMBOS).
+                spoken = _lg.filler_still_working if _hw else "Perdona, ¿me lo repites?"
         except Exception:
             pass
 
