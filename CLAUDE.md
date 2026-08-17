@@ -2367,6 +2367,26 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   verificado en una porción representativa; la corrida completa queda periódica/manual, mismo patrón que
   `distiller_bench.py`/`scale_eval.py`. Suite: 356 passed, 1 skipped (subido de 349). Detalle:
   `V2-107-corpus-longitudinal-contradicciones.md`.
+- **Susurro's friction window had no recency boundary — an 11-hour-old exchange got escalated as "now" (V2-108)**
+  (2026-08-17): audited against `memory/_data/zaelar.db` directly (operator, sid `55783a7c-...`) found Susurro
+  escalating a worker_action for a football's price under today's test trace — but that request was the real
+  operator's conversation from **11 hours earlier** (a different session entirely), not anything from the test.
+  Root cause: `memory.recent_window()` is a single GLOBAL conversational buffer (no session_id, no per-line
+  trace, deliberate 2-day TTL for the FlashBrain's own reconnect continuity) — the probe/test channel correctly
+  never WRITES to it (`ingest=False`), but nothing gated what Susurro READS from it, so an unrelated stale
+  exchange got presented to the auditor with zero age signal. `nucleo/susurro/engine.py::_audit()` already had a
+  `recency_window_s` cutoff for `turn_ring`/`event_ring`, added for the identical prior incident ("a scenario
+  diagnosed a different EARLIER one's failure") — `conversation_block` was the one section that gap didn't
+  cover. Fixed by extending the SAME cutoff to it: `memory.recent_window()` now carries `ts` per entry;
+  `window.conversation_block/has_conversation/compose_audit_window` accept `since_ts` (fail-open on missing
+  `ts`, e.g. existing test mocks); `_audit()` passes its existing `cut` through. Considered the trace-merge
+  design the operator's report proposed (`voice.trace.merge()`, LLM declares the original trace) — rejected for
+  THIS incident: even correct attribution would have merged today's work into an 11-hour-old, closed, unrelated
+  trace, no less confusing than the original bug. That design stays valid for its intended case (a request from
+  a couple of turns ago, same session, different trace) — just wasn't what this specific failure needed. Test:
+  `test_conversation_block_drops_entries_older_than_since_ts` (real contract, no mocking — backdates a written
+  entry 11h via direct SQL, same gap as the real incident). Suite: `agent-headless`, 547 passed. Detail:
+  `V2-108-flujos-board-audit.md`.
 
 ## Testing y rueda de mejora (INI-013)
 

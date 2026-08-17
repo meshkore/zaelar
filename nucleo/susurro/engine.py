@@ -177,13 +177,13 @@ async def _audit(reason: str, signals: list[str], trace: str):
             # SIN CONVERSACIÓN NO HAY AUDITORÍA (2026-08-13, ver `window.has_conversation` para el incidente):
             # un auditor de conversaciones sin conversación no se calla, RELLENA — y con `worker_action` habilitado
             # ese relleno se convierte en una acción real sobre el mundo. Abstenerse es gratis.
-            if not await asyncio.to_thread(window.has_conversation, turns):
+            if not await asyncio.to_thread(window.has_conversation, turns, since_ts=cut):
                 _emit("🤐 auditoría OMITIDA (ventana sin conversación)", text=reason,
                       extra={"reason": reason, "signals": signals[:4]})
                 return
             doc = await asyncio.to_thread(
                 window.compose_audit_window, reason=reason, signals=signals,
-                turn_ring=tr, event_ring=er, turns=turns)
+                turn_ring=tr, event_ring=er, turns=turns, since_ts=cut)
             content, meta = await client.audit_llm(doc)
             # observabilidad TOTAL (regla del operador): ENVÍO y RESPUESTA crudos, al timeline + log durable
             _emit("📤 request → LLM auditor", text=f"{meta.get('model')} · {len(doc)} chars",

@@ -467,3 +467,55 @@ def test_window_reads_the_real_recent_window_shape(tmp_path, monkeypatch):
     finally:
         memdb.reset_db()
         mememb.reset()
+
+
+# ── conversational-buffer recency (V2-105 follow-up, 2026-08-17) ───────────────────────────────────────────
+# `memory.recent_window` is a SINGLE global buffer (no session_id, no per-line trace) with a 2-day TTL — on
+# purpose, it's the FlashBrain's own continuity across reconnects. Confirmed with real data: a use_cases test
+# session's "Vale, avísame." turn triggered friction, and the auditor received — with no age marker at all — a
+# REAL operator conversation from 11 HOURS earlier (a World Cup ball's price) mixed into the same "recent
+# conversation" block, and escalated it as if it were the pending request of THIS moment, attached to the test
+# session's trace. `turn_ring`/`event_ring` already had a recency cutoff (`recency_window_s`) for an identical
+# prior incident ("a scenario diagnosed a different EARLIER one's failure"); this was the one section of the
+# document that gap didn't cover.
+def test_conversation_block_drops_entries_older_than_since_ts(tmp_path, monkeypatch):
+    monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "zaelar.db"))
+    monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
+    import time as _time
+    from memory import api as memory
+    from memory import db as memdb
+    from memory import embeddings as mememb
+    from nucleo.susurro import window as _win
+
+    memdb.reset_db()
+    db = memdb.get_db()
+    mememb.reset()
+    try:
+        memory.write("Operador: cuánto vale el balón del mundial · zaelar: lo miro",
+                     kind="conv", level="short", importance=0.2, ttl_days=2.0,
+                     meta={"source": "conv", "u": "cuánto vale el balón del mundial", "a": "lo miro"})
+        # Backdate it 11h — same gap as the real incident. `memory.write` always stamps "now"; there's no
+        # override, so the test does what a passing 11h really means: move `created` back directly.
+        eleven_hours_ago = _time.time() - 11 * 3600
+        db.execute("UPDATE memories SET created=?, updated=? WHERE json_extract(meta,'$.source')='conv'",
+                  (eleven_hours_ago, eleven_hours_ago))
+
+        memory.write("Operador: búscame un hotel para dentro de 15 días · zaelar: me pongo con ello",
+                     kind="conv", level="short", importance=0.2, ttl_days=2.0,
+                     meta={"source": "conv", "u": "búscame un hotel para dentro de 15 días",
+                           "a": "me pongo con ello"})
+
+        # WITHOUT a cutoff (default, since_ts=0.0): sees both — unchanged behavior, nothing broken.
+        block_all = _win.conversation_block(8)
+        assert "balón" in block_all and "hotel" in block_all
+
+        # WITH the same cutoff engine.py already uses for turn_ring/event_ring (recency_window_s, default
+        # 180s): the ball entry drops out, the freshly-written hotel one stays.
+        cut = _time.time() - 180
+        block_recent = _win.conversation_block(8, since_ts=cut)
+        assert "balón" not in block_recent, "an 11h-old entry must not read as friction from RIGHT NOW"
+        assert "hotel" in block_recent, "the genuinely recent entry must not disappear"
+        assert _win.has_conversation(8, since_ts=cut) is True
+    finally:
+        memdb.reset_db()
+        mememb.reset()

@@ -772,7 +772,7 @@ def recent_window(limit: int = 6, max_chars: int = 1600) -> list[dict]:
         "AND json_extract(meta,'$.source')='conv' "
         "ORDER BY updated DESC, id DESC LIMIT ?", (int(limit),)
     )
-    pairs: list[tuple[str, str]] = []
+    pairs: list[tuple[str, str, float]] = []
     used = 0
     for r in rows:                                    # vienen NUEVO→VIEJO; recortamos por chars y luego invertimos
         u = a = ""
@@ -793,14 +793,19 @@ def recent_window(limit: int = 6, max_chars: int = 1600) -> list[dict]:
         seg = len(u) + len(a)
         if used + seg > max_chars and pairs:
             break
-        pairs.append((u, a))
+        pairs.append((u, a, float(r["created"] or 0)))
         used += seg
     out: list[dict] = []
-    for u, a in reversed(pairs):                       # VIEJO→NUEVO
+    for u, a, ts in reversed(pairs):                   # VIEJO→NUEVO
+        # `ts` = epoch seconds this pair was written (V2-105 follow-up, 2026-08-17): lets a caller that needs
+        # RECENCY — not just "is there any conversation" — filter out an entry from hours/days ago. The 2-day
+        # TTL on this buffer is deliberate continuity for the FlashBrain's own "what were we talking about"
+        # (voice/engine/pipeline/agent.py's reconnect-vs-new-session read), so `recent_window` keeps returning
+        # everything within TTL by default; filtering by `ts` is opt-in per caller, not a change here.
         if u:
-            out.append({"role": "user", "content": u})
+            out.append({"role": "user", "content": u, "ts": ts})
         if a:
-            out.append({"role": "assistant", "content": a})
+            out.append({"role": "assistant", "content": a, "ts": ts})
     return out
 
 
