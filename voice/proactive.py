@@ -14,6 +14,8 @@ import os
 from loguru import logger
 
 _speaker = None            # async callable(text) -> None, set by the live voice session (voice/engine entrypoint)
+_ephemeral_speaker = None  # async callable(text) -> None — same TTS, but NEVER added to conversation history
+                            # (LiveKit `session.say(..., add_to_chat_ctx=False)`) — see `ephemeral_speaker()`
 _busy_probe = None         # callable() -> bool, True if the operator/bot is mid-turn right now (engine-provided)
 _user_probe = None         # callable() -> bool, True if the OPERATOR is speaking RIGHT NOW (engine-provided)
 _bot_probe = None          # callable() -> bool, True if the BOT is speaking RIGHT NOW (engine-provided)
@@ -23,6 +25,12 @@ def register_speaker(fn) -> None:
     """The live voice session registers how to speak proactively (LiveKit: session.say via voice/engine)."""
     global _speaker
     _speaker = fn
+
+
+def register_ephemeral_speaker(fn) -> None:
+    """The live voice session registers the EPHEMERAL half of the same channel — see `ephemeral_speaker()`."""
+    global _ephemeral_speaker
+    _ephemeral_speaker = fn
 
 
 def register_busy_probe(fn) -> None:
@@ -70,10 +78,13 @@ def bot_speaking() -> bool:
 
 
 def clear_speaker(fn=None) -> None:
-    """Session teardown clears it (only if it still owns the slot, to avoid a race with a newer session)."""
-    global _speaker, _busy_probe, _user_probe, _bot_probe
+    """Session teardown clears it (only if it still owns the slot, to avoid a race with a newer session). Clears
+    the ephemeral speaker too — the same session registers both at the same point (`agent.py`), so they share one
+    lifecycle; matched by the SPEAKER's identity, not the ephemeral one's (the caller only ever has `fn`=`_speak`)."""
+    global _speaker, _ephemeral_speaker, _busy_probe, _user_probe, _bot_probe
     if fn is None or _speaker is fn:
         _speaker = None
+        _ephemeral_speaker = None
         _busy_probe = None
         _user_probe = None
         _bot_probe = None
@@ -86,14 +97,29 @@ def has_voice() -> bool:
 def speaker():
     """El hablador FUERA DE BANDA de la sesión viva (`session.say`), o None si no hay sesión.
 
-    Existe para el LEAD-IN del FlashBrain (V2-093), que necesita sonar YA y no puede viajar por el stream del
-    modelo: ese stream pasa por el tokenizador de frases de LiveKit, que retiene todo lo que no acabe en `.!?` y
-    no llegue a 20 caracteres — o sea TODOS los rellenos («Mmm…», «A ver…»), que se quedaban en el buffer hasta
-    que la respuesta real cerraba el stream y se hablaban PEGADOS a ella, 50 s después de generarse.
+    Existe para contenido con SENTIDO propio que debe sonar YA y no puede esperar al agregador de frases del
+    stream del modelo — la pregunta aclaratoria del juez de completitud (V2-102), el aviso de fragmento perdido
+    o el "sigo aquí" del acumulador (V2-096). Cada llamada AÑADE un item a la conversación de LiveKit
+    (`session.say(..., add_to_chat_ctx=True)`, el default) — correcto aquí: esto SÍ es algo que decir de verdad.
 
-    Deliberadamente NO es `notify()`: eso espera hueco de silencio y publica en el muro de chat. Un relleno de
-    espera es lo contrario — suena ahora o no sirve de nada, y no es un mensaje que haya que conservar."""
+    Para el LEAD-IN neutro del FlashBrain (V2-093, «Mmm…», «A ver…») usa `ephemeral_speaker()`, no este —
+    ver su docstring para el porqué exacto (V2-114, 2026-08-17)."""
     return _speaker
+
+
+def ephemeral_speaker():
+    """La mitad EFÍMERA del mismo canal fuera de banda: suena igual (`session.say`) pero con
+    `add_to_chat_ctx=False`, así que NUNCA entra en el historial de conversación de LiveKit ni dispara
+    `conversation_item_added` — o sea que nunca puede llegar al muro de chat. `None` si no hay sesión viva.
+
+    Existe en exclusiva para el LEAD-IN del FlashBrain (V2-093): un «Mmm…»/«A ver…» tapando el TTFT no es un
+    mensaje que conservar — su propia intención original ya lo decía («no es un mensaje que haya que
+    conservar»), pero antes de esto usaba `speaker()` (`add_to_chat_ctx=True` por defecto en LiveKit), así que
+    SÍ acababa entrando en el historial y, desde ahí, en el muro de chat vía `conversation_item_added` —
+    reportado en vivo (2026-08-17): «¡Hola! ¿Cómo va todo?» seguido de «Déjame que mire…», el relleno colgando
+    DESPUÉS de una respuesta que ya no necesitaba tapar nada. `speaker()` sigue siendo el correcto para
+    cualquier locución fuera de banda que SÍ tenga contenido real que conservar (V2-102, V2-096, `notify()`)."""
+    return _ephemeral_speaker
 
 
 async def notify(title: str, text: str, *, speak: bool = True, kind: str = "notify") -> None:

@@ -31,13 +31,12 @@ def test_evaluate_content_reads_last_reply_not_last_spoken():
 
 
 def test_filler_path_never_writes_last_reply():
-    src = _text()
-    # The lead-in filler coroutine: from its `def` to the next top-level `async def`/`def` at the same
-    # indent (the next sibling function inside _run_inner).
-    start = src.index("async def _lead_in_filler():")
-    end = src.index("\n        _filler_task = asyncio.create_task(_lead_in_filler())", start)
-    filler_body = src[start:end]
-    assert "brain._last_spoken = _ph" in filler_body, "sanity: filler still updates anti-echo as designed"
+    # V2-114 (2026-08-17): the lead-in filler moved to its own module (`lead_in_filler.py`), extracted out of
+    # nucleo.py — this invariant now lives there.
+    filler_src = Path(__file__).resolve().parents[4] / "voice" / "engine" / "llm" / "providers" / \
+        "lead_in_filler.py"
+    filler_body = filler_src.read_text(encoding="utf-8")
+    assert "self._brain._last_spoken = _ph" in filler_body, "sanity: filler still updates anti-echo as designed"
     assert "_last_reply" not in filler_body, (
         "the filler must never touch `_last_reply` — it carries no topic, and evaluate_content() relies on "
         "`_last_reply` staying real-content-only"

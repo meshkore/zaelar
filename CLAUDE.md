@@ -2543,6 +2543,43 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     against the real bus, confirming no `SessionRecord` is ever created for the escalated trace in either case).
     Full suite: 2076 passed, 7 skipped, no regressions. Detail:
     `V2-113-flujo-escalada-cierre-prematuro.md`.
+- **Lead-in filler leaked into the chat wall AFTER the real reply — now its own module, and structurally unable
+  to touch chat at all (V2-114, 2026-08-17)**: live report with a real chat transcript — "¡Hola! ¿Cómo va
+  todo?…" followed by "Déjame que mire…", a neutral wait-filler trailing a reply that no longer needed covering
+  anything. Confirmed against `zaelar.db`: both lines were generated correctly with real text — this was a
+  TRANSPORT bug, not a generation one. The filler spoke through `voice.proactive.speaker()`, which in LiveKit is
+  `session.say(text, add_to_chat_ctx=True)` (the default) — that registers a conversation item, which fires
+  `conversation_item_added` → `agent.py::_on_item` → SSE `kind=transcript role=assistant` → the chat wall.
+  `speaker()`'s own docstring already said the intent since 2026-08-14 ("not a message worth keeping") — nothing
+  enforced it.
+  - **Two separate speaker registrations, not one flag on the existing one.** `voice/proactive.py` gains
+    `ephemeral_speaker()`/`register_ephemeral_speaker()`, sibling to `speaker()` but backed by
+    `session.say(..., add_to_chat_ctx=False)` (`agent.py::_speak_ephemeral`). `clear_speaker()` releases both
+    together (the same session registers them at the same point). NOT applied to `speaker()` itself: `_speak_
+    acc_drop` (V2-096/V2-102's dropped-fragment notice / clarifying question) and `_schedule_acc_nudge`
+    ("still here") also go through it, and THOSE are real content the operator may want in their history — only
+    the neutral filler is inherently ephemeral.
+  - **Extracted to its own module** (`voice/engine/llm/providers/lead_in_filler.py`, operator's explicit
+    request — keep this concern isolated from the turn manager, modular): `LeadInFiller`, four verbs (`start()`,
+    `mark_real_started()`, `cancel_for_barge_in()`, `stop()`) the turn manager calls at its three real
+    integration points (first real token, barge-in, stream end). Replaces 5 loose pieces of state
+    (`_real_started`/`_filler_spoken`/`_filler_task`/`_filler_say`/the inline coroutine) that used to live mixed
+    into `nucleo.py::_run_inner` with one instance with an explicit lifecycle.
+  - Tests: `tests/voice/unit/test_lead_in.py` (the two registrations are decoupled; `clear_speaker` doesn't
+    steal a NEW session's speaker on an OLD session's teardown; the module uses `ephemeral_speaker()` and NEVER
+    `speaker()`; `agent.py` passes `add_to_chat_ctx=False`) + `tests/voice/unit/providers/
+    test_nucleo_directed_context.py` (repointed at the new file). Full suite: 2079 passed, 7 skipped.
+  - **Two architecture questions raised in the same thread, deliberately left OPEN**: (1) whether non-preset
+    languages (anything beyond es/en) should get their own generated filler phrases at onboarding time — found
+    that TODAY the entire voice pipeline (STT + TTS + the model's reply-language directive, not just fillers)
+    is hard-limited to es/en (`langs.py::current_code()` falls back to English for any code outside its
+    2-entry catalog) even though `i18n.init.detect.lock()` already accepts and persists any onboarded language
+    code and generates its UI bundle + alias pack (V2-101) — generating fillers for a language the voice
+    pipeline never actually speaks would be built on a foundation that doesn't use it; (2) whether filler/prompt/
+    language data should move into `memory/`, referencing a prior conversation not available in this session's
+    context, which also conflicts with the documented BRAIN RULES (hardcoded genetics in code) vs `memory/`
+    (operator facts only) boundary. Both need the operator's explicit scope confirmation before either is
+    touched. Detail: `V2-114-relleno-modulo-aislado-y-fuga-al-chat.md`.
 
 ## Testing y rueda de mejora (INI-013)
 

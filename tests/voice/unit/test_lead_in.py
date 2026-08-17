@@ -97,25 +97,97 @@ def test_hay_costura_fuera_de_banda_y_dice_la_verdad():
     assert proactive.speaker() is None, "al cerrar la sesión el hablador se suelta"
 
 
-def test_el_proveedor_manda_el_relleno_FUERA_DE_BANDA():
-    """Guarda de CÓDIGO sobre el camino elegido: el relleno se habla por `proactive.speaker()` y el `ChatChunk`
-    queda como respaldo para cuando no hay sesión. Guarda textual a propósito — montar el proveedor entero exige
-    media sesión de LiveKit, y lo que de verdad puede regresar aquí es que alguien «simplifique» quitando el say."""
+# ── EFÍMERO — el relleno no puede colgar del historial de conversación (V2-114, 2026-08-17) ──────────────────
+# Bug real: `¡Hola! ¿Cómo va todo?…` seguido de `Déjame que mire…` en el muro de chat — el relleno colgando
+# DESPUÉS de una respuesta que ya no necesitaba tapar nada. Causa: el relleno salía por `proactive.speaker()`,
+# que en LiveKit es `session.say(..., add_to_chat_ctx=True)` por defecto — SÍ entra al historial de conversación
+# y de ahí, vía `conversation_item_added`, al muro de chat. `ephemeral_speaker()` es la misma vía con
+# `add_to_chat_ctx=False`: nunca se registra como item, así que nunca puede llegar al chat.
+def test_hay_una_costura_efimera_separada_del_hablador_normal():
+    """`speaker()` y `ephemeral_speaker()` son DOS registros independientes — un contenido con sentido propio
+    (V2-102/V2-096/notify) usa el primero (SÍ debe quedar en el historial); el relleno neutro usa el segundo
+    (NUNCA debe quedar). Verifica que están desacoplados: registrar uno no afecta al otro."""
+    from voice import proactive
+
+    assert proactive.ephemeral_speaker() is None, "sin sesión registrada no puede haber hablador efímero"
+
+    async def _say(text):
+        pass
+
+    async def _say_eph(text):
+        pass
+
+    proactive.register_speaker(_say)
+    proactive.register_ephemeral_speaker(_say_eph)
+    try:
+        assert proactive.speaker() is _say
+        assert proactive.ephemeral_speaker() is _say_eph
+        assert proactive.speaker() is not proactive.ephemeral_speaker()
+    finally:
+        proactive.clear_speaker(_say)
+    assert proactive.speaker() is None
+    assert proactive.ephemeral_speaker() is None, "clear_speaker() debe soltar TAMBIÉN el hablador efímero"
+
+
+def test_clear_speaker_no_suelta_el_efimero_de_otra_sesion(monkeypatch):
+    """La guarda de identidad (`_speaker is fn`) protege contra una sesión VIEJA cerrando el hablador de una
+    NUEVA — el mismo cuidado tiene que cubrir el efímero, que no participa en la comparación por sí mismo."""
+    from voice import proactive
+
+    async def _old(text):
+        pass
+
+    async def _new(text):
+        pass
+
+    async def _new_eph(text):
+        pass
+
+    proactive.register_speaker(_old)
+    proactive.register_speaker(_new)                 # una sesión nueva ya tomó el slot
+    proactive.register_ephemeral_speaker(_new_eph)
+    proactive.clear_speaker(_old)                     # teardown de la VIEJA, con su propio fn
+    try:
+        assert proactive.speaker() is _new, "la sesión nueva no puede perder su hablador por el teardown de la vieja"
+        assert proactive.ephemeral_speaker() is _new_eph
+    finally:
+        proactive.clear_speaker(_new)
+
+
+def test_el_proveedor_manda_el_relleno_FUERA_DE_BANDA_Y_EFIMERO():
+    """Guarda de CÓDIGO sobre el camino elegido: el relleno se habla por `proactive.ephemeral_speaker()` (nunca
+    `speaker()`) y el `ChatChunk` queda como respaldo para cuando no hay sesión. Guarda textual a propósito —
+    montar el proveedor entero exige media sesión de LiveKit, y lo que de verdad puede regresar aquí es que
+    alguien «simplifique» quitando el say o volviendo al hablador que sí deja rastro en el chat."""
     from pathlib import Path
 
-    src = Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py"
+    src = Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/lead_in_filler.py"
     body = src.read_text(encoding="utf-8")
-    # El bloque se acota por su FINAL real, no por un número de caracteres. Antes cortaba a 3.200 y el test se
-    # rompía en cuanto la función crecía —le pasó el 2026-08-15 al añadirle la guarda de «no hablar encima del
-    # operador»—, o sea que fallaba por el tamaño del comentario y no por lo que dice vigilar.
-    i = body.index("async def _lead_in_filler")
-    block = body[i:body.index("# NO en el kickoff", i)]
-    assert "proactive.speaker()" in block, "el relleno ya no sale fuera de banda: volvería a no oírse nunca"
+    i = body.index("async def _run")
+    block = body[i:]
+    assert "proactive.ephemeral_speaker()" in block, \
+        "el relleno tiene que salir por el hablador EFÍMERO — con el normal volvería a colgar del chat"
+    assert "proactive.speaker()" not in block, \
+        "el relleno NUNCA usa el hablador normal — eso es justo el bug que reabre el chat colgando"
     assert "create_task(_spk(" in block, "el say tiene que dispararse sin bloquear el turno"
     # El ChatChunk sigue existiendo, pero SOLO como respaldo: dentro de un `else`.
     j = block.index("ChatChunk", block.index("create_task(_spk("))
     assert "else:" in block[block.index("create_task(_spk("):j], \
         "el ChatChunk tiene que quedar en la rama de respaldo, no en el camino normal"
+
+
+def test_el_hablador_efimero_pasa_add_to_chat_ctx_false():
+    """Guarda de CÓDIGO sobre `agent.py`: el `session.say()` registrado como hablador EFÍMERO tiene que llevar
+    `add_to_chat_ctx=False` — sin esto, `ephemeral_speaker()` no cumple lo que promete su nombre."""
+    from pathlib import Path
+
+    src = Path(__file__).resolve().parents[3] / "voice/engine/pipeline/agent.py"
+    body = src.read_text(encoding="utf-8")
+    i = body.index("async def _speak_ephemeral")
+    j = body.index("register_ephemeral_speaker", i)
+    block = body[i:j]
+    assert "add_to_chat_ctx=False" in block, \
+        "el hablador efímero debe llamar a session.say(..., add_to_chat_ctx=False)"
 
 
 # ── AL OPERADOR NO SE LE HABLA ENCIMA (2026-08-15, sesión 319252e7) ───────────────────────────────────────────
@@ -173,18 +245,23 @@ def test_el_relleno_consulta_la_sonda_y_muere_con_su_turno():
     """Guarda de CÓDIGO, por el mismo motivo que la de arriba (montar el proveedor exige media sesión LiveKit).
     Vigila las dos mitades del arreglo: (1) no arrancar si el operador habla, y (2) que la locución ya lanzada se
     cancele con el turno — era fire-and-forget, así que cancelar el TEMPORIZADOR no paraba nada y el relleno de un
-    turno muerto seguía sonando DESPUÉS de que el operador hubiera dicho otra cosa."""
+    turno muerto seguía sonando DESPUÉS de que el operador hubiera dicho otra cosa. V2-114: el mecanismo vive en
+    `lead_in_filler.py`; nucleo.py solo tiene que LLAMAR a `cancel_for_barge_in()` en el barge-in."""
     from pathlib import Path
 
-    src = Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py"
-    body = src.read_text(encoding="utf-8")
-    i = body.index("async def _lead_in_filler")
-    block = body[i:body.index("# NO en el kickoff", i)]
+    filler_src = Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/lead_in_filler.py"
+    body = filler_src.read_text(encoding="utf-8")
+    i = body.index("async def _run")
+    block = body[i:]
     assert "user_speaking()" in block, "el relleno volvería a hablar encima del operador"
-    assert "_superseded()" in block, "un turno superado no puede soltar su relleno"
-    assert '_filler_say["task"] = asyncio.create_task(_spk(' in block, \
+    assert "self._superseded()" in block, "un turno superado no puede soltar su relleno"
+    assert 'self._say_task = asyncio.create_task(_spk(' in block, \
         "sin guardar el handle, la locución sobrevive a la cancelación del turno"
-    # …y alguien tiene que cancelarlo en el barge-in.
-    cancel = body.index("✂️ turno cancelado (barge-in/overlap)")
-    assert "_say_t.cancel()" in body[cancel - 1200:cancel], \
-        "el relleno de un turno cancelado por barge-in tiene que morir con él"
+    assert "def cancel_for_barge_in" in body and "_say_task.cancel()" in body, \
+        "el relleno de un turno cancelado por barge-in tiene que poder morir con él"
+
+    nucleo_src = Path(__file__).resolve().parents[3] / "voice/engine/llm/providers/nucleo.py"
+    nucleo_body = nucleo_src.read_text(encoding="utf-8")
+    cancel = nucleo_body.index("✂️ turno cancelado (barge-in/overlap)")
+    assert "_filler.cancel_for_barge_in()" in nucleo_body[cancel - 400:cancel], \
+        "el turno manager tiene que avisar al relleno en el barge-in, no solo tenerlo definido"

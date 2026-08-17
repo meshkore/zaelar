@@ -520,7 +520,15 @@ async def entrypoint(ctx: JobContext) -> None:
             pass
         await session.say((text or "").strip(), allow_interruptions=True)
 
+    async def _speak_ephemeral(text: str) -> None:
+        # V2-114: same TTS, but `add_to_chat_ctx=False` — LiveKit never registers a conversation item for this,
+        # so `conversation_item_added` (→ `_on_item` below → the chat wall) never sees it. Exclusively for the
+        # FlashBrain's neutral lead-in filler (V2-093) — see `voice.proactive.ephemeral_speaker()`'s docstring
+        # for the bug this fixes (a filler landing AFTER the real reply in the chat wall, reported live).
+        await session.say((text or "").strip(), allow_interruptions=True, add_to_chat_ctx=False)
+
     _proactive.register_speaker(_speak)
+    _proactive.register_ephemeral_speaker(_speak_ephemeral)
     _proactive.register_busy_probe(lambda: _busy["bot"] or _busy["user"])   # don't talk over a live turn
     # …y la mitad que no admite excepción, por separado: al OPERADOR no se le habla encima ni con un relleno de
     # espera (2026-08-15). El relleno se salta la espera de hueco por diseño, así que necesita esta señal propia.
