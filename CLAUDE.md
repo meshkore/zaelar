@@ -2166,6 +2166,63 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     was available this session to verify a coordinate edit on a real public page, and an unverified visual change
     there is worse than a diagram that's merely missing one recent feature.
   - Full suite green after every step (1924 passed, 2 skipped) — never one big commit at the end.
+- **V2-098 follow-up: FlashBrain modularization, 9 splits executed** (V2-112, 2026-08-17, operator request: "quiero
+  saber si hay scripts largos, piezas que podamos descomponer... para seguir creciendo"). Three parallel audits
+  (FlashBrain's 4 largest files, `nucleo/`'s core orchestration, and the two largest files repo-wide) produced a
+  concrete, risk-ranked plan; executed the safe/mechanical tier end to end, full suite green after every single
+  step (2043→2051→2060 tests), never a batch commit.
+  - **Splits, all via the same pattern**: move the separable slice to a new file, **re-export it from the
+    original** so every existing call site — whole-module (`router.looks_like_close(...)`) AND direct-name
+    (`from nucleo.worker_api import deny_reason`, confirmed by grepping actual importers before moving anything,
+    not assuming) — keeps working unchanged. `nucleo/flash/router.py` (1221→895) → `router_guards.py` (~340
+    lines of deterministic guards, zero shared state with the tool catalog). `nucleo/flash/fast_client.py`
+    (770→666) → `model_spec.py` (`ModelSpec`/`spec_from_config`/`available`; added to the Energy-coverage
+    guard's `_EXENTOS` — it resolves config text, `fast_client.py::stream()` still does the metered call).
+    `nucleo/research.py` (591→415) → `research_prompts.py` (`_SYSTEM` + the 140-line `to_prompt_block()`
+    formatter) — built as a LEAF module (`min_candidates_floor` passed as a parameter instead of importing
+    research.py's constant) specifically to avoid a circular import, since research.py needs the prompt text
+    re-exported back. `nucleo/worker_api.py` (452→373) → `worker_policy.py` (pure ALLOW/CONFIRM/DENY decision
+    logic). `nucleo/flash/prompt.py` (641→458) → `recall_heuristics.py` (`needs_recall`/`needs_recent`/
+    `compose_recent_block`, no dependency on the ESTADO-composition code). `nucleo/dispatch.py` (1352→~1330) →
+    `dispatch_devworker.py` (V2-076's confined dev worker — deliberately NOT touching `_WEB_RESUME`, which 4
+    other files reach into by private name and needs its own pass).
+  - **`voice/engine/llm/providers/nucleo.py`'s extraction plan, step 1 of 7 executed**: `vault_intercept.py` —
+    the security-config-command + spoken-secret intercept (~50 lines), the smallest, most self-contained slice
+    of the ~1600-line closure-heavy `_run_inner` body, done first to prove the "extract a slice into a callable
+    with explicit params" pattern on this specific hot-path file before touching anything riskier. Returns a
+    bool the caller checks (`if await try_vault_intercept(...): return`) instead of the original bare `return`.
+    First unit coverage for this path (6 cases) — previously reachable only through a live LiveKit session. The
+    remaining, riskier steps (a `TurnState` object design, then `tool_dispatch.py`) are explicitly left for
+    their own dedicated session, per V2-098's own stated principle.
+  - **`widgets/navegador/owner.py`: dead code found and deleted BEFORE the audit's own claim was trusted.**
+    `snapshot_for_agent`/`screenshot_b64`/`agent_act` (module-level, 79 lines) looked like they had one caller
+    (`agent.py` references `owner.snapshot_for_agent()` textually) — verified with `git log` that `agent.py` is
+    actually LIVE (called from `owner.py:602`, contradicting an older CLAUDE.md note calling it "parked"), but
+    its `run_task(goal, owner, ...)` parameter is a generic name that always receives a `TaskBrowser` INSTANCE
+    at the one real call site — so those references always resolved to TaskBrowser's own methods (which also
+    carry a danger-confirm gate the module-level twins lacked), never the module-level functions. Confirmed
+    zero real callers before deleting anything, not just trusting a subagent's grep. This unblocked a second
+    split: `dom.py` (`_describe_el`/`_bulk_metas`/`_snapshot_lines`/`_human_move`/`_human_click_handle`/
+    `_human_type_handle`/`_human_click_at`) — these took `mouse: dict | None = None`, falling back to a
+    module-level `_mouse`, a fallback only the now-deleted dead code ever used. With it gone, every surviving
+    caller (`TaskBrowser.agent_act`) already passes `self.mouse` explicitly, so `mouse` became a REQUIRED
+    parameter and the module has zero dependency on `owner.py`. First unit coverage for this path too (8 cases).
+  - **A real gap found and fixed along the way**: `tests/run_testmap.py`'s `deterministic_paths()` (consumed by
+    `python -m tests run <suite>`) runs an EXPLICIT list of file paths per node — it does not glob a directory.
+    Two brand-new test files created earlier the same session (`test_nucleo_directed_context.py`, V2-109's
+    directed-context fix, and this pass's own `test_vault_intercept.py`) had been running only when invoked with
+    pytest directly, silently absent from every `all`/`voice` suite run, no error. Registered both (plus this
+    pass's `test_dom.py`) in the testmap. Lesson: a new test FILE needs a testmap line even inside an
+    already-covered directory — only adding a test to an EXISTING file is exempt.
+  - **Left alone, deliberately**: `probe.py` (deliberate twin of `nucleo.py`'s hot-path body — splitting one
+    without the other breaks the voice/probe parity the channel exists for), the ~1600-line closure cluster
+    inside `_run_inner` (13 turn-state dicts shared by closure — needs a `TurnState` object designed first, not
+    a mechanical move), `owner.py`'s login/auth subsystem (same verdict as V2-098, reinforced by an open,
+    unrelated investigation — V2-108 — in its exact neighborhood), `dispatch.py`'s `_WEB_RESUME` (4 external
+    files reach into it by private name, needs all 4 updated in the same commit), and `nucleo/memory_agent.py`/
+    `nucleo/mem_processor.py` (memory-domain work, handed off to the session running that initiative instead).
+  - Full suite green after every step, never a batch commit (2043 passed → 2051 → 2060; 1 skipped throughout).
+    Detail: `V2-112-modularizacion-flashbrain-audit.md`.
 - **Floating feedback widget — a self-hosted engine's first outbound call, and the control-plane's first
   PUBLIC route that accepts real data** (V2-100, 2026-08-16; full detail in
   `.meshkore/roadmap/initiatives/V2-100-feedback-widget.md`, local; the cloud/business side is INI-023 in
