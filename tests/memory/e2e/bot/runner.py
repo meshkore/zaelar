@@ -80,6 +80,13 @@ def _setup_env():
     try:
         from dotenv import load_dotenv
         load_dotenv(REPO / ".env", override=False)
+        # V2-031 (2026-08-17): faltaba esta línea aquí — `scale_eval.py::_setup_env` ya la tenía (código gemelo,
+        # nunca espejado). Sin ella, `DEEPSEEK_API_KEY` (solo vive en el credential store, no en `.env`) queda
+        # sin resolver → `nucleo/provider_keys.py::key_for_endpoint` cae a su centinela `"local"` → DeepSeek
+        # 401ea CADA llamada del CORAZÓN → fallback silencioso a la heurística, exactamente la clase de bug que
+        # el comentario de arriba dice haber cerrado ya para OpenAI. Reproducido en vivo invocando este runner
+        # por su propia CLI (`python -m tests.memory.e2e.bot.runner`, uso documentado) sin pasar por scale_eval.
+        load_dotenv(REPO / ".meshkore" / "credentials" / "zaelar.env", override=False)
     except Exception:
         pass
     os.environ.setdefault("ZAELAR_DB", str(REPO / "memory" / "_data" / _corpus()["db"]))
@@ -781,6 +788,16 @@ async def run_range(lo: int, hi: int, fresh: bool = False) -> dict:
                 f.unlink()
     _db.reset_db()
     _db.get_db()
+    # V2-031 (2026-08-17, encontrado midiendo write-completeness tras el fix del backend de embedding): desde
+    # 85b4922 (2026-08-14) una BD fresca arranca con `state.language="en"` a propósito (el producto abre en
+    # inglés hasta detectar el idioma real) — y `nucleo/mem_processor.py::_render` lee ESE campo, no una env
+    # var, para decidir en qué idioma destila cada píldora (`state.get("language") or _default_code()`, y el
+    # valor de state SIEMPRE gana si está puesto). El corpus de `cases.py` está escrito íntegro en español con
+    # `want`/`marker` en español — sin este seed, `--fresh` escribía la memoria entera en INGLÉS y el harness
+    # reportaba "write miss" en case tras caso: el dato SÍ se guardaba, solo que en un idioma que ningún
+    # `want` podía casar. Confirmado en vivo: `state.language` quedó en `"en"` y las píldoras en inglés tras la
+    # corrida de esta tarde. `set_state` (no solo la env var) porque el campo de `state` es el que manda.
+    memory.set_state({"language": "es"})
 
     CASES = _load_cases()
     hi = min(hi, len(CASES))
