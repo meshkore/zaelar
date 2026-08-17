@@ -103,3 +103,25 @@ def test_continuation_distinct_topic_none():
     tid = nt.create("busca una moto de enduro en Wallapop")
     nt.set_status(tid, "working")
     assert nt.find_continuation("búscame un piso de alquiler en Madrid") is None
+
+
+# ── explicit trace at creation (V2-108, 2026-08-17) ──────────────────────────────────────────────────────────
+# Confirmed against real zaelar.db: every navigation/screenshot/tab_open event for a worker-dispatched web task
+# (TaskBrowser._emit → tasks.trace_of(task_id)) carried NO trace, for the task's ENTIRE lifetime — not a
+# startup race that settles, since nothing ever writes `trace` again after `create()`. Root cause: `create()`
+# read the AMBIENT trace context (`voice.trace.current()`), which is empty inside `nucleo/dispatch.py`'s
+# `_prepare_web()` — the worker's own async execution, which never had that scope active — even though the
+# caller has the correct id on hand the whole time (`rec.trace_id`, reliably set: the escalation's own tool-call
+# events prove it). `create()` now accepts an explicit `trace` that wins over the ambient lookup.
+def test_create_with_explicit_trace_does_not_depend_on_ambient_context():
+    _reset()
+    # No `voice.trace.scope()` active here (plain test context) — this is exactly _prepare_web's situation.
+    tid = nt.create("busca hoteles en Sevilla", trace="T366·db44")
+    assert nt.trace_of(tid) == "T366·db44", "an explicit trace must win, without depending on ambient context"
+
+
+def test_create_without_explicit_trace_still_falls_back_to_ambient(monkeypatch):
+    _reset()
+    monkeypatch.setattr(nt, "_current_trace", lambda: "T999·fallback")
+    tid = nt.create("busca hoteles en Sevilla")
+    assert nt.trace_of(tid) == "T999·fallback", "without an explicit trace, the old fallback behavior must not break"

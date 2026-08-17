@@ -899,7 +899,7 @@ async def _prepare_web(rec: "SessionRecord", req: str, reuse_tid: str = "") -> s
             except Exception:
                 pass
         else:
-            tid = str(navtasks.create(req))
+            tid = str(navtasks.create(req, trace=str(getattr(rec, "trace_id", "") or "")))
         try:
             from voice.observer import emit
             emit("widget", "show", extra={"id": navtasks.inst_id(tid), "src": f"worker:{tid}"})

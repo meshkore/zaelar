@@ -2387,6 +2387,25 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   `test_conversation_block_drops_entries_older_than_since_ts` (real contract, no mocking — backdates a written
   entry 11h via direct SQL, same gap as the real incident). Suite: `agent-headless`, 547 passed. Detail:
   `V2-108-flujos-board-audit.md`.
+- **A worker-dispatched browser task's own trace was empty for its whole lifetime — TaskBrowser used ambient
+  context that was never active (V2-108, cont.)** (2026-08-17): same audit found `widgets/navegador/owner.py`'s
+  `TaskBrowser._emit()` (via `tasks.trace_of(task_id)`) reporting no trace for a task's ENTIRE run — not a
+  startup race that settles, confirmed with an event 12 minutes into a task's life still showing none. Root
+  cause: `widgets/navegador/tasks.py::create()` stamped `trace` from `voice.trace.current()` (ambient context)
+  at creation time, but the task is created inside `nucleo/dispatch.py::_prepare_web()` — the worker's own async
+  execution, which never has that scope active. Nothing rewrites `trace` after `create()`, so an empty read
+  there is empty forever. `_prepare_web` has the correct value the whole time (`rec.trace_id`, reliably set —
+  proven by the same worker's own tool-call events carrying it correctly) — `create()` now accepts an explicit
+  `trace` param that wins over the ambient fallback; `_prepare_web` passes `rec.trace_id`. A SECOND, distinct
+  source of the same corr_id=NULL symptom (`widgets/navegador/act_api.py::_emit_nav` via
+  `dispatch.record_by_nav_task`, labels 🧭 página/resultados/vista) was investigated and NOT fixed: ruled out
+  id-space mismatch, session-registration ordering, and a silently-swallowed attribute-assignment failure, but
+  didn't isolate the actual cause — left open, flagged for a live repro with temporary instrumentation rather
+  than an unverified fix. A third source (`owner.py`'s module-level `_emit()`, the `browse_web` singleton flow)
+  was confirmed CORRECT by design — no task_id to look up, left untouched. Tests:
+  `test_create_with_explicit_trace_does_not_depend_on_ambient_context` +
+  `test_create_without_explicit_trace_still_falls_back_to_ambient`. Suites: `browser` (354 passed),
+  `agent-headless` (547 passed, 1 skipped). Detail: `V2-108-flujos-board-audit.md`.
 
 ## Testing y rueda de mejora (INI-013)
 

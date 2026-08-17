@@ -62,7 +62,15 @@ def _current_trace() -> str:
         return ""
 
 
-def create(goal: str, title: str = "") -> str:
+def create(goal: str, title: str = "", *, trace: str = "") -> str:
+    """`trace`: pass it explicitly when the caller already knows it (V2-108, 2026-08-17) — `_current_trace()`
+    reads the AMBIENT context (`voice.trace.current()`), which is only reliable when creation happens inline in
+    a turn. `nucleo/dispatch.py::_prepare_web()` creates the task from inside the worker's OWN async execution,
+    which never had that ambient scope active — confirmed with real data: every navigation/screenshot event for
+    a worker-dispatched web task carried NO trace, for the task's entire lifetime (not a startup race that
+    settles — this field is never written again after `create()`, so an empty read here is empty forever).
+    `_prepare_web` has the correct id on hand the whole time (`rec.trace_id`, already reliably set — the
+    escalation's own tool-call events prove it); passing it explicitly is a fix, not a fallback."""
     goal = (goal or "").strip()
     with _lock:
         tid = f"t{next(_counter)}"
@@ -71,7 +79,8 @@ def create(goal: str, title: str = "") -> str:
             "status": "queued", "phase": "", "phase_active": False, "events": [], "results": None,
             "question": "", "answer": "", "url": "", "page_title": "", "shot_rev": 0,
             "awaiting_login": False, "created": time.time(),
-            "trace": _current_trace(),     # V2-044: the task is born from the phrase context (or adopted session)
+            # V2-044: the task is born from the phrase context (or adopted session) — explicit trace wins.
+            "trace": trace or _current_trace(),
         }
     return tid
 
