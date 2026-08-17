@@ -2416,6 +2416,22 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   `test_create_with_explicit_trace_does_not_depend_on_ambient_context` +
   `test_create_without_explicit_trace_still_falls_back_to_ambient`. Suites: `browser` (354 passed),
   `agent-headless` (547 passed, 1 skipped). Detail: `V2-108-flujos-board-audit.md`.
+- **La query de recall llevaba pegada la nota `[SISTEMA]` del turno — el modelo alucinó un familiar (V2-110)**
+  (2026-08-17): auditoría en vivo encontró que zaelar respondió *"tienes un hijo o familiar que se llama
+  Ricart"* — ninguna píldora dice eso. Causa: `voice/engine/llm/providers/nucleo.py::_run_inner` antepone las
+  notas `[SISTEMA]` (bandeja `voice/brain_notes.py`) sobre `text` ANTES de usar esa misma variable como query de
+  `needs_recall`/`compose_recall` — una nota de Telegram sobre trading dominaba el vector semántico y enterraba
+  los hechos de familia que SÍ existían (`valid=1`, largo plazo). Con la búsqueda vacía, el modelo inventó. Fix:
+  se captura `operator_text` ANTES de anteponer las notas y se usa SOLO eso para el recall — el `text` con notas
+  sigue yendo íntegro al prompt del modelo (necesita verlas como contexto), pero deja de contaminar la búsqueda.
+  Mismo fix espejado en `nucleo/flash/probe.py::run_turn` (impl paralela, misma bandeja). Investigado también si
+  `memory/slots.py::state_field` (car/hardware/proyecto) no llegaba a `state` — **descartado con evidencia**: la
+  fila `state` real YA tenía esos campos correctos, escritos horas ANTES del turno auditado (por eso "tienes un
+  Range Rover" no era la parte alucinada). Sí se confirmó que NO existía slot para familiares — solo píldoras
+  sueltas `slot=None`, alcanzables nada más que por el mismo recall que acababa de fallar; añadido
+  `operator.family` a `memory/slots.py` (mismo trato que `operator.car`/`hardware`: texto que se restablece por
+  reformulación) — cero código nuevo de proyección, reutiliza la mecánica slot+value ya existente. Detalle:
+  `V2-110-recall-query-contaminada-slot-familia.md`.
 
 ## Testing y rueda de mejora (INI-013)
 

@@ -754,7 +754,15 @@ class NucleoLLMStream(llm.LLMStream):
                     "nombre, úsalo y NO preguntes quién soy; si no, preséntate en una línea y pregúntame el nombre. "
                     "Luego para.")
 
-        # Notas del sistema (resultados async, subidas de fichero…) — se anteponen al turno.
+        # V2-1xx: la petición REAL del operador, capturada ANTES de que se le antepongan notas del sistema —
+        # el recall semántico (más abajo) tiene que buscar por ESTO, nunca por el turno completo. Confirmado en
+        # vivo (auditoría 2026-08-17): una nota de Telegram pegada delante ("...Near our tp1 we take out
+        # 20-30%...") dominaba el vector de la query y enterraba los hechos de familia/coche que SÍ existían en
+        # el largo plazo — el modelo respondió sin ningún dato delante y rellenó el hueco inventando uno.
+        operator_text = text
+
+        # Notas del sistema (resultados async, subidas de fichero…) — se anteponen al turno para que el
+        # FlashBrain las vea como CONTEXTO de esta respuesta; NUNCA como parte de lo que el operador pidió.
         try:
             from voice import brain_notes
             notes = brain_notes.drain()
@@ -800,7 +808,7 @@ class NucleoLLMStream(llm.LLMStream):
         from nucleo.flash import prompt as _prompt_mod
         recall_block = ""
         recall_ids: list = []
-        timings["recall_fired"] = _prompt_mod.needs_recall(text)
+        timings["recall_fired"] = _prompt_mod.needs_recall(operator_text)
         if timings["recall_fired"]:
             # TIME-BOX del recall (regla dura "nunca lento"): el retriever suele cerrar en ~0.4-1.5s, pero en el
             # turno vivo puede dispararse a 4s+ (recarga del modelo de embedding tras un desalojo por el CORAZÓN
@@ -816,7 +824,7 @@ class NucleoLLMStream(llm.LLMStream):
             _budget = float(os.getenv("ZAELAR_RECALL_BUDGET_MS", "800")) / 1000.0
             try:
                 recall_block, recall_ids = await asyncio.wait_for(
-                    asyncio.to_thread(_prompt_mod.compose_recall, text, timings), timeout=_budget)
+                    asyncio.to_thread(_prompt_mod.compose_recall, operator_text, timings), timeout=_budget)
             except asyncio.TimeoutError:
                 timings["recall_timeout"] = True
                 logger.info(f"nucleo recall over budget ({_budget:.1f}s) — turno sigue sin recall durable")

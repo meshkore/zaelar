@@ -71,6 +71,13 @@ SLOTS: dict[str, SlotSpec] = {s.key: s for s in (
                                      "meta", "operator.meta")),
     SlotSpec("project.current", "su proyecto de trabajo actual", state_field="proyecto", identity=True,
              aliases=("project", "proyecto", "project_current", "operator.project", "operator.proyecto")),
+    # 2026-08-17 (auditoría en vivo): "hijos", "pareja", "padres" no tenían slot — solo píldoras `long/fact`
+    # sueltas (slot=None), alcanzables NADA MÁS que por recall semántico probabilístico. Norma del operador: los
+    # familiares cercanos son un hecho ACTIVO/imperturbable, mismo trato que operator.car/hardware/job — un
+    # resumen en TEXTO que se restablece por reformulación (garble_guard=False), no una lista estructurada nueva.
+    SlotSpec("operator.family", "sus familiares cercanos (hijos, pareja, padres…) — nombre y/o relación",
+             state_field="familia", identity=True, garble_guard=False,
+             aliases=("family", "familia", "hijos", "hijo", "hija", "pareja")),
 )}
 
 _ALIASES: dict[str, str] = {a: s.key for s in SLOTS.values() for a in s.aliases}

@@ -289,3 +289,16 @@ def test_forget_with_decision_tail_invalidates_target_e2e(fresh_db, monkeypatch)
     assert "cerámica" not in dur and "ceramica" not in dur, f"la píldora de cerámica sigue durable: {_durables()}"
     assert "rocódromo" in dur or "rocodromo" in dur, \
         f"CONTROL sobre-borrado: el rocódromo (otra píldora con 'jueves') no debe borrarse: {_durables()}"
+
+
+def test_family_slot_projects_to_state_e2e(fresh_db, monkeypatch):
+    """Hallazgo 3 (auditoría en vivo 2026-08-17): no existía NINGÚN slot para familiares — solo píldoras
+    `long/fact` sueltas (slot=None), alcanzables nada más que por recall semántico probabilístico. Verifica que
+    el nuevo `operator.family` se refleja en el ESTADO fijo (state.familia), igual que operator.car/hardware,
+    por la MISMA proyección mecánica slot+value (memory_agent.py) — sin código nuevo de proyección."""
+    _run_with_atoms(monkeypatch, "Tengo dos hijos de 9 y 11 años.", [
+        {"text": "Tiene dos hijos de 9 y 11 años.", "dest": "long", "slot": "operator.family",
+         "kind": "fact", "value": "dos hijos de 9 y 11 años", "change": "none"},
+    ])
+    fam = (memapi.state().get("familia") or "").lower()
+    assert "hijos" in fam and "9" in fam, f"el hecho de familia debe fijar el estado: {memapi.state()}"

@@ -204,6 +204,10 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         except Exception:
             pass
 
+    # V2-1xx: la petición REAL, ANTES de anteponer notas del sistema — ESPEJO del mismo fix en el provider de
+    # voz (nucleo.py). El recall busca por esto, nunca por el turno con la nota pegada delante.
+    operator_text = text
+
     # (a2) DRENA brain_notes como el provider (paridad voz/probe, V2-053): las notas [SISTEMA] pendientes
     # (SlowBrain, proactive, Susurro repair_say) se anteponen al turno — sin esto el canal de prueba no podía
     # verificar el circuito nota→respuesta y las notas se quedaban esperando a un turno de VOZ.
@@ -220,7 +224,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
 
     # (b) PROMPT real: estado+memoria+recall (bajo demanda) + 2º pase de CORTO (contexto reciente ampliado si el
     #     turno lo referencia) + BREAK-LOOP si el asistente se estaba repitiendo.
-    recall_q = text if needs_recall(text) else ""
+    recall_q = operator_text if needs_recall(operator_text) else ""
     recent_block = compose_recent_block() if needs_recent(text) else ""
     timings["recent_fired"] = bool(recent_block)
     system, _used = build_flash_system(directive=sess.directive, recall_query=recall_q,
