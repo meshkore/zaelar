@@ -157,16 +157,22 @@ def test_web_prompt_warns_against_nonexistent_nav_cli_subcommands():
     assert "invalid choice" in wp
 
 
-def test_web_prompt_carries_the_trusted_site_catalog():
+def test_web_prompt_carries_the_trusted_site_catalog(monkeypatch):
     """V2-099 follow-up: the LIVE web-worker prompt (dispatch_prompts._web_prompt, called for ALL backends —
     claude_code/codex/grok_build, per registry.get_backend) must carry the trusted-site catalog, not just the
     parked nucleo/agentes/web_cc.py copy — two independent use-case runs found the worker improvising a
-    destination site from scratch every time, which this catalog exists to fix."""
+    destination site from scratch every time, which this catalog exists to fix. Locale-aware (2026-08-17
+    follow-up, operator: the catalog is a system default and must grow by country/language) — pin the
+    engine's active language so the test is deterministic regardless of this machine's real setting."""
+    from voice.engine.core import langs
     from nucleo.flash import site_catalog
+    monkeypatch.setattr(langs, "current_code", lambda: "es")
     wp = dispatch._web_prompt("resérvame mesa en Casa Lucio esta noche", "")
-    assert site_catalog.directive_block() in wp
-    for entry in site_catalog.SITE_CATALOG.values():
+    assert site_catalog.directive_block("es") in wp
+    for entry in site_catalog.SITE_CATALOG["es"].values():
         assert entry.url in wp
+    # a preference the operator has actually stated must be checked BEFORE this catalog, every time
+    assert "mem_cli recall" in wp
 
 
 def test_structured_worker_observability():

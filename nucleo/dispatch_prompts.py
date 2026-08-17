@@ -216,8 +216,10 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None) -> str:
     try:
         from voice.engine.core import langs
         native = langs.current_language().native
+        lang_code = langs.current_code()
     except Exception:
         native = "español"
+        lang_code = None
     # V2-044 sesión 22:40: el objetivo escalado puede venir TERSO — la conversación reciente sitúa los pronombres
     # y restricciones que el modelo rápido no reformuló ("no se oye", "esa", "la de antes").
     from nucleo.flash import site_catalog
@@ -229,7 +231,7 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None) -> str:
         f"paso a paso y con criterio. OBJETIVO (respétalo al pie de la letra):\n«{goal}»\n\n"
         + _today_block() + "\n\n"
         + recent_block +
-        site_catalog.directive_block() + "\n\n" +
+        site_catalog.directive_block(site_catalog.resolve_locale(lang_code)) + "\n\n" +
         _HUMAN_NAV_GUIDE +
         "CÓMO CONDUCIR (desde la raíz del repo; el navegador ya tiene su pestaña asignada):\n"
         f"• VER la página como un humano (VISIÓN): {py} -m nucleo.nav_cli look\n"
