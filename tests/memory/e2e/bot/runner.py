@@ -84,6 +84,16 @@ def _setup_env():
         pass
     os.environ.setdefault("ZAELAR_DB", str(REPO / "memory" / "_data" / _corpus()["db"]))
     os.environ.setdefault("MEM_PROCESSOR", "1")   # CORAZÓN LLM configurado real — el sistema que evolucionamos
+    # Backend de embedding PINEADO explícito (no "auto") — V2-103 (2026-08-16) añadió un re-chequeo por TTL que
+    # re-sondea Ollama cada 300s cuando el backend resuelto está degradado, y nada en este arnés vuelve a llamar
+    # a `memory/reembed.py::check()` (eso solo corre desde el tick de `nucleo/loop.py`, que este runner no
+    # arranca). Una corrida `--fresh` puede tardar ~90 min: un hipo transitorio de Ollama a mitad deja una parte
+    # del corpus embebida en un espacio vectorial y el resto en otro tras la recuperación — ambas resoluciones
+    # son "sanas" en su momento, pero sqlite-vec compara distancias sin sentido entre espacios distintos. Un
+    # valor FORZADO (no "auto") pone `_forced=True` en `memory/embeddings.py`, que el re-chequeo respeta siempre
+    # (`if _forced or _backend == "ollama": return`) — inmune a la salud de Ollama durante toda la corrida.
+    # `setdefault` respeta un override explícito de quien invoque el runner.
+    os.environ.setdefault("ZAELAR_EMBED_BACKEND", "ollama")
 
 
 # ── sondas de capa (lectura DIRECTA, sin LLM) ───────────────────────────────────────────────────────────────

@@ -38,6 +38,9 @@ def _norm(s: str) -> str:
 def _setup_env():
     os.environ.setdefault("ZAELAR_DB", str(REPO / "memory" / "_data" / "zaelar.membot.db"))
     os.environ.setdefault("MEM_PROCESSOR", "1")
+    # Ver la nota gemela en tests/memory/e2e/bot/runner.py::_setup_env — pinea el backend para que MEDIR (esta
+    # función) resuelva SIEMPRE al mismo espacio con el que se POBLÓ, en vez de re-sondear Ollama en caliente.
+    os.environ.setdefault("ZAELAR_EMBED_BACKEND", "ollama")
     # carga las keys (OPENAI_API_KEY para el reranker OpenAI) igual que server/common.py
     try:
         from dotenv import load_dotenv
