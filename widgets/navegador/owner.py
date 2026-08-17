@@ -95,7 +95,6 @@ _page = None
 _hist: list[str] = []   # own history for back/forward flags (Chromium moves; we derive)
 _idx = -1
 _rev = 0
-_refs: dict = {}        # numeric ref → ElementHandle from the LAST snapshot (the automator resolves refs here)
 _mouse = {"x": 0.0, "y": 0.0}   # simulated mouse position, used to move between points with a human-like trajectory
 _automating = False             # True while an automator task is running → draws the cursor in the capture
 
@@ -1364,28 +1363,6 @@ def _snapshot_lines(handles: list, metas: list, refmap: dict) -> list:
     return lines
 
 
-async def snapshot_for_agent() -> dict:
-    """Return {url, title, elements} — the compact list of VISIBLE interactive elements with numeric refs, and fill
-    _refs (ref → handle) so agent_act resolves the ref for THIS step. Cap at 60 to bound tokens. BEFORE the snapshot,
-    close cookie banners that may block interaction — the automator calls this on every step, so this is the single
-    reliable cleanup point."""
-    global _refs
-    page = await _ensure_page()
-    await _dismiss_overlays(page)
-    _refs = {}
-    try:
-        handles = await page.query_selector_all(_INTERACTIVE)
-    except Exception:
-        handles = []
-    metas = await _bulk_metas(page)          # ONE call (not ~7×N) → does not starve voice through the GIL
-    lines = _snapshot_lines(handles, metas, _refs)
-    title = ""
-    try:
-        title = await page.title()
-    except Exception:
-        pass
-    return {"url": page.url, "title": title or "", "elements": "\n".join(lines)}
-
 
 async def _human_move(page, tx: float, ty: float, mouse: dict | None = None) -> None:
     """Move the mouse from its current position to (tx,ty) along a Bezier curve with jitter and micro-pauses — it looks
@@ -1433,14 +1410,6 @@ async def _human_type_handle(page, h, text: str, submit: bool, mouse: dict | Non
         await page.keyboard.press("Enter")
 
 
-async def screenshot_b64() -> str:
-    """FRESH viewport capture (1280×800) in base64 — used by the automator's VISION mode when the DOM is not enough
-    (need_vision). Does not write to disk (_capture does that for the widget); only bytes are needed here."""
-    import base64
-    page = await _ensure_page()
-    png = await page.screenshot(type="png", full_page=False)
-    return base64.b64encode(png).decode()
-
 
 async def _human_click_at(page, x: float, y: float, mouse: dict | None = None) -> None:
     """Human click at ABSOLUTE viewport coordinates (vision mode: the model sees the screenshot and returns pixels)."""
@@ -1449,54 +1418,6 @@ async def _human_click_at(page, x: float, y: float, mouse: dict | None = None) -
     await asyncio.sleep(random.uniform(0.05, 0.18))
     await page.mouse.click(m["x"], m["y"], delay=random.randint(40, 110))
 
-
-async def agent_act(action: str, args: dict) -> tuple[bool, str]:
-    """Execute ONE automator action with human-like behavior. Returns (ok, note). Does not raise.
-    DOM actions (snapshot ref): click/type. VISION actions (screenshot coordinates): click_at/type_at."""
-    page = await _ensure_page()
-    try:
-        if action == "navigate":
-            await _goto(_normalize_url(str(args.get("url", ""))))
-            return True, f"navegado a {page.url}"
-        if action == "scroll":
-            await _scroll(float(args.get("dy", 600)))
-            return True, "desplazado"
-        if action == "press":
-            await _press(str(args.get("key", "Enter")))
-            return True, "tecla pulsada"
-        if action in ("click_at", "type_at"):                  # VISION mode — screenshot coordinates
-            x, y = float(args.get("x", 0)), float(args.get("y", 0))
-            _write(loading=True)
-            _emit("vision_" + ("click" if action == "click_at" else "type"), f"{int(x)},{int(y)}")
-            await _human_click_at(page, x, y)
-            if action == "type_at":
-                await page.keyboard.type(str(args.get("text", "")), delay=random.randint(40, 120))
-                if bool(args.get("submit")):
-                    await asyncio.sleep(random.uniform(0.2, 0.5))
-                    await page.keyboard.press("Enter")
-            await asyncio.sleep(0.7)
-            await _capture()
-            return True, ("clic" if action == "click_at" else "texto") + " (visión) hecho"
-        ref = int(args.get("ref", 0))
-        h = _refs.get(ref)
-        if h is None:
-            return False, f"ref {ref} no existe en el snapshot actual"
-        if action == "click":
-            _write(loading=True)
-            await _human_click_handle(page, h)
-            await asyncio.sleep(0.7)
-            await _capture()
-            return True, "clic hecho"
-        if action == "type":
-            _write(loading=True)
-            await _human_type_handle(page, h, str(args.get("text", "")), bool(args.get("submit")))
-            await asyncio.sleep(0.6)
-            await _capture()
-            return True, "texto escrito"
-    except Exception as e:
-        _write(loading=False)
-        return False, f"{type(e).__name__}: {str(e).splitlines()[0][:120]}"
-    return False, f"acción desconocida: {action}"
 
 
 # ── TaskBrowser: ONE TAB dedicated to a task ─────────────────────────────────────────────────────────────────
