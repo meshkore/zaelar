@@ -94,6 +94,35 @@ def test_driver_closes_on_a_genuine_goodbye(monkeypatch):
     assert d.done is True
 
 
+def test_driver_closes_on_a_bare_final_gracias(monkeypatch):
+    monkeypatch.setattr(driver.llm, "call", lambda *a, **k: "Vale, genial, gracias.")
+    d = driver.Driver(_scenario())
+    d.opening()
+    d.hears("Hecho.")
+    d.reply()
+    assert d.done is True
+
+
+def test_driver_does_not_close_on_a_bare_perfecto_with_no_farewell(monkeypatch):
+    """Live bug (search-buy-used-car, 2026-08-17): 'Perfecto, quedo a la espera.' ended a run at 3 turns —
+    'perfecto' is an ordinary Spanish acknowledgment, not a goodbye, unless paired with an actual sign-off."""
+    monkeypatch.setattr(driver.llm, "call", lambda *a, **k: "Perfecto, quedo a la espera.")
+    d = driver.Driver(_scenario())
+    d.opening()
+    d.hears("Sigo con ello, dame un momento.")
+    d.reply()
+    assert d.done is False
+
+
+def test_driver_does_not_close_on_gracias_in_the_middle_of_a_sentence(monkeypatch):
+    monkeypatch.setattr(driver.llm, "call", lambda *a, **k: "Vale, gracias por avisar, sigo esperando entonces.")
+    d = driver.Driver(_scenario())
+    d.opening()
+    d.hears("Sigo con ello.")
+    d.reply()
+    assert d.done is False
+
+
 def test_watchdog_prompt_carries_the_mechanism_hint_when_given():
     """Live bug (search-buy-used-car, 2026-08-17): the watchdog abandoned a scenario after just 3 turns —
     'zaelar keeps saying it's still searching' — while the mechanism report (checked after the fact) showed
