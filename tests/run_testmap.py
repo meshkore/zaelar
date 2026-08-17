@@ -215,7 +215,11 @@ DOMAINS: list[dict] = [
             "tests/browser/unit/widgets/test_aliases.py", "tests/browser/unit/widgets/test_identify_context.py",
             "tests/browser/unit/widgets/test_resolver_certainty.py", "tests/browser/unit/widgets/test_system_surfaces_sync.py"]},
         {"id": "4.2", "title": "Navegador (browser)", "ch": UNIT, "paths": [
-            "tests/browser/unit/navegador/test_auth.py", "tests/browser/unit/navegador/test_tasks_dedup.py"]},
+            "tests/browser/unit/navegador/test_auth.py", "tests/browser/unit/navegador/test_tasks_dedup.py",
+            # 2026-08-17 modularization pass: DOM/human-input primitives split out of owner.py into dom.py
+            # (page-parametric, no module-global coupling) -- first standalone coverage for this path, plus a
+            # regression lock on `mouse` now being required (the old None-fallback was dead code).
+            "tests/browser/unit/navegador/test_dom.py"]},
         {"id": "4.3", "title": "Widget de música", "ch": UNIT, "paths": ["tests/browser/unit/musica/test_data.py"]},
         {"id": "4.4", "title": "Widget de YouTube", "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_youtube.py"]},
         {"id": "4.5", "title": "Widget de mensajería", "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_owner_v2.py"]},
