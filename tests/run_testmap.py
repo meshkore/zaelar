@@ -158,6 +158,14 @@ DOMAINS: list[dict] = [
             # «la tarea del navegador»; (2) ese nombre hizo que un `stop_worker` arrastrado del turno anterior la
             # encontrara y la matara EN EL MISMO turno en que se le entregaba la autorización que esperaba.
             "tests/voice/unit/providers/test_stop_and_route_guards.py",
+            # V2-109 (2026-08-17): evaluate_content()'s directed-vs-ambient judge got `brain._last_spoken` as
+            # context, which a lead-in filler ("Pues…") overwrites — a real follow-up question asked right after
+            # a filler got classified `ambiente` with zero topic to judge against. New `_last_reply` field, filler
+            # path never touches it.
+            "tests/voice/unit/providers/test_nucleo_directed_context.py",
+            # V2-108 cont. modularization pass (2026-08-17): vault_intercept.py split out of `_run_inner`'s
+            # security-config-command + spoken-secret intercept — first standalone unit coverage for this path.
+            "tests/voice/unit/providers/test_vault_intercept.py",
             "tests/voice/unit/test_trace.py", "tests/voice/e2e/agent/interlocutor/test_trace.py"]},
         {"id": "3.3", "title": "Mic→STT (transporte WebRTC)", "ch": VOICE, "live": True,
             "cmd": "./.venv/bin/python -m tests.voice.e2e.mic.mic_selftest"},
