@@ -264,9 +264,10 @@ RRF:          rrf(doc) = Σ_listas 1 / (k + rank_lista(doc))     con k = 60
 def query(prompt, budget_tokens):
     ctx = [ state.read() ]                      # SIEMPRE, sin búsqueda (µs)
     q   = embed_local(prompt)
-    vec = vec_search(q, k=40)                   # sqlite-vec, fuerza bruta, ms
-    kw  = fts_search(prompt, k=40)              # FTS5
-    cand = rrf(vec, kw, k=60)                   # fusiona rankings
+    vec = vec_search(q, k=100)                  # sqlite-vec, fuerza bruta, ms (POOL_K, V2-031 T2: 40→100)
+    kw  = fts_search(prompt, k=100)             # FTS5
+    para = vec_search_paraphrases(q, k=100)     # V2-031 T2: reformulaciones indexadas al escribir (vocab-gap)
+    cand = rrf(vec, kw, para, k=60)              # fusiona LAS TRES listas
     for m in cand:
         m.score = A*m.rel + B*recency(m.last_access) + G*m.importance + D*m.weight
     top = sort_desc(cand, key=score)
@@ -316,8 +317,13 @@ carga en frío. Observabilidad: `status()` (proveedor/modelo/latencia).
 > - ✅ **WRITE-completeness** — el diagnóstico de los fallos reveló que la mayoría de los "no recuperados" **no
 >    están guardados** (el CORAZÓN los descartó o quedaron superseded), no son fallos de retrieval. Endurecer qué se
 >    considera durable es la palanca #1.
-> - ✅ **Retrieval de lo guardado** — pool más profundo (k) + **índice de PARÁFRASIS al escribir** (reformulaciones
->    de la píldora → superficie para el vocab-gap T150, off-hot-path, sin LLM al leer) + el grafo de conceptos.
+> - ✅ **Retrieval de lo guardado — CONSTRUIDO (T2, 2026-08-17)**: pool 40→100 (`POOL_K`, `memory/retriever.py`) +
+>    **índice de PARÁFRASIS al escribir** (`memory/writer.py::index_paraphrases`, fase nueva de REM
+>    `rem.py::index_paraphrases` — 1-2 reformulaciones por píldora durable generadas off-hot-path, superficie extra
+>    para el vocab-gap T150 sin LLM al leer) + el grafo de conceptos. **Impacto en found@10/recall@1 sin medir de
+>    forma fiable todavía** — dos bugs reales del propio arnés de medición (backend de embedding mezclado en
+>    caliente, y el corpus del bot escribiéndose en inglés/con la clave del CORAZÓN sin resolver) se cerraron el
+>    mismo día que T2; el número honesto queda pendiente de una corrida limpia. Ver la bitácora de `V2-031`.
 > - ✅ **Memoria AUTO-EVALUATIVA continua** (T5, la idea del operador) — un lazo *sleep-time* que se auto-sondea,
 >    detecta hechos no recuperables y los **REPARA** (refuerza, añade aristas, indexa paráfrasis, marca re-embed).
 > - ✅ **Consolidación SEMÁNTICA** — cablear el hook `summarize_fn` (hoy no-op, V2-006): fusionar píldoras
@@ -1172,14 +1178,17 @@ completamente separadas:
 | pytest (`tests/memory/unit`,`integration`) | ninguno — hooks/mocks inyectados a mano | NO | $0, cada commit |
 | bot corpus (`tests/memory/e2e/bot/`, `cases.py`/`cases2.py`/`cases3.py`) | el CORAZÓN configurado (`§memory.mem_processor_*`) | SÍ, en escritura; lectura sin LLM | real, esporádico |
 | gateway conversacional (`cases4.py`) | el CORAZÓN configurado | SÍ (extracción completa) | real, esporádico |
-| timeline (`tests/memory/e2e/timeline/`) | REM con hook DETERMINISTA Python puro (`_deterministic_hook`, V2-103) — NO LLM real | NO (a propósito, ver `README.md`) | $0 |
+| timeline (`tests/memory/e2e/timeline/`) | por defecto: hook DETERMINISTA Python puro (`_deterministic_hook`) — NO LLM real; **`--real` (V2-107, 2026-08-17) cablea el CORAZÓN + `verify_insight_grounded` + paráfrasis REALES contra DeepSeek** dentro del propio timeline | NO por defecto; SÍ con `--real` | $0 por defecto; real y esporádico con `--real` |
 | `distiller_bench.py` | BARRE candidatos comerciales para ELEGIR el CORAZÓN | SÍ, muchos modelos a la vez | real, caro, solo al re-evaluar |
 | `scale_eval.py` | ninguno — mide el retriever (embeddings+reranker), no la síntesis | NO | $0 (solo embeddings/reranker locales) |
-| tests nuevos de V2-104 (`test_rem.py`, fidelidad del insight) | `verify_fn` MOCKEADO a mano (`lambda insight, pills: True/False`) | NO — **el `verify_insight_grounded()` real contra DeepSeek nunca se ha ejercitado con una llamada de verdad todavía** | pendiente |
+| tests unitarios de V2-104 (`test_rem.py`, fidelidad del insight) | `verify_fn` MOCKEADO a mano (`lambda insight, pills: True/False`) | NO — mecánica, gratis, cada commit | $0 |
+| `live_rem_faithfulness.py` (V2-104, script dedicado) | `verify_insight_grounded()` REAL contra DeepSeek — sin mock | SÍ | real, bajo (3 casos) |
 
-La fila que falta — validar `verify_insight_grounded()` y el CORAZÓN contra el modelo REAL de producción
-(`deepseek-v4-flash` y, si aplica, `deepseek-v4-pro`/"Thinking") con una llamada de verdad, no un mock — es
-trabajo pendiente explícito, no un hueco escondido.
+**La validación real de `verify_insight_grounded()` YA SE HIZO (2026-08-17, mismo día que V2-104)** —
+`tests/memory/e2e/bot/live_rem_faithfulness.py`, 3/3 pruebas reales en verde contra `deepseek-v4-flash`. Fue esa
+misma corrida real la que encontró el bug de orden del gate (backstop determinista vetando ANTES que el LLM,
+corregido el mismo día) — la fila ya no está pendiente; queda como referencia el script para volver a correrlo
+cuando cambie el modelo o el prompt.
 
 **Taxonomía de 27 dimensiones (A–X + subtipos).** Cada dimensión ataca UN modo de fallo distinto y se ancla a la
 habilidad SOTA que le corresponde (tabla completa en `TAXONOMY.md`). Cubre extracción (telegráfica↔parrafada),
