@@ -63,6 +63,9 @@ _EXENTOS: dict[str, str] = {
         "hermano del anterior: elige escalón, no llama.",
     "connectors/registry.py":
         "inventario de conectores; sin tráfico.",
+    "nucleo/flash/model_spec.py":
+        "resuelve base_url/api_key del modelo elegido (texto de config, sin tráfico); quien EJECUTA y "
+        "mide la llamada es fast_client.py::stream() (split de modularización, 2026-08-17).",
 }
 
 
