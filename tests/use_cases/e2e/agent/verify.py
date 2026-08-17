@@ -54,6 +54,35 @@ def poll_navegador_task(task_id: str, *, timeout_s: float = 90.0, interval_s: fl
     return last
 
 
+def live_navegador_snapshot(scenario_started_ms: float) -> str:
+    """A ONE-SHOT (non-polling — for `poll_navegador_task`'s patient version, see above), compact status
+    line for whatever navegador task is active RIGHT NOW in this scenario's live session, or "" if none.
+
+    Built for the watchdog (2026-08-17, live finding): two scenarios got `stuck/abandon`ed after only 2-3
+    turns while their mechanism report (checked AFTER the fact) showed a real worker genuinely navigating —
+    `status=working`, a real URL, a fresh screenshot. The watchdog judges purely from the conversational
+    transcript, which looks IDENTICAL for "genuinely slow but working" and "actually stuck" — a real search
+    with Claude Code's vision-based navigation can legitimately take minutes. This gives the watchdog the
+    same system-truth grounding the final verdict already uses, mid-conversation, so a scenario doesn't get
+    cut short on background work that's actually progressing normally."""
+    try:
+        session_id = probe_client.current_session_id()
+        events = [e for e in probe_client.session_events(session_id)
+                  if (e.get("ts_ms") or 0) >= scenario_started_ms]
+        task_id = find_navegador_task_id(events)
+        if not task_id:
+            return ""
+        view = probe_client.navegador_task(task_id)
+        status = (view or {}).get("status", "")
+        if not status:
+            return ""
+        url = (view or {}).get("url", "")
+        shot_rev = (view or {}).get("shot_rev", 0)
+        return f"status={status}, shot_rev={shot_rev} (sube = sigue avanzando), url={url}"
+    except Exception:
+        return ""
+
+
 def mechanism_report(all_events: list[dict], expected_signals: list[str]) -> dict:
     """Structured, transcript-independent record of what actually happened this scenario."""
     families = families_in(all_events)

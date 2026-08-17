@@ -16,6 +16,7 @@ import time
 import uuid
 
 from . import config, driver as drivermod, judge as judgemod, probe_client, report as reportmod, scenarios as SC
+from . import verify as verifymod
 from . import watchdog as watchdogmod
 
 
@@ -45,7 +46,9 @@ def _run_scenario(scenario) -> dict:
         if driver.done:
             break
 
-        verdict = watchdogmod.evaluate(scenario, transcript)
+        mech_hint = (verifymod.live_navegador_snapshot(scenario_started_ms)
+                    if scenario.expected_signals else "")
+        verdict = watchdogmod.evaluate(scenario, transcript, mech_hint)
         if verdict["action"] != "continue":
             watchdog_log.append(verdict)
             print(f"  [watchdog] {verdict['health']}/{verdict['action']}: {verdict['reason']}")
@@ -59,7 +62,6 @@ def _run_scenario(scenario) -> dict:
         note("tester", utterance)
         print(f"  tester  · {utterance}")
 
-    from . import verify as verifymod
     if scenario.expected_signals:
         print("  verifying mechanism (this may wait for a background worker/browser task)…")
     # The observability session_id is a server-wide, one-at-a-time concept (see `current_session_id()`'s

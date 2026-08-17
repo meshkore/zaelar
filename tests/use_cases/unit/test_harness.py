@@ -92,3 +92,44 @@ def test_driver_closes_on_a_genuine_goodbye(monkeypatch):
     d.hears("Ya está reservado.")
     d.reply()
     assert d.done is True
+
+
+def test_watchdog_prompt_carries_the_mechanism_hint_when_given():
+    """Live bug (search-buy-used-car, 2026-08-17): the watchdog abandoned a scenario after just 3 turns —
+    'zaelar keeps saying it's still searching' — while the mechanism report (checked after the fact) showed
+    a real navegador task genuinely navigating (status=working, a real Wallapop search URL). A real
+    vision-based browser search legitimately takes minutes; the watchdog needs the same system-truth
+    grounding the final verdict already gets, not just the conversational transcript."""
+    msgs = watchdog.build_messages(_scenario(), [{"who": "tester", "text": "hola"}],
+                                   mechanism_hint="status=working, shot_rev=7, url=https://example.com")
+    user_content = msgs[1]["content"]
+    assert "status=working" in user_content
+    assert "MECANISMO EN VIVO" in user_content
+
+
+def test_watchdog_prompt_omits_mechanism_block_when_no_hint():
+    msgs = watchdog.build_messages(_scenario(), [{"who": "tester", "text": "hola"}])
+    assert "[MECANISMO EN VIVO]" not in msgs[1]["content"]
+
+
+def test_live_navegador_snapshot_fails_open_to_empty_string(monkeypatch):
+    monkeypatch.setattr(verify.probe_client, "current_session_id", lambda: (_ for _ in ()).throw(RuntimeError()))
+    assert verify.live_navegador_snapshot(0.0) == ""
+
+
+def test_live_navegador_snapshot_empty_when_no_navegador_task(monkeypatch):
+    monkeypatch.setattr(verify.probe_client, "current_session_id", lambda: "sid1")
+    monkeypatch.setattr(verify.probe_client, "session_events", lambda *a, **k: [])
+    assert verify.live_navegador_snapshot(0.0) == ""
+
+
+def test_live_navegador_snapshot_reports_status_and_shot_rev(monkeypatch):
+    monkeypatch.setattr(verify.probe_client, "current_session_id", lambda: "sid1")
+    monkeypatch.setattr(verify.probe_client, "session_events",
+                        lambda *a, **k: [{"payload": {"id": "navegador::t9"}, "ts_ms": 1}])
+    monkeypatch.setattr(verify.probe_client, "navegador_task",
+                        lambda tid: {"status": "working", "shot_rev": 3, "url": "https://x.test"})
+    snap = verify.live_navegador_snapshot(0.0)
+    assert "status=working" in snap
+    assert "shot_rev=3" in snap
+    assert "https://x.test" in snap
