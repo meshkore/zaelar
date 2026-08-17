@@ -116,3 +116,14 @@ def test_long_queries_excludes_stale_by_design_cases():
     assert phone == [], "el case del teléfono marcado stale_by_design se coló en _long_queries()"
     dog_name = [c for c in qs if c.get("q") == "¿Cómo se llama mi perro?"]
     assert dog_name == [], "el case del NOMBRE del perro (Toby→Nala) marcado stale_by_design se coló"
+    ssn = [c for c in qs if c.get("q") in
+           ("¿cuál es mi número de la seguridad social?", "¿sigues teniendo mi número de la seguridad social?")]
+    assert ssn == [], "los cases de la seguridad social (colisión con el forget genérico de dim N) se colaron"
+    # V2-031 (2026-08-17): cadena de supersede masiva de operator.car/operator.job (12/15 mutaciones cada uno)
+    # + los dos cases vaulteados (PIN, código de alarma) — todos deben quedar fuera de _long_queries().
+    chain_and_vault = [c for c in qs if c.get("q") in (
+        "¿qué sabes de mi coche?", "¿qué coche tengo?", "¿en qué empresa trabajo?",
+        "¿en qué trabajo ahora mismo?", "¿cuál es el PIN de mi tarjeta nueva?",
+        "¿cuál es el código de la alarma de casa?",
+    ) and c.get("want") and any(w in ("toyota", "ford", "deloitte", "profesor", "8890", "5903") for w in c["want"])]
+    assert chain_and_vault == [], f"cases de cadena de slot / bóveda que se colaron: {chain_and_vault}"
