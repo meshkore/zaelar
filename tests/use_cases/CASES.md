@@ -48,20 +48,42 @@ judge, full design below), reusing the voice tester's proven DRIVE+JUDGE pattern
   scenario deliberately underspecifies at least one real constraint in its opening line (city,
   mileage, dates, baggage, screen size/budget) so the agent has to ask and the driver has to answer
   in character — see `tests/use_cases/e2e/agent/scenarios.py` for the exact persona briefs and what
-  counts as a correction vs. a real success. Only `restaurant-tonight-madrid` was live-validated
-  this round (the engine's global run switch, ⏻, was found STOPPED before this run — started with
-  the operator's explicit go-ahead; see the ⏻ finding above, this is the second time it's been left
-  stopped from prior manual testing). Result: **2/5, and it reproduces the SAME systemic finding as
-  `hotel-under-15-days`** — `families_observed` correctly shows `worker` (no missing signals: the
-  mechanism genuinely fires, a `navegador` task really spawns), but the task never leaves
-  `status=working` within the conversation's 10-turn patience budget, so zaelar has nothing but "sigo
-  en ello" to say turn after turn, and the watchdog correctly flags it `stuck` and then `abandon`.
-  This is now two independent scenarios (hotel search, restaurant booking) hitting the identical
-  shape of failure — worker/browser mechanism fires but doesn't deliver a result the FlashBrain can
-  act on within a normal conversation's timeframe — which is stronger evidence this is a real,
-  systemic gap (missing progress check-ins and/or a timeout+fallback path) rather than a quirk of one
-  scenario. `search-buy-used-car`, `compare-flights-madrid-lisboa` and `cheapest-monitor` are wired
-  the same way but not yet run live.
+  counts as a correction vs. a real success. `search-buy-used-car`, `compare-flights-madrid-lisboa`
+  and `cheapest-monitor` are wired but not yet run live.
+
+  `restaurant-tonight-madrid` was run live 4 times this round (⏻ found STOPPED before the first run —
+  started with the operator's explicit go-ahead). **First run: 2/5**, reproducing the same shape as
+  `hotel-under-15-days` — worker fires, `navegador` task spawns, but never leaves `status=working`.
+  That prompted a real fix attempt: a trusted-site catalog (`nucleo/flash/site_catalog.py`) telling
+  the web worker to default to a known aggregator per category (TheFork for restaurants,
+  Booking.com for hotels, Skyscanner for flights, coches.net for cars, Amazon for generic
+  electronics) instead of improvising an arbitrary site's flow from scratch every time — per the
+  operator's explicit direction (2026-08-17) that self-host and cloud installs must resolve to the
+  same tested sites, so it lives in the engine's own code, not test config.
+
+  ⚠️ **First wiring attempt was wrong and caught within the same session**: it went into
+  `nucleo/agentes/web_cc.py`, which turned out to be PARKED dead code since V2-038 (confirmed
+  against CLAUDE.md's own decision log, which this session should have cross-checked first instead
+  of trusting an initial grep-based investigation). The real live path is
+  `nucleo/dispatch_prompts.py::_web_prompt()`, called uniformly for whichever Brain Worker backend is
+  configured (`claude_code`/`codex`/`grok_build`) — fixed to wire the catalog there instead (kept the
+  `web_cc.py` copy too, harmless, for if that module is ever revived). Covered by
+  `tests/agent_headless/unit/test_dispatch.py::test_web_prompt_carries_the_trusted_site_catalog`.
+
+  **3 more live runs after the real fix, all still stuck — but now for a DIFFERENT, more fundamental
+  reason.** Across all 4 runs' `worker_start` events (`grok_build`, this install's configured
+  backend — `config/v2.json`'s `code_agent.provider`), **not one produced a single `step`/
+  `step_result`/`progress`/`error` event afterward** — no evidence the worker ever got as far as
+  choosing a site, catalog or not. This matches a gotcha CLAUDE.md already documents for Grok Build
+  workers: a strict tool allowlist that can deny a bridge call silently, read by the model as
+  "the human cancelled" rather than a permission error, and Grok's `-p -` not reading stdin without
+  erroring. **The site-catalog fix is real, tested, and correctly wired to the live path — but it
+  hasn't been proven to help yet, because a more basic problem (this install's configured worker
+  backend not observably executing ANY step of a web task) is blocking every attempt before the
+  catalog would ever come into play.** Flagged here, not investigated further this round: comparing
+  worker backends (`claude_code`/`codex` vs `grok_build`) for web tasks specifically is a separate,
+  larger investigation than "add a site registry," and needs the operator's direction on priority
+  before spending more live-run budget on it.
 
 All other cases stay backlog until promoted, one at a time — picking the runner shape (browser
 automation, an `agent-headless`-style scenario, an email exchange for multi-agent cases) per case

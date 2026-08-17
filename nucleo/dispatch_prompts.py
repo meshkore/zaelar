@@ -220,6 +220,7 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None) -> str:
         native = "español"
     # V2-044 sesión 22:40: el objetivo escalado puede venir TERSO — la conversación reciente sitúa los pronombres
     # y restricciones que el modelo rápido no reformuló ("no se oye", "esa", "la de antes").
+    from nucleo.flash import site_catalog
     recent = _recent_conversation_block()
     recent_block = (f"CONVERSACIÓN RECIENTE (sitúa el objetivo; lo que el operador mencione se refiere a esto):\n"
                     f"{recent}\n\n") if recent else ""
@@ -228,6 +229,7 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None) -> str:
         f"paso a paso y con criterio. OBJETIVO (respétalo al pie de la letra):\n«{goal}»\n\n"
         + _today_block() + "\n\n"
         + recent_block +
+        site_catalog.directive_block() + "\n\n" +
         _HUMAN_NAV_GUIDE +
         "CÓMO CONDUCIR (desde la raíz del repo; el navegador ya tiene su pestaña asignada):\n"
         f"• VER la página como un humano (VISIÓN): {py} -m nucleo.nav_cli look\n"

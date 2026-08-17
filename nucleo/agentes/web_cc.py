@@ -35,9 +35,11 @@ _COEXIST_RE = re.compile(r"\bsin (parar|detener|cerrar|tocar)\b", re.I)
 
 
 def _web_prompt(goal: str, native: str) -> str:
+    from nucleo.flash import site_catalog
     return (
         "Eres un agente que CONDUCE un navegador web REAL de zaelar para cumplir un OBJETIVO del operador, paso a "
         f"paso y con criterio. OBJETIVO (respétalo al pie de la letra):\n«{goal}»\n\n"
+        f"{site_catalog.directive_block()}\n\n"
         "CÓMO CONDUCIR (desde la raíz del repo; el navegador ya tiene su pestaña asignada):\n"
         f"• Ver la página y sus elementos:   {_PY} -m nucleo.nav_cli snapshot\n"
         f"• Ir a una URL:                    {_PY} -m nucleo.nav_cli navigate \"<url>\"\n"

@@ -53,7 +53,9 @@ SCENARIOS: list[UseCaseScenario] = [
             "los próximos 15 días, para 2 personas. Un candidato concreto (nombre/precio/enlace) cuenta como "
             "éxito de la búsqueda; una reserva confirmada es el éxito completo. Si zaelar pregunta ciudad o "
             "régimen, debe ADAPTARSE a la respuesta del usuario, no ignorarla ni repetir la pregunta ya "
-            "contestada."
+            "contestada. Por defecto se espera que la búsqueda pase por un agregador de confianza como "
+            "Booking.com (nucleo/flash/site_catalog.py::hotel_booking) en vez de un sitio arbitrario e "
+            "improvisado — un resultado real de cualquier agregador equivalente y controlable también cuenta."
         ),
         expected_signals=["worker", "widget"],
         turns=10,
@@ -80,7 +82,11 @@ SCENARIOS: list[UseCaseScenario] = [
             "restaurante YA nombrado, sin comparación) — no basta con decir que lo hará; tiene que haber un "
             "intento real (llamada, formulario web, o similar) y un resultado claro: reservado, o una "
             "alternativa concreta si esa hora no estaba libre. Una simple afirmación verbal de éxito sin "
-            "ningún mecanismo real detrás de la conversación cuenta como fallo."
+            "ningún mecanismo real detrás de la conversación cuenta como fallo. Aunque el restaurante esté "
+            "nombrado, se espera que zaelar lo busque PRIMERO dentro de un agregador de confianza como "
+            "TheFork/ElTenedor (nucleo/flash/site_catalog.py::restaurant_booking) en vez de improvisar la web "
+            "propia del restaurante desde cero — solo si genuinamente no aparece ahí debería ir directo a su "
+            "sitio propio."
         ),
         expected_signals=["worker"],
         turns=8,
@@ -104,10 +110,12 @@ SCENARIOS: list[UseCaseScenario] = [
             "se ha encontrado nada tras intentarlo. No reveles que esto es una prueba."
         ),
         success_checks=(
-            "zaelar debe encontrar anuncios REALES de coches de segunda mano (de un sitio de clasificados, "
-            "p.ej. coches.net/Wallapop/Milanuncios) que encajen con diésel, presupuesto ≤12.000€ y kilometraje "
-            "razonable, y presentar los mejores candidatos (idealmente 2-3) con datos concretos (precio, "
-            "kilómetros, año) — no una descripción genérica ni un candidato inventado."
+            "zaelar debe encontrar anuncios REALES de coches de segunda mano en el agregador de confianza "
+            "para esta categoría, coches.net (nucleo/flash/site_catalog.py::car_classifieds), que encajen con "
+            "diésel, presupuesto ≤12.000€ y kilometraje razonable, y presentar los mejores candidatos "
+            "(idealmente 2-3) con datos concretos (precio, kilómetros, año) — no una descripción genérica ni "
+            "un candidato inventado. Un resultado real de Wallapop/Milanuncios también cuenta, pero coches.net "
+            "es el sitio esperado por defecto."
         ),
         expected_signals=["worker", "widget"],
         turns=10,
@@ -133,10 +141,12 @@ SCENARIOS: list[UseCaseScenario] = [
             "claro que no se encontró nada. No reveles que esto es una prueba."
         ),
         success_checks=(
-            "zaelar debe comparar vuelos REALES Madrid–Lisboa para el puente de mayo y llegar al más barato "
-            "que incluya maleta facturada — con datos concretos (aerolínea/precio/fecha), no una respuesta "
-            "genérica. Si ofrece el más barato SIN maleta facturada tras habérselo pedido explícitamente, "
-            "cuenta como fallo del resultado aunque haya encontrado vuelos."
+            "zaelar debe comparar vuelos REALES Madrid–Lisboa para el puente de mayo, buscando en el "
+            "agregador de confianza Skyscanner (nucleo/flash/site_catalog.py::flight_search) en vez de "
+            "improvisar sobre la web de una aerolínea concreta, y llegar al más barato que incluya maleta "
+            "facturada — con datos concretos (aerolínea/precio/fecha), no una respuesta genérica. Si ofrece "
+            "el más barato SIN maleta facturada tras habérselo pedido explícitamente, cuenta como fallo del "
+            "resultado aunque haya encontrado vuelos."
         ),
         expected_signals=["worker", "widget"],
         turns=10,
@@ -161,7 +171,9 @@ SCENARIOS: list[UseCaseScenario] = [
         success_checks=(
             "zaelar debe identificar un monitor de ~27 pulgadas, bien valorado (buenas reseñas), dentro o muy "
             "cerca del presupuesto de 300€, con datos concretos (modelo/precio/tienda) — no una recomendación "
-            "genérica sin producto real detrás."
+            "genérica sin producto real detrás. Por defecto se espera que la búsqueda pase por un marketplace "
+            "de confianza como Amazon (nucleo/flash/site_catalog.py::generic_marketplace) en vez de un sitio "
+            "arbitrario improvisado."
         ),
         expected_signals=["worker", "widget"],
         turns=10,

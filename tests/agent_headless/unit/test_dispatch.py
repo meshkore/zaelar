@@ -148,6 +148,18 @@ def test_web_prompt_has_verify_before_close():
     assert "7) VERIFICA" in wp and "8) CIERRE" in wp
 
 
+def test_web_prompt_carries_the_trusted_site_catalog():
+    """V2-099 follow-up: the LIVE web-worker prompt (dispatch_prompts._web_prompt, called for ALL backends —
+    claude_code/codex/grok_build, per registry.get_backend) must carry the trusted-site catalog, not just the
+    parked nucleo/agentes/web_cc.py copy — two independent use-case runs found the worker improvising a
+    destination site from scratch every time, which this catalog exists to fix."""
+    from nucleo.flash import site_catalog
+    wp = dispatch._web_prompt("resérvame mesa en Casa Lucio esta noche", "")
+    assert site_catalog.directive_block() in wp
+    for entry in site_catalog.SITE_CATALOG.values():
+        assert entry.url in wp
+
+
 def test_structured_worker_observability():
     """V2-059: el worker declara plan + reporta progreso → registro actualizado y proyectado a ESTADO/api-tasks."""
     from nucleo.workers.session import SessionRecord
