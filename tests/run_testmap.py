@@ -189,7 +189,11 @@ DOMAINS: list[dict] = [
         # respuesta. 48 generados, 0 oídos a tiempo, y el operador diciéndole «parece que te has quedado tonto» a un
         # agente que estaba trabajando. Aquí se reproduce el pegado y se fija la costura fuera de banda.
         {"id": "3.7", "title": "Relleno de espera: suena MIENTRAS se espera (fuera del stream del modelo)",
-            "ch": VOICE, "paths": ["tests/voice/unit/test_lead_in.py"]},
+            "ch": VOICE, "paths": ["tests/voice/unit/test_lead_in.py",
+                                    # V2-114 (2026-08-17): el pool de rellenos ya no es solo un literal hardcodeado
+                                    # — pick_filler() mira PRIMERO un pack generado por idioma antes de caer al
+                                    # catálogo es/en; este test file nuevo cubre esa ruta de lectura.
+                                    "tests/voice/unit/test_lang_fillers_store.py"]},
         # V2-095 (2026-08-14): el límite del turno era SOLO acústico, así que un operador que piensa en voz alta
         # abría un turno por pausa y el siguiente fragmento lo cancelaba — 22 prompts, 18 cancelados y CERO
         # respuestas en 161 s de dictado. El corpus del test son las 89 transcripciones REALES de esa sesión: la

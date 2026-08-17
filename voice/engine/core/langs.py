@@ -274,10 +274,25 @@ def kokoro_voices(code: str | None = None) -> list[dict]:
 import random as _random  # noqa: E402
 
 
+def _generated_fillers(code: str) -> list[str]:
+    """The per-language GENERATED filler pool (`i18n/generated/<code>.fillers.json`, V2-114) — a stable lookup
+    path a component can always check FIRST, whether or not this language ever gets a real pack generated for
+    it. Today nothing generates one (deliberately scoped out, see `i18n/init/fillers.py`'s docstring), so this
+    always returns [] and `pick_filler` falls through to the hardcoded es/en pool — behavior is unchanged for
+    both preset languages; only the LOOKUP ORDER changed, so a future generated pack needs no further wiring."""
+    try:
+        from i18n.init import fillers as _fillers_store
+        return _fillers_store.read(code)
+    except Exception:
+        return []
+
+
 def pick_filler(last: str = "", code: str | None = None) -> str:
     """Un sonido de PENSAR neutro y variado (lead-in) en el idioma activo, distinto del último (anti-repetición).
     Determinista-agnóstico: si no hay pool, cadena vacía → el caller no dice nada."""
-    pool = list(getattr(spec(code), "fillers", ()) or ())
+    pool = _generated_fillers(code or current_code())
+    if not pool:
+        pool = list(getattr(spec(code), "fillers", ()) or ())
     if not pool:
         return ""
     choices = [p for p in pool if p != last] or pool

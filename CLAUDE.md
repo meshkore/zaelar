@@ -2569,17 +2569,25 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     steal a NEW session's speaker on an OLD session's teardown; the module uses `ephemeral_speaker()` and NEVER
     `speaker()`; `agent.py` passes `add_to_chat_ctx=False`) + `tests/voice/unit/providers/
     test_nucleo_directed_context.py` (repointed at the new file). Full suite: 2079 passed, 7 skipped.
-  - **Two architecture questions raised in the same thread, deliberately left OPEN**: (1) whether non-preset
-    languages (anything beyond es/en) should get their own generated filler phrases at onboarding time — found
-    that TODAY the entire voice pipeline (STT + TTS + the model's reply-language directive, not just fillers)
-    is hard-limited to es/en (`langs.py::current_code()` falls back to English for any code outside its
-    2-entry catalog) even though `i18n.init.detect.lock()` already accepts and persists any onboarded language
-    code and generates its UI bundle + alias pack (V2-101) — generating fillers for a language the voice
-    pipeline never actually speaks would be built on a foundation that doesn't use it; (2) whether filler/prompt/
-    language data should move into `memory/`, referencing a prior conversation not available in this session's
-    context, which also conflicts with the documented BRAIN RULES (hardcoded genetics in code) vs `memory/`
-    (operator facts only) boundary. Both need the operator's explicit scope confirmation before either is
-    touched. Detail: `V2-114-relleno-modulo-aislado-y-fuga-al-chat.md`.
+  - **Two architecture questions raised in the same thread, resolved with the operator (AskUserQuestion)**:
+    (1) whether non-preset languages should get their own generated filler phrases now — found the ENTIRE
+    voice pipeline (STT + TTS + the model's reply-language directive, not just fillers) is hard-limited to
+    es/en today (`langs.py::current_code()` falls back to English for any code outside its 2-entry catalog)
+    even though onboarding already accepts and persists any language and generates its UI bundle + alias pack
+    (V2-101) — **operator chose to let fillers degrade gracefully for now**, matching the rest of the pipeline,
+    not build the full multi-language voice expansion in this pass; (2) whether filler/prompt/language data
+    should live in `memory/` — operator clarified the real ask was a general "one stable place to look for any
+    data, static or dynamic" principle, not literally the SQLite operator-facts store, and authorized a concrete
+    call for this case. **Applied**: `pick_filler()` now checks a per-language GENERATED store
+    (`i18n/init/fillers.py`, `i18n/generated/<code>.fillers.json` — same shape as V2-101's alias pack) before
+    falling back to the hardcoded `LangSpec.fillers` pool; with nothing generated (today, always) behavior is
+    byte-identical for es/en, only the lookup ORDER changed. Deliberately NOT wired to LLM generation yet
+    (matches decision (1)) — `save()` exists and is tested, ready for a future generation step. Kept OUT of
+    `memory/`'s SQLite on purpose: this is per-installation config, not operator facts, and `i18n/generated/`
+    is already the established "stable path" for exactly this class of data (same home as the UI bundle and
+    alias pack) — no new mechanism needed, and no encroaching on the memory-domain session's territory. Tests:
+    `tests/voice/unit/test_lang_fillers_store.py` (7 cases, testmap node 3.7). Full suite: 2086 passed, 7
+    skipped. Detail: `V2-114-relleno-modulo-aislado-y-fuga-al-chat.md`.
 
 ## Testing y rueda de mejora (INI-013)
 
