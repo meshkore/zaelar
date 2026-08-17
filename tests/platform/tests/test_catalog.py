@@ -79,9 +79,9 @@ def test_memory_gateway_is_primary_and_chronology_replays_its_prefix():
     last_dialogue = find_case(catalog, "memory::v4::0014")
     assert last_dialogue["execution"]["replay_prefix"] is True
     assert timeline["id"] == "timeline-6m"
-    assert timeline["count"] == 966 == len(CASES)
+    assert timeline["count"] == 1209 == len(CASES)
     rem_days = [case["day"] for case in CASES if case["op"] == "rem"]
-    assert rem_days == list(range(1, 181))
+    assert rem_days == list(range(1, 271))
     assert timeline["execution"]["stateful"] is True
     last = find_case(catalog, "memory::timeline::0965")
     assert last["execution"]["replay_prefix"] is True

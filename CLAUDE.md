@@ -2349,7 +2349,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   feliz normal de REM. Mismo principio que V2-075 ya fijó en otro módulo: el juicio semántico lo decide un
   MODELO, no un patrón hardcodeado. Verificado que los tests nuevos fallan sin el gate (`git stash` temporal) Y
   que el escenario real corregido pasa 3/3 pruebas reales tras el fix. Tests: `test_rem.py` — 339 passed.
-- **Corpus longitudinal con contradicciones + REM real end-to-end (V2-105)** (2026-08-17): el corpus de 966
+- **Corpus longitudinal con contradicciones + REM real end-to-end (V2-107)** (2026-08-17): el corpus de 966
   ops/180 días (`tests/memory/e2e/timeline/`) era 100% fijo y determinista, sin ninguna semilla aleatoria —
   perfecto para regresión, ciego a la PRÓXIMA clase de bug (contradicciones a destiempo, paráfrasis semanas
   después, hechos casi-simultáneos en competencia). Extendido 180→270 días
@@ -2366,7 +2366,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   timeline). No se corrió `--all --real` de punta a punta (270 días × REM real, potencialmente horas) —
   verificado en una porción representativa; la corrida completa queda periódica/manual, mismo patrón que
   `distiller_bench.py`/`scale_eval.py`. Suite: 356 passed, 1 skipped (subido de 349). Detalle:
-  `V2-105-corpus-longitudinal-contradicciones.md`.
+  `V2-107-corpus-longitudinal-contradicciones.md`.
 
 ## Testing y rueda de mejora (INI-013)
 
