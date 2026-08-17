@@ -120,6 +120,55 @@ judge, full design below), reusing the voice tester's proven DRIVE+JUDGE pattern
   `grok_build`, since the evidence strongly favors it. Flagged for the operator to confirm or pick
   the Z.AI-backed preset instead if subscription cost/quota is a concern.
 
+  **Continued, operator said "keep testing until something works"** — two more real fixes, each
+  found by re-running `cheapest-monitor` (a pure marketplace search, no phone-call confound) and
+  reading exactly why it still didn't complete:
+
+  1. ⚠️ **The worker calls `nav_cli` subcommands that don't exist** (`automate`, `act`), confirmed
+     from the earlier run's raw timeline — each guess burns a full turn on `Exit code 2 ... invalid
+     choice` instead of progress. Fixed: `dispatch_prompts.py::_web_prompt()` now explicitly lists
+     the closed set of real subcommands and names `automate`/`act` as NOT valid, plus the exact
+     syntax for `extract` (no text argument, only `--limit`) and `scroll` (a pixel count, never
+     `"down"`/`"up"` — both observed being called wrong). Covered by
+     `test_web_prompt_warns_against_nonexistent_nav_cli_subcommands`.
+  2. ⚠️ **Harness bug, not a product bug: the DRIVE model's closing-word heuristic false-positived
+     on "Vale, perfecto. ¿Ya tienes algo?"** — a normal mid-conversation acknowledgment, not a
+     goodbye — because it contained "perfecto" and was short. Ended a live run after only 2 turns,
+     well short of the 10-turn budget, while the worker was still genuinely working (a real
+     `navegador` task with `status=working`, a live Amazon search URL, and a screenshot — verified
+     via the mechanism report). Fixed in `tests/use_cases/e2e/agent/driver.py::reply()`: a message
+     containing "?"/"¿" never counts as closing, regardless of which word it also contains — a real
+     goodbye never ends in a question. Covered by two new tests in
+     `tests/use_cases/unit/test_harness.py`.
+
+  **Re-ran `cheapest-monitor` a third time with all three fixes (site catalog + nav_cli guard +
+  driver fix) — furthest it's gotten yet.** The conversation now genuinely continues past the false
+  stopping point ("Todavía estoy con ello... ¿quieres que le dé un poco más o lo paro?" — zaelar
+  proactively and honestly asking permission instead of hallucinating, real good behavior), and the
+  mechanism report shows **real, concrete extraction**: `navegador_task.results.items` contains 5
+  entries with genuine Amazon URLs and prices (one clean hit: "INNOCN QD-OLED... 27 QHD IPS", the
+  other 4 look like scraped ad-slot links with empty titles — an extraction-quality issue of its
+  own, not investigated further). But `results.conclusion` is **`"API Error: The model has reached
+  its context window limit."`** — the Claude Code worker session itself ran out of context mid-task.
+
+  ⚠️ **New, deeper finding: repeated "how's it going?" check-ins re-launch the SAME worker session
+  via V2-032's continuation ("las aclaraciones re-lanzan en la MISMA tarjeta"), and each `look()`
+  screenshot cycle is vision-token-heavy — across 4 continuations in one scenario, context grew
+  until the session errored out.** This is a different class of problem than the previous two
+  (those were "the worker does the wrong thing"; this is "the worker was doing the RIGHT thing and
+  ran out of room to keep doing it"). Not fixed this round — the natural next investigations are
+  either bounding/compacting a long-running web worker's context, or having the driver/watchdog ask
+  fewer redundant progress check-ins — but both are a meaningfully bigger change than the last two
+  fixes, so this is where this round of live iteration stopped, flagged for the operator's call on
+  priority rather than guessed at blindly.
+
+  **Where this leaves the suite**: from "the configured worker never does anything" to "the worker
+  does real, catalog-aware, multi-step browsing and gets genuinely close — real search, real
+  extracted prices/URLs — before hitting its own context ceiling on a task that needed several
+  check-ins." Three concrete, verified fixes landed this round (site catalog, nav_cli usage guard,
+  driver harness bug); the context-window ceiling is the next concrete blocker, not a vague "it's
+  stuck."
+
 All other cases stay backlog until promoted, one at a time — picking the runner shape (browser
 automation, an `agent-headless`-style scenario, an email exchange for multi-agent cases) per case
 as it's picked up, not decided in bulk here.

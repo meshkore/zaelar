@@ -5,7 +5,13 @@ from __future__ import annotations
 
 import json
 
-from tests.use_cases.e2e.agent import verify, watchdog
+from tests.use_cases.e2e.agent import driver, scenarios, verify, watchdog
+
+
+def _scenario():
+    return scenarios.UseCaseScenario(
+        id="unit-test", locale="es", tier=1, persona_brief="da igual", opening_line="hola",
+        success_checks="da igual")
 
 
 def test_watchdog_parse_valid_json():
@@ -65,3 +71,24 @@ def test_mechanism_report_flags_missing_signals(monkeypatch):
     assert report["families_observed"] == ["flash"]
     assert report["missing_signals"] == ["worker", "widget"]
     assert report["navegador_task_id"] == ""
+
+
+def test_driver_does_not_close_on_a_closing_word_that_is_still_a_question(monkeypatch):
+    """Live bug (cheapest-monitor, 2026-08-17): 'Vale, perfecto. ¿Ya tienes algo?' ended the conversation
+    after 2 turns — 'perfecto' matched the closing heuristic even though the driver was still actively
+    waiting on an answer. A real goodbye never ends in a question."""
+    monkeypatch.setattr(driver.llm, "call", lambda *a, **k: "Vale, perfecto. ¿Ya tienes algo?")
+    d = driver.Driver(_scenario())
+    d.opening()
+    d.hears("Sigo con ello, dame un momento.")
+    d.reply()
+    assert d.done is False
+
+
+def test_driver_closes_on_a_genuine_goodbye(monkeypatch):
+    monkeypatch.setattr(driver.llm, "call", lambda *a, **k: "Perfecto, muchas gracias.")
+    d = driver.Driver(_scenario())
+    d.opening()
+    d.hears("Ya está reservado.")
+    d.reply()
+    assert d.done is True

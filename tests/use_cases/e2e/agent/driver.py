@@ -49,7 +49,12 @@ class Driver:
         txt = llm.call(msgs, model=config.DRIVE_MODEL, temperature=0.7, max_tokens=200).strip()
         self.history.append({"role": "assistant", "content": txt})
         lowered = txt.lower()
+        # A real live run (cheapest-monitor, 2026-08-17) closed the conversation after only 2 turns on "Vale,
+        # perfecto. ¿Ya tienes algo?" — a plain mid-conversation acknowledgment, not a goodbye, but "perfecto"
+        # alone matched. A closing line NEVER ends in a question — the driver is still actively waiting for
+        # something if it just asked one, no matter which word preceded it.
         closing_words = ("gracias", "perfecto", "genial, eso es", "vale, listo")
-        if any(w in lowered for w in closing_words) and len(txt) < 200:
+        still_asking = "?" in txt or "¿" in txt
+        if any(w in lowered for w in closing_words) and len(txt) < 200 and not still_asking:
             self.done = True
         return txt
