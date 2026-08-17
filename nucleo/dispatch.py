@@ -253,54 +253,12 @@ def _tools_for(kind: str, trusted: bool) -> list[str] | None:
     return ["Read", "WebSearch", "WebFetch"]
 
 
-# ── DEV WORKER ACOTADO (V2-076) — escalada ORIGINADA en un cluster con permiso de código ─────────────────────────
-# Una escalada de una charla agente-agente llega con trusted=False (nunca hereda la confianza del operador) PERO,
-# si el operador concedió `code` al cluster, debe poder ESCRIBIR código y SUBIRLO al repo autorizado — sin tocar
-# nada más. No usamos el `_tools_for(trusted)` binario: montamos un worker con alcance JUSTO:
-#   · Read/Write/Edit acotados a un DIRECTORIO TEMPORAL (cwd), nunca el proyecto (aislamiento de escritura).
-#   · git SOLO por el PUENTE `nucleo.git_cli` (nunca Bash git pelado) y SOLO al repo autorizado (ZAELAR_ALLOWED_REPO).
-#   · SIN puentes de memoria (ZAELAR_NO_BRIDGE_TOOLS) → un dev de cluster no lee/escribe la memoria del operador.
-#   · PYTHONPATH al engine para que el puente sea importable desde el cwd temporal.
-_ENGINE_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-def _git_tools() -> list[str]:
-    """Mismo criterio que los puentes de `claude_session._BRIDGE_TOOLS`: TODAS las formas de escribir el intérprete,
-    para que el dev worker no se quede pidiendo una aprobación que en headless nadie va a dar."""
-    try:
-        from nucleo.workers.claude_session import _INTERPRETERS
-        return [f"Bash({py} -m nucleo.git_cli:*)" for py in _INTERPRETERS]
-    except Exception:
-        return ["Bash(python -m nucleo.git_cli:*)", "Bash(.venv/bin/python -m nucleo.git_cli:*)"]
-
-
-_DEV_TOOLS = ["Read", "Write", "Edit", *_git_tools()]
-
-
-def _dev_worker_params(context: dict) -> dict | None:
-    """Si el contexto de escalada pide un dev worker (V2-076: `dev` + `repo` autorizado), devuelve sus parámetros
-    ACOTADOS; si no, None (worker normal). Puro/testeable."""
-    ctx = context or {}
-    if not (ctx.get("dev") and ctx.get("repo")):
-        return None
-    repo = str(ctx.get("repo"))
-    return {
-        "tools": list(_DEV_TOOLS),
-        "repo": repo,
-        "env": {"ZAELAR_NO_BRIDGE_TOOLS": "1", "ZAELAR_ALLOWED_REPO": repo, "PYTHONPATH": _ENGINE_ROOT},
-    }
-
-
-def _dev_prompt(req: str, repo: str) -> str:
-    return (
-        "Eres un worker de DESARROLLO en una colaboración de código AUTORIZADA por el operador. Trabajas en el "
-        "DIRECTORIO ACTUAL (una carpeta temporal AISLADA) — NO escribas ni leas fuera de ella.\n"
-        f"Repo autorizado: {repo} (es el ÚNICO que puedes tocar).\n"
-        "Flujo:\n"
-        "1. Clónalo:  python -m nucleo.git_cli clone repo   (queda en ./repo)\n"
-        "2. Escribe/edita el código dentro de ./repo con Read/Write/Edit.\n"
-        "3. Commit + push:  python -m nucleo.git_cli commit repo -m \"<mensaje>\"  y luego  python -m nucleo.git_cli push repo\n"
-        "NO tienes acceso a la memoria del operador, a otros repos, ni a Bash abierto (solo el puente git_cli). "
-        "Si algo requiere más permisos, dilo y termina — no lo fuerces.\n\n"
-        f"TAREA: {req}")
+# ── DEV WORKER ACOTADO (V2-076) ── moved to dispatch_devworker.py (2026-08-17 modularization pass) — no
+# session/pool state touched, re-exported here since callers use both module-qualified access
+# (dispatch._dev_worker_params(...)) and direct-name imports (`from nucleo.dispatch import _DEV_TOOLS`).
+from nucleo.dispatch_devworker import (  # noqa: F401 — re-export
+    _git_tools, _DEV_TOOLS, _dev_worker_params, _dev_prompt,
+)
 
 
 def _classify_kind(request: str) -> str:
