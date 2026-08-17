@@ -2489,6 +2489,33 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   `operator.family` a `memory/slots.py` (mismo trato que `operator.car`/`hardware`: texto que se restablece por
   reformulación) — cero código nuevo de proyección, reutiliza la mecánica slot+value ya existente. Detalle:
   `V2-110-recall-query-contaminada-slot-familia.md`.
+- **Grafo multi-hop (PPR) + bi-temporal explícito — dos piezas de V2-111 §9, construidas por delante de las
+  fases de entidades (2026-08-17)**: comparando con Engraphis (memoria local-first de terceros para agentes de
+  código) salieron dos técnicas medidas por ellos que no dependen de que exista la capa de entidades/relaciones
+  de V2-111 — operan sobre el sustrato de hoy (`edges`, `memories`).
+  - **`memory/graph_ppr.py`**: `retriever.graph_expand()` solo hacía UN salto (pill→concepto→píldoras
+    hermanas). Personalized PageRank añade un canal MÁS, acotado (BFS desde los mismos parents hasta
+    `MAX_HOPS=3`/`MAX_NODES=400`, power iteration pura en Python, sin numpy/scipy nuevos), con su propio
+    descuento y sin duplicar lo que el 1-hop ya trajo. Fail-open total (grafo vacío/roto → `{}`, cero impacto).
+    Kill-switch `ZAELAR_GRAPH_PPR` (default ON — la lección ya escrita en este mismo fichero sobre capacidades
+    que nacen apagadas y nadie las enciende, V2-095/V2-102).
+  - **`valid_at`/`invalidated_at` (SCHEMA_VERSION 4→5)**: investigado ANTES de asumir que ya lo teníamos —
+    `memories.updated` NO sirve como "cuándo se invalidó" porque también lo toca el refuerzo
+    (`writer.py::reinforce`) y la promoción de nivel del consolidador, así que ninguna columna existente podía
+    responder "¿qué creíamos cierto en la fecha X?" de forma fiable. Dos columnas nuevas (ALTER idempotente,
+    mismo patrón que `slot`/`meta` v1→v2; `valid_at` se backfillea a `created` en filas existentes,
+    `invalidated_at` se queda NULL — no se inventa una fecha que no se puede reconstruir) enhebradas en los 8
+    sitios de escritura/invalidación/restauración (`writer.insert_memory` ×2, `writer.supersede()`,
+    `consolidator.heal_slots`, `consolidator.expire_ttl`, `rem.py` dedup semántico, `api.forget()`,
+    `api.unforget()` — este último limpia `invalidated_at` de vuelta a NULL al restaurar). Nueva
+    `memory/api.py::as_of(slot, ts)` reconstruye el valor vigente de un slot en un instante pasado — sin
+    inferencia de retroactividad todavía (una corrección dicha hoy se fecha hoy).
+  - Ambas piezas son aditivas, cero cambio de comportamiento en las rutas de lectura existentes (`compose_state`,
+    `search()`, `recent_*`). Tests nuevos: `tests/memory/unit/test_graph_ppr.py`,
+    `tests/memory/unit/test_bitemporal.py` (registrados en el testmap, nodos 1.1/1.2). Suite completa
+    `pytest tests/memory/ nucleo/`: 380 passed, 1 skipped (subido de 364). Detalle:
+    `V2-111-memoria-entidades-relaciones.md §9` (las fases 0-3 de entidades/relaciones SIGUEN en diseño, sin
+    construir).
 
 ## Testing y rueda de mejora (INI-013)
 

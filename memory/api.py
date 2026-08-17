@@ -231,7 +231,8 @@ def forget(match: str, *, hard: bool = False, include_pinned: bool = False) -> i
         for mid in ids:
             _writer.delete_memory(mid)
     else:
-        db.execute(f"UPDATE memories SET valid=0, updated=? WHERE id IN ({ph})", (now, *ids))
+        db.execute(f"UPDATE memories SET valid=0, updated=?, invalidated_at=? WHERE id IN ({ph})",
+                   (now, now, *ids))
     _emit("memory.updated", {"op": "forget", "ids": ids, "hard": hard})
     return len(ids)
 
@@ -266,9 +267,38 @@ def unforget(match: str, *, include_pinned: bool = False) -> int:
     ph = ",".join("?" * len(ids))
     from .clock import now as _clock_now
     now = _clock_now()
-    db.execute(f"UPDATE memories SET valid=1, updated=? WHERE id IN ({ph})", (now, *ids))
+    # invalidated_at vuelve a NULL: la fila vuelve a estar vigente, no puede seguir marcada como "cerrada" en
+    # una fecha pasada — un `as_of()` posterior al unforget debe verla vigente desde ahora, no seguir leyéndola
+    # como invalidada en la fecha del forget.
+    db.execute(f"UPDATE memories SET valid=1, updated=?, invalidated_at=NULL WHERE id IN ({ph})", (now, *ids))
     _emit("memory.updated", {"op": "unforget", "ids": ids})
     return len(ids)
+
+
+def as_of(slot: str, ts: int) -> dict | None:
+    """Bi-temporal (V2-111 §9.2): qué valor tenía un slot canónico en un instante PASADO — la pregunta que
+    `updated` no puede responder de forma fiable (lo toca también el refuerzo y la promoción de nivel, así que
+    no es "cuándo se invalidó"). Devuelve la fila más reciente cuyo `valid_at` ya había llegado en `ts` Y que
+    todavía no se había invalidado en `ts` (o que nunca se invalidó). `None` si el slot no existía todavía en
+    `ts`, o si `slot` no es una clave canónica reconocida — nunca lanza, nunca inventa un valor."""
+    canon = _writer.canon_slot(slot)
+    if not canon:
+        return None
+    db = _db.get_db()
+    keys = []
+    try:
+        from . import slots as _slots
+        keys = list(_slots.equivalent_keys(canon) or [canon])
+    except Exception:
+        keys = [canon]
+    ph = ",".join("?" * len(keys))
+    row = db.query_one(
+        f"SELECT id, level, kind, text, importance, weight, slot, meta, created, updated, valid_at, "
+        f"invalidated_at FROM memories WHERE slot IN ({ph}) AND valid_at <= ? "
+        f"AND (invalidated_at IS NULL OR invalidated_at > ?) ORDER BY valid_at DESC, id DESC LIMIT 1",
+        (*keys, ts, ts),
+    )
+    return dict(row) if row is not None else None
 
 
 def reinforce(ids: list[int]) -> None:

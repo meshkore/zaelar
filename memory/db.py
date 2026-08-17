@@ -119,6 +119,18 @@ class Database:
                     self.conn.execute(stmt)
             for stmt in _schema.MEMORIES_V2_INDEXES:   # indexes depending on v2 columns (after ALTER)
                 self.conn.execute(stmt)
+            # v4->v5 (V2-111 §9.2): bi-temporal columns + one-time backfill. `valid_at` defaults to `created`
+            # for rows written before this column existed — the honest assumption ("we learned it when we
+            # wrote it") rather than leaving it NULL, which would make `as_of()` silently skip old rows.
+            # `invalidated_at` is NOT backfilled (see schema.py comment: no reliable source for it).
+            had_valid_at = "valid_at" in cols
+            for name, stmt in _schema.MEMORIES_V5_COLUMNS:
+                if name not in cols:
+                    self.conn.execute(stmt)
+            if not had_valid_at:
+                self.conn.execute("UPDATE memories SET valid_at = created WHERE valid_at IS NULL")
+            for stmt in _schema.MEMORIES_V5_INDEXES:
+                self.conn.execute(stmt)
             if version < _schema.SCHEMA_VERSION:
                 self.conn.execute(f"PRAGMA user_version={_schema.SCHEMA_VERSION}")
             self.conn.commit()

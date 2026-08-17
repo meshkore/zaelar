@@ -200,8 +200,8 @@ def heal_slots() -> dict:
         stale = [int(x["id"]) for x in rows[1:]]
         if stale:
             ph = ",".join("?" * len(stale))
-            db.execute(f"UPDATE memories SET valid=0, superseded_by=?, updated=? WHERE id IN ({ph})",
-                       (keep, now, *stale))
+            db.execute(f"UPDATE memories SET valid=0, superseded_by=?, updated=?, invalidated_at=? "
+                       f"WHERE id IN ({ph})", (keep, now, now, *stale))
             collapsed += len(stale)
     return {"normalized": normalized, "collapsed": collapsed}
 
@@ -255,10 +255,10 @@ def expire_ttl(now: int | None = None) -> int:
     now = now or _now()
     with db.cursor() as cur:
         cur.execute(
-            "UPDATE memories SET valid=0, updated=? "
+            "UPDATE memories SET valid=0, updated=?, invalidated_at=? "
             "WHERE valid=1 AND pinned=0 AND ttl_days IS NOT NULL "
             "AND created + CAST(ttl_days * 86400 AS INTEGER) <= ?",
-            (now, now),
+            (now, now, now),
         )
         return cur.rowcount
 

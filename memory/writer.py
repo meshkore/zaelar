@@ -187,8 +187,8 @@ def insert_memory(
                 stale = [int(r["id"]) for r in rows[1:]]
                 if stale:                       # duplicados rezagados del mismo slot → colapsa igualmente
                     ph = ",".join("?" * len(stale))
-                    db.execute(f"UPDATE memories SET valid=0, superseded_by=?, updated=? WHERE id IN ({ph})",
-                               (keep, now, *stale))
+                    db.execute(f"UPDATE memories SET valid=0, superseded_by=?, updated=?, invalidated_at=? "
+                               f"WHERE id IN ({ph})", (keep, now, now, *stale))
                 return keep
             prev_ids = [int(r["id"]) for r in rows]   # dato cambió → superseder TODOS los vigentes tras insertar
 
@@ -226,10 +226,10 @@ def insert_memory(
     with db.cursor() as cur:
         cur.execute(
             """INSERT INTO memories (level, kind, text, importance, weight, access_count,
-                                     last_access, ttl_days, pinned, valid, slot, meta, created, updated)
-               VALUES (?,?,?,?,?,0,?,?,?,1,?,?,?,?)""",
+                                     last_access, ttl_days, pinned, valid, slot, meta, created, updated, valid_at)
+               VALUES (?,?,?,?,?,0,?,?,?,1,?,?,?,?,?)""",
             (level, kind, text, float(importance), float(weight), now,
-             ttl_days, 1 if pinned else 0, slot, meta_json, now, now),
+             ttl_days, 1 if pinned else 0, slot, meta_json, now, now, now),
         )
         mid = cur.lastrowid
         # FTS5 externo (content='memories'): mantener a mano, rowid = id del recuerdo.
@@ -237,8 +237,8 @@ def insert_memory(
             cur.execute("INSERT INTO fts_memories (rowid, text) VALUES (?, ?)", (mid, text))
         if prev_ids:                            # TODO hecho vigente con este slot queda superseded
             ph = ",".join("?" * len(prev_ids))
-            cur.execute(f"UPDATE memories SET valid=0, superseded_by=?, updated=? WHERE id IN ({ph})",
-                        (mid, now, *prev_ids))
+            cur.execute(f"UPDATE memories SET valid=0, superseded_by=?, updated=?, invalidated_at=? "
+                        f"WHERE id IN ({ph})", (mid, now, now, *prev_ids))
     # embedding fuera del lock de escritura del cursor (puede tardar) → luego insert corto en vec.
     # OPTIMIZACIÓN (2026-07-12): el BUFFER CONVERSACIONAL (`kind='conv'`, el par turno↔respuesta crudo que se
     # escribe CADA turno, efímero TTL 2d) NO se embebe: (a) se lee por RECENCIA (`recent_short`, SQL directo), nunca
@@ -346,9 +346,9 @@ def _get_or_create_concept(db, name: str) -> int | None:
         with db.cursor() as cur:
             cur.execute(
                 """INSERT INTO memories (level, kind, text, importance, weight, access_count,
-                                         last_access, ttl_days, pinned, valid, slot, meta, created, updated)
-                   VALUES (?, 'concept', ?, 0.3, 0.5, 0, ?, NULL, 1, 1, NULL, NULL, ?, ?)""",
-                ("long", n, now, now, now),
+                                         last_access, ttl_days, pinned, valid, slot, meta, created, updated, valid_at)
+                   VALUES (?, 'concept', ?, 0.3, 0.5, 0, ?, NULL, 1, 1, NULL, NULL, ?, ?, ?)""",
+                ("long", n, now, now, now, now),
             )
             cid = cur.lastrowid
             if db.fts_available:
@@ -492,9 +492,10 @@ def index_paraphrases(memory_id: int, texts: list[str]) -> int:
 def supersede(old_id: int, new_id: int) -> None:
     """Marca un recuerdo como superado por otro (conflicto temporal; el consolidador también lo usa)."""
     db = _db.get_db()
+    now = _now()
     db.execute(
-        "UPDATE memories SET valid=0, superseded_by=?, updated=? WHERE id=?",
-        (int(new_id), _now(), int(old_id)),
+        "UPDATE memories SET valid=0, superseded_by=?, updated=?, invalidated_at=? WHERE id=?",
+        (int(new_id), now, now, int(old_id)),
     )
 
 

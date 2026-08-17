@@ -188,11 +188,19 @@ CREATE TABLE memories (
   slot          TEXT,               -- v2: clave canónica del hecho SINGULAR (operator.name, goal.current…) → supersede/dedup EXACTO sin LLM
   meta          TEXT,               -- v2: píldora JSON libre (entity/attribute/source/said_at/path/raw…) — no toca el hot path; alimenta visor/grafo
   created       INTEGER NOT NULL,
-  updated       INTEGER NOT NULL
+  updated       INTEGER NOT NULL,
+  valid_at      INTEGER,            -- v5 (V2-111 §9.2): cuándo el hecho pasó a ser CIERTO (default = created)
+  invalidated_at INTEGER            -- v5: NULL mientras valid=1; se fija UNA VEZ, nunca se vuelve a tocar
 );
 -- `slot` da el "el más reciente MANDA" DETERMINISTA: al insertar un hecho con slot, el writer invalida el vigente
 -- con el mismo slot (o lo REFUERZA si el texto normalizado es idéntico → cero duplicados). SCHEMA_VERSION=2;
 -- migración ALTER idempotente y NO destructiva en `memory/db.py`.
+-- BI-TEMPORAL (v4→v5, V2-111 §9.2, 2026-08-17): `updated` NO sirve como "cuándo se invalidó" — lo toca también
+-- el refuerzo (`writer.reinforce`) y la promoción de nivel del consolidador, así que una fila ya inválida no
+-- garantiza que `updated` sea el momento de su invalidación. `valid_at`/`invalidated_at` sí lo son (fijados en
+-- los 8 sitios de escritura/invalidación/restauración, nunca reutilizados para otra cosa), y permiten
+-- `memory/api.py::as_of(slot, ts)` — "¿qué creíamos cierto en la fecha X?" — sin inferencia de retroactividad
+-- todavía (una corrección dicha HOY se fecha HOY, no en el pasado que describe).
 -- V2-038 retest (2026-07-14), dos endurecimientos del writer (`memory/writer.py`):
 --   (1) `canon_slot()` — NORMALIZACIÓN de alias: el CORAZÓN (LLM) emitía slots a su aire ('location',
 --       'ubicación'…) mientras la heurística usaba los canónicos ('operator.location') → DOS linajes del mismo
@@ -272,7 +280,8 @@ def query(prompt, budget_tokens):
         m.score = A*m.rel + B*recency(m.last_access) + G*m.importance + D*m.weight
     top = sort_desc(cand, key=score)
     top = rerank(prompt, top)                    # RE-RANKING (V2-030): cross-encoder reordena el top-N, fail-open
-    top = graph_expand(top, edges)              # opcional: vecinos relevantes (top-K)
+    top = graph_expand(top, edges)              # 1-hop (vecinos directos) + PPR multi-hop (V2-111 §9.1, canal
+                                                 # adicional acotado — hasta MAX_HOPS/MAX_NODES, fail-open total)
     emit("memory.reinforce", ids(top))          # refuerzo async (no bloquea)
     return pack(ctx + top, budget_tokens)       # trunca al presupuesto
 ```

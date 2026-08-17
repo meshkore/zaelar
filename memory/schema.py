@@ -25,7 +25,12 @@ EMBED_DIM = 768
 #   varias reformulaciones) + `vec_paraphrases` (vec0, keyed por esa PK sintética, NUNCA por `memory_id` — un
 #   `memory_id` puede necesitar N vectores, `vec_memories` exige 1). El retriever las funde en la fusión RRF
 #   mapeando de vuelta al `memory_id` real — nunca se devuelven como resultado por sí mismas.
-SCHEMA_VERSION = 4
+#   v4 → v5 (V2-111 §9.2, 2026-08-17): BI-TEMPORAL explícito. `updated` no sirve como "cuándo se invalidó" —
+#   lo toca también el refuerzo (`writer.reinforce`) y la promoción de nivel del consolidador, así que una
+#   fila ya inválida no garantiza que `updated` sea el momento de su invalidación. `valid_at` (cuándo el hecho
+#   pasó a ser cierto, por defecto = `created`) e `invalidated_at` (NULL mientras `valid=1`, fijado UNA VEZ,
+#   nunca vuelto a tocar) permiten reconstruir "qué estaba vigente en la fecha X" (`memory/api.py::as_of()`).
+SCHEMA_VERSION = 5
 
 
 # ── Tablas base (siempre) ──────────────────────────────────────────────────────────────────────────────────
@@ -77,6 +82,20 @@ MEMORIES_INDEXES = [
 MEMORIES_V2_COLUMNS = [
     ("slot", "ALTER TABLE memories ADD COLUMN slot TEXT"),
     ("meta", "ALTER TABLE memories ADD COLUMN meta TEXT"),
+]
+
+# v4→v5 (V2-111 §9.2): bi-temporal. `valid_at` se backfillea a `created` en filas existentes (db.py, una vez,
+# guardado por `WHERE valid_at IS NULL`); `invalidated_at` se queda NULL en filas existentes — no hay forma
+# retroactiva de saber cuándo se invalidaron, así que no se inventa un valor (mejor NULL honesto que una
+# fecha inventada que `as_of()` daría por buena).
+MEMORIES_V5_COLUMNS = [
+    ("valid_at", "ALTER TABLE memories ADD COLUMN valid_at INTEGER"),
+    ("invalidated_at", "ALTER TABLE memories ADD COLUMN invalidated_at INTEGER"),
+]
+MEMORIES_V5_INDEXES = [
+    # `as_of()` filtra por slot + ventana de vigencia — compuesto, no dos mono-columna (mismo motivo que
+    # `idx_mem_lvu` en v2: la query caliente es compuesta, un índice por columna no la sirve).
+    "CREATE INDEX IF NOT EXISTS idx_mem_slot_validat ON memories(slot, valid_at)",
 ]
 
 # Índices que dependen de las columnas v2 → se crean DESPUÉS del ALTER (nunca en BASE_DDL, que corre antes de la

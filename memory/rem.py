@@ -274,8 +274,9 @@ def semantic_dedup(threshold: float = SEM_DEDUP_THRESHOLD, cap: int = 1500) -> i
             with db.cursor() as cur:
                 cur.execute("UPDATE OR IGNORE edges SET from_id=? WHERE from_id=?", (keep["id"], drop["id"]))
                 cur.execute("UPDATE OR IGNORE edges SET to_id=? WHERE to_id=?", (keep["id"], drop["id"]))
-                cur.execute("UPDATE memories SET valid=0, superseded_by=?, updated=? WHERE id=?",
-                            (keep["id"], _now(), drop["id"]))
+                _now_ts = _now()
+                cur.execute("UPDATE memories SET valid=0, superseded_by=?, updated=?, invalidated_at=? WHERE id=?",
+                            (keep["id"], _now_ts, _now_ts, drop["id"]))
             _writer.reinforce([keep["id"]], step=0.0)
             gone.add(drop["id"])
             merged += 1

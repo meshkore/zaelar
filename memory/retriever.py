@@ -162,13 +162,19 @@ def _recency(last_access: int | None, now: int) -> float:
 
 
 def graph_expand(results: list[dict], top: int = 6, max_add: int = 8, discount: float = 0.5,
-                 concept_discount: float = 1.0) -> list[dict]:
+                 concept_discount: float = 1.0, ppr_max_add: int = 6, ppr_discount: float = 0.35) -> list[dict]:
     """Añade vecinos por `edges` de los `top` mejores resultados (opcional). No duplica; score descontado.
 
     GRAFO DE CONCEPTOS (T126): si el parent es un NODO-CONCEPTO (kind='concept') que casó la query (p. ej.
     "deporte" en "¿qué hago de deporte?"), sus vecinos SON la respuesta a la categoría → apenas se descuentan
     (`concept_discount` alto) y los conceptos se procesan PRIMERO para que su cluster no lo desplace el
-    `max_add` global. Los vecinos pill↔pill normales siguen con el descuento fuerte (contexto, no respuesta)."""
+    `max_add` global. Los vecinos pill↔pill normales siguen con el descuento fuerte (contexto, no respuesta).
+
+    CANAL ADICIONAL (V2-111 §9.1): tras el 1-hop de arriba, una pasada de Personalized PageRank
+    (`graph_ppr.py`) explora varios saltos desde los MISMOS parents y añade lo que el 1-hop no puede alcanzar
+    — con su propio descuento (menor evidencia que un vecino directo). Fail-open total y APAGABLE
+    (`ZAELAR_GRAPH_PPR=0`); con el grafo vacío o sin capacidad, no añade nada y el resto de `graph_expand`
+    sigue exactamente igual que antes de esta pieza."""
     if not results:
         return results
     db = _db.get_db()
@@ -219,7 +225,51 @@ def graph_expand(results: list[dict], top: int = 6, max_add: int = 8, discount: 
             present_map[nid] = m
             if len(added) >= max_add:
                 break
+
+    added += _ppr_expand(parents, present_map, ppr_max_add, ppr_discount)
     return results + added
+
+
+def _ppr_expand(parents: list[dict], present_map: dict, max_add: int, discount: float) -> list[dict]:
+    """PPR desde los mismos `parents` que ya sembraron el 1-hop (V2-111 §9.1). Solo añade lo que el 1-hop
+    (arriba, ya reflejado en `present_map`) no trajo — nunca duplica. Kill-switch `ZAELAR_GRAPH_PPR=0`."""
+    if not parents or max_add <= 0 or os.getenv("ZAELAR_GRAPH_PPR", "1") == "0":
+        return []
+    seeds = {p["id"]: max(float(p.get("score", 0.0)), 1e-6) for p in parents}
+    if not seeds:
+        return []
+    try:
+        from . import graph_ppr as _ppr
+        ranks = _ppr.personalized_pagerank(seeds)
+    except Exception:
+        return []
+    candidates = [(nid, v) for nid, v in ranks.items() if nid not in seeds and nid not in present_map]
+    if not candidates:
+        return []
+    max_rank = max(v for _, v in candidates)
+    if max_rank <= 0:
+        return []
+    candidates.sort(key=lambda kv: kv[1], reverse=True)
+    max_seed_score = max(seeds.values())
+    db = _db.get_db()
+    added: list[dict] = []
+    for nid, v in candidates:
+        if len(added) >= max_add:
+            break
+        row = db.query_one(
+            "SELECT id, level, kind, text, importance, weight, last_access, pinned FROM memories "
+            "WHERE id=? AND valid=1 AND kind != 'concept' "
+            "AND (json_extract(meta,'$.trust') IS NULL OR json_extract(meta,'$.trust') != 'untrusted')",
+            (nid,),
+        )
+        if row is None:
+            continue
+        m = dict(row)
+        m["score"] = max_seed_score * (v / max_rank) * discount
+        m["via"] = "ppr"
+        added.append(m)
+        present_map[nid] = m
+    return added
 
 
 def search(
