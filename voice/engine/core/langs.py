@@ -72,7 +72,7 @@ class LangSpec:
     # medido) SOLO cuando el turno tarda de verdad (timer, `pick_filler`). NUNCA comprometen ni contradicen la
     # respuesta real (son neutros, no "hecho/vale"): la locución real los continúa. Naturalidad, no relleno de todo.
     fillers: tuple = (
-        "A ver…", "Mmm…", "Veamos…", "Déjame ver…", "A ver, a ver…", "Un segundo…", "Espera…",
+        "A ver…", "Mmm…", "Veamos…", "Déjame ver…", "Un segundo…", "Espera…",
         "Vale, a ver…", "Pues…", "A ver qué tenemos…", "Déjame que mire…", "Un momentito…",
     )
     # BÓVEDA DE SECRETOS (V2-060) — líneas HABLADAS deterministas. El valor del secreto se inserta OUT-OF-BAND

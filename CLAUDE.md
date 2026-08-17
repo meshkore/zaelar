@@ -1591,13 +1591,23 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     wake-word (no hace falta preguntarle a nadie lo obvio); si no, pregunta al modelo RÁPIDO (`nucleo/memllm.py`,
     tarea `"directed"`, mismo perfil DeepSeek DIRECTO que `turn_complete`/V2-097 por la misma razón: TTFT ~1s
     contra ~8,6s del broker AIMLAPI) con la frase + un apunte barato de qué se estaba haciendo
-    (`brain._last_spoken`, no la ventana entera). Fail-open SIEMPRE (excepción, timeout, JSON ilegible → tratado
+    (`brain._last_reply`, no la ventana entera — ver el fix de contaminación por relleno más abajo, V2-109).
+    Fail-open SIEMPRE (excepción, timeout, JSON ilegible → tratado
     como dirigido) — un juez roto jamás puede dejar mudo al agente; sesgado a "dirigido" ante la duda por el
     mismo motivo. Juez inyectable (`set_directed_judge`, mismo patrón que `accumulator.py::set_judge`) para
     tests sin red. `smart`/`wakeword`/`ptt` no cambian — su heurístico ya discrimina sin necesitar el modelo.
   - **Dónde corta**: `nucleo.py`'s bloque T134 (línea ~613) ya existía y ya cortaba ANTES del relleno de espera,
     la construcción del prompt y la selección de tools — solo hacía falta que la CLASIFICACIÓN fuera buena. No
     hizo falta tocar ese corte en absoluto, solo lo que decide si dispara.
+  - ⚠️ **El relleno de espera CONTAMINABA ese contexto, tirando abajo el propio juez que esto construyó (V2-109,
+    2026-08-17)**: `context` se pasaba como `brain._last_spoken`, el campo de anti-eco (V2-093) que se actualiza
+    con CUALQUIER salida de voz — incluido el relleno ("Pues…", "Mmm…", "Espera…"). Auditado en vivo
+    (`sid=0db9bf42-...`): 4 preguntas de seguimiento reales, cada una dicha justo tras un relleno, se
+    clasificaron `🙉 ambiente` con contexto `"Se estaba haciendo: Pues…"` — CERO tema para el juez. Una de las
+    cuatro era la propia queja del operador por haber sido ignorado ("te acabo de hacer preguntas ahora"),
+    también ignorada. Fix: nuevo `brain._last_reply`, escrito SOLO desde `send()` (respuesta real), nunca desde
+    `_lead_in_filler` — `_last_spoken` sigue sirviendo al anti-eco sin cambios. Detalle:
+    `V2-109-directed-context-filler-contamination.md`.
 - **Fusionar dos flujos que resultan ser la MISMA tarea — la capacidad existe, el disparo automático NO (pass 2
   pendiente)** (V2-105, 2026-08-16, norma del operador: "por la segunda o tercera frase nos demos cuenta que los dos
   turnos son el mismo... dejaría esa feature disponible").

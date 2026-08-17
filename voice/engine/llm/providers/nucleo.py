@@ -416,8 +416,10 @@ class NucleoLLM(llm.LLM):
         self._window: list[dict] = []      # ventana de diálogo corta del FlashBrain
         self._seeded = False               # ¿ya sembrada la ventana desde memoria? (circuito de corto plazo)
         self._directive = ""               # preferencia de estilo fijada esta sesión (set_style_directive)
-        self._last_spoken = ""             # última frase que DIJO zaelar (anti-eco, FASE 2)
+        self._last_spoken = ""             # última frase que DIJO zaelar (anti-eco, FASE 2) — INCLUYE fillers
         self._last_spoke_at = 0.0          # cuándo la dijo (epoch s) → ventana de eco
+        self._last_reply = ""              # última respuesta con CONTENIDO real (nunca un filler) — contexto
+        #                                    de `attention.evaluate_content()` (ver el `send()` de más abajo)
         self._last_dataop = None           # (wid, action, payload, ts) última data-op EJECUTADA — guard anti
         #                                    context-bleed (round headless V2-038 #1: re-emisión cross-turno)
         self._utterance: dict = {"text": "", "at": 0.0}   # frase EN CURSO del operador (guarda de fragmentos, _extends)
@@ -615,8 +617,10 @@ class NucleoLLMStream(llm.LLMStream):
             # default, micro siempre abierto) lo único que distingue "me hablas a mí" de "ruido de fondo" es la
             # NATURALEZA de la frase, así que le pregunta al modelo rápido — ver voice/attention.py. `context`
             # es deliberadamente barato (una frase, no la ventana entera): solo hace falta saber "qué estábamos
-            # haciendo", no reconstruir el diálogo completo para esto.
-            verdict = await attention.evaluate_content(text, context=brain._last_spoken)
+            # haciendo", no reconstruir el diálogo completo para esto. `_last_reply`, NUNCA `_last_spoken`: este
+            # último incluye fillers ("Pues…", "Mmm…") que no llevan tema — pasarlo aquí dejaba al juez sin
+            # contexto justo tras cada relleno, y una pregunta de seguimiento real se leía como ruido ambiente.
+            verdict = await attention.evaluate_content(text, context=brain._last_reply)
             if not verdict.directed:
                 emit("ambient", "🙉 ambiente — no dirigido a zaelar", text=text[:200], role="user",
                      extra={"mode": attention.mode(), "reason": verdict.reason})
@@ -917,6 +921,14 @@ class NucleoLLMStream(llm.LLMStream):
             # recaptura como turno del operador. Se actualiza en CADA salida de voz (respuesta, filler, degradado).
             brain._last_spoken = "".join(spoken)
             brain._last_spoke_at = time.time()
+            # `_last_reply` es el mismo texto pero SOLO pasa por aquí (nunca por el camino del filler, ver
+            # `_lead_in_filler` más abajo) — es el contexto que `evaluate_content()` necesita para juzgar si el
+            # siguiente turno va dirigido. Un filler ("Pues…", "Mmm…") no lleva ningún tema: si se dejaba pisar
+            # `_last_spoken` con él, el juez recibía "Se estaba haciendo: Pues…" justo tras una pregunta real y
+            # clasificaba el siguiente turno del operador como ambiente (bug real, sesión 2026-08-17: 4 preguntas
+            # de seguimiento — incluida la queja «te acabo de hacer preguntas ahora» — descartadas de seguido,
+            # cada una justo tras un filler).
+            brain._last_reply = "".join(spoken)
             self._event_ch.send_nowait(
                 ChatChunk(id=utils.shortuuid(), delta=ChoiceDelta(role="assistant", content=txt))
             )
