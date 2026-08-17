@@ -85,6 +85,41 @@ judge, full design below), reusing the voice tester's proven DRIVE+JUDGE pattern
   larger investigation than "add a site registry," and needs the operator's direction on priority
   before spending more live-run budget on it.
 
+  **Update, same session: switched `code_agent.provider` from `grok_build` to `claude_code`
+  (local licence — the operator confirmed Codex has no credit, Grok's status is unknown, and offered
+  Claude Code's native login or the Z.AI key; picked the local licence first as the simplest,
+  reference-implementation backend via `POST /api/config/v2`).** Night-and-day difference: where
+  `grok_build` produced zero `step`/`step_result`/`error` events across 4 attempts, `claude_code`
+  produced REAL, extensive multi-step browsing — navigated `casalucio.es`, clicked into its
+  reservations page, searched Google (hit a CAPTCHA wall, `google.com/sorry` — the navegador
+  widget's own Chromium hitting the same fragility `nucleo/browser_search.py` already documents for
+  its separate instance), reached TripAdvisor, and reached **`eltenedor.es` → redirected to
+  `thefork.es`** — confirming the site catalog's directive IS reaching and influencing the worker,
+  though adherence isn't perfect yet (it branched through Google/TripAdvisor rather than checking
+  the aggregator FIRST as instructed). It also correctly researched Casa Lucio's real phone number
+  and address, determined the restaurant is phone-reservation-only, and — critically — ended with an
+  HONEST completion note ("zaelar no tiene capacidad para hacer llamadas telefónicas") instead of
+  hallucinating a fake booking. Re-ran `cheapest-monitor` too (no phone-call confound): still didn't
+  complete within the turn budget, but for a newly-found, concrete, unrelated reason —
+
+  ⚠️ **New finding: the worker sometimes calls nav_cli subcommands that don't exist** — observed
+  `nucleo.nav_cli automate` and `nucleo.nav_cli act`, both rejected with `Exit code 2 ... invalid
+  choice` (the real set is `snapshot/look/navigate/click/type/select_option/click_at/type_at/scroll/
+  press/extract`, per `dispatch_prompts.py::_web_prompt()`'s own command list). Also observed an
+  `extract` call with extra unsupported arguments ("texto visible"). Each of these burns a full
+  worker turn on a CLI usage error instead of real progress — plausibly a meaningful chunk of why
+  tasks run out of patience budget even with a working backend. Not fixed this round; flagged as the
+  next concrete lead, more actionable than "the worker is stuck" was.
+
+  **Net effect of this session**: went from "worker never does anything, with the configured
+  backend" to "worker does real multi-step, catalog-aware browsing, and fails for identifiable,
+  fixable reasons (some non-existent CLI subcommands, some sites needing phone-only booking the
+  system can't do)." The engine's `code_agent` config is now LEFT on `claude_code` (local licence)
+  — a real, ongoing change (uses the operator's own Claude subscription for every worker task,
+  local-only per CLAUDE.md's own rule that this tier can't cover cloud) — not reverted back to
+  `grok_build`, since the evidence strongly favors it. Flagged for the operator to confirm or pick
+  the Z.AI-backed preset instead if subscription cost/quota is a concern.
+
 All other cases stay backlog until promoted, one at a time — picking the runner shape (browser
 automation, an `agent-headless`-style scenario, an email exchange for multi-agent cases) per case
 as it's picked up, not decided in bulk here.
