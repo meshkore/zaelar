@@ -169,6 +169,59 @@ judge, full design below), reusing the voice tester's proven DRIVE+JUDGE pattern
   driver harness bug); the context-window ceiling is the next concrete blocker, not a vague "it's
   stuck."
 
+  **Continued, same session ("sigue probando").** Operator direction on `site_catalog.py`: it's a
+  system-level "genetic" default (initial, versioned, grows over time by locale/country/economic
+  preference), but the operator's OWN stated preferences must always override it. Restructured
+  `SITE_CATALOG` to `locale → category → SiteEntry` (`es`/`us`, matching this suite's own split; US
+  entries are real market defaults — OpenTable, Google Flights, Cars.com, Facebook Marketplace — not
+  the ES ones relabeled) and `directive_block()` now leads with an explicit instruction: check
+  `mem_cli recall` for an operator override BEFORE defaulting to the catalog. Nothing new writes to
+  memory — the override lives entirely in the prompt, so it can't drift from what's actually stored.
+
+  **Re-ran `search-buy-used-car` (fresh category) — hit ANOTHER instance of the same
+  driver/watchdog bug class, twice more, each fixed for real:**
+
+  4. ⚠️ **The watchdog abandoned a scenario after only 3 turns while the mechanism report (checked
+     after the fact) showed a real navegador task genuinely navigating** (`status=working`, a real
+     Wallapop search URL). The watchdog only ever saw the conversational transcript, which looks
+     identical for "slow but working" and "actually stuck" — Claude Code's vision-based browsing
+     legitimately takes minutes. Fixed: `verify.py::live_navegador_snapshot()` gives the watchdog a
+     one-shot, non-polling read of the CURRENT navegador task's status/url/`shot_rev`, folded into
+     its prompt as grounding evidence — `status=working` + a rising `shot_rev` now reads as
+     "flowing" even while zaelar's own text just says "still searching."
+  5. ⚠️ **Second false-positive of the driver's closing heuristic, different shape**: "Perfecto,
+     quedo a la espera." ended a run at 3/10 turns — no question mark this time, so fix #2's guard
+     didn't catch it, but "perfecto" alone is an ordinary Spanish acknowledgment, not a goodbye.
+     Replaced the substring check with a regex requiring an ACTUAL sign-off ("gracias" at the very
+     end of the line, "perfecto" immediately paired with "gracias", or an explicit farewell word) —
+     matching what the driver's own system prompt already asked for but the code hadn't enforced.
+
+  **Re-ran a third time with all five fixes — furthest and most informative run yet: the conversation
+  ran the FULL 10-turn budget** (no premature stop from either bug), staying patient through several
+  real "still working" check-ins while the worker visibly kept trying (navigated to
+  `autoscout24.es` with real filter params — fuel=diésel, price≤12000, year≥2015 — not the catalog's
+  first-choice `coches.net`, an imperfect-but-real instance of catalog influence, not strict
+  compliance). Task never finished (`status=working`, `results=null`) — but the run surfaced a
+  **NEW, more serious finding, unrelated to the browser/worker at all**:
+
+  ⚠️ **6. FlashBrain conversational collapse under sustained check-ins**: after ~13 turns of the
+  operator asking variations of "how's it going", zaelar gave one **completely empty reply**, then
+  the next turn **echoed the operator's own question back verbatim** instead of answering it
+  ("Dime algo, por favor. ¿Se relanzó la búsqueda o sigue atascada? ¿Va todo bien?" — literally the
+  tester's own words). The watchdog correctly caught this (`off_track/nudge`), and the judge rated
+  it `crítica` — "pérdida de estado y falta de grounding." **Not investigated or fixed this
+  round** — deliberately: this is a different, deeper class of bug than the previous five (those
+  were testing-harness/worker-routing issues; this is the FlashBrain's own turn-generation
+  reliability degrading under a sustained long-running-task conversation), and touching that live
+  without the operator's direction risks a worse guess than the five fixes that came before it.
+
+  **Running tally, this session**: 5 concrete, live-verified fixes landed (site catalog + correct
+  live-path wiring, worker backend switch grok_build→claude_code, nav_cli usage guard, driver
+  closing-heuristic bug ×2, watchdog mechanism-awareness) across 6 commits
+  (`bff6d8d`, `b3addb3`, `6749c05`, `757f6a2`, `ca38254`, `da62776`). One new, more fundamental
+  finding open (#6, FlashBrain empty-reply/echo collapse) — flagged for the operator's call on
+  priority, same posture as the earlier context-window ceiling.
+
 All other cases stay backlog until promoted, one at a time — picking the runner shape (browser
 automation, an `agent-headless`-style scenario, an email exchange for multi-agent cases) per case
 as it's picked up, not decided in bulk here.
