@@ -80,17 +80,46 @@ def _durable_blob() -> str:
     return "\n".join(_norm(r["text"]) for r in rows)
 
 
+def _superseded_blob() -> str:
+    """Texto de recuerdos INVALIDADOS cuyo `slot` tiene HOY una fila VÁLIDA (V2-031, 2026-08-17): el writer
+    garantiza como mucho 1 fila válida por slot, así que si el slot sigue teniendo una fila válida, cualquier
+    fila inválida con ese MISMO slot fue una SUPERSESIÓN real (el "más reciente manda" del writer funcionando
+    correctamente), no una pérdida de datos. Corpus con slots como `operator.car`/`operator.job`/
+    `operator.hardware`/`operator.name`/`operator.phone` acumulan hasta 15 valores a lo largo de la batería
+    (baterías de sesiones distintas testeando "el valor actual" sin saber que otra sesión seguiría cambiándolo
+    después) — sin esto, cada valor intermedio se contaba como "write miss" contra el estado FINAL. Detectado a
+    mano varias veces (Toyota/Ford/Deloitte/profesor/Juncadella/Richi) antes de generalizarlo aquí."""
+    from memory import db as _db
+    d = _db.get_db()
+    valid_slots = {r["slot"] for r in d.query(
+        "SELECT DISTINCT slot FROM memories WHERE valid=1 AND slot IS NOT NULL")}
+    if not valid_slots:
+        return ""
+    ph = ",".join("?" * len(valid_slots))
+    rows = d.query(f"SELECT text FROM memories WHERE valid=0 AND slot IN ({ph})", tuple(valid_slots))
+    return "\n".join(_norm(r["text"]) for r in rows)
+
+
 def _is_stored(wants: list[str], blob: str) -> bool:
     return any(_norm(w) in blob for w in wants)
 
 
 def evaluate(limit: int = 10) -> dict:
-    """Corre todas las queries de recall-largo por `retriever.search` y agrega recall@k/MRR/latencia."""
+    """Corre todas las queries de recall-largo por `retriever.search` y agrega recall@k/MRR/latencia. Excluye,
+    ANTES de medir, las queries cuyo `want` solo aparece en un valor de slot ya legítimamente superado (ver
+    `_superseded_blob`) — no serían justas contra el estado final del corpus con ningún retriever."""
     from memory import retriever
 
-    qs = _long_queries()
-    n = len(qs)
     blob = _durable_blob()             # snapshot para clasificar write vs retrieval
+    superseded = _superseded_blob()
+    qs = []
+    superseded_excluded = 0
+    for c in _long_queries():
+        if not _is_stored(c["want"], blob) and _is_stored(c["want"], superseded):
+            superseded_excluded += 1
+            continue
+        qs.append(c)
+    n = len(qs)
     ranks: list[int | None] = []
     lat_ms: list[float] = []
     misses: list[dict] = []
@@ -124,6 +153,7 @@ def evaluate(limit: int = 10) -> dict:
     p95 = lat_ms[int(len(lat_ms) * 0.95)] if lat_ms else 0.0
     return {
         "n": n,
+        "superseded_excluded": superseded_excluded,
         "recall@1": round(rec_at(1), 4),
         "recall@3": round(rec_at(3), 4),
         "recall@5": round(rec_at(5), 4),

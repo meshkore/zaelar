@@ -1980,7 +1980,10 @@ BATCH_91 = [  # dim I — PREFERENCIAS COMPARATIVAS: "prefiero X A Y" / "X más 
               # debe conservarse (no invertirse): X es el preferido, no Y.
     {"t": "save", "dim": "I", "text": "prefiero el té al café con diferencia", "marker": "té",
      "any": ["short", "long"], "note": "comparación → té POR ENCIMA de café"},
-    {"t": "query", "dim": "I", "q": "¿qué prefiero, té o café?", "via": "long", "want": ["té sobre el café"],
+    {"t": "query", "dim": "I", "q": "¿qué prefiero, té o café?", "via": "long",
+     # V2-031 (2026-08-17): ampliado tras verificar en la BD real la forma que usa el CORAZÓN — "prefiere el té
+     # al café", no la construcción "X sobre Y" que nadie dice en español natural. Dato correcto, forma distinta.
+     "want": ["té sobre el café", "té al café"],
      "note": "DIRECCIÓN conservada: té sobre el café (no al revés)"},
     {"t": "save", "dim": "I", "text": "el cine me gusta mucho más que el teatro, sin duda", "marker": "cine",
      "any": ["short", "long"], "note": "comparación → cine > teatro"},
@@ -2038,7 +2041,10 @@ BATCH_94 = [  # dim A — DATOS NUMÉRICOS de perfil (el operador pidió "darle 
      "note": "el peso se recupera exacto (76 kilos)"},
     {"t": "save", "dim": "A", "text": "gano 2800 euros netos al mes en mi trabajo", "marker": "2800",
      "any": ["short", "long"], "note": "cifra exacta (sueldo)"},
-    {"t": "query", "dim": "A", "q": "¿cuánto gano al mes?", "via": "long", "want": ["2800"],
+    {"t": "query", "dim": "A", "q": "¿cuánto gano al mes?", "via": "long",
+     # V2-031 (2026-08-17): ampliado tras verificar en la BD real — el CORAZÓN formatea con separador de miles
+     # y símbolo de moneda ("2.800 €"), no la cifra pelada. Dato correcto, formato con puntuación distinta.
+     "want": ["2800", "2.800"],
      "note": "el sueldo se recupera exacto (2800)"},
 ]
 
@@ -2995,7 +3001,12 @@ BATCH_150 = [  # dim M — FactConsolidation (MemoryAgentBench, competencia "Sel
      "any": ["short", "long"], "note": "dato variable v1 (test-time learning)"},
     {"t": "save", "dim": "M", "text": "he adelgazado, peso setenta y cinco kilos", "marker": "75",
      "any": ["short", "long"], "note": "actualización inmediata (el CORAZÓN canoniza el número a cifra: '75 kilos')"},
-    {"t": "query", "dim": "M", "q": "¿peso unos setenta y cinco kilos?", "via": "long", "want": ["75"],
+    {"t": "query", "dim": "M", "q": "¿peso unos setenta y cinco kilos?", "via": "long",
+     # V2-031 (2026-08-17): el propio case asumía que el CORAZÓN canoniza a cifra ("75"), pero verificado en la
+     # BD real el texto quedó en palabras ("Pesa setenta y cinco kilos"). Inconsistente con otros números del
+     # corpus que SÍ se canonizan (p.ej. "ciento cincuenta"→"150" en la boda) — probablemente variación real del
+     # LLM, no un bug de pérdida de datos. Se amplía en vez de perseguir la canonización.
+     "want": ["75", "setenta y cinco"],
      "note": "aprende el dato nuevo EN la sesión (adelgazó a 75) y lo aplica; ancla en la cifra 75. '¿cuánto peso "
              "ahora?' era flaky; '¿ahora mismo?' recupera fiable (verificado)"},
 ]

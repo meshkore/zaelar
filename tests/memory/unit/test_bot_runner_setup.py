@@ -106,6 +106,34 @@ def test_do_consolidate_still_evicts_for_real_inside_the_isolated_snapshot(fresh
     assert "→5 válidos" in detail, f"la poda DENTRO del snapshot aislado debe ser real (bajar hasta el límite): {detail}"
 
 
+def test_superseded_blob_excludes_legitimately_replaced_slot_values(fresh_db):
+    """scale_eval._superseded_blob() debe capturar un valor de slot INVALIDADO por una escritura POSTERIOR del
+    mismo slot (writer supersede real) — no un valor perdido por un bug, sino el "más reciente manda" de
+    siempre. Reproduce el patrón real (operator.car/job/hardware/name con hasta 15 valores en el corpus)."""
+    memapi.write_now("Tiene un coche Toyota híbrido.", level="long", kind="fact", slot="operator.car")
+    memapi.write_now("Tiene una moto como vehículo actual.", level="long", kind="fact", slot="operator.car")
+    blob = scale_eval._superseded_blob()
+    assert "toyota" in blob
+    assert "moto" not in blob, "el valor VIGENTE no debe aparecer en el blob de superados"
+
+
+def test_evaluate_excludes_superseded_queries_from_n(fresh_db, monkeypatch):
+    """Una query cuyo `want` solo casa un valor de slot ya superado no debe contar como write_miss ni entrar
+    en `n` — no es medible con justicia contra el estado final."""
+    memapi.write_now("Tiene un coche Toyota híbrido.", level="long", kind="fact", slot="operator.car")
+    memapi.write_now("Tiene una moto como vehículo actual.", level="long", kind="fact", slot="operator.car")
+
+    def _fake_long_queries():
+        return [{"q": "¿qué coche tengo?", "via": "long", "want": ["toyota"], "dim": "TEST"}]
+
+    monkeypatch.setattr(scale_eval, "_long_queries", _fake_long_queries)
+    monkeypatch.setattr("memory.retriever.search", lambda *a, **k: [])
+    rep = scale_eval.evaluate()
+    assert rep["n"] == 0, f"la query sobre un valor superado debe excluirse de n, no contar como miss: {rep}"
+    assert rep["superseded_excluded"] == 1
+    assert rep["write_miss"] == 0
+
+
 def test_long_queries_excludes_stale_by_design_cases():
     """`scale_eval._long_queries()` mide contra el ESTADO FINAL del corpus — un `want` correcto solo
     POSICIONALMENTE (una batería posterior supersede el mismo slot con otro propósito, p. ej.
