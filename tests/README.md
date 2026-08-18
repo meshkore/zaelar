@@ -92,7 +92,7 @@ platform plugin and run environment are supplied. Before handoff, repeat the mea
 | Email, messaging, Spotify, WhatsApp, architect | `connectors` | provider sandbox/live connector only when authorized |
 | Peer capsule, cluster policy, security | `cluster` | live peer conversation |
 | Bus, SSE, config, server, homeostasis | `infrastructure` | chat transport/full smoke against live Zaelar |
-| Real-world ES/US task scenarios (backlog, no runner yet) | `use_cases` | see `tests/use_cases/CASES.md` |
+| Real-world ES/US task scenarios (89 runnable, isolated sandbox) | `use_cases` | see `tests/use_cases/CASES.md` + [`STATUS.md`](use_cases/STATUS.md) |
 
 `browser` currently contains deterministic browser/widget contracts. It must not be reported as a rendered UI
 E2E unless Chromium/Playwright was actually driven against the live application.
@@ -122,6 +122,14 @@ Three explicit tiers, from cheapest/most-certain to most-expensive/most-realisti
    acceptance layer: does everything promised in the catalog actually work end to end, with the
    tools/browser/FlashBrain/workers/memory really firing. Meant to run after a meaningful change, not on
    every commit — the most expensive tier by design. See `tests/use_cases/CASES.md`.
+
+   Runs in an **isolated sandbox engine** (`--sandbox`), which also means each run appears as a distinct
+   install/`user_id` in observability rather than mixing into the operator's own session. What this tier
+   FINDS does not get fixed inline: each failing use case gets its own MeshKore initiative + task
+   (`tests/use_cases/e2e/agent/initiative.py` → `.meshkore/roadmap/initiatives/`), so the agent that owns
+   the FlashBrain/frontend code has a workspace per use case with the real evidence in it, and hands the
+   case back for re-testing when it's ready. Operator's rule (2026-08-18): *una iniciativa por caso de
+   uso* — the tester reports and files, it does not patch.
 
 ### Deterministic pytest
 
@@ -187,16 +195,42 @@ Requires Zaelar live (`make run`) and the tester's own AIMLAPI/Z.AI credentials
 tester). Runs over the text/probe channel with `execute=true` (real tool/worker execution) and
 `ingest=false` (never writes test conversations into the operator's real memory):
 
+**Prefer `--sandbox`** — it boots a throwaway engine (own port, DB, workspace and logs,
+`tests/platform/sandbox_engine.py`) instead of using the operator's live one. Without it you are
+exercising their real memory, widgets and in-flight tasks, and you inherit whatever state they left
+behind (two prior runs were lost to the global ⏻ having been left STOPPED by unrelated manual testing;
+another to a live task donating a false `worker` signal to a scenario that never triggered one).
+
 ```bash
-./.venv/bin/python -m tests.use_cases.e2e.agent.run --scenario hotel-under-15-days
-./.venv/bin/python -m tests.use_cases.e2e.agent.run                      # all promoted scenarios
+# one case, isolated engine — the normal way to test a single use case
+./.venv/bin/python -m tests.use_cases.e2e.agent.run --scenario hotel-under-15-days --sandbox
+
+./.venv/bin/python -m tests.use_cases.e2e.agent.run --list            # the 89 selectable scenarios
+./.venv/bin/python -m tests.use_cases.e2e.agent.run --sandbox --tier 1 --locale es --limit 5
+./.venv/bin/python -m tests.use_cases.e2e.agent.run --sandbox --start-at cheapest-monitor
+./.venv/bin/python -m tests.use_cases.e2e.agent.run --scenario handwritten --sandbox
 ```
 
-Writes a report to `tests/runs/use_cases/report_<stamp>.{md,json}`: per-scenario judge scores, a
-mechanism report (which observability families actually fired vs. what the scenario expected — the source
-of truth for whether the agent really did the work, not just claimed to), and any mid-scenario watchdog
-interventions. `cron_tick.sh` runs one scenario round-robin, unattended, same shape as voice's cron loop —
-see `tests/use_cases/CASES.md` for the full design and the tier taxonomy.
+⚠️ Do **not** run `make run` while a sandbox is alive: `scripts/run-livekit.sh` reaps every
+`python -m server` by process NAME, not by port, and will kill it. The reverse is safe.
+
+**Where the scenarios come from.** Nine are hand-written (`scenarios.py`); the other 80 are DERIVED from
+the catalog (`derived.py`) — shared persona scaffolding written once, plus per-case specifics (what the
+person answers when asked the obvious follow-up, what counts as success, which subsystems must fire). A
+hand-written scenario always wins over a derived one for the same case. Only tiers 1-4 derive: tier 5
+needs real time to pass, tiers 6-7 are blocked on unbuilt capabilities, and a runnable-looking tick on
+either would be a lie.
+
+**Outputs, and which is which:**
+- `tests/runs/use_cases/report_<stamp>.{md,json}` — the per-run DIARY: transcript, judge scores, mechanism
+  report (which observability families actually fired vs. what the scenario expected — the source of truth
+  for whether the agent really did the work, not just claimed to), watchdog interventions. Gitignored.
+- `tests/use_cases/STATUS.md` + `status.json` — the durable SCOREBOARD, committed: last-known verdict per
+  scenario. This is the answer to "which use cases work?". `INFRA` is a third state, never folded into
+  `FAIL` — a crashed harness or a network timeout says nothing about the use case.
+
+`cron_tick.sh` runs one scenario round-robin, unattended, same shape as voice's cron loop — see
+`tests/use_cases/CASES.md` for the full design and the tier taxonomy.
 
 ### Live browser / Playwright
 

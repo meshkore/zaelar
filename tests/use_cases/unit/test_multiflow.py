@@ -215,3 +215,87 @@ def test_es_and_us_twins_of_a_shared_case_id_stay_distinct():
     ids = {s.id for s in SC.all_scenarios()}
     assert "cheapest-monitor" in ids                  # the hand-written ES one
     assert "cheapest-monitor__us" in ids              # the derived US twin
+
+
+# ── initiative filing (initiative.py) ─────────────────────────────────────────────────────────────────────
+def _result(overall=2, scenario_id="unit-mf"):
+    return {"scenario": scenario_id, "tier": 4,
+            "verdict": {"overall": overall, "scores": {"mecanismo": 1, "naturalidad": 4},
+                        "veredicto": "no coordina", "findings": [], "improvements": []},
+            "run": {"transcript": [{"who": "tester", "text": "hola"}],
+                    "mechanism_report": {"families_observed": ["flash"], "missing_signals": ["worker"],
+                                         "task_registry": {"max_concurrent": 1, "distinct_tasks_seen": 3,
+                                                           "distinct_kinds": ["web"]}},
+                    "watchdog_log": [{"health": "stuck", "action": "nudge", "reason": "sin tareas vivas"}]}}
+
+
+def _isolate(monkeypatch, tmp_path):
+    from tests.use_cases.e2e.agent import initiative as I
+    monkeypatch.setattr(I, "INITIATIVES", tmp_path / "initiatives")
+    monkeypatch.setattr(I, "MODULES", tmp_path / "modules")
+    (tmp_path / "initiatives").mkdir()
+    (tmp_path / "modules").mkdir()
+    return I
+
+
+def test_filing_creates_one_initiative_and_one_fix_task(monkeypatch, tmp_path):
+    I = _isolate(monkeypatch, tmp_path)
+    out = I.file_failure(_result(), scenario=_scn(), sandboxed=True)
+    assert out["created"] is True and out["round"] == 1
+    body = out["initiative"].read_text(encoding="utf-8")
+    # the handoff contract has to be IN the file — that is the whole point of filing it
+    assert "HANDOFF" in body and "tarea de VERIFICACIÓN" in body
+    assert "--sandbox" in body                       # a reproduce command the next agent can paste
+    assert "máximo simultáneo **1**" in body         # the measured evidence, not a summary of it
+    assert "sin tareas vivas" in body                # watchdog findings carried over
+    task = out["task"].read_text(encoding="utf-8")
+    assert "initiative: V2-" in task and "status: next" in task
+    assert "T<siguiente>-uc-" in task                # tells the fixer exactly how to hand it back
+
+
+def test_filing_never_marks_an_initiative_delivered(monkeypatch, tmp_path):
+    """`delivered` is load-bearing: test_roadmap_closure.py forces any delivered initiative to be cited in
+    engine/CLAUDE.md, so filing a fresh bug as delivered would turn the suite red."""
+    I = _isolate(monkeypatch, tmp_path)
+    out = I.file_failure(_result(), scenario=_scn(), sandboxed=True)
+    assert "status: open" in out["initiative"].read_text(encoding="utf-8")
+    assert "delivered" not in out["initiative"].read_text(encoding="utf-8").split("---")[1]
+
+
+def test_re_testing_appends_a_round_instead_of_opening_a_second_initiative(monkeypatch, tmp_path):
+    """One workspace per use case ("corregirlos hasta el final"), not a pile of duplicates."""
+    I = _isolate(monkeypatch, tmp_path)
+    first = I.file_failure(_result(), scenario=_scn(), sandboxed=True)
+    second = I.file_failure(_result(), scenario=_scn(), sandboxed=True)
+    assert second["created"] is False and second["round"] == 2
+    assert second["initiative"] == first["initiative"]
+    assert len(list((tmp_path / "initiatives").glob("*.md"))) == 1
+    assert "## Ronda 2" in second["initiative"].read_text(encoding="utf-8")
+
+
+def test_initiative_number_is_read_from_disk_not_assumed(monkeypatch, tmp_path):
+    """V2-114 is currently double-booked by two other sessions and the closure test is red because of it;
+    allocating from a fresh listing at write time is the only safe way when several sessions share the repo."""
+    I = _isolate(monkeypatch, tmp_path)
+    (tmp_path / "initiatives" / "V2-200-something-else.md").write_text("x", encoding="utf-8")
+    out = I.file_failure(_result(), scenario=_scn(), sandboxed=True)
+    assert out["initiative"].name.startswith("V2-201-uc-")
+
+
+def test_pending_verifications_picks_up_the_fixers_handoff(monkeypatch, tmp_path):
+    I = _isolate(monkeypatch, tmp_path)
+    d = tmp_path / "modules" / "nucleo" / "tasks"
+    d.mkdir(parents=True)
+    (d / "T400-uc-my-case-verify.md").write_text(
+        "---\nid: T400\nstatus: next\ninitiative: V2-118\n---\n\nlisto para re-probar\n", encoding="utf-8")
+    (d / "T401-uc-other-case-verify.md").write_text(
+        "---\nid: T401\nstatus: done\ninitiative: V2-119\n---\n", encoding="utf-8")
+    pend = I.pending_verifications()
+    assert [p["slug"] for p in pend] == ["my-case"]   # only status:next is a live handoff
+
+
+def test_filing_fails_open_and_never_takes_down_a_batch(monkeypatch, tmp_path):
+    I = _isolate(monkeypatch, tmp_path)
+    monkeypatch.setattr(I, "_next_initiative_number", lambda: (_ for _ in ()).throw(OSError("disk")))
+    out = I.file_failure(_result(), scenario=_scn(), sandboxed=True)
+    assert "error" in out          # reported, not raised — the verdict is already earned

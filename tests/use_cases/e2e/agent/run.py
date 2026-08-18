@@ -16,6 +16,7 @@ import time
 import uuid
 
 from . import config, driver as drivermod, judge as judgemod, probe_client, report as reportmod, scenarios as SC
+from . import initiative as initiativemod
 from . import status as statusmod
 from . import verify as verifymod
 from . import watchdog as watchdogmod
@@ -98,7 +99,7 @@ def _run_scenario(scenario) -> dict:
             "run": run_data, "verdict": verdict}
 
 
-def _run_batch(chosen: list, *, sandboxed: bool) -> int:
+def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False) -> int:
     config.RUNS_DIR.mkdir(parents=True, exist_ok=True)
     results = []
     for scenario in chosen:
@@ -118,6 +119,28 @@ def _run_batch(chosen: list, *, sandboxed: bool) -> int:
     print(f"\n✓ report → {report_path}")
     statusmod.record(results, sandboxed=sandboxed)
     print(f"✓ scoreboard → {statusmod.BOARD_PATH} ({statusmod.summary_line()})")
+
+    # FILE each real failure as a MeshKore initiative + task (one workspace per use case, appended to on
+    # re-test). Operator's rule: the harness measures and files, it does not patch. INFRA verdicts are
+    # skipped deliberately — a crashed harness or a network timeout is not a use-case bug and would send the
+    # fixing agent chasing nothing.
+    if not args_no_file:
+        by_id = {s.id: s for s in chosen}
+        for r in results:
+            v = r.get("verdict") or {}
+            overall = v.get("overall")
+            if overall is None or overall >= statusmod.PASS_THRESHOLD:
+                continue
+            scn = by_id.get(r["scenario"])
+            if scn is None:
+                continue
+            filed = initiativemod.file_failure(r, scenario=scn, sandboxed=sandboxed)
+            if filed.get("error"):
+                print(f"  ⚠️ no pude archivar la iniciativa de {r['scenario']}: {filed['error']}")
+            elif filed.get("created"):
+                print(f"  📋 iniciativa NUEVA → {filed['initiative'].name}  ·  tarea → {filed['task'].name}")
+            else:
+                print(f"  📋 ronda {filed['round']} añadida a {filed['initiative'].name}")
 
     overalls = [r["verdict"].get("overall") for r in results if r["verdict"].get("overall") is not None]
     passed = sum(1 for o in overalls if o >= 4)
@@ -158,7 +181,7 @@ def run(args: argparse.Namespace) -> int:
     if not args.sandbox:
         print(f"▲ running against the LIVE engine at {config.ZAELAR_URL} — its memory, widgets and running "
               f"tasks are the operator's. Use --sandbox for an isolated one.")
-        return _run_batch(chosen, sandboxed=False)
+        return _run_batch(chosen, sandboxed=False, args_no_file=args.no_file)
 
     # ISOLATED: boot a throwaway engine (own port, own DB, own workspace, own logs) and point the whole
     # suite at it by rewriting config.ZAELAR_URL — probe_client reads that attribute per call, so no other
@@ -169,7 +192,7 @@ def run(args: argparse.Namespace) -> int:
         print(f"✓ sandbox up at {eng.base_url} (workspace {eng.workspace})")
         config.ZAELAR_URL = eng.base_url
         try:
-            return _run_batch(chosen, sandboxed=True)
+            return _run_batch(chosen, sandboxed=True, args_no_file=args.no_file)
         finally:
             leaked = eng.new_widget_dirs()
             if leaked:
@@ -193,6 +216,8 @@ def main() -> None:
     ap.add_argument("--limit", type=int, help="stop after N scenarios (walk the catalog in batches)")
     ap.add_argument("--start-at", help="skip ahead to this scenario id, then continue in order")
     ap.add_argument("--list", action="store_true", help="print the selectable scenarios and exit")
+    ap.add_argument("--no-file", action="store_true",
+                    help="do NOT open a MeshKore initiative/task for a failure (measure only)")
     args = ap.parse_args()
     if args.list:
         for s in SC.all_scenarios():

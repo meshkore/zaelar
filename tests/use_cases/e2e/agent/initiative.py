@@ -1,0 +1,287 @@
+"""File a failing use case as a MeshKore INITIATIVE + TASK — one workspace per use case.
+
+Operator's rule (2026-08-18): *«Los fallos, en lugar de intentar arreglarlos, deberíamos documentarlos en el
+sistema de tareas de MeshKore y crear una iniciativa para cada uno de los fallos… Sería una iniciativa por
+caso de uso, una tarea en la que tú le vas a poner que tiene que revisar todo esto y que cuando termine te
+genera una tarea para que tú vuelvas a probar. Y así utilizaremos cada una de las iniciativas como un
+workspace solamente para trabajar cada uno de los use cases y corregirlos hasta el final.»*
+
+So this module does NOT fix anything. It converts a run's evidence into a work order that the agent owning
+the FlashBrain/frontend/worker code can pick up cold, and closes the loop by demanding a re-test task back.
+
+Three design points that matter:
+
+1. **ONE initiative per use case, reused across runs.** A re-test does not create a second initiative — it
+   APPENDS a dated round to the existing one. That is what makes it a workspace ("corregirlos hasta el
+   final") instead of a pile of duplicates. Found by glob on the `-uc-<slug>` infix, so the V2 number never
+   has to be remembered.
+2. **Numbering is read from disk, never assumed.** `V2-114` is currently double-booked by two other
+   sessions and `test_roadmap_closure.py::test_cada_id_esta_una_sola_vez` is red because of it; allocating
+   by "max + 1" over a fresh listing is the only safe way, and it must happen at write time (several
+   sessions work this repo at once).
+3. **`status:` is never `delivered`.** That value is load-bearing: the closure test forces any delivered
+   initiative to be cited in `engine/CLAUDE.md`. A freshly filed bug is `open`.
+
+⚠️ These files are LOCAL. `engine/.gitignore` excludes `.meshkore/roadmap/` and `.meshkore/modules/*/tasks/`
+by the operator's own «ni nuestro pasado ni nuestro futuro se publican» rule (2026-08-14) — nothing here gets
+committed or pushed, and whoever clones the public repo never sees it. That is also why full transcripts are
+safe to embed here and NOT in the committed scoreboard: this is the diary, `STATUS.md` is the catalog.
+"""
+from __future__ import annotations
+
+import json
+import re
+import time
+from pathlib import Path
+
+ENGINE = Path(__file__).resolve().parents[4]
+INITIATIVES = ENGINE / ".meshkore" / "roadmap" / "initiatives"
+MODULES = ENGINE / ".meshkore" / "modules"
+
+# Task ids are a CLUSTER-WIDE sequence shared with the workspace-root repo (engine reached T143, the root's
+# cloud tasks run T293-T308). Starting the floor above both avoids handing two different pieces of work the
+# same id across repos.
+_TASK_FLOOR = 309
+
+
+def _slug(scenario_id: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "-", scenario_id.lower()).strip("-")
+
+
+def _next_initiative_number() -> int:
+    nums = {int(m.group(1)) for p in INITIATIVES.glob("V2-*.md")
+            if (m := re.match(r"V2-(\d{3})\b", p.name))}
+    return (max(nums) + 1) if nums else 1
+
+
+def _next_task_number() -> int:
+    nums = {_TASK_FLOOR - 1}
+    for p in MODULES.glob("*/tasks/T*.md"):
+        if m := re.match(r"T(\d+)\b", p.name):
+            nums.add(int(m.group(1)))
+    return max(nums) + 1
+
+
+def find_initiative(scenario_id: str) -> Path | None:
+    hits = sorted(INITIATIVES.glob(f"V2-*-uc-{_slug(scenario_id)}.md"))
+    return hits[0] if hits else None
+
+
+def _module_for(scenario_id: str, mech: dict) -> str:
+    """Best guess at the owning module, used only for the task's directory/`category`. `nucleo` is the right
+    default: nearly every use-case failure lands in the FlashBrain's routing or the worker dispatcher."""
+    reg = (mech or {}).get("task_registry") or {}
+    kinds = set(reg.get("distinct_kinds") or [])
+    if kinds == {"code"}:
+        return "widgets"
+    return "nucleo"
+
+
+# ── evidence rendering ────────────────────────────────────────────────────────────────────────────────────
+def _evidence(result: dict, *, scenario, sandboxed: bool) -> str:
+    run = result.get("run") or {}
+    verdict = result.get("verdict") or {}
+    mech = run.get("mechanism_report") or {}
+    scores = verdict.get("scores") or {}
+    reg = mech.get("task_registry") or {}
+
+    lines = [
+        f"- **Veredicto del juez**: overall **{verdict.get('overall')}**/5"
+        + (f" · " + " · ".join(f"{k} {v}" for k, v in scores.items()) if scores else ""),
+        f"- **Motor**: {'sandbox AISLADO (BD/puerto/workspace propios)' if sandboxed else 'motor VIVO del operador'}",
+        f"- **Turnos usados**: {len(run.get('transcript') or []) // 2} de {scenario.turns}",
+        f"- **Familias observadas**: {', '.join(mech.get('families_observed') or []) or '(ninguna)'}",
+    ]
+    missing = mech.get("missing_signals") or []
+    lines.append(f"- **Señales que FALTARON**: {', '.join(missing) if missing else '(ninguna)'}")
+    if reg:
+        lines.append(f"- **Concurrencia REAL medida en vivo** (`/api/tasks`): máximo simultáneo "
+                     f"**{reg.get('max_concurrent')}**, {reg.get('distinct_tasks_seen')} tareas distintas, "
+                     f"kinds: {', '.join(reg.get('distinct_kinds') or []) or '—'}")
+    nav = mech.get("navegador_task") or {}
+    if nav:
+        lines.append(f"- **Tarea de navegador**: status={nav.get('status')} url={nav.get('url', '')[:120]}")
+        concl = (nav.get("results") or {}).get("conclusion") if isinstance(nav.get("results"), dict) else None
+        if concl:
+            lines.append(f"  - conclusión que dejó: `{str(concl)[:200]}`")
+
+    out = ["### Evidencia medida", "", *lines, ""]
+
+    findings = verdict.get("findings") or []
+    if findings:
+        out += ["### Hallazgos del juez", ""]
+        for f in findings:
+            out.append(f"- **{f.get('gravedad', '?')}** · {f.get('turno', '?')} — {f.get('problema', '')}")
+        out.append("")
+
+    wd = run.get("watchdog_log") or []
+    if wd:
+        out += [f"### Intervenciones del watchdog en vivo ({len(wd)})", "",
+                "El watchdog compara lo que zaelar DICE contra el mecanismo real, turno a turno. Cada línea "
+                "es una discrepancia detectada mientras ocurría:", ""]
+        for v in wd[:12]:
+            out.append(f"- `{v.get('health')}/{v.get('action')}` — {v.get('reason', '')}")
+        if len(wd) > 12:
+            out.append(f"- …y {len(wd) - 12} más (ver el informe completo)")
+        out.append("")
+
+    improvements = verdict.get("improvements") or []
+    if improvements:
+        out += ["### Mejoras que propone el juez (punto de partida, no dogma)", ""]
+        for i in improvements:
+            out.append(f"- **{i.get('area', '?')}** — {i.get('cambio', '')} · _porque_: {i.get('porque', '')}")
+        out.append("")
+
+    transcript = run.get("transcript") or []
+    if transcript:
+        out += ["<details><summary>Transcript completo de la corrida</summary>", "", "```"]
+        for t in transcript:
+            out.append(f"{t.get('who', '?').upper():7} {t.get('text') or '(sin respuesta)'}")
+        out += ["```", "", "</details>", ""]
+    return "\n".join(out)
+
+
+_HANDOFF = """\
+> **HANDOFF al equipo que lleva el CÓDIGO del motor** (FlashBrain / dispatch / widgets / frontend). Esta
+> iniciativa la abre el arnés de casos de uso (`tests/use_cases/`), que MIDE y NO ARREGLA — por decisión
+> explícita del operador (2026-08-18): un fallo de caso de uso se documenta aquí con su evidencia y se
+> corrige desde el dominio que lo posee, no a parches desde el test.
+>
+> **Este fichero es el WORKSPACE de este caso de uso.** No se abre otra iniciativa cuando se vuelva a
+> probar: cada nueva corrida AÑADE una ronda fechada aquí abajo, hasta que el caso pase.
+>
+> **El contrato de vuelta**: cuando dejes el arreglo listo, crea una tarea de VERIFICACIÓN
+> (`T<n>-uc-<caso>-verify.md`, `status: next`, `depends_on: [la tarea de arreglo]`, misma `initiative:`) y
+> deja en ella qué cambiaste y qué esperas ver. Esa tarea es la señal para que el arnés vuelva a correr el
+> caso; sin ella nadie sabe que toca re-probar.
+"""
+
+_REPRO = """\
+## Cómo reproducirlo (aislado, sin tocar nada del operador)
+
+```bash
+cd engine
+./.venv/bin/python -m tests.use_cases.e2e.agent.run --scenario {sid} --sandbox
+```
+
+`--sandbox` arranca un motor de usar y tirar con su propia BD, puerto, workspace y logs
+(`tests/platform/sandbox_engine.py`), así que ni la memoria ni los widgets ni las tareas del operador se
+tocan, y la corrida aparece como una instalación/`user_id` distinta en observabilidad. El informe completo
+de la corrida queda en `tests/runs/use_cases/` (gitignored). El marcador durable de qué casos pasan está en
+`tests/use_cases/STATUS.md`.
+
+⚠️ No lances `make run` mientras haya un sandbox vivo: `scripts/run-livekit.sh` mata todo `python -m server`
+por NOMBRE de proceso, no por puerto.
+"""
+
+
+def file_failure(result: dict, *, scenario, sandboxed: bool) -> dict:
+    """Create (or append a round to) the initiative for this scenario, plus a fix task the first time.
+
+    Returns a dict describing what happened, for the runner to print. Fail-open: filing is bookkeeping, and
+    a problem here must never take down a test batch that already produced a real verdict.
+    """
+    try:
+        INITIATIVES.mkdir(parents=True, exist_ok=True)
+        stamp = time.strftime("%Y-%m-%d %H:%M", time.localtime())
+        today = time.strftime("%Y-%m-%d", time.localtime())
+        verdict = result.get("verdict") or {}
+        mech = (result.get("run") or {}).get("mechanism_report") or {}
+        evidence = _evidence(result, scenario=scenario, sandboxed=sandboxed)
+        existing = find_initiative(scenario.id)
+
+        if existing:
+            body = existing.read_text(encoding="utf-8")
+            rounds = len(re.findall(r"^## Ronda ", body, re.M)) + 1
+            body += (f"\n\n## Ronda {rounds} — {stamp}\n\n"
+                     f"Sigue FALLANDO (overall {verdict.get('overall')}/5). "
+                     f"Veredicto: {verdict.get('veredicto', '')}\n\n{evidence}")
+            existing.write_text(body, encoding="utf-8")
+            return {"initiative": existing, "task": None, "round": rounds, "created": False}
+
+        num = _next_initiative_number()
+        path = INITIATIVES / f"V2-{num:03d}-uc-{_slug(scenario.id)}.md"
+        # Title = a clean, stable summary, NOT a truncated verdict: the verdict is one round's opinion and
+        # cutting it mid-word ("…que promete parale") makes a permanent filename-level label out of a
+        # sentence fragment. The evolving assessment belongs in the rounds below, which is where it goes.
+        scores = verdict.get("scores") or {}
+        weak = sorted((v, k) for k, v in scores.items() if isinstance(v, (int, float)))[:2]
+        weakest = ", ".join(k for _, k in weak)
+        title = (f"Caso de uso «{scenario.id}» (tier {scenario.tier}) no pasa"
+                 + (f" — flojea en {weakest}" if weakest else ""))
+        module = _module_for(scenario.id, mech)
+        tnum = _next_task_number()
+
+        path.write_text(
+            f"---\nid: V2-{num:03d}\n"
+            f"title: {json.dumps(title, ensure_ascii=False)}\n"
+            f"date: {today}\nstatus: open\n---\n\n"
+            f"# Caso de uso `{scenario.id}` — tier {scenario.tier}, {scenario.locale}\n\n"
+            f"{_HANDOFF}\n"
+            f"## Qué pide el caso\n\n"
+            f"El usuario (simulado por un modelo que imita a una persona real, con petición deliberadamente "
+            f"incompleta) abre con:\n\n> {scenario.opening_line}\n\n"
+            f"### Qué cuenta como éxito\n\n{scenario.success_checks}\n\n"
+            f"{_REPRO.format(sid=scenario.id)}\n"
+            f"## Ronda 1 — {stamp}\n\n"
+            f"Veredicto del juez: **{verdict.get('veredicto', '')}**\n\n{evidence}\n"
+            f"## Tarea de arreglo\n\n"
+            f"`.meshkore/modules/{module}/tasks/T{tnum}-uc-{_slug(scenario.id)}-fix.md`\n",
+            encoding="utf-8")
+
+        tasks_dir = MODULES / module / "tasks"
+        tasks_dir.mkdir(parents=True, exist_ok=True)
+        task_path = tasks_dir / f"T{tnum}-uc-{_slug(scenario.id)}-fix.md"
+        task_path.write_text(
+            f"---\nid: T{tnum}\n"
+            f"title: {json.dumps(f'Revisar y arreglar el caso de uso «{scenario.id}»', ensure_ascii=False)}\n"
+            f"status: next\npriority: high\nowner: ricart\ncategory: {module}\n"
+            f"initiative: V2-{num:03d}\ndepends_on: []\n"
+            f"created: {today}\nupdated: {today}\n---\n\n"
+            f"# T{tnum} — Arreglar el caso de uso `{scenario.id}`\n\n"
+            f"## Qué hay que hacer\n\n"
+            f"Leer la iniciativa **V2-{num:03d}** (`.meshkore/roadmap/initiatives/"
+            f"V2-{num:03d}-uc-{_slug(scenario.id)}.md`): lleva la petición del usuario, qué cuenta como "
+            f"éxito, la evidencia medida de cada corrida (veredicto del juez, informe de mecanismo, "
+            f"intervenciones del watchdog y el transcript completo) y el comando exacto para reproducirlo "
+            f"en un sandbox aislado.\n\n"
+            f"Arreglar la causa en el dominio que la posee. El arnés de casos de uso NO parchea el motor: "
+            f"mide. Si la causa resulta estar en el propio arnés, dilo en la iniciativa y arréglalo ahí.\n\n"
+            f"## Contrato de cierre (esto es lo que cierra el bucle)\n\n"
+            f"Al terminar, **crea una tarea de verificación** en este mismo módulo:\n\n"
+            f"- fichero: `T<siguiente>-uc-{_slug(scenario.id)}-verify.md`\n"
+            f"- frontmatter: `status: next`, `priority: high`, `owner: ricart`, "
+            f"`category: {module}`, `initiative: V2-{num:03d}`, `depends_on: [T{tnum}]`\n"
+            f"- cuerpo: qué cambiaste, en qué ficheros, y qué esperas ver en la próxima corrida\n\n"
+            f"Esa tarea es la SEÑAL de que toca re-probar. El arnés busca tareas "
+            f"`*-uc-*-verify.md` con `status: next` y vuelve a correr ese caso; la nueva corrida se añade "
+            f"como una ronda más en V2-{num:03d}. Sin esa tarea, nadie sabe que el caso está listo para "
+            f"re-probarse.\n\n"
+            f"## No hagas\n\n"
+            f"- No abras otra iniciativa para este caso: V2-{num:03d} ES el workspace de este caso de uso.\n"
+            f"- No toques `.meshkore/roadmap/state.json` (artefacto del daemon compartido).\n"
+            f"- No marques la iniciativa `status: delivered` sin citarla en `engine/CLAUDE.md`: hay un test "
+            f"(`test_roadmap_closure.py`) que lo exige.\n",
+            encoding="utf-8")
+        return {"initiative": path, "task": task_path, "round": 1, "created": True}
+    except Exception as e:  # noqa: BLE001
+        return {"error": str(e)}
+
+
+def pending_verifications() -> list[dict]:
+    """Verify tasks the fixing agent has left for us — the other half of the handoff contract.
+
+    A task named `*-uc-<slug>-verify.md` with `status: next` means "I changed something, run this case
+    again". Returns the scenario slug so a re-test batch can be assembled from it.
+    """
+    out = []
+    for p in MODULES.glob("*/tasks/T*-uc-*-verify.md"):
+        try:
+            head = p.read_text(encoding="utf-8")[:600]
+        except Exception:
+            continue
+        if not re.search(r"^status:\s*next\s*$", head, re.M):
+            continue
+        if m := re.match(r"T\d+-uc-(.+)-verify\.md$", p.name):
+            out.append({"slug": m.group(1), "task": p})
+    return out
