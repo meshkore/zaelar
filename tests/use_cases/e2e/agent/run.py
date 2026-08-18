@@ -149,6 +149,15 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False) -> 
 
 
 def run(args: argparse.Namespace) -> int:
+    # LINE-buffer stdout. A batch of these scenarios runs for the better part of an hour and the operator is
+    # meant to be able to follow it (that is why the sandbox prints its WATCH IT LIVE urls at all) — but the
+    # moment this is piped to a file or a log, Python switches to 4-8KB block buffering and the transcript
+    # arrives in silent lumps, so an hour-long run looks indistinguishable from a hung one.
+    try:
+        sys.stdout.reconfigure(line_buffering=True)
+    except Exception:
+        pass
+
     registry = SC.registry()
     ordered = SC.all_scenarios()
     if args.scenario == "all":
