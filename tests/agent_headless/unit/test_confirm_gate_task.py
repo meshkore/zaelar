@@ -95,3 +95,49 @@ def test_a_second_irreversible_ask_supersedes_the_first():
     time.sleep(0.01)
     dispatch.remember_confirm("10", "cancela mi suscripción a Netflix", _Task())
     assert dispatch.pending_confirm()["task_id"] == "10"
+
+
+# ── DINERO vs simplemente irreversible (V2-129, 2026-08-18) ──────────────────────────────────────────────
+# El caso `renew-gym-membership__es` acabó con el propio tester frenando la ejecución: «no me has dicho cuánto
+# vas a pagar ni me has pedido confirmación. No hagas el cargo hasta que me pases el importe y te confirme».
+# Tenía razón dos veces: no había importe, y no podía haberlo (nadie había mirado la cuota). Una pregunta
+# genérica no dice lo único que hay que oír antes de autorizar un cargo — que nada se paga sin ver la cifra.
+def test_a_money_order_promises_the_amount_before_charging():
+    q = danger.confirm_question("Renueva mi cuota del gimnasio de este mes")
+    assert "mueve dinero" in q.lower()
+    assert "importe" in q                     # la promesa que el tester echó en falta
+    assert "sin tu OK" in q
+
+
+def test_a_non_money_irreversible_keeps_the_generic_question():
+    """Borrar una cuenta o publicar un anuncio es irreversible pero no cuesta nada: prometerle un importe sería
+    una frase sin sentido."""
+    for req in ("borra la cuenta", "publica el anuncio en Wallapop", "cancela mi suscripción a Netflix"):
+        q = danger.confirm_question(req)
+        assert "mueve dinero" not in q.lower(), req
+        assert "irreversible" in q, req
+
+
+def test_moves_money_is_a_SUBSET_of_dangerous():
+    """Todo lo que mueve dinero para en el gate; no todo lo que para en el gate mueve dinero."""
+    for req in ("Paga la factura de la luz antes del día 5", "renuévame la cuota del gimnasio",
+                "compra la moto que te he dicho", "contrata la tarifa nueva de la luz"):
+        assert danger.moves_money(req) and danger.is_dangerous(req), req
+    for req in ("borra la cuenta", "publica el anuncio en Wallapop"):
+        assert danger.is_dangerous(req) and not danger.moves_money(req), req
+
+
+def test_a_reminder_about_money_moves_no_money():
+    """Mismo recorte de recado que el resto del módulo: «recuérdame pagar la cuota» no cobra nada."""
+    assert not danger.moves_money("recuérdame pagar la cuota del gimnasio")
+
+
+def test_the_live_line_carries_the_amount_promise(monkeypatch):
+    """El turno siguiente no puede contradecir lo que se le acaba de prometer al operador."""
+    dispatch.remember_confirm("9", "Renueva mi cuota del gimnasio de este mes", _Task())
+    line = dispatch.confirm_line()
+    assert "MUEVE DINERO" in line
+    assert "importe exacto ANTES de cobrar" in line
+    dispatch._PENDING_CONFIRM.clear()
+    dispatch.remember_confirm("10", "borra la cuenta", _Task())
+    assert "MUEVE DINERO" not in dispatch.confirm_line()

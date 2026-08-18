@@ -121,9 +121,37 @@ def _strip_accents(text: str) -> str:
     return "".join(c for c in _ud.normalize("NFKD", text or "") if not _ud.combining(c))
 
 
+# ¿Esta orden MUEVE DINERO, o solo es irreversible? Los dos paran en el gate, pero no se preguntan igual
+# (V2-129, medido). El caso `renew-gym-membership` acabó con el propio tester frenando la ejecución:
+#
+#   «un momento, no me has dicho cuánto vas a pagar ni me has pedido confirmación.
+#    No hagas el cargo hasta que me pases el importe y te confirme.»
+#
+# Y tenía razón dos veces: no había importe, y no podía haberlo — nadie había mirado la cuota todavía. Una
+# pregunta genérica («esto puede ser irreversible, ¿confirmas?») no dice lo único que el operador necesita oír
+# antes de autorizar un cargo: que NADA se paga sin que él vea la cifra primero. Se dice, y así la promesa
+# existe aunque el importe aún no.
+_MONEY_RE = re.compile(
+    r"\b(?:pagar|paga|pague|pagas|comprar|compra|compre|abonar|abona|transferir|transfiere|"
+    r"recargar|recarga|renovar|renueva|renuev\w*|contratar|contrata|suscrib\w*|"
+    r"pay|buy|purchase|checkout|charge|renew|subscribe|top\s*up)\b"
+    r"|\b(?:cuota|factura|recibo|cargo|importe|mensualidad|abono|bill|invoice|fee)\b", re.I)
+
+
+def moves_money(text: str) -> bool:
+    """True si la orden implica un CARGO. Subconjunto de `is_dangerous`: todo lo que mueve dinero es
+    irreversible, pero borrar un widget o publicar un anuncio no cuesta nada."""
+    # Acentos fuera ANTES de recortar el recado — el mismo orden que `is_dangerous`, y por el mismo motivo:
+    # `_REMINDER_RE` está escrito sin tildes y «recuérdame» es la forma que se dice.
+    return bool(_MONEY_RE.search(_REMINDER_RE.sub(" ", _strip_accents(_order_text(text)))))
+
+
 def confirm_question(text: str) -> str:
     """Frase con la que zaelar pide confirmación de una acción irreversible (operator-facing, castellano)."""
     t = (text or "").strip()
     short = (t[:120] + "…") if len(t) > 120 else t
+    if moves_money(t):
+        return (f"Esto mueve dinero («{short}») y no hago ningún cargo sin tu OK. Primero miro el importe "
+                f"exacto y te lo digo; cuando me lo confirmes, lo hago. ¿Sigo?")
     return (f"Antes de seguir necesito tu OK: esto puede ser irreversible («{short}»). "
             f"¿Confirmas que quieres que lo haga?")

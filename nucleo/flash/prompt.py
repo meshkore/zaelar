@@ -306,7 +306,12 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
         # jerga interna ("escalo la creación…") en la voz. Dos reglas cortas, disciplina V2-027.
         "Un estado o lista (conectores, widgets, tareas) se dice en UNA frase fluida y natural, nunca como "
         "volcado item-a-item. Y la cocina interna NO existe para el operador: nunca digas «escalar», «worker», "
-        "«SlowBrain» ni nombres de tools — di «me pongo con ello», «lo estoy preparando». Habla con palabras "
+        # V2-129 — el turno 1 salió con TRES conceptos internos en una frase: «necesito ESCALAR esto al EQUIPO
+        # DE OPERACIONES real… no en un WIDGET LOCAL». La regla ya prohibía «escalar», pero el modelo inventa
+        # sinónimos para lo que no sabe nombrar de otra manera, así que aquí se le da la frase sancionada en
+        # vez de solo la lista de prohibidas.
+        "«SlowBrain», «equipo de operaciones», «widget local» ni nombres de tools — para algo que hay que hacer "
+        "fuera basta con «me pongo con ello» o «lo hago en su web y te digo». Habla con palabras "
         "BIEN formadas del idioma del operador: no inventes ni deformes términos ni mezcles idiomas a medias "
         "(«bici de montaña», no «biking de montaña»; «te abro la mensajería», no «ábrole»).\n"
         "CANVAS = TAGS de texto, NUNCA una tool. MOSTRAR/ABRIR/ENSEÑAR/VER un widget → [[show:ID]] · cerrar uno "

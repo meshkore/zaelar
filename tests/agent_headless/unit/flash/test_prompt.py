@@ -194,3 +194,13 @@ def test_web_search_no_longer_orders_using_a_city_that_may_not_exist(fresh_db):
 def test_a_concrete_fact_about_the_operator_comes_from_state_or_is_asked(fresh_db):
     system, _ = prompt.build_flash_system()
     assert "o está en tu ESTADO o NO LO SABES" in system
+
+
+def test_the_prompt_names_the_invented_jargon_and_offers_a_sanctioned_phrase(fresh_db):
+    """V2-129 · turno 1: «necesito ESCALAR esto al EQUIPO DE OPERACIONES real… no en un WIDGET LOCAL» — tres
+    conceptos internos en la primera frase que el operador oye. La regla ya prohibía «escalar», pero el modelo
+    inventa sinónimos para lo que no sabe nombrar de otra manera, así que ahora se le da la frase sancionada."""
+    system, _ = prompt.build_flash_system()
+    assert "«equipo de operaciones»" in system
+    assert "«widget local»" in system
+    assert "me pongo con ello" in system

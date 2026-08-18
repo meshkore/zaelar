@@ -1302,7 +1302,13 @@ def confirm_line() -> str:
     p = pending_confirm()
     if not p:
         return ""
-    return (f"CONFIRMACIÓN PENDIENTE de una acción IRREVERSIBLE: «{p['request'][:120]}». Le preguntaste al "
+    from nucleo import danger as _danger_line
+    # Si mueve DINERO se dice aquí también (V2-129): el operador ya oyó «no hago ningún cargo sin decirte el
+    # importe», y el turno siguiente no puede contradecir esa promesa.
+    money = (" MUEVE DINERO: le prometiste decirle el importe exacto ANTES de cobrar nada, así que ni lo pagues"
+             " ni digas que está pagado hasta haber mirado la cifra y habértela confirmado él."
+             if _danger_line.moves_money(p["request"]) else "")
+    return (f"CONFIRMACIÓN PENDIENTE de una acción IRREVERSIBLE: «{p['request'][:120]}».{money} Le preguntaste al "
             f"operador y AÚN NO ha contestado, así que la tarea está PARADA y no ha empezado nada — no digas "
             f"que está en marcha. Si dice que SÍ, arranca; si dice que NO, olvídalo y confírmaselo.")
 
