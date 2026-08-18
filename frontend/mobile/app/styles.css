@@ -19,7 +19,7 @@
    ============================================================================ */
 
 :root {
-  --dock-h: 76px;                        /* the bar's own height; the safe-area pad is added on top of it */
+  --dock-h: 84px;                        /* the bar's own height; the safe-area pad is added on top of it */
   /* Sheet height, measured from ON TOP OF the dock (see .zm-sheet). Leaves the deck visible above it, so the
      card you were reading never disappears entirely behind the chat. */
   --zm-sheet-max: calc(78vh - var(--dock-h));
@@ -61,20 +61,35 @@ body {
 .zm-body, .zm-msgs, .zm-fb textarea { -webkit-user-select: text; user-select: text; }
 
 /* ---------- THE DOCK ---------- */
+/* THREE ZONES, and the middle one is the orb. `1fr auto 1fr` centres the orb on the SCREEN, not between its
+   neighbours — so the sides can hold a different number of buttons (3 left, 2 right) without the orb drifting off
+   centre. Getting this from flexbox would have required a spacer element whose only job is to lie about symmetry. */
 .zm-dock {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
   height: calc(var(--dock-h) + env(safe-area-inset-bottom));
-  padding: 0 12px env(safe-area-inset-bottom);
-  display: flex; align-items: center; gap: 10px;
+  padding: 0 8px env(safe-area-inset-bottom);
+  /* minmax(0, ...) and not a bare 1fr: `1fr` means minmax(AUTO, 1fr), so the side with three buttons grows
+     its own track past its fair share and shoves the orb off centre — measured at 8px before this. With a 0
+     floor the two side tracks are always equal, so the orb is centred on the SCREEN by construction, and an
+     over-wide side group overflows VISIBLY instead of silently sliding the orb. */
+  display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center;
   background: var(--hb-bg-a);
-  /* The blur is what makes the bar read as glass over a live card rather than as a solid strip that ate 76px of
+  /* The blur is what makes the bar read as glass over a live card rather than as a solid strip that ate 84px of
      the screen. -webkit- prefix included: Safari is the browser that matters most here. */
   -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4);
   border-top: 1px solid var(--hb-line);
 }
-.zm-ctl { flex: 1 1 auto; display: flex; align-items: center; justify-content: space-around; gap: 4px; }
+/* Each side HUGS the orb rather than spreading to the screen edge: the controls read as belonging to the orb
+   («en los laterales del orbe»), and the outer corners stay clear of the thumb's natural resting spots. */
+.zm-side { display: flex; align-items: center; gap: 2px; }
+.zm-side:first-child { justify-content: flex-end; }
+.zm-side:last-child  { justify-content: flex-start; }
+.zm-centre { display: flex; align-items: center; justify-content: center; padding: 0 6px; }
+
+/* 48px, not 52: three of these plus their gaps must fit ONE side track (390 screen - 16 dock padding - 70 orb
+   column = 152 per side; 3*48 + 2*2 = 148). Still well above the 44px minimum tap target. */
 .zm-ic {
-  width: 52px; height: 52px; flex: 0 0 auto;
+  width: 48px; height: 48px; flex: 0 0 auto;
   display: flex; align-items: center; justify-content: center;
   border: none; border-radius: 15px; background: transparent;
   transition: color .18s, background .18s, transform .12s;
@@ -85,15 +100,34 @@ body {
 .zm-ic.off { color: var(--hb-muted-2); }
 .zm-ic:active { transform: scale(.92); background: var(--hb-bubble); }
 
-/* ⏻ is bigger and centred: it is the one control the operator looks at to know whether anyone is on the other end,
-   and it paints the FOUR real states (store.agentState), never the persisted flag. */
-.zm-pwr { width: 58px; height: 58px; }
-.zm-pwr.pwr-live { color: var(--hb-accent); }
-.zm-pwr.pwr-starting { color: var(--hb-warn); animation: zmpulse 1.4s ease-in-out infinite; }
-.zm-pwr.pwr-off { color: var(--hb-muted-2); }
+/* ⏻ IN THE CENTRE SLOT — what a STOPPED agent looks like. It is alone there on purpose: with the agent stopped
+   there is nothing else true to show, so the one thing that can be done gets the whole middle of the bar. The ring
+   is what makes it read as the primary action instead of a seventh icon. */
+.zm-pwr {
+  width: 60px; height: 60px; border-radius: 50%;
+  color: var(--hb-muted-2);
+  border: 2px solid var(--hb-line); background: var(--hb-bubble);
+}
+.zm-pwr:active { transform: scale(.94); }
+
+/* THE ORB AS A BUTTON. No frame, no fill: the orb IS the affordance, and a box around it would read as a second
+   control sitting behind it. It carries the state classes so `starting`/`stalled`/`pausing` can be seen at a
+   glance — the ⏻ used to be the only icon that could not lie, and now the orb inherits that job. */
+.zm-orb-btn {
+  border: none; background: transparent; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; transition: transform .12s;
+}
+.zm-orb-btn:active { transform: scale(.94); }
+/* The centre slot's two faces are both mounted and swapped by visibility, never rebuilt — see DockBar.js.
+   `display: none` and not opacity: a hidden face must take no space and catch no taps. */
+.zm-dock .zm-hide { display: none; }
 /* `stalled` = "should be on and is not". It has to be impossible to mistake for `live`, because mistaking them is
-   exactly what cost a whole session once: red, and it blinks. */
-.zm-pwr.pwr-stalled { color: var(--hb-risk); animation: zmpulse .9s ease-in-out infinite; }
+   exactly what cost a whole session once: a red ring, and it blinks. `pausing` is AMBER, deliberately not red —
+   the agent is genuinely still finishing a turn, that is not a fault (V2-092 addenda). */
+.zm-orb-btn.pwr-stalled { box-shadow: 0 0 0 3px var(--hb-risk); animation: zmpulse .9s ease-in-out infinite; }
+.zm-orb-btn.pwr-pausing { box-shadow: 0 0 0 3px var(--hb-warn-ink); animation: zmpulse 1.1s ease-in-out infinite; }
+.zm-orb-btn.pwr-starting { animation: zmpulse 1.4s ease-in-out infinite; }
 @keyframes zmpulse { 0%, 100% { opacity: 1 } 50% { opacity: .42 } }
 
 /* The mic icon IS the level meter (--vu, written per frame from the real RMS): only a custom property changes, so
@@ -102,11 +136,11 @@ body {
 .zm-ic.on svg { transform: scale(calc(1 + (var(--vu, 0) * .22))); transition: transform .08s linear; }
 @media (prefers-reduced-motion: reduce) {
   .zm-ic.on svg { transform: none; }
-  .zm-pwr.pwr-starting, .zm-pwr.pwr-stalled { animation: none; }
+  .zm-orb-btn.pwr-starting, .zm-orb-btn.pwr-stalled, .zm-orb-btn.pwr-pausing { animation: none; }
 }
 
 /* ---------- THE ORB, in the dock ---------- */
-.zm-orb { position: relative; flex: 0 0 auto; width: 54px; height: 54px; }
+.zm-orb { position: relative; flex: 0 0 auto; width: 58px; height: 58px; }
 .zm-orb-c, .zm-viz-c { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50%; }
 .zm-viz-c { opacity: .55; }               /* the person's voice sits behind zaelar's own */
 .zm-orb.off { filter: grayscale(1); opacity: .45; }   /* stopped = frozen and grey, visibly (V2-092) */

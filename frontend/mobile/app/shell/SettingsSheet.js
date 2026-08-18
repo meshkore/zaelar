@@ -20,7 +20,6 @@
 
 import { h } from "../../../app/core/dom.js?v=2";
 import * as store from "../../../app/core/store.js?v=2";
-import * as session from "../../../app/services/session.js?v=3";
 import { createSignal } from "../../../app/core/reactive.js?v=2";
 import { toggleTheme } from "../../../app/services/theme.js?v=2";
 import { t } from "../../../app/core/i18n.js?v=1";
@@ -78,13 +77,9 @@ export function SettingsSheet() {
         () => store.theme() === "dark",
         toggleTheme),
 
-      Toggle(() => t("orb.captions_show"),
-        () => store.captionsOn(),
-        () => store.toggleCaptions()),
-
-      Toggle(() => t("orb.speaker_unmuted"),
-        () => !store.botMuted(),
-        () => session.toggleBotMute()),
+      // Captions and the speaker deliberately do NOT appear here: since 2026-08-18 each has its own button in the
+      // dock, one tap away. They would read the same signals, so a duplicate could never DIVERGE — it would just be
+      // clutter, and this sheet is for what you set once (language, theme), not what you toggle mid-conversation.
 
       // ── DELEGATED, not hidden.
       h("button", {

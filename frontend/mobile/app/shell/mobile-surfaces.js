@@ -32,7 +32,7 @@
 import { Alert } from "../../../app/components/Alert.js?v=2";
 import { BootOverlay } from "../../../app/components/BootOverlay.js?v=2";
 import { LanguageOnboarding } from "../../../app/components/LanguageOnboarding.js?v=1";
-import { CaptionBand } from "./OrbMini.js?v=1";
+import { CaptionBand } from "./OrbMini.js?v=2";
 import { ChatSheet } from "./ChatSheet.js?v=1";
 import { DockBar } from "./DockBar.js?v=1";
 import { MenuSheet } from "./MenuSheet.js?v=1";

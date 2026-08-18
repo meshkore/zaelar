@@ -21,7 +21,7 @@
 // Run: node tests/browser/unit/mobile/test_mobile_host_contract.mjs
 // ============================================================================
 
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -40,6 +40,9 @@ const MOBILE_CSS = read("frontend", "mobile", "app", "styles.css");
 const PALETTE = read("frontend", "app", "core", "palette.css");
 const SW = read("frontend", "mobile", "sw.js");
 const INGRESS = read("server", "ingress.py");
+const DOCKBAR = read("frontend", "mobile", "app", "shell", "DockBar.js");
+const ORBMINI = read("frontend", "mobile", "app", "shell", "OrbMini.js");
+const ORB_JS = read("frontend", "app", "components", "Orb.js");
 
 let failures = 0;
 function check(name, ok, detail = "") {
@@ -150,6 +153,114 @@ for (const path of ["/m", "/manifest.webmanifest", "/sw.js"]) {
   check(`ingress.py allowlists ${path}`, INGRESS.includes(`"${path}"`),
     `server/ingress.py's PUBLIC_EXACT does not list ${path}; a browser would get 401 before any session exists`);
 }
+
+
+// ── THE DOCK: the orb is the CENTRE, and it is also the switch ─────────────────────────────────────────────────
+// Operator's design (2026-08-18): «un orbe en el centro del footer… y en los laterales del orbe, el resto de
+// botones», with the orb doubling as stop. Three assertions, because three different things can quietly break it.
+const zones = [...DOCKBAR.matchAll(/class:\s*"(zm-side|zm-centre)"/g)].map((m) => m[1]);
+check("the dock is side / centre / side, in that order",
+  zones.join(",") === "zm-side,zm-centre,zm-side",
+  `the dock's zones are [${zones}] — the orb must sit in a zm-centre BETWEEN two zm-side groups`);
+// minmax(0, 1fr) and NOT a bare `1fr`: `1fr` means minmax(AUTO, 1fr), so the 3-button side grows its own track
+// past its fair share and shoves the orb off centre — measured at 8px before this was pinned (2026-08-18).
+check("the CSS centres the orb on the SCREEN, not between its neighbours",
+  /grid-template-columns:\s*minmax\(\s*0\s*,\s*1fr\s*\)\s+auto\s+minmax\(\s*0\s*,\s*1fr\s*\)/.test(MOBILE_CSS),
+  "the side tracks must have a 0 floor, or the wider side pushes the orb off centre");
+
+// ONE power handler, shared by both faces of the centre slot. Two handlers is how the ⏻ and the orb start
+// disagreeing about what stopped means — and since V2-092 the switch is the SERVER's state, so a mobile-only
+// path that flipped a local signal would show "stopped" while the agent kept working.
+const onClicks = [...DOCKBAR.matchAll(/onClick:\s*togglePower\b/g)].length;
+check("the ⏻ and the orb share ONE power handler", onClicks === 2,
+  `found ${onClicks} onClick: togglePower — both the stopped-state ⏻ and the running orb must call the same one`);
+// Assert the CALL, not the substring: `includes("api.runStop")` also matches a renamed `api.runStopX`, so it
+// would stay green through exactly the drift it exists to catch (found by breaking it on purpose).
+for (const seam of [/api\.runStop\s*\(/, /api\.runStart\s*\(/, /store\.markPowerCommand\s*\(/]) {
+  check(`the power handler goes through ${seam.source}`, seam.test(DOCKBAR),
+    "that is the seam the desktop ⏻ uses; a parallel path desynchronises the phone from the server");
+}
+
+// The orb is wrapped in a <button> by the dock, so OrbMini must not be one itself. Nested buttons are invalid
+// HTML and browsers disagree about which tap wins — one honours the outer, another the inner.
+check("OrbMini is purely visual (no nested button inside the dock's orb button)",
+  !/role:\s*["']button["']/.test(ORBMINI) && !/onClick/.test(ORBMINI),
+  "OrbMini declares a role=button or an onClick; the dock already wraps it in a real <button>");
+
+// The orb must be built ONCE, OUTSIDE the reactive tree. main.js hands its <canvas> to the visualiser a single
+// time at boot, so anything that RE-CREATES the orb leaves the visualiser drawing into a detached node: the render
+// loop keeps running (measured: 741 frames) and the dock shows an empty hole where zaelar's face should be, with no
+// error anywhere. Written `() => cond ? h(...) : h(..., OrbMini())` this is the natural, wrong shape (2026-08-18).
+const orbCalls = [...DOCKBAR.matchAll(/OrbMini\s*\(\)/g)].length;
+check("the orb is constructed exactly once", orbCalls === 1,
+  `OrbMini() appears ${orbCalls} times in DockBar.js — it must be built once and held`);
+check("the orb is built outside the reactive tree", /const\s+ORB\s*=\s*OrbMini\(\)/.test(DOCKBAR),
+  "OrbMini() must be assigned to a const in DockBar's body, not called inside a reactive child function");
+check("no reactive branch re-creates the orb",
+  !/=>[^\n]*OrbMini\s*\(\)/.test(DOCKBAR),
+  "OrbMini() is called inside an arrow function; every state change would mint a new canvas and detach the live one");
+// Both faces of the centre slot are therefore always mounted, and swapped by VISIBILITY.
+check("the centre slot swaps its two faces by visibility, not by rebuilding",
+  /zm-hide/.test(DOCKBAR) && /\.zm-hide\s*\{[^}]*display:\s*none/.test(MOBILE_CSS),
+  "the hidden face must be display:none so it takes no space and catches no taps");
+
+// ── the mobile glyphs ARE the desktop's, derived from Orb.js rather than eyeballed ──────────────────────────────
+// The claim in DockBar.js's header is that an operator who knows one shell reads the other. That is only true
+// while the shapes match, and a comment cannot enforce it: if the desktop redraws its mic, this goes red and
+// somebody has to decide, instead of the two shells drifting apart unnoticed.
+for (const name of ["MIC_ICON", "SPK_ON", "SPK_OFF", "CAP_ICON", "CHAT_ICON", "PWR_ICON"]) {
+  const m = ORB_JS.match(new RegExp(`const ${name}\\s*=\\s*\`([^\`]*)\``));
+  check(`Orb.js still defines ${name} (this test reads it as the source of truth)`, !!m);
+  if (!m) continue;
+  const shapes = [...m[1].matchAll(/<(?:path\s+d|rect\s+x)="[^"]+"/g)].map((x) => x[0]);
+  const absent = shapes.filter((sh) => !DOCKBAR.includes(sh));
+  check(`the mobile dock draws the same ${name} as the desktop`, absent.length === 0,
+    `these shapes from Orb.js's ${name} are not in DockBar.js: ${absent.join(" | ")}`);
+}
+
+// ── every t() key the mobile shell uses must EXIST in both bundles ──────────────────────────────────────────────
+// This is the ratchet on the bug that shipped once already: core/i18n.js's t() returns the KEY when a string is
+// missing, and a key is TRUTHY — so `t("x") || "fallback"` is dead code that READS like a working fallback, and
+// the phone renders a literal `mobile.empty_title` on screen. Checking the base bundle also covers GENERATED
+// languages, since i18n init diffs against English.
+const EN = JSON.parse(read("i18n", "bundles", "en.json"));
+const ES = JSON.parse(read("i18n", "bundles", "es.json"));
+const shellFiles = readdirSync(join(ENGINE, "frontend", "mobile", "app", "shell"))
+  .filter((f) => f.endsWith(".js"))
+  .map((f) => ["frontend", "mobile", "app", "shell", f]);
+const usedKeys = new Set();
+for (const parts of [...shellFiles, ["frontend", "mobile", "app", "main.js"]]) {
+  for (const m of read(...parts).matchAll(/\bt\(\s*["']([a-zA-Z0-9_.]+)["']\s*\)/g)) usedKeys.add(m[1]);
+}
+check("the key scan actually found the shell's strings", usedKeys.size >= 15,
+  `only ${usedKeys.size} t() keys found — the regex probably stopped matching`);
+const missingEn = [...usedKeys].filter((k) => !(k in EN));
+const missingEs = [...usedKeys].filter((k) => !(k in ES));
+check("every string the mobile shell asks for exists in en.json", missingEn.length === 0,
+  `missing from en.json (would render as the literal key): ${missingEn.join(", ")}`);
+check("every string the mobile shell asks for exists in es.json", missingEs.length === 0,
+  `missing from es.json: ${missingEs.join(", ")}`);
+check("no fake `t(...) || fallback` dead code in the mobile shell",
+  ![...shellFiles, ["frontend", "mobile", "app", "main.js"]]
+    .some((parts) => /\bt\([^)]*\)\s*\|\|/.test(read(...parts))),
+  "t() returns the key on a miss, which is truthy — an `|| fallback` after it can never run");
+
+// ── one module, one ?v= ────────────────────────────────────────────────────────────────────────────────────────
+// V2-087, the hard way: a different query string is a DIFFERENT MODULE INSTANCE in the browser. Two copies of
+// services/session.js meant one of them held room=null, so every UI call that touched the room was a silent
+// no-op. It cost a whole session to find, and the second copy was invisible in review.
+const versions = new Map();
+for (const parts of [...shellFiles, ["frontend", "mobile", "app", "main.js"]]) {
+  for (const m of read(...parts).matchAll(/from\s+["']([^"'?]+)(\?v=\d+)?["']/g)) {
+    const spec = m[1].replace(/^.*\/app\//, "app/").replace(/^\.\//, "shell/");
+    if (!versions.has(spec)) versions.set(spec, new Set());
+    versions.get(spec).add(m[2] || "(none)");
+  }
+}
+const split = [...versions].filter(([, v]) => v.size > 1);
+check("the mobile shell imports each module at ONE version", split.length === 0,
+  split.map(([k, v]) => `${k} imported as ${[...v].join(" and ")}`).join("; "));
+
 
 console.log(failures === 0 ? "\nALL OK" : `\n${failures} FAILURE(S)`);
 process.exit(failures === 0 ? 0 : 1);

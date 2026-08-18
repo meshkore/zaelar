@@ -138,7 +138,13 @@ export function startVisualizer({ orbCanvas, vizCanvas, getStream, getGate, audi
       const x = oc.getContext("2d"); x.setTransform(dpr, 0, 0, dpr, 0, 0); x.clearRect(0, 0, W, H);
       (store.orbStyle() === "friendly" ? drawOrbFriendly : drawOrbPro)(x, W, H, frozen ? null : bbuf, frozen ? 0 : blvl);
     }
-    _orbFrozenAt = frozen;
+    // Only LATCH the frozen state on a frame that could actually draw. `W` is 0 whenever the orb has no laid-out
+    // box — which the mobile dock produces as a NORMAL state, because with the agent stopped its centre slot hides
+    // the orb (display:none) and shows a ⏻ instead. Recording "already frozen" on those frames meant the latch was
+    // still set when the orb came back, so `frozen && _orbFrozenAt` stayed true and it never repainted: measured on
+    // the stopped -> ⏻ -> starting path, 0 painted pixels with the canvas never even resized (2026-08-18).
+    // The desktop never hid its orb, so it never hit this.
+    if (W) _orbFrozenAt = frozen;
     // SPECTRUM under the camera = the PERSON's voice (mic), gated so the agent's echo doesn't move it. `vizCanvas`
     // lives inside CameraUnit, which the operator can hide (2026-08-09: hidden by default) — null is a real,
     // permanent state now, not a startup race, so this whole block is skipped rather than crashing `draw()` (which
