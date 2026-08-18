@@ -2863,6 +2863,18 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     second, "fixing" dedup is indistinguishable from loosening it. Corrected an overclaim of mine in that same
     comment: `\w+` does not save CJK (2-3 character tokens, already dropped by the `len(w) >= 4` filter before this
     change) — a pre-existing limit, written down as one.
+  - ⚠️ **STILL OPEN after that fix, and it still costs money: the dedup cannot see a PARAPHRASE.** Repeated live with
+    the fix loaded — two escalations of the same guitar search, **two workers ran again**, Jaccard **0.471** vs the
+    0.60 threshold. The separating words say it: `busca`/`infantil`/`tamano` on one side, `lanza`/`investigacion`/
+    `precios`/`enlaces` on the other — the SAME task said two ways (one is the FlashBrain's reformulation, the other
+    the raw text). Lowering the threshold is not the fix: 0.60 is strict on purpose so it does not absorb genuinely
+    different tasks, and loosening it trades a costly failure for one that mixes up unrelated work. The route this
+    repo already has written for this exact class is V2-075: **a MODEL judges semantics, not a pattern.** Recorded
+    as an open defect with its measured number, not as fixed. Nuance worth keeping: in NORMAL use the FlashBrain
+    REFUSES to re-escalate (first attempt it just replied conversationally, V2-029) and only did so when explicitly
+    told "lanza TAMBIÉN" — so today's real protection is the FlashBrain itself, `find_duplicate` is the backstop,
+    and the backstop is weak. Which is also why the dedup trigger is RARE in practice and `_merge_target` is the one
+    actually holding the thread together.
 
 ## Testing y rueda de mejora (INI-013)
 
