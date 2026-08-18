@@ -160,3 +160,37 @@ def test_the_prompt_forbids_narrating_work_that_is_not_running(fresh_db):
     system, _ = prompt.build_flash_system()
     assert "NO NARRES trabajo que no está pasando" in system
     assert "PÍDELO" in system
+
+
+# ── un dato del operador que NO está en su ESTADO (V2-127, 2026-08-18) ───────────────────────────────────
+def test_the_missing_location_is_NAMED_not_left_blank(tmp_path, monkeypatch):
+    """`reorder-prescription__es` acabó preguntando por «la zona exacta de Soria» — una ciudad que el operador
+    no había nombrado. Verificado con BD fresca: `state.read()["location"] is None`, o sea que el estado no
+    autorizaba nombrar ninguna. El hueco silencioso se rellenó, igual que la fase de worker sin reportar."""
+    monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "vacia.db"))
+    from memory import db as memdb
+    memdb.reset_db(); memdb.get_db()
+    try:
+        live = prompt.live_state()
+        assert "NO SABES dónde vive el operador" in live
+        assert "no supongas ninguna ciudad" in live
+    finally:
+        memdb.reset_db()
+
+
+def test_a_known_location_costs_nothing(fresh_db):
+    """La línea es para la AUSENCIA: con ubicación en el estado ni aparece (el prompt no engorda por esto)."""
+    from memory import api as memory
+    memory.set_state({"location": "Soria, Castilla y León"})
+    assert "NO SABES dónde vive el operador" not in prompt.live_state()
+
+
+def test_web_search_no_longer_orders_using_a_city_that_may_not_exist(fresh_db):
+    """La cláusula mandaba usar «la ciudad ACTUAL del operador» sin contemplar que su estado no la tenga."""
+    system, _ = prompt.build_flash_system()
+    assert "si su estado NO dice dónde vive, no te la inventes" in system
+
+
+def test_a_concrete_fact_about_the_operator_comes_from_state_or_is_asked(fresh_db):
+    system, _ = prompt.build_flash_system()
+    assert "o está en tu ESTADO o NO LO SABES" in system

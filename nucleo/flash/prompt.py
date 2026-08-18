@@ -294,7 +294,9 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
         "NO NARRES trabajo que no está pasando: solo puedes decir que algo está en marcha si lo ves en tus TAREAS "
         "DE FONDO de más abajo, y solo con el detalle que ahí ponga. Sin tarea ahí, no hay nada corriendo. Si te "
         "falta un dato para arrancar (qué gimnasio, qué farmacia, qué cuenta), PÍDELO — preguntar es la respuesta "
-        "correcta, no un fallo. Y si de verdad NO PUEDES (no hay conector, hace falta una llamada de teléfono o "
+        "correcta, no un fallo. Y un DATO CONCRETO sobre él (su ciudad, su dirección, el nombre de su farmacia o "
+        "su gimnasio, un teléfono, qué tiene contratado) o está en tu ESTADO o NO LO SABES: no rellenes el hueco "
+        "con uno plausible — di que no lo tienes y pídeselo. Y si de verdad NO PUEDES (no hay conector, hace falta una llamada de teléfono o "
         "una cuenta que no tienes), DILO claro en una frase: vale mucho más que intentarlo a medias, e "
         "infinitamente más que inventarte que estás en ello. NUNCA recites datos en voz: "
         "para que el operador los VEA, ábrele su widget. Escalar, buscar y operar datos son TOOL CALLS invisibles; "
@@ -341,7 +343,13 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
     res = "── QUÉ TIENES (recursos) ──\n" + _widgets(open_ids, recent_ids, query=turn_text, stats=stats) + (
         "\n\nweb_search (tool): un DATO factual y actual del mundo (resultado, tiempo, precio, noticia); "
         "NO para navegar tiendas/marketplaces. Un dato ligado a un LUGAR (el tiempo, tráfico…) sin ciudad "
-        "explícita va SIEMPRE con la ciudad ACTUAL del operador (la de su estado); un dato que tengas guardado "
+        # V2-127 — la cláusula ORDENABA usar «la ciudad del operador» sin contemplar que su ESTADO no la tenga.
+        # En el caso `reorder-prescription` el estado del sandbox no tenía `location` (verificado con BD fresca:
+        # `state.read()["location"] is None`) y el turno salió pidiendo «la zona exacta de Soria» — una ciudad
+        # que el operador no había nombrado nunca en esa conversación. Un hueco silencioso se rellena; hay que
+        # nombrarlo, igual que con la fase de worker que no se había reportado (V2-133).
+        "explícita va SIEMPRE con la ciudad ACTUAL del operador (la de su estado) — y si su estado NO dice dónde "
+        "vive, no te la inventes: pregúntasela. Un dato que tengas guardado "
         "de OTRA ciudad o de hace horas NO vale como respuesta — busca el actual. Un hecho PÚBLICO y conocido (un "
         "gol o partido famoso, quién ganó algo, un dato de cultura general) BÚSCALO directamente; no pidas "
         "aclaración de \"a qué te refieres\" para algo que una búsqueda resuelve sola.\n"
@@ -432,6 +440,17 @@ def live_state() -> str:
         if _nt.login_waiting_id():
             lines.append("HAY UN INICIO DE SESIÓN PENDIENTE en el navegador (le abriste una ventana para entrar): "
                          "si el operador dice que ya inició sesión / 'ya estoy dentro', llama a login_done.")
+    except Exception:
+        pass
+    try:
+        # AUSENCIA de ubicación, dicha con todas las letras (V2-127). Sin esto el prompt manda usar «la ciudad
+        # del operador» y no hay ninguna: el hueco se rellena con una plausible y el operador oye el nombre de
+        # una ciudad que él no ha dicho. Mismo remedio que la marca «SIN paso reportado aún»: nombrar el hueco.
+        # Coste CERO cuando el estado sí la trae — la línea ni aparece.
+        from memory import api as _memapi_loc
+        if not (_memapi_loc.state() or {}).get("location"):
+            lines.append("NO SABES dónde vive el operador (su ESTADO no tiene ubicación): no supongas ninguna "
+                         "ciudad ni la nombres; si hace falta para lo que te pide, pregúntasela.")
     except Exception:
         pass
     try:
