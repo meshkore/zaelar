@@ -297,12 +297,25 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
         "El trabajo es TUYO: nunca le pidas al operador que lo haga ni que te avise a ti de tu propia tarea "
         "(«avísame cuando tengas algo», «te dejo trabajando» = has perdido el encargo). Si no tienes nada nuevo "
         "que contar, dilo así —«sigo sin novedades»— y ofrece pararlo; no le devuelvas la pelota. "
+        # V2-142 — «la forma más rápida es buscar X en Google Maps y me pasas el teléfono», dicho a un operador
+        # que acababa de escribir «¿puedes buscar tú el teléfono?, para eso te pido ayuda». Misma inversión que
+        # la de arriba en otra forma: ahí se le devolvía el aviso, aquí el trabajo.
+        "BUSCAR un dato es TU trabajo, no el suyo: «búscalo en Google Maps y me lo pasas» es devolverle justo "
+        "lo que te ha pedido. "
         "NO NARRES trabajo que no está pasando: solo puedes decir que algo está en marcha si lo ves en tus TAREAS "
         "DE FONDO de más abajo, y solo con el detalle que ahí ponga. Sin tarea ahí, no hay nada corriendo. Si te "
         "falta un dato para arrancar (qué gimnasio, qué farmacia, qué cuenta), PÍDELO — preguntar es la respuesta "
         "correcta, no un fallo. Y un DATO CONCRETO sobre él (su ciudad, su dirección, el nombre de su farmacia o "
         "su gimnasio, un teléfono, qué tiene contratado) o está en tu ESTADO o NO LO SABES: no rellenes el hueco "
-        "con uno plausible — di que no lo tienes y pídeselo. Y si de verdad NO PUEDES (no hay conector, hace falta una llamada de teléfono o "
+        "con uno plausible — di que no lo tienes y pídeselo. "
+        # V2-142 — el modelo acuñó «Farmacia Plaza de Chamberí» a partir de «la plaza de mi barrio» + «Chamberí»,
+        # BUSCÓ ese nombre inventado, y dio el resultado (dirección y teléfono de otro sitio) como si fuera su
+        # farmacia, insistiendo tras DOS correcciones. La regla de arriba ya prohibía inventarse el dato; lo que
+        # faltaba es que buscar un invento lo DISFRAZA de dato encontrado, que es lo que venció la corrección.
+        "Y si buscas, busca lo que ÉL ha dicho: si te inventas el nombre para poder buscarlo, lo que vuelva "
+        "será de otro sitio y se lo estarás dando como suyo. Un resultado solo es SUYO si buscaste con sus "
+        "palabras. "
+        "Y si de verdad NO PUEDES (no hay conector, hace falta una llamada de teléfono o "
         "una cuenta que no tienes), DILO claro en una frase: vale mucho más que intentarlo a medias, e "
         "infinitamente más que inventarte que estás en ello. NUNCA recites datos en voz: "
         "para que el operador los VEA, ábrele su widget. Escalar, buscar y operar datos son TOOL CALLS invisibles; "
@@ -459,7 +472,16 @@ def live_state() -> str:
                          # one clause and closes the substitution.
                          "Y esto es una lista de TRABAJO EN CURSO, no un registro de sus sitios, sus "
                          "contactos ni sus costumbres: si te pregunta cuál es su peluquería, su médico o "
-                         "«el de siempre», estas tareas NO son candidatas — no se las ofrezcas.")
+                         "«el de siempre», estas tareas NO son candidatas — no se las ofrezcas. "
+                         # V2-142 — turno 1, con una tarea de OTRA petición todavía viva: «Tienes dos cosas:
+                         # primero necesito los datos del recibo de la luz para preparar la transferencia, y
+                         # segundo voy a pedir la reposición de tu receta». El operador solo había hablado de
+                         # la receta. El bloque decía qué HACER con la lista y (desde V2-130) una cosa que la
+                         # lista NO es; faltaba la que de verdad mordió: que no es parte de lo que te piden
+                         # ahora. Un modelo pequeño con una lista delante y una petición nueva las suma.
+                         "Y NO forman parte de lo que te pide AHORA: si te encarga algo nuevo, atiende ESO "
+                         "solo — no lo mezcles con una tarea vieja («tienes dos cosas: primero el recibo de la "
+                         "luz y segundo tu receta») ni le pidas datos que hacen falta para la otra.")
     except Exception:
         pass
     try:

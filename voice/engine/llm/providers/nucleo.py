@@ -2395,6 +2395,24 @@ class NucleoLLMStream(llm.LLMStream):
                 music_req["v"] = {"query": text, "action": "play"}
                 emit("brain", "🎵 música por backstop de promesa (prometió poner música sin tool)", text=text[:80], role="system")
 
+        # BACKSTOP DE TRABAJO DEVUELTO (V2-142). Distinto del de promesa: aquí el modelo no promete nada, MANDA
+        # AL OPERADOR a buscar en Google/Maps lo que él acaba de pedir. Medido en `reorder-prescription`: «¿puedes
+        # buscar tú el teléfono?, para eso te pido ayuda» → «la forma más fiable es que tú busques "farmacia" en
+        # Google Maps y me pases el teléfono». Una regla de prompt no basta: lo que hace falta es HACER la
+        # búsqueda. Solo si NADA corre (con una tarea viva la frase puede ser una sugerencia mientras se trabaja,
+        # y re-escalar duplicaría el trabajo, V2-123).
+        if (_no_tool and spoken_text and escalate_req["v"] is None
+                and _router.hands_public_lookup_back(spoken_text)):
+            try:
+                from nucleo import dispatch as _disp_hb
+                _busy = _disp_hb.has_active()
+            except Exception:
+                _busy = False
+            if not _busy:
+                escalate_req["v"] = _router.escalate_goal_from_window(brain._window, text) or text
+                emit("brain", "🧭 escalada por backstop (devolvió la búsqueda al operador)",
+                     text=text[:80], role="system")
+
         # BACKSTOP DETERMINISTA de CIERRE corto (sesión 22:40 2026-07-16): «Vale, ciérralo» → el modelo respondió
         # "Listo, cerrado" SIN emitir [[close]] ni tool alguna — la tarjeta quedó abierta y el operador tuvo que
         # repetirlo (T10 muteó, luego "no se está cerrando nada"). Orden CORTA que es claramente CERRAR (verbo de

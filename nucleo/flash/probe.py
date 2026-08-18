@@ -554,6 +554,22 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         except Exception:
             pass
 
+    # BACKSTOP DE TRABAJO DEVUELTO (V2-142, espejo del provider — cablear en AMBOS). Distinto del de promesa:
+    # aquí el modelo no promete nada, MANDA AL OPERADOR a buscar en Google/Maps lo que él acaba de pedir. Medido:
+    # «¿puedes buscar tú el teléfono?, para eso te pido ayuda» → «la forma más fiable es que tú busques
+    # "farmacia" en Google Maps y me pases el teléfono». Una regla de prompt sola no basta para esto: lo que hace
+    # falta es HACER la búsqueda, y para eso hay worker y navegador. Solo si NADA corre — con una tarea viva la
+    # frase puede ser una sugerencia mientras se trabaja, y re-escalar duplicaría el trabajo (V2-123).
+    if action == "chat" and spoken and not _hw:
+        try:
+            from . import router as _routerh
+            if _routerh.hands_public_lookup_back(spoken):
+                action = "escalate"
+                _window_goal = (_routerh.escalate_goal_from_window(sess.window, text) or _window_goal
+                                or operator_text)
+        except Exception:
+            pass
+
     # GUARD MARKETPLACE → NAVEGAR (V2-057 2026-07-21, espejo del provider): un sitio de compraventa NOMBRADO
     # (Idealista/coches.net/Wallapop…) exige ENTRAR y navegar el catálogo, no un dato puntual de web_search ni un
     # "no puedo". Si el modelo eligió search/chat/show pero el texto nombra un marketplace → escala (navegador).

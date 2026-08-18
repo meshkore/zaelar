@@ -227,6 +227,13 @@ def test_engine_audit_cycle(monkeypatch, tmp_path):
         import bus
 
         from voice import brain_notes
+        # The machine this runs on must not decide the result (testmap node 7.10). This test's wait for the
+        # audit is bounded at 2 s, and with `auto` the first memory read in the process can spend longer than
+        # that just loading a real embedding backend — which is nothing this test is about. Two other tests in
+        # this same file already pin it for the same reason; this one was the omission, and it showed up as a
+        # reproducible failure only once the local Ollama stopped serving `embeddinggemma` and the fallback to
+        # fastembed started paying an ONNX load. Verified at HEAD with no product change in the tree.
+        monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
         engine.reset()
         brain_notes.drain()
         monkeypatch.setattr(engine, "_cfg", lambda: {"enabled": True, "cooldown_s": 0.0,

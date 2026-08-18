@@ -92,6 +92,9 @@ DOMAINS: list[dict] = [
             # V2-141: a secret spoken INSIDE a request must not swallow the request — and a polite
             # question («¿puedes pagarla?») is still an irreversible order.
             "tests/agent_headless/unit/flash/test_secret_inside_a_request.py",
+            # V2-142: a task from another request bleeding into this one, and the search handed back to
+            # the operator on a turn where zaelar has web_search and a browser.
+            "tests/agent_headless/unit/flash/test_handback_and_task_bleed.py",
             "tests/agent_headless/unit/test_skeleton.py", "tests/agent_headless/unit/test_sparks.py"]},
         {"id": "2.4", "title": "Cliente LLM rápido, reintento y RELEVO por latencia", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_fast_client.py", "tests/agent_headless/unit/flash/test_fast_client_retry.py",
