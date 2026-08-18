@@ -127,7 +127,7 @@ def _retest_pending() -> dict:
     _log(f"paso 1 · terminado rc={rc}")
 
     led = statusmod.load().get("scenarios") or {}
-    passed, rotated = [], []
+    passed, rotated, inconclusive = [], [], []
     for p in ready:
         sid = p["scenario"]
         e = led.get(sid) or {}
@@ -149,11 +149,20 @@ def _retest_pending() -> dict:
                 res = I.rotate_failure(fake, scenario=scn, sandboxed=True, previous=before.get(sid))
                 if res.get("initiative"):
                     rotated.append(f"{sid} → {res['initiative'].name}")
+        else:
+            # Neither PASS nor FAIL: the run died before producing a verdict (INFRA). Not a verdict, so nothing
+            # closes and nothing rotates — but it must not vanish either, or the fixing agent's consumed verify
+            # task looks like it was ignored.
+            if I.note_inconclusive(sid, detail=e.get("verdict", "") or "sin veredicto"):
+                inconclusive.append(sid)
     if passed:
         _log(f"paso 1 · PASAN y se cierran: {', '.join(passed)}")
     if rotated:
         _log(f"paso 1 · siguen fallando → iniciativa NUEVA: {'; '.join(rotated)}")
-    return {"retested": len(ready), "passed": passed, "rotated": rotated}
+    if inconclusive:
+        _log(f"paso 1 · NO CONCLUYENTE (fallo de arnés, ni cierra ni rota; hace falta una tarea de verify NUEVA): "
+             f"{', '.join(inconclusive)}")
+    return {"retested": len(ready), "passed": passed, "rotated": rotated, "inconclusive": inconclusive}
 
 
 def _top_up() -> dict:

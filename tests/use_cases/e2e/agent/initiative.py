@@ -477,6 +477,34 @@ def rotate_failure(result: dict, *, scenario, sandboxed: bool, previous: Path | 
         return {"error": str(e)}
 
 
+def note_inconclusive(scenario_id: str, *, detail: str) -> Path | None:
+    """A re-test that died on INFRASTRUCTURE: leave a dated note in the workspace, close NOTHING.
+
+    An INFRA run is not a verdict, so it must not close the initiative (the fix might be perfect) nor rotate it
+    (there is no remaining error to describe). But the verify task was already CONSUMED by `run.py --verify`, so
+    without this note the fixing agent sees their task gone, no new round, and no way to tell "I was re-tested and
+    still failed" from "nobody ran it" — the second time in this loop's life that a silent gap would have read as
+    someone ignoring the handoff. Writing the note keeps the queue honest: the case falls back to `awaiting_fix`
+    with its history saying why.
+    """
+    path = find_initiative(scenario_id)
+    if path is None:
+        return None
+    try:
+        stamp = time.strftime("%Y-%m-%d %H:%M", time.localtime())
+        body = path.read_text(encoding="utf-8").rstrip("\n")
+        body += (f"\n\n## Re-test NO CONCLUYENTE — {stamp}\n\n"
+                 f"Se re-probó tras el arreglo y la corrida **no llegó a producir veredicto**: `{detail}`.\n\n"
+                 f"Eso es un fallo del ARNÉS o del transporte, **no del arreglo** — esta iniciativa NO se cierra ni "
+                 f"se rota, porque no hay error nuevo que describir. La tarea de verificación ya se consumió, así "
+                 f"que para que el bucle vuelva a probarlo hace falta **una tarea de verificación nueva** "
+                 f"(`T<n>-uc-<caso>-verify.md`, `status: next`).\n")
+        path.write_text(body + "\n", encoding="utf-8")
+        return path
+    except Exception:
+        return None
+
+
 def close_on_pass(scenario_id: str, *, verdict: str, overall) -> dict:
     """A case that PASSES its re-test: close its initiative, the work is done.
 
