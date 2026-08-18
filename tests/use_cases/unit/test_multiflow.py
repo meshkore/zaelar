@@ -458,3 +458,16 @@ def test_a_re_run_keeps_the_workspace_pointer(tmp_path, monkeypatch):
     status.attach_workspaces({"bad": {"initiative": "ini.md", "task": "t.md"}})
     status.record(res, sandboxed=True)                     # round 2
     assert status.load()["scenarios"]["bad"]["workspace"]["initiative"] == "ini.md"
+
+
+# ── the harness must not die on a legal-but-different reply shape ──────────────────────────────────────────
+def test_a_list_shaped_reply_does_not_kill_the_scenario():
+    """`buy-known-product__es` was lost to `'list' object has no attribute 'strip'`: the broker returned
+    OpenAI's structured content form. Both shapes are legal and the provider picks, so the caller can't be the
+    place that knows. Non-text parts are DROPPED, not stringified — a `str(dict)` of an image part pasted into
+    the tester's next utterance is worse than saying nothing."""
+    from tests.use_cases.e2e.agent import llm as L
+    assert L._as_text("plain") == "plain"
+    assert L._as_text([{"type": "text", "text": "hola "}, {"type": "text", "text": "mundo"}]) == "hola mundo"
+    assert L._as_text([{"type": "image_url", "image_url": {"url": "x"}}]) == ""
+    assert L._as_text(None) == ""

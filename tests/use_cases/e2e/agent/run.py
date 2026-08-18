@@ -17,6 +17,7 @@ import uuid
 
 from . import config, driver as drivermod, judge as judgemod, probe_client, report as reportmod, scenarios as SC
 from . import initiative as initiativemod
+from . import llm as llmmod
 from . import status as statusmod
 from . import verify as verifymod
 from . import watchdog as watchdogmod
@@ -43,7 +44,7 @@ def _run_scenario(scenario) -> dict:
 
     for turn in range(max(1, scenario.turns)):
         res = probe_client.say(utterance, session, execute=(scenario.channel == "probe"))
-        reply_text = (res.get("reply") or "").strip()
+        reply_text = llmmod._as_text(res.get("reply")).strip()
         note("zaelar", reply_text)
         print(f"  zaelar  · {reply_text[:160]}")
         driver.hears(reply_text)

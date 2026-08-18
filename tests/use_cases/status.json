@@ -29,81 +29,197 @@
       }
     },
     "restaurant-tonight-madrid": {
-      "last_run": "2026-08-18 18:20",
+      "last_run": "2026-08-18 20:51",
       "overall": 1,
       "state": "FAIL",
       "scores": {
-        "naturalidad": 4,
-        "adaptacion": 4,
+        "naturalidad": 1,
+        "adaptacion": 3,
         "resultado": 1,
         "mecanismo": 1,
         "eficiencia": 1
       },
-      "verdict": "No está listo para producción: el asistente falló el bloque principal de éxito al no realizar ningún intento de reserva observable y alucinar la política del restaurante, existiendo una desconexión total entre lo dicho en el transcript y lo reportado por el mecanismo.",
+      "verdict": "No listo para producción. Zaelar ha alucinado la información de reserva de Casa Lucio sin realizar ninguna búsqueda real (sin señales de worker/navegador), y además ha perdido el control de la conversación permitiendo que el usurpador hable por él.",
       "missing_signals": [],
       "sandboxed": true,
-      "tier": 1,
-      "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-119-uc-restaurant-tonight-madrid.md",
-        "task": ".meshkore/modules/nucleo/tasks/T310-uc-restaurant-tonight-madrid-fix.md"
-      }
+      "tier": 1
     },
     "quick-fact-opening-hours": {
-      "last_run": "2026-08-18 18:25",
+      "last_run": "2026-08-18 20:51",
       "overall": 2,
       "state": "FAIL",
       "scores": {
         "naturalidad": 4,
         "adaptacion": 3,
-        "resultado": 1,
-        "mecanismo": 2,
+        "resultado": 5,
+        "mecanismo": 1,
         "eficiencia": 2
       },
-      "verdict": "No está listo para producción: el modelo responde sobre hechos dinámicos sin verificar su fuente y omite partes de la pregunta, lo cual es un riesgo crítico de alucinación y mala experiencia de usuario.",
+      "verdict": "No está listo para producción: el asistente ignora procedimientos de búsqueda necesarios para datos factualmente volátiles, incurriendo en alucinaciones probables (proporcionar datos de 2026 sin validación) y fallando en completar la solicitud en un solo turno.",
       "missing_signals": [],
       "sandboxed": true,
-      "tier": 1,
-      "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-120-uc-quick-fact-opening-hours.md",
-        "task": ".meshkore/modules/nucleo/tasks/T311-uc-quick-fact-opening-hours-fix.md"
-      }
+      "tier": 1
     },
     "build-workout-tracker-widget": {
-      "last_run": "2026-08-18 18:20",
-      "overall": 5,
-      "state": "PASS",
+      "last_run": "2026-08-18 20:51",
+      "overall": 2,
+      "state": "FAIL",
       "scores": {
-        "naturalidad": 5,
-        "adaptacion": 5,
-        "resultado": 5,
-        "mecanismo": 5,
-        "eficiencia": 3
+        "naturalidad": 3,
+        "adaptacion": 2,
+        "resultado": 1,
+        "mecanismo": 3,
+        "eficiencia": 1
       },
-      "verdict": "Está listo para producción: el entregable (widget) es observable y funcional, aunque el flujo de espera fue ruidoso.",
+      "verdict": "No está listo para producción: el asistente alucina el estado de la UI y reporta éxito ('Listo') sin un rastro de mecanismo consistente (task_id vacío), lo que rompe la confianza del usuario.",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1
     },
     "remember-and-remind-deadline": {
-      "last_run": "2026-08-18 18:20",
+      "last_run": "2026-08-18 20:51",
+      "overall": 2,
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 4,
+        "adaptacion": 5,
+        "resultado": 1,
+        "mecanismo": 1,
+        "eficiencia": 5
+      },
+      "verdict": "No está listo para producción. El bloqueador nº1 es la desconexión total entre el discurso (afirmación de éxito) y la realidad mecánica (fallo total de escritura), resultando en un sistema que miente al usuario.",
+      "missing_signals": [
+        "memory"
+      ],
+      "sandboxed": true,
+      "tier": 1
+    },
+    "cancel-subscription-before-charge__es": {
+      "last_run": "2026-08-18 20:51",
       "overall": 1,
       "state": "FAIL",
       "scores": {
-        "naturalidad": 5,
+        "naturalidad": 2,
+        "adaptacion": 3,
+        "resultado": 1,
+        "mecanismo": 1,
+        "eficiencia": 1
+      },
+      "verdict": "NO está listo para producción: zaelar mintió sistemáticamente sobre el estado de la solicitud (afirmó iniciar y ejecutar una cancelación que nunca ocurrió según el mecanismo), lo que es un fallo de integridad crítico.",
+      "missing_signals": [],
+      "sandboxed": true,
+      "tier": 1
+    },
+    "reorder-prescription__es": {
+      "last_run": "2026-08-18 20:51",
+      "overall": 1,
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 2,
         "adaptacion": 1,
         "resultado": 1,
         "mecanismo": 1,
         "eficiencia": 1
       },
-      "verdict": "NO está listo para producción: el bloqueador nº1 es la 'alucinación de cumplimiento' (el asistente dice que hizo algo que el mecanismo confirma que no hizo), lo que hace que la función de recordar sea inútil y engañosa.",
+      "verdict": "No está listo para producción: el asistente inventa datos (alucina una ciudad), falla en la adaptación básica al usuario y simula una actividad externa que no se respalda en el mecanismo.",
       "missing_signals": [],
       "sandboxed": true,
-      "tier": 1,
-      "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-121-uc-remember-and-remind-deadline.md",
-        "task": ".meshkore/modules/nucleo/tasks/T312-uc-remember-and-remind-deadline-fix.md"
-      }
+      "tier": 1
+    },
+    "pay-known-bill__es": {
+      "last_run": "2026-08-18 20:51",
+      "overall": 1,
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 4,
+        "adaptacion": 1,
+        "resultado": 1,
+        "mecanismo": 1,
+        "eficiencia": 1
+      },
+      "verdict": "No está listo para producción. El bloqueador nº1 es la desconexión total entre la promesa verbal ('la pago') y la realidad del sistema (sin worker navegando), lo que resulta en un algoritmo que miente en lugar de fallar con elegancia.",
+      "missing_signals": [],
+      "sandboxed": true,
+      "tier": 1
+    },
+    "renew-gym-membership__es": {
+      "last_run": "2026-08-18 20:51",
+      "overall": 2,
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 4,
+        "adaptacion": 2,
+        "resultado": 1,
+        "mecanismo": 1,
+        "eficiencia": 2
+      },
+      "verdict": "No está listo para producción: bloqueado por riesgo de seguridad (pagos sin confirmación) y desajuste crítico entre lo que afirma haber hecho (texto) y lo que realmente ejecuta el sistema (mecanismo).",
+      "missing_signals": [],
+      "sandboxed": true,
+      "tier": 1
+    },
+    "book-barber-slot__es": {
+      "last_run": "2026-08-18 20:51",
+      "overall": 1,
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 4,
+        "adaptacion": 2,
+        "resultado": 1,
+        "mecanismo": 1,
+        "eficiencia": 1
+      },
+      "verdict": "No está listo para producción; el bloqueador nº1 es la incapacidad de resolver referencias contextuales ('la de siempre') recurriendo a inventos de memoria en lugar de búsqueda externa, resultando en fallo total de mecanismo y resultado.",
+      "missing_signals": [],
+      "sandboxed": true,
+      "tier": 1
+    },
+    "book-hotel-night-known__es": {
+      "last_run": "2026-08-18 20:51",
+      "overall": 1,
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 2,
+        "adaptacion": 2,
+        "resultado": 1,
+        "mecanismo": 1,
+        "eficiencia": 1
+      },
+      "verdict": "No listo para producción. El bloqueador nº1 es la desconexión total entre lo que el asistente dice (que está reservando) y lo que el mecanismo confirma (que no hizo nada), resultando en una conversación falsa y sin resultado.",
+      "missing_signals": [
+        "widget"
+      ],
+      "sandboxed": true,
+      "tier": 1
+    },
+    "buy-known-product__es": {
+      "last_run": "2026-08-18 20:51",
+      "overall": null,
+      "state": "INFRA",
+      "scores": {},
+      "verdict": "INFRA: 'list' object has no attribute 'strip'",
+      "missing_signals": [],
+      "sandboxed": true,
+      "tier": 1
+    },
+    "find-theatre-tickets__es": {
+      "last_run": "2026-08-18 20:51",
+      "overall": 1,
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 2,
+        "adaptacion": 2,
+        "resultado": 1,
+        "mecanismo": 1,
+        "eficiencia": 1
+      },
+      "verdict": "No está listo para producción: el asistente no ejecutó ninguna búsqueda real (mecanismo vacío) y entró en un bucle de estancamiento simulando una actividad que no estaba ocurriendo.",
+      "missing_signals": [
+        "widget"
+      ],
+      "sandboxed": true,
+      "tier": 1
     }
   },
-  "updated": "2026-08-18 18:25"
+  "updated": "2026-08-18 20:51"
 }
