@@ -133,6 +133,19 @@ def _render(led: dict) -> None:
             lines.append(f"| {tier} | {loc} | {len(ran)} | {len(group)} | {ok} |")
         lines.append("")
 
+    work = {s: e["workspace"] for s, e in scen.items()
+            if e.get("state") == "FAIL" and e.get("workspace")}
+    if work:
+        lines += ["## Where the work on each failing case happens", "",
+                  "One initiative per use case — that initiative IS the workspace for it, and it carries the "
+                  "transcript, the mechanism report and the reproduce command. Both folders are gitignored "
+                  "(«ni nuestro pasado ni nuestro futuro se publican»), so these paths are local-only.", "",
+                  "| scenario | initiative (the workspace) | fix task |", "|---|---|---|"]
+        for sid in sorted(work):
+            w = work[sid]
+            lines.append(f"| `{sid}` | `{w.get('initiative', '—')}` | `{w.get('task', '—')}` |")
+        lines.append("")
+
     multi = {s: e for s, e in scen.items() if e.get("max_concurrent") is not None}
     if multi:
         lines += ["## Multi-flow scenarios (concurrency measured live, from `/api/tasks`)", "",
@@ -151,6 +164,28 @@ def summary_line() -> str:
         return "no recorded results yet"
     passed = sum(1 for e in scen.values() if e.get("state") == "PASS")
     return f"{passed}/{len(scen)} scenarios passing (see tests/use_cases/STATUS.md)"
+
+
+def attach_workspaces(mapping: dict) -> None:
+    """Record WHERE the work on each failing case happens, so the board is the entry point to it.
+
+    The initiative is the workspace for a use case, but it lives among 100+ others in a gitignored folder —
+    a fixing agent handed only "quick-fact-opening-hours is failing" has to know the naming convention to find
+    anything. This closes that gap: the board names the file. Only PATHS are stored, never content — the paths
+    are already-public case ids, while the initiative itself holds the transcript and stays local.
+
+    Called AFTER filing (the paths do not exist before it), so it updates and re-renders rather than being
+    folded into `record()`.
+    """
+    if not mapping:
+        return
+    led = load()
+    scen = led.setdefault("scenarios", {})
+    for sid, paths in mapping.items():
+        if sid in scen:
+            scen[sid]["workspace"] = paths
+    LEDGER_PATH.write_text(json.dumps(led, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    _render(led)
 
 
 def failing_count() -> int:

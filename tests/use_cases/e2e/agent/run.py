@@ -142,6 +142,7 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
     # skipped deliberately — a crashed harness or a network timeout is not a use-case bug and would send the
     # fixing agent chasing nothing.
     rounds: dict[str, int | None] = {}
+    workspaces: dict[str, dict] = {}
     if not args_no_file:
         by_id = {s.id: s for s in chosen}
         for r in results:
@@ -160,6 +161,16 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
             else:
                 print(f"  📋 ronda {filed['round']} añadida a {filed['initiative'].name}")
             rounds[r["scenario"]] = filed.get("round")
+            if filed.get("initiative"):
+                workspaces[r["scenario"]] = {
+                    "initiative": str(filed["initiative"].relative_to(initiativemod.ENGINE)),
+                    "task": str(filed["task"].relative_to(initiativemod.ENGINE))
+                    if filed.get("task") else "",
+                }
+
+    # Point the board AT the workspaces just filed, so "which cases fail?" and "where do I work on them?" are
+    # answered in the same place instead of requiring knowledge of the naming convention.
+    statusmod.attach_workspaces(workspaces)
 
     # Close every verify task we honoured — pass OR fail. The task asked "run this again", and it did run;
     # leaving it `next` on a failure would make the next --verify batch re-run it forever without anyone having

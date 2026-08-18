@@ -425,3 +425,23 @@ def test_the_board_shows_how_much_of_the_catalog_is_still_UNRUN(tmp_path, monkey
     assert "Catalog coverage — 1 of" in board
     assert "never run)" in board
     assert "| tier | locale | run | of | passing |" in board
+
+
+def test_the_board_names_the_workspace_of_each_failing_case(tmp_path, monkeypatch):
+    """The initiative IS the workspace for a case, but it sits among 100+ others in a gitignored folder — an
+    agent handed only "quick-fact is failing" would need the naming convention to find anything. Paths only,
+    never content: the case id is already public, the transcript inside the initiative is not."""
+    monkeypatch.setattr(status, "LEDGER_PATH", tmp_path / "status.json")
+    monkeypatch.setattr(status, "BOARD_PATH", tmp_path / "STATUS.md")
+    status.record([{"scenario": "bad", "tier": 1, "verdict": {"overall": 1, "scores": {}, "veredicto": "no"},
+                    "run": {"mechanism_report": {}}},
+                   {"scenario": "good", "tier": 1, "verdict": {"overall": 5, "scores": {}, "veredicto": "ok"},
+                    "run": {"mechanism_report": {}}}], sandboxed=True)
+    status.attach_workspaces({"bad": {"initiative": ".meshkore/roadmap/initiatives/V2-999-uc-bad.md",
+                                     "task": ".meshkore/modules/nucleo/tasks/T999-uc-bad-fix.md"},
+                              "good": {"initiative": "never-filed.md", "task": ""}})
+    board = (tmp_path / "STATUS.md").read_text(encoding="utf-8")
+    assert "V2-999-uc-bad.md" in board and "T999-uc-bad-fix.md" in board
+    assert "never-filed.md" not in board      # a PASSING case has no workspace to point at
+    status.attach_workspaces({})              # no-op, must not wipe what is there
+    assert "V2-999-uc-bad.md" in (tmp_path / "STATUS.md").read_text(encoding="utf-8")

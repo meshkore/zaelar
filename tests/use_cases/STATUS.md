@@ -19,6 +19,38 @@ the operator's live one.
 
 **1 passing · 4 failing · 0 infra** of 5 scenarios with a recorded result.
 
+## Catalog coverage — 5 of 119 scenarios ever run (114 never run)
+
+An unrun case is **not** a passing one. This is the walk's progress board.
+
+| tier | locale | run | of | passing |
+|---|---|---|---|---|
+| 1 | es | 4 | 12 | 1 |
+| 1 | us | 0 | 9 | 0 |
+| 2 | es | 0 | 22 | 0 |
+| 2 | us | 0 | 21 | 0 |
+| 3 | es | 0 | 6 | 0 |
+| 3 | us | 0 | 6 | 0 |
+| 4 | es | 1 | 7 | 0 |
+| 4 | us | 0 | 6 | 0 |
+| 5 | es | 0 | 6 | 0 |
+| 5 | us | 0 | 6 | 0 |
+| 6 | es | 0 | 5 | 0 |
+| 6 | us | 0 | 5 | 0 |
+| 7 | es | 0 | 4 | 0 |
+| 7 | us | 0 | 4 | 0 |
+
+## Where the work on each failing case happens
+
+One initiative per use case — that initiative IS the workspace for it, and it carries the transcript, the mechanism report and the reproduce command. Both folders are gitignored («ni nuestro pasado ni nuestro futuro se publican»), so these paths are local-only.
+
+| scenario | initiative (the workspace) | fix task |
+|---|---|---|
+| `quick-fact-opening-hours` | `.meshkore/roadmap/initiatives/V2-120-uc-quick-fact-opening-hours.md` | `.meshkore/modules/nucleo/tasks/T311-uc-quick-fact-opening-hours-fix.md` |
+| `remember-and-remind-deadline` | `.meshkore/roadmap/initiatives/V2-121-uc-remember-and-remind-deadline.md` | `.meshkore/modules/nucleo/tasks/T312-uc-remember-and-remind-deadline-fix.md` |
+| `restaurant-tonight-madrid` | `.meshkore/roadmap/initiatives/V2-119-uc-restaurant-tonight-madrid.md` | `.meshkore/modules/nucleo/tasks/T310-uc-restaurant-tonight-madrid-fix.md` |
+| `three-tasks-at-once` | `.meshkore/roadmap/initiatives/V2-118-uc-three-tasks-at-once.md` | `.meshkore/modules/nucleo/tasks/T309-uc-three-tasks-at-once-fix.md` |
+
 ## Multi-flow scenarios (concurrency measured live, from `/api/tasks`)
 
 | scenario | max concurrent tasks | distinct worker kinds |

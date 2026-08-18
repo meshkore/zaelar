@@ -22,7 +22,11 @@
         "code",
         "generic",
         "web"
-      ]
+      ],
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-118-uc-three-tasks-at-once.md",
+        "task": ".meshkore/modules/nucleo/tasks/T309-uc-three-tasks-at-once-fix.md"
+      }
     },
     "restaurant-tonight-madrid": {
       "last_run": "2026-08-18 18:20",
@@ -38,7 +42,11 @@
       "verdict": "No está listo para producción: el asistente falló el bloque principal de éxito al no realizar ningún intento de reserva observable y alucinar la política del restaurante, existiendo una desconexión total entre lo dicho en el transcript y lo reportado por el mecanismo.",
       "missing_signals": [],
       "sandboxed": true,
-      "tier": 1
+      "tier": 1,
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-119-uc-restaurant-tonight-madrid.md",
+        "task": ".meshkore/modules/nucleo/tasks/T310-uc-restaurant-tonight-madrid-fix.md"
+      }
     },
     "quick-fact-opening-hours": {
       "last_run": "2026-08-18 18:25",
@@ -54,7 +62,11 @@
       "verdict": "No está listo para producción: el modelo responde sobre hechos dinámicos sin verificar su fuente y omite partes de la pregunta, lo cual es un riesgo crítico de alucinación y mala experiencia de usuario.",
       "missing_signals": [],
       "sandboxed": true,
-      "tier": 1
+      "tier": 1,
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-120-uc-quick-fact-opening-hours.md",
+        "task": ".meshkore/modules/nucleo/tasks/T311-uc-quick-fact-opening-hours-fix.md"
+      }
     },
     "build-workout-tracker-widget": {
       "last_run": "2026-08-18 18:20",
@@ -86,7 +98,11 @@
       "verdict": "NO está listo para producción: el bloqueador nº1 es la 'alucinación de cumplimiento' (el asistente dice que hizo algo que el mecanismo confirma que no hizo), lo que hace que la función de recordar sea inútil y engañosa.",
       "missing_signals": [],
       "sandboxed": true,
-      "tier": 1
+      "tier": 1,
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-121-uc-remember-and-remind-deadline.md",
+        "task": ".meshkore/modules/nucleo/tasks/T312-uc-remember-and-remind-deadline-fix.md"
+      }
     }
   },
   "updated": "2026-08-18 18:25"
