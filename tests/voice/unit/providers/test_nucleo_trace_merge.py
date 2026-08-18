@@ -12,7 +12,8 @@ from nucleo.flash import accumulator as acc_mod
 from nucleo.flash.accumulator import Accumulator
 from voice import trace
 from voice.engine.llm.providers.nucleo import (
-    NucleoLLM, _begin_or_adopt_trace, _flow_should_close, _release_acc_trace_if_fresh,
+    NucleoLLM, _begin_or_adopt_trace, _close_flow_now, _flow_should_close, _merge_target,
+    _release_acc_trace_if_fresh,
 )
 
 
@@ -358,3 +359,83 @@ def test_use_case_dos_peticiones_separadas_en_el_tiempo_siguen_siendo_dos_flujos
     second = _simulate_utterance(["Ponme música"], brain=brain)
     assert second[0][1] != first[0][1], "dos peticiones sin relación no pueden compartir flujo"
     trace.adopt("")
+
+
+# ── V2-123: un turno SOBRE una tarea viva se funde en su flujo, no abre columna aparte ────────────────────────────
+# El agujero que cierra, reportado con captura: mientras un worker buscaba una guitarra, «sí, muéstramelo todo en
+# tiempo real» y la respuesta del agente abrieron un flujo SEPARADO — la fusión de V2-090 solo salta si el modelo
+# llama a `send_to_worker`, y un seguimiento que el modelo contesta charlando no casa con nada.
+
+def test_merge_target_absorbe_un_turno_conversacional_mientras_una_tarea_corre():
+    assert _merge_target("T9·bbbb", ["T5·aaaa"], set()) == "T5·aaaa"
+
+
+def test_merge_target_acepta_las_tools_que_solo_CONDUCEN_la_tarea_viva():
+    assert _merge_target("T9·bbbb", ["T5·aaaa"], {"send_to_worker"}) == "T5·aaaa"
+    assert _merge_target("T9·bbbb", ["T5·aaaa"], {"stop_worker", "recall"}) == "T5·aaaa"
+
+
+def test_merge_target_no_absorbe_un_turno_que_hizo_otra_cosa():
+    """Poner música mientras corre una búsqueda es un turno sobre otra cosa, corra lo que corra."""
+    assert _merge_target("T9·bbbb", ["T5·aaaa"], {"play_music"}) == ""
+    assert _merge_target("T9·bbbb", ["T5·aaaa"], {"send_to_worker", "show_widget"}) == ""
+
+
+def test_merge_target_no_adivina_entre_varias_tareas_vivas():
+    """La norma desde V2-090: un flujo suelto de más es mejor que adivinar a cuál de dos pertenece un «¿cómo va?»."""
+    assert _merge_target("T9·bbbb", ["T5·aaaa", "T7·cccc"], set()) == ""
+
+
+def test_merge_target_no_toca_un_turno_que_ACABA_de_lanzar_su_propia_tarea():
+    assert _merge_target("T9·bbbb", ["T5·aaaa"], set(), just_escalated=True) == ""
+
+
+def test_merge_target_no_absorbe_un_trace_que_YA_es_una_tarea():
+    """Si este trace tiene su propio worker vivo no es un turno buscando dónde colgarse: es una tarea."""
+    assert _merge_target("T5·aaaa", ["T5·aaaa"], set()) == ""
+    assert _merge_target("T5·aaaa", ["T5·aaaa", "T7·cccc"], set()) == ""
+
+
+def test_merge_target_sin_nada_vivo_no_funde_nada():
+    assert _merge_target("T9·bbbb", [], set()) == ""
+    assert _merge_target("", ["T5·aaaa"], set()) == ""
+
+
+def test_merge_target_el_titular_es_el_mas_antiguo_via_trace_merge():
+    """`_merge_target` elige el DESTINO; quién queda como titular lo decide `trace.merge` (el seq más bajo), así
+    que una tarea larga con varias fusiones converge siempre al primer id en vez de saltar de titular."""
+    assert trace.merge(_merge_target("T9·bbbb", ["T5·aaaa"], set()), "T9·bbbb") == "T5·aaaa"
+
+
+def test_use_case_seguimiento_mientras_el_worker_busca_es_UN_solo_hilo(monkeypatch):
+    """CASO DE USO del reporte, con los eventos reales: el operador pide una búsqueda (worker vivo en su trace), y
+    acto seguido dice «sí, muéstramelo todo en tiempo real» — que el modelo contesta hablando, sin tool. Antes eran
+    DOS corr_ids; ahora el segundo se funde y el marcador queda emitido bajo el trace NUEVO (para que el lector lo
+    resuelva) apuntando al titular."""
+    from nucleo import dispatch
+    from nucleo.workers.session import SessionRecord
+    monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
+    dispatch._SESSIONS["w1"] = SessionRecord(task_id="w1", kind="web", status="running",
+                                             goal="busca una guitarra zurda para niño", trace_id="T5·aaaa")
+    assert dispatch.live_traces() == ["T5·aaaa"], "premisa: la tarea de la guitarra está viva"
+
+    seen = []
+    monkeypatch.setattr(trace, "merge", lambda a, b: seen.append((a, b)) or a)
+    brain = NucleoLLM.__new__(NucleoLLM)
+    brain._acc_trace_id = ""
+    brain._escalated_trace_id = ""
+    brain._turn_tools = set()
+    _close_flow_now("T9·bbbb", brain)
+    assert seen == [("T5·aaaa", "T9·bbbb")], "el turno de seguimiento tiene que fundirse en la tarea viva"
+
+
+def test_una_tarea_terminada_ya_no_absorbe_nada(monkeypatch):
+    """`live_traces()` filtra por estado igual que `_live_keys`. Sin ese filtro, una tarea acabada seguiría
+    absorbiendo conversación posterior para siempre — la misma clase de fallo que arrastraba `active_sessions()`."""
+    from nucleo import dispatch
+    from nucleo.workers.session import SessionRecord
+    monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
+    dispatch._SESSIONS["w1"] = SessionRecord(task_id="w1", kind="web", status="done",
+                                             goal="busca una guitarra zurda", trace_id="T5·aaaa")
+    assert dispatch.live_traces() == []
+    assert _merge_target("T9·bbbb", dispatch.live_traces(), set()) == ""

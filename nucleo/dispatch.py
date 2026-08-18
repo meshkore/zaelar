@@ -534,8 +534,33 @@ def _live_keys() -> list[str]:
     return [k for k, r in _SESSIONS.items() if r.status in ("queued", "running")]
 
 
+def live_traces() -> list[str]:
+    """Distinct `trace_id`s of the sessions that are still LIVE. The set form of `has_live_trace`, for the caller
+    that needs to know WHICH task is running rather than whether a given trace is one (`nucleo.py::_merge_target`,
+    V2-123). Same liveness filter as `_live_keys` — a `done` session is not a task the conversation can still be
+    about, and reading unfiltered `_SESSIONS` is the exact bug `active_sessions()` carried until 2026-08-18."""
+    out = []
+    for k in _live_keys():
+        t = str(getattr(_SESSIONS[k], "trace_id", "") or "")
+        if t and t not in out:
+            out.append(t)
+    return out
+
+
+# Tokens for the dedup matcher. `.split()` was leaving PUNCTUATION stuck to the word, so `zurdo` and `zurdo,` —
+# and `guitarra` and `(guitarra` — counted as different words. Found live (2026-08-18): two escalations of the same
+# search scored Jaccard 0.556 against `find_duplicate`'s 0.60 threshold and BOTH workers ran, doing the same job
+# twice on real money. Punctuation only ever moves that ratio DOWN (it shrinks the intersection and grows the
+# union), so the bias was one-directional: miss duplicates, never over-merge. `\w+` rather than `[a-z0-9]+` on
+# purpose — `_norm` strips accents but a goal in another alphabet would tokenize to NOTHING under a latin-only
+# class, which would silently turn dedup off for that language instead of fixing it. CJK is a separate matter and
+# unchanged either way: its tokens are 2-3 characters, so the `len(w) >= 4` filter below already dropped them —
+# a pre-existing limit of this matcher, not something introduced here.
+_WORD_RE = re.compile(r"\w+", re.UNICODE)
+
+
 def _content_words(text: str) -> set:
-    return {w for w in _norm(text).split() if len(w) >= 4}
+    return {w for w in _WORD_RE.findall(_norm(text)) if len(w) >= 4}
 
 
 def _target_widget(request: str) -> str:
@@ -1211,6 +1236,39 @@ async def dispatch(task: "Task") -> str:
 
 
 # ── consumo de escalados del bus (FlashBrain → workers) ────────────────────────────────────────────────────
+def _merge_dedup_flow(ctx: dict, dup: str) -> bool:
+    """An escalation was just absorbed as a refinement of the live session `dup` — which is PROOF, not a guess,
+    that the two are the same task (`find_duplicate` demands 60% content-word overlap with its goal). Fuse this
+    turn's flow into the live task's so the master paints ONE chronological thread (V2-123). Returns True when the
+    caller must NOT emit its own `flow/end`.
+
+    Why the close is skipped once merged: the reader folds an absorbed flow into its titular and a close counts for
+    the COMBINED row (`cloud/backoffice/src/flowAttribution.js::_absorb` sums `ended_events` — "closed if EITHER
+    closed", correct when both halves are turns of one sentence). Closing here would therefore mark a task that is
+    still working as finished and drop it off the board — losing sight of live work, which is worse than the stray
+    open flow this close exists to prevent. The live session's own end (`_run_session`'s finally block) owns it,
+    the same rule as everywhere else: the flow belongs to whoever is still working.
+
+    This is the trigger half that V2-105 left unbuilt on purpose. It merges on EVIDENCE ALREADY HELD rather than on
+    a similarity guess: the dedup matcher had to be convinced first, and it is the strict one of the two resolvers
+    in this module (`resolve_sessions` is deliberately loose — "better to stop too much than leave zombies" — a
+    bias that suits cancelling and would be wrong for attribution)."""
+    src = str((ctx or {}).get("trace") or "")
+    if not src:
+        return False
+    dst = trace_of(dup)
+    if not dst:
+        return False
+    if dst == src:
+        return True             # already the same flow: nothing to fuse, and its worker still owns the close
+    try:
+        from voice import trace as _trace_merge
+        _trace_merge.merge(dst, src)
+    except Exception:
+        return False
+    return True
+
+
 def _close_escalated_flow(ctx: dict, *, ok: bool, status: str) -> None:
     """Explicit flow-close for an `escalate.requested` outcome that never spawns its own `SessionRecord` —
     rejected while the agent is halted, or absorbed as a refinement into an already-live session (V2-113). Both
@@ -1285,7 +1343,10 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                     await inject(dup, request)      # refinamiento a la sesión viva (no relanza)
                 except Exception as e:  # noqa: BLE001
                     logger.warning(f"dispatch: inject de dedup a {dup} falló: {e}")
-                _close_escalated_flow(ctx, ok=True, status="dedup_injected")
+                # Same task, proven by the dedup match → ONE flow (V2-123). Only when the fuse didn't happen does
+                # this trace still need its own explicit close, or `just_escalated` would keep it open forever.
+                if not _merge_dedup_flow(ctx, dup):
+                    _close_escalated_flow(ctx, ok=True, status="dedup_injected")
                 continue
             # V2-049 CONTINUIDAD: sin sesión viva que casar, ¿hay una gestión web INCOMPLETA reciente que ESTA
             # petición reanuda? (nudge «sigue con la ITV», o el operador aportando el dato que faltaba). Reanuda esa

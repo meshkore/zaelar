@@ -2544,7 +2544,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     Full suite: 2076 passed, 7 skipped, no regressions. Detail:
     `V2-113-flujo-escalada-cierre-prematuro.md`.
 - **Lead-in filler leaked into the chat wall AFTER the real reply — now its own module, and structurally unable
-  to touch chat at all (V2-114, 2026-08-17)**: live report with a real chat transcript — "¡Hola! ¿Cómo va
+  to touch chat at all (V2-122, 2026-08-17)**: live report with a real chat transcript — "¡Hola! ¿Cómo va
   todo?…" followed by "Déjame que mire…", a neutral wait-filler trailing a reply that no longer needed covering
   anything. Confirmed against `zaelar.db`: both lines were generated correctly with real text — this was a
   TRANSPORT bug, not a generation one. The filler spoke through `voice.proactive.speaker()`, which in LiveKit is
@@ -2587,8 +2587,8 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     is already the established "stable path" for exactly this class of data (same home as the UI bundle and
     alias pack) — no new mechanism needed, and no encroaching on the memory-domain session's territory. Tests:
     `tests/voice/unit/test_lang_fillers_store.py` (7 cases, testmap node 3.7). Full suite: 2086 passed, 7
-    skipped. Detail: `V2-114-relleno-modulo-aislado-y-fuga-al-chat.md`.
-  - **V2-114 addenda (2026-08-18): "structurally unable to touch chat" over-corrected — the filler DOES belong
+    skipped. Detail: `V2-122-relleno-modulo-aislado-y-fuga-al-chat.md`.
+  - **V2-122 addenda (2026-08-18): "structurally unable to touch chat" over-corrected — the filler DOES belong
     in the chat wall, just explicitly and marked.** Operator's own words: "son frases que acaba de decir el
     agente" (they're phrases the agent just said) — making the filler invisible to fix its ORDERING bug threw
     out real, user-visible content along with the bug. The audio-side fix stands unchanged
@@ -2813,6 +2813,56 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     the `API Error` verbatim, and with the watchdog at 0 the worker sails past the ceiling in silence. **NOT verified
     live**: the engine was not restarted in this pass, so a real task running with the confined cwd (bridges +
     reading its own screenshot) is still unexercised — that is the first thing to try.
+
+- **The flow-merge TRIGGER, built at last — and neither of the two resolvers we already had could do it (V2-123,
+  2026-08-18)**: V2-117 left the master able to paint ONE chronological thread for a merged task and nothing to
+  paint, because the trigger is the half V2-105 left unbuilt ON PURPOSE (`voice/trace.py::merge()` had zero callers
+  and the DB held zero merge markers — checked, not assumed). Detail:
+  `V2-123-disparador-de-fusion-de-flujos.md`.
+  - **The gap, from the operator's own screenshot**: while a worker searched for a guitar, "sí, muéstramelo todo en
+    tiempo real" and the agent's reply to it opened a SEPARATE flow. V2-090's merge only fires when the model calls
+    `send_to_worker` — its handler is where `resolve_sessions` gets consulted — so a follow-up the model answers
+    CONVERSATIONALLY, the most natural thing an operator says while waiting, matched nothing and split the thread.
+  - **`_merge_target()`** (`nucleo.py`, pure decision, wired into `_close_flow_now`): a finished turn is absorbed
+    into the ONE live task's flow. **Deliberately not text matching**, and that was the load-bearing choice: both
+    resolvers this codebase already has are wrong for attribution, from OPPOSITE ends. `dispatch.resolve_sessions`
+    is loose ON PURPOSE ("mejor parar de más que dejar zombies") so with one live task it returns it for ANY
+    wording — precision it does not actually have; `find_duplicate` is strict (Jaccard ≥ 0.60 of content words) and
+    "muéstramelo en tiempo real" shares ZERO words with "busca una guitarra zurda", so it would reject the very
+    case this exists for. What IS solid is state we already hold: exactly one task running, and this turn started
+    nothing else. Guards: `just_escalated` (this turn launched its own task — V2-113's signal reused), `tid` already
+    being a live task, **exactly one** candidate (with several running, which one a bare "¿cómo va?" refers to is a
+    guess, and since V2-090 a stray extra flow beats guessing), and any tool outside `_WORKER_CONTROL_TOOLS`
+    (putting on music is a turn about something else, whatever is running).
+  - **The absorbed trace does NOT emit its own `flow/end`**, and this is not a detail: the reader counts a close for
+    the FOLDED row (`_absorb` sums `ended_events` — "closed if EITHER closed", correct when both halves are
+    fragments of one sentence), so closing here would mark a still-working task as finished and drop it off the
+    board. Losing sight of live work is worse than the stray open flow the close exists to prevent. Same rule as
+    everywhere: the flow belongs to whoever is still working.
+  - **Second trigger, pure proof rather than evidence**: `dispatch._merge_dedup_flow()` in `run_listener`'s dedup
+    branch. When `find_duplicate` matches, the 60% overlap was already demanded — they ARE the same task, learned
+    AFTER the turn opened its trace, which is exactly what `merge()`'s append-only marker exists for.
+  - **Accepted false positive, stated rather than hidden**: a purely conversational request using no tool while one
+    task runs lands in that task's thread. The trade is deliberate (the operator asked for a COMPLETE thread,
+    splitting is the reported bug, the mis-attribution is bounded to one task's lifetime and stays VISIBLE via the
+    board's `+N` chip). The upgrade that removes the guesswork is the model DECLARING continuation (V2-105's
+    recommended design) — a tool-schema change with its own measurement, not a reason to keep splitting meanwhile.
+  - **Verified live, and it closed V2-117's open item**: engine restarted, a REAL Wallapop investigation ran with
+    `cwd=/private/var/…/T/zaelar-workers/1` (not the repo root) and `PYTHONPATH` at the engine — and from that
+    confined directory the memory bridge answered both ways, the phase report worked, and the worker READ ITS OWN
+    SCREENSHOT (`📄 archivo ↩ [imagen]`), which was the concrete doubt behind `read_dirs`/`--add-dir`. **Not
+    verified live**: `_merge_target` lives in the VOICE provider and the probe channel doesn't close flows, so that
+    half is test-covered (sensitivity checked by disarming each half) but unexercised by a real voice session.
+  - ⚠️ **Side finding, real money**: trying to provoke a live merge, two escalations of the SAME search did NOT
+    dedup and both workers ran, doing the job twice. Measured Jaccard **0.556** against the 0.60 threshold — and
+    among the tokens separating them, `zurdo` vs `zurdo,` and `guitarra` vs `(guitarra`. `_content_words` split on
+    whitespace over a `_norm` that only strips accents and lowercases, so **punctuation stayed glued to the word**.
+    The bias was one-directional (punctuation can only push the ratio DOWN: it shrinks the intersection and grows
+    the union), so it always failed towards letting duplicates through. Fixed with `\w+`, paired with a test that
+    demands the duplicate now match AND one that demands two genuinely different tasks still DON'T — without the
+    second, "fixing" dedup is indistinguishable from loosening it. Corrected an overclaim of mine in that same
+    comment: `\w+` does not save CJK (2-3 character tokens, already dropped by the `len(w) >= 4` filter before this
+    change) — a pre-existing limit, written down as one.
 
 ## Testing y rueda de mejora (INI-013)
 

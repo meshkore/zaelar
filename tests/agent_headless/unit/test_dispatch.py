@@ -681,3 +681,131 @@ def test_active_sessions_only_returns_live_ones():
         assert {s["id"] for s in dispatch.pending_summaries()} == ids
     finally:
         dispatch._SESSIONS.clear()
+
+
+# ── V2-123: una escalada DEDUPLICADA es la misma tarea → un solo flujo ────────────────────────────────────────────
+def test_live_traces_solo_devuelve_las_vivas(monkeypatch):
+    from nucleo.workers.session import SessionRecord
+    monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
+    dispatch._SESSIONS["a"] = SessionRecord(task_id="a", kind="web", status="running", goal="g1",
+                                            trace_id="T5·aaaa")
+    dispatch._SESSIONS["b"] = SessionRecord(task_id="b", kind="web", status="done", goal="g2",
+                                            trace_id="T6·bbbb")
+    dispatch._SESSIONS["c"] = SessionRecord(task_id="c", kind="code", status="queued", goal="g3",
+                                            trace_id="T7·cccc")
+    dispatch._SESSIONS["d"] = SessionRecord(task_id="d", kind="web", status="running", goal="g4", trace_id="")
+    assert dispatch.live_traces() == ["T5·aaaa", "T7·cccc"]
+
+
+def test_merge_dedup_flow_funde_en_el_trace_de_la_sesion_viva(monkeypatch):
+    """El dedup ya exigió 60% de solape con el goal de la sesión viva: es PRUEBA de que son la misma tarea, no una
+    conjetura. El marcador se emite bajo el trace NUEVO apuntando al titular."""
+    from voice import trace
+    from nucleo.workers.session import SessionRecord
+    monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
+    dispatch._SESSIONS["w1"] = SessionRecord(task_id="w1", kind="web", status="running",
+                                             goal="busca una guitarra zurda", trace_id="T5·aaaa")
+    seen = []
+    monkeypatch.setattr(trace, "merge", lambda a, b: seen.append((a, b)) or a)
+    assert dispatch._merge_dedup_flow({"trace": "T9·bbbb"}, "w1") is True
+    assert seen == [("T5·aaaa", "T9·bbbb")]
+
+
+def test_merge_dedup_flow_sin_trace_deja_que_el_llamante_cierre(monkeypatch):
+    """Sin nada que fundir, el flujo SÍ necesita su cierre explícito o `just_escalated` lo deja abierto para
+    siempre (V2-113)."""
+    from nucleo.workers.session import SessionRecord
+    monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
+    dispatch._SESSIONS["w1"] = SessionRecord(task_id="w1", kind="web", status="running", goal="g", trace_id="")
+    assert dispatch._merge_dedup_flow({"trace": "T9·bbbb"}, "w1") is False
+    assert dispatch._merge_dedup_flow({}, "w1") is False
+
+
+def test_merge_dedup_flow_con_el_MISMO_trace_no_deja_cerrar(monkeypatch):
+    """Mismo trace = ya es un solo flujo, y su worker sigue trabajando: cerrarlo aquí sería un cierre prematuro."""
+    from nucleo.workers.session import SessionRecord
+    monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
+    dispatch._SESSIONS["w1"] = SessionRecord(task_id="w1", kind="web", status="running", goal="g",
+                                             trace_id="T5·aaaa")
+    assert dispatch._merge_dedup_flow({"trace": "T5·aaaa"}, "w1") is True
+
+
+def test_listener_funde_el_flujo_en_vez_de_cerrarlo_cuando_la_sesion_viva_tiene_trace(fresh_db, fake_backend,
+                                                                                      monkeypatch):
+    """CABLEADO de V2-123 en `run_listener` (no solo la función pura): con la sesión viva ya trazada, la escalada
+    duplicada se FUNDE en su flujo y NO emite `flow/end`. Ese cierre marcaría como acabada una tarea que sigue
+    trabajando, porque el lector cuenta el cierre para la fila FUNDIDA (`_absorb` suma `ended_events`) — perder de
+    vista trabajo vivo es peor que el flujo suelto que el cierre venía a evitar.
+
+    El hermano de arriba (`..._closes_the_flow_explicitly_on_dedup_inject`) cubre el caso contrario a propósito: su
+    sesión viva NO tiene `trace_id`, así que no hay nada que fundir y el cierre explícito sigue siendo obligatorio.
+    Los dos juntos son la pareja que impide arreglar uno rompiendo el otro."""
+    from nucleo.flash import escalate
+    from nucleo.workers.session import SessionRecord
+    from voice import trace
+
+    monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
+
+    async def _fake_inject(which, msg):
+        return [which]
+    monkeypatch.setattr(dispatch, "inject", _fake_inject)
+
+    closed: list = []
+    merged: list = []
+
+    def _fake_emit(kind, label, **kw):
+        if kind == "flow" and label == "end":
+            closed.append(kw.get("extra"))
+    monkeypatch.setattr("voice.observer.emit", _fake_emit)
+    monkeypatch.setattr(trace, "merge", lambda a, b: merged.append((a, b)) or a)
+
+    goal = "Implementar en el widget youtube la capacidad de ampliarse a pantalla completa por voz"
+
+    async def run():
+        bus.reset(); escalate.reset()
+        dispatch._SESSIONS["live"] = SessionRecord(task_id="live", kind="code", status="running", goal=goal,
+                                                   trace_id="T5·live")
+        stop = asyncio.Event()
+        task = asyncio.create_task(dispatch.run_listener(stop))
+        await asyncio.sleep(0.05)
+        escalate.escalate_to_slowbrain(goal + " rápido", context={"kind": "code", "trace": "T9·dup"})
+        await asyncio.sleep(0.2)
+        stop.set(); await asyncio.sleep(0.05); task.cancel()
+
+    asyncio.run(run())
+    assert merged == [("T5·live", "T9·dup")], "la escalada duplicada tiene que fundirse en la tarea viva"
+    assert closed == [], "un flujo fundido NO emite su propio cierre: el titular sigue trabajando"
+
+
+def test_el_dedup_no_se_deja_enganar_por_la_puntuacion(monkeypatch):
+    """CAZADO EN VIVO (2026-08-18): dos escaladas de la MISMA búsqueda no dedupearon y los dos workers corrieron,
+    haciendo el mismo trabajo dos veces con dinero real. El tokenizador partía por espacios, así que «zurdo» y
+    «zurdo,» —y «guitarra» y «(guitarra»— eran palabras DISTINTAS. El sesgo era de una sola dirección (la
+    puntuación solo puede bajar el Jaccard: encoge la intersección y engorda la unión), o sea que fallaba siempre
+    hacia dejar pasar duplicados, nunca hacia fundir de más."""
+    from nucleo.workers.session import SessionRecord
+    assert dispatch._content_words("guitarra zurdo, clasica") == dispatch._content_words("(guitarra) zurdo clasica")
+
+    monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
+    goal = "Investiga a fondo en Wallapop (España) guitarras clasicas de segunda mano para nino zurdo"
+    dispatch._SESSIONS["live"] = SessionRecord(task_id="live", kind="web", status="running", goal=goal)
+    assert dispatch.find_duplicate(goal + ", con precios.", "web") == "live"
+
+
+def test_el_dedup_sigue_sin_fundir_dos_tareas_de_verdad_distintas(monkeypatch):
+    """El contrapeso del test de arriba: arreglar el tokenizador no puede convertir el dedup en un cajón que se
+    tragua tareas ajenas. Sin esta pareja, «arreglar» el dedup es indistinguible de aflojarlo."""
+    from nucleo.workers.session import SessionRecord
+    monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
+    dispatch._SESSIONS["live"] = SessionRecord(task_id="live", kind="web", status="running",
+                                               goal="Investiga en Wallapop guitarras clasicas para nino zurdo")
+    assert dispatch.find_duplicate("Busca vuelos baratos a Lisboa en septiembre para dos personas", "web") is None
+
+
+def test_el_dedup_no_se_queda_mudo_en_otro_alfabeto(monkeypatch):
+    """`_norm` quita acentos, así que una clase latina (`[a-z0-9]+`) habría tokenizado un goal en otro alfabeto a
+    NADA — apagando el dedup para ese idioma en silencio en vez de arreglarlo. `\\w+` lo conserva.
+
+    Escritura CJK aparte: sus tokens son de 2-3 caracteres y el filtro `len(w) >= 4` ya los descartaba ANTES de
+    este cambio — limitación pre-existente del dedup, no algo que se introduzca aquí."""
+    assert dispatch._content_words("\u0438\u0441\u0441\u043b\u0435\u0434\u0443\u0439 \u0433\u0438\u0442\u0430\u0440\u044b \u0434\u043b\u044f \u0440\u0435\u0431\u0451\u043d\u043a\u0430") != set()

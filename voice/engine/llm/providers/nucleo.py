@@ -250,6 +250,55 @@ def _schedule_acc_nudge(brain: "NucleoLLM", gen: int) -> None:
     _spawn(_run(), "acc_nudge")
 
 
+# Tools that CONTROL a running task rather than start something else. A turn that only used these (or none at
+# all) is a turn about the task already in flight — see `_merge_target`.
+_WORKER_CONTROL_TOOLS = frozenset({"send_to_worker", "stop_worker", "answer_worker", "recall", "need_capability"})
+
+
+def _merge_target(tid: str, live_traces, turn_tools, just_escalated: bool = False) -> str:
+    """Pure decision (V2-123): which LIVE task's flow should absorb this finished turn, or '' for none.
+
+    The gap this closes was reported with a screenshot: while a worker searched for a guitar, "sí, muéstramelo todo
+    en tiempo real" and the agent's reply to it opened a SEPARATE flow, because V2-090's merge only fires when the
+    model happens to call `send_to_worker` (its handler is where `resolve_sessions` gets consulted). A follow-up
+    the model answers conversationally — the most natural thing an operator says while waiting — matched nothing
+    and split the thread. The operator's rule is the opposite: "siempre que nos estemos refiriendo a la misma
+    tarea… todo tiene que ir en un mismo hilo cronológico".
+
+    Deliberately NOT text matching. Both resolvers this module could have reused are wrong for attribution, and
+    that mattered more than it looks: `dispatch.resolve_sessions` is loose ON PURPOSE ("mejor parar de más que
+    dejar zombies") so with one live task it returns it for ANY wording — precision it does not actually have;
+    `find_duplicate` is strict (60% content-word overlap) and "muéstramelo en tiempo real" shares zero words with
+    "busca una guitarra zurda", so it would reject the very case this exists for. What IS solid evidence is state
+    we already hold: exactly one task is running, and this turn started nothing else.
+
+    Guards, each closing a way this could attribute wrongly:
+      · `just_escalated` — this turn launched a NEW task; by definition its own thread (V2-113's signal, reused).
+      · `tid` itself live — this trace already IS a task; it is not a loose turn looking for a home.
+      · exactly ONE candidate — with several tasks running, which one a bare "¿cómo va?" refers to is a guess, and
+        the standing rule since V2-090 is that a stray extra flow beats guessing.
+      · tools outside `_WORKER_CONTROL_TOOLS` — putting on music or opening an unrelated widget is a turn about
+        something else, whatever else is running.
+
+    KNOWN false merge, accepted with eyes open: a purely conversational request that uses no tool ("cuéntame un
+    chiste") while one task runs lands in that task's thread. The trade is deliberate — the operator asked for a
+    COMPLETE thread, the split is the reported bug, and the mis-attribution is bounded to one live task's lifetime
+    and stays visible (the board paints the `+N` chip). The upgrade that removes the guesswork is the model
+    DECLARING continuation (V2-105's recommended design); that needs a tool-schema change and its own measurement,
+    and it is not a reason to keep splitting threads meanwhile."""
+    if not tid or just_escalated:
+        return ""
+    live = [t for t in (live_traces or []) if t]
+    if tid in live:
+        return ""
+    candidates = [t for t in live if t != tid]
+    if len(candidates) != 1:
+        return ""
+    if any(t not in _WORKER_CONTROL_TOOLS for t in (turn_tools or ())):
+        return ""
+    return candidates[0]
+
+
 def _flow_should_close(tid: str, acc_trace_id: str, confirm_trace_ids, has_live_worker: bool,
                         just_escalated: bool = False) -> bool:
     """Pure decision: should THIS trace's flow close now? Factored out so it is comprobable without the observer/
@@ -313,12 +362,21 @@ def _close_flow_now(tid: str, brain: "NucleoLLM") -> None:
         from widgets import confirm as _confirm_close
         from nucleo import dispatch as _disp_close
         confirm_trace_ids = {v.get("trace_id") for v in _confirm_close.pending().values()}
+        _just_esc = (getattr(brain, "_escalated_trace_id", "") == tid)
         if not _flow_should_close(tid, getattr(brain, "_acc_trace_id", ""), confirm_trace_ids,
                                    _disp_close.has_live_trace(tid),
-                                   just_escalated=(getattr(brain, "_escalated_trace_id", "") == tid)):
+                                   just_escalated=_just_esc):
             return
         from voice import trace as _trace
         from voice.observer import emit as _emit_close
+        # This turn was ABOUT a task already running → fuse the two flows instead of closing a second column
+        # (V2-123). The absorbed trace does NOT emit its own end: a close counts for the folded row, so closing
+        # here would mark the still-working titular as finished and drop it off the board. The worker owns it.
+        _target = _merge_target(tid, _disp_close.live_traces(),
+                                getattr(brain, "_turn_tools", ()), just_escalated=_just_esc)
+        if _target:
+            _trace.merge(_target, tid)
+            return
         with _trace.scope(tid):
             _emit_close("flow", "end", role="system", extra={"ok": True, "reason": "turn_complete"})
     except Exception:
@@ -488,6 +546,9 @@ class NucleoLLM(llm.LLM):
         self._escalated_trace_id: str = "" # trace que ACABA de publicar escalate.requested este turno (V2-113):
         #                                    bridges the sync race before dispatch.run_listener gets a scheduler
         #                                    turn to register/reject/dedup it — see `_flow_should_close`
+        self._turn_tools: set = set()      # tools this turn actually RAN (V2-123): tells a turn that merely talked
+        #                                    about the running task apart from one that started something else —
+        #                                    see `_merge_target`. Reset per turn in `_run_inner`.
         self._acc_gen: int = 0             # accumulator chain generation (2026-08-15, see `_schedule_acc_nudge`):
         #                                    bumped every time a chain resolves or gets dropped, so a nudge
         #                                    scheduled for it and now stale doesn't fire late
@@ -598,6 +659,10 @@ class NucleoLLMStream(llm.LLMStream):
             _begin_or_adopt_trace(brain, text, first_turn)
         except Exception:
             pass
+        # What this turn ACTUALLY did, for the flow-merge decision at the end (V2-123, `_merge_target`). Lives on
+        # `brain` because `_close_flow_now` only receives that object — same ownership (and same overlapping-turn
+        # caveat under preemptive generation) as `_acc_trace_id`/`_escalated_trace_id` right next to it.
+        brain._turn_tools = set()
 
         # T136 — interrupción DURA: "cierra los widgets / para / silencio" se atiende SIEMPRE (salta el gate)
         # y se ejecuta de forma DETERMINISTA, nunca enterrada en un turno gigante. Fue el bug real (el `close`
@@ -1433,6 +1498,13 @@ class NucleoLLMStream(llm.LLMStream):
                 emit("brain", "🧩 tool ignorada — la frase seguía", text=name, role="system",
                      extra={"cat": "flash", "fragment": (getattr(self, "_turn_text", "") or "")[:120]})
                 return
+
+            # Recorded AFTER the superseded gate on purpose: a tool that never ran is not something this turn did,
+            # so it must not weigh on the end-of-turn flow-merge decision (V2-123, `_merge_target`).
+            try:
+                brain._turn_tools.add(name)
+            except Exception:
+                pass
 
             # ESCOTILLA de la selección progresiva (V2-096 F2): el modelo dice que le falta una familia. Se apunta
             # para que el turno la RECOMPONGA con esa familia cargada — un viaje extra MEDIBLE en vez de una
