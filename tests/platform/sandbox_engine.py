@@ -36,6 +36,16 @@ Credentials are deliberately NOT isolated: `server/common.py` loads `.env` + `.m
 the repo root, so the sandbox uses the operator's real API keys. That's intended — the point is a clean
 DATABASE, not a crippled engine that can't call a model.
 
+⚠️ KNOWN, UNFIXED LEAK — generated widget CODE. `widgets/store.py` honours the workspace (widget *data* is
+isolated), but `widgets/generator.py` and `widgets/lifecycle.py` write the widget's code to
+`HERE/<widget_id>/`, where `HERE` is the real `engine/widgets/` directory — so a sandbox run that generates a
+widget leaves a new folder in the operator's repo. `new_widget_dirs()` reports them and the runner prints the
+list; they are deliberately NOT auto-deleted, because the operator's live engine may be generating widgets
+into that same directory at the same moment and a cleanup sweep cannot tell the two apart. Fixing this
+properly means making those two modules workspace-aware, which is a product change (a workspace-relative
+catalog would also stop the sandbox from seeing the built-in widgets), so it is recorded here rather than
+guessed at.
+
 ⚠️ Do NOT run `make run` (i.e. `scripts/run-livekit.sh`) while a sandbox is alive: that script reaps every
 `python -m server` process by NAME, not by port, so it would kill the sandbox too. The reverse is safe —
 starting a sandbox never touches an already-running engine.
@@ -65,12 +75,28 @@ def free_port() -> int:
         return int(sock.getsockname()[1])
 
 
+def _widget_dirs() -> set[str]:
+    wroot = ENGINE / "widgets"
+    try:
+        return {p.name for p in wroot.iterdir()
+                if p.is_dir() and not p.name.startswith(("_", "."))}
+    except Exception:
+        return set()
+
+
 @dataclass
 class SandboxEngine:
     base_url: str
     workspace: Path
     log_path: Path
     process: subprocess.Popen
+    widgets_before: frozenset = frozenset()
+
+    def new_widget_dirs(self) -> list[str]:
+        """Widget folders that appeared in the REAL `engine/widgets/` while the sandbox was up — see the
+        module docstring's leak note. Reported, never deleted: a concurrently-running live engine writes to
+        the same directory, and a sweep cannot tell whose widget is whose."""
+        return sorted(_widget_dirs() - set(self.widgets_before))
 
     def get(self, path: str, *, timeout: float = 15.0) -> tuple[int, object]:
         req = urllib.request.Request(self.base_url + path, headers={"User-Agent": _UA})
@@ -163,7 +189,8 @@ def sandbox_engine(*, boot_timeout: float = 90.0, keep_workspace: Path | None = 
         process = subprocess.Popen([sys.executable, "-m", "server"], cwd=str(ENGINE), env=env,
                                    stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
         eng = SandboxEngine(base_url=f"http://127.0.0.1:{port}", workspace=workspace,
-                            log_path=log_path, process=process)
+                            log_path=log_path, process=process,
+                            widgets_before=frozenset(_widget_dirs()))
         try:
             _wait_ready(eng, boot_timeout)
             yield eng

@@ -150,6 +150,13 @@ def run(args: argparse.Namespace) -> int:
         try:
             return _run_batch(chosen, sandboxed=True)
         finally:
+            leaked = eng.new_widget_dirs()
+            if leaked:
+                # Not deleted on purpose — see sandbox_engine's leak note. Printed so it's a visible,
+                # deliberate cleanup decision for the operator instead of silent repo litter.
+                print(f"\n⚠️ widget folders written into the REAL engine/widgets/ by this run "
+                      f"(generated widget CODE is not workspace-isolated): {', '.join(leaked)}\n"
+                      f"   review and remove them if they were only test artifacts.")
             print(f"  sandbox engine log tail:\n{eng.log_tail(12)}")
 
 

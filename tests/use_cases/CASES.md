@@ -5,13 +5,51 @@ This is the readable catalog for the `use_cases` suite (`tests/use_cases/suite.j
 `tests/voice/e2e/agent/anexos/catalogo-escenarios.md`'s role for the voice suite: the catalog of
 what gets tested is public and useful; per-run diaries are not (see `tests/README.md`).
 
-**Status: mostly backlog, five promoted.** Every case below is registered and browsable
+**Status: mostly backlog, NINE promoted.** Every case below is registered and browsable
 (`python -m tests list`, the Observatory at `http://127.0.0.1:8765`, `/api/catalog/use_cases`).
 Cases get promoted to executable one at a time. Promotion doesn't mean "wire a simple
 request/response pytest" — these are open-ended, non-deterministic real-world tasks, so a promoted
 case gets a **dynamic harness** instead: `tests/use_cases/e2e/agent/` (driver + watchdog + verify +
 judge, full design below), reusing the voice tester's proven DRIVE+JUDGE pattern
 (`tests/voice/e2e/agent/`) rather than reinventing it.
+
+> **➤ Which ones actually PASS right now: [`STATUS.md`](STATUS.md)** (generated; source of truth
+> `status.json`). That scoreboard is the answer to "cuáles funcionan bien y cuáles no" — this file is
+> the CATALOG (what we test and why), the scoreboard is the RESULT. `INFRA` there is deliberately a
+> third state, never folded into `FAIL`: a network timeout or a crashed harness says nothing about
+> whether the use case works, and merging the two is how a scoreboard starts lying.
+
+## Run it ISOLATED — `--sandbox` (2026-08-18)
+
+```bash
+./.venv/bin/python -m tests.use_cases.e2e.agent.run --scenario all --sandbox
+```
+
+`--sandbox` boots a **throwaway engine with its own port, database, workspace and logs**
+(`tests/platform/sandbox_engine.py`) instead of running against the operator's live engine on 43917.
+Before this, every use-case run exercised the operator's REAL memory, widgets, cluster tokens and
+whatever tasks they had in flight — which is both a privacy problem and a correctness one (a prior
+session lost two runs to the engine's global ⏻ having been left STOPPED by unrelated manual testing,
+and another to a live task donating a false `worker` signal to a scenario that never triggered one).
+A fresh engine has none of that ambiguity.
+
+The recipe existed already but only inlined inside `tests/journey/runner.py`; it is now a reusable
+context manager. Two things worth knowing:
+
+- It adds **`ZAELAR_LOG_DIR`**, which `journey`'s copy does NOT set — without it an "isolated" engine
+  still appends its events to the operator's real `.meshkore/logs/timeline-latest.jsonl`. That is the
+  2026-07-25 incident (test events mistaken for a live session) waiting to happen again. Noted as a
+  pre-existing leak in that runner rather than silently patched in another suite's file.
+- ⚠️ **Generated widget CODE is NOT isolated.** `widgets/store.py` honours the workspace (widget
+  *data* is clean), but `widgets/generator.py`/`lifecycle.py` write to `HERE/<widget_id>/` — the real
+  `engine/widgets/`. So a sandbox run that generates a widget leaves a folder in the repo. The runner
+  **reports** them at the end and deliberately does **not** delete them: the operator's live engine
+  writes into that same directory, and a cleanup sweep cannot tell whose widget is whose. Fixing it
+  properly is a product change (a workspace-relative catalog would also stop the sandbox from seeing
+  the built-in widgets), so it is recorded, not guessed at.
+
+Don't run `make run` while a sandbox is alive — `scripts/run-livekit.sh` reaps every `python -m
+server` by process NAME, not by port, so it would kill the sandbox too. The reverse is safe.
 
 - `hotel-under-15-days` (ES, tier 2) — **promoted**, first scenario built. Deliberately
   underspecified (no destination given) to force a real clarifying question. Live-validated
@@ -264,6 +302,53 @@ judge, full design below), reusing the voice tester's proven DRIVE+JUDGE pattern
   this one, not yet committed as of writing). Still open: the context-window ceiling on long-running
   worker sessions, and a live re-run to confirm the fix holds against the real engine (flagged for
   whoever restarts next, or the operator directly).
+
+- `quick-fact-opening-hours`, `build-workout-tracker-widget`, `remember-and-remind-deadline`
+  (ES, tier 1) — **promoted 2026-08-18** to fix a **representation gap**, not to pad the count. Every
+  case promoted before them was a slow browser search on a third-party site, so the scoreboard could
+  only ever show shades of red and we learned nothing about the parts of the product that DO work.
+  These three are real user needs that are also achievable end-to-end today — no login, no payment,
+  no phone call:
+  - `quick-fact-opening-hours` — museum opening time + ticket price, expected IN THE TURN via
+    `web_search` (the "dato directo + síntesis" path, V2-022). Its `expected_signals` is deliberately
+    **EMPTY**: here a `worker`/browser task firing is the FAILURE, not the success, and both the
+    scenario's `success_checks` and the judge prompt say so. It's the one promoted case that asserts
+    something should NOT happen.
+  - `build-workout-tracker-widget` — the engine builds the widget itself, so it isolates the
+    generation path from any third-party site. (Note the widget-code isolation leak above: this one
+    will leave a folder in `engine/widgets/` when run in a sandbox.)
+  - `remember-and-remind-deadline` — needs BOTH halves across two different subsystems (a durable
+    write AND a reminder for the day before). "Te lo recuerdo" with nothing scheduled behind it is
+    exactly the failure it exists to catch.
+
+- `three-tasks-at-once` (ES, tier 4) — **promoted 2026-08-18, the MULTI-FLOW case**, on the
+  operator's explicit request: a report + a marketplace search + a Super-Mario-style platform-game
+  widget all commissioned at once, then talked about **out of order and by allusion** ("ese ponle que
+  salte más alto", "¿y el del coche?"). Three different worker kinds, three subsystems, one
+  conversation.
+
+  What makes it a genuinely new kind of test rather than three old ones stapled together — it judges
+  **coordination, not completion**:
+  1. **CONCURRENCIA**, measured LIVE. `verify.py::ConcurrencyTracker` samples the engine's real task
+     registry (`GET /api/tasks` → `dispatch.active_sessions()`) once per turn and reports
+     `max_concurrent` + the distinct worker kinds seen. This had to be sampled while it happens: a
+     post-hoc event dump can prove N tasks *existed* but never that two were in flight at the same
+     MOMENT, which is the whole point. `max_concurrent < 2` means the tasks never really overlapped
+     and that is a mechanism failure regardless of how good the transcript reads.
+  2. **ATRIBUCIÓN** — each oblique message must reach the RIGHT running task (V2-038's
+     `send_to_worker` + `dispatch.resolve_sessions`). Answering against the wrong task, blending two,
+     or swallowing a refinement without acknowledging it is a grave failure. **Asking which one they
+     mean is scored WELL**, not penalised — V2-082's "ante la duda, preguntar, nunca adivinar".
+  3. **INDEPENDENCIA** — a slow or failed task must not stall or cancel the others.
+  4. **FLUIDEZ** — the operator's own words: *«necesito que el sistema sea suave»*. Replies must
+     carry state and read as one linked thread ("el informe ya está, la búsqueda sigue, el juego a
+     medias"), not three identical robotic status dumps.
+
+  The judge gains two extra dimensions (`atribucion`, `fluidez`) **only** for multi-flow scenarios —
+  added rather than folded into the existing five, so single-task scores stay comparable with their
+  own history. The watchdog is also grounded differently here: it reads the live task registry
+  instead of the browser-task snapshot, so three workers grinding away normally can't read as
+  "stuck". Deterministic coverage for all of it in `tests/use_cases/unit/test_multiflow.py`.
 
 All other cases stay backlog until promoted, one at a time — picking the runner shape (browser
 automation, an `agent-headless`-style scenario, an email exchange for multi-agent cases) per case
