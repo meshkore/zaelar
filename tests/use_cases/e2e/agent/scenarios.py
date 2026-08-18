@@ -356,30 +356,21 @@ BY_ID: dict[str, UseCaseScenario] = {s.id: s for s in SCENARIOS}
 
 
 def all_scenarios() -> list[UseCaseScenario]:
-    """Every runnable scenario: the hand-written ones above PLUS one derived from each catalog case in
-    tiers 1-4 (`derived.py`). Hand-written always WINS for the same case — those carry nuance a template
-    can't express, and a derived scenario must never quietly shadow one.
-
-    Imported lazily because `derived` imports `UseCaseScenario` from this module (the alternative is a
-    circular import at module load).
-    """
     from . import derived as D
-    out = list(SCENARIOS)
-    have = {s.id for s in SCENARIOS}
+    out = list(SCENARIOS); have = {s.id for s in SCENARIOS}
     for case in D.derivable():
-        # The hand-written five/nine use the BARE case id; derived ones are `<id>__<locale>` so the ES and
-        # US twins of a shared id stay distinct. Skip a derived scenario whose case already has a
-        # hand-written one for that same locale.
         if case.id in have:
             hand = BY_ID[case.id]
-            if hand.locale == case.locale:
-                continue
+            if hand.locale == case.locale: continue
         scn = D.derive(case)
-        if scn.id in have:
-            continue
-        out.append(scn)
-        have.add(scn.id)
-    return out
+        if scn.id in have: continue
+        out.append(scn); have.add(scn.id)
+    # The REAL-DATA limit applies to hand-written scenarios too, and it has to be applied HERE rather than
+    # inside `derive()`: `restaurant-tonight-madrid` and `book-hotel-night-known` are hand-written, and they
+    # are exactly the cases whose completion needs a phone call or a card. Without this they would keep being
+    # graded on a booking nobody can make, which the operator ruled out (2026-08-18) — and, worse, the dev
+    # agent would keep receiving them as bugs.
+    return [D.apply_data_note(s) for s in out]
 
 
 def registry() -> dict[str, UseCaseScenario]:

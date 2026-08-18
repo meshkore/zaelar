@@ -214,11 +214,19 @@ def test_derived_scenario_carries_the_shared_scaffolding_and_the_case_utterance(
 def test_handwritten_scenarios_are_never_shadowed_by_a_derived_one():
     """The nine hand-written briefs carry nuance a template cannot express (a deliberately empty
     expected_signals, a multi-task persona). A derived scenario replacing one silently would be a
-    regression nobody would notice until a verdict got worse for no reason."""
+    regression nobody would notice until a verdict got worse for no reason.
+
+    Compared by CONTENT, not identity: the real-data limit is deliberately attached to hand-written scenarios
+    too (`apply_data_note` returns a copy), so `is` would now fail for a reason that is not shadowing. The
+    brief and the opening line are what "not shadowed" actually means."""
     from tests.use_cases.e2e.agent import scenarios as SC
     reg = SC.registry()
     for hand in SC.SCENARIOS:
-        assert reg[hand.id] is hand
+        got = reg[hand.id]
+        assert got.opening_line == hand.opening_line
+        assert got.persona_brief == hand.persona_brief
+        assert got.expected_signals == hand.expected_signals
+        assert got.success_checks.startswith(hand.success_checks)   # only ADDED to, never replaced
 
 
 def test_us_cases_get_an_english_brief():
@@ -571,3 +579,77 @@ def test_closing_fails_open_and_never_raises_into_a_batch(monkeypatch, tmp_path)
     I = _iso(monkeypatch, tmp_path)
     assert I.close_initiative(tmp_path / "nope.md", reason="x") is False
     assert I.close_on_pass("never-filed", verdict="", overall=5)["closed"] is None
+
+
+# ── the real-data limit: what a case can HONESTLY be graded on ─────────────────────────────────────────────
+def test_a_case_with_no_real_data_behind_it_is_graded_on_CONDUCT_not_outcome():
+    """Operator, 2026-08-18: renewing a gym membership can never work with no gym, no account, no membership —
+    "eso no es un fallo del use case". What is withdrawn from judgement is the OUTCOME; the CONDUCT stays,
+    because the batch didn't fail for lacking a Netflix account, it failed for saying "ya tengo en marcha la
+    cancelación". Without that half kept, this becomes an amnesty for hallucination."""
+    from tests.use_cases.e2e.agent import derived as D
+    note = D.data_note("renew-gym-membership")
+    assert "el RESULTADO no se juzga" in note
+    assert "FALLO MÁS GRAVE" in note and "afirmar que lo ha hecho" in note
+
+
+def test_a_bookable_case_still_gets_its_SEARCH_half_graded_in_full():
+    """The two classes differ in what's reachable. For a restaurant/ITV/hotel the search IS real and fully
+    gradable — grading it as untestable would throw away the most valuable half and let "no encontré nada"
+    pass as acceptable."""
+    from tests.use_cases.e2e.agent import derived as D
+    kind, missing = D.data_scope("itv-before-deadline")
+    assert kind == "no_booking"
+    note = D.data_note("itv-before-deadline")
+    assert "se juzga ENTERA" in note
+    assert "NO se penaliza no haber reservado" in note
+    assert "sin haberlo buscado" in note        # but inventing the world is still the gravest failure
+
+
+def test_the_limit_is_the_same_in_both_markets():
+    """Keyed by the BARE case id on purpose: the operator's point is that the missing piece is identical in ES
+    and US ("ni en España ni en Estados Unidos"), not that one market is luckier."""
+    from tests.use_cases.e2e.agent import derived as D
+    from tests.use_cases.e2e.agent import scenarios as SC
+    es = next(s for s in SC.all_scenarios() if s.id == "search-secondhand-monitor__es")
+    us = next(s for s in SC.all_scenarios() if s.id == "search-secondhand-monitor__us")
+    assert "LÍMITE DE DATOS REALES" in es.success_checks
+    assert "LÍMITE DE DATOS REALES" in us.success_checks
+
+
+def test_a_case_that_needs_nothing_real_carries_no_limit():
+    """The counterweight: a plain fact lookup or a widget build is fully completable, so tagging it would
+    excuse a real failure. `quick-fact` and the widget case must stay held to the full bar."""
+    from tests.use_cases.e2e.agent import derived as D
+    from tests.use_cases.e2e.agent import scenarios as SC
+    assert D.data_scope("quick-fact-opening-hours") == ("", "")
+    for sid in ("quick-fact-opening-hours", "build-workout-tracker-widget", "remember-and-remind-deadline"):
+        scn = next(s for s in SC.all_scenarios() if s.id == sid)
+        assert "LÍMITE DE DATOS REALES" not in scn.success_checks
+
+
+def test_applying_the_limit_twice_does_not_duplicate_it():
+    from tests.use_cases.e2e.agent import derived as D
+    from tests.use_cases.e2e.agent import scenarios as SC
+    scn = next(s for s in SC.all_scenarios() if s.id == "restaurant-tonight-madrid")
+    once = scn.success_checks
+    assert D.apply_data_note(scn).success_checks == once
+
+
+def test_the_board_says_what_a_data_limited_case_was_graded_on(tmp_path, monkeypatch):
+    """A `PASS` on a bookable case means "found real options and stopped at the wall", not "made a
+    reservation". Without saying so on the board, the scoreboard would quietly overclaim what the product
+    does — which is the one thing a scoreboard must never do."""
+    monkeypatch.setattr(status, "LEDGER_PATH", tmp_path / "status.json")
+    monkeypatch.setattr(status, "BOARD_PATH", tmp_path / "STATUS.md")
+    status.record([{"scenario": "renew-gym-membership__es", "tier": 1,
+                    "verdict": {"overall": 5, "scores": {}, "veredicto": "dice qué le falta"},
+                    "run": {"mechanism_report": {}}},
+                   {"scenario": "quick-fact-opening-hours", "tier": 1,
+                    "verdict": {"overall": 2, "scores": {}, "veredicto": "media pregunta"},
+                    "run": {"mechanism_report": {}}}], sandboxed=True)
+    led = status.load()["scenarios"]
+    assert led["renew-gym-membership__es"]["data_limit"]["kind"] == "no_account"
+    assert "data_limit" not in led["quick-fact-opening-hours"]   # fully completable: full bar
+    board = (tmp_path / "STATUS.md").read_text(encoding="utf-8")
+    assert "no real data behind them" in board and "no_account" in board

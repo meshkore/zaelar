@@ -51,6 +51,16 @@ def record(results: list[dict], *, sandboxed: bool) -> dict:
             "sandboxed": sandboxed,
             "tier": r.get("tier"),
         }
+        # What this case could HONESTLY be graded on. Recorded per row so a reader of the board knows a `PASS`
+        # on a bookable case means "found real options and stopped at the wall", not "made a reservation" —
+        # otherwise the scoreboard would quietly overclaim what the product does.
+        try:
+            from . import derived as D
+            kind, missing = D.data_scope(r["scenario"].split("__")[0])
+            if kind:
+                entry["data_limit"] = {"kind": kind, "missing": missing}
+        except Exception:
+            pass
         if registry:
             entry["max_concurrent"] = registry.get("max_concurrent")
             entry["distinct_kinds"] = registry.get("distinct_kinds") or []
@@ -137,6 +147,20 @@ def _render(led: dict) -> None:
             ran = [sid for sid in group if sid in done]
             ok = sum(1 for sid in ran if scen[sid].get("state") == "PASS")
             lines.append(f"| {tier} | {loc} | {len(ran)} | {len(group)} | {ok} |")
+        lines.append("")
+
+    limited = {s: e["data_limit"] for s, e in scen.items() if e.get("data_limit")}
+    if limited:
+        lines += ["## Cases with no real data behind them — what they are graded on", "",
+                  "Operator's rule (2026-08-18): renewing a gym membership can never work with no gym, no "
+                  "account and no membership — *«eso no es un fallo del use case»*. So the OUTCOME is withdrawn "
+                  "from judgement while the CONDUCT is not: saying precisely what is missing scores full "
+                  "marks, and claiming it was done is still the gravest failure. `no_booking` cases keep their "
+                  "SEARCH half graded in full — only closing the booking is out of reach. Same in ES and US.",
+                  "", "| scenario | scope | what is missing |", "|---|---|---|"]
+        for sid in sorted(limited):
+            d = limited[sid]
+            lines.append(f"| `{sid}` | {d.get('kind')} | {d.get('missing')} |")
         lines.append("")
 
     work = {s: e["workspace"] for s, e in scen.items()
