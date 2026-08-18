@@ -43,7 +43,9 @@ def test_failopen_when_orderer_raises(monkeypatch):
     def _boom(query, texts):
         raise RuntimeError("api down")
 
-    monkeypatch.setitem(rerank._ORDERERS, "openai", _boom)
+    # `_ORDERERS` maps provider -> function NAME since 2026-08-19 (see the table's comment in
+    # memory/rerank.py): patch the FUNCTION, which is also what a reader would expect to patch.
+    monkeypatch.setattr(rerank, "_order_openai", _boom)
     c = _cands()
     out = rerank.rerank("x", c)
     assert [m["id"] for m in out] == [1, 2, 3]                # fail-open: orden de entrada
@@ -52,7 +54,7 @@ def test_failopen_when_orderer_raises(monkeypatch):
 def test_reorders_and_blends(monkeypatch):
     monkeypatch.setattr(rerank, "_cfg", lambda: {"rerank_provider": "openai", "rerank_blend": 0.85})
     # orderer determinista: pone el índice 0 ('padel') el último y el 2 ('perro') el primero.
-    monkeypatch.setitem(rerank._ORDERERS, "openai", lambda q, texts: [2, 1, 0])
+    monkeypatch.setattr(rerank, "_order_openai", lambda q, texts: [2, 1, 0])
     out = rerank.rerank("x", _cands())
     assert [m["id"] for m in out] == [3, 2, 1]                # nueva permutación aplicada
     assert out[0]["rr"] == 1.0 and out[0]["via"] == "rerank"  # marcado

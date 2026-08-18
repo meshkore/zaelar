@@ -166,14 +166,39 @@ def _order_openai(query: str, texts: list[str]) -> list[int] | None:
 
 def _order_local(query: str, texts: list[str]) -> list[int] | None:
     """Cross-encoder ONNX/CPU (fastembed TextCrossEncoder). Se implementa en Fase 2."""
+    ranked = _rank_local(query, texts)
+    return None if ranked is None else [i for i, _ in ranked]
+
+
+def _rank_local(query: str, texts: list[str]) -> list[tuple[int, float]] | None:
     try:
         from . import rerank_local
     except Exception:
         return None
-    return rerank_local.order(query, texts, _model())
+    return rerank_local.rank(query, texts, _model())
 
 
-_ORDERERS = {"openai": _order_openai, "local": _order_local}
+# Provider -> the NAME of the function that serves it, resolved LATE (`_impl`). Holding the function objects
+# directly used to capture them at import time, so replacing `_order_local` on this module — which is how both a
+# test and an in-place hotfix would do it — left these tables pointing at the original and the substitution was
+# invisible with no error anywhere. The names are the indirection; the tables are just routing.
+_ORDERERS = {"openai": "_order_openai", "local": "_order_local"}
+
+# Providers that can ALSO report an absolute per-pair score, not just a permutation (`rr_abs`). The listwise
+# `openai` provider deliberately has no entry: an LLM asked to sort indices returns a ranking with no calibrated
+# magnitude, and manufacturing one from its position would be exactly the relative-disguised-as-absolute mistake
+# an absolute score exists to avoid.
+_RANKERS = {"local": "_rank_local"}
+
+
+def _impl(table: dict[str, str], p: str):
+    name = table.get(p)
+    return globals().get(name) if name else None
+
+
+def scores_available() -> bool:
+    """Whether the active provider can report absolute per-pair scores (`rr_abs`)."""
+    return provider() in _RANKERS
 
 
 # ── API pública ─────────────────────────────────────────────────────────────────────────────────────────────
@@ -182,9 +207,15 @@ def rerank(query: str, candidates: list[dict], top_n: int | None = None) -> list
     problema devuelve la lista intacta. Solo reordena el tope `top_n`; el resto de la cola se conserva.
 
     Marca cada candidato reordenado con `rr` (score de rerank normalizado [0,1]) y funde con su `score` original
-    (`blend`) para preservar algo de recencia/importancia. Devuelve la lista completa reordenada."""
+    (`blend`) para preservar algo de recencia/importancia. Devuelve la lista completa reordenada.
+
+    Also stamps **`rr_abs`** — the cross-encoder's OWN score for this (query, text) pair — when the provider can
+    report one (`scores_available()`). `rr` is POSITIONAL, so the best of a bad lot always gets 1.0; `rr_abs` is
+    the same quantity the model would give that pair in any other query, which is what lets `retriever.search()`
+    ask "is this actually relevant?" rather than only "is this the most relevant of what came back". Absent when
+    the provider cannot report it — callers must treat a missing `rr_abs` as no verdict, never as zero."""
     p = provider()
-    orderer = _ORDERERS.get(p)
+    orderer = _impl(_ORDERERS, p)
     if not orderer or not candidates:
         return candidates
     n = top_n or _top_n()
@@ -200,8 +231,15 @@ def rerank(query: str, candidates: list[dict], top_n: int | None = None) -> list
             _mb = None
     if _mb:
         _mb("rerank", True)
+    ranker = _impl(_RANKERS, p)
+    abs_by_idx: dict[int, float] = {}
     try:
-        order = orderer(query, texts)
+        if ranker is not None:
+            ranked = ranker(query, texts)
+            order = None if ranked is None else [i for i, _ in ranked]
+            abs_by_idx = {} if ranked is None else {i: s for i, s in ranked}
+        else:
+            order = orderer(query, texts)
     except Exception as e:
         logger.debug("rerank %s excepción: %s", p, e)
         return candidates
@@ -215,13 +253,18 @@ def rerank(query: str, candidates: list[dict], top_n: int | None = None) -> list
     rr = {idx: 1.0 - (pos / max(1, m)) for pos, idx in enumerate(order)}
     blend = _blend()
     max_score = max((float(c.get("score", 0.0)) for c in head), default=1.0) or 1.0
-    ranked = [head[i] for i in order]
+    ranked_head = [head[i] for i in order]
     unranked = [head[i] for i in range(len(head)) if i not in rr]
-    for pos, c in enumerate(ranked):
+    for pos, c in enumerate(ranked_head):
         rr_s = 1.0 - (pos / max(1, m))
         c["rr"] = round(rr_s, 4)
         c["score"] = blend * rr_s + (1.0 - blend) * (float(c.get("score", 0.0)) / max_score)
         c["via"] = "rerank"
+        if order[pos] in abs_by_idx:
+            c["rr_abs"] = round(abs_by_idx[order[pos]], 4)
     for c in unranked:
         c["rr"] = 0.0
-    return ranked + unranked + tail
+    # `unranked`/`tail` deliberately get NO `rr_abs`: the cross-encoder never scored them (the listwise provider
+    # may omit indices, and `tail` is beyond `top_n`). Stamping a placeholder would let the floor drop rows on a
+    # verdict nobody issued — absent means "not judged", which the floor treats as passing.
+    return ranked_head + unranked + tail

@@ -22,6 +22,24 @@ REPO = pathlib.Path(__file__).resolve().parents[4]
 sys.path.insert(0, str(REPO))
 
 
+def _pin_language(code: str) -> str:
+    """Pin the memory's canonical language, AFTER `server.common` — which is the only way it holds.
+
+    Our memory is MONOLINGUAL by design (2026-07-10): the distiller writes every pill in the OPERATOR's language,
+    translating whatever comes in another. That is right for the product and it is a CONFOUND for this benchmark:
+    LoCoMo is English, the published numbers store English as English, and with a Spanish operator our distiller
+    translated the whole corpus to Spanish and then answered English questions against Spanish pills — a
+    cross-lingual penalty baked into the score that no competitor's number carries.
+
+    And it cannot be set from the outside: `config/settings.py` maps `stt_language` -> `ZAELAR_LANGUAGE` and
+    `load_into_env` applies it with **override**, so `ZAELAR_LANGUAGE=en ./run` silently comes back as `es`
+    (measured 2026-08-18: the env var went in as `en` and `langs.current_code()` answered `es`). Hence the order
+    here — import first, pin after — and hence it is a DECLARATION and not a flag: a LoCoMo number that does not
+    say which language the memory stored is not comparable with anyone's."""
+    os.environ["ZAELAR_LANGUAGE"] = code
+    return code
+
+
 def _fresh_db(root: pathlib.Path, tag: str) -> None:
     """Point the whole memory subsystem at a brand-new DB. Per conversation, so no cross-contamination: LoCoMo's
     conversations share first names, and a leak between them would look like excellent multi-hop recall."""
@@ -40,9 +58,12 @@ def main() -> int:
     ap.add_argument("--categories", default="", help="comma-separated category ids, e.g. 1,2,4")
     ap.add_argument("--limit", type=int, default=20, help="retrieval limit passed to memory.api.query")
     ap.add_argument("--label", default="locomo")
+    ap.add_argument("--lang", default="en",
+                    help="canonical language the memory stores in (LoCoMo is English; see _pin_language)")
     args = ap.parse_args()
 
     import server.common  # noqa: F401  — loads the credential store into env (the broker key lives there)
+    _pin_language(args.lang)          # MUST come after the import above — it overrides ZAELAR_LANGUAGE
     from tests.memory.benchmarks.locomo import adapter as A
 
     data = A.load(args.data)[: args.conversations]
@@ -86,11 +107,12 @@ def main() -> int:
         per_cat[r["category"]][0] += 1 if r["verdict"] else 0
 
     decl = A.declarations(args.ingest, args.limit)
+    decl["language"] = args.lang
     print("\n" + "=" * 72)
     print(f"LoCoMo [{args.label}] · {len(data)} conversation(s) · {len(rows)} questions · "
           f"{time.time() - t0:.0f}s")
     print("  DECLARATIONS (a LoCoMo number without these is not reproducible):")
-    for k in ("ingestion", "retrieval", "answerer", "judge", "embedding"):
+    for k in ("ingestion", "language", "retrieval", "answerer", "judge", "embedding"):
         print(f"    {k:10s} {decl[k]}")
     print(f"    reranker   {decl['reranker']}")
     print(f"\n  accuracy: {ok}/{len(graded)} = {(ok / len(graded) * 100 if graded else 0):.1f}%"

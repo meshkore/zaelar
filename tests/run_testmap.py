@@ -38,7 +38,8 @@ DOMAINS: list[dict] = [
             "tests/memory/unit/test_memory_boundary.py"]},
         {"id": "1.2", "title": "Embeddings y recuperación (retriever+reranker)", "ch": UNIT, "paths": [
             "tests/memory/unit/test_embeddings.py", "tests/memory/unit/test_retriever.py",
-            "tests/memory/integration/test_rerank.py", "tests/memory/unit/test_graph_ppr.py"]},
+            "tests/memory/integration/test_rerank.py", "tests/memory/unit/test_graph_ppr.py",
+            "tests/memory/unit/test_rerank_abs.py"]},
         {"id": "1.3", "title": "Escritura / ingest / destilador", "ch": UNIT, "paths": [
             "tests/memory/integration/test_memory_agent.py", "tests/memory/integration/test_writer_queue.py",
             "tests/memory/integration/test_write_precision_v2033.py",
