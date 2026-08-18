@@ -83,6 +83,11 @@ const SID = (() => {
   if (!s) { s = (crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2)); sessionStorage.setItem("zaelar_sid", s); }
   return s;
 })();
+// This tab's lock identity, readable from outside. Added for the mobile shell (V2-124), whose «bring the voice
+// here» has to name WHO is taking it — and the only honest answer is this tab's own SID, not a fresh one. Exported
+// as a function rather than the const so nothing outside can reassign the identity we heartbeat with.
+export function sessionId() { return SID; }
+
 let _hb = null, _blockedRetry = null;
 function _startHeartbeat() {
   if (_hb) return;

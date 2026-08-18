@@ -285,6 +285,19 @@ export const [langOnboardOpen, setLangOnboardOpen]   = createSignal(false);
 export const [langOnboardPhase, setLangOnboardPhase] = createSignal("ask");   // "ask" | "detected" | "ready"
 export const [langOnboardLoading, setLangOnboardLoading] = createSignal(""); // translated onboarding.loading text
 
+// ---- MOBILE SHELL (V2-124) — signals owned by the mobile PWA shell (frontend/mobile/), never read by the
+// desktop. They live HERE, in the shared store, and not in a store of their own, for the reason that governs the
+// whole mobile split: there is ONE truth about this agent. Power, energy, chat, tasks and language are already
+// here and both shells read the same signals; a second store would be a second truth, and a state that can lie
+// is the failure this codebase has paid for more than once. These three are simply the surfaces that only exist
+// on a phone — the desktop has a top bar and a floating launcher instead of a bottom menu.
+export const [mobileMenuOpen, setMobileMenuOpen]         = createSignal(false);   // ☰ sheet: account · profile · feedback · settings
+export const [mobileSettingsOpen, setMobileSettingsOpen] = createSignal(false);   // the small settings sheet, opened FROM the menu
+// The voice lock (server/livekit_api.py: ONE live voice session per machine). When the phone finds it HELD by
+// another surface, it must not fight, retry in a loop, or paint itself live: it says so and offers to take the
+// voice over. null = no conflict. See mobile/app/main.js.
+export const [mobileVoiceHeld, setMobileVoiceHeld]       = createSignal(false);
+
 // ---- bóveda de secretos (V2-060): modal NATIVO (crear/desbloquear por passphrase o passkey; mostrar el valor) ----
 export const [vaultOpen, setVaultOpen]       = createSignal(false);
 export const [vaultMode, setVaultMode]       = createSignal("unlock");   // "create" | "unlock" | "reveal" | "manage"

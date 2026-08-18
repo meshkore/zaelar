@@ -18,8 +18,8 @@ Everything else is refused. In particular:
 
 `ZAELAR_INGRESS_PUBLIC` (below) is the whole list of paths that answer without a session, and it is
 an ALLOWLIST on purpose: a route added tomorrow is closed until someone puts it here deliberately.
-The list holds the app shell, its static assets and a liveness probe — bytes that are identical in
-every process and belong to nobody.
+The list holds the app shells (desktop and mobile), the mobile PWA's manifest and service worker, the
+static assets and a liveness probe — bytes that are identical in every process and belong to nobody.
 
 The decision itself (`decide`) is a pure function of five inputs, so the interesting part is testable
 without a server, a network or a clock.
@@ -39,7 +39,15 @@ from loguru import logger
 # Exact paths. `/` is the app SHELL (an HTML file identical in every process, holding no data of
 # anyone's); it also has to stay open because the platform's own HTTP health check fetches it, and a
 # process that fails its health check stops receiving traffic altogether.
-PUBLIC_EXACT = frozenset({"/", "/healthz", "/favicon.ico"})
+# `/m` is the MOBILE shell (V2-124) — a second HTML file, held by nobody, identical in every process, exactly
+# like `/`. `/manifest.webmanifest` and `/sw.js` are its PWA plumbing and must be served from the root: a
+# manifest's scope has to be reachable from where it lives, and a service worker can only control its own
+# directory downwards. All three are build constants; adding them opens no tenant data, which is the only
+# question this allowlist asks.
+PUBLIC_EXACT = frozenset({
+    "/", "/healthz", "/favicon.ico",
+    "/m", "/manifest.webmanifest", "/sw.js",
+})
 
 # Prefixes. Static assets are byte-identical everywhere, so routing them is pointless and refusing
 # them would only break the shell that is already public.

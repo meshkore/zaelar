@@ -1,0 +1,56 @@
+/* shared-surfaces.css — the CSS of the surfaces BOTH shells mount verbatim, extracted 2026-08-18 (V2-124).
+   Companion of core/palette.css: same reason, one level up. Three components in app/components/ are imported
+   unchanged by the desktop AND by the mobile PWA — the startup veil, the first-run language gate, and the notice
+   banner. They are modal and full-bleed already, so a phone changes nothing about them, and forking a first-run
+   onboarding gate is how two shells end up disagreeing about whether onboarding ever happened.
+   Their STYLES therefore cannot live in a shell's stylesheet either. Both shells <link> this file.
+   Everything here is layout-neutral by nature (fixed, inset:0, or a top banner) — that is precisely the test for
+   whether a surface belongs in this file rather than in one shell's own.
+   NOT here: MemoryMap. Its component is shared-able but its CSS is a whole panel UI (mm-head/mm-modes/graph/lists,
+   ~200 lines keyed to a wide window). The mobile shell does not mount it — see V2-124's open items. */
+
+/* ---------- BOOT OVERLAY — «Colmena sináptica» splash while zaelar comes up on first load ----------
+   A full-screen canvas (components/boot-anim.js) where a neural constellation assembles itself in parts, one
+   cluster per boot phase, then implodes into the orb on "listo". z-index above EVERYTHING else (upd-ovl is
+   100002) — the first thing the user sees. Visible by default; `.gone` (set on store.bootReady) lifts the veil
+   as the mesh collapses. Themed via --hb-* (dark/light). See BootOverlay.js. */
+.boot-ovl{position:fixed;inset:0;z-index:100010;overflow:hidden;
+  background:radial-gradient(120% 90% at 50% 46%, var(--hb-bg-soft) 0%, var(--hb-bg) 70%);
+  opacity:1;transition:opacity .72s ease}
+.boot-ovl.gone{opacity:0;pointer-events:none}
+.boot-canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.boot-caption{position:absolute;left:50%;top:70%;transform:translateX(-50%);
+  color:var(--hb-muted);font-size:13px;font-weight:600;letter-spacing:.04em;
+  white-space:nowrap;transition:opacity .4s ease;text-shadow:0 1px 12px var(--hb-bg)}
+
+/* ── Language onboarding (V2-101): first-run blocking modal, ABOVE the boot veil (100010) so it follows it —
+   two veils in a row, never one rebuilt. `.open` shows it; `.gone` (set once the "ready" SSE phase lands)
+   fades it the same way `.boot-ovl.gone` does. Themed via --hb-*. See LanguageOnboarding.js. ────────────── */
+.lang-onb{position:fixed;inset:0;z-index:100020;display:none;align-items:center;justify-content:center;
+  padding:16px;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);opacity:1;transition:opacity .5s ease}
+.lang-onb.open{display:flex}
+.lang-onb.gone{opacity:0;pointer-events:none}
+.lang-onb-card{width:100%;max-width:420px;background:var(--hb-bg);border:1px solid var(--hb-line);
+  border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.4);padding:26px 24px;color:var(--hb-ink)}
+.lang-onb-q{font-size:17px;font-weight:700;text-align:center}
+.lang-onb-hint{font-size:12.5px;color:var(--hb-muted);text-align:center;margin-top:6px}
+.lang-onb-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:20px}
+.lang-onb-chip{border:1px solid var(--hb-line);background:var(--hb-bg-soft);color:var(--hb-ink);
+  font-size:13px;font-weight:600;padding:7px 14px;border-radius:20px;cursor:pointer}
+.lang-onb-chip:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
+.lang-onb-chip[disabled]{opacity:.5;cursor:default}
+.lang-onb-typed{display:flex;gap:8px;margin-top:18px}
+.lang-onb-input{flex:1;box-sizing:border-box;padding:9px 12px;border:1px solid var(--hb-line);border-radius:10px;
+  background:var(--hb-bg-soft);color:var(--hb-ink);font-size:13px}
+.lang-onb-input:focus{border-color:var(--hb-accent);outline:none}
+.lang-onb-go{width:38px;border-radius:10px;border:none;cursor:pointer;color:#fff;font-weight:700;
+  background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2))}
+.lang-onb-go[disabled]{opacity:.55;cursor:default}
+.lang-onb-loading{display:flex;flex-direction:column;align-items:center;gap:16px;padding:10px 4px}
+.lang-onb-spinner{width:30px;height:30px;border-radius:50%;border:3px solid var(--hb-line);
+  border-top-color:var(--hb-accent);animation:lang-onb-spin 0.85s linear infinite}
+@keyframes lang-onb-spin{to{transform:rotate(360deg)}}
+.lang-onb-loading-text{font-size:13.5px;color:var(--hb-muted);text-align:center;line-height:1.4}
+
+.alert{position:fixed;top:0;left:0;right:0;background:var(--hb-risk);color:#fff;padding:11px 16px;font-size:14px;text-align:center;z-index:60;cursor:pointer;display:none}
+.alert.show{display:block}

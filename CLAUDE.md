@@ -2876,6 +2876,90 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     and the backstop is weak. Which is also why the dedup trigger is RARE in practice and `_merge_target` is the one
     actually holding the thread together.
 
+- **A SECOND SHELL over one engine — the mobile PWA, and the two contracts that made it cheap (V2-124, 2026-08-18,
+  operator request: «una progressive web app… que no lo tenga que conectar a nada ni meter en la store», with the
+  design already specified — full-screen widgets, two-finger paging, «el orbe y todas las opciones abajo del todo»,
+  chat, an on/off switch, a menu for feedback/account/profile, «una carpeta separada… piezas nuevas lo más separadas
+  posibles para no interferir»)**. `frontend/mobile/` is installable on an Android or iOS home screen and drives the
+  SAME engine: no mobile backend, no mobile API, not one new data route. Anatomy + design rules:
+  `.meshkore/docs/modules/zaelar-mobile-shell.md`. Product/cloud side (origin, paid tier, the home-computer bridge)
+  in the workspace root's private repo — this repo is public.
+  - **The finding that governs the whole thing: the frontend was ALREADY split by two contracts, and neither
+    mentions the DOM.** (1) `services/sse.js` touches no DOM at all — the only thing it does with its argument is
+    call **13 methods** (`show`/`close`/`closeAll`/`createWidget`/`modifyWidget`/`onDeleted`/`showConfirm`/
+    `hideConfirm`/`move`/`resize`/`fullscreen`/`refreshData`/`refreshRegistry`), plus `setRunning` (main.js) and
+    `_reportOpen` (session-lk.js). (2) every widget is mounted with a **4-member `ctx`**
+    (`action`/`close`/`top`/`running`). So the work was never "adapt the widgets": it was writing a SECOND host of
+    those two contracts with another idea of screen. The whole widget catalog — including widgets the agent
+    generates tomorrow — works on the phone with zero changes to `sse.js`, zero to any widget, zero to the backend.
+  - **Media queries on `app/styles.css` were rejected on measurement, not taste**: that file is ~89 KB written
+    around a 3-column desk with a docking chat, and `widgets/desktop.js` is 859 lines whose SUBJECT is a pointer (drag
+    by the grip, 8 resize handles, free-space tiling, z-order on click). Retrofitting puts every mobile regression
+    inside the desktop's blast radius permanently. The mobile stylesheet is ~11 KB and imports nothing from it.
+  - **Two things the contract means differently in a deck, said out loud instead of faked**: `move(id, where)` has no
+    spatial meaning when one card fills the screen → it REORDERS the card; `resize` is refused explicitly
+    (`{ok:false, reason}`), because a silent no-op in a contract method is how a shell starts lying about what it did.
+  - **Paging is TWO-finger and one finger is the widget's.** If one finger also paged, every scrollable widget would
+    be unusable — you could not scroll without changing cards. And a card is HIDDEN while paging, never unmounted: a
+    video that keeps playing behind another card is correct; re-mounting would cut it off. V2-092's global stop is
+    what silences it.
+  - **SHARED by import, never forked**: `core/store.js` (one truth about power/energy/chat/tasks — two stores would
+    be two truths, the failure this codebase has paid for repeatedly), `core/reactive.js`/`dom.js`/`i18n.js`, all of
+    `services/`, and — extracted this pass — **`app/core/palette.css`** (the `--hb-*` contract both shells AND every
+    widget read) and **`app/core/shared-surfaces.css`** (the CSS of `BootOverlay`/`LanguageOnboarding`/`Alert`, the
+    three components both shells mount verbatim). Those two extractions are the point: a second copy of the tokens
+    would NOT fail loudly — it would make a widget paint wrong colors in one shell only, and forking a first-run
+    gate is how two shells end up disagreeing about whether onboarding happened.
+  - **The service worker is almost empty ON PURPOSE, and there is a test to keep it that way.** A cached module is a
+    stale agent — `server/pages.py` serves the shells `no-store` precisely so a reload cannot run yesterday's JS. So
+    `sw.js` intercepts ONLY navigations, touches nothing else (`/api/*`, `/events`, `/widgets/*`, `/static/*` never
+    pass through it) and **never calls `cache.put`**. Its only jobs are Android installability (Chrome demands a
+    manifest plus a fetch handler) and an offline card instead of the dinosaur. iOS needs no worker, only
+    `apple-mobile-web-app-capable` + `apple-touch-icon`.
+  - **THE VOICE LOCK is the real hole the brief did not see.** The operator's framing was «desde dos frontends se
+    conectan al mismo server, y ya está» — almost: `server/livekit_api.py` allows exactly ONE live voice session per
+    machine (two open mics break the pipeline). Until now the two contenders were two tabs on one computer, so
+    "close the other one" was actionable in a second; a phone and a laptop in another room are not two tabs. The
+    automatic behaviour is RIGHT and untouched (`micBlocked` + 3s self-retry: when the desktop closes, the phone
+    takes the voice on its own). What was missing is that `micBlocked` paints a 🚫 ring on the desktop orb —
+    legible when the other tab is visible, meaningless between rooms. New `POST /api/session/steal` (EXPLICIT
+    operator gesture only; the previous holder's ~4s heartbeat already knows how to stand down, so the handover
+    needs no new machinery on the loser's side) + a surface that NAMES the situation. The loser drops to chat +
+    observer, which has worked since V2-088.
+  - **Which shell a device lands in** is decided by a picker in `frontend/index.html` that runs BEFORE any ES module
+    loads (so a phone never downloads the desktop stylesheet just to be redirected away from it): explicit choice
+    sticks → stored choice → narrow viewport **AND** coarse pointer. Both conditions deliberately: a narrow desktop
+    window is still a mouse, and erring permissively would strand a laptop user in a one-card shell. `/` keeps
+    answering 200 HTML because the platform health check fetches it — the redirect is client-side, never a 302. The
+    escape hatch appears in two places and is not optional: a shell you cannot leave is a trap.
+  - **Three routes added to `server/ingress.py`'s allowlist** (`/m`, `/manifest.webmanifest`, `/sw.js`) — all build
+    constants, identical in every process. `/sw.js` must come from the ROOT with `Service-Worker-Allowed: /`,
+    because a worker only controls its own directory downwards and one under `/static/mobile/` could never see a
+    navigation to `/m`.
+  - **THREE REAL BUGS found by rendering it in a phone-sized Chromium, none of which reading the source would have
+    caught**: (a) `t()` returns the KEY when a string is missing — which is TRUTHY — so every `t("x") || "fallback"`
+    was dead code that READ like a working fallback, and the shell showed a literal `mobile.empty_title` on screen;
+    fixed by putting the 29 strings in `i18n/bundles/{en,es}.json` (the base bundle is also what makes a GENERATED
+    language get them, since init diffs against English) and deleting all 36 fake fallbacks. (b) A
+    `textContent = t(...)` at construction time freezes whatever the bundle had before its async fetch landed — the
+    empty state and four menu rows were permanently stuck on their keys; they are reactive bindings now. (c) The
+    chat sheet BURIED the dock (78vh from `bottom:0` on a 390×844 screen), which would have meant the operator
+    cannot mute the mic or press ⏻ while the chat is open — the sheets now stop ON TOP of the dock. My own CSS
+    comment had claimed a sheet "never covers the dock"; the layout was fixed, not the comment.
+  - Test node **4.18** (`tests/browser/unit/mobile/test_mobile_host_contract.mjs`): every assertion DERIVED from a
+    source of truth — the methods `sse.js` actually calls, the routes the Python decorators actually declare — never
+    a hand-copied list, because a hand-copied list keeps passing while the phone silently ignores the brain.
+    Sensitivity verified by breaking each one (dropping a Deck method, inventing an endpoint, linking the desktop
+    stylesheet). Full deterministic testmap green (74 nodes).
+  - **NOT verified live, and it is the first thing to try**: the engine was not restarted this pass (it was serving
+    an older build from a concurrent session), so `/m` has never been loaded against a REAL backend — voice,
+    SSE-driven widget opens, the two-finger gesture on real hardware and the PWA install prompt are all unexercised.
+    What IS verified: the three routes serve with the right headers and content types, the module graph resolves with
+    zero page errors in a 390×844 Chromium, and the dock/sheets/deck render with the intended geometry.
+  - **Deliberately out of F1**: `MemoryMap` (the component would import fine; its ~200-line panel CSS is keyed to a
+    wide window and re-fitting it is its own work), the 35 KB ConfigPanel (delegated to the desktop with a row that
+    says so — a phone is for USING an installation, not setting one up), and the Processes/Crons/Clusters tabs.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un

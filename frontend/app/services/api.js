@@ -49,6 +49,11 @@ export const lkToken = () => fetch("/api/token").then((r) => r.json().then((body
 // al cerrar la pestaña (best-effort, sobrevive al unload).
 export const sessionAcquire = (sid) => postJSON("/api/session/acquire", { sid }).then(json).catch(() => ({ ok: true }));
 export const sessionHeartbeat = (sid) => postJSON("/api/session/heartbeat", { sid }).then(json).catch(() => ({ ok: true }));
+// V2-124: TAKE the voice from whichever surface holds it. EXPLICIT operator gesture only (the mobile shell's
+// «traerla aquí»); the automatic path stays "ask, be refused, retry" in services/session-lk.js. Fail-CLOSED on a
+// network error, unlike acquire/heartbeat above: those fail open because "the server did not answer" means there is
+// no session to collide with, whereas here it would mean claiming a lock we were never granted.
+export const sessionSteal = (sid) => postJSON("/api/session/steal", { sid }).then(json).catch(() => ({ ok: false }));
 export const sessionRelease = (sid) => {
   try {
     const blob = new Blob([JSON.stringify({ sid })], { type: "application/json" });

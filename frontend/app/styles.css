@@ -1,47 +1,14 @@
-/* zaelar interface styles — ported verbatim from the original inline <style>.
+/* zaelar interface styles (DESKTOP shell) — ported verbatim from the original inline <style>.
    Component-scoped chrome for the widget desktop lives in app/widgets/desktop.js
    (it injects its own <style> once, on first use).
 
-   THEME: dark is the default (screen brightness at night was the whole point of this pass).
-   [data-theme="light"] on <html> overrides the palette below. app/services/theme.js sets that
-   attribute + persists the choice; app/core/store.js holds the `theme` signal.
+   ⚠️ THE COLOR PALETTE IS NOT HERE. It moved to `app/core/palette.css` (V2-124) because there are now TWO
+   shells — this one and the mobile PWA (`mobile/app/styles.css`) — serving the SAME widget catalog. index.html
+   <link>s palette.css BEFORE this file. Add or change a token THERE, never here: a token defined in one shell
+   only does not break loudly, it makes a widget paint wrong colors in the other shell, silently.
 
-   ONE variable namespace for colors/surfaces: `--hb-*`. There is no separate internal-vs-widget
-   split — the app chrome below and every widget's widget.js (see widgets/AGENTS.md) read the SAME
-   variables, so there's a single place to reason about the palette. `--canvas`/`--canvas-glow`/
-   `--chrome-line`/`--mono`/`--sans`/`--banner-h` stay unprefixed: they're app-shell structure, not
-   part of the widget color contract. */
-:root{
-  --canvas:#0a0f16; --canvas-glow:#111a24; --chrome-line:#1d2735;
-  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
-  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
-  --banner-h:0px;   /* height of the update banner when visible (0 when hidden) — top controls shift down by this */
-
-  --hb-bg:#141d29; --hb-bg-soft:#101720; --hb-bg-a:rgba(14,20,28,.82);
-  --hb-bubble:#1b2530; --hb-hover:#1c2733;
-  --hb-ink:#e8edf5; --hb-muted:#93a1b6; --hb-muted-2:#64758c; --hb-line:#232e3d; --hb-neutral:#3a4a5c;
-  --hb-accent:#3D6FE0; --hb-accent2:#16B8A6; --hb-risk:#e5484d; --hb-risk-soft:rgba(229,72,77,.16);
-  /* semantic status colors (2026-07-22 frontend pass): ok/warn share the risk/accent pattern — ONE value across
-     themes, not overridden per-theme (same as --hb-risk/--hb-accent already were). Consolidates 4+ ad hoc hex
-     greens/ambers that used to be typed per-component (StatusPanel dots, MemoryMap pulses, DebugPanel latency). */
-  --hb-ok:#1f9d55; --hb-warn:#c98a00;
-  --hb-shadow-1:0 8px 30px rgba(0,0,0,.45); --hb-shadow-2:0 20px 60px rgba(0,0,0,.55);
-  --hb-warn-bg:#2a2013; --hb-warn-border:#5c4420; --hb-warn-ink:#e8b673;
-  /* dark "console" surface for log-like views that deliberately stay dark regardless of theme (a terminal/log
-     reads the same in light or dark mode by convention) — shared by the Hermes update log and DebugPanel. */
-  --hb-console-bg:#0d1622; --hb-console-line:#1d2735; --hb-console-ink:#e8edf5; --hb-console-muted:#8ba0bc;
-  --hb-update:#f59e0b; --hb-update2:#f97316;
-}
-:root[data-theme="light"]{
-  --canvas:#f7f9fc; --canvas-glow:#ffffff;
-
-  --hb-bg:#fff; --hb-bg-soft:#fbfdff; --hb-bg-a:rgba(255,255,255,.82);
-  --hb-bubble:#f1f4f9; --hb-hover:#eef3f9;
-  --hb-ink:#0d1622; --hb-muted:#5f6b7c; --hb-muted-2:#9aa7b8; --hb-line:#e3e8f0; --hb-neutral:#c2ccda;
-  --hb-risk-soft:#fff5f5;
-  --hb-shadow-1:0 8px 30px rgba(13,22,34,.12); --hb-shadow-2:0 20px 60px rgba(13,22,34,.22);
-  --hb-warn-bg:#fff7ed; --hb-warn-border:#fed7aa; --hb-warn-ink:#9a5b1b;
-}
+   This file is the desktop LAYOUT: the 3-column desk, the draggable chrome, the docking chat, the orb cluster.
+   None of it is imported by the mobile shell — that was the point of the split. */
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;font-family:var(--sans);overflow:hidden;-webkit-text-size-adjust:100%;color:var(--hb-ink);background:var(--canvas)}
@@ -779,8 +746,7 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .mm-slabel{font-family:var(--mono);font-size:9px;letter-spacing:.05em;text-transform:uppercase;color:var(--hb-muted-2)}
 .mm-sval{font-size:12px;color:var(--hb-ink);font-weight:600;overflow:hidden;
   display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;word-break:break-word}
-.alert{position:fixed;top:0;left:0;right:0;background:var(--hb-risk);color:#fff;padding:11px 16px;font-size:14px;text-align:center;z-index:60;cursor:pointer;display:none}
-.alert.show{display:block}
+/* .alert moved to app/core/shared-surfaces.css (V2-124) — shared by both shells. */
 @media (max-width:640px){ .me{width:150px} .cam{width:150px;height:112px} .ctrl{width:150px}
   .orbwrap{bottom:84px} canvas#orb{width:120px;height:120px}
   .chatwall{left:12px;right:12px;width:auto;max-width:none;top:auto;bottom:96px;height:min(56vh,440px)} }
@@ -820,49 +786,9 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
   border-top-color:var(--hb-accent);border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 
-/* ---------- BOOT OVERLAY — «Colmena sináptica» splash while zaelar comes up on first load ----------
-   A full-screen canvas (components/boot-anim.js) where a neural constellation assembles itself in parts, one
-   cluster per boot phase, then implodes into the orb on "listo". z-index above EVERYTHING else (upd-ovl is
-   100002) — the first thing the user sees. Visible by default; `.gone` (set on store.bootReady) lifts the veil
-   as the mesh collapses. Themed via --hb-* (dark/light). See BootOverlay.js. */
-.boot-ovl{position:fixed;inset:0;z-index:100010;overflow:hidden;
-  background:radial-gradient(120% 90% at 50% 46%, var(--hb-bg-soft) 0%, var(--hb-bg) 70%);
-  opacity:1;transition:opacity .72s ease}
-.boot-ovl.gone{opacity:0;pointer-events:none}
-.boot-canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
-.boot-caption{position:absolute;left:50%;top:70%;transform:translateX(-50%);
-  color:var(--hb-muted);font-size:13px;font-weight:600;letter-spacing:.04em;
-  white-space:nowrap;transition:opacity .4s ease;text-shadow:0 1px 12px var(--hb-bg)}
-
-/* ── Language onboarding (V2-101): first-run blocking modal, ABOVE the boot veil (100010) so it follows it —
-   two veils in a row, never one rebuilt. `.open` shows it; `.gone` (set once the "ready" SSE phase lands)
-   fades it the same way `.boot-ovl.gone` does. Themed via --hb-*. See LanguageOnboarding.js. ────────────── */
-.lang-onb{position:fixed;inset:0;z-index:100020;display:none;align-items:center;justify-content:center;
-  padding:16px;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);opacity:1;transition:opacity .5s ease}
-.lang-onb.open{display:flex}
-.lang-onb.gone{opacity:0;pointer-events:none}
-.lang-onb-card{width:100%;max-width:420px;background:var(--hb-bg);border:1px solid var(--hb-line);
-  border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.4);padding:26px 24px;color:var(--hb-ink)}
-.lang-onb-q{font-size:17px;font-weight:700;text-align:center}
-.lang-onb-hint{font-size:12.5px;color:var(--hb-muted);text-align:center;margin-top:6px}
-.lang-onb-chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-top:20px}
-.lang-onb-chip{border:1px solid var(--hb-line);background:var(--hb-bg-soft);color:var(--hb-ink);
-  font-size:13px;font-weight:600;padding:7px 14px;border-radius:20px;cursor:pointer}
-.lang-onb-chip:hover{border-color:var(--hb-accent);color:var(--hb-accent)}
-.lang-onb-chip[disabled]{opacity:.5;cursor:default}
-.lang-onb-typed{display:flex;gap:8px;margin-top:18px}
-.lang-onb-input{flex:1;box-sizing:border-box;padding:9px 12px;border:1px solid var(--hb-line);border-radius:10px;
-  background:var(--hb-bg-soft);color:var(--hb-ink);font-size:13px}
-.lang-onb-input:focus{border-color:var(--hb-accent);outline:none}
-.lang-onb-go{width:38px;border-radius:10px;border:none;cursor:pointer;color:#fff;font-weight:700;
-  background:linear-gradient(135deg,var(--hb-accent),var(--hb-accent2))}
-.lang-onb-go[disabled]{opacity:.55;cursor:default}
-.lang-onb-loading{display:flex;flex-direction:column;align-items:center;gap:16px;padding:10px 4px}
-.lang-onb-spinner{width:30px;height:30px;border-radius:50%;border:3px solid var(--hb-line);
-  border-top-color:var(--hb-accent);animation:lang-onb-spin 0.85s linear infinite}
-@keyframes lang-onb-spin{to{transform:rotate(360deg)}}
-.lang-onb-loading-text{font-size:13.5px;color:var(--hb-muted);text-align:center;line-height:1.4}
-
+/* The BOOT OVERLAY and the LANGUAGE ONBOARDING veils moved to app/core/shared-surfaces.css
+   (V2-124): both shells mount those components verbatim, so their CSS cannot live in one
+   shell's stylesheet. index.html <link>s that file. */
 /* ---------- WIDGET KIT — optional shared primitives (widgets/AGENTS.md §Visual style) ----------
    Global, `hbk-`-prefixed so they never collide with a widget's own scoped classes (`.hb-<id> …`).
    A widget.js may use these instead of hand-rolling the same card/header/chip CSS every time — same

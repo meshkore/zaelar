@@ -1,0 +1,23 @@
+{
+  "name": "zaelar",
+  "short_name": "zaelar",
+  "description": "Your voice agent, in your pocket.",
+  "id": "/m",
+  "start_url": "/m",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "portrait",
+  "background_color": "#0a0f16",
+  "theme_color": "#0a0f16",
+  "lang": "en",
+  "categories": ["productivity", "utilities"],
+  "icons": [
+    { "src": "/static/mobile/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/static/mobile/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/static/mobile/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Chat", "url": "/m?panel=chat", "icons": [{ "src": "/static/mobile/icons/icon-192.png", "sizes": "192x192" }] }
+  ]
+}

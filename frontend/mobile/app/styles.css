@@ -1,0 +1,288 @@
+/* ============================================================================
+   mobile/app/styles.css — THE MOBILE SHELL'S OWN STYLESHEET.
+   It imports nothing from app/styles.css and app/styles.css imports nothing from here. The colour tokens come from
+   app/core/palette.css, which BOTH shells <link> and every widget reads — that file is the only thing the two
+   stylesheets have in common, and it is why a widget looks like itself in either shell.
+
+   THREE RULES GOVERN EVERYTHING BELOW.
+
+   1. --dock-h IS THE ONLY GEOMETRY. There is one screen and one bar at the bottom of it; every other surface is
+      flow layout inside a full-bleed box. Compare with the desktop, whose stylesheet exists mostly to place things
+      relative to each other.
+
+   2. SAFE AREAS ARE NOT OPTIONAL. env(safe-area-inset-*) with viewport-fit=cover, or on any modern iPhone the dock
+      sits under the home indicator (every tap becomes a swipe-up) and card titles hide behind the notch. This is
+      the single most common way a PWA that "works in the simulator" is unusable on real hardware.
+
+   3. EVERY TAP TARGET IS >= 44px. Not a preference: below that, on a moving bus, the ⏻ and the mic are the same
+      button. The desktop's icons are 26-30px because a mouse has a pixel of precision and a thumb has none.
+   ============================================================================ */
+
+:root {
+  --dock-h: 76px;                        /* the bar's own height; the safe-area pad is added on top of it */
+  /* Sheet height, measured from ON TOP OF the dock (see .zm-sheet). Leaves the deck visible above it, so the
+     card you were reading never disappears entirely behind the chat. */
+  --zm-sheet-max: calc(78vh - var(--dock-h));
+  --zm-r: 18px;                          /* one corner radius for every surface in this shell */
+}
+
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { height: 100%; margin: 0; }
+body {
+  font-family: var(--sans);
+  color: var(--hb-ink);
+  background: var(--canvas);
+  /* overflow:hidden + overscroll-behavior:none kill the rubber-band bounce of the PAGE. Without it, dragging inside
+     a widget drags the whole app and the illusion of an installed app dies instantly. Scrolling still works: each
+     card has its own scroller (.zm-scroll), which is where the gesture belongs. */
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%;
+  /* No text selection on chrome. A long-press that pops "Copy | Look Up" over the power button reads as a bug.
+     Widgets opt back IN below — their content is text people legitimately want to select. */
+  -webkit-user-select: none; user-select: none;
+}
+
+/* ---------- the deck's backdrop ---------- */
+#zm-deck-wrap { position: fixed; inset: 0; }
+.zm-bg {
+  position: fixed; inset: 0;
+  background: radial-gradient(70% 50% at 50% 30%, var(--canvas-glow), var(--canvas) 72%);
+}
+/* The desktop's dotted grid, at half strength: on a small bright screen the full-strength pattern competes with
+   the content instead of sitting behind it. */
+.zm-bg::before {
+  content: ""; position: absolute; inset: 0; opacity: .28; pointer-events: none;
+  background-image: radial-gradient(var(--hb-line) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Widget content is selectable and readable at native size — the chrome rules above must not leak into it. */
+.zm-body, .zm-msgs, .zm-fb textarea { -webkit-user-select: text; user-select: text; }
+
+/* ---------- THE DOCK ---------- */
+.zm-dock {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 60;
+  height: calc(var(--dock-h) + env(safe-area-inset-bottom));
+  padding: 0 12px env(safe-area-inset-bottom);
+  display: flex; align-items: center; gap: 10px;
+  background: var(--hb-bg-a);
+  /* The blur is what makes the bar read as glass over a live card rather than as a solid strip that ate 76px of
+     the screen. -webkit- prefix included: Safari is the browser that matters most here. */
+  -webkit-backdrop-filter: blur(18px) saturate(1.4); backdrop-filter: blur(18px) saturate(1.4);
+  border-top: 1px solid var(--hb-line);
+}
+.zm-ctl { flex: 1 1 auto; display: flex; align-items: center; justify-content: space-around; gap: 4px; }
+.zm-ic {
+  width: 52px; height: 52px; flex: 0 0 auto;
+  display: flex; align-items: center; justify-content: center;
+  border: none; border-radius: 15px; background: transparent;
+  transition: color .18s, background .18s, transform .12s;
+}
+/* BLUE = on/live, pale GREY = off/closed — the same language as the desktop's lid icons, so an operator who knows
+   one shell can read the other without learning a second vocabulary. */
+.zm-ic.on { color: var(--hb-accent); }
+.zm-ic.off { color: var(--hb-muted-2); }
+.zm-ic:active { transform: scale(.92); background: var(--hb-bubble); }
+
+/* ⏻ is bigger and centred: it is the one control the operator looks at to know whether anyone is on the other end,
+   and it paints the FOUR real states (store.agentState), never the persisted flag. */
+.zm-pwr { width: 58px; height: 58px; }
+.zm-pwr.pwr-live { color: var(--hb-accent); }
+.zm-pwr.pwr-starting { color: var(--hb-warn); animation: zmpulse 1.4s ease-in-out infinite; }
+.zm-pwr.pwr-off { color: var(--hb-muted-2); }
+/* `stalled` = "should be on and is not". It has to be impossible to mistake for `live`, because mistaking them is
+   exactly what cost a whole session once: red, and it blinks. */
+.zm-pwr.pwr-stalled { color: var(--hb-risk); animation: zmpulse .9s ease-in-out infinite; }
+@keyframes zmpulse { 0%, 100% { opacity: 1 } 50% { opacity: .42 } }
+
+/* The mic icon IS the level meter (--vu, written per frame from the real RMS): only a custom property changes, so
+   there is no re-render. With the mic muted or the agent stopped --vu is 0 and nothing moves — the meter can only
+   move when we are truly listening. */
+.zm-ic.on svg { transform: scale(calc(1 + (var(--vu, 0) * .22))); transition: transform .08s linear; }
+@media (prefers-reduced-motion: reduce) {
+  .zm-ic.on svg { transform: none; }
+  .zm-pwr.pwr-starting, .zm-pwr.pwr-stalled { animation: none; }
+}
+
+/* ---------- THE ORB, in the dock ---------- */
+.zm-orb { position: relative; flex: 0 0 auto; width: 54px; height: 54px; }
+.zm-orb-c, .zm-viz-c { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 50%; }
+.zm-viz-c { opacity: .55; }               /* the person's voice sits behind zaelar's own */
+.zm-orb.off { filter: grayscale(1); opacity: .45; }   /* stopped = frozen and grey, visibly (V2-092) */
+.zm-orb.talking { box-shadow: 0 0 0 3px color-mix(in srgb, var(--hb-accent2) 40%, transparent); border-radius: 50%; }
+.zm-vflash {
+  position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%);
+  margin-bottom: 8px; padding: 4px 9px; border-radius: 9px; white-space: nowrap;
+  background: var(--hb-bubble); color: var(--hb-ink); font: 600 11px/1 var(--sans);
+  opacity: 0; transition: opacity .2s; pointer-events: none;
+}
+.zm-vflash.show { opacity: 1; }
+
+/* ---------- CAPTIONS: a band just above the dock ----------
+   The desktop grows them upward from the orb as a 3-line teleprompter. Here the orb IS at the bottom, so there is
+   no room above it — the band floats over the live card instead, and clamps to two lines: a phone held at arm's
+   length can read two, and a third would cover the card it is describing. */
+.zm-cap {
+  position: fixed; left: 10px; right: 10px; z-index: 55;
+  bottom: calc(var(--dock-h) + env(safe-area-inset-bottom) + 8px);
+  padding: 9px 13px; border-radius: 13px;
+  background: rgba(6, 10, 16, .74);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  color: #eef2f8; font: 500 14px/1.4 var(--sans); text-align: center;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  opacity: 0; transform: translateY(6px); transition: opacity .2s, transform .2s; pointer-events: none;
+}
+.zm-cap.show { opacity: 1; transform: none; }
+
+/* ---------- SHEETS (chat · menu · settings) ----------
+   They slide up and STOP ON TOP OF THE DOCK, never over it — `bottom` is the dock's own height, not 0. That is
+   deliberate and it was a real correction: at bottom:0 a 78vh sheet buries the bar on a 390x844 screen (caught in a
+   phone-sized browser render, not by reading the CSS). Burying it would mean that while the chat is open the
+   operator cannot mute the mic, cannot see the orb's state and cannot press ⏻ — the one control that must never be
+   more than one tap away. Every control at the bottom is the whole premise of this shell; a sheet does not get to
+   suspend it.
+   main.js also makes the sheets mutually exclusive, and the Android back button closes the top-most one. */
+.zm-sheet {
+  position: fixed; left: 0; right: 0; z-index: 70;
+  bottom: calc(var(--dock-h) + env(safe-area-inset-bottom));
+  max-height: var(--zm-sheet-max);
+  display: flex; flex-direction: column;
+  background: var(--hb-bg); border-top: 1px solid var(--hb-line);
+  border-radius: var(--zm-r) var(--zm-r) 0 0;
+  box-shadow: var(--hb-shadow-2);
+  /* Slid down by its own height PLUS the dock it sits on, or its lower edge would peek above the bar while closed. */
+  transform: translateY(calc(101% + var(--dock-h) + env(safe-area-inset-bottom)));
+  transition: transform .26s cubic-bezier(.22, .9, .3, 1);
+}
+.zm-sheet.open { transform: none; }
+.zm-settings { z-index: 72; }             /* opened FROM the menu, so it must sit above it */
+.zm-sheet-h {
+  position: relative; flex: 0 0 auto;
+  display: flex; align-items: center; gap: 10px; padding: 16px 14px 10px;
+  border-bottom: 1px solid var(--hb-line);
+}
+.zm-sheet-grab {
+  position: absolute; top: 7px; left: 50%; transform: translateX(-50%);
+  width: 38px; height: 4px; border-radius: 2px; background: var(--hb-neutral);
+}
+.zm-sheet-h h2 { flex: 1 1 auto; margin: 0; font: 600 16px/1.2 var(--sans); color: var(--hb-ink); }
+.zm-sheet-x {
+  flex: 0 0 auto; width: 44px; height: 44px; border: none; border-radius: 13px;
+  background: var(--hb-bubble); color: var(--hb-muted); font-size: 20px; line-height: 1;
+}
+
+/* ---------- CHAT sheet ---------- */
+.zm-chat { height: var(--zm-sheet-max); }
+.zm-msgs {
+  flex: 1 1 auto; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain; padding: 12px; display: flex; flex-direction: column; gap: 9px;
+}
+.zm-msg { max-width: 84%; padding: 10px 13px; border-radius: 15px; font: 15px/1.45 var(--sans); word-wrap: break-word; }
+.zm-msg.you { align-self: flex-end; background: var(--hb-accent); color: #fff; border-bottom-right-radius: 5px; }
+.zm-msg.agent { align-self: flex-start; background: var(--hb-bubble); color: var(--hb-ink); border-bottom-left-radius: 5px; }
+.zm-msg.sys { align-self: center; background: transparent; color: var(--hb-muted-2); font-size: 13px; text-align: center; }
+.zm-msg p { margin: 0 0 .5em } .zm-msg p:last-child { margin: 0 }
+.zm-msg pre { overflow-x: auto; margin: .5em 0; padding: 9px; border-radius: 9px; background: var(--hb-console-bg); color: var(--hb-console-ink); font: 12px/1.45 var(--mono); }
+.zm-compose { flex: 0 0 auto; display: flex; gap: 9px; padding: 10px 12px 12px; border-top: 1px solid var(--hb-line); }
+.zm-compose input {
+  flex: 1 1 auto; min-width: 0; min-height: 46px; padding: 0 14px;
+  border: 1px solid var(--hb-line); border-radius: 14px;
+  background: var(--hb-bg-soft); color: var(--hb-ink);
+  /* 16px EXACTLY. Any smaller and iOS Safari zooms the whole page in when the field is focused, and the layout
+     never recovers. This is not a typographic choice. */
+  font: 16px var(--sans);
+}
+.zm-compose input:focus { outline: none; border-color: var(--hb-accent); }
+.zm-send {
+  flex: 0 0 auto; width: 46px; height: 46px; border: none; border-radius: 14px;
+  background: var(--hb-accent); color: #fff; display: flex; align-items: center; justify-content: center;
+}
+
+/* ---------- MENU / SETTINGS rows ---------- */
+.zm-rows { flex: 1 1 auto; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; padding: 6px 0 14px; }
+.zm-row {
+  width: 100%; min-height: 58px; padding: 12px 16px;
+  display: flex; align-items: center; gap: 12px; text-align: left;
+  border: none; border-bottom: 1px solid var(--hb-line); background: transparent; color: var(--hb-ink);
+}
+.zm-row:active { background: var(--hb-hover); }
+.zm-row-t { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.zm-row-t b { font: 600 15px/1.25 var(--sans); }
+.zm-row-t small { font: 13px/1.35 var(--sans); color: var(--hb-muted); }
+.zm-row svg { flex: 0 0 auto; color: var(--hb-muted-2); }
+.zm-row select {
+  min-height: 40px; padding: 0 10px; border: 1px solid var(--hb-line); border-radius: 11px;
+  background: var(--hb-bg-soft); color: var(--hb-ink); font: 15px var(--sans);
+}
+/* A switch, not a checkbox: on a phone a checkbox is a 13px target and a switch is the whole row. */
+.zm-sw {
+  flex: 0 0 auto; width: 50px; height: 30px; border-radius: 15px; background: var(--hb-neutral);
+  position: relative; transition: background .2s;
+}
+.zm-sw::after {
+  content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%;
+  background: #fff; transition: transform .2s;
+}
+.zm-toggle.on .zm-sw { background: var(--hb-accent); }
+.zm-toggle.on .zm-sw::after { transform: translateX(20px); }
+
+/* ---------- ENERGY row ---------- */
+.zm-energy { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--hb-line); }
+.zm-energy.hide { display: none; }                     /* self-host: no account behind it, so no row at all */
+.zm-energy span { font: 600 13px var(--sans); color: var(--hb-muted); letter-spacing: .04em; text-transform: uppercase; }
+.zm-energy b { font: 700 20px/1 var(--sans); color: var(--hb-ink); }
+.zm-energy i {
+  flex: 1 1 auto; height: 7px; min-width: 0; border-radius: 4px;
+  background: linear-gradient(90deg, var(--hb-accent2), var(--hb-accent));
+  box-shadow: inset 0 0 0 1px var(--hb-line);
+}
+
+/* ---------- inline FEEDBACK ---------- */
+.zm-fb { max-height: 0; overflow: hidden; transition: max-height .26s ease; padding: 0 16px; }
+.zm-fb.open { max-height: 320px; padding: 12px 16px 16px; }
+.zm-fb textarea {
+  width: 100%; padding: 11px; border: 1px solid var(--hb-line); border-radius: 13px;
+  background: var(--hb-bg-soft); color: var(--hb-ink); font: 16px/1.45 var(--sans); resize: none;
+}
+.zm-fb small { display: block; margin: 7px 0 11px; font: 12px/1.4 var(--sans); color: var(--hb-muted-2); }
+.zm-fb-done { margin: 9px 0 0; font: 13px var(--sans); color: var(--hb-accent2); }
+.zm-primary {
+  min-height: 48px; padding: 0 20px; border: none; border-radius: 14px;
+  background: var(--hb-accent); color: #fff; font: 600 15px var(--sans);
+}
+.zm-primary[disabled] { opacity: .45; }
+.zm-ghost {
+  min-height: 48px; padding: 0 20px; border: 1px solid var(--hb-line); border-radius: 14px;
+  background: transparent; color: var(--hb-ink); font: 600 15px var(--sans);
+}
+
+/* ---------- THE VOICE-LOCK NOTICE ----------
+   Above the dock, not a modal: the operator can keep using text while it is showing. A modal here would say "you
+   cannot continue", and the truth is the opposite — only the microphone is elsewhere. */
+.zm-held {
+  position: fixed; left: 12px; right: 12px; z-index: 65;
+  bottom: calc(var(--dock-h) + env(safe-area-inset-bottom) + 12px);
+  padding: 15px; border-radius: var(--zm-r);
+  background: var(--hb-warn-bg); border: 1px solid var(--hb-warn-border); color: var(--hb-warn-ink);
+  box-shadow: var(--hb-shadow-1);
+  opacity: 0; transform: translateY(10px); pointer-events: none;
+  transition: opacity .22s, transform .22s;
+}
+.zm-held.show { opacity: 1; transform: none; pointer-events: auto; }
+.zm-held p { margin: 0 0 12px; font: 500 14px/1.45 var(--sans); }
+.zm-held div { display: flex; gap: 10px; }
+.zm-held .zm-primary, .zm-held .zm-ghost { flex: 1 1 auto; min-height: 44px; font-size: 14px; }
+
+/* ---------- SHARED DESKTOP SURFACES ----------
+   BootOverlay, LanguageOnboarding and Alert are imported verbatim from app/components/ (see
+   shell/mobile-surfaces.js) and their CSS is in app/core/shared-surfaces.css, which this shell <link>s alongside
+   palette.css. Nothing is restated here on purpose: a second copy of a veil's styling would drift, and a drifted
+   first-run gate fails by looking almost right.
+   The only mobile-specific adjustment they need is to keep clear of the dock and the safe areas. */
+.alert { top: env(safe-area-inset-top); left: 8px; right: 8px; border-radius: 13px; }
+.lang-onb { padding: calc(env(safe-area-inset-top) + 16px) 16px calc(env(safe-area-inset-bottom) + 16px); }
+.lang-onb-card { max-width: 100%; }
+/* 16px minimum, or iOS Safari zooms the page the moment this input takes focus — the same rule as .zm-compose. */
+.lang-onb-input { font-size: 16px; }
+.boot-caption { top: 64%; font-size: 14px; }

@@ -313,6 +313,14 @@ DOMAINS: list[dict] = [
         # caso del barge-in, donde el transcript llega truncado).
         {"id": "4.17", "title": "El muro de chat no espera a la voz (y el transcript posterior no duplica)",
             "ch": UNIT, "paths": ["tests/browser/unit/chat/test_chat_wall_promptness.py"]},
+        # V2-124: el shell MÓVIL (PWA) es un SEGUNDO host de los dos contratos que ya hablaban `services/sse.js` y
+        # cada widget. El riesgo no es que hoy funcione —funciona— sino que alguien añada un método al protocolo de
+        # host, o renombre uno, y el ESCRITORIO siga verde porque tiene su propio host: el fallo saldría en el
+        # teléfono, en silencio, ignorando al cerebro. El test DERIVA lo que exige del propio código (los métodos
+        # que sse.js llama, las rutas que el backend declara), nunca de una lista copiada a mano.
+        {"id": "4.18", "title": "Shell MÓVIL: contrato de host + del widget · paleta compartida · el service worker "
+                                "no cachea", "ch": UNIT,
+            "paths": ["tests/browser/unit/mobile/test_mobile_host_contract.py"]},
     ]},
     {"id": "5", "name": "CONECTORES", "nodes": [
         {"id": "5.1", "title": "Email", "ch": UNIT, "paths": [

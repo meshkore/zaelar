@@ -1,0 +1,46 @@
+/* palette.css — THE color contract, extracted 2026-08-18 (V2-124).
+   ONE variable namespace for colors/surfaces: `--hb-*`. There is no separate internal-vs-widget split — the app
+   chrome and every widget's widget.js (see widgets/AGENTS.md) read the SAME variables, so there's a single place
+   to reason about the palette. `--canvas`/`--canvas-glow`/`--chrome-line`/`--mono`/`--sans`/`--banner-h` stay
+   unprefixed: they're app-shell structure, not part of the widget color contract.
+
+   THEME: dark is the default (screen brightness at night was the whole point of that pass).
+   [data-theme="light"] on <html> overrides the palette below. app/services/theme.js sets that attribute +
+   persists the choice; app/core/store.js holds the `theme` signal.
+
+   WHY IT LIVES IN ITS OWN FILE: there are now TWO shells — the desktop (app/styles.css) and the mobile PWA
+   (mobile/app/styles.css) — and both serve the SAME widget catalog. A widget renders with var(--hb-bg) whichever
+   shell hosts it, so a second copy of these tokens would not fail loudly: it would fail as a widget quietly
+   painting the wrong colors in one shell only. Both shells <link> this file BEFORE their own stylesheet.
+   Add a token here, never in a shell. */
+:root{
+  --canvas:#0a0f16; --canvas-glow:#111a24; --chrome-line:#1d2735;
+  --mono:ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --banner-h:0px;   /* height of the update banner when visible (0 when hidden) — top controls shift down by this */
+
+  --hb-bg:#141d29; --hb-bg-soft:#101720; --hb-bg-a:rgba(14,20,28,.82);
+  --hb-bubble:#1b2530; --hb-hover:#1c2733;
+  --hb-ink:#e8edf5; --hb-muted:#93a1b6; --hb-muted-2:#64758c; --hb-line:#232e3d; --hb-neutral:#3a4a5c;
+  --hb-accent:#3D6FE0; --hb-accent2:#16B8A6; --hb-risk:#e5484d; --hb-risk-soft:rgba(229,72,77,.16);
+  /* semantic status colors (2026-07-22 frontend pass): ok/warn share the risk/accent pattern — ONE value across
+     themes, not overridden per-theme (same as --hb-risk/--hb-accent already were). Consolidates 4+ ad hoc hex
+     greens/ambers that used to be typed per-component (StatusPanel dots, MemoryMap pulses, DebugPanel latency). */
+  --hb-ok:#1f9d55; --hb-warn:#c98a00;
+  --hb-shadow-1:0 8px 30px rgba(0,0,0,.45); --hb-shadow-2:0 20px 60px rgba(0,0,0,.55);
+  --hb-warn-bg:#2a2013; --hb-warn-border:#5c4420; --hb-warn-ink:#e8b673;
+  /* dark "console" surface for log-like views that deliberately stay dark regardless of theme (a terminal/log
+     reads the same in light or dark mode by convention) — shared by the Hermes update log and DebugPanel. */
+  --hb-console-bg:#0d1622; --hb-console-line:#1d2735; --hb-console-ink:#e8edf5; --hb-console-muted:#8ba0bc;
+  --hb-update:#f59e0b; --hb-update2:#f97316;
+}
+:root[data-theme="light"]{
+  --canvas:#f7f9fc; --canvas-glow:#ffffff;
+
+  --hb-bg:#fff; --hb-bg-soft:#fbfdff; --hb-bg-a:rgba(255,255,255,.82);
+  --hb-bubble:#f1f4f9; --hb-hover:#eef3f9;
+  --hb-ink:#0d1622; --hb-muted:#5f6b7c; --hb-muted-2:#9aa7b8; --hb-line:#e3e8f0; --hb-neutral:#c2ccda;
+  --hb-risk-soft:#fff5f5;
+  --hb-shadow-1:0 8px 30px rgba(13,22,34,.12); --hb-shadow-2:0 20px 60px rgba(13,22,34,.22);
+  --hb-warn-bg:#fff7ed; --hb-warn-border:#fed7aa; --hb-warn-ink:#9a5b1b;
+}

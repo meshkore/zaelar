@@ -5,7 +5,35 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover"/>
 <meta name="theme-color" content="#0a0f16" id="themeColorMeta"/>
 <title>zaelar</title>
-<link rel="stylesheet" href="/static/app/styles.css?v=2"/>
+<script>
+  /* SHELL PICKER (V2-124) — runs BEFORE a single ES module loads, so a phone never downloads the desktop shell's
+     ~90 KB of layout CSS just to be redirected away from it. Three rules, in order:
+       1. an explicit choice wins and STICKS  — ?desktop=1 / ?mobile=1 persist into localStorage;
+       2. a stored choice wins over detection — the operator who picked desktop on a tablet keeps it forever;
+       3. otherwise: narrow viewport AND a coarse pointer -> /m. BOTH conditions, deliberately: a narrow desktop
+          window is still a mouse, and a 13" tablet with a trackpad is still a desktop. Getting this wrong in the
+          permissive direction would strand a laptop user in a one-widget-at-a-time shell with no way back.
+     `/` must keep answering 200 with HTML for Fly's health check, so the redirect happens in the CLIENT, never as
+     an HTTP 302 from the server (server/pages.py). */
+  (function () {
+    try {
+      var q = new URLSearchParams(location.search);
+      if (q.has("desktop")) { localStorage.setItem("zaelar_shell", "desktop"); return; }
+      if (q.has("mobile")) { localStorage.setItem("zaelar_shell", "mobile"); location.replace("/m"); return; }
+      var pick = localStorage.getItem("zaelar_shell");
+      if (pick === "desktop") return;
+      if (pick === "mobile") { location.replace("/m"); return; }
+      var narrow = Math.min(screen.width || innerWidth, innerWidth) <= 820;
+      var coarse = matchMedia("(pointer: coarse)").matches;
+      if (narrow && coarse) location.replace("/m");
+    } catch (_) { /* no storage / no matchMedia: stay on the desktop shell, which always works */ }
+  })();
+</script>
+<!-- palette.css FIRST and as its own <link> (V2-124): it holds the --hb-* color contract that BOTH shells and
+     every widget read. A separate parallel request, not a CSS @import, so it does not serialize behind styles.css. -->
+<link rel="stylesheet" href="/static/app/core/palette.css?v=1"/>
+<link rel="stylesheet" href="/static/app/core/shared-surfaces.css?v=1"/>
+<link rel="stylesheet" href="/static/app/styles.css?v=3"/>
 <style>
   /* PREBOOT splash — inline en el HTML a PROPÓSITO: pinta en el PRIMER byte, ANTES de que carguen los módulos ES.
      En una Machine de cuenta en frío los módulos tardan decenas de segundos; sin esto el usuario veía una pantalla

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<!--
+  THE MOBILE SHELL (V2-124). Deliberately NOT the desktop index.html with a media query: it loads a different
+  stylesheet, a different entry module and a different set of surfaces. What it shares with the desktop is the
+  ENGINE — same services, same store, same widget catalog — and the two colour/veil stylesheets below.
+
+  viewport-fit=cover is load-bearing, not cosmetic: without it env(safe-area-inset-*) always resolves to 0 and the
+  bottom dock ends up under the iPhone home indicator, where every tap is a swipe-up.
+  maximum-scale=1 + user-scalable=no: this is an app shell where each card has its own scroller, and pinch-zooming
+  the shell itself only ever breaks the fixed dock. Widget content stays legible because nothing in it is below
+  13px and every input is 16px.
+-->
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"/>
+<meta name="theme-color" content="#0a0f16" id="themeColorMeta"/>
+<title>zaelar</title>
+
+<!-- ── PWA identity ────────────────────────────────────────────────────────────────────────────────────────────
+  The manifest is served from the ROOT (/manifest.webmanifest), not from /static/mobile/, because `scope` and
+  `start_url` must be reachable from where the manifest lives, and because it has to answer without a session
+  (a browser fetches it before anything else) — see the ingress allowlist in server/ingress.py.
+
+  iOS does not require a service worker for "Add to Home Screen", but it DOES require these two tags: without
+  apple-mobile-web-app-capable the app opens in Safari chrome (address bar and all, which is not an app), and
+  without apple-touch-icon the home-screen icon is a screenshot of the page.
+-->
+<link rel="manifest" href="/manifest.webmanifest"/>
+<meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="zaelar"/>
+<link rel="apple-touch-icon" href="/static/mobile/icons/apple-touch-icon.png"/>
+<link rel="icon" href="/static/mobile/icons/icon-192.png" sizes="192x192"/>
+
+<!-- palette.css = the --hb-* colour contract that BOTH shells and every widget read.
+     shared-surfaces.css = the CSS of the three components both shells mount verbatim (boot veil, language gate,
+     alert banner). Neither file is mobile- or desktop-specific; app/styles.css (the desktop LAYOUT) is, and is
+     deliberately NOT loaded here — that ~90 KB of 3-column canvas is what this shell exists to avoid. -->
+<link rel="stylesheet" href="/static/app/core/palette.css?v=1"/>
+<link rel="stylesheet" href="/static/app/core/shared-surfaces.css?v=1"/>
+<link rel="stylesheet" href="/static/mobile/app/styles.css?v=1"/>
+
+<style>
+  /* PREBOOT splash — inline ON PURPOSE, exactly as on the desktop: it paints on the FIRST byte, BEFORE any ES
+     module loads. On a cold account Machine the modules take tens of seconds and the user would stare at black
+     until the BootOverlay (drawn by JS) mounts. mobile/app/main.js removes it as soon as the app is up; if main.js
+     failed to load it stays, which is the right failure — a loader beats a black screen. Zero dependency on
+     /static (colours inline), so it works even if the stylesheets are still in flight. */
+  #preboot { position:fixed; inset:0; z-index:9998; display:flex; flex-direction:column; align-items:center;
+             justify-content:center; gap:18px; background:#0a0f16; color:#e6e8ee;
+             font:15px/1.5 -apple-system, system-ui, sans-serif; }
+  #preboot .ring { width:46px; height:46px; border-radius:50%;
+             background:conic-gradient(from 0deg, #10b981, #7ad0ff, #8b7bff, #10b981);
+             -webkit-mask:radial-gradient(farthest-side, transparent calc(100% - 4px), #000 0);
+             mask:radial-gradient(farthest-side, transparent calc(100% - 4px), #000 0);
+             animation:pbspin 1s linear infinite; }
+  #preboot .lbl { opacity:.72; letter-spacing:.02em; }
+  @keyframes pbspin { to { transform:rotate(360deg); } }
+</style>
+
+<script>
+  /* THE ESCAPE HATCH, mirroring the picker in the desktop index.html: /m?desktop=1 goes back and REMEMBERS. A
+     shell you cannot leave is a trap, and the desktop picker would otherwise bounce a tablet straight back here. */
+  (function () {
+    try {
+      if (new URLSearchParams(location.search).has("desktop")) {
+        localStorage.setItem("zaelar_shell", "desktop");
+        location.replace("/?desktop=1");
+      }
+    } catch (_) {}
+  })();
+</script>
+</head>
+<body>
+<div id="preboot"><div class="ring"></div><div class="lbl">Starting up zaelar…</div></div>
+
+<!-- The browser-VAD scripts, same as the desktop: they attach window.vad / window.ort and services/vad.js expects
+     them to be there. Vendored, no CDN. -->
+<script src="/static/vad/ort.wasm.min.js"></script>
+<script src="/static/vad/vad.bundle.min.js"></script>
+<script type="module" src="/static/mobile/app/main.js?v=1"></script>
+
+<script>
+  /* SERVICE WORKER registration — the LAST thing, and wrapped, because it is the least important thing on this
+     page. If it fails the app works exactly the same; all it buys is Android's install prompt and a decent
+     offline card (see mobile/sw.js, which is deliberately almost empty).
+     Served from the ROOT with Service-Worker-Allowed: / — a worker can only control its own directory downwards,
+     so one served from /static/mobile/ could never see a navigation to /m. */
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch(() => {});
+    });
+  }
+</script>
+</body>
+</html>

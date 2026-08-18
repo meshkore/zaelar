@@ -61,6 +61,30 @@ def session_heartbeat(sid: str = Body(..., embed=True)) -> dict:
         return {"ok": False, "held": True}
 
 
+@router.post("/api/session/steal")
+def session_steal(sid: str = Body(..., embed=True)) -> dict:
+    """TAKE the live-session lock from whoever holds it. An EXPLICIT operator gesture, never automatic.
+
+    Why this exists (V2-124): the lock above is correct and its "ask, be refused, retry" loop is the right default
+    — when the holder closes, the waiter gets the voice on its own. That works when both surfaces are tabs the
+    operator can see. It stops working the moment the two surfaces are a PHONE and a COMPUTER IN ANOTHER ROOM:
+    the phone cannot "close the other tab", so the voice is stuck wherever it happens to be and the only fix is
+    walking to the laptop.
+
+    Handing it over needs no new machinery on the loser's side: the holder's heartbeat (~4 s) already answers
+    `ok:false` once someone else owns the lock, and the frontend already reacts to that by calling stop() and
+    saying so on screen. So this simply writes the new owner and lets the existing mechanism do the rest —
+    worst case the previous holder keeps the mic for one heartbeat interval.
+
+    Not a security boundary and not pretending to be one: anyone who can reach this port can already open a
+    session. Admission is server/ingress.py's job, and it runs before this."""
+    now = _time.time()
+    with _lock_mx:
+        prev = _active["sid"]
+        _active["sid"], _active["ts"] = sid, now
+    return {"ok": True, "took_from": prev}
+
+
 @router.post("/api/session/release")
 def session_release(sid: str = Body(..., embed=True)) -> dict:
     """Release the lock if it is yours (when closing the tab, via sendBeacon). Idempotent."""
