@@ -150,7 +150,7 @@ def test_strict_mode_refuses_to_measure_with_an_incomplete_fixture(tmp_path):
         with tape.replay(fixture, strict=True):
             await mem_processor.process("ausente")
 
-    with pytest.raises(AssertionError, match="cobertura incompleta"):
+    with pytest.raises(AssertionError, match="incomplete fixture coverage"):
         asyncio.run(_run())
 
 

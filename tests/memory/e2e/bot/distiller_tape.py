@@ -1,32 +1,51 @@
-"""tests/memory/e2e/bot/distiller_tape.py — GRABA y REPLICA el CORAZÓN de escritura (V2-114 F1).
+"""tests/memory/e2e/bot/distiller_tape.py — RECORD and REPLAY the write-path CORE (V2-114 F1).
 
-**El problema que resuelve.** La única medición seria de la memoria (`scale_eval --fresh`) repuebla el corpus
-llamando al destilador REAL 579 veces: ~90 minutos y dinero de API por hipótesis. Con ese ciclo no se pueden
-probar ideas, solo confirmarlas de vez en cuando. La auditoría del 2026-08-18 lo señaló como el cuello real de
-la iteración — por delante de cualquier reorganización arquitectónica.
+**The problem it solves.** The only serious measurement of memory (`scale_eval --fresh`) repopulates the corpus
+by calling the REAL distiller hundreds of times: hours and API money per hypothesis. On that cycle ideas cannot
+be tried, only confirmed once in a while. The 2026-08-18 audit named this the real iteration bottleneck — ahead
+of any architectural reorganization.
 
-**La idea.** `nucleo/mem_processor.process()` es una costura estrecha y bien definida: entra una frase, salen
-píldoras. Se graba UNA vez lo que el LLM decidió y se replica indefinidamente. El fixture congela **la decisión
-del modelo**, no lo que la memoria hizo con ella — así una corrida `--replay` prueba la MEMORIA (writer,
-supersede, retriever, grafo, REM) y no el destilador. Es justo la frontera que queremos poder cambiar rápido.
+**The idea.** `nucleo/mem_processor.process()` is a narrow, well-defined seam: a sentence goes in, pills come
+out. Record ONCE what the LLM decided and replay it indefinitely. The fixture freezes **the model's decision**,
+not what memory did with it — so a `--replay` run exercises MEMORY (writer, supersede, retriever, graph, REM)
+and not the distiller. That is exactly the boundary we want to be able to change fast.
 
-**Por qué una cinta SECUENCIAL y no un diccionario texto→píldoras.** `memory_agent` reintenta una vez cuando
-`process()` devuelve `None` (V2-103: blip de red del CORAZÓN), así que una misma frase puede producir DOS
-llamadas. Un diccionario por texto no puede representar eso; una cinta en orden de llamada sí, y al replicarla
-el reintento vuelve a disparar exactamente donde disparó al grabar. Reproducción fiel, incluido el camino de
-degradación a la heurística.
+**Why a SEQUENTIAL tape and not a text->pills dict.** `memory_agent` retries once when `process()` returns
+`None` (V2-103: a network blip in the write-path core), so one sentence can produce TWO calls. A per-text dict
+cannot represent that; a tape in call order can, and on replay the retry fires exactly where it fired while
+recording. Faithful reproduction, including the degradation path to the heuristic.
 
-Los tres valores de retorno se conservan con su semántica (importa: son ramas distintas del llamador):
-  `None` = el modelo no estaba disponible → el llamador cae a la heurística
-  `[]`   = corrió y decidió que no hay nada memorable (DESCARTE legítimo)
-  `[…]`  = píldoras curadas
+The three return values keep their semantics (this matters: they are distinct branches in the caller):
+  `None` = the model was unavailable -> the caller falls back to the heuristic
+  `[]`   = it ran and decided nothing is worth remembering (a legitimate DISCARD)
+  `[...]`= curated pills
 
-Uso:
+**What it actually costs, measured (2026-08-18) — this corrects the "seconds" this header used to promise.**
+Recording the full fixture: **2 h 07 min**. Replaying it: **~29 min**. That is **4.4x**, not three orders of
+magnitude. The breakdown matters because it names the NEXT bottleneck:
+  · repopulating the corpus: 2 h 03 -> **24 min** (5.1x) — this is what the tape fixes, and what cost money
+  · evaluating the 262 queries: **4.5 min in BOTH runs** — it never went through the distiller, so the tape
+    does not touch it and never could; that is 262 x ~570 ms, and half of those 570 ms is the reranker
+The remaining 24 min are NOT network: they are the WRITE path (452 inserts with their exact + semantic dedup)
+plus the sleep cycle (consolidation/REM/eviction) across 1,032 cases. To go below that, THAT is the place to
+look — not the distiller, which is now solved.
+
+**And a second network dependency the tape does NOT close** (learned the hard way, via one stalled run): the
+distiller is not the only thing calling a model during repopulation. `connectors/meshkore/mem_ingest`
+synthesizes its cluster observation through a LOCAL model, so with Ollama saturated the replay sits BLOCKED on
+its socket — 1.4% CPU, making no progress — looking slow when it is really just queued. For a genuinely
+hermetic replay, make it fail FAST instead of waiting out its timeout:
+`MESHKORE_MEMORY_URL=http://127.0.0.1:9/v1` (connection refused instantly -> deterministic merge, which is
+exactly the branch the recording took). Do NOT use `MESHKORE_MEMORY=0` for this: it disables the whole ingest
+and leaves 4 rows MISSING from the corpus (3 cluster syntheses plus their concept node), which is a REAL corpus
+difference and contaminates the comparison — measured, it is precisely what moved recall@1 by +1.1pp.
+
+Usage:
     with tape.record("fixtures/corpus-v1.jsonl"):
-        await runner.run_range(0, 10_000, fresh=True)     # ~90 min, UNA vez
+        await runner.run_range(0, 10_000, fresh=True)     # ~2 h, ONCE, with API cost
 
     with tape.replay("fixtures/corpus-v1.jsonl") as t:
-        await runner.run_range(0, 10_000, fresh=True)     # segundos, sin red
+        await runner.run_range(0, 10_000, fresh=True)     # ~29 min, no network, no cost
         print(t.stats())
 """
 from __future__ import annotations
@@ -38,8 +57,8 @@ import threading
 
 
 class _Tape:
-    """Estado compartido de una sesión de grabación o réplica. Con lock: el destilador es serial por diseño
-    (un semáforo en `mem_processor`), pero el runner puede invocarlo desde hilos distintos vía `to_thread`."""
+    """Shared state for one recording or replay session. Locked because, while the distiller is serial by
+    design (a semaphore in `mem_processor`), the runner may invoke it from different threads via `to_thread`."""
 
     def __init__(self, path: str | pathlib.Path):
         self.path = pathlib.Path(path)
@@ -50,7 +69,7 @@ class _Tape:
         self.out_of_order = 0
         self._lock = threading.Lock()
 
-    # ── grabación ──────────────────────────────────────────────────────────────────────────────────────
+    # ── recording ──────────────────────────────────────────────────────────────────────────────────────
     def append(self, text: str, atoms: list[dict] | None) -> None:
         with self._lock:
             self.entries.append({"i": len(self.entries), "text": text, "atoms": atoms})
@@ -62,16 +81,16 @@ class _Tape:
                 fh.write(json.dumps(e, ensure_ascii=False, default=str) + "\n")
         return len(self.entries)
 
-    # ── réplica ────────────────────────────────────────────────────────────────────────────────────────
+    # ── replay ─────────────────────────────────────────────────────────────────────────────────────────
     def load(self) -> int:
         self.entries = [json.loads(ln) for ln in
                         self.path.read_text(encoding="utf-8").splitlines() if ln.strip()]
         return len(self.entries)
 
     def next_for(self, text: str) -> tuple[bool, list[dict] | None]:
-        """Devuelve `(encontrado, atoms)` para la siguiente llamada. En orden estricto mientras el texto case;
-        si no casa (se está replicando un SUBRANGO, o el corpus cambió), busca hacia delante la próxima entrada
-        con ese texto y lo cuenta como desorden — degradar es mejor que mentir con las píldoras de otra frase."""
+        """Returns `(found, atoms)` for the next call. Strict order while the text matches; if it does not
+        (a SUBRANGE is being replayed, or the corpus changed), search forward for the next entry with that text
+        and count it as out-of-order — degrading beats lying with another sentence's pills."""
         with self._lock:
             if self.pos < len(self.entries) and self.entries[self.pos]["text"] == text:
                 e = self.entries[self.pos]
@@ -96,8 +115,8 @@ class _Tape:
 
 @contextlib.contextmanager
 def record(path: str | pathlib.Path):
-    """Envuelve `mem_processor.process` para grabar cada llamada REAL. No cambia el comportamiento: delega en
-    el original y guarda lo que devolvió, así la corrida grabada es también una corrida válida."""
+    """Wraps `mem_processor.process` to record every REAL call. Behavior is unchanged: it delegates to the
+    original and stores what came back, so the recorded run is also a valid run."""
     from nucleo import mem_processor
 
     t = _Tape(path)
@@ -114,17 +133,17 @@ def record(path: str | pathlib.Path):
     finally:
         mem_processor.process = original        # type: ignore[assignment]
         n = t.flush()
-        print(f"⏺  cinta del destilador grabada: {n} llamadas → {t.path}")
+        print(f"⏺  distiller tape recorded: {n} calls → {t.path}")
 
 
 @contextlib.contextmanager
 def replay(path: str | pathlib.Path, *, strict: bool = False):
-    """Sustituye `mem_processor.process` por la cinta: cero red, cero coste, determinista.
+    """Swaps `mem_processor.process` for the tape: zero network, zero cost, deterministic.
 
-    También fuerza `enabled()` a True — el llamador lo consulta para decidir si reintenta tras un `None`
-    (`memory_agent.py:1096`), y sin esto una entrada `None` grabada no reproduciría el reintento que SÍ ocurrió
-    al grabar. `strict=True` lanza ante una frase que no está en la cinta en vez de degradar a la heurística;
-    útil para un test que exija cobertura total del fixture."""
+    It also forces `enabled()` to True — the caller consults it to decide whether to retry after a `None`
+    (`memory_agent.py:1096`), and without this a recorded `None` entry would not reproduce the retry that DID
+    happen while recording. `strict=True` raises on a sentence missing from the tape instead of degrading to the
+    heuristic; useful for a test that demands full fixture coverage."""
     from nucleo import mem_processor
 
     t = _Tape(path)
@@ -136,13 +155,13 @@ def replay(path: str | pathlib.Path, *, strict: bool = False):
         found, atoms = t.next_for(text)
         if not found:
             if strict:
-                raise AssertionError(f"cinta sin entrada para {text[:80]!r} (cobertura incompleta del fixture)")
-            return None                          # el llamador cae a la heurística, como con el CORAZÓN caído
+                raise AssertionError(f"no tape entry for {text[:80]!r} (incomplete fixture coverage)")
+            return None                          # caller falls back to the heuristic, as with the core down
         return atoms
 
     mem_processor.process = _replaying          # type: ignore[assignment]
     mem_processor.enabled = lambda: True        # type: ignore[assignment]
-    print(f"▶  replicando la cinta del destilador: {n} llamadas desde {t.path} (sin red)")
+    print(f"▶  replaying distiller tape: {n} calls from {t.path} (no network)")
     try:
         yield t
     finally:

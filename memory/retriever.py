@@ -343,16 +343,16 @@ def search(
         results = graph_expand(results)
         results.sort(key=lambda r: r["score"], reverse=True)
 
-    # Un nodo-concepto es una SEMILLA, no una respuesta (V2-114 F4.1, 2026-08-18). `graph_expand` los necesita
-    # arriba —son la señal de intención que promociona a su cluster (T126), y por eso se filtran DESPUÉS— pero su
-    # `text` es literalmente la palabra del concepto («familia», «finanzas»): cero información para quien pregunta,
-    # ocupando un hueco del top-3 que sí importa. Las otras dos rutas de lectura por grafo ya los excluían
-    # (`_ppr_expand` con `kind != 'concept'`, y `api.by_concepts`); esta era la que faltaba.
-    # Medido sobre las 263 queries del corpus: aparecían en el top-3 del 8,0% de las consultas y en el PUESTO 1 del
-    # 3,0%. Contrafactual dentro de la MISMA corrida (misma lista, solo cambia el filtro): recall@1 +1,1pp,
-    # @3 +0,4pp, @5 +0,8pp, @10 +0,0pp — nunca negativo. Modesto: una inspección previa de 6 casos sugirió que era
-    # mucho más frecuente y la medición completa lo desmintió. Se aplica igual porque es lo CORRECTO (un nodo sin
-    # contenido no es una respuesta), no por el delta.
+    # A concept node is a SEED, not an answer (V2-114 F4.1, 2026-08-18). `graph_expand` needs them near the top
+    # — they are the intent signal that promotes their cluster (T126), which is why they are filtered AFTER — but
+    # their `text` is literally the concept word ("familia", "finanzas"): zero information for whoever asked,
+    # occupying a top-3 slot that does matter. The other two graph read paths already excluded them
+    # (`_ppr_expand` with `kind != 'concept'`, and `api.by_concepts`); this was the one that was missing.
+    # Measured over the corpus's 263 queries: they appeared in the top-3 of 8.0% of queries and at POSITION 1 in
+    # 3.0%. Counterfactual within the SAME run (identical list, only the filter changes): recall@1 +1.1pp,
+    # @3 +0.4pp, @5 +0.8pp, @10 +0.0pp — never negative. Modest: an earlier inspection of 6 cases suggested it was
+    # far more frequent and the full measurement disproved that. It is applied anyway because it is CORRECT (a node
+    # with no content is not an answer), not because of the delta.
     results = [r for r in results if r.get("kind") != "concept"]
 
     if reinforce and results:

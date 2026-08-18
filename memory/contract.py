@@ -1,27 +1,26 @@
-"""memory/contract.py — la FRONTERA de la memoria, escrita como código (V2-114 F0).
+"""memory/contract.py — memory's BOUNDARY, written as code (V2-114 F0).
 
-La memoria tiene que poder evolucionar (e incluso reimplementarse) sin que el agente se entere. Para eso hace
-falta saber, sin ambigüedad, **qué le pide el agente a una memoria**. Este módulo lo declara: es documentación
-ejecutable de la superficie que un sustituto debe cubrir, y la lista de quién tiene permiso para saltarse la
-fachada.
+Memory has to be able to evolve (and even be reimplemented) without the agent noticing. That requires knowing,
+without ambiguity, **what the agent asks of a memory**. This module declares it: it is executable documentation
+of the surface a replacement must cover, plus the list of who is allowed to bypass the facade.
 
-Medido el 2026-08-18 sobre 48 ficheros de producción: **84 de ~108 imports ya pasan por `memory.api`**. La
-frontera no hay que inventarla, hay que cerrarla — y sobre todo impedir que se vuelva a abrir, que es lo que
-hace el trinquete de `tests/memory/unit/test_memory_boundary.py`.
+Measured 2026-08-18 across 48 production files: **84 of ~108 imports already go through `memory.api`**. The
+boundary does not need inventing, it needs closing — and above all it needs to stay closed, which is what the
+ratchet in `tests/memory/unit/test_memory_boundary.py` is for.
 
-**Qué NO es esto.** No es una capa de indirección: `memory/api.py` sigue siendo la implementación y nadie tiene
-que pasar por aquí para llamarla. Es un `Protocol` (tipado estructural), así que `memory.api` lo cumple sin
-heredar nada y sin coste en runtime. Sirve para (a) que un sustituto sepa qué implementar, (b) que un cliente
-remoto (V2-114 F3) tenga una diana exacta, y (c) que el trinquete tenga contra qué comparar.
+**What this is NOT.** It is not an indirection layer: `memory/api.py` is still the implementation and nobody has
+to come through here to call it. It is a `Protocol` (structural typing), so `memory.api` satisfies it without
+inheriting anything and at zero runtime cost. It exists so that (a) a replacement knows what to implement, (b) a
+remote client (V2-114 F3) has an exact target, and (c) the ratchet has something to compare against.
 
-**Lo que deliberadamente queda FUERA del contrato**, y por qué:
-  - `memory.vault*` — la bóveda de secretos es otro concern (cripto, passkeys, revelación out-of-band). Comparte
-    fichero SQLite, no semántica de memoria. Un sustituto de la memoria no debería tener que reimplementarla.
-  - `memory.rem` / `memory.consolidator` / `memory.reembed` — el eje del SUEÑO. Lo orquesta `nucleo/loop.py`, no
-    el turno. Es mantenimiento de la implementación, no algo que el agente pida.
-  - `memory.embeddings` / `memory.retriever` / `memory.writer` / `memory.db` — tripas. Si un sustituto no usa
-    sqlite-vec, nada de esto tiene sentido para él.
-  - `memory.concepts.derive_concepts` — función pura stdlib sin BD; es vocabulario compartido, no estado.
+**What is deliberately OUTSIDE the contract**, and why:
+  - `memory.vault*` — the secret vault is a different concern (crypto, passkeys, out-of-band reveal). It shares
+    the SQLite file, not memory semantics. A memory replacement should not have to reimplement it.
+  - `memory.rem` / `memory.consolidator` / `memory.reembed` — the SLEEP axis. Orchestrated by `nucleo/loop.py`,
+    not by the turn. It is maintenance of the implementation, not something the agent asks for.
+  - `memory.embeddings` / `memory.retriever` / `memory.writer` / `memory.db` — internals. If a replacement does
+    not use sqlite-vec, none of this means anything to it.
+  - `memory.concepts.derive_concepts` — a pure stdlib function with no DB; it is shared vocabulary, not state.
 """
 from __future__ import annotations
 
@@ -30,112 +29,112 @@ from typing import Any, Protocol, runtime_checkable
 
 @runtime_checkable
 class MemoryContract(Protocol):
-    """Lo que el agente necesita de una memoria. Agrupado por VELOCIDAD, que es el eje que gobierna el diseño
-    (V2-011/V2-013): el turno de voz solo puede permitirse las dos primeras familias."""
+    """What the agent needs from a memory. Grouped by SPEED, which is the axis that governs the design
+    (V2-011/V2-013): the voice turn can only afford the first two families."""
 
-    # ── LECTURA µs · SIEMPRE en el prompt, nunca I/O pesado ──────────────────────────────────────────────
+    # ── µs READS · ALWAYS in the prompt, never heavy I/O ──────────────────────────────────────────────────
     def state(self) -> dict:
-        """Tabla fija de estado (identidad, ubicación, objetivo, widgets abiertos…). Lectura directa."""
+        """Fixed state table (identity, location, goal, open widgets…). Direct read."""
         ...
 
     def compose_state(self) -> tuple[str, str, dict]:
-        """El bloque de ESTADO COMPARTIDO ya compuesto: `(bloque, op, stats)`. Lo cachea el llamador fuera del
-        turno; esta función NO puede llamar a un LLM ni al retriever."""
+        """The SHARED STATE block, already composed: `(block, op, stats)`. The caller caches it outside the
+        turn; this function may NOT call an LLM or the retriever."""
         ...
 
     def recent_short(self, *args: Any, **kwargs: Any) -> list[dict]:
-        """Working set de corto plazo, completo y sobre-incluyente. µs."""
+        """Short-term working set, complete and over-inclusive. µs."""
         ...
 
     def recent_window(self, *args: Any, **kwargs: Any) -> list[dict]:
-        """Ventana conversacional reciente, verbatim, para «de qué hablábamos»."""
+        """Recent conversational window, verbatim, for "what were we talking about"."""
         ...
 
-    # ── LECTURA ms · BAJO DEMANDA, fuera del event loop, CERO LLM ────────────────────────────────────────
+    # ── ms READS · ON DEMAND, off the event loop, ZERO LLM ────────────────────────────────────────────────
     def query(self, *args: Any, **kwargs: Any) -> list[dict]:
-        """Recall semántico del largo plazo. La única familia que tolera esperas — y aun así sin LLM."""
+        """Semantic recall of long-term memory. The only family that tolerates waiting — and even so, no LLM."""
         ...
 
     def recent_by_source(self, *args: Any, **kwargs: Any) -> list[dict]:
-        """Lectura por FUENTE indexada (whatsapp/telegram/cluster/email…), sin retriever."""
+        """Read by indexed SOURCE (whatsapp/telegram/cluster/email…), without the retriever."""
         ...
 
     def by_concepts(self, *args: Any, **kwargs: Any) -> list[dict]:
-        """Lectura por concepto, para agregación por categoría."""
+        """Read by concept, for aggregation by category."""
         ...
 
     def as_of(self, *args: Any, **kwargs: Any) -> Any:
-        """Reconstrucción a fecha pasada: «¿qué creíamos cierto el día X?» (bi-temporal, schema v5)."""
+        """Reconstruction at a past date: "what did we believe was true on day X?" (bi-temporal, schema v5)."""
         ...
 
     def critical_facts(self, *args: Any, **kwargs: Any) -> list[dict]:
-        """Hechos que deben aflorar SIEMPRE (alergias, medicación). Fuera del cap normal."""
+        """Facts that must ALWAYS surface (allergies, medication). Outside the normal cap."""
         ...
 
     def salient_long(self, *args: Any, **kwargs: Any) -> list[dict]:
-        """Perfil durable saliente para el bloque de estado."""
+        """Salient durable profile for the state block."""
         ...
 
-    # ── ESCRITURA · puede ser LENTA, nunca en el camino caliente ─────────────────────────────────────────
+    # ── WRITES · may be SLOW, never on the hot path ───────────────────────────────────────────────────────
     def write(self, *args: Any, **kwargs: Any) -> Any:
-        """Encola una escritura (fire-and-forget). Devuelve None: quien necesite el id usa `write_now`."""
+        """Queues a write (fire-and-forget). Returns None: whoever needs the id uses `write_now`."""
         ...
 
     def write_now(self, *args: Any, **kwargs: Any) -> int:
-        """Escritura SÍNCRONA que devuelve el id. Para episódica y tests."""
+        """SYNCHRONOUS write that returns the id. For episodic memory and tests."""
         ...
 
     def ingest_message(self, *args: Any, **kwargs: Any) -> None:
-        """Vía TIPADA para un dato entrante de una FUENTE, con `trust` (operator/external/untrusted).
-        `untrusted` implica CUARENTENA: nunca en el prompt pasivo."""
+        """TYPED path for an incoming datum from a SOURCE, carrying `trust` (operator/external/untrusted).
+        `untrusted` implies QUARANTINE: never in the passive prompt."""
         ...
 
     def set_state(self, *args: Any, **kwargs: Any) -> Any:
-        """Parche del estado fijo."""
+        """Patch of the fixed state."""
         ...
 
     def forget(self, *args: Any, **kwargs: Any) -> int:
-        """Olvido a petición del operador. `hard=True` borra de verdad (derecho al olvido)."""
+        """Forgetting at the operator's request. `hard=True` really deletes (right to be forgotten)."""
         ...
 
     def unforget(self, *args: Any, **kwargs: Any) -> int:
-        """El operador se retracta de un olvido."""
+        """The operator takes back a forget."""
         ...
 
-    # ── ESTADO AUXILIAR · clave-valor durable que NO debe viajar en el prompt ────────────────────────────
+    # ── AUXILIARY STATE · durable key-value that must NOT travel in the prompt ────────────────────────────
     def kv_get(self, *args: Any, **kwargs: Any) -> Any: ...
     def kv_set(self, *args: Any, **kwargs: Any) -> Any: ...
     def kv_keys(self, *args: Any, **kwargs: Any) -> Any: ...
     def kv_del(self, *args: Any, **kwargs: Any) -> Any: ...
 
 
-# ── Quién puede saltarse la fachada, y por qué ───────────────────────────────────────────────────────────
-# El trinquete (`tests/memory/unit/test_memory_boundary.py`) FALLA si aparece un import de tripas de `memory`
-# fuera de esta lista. Añadir una entrada es una decisión consciente que se justifica aquí; el objetivo es que
-# la deuda declarada solo pueda BAJAR, mismo patrón que `test_roadmap_closure.py`.
+# ── Who may bypass the facade, and why ───────────────────────────────────────────────────────────────────
+# The ratchet (`tests/memory/unit/test_memory_boundary.py`) FAILS if an import of `memory` internals appears
+# outside this list. Adding an entry is a conscious decision justified here; the goal is that declared debt can
+# only go DOWN, same pattern as `test_roadmap_closure.py`.
 #
-# Estado medido el 2026-08-18: **24 fugas en producción**, en 13 submódulos. Buena sorpresa de la medición:
-# `memory.db`, `memory.retriever`, `memory.queue`, `memory.consolidator`, `memory.episodic`, `memory.graph*` y
-# `memory.clock` **NO se importan desde producción** — sus 78 apariciones eran todas de `tests/`, donde tocar
-# tripas es legítimo. La frontera real estaba bastante más cerrada de lo que parecía.
+# Measured 2026-08-18: **24 leaks in production**, across 13 submodules. Pleasant surprise from the measurement:
+# `memory.db`, `memory.retriever`, `memory.queue`, `memory.consolidator`, `memory.episodic`, `memory.graph*` and
+# `memory.clock` are **NOT imported from production** — their 78 occurrences were all in `tests/`, where touching
+# internals is legitimate. The real boundary was considerably more closed than it looked.
 BLESSED_INTERNAL_IMPORTS: dict[str, str] = {
-    # ── concern aparte: cripto/passkeys/revelación out-of-band. Comparte fichero SQLite, no semántica ──
-    "memory.vault": "bóveda de secretos — subsistema propio (V2-060), no memoria",
-    "memory.vault_api": "router FastAPI de la bóveda",
-    # ── cableado del servidor: un router tiene que importarse para montarse ──
-    "memory.server_api": "router FastAPI de memoria/episódica",
-    # ── eje del SUEÑO: lo orquesta nucleo/loop.py (~1 Hz), nunca el turno ──
-    "memory.rem": "fase REM diaria, orquestada por el loop",
-    "memory.reembed": "migración de espacio vectorial, verificada al arrancar",
-    # ── vocabulario/gates compartidos: stdlib puro, sin BD ──
-    "memory.concepts": "derive_concepts — función pura, sin estado",
-    "memory.slots": "registro canónico de slots — la fuente de la que se GENERA el prompt del destilador",
-    "memory.secrets": "detección fail-closed de secretos, corre ANTES de escribir",
-    # ── candidatos REALES a cerrarse re-exportando por la fachada (deuda declarada, no bendición eterna) ──
-    "memory.state": "tabla fija de estado — CERRABLE: re-exportar por la fachada",
-    "memory.journal": "diario de tareas — CERRABLE: re-exportar por la fachada",
-    # ── tripas con un llamador legítimo y acotado ──
-    "memory.writer": "escritor único — lo toca memory_agent, que ES el escritor",
-    "memory.rerank": "estado del reranker para el panel de configuración",
-    "memory.embeddings": "estado/dimensión del backend para el panel y el arranque",
+    # ── separate concern: crypto/passkeys/out-of-band reveal. Shares the SQLite file, not the semantics ──
+    "memory.vault": "secret vault — its own subsystem (V2-060), not memory",
+    "memory.vault_api": "the vault's FastAPI router",
+    # ── server wiring: a router has to be imported to be mounted ──
+    "memory.server_api": "FastAPI router for memory/episodic",
+    # ── the SLEEP axis: orchestrated by nucleo/loop.py (~1 Hz), never by the turn ──
+    "memory.rem": "daily REM phase, orchestrated by the loop",
+    "memory.reembed": "vector-space migration, verified at boot",
+    # ── shared vocabulary/gates: pure stdlib, no DB ──
+    "memory.concepts": "derive_concepts — pure function, no state",
+    "memory.slots": "canonical slot registry — the source the distiller's prompt is GENERATED from",
+    "memory.secrets": "fail-closed secret detection, runs BEFORE writing",
+    # ── REAL candidates for closing by re-exporting from the facade (declared debt, not a forever blessing) ──
+    "memory.state": "fixed state table — CLOSEABLE: re-export from the facade",
+    "memory.journal": "task journal — CLOSEABLE: re-export from the facade",
+    # ── internals with a legitimate, bounded caller ──
+    "memory.writer": "the single writer — touched by memory_agent, which IS the writer",
+    "memory.rerank": "reranker state for the config panel",
+    "memory.embeddings": "backend state/dimension for the config panel and boot",
 }
