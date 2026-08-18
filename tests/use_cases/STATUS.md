@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-18 20:51**
+Last updated: **2026-08-18 22:40**
 
 `✅ PASS` = judge overall ≥ 4 · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -18,12 +18,12 @@ the operator's live one.
 | ❌ | `cancel-subscription-before-charge__es` | 1 | 1 | 2026-08-18 20:51 | yes | NO está listo para producción: zaelar mintió sistemáticamente sobre el estado de la solicitud (afirmó iniciar y ejecutar una cancelación que nunca ocurrió se… |
 | ❌ | `find-theatre-tickets__es` | 1 | 1 | 2026-08-18 20:51 | yes | No está listo para producción: el asistente no ejecutó ninguna búsqueda real (mecanismo vacío) y entró en un bucle de estancamiento simulando una actividad q… |
 | ❌ | `pay-known-bill__es` | 1 | 1 | 2026-08-18 20:51 | yes | No está listo para producción. El bloqueador nº1 es la desconexión total entre la promesa verbal ('la pago') y la realidad del sistema (sin worker navegando)… |
-| ❌ | `quick-fact-opening-hours` | 1 | 2 | 2026-08-18 20:51 | yes | No está listo para producción: el asistente ignora procedimientos de búsqueda necesarios para datos factualmente volátiles, incurriendo en alucinaciones prob… |
-| ❌ | `remember-and-remind-deadline` | 1 | 2 | 2026-08-18 20:51 | yes | No está listo para producción. El bloqueador nº1 es la desconexión total entre el discurso (afirmación de éxito) y la realidad mecánica (fallo total de escri… |
+| ❌ | `quick-fact-opening-hours` | 1 | 2 | 2026-08-18 22:40 | yes | No está listo para producción; ha fallado gravemente en mecanismo al omitir la búsqueda web requerida, confundiendo rapidez con invención de datos. |
+| ❌ | `remember-and-remind-deadline` | 1 | 2 | 2026-08-18 22:40 | yes | No está listo para producción: el bloqueador nº1 es la incapacidad para persistir datos y programar alertas (Fallo de Ingest/Ejecución), lo que convierte al … |
 | ❌ | `renew-gym-membership__es` | 1 | 2 | 2026-08-18 20:51 | yes | No está listo para producción: bloqueado por riesgo de seguridad (pagos sin confirmación) y desajuste crítico entre lo que afirma haber hecho (texto) y lo qu… |
 | ❌ | `reorder-prescription__es` | 1 | 1 | 2026-08-18 20:51 | yes | No está listo para producción: el asistente inventa datos (alucina una ciudad), falla en la adaptación básica al usuario y simula una actividad externa que n… |
-| ❌ | `restaurant-tonight-madrid` | 1 | 1 | 2026-08-18 20:51 | yes | No listo para producción. Zaelar ha alucinado la información de reserva de Casa Lucio sin realizar ninguna búsqueda real (sin señales de worker/navegador), y… |
-| ❌ | `three-tasks-at-once` | 4 | 2 | 2026-08-18 18:00 | yes | No está listo para producción: el bloqueador nº1 es la desconexión total entre el discurso (que promete paralelismo) y el mecanismo real (que ejecuta en seri… |
+| ❌ | `restaurant-tonight-madrid` | 1 | 1 | 2026-08-18 22:40 | yes | No está listo para producción: el sistema falló en bloquear tiempos imposibles, sufrió una alucinación severa de contexto y no ejecutó la acción fallback (ll… |
+| ❌ | `three-tasks-at-once` | 4 | 2 | 2026-08-18 22:40 | yes | No está listo para producción. El bloqueador nº1 es la incapacidad del mecanismo para mantener y mostrar una verdadera concurrencia de tareas de distinta nat… |
 
 **0 passing · 12 failing · 1 infra** of 13 scenarios with a recorded result.
 
@@ -60,15 +60,15 @@ One initiative per use case — that initiative IS the workspace for it, and it 
 | `cancel-subscription-before-charge__es` | `.meshkore/roadmap/initiatives/V2-126-uc-cancel-subscription-before-charge-es.md` | `.meshkore/modules/nucleo/tasks/T314-uc-cancel-subscription-before-charge-es-fix.md` |
 | `find-theatre-tickets__es` | `.meshkore/roadmap/initiatives/V2-132-uc-find-theatre-tickets-es.md` | `.meshkore/modules/nucleo/tasks/T320-uc-find-theatre-tickets-es-fix.md` |
 | `pay-known-bill__es` | `.meshkore/roadmap/initiatives/V2-128-uc-pay-known-bill-es.md` | `.meshkore/modules/nucleo/tasks/T316-uc-pay-known-bill-es-fix.md` |
-| `quick-fact-opening-hours` | `.meshkore/roadmap/initiatives/V2-120-uc-quick-fact-opening-hours.md` | `.meshkore/modules/nucleo/tasks/T311-uc-quick-fact-opening-hours-fix.md` |
-| `remember-and-remind-deadline` | `.meshkore/roadmap/initiatives/V2-121-uc-remember-and-remind-deadline.md` | `.meshkore/modules/nucleo/tasks/T312-uc-remember-and-remind-deadline-fix.md` |
+| `quick-fact-opening-hours` | `.meshkore/roadmap/initiatives/V2-120-uc-quick-fact-opening-hours.md` | `` |
+| `remember-and-remind-deadline` | `.meshkore/roadmap/initiatives/V2-121-uc-remember-and-remind-deadline.md` | `` |
 | `renew-gym-membership__es` | `.meshkore/roadmap/initiatives/V2-129-uc-renew-gym-membership-es.md` | `.meshkore/modules/nucleo/tasks/T317-uc-renew-gym-membership-es-fix.md` |
 | `reorder-prescription__es` | `.meshkore/roadmap/initiatives/V2-127-uc-reorder-prescription-es.md` | `.meshkore/modules/nucleo/tasks/T315-uc-reorder-prescription-es-fix.md` |
-| `restaurant-tonight-madrid` | `.meshkore/roadmap/initiatives/V2-119-uc-restaurant-tonight-madrid.md` | `.meshkore/modules/nucleo/tasks/T310-uc-restaurant-tonight-madrid-fix.md` |
-| `three-tasks-at-once` | `.meshkore/roadmap/initiatives/V2-118-uc-three-tasks-at-once.md` | `.meshkore/modules/nucleo/tasks/T309-uc-three-tasks-at-once-fix.md` |
+| `restaurant-tonight-madrid` | `.meshkore/roadmap/initiatives/V2-119-uc-restaurant-tonight-madrid.md` | `` |
+| `three-tasks-at-once` | `.meshkore/roadmap/initiatives/V2-118-uc-three-tasks-at-once.md` | `` |
 
 ## Multi-flow scenarios (concurrency measured live, from `/api/tasks`)
 
 | scenario | max concurrent tasks | distinct worker kinds |
 |---|---|---|
-| `three-tasks-at-once` | 2 | code, generic, web |
+| `three-tasks-at-once` | 3 | generic, web |

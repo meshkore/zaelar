@@ -450,6 +450,18 @@ def rotate_failure(result: dict, *, scenario, sandboxed: bool, previous: Path | 
         if created.get("error"):
             return created
         if prev is not None:
+            # Point the SUCCESSOR back at its predecessor. The round that triggered the rotation was appended
+            # to the OLD file by the runner (it still held the open initiative at the time), so the transcript
+            # and the watchdog log for the failure being described live there — and a work order whose evidence
+            # is in a file it does not name is a work order the dev agent has to go hunting for.
+            body = created["initiative"].read_text(encoding="utf-8")
+            body = body.replace(
+                "## Qué pide el caso",
+                f"> **Viene de {prev.name}** (cerrada). El error ANTERIOR se arregló; este es el que quedó al "
+                f"re-probar.\n>\n> La corrida que lo detectó —transcript completo, informe de mecanismo e "
+                f"intervenciones del watchdog— está en la ÚLTIMA ronda de esa iniciativa cerrada. Aquí abajo va "
+                f"el veredicto y los números; el detalle narrativo, allí.\n\n## Qué pide el caso", 1)
+            created["initiative"].write_text(body, encoding="utf-8")
             verdict = (result.get("verdict") or {}).get("veredicto", "")
             close_initiative(
                 prev,
