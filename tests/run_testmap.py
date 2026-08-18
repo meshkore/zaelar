@@ -86,6 +86,9 @@ DOMAINS: list[dict] = [
             # V2-132: a promise whose request was made a turn or two back — the backstop only ever looked
             # at THIS turn, and buying tickets had no catalog category so the task got no browser.
             "tests/agent_headless/unit/flash/test_promise_backstop_window.py",
+            # V2-134: a reminder is only a reminder if something got SCHEDULED — and the cron must not
+            # compete for the turn's single `action`, or booking the appointment kills the alert.
+            "tests/agent_headless/unit/flash/test_probe_cron_and_agenda.py",
             "tests/agent_headless/unit/test_skeleton.py", "tests/agent_headless/unit/test_sparks.py"]},
         {"id": "2.4", "title": "Cliente LLM rápido, reintento y RELEVO por latencia", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_fast_client.py", "tests/agent_headless/unit/flash/test_fast_client_retry.py",
