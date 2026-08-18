@@ -19,7 +19,12 @@ RUBRIC = """Score each dimension 1-5 (5=excellent):
   zaelar afirma haber encontrado/reservado algo pero el informe de mecanismo no muestra las señales
   esperadas ni resultados reales, es un FALLO aunque el texto suene convincente.
 - mecanismo: ¿se dispararon las piezas correctas del sistema (worker/navegador si la tarea lo necesitaba)?
-  Usa "missing_signals" del informe — si no está vacío, penaliza aquí específicamente.
+  Usa "missing_signals" del informe — si no está vacío, penaliza aquí específicamente. Y si el caso pedía algo
+  que se cumple MÁS TARDE (un recordatorio, un aviso, una vigilancia), el campo `scheduled_jobs.created` del
+  informe es la PRUEBA: lleva los disparadores que ESTA conversación dejó registrados, con su fecha. Vacío
+  después de que zaelar diga que lo ha programado = afirmación sin respaldo, y se penaliza como tal; con una
+  entrada = el aviso existe de verdad aunque no puedas verlo dispararse. Si `readable` es false, el programador
+  no se pudo leer y entonces la AUSENCIA no prueba nada: no penalices por ella.
 - eficiencia: ¿se llegó al resultado en un número razonable de turnos, sin dar vueltas innecesarias?"""
 
 # Dimensiones EXTRA, solo para escenarios multi-flujo (`concurrent_tasks > 0`). Se añaden en vez de

@@ -179,8 +179,34 @@ def search_health(all_events: list[dict]) -> dict:
             "reasons": sorted(reasons.items(), key=lambda kv: -kv[1])}
 
 
+def scheduled_report(before: list[dict], after: list[dict]) -> dict:
+    """What TRIGGERS this scenario left behind — the DELTA, never the absolute list.
+
+    The delta matters more than it looks: an engine can already hold jobs from an earlier scenario in the same
+    batch (they are durable by design and outlive the conversation), so an absolute count would credit a case
+    with a reminder a previous case created. Comparing against a snapshot taken before the first turn is what
+    makes "this conversation created a trigger" a real claim.
+
+    Fails open to `created: []` — a scheduler that cannot be read must never invent evidence of a reminder,
+    and must not fail a case either: `readable` says which of the two happened.
+    """
+    def _key(j: dict) -> str:
+        return str(j.get("id") or "") or f"{j.get('name')}|{j.get('schedule')}"
+
+    seen = {_key(j) for j in before}
+    created = [j for j in after if _key(j) not in seen]
+    return {
+        "readable": bool(before is not None and after is not None),
+        "n_before": len(before or []), "n_after": len(after or []),
+        "created": [{"name": j.get("name"), "schedule": j.get("schedule"), "type": j.get("type"),
+                     "next_run": j.get("next_run"), "prompt": (j.get("prompt") or "")[:200]}
+                    for j in created],
+    }
+
+
 def mechanism_report(all_events: list[dict], expected_signals: list[str],
-                     concurrency: ConcurrencyTracker | None = None) -> dict:
+                     concurrency: ConcurrencyTracker | None = None,
+                     scheduled: dict | None = None) -> dict:
     """Structured, transcript-independent record of what actually happened this scenario."""
     families = families_in(all_events)
     missing = [f for f in expected_signals if f not in families]
@@ -197,6 +223,8 @@ def mechanism_report(all_events: list[dict], expected_signals: list[str],
         "n_events": len(all_events),
         "search_health": search_health(all_events),
     }
+    if scheduled is not None:
+        out["scheduled_jobs"] = scheduled
     if concurrency is not None:
         out["task_registry"] = concurrency.report()
     return out

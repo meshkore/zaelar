@@ -471,3 +471,31 @@ def test_a_list_shaped_reply_does_not_kill_the_scenario():
     assert L._as_text([{"type": "text", "text": "hola "}, {"type": "text", "text": "mundo"}]) == "hola mundo"
     assert L._as_text([{"type": "image_url", "image_url": {"url": "x"}}]) == ""
     assert L._as_text(None) == ""
+
+
+# ── scheduled triggers: the evidence a "remind me Wednesday" case lives or dies by ─────────────────────────
+def test_only_the_triggers_THIS_conversation_created_count():
+    """Jobs are durable and outlive a conversation, so an absolute count would credit a case with a reminder
+    an earlier case in the same batch left behind. Reported by the fixing session as the reason V2-121's round
+    could not be judged honestly: the report had no field for a reminder at all."""
+    before = [{"id": "old", "name": "gimnasio", "schedule": "cada mes"}]
+    after = before + [{"id": "new", "name": "seguro coche", "schedule": "2026-08-19 09:00",
+                       "type": "once", "next_run": "2026-08-19T09:00", "prompt": "renovar"}]
+    rep = verify.scheduled_report(before, after)
+    assert [j["name"] for j in rep["created"]] == ["seguro coche"]
+    assert rep["n_before"] == 1 and rep["n_after"] == 2 and rep["readable"] is True
+
+
+def test_an_unreadable_scheduler_proves_nothing_either_way():
+    """Fail-open in BOTH directions: never invent evidence of a reminder, never fail a case for a scheduler
+    that couldn't be read. `readable` is what tells the judge which of the two it is looking at."""
+    rep = verify.scheduled_report([], [])
+    assert rep["created"] == [] and rep["readable"] is True     # readable and genuinely empty
+    plain = verify.mechanism_report([{"cat": "flash"}], [])
+    assert "scheduled_jobs" not in plain                        # absent when never sampled, not a false empty
+
+
+def test_the_judge_is_told_that_an_unreadable_scheduler_is_not_a_failure():
+    from tests.use_cases.e2e.agent import judge as J
+    assert "scheduled_jobs.created" in J.RUBRIC
+    assert "readable" in J.RUBRIC and "no prueba nada" in J.RUBRIC

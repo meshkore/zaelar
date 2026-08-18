@@ -34,6 +34,13 @@ def _run_scenario(scenario) -> dict:
     # Multi-flow scenarios need concurrency measured WHILE it happens (see ConcurrencyTracker's docstring):
     # a post-hoc event dump can show N tasks existed but never that two overlapped in time.
     concurrency = verifymod.ConcurrencyTracker() if scenario.concurrent_tasks else None
+    # Snapshot the scheduler BEFORE the first turn. Jobs are durable by design and outlive a conversation, so
+    # an absolute count would credit this case with a reminder an earlier case in the same batch created —
+    # only the DELTA can claim "this conversation left a trigger behind".
+    try:
+        jobs_before = probe_client.scheduled_jobs()
+    except Exception:
+        jobs_before = []
 
     def note(who: str, text: str) -> None:
         transcript.append({"who": who, "text": text, "at": round(time.time(), 2)})
@@ -91,7 +98,12 @@ def _run_scenario(scenario) -> dict:
     live_session_id = probe_client.current_session_id()
     all_events = [e for e in probe_client.session_events(live_session_id)
                   if (e.get("ts_ms") or 0) >= scenario_started_ms]
-    mech = verifymod.mechanism_report(all_events, scenario.expected_signals, concurrency)
+    try:
+        jobs_after = probe_client.scheduled_jobs()
+    except Exception:
+        jobs_after = None
+    scheduled = verifymod.scheduled_report(jobs_before, jobs_after) if jobs_after is not None else None
+    mech = verifymod.mechanism_report(all_events, scenario.expected_signals, concurrency, scheduled)
 
     run_data = {"transcript": transcript, "mechanism_report": mech, "watchdog_log": watchdog_log}
     print("  judging…")

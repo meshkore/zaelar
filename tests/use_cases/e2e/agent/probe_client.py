@@ -117,3 +117,18 @@ def navegador_task(task_id: str) -> dict:
     if not task_id:
         return {}
     return _get(f"/widgets/navegador/data?q={urllib.parse.quote(task_id, safe='')}")
+
+
+def scheduled_jobs() -> list[dict]:
+    """The engine's ACTIVE scheduled tasks (`GET /api/cron` → `scheduler.list_jobs`).
+
+    Why this is a mechanism source and not a nicety: a whole class of use case ("remind me Wednesday", "never
+    let it auto-renew without asking", "order flowers the day before, every year") succeeds by leaving a
+    durable TRIGGER behind, and the mechanism report had no field for one. So the judge could not see a
+    reminder that genuinely existed, and the only visible difference between a real one and the words "listo,
+    te aviso el miércoles" was nothing at all — which is precisely the failure these cases exist to catch.
+    Reported by the session running the fixes (V2-121) as the reason its round could not be judged honestly.
+    """
+    data = _get("/api/cron")
+    jobs = (data or {}).get("jobs")
+    return jobs if isinstance(jobs, list) else []
