@@ -320,6 +320,46 @@ def test_pending_verifications_picks_up_the_fixers_handoff(monkeypatch, tmp_path
     assert [p["slug"] for p in pend] == ["my-case"]   # only status:next is a live handoff
 
 
+def test_a_pending_slug_resolves_back_to_the_runnable_scenario_id(monkeypatch, tmp_path):
+    """The task filename carries a kebab SLUG, the runner needs the scenario ID — and `__` collapses in the
+    slug, so reversing the string is lossy. Resolution goes through the live registry instead."""
+    I = _isolate(monkeypatch, tmp_path)
+    d = tmp_path / "modules" / "nucleo" / "tasks"
+    d.mkdir(parents=True)
+    slug = I._slug("quick-fact-opening-hours__es")
+    (d / f"T402-uc-{slug}-verify.md").write_text("---\nid: T402\nstatus: next\n---\n", encoding="utf-8")
+    out = I.scenarios_awaiting_verification({"quick-fact-opening-hours__es": object()})
+    assert out[0]["scenario"] == "quick-fact-opening-hours__es"
+
+
+def test_a_renamed_scenario_is_reported_not_swallowed(monkeypatch, tmp_path):
+    """A verify task whose scenario no longer exists must surface. Skipping it in silence leaves the fixing
+    agent waiting on a re-test that will never run — the failure mode the whole handoff exists to prevent."""
+    I = _isolate(monkeypatch, tmp_path)
+    d = tmp_path / "modules" / "nucleo" / "tasks"
+    d.mkdir(parents=True)
+    (d / "T403-uc-a-case-that-moved-verify.md").write_text("---\nid: T403\nstatus: next\n---\n",
+                                                           encoding="utf-8")
+    out = I.scenarios_awaiting_verification({"something-else": object()})
+    assert out and out[0]["scenario"] is None and out[0]["slug"] == "a-case-that-moved"
+
+
+def test_closing_a_verification_stops_it_matching_again(monkeypatch, tmp_path):
+    """Closing must happen whether the re-test passed or failed. Left as `next`, every later --verify batch
+    re-runs the same case with nobody having changed anything in between: a loop that cannot converge."""
+    I = _isolate(monkeypatch, tmp_path)
+    d = tmp_path / "modules" / "nucleo" / "tasks"
+    d.mkdir(parents=True)
+    task = d / "T404-uc-my-case-verify.md"
+    task.write_text("---\nid: T404\nstatus: next\nupdated: 2026-01-01\n---\n\nlisto\n", encoding="utf-8")
+    assert I.close_verification(task, round_no=2) is True
+    body = task.read_text(encoding="utf-8")
+    assert "status: done" in body and "status: next" not in body
+    assert "ronda 2" in body                      # points at where the evidence lives
+    assert I.pending_verifications() == []
+    assert I.close_verification(d / "nope.md") is False   # fails open, never raises into a batch
+
+
 def test_filing_fails_open_and_never_takes_down_a_batch(monkeypatch, tmp_path):
     I = _isolate(monkeypatch, tmp_path)
     monkeypatch.setattr(I, "_next_initiative_number", lambda: (_ for _ in ()).throw(OSError("disk")))

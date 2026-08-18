@@ -99,7 +99,8 @@ def _run_scenario(scenario) -> dict:
             "run": run_data, "verdict": verdict}
 
 
-def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False) -> int:
+def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
+               verify_tasks: dict | None = None) -> int:
     config.RUNS_DIR.mkdir(parents=True, exist_ok=True)
     results = []
     for scenario in chosen:
@@ -124,6 +125,7 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False) -> 
     # re-test). Operator's rule: the harness measures and files, it does not patch. INFRA verdicts are
     # skipped deliberately — a crashed harness or a network timeout is not a use-case bug and would send the
     # fixing agent chasing nothing.
+    rounds: dict[str, int | None] = {}
     if not args_no_file:
         by_id = {s.id: s for s in chosen}
         for r in results:
@@ -141,6 +143,17 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False) -> 
                 print(f"  📋 iniciativa NUEVA → {filed['initiative'].name}  ·  tarea → {filed['task'].name}")
             else:
                 print(f"  📋 ronda {filed['round']} añadida a {filed['initiative'].name}")
+            rounds[r["scenario"]] = filed.get("round")
+
+    # Close every verify task we honoured — pass OR fail. The task asked "run this again", and it did run;
+    # leaving it `next` on a failure would make the next --verify batch re-run it forever without anyone having
+    # changed anything in between. A case that still fails continues in its initiative, which is the workspace.
+    for sid, task in (verify_tasks or {}).items():
+        if any(r["scenario"] == sid for r in results):
+            if initiativemod.close_verification(task, round_no=rounds.get(sid)):
+                print(f"  ✅ tarea de verificación cerrada → {task.name}")
+            else:
+                print(f"  ⚠️ no pude cerrar la tarea de verificación {task.name}")
 
     overalls = [r["verdict"].get("overall") for r in results if r["verdict"].get("overall") is not None]
     passed = sum(1 for o in overalls if o >= 4)
@@ -160,7 +173,25 @@ def run(args: argparse.Namespace) -> int:
 
     registry = SC.registry()
     ordered = SC.all_scenarios()
-    if args.scenario == "all":
+    verify_tasks: dict[str, object] = {}
+    if args.verify:
+        # The RETURN half of the handoff contract: a fixing agent that changed something leaves a
+        # `*-uc-<slug>-verify.md` task with `status: next`, and this assembles the re-test batch from exactly
+        # those. Without it the contract was one-directional — we filed the failure and nothing on our side
+        # ever picked the answer up, so "you can re-test now" depended on a human remembering.
+        pend = initiativemod.scenarios_awaiting_verification(registry)
+        unresolved = [p["slug"] for p in pend if not p["scenario"]]
+        if unresolved:
+            print(f"⚠️ tareas de verificación cuyo escenario ya no existe (¿renombrado?): "
+                  f"{', '.join(unresolved)}", file=sys.stderr)
+        chosen = [registry[p["scenario"]] for p in pend if p["scenario"]]
+        verify_tasks = {p["scenario"]: p["task"] for p in pend if p["scenario"]}
+        if not chosen:
+            print("no hay ninguna tarea de verificación pendiente — nada que re-probar")
+            return 0
+        print(f"▶ re-probando {len(chosen)} caso(s) a petición de una tarea de verificación: "
+              f"{', '.join(s.id for s in chosen)}")
+    elif args.scenario == "all":
         chosen = ordered
     elif args.scenario == "handwritten":
         chosen = SC.SCENARIOS
@@ -190,7 +221,8 @@ def run(args: argparse.Namespace) -> int:
     if not args.sandbox:
         print(f"▲ running against the LIVE engine at {config.ZAELAR_URL} — its memory, widgets and running "
               f"tasks are the operator's. Use --sandbox for an isolated one.")
-        return _run_batch(chosen, sandboxed=False, args_no_file=args.no_file)
+        return _run_batch(chosen, sandboxed=False, args_no_file=args.no_file,
+                          verify_tasks=verify_tasks)
 
     # ISOLATED: boot a throwaway engine (own port, own DB, own workspace, own logs) and point the whole
     # suite at it by rewriting config.ZAELAR_URL — probe_client reads that attribute per call, so no other
@@ -212,12 +244,13 @@ def run(args: argparse.Namespace) -> int:
             print(f"\n═══ locale {loc}: {sum(1 for s in chosen if s.locale == loc)} scenarios "
                   f"(separate sandbox — language is process-wide) ═══")
             sub = argparse.Namespace(**{**vars(args), "locale": loc})
-            rc |= _sandbox_batch([s for s in chosen if s.locale == loc], sub)
+            rc |= _sandbox_batch([s for s in chosen if s.locale == loc], sub,
+                                 verify_tasks=verify_tasks)
         return rc
-    return _sandbox_batch(chosen, args)
+    return _sandbox_batch(chosen, args, verify_tasks=verify_tasks)
 
 
-def _sandbox_batch(chosen: list, args: argparse.Namespace) -> int:
+def _sandbox_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict | None = None) -> int:
     from tests.platform.sandbox_engine import preferred_port, sandbox_engine
     # The workspace is KEPT, under a timestamped dir, and the port is a stable-by-preference one — both so
     # the operator can actually WATCH this run: open the URL below while it works and the ◷ visor / the
@@ -237,7 +270,8 @@ def _sandbox_batch(chosen: list, args: argparse.Namespace) -> int:
         print(f"  ▸ workspace kept for inspection: {eng.workspace}")
         config.ZAELAR_URL = eng.base_url
         try:
-            return _run_batch(chosen, sandboxed=True, args_no_file=args.no_file)
+            return _run_batch(chosen, sandboxed=True, args_no_file=args.no_file,
+                              verify_tasks=verify_tasks)
         finally:
             leaked = eng.new_widget_dirs()
             if leaked:
@@ -252,7 +286,10 @@ def _sandbox_batch(chosen: list, args: argparse.Namespace) -> int:
 def main() -> None:
     ap = argparse.ArgumentParser(description="zaelar use-case tester — driver + watchdog + verify + judge")
     ap.add_argument("--scenario", default="all",
-                    help="'all' (89 scenarios: hand-written + derived), 'handwritten', or a scenario id")
+                    help="'all' (119 scenarios: hand-written + derived), 'handwritten', or a scenario id")
+    ap.add_argument("--verify", action="store_true",
+                    help="re-test exactly the cases a fixing agent asked for (a `*-uc-*-verify.md` task with "
+                         "status: next), then close those tasks — the return half of the handoff")
     ap.add_argument("--sandbox", action="store_true",
                     help="boot an ISOLATED engine (own DB/port/workspace) instead of using the live one — "
                          "never touches the operator's memory, widgets or running tasks")

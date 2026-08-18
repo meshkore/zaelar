@@ -29,6 +29,7 @@ safe to embed here and NOT in the committed scoreboard: this is the diary, `STAT
 """
 from __future__ import annotations
 
+import datetime as _dt
 import json
 import re
 import time
@@ -285,3 +286,44 @@ def pending_verifications() -> list[dict]:
         if m := re.match(r"T\d+-uc-(.+)-verify\.md$", p.name):
             out.append({"slug": m.group(1), "task": p})
     return out
+
+
+def scenarios_awaiting_verification(registry: dict) -> list[dict]:
+    """Resolve each pending verify task to the scenario id the harness can actually run.
+
+    The task file carries a SLUG (`_slug(scenario.id)`, kebab-cased) because that is what makes a readable
+    filename — so getting back to `three-tasks-at-once` or `quick-fact-opening-hours__es` means matching
+    against the live registry rather than reversing the slug, which is lossy by construction (`__` collapses).
+    An unresolvable slug is REPORTED, never skipped in silence: it means someone renamed a scenario out from
+    under an open task, and swallowing that would leave the fixing agent waiting for a re-test that never runs.
+    """
+    by_slug = {_slug(sid): sid for sid in registry}
+    out = []
+    for pend in pending_verifications():
+        out.append({"slug": pend["slug"], "task": pend["task"],
+                    "scenario": by_slug.get(pend["slug"])})
+    return out
+
+
+def close_verification(task_path: Path, *, round_no: int | None = None) -> bool:
+    """Mark a verify task done once its case has actually been re-run.
+
+    Without this the task keeps matching `status: next` forever and every later `--verify` batch re-runs the
+    same case — the loop would never converge. The note says which round holds the evidence so the fixing
+    agent reads the outcome in the initiative, not here.
+    """
+    try:
+        body = task_path.read_text(encoding="utf-8")
+        body = re.sub(r"^status:\s*next\s*$", "status: done", body, count=1, flags=re.M)
+        stamp = _dt.date.today().isoformat()
+        body = re.sub(r"^updated:.*$", f"updated: {stamp}", body, count=1, flags=re.M)
+        ronda = f" (ronda {round_no})" if round_no else ""
+        body += (f"\n## Re-probado por el arnés — {stamp}\n\n"
+                 f"El caso se volvió a correr en un sandbox aislado a raíz de esta tarea. El resultado"
+                 f"{ronda} está en la iniciativa, con su transcript y su informe de mecanismo. Si sigue "
+                 f"fallando, la iniciativa es el sitio donde continúa el trabajo — no hace falta una tarea "
+                 f"nueva.\n")
+        task_path.write_text(body, encoding="utf-8")
+        return True
+    except Exception:
+        return False
