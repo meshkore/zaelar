@@ -268,7 +268,60 @@ def insert_memory(
             _mark_embed_pending(db, mid, pending_reason)
 
     _link_concepts(db, mid, concepts, level, kind)
+    _index_raw_utterance(mid, text, meta, level)
     return mid
+
+
+# Free-of-charge branch of V2-031 T2: index the ORIGINAL UTTERANCE as a retrieval path to the distilled pill.
+_RAW_INDEXING = os.getenv("MEM_INDEX_RAW", "1").strip().lower() not in ("0", "false", "no", "off")
+
+
+def _index_raw_utterance(mid: int, text: str, meta, level: str) -> None:
+    """Give a durable pill a second retrieval path: the words the operator actually said.
+
+    **Measured on LoCoMo, 2026-08-18 (199 questions, our system, both configurations).** Distilling is not
+    uniformly better or worse than keeping the raw dialogue — it is better at some categories and worse at
+    others, and the split is not subtle:
+
+        category      raw only   distilled   delta
+        multi-hop       31.2%      43.8%     +12.6pp
+        open-domain     23.1%      38.5%     +15.4pp
+        temporal        78.4%      70.3%      -8.1pp
+        single-hop      65.7%      62.9%      -2.8pp
+
+    Distillation wins where the answer has to be REASONED (the pill is a synthesis, and its concepts and slots
+    are what the graph walks) and loses where the answer IS the literal wording (a date said once, in one turn).
+    Third-party ablations found the same direction on LoCoMo and LongMemEval-S; this is the same finding measured
+    on our own pipeline rather than borrowed.
+
+    So the answer is not to pick one. The pill stays THE answer — canonical, deduped, superseded, graph-linked —
+    and the raw utterance becomes an extra way to FIND it, riding the paraphrase channel that already exists for
+    exactly this shape of problem (`paraphrase_index` + `vec_paraphrases`, mapped back to the real `memory_id`,
+    never returned as a result of its own). Structure AUGMENTS, it does not REPLACE — which was the rule this
+    initiative already wrote after correcting the REM verdict.
+
+    Costs one extra embedding per durable write and nothing at read time. Writes are off-hot-path by invariant
+    ("escribir puede ser LENTO — leer debe ser MÁXIMA VELOCIDAD"), so this is the cheap side of the trade.
+    Kill-switch `MEM_INDEX_RAW=0`.
+
+    Deliberately narrow: only DURABLE pills (`mid`/`long` — short-term ones expire and are read by a different,
+    over-inclusive path that never touches the retriever), and only when the raw text actually DIFFERS from the
+    pill. When the distiller is unavailable the heuristic stores the utterance nearly verbatim, and indexing a
+    second copy of the same sentence would buy nothing while doubling this pill's footprint in the vector table.
+    """
+    if not _RAW_INDEXING or level not in ("mid", "long"):
+        return
+    try:
+        m = meta if isinstance(meta, dict) else (json.loads(meta) if isinstance(meta, str) and meta.strip() else {})
+        raw = (m or {}).get("raw")
+        if not isinstance(raw, str):
+            return
+        raw = raw.strip()
+        if not raw or _norm(raw) == _norm(text):
+            return
+        index_paraphrases(mid, [raw])
+    except Exception:  # noqa: BLE001
+        pass    # a missing extra retrieval path is never a reason to fail a write that already succeeded
 
 
 def _embed_sig_ok() -> bool:

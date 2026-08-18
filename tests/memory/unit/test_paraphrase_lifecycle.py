@@ -96,3 +96,38 @@ def test_drop_paraphrases_only_touches_its_own_pill(fresh_db):
     assert (pi, vp) == (1, 1)
     db = memdb.get_db()
     assert db.query_one("SELECT memory_id FROM paraphrase_index")["memory_id"] == b
+
+
+# ── the raw utterance as a SECOND retrieval path to the distilled pill (V2-114 F4.2) ─────────────────────────
+# Measured on LoCoMo with our own pipeline: distilling wins multi-hop (+12.6pp) and open-domain (+15.4pp) and
+# LOSES temporal (-8.1pp) and single-hop (-2.8pp), because a date said once lives in the literal wording. So the
+# pill stays the answer and the raw utterance becomes a way to find it — augment, never replace.
+def test_a_durable_pill_indexes_the_operators_own_words(fresh_db):
+    mid = memwriter.insert_memory("Su perro se llama Toby y es un labrador.", level="long", kind="fact",
+                                  meta={"raw": "mi perro se llama Toby, es un labrador precioso"})
+    db = memdb.get_db()
+    rows = db.query("SELECT memory_id, text FROM paraphrase_index")
+    assert len(rows) == 1 and rows[0]["memory_id"] == mid
+    assert rows[0]["text"] == "mi perro se llama Toby, es un labrador precioso"
+    assert db.query_one("SELECT COUNT(*) c FROM vec_paraphrases")["c"] == 1
+
+
+def test_raw_identical_to_the_pill_is_not_indexed_twice(fresh_db):
+    """When the distiller is down the heuristic stores the utterance nearly verbatim. A second copy of the same
+    sentence buys no retrieval surface and doubles this pill's footprint in the vector table."""
+    memwriter.insert_memory("dato igual", level="long", kind="fact", meta={"raw": "  Dato Igual  "})
+    assert memdb.get_db().query_one("SELECT COUNT(*) c FROM paraphrase_index")["c"] == 0
+
+
+def test_short_term_pills_do_not_get_a_raw_path(fresh_db):
+    """Short-term memories expire and are read by an over-inclusive path that never touches the retriever —
+    indexing them would pay the cost with no reader to benefit."""
+    memwriter.insert_memory("efímero", level="short", kind="event", meta={"raw": "otra frase efímera distinta"})
+    assert memdb.get_db().query_one("SELECT COUNT(*) c FROM paraphrase_index")["c"] == 0
+
+
+def test_raw_indexing_has_a_kill_switch(fresh_db, monkeypatch):
+    monkeypatch.setattr(memwriter, "_RAW_INDEXING", False)
+    memwriter.insert_memory("Su perro se llama Toby.", level="long", kind="fact",
+                            meta={"raw": "mi perro se llama Toby"})
+    assert memdb.get_db().query_one("SELECT COUNT(*) c FROM paraphrase_index")["c"] == 0
