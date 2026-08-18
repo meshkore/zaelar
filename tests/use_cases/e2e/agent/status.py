@@ -110,6 +110,29 @@ def _render(led: dict) -> None:
     lines += ["", f"**{passed} passing · {failed} failing · {infra} infra** of {len(scen)} scenarios with a "
                   f"recorded result.", ""]
 
+    # COVERAGE, next to the results. Without it "1 passing · 4 failing" reads like the whole answer to "which
+    # use cases work?", when the honest answer also has to say how much of the catalog nobody has run yet —
+    # and an UNRUN case is not a passing one. Broken down by tier and locale because that is how the walk is
+    # actually driven (`--tier N --locale es`), so this doubles as the progress board for it.
+    try:
+        from . import scenarios as SC
+        allsc = SC.all_scenarios()
+    except Exception:
+        allsc = []
+    if allsc:
+        done = set(scen)
+        lines += [f"## Catalog coverage — {len(done)} of {len(allsc)} scenarios ever run "
+                  f"({len(allsc) - len(done)} never run)", "",
+                  "An unrun case is **not** a passing one. This is the walk's progress board.", "",
+                  "| tier | locale | run | of | passing |", "|---|---|---|---|---|"]
+        keys = sorted({(s.tier, s.locale) for s in allsc})
+        for tier, loc in keys:
+            group = [s.id for s in allsc if s.tier == tier and s.locale == loc]
+            ran = [sid for sid in group if sid in done]
+            ok = sum(1 for sid in ran if scen[sid].get("state") == "PASS")
+            lines.append(f"| {tier} | {loc} | {len(ran)} | {len(group)} | {ok} |")
+        lines.append("")
+
     multi = {s: e for s, e in scen.items() if e.get("max_concurrent") is not None}
     if multi:
         lines += ["## Multi-flow scenarios (concurrency measured live, from `/api/tasks`)", "",

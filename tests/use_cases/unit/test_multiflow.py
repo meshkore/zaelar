@@ -411,3 +411,17 @@ def test_the_confound_never_rewrites_the_verdict_into_INFRA():
                                                         "reasons": [("quota_exhausted", 2)]}}},
          "verdict": {"overall": 1, "scores": {}, "veredicto": "inventó el resultado"}}
     assert S._state(1, r) == "FAIL"
+
+
+def test_the_board_shows_how_much_of_the_catalog_is_still_UNRUN(tmp_path, monkeypatch):
+    """An unrun case is not a passing one. Without the denominator, "1 passing · 4 failing" reads like the
+    whole answer to "which use cases work?" while 114 cases nobody has run go unmentioned."""
+    monkeypatch.setattr(status, "LEDGER_PATH", tmp_path / "status.json")
+    monkeypatch.setattr(status, "BOARD_PATH", tmp_path / "STATUS.md")
+    status.record([{"scenario": "restaurant-tonight-madrid", "tier": 1,
+                    "verdict": {"overall": 5, "scores": {}, "veredicto": "ok"},
+                    "run": {"mechanism_report": {}}}], sandboxed=True)
+    board = (tmp_path / "STATUS.md").read_text(encoding="utf-8")
+    assert "Catalog coverage — 1 of" in board
+    assert "never run)" in board
+    assert "| tier | locale | run | of | passing |" in board
