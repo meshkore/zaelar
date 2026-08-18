@@ -21,6 +21,10 @@ _TASK_VERB_RE = _re.compile(
     r"borr|elimin|mand|envi|escrib|respond|contest|reenvi|gestion|revis|lee|leer|mira|mir[ae]|orden|compr|"
     r"public|descarg|reserv|anad|agreg|cambi|actualiz|sub[ae]|archiv|marca|mueve|rellen|apunt|"
     r"puj|pag|cancel|confirm|solicit|vot|inscrib|contrat|licit|acept|rechaz|"
+    # `de baja` / `suscrib` (V2-126, 2026-08-18): «date de baja de Netflix» es LA forma de pedir esto en
+    # castellano y no llevaba ningún verbo de la lista, así que no contaba como tarea web. Va la locución
+    # entera, nunca «baja» suelta — «estoy de baja» no es una orden a nadie.
+    r"de\s+baja|suscrib|unsubscrib|"
     r"delete|remove|send|write|reply|forward|manage|check|read|buy|post|download|book|add|update|fill|move|"
     r"bid|pay|apply|vote|order|subscribe|purchase|checkout"
     r")", _re.I)

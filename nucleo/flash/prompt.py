@@ -441,6 +441,16 @@ def live_state() -> str:
             lines.append(cl)
     except Exception:
         pass
+    try:
+        # Hermana de la de arriba, para una TAREA irreversible parada por el confirm-gate (V2-126). Sin ella el
+        # cerebro no tenía forma de saber que hay algo esperando su sí: la tarea desaparece del registro al
+        # pararse, así que el turno siguiente veía cero tareas y volvía a narrar trabajo inexistente.
+        from nucleo import dispatch as _disp_c
+        cline = _disp_c.confirm_line()
+        if cline:
+            lines.append(cline)
+    except Exception:
+        pass
     return "\n".join(lines)
 
 

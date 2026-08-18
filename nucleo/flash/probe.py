@@ -669,6 +669,21 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # a un worker vivo. Marshalea al loop del server (mismo proceso). El resto de acciones (canvas/data/música) NO se
     # ejecutan aquí: este modo es para validar el ciclo de TAREAS, no el canvas.
     if execute:
+        # CONFIRMACIÓN de una TAREA irreversible parada por el confirm-gate (V2-126) — espejo del provider de
+        # voz (impl PARALELA, cablear en AMBOS). Va ANTES que el resto: un «sí» reanuda la tarea PARADA, no abre
+        # una nueva, así que tiene que poder anular la escalada de este turno.
+        try:
+            from nucleo import dispatch as _disp_cc
+            if _disp_cc.pending_confirm():
+                from widgets import confirm as _confirm_cc
+                _v = _confirm_cc.classify_reply(text)
+                if _v:
+                    _r = _disp_cc.resolve_confirm(_v == "yes")
+                    if _r:
+                        action = "confirm_task"
+                        return_extra_exec = {"executed": "confirm_task", "ok": bool(_r.get("ok"))}
+        except Exception:
+            pass
         # PROACTIVIDAD REAL (V2-121, 2026-08-18): las tags de cron se EJECUTAN, no solo se capturan. Va aparte del
         # `if action == …` de abajo a propósito — una tag de cron CONVIVE con una tool en el mismo turno, que es
         # justo el turno que este caso de uso pide («apúntame el jueves» → widget_data add_meeting, «y recuérdamelo
@@ -777,7 +792,9 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         try:
             from voice.engine.core import langs as _langs
             _lg = _langs.current_language()
-            if action == "widget_data":
+            if action in ("widget_data", "confirm_task"):
+                # `confirm_task` (V2-126) con el mismo ack corto que una data-op: el turno que resuelve un sí/no
+                # no puede caer al backstop genérico y contestar «¿me lo repites?» a una confirmación.
                 spoken = _lg.data_ack
             elif action.startswith("canvas:"):
                 spoken = _lg.show_ack

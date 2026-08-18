@@ -2652,6 +2652,28 @@ class NucleoLLMStream(llm.LLMStream):
             except Exception:
                 pass
 
+        # …y lo mismo para una TAREA irreversible parada por el confirm-gate (V2-126). MISMO clasificador
+        # determinista, distinto registro: aquel resuelve una acción de widget, este re-lanza la tarea. Va
+        # DESPUÉS y solo si no había confirmación de widget, para que un único «sí» no resuelva dos cosas.
+        # Sin esto el gate era un callejón sin salida: nadie ponía nunca `context["confirmed"]`, así que el sí
+        # del operador no tenía a qué volver y la acción quedaba parada para siempre sin decirlo.
+        if not had_pending_confirm and not worker_acted["v"]:
+            try:
+                from nucleo import dispatch as _disp_cc
+                if _disp_cc.pending_confirm():
+                    from widgets import confirm as _confirm_mod2
+                    _v = _confirm_mod2.classify_reply(text)
+                    if _v:
+                        _r = _disp_cc.resolve_confirm(_v == "yes")
+                        if _r:
+                            escalate_req["v"] = None      # el sí NO abre una tarea nueva: reanuda la parada
+                            escalate_req["more"] = []
+                            emit("brain", "✅ confirmación de tarea resuelta" if _r.get("ok")
+                                 else "🚫 tarea irreversible descartada por el operador",
+                                 text=_r.get("request", "")[:120], role="system", extra={"cat": "flash"})
+            except Exception:
+                pass
+
         # RED DETERMINISTA V2-038 (§v3·M): precedencia confirm > ask-activo > stop-worker. Si un worker ESPERABA
         # respuesta y el modelo NO llamó answer_worker → enruta el turno como la respuesta (el estado ya lo marcaba).
         # SOLO una "respuesta libre CORTA" (§v3·M): si el turno YA disparó otra acción (widget/búsqueda/escalada/

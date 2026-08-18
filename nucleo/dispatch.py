@@ -279,6 +279,30 @@ def _classify_kind(request: str) -> str:
             return "web"
     except Exception:
         pass
+    # …y cuando el operador SÍ nombra un sitio, pero uno que `_WEB_RE` no conoce (V2-126, 2026-08-18).
+    #
+    # Había DOS inventarios de sitios conocidos y llevaban tiempo desincronizados: `_WEB_RE` (aquí: wallapop,
+    # amazon, linkedin, «abre la web»…) y `router_guards._KNOWN_SITES` (quince, los que el motor sabe abrir para
+    # un login). DOCE estaban solo en el segundo — netflix, spotify, gmail, google, ebay, twitter, instagram,
+    # facebook, outlook, github, idealista, milanuncios. Medido en el caso `cancel-subscription-before-charge`:
+    # «Cancela mi suscripción a Netflix» → `generic`, o sea un worker SIN navegador. Y ese es el daño real, no la
+    # falta de una cuenta de Netflix: sin navegador la tarea no puede llegar al muro de login, así que no puede
+    # PEDIRLE al operador que entre ni decir «no puedo acceder a tu cuenta» — el sistema se queda sin la única
+    # respuesta honesta que tenía, y el turno rellena el hueco narrando.
+    #
+    # Se exige NOMBRE DE SITIO + VERBO DE TAREA, nunca el verbo suelto: `looks_like_web_task` por sí solo es
+    # ancho (`lee|mira|revis|compr`) y su propio docstring dice que existe como DISPARADOR, no como clasificador
+    # — enrutar de más ya costó una vez dos tarjetas de navegador que nadie pidió (ver `_MODIFY_CODE_RE` arriba).
+    # Música y mensajería quedan FUERA aunque nombren su sitio: esas cuentas se vinculan DENTRO de su widget
+    # (OAuth/QR), nunca por el Chromium, y sus dos guards existen justo para sostener ese invariante.
+    try:
+        from nucleo.flash import router_guards as _rg
+        _site = _rg.login_site(r)
+        if (_site and _rg.looks_like_web_task(r)
+                and not _rg.is_music_service(_site, r) and not _rg.is_messaging_service(_site, r)):
+            return "web"
+    except Exception:
+        pass
     # CÓDIGO de widget = CREAR (reusa la detección del router, verbo+nombre) o MODIFICAR-código, o architect.
     # NUNCA por mencionar «widget» a secas (V2-081): abrir/mostrar/gestionar uno existente NO es código.
     try:
@@ -1013,6 +1037,13 @@ async def _run_session(task: "Task") -> None:
             rec.result_summary = danger.confirm_question(req)
             await _deliver_confirm(rec)
             _SESSIONS.pop(key, None)
+            # La pregunta se RECUERDA (V2-126). Hasta aquí el gate era un callejón sin salida: hablaba la
+            # pregunta por el raíl proactivo, tiraba el registro, y nadie ponía nunca `context["confirmed"]`
+            # — un `sí` del operador no tenía a qué volver. Peor: la tarea desaparecía de `pending_summaries`,
+            # así que el turno siguiente NO veía nada pendiente y volvía a narrar trabajo que no existía.
+            # Medido en `cancel-subscription-before-charge` y en `pay-known-bill` (tres tareas, las tres
+            # paradas por el gate, ninguna contada al operador).
+            remember_confirm(key, req, task)
             sync_state()
         return
 
@@ -1227,6 +1258,74 @@ def rec_token(rec: "SessionRecord") -> str:
         tok = secrets.token_urlsafe(18)
         setattr(rec, "_token", tok)
     return tok
+
+
+# ── CONFIRMACIÓN PENDIENTE de una tarea irreversible (V2-126) ─────────────────────────────────────────────
+# Same contract as `widgets/confirm.py` (the sibling gate for irreversible WIDGET actions): remember the ask,
+# expire it rather than let it hang forever, and expose a line the FlashBrain can read in its live state. It is
+# a separate registry on purpose — that one is keyed by widget id and executes through `apply_action`, this one
+# re-dispatches a worker task; fusing them would couple two unrelated execution paths for a shared TTL.
+_PENDING_CONFIRM: dict[str, dict] = {}
+_CONFIRM_TTL = 300.0     # 5 min. Longer than the widget gate's 90 s: this question ("shall I really pay?")
+                         # arrives mid-conversation and the operator may reasonably think about it.
+
+
+def _sweep_confirm(now: float | None = None) -> None:
+    now = time.time() if now is None else now
+    for k in [k for k, v in _PENDING_CONFIRM.items() if now - v["ts"] > _CONFIRM_TTL]:
+        _PENDING_CONFIRM.pop(k, None)
+
+
+def remember_confirm(task_id: str, request: str, task: "Task") -> None:
+    """Keep the question the gate just asked, so a later «sí» has somewhere to go."""
+    from nucleo import danger as _danger
+    _sweep_confirm()
+    _PENDING_CONFIRM[str(task_id)] = {
+        "request": request, "kind": (task.kind or "generic"), "trusted": bool(task.trusted),
+        "context": dict(task.context or {}), "question": _danger.confirm_question(request),
+        "ts": time.time()}
+
+
+def pending_confirm() -> dict | None:
+    """The confirmation still waiting for a yes/no, or None. Most recent wins — a second irreversible ask
+    supersedes the first, exactly like the widget gate."""
+    _sweep_confirm()
+    if not _PENDING_CONFIRM:
+        return None
+    tid = max(_PENDING_CONFIRM, key=lambda k: _PENDING_CONFIRM[k]["ts"])
+    return {"task_id": tid, **_PENDING_CONFIRM[tid]}
+
+
+def confirm_line() -> str:
+    """Line for the FlashBrain's live state. Without it the brain has NO idea a task is parked waiting on the
+    operator — which is precisely how a gated task turned into narrated progress."""
+    p = pending_confirm()
+    if not p:
+        return ""
+    return (f"CONFIRMACIÓN PENDIENTE de una acción IRREVERSIBLE: «{p['request'][:120]}». Le preguntaste al "
+            f"operador y AÚN NO ha contestado, así que la tarea está PARADA y no ha empezado nada — no digas "
+            f"que está en marcha. Si dice que SÍ, arranca; si dice que NO, olvídalo y confírmaselo.")
+
+
+def resolve_confirm(ok: bool) -> dict | None:
+    """Answer the pending confirmation. `True` re-dispatches the SAME request with `confirmed` set (the gate
+    lets it through this time); `False` drops it. Returns what was resolved, or None if nothing was pending."""
+    p = pending_confirm()
+    if not p:
+        return None
+    _PENDING_CONFIRM.pop(p["task_id"], None)
+    if not ok:
+        return {**p, "ok": False}
+    # Se re-lanza por la MISMA puerta que cualquier escalada (`escalate.requested` → `run_listener`), no por un
+    # atajo: así conserva el trace, el dedup y el registro de tareas. Lo único distinto es `confirmed`, que es
+    # lo que el gate mira para dejarla pasar esta vez.
+    ctx = {**p["context"], "confirmed": True, "kind": p["kind"]}
+    try:
+        from nucleo.flash import escalate as _esc
+        _esc.escalate_to_slowbrain(p["request"], context=ctx)
+    except Exception:
+        logger.warning("resolve_confirm: no se pudo re-lanzar la tarea confirmada")
+    return {**p, "ok": True}
 
 
 async def _deliver_confirm(rec: "SessionRecord") -> None:

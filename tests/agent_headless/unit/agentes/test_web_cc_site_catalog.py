@@ -153,3 +153,44 @@ def test_the_web_prompt_is_unchanged_when_no_category_matches():
     p = dispatch_prompts._web_prompt("entra en mi Gmail y bórrame los correos viejos", "")
     assert "ESTA TAREA es de categoría" not in p
     assert "SITIOS DE CONFIANZA POR CATEGORÍA" in p
+
+
+# ── un sitio NOMBRADO que el motor ya conoce (V2-126, 2026-08-18) ────────────────────────────────────────
+# Había DOS inventarios de sitios conocidos, desincronizados: `dispatch._WEB_RE` (wallapop, amazon, linkedin,
+# «abre la web»…) y `router_guards._KNOWN_SITES` (quince, los que el motor sabe abrir para un login). DOCE
+# estaban solo en el segundo. Medido en `cancel-subscription-before-charge`: «Cancela mi suscripción a Netflix»
+# → `generic`, o sea un worker SIN navegador — y sin navegador la tarea no puede ni llegar al muro de login,
+# así que el sistema se queda sin la única respuesta honesta que tenía («no puedo entrar en tu cuenta»).
+def test_a_named_known_site_plus_a_task_verb_goes_to_the_browser():
+    from nucleo import dispatch
+    for req in ("Cancela mi suscripción a Netflix antes de que me cobren el día 15",
+                "date de baja de Netflix",           # LA forma de decirlo, y no llevaba ningún verbo de tarea
+                "cancela mi cuenta de eBay",
+                "borra mis publicaciones de Instagram"):
+        assert dispatch._classify_kind(req) == "web", req
+
+
+def test_music_and_messaging_never_go_to_the_browser_even_naming_their_site():
+    """Esas cuentas se vinculan DENTRO de su widget (OAuth/QR), nunca por el Chromium — sus dos guards existen
+    justo para sostener ese invariante."""
+    from nucleo import dispatch
+    for req in ("ponme música en Spotify", "conéctame a Spotify", "mándale un mensaje a Ana por WhatsApp"):
+        assert dispatch._classify_kind(req) != "web", req
+
+
+def test_naming_no_site_is_still_not_a_browser_task():
+    """El verbo suelto NO basta: `looks_like_web_task` es ancho (lee|mira|revis|compr) y su propio docstring
+    dice que existe como DISPARADOR, no como clasificador. Enrutar de más ya costó una vez dos tarjetas de
+    navegador que nadie pidió."""
+    from nucleo import dispatch
+    for req in ("lees lo que hay en la agenda, lo borras y compruebas",
+                "cancela la suscripción del gimnasio",
+                "Hazme un informe sobre coches eléctricos para ciudad",
+                "¿qué tal está Netflix últimamente?"):
+        assert dispatch._classify_kind(req) != "web", req
+
+
+def test_a_pure_login_is_still_a_login_not_a_task():
+    from nucleo.flash import router_guards as rg
+    for req in ("conéctame a Wallapop", "inicia sesión en mi Gmail", "vincula mi LinkedIn"):
+        assert rg.looks_like_login_request(req), req
