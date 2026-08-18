@@ -2724,6 +2724,96 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     so it announces itself if it ever stops testing what it thinks. Chat wall: node 4.17,
     `tests/browser/unit/chat/test_chat_wall_promptness.mjs` (6 cases), also verified failing without the fix.
 
+- **A worker started with the engine's own developer manual inside it, and its raw provider error was delivered as
+  the report (V2-117, 2026-08-18)**: the operator asked for a left-handed child's guitar and got
+  «API Error: The model has reached its context window limit.» read out loud, 4m48s and $2.27 in, with zero results.
+  The message was wrong on three counts and the real cause was in a line that did not exist. Detail:
+  `V2-117-contexto-del-worker-y-un-solo-hilo.md`.
+  - **It was not the context window, and it was not Opus.** From the worker's own native transcript: the real
+    `apiError` was **`max_output_tokens`** (the provider rejects once accumulated input PLUS the requested output
+    reservation no longer fit — which is why it died at 138,492 and not at 200,000); that sentence is the CLI's
+    **synthetic** message, not the provider's. The model that actually ran was **`glm-4.7`**, while the record said
+    `claude-opus-4-8[1m]` because `self._model = spec.model` keeps the requested ALIAS and `spawned` only overwrites
+    it when the spec came empty — so the panel lied about the model AND the $2.2696 was priced at Opus rates for a
+    GLM run.
+  - **The real cause: it started 62% full.** The FIRST API call already carried **122,833 input tokens before the
+    worker did any work**; the 14 browser round-trips only added ~15k. The spec carried no `cwd`, so the backend fell
+    back to the ENGINE ROOT and the headless agent loaded `engine/CLAUDE.md` (304,893 bytes ≈ **76k tokens**) plus
+    the parent `CLAUDE.md` on EVERY request. Measured head-to-head afterwards against the real CLI, same trivial
+    prompt: **167,242 tokens with the repo as cwd vs 25,352 in a scratch dir (−84.8%)**, and the spawn's fixed cost
+    ÷24. Today a worker would have 33k of 200k left — it cannot even begin. The number is HIGHER than the incident's
+    because `CLAUDE.md` has grown since: the fault was getting worse on its own.
+  - **Three faults collapse into that one `cwd`**, and `nucleo/workers/workdir.py` (one private directory per task,
+    `PYTHONPATH` to the engine root — the pattern `dispatch_devworker.py` already used) removes all three:
+    the CONTEXT above; the COLLISION (the delivery recipe tells every worker to write `informe.json` to a RELATIVE
+    path, so a shared root means a shared file — the guitar worker started with the PREVIOUS day's report attached);
+    and PRIVACY (walking up from `engine/` also loads the ROOT `CLAUDE.md`, the private business/cloud one, and ships
+    it to whichever provider serves the worker). Applied to `web`/`research`/`generic`/`memory`; `code`/`dev` keep
+    the repo because their job IS the repo.
+    ⚠️ Bug caught while testing it: the module lives one level deeper than the file whose pattern it copied, so two
+    `dirname` calls pointed `PYTHONPATH` at `nucleo/` and `-m nucleo.nav_cli` stopped resolving — a worker with NO
+    bridges at all, the very fault the module exists to prevent.
+  - **`WorkerSpec.read_dirs`** — a genuinely agnostic field (declare the intent, each backend translates it to its
+    own flag; `claude_session` → `--add-dir`). `extra_args` could not carry it: all three backends splice that in
+    VERBATIM, so a Claude-only flag there would have broken Codex and Grok. Born with the confined cwd, because the
+    browser's vision path hands over its screenshot as an ABSOLUTE path outside the working directory.
+    ⚠️ A claim of mine, corrected the same session: I wrote that without this the worker would be BLIND. Tested live
+    against the real CLI with production flags (`--print --permission-mode acceptEdits --allowedTools Read`, from a
+    scratch cwd) — an absolute read outside the cwd is ALREADY permitted, so `--add-dir` is not what keeps the vision
+    path working. Kept as defence in depth (it states the read dependency explicitly instead of resting on a
+    permission default that could tighten silently), but the rationale was wrong and it was wrong in five places.
+  - **A blown context gets its OWN failure family** (`providers.is_context_overflow`), deliberately NOT inside
+    `classify_failure`: it is not a sick provider. Folding it into `exhausted` would put a healthy tier on cooldown
+    and migrate the fault to the next one, which would blow up identically. The right answer is COMPACT AND CONTINUE,
+    not relay. Until now `classify_failure` returned `""` for it → no `provider_down` → the one-shot relay retry that
+    ALREADY existed (`provider_retried`) never fired: the same hole closed for quota on 2026-08-10, still open for
+    everything else.
+  - **The number that predicts death was already flowing past us.** `session.py`'s `usage` branch accumulated tokens
+    for the post-mortem bill; nothing watched the context SIZE. They are different quantities and conflating them is
+    what left us blind: spend is SUMMED message by message, but the context is the TOTAL OF THE LAST message
+    (`_ctx_size`: fresh + cache read + cache written) — `input_tokens` alone said «956» when the real context was
+    138,492. Now a watchdog (`ZAELAR_WORKER_CTX_BUDGET`, def 110,000) injects ONE turn asking the worker to deliver
+    what it has. It is TALKED to rather than killed because the session is still alive and its own reasoning is the
+    cheapest summary of its progress — same stdin channel `send_to_worker` already uses, no new machinery.
+  - **Compact and continue** (`context_handoff` + a branch in `_finish`): re-escalated ONCE carrying plan, steps
+    already taken, last narrated note and reported breadth. No LLM call — compacting must not depend on a model being
+    reachable at the exact moment one just failed. It deliberately does NOT carry the dead worker's
+    `result_summary`: on that path the field holds the provider's error, and pasting it would tell the fresh worker
+    its predecessor's error message was a finding.
+  - **A raw provider error is NEVER the report** (`operator_safe_summary`, at the delivery point): the specific
+    branches each replace the text for the failures we anticipated; this one covers the next one we did not. It is a
+    translation, never a silence — the operator always learns the task did not finish; only the internal wording
+    disappears, and the full text stays in the log.
+  - **`self._tier` went blind whenever the endpoint arrived PRE-SET in `spec.env`** — it was only assigned inside
+    `if "ANTHROPIC_BASE_URL" not in env`, so on that path every piece of provider attribution reported an empty
+    `base_url` and a failure could not name who served the session. Choosing the endpoint and KNOWING which one is in
+    play are two different jobs; only the first belonged in that `if`.
+  - **A flow is ONE chronological thread, and the board now shows it that way** (operator: *«todos los mensajes,
+    ejecuciones, eventos… todo tiene que ir en un mismo hilo cronológico, y así se tiene que ver en el master»*). The
+    DETAIL already complied since V2-105, but the board and rail read `flows_detail` grouped by RAW `corr_id`, so a
+    merged task painted TWO columns and counted twice in «N active». `flows_detail` now exposes `merge_into` in BOTH
+    places — `observability/flows.py` (local) and `cloud/backoffice/src/flyQuery.js` (cloud), per the two-surfaces
+    rule: a column added on one side only does not fail with noise, it fails coming out EMPTY. `foldMergedFlows()`
+    folds absorbed rows into their titular (combined window, `t_ms` RECALCULATED — summing two durations would exceed
+    the real elapsed time, since the halves of a hesitant sentence overlap), and the board paints a **+N** chip
+    because a flow that vanishes with no explanation is silent state. `handleFlowDetail` now orders by `ts_ms` and
+    takes `lastId` as the MAXIMUM: with two merged traces the events INTERLEAVE, so the newest in time is not
+    necessarily the highest id.
+    ⚠️ **This is LATENT, and saying so matters**: checked rather than assumed — `voice/trace.py::merge()` has ZERO
+    callers in the tree and `SELECT COUNT(*) FROM events WHERE kind='trace' AND label='merge'` returns **0**. The
+    folding is correct, tested plumbing with nothing yet to fold; the trigger is the half V2-105 left unbuilt ON
+    PURPOSE. It also corrects the operator's reading that a vanishing column meant a merge: the board only paints
+    ACTIVE flows (60s window), so a finished turn leaves the view by itself, and the ~350ms no-reply flows were
+    stillborn columns, never merges. Nor does the `ts_ms` ordering change anything VISIBLE today — with a single
+    trace, id order and time order coincide because the sink writes in order; it is a correctness guard for the
+    merged case, not an observable improvement.
+  - Tests: `tests/agent_headless/unit/workers/test_context_budget.py` (node 2.5, 41 cases, the use case rebuilt from
+    the real evidence) + `cloud/backoffice/test/flowAttribution.test.js` (+12). **Sensitivity verified** — with the
+    classifier disabled the failure goes invisible again (0 events), without the delivery gate the operator receives
+    the `API Error` verbatim, and with the watchdog at 0 the worker sails past the ceiling in silence. **NOT verified
+    live**: the engine was not restarted in this pass, so a real task running with the confined cwd (bridges +
+    reading its own screenshot) is still unexercised — that is the first thing to try.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un
