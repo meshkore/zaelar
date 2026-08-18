@@ -61,6 +61,11 @@ SITE_CATALOG: dict[str, dict[str, SiteEntry]] = {
         "flight_search": SiteEntry(
             "Skyscanner", "https://www.skyscanner.es",
             "buscar/comparar vuelos — filtra por origen, destino, fechas y equipaje facturado si se pidió."),
+        "event_tickets": SiteEntry(
+            "Entradas.com", "https://www.entradas.com",
+            "entradas de teatro/musicales/conciertos — busca el espectáculo por nombre y filtra por fecha y "
+            "sesión; si el espectáculo no aparece, mira la web del propio teatro. Las entradas se COMPRAN: "
+            "trae las opciones con precio y zona y PARA ahí, no completes la compra."),
         "car_classifieds": SiteEntry(
             "coches.net", "https://www.coches.net",
             "coches de segunda mano — usa la URL de resultados con filtros (combustible, km, precio máx)."),
@@ -83,6 +88,11 @@ SITE_CATALOG: dict[str, dict[str, SiteEntry]] = {
         "flight_search": SiteEntry(
             "Google Flights", "https://www.google.com/travel/flights",
             "search/compare flights — filter by origin, destination, dates and checked baggage if asked."),
+        "event_tickets": SiteEntry(
+            "Ticketmaster", "https://www.ticketmaster.com",
+            "theatre/musical/concert tickets — search the show by name and filter by date and session; if the "
+            "show is not listed, try the venue's own site. Tickets are BOUGHT: bring back the options with "
+            "price and seating area and STOP there, do not complete the purchase."),
         "car_classifieds": SiteEntry(
             "Cars.com", "https://www.cars.com",
             "used cars — use the filtered results URL (fuel type, mileage, max price)."),
@@ -171,6 +181,17 @@ _CAT_PATTERNS: list[tuple[str, "_re.Pattern[str]"]] = [
     ("hotel_booking", _re.compile(
         r"\b(reserv\w*|book|booking)\b[^.!?]{0,60}\b(hotel|habitaci[oó]n|alojamiento|hostal|apartamento|room|"
         r"lodging|stay)\b", _re.I)),
+    # V2-132: tickets for a SHOW. The word for the object ("entradas"/"tickets") is not enough on its own —
+    # "entradas" is also a starter on a menu and "ticket" is also a receipt — so it is paired with either the
+    # kind of show or a verb of getting hold of one. Measured on `find-theatre-tickets__es`: with no category
+    # here the task classified as `generic`, i.e. a worker with NO browser, so the `widget` signal could not
+    # possibly fire and the whole run was the model narrating a search that had nowhere to happen.
+    ("event_tickets", _re.compile(
+        r"\b(entradas?|tickets?|localidades)\b[^.!?]{0,60}"
+        r"\b(teatro|theatre|theater|musical|concierto|concert|[oó]pera|opera|espect[aá]culo|show|festival|"
+        r"partido|match|cine|cinema)\b"
+        r"|\b(teatro|musical|concierto|concert|[oó]pera|espect[aá]culo|festival)\b[^.!?]{0,60}"
+        r"\b(entradas?|tickets?|localidades|butacas?|asientos?)\b", _re.I)),
     ("flight_search", _re.compile(
         r"\b(vuelos?|flights?|billetes?\s+de\s+avi[oó]n|plane\s+tickets?)\b", _re.I)),
     # Second-hand: the market, not the verb. "de segunda mano" / "usado" / "used" is the whole signal — a
@@ -194,7 +215,8 @@ _CAT_PATTERNS: list[tuple[str, "_re.Pattern[str]"]] = [
 # Mandar esa petición al navegador la sacaría del embudo — el mismo tipo de daño que ya causó una vez enrutar de
 # más (ver el incidente de `_MODIFY_CODE_RE` en dispatch.py). Al worker genérico se le da igualmente este
 # catálogo, así que «de segunda mano» sigue llegando a Wallapop sin tocar el enrutado.
-TRANSACTIONAL_CATEGORIES = frozenset({"restaurant_booking", "hotel_booking", "flight_search"})
+TRANSACTIONAL_CATEGORIES = frozenset({"restaurant_booking", "hotel_booking", "flight_search",
+                                      "event_tickets"})
 
 
 def category_of(request: str, locale: str | None = None) -> str | None:

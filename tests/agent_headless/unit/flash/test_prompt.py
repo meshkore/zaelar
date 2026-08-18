@@ -257,3 +257,13 @@ def test_the_prompt_forbids_answering_a_concrete_question_with_process(monkeypat
     live = prompt.live_state()
     assert "TODAVÍA NO LO SABES" in live
     assert "no digas que algo «se está demorando»" in live
+
+
+def test_the_prompt_forbids_handing_the_task_back_to_the_operator(fresh_db):
+    """V2-132 · turn 8, after four rounds with nothing to say: «Perfecto, te dejo trabajando. Avísame cuando
+    tengas algo.» With no material of its own the model MIRRORED the interlocutor's last frame and handed the
+    task back to whoever had asked for it. Named explicitly, with the phrase to use instead."""
+    system, _ = prompt.build_flash_system()
+    assert "El trabajo es TUYO" in system
+    assert "avísame cuando tengas algo" in system
+    assert "sigo sin novedades" in system

@@ -182,7 +182,12 @@ def looks_like_create_widget(text: str) -> bool:
 # promesa en la RESPUESTA de zaelar (se comprometió) → re-deriva la intención con los clasificadores deterministas.
 _PROMISE_RE = _re.compile(
     r"\b(voy a|te lo|te la|te los|te las|aqui (?:lo|la|los|las) tienes|aqui tienes|ahora (?:mismo|te|lo|la)|"
-    r"me pongo con|lo hago|la hago|enseguida|en un momento|un momento|dame un momento|lo abro|"
+    r"me pongo con|me pongo a|lo hago|la hago|enseguida|en un momento|un momento|dame un momento|lo abro|"
+    # V2-132 — medido sobre el transcript de `find-theatre-tickets`: «Me pongo a buscarte las dos entradas»
+    # y «Todavía estoy con ello» daban False, así que el backstop de promesa ni se planteaba. Son las formas
+    # MÁS llanas de decir «estoy en ello», y son justo las que salen cuando no hay ninguna tarea detrás.
+    r"estoy con ello|sigo con ello|sigo buscando|sigo con la busqueda|estoy en ello|"
+    r"te aviso en cuanto|te lo confirmo en cuanto|en cuanto (?:lo|la) tenga|"
     # 1ª persona de acción con o SIN clítico: «te muestro el reloj» / «te abro X» / «te enseño X» / «te saco X»
     # (bug mar 2026-07-21: el gate exigía «te LO muestro» → se colaba «te muestro el reloj» y el show no se re-derivaba).
     r"te (?:(?:lo|la|los|las) )?(?:abr|muestr|ense[nñ]|ensen|sac)\w*|"
@@ -223,10 +228,46 @@ _REPORT_RE = _re.compile(r"\b(informe|estudio|comparativa|investig\w*)\b[^.!?]{0
 
 
 def looks_like_escalate_task(text: str) -> bool:
-    """True si el TEXTO describe una gestión que exige worker/navegador (marketplace nombrado o informe/investigación
-    a fondo). Úsalo SOLO tras confirmar una promesa en la respuesta (gate del backstop) — no como router primario."""
+    """True si el TEXTO describe una gestión que exige worker/navegador (marketplace nombrado, informe/investigación
+    a fondo, o una categoría TRANSACCIONAL del catálogo de sitios). Úsalo SOLO tras confirmar una promesa en la
+    respuesta (gate del backstop) — no como router primario.
+
+    V2-132: la tercera rama no es una lista de verbos nueva sino la MISMA fuente que ya decide el `kind` de la
+    tarea en `dispatch._classify_kind` (`site_catalog.TRANSACTIONAL_CATEGORIES`). Reservar una mesa, una noche
+    de hotel, un vuelo o conseguir entradas exige entrar en un sitio real; que este guard no lo supiera y el
+    clasificador de `kind` sí es exactamente cómo dos piezas que deciden lo mismo acaban discrepando."""
     n = _norm_txt(text)
-    return bool(_MARKETPLACE_RE.search(n) or _REPORT_RE.search(n))
+    if _MARKETPLACE_RE.search(n) or _REPORT_RE.search(n):
+        return True
+    try:
+        from nucleo.flash import site_catalog as _sc
+        return (_sc.category_of(text) or "") in _sc.TRANSACTIONAL_CATEGORIES
+    except Exception:
+        return False
+
+
+def escalate_goal_from_window(window, current_text: str = "", max_back: int = 6) -> str:
+    """The operator's request that a promise refers to, which is NOT always in this turn's text.
+
+    V2-132, measured on `find-theatre-tickets__es`: the task was described across TWO turns — «consígueme dos
+    entradas para el musical de El Rey León» and then, after zaelar correctly asked for the missing data,
+    «este sábado, la sesión de tarde». zaelar answered the second one with «dame un momento que lo miro» and
+    called no tool at all. The promise backstop looked only at THIS turn's text, which on its own describes no
+    task, so it could not fire — and the run became eight turns of narrating a search that never started.
+
+    Returns the goal to escalate (this turn's text appended, since it carries the detail that completes it), or
+    "" if nothing in the window describes a task that needs a worker. Same lookback shape as the window the
+    brain already sees; the caller still gates on "no tool fired AND nothing is running".
+    """
+    if current_text and looks_like_escalate_task(current_text):
+        return current_text
+    for msg in reversed(list(window or [])[-max_back:]):
+        if (msg or {}).get("role") != "user":
+            continue
+        content = str((msg or {}).get("content") or "").strip()
+        if content and looks_like_escalate_task(content):
+            return f"{content} — {current_text}".strip(" —") if current_text else content
+    return ""
 
 
 # verbos de BÚSQUEDA/NAVEGACIÓN para el guard de marketplace (busca/mira/enséñame/encuentra/ver/ojea). Un sitio

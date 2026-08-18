@@ -291,6 +291,12 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
         # que no existía, y en varios la respuesta CORRECTA («esto no lo puedo hacer») estaba disponible y era la
         # que el propio criterio del caso premiaba. El contraste vivo: `book-barber-slot` SÍ empezó preguntando
         # el dato que le faltaba — la conducta buena existe en el sistema.
+        # V2-132 — turno 8, tras cuatro rondas sin nada que decir: «Perfecto, te dejo trabajando. Avísame cuando
+        # tengas algo.» El modelo, sin material propio, ESPEJÓ el último marco del interlocutor y le devolvió la
+        # tarea a quien se la había encargado. Se nombra, porque es el fallo que pierde el encargo entero.
+        "El trabajo es TUYO: nunca le pidas al operador que lo haga ni que te avise a ti de tu propia tarea "
+        "(«avísame cuando tengas algo», «te dejo trabajando» = has perdido el encargo). Si no tienes nada nuevo "
+        "que contar, dilo así —«sigo sin novedades»— y ofrece pararlo; no le devuelvas la pelota. "
         "NO NARRES trabajo que no está pasando: solo puedes decir que algo está en marcha si lo ves en tus TAREAS "
         "DE FONDO de más abajo, y solo con el detalle que ahí ponga. Sin tarea ahí, no hay nada corriendo. Si te "
         "falta un dato para arrancar (qué gimnasio, qué farmacia, qué cuenta), PÍDELO — preguntar es la respuesta "

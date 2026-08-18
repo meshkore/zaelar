@@ -2366,10 +2366,24 @@ class NucleoLLMStream(llm.LLMStream):
         _no_tool = (not acted["widget"] and not data_done["v"] and not music_req["v"] and not worker_acted["v"]
                     and escalate_req["v"] is None and search_req["v"] is None)
         if _no_tool and spoken_text and _router.promises_action(spoken_text):
-            if _router.looks_like_create_widget(text) or _router.looks_like_escalate_task(text):
+            _win_goal = ""
+            if not (_router.looks_like_create_widget(text) or _router.looks_like_escalate_task(text)):
+                # V2-132 — la petición puede ser de HACE UNOS TURNOS: zaelar pidió el dato que faltaba (correcto),
+                # el operador se lo dio, y la promesa cayó en un turno cuyo texto por sí solo no describe tarea
+                # ninguna («vale, avísame»). El backstop miraba solo ESTE turno, así que no podía dispararse — y
+                # la corrida se fue en ocho turnos narrando una búsqueda que nunca arrancó. Solo con NADA vivo:
+                # con una tarea en marcha, «sigo con ello» es honesto y re-escalar haría el trabajo dos veces.
+                try:
+                    from nucleo import dispatch as _disp_wg
+                    if not _disp_wg.has_active():
+                        _win_goal = _router.escalate_goal_from_window(brain._window, text)
+                except Exception:
+                    _win_goal = ""
+            if _router.looks_like_create_widget(text) or _router.looks_like_escalate_task(text) or _win_goal:
                 # crear widget (o sinónimo: panel/gadget) = código → escala; marketplace/informe = navegador → escala
-                escalate_req["v"] = text
-                emit("brain", "🧭 escalada por backstop (prometió crear/gestionar sin escalar)", text=text[:80], role="system")
+                escalate_req["v"] = _win_goal or text
+                emit("brain", "🧭 escalada por backstop (prometió crear/gestionar sin escalar)",
+                     text=(_win_goal or text)[:80], role="system")
             elif _router.looks_like_show_strict(text):    # abrir/mostrar/enseñar un widget existente → show
                 _pw = _identify(text)
                 if _pw:

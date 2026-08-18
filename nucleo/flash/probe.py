@@ -503,6 +503,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         wid = _show_target(text, sess.window, sess.last_action)
         if wid:
             action = f"canvas:show:{wid}"
+    _window_goal = ""    # V2-132: objetivo recuperado de la ventana cuando la promesa no lo lleva en su turno
     # BACKSTOP PROMESA-SIN-ACCIÓN UNIFICADO (espejo del provider): el modelo charló una promesa sin tool → re-deriva
     # la intención. Gated por la promesa en la RESPUESTA. Generaliza sobre conjugaciones/cortesías.
     if action == "chat" and spoken:
@@ -512,6 +513,13 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 if (_routerc.looks_like_create_widget(text) or _routerc.looks_like_escalate_task(text)
                         or _routerc.looks_like_create_widget(spoken) or _routerc.looks_like_escalate_task(spoken)):
                     action = "escalate"
+                # V2-132: the request may have been made a turn or two back — zaelar asked for the missing
+                # detail (correct), the operator gave it, and the promise landed on a turn whose text
+                # describes no task by itself. Only when NOTHING is running: with a live task, "sigo con
+                # ello" is honest and re-escalating would run the same work twice.
+                elif not _hw and _routerc.escalate_goal_from_window(sess.window, text):
+                    action = "escalate"
+                    _window_goal = _routerc.escalate_goal_from_window(sess.window, text)
                 elif _routerc.looks_like_show_strict(text):
                     from widgets import runtime as _rtp
                     _pw = (_rtp.identify(text) or {}).get("match")
@@ -760,7 +768,9 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                     pass
                 # `operator_text`, no `text`: el turno lleva las notas [SISTEMA] pegadas delante y una tarea
                 # NUNCA debe tener por objetivo el mensaje de entrega del worker anterior.
-                _reqs = _reqs[:3] or [operator_text]
+                # V2-132: si la promesa se apoyaba en una petición de HACE UNOS TURNOS, el objetivo es esa, no
+                # el «vale, avísame» de este turno — que como meta de una tarea no dice nada.
+                _reqs = _reqs[:3] or [_window_goal or operator_text]
                 from nucleo.flash import escalate as _esc
                 _tids = [_esc.escalate_to_slowbrain(str(_r), context={"src": "probe", "trace": _trace_id})
                          for _r in _reqs]
