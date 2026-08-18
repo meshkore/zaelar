@@ -66,6 +66,12 @@ SITE_CATALOG: dict[str, dict[str, SiteEntry]] = {
             "entradas de teatro/musicales/conciertos — busca el espectáculo por nombre y filtra por fecha y "
             "sesión; si el espectáculo no aparece, mira la web del propio teatro. Las entradas se COMPRAN: "
             "trae las opciones con precio y zona y PARA ahí, no completes la compra."),
+        "local_business": SiteEntry(
+            "Google Maps", "https://www.google.com/maps",
+            "un negocio LOCAL del operador (peluquería, dentista, taller, farmacia, gimnasio…) — busca por "
+            "«<tipo> en <barrio/ciudad>», quédate con los que tengan reseñas y horario, y trae nombre, "
+            "dirección, teléfono y horario de los mejores. Pedir la cita casi siempre exige llamar o una "
+            "cuenta: trae las opciones y di qué hace falta para cerrarla, no te la inventes."),
         "car_classifieds": SiteEntry(
             "coches.net", "https://www.coches.net",
             "coches de segunda mano — usa la URL de resultados con filtros (combustible, km, precio máx)."),
@@ -93,6 +99,12 @@ SITE_CATALOG: dict[str, dict[str, SiteEntry]] = {
             "theatre/musical/concert tickets — search the show by name and filter by date and session; if the "
             "show is not listed, try the venue's own site. Tickets are BOUGHT: bring back the options with "
             "price and seating area and STOP there, do not complete the purchase."),
+        "local_business": SiteEntry(
+            "Google Maps", "https://www.google.com/maps",
+            "a LOCAL business of the operator's (hairdresser, dentist, garage, pharmacy, gym…) — search "
+            "«<kind> in <neighbourhood/city>», keep the ones with reviews and opening hours, and bring back "
+            "name, address, phone and hours for the best few. Booking almost always needs a phone call or an "
+            "account: bring the options and say what closing it would take, never invent it."),
         "car_classifieds": SiteEntry(
             "Cars.com", "https://www.cars.com",
             "used cars — use the filtered results URL (fuel type, mileage, max price)."),
@@ -194,6 +206,27 @@ _CAT_PATTERNS: list[tuple[str, "_re.Pattern[str]"]] = [
         r"\b(entradas?|tickets?|localidades|butacas?|asientos?)\b", _re.I)),
     ("flight_search", _re.compile(
         r"\b(vuelos?|flights?|billetes?\s+de\s+avi[oó]n|plane\s+tickets?)\b", _re.I)),
+    # V2-144: a LOCAL BUSINESS of the operator's. Measured on `book-barber-slot__es`: «resérvame hora en la
+    # peluquería de siempre» classified as `generic` — a worker with NO browser — so even once the operator gave
+    # the neighbourhood («Valencia, Ruzafa») there was nowhere for the search to happen, and the turn became a
+    # promise with nothing behind it. Same shape had already cost `reorder-prescription` (a pharmacy) and
+    # `renew-gym-membership` (a gym): three cases, one missing category.
+    #
+    # It goes AFTER the specific ones on purpose — `category_of` returns the FIRST match, and «reserva mesa en un
+    # restaurante» must stay `restaurant_booking`. And it requires a BOOKING/CONTACT verb next to the business,
+    # never the noun alone: «¿a qué hora abre la farmacia?» is a quick fact that `web_search` answers in the turn,
+    # and routing it to a browser worker would break the case that measures exactly that.
+    ("local_business", _re.compile(
+        r"\b(?:reserv\w*|resérva\w*|reserva\w*|pide|pedir|p[ií]de\w*|cita|citarme|apunta\w*|llama\w*|"
+        r"contacta\w*|busca\w*|b[uú]sca\w*|encuentra\w*|encu[eé]ntra\w*|localiza\w*|book|find|call)\b"
+        r"[^.!?]{0,60}"
+        r"\b(?:peluquer\w*|barber\w*|dentista\w*|m[eé]dic\w*|farmac\w*|gimnasio\w*|taller\w*|mec[aá]nic\w*|"
+        r"fontaner\w*|electricist\w*|veterinari\w*|cl[ií]nica\w*|fisio\w*|podolog\w*|[oó]ptica\w*|"
+        r"academia\w*|autoescuela\w*|notar[ií]a\w*|gestor[ií]a\w*|"
+        r"hairdresser\w*|barbershop\w*|dentist\w*|pharmac\w*|garage\w*|vet\w*|clinic\w*)\b"
+        r"|\b(?:peluquer\w*|barber\w*|dentista\w*|farmac\w*|taller\w*|veterinari\w*|fisio\w*|"
+        r"hairdresser\w*|dentist\w*|pharmac\w*)\b[^.!?]{0,40}"
+        r"\b(?:cita|hora\s+(?:para|el|la|este|de)|reserv\w*|appointment)\b", _re.I)),
     # Second-hand: the market, not the verb. "de segunda mano" / "usado" / "used" is the whole signal — a
     # classifieds site is the only place that answer exists, so a plain web_search cannot serve it.
     ("car_classifieds", _re.compile(
@@ -216,7 +249,7 @@ _CAT_PATTERNS: list[tuple[str, "_re.Pattern[str]"]] = [
 # más (ver el incidente de `_MODIFY_CODE_RE` en dispatch.py). Al worker genérico se le da igualmente este
 # catálogo, así que «de segunda mano» sigue llegando a Wallapop sin tocar el enrutado.
 TRANSACTIONAL_CATEGORIES = frozenset({"restaurant_booking", "hotel_booking", "flight_search",
-                                      "event_tickets"})
+                                      "event_tickets", "local_business"})
 
 
 def category_of(request: str, locale: str | None = None) -> str | None:

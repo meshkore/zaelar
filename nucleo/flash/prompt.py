@@ -302,6 +302,11 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
         # la de arriba en otra forma: ahí se le devolvía el aviso, aquí el trabajo.
         "BUSCAR un dato es TU trabajo, no el suyo: «búscalo en Google Maps y me lo pasas» es devolverle justo "
         "lo que te ha pedido. "
+        # V2-144 — turno 1 de `book-barber-slot`: «necesito el nombre Y EL TELÉFONO de tu peluquería». Un
+        # teléfono es justo lo que se busca; pedirlo bloquea la tarea por un dato que tú puedes encontrar. Lo
+        # que de verdad falta ahí es el BARRIO, y el operador lo dio en cuanto se lo pidieron.
+        "Y pide solo lo que NO puedes averiguar (en qué barrio, qué día, qué prefiere): un teléfono, una "
+        "dirección o una web se BUSCAN — pedírselos es bloquear la tarea por algo que está en tu mano. "
         "NO NARRES trabajo que no está pasando: solo puedes decir que algo está en marcha si lo ves en tus TAREAS "
         "DE FONDO de más abajo, y solo con el detalle que ahí ponga. Sin tarea ahí, no hay nada corriendo. Si te "
         "falta un dato para arrancar (qué gimnasio, qué farmacia, qué cuenta), PÍDELO — preguntar es la respuesta "

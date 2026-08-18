@@ -98,6 +98,9 @@ DOMAINS: list[dict] = [
             # V2-143: a loop that rephrases itself every turn (invisible to the word-overlap detector),
             # and a promise the backstop could not see because the task was about money.
             "tests/agent_headless/unit/flash/test_rephrased_loop.py",
+            # V2-144: a LOCAL business errand (hairdresser/pharmacy/gym) had no catalog category, so it
+            # got a worker with no browser — one gap behind three cases.
+            "tests/agent_headless/unit/flash/test_local_business.py",
             "tests/agent_headless/unit/test_skeleton.py", "tests/agent_headless/unit/test_sparks.py"]},
         {"id": "2.4", "title": "Cliente LLM rápido, reintento y RELEVO por latencia", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_fast_client.py", "tests/agent_headless/unit/flash/test_fast_client_retry.py",
