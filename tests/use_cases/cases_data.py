@@ -209,6 +209,20 @@ CASES: list[UseCase] = [
             "Es el cumpleaños de mi madre pasado mañana — pide flores y que lleguen a su casa por "
             "la mañana.",
             "Flowers are ordered for morning delivery two days from now."),
+    UseCase("three-tasks-at-once", "es", 4, "Three concurrent tasks, interleaved conversation",
+            "Hazme un informe de coches eléctricos, búscame un monitor barato, y móntame un widget "
+            "de un juego de plataformas tipo Super Mario.",
+            "Three DIFFERENT tasks run CONCURRENTLY (a research report, a marketplace search and a "
+            "widget-code generation — three distinct worker kinds), and the operator then talks about "
+            "them out of order, referring to each only obliquely ('¿y el del coche?', 'ese ponle que "
+            "salte más alto'). Success = every message is ATTRIBUTED to the right running task (never "
+            "answered against the wrong one, never silently dropped), the tasks stay independent "
+            "(one failing/slow does not stall the others), and the replies read as one linked "
+            "conversation that carries state ('el informe ya está, la búsqueda sigue, el juego lo "
+            "tengo a medias') rather than three robotic status dumps. Verified against the real live "
+            "task registry (/api/tasks) for genuine concurrency, not just the transcript — see "
+            "tests/use_cases/e2e/agent/scenarios.py.",
+            status="promoted"),
 
     # --- ES / tier 5: standing / reactive over time -----------------------------------------
     UseCase("watch-flight-rebook-automatically", "es", 5, "Watch a flight and auto-rebook",

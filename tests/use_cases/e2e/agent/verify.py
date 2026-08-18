@@ -83,7 +83,66 @@ def live_navegador_snapshot(scenario_started_ms: float) -> str:
         return ""
 
 
-def mechanism_report(all_events: list[dict], expected_signals: list[str]) -> dict:
+class ConcurrencyTracker:
+    """Accumulates live-task-registry samples ACROSS a multi-flow scenario's turns (`concurrent_tasks > 0`).
+
+    Why sampled live and not derived from the durable event stream afterwards: the events can prove N tasks
+    EXISTED, but "were two of them ever in flight at the same moment?" is a question about a moment, and the
+    registry only holds live sessions (finished ones move to the ledger). Reading it once per turn is enough
+    — a worker task lives for minutes, far longer than a turn — and costs one loopback GET.
+
+    Fail-open throughout: this is evidence-gathering for the judge, never a gate that can crash a run.
+    """
+
+    def __init__(self) -> None:
+        self.max_concurrent = 0
+        self.samples: list[dict] = []
+        self.seen: dict[str, dict] = {}       # task_id → first-seen {kind, goal}
+
+    def sample(self, *, at_turn: int) -> None:
+        try:
+            live = probe_client.live_tasks()
+        except Exception:
+            return
+        self.max_concurrent = max(self.max_concurrent, len(live))
+        for t in live:
+            tid = str(t.get("id") or "")
+            if tid and tid not in self.seen:
+                self.seen[tid] = {"kind": t.get("kind") or "", "goal": (t.get("goal") or "")[:80]}
+        self.samples.append({
+            "turn": at_turn,
+            "n_live": len(live),
+            "tasks": [{"id": str(t.get("id") or ""), "kind": t.get("kind") or "",
+                       "phase": (t.get("phase") or "")[:40], "status": t.get("status") or ""}
+                      for t in live],
+        })
+
+    def report(self) -> dict:
+        kinds = sorted({v["kind"] for v in self.seen.values() if v["kind"]})
+        return {
+            # THE number this scenario exists to measure: were several tasks genuinely in flight at once?
+            "max_concurrent": self.max_concurrent,
+            "distinct_tasks_seen": len(self.seen),
+            "distinct_kinds": kinds,
+            "tasks": [{"id": k, **v} for k, v in self.seen.items()],
+            "samples": self.samples,
+        }
+
+    def hint(self) -> str:
+        """Compact line for the watchdog — same role `live_navegador_snapshot` plays for single-task runs:
+        keeps it from abandoning a run where three real workers are grinding away normally."""
+        if not self.samples:
+            return ""
+        last = self.samples[-1]
+        if not last["n_live"]:
+            return f"0 tareas vivas ahora (máximo visto en la corrida: {self.max_concurrent})"
+        which = ", ".join(f"{t['kind'] or '?'}:{t['phase'] or t['status']}" for t in last["tasks"])
+        return (f"{last['n_live']} tareas VIVAS ahora ({which}); máximo simultáneo {self.max_concurrent}, "
+                f"{len(self.seen)} tareas distintas vistas")
+
+
+def mechanism_report(all_events: list[dict], expected_signals: list[str],
+                     concurrency: ConcurrencyTracker | None = None) -> dict:
     """Structured, transcript-independent record of what actually happened this scenario."""
     families = families_in(all_events)
     missing = [f for f in expected_signals if f not in families]
@@ -91,7 +150,7 @@ def mechanism_report(all_events: list[dict], expected_signals: list[str]) -> dic
     task_view: dict = {}
     if task_id:
         task_view = poll_navegador_task(task_id)
-    return {
+    out = {
         "families_observed": sorted(families),
         "expected_signals": expected_signals,
         "missing_signals": missing,
@@ -99,3 +158,6 @@ def mechanism_report(all_events: list[dict], expected_signals: list[str]) -> dic
         "navegador_task": task_view,
         "n_events": len(all_events),
     }
+    if concurrency is not None:
+        out["task_registry"] = concurrency.report()
+    return out

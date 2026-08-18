@@ -93,6 +93,24 @@ def session_events(session_id: str, *, limit: int = 2000) -> list[dict]:
     return data.get("events", []) if isinstance(data, dict) else []
 
 
+def live_tasks() -> list[dict]:
+    """The engine's LIVE worker-session registry (`GET /api/tasks` → `dispatch.active_sessions()`, the RAM
+    registry that is the source of truth for the Procesos tab). Each entry carries `id`/`kind`/`goal`/
+    `phase`/`status`.
+
+    This is the only honest way to prove CONCURRENCY for a multi-flow scenario: the durable event stream can
+    show afterwards that N tasks existed, but not that two were ever in flight at the same MOMENT — for that
+    you have to look while it's happening. `tests/journey/runner.py` polls the same endpoint for the same
+    reason. Note it returns only live (`queued`/`running`) sessions — finished ones move to the ledger
+    (`nucleo/workers/ledger.py`), so a task that already completed correctly disappears from here rather than
+    lingering as a false "still working"."""
+    data = _get("/api/tasks")
+    if not isinstance(data, dict):
+        return []
+    sessions = data.get("sessions")
+    return sessions if isinstance(sessions, list) else []
+
+
 def navegador_task(task_id: str) -> dict:
     """A browser task's current/final state from OUTSIDE the conversation — real extracted results if any,
     independent of the transcript. `task_id` is the navegador task id (not the escalation's worker id)."""

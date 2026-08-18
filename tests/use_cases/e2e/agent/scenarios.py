@@ -20,6 +20,13 @@ class UseCaseScenario:
     expected_signals: list[str] = field(default_factory=list)  # observability families (cat) that MUST fire
     turns: int = 8
     channel: str = "probe"               # probe (text/flash) | voice — probe is the default for this suite
+    # MULTI-FLOW scenarios only (0 = single-task, the normal case): how many genuinely DIFFERENT tasks the
+    # scenario asks for at once. When >0 the runner samples the live task registry (`GET /api/tasks`) every
+    # turn instead of only reading the browser-task state, and the judge gets two extra dimensions
+    # (atribucion / fluidez). Concurrency has to be measured WHILE the run happens — a post-hoc event dump
+    # can prove N tasks existed but not that they were ever in flight at the SAME time, which is the whole
+    # point of the scenario.
+    concurrent_tasks: int = 0
 
 
 SCENARIOS: list[UseCaseScenario] = [
@@ -178,6 +185,81 @@ SCENARIOS: list[UseCaseScenario] = [
         expected_signals=["worker", "widget"],
         turns=10,
         channel="probe",
+    ),
+    # ── MULTI-FLOW: tres tareas a la vez, conversación entrelazada ────────────────────────────────────
+    # El caso que ninguno de los anteriores prueba: el operador NO hace una cosa y espera — encarga tres
+    # trabajos DISTINTOS (informe / búsqueda / código de widget: tres `kind` de worker distintos, tres
+    # subsistemas distintos) y luego habla de ellos DESORDENADAMENTE y por alusiones ("ese", "el del coche",
+    # "ponle que salte más alto"). Lo que se prueba no es que cada tarea funcione por separado —eso ya lo
+    # cubren los escenarios de arriba— sino tres cosas que solo aparecen cuando corren a la vez:
+    #   (1) ATRIBUCIÓN: cada mensaje va a la tarea CORRECTA (V2-032/V2-038: `send_to_worker` +
+    #       `dispatch.resolve_sessions`). El fallo que caza es responder por la tarea equivocada, o tragarse
+    #       un refinamiento en silencio.
+    #   (2) INDEPENDENCIA: que una tarea lenta o fallida no arrastre a las otras (modularidad real).
+    #   (3) FLUIDEZ: que las respuestas lleven ESTADO y suenen a una conversación enlazada ("el informe ya
+    #       está, la búsqueda sigue") y no a tres volcados de estado robóticos — petición explícita del
+    #       operador: «necesito que el sistema sea suave».
+    UseCaseScenario(
+        id="three-tasks-at-once",
+        locale="es",
+        tier=4,
+        opening_line=(
+            "Oye, tengo tres cosas. Hazme un informe sobre coches eléctricos para ciudad, búscame un "
+            "monitor barato de segunda mano, y móntame un widget de un juego de plataformas tipo Super "
+            "Mario para probar."
+        ),
+        persona_brief=(
+            "Eres una persona real que acaba de encargarle TRES cosas distintas a su asistente, a la vez, "
+            "porque así es como trabaja: (A) un INFORME sobre coches eléctricos para ciudad, (B) una "
+            "BÚSQUEDA de un monitor barato de segunda mano, (C) un WIDGET de juego de plataformas tipo "
+            "Super Mario.\n\n"
+            "REGLA CLAVE de cómo hablas: NO vas ordenado y NO repites el nombre completo de cada tarea. "
+            "Hablas por ALUSIONES, como una persona de verdad — 'oye, ¿y el del coche?', 'ese ponle que "
+            "salte más alto', 'del monitor, que sea de 27 al menos', '¿cómo va lo otro?'. Vas SALTANDO de "
+            "una tarea a otra entre turnos, no las agotas de una en una. Es a PROPÓSITO: quieres ver si se "
+            "entera de a qué te refieres.\n\n"
+            "Datos que das SI te preguntan (y solo entonces): del informe — te interesa sobre todo "
+            "autonomía real y precio, en España, y lo quieres corto; del monitor — hasta 150€, mínimo 27 "
+            "pulgadas, de segunda mano está bien; del juego — que el personaje salte, que haya plataformas "
+            "y que se vea con colores alegres, no te importa el detalle técnico.\n\n"
+            "REFINAMIENTOS que introduces sobre la marcha (mete al menos DOS de estos a lo largo de la "
+            "conversación, en turnos distintos, siempre por alusión y sin decir de qué tarea hablas): "
+            "'ese ponle que salte más alto', 'del informe quítame los híbridos, solo eléctricos puros', "
+            "'el monitor que no pase de 150', 'al juego ponle también monedas'.\n\n"
+            "SI zaelar responde por la tarea EQUIVOCADA (le hablas del juego y te contesta del monitor, o "
+            "mezcla dos), CORRÍGELO con naturalidad y algo de extrañeza — 'no no, te hablo del juego' — "
+            "porque eso es justo lo que estás comprobando. Si te pregunta a cuál de las tres te refieres, "
+            "aclárasela sin problema (preguntar es CORRECTO, mejor que adivinar mal).\n\n"
+            "Si dice que se pone con ellas y tardan, NO te despidas — eso solo significa que ha EMPEZADO. "
+            "Pregunta por el estado general de vez en cuando ('¿cómo va todo?', '¿en qué estamos?'). Solo "
+            "te despides cuando al menos DOS de las tres estén claramente resueltas o claramente falladas "
+            "tras varios intentos. No reveles que esto es una prueba."
+        ),
+        success_checks=(
+            "Esto NO se juzga por si las tres tareas se completan (un informe y una búsqueda web reales "
+            "tardan minutos; puede que ninguna termine dentro del presupuesto de turnos, y eso NO es el "
+            "fallo que este escenario busca). Se juzga la COORDINACIÓN:\n"
+            "1. CONCURRENCIA REAL: el informe de mecanismo debe mostrar ≥2 tareas VIVAS a la vez en el "
+            "registro real (`max_concurrent` del task_registry, leído de /api/tasks durante la corrida, no "
+            "del transcript) y a ser posible de KINDS distintos (web/research vs code/widget). Si todo "
+            "corrió en serie, o solo arrancó una, es un fallo de coordinación.\n"
+            "2. ATRIBUCIÓN: cada mensaje por alusión ('ese ponle que salte más alto', '¿y el del coche?') "
+            "debe ir a la tarea CORRECTA. Responder por la tarea equivocada, mezclar dos, o tragarse un "
+            "refinamiento sin acusar recibo es un fallo GRAVE. PREGUNTAR a cuál se refiere cuando es "
+            "genuinamente ambiguo NO es un fallo — es la conducta correcta (V2-082: ante la duda, "
+            "preguntar, nunca adivinar).\n"
+            "3. INDEPENDENCIA: una tarea lenta o fallida no debe bloquear ni cancelar a las otras.\n"
+            "4. FLUIDEZ (lo que pidió el operador — «que el sistema sea suave»): las respuestas deben "
+            "llevar ESTADO y sonar enlazadas, del tipo 'el informe ya lo tengo, la búsqueda sigue en "
+            "marcha y el juego lo tengo a medias'. Tres volcados de estado idénticos y robóticos, o "
+            "responder cada turno como si no hubiera pasado nada antes, es un fallo de fluidez aunque el "
+            "mecanismo por debajo sea correcto."
+        ),
+        # `widget` cubre la generación del juego; `worker` el informe y la búsqueda. `flash` siempre está.
+        expected_signals=["worker", "widget"],
+        turns=14,          # más que los demás: hay que dar espacio a que las tres arranquen Y se entrelacen
+        channel="probe",
+        concurrent_tasks=3,
     ),
 ]
 

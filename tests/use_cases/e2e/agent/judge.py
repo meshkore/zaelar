@@ -22,6 +22,26 @@ RUBRIC = """Score each dimension 1-5 (5=excellent):
   Usa "missing_signals" del informe — si no está vacío, penaliza aquí específicamente.
 - eficiencia: ¿se llegó al resultado en un número razonable de turnos, sin dar vueltas innecesarias?"""
 
+# Dimensiones EXTRA, solo para escenarios multi-flujo (`concurrent_tasks > 0`). Se añaden en vez de
+# reinterpretar las cinco de arriba: si "adaptacion" pasara a significar también "acertó la tarea", las notas
+# de los escenarios de una sola tarea dejarían de ser comparables con las históricas.
+MULTIFLOW_RUBRIC = """
+- atribucion: cuando el usuario habló por ALUSIÓN de una de las tareas en marcha ("ese ponle que salte más
+  alto", "¿y el del coche?"), ¿fue el mensaje a la tarea CORRECTA? Responder por otra tarea, mezclar dos, o
+  tragarse un refinamiento sin acusar recibo = fallo grave aquí. PREGUNTAR a cuál se refiere cuando es
+  genuinamente ambiguo NO es fallo: es la conducta correcta y se puntúa BIEN.
+- fluidez: ¿las respuestas suenan a UNA conversación con estado, enlazando lo que ya pasó ("el informe ya
+  está, la búsqueda sigue, el juego a medias"), o son volcados de estado robóticos y repetidos que ignoran
+  lo anterior? Penaliza aquí la repetición mecánica turno a turno aunque el mecanismo sea correcto."""
+
+MULTIFLOW_NOTE = """
+⚠️ ESTE ES UN ESCENARIO MULTI-FLUJO. NO lo penalices por no COMPLETAR las tres tareas: un informe y una
+búsqueda web reales tardan minutos y puede que ninguna acabe dentro del presupuesto de turnos — eso NO es el
+fallo que este caso busca. Lo que se juzga es la COORDINACIÓN: concurrencia real (mira `task_registry.
+max_concurrent` del informe de mecanismo — es una lectura EN VIVO del registro de tareas del motor, no del
+transcript; si es <2 las tareas nunca corrieron a la vez y eso SÍ es un fallo de mecanismo), atribución de
+cada mensaje a su tarea, independencia entre tareas, y fluidez del hilo."""
+
 SCHEMA = """Devuelve SOLO un objeto JSON:
 {
  "scores": {"naturalidad":n,"adaptacion":n,"resultado":n,"mecanismo":n,"eficiencia":n},
@@ -38,6 +58,12 @@ def judge(scenario, run: dict, model: str | None = None) -> dict:
         for t in run.get("transcript", []))
     mech = run.get("mechanism_report", {})
     watchdog_events = run.get("watchdog_log", [])
+    multiflow = bool(getattr(scenario, "concurrent_tasks", 0))
+    rubric = RUBRIC + (MULTIFLOW_RUBRIC if multiflow else "")
+    schema = SCHEMA
+    if multiflow:
+        schema = SCHEMA.replace(
+            '"eficiencia":n}', '"eficiencia":n,"atribucion":n,"fluidez":n}')
     sys = ("Eres un evaluador senior de asistentes personales, exigente y concreto. Juzgas el comportamiento "
            "OBSERVABLE de zaelar: lo que dijo (transcript) Y lo que hizo de verdad en el sistema (informe de "
            "mecanismo, derivado de la observabilidad durable, no de lo que zaelar afirma). No ves su código "
@@ -48,6 +74,7 @@ imitando cómo pide las cosas una persona real (puede ser ambiguo, cambiar de id
 === ESCENARIO: {scenario.id} (tier {scenario.tier}, {scenario.locale}) ===
 Petición inicial del usuario: {scenario.opening_line}
 Qué cuenta como éxito: {scenario.success_checks}
+{MULTIFLOW_NOTE if multiflow else ''}
 
 === TRANSCRIPT (lo que se DIJO) ===
 {convo or '(sin diálogo)'}
@@ -58,9 +85,9 @@ Qué cuenta como éxito: {scenario.success_checks}
 === VEREDICTOS DEL WATCHDOG DURANTE LA SESIÓN (detección de desvíos en vivo) ===
 {json.dumps(watchdog_events, ensure_ascii=False) if watchdog_events else '(ninguno — nunca se desvió)'}
 
-{RUBRIC}
+{rubric}
 
-{SCHEMA}"""
+{schema}"""
     raw, used = llm.judge_call([{"role": "system", "content": sys}, {"role": "user", "content": user}], max_tokens=2000)
     try:
         v = llm.parse_json(raw)

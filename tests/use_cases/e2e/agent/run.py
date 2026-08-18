@@ -16,6 +16,7 @@ import time
 import uuid
 
 from . import config, driver as drivermod, judge as judgemod, probe_client, report as reportmod, scenarios as SC
+from . import status as statusmod
 from . import verify as verifymod
 from . import watchdog as watchdogmod
 
@@ -28,6 +29,9 @@ def _run_scenario(scenario) -> dict:
     transcript: list[dict] = []
     watchdog_log: list[dict] = []
     pending_nudge = ""
+    # Multi-flow scenarios need concurrency measured WHILE it happens (see ConcurrencyTracker's docstring):
+    # a post-hoc event dump can show N tasks existed but never that two overlapped in time.
+    concurrency = verifymod.ConcurrencyTracker() if scenario.concurrent_tasks else None
 
     def note(who: str, text: str) -> None:
         transcript.append({"who": who, "text": text, "at": round(time.time(), 2)})
@@ -43,11 +47,23 @@ def _run_scenario(scenario) -> dict:
         print(f"  zaelar  · {reply_text[:160]}")
         driver.hears(reply_text)
 
+        if concurrency is not None:
+            concurrency.sample(at_turn=turn)
+            live = concurrency.samples[-1] if concurrency.samples else {}
+            print(f"           ↳ tareas vivas: {live.get('n_live', '?')} "
+                  f"(máx {concurrency.max_concurrent}, {len(concurrency.seen)} distintas)")
+
         if driver.done:
             break
 
-        mech_hint = (verifymod.live_navegador_snapshot(scenario_started_ms)
-                    if scenario.expected_signals else "")
+        # The watchdog's grounding: for a multi-flow run the live TASK REGISTRY is the right truth (three
+        # workers grinding away normally must not read as "stuck"); for a single-task run it's the browser
+        # task's own state.
+        mech_hint = ""
+        if concurrency is not None:
+            mech_hint = concurrency.hint()
+        elif scenario.expected_signals:
+            mech_hint = verifymod.live_navegador_snapshot(scenario_started_ms)
         verdict = watchdogmod.evaluate(scenario, transcript, mech_hint)
         if verdict["action"] != "continue":
             watchdog_log.append(verdict)
@@ -68,10 +84,12 @@ def _run_scenario(scenario) -> dict:
     # docstring) that spans the engine's whole uptime, not just this scenario — so it's ALSO filtered to
     # events at/after `scenario_started_ms`, or a prior unrelated task in the same live session could donate a
     # false "worker"/"widget" signal to a scenario that never actually triggered one itself.
+    if concurrency is not None:
+        concurrency.sample(at_turn=-1)      # final read: what was still in flight when the talking stopped
     live_session_id = probe_client.current_session_id()
     all_events = [e for e in probe_client.session_events(live_session_id)
                   if (e.get("ts_ms") or 0) >= scenario_started_ms]
-    mech = verifymod.mechanism_report(all_events, scenario.expected_signals)
+    mech = verifymod.mechanism_report(all_events, scenario.expected_signals, concurrency)
 
     run_data = {"transcript": transcript, "mechanism_report": mech, "watchdog_log": watchdog_log}
     print("  judging…")
@@ -80,15 +98,7 @@ def _run_scenario(scenario) -> dict:
             "run": run_data, "verdict": verdict}
 
 
-def run(args: argparse.Namespace) -> int:
-    if args.scenario == "all":
-        chosen = SC.SCENARIOS
-    else:
-        if args.scenario not in SC.BY_ID:
-            print(f"unknown scenario {args.scenario!r} — known: {sorted(SC.BY_ID)}", file=sys.stderr)
-            return 2
-        chosen = [SC.BY_ID[args.scenario]]
-
+def _run_batch(chosen: list, *, sandboxed: bool) -> int:
     config.RUNS_DIR.mkdir(parents=True, exist_ok=True)
     results = []
     for scenario in chosen:
@@ -106,6 +116,8 @@ def run(args: argparse.Namespace) -> int:
     stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime())
     report_path = reportmod.build(results, stamp, config.RUNS_DIR)
     print(f"\n✓ report → {report_path}")
+    statusmod.record(results, sandboxed=sandboxed)
+    print(f"✓ scoreboard → {statusmod.BOARD_PATH} ({statusmod.summary_line()})")
 
     overalls = [r["verdict"].get("overall") for r in results if r["verdict"].get("overall") is not None]
     passed = sum(1 for o in overalls if o >= 4)
@@ -113,9 +125,40 @@ def run(args: argparse.Namespace) -> int:
     return 0 if passed == len(results) else 1
 
 
+def run(args: argparse.Namespace) -> int:
+    if args.scenario == "all":
+        chosen = SC.SCENARIOS
+    else:
+        if args.scenario not in SC.BY_ID:
+            print(f"unknown scenario {args.scenario!r} — known: {sorted(SC.BY_ID)}", file=sys.stderr)
+            return 2
+        chosen = [SC.BY_ID[args.scenario]]
+
+    if not args.sandbox:
+        print(f"▲ running against the LIVE engine at {config.ZAELAR_URL} — its memory, widgets and running "
+              f"tasks are the operator's. Use --sandbox for an isolated one.")
+        return _run_batch(chosen, sandboxed=False)
+
+    # ISOLATED: boot a throwaway engine (own port, own DB, own workspace, own logs) and point the whole
+    # suite at it by rewriting config.ZAELAR_URL — probe_client reads that attribute per call, so no other
+    # module needs to know. Equivalent to exporting TESTER_ZAELAR_URL, without asking the caller to.
+    from tests.platform.sandbox_engine import sandbox_engine
+    print("▶ booting an isolated sandbox engine (own DB/port/workspace)…")
+    with sandbox_engine() as eng:
+        print(f"✓ sandbox up at {eng.base_url} (workspace {eng.workspace})")
+        config.ZAELAR_URL = eng.base_url
+        try:
+            return _run_batch(chosen, sandboxed=True)
+        finally:
+            print(f"  sandbox engine log tail:\n{eng.log_tail(12)}")
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(description="zaelar use-case tester — driver + watchdog + verify + judge")
     ap.add_argument("--scenario", default="all", help="'all' or a scenario id")
+    ap.add_argument("--sandbox", action="store_true",
+                    help="boot an ISOLATED engine (own DB/port/workspace) instead of using the live one — "
+                         "never touches the operator's memory, widgets or running tasks")
     sys.exit(run(ap.parse_args()))
 
 
