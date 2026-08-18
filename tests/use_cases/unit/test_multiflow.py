@@ -155,3 +155,63 @@ def test_every_other_scenario_stays_single_task():
     rubric, so it must never get set by accident on a single-task scenario."""
     multi = [s.id for s in scenarios.SCENARIOS if s.concurrent_tasks]
     assert multi == ["three-tasks-at-once"]
+
+
+# ── derivation engine (derived.py) ────────────────────────────────────────────────────────────────────────
+def test_derivation_covers_every_tier_1_to_4_case_and_nothing_else():
+    """Tier 5 needs real time to pass and tiers 6-7 are blocked on unbuilt capabilities (V2-052 contacts,
+    WhatsApp/Telegram send) — deriving a scenario for those would put a runnable-looking tick on something
+    that cannot honestly be tested."""
+    from tests.use_cases.e2e.agent import derived as D
+    tiers = {c.tier for c in D.derivable()}
+    assert tiers == {1, 2, 3, 4}
+    assert all(c.status != "blocked" for c in D.derivable())
+
+
+def test_derived_scenario_carries_the_shared_scaffolding_and_the_case_utterance():
+    from tests.use_cases import cases_data as CD
+    from tests.use_cases.e2e.agent import derived as D
+    case = next(c for c in CD.CASES if c.id == "cancel-subscription-before-charge" and c.locale == "es")
+    s = D.derive(case)
+    assert s.opening_line == case.utterance
+    assert case.utterance in s.persona_brief
+    # the boilerplate that used to be copy-pasted into every hand-written brief
+    assert "NO te despidas todavía" in s.persona_brief
+    assert "No reveles" in s.persona_brief
+    # this case's own programmed specifics
+    assert "la mía de siempre" in s.persona_brief
+    # and the judging rules a template must always carry
+    assert "PREGUNTAR" in s.success_checks
+    assert "IRREVERSIBLE" in s.success_checks
+
+
+def test_handwritten_scenarios_are_never_shadowed_by_a_derived_one():
+    """The nine hand-written briefs carry nuance a template cannot express (a deliberately empty
+    expected_signals, a multi-task persona). A derived scenario replacing one silently would be a
+    regression nobody would notice until a verdict got worse for no reason."""
+    from tests.use_cases.e2e.agent import scenarios as SC
+    reg = SC.registry()
+    for hand in SC.SCENARIOS:
+        assert reg[hand.id] is hand
+
+
+def test_us_cases_get_an_english_brief():
+    from tests.use_cases import cases_data as CD
+    from tests.use_cases.e2e.agent import derived as D
+    case = next(c for c in CD.CASES if c.locale == "us" and c.tier <= 4)
+    assert "ENGLISH" in D.derive(case).persona_brief
+
+
+def test_every_scenario_id_is_unique():
+    from tests.use_cases.e2e.agent import scenarios as SC
+    ids = [s.id for s in SC.all_scenarios()]
+    assert len(ids) == len(set(ids))
+
+
+def test_es_and_us_twins_of_a_shared_case_id_stay_distinct():
+    """`cheapest-monitor` exists in both locales; a bare-id scenario for each would collide and one market
+    would silently never run."""
+    from tests.use_cases.e2e.agent import scenarios as SC
+    ids = {s.id for s in SC.all_scenarios()}
+    assert "cheapest-monitor" in ids                  # the hand-written ES one
+    assert "cheapest-monitor__us" in ids              # the derived US twin

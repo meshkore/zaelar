@@ -1,0 +1,29 @@
+{
+  "scenarios": {
+    "three-tasks-at-once": {
+      "last_run": "2026-08-18 18:00",
+      "overall": 2,
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 3,
+        "adaptacion": 2,
+        "resultado": 1,
+        "mecanismo": 1,
+        "eficiencia": 2,
+        "atribucion": 4,
+        "fluidez": 2
+      },
+      "verdict": "No está listo para producción: el bloqueador nº1 es la desconexión total entre el discurso (que promete paralelismo) y el mecanismo real (que ejecuta en serie y a menudo no hace nada), sumado a la incapacidad de completar tareas de navegación web complejas.",
+      "missing_signals": [],
+      "sandboxed": true,
+      "tier": 4,
+      "max_concurrent": 2,
+      "distinct_kinds": [
+        "code",
+        "generic",
+        "web"
+      ]
+    }
+  },
+  "updated": "2026-08-18 18:00"
+}

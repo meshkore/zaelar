@@ -126,13 +126,34 @@ def _run_batch(chosen: list, *, sandboxed: bool) -> int:
 
 
 def run(args: argparse.Namespace) -> int:
+    registry = SC.registry()
+    ordered = SC.all_scenarios()
     if args.scenario == "all":
+        chosen = ordered
+    elif args.scenario == "handwritten":
         chosen = SC.SCENARIOS
     else:
-        if args.scenario not in SC.BY_ID:
-            print(f"unknown scenario {args.scenario!r} — known: {sorted(SC.BY_ID)}", file=sys.stderr)
+        if args.scenario not in registry:
+            print(f"unknown scenario {args.scenario!r} — {len(registry)} known; "
+                  f"use --list to see them", file=sys.stderr)
             return 2
-        chosen = [SC.BY_ID[args.scenario]]
+        chosen = [registry[args.scenario]]
+
+    if args.tier:
+        chosen = [s for s in chosen if s.tier in args.tier]
+    if args.locale:
+        chosen = [s for s in chosen if s.locale == args.locale]
+    if args.limit:
+        chosen = chosen[:args.limit]
+    if args.start_at:
+        ids = [s.id for s in chosen]
+        if args.start_at not in ids:
+            print(f"--start-at {args.start_at!r} is not in the selected set", file=sys.stderr)
+            return 2
+        chosen = chosen[ids.index(args.start_at):]
+    if not chosen:
+        print("no scenarios selected", file=sys.stderr)
+        return 2
 
     if not args.sandbox:
         print(f"▲ running against the LIVE engine at {config.ZAELAR_URL} — its memory, widgets and running "
@@ -162,11 +183,23 @@ def run(args: argparse.Namespace) -> int:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description="zaelar use-case tester — driver + watchdog + verify + judge")
-    ap.add_argument("--scenario", default="all", help="'all' or a scenario id")
+    ap.add_argument("--scenario", default="all",
+                    help="'all' (89 scenarios: hand-written + derived), 'handwritten', or a scenario id")
     ap.add_argument("--sandbox", action="store_true",
                     help="boot an ISOLATED engine (own DB/port/workspace) instead of using the live one — "
                          "never touches the operator's memory, widgets or running tasks")
-    sys.exit(run(ap.parse_args()))
+    ap.add_argument("--tier", type=int, nargs="*", help="only these difficulty tiers (e.g. --tier 1 2)")
+    ap.add_argument("--locale", choices=["es", "us"], help="only this locale")
+    ap.add_argument("--limit", type=int, help="stop after N scenarios (walk the catalog in batches)")
+    ap.add_argument("--start-at", help="skip ahead to this scenario id, then continue in order")
+    ap.add_argument("--list", action="store_true", help="print the selectable scenarios and exit")
+    args = ap.parse_args()
+    if args.list:
+        for s in SC.all_scenarios():
+            hand = " (hand-written)" if s.id in {x.id for x in SC.SCENARIOS} else ""
+            print(f"{s.tier}  {s.locale}  {s.id}{hand}")
+        sys.exit(0)
+    sys.exit(run(args))
 
 
 if __name__ == "__main__":

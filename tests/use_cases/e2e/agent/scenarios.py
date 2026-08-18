@@ -353,3 +353,34 @@ SCENARIOS: list[UseCaseScenario] = [
 ]
 
 BY_ID: dict[str, UseCaseScenario] = {s.id: s for s in SCENARIOS}
+
+
+def all_scenarios() -> list[UseCaseScenario]:
+    """Every runnable scenario: the hand-written ones above PLUS one derived from each catalog case in
+    tiers 1-4 (`derived.py`). Hand-written always WINS for the same case — those carry nuance a template
+    can't express, and a derived scenario must never quietly shadow one.
+
+    Imported lazily because `derived` imports `UseCaseScenario` from this module (the alternative is a
+    circular import at module load).
+    """
+    from . import derived as D
+    out = list(SCENARIOS)
+    have = {s.id for s in SCENARIOS}
+    for case in D.derivable():
+        # The hand-written five/nine use the BARE case id; derived ones are `<id>__<locale>` so the ES and
+        # US twins of a shared id stay distinct. Skip a derived scenario whose case already has a
+        # hand-written one for that same locale.
+        if case.id in have:
+            hand = BY_ID[case.id]
+            if hand.locale == case.locale:
+                continue
+        scn = D.derive(case)
+        if scn.id in have:
+            continue
+        out.append(scn)
+        have.add(scn.id)
+    return out
+
+
+def registry() -> dict[str, UseCaseScenario]:
+    return {s.id: s for s in all_scenarios()}
