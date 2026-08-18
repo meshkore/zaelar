@@ -63,7 +63,7 @@ export function openSSE(desktop) {
         store.setChatOpen(true);
       }
     } else if (d.kind === "filler" && d.text) {
-      // Lead-in wait-filler (V2-093/V2-114): a real phrase the agent just said out loud, so it belongs in the
+      // Lead-in wait-filler (V2-093/V2-122): a real phrase the agent just said out loud, so it belongs in the
       // chat wall — but pushed with its own distinct marker, never as `kind:"transcript"`, so it can't be
       // confused with a real LLM-generated reply. Emitted explicitly and synchronously by lead_in_filler.py the
       // instant it's decided (always BEFORE any real reply text exists), so it lands in the right order without

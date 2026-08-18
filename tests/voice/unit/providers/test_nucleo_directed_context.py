@@ -31,7 +31,7 @@ def test_evaluate_content_reads_last_reply_not_last_spoken():
 
 
 def test_filler_path_never_writes_last_reply():
-    # V2-114 (2026-08-17): the lead-in filler moved to its own module (`lead_in_filler.py`), extracted out of
+    # V2-122 (2026-08-17): the lead-in filler moved to its own module (`lead_in_filler.py`), extracted out of
     # nucleo.py — this invariant now lives there.
     filler_src = Path(__file__).resolve().parents[4] / "voice" / "engine" / "llm" / "providers" / \
         "lead_in_filler.py"

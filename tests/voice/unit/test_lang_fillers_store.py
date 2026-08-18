@@ -1,4 +1,4 @@
-"""i18n.init.fillers + langs.pick_filler's generated-pool lookup (V2-114, 2026-08-17).
+"""i18n.init.fillers + langs.pick_filler's generated-pool lookup (V2-122, 2026-08-17).
 
 Same story as V2-101's alias pack, one step ahead of it: instead of the LLM generation call itself, this pass
 scoped down to "fail gracefully for non-preset languages" (operator's explicit call) — so what's tested here is

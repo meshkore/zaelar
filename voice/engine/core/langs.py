@@ -275,7 +275,7 @@ import random as _random  # noqa: E402
 
 
 def _generated_fillers(code: str) -> list[str]:
-    """The per-language GENERATED filler pool (`i18n/generated/<code>.fillers.json`, V2-114) — a stable lookup
+    """The per-language GENERATED filler pool (`i18n/generated/<code>.fillers.json`, V2-122) — a stable lookup
     path a component can always check FIRST, whether or not this language ever gets a real pack generated for
     it. Today nothing generates one (deliberately scoped out, see `i18n/init/fillers.py`'s docstring), so this
     always returns [] and `pick_filler` falls through to the hardcoded es/en pool — behavior is unchanged for

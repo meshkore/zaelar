@@ -97,7 +97,7 @@ def test_hay_costura_fuera_de_banda_y_dice_la_verdad():
     assert proactive.speaker() is None, "al cerrar la sesión el hablador se suelta"
 
 
-# ── EFÍMERO — el relleno no puede colgar del historial de conversación (V2-114, 2026-08-17) ──────────────────
+# ── EFÍMERO — el relleno no puede colgar del historial de conversación (V2-122, 2026-08-17) ──────────────────
 # Bug real: `¡Hola! ¿Cómo va todo?…` seguido de `Déjame que mire…` en el muro de chat — el relleno colgando
 # DESPUÉS de una respuesta que ya no necesitaba tapar nada. Causa: el relleno salía por `proactive.speaker()`,
 # que en LiveKit es `session.say(..., add_to_chat_ctx=True)` por defecto — SÍ entra al historial de conversación
@@ -290,7 +290,7 @@ def test_el_relleno_consulta_la_sonda_y_muere_con_su_turno():
     """Guarda de CÓDIGO, por el mismo motivo que la de arriba (montar el proveedor exige media sesión LiveKit).
     Vigila las dos mitades del arreglo: (1) no arrancar si el operador habla, y (2) que la locución ya lanzada se
     cancele con el turno — era fire-and-forget, así que cancelar el TEMPORIZADOR no paraba nada y el relleno de un
-    turno muerto seguía sonando DESPUÉS de que el operador hubiera dicho otra cosa. V2-114: el mecanismo vive en
+    turno muerto seguía sonando DESPUÉS de que el operador hubiera dicho otra cosa. V2-122: el mecanismo vive en
     `lead_in_filler.py`; nucleo.py solo tiene que LLAMAR a `cancel_for_barge_in()` en el barge-in."""
     from pathlib import Path
 

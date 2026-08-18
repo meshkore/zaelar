@@ -521,7 +521,7 @@ async def entrypoint(ctx: JobContext) -> None:
         await session.say((text or "").strip(), allow_interruptions=True)
 
     async def _speak_ephemeral(text: str) -> None:
-        # V2-114: same TTS, but `add_to_chat_ctx=False` — LiveKit never registers a conversation item for this,
+        # V2-122: same TTS, but `add_to_chat_ctx=False` — LiveKit never registers a conversation item for this,
         # so `conversation_item_added` (→ `_on_item` below → the chat wall) never sees it. Exclusively for the
         # FlashBrain's neutral lead-in filler (V2-093) — see `voice.proactive.ephemeral_speaker()`'s docstring
         # for the bug this fixes (a filler landing AFTER the real reply in the chat wall, reported live).

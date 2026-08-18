@@ -195,7 +195,7 @@ DOMAINS: list[dict] = [
         # agente que estaba trabajando. Aquí se reproduce el pegado y se fija la costura fuera de banda.
         {"id": "3.7", "title": "Relleno de espera: suena MIENTRAS se espera (fuera del stream del modelo)",
             "ch": VOICE, "paths": ["tests/voice/unit/test_lead_in.py",
-                                    # V2-114 (2026-08-17): el pool de rellenos ya no es solo un literal hardcodeado
+                                    # V2-122 (2026-08-17): el pool de rellenos ya no es solo un literal hardcodeado
                                     # — pick_filler() mira PRIMERO un pack generado por idioma antes de caer al
                                     # catálogo es/en; este test file nuevo cubre esa ruta de lectura.
                                     "tests/voice/unit/test_lang_fillers_store.py"]},
