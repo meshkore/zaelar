@@ -26,7 +26,9 @@ from .validator import (_validate, _validate_actions_sync, _validate_background,
                          _apply_action_names, _defines_function, _keyword_collisions,
                          _scan_data_py, _scan_widget_js)
 
-HERE = os.path.dirname(os.path.abspath(__file__))          # …/zaelar/widgets
+from widgets import paths
+
+HERE = paths.BUILTIN_ROOT                                  # …/zaelar/widgets
 ZAELAR = os.path.dirname(HERE)                             # …/zaelar  (the agent's cwd — widget CODE
                                                              # generation stays repo-relative; see the
                                                              # Phase 3 plan's M10, deliberately out of
@@ -132,7 +134,7 @@ def _concise_id(spec: str) -> str:
 
 
 def exists(wid: str) -> bool:
-    return bool(wid) and os.path.isfile(os.path.join(HERE, wid, "manifest.json"))
+    return bool(wid) and paths.dir_for(wid) is not None
 
 
 _CONTRACT = """A zaelar widget is a folder widgets/<id>/ with:
@@ -318,7 +320,9 @@ def _discard(wid: str) -> None:
     if not wid or wid in _RESERVED:
         return
     try:
-        shutil.rmtree(os.path.join(HERE, wid), ignore_errors=True)
+        # The folder the CREATE path wrote, which is always the generated root — never a built-in that happens
+        # to share the id. A rollback must not be able to delete engine source.
+        shutil.rmtree(paths.new_dir(wid), ignore_errors=True)
     except Exception:
         pass
 
@@ -334,7 +338,7 @@ def modify_widget(wid: str, change: str, token: str = "") -> dict:
         return {"ok": False, "id": wid, "error": "widget not found"}
     if not (change or "").strip():
         return {"ok": False, "id": wid, "error": "empty change"}
-    d = os.path.join(HERE, wid)
+    d = paths.dir_for(wid) or paths.new_dir(wid)
     bak = tempfile.mkdtemp(prefix=f"wbak_{wid}_")
     try:
         shutil.copytree(d, os.path.join(bak, wid))

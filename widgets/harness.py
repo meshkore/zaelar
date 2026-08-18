@@ -19,11 +19,13 @@ import shutil
 import subprocess
 import sys
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+from widgets import paths
+
+HERE = paths.BUILTIN_ROOT
 
 
 def _golden_path(wid: str) -> str:
-    return os.path.join(HERE, wid, "golden.json")
+    return os.path.join(paths.dir_for(wid) or paths.new_dir(wid), "golden.json")
 
 
 def _shape(d: dict) -> dict:
@@ -73,7 +75,7 @@ def check_render(wid: str) -> tuple[bool, str]:
     node = shutil.which("node")
     if not node:
         return True, "skipped (no node)"
-    js = os.path.join(HERE, wid, "widget.js")
+    js = os.path.join(paths.dir_for(wid) or paths.new_dir(wid), "widget.js")
     try:
         src = open(js, encoding="utf-8").read()
         r = subprocess.run([node, "--input-type=module", "--check", "-"], input=src,

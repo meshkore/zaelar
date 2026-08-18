@@ -13,7 +13,9 @@ from fastapi.responses import FileResponse, JSONResponse
 from . import runtime
 
 router = APIRouter()
-HERE = os.path.dirname(os.path.abspath(__file__))
+from widgets import paths as _paths
+
+HERE = _paths.BUILTIN_ROOT
 
 # Widget python (data.py) NEVER runs on the server event loop: the voice pipeline shares that loop, so a slow
 # fetch or an infinite loop inside a widget would mute zaelar entirely. Every hook runs in this DEDICATED bounded
@@ -198,7 +200,7 @@ async def widget_js(wid: str):
     on every load (same fix as server/__init__.py's StaticFiles for frontend/) — without it, the browser's ES
     module + HTTP cache can keep serving an OLD widget.js (stale styles/behavior) after an edit, indefinitely,
     since desktop.js's dynamic import() has no cache-busting query param on the initial load."""
-    p = os.path.join(HERE, _safe(wid), "widget.js")
+    p = os.path.join(_paths.dir_for(_safe(wid)) or _paths.new_dir(_safe(wid)), "widget.js")
     if not os.path.isfile(p):
         return JSONResponse({"error": "no widget.js"}, status_code=404)
     return FileResponse(p, media_type="text/javascript", headers={"Cache-Control": "no-cache"})

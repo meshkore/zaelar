@@ -13,7 +13,9 @@ import re
 
 from loguru import logger
 
-HERE = os.path.dirname(os.path.abspath(__file__))          # …/zaelar/widgets
+from widgets import paths
+
+HERE = paths.BUILTIN_ROOT                                  # …/zaelar/widgets
 ZAELAR = os.path.dirname(HERE)                              # …/zaelar
 
 
@@ -273,7 +275,7 @@ def _scan_data_py(src: str, wid: str = "") -> str | None:
 
 def _validate(wid: str) -> tuple[bool, str]:
     """The widget must meet the contract before we trust it in the catalog."""
-    d = os.path.join(HERE, wid)
+    d = paths.dir_for(wid) or paths.new_dir(wid)
     man_p, js_p = os.path.join(d, "manifest.json"), os.path.join(d, "widget.js")
     if not os.path.isfile(man_p):
         return False, "no manifest.json produced"

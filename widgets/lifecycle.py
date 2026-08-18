@@ -29,7 +29,9 @@ from loguru import logger
 
 from . import runtime, store
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+from widgets import paths
+
+HERE = paths.BUILTIN_ROOT
 
 
 def _emit_widget(action: str, wid: str, src: str = "system") -> None:
@@ -75,7 +77,7 @@ async def delete_widget(widget_id: str, src: str = "system") -> dict:
     if not wid:
         return {"ok": False, "error": "id vacío"}
     meta = runtime.get(wid) or {}
-    folder = os.path.join(HERE, wid)
+    folder = paths.dir_for(wid) or os.path.join(paths.generated_root(), wid)
     if not meta and not os.path.isdir(folder):
         return {"ok": False, "error": "widget no encontrado"}
     title = meta.get("title") or wid

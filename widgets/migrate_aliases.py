@@ -17,7 +17,9 @@ import os
 import sys
 import unicodedata
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+from widgets import paths
+
+HERE = paths.BUILTIN_ROOT
 
 # CURATED map: id -> {"name": canonical name, "aliases": [unique IDENTITY synonyms]}. The name is added as an
 # implicit alias, so it does not need to be repeated. Collisions resolved by hand: generic topics go to the widget
@@ -94,9 +96,9 @@ def migrate(dry_run: bool = False) -> dict:
     collisions: list[str] = []
     changed: list[str] = []
     skipped: list[str] = []
-    for name in sorted(os.listdir(HERE)):
-        mpath = os.path.join(HERE, name, "manifest.json")
-        if not os.path.isfile(os.path.join(HERE, name, "widget.js")) or not os.path.isfile(mpath):
+    for name, folder in paths.iter_folders():
+        mpath = os.path.join(folder, "manifest.json")
+        if not os.path.isfile(os.path.join(folder, "widget.js")) or not os.path.isfile(mpath):
             continue
         try:
             man = json.load(open(mpath, encoding="utf-8"))

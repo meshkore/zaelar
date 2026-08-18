@@ -13,7 +13,9 @@ import json
 import os
 import unicodedata
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+from widgets import paths
+
+HERE = paths.BUILTIN_ROOT
 
 
 def _safe(wid: str) -> str:
@@ -26,7 +28,10 @@ def _norm(s: str) -> str:
 
 
 def _manifest_path(wid: str) -> str:
-    return os.path.join(HERE, _safe(wid), "manifest.json")
+    folder = paths.dir_for(_safe(wid))
+    # A widget that does not exist yet still needs a path to point at (the caller reports "not found" from the
+    # missing file); the generated root is the only sane guess, since that is where a new one would be written.
+    return os.path.join(folder or paths.new_dir(_safe(wid)), "manifest.json")
 
 
 def _load(wid: str):

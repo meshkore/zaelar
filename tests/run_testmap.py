@@ -228,7 +228,8 @@ DOMAINS: list[dict] = [
             "tests/browser/unit/widgets/test_lifecycle_confirm.py", "tests/browser/unit/widgets/test_actions.py", "tests/browser/unit/widgets/test_refs.py",
             "tests/browser/unit/widgets/test_generator_sync.py", "tests/browser/unit/widgets/test_background.py",
             "tests/browser/unit/widgets/test_aliases.py", "tests/browser/unit/widgets/test_identify_context.py",
-            "tests/browser/unit/widgets/test_resolver_certainty.py", "tests/browser/unit/widgets/test_system_surfaces_sync.py"]},
+            "tests/browser/unit/widgets/test_resolver_certainty.py", "tests/browser/unit/widgets/test_system_surfaces_sync.py",
+            "tests/browser/unit/widgets/test_paths_workspace.py"]},
         {"id": "4.2", "title": "Navegador (browser)", "ch": UNIT, "paths": [
             "tests/browser/unit/navegador/test_auth.py", "tests/browser/unit/navegador/test_tasks_dedup.py",
             # 2026-08-17 modularization pass: DOM/human-input primitives split out of owner.py into dom.py

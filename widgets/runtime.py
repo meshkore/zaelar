@@ -9,7 +9,9 @@ import os
 import re
 import unicodedata
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+from widgets import paths
+
+HERE = paths.BUILTIN_ROOT      # kept for callers that import it; new code asks `paths` instead
 
 # Catalog cache (scales to thousands of widgets): parse manifests once and reuse until a manifest mtime changes.
 # Avoids re-reading + json-parsing every manifest on every call (identify() runs on every transcript).
@@ -17,17 +19,20 @@ _cache = {"sig": None, "list": []}
 
 
 def _signature() -> tuple:
+    # (id, folder, manifest mtime). The FOLDER travels in the signature because a widget can live in either
+    # root (see widgets/paths.py) and the catalog below has to read the manifest it actually signed — not
+    # re-resolve the id and risk reading a different one.
     sig = []
-    for name in sorted(os.listdir(HERE)):
-        man = os.path.join(HERE, name, "manifest.json")
-        js = os.path.join(HERE, name, "widget.js")
+    for name, folder in paths.iter_folders():
+        man = os.path.join(folder, "manifest.json")
+        js = os.path.join(folder, "widget.js")
         # A widget needs BOTH a manifest AND a widget.js to be usable. A folder with only a manifest is debris from
         # a generation that died half-way — skipping it keeps broken widgets OUT of the catalog + the brain's brief,
         # so a failed build can never poison show()/identify() ("a widget must not break the rest of the system").
         if not os.path.isfile(js):
             continue
         try:
-            sig.append((name, os.path.getmtime(man)))
+            sig.append((name, folder, os.path.getmtime(man)))
         except OSError:
             pass
     return tuple(sig)
@@ -39,9 +44,9 @@ def catalog() -> list[dict]:
     if sig == _cache["sig"]:
         return _cache["list"]
     out = []
-    for name, _ in sig:
+    for _name, folder, _mtime in sig:
         try:
-            out.append(json.load(open(os.path.join(HERE, name, "manifest.json"), encoding="utf-8")))
+            out.append(json.load(open(os.path.join(folder, "manifest.json"), encoding="utf-8")))
         except Exception:
             pass
     _cache["sig"], _cache["list"] = sig, out
