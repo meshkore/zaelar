@@ -735,7 +735,19 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                     _r = str(_tc["args"].get("request") or "").strip()
                     if _r and _r not in _reqs:
                         _reqs.append(_r)
-                _reqs = _reqs[:3] or [text]
+                # Espejo del backstop del provider (impl PARALELA, cablear en AMBOS): si el turno pide CREAR
+                # un widget y ninguna de las peticiones que van a salir lo es, se añade. Medido en V2-118: cero
+                # tareas de kind `code` en 14 turnos pidiendo un juego.
+                try:
+                    from nucleo.flash import router_guards as _rg_cw
+                    if (_rg_cw.looks_like_create_widget(operator_text)
+                            and not any(_rg_cw.looks_like_create_widget(r) for r in _reqs)):
+                        _reqs.append(operator_text)
+                except Exception:
+                    pass
+                # `operator_text`, no `text`: el turno lleva las notas [SISTEMA] pegadas delante y una tarea
+                # NUNCA debe tener por objetivo el mensaje de entrega del worker anterior.
+                _reqs = _reqs[:3] or [operator_text]
                 from nucleo.flash import escalate as _esc
                 _tids = [_esc.escalate_to_slowbrain(str(_r), context={"src": "probe", "trace": _trace_id})
                          for _r in _reqs]

@@ -127,7 +127,7 @@ DOMAINS: list[dict] = [
             "tests/agent_headless/unit/test_runstate.py"]},
         {"id": "2.6", "title": "Scheduler / rails / workspace / frontend-glue", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/test_scheduler.py", "tests/agent_headless/unit/test_rails.py", "tests/agent_headless/unit/test_workspace.py",
-            "tests/agent_headless/unit/test_confirm_gate_task.py",
+            "tests/agent_headless/unit/test_confirm_gate_task.py", "tests/agent_headless/unit/test_escalate_hygiene.py",
             "tests/agent_headless/unit/flash/test_frontend.py", "tests/agent_headless/unit/flash/test_memory_cache.py"]},
         {"id": "2.7", "title": "Susurro (auto-reparación)", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/susurro/test_susurro.py",
@@ -324,6 +324,14 @@ DOMAINS: list[dict] = [
         {"id": "4.18", "title": "Shell MÓVIL: contrato de host + del widget · paleta compartida · el service worker "
                                 "no cachea", "ch": UNIT,
             "paths": ["tests/browser/unit/mobile/test_mobile_host_contract.py"]},
+        # The source-level node above cannot see that the orb is a black hole in the middle of the bar: on
+        # 2026-08-18 it was, at 0 painted pixels, while that node stayed green counting canvases. This one
+        # RENDERS the shell at phone size and measures it. Self-contained (it starts its own preview server,
+        # so it needs no `make run`) and non-destructive (it taps the power switch, which against a live
+        # engine would stop the operator's agent).
+        {"id": "4.19", "title": "Shell MÓVIL RENDERIZADO: el orbe centrado y PINTADO, la barra alcanzable",
+            "ch": UNIT, "live": True,
+            "cmd": "./.venv/bin/python tests/browser/e2e/mobile/render_dock.py"},
     ]},
     {"id": "5", "name": "CONECTORES", "nodes": [
         {"id": "5.1", "title": "Email", "ch": UNIT, "paths": [

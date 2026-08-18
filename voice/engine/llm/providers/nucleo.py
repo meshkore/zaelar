@@ -2965,6 +2965,22 @@ class NucleoLLMStream(llm.LLMStream):
             # un cierre, la respuesta a un worker), y en ese caso las demás tampoco lo eran. Cada una pasa por el
             # MISMO dedup que la principal — dos peticiones parecidas se inyectan en la que ya corre en vez de
             # abrir una segunda sesión de lo mismo.
+            # BACKSTOP CREATE-WIDGET (V2-118 ronda 2, medido): el operador pidió TRES cosas y una era «móntame
+            # un widget de un juego». El modelo llamó a la tool UNA vez, por el informe, y las otras dos se
+            # quedaron sin lanzar — el registro de tareas de la corrida no tiene NI UNA de kind `code` en los 14
+            # turnos, mientras el turno decía «te cargo un juego de plataformas». La capacidad de abanicar ya
+            # existe (arriba); lo que falla es que el modelo pequeño no la usa de forma fiable.
+            # El guard de crear-widget YA existía pero solo cuando el turno no había disparado NADA
+            # (`_no_tool`): en cuanto escalaba otra cosa, la petición de widget se caía en silencio. Aquí se
+            # cubre justo ese hueco, con el MISMO clasificador determinista y solo si ninguna de las peticiones
+            # que van a salir es ya una de crear widget.
+            if (_router.looks_like_create_widget(text)
+                    and not any(_router.looks_like_create_widget(r)
+                                for r in [req, *escalate_req["more"]])):
+                escalate_req["more"].append(text)
+                emit("brain", "🏗️ crear-widget del mismo turno, sin lanzar → escalada añadida (backstop)",
+                     text=text[:120], role="system", extra={"cat": "flash"})
+
             _launched = list(_prev_pending) + [{"request": req}]
             for _extra_req in escalate_req["more"]:
                 try:
