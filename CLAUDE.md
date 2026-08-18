@@ -2606,6 +2606,72 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     audio timing. Test: `tests/voice/unit/test_lead_in.py::test_leadinfiller_empuja_su_propio_evento_de_
     chat_marcado` (behavioral, not source-grep — instantiates `LeadInFiller` directly and asserts both the
     `filler` and `brain` events fire).
+- **Showing data is the generic sheet's job, not a reason to write a component — and a created widget was never
+  opened (V2-115, 2026-08-18)**: "muéstrame una ficha técnica y una foto" of a car spent three minutes in the
+  WIDGET GENERATOR writing a single-use `investiga-ferrari-f80` with the car's specs hardcoded from model
+  knowledge, then announced "He creado el widget «X»" to a screen where **nothing appeared**. Three independent
+  failures, none of which raised an error. Detail: `V2-115-hoja-generica-por-defecto-y-widget-nuevo-sin-probar.md`.
+  - **(1) The indefinite article.** The FlashBrain's own reformulation ended in "Monta el resultado en **un**
+    widget del canvas", and `_WIDGET_DEST_RE` — the guard that exists precisely to neutralize a widget named as a
+    DESTINATION (V2-098, incident 2026-08-13, "Entrega el resultado MONTADO en el widget results" hijacking a
+    travel investigation) — listed only `el|la|los|las`. **`un|una` was missing**, and that's the most natural
+    phrasing. Reproduced before touching anything. Fixed by accepting any article (plus `a|an`), with one
+    lookahead carve-out: **"en un widget NUEVO" really does ask for a new one** — there destination and create
+    coexist and create wins; without it, widening the list would have swapped a false positive for a false
+    negative. Verified both directions.
+  - **…and the rail, which is the root the operator asked to fix.** The guard is the backstop; the reason the
+    sentence got phrased that way was **the tool catalog itself** — `escalate_to_slowbrain`'s description said, in
+    so many words, "búscala de verdad y **móntala en un widget**". We were teaching the model the phrasing the
+    guard then has to undo. Operator's rule: *"cuando vamos a visualizar datos… el widget genérico de
+    visualización debería ser el primero a utilizar por defecto… crear un widget solo está justificado cuando
+    queremos hacer algo que no existe"* (his examples of what DOES justify one: the Snake game, an expense
+    tracker, a daily-weight app — "cualquier cosa customizada que tenga que gestionar interacción con el
+    usuario"). Applied in the two places the decision is read: `router.py`'s escalate description (findings —
+    data, report, a product's spec sheet, a listing, photos — go to the results sheet; a NEW widget is only for
+    functionality that doesn't exist and that the operator operates; catalog 19,466→19,759 chars, cap 21,000) and
+    `dispatch_prompts.py`'s `_METHOD_BLOCK` step 4b, which covered only "un CONJUNTO DE RESULTADOS… una lista" —
+    a worker asked for ONE spec sheet reasonably concludes it doesn't apply, **which is exactly what happened**.
+    It now covers both: a list AND a single thing (spec sheet, report, photo, summary), the latter as one item
+    with its `facts`/`images`/`blocks` opened via `data results detail` — the "hoja en blanco con título, foto,
+    precio, características y enlaces" the operator described.
+  - **On raw HTML in the sheet, deliberately NOT built**: the operator framed it as "enchufarle la HTML ahí". The
+    `results` sheet already does what he wants (list mode AND single-ficha `view=detail`, with `facts`, `images`,
+    `score`, `parts`, and custom `blocks`) but **rejects HTML on purpose** — closed vocabulary
+    (`text·facts·chips·gallery·meter·table·link·section`), everything rendered via `textContent`. That content is
+    written by a worker from arbitrary web pages, so accepting markup would be direct injection into the canvas.
+    What was missing was never expressiveness — it was the sheet getting used. Recorded for a decision in the
+    open, not silently resolved either way.
+  - **(2) A created widget was opened by nobody.** `GeneratorBackend._drive()` emitted `result` with
+    `data={"widget": wid}` and **nothing read it** — `session.py::_handle` keeps `summary`/`ok`/`usage` and drops
+    `data`; the only path that ever opened a worker's widget was the browser's (`dispatch._prepare_web`). In the
+    `existed` branch the copy literally says *"ya existía, te lo muestro"* over an unchanged screen: the same bug
+    with the worst of the two wordings. Fixed by emitting `widget/show` **in the backend**, where the action is
+    known — `delete` returns before it (opening what you just deleted is absurd) and `session.py` stays the
+    AGNOSTIC stream pump that doesn't know what a widget is. Four cases tested, verified failing without the fix.
+  - **(3) PROCESOS ↔ FLUJOS were misaligned** (operator: *"los procesos no dejan de ser flujos y deberían estar
+    alineados"* — the flows board said "ningún flujo activo" while Procesos still showed "creando un widget… en
+    curso"). `dispatch.active_sessions()` was **the only one of the three projections with no status filter**,
+    under a docstring saying "sesiones vivas" — `has_active()` and `pending_summaries()` both carry it right
+    below, and `sync_state()` re-applies it by hand to `_SESSIONS` rather than trusting the function, which is the
+    clearest possible signal it was missing. Every consumer reads it as live: `loop.py` dumps it into a set named
+    `live_ids`, `susurro/apply.py` dedups against it (a FINISHED task suppressing a legitimate re-run), and
+    `/api/tasks` feeds the Procesos chips, which paint **every row they receive** as in-progress. Fixed on both
+    sides of the seam: the filter in `active_sessions()`, and `reconcileTasks()` (frontend) now honors `status`
+    instead of assuming everything it receives is live — a `done` row that slips through doesn't just resurrect
+    the phantom chip, it also **hides its own ✓ history row** (`ChatWall` drops live ids from history).
+  - **Left open, deliberately**: `fetchTasks()` only fires on `es.onopen`, on a tab CHANGE, and on ⏻ clicks — so
+    nothing reconciles while Procesos sits open, and **one lost `task/end` pins the chip forever** (already
+    described in-code at `Orb.js:150-156`; likely what the operator watched for 30 minutes). The obvious cure, a
+    `setInterval`, collides head-on with the widget system's "refresco por SSE, nunca polling" rule — choosing
+    between that, a `visibilitychange` hook, or a reconcile on tab re-render is a design decision, not a fix.
+  - **The real gap this exposes, and the operator's explicit ask**: *"tenemos que probar la creación de un widget
+    y su visualización… que el proceso de un nuevo widget esté operativo al 100%"*. **Creating a new widget has no
+    end-to-end test at all** — that's what let failure (2) live indefinitely. The generator is covered
+    (`make test-widgets`, action/background/CSS validation) and now the `show` is, but **nothing walks the whole
+    chain**: escalation → `kind=code` → `GeneratorBackend` → `generate_widget` → validation → catalog →
+    `widget/show` → a card painted on the canvas with data in it. Every link is tested in isolation; the chain
+    isn't. Tracked as the primary open task in V2-115, together with the reverse case (ask for a spec sheet and
+    assert that NO widget is created and the result lands in `results`).
 
 ## Testing y rueda de mejora (INI-013)
 

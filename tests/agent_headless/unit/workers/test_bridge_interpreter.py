@@ -67,6 +67,9 @@ def test_the_delivery_recipe_matches_what_the_worker_can_actually_do():
     p = _build_prompt("busca 3 piscinas y ponlas en pantalla", "", True)
     assert "@informe.json" in p
     assert "<<'JSON'" not in p                        # el heredoc está bloqueado: no puede volver al método
-    recipe = p.split("4b)")[1][:1200]
+    # La receta se busca en el paso 4b ENTERO (hasta el 5), no en sus primeros N chars: el corte fijo de 1200 se
+    # quedó corto en cuanto 4b creció para cubrir la ficha de UNA sola cosa (V2-115) y falló un test cuyo asunto
+    # —qué receta se le manda al worker— no había cambiado en absoluto.
+    recipe = p.split("4b)")[1].split("5)")[0]
     assert "RUTA RELATIVA" in recipe
     assert "NUNCA `/tmp/…`" in recipe                 # /tmp solo puede aparecer PROHIBIDO, nunca como instrucción

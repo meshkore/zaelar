@@ -147,9 +147,20 @@ _CREATE_WIDGET_RE = _re.compile(
 # OJO con la preposición castellana «a» SUELTA: colisiona con el artículo INGLÉS «a» y neutralizaba
 # «build me A WIDGET that tracks my steps», que es un create de libro. Se queda `al` (la contracción que es la que
 # de verdad aparece: «al widget»); «a el widget» no es castellano.
+#
+# EL ARTÍCULO INDETERMINADO ERA EL AGUJERO (2026-08-18, mismo incidente una vez más). La lista de artículos solo
+# llevaba los DETERMINADOS, así que «monta el resultado en UN widget del canvas» —que es la forma NATURAL de decir
+# «ponlo en una tarjeta», y la que el propio FlashBrain escribió al reformular la escalada— no se neutralizaba y
+# volvía a caer en el generador. La gramática no cambia con el artículo: «en un widget» sigue siendo el SITIO donde
+# va el resultado. Un create de verdad no lleva preposición de destino delante («créame un widget», «build me a
+# widget»), así que ampliar la lista no le quita nada al lado create.
+# ÚNICA excepción, y es real: «en un widget NUEVO» sí pide uno nuevo — ahí la preposición de destino y el create
+# coexisten, y manda el create. Se deja fuera de la neutralización con un lookahead para que
+# `_CREATE_WIDGET_RE` siga viendo su patrón `SYN … nuevo`.
 _WIDGET_DEST_RE = _re.compile(
-    r"\b(?:en|al|sobre|dentro\s+de|dentro\s+del|hacia)\s+(?:el\s+|la\s+|los\s+|las\s+)?" + _WIDGET_SYN + r"\b"
-    r"|\b(?:into|in|on)\s+(?:the\s+)?" + _WIDGET_SYN + r"\b", _re.I)
+    r"\b(?:en|al|sobre|dentro\s+de|dentro\s+del|hacia)\s+"
+    r"(?:el\s+|la\s+|los\s+|las\s+|un\s+|una\s+|unos\s+|unas\s+)?" + _WIDGET_SYN + r"\b(?!\s+nuev[oa]\b)"
+    r"|\b(?:into|in|on)\s+(?:the\s+|a\s+|an\s+)?" + _WIDGET_SYN + r"\b(?!\s+nuev[oa]\b)", _re.I)
 
 
 def looks_like_create_widget(text: str) -> bool:

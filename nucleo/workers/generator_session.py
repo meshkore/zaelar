@@ -65,6 +65,21 @@ class GeneratorBackend(WorkerBackend):
                     summary = f"El widget «{wid}» ya existía, te lo muestro."
                 else:
                     summary = f"He {verb} el widget «{wid}»."
+                # …Y ÁBRELO. Hasta el 2026-08-18 esto NO pasaba: el `wid` viajaba en el `data` del `result`, y NADIE
+                # lo leía (`session.py::_handle` se queda con `summary`/`ok`/`usage` y descarta `data`), así que el
+                # único camino que abría un widget de un worker era el del navegador (`dispatch._prepare_web`). Un
+                # widget se creaba bien, se anunciaba por voz («He creado el widget «X»») y **no aparecía en
+                # pantalla** — con el copy de `existed` diciendo literalmente «te lo muestro» sobre una pantalla
+                # que no cambiaba. Reportado en vivo: «no ha salido ningún widget nuevo, ni nada en pantalla».
+                # El show se emite AQUÍ, donde se sabe qué acción fue: el `delete` de arriba retorna antes (abrir lo
+                # que acabas de borrar sería absurdo) y `session.py` sigue siendo el bombeo AGNÓSTICO del stream,
+                # sin saber qué es un widget. Mismo emit que ya usan `server/voice_api.py` y `_prepare_web`.
+                if wid:
+                    try:
+                        from voice.observer import emit as _obs_emit
+                        _obs_emit("widget", "show", extra={"id": wid, "src": f"worker:{self._task_id or 'code'}"})
+                    except Exception:
+                        pass
                 await self._emit("result", summary=summary, ok=True, data={"widget": wid})
             else:
                 # Sesión 23:15 2026-07-16: el fallo decía «No pude CREAR el widget» en un MODIFY (confunde: parece

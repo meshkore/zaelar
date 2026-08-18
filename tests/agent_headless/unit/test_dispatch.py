@@ -658,3 +658,26 @@ def test_resolve_sessions_does_not_pick_one_among_several_unrelated_tasks(monkey
     dispatch._SESSIONS["m2"] = SessionRecord(task_id="m2", kind="code", status="running",
                                               goal="build a widget for tracking expenses", trace_id="T9·cd34")
     assert dispatch.resolve_sessions("now make it have 3 wheels instead of 2") == ["m1", "m2"]
+
+
+def test_active_sessions_only_returns_live_ones():
+    """PROCESOS ↔ FLUJOS desalineados (operador, 2026-08-18): el tablero de flujos decía «ningún flujo activo» y la
+    pestaña «Procesos» seguía pintando «creando un widget… en curso» para una tarea acabada 30 minutos antes.
+
+    `active_sessions()` era la ÚNICA de las tres proyecciones sin filtro de estado, con un docstring que decía
+    «vivas». Todo el que la lee la trata como tal: `loop.py` la vuelca en un set llamado `live_ids`,
+    `susurro/apply.py` dedupe contra ella (una tarea TERMINADA suprimiría una re-ejecución legítima) y `/api/tasks`
+    pinta cada fila que devuelve como un proceso en curso. Lo terminado se lee del ledger, no de aquí."""
+    from nucleo.workers.session import SessionRecord
+    dispatch._SESSIONS.clear()
+    for tid, st in (("run", "running"), ("q", "queued"), ("fin", "done"), ("kill", "cancelled")):
+        dispatch._SESSIONS[tid] = SessionRecord(task_id=tid, goal="x", kind="code", status=st,
+                                                phase="creando un widget…")
+    try:
+        ids = {s["id"] for s in dispatch.active_sessions()}
+        assert ids == {"run", "q"}, f"una tarea terminada no es un proceso en curso (vi {ids})"
+        # …y sigue coherente con sus dos hermanas, que siempre llevaron el filtro
+        assert dispatch.has_active() is True
+        assert {s["id"] for s in dispatch.pending_summaries()} == ids
+    finally:
+        dispatch._SESSIONS.clear()

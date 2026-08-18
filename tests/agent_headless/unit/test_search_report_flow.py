@@ -140,6 +140,12 @@ def test_entering_a_real_site_still_goes_to_the_browser():
     ("pon los hoteles en el widget de resultados", False),
     ("muestra el informe en el panel de resultados", False),
     ("deliver the result into the widget results", False),
+    # …y el MISMO caso con artículo INDETERMINADO (2026-08-18). La lista de artículos solo llevaba los
+    # determinados, así que estas cuatro se colaban al generador. La primera es literal de producción.
+    ("Monta el resultado en un widget del canvas para que el operador pueda VERLO en pantalla", False),
+    ("presenta los datos en una tarjeta", False),
+    ("vuelca el informe en unos paneles", False),
+    ("render the findings into a widget", False),
     # OJO: «añade una columna al widget de agenda» NO se lista aquí. No es un create (y `looks_like_create_widget`
     # dice False), pero SÍ es código: cambiar las columnas de un widget es modificar su UI, y `_classify_kind` lo
     # manda al generador por `_MODIFY_CODE_RE`, que es lo correcto. Se comprueba aparte, abajo.
@@ -167,6 +173,39 @@ def test_a_widget_named_as_a_destination_is_not_code(text, is_create):
     if not is_create:
         # y la consecuencia que importa: el dispatcher NO lo manda al backend del generador
         assert _classify_kind(text) != "code"
+
+
+def test_gather_and_show_never_reaches_the_widget_generator():
+    """EL CASO REAL, verbatim de producción (sesión 82e2ba11, 2026-08-18). El operador pidió por voz «muéstrame una
+    ficha técnica y una foto» de un coche; el FlashBrain reformuló la escalada terminándola en «Monta el resultado
+    en UN widget del canvas…» y eso volvió a caer en el GENERADOR: tres minutos escribiendo un widget
+    `investiga-ferrari-f80` de un solo uso, en vez de buscar y entregar en la hoja de resultados.
+
+    Es la MISMA avería del 2026-08-13 (arriba) con el artículo cambiado: la lista de la neutralización llevaba
+    `el|la|los|las` y no `un|una|unos|unas`. La gramática no depende del artículo — «en un widget» sigue siendo el
+    SITIO donde va el resultado. Y la frase la escribe el propio modelo, así que el operador no puede evitarla."""
+    from nucleo.flash import router as _router
+    req = ("Investiga el Ferrari F80 (último modelo de Ferrari lanzado al mercado) y prepara una FICHA TÉCNICA "
+           "completa (motor, potencia, 0-100, velocidad máxima, prestaciones, precio) junto con una FOTO REAL del "
+           "coche. Monta el resultado en un widget del canvas para que el operador pueda VERLO en pantalla: la "
+           "ficha técnica con los datos y al menos una fotografía del Ferrari F80. El operador quiere ver cómo es "
+           "el coche.")
+    assert _router.looks_like_create_widget(req) is False
+    assert _classify_kind(req) != "code"          # → generic → brief de investigación → hoja `results`
+
+
+@_pytest.mark.parametrize("text", [
+    "monta esto en un widget nuevo",
+    "pon el informe en una tarjeta nueva",
+])
+def test_an_explicit_new_widget_survives_the_destination_rule(text):
+    """La ÚNICA excepción real de la regla del destino, y hay que conservarla: «en un widget NUEVO» sí pide uno
+    nuevo. Ahí la preposición de destino y el create coexisten en la misma frase y manda el create — si la
+    neutralización se lo tragara, ampliar la lista de artículos habría cambiado un falso positivo por un falso
+    negativo."""
+    from nucleo.flash import router as _router
+    assert _router.looks_like_create_widget(text) is True
+    assert _classify_kind(text) == "code"
 
 
 def test_modifying_a_widgets_ui_is_still_code():

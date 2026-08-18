@@ -238,3 +238,66 @@ def test_the_stream_emits_usage_per_message_not_only_at_the_end():
     grok = (pathlib.Path(__file__).resolve().parents[4] / "nucleo" / "workers" / "grok_session.py"
             ).read_text(encoding="utf-8")
     assert "def _map" not in grok
+
+
+# ── un widget recién creado tiene que APARECER en pantalla (2026-08-18) ────────────────────────────────────────
+def _drive_generator(monkeypatch, *, req, gen_result, action=None):
+    """Corre `GeneratorBackend._drive()` con el generador REAL sustituido (nada de lanzar un `claude`) y devuelve
+    los `emit()` de observabilidad que produjo, más los WorkerEvent que encoló."""
+    from nucleo.workers.generator_session import GeneratorBackend
+    from widgets import generator as _gen
+
+    seen: list[tuple] = []
+    monkeypatch.setattr("voice.observer.emit",
+                        lambda cat, label, **kw: seen.append((cat, label, kw.get("extra") or {})))
+    monkeypatch.setattr(_gen, "generate_widget", lambda *a, **k: gen_result, raising=False)
+    monkeypatch.setattr(_gen, "modify_widget", lambda *a, **k: gen_result, raising=False)
+    if action is not None:
+        monkeypatch.setattr("nucleo.agentes.code.widget_action", lambda r: action, raising=False)
+
+    b = GeneratorBackend()
+    b._task_id = "T1"
+    asyncio.run(b._drive(req))
+    evs = []
+    while not b._q.empty():
+        evs.append(b._q.get_nowait())
+    return seen, evs
+
+
+def test_a_created_widget_is_actually_opened_on_screen(monkeypatch):
+    """Reportado en vivo: «no ha salido ningún widget nuevo, ni nada en pantalla». El widget se construía bien y se
+    anunciaba por voz («He creado el widget «X»»), pero NADIE lo abría — el `wid` viajaba dentro del `data` del
+    `result` y `session.py::_handle` se queda con `summary`/`ok`/`usage` y descarta `data`. El único camino que
+    abría un widget de un worker era el del navegador. Tres minutos de trabajo entregados a una pantalla vacía."""
+    seen, evs = _drive_generator(monkeypatch, req="hazme un widget del tiempo de Soria",
+                                 gen_result={"ok": True, "id": "meteo-soria"})
+    assert ("widget", "show", {"id": "meteo-soria", "src": "worker:T1"}) in seen
+    assert any(e.type == "result" and e.data.get("ok") for e in evs)
+
+
+def test_an_already_existing_widget_is_opened_too(monkeypatch):
+    """El copy de este caso dice literalmente «ya existía, TE LO MUESTRO» — prometía en voz una acción que no
+    ocurría. Es el mismo bug con la peor de las dos redacciones posibles."""
+    seen, _ = _drive_generator(monkeypatch, req="hazme un widget del tiempo de Soria",
+                               gen_result={"ok": True, "id": "meteo-soria", "existed": True})
+    assert ("widget", "show", {"id": "meteo-soria", "src": "worker:T1"}) in seen
+
+
+def test_deleting_a_widget_does_not_open_it(monkeypatch):
+    """La otra cara: abrir lo que acabas de borrar. Por eso el show vive en el backend (que sabe QUÉ acción fue) y
+    no en el bombeo agnóstico de `session.py`."""
+    async def _fake_delete(wid, who):
+        return {"ok": True}
+    monkeypatch.setattr("widgets.lifecycle.delete_widget", _fake_delete, raising=False)
+    seen, evs = _drive_generator(monkeypatch, req="borra el widget del tiempo",
+                                 gen_result={"ok": True, "id": "meteo-soria"},
+                                 action=("delete", "meteo-soria"))
+    assert not [s for s in seen if s[1] == "show"], "un borrado NUNCA abre la tarjeta"
+    assert any(e.type == "result" for e in evs)
+
+
+def test_a_failed_generation_opens_nothing(monkeypatch):
+    """Un fallo no puede dejar una tarjeta fantasma abierta."""
+    seen, _ = _drive_generator(monkeypatch, req="hazme un widget del tiempo de Soria",
+                               gen_result={"ok": False, "error": "boom"})
+    assert not [s for s in seen if s[1] == "show"]

@@ -309,10 +309,23 @@ def _pool():
 
 # ── proyección para ESTADO / prompt / /api/tasks (la sincroniza el LOOP ~1 Hz, §v2·C) ───────────────────────
 def active_sessions() -> list[dict]:
-    """Snapshot serializable de las sesiones vivas (sin handles). Fuente de verdad para ESTADO y /api/tasks."""
+    """Snapshot serializable de las sesiones VIVAS (sin handles). Fuente de verdad para ESTADO y /api/tasks.
+
+    ⚠️ «VIVAS» lo decía el docstring y NO lo hacía el código (arreglado 2026-08-18): esto devolvía **todo**
+    `_SESSIONS`, incluidas las `done`/`cancelled` que aún no se habían sacado del registro. Era la única de las
+    tres proyecciones sin el filtro — `has_active()` y `pending_summaries()` lo llevan justo debajo, y hasta
+    `sync_state()` se lo re-aplica a mano sobre `_SESSIONS` en vez de fiarse de esta función, que es la señal más
+    clara de que faltaba. Y todos los consumidores la leen como si fuera de vivas: `loop.py` la mete en un set que
+    llama `live_ids`, `susurro/apply.py` dedupe contra ella (una tarea TERMINADA suprimiendo una re-ejecución
+    legítima) y `/api/tasks` alimenta los chips de la pestaña «Procesos» del operador, que pinta cada fila como
+    «en curso» — o sea que una tarea acabada podía verse trabajando. Es la desalineación PROCESOS↔FLUJOS que
+    reportó el operador: el tablero de flujos decía «ningún flujo activo» y Procesos seguía diciendo «creando un
+    widget… en curso». Lo TERMINADO se lee del ledger (`nucleo/workers/ledger.py`), que es su sitio."""
     now = time.time()
     out = []
     for r in _SESSIONS.values():
+        if r.status not in ("queued", "running"):
+            continue
         out.append({
             "id": r.task_id, "kind": r.kind, "backend": r.backend, "goal": r.goal[:120],
             "phase": r.phase, "status": r.status, "age_s": int(now - r.started), "paused": r.paused,

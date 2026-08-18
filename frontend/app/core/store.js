@@ -165,8 +165,14 @@ export const setTaskProgress = (id, note, pct, done, total) => setTasks(xs => {
 // V2-038: RECONCILIA los chips contra la VERDAD (GET /api/tasks lee el registro RAM del server). Al (re)conectar,
 // un reinicio/crash del server pudo dejar chips huérfanos (una tarea matada que nunca emitió `end`) → aquí se
 // dropan los que ya no existen y se marca `waiting` el que espera respuesta del operador. Fin de la pieza inconexa.
+// 2026-08-18: y se FILTRA por `status` en vez de dar por vivo todo lo que venga. El server ya no manda tareas
+// terminadas (`dispatch.active_sessions` las filtra), pero este lado no puede depender de eso: cada fila que
+// entra aquí se pinta «en curso», así que una `done` que se colara resucitaría el chip fantasma que veníamos de
+// arreglar — y encima TAPA su propia fila ✓ del histórico (ChatWall descarta del histórico los ids que están
+// vivos). Dos guardas para la misma verdad, en los dos lados de la costura.
+const _isLive = (s) => !s || !s.status || s.status === "queued" || s.status === "running";
 export const reconcileTasks = (sessions) => {
-  const live = new Map((sessions || []).map(s => [String(s.id), s]));
+  const live = new Map((sessions || []).filter(_isLive).map(s => [String(s.id), s]));
   setTasks(xs => {
     // conserva/actualiza los vivos; marca done (→ clear) los que ya no están en la verdad
     const kept = xs.filter(t => t.done || live.has(String(t.id))).map(t => {
