@@ -39,6 +39,12 @@ _CAT = {
     # chat wall (see `lead_in_filler.py`) — same family as the turn that spoke it, but its own kind so the
     # frontend can mark it distinctly (never confused with a real LLM-generated reply).
     "filler": "flash",
+    # `cron` (V2-121, 2026-08-18): programar/cancelar un aviso. Familia `flash` porque la DECISIÓN es del turno,
+    # igual que una data-op o una escalada; su kind propio existe para que un recordatorio programado deje un
+    # rastro distinguible en el registro. Antes viajaba como un `brain` cualquiera y era imposible separar «lo
+    # programó» de «dijo que lo programaba» sin ir a la BD — que es exactamente el fallo que midió el caso de uso
+    # `remember-and-remind-deadline`.
+    "cron": "flash",
     # ── Brain Workers (ON) — el trabajo ASYNC: sesiones de worker, el Chromium interno que abren para navegar,
     # y los procesos backed/background que corren fuera del turno. El navegador va AQUÍ (2026-08-09): para el
     # operador «abrir el navegador» no es una familia propia, es lo que hace un worker cuando le hace falta.

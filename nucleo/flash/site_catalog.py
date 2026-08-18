@@ -129,3 +129,91 @@ def directive_block(locale: str | None = None) -> str:
     for entry in catalog.values():
         lines.append(f"• {entry.name} ({entry.url}) — {entry.note}")
     return "\n".join(lines)
+
+
+# ── ¿de qué categoría es esta petición? ──────────────────────────────────────────────────────────────────
+# Why this lives HERE and not in dispatch.py: the categories are this module's taxonomy. A detector kept
+# somewhere else would drift the moment a category is added — the whole point of `SITE_CATALOG` being
+# symmetric across locales is that categories are declared once.
+#
+# What it is FOR (V2-119/V2-118, measured 2026-08-18): `dispatch._classify_kind` only ever answered "web"
+# when the operator NAMED a site ("en Wallapop", "en Amazon"), so two use cases that plainly need a browser
+# were dispatched as `generic` — a worker with no browser and no trusted-site directive:
+#   · `restaurant-tonight-madrid`: "resérvame mesa para 2 en Casa Lucio" → generic. No booking was ever
+#     attempted; the run ended with the model inventing a restaurant policy instead.
+#   · `three-tasks-at-once`: "búscame un monitor barato de segunda mano" → generic. It came back with NEW
+#     monitors from a retailer, ignoring "second-hand" — precisely what `general_classifieds` exists to fix.
+#
+# Deliberately NARROW. It is not a verb table standing in for understanding: each entry requires evidence of
+# a real-world TRANSACTION or a SECOND-HAND market, which is exactly the evidence that the browser (and this
+# catalog's trusted site) is what the task needs. `generic_marketplace` is intentionally NOT detected — the
+# bare verb "compra" would sweep in ordinary chat, and the 2026-08-12 incident (`_MODIFY_CODE_RE`'s comment
+# above in dispatch.py) is the standing reminder of what a too-eager route costs: a data-op turned into two
+# browser cards nobody asked for. When in doubt this returns None and the old behaviour stands.
+import re as _re
+import unicodedata as _ud
+
+
+def _norm(text: str) -> str:
+    """Accent-stripped lowercase — the same normalization `router_guards` uses. Without it "resérvame" does
+    not match a `reserv` stem, which is not a corner case in Spanish: it is the imperative, i.e. the single
+    most common form the operator actually speaks."""
+    n = _ud.normalize("NFKD", text or "")
+    return "".join(c for c in n if not _ud.combining(c)).lower()
+
+
+_CAT_PATTERNS: list[tuple[str, "_re.Pattern[str]"]] = [
+    # A table booking: the reservation verb plus what is being reserved. Both halves required — "reserva" on
+    # its own is also how one talks about a hotel, a flight or a doctor's appointment.
+    ("restaurant_booking", _re.compile(
+        r"\b(reserv\w*|book|booking)\b[^.!?]{0,60}\b(mesa|table|restaurante?|restaurant|cenar|comer|almorzar)\b"
+        r"|\b(mesa|table)\b[^.!?]{0,40}\b(para|for)\s+\d+", _re.I)),
+    ("hotel_booking", _re.compile(
+        r"\b(reserv\w*|book|booking)\b[^.!?]{0,60}\b(hotel|habitaci[oó]n|alojamiento|hostal|apartamento|room|"
+        r"lodging|stay)\b", _re.I)),
+    ("flight_search", _re.compile(
+        r"\b(vuelos?|flights?|billetes?\s+de\s+avi[oó]n|plane\s+tickets?)\b", _re.I)),
+    # Second-hand: the market, not the verb. "de segunda mano" / "usado" / "used" is the whole signal — a
+    # classifieds site is the only place that answer exists, so a plain web_search cannot serve it.
+    ("car_classifieds", _re.compile(
+        r"\b(coches?|cars?|furgonetas?|motos?|motorbikes?)\b[^.!?]{0,60}"
+        r"\b(segunda\s+mano|de\s+ocasi[oó]n|usados?|usadas?|used|second[\s-]?hand)\b"
+        r"|\b(segunda\s+mano|usados?|used|second[\s-]?hand)\b[^.!?]{0,40}\b(coches?|cars?|motos?)\b", _re.I)),
+    ("general_classifieds", _re.compile(
+        r"\b(segunda\s+mano|de\s+ocasi[oó]n|usado|usada|usados|usadas|used|second[\s-]?hand)\b", _re.I)),
+]
+
+
+# Categorías cuya petición es una ACCIÓN con destino definido: reservar una mesa, una habitación, un vuelo. Son
+# las únicas que `dispatch._classify_kind` promociona a "web" por sí solas, y la frontera importa.
+#
+# Los CLASIFICADOS (segunda mano) quedan FUERA de esa promoción a propósito, aunque este módulo sí los detecte
+# para el titular de categoría del prompt: «segunda mano» también es como empieza una INVESTIGACIÓN de verdad
+# («busca veleros de segunda mano… entra en la ficha de CADA candidato»), y esa ruta tiene su propio embudo con
+# su propio presupuesto (`nucleo/research.py`, kind "research", 1200 s) al que solo se llega desde `generic`.
+# Mandar esa petición al navegador la sacaría del embudo — el mismo tipo de daño que ya causó una vez enrutar de
+# más (ver el incidente de `_MODIFY_CODE_RE` en dispatch.py). Al worker genérico se le da igualmente este
+# catálogo, así que «de segunda mano» sigue llegando a Wallapop sin tocar el enrutado.
+TRANSACTIONAL_CATEGORIES = frozenset({"restaurant_booking", "hotel_booking", "flight_search"})
+
+
+def category_of(request: str, locale: str | None = None) -> str | None:
+    """The catalog category this request belongs to, or None if it is not one of them.
+
+    Order matters: the specific categories are tested before `general_classifieds`, whose "second-hand"
+    signal would otherwise swallow a used-car search that has its own better site."""
+    text = _norm(request).strip()
+    if not text:
+        return None
+    loc = locale if locale in SITE_CATALOG else resolve_locale(locale)
+    catalog = SITE_CATALOG.get(loc, SITE_CATALOG[_DEFAULT_LOCALE])
+    for category, pattern in _CAT_PATTERNS:
+        if category in catalog and pattern.search(text):
+            return category
+    return None
+
+
+def entry_for(category: str, locale: str | None = None) -> SiteEntry | None:
+    """The trusted site for a category in a locale (None if either is unknown)."""
+    loc = locale if locale in SITE_CATALOG else resolve_locale(locale)
+    return SITE_CATALOG.get(loc, SITE_CATALOG[_DEFAULT_LOCALE]).get(category)

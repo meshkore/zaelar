@@ -124,6 +124,19 @@ def _build_prompt(request: str, context: str, trusted: bool, brief: dict | None 
     if trusted:
         parts.append(_today_block())
         parts.append(_METHOD_BLOCK)
+        # SITIOS DE CONFIANZA también para el worker GENÉRICO (V2-118, 2026-08-18). Este catálogo solo viajaba en
+        # `_web_prompt`, o sea únicamente cuando el operador NOMBRABA el sitio; el resto de las compras y
+        # búsquedas de mercado —que caen aquí— salían sin él. Se midió: «búscame un monitor barato de SEGUNDA
+        # MANO» volvió con monitores NUEVOS de una tienda, ignorando la única restricción que traía la petición.
+        # Un worker genérico también navega (lo dice su propia cabecera), así que la carencia era del prompt, no
+        # de sus capacidades. Va SIN titular de categoría a propósito: aquí caen las INVESTIGACIONES, y decirle
+        # «empieza por Wallapop» a quien busca un velero de 50.000 € sería peor que no decirle nada.
+        try:
+            from nucleo.flash import site_catalog
+            from voice.engine.core import langs as _langs
+            parts.append(site_catalog.directive_block(site_catalog.resolve_locale(_langs.current_code())))
+        except Exception:
+            pass
     if context:
         parts.append("CONTEXTO DE MEMORIA (lo que zaelar ya sabe; úsalo si viene a cuento):\n" + context)
     if trusted:
@@ -207,6 +220,25 @@ _HUMAN_NAV_GUIDE = (
 )
 
 
+def _category_lead(goal: str, lang_code: str | None) -> str:
+    """One line naming the trusted site for THIS goal's category, ahead of the whole catalog (V2-119).
+
+    The catalog block that follows lists every category, and a worker reading six bullets still has to decide
+    which one is its own — `restaurant-tonight-madrid` shows what that costs: the run never reached TheFork at
+    all, and the worker ended up asserting a policy about the restaurant it had never opened. Naming the site
+    the dispatcher ALREADY matched (it is the same call that routed this task to the browser in the first
+    place, `dispatch._classify_kind`) removes that decision. When no category matches, this is empty and the
+    catalog behaves exactly as before."""
+    from nucleo.flash import site_catalog
+    loc = site_catalog.resolve_locale(lang_code)
+    category = site_catalog.category_of(goal, loc)
+    entry = site_catalog.entry_for(category, loc) if category else None
+    if entry is None:
+        return ""
+    return (f"ESTA TAREA es de categoría «{category}»: EMPIEZA por {entry.name} ({entry.url}) — {entry.note} "
+            f"Solo si el objetivo genuinamente NO aparece ahí, ve a otro sitio, y DILO al entregar.\n\n")
+
+
 def _web_prompt(goal: str, context: str, brief: dict | None = None) -> str:
     """Prompt del worker WEB (portado de web_cc/V2-036 al sustrato V2-038): conduce el navegador por hbweb con
     criterio de CIERRE (extraer → concluir → entregar) e hitos visibles. Sin él, el worker deambula.
@@ -237,6 +269,7 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None) -> str:
         f"paso a paso y con criterio. OBJETIVO (respétalo al pie de la letra):\n«{goal}»\n\n"
         + _today_block() + "\n\n"
         + recent_block +
+        _category_lead(goal, lang_code) +
         site_catalog.directive_block(site_catalog.resolve_locale(lang_code)) + "\n\n" +
         _HUMAN_NAV_GUIDE +
         "CÓMO CONDUCIR (desde la raíz del repo; el navegador ya tiene su pestaña asignada):\n"

@@ -669,13 +669,62 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # a un worker vivo. Marshalea al loop del server (mismo proceso). El resto de acciones (canvas/data/música) NO se
     # ejecutan aquí: este modo es para validar el ciclo de TAREAS, no el canvas.
     if execute:
+        # PROACTIVIDAD REAL (V2-121, 2026-08-18): las tags de cron se EJECUTAN, no solo se capturan. Va aparte del
+        # `if action == …` de abajo a propósito — una tag de cron CONVIVE con una tool en el mismo turno, que es
+        # justo el turno que este caso de uso pide («apúntame el jueves» → widget_data add_meeting, «y recuérdamelo
+        # el miércoles» → [[cron.create]]); si compitiera por el mismo `action`, apuntar la cita mataría el aviso.
+        #
+        # Por qué existía el agujero: este módulo es la implementación PARALELA del provider de voz (el fichero lo
+        # repite en cada backstop: «cablear en AMBOS»), y el bloque de ejecución solo cubría worker + data-op. El
+        # canal `probe` es el que usan los casos de uso, así que el aviso NO PODÍA existir en una corrida por muy
+        # bien que el modelo emitiera la tag: `remember-and-remind-deadline` medía un mecanismo inalcanzable.
+        for _t in tags:
+            if _t.get("action") not in ("cron.create", "cron.cancel"):
+                continue
+            try:
+                from nucleo import scheduler as _sched
+                _ex = _t.get("extra") or {}
+                _d = _ex.get("data") or {}
+                if _t["action"] == "cron.create":
+                    _r = _sched.create((_d.get("prompt") or _d.get("task") or "").strip(),
+                                       (_d.get("schedule") or _d.get("when") or "").strip(),
+                                       name=(_d.get("name") or "").strip(), repeat=str(_d.get("repeat") or ""))
+                    _t["executed"] = {"ok": bool(_r.get("ok")), "display": _r.get("display") or "",
+                                      "error": _r.get("error") or ""}
+                else:
+                    _t["executed"] = {"ok": bool(_sched.cancel(_ex.get("name") or _d.get("name") or ""))}
+            except Exception as _e:  # noqa: BLE001
+                _t["executed"] = {"ok": False, "error": str(_e)[:200]}
+            # Evento propio (kind `cron`) para que la programación DEJE RASTRO observable, igual que lo deja una
+            # data-op o una escalada. Sin él, un aviso correctamente programado es indistinguible de uno que
+            # nunca existió salvo consultando la BD — que es justo cómo se coló el fallo de V2-121.
+            try:
+                from voice.observer import emit as _emit_cron
+                _ok = bool((_t.get("executed") or {}).get("ok"))
+                _emit_cron("cron", "⏰ tarea programada" if _ok else "⚠️ schedule no reconocido",
+                           text=str((_t.get("executed") or {}).get("display")
+                                    or (_t.get("executed") or {}).get("error") or ""),
+                           role="system", extra={"ok": _ok, "op": _t.get("action")})
+            except Exception:
+                pass
         try:
             if action == "escalate":
-                _req = next((t["args"].get("request") for t in tool_calls
-                             if t["name"] == "escalate_to_slowbrain" and t["args"].get("request")), "") or text
+                # VARIAS tareas en un turno (V2-118, espejo del provider de voz — impl PARALELA, cablear en
+                # AMBOS): el operador que encarga tres trabajos de una sentada emite tres llamadas, y antes solo
+                # se ejecutaba la primera (`next(...)`). El tope de 3 es el mismo criterio que allí: el pool de
+                # workers es real y limitado (`dispatch._max_parallel`).
+                _reqs: list[str] = []
+                for _tc in tool_calls:
+                    if _tc["name"] != "escalate_to_slowbrain":
+                        continue
+                    _r = str(_tc["args"].get("request") or "").strip()
+                    if _r and _r not in _reqs:
+                        _reqs.append(_r)
+                _reqs = _reqs[:3] or [text]
                 from nucleo.flash import escalate as _esc
-                _tid = _esc.escalate_to_slowbrain(str(_req), context={"src": "probe", "trace": _trace_id})
-                return_extra_exec = {"executed": "escalate", "task_id": _tid}
+                _tids = [_esc.escalate_to_slowbrain(str(_r), context={"src": "probe", "trace": _trace_id})
+                         for _r in _reqs]
+                return_extra_exec = {"executed": "escalate", "task_id": _tids[0], "task_ids": _tids}
             elif action == "send_to_worker":
                 _msg = next((t["args"].get("message") for t in tool_calls
                              if t["name"] == "send_to_worker" and t["args"].get("message")), "") or text

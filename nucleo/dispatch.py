@@ -265,6 +265,20 @@ def _classify_kind(request: str) -> str:
     r = request or ""
     if _WEB_RE.search(r):
         return "web"
+    # …y también cuando el operador NO nombra el sitio pero la tarea es una GESTIÓN que solo existe dentro de uno
+    # (V2-119, 2026-08-18). `_WEB_RE` es una lista de sitios nombrados: sirve para «búscalo en Wallapop» y dejaba
+    # fuera «resérvame mesa para 2 en Casa Lucio», que caía en `generic` — un worker sin el catálogo de sitios de
+    # confianza y sin la ruta del navegador. El caso de uso `restaurant-tonight-madrid` lo midió: la corrida
+    # terminó sin UN SOLO intento de reserva, con el modelo inventándose la política del restaurante.
+    # Solo las categorías TRANSACCIONALES (reservar mesa/habitación/vuelo) promocionan: los clasificados de
+    # segunda mano NO, porque comparten fraseo con una investigación y esa tiene su propio embudo desde
+    # `generic`. El porqué completo, y la taxonomía, en `site_catalog.TRANSACTIONAL_CATEGORIES`.
+    try:
+        from nucleo.flash import site_catalog as _sc
+        if _sc.category_of(r) in _sc.TRANSACTIONAL_CATEGORIES:
+            return "web"
+    except Exception:
+        pass
     # CÓDIGO de widget = CREAR (reusa la detección del router, verbo+nombre) o MODIFICAR-código, o architect.
     # NUNCA por mencionar «widget» a secas (V2-081): abrir/mostrar/gestionar uno existente NO es código.
     try:

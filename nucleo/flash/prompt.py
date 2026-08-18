@@ -150,9 +150,24 @@ def _directive_block(directive: str) -> str:
 
 
 def _cron_line() -> str:
-    """Una línea de proactividad (tags de cron) + lo ya programado, si hay. Terso (V2-027)."""
-    line = ('Proactividad (recordatorios/tareas programadas): [[cron.create]]{"schedule":"30m|every 2h|0 9 * * *",'
-            '"prompt":"qué avisar","name":"…"}[[/cron.create]] · [[cron.cancel:name]].')
+    """Una línea de proactividad (tags de cron) + lo ya programado, si hay. Terso (V2-027).
+
+    La REGLA de «un aviso hablado no es un aviso» viene del caso de uso `remember-and-remind-deadline` (V2-121,
+    corrida 2026-08-18): ante «apúntame el jueves… y recuérdamelo el miércoles» el cerebro contestó «Done» y
+    siguió afirmando en turnos posteriores que estaba programado, con CERO mecanismo detrás. No fue un despiste
+    del modelo: el catálogo le decía literalmente que un recordatorio se «reconoce sin tool», así que la conducta
+    medida era la que el prompt pedía. Aquí se dice lo contrario, y con el formato de fecha absoluta que
+    `scheduler.parse_schedule` ya entiende para que un día concreto sea EXPRESABLE de una sola vez."""
+    line = ('Proactividad (recordatorios/tareas programadas): [[cron.create]]'
+            '{"schedule":"30m|every 2h|2026-08-19 09:00|0 9 * * *","prompt":"qué avisar","name":"…"}'
+            '[[/cron.create]] · [[cron.cancel:name]]. `schedule` admite un plazo relativo, una FECHA ABSOLUTA '
+            '(YYYY-MM-DD HH:MM, para un aviso de una sola vez en un día concreto — la fecha la sacas de la lista '
+            'de días de tu ESTADO, no la calcules a ojo) o un cron de 5 campos si es RECURRENTE. '
+            'REGLA DURA: si el operador pide que le AVISES/RECUERDES algo en un momento dado, emite la tag EN '
+            'ESE TURNO — decir «te lo recuerdo» sin ella no programa nada y es mentirle. Y si el compromiso '
+            'tiene fecha, además apúntalo en su agenda (widget_data add_meeting): son dos cosas distintas, el '
+            'apunte y el aviso, y el operador pide las dos. Si te falta la hora o el día exacto, PREGUNTA antes '
+            'de programar.')
     try:
         from nucleo import scheduler
         jobs = scheduler.list_jobs(active_only=True)
@@ -257,7 +272,12 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
     ops = (
         "── CÓMO OPERAS (capa rápida, tiempo real) ──\n"
         "Respondes SIEMPRE al instante en 1-2 frases habladas (sin markdown, emojis ni símbolos que leer), UNA "
-        "cosa por turno; nunca te quedas mudo. Ante una ORDEN de acción: HAZLA y confírmalo en UNA frase corta — NO "
+        "ACCIÓN por turno; nunca te quedas mudo. «Una» es de ACCIONES, no de RESPUESTAS: si en la misma frase te "
+        "preguntan DOS cosas (la hora Y el precio, el sitio Y cómo llegar), las contestas LAS DOS en ese turno — "
+        "dejarte media pregunta obliga al operador a repetirla y es de las cosas que más molestan. Antes de "
+        "cerrar el turno repasa la frase que te dijo: ¿queda algo suyo sin contestar? Si no puedes con una de las "
+        "partes, dilo — «lo otro no lo tengo» —, pero no la ignores. "
+        "Ante una ORDEN de acción: HAZLA y confírmalo en UNA frase corta — NO "
         "te disculpes en bucle, NO repitas 'tienes razón', NO narres tu razonamiento ni por qué antes falló. Si el "
         "operador insiste en una ACCIÓN CONCRETA que pidió y no pasó ('te dije que abrieras X', 'no has cancelado "
         "la cita'), EJECÚTALA ya (emite la tag/tool), no lo expliques. PERO una pregunta META (sobre tu conducta o "
@@ -335,6 +355,15 @@ def live_state() -> str:
     _tm = _t.strftime("%Y-%m-%d", _t.localtime(_t.time() + 86400))
     lines = [f"Hora local: {_t.strftime('%H:%M')} · hoy es {_t.strftime('%A %d %b')} ({_t.strftime('%Y-%m-%d')}); "
              f"mañana es {_tm}."]
+    # PRÓXIMOS 7 DÍAS con su fecha (V2-121). Mismo motivo que la línea de arriba, un paso más allá: para programar
+    # un aviso «el miércoles» hay que saber QUÉ FECHA es ese miércoles, y hacer esa cuenta de cabeza es justo el
+    # tipo de aritmética en la que un modelo pequeño se equivoca en silencio — y un aviso mal fechado no se nota
+    # hasta el día que no suena. Con la lista delante, traducir un día nombrado a la fecha absoluta que pide
+    # `[[cron.create]]` es una LECTURA. ~90 chars/turno; se calcula sin I/O.
+    _now = _t.time()
+    _days = "; ".join(f"{_t.strftime('%A', _t.localtime(_now + i * 86400)).lower()} "
+                      f"{_t.strftime('%Y-%m-%d', _t.localtime(_now + i * 86400))}" for i in range(1, 8))
+    lines.append(f"Próximos días (para fechar un aviso o una cita): {_days}.")
     try:
         # V2-038 §v3·G: UNA sola verdad — el registro RAM de dispatch (no el summary_line del escalate legacy).
         # Lectura de dict en RAM (µs, sin I/O): más fresca que el bloque BRAIN WORKERS del ESTADO (proyección ~1 Hz),

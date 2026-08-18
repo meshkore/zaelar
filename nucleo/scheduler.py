@@ -6,6 +6,11 @@ programadas se **persisten en `memory.journal`** (continuidad tras reinicio) y l
 
 Formatos de `schedule` (mismos que enseñaba el brief de cron, agnósticos del idioma en el parser):
   - **una vez, relativo**: `"30m"`, `"2h"`, `"1d"`, `"45s"` (también `"en 30m"`, `"in 2h"`, `"+1h"`).
+  - **una vez, FECHA ABSOLUTA**: `"2026-08-19 09:00"` (o `"2026-08-19T09:00"`, o `"2026-08-19"` → 09:00 por
+    defecto). Añadido 2026-08-18 (V2-121): sin esto NO había forma de programar un aviso de una sola vez en un
+    DÍA concreto — «recuérdamelo el miércoles» solo se podía expresar como un cron 5-campos `0 9 * * 3`, que es
+    RECURRENTE (avisa todos los miércoles para siempre) o contando días a mano (`2d`), que es frágil y opaco.
+    El caso de uso `remember-and-remind-deadline` lo midió: el aviso no llegaba a existir.
   - **recurrente por intervalo**: `"every 30m"`, `"cada 2h"`.
   - **cron 5-campos**: `"0 9 * * *"` (min hora dom mes dow; soporta `* , - /`).
 
@@ -27,6 +32,13 @@ _UNIT_S = {"s": 1, "sec": 1, "m": 60, "min": 60, "h": 3600, "hr": 3600, "d": 864
 
 _RE_EVERY = re.compile(r"^(?:every|cada)\s+(\d+)\s*(s|sec|m|min|h|hr|d|day)s?$", re.I)
 _RE_ONCE = re.compile(r"^(?:in\s+|en\s+|\+)?(\d+)\s*(s|sec|m|min|h|hr|d|day)s?$", re.I)
+# Fecha ABSOLUTA de una sola vez (V2-121): ISO `YYYY-MM-DD` con hora opcional separada por espacio o `T`.
+# Deliberadamente SOLO ISO: el prompt del cerebro ya lleva la fecha de hoy y de mañana en ese mismo formato
+# (`prompt.live_state`), así que el modelo no tiene que inventarse una gramática de fechas — traduce «el
+# miércoles» a la fecha que ya tiene delante. Un formato local ambiguo (19/08 vs 08/19) se rechaza a propósito.
+_RE_ABS = re.compile(r"^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{1,2}):(\d{2}))?$")
+# Hora por defecto cuando se da un día sin hora: un recordatorio «el miércoles» se entrega por la mañana.
+_DEFAULT_HOUR = 9
 
 
 # ── parseo del schedule ──────────────────────────────────────────────────────────────────────────────────
@@ -50,6 +62,24 @@ def parse_schedule(spec: str, now: float | None = None) -> dict | None:
             return None
         return {"type": "once", "interval_s": iv, "next_run": int(now + iv),
                 "display": f"en {m.group(1)}{m.group(2).lower()}"}
+    m = _RE_ABS.match(s)
+    if m:
+        y, mo, d = int(m.group(1)), int(m.group(2)), int(m.group(3))
+        hh = int(m.group(4)) if m.group(4) is not None else _DEFAULT_HOUR
+        mi = int(m.group(5)) if m.group(5) is not None else 0
+        if not (1 <= mo <= 12 and 1 <= d <= 31 and 0 <= hh <= 23 and 0 <= mi <= 59):
+            return None
+        try:
+            # mktime interpreta la tupla en HORA LOCAL, que es la del operador — igual que `next_cron`.
+            ts = time.mktime((y, mo, d, hh, mi, 0, 0, 1, -1))
+        except (OverflowError, ValueError):
+            return None
+        # Una fecha ya PASADA no se programa: entregar «ya» un aviso del jueves pasado es peor que rechazarlo,
+        # porque el operador cree que quedó puesto para el que viene.
+        if ts <= now:
+            return None
+        return {"type": "once", "interval_s": int(ts - now), "next_run": int(ts),
+                "display": time.strftime("%Y-%m-%d %H:%M", time.localtime(ts))}
     if len(s.split()) == 5:
         nr = next_cron(s, now)
         if nr is not None:

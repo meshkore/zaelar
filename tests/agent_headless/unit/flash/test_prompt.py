@@ -97,3 +97,33 @@ def test_prompt_never_exposes_memory_layers(fresh_db, monkeypatch, lang, needle)
     monkeypatch.setenv("ZAELAR_LANGUAGE", lang)
     system, _ = prompt.build_flash_system()
     assert needle in system                  # aparece SOLO en la prohibición de la misión
+
+
+# ── proactividad y multi-intención (casos de uso del 2026-08-18) ─────────────────────────────────────────
+def test_the_cron_line_makes_a_spoken_reminder_insufficient():
+    """V2-121 · `remember-and-remind-deadline`. Decir «te lo recuerdo» no programa nada; el prompt tiene que
+    decirlo con esas letras, porque la corrida midió tres turnos afirmando que estaba programado con cero
+    mecanismo detrás."""
+    line = prompt._cron_line()
+    assert "[[cron.create]]" in line
+    assert "EN ESE TURNO" in line
+    assert "YYYY-MM-DD HH:MM" in line       # el formato que hace EXPRESABLE un aviso de una sola vez
+    assert "add_meeting" in line            # apuntar y avisar son dos cosas, y se piden las dos
+
+
+def test_live_state_lists_the_next_seven_days_with_their_dates():
+    """Traducir «el miércoles» a una fecha absoluta debe ser una LECTURA, no aritmética de cabeza: un aviso mal
+    fechado no se nota hasta el día que no suena."""
+    import time as _t
+    live = prompt.live_state()
+    assert "Próximos días" in live
+    for i in (1, 3, 7):
+        assert _t.strftime("%Y-%m-%d", _t.localtime(_t.time() + i * 86400)) in live
+
+
+def test_the_one_thing_per_turn_rule_is_about_actions_not_answers(fresh_db):
+    """V2-120 · `quick-fact-opening-hours`. «UNA cosa por turno» se leía como permiso para contestar media
+    pregunta: se pidieron la hora Y el precio en la misma frase y volvió una sola mitad, dos rondas seguidas."""
+    system, _ = prompt.build_flash_system()
+    assert "UNA ACCIÓN por turno" in system
+    assert "las contestas LAS DOS en ese turno" in system

@@ -67,24 +67,38 @@ TOOLS: list[dict] = [
         "function": {
             "name": "escalate_to_slowbrain",
             # NOTA: reglas condensadas (V2-035, 2026-07-14) — se conservan las que vinieron de bugs reales:
-            # "recordatorio simple = sin tool" (V2-029), "no duplicar tarea en curso" (V2-029), "llámala YA en el
-            # turno, no basta con decirlo". Se quitaron ejemplos y las descripciones de OTRAS tools (redundantes).
+            # "no duplicar tarea en curso" (V2-029), "llámala YA en el turno, no basta con decirlo". Se quitaron
+            # ejemplos y las descripciones de OTRAS tools (redundantes).
+            #
+            # TRES cambios medidos por los casos de uso del 2026-08-18 (`tests/use_cases/`), todos por SUSTITUCIÓN
+            # para no engordar el turno (techo del catálogo, `test_router.py::test_tool_catalog_stays_compact`):
+            #  · V2-121 — fuera «un recordatorio simple (reconócelo sin tool, tu memoria lo guarda)». Esa frase
+            #    ENSEÑABA la alucinación de cumplimiento que el caso `remember-and-remind-deadline` midió: el
+            #    cerebro contestó «Done» a «apúntamelo y recuérdamelo el miércoles» sin disparar nada. El destino
+            #    correcto no era «ninguna tool», era `[[cron.create]]` (+ la agenda), así que ahora se nombra.
+            #  · V2-119 — HACER un compromiso del mundo real estaba implícito («ejecutar»), y solo se nombraban
+            #    los de DESHACER (cancelar, dar de baja). Una reserva de mesa es el caso más común de todos y
+            #    ahora aparece con su nombre: `restaurant-tonight-madrid` acabó sin ningún intento real.
+            #  · V2-118 — «VARIAS tareas = una llamada por cada una»: el operador encargó tres trabajos en un
+            #    turno y el sistema arrancó uno. La otra mitad de ese fallo era del provider (solo ejecutaba la
+            #    PRIMERA escalada del turno), arreglada en `voice/engine/llm/providers/nucleo.py`; sin decírselo
+            #    también al modelo, la capacidad nueva no se usa. Y el «no está en el catálogo» con el que se
+            #    negó a montar el juego: un widget que no existe es justo el que se construye.
             "description": (
-                "Delega la tarea: lanza un worker de fondo (un agente con memoria, código, navegador y razonamiento) "
-                "— nada de eso lo haces tú en el turno. SÍ: investigar/informe/comparativa a fondo; navegar u operar "
-                "una web o marketplace (buscar anuncios en Wallapop/Amazon…); crear, modificar o arreglar el CÓDIGO "
-                "de un widget; conseguir una foto/imagen REAL para ENSEÑARLA en pantalla (nunca la describas de "
-                "palabra: búscala de verdad); recordar algo de OTRAS sesiones que no está en "
-                "tu ESTADO; y ejecutar o DESHACER un "
-                "compromiso del mundo real (cancelar o cambiar una cita/reserva, dar de baja, pedir, pagar) — el "
-                "widget es solo su espejo, que el worker actualiza después. NO: charla; un dato puntual del mundo "
-                "(web_search); un recordatorio simple (reconócelo sin tool, tu memoria lo guarda); tocar la LISTA de "
-                "un widget (widget_data); MOSTRAR contenido que YA existe en un widget, aunque digas «el mensaje "
-                "nuevo» (show_widget); cambiar el vídeo de un widget `youtube` (play_video). AL REDACTAR la "
-                "petición: los HALLAZGOS (datos, informe, ficha de un producto, listado, fotos) se ENSEÑAN en la "
-                "hoja de resultados, que ya existe — no pidas «monta un widget» para presentar algo. Un widget "
-                "NUEVO es solo para funcionalidad que NO existe y que el operador maneja (un juego, un contador, "
-                "una mini-app). Si dudas entre retoque "
+                "Delega la tarea: lanza un worker de fondo (memoria, código, navegador, razonamiento). "
+                "SÍ: investigar/informe/comparativa a fondo; navegar u operar una web o marketplace (buscar "
+                "anuncios en Wallapop/Amazon…); crear, modificar o arreglar el CÓDIGO de un widget; conseguir una "
+                "foto/imagen REAL para ENSEÑARLA (nunca la describas: búscala); recordar algo de OTRAS sesiones "
+                "que no está en tu ESTADO; y HACER, cambiar o DESHACER un compromiso del mundo real (reservar "
+                "mesa/hora, cancelar una cita, dar de baja, pedir, pagar) — el widget es solo su espejo, que el "
+                "worker actualiza después. NO: charla; un dato puntual del mundo (web_search); un aviso a una hora "
+                "o día ([[cron.create]]); tocar la LISTA de un widget (widget_data); MOSTRAR contenido que YA "
+                "existe en un widget, aunque digas «el mensaje nuevo» (show_widget); cambiar el vídeo de un widget "
+                "`youtube` (play_video). VARIAS tareas distintas en un turno = una llamada por CADA UNA (corren a "
+                "la vez). AL REDACTAR: los HALLAZGOS (datos, informe, ficha, listado, fotos) se ENSEÑAN en la hoja "
+                "de resultados, que ya existe — no pidas «monta un widget» para presentar algo. Un widget NUEVO es "
+                "solo para funcionalidad que NO existe y que el operador maneja (un juego, un contador): no estar "
+                "en el catálogo NO es motivo para negarte, es justo lo que se construye. Si dudas entre retoque "
                 "local y acción real, escala. Si ya hay una tarea EN CURSO para esto no la repitas: di que sigues "
                 "con ello. Llámala YA en este turno; tu frase acompaña la llamada, no la sustituye."
             ),
@@ -218,7 +232,8 @@ TOOLS: list[dict] = [
                 "quitar, silenciar…). Úsala siempre que pidan cambiar algo de un widget en vez de solo decirlo. "
                 "`widget_id` y `action` EXACTOS del catálogo de RECURSOS, no los inventes. No crea ni cambia su "
                 "CÓDIGO (escalate) ni lo abre/cierra (show_widget / [[close:ID]]; no existe acción 'show'). "
-                "add_meeting = SOLO un evento con fecha/hora; un recordatorio sin fecha no lleva tool. Para un item "
+                "add_meeting = SOLO un evento con fecha/hora — y APUNTARLO no es AVISAR: el recordatorio previo "
+                "es una tag [[cron.create]] aparte, y el operador que pide las dos cosas espera las dos. Para un item "
                 "que ya existe, descríbelo en `item` en lenguaje natural, nunca con un id inventado; en `payload` "
                 "solo los datos nuevos. Si el item refleja un COMPROMISO del mundo real (una cita o reserva hecha en "
                 "algún sitio, una suscripción, un pedido) y quiere cancelarlo, el dato local no basta: la acción de "
@@ -250,9 +265,11 @@ TOOLS: list[dict] = [
             # Condensada (V2-035): se conserva "no dar dato a ojo y luego buscar" (contradicción, V2-029) y la
             # frontera marketplace→escalate (bug de confundir buscar-dato con navegar-tienda).
             "description": (
-                "Busca en la web UN dato factual puntual del mundo que cambia con el tiempo y no tienes (un precio, "
+                "Busca en la web un dato factual puntual del mundo que cambia con el tiempo y no tienes (un precio, "
                 "el tiempo, un resultado, una noticia, una cotización). Vuelve en este turno y lo dices tú, sin "
-                "tarjeta ni navegador. Solo trae TEXTO — nunca una foto/imagen real que enseñar (si piden VERLA, "
+                "tarjeta ni navegador. Si la pregunta trae DOS datos («a qué hora abre Y cuánto cuesta»), van "
+                "AMBOS en la MISMA `query` y respondes los dos en ese turno: una sola búsqueda, no media "
+                "respuesta. Solo trae TEXTO — nunca una foto/imagen real que enseñar (si piden VERLA, "
                 "escala; describirla de palabra no es lo que pidieron). NUNCA para datos PROPIOS del operador (sus mensajes, su agenda, sus widgets, "
                 "sus conectores, qué tienes tú conectado): eso sale de tu ESTADO o se muestra. NUNCA la hora ni la "
                 "fecha LOCALES (están en tu ESTADO) — pero la hora en OTRO sitio SÍ se busca, jamás la calcules a "

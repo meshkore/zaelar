@@ -422,3 +422,43 @@ def test_the_tool_says_out_loud_that_the_chat_is_not_a_widget():
     assert "close" in desc
     low = desc.lower()
     assert "no es un widget" in low or "nunca show_widget" in low
+
+
+# ── contratos de descripción nacidos de los casos de uso del 2026-08-18 ──────────────────────────────────
+# Mismo criterio que los dos tests de arriba: cuando la frontera vive en la PROSA de la tool (no hay parámetro
+# que la exprese), la regresión solo se caza textualmente. Cada uno cita el caso que lo midió.
+def test_escalate_no_longer_teaches_that_a_reminder_needs_no_tool():
+    """V2-121 · `remember-and-remind-deadline`. El catálogo decía «un recordatorio simple (reconócelo sin tool,
+    tu memoria lo guarda)» — o sea, ENSEÑABA a contestar «Done» y no programar nada, que es exactamente la
+    alucinación de cumplimiento que midió el caso. El destino correcto existe: [[cron.create]]."""
+    d = _desc("escalate_to_slowbrain")
+    assert "sin tool" not in d.lower()
+    assert "cron.create" in d          # se nombra el destino de verdad, no un «no hagas nada»
+
+
+def test_widget_data_says_that_writing_it_down_is_not_warning():
+    """V2-121 · la otra mitad del mismo caso: el operador pidió DOS cosas (apuntar el jueves, avisar el
+    miércoles) y son dos subsistemas. Confirmar una y callar la otra es el fallo."""
+    d = _desc("widget_data")
+    assert "cron.create" in d
+
+
+def test_escalate_says_several_tasks_mean_several_calls():
+    """V2-118 · `three-tasks-at-once`: tres encargos en un turno, UNA tarea viva. La mitad de mecanismo está
+    arreglada en el provider (antes solo ejecutaba la primera llamada); sin decírselo también al modelo, la
+    capacidad nueva no llega a usarse."""
+    d = _desc("escalate_to_slowbrain").lower()
+    assert "cada una" in d
+
+
+def test_escalate_says_a_widget_missing_from_the_catalog_is_the_one_to_build():
+    """V2-118 · turno 1 de la corrida: «no existe en el catálogo, así que necesitará construcción a medida» —
+    se negó a montar justo lo que se le pedía montar."""
+    assert "no estar en el catálogo NO es motivo para negarte" in _desc("escalate_to_slowbrain")
+
+
+def test_web_search_answers_both_halves_of_a_two_part_question():
+    """V2-120 · `quick-fact-opening-hours`: se preguntó la hora Y el precio en la misma frase y volvió con la
+    mitad, dos rondas seguidas (una vez cada mitad)."""
+    d = _desc("web_search").lower()
+    assert "dos datos" in d and "misma `query`" in d

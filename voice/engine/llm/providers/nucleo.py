@@ -1024,7 +1024,15 @@ class NucleoLLMStream(llm.LLMStream):
         except Exception:
             _busy_at_start = {}
         buf, spoken, first_ms = "", [], None
-        escalate_req = {"v": None}
+        # `v` = la escalada PRINCIPAL del turno (la primera); `more` = las ADICIONALES cuando el operador encarga
+        # varias tareas DISTINTAS de una sentada (V2-118, medido 2026-08-18). Antes solo existía `v` con un
+        # `if is None`, así que de «hazme un informe, búscame un monitor y móntame un widget» arrancaba UNA tarea
+        # y las otras dos se descartaban en silencio — mientras el turno DECÍA que las tres iban en marcha. El
+        # arnés lo midió por el registro real (`/api/tasks`), no por el transcript: máximo simultáneo 1.
+        # Sigue habiendo una principal a propósito: todo el resto del turno (guards de show, backstops, dedup,
+        # ack «nunca mudo») razona sobre UNA decisión, y esos caminos no cambian. Las adicionales solo se suman
+        # al final, cuando ya se sabe que el turno escaló de verdad.
+        escalate_req: dict = {"v": None, "more": []}
         search_req = {"v": None}
         recall_req = {"v": None}         # V2-056: el modelo pidió RECORDAR (tool recall) — se resuelve tras el stream
         reveal_req = {"v": None}         # V2-060: el operador pidió un SECRETO (reveal_secret) — valor OUT-OF-BAND
@@ -1183,11 +1191,12 @@ class NucleoLLMStream(llm.LLMStream):
                             (d.get("prompt") or d.get("task") or "").strip(),
                             (d.get("schedule") or d.get("when") or "").strip(),
                             name=(d.get("name") or "").strip(), repeat=str(d.get("repeat") or ""))
-                        emit("brain", "⏰ tarea programada" if r.get("ok") else "⚠️ schedule no reconocido",
-                             text=r.get("display") or "", role="system", extra={"ok": bool(r.get("ok"))})
+                        emit("cron", "⏰ tarea programada" if r.get("ok") else "⚠️ schedule no reconocido",
+                             text=r.get("display") or r.get("error") or "", role="system",
+                             extra={"ok": bool(r.get("ok")), "op": action})
                     else:
                         _sched.cancel(extra.get("name") or d.get("name") or "")
-                        emit("brain", "🗑️ tarea cancelada", role="system")
+                        emit("cron", "🗑️ tarea cancelada", role="system", extra={"ok": True, "op": action})
                 except Exception as e:  # noqa: BLE001
                     logger.warning(f"nucleo cron {action} failed: {e}")
                 return
@@ -1540,6 +1549,13 @@ class NucleoLLMStream(llm.LLMStream):
                 req = (args.get("request") or "").strip() or text
                 if escalate_req["v"] is None:
                     escalate_req["v"] = req
+                elif (args.get("request") or "").strip():
+                    # Una 2ª (3ª…) llamada del MODELO en el mismo turno = otra tarea. Se exige `request` propio:
+                    # sin él la llamada cae a `text`, que es la MISMA frase, y duplicaríamos la tarea principal.
+                    # El tope existe porque el destinatario es un pool de workers reales (`dispatch._max_parallel`,
+                    # 3 por defecto): un modelo que se atasque enumerando no debe poder abrir una tarea por ítem.
+                    if len(escalate_req["more"]) < 2 and req not in escalate_req["more"] and req != escalate_req["v"]:
+                        escalate_req["more"].append(req)
             elif name == "web_search":
                 q = (args.get("query") or "").strip() or text
                 # TURN-BLEED: el modelo a veces re-emite la búsqueda del turno ANTERIOR junto a la de este (visto:
@@ -2921,6 +2937,26 @@ class NucleoLLMStream(llm.LLMStream):
                     pass
                 _escalate_mod.escalate_to_slowbrain(req, context={"src": "voice"})
                 emit("brain", "🧭 Flash → Brain Worker (escalada registrada)", text=req, role="system")
+
+            # …y las tareas ADICIONALES del mismo turno (V2-118). Van DESPUÉS de la principal y solo si esta
+            # sobrevivió: los guards de arriba anulan `v` cuando el turno resulta no ser una tarea (era un show,
+            # un cierre, la respuesta a un worker), y en ese caso las demás tampoco lo eran. Cada una pasa por el
+            # MISMO dedup que la principal — dos peticiones parecidas se inyectan en la que ya corre en vez de
+            # abrir una segunda sesión de lo mismo.
+            _launched = list(_prev_pending) + [{"request": req}]
+            for _extra_req in escalate_req["more"]:
+                try:
+                    if _similar_pending(_extra_req, _launched):
+                        from nucleo import dispatch as _disp4
+                        _disp4.inject_soon(_extra_req, _extra_req)
+                        emit("brain", "↪️ tarea adicional → inyección a worker vivo", text=_extra_req, role="system")
+                    else:
+                        _escalate_mod.escalate_to_slowbrain(_extra_req, context={"src": "voice"})
+                        emit("brain", "🧭 Flash → Brain Worker (tarea adicional del mismo turno)",
+                             text=_extra_req, role="system")
+                    _launched.append({"request": _extra_req})
+                except Exception as _e_more:  # noqa: BLE001
+                    logger.warning(f"escalada adicional falló (las demás siguen): {_e_more}")
 
         # TELEMETRÍA compromiso-sin-acción (V2-047 F3, sesión 23:15 ITV T22: «Me pongo con ello ahora mismo» con
         # decisión VACÍA — el modelo prometió y NO llamó a ninguna tool; el operador esperó 6 min). NO cambia el

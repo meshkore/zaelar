@@ -107,3 +107,55 @@ def test_repeat_forces_recurrence(fresh_db):
     r = scheduler.create("ping", "30m", repeat="30m", now=now)
     assert r["ok"]
     assert scheduler.list_jobs()[0]["type"] == "interval"
+
+
+# ── fecha ABSOLUTA de una sola vez (V2-121) ──────────────────────────────────────────────────────────────
+# Añadido porque el caso de uso `remember-and-remind-deadline` midió que «recuérdamelo el miércoles» NO tenía
+# forma de expresarse: solo había plazos relativos (`2d`, frágil) y cron de 5 campos (RECURRENTE — avisaría
+# todos los miércoles). El aviso no llegaba a existir y el turno decía que sí.
+def _at(y, mo, d, h=12, mi=0):
+    return time.mktime((y, mo, d, h, mi, 0, 0, 1, -1))
+
+
+def test_parse_absolute_date_with_time_is_a_one_shot():
+    now = _at(2026, 8, 18, 12, 0)
+    s = scheduler.parse_schedule("2026-08-19 09:00", now=now)
+    assert s["type"] == "once"                       # una sola vez, no un cron semanal
+    assert s["next_run"] == int(_at(2026, 8, 19, 9, 0))
+    assert s["display"] == "2026-08-19 09:00"        # legible para el operador, no un epoch
+
+
+def test_parse_absolute_date_accepts_iso_t_separator():
+    now = _at(2026, 8, 18, 12, 0)
+    assert scheduler.parse_schedule("2026-08-19T07:30", now=now)["next_run"] == int(_at(2026, 8, 19, 7, 30))
+
+
+def test_parse_absolute_date_without_time_defaults_to_the_morning():
+    now = _at(2026, 8, 18, 12, 0)
+    s = scheduler.parse_schedule("2026-08-19", now=now)
+    assert s["next_run"] == int(_at(2026, 8, 19, scheduler._DEFAULT_HOUR, 0))
+
+
+def test_absolute_date_already_past_is_rejected():
+    # Entregar «ya» un aviso del jueves pasado es peor que rechazarlo: el operador se queda creyendo que quedó
+    # puesto para el jueves que viene.
+    now = _at(2026, 8, 18, 12, 0)
+    assert scheduler.parse_schedule("2026-08-17 09:00", now=now) is None
+    assert scheduler.parse_schedule("2026-08-18 11:00", now=now) is None
+
+
+def test_absolute_date_rejects_impossible_and_ambiguous_formats():
+    now = _at(2026, 8, 18, 12, 0)
+    for spec in ("2026-13-01 09:00", "2026-08-19 25:00", "19/08 09:00", "19-08-2026 09:00"):
+        assert scheduler.parse_schedule(spec, now=now) is None, spec
+
+
+def test_absolute_one_shot_closes_after_firing(fresh_db):
+    now = _at(2026, 8, 18, 12, 0)
+    r = scheduler.create("renovar el seguro del coche", "2026-08-19 09:00", name="seguro coche", now=now)
+    assert r["ok"], r
+    job = [j for j in scheduler.list_jobs() if j["name"] == "seguro coche"][0]
+    fired = scheduler.due(job["next_run"] + 1)
+    assert [j["id"] for j in fired] == [job["id"]]
+    scheduler.mark_fired(fired[0], job["next_run"] + 1)
+    assert not scheduler.list_jobs(active_only=True)   # `once` no se re-programa
