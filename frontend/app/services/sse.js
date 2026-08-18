@@ -62,6 +62,14 @@ export function openSSE(desktop) {
         store.setChatTab(tab);
         store.setChatOpen(true);
       }
+    } else if (d.kind === "filler" && d.text) {
+      // Lead-in wait-filler (V2-093/V2-114): a real phrase the agent just said out loud, so it belongs in the
+      // chat wall — but pushed with its own distinct marker, never as `kind:"transcript"`, so it can't be
+      // confused with a real LLM-generated reply. Emitted explicitly and synchronously by lead_in_filler.py the
+      // instant it's decided (always BEFORE any real reply text exists), so it lands in the right order without
+      // depending on LiveKit's own conversation-item timing — the exact mechanism that caused the original bug
+      // (a filler showing up AFTER an already-resolved reply).
+      store.pushAgentChat("💬 " + d.text);
     } else if (d.kind === "transcript" && d.text) {
       if (d.role === "assistant") {
         // zaelar's FINAL turn text → chat wall (the HISTORY). The LIVE caption over the orb does NOT come from here

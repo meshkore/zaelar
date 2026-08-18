@@ -35,6 +35,10 @@ _CAT = {
     # ── FlashBrain (ON) — el TURNO: qué se dijo, qué decidió el orquestador, qué buscó, qué auditó Susurro.
     "brain": "flash", "transcript": "flash", "ambient": "flash", "search": "flash",
     "susurro": "flash", "rail": "flash", "trace": "flash",
+    # `filler` (V2-114 addenda, 2026-08-18): the lead-in wait-filler ("Un segundo…"), explicitly PUSHED to the
+    # chat wall (see `lead_in_filler.py`) — same family as the turn that spoke it, but its own kind so the
+    # frontend can mark it distinctly (never confused with a real LLM-generated reply).
+    "filler": "flash",
     # ── Brain Workers (ON) — el trabajo ASYNC: sesiones de worker, el Chromium interno que abren para navegar,
     # y los procesos backed/background que corren fuera del turno. El navegador va AQUÍ (2026-08-09): para el
     # operador «abrir el navegador» no es una familia propia, es lo que hace un worker cuando le hace falta.

@@ -17,6 +17,13 @@ verbs plus `start()`.
 Voice-only: `event_ch`/`emit` are turn-scoped LiveKit plumbing the probe (headless text channel) doesn't have,
 so the caller only constructs this when a live session exists (kill-switch `ZAELAR_FILLER_MS=0` — `delay_ms<=0`
 also short-circuits `start()`).
+
+VISIBILITY (2026-08-18): a filler IS something the agent said out loud, so it belongs in the chat wall like
+anything else — the operator's own words, "son frases que acaba de decir el agente". Its AUDIO stays out of
+LiveKit's own conversation history (`proactive.ephemeral_speaker()`, `add_to_chat_ctx=False`) — that mechanism
+is what caused the original bug (a filler landing AFTER an already-resolved reply, LiveKit's own item-add
+ordering, not ours). The CHAT/observability visibility is instead pushed EXPLICITLY, by us, with a dedicated
+`kind="filler"` so the frontend marks it distinctly from a real LLM-generated reply — see `_run()`'s final emit.
 """
 from __future__ import annotations
 
@@ -103,13 +110,13 @@ class LeadInFiller:
             # ve `.!?。！？` **y** el buffer pasa de 20 caracteres. Los rellenos acaban en «…» (no es fin de
             # frase para ese regex) y ninguno llega a 20 chars → cero segmentos; se quedaban retenidos hasta que
             # la respuesta real cerraba el stream y entonces se hablaban PEGADOS a ella.
-            # ── EFÍMERO, no el hablador normal (V2-114, 2026-08-17) ──────────────────────────────────────────
+            # ── AUDIO efímero, no el hablador normal (V2-114, 2026-08-17) ────────────────────────────────────
             # El OTRO registro de este mismo canal marca `add_to_chat_ctx=True` (el default de LiveKit) — un
-            # filler dicho por ahí SÍ entra al historial de conversación y de ahí al muro de chat vía
-            # `conversation_item_added`, justo lo que su propia razón de ser prohíbe («no es un mensaje que haya
-            # que conservar»). Reportado en vivo: «¡Hola!…» seguido de «Déjame que mire…» — el relleno colgando
-            # tras una respuesta que ya no necesitaba tapar nada. `ephemeral_speaker()` es la misma vía con
-            # `add_to_chat_ctx=False` — el registro que SÍ hay que usar aquí.
+            # filler dicho por ahí entra al historial de conversación de LIVEKIT, que dispara
+            # `conversation_item_added` en un orden que LiveKit decide, no nosotros: reportado en vivo,
+            # «¡Hola!…» seguido de «Déjame que mire…», el relleno colgando DESPUÉS de una respuesta que ya
+            # había resuelto. `ephemeral_speaker()` (`add_to_chat_ctx=False`) saca el AUDIO de ese mecanismo por
+            # completo — la visibilidad en chat/observabilidad la controlamos NOSOTROS, abajo, explícitamente.
             _spk = None
             try:
                 from voice import proactive as _proactive
@@ -129,6 +136,16 @@ class LeadInFiller:
             self._emit("brain", "💬 relleno de espera (lead-in)", text=_ph, role="system",
                        extra={"cat": "flash", "after_ms": self.delay_ms,
                               "path": "say" if _spk is not None else "stream"})
+            # ── MURO DE CHAT, explícito y marcado (2026-08-18, pedido del operador) ───────────────────────────
+            # Es una frase que el agente ACABA de decir en voz alta — pertenece al historial, igual que
+            # cualquier otra. La diferencia con el camino viejo (arriba) es que este `emit` lo disparamos
+            # NOSOTROS, síncronamente, en el mismo instante en que se decide el relleno — SIEMPRE antes de que
+            # exista texto real de respuesta (`mark_real_started()` cancela este mismo `_run()` en cuanto llega
+            # el primer token real, así que si esto se ejecuta es porque la respuesta real AÚN no existe). Eso
+            # garantiza el orden correcto sin depender de LiveKit — el propio bug que esto reemplaza. `kind`
+            # dedicado (`filler`, no `transcript`) para que el frontend lo marque como relleno, nunca como una
+            # respuesta generada por el modelo (`frontend/app/services/sse.js`).
+            self._emit("filler", "relleno", text=_ph, role="assistant", extra={"cat": "flash"})
         except asyncio.CancelledError:
             pass
         except Exception:

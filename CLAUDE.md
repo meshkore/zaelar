@@ -2588,6 +2588,24 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     alias pack) — no new mechanism needed, and no encroaching on the memory-domain session's territory. Tests:
     `tests/voice/unit/test_lang_fillers_store.py` (7 cases, testmap node 3.7). Full suite: 2086 passed, 7
     skipped. Detail: `V2-114-relleno-modulo-aislado-y-fuga-al-chat.md`.
+  - **V2-114 addenda (2026-08-18): "structurally unable to touch chat" over-corrected — the filler DOES belong
+    in the chat wall, just explicitly and marked.** Operator's own words: "son frases que acaba de decir el
+    agente" (they're phrases the agent just said) — making the filler invisible to fix its ORDERING bug threw
+    out real, user-visible content along with the bug. The audio-side fix stands unchanged
+    (`ephemeral_speaker()`, `add_to_chat_ctx=False` — that mechanism is what caused the ORIGINAL bug, LiveKit
+    deciding `conversation_item_added`'s firing order, not us). What's new: `LeadInFiller._run()` now ALSO
+    pushes its own dedicated, synchronous `emit("filler", "relleno", text=_ph, role="assistant", extra=
+    {"cat":"flash"})` — a NEW `kind` (added to `voice/observer.py`'s `_CAT` as `"flash"` family, caught by the
+    kind-classification ratchet test if forgotten) so the frontend can mark it distinctly from a real
+    LLM-generated reply, never as `kind="transcript"`. `frontend/app/services/sse.js` gains a
+    `kind==="filler"` branch → `store.pushAgentChat("💬 " + d.text)` (same prefixed-marker pattern as
+    `notify()`'s "🔔 "). Ordering is guaranteed WITHOUT depending on LiveKit at all: this emit fires
+    synchronously the instant the filler is decided, which by construction is always before any real reply
+    text exists (`mark_real_started()` cancels this exact code path the moment the model's first real token
+    arrives) — so the filler bubble always lands before the reply's, deterministically, regardless of TTS/
+    audio timing. Test: `tests/voice/unit/test_lead_in.py::test_leadinfiller_empuja_su_propio_evento_de_
+    chat_marcado` (behavioral, not source-grep — instantiates `LeadInFiller` directly and asserts both the
+    `filler` and `brain` events fire).
 
 ## Testing y rueda de mejora (INI-013)
 

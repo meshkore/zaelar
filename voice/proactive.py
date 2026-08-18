@@ -110,15 +110,17 @@ def speaker():
 def ephemeral_speaker():
     """La mitad EFÍMERA del mismo canal fuera de banda: suena igual (`session.say`) pero con
     `add_to_chat_ctx=False`, así que NUNCA entra en el historial de conversación de LiveKit ni dispara
-    `conversation_item_added` — o sea que nunca puede llegar al muro de chat. `None` si no hay sesión viva.
+    `conversation_item_added` — el orden en que LiveKit decide disparar ese evento es lo que causó el bug
+    original (V2-093, 2026-08-17): un filler dicho por `speaker()` normal («Déjame que mire…») acababa
+    apareciendo DESPUÉS de una respuesta que ya había resuelto («¡Hola! ¿Cómo va todo?»), porque el orden de
+    `conversation_item_added` no es el orden en que se decidió cada cosa. `None` si no hay sesión viva.
 
-    Existe en exclusiva para el LEAD-IN del FlashBrain (V2-093): un «Mmm…»/«A ver…» tapando el TTFT no es un
-    mensaje que conservar — su propia intención original ya lo decía («no es un mensaje que haya que
-    conservar»), pero antes de esto usaba `speaker()` (`add_to_chat_ctx=True` por defecto en LiveKit), así que
-    SÍ acababa entrando en el historial y, desde ahí, en el muro de chat vía `conversation_item_added` —
-    reportado en vivo (2026-08-17): «¡Hola! ¿Cómo va todo?» seguido de «Déjame que mire…», el relleno colgando
-    DESPUÉS de una respuesta que ya no necesitaba tapar nada. `speaker()` sigue siendo el correcto para
-    cualquier locución fuera de banda que SÍ tenga contenido real que conservar (V2-102, V2-096, `notify()`)."""
+    Esto NO significa que el relleno sea invisible — SÍ pertenece al muro de chat y a la observabilidad (es una
+    frase real que el agente dijo), solo que su visibilidad la empuja el propio `lead_in_filler.py` de forma
+    EXPLÍCITA (`kind="filler"`, síncrono, en el momento exacto en que se decide — SIEMPRE antes de que exista
+    texto de respuesta real), no delegada en el mecanismo de LiveKit que causó el desorden. `speaker()` sigue
+    siendo el correcto para cualquier locución fuera de banda que SÍ pueda depender del orden natural de
+    LiveKit porque no compite con una respuesta en curso (V2-102, V2-096, `notify()`)."""
     return _ephemeral_speaker
 
 

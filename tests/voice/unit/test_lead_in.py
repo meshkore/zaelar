@@ -176,6 +176,51 @@ def test_el_proveedor_manda_el_relleno_FUERA_DE_BANDA_Y_EFIMERO():
         "el ChatChunk tiene que quedar en la rama de respaldo, no en el camino normal"
 
 
+# ── EL RELLENO SÍ VA AL MURO DE CHAT — pero EXPLÍCITO y MARCADO (2026-08-18) ───────────────────────────────
+# El relleno «no debe colgar del historial de LiveKit» (arriba) no significa «no debe verse»: sigue siendo una
+# frase real que el agente dijo. La fuga original (LiveKit decidiendo el orden) se sustituye por un `emit`
+# PROPIO, síncrono, con un `kind` dedicado — así el frontend lo marca como relleno y nunca lo confunde con una
+# respuesta generada por el modelo, y el orden queda garantizado (se dispara ANTES de que exista texto real).
+def test_leadinfiller_empuja_su_propio_evento_de_chat_marcado():
+    import asyncio
+
+    from voice.engine.llm.providers.lead_in_filler import LeadInFiller
+
+    class _Brain:
+        _last_filler = ""
+
+    events = []
+
+    def _emit(kind, label, text="", role="", extra=None):
+        events.append({"kind": kind, "label": label, "text": text, "role": role, "extra": extra or {}})
+
+    async def _stub_speak(text):
+        pass
+
+    import voice.proactive as proactive
+    monkeypatch_targets = [
+        (proactive, "ephemeral_speaker", lambda: _stub_speak),
+        (proactive, "user_speaking", lambda: False),
+    ]
+    originals = [(obj, name, getattr(obj, name)) for obj, name, _ in monkeypatch_targets]
+    for obj, name, fn in monkeypatch_targets:
+        setattr(obj, name, fn)
+    try:
+        f = LeadInFiller(delay_ms=1, brain=_Brain(), superseded=lambda: False, event_ch=None, emit=_emit)
+        asyncio.run(f._run())
+    finally:
+        for obj, name, orig in originals:
+            setattr(obj, name, orig)
+
+    filler_events = [e for e in events if e["kind"] == "filler"]
+    assert filler_events, "el relleno tiene que empujar su propio evento marcado, dedicado (kind='filler')"
+    assert filler_events[0]["role"] == "assistant", "es una frase que el agente DIJO — role=assistant"
+    assert filler_events[0]["text"], "tiene que llevar la frase real que se dijo"
+    # …y el rastro de depuración de siempre se mantiene intacto, sin duplicar el kind.
+    debug_events = [e for e in events if e["kind"] == "brain"]
+    assert debug_events, "el rastro de observabilidad/depuración original no puede desaparecer"
+
+
 def test_el_hablador_efimero_pasa_add_to_chat_ctx_false():
     """Guarda de CÓDIGO sobre `agent.py`: el `session.say()` registrado como hablador EFÍMERO tiene que llevar
     `add_to_chat_ctx=False` — sin esto, `ephemeral_speaker()` no cumple lo que promete su nombre."""
