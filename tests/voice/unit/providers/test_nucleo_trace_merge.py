@@ -288,3 +288,73 @@ def test_drain_still_respects_flow_should_close_conditions(monkeypatch):
 
     assert closes == [], "a live worker spawned on this trace owns the close now"
     trace.adopt("")
+
+
+# ── CASO DE USO REAL: una frase titubeante = UN flujo (V2-116, sesión b403c979) ────────────────────────────────
+# Los cinco finales de STT que LiveKit entregó, verbatim y en orden, de una sola frase hablada sin parar:
+# «Mira, lo que quiero es que me digas cuál es el último Ferrari que ha salido al mercado, entonces quiero que me
+# muestres…». En producción salieron CUATRO corr_ids (T2·73cc, T3·0a2e, T4·075a, T5·ae59), cada uno cancelando al
+# anterior por barge-in, con dos prompts completos de ~5.800 tokens tirados a la basura.
+_REAL_FRAGMENTS = [
+    "Mira, lo que quiero es",
+    "que me digas cuál es el",
+    "último Ferrari",
+    "que ha salido al mercado,",
+    "entonces quiero que me muestres",
+]
+
+
+def _simulate_utterance(fragments, *, brain=None):
+    """Simula los turnos de voz que LiveKit dispararía para estos fragmentos, sobre una instancia de agente
+    LIMPIA, ejercitando EL MISMO código que corre en producción (`_begin_or_adopt_trace` + `Accumulator.offer` +
+    `_resolve_acc_chain`). Devuelve la lista de (fragmento, trace, acción) por turno."""
+    from voice.engine.llm.providers.nucleo import _resolve_acc_chain
+    b = brain if brain is not None else _fresh_brain()
+    if getattr(b, "_acc", None) is None:
+        b._acc = Accumulator()
+    out = []
+    for frag in fragments:
+        _begin_or_adopt_trace(b, frag, False)          # ← lo que hace `_run_inner` al empezar el turno
+        tid = trace.current()
+        action, _merged, _why, _dropped = _offer(b._acc, frag)
+        if action == "act":
+            _resolve_acc_chain(b)                       # ← y lo que hace al resolverse la cadena
+        out.append((frag, tid, action))
+    return out
+
+
+def test_use_case_una_frase_titubeante_es_UN_solo_flujo():
+    """EL CASO DEL OPERADOR, reproducido desde una instancia vacía: «en mitad de una frase se abren varios flujos».
+
+    Los flujos son el esqueleto del sistema — toda acción continua que dure minutos se asocia a su corr_id—, así
+    que partir una frase en cuatro rompe la garantía entera. La causa medida NO es el merge de V2-096 (que
+    funciona) sino que la continuidad del flujo COLGABA de acertar la completitud léxica: `looks_incomplete("Mira,
+    lo que quiero es")` devuelve False —cláusula colgada de la cópula «es»— así que el acumulador suelta la
+    cadena, se limpia `_acc_trace_id` y el trozo siguiente abre flujo nuevo. Verificado que este test falla sin
+    la ventana de gracia de `_begin_or_adopt_trace`."""
+    turns = _simulate_utterance(_REAL_FRAGMENTS)
+    tids = {tid for _, tid, _ in turns}
+    assert len(tids) == 1, (
+        "una sola frase tiene que ser UN solo flujo; salieron "
+        f"{len(tids)}: " + " · ".join(f"{f!r}→{t}" for f, t, _ in turns))
+    # …y la premisa que hace falso-negativo el arreglo: el primer trozo SIGUE juzgándose «completo» por el léxico.
+    # Si algún día deja de serlo, este caso ya no probaría lo que cree probar.
+    assert turns[0][2] == "act", "la premisa del caso (falso «completo» en el 1er trozo) ha cambiado"
+    trace.adopt("")
+
+
+def test_use_case_dos_peticiones_separadas_en_el_tiempo_siguen_siendo_dos_flujos():
+    """El contrapeso: la ventana de gracia no puede pegar TODO. Pasados los segundos de gracia, un tema nuevo abre
+    su propio flujo — si no, el arreglo cambiaría partir frases por fundir tareas distintas, que es igual de malo
+    para un esqueleto que existe para separar trabajos."""
+    import voice.engine.llm.providers.nucleo as _nuc
+    brain = _fresh_brain()
+    brain._acc = Accumulator()
+    first = _simulate_utterance(["¿Qué hora es?"], brain=brain)
+    assert first[0][2] == "act", "premisa: una frase completa se resuelve en el acto"
+    # el reloj avanza más allá de la gracia (sin dormir: se envejece la marca a mano)
+    tid_grace, _ts = brain._chain_grace
+    brain._chain_grace = (tid_grace, 0.0)
+    second = _simulate_utterance(["Ponme música"], brain=brain)
+    assert second[0][1] != first[0][1], "dos peticiones sin relación no pueden compartir flujo"
+    trace.adopt("")

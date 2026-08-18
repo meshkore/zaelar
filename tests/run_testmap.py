@@ -301,6 +301,13 @@ DOMAINS: list[dict] = [
         {"id": "4.16", "title": "Widgets que PRODUCEN: parada global · un solo dueño del altavoz · nada arranca con "
                                 "el agente parado", "ch": UNIT,
             "paths": ["tests/browser/unit/widgets/test_producers.py"]},
+        # 2026-08-18 (V2-116): el muro de chat solo se alimentaba del `transcript` de LiveKit, que no llega hasta
+        # que el TTS ha terminado de hablar la respuesta ENTERA — 5,4 s y 12,2 s medidos en una sesión real, y el
+        # operador lo vivió como «la he oído por voz y el texto llegó un minuto después». La respuesta se pinta
+        # ahora al generarse y el transcript posterior se funde por PREFIJO (que es también lo que hace bien el
+        # caso del barge-in, donde el transcript llega truncado).
+        {"id": "4.17", "title": "El muro de chat no espera a la voz (y el transcript posterior no duplica)",
+            "ch": UNIT, "paths": ["tests/browser/unit/chat/test_chat_wall_promptness.py"]},
     ]},
     {"id": "5", "name": "CONECTORES", "nodes": [
         {"id": "5.1", "title": "Email", "ch": UNIT, "paths": [

@@ -357,11 +357,25 @@ const _capChat = xs => xs.length > CHAT_CAP ? xs.slice(xs.length - CHAT_CAP) : x
 export const pushChat = (m) => setChatMsgs(xs => _capChat([...xs, m]));
 // Agent line for the history, DEDUPED: proactive pushes arrive on two channels (SSE "notify" + the agent's own
 // transcript when it speaks the same text) — collapse an immediate repeat (ignoring a leading 🔔).
+// 2026-08-18 (V2-116): el dedup compara por PREFIJO, no por igualdad exacta, y limpia también el marcador 💬.
+// Motivo: la respuesta se empuja al muro en cuanto el modelo la genera (fluidez — antes había que esperar a que
+// LiveKit cerrase el item de conversación, o sea a que el TTS TERMINARA de hablarla: 5-12 s medidos, y el
+// operador lo vivió como «la he oído por voz y el texto ha tardado un minuto»). El `transcript` de LiveKit llega
+// después con el MISMO texto y tiene que fundirse con el ya pintado; y si un barge-in cortó la locución a medias,
+// llega TRUNCADO — con igualdad exacta saldrían dos burbujas, una completa y una a medias. Se conserva la más
+// larga (lo que el agente quiso decir), que es la que sirve de historial.
+const _CHAT_MARKERS = /^(?:🔔|💬)\s*/;
 export const pushAgentChat = (text) => {
-  const norm = s => (s || "").replace(/^🔔\s*/, "").trim();
+  const norm = s => (s || "").replace(_CHAT_MARKERS, "").trim();
   setChatMsgs(xs => {
     const last = xs[xs.length - 1];
-    if (last && last.role === "agent" && norm(last.text) === norm(text)) return xs;
+    if (last && last.role === "agent") {
+      const a = norm(last.text), b = norm(text);
+      if (a && b && (a === b || a.startsWith(b))) return xs;          // ya está (o lo nuevo es una versión corta)
+      if (a && b && b.startsWith(a)) {                                 // lo nuevo AMPLÍA lo ya pintado → sustituye
+        return _capChat([...xs.slice(0, -1), { role: "agent", text }]);
+      }
+    }
     return _capChat([...xs, { role: "agent", text }]);
   });
 };

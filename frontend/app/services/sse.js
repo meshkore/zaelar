@@ -142,6 +142,14 @@ export function openSSE(desktop) {
       store.pushPulse({ kind: "tick", n: d.n });
     } else if (d.kind === "brain" && /reply/.test(String(d.label || ""))) {       // un turno del FlashBrain se cerró
       store.pushPulse({ kind: "turn" });                                          // → pico QRS más alto en el ECG
+      // …y el TEXTO al muro de chat YA (V2-116). Antes el muro solo se alimentaba del `transcript` de LiveKit, que
+      // no llega hasta que el item de conversación se cierra — o sea hasta que el TTS ha TERMINADO de hablar la
+      // respuesta entera: 5,4 s y 12,2 s medidos en la sesión b403c979, y el operador lo vivió como «la he oído
+      // por voz y el texto ha tardado un minuto en aparecer». Aquí el texto ya está generado y completo, así que
+      // el muro lo pinta en cuanto existe; el `transcript` posterior se funde por prefijo en `pushAgentChat` (y si
+      // un barge-in lo truncó, gana el completo). Los SUBTÍTULOS no se tocan: siguen viniendo de la transcripción
+      // sincronizada con el audio (session-lk.js), que es lo correcto para algo que acompaña a la voz.
+      if (d.text && d.role === "assistant") store.pushAgentChat(d.text);
     } else if (d.kind === "status") {                                             // server nudged us to re-read status
       refreshStatus();
     } else if (d.kind === "energy") {                                             // saldo de Energy → la PILA baja EN VIVO

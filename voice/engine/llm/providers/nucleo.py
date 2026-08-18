@@ -94,6 +94,13 @@ def _extends(prev: str, cur: str) -> bool:
     return bool(p) and len(c) > len(p) and c.startswith(p)
 
 
+# Cuánto tiempo sigue "en gracia" el trace de una cadena ya resuelta, para que el trozo siguiente de la MISMA
+# frase lo adopte en vez de abrir un flujo nuevo (V2-116). 3 s cubre con holgura las pausas reales medidas dentro
+# de una frase (V2-096: p50 2,3 s) sin llegar a pegar dos peticiones distintas: pasada la ventana, tema nuevo =
+# flujo nuevo, como siempre.
+_CHAIN_GRACE_S = float(os.getenv("ZAELAR_CHAIN_GRACE_S", "3.0"))
+
+
 def _begin_or_adopt_trace(brain: "NucleoLLM", text: str, first_turn: bool) -> None:
     """Decide si este turno abre un trace NUEVO o ADOPTA el de una cadena de fragmentos ya a medias (V2-096
     addenda, 2026-08-15). LiveKit cierra un turno por CADA segmento final del STT, así que una frase larga dicha
@@ -104,6 +111,25 @@ def _begin_or_adopt_trace(brain: "NucleoLLM", text: str, first_turn: bool) -> No
     (buffer vacío) abre trace con `begin()` como siempre, y ese id pasa a ser el de la cadena hasta que se
     resuelva (`brain._acc_trace_id`, limpiado por el llamador cuando `offer()` devuelve "act").
 
+    ⚠️ ESO SOLO NO BASTA, y volvió a romperse el 2026-08-18 (sesión b403c979, V2-116). La adopción se apoyaba
+    ENTERAMENTE en que el acumulador tuviera la cadena abierta (`.pending()`), o sea en que la capa LÉXICA
+    (`segmenter.looks_incomplete`) acertara al decir «esto está a medias». Un solo falso «completo» rompe la
+    cadena y con ella el flujo: medido con los cinco finales de STT reales de esa sesión,
+    `looks_incomplete("Mira, lo que quiero es")` devuelve **False** —una cláusula colgada de la cópula «es», que
+    exige un complemento que aún no se ha dicho— así que el acumulador la SUELTA, `_acc_trace_id` se limpia
+    (rama "act") y el trozo siguiente abre un flujo nuevo. En producción salieron CUATRO corr_ids de una sola
+    frase, cada uno cancelando al anterior por barge-in.
+
+    La continuidad del FLUJO no puede depender de acertar la completitud de la frase: son dos preguntas
+    distintas, y el flujo es el esqueleto («cualquier acción continua que pueda durar minutos se asocia a un
+    flujo», norma del operador). Por eso, al resolverse una cadena, su trace no se tira: queda en GRACIA unos
+    segundos (`_CHAIN_GRACE_S`) y un turno que llegue dentro de esa ventana lo ADOPTA. Es estructural y
+    barato — sin listas de palabras, sin LLM, sin latencia — y falla del lado seguro: como mucho une dos frases
+    dichas casi seguidas en un flujo, que es MUCHO menos dañino que partir una frase titubeante en cuatro.
+    La causa de raíz (el falso «completo» de la capa léxica, que además quema un prompt entero y deja un turno
+    cancelado) queda documentada y reproducida en V2-116; tocar esas listas exige la medición contra el corpus
+    que V2-095 dejó montada, no un parche a ojo.
+
     Función aparte (no inline en `_run_inner`) para que sea comprobable SIN un stream de LiveKit real — ver
     `tests/voice/unit/providers/test_nucleo_trace_merge.py`."""
     from voice import trace as _trace
@@ -112,8 +138,26 @@ def _begin_or_adopt_trace(brain: "NucleoLLM", text: str, first_turn: bool) -> No
         return
     if getattr(brain, "_acc", None) is not None and brain._acc.pending() and brain._acc_trace_id:
         _trace.adopt(brain._acc_trace_id)
-    else:
-        brain._acc_trace_id = _trace.begin(text, origin="turno")
+        return
+    grace_tid, grace_ts = getattr(brain, "_chain_grace", ("", 0.0))
+    if grace_tid and (time.time() - grace_ts) <= _CHAIN_GRACE_S:
+        brain._acc_trace_id = grace_tid
+        _trace.adopt(grace_tid)
+        return
+    brain._acc_trace_id = _trace.begin(text, origin="turno")
+
+
+def _resolve_acc_chain(brain: "NucleoLLM") -> None:
+    """Una cadena de fragmentos acaba de RESOLVERSE (`offer()` devolvió "act"): su trace deja de estar activo pero
+    pasa a GRACIA en vez de tirarse, para que el trozo siguiente de la misma frase lo adopte
+    (`_begin_or_adopt_trace`) en vez de abrir un flujo nuevo.
+
+    Existe como función —y no como dos líneas dentro de `_run_inner`— para que el test pueda ejercitar EL MISMO
+    código que corre en producción. Un test que se re-implemente la contabilidad del llamante puede pasar
+    mientras producción hace otra cosa, que es exactamente el modo de fallo que V2-116 viene a cerrar."""
+    if getattr(brain, "_acc_trace_id", ""):
+        brain._chain_grace = (brain._acc_trace_id, time.time())
+    brain._acc_trace_id = ""
 
 
 _ACC_NUDGE_S = float(os.getenv("ZAELAR_ACC_NUDGE_S", "8.0"))
@@ -438,6 +482,9 @@ class NucleoLLM(llm.LLM):
         #                                    context-bleed (round headless V2-038 #1: re-emisión cross-turno)
         self._utterance: dict = {"text": "", "at": 0.0}   # frase EN CURSO del operador (guarda de fragmentos, _extends)
         self._acc_trace_id: str = ""       # trace del flujo mientras el acumulador (V2-096) tiene trozos a medias
+        self._chain_grace: tuple[str, float] = ("", 0.0)   # (trace, ts) de la última cadena RESUELTA (V2-116):
+        #                                    sigue adoptable unos segundos para que el trozo siguiente de la
+        #                                    misma frase no abra un flujo nuevo — ver `_begin_or_adopt_trace`
         self._escalated_trace_id: str = "" # trace que ACABA de publicar escalate.requested este turno (V2-113):
         #                                    bridges the sync race before dispatch.run_listener gets a scheduler
         #                                    turn to register/reject/dedup it — see `_flow_should_close`
@@ -730,7 +777,7 @@ class NucleoLLMStream(llm.LLMStream):
                 emit("brain", "🧩 frase completada en varios tiempos", text=_merged[:300], role="user",
                      extra={"cat": "flash", "trozos": _n_before + 1, "motivo": _why})
             brain._acc_gen += 1          # cadena resuelta — un aviso pendiente para ella queda obsoleto
-            brain._acc_trace_id = ""    # cadena resuelta — el próximo turno, si es tema nuevo, abre su propio trace
+            _resolve_acc_chain(brain)    # el trace pasa a GRACIA, no se tira (V2-116)
             text = _merged
 
         # V2-013: el "corazón" (agente de memoria) clasifica en background lo que dijo el operador y, si es

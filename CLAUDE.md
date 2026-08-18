@@ -2673,6 +2673,57 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     isn't. Tracked as the primary open task in V2-115, together with the reverse case (ask for a spec sheet and
     assert that NO widget is created and the result lands in `results`).
 
+- **One sentence must be ONE flow — and flow continuity can no longer hang on getting completeness right; plus the
+  chat wall stopped waiting for the voice (V2-116, 2026-08-18)**: live report — *"mientras yo estaba hablando,
+  encima se iban abriendo flujos diferentes… se han abierto cuatro flujos"* plus *"el agente me está hablando, no
+  aparece el texto en el chat de su respuesta"*. Session `b403c979`. Operator's framing of the stakes: **flows are
+  the system's skeleton** — any continuous action lasting minutes must be attachable to one corr_id — under the
+  standing rule *"NECESITO QUE CUANDO ALGO FUNCIONA YA NO SE JODA MÁS"*. Detail:
+  `V2-116-flujo-por-frase-y-muro-de-chat-sin-esperar-la-voz.md`.
+  - **NOT a regression of V2-096/V2-090's merge — that works.** The defect: flow continuity depended ENTIRELY on
+    the LEXICAL layer judging completeness correctly, because adoption was gated on `brain._acc.pending()`. Measured
+    on the real STT finals: `looks_incomplete("Mira, lo que quiero es")` → **False**. It's a clause dangling off
+    the copula «es» (demanding a complement not yet spoken) but it ends in a VERB, not a function word, so layer 1
+    calls it closed → the accumulator RELEASES it → the `"act"` branch cleared `_acc_trace_id` → the next fragment
+    opened a fresh flow. **One false "complete" splits the sentence.** And there is no second opinion: V2-102's LLM
+    judge only runs when layer 1 says *incomplete* — the asymmetry is deliberate (keeps the fast path free) but
+    makes a false "complete" final. Production cost: 4 corr_ids, two full ~5,800-token prompts thrown away, each
+    turn cancelled by the next.
+  - **Fix: separate the two questions.** A resolved chain's trace is no longer discarded — it stays in GRACE
+    (`_CHAIN_GRACE_S`, 3s, `ZAELAR_CHAIN_GRACE_S`) and a turn arriving inside that window ADOPTS it. Structural and
+    cheap: no word lists, no LLM, no added latency. The 3s comes from V2-096's own measurement (p50 pause WITHIN a
+    sentence = 2.3s), and it fails on the safe side — at worst it merges two sentences said back-to-back into one
+    flow, far less harmful than splitting one hesitant sentence into four. The counterweight is a test: past the
+    grace window, a new topic gets a new flow. The caller's bookkeeping was extracted to
+    **`_resolve_acc_chain(brain)`** on purpose so the test exercises the SAME code production runs — a test that
+    reimplements the fix can pass while production does something else, which is exactly the failure mode here.
+  - **Deliberately NOT fixed, and it costs more than the split flow (open task #1)**: the false "complete" itself
+    still burns a full prompt and leaves a cancelled turn per stray fragment. Not touched because V2-095 recorded —
+    measured against **195 sessions / 804 transcriptions** — that hand-tuning `_HARD`/`_SOFT` produced **three false
+    positives** only visible on the full corpus, one of which RETAINED "Y que lo pares todo" (delaying a STOP
+    order). Adding «es» to a list because one sentence failed today is precisely the patch that measurement exists
+    to prevent. Correct route: run the corpus, and consider detecting the dangling copula as a grammatical CLASS
+    («lo que quiero es», «la idea es», «el caso es») rather than another word.
+  - **The chat wall was fed ONLY by LiveKit's `transcript`**, which isn't emitted until the conversation item
+    closes — i.e. until TTS finishes speaking the WHOLE reply. Measured: reply→wall of **5.4s** and **12.2s** in
+    this session; the longer the answer, the later the text, which the operator experienced as "a minute". Now the
+    reply is pushed the moment the model generates it (`brain`/`reply` already carries the full text and
+    `role=assistant`), and `pushAgentChat` dedupes by **PREFIX** instead of exact equality — which also fixes the
+    barge-in case, where the later transcript arrives TRUNCATED and exact-equality would have left two bubbles (a
+    complete one and a half one); the complete text wins. **Subtitles untouched**: they still come from the
+    audio-synced transcription (`session-lk.js`), correct for something that accompanies the voice. The operator
+    also reported subtitles missing — not reproducible without a browser, most likely independent; open task #2.
+  - **On "quizás hay que empezar a quitar Python de ciertos lugares"**: this turn took **22.7s** and the engine's
+    own diagnosis says "TODO ANTES DEL 1er TOKEN". That is not Python — it's ~10s of `web_search` plus provider
+    TTFT (V2-097's finding that the broker ignores `thinking:disabled`). The headline model choice is still
+    pending a TARIFF decision, not a language rewrite. Worth its own conversation with the numbers in view.
+  - Use case (operator's explicit ask — *"crea un use case y simúlalo empezando con una instancia de agente
+    vacía"*): `tests/voice/unit/providers/test_nucleo_trace_merge.py::test_use_case_una_frase_titubeante_es_UN_solo_flujo`
+    replays the five REAL STT finals from a clean agent instance; verified failing without the fix
+    (`ZAELAR_CHAIN_GRACE_S=0` → 2 flows). It also asserts the PREMISE (that fragment 1 is still judged "complete"),
+    so it announces itself if it ever stops testing what it thinks. Chat wall: node 4.17,
+    `tests/browser/unit/chat/test_chat_wall_promptness.mjs` (6 cases), also verified failing without the fix.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un
