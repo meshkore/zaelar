@@ -343,6 +343,18 @@ def search(
         results = graph_expand(results)
         results.sort(key=lambda r: r["score"], reverse=True)
 
+    # Un nodo-concepto es una SEMILLA, no una respuesta (V2-114 F4.1, 2026-08-18). `graph_expand` los necesita
+    # arriba —son la señal de intención que promociona a su cluster (T126), y por eso se filtran DESPUÉS— pero su
+    # `text` es literalmente la palabra del concepto («familia», «finanzas»): cero información para quien pregunta,
+    # ocupando un hueco del top-3 que sí importa. Las otras dos rutas de lectura por grafo ya los excluían
+    # (`_ppr_expand` con `kind != 'concept'`, y `api.by_concepts`); esta era la que faltaba.
+    # Medido sobre las 263 queries del corpus: aparecían en el top-3 del 8,0% de las consultas y en el PUESTO 1 del
+    # 3,0%. Contrafactual dentro de la MISMA corrida (misma lista, solo cambia el filtro): recall@1 +1,1pp,
+    # @3 +0,4pp, @5 +0,8pp, @10 +0,0pp — nunca negativo. Modesto: una inspección previa de 6 casos sugirió que era
+    # mucho más frecuente y la medición completa lo desmintió. Se aplica igual porque es lo CORRECTO (un nodo sin
+    # contenido no es una respuesta), no por el delta.
+    results = [r for r in results if r.get("kind") != "concept"]
+
     if reinforce and results:
         try:
             import bus  # lazy: evita acoplar la memoria al bus en import-time

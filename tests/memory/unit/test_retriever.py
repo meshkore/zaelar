@@ -113,3 +113,27 @@ def test_search_surfaces_pill_via_paraphrase_vocab_gap(fresh_db):
     ids = [r["id"] for r in results]
     assert mid in ids
     assert other not in ids or ids.index(mid) < ids.index(other)
+
+
+def test_search_never_returns_a_bare_concept_node(monkeypatch, tmp_path):
+    """V2-114 F4.1 — un nodo-concepto es SEMILLA de expansión, no respuesta. Su `text` es la palabra del
+    concepto («familia»), así que devolverlo gasta un hueco del top-3 con cero información. `graph_expand` los
+    necesita presentes para promocionar su cluster (T126), de ahí que el filtro vaya DESPUÉS de expandir: este
+    test fija que el resultado FINAL no los lleve, sin impedir que sigan sirviendo de semilla."""
+    monkeypatch.setenv("ZAELAR_DB", str(tmp_path / "z.db"))
+    monkeypatch.setenv("ZAELAR_EMBED_BACKEND", "hash")
+    from memory import db as _db
+    _db.reset_db()
+    _db.get_db()
+    from memory import api as memapi
+    from memory import retriever as _ret
+
+    # Un hecho REAL sobre la familia + su nodo-concepto (lo crea el writer al enlazar conceptos).
+    memapi.write_now("Su hermana se llama Marta y vive en Madrid.", level="long", kind="fact",
+                     importance=0.7, concepts=["familia"])
+    res = _ret.search("¿qué sabes de mi familia?", limit=10, expand=True, reinforce=False)
+
+    assert res, "la búsqueda debe devolver algo (el hecho existe)"
+    assert all(r.get("kind") != "concept" for r in res), \
+        f"un nodo-concepto se coló en el resultado: {[r['text'] for r in res if r.get('kind') == 'concept']}"
+    _db.reset_db()
