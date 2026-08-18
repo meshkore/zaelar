@@ -131,10 +131,36 @@ def _ollama_embed(texts: list[str]) -> list[list[float]] | None:
             pass
         embs = data.get("embeddings")
         if embs and len(embs) == len(texts):
+            _note_ollama_outcome(busy=False)
             return embs
-    except Exception:
+        _note_ollama_outcome(busy=_looks_busy(data.get("error")))
+    except Exception as ex:  # noqa: BLE001
+        # A 4xx/5xx arrives here as an HTTPError whose BODY carries Ollama's reason, and the reason is the whole
+        # question: "server busy" is a queue that will drain, "connection refused" is a server that is not there.
+        _note_ollama_outcome(busy=_looks_busy(_error_body(ex)))
         return None
     return None
+
+
+_BUSY_MARKERS = ("server busy", "maximum pending requests", "overloaded", "too many requests")
+_ollama_busy = False            # last outcome was "alive but saturated", not "absent"
+
+
+def _looks_busy(detail) -> bool:
+    return any(m in str(detail or "").lower() for m in _BUSY_MARKERS)
+
+
+def _error_body(ex: Exception) -> str:
+    """Ollama's reason lives in the HTTPError's body, which is readable exactly once."""
+    try:
+        return ex.read().decode("utf-8", "replace")[:300]      # type: ignore[attr-defined]
+    except Exception:  # noqa: BLE001
+        return str(ex)
+
+
+def _note_ollama_outcome(*, busy: bool) -> None:
+    global _ollama_busy
+    _ollama_busy = bool(busy)
 
 
 def _fastembed_embed(texts: list[str]) -> list[list[float]] | None:
@@ -212,6 +238,28 @@ def _resolve_backend():
     prev = _backend
     if _ollama_embed(["ping"]) is not None:
         _backend = "ollama"
+    elif _ollama_busy:
+        # BUSY IS NOT ABSENT (2026-08-19). Reproduced live: `/api/embed` answering
+        # `{"error":"server busy, please try again.  maximum pending requests exceeded"}` while `/api/tags` served
+        # fine and `embeddinggemma:latest` was pulled. The probe read that as "Ollama is gone" and demoted the
+        # WHOLE PROCESS to fastembed for `_BACKEND_RECHECK_S` (300s) — and demoting is not a smaller version of
+        # the same thing, it CHANGES THE VECTOR SPACE: fastembed is 384 dims padded to 768 against an index
+        # stamped embeddinggemma:768, so for five minutes the writer refuses to store vectors (V2-103
+        # `_mark_embed_pending`) and the reader drops its vector channels (the space guard in `retriever.search`).
+        # This is the root cause behind both of those guards, and behind the 51.6% vector-less rows the V2-103
+        # audit found.
+        #
+        # So a saturated Ollama DEFERS rather than demotes: the backend stays `ollama`, the individual call fails
+        # (which `embed_batch` already reports as `last_degraded`, so reads go lexical and writes queue for REM's
+        # `repair_embeddings`), and the space stays what the index says it is. The recovery is also immediate
+        # instead of five minutes late — `_resolved_at` is left in the past on purpose so the very next call
+        # re-probes, because a drained queue can happen a second later.
+        _backend = "ollama"
+        logger.info("memoria: Ollama SATURADO (no ausente) — se conserva el espacio vectorial y se difiere el "
+                    "vector; se re-sondea en la próxima llamada")
+        _resolved_at = 0.0
+        _warn_if_degraded(_backend, forced=False)
+        return
     elif _fastembed_embed(["ping"]) is not None:
         _backend = "fastembed"
     else:

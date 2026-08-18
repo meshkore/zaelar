@@ -143,3 +143,74 @@ def test_ollama_spanish_semantics():
     far = emb.embed("la receta lleva harina y huevos")
     assert len(q) == 768
     assert _cos(q, near) > _cos(q, far)
+
+
+# ── BUSY IS NOT ABSENT (2026-08-19) ─────────────────────────────────────────────────────────────────────────
+# Reproduced live: `/api/embed` answering `{"error":"server busy, please try again.  maximum pending requests
+# exceeded"}` while `/api/tags` served fine and `embeddinggemma:latest` was pulled. The probe read that as "Ollama
+# is gone" and demoted the whole process to fastembed for 300s — and demoting is not a milder version of the same
+# thing, it CHANGES THE VECTOR SPACE (fastembed 384 padded to 768 against an index stamped embeddinggemma:768), so
+# the writer refuses to store vectors and the reader drops its vector channels. This is the root cause behind both
+# of those guards and behind the 51.6% vector-less rows the V2-103 audit found.
+def _busy_error():
+    import urllib.error, io
+    return urllib.error.HTTPError(
+        "http://x/api/embed", 503, "Service Unavailable", {},
+        io.BytesIO(b'{"error":"server busy, please try again.  maximum pending requests exceeded"}'))
+
+
+def test_a_saturated_ollama_keeps_the_vector_space_instead_of_demoting(monkeypatch):
+    monkeypatch.delenv("ZAELAR_EMBED_BACKEND", raising=False)
+    monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "auto"})
+    monkeypatch.setattr(emb.urllib.request, "urlopen", lambda *a, **k: (_ for _ in ()).throw(_busy_error()))
+    monkeypatch.setattr(emb, "_fastembed_embed", lambda texts: [[0.1] * 384 for _ in texts])
+    emb.reset()
+
+    assert emb.active_backend() == "ollama", "un Ollama SATURADO no es un Ollama ausente"
+    assert emb.dim() == 768, "el espacio declarado tiene que seguir siendo el del índice"
+    emb.embed("una consulta")
+    assert emb.last_degraded is True, (
+        "el vector concreto sí falla y hay que DECIRLO: es lo que manda la lectura a léxico y difiere el vector "
+        "del write a la reparación de REM"
+    )
+
+
+def test_a_saturated_ollama_re_probes_on_the_very_next_call(monkeypatch):
+    """A drained queue can happen a second later, so the 300s TTL is the wrong clock for this case."""
+    monkeypatch.delenv("ZAELAR_EMBED_BACKEND", raising=False)
+    monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "auto"})
+    monkeypatch.setattr(emb.urllib.request, "urlopen", lambda *a, **k: (_ for _ in ()).throw(_busy_error()))
+    emb.reset()
+    emb.active_backend()
+    assert emb._resolved_at == 0.0, "con el TTL normal la recuperación llegaría hasta 5 minutos tarde"
+
+    calls = {"n": 0}
+
+    def _ok(texts):
+        calls["n"] += 1
+        return [[0.2] * 768 for _ in texts]
+
+    monkeypatch.setattr(emb, "_ollama_embed", _ok)
+    emb.embed("otra consulta")
+    assert calls["n"] >= 1 and emb.last_degraded is False, "al drenarse la cola debe recuperarse en el acto"
+
+
+def test_an_ABSENT_ollama_still_demotes(monkeypatch):
+    """The counterweight, and the reason this is not just "never demote": a server that is not there will not
+    drain, so waiting for it would leave the memory with no semantic recall at all. Without this test the fix is
+    indistinguishable from disabling the fallback."""
+    monkeypatch.delenv("ZAELAR_EMBED_BACKEND", raising=False)
+    monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "auto"})
+    monkeypatch.setattr(emb.urllib.request, "urlopen",
+                        lambda *a, **k: (_ for _ in ()).throw(ConnectionRefusedError("refused")))
+    monkeypatch.setattr(emb, "_fastembed_embed", lambda texts: [[0.1] * 384 for _ in texts])
+    emb.reset()
+    assert emb.active_backend() == "fastembed"
+
+
+def test_busy_classification_is_about_saturation_only():
+    assert emb._looks_busy("server busy, please try again.  maximum pending requests exceeded")
+    assert emb._looks_busy("Ollama is overloaded")
+    assert not emb._looks_busy("connection refused")
+    assert not emb._looks_busy('model "embeddinggemma" not found')
+    assert not emb._looks_busy(None)
