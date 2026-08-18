@@ -226,6 +226,13 @@ def prune_invalid(now: int | None = None, after_days: float = PRUNE_INVALID_AFTE
     pruned = 0
     for r in rows:
         try:
+            # The paraphrase index is the THIRD index, and this function never knew about it (2026-08-18). This
+            # is the same defect P2-6 fixed for vec+FTS in 2026-07-19, one table later: a superseded shell's
+            # paraphrase vectors stay alive forever, keep winning KNN slots, and map back to a `valid=0` row the
+            # reader will discard — pool budget spent on the dead, which is exactly what this function exists to
+            # stop. Note this path DE-INDEXES (the `memories` row is preserved on purpose: history is never
+            # deleted); `writer.delete_memory` is the one that really deletes, and it calls the same helper.
+            _writer.drop_paraphrases(r["id"])
             with db.cursor() as cur:
                 cur.execute("DELETE FROM vec_memories WHERE memory_id=?", (r["id"],))
                 try:

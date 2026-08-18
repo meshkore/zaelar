@@ -272,6 +272,37 @@ def _ppr_expand(parents: list[dict], present_map: dict, max_add: int, discount: 
     return added
 
 
+_WRONG_SPACE_GAP_S = 60.0
+_wrong_space_last = 0.0
+
+
+def _warn_wrong_space() -> None:
+    """State that can deceive has to be VISIBLE and fixable in one gesture — this read is running on the lexical
+    channel alone, and the numbers it produces are NOT comparable with a healthy run's. Rate-limited to once a
+    minute: a degraded window is 300s of MANY recalls, and one line per recall would bury the signal it is for."""
+    global _wrong_space_last
+    now = time.time()
+    if now - _wrong_space_last < _WRONG_SPACE_GAP_S:
+        return
+    _wrong_space_last = now
+    try:
+        from . import reembed as _reembed
+        detail = (f"recall on FTS only: active embedding space ({_reembed.signature()}) does not match the "
+                  f"indexed one ({_reembed.stored_signature()}) or the embed degraded in flight")
+    except Exception:  # noqa: BLE001
+        detail = "recall on FTS only: the query's embedding space is not the indexed one"
+    try:
+        from voice import health_state
+        health_state.record("memory", "degraded", detail)
+    except Exception:  # noqa: BLE001
+        pass            # observability NEVER breaks a read
+    try:
+        from voice.observer import emit
+        emit("memory", "espacio vectorial descuadrado", text=detail, extra={"module": "memory.retriever"})
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def search(
     prompt: str,
     k: int = POOL_K,
@@ -285,9 +316,26 @@ def search(
     from .clock import now as _clock_now
     now = _clock_now()
     qvec = _emb.embed(prompt)
-    vec = vec_search(qvec, k=k)
-    kw = fts_search(prompt, k=k)
-    para = vec_search_paraphrases(qvec, k=k)  # V2-031 T2: tercer canal, mapeado a memory_id real
+    # A query embedded in the WRONG SPACE is worse than no vector channel at all (2026-08-18). The write path has
+    # refused to insert a vector on a space mismatch since V2-103 (`writer._mark_embed_pending`), but the READ
+    # path had no equivalent check: it embedded the query with whatever backend happened to be active and fused
+    # the result into the RRF as if it were evidence. Two ways that goes wrong, both silent:
+    #   · the backend LATCHED to a fallback — a transient Ollama 503 ("server busy") is read by the availability
+    #     probe as "Ollama absent" and demotes the whole process to `fastembed` for `_BACKEND_RECHECK_S` (300s).
+    #     `last_degraded` does NOT catch this: fastembed SUCCEEDED, it is just a different geometry.
+    #     Reproduced in production, 2026-08-18: the live agent had Ollama's queue full with a 27B model, and every
+    #     recall in that window searched embeddinggemma vectors with a bge-small query padded 384->768.
+    #   · the embed fell over IN FLIGHT and degraded to the hash of emergency (`last_degraded`).
+    # Either way FTS5 keeps working and carries the read, so the symptom is not an error — it is "recall got a bit
+    # worse today", which is the shape of failure this module has already paid for three times.
+    # Fail-open on the question itself: `space_ok()` returns True when there is no verdict (fresh DB, no stamp).
+    from . import reembed as _reembed
+    space_ok = _reembed.space_ok() and not getattr(_emb, "last_degraded", False)
+    vec = vec_search(qvec, k=k) if space_ok else []
+    kw = fts_search(prompt, k=k)                        # lexical: always, it does not depend on any space
+    para = vec_search_paraphrases(qvec, k=k) if space_ok else []  # V2-031 T2: third channel, mapped to memory_id
+    if not space_ok:
+        _warn_wrong_space()
 
     fused = rrf(vec, kw, para)
     if not fused:

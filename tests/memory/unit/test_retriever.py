@@ -137,3 +137,45 @@ def test_search_never_returns_a_bare_concept_node(monkeypatch, tmp_path):
     assert all(r.get("kind") != "concept" for r in res), \
         f"un nodo-concepto se coló en el resultado: {[r['text'] for r in res if r.get('kind') == 'concept']}"
     _db.reset_db()
+
+
+# ── a query embedded in the WRONG SPACE is worse than no vector channel (2026-08-18) ─────────────────────────
+# The write path has refused to insert a vector on a space mismatch since V2-103; the READ path had no
+# equivalent check and fused pure noise into the RRF. Reproduced in production: a transient Ollama 503 latches
+# the process onto `fastembed` for 300s, and every recall in that window searches embeddinggemma vectors with a
+# bge-small query. FTS keeps working, so the symptom is not an error — it is "recall got a bit worse today".
+def test_search_drops_the_vector_channels_when_the_space_does_not_match(fresh_db, monkeypatch):
+    memwriter.insert_memory("mi perro se llama Toby", level="long", kind="fact")
+
+    from memory import reembed as memreembed
+    monkeypatch.setattr(memreembed, "space_ok", lambda *a, **k: False)
+
+    llamadas = {"vec": 0, "para": 0, "fts": 0}
+    orig_vec, orig_para, orig_fts = memret.vec_search, memret.vec_search_paraphrases, memret.fts_search
+    monkeypatch.setattr(memret, "vec_search",
+                        lambda *a, **k: (llamadas.__setitem__("vec", llamadas["vec"] + 1), orig_vec(*a, **k))[1])
+    monkeypatch.setattr(memret, "vec_search_paraphrases",
+                        lambda *a, **k: (llamadas.__setitem__("para", llamadas["para"] + 1), orig_para(*a, **k))[1])
+    monkeypatch.setattr(memret, "fts_search",
+                        lambda *a, **k: (llamadas.__setitem__("fts", llamadas["fts"] + 1), orig_fts(*a, **k))[1])
+
+    out = memret.search("Toby", rerank=False)
+    assert llamadas["vec"] == 0, "no se puede buscar con un vector del espacio equivocado"
+    assert llamadas["para"] == 0, "el canal de paráfrasis usa el MISMO vector de consulta: también fuera"
+    assert llamadas["fts"] == 1, "el canal léxico no depende de ningún espacio: tiene que seguir cargando la lectura"
+    assert any("Toby" in r["text"] for r in out), "degradar a FTS no puede significar devolver nada"
+
+
+def test_search_uses_the_vector_channels_when_the_space_matches(fresh_db, monkeypatch):
+    """La otra mitad: sin esto, un guard que apagara los canales SIEMPRE también pasaría el test de arriba."""
+    memwriter.insert_memory("mi perro se llama Toby", level="long", kind="fact")
+
+    from memory import reembed as memreembed
+    monkeypatch.setattr(memreembed, "space_ok", lambda *a, **k: True)
+
+    vistos = {"vec": 0}
+    orig_vec = memret.vec_search
+    monkeypatch.setattr(memret, "vec_search",
+                        lambda *a, **k: (vistos.__setitem__("vec", vistos["vec"] + 1), orig_vec(*a, **k))[1])
+    memret.search("Toby", rerank=False)
+    assert vistos["vec"] == 1

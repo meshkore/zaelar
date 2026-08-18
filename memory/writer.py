@@ -13,7 +13,6 @@ import json
 import os
 import re
 import struct
-import time
 
 from . import db as _db
 from . import embeddings as _emb
@@ -272,24 +271,18 @@ def insert_memory(
     return mid
 
 
-_SIG_CACHE: tuple[float, bool] = (0.0, True)
-
-
 def _embed_sig_ok() -> bool:
-    """¿La firma del backend ACTIVO casa con la sellada en el índice? Cacheado 60s (se consulta por inserción)."""
-    global _SIG_CACHE
-    now = time.time()
-    if now - _SIG_CACHE[0] < 60:
-        return _SIG_CACHE[1]
-    ok = True
+    """Does the ACTIVE backend's signature match the one stamped on the index?
+
+    Delegates to `reembed.space_ok()` (2026-08-18): the READ path needs the same predicate, and keeping two
+    independent 60s caches of one question meant they could disagree during precisely the window where one of
+    them is wrong. Kept as a named function because it is the writer's vocabulary for it and it reads better at
+    the call site than the module hop."""
     try:
         from . import reembed as _reembed
-        stored = _reembed.stored_signature()
-        ok = stored is None or stored == _reembed.signature()
-    except Exception:
-        ok = True   # fail-open: sin veredicto no se bloquea la escritura de vectores
-    _SIG_CACHE = (now, ok)
-    return ok
+        return _reembed.space_ok()
+    except Exception:  # noqa: BLE001
+        return True     # fail-open: with no verdict, vector writes are not blocked
 
 
 def _mark_embed_pending(db, mid: int, reason: str) -> None:
@@ -450,6 +443,40 @@ def demote_summarized(ids: list[int], insight_id: int, factor: float = 0.6, floo
     return done
 
 
+def drop_paraphrases(memory_id: int) -> int:
+    """Delete a memory's paraphrase rows AND their vectors. Returns how many were removed.
+
+    This is not hygiene, it is two defects that only became REAL on 2026-08-18, the day the paraphrase channel
+    started producing rows at all (it had been mute since it was built, see `nucleo/memllm._DEFAULTS`):
+      1. **Right to be forgotten.** `forget(hard=True)` deleted the `memories` row, its vector, its FTS entry and
+         its edges — and left the text sitting VERBATIM in `paraphrase_index.text`. A paraphrase is a rewrite of
+         the operator's own datum, so "deleted" would have been false in the one place it must not be.
+      2. **Orphans that keep matching.** `vec_paraphrases` is keyed by the synthetic PK, so a deleted memory's
+         vectors survive and keep winning KNN slots, mapping back to a `memory_id` that no longer exists. The
+         reader would not return them (`search()` filters `valid=1`) — it would just silently spend pool budget
+         on dead rows, which is the kind of leak that only shows up as "recall got worse" months later.
+    Both hard-delete paths (`writer.delete_memory`, `consolidator`'s eviction) call this — there is no third."""
+    if not memory_id:
+        return 0
+    db = _db.get_db()
+    try:
+        rows = db.query("SELECT id FROM paraphrase_index WHERE memory_id=?", (int(memory_id),))
+    except Exception:  # noqa: BLE001
+        return 0        # table absent (a DB from before the channel existed) — nothing to clean
+    if not rows:
+        return 0
+    ids = [r["id"] for r in rows]
+    try:
+        with db.cursor() as cur:
+            cur.execute("DELETE FROM paraphrase_index WHERE memory_id=?", (int(memory_id),))
+        if db.vec_available:
+            ph = ",".join("?" * len(ids))
+            db.execute(f"DELETE FROM vec_paraphrases WHERE id IN ({ph})", tuple(ids))
+    except Exception:  # noqa: BLE001
+        return 0
+    return len(ids)
+
+
 def index_paraphrases(memory_id: int, texts: list[str]) -> int:
     """V2-031 T2 (2026-08-17): indexa 1-2 REFORMULACIONES de una píldora durable — cierra el vocab-gap
     ("instrumento" en la query, "guitarra" en el dato) sin LLM en la lectura. Va en tabla PROPIA
@@ -527,6 +554,7 @@ def delete_memory(mid: int) -> None:
         cur.execute("DELETE FROM edges WHERE from_id=? OR to_id=?", (mid, mid))
     if db.vec_available:
         db.execute("DELETE FROM vec_memories WHERE memory_id=?", (mid,))
+    drop_paraphrases(mid)
 
 
 # operaciones despachables desde la cola: op -> callable

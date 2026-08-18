@@ -17,6 +17,7 @@ el arranque para AVISAR; el operador/dev corre `reembed()` a conciencia cuando c
 from __future__ import annotations
 
 import logging
+import time as _t
 
 from . import db as _db
 from . import embeddings as _emb
@@ -61,6 +62,34 @@ def _vec_count() -> int:
         return db.query_one("SELECT COUNT(*) c FROM vec_memories")["c"]
     except Exception:
         return 0
+
+
+_SPACE_CACHE: tuple[float, bool] = (0.0, True)
+
+
+def space_ok(ttl: float = 60.0) -> bool:
+    """Does the ACTIVE embedding space match the one the DB is indexed with? Cached for `ttl` seconds because
+    both the write path (per insert) and the READ path (per recall) consult it.
+
+    FAIL-OPEN by design: no stored signature (a fresh DB, or one from before V2-030) or any error means "assume
+    coherent" — this must never be the reason a read returns nothing.
+
+    Why it lives here and not in `writer.py` (where it started, 2026-08-18): the writer already refused to insert
+    a vector on a mismatch (`_mark_embed_pending`, V2-103), but the READER had no equivalent check and would
+    happily embed the query in the WRONG space and fuse pure noise into the RRF. Two callers, one question, so
+    one cached answer — two independent 60s caches of the same predicate would have drifted apart exactly when it
+    mattered, during the window where one of them is wrong."""
+    global _SPACE_CACHE
+    now = _t.time()
+    if now - _SPACE_CACHE[0] < ttl:
+        return _SPACE_CACHE[1]
+    try:
+        stored = stored_signature()
+        ok = stored is None or stored == signature()
+    except Exception:  # noqa: BLE001
+        ok = True
+    _SPACE_CACHE = (now, ok)
+    return ok
 
 
 def check() -> dict:
