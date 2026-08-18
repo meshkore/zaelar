@@ -41,6 +41,7 @@ const PALETTE = read("frontend", "app", "core", "palette.css");
 const SW = read("frontend", "mobile", "sw.js");
 const INGRESS = read("server", "ingress.py");
 const DOCKBAR = read("frontend", "mobile", "app", "shell", "DockBar.js");
+const DECK_CSS = null; // (Deck.js is already read above as DECK)
 const ORBMINI = read("frontend", "mobile", "app", "shell", "OrbMini.js");
 const ORB_JS = read("frontend", "app", "components", "Orb.js");
 
@@ -217,6 +218,18 @@ for (const name of ["MIC_ICON", "SPK_ON", "SPK_OFF", "CAP_ICON", "CHAT_ICON", "P
   check(`the mobile dock draws the same ${name} as the desktop`, absent.length === 0,
     `these shapes from Orb.js's ${name} are not in DockBar.js: ${absent.join(" | ")}`);
 }
+
+// The scroller's rule must be keyed STRUCTURALLY, not to .zm-body. A widget.js does el.className="..." on the
+// root it is handed and WIPES our class — Deck.js's own comment says so — so a .zm-body rule silently stops
+// applying for exactly the widgets that style themselves. Verified live: querySelector('.zm-body') found nothing
+// once the clock had rendered, which meant the content padding had been dead all along (2026-08-18).
+check("the scroller styles its child structurally, not via .zm-body",
+  /\.zm-scroll\s*>\s*\*\s*\{/.test(DECK) && !/\n\s*\.zm-body\s*\{/.test(DECK),
+  "Deck.js keys the mounted child's padding/centring to .zm-body, a class the widget overwrites");
+check("compact widget content is centred with COLLAPSING margins, not justify-content",
+  /\.zm-scroll\s*>\s*\*\s*\{[^}]*margin-block:\s*auto/.test(DECK),
+  "margin-block:auto collapses to 0 when content is taller than the screen, so a long widget still scrolls "
+  + "from its first line; a centring that does not collapse puts the top out of reach");
 
 // ── every t() key the mobile shell uses must EXIST in both bundles ──────────────────────────────────────────────
 // This is the ratchet on the bug that shipped once already: core/i18n.js's t() returns the KEY when a string is

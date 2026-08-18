@@ -62,8 +62,26 @@ function injectStyles() {
     color:var(--hb-muted);font-size:18px;line-height:1}
   /* THE SCROLLER is a wrapper around the widget's own div, never the widget div itself: a widget.js does
      el.className="…" and would wipe any class we put on its root (same lesson as the desktop host). */
-  .zm-scroll{flex:1 1 auto;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
-  .zm-body{padding:12px 12px calc(12px + env(safe-area-inset-bottom))}
+  .zm-scroll{flex:1 1 auto;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;
+    display:flex;flex-direction:column}
+  /* margin-block:auto and NOT justify-content:center. Both centre content that is shorter than the screen, but
+     justify-content:center in a SCROLL container clips the overflow above the top and makes it unreachable —
+     auto margins collapse to 0 the moment the content is taller, so a long widget still scrolls from its first
+     line. Compact widgets (a clock) then sit in the middle of the screen instead of hugging the header with two
+     thirds of a phone empty below them, which is what "casi todo a pantalla completa" has to mean when the
+     widget itself is small. */
+  /* Targeted STRUCTURALLY (.zm-scroll > *) and not by .zm-body, because a widget.js does el.className="..." on
+     the root it is handed and WIPES our class — the very thing the comment above warns about. A rule keyed to
+     .zm-body therefore stops applying for exactly the widgets that style themselves, which is most of them:
+     verified live, querySelector('.zm-body') found nothing once the clock had rendered, so this padding was
+     already dead.
+     margin-block:auto centres content SHORTER than the screen (a clock stops hugging the header with two thirds
+     of the phone empty below it) and COLLAPSES to 0 as soon as it is taller, so a long widget keeps scrolling
+     from its first line. Verified with content forced to 2199px in a 705px scroller: top offset 0, 1496px
+     scrollable, scrolls to the bottom and back to the very top. Auto margins are the idiom that guarantees that
+     in an overflow container; whether justify-content:center would actually clip here was NOT reproduced, so it
+     is not claimed. */
+  .zm-scroll > *{padding:12px 12px calc(12px + env(safe-area-inset-bottom));margin-block:auto}
   .zm-load{margin:auto;width:64px;height:64px;border-radius:50%;
     background:conic-gradient(from 0deg,var(--hb-accent),var(--hb-accent2),rgba(61,111,224,0) 78%);
     -webkit-mask:radial-gradient(farthest-side,transparent 58%,#000 60%);mask:radial-gradient(farthest-side,transparent 58%,#000 60%);
