@@ -92,7 +92,7 @@ platform plugin and run environment are supplied. Before handoff, repeat the mea
 | Email, messaging, Spotify, WhatsApp, architect | `connectors` | provider sandbox/live connector only when authorized |
 | Peer capsule, cluster policy, security | `cluster` | live peer conversation |
 | Bus, SSE, config, server, homeostasis | `infrastructure` | chat transport/full smoke against live Zaelar |
-| Real-world ES/US task scenarios (89 runnable, isolated sandbox) | `use_cases` | see `tests/use_cases/CASES.md` + [`STATUS.md`](use_cases/STATUS.md) |
+| Real-world ES/US task scenarios (119 runnable, isolated sandbox) | `use_cases` | see `tests/use_cases/CASES.md` + [`STATUS.md`](use_cases/STATUS.md) |
 
 `browser` currently contains deterministic browser/widget contracts. It must not be reported as a rendered UI
 E2E unless Chromium/Playwright was actually driven against the live application.
@@ -205,7 +205,7 @@ another to a live task donating a false `worker` signal to a scenario that never
 # one case, isolated engine — the normal way to test a single use case
 ./.venv/bin/python -m tests.use_cases.e2e.agent.run --scenario hotel-under-15-days --sandbox
 
-./.venv/bin/python -m tests.use_cases.e2e.agent.run --list            # the 89 selectable scenarios
+./.venv/bin/python -m tests.use_cases.e2e.agent.run --list            # the 119 selectable scenarios
 ./.venv/bin/python -m tests.use_cases.e2e.agent.run --sandbox --tier 1 --locale es --limit 5
 ./.venv/bin/python -m tests.use_cases.e2e.agent.run --sandbox --start-at cheapest-monitor
 ./.venv/bin/python -m tests.use_cases.e2e.agent.run --scenario handwritten --sandbox
@@ -214,12 +214,20 @@ another to a live task donating a false `worker` signal to a scenario that never
 ⚠️ Do **not** run `make run` while a sandbox is alive: `scripts/run-livekit.sh` reaps every
 `python -m server` by process NAME, not by port, and will kill it. The reverse is safe.
 
-**Where the scenarios come from.** Nine are hand-written (`scenarios.py`); the other 80 are DERIVED from
+**Where the scenarios come from.** Nine are hand-written (`scenarios.py`); the other 110 are DERIVED from
 the catalog (`derived.py`) — shared persona scaffolding written once, plus per-case specifics (what the
 person answers when asked the obvious follow-up, what counts as success, which subsystems must fire). A
-hand-written scenario always wins over a derived one for the same case. Only tiers 1-4 derive: tier 5
-needs real time to pass, tiers 6-7 are blocked on unbuilt capabilities, and a runnable-looking tick on
-either would be a lie.
+hand-written scenario always wins over a derived one for the same case.
+
+**The whole catalog runs, including the tiers whose OUTCOME doesn't fit in a conversation.** Tiers 5-7
+were excluded at first — you cannot prove "watch this flight for a week" in ten turns, and you cannot
+reach a friend's agent over a channel nobody linked. That was right about the outcome and wrong about the
+test: it excluded the most valuable question those cases ask, which is what the agent does when it CAN'T
+finish. `derived.py::_HORIZON` moves the bar per tier and the judge reads it — tier 5 is graded on the
+durable trigger it registered (a "sure, I'll watch it" with nothing behind it scores LOW), tiers 6-7 on
+plainly saying it can't reach anyone (narrating a message it never sent is the gravest failure). A
+`status: blocked` case is admitted only where its tier has a horizon; one blocked for any other reason
+(it would move real money) stays out, because running it wouldn't be a test. Table in `CASES.md`.
 
 **Outputs, and which is which:**
 - `tests/runs/use_cases/report_<stamp>.{md,json}` — the per-run DIARY: transcript, judge scores, mechanism
