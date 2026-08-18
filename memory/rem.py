@@ -169,14 +169,37 @@ def index_paraphrases(paraphrase_fn, limit: int | None = None) -> int:
         (limit,),
     )
     done = 0
+    empty = 0
     for r in rows:
         try:
             variants = paraphrase_fn(r["text"]) or []
         except Exception as e:  # noqa: BLE001
             logger.debug(f"rem.index_paraphrases: hook falló para #{r['id']}: {str(e)[:120]}")
+            empty += 1
             continue
-        if variants and _writer.index_paraphrases(r["id"], variants) > 0:
+        if not variants:
+            empty += 1
+            continue
+        if _writer.index_paraphrases(r["id"], variants) > 0:
             done += 1
+    # A MUTE hook has to be VISIBLE (2026-08-18). The per-pill fail-open above is right — a pill without
+    # paraphrases is still retrieved by its own embedding — but it turned "the whole channel is dead" into
+    # "no candidates tonight": `generate_paraphrases` returns [] on ANY problem and this loop treated that
+    # exactly like "nothing to do". Measured 2026-08-18: `vec_paraphrases` had **0 rows** since the channel was
+    # built, because the model spent its entire token budget on reasoning and returned empty — the third
+    # retrieval channel contributed NOTHING and no surface said so. Fourth time this module pays for the same
+    # failure shape (distiller down 2 days, REM raising KeyError, i18n pointed at OpenAI in cloud): the rule
+    # already written here is that a memory failure NEVER stops at a `logger.warning`.
+    # It only fires when work was ATTEMPTED and NOTHING came out: with mixed candidates the channel is alive and
+    # one failing pill is normal noise, not an outage worth turning the ◉ amber.
+    if empty and not done:
+        logger.warning(f"rem.index_paraphrases: {empty} candidates and NOT ONE paraphrase — paraphrase channel mute")
+        try:
+            from voice import health_state
+            health_state.record("memory", "degraded",
+                                f"paraphrase channel mute: {empty} candidates, 0 indexed")
+        except Exception:  # noqa: BLE001
+            pass  # observability NEVER breaks the sleep cycle
     return done
 
 

@@ -70,9 +70,23 @@ _DEFAULTS = {
     "directed": ("https://api.deepseek.com", "deepseek-v4-flash", True),
     # paraphrase (V2-031 T2, 2026-08-17): 1-2 reformulaciones de una píldora durable, generadas off-hot-path
     # desde REM (nunca en el turno) para indexar vectores extra que cierren el vocab-gap en la lectura. Mismo
-    # profile as `rem`: no latency pressure → DIRECT per the routing policy, reasoning left ON (no benchmark
-    # measures this task with thinking off, so it isn't assumed).
-    "paraphrase": ("https://api.deepseek.com", "deepseek-v4-flash", False),
+    # profile as `rem`: no latency pressure → DIRECT per the routing policy.
+    #
+    # ⚠️ reasoning-OFF, and this one IS measured (2026-08-18). It shipped `False` on the stated principle that
+    # "no benchmark measures this task with thinking off, so it isn't assumed" — conservative, and it made the
+    # whole third retrieval channel DEAD ON ARRIVAL. Measured against the real endpoint with the real
+    # `_PARAPHRASE_SYSTEM`: reasoning consumed the ENTIRE budget and the answer came back empty, at BOTH
+    # budgets tried — `max_tokens=300` → `finish_reason=length`, `reasoning_tokens=300`, `content=''`; and
+    # `max_tokens=1200` → `reasoning_tokens=1200`, `content=''`. Raising the budget does not help: the model
+    # just reasons more. With `thinking:{"type":"disabled"}` the SAME call returns the JSON array correctly on
+    # the first try, well inside 300 tokens. So the flag is no longer an assumption in either direction, and
+    # the cost of the cautious default was a silent 0 rows in `vec_paraphrases` — see the fail-open note in
+    # `generate_paraphrases`, which is why nothing ever reported it.
+    #
+    # Generalization worth keeping: this task asks for STRICT JSON under a long instruction, which is the shape
+    # that makes a reasoning model burn its budget before emitting a token. The two hot-path judges
+    # (`turn_complete`/`directed`) were disabled for LATENCY; this one is disabled for it to work at all.
+    "paraphrase": ("https://api.deepseek.com", "deepseek-v4-flash", True),
 }
 
 

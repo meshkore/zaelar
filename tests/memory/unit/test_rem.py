@@ -328,6 +328,38 @@ def test_index_paraphrases_noop_without_hook(fresh_db):
     assert memrem.index_paraphrases(None) == 0
 
 
+# ── a MUTE hook has to be VISIBLE (2026-08-18) ──────────────────────────────────────────────────────────────
+# The paraphrase channel sat at 0 rows from the day it was built and no surface said so: the per-pill fail-open
+# is correct, but it made "the whole channel is dead" indistinguishable from "no candidates tonight".
+def test_index_paraphrases_flags_health_when_the_hook_returns_nothing(fresh_db, monkeypatch):
+    for i in range(3):
+        memwriter.insert_memory(f"dato {i}", level="mid", kind="fact")
+
+    recorded = []
+    import voice.health_state as hs
+    monkeypatch.setattr(hs, "record", lambda *a, **k: recorded.append((a, k)))
+
+    assert memrem.index_paraphrases(lambda _t: []) == 0
+    assert recorded, "a mute paraphrase channel must reach health_state, not just the log"
+    component, state = recorded[0][0][0], recorded[0][0][1]
+    assert component == "memory" and state == "degraded"
+
+
+def test_index_paraphrases_stays_quiet_when_some_pills_do_succeed(fresh_db, monkeypatch):
+    """With MIXED candidates the channel is alive: one failing pill is normal noise, not an outage. Without this
+    half, the alert would fire every night and stop meaning anything."""
+    for i in range(3):
+        memwriter.insert_memory(f"dato {i}", level="mid", kind="fact")
+
+    recorded = []
+    import voice.health_state as hs
+    monkeypatch.setattr(hs, "record", lambda *a, **k: recorded.append(a))
+
+    done = memrem.index_paraphrases(lambda t: [] if "dato 1" in t else [f"otra forma de {t}"])
+    assert done == 2
+    assert recorded == []
+
+
 # V2-103 (2026-08-16): la formación de grupos de concepto (`_concept_groups`/`synthesize`) solo se había probado
 # con 4-12 píldoras de un único concepto limpio — nunca con una distribución RUIDOSA de cientos de píldoras en
 # más conceptos que `MAX_GROUPS`, que es donde un bug de ordenación/corte se volvería invisible en un fixture
