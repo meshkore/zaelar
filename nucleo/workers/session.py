@@ -12,12 +12,20 @@ mantiene el registro coherente. Diseño: initiatives/V2-038-brain-workers-intera
 from __future__ import annotations
 
 import asyncio
+import os
 import time
 from dataclasses import dataclass, field
 
 from loguru import logger
 
 from .base import WorkerBackend, WorkerSpec
+
+# CONTEXT BUDGET (incident 2026-08-18). Not the model's real ceiling — deliberately well below it, because the
+# provider rejects a call once input PLUS the requested output reservation exceeds its window, and we do not know
+# what reservation the CLI asks for. The worker that died reached 138,492 with a ~200k-window model, so the ceiling
+# in practice sits somewhere around 140k: warning at 110k leaves room to deliver rather than to be cut off.
+# `0` disables the watchdog (the crash path in `_finish` still catches it).
+_CTX_BUDGET = int(os.getenv("ZAELAR_WORKER_CTX_BUDGET", "110000"))
 
 
 @dataclass
@@ -77,6 +85,14 @@ class SessionRecord:
     # entregarle al operador un «API Error … Weekly Limit Exhausted» como si fuera su informe.
     provider_down: dict | None = None
     provider_retried: bool = False
+    # Died (or is about to) because the CONTEXT no longer fits, not because the provider failed (incident
+    # 2026-08-18). A separate family on purpose: relaying to another provider does not fix a blown context — the
+    # next one blows up identically — so this puts NOBODY on cooldown; what it does is COMPACT AND CONTINUE with
+    # whatever was learned.
+    context_full: dict | None = None
+    context_retried: bool = False
+    ctx_tokens: int = 0             # context size of the last message (for the panel and the watchdog)
+    real_model: str = ""            # the model that ACTUALLY ran, when the provider says so (≠ requested alias)
     # handles runtime (NO serializar):
     session: "WorkerSession | None" = None
     task: "asyncio.Task | None" = None
@@ -96,6 +112,8 @@ class WorkerSession:
         self._base_url = ""                # endpoint real del escalón que sirvió la sesión (energy_meter, 2026-08-05)
         self._started_at = time.time()     # para medir el PRIMER output del worker (su TTFT) — ver _emit_note
         self._first_output_at = 0.0
+        self._ctx_warned = False           # the wrap-up turn is injected ONCE (incident 2026-08-18): repeating it
+                                            # every message past the budget would spend the little room that is left
 
     @property
     def alive(self) -> bool:
@@ -156,6 +174,11 @@ class WorkerSession:
             self._emit_step_result(d)                          # 2026-08-10: qué le CONTESTARON a ese paso
         elif ev.type == "note":
             self._emit_note(str(d.get("text") or ""))          # narración del worker → observabilidad, no voz
+        elif ev.type == "context_full":
+            # The context no longer fits. NOT a provider fault (see `providers.is_context_overflow`) — nobody goes on
+            # cooldown; `_finish` compacts what was learned and hands it to a fresh session.
+            rec.context_full = {"text": d.get("text") or "", "tokens": int(d.get("tokens") or 0)}
+            self._emit_chip("contexto agotado", f"{rec.context_full['tokens']:,} tokens".replace(",", "."), ok=False)
         elif ev.type == "provider_down":
             rec.provider_down = {"provider": d.get("provider") or "", "next": d.get("next") or "",
                                  "text": d.get("text") or ""}
@@ -176,12 +199,23 @@ class WorkerSession:
                     pass
             self._model = d.get("model") or self._model
             self._base_url = d.get("base_url") or self._base_url
+            # THE NUMBER THAT PREDICTS DEATH was already flowing past here and we only used it to bill the
+            # post-mortem (incident 2026-08-18). Two different things, and telling them apart is the whole point:
+            # `_usage_partial` above ACCUMULATES spend; `ctx_tokens` is the size of the LAST request. When it
+            # crosses the budget the worker gets ONE turn asking it to deliver what it has — the session is still
+            # alive, so we can just talk to it, which beats letting it die and reconstructing the work afterwards.
+            rec.real_model = d.get("real_model") or rec.real_model
+            ctx = int(d.get("ctx_tokens") or 0)
+            if ctx:
+                rec.ctx_tokens = ctx
+                self._maybe_warn_context(ctx)
         elif ev.type == "result":
             rec.result_summary = str(d.get("summary") or "").strip()
             rec.ok = bool(d.get("ok", True))
             self._usage = d.get("usage") or {}
             self._cost = d.get("cost")
             self._model = d.get("model") or self._model
+            rec.real_model = d.get("real_model") or rec.real_model
             self._base_url = d.get("base_url") or self._base_url
             self._bus("worker.result", {"id": rec.task_id, "ok": rec.ok})
         elif ev.type == "say":
@@ -196,6 +230,26 @@ class WorkerSession:
 
     async def _finish(self) -> None:
         rec = self._rec
+        # COMPACT AND CONTINUE (incident 2026-08-18). The context blew up, which is neither a task failure nor a
+        # provider failure, so neither of the two existing paths fits: there is nothing to relay to (the next tier
+        # would blow up identically) and nothing to report (the operator asked for a guitar, not for an API error).
+        # It is relaunched ONCE carrying what was learned, so the fresh worker does not start from zero.
+        if (rec.context_full and not rec.context_retried and not rec.provider_down
+                and rec.status != "cancelled"):
+            rec.context_retried = True
+            try:
+                from nucleo.flash import escalate as _esc
+                _esc.escalate_to_slowbrain(context_handoff(rec), context={
+                    "src": "context_handoff", "kind": rec.kind, "trace": rec.trace_id,
+                    "depth": int(rec.depth or 0)})
+                rec.result_summary = ""       # sin entrega: la retoma el worker nuevo, sin ruido
+                rec.ok = False
+                logger.warning(f"worker[{rec.task_id}]: contexto agotado "
+                               f"({rec.context_full.get('tokens')} tok) → retomada con lo aprendido")
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"worker[{rec.task_id}]: no pude retomar tras agotar el contexto: {e}")
+                rec.result_summary = ("Me he quedado sin espacio de contexto en esa tarea y no he podido retomarla. "
+                                      "Si me la pides otra vez, la parto en trozos más pequeños.")
         # RELEVO DE PROVEEDOR: la tarea no fracasó, se quedó sin gasolina. Se relanza UNA vez —el escalón agotado
         # ya está en cooldown, así que el spawn nuevo coge el siguiente— en vez de entregarle al operador el error
         # crudo del proveedor como si fuera el resultado de lo que pidió.
@@ -241,8 +295,12 @@ class WorkerSession:
         cached = u.get("cache_read_input_tokens")
         if pt or ct or cached:
             from nucleo import energy_meter as _energy
+            # THE MODEL THAT ACTUALLY RAN, not the alias we asked for (incident 2026-08-18): the run recorded as
+            # `claude-opus-4-8[1m]` was performed by `glm-4.7`, and the tariff table looks the model up BY NAME —
+            # so the bill was computed at Opus prices for a GLM run. The alias only decides pricing when the
+            # provider never said what it served.
             _energy.report_worker_usage(
-                base_url=self._base_url, model=self._model,
+                base_url=self._base_url, model=(rec.real_model or self._model),
                 prompt_tokens=pt, completion_tokens=ct, cached_tokens=cached,
             )
         # una sesión CANCELADA ya emitió su chip end (ok=False) desde dispatch.cancel_session — re-emitir aquí
@@ -254,8 +312,14 @@ class WorkerSession:
                 extra["prompt_tokens"] = pt
             if ct is not None:
                 extra["completion_tokens"] = ct
-            if self._model:
-                extra["model"] = self._model
+            if self._model or rec.real_model:
+                # The panel showed the alias, so it LIED about which model ran. The real one wins; the alias is
+                # kept beside it, because "what we asked for" is what a routing/config bug is diagnosed from.
+                extra["model"] = rec.real_model or self._model
+                if rec.real_model and self._model and rec.real_model != self._model:
+                    extra["model_requested"] = self._model
+            if rec.ctx_tokens:
+                extra["ctx_tokens"] = rec.ctx_tokens
             lbl = ""
             try:
                 if self._cost:
@@ -379,6 +443,39 @@ class WorkerSession:
         except Exception:
             pass
 
+    def _maybe_warn_context(self, ctx: int) -> None:
+        """Nearing the context ceiling → ask the worker, ONCE, to deliver what it already has (incident 2026-08-18).
+
+        Why talk to it instead of killing it: the session is ALIVE and its own reasoning is the cheapest possible
+        summary of its progress — far better than anything we could reconstruct from `steps`/`plan` afterwards. It is
+        the same stdin injection channel `send_to_worker` already uses, so no new machinery. Best-effort throughout:
+        failing to warn must never be what breaks a task that is still working."""
+        rec = self._rec
+        if self._ctx_warned or _CTX_BUDGET <= 0 or ctx < _CTX_BUDGET:
+            return
+        self._ctx_warned = True
+        logger.warning(f"worker[{rec.task_id}]: contexto en {ctx} tokens (tope {_CTX_BUDGET}) → pido entrega")
+        self._emit_chip("contexto casi lleno", f"{ctx} tokens — pidiendo entrega", ok=False)
+        try:
+            from voice.observer import emit
+            emit("task", "⚠️ contexto casi lleno", text=f"{ctx} tokens — le pido que entregue lo que tiene",
+                 extra={"id": rec.task_id, "src": f"worker:{rec.task_id}", "ctx_tokens": ctx})
+        except Exception:
+            pass
+        asyncio.create_task(self._ask_for_delivery())
+
+    async def _ask_for_delivery(self) -> None:
+        """Injects the wrap-up turn. Separate coroutine because `_on_event` is synchronous."""
+        try:
+            await self._b.send(
+                "AVISO DEL SISTEMA: te estás quedando sin contexto y la próxima llamada puede fallar. "
+                "PARA de investigar AHORA y entrega lo que YA tengas, aunque esté incompleto: escribe el informe "
+                "con los hallazgos actuales y preséntalo por el camino de entrega habitual. Di explícitamente qué "
+                "te ha faltado por comprobar, para que se pueda retomar."
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"worker[{self._rec.task_id}]: no pude pedir la entrega anticipada: {e}")
+
     def _emit_step(self, d: dict) -> None:
         """Un PASO: DÓNDE trabaja (badge/categoría por lugar) + QUÉ hace y sobre qué (acción + objetivo)."""
         try:
@@ -447,10 +544,72 @@ def _default_label(kind: str) -> str:
             "memory": "Actualizando la memoria…", "research": "Investigando…"}.get(kind, "Pensando…")
 
 
+def operator_safe_summary(summary: str) -> str:
+    """LAST GATE before a worker's summary is spoken and written to the chat wall (incident 2026-08-18).
+
+    A raw provider error is NEVER a report. The operator asked for a guitar and got
+    «API Error: The model has reached its context window limit.» — read aloud, in English, as if it were the answer.
+    The 2026-08-10 quota incident closed this for its own error class by classifying it upstream; this closes it for
+    the class as a WHOLE, so the next unforeseen provider message does not reach the operator either.
+
+    It lives here, at the delivery point, ON PURPOSE: the specific paths (`provider_down`, `context_full`) each
+    already replace the text with something readable, but they only cover the failures we anticipated. This one
+    covers the rest, and it is a translation, never a silence — the operator always learns the task did not finish;
+    what disappears is the internal wording. The full text stays in the log and in the record."""
+    t = (summary or "").strip()
+    if not t:
+        return ""
+    try:
+        from nucleo.workers import providers as _prov
+        if _prov.is_context_overflow(t):
+            return ("Me he quedado sin espacio de contexto a mitad de esa tarea. La retomo con lo que llevaba; "
+                    "si vuelve a pasar, pídemela por partes.")
+        if _prov.classify_failure(t):
+            return ("El proveedor que mueve mis procesos de fondo me ha dado un problema con esa tarea. "
+                    "Lo tienes en el panel de estado.")
+    except Exception:
+        pass
+    # A bare «API Error…» with no classification is still not a report: it is the CLI talking to us, not to them.
+    if t.lower().startswith("api error"):
+        return "Esa tarea no ha podido completarse por un fallo del proveedor. Lo tienes en el panel de estado."
+    return t
+
+
+def context_handoff(rec: "SessionRecord") -> str:
+    """The brief a fresh worker inherits when the previous one ran out of context (incident 2026-08-18).
+
+    Built ONLY from what we already hold in the record — plan, steps taken, last narrated note, breadth reported.
+    No LLM call: compacting must not depend on a model being reachable at the exact moment one just failed, and this
+    runs on the failure path.
+
+    What it deliberately does NOT carry is the dead worker's `result_summary`: on this path that field holds the raw
+    provider error, and pasting it in would tell the new worker its predecessor's error message was a finding."""
+    parts = [f"RETOMA esta tarea, que se quedó a medias porque el worker anterior agotó su contexto: {rec.goal}"]
+    if rec.plan:
+        done = max(0, min(int(rec.done or 0), len(rec.plan)))
+        parts.append("Su plan era: " + " · ".join(str(p) for p in rec.plan[:8])
+                     + f" (llevaba {done} de {len(rec.plan)} pasos).")
+    if rec.note:
+        parts.append(f"Lo último que dijo: {str(rec.note)[:300]}")
+    if rec.steps:
+        seen: list[str] = []
+        for s in rec.steps[-8:]:
+            bit = " ".join(x for x in (str(s.get("action") or ""), str(s.get("target") or "")) if x).strip()
+            if bit and bit not in seen:
+                seen.append(bit)
+        if seen:
+            parts.append("Ya había mirado: " + " · ".join(seen)[:600] + ".")
+    if int(rec.considered or -1) > 0:
+        parts.append(f"Había revisado {rec.considered} candidatos y se quedaba con {max(0, int(rec.kept or 0))}.")
+    parts.append("NO repitas lo ya mirado: sigue desde ahí y ENTREGA en cuanto tengas algo presentable, "
+                 "aunque sea parcial. Ve al grano — el contexto es limitado.")
+    return "\n".join(parts)
+
+
 async def _deliver(rec: "SessionRecord") -> None:
     """Entrega el resultado por los raíles de siempre: proactive (voz+UI) + nota [SISTEMA] + memoria (único
     escritor). Réplica del antiguo dispatch._deliver, ahora por-sesión."""
-    summary = rec.result_summary.strip()
+    summary = operator_safe_summary(rec.result_summary)
     if not summary:
         return
     try:

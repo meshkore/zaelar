@@ -71,8 +71,17 @@ class WorkerSpec:
     depth: int = 0                         # profundidad de cadena (acota fork-bomb)
     budget: dict = field(default_factory=dict)   # topes tokens/tiempo por worker (fallback a tiempo sin `usage`)
     extra_args: list = field(default_factory=list)   # flags CLI crudos adicionales (p.ej. ["--settings", path] del
-                                            # guard de confinamiento del dev-worker, V2-076 auditoría 2026-07-26) —
-                                            # aditivo, agnóstico: un backend que no los soporta simplemente los ignora.
+                                            # guard de confinamiento del dev-worker, V2-076 auditoría 2026-07-26).
+                                            # NOTE: all three backends splice these in VERBATIM, so a flag only one
+                                            # of them understands is NOT agnostic — that is what `read_dirs` is for.
+    # ADDITIONAL directories the worker DEPENDS on reading, as absolute paths (incident 2026-08-18). Agnostic FOR
+    # REAL: the INTENT is declared ("besides your cwd, you may read here") and each backend translates it to its own
+    # flag — or ignores it when its permission model does not need one — instead of putting a specific CLI's flag in
+    # the shared spec. Born with the confined cwd (`workers/workdir.py`), where the browser's vision path (V2-049)
+    # hands the worker its screenshot as an absolute path OUTSIDE the working directory. Measured: the CLI already
+    # permits that read without being told, so this is defence in depth, NOT what makes the vision path work — it
+    # states the dependency so a future permission tightening cannot silently blind a worker.
+    read_dirs: list = field(default_factory=list)
 
 
 class WorkerBackend(ABC):

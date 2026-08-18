@@ -76,6 +76,20 @@ def _find_claude() -> str:
     return ""
 
 
+def _ctx_size(usage: dict) -> int:
+    """Context size of ONE request: fresh input + cache read + cache written (incident 2026-08-18).
+
+    The three counters in an Anthropic-shaped `usage` are parts of the SAME prompt, not separate things: with
+    caching on, `input_tokens` stays in the low hundreds while the real prefix travels in
+    `cache_read_input_tokens`. Looking only at `input_tokens` reported "956 tokens" when the real context was
+    138,492 — the number to watch is the sum, which is why the ceiling was reached with nothing seeing it coming."""
+    try:
+        return sum(int(usage.get(k) or 0) for k in
+                   ("input_tokens", "cache_read_input_tokens", "cache_creation_input_tokens"))
+    except (TypeError, ValueError):
+        return 0
+
+
 def _user_msg(text: str) -> bytes:
     """Una línea stream-json de mensaje de usuario (turno inicial o inyección)."""
     return (json.dumps({"type": "user", "message": {"role": "user", "content": text}},
@@ -96,6 +110,11 @@ class ClaudeCodeSession(WorkerBackend):
         self._stdin_closed = False
         self._paused = False
         self._tier: dict | None = None   # escalón de proveedor con el que arrancó (para culpar al correcto si cae)
+        self._ctx_tokens = 0             # context size of the LAST message (see `_ctx_size`) — the supervisor
+                                         # watches it to compact BEFORE the ceiling (incident 2026-08-18)
+        self._real_model = ""            # the model the provider says it ACTUALLY ran, when it says so: `_model`
+                                         # above is the ALIAS we asked for, and in the 2026-08-18 incident we
+                                         # recorded `claude-opus-4-8[1m]` for a run that `glm-4.7` performed
         # Atribución de la EVIDENCIA: `tool_use_id` → el paso que la pidió, para casar cada `tool_result` con SU
         # herramienta. `_last_step` es el respaldo cuando el id no viene (algunos backends no lo mandan).
         self._steps_by_id: dict[str, dict] = {}
@@ -130,6 +149,12 @@ class ClaudeCodeSession(WorkerBackend):
             if not (spec.env or {}).get("ZAELAR_NO_BRIDGE_TOOLS"):
                 tools = list(tools) + [t for t in _BRIDGE_TOOLS if t not in tools]
         cmd += ["--allowedTools", " ".join(tools)]
+        # `read_dirs` → `--add-dir` (incident 2026-08-18). This backend's translation of "besides your cwd, you may
+        # read here", for the CONFINED cwd of `workers/workdir.py`. Defence in depth, not a requirement: measured
+        # against the real CLI that an absolute path outside the cwd is already readable without this. With no tools
+        # there is nothing to widen.
+        if spec.read_dirs and not spec.deny_tools:
+            cmd += ["--add-dir", *[str(d) for d in spec.read_dirs if d]]
         if spec.model:
             cmd += ["--model", spec.model]
         if spec.extra_args:
@@ -153,6 +178,20 @@ class ClaudeCodeSession(WorkerBackend):
                 if _ext:
                     env.update(_ext)
                     env.pop("ANTHROPIC_API_KEY", None)   # evita ambigüedad key-vs-base_url en el CLI
+            except Exception:
+                pass
+        else:
+            # ATTRIBUTION when the endpoint arrived PRE-SET in `spec.env` (incident 2026-08-18). `self._tier` used to
+            # be assigned only inside the branch above, so on this path it stayed None and every piece of provider
+            # attribution went blind: the events reported an empty `base_url`, and a failure could not name who
+            # served the session — which is why the dead worker's row said nothing about running on a gateway.
+            # Choosing the endpoint and KNOWING which one is in play are two different jobs; only the first one
+            # belonged in that `if`.
+            try:
+                from nucleo.workers import providers as _prov
+                _url = (env.get("ANTHROPIC_BASE_URL") or "").strip()
+                self._tier = next((t for t in _prov.chain() if (t.get("base_url") or "") == _url), None) or {
+                    "name": _url.split("//")[-1].split("/")[0] or "preconfigurado", "base_url": _url}
             except Exception:
                 pass
         # marcadores para el barrido de huérfanos al arrancar (§v2·D) + auth de bridges por-tarea (§v2·D).
@@ -340,6 +379,20 @@ class ClaudeCodeSession(WorkerBackend):
             # + QUÉ usa (la tool + su objetivo concreto: URL, query, slot, fichero, ref del navegador). El texto
             # assistant sigue SIN convertirse en say (monólogo interno).
             msg = obj.get("message") or {}
+            # REAL MODEL (incident 2026-08-18). Every `assistant` message states which model produced it, and it
+            # need NOT be the one we asked for: the run we recorded as `claude-opus-4-8[1m]` was actually performed
+            # by `glm-4.7` (the gateway accepts the Claude alias and serves its own). The panel lied about the model
+            # and the cost was priced at the alias's rate. `<synthetic>` is discarded: that is the label the CLI puts
+            # on messages IT fabricates (the error notice, for one), not a model.
+            # `getattr`/`setattr`-safe like the `_tier` reads elsewhere in this file: several call sites build a
+            # session with `object.__new__` (no `__init__`) to exercise `_map` in isolation, and a mapper that only
+            # works on a fully constructed object is a mapper that cannot be tested — which is how this attribute
+            # first shipped broken (caught by the suite, 2026-08-18).
+            _m = str(msg.get("model") or "").strip()
+            if _m and _m != "<synthetic>":
+                self._real_model = _m
+            elif not hasattr(self, "_real_model"):
+                self._real_model = ""
             # CONSUMO PARCIAL (2026-08-13): cada mensaje `assistant` trae SU `usage`, y el del `result` final es solo
             # la suma (verificado sondeando: 61.969+127 = 62.096). Se emite por mensaje para que un worker que NO
             # llega a su `result` —el caso NORMAL cuando el supervisor lo mata por presupuesto— siga habiendo
@@ -347,7 +400,14 @@ class ClaudeCodeSession(WorkerBackend):
             # pasos y ~$0,20 de tokens reales y se facturó a €0. La factura no puede depender de que el proceso
             # tenga la cortesía de despedirse.
             if isinstance(msg.get("usage"), dict):
+                # CURRENT CONTEXT SIZE (incident 2026-08-18) — different from the accumulated spend above, and
+                # conflating the two is exactly what left us blind: spend is SUMMED message by message, but the
+                # context is the TOTAL OF THE LAST message (fresh + cache read + cache written). Summing it would
+                # give a number that grows without meaning anything; the one that predicts death is this.
+                self._ctx_tokens = _ctx_size(msg["usage"])
                 yield self._ev("usage", usage=msg["usage"], model=self._model,
+                               real_model=getattr(self, "_real_model", ""),
+                               ctx_tokens=getattr(self, "_ctx_tokens", 0),
                                base_url=(getattr(self, "_tier", None) or {}).get("base_url", ""))
             for block in (msg.get("content") or []):
                 if not isinstance(block, dict):
@@ -409,15 +469,23 @@ class ClaudeCodeSession(WorkerBackend):
             if not ok:
                 try:
                     from nucleo.workers import providers as _prov
-                    nxt = _prov.note_failure(str(summary), self._tier)
-                    if nxt is not None or _prov.classify_failure(str(summary)):
-                        yield self._ev("provider_down", text=str(summary)[:300],
-                                       provider=(self._tier or {}).get("name", ""),
-                                       next=(nxt or {}).get("name", ""))
+                    # BLOWN CONTEXT first (incident 2026-08-18): it is not the provider, it is the size of the
+                    # context. It takes its own lane — compact and continue — and NEVER `note_failure`, which would
+                    # put a healthy tier on cooldown and migrate the fault to the next one.
+                    if _prov.is_context_overflow(str(summary)):
+                        yield self._ev("context_full", text=str(summary)[:300],
+                                       tokens=int(getattr(self, "_ctx_tokens", 0) or 0))
+                    else:
+                        nxt = _prov.note_failure(str(summary), self._tier)
+                        if nxt is not None or _prov.classify_failure(str(summary)):
+                            yield self._ev("provider_down", text=str(summary)[:300],
+                                           provider=(self._tier or {}).get("name", ""),
+                                           next=(nxt or {}).get("name", ""))
                 except Exception:
                     pass
             yield self._ev("result", summary=str(summary), ok=bool(ok), usage=usage,
                            cost=obj.get("total_cost_usd"), model=self._model,
+                           real_model=getattr(self, "_real_model", ""),
                            base_url=(getattr(self, "_tier", None) or {}).get("base_url", ""))
             yield self._ev("done")
             self._done = True

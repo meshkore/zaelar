@@ -190,6 +190,36 @@ _EXHAUSTED_RE = re.compile(
     r"monthly limit|weekly limit|plan limit|saldo insuficiente", re.I)
 
 
+# ── A BLOWN CONTEXT IS NOT A SICK PROVIDER (incident 2026-08-18) ─────────────────────────────────────────────
+# The worker of session `08f54c0c` died with "API Error: The model has reached its context window limit." and that
+# text was handed to the operator as if it were their report. `classify_failure` did not recognize it (returned
+# ""), so there was no relay and no alert: the very hole closed for quota on 2026-08-10, still open for this.
+#
+# This gets its OWN family rather than living inside `classify_failure`, for a substantive reason: a blown context
+# is not an unhealthy provider. Folding it into `exhausted` would put a perfectly working tier on cooldown and
+# migrate the fault to the next one — which would blow up identically, because the cause is the SIZE of the
+# context, not who serves it. The correct answer is COMPACT AND CONTINUE (`session._context_handoff`), not relay.
+#
+# Two ways of saying the same thing, and both must be caught: the CLI's SYNTHETIC message talks about a "context
+# window", but the real `apiError` in the incident was `max_output_tokens` — the provider rejects the call once the
+# accumulated input PLUS the requested output reservation no longer fit its window. That is why it died at 138k
+# and not at 200k.
+_CONTEXT_RE = re.compile(
+    r"context window|context[_ ]length|max_output_tokens|maximum context|"
+    r"too many tokens|prompt is too long|input length and `max_tokens`", re.I)
+
+
+def is_context_overflow(text: str) -> bool:
+    """True if the error says the CONTEXT (input + output reservation) no longer fits the model's window.
+
+    It must ALSO not be a quota problem: a 429 that happens to mention tokens is the other thing, and confusing
+    the two would send us compacting when the right move is to relay to another provider."""
+    t = text or ""
+    if not _CONTEXT_RE.search(t):
+        return False
+    return classify_failure(t) == ""
+
+
 def classify_failure(text: str) -> str:
     """'exhausted' (plan/cuota agotada, hay que relevar) · 'auth' · 'rate' (pasajero) · '' (no es de proveedor)."""
     t = (text or "")

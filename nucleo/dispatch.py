@@ -27,7 +27,7 @@ from typing import Any
 from loguru import logger
 
 from nucleo import dev_worker_guard, research
-from nucleo.workers import WorkerSpec, get_backend
+from nucleo.workers import WorkerSpec, get_backend, workdir
 from nucleo.workers.session import SessionRecord, WorkerSession
 # Prompt composition (pure, no session-pool state) split out (V2-098) into its own module; re-exported by name
 # so existing call sites (below, and tests doing dispatch._build_prompt/_web_prompt) keep working unchanged.
@@ -1020,10 +1020,24 @@ async def _run_session(task: "Task") -> None:
                               env=env, cwd=_wd,
                               extra_args=(["--settings", _dev_settings_path] if _dev_settings_path else []))
         else:
+            # OWN CWD (incident 2026-08-18): until today this spec carried no `cwd`, so the backend fell back to
+            # the ENGINE ROOT and the headless agent loaded `engine/CLAUDE.md` (76k tokens) plus the parent
+            # CLAUDE.md on EVERY request. Measured on the worker that died: 122,833 input tokens BEFORE doing any
+            # work, ~62k of headroom, and the provider rejected the call 14 steps later. Measured again head-to-head
+            # afterwards: 167,242 tokens in the repo root vs 25,352 in a scratch dir (-84.8%). See
+            # `workers/workdir.py` for the three faults one directory per task fixes (context, `informe.json`
+            # collision, private CLAUDE.md). `read_dirs` declara la dependencia de lectura de la VISIÓN del
+            # navegador (la captura llega por ruta absoluta fuera del cwd, V2-049) — medido que el CLI ya la permite
+            # sin decírselo, así que es defensa en profundidad, no un requisito.
+            _wd = None
+            if not workdir.needs_repo(kind):
+                _wd = workdir.for_task(key)
+                env.update(workdir.env_for_task(env))
             spec = WorkerSpec(kind=kind, model=_model_for(kind), tools=_tools_for(kind, trusted),
                               deny_tools=(not trusted), trusted=trusted, task_id=key,
                               token=rec_token(rec), parent_task_id=rec.parent_task_id, depth=rec.depth,
-                              env=env, resume_sid=resume_sid)
+                              env=env, cwd=_wd, resume_sid=resume_sid,
+                              read_dirs=(workdir.extra_dirs() if _wd else []))
         backend = get_backend(spec)
         session = WorkerSession(backend, spec, rec)
         rec.session = session
