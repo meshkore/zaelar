@@ -193,16 +193,46 @@ def main():
     ap.add_argument("--fresh", action="store_true", help="repuebla la persona de cero (lento) antes de medir")
     ap.add_argument("--limit", type=int, default=10)
     ap.add_argument("--label", default=None, help="etiqueta del run (p. ej. off/openai/local)")
+    # V2-114 F1 — la cinta del destilador. `--record` graba lo que el CORAZÓN decide (una vez, ~90 min);
+    # `--replay` lo repite sin red en segundos. Ver `distiller_tape.py` para el porqué de la cinta secuencial.
+    ap.add_argument("--record", metavar="PATH", default=None,
+                    help="con --fresh: graba las decisiones del destilador a un fixture reutilizable")
+    ap.add_argument("--replay", metavar="PATH", default=None,
+                    help="con --fresh: repuebla replicando un fixture en vez de llamar al LLM (rápido, gratis)")
     args = ap.parse_args()
+    if args.record and args.replay:
+        ap.error("--record y --replay son excluyentes")
+    if (args.record or args.replay) and not args.fresh:
+        ap.error("--record/--replay solo tienen sentido con --fresh (es la fase de repoblación lo que se graba)")
     _setup_env()
 
     if args.fresh:
         import asyncio as _asyncio
 
         from tests.memory.e2e.bot import runner
-        print("⟳ repoblando la persona (--fresh, corpus completo)…")
-        # fix 2026-07-20: la API real del runner es la corrutina run_range, no un run() síncrono inexistente.
-        _asyncio.run(runner.run_range(0, 10_000, fresh=True))
+        from tests.memory.e2e.bot import distiller_tape as _tape
+
+        def _populate():
+            # fix 2026-07-20: la API real del runner es la corrutina run_range, no un run() síncrono inexistente.
+            _asyncio.run(runner.run_range(0, 10_000, fresh=True))
+
+        if args.replay:
+            with _tape.replay(args.replay) as t:
+                _populate()
+            st = t.stats()
+            print(f"⏹  cinta: {st['hits']} aciertos · {st['misses']} sin entrada · "
+                  f"cobertura {st['coverage']:.1%}" + (f" · {st['out_of_order']} fuera de orden"
+                                                       if st["out_of_order"] else ""))
+            if st["misses"]:
+                print(f"   ⚠️  {st['misses']} frases sin entrada cayeron a la HEURÍSTICA — el número de esta "
+                      f"corrida NO es comparable con uno de cinta completa")
+        elif args.record:
+            print("⟳ repoblando la persona (--fresh + --record, corpus completo, con LLM real)…")
+            with _tape.record(args.record):
+                _populate()
+        else:
+            print("⟳ repoblando la persona (--fresh, corpus completo)…")
+            _populate()
 
     size = _corpus_size()
     rr = _rerank_status()
