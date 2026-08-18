@@ -98,59 +98,13 @@ def test_drop_paraphrases_only_touches_its_own_pill(fresh_db):
     assert db.query_one("SELECT memory_id FROM paraphrase_index")["memory_id"] == b
 
 
-# ── the raw utterance as a SECOND retrieval path to the distilled pill (V2-114 F4.2) ─────────────────────────
-# The HYPOTHESIS came from LoCoMo, where distilling wins multi-hop (+12.6pp) and open-domain (+15.4pp) and loses
-# temporal (-8.1pp) and single-hop (-2.8pp): a date said once lives in the literal wording, so keep the pill as
-# THE answer and let the raw utterance be an extra way to FIND it — augment, never replace.
+# ── the raw utterance as a second retrieval path: BUILT, MEASURED, REMOVED (V2-114 F4.2, 2026-08-19) ──────────
+# The mechanism is gone from `memory/writer.py` (see the epitaph there for the full numbers). It lost on BOTH
+# corpora and, on LoCoMo, lost precisely where it was designed to win: temporal did not move and single-hop
+# dropped 7.2pp, plus +48% read latency and ~2x the database. Its tests went with it rather than being kept green
+# against nothing.
 #
-# It did not survive its own A/B on our corpus (2026-08-19): worse recall, +48% read latency, ~2x the DB. The
-# numbers are on `writer._RAW_INDEXING`; the default is OFF and there is a test below whose whole job is the
-# default. The hypothesis is left written down because it was falsifiable and it was falsified — that is the
-# useful record, and the reason those LoCoMo per-category deltas do not by themselves justify this mechanism.
-def test_the_raw_path_is_OFF_by_default(fresh_db):
-    """The default is the thing worth protecting here. It was flipped to OFF on 2026-08-19 after an A/B over our
-    own corpus showed it cost recall@1 (69.8% -> 68.3%), +48% read latency at p50 and ~2x the database — see the
-    numbers on `writer._RAW_INDEXING`. A future flip back has to be a deliberate act with its own measurement,
-    not a side effect, so it fails here."""
-    assert memwriter._RAW_INDEXING is False
-    memwriter.insert_memory("Su perro se llama Toby.", level="long", kind="fact",
-                            meta={"raw": "mi perro se llama Toby, es un labrador precioso"})
-    assert memdb.get_db().query_one("SELECT COUNT(*) c FROM paraphrase_index")["c"] == 0
-
-
-def test_a_durable_pill_indexes_the_operators_own_words(fresh_db, monkeypatch):
-    """The MECHANISM still works when explicitly enabled — the A/B measured a bad trade, not a broken feature."""
-    monkeypatch.setattr(memwriter, "_RAW_INDEXING", True)
-    mid = memwriter.insert_memory("Su perro se llama Toby y es un labrador.", level="long", kind="fact",
-                                  meta={"raw": "mi perro se llama Toby, es un labrador precioso"})
-    db = memdb.get_db()
-    rows = db.query("SELECT memory_id, text FROM paraphrase_index")
-    assert len(rows) == 1 and rows[0]["memory_id"] == mid
-    assert rows[0]["text"] == "mi perro se llama Toby, es un labrador precioso"
-    assert db.query_one("SELECT COUNT(*) c FROM vec_paraphrases")["c"] == 1
-
-
-def test_raw_identical_to_the_pill_is_not_indexed_twice(fresh_db, monkeypatch):
-    """When the distiller is down the heuristic stores the utterance nearly verbatim. A second copy of the same
-    sentence buys no retrieval surface and doubles this pill's footprint in the vector table.
-
-    The flag is forced ON: with it off this assertion would pass for the wrong reason (nothing is indexed at all),
-    which is a test that has stopped testing its own subject."""
-    monkeypatch.setattr(memwriter, "_RAW_INDEXING", True)
-    memwriter.insert_memory("dato igual", level="long", kind="fact", meta={"raw": "  Dato Igual  "})
-    assert memdb.get_db().query_one("SELECT COUNT(*) c FROM paraphrase_index")["c"] == 0
-
-
-def test_short_term_pills_do_not_get_a_raw_path(fresh_db, monkeypatch):
-    """Short-term memories expire and are read by an over-inclusive path that never touches the retriever —
-    indexing them would pay the cost with no reader to benefit. Flag forced ON for the same reason as above."""
-    monkeypatch.setattr(memwriter, "_RAW_INDEXING", True)
-    memwriter.insert_memory("efímero", level="short", kind="event", meta={"raw": "otra frase efímera distinta"})
-    assert memdb.get_db().query_one("SELECT COUNT(*) c FROM paraphrase_index")["c"] == 0
-
-
-def test_raw_indexing_has_a_kill_switch(fresh_db, monkeypatch):
-    monkeypatch.setattr(memwriter, "_RAW_INDEXING", False)
-    memwriter.insert_memory("Su perro se llama Toby.", level="long", kind="fact",
-                            meta={"raw": "mi perro se llama Toby"})
-    assert memdb.get_db().query_one("SELECT COUNT(*) c FROM paraphrase_index")["c"] == 0
+# What SURVIVES here is the paraphrase lifecycle above: `index_paraphrases`/`drop_paraphrases` carry
+# REM-generated paraphrases, a different mechanism that was mute from the day it was built and is now verified
+# working (F4.3). The deletion of one must not quietly take the other's coverage with it, which is why this file
+# still exists and this comment says so.

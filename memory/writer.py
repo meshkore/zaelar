@@ -268,81 +268,39 @@ def insert_memory(
             _mark_embed_pending(db, mid, pending_reason)
 
     _link_concepts(db, mid, concepts, level, kind)
-    _index_raw_utterance(mid, text, meta, level)
     return mid
 
 
-# V2-031 T2 branch: index the ORIGINAL UTTERANCE as a second retrieval path to the distilled pill.
+# The raw utterance as a second retrieval path (V2-031 T2 / V2-114 F4.2) was BUILT, MEASURED and REMOVED on
+# 2026-08-19. Kept as an epitaph rather than silence, so nobody proposes it a third time without the numbers.
 #
-# **DEFAULT OFF since 2026-08-19, because it was MEASURED and it made things worse.** A/B over our own corpus
-# through the distiller tape (603 durables / 800 rows, identical corpus in both arms, same backend, same
-# reranker, 269 recall queries):
+# The hypothesis was reasonable and came from a real measurement: on LoCoMo, distilling beats raw dialogue at
+# multi-hop (+12.6pp) and open-domain (+15.4pp) and LOSES at temporal (-8.1pp) and single-hop (-2.8pp), because
+# an answer that IS the literal wording of one turn does not survive being canonicalised. So: keep the pill as
+# THE answer and let the operator's own words be an extra way to FIND it — augment, never replace.
 #
-#     off  recall@1 69.8%  @3 85.9%  @5 89.7%  @10 92.4%  MRR .780  lat p50 533ms  p95 2278ms  DB 3.6MB
-#     on   recall@1 68.3%  @3 85.9%  @5 88.9%  @10 91.6%  MRR .772  lat p50 787ms  p95 3328ms  DB 6.8MB
+# It lost on BOTH corpora, and on LoCoMo it lost precisely where it was supposed to win:
 #
-# Worse on every metric except a tie at @3, +48% read latency at p50, and nearly double the database. The stated
-# hypothesis was "the pill stays THE answer and the raw utterance becomes an extra way to FIND it"; on this corpus
-# the raw utterance is instead a NOISIER copy that lets a query match the wording of the wrong pill, and it
-# doubles the rows a brute-force KNN has to scan. Latency alone disqualifies it: "reading must be maximum speed"
-# is a hard invariant (V2-013), so a 48% p50 regression is not tradeable against recall it did not even deliver.
+#   our corpus (tape A/B, 603 durables, 269 queries, identical corpus in both arms)
+#     off  recall@1 69.8%  @3 85.9%  @5 89.7%  @10 92.4%  MRR .780  lat p50 533ms  DB 3.6MB
+#     on   recall@1 68.3%  @3 85.9%  @5 88.9%  @10 91.6%  MRR .772  lat p50 787ms  DB 6.8MB
 #
-# Caveat on those latency figures, stated rather than hidden: the two arms ran CONCURRENTLY on one machine, so
-# both absolutes are inflated by contention. The relative gap still holds (the `on` arm does strictly more work
-# over twice the vectors) but these are not clean p50 numbers.
+#   LoCoMo conv-0, distilled, 199 questions      overall  multi  temporal  open  single  adversarial
+#     off                                         48.2%   43.8%   70.3%   38.5%  62.9%     14.9%
+#     on                                          46.7%   37.5%   70.3%   38.5%  55.7%     23.4%
 #
-# Kept behind the flag rather than deleted only until the pending LoCoMo distilled arm reports: that corpus is
-# third-party dialogue, the shape the published verbatim-beats-artifact ablation came from, so it is the one case
-# with a reason to disagree. If it does not, this branch should be DELETED — a flag nobody sets is dead code.
-_RAW_INDEXING = os.getenv("MEM_INDEX_RAW", "0").strip().lower() not in ("0", "false", "no", "off")
-
-
-def _index_raw_utterance(mid: int, text: str, meta, level: str) -> None:
-    """Give a durable pill a second retrieval path: the words the operator actually said.
-
-    **Measured on LoCoMo, 2026-08-18 (199 questions, our system, both configurations).** Distilling is not
-    uniformly better or worse than keeping the raw dialogue — it is better at some categories and worse at
-    others, and the split is not subtle:
-
-        category      raw only   distilled   delta
-        multi-hop       31.2%      43.8%     +12.6pp
-        open-domain     23.1%      38.5%     +15.4pp
-        temporal        78.4%      70.3%      -8.1pp
-        single-hop      65.7%      62.9%      -2.8pp
-
-    Distillation wins where the answer has to be REASONED (the pill is a synthesis, and its concepts and slots
-    are what the graph walks) and loses where the answer IS the literal wording (a date said once, in one turn).
-    Third-party ablations found the same direction on LoCoMo and LongMemEval-S; this is the same finding measured
-    on our own pipeline rather than borrowed.
-
-    So the answer is not to pick one. The pill stays THE answer — canonical, deduped, superseded, graph-linked —
-    and the raw utterance becomes an extra way to FIND it, riding the paraphrase channel that already exists for
-    exactly this shape of problem (`paraphrase_index` + `vec_paraphrases`, mapped back to the real `memory_id`,
-    never returned as a result of its own). Structure AUGMENTS, it does not REPLACE — which was the rule this
-    initiative already wrote after correcting the REM verdict.
-
-    Costs one extra embedding per durable write and nothing at read time. Writes are off-hot-path by invariant
-    ("escribir puede ser LENTO — leer debe ser MÁXIMA VELOCIDAD"), so this is the cheap side of the trade.
-    Kill-switch `MEM_INDEX_RAW=0`.
-
-    Deliberately narrow: only DURABLE pills (`mid`/`long` — short-term ones expire and are read by a different,
-    over-inclusive path that never touches the retriever), and only when the raw text actually DIFFERS from the
-    pill. When the distiller is unavailable the heuristic stores the utterance nearly verbatim, and indexing a
-    second copy of the same sentence would buy nothing while doubling this pill's footprint in the vector table.
-    """
-    if not _RAW_INDEXING or level not in ("mid", "long"):
-        return
-    try:
-        m = meta if isinstance(meta, dict) else (json.loads(meta) if isinstance(meta, str) and meta.strip() else {})
-        raw = (m or {}).get("raw")
-        if not isinstance(raw, str):
-            return
-        raw = raw.strip()
-        if not raw or _norm(raw) == _norm(text):
-            return
-        index_paraphrases(mid, [raw])
-    except Exception:  # noqa: BLE001
-        pass    # a missing extra retrieval path is never a reason to fail a write that already succeeded
+# Temporal did not move at all and single-hop dropped 7.2pp — the two categories the whole idea was for. Plus
+# +48% read latency at p50 and ~2x the database, and "reading must be maximum speed" is a hard invariant (V2-013).
+# Why it fails: the raw utterance is a NOISIER copy of the pill, so a query can match the wording of the WRONG
+# pill and inject a false positive into the fusion, while doubling the rows a brute-force KNN scans.
+#
+# The one real gain, and where it actually points: adversarial +8.5pp. That category is our WRITE-COMPLETENESS
+# hole (63.8% of its questions get "NO INFORMATION AVAILABLE" from the answerer vs ~16% elsewhere), so literal
+# material helps there only because the distiller dropped the fact in the first place. The fix that indicates is
+# writing the fact properly, not indexing everything twice to paper over it.
+#
+# NOTE: `index_paraphrases`/`drop_paraphrases` STAY. That channel carries REM-generated paraphrases, it was
+# verified working (F4.3, after being mute since it was built), and it is a different mechanism from this one.
 
 
 def _embed_sig_ok() -> bool:
