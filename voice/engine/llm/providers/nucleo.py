@@ -2022,7 +2022,8 @@ class NucleoLLMStream(llm.LLMStream):
         # the plan from this session's architecture audit). `send`/`emit` passed through as-is: `emit` may have
         # been locally overridden to a no-op above, and `send` is this closure's own turn-state accumulator.
         from voice.engine.llm.providers.vault_intercept import try_vault_intercept
-        if await try_vault_intercept(text, first_turn, send, emit):
+        _vault_done, text = await try_vault_intercept(text, first_turn, send, emit)
+        if _vault_done:
             return
 
         errored = False

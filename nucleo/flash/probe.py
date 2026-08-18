@@ -161,9 +161,33 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                                             slot=_d.slot, sensitivity=_d.sensitivity)
                 except Exception:
                     pass
-        return {"ok": True, "reply": ["(secreto cifrado)" if _has_vault else "(hace falta crear la bóveda)"],
-                "action": "vault_save" if _has_vault else "vault_need_create", "tool_calls": [], "tags": [],
-                "secret": {"n": len(_sec_found), "labels": [d.label for d in _sec_found], "vault": _has_vault}}
+        # V2-141 — espejo del provider (impl PARALELA, cablear en AMBOS). Dos cosas estaban mal aquí, y este es
+        # el canal por el que corren los casos de uso, así que las dos eran invisibles desde la voz:
+        #
+        # (1) el turno se consumía SIEMPRE. Cuando el secreto viaja DENTRO de una petición —que es lo normal:
+        #     nadie recita un IBAN por gusto, lo recita para pagar algo— se pierde justo la mitad que importa.
+        #     Medido en `pay-known-bill`: el operador entregó nº de factura, importe e IBAN (los tres que zaelar
+        #     le había pedido) y no recibió NADA; el juez lo anotó como «(sin respuesta)» justo detrás de sus
+        #     datos bancarios. Y el confirm-gate vive más abajo en el turno, así que una orden de pago que trae
+        #     su propio IBAN no podía llegar al gate que existe para pararla.
+        # (2) lo que devolvía era una ACOTACIÓN, no una frase: «(secreto cifrado)». El provider dice una frase
+        #     de verdad y localizada (`langs.secret_saved`/`secret_need_vault`); aquí salía un paréntesis que
+        #     nadie puede decir en voz alta y que el arnés lee como turno vacío.
+        from nucleo.flash import vault_carrier as _vc
+        if _vc.secret_is_the_whole_turn(text, _sec_found):
+            try:
+                from voice.engine.core import langs as _lg_sec
+                _L_sec = _lg_sec.current_language()
+                _sec_line = _L_sec.secret_saved if _has_vault else _L_sec.secret_need_vault
+            except Exception:
+                _sec_line = "Guardado." if _has_vault else "Necesito que crees la bóveda primero."
+            return {"ok": True, "reply": [_sec_line],
+                    "action": "vault_save" if _has_vault else "vault_need_create", "tool_calls": [], "tags": [],
+                    "secret": {"n": len(_sec_found), "labels": [d.label for d in _sec_found],
+                               "vault": _has_vault}}
+        # El valor NO sobrevive al texto con el que sigue el turno — el invariante (un secreto jamás llega al
+        # modelo) queda intacto; lo que cambia es que la petición que lo acompañaba sí se atiende.
+        text, _ = _secrets0.redact(text)
 
     # TRAZABILIDAD (V2-044, espejo de nucleo.py::_run): el turno del probe también nace con trace id — el canal
     # de PRUEBA valida la cadena texto→acción→eventos igual que la voz. El id vuelve en la respuesta (evaluable).

@@ -35,6 +35,34 @@ _DANGER_CLITIC_RE = re.compile(
     r"\b(?:paga|compra|borra|elimina|publica|cancela|anula|contrata|renueva|renuev[ae])"
     r"(?:me|te|se|nos|le|les|l[oa]s?)+\b", re.I)
 
+# La MISMA falta, un modo verbal más allá (V2-141, `pay-known-bill` ronda 2). La forma cortés de mandar algo en
+# castellano no es el imperativo sino la pregunta con modal, y ahí el verbo va en INFINITIVO con el pronombre
+# pegado: «¿puedes pagarLA antes del día 5?». Medido sobre el transcript: `is_dangerous` daba False justo en el
+# turno en que el operador manda pagar, así que el confirm-gate —que este caso puntúa como conducta correcta y
+# cuya ausencia es «el fallo más grave posible»— no podía dispararse. Es la tercera cara del mismo despiste que
+# ya costó «resérvame» y «págala»: el patrón lleva formas desnudas con `\b` y la persona habla pegando el
+# pronombre.
+#
+# Se exige el MARCO DE PETICIÓN (puedes/podrías/quieres/vas a/me haces el favor de…) y no el infinitivo suelto,
+# a propósito: «no quiero comprarlo» o «pagarlo sale caro» MENCIONAN la acción, no la mandan, y un gate que
+# salta donde no toca deja la tarea parada esperando un OK que el operador no entiende (incidente 2026-08-02).
+_REQUEST_FRAME = (r"puedes|puede|podrias|podria|podras|podra|quieres|quiere|"
+                  r"vas a|va a|te importa|me haces el favor de|hazme el favor de|"
+                  r"can you|could you|would you|will you|please")
+_DANGER_VERB_STEM = (r"pagar|comprar|borrar|eliminar|publicar|cancelar|anular|contratar|renovar|"
+                     r"abonar|transferir|adquirir|enviar|mandar")
+_DANGER_ASK_CLITIC_RE = re.compile(
+    rf"\b(?:{_REQUEST_FRAME})\b[^.!?]{{0,30}}?"
+    rf"\b(?:{_DANGER_VERB_STEM})(?:me|te|se|nos|le|les|l[oa]s?)+\b", re.I)
+
+# Y la variante con el pronombre DELANTE en presente de 2ª persona — «¿me la cancelas?», «¿me lo compras?» —,
+# que es igual de imperativa aunque la gramática diga pregunta. Exige los DOS pronombres seguidos del verbo, de
+# modo que «cancelas» a secas (que no es una orden) no entra.
+_DANGER_PROCLITIC_RE = re.compile(
+    r"\b(?:me|te|se|nos)\s+(?:l[oa]s?)\s+"
+    r"(?:pagas|compras|borras|eliminas|publicas|cancelas|anulas|contratas|renuevas|abonas|transfieres)\b",
+    re.I)
+
 # Dos correcciones de PRECISIÓN (incidente 2026-08-02: una escalada de INVESTIGACIÓN —«termina la búsqueda ampliada
 # del operador (proyecto compra y venta de motos): completa el informe…»— disparó el confirm-gate y dejó la tarea
 # parada esperando un OK que nadie entendía por qué se pedía). Ninguna de las dos afloja el gate para una orden real:
@@ -110,6 +138,7 @@ def is_dangerous(text: str) -> bool:
     # mismo: la forma que el operador DICE es justo la que el patrón sin normalizar no ve.
     order = _REMINDER_RE.sub(" ", _strip_accents(_order_text(text)))
     return bool(_DANGER_RE.search(order) or _DANGER_CLITIC_RE.search(order)
+                or _DANGER_ASK_CLITIC_RE.search(order) or _DANGER_PROCLITIC_RE.search(order)
                 or _COMMITMENT_RE.search(order))
 
 
@@ -138,12 +167,24 @@ _MONEY_RE = re.compile(
     r"|\b(?:cuota|factura|recibo|cargo|importe|mensualidad|abono|bill|invoice|fee)\b", re.I)
 
 
+# Los verbos de la forma clítica que además MUEVEN DINERO (borrar o publicar no cuestan nada).
+_MONEY_VERB_RE = re.compile(r"\b(?:pagar|comprar|abonar|transferir|adquirir|contratar|renovar|"
+                            r"pagas|compras|abonas|transfieres|contratas|renuevas)", re.I)
+
+
 def moves_money(text: str) -> bool:
     """True si la orden implica un CARGO. Subconjunto de `is_dangerous`: todo lo que mueve dinero es
     irreversible, pero borrar un widget o publicar un anuncio no cuesta nada."""
     # Acentos fuera ANTES de recortar el recado — el mismo orden que `is_dangerous`, y por el mismo motivo:
     # `_REMINDER_RE` está escrito sin tildes y «recuérdame» es la forma que se dice.
-    return bool(_MONEY_RE.search(_REMINDER_RE.sub(" ", _strip_accents(_order_text(text)))))
+    order = _REMINDER_RE.sub(" ", _strip_accents(_order_text(text)))
+    if _MONEY_RE.search(order):
+        return True
+    # Mismo hueco que en `is_dangerous` (V2-141): «¿puedes pagarLA?» no lleva ninguna forma desnuda del verbo.
+    # Sin esto el gate sí paraba la orden pero con la pregunta genérica, no con la de dinero — y la única frase
+    # que un operador necesita oír antes de un cargo es que nada se paga sin que él vea la cifra.
+    m = _DANGER_ASK_CLITIC_RE.search(order) or _DANGER_PROCLITIC_RE.search(order)
+    return bool(m and _MONEY_VERB_RE.search(m.group(0)))
 
 
 def confirm_question(text: str) -> str:

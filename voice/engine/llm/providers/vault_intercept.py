@@ -9,9 +9,12 @@ por voz") and a spoken secret ("mi contraseña de Netflix es X") — both must b
 model ever sees the text, so a secret value never reaches the LLM and a config command never gets rephrased by
 a non-reasoning model that might refuse it ("no puedo guardar contraseñas").
 
-`try_vault_intercept()` returns True if it fully handled the turn (the caller must `return` immediately,
-exactly like the inline `return` this replaces) or False if neither intercept applies (continue normal turn
-processing). `send`/`emit` are passed in explicitly rather than imported fresh: `send` is `_run_inner`'s local
+`try_vault_intercept()` returns `(handled, text)`. `handled` True means it fully consumed the turn (the caller
+must `return` immediately, exactly like the inline `return` this replaces); False means the turn goes on — with
+the `text` it hands back, which is the ORIGINAL when nothing applied and the REDACTED one when a secret was
+captured but the turn also carried a request (V2-141: see `nucleo/flash/vault_carrier.py` for why, and for the
+measurement that separates the two shapes). The secret VALUE never survives into that returned text, so the
+invariant this file exists for is intact either way. `send`/`emit` are passed in explicitly rather than imported fresh: `send` is `_run_inner`'s local
 closure over turn state (spoken/first_ms/brain._last_spoken/_last_reply — see nucleo.py), and `emit` may have
 been locally overridden to a no-op in some error paths — passing the exact live callables preserves behavior
 identically to the inline version."""
@@ -24,7 +27,7 @@ from loguru import logger
 from voice import speech
 
 
-async def try_vault_intercept(text: str, first_turn: bool, send, emit) -> bool:
+async def try_vault_intercept(text: str, first_turn: bool, send, emit) -> tuple[bool, str]:
     # COMANDO DE CONFIG DE SEGURIDAD (V2-060 F2): «no me digas los secretos por voz» / «modo máxima seguridad» /
     # «puedes leérmelos por voz» = USER RULE DURA — se aplica DETERMINISTA (persiste en state.security) y se
     # confirma, sin pasar por el modelo (el FlashBrain sigue no-razonador). Short-circuit como el degradado.
@@ -38,7 +41,7 @@ async def try_vault_intercept(text: str, first_turn: bool, send, emit) -> bool:
             _cfg_line = _vrules.apply(_cfg_cmd)
             emit("secret", "config", role="system", extra={"key": _cfg_cmd[0], "value": _cfg_cmd[1]})
             send(speech.sanitize(_cfg_line, drop_metadata=False))
-            return True
+            return True, ""
 
     # GUARDAR UN SECRETO (V2-060, fix 2026-07-21): si el operador DICE un secreto (contraseña/IBAN/…), el valor
     # NO puede pasar por el modelo → se intercepta DETERMINISTA aquí (como el comando de config): se CIFRA en la
@@ -69,10 +72,23 @@ async def try_vault_intercept(text: str, first_turn: bool, send, emit) -> bool:
                         logger.warning(f"guardar secreto {_d.label!r} falló: {_e}")
                 emit("secret", "saved", role="system",
                      extra={"n": _saved, "labels": [d.label for d in _sec_found]})
-                send(speech.sanitize(_L0.secret_saved, drop_metadata=False))
             else:
                 emit("secret", "no_vault", role="system")   # el frontend abre el modal de crear bóveda
-                send(speech.sanitize(_L0.secret_need_vault, drop_metadata=False))
-            return True
 
-    return False
+            # V2-141 — hasta aquí el turno se consumía SIEMPRE, y eso pierde la mitad que importa cuando el
+            # secreto viaja DENTRO de una petición. Es lo normal: nadie recita un IBAN por gusto, lo recita para
+            # pagar algo. Medido en `pay-known-bill`: el operador entregó nº de factura, importe e IBAN —los tres
+            # que zaelar le había pedido— y no recibió NADA («(sin respuesta)» en el transcript, justo después de
+            # sus datos bancarios). Y para dinero es peor que perderse: el confirm-gate vive más abajo en el
+            # turno, así que una orden de pago que trae su propio IBAN no llegaba nunca al gate que existe para
+            # pararla. Si el secreto ES el turno, se contesta y se cierra como siempre; si no, se sigue con el
+            # texto REDACTADO — el valor no sobrevive, que es el invariante de este fichero.
+            from nucleo.flash import vault_carrier as _vc
+            if _vc.secret_is_the_whole_turn(text, _sec_found):
+                send(speech.sanitize(_L0.secret_saved if _has_vault else _L0.secret_need_vault,
+                                     drop_metadata=False))
+                return True, ""
+            _redacted, _ = _secrets0.redact(text)
+            return False, _redacted
+
+    return False, text
