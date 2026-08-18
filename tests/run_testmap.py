@@ -34,7 +34,8 @@ DOMAINS: list[dict] = [
         {"id": "1.1", "title": "BD y primitivas de estado", "ch": UNIT, "paths": [
             "tests/memory/unit/test_db.py", "tests/memory/unit/test_journal.py",
             "tests/memory/unit/test_graph.py", "tests/memory/unit/test_state.py",
-            "tests/memory/unit/test_compose_state.py", "tests/memory/unit/test_bitemporal.py"]},
+            "tests/memory/unit/test_compose_state.py", "tests/memory/unit/test_bitemporal.py",
+            "tests/memory/unit/test_memory_boundary.py"]},
         {"id": "1.2", "title": "Embeddings y recuperación (retriever+reranker)", "ch": UNIT, "paths": [
             "tests/memory/unit/test_embeddings.py", "tests/memory/unit/test_retriever.py",
             "tests/memory/integration/test_rerank.py", "tests/memory/unit/test_graph_ppr.py"]},
