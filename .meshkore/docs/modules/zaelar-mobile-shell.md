@@ -23,7 +23,7 @@ Measured before deciding, not assumed:
 |---|---|---|
 | stylesheet | `app/styles.css`, ~89 KB of 3-column desk, docking chat, draggable chrome | `mobile/app/styles.css`, ~11 KB |
 | widget host | `app/widgets/desktop.js`, 859 lines whose subject is a pointer: drag by the grip, 8 resize handles, free-space tiling, z-order on click | `mobile/app/shell/Deck.js`: one ordered deck, one card at a time, full screen |
-| controls | an arc of 7 icons above the orb + a top bar | one bottom dock, every control within thumb reach |
+| controls | an arc of 7 icons above the orb + a top bar | one bottom dock, orb in the CENTRE, every control within thumb reach |
 | panels | several open at once, floating and dockable | mutually exclusive bottom sheets |
 
 Retrofitting the first host would put every mobile regression inside the desktop's blast radius permanently. The
@@ -83,7 +83,7 @@ frontend/mobile/
    └─ shell/
       ├─ mobile-surfaces.js canonical list of native mobile surfaces (the pattern of core/system-surfaces.js)
       ├─ Deck.js            ★ the host: full-screen cards, two-finger paging
-      ├─ DockBar.js         the bottom bar: orb · mic · power · chat · menu
+      ├─ DockBar.js         the bottom bar: mic · speaker · captions | ORB | chat · menu
       ├─ OrbMini.js         the orb, and the caption band above the dock
       ├─ ChatSheet.js       chat as a bottom sheet
       ├─ MenuSheet.js       energy · account · voice · settings · feedback · escape hatch
@@ -110,8 +110,39 @@ is a ~200-line panel UI keyed to a wide window, and re-fitting it is its own pie
   If one finger also paged, every scrollable widget would be unusable. A single touch is never intercepted.
 - **A card is hidden while paging, never unmounted.** A video that keeps playing behind another card is correct;
   re-mounting it on every swipe would cut it off. The global stop (V2-092) is what silences it.
+### The dock, and why the orb is in the middle of it
+
+Six controls in three zones — `mic · speaker · captions` | **ORB** | `chat · menu` — laid out
+`minmax(0, 1fr) auto minmax(0, 1fr)`. The `minmax` floor is load-bearing: a bare `1fr` means
+`minmax(AUTO, 1fr)`, so the three-button side grows its own track past its fair share and shoves the orb off
+centre (measured at 8px). Icons are 48px because three of them plus gaps must fit ONE side track
+(390 − 16 dock padding − 70 orb column = 152 per side; 3×48 + 2×2 = 148), still above the 44px minimum.
+
+**The orb IS the switch.** Stopped, the centre slot is a ⏻ and nothing else — nothing else is true about a
+stopped agent. Running, it is zaelar's face, and tapping it stops (or, mid-`pausing`, cancels the stop). Both
+faces go through ONE handler, the same `api.runStop()`/`runStart()` + `markPowerCommand()` seam the desktop ⏻
+uses: since V2-092 the switch is the SERVER's state, so a mobile-only path that flipped a local signal would
+show "stopped" on the phone while the agent kept working.
+
+⚠️ **Both faces are built ONCE and swapped by visibility — never `() => cond ? a : b`.** That reactive shape is
+the natural way to write it and it is wrong: the child function re-runs on every `agentState` change and returns
+a NEW tree, so each transition mints a fresh `OrbMini` with a fresh `<canvas>`. `main.js` hands `$("#orb")` to
+the visualiser exactly once at boot, so after one re-render that reference is a DETACHED node — the render loop
+keeps running (measured: 741 frames) painting into a canvas nobody can see, while the one on screen is never
+drawn to. Symptom: an empty hole in the middle of the bar, no error anywhere, 0 painted pixels of 9216 against
+the desktop's 10490 under the same preview. Guarded by test nodes 4.18 (structural) and 4.19 (rendered).
+
+The glyphs are the desktop's byte for byte, copied from `app/components/Orb.js`, and node 4.18 DERIVES its
+assertion from that file: if the desktop redraws its mic, the mobile shell goes red and somebody decides,
+instead of the two drifting apart unnoticed.
+
 - **`--dock-h` is the only geometry.** Every other surface is flow layout in a full-bleed box. Cards end above the
   dock; sheets stop ON TOP of it rather than over it, so the mic and ⏻ are never more than one tap away.
+- **The app icon is a SILHOUETTE on flat black** (`mobile/icons/generate.py`): the mark is the EYE, which
+  `CLAUDE.md` already fixes as zaelar's identity (the orb is the iris), drawn with the real eyelid ratios
+  (±2.16·R corners, ±1.24·R apex) solved to a circular arc. Strokes, one colour, same vocabulary as every icon
+  in the UI. The maskable variant fits the 80% safe CIRCLE by its bounding-box CORNER (2.49·R ≤ 0.4·S) — the
+  usual reason a PWA icon looks decapitated on one phone and fine on another.
 - **Safe areas are not optional.** `viewport-fit=cover` plus `env(safe-area-inset-*)`, or the dock sits under the
   iPhone home indicator (every tap becomes a swipe-up) and card titles hide behind the notch.
 - **Every tap target is ≥ 44px.** The desktop's 26–30px icons assume a mouse's pixel of precision.

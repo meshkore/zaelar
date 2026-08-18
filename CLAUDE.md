@@ -2956,6 +2956,44 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     SSE-driven widget opens, the two-finger gesture on real hardware and the PWA install prompt are all unexercised.
     What IS verified: the three routes serve with the right headers and content types, the module graph resolves with
     zero page errors in a 390×844 Chromium, and the dock/sheets/deck render with the intended geometry.
+  - **THE ORB MOVED TO THE CENTRE OF THE DOCK, AND IT IS THE SWITCH** (2026-08-18, operator: «un orbe también en
+    el centro del footer… y en los laterales del orbe, el resto de botones», plus «podría ser el mismo orbe que le
+    podamos apretar encima: cuando está parado solo está el botón de on/off»). Six controls in three zones —
+    `mic · speaker · captions | ORB | chat · menu`. Stopped, the centre slot is a ⏻ and nothing else; running, it is
+    zaelar's face and tapping it stops. Both faces go through ONE handler, the same `api.runStop()`/`runStart()` +
+    `markPowerCommand()` seam as the desktop ⏻ (V2-092: the switch is the SERVER's state). Cycling the TTS voice
+    moved off the orb into a menu row — on a phone in a pocket, the gesture that changes what the agent sounds like
+    must be deliberate. Glyphs are the desktop's BYTE FOR BYTE from `app/components/Orb.js`, and the test DERIVES
+    them from that file so the two shells cannot drift apart unnoticed.
+    - **TWO REAL BUGS, both only visible by RENDERING it** — the deterministic node was green through both:
+      (a) the orb sat **8px off centre**, because `1fr` is `minmax(AUTO, 1fr)` and the three-button side grows its
+      own track past its fair share (fixed with a 0 floor + 48px icons: 3×48+4 = 148 ≤ 152 of fair share);
+      (b) **the orb never painted at all** — an empty hole in the middle of the bar with no error anywhere. I wrote
+      the centre as `() => state === "off" ? h(⏻) : h(button, OrbMini())`, which is the natural shape and the wrong
+      one: a reactive child function re-runs on every state change and returns a NEW tree, so each transition minted
+      a fresh `OrbMini` with a fresh `<canvas>`, while `main.js` had handed `$("#orb")` to the visualiser once at
+      boot. After the first re-render that handle is a DETACHED node: the loop kept running (measured 741 frames)
+      painting where nobody can see, and the canvas on screen was never drawn to. **0 painted pixels of 9216, versus
+      10490 for the desktop under the SAME preview** — which is what ruled out the headless environment. Both faces
+      are now built once and swapped by `display:none`.
+    - **A LATENT bug in the SHARED visualiser that the new design exposes**: `_orbFrozenAt` was recorded even on
+      frames with zero width, and a hidden orb (stopped) produces exactly those — so coming back from stopped the
+      latch was still set and it never repainted. Verified both ways: with the guard, tapping ⏻ paints 1704px;
+      without it, 0 and the canvas is not even resized. The desktop never hid its orb, so it never hit this. My
+      first comment there blamed this latch for the boot-time hole and that was **false** — it only breaks the
+      stopped→starting path; corrected in place.
+    - **The PWA icons are a SILHOUETTE on flat black** (operator: «super limpios, fondo uniforme, idealmente negro,
+      solo siluetas, los más parecidos a los que ya existen en el frontend»): the mark is THE EYE, already fixed in
+      this file as zaelar's identity (the orb is the iris), with the real eyelid ratios (±2.16·R, ±1.24·R) solved to
+      a circular arc. The maskable variant fits the 80% safe CIRCLE by its bounding-box CORNER (2.49·R ≤ 0.4·S).
+    - **Test node 4.19 exists because 4.18 could not see any of this** (`tests/browser/e2e/mobile/render_dock.py`):
+      it RENDERS the shell at 390×844 and measures it — the orb centred within 1.5px and actually PAINTED (>200px),
+      the visualiser owning the canvas that is on screen (attached AND resized), no label rendered as its own i18n
+      key, the chat sheet stopping ON TOP of the dock with the mic still reachable, and the stopped → ⏻ → painted
+      cycle. Self-contained (starts its own preview, needs no `make run`) and non-destructive by design: the
+      interesting assertions tap the power switch, which against a live engine would stop the operator's agent.
+      Sensitivity verified by reintroducing all three bugs; a fourth mutation that did NOT reproduce anything was
+      discarded rather than counted as coverage.
   - **Deliberately out of F1**: `MemoryMap` (the component would import fine; its ~200-line panel CSS is keyed to a
     wide window and re-fitting it is its own work), the 35 KB ConfigPanel (delegated to the desktop with a row that
     says so — a phone is for USING an installation, not setting one up), and the Processes/Crons/Clusters tabs.
