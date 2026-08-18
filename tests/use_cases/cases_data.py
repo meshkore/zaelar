@@ -77,6 +77,30 @@ CASES: list[UseCase] = [
     UseCase("find-theatre-tickets", "es", 1, "Buy tickets to a specific known show",
             "Consígueme dos entradas para el musical de El Rey León en Madrid para el sábado.",
             "Two tickets for the named show on Saturday are purchased."),
+    # The three below were added 2026-08-18 to fix a REPRESENTATION gap, not to pad the count: every case
+    # promoted until then was a slow browser search on a third-party site, so the scoreboard could only ever
+    # show shades of red and we learned nothing about the parts of the product that DO work. These are real
+    # user needs that are also achievable end-to-end today — a fast in-turn answer, a widget the engine
+    # builds itself, and a memory+agenda commitment — none of which need a login, a payment or a phone call.
+    UseCase("quick-fact-opening-hours", "es", 1, "Answer a real-world fact in the same turn",
+            "¿A qué hora abre mañana el Museo del Prado y cuánto cuesta la entrada general?",
+            "Both facts (opening time + general admission price) are answered correctly IN THE SAME TURN via "
+            "web_search, without spawning a browser task or making the operator wait — this is the "
+            "'dato directo + síntesis' path (V2-022), and escalating it to a worker is itself the failure.",
+            status="promoted"),
+    UseCase("build-workout-tracker-widget", "es", 1, "Build a small widget on request",
+            "Móntame un widget para ir apuntando mis entrenamientos, con el día y qué hice.",
+            "A real widget is generated, passes the generator's own validation gate and appears on the canvas "
+            "with usable actions — verified against the widget catalog and the live task registry, not just "
+            "the agent's claim. No third-party site, login or payment involved, which is why this is a fair "
+            "test of the generation path itself.",
+            status="promoted"),
+    UseCase("remember-and-remind-deadline", "es", 1, "Record a commitment and set its reminder",
+            "Apúntame que el jueves tengo que renovar el seguro del coche, y recuérdamelo el miércoles.",
+            "The commitment is stored durably AND a reminder exists for the day before — the two halves are "
+            "different subsystems (memory vs agenda/cron) and a pass requires BOTH, since 'I'll remind you' "
+            "with nothing scheduled is the exact failure this case is for.",
+            status="promoted"),
 
     # --- ES / tier 2: search + compare + choose -------------------------------------------
     UseCase("best-pediatric-dentists", "es", 2, "Find and book the best pediatric dentist",

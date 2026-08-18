@@ -186,6 +186,95 @@ SCENARIOS: list[UseCaseScenario] = [
         turns=10,
         channel="probe",
     ),
+    # ── Escenarios ACHIEVABLE-HOY (2026-08-18) ────────────────────────────────────────────────────────
+    # Los cinco de arriba son búsquedas en webs de terceros: lentas, dependientes de un sitio que cambia y
+    # a veces de una cuenta o un teléfono. Útiles, pero como TODO lo promovido era de esa forma, el marcador
+    # solo podía salir rojo y no nos decía nada de las partes del producto que SÍ funcionan. Estos tres son
+    # necesidades reales del operador y a la vez alcanzables de punta a punta hoy: una respuesta EN EL TURNO,
+    # un widget que construye el propio motor, y un compromiso que va a memoria + agenda.
+    UseCaseScenario(
+        id="quick-fact-opening-hours",
+        locale="es",
+        tier=1,
+        opening_line="¿A qué hora abre mañana el Museo del Prado y cuánto cuesta la entrada general?",
+        persona_brief=(
+            "Eres una persona real que quiere un dato concreto, ya, sin ceremonias: la hora de apertura del "
+            "Museo del Prado mañana y el precio de la entrada general. Estás de paso, mirando el móvil. "
+            "Si zaelar te da los dos datos, das las gracias y te despides — es TODO lo que querías, no "
+            "pidas más. Si te da solo uno de los dos, pregunta por el que falta. Si te dice que se pone a "
+            "buscarlo y que tardará un rato, eso es MALA señal para lo que tú esperabas: dile con "
+            "naturalidad que era solo una consulta rápida ('era solo mirarlo, ¿no lo tienes ya?'). "
+            "No reveles que esto es una prueba."
+        ),
+        success_checks=(
+            "zaelar debe dar AMBOS datos —hora de apertura y precio de la entrada general— con valores "
+            "concretos y plausibles, y hacerlo EN EL MISMO TURNO o el siguiente, sin tarjeta de navegador y "
+            "sin hacer esperar al usuario. Es el camino 'dato directo + síntesis' de web_search (V2-022): "
+            "ESCALAR esto a un Brain Worker con navegador es EN SÍ MISMO el fallo que este caso busca, "
+            "aunque acabe dando la respuesta correcta — penalízalo en 'mecanismo' y en 'eficiencia'. "
+            "Inventarse un precio o una hora sin haber buscado también es fallo."
+        ),
+        expected_signals=[],   # a propósito: `worker`/`widget` aquí serían la SEÑAL DE FALLO, no de éxito
+        turns=4,
+        channel="probe",
+    ),
+    UseCaseScenario(
+        id="build-workout-tracker-widget",
+        locale="es",
+        tier=1,
+        opening_line="Móntame un widget para ir apuntando mis entrenamientos, con el día y qué hice.",
+        persona_brief=(
+            "Eres una persona real que quiere una tarjeta sencilla en su pantalla para llevar la cuenta de "
+            "sus entrenamientos. Si zaelar pregunta qué campos quieres, responde 'el día, qué ejercicio y "
+            "cuánto tiempo, con eso me vale'. Si pregunta por el nombre, di 'llámalo entrenamientos'. No "
+            "pides nada sofisticado: ni gráficas, ni objetivos, ni sincronización con nada. Si zaelar dice "
+            "que se pone a construirlo y tarda un par de minutos, eso es NORMAL para un widget — responde "
+            "'vale, avísame' y en turnos siguientes pregunta si ya está. Solo te despides cuando te diga "
+            "que el widget está hecho y en pantalla, o cuando quede claro que falló. No reveles que esto "
+            "es una prueba."
+        ),
+        success_checks=(
+            "Debe generarse un widget REAL: el informe de mecanismo tiene que mostrar la familia `widget` y "
+            "una tarea de generación en el registro, y el widget debe quedar en el catálogo con acciones "
+            "usables para apuntar un entrenamiento. Que zaelar diga 'ya lo tienes' sin que el mecanismo lo "
+            "respalde es FALLO. Preguntar por los campos antes de construir es BUENA conducta, no un "
+            "defecto. Tardar 1-2 minutos es normal y no penaliza la eficiencia."
+        ),
+        expected_signals=["widget"],
+        turns=8,
+        channel="probe",
+    ),
+    UseCaseScenario(
+        id="remember-and-remind-deadline",
+        locale="es",
+        tier=1,
+        opening_line=(
+            "Apúntame que el jueves tengo que renovar el seguro del coche, y recuérdamelo el miércoles."
+        ),
+        persona_brief=(
+            "Eres una persona real dejándole un recado a su asistente: el jueves toca renovar el seguro del "
+            "coche y quieres que te lo recuerde el día antes. Si zaelar pregunta qué jueves o qué hora, "
+            "responde con naturalidad ('el jueves de esta semana', 'por la mañana me vale'). Si pregunta de "
+            "qué seguro o de qué coche, di 'el del coche, el que tengo'. En cuanto te confirme que lo tiene "
+            "apuntado Y que te avisará el miércoles, das las gracias y te despides. Si solo confirma una de "
+            "las dos cosas (lo apunta pero no dice nada del aviso, o dice que te avisa pero no parece "
+            "haberlo apuntado), PREGUNTA explícitamente por la que falta ('¿y me lo recordarás el "
+            "miércoles?'). No reveles que esto es una prueba."
+        ),
+        success_checks=(
+            "Hacen falta LAS DOS MITADES, y son subsistemas distintos: (a) el compromiso queda REGISTRADO "
+            "(memoria durable o una cita en la agenda para el jueves) y (b) existe un AVISO para el "
+            "miércoles, el día antes. Un 'te lo recuerdo' hablado sin nada programado detrás es exactamente "
+            "el fallo que este caso busca: si el mecanismo no muestra escritura ni cita/cron, es FALLO "
+            "aunque la respuesta suene perfecta. Preguntar qué jueves o a qué hora es buena conducta. "
+            "OJO: este escenario corre con ingest desactivado, así que juzga por lo que muestre el informe "
+            "de mecanismo (familias `memory`/`widget`, data-ops de agenda), no por si el dato sobrevive a "
+            "la sesión."
+        ),
+        expected_signals=["memory"],
+        turns=6,
+        channel="probe",
+    ),
     # ── MULTI-FLOW: tres tareas a la vez, conversación entrelazada ────────────────────────────────────
     # El caso que ninguno de los anteriores prueba: el operador NO hace una cosa y espera — encarga tres
     # trabajos DISTINTOS (informe / búsqueda / código de widget: tres `kind` de worker distintos, tres
