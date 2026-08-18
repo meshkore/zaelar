@@ -108,6 +108,24 @@ def _evidence(result: dict, *, scenario, sandboxed: bool) -> str:
 
     out = ["### Evidencia medida", "", *lines, ""]
 
+    # A CONFOUND, raised before any of the judge's reasoning, because it changes how that reasoning must be
+    # read. If the search layer was dead during the round, "no buscó" / "afirmó datos sin evidencia" says
+    # something about this machine, not about the agent — and a fixing agent that redesigns grounding off that
+    # verdict would be rebuilding something that was never broken. The verdict is NOT rewritten (inventing
+    # facts is still inventing facts); what changes is that the doubt is stated where it cannot be missed.
+    sh = mech.get("search_health") or {}
+    if sh.get("degraded"):
+        why = ", ".join(f"{r} ×{n}" for r, n in (sh.get("reasons") or []))
+        out += ["> ⚠️ **CONFOUND del entorno — la capa de BÚSQUEDA estaba degradada en esta ronda** "
+                f"({why}; {sh.get('n_search_events')} eventos de búsqueda).",
+                ">",
+                "> Con la búsqueda caída, «no buscó» o «afirmó un dato sin evidencia» puede ser de la "
+                "MÁQUINA y no del agente. Antes de rediseñar nada de grounding, **re-mide esta ronda con una "
+                "capa de búsqueda sana** (una key de pago —Tavily/Brave/Perplexity— o esperar el reset de "
+                "cuota del proveedor). Lo que SÍ sigue siendo válido de esta ronda: cualquier hallazgo sobre "
+                "instrucciones ignoradas, mitades de la petición perdidas, confirmaciones inventadas o "
+                "acciones irreversibles sin confirmar — nada de eso depende de que la búsqueda funcione.", ""]
+
     findings = verdict.get("findings") or []
     if findings:
         out += ["### Hallazgos del juez", ""]

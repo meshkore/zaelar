@@ -141,6 +141,44 @@ class ConcurrencyTracker:
                 f"{len(self.seen)} tareas distintas vistas")
 
 
+# Signatures of a search layer that is DOWN rather than a search that found nothing. Matched against the text
+# of `kind="search"` events, which carry the tool's own reply verbatim.
+_SEARCH_DEAD = (
+    ("quota_exhausted", ("limit exhausted", "weekly/monthly limit", "quota", "429")),
+    ("blocked",         ("captcha", "tráfico inusual", "unusual traffic", "bloqueado")),
+    ("rate_limited",    ("rate limit", "too many requests")),
+    ("unavailable",     ("unable to perform the search", "search service", "no pude buscar",
+                         "buscador está agotado")),
+)
+
+
+def search_health(all_events: list[dict]) -> dict:
+    """Is the search layer WORKING, or is the environment lying to us about the agent?
+
+    This exists because of a measurement that nearly became a false bug report. A scenario asked for a
+    restaurant's opening hours, the agent answered without evidence of searching, and the judge marked it down
+    for stating facts it could not have looked up — a perfectly reasonable verdict about a conversation that
+    took place while Google was serving a CAPTCHA and the worker's own WebSearch was returning
+    "Weekly/Monthly Limit Exhausted". With the search layer dead, "it didn't search" is not a finding about
+    the product; it is a finding about the machine the test ran on.
+
+    So the confound gets DETECTED and stamped into the evidence instead of being hand-annotated case by case
+    (which is what happened the first time, and does not scale past a couple of failures). It deliberately does
+    NOT rewrite the verdict: an agent that invents facts while search is down is still inventing facts, and
+    downgrading that to INFRA would hide the more serious half. What it changes is what the fixing agent reads
+    — "re-measure this with a healthy search layer" instead of "redesign grounding".
+    """
+    searches = [e for e in all_events if (e.get("kind") or "") == "search"]
+    reasons: dict[str, int] = {}
+    for ev in searches:
+        low = ((ev.get("text") or "") + " " + (ev.get("label") or "")).lower()
+        for reason, needles in _SEARCH_DEAD:
+            if any(n in low for n in needles):
+                reasons[reason] = reasons.get(reason, 0) + 1
+    return {"n_search_events": len(searches), "degraded": bool(reasons),
+            "reasons": sorted(reasons.items(), key=lambda kv: -kv[1])}
+
+
 def mechanism_report(all_events: list[dict], expected_signals: list[str],
                      concurrency: ConcurrencyTracker | None = None) -> dict:
     """Structured, transcript-independent record of what actually happened this scenario."""
@@ -157,6 +195,7 @@ def mechanism_report(all_events: list[dict], expected_signals: list[str],
         "navegador_task_id": task_id,
         "navegador_task": task_view,
         "n_events": len(all_events),
+        "search_health": search_health(all_events),
     }
     if concurrency is not None:
         out["task_registry"] = concurrency.report()

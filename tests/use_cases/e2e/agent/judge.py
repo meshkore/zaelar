@@ -42,6 +42,16 @@ max_concurrent` del informe de mecanismo — es una lectura EN VIVO del registro
 transcript; si es <2 las tareas nunca corrieron a la vez y eso SÍ es un fallo de mecanismo), atribución de
 cada mensaje a su tarea, independencia entre tareas, y fluidez del hilo."""
 
+SEARCH_DEGRADED_NOTE = """
+⚠️ EL ENTORNO ESTABA AVERIADO EN ESTA CORRIDA: la capa de BÚSQUEDA WEB no funcionaba ({why}). Lo dice el
+informe de mecanismo (`search_health`), no zaelar. Cómo tienes que juzgar con eso:
+· NO penalices que no encontrara resultados, ni que la búsqueda no diera nada, ni que se quedara sin datos del
+  mundo exterior: eso es de la MÁQUINA en la que corrió la prueba, no del agente.
+· SÍ penaliza —y con dureza— que AFIRME un dato del mundo como si lo hubiera verificado, o que diga que ha
+  buscado/encontrado algo. Con la búsqueda caída eso es exactamente una alucinación, y es peor, no mejor.
+· SÍ sigue siendo válido todo lo que no depende de la búsqueda: instrucciones ignoradas, mitades de la petición
+  perdidas, confirmaciones inventadas, acciones irreversibles sin confirmar, naturalidad y adaptación."""
+
 SCHEMA = """Devuelve SOLO un objeto JSON:
 {
  "scores": {"naturalidad":n,"adaptacion":n,"resultado":n,"mecanismo":n,"eficiencia":n},
@@ -59,6 +69,14 @@ def judge(scenario, run: dict, model: str | None = None) -> dict:
     mech = run.get("mechanism_report", {})
     watchdog_events = run.get("watchdog_log", [])
     multiflow = bool(getattr(scenario, "concurrent_tasks", 0))
+    # Tell the judge the search layer was down BEFORE it reasons, rather than annotating the verdict
+    # afterwards. Post-hoc annotation is what the first batch needed by hand, and it does not scale: the note
+    # has to reach the model that is about to decide whether "answered without searching" is a defect.
+    sh = (mech or {}).get("search_health") or {}
+    search_note = ""
+    if sh.get("degraded"):
+        search_note = SEARCH_DEGRADED_NOTE.format(
+            why=", ".join(f"{r} ×{n}" for r, n in (sh.get("reasons") or [])) or "motivo no clasificado")
     rubric = RUBRIC + (MULTIFLOW_RUBRIC if multiflow else "")
     schema = SCHEMA
     if multiflow:
@@ -75,6 +93,7 @@ imitando cómo pide las cosas una persona real (puede ser ambiguo, cambiar de id
 Petición inicial del usuario: {scenario.opening_line}
 Qué cuenta como éxito: {scenario.success_checks}
 {MULTIFLOW_NOTE if multiflow else ''}
+{search_note}
 
 === TRANSCRIPT (lo que se DIJO) ===
 {convo or '(sin diálogo)'}

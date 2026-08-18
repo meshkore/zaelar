@@ -365,3 +365,49 @@ def test_filing_fails_open_and_never_takes_down_a_batch(monkeypatch, tmp_path):
     monkeypatch.setattr(I, "_next_initiative_number", lambda: (_ for _ in ()).throw(OSError("disk")))
     out = I.file_failure(_result(), scenario=_scn(), sandboxed=True)
     assert "error" in out          # reported, not raised — the verdict is already earned
+
+
+# ── search-layer confound (verify.search_health + judge/initiative wiring) ─────────────────────────────────
+def test_a_dead_search_layer_is_detected_from_its_own_reply():
+    """The signature is in the search tool's verbatim reply, which is what `kind="search"` events carry. This
+    is the exact text a real run produced: the worker's WebSearch answering 429 Weekly/Monthly Limit
+    Exhausted while a scenario was being graded on whether it looked anything up."""
+    from tests.use_cases.e2e.agent import verify as V
+    ev = [{"kind": "search", "label": "🌐 web", "text": "web_search Casa Lucio reservas"},
+          {"kind": "search", "label": "🌐 web ↩",
+           "text": 'MCP error -429: {"code":"1310","message":"Weekly/Monthly Limit Exhausted."}'},
+          {"kind": "search", "label": "🌐 web ↩", "text": "google: bloqueado (captcha/tráfico inusual)"},
+          {"kind": "flash", "text": "no es una búsqueda"}]
+    h = V.search_health(ev)
+    assert h["degraded"] is True and h["n_search_events"] == 3
+    assert dict(h["reasons"]) == {"quota_exhausted": 1, "blocked": 1}
+
+
+def test_a_search_that_merely_found_nothing_is_NOT_a_degraded_layer():
+    """The counterweight, and the reason this can't just look for 'no results'. A working search that returns
+    nothing is a legitimate outcome the agent must handle — calling that an environment fault would excuse the
+    real defect of giving up, which is the opposite of what this is for."""
+    from tests.use_cases.e2e.agent import verify as V
+    ev = [{"kind": "search", "label": "🌐 web", "text": "web_search guitarra zurda infantil"},
+          {"kind": "search", "label": "🌐 web ↩", "text": "0 resultados para esa consulta"}]
+    assert V.search_health(ev)["degraded"] is False
+
+
+def test_the_confound_reaches_the_judge_before_it_reasons():
+    """Annotating the verdict afterwards is what the first batch needed by hand and it does not scale — the
+    note has to reach the model that is about to decide whether 'answered without searching' is a defect."""
+    from tests.use_cases.e2e.agent import judge as J
+    assert "{why}" in J.SEARCH_DEGRADED_NOTE
+    note = J.SEARCH_DEGRADED_NOTE.format(why="quota_exhausted ×3")
+    assert "NO penalices" in note and "SÍ penaliza" in note   # both halves, or it becomes an excuse
+
+
+def test_the_confound_never_rewrites_the_verdict_into_INFRA():
+    """A degraded environment must not launder a real failure. An agent that invents facts while search is
+    down is still inventing facts — and that is the more serious half, so it stays a FAIL on the scoreboard."""
+    from tests.use_cases.e2e.agent import status as S
+    r = {"scenario": "x", "tier": 2,
+         "run": {"mechanism_report": {"search_health": {"degraded": True,
+                                                        "reasons": [("quota_exhausted", 2)]}}},
+         "verdict": {"overall": 1, "scores": {}, "veredicto": "inventó el resultado"}}
+    assert S._state(1, r) == "FAIL"
