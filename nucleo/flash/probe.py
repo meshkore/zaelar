@@ -668,6 +668,19 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     # web por TEXTO: la escalada arranca un Brain Worker REAL que conduce el navegador; inyección/respuesta/stop van
     # a un worker vivo. Marshalea al loop del server (mismo proceso). El resto de acciones (canvas/data/música) NO se
     # ejecutan aquí: este modo es para validar el ciclo de TAREAS, no el canvas.
+    # BACKSTOP DE ORDEN IRREVERSIBLE (V2-128) — espejo del provider (impl PARALELA, cablear en AMBOS). Una orden
+    # de pagar/comprar/cancelar que NO escaló está mis-ruteada: su sitio es una tarea, que además pasa por el
+    # confirm-gate. Medido: «paga la factura de la luz antes del día 5» acabó creando un recordatorio.
+    # Va fuera del `if execute` porque el probe REPORTA la decisión aunque no ejecute, y el test tiene que ver
+    # `escalate` igual que lo vería la voz.
+    if action in ("chat", "widget_data") or action.startswith("canvas:"):
+        try:
+            from nucleo import danger as _danger_bk
+            if _danger_bk.is_dangerous(operator_text):
+                action = "escalate"
+        except Exception:
+            pass
+
     if execute:
         # CONFIRMACIÓN de una TAREA irreversible parada por el confirm-gate (V2-126) — espejo del provider de
         # voz (impl PARALELA, cablear en AMBOS). Va ANTES que el resto: un «sí» reanuda la tarea PARADA, no abre

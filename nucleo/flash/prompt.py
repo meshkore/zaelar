@@ -163,7 +163,7 @@ def _cron_line() -> str:
             '[[/cron.create]] · [[cron.cancel:name]]. `schedule` admite un plazo relativo, una FECHA ABSOLUTA '
             '(YYYY-MM-DD HH:MM, para un aviso de una sola vez en un día concreto — la fecha la sacas de la lista '
             'de días de tu ESTADO, no la calcules a ojo) o un cron de 5 campos si es RECURRENTE. '
-            'REGLA DURA: si el operador pide que le AVISES/RECUERDES algo en un momento dado, emite la tag EN '
+            'Una ORDEN con plazo NO es pedir un recordatorio: «paga la factura antes del día 5» es HACERLO (y si es irreversible, preguntar antes) — apuntarlo en su lugar es no atenderle. REGLA DURA: si el operador pide que le AVISES/RECUERDES algo en un momento dado, emite la tag EN '
             'ESE TURNO — decir «te lo recuerdo» sin ella no programa nada y es mentirle. Y si el compromiso '
             'tiene fecha, además apúntalo en su agenda (widget_data add_meeting): son dos cosas distintas, el '
             'apunte y el aviso, y el operador pide las dos. Si te falta la hora o el día exacto, PREGUNTA antes '

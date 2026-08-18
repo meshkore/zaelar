@@ -254,3 +254,33 @@ def test_modifying_a_widgets_ui_is_still_code():
     t = "añade una columna al widget de agenda"
     assert _router.looks_like_create_widget(t) is False       # no es CREAR
     assert _classify_kind(t) == "code"                        # pero sí es CÓDIGO
+
+
+# ── el imperativo con CLÍTICO, y el recado que no es orden (V2-128, 2026-08-18) ──────────────────────────
+def test_an_imperative_with_a_clitic_still_asks_for_ok():
+    """En castellano la forma en que de VERDAD se manda algo lleva el pronombre pegado. `_DANGER_RE` comparaba
+    formas desnudas con `\\b`, así que todas escapaban del gate. Es el tercer sitio donde muerde el mismo
+    despiste (ya pasó con «resérvame» y con «renuévame»): el patrón se escribe con el infinitivo y el operador
+    habla en imperativo."""
+    for req in ("págala tú antes del día 5", "cómpralo ya", "bórralo de mi cuenta",
+                "cancélala antes del día 15", "publícalo en Wallapop", "págamelo con la tarjeta"):
+        assert danger.is_dangerous(req), req
+
+
+def test_a_clitic_is_REQUIRED_so_ordinary_conjugations_do_not_gate():
+    """Sin exigir clítico, «compras»/«publicas»/«cancelan» —que no son órdenes— entrarían por la misma puerta."""
+    for req in ("¿cuánto compras al mes?", "normalmente publicas los lunes", "cancelan el vuelo mañana"):
+        assert not danger.is_dangerous(req), req
+
+
+def test_asking_to_be_REMINDED_of_a_payment_is_not_an_order_to_pay():
+    """El recorte del recado solo lo veía `_COMMITMENT_RE`: «recuérdame PAGAR la factura» disparaba el gate por
+    `_DANGER_RE` y dejaba una confirmación esperando un OK para un pago que nadie iba a ejecutar."""
+    assert not danger.is_dangerous("recuérdame pagar la factura de la luz antes del día 5")
+    assert not danger.is_dangerous("apúntame que tengo que pagar el IBI")
+
+
+def test_a_real_order_AFTER_a_reminder_clause_is_not_swallowed():
+    """El recorte llega hasta el fin de la FRASE, no hasta el final del texto: con `.*` se perdía la orden real
+    que venía detrás."""
+    assert danger.is_dangerous("recuérdame pagar la factura. Y de paso págala tú")

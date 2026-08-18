@@ -25,6 +25,16 @@ _DANGER_RE = re.compile(
 )
 
 
+# IMPERATIVO CON CLÍTICO (V2-128, 2026-08-18). En castellano la forma en que de verdad se manda algo lleva el
+# pronombre pegado —«págala», «cómpralo», «bórralo», «cancélala»— y `_DANGER_RE` compara formas desnudas con
+# `\b`, así que TODAS ellas escapaban del gate. Es el tercer sitio donde muerde el mismo despiste (ya pasó con
+# «resérvame» en site_catalog y con «renuévame» aquí arriba): el patrón está escrito con el infinitivo, y el
+# operador habla en imperativo. Se exige AL MENOS un clítico, de modo que ni «compras» ni «publicas» ni
+# «cancelan» —que no son órdenes— entren por aquí.
+_DANGER_CLITIC_RE = re.compile(
+    r"\b(?:paga|compra|borra|elimina|publica|cancela|anula|contrata|renueva|renuev[ae])"
+    r"(?:me|te|se|nos|le|les|l[oa]s?)+\b", re.I)
+
 # Dos correcciones de PRECISIÓN (incidente 2026-08-02: una escalada de INVESTIGACIÓN —«termina la búsqueda ampliada
 # del operador (proyecto compra y venta de motos): completa el informe…»— disparó el confirm-gate y dejó la tarea
 # parada esperando un OK que nadie entendía por qué se pedía). Ninguna de las dos afloja el gate para una orden real:
@@ -62,9 +72,13 @@ _COMMITMENT_RE = re.compile(
 # «recuérdame que…» es un recado, no una orden. «Apúntame que el jueves tengo que renovar el seguro del coche»
 # (el caso de uso `remember-and-remind-deadline`) pide una NOTA; gatearlo dejaría un recordatorio esperando un
 # OK para algo que nadie iba a ejecutar. La orden de verdad es «apúntame», y esa no mueve dinero.
+# Se recorta hasta el FIN DE LA FRASE, no hasta el final del texto (2026-08-18, V2-128): con `.*` un
+# «recuérdame pagar la factura. Y de paso págala tú» perdía la orden real que venía detrás. El corte por
+# `.!?;` conserva «apúntame que el jueves tengo que renovar el seguro, y recuérdamelo el miércoles» entero
+# (una sola frase con comas) y deja intacta cualquier orden que vaya en frase aparte.
 _REMINDER_RE = re.compile(
     r"\b(?:apunta|apuntame|apuntalo|anota|anotame|recuerda|recuerdame|acuerdate|no\s+olvides|"
-    r"remind\s+me|note\s+that|make\s+a\s+note)\b.*", re.I | re.S)
+    r"remind\s+me|note\s+that|make\s+a\s+note)\b[^.!?;]*", re.I)
 
 _PAREN_RE = re.compile(r"\([^()]*\)")
 _NOUN_COMPOUND_RE = re.compile(
@@ -85,9 +99,18 @@ def _order_text(text: str) -> str:
 
 def is_dangerous(text: str) -> bool:
     """True si la petición describe una acción irreversible que exige OK explícito del operador antes de ejecutarse."""
-    order = _order_text(text)
-    commitment_text = _REMINDER_RE.sub(" ", _strip_accents(order))
-    return bool(_DANGER_RE.search(order) or _COMMITMENT_RE.search(commitment_text))
+    # El recorte del recado se aplica a LOS DOS patrones (V2-128). Antes solo lo veía `_COMMITMENT_RE`, así que
+    # «recuérdame PAGAR la factura antes del día 5» disparaba el gate por `_DANGER_RE`: una petición de
+    # recordatorio quedaba esperando un OK para un pago que nadie iba a ejecutar. La orden ahí es «recuérdame»,
+    # y esa no mueve dinero — es la misma frontera que el propio caso `pay-known-bill` marca al revés (una ORDEN
+    # de pagar NO es pedir un recordatorio).
+    # Los acentos se quitan UNA vez y antes de todo: `_REMINDER_RE` está escrito sin ellos («recuerdame») y
+    # `_order_text` solo minusculiza, así que el imperativo REAL —«recuérdame», con tilde— no casaba y el recado
+    # se colaba como orden. Es el mismo despiste que ya costó «resérvame» en site_catalog y «renuévame» aquí
+    # mismo: la forma que el operador DICE es justo la que el patrón sin normalizar no ve.
+    order = _REMINDER_RE.sub(" ", _strip_accents(_order_text(text)))
+    return bool(_DANGER_RE.search(order) or _DANGER_CLITIC_RE.search(order)
+                or _COMMITMENT_RE.search(order))
 
 
 def _strip_accents(text: str) -> str:

@@ -2935,6 +2935,23 @@ class NucleoLLMStream(llm.LLMStream):
         except Exception:
             pass
 
+        # BACKSTOP DE ORDEN IRREVERSIBLE (V2-128, medido). «Paga la factura de la luz antes del día 5» acabó
+        # creando un RECORDATORIO: el operador tuvo que corregir («no quiero un recordatorio, quiero que la
+        # pagues tú»). Una orden de pagar/comprar/cancelar es del mundo real y su sitio es una tarea — que
+        # además pasa por el confirm-gate, que es la conducta que estos casos puntúan BIEN. Apuntarla en la
+        # agenda no la ejecuta y deja al operador creyendo que sí.
+        # `danger.is_dangerous` es el MISMO clasificador que decide el gate, así que backstop y puerta no pueden
+        # discrepar; y ya recorta los recados («recuérdame pagar…» NO es una orden de pagar).
+        if (escalate_req["v"] is None and not worker_acted["v"] and not confirm_state.get("opened")):
+            try:
+                from nucleo import danger as _danger_bk
+                if _danger_bk.is_dangerous(text):
+                    escalate_req["v"] = text
+                    emit("brain", "🛑 orden irreversible sin escalar → tarea (pasará por el confirm-gate)",
+                         text=text[:120], role="system", extra={"cat": "flash"})
+            except Exception:
+                pass
+
         # Escala DESPUÉS de que el texto del turno rápido va camino de TTS. NO escala si ya se dirigió a un worker
         # vivo (inject/stop/answer) este turno.
         if escalate_req["v"] is not None and not worker_acted["v"]:
