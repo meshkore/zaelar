@@ -158,14 +158,40 @@ def test_every_other_scenario_stays_single_task():
 
 
 # ── derivation engine (derived.py) ────────────────────────────────────────────────────────────────────────
-def test_derivation_covers_every_tier_1_to_4_case_and_nothing_else():
-    """Tier 5 needs real time to pass and tiers 6-7 are blocked on unbuilt capabilities (V2-052 contacts,
-    WhatsApp/Telegram send) — deriving a scenario for those would put a runnable-looking tick on something
-    that cannot honestly be tested."""
+def test_derivation_covers_the_whole_catalog_across_all_seven_tiers():
+    """Every case is runnable now, including the ones whose OUTCOME lands days later (tier 5) or needs a
+    capability that does not exist (tiers 6-7). What makes that honest is `_HORIZON`, not optimism: it moves
+    the bar to what a conversation can prove — a durable trigger for tier 5, a plain "I can't reach them" for
+    tiers 6-7 — so nothing gets a green tick for something untested."""
+    from tests.use_cases import cases_data as CD
     from tests.use_cases.e2e.agent import derived as D
-    tiers = {c.tier for c in D.derivable()}
-    assert tiers == {1, 2, 3, 4}
-    assert all(c.status != "blocked" for c in D.derivable())
+    cases = D.derivable()
+    assert {c.tier for c in cases} == {1, 2, 3, 4, 5, 6, 7}
+    assert len(cases) == len(CD.CASES), "no case may be silently dropped from the walk"
+
+
+def test_every_tier_past_the_conversation_horizon_declares_what_to_grade_instead():
+    """The guard on the loophole. A blocked case is admitted ONLY because its tier says what to measure in
+    place of the outcome; without that entry it would be a green tick on nothing. If a future tier gets cases
+    that outlive the conversation, this fails until someone writes its horizon."""
+    from tests.use_cases.e2e.agent import derived as D
+    for case in D.derivable():
+        if case.status == "blocked":
+            assert case.tier in D._HORIZON, f"{case.id} is blocked with no horizon to grade instead"
+        scn = D.derive(case)
+        if case.tier in D._HORIZON:
+            assert "HORIZONTE DE ESTE CASO" in scn.success_checks
+
+
+def test_the_agent_to_agent_cases_answer_about_the_right_friend():
+    """ES and US name a different friend (Pedro/Alex, Marta/Jordan). Aliasing the US id to the ES profile
+    would hand a US persona answers about Marta — the kind of quiet contradiction that reads as an agent
+    failure in the transcript when it is really the harness misinforming its own tester."""
+    from tests.use_cases.e2e.agent import derived as D
+    assert "Alex" in D.PROFILES["coordinate-dinner-with-alex"].success_extra
+    assert "Marta" not in D.PROFILES["coordinate-dinner-with-alex"].success_extra
+    assert "Jordan" in D.PROFILES["split-airbnb-with-jordan"].success_extra
+    assert "Marta" not in D.PROFILES["split-airbnb-with-jordan"].success_extra
 
 
 def test_derived_scenario_carries_the_shared_scaffolding_and_the_case_utterance():
