@@ -60,8 +60,19 @@ def flows(limit: int = 50, session_id: str = "", user_id: str = "") -> list[dict
                SUM(COALESCE(tokens_out, 0))       AS tokens_out,
                SUM(CASE WHEN kind IN ('error', 'alert') THEN 1 ELSE 0 END) AS errors,
                SUM(CASE WHEN kind = 'flow' AND label = 'end' THEN 1 ELSE 0 END) AS ended_events,
-               MAX(CASE WHEN kind = 'trace' THEN label END) AS origin,
-               MAX(CASE WHEN kind = 'trace' THEN json_extract(payload, '$.text') END) AS title,
+               -- The merge marker is EXCLUDED from origin/title: it records that this flow was ABSORBED, not why it
+               -- was born. Today MAX() prefers 'turno' over 'merge' alphabetically, which is luck rather than a
+               -- contract, and a flow whose origin read 'merge' would carry the wrong tag wherever it is shown.
+               MAX(CASE WHEN kind = 'trace' AND label != 'merge' THEN label END) AS origin,
+               MAX(CASE WHEN kind = 'trace' AND label != 'merge'
+                        THEN json_extract(payload, '$.text') END) AS title,
+               -- WHICH flow this one was merged into, if any (`voice/trace.py::merge`). A reader needs it to show a
+               -- merged pair as ONE thread instead of two: the merge machinery has existed since V2-105 but this
+               -- projection never exposed the relation, so every consumer kept treating the absorbed trace as a
+               -- flow of its own. Kept in sync with `cloud/backoffice/src/flyQuery.js`, which mirrors this SQL for
+               -- the cloud path — the two-surfaces rule: a column added on one side only fails by coming out EMPTY.
+               MAX(CASE WHEN kind = 'trace' AND label = 'merge'
+                        THEN json_extract(payload, '$.merge_into') END) AS merge_into,
                MAX(session_id)                    AS session_id,
                MAX(user_id)                       AS user_id
         FROM events
