@@ -445,3 +445,16 @@ def test_the_board_names_the_workspace_of_each_failing_case(tmp_path, monkeypatc
     assert "never-filed.md" not in board      # a PASSING case has no workspace to point at
     status.attach_workspaces({})              # no-op, must not wipe what is there
     assert "V2-999-uc-bad.md" in (tmp_path / "STATUS.md").read_text(encoding="utf-8")
+
+
+def test_a_re_run_keeps_the_workspace_pointer(tmp_path, monkeypatch):
+    """Every other field here is per-round and rightly replaced; the initiative is the case's home for its
+    whole life. Losing it on round 2 is exactly backwards — that is the round that needs it most."""
+    monkeypatch.setattr(status, "LEDGER_PATH", tmp_path / "status.json")
+    monkeypatch.setattr(status, "BOARD_PATH", tmp_path / "STATUS.md")
+    res = [{"scenario": "bad", "tier": 1, "verdict": {"overall": 1, "scores": {}, "veredicto": "no"},
+            "run": {"mechanism_report": {}}}]
+    status.record(res, sandboxed=True)
+    status.attach_workspaces({"bad": {"initiative": "ini.md", "task": "t.md"}})
+    status.record(res, sandboxed=True)                     # round 2
+    assert status.load()["scenarios"]["bad"]["workspace"]["initiative"] == "ini.md"

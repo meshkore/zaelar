@@ -54,6 +54,12 @@ def record(results: list[dict], *, sandboxed: bool) -> dict:
         if registry:
             entry["max_concurrent"] = registry.get("max_concurrent")
             entry["distinct_kinds"] = registry.get("distinct_kinds") or []
+        # The workspace pointer SURVIVES a re-run. Everything else here is per-round and rightly replaced, but
+        # the initiative is the case's home for its whole life — dropping it on the next round would send the
+        # fixing agent back to guessing the filename, and it is the round-2 runs that need it most.
+        prior = scen.get(r["scenario"]) or {}
+        if prior.get("workspace") and not entry.get("workspace"):
+            entry["workspace"] = prior["workspace"]
         scen[r["scenario"]] = entry
     led["updated"] = stamp
     LEDGER_PATH.write_text(json.dumps(led, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
