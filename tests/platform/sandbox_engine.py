@@ -145,8 +145,21 @@ def _wait_ready(eng: SandboxEngine, timeout: float) -> None:
     raise TimeoutError(f"sandbox engine did not answer on {eng.base_url} in {timeout}s\n{eng.log_tail(80)}")
 
 
+def preferred_port(want: int) -> int:
+    """`want` if it's free, otherwise an ephemeral one. A STABLE port matters for a sandbox the operator is
+    meant to watch (they can bookmark it), but it must never be a hard requirement — two batches at once, or
+    a leftover process, would otherwise fail the boot instead of just moving over."""
+    try:
+        with socket.socket() as s:
+            s.bind(("127.0.0.1", want))
+        return want
+    except OSError:
+        return free_port()
+
+
 @contextmanager
-def sandbox_engine(*, boot_timeout: float = 90.0, keep_workspace: Path | None = None, extra_env: dict | None = None):
+def sandbox_engine(*, boot_timeout: float = 90.0, keep_workspace: Path | None = None,
+                   port: int | None = None, extra_env: dict | None = None):
     """Boot an isolated engine, yield a `SandboxEngine`, and tear it down (process + workspace) on exit.
 
     `boot_timeout` defaults higher than journey's 35s: this engine cold-starts a reranker and an embedding
@@ -162,7 +175,7 @@ def sandbox_engine(*, boot_timeout: float = 90.0, keep_workspace: Path | None = 
         workspace = keep_workspace
         workspace.mkdir(parents=True, exist_ok=True)
 
-    port = free_port()
+    port = port or free_port()
     logs = workspace / "logs"
     logs.mkdir(parents=True, exist_ok=True)
     log_path = logs / "sandbox-engine.log"

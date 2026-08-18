@@ -51,6 +51,45 @@ context manager. Two things worth knowing:
 Don't run `make run` while a sandbox is alive — `scripts/run-livekit.sh` reaps every `python -m
 server` by process NAME, not by port, so it would kill the sandbox too. The reverse is safe.
 
+### Watching the test agent while it works
+
+The sandbox prints its URL on boot and prefers port **43918** (falls back to a free one if taken), and its
+workspace is KEPT under `tests/runs/use_cases/sandbox/<stamp>/` (gitignored). So a run is observable, not a
+black box:
+
+- open `http://127.0.0.1:43918` while the batch runs — the ◷ visor shows this agent's events/flows live;
+- `GET /api/observability/flows?limit=30` lists its task flows (each probe turn is a flow, with `origin`,
+  `title`, families and duration); `GET /api/tasks` is the live worker registry;
+- the workspace survives the run, so its `zaelar.db` and `logs/` can be inspected afterwards.
+
+Because each batch gets a fresh workspace, it also gets a fresh `config/identity.json` — i.e. **every batch
+appears as a NEW install/`user_id`** in observability rather than mixing into the operator's own session.
+That is deliberate (it's what makes a test run distinguishable from real usage), and it's also why the
+sandbox's events do **not** appear in the operator's own visor: `ZAELAR_DB` backs both memory and the bus
+event log (`bus/log.py` shares `memory/db.py`'s path resolution), so an isolated database necessarily means
+an isolated event log. Watch it at its own URL. Old workspaces accumulate under `tests/runs/` and can be
+deleted freely.
+
+### What happens when a case FAILS — it becomes an initiative, not a patch
+
+Operator's rule (2026-08-18): the harness **measures and files; it does not fix**. Every failing case gets
+its own MeshKore initiative used as that case's workspace (`initiative.py`):
+
+1. `.meshkore/roadmap/initiatives/V2-<n>-uc-<case>.md` — the work order: what the case asks, what counts as
+   success, the reproduce command, and the measured evidence of every round (judge scores, mechanism report,
+   live concurrency, watchdog interventions, full transcript).
+2. `.meshkore/modules/<module>/tasks/T<n>-uc-<case>-fix.md` — `status: next`, anchored to that initiative.
+3. **The contract back**: when the fixing agent is done it creates `T<n>-uc-<case>-verify.md`
+   (`status: next`) saying what changed and what to expect. `initiative.pending_verifications()` reads those
+   — that task is the signal to re-run the case, and the new run appends a **round** to the same initiative
+   rather than opening a second one ("corregirlos hasta el final").
+
+A re-test never creates a duplicate initiative. `INFRA` verdicts are never filed — a crashed harness is not
+a use-case bug. Initiative numbers are read from disk at write time, because several sessions share this
+repo (`V2-114` is double-booked right now and `test_roadmap_closure.py` is red because of it). These files
+are gitignored by the «ni nuestro pasado ni nuestro futuro se publican» rule, so they stay local — which is
+also why full transcripts are safe there and never in the committed scoreboard.
+
 - `hotel-under-15-days` (ES, tier 2) — **promoted**, first scenario built. Deliberately
   underspecified (no destination given) to force a real clarifying question. Live-validated
   2026-08-16, and re-investigated 2026-08-17 after it kept reporting `families_observed: [flash,

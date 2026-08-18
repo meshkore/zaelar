@@ -186,10 +186,20 @@ def run(args: argparse.Namespace) -> int:
     # ISOLATED: boot a throwaway engine (own port, own DB, own workspace, own logs) and point the whole
     # suite at it by rewriting config.ZAELAR_URL — probe_client reads that attribute per call, so no other
     # module needs to know. Equivalent to exporting TESTER_ZAELAR_URL, without asking the caller to.
-    from tests.platform.sandbox_engine import sandbox_engine
-    print("▶ booting an isolated sandbox engine (own DB/port/workspace)…")
-    with sandbox_engine() as eng:
-        print(f"✓ sandbox up at {eng.base_url} (workspace {eng.workspace})")
+    from tests.platform.sandbox_engine import preferred_port, sandbox_engine
+    # The workspace is KEPT, under a timestamped dir, and the port is a stable-by-preference one — both so
+    # the operator can actually WATCH this run: open the URL below while it works and the ◷ visor / the
+    # observability API show this agent's flows, tasks and events. A fresh workspace per batch means a fresh
+    # `config/identity.json`, i.e. each batch is a NEW install/user_id in observability rather than mixing
+    # into the operator's own session. Ephemeral+random would be tidier but invisible, and invisible defeats
+    # the point of running these at all.
+    ws = config.RUNS_DIR / "sandbox" / time.strftime("%Y%m%d-%H%M%S", time.localtime())
+    print("▶ booting an isolated sandbox engine (own DB/port/workspace, fresh user_id)…")
+    with sandbox_engine(keep_workspace=ws, port=preferred_port(43918)) as eng:
+        print(f"✓ sandbox up at {eng.base_url}")
+        print(f"  ▸ WATCH IT LIVE: {eng.base_url}  (flows/events/tasks of this test agent)")
+        print(f"  ▸ observability API: {eng.base_url}/api/observability/flows?limit=30")
+        print(f"  ▸ workspace kept for inspection: {eng.workspace}")
         config.ZAELAR_URL = eng.base_url
         try:
             return _run_batch(chosen, sandboxed=True, args_no_file=args.no_file)
