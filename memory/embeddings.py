@@ -236,6 +236,12 @@ def _resolve_backend():
         return
     _forced = False
     prev = _backend
+    # The busy flag describes THIS probe and nothing else. Left over from a previous call it would decide with
+    # stale information — and it showed up as an order-dependent test failure, which is the shape of bug that
+    # passes locally and fails in CI: a probe that never reaches `_ollama_embed` (or a mocked one) would inherit
+    # someone else's verdict. Cleared here so the only way it becomes true is this probe saying so.
+    global _ollama_busy
+    _ollama_busy = False
     if _ollama_embed(["ping"]) is not None:
         _backend = "ollama"
     elif _ollama_busy:

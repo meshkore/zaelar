@@ -214,3 +214,18 @@ def test_busy_classification_is_about_saturation_only():
     assert not emb._looks_busy("connection refused")
     assert not emb._looks_busy('model "embeddinggemma" not found')
     assert not emb._looks_busy(None)
+
+
+def test_the_busy_flag_never_leaks_from_a_previous_probe(monkeypatch):
+    """Regression for an ORDER-DEPENDENT bug this fix introduced and a pre-existing test caught: `_ollama_busy` is
+    module state, so a probe that never reaches `_ollama_embed` (mocked out, or short-circuited) would inherit
+    someone else's verdict and keep a dead Ollama selected forever. The kind of defect that passes in one test
+    order and fails in another, which is why it is pinned rather than just fixed."""
+    monkeypatch.delenv("ZAELAR_EMBED_BACKEND", raising=False)
+    monkeypatch.setattr(emb, "_mem_cfg", lambda: {"embed_provider": "auto"})
+    emb._ollama_busy = True                                   # stale verdict from an earlier call
+    monkeypatch.setattr(emb, "_ollama_embed", lambda texts: None)   # never reports an outcome
+    monkeypatch.setattr(emb, "_fastembed_embed", lambda texts: [[0.1] * 384 for _ in texts])
+    emb.reset()
+    assert emb.active_backend() == "fastembed", "decidió con el veredicto de otra llamada"
+    assert emb._ollama_busy is False
