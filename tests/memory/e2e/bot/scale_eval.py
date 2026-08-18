@@ -5,13 +5,21 @@ del bot (cientos de recuerdos). Es el número que movemos con el reranker: para 
 corpus (`t=query`, `via=long`, con `want`) calcula el RANGO del primer resultado que contiene el ancla esperada
 → **recall@1/3/5/10**, **MRR** y **latencia**. No usa LLM en la lectura (invariante V2-013): mide el camino real.
 
-A/B del reranker: se corre dos veces cambiando el proveedor por env/config (`MEMORY_RERANK=off|openai|local`).
+A/B del reranker: **`--rerank off|local|openai`**, y NO por env. ⚠️ El ejemplo que este fichero traía —
+`MEMORY_RERANK=openai … --label openai` — no funcionaba: `rerank._cfg()` lee `config/v2.py`, donde **el store
+MANDA sobre el env** (invariante de producto: la config la gobierna la UI), así que la variable se ignoraba en
+silencio y el run medía el proveedor del store con la etiqueta del otro. Un interruptor de ablación que no
+conmuta produce un número MAL ETIQUETADO, que es peor que no tener el interruptor — misma familia que el
+confound de idioma del arnés LoCoMo (2026-08-19). `--rerank` override en PROCESO (parchea el único punto de
+lectura, `rerank._cfg`) y se IMPRIME con el resultado: nunca escribe `config/v2.json`, que es la config del
+operador y cambiaría el reranker del agente vivo.
+
 El harness NO reconstruye la persona por defecto (reutiliza `zaelar.membot.db` acumulada); `--fresh` la repuebla
 corriendo el runner de cero (lento: CORAZÓN LLM configurado por cada save).
 
 Uso:
   ./.venv/bin/python -m tests.memory.e2e.bot.scale_eval                 # mide sobre la BD actual
-  MEMORY_RERANK=openai ./.venv/bin/python -m tests.memory.e2e.bot.scale_eval --label openai
+  ./.venv/bin/python -m tests.memory.e2e.bot.scale_eval --rerank off --label sin_reranker
   ./.venv/bin/python -m tests.memory.e2e.bot.scale_eval --fresh         # repuebla y mide
   ./.venv/bin/python -m tests.memory.e2e.bot.scale_eval --ab            # corre off vs config actual y compara
 
@@ -33,6 +41,22 @@ LOGDIR = REPO / ".meshkore" / "logs" / "membot"
 def _norm(s: str) -> str:
     s = unicodedata.normalize("NFKD", str(s or ""))
     return "".join(c for c in s if not unicodedata.combining(c)).lower()
+
+
+def _force_rerank(provider: str) -> None:
+    """Override the rerank provider IN THIS PROCESS by patching its single read point.
+
+    Not `config.v2.set()`: that writes `config/v2.json`, which is the OPERATOR's configuration — a benchmark that
+    changes the live agent's reranker as a side effect of measuring is a benchmark that breaks production. Not the
+    env either, for the reason in the module docstring (the store wins, silently). Patching `rerank._cfg` keeps the
+    override where it belongs: inside the measuring process, for its lifetime, visible in its report."""
+    from memory import rerank as _rr
+    base = dict(_rr._cfg())
+    base["rerank_provider"] = provider
+    _rr._cfg = lambda: base                     # noqa: E731  — deliberate, process-local override
+    got = _rr.provider()
+    assert got == provider, f"the rerank override did not take: asked {provider!r}, got {got!r}"
+    print(f"▶  rerank FORZADO a {provider!r} en este proceso (config del operador intacta)", flush=True)
 
 
 def _setup_env():
@@ -193,6 +217,8 @@ def main():
     ap.add_argument("--fresh", action="store_true", help="repuebla la persona de cero (lento) antes de medir")
     ap.add_argument("--limit", type=int, default=10)
     ap.add_argument("--label", default=None, help="etiqueta del run (p. ej. off/openai/local)")
+    ap.add_argument("--rerank", choices=["off", "local", "openai"], default=None,
+                    help="fuerza el proveedor de rerank EN ESTE PROCESO (no por env: el store lo pisaría)")
     # V2-114 F1 — la cinta del destilador. `--record` graba lo que el CORAZÓN decide (una vez, ~90 min);
     # `--replay` lo repite sin red en segundos. Ver `distiller_tape.py` para el porqué de la cinta secuencial.
     ap.add_argument("--record", metavar="PATH", default=None,
@@ -205,6 +231,8 @@ def main():
     if (args.record or args.replay) and not args.fresh:
         ap.error("--record/--replay solo tienen sentido con --fresh (es la fase de repoblación lo que se graba)")
     _setup_env()
+    if args.rerank:
+        _force_rerank(args.rerank)
 
     if args.fresh:
         import asyncio as _asyncio
