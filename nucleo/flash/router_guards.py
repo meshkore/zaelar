@@ -301,15 +301,47 @@ def escalate_goal_from_window(window, current_text: str = "", max_back: int = 6)
     "" if nothing in the window describes a task that needs a worker. Same lookback shape as the window the
     brain already sees; the caller still gates on "no tool fired AND nothing is running".
     """
-    if current_text and looks_like_escalate_task(current_text):
+    if current_text and _needs_real_work(current_text):
         return current_text
     for msg in reversed(list(window or [])[-max_back:]):
         if (msg or {}).get("role") != "user":
             continue
         content = str((msg or {}).get("content") or "").strip()
-        if content and looks_like_escalate_task(content):
+        if content and _needs_real_work(content):
             return f"{content} — {current_text}".strip(" —") if current_text else content
     return ""
+
+
+_SCREEN_TARGET_RE = _re.compile(r"\b(en pantalla|la pantalla|en el canvas|el widget|widget)\b", _re.I)
+
+
+def _needs_real_work(text: str) -> bool:
+    """Does this request need a worker, i.e. something happening OUTSIDE the conversation?
+
+    V2-143 — `renew-gym-membership__es` measured the gap: «Renueva mi cuota del gimnasio de este mes» is not a
+    marketplace, not a report and not a transactional category of the site catalog, so `looks_like_escalate_task`
+    said no. Then the operator gave the missing datum, zaelar said «ahora me pongo con ello — busco los gimnasios
+    de Sevilla», and NOTHING fired: 0 searches, 0 browser tasks. The signal that would have caught it was already
+    in the tree and unused — `danger.moves_money` returns True for that exact sentence.
+
+    SPENDING MONEY is real-world work by definition: no membership was ever renewed by talking. Show/close are
+    excluded because they are resolved in the turn itself (V2-017) and «pon la factura en pantalla» would
+    otherwise look like a money task.
+    """
+    if looks_like_escalate_task(text):
+        return True
+    try:
+        from nucleo import danger as _danger
+        if not _danger.moves_money(text):
+            return False
+    except Exception:
+        return False
+    # …and neither is putting something ON THE SCREEN. «pon la factura en pantalla» carries a money word and no
+    # show VERB (`pon` is deliberately out of that list — it collides with «pon música»), so the screen has to
+    # be named explicitly here.
+    if _SCREEN_TARGET_RE.search(_norm_txt(text)):
+        return False
+    return not (is_pure_show_request(text) or looks_like_close(text) or looks_like_create_widget(text))
 
 
 # verbos de BÚSQUEDA/NAVEGACIÓN para el guard de marketplace (busca/mira/enséñame/encuentra/ver/ojea). Un sitio

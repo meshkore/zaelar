@@ -95,6 +95,9 @@ DOMAINS: list[dict] = [
             # V2-142: a task from another request bleeding into this one, and the search handed back to
             # the operator on a turn where zaelar has web_search and a browser.
             "tests/agent_headless/unit/flash/test_handback_and_task_bleed.py",
+            # V2-143: a loop that rephrases itself every turn (invisible to the word-overlap detector),
+            # and a promise the backstop could not see because the task was about money.
+            "tests/agent_headless/unit/flash/test_rephrased_loop.py",
             "tests/agent_headless/unit/test_skeleton.py", "tests/agent_headless/unit/test_sparks.py"]},
         {"id": "2.4", "title": "Cliente LLM rápido, reintento y RELEVO por latencia", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_fast_client.py", "tests/agent_headless/unit/flash/test_fast_client_retry.py",

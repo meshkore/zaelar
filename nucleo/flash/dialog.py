@@ -59,10 +59,36 @@ def repeated_replies(window: list[dict], look: int = 3) -> int:
     return run
 
 
+# A LOOP THAT NEVER REPEATS A SENTENCE (V2-143). `repeated_replies` compares SURFACE FORM, and a model asking
+# for the same missing datum five turns running rephrases it every time — politely, apologising, from a new
+# angle. Measured on `renew-gym-membership__es`: five replies all asking for «el nombre del gimnasio o la
+# ciudad», pairwise Jaccard 0.094 / 0.197 / 0.155 / 0.349 against a 0.80 threshold, so `repeated_replies`
+# returned 1 and the anti-loop nudge never fired. The live watchdog — an LLM — called it a loop on sight. The
+# deterministic detector structurally cannot see it by wording, so it looks at SHAPE instead: a run of turns
+# where zaelar only ASKS and nothing moves.
+#
+# Asking for a missing datum is CORRECT behaviour and this suite scores it as such (V2-082), so one question is
+# never a loop and two are not either. Three rounds in which the operator answered and zaelar still only asked
+# is not "asking" any more — and the nudge only tells the model to change strategy, it never blocks a turn.
+_ASK_RE = re.compile(r"[?¿]")
+
+
+def consecutive_questions(window: list[dict], look: int = 5) -> int:
+    """Run of assistant replies, counted back from the end, that are QUESTIONS — regardless of wording."""
+    replies = [m.get("content", "") for m in window if m.get("role") == "assistant"][-look:]
+    run = 0
+    for reply in reversed(replies):
+        if not _ASK_RE.search(reply or ""):
+            break
+        run += 1
+    return run
+
+
 def loop_nudge(window: list[dict]) -> str:
-    """Instrucción de sistema anti-bucle si el asistente lleva ≥2 respuestas casi idénticas. Vacío si no hay
-    bucle. Se AÑADE al system prompt del turno → el modelo cambia de estrategia en vez de repetir."""
-    if repeated_replies(window) >= 2:
+    """Instrucción de sistema anti-bucle si el asistente lleva ≥2 respuestas casi idénticas, o ≥3 turnos seguidos
+    limitándose a PREGUNTAR (V2-143: el bucle real se reformula, no se repite). Vacío si no hay bucle. Se AÑADE
+    al system prompt del turno → el modelo cambia de estrategia en vez de repetir."""
+    if repeated_replies(window) >= 2 or consecutive_questions(window) >= 3:
         return (
             "\n\n── ROMPE EL BUCLE (OBLIGATORIO) ──\n"
             "Llevas VARIOS turnos diciendo casi lo MISMO. PROHIBIDO repetir esa frase otra vez. Cambia de "
