@@ -36,15 +36,19 @@ Credentials are deliberately NOT isolated: `server/common.py` loads `.env` + `.m
 the repo root, so the sandbox uses the operator's real API keys. That's intended — the point is a clean
 DATABASE, not a crippled engine that can't call a model.
 
-⚠️ KNOWN, UNFIXED LEAK — generated widget CODE. `widgets/store.py` honours the workspace (widget *data* is
+⚠️ KNOWN LEAK (worked around, not fixed) — generated widget CODE. `widgets/store.py` honours the workspace (widget *data* is
 isolated), but `widgets/generator.py` and `widgets/lifecycle.py` write the widget's code to
 `HERE/<widget_id>/`, where `HERE` is the real `engine/widgets/` directory — so a sandbox run that generates a
-widget leaves a new folder in the operator's repo. `new_widget_dirs()` reports them and the runner prints the
-list; they are deliberately NOT auto-deleted, because the operator's live engine may be generating widgets
-into that same directory at the same moment and a cleanup sweep cannot tell the two apart. Fixing this
-properly means making those two modules workspace-aware, which is a product change (a workspace-relative
-catalog would also stop the sandbox from seeing the built-in widgets), so it is recorded here rather than
-guessed at.
+widget leaves a new folder in the operator's repo. Leaving them was measured to CORRUPT later runs, not merely litter the repo:
+`build-workout-tracker-widget` PASSED on the run that created its widget and then failed twice, because every
+later sandbox found the folder already in the catalog and answered "ya lo tienes — es el widget que ves en
+pantalla" about a widget present in no workspace and on no screen (a `MODIFY` where a `CREATE` was expected is
+the signature). So teardown now removes the widgets THIS sandbox generated, identified from its own
+`widget-agent: CREATE '<id>'` log lines (`own_generated_widgets()`) — never a sweep of everything new, since
+the operator's live engine writes to the same directory in the same window and a sweep cannot tell whose widget
+is whose. `new_widget_dirs()` still reports anything left over. The proper fix is still making
+`widgets/generator.py` and `widgets/lifecycle.py` workspace-aware, which is a product change (a
+workspace-relative catalog would also stop the sandbox from seeing the built-in widgets).
 
 ⚠️ Do NOT run `make run` (i.e. `scripts/run-livekit.sh`) while a sandbox is alive: that script reaps every
 `python -m server` process by NAME, not by port, so it would kill the sandbox too. The reverse is safe —
@@ -54,6 +58,7 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 import socket
 import subprocess
 import sys
@@ -61,6 +66,7 @@ import tempfile
 import time
 import urllib.error
 import urllib.request
+import re
 from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
@@ -94,9 +100,23 @@ class SandboxEngine:
 
     def new_widget_dirs(self) -> list[str]:
         """Widget folders that appeared in the REAL `engine/widgets/` while the sandbox was up — see the
-        module docstring's leak note. Reported, never deleted: a concurrently-running live engine writes to
-        the same directory, and a sweep cannot tell whose widget is whose."""
+        module docstring's leak note."""
         return sorted(_widget_dirs() - set(self.widgets_before))
+
+    def own_generated_widgets(self) -> list[str]:
+        """Of those, the ones THIS sandbox generated — read from its own log, not guessed.
+
+        The distinction is what makes cleanup safe. A blind sweep of "everything new" could delete a widget the
+        operator's live engine created in the same window, since both write to the same directory (the leak this
+        works around). The sandbox's own `widget-agent: CREATE '<id>'` lines name exactly what it made, so only
+        those are ours to remove.
+        """
+        try:
+            log = self.log_path.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            return []
+        mine = set(re.findall(r"widget-agent: CREATE '([^']+)'", log))
+        return sorted(mine & set(self.new_widget_dirs()))
 
     def get(self, path: str, *, timeout: float = 15.0) -> tuple[int, object]:
         req = urllib.request.Request(self.base_url + path, headers={"User-Agent": _UA})
@@ -214,5 +234,17 @@ def sandbox_engine(*, boot_timeout: float = 90.0, keep_workspace: Path | None = 
             except subprocess.TimeoutExpired:
                 process.kill()
                 process.wait(5)
+            # Remove the widget CODE this sandbox generated. Not doing so was measured to CORRUPT later runs,
+            # not just litter the repo: `build-workout-tracker-widget` passed on the run that created its
+            # widget and then failed twice, because every later sandbox found the folder already there and
+            # answered "ya lo tienes — es el widget que ves en pantalla" about a widget that was in no
+            # workspace and on no screen. A `MODIFY` where a `CREATE` was expected is the signature.
+            # Scoped to what THIS sandbox created (`own_generated_widgets`), never a sweep of everything new.
+            for wid in eng.own_generated_widgets():
+                try:
+                    shutil.rmtree(ENGINE / "widgets" / wid)
+                    print(f"  ✓ sandbox limpió el widget que generó: widgets/{wid}")
+                except Exception as exc:
+                    print(f"  ⚠️ no pude limpiar widgets/{wid}: {exc}")
             if tmp is not None:
                 tmp.cleanup()
