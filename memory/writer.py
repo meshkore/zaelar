@@ -272,8 +272,29 @@ def insert_memory(
     return mid
 
 
-# Free-of-charge branch of V2-031 T2: index the ORIGINAL UTTERANCE as a retrieval path to the distilled pill.
-_RAW_INDEXING = os.getenv("MEM_INDEX_RAW", "1").strip().lower() not in ("0", "false", "no", "off")
+# V2-031 T2 branch: index the ORIGINAL UTTERANCE as a second retrieval path to the distilled pill.
+#
+# **DEFAULT OFF since 2026-08-19, because it was MEASURED and it made things worse.** A/B over our own corpus
+# through the distiller tape (603 durables / 800 rows, identical corpus in both arms, same backend, same
+# reranker, 269 recall queries):
+#
+#     off  recall@1 69.8%  @3 85.9%  @5 89.7%  @10 92.4%  MRR .780  lat p50 533ms  p95 2278ms  DB 3.6MB
+#     on   recall@1 68.3%  @3 85.9%  @5 88.9%  @10 91.6%  MRR .772  lat p50 787ms  p95 3328ms  DB 6.8MB
+#
+# Worse on every metric except a tie at @3, +48% read latency at p50, and nearly double the database. The stated
+# hypothesis was "the pill stays THE answer and the raw utterance becomes an extra way to FIND it"; on this corpus
+# the raw utterance is instead a NOISIER copy that lets a query match the wording of the wrong pill, and it
+# doubles the rows a brute-force KNN has to scan. Latency alone disqualifies it: "reading must be maximum speed"
+# is a hard invariant (V2-013), so a 48% p50 regression is not tradeable against recall it did not even deliver.
+#
+# Caveat on those latency figures, stated rather than hidden: the two arms ran CONCURRENTLY on one machine, so
+# both absolutes are inflated by contention. The relative gap still holds (the `on` arm does strictly more work
+# over twice the vectors) but these are not clean p50 numbers.
+#
+# Kept behind the flag rather than deleted only until the pending LoCoMo distilled arm reports: that corpus is
+# third-party dialogue, the shape the published verbatim-beats-artifact ablation came from, so it is the one case
+# with a reason to disagree. If it does not, this branch should be DELETED — a flag nobody sets is dead code.
+_RAW_INDEXING = os.getenv("MEM_INDEX_RAW", "0").strip().lower() not in ("0", "false", "no", "off")
 
 
 def _index_raw_utterance(mid: int, text: str, meta, level: str) -> None:
