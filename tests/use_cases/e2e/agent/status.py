@@ -151,3 +151,12 @@ def summary_line() -> str:
         return "no recorded results yet"
     passed = sum(1 for e in scen.values() if e.get("state") == "PASS")
     return f"{passed}/{len(scen)} scenarios passing (see tests/use_cases/STATUS.md)"
+
+
+def failing_count() -> int:
+    """How many cases are FAILING on the board right now — the walk's stop budget.
+
+    Only `FAIL` counts. An `INFRA` row (crashed harness, network timeout) says nothing about a use case, and
+    letting it consume the budget would stop the walk early with nothing real to work on.
+    """
+    return sum(1 for e in (load().get("scenarios") or {}).values() if e.get("state") == "FAIL")

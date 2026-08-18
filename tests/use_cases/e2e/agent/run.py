@@ -100,10 +100,21 @@ def _run_scenario(scenario) -> dict:
 
 
 def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
-               verify_tasks: dict | None = None) -> int:
+               verify_tasks: dict | None = None, stop_after_failures: int = 0,
+               failures_already: int = 0) -> int:
     config.RUNS_DIR.mkdir(parents=True, exist_ok=True)
     results = []
+    # Stop the walk once there is enough to work on (operator, 2026-08-18: "cuando tengas 10 fallando, para —
+    # habrá mucho que hacer"). Counting only sub-threshold verdicts, never INFRA: a crashed harness is not a
+    # use-case failure and must not consume the budget. `failures_already` carries the count from earlier
+    # batches, since the whole point is a budget over the WALK, not per batch.
+    failures = failures_already
     for scenario in chosen:
+        if stop_after_failures and failures >= stop_after_failures:
+            print(f"\n■ parando el walk: {failures} casos fallando (tope --stop-after-failures "
+                  f"{stop_after_failures}). Quedan {len(chosen) - len(results)} escenarios de esta tanda sin "
+                  f"correr — se retoman con --start-at {scenario.id}")
+            break
         print(f"\n▶ scenario: {scenario.id} (tier {scenario.tier}, {scenario.locale}, {scenario.channel})")
         try:
             results.append(_run_scenario(scenario))
@@ -114,6 +125,11 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
                                     "crashed": str(e)},
                             "verdict": {"scores": {}, "overall": None, "findings": [], "improvements": [],
                                        "veredicto": f"INFRA: {e}"}})
+        last = (results[-1].get("verdict") or {}).get("overall")
+        if last is not None and last < statusmod.PASS_THRESHOLD:
+            failures += 1
+            if stop_after_failures:
+                print(f"           ↳ fallando: {failures}/{stop_after_failures}")
 
     stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime())
     report_path = reportmod.build(results, stamp, config.RUNS_DIR)
@@ -222,7 +238,9 @@ def run(args: argparse.Namespace) -> int:
         print(f"▲ running against the LIVE engine at {config.ZAELAR_URL} — its memory, widgets and running "
               f"tasks are the operator's. Use --sandbox for an isolated one.")
         return _run_batch(chosen, sandboxed=False, args_no_file=args.no_file,
-                          verify_tasks=verify_tasks)
+                          verify_tasks=verify_tasks,
+                          stop_after_failures=args.stop_after_failures,
+                          failures_already=statusmod.failing_count() if args.stop_after_failures else 0)
 
     # ISOLATED: boot a throwaway engine (own port, own DB, own workspace, own logs) and point the whole
     # suite at it by rewriting config.ZAELAR_URL — probe_client reads that attribute per call, so no other
@@ -271,7 +289,9 @@ def _sandbox_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict
         config.ZAELAR_URL = eng.base_url
         try:
             return _run_batch(chosen, sandboxed=True, args_no_file=args.no_file,
-                              verify_tasks=verify_tasks)
+                              verify_tasks=verify_tasks,
+                              stop_after_failures=args.stop_after_failures,
+                              failures_already=statusmod.failing_count() if args.stop_after_failures else 0)
         finally:
             leaked = eng.new_widget_dirs()
             if leaked:
@@ -298,6 +318,9 @@ def main() -> None:
     ap.add_argument("--limit", type=int, help="stop after N scenarios (walk the catalog in batches)")
     ap.add_argument("--start-at", help="skip ahead to this scenario id, then continue in order")
     ap.add_argument("--list", action="store_true", help="print the selectable scenarios and exit")
+    ap.add_argument("--stop-after-failures", type=int, default=0, metavar="N",
+                    help="stop the walk once N cases are FAILING on the scoreboard (INFRA never counts). "
+                         "Counts failures already recorded by earlier batches, not just this one")
     ap.add_argument("--no-file", action="store_true",
                     help="do NOT open a MeshKore initiative/task for a failure (measure only)")
     args = ap.parse_args()
