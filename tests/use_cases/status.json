@@ -23,7 +23,71 @@
         "generic",
         "web"
       ]
+    },
+    "restaurant-tonight-madrid": {
+      "last_run": "2026-08-18 18:20",
+      "overall": 1,
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 4,
+        "adaptacion": 4,
+        "resultado": 1,
+        "mecanismo": 1,
+        "eficiencia": 1
+      },
+      "verdict": "No está listo para producción: el asistente falló el bloque principal de éxito al no realizar ningún intento de reserva observable y alucinar la política del restaurante, existiendo una desconexión total entre lo dicho en el transcript y lo reportado por el mecanismo.",
+      "missing_signals": [],
+      "sandboxed": true,
+      "tier": 1
+    },
+    "quick-fact-opening-hours": {
+      "last_run": "2026-08-18 18:25",
+      "overall": 2,
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 4,
+        "adaptacion": 3,
+        "resultado": 1,
+        "mecanismo": 2,
+        "eficiencia": 2
+      },
+      "verdict": "No está listo para producción: el modelo responde sobre hechos dinámicos sin verificar su fuente y omite partes de la pregunta, lo cual es un riesgo crítico de alucinación y mala experiencia de usuario.",
+      "missing_signals": [],
+      "sandboxed": true,
+      "tier": 1
+    },
+    "build-workout-tracker-widget": {
+      "last_run": "2026-08-18 18:20",
+      "overall": 5,
+      "state": "PASS",
+      "scores": {
+        "naturalidad": 5,
+        "adaptacion": 5,
+        "resultado": 5,
+        "mecanismo": 5,
+        "eficiencia": 3
+      },
+      "verdict": "Está listo para producción: el entregable (widget) es observable y funcional, aunque el flujo de espera fue ruidoso.",
+      "missing_signals": [],
+      "sandboxed": true,
+      "tier": 1
+    },
+    "remember-and-remind-deadline": {
+      "last_run": "2026-08-18 18:20",
+      "overall": 1,
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 5,
+        "adaptacion": 1,
+        "resultado": 1,
+        "mecanismo": 1,
+        "eficiencia": 1
+      },
+      "verdict": "NO está listo para producción: el bloqueador nº1 es la 'alucinación de cumplimiento' (el asistente dice que hizo algo que el mecanismo confirma que no hizo), lo que hace que la función de recordar sea inútil y engañosa.",
+      "missing_signals": [],
+      "sandboxed": true,
+      "tier": 1
     }
   },
-  "updated": "2026-08-18 18:00"
+  "updated": "2026-08-18 18:25"
 }

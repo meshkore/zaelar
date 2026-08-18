@@ -186,6 +186,29 @@ def run(args: argparse.Namespace) -> int:
     # ISOLATED: boot a throwaway engine (own port, own DB, own workspace, own logs) and point the whole
     # suite at it by rewriting config.ZAELAR_URL — probe_client reads that attribute per call, so no other
     # module needs to know. Equivalent to exporting TESTER_ZAELAR_URL, without asking the caller to.
+    # LANGUAGE FIDELITY (found 2026-08-18, first sandboxed batch): every ES scenario came back answered in
+    # ENGLISH. Not a product bug in itself — a fresh sandbox workspace has no language chosen, and the engine
+    # deliberately boots in English ("arranque idiomático", langs.DEFAULT_LANG="en") until the first sentence
+    # is detected. That detection did NOT fire over the probe channel, so an ES case was being graded on an
+    # English conversation and the judge (correctly) marked it down for it. Measuring the wrong thing.
+    #
+    # Language is process-wide by design — `voice/engine/core/langs.py::current_code()` reads ZAELAR_LANGUAGE
+    # and the probe consults the same global, so an es case and a us case CANNOT share one engine (CASES.md
+    # §"Running ES vs US" already documented this and left it to whoever wired the first batch: this is it).
+    # So: one sandbox PER LOCALE, pinned explicitly, run back to back.
+    locales = sorted({s.locale for s in chosen})
+    if len(locales) > 1:
+        rc = 0
+        for loc in locales:
+            print(f"\n═══ locale {loc}: {sum(1 for s in chosen if s.locale == loc)} scenarios "
+                  f"(separate sandbox — language is process-wide) ═══")
+            sub = argparse.Namespace(**{**vars(args), "locale": loc})
+            rc |= _sandbox_batch([s for s in chosen if s.locale == loc], sub)
+        return rc
+    return _sandbox_batch(chosen, args)
+
+
+def _sandbox_batch(chosen: list, args: argparse.Namespace) -> int:
     from tests.platform.sandbox_engine import preferred_port, sandbox_engine
     # The workspace is KEPT, under a timestamped dir, and the port is a stable-by-preference one — both so
     # the operator can actually WATCH this run: open the URL below while it works and the ◷ visor / the
@@ -193,9 +216,12 @@ def run(args: argparse.Namespace) -> int:
     # `config/identity.json`, i.e. each batch is a NEW install/user_id in observability rather than mixing
     # into the operator's own session. Ephemeral+random would be tidier but invisible, and invisible defeats
     # the point of running these at all.
+    lang = "es" if (chosen and chosen[0].locale == "es") else "en"
     ws = config.RUNS_DIR / "sandbox" / time.strftime("%Y%m%d-%H%M%S", time.localtime())
-    print("▶ booting an isolated sandbox engine (own DB/port/workspace, fresh user_id)…")
-    with sandbox_engine(keep_workspace=ws, port=preferred_port(43918)) as eng:
+    print(f"▶ booting an isolated sandbox engine (own DB/port/workspace, fresh user_id, "
+          f"ZAELAR_LANGUAGE={lang})…")
+    with sandbox_engine(keep_workspace=ws, port=preferred_port(43918),
+                        extra_env={"ZAELAR_LANGUAGE": lang}) as eng:
         print(f"✓ sandbox up at {eng.base_url}")
         print(f"  ▸ WATCH IT LIVE: {eng.base_url}  (flows/events/tasks of this test agent)")
         print(f"  ▸ observability API: {eng.base_url}/api/observability/flows?limit=30")
