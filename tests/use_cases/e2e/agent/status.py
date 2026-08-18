@@ -50,6 +50,13 @@ def record(results: list[dict], *, sandboxed: bool) -> dict:
             "missing_signals": mech.get("missing_signals") or [],
             "sandboxed": sandboxed,
             "tier": r.get("tier"),
+            # Recorded so a LATER re-file can rebuild an honest round from the ledger alone. The tick's re-file
+            # (`initiative.rotate_failure` from `tick._retest_pending`) runs in the parent process, where the full
+            # run dict no longer exists — without these two the successor's evidence block claimed "0 turnos" and
+            # "ninguna familia" for a case that had used its whole budget, which reads as a broken run instead of
+            # a bad one, and the fixing agent reads exactly that block.
+            "turns_used": len((r.get("run") or {}).get("transcript") or []) // 2,
+            "families": mech.get("families_observed") or [],
         }
         # What this case could HONESTLY be graded on. Recorded per row so a reader of the board knows a `PASS`
         # on a bookable case means "found real options and stopped at the wall", not "made a reservation" —

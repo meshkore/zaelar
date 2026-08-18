@@ -170,7 +170,10 @@ def _evidence(result: dict, *, scenario, sandboxed: bool) -> str:
         f"- **Veredicto del juez**: overall **{verdict.get('overall')}**/5"
         + (f" · " + " · ".join(f"{k} {v}" for k, v in scores.items()) if scores else ""),
         f"- **Motor**: {'sandbox AISLADO (BD/puerto/workspace propios)' if sandboxed else 'motor VIVO del operador'}",
-        f"- **Turnos usados**: {len(run.get('transcript') or []) // 2} de {scenario.turns}",
+        # `turns_used` wins when present: a round re-filed from the ledger (the tick's rotation) has no transcript
+        # in hand, and counting an absent transcript would report 0 turns for a run that used its whole budget.
+        f"- **Turnos usados**: {run.get('turns_used') if run.get('turns_used') is not None else len(run.get('transcript') or []) // 2}"
+        f" de {scenario.turns}",
         f"- **Familias observadas**: {', '.join(mech.get('families_observed') or []) or '(ninguna)'}",
     ]
     missing = mech.get("missing_signals") or []

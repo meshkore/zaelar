@@ -138,8 +138,10 @@ def _retest_pending() -> dict:
             # Re-file from the ledger's summary: the full run dict lives in the child process, and the
             # initiative's own round already carries the transcript the runner appended.
             fake = {"scenario": sid, "tier": e.get("tier"),
-                    "run": {"transcript": [], "mechanism_report": {"missing_signals": e.get("missing_signals")
-                                                                   or []}, "watchdog_log": []},
+                    "run": {"transcript": [], "turns_used": e.get("turns_used"),
+                            "mechanism_report": {"missing_signals": e.get("missing_signals") or [],
+                                                 "families_observed": e.get("families") or []},
+                            "watchdog_log": []},
                     "verdict": {"overall": e.get("overall"), "scores": e.get("scores") or {},
                                 "findings": [], "improvements": [], "veredicto": e.get("verdict", "")}}
             scn = SC.registry().get(sid)
