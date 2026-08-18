@@ -67,7 +67,10 @@ class OrchestratorLoop:
         self._stuck_informed: set[str] = set()    # tid ya avisados de encallamiento
         self._timeout_informed: set[str] = set()  # tid ya avisados de timeout
         self._budget_nudged: set[str] = set()     # tid ya conminados a ENTREGAR (fase 1 del presupuesto)
-        self._stuck_secs = float(os.getenv("WORKER_STUCK_SECS", "180"))
+        # ONE definition, in the module that owns the record (V2-131) — the prompt reads the same number,
+        # so what the supervisor says out loud and what the brain answers when asked cannot disagree.
+        from nucleo import dispatch as _disp_thr
+        self._stuck_secs = _disp_thr.STUCK_SECS
         self._max_secs = float(os.getenv("WORKER_MAX_SECS", "900"))
         # PRESUPUESTO DURO por worker (demo 2026-07-14: la búsqueda de Wallapop vagó 12+ min sin entregar; el
         # aviso pasivo de _max_secs no corta). Dos fases: al agotarse se INYECTA "entrega ya" (el worker cierra

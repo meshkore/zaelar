@@ -809,3 +809,29 @@ def test_el_dedup_no_se_queda_mudo_en_otro_alfabeto(monkeypatch):
     Escritura CJK aparte: sus tokens son de 2-3 caracteres y el filtro `len(w) >= 4` ya los descartaba ANTES de
     este cambio — limitación pre-existente del dedup, no algo que se introduzca aquí."""
     assert dispatch._content_words("\u0438\u0441\u0441\u043b\u0435\u0434\u0443\u0439 \u0433\u0438\u0442\u0430\u0440\u044b \u0434\u043b\u044f \u0440\u0435\u0431\u0451\u043d\u043a\u0430") != set()
+
+
+def test_pending_summaries_carries_the_silence_the_prompt_needs():
+    """V2-131: `active_sessions()` has carried `silent_s` for the loop's stall detector all along, but the
+    projection that feeds the PROMPT did not — so the brain answering «¿cómo va?» could not tell a task that
+    is working from one that has emitted nothing since it started."""
+    import time as _t
+    from nucleo import dispatch as d
+    rec = d.SessionRecord(task_id="t-silence", goal="reservar hotel", kind="web")
+    rec.status = "running"
+    rec.started = _t.time() - 400
+    rec.last_event_at = _t.time() - 400
+    d._SESSIONS[rec.task_id] = rec
+    try:
+        row = [r for r in d.pending_summaries() if r["id"] == "t-silence"][0]
+        assert row["silent_s"] >= 399
+    finally:
+        d._SESSIONS.pop(rec.task_id, None)
+
+
+def test_the_stall_threshold_has_ONE_definition():
+    """The loop's supervisor speaks up on its own and the prompt now states the same fact — two copies of this
+    number is how the proactive notice and the agent you just asked end up disagreeing."""
+    from nucleo import dispatch as d
+    from nucleo.loop import OrchestratorLoop
+    assert OrchestratorLoop()._stuck_secs == d.STUCK_SECS

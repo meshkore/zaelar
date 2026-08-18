@@ -418,6 +418,16 @@ def live_state() -> str:
                     # momentos está en la fase de login» de un gimnasio cuyo nombre todavía no tenía. No es que
                     # el modelo mintiera por gusto: se le mandaba decir algo que nadie le había dado.
                     bit += " — SIN paso reportado aún"
+                # V2-131 — «llevo un rato intentándolo y parece que se está demorando» dicho al ARRANCAR, y
+                # después seis turnos de «sigue en marcha» sobre una tarea que no había emitido nada. El
+                # supervisor de `nucleo/loop.py` SÍ sabía que estaba encallada (`silent_s`, umbral compartido)
+                # y lo decía por su cuenta; aquí nunca llegaba, así que el cerebro solo veía «arrancó hace N
+                # segundos» y tenía que adivinar qué cuenta como mucho. Se le da el HECHO, como con «SIN paso
+                # reportado aún»: la instrucción vaga («si lleva MUCHO, sé honesto») pedía un juicio con el
+                # dato fuera de la vista.
+                _silent = int(t.get("silent_s", 0) or 0)
+                if _silent >= _disp.STUCK_SECS:
+                    bit += f" — ENCALLADA: {_silent // 60} min SIN DAR NINGUNA SEÑAL"
                 bits.append(bit + f' (llevas {t.get("secs", 0)}s)')
             lines.append("TAREAS DE FONDO EN CURSO (los brain workers las están resolviendo; NO reinicies ni digas "
                          "que ya está): " + "; ".join(bits) + ". Si el operador pregunta el estado, di el PASO "
@@ -428,6 +438,13 @@ def live_state() -> str:
                          "qué punto va («está en la fase de login», «la farmacia está consultando tu historial», "
                          "«ya tengo la reserva en marcha»). Inventar un paso es MENTIR sobre lo único que el "
                          "operador no puede comprobar por su cuenta, y se nota tarde y mal. "
+                         # V2-131 — lo que hay que hacer con el hecho, no solo el hecho.
+                         "Los SEGUNDOS que ves son la verdad: no digas que algo «se está demorando» ni «lleva "
+                         "un rato» si acaba de arrancar. Y si una tarea sale ENCALLADA, dilo con esas letras la "
+                         "primera vez que salga a colación y ofrece pararla — NO respondas «sigue en marcha» "
+                         "otra vez. Si el operador te pide un resultado CONCRETO (¿hay o no hay?, ¿cuánto "
+                         "cuesta?, ¿está reservado?) y la tarea no lo ha traído, la respuesta es que TODAVÍA NO "
+                         "LO SABES y desde cuándo lleva sin dar señal — nunca una vuelta más de proceso. "
                          # V2-130 — the list had no stated SCOPE, and a list in context becomes an answer
                          # when the model has a hole. Asked which barber he always goes to, the brain had
                          # nothing on barbers and offered these instead: «tengo varias tareas tuyas

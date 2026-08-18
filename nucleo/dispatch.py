@@ -383,11 +383,23 @@ def has_active() -> bool:
     return any(r.status in ("queued", "running") for r in _SESSIONS.values())
 
 
+# How long a live worker may go WITHOUT emitting anything before we call it stalled. One definition, read by
+# both consumers: `nucleo/loop.py`'s supervisor (which speaks up on its own) and `pending_summaries()` below
+# (which puts it in front of the brain). Two copies of this number is how the operator gets told one thing by
+# the proactive notice and another by the agent he just asked.
+STUCK_SECS = float(os.getenv("WORKER_STUCK_SECS", "180"))
+
+
 def pending_summaries() -> list[dict]:
     """Reemplaza `escalate.pending()` (§v3·G): tareas EN CURSO para el filler del provider + el bloque del prompt."""
     now = time.time()
     return [{"id": r.task_id, "request": r.goal, "secs": int(now - r.started),
              "phase": r.phase, "waiting_on": r.waiting_on,
+             # V2-131: SILENCE since the worker's last event. `active_sessions()` has carried it for the loop's
+             # stall detector all along; the PROMPT never got it, so the brain answering "¿cómo va?" could only
+             # see "it started N seconds ago" and had to guess what counts as too long. It guessed "sigo en
+             # marcha" six turns running over a task that had emitted nothing at all.
+             "silent_s": int(now - (r.last_event_at or r.started)),
              # V2-059: el FlashBrain puede decir el PASO real + progreso si el operador pregunta "¿cómo va?".
              "pct": _progress_pct(r), "done": r.done, "total": len(r.plan), "note": r.note,
              # Amplitud en curso: deja al cerebro contestar «va por 30 candidatos» y, al acabar, ofrecer seguir.

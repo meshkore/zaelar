@@ -218,3 +218,42 @@ def test_the_background_task_list_states_what_it_is_NOT_for(monkeypatch):
     live = prompt.live_state()
     assert "TRABAJO EN CURSO" in live
     assert "estas tareas NO son candidatas" in live
+
+
+def test_a_stalled_background_task_is_named_as_stalled(monkeypatch):
+    """V2-131 `book-hotel-night-known`. Six turns of «sigue en marcha» over a task that had emitted nothing.
+    The loop's supervisor DID know it was stalled (`silent_s`, same threshold) and said so on its own — the
+    prompt never got the number, so the brain could only see «it started N seconds ago» and had to guess what
+    counts as too long. State the fact, same remedy as «SIN paso reportado aún»."""
+    from nucleo import dispatch as _disp
+    monkeypatch.setattr(_disp, "pending_summaries", lambda: [
+        {"id": "9", "request": "reservar noche en el Hotel Palacio de la Merced", "secs": 400, "phase": "",
+         "pct": -1, "done": 0, "total": 0, "note": "", "silent_s": 400}])
+    tareas = prompt.live_state().split("Si el operador pregunta")[0]
+    assert "ENCALLADA" in tareas
+    assert "6 min SIN DAR NINGUNA SEÑAL" in tareas
+
+
+def test_a_task_that_is_emitting_is_NOT_called_stalled(monkeypatch):
+    """The marker is for silence, not for elapsed time: a task working and reporting stays unmarked."""
+    from nucleo import dispatch as _disp
+    monkeypatch.setattr(_disp, "pending_summaries", lambda: [
+        {"id": "9", "request": "buscar monitores", "secs": 400, "phase": "conduciendo el navegador",
+         "pct": -1, "done": 0, "total": 0, "note": "", "silent_s": 3}])
+    tareas = prompt.live_state().split("Si el operador pregunta")[0]
+    assert "conduciendo el navegador" in tareas
+    assert "ENCALLADA" not in tareas
+
+
+def test_the_prompt_forbids_answering_a_concrete_question_with_process(monkeypatch):
+    """«¿hay disponibilidad o no?» got «el proceso sigue en marcha» — which was also false. The honest answer
+    is that it is not known yet, and since when there has been no signal. The rule travels WITH the task list
+    (it is about what to do with it), so it only exists when there is something running — which is exactly
+    when the operator asks."""
+    from nucleo import dispatch as _disp
+    monkeypatch.setattr(_disp, "pending_summaries", lambda: [
+        {"id": "9", "request": "reservar hotel", "secs": 400, "phase": "",
+         "pct": -1, "done": 0, "total": 0, "note": "", "silent_s": 400}])
+    live = prompt.live_state()
+    assert "TODAVÍA NO LO SABES" in live
+    assert "no digas que algo «se está demorando»" in live
