@@ -109,6 +109,26 @@ _DESIRE_RECALL_RE = _re.compile(
     r"i feel like|i'?d like to|i want to|we could|maybe we|vacation|a trip|book me)", _re.I   # SIN \b final: stems
 )
 
+# HABITUAL REFERENCES — "la peluquería de siempre", "mi barbero", "lo de siempre", "como siempre" (V2-130).
+# These are the phrasings that depend on memory MOST, and `needs_recall` was missing every single one of them:
+# the classifier is shaped by GRAMMAR (a question, or a recall imperative) while the signal here is SEMANTIC —
+# a definite reference whose referent ONLY memory can resolve. Measured on the `book-barber-slot` transcript:
+# 6 of 7 real phrasings returned False, and the one that returned True did so by accident (it happened to be
+# phrased as a question). An ORDER is the natural way to say it — "resérvame hora en la de siempre" — and an
+# order never fired the prefetch, so the brain answered about the operator's usual place having never looked.
+# Also covers possessive + SERVICE PROVIDER (barber, dentist, pharmacy, gym, garage…): the small closed set of
+# nouns that name a person/place the operator has but the model cannot possibly know. A false positive costs
+# one retriever query off the hot path; a false negative makes the brain look amnesic about his own life.
+_HABITUAL_REF_RE = _re.compile(
+    r"\b(de siempre|lo de siempre|como siempre|de costumbre|de toda la vida|de cabecera|"
+    r"habitual|acostumbrad|de confianza|el mismo de siempre|"
+    r"the usual|my usual|as always|like always|my regular|"
+    r"(?:mi|mis|del|de la|de mi)\s+(?:\w+\s+){0,2}?"
+    r"(?:peluquer|barber|dentista|medic|m[eé]dic|farmac|gimnasio|taller|mec[aá]nic|fontaner|electricist|"
+    r"asesor|gestor|banco|clinica|cl[ií]nica|veterinari|academia|autoescuela|restaurante|cafeteria))",
+    _re.I
+)
+
 # COMANDOS de interfaz/dispositivo en forma de pregunta ("¿me pones el tiempo en pantalla?", "¿bajas el
 # volumen?") — piden ACCIÓN, no recuerdo. Cortan el fallback genérico de pregunta. Si además fuera recall real
 # ("muéstrame lo que te dije"), `_RECALL_RE` ya lo habría cazado ANTES (este guard va después).
@@ -187,6 +207,8 @@ def needs_recall(text: str) -> bool:
         return True
     if _TRIVIAL_RE.match(n):                  # saludo / ack / charla → nunca
         return False
+    if _HABITUAL_REF_RE.search(n):            # "la de siempre", "mi peluqueria" -> only memory resolves it
+        return True
     if _RECALL_IMPERATIVE_RE.search(n):       # "cuéntame de…", "recuérdame…"
         return True
     if _DESIRE_RECALL_RE.search(n):           # deseo/intención: "me apetecería un viaje" → conecta con intereses

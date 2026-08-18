@@ -204,3 +204,17 @@ def test_the_prompt_names_the_invented_jargon_and_offers_a_sanctioned_phrase(fre
     assert "«equipo de operaciones»" in system
     assert "«widget local»" in system
     assert "me pongo con ello" in system
+
+
+def test_the_background_task_list_states_what_it_is_NOT_for(monkeypatch):
+    """V2-130 `book-barber-slot`. Asked which hairdresser he always goes to, the brain had nothing on
+    hairdressers and answered with the background-task list instead: «tengo varias tareas tuyas pendientes:
+    reservar mesa en Casa Lucio, renovar la cuota del gimnasio…». Real items, real list, wrong KIND of thing —
+    a list in context becomes an answer when the model has a hole, and the block never stated its scope."""
+    from nucleo import dispatch as _disp
+    monkeypatch.setattr(_disp, "pending_summaries", lambda: [
+        {"id": "9", "request": "reservar mesa en Casa Lucio", "secs": 63, "phase": "",
+         "pct": -1, "done": 0, "total": 0, "note": ""}])
+    live = prompt.live_state()
+    assert "TRABAJO EN CURSO" in live
+    assert "estas tareas NO son candidatas" in live

@@ -427,7 +427,16 @@ def live_state() -> str:
                          "aún», di exactamente eso —que arrancó y todavía no ha dado señal—; JAMÁS te inventes en "
                          "qué punto va («está en la fase de login», «la farmacia está consultando tu historial», "
                          "«ya tengo la reserva en marcha»). Inventar un paso es MENTIR sobre lo único que el "
-                         "operador no puede comprobar por su cuenta, y se nota tarde y mal.")
+                         "operador no puede comprobar por su cuenta, y se nota tarde y mal. "
+                         # V2-130 — the list had no stated SCOPE, and a list in context becomes an answer
+                         # when the model has a hole. Asked which barber he always goes to, the brain had
+                         # nothing on barbers and offered these instead: «tengo varias tareas tuyas
+                         # pendientes: reservar mesa en Casa Lucio, renovar la cuota del gimnasio…».
+                         # Real items, real list — wrong KIND of thing. Naming what the list is NOT costs
+                         # one clause and closes the substitution.
+                         "Y esto es una lista de TRABAJO EN CURSO, no un registro de sus sitios, sus "
+                         "contactos ni sus costumbres: si te pregunta cuál es su peluquería, su médico o "
+                         "«el de siempre», estas tareas NO son candidatas — no se las ofrezcas.")
     except Exception:
         pass
     try:

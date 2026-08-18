@@ -77,7 +77,11 @@ DOMAINS: list[dict] = [
             # callar — sin esto el turno siguiente acababa ecoando la propia pregunta del operador (2026-08-17)
             "tests/agent_headless/unit/flash/test_probe_never_mute.py"]},
         {"id": "2.3", "title": "Prompt / skeleton / chispas", "ch": UNIT, "paths": [
-            "tests/agent_headless/unit/flash/test_prompt.py", "tests/agent_headless/unit/test_skeleton.py", "tests/agent_headless/unit/test_sparks.py"]},
+            "tests/agent_headless/unit/flash/test_prompt.py",
+            # V2-130: a definite reference to a habitual thing ("la de siempre", "mi peluqueria") is a memory
+            # question in disguise, and the prefetch was shaped by grammar so an ORDER never fired it.
+            "tests/agent_headless/unit/flash/test_recall_habitual.py",
+            "tests/agent_headless/unit/test_skeleton.py", "tests/agent_headless/unit/test_sparks.py"]},
         {"id": "2.4", "title": "Cliente LLM rápido, reintento y RELEVO por latencia", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_fast_client.py", "tests/agent_headless/unit/flash/test_fast_client_retry.py",
             "tests/agent_headless/unit/flash/test_procs.py",
