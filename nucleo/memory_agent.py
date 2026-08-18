@@ -494,6 +494,101 @@ def _plausibility_demote(atom: dict, *, state: dict, is_correction: bool) -> dic
     return atom
 
 
+def _slot_supersede_guard(atom: dict, *, is_correction: bool) -> dict:
+    """(P0d, 2026-08-19) A contradicting value must not SUPERSEDE an established identity pill.
+
+    `_plausibility_demote` (P0b) protects the `state`, and it does that job well — verified: after "El cumpleaños
+    de Marta es el 3 de mayo", `operator_name` stayed Ricart and `birthday` stayed 12 February. But the
+    destructive operation is not the state write, it is the **slot supersede**, and P0b cannot see it: it returns
+    early on `dest != "state"`, and it then requires `_SLOT_TO_STATE_FIELD[slot]` to exist. A third party's fact
+    arrives as `dest="long"` with `slot="operator.birthday"` — failing BOTH conditions — and the writer's "the
+    most recent MANDA" rule invalidates the operator's own pill. Reproduced end to end: the operator's row went
+    `valid=0` and `query("¿cuándo es mi cumpleaños?")` answered with Marta's date. The `state` still held the
+    right value, so the ESTADO block in the prompt was fine and only the RECALL path lied — which is worse than a
+    visible break, because it is the path the worker dossier and `compose_recall` read.
+
+    Five identity slots had NO contradiction protection at all for this reason (`birthday`, `phone`, `email`,
+    `address`, `diet`): the existing guard is keyed on having a `state_field`, which is an unrelated property.
+
+    This is not a new heuristic — it is P0b's own rule (a contradicting value does not overwrite an established
+    identity unless it is an explicit correction, and a refinement of the same entity is not a contradiction)
+    applied at the layer where the loss happens. The DIFFERENCE from P0b is the disposal: a garbled name is junk
+    and gets quarantined, whereas "Marta's birthday" is perfectly good information about someone else — so the
+    pill is KEPT as a normal durable fact and only its `slot` is dropped. Quarantining it would fix the overwrite
+    by throwing away the fact, which is the same data loss wearing a different hat.
+
+    The prompt already forbids this ("slot: SOLO para ATRIBUTOS SINGULARES del operador", "personas del entorno →
+    slot=null SIEMPRE") and the model does it anyway: 0/5 with an empty profile, 3/5 with an identity established
+    — it misfires precisely when there is something to destroy. Small samples, so no rate is claimed; a
+    deterministic backstop for a real, reproducible loss does not need one."""
+    if is_correction:
+        return atom                      # an explicit correction is exactly what SHOULD overwrite
+    slot = _writer_canon(atom.get("slot"))
+    if not slot or slot not in _IDENTITY_SLOTS or slot not in _GARBLE_GUARD_SLOTS:
+        return atom
+    new = str(atom.get("value") or "").strip().lower()
+    if not new:
+        return atom                      # no declared value → nothing to compare; keep today's behaviour
+    cur = _established_slot_value(slot)
+    if not cur or cur == new or _same_entity_refinement(cur, new):
+        return atom                      # first value, same value, or a refinement of the same thing
+    a = dict(atom, slot=None, state_patch={})
+    _report_slot_guard(slot, cur, new, atom.get("text") or "")
+    return a
+
+
+def _writer_canon(slot) -> str:
+    """Through the FACADE, not `memory.writer`. The contract test caught the direct reach and its message is the
+    design ("move the new call to memory.api"), so `canon_slot` is re-exported there instead of the ceiling being
+    raised — a ratchet you loosen when it fires is not a ratchet."""
+    try:
+        from memory import api as _api
+        return (_api.canon_slot(slot) or "") if slot else ""
+    except Exception:  # noqa: BLE001
+        return str(slot or "")
+
+
+def _established_slot_value(slot: str) -> str:
+    """The value the slot currently holds, from the VALID pill — not from `state`, which is exactly the source
+    that does not exist for the five slots this guard was written for. Reads `meta.value` (persisted since P0d),
+    falling back to the state_patch a pill may carry. Returns "" when the established row predates P0d and
+    recorded no value: the guard then declines to act rather than compare sentences, which the refinement test
+    would misread as the same entity because they share the attribute word."""
+    try:
+        from memory import api as _api
+        row = _api.as_of(slot)          # ts=None = now; the clock stays behind the facade (contract test)
+        if not row:
+            return ""
+        meta = row.get("meta")
+        if isinstance(meta, str):
+            import json as _json
+            meta = _json.loads(meta) if meta.strip() else {}
+        meta = meta if isinstance(meta, dict) else {}
+        v = meta.get("value")
+        if not v:
+            for candidate in (meta.get("state_patch") or {}).values():
+                if isinstance(candidate, str) and candidate.strip():
+                    v = candidate
+                    break
+        return str(v or "").strip().lower()
+    except Exception:  # noqa: BLE001
+        return ""                        # never block a write because the lookup failed
+
+
+def _report_slot_guard(slot: str, cur: str, new: str, text: str) -> None:
+    """VISIBLE, because a protection that fires in silence is indistinguishable from the bug it prevents — the
+    rule this module has already paid for three times. Not `health_state`: this is a guard working as designed,
+    not a degradation."""
+    detail = f"slot {slot} NOT superseded: established {cur!r} vs {new!r} — kept as a plain durable fact"
+    try:
+        from voice.observer import emit
+        emit("memory", "slot de identidad protegido", text=detail,
+             extra={"module": "memory_agent.P0d", "slot": slot, "pill": text[:120]})
+    except Exception:  # noqa: BLE001
+        pass
+    logger.info(f"memory_agent P0d: {detail}")
+
+
 def _state_lines(st: dict) -> list[str]:
     """Compone el bloque ESTADO del prompt a partir del state (todos los campos con valor).
 
@@ -1130,6 +1225,13 @@ async def _ingest_utterance_locked(text: str, *, role: str = "operator") -> dict
             if a.get("slot") in _IDENTITY_SLOTS and _looks_like_injection(t):
                 a_corr = _is_corr
             a = _plausibility_demote(a, state=st, is_correction=a_corr)
+            # (P0d) …and the same question one layer down: P0b guards the `state`, this guards the SLOT supersede,
+            # which destroys the operator's own pill even when `state` survives. Applied ONLY on this path — the
+            # LLM-atom path, where the misattribution was measured — and deliberately NOT on the deterministic
+            # backstops below: those build their slot from the registry via `state_patch`, so their slots always
+            # have a `state_field` and are already covered by P0b, and interposing here could suppress the
+            # profile→state backstop that exists precisely to force a legitimate move through.
+            a = _slot_supersede_guard(a, is_correction=a_corr)
             await _write_atom(a, raw=t)
         # BACKSTOP DETERMINISTA de PERFIL→ESTADO (round headless V2-038 #2): la heurística detectó un state_patch
         # (nombre/ubicación/…) pero los átomos del LLM NO tocaron esos campos — el CORAZÓN tiende a escribir la
@@ -1242,6 +1344,15 @@ async def _write_atom(atom: dict, *, raw: str = "") -> None:
     atom = dict(atom, state_patch=_patch)
     if _patch:
         meta["state_patch"] = _patch
+    # The atom's canonical `value` is PERSISTED (P0d, 2026-08-19). It was computed by the distiller, used to build
+    # `state_patch`, and then thrown away — so for the five identity slots with no `state_field`
+    # (birthday/phone/email/address/diet) nothing on the row recorded WHAT value the slot holds, only a sentence
+    # containing it. Comparing sentences instead is not a substitute: "Su cumpleaños es el 12 de febrero" and "El
+    # cumpleaños de Marta es el 3 de mayo" share the token "cumpleaños", which the refinement test reads as the
+    # same entity. The value is the thing the slot is ABOUT; without it the supersede guard below cannot exist.
+    _val = atom.get("value")
+    if isinstance(_val, str) and _val.strip() and atom.get("slot"):
+        meta["value"] = _val.strip()[:120]
     # V2-033 P0b: átomo degradado por conflicto de identidad (garble) → CUARENTENA (trust=untrusted): recuperable
     # solo por consulta explícita, jamás aflora en recall/prompt (el retriever y recent_short lo excluyen).
     if atom.get("_quarantine"):

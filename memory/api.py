@@ -275,12 +275,28 @@ def unforget(match: str, *, include_pinned: bool = False) -> int:
     return len(ids)
 
 
-def as_of(slot: str, ts: int) -> dict | None:
+def canon_slot(slot: str | None) -> str | None:
+    """The canonical key for a slot name/alias, THROUGH the facade. Re-exported (not reimplemented) because the
+    registry in `memory/slots.py` stays the single vocabulary; this only spares every caller outside the module a
+    direct reach into `memory.writer` for one pure lookup — which the contract test counts, correctly, as the
+    boundary opening up."""
+    return _writer.canon_slot(slot)
+
+
+def as_of(slot: str, ts: int | None = None) -> dict | None:
     """Bi-temporal (V2-111 §9.2): qué valor tenía un slot canónico en un instante PASADO — la pregunta que
     `updated` no puede responder de forma fiable (lo toca también el refuerzo y la promoción de nivel, así que
     no es "cuándo se invalidó"). Devuelve la fila más reciente cuyo `valid_at` ya había llegado en `ts` Y que
     todavía no se había invalidado en `ts` (o que nunca se invalidó). `None` si el slot no existía todavía en
-    `ts`, o si `slot` no es una clave canónica reconocida — nunca lanza, nunca inventa un valor."""
+    `ts`, o si `slot` no es una clave canónica reconocida — nunca lanza, nunca inventa un valor.
+
+    `ts=None` significa AHORA, o sea «qué valor tiene este slot vigente». Con el parámetro obligatorio, todo
+    llamante que solo quisiera el valor actual tenía que importar `memory.clock` para conseguir el `now` — la
+    fachada empujando su propio reloj al otro lado de la frontera, que es justo lo que el test de contrato
+    (`test_memory_boundary.py`) señaló cuando P0d lo hizo. El reloj es asunto de la memoria, no del llamante."""
+    if ts is None:
+        from .clock import now as _clock_now
+        ts = _clock_now()
     canon = _writer.canon_slot(slot)
     if not canon:
         return None

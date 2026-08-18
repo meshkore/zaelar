@@ -48,7 +48,8 @@ DOMAINS: list[dict] = [
             "tests/memory/integration/test_episodic.py", "tests/memory/integration/test_episodic_bytes.py",
             "tests/memory/unit/test_consolidator.py",
             "tests/memory/unit/test_distiller_tape.py",
-            "tests/memory/unit/test_paraphrase_lifecycle.py"]},
+            "tests/memory/unit/test_paraphrase_lifecycle.py",
+            "tests/memory/unit/test_slot_supersede_guard.py"]},
         {"id": "1.4", "title": "Recall correcto (comportamiento, corpus)", "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python -m tests.memory.e2e.bot.runner --corpus v1 --next 10",
             "nested_events": True},
@@ -82,6 +83,9 @@ DOMAINS: list[dict] = [
             # V2-130: a definite reference to a habitual thing ("la de siempre", "mi peluqueria") is a memory
             # question in disguise, and the prefetch was shaped by grammar so an ORDER never fired it.
             "tests/agent_headless/unit/flash/test_recall_habitual.py",
+            # V2-132: a promise whose request was made a turn or two back — the backstop only ever looked
+            # at THIS turn, and buying tickets had no catalog category so the task got no browser.
+            "tests/agent_headless/unit/flash/test_promise_backstop_window.py",
             "tests/agent_headless/unit/test_skeleton.py", "tests/agent_headless/unit/test_sparks.py"]},
         {"id": "2.4", "title": "Cliente LLM rápido, reintento y RELEVO por latencia", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_fast_client.py", "tests/agent_headless/unit/flash/test_fast_client_retry.py",
