@@ -27,6 +27,46 @@ the operator's live one.
 
 **0 passing · 12 failing · 1 infra** of 13 scenarios with a recorded result.
 
+## Catalog coverage — 13 of 119 scenarios ever run (106 never run)
+
+An unrun case is **not** a passing one. This is the walk's progress board.
+
+| tier | locale | run | of | passing |
+|---|---|---|---|---|
+| 1 | es | 12 | 12 | 0 |
+| 1 | us | 0 | 9 | 0 |
+| 2 | es | 0 | 22 | 0 |
+| 2 | us | 0 | 21 | 0 |
+| 3 | es | 0 | 6 | 0 |
+| 3 | us | 0 | 6 | 0 |
+| 4 | es | 1 | 7 | 0 |
+| 4 | us | 0 | 6 | 0 |
+| 5 | es | 0 | 6 | 0 |
+| 5 | us | 0 | 6 | 0 |
+| 6 | es | 0 | 5 | 0 |
+| 6 | us | 0 | 5 | 0 |
+| 7 | es | 0 | 4 | 0 |
+| 7 | us | 0 | 4 | 0 |
+
+## Where the work on each failing case happens
+
+One initiative per use case — that initiative IS the workspace for it, and it carries the transcript, the mechanism report and the reproduce command. Both folders are gitignored («ni nuestro pasado ni nuestro futuro se publican»), so these paths are local-only.
+
+| scenario | initiative (the workspace) | fix task |
+|---|---|---|
+| `book-barber-slot__es` | `.meshkore/roadmap/initiatives/V2-130-uc-book-barber-slot-es.md` | `.meshkore/modules/nucleo/tasks/T318-uc-book-barber-slot-es-fix.md` |
+| `book-hotel-night-known__es` | `.meshkore/roadmap/initiatives/V2-131-uc-book-hotel-night-known-es.md` | `.meshkore/modules/nucleo/tasks/T319-uc-book-hotel-night-known-es-fix.md` |
+| `build-workout-tracker-widget` | `.meshkore/roadmap/initiatives/V2-125-uc-build-workout-tracker-widget.md` | `.meshkore/modules/nucleo/tasks/T313-uc-build-workout-tracker-widget-fix.md` |
+| `cancel-subscription-before-charge__es` | `.meshkore/roadmap/initiatives/V2-126-uc-cancel-subscription-before-charge-es.md` | `.meshkore/modules/nucleo/tasks/T314-uc-cancel-subscription-before-charge-es-fix.md` |
+| `find-theatre-tickets__es` | `.meshkore/roadmap/initiatives/V2-132-uc-find-theatre-tickets-es.md` | `.meshkore/modules/nucleo/tasks/T320-uc-find-theatre-tickets-es-fix.md` |
+| `pay-known-bill__es` | `.meshkore/roadmap/initiatives/V2-128-uc-pay-known-bill-es.md` | `.meshkore/modules/nucleo/tasks/T316-uc-pay-known-bill-es-fix.md` |
+| `quick-fact-opening-hours` | `.meshkore/roadmap/initiatives/V2-120-uc-quick-fact-opening-hours.md` | `.meshkore/modules/nucleo/tasks/T311-uc-quick-fact-opening-hours-fix.md` |
+| `remember-and-remind-deadline` | `.meshkore/roadmap/initiatives/V2-121-uc-remember-and-remind-deadline.md` | `.meshkore/modules/nucleo/tasks/T312-uc-remember-and-remind-deadline-fix.md` |
+| `renew-gym-membership__es` | `.meshkore/roadmap/initiatives/V2-129-uc-renew-gym-membership-es.md` | `.meshkore/modules/nucleo/tasks/T317-uc-renew-gym-membership-es-fix.md` |
+| `reorder-prescription__es` | `.meshkore/roadmap/initiatives/V2-127-uc-reorder-prescription-es.md` | `.meshkore/modules/nucleo/tasks/T315-uc-reorder-prescription-es-fix.md` |
+| `restaurant-tonight-madrid` | `.meshkore/roadmap/initiatives/V2-119-uc-restaurant-tonight-madrid.md` | `.meshkore/modules/nucleo/tasks/T310-uc-restaurant-tonight-madrid-fix.md` |
+| `three-tasks-at-once` | `.meshkore/roadmap/initiatives/V2-118-uc-three-tasks-at-once.md` | `.meshkore/modules/nucleo/tasks/T309-uc-three-tasks-at-once-fix.md` |
+
 ## Multi-flow scenarios (concurrency measured live, from `/api/tasks`)
 
 | scenario | max concurrent tasks | distinct worker kinds |
