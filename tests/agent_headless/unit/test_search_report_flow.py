@@ -57,6 +57,44 @@ def test_a_real_irreversible_order_still_asks_for_ok():
     assert danger.is_dangerous("compra el billete (viaje de trabajo, proyecto compra y venta)")
 
 
+# ── compromisos RECURRENTES y bajas (V2-133, tanda de casos de uso del 2026-08-18) ───────────────────────
+def test_a_recurring_charge_asks_for_ok_even_without_the_word_pay():
+    """`renew-gym-membership__es`: «renuévame la cuota del gimnasio» mueve dinero real y NO llevaba el verbo
+    pagar, así que salía sin gate. Fue el TESTER quien tuvo que frenarlo en vivo — «no me has dicho cuánto vas
+    a pagar ni me has pedido confirmación»."""
+    assert danger.is_dangerous("renuévame la cuota del gimnasio")          # imperativo REAL: renuev-, no renov-
+    assert danger.is_dangerous("renueva mi membresía del gimnasio de este mes")
+    assert danger.is_dangerous("contrata la tarifa nueva de la luz")
+    assert danger.is_dangerous("renew my gym membership")
+
+
+def test_unsubscribing_asks_for_ok_because_it_is_irreversible():
+    """`cancel-subscription-before-charge__es` dice con todas las letras que pedir confirmación aquí es la
+    conducta CORRECTA, no un defecto."""
+    assert danger.is_dangerous("cancela mi suscripción de Netflix antes de que me cobren")
+    assert danger.is_dangerous("dame de baja de Netflix")
+    assert danger.is_dangerous("anula el pedido de Amazon")
+    assert danger.is_dangerous("cancel my Netflix subscription")
+
+
+def test_the_commitment_gate_does_not_fire_on_things_that_cost_nothing():
+    """Un gate que salta donde no toca deja la tarea parada esperando un OK que el operador no entiende — el
+    incidente de 2026-08-02 que ya motivó las dos correcciones de precisión de `_order_text`."""
+    for req in ("resérvame mesa para 2 esta noche en Casa Lucio",   # reservar mesa no mueve dinero
+                "cancela la búsqueda que estabas haciendo",         # cancelar ≠ cancelar un compromiso
+                "renueva el gráfico del widget",
+                "búscame un monitor barato de segunda mano"):
+        assert not danger.is_dangerous(req), req
+
+
+def test_a_reminder_about_a_charge_is_a_note_not_an_order():
+    """«Apúntame que el jueves tengo que renovar el seguro» (el caso `remember-and-remind-deadline`) pide una
+    NOTA. La orden es «apúntame», y esa no mueve dinero: gatearla dejaría el recordatorio esperando un OK para
+    algo que nadie iba a ejecutar."""
+    assert not danger.is_dangerous("apúntame que el jueves tengo que renovar el seguro del coche")
+    assert not danger.is_dangerous("recuérdame que tengo que renovar la cuota del gimnasio")
+
+
 # ── lo que el operador dijo no se pierde porque su turno se pisara ────────────────────────────────────────
 def test_overlapped_turns_keep_what_the_operator_said():
     """La secuencia REAL: 6 trozos de STT, 5 turnos cancelados. Antes del fix solo el último llegaba al modelo."""

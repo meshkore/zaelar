@@ -127,3 +127,36 @@ def test_the_one_thing_per_turn_rule_is_about_actions_not_answers(fresh_db):
     system, _ = prompt.build_flash_system()
     assert "UNA ACCIÓN por turno" in system
     assert "las contestas LAS DOS en ese turno" in system
+
+
+def test_a_background_task_with_no_reported_step_says_so(monkeypatch):
+    """V2-133 — el patrón transversal: 8 de 12 casos NARRARON una fase que no existía («está en la fase de
+    login» de un gimnasio cuyo nombre aún no tenía). El bloque pedía «di el PASO concreto» a secas, y sin paso
+    reportado el modelo rellenaba el hueco. Ahora la ausencia se dice, y narrar se prohíbe con ejemplos."""
+    from nucleo import dispatch as _disp
+    monkeypatch.setattr(_disp, "pending_summaries", lambda: [
+        {"id": "9", "request": "renovar la cuota del gimnasio", "secs": 63, "phase": "",
+         "pct": -1, "done": 0, "total": 0, "note": ""}])
+    live = prompt.live_state()
+    assert "SIN paso reportado aún" in live.split("Si el operador pregunta")[0]
+    assert "JAMÁS te inventes en qué punto va" in live
+
+
+def test_a_background_task_that_DID_report_a_step_still_shows_it(monkeypatch):
+    """La marca es para el hueco, no para toda tarea: una fase real se sigue diciendo tal cual."""
+    from nucleo import dispatch as _disp
+    monkeypatch.setattr(_disp, "pending_summaries", lambda: [
+        {"id": "9", "request": "buscar monitores", "secs": 63, "phase": "conduciendo el navegador",
+         "pct": -1, "done": 0, "total": 0, "note": ""}])
+    # La marca se busca en la LISTA de tareas, no en el párrafo de instrucciones (que la cita para explicarla).
+    tareas = prompt.live_state().split("Si el operador pregunta")[0]
+    assert "conduciendo el navegador" in tareas
+    assert "SIN paso reportado aún" not in tareas
+
+
+def test_the_prompt_forbids_narrating_work_that_is_not_running(fresh_db):
+    """La otra mitad de V2-133: sin NINGUNA tarea de fondo no hay nada corriendo, y la respuesta correcta
+    cuando falta un dato o no se puede es decirlo — el criterio de esos casos la premia explícitamente."""
+    system, _ = prompt.build_flash_system()
+    assert "NO NARRES trabajo que no está pasando" in system
+    assert "PÍDELO" in system

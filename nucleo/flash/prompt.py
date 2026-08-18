@@ -286,7 +286,17 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
         "'por si acaso' ante una duda o reproche). NO tienes código, "
         "terminal ni ficheros: lo que lleve trabajo lo "
         "DELEGAS LLAMANDO a escalate_to_slowbrain EN ESTE TURNO (di una frase corta de espera Y llama la tool — "
-        "decirla sin llamarla deja la tarea sin arrancar; nunca finjas que ya está). NUNCA recites datos en voz: "
+        "decirla sin llamarla deja la tarea sin arrancar; nunca finjas que ya está). "
+        # V2-133 — el patrón transversal de la tanda del 2026-08-18: 8 de 12 casos narraron una fase de trabajo
+        # que no existía, y en varios la respuesta CORRECTA («esto no lo puedo hacer») estaba disponible y era la
+        # que el propio criterio del caso premiaba. El contraste vivo: `book-barber-slot` SÍ empezó preguntando
+        # el dato que le faltaba — la conducta buena existe en el sistema.
+        "NO NARRES trabajo que no está pasando: solo puedes decir que algo está en marcha si lo ves en tus TAREAS "
+        "DE FONDO de más abajo, y solo con el detalle que ahí ponga. Sin tarea ahí, no hay nada corriendo. Si te "
+        "falta un dato para arrancar (qué gimnasio, qué farmacia, qué cuenta), PÍDELO — preguntar es la respuesta "
+        "correcta, no un fallo. Y si de verdad NO PUEDES (no hay conector, hace falta una llamada de teléfono o "
+        "una cuenta que no tienes), DILO claro en una frase: vale mucho más que intentarlo a medias, e "
+        "infinitamente más que inventarte que estás en ello. NUNCA recites datos en voz: "
         "para que el operador los VEA, ábrele su widget. Escalar, buscar y operar datos son TOOL CALLS invisibles; "
         "las tags de canvas van CALLADAS y al final, tras tu frase. Si el turno parece ruido del micro, pide que "
         "lo repita — no inventes.\n"
@@ -388,11 +398,23 @@ def live_state() -> str:
                     bit += f' [{pct}%]'
                 if t.get("note"):
                     bit += f' — {t["note"][:60]}'
+                if not ph and pct < 0 and not total and not t.get("note"):
+                    # SIN PASO REPORTADO. Se dice con esas letras (V2-133): el bloque pedía «di el PASO concreto»
+                    # a secas, y cuando no había ninguno el modelo rellenaba el hueco NARRANDO uno. La tanda del
+                    # 2026-08-18 lo midió en 8 de 12 casos, con la forma exacta de una fase de worker: «en estos
+                    # momentos está en la fase de login» de un gimnasio cuyo nombre todavía no tenía. No es que
+                    # el modelo mintiera por gusto: se le mandaba decir algo que nadie le había dado.
+                    bit += " — SIN paso reportado aún"
                 bits.append(bit + f' (llevas {t.get("secs", 0)}s)')
             lines.append("TAREAS DE FONDO EN CURSO (los brain workers las están resolviendo; NO reinicies ni digas "
                          "que ya está): " + "; ".join(bits) + ". Si el operador pregunta el estado, di el PASO "
                          "concreto y el tiempo que lleva; si lleva MUCHO en el mismo paso, sé honesto (va lento o "
-                         "puede haberse atascado, le ofreces pararlo) — NUNCA repitas la misma frase vaga.")
+                         "puede haberse atascado, le ofreces pararlo) — NUNCA repitas la misma frase vaga. "
+                         "Lo que ves AQUÍ es TODO lo que sabes de esas tareas: si una sale «SIN paso reportado "
+                         "aún», di exactamente eso —que arrancó y todavía no ha dado señal—; JAMÁS te inventes en "
+                         "qué punto va («está en la fase de login», «la farmacia está consultando tu historial», "
+                         "«ya tengo la reserva en marcha»). Inventar un paso es MENTIR sobre lo único que el "
+                         "operador no puede comprobar por su cuenta, y se nota tarde y mal.")
     except Exception:
         pass
     try:

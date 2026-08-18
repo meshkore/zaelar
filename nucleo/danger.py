@@ -30,6 +30,42 @@ _DANGER_RE = re.compile(
 # parada esperando un OK que nadie entendía por qué se pedía). Ninguna de las dos afloja el gate para una orden real:
 #  (1) lo que va entre PARÉNTESIS es CONTEXTO, no la orden — la acción vive en el texto principal;
 #  (2) un término que aquí es SUSTANTIVO y no verbo ("compra y venta", "compraventa") nombra un tema, no manda comprar.
+# COMPROMISOS RECURRENTES Y BAJAS (V2-133, tanda de casos de uso del 2026-08-18). `_DANGER_RE` cubría el pago
+# EXPLÍCITO ("paga la factura" → gate, y funcionó), pero no la forma en que un humano pide gastar dinero de
+# verdad: "renuévame la cuota del gimnasio" no lleva el verbo pagar y salía SIN gate — el caso
+# `renew-gym-membership__es` lo midió, y fue el TESTER quien tuvo que frenarlo («no me has dicho cuánto vas a
+# pagar ni me has pedido confirmación»). Lo mismo por el otro lado: dar de baja o cancelar una suscripción es
+# irreversible, y el criterio de `cancel-subscription-before-charge__es` dice con todas las letras que pedir
+# confirmación ahí es la conducta CORRECTA, no un defecto.
+#
+# Se exige VERBO + OBJETO de compromiso, no el verbo suelto, por la misma razón que las dos correcciones de
+# precisión de abajo: "cancela la búsqueda" o "renueva el gráfico" no mueven dinero de nadie, y un gate que
+# salta donde no toca deja la tarea parada esperando un OK que el operador no entiende. `dar(se) de baja` va
+# solo: esa locución no significa otra cosa.
+_COMMIT_OBJECT = (r"suscripcion|subscripcion|suscripciones|cuota|cuotas|membresia|abono|mensualidad|"
+                  r"contrato|tarifa|domiciliacion|pedido|"
+                  r"subscription|membership|contract|policy|order")
+# `renov-` NO cubre el imperativo real: el operador dice «renuévame», que diptonga a `renuev-`. Es la misma
+# clase de despiste que costó el acento de «resérvame» en site_catalog — la forma que se DICE es justo la que
+# el stem del infinitivo no casa.
+_COMMIT_VERB = (r"renov\w*|renuev\w*|renew\w*|contrat\w*|suscrib\w*|subscrib\w*|sign\s+up|"
+                r"cancel\w*|anul\w*|unsubscribe")
+_COMMITMENT_RE = re.compile(
+    rf"\b(?:{_COMMIT_VERB})\b[^.!?]{{0,40}}\b(?:{_COMMIT_OBJECT})\b"
+    rf"|\b(?:{_COMMIT_OBJECT})\b[^.!?]{{0,40}}\b(?:{_COMMIT_VERB})\b"
+    rf"|\b(?:d(?:a|ar|ame|arme|ate|arte|anos|arnos))\s+de\s+baja\b"
+    rf"|\bunsubscribe\b",
+    re.I,
+)
+
+# Tercera corrección de PRECISIÓN, hermana de las dos de abajo: lo que va DENTRO de un «apúntame que…» /
+# «recuérdame que…» es un recado, no una orden. «Apúntame que el jueves tengo que renovar el seguro del coche»
+# (el caso de uso `remember-and-remind-deadline`) pide una NOTA; gatearlo dejaría un recordatorio esperando un
+# OK para algo que nadie iba a ejecutar. La orden de verdad es «apúntame», y esa no mueve dinero.
+_REMINDER_RE = re.compile(
+    r"\b(?:apunta|apuntame|apuntalo|anota|anotame|recuerda|recuerdame|acuerdate|no\s+olvides|"
+    r"remind\s+me|note\s+that|make\s+a\s+note)\b.*", re.I | re.S)
+
 _PAREN_RE = re.compile(r"\([^()]*\)")
 _NOUN_COMPOUND_RE = re.compile(
     r"\bcompra\s*[-/y]\s*venta\b|\bventa\s*[-/y]\s*compra\b|\bcompraventa\b|\bbuying\s+and\s+selling\b", re.I)
@@ -49,7 +85,17 @@ def _order_text(text: str) -> str:
 
 def is_dangerous(text: str) -> bool:
     """True si la petición describe una acción irreversible que exige OK explícito del operador antes de ejecutarse."""
-    return bool(_DANGER_RE.search(_order_text(text)))
+    order = _order_text(text)
+    commitment_text = _REMINDER_RE.sub(" ", _strip_accents(order))
+    return bool(_DANGER_RE.search(order) or _COMMITMENT_RE.search(commitment_text))
+
+
+def _strip_accents(text: str) -> str:
+    """`_COMMITMENT_RE` se escribe sin acentos (membresia, poliza, domiciliacion) para no duplicar cada variante:
+    el operador dice «membresía» y el patrón tiene que casar igual. `_DANGER_RE` no lo necesita — sus términos no
+    llevan acento — y se deja como estaba para no cambiar su comportamiento por un refactor."""
+    import unicodedata as _ud
+    return "".join(c for c in _ud.normalize("NFKD", text or "") if not _ud.combining(c))
 
 
 def confirm_question(text: str) -> str:
