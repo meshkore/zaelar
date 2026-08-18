@@ -275,6 +275,17 @@ def unforget(match: str, *, include_pinned: bool = False) -> int:
     return len(ids)
 
 
+def now() -> int:
+    """The memory's clock, THROUGH the facade — never `time.time()` in a caller.
+
+    `memory/clock.py` supports `travel()` so the timeline corpus can replay 270 simulated days; a caller that read
+    the wall clock would date its pills in 2026 while the rest of the run believes it is March. Re-exported for the
+    same reason as `canon_slot`: the alternative is every module reaching into a memory internal, which the
+    contract test counts as the boundary opening up."""
+    from .clock import now as _clock_now
+    return _clock_now()
+
+
 def canon_slot(slot: str | None) -> str | None:
     """The canonical key for a slot name/alias, THROUGH the facade. Re-exported (not reimplemented) because the
     registry in `memory/slots.py` stays the single vocabulary; this only spares every caller outside the module a

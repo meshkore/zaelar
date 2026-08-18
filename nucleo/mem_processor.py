@@ -246,6 +246,12 @@ Por CADA píldora decides:
   NUNCA descartes PETICIONES, TAREAS, COMPROMISOS, CITAS o RECADOS, aunque vengan de otra persona ("X me pidió Y
   para el día Z", "tengo cita el jueves", "me han encargado…"): guárdalos (long si son relevantes/importan más de
   un día; short si son solo de hoy). Tampoco descartes datos concretos con NÚMEROS/fechas/importes/direcciones.
+  ★ FECHAS RELATIVAS → SIEMPRE ABSOLUTAS. Una píldora se leerá meses después, sola, sin el turno que la originó:
+  "hace tres días", "la semana que viene", "ayer", "el jueves" NO significan nada fuera de hoy y con el tiempo se
+  vuelven FALSAS. Usa la FECHA Y HORA ACTUAL de arriba para convertirlas a fecha absoluta dentro del texto de la
+  píldora ("dejó de fumar el 29 de mayo de 2026", "tiene cita el jueves 4 de junio de 2026"). Si el turno trae su
+  propia marca de tiempo, esa manda sobre la actual. Si de verdad no se puede fijar la fecha, deja la expresión
+  pero AÑADE la referencia ("hace unos meses (dicho el 19 de agosto de 2026)") — nunca una relativa desnuda.
   · "discard"= sin valor para recordar (saludos, charla vacía, órdenes al asistente, ruido de transcripción).
   ⚠️ Un dato SENSIBLE que el operador te da PIDIÉNDOTE recordarlo (una contraseña suya, un PIN, un código) SÍ se
   guarda — eres SU memoria personal y local, negarte es fallarle ("¿cuál era mi contraseña?" debe funcionar).
@@ -393,9 +399,38 @@ def _render(text: str, state: dict | None) -> str:
     code = st.get("language") or _default_code()
     lang = _LANG_NAME.get(code, _LANG_NAME["en"])
     return (f"ESTADO actual: {snap}\n"
+            f"FECHA Y HORA ACTUAL: {_now_stamp()}\n"
             f"IDIOMA DE LA MEMORIA: {lang}. Escribe SIEMPRE las píldoras en {lang}, aunque el operador hable en "
             f"otro idioma (tradúcelo). Un dato memorable dicho en otro idioma NO se descarta: se guarda en {lang}.\n"
             f"Turno del operador: \"{(text or '').strip()[:_MAX_INPUT]}\"")
+
+
+def _now_stamp() -> str:
+    """The temporal ANCHOR the distiller never had (2026-08-19).
+
+    Measured against LoCoMo: with the language matched in both arms, distilling loses **24.3pp** on the temporal
+    category versus keeping the raw turn (78.4% -> 54.1%), and the reason is not retrieval. `_render` sent the
+    distiller the state, the language and the utterance — and NO notion of when "now" is. So "dejé de fumar hace
+    tres días" could only ever be canonicalised as "quit smoking three days ago": a pill that is not merely harder
+    to find but **becomes FALSE as it ages**, and whose date is unrecoverable once detached from its turn. Probed
+    with real calls on LoCoMo-stamped turns (where the timestamp at least travels inside the text): 5 of 6 relative
+    expressions left unresolved. In production it is worse, because there is no stamp in the text at all — the
+    model was not failing, it was being asked the impossible.
+
+    The FlashBrain has had the explicit date since V2-026 (`live_state`); the memory's own write path did not. That
+    asymmetry is the whole defect.
+
+    Goes through `memory.api.now()`, NOT `time.time()`: the timeline corpus replays 270 simulated days with
+    `clock.travel()`, and a wall-clock anchor would date every replayed pill in the present while the rest of the
+    run believes it is March."""
+    import datetime as _dt
+    try:
+        from memory import api as _api
+        ts = _api.now()
+    except Exception:  # noqa: BLE001
+        import time as _t
+        ts = int(_t.time())     # never fail a write over the anchor; an approximate now beats no now
+    return _dt.datetime.fromtimestamp(ts).strftime("%A %d %B %Y, %H:%M")
 
 
 # ── API ─────────────────────────────────────────────────────────────────────────────────────────────────────
