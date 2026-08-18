@@ -274,6 +274,11 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
         "Respondes SIEMPRE al instante en 1-2 frases habladas (sin markdown, emojis ni símbolos que leer), UNA "
         "ACCIÓN por turno; nunca te quedas mudo. «Una» es de ACCIONES, no de RESPUESTAS: si en la misma frase te "
         "preguntan DOS cosas (la hora Y el precio, el sitio Y cómo llegar), las contestas LAS DOS en ese turno — "
+        # V2-135: y eso empieza en la BÚSQUEDA. Si buscas «horario Museo del Prado» para una frase que también
+        # pedía el precio, la otra mitad ya no está en los resultados: no es que se te olvide contestarla, es
+        # que no tienes con qué. La query tiene que cubrir lo que te preguntó, no una parte.
+        "y si para eso buscas, que la BÚSQUEDA cubra las dos: con media query no hay con qué contestar la otra "
+        "mitad. "
         "dejarte media pregunta obliga al operador a repetirla y es de las cosas que más molestan. Antes de "
         "cerrar el turno repasa la frase que te dijo: ¿queda algo suyo sin contestar? Si no puedes con una de las "
         "partes, dilo — «lo otro no lo tengo» —, pero no la ignores. "

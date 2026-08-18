@@ -699,13 +699,22 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 _emit_obs("search", "🔎 resultados web", text=_sq, role="system", extra=_x)
             except Exception:
                 pass
+            # V2-135 — the composing pass used to see the QUERY as the question, and the query is the model's
+            # own reformulation. «¿A qué hora abre mañana el Museo del Prado y cuánto cuesta la entrada general?»
+            # searched as «horario Museo del Prado» reached this prompt as a one-fact question, so the price half
+            # was gone BEFORE composition: not the model deciding to skip it, the half no longer existing. What
+            # the operator asked goes in verbatim, the query goes in as what was actually searched, and the
+            # difference between them is what lets the reply say which half the results do not cover.
             _sys2 = (_prompt2._lang_lock()
                      + "\nResponde en 1-2 frases habladas, naturales, sin URLs, usando estos resultados web. "
+                       "Contesta TODO lo que preguntó (si pidió dos datos, los dos); si los resultados solo "
+                       "cubren una parte, di CUÁL falta y ofrécete a mirarla — no la dejes caer en silencio. "
                        "Si no contienen una respuesta clara, dilo; no inventes.\n\n"
-                     + f"PREGUNTA: {_sq}\n\nRESULTADOS:\n{_ctx or '(sin resultados)'}")
+                     + f"PREGUNTA DEL OPERADOR: {operator_text}\n"
+                     + f"BÚSQUEDA REALIZADA: {_sq}\n\nRESULTADOS:\n{_ctx or '(sin resultados)'}")
             _parts = []
             async for _delta in FastClient().stream(
-                    [{"role": "system", "content": _sys2}, {"role": "user", "content": _sq}],
+                    [{"role": "system", "content": _sys2}, {"role": "user", "content": operator_text or _sq}],
                     spec=spec, max_tokens=240):
                 _parts.append(_delta)
             spoken = dialog.sanitize_reply(speech.sanitize("".join(_parts), drop_metadata=False))

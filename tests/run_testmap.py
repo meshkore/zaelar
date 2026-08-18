@@ -102,6 +102,9 @@ DOMAINS: list[dict] = [
             # V2-144: a LOCAL business errand (hairdresser/pharmacy/gym) had no catalog category, so it
             # got a worker with no browser — one gap behind three cases.
             "tests/agent_headless/unit/flash/test_local_business.py",
+            # V2-135: the composing pass of a web search saw the QUERY as the question, so half of a
+            # two-part question was gone before the answer was written.
+            "tests/agent_headless/unit/flash/test_search_answers_the_whole_question.py",
             "tests/agent_headless/unit/test_skeleton.py", "tests/agent_headless/unit/test_sparks.py"]},
         {"id": "2.4", "title": "Cliente LLM rápido, reintento y RELEVO por latencia", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_fast_client.py", "tests/agent_headless/unit/flash/test_fast_client_retry.py",

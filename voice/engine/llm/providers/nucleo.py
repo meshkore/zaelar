@@ -2593,13 +2593,21 @@ class NucleoLLMStream(llm.LLMStream):
                 "algo «de hoy/ahora»): da el dato VIGENTE anclado a HOY y de aquí en adelante (nunca uno caducado; "
                 "el tiempo, de ahora en adelante, no el de ayer), y si procede menciona el día. Si los resultados "
                 "NO contienen la respuesta clara o no son de la fecha correcta, dilo con naturalidad y ofrécete a "
-                "mirarlo a fondo — NO inventes datos que no estén en los resultados.\n\n"
-                f"PREGUNTA: {query}\n\nRESULTADOS DE BÚSQUEDA:\n{ctx or '(sin resultados)'}"
+                "mirarlo a fondo — NO inventes datos que no estén en los resultados. "
+                # V2-135 (impl PARALELA con el probe — cablear en AMBOS): este pase veía la QUERY como si fuera
+                # la pregunta, y la query es la reformulación del propio modelo. «¿A qué hora abre mañana el
+                # Museo del Prado Y cuánto cuesta la entrada general?» buscado como «horario Museo del Prado»
+                # llegaba aquí como una pregunta de UN dato: la mitad del precio ya no existía antes de componer.
+                "Contesta TODO lo que preguntó (si pidió dos datos, los dos); si los resultados solo cubren una "
+                "parte, di CUÁL falta y ofrécete a mirarla — no la dejes caer en silencio.\n\n"
+                f"PREGUNTA DEL OPERADOR: {operator_text}\n"
+                f"BÚSQUEDA REALIZADA: {query}\n\nRESULTADOS DE BÚSQUEDA:\n{ctx or '(sin resultados)'}"
             )
             buf = ""   # descarta cualquier resto de tags del 1º pase antes de componer la respuesta
             try:
                 async for delta in FastClient().stream(
-                        [{"role": "system", "content": sys2}, {"role": "user", "content": query}],
+                        [{"role": "system", "content": sys2},
+                         {"role": "user", "content": operator_text or query}],
                         spec=spec, max_tokens=240):
                     buf += delta
                     send(speech.inline(take(False)))
