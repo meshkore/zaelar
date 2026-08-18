@@ -63,9 +63,89 @@ def _next_task_number() -> int:
     return max(nums) + 1
 
 
-def find_initiative(scenario_id: str) -> Path | None:
-    hits = sorted(INITIATIVES.glob(f"V2-*-uc-{_slug(scenario_id)}.md"))
-    return hits[0] if hits else None
+def _status_of(path: Path) -> str:
+    try:
+        m = re.search(r"^status:\s*(\S+)\s*$", path.read_text(encoding="utf-8")[:400], re.M)
+        return m.group(1) if m else ""
+    except Exception:
+        return ""
+
+
+def find_initiative(scenario_id: str, *, include_closed: bool = False) -> Path | None:
+    """The OPEN initiative for a case, or None.
+
+    A CLOSED one is skipped on purpose: under the two-state model (see `rotate_failure`) a case that failed a
+    re-test gets a fresh initiative, and appending a new round to the closed predecessor would put live work
+    back into a file whose whole point is that it is finished. Newest first, so a case that has rotated several
+    times resolves to its current one.
+    """
+    hits = sorted(INITIATIVES.glob(f"V2-*-uc-{_slug(scenario_id)}.md"), reverse=True)
+    if include_closed:
+        return hits[0] if hits else None
+    for h in hits:
+        if _status_of(h) != "closed":
+            return h
+    return None
+
+
+def initiative_state(scenario_id: str) -> str:
+    """Which of the TWO states this case's initiative is in (operator's model, 2026-08-18).
+
+    · `awaiting_fix` — it has a fix task describing the error, and the dev agent has not answered yet. This is
+      what counts towards "the dev agent always has 5 in front of him".
+    · `awaiting_retest` — a verify task says the fix is in and the harness should run the case again.
+    · `` (empty) — no open initiative: either never failed, or its last one was closed.
+
+    Deliberately derived from the FILES rather than a status field inside the initiative: the two agents write
+    to different files at unpredictable times, and a field one of them forgets to flip would desynchronise the
+    whole loop. The tasks ARE the state.
+    """
+    if not find_initiative(scenario_id):
+        return ""
+    slug = _slug(scenario_id)
+    for p in MODULES.glob(f"*/tasks/T*-uc-{slug}-verify.md"):
+        if re.search(r"^status:\s*next\s*$", p.read_text(encoding="utf-8")[:600], re.M):
+            return "awaiting_retest"
+    return "awaiting_fix"
+
+
+def awaiting_fix_count() -> int:
+    """How many cases are sitting in state 1 — real, un-answered work in front of the dev agent."""
+    n = 0
+    for p in INITIATIVES.glob("V2-*-uc-*.md"):
+        if _status_of(p) == "closed":
+            continue
+        slug = re.match(r"V2-\d+-uc-(.+)\.md$", p.name)
+        if not slug:
+            continue
+        pending_verify = any(
+            re.search(r"^status:\s*next\s*$", t.read_text(encoding="utf-8")[:600], re.M)
+            for t in MODULES.glob(f"*/tasks/T*-uc-{slug.group(1)}-verify.md"))
+        if not pending_verify:
+            n += 1
+    return n
+
+
+def close_initiative(path: Path, *, reason: str, successor: str = "") -> bool:
+    """Mark an initiative CLOSED, with why and (if it rotated) what replaced it.
+
+    `status: closed`, never `delivered`: `delivered` is the state that `test_roadmap_closure.py` requires to be
+    cited in `engine/CLAUDE.md`, and a use-case round passing is not by itself a decision worth a line in the
+    engine's context — the operator decides that, not the harness.
+    """
+    try:
+        body = path.read_text(encoding="utf-8")
+        body = re.sub(r"^status:\s*\S+\s*$", "status: closed", body, count=1, flags=re.M)
+        stamp = time.strftime("%Y-%m-%d %H:%M", time.localtime())
+        tail = [f"\n## CERRADA — {stamp}\n", reason.strip(), ""]
+        if successor:
+            tail.append(f"El trabajo CONTINÚA en **{successor}**: esta queda cerrada para que el estado de un "
+                        f"caso se lea de un vistazo (una iniciativa = un error concreto con su tarea), en vez "
+                        f"de un hilo de rondas donde hay que averiguar qué sigue vivo.\n")
+        path.write_text(body + "\n".join(tail), encoding="utf-8")
+        return True
+    except Exception:
+        return False
 
 
 def _module_for(scenario_id: str, mech: dict) -> str:
@@ -194,7 +274,7 @@ por NOMBRE de proceso, no por puerto.
 """
 
 
-def file_failure(result: dict, *, scenario, sandboxed: bool) -> dict:
+def file_failure(result: dict, *, scenario, sandboxed: bool, force_new: bool = False) -> dict:
     """Create (or append a round to) the initiative for this scenario, plus a fix task the first time.
 
     Returns a dict describing what happened, for the runner to print. Fail-open: filing is bookkeeping, and
@@ -207,7 +287,7 @@ def file_failure(result: dict, *, scenario, sandboxed: bool) -> dict:
         verdict = result.get("verdict") or {}
         mech = (result.get("run") or {}).get("mechanism_report") or {}
         evidence = _evidence(result, scenario=scenario, sandboxed=sandboxed)
-        existing = find_initiative(scenario.id)
+        existing = None if force_new else find_initiative(scenario.id)
 
         if existing:
             body = existing.read_text(encoding="utf-8")
@@ -345,3 +425,54 @@ def close_verification(task_path: Path, *, round_no: int | None = None) -> bool:
         return True
     except Exception:
         return False
+
+
+# ── the CONTINUOUS loop (operator, 2026-08-18) ────────────────────────────────────────────────────────────
+# «Cada iniciativa de use case solo tiene DOS estados: una tarea del error con lo que hay que arreglar, y una
+# segunda tarea indicándote que ya puedes volver a probar. Si no ha funcionado, la cierras y creas una nueva
+# con una tarea que indique cuál es el NUEVO error.»
+#
+# Why rotate instead of appending a round 3: a re-test that fails is not more evidence about the SAME error —
+# the previous error was addressed, and what remains is a DIFFERENT one (measured, not assumed: V2-121's round
+# 2 had all three of its original blockers genuinely fixed and failed for a fourth reason, in a rule one layer
+# up). Piling that onto the same file makes the dev agent read three superseded diagnoses to find the live one.
+# One initiative = one concrete error + its task, and its status readable at a glance.
+
+def rotate_failure(result: dict, *, scenario, sandboxed: bool, previous: Path | None = None) -> dict:
+    """Close the current initiative for this case and open a SUCCESSOR for the error that remains.
+
+    Returns the same shape as `file_failure` plus `closed`, so a caller can report both halves. Fail-open: the
+    verdict is already earned, and bookkeeping must never take down a batch.
+    """
+    try:
+        prev = previous or find_initiative(scenario.id)
+        created = file_failure(result, scenario=scenario, sandboxed=sandboxed, force_new=True)
+        if created.get("error"):
+            return created
+        if prev is not None:
+            verdict = (result.get("verdict") or {}).get("veredicto", "")
+            close_initiative(
+                prev,
+                reason=("Se re-probó el caso tras el arreglo y **sigue fallando, por un motivo distinto**. Lo "
+                        f"que midió esta última corrida: _{verdict[:300]}_"),
+                successor=created["initiative"].name)
+            created["closed"] = prev
+        return created
+    except Exception as e:  # noqa: BLE001
+        return {"error": str(e)}
+
+
+def close_on_pass(scenario_id: str, *, verdict: str, overall) -> dict:
+    """A case that PASSES its re-test: close its initiative, the work is done.
+
+    Left deliberately narrow — it closes the workspace and says why, and does NOT touch the scoreboard (that is
+    `status.py`'s job and already happened) nor mark anything `delivered` (see `close_initiative`).
+    """
+    path = find_initiative(scenario_id)
+    if path is None:
+        return {"closed": None}
+    ok = close_initiative(path, reason=(
+        f"Re-probado tras el arreglo y **PASA** (nota del juez **{overall}**/5, umbral 4). Veredicto: "
+        f"_{verdict[:300]}_\n\nSi este caso vuelve a fallar en el futuro se abrirá una iniciativa NUEVA: esta "
+        f"queda como el registro de un error concreto que se cerró, no como un hilo abierto indefinidamente."))
+    return {"closed": path if ok else None}

@@ -499,3 +499,75 @@ def test_the_judge_is_told_that_an_unreadable_scheduler_is_not_a_failure():
     from tests.use_cases.e2e.agent import judge as J
     assert "scheduled_jobs.created" in J.RUBRIC
     assert "readable" in J.RUBRIC and "no prueba nada" in J.RUBRIC
+
+
+# ── the continuous loop: two states per initiative, rotate on a failed re-test ─────────────────────────────
+def _iso(monkeypatch, tmp_path):
+    from tests.use_cases.e2e.agent import initiative as I
+    monkeypatch.setattr(I, "INITIATIVES", tmp_path / "initiatives")
+    monkeypatch.setattr(I, "MODULES", tmp_path / "modules")
+    (tmp_path / "initiatives").mkdir(parents=True, exist_ok=True)
+    (tmp_path / "modules" / "nucleo" / "tasks").mkdir(parents=True, exist_ok=True)
+    monkeypatch.setattr(I, "ENGINE", tmp_path)
+    return I
+
+
+def _res(overall=1, sid="unit-case"):
+    return {"scenario": sid, "tier": 1,
+            "run": {"transcript": [{"who": "tester", "text": "x"}], "mechanism_report": {}, "watchdog_log": []},
+            "verdict": {"overall": overall, "scores": {}, "findings": [], "improvements": [],
+                        "veredicto": "sigue sin funcionar"}}
+
+
+def test_the_two_states_are_derived_from_the_TASKS_not_from_a_field(monkeypatch, tmp_path):
+    """Both agents write to different files at unpredictable times. A status field inside the initiative that
+    one of them forgets to flip would desynchronise the whole loop, so the tasks ARE the state."""
+    I = _iso(monkeypatch, tmp_path)
+    scn = _scn(id="unit-case", tier=1)
+    assert I.initiative_state("unit-case") == ""              # never failed
+    I.file_failure(_res(), scenario=scn, sandboxed=True)
+    assert I.initiative_state("unit-case") == "awaiting_fix"  # state 1: the dev agent owes us a fix
+    (I.MODULES / "nucleo" / "tasks" / "T900-uc-unit-case-verify.md").write_text(
+        "---\nid: T900\nstatus: next\n---\n", encoding="utf-8")
+    assert I.initiative_state("unit-case") == "awaiting_retest"   # state 2: we owe him a re-test
+    assert I.awaiting_fix_count() == 0                        # answered work is NOT queue depth
+
+
+def test_a_failed_retest_CLOSES_and_opens_a_successor(monkeypatch, tmp_path):
+    """Operator's rule. A re-test that fails is not more evidence about the same error — the old one was
+    addressed and what remains is a different one (V2-121 round 2: all three original blockers genuinely
+    fixed, failed for a fourth reason one layer up). Piling that on the same file makes the dev agent read
+    superseded diagnoses to find the live one."""
+    I = _iso(monkeypatch, tmp_path)
+    scn = _scn(id="unit-case", tier=1)
+    first = I.file_failure(_res(), scenario=scn, sandboxed=True)["initiative"]
+    out = I.rotate_failure(_res(), scenario=scn, sandboxed=True)
+    assert out["initiative"] != first                        # a NEW workspace
+    assert out["closed"] == first
+    old = first.read_text(encoding="utf-8")
+    assert "status: closed" in old and "CERRADA" in old
+    assert out["initiative"].name in old                     # the closed one points forward
+    # and the case now resolves to the successor, never back to the closed file
+    assert I.find_initiative("unit-case") == out["initiative"]
+    assert I.initiative_state("unit-case") == "awaiting_fix"
+    assert I.awaiting_fix_count() == 1                       # counted once, not twice
+
+
+def test_a_passing_retest_closes_the_workspace_without_marking_it_delivered(monkeypatch, tmp_path):
+    """`delivered` is load-bearing: `test_roadmap_closure.py` forces a delivered initiative to be cited in
+    engine/CLAUDE.md. A use-case round going green is not by itself a decision worth a line in the engine's
+    context — that is the operator's call, not the harness's."""
+    I = _iso(monkeypatch, tmp_path)
+    scn = _scn(id="unit-case", tier=1)
+    path = I.file_failure(_res(), scenario=scn, sandboxed=True)["initiative"]
+    assert I.close_on_pass("unit-case", verdict="ya funciona", overall=5)["closed"] == path
+    body = path.read_text(encoding="utf-8")
+    assert "status: closed" in body and "delivered" not in body
+    assert I.awaiting_fix_count() == 0
+    assert I.find_initiative("unit-case") is None             # closed: out of the live board
+
+
+def test_closing_fails_open_and_never_raises_into_a_batch(monkeypatch, tmp_path):
+    I = _iso(monkeypatch, tmp_path)
+    assert I.close_initiative(tmp_path / "nope.md", reason="x") is False
+    assert I.close_on_pass("never-filed", verdict="", overall=5)["closed"] is None
