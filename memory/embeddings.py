@@ -241,21 +241,24 @@ def reset():
 def _active_model_name() -> str:
     if _backend == "ollama":
         return _ollama_model()
+    # ⚠️ KNOWN MISLABEL, deliberately left alone (2026-08-18). For the fastembed backend this returns the config's
+    # `embed_model`, which names the OLLAMA model — but `_fastembed_embed` calls `TextEmbedding()` with no
+    # arguments and loads fastembed's own default (`BAAI/bge-small-en-v1.5`, 384 dims, padded to 768 by
+    # `_fit_dim`). So the signature reads "fastembed:embeddinggemma:768": a label naming a model that is not
+    # running. It never causes a FALSE space mismatch — the `backend` half already differs from `ollama:…` —
+    # which is exactly why it survived this long.
+    #
+    # The obvious fix (return the real loaded name) was tried and REVERTED, because the name is load-bearing for
+    # something else: `dim()` resolves the active dimension by matching this string against `_MODEL_DIMS`, so a
+    # truthful name stops matching, falls through to the real probe, and moves the fastembed dimension 768 -> 384.
+    # That is arguably more correct — bge-small IS 384, and padding doubles the brute-force scan for nothing — but
+    # it is a vector-space MIGRATION, not a label change, and it broke `test_vec_search_smoke` immediately (a
+    # 768-dim vector into a 384-dim vec0 table). Fixing it properly means deciding what happens to a DB already
+    # indexed at 768 with this backend, which is its own task.
+    # Until then, callers that need the truth for REPORTING derive it themselves (see the LoCoMo adapter's
+    # `declarations()`), and nothing that decides behavior depends on the wrong string.
     if _backend == "fastembed":
-        # The REAL loaded model, not the config's `embed_model` (2026-08-18). `_fastembed_embed` calls
-        # `TextEmbedding()` with no arguments, so it loads fastembed's own default and the config key — which
-        # names the OLLAMA model — has no bearing on it. Reporting it produced the signature
-        # "fastembed:embeddinggemma:768": a label naming a model that is not running, printed to the operator by
-        # the read-path space warning and stored in every benchmark's declarations. It never caused a FALSE
-        # mismatch (the `backend` half already differs from `ollama:…`), which is exactly why it survived: a
-        # wrong label that still behaves correctly is one nobody has a reason to notice.
-        try:
-            name = getattr(_fastembed_model, "model_name", None)
-            if name:
-                return str(name)
-        except Exception:  # noqa: BLE001
-            pass
-        return str(_mem_cfg().get("embed_model") or os.getenv("ZAELAR_EMBED_MODEL") or "fastembed-default")
+        return str(_mem_cfg().get("embed_model") or os.getenv("ZAELAR_EMBED_MODEL") or "")
     return ""
 
 

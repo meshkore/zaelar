@@ -167,6 +167,24 @@ def judge(question: str, gold: str, got: str) -> bool | None:
     return None
 
 
+def _embedding_label() -> str:
+    """The embedding declaration, derived HERE rather than read off `embeddings._active_model_name()`.
+
+    That accessor has a known mislabel for the fastembed backend: it returns the config's `embed_model`, which
+    names the OLLAMA model, while `_fastembed_embed` loads fastembed's own default. It cannot simply be corrected
+    in place — `dim()` resolves the active dimension by matching that same string, so a truthful name moves the
+    fastembed dimension 768 -> 384, which is a vector-space migration and not a label change (see the note in
+    `memory/embeddings.py::_active_model_name`). A benchmark declaration naming a model that is not running is
+    worse than useless, so the truth is derived here, where it only affects REPORTING."""
+    from memory import embeddings as _emb
+    backend = _emb.active_backend()
+    model = _emb._active_model_name() or "-"
+    if backend == "fastembed":
+        real = getattr(getattr(_emb, "_fastembed_model", None), "model_name", None)
+        model = str(real) if real else "fastembed-default(unloaded)"
+    return f"{backend}:{model}:{_emb.dim()}"
+
+
 def declarations(ingest_mode: str, limit: int) -> dict:
     from memory import embeddings as _emb
     from memory import rerank as _rr
@@ -179,7 +197,7 @@ def declarations(ingest_mode: str, limit: int) -> dict:
         "retrieval": f"memory.api.query(limit={limit})",
         "answerer": ANSWERER_MODEL,
         "judge": JUDGE_MODEL,
-        "embedding": f"{_emb.active_backend()}:{_emb._active_model_name() or '-'}:{_emb.dim()}",
+        "embedding": _embedding_label(),
         "reranker": {k: rr.get(k) for k in ("provider", "model", "enabled", "available", "top_n")} if rr else None,
         "ts": int(time.time()),
     }
