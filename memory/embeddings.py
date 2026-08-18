@@ -242,7 +242,20 @@ def _active_model_name() -> str:
     if _backend == "ollama":
         return _ollama_model()
     if _backend == "fastembed":
-        return str(_mem_cfg().get("embed_model") or os.getenv("ZAELAR_EMBED_MODEL") or "")
+        # The REAL loaded model, not the config's `embed_model` (2026-08-18). `_fastembed_embed` calls
+        # `TextEmbedding()` with no arguments, so it loads fastembed's own default and the config key — which
+        # names the OLLAMA model — has no bearing on it. Reporting it produced the signature
+        # "fastembed:embeddinggemma:768": a label naming a model that is not running, printed to the operator by
+        # the read-path space warning and stored in every benchmark's declarations. It never caused a FALSE
+        # mismatch (the `backend` half already differs from `ollama:…`), which is exactly why it survived: a
+        # wrong label that still behaves correctly is one nobody has a reason to notice.
+        try:
+            name = getattr(_fastembed_model, "model_name", None)
+            if name:
+                return str(name)
+        except Exception:  # noqa: BLE001
+            pass
+        return str(_mem_cfg().get("embed_model") or os.getenv("ZAELAR_EMBED_MODEL") or "fastembed-default")
     return ""
 
 
