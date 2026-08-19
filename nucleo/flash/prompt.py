@@ -550,6 +550,12 @@ def live_state() -> str:
                             _b += f", {_p['steps']} pasos dados"
                     else:
                         _b += " — TODAVÍA NO HA ABIERTO NINGUNA PÁGINA"
+                    # V2-150: el ÚLTIMO HITO, no solo cuántos lleva. La corrida descubrió «Casa Lucio solo
+                    # acepta reservas por teléfono» y el operador se enteró al final, cuando pidió pararlo:
+                    # el hito estaba en la tarea desde el principio y al cerebro le llegaba un CONTADOR de
+                    # pasos. Un número no se puede decir en voz alta.
+                    if _p.get("last_event"):
+                        _b += f" · último: {_p['last_event'][:90]}"
                 _bits.append(_b)
             lines.append(
                 f"NAVEGADOR — YA EN CURSO ({len(act)}): {'; '.join(_bits)}. NO abras otra tarea ni reinicies la "
@@ -560,6 +566,28 @@ def live_state() -> str:
                 "—que arrancó y aún no ha llegado a ningún sitio— y NO describas lo que estaría haciendo («está "
                 "en la página», «interactuando», «rellenando el formulario»). Los segundos que lleva NO son una "
                 "descripción de lo que hace.")
+        # V2-150 — una tarea que TERMINA desaparecía del estado, así que no quedaba ningún hecho diciendo que
+        # había acabado, y menos aún que había acabado vacía. El informe decía `status=done url=` mientras el
+        # turno decía «los procesos siguen en marcha, llevan casi 5 minutos». No es el modelo inventando por
+        # gusto: se le había quitado de delante lo único que podía contradecirle. Un FINAL es un hecho.
+        try:
+            _fin = _nt.recently_finished()
+        except Exception:
+            _fin = []
+        if _fin:
+            _fb = []
+            for _f in _fin:
+                _t = f"«{(_f.get('goal') or 'tarea')[:60]}»"
+                _t += " terminó CON resultado" if _f.get("has_results") else " terminó SIN traer nada"
+                if _f.get("last_event"):
+                    _t += f" (lo último que vio: {_f['last_event'][:90]})"
+                _fb.append(_t)
+            lines.append(
+                "NAVEGADOR — YA TERMINADO: " + "; ".join(_fb) + ". Eso YA NO está en marcha: si el operador "
+                "pregunta, dilo —terminó, y con qué— y ofrece el siguiente paso; decir que «sigue procesando» "
+                "es contar algo que el sistema da por acabado. Y si lo último que vio responde a lo que te "
+                "pidió (un teléfono, un horario, que solo se reserva llamando), DÁSELO: es el resultado, "
+                "aunque no sea el que esperabas.")
         if _nt.login_waiting_id():
             lines.append("HAY UN INICIO DE SESIÓN PENDIENTE en el navegador (le abriste una ventana para entrar): "
                          "si el operador dice que ya inició sesión / 'ya estoy dentro', llama a login_done.")

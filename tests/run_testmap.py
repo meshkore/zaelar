@@ -123,6 +123,9 @@ DOMAINS: list[dict] = [
             # V2-149: cuatro turnos preguntando DÓNDE está la farmacia y ni uno preguntando QUÉ receta
             # reponer — el objeto del encargo nunca se pidió.
             "tests/agent_headless/unit/flash/test_ask_for_everything_missing.py",
+            # V2-150: una tarea de navegador que TERMINA desaparecía del estado, así que no quedaba
+            # ningún hecho que contradijera al turno diciendo que «sigue en marcha».
+            "tests/agent_headless/unit/flash/test_finished_browser_task_is_a_fact.py",
             "tests/agent_headless/unit/test_skeleton.py", "tests/agent_headless/unit/test_sparks.py"]},
         {"id": "2.4", "title": "Cliente LLM rápido, reintento y RELEVO por latencia", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_fast_client.py", "tests/agent_headless/unit/flash/test_fast_client_retry.py",

@@ -278,9 +278,48 @@ def active_progress(limit: int = 3) -> list[dict]:
                  "url": (t.get("url") or "").strip(),
                  "phase": (t.get("phase") or "").strip(),
                  "steps": len(t.get("events") or []),
+                 # V2-150: the run discovered «Casa Lucio solo acepta reservas por teléfono» and the operator
+                 # only heard it at the very end, when he asked to stop. The milestone was in the task all
+                 # along; what the brain saw was a step COUNT. A number cannot be said out loud.
+                 "last_event": ((t.get("events") or [{}])[-1].get("text") or "").strip()
+                                if t.get("events") else "",
                  "awaiting_login": bool(t.get("awaiting_login"))}
                 for tid, t in _tasks.items() if t.get("status") in ("queued", "working", "needs_input")]
     return list(reversed(rows))[:max(1, limit)]
+
+
+# How long a task that ENDED still deserves a line in the brain's state. Long enough to cover the turn where
+# the operator asks «¿lo conseguiste?», short enough not to talk about yesterday's errands.
+JUST_FINISHED_S = 600.0
+
+
+def recently_finished(now: float | None = None, limit: int = 3) -> list[dict]:
+    """Tasks that ENDED in the last few minutes, and whether they brought anything back.
+
+    V2-150 — `restaurant-tonight-madrid`: the mechanism report read `status=done url=` and zaelar kept saying
+    «los procesos siguen en marcha — llevan casi 5 minutos». That is not the model inventing for the sake of it:
+    the brain only ever sees ACTIVE tasks (`active_summaries`/`active_progress`), so the moment this one
+    finished it simply VANISHED from the state. There was no fact left saying it had ended, let alone that it
+    had ended empty — and the turn filled the hole with the only thing it still had, the worker.
+
+    Same remedy as `silent_s` (V2-131) and the browser progress (V2-145), one step further: an ending is a
+    FACT, and a task that finished without results is the most useful fact of the three.
+    """
+    now = time.time() if now is None else now
+    with _lock:
+        rows = [{"id": tid,
+                 "goal": (t.get("goal") or "").strip(),
+                 "status": t.get("status") or "",
+                 "url": (t.get("url") or "").strip(),
+                 "has_results": bool(t.get("results")),
+                 "last_event": ((t.get("events") or [{}])[-1].get("text") or "").strip()
+                                if t.get("events") else "",
+                 "ago_s": int(now - float(t.get("finished") or now))}
+                for tid, t in _tasks.items()
+                if t.get("status") in ("done", "failed")
+                and (now - float(t.get("finished") or 0)) <= JUST_FINISHED_S]
+    rows.sort(key=lambda r: r["ago_s"])
+    return rows[:max(1, limit)]
 
 
 def active_ids() -> list[str]:
