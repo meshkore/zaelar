@@ -48,10 +48,16 @@ def test_the_chain_is_titular_then_broker_then_openai(monkeypatch):
 
 def test_a_rung_the_config_already_promoted_is_not_tried_twice(monkeypatch):
     """An operator who points `rem_base_url`/`rem_model` at the broker's DeepSeek has made it the titular; keeping
-    it in the fallback list would burn a retry on the endpoint that just failed."""
+    it in the fallback list would burn a retry on the endpoint that just failed.
+
+    Asserts the ABSENCE of that one pair rather than the exact remaining list: pinning the full list makes this test
+    fail every time a rung is added for an unrelated reason (it did, when DeepSeek direct became the first
+    fallback), and a test that has to be edited to stay green stops being read."""
     monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "k")
-    rungs = memllm.failover_rungs("rem", titular=(_AIML, "deepseek/deepseek-v4-flash"))
-    assert [m for _u, m, _k, _dt in rungs] == ["openai/gpt-4.1-mini"]
+    promoted = (_AIML, "deepseek/deepseek-v4-flash")
+    rungs = memllm.failover_rungs("rem", titular=promoted)
+    assert promoted not in [(u, m) for u, m, _k, _dt in rungs]
+    assert rungs, "quitar el titular de la lista no puede dejar la cadena sin escalones"
 
 
 def test_an_uncredentialed_fallback_is_dropped(monkeypatch):
@@ -153,11 +159,20 @@ def test_a_PINNED_model_never_relays(monkeypatch):
 def test_the_heart_keeps_its_own_titular_at_the_front(monkeypatch):
     """`distill`'s config keys are the historical `mem_processor_*` (with env fallbacks, synchronized across three
     deploy sites), so `memllm.resolve("distill")` does NOT know its endpoint — it would silently fall through to
-    `_DEFAULTS["rem"]`. The heart must resolve its own titular and borrow only the fallback ORDER."""
+    `_DEFAULTS["rem"]`. The heart must resolve its own titular and borrow only the fallback ORDER.
+
+    Both hidden dependencies are PINNED, and that is the point of this note: as first written this test passed for
+    the wrong reasons and failed only in the FULL suite. It asserted a LOCAL titular stays in front while (a)
+    `_endpoint_key` was the real resolver, so whether the fallbacks existed at all depended on another test having
+    imported `server.common` and loaded the credential store, and (b) the local gate was the real one, so the
+    answer depended on whether THIS machine had `qwen2.5:7b-instruct` pulled. Neither is what this test is about."""
+    monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "k")
+    monkeypatch.setattr(memllm, "local_titular_ready", lambda *a: True)
     monkeypatch.setattr(MP, "_url", lambda: "http://localhost:11434/v1")
     monkeypatch.setattr(MP, "_model", lambda: "qwen2.5:7b-instruct")
     rungs = MP._rung_chain()
     assert rungs[0] == ("http://localhost:11434/v1", "qwen2.5:7b-instruct")
+    assert rungs[1] == (_DS, "deepseek-v4-flash"), "y el failover del operador va justo detrás"
 
 
 def test_the_heart_still_writes_when_the_fallback_catalog_explodes(monkeypatch):
@@ -192,3 +207,137 @@ def test_an_empty_answer_from_a_rung_is_treated_as_a_FAILURE(monkeypatch, conten
     with pytest.raises(Exception):
         memllm._attempt(_DS, "deepseek-v4-flash", "k", False, system="s", user="u",
                         max_tokens=8, temperature=0, timeout=5)
+
+
+# ── the operator's rule, 2026-08-19: Ollama titular WHEN AVAILABLE, DeepSeek V4 Flash direct as the failover ────
+def _tags(names: list[str]):
+    """A fake `/api/tags` response, plus a counter so the TTL cache can be observed."""
+    import json as _json
+    calls: list[str] = []
+
+    class _R:
+        def read(self):
+            return _json.dumps({"models": [{"name": n} for n in names]}).encode()
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    def fake(req, *a, **k):
+        calls.append(getattr(req, "full_url", str(req)))
+        return _R()
+
+    return fake, calls
+
+
+def test_deepseek_direct_is_the_FIRST_fallback_of_every_memory_task():
+    """The rule names DeepSeek V4 Flash **through its provider** as the failover. Before this it was only ever the
+    TITULAR, so pointing the titular at a local Ollama silently left the direct endpoint out of the chain and the
+    first fallback became the broker — the opposite of the stated order."""
+    for task in ("distill", "rem", "paraphrase"):
+        first = memllm._FAILOVER[task][0]
+        assert first == (_DS, "deepseek-v4-flash"), f"{task} no empieza por el directo: {first}"
+
+
+def test_a_local_endpoint_is_recognised_and_a_cloud_one_is_not():
+    for url in ("http://localhost:11434/v1", "http://127.0.0.1:11434", "http://0.0.0.0:11434/v1"):
+        assert memllm.is_local_endpoint(url)
+    for url in (_DS, _AIML, "https://api.openai.com/v1"):
+        assert not memllm.is_local_endpoint(url)
+
+
+def test_ready_asks_the_ROOT_for_tags_not_the_openai_path(monkeypatch):
+    """`/api/tags` hangs off the root; the chat calls use the OpenAI-compatible `/v1`. Asking `/v1/api/tags` 404s,
+    which fail-closed would read as «model absent» — the local titular would never be used on a healthy machine."""
+    memllm.reset_local_probe()
+    fake, calls = _tags(["qwen2.5:7b-instruct"])
+    monkeypatch.setattr("urllib.request.urlopen", fake)
+    assert memllm.local_titular_ready("http://localhost:11434/v1", "qwen2.5:7b-instruct")
+    assert calls == ["http://localhost:11434/api/tags"]
+
+
+def test_the_gate_asks_whether_the_MODEL_is_there_not_just_the_server(monkeypatch):
+    """Ollama answers `/api/tags` perfectly while serving a model nobody pulled. A server-only probe would hand the
+    write path a rung that 404s on every call — indistinguishable from the profile bug this shipped alongside."""
+    memllm.reset_local_probe()
+    fake, _ = _tags(["embeddinggemma:latest"])
+    monkeypatch.setattr("urllib.request.urlopen", fake)
+    assert not memllm.local_titular_ready("http://localhost:11434/v1", "qwen2.5:7b-instruct")
+
+
+def test_a_tagless_config_matches_latest_but_two_real_tags_never_match(monkeypatch):
+    """`embeddinggemma` and `embeddinggemma:latest` are the same model; `qwen2.5:7b` and `qwen2.5:14b` are NOT, and
+    treating them as equal would silently run a different model than the config names."""
+    memllm.reset_local_probe()
+    fake, _ = _tags(["embeddinggemma:latest", "qwen2.5:14b-instruct"])
+    monkeypatch.setattr("urllib.request.urlopen", fake)
+    assert memllm.local_titular_ready("http://localhost:11434", "embeddinggemma")
+    assert not memllm.local_titular_ready("http://localhost:11434", "qwen2.5:7b-instruct")
+
+
+def test_the_probe_FAILS_CLOSED_when_the_server_does_not_answer(monkeypatch):
+    """Deliberately the opposite posture to the rest of this module. A wrong «yes» spends the write on a rung that
+    cannot answer; a wrong «no» just uses the cloud rung that was next anyway. The costs are not symmetric."""
+    memllm.reset_local_probe()
+
+    def boom(*a, **k):
+        raise OSError("connection refused")
+
+    monkeypatch.setattr("urllib.request.urlopen", boom)
+    assert not memllm.local_titular_ready("http://localhost:11434/v1", "qwen2.5:7b-instruct")
+
+
+def test_the_verdict_is_cached_but_NEVER_latched(monkeypatch):
+    """`memory/embeddings._resolve_backend` cached one probe for a whole process and a single boot hiccup demoted
+    the vector space for 300s — the defect V2-103 traced 51.6% of vector-less rows to. Non-stop means recovery
+    must need no restart, so the cache has a TTL and `reset_local_probe` exists."""
+    memllm.reset_local_probe()
+    fake, calls = _tags(["qwen2.5:7b-instruct"])
+    monkeypatch.setattr("urllib.request.urlopen", fake)
+    for _ in range(4):
+        memllm.local_titular_ready("http://localhost:11434/v1", "qwen2.5:7b-instruct")
+    assert len(calls) == 1, f"la sonda se repitió {len(calls)} veces dentro del TTL"
+    memllm.reset_local_probe()
+    memllm.local_titular_ready("http://localhost:11434/v1", "qwen2.5:7b-instruct")
+    assert len(calls) == 2, "tras invalidar la caché debe volver a sondear"
+
+
+def test_a_DEAD_local_titular_is_stepped_over_and_the_chain_starts_at_deepseek(monkeypatch):
+    memllm.reset_local_probe()
+    monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "k")
+    monkeypatch.setattr(memllm, "resolve", lambda t: ("http://localhost:11434/v1", "qwen2.5:7b-instruct", "local", False))
+    monkeypatch.setattr(memllm, "local_titular_ready", lambda *a: False)
+    chain = memllm.chain("rem")
+    assert chain[0][0] == _DS and chain[0][1] == "deepseek-v4-flash", chain
+
+
+def test_a_LIVE_local_titular_stays_in_front(monkeypatch):
+    memllm.reset_local_probe()
+    monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "k")
+    monkeypatch.setattr(memllm, "resolve", lambda t: ("http://localhost:11434/v1", "qwen2.5:7b-instruct", "local", False))
+    monkeypatch.setattr(memllm, "local_titular_ready", lambda *a: True)
+    chain = memllm.chain("rem")
+    assert chain[0][1] == "qwen2.5:7b-instruct" and chain[1][0] == _DS, chain
+
+
+def test_the_chain_is_NEVER_empty(monkeypatch):
+    """Local titular down AND every fallback uncredentialed: returning [] would make `chat_sync` report «0 rungs
+    exhausted», a true statement that hides the real cause. Keeping the titular lets the actual error surface."""
+    memllm.reset_local_probe()
+    monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "local")
+    monkeypatch.setattr(memllm, "resolve", lambda t: ("http://localhost:11434/v1", "qwen2.5:7b-instruct", "local", False))
+    monkeypatch.setattr(memllm, "local_titular_ready", lambda *a: False)
+    assert len(memllm.chain("rem")) == 1
+
+
+def test_the_HEART_steps_over_a_dead_local_titular_only_if_there_is_somewhere_to_go(monkeypatch):
+    monkeypatch.setattr(MP, "_url", lambda: "http://localhost:11434/v1")
+    monkeypatch.setattr(MP, "_model", lambda: "qwen2.5:7b-instruct")
+    monkeypatch.setattr(memllm, "local_titular_ready", lambda *a: False)
+    monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "k")
+    assert MP._rung_chain()[0] == (_DS, "deepseek-v4-flash")
+    # No credentialed fallback anywhere → the local titular is all there is, and it must still be attempted.
+    monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "local")
+    assert MP._rung_chain() == [("http://localhost:11434/v1", "qwen2.5:7b-instruct")]

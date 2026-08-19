@@ -63,15 +63,27 @@ os.environ.setdefault("MEM_PROCESSOR_QUEUE_MAX", "64")
 os.environ.setdefault("MEM_PROCESSOR_QUEUE_WAIT", "600")
 os.environ.setdefault("MEM_PROCESSOR_TIMEOUT", "90")     # timeout de CORDURA, no de latencia (ver docstring)
 os.environ.setdefault("MEM_PROCESSOR_RETRIES", "1")
+# Este banco mide MODELOS, así que corre SIN failover: con la cadena puesta (norma de proveedores 2026-08-19) un
+# candidato que falla se releva al siguiente y su fila reporta el trabajo de OTRO modelo como si fuera suyo.
+# Medido el mismo día: `qwen3.6-27b@ollama` salió «OK 143000ms, 2 píldoras» y esas píldoras eran de DeepSeek.
+os.environ["MEM_PROCESSOR_PIN_TITULAR"] = "1"
 
 from nucleo import mem_processor as mp  # noqa: E402
 
 # ── candidatos ──────────────────────────────────────────────────────────────────────────────────────────────
-# Todos COMERCIALES de API (decisión del operador 2026-08-09: UN solo modelo que sirva igual en self-host y en
-# cloud — se retira la vía Ollama local, que obligaba a dos ganadores distintos). El broker AIMLAPI es el endpoint
-# que la nube YA usa (fly.accounts.toml + provisioner), así que un ganador que viva ahí no exige endpoint ni secret
-# nuevos; los DIRECTOS se miden para saber cuánto se paga por el hop del broker.
+# El broker AIMLAPI es el endpoint que la nube YA usa (fly.accounts.toml + provisioner), así que un ganador que viva
+# ahí no exige endpoint ni secret nuevos; los DIRECTOS se miden para saber cuánto se paga por el hop del broker.
+#
+# ⚠️ **LA VÍA LOCAL VUELVE (2026-08-19, decisión del operador)**, y esto es una REVERSIÓN explícita, no un despiste:
+# el 2026-08-09 se retiró («UN solo modelo que sirva igual en self-host y en cloud», porque obligaba a dos ganadores
+# distintos). La norma nueva acepta justamente eso: en LOCAL, Ollama de titular si está disponible, con DeepSeek V4
+# Flash directo de failover. Así que ahora hay DOS ganadores por diseño y hacen falta DOS columnas de resultados —
+# **un modelo local y uno de nube NO se pueden comparar por el ranking global**: el local puntúa gratis en $/1k y
+# paga en latencia y en GPU compartida con STT/TTS, el de nube al contrario. Por eso el informe se guarda POR
+# MODELO (petición del operador: «los tests por modelos son importantes»), y el veredicto de un local se lee contra
+# otros locales, nunca contra la tabla de nube.
 AIML = "https://api.aimlapi.com/v1"
+OLLAMA = "http://localhost:11434/v1"
 OPENAI = "https://api.openai.com/v1"
 GROQ = "https://api.groq.com/openai/v1"
 XAI = "https://api.x.ai/v1"
@@ -109,6 +121,13 @@ CANDIDATES: dict[str, tuple[str, str]] = {
     "glm-4.7@zai":              (ZAI, "glm-4.7"),
     "glm-4.7-flash@zai":        (ZAI, "glm-4.7-flash"),
     "ministral-8b@mistral":     (MISTRAL, "ministral-8b-latest"),
+    # LOCALES (Ollama). No llevan key y su $/1k es 0 — un cero LEGÍTIMO, no un hueco: el coste marginal de un
+    # modelo local es cero de verdad, y lo que se paga está en las otras dos columnas (latencia y GPU). Un
+    # candidato que no esté `pull`eado en la máquina se salta con un aviso en vez de puntuar 0 —- un modelo ausente
+    # no es un modelo malo, y contarlo como tal ensuciaría el informe de quien no lo tenga.
+    "qwen3.6-27b@ollama":       (OLLAMA, "qwen3.6:27b-mlx"),
+    "qwen2.5-7b@ollama":        (OLLAMA, "qwen2.5:7b-instruct"),
+    "qwen2.5-14b@ollama":       (OLLAMA, "qwen2.5:14b-instruct"),
 }
 
 # $ por 1M tokens (input, output). Tarifa PUBLICADA del proveedor que sirve ese id — verificada por web el
@@ -421,6 +440,21 @@ async def main() -> None:
     for n in unknown:
         print(f"?? candidato desconocido: {n}", file=sys.stderr)
     names = [n for n in names if n in CANDIDATES]
+
+    # Un candidato LOCAL que no está `pull`eado en esta máquina se SALTA con aviso, nunca puntúa 0: un modelo
+    # ausente no es un modelo malo, y dejarlo correr le daría un 0% de completeness que ensucia el informe de
+    # cualquiera que no lo tenga instalado. Reutiliza la MISMA sonda que usa producción para decidir si el titular
+    # local está disponible (`nucleo/memllm.local_titular_ready`) — así el banco y el motor no pueden discrepar
+    # sobre qué significa «está el modelo».
+    from nucleo import memllm as _memllm
+    _kept: list[str] = []
+    for n in names:
+        _u, _m = CANDIDATES[n]
+        if _memllm.is_local_endpoint(_u) and not _memllm.local_titular_ready(_u, _m):
+            print(f"⏭️  {n}: {_m} no está en este Ollama (o no responde) → SALTADO, no puntúa 0", file=sys.stderr)
+            continue
+        _kept.append(n)
+    names = _kept
 
     if args.preflight:
         print(f"PREFLIGHT — {len(names)} candidatos")

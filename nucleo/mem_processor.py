@@ -48,6 +48,18 @@ _BROWSER_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.3
 # un blip antes de rendirse es correcto. Los 4xx de auth/bad-request NO se reintentan (fallan rápido, alertan).
 _RETRIES = max(0, int(os.getenv("MEM_PROCESSOR_RETRIES", "2")))           # reintentos (=> _RETRIES+1 intentos)
 _RETRY_BACKOFF = float(os.getenv("MEM_PROCESSOR_RETRY_BACKOFF", "1.5"))   # s base, escalado por intento
+# Techo del escalón LOCAL (Ollama). Es aparte de `_TIMEOUT` porque un modelo local grande tarda MUCHO más que una
+# API de nube en el MISMO trabajo, y a la vez su cota tiene que ser dura: mientras se espera aquí, la cadena no
+# releva. Medido en esta máquina (2026-08-19) con el prompt REAL del destilador — ver el informe por modelo en
+# `tests/memory/e2e/bot/resultados/`. Si se agota, se escribe por DeepSeek directo, nunca por la heurística.
+# 420 s y no 120: medido el 2026-08-19, `qwen3.6:27b-mlx` tarda **372,6 s** en UNA destilación con el prompt
+# reducido (informe por modelo en `tests/memory/e2e/bot/resultados/20260819-destilador-local-ollama/`), así que un
+# techo de 120 s lo cortaba SIEMPRE y el titular local no servía ni una escritura — solo añadía 120 s de espera
+# muerta antes del relevo. Con un modelo local pequeño (un 7B no-razonador) esto sobra por dos órdenes de magnitud;
+# está alto para que un local GRANDE pueda llegar, no porque una escritura deba tardar 7 minutos.
+# ⚠️ Consecuencia que hay que tener presente: la cola del CORAZÓN es `_QUEUE_MAX`/`_QUEUE_WAIT` (2 / 15 s), así que
+# mientras una destilación de 372 s está en vuelo, los turnos siguientes caen a la heurística lossy.
+_LOCAL_TIMEOUT = float(os.getenv("MEM_PROCESSOR_LOCAL_TIMEOUT", "420"))
 
 
 class _PermanentError(RuntimeError):
@@ -131,12 +143,31 @@ def _rung_chain() -> list[tuple[str, str]]:
     Imported LAZILY and fail-open to the titular alone: the CORAZÓN has to keep writing even if the router can't
     be loaded, and a bad day for the fallback catalog must not become a bad day for every memory write."""
     titular = (_url(), _model())
+    head = [titular]
+    extra: list = []
+    # PIN: un solo escalón, sin relevo. Lo pone un BANCO POR MODELO, y no es un lujo — es lo que hace que su número
+    # signifique algo. Medido el 2026-08-19: el preflight del banco reportó «OK qwen3.6-27b@ollama 143000ms
+    # (2 píldoras)» mientras el log de al lado decía «relevo a deepseek-v4-flash tras qwen3.6:27b-mlx:
+    # TimeoutError» — o sea que esas píldoras las escribió DeepSeek y el informe las atribuía al modelo local.
+    # Con failover, un banco por modelo mide la CADENA; atribuir a un modelo el trabajo del siguiente es la peor
+    # clase de dato, porque parece bueno. En producción JAMÁS se pone (el valor por defecto es no-pin).
+    if os.getenv("MEM_PROCESSOR_PIN_TITULAR") == "1":
+        return head
     try:
         from nucleo import memllm
         extra = memllm.failover_rungs("distill", titular=titular)
+        # A LOCAL titular that is not answering (Ollama down, model not pulled, queue full) is STEPPED OVER so the
+        # write lands on DeepSeek instead of on the lossy regex heuristic. This is the whole point of the operator's
+        # rule: Ollama as titular WHEN AVAILABLE, and the system working non-stop when it is not. The probe is
+        # TTL-cached and fail-closed, so recovery needs no restart and a wrong «yes» never costs a write.
+        if memllm.is_local_endpoint(titular[0]) and not memllm.local_titular_ready(*titular):
+            if extra:
+                head = []      # only step over it if there is somewhere to step TO
+                logger.info(f"CORAZON: local titular {titular[1]} @ {titular[0]} unavailable -> "
+                            f"writing through {extra[0][1]}")
     except Exception:  # noqa: BLE001
         extra = []
-    return [titular] + [(u, m) for u, m, _k, _dt in extra]
+    return head + [(u, m) for u, m, _k, _dt in extra]
 
 
 def _key() -> str:
@@ -555,9 +586,17 @@ async def process(text: str, *, state: dict | None = None) -> list[dict] | None:
                                                           # broker prefixes it, the native API does not)
                 url = _rung_url.rstrip("/") + "/chat/completions"
                 _give_up_rung = False
-                for _attempt in range(_RETRIES + 1):
+                # A LOCAL rung gets ONE attempt and its own timeout; a cloud rung keeps `_RETRIES`. The asymmetry is
+                # the «non-stop» half of the operator's rule (2026-08-19): retrying a big local model three times at
+                # `_TIMEOUT` each would stall the write for minutes before relaying, and the reasons a local model
+                # does not answer (server busy, model unloading, GPU contended by STT/TTS) are not the transient
+                # network blips `_RETRIES` was added for — the cloud rung right behind it is the better second try.
+                _is_local = any(h in _rung_url for h in ("11434", "localhost", "127.0.0.1"))
+                _tries = 1 if _is_local else _RETRIES + 1
+                _to_s = _LOCAL_TIMEOUT if _is_local else _TIMEOUT
+                for _attempt in range(_tries):
                     try:
-                        to = aiohttp.ClientTimeout(total=_TIMEOUT)
+                        to = aiohttp.ClientTimeout(total=_to_s)
                         async with aiohttp.ClientSession(timeout=to) as s:
                             # UA de navegador: AIMLAPI va tras Cloudflare y 403ea el User-Agent por defecto de aiohttp
                             # (igual que fast_client con el SDK OpenAI — ver su _BROWSER_UA). Sin esto, apuntar el CORAZÓN
@@ -601,7 +640,7 @@ async def process(text: str, *, state: dict | None = None) -> list[dict] | None:
                         _give_up_rung = True
                         break
                     except Exception as e:  # noqa: BLE001  (timeout / conexión / 429 / 5xx = TRANSITORIO → reintenta)
-                        if _attempt < _RETRIES:
+                        if _attempt < _tries - 1:
                             await asyncio.sleep(_RETRY_BACKOFF * (_attempt + 1))
                             continue
                         _fails.append(f"{_rung_model}: {type(e).__name__}: {e}")

@@ -105,10 +105,17 @@ _DEFAULTS = {
 # (V2-097) would hurt the operator far more than the default they degrade to. Being slow at the right answer is
 # the failure this repo banned a model over.
 _AIML = "https://api.aimlapi.com/v1"
+# DeepSeek V4 Flash on its OWN endpoint. It is BOTH the checked-in titular of most memory tasks AND the first
+# fallback rung of all of them, which is not a contradiction: `failover_rungs` skips a rung the config already
+# promoted to titular, so listing it here costs nothing in the usual setup and is what keeps the operator's rule
+# («DeepSeek V4 Flash through its provider as the failover», 2026-08-19) true when the titular is something else —
+# a LOCAL Ollama, say. Before this it was only ever the titular, so pointing the titular at Ollama silently left
+# the direct endpoint out of the chain entirely and the first fallback became the broker.
+_DS = "https://api.deepseek.com"
 
 _FAILOVER: dict[str, tuple[tuple[str, str], ...]] = {
     # rem — §12.2 measured `gpt-4.1-mini` at 100% on THIS task, so the last rung is evidence, not hope.
-    "rem": ((_AIML, "deepseek/deepseek-v4-flash"), (_AIML, "openai/gpt-4.1-mini")),
+    "rem": ((_DS, "deepseek-v4-flash"), (_AIML, "deepseek/deepseek-v4-flash"), (_AIML, "openai/gpt-4.1-mini")),
     # distill — the WRITE HEART. `nucleo/mem_processor.py` makes the call AND resolves its own TITULAR (its config
     # keys are the historical `mem_processor_*`, with env fallbacks, and that name is synchronized across three
     # deploy sites — `config/v2.py`, `fly.accounts.toml`, the cloud provisioner). What lives HERE is only its
@@ -116,13 +123,15 @@ _FAILOVER: dict[str, tuple[tuple[str, str], ...]] = {
     # The rungs are the ones §12.3 already named after sweeping 21 candidates × 34 cases. ⛔ NOT `gpt-4o-mini`:
     # cheaper and VETOED (puts an allergy stated in English into `slot=operator.diet`, which a later diet change
     # would erase).
-    "distill": ((_AIML, "deepseek/deepseek-v4-flash"), (_AIML, "google/gemini-2.5-flash"),
-                (_AIML, "openai/gpt-4.1-mini")),
+    "distill": ((_DS, "deepseek-v4-flash"), (_AIML, "deepseek/deepseek-v4-flash"),
+                (_AIML, "google/gemini-2.5-flash"), (_AIML, "openai/gpt-4.1-mini")),
     # paraphrase — NO DeepSeek rung on the broker, deliberately. This task only works with reasoning OFF (measured
     # 2026-08-18: with it on the entire budget goes to reasoning and `content` comes back EMPTY at every budget
     # tried) and the broker ACCEPTS `thinking:disabled` while ignoring it. That rung would answer 200 with nothing
     # in it, and a rung that reports success while delivering silence is worse than no rung. Non-reasoners only.
-    "paraphrase": ((_AIML, "openai/gpt-4.1-mini"),),
+    # ⚠️ DeepSeek DIRECT is the FIRST rung here and the broker's DeepSeek is absent, which is the opposite of the
+    # other tasks — because this one needs reasoning OFF and only the direct endpoint obeys the flag (see below).
+    "paraphrase": ((_DS, "deepseek-v4-flash"), (_AIML, "openai/gpt-4.1-mini")),
     # i18n — its titular is ALREADY the broker (haiku, §12.5), so this is the third rung, not the second. One is
     # enough to stop a lost batch from meaning 50 English strings in the UI. ⚠️ `gpt-4.1` is NOT measured for
     # placeholder fidelity on non-Latin scripts, which is exactly what §12.5 was about: last resort, not an equal.
@@ -136,6 +145,68 @@ def _has_credential(url: str, key: str) -> bool:
     if key and key != "local":
         return True
     return any(h in (url or "").lower() for h in ("localhost", "127.0.0.1", "11434"))
+
+
+# ── LOCAL TITULAR: preferred when it is there, stepped over when it is not (2026-08-19, operator's rule) ───────
+# «En local podemos poner Ollama si está disponible como titular, pero el sistema debe funcionar NON-STOP.» Those
+# two halves pull in opposite directions and the whole design is in reconciling them: a local titular is free and
+# private, and it is also the one rung that can simply not be there — the model not pulled, Ollama not started, its
+# queue full because a 41 GB model owns the GPU (observed twice in production, 2026-08-18 and again today).
+#
+# So a local titular is HEALTH-GATED and the gate EXPIRES. Two decisions worth stating because the opposite of each
+# is the bug this repo has already paid for:
+#   · The verdict is CACHED but never LATCHED (`_LOCAL_TTL_S`). `memory/embeddings.py::_resolve_backend` cached a
+#     single probe for the whole process and one transient hiccup at boot demoted the vector space for 300 s — the
+#     defect V2-103 traced 51.6% of vector-less rows to. Non-stop means recovery must need no restart.
+#   · The gate asks whether the MODEL is there, not just the server. Ollama answers `/api/tags` perfectly while
+#     serving a model you never pulled — so a server-only probe would hand the write path a rung that 404s on
+#     every call, which is indistinguishable from the profile bug this shipped alongside (a local model NAME sent
+#     to a cloud endpoint, 400 on every write, every turn silently on the lossy heuristic).
+# A local rung that is NOT ready is skipped, and the chain starts at DeepSeek V4 Flash direct — never at nothing.
+_LOCAL_HOSTS = ("localhost", "127.0.0.1", "0.0.0.0", "::1", "11434")
+_LOCAL_TTL_S = float(os.getenv("ZAELAR_LOCAL_PROBE_TTL_S", "60"))
+_local_probe: dict[str, tuple[float, bool]] = {}     # "{url}|{model}" -> (checked_at, ready)
+
+
+def is_local_endpoint(url: str) -> bool:
+    return any(h in (url or "").lower() for h in _LOCAL_HOSTS)
+
+
+def local_titular_ready(url: str, model: str) -> bool:
+    """True if this local endpoint is answering AND serving `model`. Cached for `_LOCAL_TTL_S`, fail-CLOSED.
+
+    Fail-closed is the right default HERE, against the fail-open posture of the rest of this module: a wrong «yes»
+    spends the write on a rung that cannot answer, while a wrong «no» just uses the cloud rung that was going to be
+    next anyway. The cost of the two mistakes is not symmetric, so the default is not either."""
+    import time as _t
+    key = f"{url}|{model}"
+    hit = _local_probe.get(key)
+    now = _t.monotonic()
+    if hit and (now - hit[0]) < _LOCAL_TTL_S:
+        return hit[1]
+    ready = False
+    try:
+        # `/api/tags` hangs off the ROOT, not under the OpenAI-compatible `/v1` the chat calls use.
+        root = (url or "").rstrip("/")
+        for suffix in ("/v1", "/api"):
+            if root.endswith(suffix):
+                root = root[: -len(suffix)]
+        req = urllib.request.Request(root + "/api/tags", method="GET")
+        with urllib.request.urlopen(req, timeout=3.0) as r:
+            names = [str((m or {}).get("name") or "") for m in (json.loads(r.read().decode()).get("models") or [])]
+        want = (model or "").strip()
+        # `embeddinggemma` and `embeddinggemma:latest` are the same model; `qwen2.5:7b` and `qwen2.5:14b` are not,
+        # so the tag is only ignored when the CONFIG omitted it.
+        ready = any(n == want or (":" not in want and n.split(":")[0] == want) for n in names)
+    except Exception as e:  # noqa: BLE001
+        logger.debug(f"memllm: local probe {url} failed ({str(e)[:80]}) -> skipping the local titular")
+    _local_probe[key] = (now, ready)
+    return ready
+
+
+def reset_local_probe() -> None:
+    """Drop the cached verdicts (tests, and after an operator changes the profile)."""
+    _local_probe.clear()
 
 
 def failover_rungs(task: str, *, titular: tuple[str, str],
@@ -164,10 +235,21 @@ def chain(task: str) -> list[tuple[str, str, str, bool]]:
 
     The TITULAR is kept even without a credential — dropping it would silently substitute a different model for
     the one the config names, turning a visible misconfiguration into a wrong-model-answered-fine, which is the
-    harder of the two bugs to ever notice."""
+    harder of the two bugs to ever notice.
+
+    A LOCAL titular that is not answering is a DIFFERENT case and IS stepped over: a missing credential is a
+    misconfiguration worth surfacing, while a local model being absent or its server busy is an ordinary,
+    transient fact of a self-hosted machine — and the rule is that the system keeps working through it."""
     url, model, key, disable_thinking = resolve(task)
-    return [(url, model, key, disable_thinking)] + failover_rungs(
-        task, titular=(url, model), disable_thinking=disable_thinking)
+    head = [(url, model, key, disable_thinking)]
+    if is_local_endpoint(url) and not local_titular_ready(url, model):
+        head = []
+    rungs = head + failover_rungs(task, titular=(url, model), disable_thinking=disable_thinking)
+    # Never return an EMPTY chain: with the local titular down and every fallback uncredentialed there is nothing
+    # to relay to, and handing back [] would make `chat_sync` report «0 rungs exhausted» — a true statement that
+    # hides the actual cause. Keeping the titular makes the real error (connection refused / model not found)
+    # reach the log and the ◉.
+    return rungs or [(url, model, key, disable_thinking)]
 
 
 def _note_relay(task: str, model: str, url: str, failures: list[str]) -> None:

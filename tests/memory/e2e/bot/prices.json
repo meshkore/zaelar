@@ -7,7 +7,8 @@
     "0.14 nativo -> 0.182 por AIMLAPI; haiku 1.00 -> 1.30; grok-4-fast 0.20 -> 0.21; gemini-2.5-flash 0.30 -> 0.30).",
     "El margen es común a todos los candidatos servidos por el broker, así que NO altera el RANKING; sí hay que",
     "sumarlo al coste absoluto de la nube, que es la que paga por AIMLAPI. Las claves son los nombres de",
-    "candidato de distiller_bench.py, no ids de modelo."
+    "candidato de distiller_bench.py, no ids de modelo.",
+    "Los candidatos @ollama valen 0/0: un modelo LOCAL no cuesta por token. Es un cero LEGÍTIMO (mismo criterio que la tarifa de transporte en energy_tariffs), no un precio sin medir — lo que cuesta un local se mide en latencia y en GPU compartida con STT/TTS, no en $."
   ],
   "gpt-4.1-mini@openai": [
     0.4,
@@ -120,5 +121,17 @@
   "gpt-4.1-mini": [
     0.4,
     1.6
+  ],
+  "qwen3.6-27b@ollama": [
+    0.0,
+    0.0
+  ],
+  "qwen2.5-7b@ollama": [
+    0.0,
+    0.0
+  ],
+  "qwen2.5-14b@ollama": [
+    0.0,
+    0.0
   ]
 }

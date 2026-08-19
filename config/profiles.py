@@ -29,8 +29,23 @@ _PROFILES: dict[str, dict] = {
         "voice": {"stt_provider": "whisper_local", "tts_provider": "kokoro_local"},
         "v2": {
             "fast": {"provider": "ollama", "model": "qwen2.5:14b-instruct", "base_url": "", "api_key": ""},
+            # ⚠️ `mem_processor_base_url` is NOT optional here, and its absence was a real latent bug until
+            # 2026-08-19: this profile set a LOCAL model name and left the endpoint untouched, so picking «Local»
+            # while the endpoint pointed at a cloud provider sent `qwen2.5:7b-instruct` to DeepSeek — HTTP 400 on
+            # every write, every turn silently on the lossy regex heuristic. A profile is a COORDINATED package;
+            # naming a model without its endpoint is the same "compatible in the protocol, not in the catalogue"
+            # trap the provider rule warns about.
+            #
+            # Ollama as the write titular is the operator's rule for a LOCAL install (2026-08-19), and it is safe to
+            # declare here even on a machine that has never pulled the model: `nucleo/memllm.local_titular_ready`
+            # steps over a local titular that is not answering, so the write lands on DeepSeek V4 Flash direct
+            # instead of on the heuristic. TRADE-OFF worth knowing before choosing this profile: a local distiller
+            # runs on the SAME GPU as local STT/TTS and has been measured to cut the voice (15-29 s) — which is why
+            # it is a profile the operator picks, never a default.
             "memory": {"embed_provider": "ollama", "embed_model": "embeddinggemma",
-                       "rerank_provider": "local", "mem_processor_model": "qwen2.5:7b-instruct"},
+                       "rerank_provider": "local",
+                       "mem_processor_model": "qwen2.5:7b-instruct",
+                       "mem_processor_base_url": "http://localhost:11434/v1"},
         },
         "engine_profile": "local",
     },
