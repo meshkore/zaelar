@@ -1394,6 +1394,14 @@ class TaskBrowser:
         try:
             if action == "navigate":
                 await self._goto(_normalize_url(str(args.get("url", ""))))
+                # V2-152: reaching a page is a MILESTONE by this module's own definition (what the task DID, not
+                # every click), and nothing in the worker-driven path ever appended one — `_automate` pushes the
+                # milestones and that is the built-in loop, not the path a Brain Worker drives. So `steps` was
+                # structurally 0 and `last_event` empty for the whole life of a worker task, and the brain had a
+                # step COUNT of zero to answer «¿cómo va?» with. `_goto` already captures the view on success, so
+                # `url` is not the gap here; the FEED is.
+                from . import tasks
+                tasks.milestone(self.task_id, f"🌐 abrió {page.url[:120]}")
                 return True, f"navegado a {page.url}"
             if action == "scroll":
                 try:

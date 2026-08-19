@@ -549,7 +549,15 @@ def live_state() -> str:
                         if _p.get("steps"):
                             _b += f", {_p['steps']} pasos dados"
                     else:
-                        _b += " — TODAVÍA NO HA ABIERTO NINGUNA PÁGINA"
+                        # V2-152: this used to read «TODAVÍA NO HA ABIERTO NINGUNA PÁGINA», stated as a fact
+                        # about the world. Measured on the run: the worker was on Booking.com with the hotel name
+                        # already typed while the brain reported to the operator that nothing had been opened —
+                        # and the operator, reasonably, killed a task that was progressing. An empty record is
+                        # the absence of a REPORT, not the absence of work: the record is only written when the
+                        # browser is driven through certain actions, and a worker that is planning, reading a
+                        # capture or thinking writes nothing at all. So say what is true — no news — and keep
+                        # V2-145's real guarantee, which was never the wording but the ban on inventing detail.
+                        _b += " — AÚN NO HA REPORTADO NINGÚN PASO (no sabes si está pensando o atascada)"
                     # V2-150: el ÚLTIMO HITO, no solo cuántos lleva. La corrida descubrió «Casa Lucio solo
                     # acepta reservas por teléfono» y el operador se enteró al final, cuando pidió pararlo:
                     # el hito estaba en la tarea desde el principio y al cerebro le llegaba un CONTADOR de
@@ -562,10 +570,12 @@ def live_state() -> str:
                 "búsqueda para esto mismo: esa tarea sigue viva y te dará el resultado sola. Si el operador "
                 "añade un matiz (precio, zona, «analízalas una por una»), reconócelo («sigo con ello, lo tengo "
                 "en cuenta») — NO escalas de nuevo. Solo hay UN navegador. "
-                "Lo que ves AQUÍ es TODO lo que sabes de ella: si sale que no ha abierto ninguna página, di eso "
-                "—que arrancó y aún no ha llegado a ningún sitio— y NO describas lo que estaría haciendo («está "
-                "en la página», «interactuando», «rellenando el formulario»). Los segundos que lleva NO son una "
-                "descripción de lo que hace.")
+                "Lo que ves AQUÍ es TODO lo que sabes de ella, y no saber NO es saber que no hace nada: si no "
+                "ha reportado ningún paso, di que aún no tienes novedades suyas —nunca que no ha hecho nada ni "
+                "que está atascada— y NO describas lo que estaría haciendo («está en la página», «interactuando», "
+                "«rellenando el formulario»). Los segundos que lleva NO son una descripción de lo que hace. "
+                "Y si el operador se plantea pararla, no le empujes a hacerlo por falta de novedades: dile que "
+                "sigue viva y que la falta de parte no significa que esté parada.")
         # V2-150 — una tarea que TERMINA desaparecía del estado, así que no quedaba ningún hecho diciendo que
         # había acabado, y menos aún que había acabado vacía. El informe decía `status=done url=` mientras el
         # turno decía «los procesos siguen en marcha, llevan casi 5 minutos». No es el modelo inventando por

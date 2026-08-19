@@ -74,11 +74,17 @@ def test_the_errand_gets_a_browser(text):
 
 
 def test_and_the_brain_cannot_narrate_a_browser_that_opened_nothing(fresh_db, monkeypatch):
-    """V2-145: «lleva unos 70 segundos localizando la farmacia» sobre una tarea con `url=` vacía."""
+    """V2-145: «lleva unos 70 segundos localizando la farmacia» sobre una tarea con `url=` vacía.
+
+    V2-152 cambió la FRASE, no la garantía: un registro vacío se dice como «aún no ha reportado» (que es
+    verdad sobre lo que sabemos) en vez de «no ha abierto ninguna página» (una afirmación sobre el mundo que
+    el registro no sostiene). Lo que este test protege —que no se narre lo que estaría haciendo— sigue igual.
+    """
     from widgets.navegador import tasks as nt
     monkeypatch.setattr(nt, "active_summaries", lambda limit=3: [("t9", "localizar la farmacia de Chamberí")])
     monkeypatch.setattr(nt, "active_progress",
                         lambda limit=3: [{"id": "t9", "goal": "x", "url": "", "phase": "", "steps": 0,
                                           "awaiting_login": False}])
     line = next(l for l in prompt.live_state().splitlines() if l.startswith("NAVEGADOR"))
-    assert "TODAVÍA NO HA ABIERTO NINGUNA PÁGINA" in line
+    assert "AÚN NO HA REPORTADO NINGÚN PASO" in line
+    assert "NO describas lo que estaría haciendo" in line

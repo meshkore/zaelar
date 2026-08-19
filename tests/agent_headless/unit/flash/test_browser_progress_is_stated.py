@@ -40,10 +40,26 @@ def one_browser_task(monkeypatch):
     return _install
 
 
-def test_a_browser_task_that_opened_nothing_says_so(one_browser_task):
+def test_a_browser_task_with_no_report_says_THAT_and_not_that_nothing_happened(one_browser_task):
+    """V2-152 corrects the wording V2-145 introduced here.
+
+    An empty record is the absence of a REPORT, not the absence of work: measured on the `book-hotel` run, the
+    worker was on Booking.com with the hotel name typed while this line told the operator nothing had been
+    opened — so he stopped a task that was progressing. Saying «no news» keeps the honesty V2-145 was after;
+    asserting «it has opened nothing» claims something about the world the record cannot support."""
     one_browser_task(url="", steps=0)
     line = _nav_line(prompt.live_state())
-    assert "TODAVÍA NO HA ABIERTO NINGUNA PÁGINA" in line
+    assert "AÚN NO HA REPORTADO NINGÚN PASO" in line
+    assert "NO HA ABIERTO NINGUNA PÁGINA" not in line
+
+
+def test_and_it_never_pushes_the_operator_to_stop_a_silent_task(one_browser_task):
+    """The measured harm was not the wording on its own: it was the abort it invited. «¿Paramos para revisar qué
+    está pasando?» came straight after «sigo sin novedades», and the operator said yes."""
+    one_browser_task(url="", steps=0)
+    line = _nav_line(prompt.live_state())
+    assert "sigue viva" in line
+    assert "no significa que esté parada" in line
 
 
 def test_a_browser_task_that_IS_working_says_where_and_how_far(one_browser_task):
@@ -51,7 +67,7 @@ def test_a_browser_task_that_IS_working_says_where_and_how_far(one_browser_task)
     line = _nav_line(prompt.live_state())
     assert "booking.com" in line
     assert "4 pasos dados" in line
-    assert "TODAVÍA NO HA ABIERTO" not in line
+    assert "AÚN NO HA REPORTADO" not in line
 
 
 def test_and_the_clock_is_not_a_description_of_what_it_is_doing(one_browser_task):
