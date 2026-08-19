@@ -1275,6 +1275,28 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **El turno corría con un tope que NO cabía la tool más importante del sistema** (`nucleo/flash/fast_client.py`,
+  V2-171, 2026-08-20). `_DEFAULT_MAX_TOKENS` era **200**. Un `escalate_to_slowbrain` bien escrito ocupa
+  **972-1408 caracteres de JSON él solo** —medido contra `deepseek-v4-pro`, y en esa corrida se truncó también a
+  400—, y ese mismo presupuesto tenía que dar además para la frase que zaelar dice en voz alta. El proveedor
+  cortaba con `finish_reason="length"`, los argumentos llegaban a medias, `json.loads` reventaba y el `except`
+  hacía **`continue`**: la acción desaparecía. **67 veces en 27 corridas medidas, 48 de ellas escaladas** que
+  por tanto nunca llegaron a un Brain Worker. Desde fuera se lee como que zaelar prometió y no hizo; desde un
+  log de conversación, como que mintió. No mintió — le tiraron la acción.
+  - **Subir el tope no cuesta latencia, y se midió ANTES de tocarlo** (que era lo que protegía el 200): un tope
+    es un TECHO, no un objetivo, así que el modelo para igual cuando termina. Tres corridas por brazo sobre el
+    mismo turno corto: `TTFT 0,99s / total 1,45s` a 200 contra `0,91s / 1,28s` a 1200, con la MISMA respuesta de
+    ~50 caracteres. Ahora 1200, ajustable por `FAST_MAX_TOKENS`.
+  - **`finish_reason` no se leía en NINGÚN sitio**, y es lo que hacía esto un misterio: desde dentro del bucle,
+    un corte por tope y un final limpio eran idénticos. Ahora va en las métricas de cada turno.
+  - **Un `continue` no es manejo de error.** Una acción descartada se registra en `dropped_tool_calls` con su
+    razón y emite evento de observabilidad — se ve en el timeline y en el Master. Subir el tope quita la CAUSA
+    medida, no la CLASE (cualquier modelo puede emitir JSON malo), y la diferencia entre un fallo y un misterio
+    es que se sepa.
+  - Verificado en vivo en un sandbox aislado con el encargo real del caso `cheapest-monitor`:
+    `action: escalate`, `request` de 330 caracteres, la tool dispara. Tests: 5 nuevos en
+    `tests/agent_headless/unit/flash/test_fast_client.py` (nodo 2.4).
+
 - **Una ruta de FastAPI no sabe qué función viene detrás del decorador** (`widgets/navegador/act_api.py`,
   V2-169, 2026-08-19). Un ayudante nuevo (`_with_wall`) quedó insertado ENTRE `@router.post("/api/navegador/act")`
   y `navegador_act`, así que se registró como endpoint el anotador: recibe un dict y lo devuelve igual, o sea

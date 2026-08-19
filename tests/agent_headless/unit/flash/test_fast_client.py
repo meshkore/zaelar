@@ -222,3 +222,96 @@ def test_spec_from_config_fallback_is_never_grok(monkeypatch):
     spec = fc.spec_from_config()
     assert "grok" not in spec.model.lower()
     assert spec.model == fc._FALLBACK_MODEL
+
+
+# ── V2-171: una acción descartada es un HECHO, no un `continue` ───────────────────────────────────────────
+#
+# Medido el 2026-08-20 contra el titular real (deepseek-v4-pro): el turno corría con `max_tokens=200`, y una
+# escalada bien escrita ocupa ~1000-1400 caracteres de JSON ella sola. El proveedor cortaba con
+# `finish_reason="length"`, los argumentos llegaban a medias, `json.loads` reventaba y el `except` hacía
+# `continue`. 67 acciones perdidas en 27 corridas, 48 de ellas escaladas que nunca llegaron a un Brain Worker.
+# Desde fuera se leía como que zaelar prometía y no hacía. No mentía: le tiraban la acción.
+def _chunk_fr(reason):
+    return SimpleNamespace(choices=[SimpleNamespace(delta=_delta(None, None), finish_reason=reason)])
+
+
+def test_the_cap_fits_the_most_important_tool_call():
+    """El tope tiene que caber una escalada COMPLETA. Medido: 972-1408 caracteres de JSON, más la frase que
+    zaelar dice en voz alta. Y subirlo no cuesta latencia —también medido, 3 corridas por brazo: TTFT 0,99s a
+    200 y 0,91s a 1200, con la MISMA respuesta— porque un tope es un techo, no un objetivo."""
+    from nucleo.flash import fast_client as fc
+
+    assert fc._DEFAULT_MAX_TOKENS >= 1000
+
+
+def test_the_stream_records_WHY_it_ended(monkeypatch):
+    """El dato que convertía esto en un misterio: sin `finish_reason`, un corte por tope y un final limpio son
+    indistinguibles desde dentro del bucle."""
+    rec, m = {}, {}
+    _patch_client(monkeypatch, [_chunk(content="ok"), _chunk_fr("length")], rec)
+
+    async def run():
+        async for _ in FastClient().stream([{"role": "user", "content": "x"}],
+                                           spec=ModelSpec(model="m", api_key="k"), metrics=m):
+            pass
+
+    asyncio.run(run())
+    assert m.get("finish_reason") == "length"
+
+
+def test_a_truncated_tool_call_leaves_a_trace_instead_of_vanishing(monkeypatch):
+    rec, m = {}, {}
+    chunks = [_chunk(tool_calls=[_tool_call(0, name="escalate_to_slowbrain", args='{"request": "busca un moni')]),
+              _chunk_fr("length")]
+    _patch_client(monkeypatch, chunks, rec)
+    fired = []
+
+    async def run():
+        async for _ in FastClient().stream([{"role": "user", "content": "x"}], spec=ModelSpec(model="m", api_key="k"),
+                                           tools=[{"type": "function"}], metrics=m,
+                                           on_tool_call=lambda n, a: fired.append(n)):
+            pass
+
+    asyncio.run(run())
+    assert fired == []                                   # sigue sin ejecutarse: los argumentos no son legibles
+    dropped = m.get("dropped_tool_calls") or []
+    assert len(dropped) == 1
+    assert dropped[0]["name"] == "escalate_to_slowbrain"
+    assert "tope" in dropped[0]["reason"]                 # y dice POR QUÉ, que es lo que faltaba
+
+
+def test_and_says_so_where_the_operator_can_see_it(monkeypatch):
+    """Mientras el fallo solo viviera en un `logger.warning`, ni el operador, ni el juez, ni el Master lo veían."""
+    from voice import observer
+
+    seen = []
+    monkeypatch.setattr(observer, "emit",
+                        lambda kind, label, **kw: seen.append((kind, label, kw.get("extra") or {})))
+    rec, m = {}, {}
+    _patch_client(monkeypatch, [_chunk(tool_calls=[_tool_call(0, name="show_widget", args='{"widget_id": "resu')])], rec)
+
+    async def run():
+        async for _ in FastClient().stream([{"role": "user", "content": "x"}], spec=ModelSpec(model="m", api_key="k"),
+                                           tools=[{"type": "function"}], metrics=m, on_tool_call=lambda n, a: None):
+            pass
+
+    asyncio.run(run())
+    assert any(extra.get("tool") == "show_widget" for _k, _l, extra in seen)
+
+
+def test_but_a_tool_call_that_parses_is_untouched(monkeypatch):
+    """La sensibilidad de todo lo anterior: sin esto, «reporta los descartes» y «reporta siempre» pasan igual."""
+    rec, m = {}, {}
+    chunks = [_chunk(tool_calls=[_tool_call(0, name="recall", args='{"query": "monitor"}')]), _chunk_fr("tool_calls")]
+    _patch_client(monkeypatch, chunks, rec)
+    fired = []
+
+    async def run():
+        async for _ in FastClient().stream([{"role": "user", "content": "x"}], spec=ModelSpec(model="m", api_key="k"),
+                                           tools=[{"type": "function"}], metrics=m,
+                                           on_tool_call=lambda n, a: fired.append((n, a))):
+            pass
+
+    asyncio.run(run())
+    assert fired == [("recall", {"query": "monitor"})]
+    assert not m.get("dropped_tool_calls")

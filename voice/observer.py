@@ -45,6 +45,13 @@ _CAT = {
     # programó» de «dijo que lo programaba» sin ir a la BD — que es exactamente el fallo que midió el caso de uso
     # `remember-and-remind-deadline`.
     "cron": "flash",
+    # `tool_dropped` (V2-171, 2026-08-20): the turn DECIDED an action and the system could not read the
+    # arguments — a truncated or malformed tool call. Family `flash` because the decision was the turn's; its
+    # own kind because it is the opposite of every other one here: the others record something that HAPPENED,
+    # and this records something that was supposed to and did not. It used to be a bare `continue` under a
+    # `logger.warning`, which is why 48 lost escalations went unnoticed for three days — from a conversation
+    # log it reads as the assistant having lied about work it never did.
+    "tool_dropped": "flash",
     # ── Brain Workers (ON) — el trabajo ASYNC: sesiones de worker, el Chromium interno que abren para navegar,
     # y los procesos backed/background que corren fuera del turno. El navegador va AQUÍ (2026-08-09): para el
     # operador «abrir el navegador» no es una familia propia, es lo que hace un worker cuando le hace falta.

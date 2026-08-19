@@ -28,7 +28,22 @@ from loguru import logger
 # UA de navegador: AIMLAPI está tras Cloudflare y 403ea el User-Agent por defecto del SDK OpenAI (403/1010
 # intermitente, visto en producción). Se falsea SOLO en el endpoint de AIMLAPI (sin efecto en Ollama/otros).
 _BROWSER_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
-_DEFAULT_MAX_TOKENS = 200
+# The turn's output ceiling. It was 200, and 200 does not FIT the most important tool call in the system:
+# `escalate_to_slowbrain` writes ~1000-1400 characters of JSON on its own, and the same budget has to also
+# cover the sentence zaelar says out loud. The provider cut the stream with `finish_reason="length"`, the
+# arguments arrived as half a JSON object, and the action was dropped — 67 times across 27 measured runs, 48 of
+# them escalations that therefore never reached a Brain Worker (V2-171).
+#
+# Raising it costs NOTHING on an ordinary turn, and that was measured before changing it rather than assumed —
+# a cap is a ceiling, not a target, so the model still stops when it is done (deepseek-v4-pro, 2026-08-20,
+# 3 runs each, same short conversational turn):
+#
+#     max_tokens=200   TTFT 0.99s   total 1.45s   55 chars
+#     max_tokens=1200  TTFT 0.91s   total 1.28s   49 chars
+#
+# So the old value protected no latency invariant that can be measured; it only truncated the turns that were
+# doing the most work. 1200 fits a full escalation with room for the spoken sentence.
+_DEFAULT_MAX_TOKENS = int(os.getenv("FAST_MAX_TOKENS", "1200"))
 
 # Reintento en TRANSITORIOS (2026-07-25): AIMLAPI va tras Cloudflare y da `Connection error`/403/5xx intermitentes.
 # Un blip PUNTUAL en la fase de conexión NO debe tirar el turno (síntoma real: el chat del operador quedaba sin
@@ -36,6 +51,33 @@ _DEFAULT_MAX_TOKENS = 200
 # seguro (no se re-emite nada ya enviado). Configurable `FAST_CONNECT_RETRIES` (def 2 reintentos).
 _CONNECT_RETRIES = int(os.getenv("FAST_CONNECT_RETRIES", "2"))
 _RETRY_BACKOFF_S = float(os.getenv("FAST_RETRY_BACKOFF_S", "0.4"))
+
+
+def _drop_tool_call(metrics: dict, name: str, raw_args: str) -> None:
+    """An action the model decided to take and the system could not read. Record it as a FACT.
+
+    It used to be a bare `continue` under a `logger.warning`, and that is why V2-171 was invisible for three
+    days: the user was told «te pongo con ello», nothing ran, and neither the operator, nor the judge, nor the
+    Master had any way to know. From a conversation log it reads as the assistant lying. It did not lie — its
+    action was thrown away.
+
+    Raising the cap (see `_DEFAULT_MAX_TOKENS`) removes the cause that was measured, but not the class: any
+    model can emit malformed JSON. What this guarantees is that when it happens the loss is KNOWN, which is
+    the whole difference between a bug and a mystery. Best-effort throughout — reporting a dropped action must
+    never be able to drop the turn as well.
+    """
+    reason = "cortada por el tope de tokens" if str(metrics.get("finish_reason") or "") == "length" \
+        else "argumentos ilegibles"
+    logger.warning(f"tool call {name} DESCARTADA ({reason}): {(raw_args or '')[:200]!r}")
+    dropped = metrics.setdefault("dropped_tool_calls", [])
+    dropped.append({"name": name, "reason": reason, "chars": len(raw_args or "")})
+    try:
+        from voice.observer import emit
+        emit("tool_dropped", "⚠️ acción descartada",
+             text=f"{name}: {reason}", extra={"tool": name, "reason": reason,
+                                              "finish_reason": metrics.get("finish_reason") or ""})
+    except Exception:
+        pass
 
 
 def _is_transient(e: Exception) -> bool:
@@ -567,6 +609,13 @@ class FastClient:
                     delta = chunk.choices[0].delta
                 except (IndexError, AttributeError):
                     continue
+                # WHY the stream ended, which nothing used to read. That is what turned a truncated tool call
+                # into a mystery: a clean finish and a hard cut looked identical from here, so the only trace
+                # left of a dropped action was a `logger.warning` in the process log. One line, and the failure
+                # is visible for good — in the metrics of every turn, not just when someone greps.
+                _fr = getattr(chunk.choices[0], "finish_reason", None)
+                if _fr:
+                    m["finish_reason"] = str(_fr)
                 # LATIDO DEL STREAM (2026-08-12) — el dato que faltaba, y costó turnos de verdad. Este generador solo
                 # YIELDEA cuando el chunk trae TEXTO: los chunks de una tool-call (que llegan con `content` vacío y
                 # los argumentos goteando en `tool_calls`) se consumen aquí dentro y no salen. Para quien nos
@@ -659,7 +708,7 @@ class FastClient:
                     try:
                         args = json.loads(call["arguments"] or "{}")
                     except Exception:
-                        logger.warning(f"tool call {call['name']} con argumentos no parseables: {call['arguments']!r}")
+                        _drop_tool_call(m, call["name"], call["arguments"])
                         continue
                     on_tool_call(call["name"], args if isinstance(args, dict) else {})
 
