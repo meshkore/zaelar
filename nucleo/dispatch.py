@@ -311,6 +311,26 @@ def _classify_kind(request: str) -> str:
             return "web"
     except Exception:
         pass
+    # …y una gestión de DINERO o de COMPROMISO ocurre en una WEB, aunque el proveedor no esté en ninguna lista
+    # (V2-148, 2026-08-19). Medido sobre las frases del propio caso: «paga la factura de la luz», «paga la
+    # factura de Endesa», «paga la factura de la luz en la web de Endesa» — las tres a `generic`, o sea un
+    # worker SIN navegador, incluso después de que el operador nombrara el proveedor y dijera dónde la paga.
+    #
+    # Lo había dejado abierto DOS veces (V2-141, V2-144) anotando que «el destino de un pago es la web del
+    # proveedor CONCRETO, no un sitio de confianza común, así que no es la misma solución que una categoría del
+    # catálogo». Era cierto y era la conclusión equivocada: no necesita entrada de catálogo NINGUNA, necesita
+    # NAVEGADOR — el destino es el proveedor que nombre el operador, y encontrarlo es trabajo del worker.
+    #
+    # Va DESPUÉS de las ramas anteriores para no pisarlas (un sitio nombrado o una categoría transaccional ya
+    # resolvieron), y el daño que repara no es «no paga» —imposible sin cuenta real, y el caso no lo penaliza—
+    # sino que sin navegador la tarea no puede llegar al muro de login: el sistema pierde la única respuesta
+    # honesta que tenía y el turno rellena el hueco narrando (el argumento de V2-126 para Netflix, otra vez).
+    try:
+        from nucleo.flash import router_guards as _rg_money
+        if _rg_money.money_work_needs_a_browser(r):
+            return "web"
+    except Exception:
+        pass
     # CÓDIGO de widget = CREAR (reusa la detección del router, verbo+nombre) o MODIFICAR-código, o architect.
     # NUNCA por mencionar «widget» a secas (V2-081): abrir/mostrar/gestionar uno existente NO es código.
     try:

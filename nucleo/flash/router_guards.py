@@ -352,6 +352,41 @@ def escalate_goal_from_window(window, current_text: str = "", max_back: int = 6)
 _SCREEN_TARGET_RE = _re.compile(r"\b(en pantalla|la pantalla|en el canvas|el widget|widget)\b", _re.I)
 
 
+_DATA_OP_RE = _re.compile(r"\b(de\s+(?:la\s+|mi\s+)?agenda|del\s+calendario|de\s+la\s+lista|"
+                          r"de\s+(?:la\s+|mis\s+)?tareas|from\s+(?:the\s+)?(?:agenda|calendar|list))\b", _re.I)
+
+
+def money_work_needs_a_browser(text: str) -> bool:
+    """A money / commitment errand that has to happen on a WEBSITE, so the worker must get a browser.
+
+    V2-148 — every payment classified `generic`, measured on the case's own sentences: «paga la factura de la
+    luz», «paga la factura de Endesa», «paga la factura de la luz en la web de Endesa» — all of them a worker
+    with NO browser, even after the operator named the provider and said where he pays it.
+
+    I had left this open TWICE (V2-141, V2-144) with the note «the destination of a payment is the provider's
+    specific site, not a common trusted one, so it is not the same solution as a catalog category». That was
+    right and it was also the wrong conclusion: it does not need a catalog entry AT ALL, it needs a BROWSER —
+    the destination is whatever provider the operator names, and finding it is the worker's job.
+
+    And the damage is not «it does not pay» (impossible without a real account, and the case does not penalise
+    it): without a browser the task cannot reach the login wall, so the system loses the only honest answer it
+    had — «llego al login de Endesa y necesito que entres tú» — and the turn fills the gap by narrating. That
+    is literally the argument V2-126 wrote down for Netflix and V2-138 repeated for the rest of the providers.
+
+    Carve-outs are the ones that already resolve inside the turn, plus a data-op on the operator's own lists:
+    «borra la factura de la agenda» carries a money word and is a widget mutation, not an errand.
+    """
+    if not _needs_real_work(text):
+        return False
+    try:
+        from nucleo import danger as _danger
+        if not (_danger.moves_money(text) or _danger.ends_a_commitment(text)):
+            return False           # a marketplace/report errand routes by its own branch, not through here
+    except Exception:
+        return False
+    return not _DATA_OP_RE.search(_norm_txt(text))
+
+
 def _needs_real_work(text: str) -> bool:
     """Does this request need a worker, i.e. something happening OUTSIDE the conversation?
 

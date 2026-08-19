@@ -117,6 +117,9 @@ DOMAINS: list[dict] = [
             # V2-147: preguntó EN QUÉ WEB teniendo el motor la respuesta — el catálogo de sitios llega
             # al worker y nunca ha estado a la vista del prompt que decide si preguntar.
             "tests/agent_headless/unit/flash/test_never_ask_which_website.py",
+            # V2-148: todo pago iba a un worker SIN navegador, así que la tarea no podía ni llegar al
+            # muro de login — el hueco que yo mismo había dejado abierto dos veces.
+            "tests/agent_headless/unit/flash/test_money_work_gets_a_browser.py",
             "tests/agent_headless/unit/test_skeleton.py", "tests/agent_headless/unit/test_sparks.py"]},
         {"id": "2.4", "title": "Cliente LLM rápido, reintento y RELEVO por latencia", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_fast_client.py", "tests/agent_headless/unit/flash/test_fast_client_retry.py",
