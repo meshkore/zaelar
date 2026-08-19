@@ -114,6 +114,9 @@ DOMAINS: list[dict] = [
             # V2-146: «te avisaré el miércoles» con scheduled_jobs vacío — el modelo prometía en prosa
             # y no emitía la tag; el backstop resuelve el día por posición y se niega si es ambiguo.
             "tests/agent_headless/unit/flash/test_promised_reminder_backstop.py",
+            # V2-147: preguntó EN QUÉ WEB teniendo el motor la respuesta — el catálogo de sitios llega
+            # al worker y nunca ha estado a la vista del prompt que decide si preguntar.
+            "tests/agent_headless/unit/flash/test_never_ask_which_website.py",
             "tests/agent_headless/unit/test_skeleton.py", "tests/agent_headless/unit/test_sparks.py"]},
         {"id": "2.4", "title": "Cliente LLM rápido, reintento y RELEVO por latencia", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_fast_client.py", "tests/agent_headless/unit/flash/test_fast_client_retry.py",

@@ -312,6 +312,15 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
         # que de verdad falta ahí es el BARRIO, y el operador lo dio en cuanto se lo pidieron.
         "Y pide solo lo que NO puedes averiguar (en qué barrio, qué día, qué prefiere): un teléfono, una "
         "dirección o una web se BUSCAN — pedírselos es bloquear la tarea por algo que está en tu mano. "
+        # V2-147 — turno 1 y otra vez el 8: «¿a qué web o plataforma quieres que entre?», con el operador
+        # habiendo contestado en el turno 2 «no tengo ninguna web favorita, busca donde haya opciones». Y el
+        # motor SÍ tenía la respuesta: el catálogo de sitios de confianza lleva una entrada por tipo de gestión
+        # (`nucleo/flash/site_catalog.py`) y se le entrega al worker con la tarea. Solo que el catálogo nunca ha
+        # estado a la vista de ESTE prompt, así que para el cerebro «en qué web» parecía un dato del operador.
+        # No se lista aquí a propósito: sería O(N) en cada turno (V2-085) y basta con que sepa que existe.
+        "En particular NO le preguntes EN QUÉ WEB: para reservar, comprar o gestionar ya tienes un sitio de "
+        "confianza por tipo de encargo, y quien lo abre es el worker. Si quieres, dile en cuál vas a mirar; "
+        "preguntárselo es devolverle una decisión que ya está tomada. "
         "NO NARRES trabajo que no está pasando: solo puedes decir que algo está en marcha si lo ves en tus TAREAS "
         "DE FONDO de más abajo, y solo con el detalle que ahí ponga. Sin tarea ahí, no hay nada corriendo. Si te "
         "falta un dato para arrancar (qué gimnasio, qué farmacia, qué cuenta), PÍDELO — preguntar es la respuesta "
