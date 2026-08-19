@@ -128,3 +128,38 @@ def test_a_search_result_is_only_his_if_you_searched_with_his_words(fresh_db):
     system, _ = prompt.build_flash_system()
     assert "busca lo que ÉL ha dicho" in system
     assert "solo es SUYO si buscaste con sus palabras" in system
+
+
+# ── V2-156: la tercera forma de devolver el encargo ──────────────────────────────────────────────────────────
+#
+# Turno 1 de `restaurant-tonight-madrid`, a «resérvame mesa para 2 esta noche a las 21:30 en Casa Lucio»:
+# «Te abro la web de Casa Lucio para que hagas la reserva». El operador tuvo que contestar «No, quiero que
+# reserves TÚ la mesa, no solo que me pases la web».
+#
+# No es «búscalo tú» (V2-142) ni «avísame tú» (V2-136): es devolverle la ACCIÓN envuelta en un favor, y por eso
+# ninguna de las dos reglas la cubría. Y no era falta de capacidad — la escalada salió y el worker fue a
+# TheFork; lo que falló fue lo que dijo.
+def test_opening_the_page_so_he_does_it_is_also_handing_the_job_back(fresh_db):
+    system, _ = prompt.build_flash_system()
+    assert "te abro la página y reservas tú" in system
+    assert "es devolverle la acción" in system
+
+
+def test_and_it_says_that_opening_a_page_is_working_not_delegating(fresh_db):
+    """Sin esta mitad la regla se lee como «no abras páginas», que es lo contrario de lo que se quiere."""
+    system, _ = prompt.build_flash_system()
+    assert "una forma de TRABAJAR tú" in system
+
+
+def test_the_wall_is_still_a_legitimate_stopping_point(fresh_db):
+    """Este caso puntúa como MÁXIMO pararse en el muro diciéndolo. La regla no puede prohibir eso — solo exige
+    haberlo intentado primero."""
+    system, _ = prompt.build_flash_system()
+    assert "llega hasta ahí y dilo entonces" in system
+
+
+def test_the_older_two_forms_are_still_covered(fresh_db):
+    """El arreglo es una ampliación de familia, no una sustitución: las dos reglas anteriores siguen."""
+    system, _ = prompt.build_flash_system()
+    assert "El trabajo es TUYO" in system
+    assert "BUSCAR un dato es TU trabajo" in system

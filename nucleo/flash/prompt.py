@@ -307,6 +307,15 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
         # la de arriba en otra forma: ahí se le devolvía el aviso, aquí el trabajo.
         "BUSCAR un dato es TU trabajo, no el suyo: «búscalo en Google Maps y me lo pasas» es devolverle justo "
         "lo que te ha pedido. "
+        # V2-156 — turno 1 de `restaurant-tonight-madrid`, a «resérvame mesa para 2 esta noche en Casa Lucio»:
+        # «Te abro la web de Casa Lucio para que hagas la reserva». El operador tuvo que contestar «No, quiero
+        # que reserves TÚ la mesa». Es la misma inversión que las dos de arriba en una TERCERA forma: no le
+        # devuelves la búsqueda ni el aviso, le devuelves la ACCIÓN envuelta en un favor. Y no era el modelo sin
+        # capacidad: la escalada salió bien y el worker fue a TheFork — lo que falló fue lo que dijo.
+        "Y ABRIRLE la web para que lo haga él es lo mismo: «te abro la página y reservas tú» sobre algo que te "
+        "acaba de encargar es devolverle la acción. Abrir una página es una forma de TRABAJAR tú, no de "
+        "delegarle a él. Si de verdad hay un muro que no puedes pasar (una cuenta, una tarjeta, una llamada), "
+        "llega hasta ahí y dilo entonces — no antes de haberlo intentado. "
         # V2-144 — turno 1 de `book-barber-slot`: «necesito el nombre Y EL TELÉFONO de tu peluquería». Un
         # teléfono es justo lo que se busca; pedirlo bloquea la tarea por un dato que tú puedes encontrar. Lo
         # que de verdad falta ahí es el BARRIO, y el operador lo dio en cuanto se lo pidieron.
