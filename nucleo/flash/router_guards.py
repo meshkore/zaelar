@@ -337,6 +337,38 @@ def promises_a_dated_reminder(reply: str, operator_text: str = "") -> str:
     return _sched.parse_when(n[m.end():]) or _sched.parse_when(operator_text)
 
 
+_CLAUSE_SPLIT_RE = _re.compile(r"[,;.!?\n]|\sy\s|\sand\s", _re.I)
+
+
+def create_widget_request(text: str) -> str:
+    """Just the CLAUSE of `text` that asks to build a widget, or "" if none does.
+
+    V2-155, measured on `three-tasks-at-once`: the backstop that adds a missing widget task appended the WHOLE
+    turn, and a turn that asks for three things carries the other two inside it. That mattered because the
+    request then went through `dispatch.find_duplicate`, whose STRONGEST signal is «same destination widget»:
+
+        _target_widget("…un informe sobre coches eléctricos… y móntame un widget de un juego…") -> 'results'
+        _target_widget("Elaborar un informe detallado sobre coches eléctricos para ciudad…")     -> 'results'
+        find_duplicate(whole turn, "code")  -> the REPORT's session       ← the game is swallowed
+        find_duplicate(just the game, "code") -> None                     ← it would have been created
+
+    So the third task was not lost by the model failing to ask for it: it was correctly detected, appended as a
+    sentence that says «informe» in it, and deduplicated against the report it was supposed to run alongside.
+
+    Splitting on clause separators and reusing `looks_like_create_widget` keeps this free of a second vocabulary
+    — the predicate that decides WHETHER a turn asks for a widget is the same one that decides WHICH part does.
+    Falls back to the whole text when no single clause matches but the text as a whole does, so a plain «móntame
+    un widget de X» (no separators) behaves exactly as before.
+    """
+    text = (text or "").strip()
+    if not text or not looks_like_create_widget(text):
+        return ""
+    for part in (p.strip(" ,;.!?") for p in _CLAUSE_SPLIT_RE.split(text)):
+        if part and looks_like_create_widget(part):
+            return part
+    return text
+
+
 def dated_reminder_backstop(reply: str, operator_text: str = "") -> dict | None:
     """The whole backstop decision in ONE place: what to schedule when the model promised a notice in prose.
 

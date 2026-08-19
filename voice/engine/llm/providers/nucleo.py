@@ -3056,12 +3056,17 @@ class NucleoLLMStream(llm.LLMStream):
             # (`_no_tool`): en cuanto escalaba otra cosa, la petición de widget se caía en silencio. Aquí se
             # cubre justo ese hueco, con el MISMO clasificador determinista y solo si ninguna de las peticiones
             # que van a salir es ya una de crear widget.
-            if (_router.looks_like_create_widget(text)
-                    and not any(_router.looks_like_create_widget(r)
-                                for r in [req, *escalate_req["more"]])):
-                escalate_req["more"].append(text)
+            # V2-155 (espejo del probe — cablear en AMBOS): se añade la CLÁUSULA que pide el widget, no el turno
+            # entero. Un turno que encarga tres cosas lleva las otras dos dentro, y con «informe» dentro el
+            # dedup le asigna el mismo widget destino que la tarea del informe y se la come por su señal más
+            # fuerte. Ver `router_guards.create_widget_request` para la medición.
+            _w_req = (_router.create_widget_request(text)
+                      if not any(_router.looks_like_create_widget(r)
+                                 for r in [req, *escalate_req["more"]]) else "")
+            if _w_req:
+                escalate_req["more"].append(_w_req)
                 emit("brain", "🏗️ crear-widget del mismo turno, sin lanzar → escalada añadida (backstop)",
-                     text=text[:120], role="system", extra={"cat": "flash"})
+                     text=_w_req[:120], role="system", extra={"cat": "flash"})
 
             _launched = list(_prev_pending) + [{"request": req}]
             for _extra_req in escalate_req["more"]:

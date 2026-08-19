@@ -825,11 +825,17 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 # Espejo del backstop del provider (impl PARALELA, cablear en AMBOS): si el turno pide CREAR
                 # un widget y ninguna de las peticiones que van a salir lo es, se añade. Medido en V2-118: cero
                 # tareas de kind `code` en 14 turnos pidiendo un juego.
+                # V2-155: lo que se añade es la CLÁUSULA que pide el widget, no el turno entero. Un turno que
+                # encarga tres cosas lleva las otras dos dentro, y el turno completo dice «informe», así que
+                # `find_duplicate` le daba destino `results` —el mismo que la tarea del informe— y se la comía
+                # por su señal más fuerte, la de mismo widget destino. La tercera tarea no se perdía por no
+                # detectarse: se detectaba y se deduplicaba contra la tarea con la que debía convivir.
                 try:
                     from nucleo.flash import router_guards as _rg_cw
-                    if (_rg_cw.looks_like_create_widget(operator_text)
-                            and not any(_rg_cw.looks_like_create_widget(r) for r in _reqs)):
-                        _reqs.append(operator_text)
+                    if not any(_rg_cw.looks_like_create_widget(r) for r in _reqs):
+                        _w_req = _rg_cw.create_widget_request(operator_text)
+                        if _w_req:
+                            _reqs.append(_w_req)
                 except Exception:
                     pass
                 # `operator_text`, no `text`: el turno lleva las notas [SISTEMA] pegadas delante y una tarea

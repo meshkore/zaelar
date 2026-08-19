@@ -73,3 +73,50 @@ def test_a_request_that_already_covers_the_widget_needs_no_backstop():
     """El backstop solo rellena un hueco: si el modelo YA pidió el widget, no se duplica."""
     assert router_guards.looks_like_create_widget("Monta un widget de un juego de plataformas") is True
     assert router_guards.looks_like_create_widget("Investiga coches eléctricos para ciudad") is False
+
+
+# ── V2-155: el backstop detectaba el widget y el DEDUP se lo comía ────────────────────────────────────────
+#
+# Ronda del 18:10 sobre `three-tasks-at-once`: `max_concurrent=2`, `distinct_kinds=['web']` — la tercera tarea
+# nunca existió, y zaelar acabó diciendo «no me consta que hayas pedido un juego». El backstop de V2-118 SÍ
+# disparaba (`looks_like_create_widget(_OPENING)` es True, arriba). Lo que hacía era añadir el TURNO ENTERO como
+# petición, y un turno que encarga tres cosas lleva las otras dos dentro: con «informe» en la frase,
+# `dispatch._target_widget` le da destino `results` —el mismo que la tarea del informe— y `find_duplicate` la
+# descarta por su señal MÁS FUERTE, la de mismo widget destino. Se detectaba y se deduplicaba contra la tarea
+# con la que tenía que convivir.
+_GOAL_INFORME = ("Elaborar un informe detallado sobre coches eléctricos para ciudad: autonomía, precio, "
+                 "tamaño compacto, facilidad de aparcamiento y carga.")
+
+
+class _Live:
+    def __init__(self, goal):
+        self.goal, self.status = goal, "running"
+
+
+def test_the_backstop_appends_only_the_clause_that_asks_for_the_widget():
+    got = router_guards.create_widget_request(_OPENING)
+    assert "Super Mario" in got
+    assert "informe" not in got.lower()
+    assert "monitor" not in got.lower()
+
+
+def test_and_that_is_what_stops_the_report_from_swallowing_it():
+    """La prueba de que el recorte no es cosmético: es exactamente lo que cambia el veredicto del dedup."""
+    from nucleo import dispatch
+    dispatch._SESSIONS.clear()
+    dispatch._SESSIONS["informe"] = _Live(_GOAL_INFORME)
+    try:
+        assert dispatch.find_duplicate(_OPENING, "code") == "informe"          # lo que corría antes
+        assert dispatch.find_duplicate(router_guards.create_widget_request(_OPENING), "code") is None
+    finally:
+        dispatch._SESSIONS.clear()
+
+
+def test_a_lone_widget_request_is_untouched():
+    """Sin separadores no hay nada que recortar: el comportamiento de siempre no cambia."""
+    assert router_guards.create_widget_request("móntame un widget de la bolsa") == "móntame un widget de la bolsa"
+
+
+def test_and_a_turn_that_asks_for_no_widget_yields_nothing():
+    assert router_guards.create_widget_request("búscame un monitor barato de segunda mano") == ""
+    assert router_guards.create_widget_request("") == ""
