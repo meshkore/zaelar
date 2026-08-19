@@ -1195,6 +1195,47 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   (modelo barato → top-3 + conclusión). **Anti-proliferación EN CÓDIGO**: 1 acción por turno · `automate_web` no
   llama a `browse_web` · `tasks.similar_active()` deduplica refinamientos del STT. **Tarjeta** vertical/redimensionable:
   mini-navegador + línea de FASE con spinner + feed de HITOS + resultados.
+- **El navegador es el ÚLTIMO recurso: primero se le pregunta a la RED** (`nucleo/mesh_agents.py` +
+  `nucleo/mesh_cli.py`, V2-167, 2026-08-19). Conducir un Chromium por una web de reservas es pelearse con las
+  defensas que esas webs despliegan justo contra eso: una corrida entera se quedó en el muro anti-bot de
+  Booking (`chal_t=`) y otra en el CAPTCHA de Google, y aun cuando funciona cuesta minutos de conversación. La
+  red MeshKore ya tiene agentes que sirven esos mismos dominios por HTTP. **Medido en vivo el 2026-08-19**
+  contra el oráculo público: `POST /v1/search` «hotel in Madrid» → `roomrover` (vivo, **gratis**), y un POST a
+  su endpoint con fechas explícitas → **10 propiedades reales con enlace de reserva en ~1 s**; «flight from
+  Madrid to Rome» → `aerocast` (gratis) → 10 vuelos con precio y compañía.
+  - **NO hay catálogo de agentes en ninguna parte, y es el requisito del operador**: nada en el código lista
+    proveedores. Se le pregunta al oráculo EN EL MOMENTO en que se planifica la tarea, y lo que esté vivo y
+    sea gratis ese día es lo que sale — dar de alta vuelos o entradas no exige tocar una línea. Lo que SÍ se
+    recuerda es la RUTA («para este tipo de encargo contestó este agente»), keyeada por el `intent` que
+    resuelve el propio oráculo y guardada en `sys_kv` con TTL: misma idea que la genética de
+    `nucleo/flash/site_catalog.py` para webs — el primer encargo de una clase paga el descubrimiento, los
+    siguientes van directos. Es una CACHÉ, caduca, y `find()` sigue estando ahí.
+  - **Solo agentes GRATIS, y se aplica en el código, no en un prompt** (`_is_free`). Un precio que no se puede
+    leer cuenta como NO gratis: saltarse un agente gratuito cuesta una vuelta al navegador, llamar a uno de
+    pago cuesta dinero que nadie autorizó. Un `402 Payment Required` se devuelve como HECHO al llamante —
+    nunca se paga, nunca se reintenta. Cuando los agentes de pago sean una decisión de producto, este es el
+    único sitio que cambia.
+  - **PREGUNTAR EN INGLÉS, aunque el operador hable español.** La doc del skill dice que se pase la frase del
+    operador verbatim porque el oráculo parsea mejor que nosotros; medido, eso solo es cierto en inglés:
+    «vuelo de Madrid a Roma» → intent `general`, **0 agentes**, mientras `"flight from Madrid to Rome"` →
+    `bookings.flights` → `aerocast`. Traducir dentro del módulo metería una llamada a un LLM en un paso de
+    descubrimiento que tiene que costar ~1 s, así que lo redacta el LLAMANTE: el Brain Worker ya es un modelo
+    escribiendo la petición, y el inglés no le cuesta nada.
+  - **Las FECHAS las resuelve el llamante.** Medido: pedido «esta noche» el 2026-08-19, el agente resolvió el
+    check-in al **año anterior** y devolvió cero resultados; con la fecha ISO explícita devolvió diez. Y hay
+    que COMPROBAR lo que vuelve: el emparejamiento falla en los bordes (una consulta de restaurante la
+    contesta un agente de hoteles), y un agente que contesta de otro dominio es una vuelta al navegador, no un
+    resultado.
+  - **Dos trampas heredadas de `integrations/openclaw-plugin` que ya estaban pagadas allí**: el campo de texto
+    libre que leen los agentes reales es **`prompt`**, no `query` (un `{"query": …}` impecable vuelve `400
+    missing_fields`; se mandan los dos); y de la ficha `/.well-known/agent.json` se toma **solo el PATH, jamás
+    el host** — un agente anuncia un hostname sin registro DNS mientras el origen que el oráculo verificó
+    sirve ese mismo path perfectamente, así que fiarse del host cambia un 404 por un fallo de red.
+  - **Cableado**: `hbmesh` es un puente más del worker (`_BRIDGES` de `claude_session`, que Grok hereda; Codex
+    tiene shell completo), y `dispatch_prompts._web_prompt` lo pone como **PASO 0**, antes de abrir nada. Todo
+    fail-open: red caída, sin agente o agente que no contesta degradan al navegador de siempre — hoy la red
+    cubre poco más que hoteles y vuelos, así que ese camino sigue siendo el habitual.
+
 - **navegador — AUTENTICACIÓN = abrir un navegador REAL** (INI-016, 2026-07-10): para usar la cuenta del operador
   (Wallapop, Google, LinkedIn…) **NO se heredan las cookies del Chrome del sistema** (cifradas por Keychain): se
   loguea UNA VEZ en NUESTRO perfil persistente y ya queda. Piezas (todo en `widgets/navegador/`):

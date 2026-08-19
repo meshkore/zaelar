@@ -143,6 +143,10 @@ DOMAINS: list[dict] = [
             # V2-152: a worker resolved its bridges against a HARDCODED localhost:43917 that nobody ever set,
             # so an engine on any other port spawned workers that drove a DIFFERENT engine.
             "tests/agent_headless/unit/test_worker_own_engine.py",
+            # V2-167: preguntar a la red MeshKore ANTES de abrir un navegador. Solo agentes GRATIS, un 402
+            # nunca se paga, el campo que leen los agentes es `prompt` (no `query`) y de su ficha se toma la
+            # RUTA pero jamás el host. Sin red: todo está fingido a propósito.
+            "tests/agent_headless/unit/test_mesh_agents.py",
             # V2-158: este fichero NUNCA estuvo en el testmap, así que `tests run all` no lo corría y sus
             # afirmaciones llevaban desde V2-132/V2-144/V2-148 contradiciendo el comportamiento buscado en
             # silencio. Un test que ninguna suite ejecuta es un test que deja de ser verdad sin avisar.

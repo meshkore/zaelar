@@ -292,6 +292,25 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None) -> str:
         "invocarlos falla con «invalid choice» y quema un turno entero sin avanzar. `extract` NO lleva texto "
         "de argumento (solo `--limit N` opcional) y `scroll` lleva un número de píxeles, nunca la palabra "
         "'down'/'up'. Usa la sintaxis exacta de arriba, no la que te parezca natural.\n\n"
+        # V2-167 · el navegador es el ÚLTIMO recurso, no el primero. Conducir un Chromium por una web de
+        # reservas es pelearse con las defensas que esas webs despliegan justo contra esto: una corrida entera
+        # se quedó en el muro anti-bot de Booking y otra en el CAPTCHA de Google. La red MeshKore tiene agentes
+        # que sirven esos mismos dominios por HTTP, gratis, en un segundo — medido: `roomrover` devuelve 10
+        # hoteles reales con enlace de reserva, `aerocast` 10 vuelos con precio. No hay catálogo de agentes en
+        # ninguna parte: se le pregunta al oráculo EN EL MOMENTO, y lo que esté vivo y sea gratis ese día es lo
+        # que sale.
+        f"PASO 0 — ANTES DE ABRIR EL NAVEGADOR, pregunta a la red si ya hay un agente que haga esto:\n"
+        f"   {py} -m nucleo.mesh_cli find \"<el encargo EN INGLÉS>\"\n"
+        f"   {py} -m nucleo.mesh_cli serve \"<encargo EN INGLÉS>\" --prompt \"<el encargo con FECHAS ABSOLUTAS>\"\n"
+        "   · EN INGLÉS aunque el operador hable español: está MEDIDO que «vuelo de Madrid a Roma» no encuentra "
+        "a nadie y \"flight from Madrid to Rome\" devuelve un agente gratis con diez vuelos reales.\n"
+        "   · FECHAS ABSOLUTAS (2026-09-10), nunca «esta noche»: el agente resolvió esa expresión al año pasado "
+        "y devolvió cero resultados; con la fecha explícita devolvió diez.\n"
+        "   · COMPRUEBA lo que vuelve: el emparejamiento falla en los bordes (una consulta de restaurante puede "
+        "contestarla un agente de hoteles). Si el dominio no encaja, es que no hay agente.\n"
+        "   · Si `ok:true` y los datos SIRVEN, esa es tu respuesta: no abras el navegador, entrega eso. Si dice "
+        "que no hay agente, o el resultado no vale, sigue con el método de abajo — es lo normal, la red cubre "
+        "hoy poco más que hoteles y vuelos.\n\n"
         "MÉTODO — como lo haría una persona competente; entiende la página y AVANZA (no des vueltas):\n"
         "1) MIRA con `look` (VISIÓN) antes de actuar: abre el PNG con Read y ubica los campos/botones por su posición "
         "en píxeles. La visión es tu camino PRINCIPAL para rellenar formularios, elegir en un calendario/desplegable "
@@ -320,7 +339,12 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None) -> str:
         +
         "4) SOLO te detienen dos cosas: un CAPTCHA o un LOGIN/pago que exija credenciales que no tienes. Todo lo demás "
         "(entender la página, aceptar cookies, elegir en un desplegable/calendario, rellenar y enviar) lo resuelves TÚ "
-        "con visión — no es excusa para parar. Si de verdad hay un captcha/login, repórtalo y pregunta cómo seguir.\n"
+        "con visión — no es excusa para parar. Un muro de verdad NO se reintenta: la respuesta de `nav_cli` trae "
+        "`wall` cuando la página te ha parado (verificación anti-robot, captcha, error de carga), y en cuanto lo "
+        "veas deja de darte contra él. Haz DOS cosas, en este orden: (a) vuelve al PASO 0 y prueba la red con ese "
+        "encargo —un agente de la red no tiene captcha—, y (b) si tampoco, PÁRATE y dilo: qué sitio te bloqueó, con "
+        "qué, y qué necesitas del operador (que entre él, o probar otro sitio). Insistir contra un muro es lo que "
+        "convirtió una corrida entera en once minutos sin nada que entregar.\n"
         "5) NO TE ATASQUES: si repites la misma acción sin avanzar 2-3 veces, cambia de estrategia (otra entrada, otro "
         "botón, `look` de nuevo por si la coordenada cambió). Nunca gires en bucle en silencio. Reporta tu fase en "
         "CADA cambio de etapa. Si te REANUDAN una tarea ya empezada, haz `look` primero para ver dónde te quedaste y "

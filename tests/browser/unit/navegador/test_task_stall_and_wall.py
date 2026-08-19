@@ -155,3 +155,63 @@ def test_but_a_task_that_is_simply_working_says_nothing_of_the_sort():
 def _live() -> str:
     from nucleo.flash import prompt as _p
     return _p.live_state()
+
+
+# ── el muro se VE en pantalla ─────────────────────────────────────────────────────────────────────────────
+#
+# Petición del operador (2026-08-19): «ya que tenemos un frontend gráfico… podríamos mostrar la imagen del
+# navegador en pantalla y decir "Booking me ha bloqueado" y poner una captura de lo que ha pasado y decirle
+# que tú ya no puedes seguir». Un campo que solo existe en el registro no es eso: la captura ya está en disco
+# desde el primer momento, lo que faltaba era decirlo y abrir la tarjeta que la enseña.
+def test_hitting_a_wall_says_it_in_the_feed():
+    tid = tasks.create("Reservar habitación")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url=BOOKING_WALL, page_title="Booking.com")
+    feed = [e["text"] for e in tasks.get(tid)["events"]]
+    assert any("no puedo seguir" in t for t in feed)
+    assert any("anti-robot" in t for t in feed)
+
+
+def test_and_the_spinner_stops():
+    """Una ruleta girando sobre una página bloqueada es la pantalla diciendo «trabajando» mientras no se
+    trabaja — justo la clase de estado que puede mentir."""
+    tid = tasks.create("Reservar habitación")
+    tasks.set_status(tid, "working")
+    tasks.set_phase(tid, "conduciendo el navegador", True)
+    tasks.update_view(tid, url=BOOKING_WALL)
+    assert tasks.get(tid)["phase_active"] is False
+    assert "anti-robot" in tasks.get(tid)["phase"]
+
+
+def test_and_the_card_is_opened_so_the_capture_can_be_seen():
+    from voice import observer
+    shown = []
+    _orig = observer.emit
+    observer.emit = lambda kind, label, **kw: (shown.append((kind, label, kw.get("extra") or {}))
+                                               if kind == "widget" else None)
+    try:
+        tid = tasks.create("Reservar habitación")
+        tasks.set_status(tid, "working")
+        tasks.update_view(tid, url=BOOKING_WALL)
+    finally:
+        observer.emit = _orig
+    assert any(lbl == "show" and extra.get("id") == tasks.inst_id(tid) for _k, lbl, extra in shown)
+
+
+def test_but_it_is_announced_ONCE_not_on_every_capture():
+    """El hotel hizo 13 revisiones de captura sobre la MISMA página del muro. Un aviso por captura sería la
+    tarjeta gritando trece veces lo mismo."""
+    tid = tasks.create("Reservar habitación")
+    tasks.set_status(tid, "working")
+    for rev in range(1, 14):
+        tasks.update_view(tid, url=BOOKING_WALL, shot_rev=rev)
+    assert len([e for e in tasks.get(tid)["events"] if "⛔" in e["text"]]) == 1
+
+
+def test_and_an_ordinary_page_announces_nothing():
+    tid = tasks.create("Reservar mesa")
+    tasks.set_status(tid, "working")
+    tasks.set_phase(tid, "conduciendo el navegador", True)
+    tasks.update_view(tid, url=REAL_PAGE)
+    assert tasks.get(tid)["events"] == []
+    assert tasks.get(tid)["phase_active"] is True

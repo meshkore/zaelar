@@ -45,7 +45,7 @@ _DEFAULT_TOOLS = ["Read"]
 # mayor parte de los 5 minutos de una búsqueda, no en buscar.
 _INTERPRETERS = ("python", "python3", ".venv/bin/python", ".venv/bin/python3",
                  os.path.join(_ZAELAR, ".venv", "bin", "python"))
-_BRIDGES = ("mem_cli", "agent_report", "nav_cli", "worker_bridge", "widget_cli")
+_BRIDGES = ("mem_cli", "agent_report", "nav_cli", "worker_bridge", "widget_cli", "mesh_cli")
 _BRIDGE_TOOLS = [f"Bash({py} -m nucleo.{mod}:*)" for mod in _BRIDGES for py in _INTERPRETERS]
 
 

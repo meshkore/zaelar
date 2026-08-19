@@ -494,8 +494,32 @@ def set_results(task_id: str, results) -> None:
     _notify(task_id)
 
 
+def _announce_wall(task_id: str, reason: str) -> None:
+    """A wall is not progress and it is not a phase: it is the end of what this task can do on its own.
+
+    So it is SAID in the three places the operator can see, instead of only being a field somebody might read
+    (V2-167, operator's request: «podríamos mostrar la imagen del navegador en pantalla y decir "Booking me ha
+    bloqueado" y poner una captura de lo que ha pasado y decirle que tú ya no puedes seguir»):
+
+      · a MILESTONE, which lands in the card's feed AND in the durable event registry, so it can be audited
+        later — a phase alone dies with the task;
+      · the PHASE, with the spinner OFF: a spinner on a blocked page is the screen saying «trabajando» while
+        nothing works, exactly the kind of state that can lie;
+      · and the card is OPENED, because the capture already on disk IS the evidence — the operator sees the
+        challenge page itself rather than being told about it.
+    """
+    milestone(task_id, f"⛔ {reason} — no puedo seguir yo solo desde aquí")
+    set_phase(task_id, reason, False)
+    try:
+        from voice.observer import emit
+        emit("widget", "show", extra={"id": inst_id(task_id), "src": f"wall:{task_id}"})
+    except Exception:
+        pass
+
+
 def update_view(task_id: str, url: str = "", page_title: str = "", shot_rev: int | None = None) -> None:
     """This task's browser changed view (new capture) → refresh its card."""
+    struck = ""
     with _lock:
         t = _tasks.get(task_id)
         if not t:
@@ -507,12 +531,16 @@ def update_view(task_id: str, url: str = "", page_title: str = "", shot_rev: int
             if url != t.get("url"):
                 t["last_progress"] = time.time()
             t["url"] = url
-            t["wall"] = wall_reason(url)
+            was, t["wall"] = (t.get("wall") or ""), wall_reason(url)
+            if t["wall"] and t["wall"] != was:
+                struck = t["wall"]
         if page_title:
             t["page_title"] = page_title
         if shot_rev is not None:
             t["shot_rev"] = shot_rev
     _notify(task_id)
+    if struck:
+        _announce_wall(task_id, struck)
 
 
 def ask(task_id: str, question: str) -> None:
