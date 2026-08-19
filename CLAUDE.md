@@ -749,15 +749,51 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   filtra jerga interna** en la voz (`dispatch._build_prompt`: nunca "píldora"/"memoria de largo plazo"/"base de
   datos") + ventana de dedup de tareas de navegador 45→90s. Todo del ciclo e2e; el motor con INPUT LIMPIO ya era
   coherente (el rojo de la batería era ruido de STT del tester + estado polucionado + rigidez del juez).
+- **ORDEN DE PROVEEDORES — DeepSeek V4 DIRECTO primero, luego el broker, y solo al final OpenAI/Anthropic**
+  (norma del operador, 2026-08-19). Para CUALQUIER pieza que llame a un LLM, el orden de preferencia es:
+  **(1) DeepSeek V4 directo de su proveedor** (`api.deepseek.com`, `DEEPSEEK_API_KEY`) — es la opción principal;
+  **(2) el broker AIMLAPI** como primer fallback; **(3) un modelo de OpenAI o Anthropic** como último recurso.
+  Deroga en su parte de ORDEN a la norma del 2026-08-09 («nada sale por OpenAI directo, todo por el broker»), que
+  sigue vigente en lo suyo: OpenAI/Anthropic no se llaman por su endpoint propio, se piden al broker — lo que
+  cambia es que ahora son el ÚLTIMO escalón, no el segundo. Estado a día de hoy, comprobado contra el código:
+  `fast` (voz) y `memory` (CORAZÓN + REM) y las tareas `turn_complete`/`directed` de `nucleo/memllm.py` van
+  DeepSeek directo; `susurro` (`openai/gpt-4.1-mini`), `i18n` (`anthropic/claude-haiku-4.5`) y el bucle del
+  navegador (`NAVEGADOR_AGENT_MODEL`) siguen en el tercer escalón **con una medición detrás que lo justifica**
+  (§12.5 para i18n: DeepSeek acierta pero razona 6-8× los tokens; el navegador necesita VISIÓN). Mover esos tres
+  no es aplicar la norma sino contradecir un banco: exige medir antes, no cambiar el default y ver qué pasa.
 - **Cerebro de voz = NO-razonador** (regla dura): un modelo de razonamiento añade segundos de "thinking" (5s+ TTFT)
   en el camino de tiempo real → zaelar se queda lento/mudo. El FlashBrain usa SOLO modelos rápidos no-razonadores; el
   razonamiento vive OFF del camino crítico, en el SlowBrain.
+- **ORDEN DE PROVEEDOR — DeepSeek V4 DIRECTO primero, broker después, OpenAI/Anthropic el último (NORMA del
+  operador, 2026-08-19).** Toda pieza que llame a un LLM resuelve su proveedor en este orden: **(1)
+  `api.deepseek.com` DIRECTO** (V4 pro/flash), **(2) el broker AIMLAPI**, **(3) un modelo de OpenAI o Anthropic**
+  como último recurso. Amplía la norma del 2026-08-09 («nada por OpenAI directo, todo por el broker»): esa fijaba
+  que no se abren cuentas por proveedor, esta fija **cuál manda cuando el mismo modelo se sirve por dos sitios**.
+  Los tres motivos están medidos y ya estaban en este fichero, cada uno en su decisión: el directo es **~30% más
+  barato** que el mismo modelo por el broker (§«el margen del BROKER no se cobraba»), el broker **acepta**
+  `thinking:disabled` y razona igual mientras el endpoint propio lo **obedece** (**TTFT p50 4,24 s → 1,01 s**,
+  V2-097), y el 2026-08-19 la cuenta del broker se quedó **sin fondos** (403 «You've run out of funds») dejando
+  muda a la vez a toda pieza que colgaba de él. Dos trampas al aplicarla, las dos ya pagadas aquí:
+  - **El NOMBRE del modelo cambia con el endpoint**: el broker lo prefija (`deepseek/deepseek-v4-pro`), la API
+    nativa no (`deepseek-v4-pro`). Mandar el del broker al directo devuelve 400 con la lista de aceptados — así
+    se desplegó roto el escalón DeepSeek de los workers (`model="sonnet"`), invisible porque un escalón de
+    relevo solo corre cuando el titular ya cayó. **Compatible en el PROTOCOLO no es compatible en el CATÁLOGO.**
+  - **El directo RAZONA por defecto y el razonamiento se cobra contra `max_tokens`**: medido, «Di solo OK» con
+    `max_tokens=8` gasta los 8 pensando y devuelve `content=""` con `finish_reason=length` — **respuesta vacía
+    sin ninguna excepción**. Quien llame al directo con un presupuesto ajustado necesita techo aparte para el
+    razonamiento (gratis si no se usa) y tratar el vacío como FALLO, no como respuesta.
 - **Routing de modelos — POR INVOCACIÓN** (`config/v2.py`, gestionado por la UI, persiste en `config/v2.json`):
   prioridad = **latencia** sin quedarnos sin inteligencia. Nunca una env global de modelo (concurrencia de sesiones):
   `config/v2.py` guarda los DEFAULTS y el cerebro los pasa en cada invocación. **Réplica visible al usuario
   (V2-077):** `config/model_benchmarks.py` + botón "¿por qué estos modelos?" en Config → Cerebro rápido — toda
   decisión de modelo nueva se documenta AQUÍ, en `zaelar-model-benchmarks.md` Y en ese módulo curado los tres.
-  - **FlashBrain** (sección `fast`): **producción actual = `anthropic/claude-haiku-4.5` vía AIMLAPI** (NO-razonador;
+  - **FlashBrain** (sección `fast`): **producción actual = `deepseek-v4-pro` DIRECTO** (`api.deepseek.com`,
+    NO-razonador con `thinking:disabled` OBEDECIDO — ver la norma de proveedores en «Hard rules» y el banco a
+    3 rondas de V2-097). El titular anterior era `deepseek/deepseek-v4-flash` vía AIMLAPI, y antes de ese
+    `anthropic/claude-haiku-4.5` por el mismo broker (V2-034, A/B de 2026-07-12) — los dos siguen siendo
+    opciones válidas del broker y ninguno es ya el defecto. ⚠️ Esta línea llevaba desde el 2026-08-02
+    diciendo Haiku mientras el propio documento explicaba, más abajo, que el titular era DeepSeek: si tocas
+    modelos, cambia LOS DOS sitios. (NO-razonador;
     `AIMLAPI_KEY` presente en el store `tester.env` + `.env`). El A/B de V2-034 lo eligió por **fiabilidad de
     routing/introspección**. ⚠️ AIMLAPI va tras Cloudflare y 403/blip-ea intermitente (el cliente spoofa User-Agent);
     un blip puntual puede marcar el ◉ `llm` en rojo hasta el siguiente turno OK (health self-clears). **`grok

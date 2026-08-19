@@ -31,6 +31,42 @@ DRIVE_MODEL = _env("USE_CASES_DRIVE_MODEL", "deepseek/deepseek-v4-pro")
 # The watchdog (mid-scenario off-track detector) can reuse DRIVE or run cheaper/faster — default same tier.
 WATCHDOG_MODEL = _env("USE_CASES_WATCHDOG_MODEL", DRIVE_MODEL)
 
+# ── Provider order (operator norm, 2026-08-19) ────────────────────────────────────────────────────────────
+# DeepSeek V4 DIRECT from its own provider is the PRIMARY option; the AIMLAPI broker is the fallback; an
+# OpenAI/Anthropic model is the last resort. Measured reasons this order is not arbitrary: direct is ~30%
+# cheaper than the same model through the broker, and the broker ACCEPTS `thinking:disabled` while still
+# reasoning (TTFT p50 4.24s vs 1.01s) — see the V2-097 entry in CLAUDE.md. The same day the broker also ran
+# out of funds mid-loop, which is the other half of why a chain beats a single endpoint.
+#
+# The model NAME differs per endpoint and that is the trap: the broker namespaces it (`deepseek/deepseek-v4-pro`)
+# and the native API does not (`deepseek-v4-pro`). Sending the broker's name to the direct endpoint gets a 400
+# listing the accepted names — exactly how the workers' DeepSeek tier shipped broken (`model="sonnet"`), which
+# nobody could see because a relay tier only runs once the titular is already down.
+DEEPSEEK_BASE = _env("TESTER_DEEPSEEK_BASE", "https://api.deepseek.com")
+
+
+def deepseek_key() -> str:
+    """The direct DeepSeek credential. Store first, env as the power-user fallback (repo convention)."""
+    k = _env("DEEPSEEK_API_KEY")
+    if k:
+        return k
+    try:
+        from config import credentials as _C
+        return (_C.get("DEEPSEEK_API_KEY") or "").strip()
+    except Exception:
+        return ""
+
+
+def native_model(model: str) -> str:
+    """Broker name → native name (`deepseek/deepseek-v4-pro` → `deepseek-v4-pro`)."""
+    return model.split("/", 1)[-1] if model else model
+
+
+# Last resort, only if BOTH DeepSeek endpoints are unreachable: an OpenAI/Anthropic model through the broker.
+# Cheap and non-reasoning on purpose — it exists so an unattended run degrades instead of dying, not to
+# produce comparable measurements (a round served by it gets stamped as not comparable).
+LAST_RESORT_MODEL = _env("USE_CASES_LAST_RESORT_MODEL", "anthropic/claude-haiku-4.5")
+
 RUNS_DIR = voice_config.ZAELAR_ROOT / "tests" / "runs" / "use_cases"
 
 # Loopback default: no ZAELAR_OBS_TOKEN needed when the tester runs on the same machine as the engine.
