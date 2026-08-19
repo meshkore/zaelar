@@ -155,13 +155,40 @@ def _render(led: dict) -> None:
         allsc = []
     if allsc:
         done = set(scen)
-        lines += [f"## Catalog coverage — {len(done)} of {len(allsc)} scenarios ever run "
-                  f"({len(allsc) - len(done)} never run)", "",
-                  "An unrun case is **not** a passing one. This is the walk's progress board.", "",
+        # SEGMENTATION FIRST. "13 of 125 ever run" invites the reading that the other 112 are pending work, and
+        # 78 of them cannot be run at all today — they need a credential the operator has to hand over, or a
+        # capability we have not built. Denominators that mix the two make the board look like a backlog when
+        # it is really three different asks (operator request, 2026-08-19).
+        try:
+            from . import segments as G
+        except Exception:
+            G = None
+        if G is not None:
+            lines += ["## Segments — what can be carried out END TO END today", "",
+                      "`✅ completable` = nothing missing, run it. `🔑 credentials` = the OPERATOR unblocks it "
+                      "(an account, a card, a phone, a real bill/flight/prescription to act on). "
+                      "`🚧 capability` = WE unblock it (sending on WhatsApp/Telegram, resolving a contact, "
+                      "placing a call, a peer agent to negotiate with) — no credential would help. "
+                      "Classification: `tests/use_cases/e2e/agent/segments.py`.", "",
+                      "| segment | scenarios | run | passing |", "|---|---|---|---|"]
+            for group, icon in ((G.COMPLETABLE, "✅"), (G.CREDENTIALS, "🔑"), (G.CAPABILITY, "🚧")):
+                ids = [s.id for s in allsc if G.group_of(s.id) == group]
+                ran = [i for i in ids if i in done]
+                ok = sum(1 for i in ran if scen[i].get("state") == "PASS")
+                lines.append(f"| {icon} {group} | {len(ids)} | {len(ran)} | {ok} |")
+            lines.append("")
+
+        runnable = [s for s in allsc if G is None or G.is_completable(s.id)]
+        ran_all = [s.id for s in runnable if s.id in done]
+        lines += [f"## Coverage of the RUNNABLE list — {len(ran_all)} of {len(runnable)} ever run "
+                  f"({len(runnable) - len(ran_all)} never run)", "",
+                  "An unrun case is **not** a passing one. This is the walk's progress board, and its "
+                  "denominator is the `completable` segment only — a blocked case is not pending work, it is "
+                  "waiting on something outside the harness.", "",
                   "| tier | locale | run | of | passing |", "|---|---|---|---|---|"]
-        keys = sorted({(s.tier, s.locale) for s in allsc})
+        keys = sorted({(s.tier, s.locale) for s in runnable})
         for tier, loc in keys:
-            group = [s.id for s in allsc if s.tier == tier and s.locale == loc]
+            group = [s.id for s in runnable if s.tier == tier and s.locale == loc]
             ran = [sid for sid in group if sid in done]
             ok = sum(1 for sid in ran if scen[sid].get("state") == "PASS")
             lines.append(f"| {tier} | {loc} | {len(ran)} | {len(group)} | {ok} |")

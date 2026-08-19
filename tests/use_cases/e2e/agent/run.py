@@ -311,6 +311,9 @@ def run(args: argparse.Namespace) -> int:
         chosen = [s for s in chosen if s.tier in args.tier]
     if args.locale:
         chosen = [s for s in chosen if s.locale == args.locale]
+    if args.segment:
+        from . import segments as G
+        chosen = [s for s in chosen if G.group_of(s.id) == args.segment]
     if args.limit:
         chosen = chosen[:args.limit]
     if args.start_at:
@@ -404,6 +407,9 @@ def main() -> None:
                          "never touches the operator's memory, widgets or running tasks")
     ap.add_argument("--tier", type=int, nargs="*", help="only these difficulty tiers (e.g. --tier 1 2)")
     ap.add_argument("--locale", choices=["es", "us"], help="only this locale")
+    ap.add_argument("--segment", choices=["completable", "credentials", "capability"],
+                    help="only cases in this segment (see segments.py). `completable` is the list that can be "
+                         "carried out end to end today — the default batch to run")
     ap.add_argument("--limit", type=int, help="stop after N scenarios (walk the catalog in batches)")
     ap.add_argument("--start-at", help="skip ahead to this scenario id, then continue in order")
     ap.add_argument("--list", action="store_true", help="print the selectable scenarios and exit")
@@ -414,9 +420,26 @@ def main() -> None:
                     help="do NOT open a MeshKore initiative/task for a failure (measure only)")
     args = ap.parse_args()
     if args.list:
-        for s in SC.all_scenarios():
-            hand = " (hand-written)" if s.id in {x.id for x in SC.SCENARIOS} else ""
-            print(f"{s.tier}  {s.locale}  {s.id}{hand}")
+        # HONOURS the filters. It used to dump the whole catalog whatever was asked, which made
+        # `--segment completable --list` print the blocked cases too — a listing that contradicts the run it is
+        # supposed to preview is worse than no listing.
+        from . import segments as G
+        rows = SC.all_scenarios()
+        if args.segment:
+            rows = [s for s in rows if G.group_of(s.id) == args.segment]
+        if args.tier:
+            rows = [s for s in rows if s.tier in args.tier]
+        if args.locale:
+            rows = [s for s in rows if s.locale == args.locale]
+        hand_ids = {x.id for x in SC.SCENARIOS}
+        for s in sorted(rows, key=lambda x: (x.tier, x.locale, x.id)):
+            seg = G.segment_of(s.id)
+            mark = {G.COMPLETABLE: "✅", G.CREDENTIALS: "🔑", G.CAPABILITY: "🚧"}.get(seg.group if seg else "", "❓")
+            hand = " (hand-written)" if s.id in hand_ids else ""
+            why = f"  ← {seg.missing}" if seg and seg.missing else ""
+            print(f"{mark} t{s.tier}  {s.locale}  {s.id}{hand}{why}")
+        print(f"\n{len(rows)} de {len(SC.all_scenarios())} escenarios"
+              + (f" · segmento {args.segment}" if args.segment else ""))
         sys.exit(0)
     sys.exit(run(args))
 

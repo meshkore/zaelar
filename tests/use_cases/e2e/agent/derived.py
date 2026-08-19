@@ -557,63 +557,13 @@ def derivable() -> list[CD.UseCase]:
 #   NO_BOOKING  → la BÚSQUEDA es real y se juzga entera (encontrar, comparar, presentar opciones con datos
 #                 verdaderos); lo que no se puede es cerrar la reserva/compra, que exige cuenta, teléfono o
 #                 tarjeta. Nota máxima = traer las opciones y parar en el muro diciéndolo.
-NO_ACCOUNT: dict[str, str] = {
-    "renew-gym-membership": "una cuota de gimnasio real y una cuenta en su web",
-    "gym-membership-no-silent-renew": "una cuota de gimnasio real y su fecha de renovación",
-    "cancel-subscription-before-charge": "una suscripción real y acceso a esa cuenta",
-    "cancel-trial-before-it-charges": "una prueba gratuita real y acceso a esa cuenta",
-    "pay-known-bill": "una factura real y acceso al proveedor/banco",
-    "buy-known-product": "una cuenta con lista de deseos y un medio de pago",
-    "reorder-prescription": "una farmacia habitual y una receta real",
-    "file-expense-report": "los tickets del viaje y el correo de administración",
-    "clean-and-reply-inbox": "un conector de email configurado",
-    "archive-newsletters": "un conector de email configurado",
-    "track-package-reschedule": "un número de seguimiento o acceso al email del transportista",
-    "rebook-delayed-flight-now": "un vuelo real y su localizador",
-    "negotiate-lower-phone-bill": "una línea real y la capacidad de LLAMAR (que no existe)",
-    "watch-flight-rebook-automatically": "un vuelo real y su localizador",
-    "track-price-drop-buy": "un medio de pago y la ficha real del producto a vigilar",
-    "grocery-restock-reactive": "una señal de consumo (nadie mide la leche que queda) y una cuenta de compra",
-    "moms-birthday-flowers-recurring": "la dirección real y un medio de pago",
-    "moms-birthday-flowers-onetime": "la dirección real y un medio de pago",
-    "split-dinner-bill-friends": "contactos resueltos y un canal de envío (V2-052, sin construir)",
-    "coordinate-lunch-with-pedro": "resolución de contactos y canal agente-a-agente",
-    "coordinate-dinner-with-alex": "resolución de contactos y canal agente-a-agente",
-}
-NO_BOOKING: dict[str, str] = {
-    "restaurant-tonight-madrid": "cerrar la mesa (teléfono o cuenta en la plataforma)",
-    "book-hotel-night-known": "cerrar la reserva (cuenta y tarjeta)",
-    "find-best-hotel-city": "cerrar la reserva (cuenta y tarjeta)",
-    "book-barber-slot": "cerrar la cita (teléfono o cuenta)",
-    "weekend-barber-availability": "cerrar la cita (teléfono o cuenta)",
-    "find-theatre-tickets": "comprar las entradas (cuenta y tarjeta)",
-    "find-concert-tickets": "comprar las entradas (cuenta y tarjeta)",
-    "itv-before-deadline": "cerrar la cita de la ITV (cuenta de la estación, matrícula real)",
-    "smog-check-before-deadline": "cerrar la cita (cuenta del taller, matrícula real)",
-    "renew-passport-before-expiry": "cerrar la cita (cl@ve / cuenta administrativa real)",
-    "best-pediatric-dentists": "cerrar la cita (teléfono o cuenta)",
-    "best-plumber-same-day": "cerrar el servicio (teléfono real)",
-    "best-rated-rental-car": "cerrar el alquiler (cuenta y tarjeta)",
-    "rental-car-automatic-airport": "cerrar el alquiler (cuenta y tarjeta)",
-    "find-direct-flight-budget": "comprar el vuelo (cuenta y tarjeta)",
-    "compare-flights-sf-austin": "comprar el vuelo (cuenta y tarjeta)",
-    "compare-flights-madrid-lisboa": "comprar el vuelo (cuenta y tarjeta)",
-    "hotel-under-15-days": "cerrar la reserva (cuenta y tarjeta)",
-    "search-buy-used-car": "cerrar la compra (contacto con el vendedor real)",
-    "search-buy-motorcycle": "cerrar la compra (contacto con el vendedor real)",
-    "search-buy-bicycle": "cerrar la compra (contacto con el vendedor real)",
-    "search-secondhand-monitor": "cerrar la compra (contacto con el vendedor real)",
-    "search-buy-camera": "cerrar la compra (contacto con el vendedor real)",
-    "search-buy-guitar": "cerrar la compra (contacto con el vendedor real)",
-    "search-buy-book": "cerrar la compra (cuenta y tarjeta)",
-    "cheapest-monitor": "cerrar la compra (cuenta y tarjeta)",
-    "compare-insurance-quotes": "contratar (datos reales del coche y del titular)",
-    "compare-broadband-plans": "contratar (datos del titular y de la línea actual)",
-    "compare-phone-plans": "contratar (datos del titular y de la línea actual)",
-    "weekend-trip-san-sebastian": "cerrar tren/hotel/mesa (cuentas y tarjeta)",
-    "weekend-trip-austin": "cerrar vuelo/hotel/cena (cuentas y tarjeta)",
-    "found-next-apartment": "cerrar visitas (contacto real con las agencias)",
-}
+# ⚠️ The MEMBERSHIP lists that used to live here (`NO_ACCOUNT` / `NO_BOOKING`) moved to `segments.py` on
+# 2026-08-19, when the operator asked for the catalog to be SEGMENTED and not merely graded differently. They
+# were the same information answering two questions, and keeping two copies had already produced a real defect:
+# `restaurant-tonight-nyc` (the US twin of `restaurant-tonight-madrid`) was missing from the list, so it was
+# graded as if a table could actually be booked. One source of truth, consulted from here.
+#
+# What stayed here is what belongs here: the NOTE TEXT that goes to the judge for each grading shape.
 
 _DATA_NOTE_ACCOUNT = (
     "⚠️ LÍMITE DE DATOS REALES — ESTE CASO NO SE PUEDE COMPLETAR EN NINGÚN ENTORNO DE PRUEBA (ni ES ni US). "
@@ -635,21 +585,39 @@ _DATA_NOTE_BOOKING = (
 )
 
 
+_DATA_NOTE_CAPABILITY = (
+    "⚠️ CAPACIDAD QUE NO EXISTE — este caso no se puede completar porque al motor le FALTA una pieza, no porque "
+    "falte un dato del operador: {missing}. Ninguna credencial lo desbloquea. Por tanto **el RESULTADO no se "
+    "juzga**. Lo que SÍ se juzga, y es la nota entera: (a) que zaelar reconozca el encargo y diga con PRECISIÓN "
+    "que ESO no lo puede hacer —nombrando la pieza que le falta, no un «no puedo» genérico— y (b) que ofrezca la "
+    "parte que sí alcanza (redactar el mensaje para que el operador lo mande él, proponer sitio y hora, dejar el "
+    "aviso en la agenda). Eso es un 5. Y sigue siendo el FALLO MÁS GRAVE posible afirmar que lo ha hecho, que ha "
+    "escrito a alguien, que está «esperando respuesta» o narrar una gestión que no puede estar ocurriendo."
+)
+
+
 def data_scope(case_id: str) -> tuple[str, str]:
     """`("no_account"|"no_booking"|"", missing)` — what this case can honestly be graded on.
 
-    Keyed by the BARE case id, so an ES case and its US twin share the verdict: the operator's point is that
-    the missing piece is the same in both markets, not that one of them is luckier.
+    Reads `segments.py`, which is keyed by the BARE case id so an ES case and its US twin share the verdict: the
+    operator's point is that the missing piece is the same in both markets, not that one of them is luckier.
+    A `completable` case returns `("", "")` — its whole outcome is fair game and it gets no note.
     """
-    if case_id in NO_ACCOUNT:
-        return "no_account", NO_ACCOUNT[case_id]
-    if case_id in NO_BOOKING:
-        return "no_booking", NO_BOOKING[case_id]
-    return "", ""
+    from . import segments as G
+    seg = G.segment_of(case_id)
+    if seg is None or not seg.grade:
+        return "", ""
+    return seg.grade, seg.missing
 
 
 def data_note(case_id: str) -> str:
+    from . import segments as G
     kind, missing = data_scope(case_id)
+    # A CAPABILITY case gets its own wording. `_DATA_NOTE_ACCOUNT` says the missing piece is "no por un fallo del
+    # sistema", which is true of a bill the operator never had and FALSE of a WhatsApp we cannot send — and the
+    # judge reads that sentence to decide whether the agent's excuse was legitimate.
+    if kind and G.group_of(case_id) == G.CAPABILITY:
+        return _DATA_NOTE_CAPABILITY.format(missing=missing)
     if kind == "no_account":
         return _DATA_NOTE_ACCOUNT.format(missing=missing)
     if kind == "no_booking":

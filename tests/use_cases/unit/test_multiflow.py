@@ -426,16 +426,26 @@ def test_the_confound_never_rewrites_the_verdict_into_INFRA():
 
 def test_the_board_shows_how_much_of_the_catalog_is_still_UNRUN(tmp_path, monkeypatch):
     """An unrun case is not a passing one. Without the denominator, "1 passing · 4 failing" reads like the
-    whole answer to "which use cases work?" while 114 cases nobody has run go unmentioned."""
+    whole answer to "which use cases work?" while 100+ cases nobody has run go unmentioned.
+
+    Two denominators, and the distinction is the point (operator, 2026-08-19): the SEGMENT table says how many
+    cases exist at all per group, and the progress board counts only the `completable` ones — a case blocked on
+    a credential is not pending work, so putting it in the progress denominator makes the walk look permanently
+    unfinished.
+    """
     monkeypatch.setattr(status, "LEDGER_PATH", tmp_path / "status.json")
     monkeypatch.setattr(status, "BOARD_PATH", tmp_path / "STATUS.md")
     status.record([{"scenario": "restaurant-tonight-madrid", "tier": 1,
                     "verdict": {"overall": 5, "scores": {}, "veredicto": "ok"},
                     "run": {"mechanism_report": {}}}], sandboxed=True)
     board = (tmp_path / "STATUS.md").read_text(encoding="utf-8")
-    assert "Catalog coverage — 1 of" in board
+    assert "| segment | scenarios | run | passing |" in board
+    assert "completable" in board and "credentials" in board and "capability" in board
+    assert "Coverage of the RUNNABLE list —" in board
     assert "never run)" in board
     assert "| tier | locale | run | of | passing |" in board
+    # The case recorded here is a `credentials` one, so it must NOT count towards the runnable progress board.
+    assert "Coverage of the RUNNABLE list — 0 of" in board
 
 
 def test_the_board_names_the_workspace_of_each_failing_case(tmp_path, monkeypatch):
@@ -610,14 +620,37 @@ def test_a_bookable_case_still_gets_its_SEARCH_half_graded_in_full():
 
 
 def test_the_limit_is_the_same_in_both_markets():
-    """Keyed by the BARE case id on purpose: the operator's point is that the missing piece is identical in ES
-    and US ("ni en España ni en Estados Unidos"), not that one market is luckier."""
-    from tests.use_cases.e2e.agent import derived as D
+    """Every ES/US pair must be graded on the same bar: the operator's point is that the missing piece is
+    identical in both markets ("ni en España ni en Estados Unidos"), not that one of them is luckier.
+
+    Checked over the WHOLE catalog rather than one hand-picked pair — which is what a single example missed:
+    `restaurant-tonight-madrid` carried the real-data limit and its twin `restaurant-tonight-nyc` did not, for
+    months, because the twin's bare id is different and nobody had listed it. An example passes while the
+    invariant is broken; a sweep cannot.
+    """
     from tests.use_cases.e2e.agent import scenarios as SC
-    es = next(s for s in SC.all_scenarios() if s.id == "search-secondhand-monitor__es")
-    us = next(s for s in SC.all_scenarios() if s.id == "search-secondhand-monitor__us")
-    assert "LÍMITE DE DATOS REALES" in es.success_checks
-    assert "LÍMITE DE DATOS REALES" in us.success_checks
+    from tests.use_cases.e2e.agent import segments as G
+    scenarios = SC.all_scenarios()
+    by_bare = {}
+    for scn in scenarios:
+        by_bare.setdefault(G.bare(scn.id), []).append(scn)
+    for bare, group in by_bare.items():
+        if len(group) < 2:
+            continue
+        limited = {("LÍMITE DE DATOS REALES" in s.success_checks
+                    or "CAPACIDAD QUE NO EXISTE" in s.success_checks) for s in group}
+        assert len(limited) == 1, f"{bare}: las variantes de mercado no llevan el mismo límite"
+
+    # And the pairs that are twins by MEANING but not by id — the exact hole the sweep above cannot see,
+    # because their bare ids differ. Listed explicitly so adding a third market forces a decision here.
+    for a, b in (("restaurant-tonight-madrid", "restaurant-tonight-nyc"),
+                 ("itv-before-deadline", "smog-check-before-deadline"),
+                 ("coordinate-lunch-with-pedro", "coordinate-dinner-with-alex"),
+                 ("confirm-restaurant-reservation-together", "confirm-restaurant-together"),
+                 ("reschedule-meetup-conflict", "resolve-meetup-conflict"),
+                 ("split-airbnb-with-marta", "split-airbnb-with-jordan"),
+                 ("coordinate-lunch-whatsapp", "coordinate-dinner-whatsapp")):
+        assert G.group_of(a) == G.group_of(b), f"{a} y {b} son el mismo caso en otro mercado"
 
 
 def test_a_case_that_needs_nothing_real_carries_no_limit():

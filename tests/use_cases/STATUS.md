@@ -27,26 +27,28 @@ the operator's live one.
 
 **2 passing · 7 failing · 4 infra** of 13 scenarios with a recorded result.
 
-## Catalog coverage — 13 of 125 scenarios ever run (112 never run)
+## Segments — what can be carried out END TO END today
 
-An unrun case is **not** a passing one. This is the walk's progress board.
+`✅ completable` = nothing missing, run it. `🔑 credentials` = the OPERATOR unblocks it (an account, a card, a phone, a real bill/flight/prescription to act on). `🚧 capability` = WE unblock it (sending on WhatsApp/Telegram, resolving a contact, placing a call, a peer agent to negotiate with) — no credential would help. Classification: `tests/use_cases/e2e/agent/segments.py`.
+
+| segment | scenarios | run | passing |
+|---|---|---|---|
+| ✅ completable | 47 | 4 | 1 |
+| 🔑 credentials | 54 | 9 | 1 |
+| 🚧 capability | 24 | 0 | 0 |
+
+## Coverage of the RUNNABLE list — 4 of 47 ever run (43 never run)
+
+An unrun case is **not** a passing one. This is the walk's progress board, and its denominator is the `completable` segment only — a blocked case is not pending work, it is waiting on something outside the harness.
 
 | tier | locale | run | of | passing |
 |---|---|---|---|---|
-| 1 | es | 12 | 12 | 2 |
-| 1 | us | 0 | 9 | 0 |
-| 2 | es | 0 | 22 | 0 |
-| 2 | us | 0 | 21 | 0 |
-| 3 | es | 0 | 10 | 0 |
-| 3 | us | 0 | 8 | 0 |
-| 4 | es | 1 | 7 | 0 |
-| 4 | us | 0 | 6 | 0 |
-| 5 | es | 0 | 6 | 0 |
-| 5 | us | 0 | 6 | 0 |
-| 6 | es | 0 | 5 | 0 |
-| 6 | us | 0 | 5 | 0 |
-| 7 | es | 0 | 4 | 0 |
-| 7 | us | 0 | 4 | 0 |
+| 1 | es | 3 | 3 | 1 |
+| 2 | es | 0 | 19 | 0 |
+| 2 | us | 0 | 18 | 0 |
+| 3 | es | 0 | 4 | 0 |
+| 3 | us | 0 | 2 | 0 |
+| 4 | es | 1 | 1 | 0 |
 
 ## Cases with no real data behind them — what they are graded on
 
