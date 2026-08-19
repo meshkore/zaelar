@@ -80,5 +80,30 @@ def test_a_limit_you_admitted_stays_admitted(fresh_db):
     """Three times in one conversation: «no tengo acceso a tu email» (turn 6) and two turns later «voy a buscar
     tu factura de Endesa en tu email». The operator had to correct it both times."""
     system, _ = prompt.build_flash_system()
-    assert "un LÍMITE que hayas reconocido sigue en pie" in system
+    assert "tampoco caduca" in system
     assert "me paro en el login, entra tú" in system
+
+
+def test_but_the_wall_does_not_wait_to_be_admitted_first(fresh_db):
+    """V2-154 — the V2-148 wording made the wall conditional on having ADMITTED it, and that is exactly the gap
+    the next run fell through: zaelar admitted it had no access to the email, said NOTHING about the provider's
+    account, and two turns later announced «abro tu cuenta de Endesa y busco la factura de este mes». A wall
+    does not come into being because you mentioned it.
+
+    It lives here rather than in `site_catalog` on purpose: the five transactional categories each declare their
+    own closing wall, but a PAYMENT has no catalog entry at all — V2-148 decided a payment needs a BROWSER, not
+    a category, since the destination is whatever provider the operator names."""
+    system, _ = prompt.build_flash_system()
+    assert "NO la tienes NUNCA" in system
+    assert "la hayas mencionado antes o no" in system
+    # The honest offer has to be spelled out, or «I can't» is all that is left — and this case scores that as a
+    # failure to say WHAT is missing.
+    assert "entra tú y sigo" in system
+
+
+def test_and_it_names_the_kinds_of_account_it_never_has(fresh_db):
+    """«su banco» alone would leave the provider's own site looking like fair game, which is the site this case
+    is about."""
+    system, _ = prompt.build_flash_system()
+    for kind in ("su banco", "su proveedor", "su tienda", "su correo"):
+        assert kind in system, kind

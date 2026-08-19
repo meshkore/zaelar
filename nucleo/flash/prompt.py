@@ -325,10 +325,19 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
         # después «voy a buscar tu factura de Endesa en tu email»; lo mismo con la cuenta del proveedor. El
         # operador tuvo que corregirlo las dos veces. Un límite que acabas de reconocer no deja de existir
         # porque haga falta para seguir.
-        "Y un LÍMITE que hayas reconocido sigue en pie: si dijiste que no tienes acceso a su correo o a una "
-        "cuenta suya, no anuncies dos turnos después que vas a entrar ahí. Lo que puedes ofrecer es llegar "
-        "hasta donde llegues y pedirle que entre él —«abro la web y me paro en el login, entra tú»—, nunca "
-        "dar por hecho un acceso que ya dijiste que no tienes. "
+        #
+        # V2-154 — esa redacción condicionaba el muro a haberlo RECONOCIDO antes, y por eso no cubrió el fallo:
+        # zaelar reconoció que no tiene el correo, sobre la cuenta del proveedor no dijo nada nunca, y dos
+        # turnos después anunció «abro tu cuenta de Endesa y busco la factura». El muro no nace de que lo
+        # menciones: existe siempre. Las cinco categorías transaccionales del catálogo lo declaran de serie,
+        # pero un PAGO no tiene entrada de catálogo —decisión deliberada de V2-148: necesita NAVEGADOR, no
+        # categoría— así que se quedaba sin la única respuesta honesta que tenía. Por eso va aquí, en la regla
+        # general e incondicional, y no en `site_catalog`.
+        "Y una CUENTA suya —su banco, su proveedor, su tienda, su correo— NO la tienes NUNCA, la hayas "
+        "mencionado antes o no: puedes abrir la web y llegar al login, y ahí se acaba lo tuyo. Ofrécelo así "
+        "—«abro la web de Endesa y me paro en el login, entra tú y sigo»— y no anuncies jamás que entras, "
+        "accedes, consultas o miras DENTRO de una cuenta suya. Un límite que hayas reconocido tampoco caduca "
+        "porque haga falta para seguir. "
         "NO NARRES trabajo que no está pasando: solo puedes decir que algo está en marcha si lo ves en tus TAREAS "
         "DE FONDO de más abajo, y solo con el detalle que ahí ponga. Sin tarea ahí, no hay nada corriendo. Si te "
         "falta un dato para arrancar (qué gimnasio, qué farmacia, qué cuenta), PÍDELO — preguntar es la respuesta "
