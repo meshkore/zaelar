@@ -84,6 +84,7 @@ def main() -> int:
         qa = [q for q in (conv.get("qa") or []) if (cats is None or q.get("category") in cats)]
         if args.qa_limit:
             qa = qa[: args.qa_limit]
+        twins = A.name_swap_twins(conv)     # cat-5 asked about the WRONG person — see that function
         for qi, q in enumerate(qa):
             question = q.get("question") or ""
             gold = A.gold_answer(q)
@@ -91,7 +92,8 @@ def main() -> int:
             got = A.answer(question, mems)
             verdict = A.judge(question, gold, got)
             rows.append({"conv": ci, "category": q.get("category"), "q": question,
-                         "gold": gold, "got": got, "verdict": verdict, "retrieved": len(mems)})
+                         "gold": gold, "got": got, "verdict": verdict, "retrieved": len(mems),
+                         "name_swap": question in twins})
             if (qi + 1) % 10 == 0:
                 ok = sum(1 for r in rows if r["verdict"] is True)
                 gr = sum(1 for r in rows if r["verdict"] is not None)
@@ -120,6 +122,22 @@ def main() -> int:
     for cat in sorted(per_cat):
         c_ok, c_n = per_cat[cat]
         print(f"    cat {cat} {A.CATEGORY_NAMES.get(cat, '?'):12s} {c_ok}/{c_n} = {c_ok / c_n * 100:.1f}%")
+
+    # The number to compare a CHANGE against. `adapter.name_swap_twins` explains why: those questions ask about
+    # the wrong person and keep the right person's answer, so scoring well on them requires ignoring attribution —
+    # a memory that gets attribution RIGHT is penalised. Reported next to the total rather than instead of it: the
+    # total is what the market published, so it is what makes us comparable, and this one is what tells us whether
+    # a change helped. Both, always, or the next reader picks whichever flatters the change.
+    swap = [r for r in graded if r.get("name_swap")]
+    clean = [r for r in graded if not r.get("name_swap")]
+    if swap and clean:
+        s_ok = sum(1 for r in swap if r["verdict"])
+        c_ok = sum(1 for r in clean if r["verdict"])
+        print(f"\n  excluding NAME-SWAPPED questions: {c_ok}/{len(clean)} = {c_ok / len(clean) * 100:.1f}%"
+              f"   ← compare CHANGES on this one")
+        print(f"    (the {len(swap)} excluded scored {s_ok}/{len(swap)} = {s_ok / len(swap) * 100:.1f}%; there,"
+              f" a HIGHER score means WORSE attribution — see adapter.name_swap_twins)")
+
     print("\n  NOTE: published audits find ~6.4% of LoCoMo answer keys wrong/unanswerable → ~93.6% is the")
     print("  practical ceiling, and an LLM judge accepts a share of deliberately-wrong answers. Small gaps")
     print("  between published numbers are noise; this is a property of the benchmark, not of any system.")
@@ -130,6 +148,12 @@ def main() -> int:
     out.write_text(json.dumps({"declarations": decl, "n": len(rows), "graded": len(graded),
                                "ungraded": ungraded, "correct": ok,
                                "accuracy": (ok / len(graded)) if graded else 0.0,
+                               # Stored so a past run can be RE-READ against the name-swap finding without
+                               # re-running it: the four arms measured before 2026-08-19 have no such field, and
+                               # their `rows` carry the question text, which is enough to recompute it.
+                               "name_swap_excluded": len(swap),
+                               "accuracy_excluding_name_swaps": (
+                                   sum(1 for r in clean if r["verdict"]) / len(clean)) if clean else None,
                                "per_category": {str(k): per_cat[k] for k in per_cat},
                                "rows": rows}, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"→ {out}")

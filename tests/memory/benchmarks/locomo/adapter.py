@@ -45,6 +45,40 @@ BROKER_URL = "https://api.aimlapi.com/v1"          # house rule: everything thro
 
 CATEGORY_NAMES = {1: "multi-hop", 2: "temporal", 3: "open-domain", 4: "single-hop", 5: "adversarial"}
 
+
+def name_swap_twins(conv: dict) -> set[str]:
+    """The cat-5 questions that are a cat-4 question with the SUBJECT'S NAME SWAPPED, keeping that question's gold
+    answer and its evidence pointer. Measured (2026-08-19), not assumed: **427 of the 446 cat-5 questions in
+    LoCoMo-10 (96%)** are of this shape, and in 7 of the 10 conversations it is 100%.
+
+    Why this matters more than a footnote. Category 5 is called "adversarial", which reads as "a question that
+    should be refused" — it is not. It is the SAME question about the WRONG PERSON, still keyed to the right
+    person's answer:
+
+        cat 4  "What activity did Caroline used to do with her dad?"   gold: Horseback riding   ev: D13:7
+        cat 5  "What activity did Melanie  used to do with her dad?"   gold: Horseback riding   ev: D13:7
+
+    Caroline is the one who said it (session_13). So the ONLY way to score on cat 5 is to ignore who the question
+    is about and answer from the topic — and a memory whose attribution is CORRECT is penalised for it. Measured
+    end to end here: resolving pronouns to explicit names took cat 5 from 31.9% to 14.9% while every category that
+    measures memory went UP, and 8 of the 9 questions "lost" were twins of this exact shape.
+
+    Consequence for reading ANY LoCoMo number, ours or a competitor's: cat 5 is ~22% of the 1,986 questions, so a
+    published overall figure carries a fifth of its weight in questions that reward mis-attribution. That is a
+    property of the benchmark, not of any system measured on it — the same class as the ~6.4% of keys the published
+    audits find wrong, and this is a bigger slice of it than the audits' figure suggests.
+    """
+    def _gold(x: dict) -> str:
+        return (x.get("answer") or x.get("adversarial_answer") or "").strip().lower()
+
+    def _ev(x: dict) -> tuple:
+        return tuple(x.get("evidence") or ())
+
+    qa = conv.get("qa") or []
+    singles = {(_gold(x), _ev(x)) for x in qa if x.get("category") == 4 and _ev(x)}
+    return {(x.get("question") or "") for x in qa
+            if x.get("category") == 5 and (_gold(x), _ev(x)) in singles}
+
 _ANSWER_SYSTEM = (
     "You answer a question about a long conversation using ONLY the retrieved memory below. "
     "Answer in as few words as possible — a name, a date, a short phrase. No explanation, no full sentences. "
