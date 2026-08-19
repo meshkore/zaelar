@@ -23,9 +23,16 @@ primary_region = "iad"   # same region as zaelar-demo
   # Same provider wiring as fly.demo.toml / machineConfig.js's BASE_PROVIDER_ENV — MUST stay in sync
   # by hand (two deployables, no shared build step).
   ZAELAR_TTS = "elevenlabs"
-  # FlashBrain = deepseek-v4-flash vía AIMLAPI, IGUAL que config/v2.json local (fuente de verdad, copiada 2026-08-13
-  # a petición del operador). Es el único que enruta 12/12 (benchmarks §9); grok queda VETADO por mis-rutear
-  # («conversaciones absurdas»). Requiere el secret AIMLAPI_KEY del app zaelar-accounts (puesto 2026-08-13).
+  # FlashBrain = deepseek-v4-flash vía AIMLAPI. Es el único que enruta 12/12 (benchmarks §9); grok queda VETADO por
+  # mis-rutear («conversaciones absurdas»). Requiere el secret AIMLAPI_KEY del app zaelar-accounts (puesto
+  # 2026-08-13).
+  # ⚠️ Esto YA NO es una copia de `config/v2.json` local (lo era el 2026-08-13; la nota vieja lo llamaba «fuente de
+  # verdad»): desde el 2026-08-19 el titular local es `deepseek-v4-pro` DIRECTO por `api.deepseek.com`, y aquí NO se
+  # puede seguir porque `DEEPSEEK_API_KEY` no está entre los secrets de este app. La divergencia es DELIBERADA, no
+  # deriva — y estas tres env vars son lo que la sostiene: sin `config/v2.json` en la Machine (es per-máquina y
+  # gitignored), el store queda vacío y manda el env (`config/v2.py::get`: defaults → store → env). Si algún día se
+  # pone el secret de DeepSeek en este app, esto se puede alinear; hasta entonces, alinearlo a mano deja al cerebro
+  # de voz apuntando a un endpoint sin credencial en CADA Machine de cuenta.
   FAST_PROVIDER = "aimlapi"
   FAST_BASE_URL = "https://api.aimlapi.com/v1"
   FAST_MODEL = "deepseek/deepseek-v4-flash"

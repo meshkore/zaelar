@@ -40,10 +40,18 @@ _PROFILES: dict[str, dict] = {
                    "claves de API. Es el perfil del despliegue en servidor.",
         "voice": {"stt_provider": "deepgram", "tts_provider": "elevenlabs"},
         "v2": {
-            # Matches `config/v2.py §fast`'s checked-in default. It said `anthropic/claude-haiku-4.5` until
-            # 2026-08-19 — the titular Haiku stopped being on 2026-08-02, so anyone who picked this profile in the
-            # wizard was silently OVERWRITING the current default with a two-versions-old one. A profile is a
-            # shortcut to the recommended setup; one that ships a stale model is worse than one that ships nothing.
+            # Said `anthropic/claude-haiku-4.5` until 2026-08-19. Haiku stopped being the titular on 2026-08-02, so
+            # anyone who picked this profile in the wizard was silently overwriting the live default with a
+            # two-versions-old model — a profile is a shortcut to the RECOMMENDED setup, and one that ships a stale
+            # model is worse than one that ships nothing.
+            #
+            # ⚠️ It is DELIBERATELY the broker and not `api.deepseek.com`, even though the standing provider rule
+            # (2026-08-19) puts the direct endpoint first and `config/v2.py §fast` now defaults to it. Reason: a
+            # profile WRITES `config/v2.json`, the store WINS over env (`config/v2.py::get`), and a cloud Machine
+            # gets its endpoint from env — `fly.accounts.toml` pins `FAST_*` to the broker there because the direct
+            # endpoint's key is not among the cloud's provider secrets. So on the very deployment this profile is
+            # named after, writing the direct endpoint would OVERRIDE the working env with an endpoint that has no
+            # credential. The rule picks the order when both are reachable; here only one is.
             "fast": {"provider": "aimlapi", "model": "deepseek/deepseek-v4-flash", "base_url": "", "api_key": ""},
             "memory": {"embed_provider": "fastembed", "embed_model": "",
                        "rerank_provider": "local", "mem_processor_model": ""},
