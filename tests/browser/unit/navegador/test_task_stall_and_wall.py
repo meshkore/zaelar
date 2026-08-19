@@ -345,3 +345,66 @@ def test_the_two_halves_share_ONE_threshold():
     from nucleo.flash import prompt as _p
 
     assert act_api._STALL_HINT_S == _p._STALLED_S
+
+
+# ── V2-187: un hecho que no se puede decir en voz alta es un hecho que no llega ───────────────────────────
+#
+# `restaurant-tonight-madrid`, 2026-08-20 01:01 (3/5, subió desde 1/5). Lo que quedaba, y el juez lo marcó como
+# grave: CINCO turnos de «Sigo en ello» seguidos sin una sola información intermedia. El mecanismo dice que la
+# tarea estuvo en thefork.es, en su lista de Madrid, en un dominio aparcado y por fin en casalucio.es — o sea
+# que sí había algo que contar.
+#
+# Lo que el estado le ponía delante era «en https://www.thefork.es/restaurantes/madrid», una cadena que nadie
+# dice en voz alta, y justo al lado la prohibición de describir lo que la tarea «estaría haciendo». Entre un
+# hecho impronunciable y una prohibición, el modelo eligió callar. El host SÍ se dice.
+def test_the_state_names_the_site_not_the_url():
+    tid = tasks.create("Reservar mesa en Casa Lucio")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url="https://www.thefork.es/restaurantes/madrid?party=2")
+    state = _live()
+    assert "en thefork.es" in state
+    assert "https://www.thefork.es/restaurantes/madrid" not in state
+
+
+def test_and_says_out_loud_that_naming_it_is_allowed():
+    """La otra mitad, y la que faltaba: el bloque solo PROHIBÍA. Un permiso explícito es lo que separa «no
+    inventes» de «no digas nada»."""
+    tid = tasks.create("Reservar mesa")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url="https://www.thefork.es/")
+    state = _live()
+    assert "eso es un HECHO y se DICE" in state
+    # y la prohibición de V2-145 sigue intacta
+    assert "NO describas lo que estaría haciendo" in state
+
+
+def test_a_bare_navigation_milestone_is_not_repeated_as_the_last_step():
+    """«último: 🌐 abrió https://www.thefork.es/…» sobre el sitio que se acaba de nombrar no añade nada y mete
+    una segunda URL impronunciable delante del turno."""
+    tid = tasks.create("Reservar mesa")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url="https://www.thefork.es/restaurantes/madrid")
+    tasks.add_event(tid, "🌐 abrió https://www.thefork.es/restaurantes/madrid")
+    assert "· último:" not in _live()
+
+
+def test_but_a_REAL_milestone_survives():
+    """La sensibilidad, y no es teórica: V2-150 existe porque «Casa Lucio solo acepta reservas por teléfono»
+    estaba en la tarea desde el principio y al cerebro le llegaba un contador de pasos. Un número no se puede
+    decir en voz alta; eso sí."""
+    tid = tasks.create("Reservar mesa")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url="https://www.thefork.es/restaurantes/madrid")
+    tasks.add_event(tid, "📋 Casa Lucio solo acepta reservas por teléfono")
+    state = _live()
+    assert "· último: 📋 Casa Lucio solo acepta reservas por teléfono" in state
+
+
+def test_and_a_navigation_to_a_DIFFERENT_site_still_counts():
+    """Un salto de sitio sí es novedad: es justo el dato con el que el turno puede decir «he pasado a la web
+    oficial» en vez de «sigo en ello»."""
+    tid = tasks.create("Reservar mesa")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url="https://casalucio.es/reservas/")
+    tasks.add_event(tid, "🌐 abrió https://www.thefork.es/restaurantes/madrid")
+    assert "· último: 🌐" in _live()

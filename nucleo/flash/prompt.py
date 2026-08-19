@@ -460,6 +460,25 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
     return ops + "\n\n" + res + (("\n\n" + tail) if tail else "")
 
 
+def _site_of(url: str) -> str:
+    """The site as a person would name it: `thefork.es`, not the whole URL.
+
+    Measured on `restaurant-tonight-madrid` (2026-08-20 01:01): the task visited thefork.es, its Madrid list, a
+    parked domain and finally casalucio.es, and every one of those reached the turn as a raw URL truncated to
+    60 characters. The turn is read out loud, so a URL is not usable — and the block right next to it forbids
+    describing what the task «would be doing». Between an unsayable fact and a ban, the model chose silence:
+    «Sigo en ello» five times. The host is the part that is both TRUE and sayable.
+    """
+    from urllib.parse import urlparse
+    try:
+        host = (urlparse(str(url or "")).hostname or "").lower()
+    except Exception:
+        host = ""
+    if not host:
+        return str(url or "")[:60]
+    return host[4:] if host.startswith("www.") else host
+
+
 def live_state() -> str:
     """Lecturas baratas, sin tools, que el FlashBrain responde al instante."""
     import time as _t
@@ -580,7 +599,11 @@ def live_state() -> str:
                 _p = _prog.get(_tid) or {}
                 if _p:
                     if _p.get("url"):
-                        _b += f" — en {_p['url'][:60]}"
+                        # V2-187: the SITE, not the raw URL. What the state handed the turn was
+                        # «en https://www.thefork.es/restaurantes/madrid» — a string nobody says out loud, so
+                        # the turn said nothing instead: five consecutive «sigo en ello» while the task was
+                        # measurably on El Tenedor and then on Casa Lucio's own site. A host is sayable.
+                        _b += f" — en {_site_of(_p['url'])}"
                         if _p.get("steps"):
                             _b += f", {_p['steps']} pasos dados"
                     else:
@@ -597,8 +620,13 @@ def live_state() -> str:
                     # acepta reservas por teléfono» y el operador se enteró al final, cuando pidió pararlo:
                     # el hito estaba en la tarea desde el principio y al cerebro le llegaba un CONTADOR de
                     # pasos. Un número no se puede decir en voz alta.
-                    if _p.get("last_event"):
-                        _b += f" · último: {_p['last_event'][:90]}"
+                    # V2-187: a milestone that only says «opened <url>» on the site ALREADY named two words
+                    # earlier adds nothing and puts a second unsayable URL in front of the turn. Everything
+                    # else stays — V2-150 exists precisely because a real milestone («Casa Lucio solo acepta
+                    # reservas por teléfono») was the thing the operator needed and never got.
+                    _le = str(_p.get("last_event") or "")
+                    if _le and not (_le.startswith("🌐") and _site_of(_le.split()[-1]) == _site_of(_p.get("url") or "")):
+                        _b += f" · último: {_le[:90]}"
                     # V2-167 — the two facts that turn «no tengo novedades» into something the operator can act
                     # on. Three measured runs ended `status=working results=null` with the operator giving up:
                     # the restaurant sat 11 minutes on the right page, the hotel 3 minutes on Booking's anti-bot
@@ -639,6 +667,11 @@ def live_state() -> str:
                     "Lo que ves AQUÍ es TODO lo que sabes de ella, y no saber NO es saber que no hace nada: si "
                     "no ha reportado ningún paso, di que aún no tienes novedades suyas —nunca que no ha hecho "
                     "nada ni que está atascada—. "
+                    # V2-187: sin esta frase el bloque solo PROHÍBE, y el modelo se refugia en «sigo en ello».
+                    # El sitio y el último paso están AHÍ arriba: son hechos, no descripciones inventadas.
+                    "Pero si arriba SÍ pone dónde está o cuál fue su último paso, eso es un HECHO y se DICE en "
+                    "vez de «sigo en ello» («está en El Tenedor», «ha llegado al formulario de reserva»): repetir "
+                    "un relleno teniendo un dato concreto delante es lo que hace que el operador deje de creerte. "
                     # V2-152: no news is NOT a stall. Intact, and now it only applies where it is TRUE.
                     "Y si el operador se plantea pararla, no le empujes a hacerlo por falta de novedades: dile "
                     "que sigue viva y que la falta de parte no significa que esté parada." + _shared)

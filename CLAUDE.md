@@ -1275,6 +1275,25 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Un hecho que no se puede decir en voz alta es un hecho que no llega** (`nucleo/flash/prompt.py`, V2-187,
+  2026-08-20). En `restaurant-tonight-madrid` el juez marcó como GRAVE cinco turnos seguidos de «Sigo en ello»
+  sin información intermedia — mientras la tarea recorría `thefork.es`, su lista de Madrid, un dominio APARCADO
+  (`casalucio.com`) y por fin la web oficial `casalucio.es`. Sí había qué contar. Lo que el estado le ponía
+  delante era `en https://www.thefork.es/restaurantes/madrid · último: 🌐 abrió https://…` — **dos URLs crudas,
+  y el turno se lee en voz alta** — con la prohibición de V2-145 («no describas lo que estaría haciendo») a dos
+  frases. Entre un hecho impronunciable y una prohibición, el modelo eligió callar. Es el mismo error que
+  V2-185 por el otro extremo: allí sobraba una afirmación falsa, aquí **faltaba un hecho utilizable y el
+  permiso de decirlo**.
+  - `_site_of()` → `en thefork.es`. Un host se dice; una URL no.
+  - Permiso EXPLÍCITO: «si arriba pone dónde está o cuál fue su último paso, eso es un HECHO y se DICE en vez
+    de "sigo en ello"». La prohibición de V2-145 queda intacta: no inventar QUÉ hace allí.
+  - Fuera el hito redundante «🌐 abrió <mismo host>»; un salto a OTRO sitio sigue contando, y cualquier hito de
+    verdad se mantiene — que es la razón de existir de V2-150, con su test de sensibilidad.
+  - **Sigue abierto**: zaelar atribuyó el fallo de carga al sitio equivocado (dijo la web oficial; falló
+    TheFork). Al final el estado solo lleva la URL ACTUAL, así que un fallo anterior se atribuye a donde acabó
+    la tarea. Pide que un fallo deje su propio rastro con el sitio dentro — cómo se REGISTRA, no cómo se
+    renderiza — y su propia medición.
+
 - **El atasco llegaba al TURNO y no al WORKER** (`widgets/navegador/act_api.py`, V2-186, 2026-08-20). V2-167
   hizo viajar el MURO hasta el worker y dejó el ATASCO solo en el prompt del FlashBrain, así que las dos
   mitades del mismo hecho acabaron en sitios distintos: **el turno se enteraba de que la tarea había dejado de
