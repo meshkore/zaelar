@@ -83,6 +83,51 @@ def classify(text: str) -> str | None:
     return _by_script(text) or _by_llm(text)
 
 
+def ensure_for_text(text: str) -> str | None:
+    """First-run detection for a TEXT-only channel: classify `text` and lock the language, synchronously.
+
+    The voice pipeline has its own path (`voice/engine/pipeline/agent.py`), and a much better one: it ASKS,
+    behind a blocking modal, and locks what the operator answers. A text channel has no modal and no turn to
+    spare on the question, so it falls back to what V2-089 did before V2-101 added the modal — a silent guess
+    off the first utterance. Deliberately NOT called from the voice provider: locking a language there would
+    race the onboarding question and could commit the wrong one before the operator has answered it.
+
+    Why it blocks instead of running in the background: the language is not only how the reply reads, it is
+    what `nucleo/flash/site_catalog.py` resolves its locale from. Measured 2026-08-20 on a fresh engine — the
+    state every sandbox run and every new install starts in — the SAME Spanish errand is handed
+    `www.opentable.com`, `www.ticketmaster.com` and `www.amazon.com` under `en`, and `www.thefork.es`,
+    `www.entradas.com` and `www.amazon.es` under `es`. A background detect fixes turn 2; the errand that goes
+    out on turn 1 is already pointed at the wrong country.
+
+    Returns the locked code, or None when nothing was done (already chosen, too short, classifier unsure).
+    Never raises: a language guess must not be able to take down a turn.
+    """
+    try:
+        if not should_detect():
+            return None
+        code = classify(text)
+        if not code:
+            return None
+        import asyncio
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            asyncio.run(lock(code))
+            return code
+        # Inside a running loop `lock()` cannot be awaited from here, and the part that matters for THIS turn
+        # is the persist+env, which is synchronous anyway. The bundle prepare and the SSE switch are the UI's
+        # half and can wait for the next start.
+        from config import settings as _s
+        _s.update({"stt_language": code})
+        global _should_cache
+        _should_cache = False
+        logger.info(f"i18n.detect: text channel locked operator language -> '{code}'")
+        return code
+    except Exception as e:  # noqa: BLE001
+        logger.warning(f"i18n.detect: text-channel detection failed: {e}")
+        return None
+
+
 async def _priority_translate_loading(code: str) -> str | None:
     """Translate JUST `onboarding.loading` ahead of the full bundle, so a first-run onboarding modal can show
     already-translated loader text without waiting the ~10s-2min the full 562-key manifest can take. Persists

@@ -256,8 +256,12 @@ REPLY_BOTH = ("Te apunto la renovación del seguro del coche para el jueves y te
               "para el miércoles.")
 
 
-def test_the_note_lands_on_the_day_the_commitment_is_for():
-    """Jueves para la cita, NO el miércoles del aviso: la frase lleva los dos días y la posición los separa."""
+def test_the_note_lands_on_the_day_the_commitment_is_for(monkeypatch):
+    """Jueves para la cita, NO el miércoles del aviso: la frase lleva los dos días y la posición los separa.
+
+    Reloj FIJO: «el jueves» es una fecha relativa al día en que corre el test, así que la fecha literal de la
+    aserción solo era cierta de lunes a miércoles — medido barriendo los siete días."""
+    monkeypatch.setattr(scheduler.time, "time", lambda: NOW)
     note = g.dated_note_backstop(REPLY_BOTH, ASK)
     assert note is not None
     assert note["date"] == "2026-08-20"          # jueves; el aviso es el 26, miércoles
@@ -305,8 +309,14 @@ def test_and_a_question_is_not_a_confirmation():
     assert g.dated_note_backstop("¿El jueves a qué hora te viene bien?", ASK) is None
 
 
-def test_the_two_halves_are_independent(fresh_db):
-    """El encargo pide las dos y cada backstop resuelve la suya, con días distintos."""
+def test_the_two_halves_are_independent(fresh_db, monkeypatch):
+    """El encargo pide las dos y cada backstop resuelve la suya, con días distintos.
+
+    El reloj se FIJA (como ya hacían sus hermanos con `NOW`) porque «el jueves» y «el miércoles» son fechas
+    RELATIVAS al día en que corre el test: escrito contra el reloj real, este pasó desde el 2026-08-19 y se
+    puso rojo solo al cambiar la fecha —los dos backstops resolvían al mismo día—, que es la peor clase de
+    test: uno que se cae un día de cada N sin que nadie haya tocado nada."""
+    monkeypatch.setattr(scheduler.time, "time", lambda: NOW)
     cron = g.dated_reminder_backstop(REPLY_BOTH, ASK)
     note = g.dated_note_backstop(REPLY_BOTH, ASK)
     assert cron and note
@@ -348,8 +358,12 @@ def test_and_with_no_dated_commitment_there_is_nothing_to_be_before():
     assert g.reminder_before("2026-08-26 09:00", "") == "2026-08-26 09:00"
 
 
-def test_the_whole_case_end_to_end(fresh_db):
-    """Los tres defectos medidos en un objeto de cuatro campos, los tres en la misma aserción."""
+def test_the_whole_case_end_to_end(fresh_db, monkeypatch):
+    """Los tres defectos medidos en un objeto de cuatro campos, los tres en la misma aserción.
+
+    Reloj FIJO al mismo `NOW` que el resto del fichero: las tres aserciones llevan fechas literales y «el
+    jueves»/«el miércoles» se resuelven contra el día en que corre el test."""
+    monkeypatch.setattr(scheduler.time, "time", lambda: NOW)
     reply = "Todo listo: la cita está en tu agenda para el jueves y te aviso el miércoles."
     cron = g.dated_reminder_backstop(reply, ASK)
     note = g.dated_note_backstop(reply, ASK)
@@ -361,3 +375,36 @@ def test_the_whole_case_end_to_end(fresh_db):
     assert cron["prompt"].lower().startswith("avisa al operador")
     # (3) y existe el apunte, que era la mitad que no se hacía
     assert "seguro" in note["title"] and note["date"] == "2026-08-20"
+
+
+# ── el mismo encargo, los SIETE días de la semana ─────────────────────────────────────────────────────────
+#
+# Estos tests se escribieron un miércoles y estaban verdes… de lunes a miércoles. El 2026-08-20, un jueves,
+# tres de ellos se pusieron rojos SIN que nadie tocara el código: «el jueves» y «el miércoles» son fechas
+# relativas al día en que corre el test. Debajo de la flakiness había DOS defectos de verdad:
+#
+#   · `reminder_before` tomaba su «ahora» de `datetime.now()` mientras las fechas que corregía venían de
+#     `scheduler.parse_when`, que lee `scheduler.time.time()`. Dos relojes en la misma cuenta.
+#   · el dedup daba por NO cubierto un aviso que ya había saltado (`_still_ahead`), así que cuando la
+#     corrección mandaba el aviso a «ahora mismo», el turno siguiente —un simple «gracias»— programaba un
+#     SEGUNDO aviso para la fecha sin corregir. Es exactamente el doble aviso que V2-153 existe para impedir,
+#     reabierto por el arreglo de V2-167 y visible solo cuatro días de cada siete.
+@pytest.mark.parametrize("dom", [17, 18, 19, 20, 21, 22, 23])   # lunes … domingo de esa semana
+def test_the_backstop_behaves_the_same_on_every_day_of_the_week(fresh_db, monkeypatch, dom):
+    now = time.mktime((2026, 8, dom, 2, 0, 0, 0, 1, -1))
+    monkeypatch.setattr(scheduler.time, "time", lambda: now)
+
+    first = g.dated_reminder_backstop(REPLY_T1, ASK)
+    assert first, "el encargo pide un aviso: siempre tiene que salir uno"
+
+    # (1) el aviso NUNCA cae después de aquello de lo que avisa
+    note = g.dated_note_backstop(REPLY_BOTH, ASK)
+    assert note and first["schedule"].split(" ")[0] <= note["date"]
+
+    # (2) y reafirmarlo al turno siguiente no programa un segundo, ningún día
+    scheduler.create(first["prompt"], first["schedule"], name=first["name"])
+    assert g.dated_reminder_backstop(REPLY_T2, ACK) is None
+    assert len(scheduler.list_jobs(active_only=True)) == 1
+
+    # (3) pero una petición NUEVA sigue entrando — el dedup no puede convertirse en un tapón
+    assert g.dated_reminder_backstop("Te aviso el viernes a las 18:30.", "recuérdame lo del taller") is not None

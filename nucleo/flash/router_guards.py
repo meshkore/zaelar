@@ -520,7 +520,17 @@ def reminder_before(when: str, commitment: str, now=None) -> str:
     if not when or not commitment:
         return when
     import datetime as _dt
-    now = now or _dt.datetime.now()
+    if now is None:
+        # ONE clock. Every date around this function comes from `scheduler.parse_when`, which reads
+        # `scheduler.time.time()`; taking «now» from `datetime.now()` instead meant the correction was computed
+        # against a different clock than the dates it was correcting. Invisible in production and lethal in a
+        # test: pinning the scheduler's clock moved the inputs and left this one on the wall clock, so the
+        # "fire promptly" branch answered with the REAL time and the assertions drifted by hours.
+        try:
+            from nucleo import scheduler as _sched_clock
+            now = _dt.datetime.fromtimestamp(_sched_clock.time.time())
+        except Exception:
+            now = _dt.datetime.now()
     try:
         w = _dt.datetime.strptime(when.strip(), "%Y-%m-%d %H:%M")
         c = _dt.datetime.strptime(commitment.strip(), "%Y-%m-%d %H:%M")
@@ -578,20 +588,14 @@ def dated_reminder_backstop(reply: str, operator_text: str = "") -> dict | None:
     # that neither dates a commitment nor ASKS for anything adds no new obligation, so a live notice covers it —
     # while «recuérdame lo del taller», which also carries no date, is a new request and still gets its own.
     asked_now = bool(_REMIND_ASK_RE.search(_norm_txt(operator_text)) or _NOTE_ASK_RE.search(_norm_txt(operator_text)))
-    if not clause_when and not asked_now \
-            and any(str(j.get("name") or "") == "aviso" and _still_ahead(j) for j in jobs):
+    if not clause_now_or_ask(clause_when, asked_now) and any(str(j.get("name") or "") == "aviso" for j in jobs):
         return None
     return {"schedule": when, "prompt": _reminder_prompt(clause, operator_text), "name": "aviso"}
 
 
-def _still_ahead(job: dict) -> bool:
-    """True when this job has not fired yet — a notice already in the past covers nothing."""
-    import datetime as _dt
-    try:
-        return _dt.datetime.strptime(str(job.get("schedule") or "").strip(),
-                                     "%Y-%m-%d %H:%M") > _dt.datetime.now()
-    except Exception:
-        return False
+def clause_now_or_ask(clause_when: str, asked_now: bool) -> bool:
+    """Does THIS turn create a new obligation? Only if it dates a commitment or asks for something."""
+    return bool(clause_when) or bool(asked_now)
 
 
 def _reminder_prompt(clause: str, operator_text: str) -> str:

@@ -956,6 +956,26 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   EJECUCIÓN (`i18n/runtime.py`, hot path, barato, sin LLM).** `active_code()` (UI) lee `ZAELAR_LANGUAGE` crudo
   (cualquier código), DESACOPLADO del catálogo de voz `langs` (es/en). El **matching de voz** (aliases/regex) es
   es/en como ACELERADOR; el **router/resolver LLM es el mecanismo multilingüe** para idiomas no cubiertos.
+- **La autodetección de idioma colgaba SOLO de la voz — un canal de texto se quedaba en inglés para siempre**
+  (`i18n/init/detect.py::ensure_for_text` + `nucleo/flash/probe.py`, V2-170, 2026-08-20). El pipeline de LiveKit
+  ABRE una instalación nueva preguntando «¿en qué idioma te hablo?» detrás de un modal bloqueante (V2-101); un
+  canal de TEXTO no tiene ese turno, así que se quedaba en el defecto de producto (inglés) mientras viviera.
+  **Medido en un sandbox limpio —el mismo que corre cada caso de uso—: `{"active": "en", "chosen": false}`, o sea
+  que TODA la mitad `__es` del catálogo se ha estado midiendo contra un motor en inglés.** Y el daño no es cómo
+  se lee la respuesta: del mismo código de idioma resuelve su locale `nucleo/flash/site_catalog.py`, así que el
+  catálogo genético manda un encargo español a `www.opentable.com`, `www.ticketmaster.com` y `www.amazon.com`
+  donde `es` daría `www.thefork.es`, `www.entradas.com` y `www.amazon.es`. Hay prueba directa: en la corrida real
+  de teatro del 2026-08-19 el worker fue a Ticketmaster y reportó «apenas lista teatro español — solo 2 eventos
+  en toda España». Es verdad, y es lo que se ve desde dentro cuando te mandan al país equivocado.
+  - **Síncrono, no en segundo plano**: en segundo plano arreglas el turno 2, pero el encargo del turno 1 ya
+    salió apuntado al país equivocado. Medido: 5,4 s el turno entero, clasificación incluida.
+  - **NO se replica en el provider de voz, y es una GUARDA DE REGRESIÓN**: un lock silencioso ahí competiría con
+    la pregunta del modal y podría fijar el idioma antes de que el operador conteste. Hay un test que lo exige.
+  - Jamás pisa una elección deliberada (`should_detect()`: con `stt_language` persistido, no vuelve a mirar).
+  - Verificado en vivo en sandbox: español → `es` y respuesta en español; inglés → `es` NO, se queda en `en`
+    (la mitad que si no pasa por accidente). Tests: `tests/agent_headless/unit/test_first_run_language.py`
+    (nodo 2.15). **Sigue abierto**: `resolve_locale` tiene UN solo eje idioma→país, así que un hispanohablante
+    en EE.UU. recibe el país equivocado igual; hace falta una señal de PAÍS separada.
 - **TTS local por hardware (Metal)** (`voice/engine/speech/tts/kokoro.py`): en Apple Silicon el TTS Kokoro corre
   **in-process por Metal** (`mlx-audio`, `ZAELAR_TTS_DEVICE=auto|metal|fastapi`) → ~0.3s al primer audio. `prewarm`
   carga el modelo Metal en el executor idle y el entrypoint lo reutiliza. mlx-audio tiene un **bug de shapes en su

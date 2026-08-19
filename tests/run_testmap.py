@@ -220,6 +220,8 @@ DOMAINS: list[dict] = [
         # asumía 4 chars/token (inglés) cuando el input real va a 3,36 y cobraba un 16% de menos.
         {"id": "2.14", "title": "Un turno CANCELADO también se factura (y con el estimado bien calibrado)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_cancelled_turn_billing.py"]},
+        {"id": "2.15", "title": "Idioma del operador en un canal SIN voz (primera ejecución)", "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_first_run_language.py"]},
         {"id": "2.9", "title": "Sandbox de ejecución ligero (V2-076)", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/test_sandbox.py"]},
         {"id": "2.10", "title": "Puente git acotado + dev worker (V2-076)", "ch": UNIT, "paths": [
