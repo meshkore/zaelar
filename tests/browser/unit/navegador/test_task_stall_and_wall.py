@@ -288,3 +288,60 @@ def test_and_the_shared_rules_survive_in_BOTH_states():
         assert ("ESTO ESTÁ BLOQUEADO" in state) is walled
         assert "solo hay UN navegador" in state
         assert "rellenando el formulario" in state
+
+
+# ── V2-186: el atasco también tiene que llegar al WORKER ──────────────────────────────────────────────────
+#
+# El muro viajaba al worker (`_with_wall`) y el atasco no, así que las dos mitades del mismo hecho acababan en
+# sitios distintos: el turno del FlashBrain se enteraba de que una tarea había dejado de moverse, y la única
+# parte que podía hacer algo al respecto no.
+#
+# Medido en `find-theatre-tickets__es` (2026-08-20 01:01): el worker navegó SIETE veces, llegó a la página
+# correcta del evento a las 00:40:32, y a partir de ahí hizo CATORCE revisiones de captura de esa misma página
+# sin una sola navegación más, durante unos veinte minutos. No estaba bloqueado ni parado: estaba mirando la
+# misma página una y otra vez. Nada de lo que le volvía del puente decía «llevas un rato aquí», así que desde
+# dentro del bucle cada `look` era tan bueno como el primero.
+def test_the_worker_is_told_when_its_own_task_stopped_moving():
+    from widgets.navegador import act_api
+
+    tid = tasks.create("Entradas El Rey León")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url="https://www.entradas.com/teatro-musical/el-rey-leon-t3328")
+    tasks._tasks[tid]["last_progress"] = time.time() - 1200
+    out = act_api._with_stall(tid, {"url": "https://www.entradas.com/teatro-musical/el-rey-leon-t3328"})
+    assert out["stalled_s"] >= 1200
+    assert "sin avanzar" in out["hint"] and "extraes" in out["hint"]
+
+
+def test_but_a_task_that_just_arrived_is_told_nothing():
+    """La sensibilidad: sin esto, «avisa del atasco» y «avisa siempre» pasan igual — y un aviso en cada `look`
+    sería ruido en el contexto del worker en cada paso de una navegación normal."""
+    from widgets.navegador import act_api
+
+    tid = tasks.create("Entradas El Rey León")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url="https://www.entradas.com/")
+    out = act_api._with_stall(tid, {"url": "https://www.entradas.com/"})
+    assert "hint" not in out and "stalled_s" not in out
+
+
+def test_and_a_WALL_wins_over_the_stall():
+    """Un muro ya trae su propia salida y es más específico; decir las dos cosas a la vez le da al worker dos
+    consejos distintos sobre la misma pantalla."""
+    from widgets.navegador import act_api
+
+    tid = tasks.create("Reservar hotel")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url=BOOKING_WALL)
+    tasks._tasks[tid]["last_progress"] = time.time() - 1200
+    out = act_api._with_stall(tid, act_api._with_wall({"url": BOOKING_WALL}))
+    assert out.get("wall") and "hint" not in out
+
+
+def test_the_two_halves_share_ONE_threshold():
+    """El fallo que este motor repite: dos copias del mismo umbral que derivan. Los dos lados leen la misma
+    variable de entorno."""
+    from widgets.navegador import act_api
+    from nucleo.flash import prompt as _p
+
+    assert act_api._STALL_HINT_S == _p._STALLED_S

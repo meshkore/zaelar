@@ -1275,6 +1275,21 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **El atasco llegaba al TURNO y no al WORKER** (`widgets/navegador/act_api.py`, V2-186, 2026-08-20). V2-167
+  hizo viajar el MURO hasta el worker y dejó el ATASCO solo en el prompt del FlashBrain, así que las dos
+  mitades del mismo hecho acabaron en sitios distintos: **el turno se enteraba de que la tarea había dejado de
+  moverse, y la única parte que podía hacer algo no.** Medido en `find-theatre-tickets__es`: el worker navegó
+  siete veces, llegó a la página correcta del evento, y luego hizo **catorce revisiones de captura de esa misma
+  página sin una sola navegación más** durante ~20 minutos. No estaba bloqueado ni parado — desde dentro de su
+  bucle, cada `look` era tan bueno como el primero. Ahora la respuesta de cada acción del puente lleva
+  `stalled_s` y una salida concreta («o extraes ya lo que tienes delante, o pruebas otro sitio»). Un MURO gana
+  al atasco (más específico, ya trae su salida), nada por debajo del umbral, y **UN solo umbral** leído de la
+  misma env var por los dos lados — dos copias del mismo número que derivan es un fallo ya cometido aquí.
+  - **`results: null` NO prueba que no hubiera extracción**, y esa inferencia aparece en varias rondas del
+    arnés: ese campo lo escribe `dispatch._finalize_web()` al CERRAR la sesión, así que con `status: working`
+    no puede estar poblado. Significa «la sesión no había terminado cuando se tomó la foto». Es un fallo de
+    lectura del informe, del lado del arnés, y no se parchea desde el motor.
+
 - **Una salvedad no compite con una promesa: el estado PROMETÍA que la tarea iba a terminar sola, también
   delante de un muro** (`nucleo/flash/prompt.py`, V2-185, 2026-08-20). En `book-hotel-night-known__es` el muro
   SÍ llegó al turno —zaelar dijo «Booking me ha puesto una verificación anti-robot», que es V2-167

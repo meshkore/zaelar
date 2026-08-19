@@ -42,6 +42,11 @@ def _emit_nav(nav_tid: str, label: str, text: str) -> None:
         pass
 
 
+# Same threshold the FlashBrain turn uses for «sin moverse» (`nucleo/flash/prompt.py`), read from the same env
+# var so the two halves of one fact can never drift apart.
+_STALL_HINT_S = int(__import__("os").environ.get("ZAELAR_NAV_STALLED_S", "120") or 120)
+
+
 def _with_wall(snap: dict) -> dict:
     """Annotate a snapshot with `wall` when the page it landed on STOPPED us (anti-bot challenge, CAPTCHA, load
     error) — V2-167.
@@ -60,6 +65,40 @@ def _with_wall(snap: dict) -> dict:
     if reason:
         snap = dict(snap or {})
         snap["wall"] = reason
+    return snap
+
+
+def _with_stall(task_id: str, snap: dict) -> dict:
+    """Tell the worker how long its own task has gone WITHOUT MOVING — the half of V2-167 that never reached it.
+
+    The wall travels to the worker (above) and the stall did not, which left the two halves of the same fact in
+    different places: the FlashBrain turn learned that a task had stopped moving, and the only party that could
+    do anything about it did not.
+
+    Measured on `find-theatre-tickets__es` (2026-08-20 01:01): the worker navigated seven times, landed on the
+    right event page at 00:40:32, and then took FOURTEEN screenshot revisions of it without a single further
+    navigation for roughly twenty minutes. It was not blocked and it was not idle — it was looking at the page
+    over and over. Nothing in what came back from here said «you have been here a while», so from inside the
+    loop every `look` was as good as the first. Same shape on `restaurant-tonight-madrid`: eleven minutes and
+    ten captures of one page.
+
+    Only reported past the same threshold the turn uses, so an ordinary page-by-page pass says nothing.
+    """
+    try:
+        from widgets.navegador import tasks as _t
+        stalled = int((_t.get(task_id) or {}).get("stalled_s") or 0) if hasattr(_t, "get") else 0
+        if not stalled:
+            for _p in _t.active_progress():
+                if str(_p.get("id") or "") == str(task_id):
+                    stalled = int(_p.get("stalled_s") or 0)
+                    break
+    except Exception:
+        return snap
+    if stalled >= _STALL_HINT_S and not (snap or {}).get("wall"):
+        snap = dict(snap or {})
+        snap["stalled_s"] = stalled
+        snap["hint"] = (f"llevas {stalled // 60} min en esta página sin avanzar: o extraes ya lo que necesitas "
+                        f"de lo que tienes delante, o pruebas otro sitio. Repetir `look` no la cambia.")
     return snap
 
 
@@ -85,7 +124,7 @@ async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body
 
         if action == "snapshot":
             snap = await tb.snapshot_for_agent()
-            return {"ok": True, "shot": _shot_path(task_id), **_with_wall(snap)}
+            return {"ok": True, "shot": _shot_path(task_id), **_with_stall(task_id, _with_wall(snap))}
         if action == "look":
             # V2-049 VISION: fresh viewport capture to disk. The worker reads it with its Read tool, sees the page
             # like a human, and acts by coordinates (click_at/type_at). This is the robust path for forms,
@@ -98,7 +137,7 @@ async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body
                 pass
             _emit_nav(task_id, "🧭 vista", f"captura {snap.get('title') or snap.get('url') or ''}"[:200])
             return {"ok": True, "shot": _shot_path(task_id), "viewport": {"width": 1280, "height": 800},
-                    **_with_wall(snap)}
+                    **_with_stall(task_id, _with_wall(snap))}
         if action == "extract":
             items = await tb.extract_listings(int(args.get("limit", 14)))
             _emit_nav(task_id, "🧭 resultados", f"{len(items)} anuncios/resultados en la página")
@@ -117,7 +156,7 @@ async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body
             if page:
                 _emit_nav(task_id, "🧭 página", page)
             # Fresh PNG path; every action calls _capture, so the worker can Read the view after acting.
-            return {"ok": bool(ok), "msg": msg, "shot": _shot_path(task_id), **_with_wall(snap)}
+            return {"ok": bool(ok), "msg": msg, "shot": _shot_path(task_id), **_with_stall(task_id, _with_wall(snap))}
         return JSONResponse({"ok": False, "error": f"acción desconocida: {action}"}, status_code=400)
     except Exception as e:  # noqa: BLE001
         return JSONResponse({"ok": False, "error": f"{type(e).__name__}: {str(e).splitlines()[0][:160]}"},
