@@ -772,10 +772,12 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         if spoken and not any(t.get("action") == "cron.create" for t in tags):
             try:
                 from . import router as _routerr
-                _when = _routerr.promises_a_dated_reminder(spoken, operator_text)
-                if _when:
-                    tags.append({"action": "cron.create", "extra": {"data": {
-                        "schedule": _when, "prompt": operator_text[:200], "name": "aviso"}}, "backstop": True})
+                # V2-153: la decisión ENTERA vive en `dated_reminder_backstop` — antes cada canal componía su
+                # propia tag y ninguno miraba lo ya programado, así que dos turnos que prometían el mismo aviso
+                # dejaban DOS crons idénticos. Un solo sitio para que la protección no pueda divergir otra vez.
+                _cron = _routerr.dated_reminder_backstop(spoken, operator_text)
+                if _cron:
+                    tags.append({"action": "cron.create", "extra": {"data": _cron}, "backstop": True})
             except Exception:
                 pass
         for _t in tags:

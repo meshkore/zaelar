@@ -189,3 +189,43 @@ def test_the_whole_turn_end_to_end(monkeypatch):
     """Both faults on the one sentence: the promise is seen, and the day it resolves to is the one promised."""
     monkeypatch.setattr(scheduler.time, "time", lambda: NOW)
     assert g.promises_a_dated_reminder(REPLY_151, ASK) == "2026-08-19 09:00"
+
+
+# ── V2-153: el mismo aviso, prometido en dos turnos, se programaba DOS veces ──────────────────────────────────
+#
+# La corrida de las 16:56 dejó el mecanismo por fin NO vacío —que era lo que V2-151 perseguía— y con dos crons
+# idénticos dentro: `2026-08-26 09:00` los dos, uno con la petición real de prompt y otro con «Perfecto, gracias.
+# Así no se me pasa.», porque el backstop disparó en el turno que prometía y otra vez en el que lo reafirmaba.
+# Medido contra el scheduler real: dos `create()` con la misma spec devuelven ok las dos y dejan dos jobs vivos.
+REPLY_T1 = "Voy a apuntarlo en tu agenda para el jueves y configurar un recordatorio para el miércoles."
+REPLY_T2 = "De nada. Queda anotado y te aviso el miércoles para que no se te olvide."
+ACK = "Perfecto, gracias. Así no se me pasa."
+
+
+def test_the_first_promise_schedules_the_notice(fresh_db):
+    cron = g.dated_reminder_backstop(REPLY_T1, ASK)
+    assert cron and cron["schedule"]
+    assert cron["prompt"] == ASK          # el prompt es la PETICIÓN, no el turno que la reafirma
+
+
+def test_and_reaffirming_it_next_turn_does_not_schedule_a_second_one(fresh_db):
+    """El caso de uso pide UN aviso. Dos es un defecto que el operador VE: le suena dos veces."""
+    first = g.dated_reminder_backstop(REPLY_T1, ASK)
+    scheduler.create(first["prompt"], first["schedule"], name=first["name"])
+    assert g.dated_reminder_backstop(REPLY_T2, ACK) is None
+    assert len(scheduler.list_jobs(active_only=True)) == 1
+
+
+def test_but_a_moment_nobody_has_covered_yet_still_gets_its_notice(fresh_db):
+    """El dedup mira el INSTANTE, no el hecho de que ya exista algo: un aviso para otro día sigue entrando, o el
+    backstop dejaría de servir en cuanto hubiera un solo cron vivo."""
+    first = g.dated_reminder_backstop(REPLY_T1, ASK)
+    scheduler.create(first["prompt"], first["schedule"], name=first["name"])
+    other = g.dated_reminder_backstop("Te aviso el viernes a las 18:30.", "recuérdame lo del taller")
+    assert other is not None
+    assert other["schedule"] != first["schedule"]
+
+
+def test_and_a_promise_with_no_resolvable_moment_still_schedules_nothing(fresh_db):
+    """La frontera de V2-146 sigue en pie después de meter el dedup por delante."""
+    assert g.dated_reminder_backstop("Te aviso en cuanto lo tenga.", "busca un hotel") is None

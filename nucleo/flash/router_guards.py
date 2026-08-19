@@ -337,6 +337,33 @@ def promises_a_dated_reminder(reply: str, operator_text: str = "") -> str:
     return _sched.parse_when(n[m.end():]) or _sched.parse_when(operator_text)
 
 
+def dated_reminder_backstop(reply: str, operator_text: str = "") -> dict | None:
+    """The whole backstop decision in ONE place: what to schedule when the model promised a notice in prose.
+
+    Both channels — `nucleo/flash/probe.py` and the voice provider — carried their own copy of this (resolve the
+    moment, then build the tag), and V2-153 is what a divergence of that shape costs: the run scheduled the
+    reminder TWICE, once per turn that promised it, because neither copy looked at what was already scheduled.
+    Measured against the real scheduler, two `create()` calls with the same spec both return ok and leave two
+    live jobs; nothing downstream deduplicates them.
+
+    Returns the tag payload, or None when there is nothing to add — either no resolvable moment, or that moment
+    is already covered. Skipping on an existing job at the same instant is the conservative side on purpose: a
+    backstop exists for the turn the model forgot, and a second alert for something the operator asked once is a
+    defect he SEES, while the model's own `cron.create` tag is not gated by this and can still schedule freely.
+    """
+    when = promises_a_dated_reminder(reply, operator_text)
+    if not when:
+        return None
+    try:
+        from nucleo import scheduler as _sched
+        for job in _sched.list_jobs(active_only=True):
+            if str(job.get("schedule") or "").strip() == when:
+                return None
+    except Exception:
+        pass          # cannot read the schedule → still better to back the promise than to drop it
+    return {"schedule": when, "prompt": (operator_text or "")[:200], "name": "aviso"}
+
+
 def escalate_goal_from_window(window, current_text: str = "", max_back: int = 6) -> str:
     """The operator's request that a promise refers to, which is NOT always in this turn's text.
 

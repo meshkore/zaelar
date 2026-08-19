@@ -911,7 +911,7 @@ def is_escalation(name: str) -> bool:
 from nucleo.flash.router_guards import (  # noqa: F401 — re-export, not a local use
     looks_like_web_task, looks_like_login_request, is_pure_show_request, is_music_service, looks_like_close,
     looks_like_create_widget, promises_music, promises_action, looks_like_show_strict, looks_like_escalate_task,
-    escalate_goal_from_window, hands_public_lookup_back, promises_a_dated_reminder,
+    escalate_goal_from_window, hands_public_lookup_back, promises_a_dated_reminder, dated_reminder_backstop,
     looks_like_marketplace_nav, looks_like_modify_widget, looks_like_rule_removal, looks_like_bare_ref,
     is_messaging_service, looks_like_stop_work, login_site,
 )

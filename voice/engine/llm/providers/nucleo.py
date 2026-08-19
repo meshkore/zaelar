@@ -2375,10 +2375,12 @@ class NucleoLLMStream(llm.LLMStream):
         # hasta el día que no suena.
         if spoken_text and not cron_seen["v"]:
             try:
-                _when = _router.promises_a_dated_reminder(spoken_text, operator_text)
-                if _when:
+                # V2-153: misma función que el probe. Ver su docstring — el duplicado nació justamente de que
+                # cada canal decidía por su cuenta.
+                _cron = _router.dated_reminder_backstop(spoken_text, operator_text)
+                if _cron:
                     from nucleo import scheduler as _sched_bk
-                    _r = _sched_bk.create(operator_text[:200], _when, name="aviso")
+                    _r = _sched_bk.create(_cron["prompt"], _cron["schedule"], name=_cron["name"])
                     emit("cron", "⏰ aviso programado por backstop (lo prometió sin emitir la tag)"
                          if _r.get("ok") else "⚠️ schedule no reconocido",
                          text=_r.get("display") or _r.get("error") or "", role="system",
