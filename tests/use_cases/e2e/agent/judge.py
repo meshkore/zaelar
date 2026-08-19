@@ -129,6 +129,13 @@ def mechanism_facts(mech: dict) -> str:
         lines.append("· NO hubo tarea de navegador en esta corrida. Para un caso que se resuelve buscando y "
                      "comparando, eso NO es automáticamente un fallo: la búsqueda web y el worker pueden "
                      "bastar. Solo es un fallo si el objetivo exigía entrar en un sitio concreto y operar.")
+    dropped = mech.get("dropped_actions") or []
+    if dropped:
+        which = ", ".join(f"{d.get('tool') or '?'} ({d.get('reason') or 'motivo no dicho'})" for d in dropped)
+        lines.append(f"· ⚠️ {len(dropped)} ACCIÓN(ES) QUE ZAELAR SÍ DECIDIÓ y el sistema no pudo leer: {which}. "
+                     f"Esto NO es zaelar mintiendo ni olvidándose: eligió la acción correcta y el sistema la "
+                     f"tiró. Puntúa el RESULTADO por lo que el usuario recibió (que es peor), pero no acuses a "
+                     f"zaelar de no intentarlo ni de inventarse el progreso, y dilo así en los hallazgos.")
     sh = mech.get("search_health") or {}
     if sh:
         n = sh.get("n_search_events")

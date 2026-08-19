@@ -570,6 +570,10 @@ DOMAINS: list[dict] = [
         # motor a arreglar algo que no ocurrió, y en un bucle desatendido eso llena el tablero de trabajo falso.
         {"id": "10.5", "title": "El juez lee el mecanismo en prosa y no lo contradice",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_judge_mechanism_facts.py"]},
+        # Una acción que el turno DECIDIÓ y el sistema tiró (V2-171) tiene que llegar al juez: es la diferencia
+        # entre «no lo intentó» y «lo intentó y le tiraron la orden», que desde un transcript se ven iguales.
+        {"id": "10.6", "title": "Acciones descartadas: forma real del evento y que llegue al juez",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_dropped_actions.py"]},
     ]},
 ]
 

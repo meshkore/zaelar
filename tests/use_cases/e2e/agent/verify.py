@@ -19,6 +19,31 @@ def families_in(events: list[dict]) -> set[str]:
     return {e.get("cat") for e in events if e.get("cat")}
 
 
+def _fields(e: dict) -> dict:
+    """The event's own fields, whatever shape the durable column hands back.
+
+    `observer.emit` does `ev.update(extra)`, so an `extra={"tool": …}` lands FLAT at the top level of the
+    stored payload — not under an `"extra"` key. The payload itself arrives as a JSON STRING from the
+    observability API. Both facts are easy to get wrong in a way that never raises: a reader that looks for
+    `e["extra"]["tool"]` just finds nothing and reports "no dropped actions", which is indistinguishable from
+    a healthy run. Flat first, then nested, then the top-level dict, so all three shapes read the same.
+    """
+    payload = e.get("payload")
+    if isinstance(payload, str):
+        import json
+        try:
+            payload = json.loads(payload)
+        except Exception:
+            payload = {}
+    payload = payload if isinstance(payload, dict) else {}
+    out = dict(payload)
+    out.update({k: v for k, v in (payload.get("extra") or {}).items() if v not in (None, "")})
+    for k, v in (e.get("extra") or {}).items():
+        if v not in (None, ""):
+            out.setdefault(k, v)
+    return out
+
+
 def find_navegador_task_id(events: list[dict]) -> str:
     """A navegador task card shows as a widget/show event with extra id "navegador::<task_id>" (see
     nucleo/dispatch.py). The exact payload nesting is defensive here (checked both flat and under "extra")
@@ -204,6 +229,26 @@ def scheduled_report(before: list[dict], after: list[dict]) -> dict:
     }
 
 
+def dropped_actions(all_events: list[dict]) -> list[dict]:
+    """Actions the turn DECIDED to take and the system could not read (`tool_dropped`, V2-171).
+
+    This belongs in the mechanism report and not in a log, because it is the difference between the two
+    diagnoses that look identical from a transcript: «the agent never tried» and «the agent tried and the
+    system threw the action away». Getting that backwards cost three days — V2-133 filed eight cases of
+    «zaelar narra un progreso que no ocurre» when the FlashBrain had in fact called `escalate_to_slowbrain`
+    and its arguments were truncated past parsing. A judge that cannot see this has no way to tell them apart,
+    so it picks the one that reads worse.
+    """
+    out = []
+    for e in all_events:
+        f = _fields(e)
+        if (e.get("kind") or f.get("kind") or "") != "tool_dropped":
+            continue
+        out.append({"tool": f.get("tool") or "", "reason": f.get("reason") or "",
+                    "finish_reason": f.get("finish_reason") or ""})
+    return out
+
+
 def mechanism_report(all_events: list[dict], expected_signals: list[str],
                      concurrency: ConcurrencyTracker | None = None,
                      scheduled: dict | None = None) -> dict:
@@ -222,6 +267,7 @@ def mechanism_report(all_events: list[dict], expected_signals: list[str],
         "navegador_task": task_view,
         "n_events": len(all_events),
         "search_health": search_health(all_events),
+        "dropped_actions": dropped_actions(all_events),
     }
     if scheduled is not None:
         out["scheduled_jobs"] = scheduled
