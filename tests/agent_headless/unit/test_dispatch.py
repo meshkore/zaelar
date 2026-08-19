@@ -175,6 +175,52 @@ def test_web_prompt_carries_the_trusted_site_catalog(monkeypatch):
     assert "mem_cli recall" in wp
 
 
+def test_the_worker_is_told_WHICH_site_to_start_at_and_it_follows_the_locale(monkeypatch):
+    """V2-137 — the catalog BLOCK was pinned by the test above; the LEAD, the one line that tells the worker
+    where to begin, was not. `_category_lead` exists precisely because reading six bullets still left the
+    worker to choose (its own docstring cites this case: «the run never reached TheFork at all»), so it is the
+    piece that decides the destination — and it silently followed whatever language the machine happened to
+    have configured. Verified live while auditing this case: with no ZAELAR_LANGUAGE set, a Spanish booking at
+    a Madrid restaurant was sent to OpenTable. That is correct given the config and invisible without pinning
+    it, which is exactly the failure shape testmap node 7.10 exists to prevent."""
+    from voice.engine.core import langs
+    monkeypatch.setattr(langs, "current_code", lambda: "es")
+    wp = dispatch._web_prompt("Resérvame mesa para 2 esta noche a las 21:30 en Casa Lucio.", "")
+    lead = [line for line in wp.splitlines() if "ESTA TAREA es de categoría" in line]
+    assert lead, "the worker must be told which site to start at, not just handed the catalog"
+    assert "thefork.es" in lead[0]
+    assert "opentable" not in lead[0].lower()
+
+
+def test_and_the_same_request_in_the_us_locale_starts_somewhere_else(monkeypatch):
+    from voice.engine.core import langs
+    monkeypatch.setattr(langs, "current_code", lambda: "en")
+    wp = dispatch._web_prompt("Book me a table for 2 tonight at 9:30pm at Casa Lucio.", "")
+    lead = [line for line in wp.splitlines() if "ESTA TAREA es de categoría" in line]
+    assert lead and "opentable.com" in lead[0]
+
+
+def test_the_lead_names_the_category_that_routed_the_task(monkeypatch):
+    """One decision, not two: the category naming the destination is the SAME call that sent this task to the
+    browser in the first place. If they could disagree, the worker would start at a site chosen for a
+    different kind of errand than the one that got it here."""
+    from voice.engine.core import langs
+    from nucleo.flash import site_catalog
+    monkeypatch.setattr(langs, "current_code", lambda: "es")
+    goal = "Resérvame mesa para 2 esta noche a las 21:30 en Casa Lucio."
+    assert dispatch._classify_kind(goal) == "web"
+    assert site_catalog.category_of(goal, "es") == "restaurant_booking"
+    assert "«restaurant_booking»" in dispatch._web_prompt(goal, "")
+
+
+def test_a_goal_with_no_category_gets_no_lead_and_the_catalog_is_unchanged(monkeypatch):
+    """The lead is additive: when nothing matches it is empty and the catalog behaves exactly as before."""
+    from voice.engine.core import langs
+    monkeypatch.setattr(langs, "current_code", lambda: "es")
+    wp = dispatch._web_prompt("mira el último vídeo de ese canal", "")
+    assert "ESTA TAREA es de categoría" not in wp
+
+
 def test_structured_worker_observability():
     """V2-059: el worker declara plan + reporta progreso → registro actualizado y proyectado a ESTADO/api-tasks."""
     from nucleo.workers.session import SessionRecord
