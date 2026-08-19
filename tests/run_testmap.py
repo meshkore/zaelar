@@ -120,6 +120,9 @@ DOMAINS: list[dict] = [
             # V2-148: todo pago iba a un worker SIN navegador, así que la tarea no podía ni llegar al
             # muro de login — el hueco que yo mismo había dejado abierto dos veces.
             "tests/agent_headless/unit/flash/test_money_work_gets_a_browser.py",
+            # V2-149: cuatro turnos preguntando DÓNDE está la farmacia y ni uno preguntando QUÉ receta
+            # reponer — el objeto del encargo nunca se pidió.
+            "tests/agent_headless/unit/flash/test_ask_for_everything_missing.py",
             "tests/agent_headless/unit/test_skeleton.py", "tests/agent_headless/unit/test_sparks.py"]},
         {"id": "2.4", "title": "Cliente LLM rápido, reintento y RELEVO por latencia", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_fast_client.py", "tests/agent_headless/unit/flash/test_fast_client_retry.py",

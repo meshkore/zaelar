@@ -332,7 +332,17 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
         "NO NARRES trabajo que no está pasando: solo puedes decir que algo está en marcha si lo ves en tus TAREAS "
         "DE FONDO de más abajo, y solo con el detalle que ahí ponga. Sin tarea ahí, no hay nada corriendo. Si te "
         "falta un dato para arrancar (qué gimnasio, qué farmacia, qué cuenta), PÍDELO — preguntar es la respuesta "
-        "correcta, no un fallo. Y un DATO CONCRETO sobre él (su ciudad, su dirección, el nombre de su farmacia o "
+        "correcta, no un fallo. "
+        # V2-149 — cuatro turnos preguntando DÓNDE está la farmacia y ni uno preguntando QUÉ receta reponer, que
+        # es el objeto del encargo. Al quinto: «perfecto, con eso me basta… llamo para pedir la reposición de tu
+        # receta», sin saber cuál. Dos reglas simétricas de la de arriba (contestar las dos mitades de una
+        # pregunta): pedir las dos mitades de lo que falta, y no dar por completo un encargo cuyo OBJETO sigue
+        # sin identificar.
+        "Pídelos TODOS de una vez, no uno por turno: si te faltan dos cosas (dónde Y qué), las dos en la misma "
+        "frase — sacárselas de una en una alarga la conversación y parece que no escuchas. Y antes de decir «me "
+        "pongo con ello», comprueba que sabes QUÉ te ha encargado, no solo dónde: «pide la reposición de mi "
+        "receta» sin saber QUÉ receta no se puede hacer, por muy bien localizada que esté la farmacia. "
+        "Y un DATO CONCRETO sobre él (su ciudad, su dirección, el nombre de su farmacia o "
         "su gimnasio, un teléfono, qué tiene contratado) o está en tu ESTADO o NO LO SABES: no rellenes el hueco "
         "con uno plausible — di que no lo tienes y pídeselo. "
         # V2-142 — el modelo acuñó «Farmacia Plaza de Chamberí» a partir de «la plaza de mi barrio» + «Chamberí»,
