@@ -298,10 +298,22 @@ def hands_public_lookup_back(reply: str) -> bool:
 # La frontera que lo separa de la familia de V2-132/V2-143: «te aviso EN CUANTO lo tenga» es un worker
 # terminando, no un aviso programado. Lo que distingue a este es que hay un MOMENTO resoluble — y quien decide
 # si lo hay es `scheduler.parse_when`, que devuelve "" ante cualquier expresión que no sea inequívoca.
+#
+# V2-151: the first shape of this pattern spelled out the ARTICLE («program\\w* el recordatorio») and the run it
+# was written for said «te programo UN recordatorio» — one word away, and the backstop never fired, so the turn
+# promised an alert with `scheduled_jobs.created` empty all over again. Measured on seven natural phrasings of
+# the same promise, five missed. A promise is a VERB plus a reminder NOUN; the determiner in between is noise.
+# It is listed explicitly instead of `\\w+` so that a NEGATED promise («no te pongo ningún recordatorio») cannot
+# match and schedule the very thing the sentence declined to schedule.
+_REMIND_NOUN = r"(?:recordatorio|aviso|alarma|alerta)"
+_REMIND_DET = r"(?:un|una|el|la|tu|ese|este|esa|esta)\s+"
 _REMIND_VERB_RE = _re.compile(
     r"\b(te\s+aviso|te\s+avisare|te\s+lo\s+recuerdo|te\s+lo\s+recordare|te\s+recuerdo|te\s+recordare|"
-    r"program\w*\s+el\s+recordatorio|dejo\s+puesto\s+el\s+aviso|pon\w*\s+el\s+recordatorio|"
-    r"i'?ll\s+remind\s+you|i\s+will\s+remind\s+you|i'?ll\s+let\s+you\s+know\s+on)\b", _re.I)
+    r"dejo\s+puesto\s+" + _REMIND_DET + _REMIND_NOUN + r"|"
+    r"dejo\s+programad[oa]\s+" + _REMIND_DET + _REMIND_NOUN + r"|"
+    r"(?:program|pon|cre|configur|activ|dej)\w*\s+" + _REMIND_DET + _REMIND_NOUN + r"|"
+    r"i'?ll\s+remind\s+you|i\s+will\s+remind\s+you|i'?ll\s+let\s+you\s+know\s+on|"
+    r"i'?ll\s+set\s+(?:up\s+)?(?:a|the)\s+reminder|i'?ll\s+put\s+(?:a|the)\s+reminder)\b", _re.I)
 
 
 def promises_a_dated_reminder(reply: str, operator_text: str = "") -> str:

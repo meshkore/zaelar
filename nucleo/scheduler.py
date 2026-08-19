@@ -55,6 +55,8 @@ _DEFAULT_HOUR = 9
 # hasta el día que no suena (V2-121).
 _WEEKDAYS = {"lunes": 0, "martes": 1, "miercoles": 2, "jueves": 3, "viernes": 4, "sabado": 5, "domingo": 6,
              "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3, "friday": 4, "saturday": 5, "sunday": 6}
+# «mañana» as the NOUN *morning* — see `parse_when`. Always determined; the adverb *tomorrow* never is.
+_RE_MORNING_NOUN = re.compile(r"\b(?:por\s+la|de\s+la|a\s+la|en\s+la|la|una|media|esta|toda\s+la)\s+manana\b", re.I)
 _RE_AT_HOUR = re.compile(r"\ba\s+las?\s+(\d{1,2})(?::(\d{2}))?\b|\bat\s+(\d{1,2})(?::(\d{2}))?\b", re.I)
 _RE_DAY_OF_MONTH = re.compile(r"\bel\s+d[ií]a\s+(\d{1,2})\b|\bon\s+the\s+(\d{1,2})(?:st|nd|rd|th)?\b", re.I)
 
@@ -90,7 +92,14 @@ def parse_when(text: str, now: float | None = None) -> str:
         lt = time.localtime(day_ts)
         return time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, hh, mi, 0, 0, 1, -1))
 
-    if re.search(r"\b(manana|tomorrow)\b", n):
+    # «mañana» is TWO words in Spanish: the adverb *tomorrow* and the noun *morning*. Measured on the run that
+    # V2-151 came from: «te programo un recordatorio para el miércoles a media mañana» resolved to THURSDAY,
+    # because the noun inside «media mañana» matched the adverb and short-circuited the weekday below. That is
+    # the worst failure this function can have — a reminder that is set, reported as set, and fires on the wrong
+    # day, which nobody notices until the day it does not ring. The noun always carries a determiner in front
+    # («la/media/esta/por la/de la mañana»); the bare adverb never does, so dropping the noun occurrences first
+    # leaves exactly the adverb. «mañana por la mañana» still resolves to tomorrow: the first one survives.
+    if re.search(r"\b(manana|tomorrow)\b", _RE_MORNING_NOUN.sub(" ", n)):
         return _iso(now + 86400)
     # TWO weekdays in the same sentence («el jueves tengo que… y recuérdamelo el miércoles») is ambiguous for a
     # backstop: which one is the reminder is exactly what we cannot know without understanding the sentence.

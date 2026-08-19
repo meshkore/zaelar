@@ -132,3 +132,60 @@ def test_and_it_does_not_duplicate_one_the_model_did_ask_for(fresh_db, monkeypat
     names = [j.get("name") for j in scheduler.list_jobs(active_only=True)]
     assert "seguro" in names
     assert "aviso" not in names
+
+
+# ── V2-151: the promise the pattern could not see, and the day it would have picked ──────────────────────────
+#
+# The run this came from said, in one turn: «Apunto la cita para el jueves y te programo UN recordatorio para el
+# miércoles a media mañana» — and `scheduled_jobs.created` came back empty AGAIN. Two independent faults, and the
+# second only becomes reachable once the first is fixed, which is why both are pinned here.
+REPLY_151 = "Apunto la cita para el jueves y te programo un recordatorio para el miércoles a media mañana."
+
+
+@pytest.mark.parametrize("reply", [
+    REPLY_151,                                                    # the exact wording that got away
+    "Te programo un recordatorio para el miércoles.",
+    "Te pongo un recordatorio para el miércoles.",
+    "Te creo un aviso para el miércoles.",
+    "Te dejo puesto un aviso para el miércoles.",
+    "Te dejo programado un aviso para el miércoles.",
+    "I'll set a reminder for Wednesday.",
+])
+def test_a_promise_is_a_verb_plus_a_noun_not_a_particular_article(reply):
+    """The first shape of `_REMIND_VERB_RE` spelled the article out («program\\w* el recordatorio»), so «te
+    programo UN recordatorio» — the most natural way to say it — missed by one word. Five of seven natural
+    phrasings missed when this was measured."""
+    assert g.promises_a_dated_reminder(reply, ASK) != ""
+
+
+def test_but_a_declined_reminder_is_not_a_promise():
+    """The determiners are listed one by one instead of `\\w+` for this: a sentence that says it is NOT setting a
+    reminder must never end up setting one."""
+    assert g.promises_a_dated_reminder("No te pongo ningún recordatorio, apúntalo tú.", ASK) == ""
+
+
+@pytest.mark.parametrize("text,expected", [
+    ("el miércoles a media mañana", "2026-08-19 09:00"),
+    ("para el miércoles a media mañana", "2026-08-19 09:00"),
+    ("el jueves por la mañana", "2026-08-20 09:00"),
+    ("el jueves a las 9 de la mañana", "2026-08-20 09:00"),
+    ("mañana", "2026-08-20 09:00"),
+    ("mañana por la mañana", "2026-08-20 09:00"),      # the ADVERB survives; only the noun is dropped
+])
+def test_the_noun_morning_does_not_hijack_the_day(text, expected):
+    """«mañana» is two words in Spanish. The noun (always determined: la/media/esta/por la/de la) was matching
+    the adverb branch and short-circuiting the weekday, so «el miércoles a media mañana» resolved to THURSDAY —
+    a reminder that is set, reported as set, and rings on the wrong day."""
+    assert scheduler.parse_when(text, NOW) == expected
+
+
+@pytest.mark.parametrize("text", ["media mañana", "esta mañana", "por la mañana"])
+def test_and_a_morning_with_no_day_still_refuses(text):
+    """Dropping the noun must not turn a dayless expression into a resolvable one — it names an hour, not a day."""
+    assert scheduler.parse_when(text, NOW) == ""
+
+
+def test_the_whole_turn_end_to_end(monkeypatch):
+    """Both faults on the one sentence: the promise is seen, and the day it resolves to is the one promised."""
+    monkeypatch.setattr(scheduler.time, "time", lambda: NOW)
+    assert g.promises_a_dated_reminder(REPLY_151, ASK) == "2026-08-19 09:00"
