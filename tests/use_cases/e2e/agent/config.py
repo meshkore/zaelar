@@ -62,10 +62,14 @@ def native_model(model: str) -> str:
     return model.split("/", 1)[-1] if model else model
 
 
-# Last resort, only if BOTH DeepSeek endpoints are unreachable: an OpenAI/Anthropic model through the broker.
-# Cheap and non-reasoning on purpose — it exists so an unattended run degrades instead of dying, not to
-# produce comparable measurements (a round served by it gets stamped as not comparable).
-LAST_RESORT_MODEL = _env("USE_CASES_LAST_RESORT_MODEL", "anthropic/claude-haiku-4.5")
+# Último escalón, solo si los DOS caminos de DeepSeek están inalcanzables: GLM por Z.AI. **Ningún modelo de
+# OpenAI aquí** (norma del operador, 2026-08-19: «no quiero usar modelos de OpenAI»; la formulación inicial de
+# la norma nombraba OpenAI/Anthropic como último recurso y se corrigió el mismo día). No hace falta ninguno: el
+# escalón existe para que una corrida desatendida DEGRADE en vez de morir, y Z.AI ya está aquí con su
+# credencial. Cuesta independencia —el JUEZ vive en ese proveedor— y por eso la ronda queda SELLADA como no
+# comparable; ese coste es real, pero es el mismo que tendría cualquier tercer escalón y no mejora por ser de
+# otro vendedor.
+LAST_RESORT_MODEL = _env("USE_CASES_LAST_RESORT_MODEL", "")   # vacío = usa el escalón Z.AI, sin modelo propio
 
 RUNS_DIR = voice_config.ZAELAR_ROOT / "tests" / "runs" / "use_cases"
 

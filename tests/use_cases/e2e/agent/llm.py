@@ -38,7 +38,7 @@ def _as_text(content) -> str:
 
 
 # ── Cadena de proveedores del DRIVE (norma del operador, 2026-08-19) ──────────────────────────────────────
-# ORDEN: DeepSeek V4 DIRECTO → broker AIMLAPI → modelo de OpenAI/Anthropic (último recurso).
+# ORDEN: DeepSeek V4 DIRECTO → broker AIMLAPI → Z.AI/GLM. CERO modelos de OpenAI (norma del operador).
 #
 # Los dos escalones existen por hechos medidos, no por precaución: el 2026-08-19 a las 02:34 la cuenta de
 # AIMLAPI devolvió 403 «You've run out of funds» (verificado contra el cuerpo de la respuesta, con la clave del
@@ -113,8 +113,12 @@ def call(messages: list[dict], model: str | None = None, temperature: float = 0.
         return _as_text(glm_call(messages, max_tokens=max_tokens))
 
     def _last() -> str:
-        return _as_text(_call(messages, model=config.LAST_RESORT_MODEL, temperature=temperature,
-                              max_tokens=max_tokens))
+        # Tercer escalón = Z.AI/GLM, NO un modelo de OpenAI (ver `config.LAST_RESORT_MODEL`). Si algún día se
+        # fija un modelo ahí, va por el broker; vacío —el defecto— es Z.AI.
+        if config.LAST_RESORT_MODEL:
+            return _as_text(_call(messages, model=config.LAST_RESORT_MODEL, temperature=temperature,
+                                  max_tokens=max_tokens))
+        return _zai()
 
     # Escotilla manual: fijar UN escalón y no moverse de él (para medir un brazo concreto sin que un fallo
     # lo releve por detrás y contamine la comparación).
@@ -125,7 +129,8 @@ def call(messages: list[dict], model: str | None = None, temperature: float = 0.
         _used_drive = forced[0]
         return _nonempty(forced[1](), forced[0])   # forzar un escalón no exime de que la respuesta exista
 
-    chain = [("deepseek-directo", _direct), ("aimlapi", _broker), (f"último recurso · {config.LAST_RESORT_MODEL}", _last)]
+    chain = [("deepseek-directo", _direct), ("aimlapi", _broker),
+             (f"último recurso · {config.LAST_RESORT_MODEL or 'zai/glm'}", _last)]
     errs: list[str] = []
     for i, (name, fn) in enumerate(chain):
         try:

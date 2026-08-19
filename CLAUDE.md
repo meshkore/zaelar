@@ -766,8 +766,14 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   razonamiento vive OFF del camino crítico, en el SlowBrain.
 - **ORDEN DE PROVEEDOR — DeepSeek V4 DIRECTO primero, broker después, OpenAI/Anthropic el último (NORMA del
   operador, 2026-08-19).** Toda pieza que llame a un LLM resuelve su proveedor en este orden: **(1)
-  `api.deepseek.com` DIRECTO** (V4 pro/flash), **(2) el broker AIMLAPI**, **(3) un modelo de OpenAI o Anthropic**
-  como último recurso. Amplía la norma del 2026-08-09 («nada por OpenAI directo, todo por el broker»): esa fijaba
+  `api.deepseek.com` DIRECTO** (V4 pro/flash, **el TITULAR**), **(2) el mismo modelo por el broker AIMLAPI**,
+  **(3) otro proveedor ya presente** (Z.AI/GLM, xAI) si los dos primeros están inalcanzables. **NO se usan
+  modelos de OpenAI** (aclaración del operador el mismo día, después de que la primera formulación de la norma
+  los nombrara como último recurso: *«no quiero usar modelos de OpenAI… vamos a usar los más potentes
+  disponibles a coste razonable, por lo tanto DeepSeek V4 debe ser el titular»*). Un modelo de Anthropic solo se
+  justifica donde una MEDICIÓN lo respalde y esté escrita (hoy: la tarea `i18n` de `memllm`, §12.5 — haiku dio
+  100% de cobertura en japonés y árabe donde gemini devolvió 0/50); nunca como defecto cómodo.
+  Amplía la norma del 2026-08-09 («nada por OpenAI directo, todo por el broker»): esa fijaba
   que no se abren cuentas por proveedor, esta fija **cuál manda cuando el mismo modelo se sirve por dos sitios**.
   Los tres motivos están medidos y ya estaban en este fichero, cada uno en su decisión: el directo es **~30% más
   barato** que el mismo modelo por el broker (§«el margen del BROKER no se cobraba»), el broker **acepta**
