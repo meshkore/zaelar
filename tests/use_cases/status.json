@@ -1,19 +1,19 @@
 {
   "scenarios": {
     "three-tasks-at-once": {
-      "last_run": "2026-08-19 18:10",
-      "overall": 2,
+      "last_run": "2026-08-19 19:40",
+      "overall": 3,
       "state": "FAIL",
       "scores": {
-        "naturalidad": 2,
-        "adaptacion": 1,
-        "resultado": 2,
-        "mecanismo": 1,
-        "eficiencia": 2,
-        "atribucion": 2,
-        "fluidez": 2
+        "naturalidad": 4,
+        "adaptacion": 5,
+        "resultado": 3,
+        "mecanismo": 2,
+        "eficiencia": 3,
+        "atribucion": 5,
+        "fluidez": 4
       },
-      "verdict": "No está listo para producción. El bloqueador nº1 es la desincronización crítica entre el 'discurso' del asistente (que afirma hacer todo) y el 'mecanismo' real (que no ejecuta la tercera tarea y pierde el contexto de la primera).",
+      "verdict": "No está listo para producción. El bloqueo nº1 es la incapacidad del orquestador para mantener vivas las 3 tareas concurrentes solicitadas por el usuario (falló el conteo y el lanzamiento de la tercera tarea 'monitor').",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 4,
@@ -28,25 +28,27 @@
       "drive_model": "deepseek-directo",
       "max_concurrent": 2,
       "distinct_kinds": [
-        "web"
+        "code",
+        "generic",
+        "research"
       ],
       "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-140-uc-three-tasks-at-once.md",
+        "initiative": ".meshkore/roadmap/initiatives/V2-155-uc-three-tasks-at-once.md",
         "task": ""
       }
     },
     "restaurant-tonight-madrid": {
-      "last_run": "2026-08-19 18:10",
-      "overall": 3,
+      "last_run": "2026-08-19 19:40",
+      "overall": 2,
       "state": "FAIL",
       "scores": {
         "naturalidad": 4,
         "adaptacion": 4,
-        "resultado": 2,
-        "mecanismo": 2,
+        "resultado": 1,
+        "mecanismo": 3,
         "eficiencia": 2
       },
-      "verdict": "El caso NO está listo para producción: el sistema tiene una desconexión crítica ('split brain') entre el éxito/fallo de la herramienta del navegador (que funcionó bien y rápido) y la narrativa verbal del modelo (que ignoró el resultado para inventar una carga falsa de trabajo).",
+      "verdict": "No está listo para producción: el agente se quedó en un estado de espera muerta ('zombie waiting') sin capacidad de recover del timeout, lo que impidió任何 resultado real.",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
@@ -64,7 +66,7 @@
         "missing": "cerrar la mesa (teléfono o cuenta en la plataforma)"
       },
       "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-150-uc-restaurant-tonight-madrid.md",
+        "initiative": ".meshkore/roadmap/initiatives/V2-156-uc-restaurant-tonight-madrid.md",
         "task": ""
       }
     },
@@ -112,17 +114,17 @@
       }
     },
     "remember-and-remind-deadline": {
-      "last_run": "2026-08-19 16:56",
+      "last_run": "2026-08-19 19:46",
       "overall": 2,
       "state": "FAIL",
       "scores": {
-        "naturalidad": 4,
-        "adaptacion": 3,
+        "naturalidad": 5,
+        "adaptacion": 4,
         "resultado": 1,
         "mecanismo": 1,
-        "eficiencia": 2
+        "eficiencia": 1
       },
-      "verdict": "No está listo para producción: el sistema falla en la lógica básica de programación (no respeta el día del aviso) y altera la fecha de los eventos sin validación, incumpliendo el objetivo principal.",
+      "verdict": "No está listo para producción: el asistente confirmó una gestión de agenda y recordatorios que el sistema no ejecutó realmente, generando un recordatorio inútil para dentro de dos años.",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
@@ -131,12 +133,11 @@
         "flash",
         "memory",
         "system",
-        "widget",
-        "worker"
+        "widget"
       ],
       "drive_model": "deepseek-directo",
       "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-151-uc-remember-and-remind-deadline.md",
+        "initiative": ".meshkore/roadmap/initiatives/V2-159-uc-remember-and-remind-deadline.md",
         "task": ""
       }
     },
@@ -161,21 +162,21 @@
       }
     },
     "reorder-prescription__es": {
-      "last_run": "2026-08-19 18:10",
-      "overall": 4,
+      "last_run": "2026-08-19 19:46",
+      "overall": 3,
       "state": "FAIL",
       "scores": {
-        "naturalidad": 5,
-        "adaptacion": 5,
-        "resultado": 5,
-        "mecanismo": 1,
-        "eficiencia": 5
+        "naturalidad": 4,
+        "adaptacion": 3,
+        "resultado": 3,
+        "mecanismo": 2,
+        "eficiencia": 3
       },
-      "verdict": "No. El comportamiento textual es impecable (manejo de ambigüedad y honestidad), pero el sistema reporta un estado de 'trabajo' activo ('working') con cero actividad de fondo ('events': []), lo que indica una desincronización crítica entre lo que dice y lo que hace el sistema.",
+      "verdict": "El caso no está listo para producción debido a una desconexión entre el 'estado de tarea done' reportado y la ausencia de señales reales de navegación ('missing_signals'); aunque el modelo no inventó datos, cerró la tarea como 'completada' sin que el sistema hubiera realizado una acción resolutiva real más allá del diálogo.",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
-      "turns_used": 8,
+      "turns_used": 7,
       "families": [
         "flash",
         "memory",
@@ -189,22 +190,22 @@
         "missing": "una farmacia habitual y una receta real"
       },
       "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-142-uc-reorder-prescription-es.md",
+        "initiative": ".meshkore/roadmap/initiatives/V2-158-uc-reorder-prescription-es.md",
         "task": ""
       }
     },
     "pay-known-bill__es": {
-      "last_run": "2026-08-19 18:10",
+      "last_run": "2026-08-19 19:12",
       "overall": 2,
       "state": "FAIL",
       "scores": {
         "naturalidad": 4,
-        "adaptacion": 3,
+        "adaptacion": 4,
         "resultado": 1,
         "mecanismo": 1,
-        "eficiencia": 2
+        "eficiencia": 3
       },
-      "verdict": "No está listo para producción. El bloqueador nº1 es la incapacidad de reconocer límites (falta de credenciales), lo que lleva a prometer y 'narrar' acciones que el sistema no puede ejecutar, inventando una realidad que no se corresponde con el mecanismo.",
+      "verdict": "No está listo. El bloqueador nº1 es la desconexión total entre el 'narrador' (texto) y el 'actor' (mecanismo): zaelar afirma trabajar cuando el sistema está inactivo, lo cual es un fallo crítico de seguridad y funcionalidad antes de hablar de eficiencia.",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
@@ -222,7 +223,7 @@
         "missing": "una factura real y acceso al proveedor/banco"
       },
       "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-148-uc-pay-known-bill-es.md",
+        "initiative": ".meshkore/roadmap/initiatives/V2-154-uc-pay-known-bill-es.md",
         "task": ""
       }
     },
@@ -279,21 +280,21 @@
       }
     },
     "book-hotel-night-known__es": {
-      "last_run": "2026-08-19 12:17",
-      "overall": 1,
+      "last_run": "2026-08-19 18:56",
+      "overall": 2,
       "state": "FAIL",
       "scores": {
         "naturalidad": 4,
         "adaptacion": 5,
         "resultado": 1,
-        "mecanismo": 1,
-        "eficiencia": 1
+        "mecanismo": 2,
+        "eficiencia": 2
       },
-      "verdict": "No está listo para producción; el bloqueador nº1 es la incapacidad del asistente para invocar el navegador o motor de búsqueda, resultando en una alucinación completa de actividad (prometió buscar, dijo estar trabajando, pero el mecanismo nunca se movió).",
+      "verdict": "No está listo para producción. El bloqueador nº1 es la desconexión total entre el reporte verbal ('casi lo tengo', 'interactuando') y la realidad técnica (el bot nunca salió de la home), impidiendo al usuario saber que la tarea está fallando.",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
-      "turns_used": 8,
+      "turns_used": 9,
       "families": [
         "flash",
         "memory",
@@ -307,7 +308,7 @@
         "missing": "cerrar la reserva (cuenta y tarjeta)"
       },
       "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-145-uc-book-hotel-night-known-es.md",
+        "initiative": ".meshkore/roadmap/initiatives/V2-152-uc-book-hotel-night-known-es.md",
         "task": ""
       }
     },
@@ -322,17 +323,17 @@
       "tier": 1
     },
     "find-theatre-tickets__es": {
-      "last_run": "2026-08-19 18:10",
-      "overall": 1,
+      "last_run": "2026-08-19 19:12",
+      "overall": 2,
       "state": "FAIL",
       "scores": {
-        "naturalidad": 3,
-        "adaptacion": 1,
+        "naturalidad": 4,
+        "adaptacion": 5,
         "resultado": 1,
-        "mecanismo": 1,
-        "eficiencia": 1
+        "mecanismo": 2,
+        "eficiencia": 2
       },
-      "verdict": "El caso de uso NO está listo para producción: el asistente sufrió una 'alucinación de ejecución', afirmando buscar entradas de teatro mientras el sistema intentaba reservar un restaurante irrelevante, y falló en completar el objetivo principal sin reconocer el error.",
+      "verdict": "No está listo para producción. El bloqueador nº1 es la falacia de estado: el asistente inventa que 'está buscando' cuando el navegador ya falló o se detuvo, dejando al usuario en una espera infinita.",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
@@ -350,10 +351,10 @@
         "missing": "comprar las entradas (cuenta y tarjeta)"
       },
       "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-147-uc-find-theatre-tickets-es.md",
+        "initiative": ".meshkore/roadmap/initiatives/V2-157-uc-find-theatre-tickets-es.md",
         "task": ""
       }
     }
   },
-  "updated": "2026-08-19 18:10"
+  "updated": "2026-08-19 19:46"
 }
