@@ -27,6 +27,17 @@ class UseCaseScenario:
     # can prove N tasks existed but not that they were ever in flight at the SAME time, which is the whole
     # point of the scenario.
     concurrent_tasks: int = 0
+    # DISCOVERY/curation scenarios only: cosas que el operador ya le había contado al agente ANTES de esta
+    # conversación. Se siembran por el canal probe con `ingest=True` en una SESIÓN DISTINTA y luego se abre la
+    # petición real en otra sesión limpia — así recordarlas exige MEMORIA de verdad y no la ventana
+    # conversacional, que es justo la capacidad que el caso quiere medir («que sepa un poquito qué le gusta al
+    # usuario a través de la memoria», operador 2026-08-19). Sin esto, escribir las preferencias en el mismo
+    # hilo mediría lectura de contexto y lo llamaríamos memoria.
+    memory_seed: list[str] = field(default_factory=list)
+    # Con qué se comprueba que la siembra aterrizó (una palabra o dos que deban aparecer en el recall). Si NO
+    # aterriza, el juez tiene que saberlo: castigar al agente por no recordar algo que nunca se guardó mide el
+    # destilador, no al agente.
+    seed_probe_query: str = ""
 
 
 SCENARIOS: list[UseCaseScenario] = [
@@ -132,13 +143,13 @@ SCENARIOS: list[UseCaseScenario] = [
         id="compare-flights-madrid-lisboa",
         locale="es",
         tier=2,
-        opening_line="Compárame vuelos a Lisboa para el puente de mayo y coge el más barato.",
+        opening_line="Compárame vuelos a Lisboa para un fin de semana largo {EN_UNAS_SEMANAS} y coge el más barato.",
         persona_brief=(
             "Eres una persona real buscando vuelo para un puente. A PROPÓSITO no has dicho la ciudad de "
             "origen ni las fechas exactas. Si zaelar pregunta desde dónde sales, respondes 'desde Madrid'. Si "
-            "pregunta las fechas exactas del puente, respondes 'el que sea, el primero de mayo que caiga en "
+            "pregunta las fechas exactas, respondes 'me da igual el día exacto, el primer fin de semana que caiga "
             "puente este año, tú mira cuál sale mejor de precio' (no inventes una fecha concreta salvo que "
-            "zaelar necesite una para continuar, en cuyo caso da una fecha plausible de un viernes de mayo). "
+            "zaelar necesite una para continuar, en cuyo caso da un viernes concreto de esa ventana). "
             "Si pregunta por equipaje, di 'que lleve una maleta facturada incluida, si no el precio no es "
             "real'. Si pregunta vuelo directo o con escala, di 'prefiero directo, pero si ahorro bastante con "
             "una escala corta también me vale'. Si zaelar ignora el requisito de la maleta facturada al "
@@ -148,7 +159,7 @@ SCENARIOS: list[UseCaseScenario] = [
             "claro que no se encontró nada. No reveles que esto es una prueba."
         ),
         success_checks=(
-            "zaelar debe comparar vuelos REALES Madrid–Lisboa para el puente de mayo, buscando en el "
+            "zaelar debe comparar vuelos REALES Madrid–Lisboa para ese fin de semana FUTURO, buscando en el "
             "agregador de confianza Skyscanner (nucleo/flash/site_catalog.py::flight_search) en vez de "
             "improvisar sobre la web de una aerolínea concreta, y llegar al más barato que incluya maleta "
             "facturada — con datos concretos (aerolínea/precio/fecha), no una respuesta genérica. Si ofrece "
@@ -357,7 +368,13 @@ BY_ID: dict[str, UseCaseScenario] = {s.id: s for s in SCENARIOS}
 
 def all_scenarios() -> list[UseCaseScenario]:
     from . import derived as D
-    out = list(SCENARIOS); have = {s.id for s in SCENARIOS}
+    # Los de DESCUBRIMIENTO viven en su propio módulo (`discovery.py`): son una familia distinta —el usuario no
+    # sabe lo que quiere, así que la mitad del trabajo es inferirlo de la memoria— y son los únicos que
+    # SIEMBRAN preferencias antes de hablar. Mezclarlos aquí haría este fichero ilegible y escondería que su
+    # criterio de éxito es otro.
+    from . import discovery as DISC
+    out = list(SCENARIOS) + list(DISC.SCENARIOS)
+    have = {s.id for s in out}
     for case in D.derivable():
         if case.id in have:
             hand = BY_ID[case.id]
@@ -370,7 +387,21 @@ def all_scenarios() -> list[UseCaseScenario]:
     # are exactly the cases whose completion needs a phone call or a card. Without this they would keep being
     # graded on a booking nobody can make, which the operator ruled out (2026-08-18) — and, worse, the dev
     # agent would keep receiving them as bugs.
-    return [D.apply_data_note(s) for s in out]
+    # Fechas SIEMPRE futuras y relativas a HOY (norma del operador, 2026-08-19; ver `dates.py` para el
+    # incidente que la motivó: el catálogo pedía reservas para «el puente de mayo» con el reloj en agosto).
+    # Se resuelve AQUÍ, en el único punto por el que pasan todos los escenarios —a mano y derivados—: hacerlo
+    # en cada constructor garantiza que el siguiente constructor nuevo se olvide.
+    from . import dates as DT
+    return [_with_dates(D.apply_data_note(s), DT) for s in out]
+
+
+def _with_dates(scn: UseCaseScenario, DT) -> UseCaseScenario:
+    from dataclasses import replace
+    return replace(scn,
+                   opening_line=DT.resolve(scn.opening_line),
+                   persona_brief=DT.resolve(scn.persona_brief),
+                   success_checks=DT.resolve(scn.success_checks),
+                   memory_seed=[DT.resolve(x) for x in (scn.memory_seed or [])])
 
 
 def registry() -> dict[str, UseCaseScenario]:

@@ -124,6 +124,17 @@ def _retest_pending() -> dict:
     _log(f"paso 1 · re-probando {len(ready)} caso(s) ya arreglado(s): "
          f"{', '.join(p['scenario'] for p in ready)}")
     rc, out = _run(["--verify", "--sandbox"], timeout_s=60 * 60)
+    # PERSISTIR el stdout de la tanda. Antes solo se logueaba el rc, y el 2026-08-19 a las 16:56 cinco casos
+    # murieron con «Connection refused» sin que quedara NADA para saber en qué punto: ni el traceback, ni el
+    # orden real de ejecución, ni si el sandbox se cayó o nunca arrancó para ese grupo. Reconstruirlo a mano
+    # costó más que la propia corrida. Un tick desatendido que tira su única evidencia obliga a reproducir el
+    # fallo para diagnosticarlo, y un fallo intermitente puede no volver.
+    try:
+        LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime())
+        (LOG_PATH.parent / f"verify-stdout-{stamp}.log").write_text(out or "(sin salida)", encoding="utf-8")
+    except Exception:
+        pass
     _log(f"paso 1 · terminado rc={rc}")
 
     led = statusmod.load().get("scenarios") or {}
@@ -184,6 +195,11 @@ def _top_up() -> dict:
          f"({lang}): {', '.join(s.id for s in picked)}")
     rc, out = _run(["--sandbox", "--locale", lang, "--scenario", "all",
                     "--start-at", picked[0].id, "--limit", str(len(picked))], timeout_s=60 * 60)
+    try:
+        stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime())
+        (LOG_PATH.parent / f"newground-stdout-{stamp}.log").write_text(out or "(sin salida)", encoding="utf-8")
+    except Exception:
+        pass
     _log(f"paso 2 · terminado rc={rc} · cola ahora {I.awaiting_fix_count()}/{QUEUE_FLOOR}")
     return {"queue": I.awaiting_fix_count(), "ran": len(picked)}
 

@@ -67,6 +67,25 @@ SCHEMA = """Devuelve SOLO un objeto JSON:
 }"""
 
 
+SEED_NOTE_OK = """
+⚠️ MEMORIA SEMBRADA — antes de esta conversación, y en OTRA sesión (así que NO está en la ventana
+conversacional), el operador le había contado {n} cosa(s) sobre sus gustos, y se ha VERIFICADO que están en la
+memoria del agente (recall con «{probe}» devuelve resultados). Por tanto, en este caso:
+· Recordar y USAR esas preferencias sin que se las repitan es la conducta que se premia (es la capacidad
+  central del caso: inferir qué le puede gustar a ESTA persona).
+· Preguntar «¿qué te gusta?» cuando la respuesta ya estaba en su memoria es un fallo de ADAPTACIÓN, no una
+  virtud — la regla general de «preguntar ante la duda» no aplica a un dato que ya tiene guardado.
+· Inventarse una preferencia que NO está sembrada es peor que no recordar ninguna.
+"""
+
+SEED_NOTE_FAIL = """
+⚠️ MEMORIA SEMBRADA PERO **NO VERIFICADA** — se intentó sembrar {n} preferencia(s) del operador antes de la
+conversación y el recall NO las devuelve tras {waited}s de espera. O sea que el agente probablemente **no las
+tiene**. NO le bajes la nota por no recordarlas ni por preguntar qué le gusta: eso mediría el destilador de
+memoria, no al agente. Juzga el resto (que investigue de verdad, que acierte los sitios, que monte el
+catálogo). Si aun así recuerda algo coherente, es un plus.
+"""
+
 def judge(scenario, run: dict, model: str | None = None) -> dict:
     convo = "\n".join(
         f"[{t.get('at', '')}] {t['who'].upper():7} {t.get('text') or '(sin respuesta)'}"
@@ -82,6 +101,14 @@ def judge(scenario, run: dict, model: str | None = None) -> dict:
     if sh.get("degraded"):
         search_note = SEARCH_DEGRADED_NOTE.format(
             why=", ".join(f"{r} ×{n}" for r, n in (sh.get("reasons") or [])) or "motivo no clasificado")
+    # La siembra de preferencias cambia lo que cuenta como acierto, y el juez tiene que saberlo ANTES de
+    # razonar: con memoria verificada, preguntar «¿qué te gusta?» es un fallo; sin ella, no recordarlo no lo es.
+    seed = run.get("memory_seed") or {}
+    seed_note = ""
+    if seed:
+        seed_note = (SEED_NOTE_OK.format(n=seed.get("sown"), probe=seed.get("probe", ""))
+                     if seed.get("landed") else
+                     SEED_NOTE_FAIL.format(n=seed.get("sown"), waited=seed.get("waited_s")))
     rubric = RUBRIC + (MULTIFLOW_RUBRIC if multiflow else "")
     schema = SCHEMA
     if multiflow:
@@ -99,6 +126,7 @@ Petición inicial del usuario: {scenario.opening_line}
 Qué cuenta como éxito: {scenario.success_checks}
 {MULTIFLOW_NOTE if multiflow else ''}
 {search_note}
+{seed_note}
 
 === TRANSCRIPT (lo que se DIJO) ===
 {convo or '(sin diálogo)'}

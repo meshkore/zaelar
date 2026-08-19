@@ -45,6 +45,37 @@ def _run_scenario(scenario) -> dict:
     def note(who: str, text: str) -> None:
         transcript.append({"who": who, "text": text, "at": round(time.time(), 2)})
 
+    # ── siembra de memoria (solo casos de descubrimiento) ────────────────────────────────────────────────
+    # Se manda por el probe con `ingest=True` en una sesión APARTE y se comprueba con un recall que aterrizó.
+    # La sesión aparte es el punto: si las preferencias se dijeran en el mismo hilo, el agente las tendría en
+    # la ventana conversacional y el caso ya no probaría memoria.
+    seed_report: dict = {}
+    if getattr(scenario, "memory_seed", None):
+        seed_session = f"{session}-seed"
+        probe_client.reset(seed_session)
+        print(f"  ▸ sembrando {len(scenario.memory_seed)} preferencia(s) en memoria (sesión aparte)…")
+        for line in scenario.memory_seed:
+            try:
+                probe_client.say(line, seed_session, execute=False, ingest=True)
+            except Exception as e:
+                print(f"    ✗ siembra falló: {e}")
+        # El CORAZÓN de escritura es asíncrono a propósito (invariante: escribir puede ser lento). Se espera a
+        # verlo en el recall en vez de dormir un número inventado — y si no llega, se dice.
+        landed, waited = False, 0.0
+        probe = scenario.seed_probe_query or (scenario.memory_seed[0][:40] if scenario.memory_seed else "")
+        while probe and waited < 45.0:
+            hits = probe_client.recall(probe, k=8)
+            if hits:
+                landed = True
+                break
+            time.sleep(3.0)
+            waited += 3.0
+        seed_report = {"sown": len(scenario.memory_seed), "landed": landed, "waited_s": round(waited, 1),
+                       "probe": probe}
+        print(f"    {'✓' if landed else '⚠️'} siembra {'verificada' if landed else 'NO verificada'} "
+              f"en recall tras {waited:.0f}s")
+        probe_client.reset(session)      # la petición real arranca con la ventana LIMPIA
+
     utterance = driver.opening()
     note("tester", utterance)
     print(f"  tester  · {utterance}")
@@ -106,6 +137,8 @@ def _run_scenario(scenario) -> dict:
     mech = verifymod.mechanism_report(all_events, scenario.expected_signals, concurrency, scheduled)
 
     run_data = {"transcript": transcript, "mechanism_report": mech, "watchdog_log": watchdog_log}
+    if seed_report:
+        run_data["memory_seed"] = seed_report
     print("  judging…")
     verdict = judgemod.judge(scenario, run_data)
     # QUIÉN condujo esta conversación. Normalmente el titular, pero el DRIVE se releva a otro proveedor si el

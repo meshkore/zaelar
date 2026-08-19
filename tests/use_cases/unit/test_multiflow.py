@@ -219,14 +219,17 @@ def test_handwritten_scenarios_are_never_shadowed_by_a_derived_one():
     Compared by CONTENT, not identity: the real-data limit is deliberately attached to hand-written scenarios
     too (`apply_data_note` returns a copy), so `is` would now fail for a reason that is not shadowing. The
     brief and the opening line are what "not shadowed" actually means."""
-    from tests.use_cases.e2e.agent import scenarios as SC
+    from tests.use_cases.e2e.agent import dates as DT, scenarios as SC
     reg = SC.registry()
     for hand in SC.SCENARIOS:
         got = reg[hand.id]
-        assert got.opening_line == hand.opening_line
-        assert got.persona_brief == hand.persona_brief
+        # Contra el texto RESUELTO: las fechas de un caso son relativas a hoy (norma del operador 2026-08-19),
+        # así que el registro sustituye sus tokens. Comparar contra el crudo haría fallar este test por la
+        # resolución de fechas, que no es sombreado — y el test dejaría de vigilar lo que existe para vigilar.
+        assert got.opening_line == DT.resolve(hand.opening_line)
+        assert got.persona_brief == DT.resolve(hand.persona_brief)
         assert got.expected_signals == hand.expected_signals
-        assert got.success_checks.startswith(hand.success_checks)   # only ADDED to, never replaced
+        assert got.success_checks.startswith(DT.resolve(hand.success_checks))   # only ADDED to, never replaced
 
 
 def test_us_cases_get_an_english_brief():

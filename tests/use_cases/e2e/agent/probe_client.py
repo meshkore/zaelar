@@ -60,6 +60,24 @@ def reset(session: str) -> dict:
     return _post("/api/flash/reset", {"session": session}, timeout=15.0)
 
 
+def recall(query: str, k: int = 8) -> list[dict]:
+    """Qué recuerda el motor sobre algo. `POST /api/memory/recall` NO pide token de tarea (a diferencia de
+    `/api/memory/remember`, que es solo para los puentes de los workers), así que el arnés puede LEER la
+    memoria del sandbox sin inventarse credenciales.
+
+    Existe para una cosa concreta: comprobar que una siembra de preferencias aterrizó ANTES de juzgar al
+    agente por no recordarla. Sin esta comprobación, un caso de «infiere lo que me gusta» mediría el
+    destilador de memoria y lo reportaría como que el agente no razona.
+    """
+    try:
+        r = _post("/api/memory/recall", {"query": query, "k": k}, timeout=30.0)
+    except Exception:
+        return []
+    if isinstance(r, dict):
+        return r.get("results") or r.get("items") or r.get("memories") or []
+    return r if isinstance(r, list) else []
+
+
 def flow(corr_id: str) -> list[dict]:
     """The full durable event sequence for one trace id, in order — the ground truth for "what actually
     fired", independent of anything the agent claimed in its reply text."""

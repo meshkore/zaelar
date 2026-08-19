@@ -140,6 +140,9 @@ DOMAINS: list[dict] = [
             "tests/agent_headless/unit/flash/test_voice_failover.py"]},
         {"id": "2.5", "title": "Escalado / dispatch / workers", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_escalate.py", "tests/agent_headless/unit/test_dispatch.py",
+            # V2-152: a worker resolved its bridges against a HARDCODED localhost:43917 that nobody ever set,
+            # so an engine on any other port spawned workers that drove a DIFFERENT engine.
+            "tests/agent_headless/unit/test_worker_own_engine.py",
             # V2-140: an allusion («¿y el del coche?») must reach the task it names — the punctuation
             # was glued to the word, the same defect V2-123 fixed in this file's sibling function.
             "tests/agent_headless/unit/test_task_attribution.py", "tests/agent_headless/unit/workers/test_workers.py",
@@ -294,7 +297,10 @@ DOMAINS: list[dict] = [
             # 2026-08-17 modularization pass: DOM/human-input primitives split out of owner.py into dom.py
             # (page-parametric, no module-global coupling) -- first standalone coverage for this path, plus a
             # regression lock on `mouse` now being required (the old None-fallback was dead code).
-            "tests/browser/unit/navegador/test_dom.py"]},
+            "tests/browser/unit/navegador/test_dom.py",
+            # V2-152: a worker-driven task never wrote a milestone, so `active_progress` reported 0 steps for
+            # its whole life and the brain had a step COUNT of zero to describe it with.
+            "tests/browser/unit/navegador/test_navigate_milestone.py"]},
         {"id": "4.3", "title": "Widget de música", "ch": UNIT, "paths": ["tests/browser/unit/musica/test_data.py"]},
         {"id": "4.4", "title": "Widget de YouTube", "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_youtube.py"]},
         {"id": "4.5", "title": "Widget de mensajería", "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_owner_v2.py"]},
@@ -510,6 +516,20 @@ DOMAINS: list[dict] = [
             "tests/infrastructure/unit/core/test_homeostasis.py"]},
         {"id": "9.2", "title": "Salud viva de la máquina", "ch": HTTP, "live": True,
             "cmd": "./.venv/bin/python tests/infrastructure/e2e/smoke/run_full_smoke.py --no-pytest"},
+    ]},
+    # 2026-08-19: el ARNÉS de casos de uso también se prueba a sí mismo, y no estaba en el mapa — o sea que
+    # `tests run all` nunca corría sus 72 casos deterministas y un cambio en el arnés podía romperlo en
+    # silencio hasta la siguiente tanda de una hora. Es el mismo hueco que V2-112 encontró en otros ficheros:
+    # un test NUEVO no corre hasta que tiene su línea aquí, aunque viva en un directorio ya cubierto.
+    {"id": "10", "name": "CASOS DE USO (el arnés que mide el producto)", "nodes": [
+        {"id": "10.1", "title": "Escenarios, derivación, horizonte por tier y límite de datos reales",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_harness.py",
+                                  "tests/use_cases/unit/test_multiflow.py"]},
+        # Las fechas de un caso son SIEMPRE relativas a hoy (norma del operador). El trinquete existe porque el
+        # defecto no se ve leyendo: el catálogo pedía reservas para «el puente de mayo» con el reloj en agosto,
+        # o sea casos imposibles por construcción que el tablero contaba como fallos del agente.
+        {"id": "10.2", "title": "Fechas futuras (trinquete) + contrato de los casos de descubrimiento",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_dates_and_discovery.py"]},
     ]},
 ]
 

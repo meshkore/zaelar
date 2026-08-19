@@ -69,8 +69,8 @@ CASES: list[UseCase] = [
             "Resérvame hora en la peluquería de siempre para el sábado por la mañana.",
             "A Saturday-morning slot is booked at the operator's usual barber."),
     UseCase("book-hotel-night-known", "es", 1, "Book a specific hotel night",
-            "Resérvame una noche en el Hotel Palacio de la Merced para el 20 de septiembre.",
-            "One night is booked at the named hotel for September 20th."),
+            "Resérvame una noche en el Hotel Palacio de la Merced para el {FECHA_FUTURA_CERCANA}.",
+            "One night is booked at the named hotel for {NEAR_FUTURE_DATE}."),
     UseCase("buy-known-product", "es", 1, "Buy a specific listed product",
             "Cómprame el libro que tengo en la lista de deseos de Casa del Libro.",
             "The wishlisted book is purchased from the named store."),
@@ -108,7 +108,7 @@ CASES: list[UseCase] = [
             "con el mejor valorado.",
             "3 candidates are found and an appointment is booked with the top-rated one."),
     UseCase("compare-flights-madrid-lisboa", "es", 2, "Compare and book the cheapest flight",
-            "Compárame vuelos Madrid–Lisboa para el puente de mayo y coge el más barato con "
+            "Compárame vuelos Madrid–Lisboa para un fin de semana largo {EN_UNAS_SEMANAS} y coge el más barato con "
             "equipaje incluido.",
             "Flights are compared and the cheapest option with checked baggage is booked — verified "
             "against real system state (worker + browser signals), not just the agent's claim — see "
@@ -167,7 +167,7 @@ CASES: list[UseCase] = [
             "valoración y menos de 120€ la noche.",
             "Hotels in the city are compared and the best-rated one under budget is booked."),
     UseCase("find-direct-flight-budget", "es", 2, "Find the cheapest direct flight",
-            "Búscame un vuelo directo Madrid–Roma en octubre, lo más barato posible.",
+            "Búscame un vuelo directo Madrid–Roma {DENTRO_DE_UN_MES}, lo más barato posible.",
             "Direct flights are compared and the cheapest one is identified."),
     UseCase("rental-car-automatic-airport", "es", 2, "Find an automatic rental car at an airport",
             "Búscame un coche de alquiler automático en el aeropuerto de Málaga para la semana "
@@ -333,8 +333,8 @@ CASES: list[UseCase] = [
             "Book my usual barber for Saturday morning.",
             "A Saturday-morning slot is booked at the operator's usual barber."),
     UseCase("book-hotel-night-known", "us", 1, "Book a specific hotel night",
-            "Book one night at the Ace Hotel downtown for September 20th.",
-            "One night is booked at the named hotel for September 20th."),
+            "Book one night at the Ace Hotel downtown for {NEAR_FUTURE_DATE}.",
+            "One night is booked at the named hotel for {NEAR_FUTURE_DATE}."),
     UseCase("buy-known-product", "us", 1, "Buy a specific listed product",
             "Buy the book on my Amazon wishlist.",
             "The wishlisted book is purchased."),
