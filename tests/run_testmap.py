@@ -120,6 +120,10 @@ DOMAINS: list[dict] = [
             "tests/agent_headless/unit/flash/test_voice_failover.py"]},
         {"id": "2.5", "title": "Escalado / dispatch / workers", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_escalate.py", "tests/agent_headless/unit/test_dispatch.py", "tests/agent_headless/unit/workers/test_workers.py",
+            # V2-139: the chain «móntame un widget» → code → GENERATOR backend → card on screen, walked.
+            # V2-115 left this written down as its own primary open task: every link was tested in
+            # isolation and the chain was not, which is what let a created widget be opened by nobody.
+            "tests/agent_headless/unit/workers/test_widget_creation_chain.py",
             "tests/agent_headless/unit/agentes/test_agentes.py", "tests/agent_headless/unit/agentes/test_work_agents.py",
             # las 3 decisiones que hundieron la sesión del 2026-08-02 (llenar≠programar · confirm-gate sobre una
             # investigación · la frase del operador perdida al pisarse los turnos del STT)
