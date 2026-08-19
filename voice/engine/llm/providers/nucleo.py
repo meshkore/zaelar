@@ -2377,7 +2377,7 @@ class NucleoLLMStream(llm.LLMStream):
             try:
                 # V2-153: misma función que el probe. Ver su docstring — el duplicado nació justamente de que
                 # cada canal decidía por su cuenta.
-                _cron = _router.dated_reminder_backstop(spoken_text, operator_text)
+                _cron = _router.dated_reminder_backstop(spoken_text, operator_text, window=brain._window)
                 if _cron:
                     from nucleo import scheduler as _sched_bk
                     _r = _sched_bk.create(_cron["prompt"], _cron["schedule"], name=_cron["name"])
@@ -2393,7 +2393,7 @@ class NucleoLLMStream(llm.LLMStream):
         # cron puesto y ninguna cita. Solo si el turno no hizo ya una data-op.
         if spoken_text and not data_done["v"]:
             try:
-                _note = _router.dated_note_backstop(spoken_text, operator_text)
+                _note = _router.dated_note_backstop(spoken_text, operator_text, window=brain._window)
                 if _note:
                     import widgets as _w_note
                     await _w_note.dispatch_tag("widget.data", {"id": "agenda", "data": {

@@ -775,7 +775,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 # V2-153: la decisión ENTERA vive en `dated_reminder_backstop` — antes cada canal componía su
                 # propia tag y ninguno miraba lo ya programado, así que dos turnos que prometían el mismo aviso
                 # dejaban DOS crons idénticos. Un solo sitio para que la protección no pueda divergir otra vez.
-                _cron = _routerr.dated_reminder_backstop(spoken, operator_text)
+                _cron = _routerr.dated_reminder_backstop(spoken, operator_text, window=sess.window)
                 if _cron:
                     tags.append({"action": "cron.create", "extra": {"data": _cron}, "backstop": True})
             except Exception:
@@ -817,7 +817,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         if spoken and action != "widget_data":
             try:
                 from . import router as _routern
-                _note = _routern.dated_note_backstop(spoken, operator_text)
+                _note = _routern.dated_note_backstop(spoken, operator_text, window=sess.window)
                 if _note:
                     import widgets as _wn
                     await _wn.dispatch_tag("widget.data", {"id": "agenda", "data": {

@@ -408,3 +408,80 @@ def test_the_backstop_behaves_the_same_on_every_day_of_the_week(fresh_db, monkey
 
     # (3) pero una petición NUEVA sigue entrando — el dedup no puede convertirse en un tapón
     assert g.dated_reminder_backstop("Te aviso el viernes a las 18:30.", "recuérdame lo del taller") is not None
+
+
+# ── V2-176: el QUÉ no está en el turno que fija el CUÁNDO ──────────────────────────────────────────────────
+#
+# Corrida real de `remember-and-remind-deadline`, 2026-08-20 01:01 (overall 1/5). El operador dice la
+# obligación una vez y luego gasta dos turnos corrigiendo la fecha; para cuando la fija, el sujeto ya no está
+# en su turno:
+#
+#   t1  «Apúntame que el jueves tengo que renovar el seguro del coche, y recuérdamelo el miércoles»
+#   t3  «El jueves de esta semana tengo que renovar el seguro del coche. Apúntalo y recuérdamelo el miércoles»
+#   t4  «Sí, perdona, me he liado con las fechas. Me refiero al jueves que viene, 27. Recuérdamelo el 26…»
+#
+# Leyendo SOLO t4, el aviso quedó programado con el texto «Sí, perdona, me he liado con las fechas. Me refiero
+# al jueves que viene, 27» — o sea que el miércoles el trabajo le lee al operador su propia disculpa. Y la
+# agenda se quedó vacía (`n_after: 1`, solo el aviso) porque el «Apúntalo» iba en t3.
+#
+# Es la MISMA forma de fallo que V2-132 ya arregló para la escalada: el turno que completa una petición no es
+# el que la describe.
+_W_T1 = "Apúntame que el jueves tengo que renovar el seguro del coche, y recuérdamelo el miércoles."
+_W_T3 = "El jueves de esta semana tengo que renovar el seguro del coche. Apúntalo y recuérdamelo el miércoles."
+_W_T4 = ("Sí, perdona, me he liado con las fechas. Me refiero al jueves que viene, 27. "
+         "Recuérdamelo el miércoles 26 por la mañana, porfa.")
+_W_R4 = "Te lo dejo apuntado en la agenda y programado el aviso para el miércoles 26 por la mañana."
+
+
+def _window(*user_turns):
+    out = []
+    for t in user_turns:
+        out.append({"role": "user", "content": t})
+        out.append({"role": "assistant", "content": "…"})
+    return out
+
+
+def test_the_reminder_carries_the_commitment_and_not_the_apology(fresh_db, monkeypatch):
+    monkeypatch.setattr(scheduler.time, "time", lambda: time.mktime((2026, 8, 20, 9, 0, 0, 0, 1, -1)))
+    cron = g.dated_reminder_backstop(_W_R4, _W_T4, window=_window(_W_T1, _W_T3, _W_T4))
+    assert cron
+    assert "seguro" in cron["prompt"]
+    assert "liado" not in cron["prompt"] and "perdona" not in cron["prompt"].lower()
+
+
+def test_and_the_agenda_entry_happens_even_though_the_ask_was_two_turns_back(fresh_db, monkeypatch):
+    """La otra mitad del mismo encargo. Una petición de apuntar no CADUCA porque el operador necesitara otro
+    turno para acertar la fecha."""
+    monkeypatch.setattr(scheduler.time, "time", lambda: time.mktime((2026, 8, 20, 9, 0, 0, 0, 1, -1)))
+    note = g.dated_note_backstop(_W_R4, _W_T4, window=_window(_W_T1, _W_T3, _W_T4))
+    assert note and "seguro" in note["title"]
+    assert note["date"] == "2026-08-27"        # el jueves QUE VIENE, que es el que el operador acabó fijando
+
+
+def test_without_a_window_nothing_changes(fresh_db, monkeypatch):
+    """La compatibilidad es parte del arreglo: los dos canales son implementaciones paralelas y uno podría
+    quedarse sin cablear. Sin ventana, la conducta es EXACTAMENTE la de antes — mala para este caso, pero
+    igual, así que un canal sin cablear no cambia de comportamiento por sorpresa."""
+    monkeypatch.setattr(scheduler.time, "time", lambda: time.mktime((2026, 8, 20, 9, 0, 0, 0, 1, -1)))
+    cron = g.dated_reminder_backstop(_W_R4, _W_T4)
+    assert cron and "liado" in cron["prompt"]
+
+
+def test_and_a_turn_that_asks_for_nothing_does_not_inherit_an_old_subject(fresh_db, monkeypatch):
+    """La guarda que impide que esto se convierta en «todo hereda de todo»: solo se mira atrás cuando un turno
+    ANTERIOR también pidió aviso o apunte, que es lo que hace de este turno una CONTINUACIÓN."""
+    monkeypatch.setattr(scheduler.time, "time", lambda: time.mktime((2026, 8, 20, 9, 0, 0, 0, 1, -1)))
+    win = _window("¿qué tiempo hace mañana?", "gracias")
+    assert g.commitment_from_window(win, "Recuérdame el viernes lo del taller") == \
+        g.commitment_clause("Recuérdame el viernes lo del taller")
+
+
+def test_the_helper_is_wired_into_BOTH_channels():
+    """El fallo que este motor repite: una decisión cableada en un canal y ausente en el otro. `probe.py` y el
+    provider de voz son implementaciones paralelas del MISMO turno."""
+    import inspect
+
+    from nucleo.flash import probe as _probe
+    from voice.engine.llm.providers import nucleo as _provider
+    for src in (inspect.getsource(_probe.run_turn), inspect.getsource(_provider)):
+        assert "dated_reminder_backstop(" in src and "window=" in src

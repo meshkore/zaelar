@@ -1275,6 +1275,26 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **El turno que fija la FECHA no es el que dice el QUÉ** (`nucleo/flash/router_guards.py`, V2-176,
+  2026-08-20). Medido en `remember-and-remind-deadline`: el operador dijo la obligación en el turno 1 y la
+  repitió en el 3, y en el 4 solo corrigió el día. Los dos backstops leían ÚNICAMENTE el turno 4, así que
+  `commitment_clause` devolvía «Sí, perdona, me he liado con las fechas. Me refiero al jueves que viene, 27»
+  — y eso entró como **texto del recordatorio**: el miércoles el trabajo le habría leído al operador su propia
+  disculpa. Y el apunte en la agenda no se hizo (`n_after: 1`) porque el «Apúntalo» iba en el turno 3. Los dos
+  fallos, el mismo. Es **la misma forma que V2-132 ya arregló para la escalada** (`escalate_goal_from_window`):
+  el turno que completa una petición no es el que la describe.
+  - `commitment_from_window()` — el SUJETO sale de lo que pidió la primera vez, la FECHA de lo que fije este
+    turno. Solo mira atrás si un turno ANTERIOR también pidió aviso o apunte: eso es lo que hace de este turno
+    una CONTINUACIÓN y no una petición nueva, y es la guarda que impide que todo herede de todo.
+  - `note_asked_in_window()` — una petición de apuntar no CADUCA porque el operador necesite otro turno para
+    acertar la fecha.
+  - `window=` es OPCIONAL y **los dos canales lo pasan** (`probe.py` y el provider de voz), con un test que lo
+    exige: sin ventana la conducta es exactamente la de antes, así que un canal sin cablear no cambia por
+    sorpresa. Verificado sobre el transcript LITERAL de la corrida.
+  - **Borde conocido**: un SEGUNDO recordatorio sobre otra cosa en la misma conversación heredará el sujeto del
+    primero si este turno no nombra nada. Distinguirlos pide entender el turno y no emparejarlo — terreno de
+    V2-075, con su propia medición. Una lista de frases de disculpa es la cinta de correr que V2-151 ya pagó.
+
 - **El turno corría con un tope que NO cabía la tool más importante del sistema** (`nucleo/flash/fast_client.py`,
   V2-171, 2026-08-20). `_DEFAULT_MAX_TOKENS` era **200**. Un `escalate_to_slowbrain` bien escrito ocupa
   **972-1408 caracteres de JSON él solo** —medido contra `deepseek-v4-pro`, y en esa corrida se truncó también a

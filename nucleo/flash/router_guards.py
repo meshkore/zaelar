@@ -354,7 +354,7 @@ _DATE_LEAD_RE = _re.compile(
     r"manana|tomorrow|dia\s+\d{1,2})\b", _re.I)
 
 
-def dated_note_backstop(reply: str, operator_text: str = "") -> dict | None:
+def dated_note_backstop(reply: str, operator_text: str = "", window=None) -> dict | None:
     """The reply promises to WRITE DOWN a dated commitment → the `add_meeting` payload for it, else None.
 
     V2-159, measured: the reminder half now works (one cron, right Wednesday, right prompt — V2-151/V2-153) and
@@ -385,9 +385,13 @@ def dated_note_backstop(reply: str, operator_text: str = "") -> dict | None:
         # OPERATOR asked, so that is what the obligation is read from; the reply is then only consulted for
         # whether the agent backed out — a question mark means it is still asking, and nothing gets filed on a
         # date it has not settled.
-        if not _NOTE_ASK_RE.search(_norm_txt(operator_text)) or "?" in (reply or ""):
+        # V2-176: la petición de apuntar no CADUCA porque el operador necesitara otro turno para acertar la
+        # fecha. Medido: el «Apúntalo» iba en el turno 3, el turno 4 solo corrigió el día, y la agenda se quedó
+        # vacía (`n_after: 1`, solo el aviso) mientras zaelar decía «te lo dejo apuntado en la agenda».
+        if not note_asked_in_window(window, operator_text) or "?" in (reply or ""):
             return None
-        tail = _norm_txt(strip_note_lead(commitment_clause(operator_text)))
+        clause = commitment_from_window(window, operator_text) if window else commitment_clause(operator_text)
+        tail = _norm_txt(strip_note_lead(clause))
     try:
         from nucleo import scheduler as _sched
     except Exception:
@@ -471,6 +475,57 @@ def commitment_clause(operator_text: str) -> str:
     return head.strip(" ,.;:y")
 
 
+def commitment_from_window(window, current_text: str = "", max_back: int = 6) -> str:
+    """The clause that says WHAT the commitment is, which is not always in the turn that fixes its DATE.
+
+    Same shape of failure `escalate_goal_from_window` already fixed for escalation (V2-132), measured here on
+    `remember-and-remind-deadline`, run of 2026-08-20 01:01. The operator states the obligation once and then
+    spends two turns correcting the date; by the turn that finally settles it, the subject is gone:
+
+        t1  «Apúntame que el jueves tengo que renovar el seguro del coche, y recuérdamelo el miércoles»
+        t3  «El jueves de esta semana tengo que renovar el seguro del coche. Apúntalo y recuérdamelo…»
+        t4  «Sí, perdona, me he liado con las fechas. Me refiero al jueves que viene, 27. Recuérdamelo…»
+
+    Reading t4 alone, `commitment_clause` returns «Sí, perdona, me he liado con las fechas. Me refiero al
+    jueves que viene, 27» — and that went in as the reminder's own text, so the job that fires on Wednesday
+    reads the operator his own apology back. The judge called it «un aviso programado inútil», which is exactly
+    right.
+
+    The rule: the SUBJECT is what he asked for the FIRST time, the DATE is whatever this turn settles on. It
+    only looks back when an earlier turn also asked for a reminder or a note — that is what makes this turn a
+    CONTINUATION of that request rather than a new one, and it is the guard that keeps a genuinely new errand
+    later in the same conversation from inheriting an old subject.
+
+    Known edge, stated rather than hidden: a SECOND reminder about something else, asked in a conversation that
+    already had one, will pick up the first subject if this turn names nothing. Telling those apart needs the
+    turn to be understood and not matched, which is V2-075's ground (a model judges meaning) and wants its own
+    measurement — not a list of apology phrases, which is the treadmill V2-151 already paid for.
+    """
+    current = commitment_clause(current_text) if current_text else ""
+    turns = [str((m or {}).get("content") or "").strip()
+             for m in (window or []) if (m or {}).get("role") == "user"]
+    turns = [t for t in turns if t][-max_back:]
+    asked_before = [t for t in turns[:-1] if _REMIND_ASK_RE.search(_norm_txt(t))
+                    or _NOTE_ASK_RE.search(_norm_txt(t))]
+    if not asked_before:
+        return current
+    first = commitment_clause(asked_before[0])
+    return first or current
+
+
+def note_asked_in_window(window, current_text: str = "", max_back: int = 6) -> bool:
+    """Did the operator ask for this to be written down — in THIS turn or in an earlier one?
+
+    The other half of the same run: the agenda entry never happened (`n_after: 1`, only the reminder job)
+    because the «apúntalo» was in turn 3 and the turn that settled the date was turn 4. An obligation does not
+    expire because the operator needed another turn to get the date right.
+    """
+    if current_text and _NOTE_ASK_RE.search(_norm_txt(current_text)):
+        return True
+    turns = [str((m or {}).get("content") or "") for m in (window or []) if (m or {}).get("role") == "user"]
+    return any(_NOTE_ASK_RE.search(_norm_txt(t)) for t in turns[-max_back:] if t)
+
+
 # The operator's own «write this down» ask. Sibling of `_REMIND_ASK_RE`, and the counterpart to the agent-side
 # `_NOTE_VERB_RE`: the obligation is defined by what HE asked for, which is far more stable than how the model
 # happens to word its confirmation — V2-159 matched «te apunto», the next run said «la cita está en tu agenda»,
@@ -544,7 +599,7 @@ def reminder_before(when: str, commitment: str, now=None) -> str:
     return w.strftime("%Y-%m-%d %H:%M")
 
 
-def dated_reminder_backstop(reply: str, operator_text: str = "") -> dict | None:
+def dated_reminder_backstop(reply: str, operator_text: str = "", window=None) -> dict | None:
     """The whole backstop decision in ONE place: what to schedule when the model promised a notice in prose.
 
     Both channels — `nucleo/flash/probe.py` and the voice provider — carried their own copy of this (resolve the
@@ -565,7 +620,9 @@ def dated_reminder_backstop(reply: str, operator_text: str = "") -> dict | None:
     # not the request that produced it. The measured job carried the operator's raw turn as its prompt, so on
     # firing the agent would have been asked to SCHEDULE the reminder all over again — the «se pierde el QUÉ»
     # this case has been dragging since V2-134, finally visible in the field that causes it.
-    clause = commitment_clause(operator_text)
+    # V2-176: el QUÉ puede haberse dicho tres turnos antes y este turno solo fijar la FECHA. Sin ventana se
+    # comporta exactamente como antes, así que ningún llamante viejo cambia de conducta.
+    clause = commitment_from_window(window, operator_text) if window else commitment_clause(operator_text)
     try:
         from nucleo import scheduler as _sched
     except Exception:
