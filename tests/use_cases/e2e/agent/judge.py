@@ -86,6 +86,66 @@ memoria, no al agente. Juzga el resto (que investigue de verdad, que acierte los
 catálogo). Si aun así recuerda algo coherente, es un plus.
 """
 
+# ── lo que el informe de mecanismo PRUEBA, dicho en palabras ───────────────────────────────────────────────
+#
+# Un juez que se contradice con su propia evidencia es peor que no tener juez: manda al equipo del motor a
+# arreglar algo que no pasó. Medido el 2026-08-20 en `cheapest-monitor`: el veredicto fue 1/5 por «alucinación
+# de inventario … sin trazas de worker que validen una búsqueda real», citando `missing_signals` — cuando el
+# informe de la MISMA corrida decía `families_observed: [flash, memory, system, widget, worker]` y
+# `missing_signals: []`. El worker había arrancado Y terminado con datos reales.
+#
+# La causa no es que el modelo no sepa leer: es que se le entregaba el informe como JSON crudo y una lista
+# VACÍA no dice nada en voz alta. `"missing_signals": []` es fácil de leer como «hay un campo que se llama
+# señales-que-faltan» si lo que buscas es un defecto. Así que el informe llega ahora con sus hechos escritos en
+# prosa ANTES del JSON, incluida la frase que cierra la puerta al error que se midió.
+#
+# Y con el límite dicho, porque la otra mitad del fallo era real: `worker` en `families_observed` prueba que un
+# worker ARRANCÓ, no que devolviera nada aprovechable. Sin ese matiz, cerrar la puerta a «faltó una señal»
+# invita al error opuesto — dar por bueno un resultado porque la familia aparece.
+def mechanism_facts(mech: dict) -> str:
+    if not mech:
+        return "(no hay informe de mecanismo: la verificación no se pudo hacer — la AUSENCIA no prueba nada)"
+    fam = list(mech.get("families_observed") or [])
+    exp = list(mech.get("expected_signals") or [])
+    missing = list(mech.get("missing_signals") or [])
+    lines: list[str] = []
+    lines.append(f"· Familias del sistema que SÍ se observaron: {', '.join(fam) or '(ninguna)'}.")
+    if exp:
+        if missing:
+            lines.append(f"· De las esperadas ({', '.join(exp)}) FALTÓ: {', '.join(missing)} "
+                         f"→ penaliza «mecanismo» por esto, es un hecho.")
+        else:
+            lines.append(f"· De las esperadas ({', '.join(exp)}) NO FALTÓ NINGUNA. "
+                         f"**No afirmes que faltó una señal ni que no hay trazas de worker/navegador: "
+                         f"las hay.** Si el resultado te parece flojo, el motivo es otro y hay que decir cuál.")
+    if "worker" in fam:
+        lines.append("· OJO con el límite de ese hecho: «worker» significa que un Brain Worker ARRANCÓ. "
+                     "NO prueba que devolviera nada aprovechable. Un worker que arranca y no entrega es un "
+                     "fallo de «resultado» — pero descríbelo así, no como una señal ausente.")
+    tid = (mech.get("navegador_task_id") or "").strip()
+    if tid:
+        lines.append(f"· Hubo tarea de navegador ({tid}); su estado real está en `navegador_task`.")
+    else:
+        lines.append("· NO hubo tarea de navegador en esta corrida. Para un caso que se resuelve buscando y "
+                     "comparando, eso NO es automáticamente un fallo: la búsqueda web y el worker pueden "
+                     "bastar. Solo es un fallo si el objetivo exigía entrar en un sitio concreto y operar.")
+    sh = mech.get("search_health") or {}
+    if sh:
+        n = sh.get("n_search_events")
+        lines.append(f"· Búsquedas web observadas: {n}."
+                     + (" La capa de búsqueda estaba DEGRADADA (ver nota arriba)." if sh.get("degraded")
+                        else " La capa de búsqueda funcionaba."))
+    sj = mech.get("scheduled_jobs") or {}
+    if sj:
+        if not sj.get("readable", True):
+            lines.append("· El programador de avisos NO se pudo leer: la ausencia de un aviso no prueba nada.")
+        else:
+            created = sj.get("created") or []
+            lines.append(f"· Disparadores durables que ESTA conversación dejó registrados: {len(created)}."
+                         + ("" if created else " Ninguno: si zaelar dijo haber programado algo, no hay respaldo."))
+    return "\n".join(lines)
+
+
 def judge(scenario, run: dict, model: str | None = None) -> dict:
     convo = "\n".join(
         f"[{t.get('at', '')}] {t['who'].upper():7} {t.get('text') or '(sin respuesta)'}"
@@ -132,6 +192,10 @@ Qué cuenta como éxito: {scenario.success_checks}
 {convo or '(sin diálogo)'}
 
 === INFORME DE MECANISMO (lo que REALMENTE PASÓ en el sistema; fuente de verdad para "resultado"/"mecanismo") ===
+LO QUE ESTE INFORME PRUEBA, en palabras (léelo antes del JSON y no lo contradigas):
+{mechanism_facts(mech)}
+
+JSON completo:
 {json.dumps(mech, ensure_ascii=False, indent=2)}
 
 === VEREDICTOS DEL WATCHDOG DURANTE LA SESIÓN (detección de desvíos en vivo) ===
