@@ -40,7 +40,11 @@ _PROFILES: dict[str, dict] = {
                    "claves de API. Es el perfil del despliegue en servidor.",
         "voice": {"stt_provider": "deepgram", "tts_provider": "elevenlabs"},
         "v2": {
-            "fast": {"provider": "aimlapi", "model": "anthropic/claude-haiku-4.5", "base_url": "", "api_key": ""},
+            # Matches `config/v2.py §fast`'s checked-in default. It said `anthropic/claude-haiku-4.5` until
+            # 2026-08-19 — the titular Haiku stopped being on 2026-08-02, so anyone who picked this profile in the
+            # wizard was silently OVERWRITING the current default with a two-versions-old one. A profile is a
+            # shortcut to the recommended setup; one that ships a stale model is worse than one that ships nothing.
+            "fast": {"provider": "aimlapi", "model": "deepseek/deepseek-v4-flash", "base_url": "", "api_key": ""},
             "memory": {"embed_provider": "fastembed", "embed_model": "",
                        "rerank_provider": "local", "mem_processor_model": ""},
         },

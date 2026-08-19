@@ -89,6 +89,98 @@ _DEFAULTS = {
     "paraphrase": ("https://api.deepseek.com", "deepseek-v4-flash", True),
 }
 
+# ── FAILOVER: the operator's provider ORDER, as data (2026-08-19) ─────────────────────────────────────────────
+# Standing rule: **DeepSeek V4 DIRECT first, the AIMLAPI broker second, an OpenAI/Anthropic model last.** Until
+# today this router had NO chain at all — `chat_sync` resolved ONE endpoint, tried it, and on any failure returned
+# None for the caller to fail open. That was survivable while the titular WAS the broker; it stopped being
+# survivable the day every off-hot-path task moved to the direct endpoint, because a DeepSeek outage then meant
+# REM synthesis and the paraphrase channel producing nothing at all, quietly. The rule describes three rungs and
+# the code had one.
+#
+# Rungs here come AFTER the titular `resolve()` returns (config > `_DEFAULTS`), and a rung is SKIPPED when its
+# credential is absent: a request with no key buys a 401 and a slower failure, never a chance.
+#
+# ⚠️ Only OFF-HOT-PATH tasks get a chain. `turn_complete`/`directed` fire mid-conversation and their callers
+# already fail open to a safe default in milliseconds; a second attempt through a broker measured at ~8.6 s TTFT
+# (V2-097) would hurt the operator far more than the default they degrade to. Being slow at the right answer is
+# the failure this repo banned a model over.
+_AIML = "https://api.aimlapi.com/v1"
+
+_FAILOVER: dict[str, tuple[tuple[str, str], ...]] = {
+    # rem — §12.2 measured `gpt-4.1-mini` at 100% on THIS task, so the last rung is evidence, not hope.
+    "rem": ((_AIML, "deepseek/deepseek-v4-flash"), (_AIML, "openai/gpt-4.1-mini")),
+    # distill — the WRITE HEART. `nucleo/mem_processor.py` makes the call AND resolves its own TITULAR (its config
+    # keys are the historical `mem_processor_*`, with env fallbacks, and that name is synchronized across three
+    # deploy sites — `config/v2.py`, `fly.accounts.toml`, the cloud provisioner). What lives HERE is only its
+    # ORDER of FALLBACKS, so there is exactly one list of them; it reads them via `failover_rungs`, not `chain`.
+    # The rungs are the ones §12.3 already named after sweeping 21 candidates × 34 cases. ⛔ NOT `gpt-4o-mini`:
+    # cheaper and VETOED (puts an allergy stated in English into `slot=operator.diet`, which a later diet change
+    # would erase).
+    "distill": ((_AIML, "deepseek/deepseek-v4-flash"), (_AIML, "google/gemini-2.5-flash"),
+                (_AIML, "openai/gpt-4.1-mini")),
+    # paraphrase — NO DeepSeek rung on the broker, deliberately. This task only works with reasoning OFF (measured
+    # 2026-08-18: with it on the entire budget goes to reasoning and `content` comes back EMPTY at every budget
+    # tried) and the broker ACCEPTS `thinking:disabled` while ignoring it. That rung would answer 200 with nothing
+    # in it, and a rung that reports success while delivering silence is worse than no rung. Non-reasoners only.
+    "paraphrase": ((_AIML, "openai/gpt-4.1-mini"),),
+    # i18n — its titular is ALREADY the broker (haiku, §12.5), so this is the third rung, not the second. One is
+    # enough to stop a lost batch from meaning 50 English strings in the UI. ⚠️ `gpt-4.1` is NOT measured for
+    # placeholder fidelity on non-Latin scripts, which is exactly what §12.5 was about: last resort, not an equal.
+    "i18n": ((_AIML, "openai/gpt-4.1"),),
+}
+
+
+def _has_credential(url: str, key: str) -> bool:
+    """A local endpoint legitimately needs no key (`key_for_endpoint`'s `"local"` sentinel); a cloud one that
+    resolves to it has a MISSING credential, and trying it anyway just delays the real answer."""
+    if key and key != "local":
+        return True
+    return any(h in (url or "").lower() for h in ("localhost", "127.0.0.1", "11434"))
+
+
+def failover_rungs(task: str, *, titular: tuple[str, str],
+                   disable_thinking: bool = False) -> list[tuple[str, str, str, bool]]:
+    """The FALLBACK rungs for a task, given whoever the caller resolved as titular. Exists as its own entry point
+    because `distill`'s titular is resolved by `nucleo/mem_processor.py` (see `_FAILOVER`), not by `resolve()` —
+    it needs the ORDER without this module guessing its endpoint.
+
+    Skips a rung the config already promoted to titular, and skips one whose credential is absent: a request with
+    no key buys a 401 and a slower failure, never a chance."""
+    rungs: list[tuple[str, str, str, bool]] = []
+    for f_url, f_model in _FAILOVER.get(task, ()):
+        if (f_url, f_model) == titular:
+            continue
+        f_key = _endpoint_key(f_url)
+        if not _has_credential(f_url, f_key):
+            continue
+        # `disable_thinking` is per-TASK, but honoring it only means anything where the endpoint obeys it (see the
+        # payload note in `_attempt`); carrying the task's own value keeps one decision instead of two.
+        rungs.append((f_url, f_model, f_key, disable_thinking))
+    return rungs
+
+
+def chain(task: str) -> list[tuple[str, str, str, bool]]:
+    """Ordered `(url, model, key, disable_thinking)` rungs: this task's titular first, then its fallbacks.
+
+    The TITULAR is kept even without a credential — dropping it would silently substitute a different model for
+    the one the config names, turning a visible misconfiguration into a wrong-model-answered-fine, which is the
+    harder of the two bugs to ever notice."""
+    url, model, key, disable_thinking = resolve(task)
+    return [(url, model, key, disable_thinking)] + failover_rungs(
+        task, titular=(url, model), disable_thinking=disable_thinking)
+
+
+def _note_relay(task: str, model: str, url: str, failures: list[str]) -> None:
+    """A relay means the titular is DOWN — that belongs in the ◉, not in a log line nobody reads (the lesson this
+    module already paid for three times). Fail-open: reporting a relay can never break the relay."""
+    detail = " · ".join(failures)[:200]
+    logger.warning(f"memllm[{task}]: relevo a {model} @ {url} tras {detail}")
+    try:
+        from voice import health_state
+        health_state.record("memory", "degraded", f"{task}: relevo a {model} ({detail})")
+    except Exception:  # noqa: BLE001
+        pass
+
 
 def resolve(task: str) -> tuple[str, str, str, bool]:
     """(url, model, key, disable_thinking) for a catalog task. Config wins; empty key → resolved by endpoint.
@@ -114,17 +206,11 @@ def _endpoint_key(url: str) -> str:
     return key_for_endpoint(url, default="local")
 
 
-def chat_sync(task: str, system: str, user: str, *, max_tokens: int = 900,
-              temperature: float = 0.2, timeout: float = 60.0,
-              model_override: str | None = None, url_override: str | None = None) -> str | None:
-    """Chat SÍNCRONO (urllib, sin deps) — pensado para correr DENTRO de un `asyncio.to_thread` (el sueño REM) o
-    en scripts/benches. Devuelve el content, o None si el modelo no está/falla (el llamador hace fail-open)."""
-    url, model, key, disable_thinking = resolve(task)
-    if url_override:
-        url = url_override
-        key = _endpoint_key(url)
-    if model_override:
-        model = model_override
+def _attempt(url: str, model: str, key: str, disable_thinking: bool, *, system: str, user: str,
+             max_tokens: int, temperature: float, timeout: float) -> str:
+    """ONE request to ONE rung. Raises on anything that isn't usable content — including an EMPTY answer, which
+    the direct DeepSeek endpoint produces when reasoning eats the whole `max_tokens` (`finish_reason=length`,
+    `content=""`, no exception). Treating that as an answer would hand the caller silence with a success flag."""
     payload = {
         "model": model,
         "temperature": temperature,
@@ -149,14 +235,58 @@ def chat_sync(task: str, system: str, user: str, *, max_tokens: int = 900,
                                "(KHTML, like Gecko) Chrome/126.0 Safari/537.36"},
         method="POST",
     )
+    with urllib.request.urlopen(req, timeout=timeout) as r:
+        data = json.loads(r.read().decode())
+    content = data["choices"][0]["message"]["content"]
+    if not (content or "").strip():
+        raise RuntimeError("respuesta vacía (razonamiento se comió el presupuesto)")
+    _record_usage(data.get("usage"), url, model)
+    return content
+
+
+def chat_sync(task: str, system: str, user: str, *, max_tokens: int = 900,
+              temperature: float = 0.2, timeout: float = 60.0,
+              model_override: str | None = None, url_override: str | None = None) -> str | None:
+    """Chat SÍNCRONO (urllib, sin deps) — pensado para correr DENTRO de un `asyncio.to_thread` (el sueño REM) o
+    en scripts/benches. Devuelve el content, o None si NINGÚN escalón responde (el llamador hace fail-open).
+
+    Recorre `chain(task)` en orden: titular → broker → OpenAI/Anthropic (norma del operador, 2026-08-19).
+
+    ⚠️ Un `model_override`/`url_override` DESACTIVA la cadena, a propósito. Los pasa quien PINCHA un modelo
+    concreto —un banco, el respondedor/juez de LoCoMo— y ahí un relevo silencioso convertiría la declaración del
+    experimento en una mentira: el informe diría que midió con un modelo y habría medido con otro."""
+    if url_override or model_override:
+        url, model, key, disable_thinking = resolve(task)
+        if url_override:
+            url, key = url_override, _endpoint_key(url_override)
+        if model_override:
+            model = model_override
+        try:
+            return _attempt(url, model, key, disable_thinking, system=system, user=user,
+                            max_tokens=max_tokens, temperature=temperature, timeout=timeout)
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"memllm[{task}]: {model} @ {url} falló: {str(e)[:160]} → fail-open (pinned)")
+            return None
+
+    rungs = chain(task)
+    failures: list[str] = []
+    for pos, (url, model, key, disable_thinking) in enumerate(rungs):
+        try:
+            content = _attempt(url, model, key, disable_thinking, system=system, user=user,
+                               max_tokens=max_tokens, temperature=temperature, timeout=timeout)
+        except Exception as e:  # noqa: BLE001
+            failures.append(f"{model}: {str(e)[:120]}")
+            continue
+        if pos:
+            _note_relay(task, model, url, failures)
+        return content
+    logger.warning(f"memllm[{task}]: {len(rungs)} escalón(es) agotados ({' · '.join(failures)[:200]}) → fail-open")
     try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            data = json.loads(r.read().decode())
-        _record_usage(data.get("usage"), url, model)
-        return data["choices"][0]["message"]["content"]
-    except Exception as e:  # noqa: BLE001
-        logger.warning(f"memllm[{task}]: {model} @ {url} falló: {str(e)[:160]} → fail-open")
-        return None
+        from voice import health_state
+        health_state.record("memory", "outage", f"{task}: sin proveedor ({' · '.join(failures)[:160]})")
+    except Exception:  # noqa: BLE001
+        pass
+    return None
 
 
 # ── CONSUMO REAL (2026-08-09) — mismo cierre que en `mem_processor`: las tareas de LLM de la memoria son

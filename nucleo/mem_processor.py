@@ -124,6 +124,21 @@ def _endpoint_key(url: str) -> str:
     return key_for_endpoint(url, default="local")
 
 
+def _rung_chain() -> list[tuple[str, str]]:
+    """`(base_url, model)` in the operator's provider ORDER: OUR titular (config `mem_processor_*` → env →
+    default, which this module owns) followed by the fallbacks declared once in `nucleo/memllm._FAILOVER`.
+
+    Imported LAZILY and fail-open to the titular alone: the CORAZÓN has to keep writing even if the router can't
+    be loaded, and a bad day for the fallback catalog must not become a bad day for every memory write."""
+    titular = (_url(), _model())
+    try:
+        from nucleo import memllm
+        extra = memllm.failover_rungs("distill", titular=titular)
+    except Exception:  # noqa: BLE001
+        extra = []
+    return [titular] + [(u, m) for u, m, _k, _dt in extra]
+
+
 def _key() -> str:
     # Config §memory.mem_processor_api_key (inline) → resolución POR ENDPOINT. El env genérico MEM_PROCESSOR_KEY
     # solo aplica EMPAREJADO con MEM_PROCESSOR_URL (power-user/headless): con la URL saliendo de CONFIG jamás se usa
@@ -213,14 +228,17 @@ def last_usage() -> dict:
     return dict(_last_usage)
 
 
-def _record_usage(usage: dict | None) -> None:
+def _record_usage(usage: dict | None, *, base_url: str | None = None, model: str | None = None) -> None:
+    """`base_url`/`model` are the rung that ACTUALLY served (see the failover loop in `process`), not the titular.
+    The tariff is resolved per (endpoint, model) — a relay billed against the titular's row would price a GLM run
+    at DeepSeek's rate or vice versa, which is the exact class of silent mis-billing V2-117 paid for."""
     global _last_usage
     if not isinstance(usage, dict):
         _last_usage = {}
         return
     _last_usage = {k: usage.get(k) for k in ("prompt_tokens", "completion_tokens", "total_tokens")}
     from nucleo import energy_meter as _energy
-    _energy.meter_openai_response({"usage": usage}, base_url=_url(), model=_model())
+    _energy.meter_openai_response({"usage": usage}, base_url=base_url or _url(), model=model or _model())
 
 
 # ── prompt (afinable; se destila sobre turnos reales) ───────────────────────────────────────────────────────
@@ -489,8 +507,15 @@ async def process(text: str, *, state: dict | None = None) -> list[dict] | None:
     # that benchmark is a reasoning-ON result. This task is also explicitly off-hot-path (write is async,
     # nobody pays for its latency), so there is no speed reason to disable it, only an unmeasured quality
     # risk if we did.
-    url = _url().rstrip("/") + "/chat/completions"
-    local = any(h in url for h in ("11434", "localhost", "127.0.0.1"))
+    #
+    # FAILOVER (2026-08-19, operator's provider ORDER): the rungs come from `nucleo/memllm.chain("distill")` —
+    # the memory module's model ROUTER already owns that decision for every other memory task, and its catalog
+    # documented `distill` as belonging to it all along even though the CALL lives here. Two lists of fallbacks
+    # for one task is how they drift. Until today this loop retried the SAME endpoint `_RETRIES` times and then
+    # fell open to the lossy regex heuristic: with the titular pointed at the direct endpoint, a DeepSeek outage
+    # degraded EVERY write with no second provider ever tried.
+    _rungs = _rung_chain()
+    local = any(h in _rungs[0][0] for h in ("11434", "localhost", "127.0.0.1"))
     t0 = time.time()
     # FASE 3: marca CONTENCIÓN mientras el CORAZÓN destila (LLM LOCAL qwen, GPU) → el turno correlaciona su TTFT
     # con esto. Solo si es LOCAL (el remoto no contende con la GPU del STT/TTS).
@@ -518,48 +543,87 @@ async def process(text: str, *, state: dict | None = None) -> list[dict] | None:
             _mb("corazon", True)
         try:
             atoms = None
-            for _attempt in range(_RETRIES + 1):
-                try:
-                    to = aiohttp.ClientTimeout(total=_TIMEOUT)
-                    async with aiohttp.ClientSession(timeout=to) as s:
-                        # UA de navegador: AIMLAPI va tras Cloudflare y 403ea el User-Agent por defecto de aiohttp
-                        # (igual que fast_client con el SDK OpenAI — ver su _BROWSER_UA). Sin esto, apuntar el CORAZÓN
-                        # a AIMLAPI (config §memory.mem_processor_base_url) 403ea SIEMPRE → todo escribe por heurística.
-                        # Inocuo para OpenAI/Ollama/otros endpoints; el header sobra pero no molesta.
-                        # EGRESS (T304): con salida mediada, ni el destino ni la credencial son del
-                        # proveedor. `url` ya trae `/chat/completions`, así que se reenruta la BASE.
-                        from nucleo import llm_egress
-                        _base, _tok, _extra = llm_egress.route(_url(), _key())
-                        _dest = _base.rstrip("/") + "/chat/completions" if _extra else url
-                        _headers = {"Authorization": f"Bearer {_tok}", **(_extra or {})}
-                        if not _extra:
-                            _headers["User-Agent"] = _BROWSER_UA
-                        async with s.post(_dest, headers=_headers, json=payload) as r:
-                            # CUALQUIER 2xx es una respuesta buena (2026-08-09): AIMLAPI devuelve **HTTP 201** con
-                            # un cuerpo de completion perfectamente válido para algunos modelos (visto con
-                            # `zhipu/glm-4.7`). Exigir `== 200` convertía eso en un fallo → fail-open a la heurística
-                            # lossy en CADA turno, en silencio, para quien configurase uno de esos modelos.
-                            if not (200 <= r.status < 300):
-                                body = (await r.text())[:200]
-                                # 4xx (salvo 429) = auth/bad-request: PERMANENTE, reintentar no ayuda → fail-open ya.
-                                if 400 <= r.status < 500 and r.status != 429:
-                                    raise _PermanentError(f"HTTP {r.status} de {url}: {body}")
-                                raise RuntimeError(f"HTTP {r.status} de {url}: {body}")
-                            data = await r.json()
-                    content = data["choices"][0]["message"]["content"]
-                    atoms = _parse(content)
-                    _record_usage(data.get("usage"))
-                    _mark_ok()
+            _served: tuple[str, str] | None = None
+            _fails: list[str] = []
+            # OUTER = rungs (provider order), INNER = retries WITHIN a rung. The two loops answer different
+            # questions and must not be collapsed: a 429/5xx/timeout is «this provider might work in a second»
+            # (retry it), a 4xx is «this rung is misconfigured for this model» (never retry, but DO try the next
+            # one — a 401 on the titular is precisely when a fallback earns its keep). Before this, a permanent
+            # error returned None and every write went through the lossy heuristic.
+            for _rung_url, _rung_model in _rungs:
+                payload["model"] = _rung_model            # the model name travels WITH its endpoint (V2-097: the
+                                                          # broker prefixes it, the native API does not)
+                url = _rung_url.rstrip("/") + "/chat/completions"
+                _give_up_rung = False
+                for _attempt in range(_RETRIES + 1):
+                    try:
+                        to = aiohttp.ClientTimeout(total=_TIMEOUT)
+                        async with aiohttp.ClientSession(timeout=to) as s:
+                            # UA de navegador: AIMLAPI va tras Cloudflare y 403ea el User-Agent por defecto de aiohttp
+                            # (igual que fast_client con el SDK OpenAI — ver su _BROWSER_UA). Sin esto, apuntar el CORAZÓN
+                            # a AIMLAPI (config §memory.mem_processor_base_url) 403ea SIEMPRE → todo escribe por heurística.
+                            # Inocuo para OpenAI/Ollama/otros endpoints; el header sobra pero no molesta.
+                            # EGRESS (T304): con salida mediada, ni el destino ni la credencial son del
+                            # proveedor. `url` ya trae `/chat/completions`, así que se reenruta la BASE.
+                            from nucleo import llm_egress
+                            _base, _tok, _extra = llm_egress.route(_rung_url, _endpoint_key(_rung_url))
+                            _dest = _base.rstrip("/") + "/chat/completions" if _extra else url
+                            _headers = {"Authorization": f"Bearer {_tok}", **(_extra or {})}
+                            if not _extra:
+                                _headers["User-Agent"] = _BROWSER_UA
+                            async with s.post(_dest, headers=_headers, json=payload) as r:
+                                # CUALQUIER 2xx es una respuesta buena (2026-08-09): AIMLAPI devuelve **HTTP 201** con
+                                # un cuerpo de completion perfectamente válido para algunos modelos (visto con
+                                # `zhipu/glm-4.7`). Exigir `== 200` convertía eso en un fallo → fail-open a la heurística
+                                # lossy en CADA turno, en silencio, para quien configurase uno de esos modelos.
+                                if not (200 <= r.status < 300):
+                                    body = (await r.text())[:200]
+                                    # 4xx (salvo 429) = auth/bad-request: PERMANENTE en ESTE escalón, no en la cadena.
+                                    if 400 <= r.status < 500 and r.status != 429:
+                                        raise _PermanentError(f"HTTP {r.status} de {url}: {body}")
+                                    raise RuntimeError(f"HTTP {r.status} de {url}: {body}")
+                                data = await r.json()
+                        content = data["choices"][0]["message"]["content"]
+                        # An EMPTY answer is a FAILURE, not a discard: the direct DeepSeek endpoint returns
+                        # `content=""` with `finish_reason=length` when reasoning eats the budget, and `_parse("")`
+                        # would hand back `[]` — which this module's contract defines as «the model RAN and decided
+                        # nothing is memorable», so the caller would NOT fall back. Silence dressed as a decision.
+                        if not (content or "").strip():
+                            raise RuntimeError(f"respuesta vacía de {_rung_model} (finish_reason="
+                                               f"{(data.get('choices') or [{}])[0].get('finish_reason')})")
+                        atoms = _parse(content)
+                        _record_usage(data.get("usage"), base_url=_rung_url, model=_rung_model)
+                        _mark_ok()
+                        _served = (_rung_url, _rung_model)
+                        break
+                    except _PermanentError as e:
+                        _fails.append(f"{_rung_model}: {e}")
+                        _give_up_rung = True
+                        break
+                    except Exception as e:  # noqa: BLE001  (timeout / conexión / 429 / 5xx = TRANSITORIO → reintenta)
+                        if _attempt < _RETRIES:
+                            await asyncio.sleep(_RETRY_BACKOFF * (_attempt + 1))
+                            continue
+                        _fails.append(f"{_rung_model}: {type(e).__name__}: {e}")
+                        _give_up_rung = True
+                        break
+                if _served:
                     break
-                except _PermanentError as e:
-                    _mark_fail(f"{e}")
-                    return None
-                except Exception as e:  # noqa: BLE001  (timeout / conexión / 429 / 5xx = TRANSITORIO → reintenta)
-                    if _attempt < _RETRIES:
-                        await asyncio.sleep(_RETRY_BACKOFF * (_attempt + 1))
-                        continue
-                    _mark_fail(f"{type(e).__name__}: {e}")
-                    return None
+                if _give_up_rung:
+                    continue
+            if not _served:
+                _mark_fail(" · ".join(_fails)[:300] or "sin proveedor")
+                return None
+            if _served != (_rungs[0][0], _rungs[0][1]):
+                # A relay means the titular is DOWN — visible in the ◉, never a lone log line (three incidents in
+                # this module were exactly a failure that stayed in a `logger.warning`).
+                logger.warning(f"CORAZÓN: relevo a {_served[1]} @ {_served[0]} tras {' · '.join(_fails)[:200]}")
+                try:
+                    from voice import health_state
+                    health_state.record("memory", "degraded",
+                                        f"destilador: relevo a {_served[1]} ({' · '.join(_fails)[:160]})")
+                except Exception:  # noqa: BLE001
+                    pass
         finally:
             if _mb and local:
                 _mb("corazon", False)
@@ -568,12 +632,16 @@ async def process(text: str, *, state: dict | None = None) -> list[dict] | None:
     _ms = round((time.time() - t0) * 1000)
     try:
         from voice.observer import emit, perf
+        # The model reported is the one that SERVED, not the configured titular: with a relay in play those are
+        # different, and an event naming the titular would make a relayed write indistinguishable from a normal
+        # one in the timeline — which is where anyone would go to find out why quality changed.
+        _srv_model = _served[1] if _served else _model()
         emit("memory", "procesador", role="system",
              text=f"«{t[:50]}» → {len(atoms)} píldora(s)",
-             extra={"layer": "write", "model": _model(), "engine": "local" if local else "remote",
-                    "proc_ms": _ms})
+             extra={"layer": "write", "model": _srv_model, "engine": "local" if local else "remote",
+                    "proc_ms": _ms, "relayed": bool(_served and _served != (_rungs[0][0], _rungs[0][1]))})
         # PERF (V2-037): el CORAZÓN es un LLM LOCAL (GPU) que puede contender con STT/voz — visible en System Events.
-        perf(f"CORAZÓN mem_processor {_model()} {_ms}ms" + (" ⚠️LOCAL/GPU" if local else ""),
+        perf(f"CORAZÓN mem_processor {_srv_model} {_ms}ms" + (" ⚠️LOCAL/GPU" if local else ""),
              module="memory", func="mem_processor.process", ms=_ms)
     except Exception:
         pass
