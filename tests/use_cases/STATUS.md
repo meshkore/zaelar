@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-20 01:01**
+Last updated: **2026-08-20 01:21**
 
 `✅ PASS` = judge overall ≥ 4 · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -15,7 +15,7 @@ the operator's live one.
 | ❌ | `book-hotel-night-known__es` | 1 | 2 | 2026-08-20 01:01 | yes | El caso NO está listo para producción. El bloqueador nº1 es la incapacidad del sistema para detectar y comunicar un fallo de navegación irreconciliable (CAPT… |
 | ✅ | `build-workout-tracker-widget` | 1 | 5 | 2026-08-20 01:01 | yes | Sí, está listo para producción. La ejecución es impecable: generó el widget real, sin latencias excesivas, con una interacción natural y las señales del sist… |
 | ⚠️ | `buy-known-product__es` | 1 | — | 2026-08-18 20:51 | yes | INFRA: 'list' object has no attribute 'strip' |
-| ❌ | `cancel-subscription-before-charge__es` | 1 | 3 | 2026-08-20 01:01 | yes | El caso NO está listo para producción porque el sistema simuló una interacción de navegación (login y clicks) que el reporte de mecanismo demuestra que no oc… |
+| ❌ | `cancel-subscription-before-charge__es` | 1 | 2 | 2026-08-20 01:21 | yes | No está listo para producción. El bloqueador nº1 es la desconexión total entre la narrativa de zaelar (que afirma tener el control y la lista de tareas en ma… |
 | ❌ | `find-theatre-tickets__es` | 1 | 2 | 2026-08-20 01:01 | yes | No está listo para producción. El bloqueador nº1 es la incapacidad del 'worker' para reconocer que ha llegado a la página destino y extraer los datos (parsin… |
 | ❌ | `pay-known-bill__es` | 1 | 2 | 2026-08-19 19:12 | yes | No está listo. El bloqueador nº1 es la desconexión total entre el 'narrador' (texto) y el 'actor' (mecanismo): zaelar afirma trabajar cuando el sistema está … |
 | ✅ | `quick-fact-opening-hours` | 1 | 5 | 2026-08-19 02:03 | yes | Sí, está listo para producción: zaelar resolvió la consulta con éxito máximo en el primer turno, usando la vía eficiente (búsqueda web) sin desperdiciar recu… |
@@ -23,7 +23,7 @@ the operator's live one.
 | ❌ | `renew-gym-membership__es` | 1 | 2 | 2026-08-20 01:01 | yes | No está listo para producción. El agente ha generado una simulación de conversación competente mientras el sistema subyacente no hacía nada, lo que constituy… |
 | ❌ | `reorder-prescription__es` | 1 | 3 | 2026-08-19 19:46 | yes | El caso no está listo para producción debido a una desconexión entre el 'estado de tarea done' reportado y la ausencia de señales reales de navegación ('miss… |
 | ❌ | `restaurant-tonight-madrid` | 1 | 3 | 2026-08-20 01:01 | yes | El caso es funcional pero ineficiente; el bloqueador principal no es la capacidad técnica, sino la estrategia de feedback y resiliencia ante fallos de carga … |
-| ❌ | `cheapest-monitor` | 2 | 1 | 2026-08-20 00:27 | yes | NO listo para producción. El bloqueador nº1 es la **generación de datos sintéticos (alucinación)** como si fueran una búsqueda real en el navegador, lo que i… |
+| ❌ | `cheapest-monitor` | 2 | 1 | 2026-08-20 01:21 | yes | El caso NO está listo para producción. El bloqueador nº1 es la falta de integridad en el resultado: el sistema entregó un producto, precio y tienda falsos (n… |
 | ❌ | `three-tasks-at-once` | 4 | 3 | 2026-08-19 19:40 | yes | No está listo para producción. El bloqueo nº1 es la incapacidad del orquestador para mantener vivas las 3 tareas concurrentes solicitadas por el usuario (fal… |
 
 **3 passing · 10 failing · 1 infra** of 14 scenarios with a recorded result.
@@ -73,7 +73,8 @@ One initiative per use case — that initiative IS the workspace for it, and it 
 | scenario | initiative (the workspace) | fix task |
 |---|---|---|
 | `book-hotel-night-known__es` | `.meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md` | `` |
-| `cancel-subscription-before-charge__es` | `.meshkore/roadmap/initiatives/V2-172-uc-cancel-subscription-before-charge-es.md` | `.meshkore/modules/nucleo/tasks/T420-uc-cancel-subscription-before-charge-es-fix.md` |
+| `cancel-subscription-before-charge__es` | `.meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md` | `` |
+| `cheapest-monitor` | `.meshkore/roadmap/initiatives/V2-177-uc-cheapest-monitor.md` | `.meshkore/modules/nucleo/tasks/T425-uc-cheapest-monitor-fix.md` |
 | `find-theatre-tickets__es` | `.meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md` | `` |
 | `pay-known-bill__es` | `.meshkore/roadmap/initiatives/V2-154-uc-pay-known-bill-es.md` | `` |
 | `remember-and-remind-deadline` | `.meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md` | `` |

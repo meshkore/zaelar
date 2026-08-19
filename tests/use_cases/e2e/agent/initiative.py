@@ -67,6 +67,11 @@ GROUPED: dict[str, str] = {
     "remember-and-remind-deadline": "V2-167-uc-tareas-que-nunca-terminan.md",
     "pay-known-bill": "V2-167-uc-tareas-que-nunca-terminan.md",
     "reorder-prescription": "V2-167-uc-tareas-que-nunca-terminan.md",
+    # Added 2026-08-20 after this case was on its way to a THIRD initiative of its own (V2-177 → V2-178 → …)
+    # for the same fault: asserting a product, price and shop the mechanism report does not back. It is the
+    # cross-cutting defect of V2-176, and it matters that this one is RUNNABLE — the same fault shows up with
+    # every expected signal present, so it cannot be detected by asking "did a signal go missing?".
+    "cheapest-monitor": "V2-176-uc-narrar-trabajo-que-no-ocurre.md",
 }
 
 

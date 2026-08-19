@@ -124,3 +124,47 @@ def test_an_UNCLASSIFIED_case_still_files(tmp_path, monkeypatch):
     assert res.get("blocked") is None
     assert res.get("initiative") is not None and res["initiative"].is_file()
     assert res.get("task") is not None
+
+
+def test_the_tick_does_not_file_a_blocked_case_a_SECOND_time(monkeypatch):
+    """`run.py --verify` ya archiva la ronda; el tick solo la NOMBRA.
+
+    Archivar en los dos sitios escribió la MISMA ronda dos veces —mismo caso, mismo minuto— y se vio leyendo
+    V2-176 el 2026-08-20 (rondas 3 y 4 idénticas). La rama de AGRUPADOS que está justo encima ya lo hacía bien
+    por este mismo motivo; la de bloqueados no. Un duplicado no se pone rojo: solo hace que la evidencia de una
+    iniciativa cuente el doble de intentos de los que hubo, que es peor que no tenerla.
+
+    Se afirma sobre la CONDUCTA (¿se llamó a `file_failure`?) y no leyendo el fuente: la primera versión de
+    este test buscaba el nombre en el texto de la rama y lo encontraba... en el comentario que explica por qué
+    NO hay que llamarlo.
+    """
+    from tests.use_cases.e2e.agent import status as statusmod, tick as T
+
+    calls: list[str] = []
+    monkeypatch.setattr(T.I, "file_failure",
+                        lambda result, **kw: calls.append(kw["scenario"].id) or {"initiative": None})
+    monkeypatch.setattr(T.I, "rotate_failure",
+                        lambda result, **kw: calls.append("ROTATE:" + kw["scenario"].id) or {})
+    monkeypatch.setattr(T.I, "scenarios_awaiting_verification",
+                        lambda reg: [{"scenario": BLOCKED, "task": "T999"}])
+    monkeypatch.setattr(T.I, "find_initiative", lambda sid: None)
+    monkeypatch.setattr(T, "_run", lambda args, timeout_s: (1, "salida de prueba"))
+    monkeypatch.setattr(statusmod, "load",
+                        lambda: {"scenarios": {BLOCKED: {"state": "FAIL", "overall": 2,
+                                                         "verdict": "narró un login que no ocurrió"}}})
+    monkeypatch.setattr(statusmod, "summary_line", lambda: "x")
+
+    out = T._retest_pending()
+    assert out["retested"] == 1
+    assert out["blocked"], "tiene que DECIR que lo re-probó y estaba bloqueado"
+    assert calls == [], f"el tick volvió a archivar el caso bloqueado: {calls}"
+
+
+def test_a_runnable_case_can_also_be_grouped_under_the_umbrella():
+    """`cheapest-monitor` es EJECUTABLE y aun así comparte el defecto de V2-176 — iba camino de su tercera
+    iniciativa propia. Que esté en GROUPED es lo que impide que se vuelva a fragmentar solo."""
+    assert SG.is_completable("cheapest-monitor")
+    assert I.GROUPED.get("cheapest-monitor") == I.BLOCKED_UMBRELLA
+    path = I.INITIATIVES / I.BLOCKED_UMBRELLA
+    if path.is_file():
+        assert I.grouped_for("cheapest-monitor") is not None

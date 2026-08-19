@@ -122,21 +122,6 @@ def _unrun_scenarios() -> list:
     return out
 
 
-def fake_blocked(sid: str, e: dict) -> dict:
-    """Rebuild a result dict from the ledger row, for a BLOCKED case's round in the shared umbrella.
-
-    Same shape (and same reason) as the rotation path's `fake`: the full run dict lives in the child process,
-    and the round only needs the verdict and the mechanism summary.
-    """
-    return {"scenario": sid, "tier": e.get("tier"),
-            "run": {"transcript": [], "turns_used": e.get("turns_used"),
-                    "mechanism_report": {"missing_signals": e.get("missing_signals") or [],
-                                         "families_observed": e.get("families") or []},
-                    "watchdog_log": []},
-            "verdict": {"overall": e.get("overall"), "scores": e.get("scores") or {},
-                        "findings": [], "improvements": [], "veredicto": e.get("verdict", "")}}
-
-
 def _retest_pending() -> dict:
     """Step 1: run every case the dev agent has answered, then rotate or close each.
 
@@ -186,10 +171,13 @@ def _retest_pending() -> dict:
             # so the tick's own log names it instead of going quiet about a case it just re-ran.
             seg = SG.segment_of(sid)
             if seg is not None and seg.group != SG.COMPLETABLE:
-                res = I.file_failure(fake_blocked(sid, e), scenario=SC.registry()[sid], sandboxed=True)
-                where = res["initiative"].name if res.get("initiative") else "sin iniciativa"
+                # LOG ONLY — do not file. `run.py --verify` already appended this case's round to the shared
+                # umbrella (`initiative.file_failure` routes a blocked case there), exactly like the grouped
+                # branch above. Filing again here wrote the SAME round twice, same case, same minute — caught
+                # reading V2-176 on 2026-08-20, rounds 3 and 4 identical. The tick's job in this branch is to
+                # NAME what it re-ran, not to re-file it.
                 blocked.append(f"{sid} ({SG.group_of(sid)} · necesita "
-                               f"{getattr(seg, 'missing', '') or 'algo que no tenemos aquí'}) → {where}")
+                               f"{getattr(seg, 'missing', '') or 'algo que no tenemos aquí'})")
                 continue
             # Re-file from the ledger's summary: the full run dict lives in the child process, and the
             # initiative's own round already carries the transcript the runner appended.
