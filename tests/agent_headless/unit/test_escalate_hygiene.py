@@ -100,16 +100,21 @@ def test_the_backstop_appends_only_the_clause_that_asks_for_the_widget():
     assert "monitor" not in got.lower()
 
 
-def test_and_that_is_what_stops_the_report_from_swallowing_it():
-    """La prueba de que el recorte no es cosmético: es exactamente lo que cambia el veredicto del dedup."""
+def test_and_that_is_what_stops_the_report_from_swallowing_it(monkeypatch):
+    """La prueba de que el recorte no es cosmético: es exactamente lo que cambia el veredicto del dedup.
+
+    V2-158 — la primera versión de este test leía el catálogo de widgets REAL a través de `_target_widget`, y una
+    corrida en vivo que crea un widget (`widgets/juego-plataformas-tipo/` apareció y desapareció durante la
+    tanda) cambiaba el resultado: verde con orden fijo, rojo con orden aleatorio. Un test de regresión no puede
+    depender de qué widgets haya en disco cuando corre. Se fija el mapeo MEDIDO en la corrida —turno entero →
+    `results`, cláusula del juego → sin destino— y se comprueba lo único que este arreglo cambia: la ENTRADA que
+    recibe `find_duplicate`."""
     from nucleo import dispatch
-    dispatch._SESSIONS.clear()
-    dispatch._SESSIONS["informe"] = _Live(_GOAL_INFORME)
-    try:
-        assert dispatch.find_duplicate(_OPENING, "code") == "informe"          # lo que corría antes
-        assert dispatch.find_duplicate(router_guards.create_widget_request(_OPENING), "code") is None
-    finally:
-        dispatch._SESSIONS.clear()
+    measured = {_OPENING: "results", _GOAL_INFORME: "results"}
+    monkeypatch.setattr(dispatch, "_target_widget", lambda t: measured.get(t, ""))
+    monkeypatch.setattr(dispatch, "_SESSIONS", {"informe": _Live(_GOAL_INFORME)})
+    assert dispatch.find_duplicate(_OPENING, "code") == "informe"              # lo que corría antes
+    assert dispatch.find_duplicate(router_guards.create_widget_request(_OPENING), "code") is None
 
 
 def test_a_lone_widget_request_is_untouched():

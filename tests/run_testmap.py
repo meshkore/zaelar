@@ -143,6 +143,10 @@ DOMAINS: list[dict] = [
             # V2-152: a worker resolved its bridges against a HARDCODED localhost:43917 that nobody ever set,
             # so an engine on any other port spawned workers that drove a DIFFERENT engine.
             "tests/agent_headless/unit/test_worker_own_engine.py",
+            # V2-158: este fichero NUNCA estuvo en el testmap, así que `tests run all` no lo corría y sus
+            # afirmaciones llevaban desde V2-132/V2-144/V2-148 contradiciendo el comportamiento buscado en
+            # silencio. Un test que ninguna suite ejecuta es un test que deja de ser verdad sin avisar.
+            "tests/agent_headless/unit/agentes/test_web_cc_site_catalog.py",
             # V2-140: an allusion («¿y el del coche?») must reach the task it names — the punctuation
             # was glued to the word, the same defect V2-123 fixed in this file's sibling function.
             "tests/agent_headless/unit/test_task_attribution.py", "tests/agent_headless/unit/workers/test_workers.py",

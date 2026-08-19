@@ -11,9 +11,14 @@ from __future__ import annotations
 from nucleo.agentes import web_cc
 from nucleo.flash import site_catalog
 
+# V2-158: this set went stale the day `event_tickets` (V2-132) and `local_business` (V2-144) were added to the
+# catalog, and nothing said so — the file has never been listed in `tests/run_testmap.py`, so `tests run all`
+# does not execute it and only a raw `pytest` invocation ever saw the failure. Registered there now. The lesson
+# is the one this repo already wrote down for NEW test files (V2-112) and it bites the same way for old ones:
+# a test that no suite runs is a test that silently stops being true.
 _CATEGORIES = {
     "restaurant_booking", "hotel_booking", "flight_search", "car_classifieds",
-    "general_classifieds", "generic_marketplace",
+    "general_classifieds", "generic_marketplace", "event_tickets", "local_business",
 }
 
 
@@ -116,8 +121,11 @@ def test_second_hand_does_NOT_hijack_the_research_funnel():
     # ya costó una vez enrutar de más. El worker genérico recibe el catálogo igual, ver el test de abajo.
     from nucleo import dispatch
     assert dispatch._classify_kind("búscame un monitor barato de segunda mano") == "generic"
+    # V2-158: `event_tickets` (V2-132) y `local_business` (V2-144) entraron después. Lo que este test protege no
+    # es la LISTA sino que «segunda mano» siga fuera de ella — la línea de arriba.
     assert set(site_catalog.TRANSACTIONAL_CATEGORIES) == {
-        "restaurant_booking", "hotel_booking", "flight_search"}
+        "restaurant_booking", "hotel_booking", "flight_search", "event_tickets", "local_business"}
+    assert "general_classifieds" not in site_catalog.TRANSACTIONAL_CATEGORIES
 
 
 def test_the_generic_worker_also_gets_the_trusted_site_catalog():
@@ -184,10 +192,23 @@ def test_naming_no_site_is_still_not_a_browser_task():
     navegador que nadie pidió."""
     from nucleo import dispatch
     for req in ("lees lo que hay en la agenda, lo borras y compruebas",
-                "cancela la suscripción del gimnasio",
                 "Hazme un informe sobre coches eléctricos para ciudad",
                 "¿qué tal está Netflix últimamente?"):
         assert dispatch._classify_kind(req) != "web", req
+
+
+def test_but_ending_a_paid_commitment_IS_a_browser_task_now():
+    """V2-158 retira «cancela la suscripción del gimnasio» de la lista de arriba: desde V2-148 un encargo que
+    TERMINA un compromiso de pago va al navegador A PROPÓSITO (`money_work_needs_a_browser`), y el argumento
+    está escrito en esa decisión — sin navegador la tarea no puede ni llegar al muro del login, así que el
+    sistema pierde la única respuesta honesta que tenía y el turno rellena el hueco narrando.
+
+    La afirmación llevaba desde entonces contradiciendo el comportamiento buscado sin que nadie se enterara,
+    porque este fichero no estaba en `tests/run_testmap.py`."""
+    from nucleo import dispatch
+    from nucleo.flash import router_guards as rg
+    assert rg.money_work_needs_a_browser("cancela la suscripción del gimnasio") is True
+    assert dispatch._classify_kind("cancela la suscripción del gimnasio") == "web"
 
 
 def test_a_pure_login_is_still_a_login_not_a_task():

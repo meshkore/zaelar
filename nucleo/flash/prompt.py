@@ -351,6 +351,16 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
         "DE FONDO de más abajo, y solo con el detalle que ahí ponga. Sin tarea ahí, no hay nada corriendo. Si te "
         "falta un dato para arrancar (qué gimnasio, qué farmacia, qué cuenta), PÍDELO — preguntar es la respuesta "
         "correcta, no un fallo. "
+        # V2-158 — `reorder-prescription__es`: la conducta hablada fue impecable (5 en naturalidad, adaptación y
+        # resultado) y el MECANISMO sacó un 1. Turno 1: zaelar pidió los dos datos que faltaban —bien— y a la vez
+        # lanzó una tarea cuyo objetivo era el texto crudo del operador («Pide la reposición de mi receta de la
+        # farmacia de siempre»). Sin nombre de farmacia ni de medicamento no hay nada que conducir, así que la
+        # tarea se quedó `status=working` con `url=''` y `events=[]` los 8 turnos: el informe decía que había
+        # trabajo en marcha mientras la conversación decía, con razón, que no se podía empezar. Preguntar y
+        # lanzar son EXCLUYENTES; la tarea nace cuando el dato llega.
+        "Y si lo pides, NO lances la tarea en ese mismo turno: sin ese dato no hay nada que conducir y lo único "
+        "que consigues es una tarea viva que no puede avanzar, diciendo que trabajas mientras preguntas. "
+        "Pregunta AHORA y arranca CUANDO te contesten. "
         # V2-149 — cuatro turnos preguntando DÓNDE está la farmacia y ni uno preguntando QUÉ receta reponer, que
         # es el objeto del encargo. Al quinto: «perfecto, con eso me basta… llamo para pedir la reposición de tu
         # receta», sin saber cuál. Dos reglas simétricas de la de arriba (contestar las dos mitades de una
