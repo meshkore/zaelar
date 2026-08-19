@@ -561,6 +561,15 @@ DOMAINS: list[dict] = [
         # ejecutable en silencio o se juzga contra la vara equivocada.
         {"id": "10.3", "title": "Segmentos completable/credentials/capability (inventario cerrado)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_segments.py"]},
+        # La COLA del bucle continuo. Los dos fallos que guarda no se ponen rojos solos: lanzar casos que no
+        # pueden terminar gasta la noche en el entorno, y contar un `INFRA` como veredicto retira un caso del
+        # catálogo en silencio (le pasó a `build-workout-tracker-widget` durante días).
+        {"id": "10.4", "title": "Cola del bucle: solo ejecutables, y un INFRA no retira un caso",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_tick_queue.py"]},
+        # El juez no puede contradecir su propio informe de mecanismo: un veredicto así manda al equipo del
+        # motor a arreglar algo que no ocurrió, y en un bucle desatendido eso llena el tablero de trabajo falso.
+        {"id": "10.5", "title": "El juez lee el mecanismo en prosa y no lo contradice",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_judge_mechanism_facts.py"]},
     ]},
 ]
 
