@@ -298,8 +298,16 @@ def _classify_kind(request: str) -> str:
     try:
         from nucleo.flash import router_guards as _rg
         _site = _rg.login_site(r)
-        if (_site and _rg.looks_like_web_task(r)
-                and not _rg.is_music_service(_site, r) and not _rg.is_messaging_service(_site, r)):
+        # V2-138: those two guards exist because CONNECTING one of those accounts happens inside its own widget
+        # (OAuth/QR), never through the Chromium — a real invariant. But they were excluding the site for ANY
+        # request, and ending a PAID commitment with that provider has nothing to do with linking it: «anula la
+        # suscripción de Spotify» happens on spotify.com like any other cancellation. Measured: it classified as
+        # `generic`, i.e. a worker with NO browser, so it could not even reach the login wall to tell the
+        # operator what it needed. The carve-out is narrow on purpose — `ends_a_commitment` is False for «quita
+        # la música de Spotify» and for «conecta mi Spotify».
+        from nucleo import danger as _danger_cls
+        _linking_guard = (_rg.is_music_service(_site, r) or _rg.is_messaging_service(_site, r))
+        if _site and _rg.looks_like_web_task(r) and (not _linking_guard or _danger_cls.ends_a_commitment(r)):
             return "web"
     except Exception:
         pass

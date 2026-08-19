@@ -20,7 +20,10 @@ _TASK_VERB_RE = _re.compile(
     r"\b("
     r"borr|elimin|mand|envi|escrib|respond|contest|reenvi|gestion|revis|lee|leer|mira|mir[ae]|orden|compr|"
     r"public|descarg|reserv|anad|agreg|cambi|actualiz|sub[ae]|archiv|marca|mueve|rellen|apunt|"
-    r"puj|pag|cancel|confirm|solicit|vot|inscrib|contrat|licit|acept|rechaz|"
+    # `anul` junto a `cancel` (V2-138, 2026-08-19): son sinónimos exactos para esto y solo estaba uno, así que
+    # «cancela la suscripción de Spotify» contaba como tarea web y «ANULA la suscripción de Spotify» no — la
+    # misma orden, enrutada a un worker con navegador o sin él según qué verbo eligiera la persona.
+    r"puj|pag|cancel|anul|confirm|solicit|vot|inscrib|contrat|licit|acept|rechaz|"
     # `de baja` / `suscrib` (V2-126, 2026-08-18): «date de baja de Netflix» es LA forma de pedir esto en
     # castellano y no llevaba ningún verbo de la lista, así que no contaba como tarea web. Va la locución
     # entera, nunca «baja» suelta — «estoy de baja» no es una orden a nadie.
@@ -332,7 +335,12 @@ def _needs_real_work(text: str) -> bool:
         return True
     try:
         from nucleo import danger as _danger
-        if not _danger.moves_money(text):
+        # V2-138: ending a standing commitment is real-world work too, and it costs nothing — «cancela mi
+        # suscripción a Netflix» is not money, so `moves_money` said no and the promise backstop could not fire
+        # for the whole cancel family. `is_dangerous` would be too wide (it is also True for «borra el widget
+        # de música», resolved inside the turn); `ends_a_commitment` is exactly the right width, measured on
+        # both classes.
+        if not (_danger.moves_money(text) or _danger.ends_a_commitment(text)):
             return False
     except Exception:
         return False

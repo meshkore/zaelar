@@ -172,6 +172,22 @@ _MONEY_VERB_RE = re.compile(r"\b(?:pagar|comprar|abonar|transferir|adquirir|cont
                             r"pagas|compras|abonas|transfieres|contratas|renuevas)", re.I)
 
 
+def ends_a_commitment(text: str) -> bool:
+    """Does this order END or START a standing commitment — a subscription, a fee, a contract, an order?
+
+    Exposed for V2-138: `is_dangerous` is too wide to decide whether something needs a WORKER (it is also True
+    for «borra el widget de música», which is resolved inside the turn, V2-017), and `moves_money` is too narrow
+    (cancelling costs nothing). This middle predicate is exactly the right width, and it was already computed
+    inside `is_dangerous` — measured on both classes:
+
+        cancela mi suscripción a Netflix · dame de baja de Movistar · anula el pedido de Amazon   → True
+        borra el widget de música · cancela la búsqueda · borra la tarea del jueves · cierra el widget → False
+
+    Uses the same reminder clipping as the rest of the module, so «recuérdame dar de baja Netflix» stays a note.
+    """
+    return bool(_COMMITMENT_RE.search(_REMINDER_RE.sub(" ", _strip_accents(_order_text(text)))))
+
+
 def moves_money(text: str) -> bool:
     """True si la orden implica un CARGO. Subconjunto de `is_dangerous`: todo lo que mueve dinero es
     irreversible, pero borrar un widget o publicar un anuncio no cuesta nada."""

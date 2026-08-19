@@ -105,6 +105,9 @@ DOMAINS: list[dict] = [
             # V2-135: the composing pass of a web search saw the QUERY as the question, so half of a
             # two-part question was gone before the answer was written.
             "tests/agent_headless/unit/flash/test_search_answers_the_whole_question.py",
+            # V2-138: cancelling costs nothing, so the money signal said no and the promise backstop
+            # could not fire for the whole cancel family.
+            "tests/agent_headless/unit/flash/test_ending_a_commitment.py",
             "tests/agent_headless/unit/test_skeleton.py", "tests/agent_headless/unit/test_sparks.py"]},
         {"id": "2.4", "title": "Cliente LLM rápido, reintento y RELEVO por latencia", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_fast_client.py", "tests/agent_headless/unit/flash/test_fast_client_retry.py",
