@@ -41,6 +41,88 @@ _RE_ABS = re.compile(r"^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{1,2}):(\d{2}))?$")
 _DEFAULT_HOUR = 9
 
 
+# ── una expresión de tiempo HABLADA → la fecha ISO que `parse_schedule` ya entiende ──────────────────────
+#
+# V2-146 — «apúntame que el jueves… y recuérdamelo el miércoles» acabó con `scheduled_jobs.created` VACÍO: el
+# modelo prometió el aviso en prosa y no emitió ninguna tag. El ejecutor de crons funciona (verificado en
+# V2-134), el prompt lo pide con todas las letras — lo que faltaba era el backstop, y un backstop necesita
+# resolver «el miércoles» POR SU CUENTA.
+#
+# Esto NO contradice la decisión de arriba de aceptar solo ISO en `parse_schedule`. Aquella dice que el MODELO
+# no tenga que inventarse una gramática de fechas teniendo la lista de días delante, y sigue en pie: esta
+# función no la usa el modelo, la usa el backstop cuando el modelo ya no hizo nada. Y es aritmética, no
+# adivinación: devuelve "" en cuanto la expresión no es inequívoca, porque un aviso mal fechado no se nota
+# hasta el día que no suena (V2-121).
+_WEEKDAYS = {"lunes": 0, "martes": 1, "miercoles": 2, "jueves": 3, "viernes": 4, "sabado": 5, "domingo": 6,
+             "monday": 0, "tuesday": 1, "wednesday": 2, "thursday": 3, "friday": 4, "saturday": 5, "sunday": 6}
+_RE_AT_HOUR = re.compile(r"\ba\s+las?\s+(\d{1,2})(?::(\d{2}))?\b|\bat\s+(\d{1,2})(?::(\d{2}))?\b", re.I)
+_RE_DAY_OF_MONTH = re.compile(r"\bel\s+d[ií]a\s+(\d{1,2})\b|\bon\s+the\s+(\d{1,2})(?:st|nd|rd|th)?\b", re.I)
+
+
+def _strip_accents_sched(text: str) -> str:
+    import unicodedata as _ud
+    return "".join(c for c in _ud.normalize("NFKD", text or "") if not _ud.combining(c)).lower()
+
+
+def parse_when(text: str, now: float | None = None) -> str:
+    """A spoken time expression → the `YYYY-MM-DD [HH:MM]` spec `parse_schedule` accepts, or "" if unsure.
+
+    Only the forms that are unambiguous on their own: tomorrow, a named weekday, and a day of the month, each
+    with an optional «a las HH(:MM)». «esta tarde», «pronto» or «cuando puedas» return "" on purpose — a
+    reminder placed on a guessed date is worse than none, because the operator believes it is set.
+    """
+    now = time.time() if now is None else now
+    n = _strip_accents_sched(text)
+    if not n.strip():
+        return ""
+    m = _RE_AT_HOUR.search(n)
+    hh, mi = _DEFAULT_HOUR, 0
+    if m:
+        hh = int(m.group(1) or m.group(3) or _DEFAULT_HOUR)
+        mi = int(m.group(2) or m.group(4) or 0)
+        if not (0 <= hh <= 23 and 0 <= mi <= 59):
+            return ""
+
+    def _iso(ts: float) -> str:
+        return time.strftime("%Y-%m-%d", time.localtime(ts)) + f" {hh:02d}:{mi:02d}"
+
+    def _at(day_ts: float) -> float:
+        lt = time.localtime(day_ts)
+        return time.mktime((lt.tm_year, lt.tm_mon, lt.tm_mday, hh, mi, 0, 0, 1, -1))
+
+    if re.search(r"\b(manana|tomorrow)\b", n):
+        return _iso(now + 86400)
+    # TWO weekdays in the same sentence («el jueves tengo que… y recuérdamelo el miércoles») is ambiguous for a
+    # backstop: which one is the reminder is exactly what we cannot know without understanding the sentence.
+    # Answering "" sends it back to whoever has the context, instead of picking whichever the dict listed first.
+    found = {t for name, t in _WEEKDAYS.items() if re.search(rf"\b{name}\b", n)}
+    if len(found) > 1:
+        return ""
+    if found:
+        target = found.pop()
+        today = time.localtime(now).tm_wday
+        delta = (target - today) % 7
+        if delta == 0 and _at(now) <= now:          # today, but the hour already went by → next week
+            delta = 7
+        return _iso(now + delta * 86400)
+    m = _RE_DAY_OF_MONTH.search(n)
+    if m:
+        day = int(m.group(1) or m.group(2))
+        if not (1 <= day <= 31):
+            return ""
+        lt = time.localtime(now)
+        for month_offset in (0, 1):
+            year, month = lt.tm_year + (lt.tm_mon + month_offset - 1) // 12, (lt.tm_mon + month_offset - 1) % 12 + 1
+            try:
+                ts = time.mktime((year, month, day, hh, mi, 0, 0, 1, -1))
+            except (OverflowError, ValueError):
+                return ""
+            if ts > now and time.localtime(ts).tm_mday == day:
+                return time.strftime("%Y-%m-%d %H:%M", time.localtime(ts))
+        return ""
+    return ""
+
+
 # ── parseo del schedule ──────────────────────────────────────────────────────────────────────────────────
 def parse_schedule(spec: str, now: float | None = None) -> dict | None:
     """Devuelve un dict de schedule normalizado (con `next_run` en epoch) o None si no se reconoce."""

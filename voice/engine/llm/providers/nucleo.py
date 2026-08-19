@@ -1046,6 +1046,7 @@ class NucleoLLMStream(llm.LLMStream):
         clarify = {"msg": None}          # V2-026: pregunta a decir si una referencia a un item no se resolvió
         data_done = {"v": False}         # V2-026: se despachó una data-op FAST → ack hablado si el modelo no habló
         worker_acted = {"v": None}       # V2-038: 'inject'|'stop'|'answer' si se dirigió a un Brain Worker vivo
+        cron_seen = {"v": False}         # V2-146: el turno YA pidió un cron → el backstop de aviso no duplica
         _shown_ids: set = set()          # ids ya mostrados ESTE turno → dedup de [[show]] duplicado
         # ¿había una confirmación de borrado en el aire al empezar el turno? Solo entonces interpretamos un
         # "sí/no" suelto como respuesta a ELLA (red determinista, por si el modelo no llama a la tool).
@@ -1183,6 +1184,8 @@ class NucleoLLMStream(llm.LLMStream):
             if action in ("cron.create", "cron.cancel"):
                 # Proactividad PROPIA (V2-005): re-cableado al scheduler del loop orquestador (NO al cron de
                 # Hermes, que muere en V2-009). Persistido en memory.journal; lo dispara nucleo/loop.py.
+                if action == "cron.create":
+                    cron_seen["v"] = True          # V2-146: el backstop de abajo no duplica lo que ya se pidió
                 try:
                     from nucleo import scheduler as _sched
                     d = extra.get("data") or {}
@@ -2363,6 +2366,25 @@ class NucleoLLMStream(llm.LLMStream):
             escalate_req["v"] = text
             emit("brain", "🧭 escalada por guard (marketplace→navegar / modificar-widget→generador)",
                  text=text[:80], role="system")
+
+        # BACKSTOP DE AVISO PROMETIDO (V2-146, impl PARALELA con el probe — cablear en AMBOS): el modelo prometió
+        # el recordatorio en PROSA y no emitió la tag, así que `scheduled_jobs.created` salió vacío mientras el
+        # turno decía «te avisaré el miércoles». El ejecutor de tags funciona y el prompt lo pide con todas las
+        # letras: faltaba hacerlo cuando el modelo no lo hace. Solo con un momento RESOLUBLE — la función
+        # devuelve "" ante cualquier expresión que no sea inequívoca, porque un aviso mal fechado no se nota
+        # hasta el día que no suena.
+        if spoken_text and not cron_seen["v"]:
+            try:
+                _when = _router.promises_a_dated_reminder(spoken_text, operator_text)
+                if _when:
+                    from nucleo import scheduler as _sched_bk
+                    _r = _sched_bk.create(operator_text[:200], _when, name="aviso")
+                    emit("cron", "⏰ aviso programado por backstop (lo prometió sin emitir la tag)"
+                         if _r.get("ok") else "⚠️ schedule no reconocido",
+                         text=_r.get("display") or _r.get("error") or "", role="system",
+                         extra={"ok": bool(_r.get("ok")), "op": "cron.create", "backstop": True})
+            except Exception:
+                pass
 
         _no_tool = (not acted["widget"] and not data_done["v"] and not music_req["v"] and not worker_acted["v"]
                     and escalate_req["v"] is None and search_req["v"] is None)

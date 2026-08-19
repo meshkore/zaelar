@@ -291,6 +291,40 @@ def hands_public_lookup_back(reply: str) -> bool:
     return not _FIRST_PERSON_LOOKUP_RE.search(n)
 
 
+# PROMESA DE UN AVISO CON FECHA (V2-146). «apúntame que el jueves… y recuérdamelo el miércoles» acabó con
+# `scheduled_jobs.created` VACÍO: el modelo prometió en prosa —«te avisaré el miércoles»— y no emitió ninguna
+# tag. El ejecutor de crons funciona (V2-134) y el prompt lo pide con todas las letras; faltaba el backstop.
+#
+# La frontera que lo separa de la familia de V2-132/V2-143: «te aviso EN CUANTO lo tenga» es un worker
+# terminando, no un aviso programado. Lo que distingue a este es que hay un MOMENTO resoluble — y quien decide
+# si lo hay es `scheduler.parse_when`, que devuelve "" ante cualquier expresión que no sea inequívoca.
+_REMIND_VERB_RE = _re.compile(
+    r"\b(te\s+aviso|te\s+avisare|te\s+lo\s+recuerdo|te\s+lo\s+recordare|te\s+recuerdo|te\s+recordare|"
+    r"program\w*\s+el\s+recordatorio|dejo\s+puesto\s+el\s+aviso|pon\w*\s+el\s+recordatorio|"
+    r"i'?ll\s+remind\s+you|i\s+will\s+remind\s+you|i'?ll\s+let\s+you\s+know\s+on)\b", _re.I)
+
+
+def promises_a_dated_reminder(reply: str, operator_text: str = "") -> str:
+    """The reply promises to remind the operator AT A GIVEN TIME → the schedule spec for it, else "".
+
+    Returns the spec rather than a bool so the caller cannot promise what it could not resolve: if the moment is
+    not unambiguous the answer is "", and nothing gets scheduled on a guessed date.
+    """
+    n = _norm_txt(reply)
+    m = _REMIND_VERB_RE.search(n)
+    if not m:
+        return ""
+    try:
+        from nucleo import scheduler as _sched
+    except Exception:
+        return ""
+    # The reminder day is the one that follows the promise. Both halves of this exchange name TWO weekdays
+    # («el JUEVES renuevas el seguro… te avisaré el MIÉRCOLES»), and `parse_when` refuses an ambiguous pair on
+    # purpose — but here the position disambiguates it: what comes after «te avisaré» is when the notice goes.
+    # Only if that tail resolves nothing do we look at what the operator said, and there ambiguity stands.
+    return _sched.parse_when(n[m.end():]) or _sched.parse_when(operator_text)
+
+
 def escalate_goal_from_window(window, current_text: str = "", max_back: int = 6) -> str:
     """The operator's request that a promise refers to, which is NOT always in this turn's text.
 

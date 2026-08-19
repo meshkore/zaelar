@@ -763,6 +763,21 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         # repite en cada backstop: «cablear en AMBOS»), y el bloque de ejecución solo cubría worker + data-op. El
         # canal `probe` es el que usan los casos de uso, así que el aviso NO PODÍA existir en una corrida por muy
         # bien que el modelo emitiera la tag: `remember-and-remind-deadline` medía un mecanismo inalcanzable.
+        # BACKSTOP DE AVISO PROMETIDO (V2-146, espejo del provider — cablear en AMBOS): el modelo prometió el
+        # recordatorio en PROSA y no emitió la tag, así que `scheduled_jobs.created` salió vacío mientras el
+        # turno decía «te avisaré el miércoles». El ejecutor de abajo funciona (V2-134) y el prompt lo pide con
+        # todas las letras: lo que faltaba era hacerlo cuando el modelo no lo hace. Solo con un momento
+        # RESOLUBLE — `promises_a_dated_reminder` devuelve "" ante cualquier expresión que no sea inequívoca,
+        # porque un aviso mal fechado no se nota hasta el día que no suena.
+        if spoken and not any(t.get("action") == "cron.create" for t in tags):
+            try:
+                from . import router as _routerr
+                _when = _routerr.promises_a_dated_reminder(spoken, operator_text)
+                if _when:
+                    tags.append({"action": "cron.create", "extra": {"data": {
+                        "schedule": _when, "prompt": operator_text[:200], "name": "aviso"}}, "backstop": True})
+            except Exception:
+                pass
         for _t in tags:
             if _t.get("action") not in ("cron.create", "cron.cancel"):
                 continue

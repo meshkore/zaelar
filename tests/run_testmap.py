@@ -111,6 +111,9 @@ DOMAINS: list[dict] = [
             # V2-145: the brain narrated what the browser «was doing» from the clock, while that task had
             # opened nothing at all — the truth lived in tasks.py and never reached the prompt.
             "tests/agent_headless/unit/flash/test_browser_progress_is_stated.py",
+            # V2-146: «te avisaré el miércoles» con scheduled_jobs vacío — el modelo prometía en prosa
+            # y no emitía la tag; el backstop resuelve el día por posición y se niega si es ambiguo.
+            "tests/agent_headless/unit/flash/test_promised_reminder_backstop.py",
             "tests/agent_headless/unit/test_skeleton.py", "tests/agent_headless/unit/test_sparks.py"]},
         {"id": "2.4", "title": "Cliente LLM rápido, reintento y RELEVO por latencia", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_fast_client.py", "tests/agent_headless/unit/flash/test_fast_client_retry.py",
