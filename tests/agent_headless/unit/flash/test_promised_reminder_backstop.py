@@ -197,6 +197,11 @@ def test_the_whole_turn_end_to_end(monkeypatch):
 # idénticos dentro: `2026-08-26 09:00` los dos, uno con la petición real de prompt y otro con «Perfecto, gracias.
 # Así no se me pasa.», porque el backstop disparó en el turno que prometía y otra vez en el que lo reafirmaba.
 # Medido contra el scheduler real: dos `create()` con la misma spec devuelven ok las dos y dejan dos jobs vivos.
+def _n(text: str) -> str:
+    import unicodedata as _ud
+    return "".join(c for c in _ud.normalize("NFKD", text) if not _ud.combining(c)).lower()
+
+
 REPLY_T1 = "Voy a apuntarlo en tu agenda para el jueves y configurar un recordatorio para el miércoles."
 REPLY_T2 = "De nada. Queda anotado y te aviso el miércoles para que no se te olvide."
 ACK = "Perfecto, gracias. Así no se me pasa."
@@ -205,7 +210,12 @@ ACK = "Perfecto, gracias. Así no se me pasa."
 def test_the_first_promise_schedules_the_notice(fresh_db):
     cron = g.dated_reminder_backstop(REPLY_T1, ASK)
     assert cron and cron["schedule"]
-    assert cron["prompt"] == ASK          # el prompt es la PETICIÓN, no el turno que la reafirma
+    # V2-167 cambió esta línea A PROPÓSITO. Antes el prompt era la PETICIÓN literal, y lo que se midió al
+    # dispararse es que al agente se le pedía «Apúntame que el jueves… y recuérdamelo el miércoles» — o sea,
+    # PROGRAMAR el aviso otra vez, no darlo. Un cron cuyo texto reabre el encargo no es un recordatorio.
+    assert cron["prompt"].lower().startswith("avisa al operador")
+    assert "seguro del coche" in cron["prompt"]      # y sigue llevando el QUÉ, que es lo que se perdía
+    assert "recuerdamelo" not in _n(cron["prompt"])  # sin la petición de programar dentro
 
 
 def test_and_reaffirming_it_next_turn_does_not_schedule_a_second_one(fresh_db):
@@ -267,10 +277,32 @@ def test_a_promise_to_note_with_no_resolvable_day_writes_nothing():
     assert g.dated_note_backstop("Queda anotado, no te preocupes.", ASK) is None
 
 
-def test_and_a_reminder_alone_is_not_a_note():
-    """La frontera con su hermano: prometer el AVISO no es prometer el APUNTE."""
-    assert g.dated_note_backstop("Vale, te aviso el miércoles.", ASK) is None
-    assert g.dated_note_backstop("De nada, aquí ando.", ASK) is None
+def test_the_note_no_longer_depends_on_how_the_model_words_it():
+    """V2-167 MUEVE esta frontera, y conviene decir por qué en vez de cambiar la aserción y callar.
+
+    V2-159 disparaba con el verbo de la RESPUESTA («te apunto»). La corrida siguiente dijo «la cita ESTÁ EN TU
+    AGENDA para el jueves» —afirma el estado en vez de prometer el acto— y la agenda volvió a quedar vacía. Eso
+    es la cinta de correr que V2-151 ya pagó: perseguir cómo lo formula el modelo. Lo que NO cambia entre
+    corridas es lo que pidió el OPERADOR, así que de ahí sale la obligación.
+
+    Consecuencia directa, y es deseada: si él pidió apuntarlo y el turno solo promete el aviso, la mitad del
+    encargo se quedaba sin hacer. El backstop la cubre — y no puede duplicar nada, porque el llamante solo lo
+    consulta cuando el turno NO hizo la data-op.
+    """
+    assert g.dated_note_backstop("Vale, te aviso el miércoles.", ASK) is not None
+    assert g.dated_note_backstop("La cita está en tu agenda para el jueves.", ASK) is not None
+
+
+def test_but_with_nothing_asked_there_is_nothing_to_note():
+    """La frontera que SÍ sigue en pie: sin petición de apunte del operador, no se apunta nada."""
+    assert g.dated_note_backstop("Vale, te aviso el miércoles.", "¿qué tiempo hace el jueves?") is None
+    assert g.dated_note_backstop("De nada, aquí ando.", "gracias") is None
+
+
+def test_and_a_question_is_not_a_confirmation():
+    """Si el turno todavía PREGUNTA, no ha fijado nada: apuntar una fecha que aún se está negociando es
+    exactamente el daño que este backstop existe para evitar."""
+    assert g.dated_note_backstop("¿El jueves a qué hora te viene bien?", ASK) is None
 
 
 def test_the_two_halves_are_independent(fresh_db):
@@ -279,3 +311,53 @@ def test_the_two_halves_are_independent(fresh_db):
     note = g.dated_note_backstop(REPLY_BOTH, ASK)
     assert cron and note
     assert cron["schedule"].split(" ")[0] != note["date"]
+
+
+# ── V2-167: un aviso llega ANTES de aquello de lo que avisa ───────────────────────────────────────────────
+#
+# La corrida del 19:46 dejó el caso «más limpio de los cinco» y aun así inútil: DOS turnos, todo comprobable, y
+# el trabajo programado decía `2026-08-26 09:00` para avisar de algo del JUEVES 2026-08-20 — seis días TARDE.
+# No es un fallo del parser: `parse_when("el miercoles")` en miércoles responde el miércoles QUE VIENE, que es
+# la lectura correcta de esa frase suelta. Lo que el parser no puede saber es la única restricción que tiene un
+# recordatorio, y por eso la corrección vive donde SÍ están las dos fechas.
+import datetime as _dt
+
+
+def test_a_reminder_that_lands_after_the_event_is_pulled_back_a_week():
+    now = _dt.datetime(2026, 8, 19, 8, 0)                       # miércoles, antes de las nueve
+    got = g.reminder_before("2026-08-26 09:00", "2026-08-20 09:00", now=now)
+    assert got == "2026-08-19 09:00"                            # el miércoles ANTERIOR, que es hoy
+
+
+def test_and_if_that_day_has_already_gone_by_it_fires_promptly():
+    """Preguntado a las 19:46 del propio miércoles: el día que nombró es hoy y su hora pasó. Avisarle ahora es
+    la lectura útil de lo que pidió; la alternativa medida —el miércoles siguiente— no avisa de nada."""
+    now = _dt.datetime(2026, 8, 19, 19, 46)
+    got = g.reminder_before("2026-08-26 09:00", "2026-08-20 09:00", now=now)
+    assert _dt.datetime.strptime(got, "%Y-%m-%d %H:%M") > now
+    assert _dt.datetime.strptime(got, "%Y-%m-%d %H:%M") < _dt.datetime(2026, 8, 20, 9, 0)
+
+
+def test_but_a_reminder_that_was_already_early_is_left_alone():
+    """El límite: sin esto, «corrige el aviso» y «adelántalo siempre» pasan igual."""
+    now = _dt.datetime(2026, 8, 19, 8, 0)
+    assert g.reminder_before("2026-08-19 09:00", "2026-08-20 09:00", now=now) == "2026-08-19 09:00"
+
+
+def test_and_with_no_dated_commitment_there_is_nothing_to_be_before():
+    assert g.reminder_before("2026-08-26 09:00", "") == "2026-08-26 09:00"
+
+
+def test_the_whole_case_end_to_end(fresh_db):
+    """Los tres defectos medidos en un objeto de cuatro campos, los tres en la misma aserción."""
+    reply = "Todo listo: la cita está en tu agenda para el jueves y te aviso el miércoles."
+    cron = g.dated_reminder_backstop(reply, ASK)
+    note = g.dated_note_backstop(reply, ASK)
+    assert cron and note
+    # (1) el aviso cae ANTES del compromiso
+    assert cron["schedule"].split(" ")[0] <= note["date"]
+    assert cron["schedule"].split(" ")[0] != "2026-08-26"
+    # (2) lo que dispara es un AVISO, no la petición de programarlo otra vez
+    assert cron["prompt"].lower().startswith("avisa al operador")
+    # (3) y existe el apunte, que era la mitad que no se hacía
+    assert "seguro" in note["title"] and note["date"] == "2026-08-20"

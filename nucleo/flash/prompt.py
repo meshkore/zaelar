@@ -29,6 +29,12 @@ from nucleo.flash.recall_heuristics import (  # noqa: F401 — re-export
     needs_recall, needs_recent, compose_recent_block,
 )
 
+# V2-167 — how long a browser task may sit on the SAME page before the turn is allowed to call it stalled. Two
+# minutes, taken from the initiative's own bar: «un "este sitio me ha bloqueado, ¿lo intento en otro?" a los dos
+# minutos vale más que cinco PASS». It is a REPORTING threshold, never a kill: nothing here stops a task, and a
+# marketplace that legitimately takes minutes keeps working while the operator is told what it is doing.
+_STALLED_S = int(__import__("os").environ.get("ZAELAR_NAV_STALLED_S", "120") or 120)
+
 
 def _observability_on() -> bool:
     """¿Está activa la capa de observabilidad de memoria (tintado en vivo del visor)? UI-managed
@@ -592,6 +598,15 @@ def live_state() -> str:
                     # pasos. Un número no se puede decir en voz alta.
                     if _p.get("last_event"):
                         _b += f" · último: {_p['last_event'][:90]}"
+                    # V2-167 — the two facts that turn «no tengo novedades» into something the operator can act
+                    # on. Three measured runs ended `status=working results=null` with the operator giving up:
+                    # the restaurant sat 11 minutes on the right page, the hotel 3 minutes on Booking's anti-bot
+                    # challenge, the theatre passed through a CAPTCHA. In all three the brain told the truth and
+                    # the truth was useless, because the only truth it had was that the task was alive.
+                    if _p.get("wall"):
+                        _b += f" · MURO: {_p['wall']}"
+                    elif int(_p.get("stalled_s") or 0) >= _STALLED_S:
+                        _b += f" · lleva {int(_p['stalled_s']) // 60} min SIN MOVERSE de esa página"
                 _bits.append(_b)
             lines.append(
                 f"NAVEGADOR — YA EN CURSO ({len(act)}): {'; '.join(_bits)}. NO abras otra tarea ni reinicies la "
@@ -603,7 +618,14 @@ def live_state() -> str:
                 "que está atascada— y NO describas lo que estaría haciendo («está en la página», «interactuando», "
                 "«rellenando el formulario»). Los segundos que lleva NO son una descripción de lo que hace. "
                 "Y si el operador se plantea pararla, no le empujes a hacerlo por falta de novedades: dile que "
-                "sigue viva y que la falta de parte no significa que esté parada.")
+                "sigue viva y que la falta de parte no significa que esté parada. "
+                # V2-167: the honest counterpart to that rule, which without this reads as «calla siempre». No
+                # news is not a stall — but a MEASURED stall is a fact, and so is a wall, and callarlos deja al
+                # operador esperando por algo que ya no va a llegar.
+                "AHORA BIEN: si arriba pone MURO o «sin moverse», eso NO es falta de novedades, es un HECHO "
+                "medido y se dice — «Booking me ha puesto una verificación anti-robot», «lleva 11 minutos en la "
+                "ficha sin avanzar»— y con una salida concreta: probar en otro sitio, que entre él, o dejarlo. "
+                "Nunca esperes callado sobre un muro.")
         # V2-150 — una tarea que TERMINA desaparecía del estado, así que no quedaba ningún hecho diciendo que
         # había acabado, y menos aún que había acabado vacía. El informe decía `status=done url=` mientras el
         # turno decía «los procesos siguen en marcha, llevan casi 5 minutos». No es el modelo inventando por

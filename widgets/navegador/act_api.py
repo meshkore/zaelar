@@ -43,6 +43,26 @@ def _emit_nav(nav_tid: str, label: str, text: str) -> None:
 
 
 @router.post("/api/navegador/act")
+def _with_wall(snap: dict) -> dict:
+    """Annotate a snapshot with `wall` when the page it landed on STOPPED us (anti-bot challenge, CAPTCHA, load
+    error) — V2-167.
+
+    The worker drives through this endpoint and its only view of the page is what comes back here, so a wall it
+    cannot see is a wall it grinds against. Measured: a run spent three minutes re-photographing Booking's
+    `chal_t=` challenge and another walked through Google's `/sorry/index`, and both reported no obstacle at all.
+    The rule telling the worker what to do about a captcha already existed (`nucleo/dispatch_prompts.py`); what
+    was missing was any way for it to know it was looking at one.
+    """
+    try:
+        from widgets.navegador import tasks as _t
+        reason = _t.wall_reason(str((snap or {}).get("url") or ""))
+    except Exception:
+        return snap
+    if reason:
+        snap = dict(snap or {})
+        snap["wall"] = reason
+    return snap
+
 async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body(..., embed=True),
                         args: dict = Body(default_factory=dict, embed=True)):
     """Execute one browser action in the `task_id` tab and return resulting state so the agent can reason about the
@@ -64,7 +84,7 @@ async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body
 
         if action == "snapshot":
             snap = await tb.snapshot_for_agent()
-            return {"ok": True, "shot": _shot_path(task_id), **snap}
+            return {"ok": True, "shot": _shot_path(task_id), **_with_wall(snap)}
         if action == "look":
             # V2-049 VISION: fresh viewport capture to disk. The worker reads it with its Read tool, sees the page
             # like a human, and acts by coordinates (click_at/type_at). This is the robust path for forms,
@@ -76,7 +96,8 @@ async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body
             except Exception:
                 pass
             _emit_nav(task_id, "🧭 vista", f"captura {snap.get('title') or snap.get('url') or ''}"[:200])
-            return {"ok": True, "shot": _shot_path(task_id), "viewport": {"width": 1280, "height": 800}, **snap}
+            return {"ok": True, "shot": _shot_path(task_id), "viewport": {"width": 1280, "height": 800},
+                    **_with_wall(snap)}
         if action == "extract":
             items = await tb.extract_listings(int(args.get("limit", 14)))
             _emit_nav(task_id, "🧭 resultados", f"{len(items)} anuncios/resultados en la página")
@@ -95,7 +116,7 @@ async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body
             if page:
                 _emit_nav(task_id, "🧭 página", page)
             # Fresh PNG path; every action calls _capture, so the worker can Read the view after acting.
-            return {"ok": bool(ok), "msg": msg, "shot": _shot_path(task_id), **snap}
+            return {"ok": bool(ok), "msg": msg, "shot": _shot_path(task_id), **_with_wall(snap)}
         return JSONResponse({"ok": False, "error": f"acción desconocida: {action}"}, status_code=400)
     except Exception as e:  # noqa: BLE001
         return JSONResponse({"ok": False, "error": f"{type(e).__name__}: {str(e).splitlines()[0][:160]}"},

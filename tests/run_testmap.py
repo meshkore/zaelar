@@ -304,7 +304,12 @@ DOMAINS: list[dict] = [
             "tests/browser/unit/navegador/test_dom.py",
             # V2-152: a worker-driven task never wrote a milestone, so `active_progress` reported 0 steps for
             # its whole life and the brain had a step COUNT of zero to describe it with.
-            "tests/browser/unit/navegador/test_navigate_milestone.py"]},
+            "tests/browser/unit/navegador/test_navigate_milestone.py",
+            # V2-167: tres corridas acabaron con la tarea en `working`/`results:null` después de que el operador
+            # se rindiera. Faltaban DOS hechos, no uno: cuánto lleva sin MOVERSE (recapturar la misma página no
+            # es avanzar) y si la página en la que está es un MURO — Booking `chal_t`, el CAPTCHA de Google, un
+            # error de carga. Sin ellos el turno solo podía decir la verdad inútil de que la tarea seguía viva.
+            "tests/browser/unit/navegador/test_task_stall_and_wall.py"]},
         {"id": "4.3", "title": "Widget de música", "ch": UNIT, "paths": ["tests/browser/unit/musica/test_data.py"]},
         {"id": "4.4", "title": "Widget de YouTube", "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_youtube.py"]},
         {"id": "4.5", "title": "Widget de mensajería", "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_owner_v2.py"]},

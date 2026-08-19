@@ -20,6 +20,41 @@ _tasks: dict[str, dict] = {}          # task_id -> state
 _counter = itertools.count(1)
 _MAX_EVENTS = 60
 
+# A WALL is a page that STOPPED us — an anti-bot challenge, a CAPTCHA, a load error. V2-167 measured three runs that
+# ended `status=working results=null` with `awaiting_login: false`, and in two of them the browser was sitting on a
+# wall the whole time: Booking's `chal_t=` challenge and Google's `/sorry/index`. Nothing here recognised either, so
+# the only field that could have said it (`awaiting_login`, written ONLY by the real login flow) said there was
+# nothing to say — and the brain, correctly, reported no news for eleven minutes.
+#
+# URL-only ON PURPOSE. `nucleo/browser_search.py::_looks_blocked` reads the page BODY for the same class of event,
+# and it can: it owns its own page object. This registry never sees a body — `update_view` is fed url+title. Both
+# measured walls are visible in the URL, so this is what the evidence supports; a body check would need to live where
+# the body is (the owner), not here. Keeping them apart is deliberate — one predicate reading two different inputs
+# would be a predicate that lies about half its callers.
+_WALL_URL_NEEDLES = (
+    ("chrome-error://", "la página no llegó a cargar"),
+    ("/sorry/index", "el buscador pidió verificación anti-robot"),
+    ("/recaptcha/", "la página pidió resolver un captcha"),
+    ("chal_t=", "el sitio interpuso una verificación anti-robot"),
+    ("__cf_chl", "el sitio interpuso una verificación anti-robot"),
+)
+
+
+def wall_reason(url: str) -> str:
+    """Short, operator-facing reason why this URL is a WALL, or '' when it is an ordinary page.
+
+    Deliberately mechanical: this recognises a SIGNAL in a URL, it does not judge what the page means. The phrasing
+    is what the operator hears, so it says what happened ("el sitio interpuso una verificación anti-robot"), never
+    an internal token.
+    """
+    u = (url or "").strip().lower()
+    if not u:
+        return ""
+    for needle, reason in _WALL_URL_NEEDLES:
+        if needle in u:
+            return reason
+    return ""
+
 # States: queued (created) · working (executing) · needs_input (waiting for answer) · done · failed · cancelled.
 
 
@@ -79,6 +114,10 @@ def create(goal: str, title: str = "", *, trace: str = "") -> str:
             "status": "queued", "phase": "", "phase_active": False, "events": [], "results": None,
             "question": "", "answer": "", "url": "", "page_title": "", "shot_rev": 0,
             "awaiting_login": False, "created": time.time(),
+            # V2-167: when this task last MOVED (new page or a milestone), and whether the page it sits on is a
+            # wall. Both are read by `active_progress` so the brain can tell "no news yet" from "eleven minutes
+            # on the same page" — two very different things it could not distinguish before.
+            "last_progress": time.time(), "wall": "",
             # V2-044: the task is born from the phrase context (or adopted session) — explicit trace wins.
             "trace": trace or _current_trace(),
         }
@@ -102,6 +141,7 @@ def ensure(task_id: str, goal: str = "", title: str = "") -> str:
             "status": "queued", "phase": "", "phase_active": False, "events": [], "results": None,
             "question": "", "answer": "", "url": "", "page_title": "", "shot_rev": 0,
             "awaiting_login": False, "created": time.time(),
+            "last_progress": time.time(), "wall": "",     # V2-167
             "trace": _current_trace(),     # V2-044
         }
     return task_id
@@ -272,6 +312,7 @@ def active_progress(limit: int = 3) -> list[dict]:
     the prompt. `url` and `events` are what the task itself records as it drives, so an empty pair is not a gap
     in our knowledge — it is the fact that nothing has happened yet, and it is what the brain has to say.
     """
+    now = time.time()
     with _lock:
         rows = [{"id": tid,
                  "goal": (t.get("goal") or "").strip(),
@@ -283,6 +324,12 @@ def active_progress(limit: int = 3) -> list[dict]:
                  # along; what the brain saw was a step COUNT. A number cannot be said out loud.
                  "last_event": ((t.get("events") or [{}])[-1].get("text") or "").strip()
                                 if t.get("events") else "",
+                 # V2-167: the two facts the brain was missing. `stalled_s` is time since the task last MOVED
+                 # (new page or reported step), not time since it started — the difference between "still
+                 # working" and "stuck" is exactly this, and without it the turn could only offer elapsed
+                 # seconds, which V2-145 already established is not a description of anything.
+                 "stalled_s": int(max(0.0, now - float(t.get("last_progress") or t.get("created") or now))),
+                 "wall": (t.get("wall") or ""),
                  "awaiting_login": bool(t.get("awaiting_login"))}
                 for tid, t in _tasks.items() if t.get("status") in ("queued", "working", "needs_input")]
     return list(reversed(rows))[:max(1, limit)]
@@ -350,6 +397,7 @@ def add_event(task_id: str, text: str) -> None:
             return
         t["events"].append({"t": _clock(), "text": str(text)[:300]})
         del t["events"][:-_MAX_EVENTS]
+        t["last_progress"] = time.time()          # V2-167: a reported step IS progress
     _notify(task_id)
 
 
@@ -453,7 +501,13 @@ def update_view(task_id: str, url: str = "", page_title: str = "", shot_rev: int
         if not t:
             return
         if url:
+            # V2-167: only a page CHANGE counts as progress. A screenshot does not: the restaurant run took ten
+            # capture revisions over four URLs and spent its last eleven minutes re-photographing the same page,
+            # so `shot_rev` would have reported healthy movement while nothing moved.
+            if url != t.get("url"):
+                t["last_progress"] = time.time()
             t["url"] = url
+            t["wall"] = wall_reason(url)
         if page_title:
             t["page_title"] = page_title
         if shot_rev is not None:
