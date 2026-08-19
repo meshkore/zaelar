@@ -108,8 +108,11 @@ def _run_scenario(scenario) -> dict:
     run_data = {"transcript": transcript, "mechanism_report": mech, "watchdog_log": watchdog_log}
     print("  judging…")
     verdict = judgemod.judge(scenario, run_data)
+    # QUIÉN condujo esta conversación. Normalmente el titular, pero el DRIVE se releva a otro proveedor si el
+    # titular se queda sin fondos (`llm.call`) — y una fila medida con otro instrumento no es comparable con las
+    # anteriores, así que el instrumento viaja CON la medida en vez de quedarse en el log de la corrida.
     return {"scenario": scenario.id, "tier": scenario.tier, "channel": scenario.channel,
-            "run": run_data, "verdict": verdict}
+            "run": run_data, "verdict": verdict, "drive_model": llmmod.drive_model()}
 
 
 def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,

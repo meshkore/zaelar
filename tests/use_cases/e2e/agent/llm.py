@@ -8,6 +8,7 @@ waste the whole scenario's turns and cost so far. `glm_call`/`parse_json` are un
 """
 from __future__ import annotations
 
+import os
 import time
 
 from tests.voice.e2e.agent.llm import call as _call
@@ -33,12 +34,54 @@ def _as_text(content) -> str:
     return "" if content is None else str(content)
 
 
+# ── DRIVE de repuesto ─────────────────────────────────────────────────────────────────────────────────────
+# El 2026-08-19 a las 02:34 la cuenta de AIMLAPI se quedó SIN FONDOS (403 con
+# «You've run out of funds», verificado contra el cuerpo de la respuesta con las dos claves, la del arnés y la
+# del motor). El modelo DRIVE —el que hace de persona— va por ahí, así que ningún caso podía producir veredicto:
+# INFRA con 0 turnos, una y otra vez. Con autorización explícita del operador se releva a Z.AI, que responde.
+#
+# Esto NO es gratis y por eso se ESTAMPA en cada ronda (`drive_model` viaja al ledger y a la iniciativa):
+#   · DRIVE y JUEZ pasan a compartir proveedor → el juicio pierde independencia de proveedor.
+#   · Un caso medido con este DRIVE no es comparable con uno medido con el anterior.
+# Un relevo silencioso habría dejado el tablero avanzando con dos instrumentos distintos y sin manera de saber
+# qué fila se midió con cuál — exactamente el error que el arnés existe para no cometer.
+_FUNDS = ("run out of funds", "top up your balance", "insufficient", "403")
+_DEFAULT_DRIVE = "aimlapi"
+_used_drive = _DEFAULT_DRIVE
+
+
+def drive_model() -> str:
+    """Qué modelo condujo la ÚLTIMA llamada de DRIVE. Lo consume `run.py` para sellar la ronda."""
+    return _used_drive
+
+
+def _force_zai() -> bool:
+    return (os.environ.get("ZAELAR_UC_DRIVE") or "").strip().lower() in ("zai", "glm")
+
+
 def call(messages: list[dict], model: str | None = None, temperature: float = 0.0, max_tokens: int = 4000) -> str:
+    global _used_drive
+    if _force_zai():
+        _used_drive = "zai/glm"
+        return _as_text(glm_call(messages, max_tokens=max_tokens))
     try:
-        return _as_text(_call(messages, model=model, temperature=temperature, max_tokens=max_tokens))
-    except Exception:
+        out = _as_text(_call(messages, model=model, temperature=temperature, max_tokens=max_tokens))
+        _used_drive = _DEFAULT_DRIVE
+        return out
+    except Exception as first:
         time.sleep(2.0)
-        return _as_text(_call(messages, model=model, temperature=temperature, max_tokens=max_tokens))
+        try:
+            out = _as_text(_call(messages, model=model, temperature=temperature, max_tokens=max_tokens))
+            _used_drive = _DEFAULT_DRIVE
+            return out
+        except Exception as second:
+            # Solo se releva cuando el proveedor dice que es de SALDO. Un timeout o un 500 son pasajeros y
+            # relevarlos escondería una avería del titular tras un modelo distinto para siempre.
+            blob = f"{first} {second}".lower()
+            if not any(x in blob for x in _FUNDS):
+                raise
+            _used_drive = "zai/glm"
+            return _as_text(glm_call(messages, max_tokens=max_tokens))
 
 
-__all__ = ["call", "glm_call", "judge_call", "parse_json"]
+__all__ = ["call", "glm_call", "judge_call", "parse_json", "drive_model"]

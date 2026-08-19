@@ -178,6 +178,13 @@ def _evidence(result: dict, *, scenario, sandboxed: bool) -> str:
     ]
     missing = mech.get("missing_signals") or []
     lines.append(f"- **Señales que FALTARON**: {', '.join(missing) if missing else '(ninguna)'}")
+    # Solo se nombra cuando NO condujo el titular: una fila así no es comparable con las anteriores y quien lea
+    # esta ronda tiene que saberlo sin ir a buscarlo. Con el titular, callar mantiene la ronda legible.
+    drive = result.get("drive_model") or ""
+    if drive and drive != "aimlapi":
+        lines.append(f"- ⚠️ **Conducida por un DRIVE de repuesto** (`{drive}`, el titular se quedó sin fondos): "
+                     f"esta ronda **no es comparable** con las medidas con el titular, y DRIVE y JUEZ comparten "
+                     f"proveedor, así que el juicio pierde independencia de proveedor.")
     if reg:
         lines.append(f"- **Concurrencia REAL medida en vivo** (`/api/tasks`): máximo simultáneo "
                      f"**{reg.get('max_concurrent')}**, {reg.get('distinct_tasks_seen')} tareas distintas, "

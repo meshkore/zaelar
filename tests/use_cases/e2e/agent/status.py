@@ -57,6 +57,7 @@ def record(results: list[dict], *, sandboxed: bool) -> dict:
             # a bad one, and the fixing agent reads exactly that block.
             "turns_used": len((r.get("run") or {}).get("transcript") or []) // 2,
             "families": mech.get("families_observed") or [],
+            "drive_model": r.get("drive_model") or "",
         }
         # What this case could HONESTLY be graded on. Recorded per row so a reader of the board knows a `PASS`
         # on a bookable case means "found real options and stopped at the wall", not "made a reservation" —
