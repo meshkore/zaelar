@@ -93,7 +93,7 @@ SCENARIOS: list[UseCaseScenario] = [
             "que ya sabe de esta persona: escalada / vías ferratas, conciertos de indie o rock en sala "
             "pequeña, y nada que empiece de madrugada. " + _CATALOGO_ES
         ),
-        expected_signals=["Brain Workers", "Widgets"],
+        expected_signals=["worker", "widget"],
     ),
     # ── 2. Deportes de aventura: fuentes MUY distintas (escuelas, federaciones, turismo activo). ─────────
     UseCaseScenario(
@@ -124,7 +124,7 @@ SCENARIOS: list[UseCaseScenario] = [
             "adecuadas aquí son escuelas de surf, empresas de turismo activo o portales de turismo de Euskadi "
             "— no una enciclopedia. " + _CATALOGO_ES
         ),
-        expected_signals=["Brain Workers", "Widgets"],
+        expected_signals=["worker", "widget"],
     ),
     # ── 3. Artes escénicas: la fuente correcta es una CARTELERA, y eso es lo que discrimina. ────────────
     UseCaseScenario(
@@ -154,7 +154,7 @@ SCENARIOS: list[UseCaseScenario] = [
             "espera es el catálogo con enlaces, y quedarse ahí diciéndolo con claridad es lo correcto. "
             + _CATALOGO_ES
         ),
-        expected_signals=["Brain Workers", "Widgets"],
+        expected_signals=["worker", "widget"],
     ),
     # ── 4. Mundo del motor: fuentes de nicho (circuitos, clubes, calendarios de track day). ─────────────
     UseCaseScenario(
@@ -185,7 +185,7 @@ SCENARIOS: list[UseCaseScenario] = [
             "fuentes adecuadas son calendarios de circuitos (p. ej. el Circuit de Barcelona-Catalunya), clubes "
             "de clásicos o agendas de eventos del motor. " + _CATALOGO_ES
         ),
-        expected_signals=["Brain Workers", "Widgets"],
+        expected_signals=["worker", "widget"],
     ),
     # ── 5. La misma capacidad, en inglés y en la bahía de San Francisco. ────────────────────────────────
     UseCaseScenario(
@@ -213,7 +213,7 @@ SCENARIOS: list[UseCaseScenario] = [
             "what it already knows about this person: coastal hiking with a view, live music in small venues, "
             "and car-culture meets. " + _CATALOGO_EN
         ),
-        expected_signals=["Brain Workers", "Widgets"],
+        expected_signals=["worker", "widget"],
     ),
     # ── 6. Aventura en la bahía: mismo eje que Bilbao, otro país y otras fuentes. ───────────────────────
     UseCaseScenario(
@@ -243,6 +243,6 @@ SCENARIOS: list[UseCaseScenario] = [
             "boulderer at V3-V4. Appropriate sources here are climbing area guides, park/transit sites or "
             "outdoor-activity operators — not a generic encyclopedia. " + _CATALOGO_EN
         ),
-        expected_signals=["Brain Workers", "Widgets"],
+        expected_signals=["worker", "widget"],
     ),
 ]

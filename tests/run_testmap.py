@@ -539,6 +539,11 @@ DOMAINS: list[dict] = [
         # o sea casos imposibles por construcción que el tablero contaba como fallos del agente.
         {"id": "10.2", "title": "Fechas futuras (trinquete) + contrato de los casos de descubrimiento",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_dates_and_discovery.py"]},
+        # SEGMENTACIÓN del catálogo: qué caso se puede llevar de inicio a fin hoy y quién desbloquea el resto.
+        # Inventario CERRADO — un caso nuevo sin clasificar no falla con ruido, se queda fuera de la lista
+        # ejecutable en silencio o se juzga contra la vara equivocada.
+        {"id": "10.3", "title": "Segmentos completable/credentials/capability (inventario cerrado)",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_segments.py"]},
     ]},
 ]
 

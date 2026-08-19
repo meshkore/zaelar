@@ -193,3 +193,23 @@ def group_of(scenario_id: str) -> str:
 
 def is_completable(scenario_id: str) -> bool:
     return group_of(scenario_id) == COMPLETABLE
+
+
+# A `completable` case whose deliverable is NOT findings-on-screen. Everything else in that segment ends in a
+# shortlist the operator can look at, and gets the findings contract (`derived._DELIVERABLE_FINDINGS`).
+#   · quick-fact-opening-hours    → a fact answered IN the turn by `web_search`; escalating is itself the
+#                                   failure (V2-022), so demanding a results sheet would invert the case.
+#   · remember-and-remind-deadline → lands in memory + the scheduler, verified through `scheduled_jobs`.
+#   · build-workout-tracker-widget → the deliverable IS a new widget; here creating one is the point, not a bug.
+#   · three-tasks-at-once          → judged on COORDINATION, not on any one task finishing.
+FINDINGS_EXEMPT = {
+    "quick-fact-opening-hours",
+    "remember-and-remind-deadline",
+    "build-workout-tracker-widget",
+    "three-tasks-at-once",
+}
+
+
+def delivers_findings(scenario_id: str) -> bool:
+    """True when a good answer to this case is a shortlist of real options ON SCREEN."""
+    return is_completable(scenario_id) and bare(scenario_id) not in FINDINGS_EXEMPT

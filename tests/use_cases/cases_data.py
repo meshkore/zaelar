@@ -116,7 +116,9 @@ CASES: list[UseCase] = [
             status="promoted"),
     UseCase("best-plumber-same-day", "es", 2, "Find a same-day plumber",
             "Búscame un fontanero que pueda venir hoy mismo y el mejor valorado.",
-            "A top-rated plumber available today is found and booked."),
+            "Real plumbers who can come TODAY are found, each with its rating and a way to reach it (phone or "
+            "booking page), and the best-rated one is named. The operator asked to FIND one, not to hire "
+            "one — the shortlist with real data IS the deliverable."),
     UseCase("compare-insurance-quotes", "es", 2, "Compare insurance quotes",
             "Compárame tres seguros de coche y dime cuál me conviene.",
             "Three car-insurance quotes are compared with a clear recommendation."),
@@ -128,24 +130,27 @@ CASES: list[UseCase] = [
             status="promoted"),
     UseCase("best-rated-rental-car", "es", 2, "Find the best-rated rental car",
             "Búscame el coche de alquiler mejor valorado en Málaga para el fin de semana.",
-            "The best-rated rental car in Málaga for the weekend is found and booked."),
+            "Real rental-car offers in Málaga for that weekend are found with price and rating, and the "
+            "best-rated one is named. The operator asked to FIND it, not to rent it."),
     UseCase("compare-broadband-plans", "es", 2, "Compare broadband/mobile plans",
             "Compárame las tarifas de fibra+móvil de los operadores y dime cuál me ahorra más.",
             "Broadband+mobile bundles are compared and the cheapest is recommended."),
     UseCase("weekend-barber-availability", "es", 2, "Find weekend barber availability",
             "Encuéntrame una peluquería con hueco este fin de semana cerca de mi casa.",
-            "A nearby barber with a weekend opening is found and booked."),
-    UseCase("search-buy-used-car", "es", 2, "Search classifieds and buy a used car",
+            "A nearby barber with a genuinely FREE slot this weekend is found, naming the day and time seen on "
+            "the real page — availability read, never assumed. The operator asked to FIND one with an "
+            "opening, not to book the appointment."),
+    UseCase("search-buy-used-car", "es", 2, "Search classifieds for a used car",
             "Búscame un coche de segunda mano, diésel, menos de 100.000 km y por debajo de "
             "12.000€, y dime los 3 mejores.",
             "Listings matching the criteria are found on classifieds sites and the top 3 are presented — "
             "verified against real system state (worker + browser signals), not just the agent's claim — "
             "see tests/use_cases/e2e/agent/scenarios.py.",
             status="promoted"),
-    UseCase("search-buy-motorcycle", "es", 2, "Search classifieds and buy a used motorcycle",
+    UseCase("search-buy-motorcycle", "es", 2, "Search classifieds for a used motorcycle",
             "Búscame una moto de segunda mano de 125cc en buen estado por menos de 2.500€.",
             "Matching motorcycle listings are found and the best candidate is identified."),
-    UseCase("search-buy-bicycle", "es", 2, "Search classifieds and buy a used bicycle",
+    UseCase("search-buy-bicycle", "es", 2, "Search classifieds for a used bicycle",
             "Encuéntrame una bici de montaña de segunda mano en buen estado, talla M, por menos "
             "de 300€.",
             "Matching bicycle listings are found and the best candidate is identified."),
@@ -156,16 +161,17 @@ CASES: list[UseCase] = [
             "Búscame el último libro de Fernando Aramburu y cómpramelo en la librería que sea "
             "más barata.",
             "The book's price is compared across stores and it's bought from the cheapest one."),
-    UseCase("search-buy-camera", "es", 2, "Search classifieds and buy a used camera",
+    UseCase("search-buy-camera", "es", 2, "Search classifieds for a used camera",
             "Búscame una cámara réflex de segunda mano con pocos disparos, por menos de 400€.",
             "Matching camera listings are found and the best candidate is identified."),
-    UseCase("search-buy-guitar", "es", 2, "Search classifieds and buy a used guitar",
+    UseCase("search-buy-guitar", "es", 2, "Search classifieds for a used guitar",
             "Encuéntrame una guitarra acústica de segunda mano para empezar, por menos de 150€.",
             "Matching guitar listings are found and the best candidate is identified."),
-    UseCase("find-best-hotel-city", "es", 2, "Find and book the best-rated hotel in a city",
+    UseCase("find-best-hotel-city", "es", 2, "Find the best-rated hotel in a city",
             "Búscame el mejor hotel en Sevilla para el fin de semana del 20, con buena "
             "valoración y menos de 120€ la noche.",
-            "Hotels in the city are compared and the best-rated one under budget is booked."),
+            "Real hotels in the city for that weekend are compared and the best-rated one UNDER the price cap "
+            "is named with its real price and rating. The operator asked to FIND it, not to book it."),
     UseCase("find-direct-flight-budget", "es", 2, "Find the cheapest direct flight",
             "Búscame un vuelo directo Madrid–Roma {DENTRO_DE_UN_MES}, lo más barato posible.",
             "Direct flights are compared and the cheapest one is identified."),
@@ -352,7 +358,9 @@ CASES: list[UseCase] = [
             "Flights are compared and the cheapest option with a carry-on is booked."),
     UseCase("best-plumber-same-day", "us", 2, "Find a same-day plumber",
             "Find a plumber who can come today, top-rated near me.",
-            "A top-rated plumber available today is found and booked."),
+            "Real plumbers who can come TODAY are found, each with its rating and a way to reach it (phone or "
+            "booking page), and the best-rated one is named. The operator asked to FIND one, not to hire "
+            "one — the shortlist with real data IS the deliverable."),
     UseCase("compare-insurance-quotes", "us", 2, "Compare insurance quotes",
             "Compare three car insurance quotes and tell me which one's the best deal.",
             "Three car-insurance quotes are compared with a clear recommendation."),
@@ -361,21 +369,24 @@ CASES: list[UseCase] = [
             "The cheapest well-reviewed 27-inch 4K monitor is identified."),
     UseCase("best-rated-rental-car", "us", 2, "Find the best-rated rental car",
             "Find the best-rated rental car in Austin for the weekend.",
-            "The best-rated rental car in Austin for the weekend is found and booked."),
+            "Real rental-car offers in Austin for that weekend are found with price and rating, and the "
+            "best-rated one is named. The operator asked to FIND it, not to rent it."),
     UseCase("compare-phone-plans", "us", 2, "Compare cell phone plans",
             "Compare cell phone plans and tell me which one saves me the most.",
             "Phone plans are compared and the cheapest fit is recommended."),
     UseCase("weekend-barber-availability", "us", 2, "Find weekend barber availability",
             "Find a barber with an opening this weekend near me.",
-            "A nearby barber with a weekend opening is found and booked."),
-    UseCase("search-buy-used-car", "us", 2, "Search classifieds and buy a used car",
+            "A nearby barber with a genuinely FREE slot this weekend is found, naming the day and time seen on "
+            "the real page — availability read, never assumed. The operator asked to FIND one with an "
+            "opening, not to book the appointment."),
+    UseCase("search-buy-used-car", "us", 2, "Search classifieds for a used car",
             "Find me a used car, diesel or hybrid, under 60k miles and under $14,000, and give "
             "me the top 3.",
             "Listings matching the criteria are found on classifieds sites and the top 3 are presented."),
-    UseCase("search-buy-motorcycle", "us", 2, "Search classifieds and buy a used motorcycle",
+    UseCase("search-buy-motorcycle", "us", 2, "Search classifieds for a used motorcycle",
             "Find me a used 300cc motorcycle in good condition for under $3,000.",
             "Matching motorcycle listings are found and the best candidate is identified."),
-    UseCase("search-buy-bicycle", "us", 2, "Search classifieds and buy a used bicycle",
+    UseCase("search-buy-bicycle", "us", 2, "Search classifieds for a used bicycle",
             "Find me a used mountain bike in good condition, size M, for under $350.",
             "Matching bicycle listings are found and the best candidate is identified."),
     UseCase("search-secondhand-monitor", "us", 2, "Search classifieds for a secondhand monitor",
@@ -385,16 +396,17 @@ CASES: list[UseCase] = [
             "Find the latest book by Colleen Hoover and buy it from whichever store has it "
             "cheapest.",
             "The book's price is compared across stores and it's bought from the cheapest one."),
-    UseCase("search-buy-camera", "us", 2, "Search classifieds and buy a used camera",
+    UseCase("search-buy-camera", "us", 2, "Search classifieds for a used camera",
             "Find me a used DSLR camera with a low shutter count for under $400.",
             "Matching camera listings are found and the best candidate is identified."),
-    UseCase("search-buy-guitar", "us", 2, "Search classifieds and buy a used guitar",
+    UseCase("search-buy-guitar", "us", 2, "Search classifieds for a used guitar",
             "Find me a used acoustic guitar for beginners under $150.",
             "Matching guitar listings are found and the best candidate is identified."),
-    UseCase("find-best-hotel-city", "us", 2, "Find and book the best-rated hotel in a city",
+    UseCase("find-best-hotel-city", "us", 2, "Find the best-rated hotel in a city",
             "Find me the best hotel in New Orleans for the weekend of the 20th, well-rated and "
             "under $150 a night.",
-            "Hotels in the city are compared and the best-rated one under budget is booked."),
+            "Real hotels in the city for that weekend are compared and the best-rated one UNDER the price cap "
+            "is named with its real price and rating. The operator asked to FIND it, not to book it."),
     UseCase("find-direct-flight-budget", "us", 2, "Find the cheapest direct flight",
             "Find me a direct flight NYC-Rome in October, as cheap as possible.",
             "Direct flights are compared and the cheapest one is identified."),

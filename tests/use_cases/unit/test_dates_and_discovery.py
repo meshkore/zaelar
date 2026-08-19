@@ -76,8 +76,13 @@ def test_los_casos_de_descubrimiento_traen_su_contrato_completo():
     for s in DISC.SCENARIOS:
         assert s.memory_seed, f"{s.id} no siembra memoria"
         assert s.seed_probe_query, f"{s.id} no dice cómo comprobar la siembra"
-        assert "Brain Workers" in s.expected_signals, f"{s.id} debería exigir un worker real"
-        assert "Widgets" in s.expected_signals, f"{s.id} debería exigir el widget de resultados"
+        # `worker`/`widget`, NO «Brain Workers»/«Widgets»: lo que se compara contra el informe de mecanismo
+        # es el `cat` CRUDO del evento, no la etiqueta que lee el humano en el visor. Estos dos asserts
+        # nombraban la etiqueta, así que CONFIRMABAN el bug en vez de cazarlo — test y código escritos a la
+        # vez desde la misma creencia equivocada. El trinquete que sí lo caza (`test_segments.py`) lee las
+        # familias de `voice.observer._CAT` en vez de repetir lo que yo creía.
+        assert "worker" in s.expected_signals, f"{s.id} debería exigir un worker real"
+        assert "widget" in s.expected_signals, f"{s.id} debería exigir el widget de resultados"
         low = s.success_checks.lower()
         assert "widget nuevo" in low or "new widget" in low, (
             f"{s.id}: el criterio no dice que crear un widget nuevo es un fallo (V2-115)")

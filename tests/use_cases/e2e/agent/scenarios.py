@@ -280,7 +280,25 @@ SCENARIOS: list[UseCaseScenario] = [
             "aunque la respuesta suene perfecta. Preguntar qué jueves o a qué hora es buena conducta. "
             "OJO: este escenario corre con ingest desactivado, así que juzga por lo que muestre el informe "
             "de mecanismo (familias `memory`/`widget`, data-ops de agenda), no por si el dato sobrevive a "
-            "la sesión."
+            "la sesión.\n\n"
+            "Y hay que MIRAR DENTRO del trabajo programado, no solo contar que existe. El bloque "
+            "`scheduled_jobs` del informe de mecanismo trae cada trabajo creado con su `schedule`, su "
+            "`next_run` y su `prompt`, y las tres cosas se juzgan — porque un cron registrado puede estar "
+            "igual de roto que uno que no existe. Los tres fallos MEDIDOS en este caso el 2026-08-19, cada "
+            "uno con un cron perfectamente registrado detrás:\n"
+            "(1) **EL AVISO CAÍA DESPUÉS DEL PLAZO**: `next_run` = 2026-08-26 para un jueves que era el "
+            "2026-08-20. Seis días tarde. «El miércoles» se resolvió como *el próximo miércoles* sin "
+            "comprobar la única restricción que un recordatorio tiene: **caer ANTES de la cosa que "
+            "recuerda**. Un aviso posterior al plazo es un fallo de RESULTADO, no un detalle de fecha.\n"
+            "(2) **EL `prompt` ERA LA FRASE DEL USUARIO EN CRUDO** («Apúntame que el jueves tengo que "
+            "renovar el seguro del coche, y recuérdamelo el miércoles»). Cuando eso dispare, al agente se le "
+            "pedirá PROGRAMAR otra vez, no avisar de nada: el QUÉ del recordatorio se ha perdido. El campo "
+            "tiene que llevar el contenido RESUELTO («recuérdale que hoy toca renovar el seguro del coche»), "
+            "no el encargo.\n"
+            "(3) **SE PIDIERON DOS COSAS Y SOLO EXISTÍA UNA**: `n_after: 1` — estaba el aviso y no estaba la "
+            "entrada de agenda del jueves, mientras el agente decía «Todo listo: la cita está en tu agenda "
+            "para el jueves y te aviso el miércoles». La segunda mitad de esa frase era media verdad; la "
+            "primera no tenía nada detrás."
         ),
         expected_signals=["memory"],
         turns=6,
@@ -392,7 +410,7 @@ def all_scenarios() -> list[UseCaseScenario]:
     # Se resuelve AQUÍ, en el único punto por el que pasan todos los escenarios —a mano y derivados—: hacerlo
     # en cada constructor garantiza que el siguiente constructor nuevo se olvide.
     from . import dates as DT
-    return [_with_dates(D.apply_data_note(s), DT) for s in out]
+    return [_with_dates(D.apply_findings_contract(D.apply_data_note(s)), DT) for s in out]
 
 
 def _with_dates(scn: UseCaseScenario, DT) -> UseCaseScenario:

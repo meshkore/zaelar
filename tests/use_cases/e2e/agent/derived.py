@@ -197,10 +197,10 @@ PROFILES: dict[str, Profile] = {
                         ("qué tipo de plan", "cualquier cosa, algo de calle o cultural")),
         persona_extra="Es una petición ABIERTA a propósito: quieres ideas concretas, no una pregunta de vuelta "
                       "por cada detalle.",
-        signals=("worker",), turns=8),
+        signals=("worker", "widget"), turns=10),
     "kid-friendly-activity-nearby": Profile(
         clarifications=(("edad de los niños", "seis y nueve años"), ("dónde", "en Madrid, cerca del centro")),
-        signals=("worker",), turns=8),
+        signals=("worker", "widget"), turns=10),
 
     # ── tier 3: varios pasos, un dominio, con fecha límite ────────────────────────────────────────────────
     "itv-before-deadline": Profile(
@@ -423,6 +423,19 @@ PROFILES["coordinate-dinner-whatsapp"] = Profile(
     signals=(), turns=8)
 
 
+# Two cases whose ES scenario is HAND-WRITTEN (so it never passes through `derive`) and whose US twin is
+# derived. Without a profile the US twin fell back to the defaults — `('worker',)` and 8 turns — while its ES
+# sibling asked for `worker`+`widget` and 10. Same case, two different bars, decided by which side happened to
+# be hand-written: the exact asymmetry the real-data limit already had between markets.
+PROFILES["cheapest-monitor"] = Profile(
+    clarifications=(("presupuesto", "hasta 250€, y si hay algo bueno un poco por debajo mejor"),
+                    ("para qué lo quieres", "para trabajar todo el día, ofimática y algo de código")),
+    signals=("worker", "widget"), turns=10)
+PROFILES["search-buy-used-car"] = Profile(
+    clarifications=(("zona", "Madrid o alrededores, hasta una hora en coche"),
+                    ("kilometraje máximo", "menos de 100.000 km")),
+    signals=("worker", "widget"), turns=10)
+
 _NO_PROFILE = Profile()
 
 
@@ -480,10 +493,42 @@ def _brief(case: CD.UseCase, prof: Profile) -> str:
     return "\n\n".join(p for p in parts if p)
 
 
+# ── What a good answer CARRIES, for a case that can actually be finished ───────────────────────────────────
+# The blocked cases have a note telling the judge what NOT to penalise. The completable ones had the opposite
+# problem: one bland sentence from the catalog («Matching guitar listings are found and the best candidate is
+# identified») with nothing about what a real answer must contain — so «encontré varias opciones interesantes»
+# with no name, no price and nothing on screen could read as success. This is the other half of the operator's
+# request: leave each runnable case as COMPLETE as possible before the next batch.
+_DELIVERABLE_FINDINGS = (
+    "✅ ESTE CASO SE PUEDE COMPLETAR DE INICIO A FIN. No hay ningún muro de cuenta, tarjeta ni teléfono: lo que "
+    "el operador pide se entrega entero, así que **se juzga el RESULTADO COMPLETO** y no hay nada que "
+    "descontar. Lo que tiene que traer una respuesta buena:\n"
+    "(a) **OPCIONES REALES**: al menos 3 candidatos —menos solo si de verdad no existen más, y entonces hay que "
+    "decirlo—, cada uno con nombre, precio y de dónde sale (sitio o enlace), LEÍDOS de la página real. Un "
+    "precio, una valoración o una disponibilidad que salga del conocimiento del modelo en vez de una página es "
+    "el fallo MÁS GRAVE de este caso: tiene la forma de un resultado y no lo es.\n"
+    "(b) **LOS CRITERIOS SE RESPETAN**: el tope de precio, el tamaño, la fecha, la zona, el «directo», el «de "
+    "segunda mano». Una opción que se sale del criterio puede entrar, pero DICIENDO en qué se sale; colarla "
+    "como si cumpliera es un fallo.\n"
+    "(c) **EN PANTALLA**: los hallazgos se montan en la HOJA DE RESULTADOS genérica (el widget `results`), que "
+    "es la superficie que existe para esto. **Crear un widget NUEVO para presentar resultados es un FALLO** "
+    "(V2-115): un widget se crea para funcionalidad que no existe, no para mostrar datos. Contarlo solo de "
+    "palabra, sin hoja, es media entrega.\n"
+    "(d) **SI NO PUDO**: decir qué pasó —el sitio bloqueó, hay CAPTCHA, no hay nada por debajo de ese precio— "
+    "es la respuesta CORRECTA y puntúa bien. Lo que no vale es «sigo buscando» sin nada detrás, ni rellenar con "
+    "un resultado inventado.\n"
+    "(e) **SI LA PETICIÓN NO DICE DÓNDE** («cerca de mi casa», «near me») y el agente no tiene la dirección: "
+    "PREGUNTARLA es lo correcto. Elegir una ciudad por su cuenta y buscar ahí es un fallo, aunque acierte."
+)
+
+
 def _checks(case: CD.UseCase, prof: Profile) -> str:
+    from . import segments as G
     parts = [f"El resultado que se espera, del catálogo: {case.expected}"]
     if note := data_note(case.id):
         parts.append(note)
+    elif G.delivers_findings(case.id):
+        parts.append(_DELIVERABLE_FINDINGS)
     if case.tier in _HORIZON:
         parts.append(_HORIZON[case.tier])
     if prof.success_extra:
@@ -623,6 +668,20 @@ def data_note(case_id: str) -> str:
     if kind == "no_booking":
         return _DATA_NOTE_BOOKING.format(missing=missing)
     return ""
+
+
+def apply_findings_contract(scn: UseCaseScenario) -> UseCaseScenario:
+    """Attach the findings contract to a completable case built ANY way (hand-written or derived), once.
+
+    Applied at the same single point as `apply_data_note` and for the same reason: doing it inside `derive()`
+    only would leave the HAND-WRITTEN cases without it — and three of them (`hotel-under-15-days`,
+    `search-buy-used-car`, `cheapest-monitor`) are findings cases, so the two halves of the catalog would be
+    graded on different bars. Idempotent by its own marker.
+    """
+    from . import segments as G
+    if not G.delivers_findings(scn.id) or "SE PUEDE COMPLETAR DE INICIO A FIN" in scn.success_checks:
+        return scn
+    return replace(scn, success_checks=scn.success_checks + "\n\n" + _DELIVERABLE_FINDINGS)
 
 
 def apply_data_note(scn: UseCaseScenario) -> UseCaseScenario:

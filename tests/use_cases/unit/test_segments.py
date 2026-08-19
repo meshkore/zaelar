@@ -82,3 +82,106 @@ def test_the_completable_list_is_not_empty_and_not_everything():
     groups = [G.group_of(s.id) for s in SC.all_scenarios()]
     for g in (G.COMPLETABLE, G.CREDENTIALS, G.CAPABILITY):
         assert groups.count(g) >= 5, f"grupo {g} sospechosamente pequeño: {groups.count(g)}"
+
+
+# ── expected_signals: a CLOSED vocabulary, and it is not the one a human reads ─────────────────────────────
+
+def test_every_expected_signal_is_a_real_observability_family():
+    """`verify.mechanism_report` compares `expected_signals` against `verify.families_in()`, which returns the
+    raw `cat` of each event — `worker`, `widget`, `memory`, `flash`, `system`. NOT the viewer's labels.
+
+    This exists because the six discovery scenarios shipped with `["Brain Workers", "Widgets"]`, the
+    human-readable family names from the observability panel. Nothing rejects an unknown string, so those cases
+    would have reported BOTH signals MISSING on every run they ever had — a permanent mechanism failure with
+    nothing to do with the agent. It went unnoticed only because they had not run yet. Read from
+    `voice.observer._CAT`, the canonical map, so renaming a family there breaks this instead of drifting.
+    """
+    from voice import observer
+    from tests.use_cases.e2e.agent import scenarios as SC
+    known = set(observer._CAT.values()) | {"other"}
+    for scn in SC.all_scenarios():
+        unknown = [sig for sig in scn.expected_signals if sig not in known]
+        assert not unknown, f"{scn.id}: señales que ninguna familia emite: {unknown} (válidas: {sorted(known)})"
+
+
+def test_a_findings_case_must_require_the_results_SHEET():
+    """A completable search/compare/plan case delivers findings the operator can LOOK at, which is a widget
+    signal (V2-115: the generic `results` sheet, never a new widget). Requiring only `worker` let a run pass its
+    mechanism check having produced nothing on screen.
+
+    The two exceptions are deliberate and named: `quick-fact-opening-hours` is the in-turn `web_search` path
+    where escalating at all is the failure (V2-022), and `remember-and-remind-deadline` delivers into memory and
+    the scheduler, verified through `scheduled_jobs` rather than a family.
+    """
+    from tests.use_cases.e2e.agent import scenarios as SC
+    from tests.use_cases.e2e.agent import segments as G
+    exempt = {"quick-fact-opening-hours", "remember-and-remind-deadline"}
+    for scn in SC.all_scenarios():
+        if not G.is_completable(scn.id) or G.bare(scn.id) in exempt:
+            continue
+        assert "widget" in scn.expected_signals, f"{scn.id}: entrega hallazgos y no exige la hoja de resultados"
+
+
+def test_market_twins_are_held_to_the_same_bar():
+    """Signals and turn budget too, not just the data limit. `cheapest-monitor` (hand-written ES) asked for
+    `worker`+`widget` in 10 turns while its DERIVED US twin fell back to `worker` in 8 — the same case graded
+    differently depending on which side happened to be hand-written."""
+    from tests.use_cases.e2e.agent import scenarios as SC
+    from tests.use_cases.e2e.agent import segments as G
+    by_bare: dict[str, list] = {}
+    for scn in SC.all_scenarios():
+        by_bare.setdefault(G.bare(scn.id), []).append(scn)
+    for bare, group in by_bare.items():
+        if len(group) < 2:
+            continue
+        shapes = {(tuple(sorted(s.expected_signals)), s.turns) for s in group}
+        assert len(shapes) == 1, f"{bare}: los gemelos de mercado no tienen la misma vara: {shapes}"
+
+
+# ── The findings contract: what a good answer CARRIES ──────────────────────────────────────────────────────
+
+def test_every_findings_case_states_what_a_good_answer_must_carry():
+    """A blocked case has a note saying what NOT to penalise. The completable ones had the opposite gap: one
+    bland catalog sentence and nothing about the deliverable, so "encontré varias opciones interesantes" with no
+    name, no price and nothing on screen could read as success.
+
+    Applied at the SAME single point as the data note (`scenarios.all_scenarios`) so hand-written and derived
+    cases share the bar — three hand-written findings cases (`hotel-under-15-days`, `search-buy-used-car`,
+    `cheapest-monitor`) never pass through `derive()` and would otherwise have been graded more loosely than
+    their own US twins.
+    """
+    from tests.use_cases.e2e.agent import scenarios as SC
+    from tests.use_cases.e2e.agent import segments as G
+    for scn in SC.all_scenarios():
+        checks = scn.success_checks
+        if G.delivers_findings(scn.id):
+            assert "SE PUEDE COMPLETAR DE INICIO A FIN" in checks, scn.id
+            assert "HOJA DE RESULTADOS" in checks, scn.id          # V2-115: the generic sheet…
+            assert "widget NUEVO" in checks, scn.id                # …and a new widget is a FAILURE
+            assert "al menos 3 candidatos" in checks, scn.id       # real options, not a vague "found some"
+            assert checks.count("SE PUEDE COMPLETAR DE INICIO A FIN") == 1, scn.id
+        else:
+            assert "SE PUEDE COMPLETAR DE INICIO A FIN" not in checks, scn.id
+
+
+def test_a_blocked_case_never_gets_the_findings_contract():
+    """They contradict each other: one says the outcome is fully graded, the other says the outcome is withdrawn.
+    A case carrying both would tell the judge two opposite things about the same run."""
+    from tests.use_cases.e2e.agent import scenarios as SC
+    for scn in SC.all_scenarios():
+        both = ("SE PUEDE COMPLETAR DE INICIO A FIN" in scn.success_checks
+                and ("LÍMITE DE DATOS REALES" in scn.success_checks
+                     or "CAPACIDAD QUE NO EXISTE" in scn.success_checks))
+        assert not both, f"{scn.id}: lleva el contrato de entrega Y el de límite, que se contradicen"
+
+
+def test_a_findings_case_gets_a_turn_budget_a_real_search_can_fit_in():
+    """A real browser search used 8-10 turns on its own in the measured rounds, and the contract's rule (e) makes
+    ASKING for the missing location the correct opening move — which spends two more before the search starts.
+    Two cases were at 8 while every other findings case ran at 10, so they were being failed for a budget their
+    own criterion could not fit in."""
+    from tests.use_cases.e2e.agent import scenarios as SC
+    from tests.use_cases.e2e.agent import segments as G
+    for scn in SC.all_scenarios():
+        if G.delivers_findings(scn.id):
+            assert scn.turns >= 10, f"{scn.id}: {scn.turns} turnos para una búsqueda real"
