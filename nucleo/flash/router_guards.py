@@ -337,6 +337,62 @@ def promises_a_dated_reminder(reply: str, operator_text: str = "") -> str:
     return _sched.parse_when(n[m.end():]) or _sched.parse_when(operator_text)
 
 
+# APUNTE CON FECHA (V2-159). Hermano del backstop del aviso, para la OTRA mitad del mismo encargo. El prompt lo
+# pide con todas las letras —«si el compromiso tiene fecha, además apúntalo en su agenda… son dos cosas
+# distintas, el apunte y el aviso, y el operador pide las dos»— y la corrida salió con el cron puesto y NINGUNA
+# cita: «Te apunto la renovación del seguro del coche para el jueves» sin una sola data-op detrás.
+_NOTE_VERB_RE = _re.compile(
+    r"\b(te\s+(?:lo\s+|la\s+)?apunto|apunto|te\s+(?:lo\s+|la\s+)?anoto|anoto|"
+    r"queda\s+(?:apuntad|anotad)[oa]|lo\s+apunto|lo\s+anoto|"
+    r"(?:anado|pongo|meto)\w*\s+(?:a|en)\s+tu\s+agenda|i'?ll\s+note\s+(?:it|that)\s+down)\b", _re.I)
+# Dónde EMPIEZA la fecha dentro de la frase — sirve para dos cosas: recortar el título antes de ella y no
+# arrastrarla dentro del texto de la cita.
+_DATE_LEAD_RE = _re.compile(
+    r"\s*,?\s*\b(?:para\s+el|para|este|esta|el|on|the)?\s*\b("
+    r"lunes|martes|miercoles|jueves|viernes|sabado|domingo|"
+    r"monday|tuesday|wednesday|thursday|friday|saturday|sunday|"
+    r"manana|tomorrow|dia\s+\d{1,2})\b", _re.I)
+
+
+def dated_note_backstop(reply: str, operator_text: str = "") -> dict | None:
+    """The reply promises to WRITE DOWN a dated commitment → the `add_meeting` payload for it, else None.
+
+    V2-159, measured: the reminder half now works (one cron, right Wednesday, right prompt — V2-151/V2-153) and
+    the run still failed because the OTHER half never happened. The case demands both: the commitment REGISTERED
+    and the notice scheduled. zaelar said «Te apunto la renovación del seguro del coche para el jueves» and the
+    mechanism showed no agenda data-op at all.
+
+    Two details this shares with its sibling, and one it does not:
+      · the moment is resolved by `scheduler.parse_when`, so an expression that is not unambiguous schedules
+        nothing — a note on a guessed day is the same class of harm as an alert on one;
+      · the tail is CUT at the reminder promise before resolving. One sentence carries BOTH days («…para el
+        JUEVES y te programo un recordatorio para el MIÉRCOLES») and `parse_when` refuses a pair on purpose;
+        position is what tells them apart, exactly as in `promises_a_dated_reminder`.
+      · unlike the alert, the title matters: an agenda entry saying «el jueves» is not an entry. It comes from
+        the words between the promise verb and the date, falling back to the operator's own request.
+    """
+    n = _norm_txt(reply)
+    m = _NOTE_VERB_RE.search(n)
+    if not m:
+        return None
+    tail = n[m.end():]
+    cut = _REMIND_VERB_RE.search(tail)
+    if cut:
+        tail = tail[:cut.start()]
+    try:
+        from nucleo import scheduler as _sched
+    except Exception:
+        return None
+    when = _sched.parse_when(tail)
+    if not when:
+        return None
+    lead = _DATE_LEAD_RE.search(tail)
+    title = (tail[:lead.start()] if lead else tail).strip(" ,.;:")
+    if len(title) < 4:
+        title = (operator_text or "").strip()[:120]
+    return {"title": title[:120], "date": when.split(" ")[0]} if title else None
+
+
 _CLAUSE_SPLIT_RE = _re.compile(r"[,;.!?\n]|\sy\s|\sand\s", _re.I)
 
 

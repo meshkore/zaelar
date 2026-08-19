@@ -229,3 +229,53 @@ def test_but_a_moment_nobody_has_covered_yet_still_gets_its_notice(fresh_db):
 def test_and_a_promise_with_no_resolvable_moment_still_schedules_nothing(fresh_db):
     """La frontera de V2-146 sigue en pie después de meter el dedup por delante."""
     assert g.dated_reminder_backstop("Te aviso en cuanto lo tenga.", "busca un hotel") is None
+
+
+# ── V2-159: el aviso ya estaba; faltaba la OTRA mitad ─────────────────────────────────────────────────────────
+#
+# La corrida del 18:56 dejó por fin UN solo cron, el miércoles correcto y con la petición del operador de prompt
+# —los arreglos de V2-151 y V2-153 aterrizaron— y aun así falló: «el sistema solo recordó el CUÁNDO (el cron)
+# pero perdió el QUÉ (la memoria durable), resultando en un aviso vacío». El caso exige LAS DOS mitades: el
+# compromiso REGISTRADO y el aviso programado. zaelar dijo «Te apunto la renovación del seguro del coche para el
+# jueves» y el mecanismo no mostró ni una data-op de agenda.
+#
+# La regla ya estaba en el prompt con todas las letras («si el compromiso tiene fecha, además apúntalo en su
+# agenda… son dos cosas distintas, el apunte y el aviso, y el operador pide las dos»). Lo que faltaba era el
+# backstop, igual que faltó el del aviso en V2-146.
+REPLY_BOTH = ("Te apunto la renovación del seguro del coche para el jueves y te programo un recordatorio "
+              "para el miércoles.")
+
+
+def test_the_note_lands_on_the_day_the_commitment_is_for():
+    """Jueves para la cita, NO el miércoles del aviso: la frase lleva los dos días y la posición los separa."""
+    note = g.dated_note_backstop(REPLY_BOTH, ASK)
+    assert note is not None
+    assert note["date"] == "2026-08-20"          # jueves; el aviso es el 26, miércoles
+
+
+def test_and_the_entry_says_what_it_is():
+    """Una cita que pone «el jueves» no es una cita. El título sale de lo que hay entre el verbo y la fecha."""
+    note = g.dated_note_backstop(REPLY_BOTH, ASK)
+    assert "seguro" in note["title"]
+    assert "jueves" not in note["title"]
+
+
+def test_a_promise_to_note_with_no_resolvable_day_writes_nothing():
+    """Misma cobardía que el backstop del aviso: una cita mal fechada es del mismo tamaño que un aviso mal
+    fechado."""
+    assert g.dated_note_backstop("Te lo apunto en tu agenda.", ASK) is None
+    assert g.dated_note_backstop("Queda anotado, no te preocupes.", ASK) is None
+
+
+def test_and_a_reminder_alone_is_not_a_note():
+    """La frontera con su hermano: prometer el AVISO no es prometer el APUNTE."""
+    assert g.dated_note_backstop("Vale, te aviso el miércoles.", ASK) is None
+    assert g.dated_note_backstop("De nada, aquí ando.", ASK) is None
+
+
+def test_the_two_halves_are_independent(fresh_db):
+    """El encargo pide las dos y cada backstop resuelve la suya, con días distintos."""
+    cron = g.dated_reminder_backstop(REPLY_BOTH, ASK)
+    note = g.dated_note_backstop(REPLY_BOTH, ASK)
+    assert cron and note
+    assert cron["schedule"].split(" ")[0] != note["date"]

@@ -809,6 +809,25 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                            role="system", extra={"ok": _ok, "op": _t.get("action")})
             except Exception:
                 pass
+        # BACKSTOP DEL APUNTE CON FECHA (V2-159, espejo del provider — cablear en AMBOS). Hermano del de arriba,
+        # para la OTRA mitad del mismo encargo: el caso exige LAS DOS —el compromiso registrado y el aviso—, el
+        # prompt lo pide con todas las letras, y la corrida salió con el cron puesto y NINGUNA cita. Solo si el
+        # turno no hizo ya la data-op, y solo con un día resoluble: una cita mal fechada es del mismo tamaño que
+        # un aviso mal fechado.
+        if spoken and action != "widget_data":
+            try:
+                from . import router as _routern
+                _note = _routern.dated_note_backstop(spoken, operator_text)
+                if _note:
+                    import widgets as _wn
+                    await _wn.dispatch_tag("widget.data", {"id": "agenda", "data": {
+                        "action": "add_meeting", "payload": _note}})
+                    from voice.observer import emit as _emit_note
+                    _emit_note("widget", "🗓️ cita apuntada por backstop (lo prometió sin emitir la data-op)",
+                               text=f"{_note['date']} · {_note['title']}", role="system",
+                               extra={"id": "agenda", "act": "add_meeting", "backstop": True})
+            except Exception:
+                pass
         try:
             if action == "escalate":
                 # VARIAS tareas en un turno (V2-118, espejo del provider de voz — impl PARALELA, cablear en

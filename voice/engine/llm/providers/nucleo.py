@@ -2388,6 +2388,22 @@ class NucleoLLMStream(llm.LLMStream):
             except Exception:
                 pass
 
+        # BACKSTOP DEL APUNTE CON FECHA (V2-159, espejo del probe — cablear en AMBOS). La OTRA mitad del mismo
+        # encargo: el caso pide las dos cosas —el compromiso registrado y el aviso— y la corrida salió con el
+        # cron puesto y ninguna cita. Solo si el turno no hizo ya una data-op.
+        if spoken_text and not data_done["v"]:
+            try:
+                _note = _router.dated_note_backstop(spoken_text, operator_text)
+                if _note:
+                    import widgets as _w_note
+                    await _w_note.dispatch_tag("widget.data", {"id": "agenda", "data": {
+                        "action": "add_meeting", "payload": _note}})
+                    emit("widget", "🗓️ cita apuntada por backstop (lo prometió sin emitir la data-op)",
+                         text=f"{_note['date']} · {_note['title']}", role="system",
+                         extra={"id": "agenda", "act": "add_meeting", "backstop": True})
+            except Exception:
+                pass
+
         _no_tool = (not acted["widget"] and not data_done["v"] and not music_req["v"] and not worker_acted["v"]
                     and escalate_req["v"] is None and search_req["v"] is None)
         if _no_tool and spoken_text and _router.promises_action(spoken_text):
