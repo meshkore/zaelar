@@ -481,6 +481,12 @@ DOMAINS: list[dict] = [
         # en la raíz no se versione nada que no sea del proyecto, se llame como se llame.
         {"id": "7.9", "title": "La raíz del repo no versiona datos (fuga de PII, 2026-08-12)", "ch": UNIT,
             "paths": ["tests/infrastructure/unit/test_repo_root_clean.py"]},
+        # 2026-08-20: `widgets/clock/` —builtin versionado desde el commit inicial— había desaparecido del árbol
+        # de trabajo sin que nadie commiteara el borrado, y la suite ENTERA pasaba igual: nada afirmaba que un
+        # widget de sistema declarado exista. Lo que queda no es «un widget menos», es un registro que promete
+        # algo que el disco no tiene.
+        {"id": "7.10", "title": "Un widget de SISTEMA declarado existe en disco", "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/test_builtin_widgets_exist.py"]},
         # 2026-08-14: que el CONTEXTO no se quede atrás del código. La deriva era medible — el log de alineación de
         # contenido iba por la 2.88 con el motor en la 2.94, y 21 decisiones de CLAUDE.md sin iniciativa. Este nodo
         # es la mitad AUTOMÁTICA del cierre (ids únicos, frontmatter cuadrado, decisión↔iniciativa en los dos
