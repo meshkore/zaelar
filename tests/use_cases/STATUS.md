@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-19 01:45**
+Last updated: **2026-08-19 12:17**
 
 `✅ PASS` = judge overall ≥ 4 · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -11,21 +11,21 @@ the operator's live one.
 
 | | scenario | tier | overall | last run | sandbox | verdict |
 |---|---|---|---|---|---|---|
-| ❌ | `book-barber-slot__es` | 1 | 2 | 2026-08-19 00:05 | yes | NO listo para producción: falla el bloqueo básico de interacción por exceso de validaciones (pedir teléfono innecesario) y, lo más grave, el asistente promet… |
-| ❌ | `book-hotel-night-known__es` | 1 | 2 | 2026-08-19 00:38 | yes | No está listo para producción: el bloqueador nº1 es que zaelar afirma un progreso que el mecanismo no respalda (url y eventos vacíos, 0 búsquedas) y no llega… |
-| ❌ | `build-workout-tracker-widget` | 1 | 2 | 2026-08-18 22:48 | yes | No está listo para producción: el asistente mintió sobre la disponibilidad de una herramienta y no generó ningún widget real, lo que resulta en una experienc… |
+| ✅ | `book-barber-slot__es` | 1 | 4 | 2026-08-19 01:51 | yes | El comportamiento de zaelar es correcto: no inventó nada, pidió los datos que faltaban y se detuvo en el muro con claridad; el bloqueador nº1 para cerrar el … |
+| ❌ | `book-hotel-night-known__es` | 1 | 1 | 2026-08-19 12:17 | yes | No está listo para producción; el bloqueador nº1 es la incapacidad del asistente para invocar el navegador o motor de búsqueda, resultando en una alucinación… |
+| ⚠️ | `build-workout-tracker-widget` | 1 | — | 2026-08-19 02:47 | yes | INFRA: HTTP Error 403: Forbidden |
 | ⚠️ | `buy-known-product__es` | 1 | — | 2026-08-18 20:51 | yes | INFRA: 'list' object has no attribute 'strip' |
-| ❌ | `cancel-subscription-before-charge__es` | 1 | 1 | 2026-08-18 22:48 | yes | No está listo para producción. El bloqueador nº1 es la alucinación de ejecución: el agente afirmó haber realizado una gestión irreversible (cancelación) que … |
-| ❌ | `find-theatre-tickets__es` | 1 | 2 | 2026-08-19 00:56 | yes | No está listo para producción: el bloqueador nº1 es que no presentó ninguna opción real de entradas (mecanismo con results=null) y, en lugar de declarar el m… |
-| ❌ | `pay-known-bill__es` | 1 | 2 | 2026-08-19 01:10 | yes | No está listo para producción: el bloqueador nº1 es que zaelar afirma repetidamente estar ejecutando un pago (buscar factura, entrar en Endesa) sin tener acc… |
-| ❌ | `quick-fact-opening-hours` | 1 | 2 | 2026-08-18 22:40 | yes | No está listo para producción; ha fallado gravemente en mecanismo al omitir la búsqueda web requerida, confundiendo rapidez con invención de datos. |
-| ❌ | `remember-and-remind-deadline` | 1 | 2 | 2026-08-19 00:56 | yes | No está listo para producción: el bloqueador nº1 es que zaelar confirma un recordatorio que no ha programado realmente (scheduled_jobs.created está vacío). |
+| ⚠️ | `cancel-subscription-before-charge__es` | 1 | — | 2026-08-19 02:34 | yes | INFRA: HTTP Error 403: Forbidden |
+| ⚠️ | `find-theatre-tickets__es` | 1 | — | 2026-08-19 12:17 | yes | INFRA: DRIVE sin escalón disponible → deepseek-directo: <urlopen error [Errno 8] nodename nor servname provided, or not known> · reintento: <urlopen error [E… |
+| ⚠️ | `pay-known-bill__es` | 1 | — | 2026-08-19 12:17 | yes | INFRA: DRIVE sin escalón disponible → deepseek-directo: IncompleteRead(0 bytes read) · reintento: The read operation timed out ;; aimlapi: <urlopen error [Er… |
+| ✅ | `quick-fact-opening-hours` | 1 | 5 | 2026-08-19 02:03 | yes | Sí, está listo para producción: zaelar resolvió la consulta con éxito máximo en el primer turno, usando la vía eficiente (búsqueda web) sin desperdiciar recu… |
+| ❌ | `remember-and-remind-deadline` | 1 | 2 | 2026-08-19 12:17 | yes | NO listo para producción: el asistente miente confiadamente al usuario al afirmar que una tarea está completa cuando el sistema no la ha registrado ni progra… |
 | ⚠️ | `renew-gym-membership__es` | 1 | — | 2026-08-19 01:45 | yes | INFRA: IncompleteRead(5 bytes read) |
-| ❌ | `reorder-prescription__es` | 1 | 2 | 2026-08-19 01:29 | yes | No está listo para producción: el bloqueador nº1 es que zaelar afirma ejecutar una gestión (búsqueda/llamada) sin tener la receta ni la farmacia confirmadas … |
-| ❌ | `restaurant-tonight-madrid` | 1 | 1 | 2026-08-18 22:40 | yes | No está listo para producción: el sistema falló en bloquear tiempos imposibles, sufrió una alucinación severa de contexto y no ejecutó la acción fallback (ll… |
-| ❌ | `three-tasks-at-once` | 4 | 2 | 2026-08-18 23:26 | yes | No está listo para producción. El bloqueador nº1 es la incapacidad del mecanismo para mantener tareas concurrentes y reportar estado con honestidad: el siste… |
+| ⚠️ | `reorder-prescription__es` | 1 | — | 2026-08-19 12:17 | yes | INFRA: DRIVE sin escalón disponible → deepseek-directo: <urlopen error [Errno 8] nodename nor servname provided, or not known> · reintento: <urlopen error [E… |
+| ⚠️ | `restaurant-tonight-madrid` | 1 | — | 2026-08-19 12:17 | yes | INFRA: DRIVE sin escalón disponible → deepseek-directo: <urlopen error [Errno 8] nodename nor servname provided, or not known> · reintento: <urlopen error [E… |
+| ⚠️ | `three-tasks-at-once` | 4 | — | 2026-08-19 12:17 | yes | INFRA: DRIVE sin escalón disponible → deepseek-directo: <urlopen error [Errno 8] nodename nor servname provided, or not known> · reintento: <urlopen error [E… |
 
-**0 passing · 11 failing · 2 infra** of 13 scenarios with a recorded result.
+**2 passing · 2 failing · 9 infra** of 13 scenarios with a recorded result.
 
 ## Catalog coverage — 13 of 119 scenarios ever run (106 never run)
 
@@ -33,7 +33,7 @@ An unrun case is **not** a passing one. This is the walk's progress board.
 
 | tier | locale | run | of | passing |
 |---|---|---|---|---|
-| 1 | es | 12 | 12 | 0 |
+| 1 | es | 12 | 12 | 2 |
 | 1 | us | 0 | 9 | 0 |
 | 2 | es | 0 | 22 | 0 |
 | 2 | us | 0 | 21 | 0 |
@@ -61,6 +61,7 @@ Operator's rule (2026-08-18): renewing a gym membership can never work with no g
 | `pay-known-bill__es` | no_account | una factura real y acceso al proveedor/banco |
 | `renew-gym-membership__es` | no_account | una cuota de gimnasio real y una cuenta en su web |
 | `reorder-prescription__es` | no_account | una farmacia habitual y una receta real |
+| `restaurant-tonight-madrid` | no_booking | cerrar la mesa (teléfono o cuenta en la plataforma) |
 
 ## Where the work on each failing case happens
 
@@ -68,20 +69,5 @@ One initiative per use case — that initiative IS the workspace for it, and it 
 
 | scenario | initiative (the workspace) | fix task |
 |---|---|---|
-| `book-barber-slot__es` | `.meshkore/roadmap/initiatives/V2-130-uc-book-barber-slot-es.md` | `` |
-| `book-hotel-night-known__es` | `.meshkore/roadmap/initiatives/V2-131-uc-book-hotel-night-known-es.md` | `` |
-| `build-workout-tracker-widget` | `.meshkore/roadmap/initiatives/V2-125-uc-build-workout-tracker-widget.md` | `` |
-| `cancel-subscription-before-charge__es` | `.meshkore/roadmap/initiatives/V2-126-uc-cancel-subscription-before-charge-es.md` | `` |
-| `find-theatre-tickets__es` | `.meshkore/roadmap/initiatives/V2-132-uc-find-theatre-tickets-es.md` | `` |
-| `pay-known-bill__es` | `.meshkore/roadmap/initiatives/V2-141-uc-pay-known-bill-es.md` | `` |
-| `quick-fact-opening-hours` | `.meshkore/roadmap/initiatives/V2-120-uc-quick-fact-opening-hours.md` | `` |
-| `remember-and-remind-deadline` | `.meshkore/roadmap/initiatives/V2-134-uc-remember-and-remind-deadline.md` | `` |
-| `reorder-prescription__es` | `.meshkore/roadmap/initiatives/V2-142-uc-reorder-prescription-es.md` | `` |
-| `restaurant-tonight-madrid` | `.meshkore/roadmap/initiatives/V2-119-uc-restaurant-tonight-madrid.md` | `` |
-| `three-tasks-at-once` | `.meshkore/roadmap/initiatives/V2-136-uc-three-tasks-at-once.md` | `` |
-
-## Multi-flow scenarios (concurrency measured live, from `/api/tasks`)
-
-| scenario | max concurrent tasks | distinct worker kinds |
-|---|---|---|
-| `three-tasks-at-once` | 2 | code, generic, web |
+| `book-hotel-night-known__es` | `.meshkore/roadmap/initiatives/V2-145-uc-book-hotel-night-known-es.md` | `` |
+| `remember-and-remind-deadline` | `.meshkore/roadmap/initiatives/V2-146-uc-remember-and-remind-deadline.md` | `` |

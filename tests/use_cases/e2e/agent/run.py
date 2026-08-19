@@ -191,8 +191,23 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
     # Close every verify task we honoured — pass OR fail. The task asked "run this again", and it did run;
     # leaving it `next` on a failure would make the next --verify batch re-run it forever without anyone having
     # changed anything in between. A case that still fails continues in its initiative, which is the workspace.
+    #
+    # EXCEPT when the run produced NO verdict (INFRA): then it did NOT run. The conversation never happened —
+    # the DNS died, the provider ran out of funds, the sandbox never came up — so the task's request is still
+    # PENDING and closing it would strand the case until a human noticed and wrote a new one by hand. Measured
+    # cost of getting this wrong: a DNS outage on 2026-08-19 12:17 took out 5 of 7 re-tests in one batch and
+    # burned all five verify tasks with it. Retrying is the right default here precisely because nothing on the
+    # engine side changed, and an INFRA attempt is cheap (0 turns, seconds) — the note in the initiative keeps
+    # it visible if it starts happening every tick.
+    def _has_verdict(sid: str) -> bool:
+        return any(r["scenario"] == sid and (r.get("verdict") or {}).get("overall") is not None for r in results)
+
     for sid, task in (verify_tasks or {}).items():
         if any(r["scenario"] == sid for r in results):
+            if not _has_verdict(sid):
+                print(f"  ↩︎ dejo ABIERTA la tarea de verificación {task.name}: la corrida murió sin veredicto "
+                      f"(INFRA), así que lo que pedía sigue sin hacerse")
+                continue
             if initiativemod.close_verification(task, round_no=rounds.get(sid)):
                 print(f"  ✅ tarea de verificación cerrada → {task.name}")
             else:

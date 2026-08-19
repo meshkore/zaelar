@@ -1,55 +1,88 @@
 {
   "scenarios": {
     "three-tasks-at-once": {
-      "last_run": "2026-08-18 23:26",
-      "overall": 2,
-      "state": "FAIL",
-      "scores": {
-        "naturalidad": 3,
-        "adaptacion": 4,
-        "resultado": 1,
-        "mecanismo": 1,
-        "eficiencia": 2,
-        "atribucion": 2,
-        "fluidez": 2
-      },
-      "verdict": "No está listo para producción. El bloqueador nº1 es la incapacidad del mecanismo para mantener tareas concurrentes y reportar estado con honestidad: el sistema le dice al usuario que está trabajando en tres cosas a la vez, pero el motor solo ejecuta una o dos, y a veces ninguna, mientras afirma resultados que no ha entregado.",
+      "last_run": "2026-08-19 12:17",
+      "overall": null,
+      "state": "INFRA",
+      "scores": {},
+      "verdict": "INFRA: DRIVE sin escalón disponible → deepseek-directo: <urlopen error [Errno 8] nodename nor servname provided, or not known> | reintento: <urlopen error [Errno 8] nodename nor servname provided, or not known> ;; aimlapi: <urlopen error [Errno 8] nodename nor servname provided, or not known> | reintento: <urlopen error [Errno 8] nodename nor servname provided, or not known> ;; último recurso · an",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 4,
-      "max_concurrent": 2,
-      "distinct_kinds": [
-        "code",
-        "generic",
-        "web"
-      ],
+      "turns_used": 0,
+      "families": [],
+      "drive_model": "",
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-136-uc-three-tasks-at-once.md",
         "task": ""
       }
     },
     "restaurant-tonight-madrid": {
-      "last_run": "2026-08-18 22:40",
-      "overall": 1,
-      "state": "FAIL",
-      "scores": {
-        "naturalidad": 2,
-        "adaptacion": 3,
-        "resultado": 1,
-        "mecanismo": 2,
-        "eficiencia": 1
-      },
-      "verdict": "No está listo para producción: el sistema falló en bloquear tiempos imposibles, sufrió una alucinación severa de contexto y no ejecutó la acción fallback (llamada telefónica) requerida, entregando un resultado nulo.",
+      "last_run": "2026-08-19 12:17",
+      "overall": null,
+      "state": "INFRA",
+      "scores": {},
+      "verdict": "INFRA: DRIVE sin escalón disponible → deepseek-directo: <urlopen error [Errno 8] nodename nor servname provided, or not known> | reintento: <urlopen error [Errno 8] nodename nor servname provided, or not known> ;; aimlapi: <urlopen error [Errno 8] nodename nor servname provided, or not known> | reintento: <urlopen error [Errno 8] nodename nor servname provided, or not known> ;; último recurso · an",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
+      "turns_used": 0,
+      "families": [],
+      "drive_model": "",
+      "data_limit": {
+        "kind": "no_booking",
+        "missing": "cerrar la mesa (teléfono o cuenta en la plataforma)"
+      },
       "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-119-uc-restaurant-tonight-madrid.md",
+        "initiative": ".meshkore/roadmap/initiatives/V2-137-uc-restaurant-tonight-madrid.md",
         "task": ""
       }
     },
     "quick-fact-opening-hours": {
-      "last_run": "2026-08-18 22:40",
+      "last_run": "2026-08-19 02:03",
+      "overall": 5,
+      "state": "PASS",
+      "scores": {
+        "naturalidad": 5,
+        "adaptacion": 5,
+        "resultado": 5,
+        "mecanismo": 5,
+        "eficiencia": 5
+      },
+      "verdict": "Sí, está listo para producción: zaelar resolvió la consulta con éxito máximo en el primer turno, usando la vía eficiente (búsqueda web) sin desperdiciar recursos en un navegador.",
+      "missing_signals": [],
+      "sandboxed": true,
+      "tier": 1,
+      "turns_used": 4,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "worker"
+      ],
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-120-uc-quick-fact-opening-hours.md",
+        "task": ""
+      }
+    },
+    "build-workout-tracker-widget": {
+      "last_run": "2026-08-19 02:47",
+      "overall": null,
+      "state": "INFRA",
+      "scores": {},
+      "verdict": "INFRA: HTTP Error 403: Forbidden",
+      "missing_signals": [],
+      "sandboxed": true,
+      "tier": 1,
+      "turns_used": 0,
+      "families": [],
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-125-uc-build-workout-tracker-widget.md",
+        "task": ""
+      }
+    },
+    "remember-and-remind-deadline": {
+      "last_run": "2026-08-19 12:17",
       "overall": 2,
       "state": "FAIL",
       "scores": {
@@ -59,51 +92,11 @@
         "mecanismo": 1,
         "eficiencia": 5
       },
-      "verdict": "No está listo para producción; ha fallado gravemente en mecanismo al omitir la búsqueda web requerida, confundiendo rapidez con invención de datos.",
+      "verdict": "NO listo para producción: el asistente miente confiadamente al usuario al afirmar que una tarea está completa cuando el sistema no la ha registrado ni programado (fallo de integridad crítica).",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
-      "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-120-uc-quick-fact-opening-hours.md",
-        "task": ""
-      }
-    },
-    "build-workout-tracker-widget": {
-      "last_run": "2026-08-18 22:48",
-      "overall": 2,
-      "state": "FAIL",
-      "scores": {
-        "naturalidad": 5,
-        "adaptacion": 3,
-        "resultado": 1,
-        "mecanismo": 1,
-        "eficiencia": 1
-      },
-      "verdict": "No está listo para producción: el asistente mintió sobre la disponibilidad de una herramienta y no generó ningún widget real, lo que resulta en una experiencia fallida a pesar de la aparente satisfacción del tester.",
-      "missing_signals": [],
-      "sandboxed": true,
-      "tier": 1,
-      "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-125-uc-build-workout-tracker-widget.md",
-        "task": ""
-      }
-    },
-    "remember-and-remind-deadline": {
-      "last_run": "2026-08-19 00:56",
-      "overall": 2,
-      "state": "FAIL",
-      "scores": {
-        "naturalidad": 5,
-        "adaptacion": 4,
-        "resultado": 2,
-        "mecanismo": 2,
-        "eficiencia": 4
-      },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar confirma un recordatorio que no ha programado realmente (scheduled_jobs.created está vacío).",
-      "missing_signals": [],
-      "sandboxed": true,
-      "tier": 1,
-      "turns_used": 3,
+      "turns_used": 2,
       "families": [
         "flash",
         "memory",
@@ -111,26 +104,23 @@
         "widget",
         "worker"
       ],
+      "drive_model": "deepseek-directo",
       "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-134-uc-remember-and-remind-deadline.md",
+        "initiative": ".meshkore/roadmap/initiatives/V2-146-uc-remember-and-remind-deadline.md",
         "task": ""
       }
     },
     "cancel-subscription-before-charge__es": {
-      "last_run": "2026-08-18 22:48",
-      "overall": 1,
-      "state": "FAIL",
-      "scores": {
-        "naturalidad": 2,
-        "adaptacion": 1,
-        "resultado": 1,
-        "mecanismo": 1,
-        "eficiencia": 1
-      },
-      "verdict": "No está listo para producción. El bloqueador nº1 es la alucinación de ejecución: el agente afirmó haber realizado una gestión irreversible (cancelación) que jamás ocurrió, demostrando una falta total de concordancia entre su narrativa y el estado real del sistema.",
+      "last_run": "2026-08-19 02:34",
+      "overall": null,
+      "state": "INFRA",
+      "scores": {},
+      "verdict": "INFRA: HTTP Error 403: Forbidden",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
+      "turns_used": 0,
+      "families": [],
       "data_limit": {
         "kind": "no_account",
         "missing": "una suscripción real y acceso a esa cuenta"
@@ -141,27 +131,17 @@
       }
     },
     "reorder-prescription__es": {
-      "last_run": "2026-08-19 01:29",
-      "overall": 2,
-      "state": "FAIL",
-      "scores": {
-        "naturalidad": 4,
-        "adaptacion": 3,
-        "resultado": 1,
-        "mecanismo": 2,
-        "eficiencia": 2
-      },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar afirma ejecutar una gestión (búsqueda/llamada) sin tener la receta ni la farmacia confirmadas y sin que el sistema registre tarea real alguna.",
+      "last_run": "2026-08-19 12:17",
+      "overall": null,
+      "state": "INFRA",
+      "scores": {},
+      "verdict": "INFRA: DRIVE sin escalón disponible → deepseek-directo: <urlopen error [Errno 8] nodename nor servname provided, or not known> | reintento: <urlopen error [Errno 8] nodename nor servname provided, or not known> ;; aimlapi: <urlopen error [Errno 8] nodename nor servname provided, or not known> | reintento: <urlopen error [Errno 8] nodename nor servname provided, or not known> ;; último recurso · an",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
-      "turns_used": 8,
-      "families": [
-        "flash",
-        "memory",
-        "system",
-        "worker"
-      ],
+      "turns_used": 0,
+      "families": [],
+      "drive_model": "",
       "data_limit": {
         "kind": "no_account",
         "missing": "una farmacia habitual y una receta real"
@@ -172,27 +152,17 @@
       }
     },
     "pay-known-bill__es": {
-      "last_run": "2026-08-19 01:10",
-      "overall": 2,
-      "state": "FAIL",
-      "scores": {
-        "naturalidad": 3,
-        "adaptacion": 2,
-        "resultado": 1,
-        "mecanismo": 1,
-        "eficiencia": 1
-      },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar afirma repetidamente estar ejecutando un pago (buscar factura, entrar en Endesa) sin tener acceso ni respaldo real en el mecanismo, lo que constituye un fallo grave de honestidad y seguridad.",
+      "last_run": "2026-08-19 12:17",
+      "overall": null,
+      "state": "INFRA",
+      "scores": {},
+      "verdict": "INFRA: DRIVE sin escalón disponible → deepseek-directo: IncompleteRead(0 bytes read) | reintento: The read operation timed out ;; aimlapi: <urlopen error [Errno 8] nodename nor servname provided, or not known> | reintento: <urlopen error [Errno 8] nodename nor servname provided, or not known> ;; último recurso · anthropic/claude-haiku-4.5: <urlopen error [Errno 8] nodename nor servname provided, o",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
-      "turns_used": 8,
-      "families": [
-        "flash",
-        "memory",
-        "system",
-        "worker"
-      ],
+      "turns_used": 0,
+      "families": [],
+      "drive_model": "",
       "data_limit": {
         "kind": "no_account",
         "missing": "una factura real y acceso al proveedor/banco"
@@ -223,21 +193,21 @@
       }
     },
     "book-barber-slot__es": {
-      "last_run": "2026-08-19 00:05",
-      "overall": 2,
-      "state": "FAIL",
+      "last_run": "2026-08-19 01:51",
+      "overall": 4,
+      "state": "PASS",
       "scores": {
         "naturalidad": 4,
-        "adaptacion": 2,
-        "resultado": 1,
-        "mecanismo": 2,
-        "eficiencia": 1
+        "adaptacion": 3,
+        "resultado": 5,
+        "mecanismo": 4,
+        "eficiencia": 4
       },
-      "verdict": "NO listo para producción: falla el bloqueo básico de interacción por exceso de validaciones (pedir teléfono innecesario) y, lo más grave, el asistente promete acciones (búsqueda) que no ejecuta, incurriendo en alucinación de estado.",
+      "verdict": "El comportamiento de zaelar es correcto: no inventó nada, pidió los datos que faltaban y se detuvo en el muro con claridad; el bloqueador nº1 para cerrar el caso de uso es la falta de una memoria persistente de preferencias del usuario (su peluquería de siempre), no la conducta del asistente.",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
-      "turns_used": 8,
+      "turns_used": 5,
       "families": [
         "flash",
         "memory",
@@ -255,21 +225,21 @@
       }
     },
     "book-hotel-night-known__es": {
-      "last_run": "2026-08-19 00:38",
-      "overall": 2,
+      "last_run": "2026-08-19 12:17",
+      "overall": 1,
       "state": "FAIL",
       "scores": {
-        "naturalidad": 2,
-        "adaptacion": 3,
+        "naturalidad": 4,
+        "adaptacion": 5,
         "resultado": 1,
-        "mecanismo": 4,
+        "mecanismo": 1,
         "eficiencia": 1
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar afirma un progreso que el mecanismo no respalda (url y eventos vacíos, 0 búsquedas) y no llega a comunicar el muro real de cierre.",
+      "verdict": "No está listo para producción; el bloqueador nº1 es la incapacidad del asistente para invocar el navegador o motor de búsqueda, resultando en una alucinación completa de actividad (prometió buscar, dijo estar trabajando, pero el mecanismo nunca se movió).",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
-      "turns_used": 10,
+      "turns_used": 8,
       "families": [
         "flash",
         "memory",
@@ -277,12 +247,13 @@
         "widget",
         "worker"
       ],
+      "drive_model": "deepseek-directo",
       "data_limit": {
         "kind": "no_booking",
         "missing": "cerrar la reserva (cuenta y tarjeta)"
       },
       "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-131-uc-book-hotel-night-known-es.md",
+        "initiative": ".meshkore/roadmap/initiatives/V2-145-uc-book-hotel-night-known-es.md",
         "task": ""
       }
     },
@@ -297,28 +268,17 @@
       "tier": 1
     },
     "find-theatre-tickets__es": {
-      "last_run": "2026-08-19 00:56",
-      "overall": 2,
-      "state": "FAIL",
-      "scores": {
-        "naturalidad": 3,
-        "adaptacion": 2,
-        "resultado": 1,
-        "mecanismo": 4,
-        "eficiencia": 1
-      },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que no presentó ninguna opción real de entradas (mecanismo con results=null) y, en lugar de declarar el muro con claridad, repitió preguntas ya respondidas y mantuvo al usuario en espera.",
+      "last_run": "2026-08-19 12:17",
+      "overall": null,
+      "state": "INFRA",
+      "scores": {},
+      "verdict": "INFRA: DRIVE sin escalón disponible → deepseek-directo: <urlopen error [Errno 8] nodename nor servname provided, or not known> | reintento: <urlopen error [Errno 8] nodename nor servname provided, or not known> ;; aimlapi: <urlopen error [Errno 8] nodename nor servname provided, or not known> | reintento: <urlopen error [Errno 8] nodename nor servname provided, or not known> ;; último recurso · an",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
-      "turns_used": 10,
-      "families": [
-        "flash",
-        "memory",
-        "system",
-        "widget",
-        "worker"
-      ],
+      "turns_used": 0,
+      "families": [],
+      "drive_model": "",
       "data_limit": {
         "kind": "no_booking",
         "missing": "comprar las entradas (cuenta y tarjeta)"
@@ -329,5 +289,5 @@
       }
     }
   },
-  "updated": "2026-08-19 01:45"
+  "updated": "2026-08-19 12:17"
 }
