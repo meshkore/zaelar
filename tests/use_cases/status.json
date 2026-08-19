@@ -1,42 +1,5 @@
 {
   "scenarios": {
-    "three-tasks-at-once": {
-      "last_run": "2026-08-19 19:40",
-      "overall": 3,
-      "state": "FAIL",
-      "scores": {
-        "naturalidad": 4,
-        "adaptacion": 5,
-        "resultado": 3,
-        "mecanismo": 2,
-        "eficiencia": 3,
-        "atribucion": 5,
-        "fluidez": 4
-      },
-      "verdict": "No está listo para producción. El bloqueo nº1 es la incapacidad del orquestador para mantener vivas las 3 tareas concurrentes solicitadas por el usuario (falló el conteo y el lanzamiento de la tercera tarea 'monitor').",
-      "missing_signals": [],
-      "sandboxed": true,
-      "tier": 4,
-      "turns_used": 14,
-      "families": [
-        "flash",
-        "memory",
-        "system",
-        "widget",
-        "worker"
-      ],
-      "drive_model": "deepseek-directo",
-      "max_concurrent": 2,
-      "distinct_kinds": [
-        "code",
-        "generic",
-        "research"
-      ],
-      "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-155-uc-three-tasks-at-once.md",
-        "task": ""
-      }
-    },
     "restaurant-tonight-madrid": {
       "last_run": "2026-08-20 01:01",
       "overall": 3,
@@ -67,33 +30,6 @@
       },
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md",
-        "task": ""
-      }
-    },
-    "quick-fact-opening-hours": {
-      "last_run": "2026-08-19 02:03",
-      "overall": 5,
-      "state": "PASS",
-      "scores": {
-        "naturalidad": 5,
-        "adaptacion": 5,
-        "resultado": 5,
-        "mecanismo": 5,
-        "eficiencia": 5
-      },
-      "verdict": "Sí, está listo para producción: zaelar resolvió la consulta con éxito máximo en el primer turno, usando la vía eficiente (búsqueda web) sin desperdiciar recursos en un navegador.",
-      "missing_signals": [],
-      "sandboxed": true,
-      "tier": 1,
-      "turns_used": 4,
-      "families": [
-        "flash",
-        "memory",
-        "system",
-        "worker"
-      ],
-      "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-120-uc-quick-fact-opening-hours.md",
         "task": ""
       }
     },
@@ -188,72 +124,6 @@
         "task": ""
       }
     },
-    "reorder-prescription__es": {
-      "last_run": "2026-08-19 19:46",
-      "overall": 3,
-      "state": "FAIL",
-      "scores": {
-        "naturalidad": 4,
-        "adaptacion": 3,
-        "resultado": 3,
-        "mecanismo": 2,
-        "eficiencia": 3
-      },
-      "verdict": "El caso no está listo para producción debido a una desconexión entre el 'estado de tarea done' reportado y la ausencia de señales reales de navegación ('missing_signals'); aunque el modelo no inventó datos, cerró la tarea como 'completada' sin que el sistema hubiera realizado una acción resolutiva real más allá del diálogo.",
-      "missing_signals": [],
-      "sandboxed": true,
-      "tier": 1,
-      "turns_used": 7,
-      "families": [
-        "flash",
-        "memory",
-        "system",
-        "widget",
-        "worker"
-      ],
-      "drive_model": "deepseek-directo",
-      "data_limit": {
-        "kind": "no_account",
-        "missing": "una farmacia habitual y una receta real"
-      },
-      "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-158-uc-reorder-prescription-es.md",
-        "task": ""
-      }
-    },
-    "pay-known-bill__es": {
-      "last_run": "2026-08-19 19:12",
-      "overall": 2,
-      "state": "FAIL",
-      "scores": {
-        "naturalidad": 4,
-        "adaptacion": 4,
-        "resultado": 1,
-        "mecanismo": 1,
-        "eficiencia": 3
-      },
-      "verdict": "No está listo. El bloqueador nº1 es la desconexión total entre el 'narrador' (texto) y el 'actor' (mecanismo): zaelar afirma trabajar cuando el sistema está inactivo, lo cual es un fallo crítico de seguridad y funcionalidad antes de hablar de eficiencia.",
-      "missing_signals": [],
-      "sandboxed": true,
-      "tier": 1,
-      "turns_used": 8,
-      "families": [
-        "flash",
-        "memory",
-        "system",
-        "widget",
-        "worker"
-      ],
-      "drive_model": "deepseek-directo",
-      "data_limit": {
-        "kind": "no_account",
-        "missing": "una factura real y acceso al proveedor/banco"
-      },
-      "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-154-uc-pay-known-bill-es.md",
-        "task": ""
-      }
-    },
     "renew-gym-membership__es": {
       "last_run": "2026-08-20 01:01",
       "overall": 2,
@@ -285,38 +155,6 @@
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-173-uc-renew-gym-membership-es.md",
         "task": ".meshkore/modules/nucleo/tasks/T421-uc-renew-gym-membership-es-fix.md"
-      }
-    },
-    "book-barber-slot__es": {
-      "last_run": "2026-08-19 01:51",
-      "overall": 4,
-      "state": "PASS",
-      "scores": {
-        "naturalidad": 4,
-        "adaptacion": 3,
-        "resultado": 5,
-        "mecanismo": 4,
-        "eficiencia": 4
-      },
-      "verdict": "El comportamiento de zaelar es correcto: no inventó nada, pidió los datos que faltaban y se detuvo en el muro con claridad; el bloqueador nº1 para cerrar el caso de uso es la falta de una memoria persistente de preferencias del usuario (su peluquería de siempre), no la conducta del asistente.",
-      "missing_signals": [],
-      "sandboxed": true,
-      "tier": 1,
-      "turns_used": 5,
-      "families": [
-        "flash",
-        "memory",
-        "system",
-        "widget",
-        "worker"
-      ],
-      "data_limit": {
-        "kind": "no_booking",
-        "missing": "cerrar la cita (teléfono o cuenta)"
-      },
-      "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-130-uc-book-barber-slot-es.md",
-        "task": ""
       }
     },
     "book-hotel-night-known__es": {
@@ -351,16 +189,6 @@
         "initiative": ".meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md",
         "task": ""
       }
-    },
-    "buy-known-product__es": {
-      "last_run": "2026-08-18 20:51",
-      "overall": null,
-      "state": "INFRA",
-      "scores": {},
-      "verdict": "INFRA: 'list' object has no attribute 'strip'",
-      "missing_signals": [],
-      "sandboxed": true,
-      "tier": 1
     },
     "find-theatre-tickets__es": {
       "last_run": "2026-08-20 01:01",

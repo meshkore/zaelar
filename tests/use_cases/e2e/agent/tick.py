@@ -131,8 +131,19 @@ def _retest_pending() -> dict:
     """
     pend = I.scenarios_awaiting_verification(SC.registry())
     ready = [p for p in pend if p["scenario"]]
+    # An UNRESOLVABLE slug is reported, never dropped in silence — `scenarios_awaiting_verification`'s own
+    # docstring says so, and until 2026-08-20 this line was where the promise broke: two tasks
+    # (`progreso-fabricado`, `progreso-fabricado-idioma`) asked for a re-test of a PATTERN rather than a case,
+    # so they resolved to no scenario, got filtered out here, and stayed `status: next` for ever. The fixing
+    # agent waits for a re-test that can never run, and `esperando re-test` reports a number that is mostly
+    # fiction. The tick cannot ACT on them, but it can say their names.
+    orphan = [p for p in pend if not p["scenario"]]
+    if orphan:
+        _log("paso 1 · tareas de verify que NO apuntan a ningún caso del catálogo (nadie las va a correr; "
+             "hace falta una por CASO, o cerrarlas): "
+             + "; ".join(f"{p['task'].name} (slug «{p['slug']}»)" for p in orphan))
     if not ready:
-        return {"retested": 0}
+        return {"retested": 0, "orphan": [p["task"].name for p in orphan]}
 
     before = {p["scenario"]: I.find_initiative(p["scenario"]) for p in ready}
     _log(f"paso 1 · re-probando {len(ready)} caso(s) ya arreglado(s): "
@@ -210,7 +221,8 @@ def _retest_pending() -> dict:
         _log(f"paso 1 · NO CONCLUYENTE (fallo de arnés, ni cierra ni rota; hace falta una tarea de verify NUEVA): "
              f"{', '.join(inconclusive)}")
     return {"retested": len(ready), "passed": passed, "rotated": rotated,
-            "inconclusive": inconclusive, "blocked": blocked}
+            "inconclusive": inconclusive, "blocked": blocked,
+            "orphan": [p["task"].name for p in orphan]}
 
 
 def _top_up() -> dict:

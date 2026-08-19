@@ -82,3 +82,52 @@ def test_but_a_real_verdict_does_retire_a_case():
     assert judged, "el marcador no tiene ni un veredicto — este test no estaría probando nada"
     queued = {s.id for s in T._unrun_scenarios()}
     assert not (queued & set(judged))
+
+
+def test_a_verify_task_that_points_at_NO_case_is_reported_not_swallowed(monkeypatch):
+    """`scenarios_awaiting_verification` promete en su docstring que un slug irresoluble «se REPORTA, nunca se
+    salta en silencio». Hasta el 2026-08-20 esa promesa se rompía justo aquí: `_retest_pending` filtraba
+    `if p["scenario"]` y dos tareas (`progreso-fabricado`, `progreso-fabricado-idioma`) —que pedían re-probar un
+    PATRÓN, no un caso— se quedaron en `status: next` desde el 2026-08-18 esperando una corrida imposible.
+
+    El coste no es un error: es que el agente que arregla espera un re-test que nunca va a correr, y
+    «esperando re-test: 4» informa de un número que era mayormente ficción. El tick no puede ACTUAR sobre
+    ellas, pero sí decir sus nombres.
+    """
+    from pathlib import Path
+
+    from tests.use_cases.e2e.agent import status as statusmod
+
+    logged: list[str] = []
+    monkeypatch.setattr(T, "_log", lambda m: logged.append(m))
+    monkeypatch.setattr(T.I, "scenarios_awaiting_verification",
+                        lambda reg: [{"scenario": None, "slug": "progreso-fabricado",
+                                      "task": Path("T326-uc-progreso-fabricado-verify.md")}])
+    monkeypatch.setattr(statusmod, "load", lambda: {"scenarios": {}})
+
+    out = T._retest_pending()
+    assert out["retested"] == 0
+    assert out.get("orphan") == ["T326-uc-progreso-fabricado-verify.md"]
+    said = " ".join(logged)
+    assert "T326-uc-progreso-fabricado-verify.md" in said, "tiene que NOMBRAR la tarea que nadie va a correr"
+    assert "progreso-fabricado" in said
+
+
+def test_but_a_resolvable_task_is_not_reported_as_an_orphan(monkeypatch):
+    """La mitad de sensibilidad: sin esto, «reporta las huérfanas» y «reporta todas» pasan igual, y el log del
+    tick se llenaría de avisos sobre tareas que sí se están corriendo."""
+    from tests.use_cases.e2e.agent import status as statusmod
+
+    logged: list[str] = []
+    monkeypatch.setattr(T, "_log", lambda m: logged.append(m))
+    monkeypatch.setattr(T.I, "scenarios_awaiting_verification",
+                        lambda reg: [{"scenario": "cheapest-monitor", "slug": "cheapest-monitor",
+                                      "task": __import__("pathlib").Path("T999-uc-cheapest-monitor-verify.md")}])
+    monkeypatch.setattr(T.I, "find_initiative", lambda sid: None)
+    monkeypatch.setattr(T, "_run", lambda args, timeout_s: (1, ""))
+    monkeypatch.setattr(statusmod, "load", lambda: {"scenarios": {}})
+    monkeypatch.setattr(statusmod, "summary_line", lambda: "x")
+
+    out = T._retest_pending()
+    assert out.get("orphan") == []
+    assert "no apuntan a ningún caso" not in " ".join(logged)
