@@ -672,6 +672,37 @@ def find_duplicate(request: str, kind: str) -> str | None:
     return None
 
 
+# ATRIBUCIÓN: qué palabras de una alusión sirven para reconocer una tarea, y cuándo dos son LA MISMA cosa.
+#
+# V2-140 — criterio 2 del caso `three-tasks-at-once` («cada mensaje por alusión debe ir a la tarea CORRECTA»).
+# Medido con tres tareas vivas y las frases reales del caso, antes de tocar nada:
+#
+#     «¿y el del coche?»                        → ['t1','t2','t3']   (t1 = «informe sobre COCHES eléctricos»)
+#     «el del monitor, que sea de 27 pulgadas»  → ['t1','t2','t3']   (t2 = «un MONITOR barato de segunda mano»)
+#
+# Dos causas mecánicas, ninguna del modelo. La primera es la MISMA que costó dinero en V2-123 (`find_duplicate`
+# comparando «guitarra» con «(guitarra»): se troceaba por espacios sobre un `_norm` que solo quita acentos y
+# minusculiza, así que **la puntuación se quedaba pegada** — `coche?` y `monitor,`. Es la función hermana, en el
+# mismo fichero, y no se revisó entonces. La segunda es que el cruce era por igualdad exacta, así que `coche` no
+# reconocía `coches`: la persona alude en singular a algo que pidió en plural, que es lo normal al hablar.
+#
+# El emparejamiento por prefijo va ACOTADO a propósito — la atribución que se equivoca manda el refinamiento a
+# la tarea que no es, y eso es peor que no resolver: mínimo 4 caracteres de raíz y como mucho 3 de diferencia,
+# de modo que `coche`/`coches` e `informe`/`informes` casan y `coche`/`cocina` no.
+_REF_WORD_RE = re.compile(r"\w+", re.UNICODE)
+
+
+def _ref_words(text: str) -> set[str]:
+    return {w for w in _REF_WORD_RE.findall(text or "") if len(w) > 3}
+
+
+def _same_thing(a: str, b: str) -> bool:
+    if a == b:
+        return True
+    short, long_ = (a, b) if len(a) <= len(b) else (b, a)
+    return len(short) >= 4 and len(long_) - len(short) <= 3 and long_.startswith(short)
+
+
 def resolve_sessions(query: str) -> list[str]:
     """Referencia del operador → tid(s) vivos. '' / 'todo' → todas; una sola viva → esa; varias → por kind o
     solape de palabras con el goal; nada casa → todas (mejor parar de más que dejar zombies)."""
@@ -688,13 +719,12 @@ def resolve_sessions(query: str) -> list[str]:
         by_kind = [k for k in keys if (_SESSIONS[k].kind or "") in want]
         if by_kind:
             return by_kind
-    q_words = {w for w in q.split() if len(w) > 3}
+    q_words = _ref_words(q)
     scored = []
     for k in keys:
         r = _SESSIONS[k]
-        hay = _norm(f"{r.label} {r.goal}")
-        hay_words = {w for w in hay.split() if len(w) > 3}
-        scored.append((len(q_words & hay_words), k))
+        hay_words = _ref_words(_norm(f"{r.label} {r.goal}"))
+        scored.append((sum(1 for w in q_words if any(_same_thing(w, h) for h in hay_words)), k))
     scored.sort(reverse=True)
     if scored and scored[0][0] > 0:
         top = scored[0][0]

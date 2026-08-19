@@ -119,7 +119,10 @@ DOMAINS: list[dict] = [
             # en el escalón caro, y self-host SIN relevo de fábrica.
             "tests/agent_headless/unit/flash/test_voice_failover.py"]},
         {"id": "2.5", "title": "Escalado / dispatch / workers", "ch": UNIT, "paths": [
-            "tests/agent_headless/unit/flash/test_escalate.py", "tests/agent_headless/unit/test_dispatch.py", "tests/agent_headless/unit/workers/test_workers.py",
+            "tests/agent_headless/unit/flash/test_escalate.py", "tests/agent_headless/unit/test_dispatch.py",
+            # V2-140: an allusion («¿y el del coche?») must reach the task it names — the punctuation
+            # was glued to the word, the same defect V2-123 fixed in this file's sibling function.
+            "tests/agent_headless/unit/test_task_attribution.py", "tests/agent_headless/unit/workers/test_workers.py",
             # V2-139: the chain «móntame un widget» → code → GENERATOR backend → card on screen, walked.
             # V2-115 left this written down as its own primary open task: every link was tested in
             # isolation and the chain was not, which is what let a created widget be opened by nobody.
