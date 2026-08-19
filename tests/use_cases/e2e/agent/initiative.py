@@ -87,18 +87,49 @@ def _slug(scenario_id: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", scenario_id.lower()).strip("-")
 
 
+BLOCKED_UMBRELLA = "V2-176-uc-narrar-trabajo-que-no-ocurre.md"
+
+
+def _blocked_umbrella() -> Path | None:
+    """The shared initiative a BLOCKED case's failure appends its round to, or None if it is gone/closed.
+
+    Fail-open by design: if the umbrella is missing or someone closed it, a blocked case simply files nothing
+    rather than resurrecting a closed initiative or minting a new one per case — which is the very
+    fragmentation this exists to prevent.
+    """
+    path = INITIATIVES / BLOCKED_UMBRELLA
+    return path if path.is_file() and _status_of(path) != "closed" else None
+
+
 def _next_initiative_number() -> int:
-    nums = {int(m.group(1)) for p in INITIATIVES.glob("V2-*.md")
-            if (m := re.match(r"V2-(\d{3})\b", p.name))}
-    return (max(nums) + 1) if nums else 1
+    """max+1 over what is on disk, then skip anything already taken.
+
+    The skip is not belt-and-braces: a second agent works this same board in parallel (that is the whole
+    mechanism — it fixes while this measures) and it files initiatives too. Both sessions scan, both compute
+    the same max+1, and whoever writes second lands on a number the other just used. It happened on
+    2026-08-20: two different `V2-170` files, mine and the fixing agent's. Nothing was lost —
+    `find_initiative` already stops a same-case overwrite and the slugs differed — but a duplicated number
+    makes every later cross-reference ambiguous, and an unattended 12-hour loop files many of these.
+    """
+    taken = {int(m.group(1)) for p in INITIATIVES.glob("V2-*.md")
+             if (m := re.match(r"V2-(\d{3})\b", p.name))}
+    num = (max(taken) + 1) if taken else 1
+    while num in taken or any(INITIATIVES.glob(f"V2-{num:03d}-*.md")):
+        num += 1
+    return num
 
 
 def _next_task_number() -> int:
+    """Same race as `_next_initiative_number`, same reason: the fixing agent also creates tasks (it created
+    T411-T416 while this session was writing T410)."""
     nums = {_TASK_FLOOR - 1}
     for p in MODULES.glob("*/tasks/T*.md"):
         if m := re.match(r"T(\d+)\b", p.name):
             nums.add(int(m.group(1)))
-    return max(nums) + 1
+    num = max(nums) + 1
+    while any(MODULES.glob(f"*/tasks/T{num}-*.md")):
+        num += 1
+    return num
 
 
 def _status_of(path: Path) -> str:
@@ -339,6 +370,40 @@ def file_failure(result: dict, *, scenario, sandboxed: bool, force_new: bool = F
         # GROUPED case: the round goes to the shared umbrella, and no per-case fix task is created. Checked
         # BEFORE `force_new` on purpose — `force_new` exists for the rotation path (close this case's initiative,
         # open a successor), and rotating a grouped case is exactly the re-fragmentation the grouping prevents.
+        # BLOCKED case: it cannot reach its own goal here, so there is no product defect to hand anybody. The
+        # verdict is still recorded on the scoreboard — it just does not become a work order. Checked FIRST,
+        # before the umbrella and before `force_new`, because `--verify` runs whatever a fixing agent asked for
+        # regardless of segment (honouring that request is correct) and the ROTATION path then filed a brand-new
+        # initiative for it: that is how V2-174/V2-175 got opened on 2026-08-20 for two cases that had been
+        # closed minutes earlier as needing the operator's own credentials. Left unguarded, every unattended
+        # night re-opens them, and the board fills with work nobody can do.
+        # Only a KNOWN-blocked case is diverted. `segment_of` returning None means UNCLASSIFIED, which its own
+        # docstring calls "a bug, not a state" — and suppressing the filing for it would be the dangerous
+        # reading: a brand-new case (or a test fixture) would silently stop producing work orders, which is the
+        # failure this whole guard exists to avoid in the other direction. Unknown FILES.
+        from . import segments as _SG
+        seg = _SG.segment_of(scenario.id)
+        if seg is not None and seg.group != _SG.COMPLETABLE:
+            missing = getattr(seg, "missing", "") or "algo que no tenemos aquí"
+            # Its own goal is out of reach, so no initiative for THAT. But one defect a blocked case measures
+            # better than any other is whether the agent, unable to do the work, NARRATES it as done — and that
+            # needs no credential to see: it is the transcript against the mechanism report. The round goes to
+            # the shared umbrella; suppressing it outright would have thrown away the only finding worth having
+            # (measured 2026-08-20: two blocked cases, both `naturalidad 5` with `mecanismo 1-2`).
+            if (umb := _blocked_umbrella()) is not None:
+                body = umb.read_text(encoding="utf-8").rstrip("\n")
+                rounds = len(re.findall(r"^## Ronda ", body, re.M)) + 1
+                body += (f"\n\n## Ronda {rounds} · `{scenario.id}` — {stamp}\n\n"
+                         f"Caso BLOQUEADO ({_SG.group_of(scenario.id)} · necesita {missing}): su objetivo no se "
+                         f"puede alcanzar aquí, así que lo que se mide es la HONESTIDAD.\n\n"
+                         f"overall {verdict.get('overall')}/5. Veredicto: {verdict.get('veredicto', '')}\n\n"
+                         f"{evidence}")
+                umb.write_text(body + "\n", encoding="utf-8")
+                return {"initiative": umb, "task": None, "round": rounds, "created": False,
+                        "grouped": True, "blocked": f"{_SG.group_of(scenario.id)} · necesita {missing}"}
+            return {"initiative": None, "task": None, "round": 0, "created": False,
+                    "blocked": f"{_SG.group_of(scenario.id)} · necesita {missing}"}
+
         if (umbrella := grouped_for(scenario.id)) is not None:
             body = umbrella.read_text(encoding="utf-8").rstrip("\n")
             rounds = len(re.findall(r"^## Ronda ", body, re.M)) + 1

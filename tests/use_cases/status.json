@@ -38,17 +38,17 @@
       }
     },
     "restaurant-tonight-madrid": {
-      "last_run": "2026-08-19 20:44",
-      "overall": 1,
+      "last_run": "2026-08-20 01:01",
+      "overall": 3,
       "state": "FAIL",
       "scores": {
-        "naturalidad": 2,
-        "adaptacion": 1,
-        "resultado": 1,
-        "mecanismo": 2,
-        "eficiencia": 1
+        "naturalidad": 4,
+        "adaptacion": 5,
+        "resultado": 3,
+        "mecanismo": 4,
+        "eficiencia": 2
       },
-      "verdict": "No está listo para producción. El bloqueador nº1 es la alucinación de contexto: el asistente negó una orden explícita y cambió de tema sin estímulo externo, seguido de una incapacidad para reflejar fallos técnicos reales (falta de navegador) al usuario.",
+      "verdict": "El caso es funcional pero ineficiente; el bloqueador principal no es la capacidad técnica, sino la estrategia de feedback y resiliencia ante fallos de carga de terceros (TheFork).",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
@@ -98,42 +98,56 @@
       }
     },
     "build-workout-tracker-widget": {
-      "last_run": "2026-08-19 02:47",
-      "overall": null,
-      "state": "INFRA",
-      "scores": {},
-      "verdict": "INFRA: HTTP Error 403: Forbidden",
+      "last_run": "2026-08-20 01:01",
+      "overall": 5,
+      "state": "PASS",
+      "scores": {
+        "naturalidad": 5,
+        "adaptacion": 5,
+        "resultado": 5,
+        "mecanismo": 5,
+        "eficiencia": 5
+      },
+      "verdict": "Sí, está listo para producción. La ejecución es impecable: generó el widget real, sin latencias excesivas, con una interacción natural y las señales del sistema confirman que la tarea se completó correctamente.",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
-      "turns_used": 0,
-      "families": [],
+      "turns_used": 4,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-125-uc-build-workout-tracker-widget.md",
         "task": ""
       }
     },
     "remember-and-remind-deadline": {
-      "last_run": "2026-08-19 20:44",
-      "overall": 2,
+      "last_run": "2026-08-20 01:01",
+      "overall": 1,
       "state": "FAIL",
       "scores": {
-        "naturalidad": 5,
-        "adaptacion": 4,
+        "naturalidad": 2,
+        "adaptacion": 1,
         "resultado": 1,
-        "mecanismo": 1,
-        "eficiencia": 3
+        "mecanismo": 2,
+        "eficiencia": 1
       },
-      "verdict": "El caso NO está listo para producción. El bloqueador nº1 es la incapacidad del sistema para programar eventos en el futuro (falla el cálculo de fecha), resultando en un recordatorio que dispara de forma inmediata en lugar de esperar al miércoles.",
+      "verdict": "El caso NO está listo para producción: el agente miente sobre el resultado prometido (agenda) y falla en capturar la intención real del usuario frente a su 'ruido' conversacional.",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
-      "turns_used": 2,
+      "turns_used": 5,
       "families": [
         "flash",
         "memory",
         "system",
-        "widget"
+        "widget",
+        "worker"
       ],
       "drive_model": "deepseek-directo",
       "workspace": {
@@ -142,23 +156,35 @@
       }
     },
     "cancel-subscription-before-charge__es": {
-      "last_run": "2026-08-19 02:34",
-      "overall": null,
-      "state": "INFRA",
-      "scores": {},
-      "verdict": "INFRA: HTTP Error 403: Forbidden",
+      "last_run": "2026-08-20 01:01",
+      "overall": 3,
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 5,
+        "adaptacion": 4,
+        "resultado": 2,
+        "mecanismo": 2,
+        "eficiencia": 4
+      },
+      "verdict": "El caso NO está listo para producción porque el sistema simuló una interacción de navegación (login y clicks) que el reporte de mecanismo demuestra que no ocurrió; el agente 'soñó' la sesión del usuario.",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
-      "turns_used": 0,
-      "families": [],
+      "turns_used": 8,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
       "data_limit": {
         "kind": "no_account",
         "missing": "una suscripción real y acceso a esa cuenta"
       },
       "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-126-uc-cancel-subscription-before-charge-es.md",
-        "task": ""
+        "initiative": ".meshkore/roadmap/initiatives/V2-172-uc-cancel-subscription-before-charge-es.md",
+        "task": ".meshkore/modules/nucleo/tasks/T420-uc-cancel-subscription-before-charge-es-fix.md"
       }
     },
     "reorder-prescription__es": {
@@ -228,23 +254,36 @@
       }
     },
     "renew-gym-membership__es": {
-      "last_run": "2026-08-19 01:45",
-      "overall": null,
-      "state": "INFRA",
-      "scores": {},
-      "verdict": "INFRA: IncompleteRead(5 bytes read)",
+      "last_run": "2026-08-20 01:01",
+      "overall": 2,
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 5,
+        "adaptacion": 4,
+        "resultado": 1,
+        "mecanismo": 1,
+        "eficiencia": 1
+      },
+      "verdict": "No está listo para producción. El agente ha generado una simulación de conversación competente mientras el sistema subyacente no hacía nada, lo que constituye un fallo crítico de alucinación de capacidad (halucination of competence).",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
-      "turns_used": 0,
-      "families": [],
+      "turns_used": 8,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
       "data_limit": {
         "kind": "no_account",
         "missing": "una cuota de gimnasio real y una cuenta en su web"
       },
       "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-129-uc-renew-gym-membership-es.md",
-        "task": ""
+        "initiative": ".meshkore/roadmap/initiatives/V2-173-uc-renew-gym-membership-es.md",
+        "task": ".meshkore/modules/nucleo/tasks/T421-uc-renew-gym-membership-es-fix.md"
       }
     },
     "book-barber-slot__es": {
@@ -280,17 +319,17 @@
       }
     },
     "book-hotel-night-known__es": {
-      "last_run": "2026-08-19 20:44",
+      "last_run": "2026-08-20 01:01",
       "overall": 2,
       "state": "FAIL",
       "scores": {
-        "naturalidad": 4,
-        "adaptacion": 4,
+        "naturalidad": 2,
+        "adaptacion": 5,
         "resultado": 1,
         "mecanismo": 1,
         "eficiencia": 2
       },
-      "verdict": "El caso NO está listo para producción. El bloqueador nº1 es la desconexión total entre el discurso de Za elar ('agotado', 'limitaciones') y la realidad del mecanismo (no hay intentos de búsqueda reales, contaminación de contexto externo y falta de signals de error). Se comporta como si tuviera herramientas cuando no, e inventa datos para cubrir el hueco.",
+      "verdict": "El caso NO está listo para producción. El bloqueador nº1 es la incapacidad del sistema para detectar y comunicar un fallo de navegación irreconciliable (CAPTCHAs/Error de carga), optando por mantener una falsa promesa de 'espera' infinita en lugar de admitir el fallo y cerrar o pivotear la acción.",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
@@ -323,21 +362,21 @@
       "tier": 1
     },
     "find-theatre-tickets__es": {
-      "last_run": "2026-08-19 20:44",
-      "overall": 1,
+      "last_run": "2026-08-20 01:01",
+      "overall": 2,
       "state": "FAIL",
       "scores": {
-        "naturalidad": 3,
-        "adaptacion": 2,
+        "naturalidad": 4,
+        "adaptacion": 5,
         "resultado": 1,
-        "mecanismo": 2,
-        "eficiencia": 1
+        "mecanismo": 1,
+        "eficiencia": 2
       },
-      "verdict": "No está listo para producción; el fallo principal es la desconexión total entre el estado interno del sistema (bloqueo/fin) y la respuesta externa al usuario, resultando en un comportamiento halucinatorio de búsqueda continua y un silencio final inaceptable.",
+      "verdict": "No está listo para producción. El bloqueador nº1 es la incapacidad del 'worker' para reconocer que ha llegado a la página destino y extraer los datos (parsing), quedándose en un bucle infinito de 'buscando' sin generar resultados, a pesar de haber navegado correctamente a la URL.",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
-      "turns_used": 10,
+      "turns_used": 7,
       "families": [
         "flash",
         "memory",
@@ -381,5 +420,5 @@
       "drive_model": "deepseek-directo"
     }
   },
-  "updated": "2026-08-20 00:27"
+  "updated": "2026-08-20 01:01"
 }

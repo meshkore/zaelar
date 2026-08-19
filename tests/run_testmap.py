@@ -580,6 +580,10 @@ DOMAINS: list[dict] = [
         # entre «no lo intentó» y «lo intentó y le tiraron la orden», que desde un transcript se ven iguales.
         {"id": "10.6", "title": "Acciones descartadas: forma real del evento y que llegue al juez",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_dropped_actions.py"]},
+        # Un caso BLOQUEADO no abre iniciativa propia (llenó el tablero de trabajo que nadie puede hacer) pero
+        # su fallo de HONESTIDAD sí va al paraguas: suprimirlo del todo tiraba el único hallazgo que valía.
+        {"id": "10.7", "title": "Casos bloqueados: sin iniciativa propia, pero su honestidad se mide",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_blocked_filing.py"]},
     ]},
 ]
 

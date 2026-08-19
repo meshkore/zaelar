@@ -122,6 +122,21 @@ def _unrun_scenarios() -> list:
     return out
 
 
+def fake_blocked(sid: str, e: dict) -> dict:
+    """Rebuild a result dict from the ledger row, for a BLOCKED case's round in the shared umbrella.
+
+    Same shape (and same reason) as the rotation path's `fake`: the full run dict lives in the child process,
+    and the round only needs the verdict and the mechanism summary.
+    """
+    return {"scenario": sid, "tier": e.get("tier"),
+            "run": {"transcript": [], "turns_used": e.get("turns_used"),
+                    "mechanism_report": {"missing_signals": e.get("missing_signals") or [],
+                                         "families_observed": e.get("families") or []},
+                    "watchdog_log": []},
+            "verdict": {"overall": e.get("overall"), "scores": e.get("scores") or {},
+                        "findings": [], "improvements": [], "veredicto": e.get("verdict", "")}}
+
+
 def _retest_pending() -> dict:
     """Step 1: run every case the dev agent has answered, then rotate or close each.
 
@@ -152,7 +167,7 @@ def _retest_pending() -> dict:
     _log(f"paso 1 · terminado rc={rc}")
 
     led = statusmod.load().get("scenarios") or {}
-    passed, rotated, inconclusive = [], [], []
+    passed, rotated, inconclusive, blocked = [], [], [], []
     for p in ready:
         sid = p["scenario"]
         e = led.get(sid) or {}
@@ -166,6 +181,15 @@ def _retest_pending() -> dict:
             # the evidence — it is made by reading the umbrella's rounds, not by the tick guessing.
             if I.grouped_for(sid) is not None:
                 rotated.append(f"{sid} → ronda en {I.grouped_for(sid).name} (agrupado, no rota)")
+                continue
+            # A BLOCKED case does not become a work order either (see `initiative.file_failure`). Said here too
+            # so the tick's own log names it instead of going quiet about a case it just re-ran.
+            seg = SG.segment_of(sid)
+            if seg is not None and seg.group != SG.COMPLETABLE:
+                res = I.file_failure(fake_blocked(sid, e), scenario=SC.registry()[sid], sandboxed=True)
+                where = res["initiative"].name if res.get("initiative") else "sin iniciativa"
+                blocked.append(f"{sid} ({SG.group_of(sid)} · necesita "
+                               f"{getattr(seg, 'missing', '') or 'algo que no tenemos aquí'}) → {where}")
                 continue
             # Re-file from the ledger's summary: the full run dict lives in the child process, and the
             # initiative's own round already carries the transcript the runner appended.
@@ -191,10 +215,14 @@ def _retest_pending() -> dict:
         _log(f"paso 1 · PASAN y se cierran: {', '.join(passed)}")
     if rotated:
         _log(f"paso 1 · siguen fallando → iniciativa NUEVA: {'; '.join(rotated)}")
+    if blocked:
+        _log(f"paso 1 · BLOQUEADOS (su objetivo no se alcanza aquí; solo se mide la HONESTIDAD, y la ronda "
+             f"va al paraguas compartido): {'; '.join(blocked)}")
     if inconclusive:
         _log(f"paso 1 · NO CONCLUYENTE (fallo de arnés, ni cierra ni rota; hace falta una tarea de verify NUEVA): "
              f"{', '.join(inconclusive)}")
-    return {"retested": len(ready), "passed": passed, "rotated": rotated, "inconclusive": inconclusive}
+    return {"retested": len(ready), "passed": passed, "rotated": rotated,
+            "inconclusive": inconclusive, "blocked": blocked}
 
 
 def _top_up() -> dict:
