@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-19 12:17**
+Last updated: **2026-08-19 18:10**
 
 `✅ PASS` = judge overall ≥ 4 · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -16,18 +16,18 @@ the operator's live one.
 | ⚠️ | `build-workout-tracker-widget` | 1 | — | 2026-08-19 02:47 | yes | INFRA: HTTP Error 403: Forbidden |
 | ⚠️ | `buy-known-product__es` | 1 | — | 2026-08-18 20:51 | yes | INFRA: 'list' object has no attribute 'strip' |
 | ⚠️ | `cancel-subscription-before-charge__es` | 1 | — | 2026-08-19 02:34 | yes | INFRA: HTTP Error 403: Forbidden |
-| ⚠️ | `find-theatre-tickets__es` | 1 | — | 2026-08-19 12:17 | yes | INFRA: DRIVE sin escalón disponible → deepseek-directo: <urlopen error [Errno 8] nodename nor servname provided, or not known> · reintento: <urlopen error [E… |
-| ⚠️ | `pay-known-bill__es` | 1 | — | 2026-08-19 12:17 | yes | INFRA: DRIVE sin escalón disponible → deepseek-directo: IncompleteRead(0 bytes read) · reintento: The read operation timed out ;; aimlapi: <urlopen error [Er… |
+| ❌ | `find-theatre-tickets__es` | 1 | 1 | 2026-08-19 18:10 | yes | El caso de uso NO está listo para producción: el asistente sufrió una 'alucinación de ejecución', afirmando buscar entradas de teatro mientras el sistema int… |
+| ❌ | `pay-known-bill__es` | 1 | 2 | 2026-08-19 18:10 | yes | No está listo para producción. El bloqueador nº1 es la incapacidad de reconocer límites (falta de credenciales), lo que lleva a prometer y 'narrar' acciones … |
 | ✅ | `quick-fact-opening-hours` | 1 | 5 | 2026-08-19 02:03 | yes | Sí, está listo para producción: zaelar resolvió la consulta con éxito máximo en el primer turno, usando la vía eficiente (búsqueda web) sin desperdiciar recu… |
-| ❌ | `remember-and-remind-deadline` | 1 | 2 | 2026-08-19 12:17 | yes | NO listo para producción: el asistente miente confiadamente al usuario al afirmar que una tarea está completa cuando el sistema no la ha registrado ni progra… |
+| ❌ | `remember-and-remind-deadline` | 1 | 2 | 2026-08-19 16:56 | yes | No está listo para producción: el sistema falla en la lógica básica de programación (no respeta el día del aviso) y altera la fecha de los eventos sin valida… |
 | ⚠️ | `renew-gym-membership__es` | 1 | — | 2026-08-19 01:45 | yes | INFRA: IncompleteRead(5 bytes read) |
-| ⚠️ | `reorder-prescription__es` | 1 | — | 2026-08-19 12:17 | yes | INFRA: DRIVE sin escalón disponible → deepseek-directo: <urlopen error [Errno 8] nodename nor servname provided, or not known> · reintento: <urlopen error [E… |
-| ⚠️ | `restaurant-tonight-madrid` | 1 | — | 2026-08-19 12:17 | yes | INFRA: DRIVE sin escalón disponible → deepseek-directo: <urlopen error [Errno 8] nodename nor servname provided, or not known> · reintento: <urlopen error [E… |
-| ⚠️ | `three-tasks-at-once` | 4 | — | 2026-08-19 12:17 | yes | INFRA: DRIVE sin escalón disponible → deepseek-directo: <urlopen error [Errno 8] nodename nor servname provided, or not known> · reintento: <urlopen error [E… |
+| ❌ | `reorder-prescription__es` | 1 | 4 | 2026-08-19 18:10 | yes | No. El comportamiento textual es impecable (manejo de ambigüedad y honestidad), pero el sistema reporta un estado de 'trabajo' activo ('working') con cero ac… |
+| ❌ | `restaurant-tonight-madrid` | 1 | 3 | 2026-08-19 18:10 | yes | El caso NO está listo para producción: el sistema tiene una desconexión crítica ('split brain') entre el éxito/fallo de la herramienta del navegador (que fun… |
+| ❌ | `three-tasks-at-once` | 4 | 2 | 2026-08-19 18:10 | yes | No está listo para producción. El bloqueador nº1 es la desincronización crítica entre el 'discurso' del asistente (que afirma hacer todo) y el 'mecanismo' re… |
 
-**2 passing · 2 failing · 9 infra** of 13 scenarios with a recorded result.
+**2 passing · 7 failing · 4 infra** of 13 scenarios with a recorded result.
 
-## Catalog coverage — 13 of 119 scenarios ever run (106 never run)
+## Catalog coverage — 13 of 125 scenarios ever run (112 never run)
 
 An unrun case is **not** a passing one. This is the walk's progress board.
 
@@ -37,8 +37,8 @@ An unrun case is **not** a passing one. This is the walk's progress board.
 | 1 | us | 0 | 9 | 0 |
 | 2 | es | 0 | 22 | 0 |
 | 2 | us | 0 | 21 | 0 |
-| 3 | es | 0 | 6 | 0 |
-| 3 | us | 0 | 6 | 0 |
+| 3 | es | 0 | 10 | 0 |
+| 3 | us | 0 | 8 | 0 |
 | 4 | es | 1 | 7 | 0 |
 | 4 | us | 0 | 6 | 0 |
 | 5 | es | 0 | 6 | 0 |
@@ -70,4 +70,15 @@ One initiative per use case — that initiative IS the workspace for it, and it 
 | scenario | initiative (the workspace) | fix task |
 |---|---|---|
 | `book-hotel-night-known__es` | `.meshkore/roadmap/initiatives/V2-145-uc-book-hotel-night-known-es.md` | `` |
-| `remember-and-remind-deadline` | `.meshkore/roadmap/initiatives/V2-146-uc-remember-and-remind-deadline.md` | `` |
+| `find-theatre-tickets__es` | `.meshkore/roadmap/initiatives/V2-147-uc-find-theatre-tickets-es.md` | `` |
+| `pay-known-bill__es` | `.meshkore/roadmap/initiatives/V2-148-uc-pay-known-bill-es.md` | `` |
+| `remember-and-remind-deadline` | `.meshkore/roadmap/initiatives/V2-151-uc-remember-and-remind-deadline.md` | `` |
+| `reorder-prescription__es` | `.meshkore/roadmap/initiatives/V2-142-uc-reorder-prescription-es.md` | `` |
+| `restaurant-tonight-madrid` | `.meshkore/roadmap/initiatives/V2-150-uc-restaurant-tonight-madrid.md` | `` |
+| `three-tasks-at-once` | `.meshkore/roadmap/initiatives/V2-140-uc-three-tasks-at-once.md` | `` |
+
+## Multi-flow scenarios (concurrency measured live, from `/api/tasks`)
+
+| scenario | max concurrent tasks | distinct worker kinds |
+|---|---|---|
+| `three-tasks-at-once` | 2 | web |

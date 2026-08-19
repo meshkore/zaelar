@@ -1,40 +1,70 @@
 {
   "scenarios": {
     "three-tasks-at-once": {
-      "last_run": "2026-08-19 12:17",
-      "overall": null,
-      "state": "INFRA",
-      "scores": {},
-      "verdict": "INFRA: DRIVE sin escalón disponible → deepseek-directo: <urlopen error [Errno 8] nodename nor servname provided, or not known> | reintento: <urlopen error [Errno 8] nodename nor servname provided, or not known> ;; aimlapi: <urlopen error [Errno 8] nodename nor servname provided, or not known> | reintento: <urlopen error [Errno 8] nodename nor servname provided, or not known> ;; último recurso · an",
+      "last_run": "2026-08-19 18:10",
+      "overall": 2,
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 2,
+        "adaptacion": 1,
+        "resultado": 2,
+        "mecanismo": 1,
+        "eficiencia": 2,
+        "atribucion": 2,
+        "fluidez": 2
+      },
+      "verdict": "No está listo para producción. El bloqueador nº1 es la desincronización crítica entre el 'discurso' del asistente (que afirma hacer todo) y el 'mecanismo' real (que no ejecuta la tercera tarea y pierde el contexto de la primera).",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 4,
-      "turns_used": 0,
-      "families": [],
-      "drive_model": "",
+      "turns_used": 14,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
+      "max_concurrent": 2,
+      "distinct_kinds": [
+        "web"
+      ],
       "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-136-uc-three-tasks-at-once.md",
+        "initiative": ".meshkore/roadmap/initiatives/V2-140-uc-three-tasks-at-once.md",
         "task": ""
       }
     },
     "restaurant-tonight-madrid": {
-      "last_run": "2026-08-19 12:17",
-      "overall": null,
-      "state": "INFRA",
-      "scores": {},
-      "verdict": "INFRA: DRIVE sin escalón disponible → deepseek-directo: <urlopen error [Errno 8] nodename nor servname provided, or not known> | reintento: <urlopen error [Errno 8] nodename nor servname provided, or not known> ;; aimlapi: <urlopen error [Errno 8] nodename nor servname provided, or not known> | reintento: <urlopen error [Errno 8] nodename nor servname provided, or not known> ;; último recurso · an",
+      "last_run": "2026-08-19 18:10",
+      "overall": 3,
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 4,
+        "adaptacion": 4,
+        "resultado": 2,
+        "mecanismo": 2,
+        "eficiencia": 2
+      },
+      "verdict": "El caso NO está listo para producción: el sistema tiene una desconexión crítica ('split brain') entre el éxito/fallo de la herramienta del navegador (que funcionó bien y rápido) y la narrativa verbal del modelo (que ignoró el resultado para inventar una carga falsa de trabajo).",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
-      "turns_used": 0,
-      "families": [],
-      "drive_model": "",
+      "turns_used": 8,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
       "data_limit": {
         "kind": "no_booking",
         "missing": "cerrar la mesa (teléfono o cuenta en la plataforma)"
       },
       "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-137-uc-restaurant-tonight-madrid.md",
+        "initiative": ".meshkore/roadmap/initiatives/V2-150-uc-restaurant-tonight-madrid.md",
         "task": ""
       }
     },
@@ -82,17 +112,17 @@
       }
     },
     "remember-and-remind-deadline": {
-      "last_run": "2026-08-19 12:17",
+      "last_run": "2026-08-19 16:56",
       "overall": 2,
       "state": "FAIL",
       "scores": {
-        "naturalidad": 5,
-        "adaptacion": 5,
+        "naturalidad": 4,
+        "adaptacion": 3,
         "resultado": 1,
         "mecanismo": 1,
-        "eficiencia": 5
+        "eficiencia": 2
       },
-      "verdict": "NO listo para producción: el asistente miente confiadamente al usuario al afirmar que una tarea está completa cuando el sistema no la ha registrado ni programado (fallo de integridad crítica).",
+      "verdict": "No está listo para producción: el sistema falla en la lógica básica de programación (no respeta el día del aviso) y altera la fecha de los eventos sin validación, incumpliendo el objetivo principal.",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
@@ -106,7 +136,7 @@
       ],
       "drive_model": "deepseek-directo",
       "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-146-uc-remember-and-remind-deadline.md",
+        "initiative": ".meshkore/roadmap/initiatives/V2-151-uc-remember-and-remind-deadline.md",
         "task": ""
       }
     },
@@ -131,17 +161,29 @@
       }
     },
     "reorder-prescription__es": {
-      "last_run": "2026-08-19 12:17",
-      "overall": null,
-      "state": "INFRA",
-      "scores": {},
-      "verdict": "INFRA: DRIVE sin escalón disponible → deepseek-directo: <urlopen error [Errno 8] nodename nor servname provided, or not known> | reintento: <urlopen error [Errno 8] nodename nor servname provided, or not known> ;; aimlapi: <urlopen error [Errno 8] nodename nor servname provided, or not known> | reintento: <urlopen error [Errno 8] nodename nor servname provided, or not known> ;; último recurso · an",
+      "last_run": "2026-08-19 18:10",
+      "overall": 4,
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 5,
+        "adaptacion": 5,
+        "resultado": 5,
+        "mecanismo": 1,
+        "eficiencia": 5
+      },
+      "verdict": "No. El comportamiento textual es impecable (manejo de ambigüedad y honestidad), pero el sistema reporta un estado de 'trabajo' activo ('working') con cero actividad de fondo ('events': []), lo que indica una desincronización crítica entre lo que dice y lo que hace el sistema.",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
-      "turns_used": 0,
-      "families": [],
-      "drive_model": "",
+      "turns_used": 8,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
       "data_limit": {
         "kind": "no_account",
         "missing": "una farmacia habitual y una receta real"
@@ -152,23 +194,35 @@
       }
     },
     "pay-known-bill__es": {
-      "last_run": "2026-08-19 12:17",
-      "overall": null,
-      "state": "INFRA",
-      "scores": {},
-      "verdict": "INFRA: DRIVE sin escalón disponible → deepseek-directo: IncompleteRead(0 bytes read) | reintento: The read operation timed out ;; aimlapi: <urlopen error [Errno 8] nodename nor servname provided, or not known> | reintento: <urlopen error [Errno 8] nodename nor servname provided, or not known> ;; último recurso · anthropic/claude-haiku-4.5: <urlopen error [Errno 8] nodename nor servname provided, o",
+      "last_run": "2026-08-19 18:10",
+      "overall": 2,
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 4,
+        "adaptacion": 3,
+        "resultado": 1,
+        "mecanismo": 1,
+        "eficiencia": 2
+      },
+      "verdict": "No está listo para producción. El bloqueador nº1 es la incapacidad de reconocer límites (falta de credenciales), lo que lleva a prometer y 'narrar' acciones que el sistema no puede ejecutar, inventando una realidad que no se corresponde con el mecanismo.",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
-      "turns_used": 0,
-      "families": [],
-      "drive_model": "",
+      "turns_used": 8,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
       "data_limit": {
         "kind": "no_account",
         "missing": "una factura real y acceso al proveedor/banco"
       },
       "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-141-uc-pay-known-bill-es.md",
+        "initiative": ".meshkore/roadmap/initiatives/V2-148-uc-pay-known-bill-es.md",
         "task": ""
       }
     },
@@ -268,26 +322,38 @@
       "tier": 1
     },
     "find-theatre-tickets__es": {
-      "last_run": "2026-08-19 12:17",
-      "overall": null,
-      "state": "INFRA",
-      "scores": {},
-      "verdict": "INFRA: DRIVE sin escalón disponible → deepseek-directo: <urlopen error [Errno 8] nodename nor servname provided, or not known> | reintento: <urlopen error [Errno 8] nodename nor servname provided, or not known> ;; aimlapi: <urlopen error [Errno 8] nodename nor servname provided, or not known> | reintento: <urlopen error [Errno 8] nodename nor servname provided, or not known> ;; último recurso · an",
+      "last_run": "2026-08-19 18:10",
+      "overall": 1,
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 3,
+        "adaptacion": 1,
+        "resultado": 1,
+        "mecanismo": 1,
+        "eficiencia": 1
+      },
+      "verdict": "El caso de uso NO está listo para producción: el asistente sufrió una 'alucinación de ejecución', afirmando buscar entradas de teatro mientras el sistema intentaba reservar un restaurante irrelevante, y falló en completar el objetivo principal sin reconocer el error.",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
-      "turns_used": 0,
-      "families": [],
-      "drive_model": "",
+      "turns_used": 10,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
       "data_limit": {
         "kind": "no_booking",
         "missing": "comprar las entradas (cuenta y tarjeta)"
       },
       "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-132-uc-find-theatre-tickets-es.md",
+        "initiative": ".meshkore/roadmap/initiatives/V2-147-uc-find-theatre-tickets-es.md",
         "task": ""
       }
     }
   },
-  "updated": "2026-08-19 12:17"
+  "updated": "2026-08-19 18:10"
 }

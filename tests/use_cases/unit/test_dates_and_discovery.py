@@ -82,3 +82,26 @@ def test_los_casos_de_descubrimiento_traen_su_contrato_completo():
         assert "widget nuevo" in low or "new widget" in low, (
             f"{s.id}: el criterio no dice que crear un widget nuevo es un fallo (V2-115)")
     assert {s.locale for s in DISC.SCENARIOS} == {"es", "us"}, "la familia tiene que cubrir ES y EN"
+
+
+def test_un_pass_no_puede_tapar_un_mecanismo_roto():
+    """Overall alto + mecanismo 1-2 = FAIL, no PASS.
+
+    Caso REAL que lo motivó (2026-08-19, `reorder-prescription__es`): conducta impecable —5 en naturalidad,
+    adaptación y resultado— con **mecanismo 1**, y el juez escribiendo «desincronización crítica: reporta
+    estado 'working' con cero actividad de fondo». El umbral agregado lo cerró como PASADO y tiró ese hallazgo.
+    La regla fundacional del arnés es que el mecanismo manda sobre el texto; esto la aplica al marcador.
+    """
+    from tests.use_cases.e2e.agent import status as S
+
+    base = {"run": {}, "verdict": {"veredicto": "ok"}}
+    roto = {**base, "verdict": {"veredicto": "ok", "scores": {"naturalidad": 5, "resultado": 5, "mecanismo": 1}}}
+    sano = {**base, "verdict": {"veredicto": "ok", "scores": {"naturalidad": 5, "resultado": 5, "mecanismo": 4}}}
+    assert S._state(4, roto) == "FAIL", "un mecanismo roto no puede salir en verde"
+    assert S._state(4, sano) == "PASS"
+    assert S._state(5, {**base, "verdict": {"veredicto": "ok", "scores": {"mecanismo": 2}}}) == "FAIL"
+    # Sin nota de mecanismo (casos puramente conversacionales) el umbral sigue mandando: la guarda no puede
+    # convertir "no medido" en "roto".
+    assert S._state(4, {**base, "verdict": {"veredicto": "ok", "scores": {"naturalidad": 4}}}) == "PASS"
+    # Y un INFRA sigue siendo INFRA, nunca FAIL — eso ya era la regla y no debe romperse por este cambio.
+    assert S._state(None, base) == "INFRA"

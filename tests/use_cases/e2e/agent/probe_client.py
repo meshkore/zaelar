@@ -78,6 +78,22 @@ def recall(query: str, k: int = 8) -> list[dict]:
     return r if isinstance(r, list) else []
 
 
+def hard_reset() -> dict:
+    """Deja el motor LIMPIO entre casos: mata el trabajo de fondo, cierra el canvas y rota la sesión.
+
+    Existe por una contaminación MEDIDA (2026-08-19): una tanda comparte UN sandbox, y en
+    `find-theatre-tickets__es` el juez vio que «el sistema intentaba reservar un restaurante irrelevante» —
+    era la tarea viva del caso ANTERIOR (`restaurant-tonight-madrid`) del mismo lote. O sea que el caso no se
+    midió a sí mismo: se midió arrastrando el trabajo del vecino. `reset(session)` no vale para esto, solo
+    limpia la ventana conversacional; los workers, las tareas y el canvas siguen ahí.
+
+    NO borra memoria a propósito (`/reset/hard`, no `/api/reset/full` con `wipe_memory`): borrarla exige matar
+    el proceso y, además, los casos de descubrimiento SIEMBRAN preferencias que tienen que sobrevivir a esto —
+    se siembran después, ya dentro del caso.
+    """
+    return _post("/reset/hard", {}, timeout=60.0)
+
+
 def flow(corr_id: str) -> list[dict]:
     """The full durable event sequence for one trace id, in order — the ground truth for "what actually
     fired", independent of anything the agent claimed in its reply text."""

@@ -93,6 +93,16 @@ def _state(overall, r: dict) -> str:
         return "INFRA"
     if overall is None:
         return "INFRA"
+    # El MECANISMO manda sobre la nota agregada. Medido el 2026-08-19: `reorder-prescription__es` sacó overall 4
+    # (conducta impecable: 5 en naturalidad, adaptación y resultado) con **mecanismo 1**, y el propio juez
+    # escribió «desincronización crítica: el sistema reporta estado 'working' con cero actividad de fondo». El
+    # umbral agregado lo cerró como PASADO y tiró ese hallazgo a la basura. La regla fundacional de este arnés
+    # es que el informe de mecanismo es la fuente de verdad sobre el texto (ver el docstring de judge.py), así
+    # que un 1-2 en mecanismo NO puede salir en verde aunque la media dé: sigue habiendo un defecto medido, y su
+    # sitio es una iniciativa, no un tick verde.
+    mech_score = ((r.get("verdict") or {}).get("scores") or {}).get("mecanismo")
+    if overall >= PASS_THRESHOLD and isinstance(mech_score, (int, float)) and mech_score <= 2:
+        return "FAIL"
     return "PASS" if overall >= PASS_THRESHOLD else "FAIL"
 
 

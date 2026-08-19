@@ -165,6 +165,20 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
                   f"correr — se retoman con --start-at {scenario.id}")
             break
         print(f"\n▶ scenario: {scenario.id} (tier {scenario.tier}, {scenario.locale}, {scenario.channel})")
+        # AISLAR los casos entre sí. Una tanda comparte UN sandbox (arrancar uno por caso costaría ~16s de boot
+        # + prewarm cada vez), pero compartir el motor NO puede significar compartir el TRABAJO: medido el
+        # 2026-08-19, en `find-theatre-tickets__es` el juez vio que «el sistema intentaba reservar un
+        # restaurante irrelevante» — era la tarea viva de `restaurant-tonight-madrid`, el caso anterior del
+        # mismo lote. Ese caso no se midió a sí mismo. `probe_client.reset()` no bastaba: limpia la ventana
+        # conversacional y deja vivos los workers, las tareas y el canvas.
+        if results:
+            try:
+                probe_client.hard_reset()
+                time.sleep(2.0)          # el kill de grupo y el cierre del canvas no son instantáneos
+                print("  ▸ motor reseteado (sin trabajo ni canvas del caso anterior)")
+            except Exception as e:
+                print(f"  ⚠️ no pude resetear el motor entre casos: {e} — este caso puede arrastrar "
+                      f"trabajo del anterior")
         try:
             results.append(_run_scenario(scenario))
         except Exception as e:  # one scenario's infra hiccup must not lose the whole batch's report
