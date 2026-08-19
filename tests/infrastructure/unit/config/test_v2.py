@@ -22,17 +22,22 @@ def v2(tmp_path, monkeypatch):
 
 def test_defaults(v2):
     fast = v2.get("fast")
-    assert fast["provider"] == "aimlapi"
-    # 2026-08-14: el default pasa a `deepseek/deepseek-v4-flash`, y con esto el DEFAULT y lo que el operador corre
-    # de verdad dejan de contar historias distintas (su `config/v2.json` llevaba tiempo en DeepSeek). Lo respalda el
-    # mismo banco del nodo 2.13 que eligió a Haiku en su día: sobre los 14 casos con el prompt real, DeepSeek enruta
-    # **14/14** y Haiku **11/14** (falla mostrar-widget, data-op y alias). Haiku sigue en el catálogo y en el mismo
-    # broker. Histórico: V2-034 (2026-07-12) lo puso en Haiku frente a grok-4-fast-non-reasoning.
-    assert fast["model"] == "deepseek/deepseek-v4-flash"
-    # El endpoint DIRECTO (api.deepseek.com) NO es el default a propósito: es 4× más rápido al primer token pero dio
-    # 12/14 en una pasada suelta, y la regla es que si el nodo 2.13 baja, no se despliega. Vive como primer escalón
-    # de relevo por latencia (`provider_chain._voice_chain`). Ver V2-097 §1.
-    assert fast["base_url"] == "", "el titular va por el broker; el endpoint directo es RELEVO, no titular"
+    # NORMA DEL OPERADOR (2026-08-19, Hard rule de CLAUDE.md): DeepSeek V4 DIRECTO de su proveedor es la opción
+    # principal; AIMLAPI es el primer fallback y OpenAI/Anthropic el último. El default deja de ir por el broker.
+    assert fast["provider"] == "deepseek"
+    # Y V4 **PRO**, no Flash, por el endpoint directo: el banco a 3 rondas del nodo 2.13 (42 turnos por brazo,
+    # 2026-08-15) midió justo lo que el comentario del default exigía para promoverlo — «córrelo a 3 rondas y si
+    # aguanta, cámbialo». Pro aguantó (41/42, igual que el broker) y Flash directo NO (38/42, falló
+    # `mostrar widget` 3 de 3: eso no es varianza, es un defecto). Lo que cuesta: el turno de voz pasa de ~0,5 a
+    # ~1 Energy, y esa era la decisión de TARIFA que faltaba, no otra medición.
+    # Histórico del titular: Haiku vía broker (V2-034, 2026-07-12) → deepseek-v4-flash vía broker (2026-08-14) →
+    # esto. Los dos anteriores siguen siendo opciones válidas del broker.
+    assert fast["model"] == "deepseek-v4-pro"
+    assert fast["base_url"] == "https://api.deepseek.com", "el titular va DIRECTO, no por el broker"
+    # La cadena de relevo sigue VACÍA por defecto y la norma no lo cambia: vacía = titular + cadena AUTOMÁTICA
+    # (en la nube, directo → broker; en SELF-HOST, solo el titular, porque quien se autohospeda paga sus APIs y
+    # no puede llevarse la sorpresa de un proveedor que él no eligió).
+    assert fast["providers"] == []
     assert v2.active_brain() == "nucleo"        # tras el entierro de Hermes (V2-009): cerebro propio por defecto
     assert v2.get("flags")["memory_enabled"] is True
 

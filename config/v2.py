@@ -30,43 +30,39 @@ _lock = threading.Lock()
 _DEFAULTS: dict[str, dict] = {
     # FlashBrain — fast non-reasoning layer (provider `nucleo`, V2-004). Non-reasoners only.
     "fast": {
-        "provider": "aimlapi",                              # 'ollama' (local) | 'aimlapi' (cloud)
-        # 2026-08-14 — DeepSeek V4 Flash through the AIMLAPI broker. The DIRECT endpoint (api.deepseek.com) was
-        # wired and measured the same day and is **NOT the default**, deliberately, because it did not pass the gate.
+        # NORMA DEL OPERADOR (2026-08-19): **DeepSeek V4 DIRECTO de su proveedor es la opción principal**; el
+        # primer fallback es el broker AIMLAPI y, solo después, un modelo de OpenAI o Anthropic. Aplica a todas
+        # las piezas que llaman a un LLM, no solo a esta. Ver la Hard rule de `CLAUDE.md`.
+        "provider": "deepseek",
+        # Por qué V4 **PRO** y no Flash por el endpoint directo, que es lo que había aquí antes: el banco a 3
+        # rondas del nodo 2.13 (42 turnos por brazo, 2026-08-15) midió justo lo que este comentario exigía para
+        # promover el directo —«córrelo a 3 rondas y si aguanta 14/14, cámbialo»— y lo que aguantó fue Pro:
         #
-        # What direct buys (real voice prompt, 6 turns/arm) — the reasoning-off parameter
-        # `thinking:{"type":"disabled"}` is accepted-and-IGNORED by the broker and OBEYED direct:
+        #                                  enrutado   graves   TTFT p50
+        #   AIMLAPI  deepseek-v4-flash       41/42       0       8.659 ms   ← titular anterior
+        #   DIRECTO  deepseek-v4-pro         41/42       1       1.158 ms   ← titular ahora
+        #   DIRECTO  deepseek-v4-flash       38/42       1         934 ms   ← falló `mostrar widget` 3 de 3
         #
-        #                    TTFT p50   worst    reasoning tokens   routing (node 2.13, 14 cases)
-        #   AIMLAPI            4.24s   14.71s        2138                14/14
-        #   DIRECT             1.01s    1.30s           0                12/14  ← estilo, pregunta memoria
+        # Flash directo NO entra: 3 de 3 no es varianza, es un defecto. Pro iguala el enrutado del broker por
+        # 224 ms más de TTFT que Flash, y quita 7,5 segundos al primer token — que es lo que el operador
+        # experimenta como «se ha quedado tonto».
         #
-        # So: 4.2x median latency and 11.3x worst case — the worst case being what the operator experiences as "it's
-        # gone dumb" — against a 2-case routing regression on a SINGLE sample. The standing rule is «if node 2.13
-        # drops, it does not ship», and it is not waived because the latency number is attractive. Routing errors are
-        # the failure the operator called "conversaciones absurdas"; being fast at doing the wrong thing is worse.
-        #
-        # Direct is instead the FIRST latency-relay rung (provider_chain._voice_chain): when turn_perf reports two
-        # slow turns in a row we relay to it, which is exactly what V2-094 exists for. So the cure is applied where
-        # the problem shows up, without betting routing quality on n=1.
-        # To promote it: run node 2.13 with 3 rounds against direct (it is a bench candidate now) and if it holds
-        # 14/14, flip `base_url` here to https://api.deepseek.com and `model` to `deepseek-v4-flash`. See V2-097 §1.
-        #
-        # Superseded default: `anthropic/claude-haiku-4.5` (V2-034 A/B, 2026-07-12) — chosen over
-        # grok-4-fast-non-reasoning, which "seems dumb". Haiku is still a valid choice on this same broker.
-        # Still PER INVOCATION; changed via UI/config.
-        "model": "deepseek/deepseek-v4-flash",              # default; passed per invocation
-        "base_url": "",                                     # empty → the provider's own (AIMLAPI broker)
+        # LO QUE CUESTA, dicho: el turno de voz pasa de ~0,5 a ~1 Energy. `CLAUDE.md` dejó escrito que promover
+        # Pro «no es otra medición sino una decisión de TARIFA»; esa decisión la ha tomado el operador con la
+        # norma de arriba. El grave que Pro marca y el broker no es `pregunta memoria → widget_data`.
+        "model": "deepseek-v4-pro",                         # default; passed per invocation
+        "base_url": "https://api.deepseek.com",             # DIRECTO, no el broker
         "api_key": "",
         # Explicit RELAY chain for the VOICE role (2026-08-15 fix): `nucleo.flash.provider_chain._voice_chain()`
         # already read `cfg.get("providers")` on this exact key — its own docstring says "the operator activates
         # it by putting `fast.providers` in their config" — but `set()` only accepts keys already in `_DEFAULTS`,
         # and this one was never declared here. The promised override existed in the reader and was unreachable
-        # from the config API: any patch touching it was silently dropped, `ok: true` included. Same shape as
-        # `code_agent.providers`/`cluster.providers`: empty = automatic chain (titular above + latency relays,
-        # cloud-only by default); a non-empty list is the operator's own primary→failover→failover order, and it
-        # applies in self-host too (the cloud-only gate only zeroes the AUTOMATIC relay candidates, never an
-        # explicit list).
+        # from the config API: any patch touching it was silently dropped, `ok: true` included.
+        #
+        # SIGUE VACÍA a propósito, y la norma de arriba no lo cambia: vacía significa «titular + la cadena
+        # AUTOMÁTICA», que en la nube ya va DeepSeek directo → broker, y en SELF-HOST es solo el titular. Quien
+        # se autohospeda paga sus propias APIs y no puede llevarse la sorpresa de que el agente se pase solo a un
+        # proveedor que él no eligió — declarar aquí una cadena fija se la impondría a todo el mundo.
         "providers": [],
     },
     # SlowBrain — headless code agent behind the CodeAgent interface (V2-006).
