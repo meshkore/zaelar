@@ -80,3 +80,45 @@ def test_the_escalate_guard_reuses_the_catalog_instead_of_a_second_verb_list():
                  "consígueme dos entradas para el musical del sábado"]:
         assert g.looks_like_escalate_task(text) is True
         assert dispatch._classify_kind(text) == "web"
+
+
+# ── V2-147: tres «¿alguna novedad?» borraban la petición del alcance ─────────────────────────────────────────
+#
+# La corrida de `find-theatre-tickets__es` (17:04): zaelar propone parar la tarea atascada y probar de otra
+# forma, el operador dice que sí, zaelar contesta «Vale, dame un momento que lo miro» — y no se mueve nada.
+# `promises_action` SÍ detectaba la promesa; lo que devolvía vacío era el objetivo. La petición estaba en la
+# ventana y `_needs_real_work` la reconocía: el problema es que `max_back` recortaba ENTRADAS, así que cada
+# comprobación de estado costaba dos del presupuesto y con tres se perdía de vista lo que se había pedido.
+TEATRO = [
+    {"role": "user", "content": "Consígueme dos entradas para el musical de El Rey León en Madrid para el sábado."},
+    {"role": "assistant", "content": "¿A qué hora te vendría bien? ¿Y qué presupuesto?"},
+    {"role": "user", "content": "La sesión de tarde si hay, y en zona media de precio."},
+    {"role": "assistant", "content": "Me pongo con ello — busco disponibilidad."},
+    {"role": "user", "content": "Vale, avísame."},
+    {"role": "assistant", "content": "Sigue en ello — todavía no ha abierto ninguna página."},
+    {"role": "user", "content": "Dale un poco más, y si ves que sigue atascado prueba de otra forma."},
+    {"role": "assistant", "content": "Te propongo pararlo y probar de otra forma. ¿Vamos con eso?"},
+]
+ASSENT = "Sí, prueba así. A ver si por esa vía sale algo."
+
+
+def test_asking_how_it_is_going_does_not_erase_what_was_asked_for():
+    goal = g.escalate_goal_from_window(TEATRO, ASSENT)
+    assert "El Rey León" in goal
+
+
+def test_and_the_budget_is_counted_in_the_operators_own_turns():
+    """La unidad es lo que importa: con entradas, una conversación normal —preguntar cómo va— gasta el doble."""
+    assert g.escalate_goal_from_window(TEATRO, ASSENT, max_back=4) != ""
+    assert g.escalate_goal_from_window(TEATRO, ASSENT, max_back=3) == ""
+
+
+def test_but_a_conversation_with_no_task_in_it_still_finds_nothing():
+    """El presupuesto más largo no puede convertir una charla en una tarea."""
+    charla = [{"role": "user", "content": "hola, buenas"},
+              {"role": "assistant", "content": "¡hola!"},
+              {"role": "user", "content": "¿qué tal todo?"},
+              {"role": "assistant", "content": "bien"},
+              {"role": "user", "content": "me alegro"},
+              {"role": "assistant", "content": "gracias"}]
+    assert g.escalate_goal_from_window(charla, "vale") == ""

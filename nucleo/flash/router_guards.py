@@ -379,9 +379,19 @@ def escalate_goal_from_window(window, current_text: str = "", max_back: int = 6)
     """
     if current_text and _needs_real_work(current_text):
         return current_text
-    for msg in reversed(list(window or [])[-max_back:]):
+    # V2-147: `max_back` counts the operator's OWN turns, not window ENTRIES. It used to slice the raw window,
+    # so every exchange cost two of the budget and three «¿alguna novedad?» were enough to push the request out
+    # of reach. Measured on the run: the task was named in the first turn, `_needs_real_work` recognised it, and
+    # the lookback simply could not see that far — the promise «dame un momento que lo miro» came back with no
+    # goal and nothing escalated. Counting assistant turns against a budget meant for the operator's history
+    # punishes a conversation for the very thing that makes it normal: asking how it is going.
+    seen = 0
+    for msg in reversed(list(window or [])):
         if (msg or {}).get("role") != "user":
             continue
+        seen += 1
+        if seen > max_back:
+            break
         content = str((msg or {}).get("content") or "").strip()
         if content and _needs_real_work(content):
             return f"{content} — {current_text}".strip(" —") if current_text else content
