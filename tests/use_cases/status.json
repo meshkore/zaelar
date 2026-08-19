@@ -354,7 +354,32 @@
         "initiative": ".meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md",
         "task": ""
       }
+    },
+    "cheapest-monitor": {
+      "last_run": "2026-08-20 00:27",
+      "overall": 1,
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 2,
+        "adaptacion": 3,
+        "resultado": 1,
+        "mecanismo": 1,
+        "eficiencia": 1
+      },
+      "verdict": "NO listo para producción. El bloqueador nº1 es la **generación de datos sintéticos (alucinación)** como si fueran una búsqueda real en el navegador, lo que invalida completamente el resultado del caso de uso.",
+      "missing_signals": [],
+      "sandboxed": true,
+      "tier": 2,
+      "turns_used": 10,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo"
     }
   },
-  "updated": "2026-08-19 20:44"
+  "updated": "2026-08-20 00:27"
 }

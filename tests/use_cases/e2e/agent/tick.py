@@ -36,7 +36,7 @@ import sys
 import time
 from pathlib import Path
 
-from . import initiative as I, scenarios as SC, status as statusmod
+from . import initiative as I, scenarios as SC, segments as SG, status as statusmod
 
 ENGINE = I.ENGINE          # the repo root a batch must be launched from (`python -m tests…` needs it as cwd)
 
@@ -97,13 +97,27 @@ def _run(args: list[str], *, timeout_s: float) -> tuple[int, str]:
 
 
 def _unrun_scenarios() -> list:
-    """Never-tried cases, in catalog order (ES before US, low tier first).
+    """Never-tried cases that can actually FINISH, in catalog order (ES before US, low tier first).
 
     A case with ANY recorded verdict is skipped — including a passing one. Re-running a case that already
     passed is what the verify path is for; the queue is topped up with genuinely new ground.
+
+    RUNNABLE ONLY (`segments.is_completable`). This filter is the difference between measuring the product and
+    burning the night on the environment: 78 of the 125 catalogue cases cannot reach their own goal here, either
+    because they need a credential/payment/real object only the operator can supply (54) or because the
+    capability is not built yet (24). Launching one costs the same 3-6 minutes as a real case and ends the same
+    way every time — "it asked me to log in" — so the loop would file initiative after initiative against a
+    fixing agent who has no way to act on any of them, and the board would fill with work nobody can do while
+    the runnable cases sat untouched. Blocked cases are not forgotten: they stay in the catalogue with the
+    reason recorded, and `run.py --segment` runs them on purpose the day the operator unblocks them.
     """
-    done = set((statusmod.load().get("scenarios") or {}).keys())
-    out = [s for s in SC.all_scenarios() if s.id not in done]
+    # A VERDICT is PASS or FAIL. An `INFRA` entry means the harness itself died before judging anything — the
+    # case was never measured, so it has to stay in the queue. Treating any ledger key as "done" quietly
+    # retired `build-workout-tracker-widget`, the one runnable case covering widget generation: it died on a
+    # broker 403 and from then on every tick skipped it as already-tried (found 2026-08-20).
+    led = statusmod.load().get("scenarios") or {}
+    judged = {k for k, e in led.items() if (e or {}).get("state") in ("PASS", "FAIL")}
+    out = [s for s in SC.all_scenarios() if s.id not in judged and SG.is_completable(s.id)]
     out.sort(key=lambda s: (0 if s.locale == "es" else 1, s.tier, s.id))
     return out
 
@@ -191,7 +205,9 @@ def _top_up() -> dict:
         return {"queue": have, "ran": 0}
     todo = _unrun_scenarios()
     if not todo:
-        _log(f"paso 2 · cola en {have}/{QUEUE_FLOOR} pero NO quedan casos sin probar en el catálogo")
+        _log(f"paso 2 · cola en {have}/{QUEUE_FLOOR} pero NO quedan casos EJECUTABLES sin probar. "
+             f"Los que quedan están bloqueados (credenciales del operador o capacidad sin construir): "
+             f"`run.py --list --segment credentials` los enumera con su motivo.")
         return {"queue": have, "ran": 0, "exhausted": True}
 
     # One locale per batch: ZAELAR_LANGUAGE is process-wide, so a mixed batch would grade ES cases on English

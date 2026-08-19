@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-19 20:44**
+Last updated: **2026-08-20 00:27**
 
 `✅ PASS` = judge overall ≥ 4 · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -23,9 +23,10 @@ the operator's live one.
 | ⚠️ | `renew-gym-membership__es` | 1 | — | 2026-08-19 01:45 | yes | INFRA: IncompleteRead(5 bytes read) |
 | ❌ | `reorder-prescription__es` | 1 | 3 | 2026-08-19 19:46 | yes | El caso no está listo para producción debido a una desconexión entre el 'estado de tarea done' reportado y la ausencia de señales reales de navegación ('miss… |
 | ❌ | `restaurant-tonight-madrid` | 1 | 1 | 2026-08-19 20:44 | yes | No está listo para producción. El bloqueador nº1 es la alucinación de contexto: el asistente negó una orden explícita y cambió de tema sin estímulo externo, … |
+| ❌ | `cheapest-monitor` | 2 | 1 | 2026-08-20 00:27 | yes | NO listo para producción. El bloqueador nº1 es la **generación de datos sintéticos (alucinación)** como si fueran una búsqueda real en el navegador, lo que i… |
 | ❌ | `three-tasks-at-once` | 4 | 3 | 2026-08-19 19:40 | yes | No está listo para producción. El bloqueo nº1 es la incapacidad del orquestador para mantener vivas las 3 tareas concurrentes solicitadas por el usuario (fal… |
 
-**2 passing · 7 failing · 4 infra** of 13 scenarios with a recorded result.
+**2 passing · 8 failing · 4 infra** of 14 scenarios with a recorded result.
 
 ## Segments — what can be carried out END TO END today
 
@@ -33,18 +34,18 @@ the operator's live one.
 
 | segment | scenarios | run | passing |
 |---|---|---|---|
-| ✅ completable | 47 | 4 | 1 |
+| ✅ completable | 47 | 5 | 1 |
 | 🔑 credentials | 54 | 9 | 1 |
 | 🚧 capability | 24 | 0 | 0 |
 
-## Coverage of the RUNNABLE list — 4 of 47 ever run (43 never run)
+## Coverage of the RUNNABLE list — 5 of 47 ever run (42 never run)
 
 An unrun case is **not** a passing one. This is the walk's progress board, and its denominator is the `completable` segment only — a blocked case is not pending work, it is waiting on something outside the harness.
 
 | tier | locale | run | of | passing |
 |---|---|---|---|---|
 | 1 | es | 3 | 3 | 1 |
-| 2 | es | 0 | 19 | 0 |
+| 2 | es | 1 | 19 | 0 |
 | 2 | us | 0 | 18 | 0 |
 | 3 | es | 0 | 4 | 0 |
 | 3 | us | 0 | 2 | 0 |
