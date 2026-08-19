@@ -108,6 +108,9 @@ DOMAINS: list[dict] = [
             # V2-138: cancelling costs nothing, so the money signal said no and the promise backstop
             # could not fire for the whole cancel family.
             "tests/agent_headless/unit/flash/test_ending_a_commitment.py",
+            # V2-145: the brain narrated what the browser «was doing» from the clock, while that task had
+            # opened nothing at all — the truth lived in tasks.py and never reached the prompt.
+            "tests/agent_headless/unit/flash/test_browser_progress_is_stated.py",
             "tests/agent_headless/unit/test_skeleton.py", "tests/agent_headless/unit/test_sparks.py"]},
         {"id": "2.4", "title": "Cliente LLM rápido, reintento y RELEVO por latencia", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_fast_client.py", "tests/agent_headless/unit/flash/test_fast_client_retry.py",

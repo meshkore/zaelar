@@ -54,18 +54,21 @@ SITE_CATALOG: dict[str, dict[str, SiteEntry]] = {
         "restaurant_booking": SiteEntry(
             "TheFork / ElTenedor", "https://www.thefork.es",
             "reservar mesa en un restaurante — busca el nombre del restaurante ahí dentro si el operador ha "
-            "nombrado uno concreto; si no, filtra por zona/tipo de cocina/hora."),
+            "nombrado uno concreto; si no, filtra por zona/tipo de cocina/hora. Cerrar la mesa suele exigir "
+            "cuenta o teléfono: trae las opciones con hora y di qué falta para cerrarla."),
         "hotel_booking": SiteEntry(
             "Booking.com", "https://www.booking.com",
-            "buscar/reservar alojamiento — filtra por ciudad, fechas, nº de personas, estrellas y precio."),
+            "buscar/reservar alojamiento — filtra por ciudad, fechas, nº de personas, estrellas y precio. Cerrar "
+            "la reserva exige cuenta y tarjeta: trae las opciones con precio y condiciones y di qué falta."),
         "flight_search": SiteEntry(
             "Skyscanner", "https://www.skyscanner.es",
-            "buscar/comparar vuelos — filtra por origen, destino, fechas y equipaje facturado si se pidió."),
+            "buscar/comparar vuelos — filtra por origen, destino, fechas y equipaje facturado si se pidió. "
+            "Comprar exige cuenta y tarjeta: trae las opciones con precio y horario y di qué falta."),
         "event_tickets": SiteEntry(
             "Entradas.com", "https://www.entradas.com",
             "entradas de teatro/musicales/conciertos — busca el espectáculo por nombre y filtra por fecha y "
-            "sesión; si el espectáculo no aparece, mira la web del propio teatro. Las entradas se COMPRAN: "
-            "trae las opciones con precio y zona y PARA ahí, no completes la compra."),
+            "sesión; si el espectáculo no aparece, mira la web del propio teatro. Comprarlas exige cuenta y "
+            "tarjeta: trae las opciones con precio y zona, di qué falta para cerrarlo y PARA ahí."),
         "local_business": SiteEntry(
             "Google Maps", "https://www.google.com/maps",
             "un negocio LOCAL del operador (peluquería, dentista, taller, farmacia, gimnasio…) — busca por "
@@ -87,18 +90,21 @@ SITE_CATALOG: dict[str, dict[str, SiteEntry]] = {
         "restaurant_booking": SiteEntry(
             "OpenTable", "https://www.opentable.com",
             "book a table at a restaurant — search the named restaurant inside it if the operator named one; "
-            "otherwise filter by area/cuisine/time."),
+            "otherwise filter by area/cuisine/time. Closing the table usually needs an account or a phone "
+            "call: bring the options with times and say what closing it would take."),
         "hotel_booking": SiteEntry(
             "Booking.com", "https://www.booking.com",
-            "find/book lodging — filter by city, dates, guest count, star rating and price."),
+            "find/book lodging — filter by city, dates, guest count, star rating and price. Closing the booking "
+            "needs an account and a card: bring the options with price and terms and say what is missing."),
         "flight_search": SiteEntry(
             "Google Flights", "https://www.google.com/travel/flights",
-            "search/compare flights — filter by origin, destination, dates and checked baggage if asked."),
+            "search/compare flights — filter by origin, destination, dates and checked baggage if asked. Buying "
+            "needs an account and a card: bring the options with price and times and say what is missing."),
         "event_tickets": SiteEntry(
             "Ticketmaster", "https://www.ticketmaster.com",
             "theatre/musical/concert tickets — search the show by name and filter by date and session; if the "
-            "show is not listed, try the venue's own site. Tickets are BOUGHT: bring back the options with "
-            "price and seating area and STOP there, do not complete the purchase."),
+            "show is not listed, try the venue's own site. Buying needs an account and a card: bring back the "
+            "options with price and seating area, say what closing it would take, and STOP there."),
         "local_business": SiteEntry(
             "Google Maps", "https://www.google.com/maps",
             "a LOCAL business of the operator's (hairdresser, dentist, garage, pharmacy, gym…) — search "

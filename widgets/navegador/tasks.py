@@ -260,6 +260,29 @@ def active_summaries(limit: int = 3) -> list[tuple[str, str]]:
     return list(reversed(act))[:max(1, limit)]
 
 
+def active_progress(limit: int = 3) -> list[dict]:
+    """What each live browser task has ACTUALLY done: the page it is on and how many steps it has taken.
+
+    V2-145 — the brain was told a browser task existed and its goal, and nothing else, so «how is it going?» had
+    only the elapsed seconds to answer with. It turned them into detail it could not have: «lleva unos 2 minutos
+    abierto en la página» and «todavía interactuando», while the mechanism report for that very task read
+    `status=working url= events=[] n_search_events=0` — the task had opened nothing at all.
+
+    Same remedy as `silent_s` in V2-131, one layer down: the truth already existed here and simply never reached
+    the prompt. `url` and `events` are what the task itself records as it drives, so an empty pair is not a gap
+    in our knowledge — it is the fact that nothing has happened yet, and it is what the brain has to say.
+    """
+    with _lock:
+        rows = [{"id": tid,
+                 "goal": (t.get("goal") or "").strip(),
+                 "url": (t.get("url") or "").strip(),
+                 "phase": (t.get("phase") or "").strip(),
+                 "steps": len(t.get("events") or []),
+                 "awaiting_login": bool(t.get("awaiting_login"))}
+                for tid, t in _tasks.items() if t.get("status") in ("queued", "working", "needs_input")]
+    return list(reversed(rows))[:max(1, limit)]
+
+
 def active_ids() -> list[str]:
     """Tasks that have not finished yet (for routing answers / cancelling / listing)."""
     with _lock:

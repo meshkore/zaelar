@@ -500,12 +500,39 @@ def live_state() -> str:
         if act:
             # EXPLÍCITO (no solo "hay N"): el cerebro debe SITUARSE en lo que YA está haciendo para no relanzar
             # una búsqueda que ya corre (control de estado, 2026-07-12). Solo hay UN navegador para todo.
-            tareas = "; ".join(f"«{(g or 'tarea')[:70]}»" for _tid, g in act)
+            #
+            # V2-145 — y con lo que la tarea HA HECHO de verdad, no solo su objetivo. Antes esta línea decía que
+            # existía y para qué, y nada más, así que «¿cómo va?» solo tenía los segundos para contestar: el
+            # modelo los convirtió en detalle que no podía tener («lleva unos 2 minutos abierto en la página»,
+            # «todavía interactuando») mientras el informe de esa misma tarea decía `url= events=[]` — no había
+            # abierto NADA. La página y los pasos los escribe la propia tarea al conducir, así que vacíos no son
+            # un hueco de nuestro conocimiento: son el hecho de que aún no ha pasado nada, y es lo que hay que
+            # decir. Mismo remedio que `silent_s` en V2-131, una capa más abajo.
+            try:
+                _prog = {p["id"]: p for p in _nt.active_progress()}
+            except Exception:
+                _prog = {}
+            _bits = []
+            for _tid, _g in act:
+                _b = f"«{(_g or 'tarea')[:70]}»"
+                _p = _prog.get(_tid) or {}
+                if _p:
+                    if _p.get("url"):
+                        _b += f" — en {_p['url'][:60]}"
+                        if _p.get("steps"):
+                            _b += f", {_p['steps']} pasos dados"
+                    else:
+                        _b += " — TODAVÍA NO HA ABIERTO NINGUNA PÁGINA"
+                _bits.append(_b)
             lines.append(
-                f"NAVEGADOR — YA EN CURSO ({len(act)}): {tareas}. NO abras otra tarea ni reinicies la búsqueda para "
-                "esto mismo: esa tarea sigue viva y te dará el resultado sola. Si el operador añade un matiz "
-                "(precio, zona, «analízalas una por una»), reconócelo («sigo con ello, lo tengo en cuenta») — NO "
-                "escalas de nuevo. Solo hay UN navegador.")
+                f"NAVEGADOR — YA EN CURSO ({len(act)}): {'; '.join(_bits)}. NO abras otra tarea ni reinicies la "
+                "búsqueda para esto mismo: esa tarea sigue viva y te dará el resultado sola. Si el operador "
+                "añade un matiz (precio, zona, «analízalas una por una»), reconócelo («sigo con ello, lo tengo "
+                "en cuenta») — NO escalas de nuevo. Solo hay UN navegador. "
+                "Lo que ves AQUÍ es TODO lo que sabes de ella: si sale que no ha abierto ninguna página, di eso "
+                "—que arrancó y aún no ha llegado a ningún sitio— y NO describas lo que estaría haciendo («está "
+                "en la página», «interactuando», «rellenando el formulario»). Los segundos que lleva NO son una "
+                "descripción de lo que hace.")
         if _nt.login_waiting_id():
             lines.append("HAY UN INICIO DE SESIÓN PENDIENTE en el navegador (le abriste una ventana para entrar): "
                          "si el operador dice que ya inició sesión / 'ya estoy dentro', llama a login_done.")
