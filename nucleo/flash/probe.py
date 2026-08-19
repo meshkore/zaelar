@@ -926,7 +926,9 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 spoken = _lg.show_ack
             elif action in ("escalate", "send_to_worker", "stop_worker", "answer_worker", "authenticate_web",
                             "connect_cluster"):
-                spoken = _lg.filler_holding
+                # V2-189: nunca la MISMA frase dos veces (espejo del provider — cablear en AMBOS).
+                from . import router_guards as _rg_hold
+                spoken = _rg_hold.holding_line(sess.window, _lg)
             elif action == "music":
                 spoken = _lg.data_ack        # ack corto en el probe; el turno real dice lo que puso el conector
             elif action == "style":

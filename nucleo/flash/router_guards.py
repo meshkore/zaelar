@@ -475,6 +475,59 @@ def commitment_clause(operator_text: str) -> str:
     return head.strip(" ,.;:y")
 
 
+def holding_line(window, lang=None) -> str:
+    """The never-mute filler for a turn whose only content is «the task is still running» — one that does NOT
+    repeat itself.
+
+    `data_acks` has had this treatment since V2-038, because two «Hecho.» in a row tripped the loop detector.
+    The waiting filler never got it, and it is said far more often. Measured on `cheapest-monitor`
+    (2026-08-20 01:21): «Vale, dame un momento que lo miro.» FOUR times, word for word, with the operator
+    answering «vale, quedo atento» each time; and on `restaurant-tonight-madrid`, five turns of the same. The
+    judge marked it grave in both, and it is not the model doing it — the line is emitted here, by us, as a
+    backstop for a turn that came back mute.
+
+    Escalates instead of repeating: a fresh variant while there is one, and from the third consecutive wait the
+    ONE honest fact available — how long it has been — plus a way out. It never states a step: that is the line
+    V2-133 drew («el arreglo no puede ser quitarlos; tiene que ser que el relleno no afirme una fase»), and
+    minutes elapsed are not a step.
+    """
+    try:
+        from voice.engine.core import langs as _langs
+        lang = lang or _langs.current_language()
+    except Exception:
+        return "Sigo con ello."
+    lines = tuple(getattr(lang, "holding_lines", ()) or (getattr(lang, "filler_holding", "Sigo con ello."),))
+    said = [str((m or {}).get("content") or "").strip()
+            for m in (window or []) if (m or {}).get("role") == "assistant"]
+    recent = [t for t in said[-3:] if t]
+    waits = sum(1 for t in recent if t in lines)
+    if waits >= 2:
+        mins = _longest_pending_min()
+        if mins >= 1:
+            waited = str(getattr(lang, "filler_waited", "") or lines[-1]).format(min=mins)
+            # En la práctica los minutos crecen, así que dos esperas seguidas no salen idénticas; pero si el
+            # reloj no ha pasado de minuto, se rota en vez de repetir palabra por palabra — que es justo el
+            # defecto que esto arregla, y no vale reintroducirlo por la puerta de atrás.
+            if not recent or waited != recent[-1]:
+                return waited
+    for line in lines:                      # agota las variantes ANTES de reutilizar ninguna
+        if line not in recent:
+            return line
+    for line in lines:                      # y si ya se dijeron todas, al menos no la de justo antes
+        if not recent or line != recent[-1]:
+            return line
+    return lines[-1]
+
+
+def _longest_pending_min() -> int:
+    """Minutes of the longest-running background task, or 0 when that cannot be read. A FACT, not a step."""
+    try:
+        from nucleo import dispatch as _d
+        return max((int(t.get("secs") or 0) for t in _d.pending_summaries()), default=0) // 60
+    except Exception:
+        return 0
+
+
 def commitment_from_window(window, current_text: str = "", max_back: int = 6) -> str:
     """The clause that says WHAT the commitment is, which is not always in the turn that fixes its DATE.
 

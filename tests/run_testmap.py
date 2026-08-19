@@ -222,6 +222,12 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_cancelled_turn_billing.py"]},
         {"id": "2.15", "title": "Idioma del operador en un canal SIN voz (primera ejecución)", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_first_run_language.py"]},
+        # 2026-08-20: el relleno de nunca-mudo decía CUATRO veces la misma frase («Vale, dame un momento que lo
+        # miro.») mientras el operador contestaba «vale, quedo atento» cada vez. `data_acks` tiene el
+        # tratamiento anti-repetición desde V2-038; al relleno de espera, que se dice mucho más, nunca se le
+        # aplicó.
+        {"id": "2.16", "title": "El relleno de espera no se repite, y pasada la 2ª dice cuánto lleva", "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_holding_line_never_repeats.py"]},
         {"id": "2.9", "title": "Sandbox de ejecución ligero (V2-076)", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/test_sandbox.py"]},
         {"id": "2.10", "title": "Puente git acotado + dev worker (V2-076)", "ch": UNIT, "paths": [

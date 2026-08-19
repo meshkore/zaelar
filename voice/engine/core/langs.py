@@ -47,6 +47,17 @@ class LangSpec:
     filler_still_working: str = "Sigo con ello; te aviso en cuanto lo tenga."  # V2-029: variación cuando YA había
                                     # una tarea de fondo en curso al empezar el turno — NO repetir el mismo
                                     # filler_holding turno a turno (el operador insiste mientras el SlowBrain trabaja)
+    # V2-189: el mismo tratamiento que `data_acks`, que existe desde V2-038 porque dos «Hecho.» seguidos
+    # disparaban el detector de bucles — y que al relleno de espera nunca se le aplicó. Medido en
+    # `cheapest-monitor` (2026-08-20 01:21): «Vale, dame un momento que lo miro.» CUATRO veces palabra por
+    # palabra, con el operador contestando «vale, quedo atento» cada vez. El juez lo marcó grave en dos casos
+    # distintos. Ninguna de estas afirma un PASO — esa es la línea que V2-133 dejó dicha y no se cruza.
+    holding_lines: tuple = ("Vale, dame un momento que lo miro.", "Sigo con ello; te aviso en cuanto lo tenga.",
+                            "Sigue en marcha; en cuanto tenga algo te lo digo.")
+    # Y a partir de la tercera espera seguida, el único hecho honesto que hay: cuánto lleva. Sin inventar en qué
+    # punto va, y con una salida — que es lo que el operador puede hacer con ese dato.
+    filler_waited: str = ("Lleva {min} min y todavía no me ha dado nada. ¿La dejo seguir o la paro y "
+                          "probamos de otra forma?")
     # ENTREGA PROACTIVA (hallazgo 2026-07-23: nucleo/loop.py, nucleo/sparks.py y connectors/messaging/notify.py
     # hablaban con f-strings en español fijo, sin pasar por este catálogo — sordos a un cambio de idioma). Son
     # frases HABLADAS por iniciativa PROPIA de zaelar (el operador no las pidió en este turno): preguntas de un
@@ -146,6 +157,11 @@ LANGUAGES: dict[str, LangSpec] = {
         warm="Hello.",
         filler_holding="Alright, give me a moment to look into that.",
         filler_still_working="Still on it; I'll let you know as soon as I have it.",
+        holding_lines=("Alright, give me a moment to look into that.",
+                       "Still on it; I'll let you know as soon as I have it.",
+                       "It's still running; I'll tell you the moment I have something."),
+        filler_waited=("It's been {min} min and it still hasn't given me anything. Shall I let it run, or "
+                       "stop it and try another way?"),
         worker_ask_named="Hey, the «{goal}» process is asking: {question}",
         worker_ask_generic="Hey, one of the running processes is asking: {question}",
         worker_budget_killed=("I stopped «{goal}»: it ran out of time. I've left what it found so far on the "

@@ -2860,7 +2860,10 @@ class NucleoLLMStream(llm.LLMStream):
             try:
                 from voice.engine.core import langs
                 _lg = langs.current_language()
-                spoken_text = _lg.filler_still_working if _prev_pending else _lg.filler_holding
+                # V2-189: nunca la MISMA frase dos veces (espejo del probe — cablear en AMBOS). `_prev_pending`
+                # solo distinguía la primera de las demás; a partir de la tercera, todas eran idénticas.
+                from nucleo.flash import router_guards as _rg_hold
+                spoken_text = _rg_hold.holding_line(brain._window, _lg)
             except Exception:
                 spoken_text = "Sigo con ello." if _prev_pending else "Vale, dame un momento."
             send(speech.sanitize(spoken_text, drop_metadata=False))

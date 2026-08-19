@@ -1275,6 +1275,26 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **El relleno de espera decía CUATRO veces la misma frase, y no lo decía el modelo** (`nucleo/flash/router_guards.py`
+  + `voice/engine/core/langs.py`, V2-189, 2026-08-20). «Vale, dame un momento que lo miro.» es `filler_holding`
+  LITERAL: lo emite el backstop de nunca-mudo cuando el turno vuelve sin contenido propio tras una acción que
+  SÍ disparó. Medido en `cheapest-monitor` (cuatro veces palabra por palabra, con el operador contestando
+  «vale, quedo atento» cada vez; eficiencia 1/5) y en `restaurant-tonight-madrid` (cinco turnos), marcado GRAVE
+  en ambos. La casa ya tenía la solución sin aplicar: **`data_acks` es una tupla de variantes desde V2-038**,
+  porque dos «Hecho.» seguidos disparaban el detector de bucles; al relleno de espera, que se dice mucho más,
+  nunca se le puso.
+  - `holding_line()` agota las variantes antes de reutilizar ninguna y nunca repite la de justo antes.
+  - **Pasada la segunda espera**: el único hecho honesto que hay —cuánto lleva— con una salida («¿La dejo
+    seguir o la paro y probamos de otra forma?»), que es lo que el operador puede hacer con ese dato.
+  - **Jamás un PASO** — la línea de V2-133, con un test que prohíbe «login», «formulario», «fase»… en
+    cualquiera de las líneas. Los minutos transcurridos no son un paso.
+  - Si el hecho no se puede leer, degrada la ESCALADA y **no** la no-repetición.
+  - **La otra mitad del veredicto de esa ronda no se sostiene**: dice que el producto y el precio eran falsos
+    «no respaldados por navegación», y el mecanismo de la misma corrida trae `navegador_task: None` con
+    `search_health: {n_search_events: 12, degraded: False}` — el caso se resolvió por BÚSQUEDA, que es
+    legítimo (`quick-fact-opening-hours` sacó 5/5 así). Misma clase de inferencia que la de `results: null`:
+    leer una ausencia de señal como prueba de un hecho. Es del arnés y no se parchea desde el motor.
+
 - **El muro más silencioso: la página de error del PROPIO sitio** (`widgets/navegador/tasks.py`, V2-188,
   2026-08-20). `wall_reason()` reconocía muros de TERCEROS interponiéndose (`chrome-error://`, `/sorry/index`,
   `/recaptcha/`, `chal_t=`, `__cf_chl`) y no el 404 del sitio, que es el que más se parece a un éxito: el
