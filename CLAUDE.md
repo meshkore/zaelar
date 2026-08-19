@@ -1275,6 +1275,26 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Una salvedad no compite con una promesa: el estado PROMETÍA que la tarea iba a terminar sola, también
+  delante de un muro** (`nucleo/flash/prompt.py`, V2-185, 2026-08-20). En `book-hotel-night-known__es` el muro
+  SÍ llegó al turno —zaelar dijo «Booking me ha puesto una verificación anti-robot», que es V2-167
+  funcionando— y acto seguido volvió a «sigo con ello» **cuatro turnos más** con la tarea en
+  `chrome-error://chromewebdata/`. Verificado midiendo el prompt: el hecho seguía llegando todos esos turnos.
+  Lo que llegaba ADEMÁS, antes y cuatro veces más largo, era «**esa tarea sigue viva y te dará el resultado
+  sola**» y «**no le empujes a pararla**» — las dos FALSAS delante de un muro. El modelo creyó a la mitad
+  larga, que es lo que haría cualquiera. **El error de V2-167 no fue callar el hecho, fue añadirle un pero a
+  una afirmación falsa en vez de quitarla.**
+  - El bloque se parte según lo que sea VERDAD de la tarea. **Sana**: entero, incluida la regla de V2-152 («la
+    falta de parte no significa que esté parada»), que existe por un daño real —empujar a parar una tarea que
+    va bien— y no se toca; solo deja de aplicarse donde es mentira. **Bloqueada**: sin promesa, y dice que la
+    tarea NO va a terminar sola, que se diga en ESE turno «aunque el operador acabe de decir que espera
+    tranquilo —esperar es justo lo que hará si te callas»— y con una salida concreta.
+  - Lo cierto en los dos casos sigue en los dos (un solo navegador; nunca describir lo que «estaría haciendo»),
+    con un test que lo exige: partir un bloque en dos es justo como se pierde una regla por el camino.
+  - **NO mata la tarea**, aunque el juez lo proponía: la tarea de navegador y el Brain Worker son piezas
+    distintas y matar una sin la otra cambia una mentira por la contraria («ha fallado» mientras el worker
+    sigue). Lo que cambia es que el turno deja de prometer.
+
 - **El turno que fija la FECHA no es el que dice el QUÉ** (`nucleo/flash/router_guards.py`, V2-176,
   2026-08-20). Medido en `remember-and-remind-deadline`: el operador dijo la obligación en el turno 1 y la
   repitió en el 3, y en el 4 solo corrigió el día. Los dos backstops leían ÚNICAMENTE el turno 4, así que

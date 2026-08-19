@@ -231,3 +231,60 @@ def test_the_bridge_route_still_points_at_the_bridge():
     assert hit, "la ruta del puente del navegador desapareció"
     assert hit[0].endpoint.__name__ == "navegador_act"
     assert {"task_id", "action", "args"} <= set(hit[0].endpoint.__annotations__)
+
+
+# ── V2-185: la promesa tranquilizadora no puede ser incondicional ─────────────────────────────────────────
+#
+# Corrida real de `book-hotel-night-known__es`, 2026-08-20 01:01. El muro SÍ llegó al turno —zaelar dijo
+# «Booking me ha puesto una verificación anti-robot», que es el arreglo de V2-167 funcionando— y acto seguido
+# volvió a «sigo con ello» durante CUATRO turnos más mientras la tarea seguía en `chrome-error://chromewebdata/`.
+# Diez turnos, cero datos, y el operador esperando: «Vale, espero» · «Vale, sin prisa» · «Vale, me avisas».
+#
+# No era el modelo siendo perezoso. Este bloque le decía, en cuatro frases ANTES de la salvedad, que «esa tarea
+# sigue viva y te dará el resultado sola» y que no empujara al operador a pararla. Las dos son FALSAS delante de
+# un muro, iban primero y eran mucho más largas — y el modelo creyó a la mitad larga. La salvedad («AHORA BIEN…»)
+# no compite con eso: lo que había que quitar era la afirmación falsa, no añadirle un pero.
+def test_a_walled_task_is_not_promised_to_finish_on_its_own():
+    tid = tasks.create("Reservar noche en el hotel")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url=LOAD_ERROR)
+    state = _live()
+    assert "te dará el resultado sola" not in state
+    assert "no le empujes" not in state
+    assert "ESTO ESTÁ BLOQUEADO" in state
+
+
+def test_and_neither_is_one_that_stopped_moving():
+    tid = tasks.create("Reservar mesa")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url=REAL_PAGE)
+    tasks._tasks[tid]["last_progress"] = time.time() - 673
+    state = _live()
+    assert "te dará el resultado sola" not in state
+    assert "ESTO ESTÁ BLOQUEADO" in state
+
+
+def test_but_a_healthy_task_keeps_the_promise_AND_the_rule_of_V2_152():
+    """La sensibilidad, y no es teórica: V2-152 existe porque empujar a parar una tarea sana por falta de
+    novedades es un daño REAL y medido. Esa regla no se toca — solo deja de aplicarse donde es mentira."""
+    tid = tasks.create("Buscar hotel en Burgos")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url="https://www.booking.com/searchresults.html?ss=Burgos")
+    state = _live()
+    assert "te dará el resultado sola" in state
+    assert "la falta de parte no significa que esté parada" in state
+    assert "ESTO ESTÁ BLOQUEADO" not in state
+
+
+def test_and_the_shared_rules_survive_in_BOTH_states():
+    """Lo que es cierto en los dos casos tiene que estar en los dos: un solo navegador, y nunca describir lo que
+    la tarea «estaría haciendo». Partir un bloque en dos es justo como se pierde una regla por el camino."""
+    for url, walled in ((LOAD_ERROR, True), ("https://www.booking.com/searchresults.html?ss=Burgos", False)):
+        tasks._tasks.clear()
+        tid = tasks.create("Buscar hotel")
+        tasks.set_status(tid, "working")
+        tasks.update_view(tid, url=url)
+        state = _live()
+        assert ("ESTO ESTÁ BLOQUEADO" in state) is walled
+        assert "solo hay UN navegador" in state
+        assert "rellenando el formulario" in state

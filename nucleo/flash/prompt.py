@@ -574,6 +574,7 @@ def live_state() -> str:
             except Exception:
                 _prog = {}
             _bits = []
+            _blocked = False
             for _tid, _g in act:
                 _b = f"«{(_g or 'tarea')[:70]}»"
                 _p = _prog.get(_tid) or {}
@@ -605,27 +606,42 @@ def live_state() -> str:
                     # the truth was useless, because the only truth it had was that the task was alive.
                     if _p.get("wall"):
                         _b += f" · MURO: {_p['wall']}"
+                        _blocked = True
                     elif int(_p.get("stalled_s") or 0) >= _STALLED_S:
                         _b += f" · lleva {int(_p['stalled_s']) // 60} min SIN MOVERSE de esa página"
+                        _blocked = True
                 _bits.append(_b)
-            lines.append(
-                f"NAVEGADOR — YA EN CURSO ({len(act)}): {'; '.join(_bits)}. NO abras otra tarea ni reinicies la "
-                "búsqueda para esto mismo: esa tarea sigue viva y te dará el resultado sola. Si el operador "
-                "añade un matiz (precio, zona, «analízalas una por una»), reconócelo («sigo con ello, lo tengo "
-                "en cuenta») — NO escalas de nuevo. Solo hay UN navegador. "
-                "Lo que ves AQUÍ es TODO lo que sabes de ella, y no saber NO es saber que no hace nada: si no "
-                "ha reportado ningún paso, di que aún no tienes novedades suyas —nunca que no ha hecho nada ni "
-                "que está atascada— y NO describas lo que estaría haciendo («está en la página», «interactuando», "
-                "«rellenando el formulario»). Los segundos que lleva NO son una descripción de lo que hace. "
-                "Y si el operador se plantea pararla, no le empujes a hacerlo por falta de novedades: dile que "
-                "sigue viva y que la falta de parte no significa que esté parada. "
-                # V2-167: the honest counterpart to that rule, which without this reads as «calla siempre». No
-                # news is not a stall — but a MEASURED stall is a fact, and so is a wall, and callarlos deja al
-                # operador esperando por algo que ya no va a llegar.
-                "AHORA BIEN: si arriba pone MURO o «sin moverse», eso NO es falta de novedades, es un HECHO "
-                "medido y se dice — «Booking me ha puesto una verificación anti-robot», «lleva 11 minutos en la "
-                "ficha sin avanzar»— y con una salida concreta: probar en otro sitio, que entre él, o dejarlo. "
-                "Nunca esperes callado sobre un muro.")
+            # V2-185: the reassuring half of this block used to be UNCONDITIONAL, and that is what kept the
+            # operator waiting. Measured on `book-hotel-night-known__es` (2026-08-20 01:01): the wall DID reach
+            # the turn — zaelar said «Booking me ha puesto una verificación anti-robot», which is the V2-167 fix
+            # working — and then went back to «sigo con ello» for four more turns while the task sat on
+            # `chrome-error://chromewebdata/`. It was not the model being lazy: this block was telling it, in
+            # four sentences before the caveat, that «esa tarea sigue viva y te dará el resultado sola» and that
+            # it must not push the operator to stop it. Both are FALSE in front of a wall, and the model
+            # believed the longer, earlier half. So the promise is now conditional on the task being healthy.
+            _head = f"NAVEGADOR — YA EN CURSO ({len(act)}): {'; '.join(_bits)}."
+            _shared = (" NO abras otra tarea ni reinicies la búsqueda para esto mismo — solo hay UN navegador. "
+                       "Y NO describas lo que estaría haciendo («está en la página», «interactuando», "
+                       "«rellenando el formulario»). Los segundos que lleva NO son una descripción de lo que hace.")
+            if _blocked:
+                lines.append(
+                    _head + " ESTO ESTÁ BLOQUEADO: lo de arriba (MURO / «sin moverse») es un HECHO medido, no "
+                    "falta de novedades, y esa tarea NO va a terminar sola. DILO en este turno, aunque el "
+                    "operador acabe de decir que espera tranquilo —esperar es justo lo que hará si te callas— y "
+                    "con una salida concreta: probar en otro sitio, que entre él, o dejarlo. Repetir «sigo con "
+                    "ello» encima de un muro es dejarle esperando algo que ya no va a llegar. "
+                    "Nunca esperes callado sobre un muro." + _shared)
+            else:
+                lines.append(
+                    _head + " Esa tarea sigue viva y te dará el resultado sola. Si el operador "
+                    "añade un matiz (precio, zona, «analízalas una por una»), reconócelo («sigo con ello, lo "
+                    "tengo en cuenta») — NO escalas de nuevo. "
+                    "Lo que ves AQUÍ es TODO lo que sabes de ella, y no saber NO es saber que no hace nada: si "
+                    "no ha reportado ningún paso, di que aún no tienes novedades suyas —nunca que no ha hecho "
+                    "nada ni que está atascada—. "
+                    # V2-152: no news is NOT a stall. Intact, and now it only applies where it is TRUE.
+                    "Y si el operador se plantea pararla, no le empujes a hacerlo por falta de novedades: dile "
+                    "que sigue viva y que la falta de parte no significa que esté parada." + _shared)
         # V2-150 — una tarea que TERMINA desaparecía del estado, así que no quedaba ningún hecho diciendo que
         # había acabado, y menos aún que había acabado vacía. El informe decía `status=done url=` mientras el
         # turno decía «los procesos siguen en marcha, llevan casi 5 minutos». No es el modelo inventando por
