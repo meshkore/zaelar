@@ -475,7 +475,7 @@ CATALOG = [
 
 # ── ejecución de un caso ─────────────────────────────────────────────────────────────────────────────────
 def run_case(case, sample=None, verbose=True):
-    """Corre todas (o `sample`) las frases del caso. Cada frase: probe + retry×3 (varianza de Haiku) + traza.
+    """Corre todas (o `sample`) las frases del caso. Cada frase: probe + retry×3 (varianza del titular de entonces) + traza.
     Devuelve dict con estado GREEN/YELLOW/RED + detalle por frase."""
     phr = case["phrasings"][:sample] if sample else case["phrasings"]
     per = []
@@ -622,7 +622,7 @@ def main():
                 if not p["ok"]:
                     print(f"        ✗ «{p['text'][:56]}» → {p['action'] or '?'} {p['tools']}  (ideal: {r['note']})")
     if yellows:
-        print("\n  🟡 YELLOW (varianza de Haiku o handoff pobre — vigilar, no necesariamente bug):")
+        print("\n  🟡 YELLOW (varianza del titular de entonces o handoff pobre — vigilar, no necesariamente bug):")
         for r in yellows:
             print(f"    · {r['id']} [{r['domain']}] {r['intent']}")
     if defers:

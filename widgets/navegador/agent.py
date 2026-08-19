@@ -10,8 +10,8 @@
 #   - VISION only on demand: if the model cannot solve through DOM, it asks for `need_vision` and the step attaches
 #     ONE screenshot (expensive), so the image is paid only on that step. Vision phase: stub in M2, completed in M3.
 #
-# Brain = DEDICATED CHEAP MODEL through the same routing as duo (AIMLAPI, UA-spoof anti-Cloudflare), defaulting to
-# `anthropic/claude-haiku-4.5`. Configurable by env (NAVEGADOR_AGENT_*). Does NOT use the Hermes agent: governance
+# Brain = DEDICATED model, DeepSeek V4 Pro DIRECT by default (operator's norm, 2026-08-19: DeepSeek V4 Pro and
+# nothing else). Configurable by env (NAVEGADOR_AGENT_*). Does NOT use the Hermes agent: governance
 # already escalates the DECISION to automate to Hermes (`automate` action = safe:false); the loop itself is
 # mechanical and cheap, and should not occupy the voice ACP turn.
 #
@@ -23,8 +23,18 @@ from urllib.parse import urlsplit
 from loguru import logger
 from openai import AsyncOpenAI
 
-DEFAULT_BASE_URL = "https://api.aimlapi.com/v1"
-DEFAULT_MODEL = "anthropic/claude-haiku-4.5"   # in AIMLAPI's allowed flash list (CLAUDE.md routing)
+# ⚠️ 2026-08-19 — operator's norm: DeepSeek V4 Pro DIRECT, no other provider. The model name TRAVELS WITH ITS
+# ENDPOINT: the broker prefixes it (`deepseek/deepseek-v4-pro`) and the native API does not, so changing one
+# without the other buys a 400 on every step.
+#
+# KNOWN, WRITTEN LIMIT rather than a silent regression: the loop is DOM-FIRST (text snapshots of the
+# accessibility tree), which is what almost every step uses and is plain text — that path is unaffected. The
+# `need_vision` step attaches a screenshot as an `image_url` content part, and VISION on this default is NOT
+# verified. If a run stalls asking for vision, that is where to look; the escape hatch is
+# `NAVEGADOR_AGENT_MODEL_STRONG` with a vision-capable id on the same endpoint, which is exactly the third rung
+# this loop already has for "the cheap model cannot pass this".
+DEFAULT_BASE_URL = "https://api.deepseek.com"
+DEFAULT_MODEL = "deepseek-v4-pro"
 _MAX_STEPS = int(os.environ.get("NAVEGADOR_AGENT_MAX_STEPS", "16"))
 
 # LOGIN WALL: deterministic detection so credentials are never invented (2026-07-10 bug: on Google login, the loop
@@ -69,9 +79,11 @@ def _model() -> str:
 
 def _judge_model() -> str:
     """Model that judges relevance of extracted listings, including exact-category fit. Off-hot-path, so prioritize
-    judgment over latency: a capable model distinguishes enduro from trial/road. Default `deepseek/deepseek-v4-flash`
-    (cheap and good at reasoning, through AIMLAPI on the same endpoint). Adjustable with `NAVEGADOR_JUDGE_MODEL`."""
-    return os.getenv("NAVEGADOR_JUDGE_MODEL", "deepseek/deepseek-v4-flash").strip() or _model()
+    judgment over latency: a capable model distinguishes enduro from trial/road. Default `deepseek-v4-flash`
+    (cheap and good at reasoning) on the SAME endpoint as the loop, which since 2026-08-19 is the DIRECT DeepSeek
+    API — hence the UNPREFIXED name; the `deepseek/` prefix is the broker's catalog and 400s here. Adjustable with
+    `NAVEGADOR_JUDGE_MODEL`."""
+    return os.getenv("NAVEGADOR_JUDGE_MODEL", "deepseek-v4-flash").strip() or _model()
 
 
 def _model_strong() -> str:

@@ -550,7 +550,7 @@ la misma presión de disponibilidad). Self-host y nube siguen compartiendo el MI
 
 | tarea | qué hace | modelo (2026-08-09) | cadencia | evidencia |
 |---|---|---|---|---|
-| **i18n init** (`i18n/init/generate.py`) | traduce los 514 strings del UI a un idioma nuevo | **`anthropic/claude-haiku-4.5`** vía AIMLAPI | **1 vez por IDIOMA** (init + upgrade) | §12.5 |
+| **i18n init** (`i18n/init/generate.py`) | traduce los 514 strings del UI a un idioma nuevo | **`deepseek-v4-pro`** DIRECTO (norma del operador 2026-08-19) | **1 vez por IDIOMA** (init + upgrade) | §12.5 |
 
 Está en `memllm` porque comparte la costura off-hot-path (`chat_sync` + key por endpoint), no porque escriba en la
 memoria. **Su criterio es la FIABILIDAD, no el precio ni la calidad marginal**: se paga una sola vez por idioma

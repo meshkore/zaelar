@@ -66,7 +66,7 @@ CHECKS = [
    "play_music(next) o pregunta qué poner (sin música sonando); nunca busca/escala"),
  ("music", "lista", "Créame una lista de reproducción con canciones de los 80.",
    lambda r: "play_music" in T(r) or escal(r), "play_music o escala (no web_search, no vídeo youtube)"),
- # spotify_connect: el routing de Haiku insiste en authenticate_web (terco); el INVARIANTE lo garantiza el GUARD
+ # spotify_connect: el routing del titular anterior insistía en authenticate_web (terco); el INVARIANTE lo garantiza el GUARD
  # DE EJECUCIÓN (music → widget musica, no navegador), verificado aparte con router.is_music_service. Aquí solo
  # exigimos que NO escale a un worker (eso sí sería un fallo de routing); authenticate_web queda cubierto por el guard.
  ("music", "spotify_connect", "Conéctame a mi cuenta de Spotify.", lambda r: not escal(r),
@@ -105,7 +105,7 @@ CHECKS = [
  ("core", "meta", "¿Por qué has hecho eso? No te lo pedí.", chat, "explica, no actúa"),
  ("core", "noact", "No hagas nada todavía, solo escúchame.", chat, "no actúa"),
  # multilang = ENTENDER inglés y responder (su propósito). Antes usaba "what time is it" → conflación con el
- # time-query (lo más flaky de Haiku, ya arreglado en 8642fa7); frase conversacional limpia (4/4 chat).
+ # time-query (lo más flaky del titular de entonces, ya arreglado en 8642fa7); frase conversacional limpia (4/4 chat).
  ("core", "multilang", "Hey zaelar, how are you doing today?", lambda r: r.get("ok") and A(r) == "chat",
    "entiende inglés y responde (en el idioma del operador)"),
  ("core", "ack", "Vale, ajá, perfecto.", chat, "ack, sin acción espuria"),
@@ -122,10 +122,10 @@ CHECKS = [
    lambda r: escal(r) or search(r), "escala (research) o web_search+síntesis (resumen) — ambas válidas"),
  ("widget", "crear_oro", "Hazme un widget que muestre el precio del oro en tiempo real.", escal, "escala a crear"),
  ("nav", "amazon", "Entra en Amazon y búscame unos auriculares Sony baratos.", escal, "escala a navegar"),
- # inglés-canvas es edge (español es el default) y Haiku es muy inconsistente (1/3 canvas). El error REAL es
+ # inglés-canvas es edge (español es el default) y el titular anterior era muy inconsistente (1/3 canvas). El error REAL es
  # BUSCAR un reloj en la web; mostrarlo o acusar "te abro el reloj" es aceptable. Check laxo: NO buscar.
  # (lang_action inglés-canvas RETIRADO: español es el default; "multiidioma"=ENTENDER lo cubre `multilang`.
- #  El inglés-canvas es un edge no soportado y muy variable en Haiku → solo metía ruido. La mejora de prompt
+ #  El inglés-canvas es un edge no soportado y muy variable en el titular de entonces → solo metía ruido. La mejora de prompt
  #  "canvas vale en cualquier idioma" queda por si el modelo lo pilla.)
  ("core", "conectores", "¿Qué conectores tienes activos ahora mismo?", lambda r: chat(r) and not search(r),
    "estado conectores natural, no busca"),
@@ -261,7 +261,7 @@ def main():
             for grp, cid, ok, det in res: record(grp, cid, ok, det)
         except Exception as e:
             print(f"  ✗ {cyc.__name__} err: {str(e)[:60]}")
-    # checks independientes. RETRY-ON-FAIL x2 (3 intentos, sesión fresca): el routing de Haiku es no-determinista
+    # checks independientes. RETRY-ON-FAIL x2 (3 intentos, sesión fresca): el routing del titular de entonces es no-determinista
     # (un mismo turno acierta ~4/5); un fallo suele ser RUIDO. Solo se reporta fallo si falla las 3 veces → así el
     # loop NO marca la varianza del modelo como bug (P(3 fallos)≈0.5% a 4/5) y solo grita ante un bug/regresión real.
     for grp, cid, text, pred, exp in CHECKS:

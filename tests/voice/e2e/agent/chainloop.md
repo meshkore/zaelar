@@ -21,7 +21,7 @@ mejor opción.** Commits cortos, bien documentados. **NUNCA push.**
    - **bug real** — la primera acción es objetivamente incorrecta (charla muda ante una orden, navegador para
      música, alucinar una data-op en un "ábreme X", escalar una data-op de datos, no escalar una reserva ITV).
    - **rigidez del check** — la acción es aceptable pero el predicado era estrecho → relaja el check (documenta).
-   - **varianza de Haiku** — falla 1-2× y acierta a la 3ª (YELLOW por reintentos): NO es bug; no toques prosa a lo
+   - **varianza del titular de entonces** — falla 1-2× y acierta a la 3ª (YELLOW por reintentos): NO es bug; no toques prosa a lo
      loco (whack-a-mole). Solo actúa si falla las 3 (RED consistente).
    - **hueco de producto** — funcionalidad no implementada (listas/favoritos): NO se arregla aquí → HUECO en roadmap.
 7. **Decide: arreglar o diferir.**

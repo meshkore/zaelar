@@ -72,7 +72,7 @@ nuestros propios logs). Usar como señal de RANKING, no como el número que se s
 | `google/gemini-2.5-flash-lite-preview` (thinking OFF) | ~0,37 s | 226 | ~muy barato | ✅ confirmado AIMLAPI | el más rápido; el "menos listo"; verboso |
 | `x-ai/grok-4-fast-non-reasoning` | ~0,5–0,6 s | ~207 | $0,21 / $0,53 | ✅ confirmado AIMLAPI | no-razonador POR CONSTRUCCIÓN (sin trampa thinking); buen equilibrio |
 | `google/gemini-2.5-flash` | ~0,45 s | ~205 | ~$0,30 / $2,50 | ✅ confirmado AIMLAPI | el más listo del trío rápido; puede activar thinking; verboso |
-| `anthropic/claude-haiku-4.5` | ~0,60 s | ~120 | $1,3 / $6,5 | ✅ (tools nativas Anthropic) | mejor fiabilidad FC + español; el más caro |
+| `(modelo Anthropic, retirado 2026-08-19)` | ~0,60 s | ~120 | $1,3 / $6,5 | ✅ (tools nativas Anthropic) | mejor fiabilidad FC + español; el más caro |
 | `deepseek/deepseek-v4-flash` | ~1,26 s | 111 | **$0,182 / $0,364** | ✅ confirmado AIMLAPI | el más barato; el MÁS LENTO del shortlist |
 | `moonshot/kimi-k2-6` / `k2-5` | 0,4–2,5 s (varía) | 77–431 | $0,21–0,78 / $3,9–5,2 | fuerte agéntico; FC en AIMLAPI SIN confirmar | medir TTFT por AIMLAPI antes de usar |
 
@@ -97,7 +97,7 @@ Caso clave = `search_IN_wallapop` ("con Wallapop abierto, búscame ahí una moto
 | **`x-ai/grok-4-fast-non-reasoning`** | **7/7 ✅** | ✅ **1,35 s** | **~0,8–1,8 s** | 🏆 ELEGIDO |
 | `google/gemini-2.5-flash` | 7/7 ✅ | ✅ 1,66 s | ~1,1–1,9 s | muy bueno (alt) |
 | `deepseek/deepseek-v4-flash` | 7/7 ✅ | ✅ 2,38 s | ~1,0–1,3 s (dur 2–4,6 s) | bueno, el más barato (alt) |
-| `anthropic/claude-haiku-4.5` | 7/7 ✅ | ✅ 2,78 s | ~1,7–3,6 s | fiable, el más lento/caro (alt) |
+| `(modelo Anthropic, retirado 2026-08-19)` | 7/7 ✅ | ✅ 2,78 s | ~1,7–3,6 s | fiable, el más lento/caro (alt) |
 | `google/gemini-2.5-flash-lite-preview` | **4/7 ❌** | ❌ (no llamó nada) | ~0,8–1,7 s | rápido pero tonto en routing — DESCARTADO |
 | `qwen2.5:14b-instruct` (LOCAL, era prod) | 5/7, pero… | ✅ pero **27 s ttft** | **timeout 45 s** en "abre Wallapop" | 💀 confirma el desastre en vivo |
 
@@ -109,14 +109,14 @@ aviso de la §2: 4/7, no invoca las tools. **Decisión: capa rápida → `x-ai/g
 1. **`grok-4-fast-non-reasoning`** — mejor equilibrio; no-razonador por construcción (sin trampa). ⬅ recomendado.
 2. **`gemini-2.5-flash-lite-preview` (thinking off)** — el más rápido/barato; el menos listo (riesgo en enrutado de tools).
 3. **`gemini-2.5-flash`** — el más listo del trío rápido; para desambiguar/enrutar tools mejor.
-4. **`claude-haiku-4.5`** — máxima fiabilidad FC + español; caro (reservar si el enrutado de tools sigue fallando).
+4. **`(modelo Anthropic retirado)`** — máxima fiabilidad FC + español; caro (reservar si el enrutado de tools sigue fallando).
 5. **`deepseek/deepseek-v4-flash`** — suelo de coste / fallback; TTFT el peor del grupo.
 
 ---
 
 ## 3. Otros carriles (referencia)
 
-- **Navegador — automatizador** (`NAVEGADOR_AGENT_*`, bucle `automate_web`): por defecto `anthropic/claude-haiku-4.5`
+- **Navegador — automatizador** (`NAVEGADOR_AGENT_*`, bucle `automate_web`): por defecto `deepseek-v4-pro` DIRECTO
   vía AIMLAPI (un cerebro barato DEDICADO, NO el SlowBrain de `nucleo/`). Es un modelo cloud decente ya; el fallo de
   la sesión `105150` NO fue del automatizador sino de la CAPA RÁPIDA (FlashBrain) enrutando mal (mandó la tarea a
   `browse_web/search`→Bing en vez de `automate_web` sobre Wallapop).
@@ -169,14 +169,14 @@ quedan en `conversation` son cold-start del 1er turno + escaladas, no la memoria
 - **Producción (desde 2026-07-15)**: `grok-4.20-0309-non-reasoning` vía **xAI DIRECTO**
   (`config/v2.json §fast` → `provider:"xai"`, `base_url:"https://api.x.ai/v1"`, key = `XAI_API_KEY` en el credential
   store). Se pasó de AIMLAPI a xAI directo porque el store solo tiene `XAI_API_KEY`/`GROQ_API_KEY` (no `AIMLAPI_KEY`):
-  el default heredado (Haiku vía AIMLAPI) dejaba el turno sin credencial → fallback "Uf, se me ha ido un momento".
+  el default heredado (otro proveedor vía AIMLAPI) dejaba el turno sin credencial → fallback "Uf, se me ha ido un momento".
   `fast_client.py::resolved_api_key()` resuelve la key **por endpoint** (x.ai/groq.com/aimlapi/gemini). Historial:
-  fue `x-ai/grok-4-fast-non-reasoning` vía AIMLAPI (desde 2026-07-08), luego Haiku 4.5 vía AIMLAPI (V2-034,
-  2026-07-12, por fiabilidad de routing). Alternativas hoy: Haiku/AIMLAPI o Groq (`llama-3.3-70b-versatile`) metiendo
+  fue `x-ai/grok-4-fast-non-reasoning` vía AIMLAPI (desde 2026-07-08), luego un modelo Anthropic vía AIMLAPI (V2-034,
+  2026-07-12, por fiabilidad de routing). Alternativas hoy: Groq (`llama-3.3-70b-versatile`) metiendo
   su key en el store. NUNCA local en la voz: `qwen2.5:14b-instruct` medido ~19 s/turno + patoso (contención de GPU).
   Bonus arquitectónico (se mantiene): el LLM en la nube saca la GPU Metal → libera STT (Whisper) + TTS (Kokoro) locales.
 - **Alternativas validadas** (mismo benchmark, todas 7/7 routing) por si grok da problemas de fiabilidad/Cloudflare:
-  `google/gemini-2.5-flash`, `deepseek/deepseek-v4-flash` (más barato), `anthropic/claude-haiku-4.5` (más fiable, caro).
+  `google/gemini-2.5-flash`, `deepseek/deepseek-v4-flash` (más barato), `(modelo Anthropic, retirado 2026-08-19)` (más fiable, caro).
   Camino de vuelta a LOCAL documentado en el `.env` (bloque comentado).
 - **Pendiente de medir en producción**: TTFT real de grok en sesión de voz completa (no solo el benchmark aislado) y
   confirmar que la latencia percibida baja de verdad al liberar la GPU (comparar STT `dur` antes/después).
@@ -327,7 +327,7 @@ Restricción: **no-razonador**, tool-calling FIABLE, sub-segundo. Cierra el turn
 | **gpt-4o-mini** | OpenAI | ✅ **EN USO** | A/B 2026-07-17 (turno "dime cuándo es la cita ITV"): responde de memoria + `web_search` solo en consultas reales. Barato. |
 | grok-4-fast-non-reasoning | AIMLAPI | ✅ válido (histórico) | head-to-head 2026-07-08: 7/7 routing (§2). ⚠️ es OTRO modelo que el de xAI directo. |
 | gemini-2.5-flash | AIMLAPI | ✅ válido | 7/7 routing (§2). |
-| claude-haiku-4.5 | AIMLAPI | ✅ válido, caro | 7/7, mejor fiabilidad FC (§2). |
+| (modelo Anthropic retirado) | AIMLAPI | ✅ válido, caro | 7/7, mejor fiabilidad FC (§2). |
 | **grok-4.20-0309-non-reasoning** | **xAI directo** | ❌ **NO USAR en FlashBrain** | A/B 2026-07-17 MISMO turno: contestó "Hecho" + llamó `widget_data` a una PREGUNTA de memoria (mis-routing), teniendo la respuesta en el prompt. Enruta preguntas a acciones. |
 | gemini-2.5-flash-lite | AIMLAPI | ❌ NO USAR | 4/7 routing, no invoca tools (§2). |
 | cualquier `*-reasoning` / grok-4.3/4.5 / gemini-3.x-flash | — | ❌ PROHIBIDO en voz | razonadores → +segundos de thinking → zaelar lento/mudo (regla dura). |
@@ -428,7 +428,7 @@ Not (yet) independently benchmarked against alternatives for THIS specific task 
 classification is a different shape of problem than turn-routing §11 or synthesis §12) — chosen on the
 strength of the endpoint-obedience finding plus already-resolved credentials/plumbing. If routing/precision
 complaints surface for this task specifically, bench it the same way §11 benched turn-routing: real
-fragments, `--reps` for frequency not single samples, compare against the broker and against Haiku.
+fragments, `--reps` for frequency not single samples, compare against the broker and against the previous titular.
 
 ## 10. «Susurro» (V2-053) — modelo del auditor conversacional
 
@@ -493,7 +493,7 @@ penalización de idioma (regla monolingüe).
 |---|---|---|---|---|
 | **gpt-4.1-mini** | OpenAI | **98.3%** (28.5/29) | 1.1s | ✅ **TITULAR confirmado** (ya era el default por la regla «memoria=OpenAI») |
 | gemini-2.5-flash | AIMLAPI | 96.6% | 3.3s | ✅ fallback nº1 si OpenAI cae (pero ver 12.2: NO vale para REM) |
-| claude-haiku-4.5 | AIMLAPI | 94.8% | 1.5s | ✅ válido, algo más caro |
+| (modelo Anthropic retirado) | AIMLAPI | 94.8% | 1.5s | ✅ válido, algo más caro |
 | deepseek-v4-flash | AIMLAPI | 94.8% | 4.0s | ✅ válido (por fin probado CON endpoint — §9.2 lo tenía pendiente) |
 | qwen2.5:7b local | Ollama | 86.2% | 2.2s | ⚠️ opción local (batería/privacidad); pierde precisión en descartes |
 | qwen3.5-flash | AIMLAPI | 17.2% | 18.7s | ❌ NO USAR (thinking ON → timeouts; consistente con §11) |
@@ -507,12 +507,12 @@ nombres/cifras (anti-T181), castellano, brevedad, abstracción (no repetir píld
 |---|---|---|---|
 | **gpt-4.1-mini** | **100%** | 2.3s | ✅ **TITULAR** (`§memory.rem_model` default) |
 | deepseek-v4-flash | 100% | 7.4s | ✅ fallback (3× más lento, mismo resultado) |
-| claude-haiku-4.5 | 90% | 3.1s | ✅ válido |
+| (modelo Anthropic retirado) | 90% | 3.1s | ✅ válido |
 | gemini-2.5-flash | 50% | 7.3s | ❌ NO para síntesis (pierde claves/forma) — aunque destila bien (12.1) |
 
 **Conclusión de la ronda:** `gpt-4.1-mini` titular en las DOS tareas de LLM del módulo de memoria (distill + REM);
-cadena de fallback documentada por tarea (distill: gemini-2.5-flash → haiku-4.5; REM: deepseek-v4-flash →
-haiku-4.5). ⚠️ AIMLAPI por urllib exige UA de navegador (Cloudflare 403 — mismo workaround que fast_client, ya
+cadena de fallback documentada por tarea (distill: gemini-2.5-flash → (modelo Anthropic retirado); REM: deepseek-v4-flash →
+(modelo Anthropic retirado)). ⚠️ AIMLAPI por urllib exige UA de navegador (Cloudflare 403 — mismo workaround que fast_client, ya
 aplicado en memllm). Embeddings: restaurado `auto` (ollama/embeddinggemma, firma re-sellada + re-embed 261/261)
 tras el incidente de mezcla de espacios (fastembed/bge-EN); el enforcement del writer impide que se repita.
 
@@ -556,7 +556,7 @@ promocionar a durable, garble de STT con dato bueno.
 | `openai/gpt-5-mini` | 98,9% | **50%** | 100% | $2,517 | 1 | 13,0s | ❌ razonador: capta bien pero ENSUCIA |
 | `mistralai/ministral-8b` (directo) | 97,8% | **73,3%** | 100% | $0,393 | 3 | 1,0s | ❌ el más barato del lote, pero ensucia |
 | `google/gemini-2.5-flash` | 96,7% | 100% | 100% | $1,232 | 3 | 2,5s | ✅ **fallback nº1** (metadato perfecto) |
-| `anthropic/claude-haiku-4.5` | 96,7% | 100% | 100% | $4,607 | 1 | 1,8s | ✅ válido, 6,8× el precio del titular |
+| `(modelo Anthropic, retirado 2026-08-19)` | 96,7% | 100% | 100% | $4,607 | 1 | 1,8s | ✅ válido, 6,8× el precio del titular |
 | `x-ai/grok-4-20-non-reasoning` (xAI directo) | 96,7% | 100% | 100% | $4,749 | 1 | 1,1s | ✅ válido pero CARO ($1,25/$2,50) |
 | `google/gemini-2.5-flash-lite` | 96,7% | 90% | 94,4% | $0,390 | 3 | 0,9s | ❌ reifica una PREGUNTA + falla el slot de mudanza |
 | `zhipu/glm-4.7` | 96,7% | 90% | 94,4% | $3,793 | 1 | 28,9s | ❌ caro y lentísimo por el broker |
@@ -660,7 +660,7 @@ trivialidades que no merece insight.
 | `deepseek/deepseek-reasoner` | 97,1% | 100% | 100% | 85,7% | 100% | 100% | $1,71 | 12s | ⚠️ razonar no aporta; insights largos |
 | `openai/gpt-4.1` | 96,8% | 100% | 98,4% | 85,7% | 100% | 100% | $2,17 | 4s | ⚠️ el más caro del lote útil |
 | `deepseek/deepseek-thinking-v3.2-exp` | 92,4% | 100% | 90,5% | 71,4% | 100% | 100% | $0,20 | 20s | ❌ pierde claves y se alarga |
-| `anthropic/claude-haiku-4.5` | 91,4% | 100% | 95,2% | **61,9%** | 100% | 100% | $1,70 | 8s | ❌ insights demasiado largos |
+| `(modelo Anthropic, retirado 2026-08-19)` | 91,4% | 100% | 95,2% | **61,9%** | 100% | 100% | $1,70 | 8s | ❌ insights demasiado largos |
 | `openai/gpt-4.1-mini` (titular previo) | **78,1%** | 100% | 100% | 90,5% | **0%** | 100% | $0,44 | 7s | ❌ **nunca calla** (ver abajo) |
 | `google/gemini-2.5-flash` | 20% | **0%** | — | — | n/a | 0% | $0,16 | 7s | ❌ no devuelve nada usable |
 | `openai/gpt-5-mini` | 20% | **0%** | — | — | n/a | 0% | $0,93 | 20s | ❌ 1.152 tokens de salida para nada |
@@ -725,7 +725,7 @@ claves?), placeholders intactos, y script destino correcto.
 
 | candidato | ja | ar | out_tok (lote de 50) | veredicto |
 |---|---|---|---|---|
-| **`anthropic/claude-haiku-4.5`** | 100% · 15/15 | 100% · 15/15 | ~1.050-1.200 | **ELEGIDO** — limpio en los dos, 7-10s |
+| **`(modelo Anthropic, retirado 2026-08-19)`** | 100% · 15/15 | 100% · 15/15 | ~1.050-1.200 | **ELEGIDO** — limpio en los dos, 7-10s |
 | `google/gemini-2.5-flash` | 100% · 15/15 | **0%** (respuesta cortada a 160 tok) | ~740 | descartado por el fallo de árabe |
 | `deepseek/deepseek-v4-flash` | 100% · 15/15 | 100% · 15/15 | **6.777-8.560** | descartado: razona, 48-59s por lote |
 
@@ -769,7 +769,7 @@ para un día de pruebas. **Cuando UltraSpeed sea comercial, es uno de los PRIMER
 medir TTFT real y fiabilidad de routing, no solo velocidad de decode nominal).
 
 **Sobre el `MiMo-V2.5-Pro` normal (ya disponible hoy):** NO incorporar salvo que un A/B muestre ventaja real sobre
-los modelos ya tested (grok-4.20-non-reasoning, gpt-4o-mini, haiku-4.5…) al mismo precio — de momento no hay razón
+los modelos ya tested (grok-4.20-non-reasoning, gpt-4o-mini, (modelo Anthropic retirado)…) al mismo precio — de momento no hay razón
 para añadirlo solo por ser nuevo.
 
 ## 14. BRAIN WORKERS — qué CLI conduce y qué modelo razona (2026-08-13)
@@ -836,7 +836,7 @@ sea la tarea; escala con cuántas vueltas dé. Un worker que se desorienta es ca
   existe la cadena de relevo de `workers/providers.py`. Ojo, tiene DOS cuotas independientes (los prompts del
   modelo y sus tools MCP internas) y solo la primera la ve la cadena.
 - **DeepSeek** (`api.deepseek.com/anthropic`) — pago por token, el más barato (~$0,14/$0,28 por Mtok en v4-flash).
-  Su gateway **MAPEA alias de Claude**: `sonnet`/`haiku` → `deepseek-v4-flash`, `opus` → `deepseek-v4-pro`. O sea
+  ⚠️ Su gateway **NO mapea alias de Claude** (creerlo dejó el escalón roto: 400 en cada petición). O sea
   que el modelo que se le manda es el ALIAS de Claude, no un nombre de DeepSeek — mandarle `deepseek-v4-flash` a
   pelo no es lo que espera. Va DESPUÉS de los planes de suscripción por ser por-token.
 - **Grok 4.5 / 4.6** vía Grok Build — por token; 4.6 son $2/$6 por Mtok con 500k de contexto y razonamiento.

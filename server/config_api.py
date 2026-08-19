@@ -61,7 +61,7 @@ _PROVIDER_CATALOG = {
             # `ModelSpec.reasoning_effort()` for Gemini endpoints. Gate: node 2.13. See V2-097 §4.
             {"id": "aimlapi", "label": "AIMLAPI (broker — the one account we manage)",
              "base_url": "https://api.aimlapi.com/v1", "key_env": "AIMLAPI_KEY", "cloud": True,
-             "models": ["anthropic/claude-haiku-4.5", "deepseek/deepseek-v4-flash",
+             "models": ["deepseek/deepseek-v4-pro", "deepseek/deepseek-v4-flash",
                         "google/gemini-3.7-flash"]},
             {"id": "groq", "label": "Groq (cloud, fastest — routes worse)",
              "base_url": "https://api.groq.com/openai/v1", "key_env": "GROQ_API_KEY", "cloud": True,
@@ -72,9 +72,10 @@ _PROVIDER_CATALOG = {
         ],
         "closed_models": True,      # the UI renders a dropdown, not a text field
         "note": "NON-reasoners only (the voice turn must close fast) and only benchmark-endorsed ones. "
-                "claude-haiku-4.5 = production default (reliable routing + introspection). "
-                "deepseek-v4-flash = the ONLY one that routed 12/12 in §9. Endpoint comes from the provider — "
-                "there is no URL to type.",
+                "deepseek-v4-pro DIRECT = production default (operator's norm, 2026-08-19: it is the titular and "
+                "the only endpoint that actually obeys `thinking:disabled`). deepseek-v4-flash routed 12/12 in "
+                "§9. The broker entries carry the `deepseek/` prefix and the direct ones do not — that is the "
+                "provider's catalog, not a typo. Endpoint comes from the provider: there is no URL to type.",
     },
     "code_agent": {                 # Brain Workers — the headless agent that DRIVES tasks
         # REAL models per provider (2026-08-12). This list used to be EMPTY for both, so the UI rendered a free
@@ -93,7 +94,7 @@ _PROVIDER_CATALOG = {
              # name (an invented model gets error 1214), so this is an alias, not a free-for-all. `glm-5.2` stays
              # listed because it is still accepted. NOTE: 5.3 is a REASONER (its first content block is `thinking`)
              # — fine for workers, never for the voice layer.
-             "models": ["opus", "sonnet", "haiku", "sonnet[1m]", "opus[1m]",
+             "models": ["opus", "sonnet", "sonnet[1m]", "opus[1m]",
                         "glm-5.3", "glm-5.2", "glm-4.6", "kimi-k2.6"],
              "note": "Can restrict Bash to our bridges only (single-writer invariant) → the only backend valid for "
                      "untrusted input (deny_tools) and cluster dev workers. The glm-*/kimi-* entries belong to the "
@@ -125,10 +126,13 @@ _PROVIDER_CATALOG = {
              "note": "The operator's rule: subscription plans, never pay-per-token. Quota is WEEKLY and when it "
                      "runs out everything on this tier dies at once — that is what the relay chain exists for."},
             {"id": "cc_deepseek", "label": "Claude Code + DeepSeek V4", "provider": "claude_code",
-             "base_url": "https://api.deepseek.com/anthropic", "model": "sonnet", "key_env": "DEEPSEEK_API_KEY",
+             "base_url": "https://api.deepseek.com/anthropic", "model": "deepseek-v4-flash",
+             "key_env": "DEEPSEEK_API_KEY",
              "billing": "per_token", "cost": "~$0.14/$0.28 per Mtok (v4-flash)",
-             "note": "Its gateway MAPS Claude aliases: sonnet/haiku → deepseek-v4-flash, opus → deepseek-v4-pro. "
-                     "So the model field is the Claude alias, not a DeepSeek name. Cheapest of the three."},
+             "note": "⚠️ Its gateway does NOT map Claude aliases — that belief is what shipped this rung broken. "
+                     "Verified against the live endpoint: a Claude alias gets `400 — The supported API model names "
+                     "are deepseek-v4-pro or deepseek-v4-flash`. Use the DeepSeek name. Compatible in the PROTOCOL "
+                     "is not compatible in the CATALOG. Cheapest of the three."},
             {"id": "grok45", "label": "Grok Build + Grok 4.5", "provider": "grok_build",
              "base_url": "", "model": "grok-4.5", "key_env": "XAI_API_KEY",
              "billing": "per_token", "cost": "pay-per-token — measured ~$0.03 for a trivial turn",
@@ -176,8 +180,8 @@ _PROVIDER_CATALOG = {
         "providers": [
             {"id": "aimlapi", "label": "AIMLAPI (broker — the one account we manage)",
              "base_url": "https://api.aimlapi.com/v1", "key_env": "AIMLAPI_KEY", "cloud": True,
-             "models": ["openai/gpt-4.1-mini", "openai/gpt-4.1", "anthropic/claude-haiku-4.5",
-                        "deepseek/deepseek-v4-flash"]},
+             "models": ["openai/gpt-4.1-mini", "openai/gpt-4.1",
+                        "deepseek/deepseek-v4-pro", "deepseek/deepseek-v4-flash"]},
             {"id": "xai", "label": "xAI grok", "base_url": "https://api.x.ai/v1",
              "key_env": "XAI_API_KEY", "cloud": True, "models": ["grok-4.20-0309-non-reasoning"]},
             {"id": "off", "label": "Disabled (enabled=false)", "cloud": False},

@@ -1,6 +1,6 @@
 """nucleo/agentes/web_cc.py — WORKER WEB conducido por Claude Code (V2-036 F3).
 
-SUSTITUYE a `nucleo/agentes/web.py` + al bucle barato DOM→visión (Haiku) de `widgets/navegador/agent.py`. Ahora un
+SUSTITUYE a `nucleo/agentes/web.py` + al bucle barato DOM→visión de `widgets/navegador/agent.py`. Ahora un
 agente Claude Code headless CONDUCE el navegador de zaelar paso a paso con SU inteligencia: pide el snapshot, razona
 sobre la categoría EXACTA (enduro≠trial≠carretera), navega/clica/escribe/filtra, y extrae los resultados que de
 verdad encajan. Dirige el Chromium por el puente `hbweb` (`nucleo/nav_cli` → `POST /api/navegador/act` → el

@@ -30,7 +30,7 @@ verificación: `tests/voice/e2e/agent/loop_cycle.py` (routing + memoria, headles
    del mismo disparo** si queda tiempo/bugs; si no, cede (el cron re-dispara en 20 min).
 
 ## Objetivos vivos (ir cerrando)
-IMPORTANTE — LECCIÓN: hay priores FUERTES de Haiku que NO ceden a la descripción de la tool (ya probado):
+IMPORTANTE — LECCIÓN: hay priores FUERTES del titular de entonces que NO ceden a la descripción de la tool (ya probado):
 tuneé la descripción 2× y el caso canónico sigue mal. Para esos NO sigas engordando prosa (diluye y no gana):
 usa un **mecanismo más fuerte** (guard de ejecución determinista, o surfacing del dato al prompt).
 - **spotify_connect canónico** ("conéctame a mi cuenta de Spotify" → `authenticate_web`, terco). Fix real:
@@ -45,7 +45,7 @@ usa un **mecanismo más fuerte** (guard de ejecución determinista, o surfacing 
 - **"ábreme/muestra el widget X" → widget_data (PELIGROSO)** en vez de `[[show:X]]`. Evidencia (2026-07-16):
   "ábreme mensajería" → `widget_data(mensajeria, action="unhide")` (acción INVENTADA, no declarada → no-op);
   "abre la agenda" → `widget_data(agenda, add_meeting, {title:"Reunión con Axa Seguros"...})` — ¡ALUCINA una
-  cita! Un "mostrar" se convierte en un data-op inventado (corrupción de datos). Prosa NO basta (Haiku sticky).
+  cita! Un "mostrar" se convierte en un data-op inventado (corrupción de datos). Prosa NO basta (titular de entonces sticky).
   Fix seguro (GUARD de ejecución en el handler de widget_data, `providers/nucleo.py` + helper en router): (a) si
   la `action` NO está DECLARADA en el manifest del widget → no ejecutar; si es show-like (unhide/show/open/ver)
   → redirigir a `[[show:ID]]`; (b) si el turno es un "abrir/mostrar/enseñar/ver el widget X" PURO (sin verbo de
@@ -63,7 +63,7 @@ usa un **mecanismo más fuerte** (guard de ejecución determinista, o surfacing 
   no navegador; verificado 8/8 unit + ciclo 32/34.
 - 2026-07-16 (fire): FIX abre_msg PELIGROSO (b7a816c) — is_pure_show_request + guard: "abrir/mostrar el widget X"
   puro nunca ejecuta data-op (ataja el add_meeting ALUCINADO y el 'unhide' inventado); unhide→show. Unit 11/11.
-- 2026-07-16 (fire): sin bugs reales — reserva_itv/multilang fallaban por RUIDO de Haiku (re-test: ITV escalate
+- 2026-07-16 (fire): sin bugs reales — reserva_itv/multilang fallaban por RUIDO del titular de entonces (re-test: ITV escalate
   5/5, "what time"→chat "Es la 1:34"). Añadido RETRY-ON-FAIL x1 en loop_cycle (4397a54) → distingue ruido de
   bug real; **ciclo 35/35** estable. Guards de invariante (spotify→musica, pure-show→no-data-op) sostienen.
 - 2026-07-16 (fire): FIX hora (8642fa7) — "¿qué hora es?"/"what time is it" caía a web_search (4/5, vacío) pese a
@@ -76,7 +76,7 @@ usa un **mecanismo más fuerte** (guard de ejecución determinista, o surfacing 
 
 - 2026-07-16 (fire): conectores volvió a fallar 2× (mala suerte; re-test 5/6 = el relabel SE SOSTIENE, es
   varianza). Sin prosa nueva (régimen). Subido retry-on-fail a 3 intentos (d09b4d5) → el loop ya no marca la
-  varianza ~4/5 de Haiku como bug (P(3 fallos)≈0.5%); solo grita ante bug/regresión real. Ciclo 44/44.
+  varianza ~4/5 del titular de entonces como bug (P(3 fallos)≈0.5%); solo grita ante bug/regresión real. Ciclo 44/44.
 
 - 2026-07-16 (fire): multilang falló 3× — era CONFLACIÓN (usaba "what time is it" = multiidioma + time-query
   flaky). Desacoplado (39ea95e) a "Hey zaelar, how are you doing today?" → chat 4/4: prueba su propósito real
@@ -92,13 +92,13 @@ usa un **mecanismo más fuerte** (guard de ejecución determinista, o surfacing 
   PRODUCTO (883b316): "guarda esta en favoritos" / "añade a una lista" / "créame una playlist para guardar" →
   play_music + "Hecho" FALSO. play_music solo REPRODUCE/controla; **gestión de listas y favoritos NO está
   implementada** (FEATURE GAP, aunque el operador la listó como workflow deseado). La prosa no lo arregla
-  (Haiku sticky). DECISIÓN de producto pendiente: (a) implementar favoritos/listas en el conector de música;
+  (titular de entonces sticky). DECISIÓN de producto pendiente: (a) implementar favoritos/listas en el conector de música;
   (b) guard de ejecución en el handler de play_music → decline honesto ("aún no puedo guardar favoritos") en
   vez de "Hecho"; (c) aceptar. "Poner un mix/playlist de los 80" SÍ funciona (es reproducir). No añadí check
   al loop (es feature gap, no regresión).
 
 - 2026-07-16 (fire): ⛔ **BLOQUEO EXTERNO — AIMLAPI SIN CRÉDITOS** (403 "used all available credits / reached
-  monthly spending limit"). El FlashBrain cloud (Haiku) devuelve VACÍO en todo → ciclo dio 3/47 (falsos). NO es
+  monthly spending limit"). El FlashBrain cloud de entonces devuelve VACÍO en todo → ciclo dio 3/47 (falsos). NO es
   bug de zaelar. El loop continuo agotó los créditos del equipo AIMLAPI. **ACCIÓN DEL OPERADOR**: recargar
   créditos de AIMLAPI, o cambiar el FlashBrain (config v2 `fast` / `FAST_MODEL`) a otro proveedor o al LOCAL
   (`qwen2.5:14b-instruct` vía Ollama, gratis, aunque más patoso en routing). Añadido PREFLIGHT (a3b6f40) →
@@ -115,7 +115,7 @@ usa un **mecanismo más fuerte** (guard de ejecución determinista, o surfacing 
 ## ESTADO/REGIMEN (leer antes de seguir puliendo)
 Los bugs DAÑINOS/de alto impacto están cerrados (guards: spotify→musica, pure-show→no-data-op; fixes:
 marketplace→escalate, hora/mensajes/agenda/conectores fuera de web_search). Lo que queda son SOFT y de
-VARIANZA de Haiku: un mismo turno enruta bien 2/3–4/5 veces; la prosa mejora la media pero NO converge a 5/5.
+VARIANZA del titular de entonces: un mismo turno enruta bien 2/3–4/5 veces; la prosa mejora la media pero NO converge a 5/5.
 El retry-on-fail absorbe casi todo → el ciclo da 44/44 la mayoría de veces, con 1 fallo esporádico rotatorio.
 → NO seguir haciendo whack-a-mole de prosa sobre estos (rinde poco y añade longitud al prompt). Próximos fires
 de más valor: (a) EJECUCIÓN real por VOZ (`-m tests.voice.e2e.agent.run --scenario …`) — rail/worker/navegador/cookies/audio,

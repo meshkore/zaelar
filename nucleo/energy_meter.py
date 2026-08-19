@@ -72,7 +72,6 @@ _MODEL_RATES: dict[str, tuple[float, float]] = {
     # (config §memory.mem_processor_model — see zaelar-model-benchmarks.md §12.3). Measured cost of
     # one distilled turn: ~4076 in + ~389 out tokens => ~$0.00068, i.e. $0.68 per 1000 turns.
     "deepseek-v4-flash": (0.14, 0.28),
-    "claude-haiku-4.5": (1.00, 5.00),          # FlashBrain's _FALLBACK_MODEL
     # CORAZÓN fallback chain (§12.3), rated so a failover never meters as the generic fallback rate.
     "gemini-2.5-flash-lite": (0.10, 0.40),
     "gemini-2.5-flash": (0.30, 2.50),
@@ -174,7 +173,7 @@ def _broker_markup(base_url: str, model: str) -> float:
     the standing policy (2026-08-13) is to over-charge slightly rather than under-charge.
 
     Measured margins (verified 2026-08-09, `tests/memory/e2e/bot/prices.json`): they are NOT a constant — the
-    broker's cut depends on the model (deepseek-v4-flash ×1.30, haiku ×1.30, grok-4-fast ×1.05,
+    broker's cut depends on the model (deepseek-v4-flash ×1.30, grok-4-fast ×1.05,
     gemini-2.5-flash ×1.00). An unknown model on the broker takes the WORST observed margin, for the same
     never-silently-cheap reason as `_FALLBACK_RATE_USD`.
 
@@ -191,7 +190,6 @@ def _broker_markup(base_url: str, model: str) -> float:
 
 _BROKER_MARKUP_AIMLAPI: dict[str, float] = {
     "deepseek-v4-flash": 1.30,      # 0.14 nativo → 0.182 por el broker
-    "claude-haiku-4.5": 1.30,       # 1.00 → 1.30
     "grok-4-fast": 1.05,            # 0.20 → 0.21
     "gemini-2.5-flash": 1.00,       # 0.30 → 0.30 (sin margen)
 }

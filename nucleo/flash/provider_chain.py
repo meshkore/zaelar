@@ -146,7 +146,7 @@ def _voice_chain() -> list[dict]:
         #   AIMLAPI deepseek-v4-flash      41/42       0     8.659 ms   12.025 ms   ← titular
         #   DIRECTO deepseek-v4-PRO        41/42       1     1.158 ms    5.582 ms   ← este escalón
         #   DIRECTO deepseek-v4-flash      38/42       1       934 ms    2.344 ms   ← lo que había aquí
-        #   AIMLAPI haiku-4.5              31/42       0     1.297 ms    2.352 ms
+        #   AIMLAPI (titular anterior)     31/42       0     1.297 ms    2.352 ms
         #
         # Flash DIRECTO fallaba `mostrar widget` **3 de 3** — o sea un defecto de enrutado reproducible, no mala
         # suerte. Pro iguala el enrutado del titular (41/42) por 224 ms más de TTFT, así que el relevo deja de

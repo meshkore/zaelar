@@ -55,7 +55,7 @@ _PROFILES: dict[str, dict] = {
                    "claves de API. Es el perfil del despliegue en servidor.",
         "voice": {"stt_provider": "deepgram", "tts_provider": "elevenlabs"},
         "v2": {
-            # Said `anthropic/claude-haiku-4.5` until 2026-08-19. Haiku stopped being the titular on 2026-08-02, so
+            # Named a two-versions-old model until 2026-08-19, which stopped being the titular on 2026-08-02, so
             # anyone who picked this profile in the wizard was silently overwriting the live default with a
             # two-versions-old model — a profile is a shortcut to the RECOMMENDED setup, and one that ships a stale
             # model is worse than one that ships nothing.

@@ -22,16 +22,17 @@ MODULES = [
                 "buscar, música, memoria, escalar) — nunca puede razonar (thinking OFF), el turno debe cerrar en "
                 "~1-3s o la voz se queda muda.",
         "current": {"model": "deepseek/deepseek-v4-flash · non-thinking", "provider": "AIMLAPI", "cost_in": 0.14,
-                    "cost_out": 0.28, "ttft_ms": 1170, "since": "2026-07-31 — Haiku queda de FALLBACK (_FALLBACK_MODEL)"},
-        "why": "CAMBIO 2026-07-31 (Haiku→DeepSeek V4 Flash non-thinking): A/B robusto (tests/voice/e2e/agent/model_bench, 16 turnos "
-               "inequívocos ×4 reps, mismo prompt+tools reales) → deepseek non-thinking ROUTING 10/10 (vs Haiku 8/10, "
+                    "cost_out": 0.28, "ttft_ms": 1170, "since": "2026-07-31 — sustituye al titular anterior"},
+        "why": "CAMBIO 2026-07-31 (titular anterior → DeepSeek V4 Flash non-thinking): A/B robusto (tests/voice/e2e/agent/model_bench, 16 turnos "
+               "inequívocos ×4 reps, mismo prompt+tools reales) → deepseek non-thinking ROUTING 10/10 (vs 8/10 del "
+               "anterior, "
                "que INFRA-actuaba: no buscaba horarios ni añadía cita), INTEL 6/6 (tras acotar la regla 'insiste→"
                "ejecuta' que hacía sobre-actuar en meta/contradicción — fix flash/prompt.py 3bd8c29), TTFT p50 1170ms "
-               "(vs Haiku 1821ms) y ~7x más barato. El MODO importa: v4-flash PIENSA por defecto (sobre-actúa, +latencia) "
-               "→ fast_client fuerza thinking:disabled cuando el modelo es deepseek. Haiku es el _FALLBACK_MODEL. "
+               "(vs 1821ms del anterior) y ~7x más barato. El MODO importa: v4-flash PIENSA por defecto (sobre-actúa, +latencia) "
+               "→ fast_client fuerza thinking:disabled cuando el modelo es deepseek. El fallback de emergencia apunta al MISMO titular. "
                "[HISTÓRICO] A/B previo (grok-4-fast-non-reasoning): "
                "grok 'parecía tonto' — no buscaba cuando debía (alucinaba), no introspeccionaba su propia "
-               "contradicción y reaccionaba con acciones espurias a preguntas meta. Haiku buscaba fiable, "
+               "contradicción y reaccionaba con acciones espurias a preguntas meta. El titular de entonces buscaba fiable, "
                "explicaba en vez de actuar sobre dudas, a latencia comparable.",
         "hallucination_note": "Grok (xAI) SIGUE baneado en este puesto: en pruebas mezcla memoria↔widget_data y "
                                "responde 'Hecho' a preguntas que no eran órdenes — el fallo más caro en un cerebro "
@@ -39,31 +40,31 @@ MODULES = [
         "candidates_2026_07_26": [
             {"model": "deepseek-v4-flash · NON-THINKING (AIMLAPI)", "cost_in": 0.14, "cost_out": 0.28,
              "tool_calling": "propio A/B 2026-07-31 (tests/voice/e2e/agent/model_bench, mismo prompt+tools reales): routing 4/5 y "
-                             "🧠 INTEL 5/5 — IGUALA a Haiku en inteligencia (no alucina, no actúa de más, resuelve "
+                             "🧠 INTEL 5/5 — IGUALA al titular anterior en inteligencia (no alucina, no actúa de más, resuelve "
                              "la contradicción). CLAVE: el modo importa — v4-flash PIENSA por defecto y en thinking "
                              "baja a 4/5 (sobre-actuó: abrió un widget en el turno de contradicción); con "
                              "thinking:disabled sube a 5/5.",
-             "ttft_ms": "1683 (p50) vs Haiku 2222 → ~24% MÁS RÁPIDO al primer token; total p50 2331 vs 2676. "
+             "ttft_ms": "1683 (p50) vs 2222 del anterior → ~24% MÁS RÁPIDO al primer token; total p50 2331 vs 2676. "
                         "Nota: total con picos (5-6.6s) en algún turno verboso, pero TTFT —la métrica reina de "
                         "voz— es netamente mejor",
-             "status": "★ CANDIDATO FUERTE para sustituir a Haiku: + rápido, MISMA inteligencia, ~mucho más barato. "
+             "status": "★ CANDIDATO FUERTE para sustituir al titular: + rápido, MISMA inteligencia, ~mucho más barato. "
                         "fast_client ya fuerza thinking:disabled cuando el modelo del path rápido es deepseek "
                         "(voz=no-razonador). Pendiente: flip de config §fast + spot-check de voz REAL (el A/B son "
                         "10 turnos por un proxy AIMLAPI; una key DeepSeek directa daría el modelo más fresco y "
                         "menos hop). deepseek-v4-flash ES la última (snapshot 0731); no hay v4.x más nuevo.",
-             "verdict": "recomendado sustituir a Haiku en non-thinking, tras spot-check de voz real"},
+             "verdict": "recomendado sustituir al titular en non-thinking, tras spot-check de voz real"},
             {"model": "glm-4.5-air (Z.AI directo)", "cost_in": 0.20, "cost_out": 1.10,
-             "tool_calling": "propio A/B 2026-07-26: 85/90 (94.4%) vs Haiku 87/90 (96.7%) en el mismo arnés real "
+             "tool_calling": "propio A/B 2026-07-26: 85/90 (94.4%) vs 87/90 (96.7%) del titular en el mismo arnés real "
                              "de 90 casos (tests/agent_headless/e2e/search/bot) — cerca, no empatado; falló 'hora en Tokio' "
-                             "(el caso que SÍ arreglamos hoy en Haiku) y 2 escalate→chat en tareas reales",
+                             "(el caso que SÍ arreglamos ese día) y 2 escalate→chat en tareas reales",
              "ttft_ms": "no medido de forma justa aún — el adaptador de hoy usa complete() no-streaming (el "
                         "canal de cluster no necesita streaming); comparar latencia real exige construir "
                         "streaming Z.AI primero, no solo tool-calling",
-             "status": "prometedor a ~5x menos coste, pero NO listo para sustituir Haiku todavía — brecha de "
+             "status": "prometedor a ~5x menos coste, pero NO listo para sustituir al titular todavía — brecha de "
                        "precisión real (no solo ruido) + falta soporte de streaming para el turno de voz",
              "verdict": "seguir evaluando: repetir con muestra mayor + construir streaming antes de decidir"},
             {"model": "qwen3-turbo/flash (Alibaba DashScope)", "cost_in": "0.05–0.19", "cost_out": "0.26–1.13",
-             "tool_calling": "96.5% en eval independiente — el mejor medido", "ttft_ms": "2600–3000 (tier Plus, más lento que Haiku)",
+             "tool_calling": "96.5% en eval independiente — el mejor medido", "ttft_ms": "2600–3000 (tier Plus, más lento que el titular)",
              "status": "candidato, TTFT preocupante para voz en tiempo real", "verdict": None},
             {"model": "groq · llama-3.1-8b-instant", "cost_in": 0.05, "cost_out": 0.08,
              "tool_calling": "89-90% BFCL, pero dato de 2024 sobre checkpoints ya retirados — sin verificar en el modelo actual",
@@ -173,12 +174,15 @@ MODULES = [
         "role": "La primera vez que alguien habla un idioma que no viene de fábrica (solo inglés y castellano son "
                 "PRESET), un modelo traduce los 514 textos del interfaz. Corre una vez por idioma, en la "
                 "inicialización — nunca durante una conversación.",
-        "current": {"model": "anthropic/claude-haiku-4.5", "provider": "AIMLAPI", "cost_in": 1.00, "cost_out": 5.00,
-                    "since": "2026-08-09 (sonda §12.5)"},
-        "why": "Aquí no manda el precio ni la calidad marginal, sino la FIABILIDAD: se paga UNA vez por idioma "
-               "(11 lotes, unos 8 céntimos) y un lote que falle deja 50 textos del interfaz en inglés, sin una "
-               "segunda pasada que lo arregle. Probado al tamaño real del lote (50 claves, 15 con variables) hacia "
-               "japonés y árabe: haiku devuelve el 100% con las variables intactas en ambos, en 7-10 segundos.",
+        "current": {"model": "deepseek-v4-pro", "provider": "DeepSeek (directo)", "cost_in": 0.28, "cost_out": 0.42,
+                    "since": "2026-08-19 (norma del operador: DeepSeek V4 Pro y nada más)"},
+        "why": "Aquí no manda el precio sino la FIABILIDAD: se paga UNA vez por idioma (11 lotes, unos céntimos) y "
+               "un lote que falle deja 50 textos del interfaz en inglés, sin una segunda pasada que lo arregle. La "
+               "sonda de agosto (§12.5) había descartado DeepSeek en esta tarea porque RAZONABA de más —6-8 veces "
+               "los tokens que entregaba, 50-60 s por lote—, pero esa medición era del modelo FLASH servido por el "
+               "BROKER, que es justo donde el interruptor de razonamiento se acepta y se ignora. Por el endpoint "
+               "propio SÍ se obedece, así que el motivo del descarte desaparece con el cambio de endpoint. Si "
+               "vuelve a razonar de más, se mide y se cambia con la medición delante.",
         "hallucination_note": None,
         "candidates_2026_07_26": [
             {"model": "gemini-2.5-flash", "cost_in": 0.30, "cost_out": 2.50, "status": "descartado",
@@ -238,13 +242,13 @@ MODULES = [
                         "el trabajo en la corrida que sí terminó. Esa pata la dan los puentes (la web_search propia "
                         "y el navegador real), no el CLI.",
              "verdict": "en evaluación — el backend ya es correcto; lo que falta es una entrega completa medida"},
-            {"model": "sonnet/haiku → deepseek-v4-flash · conducido por Claude Code", "cost_in": 0.14,
+            {"model": "deepseek-v4-flash · conducido por Claude Code", "cost_in": 0.14,
              "cost_out": 0.28,
              "tool_calling": "SIN PROBAR — no hay ninguna DEEPSEEK_API_KEY en ningún store. Es el único de los tres "
                              "que sigue sin medir, y es 10 veces más barato que los otros dos, así que es el que "
                              "más interesa medir.",
              "status": "bloqueado por credencial",
-             "verdict": "pendiente de key; su gateway MAPEA alias de Claude (sonnet/haiku → v4-flash, opus → "
+             "verdict": "⚠️ su gateway NO mapea alias de Claude —creerlo dejó este escalón roto, 400 en cada "
                         "v4-pro), o sea que se le manda el alias de Claude, no un nombre de DeepSeek"},
             {"model": "gpt-5.5 · conducido por Codex", "cost_in": None, "cost_out": None,
              "tool_calling": "Verificado en vivo de punta a punta (13 consultas por el puente de memoria, fase y "

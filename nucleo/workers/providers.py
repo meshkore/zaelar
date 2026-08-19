@@ -45,7 +45,7 @@ KNOWN: list[dict] = [
     # ⚠️ Al llegar la key se probó y **el `model` que declaraba era inválido**. Decía `sonnet` sobre la creencia de
     # que el gateway mapea alias de Claude (`claude-sonnet*` → v4-flash). NO los mapea: responde
     # `400 — «The supported API model names are deepseek-v4-pro or deepseek-v4-flash, but you passed sonnet»`.
-    # Verificado también con `opus` y `haiku` (400 los tres) y con los nombres propios (200 los dos).
+    # Verificado con los tres alias de Claude (400 los tres) y con los nombres propios de DeepSeek (200 los dos).
     #
     # O sea que este escalón habría fallado con 400 en CADA petición desde el instante en que la credencial
     # entrara — y habría fallado justo cuando se le necesita, porque un escalón de relevo solo se usa cuando el

@@ -108,7 +108,6 @@ CANDIDATES: dict[str, tuple[str, str]] = {
     "deepseek-chat":            (AIML, "deepseek/deepseek-chat"),
     "gemini-2.5-flash":         (AIML, "google/gemini-2.5-flash"),
     "gemini-2.5-flash-lite":    (AIML, "google/gemini-2.5-flash-lite"),
-    "claude-haiku-4.5":         (AIML, "anthropic/claude-haiku-4.5"),
     "kimi-k2-6":                (AIML, "moonshot/kimi-k2-6"),
     "grok-4-fast-nonreason":    (AIML, "x-ai/grok-4-fast-non-reasoning"),
     "glm-4.7":                  (AIML, "zhipu/glm-4.7"),

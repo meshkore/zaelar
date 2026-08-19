@@ -1,9 +1,9 @@
 """nucleo/agentes/web.py — ⚠️ PIEZA MUERTA (parkeada en V2-036 F3, 2026-07-13). Ya NO está cableada.
 
 REEMPLAZADA por `nucleo/agentes/web_cc.py` (un agente Claude Code conduce el navegador vía el puente `hbweb`, con
-su propia inteligencia, en vez del `_plan` + bucle barato Haiku). El dispatcher enruta `kind=="web"` a `web_cc`.
+su propia inteligencia, en vez del `_plan` + bucle barato). El dispatcher enruta `kind=="web"` a `web_cc`.
 Se conserva SIN borrar (revertible) — y `web_cc` aún IMPORTA de aquí el helper `_synthesize_goal`. Decidir más
-adelante si se elimina. El bucle Haiku que ejecutaba (`widgets/navegador/agent.py::run_task`) queda igualmente
+adelante si se elimina. El bucle barato que ejecutaba (`widgets/navegador/agent.py::run_task`) queda igualmente
 muerto por este cambio (ya no lo invoca el flujo web; solo lo tocaría el antiguo `automate` del owner, sin caller).
 
 --- doc original (histórica) ---

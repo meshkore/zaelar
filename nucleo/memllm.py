@@ -43,17 +43,16 @@ _DEFAULTS = {
     # patrón que tumbó el CORAZÓN en julio y el REM hasta ayer). Norma del operador: TODO por el broker AIMLAPI,
     # una sola cuenta que gestionar. Sonda al tamaño REAL del lote (`_BATCH=50`, ja/ar/zh, 15 claves con
     # placeholder) antes de elegir sustituto:
-    #   · anthropic/claude-haiku-4.5 → 100% cobertura y 15/15 placeholders en TODOS los idiomas, ~7-10s. ELEGIDO.
-    #   · google/gemini-2.5-flash    → correcto casi siempre, pero una pasada de árabe devolvió 0/50 (respuesta
-    #                                  cortada a 160 tokens). Un lote perdido = 50 strings en inglés en la UI.
-    #   · deepseek/deepseek-v4-flash → acierta, pero RAZONA: 6.700-8.500 tokens de salida para ~1.200 de
-    #                                  contenido, 50-60s por lote. Es el mismo perfil que truncaba el REM; aquí
-    #                                  no compensa porque la tarea se paga UNA vez por idioma (514 claves = 11
-    #                                  lotes ≈ $0,08 con haiku) y la fiabilidad vale más que el precio.
-    # i18n stays on AIMLAPI: no direct Anthropic route in `nucleo/provider_keys.py` (only the providers listed
-    # there have a direct key configured) — this is the "no direct access" half of the routing policy, not an
-    # oversight. `disable_thinking` is irrelevant here (non-DeepSeek model).
-    "i18n": ("https://api.aimlapi.com/v1", "anthropic/claude-haiku-4.5", False),
+    # ⚠️ 2026-08-19 — NORMA DEL OPERADOR: DeepSeek V4 Pro DIRECTO y nada más. Esta tarea era la ÚLTIMA que
+    # seguía eligiendo un modelo de Anthropic, con una medición del 2026-08-09 detrás (§12.5) que decía que
+    # `deepseek-v4-flash` acertaba pero RAZONABA 6-8× los tokens que entregaba, 50-60 s por lote. Ese hallazgo
+    # sigue siendo cierto y sigue escrito, pero era sobre **v4-FLASH por el BROKER**, que es justo la
+    # combinación donde `thinking:disabled` se acepta y se ignora (V2-097). Por el endpoint NATIVO el parámetro
+    # se OBEDECE, así que el motivo por el que se descartó DeepSeek aquí desaparece con el cambio de endpoint.
+    # Si vuelve a razonar de más, se mide y se escribe — no se vuelve a otro proveedor por costumbre.
+    # Sigue siendo la tarea menos sensible al precio del sistema: se paga UNA vez por idioma (514 claves ≈ 11
+    # lotes), así que lo que importa es que el lote no se pierda, no lo que cuesta.
+    "i18n": ("https://api.deepseek.com", "deepseek-v4-pro", True),
     # turn_complete (V2-102): the voice pipeline's turn-completeness judge (nucleo/flash/segmenter.py::judge).
     # Fires per AMBIGUOUS fragment, mid-conversation — genuinely latency-critical (hot path, user-visible),
     # benchmarked reasoning-OFF from the start. DeepSeek DIRECT: per zaelar-model-benchmarks.md §11/CLAUDE.md's
@@ -132,10 +131,13 @@ _FAILOVER: dict[str, tuple[tuple[str, str], ...]] = {
     # ⚠️ DeepSeek DIRECT is the FIRST rung here and the broker's DeepSeek is absent, which is the opposite of the
     # other tasks — because this one needs reasoning OFF and only the direct endpoint obeys the flag (see below).
     "paraphrase": ((_DS, "deepseek-v4-flash"), (_AIML, "openai/gpt-4.1-mini")),
-    # i18n — its titular is ALREADY the broker (haiku, §12.5), so this is the third rung, not the second. One is
-    # enough to stop a lost batch from meaning 50 English strings in the UI. ⚠️ `gpt-4.1` is NOT measured for
-    # placeholder fidelity on non-Latin scripts, which is exactly what §12.5 was about: last resort, not an equal.
-    "i18n": ((_AIML, "openai/gpt-4.1"),),
+    # i18n — titular DeepSeek DIRECT like everything else, so its rung is the SAME model on the broker. One is
+    # enough to stop a lost batch from meaning 50 English strings in the UI. It used to be `openai/gpt-4.1`, and
+    # that is out on two counts: the operator's standing norm (no OpenAI models) and the fact that it was never
+    # measured for placeholder fidelity on non-Latin scripts, which is the whole point of §12.5. ⚠️ On the broker
+    # `thinking:disabled` is accepted and IGNORED (V2-097), so this rung may reason a lot and be slow — tolerable
+    # here, where the task is paid ONCE per language and a lost batch is the only real failure.
+    "i18n": ((_AIML, "deepseek/deepseek-v4-pro"),),
 }
 
 

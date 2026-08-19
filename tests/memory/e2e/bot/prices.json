@@ -4,7 +4,7 @@
     "RE-VERIFICAR periódicamente: los precios de LLM cambian sin aviso (misma norma que nucleo/energy_meter.py).",
     "Se usan como precio del MODELO — es lo que hace comparables entre sí a los candidatos. El broker AIMLAPI",
     "cobra ENCIMA un margen de ~1,0-1,3x según modelo (§2 del doc de benchmarks lo registró: deepseek-v4-flash",
-    "0.14 nativo -> 0.182 por AIMLAPI; haiku 1.00 -> 1.30; grok-4-fast 0.20 -> 0.21; gemini-2.5-flash 0.30 -> 0.30).",
+    "0.14 nativo -> 0.182 por AIMLAPI; grok-4-fast 0.20 -> 0.21; gemini-2.5-flash 0.30 -> 0.30).",
     "El margen es común a todos los candidatos servidos por el broker, así que NO altera el RANKING; sí hay que",
     "sumarlo al coste absoluto de la nube, que es la que paga por AIMLAPI. Las claves son los nombres de",
     "candidato de distiller_bench.py, no ids de modelo.",
@@ -54,7 +54,7 @@
     0.1,
     0.4
   ],
-  "claude-haiku-4.5": [
+  "(modelo Anthropic retirado)": [
     1.0,
     5.0
   ],

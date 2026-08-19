@@ -614,7 +614,7 @@ each step reads a TEXT snapshot of the interactive elements (accessibility tree 
 by function-calling; **human behaviour** (Bézier mouse + typing jitter) lives in Playwright (free). Escalation
 ladder when stuck (page unchanged or same action repeated): DOM → **vision** (attaches a screenshot, acts by
 pixel coordinates; multimodal, verified on AIMLAPI) → **advanced model** (2nd stuck, if configured). Cerebro = a
-dedicated cheap model (`NAVEGADOR_AGENT_MODEL`, default `anthropic/claude-haiku-4.5`), NOT the SlowBrain; optional strong
+dedicated cheap model (`NAVEGADOR_AGENT_MODEL`, default `deepseek-v4-pro` DIRECT), NOT the SlowBrain; optional strong
 tier `NAVEGADOR_AGENT_MODEL_STRONG` for bottlenecks the cheap one can't pass. Starts on the current page (rule: don't
 leave the site for an external search engine); anti-wander (stay on the results grid, don't dive into one listing).
 Orchestration: `automate_web` → the nucleo orchestrator creates the task, opens its card, **the SlowBrain plans** the

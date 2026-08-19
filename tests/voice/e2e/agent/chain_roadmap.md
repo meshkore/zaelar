@@ -59,7 +59,7 @@ pueda decir *"repite estos tests"* y se re-corran exactamente esos.
 ## Cerrados
 
 - **VÍDEO→MÚSICA (VID-01, VID-02, CHAIN-02)** · **P1** · **ARREGLADO (V2-045)** — nueva tool de 1ª clase
-  **`play_video(query)`** (hermana de `play_music`). Diagnóstico: 3 intentos de prosa NO movían a Haiku (vídeo caía
+  **`play_video(query)`** (hermana de `play_music`). Diagnóstico: 3 intentos de prosa NO movían al titular de entonces (vídeo caía
   en play_music); con una tool DEDICADA la decisión es tool-vs-tool y discrimina limpio, SIN tablas de verbos
   (feedback operador). El provider la ejecuta → `[[show:youtube]]` + data-op `load(query)`. Verificado: VID-01 3/3,
   VID-02 3/3, CHAIN-02 3/3 ("ponme una película/vídeo/algo entretenido" → youtube, NUNCA play_music). Tocado:
@@ -98,15 +98,15 @@ pueda decir *"repite estos tests"* y se re-corran exactamente esos.
 - **2026-07-16 · SWEEP FINAL de verificación** (40 casos): **GREEN 30 · YELLOW 2 · RED 1** · **trazas 120/120**.
   Confirma los fixes de V2-045 end-to-end: VID-01/02/03/04 + CHAIN-02 todos 3/3 (P1 vídeo→música cerrado). RED único
   = WMOD-01 (1 frase 'implementa… ampliarse por voz' → charla; las otras 2 escalan; era 3/3 en sweeps previos →
-  varianza cross-run de Haiku, no bug estable). YELLOW = CHAIN-04 (handoff) y ROBUST-02 (autocorrección), varianza.
+  varianza cross-run del titular de entonces, no bug estable). YELLOW = CHAIN-04 (handoff) y ROBUST-02 (autocorrección), varianza.
   Diferidos: CHAIN-06/07 (por diseño), STUDY-01, MSG-03, MSG-02 residual. HUECO: LIST-01/02.
 
 - **2026-07-16 · sweep #1** (rama `feat/v2-041-music-connector`, iteración 2 estrenada). Activos: GREEN 20 · YELLOW 3
   · RED 7. **Trazas selladas 91/91** (V2-044 sólido). Triaje de los 7 RED: 2 rigideces de check corregidas (MUS-03,
   ACT-01), 2 HUECOs de producto (LIST-01/02), 3 diferidos al developer (CHAIN-02 película→música, STUDY-01
-  informe-inline, MSG-02 refs indirectas). YELLOW = varianza de Haiku en VID-01/02 (youtube vía widget_data,
+  informe-inline, MSG-02 refs indirectas). YELLOW = varianza del titular de entonces en VID-01/02 (youtube vía widget_data,
   aceptable) y WNEW-01 (handoff). Prosa de play_music reforzada (FRONTERA VÍDEO += película/peli/film) — correcta
-  pero insuficiente para mover a Haiku.
+  pero insuficiente para mover al titular de entonces.
 - **2026-07-16 · re-sweep (dominios afectados)**: tras los fixes → activos GREEN 9 · YELLOW 0 · **RED 1** (CHAIN-02,
   ya reclasificado DEFER). MUS-03 4/4, ACT-01 3/3. Trazas 43/43. Suite estabilizada: los únicos rojos que quedan son
   los DEFER/HUECO documentados, ninguno accionable en el loop.
@@ -127,7 +127,7 @@ pueda decir *"repite estos tests"* y se re-corran exactamente esos.
   compuestos, +MSG-03 read-only). Activos GREEN 25 · YELLOW 2 · **RED 3** · trazas **111/111**. Los 3 REDs nuevos son
   límites del no-razonador, no fixes simples → DIFERIDOS: CHAIN-06/07 (una acción por turno, comandos compuestos) y
   MSG-03 (no envía; brief no está en prompt con widget cerrado). Sin cambio de código este ciclo (disciplina: no
-  churnear prosa/core que Haiku no respeta; documentar bien para el developer). YELLOW = varianza aceptable
+  churnear prosa/core que el titular de entonces no respetaba; documentar bien para el developer). YELLOW = varianza aceptable
   (CHAIN-03, WNEW-01). Cobertura ya extensa: música, vídeo, cadenas, widgets (crear/mod/acción/show/borrar),
   búsqueda, estudio, ITV, mensajería, auth, core, compuestos.
 - **2026-07-16 · sweep #2** (cron 9c08a092): rotación video/widgets/search/auth/core + AMPLIACIÓN del catálogo

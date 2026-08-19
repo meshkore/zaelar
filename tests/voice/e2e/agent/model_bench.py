@@ -16,7 +16,7 @@ Es un test REUTILIZABLE — corre cuando quieras re-evaluar el shortlist de mode
 Uso:
     ./.venv/bin/python -m tests.voice.e2e.agent.model_bench                 # shortlist por defecto, 3 reps
     ./.venv/bin/python -m tests.voice.e2e.agent.model_bench --reps 4        # más reps (promedia varianza de Cloudflare)
-    ./.venv/bin/python -m tests.voice.e2e.agent.model_bench --models "anthropic/claude-haiku-4.5,google/gemini-3-5-flash"
+    ./.venv/bin/python -m tests.voice.e2e.agent.model_bench --models "deepseek-v4-pro,google/gemini-3.7-flash"
     ./.venv/bin/python -m tests.voice.e2e.agent.model_bench --gemini-direct # añade Gemini por el endpoint google-directo (thinking OFF)
 
 Claves: AIMLAPI_KEY (nube) y GEMINI_API_KEY (google-directo) desde el entorno (.env), igual que fast_client.
@@ -67,7 +67,6 @@ def _gemini_direct(model: str) -> Candidate:
 
 
 DEFAULT_MODELS = [
-    "anthropic/claude-haiku-4.5",           # actual en producción
     "x-ai/grok-4-fast-non-reasoning",       # probado: rápido pero "poco listo"
     "google/gemini-2.5-flash",              # el más listo del trío rápido; puede activar thinking
     "google/gemini-3-5-flash",              # ★ candidato del operador

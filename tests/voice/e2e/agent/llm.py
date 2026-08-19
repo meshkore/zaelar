@@ -14,7 +14,7 @@ import urllib.request
 from . import config
 
 _UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
-_NO_TEMP = ("opus", "claude", "sonnet", "haiku")   # these reject a temperature param on AIMLAPI
+_NO_TEMP = ("opus", "claude", "sonnet", "(retirado)")   # these reject a temperature param on AIMLAPI
 
 
 def call(messages: list[dict], model: str | None = None, temperature: float = 0.0, max_tokens: int = 4000) -> str:

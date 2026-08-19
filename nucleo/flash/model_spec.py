@@ -93,10 +93,17 @@ class ModelSpec:
 
 
 # Fallback si `config/v2.json` no trae modelo (fresh install) o si leerlo revienta — auditoría 2026-07-26,
-# hallazgo P3: hasta este fix era `x-ai/grok-4-fast-non-reasoning`, un modelo BANEADO en el FlashBrain (CLAUDE.md
+# hallazgo P3: hasta ese fix era `x-ai/grok-4-fast-non-reasoning`, un modelo BANEADO en el FlashBrain (CLAUDE.md
 # §fast: "grok mis-rutea memoria→widget_data, causa conversaciones absurdas") — justo el peor caso posible para un
-# fallback de emergencia. El default de producción real es `anthropic/claude-haiku-4.5` vía aimlapi.
-_FALLBACK_MODEL = "anthropic/claude-haiku-4.5"
+# fallback de emergencia.
+#
+# 2026-08-19: es **DeepSeek V4 Pro DIRECTO**, el mismo titular que fija `config/v2.json`, por norma del operador.
+# Un fallback que apunta a otro modelo distinto del titular es un cambio de cerebro SILENCIOSO justo en el
+# momento en que la config no se puede leer: se nota en la calidad de las respuestas y en la factura, nunca en un
+# error. `_FALLBACK_BASE` va pegado al nombre porque el catálogo del broker y el de la API nativa NO coinciden
+# (el broker prefija `deepseek/`, la nativa no) — separarlos deja un 400 esperando.
+_FALLBACK_MODEL = "deepseek-v4-pro"
+_FALLBACK_BASE = "https://api.deepseek.com"
 
 
 def spec_from_config() -> ModelSpec:
@@ -105,15 +112,23 @@ def spec_from_config() -> ModelSpec:
     try:
         from config import v2 as _v2
         cfg = _v2.fast_model_spec()
+        model = cfg.get("model") or _FALLBACK_MODEL
+        base = cfg.get("base_url") or None
+        # The fallback model TRAVELS WITH ITS ENDPOINT. Falling back on the name alone would send
+        # `deepseek-v4-pro` to `resolved_base_url()`'s default (the broker), whose catalog prefixes it as
+        # `deepseek/deepseek-v4-pro` — the exact naming trap that shipped the workers' DeepSeek rung broken
+        # (400 on every request, invisible because a relay rung only runs once the titular is already down).
+        if model == _FALLBACK_MODEL and not base:
+            base = _FALLBACK_BASE
         return ModelSpec(
-            model=cfg.get("model") or _FALLBACK_MODEL,
-            base_url=cfg.get("base_url") or None,
+            model=model,
+            base_url=base,
             api_key=cfg.get("api_key") or None,
-            provider=cfg.get("provider") or "aimlapi",
+            provider=cfg.get("provider") or ("deepseek" if base == _FALLBACK_BASE else "aimlapi"),
         )
     except Exception as e:  # noqa: BLE001
         logger.warning(f"fast spec_from_config fallback (usando defaults): {e}")
-        return ModelSpec(model=_FALLBACK_MODEL, provider="aimlapi")
+        return ModelSpec(model=_FALLBACK_MODEL, base_url=_FALLBACK_BASE, provider="deepseek")
 
 
 def available(spec: ModelSpec | None = None) -> bool:

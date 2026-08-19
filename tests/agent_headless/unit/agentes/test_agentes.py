@@ -72,12 +72,12 @@ def fake_claude(tmp_path, monkeypatch):
 def test_claude_run_passes_model_and_parses_output(fake_claude, tmp_path):
     import json
     res = asyncio.run(ClaudeCodeAgent().run(
-        "haz un resumen", spec=RunSpec(model="haiku-test", cwd=str(tmp_path), timeout=10)))
+        "haz un resumen", spec=RunSpec(model="modelo-de-prueba", cwd=str(tmp_path), timeout=10)))
     assert res.ok is True
     assert "RESPUESTA DEL AGENTE" in res.output          # parseó el campo `result` del JSON
     call = json.loads(fake_claude["log"].read_text(encoding="utf-8"))
     assert "haz un resumen" in call["stdin"]              # prompt por STDIN
-    assert "--model" in call["argv"] and "haiku-test" in call["argv"]   # MODELO POR INVOCACIÓN
+    assert "--model" in call["argv"] and "modelo-de-prueba" in call["argv"]   # MODELO POR INVOCACIÓN
     # tools por defecto = solo lectura + los CLIs puente (V2-036); NUNCA un "Bash" pelado
     # (aserción actualizada en la auditoría 2026-07-14: quedó vieja cuando entraron los puentes)
     import re

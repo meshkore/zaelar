@@ -1606,7 +1606,7 @@ class NucleoLLMStream(llm.LLMStream):
                         music_req["followup"] = _mq
             elif name == "play_video":
                 # V2-045: VÍDEO = widget youtube (VER), hermano de play_music (OÍR). Tool de 1ª clase para que el
-                # modelo discrimine tool-vs-tool (la prosa no bastaba con Haiku: el vídeo caía en play_music). La
+                # modelo discrimine tool-vs-tool (la prosa no bastaba con el titular anterior: el vídeo caía en play_music). La
                 # EJECUTA el provider: muestra el widget youtube + data-op `load` con la query (el widget busca y
                 # reproduce el vídeo real). Una por turno. El ack "nunca mudo" lo cubre data_done/acted (abajo).
                 if "play_video" not in _tool_fired:
@@ -1786,7 +1786,7 @@ class NucleoLLMStream(llm.LLMStream):
                 _site = (args.get("site") or "").strip()
                 if _router.is_music_service(_site, text):
                     # INVARIANTE (2026-07-16): un servicio de MÚSICA (Spotify) se conecta en el widget `musica`
-                    # (su tarjeta OAuth), NUNCA por el navegador. El routing de Haiku insiste en authenticate_web
+                    # (su tarjeta OAuth), NUNCA por el navegador. El routing del titular anterior insistía en authenticate_web
                     # para "conéctame a mi cuenta de Spotify" pese a la descripción → el guard lo redirige aquí.
                     emit("widget", "show", extra={"id": "musica", "src": "flash"})
                     emit("brain", "🎵 conectar música → tarjeta del widget musica (no navegador)", text=_site or text[:60], role="system")

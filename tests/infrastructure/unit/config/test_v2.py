@@ -30,7 +30,7 @@ def test_defaults(v2):
     # aguanta, cámbialo». Pro aguantó (41/42, igual que el broker) y Flash directo NO (38/42, falló
     # `mostrar widget` 3 de 3: eso no es varianza, es un defecto). Lo que cuesta: el turno de voz pasa de ~0,5 a
     # ~1 Energy, y esa era la decisión de TARIFA que faltaba, no otra medición.
-    # Histórico del titular: Haiku vía broker (V2-034, 2026-07-12) → deepseek-v4-flash vía broker (2026-08-14) →
+    # Histórico del titular: un modelo Anthropic vía broker (V2-034, 2026-07-12) → deepseek-v4-flash vía broker (2026-08-14) →
     # esto. Los dos anteriores siguen siendo opciones válidas del broker.
     assert fast["model"] == "deepseek-v4-pro"
     assert fast["base_url"] == "https://api.deepseek.com", "el titular va DIRECTO, no por el broker"

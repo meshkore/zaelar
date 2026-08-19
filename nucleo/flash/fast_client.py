@@ -349,7 +349,7 @@ class FastClient:
         `text_delta`), DISTINTO del `chat/completions` de OpenAI que usa `stream()`. Hasta hoy Z.AI solo tenía
         `complete()` (no-streaming) → un GLM-4.5-Air como FlashBrain de VOZ no era evaluable (la voz necesita
         deltas para TTS incremental). Esto lo hace posible; queda LATENTE hasta configurar FAST=Z.AI (el path de
-        voz vivo sigue en Haiku/AIMLAPI). El parser de SSE es `_AnthropicSSE` (puro, con test unitario). NOTA: sin
+        voz vivo va por otro endpoint). El parser de SSE es `_AnthropicSSE` (puro, con test unitario). NOTA: sin
         verificar end-to-end contra un GLM-4.5-Air con fondos (pay-as-you-go da 429 sin saldo) — pendiente A/B."""
         import httpx
         system = "\n\n".join(m.get("content", "") for m in messages if m.get("role") == "system")
@@ -479,7 +479,7 @@ class FastClient:
         if "deepseek" in (spec.model or "").lower():
             # VOZ = NO-RAZONADOR (invariante duro). DeepSeek V4 Flash PIENSA por defecto → en el A/B (2026-07-31)
             # el modo thinking sobre-actuaba (abrió un widget en un turno de contradicción) y bajaba el routing
-            # (4/5→3/5 intel); el non-thinking iguala a Haiku en inteligencia (5/5) con MENOS TTFT. Forzamos
+            # (4/5→3/5 intel); el non-thinking iguala al titular anterior en inteligencia (5/5) con MENOS TTFT. Forzamos
             # non-thinking en el path rápido — campo `thinking` (api-docs.deepseek.com, OpenAI/Anthropic-compat).
             #
             # ⚠️ **Este parámetro se manda igual por los dos endpoints, pero solo UNO lo OBEDECE.** Medido el

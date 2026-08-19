@@ -9,4 +9,4 @@ from .. import registry
 
 @registry.register("claude")
 def build(model: str) -> LLM:
-    return anthropic.LLM(model=model or "claude-haiku-4-5")
+    return anthropic.LLM(model=model or "claude-sonnet-4-5")

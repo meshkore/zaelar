@@ -58,7 +58,6 @@ CANDIDATES: dict[str, tuple[str, str]] = {
     "deepseek-v4-pro":       (AIML, "deepseek/deepseek-v4-pro"),    # el DeepSeek POTENTE
     "deepseek-thinking":     (AIML, "deepseek/deepseek-thinking-v3.2-exp"),   # razonador DeepSeek
     "deepseek-reasoner":     (AIML, "deepseek/deepseek-reasoner"),
-    "claude-haiku-4.5":      (AIML, "anthropic/claude-haiku-4.5"),
     "gemini-2.5-flash":      (AIML, "google/gemini-2.5-flash"),     # 50% en §12.2 — control
     "gemini-2.5-pro":        (AIML, "google/gemini-2.5-pro"),
     "gpt-5-mini":            (AIML, "openai/gpt-5-mini"),           # razonador

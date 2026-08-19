@@ -13,7 +13,7 @@ API_URL = os.environ.get("LLM_API_URL", "https://api.aimlapi.com/v1/chat/complet
 UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"  # Cloudflare 1010 bloquea el UA de urllib
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(HERE)  # repo root (zaelar/)
-NO_TEMP = ("opus", "claude", "sonnet", "haiku")  # rechazan 'temperature'
+NO_TEMP = ("opus", "claude", "sonnet")  # rechazan 'temperature'
 
 
 def load_key() -> str | None:

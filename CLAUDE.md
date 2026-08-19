@@ -458,7 +458,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   ES un slow-brain-por-tarea (razona, usa tools, accede a memoria). El FlashBrain puede, EN EL TURNO, escalar a un
   modelo un poco mejor si una RESPUESTA necesita más elaboración (2º pase conversacional, no un worker). **Pool**
   (`code_agent.max_parallel`, def 3) acota la concurrencia. Piezas VIEJAS **parkeadas** (muertas, revertibles):
-  `nucleo/agentes/otros.py`, `nucleo/agentes/web.py`, y el bucle Haiku de `widgets/navegador/agent.py`. El loop
+  `nucleo/agentes/otros.py`, `nucleo/agentes/web.py`, y el bucle barato de `widgets/navegador/agent.py`. El loop
   orquestador (`nucleo/loop.py` ~1 Hz + `nucleo/scheduler.py` cron + `nucleo/sparks.py`) añade proactividad y
   consolidación. Detalle: `.meshkore/roadmap/initiatives/V2-036-smartbrain-claude-code.md`. **La tool de escalado
   se llama `escalate_to_slowbrain` por LEGADO** (el SlowBrain-cerebro se disolvió aquí); hoy LANZA un worker
@@ -757,7 +757,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   sigue vigente en lo suyo: OpenAI/Anthropic no se llaman por su endpoint propio, se piden al broker — lo que
   cambia es que ahora son el ÚLTIMO escalón, no el segundo. Estado a día de hoy, comprobado contra el código:
   `fast` (voz) y `memory` (CORAZÓN + REM) y las tareas `turn_complete`/`directed` de `nucleo/memllm.py` van
-  DeepSeek directo; `susurro` (`openai/gpt-4.1-mini`), `i18n` (`anthropic/claude-haiku-4.5`) y el bucle del
+  DeepSeek directo; `susurro` (`openai/gpt-4.1-mini`) y el bucle del
   navegador (`NAVEGADOR_AGENT_MODEL`) siguen en el tercer escalón **con una medición detrás que lo justifica**
   (§12.5 para i18n: DeepSeek acierta pero razona 6-8× los tokens; el navegador necesita VISIÓN). Mover esos tres
   no es aplicar la norma sino contradecir un banco: exige medir antes, no cambiar el default y ver qué pasa.
@@ -771,8 +771,11 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   modelos de OpenAI** (aclaración del operador el mismo día, después de que la primera formulación de la norma
   los nombrara como último recurso: *«no quiero usar modelos de OpenAI… vamos a usar los más potentes
   disponibles a coste razonable, por lo tanto DeepSeek V4 debe ser el titular»*). Un modelo de Anthropic solo se
-  justifica donde una MEDICIÓN lo respalde y esté escrita (hoy: la tarea `i18n` de `memllm`, §12.5 — haiku dio
-  100% de cobertura en japonés y árabe donde gemini devolvió 0/50); nunca como defecto cómodo.
+  justifica donde una MEDICIÓN lo respalde y esté escrita — y **hoy no hay ninguno**: el 2026-08-19 el operador
+  retiró el último (la tarea `i18n` de `memllm`) y fijó que **DeepSeek V4 Pro es el único titular**, en el motor
+  y en las pruebas. La medición §12.5 que sostenía esa excepción era sobre v4-FLASH por el BROKER, que es donde
+  `thinking:disabled` se acepta y se ignora; por el endpoint nativo se obedece, así que el motivo del descarte
+  desaparecía con el cambio de endpoint. Nunca como defecto cómodo, y ya nunca por reputación del proveedor.
   Amplía la norma del 2026-08-09 («nada por OpenAI directo, todo por el broker»): esa fijaba
   que no se abren cuentas por proveedor, esta fija **cuál manda cuando el mismo modelo se sirve por dos sitios**.
   Los tres motivos están medidos y ya estaban en este fichero, cada uno en su decisión: el directo es **~30% más
@@ -796,9 +799,9 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - **FlashBrain** (sección `fast`): **producción actual = `deepseek-v4-pro` DIRECTO** (`api.deepseek.com`,
     NO-razonador con `thinking:disabled` OBEDECIDO — ver la norma de proveedores en «Hard rules» y el banco a
     3 rondas de V2-097). El titular anterior era `deepseek/deepseek-v4-flash` vía AIMLAPI, y antes de ese
-    `anthropic/claude-haiku-4.5` por el mismo broker (V2-034, A/B de 2026-07-12) — los dos siguen siendo
-    opciones válidas del broker y ninguno es ya el defecto. ⚠️ Esta línea llevaba desde el 2026-08-02
-    diciendo Haiku mientras el propio documento explicaba, más abajo, que el titular era DeepSeek: si tocas
+    otro modelo por el mismo broker (V2-034, A/B de 2026-07-12). Desde el 2026-08-19 el titular es DeepSeek V4
+    Pro DIRECTO y **no hay alternativa de otro proveedor ofrecida en la UI** (norma del operador). ⚠️ Esta línea
+    llevaba desde el 2026-08-02 nombrando un titular que el propio documento contradecía más abajo: si tocas
     modelos, cambia LOS DOS sitios. (NO-razonador;
     `AIMLAPI_KEY` presente en el store `tester.env` + `.env`). El A/B de V2-034 lo eligió por **fiabilidad de
     routing/introspección**. ⚠️ AIMLAPI va tras Cloudflare y 403/blip-ea intermitente (el cliente spoofa User-Agent);
@@ -847,7 +850,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   sirviéndolo. Los DOS restos que quedaban apuntando a `api.openai.com` —la tarea `i18n` de `memllm` (traducir el
   UI a un idioma nuevo) y el **Susurro**— se movieron el mismo día: los dos tenían el defecto latente de que en la
   nube no existe `OPENAI_API_KEY` y habrían fallado en silencio. i18n eligió modelo con una sonda al tamaño REAL
-  del lote (§12.5): **`anthropic/claude-haiku-4.5`** — 100% de cobertura y placeholders intactos en japonés Y
+  del lote (§12.5) eligió entonces un modelo de Anthropic — 100% de cobertura y placeholders intactos en japonés Y
   árabe, frente a `gemini-2.5-flash` (una pasada de árabe devolvió 0/50) y `deepseek-v4-flash` (acierta pero razona:
   6-8× los tokens que entrega). Sonda de regresión: `grep -rn "api\.openai\.com" --include="*.py" engine/ | grep -v tests/`. El CORAZÓN **reporta su consumo a Energy** desde 2026-08-09 (era la única
   llamada LLM de nube sin metering); key resuelta **POR ENDPOINT** + **SALUD de 1ª clase** (alerta por racha de fallos +
@@ -1190,7 +1193,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   misma ventana; `handle("automate")` SPAWNEA → N en paralelo; popups absorbidos `_reap_popups`; cerrar tarjeta cierra
   pestaña); **orquestación** (crea tarea → abre tarjeta → el **SlowBrain PLANIFICA** → bucle ejecuta off-voz);
   **bucle `agent.py`** HÍBRIDO DOM→visión→modelo-avanzado (cerebro barato dedicado `NAVEGADOR_AGENT_MODEL` def
-  `anthropic/claude-haiku-4.5`; `NAVEGADOR_AGENT_MODEL_STRONG` al atascarse; humano Bézier+jitter; anti-atasco). 
+  `deepseek-v4-pro` DIRECTO; `NAVEGADOR_AGENT_MODEL_STRONG` al atascarse; humano Bézier+jitter; anti-atasco). 
   **Resultados**: `extract_listings()` (anuncios reales, exige precio, dedup, sin ads) + `summarize_results()`
   (modelo barato → top-3 + conclusión). **Anti-proliferación EN CÓDIGO**: 1 acción por turno · `automate_web` no
   llama a `browse_web` · `tasks.similar_active()` deduplica refinamientos del STT. **Tarjeta** vertical/redimensionable:
@@ -1400,7 +1403,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   cuenta real con Machine+Volumen propios; el corte pasa a ser por saldo de Energy
   (`nucleo/account_limits.py`), nunca por turnos/TTL.
   **Precios verificados por web (2026-08-05, re-verificar periódicamente)**: DeepSeek V4 Flash $0.14/$0.28,
-  GLM-5.2 $1.40/$4.40, Kimi K2.6 $0.95/$4.00, Claude Haiku 4.5 $1.00/$5.00 (fallback). **Gap cerrado el
+  GLM-5.2 $1.40/$4.40, Kimi K2.6 $0.95/$4.00. **Gap cerrado el
   mismo día**: la generación de widgets (`widgets/generator.py::_run_agent`) también lanza `claude -p
   --output-format json` con `usage`/modelo reales en la salida — antes se descartaba el stdout entero sin
   parsearlo (nunca metraba pese a costar tokens reales); ahora se parsea y reporta a
@@ -2081,7 +2084,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     | AIMLAPI `deepseek-v4-flash` (titular) | **41/42** | **0** | 8.659 ms |
     | DIRECTO `deepseek-v4-pro` | **41/42** | 1 | **1.158 ms** |
     | DIRECTO `deepseek-v4-flash` | 38/42 | 1 | 934 ms |
-    | AIMLAPI `haiku-4.5` | 31/42 | 0 | 1.297 ms |
+    | AIMLAPI (titular anterior) | 31/42 | 0 | 1.297 ms |
 
     **El escalón de relevo pasa a V4 PRO**: Flash directo fallaba `mostrar widget` **3 de 3**, y un relevo salta
     justo en los turnos difíciles — «total, es solo el relevo» es como se acepta un defecto reproducible. Pro
@@ -2114,7 +2117,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     AIMLAPI, que revende con margen— y las dos rutas caían en la MISMA fila, así que `deepseek-v4-flash` facturaba
     $0,14 viniera de `api.deepseek.com` o del broker que cobra $0,182 por él. Invisible porque el test lo afirmaba
     como correcto. Arreglado con `_broker_markup()`, y con tres detalles que son la decisión: el margen es **por
-    modelo** (medido: flash ×1,30, haiku ×1,30, grok-4-fast ×1,05, gemini-2.5-flash **×1,00** — un ×1,3 plano
+    modelo** (medido: flash ×1,30, grok-4-fast ×1,05, gemini-2.5-flash **×1,00** — un ×1,3 plano
     sobre-cobraría un 30% a gemini), un modelo del broker sin medir toma el **peor** margen visto, y **el fallback
     NO se multiplica** porque apilar dos rellenos de seguridad deja de ser «un poco por el lado seguro». De paso
     responde a la pregunta de si el directo sale más caro: es ~30% **más barato** que el mismo modelo por el broker.

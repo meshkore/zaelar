@@ -8,7 +8,7 @@ broken:
                           but you passed sonnet.»
 
 The comment above it asserted that the gateway maps Claude aliases (`claude-sonnet*` → v4-flash). It does not.
-Verified against the live endpoint: `sonnet`/`opus`/`haiku` all 400; `deepseek-v4-flash`/`deepseek-v4-pro` both 200.
+Verified against the live endpoint: every Claude alias 400s; `deepseek-v4-flash`/`deepseek-v4-pro` both 200.
 
 **Why this is worth a test of its own.** A relay rung is only ever reached when the primary provider is already
 down, so a broken one turns a partial outage into a total one — and it fails with "the worker died instantly",
@@ -24,7 +24,7 @@ from nucleo.workers import providers
 DEEPSEEK_MODELS = {"deepseek-v4-flash", "deepseek-v4-pro"}
 
 # Aliases that LOOK plausible and are rejected. Kept explicit so nobody "restores" one of them from the old comment.
-REJECTED = {"sonnet", "opus", "haiku", "claude-sonnet-4", "claude-haiku-4.5"}
+REJECTED = {"sonnet", "opus", "claude-sonnet-4", "claude-sonnet-4.5"}
 
 
 def _rung(name: str) -> dict:
@@ -47,7 +47,7 @@ def test_no_se_cuela_un_alias_de_claude_en_el_escalon_deepseek():
     """El error concreto que había: el alias de Claude parece razonable porque el endpoint ES Anthropic-compatible.
     Compatible en el PROTOCOLO no significa compatible en el CATÁLOGO."""
     m = (_rung("deepseek").get("model") or "").lower()
-    assert "sonnet" not in m and "opus" not in m and "haiku" not in m, (
+    assert "sonnet" not in m and "opus" not in m and "claude" not in m, (
         f"model={m!r}: el gateway de DeepSeek habla el protocolo de Anthropic pero NO sirve sus modelos")
 
 

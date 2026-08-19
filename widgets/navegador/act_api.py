@@ -2,7 +2,7 @@
 
 Exposes the owner's `TaskBrowser` primitives as a synchronous request/response API so a headless Claude Code agent
 can drive zaelar's Chromium step by step (navigate/click/type/scroll/snapshot/extract) with its own intelligence.
-This replaces the cheap DOM->vision loop (Haiku). It runs in the uvicorn loop, the same loop as the backed browser
+This replaces the cheap DOM->vision loop. It runs in the uvicorn loop, the same loop as the backed browser
 owner, so it can call `TaskBrowser` methods directly rather than through the fire-and-forget mailbox. Invoked by
 the `nucleo/nav_cli.py` CLI (`hbweb`). Local/loopback: same trust model as the rest of the API.
 """

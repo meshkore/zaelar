@@ -520,6 +520,13 @@ DOMAINS: list[dict] = [
             "tests/infrastructure/unit/core/test_llm_egress.py"]},
         {"id": "8.1e", "title": "Tarifas: el precio SIGUE al proveedor que corre", "ch": UNIT, "paths": [
             "tests/infrastructure/unit/core/test_energy_tariffs.py"]},
+        # POLÍTICA DE MODELOS: DeepSeek V4 Pro es el único titular y un proveedor retirado no puede volver a
+        # colarse. Es un BARRIDO del árbol, no una aserción de config: el fallo es un NOMBRE reapareciendo en un
+        # default, en una lista de candidatos o en un banco, y solo un barrido ve los tres a la vez. Ya había
+        # vuelto dos veces (el `.env` que medía todo el tablero contra otro cerebro; el perfil del wizard con un
+        # titular de dos versiones atrás).
+        {"id": "8.3", "title": "Política de modelos: un solo titular, sin proveedores retirados",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/config/test_model_policy.py"]},
         {"id": "8.2", "title": "Perfiles / v2 / doctor / credenciales", "ch": UNIT, "paths": [
             "tests/infrastructure/unit/config/test_profiles.py", "tests/infrastructure/unit/config/test_v2.py",
             "tests/infrastructure/unit/config/test_doctor.py", "tests/infrastructure/unit/config/test_credentials.py"]},

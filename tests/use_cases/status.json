@@ -38,17 +38,17 @@
       }
     },
     "restaurant-tonight-madrid": {
-      "last_run": "2026-08-19 19:40",
-      "overall": 2,
+      "last_run": "2026-08-19 20:44",
+      "overall": 1,
       "state": "FAIL",
       "scores": {
-        "naturalidad": 4,
-        "adaptacion": 4,
+        "naturalidad": 2,
+        "adaptacion": 1,
         "resultado": 1,
-        "mecanismo": 3,
-        "eficiencia": 2
+        "mecanismo": 2,
+        "eficiencia": 1
       },
-      "verdict": "No está listo para producción: el agente se quedó en un estado de espera muerta ('zombie waiting') sin capacidad de recover del timeout, lo que impidió任何 resultado real.",
+      "verdict": "No está listo para producción. El bloqueador nº1 es la alucinación de contexto: el asistente negó una orden explícita y cambió de tema sin estímulo externo, seguido de una incapacidad para reflejar fallos técnicos reales (falta de navegador) al usuario.",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
@@ -66,7 +66,7 @@
         "missing": "cerrar la mesa (teléfono o cuenta en la plataforma)"
       },
       "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-156-uc-restaurant-tonight-madrid.md",
+        "initiative": ".meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md",
         "task": ""
       }
     },
@@ -114,7 +114,7 @@
       }
     },
     "remember-and-remind-deadline": {
-      "last_run": "2026-08-19 19:46",
+      "last_run": "2026-08-19 20:44",
       "overall": 2,
       "state": "FAIL",
       "scores": {
@@ -122,9 +122,9 @@
         "adaptacion": 4,
         "resultado": 1,
         "mecanismo": 1,
-        "eficiencia": 1
+        "eficiencia": 3
       },
-      "verdict": "No está listo para producción: el asistente confirmó una gestión de agenda y recordatorios que el sistema no ejecutó realmente, generando un recordatorio inútil para dentro de dos años.",
+      "verdict": "El caso NO está listo para producción. El bloqueador nº1 es la incapacidad del sistema para programar eventos en el futuro (falla el cálculo de fecha), resultando en un recordatorio que dispara de forma inmediata en lugar de esperar al miércoles.",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
@@ -137,7 +137,7 @@
       ],
       "drive_model": "deepseek-directo",
       "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-159-uc-remember-and-remind-deadline.md",
+        "initiative": ".meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md",
         "task": ""
       }
     },
@@ -280,21 +280,21 @@
       }
     },
     "book-hotel-night-known__es": {
-      "last_run": "2026-08-19 18:56",
+      "last_run": "2026-08-19 20:44",
       "overall": 2,
       "state": "FAIL",
       "scores": {
         "naturalidad": 4,
-        "adaptacion": 5,
+        "adaptacion": 4,
         "resultado": 1,
-        "mecanismo": 2,
+        "mecanismo": 1,
         "eficiencia": 2
       },
-      "verdict": "No está listo para producción. El bloqueador nº1 es la desconexión total entre el reporte verbal ('casi lo tengo', 'interactuando') y la realidad técnica (el bot nunca salió de la home), impidiendo al usuario saber que la tarea está fallando.",
+      "verdict": "El caso NO está listo para producción. El bloqueador nº1 es la desconexión total entre el discurso de Za elar ('agotado', 'limitaciones') y la realidad del mecanismo (no hay intentos de búsqueda reales, contaminación de contexto externo y falta de signals de error). Se comporta como si tuviera herramientas cuando no, e inventa datos para cubrir el hueco.",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
-      "turns_used": 9,
+      "turns_used": 10,
       "families": [
         "flash",
         "memory",
@@ -308,7 +308,7 @@
         "missing": "cerrar la reserva (cuenta y tarjeta)"
       },
       "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-152-uc-book-hotel-night-known-es.md",
+        "initiative": ".meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md",
         "task": ""
       }
     },
@@ -323,17 +323,17 @@
       "tier": 1
     },
     "find-theatre-tickets__es": {
-      "last_run": "2026-08-19 19:12",
-      "overall": 2,
+      "last_run": "2026-08-19 20:44",
+      "overall": 1,
       "state": "FAIL",
       "scores": {
-        "naturalidad": 4,
-        "adaptacion": 5,
+        "naturalidad": 3,
+        "adaptacion": 2,
         "resultado": 1,
         "mecanismo": 2,
-        "eficiencia": 2
+        "eficiencia": 1
       },
-      "verdict": "No está listo para producción. El bloqueador nº1 es la falacia de estado: el asistente inventa que 'está buscando' cuando el navegador ya falló o se detuvo, dejando al usuario en una espera infinita.",
+      "verdict": "No está listo para producción; el fallo principal es la desconexión total entre el estado interno del sistema (bloqueo/fin) y la respuesta externa al usuario, resultando en un comportamiento halucinatorio de búsqueda continua y un silencio final inaceptable.",
       "missing_signals": [],
       "sandboxed": true,
       "tier": 1,
@@ -351,10 +351,10 @@
         "missing": "comprar las entradas (cuenta y tarjeta)"
       },
       "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-157-uc-find-theatre-tickets-es.md",
+        "initiative": ".meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md",
         "task": ""
       }
     }
   },
-  "updated": "2026-08-19 19:46"
+  "updated": "2026-08-19 20:44"
 }

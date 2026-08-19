@@ -34,7 +34,7 @@ SCHEMA = 2
 # Catalog of keys the system understands, WHAT each enables, and which profile it is RELEVANT for. The web uses it
 # to ask only for what the chosen profile lacks. `env` = variable(s) that provide it (the 1st non-empty one counts).
 CREDENTIALS = [
-    {"key": "aimlapi", "env": ["AIMLAPI_KEY", "FAST_API_KEY"], "enables": "FlashBrain en la nube (Haiku/Grok)",
+    {"key": "aimlapi", "env": ["AIMLAPI_KEY", "FAST_API_KEY"], "enables": "FlashBrain en la nube (escalón de relevo del broker)",
      "profiles": ["cloud"]},
     {"key": "deepgram", "env": ["DEEPGRAM_API_KEY"], "enables": "STT/TTS Deepgram (nube)", "profiles": ["cloud"]},
     {"key": "mistral", "env": ["MISTRAL_API_KEY"], "enables": "STT Voxtral (Mistral, nube)", "profiles": ["cloud"]},

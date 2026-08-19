@@ -1,7 +1,7 @@
 """¿Qué modelo rápido aguanta el turno de VOZ? Banco A/B contra el prompt REAL de producción.
 
 Nace de una observación del operador (2026-08-02): «DeepSeek V4 Flash lo habíamos medido igual o más rápido que
-Haiku; en producción la latencia es horrible. Deberíamos volver a pasar los benchmarks, pero en el agente real y
+otro modelo; en producción la latencia es horrible. Deberíamos volver a pasar los benchmarks, pero en el agente real y
 lanzando peticiones en paralelo». Los benchmarks viejos medían prompts de juguete; producción manda 13k tokens y
 23 tools. Este banco mide lo MISMO que sufre el operador:
 
@@ -59,7 +59,6 @@ CANDIDATES: list[tuple[str, ModelSpec]] = [
     ("aiml·deepseek-non-thinking", ModelSpec("deepseek/deepseek-non-thinking-v3.2-exp", AIML, provider="aimlapi")),
     ("aiml·deepseek-non-reasoner", ModelSpec("deepseek/deepseek-non-reasoner-v3.1-terminus", AIML,
                                              provider="aimlapi")),
-    ("aiml·haiku-4.5", ModelSpec("anthropic/claude-haiku-4.5", AIML, provider="aimlapi")),
     ("aiml·gemini-3.7-flash", ModelSpec("google/gemini-3.7-flash", AIML, provider="aimlapi")),
     ("aiml·gemini-3.6-flash", ModelSpec("google/gemini-3.6-flash", AIML, provider="aimlapi")),
     ("aiml·gemini-3.5-flash", ModelSpec("google/gemini-3.5-flash", AIML, provider="aimlapi")),
