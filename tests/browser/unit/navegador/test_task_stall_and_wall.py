@@ -408,3 +408,43 @@ def test_and_a_navigation_to_a_DIFFERENT_site_still_counts():
     tasks.update_view(tid, url="https://casalucio.es/reservas/")
     tasks.add_event(tid, "🌐 abrió https://www.thefork.es/restaurantes/madrid")
     assert "· último: 🌐" in _live()
+
+
+# ── V2-188: la página de error del PROPIO sitio también es un muro ────────────────────────────────────────
+#
+# `cancel-subscription-before-charge__es`, V2-176 ronda 3. La tarea acabó en
+# `https://www.netflix.com/NotFound?prev=https%3A%2F%2Fwww.netflix.com%2Fes-es%2FContactUs` y zaelar le dijo al
+# operador, dos veces, que «la página no se ha abierto del todo», y después que el login estaba listo para que
+# metiera sus credenciales. El juez lo llamó gaslighting. No lo era: **nada en el estado decía que aquello era
+# una página de error**, así que «aún cargando» era lo más razonable que le quedaba por decir.
+#
+# Es el muro más silencioso de todos porque el navegador lo reporta como una navegación PERFECTA — y lo es:
+# status 200, host real, la página renderiza. Solo que no es la página.
+NETFLIX_404 = "https://www.netflix.com/NotFound?prev=https%3A%2F%2Fwww.netflix.com%2Fes-es%2FContactUs"
+
+
+def test_a_sites_own_error_page_is_a_wall():
+    assert "error" in tasks.wall_reason(NETFLIX_404)
+    assert tasks.wall_reason("https://x.com/404")
+    assert tasks.wall_reason("https://x.com/es/page-not-found")
+
+
+def test_but_matched_as_a_whole_path_SEGMENT_and_never_as_a_substring():
+    """«/notfound» es una página de error; «404 formas de cocinar huevos» no. Y la query se excluye a
+    propósito: la URL medida arrastra `?prev=https://www.netflix.com/es-es/ContactUs`, así que buscar en la URL
+    entera dispararía sobre la página BUENA de la que venía."""
+    assert tasks.wall_reason("https://www.recetas.com/articles/404-ways-to-cook-eggs") == ""
+    assert tasks.wall_reason("https://www.netflix.com/es-es/ContactUs") == ""
+    assert tasks.wall_reason("https://www.thefork.es/restaurantes/madrid") == ""
+
+
+def test_and_it_reaches_the_turn_as_a_BLOCKED_task():
+    """Lo que de verdad cambia la conversación: con el hecho delante, el bloque deja de prometer que la tarea
+    terminará sola (V2-185) — que es lo que sostenía «la página no se ha abierto del todo»."""
+    tid = tasks.create("Cancelar la suscripción a Netflix")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url=NETFLIX_404)
+    state = _live()
+    assert "· MURO: " in state and "página de error" in state
+    assert "ESTO ESTÁ BLOQUEADO" in state
+    assert "te dará el resultado sola" not in state

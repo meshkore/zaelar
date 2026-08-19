@@ -1275,6 +1275,24 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **El muro más silencioso: la página de error del PROPIO sitio** (`widgets/navegador/tasks.py`, V2-188,
+  2026-08-20). `wall_reason()` reconocía muros de TERCEROS interponiéndose (`chrome-error://`, `/sorry/index`,
+  `/recaptcha/`, `chal_t=`, `__cf_chl`) y no el 404 del sitio, que es el que más se parece a un éxito: el
+  navegador lo reporta como una navegación **perfecta** —status 200, host real, la página renderiza— solo que
+  no es la página. Medido en `cancel-subscription-before-charge__es`: la tarea acabó en
+  `netflix.com/NotFound?prev=…` y zaelar dijo dos veces «la página sigue sin abrirse del todo» y luego que el
+  login estaba listo para que el operador metiera sus credenciales. **El juez lo llamó gaslighting y no lo
+  era**: nada en el estado decía que aquello fuera un error, así que «aún cargando» era lo más razonable que le
+  quedaba. Agravante: V2-187 hace que el estado nombre el HOST y no la URL, lo que borra el `/NotFound` — sin
+  esto habría dicho `en netflix.com` y nada más, aún más limpio y aún más falso.
+  - Se compara **segmento COMPLETO de la ruta**, nunca subcadena: `/404` es un error y
+    `/articles/404-ways-to-cook-eggs` no. Y la **query se excluye a propósito** — la URL medida arrastraba
+    `?prev=https://www.netflix.com/es-es/ContactUs`, así que buscar en la URL entera dispararía sobre la página
+    BUENA de la que venía.
+  - **Sigue sin detectarse** el muro servido en el CUERPO del HTML (el «Access Denied» de `entradas.com`, visto
+    en vivo): un 404 se ve en la URL; un bloqueo anti-bot con URL y status normales, no. Pide mirar el texto
+    del snapshot, más frágil y con su propia medición.
+
 - **Un hecho que no se puede decir en voz alta es un hecho que no llega** (`nucleo/flash/prompt.py`, V2-187,
   2026-08-20). En `restaurant-tonight-madrid` el juez marcó como GRAVE cinco turnos seguidos de «Sigo en ello»
   sin información intermedia — mientras la tarea recorría `thefork.es`, su lista de Madrid, un dominio APARCADO

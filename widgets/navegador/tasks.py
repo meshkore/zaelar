@@ -39,6 +39,21 @@ _WALL_URL_NEEDLES = (
     ("__cf_chl", "el sitio interpuso una verificación anti-robot"),
 )
 
+# The site's OWN error landing page — a wall too, and one the browser reports as a perfectly successful
+# navigation, because it IS one: status 200, real host, page renders. Measured on
+# `cancel-subscription-before-charge__es` (V2-176 round 3): the task ended on
+# `https://www.netflix.com/NotFound?prev=…` and zaelar told the operator, twice, that «la página no se ha
+# abierto del todo» and then that the login page was ready for him to type his credentials into. The judge
+# called it gaslighting; it was not — nothing in the state said the page was an error, so «still loading» was
+# the most reasonable thing left to say.
+#
+# Matched as a whole PATH SEGMENT, never as a substring: «/notfound» is an error page and
+# «/articles/404-ways-to-cook-eggs» is not. Query strings are excluded on purpose — the measured URL carries
+# `?prev=https://www.netflix.com/es-es/ContactUs`, so a substring match over the whole URL would fire on the
+# perfectly good page it came FROM.
+_ERROR_PATH_SEGMENTS = frozenset({"notfound", "not-found", "404", "page-not-found", "pagenotfound",
+                                  "errorpage", "error-404", "404.html", "not_found"})
+
 
 def wall_reason(url: str) -> str:
     """Short, operator-facing reason why this URL is a WALL, or '' when it is an ordinary page.
@@ -53,6 +68,13 @@ def wall_reason(url: str) -> str:
     for needle, reason in _WALL_URL_NEEDLES:
         if needle in u:
             return reason
+    try:
+        from urllib.parse import urlparse
+        path = urlparse(u).path or ""
+    except Exception:
+        return ""
+    if any(seg.strip().lower() in _ERROR_PATH_SEGMENTS for seg in path.split("/") if seg.strip()):
+        return "el sitio devolvió una página de error (no existe esa página)"
     return ""
 
 # States: queued (created) · working (executing) · needs_input (waiting for answer) · done · failed · cancelled.
