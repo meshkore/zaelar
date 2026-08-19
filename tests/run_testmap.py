@@ -313,7 +313,11 @@ DOMAINS: list[dict] = [
             # se rindiera. Faltaban DOS hechos, no uno: cuánto lleva sin MOVERSE (recapturar la misma página no
             # es avanzar) y si la página en la que está es un MURO — Booking `chal_t`, el CAPTCHA de Google, un
             # error de carga. Sin ellos el turno solo podía decir la verdad inútil de que la tarea seguía viva.
-            "tests/browser/unit/navegador/test_task_stall_and_wall.py"]},
+            "tests/browser/unit/navegador/test_task_stall_and_wall.py",
+            # V2-167 SEGUNDA ronda: con el arreglo, las tareas ya TERMINAN — pero llegan a `status=done` con
+            # `phase_active=True` y la fase de vuelo intacta, así que el turno vuelve a leer un estado que miente,
+            # solo del revés. Los xfail son la deuda DECLARADA: cuando el arreglo entre, saldrán XPASS.
+            "tests/browser/unit/navegador/test_task_finish_is_coherent.py"]},
         {"id": "4.3", "title": "Widget de música", "ch": UNIT, "paths": ["tests/browser/unit/musica/test_data.py"]},
         {"id": "4.4", "title": "Widget de YouTube", "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_youtube.py"]},
         {"id": "4.5", "title": "Widget de mensajería", "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_owner_v2.py"]},
