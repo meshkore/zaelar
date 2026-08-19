@@ -84,6 +84,18 @@ def test_an_offline_agent_is_not_offered(monkeypatch):
     assert m.find("hotel in Madrid")["agents"] == []
 
 
+def test_the_oracle_is_asked_through_prompt_because_that_is_what_parses(monkeypatch):
+    """The costliest gotcha of the two, because it fails QUIETLY. `query` alone is a BM25 keyword match over an
+    English catalogue: «vuelo de Madrid a Roma» comes back 200 with zero agents and looks exactly like «nobody
+    on the mesh does this», while the same words in `prompt` resolve to `bookings.flights` and aerocast. A
+    whole domain of the mesh was invisible for one missing field."""
+    seen = {}
+    monkeypatch.setattr(m, "_post", lambda url, body, timeout=None: (seen.update(body) or (200, {"agents": []})))
+    m.find("vuelo de Madrid a Roma")
+    assert seen["prompt"] == "vuelo de Madrid a Roma"
+    assert seen["query"] == seen["prompt"]
+
+
 # ── el contrato de la llamada ─────────────────────────────────────────────────────────────────────────────
 def test_the_free_text_field_is_prompt_not_query(monkeypatch):
     """The gotcha `integrations/openclaw-plugin` already paid for: real agents branch on `body.prompt` and
@@ -168,3 +180,15 @@ def test_but_a_stale_route_is_ignored(monkeypatch):
                         lambda: {"bookings.hotels": {"at": 0, "agent": {"agent_id": "old",
                                                                        "endpoint": "https://old.example"}}})
     assert m.route_for("bookings.hotels") is None
+
+
+def test_an_unclassified_errand_never_teaches_a_route(monkeypatch):
+    """`general` is the Oracle's «I could not classify this», not a kind of errand — and it is the NORMAL
+    answer for a query it still serves («entradas de teatro en Madrid» → intent `general`, agent
+    `ticketlumen`). Keying a route on it would send the next plumber or bicycle errand to the theatre agent."""
+    store = {}
+    monkeypatch.setattr(m, "_routes", lambda: store)
+    monkeypatch.setattr(m, "kv_write", lambda *a: None, raising=False)
+    m.remember_route("general", FREE)
+    assert store == {}
+    assert m.route_for("general") is None

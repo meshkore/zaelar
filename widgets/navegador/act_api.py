@@ -42,7 +42,6 @@ def _emit_nav(nav_tid: str, label: str, text: str) -> None:
         pass
 
 
-@router.post("/api/navegador/act")
 def _with_wall(snap: dict) -> dict:
     """Annotate a snapshot with `wall` when the page it landed on STOPPED us (anti-bot challenge, CAPTCHA, load
     error) — V2-167.
@@ -63,6 +62,8 @@ def _with_wall(snap: dict) -> dict:
         snap["wall"] = reason
     return snap
 
+
+@router.post("/api/navegador/act")
 async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body(..., embed=True),
                         args: dict = Body(default_factory=dict, embed=True)):
     """Execute one browser action in the `task_id` tab and return resulting state so the agent can reason about the

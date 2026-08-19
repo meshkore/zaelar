@@ -215,3 +215,19 @@ def test_and_an_ordinary_page_announces_nothing():
     tasks.update_view(tid, url=REAL_PAGE)
     assert tasks.get(tid)["events"] == []
     assert tasks.get(tid)["phase_active"] is True
+
+
+# ── el puente tiene que seguir siendo el puente ────────────────────────────────────────────────────────────
+def test_the_bridge_route_still_points_at_the_bridge():
+    """Caught in a live run, one day after `_with_wall` was added: the helper had been inserted BETWEEN
+    `@router.post("/api/navegador/act")` and `navegador_act`, so FastAPI registered the annotator as the
+    endpoint. It takes one dict and returns it unchanged, so the route answered 200 with the request echoed
+    back — no `ok`, no `error` — and `nav_cli` turned that into «ERROR: desconocido» for every action a Brain
+    Worker tried. Every unit test still passed: nothing here had ever asserted WHICH function the path
+    resolves to, and a decorator does not care what follows it."""
+    from widgets.navegador.act_api import router
+
+    hit = [r for r in router.routes if getattr(r, "path", "") == "/api/navegador/act"]
+    assert hit, "la ruta del puente del navegador desapareció"
+    assert hit[0].endpoint.__name__ == "navegador_act"
+    assert {"task_id", "action", "args"} <= set(hit[0].endpoint.__annotations__)

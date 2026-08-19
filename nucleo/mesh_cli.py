@@ -14,10 +14,12 @@ real Chromium through defences built to stop it — measured, an entire run spen
 challenge — while this is one HTTP round-trip. So the order in the worker's method is: ask the mesh, and only
 open a browser when nobody answers.
 
-**Ask in ENGLISH.** Measured: «vuelo de Madrid a Roma» resolves to no agent at all while "flight from Madrid
-to Rome" returns `aerocast`, free, with ten real offers. The Oracle's intent parser is markedly better in
-English, so the errand is phrased in English even when the operator spoke Spanish — and what comes back is
-checked, because the mapping is loose at the edges (a restaurant query answers with a hotel agent).
+**Ask in the operator's own words, in their own language.** The Oracle runs its own NL parse on the errand
+and does it well: «entradas de teatro en Madrid» returns `ticketlumen`, free, with ten real events. (That
+only holds because `mesh_agents.find` sends the text in the `prompt` field — sent as `query` it degrades to a
+keyword match against an English catalogue and Spanish finds nobody, which is why this doc once said the
+opposite.) What comes back is still CHECKED, because the mapping is loose at the edges: an English restaurant
+query answers with a hotel agent.
 
 **Dates are the caller's job.** Pass absolute ISO dates in `--prompt`, never «esta noche»: measured live, an
 agent asked in relative terms resolved check-in to the previous year and returned nothing, and the same

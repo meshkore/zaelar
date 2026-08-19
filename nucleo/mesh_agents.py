@@ -32,8 +32,10 @@ become a product decision, this is the single place that changes.
 
 ## Gotchas, all verified live and all previously paid for by `integrations/openclaw-plugin`
 
-  · the free-text field real agents read is **`prompt`**, not `query` — a well-formed `{"query": …}` comes
-    back `400 missing_fields`. Both are sent.
+  · the free-text field is **`prompt`**, not `query`, on BOTH hops. A real agent given a well-formed
+    `{"query": …}` answers `400 missing_fields`, which at least says so. The Oracle instead answers
+    *something* — a BM25 keyword match — so `{"query": "vuelo de Madrid a Roma"}` comes back 200 with zero
+    agents and reads exactly like «the mesh has nobody for this». It has aerocast. Both fields are sent.
   · the Oracle's result carries a bare `endpoint` and no usable card, so the skill PATH is read from the
     agent's own `/.well-known/agent.json` — and only its PATHNAME. The host advertised there can be a
     hostname with no DNS record at all, while the origin the Oracle verified serves the same path fine.
@@ -128,27 +130,28 @@ def find(query: str, *, limit: int = 5, free_only: bool = True) -> dict:
     Returns `{"intent": str, "agents": [...], "query_id": ...}`; `agents` is empty when nobody can, which is
     a perfectly ordinary answer and means the browser stays the plan.
 
-    **Ask in ENGLISH.** The upstream skill doc says to pass the operator's words verbatim because the Oracle
-    parses them better than we would; measured on 2026-08-19 that is only true for English. Same errands,
-    same minute:
+    **The errand goes in `prompt`, and that is not cosmetic — it is what turns the parser on.** The Oracle
+    has two modes and picks by field: `query` alone is a BM25 keyword match over the catalogue, while
+    `prompt` runs its own NL parse first. Keyword matching an English catalogue with Spanish words finds
+    nothing, which is exactly the shape of a language problem and is not one. Measured the same minute,
+    2026-08-19:
 
-        "vuelo de Madrid a Roma"          -> intent `general`,           0 agents
-        "flight from Madrid to Rome"      -> intent `bookings.flights`,  aerocast (free, 10 real offers)
-        "reservar mesa en un restaurante" -> intent `general`,           0 agents
-        "restaurant table booking"        -> intent `bookings.restaurants`
+        {"query":  "vuelo de Madrid a Roma"}  -> intent `general`,          0 agents
+        {"prompt": "vuelo de Madrid a Roma"}  -> intent `bookings.flights`, aerocast + parsed MAD->FCO
+        {"prompt": "entradas de teatro en Madrid"} -> ticketlumen (free, 10 real events)
 
-    So a Spanish errand asked verbatim loses agents that exist and are free. Translating here would mean an
-    LLM call inside a discovery step that has to stay ~1 s, so the CALLER phrases it — the Brain Worker is
-    already a model writing the request, and English costs it nothing.
+    So the upstream skill doc is right that the operator's verbatim words are the thing to send; what it does
+    not say is that they only reach the parser through `prompt`. Both fields are sent.
 
-    And check what comes back: the mapping is loose at the edges (a restaurant query returns `roomrover`, a
-    hotel agent). An agent that answers the wrong domain is a fallback to the browser, not a result.
+    And check what comes back: the mapping is loose at the edges (an English restaurant query returns
+    `roomrover`, a hotel agent). An agent that answers the wrong domain is a fallback to the browser, not a
+    result.
     """
     query = (query or "").strip()
     if not query:
         return {"intent": "", "agents": []}
     status, data = _post(f"{ORACLE_URL}/v1/search",
-                         {"query": query, "source": "mesh", "audience": "personal",
+                         {"prompt": query, "query": query, "source": "mesh", "audience": "personal",
                           "filters": {"limit": max(1, int(limit)), "online_only": True}})
     if status != 200 or not isinstance(data, dict):
         return {"intent": "", "agents": []}
@@ -212,6 +215,17 @@ def _routes() -> dict:
         return {}
 
 
+# The Oracle's bucket for «I could not classify this». It is not a kind of errand, so it cannot key a route:
+# caching under it would send every unclassified errand — a plumber, a bicycle — to whichever agent happened
+# to answer a theatre query once. Measured: «entradas de teatro en Madrid» resolves to `general` and still
+# returns `ticketlumen`, so this is the normal case and not a corner one.
+_UNCACHEABLE = ("", "general", "unknown", "other")
+
+
+def _cacheable(intent: str) -> bool:
+    return str(intent or "").strip().lower() not in _UNCACHEABLE
+
+
 def route_for(intent: str) -> dict | None:
     """The agent that already served this kind of errand, if one did and the memory has not expired.
 
@@ -220,6 +234,8 @@ def route_for(intent: str) -> dict | None:
     CACHE — it expires, and `find()` is always still there — so a publisher that disappears costs one failed
     call, not a permanently wrong route.
     """
+    if not _cacheable(intent):
+        return None
     r = (_routes() or {}).get(str(intent or ""))
     if not isinstance(r, dict):
         return None
@@ -231,7 +247,7 @@ def route_for(intent: str) -> dict | None:
 def remember_route(intent: str, agent: dict) -> None:
     """Record that this agent served this intent. Only ever called after a REAL successful answer."""
     intent = str(intent or "").strip()
-    if not intent or not isinstance(agent, dict) or not _endpoint_of(agent):
+    if not _cacheable(intent) or not isinstance(agent, dict) or not _endpoint_of(agent):
         return
     try:
         from memory import api as memory
@@ -265,8 +281,7 @@ def serve(errand: str, prompt: str = "") -> dict:
     for agent in agents[:2]:            # one retry with the next candidate; beyond that the browser is faster
         res = ask(agent, prompt)
         if res.get("ok"):
-            if intent:
-                remember_route(intent, agent)
+            remember_route(intent, agent)                    # a no-op for an intent that cannot key a route
             return {"ok": True, "intent": intent, "agent": agent.get("agent_id"), "data": res.get("data")}
         if res.get("payment_required"):
             return {"ok": False, "reason": f"«{agent.get('agent_id')}» cobra por esto", "intent": intent}

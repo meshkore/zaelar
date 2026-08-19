@@ -59,6 +59,7 @@ Los agentes DEBEN trabajar dentro de esta estructura — no crear `docs/` ni car
 | **Memoria central** | `.meshkore/docs/architecture/zaelar-memory.md` |
 | **¿Por qué ESTOS modelos en la memoria?** (respuesta canónica) | `zaelar-memory.md §Modelos de la memoria` · denso: `zaelar-model-benchmarks.md §12.3/§12.4` · crudo: `tests/memory/e2e/bot/resultados/` |
 | **Canal de cluster — algoritmo de punta a punta** | `.meshkore/docs/architecture/zaelar-cluster-channel.md` |
+| **Red MeshKore — agentes vivos (oráculo) + clusters, y en qué estado está cada pieza** | `.meshkore/docs/architecture/zaelar-meshkore-network.md` |
 | **Multidioma / i18n (arranque idiomático, generación de bundles)** | `.meshkore/docs/architecture/zaelar-i18n.md` |
 | Product / Context | `.meshkore/docs/product/zaelar-product.md` |
 | Deploy | `.meshkore/docs/deploy/zaelar-deploy.md` |
@@ -1218,12 +1219,15 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     pago cuesta dinero que nadie autorizó. Un `402 Payment Required` se devuelve como HECHO al llamante —
     nunca se paga, nunca se reintenta. Cuando los agentes de pago sean una decisión de producto, este es el
     único sitio que cambia.
-  - **PREGUNTAR EN INGLÉS, aunque el operador hable español.** La doc del skill dice que se pase la frase del
-    operador verbatim porque el oráculo parsea mejor que nosotros; medido, eso solo es cierto en inglés:
-    «vuelo de Madrid a Roma» → intent `general`, **0 agentes**, mientras `"flight from Madrid to Rome"` →
-    `bookings.flights` → `aerocast`. Traducir dentro del módulo metería una llamada a un LLM en un paso de
-    descubrimiento que tiene que costar ~1 s, así que lo redacta el LLAMANTE: el Brain Worker ya es un modelo
-    escribiendo la petición, y el inglés no le cuesta nada.
+  - **Se pregunta EN EL IDIOMA DEL OPERADOR — y el campo es `prompt`, que es lo que enciende el analizador.**
+    Corregido el 2026-08-19 el mismo día: el oráculo tiene DOS modos y elige por campo. Con `query` hace
+    coincidencia léxica BM25 contra un catálogo en inglés; con `prompt` pasa el texto por su propio análisis.
+    `find()` mandaba solo `query`, así que «vuelo de Madrid a Roma» volvía `general` con **0 agentes** —
+    y volvía **200**, que se lee igual que «la red no tiene a nadie». Con `prompt`, la MISMA frase en español
+    da `bookings.flights` → `aerocast`. No era un problema de idioma: un dominio entero de la red estuvo
+    invisible por un campo, y de ahí salió la conclusión falsa (que llegó a estar escrita en tres ficheros) de
+    que había que traducir al inglés. Se mandan los dos campos y el encargo va en las palabras del operador,
+    que es lo que la doc del plugin decía desde el principio.
   - **Las FECHAS las resuelve el llamante.** Medido: pedido «esta noche» el 2026-08-19, el agente resolvió el
     check-in al **año anterior** y devolvió cero resultados; con la fecha ISO explícita devolvió diez. Y hay
     que COMPROBAR lo que vuelve: el emparejamiento falla en los bordes (una consulta de restaurante la
@@ -1236,8 +1240,30 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     sirve ese mismo path perfectamente, así que fiarse del host cambia un 404 por un fallo de red.
   - **Cableado**: `hbmesh` es un puente más del worker (`_BRIDGES` de `claude_session`, que Grok hereda; Codex
     tiene shell completo), y `dispatch_prompts._web_prompt` lo pone como **PASO 0**, antes de abrir nada. Todo
-    fail-open: red caída, sin agente o agente que no contesta degradan al navegador de siempre — hoy la red
-    cubre poco más que hoteles y vuelos, así que ese camino sigue siendo el habitual.
+    fail-open: red caída, sin agente o agente que no contesta degradan al navegador de siempre — hoy hay tres
+    agentes vivos y gratis (`roomrover` hoteles, `aerocast` vuelos, `ticketlumen` eventos) y para el resto el
+    navegador sigue siendo el camino.
+  - **`general` NO es clave de ruta.** Es el cubo del oráculo para «no sé clasificarlo», y es una respuesta
+    NORMAL de una consulta que sí sirve: «entradas de teatro en Madrid» → intent `general` → `ticketlumen`.
+    Cachear bajo esa clave mandaría el siguiente encargo de fontanero al agente de teatro.
+  - **VERIFICADO EN VIVO con un Brain Worker de verdad** (2026-08-19): encargo en español por el dispatcher
+    real → el worker leyó el PASO 0, preguntó en español, llamó a `roomrover` con fechas absolutas y entregó
+    tres hoteles con precio y enlace en **141 s sin abrir el navegador**. Es el caso
+    `book-hotel-night-known__es`, el que se pasó una corrida entera contra el `chal_t=` de Booking.
+  - **Dónde está todo lo demás**: el contexto estable (las DOS superficies de la red —agentes vivos y
+    clusters—, qué está construido y qué no) en
+    **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
+    **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
+
+- **Una ruta de FastAPI no sabe qué función viene detrás del decorador** (`widgets/navegador/act_api.py`,
+  V2-169, 2026-08-19). Un ayudante nuevo (`_with_wall`) quedó insertado ENTRE `@router.post("/api/navegador/act")`
+  y `navegador_act`, así que se registró como endpoint el anotador: recibe un dict y lo devuelve igual, o sea
+  que la ruta contestaba **200 con el eco de la petición**, sin `ok` y sin `error`, y `nav_cli` lo traducía a
+  `ERROR: desconocido` para CADA acción de CADA Brain Worker. El puente del navegador estuvo así casi un día
+  con la suite entera en verde: nada afirmaba nunca QUÉ función resuelve esa ruta. Lo caza
+  `test_the_bridge_route_still_points_at_the_bridge`, y la regla general es que **una ruta se verifica por su
+  endpoint, no por que el módulo importe**. Lo encontró una prueba REAL en cinco minutos; 2664 tests verdes no
+  podían verlo.
 
 - **navegador — AUTENTICACIÓN = abrir un navegador REAL** (INI-016, 2026-07-10): para usar la cuenta del operador
   (Wallapop, Google, LinkedIn…) **NO se heredan las cookies del Chrome del sistema** (cifradas por Keychain): se
