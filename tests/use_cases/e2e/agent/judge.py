@@ -140,11 +140,30 @@ Qué cuenta como éxito: {scenario.success_checks}
 {rubric}
 
 {schema}"""
-    raw, used = llm.judge_call([{"role": "system", "content": sys}, {"role": "user", "content": user}], max_tokens=2000)
-    try:
-        v = llm.parse_json(raw)
-        v["_judge_model"] = used
-        return v
-    except Exception as e:
-        return {"scores": {}, "overall": None, "findings": [], "improvements": [], "_judge_model": used,
-                "veredicto": f"(juez no devolvió JSON válido: {e}) — raw: {raw[:300]}"}
+    msgs = [{"role": "system", "content": sys}, {"role": "user", "content": user}]
+    # El juez se REINTENTA si su JSON viene roto. Medido el 2026-08-19: `three-tasks-at-once` corrió sus 14
+    # turnos completos —11 minutos de conversación real, tres tareas en vuelo— y el veredicto se perdió porque
+    # al juez le faltó una coma en el carácter 1066. Un fallo de FORMATO del evaluador no puede costar la
+    # corrida entera: los datos ya están en la mano, así que re-juzgar cuesta UNA llamada frente a rehacer la
+    # conversación. Es el caso multiflow el que más lo sufre, porque su esquema tiene 7 dimensiones en vez de 5
+    # y hay más JSON donde equivocarse.
+    last_err, raw, used = None, "", ""
+    for attempt in range(3):
+        if attempt:
+            # Se le DICE qué salió mal: repetir la misma petición esperando otro resultado es apostar al azar.
+            msgs = msgs + [
+                {"role": "assistant", "content": raw[:1500]},
+                {"role": "user", "content": (f"Tu respuesta anterior no era JSON válido ({last_err}). Devuelve "
+                                             f"EXACTAMENTE el mismo veredicto pero como JSON válido y NADA más "
+                                             f"— sin ```, sin texto antes ni después.")}]
+        raw, used = llm.judge_call(msgs, max_tokens=2000)
+        try:
+            v = llm.parse_json(raw)
+            v["_judge_model"] = used
+            if attempt:
+                v["_judge_retries"] = attempt      # queda en el informe: un juez que necesita reintentos importa
+            return v
+        except Exception as e:
+            last_err = str(e)
+    return {"scores": {}, "overall": None, "findings": [], "improvements": [], "_judge_model": used,
+            "veredicto": f"(juez no devolvió JSON válido tras 3 intentos: {last_err}) — raw: {raw[:300]}"}
