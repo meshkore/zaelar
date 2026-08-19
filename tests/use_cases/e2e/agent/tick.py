@@ -146,6 +146,13 @@ def _retest_pending() -> dict:
             I.close_on_pass(sid, verdict=e.get("verdict", ""), overall=e.get("overall"))
             passed.append(sid)
         elif e.get("state") == "FAIL":
+            # A GROUPED case does NOT rotate: `run.py --verify` already appended its round to the shared
+            # umbrella, and opening a per-case successor here would re-fragment exactly what the grouping
+            # exists to hold together. Whether the remaining error is still the shared one is a judgement on
+            # the evidence — it is made by reading the umbrella's rounds, not by the tick guessing.
+            if I.grouped_for(sid) is not None:
+                rotated.append(f"{sid} → ronda en {I.grouped_for(sid).name} (agrupado, no rota)")
+                continue
             # Re-file from the ledger's summary: the full run dict lives in the child process, and the
             # initiative's own round already carries the transcript the runner appended.
             fake = {"scenario": sid, "tier": e.get("tier"),
@@ -210,6 +217,9 @@ def main() -> int:
                     help="arm the loop for this many hours from now (writes the deadline, then ticks once)")
     ap.add_argument("--stop", action="store_true", help="disarm: every later tick becomes a no-op")
     ap.add_argument("--status", action="store_true", help="print the loop's state and exit")
+    ap.add_argument("--retest-only", action="store_true",
+                    help="step 1 ONLY (re-test what the dev agent answered), works with the loop disarmed and "
+                         "never launches new cases from the catalog")
     args = ap.parse_args()
 
     st = _state()
@@ -232,6 +242,23 @@ def main() -> int:
         print(f"esperando arreglo: {I.awaiting_fix_count()}/{QUEUE_FLOOR} · "
               f"esperando re-test: {len(I.scenarios_awaiting_verification(SC.registry()))}")
         print(f"tablero: {statusmod.summary_line()}")
+        return 0
+
+    # RETEST-ONLY: step 1 alone, and it does NOT require the loop to be armed. That is the point — the operator
+    # stopped launching new cases until a shared fault is fixed (2026-08-19), but the re-test still has to fire
+    # the moment the dev agent answers, and arming the loop would bring step 2 (top up the queue from the
+    # catalog) back with it. It also stays SILENT when there is nothing pending: this runs every 5 minutes.
+    if args.retest_only:
+        if _runner_alive():
+            _log("retest-only: ya hay una tanda corriendo — salto este turno")
+            return 0
+        pend = [p for p in I.scenarios_awaiting_verification(SC.registry()) if p["scenario"]]
+        if not pend:
+            print("no-op · nada que re-probar (ninguna tarea de verificación pendiente)")
+            return 0
+        _log(f"── RETEST-ONLY · {len(pend)} caso(s) pendiente(s) ──")
+        r1 = _retest_pending()
+        _log(f"── FIN RETEST-ONLY · re-probados {r1.get('retested', 0)} · {statusmod.summary_line()}")
         return 0
 
     dl = st.get("deadline", 0)

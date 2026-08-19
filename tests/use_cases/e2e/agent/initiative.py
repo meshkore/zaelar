@@ -45,6 +45,44 @@ MODULES = ENGINE / ".meshkore" / "modules"
 _TASK_FLOOR = 309
 
 
+# ── GROUPED CASES: several cases, one shared workspace ────────────────────────────────────────────────────
+#
+# Normally one case == one initiative. But when N cases fail for the SAME underlying reason, N initiatives
+# describing it are N work orders to fix it N times — measured on 2026-08-19, where seven open initiatives said
+# "the agent reports progress that is not happening" in seven different wordings, and the operator ruled they be
+# collapsed into one ("en lugar de cinco hablando del mismo error, deja sólo una").
+#
+# While a case is listed here, its rounds are appended to the UMBRELLA initiative (named, with the case in the
+# round heading) and NO per-case fix task is created. It is deliberately a hand-edited constant and not derived
+# from anything: deciding that two failures share a cause is a judgement about the evidence, and a heuristic that
+# guessed it would eventually merge two genuinely different bugs into one ticket nobody can act on.
+#
+# To ungroup a case, delete its line. If the umbrella is closed or missing, grouping silently stops applying and
+# the normal per-case path resumes — so a stale entry degrades to the old behaviour instead of losing a round.
+GROUPED: dict[str, str] = {
+    "three-tasks-at-once": "V2-167-uc-tareas-que-nunca-terminan.md",
+    "restaurant-tonight-madrid": "V2-167-uc-tareas-que-nunca-terminan.md",
+    "book-hotel-night-known": "V2-167-uc-tareas-que-nunca-terminan.md",
+    "find-theatre-tickets": "V2-167-uc-tareas-que-nunca-terminan.md",
+    "remember-and-remind-deadline": "V2-167-uc-tareas-que-nunca-terminan.md",
+    "pay-known-bill": "V2-167-uc-tareas-que-nunca-terminan.md",
+    "reorder-prescription": "V2-167-uc-tareas-que-nunca-terminan.md",
+}
+
+
+def grouped_for(scenario_id: str) -> Path | None:
+    """The umbrella initiative this case's rounds belong to, or None.
+
+    Keyed by the BARE case id so an ES case and its US twin share the umbrella — the shared fault is in the
+    engine, not in a market.
+    """
+    name = GROUPED.get(scenario_id.split("__")[0])
+    if not name:
+        return None
+    path = INITIATIVES / name
+    return path if path.is_file() and _status_of(path) != "closed" else None
+
+
 def _slug(scenario_id: str) -> str:
     return re.sub(r"[^a-z0-9]+", "-", scenario_id.lower()).strip("-")
 
@@ -297,6 +335,19 @@ def file_failure(result: dict, *, scenario, sandboxed: bool, force_new: bool = F
         verdict = result.get("verdict") or {}
         mech = (result.get("run") or {}).get("mechanism_report") or {}
         evidence = _evidence(result, scenario=scenario, sandboxed=sandboxed)
+
+        # GROUPED case: the round goes to the shared umbrella, and no per-case fix task is created. Checked
+        # BEFORE `force_new` on purpose — `force_new` exists for the rotation path (close this case's initiative,
+        # open a successor), and rotating a grouped case is exactly the re-fragmentation the grouping prevents.
+        if (umbrella := grouped_for(scenario.id)) is not None:
+            body = umbrella.read_text(encoding="utf-8").rstrip("\n")
+            rounds = len(re.findall(r"^## Ronda ", body, re.M)) + 1
+            body += (f"\n\n## Ronda {rounds} · `{scenario.id}` — {stamp}\n\n"
+                     f"Sigue FALLANDO (overall {verdict.get('overall')}/5). "
+                     f"Veredicto: {verdict.get('veredicto', '')}\n\n{evidence}")
+            umbrella.write_text(body + "\n", encoding="utf-8")
+            return {"initiative": umbrella, "task": None, "round": rounds, "created": False, "grouped": True}
+
         existing = None if force_new else find_initiative(scenario.id)
 
         if existing:
@@ -518,6 +569,23 @@ def close_on_pass(scenario_id: str, *, verdict: str, overall) -> dict:
     Left deliberately narrow — it closes the workspace and says why, and does NOT touch the scoreboard (that is
     `status.py`'s job and already happened) nor mark anything `delivered` (see `close_initiative`).
     """
+    # GROUPED case: the umbrella belongs to the OTHER cases too, so a single case passing must not close it.
+    # Its round is recorded there instead — that file is where whoever fixed it looks for the answer.
+    if (umbrella := grouped_for(scenario_id)) is not None:
+        try:
+            body = umbrella.read_text(encoding="utf-8").rstrip("\n")
+            rounds = len(re.findall(r"^## Ronda ", body, re.M)) + 1
+            stamp = time.strftime("%Y-%m-%d %H:%M", time.localtime())
+            body += (f"\n\n## Ronda {rounds} · `{scenario_id}` — {stamp}\n\n"
+                     f"**PASA** (nota del juez **{overall}**/5, umbral 4). Veredicto: _{verdict[:300]}_\n\n"
+                     f"Este caso deja de estar en la lista agrupada cuando se borre su línea de "
+                     f"`initiative.GROUPED`; la iniciativa sigue ABIERTA mientras queden casos del grupo por "
+                     f"pasar.\n")
+            umbrella.write_text(body + "\n", encoding="utf-8")
+        except Exception:
+            pass
+        return {"closed": None, "grouped": umbrella}
+
     path = find_initiative(scenario_id)
     if path is None:
         return {"closed": None}
