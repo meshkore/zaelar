@@ -61,3 +61,44 @@ def test_the_reminder_rule_is_about_ORDER_not_about_which_day(monkeypatch):
     """El hallazgo falso decía «cae 6 días tarde». Lo único que importa es que el aviso vaya ANTES del evento."""
     txt = _prompt(monkeypatch)
     assert "va ANTES del evento" in txt
+
+
+def test_with_search_down_REFUSING_to_answer_scores_HIGH(monkeypatch):
+    """Lo preguntó el equipo del código antes de arriesgar una regresión (2026-08-20), y tenían razón.
+
+    Su arreglo de `quick-fact-opening-hours` hace que, con la búsqueda caída, el turno sustituya la cifra
+    improvisada por «no he podido comprobarlo, prefiero no darte un dato inventado». El `success_checks` del
+    caso pide los dos datos contestados, así que el juez lo habría marcado como fallo de resultado — y habría
+    castigado exactamente la conducta que el caso existe para conseguir. Es el mismo principio que ya rige los
+    casos topados por credenciales: decir qué falta puntúa, fingir es lo grave.
+    """
+    seen: dict[str, str] = {}
+
+    def _fake(msgs, **kw):
+        seen["user"] = next((m["content"] for m in msgs if m.get("role") == "user"), "")
+        return ('{"scores":{"naturalidad":3,"adaptacion":3,"resultado":3,"mecanismo":3,"eficiencia":3},'
+                '"veredicto":"x","findings":[],"improvements":[]}'), "modelo-de-prueba"
+
+    monkeypatch.setattr(J.llm, "judge_call", _fake)
+    J.judge(_scn(), {"transcript": [], "mechanism_report": {
+        "search_health": {"degraded": True, "reasons": [("captcha", 3)], "n_search_events": 3}}})
+    txt = seen["user"]
+    assert "se NEGÓ a dar un dato" in txt
+    assert "puntúa ALTO" in txt
+    assert "describe el caso con el entorno SANO" in txt
+
+
+def test_but_a_healthy_search_gets_no_such_pass(monkeypatch):
+    """Sensibilidad: con la búsqueda SANA, negarse a contestar sí es un fallo de resultado y el aviso no puede
+    aparecer — si apareciera siempre, el arnés perdonaría a un agente que no busca nunca."""
+    seen: dict[str, str] = {}
+
+    def _fake(msgs, **kw):
+        seen["user"] = next((m["content"] for m in msgs if m.get("role") == "user"), "")
+        return ('{"scores":{"naturalidad":3,"adaptacion":3,"resultado":3,"mecanismo":3,"eficiencia":3},'
+                '"veredicto":"x","findings":[],"improvements":[]}'), "m"
+
+    monkeypatch.setattr(J.llm, "judge_call", _fake)
+    J.judge(_scn(), {"transcript": [], "mechanism_report": {
+        "search_health": {"degraded": False, "n_search_events": 4}}})
+    assert "se NEGÓ a dar un dato" not in seen["user"]

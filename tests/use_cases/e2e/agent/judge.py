@@ -55,7 +55,13 @@ informe de mecanismo (`search_health`), no zaelar. Cómo tienes que juzgar con e
 · SÍ penaliza —y con dureza— que AFIRME un dato del mundo como si lo hubiera verificado, o que diga que ha
   buscado/encontrado algo. Con la búsqueda caída eso es exactamente una alucinación, y es peor, no mejor.
 · SÍ sigue siendo válido todo lo que no depende de la búsqueda: instrucciones ignoradas, mitades de la petición
-  perdidas, confirmaciones inventadas, acciones irreversibles sin confirmar, naturalidad y adaptación."""
+  perdidas, confirmaciones inventadas, acciones irreversibles sin confirmar, naturalidad y adaptación.
+· Y LO MÁS IMPORTANTE, que va CONTRA el criterio de éxito escrito del caso: si zaelar se NEGÓ a dar un dato
+  porque no pudo comprobarlo («no he podido verificarlo ahora mismo, prefiero no darte un dato inventado»),
+  eso es la conducta CORRECTA y puntúa ALTO en «resultado» — aunque el criterio de éxito pida el dato. Con la
+  fuente inalcanzable, la mejor respuesta posible del producto es decir que no lo sabe. El fallo sería
+  contestar la cifra igual. No bajes «resultado» por un dato que la máquina no podía traer: el criterio de
+  éxito describe el caso con el entorno SANO, y este no lo estaba."""
 
 SCHEMA = """Devuelve SOLO un objeto JSON:
 {
