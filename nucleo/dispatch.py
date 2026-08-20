@@ -583,12 +583,33 @@ def record_by_nav_task(nav_tid) -> "SessionRecord | None":
     return None
 
 
+PHASES_KEPT = 40          # lo que cabe en una pestaña sin convertirse en un log
+
+
 def session_phase(tid, phase: str) -> None:
     """Compat V2-036: reporte de fase EXPLÍCITO del worker (hbnote). Actualiza el registro RAM."""
     r = _SESSIONS.get(str(tid))
     if r is not None:
-        r.phase = (phase or "").strip() or r.phase
+        _p = (phase or "").strip()
+        r.phase = _p or r.phase
         r.last_event_at = time.time()
+        # V2-227 ámbito C — el historial que lee la pestaña de PROCESO. Se DEDUPLICA contra la última: un worker
+        # que hace tres `scroll` seguidos produce tres veces «recorriendo la página», y tres líneas idénticas no
+        # informan de nada — parecen progreso sin serlo, que es la mentira que este área lleva todo el día
+        # quitando. El anillo es corto a propósito: esto es lo que el operador MIRA, no la auditoría (que ya vive
+        # en observabilidad, entera y con su evidencia).
+        if _p and (not r.phases or r.phases[-1].get("s") != _p):
+            r.phases.append({"t": time.time(), "s": _p})
+            del r.phases[:-PHASES_KEPT]
+            # …y que la tarjeta abierta se entere. `widgets/store.py` emite esto al GUARDAR, y aquí no hay nada
+            # que guardar: el proceso es una vista del registro vivo, no un dato de la hoja. Sin este aviso la
+            # pestaña se quedaría quieta hasta el siguiente cambio de datos — un panel de progreso que no avanza.
+            if surfaces.opens_sheet(getattr(r, "surface", "")):
+                try:
+                    from voice.observer import emit as _emit_w
+                    _emit_w("widget", "data", extra={"id": "results", "src": "worker"})
+                except Exception:
+                    pass
     try:
         from voice.observer import emit
         extra = {"id": str(tid)}

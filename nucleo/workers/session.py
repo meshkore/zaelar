@@ -63,6 +63,10 @@ class SessionRecord:
     # no se re-decide a mitad: cambiar de superficie cuando el operador ya está mirando la primera es peor que
     # haber elegido mal. Vacío = todavía sin sellar (una sesión creada a mano en un test, por ejemplo).
     surface: str = ""
+    # V2-227 ámbito C — el HISTORIAL de fases legibles, para la pestaña de PROCESO de la hoja. Anillo corto: es
+    # lo que el operador está mirando ahora, no un registro de auditoría (eso ya vive en observabilidad). Va
+    # aparte de `steps`, que son los pasos crudos derivados del stream y no se le enseñan a nadie.
+    phases: list = field(default_factory=list)     # [{"t": <ts>, "s": "entrando en booking.com"}]
     last_event_at: float = field(default_factory=time.time)
     injects: list = field(default_factory=list)     # [Inject]
     paused: bool = False           # V2-065: SIGSTOP'd (⏻ del operador) — sigue "running" para el registro, pero

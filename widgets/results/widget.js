@@ -23,7 +23,12 @@
 //
 // SECURITY: item text is web/3rd-party-sourced → built with textContent ONLY (never innerHTML).
 
+// V2-227 ámbito C — PROCESO va PRIMERO, y no es una preferencia de orden: la hoja se abre ANTES de que haya un
+// solo resultado, así que la primera pestaña es la única que tiene algo que enseñar durante los primeros minutos.
+// La petición del operador era literal: «si el worker tarda, el usuario se aburre y la experiencia es mala.
+// Necesita ver EN TIEMPO REAL lo que está pasando».
 const TABS = [
+  {id: "process",  label: "Proceso"},
   {id: "results",  label: "Resultados"},
   {id: "summary",  label: "Sumario"},
   {id: "sources",  label: "Fuentes"},
@@ -287,6 +292,25 @@ function injectStyles(){
   .hb-results .hr-dot.bad{background:var(--hb-risk,#e5484d)}
   .hb-results .hr-dot.idle{background:var(--hb-accent,#3D6FE0);animation:hrpulse 1.8s ease-in-out infinite}
   @keyframes hrpulse{0%,100%{opacity:1}50%{opacity:.3}}
+  /* ── PROCESO (V2-227 C) ── el loader anima por CSS, NUNCA por temporizador de JS: un intervalo se congela con
+     la pestaña en segundo plano y sobrevive a un render que lo desconecte, y las dos cosas dejan un loader que
+     está en el DOM y miente. La clase hr-spin gira de verdad mientras exista. */
+  /* Tamaños en em y no en px: escalan con la tipografía de la fila, y así el loader no se queda pequeño si la
+     escala cambia — que es exactamente lo que vigila el trinquete de magnitudes crudas. */
+  .hb-results .hr-spin{width:1em;height:1em;flex:none;border-radius:50%;
+    border:2px solid var(--hb-neutral,#c2ccda);border-top-color:var(--hb-accent,#3D6FE0);
+    animation:hrspin .8s linear infinite}
+  @keyframes hrspin{to{transform:rotate(360deg)}}
+  .hb-results .hr-steps{display:flex;flex-direction:column;gap:var(--s2);margin-top:var(--s4)}
+  .hb-results .hr-step{display:flex;align-items:baseline;gap:var(--s2);font-size:var(--f-body);
+    color:var(--hb-muted,#5f6b7c);line-height:1.45}
+  /* La ÚLTIMA línea con el worker vivo es la que está pasando AHORA: se lee primero sin tener que contar filas. */
+  .hb-results .hr-step.now{color:var(--hb-ink,#16202c);font-weight:500}
+  .hb-results .hr-bullet{width:.42em;height:.42em;flex:none;border-radius:50%;
+    background:var(--hb-neutral,#c2ccda);transform:translateY(-2px)}
+  .hb-results .hr-step.now .hr-bullet{background:var(--hb-accent,#3D6FE0)}
+  .hb-results .hr-steptext{flex:1;min-width:0;overflow-wrap:anywhere}
+  .hb-results .hr-note{margin-top:var(--s4);font-size:var(--f-small,12px);color:var(--hb-muted,#5f6b7c)}
   .hb-results .hr-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(112px,1fr));gap:var(--s2);
     margin-bottom:var(--s4)}
   .hb-results .hr-stat{border:var(--line);border-radius:var(--r-md);padding:var(--s2) var(--s3) 9px;
@@ -885,7 +909,52 @@ function paintCriteria(panel, data){
   });
 }
 
-const PAINT = {results: paintResults, summary: paintSummary, sources: paintSources, criteria: paintCriteria};
+// ── PROCESO ── lo que está pasando, mientras pasa (V2-227 ámbito C).
+//
+// Es una VISTA del registro vivo, no un dato de la hoja: `progress` llega derivado en cada `view_data` y nadie lo
+// guarda. Las frases ya vienen listas para leer desde el ámbito B («entrando en booking.com…»), así que aquí no se
+// interpreta nada — se pintan en ORDEN, la más nueva abajo, que es como se lee una cosa que avanza.
+//
+// El loader ANIMA por CSS y no por JS a propósito: una animación por temporizador se congela con la pestaña en
+// segundo plano y sobrevive a un render que la desconecte, y las dos cosas dejan un loader que está en el DOM y
+// miente. Es la lección del orbe del móvil (18/08): 741 frames dentro de un canvas desconectado, cero píxeles, y
+// un test verde que solo contaba que el elemento existiera.
+function paintProcess(panel, data){
+  const pr = data.progress || {};
+  const lines = Array.isArray(pr.phases) ? pr.phases.filter(x=>String(x||"").trim()) : [];
+  const alive = !!pr.alive;
+
+  if(!lines.length && !alive){
+    panel.appendChild(elem("div","hr-empty",
+      "Aquí se ve lo que va haciendo mientras trabaja: en qué web entra, qué filtro aplica, cuántos resultados "
+      + "encuentra. Todavía no hay ninguna tarea en marcha."));
+    return;
+  }
+
+  const head = elem("div","hr-state");
+  head.appendChild(elem("span", alive ? "hr-spin" : "hr-dot ok"));
+  head.appendChild(elem("span","", alive ? (pr.label || "Trabajando…") : "Terminado"));
+  panel.appendChild(head);
+
+  const list = elem("div","hr-steps");
+  lines.forEach((text, i)=>{
+    const row = elem("div","hr-step" + (alive && i === lines.length-1 ? " now" : ""));
+    row.appendChild(elem("span","hr-bullet"));
+    row.appendChild(elem("span","hr-steptext", String(text)));
+    list.appendChild(row);
+  });
+  panel.appendChild(list);
+
+  // Al ACABAR la pestaña no se vacía: se queda como historial de lo que pasó (C5). Vaciarla borraría la única
+  // explicación de por qué el resultado es el que es.
+  if(!alive && lines.length){
+    panel.appendChild(elem("div","hr-note","Esto es lo que hizo para llegar aquí."));
+  }
+}
+
+
+const PAINT = {process: paintProcess, results: paintResults, summary: paintSummary,
+               sources: paintSources, criteria: paintCriteria};
 
 // Is this paint a NAVIGATION or a data refresh? It matters for scroll: "View detail →" lives at the end of a card, so
 // without returning to top the record opens halfway down (and switching tabs left you mid-list). But a worker `append`
@@ -911,6 +980,10 @@ function tabCount(id, data){
     return n ? {n} : null;
   }
   if(id === "summary") return s.explored ? {n: s.explored} : null;
+  if(id === "process"){
+    const n = ((data.progress||{}).phases||[]).length;
+    return n ? {n} : null;
+  }
   return null;
 }
 
@@ -942,7 +1015,15 @@ export function render(el, data, ctx){
   // User/session identifiers + Copy: to pass them to an agent auditing this session.
   top.appendChild(identityStrip());
 
-  let cur = TABS.some(t=>t.id===data.tab) ? data.tab : "results";
+  // PESTAÑA ACTIVA — derivada cuando el operador no ha elegido, y de ahí salen las dos mitades que pidió:
+  //   · la hoja se abre en PROCESO mientras hay una tarea viva y todavía no hay nada que poner en la lista;
+  //   · en cuanto entra el primer resultado, el derivado pasa a «results» y la hoja SALTA SOLA (C3).
+  // Si el operador clicó una pestaña, `data.tab` está persistido y MANDA: el salto automático no puede
+  // arrancarle de donde ha decidido mirar.
+  const _hasItems = ((data.items || []).length > 0);
+  const _live = !!(data.progress && data.progress.alive);
+  let cur = TABS.some(t=>t.id===data.tab) ? data.tab
+          : (!_hasItems && (_live || ((data.progress||{}).phases||[]).length) ? "process" : "results");
   const bar = elem("div","hr-tabs");
   const panel = elem("div","hr-panel");
 
