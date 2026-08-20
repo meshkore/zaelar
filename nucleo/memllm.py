@@ -207,8 +207,55 @@ def local_titular_ready(url: str, model: str) -> bool:
 
 
 def reset_local_probe() -> None:
-    """Drop the cached verdicts (tests, and after an operator changes the profile)."""
+    """Drop the cached verdicts (tests, and after an operator changes the profile). Also clears the
+    once-per-pair incoherence warnings, so a test that fixes a config sees it complain again."""
     _local_probe.clear()
+    _warned_pairs.clear()
+
+
+# ── A MODEL NAMED WITHOUT ITS ENDPOINT ──────────────────────────────────────────────────────────────────────
+# An Ollama tag (`name:tag`, no vendor slash) can only be served by an Ollama endpoint: every broker in the
+# catalogue names its models `vendor/model`. So «local tag @ cloud endpoint» is not a model that MIGHT be
+# missing — it is a pair that cannot work, and asking anyway buys a guaranteed 404 on every single call.
+_warned_pairs: set[str] = set()
+
+
+def pair_incoherent(url: str, model: str) -> bool:
+    """True when `model` is an Ollama-style tag and `url` is NOT a local endpoint.
+
+    This is the SHAPE of the trap a config falls into when a model is named without its endpoint: the two halves
+    come from different layers (a profile, an env var, the store, a default) and nothing checks that they describe
+    the same provider. Measured 2026-08-20 in every sandboxed `use_cases` round — ~8-10 per round: a stale
+    `MEM_PROCESSOR_MODEL=qwen2.5:3b` in the operator's env file beat the checked-in cloud default, because the env
+    fallback applies whenever the store has no value and a fresh workspace has no store. Every distillation paid a
+    404 to AIMLAPI first; before the failover chain existed (2026-08-19) it paid three and then wrote through the
+    lossy heuristic, silently.
+
+    Deliberately a SHAPE check and not a provenance check: the same pair is equally broken whether it came from an
+    env var, a half-written profile, or an operator typing a local model into the ⚙ while the endpoint stayed in
+    the cloud — and the caller cannot always tell which layer won."""
+    m = (model or "").strip()
+    if not m or "/" in m or ":" not in m:
+        return False
+    return not is_local_endpoint(url)
+
+
+def note_incoherent_pair(where: str, url: str, model: str, *, served: str | None = None) -> None:
+    """Say it ONCE per pair. This is a configuration error, not an event: it repeats on every write, and a warning
+    that repeats 10 times a round is a warning the operator learns to scroll past."""
+    key = f"{where}|{url}|{model}"
+    if key in _warned_pairs:
+        return
+    _warned_pairs.add(key)
+    tail = f" -> writing through {served}" if served else ""
+    logger.warning(f"{where}: «{model}» is an Ollama tag but {url} is not a local endpoint — a model was named "
+                   f"without its endpoint, so this pair can only 404{tail}. Fix the pair (model AND base_url) in "
+                   f"config §memory, or clear the stale MEM_PROCESSOR_MODEL/URL env override.")
+    try:
+        from voice import health_state
+        health_state.record("memory", "degraded", f"config incoherente: {model} @ {url}")
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def failover_rungs(task: str, *, titular: tuple[str, str],
@@ -246,7 +293,14 @@ def chain(task: str) -> list[tuple[str, str, str, bool]]:
     head = [(url, model, key, disable_thinking)]
     if is_local_endpoint(url) and not local_titular_ready(url, model):
         head = []
+    elif pair_incoherent(url, model):
+        # Not «might be down» — CANNOT work (see `pair_incoherent`). Skipping it saves a 404 per call; the
+        # `rungs or [...]` guard below still keeps it when there is nowhere to relay to, so a misconfigured
+        # single-rung deployment gets the real error instead of silence.
+        head = []
     rungs = head + failover_rungs(task, titular=(url, model), disable_thinking=disable_thinking)
+    if not head and rungs and pair_incoherent(url, model):
+        note_incoherent_pair(f"memllm[{task}]", url, model, served=rungs[0][1])
     # Never return an EMPTY chain: with the local titular down and every fallback uncredentialed there is nothing
     # to relay to, and handing back [] would make `chat_sync` report «0 rungs exhausted» — a true statement that
     # hides the actual cause. Keeping the titular makes the real error (connection refused / model not found)

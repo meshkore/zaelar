@@ -341,3 +341,69 @@ def test_the_HEART_steps_over_a_dead_local_titular_only_if_there_is_somewhere_to
     # No credentialed fallback anywhere → the local titular is all there is, and it must still be attempted.
     monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "local")
     assert MP._rung_chain() == [("http://localhost:11434/v1", "qwen2.5:7b-instruct")]
+
+
+# ── a model named WITHOUT its endpoint (measured 2026-08-20 in every sandboxed use_cases round) ────────────────
+# `MEM_PROCESSOR_MODEL=qwen2.5:3b` sat in the operator's env file with no matching `MEM_PROCESSOR_URL`. The env
+# fallback applies whenever the store has no value, and a fresh workspace (every sandbox, every new self-host) has
+# no store — so a LOCAL Ollama tag became the titular of a CLOUD endpoint and every distillation paid a 404 before
+# relaying. What is asserted is the SHAPE rule, not the env var: the same pair is equally impossible whichever
+# layer produced each half.
+@pytest.mark.parametrize("url,model,incoherent", [
+    (_AIML, "qwen2.5:3b", True),                        # the measured case
+    (_DS, "qwen3.6:27b-mlx", True),                     # any Ollama tag at any cloud endpoint
+    ("http://localhost:11434/v1", "qwen2.5:3b", False),  # the pair the tag is FOR
+    ("http://127.0.0.1:11434", "qwen3.6:27b-mlx", False),
+    (_AIML, "deepseek/deepseek-v4-flash", False),        # broker form: vendor/model
+    (_AIML, "openai/gpt-4.1-mini", False),
+    (_DS, "deepseek-v4-flash", False),                   # direct form: bare name
+    (_AIML, "", False),                                  # nothing named ≠ named wrong
+])
+def test_an_ollama_tag_at_a_cloud_endpoint_is_a_pair_that_cannot_work(url, model, incoherent):
+    assert memllm.pair_incoherent(url, model) is incoherent
+
+
+def test_the_HEART_skips_the_impossible_pair_instead_of_paying_the_404(monkeypatch):
+    """This is the fix for the ~8-10 `HTTP 404 Model not found` per round the tester was seeing. Note it is NOT
+    the local-titular gate: that one probes a REACHABLE endpoint to see whether it serves the model, and would
+    happily let this pair through because `api.aimlapi.com` is not local."""
+    memllm.reset_local_probe()
+    monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "k")
+    monkeypatch.setattr(MP, "_url", lambda: _AIML)
+    monkeypatch.setattr(MP, "_model", lambda: "qwen2.5:3b")
+    rungs = MP._rung_chain()
+    assert (_AIML, "qwen2.5:3b") not in rungs, "un par imposible no se intenta, se salta"
+    assert rungs[0] == (_DS, "deepseek-v4-flash"), "y la escritura entra por el failover del operador"
+
+
+def test_the_impossible_pair_is_KEPT_when_there_is_nowhere_to_relay(monkeypatch):
+    """Same asymmetry as the local gate: skipping is only right when there is somewhere to skip TO. With no
+    credentialed fallback, keeping it is what makes the real 404 reach the log and the ◉ instead of «0 escalones»."""
+    memllm.reset_local_probe()
+    monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "local")   # no cloud credential anywhere
+    monkeypatch.setattr(MP, "_url", lambda: _AIML)
+    monkeypatch.setattr(MP, "_model", lambda: "qwen2.5:3b")
+    assert MP._rung_chain() == [(_AIML, "qwen2.5:3b")]
+
+
+def test_a_catalog_task_skips_it_too(monkeypatch):
+    """The trap is in the config layer, not in the write path, so REM/paraphrase can fall into it identically."""
+    memllm.reset_local_probe()
+    monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "k")
+    monkeypatch.setattr(memllm, "resolve", lambda t: (_AIML, "qwen2.5:3b", "k", False))
+    assert (_AIML, "qwen2.5:3b") not in [(u, m) for u, m, _k, _dt in memllm.chain("rem")]
+
+
+def test_the_incoherent_pair_is_reported_ONCE_not_once_per_write(monkeypatch, caplog):
+    """A config error repeats on every write. Ten identical warnings per round is a warning nobody reads — and the
+    ◉ is where a degradation belongs anyway (the lesson this module already paid for three times)."""
+    memllm.reset_local_probe()
+    monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "k")
+    monkeypatch.setattr(MP, "_url", lambda: _AIML)
+    monkeypatch.setattr(MP, "_model", lambda: "qwen2.5:3b")
+    said = []
+    monkeypatch.setattr(memllm.logger, "warning", lambda msg, *a, **k: said.append(str(msg)))
+    for _ in range(5):
+        MP._rung_chain()
+    assert len(said) == 1, f"debería decirse una vez, se dijo {len(said)}"
+    assert "qwen2.5:3b" in said[0] and _AIML in said[0], "y tiene que traer el PAR, no solo la queja"

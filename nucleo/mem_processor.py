@@ -165,6 +165,14 @@ def _rung_chain() -> list[tuple[str, str]]:
                 head = []      # only step over it if there is somewhere to step TO
                 logger.info(f"CORAZON: local titular {titular[1]} @ {titular[0]} unavailable -> "
                             f"writing through {extra[0][1]}")
+        elif memllm.pair_incoherent(*titular) and extra:
+            # A model named WITHOUT its endpoint (an Ollama tag pointed at a broker) can NEVER answer — see
+            # `memllm.pair_incoherent`. Measured on this very path 2026-08-20: `MEM_PROCESSOR_MODEL=qwen2.5:3b`
+            # from the env file, the cloud default for the URL, and a 404 paid on every distillation of every
+            # sandboxed round. Skipped instead of attempted, and said ONCE — the chain still writes, which is
+            # the whole point of the operator's non-stop rule.
+            head = []
+            memllm.note_incoherent_pair("CORAZON", titular[0], titular[1], served=extra[0][1])
     except Exception:  # noqa: BLE001
         extra = []
     return head + [(u, m) for u, m, _k, _dt in extra]
