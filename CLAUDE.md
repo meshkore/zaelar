@@ -1587,6 +1587,27 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     la tarea. Pide que un fallo deje su propio rastro con el sitio dentro — cómo se REGISTRA, no cómo se
     renderiza — y su propia medición.
 
+- **El muro y el atasco NUNCA llegaron al worker** (`nucleo/nav_cli.py`, V2-167 + V2-186, 2026-08-20). Los dos
+  arreglos anotaban su campo en la respuesta de `/api/navegador/act` **para que el worker actuara**, y
+  `nav_cli._print_state` —que es la ÚNICA vista que el worker tiene de la página, porque el prompt del worker
+  web solo le da los subcomandos de `nucleo.nav_cli`— imprimía `msg`, URL, TÍTULO, VISTA y ELEMENTOS. Ni `wall`,
+  ni `hint`, ni `stalled_s`. **Lo que ese printer no imprime no existe para el worker.**
+  - Comprobado EJECUTÁNDOLO, no leyéndolo: una respuesta con muro y aviso salía por pantalla sin rastro de
+    ninguno de los dos.
+  - **Es la explicación de por qué el muro «no cambiaba nada» ronda tras ronda**: catorce capturas de la misma
+    página en veinte minutos, una corrida entera contra el `chal_t=` de Booking, otra por el `/sorry/index` de
+    Google. El worker no ignoraba el aviso — nunca lo recibió. Dos arreglos que viajaban por HTTP y morían a UNA
+    LÍNEA de su lector.
+  - El muro se imprime **antes** de la URL y de los elementos (el worker lee de arriba abajo; un muro anunciado
+    después de los botones invita a seguir clicando) y **con su salida**, no solo con su nombre: un muro sin
+    alternativa es un diagnóstico, y el worker ya está en un bucle.
+  - **El invariante que queda** (nodo 4.20): lo que el puente ANOTA para el worker, el CLI lo DICE — impreso, o
+    renderizado por otro campo que sí se imprime (`stalled_s` → `hint`). Anotar y no imprimir no falla con
+    ruido: falla en silencio.
+  - Visto y NO tocado: `navegador_act` crea un `TaskBrowser` nuevo sin comprobar que la tarea siga viva, así que
+    un worker que insista sobre una tarea cerrada recibe `about:blank` — generador de bucles. El código lo
+    permite; que haya pasado no está medido. Detalle y el borde del arreglo, en V2-167.
+
 - **«No me habías pedido eso» era VERDAD** (`nucleo/flash/probe.py`, V2-176, 2026-08-20). La ventana
   conversacional del canal de TEXTO se escribía **solo al final** de `run_turn` (paso (f)), así que la salida
   temprana del proveedor caído —`ok: False`, sin una palabra— se llevaba por delante la frase que el operador

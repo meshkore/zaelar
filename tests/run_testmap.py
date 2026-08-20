@@ -445,6 +445,13 @@ DOMAINS: list[dict] = [
         # RENDERS the shell at phone size and measures it. Self-contained (it starts its own preview server,
         # so it needs no `make run`) and non-destructive (it taps the power switch, which against a live
         # engine would stop the operator's agent).
+        # 2026-08-20: V2-167 puso `wall` y V2-186 puso `hint` en cada respuesta del puente PARA EL WORKER, y
+        # `nav_cli._print_state` —su única vista de la página— no imprimía ninguno de los dos. Dos arreglos que
+        # viajaban por HTTP y morían a una línea de su lector. El último test es el contrato: lo que el puente
+        # anota, el CLI lo dice (impreso o renderizado por otro campo que sí se imprime).
+        {"id": "4.20", "title": "Al worker se le DICE qué le paró: el muro y el atasco salen por su CLI",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/navegador/test_the_worker_is_told_what_stopped_it.py"]},
         {"id": "4.19", "title": "Shell MÓVIL RENDERIZADO: el orbe centrado y PINTADO, la barra alcanzable",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/mobile/render_dock.py"},

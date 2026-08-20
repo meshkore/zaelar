@@ -53,6 +53,20 @@ def _print_state(res: dict) -> None:
         return
     if res.get("msg"):
         print(res["msg"])
+    # THE TWO FACTS THAT CHANGE WHAT TO DO NEXT GO FIRST — and until now they were thrown away here.
+    # `/api/navegador/act` annotates every response with `wall` (V2-167: the page STOPPED us — anti-bot, CAPTCHA,
+    # load error, «Access Denied» in the body) and with `hint`/`stalled_s` (V2-186: this page has not moved in
+    # minutes). Both were added so the WORKER could act on them, because what comes back through this CLI is the
+    # worker's entire view of the page — and this printer never printed either. Measured across four rounds of
+    # `find-theatre-tickets__es` and `restaurant-tonight-madrid`: fourteen captures of one page over twenty
+    # minutes, a whole run spent against Booking's challenge, and a task reported `done` while the operator was
+    # told «aún no ha dado señal». Two fixes that travelled over HTTP and died one line short of their reader.
+    # First, because a worker reads top-down and a wall means «stop trying here», not «keep scrolling».
+    if res.get("wall"):
+        print(f"⛔ MURO: {res['wall']} — esta página NO te va a dejar seguir. No insistas aquí: prueba otro "
+              f"sitio, o si ya tienes algo aprovechable, extráelo y cierra.")
+    if res.get("hint"):
+        print(f"⚠️ AVISO: {res['hint']}")
     print(f"URL: {res.get('url', '')}")
     print(f"TÍTULO: {res.get('title', '')}")
     # V2-049 VISIÓN: si hay captura, dile al worker que la MIRE con Read (la página como la ve un humano) y actúe
