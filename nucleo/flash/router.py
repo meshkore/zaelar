@@ -85,21 +85,18 @@ TOOLS: list[dict] = [
             #    también al modelo, la capacidad nueva no se usa. Y el «no está en el catálogo» con el que se
             #    negó a montar el juego: un widget que no existe es justo el que se construye.
             "description": (
-                "Delega la tarea: lanza un worker de fondo (memoria, código, navegador, razonamiento). "
+                "Delega: lanza un worker de fondo (memoria, código, navegador, razonamiento). "
                 "SÍ: investigar/informe/comparativa a fondo; navegar u operar una web o marketplace (buscar "
                 "anuncios en Wallapop/Amazon…); crear, modificar o arreglar el CÓDIGO de un widget; conseguir una "
-                "foto/imagen REAL para ENSEÑARLA (nunca la describas: búscala); recordar algo de OTRAS sesiones "
+                "foto REAL para ENSEÑARLA (no la describas: búscala); recordar algo de OTRAS sesiones "
                 "que no está en tu ESTADO; y HACER, cambiar o DESHACER un compromiso del mundo real (reservar "
-                "mesa/hora, cancelar una cita, dar de baja, pedir, pagar) — el widget es solo su espejo, que el "
-                "worker actualiza después. NO: charla; un dato puntual del mundo (web_search); un aviso a una hora "
+                "mesa/hora, cancelar una cita, dar de baja, pedir, pagar) — el widget es solo su espejo. NO: charla; un dato puntual del mundo (web_search); un aviso a una hora "
                 "o día ([[cron.create]]); tocar la LISTA de un widget (widget_data); MOSTRAR contenido que YA "
                 "existe en un widget, aunque digas «el mensaje nuevo» (show_widget); cambiar el vídeo de un widget "
                 "`youtube` (play_video). VARIAS tareas distintas en un turno = una llamada por CADA UNA (corren a "
-                "la vez). AL REDACTAR: los HALLAZGOS (datos, informe, ficha, listado, fotos) se ENSEÑAN en la hoja "
-                "de resultados, que ya existe — no pidas «monta un widget» para presentar algo. Un widget NUEVO es "
-                "solo para funcionalidad que NO existe y que el operador maneja (un juego, un contador): no estar "
-                "en el catálogo NO es motivo para negarte, es justo lo que se construye. Si dudas entre retoque "
-                "local y acción real, escala. Si ya hay una tarea EN CURSO para esto no la repitas: di que sigues "
+                "la vez). Y no estar en el catálogo NO es motivo para negarte: es justo lo que se construye. "
+                "Si dudas entre retoque "
+                "local y acción real, escala. Si ya hay una tarea EN CURSO no la repitas: di que sigues "
                 "con ello. Llámala YA en este turno; tu frase acompaña la llamada, no la sustituye."
             ),
             "parameters": {
@@ -113,9 +110,18 @@ TOOLS: list[dict] = [
                             "dice 'la cilindrada da igual', suelta solo la cilindrada, no generalices a 'una moto "
                             "cualquiera'."
                         ),
+                    },
+                    "surface": {
+                        "type": "string",
+                        "enum": ["lista", "item", "widget", "voz", "silenciosa"],
+                        "description": (
+                            "Qué MIRARÁ el operador al acabar: lista=varias cosas que comparar; item=UNA "
+                            "ficha; widget=funcionalidad que él maneja (un juego, un contador); voz=se "
+                            "cuenta y ya; silenciosa=nada que enseñar. Se le abre al arrancar: elígela ya."
+                        ),
                     }
                 },
-                "required": ["request"],
+                "required": ["request", "surface"],
             },
         },
     },
@@ -855,7 +861,10 @@ def decide(name: str, args: dict | None = None) -> Decision:
     args = args or {}
     name = (name or "").strip()
     if name == "escalate_to_slowbrain":
-        return Decision(ESCALATE, {"request": (args.get("request") or "").strip()})
+        # V2-227: la SUPERFICIE viaja con el encargo desde aquí. Se pasa CRUDA a propósito: `surfaces.resolve()`
+        # necesita el `kind`, que este punto no conoce, y normalizar dos veces borra el «no dijo nada».
+        return Decision(ESCALATE, {"request": (args.get("request") or "").strip(),
+                                   "surface": (args.get("surface") or "").strip()})
     if name == "web_search":
         return Decision(SEARCH, {"query": (args.get("query") or "").strip()})
     if name == "recall":

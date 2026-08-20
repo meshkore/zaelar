@@ -58,6 +58,11 @@ class SessionRecord:
     depth: int = 0
     trace_id: str = ""            # V2-044: trace de la frase que originó la sesión (encadena todos sus eventos)
     nav_task: str = ""            # kind=web: id de la tarea del navegador (tarjeta) asociada — la fija dispatch
+    # V2-227 — DÓNDE va a ver el operador el resultado, decidido al ENCARGAR y no al entregar. Vocabulario
+    # CERRADO (`nucleo/surfaces.py`): lista | item | widget | voz | silenciosa. Se sella UNA vez (`set_once`) y
+    # no se re-decide a mitad: cambiar de superficie cuando el operador ya está mirando la primera es peor que
+    # haber elegido mal. Vacío = todavía sin sellar (una sesión creada a mano en un test, por ejemplo).
+    surface: str = ""
     last_event_at: float = field(default_factory=time.time)
     injects: list = field(default_factory=list)     # [Inject]
     paused: bool = False           # V2-065: SIGSTOP'd (⏻ del operador) — sigue "running" para el registro, pero

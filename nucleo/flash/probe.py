@@ -951,13 +951,18 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 # AMBOS): el operador que encarga tres trabajos de una sentada emite tres llamadas, y antes solo
                 # se ejecutaba la primera (`next(...)`). El tope de 3 es el mismo criterio que allí: el pool de
                 # workers es real y limitado (`dispatch._max_parallel`).
+                # V2-227: cada petición viaja CON su superficie declarada. Por par y no en una variable suelta,
+                # porque un turno que encarga tres cosas puede pedir una lista, una ficha y un widget — quedarse
+                # con la primera le daría a las otras dos la pantalla equivocada desde el segundo cero.
                 _reqs: list[str] = []
+                _surf: dict[str, str] = {}
                 for _tc in tool_calls:
                     if _tc["name"] != "escalate_to_slowbrain":
                         continue
                     _r = str(_tc["args"].get("request") or "").strip()
                     if _r and _r not in _reqs:
                         _reqs.append(_r)
+                        _surf[_r] = str(_tc["args"].get("surface") or "").strip()
                 # Espejo del backstop del provider (impl PARALELA, cablear en AMBOS): si el turno pide CREAR
                 # un widget y ninguna de las peticiones que van a salir lo es, se añade. Medido en V2-118: cero
                 # tareas de kind `code` en 14 turnos pidiendo un juego.
@@ -980,8 +985,9 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 # el «vale, avísame» de este turno — que como meta de una tarea no dice nada.
                 _reqs = _reqs[:3] or [_window_goal or operator_text]
                 from nucleo.flash import escalate as _esc
-                _tids = [_esc.escalate_to_slowbrain(str(_r), context={"src": "probe", "trace": _trace_id})
-                         for _r in _reqs]
+                _tids = [_esc.escalate_to_slowbrain(
+                    str(_r), context={"src": "probe", "trace": _trace_id, "surface": _surf.get(_r, "")})
+                    for _r in _reqs]
                 return_extra_exec = {"executed": "escalate", "task_id": _tids[0], "task_ids": _tids}
             elif action == "send_to_worker":
                 _msg = next((t["args"].get("message") for t in tool_calls

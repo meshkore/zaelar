@@ -1032,7 +1032,7 @@ class NucleoLLMStream(llm.LLMStream):
         # Sigue habiendo una principal a propósito: todo el resto del turno (guards de show, backstops, dedup,
         # ack «nunca mudo») razona sobre UNA decisión, y esos caminos no cambian. Las adicionales solo se suman
         # al final, cuando ya se sabe que el turno escaló de verdad.
-        escalate_req: dict = {"v": None, "more": []}
+        escalate_req: dict = {"v": None, "more": [], "surface": {}}   # V2-227: superficie declarada POR petición
         search_req = {"v": None}
         recall_req = {"v": None}         # V2-056: el modelo pidió RECORDAR (tool recall) — se resuelve tras el stream
         reveal_req = {"v": None}         # V2-060: el operador pidió un SECRETO (reveal_secret) — valor OUT-OF-BAND
@@ -1553,6 +1553,12 @@ class NucleoLLMStream(llm.LLMStream):
                 _handle_widget_data_tool(args)
             elif name == "escalate_to_slowbrain":
                 req = (args.get("request") or "").strip() or text
+                # V2-227: la superficie declarada se guarda POR petición. Solo se puebla desde la llamada real
+                # del modelo; los caminos de respaldo de este fichero (el tag filtrado, los backstops) no la
+                # conocen y dejan que `surfaces.resolve()` la derive del kind — que es para lo que existe.
+                _sf = str(args.get("surface") or "").strip()
+                if _sf:
+                    escalate_req["surface"][req] = _sf
                 if escalate_req["v"] is None:
                     escalate_req["v"] = req
                 elif (args.get("request") or "").strip():
@@ -3092,7 +3098,8 @@ class NucleoLLMStream(llm.LLMStream):
                     brain._escalated_trace_id = _trace5.current()
                 except Exception:
                     pass
-                _escalate_mod.escalate_to_slowbrain(req, context={"src": "voice"})
+                _escalate_mod.escalate_to_slowbrain(
+                    req, context={"src": "voice", "surface": escalate_req["surface"].get(req, "")})
                 emit("brain", "🧭 Flash → Brain Worker (escalada registrada)", text=req, role="system")
 
             # …y las tareas ADICIONALES del mismo turno (V2-118). Van DESPUÉS de la principal y solo si esta
@@ -3129,7 +3136,9 @@ class NucleoLLMStream(llm.LLMStream):
                         _disp4.inject_soon(_extra_req, _extra_req)
                         emit("brain", "↪️ tarea adicional → inyección a worker vivo", text=_extra_req, role="system")
                     else:
-                        _escalate_mod.escalate_to_slowbrain(_extra_req, context={"src": "voice"})
+                        _escalate_mod.escalate_to_slowbrain(
+                            _extra_req,
+                            context={"src": "voice", "surface": escalate_req["surface"].get(_extra_req, "")})
                         emit("brain", "🧭 Flash → Brain Worker (tarea adicional del mismo turno)",
                              text=_extra_req, role="system")
                     _launched.append({"request": _extra_req})

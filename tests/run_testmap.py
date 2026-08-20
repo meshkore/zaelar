@@ -222,6 +222,13 @@ DOMAINS: list[dict] = [
             # TODOS y persiste; arrancar continúa el TRABAJO pero NO reanuda la música (asimetría pedida por el
             # operador); y un fallo de una pieza no puede dejar la parada a medias.
             "tests/agent_headless/unit/test_runstate.py"]},
+        # V2-227 ámbito A — DÓNDE va a mirar el operador, decidido al ENCARGAR y no al entregar. Sin este campo
+        # no hay nada que abrir mientras el worker trabaja, y la pestaña de proceso es una pestaña vacía. Aquí se
+        # fijan las tres reglas (se decide al encargar · vocabulario CERRADO de cinco · se decide UNA vez) y que
+        # el módulo no sepa de ningún dominio, que es la doctrina hecha test.
+        {"id": "2.14", "title": "La SUPERFICIE se decide al encargar, con vocabulario cerrado y una sola vez",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_the_surface_is_decided_when_the_errand_is_commissioned.py"]},
         {"id": "2.6", "title": "Scheduler / rails / workspace / frontend-glue", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/test_scheduler.py", "tests/agent_headless/unit/test_rails.py", "tests/agent_headless/unit/test_workspace.py",
             "tests/agent_headless/unit/test_confirm_gate_task.py", "tests/agent_headless/unit/test_escalate_hygiene.py",

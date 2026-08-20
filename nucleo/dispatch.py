@@ -28,6 +28,7 @@ from loguru import logger
 
 from nucleo import dev_worker_guard, research
 from nucleo.workers import WorkerSpec, get_backend, workdir
+from nucleo import surfaces
 from nucleo.workers.session import SessionRecord, WorkerSession
 # Prompt composition (pure, no session-pool state) split out (V2-098) into its own module; re-exported by name
 # so existing call sites (below, and tests doing dispatch._build_prompt/_web_prompt) keep working unchanged.
@@ -395,6 +396,9 @@ def active_sessions() -> list[dict]:
         out.append({
             "id": r.task_id, "kind": r.kind, "backend": r.backend, "goal": r.goal[:120],
             "phase": r.phase, "status": r.status, "age_s": int(now - r.started), "paused": r.paused,
+            # V2-227: dónde mira el operador. El frontend abre la hoja con esto ANTES de que haya un resultado,
+            # así que viaja en la proyección viva y no en la entrega.
+            "surface": r.surface,
             # SILENCIO real desde el último evento del worker. Es lo que de verdad dice si está encallado — `age_s`
             # solo dice si lleva rato trabajando, que no es lo mismo (ver el detector en nucleo/loop.py).
             "silent_s": int(now - (r.last_event_at or r.started)),
@@ -1743,6 +1747,12 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                                 parent_task_id=str(ctx.get("parent_task_id", "")),
                                 depth=int(ctx.get("depth", 0) or 0),
                                 trace_id=str(ctx.get("trace", "") or ""))   # V2-044: encadena a la frase origen
+            # V2-227 — la SUPERFICIE se sella aquí, que es el único punto por el que pasan TODAS las puertas de
+            # entrada al dispatcher (el cerebro con su `surface`, el auto-resume, el confirm-gate, el cluster, el
+            # Susurro). Lo que declaró el cerebro manda; si no declaró nada —o dijo algo que no es del
+            # vocabulario— se deriva del kind. Sellar tarde significaría abrir la hoja cuando ya hay respuesta,
+            # que es exactamente lo que este cambio existe para no hacer.
+            surfaces.set_once(rec, ctx.get("surface"))
             _SESSIONS[key] = rec
             rec.task = asyncio.create_task(_run_session(task), name=f"worker-session-{key}")
             sync_state()
