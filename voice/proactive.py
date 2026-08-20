@@ -134,7 +134,7 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
         emit(kind, ("🔔 " + (title or "zaelar"))[:60], text=text, role="assistant", extra={"title": title or ""})
     except Exception as e:
         logger.warning(f"proactive notify (UI) failed: {e}")
-    # NO VOICE SESSION = the conversation never hears about it. V2-217, measured 2026-08-20: `brain_notes.push`
+    # NO VOICE SESSION = the conversation never hears about it. V2-220, measured 2026-08-20: `brain_notes.push`
     # lived INSIDE the speech branch below, so with no live speaker a proactive delivery reached the
     # observability panel and stopped there. On the TEXT channel — which is what the use-case harness drives,
     # and what a chat-only operator uses — that is EVERY proactive delivery: the loop's stall notice

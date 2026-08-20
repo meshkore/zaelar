@@ -33,7 +33,7 @@ def _header():
 
 
 def test_the_prompt_forbids_LEAVING_the_directory_not_just_cd():
-    """V2-216 — the harness corrected this and the correction matters: the round of 18:28 brought
+    """V2-219 — the harness corrected this and the correction matters: the round of 18:28 brought
     `cd in '<engine>' was blocked` AND `ls in '<engine>/t…' was blocked`. The gate is not about the verb `cd`,
     it is about any command that navigates or lists a directory of the engine's repo. A rule written around one
     verb leaves out the next command, and there is always a next command."""

@@ -1,4 +1,4 @@
-"""V2-216 — the worker died in OUR OWN CLI's arity, twice, in cases with nothing to do with each other.
+"""V2-219 — the worker died in OUR OWN CLI's arity, twice, in cases with nothing to do with each other.
 
 Measured 2026-08-20 by the use-case harness:
 

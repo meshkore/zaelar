@@ -105,7 +105,7 @@ def _print_state(res: dict) -> None:
 # la FORMA pero no el ERROR — la misma clase de mensaje mudo que el `informe.json` de V2-203: dice qué falló y
 # nada de qué hacer, así que el worker no tiene de dónde tirar.
 _SCROLL_STEP = 800
-# V2-216 — `scroll down` is what a worker writes, and it is not unreasonable: every other tool it has ever
+# V2-219 — `scroll down` is what a worker writes, and it is not unreasonable: every other tool it has ever
 # driven takes a direction there. Measured FOUR times across TWO unrelated cases the same day
 # (`hotel-under-15-days` and the Bilbao round): `argument dy: invalid int value: 'down'`, Exit code 2, turn
 # burned. Its own manual says `scroll 800`, so it KNOWS the syntax and does not use it — which is the signal
@@ -148,7 +148,7 @@ def _hint_for(prog: str) -> str:
 
 
 # Un `usage` dice la FORMA; esto añade QUÉ hacer. Es el contrato del nodo 4.20 aplicado a los argumentos: lo que
-# el puente sabe, lo dice — y un fallo dice además cómo se sale de él. El mecanismo se comparte (V2-216); lo que
+# el puente sabe, lo dice — y un fallo dice además cómo se sale de él. El mecanismo se comparte (V2-219); lo que
 # es de este puente es `_hint_for`.
 _GuidedParser = bridge_usage.guided(_hint_for)
 

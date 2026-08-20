@@ -1275,6 +1275,47 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **El aviso proactivo existía y no tenía dónde llegar** (`voice/proactive.py`, V2-220, 2026-08-20). El arnés
+  pidió «si el muro merece un system note, un worker que muere en sus argumentos también». El mecanismo YA
+  existía —el bucle avisa del atasco desde V2-073, por `proactive.notify()`— y lo roto era esa función:
+  `brain_notes.push` vivía DENTRO del `if speak and _speaker is not None`, así que **sin sesión de voz viva
+  `notify()` hacía exactamente una cosa: emitir a observabilidad**. En el canal de TEXTO (el que conduce el
+  arnés, y el que usa cualquiera en chat) eso es TODA entrega proactiva que existe: el aviso de atasco, el final
+  de un worker, mensajería y Architect. Por eso el arnés medía `stuck/nudge` disparando mientras el turno decía
+  «sigo con ello» y lo reportó como dos problemas: era uno.
+  - Misma forma que V2-215 una capa más arriba, y el mismo remedio, porque `brain_notes` es la única costura que
+    funciona en los DOS canales. La nota es una **INSTRUCCIÓN**, nunca la frase pelada (V2-214): su lector es el
+    agente en otro momento.
+  - **Sensibilidad por los dos lados, que es lo que lo separa de una entrega doble**: con la voz VIVA no se
+    apunta nada (decirlo y apuntarlo es que el operador lo oiga dos veces), y el fallback viejo —voz viva sin
+    hueco de silencio— sigue disparando, verificado, para que esto no sustituya una vía por otra en silencio.
+    `speak=False` sí apunta: un llamante que no quiere VOZ no ha dicho que no quiera que el operador se entere.
+  - Nodo 3.11, 7 tests.
+
+- **El worker dejaba de trabajar en la aridad de NUESTRO propio CLI** (`nucleo/nav_cli.py` +
+  `nucleo/worker_bridge.py` + `nucleo/bridge_usage.py`, V2-219, 2026-08-20). Medido en `hotel-under-15-days`,
+  con la consecuencia contada: **`n_search_events: 0`** — ni una búsqueda en toda la ronda, porque murió en sus
+  argumentos antes de llegar a la web mientras el turno decía que trabajaba.
+  - **`scroll down` es el CLI el que está equivocado, no el worker**: cualquier otra herramienta que haya
+    conducido lleva una dirección ahí, su propio manual dice `scroll 800` —o sea que CONOCE la sintaxis y no la
+    usa— y escribió lo natural **cuatro veces en dos casos sin relación**. Eso deja de ser anécdota. Acepta la
+    dirección; un número sigue significando ese número exacto y un valor ilegible sigue fallando, solo que el
+    error dice las dos formas. **No es una tabla de verbos hardcodeada**: aquí nadie CLASIFICA una intención —
+    la dirección ya era el argumento.
+  - **`worker_bridge act` sin payload sí es el worker**, y ahí lo que falta no es aceptarlo sino DECIR cómo se
+    escribe (nodo 4.20). En este puente duele más que en ninguno: es la vía por la que PIDE una búsqueda, así
+    que morir en sus argumentos lo deja ciego el resto de la tarea. La pista trae la línea del `use_tool` para
+    copiar y va **ENTRE** la queja y el `usage`, porque un worker lee de arriba abajo.
+  - El **mecanismo** del parser guiado se comparte (V2-153); el **conocimiento** no: cada puente pone su
+    `_hint_for`.
+  - **La puerta de permiso NO era el `cd`** (corrección del arnés, ronda 18:28: `cd in '<engine>' was blocked`
+    **y** `ls in '<engine>/t…' was blocked`). Escribí la regla alrededor de un VERBO, y una regla así deja fuera
+    el siguiente comando — siempre hay un siguiente comando. Ahora dice «no salgas de tu directorio» y nombra
+    cd/ls/find/cat. **Con contrapeso, porque sin él rompía el camino de visión**: SÍ puede abrir con Read un
+    fichero cuya ruta absoluta le demos nosotros (la captura), que V2-117 verificó en vivo. Su test asertaba el
+    literal viejo; reescrito contra la regla medida.
+  - Nodo 2.5, 14 tests.
+
 - **Un hecho recogido en TODAS partes y dicho en NINGUNA** (`widgets/navegador/tasks.py`, V2-215, 2026-08-20).
   El arnés leyó el registro de la tarea en dos rondas: `cancel-subscription` (16:34) con `status=working`,
   `wall="la página pidió resolver un captcha"`, `phase_active=false`, `walls_hit=1`; `find-theatre` (16:26) con

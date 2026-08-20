@@ -132,7 +132,7 @@ def _cmd_say(text: str) -> int:
     return 0 if res.get("ok") else 1
 
 
-# V2-216 — medido en `hotel-under-15-days`: `Exit code 2 usage: worker_bridge [-h] {ask,wait,act,say} … error:
+# V2-219 — medido en `hotel-under-15-days`: `Exit code 2 usage: worker_bridge [-h] {ask,wait,act,say} … error:
 # the following arguments are required`. El worker se quedó ahí y la ronda acabó con CERO búsquedas. Un `usage`
 # dice la forma y no dice qué hacer, que es el callejón sin salida que ya pagaron `nav_cli` (V2-212) y el puente
 # del payload (V2-203). Aquí duele más que en ninguno: `worker_bridge` es la vía por la que el worker PIDE una

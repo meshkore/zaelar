@@ -1,4 +1,4 @@
-"""V2-217 — a proactive delivery died in the panel whenever there was no voice session.
+"""V2-220 — a proactive delivery died in the panel whenever there was no voice session.
 
 `brain_notes.push` lived INSIDE `if speak and _speaker is not None`, so without a live speaker `notify()` did
 exactly one thing: emit to observability. On the TEXT channel — what the use-case harness drives, and what a
