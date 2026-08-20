@@ -322,17 +322,18 @@
       }
     },
     "cheapest-monitor": {
-      "last_run": "2026-08-20 21:43",
+      "last_run": "2026-08-20 23:44",
       "overall": 2,
+      "judge": "deepseek-v4-flash",
       "state": "FAIL",
       "scores": {
-        "naturalidad": 4,
-        "adaptacion": 4,
+        "naturalidad": 3,
+        "adaptacion": 3,
         "resultado": 1,
-        "mecanismo": 3,
+        "mecanismo": 4,
         "eficiencia": 2
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar encontró 3 monitores reales a 99€ y no los entregó al usuario, ignorando tres avisos explícitos del sistema de que ya tenía resultados en la hoja.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar encontró resultados reales (6 monitores, incluidos dos de 27\" a 99€) y no los entregó, afirmando falsamente que no había nada, dejando al usuario sin respuesta concreta.",
       "missing_signals": [],
       "audit_anomalies": [
         {
@@ -346,39 +347,9 @@
           "que": "memory/memory «🧠 memoria ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
         },
         {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "memory/memory «🧠 memoria ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: This command requires approval"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «📄 archivo ⚠️ error»: Image file is empty: /Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/tests/runs/use_cases/sandbox/20260820-212912/widgets/_data/navegador/shot-t2.p"
-        },
-        {
           "clase": "span_con_error",
           "certeza": "hecho",
-          "que": "worker:2: 3 error(es), último paso «🧭 página»"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:4: 4 error(es), último paso «🧭 navegador ↩»"
+          "que": "worker:2: 2 error(es), último paso «alive»"
         }
       ],
       "sandboxed": true,
@@ -393,15 +364,18 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "60280c5",
-        "n_dirty": 0,
-        "dirty": []
+        "sha": "5b031cf",
+        "n_dirty": 2,
+        "dirty": [
+          "frontend/app/components/ActivityStrip.js",
+          "frontend/app/styles.css"
+        ]
       },
       "machine": {
         "gpu_models": [
           {
             "name": "qwen3.6:27b-mlx",
-            "size": "43 GB"
+            "size": "40 GB"
           },
           {
             "name": "embeddinggemma:latest",
@@ -710,42 +684,20 @@
       }
     },
     "hotel-under-15-days": {
-      "last_run": "2026-08-20 21:34",
-      "overall": 2,
+      "last_run": "2026-08-20 23:33",
+      "overall": 3,
+      "judge": "deepseek-v4-flash",
       "state": "FAIL",
       "scores": {
         "naturalidad": 4,
-        "adaptacion": 5,
-        "resultado": 1,
-        "mecanismo": 2,
+        "adaptacion": 4,
+        "resultado": 2,
+        "mecanismo": 3,
         "eficiencia": 2
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que no se entregó ningún hotel real (solo un resultado de flamenco descartado), y las promesas de seguir buscando no tienen respaldo en el sistema (sin búsquedas web ni widget de resultados).",
-      "missing_signals": [
-        "widget"
-      ],
-      "audit_anomalies": [
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 usage: nav_cli [-h] {snapshot,look,navigate,click,type,select_option,click_at,type_at,scroll,press,extract} ... nav_cli: error: argument cmd: invali"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 usage: nav_cli [-h] {snapshot,look,navigate,click,type,select_option,click_at,type_at,scroll,press,extract} ... nav_cli: error: argument cmd: invali"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:3: 1 error(es), último paso «🧭 navegador ↩»"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:4: 1 error(es), último paso «🧭 navegador ↩»"
-        }
-      ],
+      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar no entregó ningún hotel de cuatro estrellas real al usuario, no comunicó el fallo de la primera tarea de fondo que el sistema le señaló explícitamente, y dejó la conversación abierta sin un cierre honesto ni opciones alternativas.",
+      "missing_signals": [],
+      "audit_anomalies": [],
       "sandboxed": true,
       "tier": 2,
       "turns_used": 10,
@@ -753,11 +705,12 @@
         "flash",
         "memory",
         "system",
+        "widget",
         "worker"
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "60280c5",
+        "sha": "5b031cf",
         "n_dirty": 0,
         "dirty": []
       },
@@ -765,7 +718,7 @@
         "gpu_models": [
           {
             "name": "qwen3.6:27b-mlx",
-            "size": "43 GB"
+            "size": "41 GB"
           },
           {
             "name": "embeddinggemma:latest",
@@ -1235,5 +1188,5 @@
       }
     }
   },
-  "updated": "2026-08-20 22:31"
+  "updated": "2026-08-20 23:44"
 }
