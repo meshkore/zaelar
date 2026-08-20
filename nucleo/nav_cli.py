@@ -20,6 +20,7 @@ Habla por HTTP con el server vivo (ZAELAR_BASE, def localhost:43917). Fail-soft.
 """
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import sys
@@ -87,10 +88,46 @@ def _print_state(res: dict) -> None:
     print("ELEMENTOS INTERACTIVOS (usa el número [ref] con click/type):\n" + (els or "(ninguno)"))
 
 
+# V2-212 — DOS COMANDOS HERMANOS CON FIRMAS DISTINTAS, y el worker mezcló las dos. Medido en
+# `book-hotel-night-known__es` (2026-08-20 15:29):
+#
+#     Exit code 2 usage: nav_cli type_at [-h] [--submit] x y text
+#     nav_cli type_at: error: argument y: invalid int value: 'Hotel Palacio de la Merced Burgos reservas 3'
+#
+# `type` toma un [ref] del snapshot y `type_at` toma COORDENADAS de la captura: escribió el texto donde va `y`,
+# que es exactamente lo que sale de usar la aridad de uno con el nombre del otro. Y el `usage` de argparse dice
+# la FORMA pero no el ERROR — la misma clase de mensaje mudo que el `informe.json` de V2-203: dice qué falló y
+# nada de qué hacer, así que el worker no tiene de dónde tirar.
+def _hint_for(prog: str) -> str:
+    if prog.endswith("type_at"):
+        return ("   · `type_at` es de VISIÓN y va con COORDENADAS: `type_at <x> <y> \"texto\"`, dos números "
+                "sacados de la captura (`look`).\n"
+                "   · Si lo que tienes es un [ref] del snapshot, el comando es OTRO: `type <ref> \"texto\"`.\n"
+                "   · El texto va ENTRE COMILLAS si lleva espacios; si no, se parte y el segundo trozo cae donde "
+                "va una coordenada.")
+    if prog.endswith("click_at"):
+        return ("   · `click_at` es de VISIÓN y va con COORDENADAS: `click_at <x> <y>` (de la captura de `look`).\n"
+                "   · Con un [ref] del snapshot el comando es `click <ref>`.")
+    return ""
+
+
+class _GuidedParser(argparse.ArgumentParser):
+    """Un `usage` dice la FORMA; esto añade QUÉ hacer. Es el contrato del nodo 4.20 aplicado a los argumentos:
+    lo que el puente sabe, lo dice — y un fallo dice además cómo se sale de él."""
+
+    def error(self, message):
+        import sys as _sys
+        _sys.stderr.write(f"{self.prog}: error: {message}\n")
+        hint = _hint_for(self.prog)
+        if hint:
+            _sys.stderr.write(hint + "\n")
+        _sys.stderr.write(self.format_usage())
+        raise SystemExit(2)
+
+
 def main(argv: list[str] | None = None) -> int:
-    import argparse
     ap = argparse.ArgumentParser(prog="nav_cli", description="Conduce el navegador de zaelar (worker Claude Code)")
-    sub = ap.add_subparsers(dest="cmd", required=True)
+    sub = ap.add_subparsers(dest="cmd", required=True, parser_class=_GuidedParser)
     sub.add_parser("snapshot", help="estado + elementos interactivos de la página actual")
     sub.add_parser("look", help="VISIÓN: captura la página → ruta PNG para Read + coordenadas para click_at/type_at")
     n = sub.add_parser("navigate", help="ir a una URL"); n.add_argument("url")

@@ -105,3 +105,42 @@ def test_everything_the_bridge_ANNOTATES_for_the_worker_gets_printed():
         f"el puente anota {missing} para el worker y el CLI no lo imprime ni lo renderiza. Un campo que nadie "
         f"lee es un arreglo muerto: imprímelo en `_print_state`, decláralo en RENDERED_BY apuntando al campo "
         f"que sí lo dice, o quítalo de `act_api`.")
+
+
+# ── V2-212: un `usage` dice la FORMA, no el ERROR ─────────────────────────────────────────────────────────────
+# Medido en `book-hotel-night-known__es` (2026-08-20 15:29):
+#     Exit code 2 usage: nav_cli type_at [-h] [--submit] x y text
+#     nav_cli type_at: error: argument y: invalid int value: 'Hotel Palacio de la Merced Burgos reservas 3'
+# `type` toma un [ref] y `type_at` toma COORDENADAS: el worker usó la aridad de uno con el nombre del otro. El
+# mensaje de argparse dice qué falló y nada de qué hacer — la misma clase de fallo mudo que el `informe.json`.
+def _nav_cli_stderr(argv):
+    import contextlib
+    import io
+
+    from nucleo import nav_cli
+    buf = io.StringIO()
+    with contextlib.redirect_stderr(buf):
+        try:
+            nav_cli.main(argv)
+        except SystemExit:
+            pass
+    return buf.getvalue()
+
+
+def test_type_at_con_el_texto_en_la_coordenada_explica_la_confusion():
+    err = _nav_cli_stderr(["type_at", "3", "Hotel Palacio de la Merced Burgos reservas", "x"])
+    assert "COORDENADAS" in err
+    assert "`type <ref>" in err          # nombra el comando que SÍ era
+    assert "usage:" in err               # y no se pierde la forma
+
+
+def test_click_at_tambien_lo_explica():
+    err = _nav_cli_stderr(["click_at", "boton de buscar"])
+    assert "COORDENADAS" in err and "`click <ref>`" in err
+
+
+def test_un_comando_bien_escrito_no_recibe_ninguna_pista():
+    """Sensibilidad: la pista es para el error, no para el uso normal. Si saliera siempre, sería ruido en cada
+    llamada y el worker aprendería a ignorarla."""
+    err = _nav_cli_stderr(["navigate"])          # falta el argumento: error, pero de OTRO comando
+    assert "COORDENADAS" not in err

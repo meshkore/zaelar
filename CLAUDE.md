@@ -1275,6 +1275,16 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Un `usage` dice la FORMA, no el ERROR** (`nucleo/nav_cli.py`, V2-212, 2026-08-20). Medido en
+  `book-hotel-night-known__es` (15:29): `nav_cli type_at: error: argument y: invalid int value: 'Hotel Palacio
+  de la Merced Burgos reservas 3'`. **`type` toma un [ref] del snapshot y `type_at` toma COORDENADAS de la
+  captura**: el worker usó la aridad de uno con el nombre del otro, que es el fallo natural entre dos comandos
+  hermanos. El mensaje de argparse dice qué falló y nada de qué hacer — la misma clase de fallo mudo que el
+  `informe.json` de V2-203, y el mismo contrato del nodo 4.20: lo que el puente sabe, lo DICE, y un fallo dice
+  además cómo se sale de él. Ahora el error nombra la confusión y el comando que SÍ era, sin perder el `usage`.
+  Con test de sensibilidad: la pista sale en SU error, no en todos — una pista permanente es ruido que el worker
+  aprende a ignorar.
+
 - **La puerta es NUESTRA: el worker se muere en ella y en silencio** (`nucleo/dispatch_prompts.py` +
   `nucleo/workers/session.py`, V2-211, 2026-08-20). Tres casos medidos el mismo día, tres comandos distintos, la
   misma forma: `cd in '…/zaelar/engine' was blocked` (find-theatre 15:24), `requires approval: curl -s "…"`
