@@ -1587,6 +1587,28 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     la tarea. Pide que un fallo deje su propio rastro con el sitio dentro — cómo se REGISTRA, no cómo se
     renderiza — y su propia medición.
 
+- **Una búsqueda vacía y una búsqueda IMPOSIBLE eran el mismo dato** (`nucleo/websearch.py` +
+  `nucleo/flash/prompt.py`, V2-176, 2026-08-20). `search()` recorre los backends y, cuando TODOS fallan, devuelve
+  `results: []` con `source: "none"` — indistinguible de «busqué bien y no hay nada». El único rastro del
+  derrumbe era un `logger.warning`, así que el turno siguiente decía lo único que tenía: «sigo con ello». Medido
+  en `cheapest-monitor` (tier 2, sin credenciales de por medio): veinte búsquedas, cero candidatos, diez turnos,
+  `stuck/nudge` del watchdog mientras ocurría, y el remate «Hecho, te aviso al momento». La cadena estaba abajo
+  (cuota + CAPTCHA): el RESULTADO no era alcanzable y **lo único que sí lo era, decirlo, tampoco**.
+  - Mismo remedio que el lado del LLM, que ya lo tenía resuelto (`provider_chain.note_failure` +
+    `health_state.record`): la capa registra su salud y el turno la lee. Con el MOTIVO, no genérico —
+    «se me ha agotado la cuota» y «me piden un captcha» llevan a decisiones distintas del operador, y ninguna es
+    esperar.
+  - **El hecho CADUCA** (10 min) además de limpiarse al primer backend que responda: la cuota se renueva y el
+    CAPTCHA se va, y nadie llama a `note_success` si nadie vuelve a buscar. Sin caducidad, un fallo aislado deja
+    al agente diciendo «no puedo buscar» el resto de la sesión.
+  - **La instrucción ataca la FRASE, no solo informa**: el daño no fue callar el hecho, fue prometer «te aviso en
+    cuanto lo tenga» sobre algo que no iba a llegar. La línea nombra esa promesa y ofrece lo que sí se puede.
+  - **La clasificación NO importa la tabla del arnés** (`verify.search_health`): las dos leen la misma realidad
+    por extremos opuestos, y compartir la tabla las convertiría en una sola medición.
+  - Fuera de alcance y escrito: la búsqueda del WORKER es otro camino (su `WebSearch` es de Claude Code, no
+    nuestra cadena), y la búsqueda seguirá caída hasta ~2026-08-30 por aprovisionamiento, lo que contamina los
+    43 casos de tier 2 y no lo arregla ningún commit.
+
 - **El traspaso de inicio de sesión no estaba cableado en el canal de TEXTO** (`nucleo/flash/web_auth.py` NUEVO
   + `probe.py` + el provider de voz, V2-176, 2026-08-20). `authenticate_web` y `login_done` se resolvían en
   `probe.py` a una ETIQUETA y nada más —ni con `execute=True`: dentro de ese bloque no había una sola mención a

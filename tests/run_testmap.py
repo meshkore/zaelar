@@ -247,6 +247,13 @@ DOMAINS: list[dict] = [
         # de uso— a una ETIQUETA y nada más; la voz llamaba a sus dos closures. Medido: «Aquí lo tienes» con
         # `navegador_task` vacío, así que «ya he entrado» no tenía tarea que reanudar. Los 54 escenarios del
         # segmento `credentials` pasan por ese traspaso.
+        # 2026-08-20: `websearch.search()` devuelve `results: []` con `source: "none"` cuando TODA la cadena
+        # falla — indistinguible de «busqué y no hay nada», y el único rastro era un `logger.warning`. Medido en
+        # `cheapest-monitor`: veinte búsquedas, cero candidatos, diez turnos de «te aviso en cuanto lo tenga»
+        # con la cadena abajo (cuota + CAPTCHA). El resultado no era alcanzable; decirlo sí, y tampoco.
+        {"id": "2.21", "title": "Una capa de búsqueda CAÍDA se dice (con su motivo), no se disfraza de «no hay "
+                                "nada»", "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_a_dead_search_layer_says_so.py"]},
         {"id": "2.20", "title": "El traspaso de inicio de sesión OCURRE en el canal de texto (una decisión, dos "
                                 "canales)", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_login_handoff_actually_happens.py"]},

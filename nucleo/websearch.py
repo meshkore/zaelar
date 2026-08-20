@@ -28,6 +28,7 @@ from __future__ import annotations
 import html as _html
 import os
 import re as _re
+import time as _time
 from urllib.parse import parse_qs, unquote, urlparse
 
 from loguru import logger
@@ -84,6 +85,73 @@ def is_ai_answer(src: str | None = None) -> bool:
     return (src or provider()) in ("perplexity", "tavily", "google")
 
 
+# ── IS THE SEARCH LAYER ALIVE? (V2-176, 2026-08-20) ──────────────────────────────────────────────────────────
+# When every backend in the chain fails, `search()` returns `results: []` with `source: "none"` — which is
+# INDISTINGUISHABLE from «I searched fine and there is nothing». The only trace of the collapse was a
+# `logger.warning`, so the brain composing the next turn could not tell the two apart and said the only thing it
+# had: «sigo con ello».
+#
+# Measured on `cheapest-monitor`: twenty search events, no candidates, and ten turns of «te aviso en cuanto lo
+# tenga» ending in «Hecho, te aviso al momento». The watchdog fired `stuck/nudge` while it happened. The search
+# chain was down (quota exhausted plus a CAPTCHA) — so the outcome was never reachable, and the ONE thing that
+# was reachable, saying so, was impossible: nothing carried the fact.
+#
+# Same remedy as the LLM side (`provider_chain.note_failure` + `health_state.record`): the layer records its own
+# health, and the turn reads it. Classified into engine-native buckets — deliberately NOT by importing the test
+# harness's needle list, which reads the same reality from the other end and must stay independent.
+_FAILURE_MEMORY_S = 600.0
+_last_failure: dict = {}
+
+_FAIL_KINDS = (
+    ("quota", ("limit exhausted", "quota", "rate limit", "429", "too many requests", "insufficient")),
+    ("captcha", ("captcha", "unusual traffic", "/sorry/", "are you a robot", "recaptcha", "access denied")),
+    ("credential", ("api key", "unauthorized", "401", "403", "forbidden", "invalid key")),
+    ("network", ("timeout", "timed out", "connection", "dns", "unreachable", "ssl")),
+)
+
+
+def _classify_failure(text: str) -> str:
+    low = (text or "").lower()
+    for kind, needles in _FAIL_KINDS:
+        if any(n in low for n in needles):
+            return kind
+    return "error"
+
+
+def note_failure(detail: str) -> None:
+    """The whole chain came back with nothing → remember it, and light the operator's semaphore.
+
+    «Estado visible, no silencioso»: a search layer that is down and shows green is indistinguishable from an
+    agent that will not search, and the operator debugs the wrong thing.
+    """
+    global _last_failure
+    kind = _classify_failure(detail)
+    _last_failure = {"at": _time.time(), "kind": kind, "detail": (detail or "")[:200],
+                     "n": int((_last_failure or {}).get("n") or 0) + 1}
+    try:
+        from voice import health_state
+        health_state.record("search", kind, (detail or "")[:200] or "search chain down")
+    except Exception:
+        pass
+
+
+def note_success() -> None:
+    """A backend answered → the layer is alive again and the fact stops being told."""
+    global _last_failure
+    _last_failure = {}
+
+
+def recent_failure(now: float | None = None) -> dict:
+    """The chain's last collapse if it is still recent, else {}. Read by the turn state, never by the searcher."""
+    f = _last_failure or {}
+    if not f:
+        return {}
+    now = _time.time() if now is None else now
+    if (now - float(f.get("at") or 0)) > _FAILURE_MEMORY_S:
+        return {}
+    return dict(f)
+
+
 def search(query: str, k: int = _MAX_RESULTS) -> dict:
     """Busca y devuelve `{query, answer, results:[{title,snippet,url}], source, ai}`.
 
@@ -93,6 +161,7 @@ def search(query: str, k: int = _MAX_RESULTS) -> dict:
     q = (query or "").strip()
     if not q:
         return {"query": q, "answer": "", "results": [], "source": "none", "ai": False}
+    _why: list[str] = []
     for src in _order():
         try:
             r = _BACKENDS[src](q, k)
@@ -101,9 +170,15 @@ def search(query: str, k: int = _MAX_RESULTS) -> dict:
                 # el resto por defecto = solo los de respuesta-IA de pago.
                 r["ai"] = bool(r.get("ai")) or src in ("perplexity", "tavily")
                 _meter_search(src)
+                note_success()
                 return r
+            _why.append(f"{src}: sin resultados")
         except Exception as e:  # noqa: BLE001
             logger.warning(f"websearch backend '{src}' falló, siguiente: {e}")
+            _why.append(f"{src}: {str(e).splitlines()[0][:120]}")
+    # THE CHAIN COLLAPSED. Recorded, not just logged — see `note_failure`. An empty result on its own cannot tell
+    # the brain whether the world has nothing or our searching is broken, and those two deserve opposite replies.
+    note_failure(" · ".join(_why))
     return {"query": q, "answer": "", "results": [], "source": "none", "ai": False}
 
 

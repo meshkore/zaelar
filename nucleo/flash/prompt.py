@@ -799,6 +799,32 @@ def live_state() -> str:
             lines.append(cl)
     except Exception:
         pass
+    # V2-176 — LA CAPA DE BÚSQUEDA ESTÁ CAÍDA, y sin esto no había forma de decirlo. Un resultado vacío es
+    # indistinguible de «busqué y no hay nada», así que el turno decía lo único que tenía: «sigo con ello».
+    # Medido en `cheapest-monitor`: veinte eventos de búsqueda, cero candidatos, diez turnos de «te aviso en
+    # cuanto lo tenga» y un `stuck/nudge` del watchdog mientras ocurría. La cadena estaba abajo (cuota agotada y
+    # un CAPTCHA), o sea que el RESULTADO no era alcanzable — y lo único que sí lo era, decirlo, tampoco, porque
+    # nada llevaba el hecho hasta aquí.
+    #
+    # Se dice el MOTIVO, no un genérico: «se me ha agotado la cuota» y «me están pidiendo un captcha» llevan al
+    # operador a decisiones distintas, y ninguna de las dos es esperar.
+    try:
+        from nucleo import websearch as _ws_health
+        _sf = _ws_health.recent_failure()
+        if _sf:
+            _why = {"quota": "se ha agotado la cuota de búsqueda",
+                    "captcha": "el buscador está pidiendo verificación anti-robot",
+                    "credential": "falta o no vale la credencial del buscador",
+                    "network": "no hay salida a la red para buscar"}.get(str(_sf.get("kind")),
+                                                                         "la búsqueda está fallando")
+            lines.append(
+                f"TUS BÚSQUEDAS WEB NO ESTÁN FUNCIONANDO ({_why}): no es que el mundo no tenga lo que busca — es "
+                f"que no puedes mirar. Si el operador espera un resultado de una búsqueda, DÍSELO con esas "
+                f"letras en vez de pedirle que siga esperando, y ofrécele lo que sí puedes hacer (mirar una web "
+                f"concreta con el navegador, o que te dé él un sitio por donde empezar). Prometer que avisarás "
+                f"«en cuanto lo tenga» es prometer algo que no va a llegar.")
+    except Exception:
+        pass
     # V2-176 frente 2 — una ACCIÓN que el sistema tiró. V2-171 la registró en las métricas del turno y en
     # observabilidad; el turno SIGUIENTE no veía nada, así que la conversación continuaba como si hubiera
     # salido. La frase («te pongo con ello») ya se dijo; lo que todavía se puede arreglar es el turno de
