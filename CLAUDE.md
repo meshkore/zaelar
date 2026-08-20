@@ -1312,6 +1312,39 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **La nota llevaba delante el CROMO DE NAVEGACIÓN, y el turno describió eso** (`widgets/navegador/act_api.py`,
+  V2-234, 2026-08-20). Medido por el arnés en `cheapest-monitor` con la extracción cruda delante: el navegador
+  sacó seis filas — las tres primeras SIN TÍTULO (enlaces de categoría: «portátiles hasta 799 €», «móviles menos
+  de 200 €», «tablets hasta 200 €») y las tres siguientes tres monitores REALES a 99 € con enlace de producto y
+  foto. Zaelar contestó: *«lo que ha sacado la página son categorías genéricas de PORTÁTILES, MÓVILES Y TABLETS,
+  no monitores»*. Son las filas 1, 2 y 3, en su orden.
+  - **La causa es `items[:3]`, en orden de DOM.** El turno no se saltó la cuarta fila: **la cuarta no estaba en la
+    nota**. Describió fielmente lo único que le dimos. Y el mismo corte ciego dos líneas antes
+    (`set_results(items[:5])`) le servía las categorías a la hoja. **No es mala suerte de esa tienda**: los
+    enlaces de categoría y de filtro salen ANTES que las fichas de producto en el DOM de cualquier listado, así
+    que un corte por posición se come el resultado **por construcción** — la misma forma que el corte de
+    evidencia, que siempre se come el final porque los anuncios van arriba.
+  - **Corrige el diagnóstico que se estaba manejando**, mío y del arnés: NO era «la decisión de anunciar vive en
+    el prompt» ni hacía falta un mecanismo de anuncio nuevo. V2-223 ya había arreglado la fontanería.
+  - **PARTIR, no ordenar** (`by_identity`): una fila sin título no tiene identidad de cosa, así que no ocupa la
+    cabecera; el orden relativo se conserva dentro de cada mitad. No se juzga cuál es mejor —eso es del cerebro, y
+    `observability/evidence.py` prohíbe interpretar— se separa por un hecho estructural. **No es una lista negra**
+    (mañana es otra tienda): «tiene nombre» vale para un hotel, un coche, un piso en Los Ángeles o una entrada de
+    teatro, y para el listado que nadie ha escrito todavía.
+  - **La MISMA url no son tres hallazgos**: la segunda nota de esa ronda llevaba tres filas y las tres eran la
+    misma url de anuncio. Repetir no solo ensucia, **ocupa el cupo** — dos de los tres huecos se gastaban en decir
+    lo mismo. Se conserva la primera aparición; una fila SIN url no se deduplica contra nada (la ausencia de
+    dirección no es una identidad compartida).
+  - **No se tira nada**: lo que queda fuera se CUENTA («y 1 fila más y 2 repetidas de la misma página»). Y **sin una sola fila
+    con nombre la nota lo DICE y da salida**, en vez de servir enlaces como hallazgos — callarse dejaría al turno
+    sin poder decir «esta página no está dando lo que pediste, cambio de sitio», que es cierto y útil.
+  - **La fase cuenta RESULTADOS, no filas**: «12 resultados» con nueve enlaces de categoría dentro es una cifra
+    que el operador lee y se cree, y `found(0)` no calla —dice «sin resultados en esta página»—, que es lo que
+    hace falta para cambiar de sitio en vez de insistir.
+  - Nodo 4.31, 11 casos, con la extracción cruda reproducida entera. **Trampa de medición que trae el arnés**: su
+    `verify.py` filtra `if it.get("title")` antes de contar, así que su columna venía limpia mientras al cerebro
+    se le servía la sucia — este arreglo se mide contra el evento CRUDO, nunca contra esa columna.
+
 - **UN ENCARGO, UNA SUPERFICIE: el panal de hexágonos se RETIRA** (`frontend/app/components/ActivityStrip.js`
   BORRADO, V2-233 ámbito D, 2026-08-20). El encargo era agrandarlos y hacerlos legibles. Construyéndolo salió que
   el mismo hecho se contaba en **tres** sitios —el panal, la pestaña «Proceso» de la hoja y la pestaña «Procesos»
@@ -4344,6 +4377,19 @@ abierta (`V2-091`); a partir de ahora, no añadir más.
   agente sin commitear, NO lo pises: commítealo aparte y atribuido, o pregunta. Tras commitear, **PUSHEA** (ver la
   regla "Commitea Y PUSHEA siempre" más abajo — política del operador 2026-07-16). Barato deshacer un commit;
   carísimo perder código.
+- **Con sesiones concurrentes, la protección NO está en cómo AÑADES sino en qué COMMITEAS: `git commit -- <rutas>`**
+  (2026-08-20, aprendido rompiendo el escritorio). La norma anterior —«stage fichero a fichero»— se siguió al pie de
+  la letra y no bastó: **`git commit` a secas commitea el ÍNDICE ENTERO, y el índice es COMPARTIDO** entre las
+  sesiones que trabajan en el mismo árbol. Ese día un commit del arnés se llevó dentro el borrado de un componente
+  que otra sesión tenía en el índice por un `git rm`, y HEAD quedó con un `import` apuntando a un fichero que ya no
+  existía: **el escritorio entero sin cargar**, y sin que fallara nada en el commit. Con pathspec se commitean solo
+  esas rutas desde el working tree y el resto del índice se ignora. La comprobación barata que lo acompaña:
+  **`git diff --cached --name-only` tiene que estar VACÍO antes de empezar** — si trae ficheros ajenos, alguien
+  llenó el índice y estás a un `git commit` de llevártelos. Y el detalle que se escapa siempre: en
+  `git status --short`, staged es `M ` (marca en la PRIMERA columna) y solo-modificado es ` M`; un espacio de
+  diferencia. **Si ya está pusheado, NO se reescribe `main` por una atribución**: el código no se pierde (un commit
+  no toca el working tree de nadie), solo queda mal atribuido, y reescribir historia compartida cuesta más de lo
+  que arregla.
 - No commitear `.env`, `.venv/`, `logs/`, `config/settings.json`, `config/connectors.json`, `config/v2.json`
   (todos en `.gitignore`).
 - No commitear `~/.hermes/memories/USER.md` — es perfil personal (la memoria puede sembrarlo, solo-lectura), no va
