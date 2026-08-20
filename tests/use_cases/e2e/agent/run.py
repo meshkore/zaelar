@@ -181,6 +181,11 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     # answer to the question that cost three retractions and one whole investigation by another agent today:
     # shown-and-ignored is conduct, never-shown is plumbing, and without this they look identical.
     if config.SANDBOX_DB:
+        # READ AFTER THE ROUND, NOT DURING IT. Every column below is a snapshot, and a snapshot taken while
+        # the engine is still writing has already misreported three different findings (see
+        # `verify.wait_for_quiescence`). This costs seconds and buys the difference between «it failed» and
+        # «it had not finished».
+        mech["quiescence"] = verifymod.wait_for_quiescence(config.SANDBOX_DB)
         try:
             mech["prompt_context"] = verifymod.prompt_context(config.SANDBOX_DB, since=started_at)
         except Exception as e:

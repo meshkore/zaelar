@@ -905,6 +905,54 @@ def worker_health(db_path, *, since: float = 0.0) -> dict:
     return out
 
 
+def wait_for_quiescence(db_path, *, max_wait: float = 60.0, quiet_for: float = 6.0,
+                        poll: float = 2.0) -> dict:
+    """Wait until the engine STOPS writing events, so the mechanism is read after the round, not during it.
+
+    Three separate findings were misread this way in one night, all the same shape — a column read while the
+    system was still emitting, reported as if the system had finished:
+
+      · `worker_health` said «4 spawned, 0 ok», which reads as four failures. One had errored; three were
+        still working, and their terminal rows landed 434 s later, all in the same instant, at shutdown.
+      · `worker_deaths` listed a corpse that was a provider handoff still in flight.
+      · `notes_from_search` said 0 with twelve search answers on the wire — the notes were queued six
+        seconds after the read, and it looked like a delivery fix had regressed.
+
+    Every one of those went out to the fixing agent before being caught. So the rule is not «wait longer»,
+    which only moves the race: it is to wait for the store to go QUIET, and to say in the report how long
+    that took and whether it ever did. A round that never settles is itself worth knowing about — that is a
+    worker still running when the conversation ended, which is a finding and not a defect.
+    """
+    import sqlite3
+    t0 = time.time()
+    last_n, last_change = -1, t0
+    while True:
+        try:
+            con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+            n = con.execute("SELECT COUNT(*) FROM events").fetchone()[0]
+            # WORK IN FLIGHT, asked as a question about the work and not about the clock. Silence alone is
+            # ambiguous: a store quiet because nothing has STARTED looks exactly like one quiet because
+            # everything finished, and the first draft of this function stopped on the first gap and missed
+            # the write that came right after — caught by its own test before it ever ran for real.
+            spawned = con.execute("SELECT COUNT(*) FROM events WHERE topic = 'worker.spawned'").fetchone()[0]
+            done = con.execute("SELECT COUNT(*) FROM events WHERE topic = 'worker.done'").fetchone()[0]
+            con.close()
+        except Exception:
+            return {"settled": None, "waited_s": round(time.time() - t0, 1), "events": None}
+        now = time.time()
+        pending = max(0, spawned - done)
+        if n != last_n:
+            last_n, last_change = n, now
+        elif not pending and now - last_change >= quiet_for:
+            return {"settled": True, "waited_s": round(now - t0, 1), "events": n, "pending_workers": 0}
+        if now - t0 >= max_wait:
+            return {"settled": False, "waited_s": round(now - t0, 1), "events": n,
+                    "pending_workers": pending,
+                    "note": (f"{pending} worker(s) sin final al agotarse la espera: hay trabajo vivo"
+                             if pending else "el motor seguía escribiendo al agotarse la espera")}
+        time.sleep(poll)
+
+
 def worker_deaths(db_path, *, since: float = 0.0) -> dict:
     """WHY THE DEAD WORKERS DIED — the cross-reference that found the cause of a whole family of cases.
 
