@@ -1312,6 +1312,26 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **El extractor PARTÍA el precio y no cogía el nombre** (`widgets/navegador/dom.py`, V2-235, 2026-08-21).
+  Medido por el arnés con V2-234 ya dentro: las notas crudas decían «169 — 00 € — …/LG-27US500-W-…/dp/…» y
+  «284 — 87 € — …/Dell-…», o sea **un monitor de 169 € anunciado como de 0 €**. Zaelar volvió a salir limpio —
+  dijo «LG 27US500-W 4K por 169 €» sacando el modelo DE LA URL, que es lo correcto con lo poco que le dimos.
+  - **La COMA faltaba de la clase de caracteres** (`\d[\d.]{0,9}\s*€`: punto de millares sí, coma decimal no),
+    así que sobre «169,00 €» el patrón empezaba a casar en «00». Es la misma avería que producía los «00 €» que
+    ya se habían visto y se habían apuntado como rareza de los anuncios.
+  - **El NOMBRE no está en el enlace del precio**: en una rejilla el importe vive en su propio `<a>` y el nombre
+    en el encabezado de la tarjeta. Se coge de ahí — estructural y sin nombrar ningún sitio: *un listado es una
+    rejilla de tarjetas y el nombre de cada cosa es el encabezado de la suya*. Con **dos frenos probados**: como
+    mucho cinco niveles, y **parar en cuanto el ancestro deja de ser una tarjeta** — si no, el «Resultados» de la
+    sección nombraría a todas las filas, y un nombre que vale para todo no nombra nada. Sin nombre se queda SIN
+    nombre; no se inventa.
+  - **NO se reconstruye el separador decimal** cuando entero y céntimos vienen en nodos distintos: se entrega
+    «169 00 €» tal cual. Meter una coma sería adivinar —hay sitios que separan los MILES con espacio— y adivinar
+    mal ahí cambia un precio por cien.
+  - Nodo 4.32, **renderizando**: el fallo solo existe cuando el navegador compone `innerText`, que no es el HTML.
+    Cinco formas de listado y sensibilidad en cinco direcciones, con el script de mutación **asertando que la
+    mutación casa** — la lección de V2-234, donde un desarme que no llegó a aplicarse salió verde.
+
 - **La nota llevaba delante el CROMO DE NAVEGACIÓN, y el turno describió eso** (`widgets/navegador/act_api.py`,
   V2-234, 2026-08-20). Medido por el arnés en `cheapest-monitor` con la extracción cruda delante: el navegador
   sacó seis filas — las tres primeras SIN TÍTULO (enlaces de categoría: «portátiles hasta 799 €», «móviles menos

@@ -603,6 +603,14 @@ DOMAINS: list[dict] = [
                                 "es un resultado) · y lo que queda fuera se cuenta, no se calla",
             "ch": UNIT,
             "paths": ["tests/browser/unit/navegador/test_the_junk_row_does_not_win_the_turn.py"]},
+        # V2-235 — el extractor partía el precio («169,00 €» → «00 €»: la coma decimal faltaba de la clase de
+        # caracteres) y no cogía el nombre, porque en una rejilla el importe vive en su propio enlace y el nombre
+        # en el encabezado de la tarjeta. RENDERIZA a propósito: el fallo solo existe cuando el navegador compone
+        # `innerText`, que no es el HTML — leyendo el selector no se ve.
+        {"id": "4.32", "title": "El extractor RENDERIZADO contra cinco formas de listado: el precio entero, el "
+                                "nombre de la tarjeta, y sin inventarlo cuando no lo hay",
+            "ch": UNIT, "live": True,
+            "cmd": "./.venv/bin/python tests/browser/e2e/navegador/extract_shapes.py"},
         {"id": "4.19", "title": "Shell MÓVIL RENDERIZADO: el orbe centrado y PINTADO, la barra alcanzable",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/mobile/render_dock.py"},

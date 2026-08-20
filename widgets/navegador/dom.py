@@ -32,7 +32,47 @@ _INTERACTIVE = ("a, button, input, textarea, select, [role=button], [role=link],
 _JS_EXTRACT = r"""
 (limit) => {
   const out=[], seen=new Set();
-  const priceRe=/(\d[\d.]{0,9}\s*€)|(€\s*\d[\d.]{0,9})|(\d[\d.]{0,9}\s?(EUR|eur))/;
+  // La COMA es el separador decimal en media Europa, y faltaba de la clase de caracteres: sobre «169,00 €» el
+  // patrón viejo empezaba a casar en «00» y devolvía «00 €», o sea un monitor de 169 € anunciado como de 0 €.
+  // Medido el 2026-08-21 sobre una tarjeta con la forma de Amazon (precio partido en spans, con el importe
+  // completo repetido en un nodo fuera de pantalla): title:"" price:"00 €" en las dos filas.
+  // …y el ENTERO y los CÉNTIMOS pueden venir en nodos distintos, que `innerText` separa con un salto de línea
+  // («169\n00 €»): sin el grupo opcional, el patrón empezaba a casar en «00» y se dejaba fuera el 169.
+  // NO se reconstruye el separador decimal: se colapsa el espacio y se entrega «169 00 €» tal cual. Meter una
+  // coma sería adivinar —hay sitios que separan los MILES con espacio («1 234 €»)— y adivinar mal ahí cambia
+  // un precio por cien. Lo que se ve es lo que la página puso; el nombre y el enlace acompañan al importe.
+  const priceRe=/(\d[\d.,]{0,12}(?:\s\d{1,2})?\s*€)|(€\s*\d[\d.,]{0,12})|(\d[\d.,]{0,12}\s?(EUR|eur))/;
+  const hasLetter=s=>/[a-zA-ZÀ-ÿ\u0100-\u024f\u0370-\u1fff\u3040-\u9fff]/.test(s||'');
+  // El NOMBRE de lo que se anuncia cuando el propio enlace no lo lleva dentro. Un listado es una rejilla de
+  // TARJETAS y el nombre de cada cosa es el encabezado de su tarjeta: vale para un producto, un piso, un hotel
+  // o una entrada, y no nombra ningún sitio. Se sube como mucho cinco niveles —más arriba ya no es la tarjeta,
+  // es la sección, y devolvería «Resultados» para todas— y se prefiere el encabezado que apunta a ESTA misma
+  // ficha, que es la señal fuerte de que la nombra a ella y no a la vecina.
+  const cardName=(a, path)=>{
+    let n=a;
+    for(let i=0;i<5&&n&&n.parentElement;i++){
+      n=n.parentElement;
+      // …y solo mientras el ancestro siga siendo UNA tarjeta. En cuanto abarca varias fichas es la REJILLA, y
+      // su encabezado («Resultados», «Monitores») nombraría igual a todas las filas — un nombre que vale para
+      // todo no nombra nada, y encima suena a resultado de verdad.
+      const paths=new Set();
+      for(const l of n.querySelectorAll('a[href]')){ try{ paths.add(new URL(l.href).pathname); }catch(_){} }
+      if(paths.size>4) break;
+      const hs=[...n.querySelectorAll('h1,h2,h3,h4,[role=heading]')];
+      if(!hs.length) continue;
+      let best=null;
+      for(const h of hs){
+        const t=(h.innerText||'').trim();
+        if(!t || t.length<3 || !hasLetter(t) || priceRe.test(t)) continue;
+        const link=h.querySelector('a[href]')||h.closest('a[href]');
+        let same=false; if(link){ try{ same=new URL(link.href).pathname===path; }catch(_){} }
+        if(same) return t.slice(0,90);
+        if(!best) best=t;
+      }
+      if(best) return best.slice(0,90);
+    }
+    return '';
+  };
   const AD=/(doubleclick|googlead|googlesyndication|adservice|adnxs|criteo|taboola|outbrain|\/ads?\/|utm_source=|banner)/i;
   const ITEM=/(\/item\/|\/p\/|\/producto|\/anuncio|\/product|\/listing|\/ad\/)/i;
   const cands=[];
@@ -44,9 +84,13 @@ _JS_EXTRACT = r"""
     const text=(a.innerText||'').trim();
     const pm=text.match(priceRe);
     if(!pm) continue;                                   // Without a price, it is not a listing (exclude logo/nav/banners without €)
-    let title=((img&&(img.alt||''))||text.split('\n').map(s=>s.trim()).find(s=>s.length>2 && !priceRe.test(s))||'').slice(0,90);
     // dedup key: the LISTING (pathname without query) → 30 links to the same listing = 1
-    let key; try{ const u=new URL(href); key=u.origin+u.pathname; }catch(_){ key=href; }
+    let key, path=''; try{ const u=new URL(href); key=u.origin+u.pathname; path=u.pathname; }catch(_){ key=href; }
+    // Un trozo de precio NO es un nombre: se exige al menos una letra. Sin eso, «169» pasaba por título de un
+    // monitor de 169,00 € y la nota al cerebro decía «169 — 00 € — …», que es lo que el turno describió.
+    let title=((img&&(img.alt||''))
+               ||text.split('\n').map(s=>s.trim()).find(s=>s.length>2 && hasLetter(s) && !priceRe.test(s))
+               ||cardName(a, path)||'').slice(0,90);
     if(seen.has(key)) continue;
     let image=''; if(img){ try{ image=img.currentSrc||img.src||''; }catch(_){} }
     cands.push({title, price: pm[0].replace(/\s+/g,' ').trim(), url:href, image, _item: ITEM.test(href)});
