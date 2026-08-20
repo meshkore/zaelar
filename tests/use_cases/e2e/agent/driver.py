@@ -51,11 +51,44 @@ def _today_note() -> str:
 # vuelve a pasar se marca la ronda como avería del arnés en vez de puntuarla.
 _FLIP_URL = re.compile(r"https?://", re.I)
 _FLIP_BULLETS = re.compile(r"^\s*[-*·]\s+\S", re.M)
+# Face 1 — announcing a FIND. Shape signals (links, bullets, bold) miss this entirely: on 2026-08-20 the
+# driver wrote plain prose — "He encontrado una opción que encaja: Hotel Silken Al-Andalus Palace, 560 €"
+# — and the agent then agreed with a hotel the TESTER had invented. A round like that reads as the case
+# finally delivering, which is the most expensive way this harness can be wrong.
+_FLIP_FOUND = re.compile(
+    r"\b(he\s+encontrado|he\s+mirado|he\s+buscado|encontré|te\s+propongo|te\s+paso|aquí\s+tienes|"
+    r"i\s+found|here\s+are)\b", re.I)
+# Face 2 — offering to ACT FOR the other party.
+_FLIP_OFFERS = re.compile(
+    r"(¿\s*te\s+lo\s+(dejo|reservo)|¿\s*quieres\s+que\s+(lo\s+)?(mire|busque|reserve|siga)|"
+    r"te\s+lo\s+dejo\s+reservado|¿\s*(te\s+)?lo\s+reservo|shall\s+i\s+book)", re.I)
+# Face 3 — TAKING OVER the errand: announcing the work and asking the other to wait. Same round, one turn
+# later: "Entendido, voy a filtrar solo hoteles de 4 estrellas... Dame un momento." Nobody is the user
+# there either, and it is the half the first two faces do not see.
+_FLIP_TAKES_OVER = re.compile(r"\bvoy\s+a\s+(buscar|filtrar|mirar|revisar|comprobar|comparar|localizar)\b", re.I)
+_FLIP_STANDBY = re.compile(r"(dame\s+un\s+momento|te\s+aviso|en\s+cuanto\s+(lo\s+)?tenga|te\s+digo\s+algo)", re.I)
+# ...unless what they are going off to check is their OWN, which a real person does all the time.
+_FLIP_OWN = re.compile(r"\b(mi|mis)\s+(calendario|agenda|fechas|correo|email|cuenta|banco|móvil|notas)\b", re.I)
 
 
 def looks_like_the_assistant(txt: str) -> bool:
-    """Does this line have the shape of a DELIVERABLE rather than a chat message?"""
-    if len(txt) < 200:      # un mensaje de chat de verdad no llega aquí con enlaces Y viñetas Y negritas
+    """Is this line the ASSISTANT's job rather than the person's?
+
+    Four readings, because the flip has more faces than the first version saw — and shape was the tidy
+    one. Both prose faces were measured on 2026-08-20 in the SAME round, one turn apart, and neither
+    tripped the shape guard:
+    · SHAPE — a deliverable (links + bullets + bold in a long block).
+    · FOUND + OFFERS — announcing a candidate and offering to book it for the other party.
+    · TAKES OVER — announcing the search itself and asking the other to hold on.
+
+    Announcing a find is not enough on its own (people do look things up themselves), and neither is
+    going off to check something — as long as what they check is their OWN calendar, inbox or dates.
+    """
+    if _FLIP_OFFERS.search(txt) and _FLIP_FOUND.search(txt):
+        return True
+    if _FLIP_TAKES_OVER.search(txt) and _FLIP_STANDBY.search(txt) and not _FLIP_OWN.search(txt):
+        return True
+    if len(txt) < 200:      # a real chat message does not arrive with links AND bullets AND bold
         return False
     signals = 0
     if _FLIP_URL.search(txt):
@@ -63,6 +96,8 @@ def looks_like_the_assistant(txt: str) -> bool:
     if len(_FLIP_BULLETS.findall(txt)) >= 2:
         signals += 1
     if txt.count("**") >= 4:
+        signals += 1
+    if _FLIP_OFFERS.search(txt) or _FLIP_FOUND.search(txt):
         signals += 1
     return signals >= 2
 

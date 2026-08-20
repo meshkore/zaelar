@@ -192,6 +192,9 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             notes = verifymod.proactive_notes(config.SANDBOX_DB, since=started_at)
             mech["proactive_notes"] = notes
             mech["note_coverage"] = verifymod.note_coverage(mech.get("prompt_context") or [], notes)
+            # A PROMPT THAT CONTRADICTS ITSELF voids the obedience reading of that turn, so it is measured
+            # first and reported apart (see `verify.prompt_contradictions`).
+            mech["prompt_contradictions"] = verifymod.prompt_contradictions(mech.get("prompt_context") or [])
         except Exception as e:
             mech["proactive_notes_error"] = str(e)[:200]
         # WHAT THE WORKER ACHIEVED and whether any of it was SAID — the gap this whole case is about.
@@ -585,6 +588,26 @@ def _sandbox_groups(chosen: list, args: argparse.Namespace, *, verify_tasks: dic
     return rc
 
 
+def dirty_tree_refusal(stamp: dict, *, allow_dirty: bool = False) -> str:
+    """The message that stops a round from being measured on a MOVING tree, or "" to go ahead.
+
+    The stamp already RECORDED this (`n_dirty`) and recording was not enough: on 2026-08-20 a round booted
+    while the engine agent was mid-edit on two files, the number it produced contradicted the round before
+    it, and neither could be trusted — half an hour of machine time for a datum that had to be thrown away.
+    Noting a confound afterwards does not stop you spending the round on it, so the refusal happens BEFORE
+    the boot. `allow_dirty` is for the fixing agent measuring their own work-in-progress on purpose.
+
+    `stamp["dirty"]` already excludes `tests/`: the harness editing itself does not change the engine under
+    test, so a harness commit in flight must never block a measurement.
+    """
+    if allow_dirty or not (stamp or {}).get("dirty"):
+        return ""
+    return (f"\u2717 el motor tiene {stamp['n_dirty']} fichero(s) sin commitear: "
+            f"{', '.join(stamp['dirty'][:6])}\n"
+            f"   Una ronda medida a mitad de una edicion no se puede comparar con ninguna otra. Espera a "
+            f"que el arbol este limpio, o pasa --allow-dirty si mides tu propio cambio a posta.")
+
+
 def _sandbox_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict | None = None) -> int:
     from tests.platform.sandbox_engine import preferred_port, sandbox_engine
     # The workspace is KEPT, under a timestamped dir, and the port is a stable-by-preference one — both so
@@ -600,8 +623,12 @@ def _sandbox_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict
     # loaded. An instrument that misattributes a round is worse than no instrument: I was one message away from
     # telling them their fix had been measured. The server reads the tree at `Popen`, so the stamp has to be
     # taken here, on the same side of the boot.
-    config.code_stamp()
+    stamp = config.code_stamp()
     config.machine_stamp()
+    refusal = dirty_tree_refusal(stamp, allow_dirty=getattr(args, "allow_dirty", False))
+    if refusal:
+        print(refusal)
+        raise SystemExit(3)
     ws = config.RUNS_DIR / "sandbox" / time.strftime("%Y%m%d-%H%M%S", time.localtime())
     print(f"▶ booting an isolated sandbox engine (own DB/port/workspace, fresh user_id, "
           f"ZAELAR_LANGUAGE={lang})…")
@@ -679,6 +706,8 @@ def main() -> None:
                          "Counts failures already recorded by earlier batches, not just this one")
     ap.add_argument("--no-file", action="store_true",
                     help="do NOT open a MeshKore initiative/task for a failure (measure only)")
+    ap.add_argument("--allow-dirty", action="store_true",
+                    help="measure even with uncommitted engine files (for the fixing agent's own work-in-progress)")
     ap.add_argument("--judge-pending", action="store_true",
                     help="judge the rounds parked on disk because the judge was unavailable, and fold them "
                          "into the scoreboard — without driving the conversation again")

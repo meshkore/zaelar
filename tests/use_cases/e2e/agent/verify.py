@@ -11,6 +11,7 @@ what a worker does when it needs one"), memory, widget, system, pulse.
 from __future__ import annotations
 
 import json
+import re
 import time
 
 from . import probe_client
@@ -462,11 +463,57 @@ def prompt_context(db_path, *, since: float = 0.0, limit: int = 40) -> list[dict
         nav = next((l.strip() for l in sp.splitlines() if _NAV_MARK in l), "")
         shown = nav.split("último:", 1)[1].strip() if "último:" in nav else ""
         done = next((l.strip() for l in sp.splitlines() if _DONE_MARK in l), "")
+        live = next((l.strip() for l in sp.splitlines() if _LIVE_MARK in l), "")
         failed = "FALLÓ" in done
         out.append({"turn": i, "at_ms": ts_ms, "window_msgs": p.get("window_msgs"), "system_chars": len(sp),
-                    "task_line": nav[:300], "shown_state": shown[:200],
+                    "task_line": nav[:300], "shown_state": shown[:200], "live_line": live[:400],
                     "failed_task_line": done[:240] if failed else "",
                     "alert": any(a in shown.lower() or a in shown for a in _ALERT) or failed})
+    return out
+
+
+_LIVE_MARK = "TAREAS DE FONDO EN CURSO"
+_MIN_OBJECTIVE = 24          # shorter than this, two objectives can collide by accident
+
+
+def _objectives(line: str) -> list[str]:
+    """Every «…» objective quoted in one prompt line, trimmed of the trailing ellipsis the renderer adds."""
+    return [o.strip().rstrip("…. ") for o in re.findall(r"«([^»]*)»", line or "")]
+
+
+def _same_objective(a: str, b: str) -> bool:
+    """Two renderings of the SAME objective.
+
+    Not equality: the two blocks truncate at different widths, so the live line can read
+    «… 4 noches, con » while the finished line reads «… 4 no». Prefix comparison, with a floor,
+    because a short prefix ("Busca") would match unrelated errands.
+    """
+    x, y = a.strip(), b.strip()
+    if len(x) < _MIN_OBJECTIVE or len(y) < _MIN_OBJECTIVE:
+        return False
+    return x.startswith(y) or y.startswith(x)
+
+
+def prompt_contradictions(prompt_rows: list[dict]) -> list[dict]:
+    """Turns whose prompt said the SAME errand was both running and finished.
+
+    This is a fault of the PROMPT, not of the turn, and it has to be reported apart from obedience:
+    measured on 2026-08-20, seven of eight turns carried the same objective string in
+    «TAREAS DE FONDO EN CURSO» (alive, 40%) and in «TAREAS DE FONDO — YA ACABADAS» (FAILED) at once.
+    A turn answering "still waiting for results" there is not disobeying — it is resolving a
+    contradiction, and resolving it correctly. Scoring obedience over a self-contradicting prompt
+    measures the harness's own blindness, so this runs FIRST and, when it fires, the obedience
+    reading of that turn is void.
+
+    Needs the raw block lines, so `prompt_context` must carry them: `live_line` / `failed_task_line`.
+    """
+    out: list[dict] = []
+    for row in prompt_rows or []:
+        live = _objectives(row.get("live_line") or "")
+        done = _objectives(row.get("failed_task_line") or "")
+        clash = [a for a in live for b in done if _same_objective(a, b)]
+        if clash:
+            out.append({"turn": row.get("turn"), "objective": clash[0][:120], "n": len(clash)})
     return out
 
 
