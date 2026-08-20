@@ -199,6 +199,7 @@ DOMAINS: list[dict] = [
             # el contexto del worker: cwd propio (el motor no le mete su CLAUDE.md), vigía que le pide entregar antes
             # del techo, «compactar y continuar» al desbordarse, y NUNCA un error crudo del proveedor como informe
             "tests/agent_headless/unit/workers/test_context_budget.py",
+                                  "tests/agent_headless/unit/workers/test_the_search_answer_reaches_the_conversation.py",
             # el OTRO backend (Codex): traducción de su JSONL a WorkerEvent con trazas REALES del CLI + la postura
             # FAIL-CLOSED — Codex no sabe acotar sus tools, así que rechaza justo las tareas que existen acotadas
             # (entrada no confiable, dev worker de cluster) en vez de correr con menos contención de la pedida

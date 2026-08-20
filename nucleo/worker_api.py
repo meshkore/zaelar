@@ -83,6 +83,15 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
         try:
             from nucleo import websearch
             res = await asyncio.to_thread(websearch.search, str(q))
+            # V2-236: y lo que la búsqueda trae va A LA CONVERSACIÓN en el momento, no cuando el worker entregue
+            # — que en 5 de cada 8 sesiones medidas no llegó a pasar. Mismo remedio que V2-223 dio a lo que
+            # extrae el navegador, por la otra puerta: ésta es NUESTRA búsqueda, prestada al worker.
+            try:
+                from nucleo.workers import findings
+                findings.hand_web_finding(getattr(rec, "task_id", ""), findings.render_search(res),
+                                          getattr(rec, "goal", ""))
+            except Exception:  # noqa: BLE001
+                pass
             return {"ok": True, "result": res}
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": f"web_search falló: {e}"}

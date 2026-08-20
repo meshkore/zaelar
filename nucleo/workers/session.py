@@ -183,6 +183,7 @@ class WorkerSession:
         elif ev.type == "step_result":
             self._emit_step_result(d)                          # 2026-08-10: qué le CONTESTARON a ese paso
             self._maybe_unstick_permission(d)                  # V2-211: ¿ha chocado con NUESTRA propia puerta?
+            self._maybe_hand_web(d)                            # V2-236: lo que la BÚSQUEDA trajo, a la conversación
         elif ev.type == "note":
             self._emit_note(str(d.get("text") or ""))          # narración del worker → observabilidad, no voz
         elif ev.type == "context_full":
@@ -486,6 +487,22 @@ class WorkerSession:
     # razonamiento es el camino más corto de vuelta.
     _DENIED_NEEDLES = ("requires approval", "was blocked", "permission to use", "requested permissions",
                        "may only change directories")
+
+    def _maybe_hand_web(self, d: dict) -> None:
+        """Lo que una BÚSQUEDA WEB devuelve va a la conversación en el momento, no cuando el worker entregue.
+
+        Aquí y no en cada backend: `where` ya viene normalizado por el sustrato (`_PLACE`), así que esto cubre a
+        Claude Code, a Codex y a Grok con un solo sitio — y a las tools NATIVAS de cada CLI, que es donde el arnés
+        midió el dato bueno perdiéndose. Un `is_error` no se empuja: un fallo de la tool no es un hallazgo, y ya
+        tiene su propio camino (`_maybe_unstick_permission`, el chip del panel).
+        """
+        try:
+            if str(d.get("where") or "") != "web" or d.get("is_error"):
+                return
+            from nucleo.workers import findings
+            findings.hand_web_finding(self._rec.task_id, str(d.get("text") or ""), self._rec.goal)
+        except Exception:  # noqa: BLE001
+            pass
 
     def _maybe_unstick_permission(self, d: dict) -> None:
         if self._perm_warned:

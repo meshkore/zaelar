@@ -1612,6 +1612,11 @@ async def _run_session(task: "Task") -> None:
                 worker_api.purge_task(key)   # §v3·L: sin asks pendientes de una sesión terminada
             except Exception:
                 pass
+            try:
+                from nucleo.workers import findings
+                findings.forget(key)         # V2-236: la memoria de hallazgos se va con su sesión
+            except Exception:
+                pass
             sync_state()
             # V2-049 AUTO-RESUME: gestión web incompleta, SIN pregunta pendiente, bajo el cap → CONTINÚA sola (el
             # FlashBrain no cesa la tarea ni espera un empujón del operador). Con pregunta pendiente NO: espera la
