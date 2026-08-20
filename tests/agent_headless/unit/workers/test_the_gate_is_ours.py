@@ -113,3 +113,47 @@ def test_an_ordinary_step_result_is_left_alone():
         await asyncio.sleep(0)
         assert s._b.sent == []
     asyncio.run(go())
+
+
+# ── the WIRING, and it is the half the tests above could not see ──────────────────────────────────────────────
+# Everything above calls `_maybe_unstick_permission` directly, so all of it would keep passing with the call site
+# at `session.py:176` DELETED. That is exactly the shape of hole this whole area keeps falling into: a fix that
+# travels correctly and dies one line short of its reader. So this walks the real door — a `step_result` event
+# through `_on_event`, the way a backend actually delivers one.
+#
+# The MEMORY bridge case is asserted by name because it is the one that cost the most: when the gate ate
+# `cd … && … -m nucleo.mem_cli recall`, the worker was left unable to read the operator's memory at all, and the
+# chip says «memoria» only because the step is coloured by the bridge it used (`_PLACE`), which sent the finding
+# to the wrong owner for a while.
+def test_a_step_result_event_REACHES_the_recovery():
+    from nucleo.workers.base import WorkerEvent
+
+    async def go():
+        s = _session()
+        s._touch = lambda *a, **k: None
+        s._bus = lambda *a, **k: None
+        s._on_event(WorkerEvent(task_id="7", type="step_result", data={
+            "tool": "Bash", "is_error": True,
+            "text": "cd in '/Users/x/zaelar/engine' was blocked. For security, Claude Code may only change "
+                    "directories to the allowed working directory"}))
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+        assert len(s._b.sent) == 1, "the corrective turn never reached the worker"
+        assert "NADIE puede aprobarlo" in s._b.sent[0]
+    asyncio.run(go())
+
+
+def test_a_healthy_step_result_event_injects_NOTHING():
+    """Sensitivity on the same door: every step result goes through here, so a wide match would inject system
+    notices into runs that are working."""
+    from nucleo.workers.base import WorkerEvent
+
+    async def go():
+        s = _session()
+        s._touch = lambda *a, **k: None
+        s._bus = lambda *a, **k: None
+        s._on_event(WorkerEvent(task_id="7", type="step_result",
+                                data={"tool": "Bash", "text": "píldoras: el operador vive en Madrid"}))
+        await asyncio.sleep(0)
+        assert s._b.sent == []
+    asyncio.run(go())

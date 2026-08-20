@@ -640,6 +640,28 @@ def _announce_wall(task_id: str, reason: str) -> None:
         emit("widget", "show", extra={"id": inst_id(task_id), "src": f"wall:{task_id}"})
     except Exception:
         pass
+    # …AND THE CONVERSATION, which is the one place the three above cannot reach (2026-08-20, measured on
+    # `cancel-subscription-before-charge__es` and `find-theatre-tickets__es`). The card, the phase and the panel
+    # are all surfaces the operator has to be LOOKING at. If he is not, the wall is recorded everywhere and said
+    # nowhere: the tester measured `wall="la página pidió resolver un captcha"`, `walls_hit=1` and brain-notes=0
+    # in the same round the turn was still narrating that the cancellation was going ahead.
+    #
+    # `active_progress()` already carries the wall into the prompt, but that only helps when the operator ASKS.
+    # A note is what covers the other half — it enters the NEXT turn on its own, and it does so on the TEXT
+    # channel too, which `proactive.notify` cannot (its brain-note fallback lives inside `if _speaker is not
+    # None`, so a chat-only session gets nothing at all).
+    #
+    # Same seam the FINISH of a task already uses (`owner.py`), for the same reason: a fact the operator can act
+    # on has to arrive by itself.
+    try:
+        from voice import brain_notes
+        _g = (get(task_id) or {}).get("goal") or "la tarea del navegador"
+        brain_notes.push(
+            f"[SISTEMA] Navegador (tarea {task_id}): la web BLOQUEÓ «{str(_g)[:70]}» — {reason}. No va a "
+            f"terminar sola. Díselo al operador EN ESTE TURNO, con una salida concreta (probar otro sitio, "
+            f"que entre él, o dejarlo); no le digas que sigues con ello.")
+    except Exception:
+        pass
 
 
 def update_view(task_id: str, url: str = "", page_title: str = "", shot_rev: int | None = None,
@@ -697,7 +719,21 @@ def ask(task_id: str, question: str) -> None:
         t["question"] = str(question or "").strip()
         t["answer"] = ""
         t["status"] = "needs_input"
+        _goal = (t.get("goal") or "").strip()
     add_event(task_id, f"❓ {question}")
+    # A QUESTION NOBODY IS ASKED IS NOT A QUESTION. Measured 2026-08-20 on `find-theatre-tickets__es`: the task
+    # parked on «Voy a pulsar COMPRAR ENTRADAS. ¿Lo confirmo?» at 16:22:18 and the operator was never told —
+    # the question reached the card's feed and stopped there. V2-202 gave the ANSWER a way back in
+    # (`answer_from_turn`); this is the other half, the way OUT. Without it the gate stops the work and waits on
+    # a person who does not know they are being waited on, which is the confirm-gate defect one layer up.
+    try:
+        from voice import brain_notes
+        brain_notes.push(
+            f"[SISTEMA] Navegador (tarea {task_id}): «{_goal[:70]}» está PARADA esperando tu OK. Pregúntaselo al "
+            f"operador EN ESTE TURNO, literalmente: «{str(question or '')[:140]}». Su sí o su no ES la respuesta: "
+            f"no lo trates como una petición nueva.")
+    except Exception:
+        pass
 
 
 def answer(task_id: str, text: str) -> None:
