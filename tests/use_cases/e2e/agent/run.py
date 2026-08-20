@@ -11,6 +11,7 @@ the text channel doesn't need either, which is part of why it's the default for 
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 import time
 import uuid
@@ -203,7 +204,19 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     if seed_report:
         run_data["memory_seed"] = seed_report
     print("  judging…")
-    verdict = judgemod.judge(scenario, run_data)
+    try:
+        verdict = judgemod.judge(scenario, run_data)
+    except Exception:
+        # THE CONVERSATION IS ALREADY MEASURED; only the verdict is missing. Losing an eight-minute round
+        # because a provider is down is a harness bug, and this one bit three times on the same case:
+        # `book-hotel-night-known__es` came back INFRA on 2026-08-20 at 09:xx, 11:xx and 18:41 — the third
+        # time with the judge retry visibly firing ("retrying in 8s", "retrying in 16s") and all three
+        # attempts eating a 504. Three driven conversations thrown away for a missing HTTP call.
+        # So the run is PARKED on disk and can be judged later without re-driving it (`--judge-pending`).
+        # The exception still propagates: the round is honestly INFRA until somebody judges it.
+        _park_for_later(scenario, run_data)
+        raise
+
     # WHO drove this conversation. Normally the titular model, but DRIVE fails over to another provider when
     # the titular runs out of funds (`llm.call`) — and a row measured with a different instrument is not
     # comparable with the earlier ones, so the instrument travels WITH the measurement instead of staying in
@@ -211,6 +224,59 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     return {"scenario": scenario.id, "tier": scenario.tier, "channel": scenario.channel,
             "run": run_data, "verdict": verdict, "drive_model": llmmod.drive_model(),
             "code": config.code_stamp()}
+
+
+PENDING_DIR = config.RUNS_DIR / "pending"
+
+
+def _park_for_later(scenario, run_data: dict) -> None:
+    """Save a driven-but-unjudged round so the conversation is not lost with the judge call."""
+    try:
+        PENDING_DIR.mkdir(parents=True, exist_ok=True)
+        path = PENDING_DIR / f"{scenario.id}-{time.strftime('%Y%m%d-%H%M%S', time.localtime())}.json"
+        path.write_text(json.dumps({"scenario": scenario.id, "tier": scenario.tier,
+                                    "channel": scenario.channel, "run": run_data,
+                                    "drive_model": llmmod.drive_model(), "code": config.code_stamp()},
+                                   ensure_ascii=False, default=str), encoding="utf-8")
+        print(f"  ⏸ ronda GUARDADA sin juzgar → {path}\n"
+              f"     (los datos están medidos; júzgala luego con --judge-pending, sin volver a conducirla)")
+    except Exception as e:
+        print(f"  ⚠️ no pude guardar la ronda sin juzgar: {e}")
+
+
+def _judge_pending() -> int:
+    """Judge every parked round and fold it into the ledger. Deletes only what it managed to judge."""
+    files = sorted(PENDING_DIR.glob("*.json")) if PENDING_DIR.exists() else []
+    if not files:
+        print("no hay rondas guardadas sin juzgar")
+        return 0
+    print(f"▶ {len(files)} ronda(s) guardada(s) sin juzgar")
+    done, failed = [], []
+    for f in files:
+        try:
+            saved = json.loads(f.read_text(encoding="utf-8"))
+        except Exception as e:
+            print(f"  ✗ {f.name}: ilegible ({e})")
+            failed.append(f.name)
+            continue
+        scn = next((s for s in SC.all_scenarios() if s.id == saved.get("scenario")), None)
+        if scn is None:
+            print(f"  ✗ {f.name}: el escenario «{saved.get('scenario')}» ya no existe en el catálogo")
+            failed.append(f.name)
+            continue
+        try:
+            verdict = judgemod.judge(scn, saved["run"])
+        except Exception as e:
+            print(f"  ✗ {scn.id}: el juez sigue caído ({str(e)[:80]}) — la ronda SIGUE guardada")
+            failed.append(f.name)
+            continue
+        res = {**saved, "verdict": verdict}
+        statusmod.record([res], sandboxed=True)
+        print(f"  ✓ {scn.id}: overall {verdict.get('overall')} — juzgada sin reconducirla")
+        f.unlink(missing_ok=True)
+        done.append(scn.id)
+    print(f"\n{len(done)} juzgada(s), {len(failed)} sigue(n) esperando")
+    return 0 if done or not failed else 1
 
 
 def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
@@ -573,7 +639,12 @@ def main() -> None:
                          "Counts failures already recorded by earlier batches, not just this one")
     ap.add_argument("--no-file", action="store_true",
                     help="do NOT open a MeshKore initiative/task for a failure (measure only)")
+    ap.add_argument("--judge-pending", action="store_true",
+                    help="judge the rounds parked on disk because the judge was unavailable, and fold them "
+                         "into the scoreboard — without driving the conversation again")
     args = ap.parse_args()
+    if args.judge_pending:
+        raise SystemExit(_judge_pending())
     if args.list:
         # HONOURS the filters. It used to dump the whole catalog whatever was asked, which made
         # `--segment completable --list` print the blocked cases too — a listing that contradicts the run it is
