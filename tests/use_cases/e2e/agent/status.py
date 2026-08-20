@@ -17,6 +17,15 @@ import json
 import time
 from pathlib import Path
 
+
+def _code_stamp() -> dict:
+    """Imported lazily so a ledger read never drags the config module (and its key loading) in."""
+    try:
+        from . import config
+        return config.code_stamp()
+    except Exception:
+        return {}
+
 LEDGER_PATH = Path(__file__).resolve().parents[3] / "use_cases" / "status.json"
 BOARD_PATH = Path(__file__).resolve().parents[3] / "use_cases" / "STATUS.md"
 
@@ -48,9 +57,9 @@ def record(results: list[dict], *, sandboxed: bool) -> dict:
             "scores": verdict.get("scores") or {},
             "verdict": (verdict.get("veredicto") or "")[:400],
             "missing_signals": mech.get("missing_signals") or [],
-            # La AUDITORÍA del stream completo, guardada por la misma razón que `families`: el cierre lo decide
-            # el tick en el proceso padre, donde el run dict ya no existe. Un caso NO se cierra con anomalías
-            # aquí, aunque el juez le ponga un 5 — ver `tick._retest_pending`.
+            # The FULL stream audit, kept for the same reason as `families`: the close is decided by the tick
+            # in the parent process, where the run dict no longer exists. A case does NOT close with anomalies
+            # here, even if the judge gives it a 5 — see `tick._retest_pending`.
             "audit_anomalies": ((mech.get("audit") or {}).get("anomalies") or []),
             "sandboxed": sandboxed,
             "tier": r.get("tier"),
@@ -62,6 +71,9 @@ def record(results: list[dict], *, sandboxed: bool) -> dict:
             "turns_used": len((r.get("run") or {}).get("transcript") or []) // 2,
             "families": mech.get("families_observed") or [],
             "drive_model": r.get("drive_model") or "",
+            # WHICH CODE this row measured. Without it a row is a score with no subject: the fixing agent asks
+            # "did my commit run in that round?" and the only answer is reading boot timestamps by hand.
+            "code": _code_stamp(),
         }
         # What this case could HONESTLY be graded on. Recorded per row so a reader of the board knows a `PASS`
         # on a bookable case means "found real options and stopped at the wall", not "made a reservation" —

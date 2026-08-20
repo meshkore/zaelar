@@ -515,6 +515,14 @@ DOMAINS: list[dict] = [
         {"id": "4.21", "title": "El confirm-gate PREGUNTA a alguien, y su «sí» vuelve al clic parado",
             "ch": UNIT,
             "paths": ["tests/browser/unit/navegador/test_the_confirm_gate_asks_someone.py"]},
+        # V2-215 — la OTRA mitad de 4.21, y la que faltaba: 4.21 cubre que la pregunta llegue al estado que el
+        # cerebro lee CUANDO le preguntan cómo va. Esto cubre que el muro y la pregunta lleguen a la conversación
+        # SIN que nadie pregunte. Medido con brain-notes=0 en dos rondas mientras la tarea llevaba `wall` y
+        # `question` puestos: el hecho estaba en el registro y en la tarjeta, y en ningún sitio que el operador
+        # oyera.
+        {"id": "4.22", "title": "El muro y la pregunta ENTRAN en la conversación, sin que él pregunte",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/navegador/test_the_task_tells_the_conversation.py"]},
         {"id": "4.19", "title": "Shell MÓVIL RENDERIZADO: el orbe centrado y PINTADO, la barra alcanzable",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/mobile/render_dock.py"},
@@ -744,6 +752,11 @@ DOMAINS: list[dict] = [
         # Perder el veredicto pierde la ronda entera; reintentarlo cuesta una llamada.
         {"id": "10.18", "title": "El juez reintenta un transitorio del proveedor (y NO un 402)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_judge_retries_transient.py"]},
+        # Una nota sin sujeto no es una medida: el agente que arregla preguntó por el cluster si su commit
+        # había corrido en tal ronda, y responderlo costó leer sellos de arranque a mano. Y esta suite corre el
+        # ÁRBOL DE TRABAJO, así que una ronda medida a mitad de una edición se parece a una ronda limpia.
+        {"id": "10.19", "title": "Cada ronda dice QUÉ CÓDIGO midió (sha + ficheros del motor sin commitear)",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_code_stamp.py"]},
     ]},
 ]
 

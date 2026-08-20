@@ -176,11 +176,13 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         run_data["memory_seed"] = seed_report
     print("  judging…")
     verdict = judgemod.judge(scenario, run_data)
-    # QUIÉN condujo esta conversación. Normalmente el titular, pero el DRIVE se releva a otro proveedor si el
-    # titular se queda sin fondos (`llm.call`) — y una fila medida con otro instrumento no es comparable con las
-    # anteriores, así que el instrumento viaja CON la medida en vez de quedarse en el log de la corrida.
+    # WHO drove this conversation. Normally the titular model, but DRIVE fails over to another provider when
+    # the titular runs out of funds (`llm.call`) — and a row measured with a different instrument is not
+    # comparable with the earlier ones, so the instrument travels WITH the measurement instead of staying in
+    # the run's log. Same reasoning for `code`: WHICH engine code produced this row (see `config.code_stamp`).
     return {"scenario": scenario.id, "tier": scenario.tier, "channel": scenario.channel,
-            "run": run_data, "verdict": verdict, "drive_model": llmmod.drive_model()}
+            "run": run_data, "verdict": verdict, "drive_model": llmmod.drive_model(),
+            "code": config.code_stamp()}
 
 
 def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,

@@ -24,6 +24,47 @@ def _env(name: str, default: str = "") -> str:
     return os.getenv(name, default).strip()
 
 
+_CODE_STAMP: dict | None = None
+
+
+def code_stamp() -> dict:
+    """WHICH CODE was measured: the engine's short HEAD sha plus the non-test files that were dirty at boot.
+
+    A round is only comparable to another round if you know what was running in it, and this suite runs the
+    WORKING TREE (the sandbox boots `python -m server` from `engine/`), not a checked-out commit. On 2026-08-20
+    the fixing agent had to ask "did my 15:54 commit actually run in your 16:26 round, or did you reuse a server
+    from before it?" — a question that took reading boot timestamps by hand to answer, and that every future
+    round would raise again. Worse, a round measured while somebody is MID-EDIT measures a half-applied change
+    and looks exactly like a round measured on a coherent tree.
+
+    `tests/` is excluded from `dirty` on purpose: the harness editing itself does not change the engine under
+    test, and counting it would make every round look dirty and the flag mean nothing. Fails soft to an empty
+    stamp — not knowing the sha must never cost a measured round.
+    """
+    global _CODE_STAMP
+    if _CODE_STAMP is not None:
+        return _CODE_STAMP
+    import subprocess
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[4]
+
+    def _git(*a: str) -> str:
+        return subprocess.run(["git", *a], cwd=str(root), capture_output=True, text=True,
+                              timeout=15).stdout.strip()
+
+    try:
+        sha = _git("rev-parse", "--short", "HEAD")
+        # `l[2:].strip()`, not `l[3:]`: porcelain's two status columns are followed by a variable amount of
+        # whitespace, and slicing a fixed 3 ate the first letter of every path ("ests/…"), which quietly broke
+        # the `tests/` exclusion — every round would have been reported dirty.
+        paths = [l[2:].strip() for l in _git("status", "--porcelain").splitlines()]
+        dirty = sorted(p for p in paths if p and not p.startswith("tests/"))
+        _CODE_STAMP = {"sha": sha, "n_dirty": len(dirty), "dirty": dirty[:12]}
+    except Exception as e:
+        _CODE_STAMP = {"sha": "", "n_dirty": 0, "dirty": [], "error": str(e)[:120]}
+    return _CODE_STAMP
+
+
 # Reasoning-capable tier, not voice's low-latency flash default — negotiating an open-ended request and
 # noticing when it's gone off track needs real reasoning, and this suite runs far less often than every
 # voice turn so the extra cost/latency per call is the right trade.

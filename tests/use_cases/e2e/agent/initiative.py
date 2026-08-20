@@ -283,6 +283,16 @@ def _evidence(result: dict, *, scenario, sandboxed: bool) -> str:
     ]
     missing = mech.get("missing_signals") or []
     lines.append(f"- **Señales que FALTARON**: {', '.join(missing) if missing else '(ninguna)'}")
+    # QUÉ CÓDIGO se midió. El árbol sucio se nombra siempre que lo esté: una ronda medida a mitad de una
+    # edición mide un cambio a medio aplicar y se parece exactamente a una ronda medida sobre un árbol
+    # coherente. El sha se dice siempre, para que «¿corrió mi commit?» se responda leyendo la ronda.
+    code = result.get("code") or (run.get("code") if isinstance(run, dict) else None) or {}
+    if code.get("sha"):
+        line = f"- **Código medido**: `{code['sha']}`"
+        if code.get("n_dirty"):
+            line += (f" + **{code['n_dirty']} fichero(s) del motor SIN COMMITEAR** "
+                     f"(`{'`, `'.join(code.get('dirty') or [])}`) — esta ronda midió un árbol a medio editar")
+        lines.append(line)
     # Solo se nombra cuando NO condujo el titular: una fila así no es comparable con las anteriores y quien lea
     # esta ronda tiene que saberlo sin ir a buscarlo. Con el titular, callar mantiene la ronda legible.
     drive = result.get("drive_model") or ""
