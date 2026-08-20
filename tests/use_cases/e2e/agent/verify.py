@@ -841,28 +841,45 @@ def offered_to_brain(db_path, *, since: float = 0.0) -> dict:
 def worker_health(db_path, *, since: float = 0.0) -> dict:
     """HOW MANY WORKERS ACTUALLY SURVIVED. Read on 2026-08-21 for the first time, and it was overdue.
 
-    `cheapest-monitor` that night: 8 spawned, 3 returned `ok:true`, 5 returned `ok:false`. Zaelar told the
+    `cheapest-monitor` that night: 8 spawned, 3 ok, 3 errored, 2 cancelled by the harness's own shutdown.
+    Zaelar told the
     user "la búsqueda que estaba en marcha se ha caído sin terminar" — the truth — and the round scored it
     as vagueness, because the report had no column saying five workers had died. A harness that cannot see
     a failure will score honesty about that failure as evasion.
     """
     import sqlite3
-    out: dict = {"spawned": 0, "ok": 0, "failed": 0, "cancelled": 0}
+    out: dict = {"spawned": 0, "ok": 0, "errored": 0, "cancelled": 0, "cancelled_by_shutdown": 0}
     try:
         con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     except Exception:
         return out
     try:
-        for topic, key in (("worker.spawned", "spawned"), ("worker.cancelled", "cancelled")):
-            out[key] = con.execute("SELECT COUNT(*) FROM events WHERE topic = ? AND ts_ms >= ?",
-                                   (topic, int(since * 1000))).fetchone()[0]
-        for (raw,) in con.execute("SELECT payload FROM events WHERE topic = 'worker.result' AND ts_ms >= ?",
+        out["spawned"] = con.execute("SELECT COUNT(*) FROM events WHERE topic = 'worker.spawned' "
+                                     "AND ts_ms >= ?", (int(since * 1000),)).fetchone()[0]
+        # WHY it ended, not just that it did. `ok:false` alone conflates two very different things, and the
+        # first reading of this metric handed the fixing agent a phantom: of five «dead» workers, two were
+        # `cancelled` with `reason: shutdown` — the harness tearing the sandbox down at the end of the round,
+        # with the worker still legitimately working. That is the TEST ending, not the product failing.
+        for (raw,) in con.execute("SELECT payload FROM events WHERE topic = 'worker.done' AND ts_ms >= ?",
                                   (int(since * 1000),)).fetchall():
             try:
-                ok = bool((json.loads(raw) or {}).get("ok"))
+                d = json.loads(raw) or {}
             except Exception:
                 continue
-            out["ok" if ok else "failed"] += 1
+            status = str(d.get("status") or ("ok" if d.get("ok") else "error"))
+            if d.get("ok"):
+                out["ok"] += 1
+            elif status == "cancelled":
+                out["cancelled"] += 1
+            else:
+                out["errored"] += 1
+        for (raw,) in con.execute("SELECT payload FROM events WHERE topic = 'worker.cancelled' AND ts_ms >= ?",
+                                  (int(since * 1000),)).fetchall():
+            try:
+                if str((json.loads(raw) or {}).get("reason") or "") == "shutdown":
+                    out["cancelled_by_shutdown"] += 1
+            except Exception:
+                continue
     except Exception:
         return out
     finally:

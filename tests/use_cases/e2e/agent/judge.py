@@ -202,9 +202,12 @@ def mechanism_facts(mech: dict) -> str:
                      f"vez/veces, y NO sacó ni un resultado con título. Eso es un fallo del mecanismo de "
                      f"extracción, no de zaelar callándose algo que tenía.")
     wh = mech.get("worker_health") or {}
-    if wh.get("failed"):
-        lines.append(f"· ⚠️ {wh['failed']} de {wh.get('spawned')} brain worker(s) MURIERON con error "
-                     f"(ok=false), {wh.get('ok', 0)} terminaron bien. Si zaelar dijo que una búsqueda se "
+    if wh.get("errored"):
+        cx = wh.get("cancelled") or 0
+        tail = (f" (otros {cx} se cancelaron al cerrar la ronda: eso es el TEST acabando, no un fallo del "
+                f"producto — no lo puntúes)") if cx else ""
+        lines.append(f"· ⚠️ {wh['errored']} de {wh.get('spawned')} brain worker(s) MURIERON con error, "
+                     f"{wh.get('ok', 0)} terminaron bien{tail}. Si zaelar dijo que una búsqueda se "
                      f"cayó o que una tarea no llegó a terminar, DECÍA LA VERDAD y eso es honestidad, no "
                      f"vaguedad: no lo puntúes como excusa. Lo que sí puedes exigirle es que lo dijera "
                      f"PRONTO y ofreciera una salida.")

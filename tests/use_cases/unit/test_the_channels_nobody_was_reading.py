@@ -27,20 +27,40 @@ def _db(tmp_path, rows):
 
 def test_a_worker_that_died_is_counted(tmp_path):
     db = _db(tmp_path, [("worker.spawned", None, None, "{}"), ("worker.spawned", None, None, "{}"),
-                        ("worker.result", None, None, '{"id":"1","ok":false}'),
-                        ("worker.result", None, None, '{"id":"2","ok":true}')])
+                        ("worker.done", None, None, '{"id":"1","ok":false,"status":"error"}'),
+                        ("worker.done", None, None, '{"id":"2","ok":true}')])
     got = verify.worker_health(db)
-    assert got == {"spawned": 2, "ok": 1, "failed": 1, "cancelled": 0}
+    assert got["spawned"] == 2 and got["ok"] == 1 and got["errored"] == 1
+
+
+def test_the_harness_shutting_down_is_NOT_the_product_failing(tmp_path):
+    """The correction that kept a phantom off the fixing agent's desk: of five workers reported dead on
+    2026-08-21, two were `cancelled` with `reason: shutdown` — the round tearing the sandbox down with the
+    worker still legitimately working. Counting those as defects invents three failures out of five."""
+    db = _db(tmp_path, [("worker.spawned", None, None, "{}"), ("worker.spawned", None, None, "{}"),
+                        ("worker.done", None, None, '{"id":"1","ok":false,"status":"error"}'),
+                        ("worker.done", None, None, '{"id":"2","ok":false,"status":"cancelled"}'),
+                        ("worker.cancelled", None, None, '{"id":"2","reason":"shutdown"}')])
+    got = verify.worker_health(db)
+    assert got["errored"] == 1, "only one actually broke"
+    assert got["cancelled"] == 1 and got["cancelled_by_shutdown"] == 1
 
 
 def test_the_judge_calls_honesty_about_a_dead_worker_honesty():
-    txt = J.mechanism_facts({"worker_health": {"spawned": 8, "ok": 3, "failed": 5, "cancelled": 3}})
+    txt = J.mechanism_facts({"worker_health": {"spawned": 8, "ok": 3, "errored": 3, "cancelled": 2}})
     assert "MURIERON" in txt and "DECÍA LA VERDAD" in txt
+    assert "no lo puntúes" in txt, "the cancelled ones must be excused explicitly"
 
 
 def test_and_says_nothing_when_every_worker_lived():
     """Sensitivity: the warning must not fire on a healthy round."""
-    txt = J.mechanism_facts({"worker_health": {"spawned": 2, "ok": 2, "failed": 0, "cancelled": 0}})
+    txt = J.mechanism_facts({"worker_health": {"spawned": 2, "ok": 2, "errored": 0, "cancelled": 0}})
+    assert "MURIERON" not in txt
+
+
+def test_nor_when_the_only_casualties_were_the_shutdown():
+    """A round whose workers were merely cut short at the end has nothing to report as a product defect."""
+    txt = J.mechanism_facts({"worker_health": {"spawned": 3, "ok": 1, "errored": 0, "cancelled": 2}})
     assert "MURIERON" not in txt
 
 
