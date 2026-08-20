@@ -730,7 +730,12 @@ def live_state() -> str:
                 # V2-196: pararse no es acabar. «Terminó sin traer nada» sobre algo que se CANCELÓ invita a
                 # esperar un resultado que nadie va a producir; decir que se paró invita a preguntar si se
                 # retoma, que es lo que el operador puede hacer con ese hecho.
-                if str(_f.get("status") or "") == "cancelled":
+                _st = str(_f.get("status") or "")
+                if _st == "open":
+                    # V2-197: no es un fracaso ni un resultado — es una pestaña que le abriste y ahí sigue.
+                    # Decir «terminó sin traer nada» de algo que está delante suyo es negarle lo que tiene.
+                    _t += " está ABIERTA en pantalla (se la abriste; ahí sigue)"
+                elif _st == "cancelled":
                     _t += " se PARÓ (cancelada) sin llegar a terminar"
                 else:
                     _t += " terminó CON resultado" if _f.get("has_results") else " terminó SIN traer nada"

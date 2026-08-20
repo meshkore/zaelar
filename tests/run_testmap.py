@@ -315,6 +315,10 @@ DOMAINS: list[dict] = [
             "tests/browser/unit/widgets/test_paths_workspace.py"]},
         {"id": "4.2", "title": "Navegador (browser)", "ch": UNIT, "paths": [
             "tests/browser/unit/navegador/test_auth.py", "tests/browser/unit/navegador/test_tasks_dedup.py",
+            # 2026-08-20: dos filtros enumeraban a mano subconjuntos de los estados de una tarea, y un estado
+            # que no estaba en ninguno era una tarea que el estado vivo NO MENCIONABA — ni viva ni terminada.
+            # Costó `cancelled` (V2-196) y, al unificar, apareció `open` en el mismo hueco desde siempre.
+            "tests/browser/unit/navegador/test_task_states_are_enumerated_once.py",
             # 2026-08-17 modularization pass: DOM/human-input primitives split out of owner.py into dom.py
             # (page-parametric, no module-global coupling) -- first standalone coverage for this path, plus a
             # regression lock on `mouse` now being required (the old None-fallback was dead code).

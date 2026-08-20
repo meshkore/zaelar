@@ -1275,6 +1275,24 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Dos listas de estados que había que mantener sincronizadas — y `open` llevaba en el hueco desde siempre**
+  (`widgets/navegador/tasks.py`, V2-197, 2026-08-20). Había **tres** copias a mano de subconjuntos del mismo
+  conjunto cerrado: `active_summaries()`, `recently_finished()` y el sello de `set_status()`. Un estado que no
+  esté en ninguna de las dos primeras es una tarea que el estado vivo **no menciona en absoluto**, y el modelo
+  sigue con lo último que sabía — eso costó `cancelled` (V2-196). Al unificarlas apareció que **`open` llevaba
+  en el mismo hueco desde siempre**: lo pone `owner.py` cada vez que se abre una página PARA el operador
+  («ábreme Booking»), y esa pestaña era invisible para el turno. **No lo encontró una corrida: lo encontró
+  preguntarle al código qué estados escribe.**
+  - `LIVE_STATES` / `ENDED_STATES` en un solo sitio, y **el sello de «cuándo terminó» lo pone ENTRAR en un
+    final** — era la tercera copia, y por ella `open` entraba en los finales y la ventana de tiempo lo
+    descartaba igual. Un estado terminal que no sella su hora es un final que nadie puede fechar.
+  - `open` se dice como lo que es: «está ABIERTA en pantalla (se la abriste; ahí sigue)». Decir «terminó sin
+    traer nada» de algo que el operador tiene delante es negarle lo que tiene.
+  - **El guarda mira el CÓDIGO, no las listas**: recorre el árbol buscando `set_status(..., "X")` y falla si
+    aparece un estado sin clasificar — mismo patrón que el inventario de familias del visor, y por la misma
+    razón. Quinto de la serie de «hechos que desaparecen» y el primero que no arregla una instancia sino **la
+    forma de tenerlas**.
+
 - **Una tarea CANCELADA no estaba ni viva ni terminada** (`widgets/navegador/tasks.py` + `prompt.py`, V2-196,
   2026-08-20). `active_summaries()` filtra por queued/working/needs_input y `recently_finished()` filtraba por
   done/failed: **`cancelled` era el único final que no estaba en ningún sitio**, así que el estado no la

@@ -77,7 +77,18 @@ def wall_reason(url: str) -> str:
         return "el sitio devolvió una página de error (no existe esa página)"
     return ""
 
-# States: queued (created) · working (executing) · needs_input (waiting for answer) · done · failed · cancelled.
+# States: queued (created) · working (executing) · needs_input (waiting for answer) · open (a page opened FOR
+# the operator, standing) · done · failed · cancelled.
+#
+# V2-197 — enumerated ONCE. `active_summaries()` and `recently_finished()` used to spell out their own subsets
+# by hand, and a state in neither list is a task the live state does not mention AT ALL: not alive, not
+# finished. The model then carries on with the last thing it knew, which is the correct thing to do when
+# nobody tells it otherwise. That hole cost `cancelled` (V2-196, measured: «bucle de espera infinito sobre una
+# tarea que ya falló») — and the moment the enumeration was single-sourced it turned out `open` was sitting in
+# the same hole, set by `owner.py` every time a page is opened for the operator. Two lists that must be kept in
+# sync are two lists that will not be.
+LIVE_STATES = frozenset({"queued", "working", "needs_input"})
+ENDED_STATES = frozenset({"done", "failed", "cancelled", "open"})
 
 
 def inst_id(task_id: str) -> str:
@@ -318,7 +329,7 @@ def active_summaries(limit: int = 3) -> list[tuple[str, str]]:
     tasks") and does not relaunch a search that is already running. Most recent first."""
     with _lock:
         act = [(tid, (t.get("goal") or "").strip())
-               for tid, t in _tasks.items() if t.get("status") in ("queued", "working", "needs_input")]
+               for tid, t in _tasks.items() if t.get("status") in LIVE_STATES]
     return list(reversed(act))[:max(1, limit)]
 
 
@@ -394,7 +405,7 @@ def recently_finished(now: float | None = None, limit: int = 3) -> list[dict]:
                 # estado no la mencionaba EN ABSOLUTO y el modelo seguía con lo último que recordaba: «bucle de
                 # espera infinito sobre una tarea que ya falló», medido en `find-theatre-tickets__es`
                 # (2026-08-20 03:11) con `status=cancelled` en el informe de mecanismo.
-                if t.get("status") in ("done", "failed", "cancelled")
+                if t.get("status") in ENDED_STATES
                 and (now - float(t.get("finished") or 0)) <= JUST_FINISHED_S]
     rows.sort(key=lambda r: r["ago_s"])
     return rows[:max(1, limit)]
@@ -403,7 +414,7 @@ def recently_finished(now: float | None = None, limit: int = 3) -> list[dict]:
 def active_ids() -> list[str]:
     """Tasks that have not finished yet (for routing answers / cancelling / listing)."""
     with _lock:
-        return [tid for tid, t in _tasks.items() if t["status"] in ("queued", "working", "needs_input")]
+        return [tid for tid, t in _tasks.items() if t["status"] in LIVE_STATES]
 
 
 def waiting_id() -> str | None:
@@ -479,7 +490,11 @@ def set_status(task_id: str, status: str) -> None:
         if not t or t["status"] == status:
             return
         t["status"] = status
-        if status in ("done", "failed", "cancelled"):
+        if status in ENDED_STATES:
+            # V2-197: la MISMA lista que usan los filtros. Estaba escrita a mano aquí también —una tercera
+            # copia— y por eso `open` no sellaba nunca cuándo había terminado: entraba en los finales y
+            # `recently_finished()` lo descartaba igual por su ventana de tiempo. Un estado terminal que no
+            # sella su hora es un final que nadie puede fechar.
             t["finished"] = time.time()   # mark the CONTINUITY window (find_continuation)
     _notify(task_id)
 
