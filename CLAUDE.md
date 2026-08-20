@@ -1312,6 +1312,27 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **La búsqueda dio la respuesta perfecta y MURIÓ dentro del worker** (`nucleo/workers/findings.py` NUEVO,
+  V2-236, 2026-08-21). El arnés leyó la observabilidad entera (antes veía el 38 % de 1291 eventos): los eventos
+  `kind='search'` traían «Philips 27E1N1800A/00 — 27" UHD 4K — 159,00 €» y «Alurin CoreVision 27" — 149,99 €»,
+  justo lo que el operador pidió. **Búsquedas 7 · respuestas 5 · notas al cerebro desde ese canal 0.** El porqué:
+  **5 de 8 workers devolvieron `ok:false`** — se caen antes de entregar y el texto bueno se va con ellos.
+  **Zaelar dijo «la búsqueda se ha caído sin terminar»: decía LA VERDAD**, y se le puntuó como vaguedad. Tercera
+  vez en la misma tanda que el turno describe con fidelidad lo poco que le llega y el diagnóstico apunta primero
+  a su conducta.
+  - Mismo remedio que V2-223 por la otra puerta: **el hallazgo se empuja cuando existe**, no cuando el worker
+    entregue. En `WorkerSession._on_event` (rama `step_result`), que es donde `where` ya viene normalizado — un
+    solo sitio cubre Claude Code, Codex y Grok **y las tools NATIVAS de cada CLI**, que es donde se medía la
+    pérdida — y en `worker_api._exec_allow`, que es NUESTRA búsqueda prestada al worker.
+  - **El JUICIO se queda en el cerebro**, **UNA sola instrucción** (V2-226), **un `is_error` no es un hallazgo**,
+    se **recorta diciendo cuánto falta**, y el dedup es por CONTENIDO (la misma respuesta no es nueva; otra
+    distinta sí) y se olvida con la sesión.
+  - ⚠️ **El primer intento de sus tests no probaba nada de lo que decía**: llamaban al predicado a mano, así que
+    con el enganche BORRADO de `_on_event` pasaban los dieciséis. Lo cazó la comprobación de sensibilidad, no la
+    lectura. Es V2-199 otra vez — **un test que no recorre el camino real prueba que el código compila**— y esta
+    vez lo detectó el método en lugar de una ronda. Nodo 2.5, 17 casos, sensibilidad en seis direcciones.
+  - **Lo que NO arregla**: por qué 5 de 8 workers mueren. Quita el daño, no la causa.
+
 - **El extractor PARTÍA el precio y no cogía el nombre** (`widgets/navegador/dom.py`, V2-235, 2026-08-21).
   Medido por el arnés con V2-234 ya dentro: las notas crudas decían «169 — 00 € — …/LG-27US500-W-…/dp/…» y
   «284 — 87 € — …/Dell-…», o sea **un monitor de 169 € anunciado como de 0 €**. Zaelar volvió a salir limpio —
