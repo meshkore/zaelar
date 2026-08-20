@@ -59,7 +59,8 @@ def glm_call(messages: list[dict], model: str | None = None, max_tokens: int = 2
 
 # Provider transients: worth another attempt. A 401/402/404 is not — that is configuration or balance, and
 # retrying it only burns time.
-_TRANSIENT = ("429", "500", "502", "503", "504", "timed out", "timeout", "Temporary failure")
+_TRANSIENT = ("429", "500", "502", "503", "504", "timed out", "timeout", "Temporary failure",
+              "VACÍA")
 
 
 def deepseek_direct_call(messages: list[dict], model: str | None = None, temperature: float = 0.0,
@@ -107,14 +108,24 @@ def judge_call(messages: list[dict], max_tokens: int = 2000) -> tuple[str, str]:
     # returned 429/503/504 and cost three measured rounds.
     if config.DEEPSEEK_KEY:
         try:
-            return (deepseek_direct_call(messages, max_tokens=max_tokens), config.DEEPSEEK_JUDGE_MODEL)
+            txt = deepseek_direct_call(messages, max_tokens=max_tokens)
+            if not (txt or "").strip():
+                # AN EMPTY BODY IS NOT AN ANSWER, and treating it as one is how a leg that "worked" loses a
+                # round. Measured 2026-08-20, fourth INFRA on the same case: the direct leg returned 200 with
+                # empty content (a reasoning model can spend the whole output budget thinking), the judge saw
+                # no JSON, retried its own prompt three times against the same silent leg and gave up. The
+                # chain existed and never advanced, because nothing had raised.
+                raise RuntimeError("respuesta VACÍA (200 sin contenido)")
+            return (txt, config.DEEPSEEK_JUDGE_MODEL)
         except Exception as e:
-            print(f"[judge] DeepSeek direct unavailable ({str(e)[:80]}) → AIMLAPI broker", file=sys.stderr)
+            print(f"[judge] DeepSeek direct unusable ({str(e)[:80]}) → AIMLAPI broker", file=sys.stderr)
     last = None
     for attempt in range(3):
         try:
-            return (call(messages, model=config.JUDGE_MODEL, temperature=0.0, max_tokens=max_tokens),
-                    config.JUDGE_MODEL)
+            txt = call(messages, model=config.JUDGE_MODEL, temperature=0.0, max_tokens=max_tokens)
+            if not (txt or "").strip():
+                raise RuntimeError("respuesta VACÍA (200 sin contenido)")
+            return (txt, config.JUDGE_MODEL)
         except Exception as e:
             last = e
             if not any(t in str(e) for t in _TRANSIENT):

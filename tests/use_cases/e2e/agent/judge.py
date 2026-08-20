@@ -391,5 +391,7 @@ JSON completo:
             return v
         except Exception as e:
             last_err = str(e)
-    return {"scores": {}, "overall": None, "findings": [], "improvements": [], "_judge_model": used,
-            "veredicto": f"(juez no devolvió JSON válido tras 3 intentos: {last_err}) — raw: {raw[:300]}"}
+    # RAISE, do not return a hollow verdict. Returning one made the round look judged-and-empty, so the runner
+    # never parked the conversation and eight minutes of driving went in the bin — the fourth time that happened
+    # to the same case on 2026-08-20. The caller parks the run and records INFRA, which is the honest state.
+    raise RuntimeError(f"el juez no devolvió JSON válido tras 3 intentos ({last_err}) — raw: {raw[:200]!r}")
