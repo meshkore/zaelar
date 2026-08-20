@@ -1275,6 +1275,22 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Con varias tareas vivas, el estado MANDABA entregar una y no decía cuál** (`nucleo/flash/prompt.py`,
+  V2-193, 2026-08-20). Medido en `renew-gym-membership__es`: «desviaciones de atención severas (distracción con
+  tareas de navegador no solicitadas), mezclando dominios (Netflix/Teatro) al preguntar por el gimnasio». Con
+  tres tareas vivas el bloque las listaba bien y luego soltaba **UN imperativo que empezaba por «ESA TAREA»**,
+  sin decir cuál — o sea que el operador preguntaba por su gimnasio y el estado mandaba **entregar el teatro**.
+  Con UNA tarea la ambigüedad no existe, que es por lo que las cuatro caras se escribieron sin verla: todas se
+  midieron con una sola viva.
+  - Cada imperativo **nombra a su tarea** («`«Entradas El Rey León» YA TRAJO ALGO`»): una orden ambigua pasa a
+    ser un hecho atribuido, y el modelo puede juzgar si viene a cuento. Y se emite **UNA sola** — los hechos de
+    las demás siguen listados, pero un turno con cuatro imperativos es un volcado de estado, no una respuesta.
+  - **Confirma el aviso de V2-192**: no faltaba una quinta cara, faltaba que la elegida dijera A QUIÉN se
+    refiere.
+  - Que Netflix y Teatro estén vivos en el caso del gimnasio es **del ARNÉS** —un solo sandbox por locale para
+    toda la tanda (`run.py::_sandbox_batch`)— y no se parchea: en producción esas serían de verdad las tareas
+    del operador. **La eficiencia subió de 1 a 4 en esa misma corrida**, que es V2-189 medido.
+
 - **REGRESIÓN PROPIA: pasé de demasiado optimista a demasiado pesimista** (`nucleo/flash/prompt.py` +
   `widgets/navegador/tasks.py`, V2-192, 2026-08-20). La primera corrida con los arreglos de la noche dentro dio
   la vuelta al veredicto de `find-theatre-tickets__es`: «**ocultó al usuario que había encontrado datos reales

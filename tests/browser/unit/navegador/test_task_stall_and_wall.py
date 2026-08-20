@@ -251,7 +251,7 @@ def test_a_walled_task_is_not_promised_to_finish_on_its_own():
     state = _live()
     assert "te dará el resultado sola" not in state
     assert "no le empujes" not in state
-    assert "ESTO ESTÁ BLOQUEADO" in state
+    assert "ESTÁ BLOQUEADA: lo que pone arriba de ella" in state
 
 
 def test_and_neither_is_one_that_stopped_moving():
@@ -261,7 +261,7 @@ def test_and_neither_is_one_that_stopped_moving():
     tasks._tasks[tid]["last_progress"] = time.time() - 673
     state = _live()
     assert "te dará el resultado sola" not in state
-    assert "ESTO ESTÁ BLOQUEADO" in state
+    assert "ESTÁ BLOQUEADA: lo que pone arriba de ella" in state
 
 
 def test_but_a_healthy_task_keeps_the_promise_AND_the_rule_of_V2_152():
@@ -273,7 +273,7 @@ def test_but_a_healthy_task_keeps_the_promise_AND_the_rule_of_V2_152():
     state = _live()
     assert "te dará el resultado sola" in state
     assert "la falta de parte no significa que esté parada" in state
-    assert "ESTO ESTÁ BLOQUEADO" not in state
+    assert "ESTÁ BLOQUEADA: lo que pone arriba de ella" not in state
 
 
 def test_and_the_shared_rules_survive_in_BOTH_states():
@@ -285,7 +285,7 @@ def test_and_the_shared_rules_survive_in_BOTH_states():
         tasks.set_status(tid, "working")
         tasks.update_view(tid, url=url)
         state = _live()
-        assert ("ESTO ESTÁ BLOQUEADO" in state) is walled
+        assert ("ESTÁ BLOQUEADA: lo que pone arriba de ella" in state) is walled
         assert "solo hay UN navegador" in state
         assert "rellenando el formulario" in state
 
@@ -446,7 +446,7 @@ def test_and_it_reaches_the_turn_as_a_BLOCKED_task():
     tasks.update_view(tid, url=NETFLIX_404)
     state = _live()
     assert "· MURO: " in state and "página de error" in state
-    assert "ESTO ESTÁ BLOQUEADO" in state
+    assert "ESTÁ BLOQUEADA: lo que pone arriba de ella" in state
     assert "te dará el resultado sola" not in state
 
 
@@ -482,9 +482,9 @@ def test_and_its_way_out_is_that_HE_signs_in_not_that_we_give_up():
     tasks.update_view(tid, url="https://www.netflix.com/login")
     _awaiting(tid)
     state = _live()
-    assert "SOLO LO DESBLOQUEA ÉL" in state
+    assert "SOLO LA DESBLOQUEA ÉL" in state
     assert "NO es un fracaso" in state              # pararse en su login es la conducta CORRECTA
-    assert "ESTO ESTÁ BLOQUEADO" not in state       # y no se le da la salida genérica del muro
+    assert "ESTÁ BLOQUEADA: lo que pone arriba de ella" not in state       # y no se le da la salida genérica del muro
 
 
 def test_and_it_is_said_even_if_the_operator_just_said_he_would_wait():
@@ -514,8 +514,8 @@ def test_and_a_login_wait_wins_over_a_wall_on_the_same_task():
     tasks.update_view(tid, url="https://www.netflix.com/NotFound")
     _awaiting(tid)
     state = _live()
-    assert "SOLO LO DESBLOQUEA ÉL" in state
-    assert "ESTO ESTÁ BLOQUEADO" not in state
+    assert "SOLO LA DESBLOQUEA ÉL" in state
+    assert "ESTÁ BLOQUEADA: lo que pone arriba de ella" not in state
 
 
 # ── V2-192: tener RESULTADOS gana a cualquier medida de atasco ────────────────────────────────────────────
@@ -537,7 +537,7 @@ def test_a_task_that_already_found_something_is_not_blocked():
     tasks._tasks[tid]["last_progress"] = time.time() - 400          # y encima lleva 6 min sin moverse
     state = _live()
     assert "YA TIENE RESULTADOS" in state
-    assert "ESTO ESTÁ BLOQUEADO" not in state
+    assert "ESTÁ BLOQUEADA: lo que pone arriba de ella" not in state
     assert "DÁSELOS en este turno" in state
 
 
@@ -549,7 +549,7 @@ def test_and_results_win_over_a_WALL_too():
     tasks.set_results(tid, {"conclusion": "2 hoteles", "items": [{"n": "uno"}]})
     state = _live()
     assert "YA TIENE RESULTADOS" in state
-    assert "ESTO ESTÁ BLOQUEADO" not in state
+    assert "ESTÁ BLOQUEADA: lo que pone arriba de ella" not in state
 
 
 def test_but_without_results_a_stall_is_still_a_stall():
@@ -560,7 +560,7 @@ def test_but_without_results_a_stall_is_still_a_stall():
     tasks.update_view(tid, url=REAL_PAGE)
     tasks._tasks[tid]["last_progress"] = time.time() - 400
     state = _live()
-    assert "ESTO ESTÁ BLOQUEADO" in state
+    assert "ESTÁ BLOQUEADA: lo que pone arriba de ella" in state
     assert "YA TIENE RESULTADOS" not in state
 
 
@@ -573,3 +573,60 @@ def test_and_the_seam_carries_the_fact():
     assert tasks.active_progress()[0]["has_results"] is False
     tasks.set_results(tid, {"items": [1]})
     assert tasks.active_progress()[0]["has_results"] is True
+
+
+# ── V2-193: con varias tareas vivas, el imperativo tiene que decir CUÁL ───────────────────────────────────
+#
+# `renew-gym-membership__es`, 2026-08-20 02:28: «desviaciones de atención severas (distracción con tareas de
+# navegador no solicitadas) … mezclando dominios (Netflix/Teatro) al preguntar por el gimnasio».
+#
+# El bloque listaba las tres tareas correctamente y luego soltaba UN imperativo que empezaba por «ESA TAREA»
+# — sin decir cuál. Con tres en marcha eso apunta a cualquiera, y el estado acababa MANDANDO entregar los
+# resultados del teatro mientras el operador preguntaba por su gimnasio. Con una sola tarea la ambigüedad no
+# existe, que es por lo que las cuatro caras se escribieron sin verla.
+def _three_live():
+    a = tasks.create("Cancelar la suscripción a Netflix")
+    tasks.set_status(a, "working")
+    tasks.update_view(a, url="https://www.netflix.com/login")
+    tasks._tasks[a]["awaiting_login"] = True
+    b = tasks.create("Entradas El Rey León")
+    tasks.set_status(b, "working")
+    tasks.update_view(b, url="https://www.entradas.com/el-rey-leon")
+    tasks.set_results(b, {"items": [1]})
+    c = tasks.create("Renovar cuota del gimnasio")
+    tasks.set_status(c, "working")
+    return a, b, c
+
+
+def test_the_imperative_names_the_task_it_is_about():
+    _three_live()
+    state = _live()
+    assert "«Entradas El Rey León» YA TRAJO ALGO" in state
+    assert "ESA TAREA YA TRAJO ALGO" not in state       # la forma ambigua que medía el veredicto
+
+
+def test_and_the_other_tasks_keep_their_FACTS_without_a_second_order():
+    """Los hechos de las demás siguen ahí —el operador puede preguntar por cualquiera— pero no se emiten tres
+    órdenes a la vez: un turno con cuatro imperativos es un volcado de estado, no una respuesta."""
+    _three_live()
+    state = _live()
+    assert "PARADA ESPERANDO A QUE ENTRES TÚ" in state          # el hecho del Netflix, listado
+    assert state.count("DÁSELOS en este turno") == 1
+    assert "SOLO LA DESBLOQUEA ÉL" not in state                 # …pero sin su propio imperativo
+
+
+def test_a_blocked_task_also_says_which_one():
+    tid = tasks.create("Reservar mesa en Casa Lucio")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url=BOOKING_WALL)
+    state = _live()
+    assert "«Reservar mesa en Casa Lucio» ESTÁ BLOQUEADA" in state
+
+
+def test_and_a_login_wait_too():
+    tid = tasks.create("Cancelar la suscripción a Netflix")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url="https://www.netflix.com/login")
+    tasks._tasks[tid]["awaiting_login"] = True
+    state = _live()
+    assert "«Cancelar la suscripción a Netflix» ESTÁ PARADA Y SOLO LA DESBLOQUEA ÉL" in state

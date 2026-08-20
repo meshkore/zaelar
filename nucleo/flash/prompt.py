@@ -593,7 +593,7 @@ def live_state() -> str:
             except Exception:
                 _prog = {}
             _bits = []
-            _blocked = _login = _has_results = False
+            _blocked = _login = _has_results = ""       # el GOAL de la tarea que disparó cada cara, o ""
             for _tid, _g in act:
                 _b = f"«{(_g or 'tarea')[:70]}»"
                 _p = _prog.get(_tid) or {}
@@ -643,18 +643,26 @@ def live_state() -> str:
                     # BLOQUEADO. Antes de V2-185 el estado era demasiado OPTIMISTA («te dará el resultado
                     # sola») y con V2-185 pasó a ser demasiado PESIMISTA; las dos son falsas cuando lo cierto
                     # es que ya hay algo que entregar. Tener resultados gana a cualquier medida de atasco.
+                    # V2-193: con VARIAS tareas vivas hay que saber CUÁL disparó la cara. El imperativo decía
+                    # «ESA TAREA» a secas, y con tres en marcha eso apunta a cualquiera — medido en
+                    # `renew-gym-membership__es` (2026-08-20 02:28): «desviaciones de atención severas
+                    # (distracción con tareas de navegador no solicitadas), mezclando dominios (Netflix/Teatro)
+                    # al preguntar por el gimnasio». El estado le MANDABA entregar el teatro mientras el
+                    # operador preguntaba por su gimnasio.
+                    _who = f"«{(_g or 'la tarea')[:50]}»"
                     if _p.get("has_results"):
                         _b += " · YA TIENE RESULTADOS"
-                        _has_results = True
+                        _has_results = _has_results or _who
                     elif _p.get("awaiting_login"):
                         _b += " · PARADA ESPERANDO A QUE ENTRES TÚ (hay una ventana abierta para iniciar sesión)"
-                        _blocked = _login = True
+                        _blocked = True
+                        _login = _login or _who
                     elif _p.get("wall"):
                         _b += f" · MURO: {_p['wall']}"
-                        _blocked = True
+                        _blocked = _blocked or _who
                     elif int(_p.get("stalled_s") or 0) >= _STALLED_S:
                         _b += f" · lleva {int(_p['stalled_s']) // 60} min SIN MOVERSE de esa página"
-                        _blocked = True
+                        _blocked = _blocked or _who
                 _bits.append(_b)
             # V2-185: the reassuring half of this block used to be UNCONDITIONAL, and that is what kept the
             # operator waiting. Measured on `book-hotel-night-known__es` (2026-08-20 01:01): the wall DID reach
@@ -670,13 +678,13 @@ def live_state() -> str:
                        "«rellenando el formulario»). Los segundos que lleva NO son una descripción de lo que hace.")
             if _has_results:
                 lines.append(
-                    _head + " ESA TAREA YA TRAJO ALGO: no está bloqueada ni esperando, tiene resultados en la "
-                    "hoja. DÁSELOS en este turno —lo que encontró, no que «ya casi está»— y pregunta si le "
+                    _head + f" {_has_results} YA TRAJO ALGO: no está bloqueada ni esperando, tiene resultados en "
+                    "la hoja. DÁSELOS en este turno —lo que encontró, no que «ya casi está»— y pregunta si le "
                     "vale o quiere que siga afinando. Decirle que está parada teniendo datos delante es la "
                     "misma mentira que decirle que sigue buscando cuando ya no busca." + _shared)
             elif _login:
                 lines.append(
-                    _head + " ESTO ESTÁ PARADO Y SOLO LO DESBLOQUEA ÉL: la tarea no va a avanzar ni un paso "
+                    _head + f" {_login} ESTÁ PARADA Y SOLO LA DESBLOQUEA ÉL: no va a avanzar ni un paso "
                     "hasta que el operador inicie sesión en la ventana que tiene abierta. DÍSELO en este turno, "
                     "aunque acabe de decir que espera tranquilo, y con las palabras exactas de lo que tiene que "
                     "hacer («tienes una ventana abierta en X, entra con tu cuenta y me lo dices»). NO es un "
@@ -684,7 +692,8 @@ def live_state() -> str:
                     "es dejarle esperando a una tarea que está esperándole a él." + _shared)
             elif _blocked:
                 lines.append(
-                    _head + " ESTO ESTÁ BLOQUEADO: lo de arriba (MURO / «sin moverse») es un HECHO medido, no "
+                    _head + f" {_blocked} ESTÁ BLOQUEADA: lo que pone arriba de ella (MURO / «sin moverse») es un "
+                    "HECHO medido, no "
                     "falta de novedades, y esa tarea NO va a terminar sola. DILO en este turno, aunque el "
                     "operador acabe de decir que espera tranquilo —esperar es justo lo que hará si te callas— y "
                     "con una salida concreta: probar en otro sitio, que entre él, o dejarlo. Repetir «sigo con "
