@@ -891,7 +891,7 @@ def live_state() -> str:
         from nucleo import dispatch as _disp_end
         _ended = _disp_end.recently_ended_sessions()
         if _ended:
-            _eb = []
+            _eb, _failed = [], ""
             for _e in _ended:
                 _st = str(_e.get("status") or "")
                 _w = f"«{(_e.get('goal') or 'tarea')[:60]}»"
@@ -899,16 +899,34 @@ def live_state() -> str:
                     _w += " se PARÓ (cancelada)"
                 elif _st == "error" or not _e.get("ok"):
                     _w += " FALLÓ"
+                    _failed = _failed or f"«{(_e.get('goal') or 'la tarea')[:50]}»"
                 else:
                     _w += " TERMINÓ"
                 if _e.get("summary"):
                     _w += f" — {_e['summary'][:110]}"
                 _eb.append(_w)
-            lines.append(
-                "TAREAS DE FONDO — YA ACABADAS: " + "; ".join(_eb) + ". Eso YA NO está en marcha: si el "
-                "operador pregunta por ello, di cómo acabó y con qué —y si trajo algo, DÁSELO— en vez de "
-                "«sigo con ello», que es contar algo que el sistema da por acabado. Si acabó sin nada útil, "
-                "dilo y ofrece el siguiente paso.")
+            _head_end = "TAREAS DE FONDO — YA ACABADAS: " + "; ".join(_eb) + "."
+            if _failed:
+                # V2-221 — la instrucción de V2-198 era CONDICIONAL («si el operador pregunta por ello») y una
+                # tarea MUERTA no es una pregunta pendiente: es una espera que no se va a resolver sola. Medido
+                # por el arnés en `hotel-under-15-days` (19:12) leyendo el prompt de cada turno: **ocho turnos
+                # consecutivos** con «… FALLÓ» delante contestando «sigo con ello, te aviso», sin muro y sin
+                # pregunta de por medio. O sea que la ENTREGA ya estaba (V2-198 pone el hecho en el prompt) y lo
+                # que falla es la OBEDIENCIA — exactamente el mismo corte que V2-185 hizo con el muro: mientras
+                # la mitad tranquilizadora sea la que dice qué hacer, el modelo cree a esa.
+                lines.append(
+                    _head_end + f" {_failed} NO ACABÓ BIEN y el operador NO LO SABE: está esperando un "
+                    "resultado que ya no va a llegar. DÍSELO EN ESTE TURNO, aunque no pregunte y aunque acabe "
+                    "de decir que espera tranquilo —esperar es justo lo que hará si te callas—, y con una "
+                    "salida concreta: reintentarlo, probar otra vía, o dejarlo. NUNCA «sigo con ello» ni «te "
+                    "aviso en cuanto lo tenga» encima de algo que el sistema ya da por muerto. Si YA se lo "
+                    "dijiste en un turno anterior, no lo repitas: pasa a lo que él quiera hacer ahora.")
+            else:
+                lines.append(
+                    _head_end + " Eso YA NO está en marcha: si el "
+                    "operador pregunta por ello, di cómo acabó y con qué —y si trajo algo, DÁSELO— en vez de "
+                    "«sigo con ello», que es contar algo que el sistema da por acabado. Si acabó sin nada útil, "
+                    "dilo y ofrece el siguiente paso.")
     except Exception:
         pass
     try:

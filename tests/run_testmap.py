@@ -535,6 +535,13 @@ DOMAINS: list[dict] = [
         {"id": "4.22", "title": "El muro y la pregunta ENTRAN en la conversación, sin que él pregunte",
             "ch": UNIT,
             "paths": ["tests/browser/unit/navegador/test_the_task_tells_the_conversation.py"]},
+        # V2-221 — la otra mitad, y la que queda: ENTREGA vs OBEDIENCIA. El arnés leyó el prompt de cada turno
+        # de `hotel-under-15-days` y encontró OCHO turnos seguidos con «… FALLÓ» delante contestando «sigo con
+        # ello, te aviso», sin muro ni pregunta de por medio. El hecho llegaba; la instrucción de V2-198 era
+        # CONDICIONAL («si el operador pregunta por ello») y una tarea muerta no es una pregunta pendiente.
+        {"id": "4.23", "title": "Una tarea de fondo MUERTA se dice sin que él pregunte",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_a_dead_task_is_not_a_pending_question.py"]},
         {"id": "4.19", "title": "Shell MÓVIL RENDERIZADO: el orbe centrado y PINTADO, la barra alcanzable",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/mobile/render_dock.py"},
