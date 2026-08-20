@@ -108,7 +108,10 @@ def test_the_REAL_path_records_the_ending_before_dropping_the_record():
     # sería contarlo dos veces y mal— y la cancelación en cola, que sí recuerda.
     i = src.rindex("_SESSIONS.pop(key, None)")
     antes = src[:i]
-    assert "_remember_ended(rec)" in antes, (
+    # Se casa por la LLAMADA, no por su forma exacta: V2-222 le añadió `resuming=` y este assert exigía
+    # `_remember_ended(rec)` al carácter, así que falló por una firma nueva sin que la conducta cambiara. Lo que
+    # protege es que el final se anote ANTES del pop; los argumentos son asunto de quien llama.
+    assert "_remember_ended(rec" in antes, (
         "`_run_session` tira el registro sin recordar cómo acabó: `recently_ended_sessions()` no verá nada y "
         "el turno volverá a quedarse con su memoria de haber arrancado la tarea.")
 

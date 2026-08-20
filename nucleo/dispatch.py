@@ -433,8 +433,26 @@ JUST_ENDED_S = 300.0     # cinco minutos: lo que dura la conversación en la que
 _ENDED_SESSIONS: dict[str, dict] = {}
 
 
-def _remember_ended(rec) -> None:
+def _live_goals() -> set[str]:
+    """Goals of the sessions that are RUNNING right now, normalised for comparison (V2-222)."""
+    out = set()
+    for r in list(_SESSIONS.values()):
+        try:
+            if str(getattr(r, "status", "") or "") in LIVE_SESSION_STATES:
+                g = (getattr(r, "goal", "") or "").strip().lower()
+                if g:
+                    out.add(g)
+        except Exception:  # noqa: BLE001
+            continue
+    return out
+
+
+def _remember_ended(rec, resuming: bool = False) -> None:
     """Snapshot of a session that just ENDED, kept for `JUST_ENDED_S`.
+
+    `resuming` means the caller is about to relaunch this very errand (V2-049 auto-resume), so it did NOT end —
+    and recording it as ended is what put two contradictory statements about the SAME errand in one prompt. See
+    V2-222 and the measurement in `recently_ended_sessions`.
 
     V2-199 — V2-198 read `_SESSIONS` for the ended ones and **`_run_session` pops the record in its `finally`**,
     so in a real dispatch there was never anything left to find. Its unit tests placed records by hand and
@@ -445,6 +463,8 @@ def _remember_ended(rec) -> None:
     A light dict on purpose, not the record: `SessionRecord` holds the worker handles, and keeping it alive
     five minutes past the end would keep those alive too.
     """
+    if resuming:
+        return
     try:
         _ENDED_SESSIONS[str(rec.task_id)] = {
             "id": str(rec.task_id), "goal": (rec.goal or "").strip(), "status": str(rec.status or "done"),
@@ -452,6 +472,22 @@ def _remember_ended(rec) -> None:
         for k in [k for k, v in _ENDED_SESSIONS.items()
                   if time.time() - float(v.get("at") or 0) > JUST_ENDED_S]:
             _ENDED_SESSIONS.pop(k, None)
+    except Exception:  # noqa: BLE001
+        pass
+    # V2-222 — y si de verdad MURIÓ, se EMPUJA. Medido por el arnés sobre `hotel-under-15-days` con el contador
+    # de las dos vías: lo que se empuja como nota de sistema se dice en el turno siguiente 3 de 3 veces (3 s la
+    # pregunta del worker, 7 s el muro); lo que solo se RENDERIZA como línea de estado del prompt, 0 de 13, y con
+    # la redacción imperativa de V2-221 delante las trece veces. La línea de estado se queda (es el contexto de
+    # los cinco minutos siguientes); la orden viaja por el camino que sí llega.
+    try:
+        if str(rec.status or "") != "cancelled" and not bool(rec.ok):
+            from voice import brain_notes
+            _g = (rec.goal or "la tarea de fondo").strip()[:70]
+            brain_notes.push(
+                f"[SISTEMA] La tarea de fondo «{_g}» ha MUERTO sin resultado y no se va a reintentar sola. El "
+                f"operador no lo sabe: está esperando algo que ya no va a llegar. Díselo EN ESTE TURNO con tus "
+                f"palabras y ofrécele una salida concreta —reintentarlo, probar otra vía o dejarlo—; no digas "
+                f"«sigo con ello» ni «te aviso en cuanto lo tenga».")
     except Exception:  # noqa: BLE001
         pass
 
@@ -462,11 +498,31 @@ def recently_ended_sessions(now: float | None = None, limit: int = 3) -> list[di
     Espejo de `widgets/navegador/tasks.recently_finished()` (V2-150), cuya lección era: un final es un HECHO, y
     una tarea que desaparece del estado al terminar deja al turno con su propia memoria de haberla arrancado.
     Aquí faltaba entero.
+
+    V2-222 — y una gestión que está CORRIENDO no es una gestión que acabó, diga lo que diga el registro. Medido
+    por el arnés sobre `hotel-under-15-days` (sandbox `20260820-194231`), leyendo el system prompt de los ocho
+    turnos: siete llevaban la MISMA cadena de objetivo dos veces, en el mismo prompt —
+
+        TAREAS DE FONDO EN CURSO (… NO reinicies ni digas que ya está): «Busca hoteles de 4 estrellas…»
+            — abriendo una página… [paso 2/5, 40%] (llevas 64s)
+        TAREAS DE FONDO — YA ACABADAS: «Busca hoteles de 4 estrellas…» FALLÓ … DÍSELO EN ESTE TURNO
+
+    — porque el primer intento falló, `_remember_ended` lo archivó, y V2-049 relanzó el MISMO encargo con otro id.
+    Los dos bloques decían la verdad sobre sesiones distintas; el operador solo tenía UN encargo. El turno
+    contestó «sigo esperando resultados», que es la mitad CIERTA: no estaba desobedeciendo el imperativo, estaba
+    resolviendo una contradicción, y ninguna redacción de ninguna de las dos mitades podía arreglar eso.
+
+    `_remember_ended(resuming=True)` lo cierra en el origen. Este filtro es el cinturón: la reanudación
+    automática no es la única forma de que dos sesiones lleven un mismo objetivo (una escalada repetida también
+    lo hace), y el modo de fallo es un prompt que se discute a sí mismo — invisible salvo que se lea entero,
+    como se leyó este.
     """
     now = time.time() if now is None else now
+    _live = _live_goals()
     rows = [{**v, "ago_s": int(now - float(v.get("at") or now))}
             for v in _ENDED_SESSIONS.values()
-            if (now - float(v.get("at") or 0)) <= JUST_ENDED_S]
+            if (now - float(v.get("at") or 0)) <= JUST_ENDED_S
+            and (v.get("goal") or "").strip().lower() not in _live]
     rows.sort(key=lambda r: r["ago_s"])
     return rows[:max(1, limit)]
 
@@ -1358,6 +1414,9 @@ async def _run_session(task: "Task") -> None:
             except Exception:
                 pass
             _waiting_user = (rec.waiting_on == "user") or bool(rec.ask)
+            # V2-222 — ¿va a CONTINUAR sola? Se calcula aquí, ANTES de anotar el final, porque una sesión que se
+            # reanuda sola no ha terminado y anotarla como terminada es lo que partía el prompt en dos.
+            _will_resume = bool(_resumable and not _waiting_user and (_prev_count + 1) < _RESUME_CAP)
             # V2-079: rastro DURABLE de la ejecución que se va (el registro vivo se purga aquí y desaparecía). El
             # ledger conserva el histórico para la pestaña «Procesos» del ChatWall. Best-effort, fuera del hot-path.
             try:
@@ -1383,7 +1442,7 @@ async def _run_session(task: "Task") -> None:
                                         extra={"ok": bool(rec.ok), "status": str(rec.status or "")})
                 except Exception:
                     pass
-            _remember_ended(rec)          # V2-199: el final es un HECHO — antes de tirar el registro
+            _remember_ended(rec, resuming=_will_resume)   # V2-199: el final es un HECHO — antes de tirar el registro
             _SESSIONS.pop(key, None)
             try:
                 from nucleo import worker_api
@@ -1395,7 +1454,7 @@ async def _run_session(task: "Task") -> None:
             # FlashBrain no cesa la tarea ni espera un empujón del operador). Con pregunta pendiente NO: espera la
             # respuesta (que, al llegar como turno, reanuda por la misma vía). Con `ask` la purga de arriba ya la
             # quitó, por eso leímos _waiting_user ANTES.
-            if _resumable and not _waiting_user and (_prev_count + 1) < _RESUME_CAP:
+            if _will_resume:
                 _schedule_auto_resume(req)
 
 
