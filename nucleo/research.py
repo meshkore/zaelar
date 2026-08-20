@@ -191,10 +191,47 @@ def _spec():
     base = str(cfg.get("base_url") or "").strip()
     if model and base:
         from nucleo.flash.fast_client import ModelSpec
-        return ModelSpec(model=model, base_url=base, api_key=str(cfg.get("api_key") or ""))
+        # Pinned by the operator: NOT a chain pick, so a failure here must not put a chain tier on cooldown.
+        return ModelSpec(model=model, base_url=base, api_key=str(cfg.get("api_key") or "")), None
     from nucleo.flash import provider_chain
     tier = provider_chain.pick()
-    return provider_chain.spec_for(tier) if tier else None
+    return (provider_chain.spec_for(tier) if tier else None), tier
+
+
+def _note_provider_failure(exc: Exception, tier):
+    """Tell the CHAIN that this tier just died, and return the relay tier (or None to give up).
+
+    V2-225 — the composer read the chain (`_spec` → `pick()`) and never wrote to it. `note_failure()` had exactly
+    ONE production caller in the whole tree (`connectors/meshkore/brain.py`), so the cooldown that makes the relay
+    fire was only ever set when the CLUSTER brain happened to fail through the same provider first. The composer
+    lived off that coincidence, and when it ran out it just re-picked the dead tier forever.
+
+    Measured by the harness over two rounds of `hotel-under-15-days` (2026-08-20): at 20:01, 20:07 and 20:10 the
+    same exhausted provider was chosen all three times, two FastClient retries each, and the worker went out
+    blind after each one —
+
+        research: el compositor falló (429 — [1310][Weekly/Monthly Limit Exhausted. Your limit will reset at
+        2026-08-25 01:39:02]) — el worker sale SIN brief (búsqueda sin dirigir)
+
+    That message is precisely the shape `classify_failure` reads as `exhausted` WITH a reset date, which is the
+    case that puts a cooldown on and returns a relay. Nothing was missing from the mechanism; nobody was calling
+    it. Until 2026-08-25 that meant EVERY research escalation went out undirected — which is why a round's best
+    «result» was a €25 flamenco show.
+
+    A pinned model (`tier is None`) is never reported: the operator chose it, and a cooldown on a chain tier the
+    composer did not use would relay the cluster brain for someone else's fault.
+
+    The FAIL-OPEN stays exactly as it was: if there is no relay, the exception travels and the worker leaves
+    without a brief. This only adds the line that marks the provider before giving up.
+    """
+    if tier is None:
+        return None
+    try:
+        from nucleo.flash import provider_chain
+        nxt = provider_chain.note_failure(str(exc), tier=tier)
+        return nxt if (nxt or {}).get("base_url") and nxt.get("name") != tier.get("name") else None
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def enabled() -> bool:
@@ -250,14 +287,26 @@ async def compose(request: str, context: str = "", *, timeout: float = _COMPOSE_
         return None
     try:
         from nucleo.flash.fast_client import FastClient
-        spec = _spec()
+        spec, tier = _spec()
         if spec is None:
             logger.warning("research: sin proveedor disponible para el compositor — el worker sale SIN brief")
             raise ComposerUnavailable("sin proveedor")
         from nucleo.dispatch_prompts import _today_block  # V2-098: canonical home, moved out of dispatch.py
-        out = await asyncio.wait_for(
-            FastClient().complete(build_messages(req, context, _today_block()), spec=spec, max_tokens=1600),
-            timeout=timeout)
+        _msgs = build_messages(req, context, _today_block())
+        try:
+            out = await asyncio.wait_for(
+                FastClient().complete(_msgs, spec=spec, max_tokens=1600), timeout=timeout)
+        except asyncio.TimeoutError:
+            raise
+        except Exception as e:  # noqa: BLE001
+            # V2-225 — el compositor LEÍA la cadena y nunca la ESCRIBÍA, así que su relevo no podía dispararse.
+            _relay = _note_provider_failure(e, tier)
+            if _relay is None:
+                raise
+            logger.warning(f"research: el compositor releva a {_relay.get('name')} tras «{str(e)[:80]}»")
+            from nucleo.flash import provider_chain as _pc_retry
+            out = await asyncio.wait_for(
+                FastClient().complete(_msgs, spec=_pc_retry.spec_for(_relay), max_tokens=1600), timeout=timeout)
     except asyncio.TimeoutError:
         logger.warning(f"research: el compositor no contestó en {timeout:.0f}s — el worker arranca SIN brief "
                        "(búsqueda sin dirigir); mejor eso que dejar la tarea sin salir")

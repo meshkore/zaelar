@@ -228,7 +228,9 @@ def test_a_slow_composer_never_holds_the_task_hostage(monkeypatch):
             await asyncio.sleep(30)
             return _raw()
 
-    monkeypatch.setattr(research, "_spec", lambda: object())
+    # V2-225: `_spec` devuelve (spec, tier) — el tier es lo que se reporta a la cadena si el proveedor
+    # muere. `None` = modelo fijado por el operador, que no es una elección de la cadena.
+    monkeypatch.setattr(research, "_spec", lambda: (object(), None))
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient", lambda *a, **k: _Hung())
     with pytest.raises(research.ComposerUnavailable):
         asyncio.run(research.compose("busca las mejores vacaciones", timeout=0.2))
@@ -241,7 +243,9 @@ def test_a_broken_composer_fails_open(monkeypatch):
         async def complete(self, *a, **k):
             raise RuntimeError("429 sin cuota")
 
-    monkeypatch.setattr(research, "_spec", lambda: object())
+    # V2-225: `_spec` devuelve (spec, tier) — el tier es lo que se reporta a la cadena si el proveedor
+    # muere. `None` = modelo fijado por el operador, que no es una elección de la cadena.
+    monkeypatch.setattr(research, "_spec", lambda: (object(), None))
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient", lambda *a, **k: _Boom())
     with pytest.raises(research.ComposerUnavailable):
         asyncio.run(research.compose("busca las mejores vacaciones"))
@@ -261,7 +265,9 @@ def test_a_good_composer_produces_a_directed_brief(monkeypatch):
         async def complete(self, *a, **k):
             return _raw()
 
-    monkeypatch.setattr(research, "_spec", lambda: object())
+    # V2-225: `_spec` devuelve (spec, tier) — el tier es lo que se reporta a la cadena si el proveedor
+    # muere. `None` = modelo fijado por el operador, que no es una elección de la cadena.
+    monkeypatch.setattr(research, "_spec", lambda: (object(), None))
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient", lambda *a, **k: _Ok())
     b = asyncio.run(research.compose("nos queremos ir de vacaciones a Baleares en agosto"))
     assert b["breadth"]["min_candidates"] >= research._MIN_CANDIDATES_FLOOR
@@ -420,7 +426,9 @@ def test_declining_is_not_an_outage_and_keeps_the_normal_budget(monkeypatch):
         async def complete(self, *a, **k):
             return '{"research": false, "why": "es una pregunta, no una selección"}'
 
-    monkeypatch.setattr(research, "_spec", lambda: object())
+    # V2-225: `_spec` devuelve (spec, tier) — el tier es lo que se reporta a la cadena si el proveedor
+    # muere. `None` = modelo fijado por el operador, que no es una elección de la cadena.
+    monkeypatch.setattr(research, "_spec", lambda: (object(), None))
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient", lambda *a, **k: _No())
     assert asyncio.run(research.compose("¿qué hora es?")) is None
 
@@ -434,7 +442,9 @@ def test_an_unreadable_answer_is_an_outage_not_a_decline(monkeypatch):
         async def complete(self, *a, **k):
             return "claro, te preparo un brief… (y aquí se cortó)"
 
-    monkeypatch.setattr(research, "_spec", lambda: object())
+    # V2-225: `_spec` devuelve (spec, tier) — el tier es lo que se reporta a la cadena si el proveedor
+    # muere. `None` = modelo fijado por el operador, que no es una elección de la cadena.
+    monkeypatch.setattr(research, "_spec", lambda: (object(), None))
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient", lambda *a, **k: _Garbage())
     with pytest.raises(research.ComposerUnavailable):
         asyncio.run(research.compose("busca las mejores vacaciones"))

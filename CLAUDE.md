@@ -1275,6 +1275,42 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Decirlo una vez no es olvidarlo** (`nucleo/dispatch.py` + `nucleo/flash/prompt.py`, V2-224, 2026-08-20). La
+  instrucción incondicional de V2-221 funcionó —el arnés midió **2 de 2** turnos diciéndolo, en el turno 2, sin
+  que nadie preguntara— pero llevaba la anti-repetición DENTRO de la misma frase, y eso se midió en **dos rondas
+  del MISMO commit con fallos OPUESTOS**: en una lo dijo en el turno 2 y lo repitió en el 5, 6, 7, 8 y 9 (el
+  disco rayado de V2-189); en la otra lo dijo en el turno 2 y luego lo NEGÓ siete turnos («Sigo con ello», «Dame
+  un momento»).
+  - **No es un umbral mal puesto**: «¿ya se lo dije?» era una deducción del modelo sobre la ventana, y era un
+    HECHO que nosotros teníamos y no le dábamos. Ahora se cuenta (`dispatch.mark_death_reported`, que mueve el
+    turno que lo LLEVÓ delante, no el que murió: entre la muerte y el prompt siguiente puede no haber ninguno).
+  - **La redacción sigue la frase con la que el arnés lo diagnosticó: callar la repetición NO es callar el
+    estado.** La cara posterior deja de dar la noticia y mantiene la prohibición — «no se lo vuelvas a anunciar,
+    pero SIGUE MUERTA: si pregunta cómo va o dice que espera tranquilo, no digas «sigo con ello» ni «dame un
+    momento»». Sin esa mitad, arreglar el disco rayado reabre el silencio, que es justo lo que pasó en la ronda 6.
+  - **Una instrucción por turno**, y hay un test que lo fija: dos órdenes en la misma frase se resolvían a cara o
+    cruz según la ronda. Nodo 4.26, 9 tests.
+
+- **El compositor de investigación LEÍA la cadena de proveedores y nunca la ESCRIBÍA** (`nucleo/research.py`,
+  V2-225, 2026-08-20). `_spec()` va por `provider_chain.pick()` y su docstring promete que «si el proveedor
+  principal está sin cuota, releva en vez de morir». No se cumplía, y **no porque faltara el relevo**:
+  `note_failure()` tenía UN solo llamador de producción en todo el árbol (`connectors/meshkore/brain.py`), así
+  que el cooldown que dispara el relevo solo existía si el cerebro de CLUSTER había fallado antes por el mismo
+  sitio. El compositor vivía de esa casualidad.
+  - **Evidencia** (arnés, dos rondas de `hotel-under-15-days`, 2026-08-20): a las 20:01, 20:07 y 20:10 se eligió
+    el MISMO proveedor agotado las tres veces, con dos reintentos cada una, y el worker salió a ciegas después de
+    cada una — «429 — [1310][Weekly/Monthly Limit Exhausted. Your limit will reset at 2026-08-25 01:39:02]». Ese
+    texto es exactamente la forma que `classify_failure` lee como `exhausted` CON fecha de reset, que es el caso
+    que pone cooldown y devuelve relevo. **No faltaba mecanismo: faltaba la llamada.**
+  - **Impacto, y es el techo de varios casos**: hasta el 2026-08-25 TODA escalada de investigación salía sin
+    dirigir. Por eso el mejor «resultado» de una ronda fue un espectáculo de flamenco de 25 €. Un caso que
+    dependa de research no podía puntuar en resultado, y no por el producto.
+  - Se reintenta con el relevo EN LA MISMA llamada: marcar el escalón arregla la tarea siguiente, reintentar
+    arregla también la que está en curso — y la evidencia son tres tareas seguidas a ciegas.
+  - **El fail-open no se toca** (sin relevo, el worker sale sin brief, como siempre) y **un modelo fijado por el
+    operador nunca se reporta**: poner en cooldown un escalón que el compositor no usó relevaría al cerebro de
+    cluster por culpa ajena. Nodo 4.27, 7 tests.
+
 - **El prompt se contradecía a sí mismo, y el turno elegía la mitad cierta** (`nucleo/dispatch.py`, V2-222,
   2026-08-20). El arnés midió con un contador de las dos vías sobre `hotel-under-15-days`: lo que se EMPUJA como
   nota de sistema se dice en el turno siguiente **3 de 3** (3 s la pregunta del worker, 7 s el muro), lo que solo
@@ -1284,8 +1320,8 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   llevaban el mismo encargo dos veces**, carácter por carácter: «TAREAS DE FONDO EN CURSO (… NO reinicies ni
   digas que ya está): «Busca hoteles de 4 estrellas…» — abriendo una página… [paso 2/5, 40%]» y «TAREAS DE FONDO
   — YA ACABADAS: «Busca hoteles de 4 estrellas…» FALLÓ … DÍSELO EN ESTE TURNO».
-  - **Causa**: el primer intento falló, `_remember_ended` lo archivó, y V2-049 (auto-resume) relanzó el MISMO
-    encargo con otro id. Los dos bloques decían la verdad sobre sesiones distintas mientras el operador tenía UN
+  - **Causa**: el primer intento falló, `_remember_ended` lo archivó, y la reanudación automática de una gestión web
+    incompleta (`dispatch._schedule_auto_resume`) relanzó el MISMO encargo con otro id. Los dos bloques decían la verdad sobre sesiones distintas mientras el operador tenía UN
     encargo. **«Sigo esperando resultados» era la mitad CIERTA**: el turno no desobedecía, resolvía una
     contradicción — y por eso V2-221 midió 0/7 en la ronda que lo llevaba, y habría medido 0/7 escrito de
     cualquier otra forma.

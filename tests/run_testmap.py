@@ -553,6 +553,18 @@ DOMAINS: list[dict] = [
         {"id": "4.25", "title": "Lo que el navegador ENCUENTRA llega a la hoja y a la conversación",
             "ch": UNIT,
             "paths": ["tests/browser/unit/navegador/test_what_the_browser_finds_reaches_someone.py"]},
+        # V2-224 — la cláusula anti-repetición de 4.23 medida en DOS rondas del MISMO commit dio fallos OPUESTOS:
+        # en una repitió el aviso cinco turnos, en la otra se calló entero y volvió a «sigo con ello». «¿Ya se lo
+        # dije?» era una deducción del modelo; ahora es un hecho que contamos. Callar la repetición ≠ callar el
+        # estado.
+        {"id": "4.26", "title": "Decirlo una vez no es olvidarlo: el aviso se calla, el estado no",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_saying_it_once_is_not_the_same_as_forgetting_it.py"]},
+        # V2-225 — el compositor de investigación LEÍA la cadena de proveedores y nunca la ESCRIBÍA, así que su
+        # relevo no podía dispararse: mismo proveedor agotado elegido tres veces seguidas y worker a ciegas.
+        {"id": "4.27", "title": "El compositor REPORTA el proveedor muerto y releva (no solo lo lee)",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_the_composer_reports_a_dead_provider.py"]},
         {"id": "4.19", "title": "Shell MÓVIL RENDERIZADO: el orbe centrado y PINTADO, la barra alcanzable",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/mobile/render_dock.py"},
