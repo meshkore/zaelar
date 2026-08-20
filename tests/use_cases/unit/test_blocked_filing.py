@@ -176,3 +176,36 @@ def test_a_runnable_case_can_also_be_grouped_under_the_umbrella():
     path = I.INITIATIVES / I.BLOCKED_UMBRELLA
     if path.is_file():
         assert I.grouped_for("cheapest-monitor") is not None
+
+
+def test_a_case_that_is_BOTH_blocked_and_grouped_files_in_its_OWN_umbrella(monkeypatch, tmp_path):
+    """`find-theatre-tickets__es` necesita cuenta y tarjeta (bloqueado) **y** está en V2-167 (agrupado). Su
+    paraguas propio manda.
+
+    Sin esto, la MISMA medición cae en un fichero u otro según qué camino la archive —la rama de bloqueados
+    escribe en V2-176, la de agrupados en V2-167— y la evidencia de un caso queda partida entre dos
+    iniciativas. Se vio el 2026-08-20 preparando el handoff: los dos paraguas tenían rondas del mismo caso, y
+    quien tiene que arreglarlo no puede saber que le falta la mitad.
+    """
+    from tests.use_cases.e2e.agent import initiative as I, segments as SG, scenarios as SC
+
+    sid = "find-theatre-tickets__es"
+    assert not SG.is_completable(sid), "el caso de prueba tiene que estar BLOQUEADO"
+    assert I.grouped_for(sid) is not None, "y AGRUPADO"
+
+    monkeypatch.setattr(I, "INITIATIVES", tmp_path)
+    own = tmp_path / I.GROUPED["find-theatre-tickets"]
+    own.write_text("---\nstatus: open\n---\n\n# propio\n", encoding="utf-8")
+    (tmp_path / I.BLOCKED_UMBRELLA).write_text("---\nstatus: open\n---\n\n# bloqueados\n", encoding="utf-8")
+
+    res = I.file_failure(
+        {"scenario": sid, "tier": 1,
+         "run": {"transcript": [], "mechanism_report": {}, "watchdog_log": []},
+         "verdict": {"overall": 2, "scores": {}, "veredicto": "narró lo que no pasó",
+                     "findings": [], "improvements": []}},
+        scenario=SC.registry()[sid], sandboxed=True)
+
+    assert res["initiative"] == own, (
+        f"la ronda fue a {res['initiative'].name if res['initiative'] else None} en vez de a su paraguas propio")
+    assert "Ronda 1" in own.read_text(encoding="utf-8")
+    assert res.get("blocked"), "sigue teniendo que DECIR que está bloqueado, solo cambia dónde escribe"

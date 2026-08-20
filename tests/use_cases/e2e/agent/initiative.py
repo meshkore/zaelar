@@ -401,7 +401,12 @@ def file_failure(result: dict, *, scenario, sandboxed: bool, force_new: bool = F
             # needs no credential to see: it is the transcript against the mechanism report. The round goes to
             # the shared umbrella; suppressing it outright would have thrown away the only finding worth having
             # (measured 2026-08-20: two blocked cases, both `naturalidad 5` with `mecanismo 1-2`).
-            if (umb := _blocked_umbrella()) is not None:
+            # Un caso puede ser BLOQUEADO **y** estar agrupado (`find-theatre-tickets__es`, `book-hotel…`,
+            # `restaurant…`: los tres necesitan cuenta y tarjeta, y los tres están en V2-167). Su paraguas
+            # propio manda sobre el de bloqueados: si no, la MISMA medición cae en un fichero u otro según qué
+            # camino la archive, y la evidencia de un caso queda partida entre dos iniciativas. Visto el
+            # 2026-08-20 leyéndolas para el handoff: V2-167 y V2-176 tenían rondas del mismo caso.
+            if (umb := (grouped_for(scenario.id) or _blocked_umbrella())) is not None:
                 body = umb.read_text(encoding="utf-8").rstrip("\n")
                 rounds = len(re.findall(r"^## Ronda ", body, re.M)) + 1
                 body += (f"\n\n## Ronda {rounds} · `{scenario.id}` — {stamp}\n\n"
