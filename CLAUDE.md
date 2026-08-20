@@ -1316,7 +1316,8 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   V2-236, 2026-08-21). El arnés leyó la observabilidad entera (antes veía el 38 % de 1291 eventos): los eventos
   `kind='search'` traían «Philips 27E1N1800A/00 — 27" UHD 4K — 159,00 €» y «Alurin CoreVision 27" — 149,99 €»,
   justo lo que el operador pidió. **Búsquedas 7 · respuestas 5 · notas al cerebro desde ese canal 0.** El porqué:
-  **5 de 8 workers devolvieron `ok:false`** — se caen antes de entregar y el texto bueno se va con ellos.
+  el worker se cae antes de entregar y el texto bueno se va con él — **8 workers lanzados · 3 ok · 3 con ERROR · 2 cancelados** por el propio arnés al cerrar su sandbox con el worker todavía trabajando. (La primera cifra que
+  circuló, «5 de 8 muertos», la corrigió el propio arnés: contaba como muertes sus dos cancelaciones de test.)
   **Zaelar dijo «la búsqueda se ha caído sin terminar»: decía LA VERDAD**, y se le puntuó como vaguedad. Tercera
   vez en la misma tanda que el turno describe con fidelidad lo poco que le llega y el diagnóstico apunta primero
   a su conducta.
