@@ -515,6 +515,11 @@ DOMAINS: list[dict] = [
             "tests/infrastructure/unit/test_bus.py", "tests/infrastructure/unit/test_bus_log.py",
             "tests/platform/tests/test_events.py", "tests/platform/tests/test_catalog.py",
             "tests/platform/tests/test_pytest_plugin.py"]},
+        # El motor DESECHABLE es uno solo y compartido (`journey` + `use_cases`, unificado el 2026-08-20).
+        # `journey` levantaba el suyo y a esa copia le faltaba `ZAELAR_LOG_DIR`, así que sus eventos iban al
+        # timeline REAL del operador — medido en vivo: 80 → 243 líneas en una corrida de 4 pasos.
+        {"id": "7.14", "title": "Aislamiento del motor desechable: el timeline del operador nunca es el destino",
+            "ch": UNIT, "paths": ["tests/platform/tests/test_sandbox_isolation.py"]},
         {"id": "7.2", "title": "Observer SSE", "ch": HTTP, "paths": [
             "tests/infrastructure/integration/test_sse_observer.py", "tests/infrastructure/unit/test_zai_sse.py"]},
         # 2026-08-10: un RESET deliberado abre una SESIÓN DE TRABAJO NUEVA (id nuevo + observabilidad a cero). Antes

@@ -12,9 +12,6 @@ import asyncio
 import json
 import os
 from pathlib import Path
-import socket
-import subprocess
-import sys
 import tempfile
 import time
 import urllib.error
@@ -22,15 +19,7 @@ import urllib.request
 from typing import Any
 
 from tests.journey.catalog import case_id, load_plan, serialize
-
-
-ENGINE = Path(__file__).resolve().parents[2]
-
-
-def _free_port() -> int:
-    with socket.socket() as sock:
-        sock.bind(("127.0.0.1", 0))
-        return int(sock.getsockname()[1])
+from tests.platform.sandbox_engine import sandbox_engine
 
 
 def _request(base: str, path: str, *, body: dict | None = None, timeout: float = 90) -> tuple[int, Any]:
@@ -48,24 +37,6 @@ def _request(base: str, path: str, *, body: dict | None = None, timeout: float =
         except json.JSONDecodeError:
             payload = {"error": raw.decode("utf-8", "replace")}
         return exc.code, payload
-
-
-def _wait_ready(base: str, process: subprocess.Popen, timeout: float = 35, log_path: Path | None = None) -> None:
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        if process.poll() is not None:
-            tail = ""
-            if log_path and log_path.exists():
-                tail = "\n" + "\n".join(log_path.read_text(encoding="utf-8", errors="replace").splitlines()[-80:])
-            raise RuntimeError(f"engine aislado terminó durante el arranque (exit {process.returncode}){tail}")
-        try:
-            status, _ = _request(base, "/api/status", timeout=1)
-            if status == 200:
-                return
-        except Exception:
-            pass
-        time.sleep(0.2)
-    raise TimeoutError(f"engine aislado no respondió en {base}")
 
 
 def _flat(value: Any) -> str:
@@ -375,23 +346,27 @@ def run(until: int) -> dict[str, Any]:
             observer.emit("test.discovered", test_id=case_id(index), suite="journey", label=case["title"],
                           index=index + 1, total=len(selected), case=serialize(index, case))
         observer.emit("collection.finished", suite="journey", total=len(selected))
-    with tempfile.TemporaryDirectory(prefix="zaelar-journey-") as workspace:
-        port = _free_port()
-        base = f"http://127.0.0.1:{port}"
-        env = os.environ.copy()
-        env.update({
-            "PORT": str(port), "HOST": "127.0.0.1", "BRAIN": "nucleo", "ZAELAR_ENGINE": "headless",
-            "ZAELAR_WORKSPACE": workspace, "ZAELAR_DB": str(Path(workspace) / "memory" / "_data" / "journey.db"),
-            "ZAELAR_HOMEOSTASIS": "0", "WA_ENABLED": "0", "TG_ENABLED": "0", "BROWSER_SEARCH": "1",
-            "MESHKORE_AUTORECONNECT": "0", "ZAELAR_TLS_CERT_DIR": str(Path(workspace) / "no-tls"),
-        })
-        log_path = Path(os.getenv("ZAELAR_TEST_RUN_DIR", workspace)) / "artifacts" / "journey-engine.log"
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        with log_path.open("wb") as log:
-            process = subprocess.Popen([sys.executable, "-m", "server"], cwd=ENGINE, env=env,
-                                       stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
-        try:
-            _wait_ready(base, process, log_path=log_path)
+    # ONE definition of "throwaway engine", shared with `use_cases` (2026-08-20). This runner used to boot its
+    # own: its own free port, its own tempdir, its own list of env vars — and that copy was missing
+    # `ZAELAR_LOG_DIR`, so every journey run appended its events to the OPERATOR's real
+    # `.meshkore/logs/timeline-latest.jsonl`. That is the 2026-07-25 incident (test events read as a live
+    # session), and `tests/platform/sandbox_engine.py` had been carrying a written note about this exact leak
+    # («noted here rather than silently fixed in another suite's file») since it was extracted from THIS file.
+    #
+    # Two isolations maintained apart, and the agujero was in the one nobody re-read. The engine boot is not
+    # what makes journey journey — the causal plan is — so it moves to the shared helper and the leak closes
+    # for every future caller at once.
+    #
+    # `ZAELAR_ENGINE` used to be `headless` here and is `off` in the helper: verified identical, since
+    # `server/__init__.py` only branches on `== "livekit"`. Kept as the helper's `off` rather than adding a
+    # third spelling for the same behaviour.
+    with tempfile.TemporaryDirectory(prefix="zaelar-journey-") as run_home:
+        # The engine log is EVIDENCE of a boot crash, so it must outlive the engine's throwaway workspace:
+        # under the Observatory it lands in the run's `artifacts/` (survives the run), otherwise in a temp dir
+        # that at least survives the workspace teardown.
+        log_path = Path(os.getenv("ZAELAR_TEST_RUN_DIR", run_home)) / "artifacts" / "journey-engine.log"
+        with sandbox_engine(extra_env={"BROWSER_SEARCH": "1"}, log_path=log_path) as eng:
+            base = eng.base_url
             journey = Journey(base, session=f"journey-{int(time.time())}")
             results = []
             for index, case in enumerate(selected):
@@ -421,13 +396,9 @@ def run(until: int) -> dict[str, Any]:
                     # imprime el resumen accionable + la ruta. Nada se pierde; deja de ser ilegible.
                     print(_dump_failure(case, output, log_path.parent), flush=True)
                     break
-        finally:
-            process.terminate()
-            try:
-                process.wait(timeout=12)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait(timeout=5)
+        # Sin `finally` de derribo a mano: el contextmanager mata el proceso, espera, y ADEMÁS borra el código
+        # de los widgets que este motor haya generado — un residuo que estaba medido que CORROMPE corridas
+        # posteriores, no solo que ensucia el repo.
         passed = sum(item["ok"] for item in results)
         return {"total": len(results), "passed": passed, "failed": len(results) - passed, "results": results}
 

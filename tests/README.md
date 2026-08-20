@@ -99,7 +99,7 @@ E2E unless Chromium/Playwright was actually driven against the live application.
 
 ### Whole-system chronological journey
 
-`journey` is the primary integration story, not another collection of isolated checks. Its 26 cases share one
+`journey` is the primary integration story, not another collection of isolated checks. Its 29 cases share one
 disposable engine, workspace, database, session history, canvas, agenda and worker registry. Each case declares
 what prior state it consumes and what verified state it produces; selecting a later case replays its full prefix.
 It covers natural memory extraction and correction, deictic widget use, a persisted appointment, one complex
@@ -213,6 +213,33 @@ another to a live task donating a false `worker` signal to a scenario that never
 
 ⚠️ Do **not** run `make run` while a sandbox is alive: `scripts/run-livekit.sh` reaps every
 `python -m server` by process NAME, not by port, and will kill it. The reverse is safe.
+
+## One throwaway engine, one isolation contract
+
+`tests/platform/sandbox_engine.py` is the ONLY place that defines what a disposable engine is. Both suites
+that need a real full engine use it: `use_cases` and — since 2026-08-20 — `journey`.
+
+It isolates `ZAELAR_WORKSPACE` (widget data, config, and `config/identity.json`, i.e. the install's
+`user_id`), `ZAELAR_DB` (memory + the durable bus `events` log) and **`ZAELAR_LOG_DIR`**, plus it disables
+the LiveKit worker, homeostasis, the messaging connectors, the second TLS listener and MeshKore
+auto-reconnect. On exit it kills the process, drops the workspace, and deletes the widget CODE that engine
+generated.
+
+**Why it is shared and not copied.** `journey` used to boot its own, and that copy was missing
+`ZAELAR_LOG_DIR` — which `voice/observer.py` resolves from the REPO ROOT, not from the workspace — so every
+`journey` run appended its events to the operator's real `.meshkore/logs/timeline-latest.jsonl`. That is the
+2026-07-25 incident (test events read as a live session), and this module had been carrying a written note
+about that exact leak since it was extracted from `journey`'s runner. Two isolations maintained apart, and
+the hole was in the one nobody re-read. A new isolation need belongs HERE, once.
+
+Credentials are deliberately NOT isolated (`server/common.py` loads `.env` + `.meshkore/credentials/` from
+the repo root): the point is a clean DATABASE, not a crippled engine that cannot call a model.
+
+**Known limits, written down rather than discovered twice:** the operator's Master
+(`cloud/backoffice/`) does NOT see sandbox engines — it reaches exactly one local agent hardcoded to
+`127.0.0.1:43917` plus cloud accounts, so a use-case or journey run never appears on its Sessions screen;
+and a sandbox identity is a bare UUID4 with no email or `test` marker, so it is indistinguishable from a
+real self-host if it ever did show up. Both are open (2026-08-20).
 
 **Where the scenarios come from.** Nine are hand-written (`scenarios.py`); the other 110 are DERIVED from
 the catalog (`derived.py`) — shared persona scaffolding written once, plus per-case specifics (what the

@@ -24,8 +24,14 @@ What makes the isolation real (each of these was verified against the code that 
     without this an isolated engine appends its events to the operator's real
     `.meshkore/logs/timeline-latest.jsonl`. That is the 2026-07-25 incident (test events mistaken for a live
     session) waiting to happen again; the root `conftest.py` sets this for pytest for precisely that reason,
-    but a spawned subprocess bypasses conftest. `tests/journey/runner.py` does NOT set it today — a real,
-    pre-existing leak in that runner, noted here rather than silently fixed in another suite's file.
+    but a spawned subprocess bypasses conftest.
+    This note used to end "`tests/journey/runner.py` does NOT set it today — a real, pre-existing leak in
+    that runner, noted here rather than silently fixed in another suite's file". It stayed true for months,
+    which is the lesson: documenting a leak in the module that does NOT have it does not fix it. On
+    2026-08-20 journey was ported to this helper and the leak was measured first — 4 steps took the
+    operator's timeline from 80 to 243 lines on the old boot, and left it at 80 on this one. Node 7.14
+    (`tests/platform/tests/test_sandbox_isolation.py`) now holds the contract, including that journey boots
+    through here and not on its own.
   · `ZAELAR_ENGINE=off` — skips the embedded LiveKit worker AND the `livekit_api` router
     (`server/__init__.py`, `!= "livekit"`). The probe channel does not need LiveKit at all: `/api/flash/say`
     mounts on `active_brain() == "nucleo"` alone, which is what makes a headless sandbox possible.
@@ -179,13 +185,19 @@ def preferred_port(want: int) -> int:
 
 @contextmanager
 def sandbox_engine(*, boot_timeout: float = 90.0, keep_workspace: Path | None = None,
-                   port: int | None = None, extra_env: dict | None = None):
+                   port: int | None = None, extra_env: dict | None = None,
+                   log_path: Path | None = None):
     """Boot an isolated engine, yield a `SandboxEngine`, and tear it down (process + workspace) on exit.
 
-    `boot_timeout` defaults higher than journey's 35s: this engine cold-starts a reranker and an embedding
+    `boot_timeout` defaults higher than journey's old 35s: this engine cold-starts a reranker and an embedding
     backend on a machine that may already be running the operator's engine, and a flaky timeout would look
     exactly like a real failure. `keep_workspace` writes into a caller-owned directory instead of a temp one
     (so a failed run's DB/logs survive for inspection); `extra_env` overrides any var for one-off needs.
+
+    `log_path` puts the engine's stdout/stderr somewhere the CALLER owns. It matters when the workspace is a
+    throwaway: the log is the evidence of a boot crash, and with the default path it dies with the workspace
+    at exactly the moment it is most needed. `journey` passes its run's `artifacts/` so a failure survives
+    the run (and so the terminal can print a path that still exists when the operator reads it).
     """
     tmp = None
     if keep_workspace is None:
@@ -198,7 +210,10 @@ def sandbox_engine(*, boot_timeout: float = 90.0, keep_workspace: Path | None = 
     port = port or free_port()
     logs = workspace / "logs"
     logs.mkdir(parents=True, exist_ok=True)
-    log_path = logs / "sandbox-engine.log"
+    if log_path is None:
+        log_path = logs / "sandbox-engine.log"
+    else:
+        log_path.parent.mkdir(parents=True, exist_ok=True)
 
     env = os.environ.copy()
     env.update({
