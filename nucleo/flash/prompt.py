@@ -593,7 +593,7 @@ def live_state() -> str:
             except Exception:
                 _prog = {}
             _bits = []
-            _blocked = False
+            _blocked = _login = False
             for _tid, _g in act:
                 _b = f"«{(_g or 'tarea')[:70]}»"
                 _p = _prog.get(_tid) or {}
@@ -632,7 +632,14 @@ def live_state() -> str:
                     # the restaurant sat 11 minutes on the right page, the hotel 3 minutes on Booking's anti-bot
                     # challenge, the theatre passed through a CAPTCHA. In all three the brain told the truth and
                     # the truth was useless, because the only truth it had was that the task was alive.
-                    if _p.get("wall"):
+                    # V2-176 frente 3: esperar a que el operador ENTRE es lo más parecido a un muro que hay,
+                    # y el único que se quita solo… si alguien se lo dice. `active_progress()` lo expone desde
+                    # V2-167 y este bloque no lo leía nunca, así que una tarea parada en el login convivía con
+                    # «te dará el resultado sola»: el operador esperaba a la tarea y la tarea al operador.
+                    if _p.get("awaiting_login"):
+                        _b += " · PARADA ESPERANDO A QUE ENTRES TÚ (hay una ventana abierta para iniciar sesión)"
+                        _blocked = _login = True
+                    elif _p.get("wall"):
                         _b += f" · MURO: {_p['wall']}"
                         _blocked = True
                     elif int(_p.get("stalled_s") or 0) >= _STALLED_S:
@@ -651,7 +658,15 @@ def live_state() -> str:
             _shared = (" NO abras otra tarea ni reinicies la búsqueda para esto mismo — solo hay UN navegador. "
                        "Y NO describas lo que estaría haciendo («está en la página», «interactuando», "
                        "«rellenando el formulario»). Los segundos que lleva NO son una descripción de lo que hace.")
-            if _blocked:
+            if _login:
+                lines.append(
+                    _head + " ESTO ESTÁ PARADO Y SOLO LO DESBLOQUEA ÉL: la tarea no va a avanzar ni un paso "
+                    "hasta que el operador inicie sesión en la ventana que tiene abierta. DÍSELO en este turno, "
+                    "aunque acabe de decir que espera tranquilo, y con las palabras exactas de lo que tiene que "
+                    "hacer («tienes una ventana abierta en X, entra con tu cuenta y me lo dices»). NO es un "
+                    "fracaso: pararse en su login es lo correcto, y ahora mismo es lo ÚNICO que falta. Callarlo "
+                    "es dejarle esperando a una tarea que está esperándole a él." + _shared)
+            elif _blocked:
                 lines.append(
                     _head + " ESTO ESTÁ BLOQUEADO: lo de arriba (MURO / «sin moverse») es un HECHO medido, no "
                     "falta de novedades, y esa tarea NO va a terminar sola. DILO en este turno, aunque el "

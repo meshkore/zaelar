@@ -1275,6 +1275,24 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Una tarea parada esperando a que el operador ENTRE decía «te dará el resultado sola»** (`nucleo/flash/prompt.py`,
+  V2-176 frente 3, 2026-08-20). Lo que faltaba NO era detectarlo: `awaiting_login` existe desde INI-016, lo
+  escribe el flujo de login real y `active_progress()` lo expone desde V2-167 — **`prompt.py` no lo leía
+  nunca**. Así que una tarea parada en el login convivía con la promesa de que terminaría sola: el operador
+  esperando a la tarea, y la tarea esperándole a él. Había una línea («HAY UN INICIO DE SESIÓN PENDIENTE… si
+  el operador dice que ya entró, llama a `login_done`») que solo dice qué hacer **si él lo menciona primero**;
+  nadie iba a avisarle.
+  - Bloquea la promesa como un muro (V2-185) pero con **su propia salida**, porque la del muro sería el consejo
+    equivocado: «otro sitio, que entre él, o dejarlo» → aquí falta UNA cosa, y rendirse sobre algo que solo
+    falta que él teclee es rendirse mal. Y **NO es un fracaso**: pararse en su login es la conducta correcta.
+  - Se dice **aunque el operador acabe de decir que espera** — «vale, espero» → «sigo con ello» es el patrón
+    medido en los dos casos, y esta espera no se resuelve sola NUNCA.
+  - El login **gana a un muro** en la misma tarea: dos salidas distintas para la misma pantalla es lo que hace
+    que no tome ninguna.
+  - **V2-176 sigue abierta con SOLO el frente 1**, que es el difícil y no es un dato que falte: distinguir
+    «estoy accediendo a tu cuenta» (hecho comprobable) de «voy a intentar acceder» (intención). Es una frontera
+    de lenguaje y quiere su propia medición, no otra frase en el bloque.
+
 - **Un hecho que solo vive un turno es un hecho que la conversación pierde** (`nucleo/flash/fast_client.py` +
   `prompt.py`, V2-176 frente 2, 2026-08-20). Tercera vez en dos días, así que ya es patrón de diseño
   y no anécdota: **V2-150** (una tarea que TERMINA desaparecía del estado), **V2-190** (una confirmación que

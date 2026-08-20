@@ -448,3 +448,71 @@ def test_and_it_reaches_the_turn_as_a_BLOCKED_task():
     assert "· MURO: " in state and "página de error" in state
     assert "ESTO ESTÁ BLOQUEADO" in state
     assert "te dará el resultado sola" not in state
+
+
+# ── V2-176 frente 3: esperar a que entre ÉL es lo más parecido a un muro que hay ──────────────────────────
+#
+# El paraguas lo nombra como el frente más prometedor: «esto necesita tu cuenta, no puedo seguir» es una
+# respuesta EXCELENTE, y hoy el agente prefiere inventarse el login. La pieza que faltaba no era detectarlo
+# —`awaiting_login` existe, lo escribe el flujo de login real y `active_progress()` lo expone desde V2-167—
+# sino que **`prompt.py` no lo leía nunca**. Así que una tarea parada en el login convivía con «Esa tarea
+# sigue viva y te dará el resultado sola»: el operador esperando a la tarea, y la tarea esperándole a él.
+#
+# Es el mismo fallo que V2-185 con la salida cambiada: aquí no hay que ofrecer otro sitio ni dejarlo — hay que
+# decirle que entre.
+def _awaiting(tid):
+    tasks._tasks[tid]["awaiting_login"] = True
+
+
+def test_a_task_waiting_for_the_operator_to_sign_in_is_not_promised_to_finish_alone():
+    tid = tasks.create("Cancelar la suscripción a Netflix")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url="https://www.netflix.com/login")
+    _awaiting(tid)
+    state = _live()
+    assert "te dará el resultado sola" not in state
+    assert "PARADA ESPERANDO A QUE ENTRES TÚ" in state
+
+
+def test_and_its_way_out_is_that_HE_signs_in_not_that_we_give_up():
+    """La salida de un muro es «otro sitio, que entre él, o dejarlo». La de un login es UNA sola cosa, y decir
+    «lo dejamos» sobre algo que solo falta que él teclee sería el consejo equivocado."""
+    tid = tasks.create("Cancelar la suscripción")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url="https://www.netflix.com/login")
+    _awaiting(tid)
+    state = _live()
+    assert "SOLO LO DESBLOQUEA ÉL" in state
+    assert "NO es un fracaso" in state              # pararse en su login es la conducta CORRECTA
+    assert "ESTO ESTÁ BLOQUEADO" not in state       # y no se le da la salida genérica del muro
+
+
+def test_and_it_is_said_even_if_the_operator_just_said_he_would_wait():
+    """El patrón medido en dos casos: «vale, espero» → «sigo con ello». Esperar es justo lo que hará si te
+    callas, y aquí la espera no se resuelve sola NUNCA."""
+    tid = tasks.create("Renovar la cuota del gimnasio")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url="https://basic-fit.com/login")
+    _awaiting(tid)
+    assert "aunque acabe de decir que espera tranquilo" in _live()
+
+
+def test_but_a_task_that_is_NOT_waiting_on_him_keeps_the_promise():
+    tid = tasks.create("Buscar hotel")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url="https://www.booking.com/searchresults.html")
+    state = _live()
+    assert "te dará el resultado sola" in state
+    assert "ESPERANDO A QUE ENTRES TÚ" not in state
+
+
+def test_and_a_login_wait_wins_over_a_wall_on_the_same_task():
+    """Si además la URL parece un muro, lo que falta sigue siendo que entre él: darle dos salidas distintas
+    para la misma pantalla es lo que hace que no tome ninguna."""
+    tid = tasks.create("Cancelar la suscripción")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url="https://www.netflix.com/NotFound")
+    _awaiting(tid)
+    state = _live()
+    assert "SOLO LO DESBLOQUEA ÉL" in state
+    assert "ESTO ESTÁ BLOQUEADO" not in state
