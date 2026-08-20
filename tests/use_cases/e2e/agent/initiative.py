@@ -533,10 +533,35 @@ def scenarios_awaiting_verification(registry: dict) -> list[dict]:
     under an open task, and swallowing that would leave the fixing agent waiting for a re-test that never runs.
     """
     by_slug = {_slug(sid): sid for sid in registry}
+    # The fixing agent writes these filenames by hand, and on 2026-08-20 FOUR of its eight re-test requests
+    # were invisible here: two carried the RAW scenario id (`…-book-hotel-night-known__es-verify.md`, where the
+    # convention collapses `__` to `-`) and two a TRUNCATED slug (`find-theatre-tickets`, missing the locale).
+    # Refusing them is technically right and practically useless — the agent waits for a re-test that never
+    # runs, and this side reports an orphan that is really just a spelling difference. So two fallbacks, both
+    # of which must be UNAMBIGUOUS to count:
+    #   1. slugify the slug again — that absorbs a raw id, `__` and all;
+    #   2. a unique PREFIX match — `find-theatre-tickets` resolves only while exactly one case starts with it.
+    # An ambiguous prefix stays unresolved and gets reported, because guessing which case the agent meant is
+    # how a fix gets verified against the wrong scenario.
+    def _resolve(slug: str) -> tuple[str | None, str]:
+        if slug in by_slug:
+            return by_slug[slug], ""
+        if (again := _slug(slug)) in by_slug:
+            return by_slug[again], ""
+        hits = sorted(sid for sl, sid in by_slug.items() if sl.startswith(slug))
+        if len(hits) == 1:
+            return hits[0], ""
+        if hits:
+            # `find-theatre-tickets` casa con __es y __us (2026-08-20, T441 y T443). NO se elige: verificar un
+            # arreglo contra el locale equivocado da un veredicto que parece bueno y no prueba nada. Se dice
+            # entre cuáles duda, que es lo único que permite renombrar la tarea y seguir.
+            return None, "ambiguo entre " + " y ".join(hits)
+        return None, "ningún caso del catálogo empieza por ese slug"
+
     out = []
     for pend in pending_verifications():
-        out.append({"slug": pend["slug"], "task": pend["task"],
-                    "scenario": by_slug.get(pend["slug"])})
+        sid, why = _resolve(pend["slug"])
+        out.append({"slug": pend["slug"], "task": pend["task"], "scenario": sid, "why": why})
     return out
 
 

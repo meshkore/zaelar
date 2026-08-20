@@ -225,3 +225,41 @@ def test_and_a_task_naming_an_unknown_case_never_reaches_the_batch():
 
     chosen, tasks = R._verify_batch([{"scenario": "no-existe", "task": Path("T1.md")}], {})
     assert chosen == [] and tasks == {}
+
+
+def test_a_verify_task_named_with_the_RAW_scenario_id_still_resolves(monkeypatch):
+    """El agente que arregla escribe estos nombres a mano, y el 2026-08-20 CUATRO de sus ocho peticiones de
+    re-test eran invisibles: dos llevaban el id crudo (`book-hotel-night-known__es`, donde la convención
+    colapsa `__` a `-`) y dos un slug a medias. Rechazarlas es técnicamente correcto e inútil en la práctica
+    —el otro agente espera un re-test que nunca corre y este lado informa de una huérfana que en realidad es
+    una diferencia de ortografía.
+    """
+    from pathlib import Path
+
+    from tests.use_cases.e2e.agent import initiative as I
+
+    monkeypatch.setattr(I, "pending_verifications", lambda: [
+        {"slug": "book-hotel-night-known__es", "task": Path("T447-verify.md")},
+        {"slug": "cheapest-monitor", "task": Path("T446-verify.md")},
+    ])
+    got = {p["task"].name: p["scenario"] for p in I.scenarios_awaiting_verification(
+        {"book-hotel-night-known__es": object(), "cheapest-monitor": object()})}
+    assert got["T447-verify.md"] == "book-hotel-night-known__es"
+    assert got["T446-verify.md"] == "cheapest-monitor"
+
+
+def test_but_an_AMBIGUOUS_slug_is_refused_and_says_between_which(monkeypatch):
+    """La mitad que importa: `find-theatre-tickets` casa con __es y __us. Elegir uno da un veredicto que parece
+    bueno y no prueba nada —se habría verificado el arreglo contra el otro idioma—, así que no se elige. Pero
+    hay que DECIR entre cuáles duda, que es lo único que permite renombrar la tarea y seguir.
+    """
+    from pathlib import Path
+
+    from tests.use_cases.e2e.agent import initiative as I
+
+    monkeypatch.setattr(I, "pending_verifications", lambda: [
+        {"slug": "find-theatre-tickets", "task": Path("T441-verify.md")}])
+    p = I.scenarios_awaiting_verification(
+        {"find-theatre-tickets__es": object(), "find-theatre-tickets__us": object()})[0]
+    assert p["scenario"] is None
+    assert "find-theatre-tickets__es" in p["why"] and "find-theatre-tickets__us" in p["why"]
