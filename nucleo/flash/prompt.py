@@ -891,7 +891,7 @@ def live_state() -> str:
         from nucleo import dispatch as _disp_end
         _ended = _disp_end.recently_ended_sessions()
         if _ended:
-            _eb, _failed = [], ""
+            _eb, _failed, _failed_ids, _told = [], "", [], 0
             for _e in _ended:
                 _st = str(_e.get("status") or "")
                 _w = f"«{(_e.get('goal') or 'tarea')[:60]}»"
@@ -899,7 +899,10 @@ def live_state() -> str:
                     _w += " se PARÓ (cancelada)"
                 elif _st == "error" or not _e.get("ok"):
                     _w += " FALLÓ"
-                    _failed = _failed or f"«{(_e.get('goal') or 'la tarea')[:50]}»"
+                    if not _failed:
+                        _failed = f"«{(_e.get('goal') or 'la tarea')[:50]}»"
+                        _told = int(_e.get("told") or 0)
+                    _failed_ids.append(str(_e.get("id") or ""))
                 else:
                     _w += " TERMINÓ"
                 if _e.get("summary"):
@@ -914,13 +917,33 @@ def live_state() -> str:
                 # pregunta de por medio. O sea que la ENTREGA ya estaba (V2-198 pone el hecho en el prompt) y lo
                 # que falla es la OBEDIENCIA — exactamente el mismo corte que V2-185 hizo con el muro: mientras
                 # la mitad tranquilizadora sea la que dice qué hacer, el modelo cree a esa.
-                lines.append(
-                    _head_end + f" {_failed} NO ACABÓ BIEN y el operador NO LO SABE: está esperando un "
-                    "resultado que ya no va a llegar. DÍSELO EN ESTE TURNO, aunque no pregunte y aunque acabe "
-                    "de decir que espera tranquilo —esperar es justo lo que hará si te callas—, y con una "
-                    "salida concreta: reintentarlo, probar otra vía, o dejarlo. NUNCA «sigo con ello» ni «te "
-                    "aviso en cuanto lo tenga» encima de algo que el sistema ya da por muerto. Si YA se lo "
-                    "dijiste en un turno anterior, no lo repitas: pasa a lo que él quiera hacer ahora.")
+                # V2-224 — y si YA se lo dijiste, la cara cambia entera. La cláusula «si ya se lo dijiste no lo
+                # repitas» iba DENTRO de esta misma frase imperativa, y el arnés la midió en dos rondas del mismo
+                # commit con resultados opuestos: en una repitió el aviso cinco turnos seguidos (V2-189 otra vez),
+                # en la otra se calló ENTERO y volvió a «sigo con ello» siete turnos. Pedirle al modelo que
+                # dedujera de la ventana si ya lo había dicho era pedirle un hecho que nosotros teníamos y no le
+                # dábamos. Ahora se cuenta (`dispatch.mark_death_reported`) y la instrucción es una sola cosa por
+                # turno. Y la redacción sigue la frase con la que el arnés lo diagnosticó: **callar la repetición
+                # no es callar el estado**.
+                if _told:
+                    lines.append(
+                        _head_end + f" YA le dijiste que {_failed} no acabó bien, así que NO se lo vuelvas a "
+                        "anunciar: repetirlo es el disco rayado. Pero SIGUE MUERTA. Si pregunta cómo va, si dice "
+                        "que espera tranquilo o si te da las gracias por seguir con ello, NO digas «sigo con "
+                        "ello» ni «te aviso en cuanto lo tenga» ni «dame un momento»: eso contradice lo que ya "
+                        "le dijiste. Di en una frase dónde está la cosa de verdad —esa murió, y qué has hecho o "
+                        "puedes hacer desde entonces— y sigue con lo que él quiera ahora.")
+                else:
+                    lines.append(
+                        _head_end + f" {_failed} NO ACABÓ BIEN y el operador NO LO SABE: está esperando un "
+                        "resultado que ya no va a llegar. DÍSELO EN ESTE TURNO, aunque no pregunte y aunque "
+                        "acabe de decir que espera tranquilo —esperar es justo lo que hará si te callas—, y con "
+                        "una salida concreta: reintentarlo, probar otra vía, o dejarlo. NUNCA «sigo con ello» "
+                        "ni «te aviso en cuanto lo tenga» encima de algo que el sistema ya da por muerto.")
+                try:
+                    _disp_end.mark_death_reported(_failed_ids)
+                except Exception:
+                    pass
             else:
                 lines.append(
                     _head_end + " Eso YA NO está en marcha: si el "

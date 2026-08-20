@@ -122,7 +122,7 @@ def test_and_the_snapshot_does_not_hold_the_worker_handles():
     _session("done", summary="algo")
     row = dispatch._ENDED_SESSIONS["w1"]
     assert isinstance(row, dict)
-    assert set(row) == {"id", "goal", "status", "ok", "summary", "at"}
+    assert set(row) == {"id", "goal", "status", "ok", "summary", "at", "told"}
 
 
 # ── la enumeración, una sola vez (misma lección que V2-197) ───────────────────────────────────────────────

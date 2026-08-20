@@ -57,12 +57,17 @@ def test_it_offers_a_way_out(monkeypatch):
         assert out in st, out
 
 
-def test_it_does_not_ask_to_repeat_itself_every_turn(monkeypatch):
-    """The record has a 5-minute TTL, so this line rides several turns. Without this clause the fix for silence
-    becomes the fix for a broken record — which is the defect V2-189 measured («vale, dame un momento» four
-    times, word for word)."""
+def test_the_FIRST_time_it_asks_for_the_notice_and_nothing_else(monkeypatch):
+    """The record has a 5-minute TTL, so this line rides several turns, and V2-221 carried the anti-repetition
+    clause INSIDE this same imperative sentence. The harness measured that on two rounds of one commit and got
+    opposite failures — five repeats in one, seven turns of «sigo con ello» in the other — so the clause moved
+    out to a face of its own, driven by a fact we count instead of one the model has to infer. See V2-224 and
+    `test_saying_it_once_is_not_the_same_as_forgetting_it.py`.
+
+    What must hold HERE is that the first turn gets one instruction and not two."""
     st = _state(monkeypatch, _FAILED)
-    assert "no lo repitas" in st
+    assert "DÍSELO EN ESTE TURNO" in st
+    assert "no lo repitas" not in st and "NO se lo vuelvas a anunciar" not in st
 
 
 def test_a_task_that_ended_WELL_keeps_the_old_conditional_wording(monkeypatch):

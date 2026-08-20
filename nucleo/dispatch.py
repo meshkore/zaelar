@@ -468,7 +468,9 @@ def _remember_ended(rec, resuming: bool = False) -> None:
     try:
         _ENDED_SESSIONS[str(rec.task_id)] = {
             "id": str(rec.task_id), "goal": (rec.goal or "").strip(), "status": str(rec.status or "done"),
-            "ok": bool(rec.ok), "summary": (rec.result_summary or "").strip(), "at": time.time()}
+            "ok": bool(rec.ok), "summary": (rec.result_summary or "").strip(), "at": time.time(),
+            # V2-224 — cuántos turnos han LLEVADO ya este final delante. Ver `mark_death_reported`.
+            "told": 0}
         for k in [k for k, v in _ENDED_SESSIONS.items()
                   if time.time() - float(v.get("at") or 0) > JUST_ENDED_S]:
             _ENDED_SESSIONS.pop(k, None)
@@ -525,6 +527,25 @@ def recently_ended_sessions(now: float | None = None, limit: int = 3) -> list[di
             and (v.get("goal") or "").strip().lower() not in _live]
     rows.sort(key=lambda r: r["ago_s"])
     return rows[:max(1, limit)]
+
+
+def mark_death_reported(task_ids) -> None:
+    """Un turno ya ha llevado delante el final de estas tareas (V2-224).
+
+    El arnés midió la cláusula anti-repetición de V2-221 en dos rondas del MISMO commit y falló en las dos
+    direcciones opuestas: en una lo dijo en el turno 2 y lo repitió en el 5, 6, 7, 8 y 9 —el disco rayado de
+    V2-189—, y en la otra lo dijo en el turno 2 y luego lo NEGÓ siete turnos («sigo con ello», «dame un
+    momento»). Misma cláusula, mismo commit, resultados opuestos: eso no es un umbral mal puesto, es que
+    «¿ya se lo dije?» no era un HECHO que el prompt tuviera, sino algo que el modelo deducía de la ventana.
+
+    Nosotros SÍ lo sabemos: contamos los turnos que se lo llevaron delante. Y la lección que dejó el arnés al
+    diagnosticarlo gobierna la redacción de la cara nueva — **callar la repetición no es callar el estado**: el
+    aviso deja de darse, la prohibición de «sigo con ello» se queda.
+    """
+    for tid in (task_ids or []):
+        row = _ENDED_SESSIONS.get(str(tid))
+        if row is not None:
+            row["told"] = int(row.get("told") or 0) + 1
 
 
 def pending_summaries() -> list[dict]:
