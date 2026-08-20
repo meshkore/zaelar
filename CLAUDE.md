@@ -1275,6 +1275,52 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **El prompt se contradecía a sí mismo, y el turno elegía la mitad cierta** (`nucleo/dispatch.py`, V2-222,
+  2026-08-20). El arnés midió con un contador de las dos vías sobre `hotel-under-15-days`: lo que se EMPUJA como
+  nota de sistema se dice en el turno siguiente **3 de 3** (3 s la pregunta del worker, 7 s el muro), lo que solo
+  se RENDERIZA como línea de estado del prompt, **0 de 13** — con el imperativo de V2-221 delante las trece
+  veces. Su conclusión fue «el turno obedece lo empujado e ignora lo renderizado». El recuento es correcto; la
+  lectura no era completa. Leyendo el system prompt ENTERO de los ocho turnos de `20260820-194231`, **siete
+  llevaban el mismo encargo dos veces**, carácter por carácter: «TAREAS DE FONDO EN CURSO (… NO reinicies ni
+  digas que ya está): «Busca hoteles de 4 estrellas…» — abriendo una página… [paso 2/5, 40%]» y «TAREAS DE FONDO
+  — YA ACABADAS: «Busca hoteles de 4 estrellas…» FALLÓ … DÍSELO EN ESTE TURNO».
+  - **Causa**: el primer intento falló, `_remember_ended` lo archivó, y V2-049 (auto-resume) relanzó el MISMO
+    encargo con otro id. Los dos bloques decían la verdad sobre sesiones distintas mientras el operador tenía UN
+    encargo. **«Sigo esperando resultados» era la mitad CIERTA**: el turno no desobedecía, resolvía una
+    contradicción — y por eso V2-221 midió 0/7 en la ronda que lo llevaba, y habría medido 0/7 escrito de
+    cualquier otra forma.
+  - **La lección de método, que vale más que el arreglo**: un prompt que se discute a sí mismo es invisible si se
+    lee la línea que uno fue a buscar. Solo aparece leyéndolo entero. Y el precio de no verlo es acusar al
+    modelo de desobedecer cuando está haciendo lo correcto — la misma trampa que
+    [[feedback_leer_el_prompt_antes_de_acusar]].
+  - **Tres piezas**: la sesión que va a reanudarse sola no se anota como terminada (el origen, con el MISMO
+    predicado que decide la reanudación — dos copias derivarían y la deriva es invisible: una archiva una muerte
+    mientras la otra reintenta en silencio); una sesión cuyo objetivo esté CORRIENDO ahora nunca se reporta como
+    terminada (el cinturón — una escalada repetida también duplica un objetivo); y la que sí murió se **empuja**
+    por `brain_notes`. La línea de estado se QUEDA: es el contexto de los cinco minutos siguientes y ahora es
+    cierta.
+  - Nodo 4.24, 11 tests. Un assert de V2-199 casaba `_remember_ended(rec)` al carácter y falló por una firma
+    nueva sin que la conducta cambiara; ahora casa por la llamada.
+
+- **Lo que el navegador ENCUENTRA no llegaba a nadie** (`widgets/navegador/act_api.py`, V2-223, 2026-08-20). En
+  `hotel-under-15-days` el worker hizo su trabajo y bien: `navigate` a Booking con los parámetros PERFECTOS
+  (Sevilla, 4 noches, 2 personas, dentro de 15 días), extrajo un anuncio de flamenco de 25 €, **pivotó solo** a
+  Google Hoteles y a las 19:45:29 extrajo **«Exe Sevilla Macarena», «65 €», con URL**. Dieciséis segundos
+  después el turno 7 dijo «Sigo pendiente y te digo en cuanto tenga algo». Su prompt no contiene «Exe Sevilla»
+  ni «Macarena» ni «65 €», y la ronda reportó `missing_signals: ['widget']`: tampoco estaba en la hoja.
+  - **Causa**: `set_results` lo llamaba ÚNICAMENTE `dispatch._finalize_web`, al FINAL de la sesión, raspando de
+    nuevo la página que hubiera en pantalla para entonces. La ronda se quedó sin turnos antes de llegar ahí, así
+    que el resultado vivió y murió en el stdout del worker.
+  - Ahora **cada extracción no vacía va a la hoja y sale como nota empujada**, deduplicada por CONTENIDO y no por
+    tarea: la primera extracción fue el anuncio y el hotel bueno llegó después — deduplicar por tarea se habría
+    comido el único resultado bueno de la ronda.
+  - **El JUICIO se queda en el cerebro, y es una decisión**: la nota entrega los hechos y nombra la prueba («si
+    responde a lo que pidió, dáselo con nombre, precio y enlace; si no es lo que pedía, no lo ofrezcas como
+    resultado — pero entonces tampoco digas que sigues buscando sin más»). Una orden de «anuncia esto» habría
+    ofrecido el espectáculo de flamenco de 25 € como el hotel de cuatro estrellas.
+  - Nodo 4.25, 9 tests. Con V2-215 y V2-220 cierra la frase que ordena el día entero: **los muros, las
+    preguntas, los fallos y los RESULTADOS solo llegan al operador si pasan por la nota empujada.**
+
 - **Una tarea de fondo MUERTA no es una pregunta pendiente** (`nucleo/flash/prompt.py`, V2-221, 2026-08-20). El
   arnés leyó el system prompt de CADA turno de `hotel-under-15-days` (19:12): turnos 2 al 8, **ocho seguidos**,
   con «TAREAS DE FONDO — YA ACABADAS: «Reservar una noche…» **FALLÓ**» delante, contestando «sigo con ello, te
