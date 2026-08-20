@@ -1364,16 +1364,35 @@ _CONFIRM_TTL = 300.0     # 5 min. Longer than the widget gate's 90 s: this quest
                          # arrives mid-conversation and the operator may reasonably think about it.
 
 
+# V2-190 — an expired confirmation is a FACT, and losing it is how a gated task turns into narrated work.
+# Measured on `renew-gym-membership__es` (2026-08-20 01:01): the gate parked the renewal, the operator was
+# asked, five minutes went by inside a normal conversation, `_sweep_confirm` dropped the entry, `confirm_line()`
+# went empty — and from that turn on the state said NOTHING about it. The model fell back on the only thing it
+# still had, its own earlier «empiezo ya con la renovación», and answered «sigo sin novedades de la web de
+# Basic-Fit» about a task whose record read `status=done url= shot_rev=0`: it never opened a single page.
+#
+# The TTL itself is NOT the bug and is not raised: a «shall I really pay?» answered «sí» forty minutes later is
+# exactly what it protects against. What was wrong is that expiring the GATE also erased the MEMORY of it. So
+# the gate still expires — `resolve_confirm` reads `_PENDING_CONFIRM` and an expired ask can no longer be armed
+# by a late yes — and the fact moves here, where the turn can still say it. Same remedy as
+# `widgets/navegador/tasks.recently_finished()` (V2-150): an ending is a fact.
+_EXPIRED_CONFIRM: dict[str, dict] = {}
+_EXPIRED_MEMORY_S = 900.0     # 15 min: long enough to outlive the conversation that asked
+
+
 def _sweep_confirm(now: float | None = None) -> None:
     now = time.time() if now is None else now
     for k in [k for k, v in _PENDING_CONFIRM.items() if now - v["ts"] > _CONFIRM_TTL]:
-        _PENDING_CONFIRM.pop(k, None)
+        _EXPIRED_CONFIRM[k] = {**_PENDING_CONFIRM.pop(k), "expired_at": now}
+    for k in [k for k, v in _EXPIRED_CONFIRM.items() if now - float(v.get("expired_at") or 0) > _EXPIRED_MEMORY_S]:
+        _EXPIRED_CONFIRM.pop(k, None)
 
 
 def remember_confirm(task_id: str, request: str, task: "Task") -> None:
     """Keep the question the gate just asked, so a later «sí» has somewhere to go."""
     from nucleo import danger as _danger
     _sweep_confirm()
+    _EXPIRED_CONFIRM.pop(str(task_id), None)      # se vuelve a preguntar: ya no es un caducado sin respuesta
     _PENDING_CONFIRM[str(task_id)] = {
         "request": request, "kind": (task.kind or "generic"), "trusted": bool(task.trusted),
         "context": dict(task.context or {}), "question": _danger.confirm_question(request),
@@ -1395,7 +1414,14 @@ def confirm_line() -> str:
     operator — which is precisely how a gated task turned into narrated progress."""
     p = pending_confirm()
     if not p:
-        return ""
+        # V2-190: nothing waiting — but maybe something EXPIRED waiting, and that is not the same as nothing.
+        _sweep_confirm()
+        if not _EXPIRED_CONFIRM:
+            return ""
+        _e = max(_EXPIRED_CONFIRM.values(), key=lambda v: float(v.get("expired_at") or 0))
+        return (f"UNA CONFIRMACIÓN QUE LE PEDISTE CADUCÓ SIN RESPUESTA: «{str(_e.get('request') or '')[:120]}». "
+                f"Esa tarea NUNCA EMPEZÓ y no va a empezar sola — no digas que sigue en marcha ni que esperas "
+                f"novedades suyas. Si sale a colación, dilo y ofrece retomarla desde cero.")
     from nucleo import danger as _danger_line
     # Si mueve DINERO se dice aquí también (V2-129): el operador ya oyó «no hago ningún cargo sin decirte el
     # importe», y el turno siguiente no puede contradecir esa promesa.

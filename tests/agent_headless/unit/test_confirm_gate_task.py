@@ -83,11 +83,23 @@ def test_answering_when_nothing_is_pending_is_a_no_op():
 
 
 def test_a_confirmation_nobody_answers_expires():
-    """Same reason the widget gate has a TTL: a question that hangs forever silently blocks the next one."""
+    """Same reason the widget gate has a TTL: a question that hangs forever silently blocks the next one.
+
+    Corregido el 2026-08-20 (V2-190): este test EXIGÍA que la línea de estado se quedara vacía al caducar, y
+    eso resultó ser el daño. Medido en `renew-gym-membership__es`: al vaciarse, el turno dejó de tener
+    cualquier hecho sobre aquella tarea y volvió a su propia frase anterior («empiezo ya con la renovación»),
+    contestando «sigo sin novedades de la web de Basic-Fit» sobre algo que nunca abrió una página.
+
+    Lo que este test protegía —que el GATE caduque, para que un «sí» de media hora después no arme un cobro—
+    sigue exigido en la primera aserción y en `test_but_the_gate_itself_still_expires`. Lo que cambia es que
+    caducar deja de BORRAR el hecho."""
+    dispatch._EXPIRED_CONFIRM.clear()
     dispatch.remember_confirm("9", "paga la factura de la luz", _Task())
     dispatch._PENDING_CONFIRM["9"]["ts"] = time.time() - dispatch._CONFIRM_TTL - 1
-    assert dispatch.pending_confirm() is None
-    assert dispatch.confirm_line() == ""
+    assert dispatch.pending_confirm() is None          # el gate caduca: nada que un «sí» tardío pueda armar
+    assert "PENDIENTE" not in dispatch.confirm_line()  # ya no se anuncia como si siguiera esperando…
+    assert "CADUCÓ" in dispatch.confirm_line()         # …pero el hecho de que hubo una pregunta sobrevive
+    dispatch._EXPIRED_CONFIRM.clear()
 
 
 def test_a_second_irreversible_ask_supersedes_the_first():
@@ -141,3 +153,79 @@ def test_the_live_line_carries_the_amount_promise(monkeypatch):
     dispatch._PENDING_CONFIRM.clear()
     dispatch.remember_confirm("10", "borra la cuenta", _Task())
     assert "MUEVE DINERO" not in dispatch.confirm_line()
+
+
+# ── V2-190: una confirmación que CADUCA sin respuesta también es un hecho ─────────────────────────────────
+#
+# `renew-gym-membership__es`, 2026-08-20 01:01 (overall 2/5, mecanismo 1). El gate aparcó la renovación, se le
+# preguntó al operador, pasaron cinco minutos dentro de una conversación normal, `_sweep_confirm` tiró la
+# entrada, `confirm_line()` se quedó vacía — y a partir de ese turno el estado no decía NADA de aquello. El
+# modelo volvió a lo único que le quedaba, su propio «Empiezo ya con la renovación en Basic-Fit», y contestó
+# «sigo sin novedades de la web de Basic-Fit» sobre una tarea cuyo registro decía `status=done url= shot_rev=0`:
+# no había abierto una sola página, y nunca la iba a abrir.
+#
+# El TTL NO es el fallo y no se toca: un «¿de verdad lo pago?» contestado que sí cuarenta minutos después es
+# justo lo que protege. Lo que estaba mal es que caducar el GATE borraba también la MEMORIA de que hubo uno.
+def _ask(request="Renueva mi cuota del gimnasio de este mes.", tid="gym1"):
+    dispatch._PENDING_CONFIRM.clear()
+    dispatch._EXPIRED_CONFIRM.clear()
+    dispatch.remember_confirm(tid, request, _Task())
+    return tid
+
+
+def test_an_expired_confirmation_still_says_the_task_never_started():
+    tid = _ask()
+    dispatch._PENDING_CONFIRM[tid]["ts"] = time.time() - (dispatch._CONFIRM_TTL + 100)
+    line = dispatch.confirm_line()
+    assert "CADUCÓ" in line and "NUNCA EMPEZÓ" in line
+    assert "gimnasio" in line                      # y CUÁL, o no se puede retomar
+
+
+def test_but_the_gate_itself_still_expires():
+    """La mitad de seguridad, intacta: un «sí» tardío no puede armar una acción irreversible que se preguntó
+    hace media hora. Sin este test, «recuerda el caducado» y «no caduca nunca» pasan igual."""
+    tid = _ask()
+    dispatch._PENDING_CONFIRM[tid]["ts"] = time.time() - (dispatch._CONFIRM_TTL + 100)
+    assert dispatch.pending_confirm() is None
+    assert dispatch.resolve_confirm(True) is None
+
+
+def test_a_live_question_wins_over_the_memory_of_an_expired_one():
+    """Lo que está esperando AHORA es más importante que lo que caducó: al revés, el turno hablaría del pasado
+    teniendo una pregunta viva delante."""
+    old = _ask(tid="gym1")
+    dispatch._PENDING_CONFIRM[old]["ts"] = time.time() - (dispatch._CONFIRM_TTL + 100)
+    dispatch.confirm_line()                                    # fuerza el barrido
+    dispatch.remember_confirm("bill1", "Paga la factura de la luz", _Task())
+    line = dispatch.confirm_line()
+    assert "PENDIENTE" in line and "factura" in line
+    assert "CADUCÓ" not in line
+
+
+def test_and_re_asking_the_same_thing_clears_its_expired_record():
+    tid = _ask()
+    dispatch._PENDING_CONFIRM[tid]["ts"] = time.time() - (dispatch._CONFIRM_TTL + 100)
+    dispatch.confirm_line()
+    assert dispatch._EXPIRED_CONFIRM
+    dispatch.remember_confirm(tid, "Renueva mi cuota del gimnasio de este mes.", _Task())
+    assert tid not in dispatch._EXPIRED_CONFIRM
+    assert "PENDIENTE" in dispatch.confirm_line()
+
+
+def test_the_memory_of_an_expired_one_does_not_last_forever():
+    """Un caducado de hace una hora ya no es del turno; seguir sacándolo sería ruido en cada estado."""
+    tid = _ask()
+    dispatch._PENDING_CONFIRM[tid]["ts"] = time.time() - (dispatch._CONFIRM_TTL + 100)
+    dispatch.confirm_line()
+    dispatch._EXPIRED_CONFIRM[tid]["expired_at"] = time.time() - (dispatch._EXPIRED_MEMORY_S + 100)
+    assert dispatch.confirm_line() == ""
+
+
+def test_and_it_reaches_the_live_state():
+    """El fallo de esta casa que se repite: el hecho existe y no llega al sitio donde se decide."""
+    from nucleo.flash import prompt as _p
+
+    tid = _ask()
+    dispatch._PENDING_CONFIRM[tid]["ts"] = time.time() - (dispatch._CONFIRM_TTL + 100)
+    assert "CADUCÓ" in _p.live_state()
+    dispatch._EXPIRED_CONFIRM.clear()

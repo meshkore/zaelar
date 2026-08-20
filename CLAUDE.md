@@ -1275,6 +1275,22 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Una confirmación que CADUCA borraba el hecho de que existió** (`nucleo/dispatch.py`, V2-190, 2026-08-20).
+  Medido en `renew-gym-membership__es`, y es la evidencia más limpia de la tanda: la tarea acabó
+  `status=done url='' shot_rev=0` con `n_search_events=0` —**no abrió una sola página ni hizo una búsqueda**—
+  mientras zaelar decía cuatro veces «sigo sin novedades **de la web de Basic-Fit**». La causa es el
+  confirm-gate haciendo lo correcto (renovar una cuota mueve dinero → tarea aparcada, V2-138) y el registro
+  perdiéndolo: `_CONFIRM_TTL` son 5 minutos, y al caducar `confirm_line()` devolvía `""`, así que **desde ese
+  turno el estado no decía NADA**. El modelo volvió a lo único que le quedaba, su propio «empiezo ya con la
+  renovación». Mismo patrón que V2-150 un piso más abajo: allí desaparecía la TAREA, aquí la PREGUNTA.
+  - **El TTL NO se toca, y esa es la decisión**: un «¿de verdad lo pago?» contestado que sí cuarenta minutos
+    después es justo lo que protege. Lo que se separa es el GATE (caduca) de la MEMORIA de que hubo uno
+    (`_EXPIRED_CONFIRM`, 15 min — lo bastante para sobrevivir a la conversación que lo preguntó).
+  - **La seguridad queda intacta y con test propio**: `resolve_confirm` sigue leyendo `_PENDING_CONFIRM`, así
+    que un «sí» tardío devuelve `None`. Sin ese test, «recuerda el caducado» y «no caduca nunca» pasarían igual.
+  - Un test PREEXISTENTE exigía `confirm_line() == ""` al caducar — o sea, exigía el daño. Reescrito
+    conservando lo que protegía y con la corrida que lo desmintió, no volteado en silencio.
+
 - **El relleno de espera decía CUATRO veces la misma frase, y no lo decía el modelo** (`nucleo/flash/router_guards.py`
   + `voice/engine/core/langs.py`, V2-189, 2026-08-20). «Vale, dame un momento que lo miro.» es `filler_holding`
   LITERAL: lo emite el backstop de nunca-mudo cuando el turno vuelve sin contenido propio tras una acción que
