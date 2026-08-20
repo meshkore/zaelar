@@ -1587,6 +1587,27 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     la tarea. Pide que un fallo deje su propio rastro con el sitio dentro — cómo se REGISTRA, no cómo se
     renderiza — y su propia medición.
 
+- **«¿Hay algo corriendo?» era la pregunta equivocada** (`nucleo/flash/router_guards.py` + `probe.py` + el
+  provider de voz, V2-176, 2026-08-20). El backstop de promesa-sin-acción (V2-132) se gateaba por `_hw`
+  —«¿hay algo vivo?»— y lo que decide es **«¿hay algo vivo PARA ESTO?»**. Medido en
+  `book-hotel-night-known__es`, con la prueba en una línea del mecanismo (`status=cancelled
+  url=ticketmaster.es`): el encargo del hotel no escaló porque seguía vivo un worker del encargo ANTERIOR, y
+  luego cuatro turnos de «la reserva sigue en marcha» sobre una tarea de otro caso ya cancelada. Misma forma
+  medida el 2026-08-19 desde el otro lado (se preguntó por Casa Lucio, se contestó sobre El Rey León).
+  - Descartado antes de tocar nada: **no** es que el sello de `cancelled` no llegue. `reset_all()` cancela vía
+    `set_status`, que sella la hora, así que `recently_finished()` sí lo publica — V2-196 sigue funcionando.
+  - El razonamiento de la puerta está escrito en el código y era correcto e INCOMPLETO: con una tarea viva
+    «sigo con ello» ES honesto y re-escalar SÍ duplicaría el trabajo — **solo si la tarea viva es de lo que se
+    ha pedido**.
+  - **La asimetría de coste fija el diseño**: correr un encargo dos veces es un defecto que el operador PAGA y
+    VE; que le digan «sigo con ello» sobre el encargo de otro es uno que no puede ni ver. Así que el predicado
+    contesta «nada corriendo para esto» solo cuando puede saberlo, y «no puedo saberlo» = como antes (objetivo
+    demasiado fino, objetivo vivo ilegible, o cualquier solape real).
+  - **El detalle que costó**: comparar con `_content_words` hacía que «Hotel Palacio… PARA el 30 de agosto.» y
+    «entradas PARA El Rey León» solaparan en «para» — una preposición bastaba para que dos encargos sin nada que
+    ver parecieran el mismo. Se arregló en un `_topic_words` propio y NO en `_content_words`: `already_in_agenda`
+    compara con él, y quitarle palabras le hace casar MENOS, lo que duplica citas de agenda.
+
 - **Una búsqueda vacía y una búsqueda IMPOSIBLE eran el mismo dato** (`nucleo/websearch.py` +
   `nucleo/flash/prompt.py`, V2-176, 2026-08-20). `search()` recorre los backends y, cuando TODOS fallan, devuelve
   `results: []` con `source: "none"` — indistinguible de «busqué bien y no hay nada». El único rastro del

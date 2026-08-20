@@ -2398,10 +2398,20 @@ class NucleoLLMStream(llm.LLMStream):
                 # ninguna («vale, avísame»). El backstop miraba solo ESTE turno, así que no podía dispararse — y
                 # la corrida se fue en ocho turnos narrando una búsqueda que nunca arrancó. Solo con NADA vivo:
                 # con una tarea en marcha, «sigo con ello» es honesto y re-escalar haría el trabajo dos veces.
+                #
+                # V2-176: «nada vivo» era la pregunta equivocada — la que decide es «nada vivo PARA ESTO».
+                # Medido en `book-hotel-night-known__es`: el encargo del hotel no escaló porque seguía vivo un
+                # worker del encargo ANTERIOR, y zaelar pasó cuatro turnos diciendo «la reserva sigue en marcha»
+                # sobre una tarea de Ticketmaster ya cancelada. Espejo exacto del canal de texto; el predicado es
+                # compartido (`router_guards.nothing_running_for`) y es CONSERVADOR: ante la duda, se comporta
+                # como antes.
                 try:
                     from nucleo import dispatch as _disp_wg
-                    if not _disp_wg.has_active():
-                        _win_goal = _router.escalate_goal_from_window(brain._window, text)
+                    _cand = _router.escalate_goal_from_window(brain._window, text)
+                    if _cand:
+                        _live = [str(r.get("request") or "") for r in _disp_wg.pending_summaries()]
+                        if not _disp_wg.has_active() or _router.nothing_running_for(_cand, _live):
+                            _win_goal = _cand
                 except Exception:
                     _win_goal = ""
             if _router.looks_like_create_widget(text) or _router.looks_like_escalate_task(text) or _win_goal:

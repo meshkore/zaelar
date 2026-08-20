@@ -482,6 +482,61 @@ _DATE_ONLY_WORDS = frozenset({
 })
 
 
+# Prepositions and fillers that carry no TOPIC. `_content_words` keeps them (it was written for the agenda,
+# where the cost of an extra word is different) and it also keeps punctuation attached, so «Hotel Palacio de la
+# Merced para el 30 de agosto.» and «entradas para El Rey León» overlapped on «para» — one function word was
+# enough to make two unrelated errands look like the same one.
+#
+# Not fixed inside `_content_words` on purpose: `already_in_agenda` compares with it, and dropping words there
+# makes IT match less often, which duplicates agenda entries. Here the error directions are the safe ones — a
+# missing stopword creates a spurious overlap and simply keeps today's conduct.
+_NON_TOPIC = frozenset({"para", "por", "con", "sin", "sobre", "desde", "hasta", "entre", "una", "uno", "unos",
+                        "unas", "los", "las", "del", "las", "que", "más", "mas", "muy", "solo", "algo", "cosa",
+                        "for", "with", "from", "about", "some", "any", "just"})
+
+
+def _topic_words(text: str) -> set[str]:
+    """Content words with punctuation stripped and function/date words dropped — what two errands can be
+    compared BY."""
+    out = set()
+    for w in _content_words(text):
+        w = w.strip(".,;:!?¿¡()«»\"'-—")
+        if len(w) > 2 and w not in _NON_TOPIC and w not in _DATE_ONLY_WORDS:
+            out.add(w)
+    return out
+
+
+def nothing_running_for(goal: str, running_goals) -> bool:
+    """True when NOTHING among the live errands is about `goal` — so a promise about it has nothing behind it.
+
+    The escalation backstop was gated on «is anything running?», and the question that decides is «is anything
+    running FOR THIS?». Measured twice, in two different cases:
+
+      · `book-hotel-night-known__es` (2026-08-20): «Resérvame una noche en el Hotel Palacio de la Merced» →
+        «Me pongo con ello» → nothing escalated, because a worker from the PREVIOUS errand was still alive. The
+        mechanism showed `status=cancelled url=ticketmaster.es` while zaelar said «la reserva sigue en marcha»
+        for four turns. The judge called it «divergencia crítica de dominio».
+      · `restaurant-tonight-madrid` (2026-08-19): the same shape from the other side — the operator asked about
+        Casa Lucio and got answered about El Rey León.
+
+    The gate's own reasoning was right and incomplete: with a live task «sigo con ello» IS honest and
+    re-escalating WOULD run the same work twice — but only if the live task is about what was asked.
+
+    CONSERVATIVE ON PURPOSE, in the direction the gate was protecting: this answers True only when it can tell,
+    and «cannot tell» means False (behave exactly as before). So a goal too thin to judge, or any overlap at all
+    with something already running, keeps today's conduct. Running one errand twice is a defect the operator pays
+    for; being told «sigo con ello» about somebody else's errand is one he cannot even see.
+    """
+    mine = _topic_words(goal)
+    if len(mine) < 2:
+        return False               # too thin to judge → do not act on a guess
+    for other in (running_goals or []):
+        theirs = _topic_words(str(other or ""))
+        if not theirs or (mine & theirs):
+            return False           # an unreadable goal, or any real overlap → assume it is this one
+    return True
+
+
 def clause_is_only_a_date(clause: str) -> bool:
     """True when the «commitment» clause says nothing except WHEN — so there is no event for a notice to precede.
 

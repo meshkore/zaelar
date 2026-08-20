@@ -247,6 +247,13 @@ DOMAINS: list[dict] = [
         # de uso— a una ETIQUETA y nada más; la voz llamaba a sus dos closures. Medido: «Aquí lo tienes» con
         # `navegador_task` vacío, así que «ya he entrado» no tenía tarea que reanudar. Los 54 escenarios del
         # segmento `credentials` pasan por ese traspaso.
+        # 2026-08-20: el backstop de promesa-sin-acción se gateaba por «nada vivo», y lo que decide es «nada
+        # vivo PARA ESTO». Medido: el encargo del hotel no escaló porque seguía vivo un worker del encargo
+        # anterior, y luego cuatro turnos de «la reserva sigue en marcha» sobre una tarea de Ticketmaster ya
+        # cancelada. Conservador a propósito: ante la duda, la conducta de antes.
+        {"id": "2.22", "title": "«¿Hay algo corriendo PARA ESTO?» — un encargo ajeno no suprime la escalada del "
+                                "nuevo", "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_running_for_THIS_not_just_running.py"]},
         # 2026-08-20: `websearch.search()` devuelve `results: []` con `source: "none"` cuando TODA la cadena
         # falla — indistinguible de «busqué y no hay nada», y el único rastro era un `logger.warning`. Medido en
         # `cheapest-monitor`: veinte búsquedas, cero candidatos, diez turnos de «te aviso en cuanto lo tenga»

@@ -107,6 +107,20 @@ def _show_target(text: str, context: list[dict] | None = None, last_action: str 
         return None
 
 
+def _running_goals() -> list[str]:
+    """The goals of the errands actually IN FLIGHT right now — what a new request has to be compared against.
+
+    `has_active()` answers whether anything is running; this answers WHAT. Best-effort: an unreadable registry
+    returns [], and `nothing_running_for` treats «cannot tell» as «assume it is this one», so a failure here
+    keeps the old conduct rather than escalating twice.
+    """
+    try:
+        from nucleo import dispatch as _disp_g
+        return [str(r.get("request") or "") for r in _disp_g.pending_summaries()]
+    except Exception:
+        return []
+
+
 def _remember_what_was_said(sess, text: str) -> None:
     """Record the operator's line in the window NOW, before anything left in the turn can fail.
 
@@ -589,9 +603,16 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 # detail (correct), the operator gave it, and the promise landed on a turn whose text
                 # describes no task by itself. Only when NOTHING is running: with a live task, "sigo con
                 # ello" is honest and re-escalating would run the same work twice.
-                elif not _hw and _routerc.escalate_goal_from_window(sess.window, text):
+                # V2-176: `_hw` contesta «¿hay algo corriendo?» y lo que decide es «¿hay algo corriendo PARA
+                # ESTO?». Medido en `book-hotel-night-known__es`: el encargo del hotel no escaló porque seguía
+                # vivo un worker del encargo ANTERIOR, y luego «la reserva sigue en marcha» durante cuatro
+                # turnos sobre una tarea de Ticketmaster ya cancelada. El razonamiento de la puerta era correcto
+                # e incompleto: con una tarea viva «sigo con ello» ES honesto y re-escalar SÍ duplicaría el
+                # trabajo — pero solo si la tarea viva es de lo que se ha pedido.
+                elif (_wgoal := _routerc.escalate_goal_from_window(sess.window, text)) and (
+                        not _hw or _routerc.nothing_running_for(_wgoal, _running_goals())):
                     action = "escalate"
-                    _window_goal = _routerc.escalate_goal_from_window(sess.window, text)
+                    _window_goal = _wgoal
                 elif _routerc.looks_like_show_strict(text):
                     from widgets import runtime as _rtp
                     _pw = (_rtp.identify(text) or {}).get("match")
