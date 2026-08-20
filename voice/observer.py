@@ -97,6 +97,30 @@ _CAT = {
 }
 
 
+_HEAD_CHARS, _TAIL_CHARS = 3000, 7000
+
+
+def _prompt_excerpt(system: str) -> str:
+    """Keep the HEAD and the TAIL of the composed prompt, not just the first 8 KB.
+
+    V2-195, and it nearly cost a wrong diagnosis. This record exists to answer «what did the model see?» — its
+    own docstring says so — and it kept `system[:8000]` of a prompt that measures ~19.000 characters. The
+    static persona is the head and **`prompt.live_state()` is appended at the END**, so what got cut was
+    exactly the half that changes every turn: the clock, the background tasks, the browser block, a wall, a
+    pending confirmation. On 2026-08-20 that truncation made five turns of a measured run look as if the
+    browser block had never reached the model — three steps into concluding that a night of fixes was
+    invisible, when the only thing missing was the artefact.
+
+    Head plus tail with the gap named, so nobody reads a hole as an absence. The head is worth keeping because
+    the rules the model is under live there; the tail because that is where the FACTS of this turn are.
+    """
+    if len(system) <= _HEAD_CHARS + _TAIL_CHARS:
+        return system
+    dropped = len(system) - _HEAD_CHARS - _TAIL_CHARS
+    return (f"{system[:_HEAD_CHARS]}\n\n… [{dropped} caracteres OMITIDOS del centro del prompt; "
+            f"el estado vivo va al final y sí está abajo] …\n\n{system[-_TAIL_CHARS:]}")
+
+
 def turn_detail(*, system: str, window: list | None = None, tools: list | None = None,
                 user: str = "", decision: dict | None = None, extra: dict | None = None) -> None:
     """Captura FORENSE de UN turno del FlashBrain (V2-040, pedido del operador 2026-07-15: «mensajes, tokens,
@@ -113,7 +137,7 @@ def turn_detail(*, system: str, window: list | None = None, tools: list | None =
         tool_names = [t.get("function", {}).get("name") if isinstance(t, dict) and "function" in t
                       else (t.get("name") if isinstance(t, dict) else str(t)) for t in (tools or [])]
         payload = {"cat": "system", "module": "flash", "func": "turn",
-                   "system_prompt": (system or "")[:8000], "system_chars": len(system or ""),
+                   "system_prompt": _prompt_excerpt(system or ""), "system_chars": len(system or ""),
                    "window": win, "window_msgs": len(win), "tools": tool_names,
                    "user": (user or "")[:600], "decision": decision or {}}
         if extra:

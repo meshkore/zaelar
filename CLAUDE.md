@@ -1275,6 +1275,21 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **La captura forense de un turno guardaba la persona y tiraba el ESTADO** (`voice/observer.py`, V2-195,
+  2026-08-20). `turn_detail` existe para responder «¿qué vio el modelo?» —su propio docstring lo dice— y
+  guardaba `system[:8000]` de un prompt de **19.292** caracteres. La persona estática va al PRINCIPIO y
+  `prompt.live_state()` se compone al **FINAL**, así que lo truncado era exactamente la mitad que cambia cada
+  turno: la hora, las tareas de fondo, el bloque del navegador, un muro, una confirmación pendiente. Guardaba
+  lo idéntico en los ocho turnos y tiraba lo único que difería.
+  - **Casi cuesta un diagnóstico falso**: contando sobre los timelines salía «corrida con 74 eventos de
+    navegador → el bloque NAVEGADOR aparece 0 veces en el prompt», y de ahí a concluir que una noche entera de
+    arreglos era invisible hay un paso. Lo que faltaba era el artefacto. **Un diagnóstico que trunca la
+    evidencia que le piden es peor que no tenerlo: parece una respuesta.**
+  - `_prompt_excerpt()` guarda cabeza (3.000) + cola (7.000) con el hueco **NOMBRADO** —«… [N caracteres
+    OMITIDOS…; el estado vivo va al final y sí está abajo] …»— porque la lección entera es que un hueco sin
+    nombre se lee como una ausencia. Verificado con un prompt REAL: un turno con `chrome-error://` conserva
+    `NAVEGADOR` y `· MURO:`.
+
 - **La suite escribía en la agenda REAL del operador: 328 citas de prueba** (`conftest.py`, V2-194,
   2026-08-20). `conftest.py` ya apuntaba `settings.SETTINGS_FILE` a un temporal por el invariante «un test
   nunca lee ni escribe el estado real del operador», y **su propio comentario citaba `store.DATA_DIR` como la

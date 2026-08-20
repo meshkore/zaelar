@@ -482,6 +482,12 @@ DOMAINS: list[dict] = [
         # ningún chip gobernaba).
         {"id": "7.6", "title": "Inventario de categorías del visor (ningún kind sin familia)", "ch": UNIT,
             "paths": ["tests/infrastructure/unit/core/test_observer_categories.py"]},
+        # 2026-08-20: la captura forense de un turno guardaba `system[:8000]` de un prompt de ~19.000, y el
+        # estado vivo se compone al FINAL — o sea que tiraba justo la mitad que responde «¿qué vio el modelo?».
+        # Casi cuesta un diagnóstico falso: cinco turnos parecían no tener el bloque del navegador con el
+        # navegador emitiendo 74 eventos en esa misma corrida.
+        {"id": "7.11", "title": "La captura forense de un turno guarda el ESTADO, no solo la persona",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/core/test_turn_capture_keeps_the_state.py"]},
         # INI-021 (2026-08-09): la observabilidad pasa de «ver líneas» a «analizar procesos». Un estímulo y todo
         # lo que desencadena comparten CORRELATION ID; cada evento dice de qué instalación y de qué sesión de
         # trabajo salió; y todo eso es consultable por columnas indexadas, no escaneando JSON.
