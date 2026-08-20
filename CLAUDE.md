@@ -1312,6 +1312,37 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **El contrato de pantalla estaba en verde y el operador seguía sin ver nada** (`nucleo/dispatch.py` +
+  `widgets/results/data.py`, V2-233 ámbito C, 2026-08-20). La hoja de resultados es la superficie del progreso en
+  vivo, y su contrato ejecutable daba 6 de 6 renderizando — porque monta `widget.js` en una página en blanco y le
+  pasa a mano tres cargas útiles: prueba que la hoja **se comporta** cuando le llegan los datos, no que alguien los
+  produzca. Y no los producía nadie. `widget.js` lee `data.progress` y su propio comentario dice «llega derivado en
+  cada `view_data`»; **`view_data()` no devolvía esa clave en absoluto**, y nadie emitía `widget/show` para
+  `results` al encargar. Un contrato cumplido en un test y ausente en el producto.
+  - **`dispatch.sheet_progress()` → `{alive, phases}`, DERIVADO en cada lectura y nunca guardado**, igual que
+    `counts`: el dueño de «qué está pasando» es el registro vivo, y tener el mismo estado en dos sitios deja en
+    pantalla el rancio. **`alive` es «hay un encargo en marcha», no «ha dicho algo»** — la hoja se abre viva con
+    `phases: []`, y ese hueco de segundos ES la pantalla en blanco que el operador pidió quitar.
+  - **Se abre al ENCARGAR**, en `run_listener` justo tras `surfaces.set_once` (el único punto por el que pasan
+    todas las puertas del dispatcher), y **se cierra DESPUÉS del `pop`** del registro — al revés, `sheet_progress()`
+    seguiría viendo la sesión y la hoja se guardaría diciendo que trabaja. Al reanudar no se cierra: el encargo
+    continúa.
+  - **Tres cosas que no estaban en el encargo y sin las cuales no se sostiene.** (1) `process` **faltaba de
+    `_TABS`**: el clic del operador en «Proceso» volvía `ok:false` y no se persistía — la pestaña se pintaba igual
+    y al siguiente refresco de datos, que durante un encargo vivo llega con CADA fase, el derivado se lo llevaba de
+    vuelta a Resultados. (2) Sin **estrenar** la hoja al encargar, el segundo encargo de la sesión abre sobre los
+    resultados del primero y con su título: la función solo se sostenía en el primer encargo. (3) **Escribir al
+    terminar** es lo que APAGA el loader (el emisor de fases solo dispara al CAMBIAR una fase) y lo que deja la
+    historia **persistida** con el informe: la hoja sobrevive a un reinicio, y un informe cuya explicación de cómo
+    se llegó a él ha desaparecido cuenta la mitad.
+  - **Asumido y dicho**: con DOS encargos vivos las fases se MEZCLAN en orden de tiempo mientras la hoja sea única
+    (C4) —quedarse con uno escondería que hay otro trabajando—, y un encargo nuevo con otro AÚN VIVO no la vacía.
+  - Nodos 4.28 (16 casos) y 2.5 (dos por el camino REAL, `run_listener` contra el bus: llamar `_sheet_open` a mano
+    habría pasado igual con la línea borrada, la lección de V2-199). El contrato de pantalla del arnés se
+    **registró** en el testmap como 4.29 — no lo estaba, o sea que no corría en `tests run all`.
+  - ⚠️ **El número**: los ámbitos A/B/C se commitearon como `[V2-227]`, que ya estaba cogido por un caso de uso del
+    arnés. El trabajo vive en **V2-233**; los commits `e8b5c4c`/`b211331`/`58a2339` citan el número equivocado.
+
 - **La nota del hallazgo llevaba TRES órdenes, y el turno obedeció la del medio** (`widgets/navegador/act_api.py`,
   V2-226, 2026-08-20). La nota de V2-223 decía «si responde a lo que pidió, dáselo; si no, no lo ofrezcas como
   resultado; **pero entonces tampoco digas que sigues buscando sin más**». Medido en la primera ronda limpia
