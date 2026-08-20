@@ -19,6 +19,37 @@ judge, full design below), reusing the voice tester's proven DRIVE+JUDGE pattern
 > third state, never folded into `FAIL`: a network timeout or a crashed harness says nothing about
 > whether the use case works, and merging the two is how a scoreboard starts lying.
 
+
+## What a fix is allowed to be (operator's norm, 2026-08-20)
+
+**A case is a SAMPLE, never a specification.** The agent has to handle a hotel booking, a research
+project on 2nd-century-BC Greek culture, the task list for building a rocket, a used-car search on
+Wallapop, a house search in Los Angeles on whichever site is popular there. Nobody can enumerate that,
+so a fix that makes one scenario green by teaching the engine that scenario is not a fix — it is a
+scenario-shaped hole waiting for the next comma to change.
+
+The line the operator drew, and it is the one to hold:
+
+- **The CORE plumbing must be solid, tested and boring**: how the browser is driven, how data reaches
+  the Brain Worker in real time and complete, how a page is parsed, when a screenshot is taken, how a
+  tool reports what it got. This is mechanism, it is finite, and it is where hardening belongs.
+- **The LOGIC on top must stay free**: the worker gets broad briefs, resources and room to experiment,
+  and is expected to FIND a way to the operator's goal. Not a decision tree we wrote for it.
+
+What this means for this suite, concretely, because a scoreboard that rewards overfitting will get it:
+
+1. A green case proves the mechanism worked ONCE, on one set of data. It is evidence, not a
+   guarantee.
+2. Before a case is marked ✅ it should also hold when a detail is changed — another city, another
+   date shape, another site, a condition added. If it only survives its own fixture, the fix taught
+   the engine the fixture.
+3. Findings should name the MECHANISM that failed (extraction, delivery, prompt, budget) rather than
+   the scenario's subject. "The browser's extraction is dropped when the payload is truncated" travels
+   to every case; "it did not find a 4-star hotel" travels nowhere.
+4. A fix that hardcodes this catalog's vocabulary — hotel, Sevilla, 4 stars — into engine code is a
+   finding in itself, and gets reported as one.
+
+
 ## Run it ISOLATED — `--sandbox` (2026-08-18)
 
 ```bash
