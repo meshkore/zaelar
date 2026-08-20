@@ -164,7 +164,15 @@ def _retest_pending() -> dict:
         (LOG_PATH.parent / f"verify-stdout-{stamp}.log").write_text(out or "(sin salida)", encoding="utf-8")
     except Exception:
         pass
-    _log(f"paso 1 · terminado rc={rc}")
+    # El rc SOLO no basta para reconstruir qué pasó. El 2026-08-20 a las 02:46 un tick con `rc=1` en 0 segundos
+    # clasificó su caso como BLOQUEADO en vez de como no-medido, y el marcador decía que su `last_run` no se
+    # había movido — o sea que el guard de arriba debería haber saltado y no saltó. No se pudo explicar con lo
+    # que había en el log, así que se registran los DOS sellos por caso: la próxima vez el log es la evidencia
+    # en vez del punto de partida de una investigación.
+    _log(f"paso 1 · terminado rc={rc} · sellos "
+         + ", ".join(f"{p['scenario']}: {stamp_before.get(p['scenario'])!r}→"
+                     f"{((statusmod.load().get('scenarios') or {}).get(p['scenario']) or {}).get('last_run')!r}"
+                     for p in ready))
 
     led = statusmod.load().get("scenarios") or {}
     passed, rotated, inconclusive, blocked, unrun = [], [], [], [], []
