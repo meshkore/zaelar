@@ -57,15 +57,42 @@ def glm_call(messages: list[dict], model: str | None = None, max_tokens: int = 2
     return "".join(p.get("text", "") for p in parts if p.get("type") == "text")
 
 
+# Transitorios del proveedor: merecen otro intento. Un 401/402/404 no — eso es configuración o saldo, y
+# reintentarlo solo gasta tiempo.
+_TRANSIENT = ("429", "500", "502", "503", "504", "timed out", "timeout", "Temporary failure")
+
+
 def judge_call(messages: list[dict], max_tokens: int = 2000) -> tuple[str, str]:
-    """The JUDGE call: GLM (Z.AI) when configured, else/on-error DeepSeek. Returns (text, model_used)."""
+    """The JUDGE call: GLM (Z.AI) when configured, else/on-error DeepSeek. Returns (text, model_used).
+
+    The fallback leg RETRIES on transient provider errors, and that is not a nicety: on 2026-08-20 the
+    use-case suite lost `book-hotel-night-known__es` TWICE in a row — two full eight-minute conversations,
+    already measured, thrown away because the judge got `429 → 503` and `429 → 504`. Losing the judgement
+    loses the whole round; retrying it costs one call. Anything non-transient (no balance, bad key, unknown
+    model) fails immediately, because retrying that only burns the clock.
+    """
+    import sys
+    import time as _t
     if config.JUDGE_PROVIDER == "zai" and config.ZAI_KEY:
         try:
             return glm_call(messages, max_tokens=max_tokens), config.ZAI_JUDGE_MODEL
         except Exception as e:  # no balance / quota / transport → DeepSeek fallback (never lose the judgement)
-            import sys
             print(f"[judge] GLM unavailable ({str(e)[:80]}) → DeepSeek fallback", file=sys.stderr)
-    return call(messages, model=config.JUDGE_MODEL, temperature=0.0, max_tokens=max_tokens), config.JUDGE_MODEL
+    last = None
+    for attempt in range(3):
+        try:
+            return (call(messages, model=config.JUDGE_MODEL, temperature=0.0, max_tokens=max_tokens),
+                    config.JUDGE_MODEL)
+        except Exception as e:
+            last = e
+            if not any(t in str(e) for t in _TRANSIENT):
+                raise
+            if attempt < 2:
+                wait = 8 * (attempt + 1)
+                print(f"[judge] {config.JUDGE_MODEL} transitorio ({str(e)[:60]}) → reintento en {wait}s "
+                      f"({attempt + 1}/2)", file=sys.stderr)
+                _t.sleep(wait)
+    raise last
 
 
 def parse_json(txt: str):

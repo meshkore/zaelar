@@ -126,6 +126,10 @@ DOMAINS: list[dict] = [
             # V2-213: un muro dice ADÓNDE ir. El catálogo tenía UN sitio por categoría, así que ante un
             # muro no había, literalmente, ningún sitio escrito al que mandar al worker.
             "tests/agent_headless/unit/flash/test_a_wall_names_where_to_go_next.py",
+            # V2-214: el aviso existía y su CONTENIDO estaba roto — la tag del propio modelo metía la
+            # frase del operador («el jueves tengo que renovar…») y el cron se lo entrega al agente como
+            # un «apunta esto». El backstop ya componía la forma segura; la otra puerta no.
+            "tests/agent_headless/unit/flash/test_the_cron_hands_back_an_instruction.py",
             # V2-147: preguntó EN QUÉ WEB teniendo el motor la respuesta — el catálogo de sitios llega
             # al worker y nunca ha estado a la vista del prompt que decide si preguntar.
             "tests/agent_headless/unit/flash/test_never_ask_which_website.py",
@@ -736,6 +740,10 @@ DOMAINS: list[dict] = [
         # compartido hace que el resolvedor del tick pueda coger el fichero que no es.
         {"id": "10.17", "title": "El número de tarea se RESERVA de forma atómica, no se adivina",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_task_number_claim.py"]},
+        # Dos conversaciones de ocho minutos tiradas el mismo día porque el juez recibió 429→503 y 429→504.
+        # Perder el veredicto pierde la ronda entera; reintentarlo cuesta una llamada.
+        {"id": "10.18", "title": "El juez reintenta un transitorio del proveedor (y NO un 402)",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_judge_retries_transient.py"]},
     ]},
 ]
 

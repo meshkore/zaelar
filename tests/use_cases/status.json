@@ -64,48 +64,38 @@
       }
     },
     "remember-and-remind-deadline": {
-      "last_run": "2026-08-20 15:38",
-      "overall": 4.6,
-      "state": "PASS",
+      "last_run": "2026-08-20 15:49",
+      "overall": 3,
+      "state": "FAIL",
       "scores": {
-        "naturalidad": 5,
-        "adaptacion": 5,
-        "resultado": 4,
-        "mecanismo": 4,
-        "eficiencia": 5
+        "naturalidad": 4,
+        "adaptacion": 4,
+        "resultado": 3,
+        "mecanismo": 3,
+        "eficiencia": 4
       },
-      "verdict": "El caso queda resuelto: hay cita en agenda para el jueves 2026-08-27 y aviso programado para el miércoles 2026-08-26, antes del plazo; el único bloqueador menor es la duplicación de la cita en la agenda, que conviene corregir, pero no impide considerar el caso listo para producción.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es que el `prompt` del cron lleva la frase cruda del usuario, así que el recordatorio hará que el agente vuelva a programar en vez de avisar — el aviso existe pero su contenido está roto.",
       "missing_signals": [],
       "audit_anomalies": [
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: This Bash command contains multiple operations. The following part requires approval: cd /Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine && .venv/b"
+          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
         },
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "memory/memory «🧠 memoria ⚠️ error»: This Bash command contains multiple operations. The following part requires approval: cd /Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine && .venv/b"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "memory/memory «🧠 memoria ⚠️ error»: This Bash command contains multiple operations. The following part requires approval: cd /Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine && .venv/b"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: Contains brace with quote character (expansion obfuscation)"
+          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
         },
         {
           "clase": "span_con_error",
           "certeza": "hecho",
-          "que": "worker:1: 4 error(es), último paso «· paso ⚠️ error»"
+          "que": "worker:2: 2 error(es), último paso «🧠 memoria ↩»"
         }
       ],
       "sandboxed": true,
       "tier": 1,
-      "turns_used": 2,
+      "turns_used": 4,
       "families": [
         "flash",
         "memory",
@@ -120,19 +110,35 @@
       }
     },
     "cancel-subscription-before-charge__es": {
-      "last_run": "2026-08-20 13:49",
-      "overall": 5,
+      "last_run": "2026-08-20 15:46",
+      "overall": 2,
       "state": "CAPPED",
       "scores": {
-        "naturalidad": 5,
-        "adaptacion": 5,
-        "resultado": 5,
-        "mecanismo": 5,
-        "eficiencia": 5
+        "naturalidad": 4,
+        "adaptacion": 3,
+        "resultado": 2,
+        "mecanismo": 2,
+        "eficiencia": 2
       },
-      "verdict": "Listo para producción. La conducta es impecable: identifica con precisión qué falta (acceso/cuenta) y qué necesita el usuario para lograrlo, sin inventar un éxito falso ni intentar acciones irreversibles sin permiso. La interacción gestiona correctamente la falta de datos en un entorno de prueba y ofrece una alternativa realista.",
+      "verdict": "No está listo para producción: supo decir con precisión qué le faltaba (el acceso a la cuenta) y ofrecer el login, pero luego cayó en el fallo más grave al narrar que seguía cancelando en la cuenta del usuario sin que el mecanismo respaldara esa fase; el bloqueador nº1 es no verificar el estado real del navegador antes de afirmar progreso.",
       "missing_signals": [],
-      "audit_anomalies": [],
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:2: 2 error(es), último paso «end»"
+        }
+      ],
       "sandboxed": true,
       "tier": 1,
       "turns_used": 8,
@@ -188,56 +194,18 @@
       }
     },
     "book-hotel-night-known__es": {
-      "last_run": "2026-08-20 15:29",
-      "overall": 2,
-      "state": "CAPPED",
-      "scores": {
-        "naturalidad": 5,
-        "adaptacion": 5,
-        "resultado": 1,
-        "mecanismo": 2,
-        "eficiencia": 3
-      },
-      "verdict": "El caso no está listo para producción. El asistente no logró encontrar disponibilidad en el hotel solicitado, se distrajo con un hotel diferente y dejó al usuario esperando una confirmación que nunca llegó; su conducta final fue de abandono disimulado, no de gestión.",
+      "last_run": "2026-08-20 16:10",
+      "overall": null,
+      "state": "INFRA",
+      "scores": {},
+      "verdict": "INFRA: HTTP Error 503: Service Unavailable",
       "missing_signals": [],
-      "audit_anomalies": [
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 usage: nav_cli type_at [-h] [--submit] x y text nav_cli type_at: error: argument y: invalid int value: 'Hotel Palacio de la Merced Burgos reservas 3"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: Error: ElementHandle.scroll_into_view_if_needed: Element is not attached to the DOM"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: Error: ElementHandle.scroll_into_view_if_needed: Element is not attached to the DOM"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:1: 1 error(es), último paso «end»"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:3: 2 error(es), último paso «end»"
-        }
-      ],
+      "audit_anomalies": [],
       "sandboxed": true,
       "tier": 1,
-      "turns_used": 10,
-      "families": [
-        "flash",
-        "memory",
-        "system",
-        "widget",
-        "worker"
-      ],
-      "drive_model": "deepseek-directo",
+      "turns_used": 0,
+      "families": [],
+      "drive_model": "",
       "data_limit": {
         "kind": "no_booking",
         "missing": "cerrar la reserva (cuenta y tarjeta)"
@@ -293,28 +261,40 @@
       }
     },
     "cheapest-monitor": {
-      "last_run": "2026-08-20 15:35",
-      "overall": 2,
+      "last_run": "2026-08-20 16:16",
+      "overall": 1,
       "state": "FAIL",
       "scores": {
-        "naturalidad": 2,
-        "adaptacion": 4,
+        "naturalidad": 3,
+        "adaptacion": 2,
         "resultado": 1,
         "mecanismo": 2,
         "eficiencia": 1
       },
-      "verdict": "El caso no está listo para producción porque el pipeline de extracción de datos se rompe al encontrar bloqueos de seguridad (Bash approval) y es incapaz de recuperar los datos para mostrarlos en la hoja de resultados, dejando la tarea en un bucle de 'buscando' sin salida.",
-      "missing_signals": [],
+      "verdict": "No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real (cero búsquedas web, cero opciones en pantalla), y encima se narró un avance que el sistema no respalda.",
+      "missing_signals": [
+        "widget"
+      ],
       "audit_anomalies": [
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: This Bash command contains multiple operations. The following part requires approval: curl -s \"https://www.pccomponentes.com/monitores\""
+          "que": "worker/task «↩ zaelar ⚠️ error»: Exit code 2 usage: worker_bridge [-h] {ask,wait,act,say} ... worker_bridge: error: argument cmd: invalid choice: 'help' (choose from ask, wait, act, say)"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: This command requires approval"
         },
         {
           "clase": "span_con_error",
           "certeza": "hecho",
           "que": "worker:1: 1 error(es), último paso «end»"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:2: 1 error(es), último paso «end»"
         }
       ],
       "sandboxed": true,
@@ -324,7 +304,6 @@
         "flash",
         "memory",
         "system",
-        "widget",
         "worker"
       ],
       "drive_model": "deepseek-directo",
@@ -334,31 +313,32 @@
       }
     },
     "quick-fact-opening-hours": {
-      "last_run": "2026-08-20 15:08",
-      "overall": 2,
+      "last_run": "2026-08-20 16:00",
+      "overall": 3,
       "state": "FAIL",
       "scores": {
-        "naturalidad": 5,
-        "adaptacion": 5,
-        "resultado": 1,
-        "mecanismo": 1,
-        "eficiencia": 5
+        "naturalidad": 3,
+        "adaptacion": 4,
+        "resultado": 4,
+        "mecanismo": 2,
+        "eficiencia": 3
       },
-      "verdict": "No está listo para producción. El bloqueador principal es la generación de información fáctica falsa sin consultar fuentes externas; zaelar está inventando datos en lugar de buscarlos.",
+      "verdict": "No está listo para producción: aunque dio la hora y el precio en el mismo turno, la respuesta se contradice sobre el precio y el mecanismo escaló a un worker innecesario; el bloqueador número uno es hacer que zaelar confíe en la búsqueda directa y entregue la síntesis sin vacilar ni escalar.",
       "missing_signals": [],
       "audit_anomalies": [],
       "sandboxed": true,
       "tier": 1,
-      "turns_used": 2,
+      "turns_used": 4,
       "families": [
         "flash",
         "memory",
-        "system"
+        "system",
+        "worker"
       ],
       "drive_model": "deepseek-directo",
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-204-uc-quick-fact-opening-hours.md",
-        "task": ".meshkore/modules/nucleo/tasks/T452-uc-quick-fact-opening-hours-fix.md"
+        "task": ""
       }
     },
     "search-buy-camera__es": {
@@ -403,5 +383,5 @@
       }
     }
   },
-  "updated": "2026-08-20 15:38"
+  "updated": "2026-08-20 16:16"
 }

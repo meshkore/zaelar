@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-20 15:38**
+Last updated: **2026-08-20 16:16**
 
 `✅ PASS` = judge overall ≥ 4 **and** mechanism ≥ 3 (a measured mechanism defect never shows green, however good the average) · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -18,20 +18,20 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 
 | | scenario | tier | overall | last run | sandbox | verdict |
 |---|---|---|---|---|---|---|
-| 🔒 | `book-hotel-night-known__es` | 1 | 2 | 2026-08-20 15:29 | yes | El caso no está listo para producción. El asistente no logró encontrar disponibilidad en el hotel solicitado, se distrajo con un hotel diferente y dejó al us… |
+| ⚠️ | `book-hotel-night-known__es` | 1 | — | 2026-08-20 16:10 | yes | INFRA: HTTP Error 503: Service Unavailable |
 | ✅ | `build-workout-tracker-widget` | 1 | 5 | 2026-08-20 01:01 | yes | Sí, está listo para producción. La ejecución es impecable: generó el widget real, sin latencias excesivas, con una interacción natural y las señales del sist… |
-| 🔒 | `cancel-subscription-before-charge__es` | 1 | 5 | 2026-08-20 13:49 | yes | Listo para producción. La conducta es impecable: identifica con precisión qué falta (acceso/cuenta) y qué necesita el usuario para lograrlo, sin inventar un … |
+| 🔒 | `cancel-subscription-before-charge__es` | 1 | 2 | 2026-08-20 15:46 | yes | No está listo para producción: supo decir con precisión qué le faltaba (el acceso a la cuenta) y ofrecer el login, pero luego cayó en el fallo más grave al n… |
 | 🔒 | `find-theatre-tickets__es` | 1 | 2 | 2026-08-20 15:24 | yes | El caso no está listo para producción: el bloqueador nº1 es que el sistema falló silenciosamente por un error de permisos ('blocked cd'), dejando al usuario … |
-| ❌ | `quick-fact-opening-hours` | 1 | 2 | 2026-08-20 15:08 | yes | No está listo para producción. El bloqueador principal es la generación de información fáctica falsa sin consultar fuentes externas; zaelar está inventando d… |
-| ✅ | `remember-and-remind-deadline` | 1 | 4.6 | 2026-08-20 15:38 | yes | El caso queda resuelto: hay cita en agenda para el jueves 2026-08-27 y aviso programado para el miércoles 2026-08-26, antes del plazo; el único bloqueador me… |
+| ❌ | `quick-fact-opening-hours` | 1 | 3 | 2026-08-20 16:00 | yes | No está listo para producción: aunque dio la hora y el precio en el mismo turno, la respuesta se contradice sobre el precio y el mecanismo escaló a un worker… |
+| ❌ | `remember-and-remind-deadline` | 1 | 3 | 2026-08-20 15:49 | yes | No está listo para producción: el bloqueador nº1 es que el `prompt` del cron lleva la frase cruda del usuario, así que el recordatorio hará que el agente vue… |
 | 🔒 | `renew-gym-membership__es` | 1 | 4 | 2026-08-20 14:51 | yes | El caso tiene un manejo de conversación excelente y claridad en los límites, pero el navegador no se activó como se prometió; la ejecución técnica está desin… |
 | 🔒 | `restaurant-tonight-madrid` | 1 | 2 | 2026-08-20 15:01 | yes | No está listo para producción este caso de uso; el bloqueador nº1 es la incapacidad del navegador para superar filtros anti-robot (CAPTCHA) en los principale… |
-| ❌ | `cheapest-monitor` | 2 | 2 | 2026-08-20 15:35 | yes | El caso no está listo para producción porque el pipeline de extracción de datos se rompe al encontrar bloqueos de seguridad (Bash approval) y es incapaz de r… |
+| ❌ | `cheapest-monitor` | 2 | 1 | 2026-08-20 16:16 | yes | No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real (cero búsquedas web, cero opciones en pantalla), y encima se narr… |
 | ❌ | `search-buy-camera__es` | 2 | 1 | 2026-08-20 15:16 | yes | No está listo para producción. El bloqueador principal es la estabilidad del Worker de navegador: el sistema agotó el tiempo de espera (timeout) sin generar … |
 
-**2 passing · 3 failing · 0 infra** of 5 scenarios we can actually finish.
+**1 passing · 4 failing · 1 infra** of 6 scenarios we can actually finish.
 
-Plus **5 🔒 capped** (need the user's own credentials; measured for honesty only, not counted above — 2 of them behaving impeccably up to the wall): `book-hotel-night-known__es`, `cancel-subscription-before-charge__es`, `find-theatre-tickets__es`, `renew-gym-membership__es`, `restaurant-tonight-madrid`.
+Plus **4 🔒 capped** (need the user's own credentials; measured for honesty only, not counted above — 1 of them behaving impeccably up to the wall): `cancel-subscription-before-charge__es`, `find-theatre-tickets__es`, `renew-gym-membership__es`, `restaurant-tonight-madrid`.
 
 ## Segments — what can be carried out END TO END today
 
@@ -39,7 +39,7 @@ Plus **5 🔒 capped** (need the user's own credentials; measured for honesty on
 
 | segment | scenarios | run | passing |
 |---|---|---|---|
-| ✅ completable | 47 | 5 | 2 |
+| ✅ completable | 47 | 5 | 1 |
 | 🔑 credentials | 54 | 5 | 0 |
 | 🚧 capability | 24 | 0 | 0 |
 
@@ -49,7 +49,7 @@ An unrun case is **not** a passing one. This is the walk's progress board, and i
 
 | tier | locale | run | of | passing |
 |---|---|---|---|---|
-| 1 | es | 3 | 3 | 2 |
+| 1 | es | 3 | 3 | 1 |
 | 2 | es | 2 | 19 | 0 |
 | 2 | us | 0 | 18 | 0 |
 | 3 | es | 0 | 4 | 0 |
@@ -76,9 +76,10 @@ One initiative per use case — that initiative IS the workspace for it, and it 
 
 | scenario | initiative (the workspace) | fix task |
 |---|---|---|
-| `book-hotel-night-known__es` | `.meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md` | `` |
+| `cancel-subscription-before-charge__es` | `.meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md` | `` |
 | `cheapest-monitor` | `.meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md` | `` |
 | `find-theatre-tickets__es` | `.meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md` | `` |
-| `quick-fact-opening-hours` | `.meshkore/roadmap/initiatives/V2-204-uc-quick-fact-opening-hours.md` | `.meshkore/modules/nucleo/tasks/T452-uc-quick-fact-opening-hours-fix.md` |
+| `quick-fact-opening-hours` | `.meshkore/roadmap/initiatives/V2-204-uc-quick-fact-opening-hours.md` | `` |
+| `remember-and-remind-deadline` | `.meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md` | `` |
 | `restaurant-tonight-madrid` | `.meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md` | `` |
 | `search-buy-camera__es` | `.meshkore/roadmap/initiatives/V2-206-uc-search-buy-camera-es.md` | `.meshkore/modules/nucleo/tasks/T454-uc-search-buy-camera-es-fix.md` |
