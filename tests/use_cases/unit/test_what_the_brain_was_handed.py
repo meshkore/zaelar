@@ -67,3 +67,21 @@ def test_the_instruction_prose_is_not_read_as_a_finding(tmp_path):
         "nombre, precio y enlace.")
     got = verify.offered_to_brain(_db(tmp_path, [note]))
     assert got["titles"] == ["Monitor X"], got["titles"]
+
+
+def test_a_bare_number_is_not_a_name(tmp_path):
+    """Measured 2026-08-21: the extractor split «169,00 €» across the two fields, so the note read
+    «169 — 00 € — <url>». Counting that as a named finding reports three results where there were three
+    price fragments, and hides the extractor defect behind a healthy count."""
+    note = _HEAD + ("169 — 00 € — https://www.amazon.es/LG-27US500-W/dp/B0DH51BPZD; "
+                    "284 — 87 € — https://www.amazon.es/Dell-Plus-Monitor/dp/B0F29RH4RY") + _TAIL
+    got = verify.offered_to_brain(_db(tmp_path, [note]))
+    assert got["n_offered"] == 2, "the rows were offered — that part is true"
+    assert got["n_named"] == 0, f"but none of them carried a name: {got['named']}"
+
+
+def test_and_a_real_name_still_counts(tmp_path):
+    """Sensitivity: if everything were filtered out the test above would pass and mean nothing."""
+    note = _HEAD + "Monitor Alurin CoreVision 24\" FHD — 99€ — https://x/a" + _TAIL
+    got = verify.offered_to_brain(_db(tmp_path, [note]))
+    assert got["n_named"] == 1 and got["named"][0].startswith("Monitor Alurin")

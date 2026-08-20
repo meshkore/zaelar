@@ -773,6 +773,9 @@ def was_delivered(found: list | None, transcript: list[dict]) -> bool | None:
             return True
     return False
 
+_NUMERIC_HEAD = re.compile(r"^[\d.,%\s€$-]+$")
+
+
 def offered_to_brain(db_path, *, since: float = 0.0) -> dict:
     """WHAT THE NOTE ACTUALLY CARRIED — which is not what the browser extracted, and that gap is a defect.
 
@@ -786,7 +789,7 @@ def offered_to_brain(db_path, *, since: float = 0.0) -> dict:
     somewhere), and delivery is judged against this: the titles the brain was actually offered.
     """
     import sqlite3
-    out: dict = {"notes": 0, "titles": [], "n_offered": 0}
+    out: dict = {"notes": 0, "titles": [], "named": [], "n_offered": 0}
     try:
         con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     except Exception:
@@ -824,7 +827,14 @@ def offered_to_brain(db_path, *, since: float = 0.0) -> dict:
             if key not in seen:
                 seen.add(key)
                 out["titles"].append(head[:120])
+                # A row whose "title" is a bare number has no identity either: on 2026-08-21 the extractor
+                # split «169,00 €» across the two fields, so the note read «169 — 00 € — <url>». Counting
+                # that as a named result would report the note as carrying three findings when it carried
+                # three price fragments — and would hide the extractor defect behind a healthy-looking count.
+                if not _NUMERIC_HEAD.match(head):
+                    out["named"].append(head[:120])
     out["n_offered"] = len(out["titles"])
+    out["n_named"] = len(out["named"])
     return out
 
 

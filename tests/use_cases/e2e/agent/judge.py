@@ -174,7 +174,11 @@ def mechanism_facts(mech: dict) -> str:
         # TWO DIFFERENT DEFECTS, and calling one by the other's name blames the wrong half of the system.
         # What the browser scraped and what the brain was handed are separate lists: the note is built with a
         # positional cut over DOM order, and category/ad rows come before product cards on every listing page.
-        named = [t for t in (offered.get("titles") or []) if t and not t[0].isdigit()]
+        # `named` is computed where the note is parsed: a bare number is not an identity either, and the
+        # extractor produces plenty of them (it splits «169,00 €» across the title and price fields).
+        named = offered.get("named")
+        if named is None:      # older rows, before the note parser told the two apart
+            named = [t for t in (offered.get("titles") or []) if t and not t[0].isdigit()]
         # Only when the note was actually READ. A missing `offered` means the measurement did not run, and an
         # unmeasured note is not an empty one — assuming otherwise would exonerate every turn for free.
         measured = bool(offered.get("notes"))
