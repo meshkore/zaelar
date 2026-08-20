@@ -75,12 +75,21 @@ def test_ZERO_is_said_out_loud():
 
 def test_the_browser_bridge_ACTUALLY_reports_it():
     """La mitad que lo convierte en conducta. Y por la puerta de `dispatch.session_phase`, la misma que usa
-    `hbnote`: B4 dice que el caudal viaja por el carril que existe, nunca por uno paralelo."""
+    `hbnote`: B4 dice que el caudal viaja por el carril que existe, nunca por uno paralelo.
+
+    Casa por la LLAMADA y no por la expresión entera al carácter. La primera versión exigía
+    `_say_phase(task_id, _progress.found(len(items)))` literal y se puso roja el 2026-08-20 cuando V2-234 pasó a
+    contar los resultados CON NOMBRE en vez de las filas crudas — un cambio que no toca en absoluto lo que este
+    test dice medir (que el puente reporte, y por el carril que existe). Es la misma trampa que ya se pagó en
+    V2-222 con un assert de V2-199: un test pegado a la sintaxis convierte cualquier refactor en un falso rojo, y
+    enseña a mirar para otro lado cuando el rojo sí importa. Qué se cuenta lo fija su propio nodo (4.31).
+    """
     import inspect
+    import re
 
     from widgets.navegador import act_api
     src = inspect.getsource(act_api)
-    assert "_say_phase(task_id, _progress.found(len(items)))" in src
+    assert re.search(r"_say_phase\(task_id,\s*_progress\.found\(", src), "el puente tiene que REPORTAR la fase"
     assert "_d.session_phase(rec.task_id, phrase)" in inspect.getsource(act_api._say_phase)
 
 

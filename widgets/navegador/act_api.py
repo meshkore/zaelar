@@ -152,6 +152,57 @@ def _say_phase(nav_tid: str, phrase: str) -> None:
         pass
 
 
+def by_identity(items) -> tuple:
+    """Parte lo extraído en (CON nombre, SIN nombre), conservando el orden relativo dentro de cada mitad.
+
+    Una fila sin título no es un resultado: es cromo de navegación —un enlace de categoría, un filtro de precio—
+    y sale ANTES que las fichas de producto porque ese es el orden del DOM en cualquier listado, no la mala
+    suerte de una tienda concreta. Medido en `cheapest-monitor` (2026-08-20 23:44): el navegador sacó seis filas,
+    las tres primeras eran «portátiles hasta 799 €», «móviles menos de 200 €» y «tablets hasta 200 €» sin título,
+    y las tres siguientes eran monitores REALES a 99 € con enlace de producto y foto. La nota se llenaba con
+    `items[:3]` en orden de DOM, así que al cerebro le llegaron las tres primeras y ninguna de las buenas — y el
+    turno describió fielmente lo único que tenía: «lo que ha sacado la página son categorías genéricas de
+    portátiles, móviles y tablets, no monitores».
+
+    ES UN PARTIDO, NO UNA ORDENACIÓN, y la diferencia importa: no se juzga cuál es mejor —eso es del cerebro, y
+    `observability/evidence.py` prohíbe interpretar por buenas razones—, se separa por un hecho estructural,
+    tener nombre o no tenerlo. Y NO se tira nada: lo de abajo se cuenta y se dice.
+
+    Tampoco es una lista negra de patrones. Mañana es otra tienda; «tiene nombre» vale para un hotel, un coche,
+    un piso en Los Ángeles o una entrada de teatro, y para el listado que nadie ha escrito todavía.
+    """
+    named, unnamed = [], []
+    for it in (items or []):
+        if not isinstance(it, dict):
+            continue
+        (named if str(it.get("title") or "").strip() else unnamed).append(it)
+    return named, unnamed
+
+
+def dedupe_by_url(items) -> tuple:
+    """La MISMA url no es dos hallazgos. Devuelve (lista sin repetidos, cuántos se colapsaron).
+
+    Medido por el arnés en la misma ronda del monitor: la segunda nota llevaba tres filas y las tres eran
+    `aax-eu-zaz.amazon.es/x/c/JLv…` — la misma url de anuncio repetida. O sea que las repeticiones no solo
+    ensucian: OCUPAN el cupo de tres, así que dos de los tres huecos se gastaban en decir lo mismo.
+
+    No es interpretar (que es lo que `observability/evidence.py` prohíbe, con razón): dos filas con la misma
+    dirección son la misma página, y enseñar tres veces la misma no informa tres veces. Se conserva la PRIMERA
+    aparición —el orden manda hasta que se demuestre lo contrario— y una fila SIN url no se deduplica contra
+    nada: la ausencia de dirección no es una identidad compartida.
+    """
+    out, seen, dropped = [], set(), 0
+    for it in (items or []):
+        u = str((it or {}).get("url") or "").strip()
+        if u and u in seen:
+            dropped += 1
+            continue
+        if u:
+            seen.add(u)
+        out.append(it)
+    return out, dropped
+
+
 def _hand_over(task_id: str, items: list) -> None:
     """What the browser EXTRACTED goes to the results sheet AND to the conversation — not only to the worker.
 
@@ -191,13 +242,16 @@ def _hand_over(task_id: str, items: list) -> None:
     if not items:
         return
     try:
-        sig = "|".join(f"{(i or {}).get('title', '')}~{(i or {}).get('price', '')}" for i in items[:5])
+        fresh, repeated = dedupe_by_url(items)
+        named, unnamed = by_identity(fresh)
+        ordered = named + unnamed          # lo que TIENE identidad va delante; nada se descarta
+        sig = "|".join(f"{(i or {}).get('title', '')}~{(i or {}).get('price', '')}" for i in ordered[:5])
         if _HANDED.get(task_id) == sig:      # re-extracting the same page is not a new finding
             return
         _HANDED[task_id] = sig
         from widgets.navegador import tasks as _t
         prev = (_t.get(task_id) or {}).get("results") or {}
-        _t.set_results(task_id, {"conclusion": (prev or {}).get("conclusion") or "", "items": items[:5]})
+        _t.set_results(task_id, {"conclusion": (prev or {}).get("conclusion") or "", "items": ordered[:5]})
         goal = str((_t.get(task_id) or {}).get("goal") or "la tarea del navegador")[:70]
 
         def _one(i: dict) -> str:
@@ -205,15 +259,35 @@ def _hand_over(task_id: str, items: list) -> None:
                     str(i.get("url") or "").strip()[:120]]
             return " — ".join(b for b in bits if b)
 
-        listing = "; ".join(_one(i) for i in items[:3] if isinstance(i, dict))
+        # La CABECERA de la nota son las que tienen nombre. Con ninguna, va lo que hay: callarse porque solo
+        # salieron enlaces de categoría dejaría al turno sin poder decir «esta página solo me da categorías,
+        # cambio de sitio», que es una respuesta ÚTIL y cierta.
+        head = (named or unnamed)[:3]
+        listing = "; ".join(_one(i) for i in head)
+        # Nunca se pierde EN SILENCIO la información de que había más (doctrina de `observability/evidence.py`).
+        left = len(ordered) - len(head)
+        bits = []
+        if left > 0:
+            bits.append(f"{left} fila{'s' if left != 1 else ''} más")
+        if repeated:
+            bits.append(f"{repeated} repetida{'s' if repeated != 1 else ''}")
+        tail = f" (y {' y '.join(bits)} de la misma página)" if bits else ""
+        if named:
+            body = (f"El navegador ha SACADO esto de la página, trabajando en «{goal}»: {listing}{tail}. Nadie "
+                    f"más lo sabe: no está en la conversación hasta que tú lo digas, así que NO puedes decir "
+                    f"que no hay resultados ni que sigues buscando sin más. NÓMBRALO EN ESTE TURNO y, en la "
+                    f"misma frase, di si sirve: si responde a lo que pidió el operador, dáselo como resultado "
+                    f"con nombre, precio y enlace; si es otra cosa —un anuncio, un producto distinto—, nómbralo "
+                    f"igual y di por qué no sirve y qué haces ahora.")
+        else:
+            # Ni una fila con nombre: lo que la página dio son enlaces de navegación, no resultados. Se dice
+            # tal cual, con la salida delante, en vez de servirlos como si fueran hallazgos.
+            body = (f"El navegador ha leído la página trabajando en «{goal}» y NO ha sacado ni un resultado con "
+                    f"nombre: solo enlaces de navegación de la propia web ({listing}{tail}). DÍSELO EN ESTE "
+                    f"TURNO con tus palabras —esa página no está dando lo que pidió— y di qué haces ahora; no "
+                    f"los ofrezcas como si fueran resultados ni digas que sigues buscando sin más.")
         from voice import brain_notes
-        brain_notes.push(
-            f"[SISTEMA] El navegador ha SACADO esto de la página, trabajando en «{goal}»: {listing}. Nadie más "
-            f"lo sabe: no está en la conversación hasta que tú lo digas, así que NO puedes decir que no hay "
-            f"resultados ni que sigues buscando sin más. NÓMBRALO EN ESTE TURNO y, en la misma frase, di si "
-            f"sirve: si responde a lo que pidió el operador, dáselo como resultado con nombre, precio y enlace; "
-            f"si es otra cosa —un anuncio, un producto distinto—, nómbralo igual y di por qué no sirve y qué "
-            f"haces ahora.")
+        brain_notes.push("[SISTEMA] " + body)
     except Exception:  # noqa: BLE001
         pass
 
@@ -256,8 +330,13 @@ async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body
                     **_with_stall(task_id, _with_wall(snap, task_id))}
         if action == "extract":
             items = await tb.extract_listings(int(args.get("limit", 14)))
-            _emit_nav(task_id, "🧭 resultados", f"{len(items)} anuncios/resultados en la página")
-            _say_phase(task_id, _progress.found(len(items)))    # V2-227 B1: «12 resultados», el hito que pidió
+            # Se CUENTAN los que tienen nombre. Decir «12 resultados» cuando nueve son enlaces de categoría es
+            # una cifra que el operador lee y se cree; y `found(0)` no calla —dice «sin resultados en esta
+            # página»—, que es justo lo que hace falta para que el worker cambie de sitio en vez de insistir.
+            _named, _unnamed = by_identity(items)
+            _extra = f" (+{len(_unnamed)} enlaces sin nombre)" if _unnamed else ""
+            _emit_nav(task_id, "🧭 resultados", f"{len(_named)} anuncios/resultados en la página{_extra}")
+            _say_phase(task_id, _progress.found(len(_named)))   # V2-227 B1: «12 resultados», el hito que pidió
             _hand_over(task_id, items)      # V2-223: a la hoja y a la conversación, no solo al worker
             return {"ok": True, "listings": items, "n": len(items)}
         if action in ("navigate", "click", "type", "select_option", "scroll", "press", "click_at", "type_at"):

@@ -595,6 +595,14 @@ DOMAINS: list[dict] = [
                                 "orden, loader ANIMANDO, salto al primer resultado, historia al acabar)",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/results/render_process_tab.py"},
+        # V2-234 — V2-223 hizo que lo extraído llegara al cerebro; nadie miró QUÉ tres filas llegaban. `items[:3]`
+        # en orden de DOM, y los enlaces de categoría salen antes que las fichas de producto en cualquier listado,
+        # así que el corte se comía el resultado por construcción: el turno describió «categorías de portátiles,
+        # móviles y tablets» con tres monitores reales a 99 € dos líneas más abajo, fuera de la nota.
+        {"id": "4.31", "title": "El cromo de navegación no ocupa la cabecera de la nota (una fila sin título no "
+                                "es un resultado) · y lo que queda fuera se cuenta, no se calla",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/navegador/test_the_junk_row_does_not_win_the_turn.py"]},
         {"id": "4.19", "title": "Shell MÓVIL RENDERIZADO: el orbe centrado y PINTADO, la barra alcanzable",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/mobile/render_dock.py"},
