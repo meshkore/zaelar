@@ -129,6 +129,32 @@ def _next_initiative_number() -> int:
     return num
 
 
+def claim_initiative(slug: str) -> tuple[int, Path]:
+    """Reserve an initiative number AND its file in one atomic step.
+
+    `_next_initiative_number` closes the read side of the race and not the write side, and the write side is
+    the one that bites: between picking the number and writing the file there are a dozen lines and another
+    piece of disk I/O (`claim_task`), which is plenty of window for the other agent to take the same number.
+    THREE collisions on 2026-08-20 — V2-170, then V2-216/217 against their work — each one renumbered by hand
+    afterwards. `open(..., "x")` makes the number and the file one indivisible act, exactly as it already does
+    for tasks; the loser of the race silently takes the next one.
+    """
+    INITIATIVES.mkdir(parents=True, exist_ok=True)
+    num = _next_initiative_number()
+    while True:
+        path = INITIATIVES / f"V2-{num:03d}-uc-{slug}.md"
+        try:
+            with open(path, "x", encoding="utf-8"):
+                pass
+            return num, path
+        except FileExistsError:
+            num += 1
+        # A number can also be taken under a DIFFERENT slug (the other agent files its own subjects), and that
+        # is the collision that actually happened: same number, different name, no error anywhere.
+        while any(INITIATIVES.rglob(f"V2-{num:03d}-*.md")):
+            num += 1
+
+
 def _next_task_number() -> int:
     """Same race as `_next_initiative_number`, same reason: the fixing agent also creates tasks (it created
     T411-T416 while this session was writing T410). Recursive for the same reason: an ARCHIVED task keeps
@@ -475,8 +501,7 @@ def file_failure(result: dict, *, scenario, sandboxed: bool, force_new: bool = F
             existing.write_text(body, encoding="utf-8")
             return {"initiative": existing, "task": None, "round": rounds, "created": False}
 
-        num = _next_initiative_number()
-        path = INITIATIVES / f"V2-{num:03d}-uc-{_slug(scenario.id)}.md"
+        num, path = claim_initiative(_slug(scenario.id))
         # Title = a clean, stable summary, NOT a truncated verdict: the verdict is one round's opinion and
         # cutting it mid-word ("…que promete parale") makes a permanent filename-level label out of a
         # sentence fragment. The evolving assessment belongs in the rounds below, which is where it goes.
