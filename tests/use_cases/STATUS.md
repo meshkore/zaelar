@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-20 23:44**
+Last updated: **2026-08-21 00:36**
 
 `✅ PASS` = judge overall ≥ 4 **and** mechanism ≥ 3 (a measured mechanism defect never shows green, however good the average) · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -28,7 +28,7 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | 🔒 | `restaurant-tonight-madrid` | 1 | 2 | 2026-08-20 15:01 | yes | No está listo para producción este caso de uso; el bloqueador nº1 es la incapacidad del navegador para superar filtros anti-robot (CAPTCHA) en los principale… |
 | ❌ | `best-plumber-same-day__es` | 2 | 2 | 2026-08-20 21:48 | yes | No está listo para producción: el bloqueador nº1 es que zaelar prometió un resultado (fontaneros para hoy) que el mecanismo nunca produjo —el worker navegó 1… |
 | ❌ | `best-rated-rental-car__es` | 2 | 2 | 2026-08-20 22:01 | yes | No está listo para producción: el bloqueador nº1 es que la búsqueda falló por errores internos del worker y zaelar nunca informó del fallo, dejando al usuari… |
-| ❌ | `cheapest-monitor` | 2 | 2 | 2026-08-20 23:44 | yes | No está listo para producción: el bloqueador nº1 es que zaelar encontró resultados reales (6 monitores, incluidos dos de 27" a 99€) y no los entregó, afirman… |
+| ❌ | `cheapest-monitor` | 2 | 3 | 2026-08-21 00:36 | yes | El caso se resolvió parcialmente: hay 3 monitores reales con precio y tienda, pero no se cumplió el criterio central de '27" bien valorado cerca de 300€' (so… |
 | ❌ | `compare-broadband-plans__es` | 2 | 2 | 2026-08-20 22:08 | yes | No está listo para producción: el bloqueador nº1 es que zaelar nunca entregó el resultado real (la comparativa de tarifas) y, peor aún, siguió afirmando que … |
 | ❌ | `compare-insurance-quotes__es` | 2 | 2 | 2026-08-20 21:55 | yes | No está listo para producción: el bloqueador nº1 es que zaelar afirmó haber entregado una comparativa con precios y recomendación cuando el mecanismo no mues… |
 | ❌ | `hotel-under-15-days` | 2 | 3 | 2026-08-20 23:33 | yes | No está listo para producción: el bloqueador nº1 es que zaelar no entregó ningún hotel de cuatro estrellas real al usuario, no comunicó el fallo de la primer… |

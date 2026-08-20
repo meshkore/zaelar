@@ -322,37 +322,43 @@
       }
     },
     "cheapest-monitor": {
-      "last_run": "2026-08-20 23:44",
-      "overall": 2,
+      "last_run": "2026-08-21 00:36",
+      "overall": 3,
       "judge": "deepseek-v4-flash",
       "state": "FAIL",
       "scores": {
-        "naturalidad": 3,
-        "adaptacion": 3,
-        "resultado": 1,
-        "mecanismo": 4,
+        "naturalidad": 4,
+        "adaptacion": 4,
+        "resultado": 3,
+        "mecanismo": 3,
         "eficiencia": 2
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar encontró resultados reales (6 monitores, incluidos dos de 27\" a 99€) y no los entregó, afirmando falsamente que no había nada, dejando al usuario sin respuesta concreta.",
+      "verdict": "El caso se resolvió parcialmente: hay 3 monitores reales con precio y tienda, pero no se cumplió el criterio central de '27\" bien valorado cerca de 300€' (solo uno es 27\" QHD y ninguno tiene reseñas), y la entrega fue lenta y con demasiadas búsquedas; el bloqueador nº1 es la falta de un criterio de búsqueda claro que priorice tamaño, valoración y presupuesto antes de lanzar el worker.",
       "missing_signals": [],
       "audit_anomalies": [
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+          "que": "worker/task «↩ zaelar ⚠️ error»: Exit code 2 worker_bridge act: error: the following arguments are required: action · `act` lleva DOS cosas: la acción y su payload JSON ENTRE COMILLAS SIMPLES. "
         },
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "memory/memory «🧠 memoria ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+          "que": "flash/search «🌐 web ⚠️ error»: Too many redirects (exceeded 10)"
         },
         {
           "clase": "span_con_error",
           "certeza": "hecho",
-          "que": "worker:2: 2 error(es), último paso «alive»"
+          "que": "worker:3: 1 error(es), último paso «↩ zaelar ↩»"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:4: 1 error(es), último paso «🌐 web ↩»"
         }
       ],
       "sandboxed": true,
+      "provisional": null,
       "tier": 2,
       "turns_used": 10,
       "families": [
@@ -364,12 +370,9 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "5b031cf",
-        "n_dirty": 2,
-        "dirty": [
-          "frontend/app/components/ActivityStrip.js",
-          "frontend/app/styles.css"
-        ]
+        "sha": "44b064c",
+        "n_dirty": 0,
+        "dirty": []
       },
       "machine": {
         "gpu_models": [
@@ -1188,5 +1191,5 @@
       }
     }
   },
-  "updated": "2026-08-20 23:44"
+  "updated": "2026-08-21 00:36"
 }
