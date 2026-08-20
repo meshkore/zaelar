@@ -147,6 +147,11 @@ DOMAINS: list[dict] = [
             # nunca se paga, el campo que leen los agentes es `prompt` (no `query`) y de su ficha se toma la
             # RUTA pero jamás el host. Sin red: todo está fingido a propósito.
             "tests/agent_headless/unit/test_mesh_agents.py",
+            # V2-203: el puente del payload contestaba a un fichero que falta con el OSError pelado, y el worker
+            # lo leía como un callejón sin salida (`cheapest-monitor` ronda 21: Exit code 2, nada entregado).
+            # Mismo contrato que el nodo 4.20 para `nav_cli`: lo que el puente sabe, lo DICE — y un fallo dice
+            # además cómo se sale de él.
+            "tests/agent_headless/unit/workers/test_the_bridge_says_how_to_fix_it.py",
             # V2-158: este fichero NUNCA estuvo en el testmap, así que `tests run all` no lo corría y sus
             # afirmaciones llevaban desde V2-132/V2-144/V2-148 contradiciendo el comportamiento buscado en
             # silencio. Un test que ninguna suite ejecuta es un test que deja de ser verdad sin avisar.

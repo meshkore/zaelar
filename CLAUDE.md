@@ -1275,6 +1275,25 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **El puente del payload contestaba con el OSError pelado, y el worker lo leía como un callejón sin salida**
+  (`nucleo/widget_cli.py`, V2-203, 2026-08-20). Medido en `cheapest-monitor` (ronda 21):
+  `Exit code 2 no puedo leer el payload de informe.json: [Errno 2] No such file or directory` — nada entregado
+  en diez turnos, y el turno diciendo que la tarea seguía en marcha. El mensaje dice QUÉ falló y nada de qué
+  hacer, que es el fallo que `nav_cli` ya pagó en V2-186: **el puente es la ÚNICA vista que el worker tiene de
+  este lado**, así que un callejón sin salida aquí lo es para la tarea entera.
+  - Dos hechos lo convierten en salida, y los dos son gratis: **DÓNDE está mirando** (la ruta es relativa, y un
+    worker que escribió en otro directorio no puede deducirlo de un `[Errno 2]`) y **QUÉ hay ahí de verdad** —
+    escribir `resultados.json` y presentar `informe.json` es invisible de otra forma. Más el recordatorio de que
+    son DOS pasos y éste es el segundo.
+  - **No arregla por qué faltaba el fichero** (un paso de investigación caído, un Write que no ocurrió). Arregla
+    que el fallo fuera mudo sobre su propio remedio. Una ruta ABSOLUTA no recibe el consejo del cwd: la receta
+    las prohíbe y hablarle del directorio de trabajo sería ruido.
+  - Nodo 2.5, 6 tests. **Y dos errores míos en ellos**, los dos por no ejecutar antes de afirmar: un caso pasaba
+    la ruta sin la `@` (así que probaba el parser de JSON inline, no el del fichero) y otro pretendía simular un
+    directorio ilegible borrándolo sin entrar en él — leyó el `informe.json` REAL que hay suelto en la raíz del
+    repo (8,9 KB, del 2026-08-17, resto de un worker de antes del cwd confinado de V2-117: la colisión que ese
+    arreglo eliminó, con su prueba en el disco).
+
 - **El confirm-gate paró un clic irreversible y no preguntó a NADIE** (`widgets/navegador/tasks.py` +
   `nucleo/flash/prompt.py`, V2-202, 2026-08-20). Medido en `find-theatre-tickets__es`: el worker murió con
   `acción «Comprar entradas» NO confirmada por el operador` mientras el juez, sin ver ese texto, describía

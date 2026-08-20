@@ -110,7 +110,26 @@ def main(argv: list[str]) -> int:
                     with open(path, encoding="utf-8") as f:
                         raw = f.read()
                 except OSError as e:
+                    # V2-203 — this message used to be the bare OSError, and the worker read it as a dead end:
+                    # measured on `cheapest-monitor` (round 21), `Exit code 2 no puedo leer el payload de
+                    # informe.json: [Errno 2] No such file or directory` ended the task with nothing delivered.
+                    # It says WHAT failed and nothing about what to do, which is the fault `nav_cli` already paid
+                    # for (V2-186): the bridge is the worker's only view, so a message without a way out is a
+                    # message that stops it. The two facts it needs are WHERE it is looking (the path is relative,
+                    # and a worker that wrote to another directory cannot tell from the error) and WHAT is
+                    # actually there — writing `resultados.json` and presenting `informe.json` is invisible
+                    # otherwise.
                     print(f"no puedo leer el payload de {path}: {e}")
+                    if not os.path.isabs(path):
+                        here = os.getcwd()
+                        try:
+                            found = sorted(f for f in os.listdir(here) if f.endswith(".json"))
+                        except OSError:
+                            found = []
+                        print(f"   · ruta RELATIVA a tu directorio de trabajo: {here}")
+                        print("   · ficheros .json ahí: " + (", ".join(found) if found else "NINGUNO"))
+                        print("   · son DOS pasos y este es el segundo: escribe primero el JSON con tu tool Write "
+                              f"a `{path}` (ruta relativa, sin /tmp/ ni rutas absolutas) y vuelve a lanzar esto.")
                     return 2
             try:
                 payload = json.loads(raw)
