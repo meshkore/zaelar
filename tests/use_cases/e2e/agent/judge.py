@@ -243,6 +243,20 @@ def mechanism_facts(mech: dict) -> str:
         lines.append(f"· Búsquedas web observadas: {n}."
                      + (" La capa de búsqueda estaba DEGRADADA (ver nota arriba)." if sh.get("degraded")
                         else " La capa de búsqueda funcionaba."))
+        # UNA búsqueda buena es el objetivo, no muchas (norma del operador, 2026-08-20). Va aquí porque el
+        # juez, viendo un número, tiende a leer «más = más esfuerzo = mejor», y en la ronda de 15 búsquedas
+        # de este caso lo que hubo fue el worker dando vueltas sobre la misma consulta sin cambiar de
+        # criterio. El caso pide pensar las condiciones, buscar UNA vez y entregar.
+        if isinstance(n, int):
+            if n == 0:
+                lines.append("  → CERO búsquedas: el recurso no se usó. Eso NO es «no encontró»: es que no "
+                             "salió a mirar. No lo puntúes como si la búsqueda hubiera fallado, y desconfía "
+                             "de cualquier dato del mundo que aparezca en esa conversación.")
+            elif n > 6:
+                lines.append(f"  → {n} búsquedas para un solo encargo es DAR VUELTAS, no diligencia. Una "
+                             f"petición se piensa, se busca UNA vez con las condiciones puestas y se "
+                             f"entrega. Repetir la misma consulta sin cambiar de criterio baja EFICIENCIA, "
+                             f"aunque acabe encontrando algo.")
     sj = mech.get("scheduled_jobs") or {}
     if sj:
         if not sj.get("readable", True):
