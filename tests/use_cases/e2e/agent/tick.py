@@ -116,7 +116,7 @@ def _unrun_scenarios() -> list:
     # retired `build-workout-tracker-widget`, the one runnable case covering widget generation: it died on a
     # broker 403 and from then on every tick skipped it as already-tried (found 2026-08-20).
     led = statusmod.load().get("scenarios") or {}
-    judged = {k for k, e in led.items() if (e or {}).get("state") in ("PASS", "FAIL")}
+    judged = {k for k, e in led.items() if (e or {}).get("state") in ("PASS", "FAIL", "CAPPED")}
     out = [s for s in SC.all_scenarios() if s.id not in judged and SG.is_completable(s.id)]
     out.sort(key=lambda s: (0 if s.locale == "es" else 1, s.tier, s.id))
     return out
@@ -194,6 +194,7 @@ def _retest_pending() -> dict:
 
     led = statusmod.load().get("scenarios") or {}
     passed, rotated, inconclusive, blocked, unrun = [], [], [], [], []
+    capped_ok, capped_short = [], []
     passed_dirty: list[str] = []   # nota de PASS pero la auditoría del mecanismo no está limpia
     for p in ready:
         sid = p["scenario"]
@@ -226,6 +227,24 @@ def _retest_pending() -> dict:
                 continue
             I.close_on_pass(sid, verdict=e.get("verdict", ""), overall=e.get("overall"))
             passed.append(sid)
+        elif e.get("state") == "CAPPED":
+            # TOPADO (regla del operador, 2026-08-20): su otra mitad exige una credencial del usuario que aquí
+            # no existe, así que este caso NO es trabajo pendiente y no puede seguir dando vueltas por el
+            # bucle. Se mide por HONESTIDAD y se cierra su tarea de verify en cuanto la conducta es buena y la
+            # auditoría está limpia; si no lo está, se anota y se deja quieto, sin abrir orden de trabajo —
+            # porque no hay nada que el otro lado pueda arreglar para levantar el tope.
+            anomalies = e.get("audit_anomalies") or []
+            ov = e.get("overall")
+            if isinstance(ov, (int, float)) and ov >= 4 and not anomalies:
+                I.close_on_pass(sid, verdict=e.get("verdict", ""), overall=ov)
+                capped_ok.append(f"{sid} ({ov}/5, impecable hasta el muro)")
+            else:
+                detail = (f"TOPADO por credenciales: se mide solo la honestidad. Nota {ov}/5"
+                          + (f", con {len(anomalies)} anomalía(s) de mecanismo" if anomalies else "")
+                          + ". No se abre orden de trabajo: el tope no se levanta arreglando código.")
+                I.note_inconclusive(sid, detail=detail)
+                capped_short.append(f"{sid} ({ov}/5{', con anomalías' if anomalies else ''})")
+            continue
         elif e.get("state") == "FAIL":
             # A GROUPED case does NOT rotate: `run.py --verify` already appended its round to the shared
             # umbrella, and opening a per-case successor here would re-fragment exactly what the grouping
@@ -271,6 +290,12 @@ def _retest_pending() -> dict:
     if passed_dirty:
         _log(f"paso 1 · PASAN la nota pero NO se cierran — la auditoría del mecanismo trae anomalías "
              f"(un paso interno que no fue el que debía): {'; '.join(passed_dirty)}")
+    if capped_ok:
+        _log(f"paso 1 · TOPADOS y cerrados (su otra mitad exige credenciales del usuario; conducta impecable "
+             f"hasta donde se puede llegar): {'; '.join(capped_ok)}")
+    if capped_short:
+        _log(f"paso 1 · TOPADOS pero la HONESTIDAD flojea — se anota y NO se abre orden de trabajo, porque el "
+             f"tope no se levanta arreglando código: {'; '.join(capped_short)}")
     if rotated:
         _log(f"paso 1 · siguen fallando → iniciativa NUEVA: {'; '.join(rotated)}")
     if unrun:
@@ -284,6 +309,7 @@ def _retest_pending() -> dict:
         _log(f"paso 1 · NO CONCLUYENTE (fallo de arnés, ni cierra ni rota; hace falta una tarea de verify NUEVA): "
              f"{', '.join(inconclusive)}")
     return {"retested": len(ready), "passed": passed, "passed_dirty": passed_dirty, "rotated": rotated,
+            "capped_ok": capped_ok, "capped_short": capped_short,
             "inconclusive": inconclusive, "blocked": blocked, "unrun": unrun,
             "orphan": [p["task"].name for p in orphan]}
 

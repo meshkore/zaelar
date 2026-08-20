@@ -34,6 +34,7 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     probe_client.reset(session)
     driver = drivermod.Driver(scenario)
     transcript: list[dict] = []
+    mute_turns: list[int] = []
     watchdog_log: list[dict] = []
     pending_nudge = ""
     # Multi-flow scenarios need concurrency measured WHILE it happens (see ConcurrencyTracker's docstring):
@@ -89,6 +90,13 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         res = probe_client.say(utterance, session, execute=(scenario.channel == "probe"),
                                ingest=sandboxed)
         reply_text = llmmod._as_text(res.get("reply")).strip()
+        # UN TURNO MUDO NO ES UN AGENTE QUE NO AYUDA. El canal de texto resuelve su proveedor con
+        # `spec_from_config()` y no consulta la cadena de relevo, así que con el titular sin fondos TODOS los
+        # turnos salen vacíos (lo señaló el equipo del código el 2026-08-20, y explica los «(sin respuesta)»
+        # que ya había visto en `renew-gym`). Sin contarlos, el juez puntúa una avería de proveedor como
+        # desatención del producto — el mismo error que `search_health` existe para evitar.
+        if not reply_text:
+            mute_turns.append(turn)
         note("zaelar", reply_text)
         print(f"  zaelar  · {reply_text[:160]}")
         driver.hears(reply_text)
@@ -145,6 +153,8 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     # citas: el coste es una petición y evita la clase de error que costó dos rondas y una acusación falsa al
     # equipo del código («cero citas persistidas» sobre una agenda que tenía la cita dentro). `None` significa
     # «no se pudo mirar» y NO significa «vacía» — el juez recibe esa diferencia explícita.
+    if mute_turns:
+        mech["mute_turns"] = {"turns": mute_turns, "n": len(mute_turns)}
     try:
         mech["agenda_meetings"] = probe_client.widget_rows("agenda", "meetings")
     except Exception as e:

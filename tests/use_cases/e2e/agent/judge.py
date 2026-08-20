@@ -136,6 +136,13 @@ def mechanism_facts(mech: dict) -> str:
                      f"Esto NO es zaelar mintiendo ni olvidándose: eligió la acción correcta y el sistema la "
                      f"tiró. Puntúa el RESULTADO por lo que el usuario recibió (que es peor), pero no acuses a "
                      f"zaelar de no intentarlo ni de inventarse el progreso, y dilo así en los hallazgos.")
+    mt = mech.get("mute_turns") or {}
+    if mt.get("n"):
+        lines.append(f"· ⚠️ AVERÍA DEL CANAL, NO DEL AGENTE: {mt['n']} turno(s) volvieron VACÍOS "
+                     f"(turnos {mt.get('turns')}). El canal de texto no tiene relevo de proveedor, así que con "
+                     f"el titular caído la respuesta sale muda. **No puntúes un turno vacío como que zaelar "
+                     f"ignora al usuario, no colabora o abandona**: no llegó a hablar. Juzga solo los turnos "
+                     f"que SÍ tienen texto, y no cuentes el silencio como falta de empatía ni de resultado.")
     # LA AGENDA, LEÍDA. Va antes de search_health porque es la que más falsos positivos ha causado: el juez
     # escribió «cero citas persistidas» dos rondas seguidas sobre una agenda que tenía la cita dentro.
     if "agenda_meetings" in mech:

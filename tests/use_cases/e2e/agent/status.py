@@ -91,7 +91,18 @@ def record(results: list[dict], *, sandboxed: bool) -> dict:
 
 def _state(overall, r: dict) -> str:
     """INFRA is deliberately its own state, never a FAIL: a network timeout or a crashed harness says nothing
-    about whether the use case works, and folding the two together is how a scoreboard starts lying."""
+    about whether the use case works, and folding the two together is how a scoreboard starts lying.
+
+    CAPPED is its own state for the same reason, and it was the operator's call (2026-08-20). A case whose
+    remaining half needs the user's own credentials — buying the tickets, closing the booking, paying the bill —
+    cannot be finished here at all: today the product has no way to hold a user's login, and the local route
+    (open a browser, let the person authenticate, keep the cookies) is exactly what a backend harness cannot
+    simulate. Grading those as FAIL put permanent red rows on the board and fed the improvement loop work it
+    can never close. So they get their own state: measured for HONESTY, kept off the pass/fail denominator.
+
+    The half that IS reachable keeps being graded in full. Finding the options and handing them over is the
+    completable case; closing and paying is the capped one. `derived.data_scope` is what says which is which.
+    """
     run = r.get("run") or {}
     if run.get("crashed") or (r.get("verdict") or {}).get("veredicto", "").startswith("INFRA"):
         return "INFRA"
@@ -105,12 +116,22 @@ def _state(overall, r: dict) -> str:
     # que un 1-2 en mecanismo NO puede salir en verde aunque la media dé: sigue habiendo un defecto medido, y su
     # sitio es una iniciativa, no un tick verde.
     mech_score = ((r.get("verdict") or {}).get("scores") or {}).get("mecanismo")
+    # CAPPED antes que PASS/FAIL: el tope no depende de lo bien que lo haga, sino de que su otra mitad exige
+    # una credencial del usuario que aquí no existe. La nota se conserva y se muestra — un tope con 5 es «llegó
+    # hasta donde se puede llegar, y perfecto» — pero no cuenta como aprobado ni como fallo.
+    try:
+        from . import derived as D
+        kind, _missing = D.data_scope((r.get("scenario") or "").split("__")[0])
+    except Exception:
+        kind = ""
+    if kind:
+        return "CAPPED"
     if overall >= PASS_THRESHOLD and isinstance(mech_score, (int, float)) and mech_score <= 2:
         return "FAIL"
     return "PASS" if overall >= PASS_THRESHOLD else "FAIL"
 
 
-_ICON = {"PASS": "✅", "FAIL": "❌", "INFRA": "⚠️"}
+_ICON = {"PASS": "✅", "FAIL": "❌", "INFRA": "⚠️", "CAPPED": "🔒"}
 
 
 def _render(led: dict) -> None:
@@ -127,6 +148,13 @@ def _render(led: dict) -> None:
         "however good the average) · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,",
         "says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not",
         "the operator's live one.",
+        "",
+        "`🔒 CAPPED` is NOT a failure and NOT a pass: the case's remaining half needs the user's own",
+        "credentials (buy the tickets, close the booking, pay the bill) and there is no way to reach it from",
+        "here — the product holds no user logins today, and the local route (open a browser, let the person",
+        "log in, keep the cookies) cannot be simulated by a backend harness. These rows are measured for",
+        "HONESTY only, keep their grade, and are **excluded from the pass/fail count** so they stop feeding",
+        "the improvement loop work it can never close. Operator's rule, 2026-08-20.",
         "",
         "| | scenario | tier | overall | last run | sandbox | verdict |",
         "|---|---|---|---|---|---|---|",
@@ -146,8 +174,17 @@ def _render(led: dict) -> None:
     passed = sum(1 for e in scen.values() if e.get("state") == "PASS")
     failed = sum(1 for e in scen.values() if e.get("state") == "FAIL")
     infra = sum(1 for e in scen.values() if e.get("state") == "INFRA")
-    lines += ["", f"**{passed} passing · {failed} failing · {infra} infra** of {len(scen)} scenarios with a "
-                  f"recorded result.", ""]
+    capped = [s for s, e in scen.items() if e.get("state") == "CAPPED"]
+    # El denominador son los casos que PODEMOS terminar. Meter los topados dentro convertía el marcador en una
+    # cuenta de deuda perpetua: cada tanda los volvía a medir y volvían a salir en rojo, sin nada que arreglar.
+    lines += ["", f"**{passed} passing · {failed} failing · {infra} infra** of "
+                  f"{len(scen) - len(capped)} scenarios we can actually finish."]
+    if capped:
+        good = sum(1 for s in capped if (scen[s].get("overall") or 0) >= PASS_THRESHOLD)
+        lines += ["", f"Plus **{len(capped)} 🔒 capped** (need the user's own credentials; measured for honesty "
+                      f"only, not counted above — {good} of them behaving impeccably up to the wall): "
+                      + ", ".join(f"`{s}`" for s in sorted(capped)) + "."]
+    lines += [""]
 
     # COVERAGE, next to the results. Without it "1 passing · 4 failing" reads like the whole answer to "which
     # use cases work?", when the honest answer also has to say how much of the catalog nobody has run yet —
@@ -213,10 +250,19 @@ def _render(led: dict) -> None:
             lines.append(f"| `{sid}` | {d.get('kind')} | {d.get('missing')} |")
         lines.append("")
 
+    # Un caso TOPADO también aparece aquí si su mitad alcanzable se quedó corta. El tope saca el caso del
+    # marcador, no sus defectos del mapa: «consígueme las entradas» no se puede cerrar sin tarjeta, pero
+    # BUSCARLAS sí, y ahí es donde están los hallazgos más útiles del día (el `cd` bloqueado del teatro, la
+    # salida honesta del restaurante). Si esta tabla solo mirara FAIL, el estado nuevo habría escondido justo
+    # el trabajo que sí se puede hacer.
     work = {s: e["workspace"] for s, e in scen.items()
-            if e.get("state") == "FAIL" and e.get("workspace")}
+            if e.get("workspace") and (e.get("state") == "FAIL"
+                                       or (e.get("state") == "CAPPED"
+                                           and (e.get("overall") or 0) < PASS_THRESHOLD))}
     if work:
         lines += ["## Where the work on each failing case happens", "",
+                  "Includes 🔒 capped cases whose REACHABLE half fell short: the cap keeps them out of the "
+                  "score, not out of the work.", "",
                   "One initiative per use case — that initiative IS the workspace for it, and it carries the "
                   "transcript, the mechanism report and the reproduce command. Both folders are gitignored "
                   "(«ni nuestro pasado ni nuestro futuro se publican»), so these paths are local-only.", "",

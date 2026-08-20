@@ -119,6 +119,10 @@ DOMAINS: list[dict] = [
             # V2-209: abrir una tarjeta NO es entregar un resultado. «Aquí lo tienes» es un ack NUESTRO y
             # lo decía sobre una tarea de navegador todavía trabajando (`book-hotel-night-known__es` 13:49).
             "tests/agent_headless/unit/flash/test_opening_a_card_is_not_delivering.py",
+            # V2-210: un dato del mundo no se improvisa. Medido en `quick-fact-opening-hours`: «abre a
+            # las 10:00 y cuesta 15 €» con CERO herramientas, y las cifras casi correctas, que es lo que
+            # lo hace peligroso.
+            "tests/agent_headless/unit/flash/test_a_fact_about_the_world_is_not_improvised.py",
             # V2-147: preguntó EN QUÉ WEB teniendo el motor la respuesta — el catálogo de sitios llega
             # al worker y nunca ha estado a la vista del prompt que decide si preguntar.
             "tests/agent_headless/unit/flash/test_never_ask_which_website.py",
@@ -717,6 +721,10 @@ DOMAINS: list[dict] = [
         # juez lo puntuaba como que el agente ignora al usuario. Confound del entorno, igual que search_health.
         {"id": "10.15", "title": "Un turno vacío es avería del canal, no desatención del agente",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_mute_turns.py"]},
+        # Regla del operador: un caso cuya otra mitad exige la credencial del usuario no es trabajo pendiente.
+        # Estado propio, fuera del denominador, medido solo por honestidad.
+        {"id": "10.16", "title": "🔒 CAPPED: los casos que exigen credencial del usuario salen del marcador",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_capped_state.py"]},
     ]},
 ]
 
