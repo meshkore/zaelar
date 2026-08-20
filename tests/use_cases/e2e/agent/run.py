@@ -165,6 +165,13 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             mech["prompt_context"] = verifymod.prompt_context(config.SANDBOX_DB, since=started_at)
         except Exception as e:
             mech["prompt_context_error"] = str(e)[:200]
+        # The memory's CANONICAL language, read rather than assumed — see `verify.memory_language`. It is not
+        # necessarily the language of the conversation, and a Spanish case whose memory canon was English is
+        # exactly how a preference that WAS in the prompt got reported as missing.
+        mech["memory_language"] = verifymod.memory_language(config.SANDBOX_DB)
+        # The locale travels with it so the judge can compare: `en` is CORRECT for a US case and a mismatch
+        # only for an ES one. Warning on the language alone would cry wolf on half the catalogue.
+        mech["locale"] = scenario.locale
     # THE TESTER LEAVING ITS OWN ROLE is a harness fault, and the round has to say so. Measured 2026-08-20 in
     # `weekend-adventure-sports-bilbao__es`: the "tester" turn delivered the assistant's answer — surf schools
     # with prices and URLs — and zaelar sensibly replied that the message looked cut off. Grading that as a

@@ -459,3 +459,32 @@ def prompt_context(db_path, *, since: float = 0.0, limit: int = 40) -> list[dict
                     "task_line": nav[:300], "shown_state": shown[:200],
                     "alert": any(a in shown.lower() or a in shown for a in _ALERT)})
     return out
+
+
+def memory_language(db_path) -> str:
+    """The CANONICAL language the memory distils pills in — `state.language`, read, not assumed.
+
+    Worth one query because assuming it cost a false finding on 2026-08-20: an ES scenario seeded "me da
+    vértigo la altura", the harness grepped the turn's prompt for "vértigo" and concluded the preference had
+    never reached the model. It had — as "The operator has a fear of heights", because the memory is monolingual
+    in the operator's canonical language and that sandbox's was still `en`. The datum was there in the language
+    nobody looked in.
+
+    So the report carries it, and the rule that follows is short: about memory, grep in THIS language, never in
+    the language of the conversation. They coincide once the language hole is fixed; the habit survives the fix.
+    """
+    import sqlite3
+    try:
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    except Exception:
+        return ""
+    try:
+        row = con.execute("SELECT data FROM state LIMIT 1").fetchone()
+    except Exception:
+        return ""
+    finally:
+        con.close()
+    try:
+        return str((json.loads(row[0]) or {}).get("language") or "") if row else ""
+    except Exception:
+        return ""
