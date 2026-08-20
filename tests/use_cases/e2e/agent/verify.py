@@ -855,3 +855,49 @@ def declared_surfaces(db_path, *, since: float = 0.0) -> list[str]:
         if val and val not in out:
             out.append(val)
     return out
+
+
+def sheet_timing(db_path, *, since: float = 0.0) -> dict:
+    """¿La hoja de resultados se abrió ANTES de que hubiera un resultado? (V2-227, el cableado de C).
+
+    Es LA pregunta del ámbito C y no se puede responder desde el DOM: el contrato de pantalla
+    (`tests/browser/e2e/results/render_process_tab.py`) prueba que el widget se comporta cuando le
+    llegan los datos, no que alguien se los mande ni que la hoja se abra sola al encargar. Con el
+    contrato en verde y el cableado sin hacer, la persona sigue mirando una pantalla en blanco: la
+    pestaña existe y nadie se la abre.
+
+    Se compara el instante de la PRIMERA operación sobre la hoja contra el de la primera extracción con
+    título de verdad — no cualquier vuelta del navegador, porque la primera suele ser el `usage:` de un
+    comando mal escrito y tomarla por un resultado adelantaría el reloj de la comparación.
+
+    `opened_before` es `None`, nunca `False`, cuando falta alguno de los dos instantes: no medido y
+    llegó-tarde son cosas distintas y confundirlas es como se inventa un fallo.
+    """
+    import sqlite3
+    out: dict = {"sheet_ms": None, "first_result_ms": None, "opened_before": None, "lead_s": None}
+    try:
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    except Exception:
+        return out
+    try:
+        rows = con.execute("SELECT ts_ms, kind, payload FROM events WHERE topic = 'observer' AND ts_ms >= ? "
+                           "AND kind IN ('widget', 'navegador') ORDER BY ts_ms ASC", (int(since * 1000),)
+                           ).fetchall()
+    except Exception:
+        return out
+    finally:
+        con.close()
+    for ts_ms, kind, raw in rows:
+        try:
+            d = json.loads(raw)
+        except Exception:
+            continue
+        if kind == "widget" and out["sheet_ms"] is None and str(d.get("id") or "") == "results":
+            out["sheet_ms"] = ts_ms
+        elif kind == "navegador" and out["first_result_ms"] is None:
+            if any(it.get("title") for it in _items_in(str(d.get("text") or ""))):
+                out["first_result_ms"] = ts_ms
+    if out["sheet_ms"] is not None and out["first_result_ms"] is not None:
+        out["lead_s"] = round((out["first_result_ms"] - out["sheet_ms"]) / 1000.0, 1)
+        out["opened_before"] = out["lead_s"] > 0
+    return out

@@ -200,6 +200,7 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             # not the count: a burst of phases followed by four minutes of nothing is the complaint.
             mech["progress"] = verifymod.progress_phases(config.SANDBOX_DB, since=started_at)
             mech["surfaces"] = verifymod.declared_surfaces(config.SANDBOX_DB, since=started_at)
+            mech["sheet_timing"] = verifymod.sheet_timing(config.SANDBOX_DB, since=started_at)
         except Exception as e:
             mech["proactive_notes_error"] = str(e)[:200]
         # WHAT THE WORKER ACHIEVED and whether any of it was SAID — the gap this whole case is about.
