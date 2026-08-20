@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-20 20:30**
+Last updated: **2026-08-20 20:49**
 
 `✅ PASS` = judge overall ≥ 4 **and** mechanism ≥ 3 (a measured mechanism defect never shows green, however good the average) · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -27,7 +27,7 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | 🔒 | `renew-gym-membership__es` | 1 | 4 | 2026-08-20 14:51 | yes | El caso tiene un manejo de conversación excelente y claridad en los límites, pero el navegador no se activó como se prometió; la ejecución técnica está desin… |
 | 🔒 | `restaurant-tonight-madrid` | 1 | 2 | 2026-08-20 15:01 | yes | No está listo para producción este caso de uso; el bloqueador nº1 es la incapacidad del navegador para superar filtros anti-robot (CAPTCHA) en los principale… |
 | ❌ | `cheapest-monitor` | 2 | 1 | 2026-08-20 16:16 | yes | No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real (cero búsquedas web, cero opciones en pantalla), y encima se narr… |
-| ❌ | `hotel-under-15-days` | 2 | 2 | 2026-08-20 20:30 | yes | No está listo para producción: el bloqueador nº1 es que no se entregó ni un solo hotel real de 4 estrellas —el único resultado fue una experiencia a 25 euros… |
+| ❌ | `hotel-under-15-days` | 2 | 3 | 2026-08-20 20:49 | yes | No está listo para producción: el bloqueador nº1 es que zaelar presenta como resultados confirmados datos que el sistema no respalda (precios sueltos y nombr… |
 | ❌ | `search-buy-camera__es` | 2 | 1 | 2026-08-20 15:16 | yes | No está listo para producción. El bloqueador principal es la estabilidad del Worker de navegador: el sistema agotó el tiempo de espera (timeout) sin generar … |
 | ❌ | `weekend-adventure-sports-bilbao__es` | 3 | 1 | 2026-08-20 18:13 | yes | No está listo para producción: ignoró la memoria sembrada al proponer actividades con altura a una persona con vértigo, confundió la fecha del fin de semana … |
 | ❌ | `weekend-plan-barcelona__es` | 3 | 2 | 2026-08-20 18:06 | yes | No está listo para producción: el bloqueador nº1 es que no entregó ningún resultado real —ni opciones, ni hoja de resultados— pese a tener las preferencias e… |

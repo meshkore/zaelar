@@ -637,6 +637,64 @@ def navegador_task_is_live() -> bool:
     return False
 
 
+def _items_in(txt: str) -> list[dict]:
+    """Every COMPLETE `{...}` object in a JSON array that may have been cut off mid-flight.
+
+    `json.loads` on the whole string is not enough and the failure is silent: the observer caps an event's
+    text at 1500 characters, so a browser extraction with several hits arrives as a valid prefix and a
+    severed tail. On 2026-08-20 that swallowed the only real answer of the round — «Bécquer, 100 €» with a
+    live Google Travel URL, the 4-star hotel the case is about — and the report said the browser had found
+    nothing but an ad for a flamenco show. The judge then scored the round for delivering junk while the
+    product had actually delivered. Same shape as the truncated tool call of V2-171: a cut payload must be
+    salvaged, never dropped.
+    """
+    out: list[dict] = []
+    if not txt or "{" not in txt:
+        return out
+    depth = start = 0
+    in_str = esc = False
+    for i, ch in enumerate(txt):
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch == "{":
+            if depth == 0:
+                start = i
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                try:
+                    obj = json.loads(txt[start:i + 1])
+                except Exception:
+                    continue
+                if isinstance(obj, dict):
+                    out.append(obj)
+            elif depth < 0:            # a severed head: resynchronise instead of giving up
+                depth = 0
+    # AND THE OBJECT THE CUT LANDED IN. Not a nicety: the junk arrives first and the answer arrives last, so
+    # the severed object is exactly where the useful hit tends to be. On 2026-08-20 «Bécquer, 100 €» sat at
+    # character 801 of a 1500-character cap with a Google Travel URL long enough to push its own closing brace
+    # past the end — the one 4-star hotel of the round, unreadable by any strict parser. Title and price are
+    # what answer the question «did the browser find one?»; a lost URL does not change that answer.
+    if depth > 0 and start >= 0:
+        frag = txt[start:]
+        got = {k: m.group(1) for k, m in
+               ((k, re.search(r'"' + k + r'"\s*:\s*"([^"]*)"', frag)) for k in ("title", "price", "url"))
+               if m}
+        if got.get("title"):
+            got["partial"] = True
+            out.append(got)
+    return out
+
+
 def worker_outcome(db_path, *, since: float = 0.0) -> dict:
     """WHAT THE WORKER ACHIEVED, and whether any of it reached the user.
 
@@ -652,6 +710,7 @@ def worker_outcome(db_path, *, since: float = 0.0) -> dict:
     """
     import sqlite3
     out: dict = {"navigations": 0, "extractions": 0, "found": [], "n_found": 0}
+    seen: set[str] = set()
     try:
         con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     except Exception:
@@ -673,19 +732,19 @@ def worker_outcome(db_path, *, since: float = 0.0) -> dict:
             txt = str((json.loads(raw) or {}).get("text") or "")
         except Exception:
             continue
-        if txt.lstrip().startswith("["):
-            try:
-                items = json.loads(txt)
-            except Exception:
-                continue
-            for it in items if isinstance(items, list) else []:
-                if isinstance(it, dict) and it.get("title"):
+        if "{" in txt:
+            for it in _items_in(txt):
+                if it.get("title"):
                     out["n_found"] += 1
-                    # ALL of them, capped — not just the first. The first extraction of a Booking search came
-                    # back as an ad («Experiencia Premium en el Teatro Flamenco Sevilla, € 25») and the real
-                    # hotel arrived on the third; keeping only the first would have reported the junk as "what
-                    # the worker found" and hidden that it did eventually get there.
-                    if len(out["found"]) < 4:
+                    # DISTINCT titles, capped — not the first N rows. The junk arrives FIRST and repeats: on
+                    # 2026-08-20 the same ad («Experiencia Premium en el Teatro Flamenco Sevilla, € 25») came
+                    # back on four consecutive extractions and filled a cap of 4, so «Bécquer, 100 €» — the
+                    # 4-star hotel the case is about, extracted later in the same round — was counted in
+                    # `n_found` and never shown in `found`. A cap that keeps the earliest rows reports exactly
+                    # the noise and hides the answer.
+                    key = str(it.get("title") or "").strip().lower()
+                    if key not in seen and len(out["found"]) < 6:
+                        seen.add(key)
                         out["found"].append({k: str(it.get(k) or "")[:120] for k in ("title", "price", "url")})
     return out
 
