@@ -1275,6 +1275,25 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Una tarea CANCELADA no estaba ni viva ni terminada** (`widgets/navegador/tasks.py` + `prompt.py`, V2-196,
+  2026-08-20). `active_summaries()` filtra por queued/working/needs_input y `recently_finished()` filtraba por
+  done/failed: **`cancelled` era el único final que no estaba en ningún sitio**, así que el estado no la
+  mencionaba EN ABSOLUTO y el modelo seguía con lo único que le quedaba —su memoria de haberla arrancado—.
+  Medido en `find-theatre-tickets__es`: «desconecta por completo de la realidad del sistema (status cancelled),
+  manteniendo al usuario en un bucle de espera infinito sobre una tarea que ya falló».
+  - Se dice **distinto**: «se PARÓ (cancelada) sin llegar a terminar». Pararse no es acabar — «terminó sin
+    traer nada» invita a esperar un resultado que nadie va a producir; decir que se paró invita a preguntar si
+    se retoma. Con sensibilidad en las dos direcciones.
+  - **CUARTA vez en 24 h del mismo patrón**: V2-150 (una tarea que TERMINA), V2-190 (una confirmación que
+    CADUCA), V2-176 f2 (una acción DESCARTADA) y ésta. **Un hecho que no está en ningún sitio es un hecho que
+    la conversación sustituye por su propia memoria** — y el modelo no inventa: usa lo último que sabía, que es
+    lo correcto cuando nadie le dice otra cosa. Los estados terminales son un conjunto CERRADO y pequeño, y hay
+    **dos filtros que enumeran subconjuntos suyos a mano**: un quinto estado volvería a caer en el hueco. Vale
+    más una función «esta tarea ya no está viva» que dos listas que haya que acordarse de actualizar a la vez.
+  - Y de paso queda **descartada con evidencia** la duda de V2-195: corriendo un encargo web real y muestreando
+    el estado cada segundo, **117 de 117** muestras con tarea activa tenían el bloque `NAVEGADOR` en el prompt.
+    Los arreglos SÍ llegan al modelo; el «0 veces» era el artefacto truncado.
+
 - **La captura forense de un turno guardaba la persona y tiraba el ESTADO** (`voice/observer.py`, V2-195,
   2026-08-20). `turn_detail` existe para responder «¿qué vio el modelo?» —su propio docstring lo dice— y
   guardaba `system[:8000]` de un prompt de **19.292** caracteres. La persona estática va al PRINCIPIO y

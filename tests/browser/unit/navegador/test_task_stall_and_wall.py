@@ -630,3 +630,57 @@ def test_and_a_login_wait_too():
     tasks._tasks[tid]["awaiting_login"] = True
     state = _live()
     assert "«Cancelar la suscripción a Netflix» ESTÁ PARADA Y SOLO LA DESBLOQUEA ÉL" in state
+
+
+# ── V2-196: una tarea CANCELADA caía en un hueco perfecto ─────────────────────────────────────────────────
+#
+# `find-theatre-tickets__es`, 2026-08-20 03:11: «el asistente alucina el estado de progreso y desconecta por
+# completo de la realidad del sistema (**status cancelled**), manteniendo al usuario en un bucle de espera
+# infinito sobre una tarea que ya falló».
+#
+# `cancelled` era el ÚNICO final que no estaba en ningún sitio: `active_summaries()` filtra por
+# queued/working/needs_input, y `recently_finished()` filtraba por done/failed. O sea que el estado no la
+# mencionaba EN ABSOLUTO —ni viva ni terminada— y el modelo seguía con lo último que recordaba, que era
+# haberla arrancado.
+#
+# Cuarta vez esta noche del mismo patrón: V2-150 (la tarea que TERMINA), V2-190 (la confirmación que CADUCA),
+# V2-176 f2 (la acción DESCARTADA) y ésta. Un hecho que no está en ningún sitio es un hecho que la
+# conversación sustituye por su propia memoria.
+def test_a_cancelled_task_does_not_vanish_from_the_state():
+    tid = tasks.create("Entradas El Rey León en Madrid")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url="https://www.entradas.com/el-rey-leon")
+    tasks.cancel(tid)
+    assert tasks.active_summaries() == []                       # ya no está viva…
+    assert [r["id"] for r in tasks.recently_finished()] == [tid]  # …pero SÍ es un final
+    assert "NAVEGADOR — YA TERMINADO" in _live()
+
+
+def test_and_it_says_that_it_was_STOPPED_not_that_it_finished_empty():
+    """Pararse no es acabar. «Terminó sin traer nada» sobre algo que se canceló invita a esperar un resultado
+    que nadie va a producir; decir que se paró invita a preguntar si se retoma, que es lo que el operador
+    puede hacer con ese hecho."""
+    tid = tasks.create("Entradas El Rey León")
+    tasks.set_status(tid, "working")
+    tasks.cancel(tid)
+    state = _live()
+    assert "se PARÓ (cancelada) sin llegar a terminar" in state
+    assert "terminó SIN traer nada" not in state
+
+
+def test_but_a_task_that_really_finished_empty_still_says_so():
+    """La sensibilidad: son dos hechos distintos y tienen que seguir sonando distinto."""
+    tid = tasks.create("Buscar hotel")
+    tasks.set_status(tid, "working")
+    tasks.finish(tid, "done", "")
+    state = _live()
+    assert "terminó SIN traer nada" in state
+    assert "se PARÓ (cancelada)" not in state
+
+
+def test_and_one_that_finished_WITH_results_too():
+    tid = tasks.create("Buscar hotel")
+    tasks.set_status(tid, "working")
+    tasks.set_results(tid, {"items": [1]})
+    tasks.finish(tid, "done", "2 hoteles")
+    assert "terminó CON resultado" in _live()

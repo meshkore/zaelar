@@ -727,7 +727,13 @@ def live_state() -> str:
             _fb = []
             for _f in _fin:
                 _t = f"«{(_f.get('goal') or 'tarea')[:60]}»"
-                _t += " terminó CON resultado" if _f.get("has_results") else " terminó SIN traer nada"
+                # V2-196: pararse no es acabar. «Terminó sin traer nada» sobre algo que se CANCELÓ invita a
+                # esperar un resultado que nadie va a producir; decir que se paró invita a preguntar si se
+                # retoma, que es lo que el operador puede hacer con ese hecho.
+                if str(_f.get("status") or "") == "cancelled":
+                    _t += " se PARÓ (cancelada) sin llegar a terminar"
+                else:
+                    _t += " terminó CON resultado" if _f.get("has_results") else " terminó SIN traer nada"
                 if _f.get("last_event"):
                     _t += f" (lo último que vio: {_f['last_event'][:90]})"
                 _fb.append(_t)

@@ -389,7 +389,12 @@ def recently_finished(now: float | None = None, limit: int = 3) -> list[dict]:
                                 if t.get("events") else "",
                  "ago_s": int(now - float(t.get("finished") or now))}
                 for tid, t in _tasks.items()
-                if t.get("status") in ("done", "failed")
+                # V2-196: `cancelled` también es un final, y era el único que caía en un HUECO — ni activa
+                # (`active_summaries` filtra por queued/working/needs_input) ni recién terminada. O sea que el
+                # estado no la mencionaba EN ABSOLUTO y el modelo seguía con lo último que recordaba: «bucle de
+                # espera infinito sobre una tarea que ya falló», medido en `find-theatre-tickets__es`
+                # (2026-08-20 03:11) con `status=cancelled` en el informe de mecanismo.
+                if t.get("status") in ("done", "failed", "cancelled")
                 and (now - float(t.get("finished") or 0)) <= JUST_FINISHED_S]
     rows.sort(key=lambda r: r["ago_s"])
     return rows[:max(1, limit)]
