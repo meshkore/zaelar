@@ -443,7 +443,41 @@ def run(args: argparse.Namespace) -> int:
             rc |= _sandbox_batch([s for s in chosen if s.locale == loc], sub,
                                  verify_tasks=verify_tasks)
         return rc
-    return _sandbox_batch(chosen, args, verify_tasks=verify_tasks)
+    return _sandbox_groups(chosen, args, verify_tasks=verify_tasks)
+
+
+def _sandbox_groups(chosen: list, args: argparse.Namespace, *, verify_tasks: dict | None = None) -> int:
+    """A memory-SEEDED case never shares a sandbox with another seeded one.
+
+    `hard_reset()` between cases kills work, tasks and canvas — deliberately NOT memory, which is durable by
+    design. So seeded preferences accumulate, and on 2026-08-20 that manufactured a contradiction no real user
+    would ever produce: `weekend-plan-barcelona__es` seeded "loves climbing, especially via ferratas" at 17:59,
+    `weekend-adventure-sports-bilbao__es` seeded "has a fear of heights" at 18:06, and the second case was then
+    graded on a passive block that served both as equals. The memory agent found the four pills alive at once,
+    two of them the same fact in two languages. The case measured the mechanism honestly and the product not at
+    all, which is the worst kind of round: it looks like a finding.
+
+    Cheapest correct fix: one sandbox per seeded case (~16s of boot each), unseeded ones keep sharing. Grouping
+    rather than always-one-per-case, because boot+prewarm per case would triple a long walk for no gain where
+    there is nothing to contaminate.
+    """
+    groups: list[list] = []
+    for s in chosen:
+        if getattr(s, "memory_seed", None):
+            groups.append([s])                        # alone: its seed must not meet anyone else's
+        elif groups and not getattr(groups[-1][0], "memory_seed", None):
+            groups[-1].append(s)
+        else:
+            groups.append([s])
+    if len(groups) > 1:
+        seeded = sum(1 for g in groups if len(g) == 1 and getattr(g[0], "memory_seed", None))
+        print(f"▲ {len(groups)} sandboxes for this batch: {seeded} case(s) seed memory and each needs its own "
+              f"(a previous case's seeded preferences survive hard_reset and would be judged as this "
+              f"persona's).")
+    rc = 0
+    for g in groups:
+        rc |= _sandbox_batch(g, args, verify_tasks=verify_tasks)
+    return rc
 
 
 def _sandbox_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict | None = None) -> int:
