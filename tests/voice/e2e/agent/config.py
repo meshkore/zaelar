@@ -33,6 +33,35 @@ ZAI_KEY = _env("TESTER_ZAI_KEY")
 ZAI_BASE = _env("TESTER_ZAI_BASE", "https://api.z.ai/api/anthropic")   # coding-plan endpoint (Anthropic-compatible)
 ZAI_JUDGE_MODEL = _env("TESTER_ZAI_JUDGE_MODEL", "glm-4.6")        # glm-4.6/glm-5/glm-5.2 (see z.ai model list)
 JUDGE_MODEL = _env("TESTER_JUDGE_MODEL", "deepseek/deepseek-v4-flash")   # DeepSeek fallback when GLM unavailable
+
+# DeepSeek DIRECT — the operator's provider order (2026-08-19) puts the vendor's own endpoint FIRST and the
+# AIMLAPI broker second, and on 2026-08-20 that order was worth three measured rounds: with Z.AI's weekly limit
+# exhausted the judge fell to the broker, the broker answered 429/503/504, and `book-hotel-night-known__es` lost
+# three complete eight-minute conversations to a missing verdict. The engine was reaching api.deepseek.com fine
+# throughout the same runs, so the leg that was missing was the direct one.
+# The MODEL NAME travels with the endpoint: the vendor takes `deepseek-v4-flash`, the broker `deepseek/…`.
+def _engine_key(name: str) -> str:
+    """One named key out of the engine's own credentials file, WITHOUT loading it into the environment.
+
+    The tester already falls back to zaelar's AIMLAPI key when it has no dedicated one, so borrowing a provider
+    key is the established shape here. Loading the whole file with `load_dotenv` is not: that env carries engine
+    settings (a stale `MEM_PROCESSOR_MODEL` among them, which cost a day of 404s elsewhere) and pulling all of
+    it into the tester process to get one value invites a confound nobody would look for.
+    """
+    path = ZAELAR_ROOT / ".meshkore" / "credentials" / "zaelar.env"
+    try:
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line.startswith(f"{name}=") and not line.startswith("#"):
+                return line.split("=", 1)[1].strip().strip('"').strip("'")
+    except Exception:
+        pass
+    return ""
+
+
+DEEPSEEK_KEY = _env("TESTER_DEEPSEEK_KEY") or _env("DEEPSEEK_API_KEY") or _engine_key("DEEPSEEK_API_KEY")
+DEEPSEEK_BASE = _env("TESTER_DEEPSEEK_BASE", "https://api.deepseek.com")
+DEEPSEEK_JUDGE_MODEL = _env("TESTER_DEEPSEEK_JUDGE_MODEL", "deepseek-v4-flash")
 # Prefer GLM for judging when a Z.AI key is present; the client falls back to DeepSeek on any Z.AI error (no balance).
 JUDGE_PROVIDER = _env("TESTER_JUDGE_PROVIDER", "zai" if ZAI_KEY else "aimlapi")
 

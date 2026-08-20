@@ -62,6 +62,31 @@ def glm_call(messages: list[dict], model: str | None = None, max_tokens: int = 2
 _TRANSIENT = ("429", "500", "502", "503", "504", "timed out", "timeout", "Temporary failure")
 
 
+def deepseek_direct_call(messages: list[dict], model: str | None = None, temperature: float = 0.0,
+                         max_tokens: int = 2000) -> str:
+    """DeepSeek from its OWN endpoint (OpenAI-compatible), not through the AIMLAPI broker.
+
+    First leg of the judge fallback, per the operator's provider order (direct → broker → last resort). Raises
+    so the caller can move down the chain. Note the model name has no vendor prefix here: the broker catalogues
+    `deepseek/deepseek-v4-flash`, the vendor answers to `deepseek-v4-flash`, and using the wrong one gets a 404
+    that looks exactly like an outage.
+    """
+    if not config.DEEPSEEK_KEY:
+        raise RuntimeError("no DEEPSEEK_API_KEY")
+    model = model or config.DEEPSEEK_JUDGE_MODEL
+    payload = {"model": model, "messages": messages, "max_tokens": max_tokens}
+    if temperature is not None:
+        payload["temperature"] = temperature
+    req = urllib.request.Request(
+        config.DEEPSEEK_BASE.rstrip("/") + "/chat/completions",
+        data=json.dumps(payload).encode(),
+        headers={"Authorization": f"Bearer {config.DEEPSEEK_KEY}", "Content-Type": "application/json",
+                 "User-Agent": _UA},
+    )
+    with urllib.request.urlopen(req, timeout=180) as r:
+        return json.loads(r.read())["choices"][0]["message"]["content"]
+
+
 def judge_call(messages: list[dict], max_tokens: int = 2000) -> tuple[str, str]:
     """The JUDGE call: GLM (Z.AI) when configured, else/on-error DeepSeek. Returns (text, model_used).
 
@@ -78,6 +103,13 @@ def judge_call(messages: list[dict], max_tokens: int = 2000) -> tuple[str, str]:
             return glm_call(messages, max_tokens=max_tokens), config.ZAI_JUDGE_MODEL
         except Exception as e:  # no balance / quota / transport → DeepSeek fallback (never lose the judgement)
             print(f"[judge] GLM unavailable ({str(e)[:80]}) → DeepSeek fallback", file=sys.stderr)
+    # DIRECT before the broker: the vendor's endpoint stayed up through the same runs in which the broker
+    # returned 429/503/504 and cost three measured rounds.
+    if config.DEEPSEEK_KEY:
+        try:
+            return (deepseek_direct_call(messages, max_tokens=max_tokens), config.DEEPSEEK_JUDGE_MODEL)
+        except Exception as e:
+            print(f"[judge] DeepSeek direct unavailable ({str(e)[:80]}) → AIMLAPI broker", file=sys.stderr)
     last = None
     for attempt in range(3):
         try:
