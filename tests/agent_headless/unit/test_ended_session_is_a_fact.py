@@ -29,14 +29,31 @@ ROOT = Path(__file__).resolve().parents[3]
 @pytest.fixture(autouse=True)
 def _clean():
     dispatch._SESSIONS.clear()
+    dispatch._ENDED_SESSIONS.clear()
     yield
     dispatch._SESSIONS.clear()
+    dispatch._ENDED_SESSIONS.clear()
+
+
+def _live_session(status: str = "running", goal: str = "Buscar un monitor"):
+    r = dispatch.SessionRecord(task_id="w1", goal=goal, kind="generic")
+    r.status = status
+    dispatch._SESSIONS["w1"] = r
+    return r
 
 
 def _session(status: str, *, ok: bool = True, summary: str = "", goal: str = "Buscar un monitor") -> None:
-    r = dispatch.SessionRecord(task_id="w1", goal=goal, kind="generic")
-    r.status, r.ok, r.result_summary = status, ok, summary
-    dispatch._SESSIONS["w1"] = r
+    """Una sesión que ACABÓ, por el MISMO camino que la producción.
+
+    V2-199 — la primera versión de este helper metía el registro en `_SESSIONS` y lo dejaba ahí. Pasaba, y no
+    probaba nada: `_run_session` **saca el registro en su `finally`**, así que en un dispatch de verdad no
+    quedaba nada que leer y `recently_ended_sessions()` devolvía cero. Lo descubrió una escalada real, no la
+    suite. Ahora se llama al mismo `_remember_ended()` que llama el `finally`, y hay un test que exige que ese
+    sitio lo siga llamando."""
+    r = _live_session(status, goal)
+    r.ok, r.result_summary = ok, summary
+    dispatch._remember_ended(r)
+    dispatch._SESSIONS.pop("w1", None)          # como hace `_run_session`
 
 
 def _state() -> str:
@@ -65,7 +82,7 @@ def test_and_each_ending_sounds_like_what_it_was(status, ok, marca):
 
 def test_but_a_LIVE_session_is_not_announced_as_ended():
     """La sensibilidad: sin esto, «di cómo acabó» y «di siempre que acabó» pasan igual."""
-    _session("running")
+    _live_session("running")
     state = _state()
     assert "YA ACABADAS" not in state
     assert "TAREAS DE FONDO EN CURSO" in state
@@ -75,8 +92,34 @@ def test_and_an_old_ending_is_not_this_conversation():
     import time as _t
 
     _session("done")
-    dispatch._SESSIONS["w1"].last_event_at = _t.time() - (dispatch.JUST_ENDED_S + 60)
+    dispatch._ENDED_SESSIONS["w1"]["at"] = _t.time() - (dispatch.JUST_ENDED_S + 60)
     assert dispatch.recently_ended_sessions() == []
+
+
+def test_the_REAL_path_records_the_ending_before_dropping_the_record():
+    """El test que faltaba, y el único que habría cazado el fallo: `_run_session` TIRA el registro en su
+    `finally`, así que leer `_SESSIONS` para los finales no encuentra nunca nada. Lo descubrió una escalada
+    real; esto lo fija sin tener que correr una."""
+    import inspect
+
+    src = inspect.getsource(dispatch._run_session)
+    # El ÚLTIMO pop es el del `finally`, por donde sale toda sesión que llega a ejecutarse. Los otros dos son
+    # el confirm-gate —que tiene su propia línea de estado (V2-126/V2-190) y anunciarlo además como «TERMINÓ»
+    # sería contarlo dos veces y mal— y la cancelación en cola, que sí recuerda.
+    i = src.rindex("_SESSIONS.pop(key, None)")
+    antes = src[:i]
+    assert "_remember_ended(rec)" in antes, (
+        "`_run_session` tira el registro sin recordar cómo acabó: `recently_ended_sessions()` no verá nada y "
+        "el turno volverá a quedarse con su memoria de haber arrancado la tarea.")
+
+
+def test_and_the_snapshot_does_not_hold_the_worker_handles():
+    """Se guarda un dict ligero y no el `SessionRecord`: ese objeto lleva los handles del worker, y mantenerlo
+    vivo cinco minutos más allá del final los mantendría vivos también."""
+    _session("done", summary="algo")
+    row = dispatch._ENDED_SESSIONS["w1"]
+    assert isinstance(row, dict)
+    assert set(row) == {"id", "goal", "status", "ok", "summary", "at"}
 
 
 # ── la enumeración, una sola vez (misma lección que V2-197) ───────────────────────────────────────────────

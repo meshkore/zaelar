@@ -430,6 +430,32 @@ ENDED_SESSION_STATES = frozenset({"done", "error", "cancelled"})
 JUST_ENDED_S = 300.0     # cinco minutos: lo que dura la conversación en la que el operador todavía pregunta
 
 
+_ENDED_SESSIONS: dict[str, dict] = {}
+
+
+def _remember_ended(rec) -> None:
+    """Snapshot of a session that just ENDED, kept for `JUST_ENDED_S`.
+
+    V2-199 — V2-198 read `_SESSIONS` for the ended ones and **`_run_session` pops the record in its `finally`**,
+    so in a real dispatch there was never anything left to find. Its unit tests placed records by hand and
+    never popped, which is why they passed while the production path did nothing: **a test that never walks the
+    real path proves the code compiles, not that it works.** Caught by running one real escalation end to end —
+    the worker answered, the brain-note went out, and `recently_ended_sessions()` returned zero.
+
+    A light dict on purpose, not the record: `SessionRecord` holds the worker handles, and keeping it alive
+    five minutes past the end would keep those alive too.
+    """
+    try:
+        _ENDED_SESSIONS[str(rec.task_id)] = {
+            "id": str(rec.task_id), "goal": (rec.goal or "").strip(), "status": str(rec.status or "done"),
+            "ok": bool(rec.ok), "summary": (rec.result_summary or "").strip(), "at": time.time()}
+        for k in [k for k, v in _ENDED_SESSIONS.items()
+                  if time.time() - float(v.get("at") or 0) > JUST_ENDED_S]:
+            _ENDED_SESSIONS.pop(k, None)
+    except Exception:  # noqa: BLE001
+        pass
+
+
 def recently_ended_sessions(now: float | None = None, limit: int = 3) -> list[dict]:
     """Sesiones de worker que ACABARON hace poco, y CÓMO acabaron.
 
@@ -438,12 +464,9 @@ def recently_ended_sessions(now: float | None = None, limit: int = 3) -> list[di
     Aquí faltaba entero.
     """
     now = time.time() if now is None else now
-    rows = [{"id": r.task_id, "goal": (r.goal or "").strip(), "status": r.status,
-             "ok": bool(r.ok), "summary": (r.result_summary or "").strip(),
-             "ago_s": int(now - float(r.last_event_at or r.started))}
-            for r in _SESSIONS.values()
-            if r.status in ENDED_SESSION_STATES
-            and (now - float(r.last_event_at or r.started)) <= JUST_ENDED_S]
+    rows = [{**v, "ago_s": int(now - float(v.get("at") or now))}
+            for v in _ENDED_SESSIONS.values()
+            if (now - float(v.get("at") or 0)) <= JUST_ENDED_S]
     rows.sort(key=lambda r: r["ago_s"])
     return rows[:max(1, limit)]
 
@@ -1360,6 +1383,7 @@ async def _run_session(task: "Task") -> None:
                                         extra={"ok": bool(rec.ok), "status": str(rec.status or "")})
                 except Exception:
                     pass
+            _remember_ended(rec)          # V2-199: el final es un HECHO — antes de tirar el registro
             _SESSIONS.pop(key, None)
             try:
                 from nucleo import worker_api

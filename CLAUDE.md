@@ -1275,6 +1275,22 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Un test que no recorre el camino real prueba que el código compila, no que funciona** (`nucleo/dispatch.py`,
+  V2-199, 2026-08-20). **V2-198 no funcionaba en producción y sus 9 tests pasaban.** `recently_ended_sessions()`
+  leía `_SESSIONS` buscando las acabadas, y `_run_session` **saca el registro en su `finally`**: en un dispatch
+  real no quedaba nada que leer. Los tests metían el registro a mano y no lo sacaban nunca — probaban una
+  situación que en producción no existe ni un instante. Lo cazó **una escalada REAL**, corrida a propósito en
+  vez de añadir un arreglo más sin medir: worker terminado, brain-note enviada, `recently_ended_sessions() → 0`.
+  - `_ENDED_SESSIONS` + `_remember_ended(rec)` **antes** de tirar el registro, en los dos sitios donde una
+    sesión muere de verdad. El confirm-gate NO: tiene su propia línea (V2-126/V2-190) y anunciarlo además como
+    «TERMINÓ» sería contarlo dos veces y mal. Un dict LIGERO, no el `SessionRecord` — ese objeto lleva los
+    handles del worker.
+  - Y el guarda que habría bastado: recorre el fuente de `_run_session` y exige que el ÚLTIMO `pop` vaya
+    precedido de `_remember_ended`, con la excepción del confirm-gate escrita en el propio test.
+  - **Regla práctica**: cuando un arreglo dependa de DÓNDE VIVE un dato, el test tiene que crear ese dato como
+    lo crea producción — no colocarlo. Un test escrito por la misma cabeza que escribió el código hereda sus
+    suposiciones, y aquí la peligrosa era «el registro sigue ahí cuando la tarea acaba».
+
 - **Una sesión de WORKER que acaba desaparecía del estado** (`nucleo/dispatch.py` + `prompt.py`, V2-198,
   2026-08-20). Medido: con `status=running` el estado dice «TAREAS DE FONDO EN CURSO»; con `status=done`
   **no dice NADA** — ni que acabó, ni cómo, ni con qué. Es literalmente lo que V2-150 cerró para las tareas de
