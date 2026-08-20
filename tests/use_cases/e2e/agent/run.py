@@ -169,6 +169,14 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         # The memory's CANONICAL language, read rather than assumed — see `verify.memory_language`. It is not
         # necessarily the language of the conversation, and a Spanish case whose memory canon was English is
         # exactly how a preference that WAS in the prompt got reported as missing.
+        # WHAT THE ENGINE PUSHED, next to what the prompt merely rendered — the two delivery paths measured
+        # side by side (see `verify.proactive_notes`).
+        try:
+            notes = verifymod.proactive_notes(config.SANDBOX_DB, since=started_at)
+            mech["proactive_notes"] = notes
+            mech["note_coverage"] = verifymod.note_coverage(mech.get("prompt_context") or [], notes)
+        except Exception as e:
+            mech["proactive_notes_error"] = str(e)[:200]
         mech["memory_language"] = verifymod.memory_language(config.SANDBOX_DB)
         # The locale travels with it so the judge can compare: `en` is CORRECT for a US case and a mismatch
         # only for an ES one. Warning on the language alone would cry wolf on half the catalogue.

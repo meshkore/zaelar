@@ -166,6 +166,15 @@ def mechanism_facts(mech: dict) -> str:
                      f"vez/veces (escribió la respuesta del asistente en vez de su propia frase). Si en algún "
                      f"turno el usuario dice cosas absurdas o entrega él los resultados, ESO ES NUESTRO, no de "
                      f"zaelar. No puntúes a zaelar por reaccionar razonablemente a un turno imposible.")
+    cov = mech.get("note_coverage") or {}
+    if cov.get("alert_turns"):
+        lines.append(
+            f"· ENTREGA vs RENDERIZADO (hecho medido): {cov['alert_turns']} turno(s) tenían algo que contar, y "
+            f"solo {cov.get('with_note', 0)} recibieron un AVISO EMPUJADO por el sistema (`system note`); el "
+            f"resto solo lo tenía como línea de estado del prompt. Los dos casos son defectos si zaelar no lo "
+            f"cuenta, pero NO son el mismo defecto y hay que decir cuál es: si se le EMPUJÓ el aviso y calló, "
+            f"es desobediencia de zaelar; si solo estaba en la línea de estado, el defecto es del camino de "
+            f"entrega. Di en el hallazgo cuál de los dos, porque cada uno lo arregla otra persona.")
     pc = mech.get("prompt_context") or []
     if pc:
         alerts = [r for r in pc if r.get("alert") and (r.get("shown_state") or r.get("failed_task_line"))]

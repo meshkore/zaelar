@@ -463,7 +463,7 @@ def prompt_context(db_path, *, since: float = 0.0, limit: int = 40) -> list[dict
         shown = nav.split("último:", 1)[1].strip() if "último:" in nav else ""
         done = next((l.strip() for l in sp.splitlines() if _DONE_MARK in l), "")
         failed = "FALLÓ" in done
-        out.append({"turn": i, "window_msgs": p.get("window_msgs"), "system_chars": len(sp),
+        out.append({"turn": i, "at_ms": ts_ms, "window_msgs": p.get("window_msgs"), "system_chars": len(sp),
                     "task_line": nav[:300], "shown_state": shown[:200],
                     "failed_task_line": done[:240] if failed else "",
                     "alert": any(a in shown.lower() or a in shown for a in _ALERT) or failed})
@@ -511,3 +511,63 @@ def memory_language(db_path="") -> dict:
     except Exception:
         code = ""
     return {"effective": code, "explicit": bool(code), "source": "db"}
+
+
+def proactive_notes(db_path, *, since: float = 0.0, limit: int = 40) -> list[dict]:
+    """The notes the engine PUSHED at the conversation (`📩 system note → FlashBrain`), with their clock.
+
+    This is the instrument for the contrast measured on 2026-08-20, inside one conversation, one model, one turn
+    budget:
+
+        19:43:31  system note («el proceso pregunta: ¿A qué ciudad…?»)
+        19:43:34  turn 1 relayed it, almost verbatim              → said in 3 seconds
+        (no note)  the FAILED task, rendered only as a prompt state line, 7 turns running
+                   turns 1-7 said "sigo esperando", "te aviso"    → 0 of 7
+
+    Same information, two delivery paths, opposite outcomes — and the losing path was imperative and in capitals.
+    That is what turned "the model disobeys" into "one kind of fact has a delivery path and the other does not",
+    which is a different fix with a different owner. It was hand-queried three times before earning a place here.
+    """
+    import sqlite3
+    try:
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    except Exception:
+        return []
+    try:
+        rows = con.execute(
+            "SELECT ts_ms, payload FROM events WHERE topic = 'observer' AND label LIKE '%system note%' "
+            "AND ts_ms >= ? ORDER BY ts_ms ASC LIMIT ?", (int(since * 1000), int(limit))).fetchall()
+    except Exception:
+        return []
+    finally:
+        con.close()
+    out = []
+    for ts_ms, raw in rows:
+        try:
+            txt = str((json.loads(raw) or {}).get("text") or "")
+        except Exception:
+            txt = ""
+        out.append({"at_ms": ts_ms, "text": txt[:300]})
+    return out
+
+
+def note_coverage(prompt_rows: list[dict], notes: list[dict]) -> dict:
+    """Of the turns that had something to report, how many were PUSHED a note first.
+
+    The three stretches the fixing agent asked for, separated: the mechanism marked it (their side), it reached
+    the prompt (`prompt_context`), and a note was pushed (here). Whether it came out of the mouth is the judge's
+    call on the transcript — the harness must not guess at that one.
+    """
+    alerts = [r for r in prompt_rows if r.get("alert")]
+    if not alerts:
+        return {"alert_turns": 0, "with_note": 0, "notes": len(notes)}
+    with_note = 0
+    for r in alerts:
+        at = r.get("at_ms") or 0
+        # A note counts for a turn if it landed BEFORE it and after the previous turn: that is the window in
+        # which it could have changed what this turn said.
+        prev = max((x.get("at_ms") or 0) for x in prompt_rows if (x.get("at_ms") or 0) < at) if any(
+            (x.get("at_ms") or 0) < at for x in prompt_rows) else 0
+        if any(prev < (n["at_ms"] or 0) <= at for n in notes):
+            with_note += 1
+    return {"alert_turns": len(alerts), "with_note": with_note, "notes": len(notes)}
