@@ -94,3 +94,17 @@ def test_both_languages_carry_the_phrase():
         assert spec.show_ack_empty != spec.show_ack, code
         seen += 1
     assert seen == 2          # y que el bucle CORRIÓ: un test que no mira nada pasa igual
+
+
+def test_the_empty_ack_CLAIMS_NOTHING(lang):
+    """REGRESIÓN MEDIDA, y mía (V2-209 addenda). La primera versión de esta frase acababa en «sigo con ello», y
+    `cancel-subscription-before-charge__es` —el único 5/5 del tablero, que vivía justo de NO afirmar nada— cayó a
+    2/5: «narró que seguía cancelando en la cuenta del usuario sin que el mecanismo lo respaldara».
+
+    Cambiar una afirmación falsa por otra más pequeña no es arreglarla: es hacerla más fácil de colar. Este ack
+    dice lo que PASÓ (se abrió, está vacío) y nada más — lo que esté o no en marcha lo dicen el estado y la línea
+    de espera, que sí lo saben."""
+    for spec in (langs.spec("es"), langs.spec("en")):
+        low = spec.show_ack_empty.lower()
+        for claim in ("sigo con ello", "sigo en ello", "still on it", "working on it", "en marcha"):
+            assert claim not in low, spec.show_ack_empty

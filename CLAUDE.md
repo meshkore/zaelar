@@ -1275,6 +1275,27 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **DOS REGRESIONES MÍAS, medidas el mismo día y en el único caso 5/5 del tablero** (V2-202/V2-209 addenda,
+  2026-08-20). `cancel-subscription-before-charge__es` pasó de **5/5 a 2/5** con el veredicto «narró que seguía
+  cancelando en la cuenta del usuario sin que el mecanismo lo respaldara». Ese caso vivía justo de NO afirmar
+  nada, así que es el detector más sensible que hay para esta clase de daño — y encontró las dos:
+  - **`needs_input` NO significa «hay una pregunta».** El traspaso de LOGIN lo pone (`owner._authenticate`) y las
+    tareas que ese traspaso PAUSA también, las dos **sin pregunta**. Mi `answer_from_turn` (V2-202) se apoyaba en
+    `waiting_id()` a secas, así que un turno que llevara un «vale» —«**Vale**, abre la web de Netflix y me dices
+    cuando esté en el login»— se leía como la respuesta a un confirm-gate que nadie había abierto **y se comía la
+    acción real de ese turno**. La pregunta es lo único que distingue «te estoy esperando a TI» de «espero a que
+    tú hagas algo en otra ventana».
+  - **El ack vacío AFIRMABA trabajo en curso.** Escribí «Te lo abro, pero de momento no hay nada dentro: **sigo
+    con ello**» — cambiar una afirmación falsa («aquí lo tienes») por otra más pequeña no es arreglarla, es
+    hacerla más fácil de colar. Ahora dice solo lo que PASÓ: se abrió, y está vacío. Lo que esté o no en marcha
+    lo dicen el estado y la línea de espera, que sí lo saben.
+  - **El tercer sospechoso quedó exonerado MIDIENDO, no argumentando**: el disparo de búsqueda de V2-210 no puede
+    dispararse ahí (`mi suscripción` cae en el filtro de «lo suyo» y no hay señal de dato externo), comprobado
+    caso por caso antes de tocar nada.
+  - La lección que deja, y es de método: **una frase de relleno nuestra es el sitio donde una afirmación falsa se
+    cuela sin que nadie la escriba**. Es la tercera vez hoy (V2-176 «Hecho.», V2-209 «Aquí lo tienes», y ahora mi
+    propia sustituta). Cada ack nuevo necesita el test de «¿esto AFIRMA algo que no sabemos?».
+
 - **«Prueba otro sitio» sin decir CUÁL es un deseo, no una instrucción** (`nucleo/flash/site_catalog.py` +
   `widgets/navegador/act_api.py` + `nav_cli.py`, V2-213, 2026-08-20). El muro llega YA a todas partes: la tarea lo
   anota (V2-176), el CLI del worker lo imprime (V2-186) y el turno lo dice en voz alta (V2-185 — el transcript de

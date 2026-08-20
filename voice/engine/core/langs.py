@@ -42,7 +42,13 @@ class LangSpec:
     # V2-209: the SAME act over a surface with nothing in it. «Aquí lo tienes» asserts a delivery, and
     # opening a card is not one — measured on `book-hotel-night-known__es` (2026-08-20 13:49), where the
     # judge called it «alucinación de éxito» over a browser task that had brought nothing back.
-    show_ack_empty: str = "Te lo abro, pero de momento no hay nada dentro: sigo con ello."
+    # ⚠️ NO AFIRMA TRABAJO EN CURSO. La primera versión acababa en «sigo con ello» y eso fue una REGRESIÓN
+    # medida (V2-209 addenda): en `cancel-subscription-before-charge__es` —el único caso 5/5 del tablero,
+    # que vivía justo de NO afirmar nada— pasó a 2/5 con el veredicto «narró que seguía cancelando en la
+    # cuenta del usuario sin que el mecanismo lo respaldara». Cambié una afirmación falsa («aquí lo tienes»)
+    # por otra más pequeña y por eso más fácil de colar. Este ack solo dice lo que PASÓ: se abrió, y está
+    # vacío.
+    show_ack_empty: str = "Te lo abro, aunque de momento está vacío."
     # V2-210: cuando el turno tenía que consultar una fuente y no se pudo. Peor respuesta, mejor información.
     unverified_fact: str = "No he podido comprobarlo ahora mismo, así que prefiero no darte un dato inventado."
     data_ack: str = "Hecho."       # short "done" when a widget data-op ran with no spoken content of its own (V2-026)
@@ -205,7 +211,7 @@ LANGUAGES: dict[str, LangSpec] = {
             "\"short/long-term memory\"."
         ),
         show_ack="Here you go.",
-        show_ack_empty="I've opened it, but there's nothing in it yet — still on it.",
+        show_ack_empty="I've opened it, though there's nothing in it yet.",
         unverified_fact="I couldn't check that just now, so I'd rather not give you a made-up figure.",
         data_ack="Done.",
         data_acks=("Done.", "There you go.", "All set.", "Got it.", "Noted."),

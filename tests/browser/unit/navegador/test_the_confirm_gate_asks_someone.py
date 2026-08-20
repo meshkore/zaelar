@@ -116,3 +116,26 @@ def test_the_deadline_outlives_a_conversational_round_trip():
     from nucleo import dispatch
     from widgets.navegador import owner
     assert owner._CONFIRM_TIMEOUT >= dispatch._CONFIRM_TTL
+
+
+def test_a_login_handoff_does_NOT_swallow_the_operators_words(tasks):
+    """REGRESIÓN MEDIDA, y mía. `needs_input` no significa «hay una pregunta»: el traspaso de LOGIN lo pone, y
+    también las tareas que ese traspaso pausa — las dos SIN pregunta. Sin comprobarlo, un turno que llevara un
+    «vale» («Vale, abre la web de Netflix y me dices cuando esté en el login») se leía como la respuesta a un
+    confirm-gate que nadie había abierto, y se comía la acción real de ese turno.
+
+    `cancel-subscription-before-charge__es` era el único 5/5 del tablero y cayó a 2/5 el mismo día. La pregunta
+    es lo único que distingue «te estoy esperando a TI» de «espero a que tú hagas algo en otra ventana»."""
+    tid = tasks.create("cancelar la suscripción de Netflix")
+    tasks.set_status(tid, "needs_input")          # login handoff: mismo estado, ninguna pregunta
+    tasks.set_login_wait(tid, True)
+
+    assert tasks.answer_from_turn("Vale, abre la web de Netflix y me dices cuando esté en el login.") is None
+    assert tasks.get(tid)["status"] == "needs_input"      # sigue esperándole a él, que es la verdad
+
+
+def test_a_real_question_is_still_answered(tasks):
+    """Sensibilidad: el arreglo no puede apagar el camino que V2-202 abrió."""
+    tid = tasks.create("comprar entradas del teatro")
+    tasks.ask(tid, "¿Lo confirmo?")
+    assert tasks.answer_from_turn("sí, dale") == {"task_id": tid, "ok": True}

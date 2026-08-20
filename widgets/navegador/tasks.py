@@ -732,6 +732,14 @@ def answer_from_turn(text: str) -> dict | None:
     tid = waiting_id()
     if not tid:
         return None
+    # ⚠️ `needs_input` NO significa «hay una pregunta»: el traspaso de LOGIN lo pone (`owner._authenticate`) y las
+    # tareas que ese traspaso PAUSA también, las dos SIN pregunta. Sin esta comprobación, un turno que llevara un
+    # «vale» —«Vale, abre la web de Netflix y me dices cuando esté en el login»— se leía como la respuesta a un
+    # confirm-gate que nadie había abierto, y se comía la acción REAL de ese turno. Regresión medida el mismo día
+    # en `cancel-subscription-before-charge__es`, que era el único 5/5 del tablero. La pregunta es lo único que
+    # distingue «te estoy esperando a ti» de «estoy esperando a que TÚ hagas algo en otra ventana».
+    if not (get(tid) or {}).get("question"):
+        return None
     from widgets import confirm as _confirm
     verdict = _confirm.classify_reply(text or "")
     if not verdict:
