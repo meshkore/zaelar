@@ -90,3 +90,41 @@ def _round_text(code: dict | None = None) -> str:
               "run": {"transcript": [], "mechanism_report": {}},
               "verdict": {"overall": 3, "veredicto": "x", "scores": {}}}
     return I._evidence(result, scenario=_scn(), sandboxed=True)
+
+
+def test_the_stamp_is_taken_BEFORE_the_engine_boots(monkeypatch, tmp_path):
+    """A lazy stamp lies, and it lied about itself.
+
+    2026-08-20: the sandbox booted at 19:37:07, the fixing agent committed at 19:39:41, and the stamp — first
+    taken when the round finished — named a commit the running server had never loaded. I was one message away
+    from telling them their fix had been measured. The server reads the tree at `Popen`, so the stamp belongs on
+    the same side of the boot as the server.
+    """
+    import argparse
+    from tests.use_cases.e2e.agent import run as R
+
+    order: list[str] = []
+    config._CODE_STAMP = None
+    config._MACHINE_STAMP = None
+    monkeypatch.setattr(config, "code_stamp", lambda: order.append("stamp") or {"sha": "abc1234"})
+    monkeypatch.setattr(config, "machine_stamp", lambda: {"n": 0})
+
+    import contextlib
+
+    @contextlib.contextmanager
+    def _fake_engine(**kw):
+        order.append("boot")
+        yield type("E", (), {"base_url": "http://x", "workspace": tmp_path,
+                             "new_widget_dirs": lambda self=None: [],
+                             "log_tail": lambda self=None, n=0: ""})()
+
+    import tests.platform.sandbox_engine as SE
+    monkeypatch.setattr(SE, "sandbox_engine", _fake_engine)
+    monkeypatch.setattr(SE, "preferred_port", lambda p: p)
+    monkeypatch.setattr(R, "_run_batch", lambda *a, **k: order.append("run") or 0)
+
+    R._sandbox_batch([_scn()], argparse.Namespace(no_file=True, stop_after_failures=0))
+    assert order[0] == "stamp", f"el sello se tomó después de arrancar: {order}"
+    assert order.index("stamp") < order.index("boot")
+    config._CODE_STAMP = None
+    config._MACHINE_STAMP = None

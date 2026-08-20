@@ -562,6 +562,14 @@ def _sandbox_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict
     # into the operator's own session. Ephemeral+random would be tidier but invisible, and invisible defeats
     # the point of running these at all.
     lang = "es" if (chosen and chosen[0].locale == "es") else "en"
+    # STAMP BEFORE BOOTING, and this is not a nicety — a lazy stamp LIES. Measured on itself 2026-08-20: the
+    # sandbox booted at 19:37:07, the fixing agent committed the obedience fix at 19:39:41, the stamp was first
+    # taken when the round finished, and the ledger row therefore named a commit the running server had never
+    # loaded. An instrument that misattributes a round is worse than no instrument: I was one message away from
+    # telling them their fix had been measured. The server reads the tree at `Popen`, so the stamp has to be
+    # taken here, on the same side of the boot.
+    config.code_stamp()
+    config.machine_stamp()
     ws = config.RUNS_DIR / "sandbox" / time.strftime("%Y%m%d-%H%M%S", time.localtime())
     print(f"▶ booting an isolated sandbox engine (own DB/port/workspace, fresh user_id, "
           f"ZAELAR_LANGUAGE={lang})…")
