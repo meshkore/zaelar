@@ -799,6 +799,35 @@ DOMAINS: list[dict] = [
         # ÁRBOL DE TRABAJO, así que una ronda medida a mitad de una edición se parece a una ronda limpia.
         {"id": "10.19", "title": "Cada ronda dice QUÉ CÓDIGO midió (sha + ficheros del motor sin commitear)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_code_stamp.py"]},
+        # 10.20-10.32 son del ARNÉS (`arnes-use-cases`), pegados aquí a petición suya: no toca este fichero desde
+        # que una edición mía se barrió dos veces. En inglés a propósito — repo público, y la voz vieja en
+        # castellano de arriba no se imita al añadir. Verificado que los 13 ficheros existen antes de registrarlos.
+        {"id": "10.20", "title": "Every round reads the prompt the agent actually had in front of it",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_prompt_context.py"]},
+        {"id": "10.21", "title": "The driver stays the USER: it never answers as the assistant",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_driver_stays_in_role.py"]},
+        {"id": "10.22", "title": "A seeded case gets its own sandbox: no memory leaks in from the case before",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_seeded_cases_get_their_own_sandbox.py"]},
+        {"id": "10.23", "title": "Memory language is asked of the ENGINE, not read raw from the DB column",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_memory_language_is_read.py"]},
+        {"id": "10.24", "title": "A round killed by infrastructure is parked and judged later, not re-driven",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_pending_rounds.py"]},
+        {"id": "10.25", "title": "The judge tries the vendor direct before the broker",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_judge_tries_the_vendor_first.py"]},
+        {"id": "10.26", "title": "An empty body is a transient failure, never an empty verdict",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_an_empty_answer_is_not_an_answer.py"]},
+        {"id": "10.27", "title": "The direct leg disables thinking: the judge must not reason out loud",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_direct_leg_disables_thinking.py"]},
+        {"id": "10.28", "title": "The initiative number is claimed atomically, never guessed",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_initiative_number_claim.py"]},
+        {"id": "10.29", "title": "Pushed vs merely rendered: the two delivery paths are counted apart",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_note_coverage.py"]},
+        {"id": "10.30", "title": "A round does not close while its browser task is still alive",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_grace_turns.py"]},
+        {"id": "10.31", "title": "What the browser FOUND, and whether the agent said it, are separate facts",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_worker_outcome.py"]},
+        {"id": "10.32", "title": "Every round records what else the machine was doing (GPU tenants)",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_machine_stamp.py"]},
     ]},
 ]
 
