@@ -460,6 +460,25 @@ def _flash_layer(open_ids: set[str], recent_ids: list[str] | None = None,
     return ops + "\n\n" + res + (("\n\n" + tail) if tail else "")
 
 
+def _found_candidates(nav_task_id: str) -> bool:
+    """Has the worker driving this tab already FOUND something?
+
+    The browser task's own `results` cannot answer this while it is alive — every caller of `set_results()`
+    calls `finish()` in the next breath, so an active task with results does not exist in production (V2-200).
+    What DOES exist live is the worker's own report of breadth: `kept` is how many finalists it has, written
+    by `hbnote considered --kept N` while it works.
+
+    Read through the seam that already links the two registries (`dispatch.record_by_nav_task`, V2-048) rather
+    than a new one. Best-effort: not knowing means «no», which keeps the stall/wall faces exactly as they were.
+    """
+    try:
+        from nucleo import dispatch as _d
+        rec = _d.record_by_nav_task(str(nav_task_id))
+        return bool(rec) and int(getattr(rec, "kept", 0) or 0) > 0
+    except Exception:
+        return False
+
+
 def _site_of(url: str) -> str:
     """The site as a person would name it: `thefork.es`, not the whole URL.
 
@@ -650,7 +669,16 @@ def live_state() -> str:
                     # al preguntar por el gimnasio». El estado le MANDABA entregar el teatro mientras el
                     # operador preguntaba por su gimnasio.
                     _who = f"«{(_g or 'la tarea')[:50]}»"
-                    if _p.get("has_results"):
+                    # V2-200 — `has_results` en la tarea NUNCA es cierto mientras está viva: los TRES sitios
+                    # que llaman a `set_results()` llaman a `finish()` acto seguido (`owner.py`,
+                    # `dispatch._finalize_web`, `web_cc`). O sea que la cara «YA TIENE RESULTADOS» de V2-192 era
+                    # código muerto, y sus tests pasaban porque creaban un estado que producción no produce —
+                    # exactamente el fallo de V2-199, encontrado con el mismo método.
+                    #
+                    # La señal VIVA de que el worker ya encontró algo sí existe, en el otro registro: la
+                    # amplitud que él mismo reporta (`hbnote considered --kept N`). Se lee por el seam que ya
+                    # había (`dispatch.record_by_nav_task`), no por uno nuevo.
+                    if _p.get("has_results") or _found_candidates(_tid):
                         _b += " · YA TIENE RESULTADOS"
                         _has_results = _has_results or _who
                     elif _p.get("awaiting_login"):

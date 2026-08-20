@@ -684,3 +684,78 @@ def test_and_one_that_finished_WITH_results_too():
     tasks.set_results(tid, {"items": [1]})
     tasks.finish(tid, "done", "2 hoteles")
     assert "terminó CON resultado" in _live()
+
+
+# ── V2-200: la cara «YA TIENE RESULTADOS» estaba atada a un campo que nunca es cierto en vivo ─────────────
+#
+# V2-192 la ató a `results` de la propia tarea. Pero los TRES sitios que llaman a `set_results()` llaman a
+# `finish()` acto seguido —`owner.py:660`, `dispatch._finalize_web`, `web_cc`— así que **una tarea ACTIVA con
+# resultados no existe en producción**. Sus cuatro tests pasaban porque creaban ese estado a mano.
+#
+# Es el mismo fallo de V2-199 encontrado con el mismo método —comprobar contra el camino real en vez de contra
+# el que uno imaginó— y esta vez el arreglo anterior no estaba roto: estaba MUERTO.
+#
+# La señal viva de que el worker ya encontró algo sí existe, en el otro registro: la amplitud que él mismo
+# reporta (`hbnote considered --kept N`), leída por el seam que ya enlazaba los dos (`record_by_nav_task`).
+def _worker_on(nav_tid, *, kept=0):
+    from nucleo import dispatch as _d
+
+    rec = _d.SessionRecord(task_id="w9", goal="x", kind="web")
+    rec.status, rec.nav_task = "running", nav_tid
+    _d._SESSIONS["w9"] = rec
+    if kept:
+        _d.session_considered("w9", considered=kept * 4, kept=kept)
+    return _d
+
+
+def test_no_production_path_leaves_an_ACTIVE_task_with_results():
+    """La aserción que habría evitado V2-192 tal y como se escribió: se recorre el código y se exige que cada
+    `set_results()` vaya seguido de un final. Si algún día deja de ser cierto, esta cara se puede volver a
+    atar al campo directamente — pero que sea una decisión, no una suposición."""
+    import re
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[4]
+    for rel in ("widgets/navegador/owner.py", "nucleo/dispatch.py", "nucleo/agentes/web_cc.py"):
+        src = (root / rel).read_text(encoding="utf-8", errors="replace")
+        for m in re.finditer(r"set_results\(", src):
+            after = src[m.end():m.end() + 700]
+            assert re.search(r"\.finish\(|set_status\([^)]*\"(done|failed|cancelled)\"", after), (
+                f"{rel}: un `set_results()` que NO termina la tarea a continuación. Si eso pasa a ser posible, "
+                "la cara «YA TIENE RESULTADOS» puede volver a leer `has_results` en vez de la amplitud viva.")
+
+
+def test_the_face_now_fires_on_the_LIVE_signal(monkeypatch):
+    tid = tasks.create("Entradas El Rey León")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url=REAL_PAGE)
+    tasks._tasks[tid]["last_progress"] = time.time() - 400        # y encima atascada
+    d = _worker_on(tid, kept=3)
+    try:
+        state = _live()
+        assert "YA TIENE RESULTADOS" in state
+        assert "ESTÁ BLOQUEADA: lo que pone arriba de ella" not in state
+    finally:
+        d._SESSIONS.clear()
+
+
+def test_but_a_worker_with_NOTHING_yet_leaves_the_stall_alone():
+    """La sensibilidad, y es la que impide deshacer V2-185: sin finalistas, un atasco medido sigue siendo un
+    atasco. `kept` a 0 —o no saber— significa «no», nunca «sí»."""
+    tid = tasks.create("Reservar mesa")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url=REAL_PAGE)
+    tasks._tasks[tid]["last_progress"] = time.time() - 400
+    d = _worker_on(tid, kept=0)
+    try:
+        assert "ESTÁ BLOQUEADA: lo que pone arriba de ella" in _live()
+    finally:
+        d._SESSIONS.clear()
+
+
+def test_and_with_no_worker_at_all_nothing_changes():
+    tid = tasks.create("Reservar mesa")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url=REAL_PAGE)
+    tasks._tasks[tid]["last_progress"] = time.time() - 400
+    assert "ESTÁ BLOQUEADA: lo que pone arriba de ella" in _live()

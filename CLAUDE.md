@@ -1275,6 +1275,25 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **El arreglo anterior no estaba roto: estaba MUERTO** (`nucleo/flash/prompt.py`, V2-200, 2026-08-20).
+  Aplicando la lección de V2-199 al resto de la tanda, el siguiente sospechoso era V2-192 — y lo era: los
+  **tres** sitios que escriben resultados en una tarea de navegador (`owner.py`, `_finalize_web`, `web_cc`)
+  llaman a `finish()` acto seguido, así que **una tarea ACTIVA con resultados no existe en producción** y la
+  cara «YA TIENE RESULTADOS» no podía dispararse nunca. Sus cuatro tests pasaban porque creaban ese estado a
+  mano.
+  - **Y eso deja al descubierto la causa real** del veredicto que lo originó («ocultó que había encontrado
+    datos reales y afirmó que la tarea estaba paralizada»): **el worker tiene los datos antes que el
+    registro**. Encuentra los candidatos, sigue componiendo, `results` no se escribe hasta el final, y mientras
+    tanto la tarea cruza los 120 s sin cambiar de URL y sale como BLOQUEADA.
+  - La cara se ata ahora a la señal que SÍ existe viva —la amplitud que el propio worker reporta,
+    `hbnote considered --kept N`— leída por el seam que ya enlazaba los dos registros (`record_by_nav_task`),
+    no por uno nuevo. `kept == 0` o no poder leerlo significa **no**, nunca «sí»: eso mantiene V2-185 intacto.
+  - El test que habría evitado esto recorre el código y exige que **cada `set_results()` vaya seguido de un
+    final**. Si deja de ser cierto, que volver al campo sea una decisión y no una suposición.
+  - **Regla, corrigiendo la de V2-199**: no basta con que el test cree el dato como lo crea producción — hay
+    que comprobar que **producción llega a crear ese dato**. Dos arreglos seguidos pasaban sus tests sin hacer
+    nada, y los dos se encontraron preguntándole al código, no a un veredicto.
+
 - **Un test que no recorre el camino real prueba que el código compila, no que funciona** (`nucleo/dispatch.py`,
   V2-199, 2026-08-20). **V2-198 no funcionaba en producción y sus 9 tests pasaban.** `recently_ended_sessions()`
   leía `_SESSIONS` buscando las acabadas, y `_run_session` **saca el registro en su `finally`**: en un dispatch
