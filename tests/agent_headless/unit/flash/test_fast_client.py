@@ -315,3 +315,68 @@ def test_but_a_tool_call_that_parses_is_untouched(monkeypatch):
     asyncio.run(run())
     assert fired == [("recall", {"query": "monitor"})]
     assert not m.get("dropped_tool_calls")
+
+
+# ── V2-176 frente 2: la acción descartada tiene que llegar al TURNO SIGUIENTE ──────────────────────────────────────
+#
+# V2-171 dejó el descarte en las métricas del turno y en observabilidad — donde el operador puede mirarlo
+# DESPUÉS. Pero la frase («te pongo con ello») ya se dijo en ese mismo turno, así que lo único que todavía se
+# puede arreglar es el turno de después… y ése no veía nada. La conversación continuaba como si la orden
+# hubiera salido, que es el corazón de V2-176: narrar un trabajo que no ocurrió.
+#
+# Mismo remedio que `tasks.recently_finished()` (V2-150) y `dispatch._EXPIRED_CONFIRM` (V2-190): un hecho que
+# solo vive un turno es un hecho que la conversación pierde.
+def test_a_dropped_action_survives_the_turn_that_lost_it():
+    from nucleo.flash import fast_client as fc
+
+    fc.clear_drops()
+    fc._drop_tool_call({"finish_reason": "length"}, "escalate_to_slowbrain", '{"request": "busca un moni')
+    drops = fc.recent_drops()
+    assert [d["name"] for d in drops] == ["escalate_to_slowbrain"]
+    fc.clear_drops()
+
+
+def test_and_reaches_the_live_state_saying_it_did_NOT_happen():
+    from nucleo.flash import fast_client as fc
+    from nucleo.flash import prompt as _p
+
+    fc.clear_drops()
+    fc._drop_tool_call({"finish_reason": "length"}, "escalate_to_slowbrain", "{bad")
+    state = _p.live_state()
+    assert "NO LLEGÓ A EJECUTARSE" in state
+    assert "escalate_to_slowbrain" in state
+    assert "no va a pasar solo" in state
+    fc.clear_drops()
+
+
+def test_but_it_is_said_ONCE_and_not_forever():
+    """Un hecho que se repite en cada estado deja de ser un hecho y pasa a ser ruido — y este ya se dijo."""
+    from nucleo.flash import fast_client as fc
+    from nucleo.flash import prompt as _p
+
+    fc.clear_drops()
+    fc._drop_tool_call({}, "show_widget", "{bad")
+    assert "NO LLEGÓ A EJECUTARSE" in _p.live_state()
+    assert "NO LLEGÓ A EJECUTARSE" not in _p.live_state()
+    fc.clear_drops()
+
+
+def test_and_an_old_drop_is_not_this_conversation():
+    import time as _t
+
+    from nucleo.flash import fast_client as fc
+
+    fc.clear_drops()
+    fc._drop_tool_call({}, "recall", "{bad")
+    fc._RECENT_DROPS[-1]["at"] = _t.time() - (fc._DROP_MEMORY_S + 60)
+    assert fc.recent_drops() == []
+    fc.clear_drops()
+
+
+def test_and_a_turn_with_nothing_dropped_says_nothing():
+    """La sensibilidad: sin esto, «avisa del descarte» y «avisa siempre» pasan igual."""
+    from nucleo.flash import fast_client as fc
+    from nucleo.flash import prompt as _p
+
+    fc.clear_drops()
+    assert "NO LLEGÓ A EJECUTARSE" not in _p.live_state()

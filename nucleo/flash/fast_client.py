@@ -53,6 +53,24 @@ _CONNECT_RETRIES = int(os.getenv("FAST_CONNECT_RETRIES", "2"))
 _RETRY_BACKOFF_S = float(os.getenv("FAST_RETRY_BACKOFF_S", "0.4"))
 
 
+# Actions the system threw away, kept just long enough to be said in the NEXT turn. Same remedy as
+# `widgets/navegador/tasks.recently_finished()` (V2-150) and `dispatch._EXPIRED_CONFIRM` (V2-190): a fact that
+# only exists for one turn is a fact the conversation loses.
+_RECENT_DROPS: list[dict] = []
+_DROP_MEMORY_S = 180.0     # the immediate conversation, no more: an action dropped ten minutes ago is history
+
+
+def recent_drops(now: float | None = None) -> list[dict]:
+    """Actions dropped in the last few minutes — for the live state, so the next turn can say so."""
+    now = time.time() if now is None else now
+    return [d for d in _RECENT_DROPS if now - float(d.get("at") or 0) <= _DROP_MEMORY_S]
+
+
+def clear_drops() -> None:
+    """Called once the fact has been said, so it is not repeated forever."""
+    _RECENT_DROPS.clear()
+
+
 def _drop_tool_call(metrics: dict, name: str, raw_args: str) -> None:
     """An action the model decided to take and the system could not read. Record it as a FACT.
 
@@ -71,6 +89,12 @@ def _drop_tool_call(metrics: dict, name: str, raw_args: str) -> None:
     logger.warning(f"tool call {name} DESCARTADA ({reason}): {(raw_args or '')[:200]!r}")
     dropped = metrics.setdefault("dropped_tool_calls", [])
     dropped.append({"name": name, "reason": reason, "chars": len(raw_args or "")})
+    # V2-176 frente 2: and the fact has to OUTLIVE this turn. V2-171 recorded the drop in the turn's own metrics and in
+    # observability, which the operator can inspect afterwards — but the NEXT turn saw nothing, so the
+    # conversation carried on as if the action had gone out. The sentence «te pongo con ello» was already
+    # spoken by then; what can still be fixed is the turn after it.
+    _RECENT_DROPS.append({"name": name, "reason": reason, "at": time.time()})
+    del _RECENT_DROPS[:-4]
     try:
         from voice.observer import emit
         emit("tool_dropped", "⚠️ acción descartada",

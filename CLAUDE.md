@@ -1275,6 +1275,23 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Un hecho que solo vive un turno es un hecho que la conversación pierde** (`nucleo/flash/fast_client.py` +
+  `prompt.py`, V2-176 frente 2, 2026-08-20). Tercera vez en dos días, así que ya es patrón de diseño
+  y no anécdota: **V2-150** (una tarea que TERMINA desaparecía del estado), **V2-190** (una confirmación que
+  CADUCA borraba el hecho de que existió) y ahora la ACCIÓN que el sistema descartó. V2-171 la dejaba en las
+  métricas del turno y en observabilidad —donde el operador la ve DESPUÉS— pero el turno SIGUIENTE no veía
+  nada, y el orden importa: la frase («te pongo con ello») se dice *mientras* la tool call se acumula, así que
+  cuando se sabe que se descartó la promesa ya está fuera. **Lo único que todavía se puede arreglar es el turno
+  de después**, y ése no tenía el hecho — así que la conversación seguía como si la orden hubiera salido, que
+  es el corazón de V2-176.
+  - `_RECENT_DROPS` la guarda 3 minutos (la conversación inmediata, no más) y el estado lo dice con una salida:
+    «NO ha pasado y no va a pasar solo… vuelve a intentarlo». Se dice **UNA vez y se limpia** — un hecho
+    repetido en cada estado deja de ser un hecho y pasa a ser ruido. Con su test, y con el de sensibilidad (un
+    turno sin descartes no dice nada).
+  - **V2-176 sigue ABIERTA**: es el paraguas del defecto y solo se ha cerrado uno de sus cuatro frentes. El
+    más prometedor sigue sin tocar — «esto necesita tu cuenta, no puedo seguir» como respuesta EXCELENTE,
+    que es `wall_reason` un nivel por encima del navegador.
+
 - **Una confirmación que CADUCA borraba el hecho de que existió** (`nucleo/dispatch.py`, V2-190, 2026-08-20).
   Medido en `renew-gym-membership__es`, y es la evidencia más limpia de la tanda: la tarea acabó
   `status=done url='' shot_rev=0` con `n_search_events=0` —**no abrió una sola página ni hizo una búsqueda**—

@@ -720,6 +720,24 @@ def live_state() -> str:
             lines.append(cl)
     except Exception:
         pass
+    # V2-176 frente 2 — una ACCIÓN que el sistema tiró. V2-171 la registró en las métricas del turno y en
+    # observabilidad; el turno SIGUIENTE no veía nada, así que la conversación continuaba como si hubiera
+    # salido. La frase («te pongo con ello») ya se dijo; lo que todavía se puede arreglar es el turno de
+    # después. Es el mismo remedio que `recently_finished()` y que la confirmación caducada: un hecho que solo
+    # vive un turno es un hecho que la conversación pierde.
+    try:
+        from nucleo.flash import fast_client as _fc_drop
+        _drops = _fc_drop.recent_drops()
+        if _drops:
+            _names = ", ".join(sorted({str(d.get("name") or "?") for d in _drops}))
+            lines.append(
+                f"UNA ACCIÓN TUYA NO LLEGÓ A EJECUTARSE ({_names}): el sistema no pudo leerla y la descartó, "
+                f"así que lo que dijeras que ibas a hacer con ella NO ha pasado y no va a pasar solo. Dilo con "
+                f"esas letras si viene a cuento y vuelve a intentarlo — no sigas hablando como si hubiera "
+                f"salido.")
+            _fc_drop.clear_drops()
+    except Exception:
+        pass
     try:
         # Hermana de la de arriba, para una TAREA irreversible parada por el confirm-gate (V2-126). Sin ella el
         # cerebro no tenía forma de saber que hay algo esperando su sí: la tarea desaparece del registro al
