@@ -43,6 +43,25 @@ def _norm(s: str) -> str:
     return "".join(c for c in s if not unicodedata.combining(c)).lower()
 
 
+def _force_rerank_model(model: str) -> None:
+    """Same process-local override as `_force_rerank`, for the reranker MODEL — the T3 lever.
+
+    Kept as its own function because the failure modes differ: an unknown PROVIDER falls back visibly, while an
+    unknown MODEL NAME makes `rerank_local._get()` return None and the reranker silently stops reranking — the
+    number then measures the fusion order with a reranker column in the report saying it was on. So this asserts
+    the model actually LOADS before any measuring happens."""
+    from memory import rerank as _rr
+    from memory import rerank_local as _rl
+    base = dict(_rr._cfg())
+    base["rerank_model"] = model
+    prev = _rr._cfg
+    _rr._cfg = lambda: {**prev(), "rerank_model": model}     # noqa: E731 — deliberate, process-local
+    if _rl._get(model) is None:
+        raise SystemExit(f"el reranker {model!r} NO carga (fastembed no lo sirve): medir con él daría el número "
+                         f"de la fusión sin rerank, con el informe diciendo que estaba encendido")
+    print(f"▶  rerank MODEL forzado a {model!r} en este proceso (config del operador intacta)", flush=True)
+
+
 def _force_rerank(provider: str) -> None:
     """Override the rerank provider IN THIS PROCESS by patching its single read point.
 
@@ -240,6 +259,8 @@ def _rerank_status() -> dict:
 
 def main():
     ap = argparse.ArgumentParser()
+    ap.add_argument("--rerank-model", dest="rerank_model", default="",
+                    help="T3: mide con OTRO modelo de reranker (proceso local; no toca la config del operador)")
     ap.add_argument("--fresh", action="store_true", help="repuebla la persona de cero (lento) antes de medir")
     ap.add_argument("--limit", type=int, default=10)
     ap.add_argument("--label", default=None, help="etiqueta del run (p. ej. off/openai/local)")
@@ -259,6 +280,8 @@ def main():
     _setup_env()
     if args.rerank:
         _force_rerank(args.rerank)
+    if args.rerank_model:
+        _force_rerank_model(args.rerank_model)
 
     if args.fresh:
         import asyncio as _asyncio
