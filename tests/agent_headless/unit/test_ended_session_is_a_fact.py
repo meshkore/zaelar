@@ -146,7 +146,7 @@ def test_every_session_status_the_code_writes_is_classified():
                 continue
     known = dispatch.LIVE_SESSION_STATES | dispatch.ENDED_SESSION_STATES
     # `.status = "x"` es un patrón ancho: solo se exigen los que declara el propio SessionRecord.
-    declared = {"queued", "running", "done", "error", "cancelled"}
+    declared = {"queued", "running", "done", "error", "cancelled", "relevada"}
     unclassified = sorted((found & declared) - known)
     assert not unclassified, (
         f"estados de SESIÓN sin clasificar: {unclassified}. Una sesión en ese estado no aparece en el estado "

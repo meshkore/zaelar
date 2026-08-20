@@ -100,6 +100,11 @@ class SessionRecord:
     # whatever was learned.
     context_full: dict | None = None
     context_retried: bool = False
+    # V2-238 — UN RELEVO NO ES UNA MUERTE. Cuando una de las dos entregas de `_finish` se completa (relevo de
+    # proveedor, compactar-y-continuar), esta sesión no ha fracasado: ha PASADO EL TESTIGO a otra que ya está
+    # corriendo. Sin este hecho, `ok=False` la dejaba indistinguible de un worker muerto, y el motor le decía al
+    # operador que su tarea «ha MUERTO sin resultado y no se va a reintentar sola» mientras el relevo trabajaba.
+    handoff: str = ""             # "" = final de verdad · si no, a dónde pasó el testigo, en legible
     ctx_tokens: int = 0             # context size of the last message (for the panel and the watchdog)
     real_model: str = ""            # the model that ACTUALLY ran, when the provider says so (≠ requested alias)
     # handles runtime (NO serializar):
@@ -256,10 +261,12 @@ class WorkerSession:
                     "depth": int(rec.depth or 0)})
                 rec.result_summary = ""       # sin entrega: la retoma el worker nuevo, sin ruido
                 rec.ok = False
+                rec.handoff = "contexto agotado → sesión nueva con lo aprendido"
                 logger.warning(f"worker[{rec.task_id}]: contexto agotado "
                                f"({rec.context_full.get('tokens')} tok) → retomada con lo aprendido")
             except Exception as e:  # noqa: BLE001
                 logger.warning(f"worker[{rec.task_id}]: no pude retomar tras agotar el contexto: {e}")
+                rec.ok = False                    # V2-238: ver la nota de abajo — esto NO se entrega como logro
                 rec.result_summary = ("Me he quedado sin espacio de contexto en esa tarea y no he podido retomarla. "
                                       "Si me la pides otra vez, la parto en trozos más pequeños.")
         # RELEVO DE PROVEEDOR: la tarea no fracasó, se quedó sin gasolina. Se relanza UNA vez —el escalón agotado
@@ -276,18 +283,28 @@ class WorkerSession:
                         "depth": int(rec.depth or 0)})
                     rec.result_summary = ""          # sin entrega: la retoma el worker de relevo, sin ruido
                     rec.ok = False
+                    rec.handoff = f"proveedor sin cuota → relevo a «{nxt}»"
                     logger.warning(f"worker[{rec.task_id}]: proveedor sin cuota → relanzada con «{nxt}»")
                 except Exception as e:  # noqa: BLE001
                     logger.warning(f"worker[{rec.task_id}]: relevo de proveedor falló: {e}")
+                    rec.ok = False
                     rec.result_summary = (f"Me he quedado sin cuota en el proveedor de los procesos de fondo y no "
                                           f"he podido relevarlo. Míralo en el panel de estado.")
             else:
+                # V2-238 — LOS TRES CAMINOS QUE NO SON UN RELEVO CIERRAN `ok`. Las tres ramas de arriba escriben un
+                # `result_summary` que ANUNCIA un fallo, y ninguna tocaba `ok`, que nace en True. Si el backend no
+                # lo había cerrado ya, esa frase salía entregada como «Tarea completada: me he quedado sin cuota…»
+                # — la avería exacta que persigue V2-092/V2-236: un final que dice lo contrario de lo que pasó.
+                rec.ok = False
                 rec.result_summary = ("Me he quedado sin cuota en el proveedor que mueve mis procesos de fondo y "
                                       "no tengo otro configurado, así que esta tarea se queda parada. Lo tienes "
                                       "en el panel de estado.")
         if rec.status not in ("cancelled",):
-            rec.status = "done" if rec.ok else "error"
-        rec.phase = "terminado" if rec.ok else "sin completar"
+            rec.status = "done" if rec.ok else ("relevada" if rec.handoff else "error")
+        if rec.ok:
+            rec.phase = "terminado"
+        else:
+            rec.phase = "relevada" if rec.handoff else "sin completar"
         # ENTREGA por voz+UI + [SISTEMA] + memoria, salvo cancelación (el operador ya sabe que la paró).
         if rec.status != "cancelled" and rec.result_summary.strip():
             await _deliver(rec)
@@ -348,7 +365,13 @@ class WorkerSession:
             # de proveedor no se le lea en voz alta ya se encarga `operator_safe_summary` en la entrega, y su
             # propio docstring dice que el texto completo se queda en el log — que es justo esto.
             extra["status"] = str(rec.status or "")
-            if not rec.ok:
+            if rec.handoff:
+                # V2-238 — y si PASÓ EL TESTIGO, la fila lo dice con ese nombre. Un relevo entregaba aquí el mismo
+                # final vacío que un muerto (`result_summary` se vacía a propósito para que el operador no vea dos
+                # entregas), así que en el registro los dos se leían igual.
+                extra["handoff"] = rec.handoff
+                lbl = f"{lbl} · relevada: {rec.handoff}".strip(" ·")
+            elif not rec.ok:
                 why = " ".join(str(rec.result_summary or "").split())[:200]
                 lbl = f"{lbl} · {why}".strip(" ·") if why else (lbl or str(rec.status or "sin completar"))
             self._emit_chip("end", label=lbl, ok=rec.ok, extra=extra)

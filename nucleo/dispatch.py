@@ -154,6 +154,32 @@ def _goal_key(req: str) -> str:
     return " ".join(sorted(_content_words(req)))
 
 
+def _resume_entry(rec, *, nav_tid: str, resume: dict | None, req: str, key: str,
+                  brief: bool, prev_count: int) -> dict:
+    """La entrada de reanudación que deja una gestión web INCOMPLETA. Fuera de `_run_session` para poder probarla.
+
+    V2-239 — UN `native_sid` QUE MATÓ A UN WORKER NO SE VUELVE A ARMAR. Aquí había un
+    `rec.native_sid or (resume or {}).get("native_sid")` que RECICLABA el id heredado cuando el worker no llegaba
+    a tener el suyo. Y no llegar a tenerlo significa exactamente una cosa: el CLI nunca anunció su sesión
+    (`rec.native_sid` lo pone el evento `spawned`, que nace del `system/init` de Claude Code — y ese init llega
+    igual en un arranque limpio que en un `--resume`, así que una reanudación que PRENDE sí deja su id). O sea que
+    el id volvía a la entrada, el siguiente worker se lo llevaba, y volvía a morir en el arranque.
+
+    Medido por el arnés SOBRE el arreglo de V2-237 (05dd79f, worktree limpio, `n_dirty=0`): el `take=True`
+    consumía bien y aun así la sesión `0364d544-505` se llevó por delante a los workers 3 y 4, muertos 2/2 a los
+    380 y 420 ms. **Consumir la entrada no basta si el camino de la muerte la vuelve a armar con el mismo id.**
+
+    `nav_task` SÍ conserva su respaldo: la pestaña del navegador es otro recurso, sobrevive al worker que la
+    abrió y no es lo que estaba matando a nadie.
+    """
+    return {"nav_task": nav_tid or str((resume or {}).get("nav_task") or ""),
+            "native_sid": rec.native_sid,
+            "ts": time.time(), "count": int(prev_count) + 1, "goal": req[:200],
+            # los criterios ya acordados viajan a la reanudación: recomponerlos a mitad de una búsqueda la
+            # convertiría en otra búsqueda distinta sin avisar
+            "brief_task": key if brief else str((resume or {}).get("brief_task") or "")}
+
+
 def _find_resume(req: str, *, take: bool = False) -> dict | None:
     """Entrada de reanudación reciente que casa esta petición ('' → None): solape de palabras ≥0.5 con una gestión
     web INCOMPLETA dentro del TTL. Poda de paso las caducadas.
@@ -447,7 +473,9 @@ STUCK_SECS = float(os.getenv("WORKER_STUCK_SECS", "180"))
 # resuelven por búsqueda (`cheapest-monitor`) o por memoria (`remember-and-remind-deadline`) no tienen tarea de
 # navegador en absoluto, así que para ellos el arreglo de V2-150 nunca se aplicó.
 LIVE_SESSION_STATES = frozenset({"queued", "running"})
-ENDED_SESSION_STATES = frozenset({"done", "error", "cancelled"})
+# V2-238 — «relevada» es un final propio: la sesión se fue, pero el ENCARGO no. Vivía como `error`, y con eso
+# el motor le anunciaba al operador una muerte que no había ocurrido mientras el relevo trabajaba.
+ENDED_SESSION_STATES = frozenset({"done", "error", "cancelled", "relevada"})
 JUST_ENDED_S = 300.0     # cinco minutos: lo que dura la conversación en la que el operador todavía pregunta
 
 
@@ -503,7 +531,8 @@ def _remember_ended(rec, resuming: bool = False) -> None:
     # la redacción imperativa de V2-221 delante las trece veces. La línea de estado se queda (es el contexto de
     # los cinco minutos siguientes); la orden viaja por el camino que sí llega.
     try:
-        if str(rec.status or "") != "cancelled" and not bool(rec.ok):
+        if (str(rec.status or "") != "cancelled" and not bool(rec.ok)
+                and not str(getattr(rec, "handoff", "") or "")):     # V2-238: un relevo no ha muerto
             from voice import brain_notes
             _g = (rec.goal or "la tarea de fondo").strip()[:70]
             brain_notes.push(
@@ -1577,12 +1606,8 @@ async def _run_session(task: "Task") -> None:
                     _WEB_RESUME.pop(gk, None)                       # completada o parada → nada que reanudar
                     _resume_persist()                               # …y que no quede rastro durable de algo cerrado
                 elif nav_tid or rec.native_sid:
-                    _WEB_RESUME[gk] = {"nav_task": nav_tid or str((resume or {}).get("nav_task") or ""),
-                                       "native_sid": rec.native_sid or str((resume or {}).get("native_sid") or ""),
-                                       "ts": time.time(), "count": _prev_count + 1, "goal": req[:200],
-                                       # los criterios ya acordados viajan a la reanudación: recomponerlos a mitad
-                                       # de una búsqueda la convertiría en otra búsqueda distinta sin avisar
-                                       "brief_task": key if brief else str((resume or {}).get("brief_task") or "")}
+                    _WEB_RESUME[gk] = _resume_entry(rec, nav_tid=nav_tid, resume=resume, req=req, key=key,
+                                                    brief=bool(brief), prev_count=_prev_count)
                 _resume_persist()       # sobrevive al reinicio → la reanudación CONTINÚA en vez de empezar de cero
             try:
                 if key.isdigit():
@@ -1592,7 +1617,16 @@ async def _run_session(task: "Task") -> None:
             _waiting_user = (rec.waiting_on == "user") or bool(rec.ask)
             # V2-222 — ¿va a CONTINUAR sola? Se calcula aquí, ANTES de anotar el final, porque una sesión que se
             # reanuda sola no ha terminado y anotarla como terminada es lo que partía el prompt en dos.
-            _will_resume = bool(_resumable and not _waiting_user and (_prev_count + 1) < _RESUME_CAP)
+            # V2-238 — DOS ESCALADAS PARA UNA MUERTE. `_finish` ya relanza el encargo cuando releva de proveedor
+            # o compacta el contexto (`escalate_to_slowbrain`), y deja `ok=False` a propósito para que no haya dos
+            # entregas. Pero `_resumable` lee exactamente ese `ok=False` y disparaba ADEMÁS el auto-resume de
+            # V2-049: dos workers sobre el mismo encargo, y —hasta V2-237— los dos reanudando la MISMA sesión del
+            # CLI, que es como morían a los 400 ms. El testigo ya está pasado: aquí no se pasa otra vez.
+            _handoff = str(getattr(rec, "handoff", "") or "")
+            _will_resume = bool(_resumable and not _waiting_user
+                                and (_prev_count + 1) < _RESUME_CAP and not _handoff)
+            # …pero el ENCARGO continúa en las dos formas, así que lo que mira «¿esto se ha acabado?» mira esto.
+            _continues = bool(_will_resume or _handoff)
             # V2-079: rastro DURABLE de la ejecución que se va (el registro vivo se purga aquí y desaparecía). El
             # ledger conserva el histórico para la pestaña «Procesos» del ChatWall. Best-effort, fuera del hot-path.
             try:
@@ -1618,11 +1652,11 @@ async def _run_session(task: "Task") -> None:
                                         extra={"ok": bool(rec.ok), "status": str(rec.status or "")})
                 except Exception:
                     pass
-            _remember_ended(rec, resuming=_will_resume)   # V2-199: el final es un HECHO — antes de tirar el registro
+            _remember_ended(rec, resuming=_continues)     # V2-199: el final es un HECHO — antes de tirar el registro
             _SESSIONS.pop(key, None)
             # V2-227 ámbito C — DESPUÉS del pop, nunca antes: la hoja lee el registro vivo, así que mientras esta
             # sesión siguiera dentro `alive` seguiría diciendo que sí. Y no al reanudar: el encargo continúa.
-            if not _will_resume and surfaces.opens_sheet(getattr(rec, "surface", "")):
+            if not _continues and surfaces.opens_sheet(getattr(rec, "surface", "")):
                 _sheet_close(rec)
             try:
                 from nucleo import worker_api

@@ -108,11 +108,19 @@ def test_the_status_line_SURVIVES_for_a_real_death():
 
 
 def test_the_resume_decision_is_taken_ONCE_and_shared():
-    """The guard is only worth anything if it reads the SAME predicate that actually relaunches the task. Asserted
-    on the source: two independent copies of that condition would drift, and the drift is invisible — one of them
-    files a death while the other quietly retries."""
+    """The guard is only worth anything if the death filing reads a predicate DERIVED from the one that actually
+    relaunches the task. Asserted on the source: two independent copies of that condition would drift, and the
+    drift is invisible — one of them files a death while the other quietly retries.
+
+    V2-238 SPLIT the predicate in two, on purpose, because there turned out to be two ways for the errand to
+    carry on and only one of them relaunches here: `_will_resume` (V2-049 auto-resume, which this function
+    fires) and `_handoff` (`_finish` already relaunched — relaying it again would put TWO workers on one
+    errand). The guard survives the split by keeping the derivation single: `_continues` is defined from
+    `_will_resume`, never re-derived, and the death filing reads it."""
     import inspect
     src = inspect.getsource(d._run_session)
     assert src.count("_will_resume = bool(") == 1
-    assert "_remember_ended(rec, resuming=_will_resume)" in src
+    assert src.count("_continues = bool(") == 1
+    assert "_continues = bool(_will_resume or _handoff)" in src
+    assert "_remember_ended(rec, resuming=_continues)" in src
     assert "if _will_resume:\n                _schedule_auto_resume(req)" in src

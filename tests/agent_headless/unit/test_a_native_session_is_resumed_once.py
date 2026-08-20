@@ -69,8 +69,7 @@ def test_la_entrada_VUELVE_al_cerrar_una_gestion_incompleta():
     un solo intento y la continuidad web de V2-049 moriría en silencio."""
     import inspect
     src = inspect.getsource(dispatch._run_session)
-    assert "_WEB_RESUME[gk] = {" in src
-    assert "native_sid" in src
+    assert "_WEB_RESUME[gk] = _resume_entry(" in src
 
 
 def test_leerla_SIN_tomarla_sigue_siendo_posible():
@@ -116,3 +115,58 @@ def test_la_fila_del_final_LLEVA_el_motivo_y_el_estado():
     src = inspect.getsource(_s.WorkerSession._finish)
     assert 'extra["status"] = str(rec.status or "")' in src
     assert "if not rec.ok:" in src and "rec.result_summary" in src
+
+
+# ── V2-239: consumirla no basta si el camino de la muerte la vuelve a armar ──────────────────────────────────
+# El arnés midió el arreglo de arriba EN 05dd79f, con el worktree fijado y `n_dirty=0`, y NO cerraba: sesión
+# `0364d544-505` → workers 3 y 4, muertos 2/2, vidas 380 y 420 ms. El `take=True` consumía bien. Lo que fallaba
+# es el otro extremo del ciclo: al cerrar, la entrada se reescribía con
+#
+#     "native_sid": rec.native_sid or str((resume or {}).get("native_sid") or "")
+#
+# o sea que un worker que moría ANTES de que el CLI anunciara su sesión devolvía a la entrada el id HEREDADO —
+# el mismo que acababa de matarlo— y el siguiente se lo llevaba. Un id que mata no se vuelve a armar.
+
+
+class _Rec:
+    def __init__(self, native_sid=""):
+        self.native_sid = native_sid
+
+
+def test_un_worker_que_MURIO_sin_sesion_propia_no_devuelve_el_id_heredado():
+    ent = dispatch._resume_entry(_Rec(""), nav_tid="t9", resume={"native_sid": "0364d544-505", "nav_task": "t9"},
+                                 req=PETICION, key="k1", brief=False, prev_count=1)
+    assert ent["native_sid"] == "", "el id que acababa de matar al worker volvía a la entrada"
+
+
+def test_una_reanudacion_que_PRENDE_conserva_su_id():
+    """La otra dirección, y es la que sostiene V2-049: el `system/init` de Claude Code llega igual en un arranque
+    limpio que en un `--resume`, así que una reanudación viva SÍ deja `native_sid`. Sin este caso, el arreglo de
+    arriba se podría satisfacer borrando el id siempre — y eso mata la continuidad web en silencio."""
+    ent = dispatch._resume_entry(_Rec("nuevo-sid"), nav_tid="t9", resume={"native_sid": "viejo"},
+                                 req=PETICION, key="k1", brief=False, prev_count=1)
+    assert ent["native_sid"] == "nuevo-sid"
+
+
+def test_la_PESTAÑA_del_navegador_si_conserva_su_respaldo():
+    """La pestaña es otro recurso: sobrevive al worker que la abrió y no es lo que estaba matando a nadie."""
+    ent = dispatch._resume_entry(_Rec(""), nav_tid="", resume={"nav_task": "t9", "native_sid": "x"},
+                                 req=PETICION, key="k1", brief=False, prev_count=1)
+    assert ent["nav_task"] == "t9" and ent["native_sid"] == ""
+
+
+def test_el_contador_de_intentos_SIGUE_subiendo():
+    """El cap de `_RESUME_CAP` es lo que corta un encargo que no avanza: si al perder el id se perdiera también la
+    cuenta, un caso roto reintentaría para siempre."""
+    ent = dispatch._resume_entry(_Rec(""), nav_tid="t9", resume={"native_sid": "x"},
+                                 req=PETICION, key="k1", brief=False, prev_count=3)
+    assert ent["count"] == 4
+
+
+def test_el_criterio_ACORDADO_viaja_igual():
+    ent = dispatch._resume_entry(_Rec(""), nav_tid="t9", resume={"brief_task": "b7"},
+                                 req=PETICION, key="k1", brief=False, prev_count=0)
+    assert ent["brief_task"] == "b7"
+    ent2 = dispatch._resume_entry(_Rec(""), nav_tid="t9", resume={}, req=PETICION, key="k9",
+                                  brief=True, prev_count=0)
+    assert ent2["brief_task"] == "k9"

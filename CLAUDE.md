@@ -1339,6 +1339,47 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Un RELEVO no es una muerte** (`nucleo/workers/session.py` + `nucleo/dispatch.py`, V2-238, 2026-08-21). Cuando
+  el proveedor se queda sin cuota, `_finish` hace lo correcto: relanza el encargo con el siguiente escalón y vacía
+  la entrega a propósito para que el operador no vea dos. Lo que hacía después es dejar `ok=False` y
+  `status="error"`, y con eso **la sesión relevada quedaba indistinguible de un worker muerto**. De ahí salían
+  tres cosas, y la primera es la cara:
+  - **Un aviso FALSO al operador**: `_remember_ended` leía ese `ok=False` y empujaba la nota de V2-222 —*«la
+    tarea de fondo ha MUERTO sin resultado y no se va a reintentar sola»*— **mientras el relevo trabajaba**.
+  - **DOS escaladas para una muerte**: `_resumable` lee el mismo `ok=False`, así que en una gestión web disparaba
+    ADEMÁS el auto-resume de la continuidad web. Dos workers sobre un encargo — y hasta V2-237/V2-239, los dos reanudando la
+    MISMA sesión del CLI. **Este defecto ALIMENTABA aquél**: no solo se repartía mal el testigo, se pedía dos veces.
+  - **Una muerte contada de más** en la observabilidad, que es de donde salen las medidas del arnés.
+  - El arreglo es un HECHO, no una heurística: **`SessionRecord.handoff`** dice a dónde pasó el testigo, y con él
+    la sesión tiene su propio final —**`relevada`**, dentro de la enumeración de V2-198— en vez de disfrazarse del
+    de al lado. Se marca DESPUÉS de que el relanzamiento salga bien: fingir el testigo antes de saber que alguien
+    lo cogió convertiría una muerte silenciosa en una muerte silenciosa Y sin aviso. La hoja NO se cierra al
+    relevar (es del ENCARGO, no de la sesión).
+  - **Hallazgo colateral, salido del LOG y no del razonamiento**: las tres ramas de `_finish` que no son un relevo
+    escriben un `result_summary` que ANUNCIA un fallo y **ninguna tocaba `ok`**, que nace en `True`. En la primera
+    pasada de sus tests se lee, literal, `Tarea completada: Me he quedado sin cuota en el proveedor…`. Las tres
+    cierran `ok` ahora.
+  - ⚠️ **Y una trampa de método que casi cuela cinco desarmes**: en zsh un parámetro sin comillas NO se parte en
+    palabras, así que `pytest $T` con dos rutas dentro corrió *«no tests ran»* cinco veces seguidas — cinco
+    comprobaciones de sensibilidad «en verde» que se habrían leído como cobertura. **Un desarme tiene que enseñar
+    cuántos tests corrieron.** Nodo 2.5, 14 casos, sensibilidad en cinco direcciones.
+
+- **Un `native_sid` que MATÓ a un worker no se vuelve a armar** (`nucleo/dispatch.py`, V2-239, 2026-08-21).
+  V2-237 hizo que la entrada de reanudación se CONSUMA, y está bien; el arnés lo midió sobre `05dd79f` con el
+  worktree fijado y su veredicto fue **«NO cierra»**: sesión `0364d544-505` → workers 3 y 4, muertos 2/2 a los
+  380 y 420 ms. El otro extremo del ciclo reciclaba el id: al cerrar una gestión incompleta la entrada se
+  reescribía con `rec.native_sid or (resume or {}).get("native_sid")`, y **no tener el suyo significa exactamente
+  que el CLI nunca anunció su sesión** —`rec.native_sid` lo pone el `spawned`, que nace del `system/init`— o sea
+  que la reanudación NO prendió. El id volvía a la entrada, el siguiente se lo llevaba, y volvía a morir en el
+  arranque. **Consumir la entrada no basta si el camino de la muerte la vuelve a armar con el mismo id.**
+  - `nav_task` **sí** conserva su respaldo: la pestaña del navegador es otro recurso, sobrevive al worker y no
+    estaba matando a nadie.
+  - La dirección contraria está clavada por un test porque el atajo es tentador: **borrar el id siempre** satisface
+    el caso y **mata la continuidad web en silencio** (un `--resume` que prende sí deja su `native_sid`).
+  - La construcción de la entrada sale a **`_resume_entry()`** para poder probarla de verdad: dentro de
+    `_run_session` hacían falta un pool, un backend y un navegador, así que solo se podía comprobar la fuente — y
+    una guarda de fuente no caza esto, que es un `or` con la semántica equivocada.
+
 - **La búsqueda dio la respuesta perfecta y MURIÓ dentro del worker** (`nucleo/workers/findings.py` NUEVO,
   V2-236, 2026-08-21). El arnés leyó la observabilidad entera (antes veía el 38 % de 1291 eventos): los eventos
   `kind='search'` traían «Philips 27E1N1800A/00 — 27" UHD 4K — 159,00 €» y «Alurin CoreVision 27" — 149,99 €»,

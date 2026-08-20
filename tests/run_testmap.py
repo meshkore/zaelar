@@ -154,6 +154,10 @@ DOMAINS: list[dict] = [
             "tests/agent_headless/unit/flash/test_voice_failover.py"]},
         {"id": "2.5", "title": "Escalado / dispatch / workers", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_escalate.py", "tests/agent_headless/unit/test_dispatch.py",
+            # V2-238: un RELEVO no es una muerte. `_finish` releva de proveedor (o compacta el contexto), relanza
+            # el encargo y deja `ok=False` a propósito — y con eso la sesión quedaba indistinguible de un worker
+            # muerto: aviso falso de muerte al operador, DOS escaladas para una, y una muerte contada de más.
+            "tests/agent_headless/unit/workers/test_a_handoff_is_not_a_death.py",
             # V2-237: tres workers reanudando LA MISMA sesión del CLI y los tres muertos a los ~400 ms (3 de 3,
             # contra 0 de 3 entre los que abrieron sesión propia). `_find_resume` leía la entrada sin consumirla.
             "tests/agent_headless/unit/test_a_native_session_is_resumed_once.py",
