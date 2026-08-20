@@ -245,7 +245,8 @@ def _hand_over(task_id: str, items: list) -> None:
         fresh, repeated = dedupe_by_url(items)
         named, unnamed = by_identity(fresh)
         ordered = named + unnamed          # lo que TIENE identidad va delante; nada se descarta
-        sig = "|".join(f"{(i or {}).get('title', '')}~{(i or {}).get('price', '')}" for i in ordered[:5])
+        sig = "|".join(f"{(i or {}).get('title', '')}~{(i or {}).get('price', '')}~{(i or {}).get('tel', '')}"
+                       for i in ordered[:5])
         if _HANDED.get(task_id) == sig:      # re-extracting the same page is not a new finding
             return
         _HANDED[task_id] = sig
@@ -255,8 +256,11 @@ def _hand_over(task_id: str, items: list) -> None:
         goal = str((_t.get(task_id) or {}).get("goal") or "la tarea del navegador")[:70]
 
         def _one(i: dict) -> str:
+            # V2-240 — el TELÉFONO viaja con la fila. Extraerlo y dejarlo caer aquí sería el defecto de V2-236 otra
+            # vez: el dato existe, nadie lo ve. En un encargo de servicio es el dato que RESUELVE («llama a este
+            # número»), y el que separa una ficha de negocio del enlace a un directorio.
             bits = [str(i.get("title") or "").strip()[:80], str(i.get("price") or "").strip()[:24],
-                    str(i.get("url") or "").strip()[:120]]
+                    str(i.get("tel") or "").strip()[:24], str(i.get("url") or "").strip()[:120]]
             return " — ".join(b for b in bits if b)
 
         # La CABECERA de la nota son las que tienen nombre. Con ninguna, va lo que hay: callarse porque solo

@@ -24,8 +24,9 @@ _DANGER_RE = re.compile(
 _INTERACTIVE = ("a, button, input, textarea, select, [role=button], [role=link], [role=textbox], "
                 "[role=checkbox], [role=radio], [role=tab], [role=menuitem], [role=combobox], [role=option]")
 
-# Extractor for real LISTINGS from a results grid (runs in the page) → {title,price,url,image}.
-# Hardened (TASK 4): REQUIRE price (a listing has a price → exclude logos/nav/menus), EXCLUDE ads/tracking
+# Extractor for real LISTINGS from a results grid (runs in the page) → {title,price,tel,url,image}.
+# Hardened (TASK 4): REQUIRE an actionable datum (see V2-240 — it used to require a PRICE, which is what a
+# SHOPPING errand leaves behind and nothing else does), EXCLUDE ads/tracking
 # (doubleclick/googleads/.../campaign utm), and **dedup by LISTING** (same /item/ or same pathname → 1 only, so
 # 30 links to the same listing collapse into one). Prioritize listing links (/item/, /p/, /producto, /anuncio).
 # The FINE relevance filtering (this is an enduro bike, not a "Moto G" phone) is done by the model in summarize.
@@ -48,30 +49,55 @@ _JS_EXTRACT = r"""
   // o una entrada, y no nombra ningún sitio. Se sube como mucho cinco niveles —más arriba ya no es la tarjeta,
   // es la sección, y devolvería «Resultados» para todas— y se prefiere el encabezado que apunta a ESTA misma
   // ficha, que es la señal fuerte de que la nombra a ella y no a la vecina.
-  const cardName=(a, path)=>{
+  // QUÉ ES LA TARJETA, definido UNA vez y leído por los dos que la necesitan (el nombre y el teléfono). Se sube
+  // como mucho cinco niveles y solo mientras el ancestro siga siendo UNA ficha: en cuanto abarca varias es la
+  // REJILLA, y lo que hay ahí vale para todas — un dato que nombra a todas no nombra a ninguna. Tenerlo en dos
+  // sitios sería tener dos definiciones de «tarjeta» que se separan sin avisar.
+  const cardWalk=(a, read)=>{
     let n=a;
     for(let i=0;i<5&&n&&n.parentElement;i++){
       n=n.parentElement;
-      // …y solo mientras el ancestro siga siendo UNA tarjeta. En cuanto abarca varias fichas es la REJILLA, y
-      // su encabezado («Resultados», «Monitores») nombraría igual a todas las filas — un nombre que vale para
-      // todo no nombra nada, y encima suena a resultado de verdad.
       const paths=new Set();
       for(const l of n.querySelectorAll('a[href]')){ try{ paths.add(new URL(l.href).pathname); }catch(_){} }
       if(paths.size>4) break;
-      const hs=[...n.querySelectorAll('h1,h2,h3,h4,[role=heading]')];
-      if(!hs.length) continue;
-      let best=null;
-      for(const h of hs){
-        const t=(h.innerText||'').trim();
-        if(!t || t.length<3 || !hasLetter(t) || priceRe.test(t)) continue;
-        const link=h.querySelector('a[href]')||h.closest('a[href]');
-        let same=false; if(link){ try{ same=new URL(link.href).pathname===path; }catch(_){} }
-        if(same) return t.slice(0,90);
-        if(!best) best=t;
-      }
-      if(best) return best.slice(0,90);
+      const got=read(n);
+      if(got) return got;
     }
     return '';
+  };
+  const cardName=(a, path)=>cardWalk(a, (n)=>{
+    const hs=[...n.querySelectorAll('h1,h2,h3,h4,[role=heading]')];
+    if(!hs.length) return '';
+    let best=null;
+    for(const h of hs){
+      const t=(h.innerText||'').trim();
+      if(!t || t.length<3 || !hasLetter(t) || priceRe.test(t)) continue;
+      const link=h.querySelector('a[href]')||h.closest('a[href]');
+      let same=false; if(link){ try{ same=new URL(link.href).pathname===path; }catch(_){} }
+      // el encabezado que apunta a ESTA misma ficha es la señal fuerte de que la nombra a ella y no a la vecina
+      if(same) return t.slice(0,90);
+      if(!best) best=t;
+    }
+    return best ? best.slice(0,90) : '';
+  });
+  // UN NÚMERO AL QUE LLAMAR. Un `tel:` es inequívoco; en texto se exige que sean 9-14 dígitos CON separadores,
+  // que es lo que descarta un precio («1.234,56» son 6 dígitos), un código de barras (sin separadores) y una
+  // fecha (la barra no es separador aquí).
+  const telText=(s)=>{
+    const m=(s||'').match(/(?:\+\d{1,3}[\s.\-]?)?(?:\d[\s.\-]?){8,14}/g);
+    if(!m) return '';
+    for(const t of m){
+      const raw=t.trim(), d=raw.replace(/\D/g,'');
+      if(d.length>=9 && d.length<=14 && /[\s.\-]/.test(raw)) return raw.slice(0,24);
+    }
+    return '';
+  };
+  const cardTel=(a)=>{
+    return cardWalk(a, (n)=>{
+      const t=n.querySelector('a[href^="tel:"]');
+      if(t){ try{ return decodeURIComponent((t.getAttribute('href')||'').slice(4)).trim().slice(0,24); }catch(_){} }
+      return telText(n.innerText||'');
+    });
   };
   const AD=/(doubleclick|googlead|googlesyndication|adservice|adnxs|criteo|taboola|outbrain|\/ads?\/|utm_source=|banner)/i;
   const ITEM=/(\/item\/|\/p\/|\/producto|\/anuncio|\/product|\/listing|\/ad\/)/i;
@@ -79,13 +105,23 @@ _JS_EXTRACT = r"""
   for(const a of document.querySelectorAll('a[href]')){
     let href; try{ href=a.href; }catch(_){ continue; }
     if(!href || href.startsWith('javascript:') || AD.test(href)) continue;
+    // Un `tel:` (o un `mailto:`) es una forma de CONTACTAR con la ficha, no la ficha. Sin esto, la tarjeta de un
+    // negocio salía DOS veces —una por su enlace y otra por su teléfono— y en un directorio eso es duplicar
+    // entera la página.
+    if(/^(tel:|mailto:|sms:)/i.test(href)) continue;
     if(a.closest('ins, iframe, [class*="ad-" i], [id*="google_ads" i], [aria-label*="anuncio" i]')) continue;
     const img=a.querySelector('img');
     const text=(a.innerText||'').trim();
     const pm=text.match(priceRe);
-    if(!pm) continue;                                   // Without a price, it is not a listing (exclude logo/nav/banners without €)
     // dedup key: the LISTING (pathname without query) → 30 links to the same listing = 1
     let key, path=''; try{ const u=new URL(href); key=u.origin+u.pathname; path=u.pathname; }catch(_){ key=href; }
+    // V2-240 — UN RESULTADO ES UN NOMBRE Y UNA FORMA DE ACTUAR SOBRE ÉL, no un precio. El filtro pedía precio
+    // porque «un anuncio tiene precio», y eso es verdad de UNA clase de encargo: la compra. Un fontanero, un
+    // barbero, un cerrajero o un dentista no publican precio, así que la página devolvía CERO filas y el turno
+    // se quedaba con lo único que le llegaba: el enlace del directorio. Medido por el arnés: `best-plumber-same-day`
+    // y `weekend-barber`, los dos 1/5 con «0 filas extraídas».
+    const tel = pm ? '' : cardTel(a);
+    if(!pm && !tel) continue;                           // ni importe que pagar ni número al que llamar → no es una ficha
     // Un trozo de precio NO es un nombre: se exige al menos una letra. Sin eso, «169» pasaba por título de un
     // monitor de 169,00 € y la nota al cerebro decía «169 — 00 € — …», que es lo que el turno describió.
     let title=((img&&(img.alt||''))
@@ -93,7 +129,8 @@ _JS_EXTRACT = r"""
                ||cardName(a, path)||'').slice(0,90);
     if(seen.has(key)) continue;
     let image=''; if(img){ try{ image=img.currentSrc||img.src||''; }catch(_){} }
-    cands.push({title, price: pm[0].replace(/\s+/g,' ').trim(), url:href, image, _item: ITEM.test(href)});
+    cands.push({title, price: pm ? pm[0].replace(/\s+/g,' ').trim() : '', tel, url:href, image,
+                _item: ITEM.test(href)});
     seen.add(key);
   }
   // If there are real LISTING links, keep only those (discard the remaining price-bearing noise).

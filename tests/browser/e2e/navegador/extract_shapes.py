@@ -69,6 +69,32 @@ MILES = """<div class="card"><h3><a href="https://coches.invalid/anuncio/9">Peug
 PARTIDO_EN_LINEAS = """<div class="card"><h3><a href="https://otra2.invalid/p/mon">Monitor Alurin CoreVision 24"</a></h3>
   <a href="https://otra2.invalid/p/mon"><div>169</div><div>00 €</div></a></div>"""
 
+# ── V2-240: un resultado es un NOMBRE y una forma de ACTUAR, no un precio ───────────────────────────────────
+# El filtro exigía precio porque «un anuncio tiene precio». Eso es verdad de UNA clase de encargo —la compra— y
+# de ninguna otra: un fontanero, un barbero o un cerrajero no publican precio. Medido por el arnés:
+# `best-plumber-same-day` y `weekend-barber`, los dos 1/5, con **0 filas extraídas** y el turno quedándose con lo
+# único que le llegaba, el enlace del directorio. La forma de abajo es la de cualquier directorio de servicios.
+
+# 6 · fichas de negocio SIN precio, con el teléfono en un `tel:` (la forma de las páginas amarillas de cualquier país).
+SERVICIOS = """<div class="res"><h3><a href="https://guia.invalid/fontaneros/madrid/aqua-24h">Fontanería Aqua 24h</a></h3>
+  <p>Urgencias 24 horas · Centro</p><a class="t" href="tel:+34910123456">910 12 34 56</a></div>
+<div class="res"><h3><a href="https://guia.invalid/fontaneros/madrid/reparalia">Reparalia Fontaneros</a></h3>
+  <p>Desatascos y fugas</p><a class="t" href="tel:+34915559988">915 55 99 88</a></div>"""
+
+# 7 · el mismo caso pero el teléfono es TEXTO dentro de la tarjeta, sin `tel:` (más común de lo que parece).
+SERVICIOS_TEXTO = """<div class="res"><h3><a href="https://guia2.invalid/b/barberia-lolo">Barbería Lolo</a></h3>
+  <p>Abierto sábados · Tel. 622 41 88 03</p></div>"""
+
+# 8 · la dirección CONTRARIA: sin precio y sin número no hay ficha. Si esto pasa, el arreglo convierte el menú
+# de navegación de cualquier página en «resultados» y el extractor deja de servir para nada.
+SOLO_NAVEGACION = """<nav><a href="https://guia.invalid/madrid">Madrid</a>
+  <a href="https://guia.invalid/barcelona">Barcelona</a>
+  <a href="https://guia.invalid/quienes-somos">Quiénes somos</a></nav>"""
+
+# 9 · un código de barras y una fecha no son un teléfono (lo que se cuela si se cuenta dígitos y ya está).
+FALSOS_NUMEROS = """<div class="card"><h3><a href="https://tienda.invalid/p/ean">Cable HDMI 2.1</a></h3>
+  <p>EAN 8412345678905 · publicado 21/08/2026</p></div>"""
+
 fails = []
 
 
@@ -129,6 +155,28 @@ def main():
         if got:
             check("4a · y el nombre es el del anuncio",
                   got[0]["title"].startswith("Peugeot 407"), f"title={got[0]['title']!r}")
+
+        # ── 6 · fichas de servicio con `tel:` ──
+        got = extract(page, SERVICIOS)
+        check("6 · un listado SIN precios devuelve fichas (antes: 0 filas)", len(got) == 2, str(got))
+        if len(got) == 2:
+            check("6a · con su nombre", got[0]["title"].startswith("Fontanería Aqua"), str(got[0]))
+            check("6b · y con el número al que llamar", "910" in (got[0].get("tel") or ""), str(got[0]))
+            check("6c · sin inventar un precio que la página no da",
+                  all(not (i.get("price") or "") for i in got), str([i.get("price") for i in got]))
+
+        # ── 7 · el teléfono en texto ──
+        got = extract(page, SERVICIOS_TEXTO)
+        check("7 · el teléfono en TEXTO también hace ficha",
+              len(got) == 1 and "622" in (got[0].get("tel") or ""), str(got))
+
+        # ── 8 · la dirección contraria ──
+        got = extract(page, SOLO_NAVEGACION)
+        check("8 · un menú de navegación NO son resultados", not got, str(got))
+
+        # ── 9 · números que no son teléfonos ──
+        got = extract(page, FALSOS_NUMEROS)
+        check("9 · un EAN y una fecha no son un número al que llamar", not got, str(got))
 
         browser.close()
 

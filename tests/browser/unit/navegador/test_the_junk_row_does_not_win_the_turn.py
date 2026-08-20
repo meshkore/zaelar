@@ -202,3 +202,45 @@ def test_se_conserva_la_PRIMERA_aparicion():
     fresh, dropped = act_api.dedupe_by_url(
         [{"title": "primera", "url": "u"}, {"title": "segunda", "url": "u"}])
     assert [i["title"] for i in fresh] == ["primera"] and dropped == 1
+
+
+# ── V2-240: el TELÉFONO viaja con la fila ────────────────────────────────────────────────────────────────────
+# El extractor ya lo saca de la tarjeta (nodo 4.32, renderizado). Dejarlo caer AQUÍ sería V2-236 otra vez: el
+# dato existe y nadie lo ve. En un encargo de servicio es el dato que RESUELVE, y el que separa una ficha de
+# negocio del enlace a un directorio.
+
+SERVICIOS = [
+    {"title": "Fontanería Aqua 24h", "price": "", "tel": "+34910123456",
+     "url": "https://guia.invalid/fontaneros/madrid/aqua-24h"},
+    {"title": "Reparalia Fontaneros", "price": "", "tel": "915 55 99 88",
+     "url": "https://guia.invalid/fontaneros/madrid/reparalia"},
+]
+
+
+def test_el_numero_al_que_llamar_LLEGA_a_la_conversacion(task):
+    act_api._hand_over(task, SERVICIOS)
+    n = brain_notes.drain()[0]
+    assert "+34910123456" in n, "el teléfono se extraía y se caía por el camino"
+    assert "Fontanería Aqua 24h" in n
+
+
+def test_una_ficha_sin_precio_no_se_queda_sin_fila(task):
+    act_api._hand_over(task, SERVICIOS)
+    n = brain_notes.drain()[0]
+    assert "Reparalia" in n and "915 55 99 88" in n
+
+
+def test_el_mismo_listado_dos_veces_sigue_sin_ser_un_hallazgo_nuevo(task):
+    act_api._hand_over(task, SERVICIOS)
+    brain_notes.drain()
+    act_api._hand_over(task, SERVICIOS)
+    assert brain_notes.drain() == []
+
+
+def test_si_CAMBIA_el_telefono_es_otro_hallazgo(task):
+    """La firma incluye el número: dos fichas con el mismo nombre y distinto teléfono no son la misma."""
+    act_api._hand_over(task, SERVICIOS)
+    brain_notes.drain()
+    otro = [dict(SERVICIOS[0], tel="+34600111222"), SERVICIOS[1]]
+    act_api._hand_over(task, otro)
+    assert brain_notes.drain(), "un teléfono distinto es información nueva"

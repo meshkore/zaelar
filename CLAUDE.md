@@ -1339,6 +1339,28 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **El extractor exigía PRECIO, así que un fontanero devolvía CERO filas** (`widgets/navegador/dom.py` +
+  `act_api.py`, V2-240, 2026-08-21). Con las muertes de worker ya cerradas, el arnés dejó
+  `best-plumber-same-day` en 1/5 con un diagnóstico honesto —*«pide un fontanero CONCRETO y le dan un directorio;
+  eso es criterio, no fontanería»*— y **no era criterio**: la prueba estaba en su propia medida de la ronda
+  anterior, **«0 filas extraídas»**, la misma cifra en `weekend-barber`. `_JS_EXTRACT` llevaba
+  `if(!pm) continue; // Without a price, it is not a listing`, y «un anuncio tiene precio» es verdad de UNA clase
+  de encargo —la compra— y de ninguna otra. Un fontanero, un barbero o un cerrajero no publican precio, así que
+  la página devolvía cero filas y al turno solo le llegaba el enlace del directorio. **Cuarta vez en la misma
+  tanda que el turno describe con fidelidad lo poco que le llega y el diagnóstico apunta a su conducta.**
+  - Es justo lo que prohíbe la norma del operador: **los recursos se clavan, no se adaptan al caso de uso**. Este
+    filtro estaba adaptado al caso de uso de la compra.
+  - Ahora una ficha es **un NOMBRE más un dato accionable**: *o un importe que pagar, o un número al que llamar*.
+    Sin nombrar sector ni sitio. El teléfono se lee de la TARJETA con la MISMA definición de tarjeta que el
+    nombre —sale a `cardWalk()` para que exista una sola vez—, un `tel:` es inequívoco y en texto se exigen 9-14
+    dígitos CON separadores (lo que descarta un precio, un EAN y una fecha).
+  - **Un `tel:`/`mailto:` no es una ficha**, es la forma de contactar con ella: sin excluirlos como candidatos un
+    directorio devolvía cada negocio dos veces.
+  - **El número viaja hasta la conversación.** Extraerlo y dejarlo caer sería V2-236 otra vez; en un encargo de
+    servicio es el dato que RESUELVE. Nodos 4.32 (renderiza) y 4.31, sensibilidad en cuatro direcciones.
+  - **Solo cubre el teléfono**: dirección u horario todavía no cuentan. Cada señal nueva es una puerta más por la
+    que puede entrar el menú de navegación, así que la siguiente quiere su propia medida.
+
 - **Un RELEVO no es una muerte** (`nucleo/workers/session.py` + `nucleo/dispatch.py`, V2-238, 2026-08-21). Cuando
   el proveedor se queda sin cuota, `_finish` hace lo correcto: relanza el encargo con el siguiente escalón y vacía
   la entrega a propósito para que el operador no vea dos. Lo que hacía después es dejar `ok=False` y
