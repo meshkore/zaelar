@@ -130,7 +130,26 @@ def _with_stall(task_id: str, snap: dict) -> dict:
     return snap
 
 
+from nucleo.workers import progress as _progress   # V2-227: la frase que lee una persona
+
 _HANDED: dict[str, str] = {}          # V2-223: última extracción entregada por tarea (no repetir la misma)
+
+
+def _say_phase(nav_tid: str, phrase: str) -> None:
+    """Set the OWNING session's phase from the browser side (V2-227 ámbito B1).
+
+    «lanzo, tengo resultados» is a milestone the operator asked for by name, and it is the only one the browser
+    knows and the worker's tool stream does not: the stream sees `extract` going out, not how much came back.
+    Goes through `dispatch.session_phase`, the same door `hbnote` uses — B4 says the progress stream travels on
+    the rail that exists, never on a parallel one.
+    """
+    try:
+        from nucleo import dispatch as _d
+        rec = _d.record_by_nav_task(str(nav_tid))
+        if rec is not None and phrase:
+            _d.session_phase(rec.task_id, phrase)
+    except Exception:  # noqa: BLE001
+        pass
 
 
 def _hand_over(task_id: str, items: list) -> None:
@@ -238,6 +257,7 @@ async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body
         if action == "extract":
             items = await tb.extract_listings(int(args.get("limit", 14)))
             _emit_nav(task_id, "🧭 resultados", f"{len(items)} anuncios/resultados en la página")
+            _say_phase(task_id, _progress.found(len(items)))    # V2-227 B1: «12 resultados», el hito que pidió
             _hand_over(task_id, items)      # V2-223: a la hoja y a la conversación, no solo al worker
             return {"ok": True, "listings": items, "n": len(items)}
         if action in ("navigate", "click", "type", "select_option", "scroll", "press", "click_at", "type_at"):

@@ -28,6 +28,11 @@ from loguru import logger
 from . import scheduler as _scheduler
 from . import sparks as _sparks
 
+# V2-227 ámbito B2: cada cuántos segundos late una tarea viva. Pocos, porque el fallo que arregla es el
+# SILENCIO —siete minutos de pantalla quieta— y no menos, porque el carril lo lee una PERSONA: un latido por
+# segundo no es información, es ruido con marca de tiempo. Ajustable por entorno para poder medirlo.
+_BEAT_SECS = float(os.getenv("ZAELAR_TASK_BEAT_SECS", "15") or 15)
+
 
 def _emit(topic: str, payload: dict | None = None) -> None:
     """Publica una señal del loop por el Sistema Nervioso (best-effort, loop-agnóstico)."""
@@ -67,6 +72,10 @@ class OrchestratorLoop:
         self._stuck_informed: set[str] = set()    # tid ya avisados de encallamiento
         self._timeout_informed: set[str] = set()  # tid ya avisados de timeout
         self._budget_nudged: set[str] = set()     # tid ya conminados a ENTREGAR (fase 1 del presupuesto)
+        # V2-227 ámbito B2: cuándo latió por última vez cada tarea. El operador pidió «algo cada pocos segundos
+        # mientras esté vivo»; sin la marca, este bucle (~1 Hz) emitiría un latido por SEGUNDO y ahogaría el
+        # carril que el latido existe para hacer legible.
+        self._last_beat: dict[str, float] = {}
         # ONE definition, in the module that owns the record (V2-131) — the prompt reads the same number,
         # so what the supervisor says out loud and what the brain answers when asked cannot disagree.
         from nucleo import dispatch as _disp_thr
@@ -169,6 +178,7 @@ class OrchestratorLoop:
         live_ids = {s["id"] for s in sessions}
         # limpia marcas de sesiones que ya no existen (para no crecer sin límite)
         self._stuck_informed &= live_ids
+        self._last_beat = {k: v for k, v in self._last_beat.items() if k in live_ids}
         self._timeout_informed &= live_ids
         self._budget_nudged &= live_ids
         # (2) relatar el ask ACTIVO (más antiguo) UNA vez, con atribución + abrir la ventana de atención (§v3·D/N).
@@ -227,6 +237,15 @@ class OrchestratorLoop:
                 except Exception:
                     pass
                 continue
+            # V2-227 ámbito B2 — el LATIDO. Va antes de los avisos de encallamiento y timeout a propósito: no
+            # es una alarma, es la señal ordinaria de que la tarea sigue viva. Una fase que dura noventa
+            # segundos es normal en una gestión web; lo que no puede ser normal es que la tarjeta calle.
+            if (now - self._last_beat.get(tid, 0.0)) >= _BEAT_SECS:
+                self._last_beat[tid] = now
+                try:
+                    dispatch.session_alive(tid)
+                except Exception:
+                    pass
             if age >= self._max_secs and tid not in self._timeout_informed:
                 self._timeout_informed.add(tid)
                 goal = (s.get("goal") or self._lang().generic_task)[:40]

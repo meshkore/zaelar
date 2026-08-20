@@ -552,7 +552,25 @@ def _result_text(content) -> str:
 def _tool_phase(tool: str, tin: dict | None = None) -> str:
     """Etiqueta de fase humana a partir de la tool que el worker acaba de invocar. Para Bash mira el COMANDO
     (demo 2026-07-14: un worker web emitía «ejecutando un paso…» perpetuo — la tarjeta/chip no contaban nada).
-    Devuelve "" para NO emitir fase (hbnote: la fase legible la fija el propio reporte, no la pisamos)."""
+    Devuelve "" para NO emitir fase (hbnote: la fase legible la fija el propio reporte, no la pisamos).
+
+    V2-227 ámbito B1 — la frase nombra AHORA el sitio concreto («entrando en booking.com», no «abriendo una
+    página…»). El dato ya lo teníamos: `_tool_step` extrae `{where, action, target}` desde V2-048 y el host
+    estaba ahí al lado sin llegar nunca al operador. Así que se compone desde ESA estructura, no desde una tabla
+    nueva — y por tanto viaja por el mismo carril (`emit("task","phase")` → SSE → `store.tasks`), que es lo que
+    pide B4. Si la composición no da nada, se cae a las etiquetas de siempre: una fase genérica es peor que una
+    concreta, pero muchísimo mejor que ninguna.
+    """
+    try:
+        from nucleo.workers import progress as _prog
+        _st = _tool_step(tool, tin)
+        if _st is None:
+            return ""                                   # hbnote: su propia fase manda (no pisar)
+        _said = _prog.phrase(_st)
+        if _said:
+            return _said + "…"
+    except Exception:  # noqa: BLE001
+        pass
     t = (tool or "").lower()
     if "webfetch" in t or "websearch" in t:
         return "buscando en la web…"

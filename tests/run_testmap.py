@@ -229,6 +229,12 @@ DOMAINS: list[dict] = [
         {"id": "2.14", "title": "La SUPERFICIE se decide al encargar, con vocabulario cerrado y una sola vez",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_the_surface_is_decided_when_the_errand_is_commissioned.py"]},
+        # V2-227 ámbito B — el CAUDAL: fases que lee una persona («entrando en booking.com», «12 resultados»),
+        # con latido para que una fase de 90 s no parezca un worker muerto. La materia prima ya existía desde
+        # V2-048 (`{where,action,target}`); lo que faltaba era decirla, y por el carril que ya existe.
+        {"id": "2.15", "title": "El progreso se lee como una frase, y una fase larga dice que sigue viva",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/workers/test_the_progress_reads_like_a_sentence.py"]},
         {"id": "2.6", "title": "Scheduler / rails / workspace / frontend-glue", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/test_scheduler.py", "tests/agent_headless/unit/test_rails.py", "tests/agent_headless/unit/test_workspace.py",
             "tests/agent_headless/unit/test_confirm_gate_task.py", "tests/agent_headless/unit/test_escalate_hygiene.py",

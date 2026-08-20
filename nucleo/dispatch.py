@@ -601,6 +601,37 @@ def session_phase(tid, phase: str) -> None:
         pass
 
 
+def session_alive(tid) -> str:
+    """A LATIDO: la misma fase, diciendo cuánto lleva. No toca el registro (V2-227 ámbito B2).
+
+    Una tarjeta congelada en «recorriendo la página» durante noventa segundos es indistinguible de un worker
+    muerto, y esa ambigüedad es justo lo que el operador pidió quitar: el silencio se lee como avería. Pero el
+    remedio no puede ser reescribir `r.phase` con el texto decorado — el latido siguiente decoraría la
+    decoración («… lleva 1 min — lleva 2 min»). Así que se EMITE y no se guarda: el registro conserva la fase
+    limpia y el carril lleva la versión con el tiempo.
+
+    Devuelve lo emitido (o "" si no había nada que latir), que es lo que hace esto comprobable sin un bus.
+    """
+    r = _SESSIONS.get(str(tid))
+    if r is None or r.status not in LIVE_SESSION_STATES or r.paused:
+        return ""
+    try:
+        from nucleo.workers import progress as _prog
+        said = _prog.still_alive(r.phase or _default_label(r.kind), int(time.time() - (r.last_event_at or r.started)))
+    except Exception:  # noqa: BLE001
+        return ""
+    try:
+        from voice.observer import emit
+        extra = {"id": str(tid)}
+        if r.trace_id:
+            extra["trace"] = r.trace_id
+            extra["span"] = f"worker:{tid}"
+        emit("task", "alive", text=said, extra=extra)
+    except Exception:
+        pass
+    return said
+
+
 def session_plan(tid, steps) -> None:
     """V2-059: el worker DECLARA su lista de tareas al empezar (`hbnote plan "a|b|c"`). Observabilidad estructurada:
     se ve el plan + cuántos pasos lleva → progreso real (no solo una fase coarse)."""
