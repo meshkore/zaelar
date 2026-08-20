@@ -45,10 +45,12 @@ def say(text: str, session: str, *, execute: bool = True, ingest: bool = False, 
     and (with execute=True) `executed`/`task_id` for anything that really fired.
 
     `ingest` defaults to False, matching tests/README.md's own convention for ad-hoc probe calls ("Use a
-    unique session and ingest:false unless persistence is the feature under test") — this suite tests
-    real-world task execution, not memory writing, and must not leave test conversations in the operator's
-    actual long-term memory. `execute=True` still fires tools/escalation normally; `ingest` only gates the
-    durable-memory write."""
+    unique session and ingest:false unless persistence is the feature under test"): a test conversation has
+    no business in the OPERATOR's long-term memory. In a SANDBOX that reason disappears — the memory is
+    thrown away with the engine — and leaving it off actively breaks the measurement: a case that asks to be
+    remembered can never pass if the write is suppressed by the harness. So the caller passes
+    `ingest=sandboxed` (see run._run_scenario) rather than trusting this default. `execute=True` still fires
+    tools/escalation normally; `ingest` only gates the durable-memory write."""
     return _post("/api/flash/say", {"text": text, "session": session, "ingest": ingest, "execute": execute},
                  timeout=timeout)
 

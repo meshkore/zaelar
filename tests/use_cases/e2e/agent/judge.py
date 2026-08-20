@@ -198,6 +198,34 @@ _SYS = ("Eres un evaluador senior de asistentes personales, exigente y concreto.
            "evidencia que no se puede leer vale lo mismo que no haberlo medido.")
 
 
+_DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"]
+
+
+def _time_note() -> str:
+    """El CALENDARIO de hoy, estampado como hecho antes de que el juez razone.
+
+    Nace de un falso positivo medido (2026-08-20, ronda 15 de `remember-and-remind-deadline`): el usuario dijo
+    «el jueves» un JUEVES, zaelar resolvió el jueves SIGUIENTE (27) y puso el aviso el miércoles 26 —
+    coherente, porque no se puede avisar la víspera de algo que es hoy. El juez, que no sabía qué día era,
+    lo marcó como hallazgo [alta]: «el jueves natural es el 20, el recordatorio cae 6 días tarde». Iba camino
+    del developer como fallo del producto.
+
+    Un juez sin calendario no puede evaluar fechas y aun así lo intenta, que es el peor de los dos mundos.
+    """
+    import datetime as _dt
+    hoy = _dt.date.today()
+    return (f"=== CALENDARIO (hecho, no opinión) ===\n"
+            f"HOY es {_DIAS[hoy.weekday()]} {hoy.isoformat()}. Cuenta los días desde aquí para juzgar "
+            f"cualquier fecha.\n"
+            f"Reglas de fecha, y son estrictas:\n"
+            f"· Una fecha solo está MAL si contradice lo que dijo el usuario o este calendario. Si encaja con "
+            f"ambos, NO es un hallazgo — ni siquiera «podría haber elegido otra».\n"
+            f"· Un día de la semana suelto («el jueves») se refiere al PRÓXIMO que viene. Si hoy ES ese día, "
+            f"se refiere al de la semana siguiente: nadie pide que le avisen la víspera de algo que es hoy.\n"
+            f"· Antes de escribir que un aviso «cae tarde», comprueba que el aviso va ANTES del evento. Si va "
+            f"antes, funciona, y da igual cuál de los dos jueves eligiera.\n")
+
+
 def judge(scenario, run: dict, model: str | None = None) -> dict:
     convo = "\n".join(
         f"[{t.get('at', '')}] {t['who'].upper():7} {t.get('text') or '(sin respuesta)'}"
@@ -248,6 +276,8 @@ imitando cómo pide las cosas una persona real (puede ser ambiguo, cambiar de id
 === ESCENARIO: {scenario.id} (tier {scenario.tier}, {scenario.locale}) ===
 Petición inicial del usuario: {scenario.opening_line}
 Qué cuenta como éxito: {scenario.success_checks}
+
+{_time_note()}
 {MULTIFLOW_NOTE if multiflow else ''}
 {search_note}
 {carry_note}

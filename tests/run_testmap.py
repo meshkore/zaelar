@@ -673,6 +673,15 @@ DOMAINS: list[dict] = [
         # worker y nadie lo veía.
         {"id": "10.11", "title": "Auditoría del stream completo: un PASS con anomalías NO cierra el caso",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_full_audit.py"]},
+        # Lo señaló el equipo del CÓDIGO (2026-08-20): el arnés medía la mitad «acuérdate de esto» con la
+        # escritura de memoria APAGADA por su propio default, así que ese caso no podía pasar de ninguna
+        # manera. `ingest` sigue al sandbox; contra el motor del operador se queda apagado.
+        {"id": "10.12", "title": "`ingest` sigue al sandbox: en sandbox se escribe, contra el motor vivo no",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_ingest_follows_sandbox.py"]},
+        # El juez juzgaba fechas sin saber qué día era: dijo «el recordatorio cae 6 días tarde» sobre una
+        # resolución correcta, y ese hallazgo iba camino del equipo del código como fallo del producto.
+        {"id": "10.13", "title": "El juez lleva el CALENDARIO de hoy: no inventa fallos de fecha",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_judge_calendar.py"]},
     ]},
 ]
 

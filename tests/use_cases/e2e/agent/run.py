@@ -23,7 +23,12 @@ from . import verify as verifymod
 from . import watchdog as watchdogmod
 
 
-def _run_scenario(scenario, *, ran_before: list[str] | None = None) -> dict:
+def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: bool = False) -> dict:
+    """`sandboxed` says whether the engine under test is a throwaway one. It decides whether the
+    conversation is INGESTED into durable memory: in a sandbox there is nothing to protect and half the
+    cases (remember/remind) cannot pass without the write happening, so it must be on; against the
+    operator's live engine it stays off, because there the original reason still holds — a test
+    conversation has no business in the operator's real long-term memory."""
     scenario_started_ms = time.time() * 1000
     session = f"use-cases-{scenario.id}-{uuid.uuid4().hex[:6]}"
     probe_client.reset(session)
@@ -81,7 +86,8 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None) -> dict:
     print(f"  tester  · {utterance}")
 
     for turn in range(max(1, scenario.turns)):
-        res = probe_client.say(utterance, session, execute=(scenario.channel == "probe"))
+        res = probe_client.say(utterance, session, execute=(scenario.channel == "probe"),
+                               ingest=sandboxed)
         reply_text = llmmod._as_text(res.get("reply")).strip()
         note("zaelar", reply_text)
         print(f"  zaelar  · {reply_text[:160]}")
@@ -189,7 +195,8 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
                 print(f"  ⚠️ no pude resetear el motor entre casos: {e} — este caso puede arrastrar "
                       f"trabajo del anterior")
         try:
-            results.append(_run_scenario(scenario, ran_before=[r["scenario"] for r in results]))
+            results.append(_run_scenario(scenario, ran_before=[r["scenario"] for r in results],
+                                          sandboxed=sandboxed))
         except Exception as e:  # one scenario's infra hiccup must not lose the whole batch's report
             print(f"  ✗ scenario crashed: {e}")
             results.append({"scenario": scenario.id, "tier": scenario.tier, "channel": scenario.channel,

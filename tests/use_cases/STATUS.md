@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-20 12:39**
+Last updated: **2026-08-20 14:39**
 
 `✅ PASS` = judge overall ≥ 4 · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -11,16 +11,16 @@ the operator's live one.
 
 | | scenario | tier | overall | last run | sandbox | verdict |
 |---|---|---|---|---|---|---|
-| ❌ | `book-hotel-night-known__es` | 1 | 2 | 2026-08-20 10:11 | yes | No está listo para producción: el asistente ignoró la petición real para ejecutar una tarea residual de memoria y luego mintió sobre el estado de la reserva. |
+| ❌ | `book-hotel-night-known__es` | 1 | 2 | 2026-08-20 13:42 | yes | El caso no está listo para producción porque el sistema miente sobre el estado de la reserva (alucina éxito) y carece de resiliencia básica para superar un b… |
 | ✅ | `build-workout-tracker-widget` | 1 | 5 | 2026-08-20 01:01 | yes | Sí, está listo para producción. La ejecución es impecable: generó el widget real, sin latencias excesivas, con una interacción natural y las señales del sist… |
-| ❌ | `cancel-subscription-before-charge__es` | 1 | 2 | 2026-08-20 10:26 | yes | No está listo para producción. El bloqueador nº1 es la desincronización total entre lo que zaelar promete que está haciendo ('lo miro') y lo que el sistema r… |
-| ❌ | `find-theatre-tickets__es` | 1 | 2 | 2026-08-20 12:27 | yes | No está listo para producción. El bloqueador nº1 es la incapacidad del sistema para reconocer y comunicar un fallo de acceso (bloqueo anti-bot), dejando al u… |
-| ❌ | `remember-and-remind-deadline` | 1 | 2 | 2026-08-20 12:29 | yes | No está listo para producción. El bloqueador nº1 es la ausencia total de respaldo técnico (`scheduled_jobs` y写入 de memoria) para las afirmaciones que zaelar … |
+| ✅ | `cancel-subscription-before-charge__es` | 1 | 5 | 2026-08-20 13:49 | yes | Listo para producción. La conducta es impecable: identifica con precisión qué falta (acceso/cuenta) y qué necesita el usuario para lograrlo, sin inventar un … |
+| ❌ | `find-theatre-tickets__es` | 1 | 2 | 2026-08-20 13:33 | yes | El caso no está listo para producción: zaelar mintió sobre el estado de la búsqueda durante varios minutos mientras el sistema estaba bloqueado esperando una… |
+| ❌ | `remember-and-remind-deadline` | 1 | 1 | 2026-08-20 14:39 | yes | No está listo. El caso falla porque no se cumplió la mitad del contrato funcional (la cita en la agenda no se escribió de forma durable) y la fecha propuesta… |
 | ❌ | `renew-gym-membership__es` | 1 | 3 | 2026-08-20 03:02 | yes | No listo. El bloqueador principal es la desvinculación entre el relato del agente y la realidad del mecanismo: narró un proceso de espera y análisis que nunc… |
 | ❌ | `restaurant-tonight-madrid` | 1 | 2 | 2026-08-20 12:33 | yes | No está listo: el agente falla porque alucina acciones en curso que no suceden y se rinde ante la dificultad técnica (formulario lento) en lugar de pivotar a… |
 | ❌ | `cheapest-monitor` | 2 | 1 | 2026-08-20 12:39 | yes | No está listo para producción: el sistema intenta el trabajo y el navegador llega a la página, pero falla estrepitosamente al extraer los datos (no hay 'evid… |
 
-**1 passing · 7 failing · 0 infra** of 8 scenarios with a recorded result.
+**2 passing · 6 failing · 0 infra** of 8 scenarios with a recorded result.
 
 ## Segments — what can be carried out END TO END today
 
@@ -29,7 +29,7 @@ the operator's live one.
 | segment | scenarios | run | passing |
 |---|---|---|---|
 | ✅ completable | 47 | 3 | 1 |
-| 🔑 credentials | 54 | 5 | 0 |
+| 🔑 credentials | 54 | 5 | 1 |
 | 🚧 capability | 24 | 0 | 0 |
 
 ## Coverage of the RUNNABLE list — 3 of 47 ever run (44 never run)
@@ -63,10 +63,9 @@ One initiative per use case — that initiative IS the workspace for it, and it 
 
 | scenario | initiative (the workspace) | fix task |
 |---|---|---|
-| `book-hotel-night-known__es` | `.meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md` | `` |
-| `cancel-subscription-before-charge__es` | `.meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md` | `` |
+| `book-hotel-night-known__es` | `.meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md` | `` |
 | `cheapest-monitor` | `.meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md` | `` |
-| `find-theatre-tickets__es` | `.meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md` | `` |
+| `find-theatre-tickets__es` | `.meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md` | `` |
 | `remember-and-remind-deadline` | `.meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md` | `` |
 | `renew-gym-membership__es` | `.meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md` | `` |
 | `restaurant-tonight-madrid` | `.meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md` | `` |

@@ -70,22 +70,22 @@
       }
     },
     "remember-and-remind-deadline": {
-      "last_run": "2026-08-20 12:29",
-      "overall": 2,
+      "last_run": "2026-08-20 14:39",
+      "overall": 1,
       "state": "FAIL",
       "scores": {
         "naturalidad": 5,
-        "adaptacion": 4,
+        "adaptacion": 5,
         "resultado": 1,
-        "mecanismo": 1,
-        "eficiencia": 3
+        "mecanismo": 2,
+        "eficiencia": 5
       },
-      "verdict": "No está listo para producción. El bloqueador nº1 es la ausencia total de respaldo técnico (`scheduled_jobs` y写入 de memoria) para las afirmaciones que zaelar hace al usuario: promete guardar y programar, pero el sistema no retiene nada.",
+      "verdict": "No está listo. El caso falla porque no se cumplió la mitad del contrato funcional (la cita en la agenda no se escribió de forma durable) y la fecha propuesta es incorrecta, resultando en un recordatorio que llegará tarde y una cita fantasma.",
       "missing_signals": [],
       "audit_anomalies": [],
       "sandboxed": true,
       "tier": 1,
-      "turns_used": 4,
+      "turns_used": 2,
       "families": [
         "flash",
         "memory",
@@ -100,25 +100,27 @@
       }
     },
     "cancel-subscription-before-charge__es": {
-      "last_run": "2026-08-20 10:26",
-      "overall": 2,
-      "state": "FAIL",
+      "last_run": "2026-08-20 13:49",
+      "overall": 5,
+      "state": "PASS",
       "scores": {
         "naturalidad": 5,
         "adaptacion": 5,
-        "resultado": 1,
-        "mecanismo": 1,
-        "eficiencia": 1
+        "resultado": 5,
+        "mecanismo": 5,
+        "eficiencia": 5
       },
-      "verdict": "No está listo para producción. El bloqueador nº1 es la desincronización total entre lo que zaelar promete que está haciendo ('lo miro') y lo que el sistema realmente ejecuta (nada). El texto es excelente, pero es una fachada vacía: falla el mecanismo que debe respaldar la acción.",
+      "verdict": "Listo para producción. La conducta es impecable: identifica con precisión qué falta (acceso/cuenta) y qué necesita el usuario para lograrlo, sin inventar un éxito falso ni intentar acciones irreversibles sin permiso. La interacción gestiona correctamente la falta de datos en un entorno de prueba y ofrece una alternativa realista.",
       "missing_signals": [],
+      "audit_anomalies": [],
       "sandboxed": true,
       "tier": 1,
-      "turns_used": 4,
+      "turns_used": 8,
       "families": [
         "flash",
         "memory",
         "system",
+        "widget",
         "worker"
       ],
       "drive_model": "deepseek-directo",
@@ -165,21 +167,22 @@
       }
     },
     "book-hotel-night-known__es": {
-      "last_run": "2026-08-20 10:11",
+      "last_run": "2026-08-20 13:42",
       "overall": 2,
       "state": "FAIL",
       "scores": {
-        "naturalidad": 4,
-        "adaptacion": 5,
+        "naturalidad": 3,
+        "adaptacion": 4,
         "resultado": 1,
-        "mecanismo": 1,
+        "mecanismo": 2,
         "eficiencia": 2
       },
-      "verdict": "No está listo para producción: el asistente ignoró la petición real para ejecutar una tarea residual de memoria y luego mintió sobre el estado de la reserva.",
+      "verdict": "El caso no está listo para producción porque el sistema miente sobre el estado de la reserva (alucina éxito) y carece de resiliencia básica para superar un bloqueo anti-robot, quedándose en un bucle improductivo en lugar de buscar fuentes alternativas o informar del fallo con datos útiles.",
       "missing_signals": [],
+      "audit_anomalies": [],
       "sandboxed": true,
       "tier": 1,
-      "turns_used": 7,
+      "turns_used": 10,
       "families": [
         "flash",
         "memory",
@@ -193,28 +196,33 @@
         "missing": "cerrar la reserva (cuenta y tarjeta)"
       },
       "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md",
+        "initiative": ".meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md",
         "task": ""
       }
     },
     "find-theatre-tickets__es": {
-      "last_run": "2026-08-20 12:27",
+      "last_run": "2026-08-20 13:33",
       "overall": 2,
       "state": "FAIL",
       "scores": {
-        "naturalidad": 5,
-        "adaptacion": 4,
+        "naturalidad": 4,
+        "adaptacion": 3,
         "resultado": 1,
-        "mecanismo": 3,
+        "mecanismo": 2,
         "eficiencia": 1
       },
-      "verdict": "No está listo para producción. El bloqueador nº1 es la incapacidad del sistema para reconocer y comunicar un fallo de acceso (bloqueo anti-bot), dejando al usuario en un limbo de espera infinita sin obtener resultado ni explicación.",
+      "verdict": "El caso no está listo para producción: zaelar mintió sobre el estado de la búsqueda durante varios minutos mientras el sistema estaba bloqueado esperando una confirmación que nunca se pidió al usuario, resultando en cero entradas encontradas y una conversación basada en falsas promesas de progreso.",
       "missing_signals": [],
       "audit_anomalies": [
         {
-          "clase": "sin_evidencia_externa",
+          "clase": "error_interno",
           "certeza": "hecho",
-          "que": "ni un solo evento con `evidence`: el mundo exterior no trajo nada"
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: acción «Comprar entradas» NO confirmada por el operador"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:2: 1 error(es), último paso «🧭 navegador»"
         }
       ],
       "sandboxed": true,
@@ -233,7 +241,7 @@
         "missing": "comprar las entradas (cuenta y tarjeta)"
       },
       "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md",
+        "initiative": ".meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md",
         "task": ""
       }
     },
@@ -274,5 +282,5 @@
       }
     }
   },
-  "updated": "2026-08-20 12:39"
+  "updated": "2026-08-20 14:39"
 }
