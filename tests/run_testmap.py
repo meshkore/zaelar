@@ -228,6 +228,11 @@ DOMAINS: list[dict] = [
         # aplicó.
         {"id": "2.16", "title": "El relleno de espera no se repite, y pasada la 2ª dice cuánto lleva", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_holding_line_never_repeats.py"]},
+        # 2026-08-20: «Sí, adelante» → «Hecho.» → «¿Ya está cancelada del todo?». El ack de TERMINADO puesto
+        # sobre una tarea que acababa de ARRANCAR, con el daño en las palabras del propio operador dos líneas
+        # después. No lo dijo el modelo: `confirm_task` compartía rama con `widget_data`.
+        {"id": "2.17", "title": "Un «sí» a la confirmación arranca la tarea; no la termina", "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_confirm_ack_is_a_start.py"]},
         {"id": "2.9", "title": "Sandbox de ejecución ligero (V2-076)", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/test_sandbox.py"]},
         {"id": "2.10", "title": "Puente git acotado + dev worker (V2-076)", "ch": UNIT, "paths": [

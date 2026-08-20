@@ -750,7 +750,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 if _v:
                     _r = _disp_cc.resolve_confirm(_v == "yes")
                     if _r:
-                        action = "confirm_task"
+                        action = "confirm_task" if _v == "yes" else "confirm_task_no"
                         return_extra_exec = {"executed": "confirm_task", "ok": bool(_r.get("ok"))}
         except Exception:
             pass
@@ -918,9 +918,24 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
         try:
             from voice.engine.core import langs as _langs
             _lg = _langs.current_language()
-            if action in ("widget_data", "confirm_task"):
-                # `confirm_task` (V2-126) con el mismo ack corto que una data-op: el turno que resuelve un sí/no
-                # no puede caer al backstop genérico y contestar «¿me lo repites?» a una confirmación.
+            if action == "confirm_task":
+                # V2-176 frente 1 — un «sí» a la puerta de confirmación ARRANCA la tarea; no la termina. Usaba
+                # `data_ack` («Hecho.») y eso es una afirmación de hecho sobre algo que acaba de empezar.
+                # Medido en `cancel-subscription-before-charge__es`, con el daño en las palabras del propio
+                # operador: «Sí, adelante» → «Hecho.» → «**¿Ya está cancelada del todo?**». El juez lo marcó
+                # grave («falsa confirmación de ejecución»), y no lo dijo el modelo: lo decía este ack.
+                #
+                # La medición sobre las 78 respuestas archivadas es lo que trajo aquí: solo 10 AFIRMAN un
+                # hecho frente a 41 que expresan intención —el modelo casi siempre acierta— y las tres
+                # afirmaciones sobre corridas donde el mecanismo no registró NADA son todas la misma palabra,
+                # «Hecho.». O sea que la frontera que este frente buscaba no estaba en el prompt: estaba en
+                # nuestras propias frases de relleno.
+                from . import router_guards as _rg_ack
+                spoken = _rg_ack.holding_line(sess.window, _lg)
+            elif action in ("widget_data", "confirm_task_no"):
+                # Una data-op SÍ terminó, y un «no, déjalo» también resuelve algo de verdad: ahí «Hecho.» es
+                # cierto. El turno que resuelve un sí/no tampoco puede caer al backstop genérico y contestar
+                # «¿me lo repites?» a una confirmación.
                 spoken = _lg.data_ack
             elif action.startswith("canvas:"):
                 spoken = _lg.show_ack

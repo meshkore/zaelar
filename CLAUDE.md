@@ -1275,6 +1275,24 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **«Sí, adelante» → «Hecho.» → «¿Ya está cancelada del todo?»** (`nucleo/flash/probe.py`, V2-176 frente 1,
+  2026-08-20). El frente suponía que la frontera estaba en el PROMPT (narrar en futuro-presente). **Se midió
+  antes de tocarlo y la hipótesis era falsa**: sobre las 78 respuestas archivadas del arnés, solo **10 afirman
+  un hecho** frente a **41 que expresan intención** —el modelo casi siempre acierta— y las **tres**
+  afirmaciones en corridas donde el mecanismo no registró NADA son todas la misma palabra, «Hecho.», una de
+  ellas en un caso que sacó **5/5**. Una frase que aparece igual en un caso que pasa y en dos que fallan no la
+  dice el modelo: es nuestra. `probe.py` mapeaba `confirm_task` a la misma rama que `widget_data`, o sea el ack
+  de **TERMINADO** sobre una tarea que acababa de **ARRANCAR** — con el daño en las palabras del operador dos
+  líneas después.
+  - Un **sí** usa ahora la línea de espera (V2-189), que es lo que de verdad pasa; un **no** conserva «Hecho.»
+    porque un «no, déjalo» SÍ resuelve algo, y sin esa mitad el arreglo sería «no digas nunca hecho», que es
+    otra mentira. El corte se hace donde se CLASIFICA la respuesta.
+  - Comprobado antes de tocar que **el provider de voz NO tenía el fallo** (su ack se gatea con `data_done`,
+    que solo lo pone una data-op real), para no «arreglar» un canal sano — con test que lo fija.
+  - **Los cuatro frentes de V2-176 quedan cerrados y la iniciativa NO**: es el paraguas de un defecto que
+    pertenece a varios casos, y lo que decide si está resuelto son las corridas, no que se hayan agotado los
+    frentes que se le ocurrieron a quien la abrió.
+
 - **Una tarea parada esperando a que el operador ENTRE decía «te dará el resultado sola»** (`nucleo/flash/prompt.py`,
   V2-176 frente 3, 2026-08-20). Lo que faltaba NO era detectarlo: `awaiting_login` existe desde INI-016, lo
   escribe el flujo de login real y `active_progress()` lo expone desde V2-167 — **`prompt.py` no lo leía
