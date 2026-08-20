@@ -24,6 +24,10 @@ def _env(name: str, default: str = "") -> str:
     return os.getenv(name, default).strip()
 
 
+# Path to the sandbox engine's own DB, set by `run._sandbox_batch` once it is up. Empty against the operator's
+# live engine — the harness reads a database it created, never theirs.
+SANDBOX_DB = ""
+
 _CODE_STAMP: dict | None = None
 
 

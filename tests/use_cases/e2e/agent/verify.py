@@ -10,6 +10,7 @@ what a worker does when it needs one"), memory, widget, system, pulse.
 """
 from __future__ import annotations
 
+import json
 import time
 
 from . import probe_client
@@ -402,4 +403,59 @@ def mechanism_report(all_events: list[dict], expected_signals: list[str],
         out["scheduled_jobs"] = scheduled
     if concurrency is not None:
         out["task_registry"] = concurrency.report()
+    return out
+
+
+# ── WHAT THE AGENT HAD IN FRONT OF IT ──────────────────────────────────────────────────────────────────────
+# The most expensive class of false finding in this suite is not "the judge was harsh", it is the judge
+# asserting something the harness never measured — three retractions on 2026-08-20, all of that shape. The
+# sharpest instance: a round was reported as "narrated normality over a blocked state", the memory agent spent
+# an investigation proving the datum WAS written and returned, and the engine agent had to read the code to
+# say where it reached. All three of us were reasoning about one thing nobody had read: the prompt the model
+# actually got.
+#
+# It is durable and it is one query away. Every `turn.completed` event carries the full `system_prompt` and the
+# window size, so the question "did it have this in front of it?" is answerable instead of arguable. Reading it
+# turns two different findings into two different owners: shown-and-ignored is conduct, never-shown is
+# plumbing, and today those were told apart by hand.
+#
+# Not served by `/api/observability/events`: that route is hardcoded to `topic = 'observer'`, so the turn rows
+# are invisible to it. Rather than ask for an engine change for the harness's benefit, this reads the sandbox's
+# own DB — which the suite already keeps on disk for exactly this kind of inspection. Live-engine runs simply
+# get nothing, which is the honest answer there.
+_NAV_MARK = "NAVEGADOR — YA EN CURSO"
+_ALERT = ("⛔", "❓", "bloque", "captcha", "no puedo seguir", "confirm")
+
+
+def prompt_context(db_path, *, since: float = 0.0, limit: int = 40) -> list[dict]:
+    """Per turn, what the model was shown: window size, prompt size, and the browser-task line verbatim.
+
+    `since` scopes to one scenario inside a batch that shares an engine (epoch seconds). Fails soft to `[]`:
+    this is evidence that makes a verdict better, never a reason to lose one.
+    """
+    import sqlite3
+    try:
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    except Exception:
+        return []
+    out: list[dict] = []
+    try:
+        rows = con.execute(
+            "SELECT ts_ms, payload FROM events WHERE topic = 'turn.completed' AND ts_ms >= ? "
+            "ORDER BY ts_ms ASC LIMIT ?", (int(since * 1000), int(limit))).fetchall()
+    except Exception:
+        return []
+    finally:
+        con.close()
+    for i, (ts_ms, raw) in enumerate(rows):
+        try:
+            p = json.loads(raw)
+        except Exception:
+            continue
+        sp = p.get("system_prompt") or ""
+        nav = next((l.strip() for l in sp.splitlines() if _NAV_MARK in l), "")
+        shown = nav.split("último:", 1)[1].strip() if "último:" in nav else ""
+        out.append({"turn": i, "window_msgs": p.get("window_msgs"), "system_chars": len(sp),
+                    "task_line": nav[:300], "shown_state": shown[:200],
+                    "alert": any(a in shown.lower() or a in shown for a in _ALERT)})
     return out

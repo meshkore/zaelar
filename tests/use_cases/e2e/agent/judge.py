@@ -149,6 +149,28 @@ def mechanism_facts(mech: dict) -> str:
                      f"el titular caído la respuesta sale muda. **No puntúes un turno vacío como que zaelar "
                      f"ignora al usuario, no colabora o abandona**: no llegó a hablar. Juzga solo los turnos "
                      f"que SÍ tienen texto, y no cuentes el silencio como falta de empatía ni de resultado.")
+    # WHAT THE AGENT WAS SHOWN, turn by turn, read from its own prompt. This block exists to make one
+    # distinction impossible to blur: a datum that was in front of the model and did not come out is CONDUCT,
+    # and a datum that never reached it is PLUMBING. On 2026-08-20 those two were told apart by hand, at the
+    # cost of three retracted findings and a full investigation by the memory agent.
+    pc = mech.get("prompt_context") or []
+    if pc:
+        alerts = [r for r in pc if r.get("alert") and r.get("shown_state")]
+        shown = [f"  · turno {r['turn']}: se le MOSTRÓ «{r['shown_state']}»" for r in alerts]
+        lines.append(
+            "=== LO QUE EL AGENTE TENÍA DELANTE (leído de su propio prompt, no inferido) ===\n"
+            + (("Turnos en los que el prompt llevaba un MURO (⛔) o una PREGUNTA (❓) de la tarea:\n"
+                + "\n".join(shown) + "\n"
+                + "Si en uno de esos turnos zaelar dijo que seguía trabajando, o «sin novedades», o no le "
+                  "trasladó la pregunta, eso es un fallo GRAVE de resultado y de adaptación: tenía la línea "
+                  "delante, etiquetada, y la negó. No es un fallo de memoria ni de fontanería, así que no lo "
+                  "describas como «no le llegó la información».")
+               if alerts else
+               ("En NINGÚN turno el prompt llevaba un muro ni una pregunta de la tarea. Así que NO puedes "
+                "afirmar que zaelar ocultó un bloqueo ni que se calló una pregunta: no la tuvo delante. Si "
+                "faltó ese aviso, el defecto es de quien tenía que ponérselo, no de zaelar."))
+            + f"\n(ventana conversacional por turno: {', '.join(str(r.get('window_msgs')) for r in pc)})")
+
     # THE AGENDA, READ. It comes before search_health because it has caused the most false positives: the
     # judge wrote "zero appointments persisted" on two consecutive rounds about an agenda that had the
     # appointment inside.

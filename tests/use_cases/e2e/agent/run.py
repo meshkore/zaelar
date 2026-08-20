@@ -47,6 +47,9 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         jobs_before = probe_client.scheduled_jobs()
     except Exception:
         jobs_before = []
+    # Wall clock at the start, so the prompt read below can be scoped to THIS scenario: a batch shares one
+    # engine, and the turn rows of the previous case sit in the same table.
+    started_at = time.time()
 
     def note(who: str, text: str) -> None:
         transcript.append({"who": who, "text": text, "at": round(time.time(), 2)})
@@ -154,6 +157,14 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     # and a false accusation against the engine team ("zero appointments persisted" about an agenda that had
     # the appointment inside). `None` means "could not look" and does NOT mean "empty" — the judge is handed
     # that difference explicitly.
+    # WHAT THE AGENT HAD IN FRONT OF IT, read from its own turns (see `verify.prompt_context`). This is the
+    # answer to the question that cost three retractions and one whole investigation by another agent today:
+    # shown-and-ignored is conduct, never-shown is plumbing, and without this they look identical.
+    if config.SANDBOX_DB:
+        try:
+            mech["prompt_context"] = verifymod.prompt_context(config.SANDBOX_DB, since=started_at)
+        except Exception as e:
+            mech["prompt_context_error"] = str(e)[:200]
     if mute_turns:
         mech["mute_turns"] = {"turns": mute_turns, "n": len(mute_turns)}
     try:
@@ -444,6 +455,10 @@ def _sandbox_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict
         print(f"  ▸ observability API: {eng.base_url}/api/observability/flows?limit=30")
         print(f"  ▸ workspace kept for inspection: {eng.workspace}")
         config.ZAELAR_URL = eng.base_url
+        # The turn rows are not served by `/api/observability/events` (that route is pinned to
+        # `topic = 'observer'`), so the prompt read goes to the sandbox's own DB. Only set in sandbox mode: a
+        # live-engine run has no business poking at the operator's database.
+        config.SANDBOX_DB = str(eng.workspace / "memory" / "_data" / "sandbox.db")
         try:
             return _run_batch(chosen, sandboxed=True, args_no_file=args.no_file,
                               verify_tasks=verify_tasks,
