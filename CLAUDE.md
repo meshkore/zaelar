@@ -1275,6 +1275,39 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Un hecho recogido en TODAS partes y dicho en NINGUNA** (`widgets/navegador/tasks.py`, V2-215, 2026-08-20).
+  El arnés leyó el registro de la tarea en dos rondas: `cancel-subscription` (16:34) con `status=working`,
+  `wall="la página pidió resolver un captcha"`, `phase_active=false`, `walls_hit=1`; `find-theatre` (16:26) con
+  `question="Voy a pulsar «COMPRAR ENTRADAS». ¿Lo confirmo?"` y `walls_hit=2`; **brain-notes en las dos: 0**. Su
+  lectura es la buena: **zaelar no inventa — lee un campo y lo cuenta fielmente**; lo que no existía era el
+  camino de vuelta. `_announce_wall` deja un hito, apaga el spinner y abre la tarjeta — las tres son superficies
+  que hay que estar MIRANDO; `ask()` hacía menos, solo el feed. `active_progress()` sí lleva las dos cosas al
+  prompt (V2-202/V2-207) pero **esa vía solo se recorre cuando el operador PREGUNTA cómo va**.
+  - **Tiene que ser `brain_notes` y no `proactive.notify`**: el fallback a nota de esa función vive DENTRO de
+    `if speak and _speaker is not None`, así que sin sesión de voz viva una entrega proactiva llega al panel de
+    observabilidad y la conversación no se entera por ningún camino. Las notas las drenan los dos canales.
+  - La nota trae el **MOTIVO** y una **salida**, y **no promete que la tarea acabe sola** — eso es V2-185, falso
+    delante de un muro. La pregunta viaja **VERBATIM**, **nombra su tarea** (V2-193) y dice que el sí o el no ES
+    la respuesta, sin lo cual `answer_from_turn` no llega a usarse.
+  - **Una vez por muro distinto** (`_announce_wall` solo dispara al CAMBIAR): una tarea parada en un captcha
+    recaptura cada pocos segundos, y una nota por captura entierra la conversación en texto de sistema.
+  - **Lo que NO se hizo y por qué**: el arnés pidió además que `status` no siga en `working` con un muro puesto.
+    **El `status` que él audita no lo lee el turno** — el prompt se compone de `active_summaries()` +
+    `active_progress()`, y `_task_view` no entra por ningún sitio. Y sería un arreglo de CINCO puntos, no de
+    uno: `LIVE_STATES` está repetida a mano en `tasks.py` 352/381/450 y `owner.py` 1127, así que un estado nuevo
+    se quedaría fuera de esos cuatro **en silencio** — la forma exacta que V2-197 ya pagó en este módulo.
+  - **Corrección propia**: dije que a `active_progress()` le faltaba `wall`. Era falso — lo lleva desde V2-207.
+    El dato llegaba al prompt; faltaba el camino cuando nadie pregunta.
+  - Nodo 4.22, 9 tests, sensibilidad en las dos direcciones. Y en el **nodo 2.5**, la mitad del cableado que sus
+    tests no veían: todos llamaban a `_maybe_unstick_permission` directamente, así que habrían pasado igual con
+    la llamada de `session.py:176` BORRADA; ahora un `step_result` recorre `_on_event`.
+  - **Abierto**: la puerta de permiso de V2-211 no funcionó y falta saber si el código llegó a correr (el chip
+    `comando no permitido` lo distingue); el snapshot rancio (`ref N no existe`) es la forma de V2-212 otra vez;
+    y **pedir lo que ya tienes delante** — medido por el agente de memoria sobre el prompt REAL: «Madrid» estaba
+    en el turno por dos vías (la frase anterior del usuario literal en la ventana y la línea `PROCESOS DE FONDO`
+    del propio system prompt) y aun así volvió a preguntar e insistió tras ser corregido. No es recuperación ni
+    prompt: es conducta.
+
 - **El aviso existía y su CONTENIDO estaba roto** (`nucleo/flash/router_guards.py`, V2-214, 2026-08-20). Medido
   en `remember-and-remind-deadline` (15:49): *«el `prompt` del cron lleva la frase cruda del usuario, así que el
   recordatorio hará que el agente vuelva a programar en vez de avisar»*. `_reminder_prompt` compone la forma
