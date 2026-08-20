@@ -75,7 +75,21 @@ def deepseek_direct_call(messages: list[dict], model: str | None = None, tempera
     if not config.DEEPSEEK_KEY:
         raise RuntimeError("no DEEPSEEK_API_KEY")
     model = model or config.DEEPSEEK_JUDGE_MODEL
-    payload = {"model": model, "messages": messages, "max_tokens": max_tokens}
+    # `thinking: disabled` IS THE WHOLE DIFFERENCE HERE, and without it this leg is useless. Measured
+    # 2026-08-20 with the judge's real 23.000-character prompt, both models, 3.000 output tokens:
+    #
+    #   flash, thinking on  →     0 chars, 21,0 s, out_tok=3000 (todo razonamiento, cuerpo VACÍO)
+    #   flash, disabled     → 4.620 chars, 10,4 s, out_tok=1317
+    #   pro,   thinking on  →     0 chars, 48,7 s, out_tok=3000
+    #   pro,   disabled     → 4.397 chars, 19,7 s, out_tok=1299
+    #
+    # So the empty bodies that lost this leg four rounds were not a budget problem: the model spent the entire
+    # allowance thinking and returned nothing. The engine already knew — `provider_chain.py` says the broker
+    # ACCEPTS the flag while reasoning anyway and `api.deepseek.com` OBEYS it — and this leg simply was not
+    # passing it. FLASH on purpose, matching the broker leg's tier: pro scored the round identically here, and
+    # a verdict is only comparable with the previous rounds if the instrument does not change tier between legs.
+    payload = {"model": model, "messages": messages, "max_tokens": max_tokens,
+               "thinking": {"type": "disabled"}}
     if temperature is not None:
         payload["temperature"] = temperature
     req = urllib.request.Request(
