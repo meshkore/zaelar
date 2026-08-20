@@ -159,6 +159,15 @@ def _hand_over(task_id: str, items: list) -> None:
     JUDGEMENT stays with the brain, deliberately: the FIRST extraction here was an ad, so a note that ordered
     «announce this» would have had it offering a €25 flamenco show as the hotel. The note hands over the facts
     and names the test.
+
+    V2-226 — and the note is ONE order, not three. As first written it said «if it answers, give it; if not,
+    don't offer it as a result; but then don't say you're still searching either». Measured on the first clean
+    round (2026-08-20 20:23, sha `0b89510`): the browser had extracted the €25 flamenco show and the turn said
+    «se ha quedado a medias y no ha llegado a darme resultados». It obeyed the middle clause and dropped the
+    last one — with a result in front of it, it reported none. That is the same shape V2-224 had just measured
+    on the other block: two orders in one sentence resolve by coin flip. So the fork became a qualifier inside a
+    single imperative —NAME it this turn, and in the same sentence say whether it serves— and the sentence that
+    can never be true («no hay resultados») is banned outright rather than implied.
     """
     if not items:
         return
@@ -181,10 +190,11 @@ def _hand_over(task_id: str, items: list) -> None:
         from voice import brain_notes
         brain_notes.push(
             f"[SISTEMA] El navegador ha SACADO esto de la página, trabajando en «{goal}»: {listing}. Nadie más "
-            f"lo sabe todavía: no está en la conversación hasta que tú lo digas. Si responde a lo que pidió el "
-            f"operador, DÁSELO EN ESTE TURNO con nombre, precio y enlace. Si no es lo que pedía —un anuncio, "
-            f"otra cosa—, no lo ofrezcas como resultado; pero entonces tampoco digas que sigues buscando sin "
-            f"más: di qué ha salido y por qué no sirve.")
+            f"lo sabe: no está en la conversación hasta que tú lo digas, así que NO puedes decir que no hay "
+            f"resultados ni que sigues buscando sin más. NÓMBRALO EN ESTE TURNO y, en la misma frase, di si "
+            f"sirve: si responde a lo que pidió el operador, dáselo como resultado con nombre, precio y enlace; "
+            f"si es otra cosa —un anuncio, un producto distinto—, nómbralo igual y di por qué no sirve y qué "
+            f"haces ahora.")
     except Exception:  # noqa: BLE001
         pass
 

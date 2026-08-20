@@ -1275,6 +1275,19 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **La nota del hallazgo llevaba TRES órdenes, y el turno obedeció la del medio** (`widgets/navegador/act_api.py`,
+  V2-226, 2026-08-20). La nota de V2-223 decía «si responde a lo que pidió, dáselo; si no, no lo ofrezcas como
+  resultado; **pero entonces tampoco digas que sigues buscando sin más**». Medido en la primera ronda limpia
+  (sha `0b89510`): el navegador había extraído el anuncio de flamenco de 25 € y el turno contestó «se ha quedado
+  a medias y **no ha llegado a darme resultados**». Obedeció la cláusula del medio —no ofrecerlo como hotel, que
+  es lo que la nota existe para evitar— y se comió la última: con un resultado delante, informó de ninguno.
+  - Es **la misma forma que V2-224 acababa de medir** en el otro bloque: dos órdenes en una frase se resuelven a
+    cara o cruz. La bifurcación pasa a ser un matiz DENTRO de un solo imperativo («nómbralo en este turno y, en
+    la misma frase, di si sirve») y la frase que nunca puede ser cierta —«no hay resultados»— se prohíbe
+    explícitamente en vez de dejarla como consecuencia que el modelo tiene que deducir.
+  - Regla que sale de las dos: **una instrucción por nota y por bloque.** Si hace falta una bifurcación, va
+    dentro de la orden, nunca como segunda orden. Nodo 4.25.
+
 - **Decirlo una vez no es olvidarlo** (`nucleo/dispatch.py` + `nucleo/flash/prompt.py`, V2-224, 2026-08-20). La
   instrucción incondicional de V2-221 funcionó —el arnés midió **2 de 2** turnos diciéndolo, en el turno 2, sin
   que nadie preguntara— pero llevaba la anti-repetición DENTRO de la misma frase, y eso se midió en **dos rondas

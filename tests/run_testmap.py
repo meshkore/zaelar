@@ -828,6 +828,13 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_worker_outcome.py"]},
         {"id": "10.32", "title": "Every round records what else the machine was doing (GPU tenants)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_machine_stamp.py"]},
+        {"id": "10.33", "title": "A role flip written as PROSE is caught too, not just a formatted deliverable",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_driver_flip_in_prose.py"]},
+        {"id": "10.34", "title": "A prompt that says the same errand is running AND finished voids that turn's "
+                                 "obedience reading",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_prompt_contradiction.py"]},
+        {"id": "10.35", "title": "No round is measured while the engine is mid-edit",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_no_measuring_a_moving_tree.py"]},
     ]},
 ]
 

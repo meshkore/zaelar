@@ -56,8 +56,23 @@ def test_the_note_names_the_TEST_instead_of_ordering_an_announcement(task):
     would have delivered an ad as the answer."""
     act_api._hand_over(task, AD)
     note = brain_notes.drain()[0]
-    assert "Si responde a lo que pidió el operador" in note
-    assert "no lo ofrezcas como resultado" in note
+    assert "si responde a lo que pidió el operador" in note
+    assert "di por qué no sirve" in note
+
+
+def test_it_carries_ONE_order_with_the_fork_inside_it(task):
+    """V2-226. The first version said «if it answers, give it; if not, don't offer it as a result; but then don't
+    say you're still searching either», and the first clean round measured what three clauses do: the browser had
+    extracted the flamenco ad and the turn said «se ha quedado a medias y no ha llegado a darme resultados» — it
+    obeyed the middle clause and dropped the last. Same shape V2-224 had just measured on the ended-tasks block.
+
+    So there is ONE imperative, and the sentence that can never be true is banned outright rather than left as a
+    consequence the model has to derive."""
+    act_api._hand_over(task, AD)
+    note = brain_notes.drain()[0]
+    assert "NÓMBRALO EN ESTE TURNO" in note
+    assert "no hay resultados" in note and "sigues buscando sin más" in note
+    assert note.count("EN ESTE TURNO") == 1
 
 
 def test_re_extracting_the_same_page_is_not_a_new_finding(task):
