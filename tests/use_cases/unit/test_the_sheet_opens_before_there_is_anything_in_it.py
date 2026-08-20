@@ -34,7 +34,7 @@ def test_the_sheet_opening_first_is_the_good_case(tmp_path):
 def test_the_sheet_arriving_after_the_result_is_the_defect(tmp_path):
     got = verify.sheet_timing(_db(tmp_path, [
         (1_000, "navegador", json.dumps({"text": _REAL})),
-        (9_000, "widget", json.dumps({"id": "results", "label": "data"}))]))
+        (9_000, "widget", json.dumps({"id": "results", "label": "show"}))]))
     assert got["opened_before"] is False
 
 
@@ -45,6 +45,18 @@ def test_a_usage_error_is_not_a_result(tmp_path):
         (5_000, "widget", json.dumps({"id": "results", "label": "show"})),
         (9_000, "navegador", json.dumps({"text": _REAL}))]))
     assert got["opened_before"] is True and got["lead_s"] == 4.0
+
+
+def test_a_background_write_is_not_an_opening(tmp_path):
+    """The check has to DISCRIMINATE. Its first version accepted any operation on the sheet and reported
+    'opened 51s early' on a round from BEFORE the wiring existed, because a background `data` write had
+    always been there. A check that goes green with the feature built and unbuilt is worse than none: it
+    gives confidence. Only `show` counts as opening it."""
+    got = verify.sheet_timing(_db(tmp_path, [
+        (1_000, "widget", json.dumps({"id": "results", "label": "data"})),
+        (9_000, "navegador", json.dumps({"text": _REAL}))]))
+    assert got["sheet_ms"] is None and got["opened_before"] is None
+    assert got["sheet_any_ms"] == 1_000        # se registra, pero no cuenta como apertura
 
 
 def test_another_widget_is_not_the_sheet(tmp_path):

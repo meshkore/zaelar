@@ -874,7 +874,8 @@ def sheet_timing(db_path, *, since: float = 0.0) -> dict:
     llegó-tarde son cosas distintas y confundirlas es como se inventa un fallo.
     """
     import sqlite3
-    out: dict = {"sheet_ms": None, "first_result_ms": None, "opened_before": None, "lead_s": None}
+    out: dict = {"sheet_ms": None, "sheet_any_ms": None, "first_result_ms": None,
+                 "opened_before": None, "lead_s": None}
     try:
         con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     except Exception:
@@ -892,8 +893,16 @@ def sheet_timing(db_path, *, since: float = 0.0) -> dict:
             d = json.loads(raw)
         except Exception:
             continue
-        if kind == "widget" and out["sheet_ms"] is None and str(d.get("id") or "") == "results":
-            out["sheet_ms"] = ts_ms
+        if kind == "widget" and str(d.get("id") or "") == "results":
+            # SOLO `show`, y esto es lo que hace que la medida DISCRIMINE. La primera versión aceptaba
+            # cualquier operación sobre la hoja y daba «abrió 51 s antes» en una ronda ANTERIOR al
+            # cableado: un `data` de fondo existía desde siempre. Una comprobación que sale verde con la
+            # función construida y sin construir no prueba nada y encima da confianza — es peor que no
+            # tenerla. Lo que el cableado añade es ABRIRLA (`show`) al encargar.
+            if str(d.get("label") or "") == "show" and out["sheet_ms"] is None:
+                out["sheet_ms"] = ts_ms
+            elif out["sheet_any_ms"] is None:
+                out["sheet_any_ms"] = ts_ms
         elif kind == "navegador" and out["first_result_ms"] is None:
             if any(it.get("title") for it in _items_in(str(d.get("text") or ""))):
                 out["first_result_ms"] = ts_ms
