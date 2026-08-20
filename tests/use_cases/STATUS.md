@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-20 12:33**
+Last updated: **2026-08-20 12:39**
 
 `✅ PASS` = judge overall ≥ 4 · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -18,7 +18,7 @@ the operator's live one.
 | ❌ | `remember-and-remind-deadline` | 1 | 2 | 2026-08-20 12:29 | yes | No está listo para producción. El bloqueador nº1 es la ausencia total de respaldo técnico (`scheduled_jobs` y写入 de memoria) para las afirmaciones que zaelar … |
 | ❌ | `renew-gym-membership__es` | 1 | 3 | 2026-08-20 03:02 | yes | No listo. El bloqueador principal es la desvinculación entre el relato del agente y la realidad del mecanismo: narró un proceso de espera y análisis que nunc… |
 | ❌ | `restaurant-tonight-madrid` | 1 | 2 | 2026-08-20 12:33 | yes | No está listo: el agente falla porque alucina acciones en curso que no suceden y se rinde ante la dificultad técnica (formulario lento) en lugar de pivotar a… |
-| ❌ | `cheapest-monitor` | 2 | 2 | 2026-08-20 10:24 | yes | No está listo para producción: el sistema entró en un bucle de búsqueda indeciso ('stuck') sin capacidad para reconocer el fallo y reportarlo al usuario, inc… |
+| ❌ | `cheapest-monitor` | 2 | 1 | 2026-08-20 12:39 | yes | No está listo para producción: el sistema intenta el trabajo y el navegador llega a la página, pero falla estrepitosamente al extraer los datos (no hay 'evid… |
 
 **1 passing · 7 failing · 0 infra** of 8 scenarios with a recorded result.
 

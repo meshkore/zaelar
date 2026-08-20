@@ -83,3 +83,40 @@ def test_the_anomalies_travel_in_the_LEDGER_so_the_tick_can_act_on_them(tmp_path
     entry = ST.record([result], sandboxed=True)["scenarios"]["x"]
     assert entry["audit_anomalies"] == [{"clase": "error_interno", "certeza": "hecho", "que": "boom"}]
     assert entry["state"] == "PASS", "la nota del juez es la nota; la auditoría no la reescribe, frena el CIERRE"
+
+
+def test_the_audit_reads_the_shape_the_API_actually_serves():
+    """El fallo más caro que ha tenido esta auditoría, y duró una hora.
+
+    `observer.emit` hace `ev.update(extra)`, así que los campos caen PLANOS en el payload — y el payload llega
+    de la API de observabilidad como una CADENA JSON. La primera versión de `audit` leía `e.get("evidence")`
+    directamente, así que devolvía CERO evidencia siempre, y de ahí `sin_evidencia_externa` en todos los casos
+    con worker esperado.
+
+    El 2026-08-20 12:2x eso le puso a TRES casos distintos (`find-theatre`, `restaurant`, `cheapest-monitor`)
+    la anomalía «el mundo exterior no trajo nada» — mientras el timeline de esa misma tanda llevaba **60
+    eventos con `evidence`, 26 de ellos del navegador**. Estaba a punto de entregarse al agente que arregla
+    como hecho medido. Una auditoría que INVENTA una anomalía es peor que no tenerla: manda a alguien a buscar
+    un defecto que es mío.
+
+    Y el aviso estaba escrito: el docstring de `_fields` lo dice literalmente. No basta con documentarlo.
+    """
+    import json
+
+    from tests.use_cases.e2e.agent import verify as V
+
+    api_shape = [
+        {"cat": "worker", "kind": "navegador",
+         "payload": json.dumps({"label": "🏁 hito", "evidence": True, "rel_ms": 100, "span": "worker:1"})},
+        {"cat": "worker", "kind": "task",
+         "payload": json.dumps({"label": "paso", "is_error": True, "text": "boom", "tool": "Bash",
+                                "rel_ms": 200, "span": "worker:1"})},
+    ]
+    a = V.audit(api_shape, ["Brain Workers"])
+
+    assert a["n_evidence"] == 1, "los campos vienen dentro del payload como cadena JSON"
+    assert len(a["errors"]) == 1 and "boom" in a["errors"][0]["text"]
+    assert a["tools_run"] == {"Bash": 1}
+    assert "sin_evidencia_externa" not in [x["clase"] for x in a["anomalies"]], (
+        "esta es la anomalía inventada: había evidencia y el lector no la veía")
+    assert a["spans"]["worker:1"]["errors"] == 1, "el span también se lee del payload"

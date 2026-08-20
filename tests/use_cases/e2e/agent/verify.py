@@ -266,38 +266,52 @@ def audit(all_events: list[dict], expected_signals: list[str] | None = None) -> 
     ORDERED with the certain ones first: an `is_error` event is not an interpretation.
     """
     exp = expected_signals or []
-    evs = [e for e in all_events if isinstance(e, dict)]
-    errors = [{"cat": e.get("cat"), "kind": e.get("kind"), "label": e.get("label"),
-               "span": e.get("span"), "rel_ms": e.get("rel_ms"),
-               "text": str(e.get("text") or "")[:240]}
-              for e in evs if e.get("is_error")]
-    evidence = [e for e in evs if e.get("evidence")]
+    # EVERY field goes through `_fields`, for the reason its own docstring gives: from the observability API
+    # the payload arrives as a JSON STRING, so `e.get("evidence")` reads None on every event and the audit
+    # reports zero evidence for a run that had sixty. That is not a hypothetical — the first version of this
+    # function read the fields directly and told three separate cases (`find-theatre`, `restaurant`,
+    # `cheapest-monitor`, 2026-08-20 12:2x) that «the outside world brought nothing back», while the sandbox
+    # timeline for that very batch carried 60 events with `evidence`, 26 of them from the browser. It was
+    # about to be handed to the fixing agent as a measured fact. Wrong in the worst direction: an audit that
+    # invents an anomaly is worse than no audit, because it sends someone to look for a defect that is mine.
+    evs = [(e, _fields(e)) for e in all_events if isinstance(e, dict)]
+
+    def _f(e: dict, f: dict, key: str):
+        return f.get(key) if f.get(key) is not None else e.get(key)
+
+    errors = [{"cat": _f(e, f, "cat"), "kind": _f(e, f, "kind"), "label": _f(e, f, "label"),
+               "span": _f(e, f, "span"), "rel_ms": _f(e, f, "rel_ms"),
+               "text": str(_f(e, f, "text") or "")[:240]}
+              for e, f in evs if _f(e, f, "is_error")]
+    evidence = [e for e, f in evs if _f(e, f, "evidence")]
     tools: dict[str, int] = {}
-    for e in evs:
-        if t := e.get("tool"):
+    for e, f in evs:
+        if t := _f(e, f, "tool"):
             tools[t] = tools.get(t, 0) + 1
 
     spans: dict[str, dict] = {}
-    for e in evs:
-        sp = e.get("span")
+    for e, f in evs:
+        sp = _f(e, f, "span")
         if not sp:
             continue
-        d = spans.setdefault(sp, {"n": 0, "first_ms": e.get("rel_ms"), "last_ms": e.get("rel_ms"),
+        rel = _f(e, f, "rel_ms")
+        d = spans.setdefault(sp, {"n": 0, "first_ms": rel, "last_ms": rel,
                                   "errors": 0, "last_label": ""})
         d["n"] += 1
-        d["last_ms"] = e.get("rel_ms")
-        d["last_label"] = e.get("label") or ""
-        if e.get("is_error"):
+        d["last_ms"] = rel
+        d["last_label"] = _f(e, f, "label") or ""
+        if _f(e, f, "is_error"):
             d["errors"] += 1
 
-    stamps = sorted(e.get("rel_ms") for e in evs if isinstance(e.get("rel_ms"), (int, float)))
+    stamps = sorted(r for e, f in evs
+                    if isinstance((r := _f(e, f, "rel_ms")), (int, float)))
     gap = max((b - a for a, b in zip(stamps, stamps[1:])), default=0)
 
     anomalies: list[dict] = []
     for e in errors:
         anomalies.append({"clase": "error_interno", "certeza": "hecho",
                           "que": f"{e['cat']}/{e['kind']} «{e['label']}»: {e['text'][:160]}"})
-    for d in dropped_actions(evs):
+    for d in dropped_actions([e for e, _ in evs]):
         anomalies.append({"clase": "accion_descartada", "certeza": "hecho",
                           "que": f"tool={d.get('tool') or '?'} razón={d.get('reason') or '?'}"})
     # Zero evidence with a worker or browser expected means nothing came back from the outside world. A
@@ -320,7 +334,7 @@ def audit(all_events: list[dict], expected_signals: list[str] | None = None) -> 
         "tools_run": tools,
         "spans": spans,
         "max_gap_ms": gap,
-        "unexpected_families": sorted(families_in(evs) - set(exp)) if exp else [],
+        "unexpected_families": sorted(families_in([e for e, _ in evs]) - set(exp)) if exp else [],
         "anomalies": anomalies,
         "clean": not anomalies,
     }
