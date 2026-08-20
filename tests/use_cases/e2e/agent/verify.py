@@ -849,7 +849,7 @@ def worker_health(db_path, *, since: float = 0.0) -> dict:
     """
     import sqlite3
     out: dict = {"spawned": 0, "ok": 0, "errored": 0, "cancelled": 0, "cancelled_by_shutdown": 0,
-                 "still_running": 0}
+                 "relayed": 0, "still_running": 0}
     try:
         con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     except Exception:
@@ -872,6 +872,13 @@ def worker_health(db_path, *, since: float = 0.0) -> dict:
                 out["ok"] += 1
             elif status == "cancelled":
                 out["cancelled"] += 1
+            elif status == "relevada" or d.get("handoff"):
+                # A PROVIDER RELAY IS NOT A DEATH. Until V2-238 it closed with ok=false/status=error, so
+                # this column counted it as one — and the round of 2026-08-21 reported a second failure
+                # signature at ~1450 ms that was the relay working, not a worker dying. It also cost the
+                # product twice over: the brain was told the task had died while the relay was running,
+                # and the resume logic read the same ok=false and escalated twice for one handoff.
+                out["relayed"] += 1
             else:
                 out["errored"] += 1
         # STILL WORKING when the round was judged. This reading happens DURING the round, so a worker that
@@ -886,7 +893,8 @@ def worker_health(db_path, *, since: float = 0.0) -> dict:
                     out["cancelled_by_shutdown"] += 1
             except Exception:
                 continue
-        out["still_running"] = max(0, out["spawned"] - out["ok"] - out["errored"] - out["cancelled"])
+        out["still_running"] = max(0, out["spawned"] - out["ok"] - out["errored"]
+                                    - out["cancelled"] - out["relayed"])
     except Exception:
         return out
     finally:

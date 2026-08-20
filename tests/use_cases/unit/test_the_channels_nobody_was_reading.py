@@ -188,3 +188,14 @@ def test_and_stays_quiet_when_no_session_was_shared():
     txt = J.mechanism_facts({"worker_deaths": {"shared_sessions": {}, "dead_resuming": 0, "resuming": 0,
                                                "dead_fresh": 0, "fresh": 2, "lifetimes_ms": {}}})
     assert "REANUDARON LA MISMA SESIÓN" not in txt
+
+
+def test_a_provider_relay_is_not_a_death(tmp_path):
+    """Until V2-238 a relay closed with ok=false/status=error, and this column called it a death — which
+    is how a second 'failure signature' at ~1450 ms got reported that was the relay working."""
+    db = _db(tmp_path, [("worker.spawned", None, None, '{"id":"1"}'), ("worker.spawned", None, None, '{"id":"2"}'),
+                        ("worker.done", None, None, '{"id":"1","ok":false,"status":"relevada","handoff":"deepseek"}'),
+                        ("worker.done", None, None, '{"id":"2","ok":false,"status":"error"}')])
+    got = verify.worker_health(db)
+    assert got["relayed"] == 1 and got["errored"] == 1, got
+    assert got["still_running"] == 0, "a relay is accounted for, not left hanging"
