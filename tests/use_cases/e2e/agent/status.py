@@ -53,6 +53,12 @@ def record(results: list[dict], *, sandboxed: bool) -> dict:
         entry = {
             "last_run": stamp,
             "overall": overall,
+            # WHICH RULER graded it. Measured on 2026-08-20: the same case had been graded by four different
+            # judges across one day (glm-4.6 and two aliases of deepseek-v4-flash, plus older unsealed runs),
+            # because the judge chain falls back when the vendor is rate-limited. Their averages over that
+            # day's gradings differ by 0.44 of a point. A case that "went from 3 to 2" between two rounds may
+            # simply have changed ruler, and the board would show that as a regression.
+            "judge": (verdict.get("_judge_model") or "").replace("deepseek/", ""),
             "state": _state(overall, r),
             "scores": verdict.get("scores") or {},
             "verdict": (verdict.get("veredicto") or "")[:400],
