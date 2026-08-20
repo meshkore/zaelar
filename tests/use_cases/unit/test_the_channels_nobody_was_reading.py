@@ -97,3 +97,26 @@ def test_and_stays_quiet_when_the_channel_IS_delivered():
     txt = J.mechanism_facts({"search_returns": {"queries": 2, "returns": 2, "model_tokens_seen": 2,
                                                 "notes_from_search": 2, "sample": ["x"]}})
     assert "LA BÚSQUEDA WEB CONTESTÓ" not in txt
+
+
+def test_a_worker_still_working_is_not_a_worker_that_failed(tmp_path):
+    """This reading happens DURING the round. Without counting the unfinished ones, the report said
+    «4 spawned, 0 ok», which reads as four failures — when one had errored and three were still alive."""
+    db = _db(tmp_path, [("worker.spawned", None, None, '{"id":"1"}'), ("worker.spawned", None, None, '{"id":"2"}'),
+                        ("worker.spawned", None, None, '{"id":"3"}'), ("worker.spawned", None, None, '{"id":"4"}'),
+                        ("worker.done", None, None, '{"id":"1","ok":false,"status":"error"}')])
+    got = verify.worker_health(db)
+    assert got["errored"] == 1
+    assert got["still_running"] == 3, "three had not finished — that is not three defects"
+
+
+def test_the_judge_says_so_instead_of_scoring_it():
+    txt = J.mechanism_facts({"worker_health": {"spawned": 4, "ok": 0, "errored": 1, "cancelled": 0,
+                                               "still_running": 3}})
+    assert "SEGUÍAN TRABAJANDO" in txt and "No cuentan como fallo" in txt
+
+
+def test_and_stays_quiet_when_they_all_finished():
+    txt = J.mechanism_facts({"worker_health": {"spawned": 2, "ok": 2, "errored": 0, "cancelled": 0,
+                                               "still_running": 0}})
+    assert "SEGUÍAN TRABAJANDO" not in txt

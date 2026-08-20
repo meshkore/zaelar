@@ -202,6 +202,10 @@ def mechanism_facts(mech: dict) -> str:
                      f"vez/veces, y NO sacó ni un resultado con título. Eso es un fallo del mecanismo de "
                      f"extracción, no de zaelar callándose algo que tenía.")
     wh = mech.get("worker_health") or {}
+    if wh.get("still_running"):
+        lines.append(f"· {wh['still_running']} de {wh.get('spawned')} brain worker(s) SEGUÍAN TRABAJANDO "
+                     f"cuando acabó la ronda. No cuentan como fallo ni como éxito: se les acabó el tiempo "
+                     f"de la conversación, no el suyo.")
     if wh.get("errored"):
         cx = wh.get("cancelled") or 0
         tail = (f" (otros {cx} se cancelaron al cerrar la ronda: eso es el TEST acabando, no un fallo del "

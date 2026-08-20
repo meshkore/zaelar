@@ -848,7 +848,8 @@ def worker_health(db_path, *, since: float = 0.0) -> dict:
     a failure will score honesty about that failure as evasion.
     """
     import sqlite3
-    out: dict = {"spawned": 0, "ok": 0, "errored": 0, "cancelled": 0, "cancelled_by_shutdown": 0}
+    out: dict = {"spawned": 0, "ok": 0, "errored": 0, "cancelled": 0, "cancelled_by_shutdown": 0,
+                 "still_running": 0}
     try:
         con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     except Exception:
@@ -873,6 +874,11 @@ def worker_health(db_path, *, since: float = 0.0) -> dict:
                 out["cancelled"] += 1
             else:
                 out["errored"] += 1
+        # STILL WORKING when the round was judged. This reading happens DURING the round, so a worker that
+        # has not finished yet has no terminal event — and without this line the report said «4 spawned, 0
+        # ok», which reads as four failures. In the round of 2026-08-21 00:29 exactly one had errored (at
+        # +46s) and three were alive; their `cancelled` rows were written at +434s, all in the same instant,
+        # when the harness tore the sandbox down. Three product failures invented by the clock.
         for (raw,) in con.execute("SELECT payload FROM events WHERE topic = 'worker.cancelled' AND ts_ms >= ?",
                                   (int(since * 1000),)).fetchall():
             try:
@@ -880,6 +886,7 @@ def worker_health(db_path, *, since: float = 0.0) -> dict:
                     out["cancelled_by_shutdown"] += 1
             except Exception:
                 continue
+        out["still_running"] = max(0, out["spawned"] - out["ok"] - out["errored"] - out["cancelled"])
     except Exception:
         return out
     finally:
