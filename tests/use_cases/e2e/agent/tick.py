@@ -142,6 +142,23 @@ def _retest_pending() -> dict:
         _log("paso 1 · tareas de verify que NO apuntan a ningún caso del catálogo (nadie las va a correr; "
              "hace falta una por CASO, o cerrarlas): "
              + "; ".join(f"{p['task'].name} (slug «{p['slug']}»)" for p in orphan))
+    # TWO verify tasks can name the SAME case (the dev agent answers a case in two separate fixes, as
+    # T434+T438 did for `find-theatre-tickets__es` on 2026-08-20). `run.py --verify` measures it ONCE and
+    # closes both tasks, so a duplicate here is never a second measurement — it is the bookkeeping below
+    # running twice off one verdict, which appends the SAME round to the umbrella twice and inflates the
+    # re-tested count. Collapse by case, keep the first, and say so.
+    seen: set[str] = set()
+    unique, dup = [], []
+    for p in ready:
+        if p["scenario"] in seen:
+            dup.append(p["task"].name)
+            continue
+        seen.add(p["scenario"])
+        unique.append(p)
+    ready = unique
+    if dup:
+        _log("paso 1 · varias tareas de verify para el MISMO caso; se mide una vez y se cierran todas: "
+             + ", ".join(dup))
     if not ready:
         return {"retested": 0, "orphan": [p["task"].name for p in orphan]}
 

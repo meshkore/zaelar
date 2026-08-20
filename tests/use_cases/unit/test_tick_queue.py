@@ -131,3 +131,55 @@ def test_but_a_resolvable_task_is_not_reported_as_an_orphan(monkeypatch):
     out = T._retest_pending()
     assert out.get("orphan") == []
     assert "no apuntan a ningún caso" not in " ".join(logged)
+
+
+def test_two_verify_tasks_for_the_SAME_case_are_measured_once(monkeypatch):
+    """El 2026-08-20 el agente que arregla respondió `find-theatre-tickets__es` en DOS tareas separadas
+    (T434 y T438), y el tick anunció el caso dos veces y recorrió su contabilidad dos veces sobre UN solo
+    veredicto: la misma ronda escrita dos veces en el paraguas y un `re-probados` inflado. No es un segundo
+    gasto de corrida —`run.py --verify` mide una vez y cierra las dos tareas—, es el libro mayor duplicando.
+    """
+    from pathlib import Path
+
+    from tests.use_cases.e2e.agent import status as statusmod
+
+    logged: list[str] = []
+    seen_cases: list[str] = []
+    monkeypatch.setattr(T, "_log", lambda m: logged.append(m))
+    monkeypatch.setattr(T.I, "scenarios_awaiting_verification", lambda reg: [
+        {"scenario": "find-theatre-tickets__es", "slug": "find-theatre-tickets-es",
+         "task": Path("T434-uc-find-theatre-tickets-es-verify.md")},
+        {"scenario": "find-theatre-tickets__es", "slug": "find-theatre-tickets-es",
+         "task": Path("T438-uc-find-theatre-tickets-es-verify.md")},
+    ])
+    monkeypatch.setattr(T.I, "find_initiative", lambda sid: (seen_cases.append(sid), None)[1])
+    monkeypatch.setattr(T, "_run", lambda args, timeout_s: (1, ""))
+    monkeypatch.setattr(statusmod, "load", lambda: {"scenarios": {}})
+    monkeypatch.setattr(statusmod, "summary_line", lambda: "x")
+
+    out = T._retest_pending()
+    assert out["retested"] == 1, "un caso medido una vez se cuenta una vez, haya 1 o 5 tareas pidiéndolo"
+    assert seen_cases == ["find-theatre-tickets__es"], "la contabilidad del caso corrió dos veces"
+    said = " ".join(logged)
+    assert "T438-uc-find-theatre-tickets-es-verify.md" in said, (
+        "colapsar en silencio deja al operador sin saber por qué una tarea `next` no aparece en el log")
+
+
+def test_but_distinct_cases_are_all_kept(monkeypatch):
+    """La mitad de sensibilidad: un dedup por CASO no puede convertirse en «solo se re-prueba el primero»."""
+    from pathlib import Path
+
+    from tests.use_cases.e2e.agent import status as statusmod
+
+    monkeypatch.setattr(T, "_log", lambda m: None)
+    monkeypatch.setattr(T.I, "scenarios_awaiting_verification", lambda reg: [
+        {"scenario": "cheapest-monitor", "slug": "cheapest-monitor", "task": Path("T1-verify.md")},
+        {"scenario": "remember-and-remind-deadline", "slug": "remember-and-remind-deadline",
+         "task": Path("T2-verify.md")},
+    ])
+    monkeypatch.setattr(T.I, "find_initiative", lambda sid: None)
+    monkeypatch.setattr(T, "_run", lambda args, timeout_s: (1, ""))
+    monkeypatch.setattr(statusmod, "load", lambda: {"scenarios": {}})
+    monkeypatch.setattr(statusmod, "summary_line", lambda: "x")
+
+    assert T._retest_pending()["retested"] == 2
