@@ -20,6 +20,8 @@ import sys
 import time
 import urllib.request
 
+from nucleo import bridge_usage
+
 _BASE = os.getenv("ZAELAR_BASE", "http://localhost:43917").rstrip("/")
 # Ventana de espera de UN ciclo de `ask`/`wait` — corta para retornar ANTES del timeout del tool Bash (§v3·I).
 _ASK_CYCLE_S = float(os.getenv("ZAELAR_ASK_CYCLE_S", "20"))
@@ -130,10 +132,34 @@ def _cmd_say(text: str) -> int:
     return 0 if res.get("ok") else 1
 
 
+# V2-216 — medido en `hotel-under-15-days`: `Exit code 2 usage: worker_bridge [-h] {ask,wait,act,say} … error:
+# the following arguments are required`. El worker se quedó ahí y la ronda acabó con CERO búsquedas. Un `usage`
+# dice la forma y no dice qué hacer, que es el callejón sin salida que ya pagaron `nav_cli` (V2-212) y el puente
+# del payload (V2-203). Aquí duele más que en ninguno: `worker_bridge` es la vía por la que el worker PIDE una
+# búsqueda, así que morir en sus argumentos lo deja ciego para el resto de la tarea.
+def _hint_for(prog: str) -> str:
+    if prog.endswith("act"):
+        return ('   · `act` lleva DOS cosas: la acción y su payload JSON ENTRE COMILLAS SIMPLES.\n'
+                '   · Para BUSCAR en la web (lo más habitual):\n'
+                '       act use_tool \'{"tool":"web_search","args":{"query":"<qué buscas>"}}\'\n'
+                '   · El JSON va en UNA sola línea y con comillas simples por fuera: sin ellas el shell lo parte '
+                'y llega a medias.')
+    if prog.endswith("ask"):
+        return ('   · `ask` lleva la pregunta ENTERA entre comillas: `ask "¿la prefieres de enduro o de cross?"`.\n'
+                '   · Sin comillas se parte por los espacios y solo llega la primera palabra.\n'
+                '   · Bloquea hasta que el operador conteste; si vence el ciclo, reanúdala con `wait <corr_id>`.')
+    if prog.endswith("say"):
+        return '   · `say` lleva el mensaje entre comillas: `say "voy a tardar un poco más, sigo filtrando"`.'
+    if prog.endswith("wait"):
+        return '   · `wait` lleva el `corr_id` que te devolvió el `ask` que lanzaste antes: `wait <corr_id>`.'
+    return ("   · Los subcomandos son `ask` / `wait` / `act` / `say`, y TODOS llevan su argumento entre "
+            "comillas. Ninguno funciona a secas.")
+
+
 def main(argv: list[str] | None = None) -> int:
     import argparse
     ap = argparse.ArgumentParser(prog="worker_bridge", description="Puentes del Brain Worker (ask/act/say/wait)")
-    sub = ap.add_subparsers(dest="cmd", required=True)
+    sub = ap.add_subparsers(dest="cmd", required=True, parser_class=bridge_usage.guided(_hint_for))
     pa = sub.add_parser("ask", help="pregunta al usuario y ESPERA la respuesta")
     pa.add_argument("question")
     pw = sub.add_parser("wait", help="reintenta la espera de una pregunta ya hecha")

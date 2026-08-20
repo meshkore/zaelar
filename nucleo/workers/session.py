@@ -505,8 +505,9 @@ class WorkerSession:
             await self._b.send(
                 "AVISO DEL SISTEMA: ese comando no lo ha rechazado ninguna persona — lo ha parado el cajón donde "
                 "corres, y aquí NADIE puede aprobarlo, así que reintentarlo igual no va a funcionar nunca. "
-                f"Reescríbelo: UN solo comando por llamada (sin `&&`, `;`, `|` ni `$(…)`), NUNCA `cd` (ya estás "
-                f"en tu directorio y los puentes funcionan desde él), y solo los puentes `{py} -m nucleo.…` — "
+                f"Reescríbelo: UN solo comando por llamada (sin `&&`, `;`, `|` ni `$(…)`), sin SALIR de tu "
+                f"directorio (no solo `cd`: tampoco `ls`/`find`/`cat` de carpetas del repo — los puentes "
+                f"funcionan desde donde estás), y solo los puentes `{py} -m nucleo.…` — "
                 "para abrir una página `nav_cli`, para buscar `worker_bridge`, nada de `curl` ni scripts propios. "
                 "Si lo que necesitabas no se puede hacer así, DILO en tu entrega en vez de terminar en silencio."
             )

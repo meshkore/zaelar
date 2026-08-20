@@ -32,9 +32,23 @@ def _header():
     return dp._with_interpreter("usa python -m nucleo.nav_cli snapshot")
 
 
-def test_the_prompt_forbids_cd_and_says_why():
+def test_the_prompt_forbids_LEAVING_the_directory_not_just_cd():
+    """V2-216 — the harness corrected this and the correction matters: the round of 18:28 brought
+    `cd in '<engine>' was blocked` AND `ls in '<engine>/t…' was blocked`. The gate is not about the verb `cd`,
+    it is about any command that navigates or lists a directory of the engine's repo. A rule written around one
+    verb leaves out the next command, and there is always a next command."""
     h = _header()
-    assert "NUNCA `cd`" in h and "BLOQUEADO" in h
+    assert "NO SALGAS DE TU DIRECTORIO" in h
+    for cmd in ("cd", "ls", "find"):
+        assert f"`{cmd}`" in h, cmd
+
+
+def test_the_prompt_still_ALLOWS_reading_a_path_we_handed_over():
+    """The counterweight, and without it this rule breaks the vision path: the browser gives the worker its
+    screenshot as an ABSOLUTE path under the repo, and V2-117 verified live that reading it is permitted. A
+    blanket «never touch an absolute path of the engine» would make the worker refuse the one it needs."""
+    h = _header()
+    assert "Read" in h and "captura" in h
 
 
 def test_the_prompt_forbids_chaining_operations():

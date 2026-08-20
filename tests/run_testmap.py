@@ -161,6 +161,11 @@ DOMAINS: list[dict] = [
             # nunca se paga, el campo que leen los agentes es `prompt` (no `query`) y de su ficha se toma la
             # RUTA pero jamás el host. Sin red: todo está fingido a propósito.
             "tests/agent_headless/unit/test_mesh_agents.py",
+            # V2-216: el worker se murió DOS veces en la aridad de nuestro propio CLI, en casos sin relación
+            # (`scroll down` cuatro veces, `worker_bridge act` sin payload) — y la ronda acabó con CERO
+            # búsquedas. Una mitad es que el CLI estaba equivocado (una dirección es una forma legítima de
+            # escribirlo) y la otra que el fallo tiene que decir cómo se escribe.
+            "tests/agent_headless/unit/workers/test_the_bridge_takes_what_the_worker_writes.py",
             # V2-203: el puente del payload contestaba a un fichero que falta con el OSError pelado, y el worker
             # lo leía como un callejón sin salida (`cheapest-monitor` ronda 21: Exit code 2, nada entregado).
             # Mismo contrato que el nodo 4.20 para `nav_cli`: lo que el puente sabe, lo DICE — y un fallo dice

@@ -26,6 +26,8 @@ import os
 import sys
 import urllib.request
 
+from nucleo import bridge_usage
+
 _BASE = os.getenv("ZAELAR_BASE", "http://localhost:43917").rstrip("/")
 
 
@@ -102,6 +104,33 @@ def _print_state(res: dict) -> None:
 # que es exactamente lo que sale de usar la aridad de uno con el nombre del otro. Y el `usage` de argparse dice
 # la FORMA pero no el ERROR — la misma clase de mensaje mudo que el `informe.json` de V2-203: dice qué falló y
 # nada de qué hacer, así que el worker no tiene de dónde tirar.
+_SCROLL_STEP = 800
+# V2-216 — `scroll down` is what a worker writes, and it is not unreasonable: every other tool it has ever
+# driven takes a direction there. Measured FOUR times across TWO unrelated cases the same day
+# (`hotel-under-15-days` and the Bilbao round): `argument dy: invalid int value: 'down'`, Exit code 2, turn
+# burned. Its own manual says `scroll 800`, so it KNOWS the syntax and does not use it — which is the signal
+# that the syntax is the thing that is wrong, not the worker.
+#
+# Accepting the word is not a hardcoded verb table (the thing this repo refuses to build): nothing here is
+# CLASSIFYING intent. The direction is already the argument; this only stops the CLI from rejecting the most
+# natural way to write it.
+_SCROLL_WORDS = {"down": _SCROLL_STEP, "abajo": _SCROLL_STEP, "up": -_SCROLL_STEP, "arriba": -_SCROLL_STEP,
+                 "bottom": _SCROLL_STEP * 5, "top": -_SCROLL_STEP * 5}
+
+
+def _scroll_amount(raw: str) -> int:
+    """Pixels. A bare direction resolves to one screenful; a number still means exactly that number."""
+    v = (raw or "").strip().lower()
+    if v in _SCROLL_WORDS:
+        return _SCROLL_WORDS[v]
+    try:
+        return int(v)
+    except ValueError:
+        raise argparse.ArgumentTypeError(
+            f"«{raw}» no es ni un número de píxeles ni una dirección. Usa `scroll 800`, o `scroll down` / "
+            f"`scroll up` si solo quieres moverte una pantalla.")
+
+
 def _hint_for(prog: str) -> str:
     if prog.endswith("type_at"):
         return ("   · `type_at` es de VISIÓN y va con COORDENADAS: `type_at <x> <y> \"texto\"`, dos números "
@@ -109,24 +138,19 @@ def _hint_for(prog: str) -> str:
                 "   · Si lo que tienes es un [ref] del snapshot, el comando es OTRO: `type <ref> \"texto\"`.\n"
                 "   · El texto va ENTRE COMILLAS si lleva espacios; si no, se parte y el segundo trozo cae donde "
                 "va una coordenada.")
+    if prog.endswith("scroll"):
+        return ("   · `scroll` va en PÍXELES: `scroll 800` baja una pantalla, `scroll -800` sube.\n"
+                "   · También acepta la dirección sola: `scroll down` / `scroll up`.")
     if prog.endswith("click_at"):
         return ("   · `click_at` es de VISIÓN y va con COORDENADAS: `click_at <x> <y>` (de la captura de `look`).\n"
                 "   · Con un [ref] del snapshot el comando es `click <ref>`.")
     return ""
 
 
-class _GuidedParser(argparse.ArgumentParser):
-    """Un `usage` dice la FORMA; esto añade QUÉ hacer. Es el contrato del nodo 4.20 aplicado a los argumentos:
-    lo que el puente sabe, lo dice — y un fallo dice además cómo se sale de él."""
-
-    def error(self, message):
-        import sys as _sys
-        _sys.stderr.write(f"{self.prog}: error: {message}\n")
-        hint = _hint_for(self.prog)
-        if hint:
-            _sys.stderr.write(hint + "\n")
-        _sys.stderr.write(self.format_usage())
-        raise SystemExit(2)
+# Un `usage` dice la FORMA; esto añade QUÉ hacer. Es el contrato del nodo 4.20 aplicado a los argumentos: lo que
+# el puente sabe, lo dice — y un fallo dice además cómo se sale de él. El mecanismo se comparte (V2-216); lo que
+# es de este puente es `_hint_for`.
+_GuidedParser = bridge_usage.guided(_hint_for)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -146,7 +170,8 @@ def main(argv: list[str] | None = None) -> int:
     ta = sub.add_parser("type_at", help="VISIÓN: click en (x y) y escribir texto")
     ta.add_argument("x", type=int); ta.add_argument("y", type=int)
     ta.add_argument("text"); ta.add_argument("--submit", action="store_true")
-    s = sub.add_parser("scroll", help="desplazar"); s.add_argument("dy", type=int, nargs="?", default=800)
+    s = sub.add_parser("scroll", help="desplazar (píxeles, o `down`/`up`)")
+    s.add_argument("dy", type=_scroll_amount, nargs="?", default=_SCROLL_STEP)
     p = sub.add_parser("press", help="pulsar una tecla"); p.add_argument("key", nargs="?", default="Enter")
     e = sub.add_parser("extract", help="raspar anuncios/resultados"); e.add_argument("--limit", type=int, default=14)
     a = ap.parse_args(argv)
