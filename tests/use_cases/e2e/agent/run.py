@@ -223,7 +223,7 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     # the run's log. Same reasoning for `code`: WHICH engine code produced this row (see `config.code_stamp`).
     return {"scenario": scenario.id, "tier": scenario.tier, "channel": scenario.channel,
             "run": run_data, "verdict": verdict, "drive_model": llmmod.drive_model(),
-            "code": config.code_stamp()}
+            "code": config.code_stamp(), "machine": config.machine_stamp()}
 
 
 PENDING_DIR = config.RUNS_DIR / "pending"

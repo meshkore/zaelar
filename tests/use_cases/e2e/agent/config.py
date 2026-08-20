@@ -120,3 +120,36 @@ RUNS_DIR = voice_config.ZAELAR_ROOT / "tests" / "runs" / "use_cases"
 
 # Loopback default: no ZAELAR_OBS_TOKEN needed when the tester runs on the same machine as the engine.
 OBS_TOKEN = _env("ZAELAR_OBS_TOKEN", "")
+
+
+_MACHINE_STAMP: dict | None = None
+
+
+def machine_stamp() -> dict:
+    """WHAT ELSE the machine was doing: the models resident in the local GPU when the round started.
+
+    A round records which code measured it and, until 2026-08-20, nothing about the machine — so a round run
+    while another agent held 39,2 GB in Ollama was indistinguishable in the ledger from a round on an idle box.
+    That happened, and it was only caught because the other agent said so: their `scale_eval` was competing for
+    the GPU with the sandbox's embeddings, and the engine's local write model was paying a TimeoutError per pill
+    before failing over. Honesty about a measurement cannot depend on somebody volunteering that they were busy.
+
+    It RECORDS, it does not judge: the local write titular is legitimately resident, and what matters is that a
+    reader comparing two rounds can see whether the box was the same. Fails soft to an empty stamp, and is taken
+    once per process — the point is the state at the start of the batch.
+    """
+    global _MACHINE_STAMP
+    if _MACHINE_STAMP is not None:
+        return _MACHINE_STAMP
+    import subprocess
+    try:
+        out = subprocess.run(["ollama", "ps"], capture_output=True, text=True, timeout=10).stdout
+        models = []
+        for line in out.splitlines()[1:]:
+            parts = line.split()
+            if len(parts) >= 4:
+                models.append({"name": parts[0], "size": f"{parts[2]} {parts[3]}"})
+        _MACHINE_STAMP = {"gpu_models": models, "n": len(models)}
+    except Exception as e:
+        _MACHINE_STAMP = {"gpu_models": [], "n": 0, "error": str(e)[:80]}
+    return _MACHINE_STAMP

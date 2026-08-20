@@ -74,6 +74,10 @@ def record(results: list[dict], *, sandboxed: bool) -> dict:
             # WHICH CODE this row measured. Without it a row is a score with no subject: the fixing agent asks
             # "did my commit run in that round?" and the only answer is reading boot timestamps by hand.
             "code": _code_stamp(),
+            # WHAT ELSE the machine was doing. Two rounds are only comparable if the box was — see
+            # `config.machine_stamp`; a round measured while another agent held 39 GB in the GPU used to look
+            # identical to one on an idle machine.
+            "machine": r.get("machine") or {},
         }
         # What this case could HONESTLY be graded on. Recorded per row so a reader of the board knows a `PASS`
         # on a bookable case means "found real options and stopped at the wall", not "made a reservation" —
