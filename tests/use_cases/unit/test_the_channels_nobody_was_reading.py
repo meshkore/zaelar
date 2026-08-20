@@ -120,3 +120,71 @@ def test_and_stays_quiet_when_they_all_finished():
     txt = J.mechanism_facts({"worker_health": {"spawned": 2, "ok": 2, "errored": 0, "cancelled": 0,
                                                "still_running": 0}})
     assert "SEGUÍAN TRABAJANDO" not in txt
+
+
+def _log(tmp_path, lines):
+    d = tmp_path / "sb" / "logs"
+    d.mkdir(parents=True, exist_ok=True)
+    (d / "sandbox-engine.log").write_text("\n".join(lines), encoding="utf-8")
+    md = tmp_path / "sb" / "memory" / "_data"
+    md.mkdir(parents=True, exist_ok=True)
+    return md
+
+
+def test_three_workers_on_one_session_and_three_deaths(tmp_path):
+    """The cross-reference that found the cause of family 2. The event store alone cannot see it: a worker
+    that errors emits nothing saying why, and the round's only error events belonged to a SURVIVOR."""
+    md = _log(tmp_path, [
+        "00:43:48 | INFO | worker[3]: REANUDA sesión nativa c5ad1d9e-ad0…",
+        "00:43:57 | INFO | worker[4]: REANUDA sesión nativa c5ad1d9e-ad0…",
+        "00:45:36 | INFO | worker[6]: REANUDA sesión nativa c5ad1d9e-ad0…",
+    ])
+    import sqlite3
+    con = sqlite3.connect(md / "sandbox.db")
+    con.execute("CREATE TABLE events (ts_ms INTEGER, topic TEXT, kind TEXT, label TEXT, span TEXT, payload TEXT)")
+    for w in ("2", "3", "4", "5", "6"):
+        con.execute("INSERT INTO events VALUES (?,?,?,?,?,?)",
+                    (1, "worker.spawned", None, None, None, json.dumps({"id": w})))
+    for w in ("3", "4", "6"):
+        con.execute("INSERT INTO events VALUES (?,?,?,?,?,?)",
+                    (9, "worker.done", None, None, None, json.dumps({"id": w, "ok": False, "status": "error"})))
+        con.execute("INSERT INTO events VALUES (?,?,?,?,?,?)", (10, "observer", "task", "start", f"worker:{w}", "{}"))
+        con.execute("INSERT INTO events VALUES (?,?,?,?,?,?)", (390, "observer", "task", "end", f"worker:{w}", "{}"))
+    for w in ("2", "5"):
+        con.execute("INSERT INTO events VALUES (?,?,?,?,?,?)",
+                    (9, "worker.done", None, None, None, json.dumps({"id": w, "ok": True})))
+    con.commit()
+    con.close()
+
+    got = verify.worker_deaths(str(md / "sandbox.db"))
+    assert got["shared_sessions"] == {"c5ad1d9e-ad0": ["3", "4", "6"]}
+    assert (got["dead_resuming"], got["resuming"]) == (3, 3)
+    assert (got["dead_fresh"], got["fresh"]) == (0, 2), "nobody who opened their own session died"
+    assert all(ms < 2000 for ms in got["lifetimes_ms"].values()), "they died in under two seconds"
+
+
+def test_a_session_resumed_by_ONE_worker_is_not_shared(tmp_path):
+    """Sensitivity: resuming is normal. Only resuming the SAME session from several workers is the finding."""
+    md = _log(tmp_path, ["00:01 | INFO | worker[3]: REANUDA sesión nativa aaa111…",
+                         "00:02 | INFO | worker[4]: REANUDA sesión nativa bbb222…"])
+    import sqlite3
+    con = sqlite3.connect(md / "sandbox.db")
+    con.execute("CREATE TABLE events (ts_ms INTEGER, topic TEXT, kind TEXT, label TEXT, span TEXT, payload TEXT)")
+    con.commit()
+    con.close()
+    got = verify.worker_deaths(str(md / "sandbox.db"))
+    assert got["shared_sessions"] == {}, "two sessions, one worker each — nothing to report"
+
+
+def test_the_judge_blames_the_mechanism_not_the_search():
+    txt = J.mechanism_facts({"worker_deaths": {"shared_sessions": {"c5ad1d9e": ["3", "4", "6"]},
+                                               "dead_resuming": 3, "resuming": 3, "dead_fresh": 0, "fresh": 3,
+                                               "lifetimes_ms": {"3": 371.0, "4": 401.0, "6": 374.0}}})
+    assert "REANUDARON LA MISMA SESIÓN" in txt
+    assert "no le cuentes el fallo como falta de criterio" in txt
+
+
+def test_and_stays_quiet_when_no_session_was_shared():
+    txt = J.mechanism_facts({"worker_deaths": {"shared_sessions": {}, "dead_resuming": 0, "resuming": 0,
+                                               "dead_fresh": 0, "fresh": 2, "lifetimes_ms": {}}})
+    assert "REANUDARON LA MISMA SESIÓN" not in txt

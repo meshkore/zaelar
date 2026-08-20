@@ -215,6 +215,16 @@ def mechanism_facts(mech: dict) -> str:
                      f"cayó o que una tarea no llegó a terminar, DECÍA LA VERDAD y eso es honestidad, no "
                      f"vaguedad: no lo puntúes como excusa. Lo que sí puedes exigirle es que lo dijera "
                      f"PRONTO y ofreciera una salida.")
+    wd = mech.get("worker_deaths") or {}
+    if wd.get("shared_sessions"):
+        shared = "; ".join(f"«{k}» ← workers {', '.join(v)}" for k, v in list(wd["shared_sessions"].items())[:2])
+        quick = [w for w, ms in (wd.get("lifetimes_ms") or {}).items() if ms and ms < 2000]
+        lines.append(f"· ⚠️ VARIOS WORKERS REANUDARON LA MISMA SESIÓN del CLI: {shared}. Murieron "
+                     f"{wd.get('dead_resuming')} de {wd.get('resuming')} de los que reanudaron, frente a "
+                     f"{wd.get('dead_fresh')} de {wd.get('fresh')} de los que abrieron sesión propia"
+                     + (f"; {len(quick)} duraron menos de 2 s." if quick else ".") +
+                     f" Si el encargo se quedó sin resultados, la causa es ÉSTA y no que zaelar no supiera "
+                     f"buscar: puntúa MECANISMO bajo y no le cuentes el fallo como falta de criterio.")
     sr = mech.get("search_returns") or {}
     if sr.get("returns") and not sr.get("notes_from_search"):
         lines.append(f"· ⚠️ LA BÚSQUEDA WEB CONTESTÓ {sr['returns']} vez/veces y NADA de eso se le empujó al "

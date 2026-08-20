@@ -220,6 +220,9 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             # were carrying the answer to the round that was failing.
             mech["worker_health"] = verifymod.worker_health(config.SANDBOX_DB, since=started_at)
             mech["search_returns"] = verifymod.search_returns(config.SANDBOX_DB, since=started_at)
+            # WHY the dead ones died. A worker that errors emits nothing saying why, so this crosses the
+            # store with the engine's own log — the cross-reference that found the cause of a whole family.
+            mech["worker_deaths"] = verifymod.worker_deaths(config.SANDBOX_DB, since=started_at)
         except Exception as e:
             mech["worker_outcome_error"] = str(e)[:200]
         mech["memory_language"] = verifymod.memory_language(config.SANDBOX_DB)

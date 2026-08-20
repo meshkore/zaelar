@@ -897,6 +897,92 @@ def worker_health(db_path, *, since: float = 0.0) -> dict:
     return out
 
 
+def worker_deaths(db_path, *, since: float = 0.0) -> dict:
+    """WHY THE DEAD WORKERS DIED — the cross-reference that found the cause of a whole family of cases.
+
+    A worker that ends in error emits nothing saying why: its `task|end` carries an empty text and the
+    model name, and that is all. On 2026-08-21 the round of `best-plumber-same-day` reported four dead
+    workers out of six with no cause anywhere in the event store — and the only error events in it
+    (a permission gate, a Playwright detach) belonged to worker 2, which SURVIVED. Reading the panel would
+    have blamed those.
+
+    The cause came from crossing the store with the engine's own log, and the correlation was total:
+
+        worker 3  REANUDA sesión nativa c5ad1d9e…  ->  error at 371 ms
+        worker 4  REANUDA sesión nativa c5ad1d9e…  ->  error at 401 ms      (the same session)
+        worker 6  REANUDA sesión nativa c5ad1d9e…  ->  error at 374 ms      (the same session)
+        workers 2 and 5, fresh session               ->  alive
+
+    Three workers resuming ONE native CLI session; three deaths. Nobody who opened their own died. So this
+    reports the split that carries the signal — deaths among resumers vs deaths among fresh starts — rather
+    than a count of corpses, which says nothing about the cause.
+    """
+    import re as _re
+    import sqlite3
+    from pathlib import Path
+    out: dict = {"dead": [], "lifetimes_ms": {}, "sessions": {}, "shared_sessions": {},
+                 "dead_resuming": 0, "resuming": 0, "dead_fresh": 0, "fresh": 0}
+    try:
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    except Exception:
+        return out
+    starts: dict[str, int] = {}
+    ends: dict[str, int] = {}
+    spawned: set[str] = set()
+    try:
+        for (raw,) in con.execute("SELECT payload FROM events WHERE topic = 'worker.spawned' AND ts_ms >= ?",
+                                  (int(since * 1000),)).fetchall():
+            try:
+                spawned.add(str((json.loads(raw) or {}).get("id")))
+            except Exception:
+                continue
+        for (raw,) in con.execute("SELECT payload FROM events WHERE topic = 'worker.done' AND ts_ms >= ?",
+                                  (int(since * 1000),)).fetchall():
+            try:
+                d = json.loads(raw) or {}
+            except Exception:
+                continue
+            if not d.get("ok") and str(d.get("status") or "") not in ("cancelled",):
+                out["dead"].append(str(d.get("id")))
+        for ts, label, span in con.execute(
+                "SELECT ts_ms, label, span FROM events WHERE topic = 'observer' AND kind = 'task' "
+                "AND ts_ms >= ? AND label IN ('start', 'end') ORDER BY ts_ms ASC", (int(since * 1000),)):
+            wid = str(span or "").replace("worker:", "")
+            if not wid:
+                continue
+            (starts if label == "start" else ends).setdefault(wid, ts)
+        for wid, t0 in starts.items():
+            if wid in ends:
+                out["lifetimes_ms"][wid] = ends[wid] - t0
+    except Exception:
+        return out
+    finally:
+        try:
+            con.close()
+        except Exception:
+            pass
+    # The resume only shows in the engine's log; the event store never records which native session a
+    # worker attached to. Derived from the DB path so the caller needs to know nothing about the layout.
+    try:
+        log = Path(db_path).resolve().parents[2] / "logs" / "sandbox-engine.log"
+        text = log.read_text(encoding="utf-8", errors="replace") if log.exists() else ""
+    except Exception:
+        text = ""
+    for m in _re.finditer(r"worker\[(\d+)\]: REANUDA sesi[oó]n nativa ([0-9a-f-]+)", text):
+        out["sessions"].setdefault(m.group(2), [])
+        if m.group(1) not in out["sessions"][m.group(2)]:
+            out["sessions"][m.group(2)].append(m.group(1))
+    out["shared_sessions"] = {k: v for k, v in out["sessions"].items() if len(v) > 1}
+    resuming = {w for ws in out["sessions"].values() for w in ws}
+    dead = set(out["dead"])
+    out["resuming"] = len(resuming & spawned) or len(resuming)
+    out["dead_resuming"] = len(dead & resuming)
+    fresh = (spawned - resuming) if spawned else set()
+    out["fresh"] = len(fresh)
+    out["dead_fresh"] = len(dead & fresh)
+    return out
+
+
 def search_returns(db_path, *, since: float = 0.0) -> dict:
     """WHAT THE WEB SEARCH BROUGHT BACK, and whether one word of it ever reached the brain.
 
