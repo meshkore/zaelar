@@ -2749,6 +2749,22 @@ class NucleoLLMStream(llm.LLMStream):
             except Exception:
                 pass
 
+        # …y la TERCERA puerta con la misma llave (V2-202): el navegador parado en un clic irreversible. Aquel
+        # re-lanza una tarea; este desbloquea un clic que está esperando AHORA MISMO dentro del navegador. Mismo
+        # orden y misma razón: solo si el «sí» no ha resuelto ya otra cosa.
+        if not had_pending_confirm and not worker_acted["v"]:
+            try:
+                from widgets.navegador import tasks as _nt_cc
+                _ra = _nt_cc.answer_from_turn(text)
+                if _ra:
+                    escalate_req["v"] = None          # contesta a lo parado; no abre nada nuevo
+                    escalate_req["more"] = []
+                    emit("brain", "✅ clic confirmado por el operador" if _ra["ok"]
+                         else "🚫 clic descartado por el operador",
+                         text=_ra["task_id"], role="system", extra={"cat": "flash"})
+            except Exception:
+                pass
+
         # RED DETERMINISTA V2-038 (§v3·M): precedencia confirm > ask-activo > stop-worker. Si un worker ESPERABA
         # respuesta y el modelo NO llamó answer_worker → enruta el turno como la respuesta (el estado ya lo marcaba).
         # SOLO una "respuesta libre CORTA" (§v3·M): si el turno YA disparó otra acción (widget/búsqueda/escalada/

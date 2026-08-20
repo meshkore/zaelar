@@ -1275,6 +1275,30 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **El confirm-gate paró un clic irreversible y no preguntó a NADIE** (`widgets/navegador/tasks.py` +
+  `nucleo/flash/prompt.py`, V2-202, 2026-08-20). Medido en `find-theatre-tickets__es`: el worker murió con
+  `acción «Comprar entradas» NO confirmada por el operador` mientras el juez, sin ver ese texto, describía
+  «esperando una confirmación que nunca se pidió al usuario». El gate hizo todo lo que su módulo le pedía
+  —escribió la pregunta, puso la tarea en `needs_input`, disparó el aviso proactivo— y **no tenía salida del
+  módulo del navegador ni vuelta a la conversación**: `active_progress()` (la ÚNICA ruta de una tarea viva
+  hacia el prompt) se dejaba `question` fuera, y `waiting_id()` —construida exactamente para esto— **no tenía
+  ni un llamador en producción**. La única puerta para contestar era el botón de la tarjeta, y delante de
+  alguien que está HABLANDO no hay tarjeta.
+  - **No hizo falta reproducirlo en vivo**: un campo que no se copia y una función sin llamadores se
+    demuestran en el código. Lo que sí camina el camino real son los tests, por las dos mitades.
+  - **El plazo era el de otro canal**: 60 s es lo que tarda el botón que está AL LADO de la pregunta. Por la
+    conversación el cerebro se entera al componer su turno siguiente, pregunta ahí, y el operador contesta en
+    el de después — expiraba a mitad del viaje. 300 s, el TTL del gate hermano (`dispatch._CONFIRM_TTL`),
+    elegido en su día por la misma razón.
+  - **La decisión vive con el estado que resuelve** (`answer_from_turn`), no copiada en cada canal: es la
+    TERCERA puerta con la misma llave (V2-126 re-lanza una tarea, `widgets/confirm.py` opera un widget, ésta
+    desbloquea un clic que espera AHORA dentro del navegador), y V2-153 ya pagó lo que cuestan dos copias de
+    una decisión. Con guarda: un solo «sí» contesta a UNA pregunta, no a las dos que hubiera abiertas.
+  - **Visto y NO tocado**: `voice/proactive.py::notify` se salta la nota al cerebro cuando no hay sesión de voz
+    (`brain_notes.push` vive dentro del `if speak and _speaker is not None`), así que en el canal de texto una
+    entrega proactiva no llega a la conversación por ningún camino. Aquí lo cubre la cara nueva del estado;
+    como clase afecta a toda entrega proactiva y pide su propia medición.
+
 - **Una tarea de verificación se cuelga del CASO, no del arreglo** (`tests/infrastructure/unit/test_roadmap_closure.py`,
   V2-201, 2026-08-20). El arnés recoge la mitad de vuelta del contrato casando `T<n>-uc-<slug>-verify.md`
   contra ids de **ESCENARIO**. Una tarea nombrada por el DEFECTO no resuelve y **anuncia trabajo que nadie va a

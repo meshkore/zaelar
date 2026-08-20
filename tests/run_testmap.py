@@ -473,6 +473,13 @@ DOMAINS: list[dict] = [
         {"id": "4.20", "title": "Al worker se le DICE qué le paró: el muro y el atasco salen por su CLI",
             "ch": UNIT,
             "paths": ["tests/browser/unit/navegador/test_the_worker_is_told_what_stopped_it.py"]},
+        # 2026-08-20: el confirm-gate paraba un clic irreversible y no preguntaba a NADIE — la pregunta se
+        # escribía en la tarea y nada la sacaba de ahí, y `waiting_id()` no tenía ni un llamador en producción,
+        # así que el «sí» del operador tampoco tenía dónde aterrizar. Este nodo cubre las dos mitades: que la
+        # pregunta llega al estado que lee el cerebro, y que la respuesta vuelve al clic que está esperando.
+        {"id": "4.21", "title": "El confirm-gate PREGUNTA a alguien, y su «sí» vuelve al clic parado",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/navegador/test_the_confirm_gate_asks_someone.py"]},
         {"id": "4.19", "title": "Shell MÓVIL RENDERIZADO: el orbe centrado y PINTADO, la barra alcanzable",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/mobile/render_dock.py"},

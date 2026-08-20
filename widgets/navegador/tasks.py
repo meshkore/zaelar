@@ -438,6 +438,11 @@ def active_progress(limit: int = 3) -> list[dict]:
                  "walls_hit": len(t.get("walls") or []),
                  "last_wall": ((t.get("walls") or [{}])[-1] if t.get("walls") else {}),
                  "awaiting_login": bool(t.get("awaiting_login")),
+                 # V2-202: the confirm-gate's QUESTION. `ask()` has always written it here, and this is the only
+                 # route a live task has into the prompt, so a task parked on «shall I press Buy tickets?» was
+                 # structurally unable to reach the conversation: the operator was never asked, the answer had
+                 # nowhere to arrive, and the gate died on its timeout while the turn narrated progress.
+                 "question": (t.get("question") or "").strip(),
                  # V2-192: si la tarea YA TRAJO algo, eso gana a cualquier medida de atasco. Sin este campo el
                  # turno solo podía elegir entre «sigue viva» y «está bloqueada», y ninguna de las dos es la
                  # verdad cuando los resultados están ahí.
@@ -706,6 +711,33 @@ def answer(task_id: str, text: str) -> None:
         if t["status"] == "needs_input":
             t["status"] = "working"
     add_event(task_id, f"↩︎ respuesta: {text}")
+
+
+def answer_from_turn(text: str) -> dict | None:
+    """The operator's yes/no IN THE CONVERSATION answers the task parked at the confirm-gate. None if there was
+    nothing waiting or the turn was not an answer.
+
+    V2-202 — until now the ONLY way to answer was the card's button (`answer_task`, a widget data-op), so a
+    confirm-gate hit during a voice/text errand had no route back at all: `waiting_id()` had zero callers in
+    production. Measured on `find-theatre-tickets__es` (2026-08-20 13:33): the gate stopped «Comprar entradas»,
+    asked nobody, and failed the worker with `acción NO confirmada por el operador` while the turn kept
+    reporting progress. The judge, reading only the dialogue, called it «esperando una confirmación que nunca se
+    pidió al usuario» — both halves of the same hole.
+
+    The decision lives HERE, with the state it resolves, exactly like `dispatch.resolve_confirm` lives with
+    `_PENDING_CONFIRM`: both channels call this one function instead of each classifying on its own (V2-153 is
+    what two copies of one decision cost). The yes/no classifier is the shared deterministic one — a gate is no
+    place to ask an LLM whether «venga, dale» meant yes.
+    """
+    tid = waiting_id()
+    if not tid:
+        return None
+    from widgets import confirm as _confirm
+    verdict = _confirm.classify_reply(text or "")
+    if not verdict:
+        return None
+    answer(tid, text or "")
+    return {"task_id": tid, "ok": verdict == "yes"}
 
 
 def take_answer(task_id: str) -> str:

@@ -823,6 +823,19 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                         return_extra_exec = {"executed": "confirm_task", "ok": bool(_r.get("ok"))}
         except Exception:
             pass
+        # V2-202 — el mismo «sí», para la OTRA puerta: la del navegador parado en un clic irreversible. Espejo
+        # del provider de voz (impl PARALELA, cablear en AMBOS). Va junto al de arriba y por la misma razón:
+        # contesta a algo YA parado, así que no puede tratarse como una petición nueva. Y SOLO si el de arriba no
+        # lo ha resuelto ya: un único «sí» contesta a UNA pregunta, no a las dos que hubiera abiertas.
+        try:
+            from widgets.navegador import tasks as _nt_cc
+            _ra = None if action.startswith("confirm_task") else _nt_cc.answer_from_turn(text)
+            if _ra:
+                action = "confirm_task" if _ra["ok"] else "confirm_task_no"
+                return_extra_exec = {"executed": "confirm_nav_task", "ok": bool(_ra["ok"]),
+                                     "task_id": _ra["task_id"]}
+        except Exception:
+            pass
         # PROACTIVIDAD REAL (V2-121, 2026-08-18): las tags de cron se EJECUTAN, no solo se capturan. Va aparte del
         # `if action == …` de abajo a propósito — una tag de cron CONVIVE con una tool en el mismo turno, que es
         # justo el turno que este caso de uso pide («apúntame el jueves» → widget_data add_meeting, «y recuérdamelo

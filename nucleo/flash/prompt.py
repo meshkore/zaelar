@@ -613,6 +613,7 @@ def live_state() -> str:
                 _prog = {}
             _bits = []
             _blocked = _login = _has_results = ""       # el GOAL de la tarea que disparó cada cara, o ""
+            _asked: tuple | None = None                 # (goal, pregunta) de la tarea parada en el confirm-gate
             _hit_walls = ""                             # y la que YA se comió un bloqueo, aunque siga en otra página
             for _tid, _g in act:
                 _b = f"«{(_g or 'tarea')[:70]}»"
@@ -679,7 +680,13 @@ def live_state() -> str:
                     # La señal VIVA de que el worker ya encontró algo sí existe, en el otro registro: la
                     # amplitud que él mismo reporta (`hbnote considered --kept N`). Se lee por el seam que ya
                     # había (`dispatch.record_by_nav_task`), no por uno nuevo.
-                    if _p.get("has_results") or _found_candidates(_tid):
+                    # V2-202 — una PREGUNTA sin contestar gana a cualquier otra cara: la tarea no está lenta ni
+                    # bloqueada por fuera, está esperando una palabra del operador que nadie le ha pedido.
+                    if _p.get("question"):
+                        _b += f" · TE ESTÁ PREGUNTANDO: {_p['question'][:120]}"
+                        _blocked = True
+                        _asked = _asked or (_who, _p["question"])
+                    elif _p.get("has_results") or _found_candidates(_tid):
                         _b += " · YA TIENE RESULTADOS"
                         _has_results = _has_results or _who
                     elif _p.get("awaiting_login"):
@@ -727,7 +734,17 @@ def live_state() -> str:
             _shared = (" NO abras otra tarea ni reinicies la búsqueda para esto mismo — solo hay UN navegador. "
                        "Y NO describas lo que estaría haciendo («está en la página», «interactuando», "
                        "«rellenando el formulario»). Los segundos que lleva NO son una descripción de lo que hace.")
-            if _has_results:
+            if _asked:
+                # V2-202 — la cara MÁS urgente y la única que el operador puede resolver en una palabra. Va
+                # primero a propósito: una tarea parada en el confirm-gate no está lenta, está esperándole a
+                # él, y él no lo sabe porque nadie se lo ha preguntado.
+                lines.append(
+                    _head + f" {_asked[0]} ESTÁ PARADA ESPERANDO TU OK y el operador NO LO SABE: nadie le ha "
+                    f"preguntado todavía. PREGÚNTASELO EN ESTE TURNO, literalmente: «{_asked[1][:140]}». No es "
+                    "charla ni un trámite que puedas dar por hecho — sin su sí no se pulsa nada, y sin su "
+                    "respuesta la tarea se cae sola dentro de unos minutos. Cuando conteste, su sí o su no ES "
+                    "la respuesta a esto: no lo trates como una petición nueva." + _shared)
+            elif _has_results:
                 lines.append(
                     _head + f" {_has_results} YA TRAJO ALGO: no está bloqueada ni esperando, tiene resultados en "
                     "la hoja. DÁSELOS en este turno —lo que encontró, no que «ya casi está»— y pregunta si le "

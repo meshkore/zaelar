@@ -538,6 +538,13 @@ _shot_lock = asyncio.Lock()  # serialize bring_to_front+capture across parallel 
 
 # AUTHENTICATION — control state (one window → one login at a time; resume after auth_done).
 _LOGIN_TIMEOUT = float(os.environ.get("NAVEGADOR_LOGIN_TIMEOUT", "600"))  # 10 min unfinished → reminder (does not kill)
+
+# CONFIRM-GATE deadline. Was 60 s, which is how long the answer takes when it comes from the card button next to
+# the question. Through the CONVERSATION it cannot: the brain only learns the task is parked when it composes its
+# next turn, asks then, and the operator answers on the turn after — 60 s expired mid-round-trip and the click
+# was refused with the operator standing right there. 300 s is the sibling gate's TTL (`dispatch._CONFIRM_TTL`),
+# chosen for the same reason: «¿de verdad lo compro?» arrives mid-conversation and deserves thinking time.
+_CONFIRM_TIMEOUT = float(os.environ.get("NAVEGADOR_CONFIRM_TIMEOUT", "300"))
 _LOGIN_POLL = float(os.environ.get("NAVEGADOR_LOGIN_POLL", "2.5"))        # how often to watch the login window
 _auth_resume: dict = {}     # task_id -> {"goal","plan","site"} for tasks to RESUME after login (requester + paused tasks)
 _auth_active: str = ""      # site of the login IN PROGRESS ("" = none) — serializes: never open two login windows
@@ -1500,7 +1507,7 @@ class TaskBrowser:
                                    f"«{label[:40]}». ¿Confirmo?", kind="notify")
         except Exception:
             pass
-        for _ in range(120):                              # ~60s
+        for _ in range(int(_CONFIRM_TIMEOUT / 0.5)):
             if tasks.is_cancelled(self.task_id):
                 return False
             ans = tasks.take_answer(self.task_id)
