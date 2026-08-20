@@ -1275,6 +1275,19 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Una tarea de verificación se cuelga del CASO, no del arreglo** (`tests/infrastructure/unit/test_roadmap_closure.py`,
+  V2-201, 2026-08-20). El arnés recoge la mitad de vuelta del contrato casando `T<n>-uc-<slug>-verify.md`
+  contra ids de **ESCENARIO**. Una tarea nombrada por el DEFECTO no resuelve y **anuncia trabajo que nadie va a
+  coger**: el tablero dice que hay verificación pendiente y no la hay. Cometido CUATRO veces la misma noche
+  (T428, T429, T435, T437). El arnés ya avisa, pero solo al correr `--verify`; el guarda lo caza al CERRAR, que
+  es cuando se comete — y al estrenarlo encontró una quinta ajena, `T326`, dos días en `next`.
+  - **Salida explícita**: hay defectos transversales cuyo re-test legítimo es la tanda entera y no un caso
+    (V2-133, visto en 8 de 12). Forzarles un id falso sería peor, así que basta con escribir «NO la recoge
+    `--verify`» y decir cómo se re-prueba. La salida es legítima; lo que faltaba era declararla.
+  - **Contar no es verificar**: llevaba tres rondas informando de «once tareas esperando» y eran **6**, con 2
+    huérfanas — una cuenta a ojo de ficheros en `next`, mezclando tareas de arreglo con las de verificación.
+    Misma lección que V2-199/V2-200, aplicada a mis propios informes.
+
 - **Cada cara del bloque del navegador tiene que poder DISPARARSE** (`tests/browser/unit/navegador/test_every_face_is_reachable.py`,
   V2-201, 2026-08-20). Dos arreglos seguidos pasaron sus tests sin hacer nada en producción (V2-199, V2-200) y
   los dos se encontraron con la misma pregunta: **¿el estado del que depende llega a existir?** Convertida en

@@ -151,3 +151,69 @@ def test_toda_iniciativa_entregada_esta_citada_en_CLAUDE(iid):
     body = CLAUDE.read_text(encoding="utf-8")
     assert iid in body, (
         f"{iid} está entregada y no se menciona en CLAUDE.md — añade su decisión clave o baja el status")
+
+
+# ── la tarea de verificación se cuelga del CASO, no del arreglo (2026-08-20) ──────────────────────────────
+#
+# El arnés de casos de uso recoge la mitad de vuelta del contrato leyendo `T<n>-uc-<slug>-verify.md` con
+# `status: next` y casando `<slug>` contra ids de ESCENARIO. Una tarea nombrada por el DEFECTO —
+# «abrir-pagina», «sesion-acabada», «narrar-trabajo», «login-pendiente»— no resuelve, y entonces anuncia
+# trabajo que nadie va a coger: el tablero dice que hay verificación pendiente y no la hay.
+#
+# Cometido CUATRO veces la misma noche (T428, T429, T435, T437). El arnés ya avisa, pero solo cuando alguien
+# corre `--verify`; esto lo caza al cerrar, que es cuando se comete.
+#
+# Si un arreglo no tiene NINGÚN caso que lo ejercite, eso es un dato en sí mismo y hay que escribirlo — no
+# inventarle un nombre de escenario.
+TASKS = ENGINE / ".meshkore/modules/nucleo/tasks"
+
+
+def _pending_verify_slugs() -> list[tuple[str, str]]:
+    import re as _re
+
+    out = []
+    for f in sorted(TASKS.glob("T*-uc-*-verify.md")):
+        try:
+            if "status: next" not in f.read_text(encoding="utf-8", errors="replace"):
+                continue
+        except Exception:
+            continue
+        m = _re.match(r"T\d+-uc-(.+)-verify\.md$", f.name)
+        if m:
+            out.append((f.name, m.group(1)))
+    return out
+
+
+@pytest.mark.skipif(not TASKS.is_dir(), reason="sin tareas locales (roadmap gitignoreado)")
+def test_toda_tarea_de_verificacion_pendiente_apunta_a_un_caso_real():
+    try:
+        import sys
+        sys.path.insert(0, str(ENGINE))
+        from tests.use_cases.e2e.agent import scenarios as _SC
+        registry = _SC.registry()
+    except Exception as e:  # noqa: BLE001
+        pytest.skip(f"no se puede leer el catálogo de escenarios: {e}")
+
+    huerfanas = []
+    for name, slug in _pending_verify_slugs():
+        # SALIDA EXPLÍCITA. Hay defectos transversales cuyo re-test legítimo es la tanda entera y no un caso
+        # (V2-133: «el progreso fabricado» apareció en 8 de 12). Forzarles un id de escenario falso sería peor
+        # que el problema. Pero tiene que estar DICHO en la tarea, porque el daño no es el nombre: es que el
+        # tablero anuncie una verificación que nadie va a recoger.
+        try:
+            # sin backticks: la salida se escribe en prosa y a veces con `--verify` en código
+            _txt = (TASKS / name).read_text(encoding="utf-8", errors="replace").replace("`", "")
+            if "NO la recoge --verify" in _txt:
+                continue
+        except Exception:
+            pass
+        if slug in registry or f"{slug}__es" in registry or slug.replace("-es", "__es") in registry \
+                or slug.replace("-us", "__us") in registry:
+            continue
+        huerfanas.append(f"{name} (slug «{slug}»)")
+    assert not huerfanas, (
+        "tareas de verificación cuyo slug NO es un id de escenario, así que el arnés no las recogerá y "
+        f"anuncian trabajo que nadie va a coger: {huerfanas}. La tarea se cuelga del CASO que ejercita el "
+        "arreglo, no del nombre del arreglo. Si ningún caso lo ejercita —porque el defecto es transversal y su "
+        "re-test es la tanda entera— escribe «NO la recoge --verify» en la tarea y explica cómo se re-prueba: "
+        "es una salida legítima, pero tiene que estar dicha.")
