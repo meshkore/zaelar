@@ -150,6 +150,21 @@ def mechanism_facts(mech: dict) -> str:
             created = sj.get("created") or []
             lines.append(f"· Disparadores durables que ESTA conversación dejó registrados: {len(created)}."
                          + ("" if created else " Ninguno: si zaelar dijo haber programado algo, no hay respaldo."))
+    # QUÉ WIDGET se tocó. Sin esto el juez tenía «la familia widget apareció» y el bloque de CRONS, y de ahí
+    # a «la cita no está en la agenda» hay un salto que NO estaba medido: el criterio de
+    # `remember-and-remind-deadline` pide juzgar por «data-ops de agenda» y el informe no traía ninguna.
+    ops = mech.get("widget_ops") or {}
+    if ops:
+        pretty = "; ".join(f"{w} ({', '.join(f'{k}×{v}' for k, v in sorted(o.items()))})"
+                           for w, o in sorted(ops.items()))
+        lines.append(f"· Operaciones de WIDGET observadas: {pretty}. Una `data` es una ESCRITURA en ese "
+                     f"widget: si ahí sale `agenda (data×1)`, la cita se escribió, digan lo que digan los "
+                     f"disparadores.")
+    else:
+        lines.append("· No se observó ninguna operación de widget en esta corrida.")
+    lines.append("·   ⚠️ El bloque de disparadores durables habla de CRONS, no de agendas. NO concluyas que "
+                 "falta una cita porque no haya un cron: son dos subsistemas distintos y la cita se ve arriba, "
+                 "en las operaciones de widget.")
     # La AUDITORÍA COMPLETA del stream. Hasta el 2026-08-20 el juez solo veía qué FAMILIAS aparecieron, que no
     # es la misma pregunta que si cada paso interno fue como debía: una corrida traía `is_error` en un paso del
     # worker («no puedo leer el payload de sources.json») y nada se lo contaba a nadie.

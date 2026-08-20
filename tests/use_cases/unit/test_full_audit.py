@@ -120,3 +120,53 @@ def test_the_audit_reads_the_shape_the_API_actually_serves():
     assert "sin_evidencia_externa" not in [x["clase"] for x in a["anomalies"]], (
         "esta es la anomalía inventada: había evidencia y el lector no la veía")
     assert a["spans"]["worker:1"]["errors"] == 1, "el span también se lee del payload"
+
+
+def test_an_agenda_write_is_VISIBLE_in_the_mechanism_report():
+    """Devuelto por el agente que arregla el 2026-08-20, y tenía razón.
+
+    El criterio de `remember-and-remind-deadline` dice literalmente «juzga por … data-ops de agenda», y el
+    informe de mecanismo NO traía ninguna: solo familias (`widget` aparece, pero no QUÉ widget ni qué se hizo)
+    y el bloque `scheduled_jobs`, que es de CRONS. Así que un hallazgo como «no existe ni el evento de agenda
+    ni el trigger» se apoyaba, para la mitad de la agenda, en un lector que no cubre agendas. En su
+    reproducción la cita SÍ se escribía.
+
+    Misma clase que el fallo de `evidence` unas horas antes: un lector que mira donde no está no falla,
+    RESPONDE — y responde una ausencia, que es la respuesta más creíble y más dañina.
+    """
+    from tests.use_cases.e2e.agent import verify as V
+
+    evs = [{"cat": "widget", "kind": "widget", "label": "data", "id": "agenda::ev1"},
+           {"cat": "widget", "kind": "widget", "label": "show", "id": "agenda::ev1"},
+           {"cat": "widget", "kind": "widget", "label": "data", "id": "navegador::t2"},
+           {"cat": "flash", "kind": "trace", "label": "turno"}]
+    ops = V.widget_ops(evs)
+    assert ops["agenda"] == {"data": 1, "show": 1}, "una escritura en agenda tiene que ser VISIBLE y contable"
+    assert ops["navegador"] == {"data": 1}
+    assert "flash" not in ops, "solo la familia widget"
+
+
+def test_the_judge_is_told_not_to_infer_a_missing_appointment_from_the_crons():
+    """La mitad que evita el hallazgo falso: los disparadores durables son CRONS, la cita es un data-op. Sin
+    decírselo, el juez vuelve a concluir «no hay cita» leyendo un bloque que no habla de citas."""
+    from tests.use_cases.e2e.agent import judge as J
+
+    prose = J.mechanism_facts({"families_observed": ["widget"], "expected_signals": ["memory"],
+                               "widget_ops": {"agenda": {"data": 1}},
+                               "scheduled_jobs": {"readable": True, "created": []}})
+    assert "agenda (data×1)" in prose, "la escritura de agenda tiene que llegarle en PROSA, no solo en el JSON"
+    assert "CRONS, no de agendas" in prose
+
+
+def test_and_the_report_actually_WIRES_it():
+    """La mitad que faltaba, y el mismo hueco que ya me comí con la auditoría: los dos tests de arriba llaman a
+    `widget_ops` a pelo o le pasan el dict al juez ya hecho, así que los dos PASAN aunque
+    `mechanism_report` deje de incluirlo (comprobado: sustituir la llamada por `{}` no los pone rojos).
+    Una constante puede quedarse sin cablear; lo que hay que afirmar es lo que RECIBE el consumidor.
+    """
+    from tests.use_cases.e2e.agent import verify as V
+
+    mech = V.mechanism_report([{"cat": "widget", "kind": "widget", "label": "data", "id": "agenda::ev1"}],
+                              ["memory"])
+    assert mech.get("widget_ops") == {"agenda": {"data": 1}}, (
+        "el informe no lleva las operaciones de widget: el juez vuelve a quedarse sin ver la cita")

@@ -249,6 +249,38 @@ def dropped_actions(all_events: list[dict]) -> list[dict]:
     return out
 
 
+def widget_ops(all_events: list[dict]) -> dict:
+    """Which WIDGET each data-op touched, and how many — the half of the mechanism nobody could see.
+
+    Devuelto por el agente que arregla el 2026-08-20, y tenía razón: el criterio de
+    `remember-and-remind-deadline` dice literalmente «juzga por … data-ops de agenda», y el informe de
+    mecanismo NO traía ninguna. Solo traía familias (`widget` aparece, pero no QUÉ widget ni qué se hizo) y el
+    bloque `scheduled_jobs`, que es de CRONS. Así que un hallazgo como «no existe ni el evento de agenda ni el
+    trigger» se apoyaba, para la mitad de la agenda, en un lector que no cubre las agendas: la ausencia estaba
+    INFERIDA del sitio equivocado. En su reproducción la cita SÍ se escribía.
+
+    Es exactamente la misma clase de fallo que el de `evidence` unas horas antes: un lector que mira donde no
+    está no falla, RESPONDE — y responde una ausencia, que es la respuesta más creíble y más dañina.
+
+    Forma real del evento (medida, no supuesta): `cat="widget"`, `label` ∈ {data, show, close}, y el widget
+    va en `id` como `"<widget>::<algo>"` (p. ej. `navegador::t2`).
+    """
+    ops: dict[str, dict[str, int]] = {}
+    for e in all_events:
+        if not isinstance(e, dict):
+            continue
+        f = _fields(e)
+        cat = f.get("cat") if f.get("cat") is not None else e.get("cat")
+        if cat != "widget":
+            continue
+        raw = str((f.get("id") if f.get("id") is not None else e.get("id")) or "")
+        name = raw.split("::", 1)[0] or "(sin id)"
+        label = str((f.get("label") if f.get("label") is not None else e.get("label")) or "?")
+        ops.setdefault(name, {})
+        ops[name][label] = ops[name].get(label, 0) + 1
+    return ops
+
+
 def audit(all_events: list[dict], expected_signals: list[str] | None = None) -> dict:
     """Walk the WHOLE stream and report what a families summary cannot see.
 
@@ -359,6 +391,9 @@ def mechanism_report(all_events: list[dict], expected_signals: list[str],
         "n_events": len(all_events),
         "search_health": search_health(all_events),
         "dropped_actions": dropped_actions(all_events),
+        # Qué widget se tocó y cómo. Sin esto, «la cita no está en la agenda» solo se podía inferir del
+        # bloque de CRONS, que no habla de agendas.
+        "widget_ops": widget_ops(all_events),
         # The full walk of the stream, not just which families showed up. A case does NOT close with
         # anomalies here, however good the transcript reads — see `tick`.
         "audit": audit(all_events, expected_signals),
