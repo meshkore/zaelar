@@ -132,7 +132,11 @@ def _next_initiative_number() -> int:
 def _next_task_number() -> int:
     """Same race as `_next_initiative_number`, same reason: the fixing agent also creates tasks (it created
     T411-T416 while this session was writing T410). Recursive for the same reason: an ARCHIVED task keeps
-    its number for ever."""
+    its number for ever.
+
+    ⚠️ Reading the max is NOT enough to avoid a collision, and this is measured: T448, T454 and T457 all came
+    out twice on 2026-08-20, because both sides look, both get the same answer, and only then write. If you
+    are about to CREATE the file, use `claim_task` — it takes the number and the file in one atomic step."""
     nums = {_TASK_FLOOR - 1}
     for p in MODULES.rglob("T*.md"):
         if "tasks" in p.parts and (m := re.match(r"T(\d+)\b", p.name)):
@@ -141,6 +145,27 @@ def _next_task_number() -> int:
     while any(p for p in MODULES.rglob(f"T{num}-*.md") if "tasks" in p.parts):
         num += 1
     return num
+
+
+def claim_task(tasks_dir: Path, slug: str) -> tuple[int, Path]:
+    """Reserve a task number AND its file in one atomic step, and return both.
+
+    The window between "read the highest number" and "write the file" is where three collisions happened in a
+    single afternoon (T448, T454, T457), each one needing a hand repair — and a duplicated number is worse
+    than untidy: two files share an id, so the tick's resolver can pick the wrong one and re-measure a case
+    nobody asked about. `open(..., "x")` closes the window: the first writer wins the name, the second gets
+    FileExistsError and moves on to the next number.
+    """
+    tasks_dir.mkdir(parents=True, exist_ok=True)
+    num = _next_task_number()
+    while True:
+        path = tasks_dir / f"T{num}-{slug}.md"
+        try:
+            with open(path, "x", encoding="utf-8"):
+                pass
+            return num, path
+        except FileExistsError:
+            num += 1
 
 
 def _status_of(path: Path) -> str:
@@ -451,7 +476,7 @@ def file_failure(result: dict, *, scenario, sandboxed: bool, force_new: bool = F
         title = (f"Caso de uso «{scenario.id}» (tier {scenario.tier}) no pasa"
                  + (f" — flojea en {weakest}" if weakest else ""))
         module = _module_for(scenario.id, mech)
-        tnum = _next_task_number()
+        tnum, claimed_task = claim_task(MODULES / module / "tasks", f"uc-{_slug(scenario.id)}-fix")
 
         path.write_text(
             f"---\nid: V2-{num:03d}\n"
@@ -472,7 +497,7 @@ def file_failure(result: dict, *, scenario, sandboxed: bool, force_new: bool = F
 
         tasks_dir = MODULES / module / "tasks"
         tasks_dir.mkdir(parents=True, exist_ok=True)
-        task_path = tasks_dir / f"T{tnum}-uc-{_slug(scenario.id)}-fix.md"
+        task_path = claimed_task            # ya reservado de forma atómica más arriba
         task_path.write_text(
             f"---\nid: T{tnum}\n"
             f"title: {json.dumps(f'Revisar y arreglar el caso de uso «{scenario.id}»', ensure_ascii=False)}\n"

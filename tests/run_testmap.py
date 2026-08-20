@@ -729,6 +729,10 @@ DOMAINS: list[dict] = [
         # Estado propio, fuera del denominador, medido solo por honestidad.
         {"id": "10.16", "title": "🔒 CAPPED: los casos que exigen credencial del usuario salen del marcador",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_capped_state.py"]},
+        # T448, T454 y T457 salieron duplicados el mismo día: leer el número más alto no reserva nada. Un id
+        # compartido hace que el resolvedor del tick pueda coger el fichero que no es.
+        {"id": "10.17", "title": "El número de tarea se RESERVA de forma atómica, no se adivina",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_task_number_claim.py"]},
     ]},
 ]
 
