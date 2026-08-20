@@ -90,6 +90,8 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     note("tester", utterance)
     print(f"  tester  · {utterance}")
 
+    # Extra turns granted only to keep a LIVE browser task's result reachable — see the grace block below.
+    grace_left = 3
     for turn in range(max(1, scenario.turns)):
         res = probe_client.say(utterance, session, execute=(scenario.channel == "probe"),
                                ingest=sandboxed)
@@ -131,6 +133,21 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         pending_nudge = verdict.get("nudge_text", "") if verdict["action"] == "nudge" else ""
 
         if turn == scenario.turns - 1:
+            # GRACE TURNS: do not close the conversation while its browser task is STILL ALIVE. Measured on
+            # 2026-08-20 in `hotel-under-15-days`: the worker extracted «Exe Sevilla Macarena, 65 €» with a URL
+            # at 19:45:29, the last turn came 16 s later saying "sigo pendiente", and the task was killed at
+            # 19:45:55 — so the round ended as a race between the turn budget and the browser, which measures my
+            # clock rather than the product. The grace removes MY confound without excusing anything: if the
+            # result still never arrives, the finding is cleaner, not softer.
+            if grace_left and scenario.expected_signals and verifymod.navegador_task_is_live():
+                grace_left -= 1
+                print(f"  ⏳ turno de gracia ({grace_left} más): la tarea de navegador sigue viva, no cierro "
+                      f"la conversación con el resultado en vuelo")
+                time.sleep(15.0)
+                utterance = driver.reply(nudge=pending_nudge)
+                note("tester", utterance)
+                print(f"  tester  · {utterance}")
+                continue
             break
         utterance = driver.reply(nudge=pending_nudge)
         note("tester", utterance)

@@ -571,3 +571,20 @@ def note_coverage(prompt_rows: list[dict], notes: list[dict]) -> dict:
         if any(prev < (n["at_ms"] or 0) <= at for n in notes):
             with_note += 1
     return {"alert_turns": len(alerts), "with_note": with_note, "notes": len(notes)}
+
+
+def navegador_task_is_live() -> bool:
+    """Is there a browser task still working RIGHT NOW? Fails soft to False.
+
+    Used to decide whether closing the conversation would end it as a race between the turn budget and the
+    browser (see the grace block in `run._run_scenario`). Conservative on purpose: an unreadable engine reads as
+    "not live", because granting extra turns on a guess would stretch every round.
+    """
+    try:
+        tasks = probe_client.live_tasks()
+    except Exception:
+        return False
+    for t in tasks or []:
+        if str(t.get("kind") or "") == "navegador" and str(t.get("status") or "") in ("working", "needs_input"):
+            return True
+    return False
