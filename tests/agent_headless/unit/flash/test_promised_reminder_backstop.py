@@ -485,3 +485,68 @@ def test_the_helper_is_wired_into_BOTH_channels():
     from voice.engine.llm.providers import nucleo as _provider
     for src in (inspect.getsource(_probe.run_turn), inspect.getsource(_provider)):
         assert "dated_reminder_backstop(" in src and "window=" in src
+
+
+# ── V2-194: el apunte tampoco puede escribirse dos veces ──────────────────────────────────────────────────
+#
+# Del sandbox de la corrida del 2026-08-20 02:34, leído de su propio workspace:
+#
+#   meetings: [{"title": "Renovar seguro del coche",    "date": "2026-08-27", …},
+#              {"title": "Renovar el seguro del coche", "date": "2026-08-27", …}]
+#
+# El MISMO compromiso, el MISMO día, dos veces: una es la data-op del modelo y la otra el backstop, disparado
+# en un turno posterior. Su puerta —«solo si ESTE turno no hizo ya la data-op»— no puede ver una data-op de un
+# turno ANTERIOR. El hermano tiene esta protección desde V2-153, y aquí es peor sin ella: un aviso duplicado se
+# oye dos veces, una cita duplicada se VE, y se queda.
+#
+# El chequeo vive JUNTO A LA ESCRITURA (`probe.py`) y no dentro de `dated_note_backstop`, que es una decisión
+# pura sobre dos cadenas y un reloj — meterle una lectura de estado global hizo que nueve de sus propios tests
+# dependieran del orden en que corrieron los anteriores.
+def _agenda(monkeypatch, meetings):
+    from widgets import store as _store
+    monkeypatch.setattr(_store, "load", lambda wid: {"meetings": meetings} if wid == "agenda" else {})
+
+
+NOTA = {"title": "renovar el seguro del coche", "date": "2026-08-27"}
+
+
+def test_a_commitment_already_in_the_agenda_is_not_written_again(monkeypatch):
+    _agenda(monkeypatch, [{"title": "renovar el seguro del coche", "date": "2026-08-27"}])
+    assert g.already_in_agenda(NOTA) is True
+
+
+def test_and_an_article_does_not_defeat_the_comparison(monkeypatch):
+    """Las dos entradas medidas se diferenciaban en un «el». Una comparación que un artículo derrota no es una
+    comparación."""
+    _agenda(monkeypatch, [{"title": "Renovar seguro del coche", "date": "2026-08-27"}])
+    assert g.already_in_agenda(NOTA) is True
+
+
+def test_but_the_same_thing_on_ANOTHER_day_is_a_different_commitment(monkeypatch):
+    _agenda(monkeypatch, [{"title": "renovar el seguro del coche", "date": "2026-12-01"}])
+    assert g.already_in_agenda(NOTA) is False
+
+
+def test_and_something_else_the_same_day_does_not_block_it(monkeypatch):
+    """La sensibilidad: sin esto, «no dupliques» y «no apuntes nada si ya hay algo ese día» pasan igual — y el
+    segundo perdería la mitad de los encargos de un día ocupado."""
+    _agenda(monkeypatch, [{"title": "cita con el dentista", "date": "2026-08-27"}])
+    assert g.already_in_agenda(NOTA) is False
+
+
+def test_and_an_unreadable_agenda_fails_OPEN(monkeypatch):
+    """Respaldar la promesa gana a dejarla caer: si no se puede leer la agenda, se apunta."""
+    from widgets import store as _store
+
+    def _boom(_wid):
+        raise RuntimeError("no se puede leer")
+    monkeypatch.setattr(_store, "load", _boom)
+    assert g.already_in_agenda(NOTA) is False
+
+
+def test_and_the_write_path_actually_consults_it():
+    """El chequeo no sirve de nada si el sitio que escribe no lo llama."""
+    import inspect
+
+    from nucleo.flash import probe
+    assert "already_in_agenda(" in inspect.getsource(probe.run_turn)

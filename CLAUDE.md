@@ -1275,6 +1275,28 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **La suite escribía en la agenda REAL del operador: 328 citas de prueba** (`conftest.py`, V2-194,
+  2026-08-20). `conftest.py` ya apuntaba `settings.SETTINGS_FILE` a un temporal por el invariante «un test
+  nunca lee ni escribe el estado real del operador», y **su propio comentario citaba `store.DATA_DIR` como la
+  misma lección** — pero solo aplicada dentro de los tests de widgets, no a nivel de SESIÓN. Así que cualquier
+  test que despachara una data-op escribía en los datos reales: **328 citas acumuladas y 2 más por corrida**.
+  Nada fallaba nunca; la basura se queda ahí y solo se nota cuando alguien mira su agenda — **o cuando un
+  arreglo nuevo empieza a LEERLA**, que es exactamente cómo apareció (nueve tests se pusieron rojos por orden
+  de ejecución). Aislado para toda la sesión, verificado en las dos direcciones (limpiado a 0 → suite → 0), con
+  guarda en `test_suite_isolation.py` y las 328 borradas.
+- **La cita se apuntaba DOS veces** (`nucleo/flash/probe.py` + `router_guards.already_in_agenda`, V2-194). El
+  mismo compromiso el mismo día: una es la data-op del modelo y la otra el backstop, disparado en un turno
+  posterior — su puerta («solo si ESTE turno no hizo ya la data-op») **no puede ver una data-op de un turno
+  ANTERIOR**. El hermano tiene esa protección desde V2-153; aquí es peor sin ella, porque un aviso duplicado se
+  oye y **una cita duplicada se VE, y se queda**. Compara por DÍA + palabras del título, no por cadena exacta
+  (las dos entradas medidas se diferenciaban en un «el»), y **vive junto a la ESCRITURA**: metido dentro de
+  `dated_note_backstop` puso rojos nueve de sus propios tests, porque esa función es una decisión PURA sobre
+  dos cadenas y un reloj y una lectura de estado global la hace depender del orden.
+  - **Y el veredicto que lo destapó era FALSO**: decía «la agenda está vacía» y el workspace de ese mismo
+    sandbox tenía las dos citas, en la fecha correcta. **Tercera vez** que un juicio deduce una ausencia de una
+    señal que no puede ver (`results: null` en V2-186, «no respaldado por navegación» en V2-189). Es del arnés
+    y no se parchea desde el motor, pero tres veces ya no es casualidad.
+
 - **Con varias tareas vivas, el estado MANDABA entregar una y no decía cuál** (`nucleo/flash/prompt.py`,
   V2-193, 2026-08-20). Medido en `renew-gym-membership__es`: «desviaciones de atención severas (distracción con
   tareas de navegador no solicitadas), mezclando dominios (Netflix/Teatro) al preguntar por el gimnasio». Con

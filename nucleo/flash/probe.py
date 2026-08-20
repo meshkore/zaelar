@@ -818,6 +818,13 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             try:
                 from . import router as _routern
                 _note = _routern.dated_note_backstop(spoken, operator_text, window=sess.window)
+                # V2-194: y no dos veces. Su puerta («solo si ESTE turno no hizo ya la data-op») no puede ver
+                # una data-op de un turno ANTERIOR, así que la agenda salió con el mismo compromiso dos veces
+                # —medido en el sandbox del 2026-08-20 02:34, «Renovar seguro del coche» y «Renovar el seguro
+                # del coche» el mismo día—. El hermano tiene esta protección desde V2-153; ésta es peor sin
+                # ella, porque un aviso duplicado se oye y una cita duplicada se VE, y se queda.
+                if _note and _routern.already_in_agenda(_note):
+                    _note = None
                 if _note:
                     import widgets as _wn
                     await _wn.dispatch_tag("widget.data", {"id": "agenda", "data": {

@@ -415,6 +415,52 @@ def dated_note_backstop(reply: str, operator_text: str = "", window=None) -> dic
     return {"title": title[:120], "date": when.split(" ")[0]} if title else None
 
 
+def already_in_agenda(note: dict) -> bool:
+    """Is this commitment already written down for that day?
+
+    Lives NEXT TO the write and not inside `dated_note_backstop` on purpose: that function is a pure decision
+    over two strings and a clock, which is why it can be tested against a literal transcript. Reading a global
+    store from inside it made nine of its own tests depend on the order the previous ones ran in — the same
+    coupling this fix exists to remove, one layer down.
+
+    V2-194, measured in the sandbox of the 2026-08-20 02:34 run: the agenda came out with the SAME commitment
+    twice on the same date — «Renovar seguro del coche» and «Renovar el seguro del coche», 2026-08-27. One is
+    the model's own data-op and the other this backstop, fired on a later turn.
+
+    The sibling backstop has had this since V2-153 (it refuses to schedule a notice for an instant that already
+    has one); the note half never got it, and its gate — «only if THIS turn did not already do the data-op» —
+    cannot see a data-op from a PREVIOUS turn. A duplicate alert is a defect the operator hears twice; a
+    duplicate agenda entry is one he SEES twice, which is worse because it stays there.
+
+    Compared on the DAY plus the content words of the title, not on the exact string: the two measured entries
+    differ by one article, and a comparison that an article defeats is not a comparison. Fail-open — if the
+    agenda cannot be read, backing the promise beats dropping it.
+    """
+    try:
+        from widgets import store as _store
+        meetings = (_store.load("agenda") or {}).get("meetings") or []
+    except Exception:
+        return False
+    mine = _content_words(str(note.get("title") or ""))
+    if not mine:
+        return False
+    for m in meetings:
+        if str((m or {}).get("date") or "") != str(note.get("date") or ""):
+            continue
+        theirs = _content_words(str((m or {}).get("title") or ""))
+        if theirs and len(mine & theirs) >= min(2, len(mine)):
+            return True
+    return False
+
+
+_STOPWORDS = frozenset({"el", "la", "los", "las", "un", "una", "de", "del", "al", "que", "y", "a", "en",
+                        "mi", "tu", "su", "the", "a", "an", "of", "to", "my", "your"})
+
+
+def _content_words(text: str) -> set[str]:
+    return {w for w in _norm_txt(text).split() if len(w) > 2 and w not in _STOPWORDS}
+
+
 _CLAUSE_SPLIT_RE = _re.compile(r"[,;.!?\n]|\sy\s|\sand\s", _re.I)
 
 

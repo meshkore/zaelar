@@ -53,3 +53,25 @@ def test_the_logs_of_a_test_never_land_in_the_operators_timeline():
     para que las invariantes de aislamiento vivan juntas y se lean de una."""
     d = os.getenv("ZAELAR_LOG_DIR") or ""
     assert "zaelar-test-logs-" in d, f"los eventos de la suite irían al timeline real: {d!r}"
+
+
+def test_the_operators_widget_data_is_not_the_one_the_suite_writes():
+    """Los DATOS de los widgets eran el último sitio donde el invariante de este fichero —«un test nunca lee ni
+    escribe el estado real del operador»— no estaba aplicado a nivel de SESIÓN. El propio `conftest.py` ya
+    citaba `store.DATA_DIR` como la misma lección, pero solo dentro de los tests de widgets: cualquier otro
+    test que despachara una data-op escribía en la agenda REAL.
+
+    Medido el 2026-08-20: **328 citas** «renovar el seguro del coche» acumuladas en la agenda del operador, y
+    **2 más por cada corrida completa**. Ninguna falló nada — la basura se queda ahí y solo se nota cuando
+    alguien mira su agenda, o cuando un arreglo nuevo empieza a LEERLA y de pronto nueve tests dependen del
+    orden en que corrieron los anteriores. Que es exactamente lo que pasó.
+    """
+    from widgets import store
+
+    # Se comprueba lo que IMPORTA —que no sea la del operador— y no un prefijo concreto: los tests de widgets
+    # reapuntan `DATA_DIR` a SU propio temporal y no lo restauran, así que exigir el prefijo de `conftest`
+    # convertía el orden de ejecución en el fallo. Cualquier temporal vale; la real, no.
+    real = Path(__file__).resolve().parents[3] / "widgets" / "_data"
+    assert Path(store.DATA_DIR).resolve() != real.resolve(), (
+        "la suite está escribiendo en los datos de widgets REALES del operador: una data-op de cualquier test "
+        f"le deja basura en su agenda. Apunta a: {store.DATA_DIR}")

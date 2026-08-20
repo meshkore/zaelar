@@ -57,3 +57,19 @@ try:
     _settings.SETTINGS_FILE = _Path(tempfile.mkdtemp(prefix="zaelar-test-settings-")) / "settings.json"
 except Exception:                                  # sin `config` importable, la suite sigue como antes
     pass
+
+# V2-194 — el MISMO invariante que el de arriba («un test nunca lee ni escribe el estado real del operador»),
+# aplicado al último sitio donde faltaba: los DATOS de los widgets. El comentario de arriba ya citaba
+# `store.DATA_DIR` como la misma lección, pero solo estaba aplicado dentro de los tests de widgets, no a nivel
+# de sesión — así que cualquier otro test que despachara una data-op escribía en la agenda REAL.
+#
+# Medido el 2026-08-20: **328 citas** «renovar el seguro del coche» acumuladas en la agenda del operador, y
+# **2 más por cada corrida completa** de la suite. Ninguna falló nada: la basura se queda ahí y solo se nota
+# cuando alguien mira su agenda — o cuando un arreglo nuevo empieza a LEERLA (el dedup de citas de V2-194) y
+# de pronto nueve tests dependen del orden en que corrieron los anteriores.
+try:
+    from widgets import store as _wstore
+
+    _wstore.DATA_DIR = _Path(tempfile.mkdtemp(prefix="zaelar-test-widgets-"))
+except Exception:                                  # sin `widgets` importable, la suite sigue como antes
+    pass
