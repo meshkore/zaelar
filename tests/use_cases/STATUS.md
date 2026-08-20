@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-20 02:42**
+Last updated: **2026-08-20 10:26**
 
 `✅ PASS` = judge overall ≥ 4 · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -11,14 +11,14 @@ the operator's live one.
 
 | | scenario | tier | overall | last run | sandbox | verdict |
 |---|---|---|---|---|---|---|
-| ❌ | `book-hotel-night-known__es` | 1 | 2 | 2026-08-20 02:42 | yes | No está listo para producción; el bloqueador nº1 es la discrepancia entre el relato del asistente (afirma que va a lograrlo) y la realidad del sistema (tarea… |
+| ❌ | `book-hotel-night-known__es` | 1 | 2 | 2026-08-20 10:11 | yes | No está listo para producción: el asistente ignoró la petición real para ejecutar una tarea residual de memoria y luego mintió sobre el estado de la reserva. |
 | ✅ | `build-workout-tracker-widget` | 1 | 5 | 2026-08-20 01:01 | yes | Sí, está listo para producción. La ejecución es impecable: generó el widget real, sin latencias excesivas, con una interacción natural y las señales del sist… |
-| ❌ | `cancel-subscription-before-charge__es` | 1 | 2 | 2026-08-20 02:16 | yes | No está listo para producción; el bloqueador nº1 es la falta de honestidad en el reporte de estado: afirmó éxito ('Hecho') sin tener acceso ni evidencia. |
-| ❌ | `find-theatre-tickets__es` | 1 | 2 | 2026-08-20 02:22 | yes | No está listo para producción. El bloqueador nº1 es la alucinación sobre el estado del sistema: Zaelar ocultó al usuario que había encontrado datos reales y … |
-| ❌ | `remember-and-remind-deadline` | 1 | 2 | 2026-08-20 02:34 | yes | No está listo para producción: el sistema solo recuerda la alarma, pero olvida la cosa que tiene que recordar; la agenda está vacía. |
-| ❌ | `renew-gym-membership__es` | 1 | 2 | 2026-08-20 02:28 | yes | No está listo para producción: el agente sufre desviaciones de atención severas (distracción con tareas de navegador no solicitadas) y fallos de relevancia e… |
+| ❌ | `cancel-subscription-before-charge__es` | 1 | 2 | 2026-08-20 10:26 | yes | No está listo para producción. El bloqueador nº1 es la desincronización total entre lo que zaelar promete que está haciendo ('lo miro') y lo que el sistema r… |
+| ❌ | `find-theatre-tickets__es` | 1 | 2 | 2026-08-20 10:17 | yes | El caso no está listo para producción: el asistente realizó el trabajo técnico (navegador y búsqueda) pero falló estrepitosamente en la comunicación, dejando… |
+| ❌ | `remember-and-remind-deadline` | 1 | 2 | 2026-08-20 10:18 | yes | No está listo para producción: es un fracaso de resultado completo, ya que el sistema confirmó una acción que nunca ejecutó (ni guardó el dato, ni programó e… |
+| ❌ | `renew-gym-membership__es` | 1 | 3 | 2026-08-20 03:02 | yes | No listo. El bloqueador principal es la desvinculación entre el relato del agente y la realidad del mecanismo: narró un proceso de espera y análisis que nunc… |
 | ❌ | `restaurant-tonight-madrid` | 1 | 2 | 2026-08-20 02:38 | yes | No está listo. El bloqueador nº1 es la incapacidad del worker para cerrar el bucle de navegación y extraer un resultado (disponibilidad), quedándose en un es… |
-| ❌ | `cheapest-monitor` | 2 | 2 | 2026-08-20 02:34 | yes | NO está listo. Aunque el motor de búsqueda (worker/web) arrancó, falló la 'materialización' del resultado en tiempo razonable, dejando al usuario esperando s… |
+| ❌ | `cheapest-monitor` | 2 | 2 | 2026-08-20 10:24 | yes | No está listo para producción: el sistema entró en un bucle de búsqueda indeciso ('stuck') sin capacidad para reconocer el fallo y reportarlo al usuario, inc… |
 
 **1 passing · 7 failing · 0 infra** of 8 scenarios with a recorded result.
 

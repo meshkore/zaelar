@@ -115,24 +115,30 @@ def _next_initiative_number() -> int:
     2026-08-20: two different `V2-170` files, mine and the fixing agent's. Nothing was lost —
     `find_initiative` already stops a same-case overwrite and the slugs differed — but a duplicated number
     makes every later cross-reference ambiguous, and an unattended 12-hour loop files many of these.
+
+        ARCHIVED work still OWNS its number: the scan is recursive so a closed initiative moved to `archive/`
+    cannot have its number reissued. A reused number is the worst kind of collision here — nothing errors,
+    two unrelated pieces of history answer to the same name, and every cross-reference written before the
+    reuse silently points at the wrong one.
     """
-    taken = {int(m.group(1)) for p in INITIATIVES.glob("V2-*.md")
+    taken = {int(m.group(1)) for p in INITIATIVES.rglob("V2-*.md")
              if (m := re.match(r"V2-(\d{3})\b", p.name))}
     num = (max(taken) + 1) if taken else 1
-    while num in taken or any(INITIATIVES.glob(f"V2-{num:03d}-*.md")):
+    while num in taken or any(INITIATIVES.rglob(f"V2-{num:03d}-*.md")):
         num += 1
     return num
 
 
 def _next_task_number() -> int:
     """Same race as `_next_initiative_number`, same reason: the fixing agent also creates tasks (it created
-    T411-T416 while this session was writing T410)."""
+    T411-T416 while this session was writing T410). Recursive for the same reason: an ARCHIVED task keeps
+    its number for ever."""
     nums = {_TASK_FLOOR - 1}
-    for p in MODULES.glob("*/tasks/T*.md"):
-        if m := re.match(r"T(\d+)\b", p.name):
+    for p in MODULES.rglob("T*.md"):
+        if "tasks" in p.parts and (m := re.match(r"T(\d+)\b", p.name)):
             nums.add(int(m.group(1)))
     num = max(nums) + 1
-    while any(MODULES.glob(f"*/tasks/T{num}-*.md")):
+    while any(p for p in MODULES.rglob(f"T{num}-*.md") if "tasks" in p.parts):
         num += 1
     return num
 

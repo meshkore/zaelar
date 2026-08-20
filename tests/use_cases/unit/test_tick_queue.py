@@ -15,7 +15,7 @@ from __future__ import annotations
 from tests.use_cases.e2e.agent import scenarios as SC, segments as SG, tick as T
 
 
-def test_the_queue_only_ever_holds_runnable_cases():
+def test_the_queue_only_ever_holds_runnable_cases(live_board):
     for s in T._unrun_scenarios():
         assert SG.is_completable(s.id), (
             f"«{s.id}» está en la cola del tick pero su segmento es «{SG.group_of(s.id)}»: "
@@ -30,7 +30,7 @@ def test_and_the_blocked_ones_are_genuinely_excluded():
     assert not (queued & set(blocked))
 
 
-def test_the_queue_is_not_empty_while_runnable_cases_remain_untried():
+def test_the_queue_is_not_empty_while_runnable_cases_remain_untried(live_board):
     """Y que el filtro no se pase de listo: mientras quede un caso ejecutable sin veredicto, la cola lo tiene.
 
     Si algún día pasan los 47, esto se apaga solo — el catálogo se habría agotado de verdad, que es la
@@ -56,7 +56,7 @@ def test_es_and_us_are_never_mixed_in_one_batch():
     assert len({s.locale for s in picked}) == 1
 
 
-def test_a_case_that_only_ever_died_in_INFRA_stays_in_the_queue():
+def test_a_case_that_only_ever_died_in_INFRA_stays_in_the_queue(live_board):
     """Un `INFRA` no es un veredicto: el arnés se murió antes de juzgar, así que ese caso NO se ha medido.
 
     Contarlo como probado retiró en silencio `build-workout-tracker-widget` —el único caso ejecutable que
@@ -73,7 +73,7 @@ def test_a_case_that_only_ever_died_in_INFRA_stays_in_the_queue():
         assert sid in queued, f"«{sid}» solo tiene un INFRA (nunca se midió) y la cola lo está saltando"
 
 
-def test_but_a_real_verdict_does_retire_a_case():
+def test_but_a_real_verdict_does_retire_a_case(live_board):
     """La otra mitad: PASS y FAIL sí son mediciones, y re-correrlas es lo que hace el camino de verify."""
     from tests.use_cases.e2e.agent import status as statusmod
 

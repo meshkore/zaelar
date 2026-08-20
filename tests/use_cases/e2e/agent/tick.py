@@ -193,6 +193,7 @@ def _retest_pending() -> dict:
 
     led = statusmod.load().get("scenarios") or {}
     passed, rotated, inconclusive, blocked, unrun = [], [], [], [], []
+    passed_dirty: list[str] = []   # nota de PASS pero la auditoría del mecanismo no está limpia
     for p in ready:
         sid = p["scenario"]
         e = led.get(sid) or {}
@@ -209,6 +210,19 @@ def _retest_pending() -> dict:
             unrun.append(sid)
             continue
         if e.get("state") == "PASS":
+            # UN PASS NO BASTA PARA CERRAR (regla del operador, 2026-08-20): hay que haber leído la auditoría
+            # entera y que cada paso interno sea el que debe ser. La nota del juez mira el RESULTADO y la
+            # conducta; la auditoría mira los eventos, y las dos cosas pueden discrepar — la corrida de las
+            # 10:00 llevaba `is_error` en un paso del worker («no puedo leer el payload de sources.json») con
+            # todas las familias esperadas presentes. Cerrar ahí archiva un defecto medido.
+            anomalies = e.get("audit_anomalies") or []
+            if anomalies:
+                what = "; ".join(f"[{a.get('clase')}] {a.get('que')}" for a in anomalies[:4])
+                I.note_inconclusive(sid, detail=(
+                    f"PASA la nota del juez ({e.get('overall')}/5) pero la AUDITORÍA del mecanismo trae "
+                    f"{len(anomalies)} anomalía(s), así que no se cierra: {what}"))
+                passed_dirty.append(f"{sid} ({len(anomalies)} anomalía(s) sin resolver)")
+                continue
             I.close_on_pass(sid, verdict=e.get("verdict", ""), overall=e.get("overall"))
             passed.append(sid)
         elif e.get("state") == "FAIL":
@@ -252,7 +266,10 @@ def _retest_pending() -> dict:
             if I.note_inconclusive(sid, detail=e.get("verdict", "") or "sin veredicto"):
                 inconclusive.append(sid)
     if passed:
-        _log(f"paso 1 · PASAN y se cierran: {', '.join(passed)}")
+        _log(f"paso 1 · PASAN y se cierran (nota ≥4 Y auditoría limpia): {', '.join(passed)}")
+    if passed_dirty:
+        _log(f"paso 1 · PASAN la nota pero NO se cierran — la auditoría del mecanismo trae anomalías "
+             f"(un paso interno que no fue el que debía): {'; '.join(passed_dirty)}")
     if rotated:
         _log(f"paso 1 · siguen fallando → iniciativa NUEVA: {'; '.join(rotated)}")
     if unrun:
@@ -265,7 +282,7 @@ def _retest_pending() -> dict:
     if inconclusive:
         _log(f"paso 1 · NO CONCLUYENTE (fallo de arnés, ni cierra ni rota; hace falta una tarea de verify NUEVA): "
              f"{', '.join(inconclusive)}")
-    return {"retested": len(ready), "passed": passed, "rotated": rotated,
+    return {"retested": len(ready), "passed": passed, "passed_dirty": passed_dirty, "rotated": rotated,
             "inconclusive": inconclusive, "blocked": blocked, "unrun": unrun,
             "orphan": [p["task"].name for p in orphan]}
 

@@ -48,6 +48,10 @@ def record(results: list[dict], *, sandboxed: bool) -> dict:
             "scores": verdict.get("scores") or {},
             "verdict": (verdict.get("veredicto") or "")[:400],
             "missing_signals": mech.get("missing_signals") or [],
+            # La AUDITORÍA del stream completo, guardada por la misma razón que `families`: el cierre lo decide
+            # el tick en el proceso padre, donde el run dict ya no existe. Un caso NO se cierra con anomalías
+            # aquí, aunque el juez le ponga un 5 — ver `tick._retest_pending`.
+            "audit_anomalies": ((mech.get("audit") or {}).get("anomalies") or []),
             "sandboxed": sandboxed,
             "tier": r.get("tier"),
             # Recorded so a LATER re-file can rebuild an honest round from the ledger alone. The tick's re-file

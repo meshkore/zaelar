@@ -249,6 +249,83 @@ def dropped_actions(all_events: list[dict]) -> list[dict]:
     return out
 
 
+def audit(all_events: list[dict], expected_signals: list[str] | None = None) -> dict:
+    """Walk the WHOLE stream and report what a families summary cannot see.
+
+    `mechanism_report` answers "did the right subsystems show up". That is not the same question as "did
+    every internal step go as it should", and the gap is not theoretical: the run of 2026-08-20 10:00 carried
+    `is_error: true` on a worker step — *«Exit code 2, no puedo leer el payload de sources.json»* — and NOTHING
+    in the report, the judge prompt or the operator's report ever mentioned it. The family `worker` was
+    present, so by the old reading the mechanism was fine.
+
+    So this reads the fields the summary throws away: `is_error` (an internal failure), `evidence` (what the
+    OUTSIDE WORLD actually brought back, which is the only thing that can make a claim true), `tool` (which
+    processes really ran), `span` (each worker's own lifeline) and the clock (a long silence is a symptom).
+
+    Anomalies are stated as facts, never as verdicts — the judge decides what they mean. And the list is
+    ORDERED with the certain ones first: an `is_error` event is not an interpretation.
+    """
+    exp = expected_signals or []
+    evs = [e for e in all_events if isinstance(e, dict)]
+    errors = [{"cat": e.get("cat"), "kind": e.get("kind"), "label": e.get("label"),
+               "span": e.get("span"), "rel_ms": e.get("rel_ms"),
+               "text": str(e.get("text") or "")[:240]}
+              for e in evs if e.get("is_error")]
+    evidence = [e for e in evs if e.get("evidence")]
+    tools: dict[str, int] = {}
+    for e in evs:
+        if t := e.get("tool"):
+            tools[t] = tools.get(t, 0) + 1
+
+    spans: dict[str, dict] = {}
+    for e in evs:
+        sp = e.get("span")
+        if not sp:
+            continue
+        d = spans.setdefault(sp, {"n": 0, "first_ms": e.get("rel_ms"), "last_ms": e.get("rel_ms"),
+                                  "errors": 0, "last_label": ""})
+        d["n"] += 1
+        d["last_ms"] = e.get("rel_ms")
+        d["last_label"] = e.get("label") or ""
+        if e.get("is_error"):
+            d["errors"] += 1
+
+    stamps = sorted(e.get("rel_ms") for e in evs if isinstance(e.get("rel_ms"), (int, float)))
+    gap = max((b - a for a, b in zip(stamps, stamps[1:])), default=0)
+
+    anomalies: list[dict] = []
+    for e in errors:
+        anomalies.append({"clase": "error_interno", "certeza": "hecho",
+                          "que": f"{e['cat']}/{e['kind']} «{e['label']}»: {e['text'][:160]}"})
+    for d in dropped_actions(evs):
+        anomalies.append({"clase": "accion_descartada", "certeza": "hecho",
+                          "que": f"tool={d.get('tool') or '?'} razón={d.get('reason') or '?'}"})
+    # Zero evidence with a worker or browser expected means nothing came back from the outside world. A
+    # claim about the world cannot be true in that run, whatever the transcript says.
+    if not evidence and ({"Brain Workers", "worker", "Widgets", "widget"} & set(exp)):
+        anomalies.append({"clase": "sin_evidencia_externa", "certeza": "hecho",
+                          "que": "ni un solo evento con `evidence`: el mundo exterior no trajo nada"})
+    for sp, d in sorted(spans.items()):
+        if d["errors"]:
+            anomalies.append({"clase": "span_con_error", "certeza": "hecho",
+                              "que": f"{sp}: {d['errors']} error(es), último paso «{d['last_label']}»"})
+    if gap >= 60_000:
+        anomalies.append({"clase": "silencio", "certeza": "medida",
+                          "que": f"{gap/1000:.0f}s sin un solo evento"})
+
+    return {
+        "n_events": len(evs),
+        "errors": errors,
+        "n_evidence": len(evidence),
+        "tools_run": tools,
+        "spans": spans,
+        "max_gap_ms": gap,
+        "unexpected_families": sorted(families_in(evs) - set(exp)) if exp else [],
+        "anomalies": anomalies,
+        "clean": not anomalies,
+    }
+
+
 def mechanism_report(all_events: list[dict], expected_signals: list[str],
                      concurrency: ConcurrencyTracker | None = None,
                      scheduled: dict | None = None) -> dict:
@@ -268,6 +345,9 @@ def mechanism_report(all_events: list[dict], expected_signals: list[str],
         "n_events": len(all_events),
         "search_health": search_health(all_events),
         "dropped_actions": dropped_actions(all_events),
+        # The full walk of the stream, not just which families showed up. A case does NOT close with
+        # anomalies here, however good the transcript reads — see `tick`.
+        "audit": audit(all_events, expected_signals),
     }
     if scheduled is not None:
         out["scheduled_jobs"] = scheduled
