@@ -120,3 +120,36 @@ def test_the_runner_puts_it_in_the_report(monkeypatch, tmp_path):
                                        opening_line="o", success_checks="s", turns=1))
     pc = seen["mech"].get("prompt_context")
     assert pc and pc[0]["alert"] is True, "lo leído no llega al informe que ve el juez"
+
+
+_FAILED = ('TAREAS DE FONDO — YA ACABADAS: «Reservar una noche de hotel» FALLÓ; «otra cosa» OK')
+
+
+def test_a_FAILED_background_task_in_the_prompt_counts_as_shown(tmp_path):
+    """The other half of the day's dominant defect, and the half that was invisible until this line was read.
+
+    Measured in `book-hotel-night-known__es`: from turn 2 onwards the prompt said the background task had
+    FAILED, and eight consecutive turns still answered "sigo con ello, te aviso". No wall, no question — a dead
+    task, stated, ignored. Delivery was not the problem there; obedience was.
+    """
+    rows = V.prompt_context(_db(tmp_path, [(100.0, _FAILED, 5)]))
+    assert rows[0]["alert"] is True
+    assert "FALLÓ" in rows[0]["failed_task_line"]
+    assert rows[0]["shown_state"] == "", "no había muro: no se puede inventar uno"
+
+
+def test_a_background_task_that_simply_FINISHED_is_not_an_alert(tmp_path):
+    """Sensitivity: `YA ACABADAS` without `FALLÓ` is good news. Flagging it would make the block cry wolf on
+    every successful round, and a warning that always fires stops being read."""
+    ok = 'TAREAS DE FONDO — YA ACABADAS: «Reservar una noche de hotel» OK'
+    rows = V.prompt_context(_db(tmp_path, [(100.0, ok, 5)]))
+    assert rows[0]["alert"] is False
+    assert rows[0]["failed_task_line"] == ""
+
+
+def test_the_judge_is_told_about_the_failed_task_too():
+    txt = J.mechanism_facts({"prompt_context": [
+        {"turn": 3, "window_msgs": 7, "shown_state": "", "failed_task_line": _FAILED, "alert": True}]})
+    assert "una tarea que FALLÓ" in txt
+    assert "turno 3" in txt and "FALLÓ" in txt
+    assert "fallo GRAVE de resultado" in txt

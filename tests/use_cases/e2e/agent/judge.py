@@ -168,11 +168,12 @@ def mechanism_facts(mech: dict) -> str:
                      f"zaelar. No puntúes a zaelar por reaccionar razonablemente a un turno imposible.")
     pc = mech.get("prompt_context") or []
     if pc:
-        alerts = [r for r in pc if r.get("alert") and r.get("shown_state")]
-        shown = [f"  · turno {r['turn']}: se le MOSTRÓ «{r['shown_state']}»" for r in alerts]
+        alerts = [r for r in pc if r.get("alert") and (r.get("shown_state") or r.get("failed_task_line"))]
+        shown = [f"  · turno {r['turn']}: se le MOSTRÓ «{r['shown_state'] or r.get('failed_task_line')}»"
+                 for r in alerts]
         lines.append(
             "=== LO QUE EL AGENTE TENÍA DELANTE (leído de su propio prompt, no inferido) ===\n"
-            + (("Turnos en los que el prompt llevaba un MURO (⛔) o una PREGUNTA (❓) de la tarea:\n"
+            + (("Turnos en los que el prompt llevaba un MURO (⛔), una PREGUNTA (❓) o una tarea que FALLÓ:\n"
                 + "\n".join(shown) + "\n"
                 + "Si en uno de esos turnos zaelar dijo que seguía trabajando, o «sin novedades», o no le "
                   "trasladó la pregunta, eso es un fallo GRAVE de resultado y de adaptación: tenía la línea "

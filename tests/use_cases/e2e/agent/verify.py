@@ -424,6 +424,12 @@ def mechanism_report(all_events: list[dict], expected_signals: list[str],
 # own DB — which the suite already keeps on disk for exactly this kind of inspection. Live-engine runs simply
 # get nothing, which is the honest answer there.
 _NAV_MARK = "NAVEGADOR — YA EN CURSO"
+# A worker that DIED is in the prompt too, on its own line: `TAREAS DE FONDO — YA ACABADAS: «…» FALLÓ`. Reading
+# it is what separates the two halves of the day's dominant defect — the notice not being delivered (plumbing,
+# fixed on 2026-08-20) from the notice being delivered and not said (obedience, still open). Measured in
+# `book-hotel-night-known__es`: the prompt carried both the anti-robot wall and a failed background task while
+# the turn kept promising progress.
+_DONE_MARK = "TAREAS DE FONDO — YA ACABADAS"
 _ALERT = ("⛔", "❓", "bloque", "captcha", "no puedo seguir", "confirm")
 
 
@@ -455,9 +461,12 @@ def prompt_context(db_path, *, since: float = 0.0, limit: int = 40) -> list[dict
         sp = p.get("system_prompt") or ""
         nav = next((l.strip() for l in sp.splitlines() if _NAV_MARK in l), "")
         shown = nav.split("último:", 1)[1].strip() if "último:" in nav else ""
+        done = next((l.strip() for l in sp.splitlines() if _DONE_MARK in l), "")
+        failed = "FALLÓ" in done
         out.append({"turn": i, "window_msgs": p.get("window_msgs"), "system_chars": len(sp),
                     "task_line": nav[:300], "shown_state": shown[:200],
-                    "alert": any(a in shown.lower() or a in shown for a in _ALERT)})
+                    "failed_task_line": done[:240] if failed else "",
+                    "alert": any(a in shown.lower() or a in shown for a in _ALERT) or failed})
     return out
 
 
