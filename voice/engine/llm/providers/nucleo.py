@@ -1190,8 +1190,11 @@ class NucleoLLMStream(llm.LLMStream):
                     from nucleo import scheduler as _sched
                     d = extra.get("data") or {}
                     if action == "cron.create":
+                        # V2-214 (impl PARALELA — cablear en AMBOS): las palabras del OPERADOR sobre su propia
+                        # obligación se envuelven en un «AVÍSALE»; una orden ya dirigida al agente se deja igual.
+                        from nucleo.flash import router_guards as _rg_cron
                         r = _sched.create(
-                            (d.get("prompt") or d.get("task") or "").strip(),
+                            _rg_cron.safe_reminder_prompt((d.get("prompt") or d.get("task") or "").strip()),
                             (d.get("schedule") or d.get("when") or "").strip(),
                             name=(d.get("name") or "").strip(), repeat=str(d.get("repeat") or ""))
                         emit("cron", "⏰ tarea programada" if r.get("ok") else "⚠️ schedule no reconocido",

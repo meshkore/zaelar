@@ -892,7 +892,13 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 _ex = _t.get("extra") or {}
                 _d = _ex.get("data") or {}
                 if _t["action"] == "cron.create":
-                    _r = _sched.create((_d.get("prompt") or _d.get("task") or "").strip(),
+                    # V2-214 (espejo del provider — cablear en AMBOS): si el `prompt` son las palabras del
+                    # OPERADOR sobre su propia obligación («el jueves tengo que renovar el seguro»), el trabajo
+                    # se le entrega al agente como un «apunta esto» en vez de un «avísale». El backstop ya
+                    # componía la forma segura; la tag del modelo entraba cruda por la otra puerta.
+                    from . import router_guards as _rg_cron
+                    _r = _sched.create(_rg_cron.safe_reminder_prompt(
+                        (_d.get("prompt") or _d.get("task") or "").strip()),
                                        (_d.get("schedule") or _d.get("when") or "").strip(),
                                        name=(_d.get("name") or "").strip(), repeat=str(_d.get("repeat") or ""))
                     _t["executed"] = {"ok": bool(_r.get("ok")), "display": _r.get("display") or "",

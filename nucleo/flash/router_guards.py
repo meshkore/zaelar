@@ -1246,3 +1246,36 @@ def answer_needs_a_source(operator_text: str, reply: str) -> bool:
     if _OWN_THING_RE.search(q):
         return False
     return bool(_EXTERNAL_FACT_RE.search(q) and _FIGURE_RE.search(a))
+
+
+# ── WHAT THE CRON HANDS BACK TO THE AGENT (V2-214) ────────────────────────────────────────────────────────────
+# `_reminder_prompt` composes a safe instruction, and only the BACKSTOP goes through it. When the model emits the
+# `cron.create` tag itself, its `prompt` is whatever it wrote — and measured on `remember-and-remind-deadline`
+# (2026-08-20 15:49) what it wrote was the operator's own sentence: «el jueves tengo que renovar el seguro del
+# coche». The job exists, fires on the right day, and hands the agent a first-person obligation, which reads as
+# «file this», not «tell him». So the alert is created and its CONTENT is broken — the judge called it exactly
+# that, and it is the loop `_reminder_prompt`'s own docstring already warned about, reached by the other door.
+#
+# NARROW: only a FIRST-PERSON obligation is rewritten. A cron the operator set up deliberately («cada lunes dame
+# el resumen») is already an instruction to the agent, and wrapping it would break a feature to fix a defect.
+_FIRST_PERSON_DUTY_RE = _re.compile(
+    r"\b(tengo\s+que|he\s+de|debo|me\s+toca|tengo\s+pendiente|"
+    r"i\s+have\s+to|i\s+need\s+to|i\s+must|i\s+should)\b", _re.I)
+
+# Already addressed TO the agent: leave it exactly as it is.
+_AGENT_IMPERATIVE_RE = _re.compile(
+    r"^\s*(avisa|av[ií]same|recu[eé]rda|recuerdame|dime|d[ií]|notif[ií]|remind|tell|notify|let\s+me\s+know)",
+    _re.I)
+
+
+def safe_reminder_prompt(prompt: str) -> str:
+    """What the agent is handed when this job fires. Returns `prompt` untouched unless it is the OPERATOR's own
+    words about their own obligation, in which case it is wrapped into an instruction to NOTIFY.
+
+    Lives here, next to `_reminder_prompt`, so both doors into the scheduler say the same thing — the backstop
+    already did and the model's own tag did not.
+    """
+    p = (prompt or "").strip()
+    if not p or _AGENT_IMPERATIVE_RE.search(p) or not _FIRST_PERSON_DUTY_RE.search(p):
+        return p
+    return _reminder_prompt(p, p)

@@ -1275,6 +1275,20 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **El aviso existía y su CONTENIDO estaba roto** (`nucleo/flash/router_guards.py`, V2-214, 2026-08-20). Medido
+  en `remember-and-remind-deadline` (15:49): *«el `prompt` del cron lleva la frase cruda del usuario, así que el
+  recordatorio hará que el agente vuelva a programar en vez de avisar»*. `_reminder_prompt` compone la forma
+  segura («AVISA al operador, es el recordatorio que te pidió: …») y su propio docstring explica por qué —el
+  lector del cron es el AGENTE en otro momento, así que dejarle las palabras del operador le pide APUNTAR, que es
+  el bucle que toda esta zona existe para cerrar—, **y solo el BACKSTOP pasaba por ahí**. Cuando la tag
+  `cron.create` la emite el modelo, su `prompt` es lo que él escribiera: «el jueves tengo que renovar el seguro
+  del coche».
+  - Así que la respuesta a «¿regresión o nunca cubrió esta vía?» es **nunca la cubrió**: mismo defecto, la otra
+    puerta. Ahora la normalización vive junto a `_reminder_prompt` y la llaman los dos canales.
+  - **Estrecho a propósito**: solo se reescribe una obligación en PRIMERA PERSONA. Un cron que el operador montó
+    a mano («cada lunes dame el resumen») ya es una orden dirigida al agente, y envolverlo sería romper una
+    función para arreglar un defecto. Con test de sensibilidad por los dos lados.
+
 - **DOS REGRESIONES MÍAS, medidas el mismo día y en el único caso 5/5 del tablero** (V2-202/V2-209 addenda,
   2026-08-20). `cancel-subscription-before-charge__es` pasó de **5/5 a 2/5** con el veredicto «narró que seguía
   cancelando en la cuenta del usuario sin que el mecanismo lo respaldara». Ese caso vivía justo de NO afirmar
