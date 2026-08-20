@@ -69,6 +69,25 @@ def code_stamp() -> dict:
     return _CODE_STAMP
 
 
+
+def current_head() -> str:
+    """The engine's short HEAD right now, UNCACHED — `code_stamp()` deliberately memoises and would lie here.
+
+    Exists so a repeated round can notice the tree moved under it. Measured on 2026-08-20: two rounds launched
+    as one pair from a shell loop landed on different commits, because the fixing agent (correctly) committed
+    between them. Two rounds of different code are not a pair, and a stamp per round only reveals that after
+    both are paid for.
+    """
+    import subprocess
+    from pathlib import Path
+    try:
+        return subprocess.run(["git", "rev-parse", "--short", "HEAD"],
+                              cwd=str(Path(__file__).resolve().parents[4]),
+                              capture_output=True, text=True, timeout=15).stdout.strip()
+    except Exception:
+        return ""
+
+
 # Reasoning-capable tier, not voice's low-latency flash default — negotiating an open-ended request and
 # noticing when it's gone off track needs real reasoning, and this suite runs far less often than every
 # voice turn so the extra cost/latency per call is the right trade.

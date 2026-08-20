@@ -583,9 +583,36 @@ def _sandbox_groups(chosen: list, args: argparse.Namespace, *, verify_tasks: dic
               f"(a previous case's seeded preferences survive hard_reset and would be judged as this "
               f"persona's).")
     rc = 0
-    for g in groups:
-        rc |= _sandbox_batch(g, args, verify_tasks=verify_tasks)
+    rounds = max(1, int(getattr(args, "rounds", 1) or 1))
+    first_stamp = None
+    for n in range(rounds):
+        if first_stamp is not None:
+            moved = tree_moved_refusal(first_stamp, config.current_head())
+            if moved:
+                print(moved)
+                return rc | 3
+            print(f"↻ ronda {n + 1} de {rounds} (mismo código: {first_stamp.get('sha')})")
+        for g in groups:
+            rc |= _sandbox_batch(g, args, verify_tasks=verify_tasks)
+        first_stamp = first_stamp or config.code_stamp()
     return rc
+
+
+def tree_moved_refusal(stamp: dict, head_now: str) -> str:
+    """The message that stops round N of a pair when HEAD moved after round 1, or "" to carry on.
+
+    Rounds are run in pairs on purpose: in this case three rounds produced the same grade with three
+    different mechanisms underneath, so one round proves nothing. But a pair is only a pair if both halves
+    ran the SAME code — and on 2026-08-20 a shell loop launched two rounds across a commit boundary, which
+    is nobody's fault and still ruins the comparison. The clean-tree guard does not catch it: the tree is
+    clean on both sides of a commit.
+    """
+    was, now = (stamp or {}).get("sha") or "", head_now or ""
+    if not was or not now or was == now:
+        return ""
+    return (f"\u2717 el motor pas\u00f3 de {was} a {now} entre rondas de la misma tanda. Dos rondas de "
+            f"c\u00f3digo distinto no son un par: se para aqu\u00ed y se relanza la tanda entera sobre "
+            f"{now}.")
 
 
 def dirty_tree_refusal(stamp: dict, *, allow_dirty: bool = False) -> str:
@@ -706,6 +733,9 @@ def main() -> None:
                          "Counts failures already recorded by earlier batches, not just this one")
     ap.add_argument("--no-file", action="store_true",
                     help="do NOT open a MeshKore initiative/task for a failure (measure only)")
+    ap.add_argument("--rounds", type=int, default=1, metavar="N",
+                    help="run the selection N times as ONE batch; stops if the engine's HEAD moves between "
+                         "rounds, because two rounds of different code are not a pair")
     ap.add_argument("--allow-dirty", action="store_true",
                     help="measure even with uncommitted engine files (for the fixing agent's own work-in-progress)")
     ap.add_argument("--judge-pending", action="store_true",
