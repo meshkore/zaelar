@@ -69,12 +69,33 @@ def test_only_ZAELAR_counts_as_having_said_it():
     assert V.was_delivered([_HOTEL], tr) is False
 
 
-def test_the_judge_is_told_it_FOUND_and_did_not_deliver():
+def test_the_judge_is_told_it_was_HANDED_the_result_and_did_not_say_it():
+    """The accusation now rests on what the NOTE carried, because that is what the turn could act on."""
+    txt = J.mechanism_facts({"worker_outcome": {"found": [_HOTEL], "n_found": 1, "delivered": False,
+                                                "navigations": 2, "extractions": 2},
+                             "offered": {"notes": 1, "n_offered": 1, "titles": ["Exe Sevilla Macarena"]}})
+    assert "SE LO DIMOS Y NO LO DIJO" in txt
+    assert "Exe Sevilla Macarena" in txt
+    assert "fallo de conducta" in txt
+
+
+def test_and_the_SAME_scrape_is_NOT_a_behaviour_defect_when_the_note_carried_no_name():
+    """Sensitivity, and the reason this split exists: on 2026-08-20 the browser scraped three real 99 EUR
+    monitors while the note carried three nameless category links. Scoring that as withholding blames a turn
+    that described its input accurately."""
+    txt = J.mechanism_facts({"worker_outcome": {"found": [_HOTEL], "n_found": 1, "delivered": False,
+                                                "navigations": 2, "extractions": 2},
+                             "offered": {"notes": 2, "n_offered": 3, "titles": ["799€", "200€", "200€"]}})
+    assert "NO ES CULPA DE ZAELAR" in txt
+    assert "DIJO LA VERDAD sobre lo que recibió" in txt
+    assert "SE LO DIMOS Y NO LO DIJO" not in txt
+
+
+def test_an_UNMEASURED_note_exonerates_nobody():
+    """No `offered` key means the reading did not run. Absence of measurement is not evidence of an empty note."""
     txt = J.mechanism_facts({"worker_outcome": {"found": [_HOTEL], "n_found": 1, "delivered": False,
                                                 "navigations": 2, "extractions": 2}})
-    assert "EL NAVEGADOR SÍ ENCONTRÓ" in txt
-    assert "Exe Sevilla Macarena" in txt
-    assert "«no encontró» es falso" in txt
+    assert "NO ES CULPA DE ZAELAR" not in txt
 
 
 def test_and_told_when_the_extraction_itself_came_back_empty():

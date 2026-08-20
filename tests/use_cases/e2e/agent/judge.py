@@ -167,12 +167,29 @@ def mechanism_facts(mech: dict) -> str:
                      f"turno el usuario dice cosas absurdas o entrega él los resultados, ESO ES NUESTRO, no de "
                      f"zaelar. No puntúes a zaelar por reaccionar razonablemente a un turno imposible.")
     wo = mech.get("worker_outcome") or {}
+    offered = mech.get("offered") or {}
+    n_off = int(offered.get("n_offered") or 0)
     if wo.get("found"):
         listed = "; ".join(f"«{f.get('title')}» {f.get('price')}" for f in wo["found"][:3])
-        if wo.get("delivered") is False:
-            lines.append(f"· ⚠️ EL NAVEGADOR SÍ ENCONTRÓ ({wo.get('n_found')} resultado(s)): {listed}. Y NADA "
-                         f"de eso aparece en lo que zaelar DIJO. Así que «no encontró» es falso: encontró y no "
-                         f"lo entregó, que es un fallo de RESULTADO más grave y hay que describirlo así.")
+        # TWO DIFFERENT DEFECTS, and calling one by the other's name blames the wrong half of the system.
+        # What the browser scraped and what the brain was handed are separate lists: the note is built with a
+        # positional cut over DOM order, and category/ad rows come before product cards on every listing page.
+        named = [t for t in (offered.get("titles") or []) if t and not t[0].isdigit()]
+        # Only when the note was actually READ. A missing `offered` means the measurement did not run, and an
+        # unmeasured note is not an empty one — assuming otherwise would exonerate every turn for free.
+        measured = bool(offered.get("notes"))
+        if measured and wo.get("n_found") and not named:
+            lines.append(f"· ⚠️ ESTO NO ES CULPA DE ZAELAR, ES UNA AVERÍA DEL MECANISMO. El navegador extrajo "
+                         f"{wo.get('n_found')} resultado(s) con nombre ({listed}), pero la nota que le llegó al "
+                         f"cerebro NO llevaba ninguno: solo filas sin nombre (enlaces de categoría o de "
+                         f"anuncio). Así que si zaelar dijo que solo salían categorías o anuncios, DIJO LA "
+                         f"VERDAD sobre lo que recibió y no debe puntuar como ocultación ni como mentira. "
+                         f"Puntúa RESULTADO bajo —el usuario no obtuvo nada— y MECANISMO bajo, y di que el "
+                         f"defecto está en lo que se le entrega al cerebro, no en lo que el cerebro hace.")
+        elif wo.get("delivered") is False:
+            lines.append(f"· ⚠️ SE LO DIMOS Y NO LO DIJO. Al cerebro se le ofrecieron {n_off} resultado(s) por "
+                         f"nota —{'; '.join(named[:3])}— y NADA de eso aparece en lo que zaelar DIJO. Aquí sí "
+                         f"es fallo de conducta: tenía el dato delante y no lo entregó.")
         elif wo.get("delivered"):
             lines.append(f"· El navegador encontró y zaelar lo ENTREGÓ: {listed}. Eso cuenta como resultado "
                          f"conseguido, aunque la conversación siguiera después.")

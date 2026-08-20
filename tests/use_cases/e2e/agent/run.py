@@ -206,7 +206,13 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         # WHAT THE WORKER ACHIEVED and whether any of it was SAID — the gap this whole case is about.
         try:
             wo = verifymod.worker_outcome(config.SANDBOX_DB, since=started_at)
-            wo["delivered"] = verifymod.was_delivered(wo.get("found"), transcript)
+            offered = verifymod.offered_to_brain(config.SANDBOX_DB, since=started_at)
+            mech["offered"] = offered
+            # Delivery is judged against what the BRAIN was handed, never against what the browser scraped:
+            # the note is built with a positional cut, so the two lists routinely differ.
+            wo["delivered"] = verifymod.was_delivered(
+                [{"title": x} for x in offered.get("titles") or []], transcript)
+            wo["n_offered"] = offered.get("n_offered", 0)
             mech["worker_outcome"] = wo
         except Exception as e:
             mech["worker_outcome_error"] = str(e)[:200]

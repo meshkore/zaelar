@@ -755,7 +755,12 @@ def worker_outcome(db_path, *, since: float = 0.0) -> dict:
 
 
 def was_delivered(found: list | None, transcript: list[dict]) -> bool | None:
-    """Did ANY of what the browser found appear in something zaelar SAID? `None` when nothing was found."""
+    """Did ANY of what the brain was OFFERED appear in something zaelar SAID? `None` when nothing was offered.
+
+    Pass `offered_to_brain(...)["titles"]` here, not the browser's extraction. Judging against the extraction
+    blames the turn for withholding rows that never reached it — see `offered_to_brain` for the round where
+    this instrument did exactly that.
+    """
     if not found:
         return None
     said = " ".join((t.get("text") or "") for t in transcript if t.get("who") == "zaelar").lower()
@@ -767,6 +772,61 @@ def was_delivered(found: list | None, transcript: list[dict]) -> bool | None:
         if head and head in said:
             return True
     return False
+
+def offered_to_brain(db_path, *, since: float = 0.0) -> dict:
+    """WHAT THE NOTE ACTUALLY CARRIED — which is not what the browser extracted, and that gap is a defect.
+
+    On 2026-08-20 this instrument accused the product of hiding three real 99 EUR monitors. It had not
+    hidden them: `widgets/navegador/act_api.py` built the note with `items[:3]` in DOM order, and category
+    links come before product cards in every listing page there is, so rows 4-6 — the answer — were never
+    in the note. The turn described faithfully the only three rows it was given.
+
+    Judging delivery against what the BROWSER found therefore invents a behavioural defect out of a
+    truncation. So `worker_outcome` keeps reporting everything extracted (the truncation has to be visible
+    somewhere), and delivery is judged against this: the titles the brain was actually offered.
+    """
+    import sqlite3
+    out: dict = {"notes": 0, "titles": [], "n_offered": 0}
+    try:
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    except Exception:
+        return out
+    try:
+        rows = con.execute("SELECT payload FROM events WHERE topic = 'observer' AND ts_ms >= ? "
+                           "AND kind = 'brain' ORDER BY ts_ms ASC", (int(since * 1000),)).fetchall()
+    except Exception:
+        return out
+    finally:
+        try:
+            con.close()
+        except Exception:
+            pass
+    seen: set[str] = set()
+    for (raw,) in rows:
+        try:
+            txt = str((json.loads(raw) or {}).get("text") or "")
+        except Exception:
+            continue
+        if "SACADO" not in txt:
+            continue
+        out["notes"] += 1
+        # The note lists rows as «title — price — url», joined by "; ", between "página, trabajando en
+        # «goal»: " and the trailing ". Nadie más lo sabe". Parse that span only: the instruction prose
+        # after it also contains words like "resultado" and would otherwise be read as a finding.
+        m = re.search(r"»\s*:\s*(.+?)\.\s*Nadie", txt, re.S)
+        if not m:
+            continue
+        for chunk in m.group(1).split(";"):
+            head = chunk.strip().split(" — ")[0].strip()
+            if not head or head.startswith("http"):
+                continue
+            key = head.lower()
+            if key not in seen:
+                seen.add(key)
+                out["titles"].append(head[:120])
+    out["n_offered"] = len(out["titles"])
+    return out
+
 
 def progress_phases(db_path, *, since: float = 0.0) -> dict:
     """WHAT THE USER SAW WHILE WAITING, and — the number that matters — the longest silence.
