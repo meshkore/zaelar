@@ -201,6 +201,19 @@ def mechanism_facts(mech: dict) -> str:
         lines.append(f"· El navegador navegó {wo['navigations']} vez/veces y extrajo {wo.get('extractions', 0)} "
                      f"vez/veces, y NO sacó ni un resultado con título. Eso es un fallo del mecanismo de "
                      f"extracción, no de zaelar callándose algo que tenía.")
+    wh = mech.get("worker_health") or {}
+    if wh.get("failed"):
+        lines.append(f"· ⚠️ {wh['failed']} de {wh.get('spawned')} brain worker(s) MURIERON con error "
+                     f"(ok=false), {wh.get('ok', 0)} terminaron bien. Si zaelar dijo que una búsqueda se "
+                     f"cayó o que una tarea no llegó a terminar, DECÍA LA VERDAD y eso es honestidad, no "
+                     f"vaguedad: no lo puntúes como excusa. Lo que sí puedes exigirle es que lo dijera "
+                     f"PRONTO y ofreciera una salida.")
+    sr = mech.get("search_returns") or {}
+    if sr.get("returns") and not sr.get("notes_from_search"):
+        lines.append(f"· ⚠️ LA BÚSQUEDA WEB CONTESTÓ {sr['returns']} vez/veces y NADA de eso se le empujó al "
+                     f"cerebro (0 notas desde ese canal). Ejemplo de lo que volvió: "
+                     f"«{(sr.get('sample') or [''])[0][:140]}». Si zaelar no dio esos datos, no es que se "
+                     f"los callara: no los tuvo. Es un fallo de ENTREGA del mecanismo.")
     clash = mech.get("prompt_contradictions") or []
     if clash:
         turns = ", ".join(str(c.get("turn")) for c in clash)

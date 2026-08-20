@@ -838,6 +838,111 @@ def offered_to_brain(db_path, *, since: float = 0.0) -> dict:
     return out
 
 
+def worker_health(db_path, *, since: float = 0.0) -> dict:
+    """HOW MANY WORKERS ACTUALLY SURVIVED. Read on 2026-08-21 for the first time, and it was overdue.
+
+    `cheapest-monitor` that night: 8 spawned, 3 returned `ok:true`, 5 returned `ok:false`. Zaelar told the
+    user "la búsqueda que estaba en marcha se ha caído sin terminar" — the truth — and the round scored it
+    as vagueness, because the report had no column saying five workers had died. A harness that cannot see
+    a failure will score honesty about that failure as evasion.
+    """
+    import sqlite3
+    out: dict = {"spawned": 0, "ok": 0, "failed": 0, "cancelled": 0}
+    try:
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    except Exception:
+        return out
+    try:
+        for topic, key in (("worker.spawned", "spawned"), ("worker.cancelled", "cancelled")):
+            out[key] = con.execute("SELECT COUNT(*) FROM events WHERE topic = ? AND ts_ms >= ?",
+                                   (topic, int(since * 1000))).fetchone()[0]
+        for (raw,) in con.execute("SELECT payload FROM events WHERE topic = 'worker.result' AND ts_ms >= ?",
+                                  (int(since * 1000),)).fetchall():
+            try:
+                ok = bool((json.loads(raw) or {}).get("ok"))
+            except Exception:
+                continue
+            out["ok" if ok else "failed"] += 1
+    except Exception:
+        return out
+    finally:
+        try:
+            con.close()
+        except Exception:
+            pass
+    return out
+
+
+def search_returns(db_path, *, since: float = 0.0) -> dict:
+    """WHAT THE WEB SEARCH BROUGHT BACK, and whether one word of it ever reached the brain.
+
+    This channel was invisible to the harness until an audit of the whole event store on 2026-08-21 — which
+    found the instrument was reading 490 of 1291 events. In that round the search returned exactly what the
+    operator had asked for, in clean structured text («Philips 27E1N1800A/00 — 27" UHD 4K — 159,00 €»,
+    «Alurin CoreVision 27" IPS 4K — 149,99 €»), and NONE of it appeared in a system note, in a turn's prompt
+    or in the conversation: five of eight workers died before `_finalize_web` and the good text went with
+    them. Meanwhile the whole investigation was running on the browser's mangled rows.
+
+    So this reports what came back and whether the channel has any delivery at all. A search that answers
+    the question and never leaves the worker is a delivery defect, not a search defect, and the two get
+    opposite fixes.
+    """
+    import sqlite3
+    out: dict = {"queries": 0, "returns": 0, "model_tokens_seen": 0, "notes_from_search": 0, "sample": []}
+    try:
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    except Exception:
+        return out
+    try:
+        rows = con.execute("SELECT label, payload FROM events WHERE kind = 'search' AND ts_ms >= ? "
+                           "ORDER BY ts_ms ASC", (int(since * 1000),)).fetchall()
+        # Is there ANY push path from this channel? A note built from a search answer would say so; today
+        # every note in the store announces the BROWSER («ha SACADO esto de la página»). Zero here means the
+        # question is structural — the channel has no delivery — not that this round happened to be quiet.
+        out["notes_from_search"] = con.execute(
+            "SELECT COUNT(*) FROM events WHERE kind = 'brain' AND ts_ms >= ? AND payload LIKE ?",
+            (int(since * 1000), "%búsqueda web%")).fetchone()[0]
+        for label, raw in rows:
+            try:
+                txt = str((json.loads(raw) or {}).get("text") or "")
+            except Exception:
+                continue
+            if "↩" not in str(label or ""):
+                out["queries"] += 1
+                continue
+            out["returns"] += 1
+            # The distinctive head of the answer: enough to look for verbatim downstream, short enough that
+            # a turn paraphrasing it would still match on the product name.
+            head = " ".join(txt.split()[:60])
+            if len(out["sample"]) < 3:
+                out["sample"].append(head[:200])
+            # Did ANY distinctive token of this answer turn up in a system note or a turn's prompt?
+            # NAMED CAREFULLY, because the first draft called this «reached_brain» and it is not the same
+            # thing: on 2026-08-21 «27US500-W» matched, but it had arrived through the browser's Amazon URL,
+            # not through the search answer. A token can land by another route, so this counts SIGHTINGS,
+            # and only `notes_from_search` answers whether this channel is delivered at all.
+            tokens = [w.strip("*—,.:;()[]\"") for w in txt.split()]
+            tokens = [w for w in tokens if len(w) >= 7 and any(c.isdigit() for c in w)][:12]
+            landed = False
+            for tok in tokens:
+                hit = con.execute("SELECT 1 FROM events WHERE ts_ms >= ? AND payload LIKE ? "
+                                  "AND (kind = 'brain' OR topic = 'turn.completed') LIMIT 1",
+                                  (int(since * 1000), f"%{tok}%")).fetchone()
+                if hit:
+                    landed = True
+                    break
+            if landed:
+                out["model_tokens_seen"] += 1
+    except Exception:
+        return out
+    finally:
+        try:
+            con.close()
+        except Exception:
+            pass
+    return out
+
+
 def progress_phases(db_path, *, since: float = 0.0) -> dict:
     """WHAT THE USER SAW WHILE WAITING, and — the number that matters — the longest silence.
 

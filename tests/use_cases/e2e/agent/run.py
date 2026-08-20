@@ -215,6 +215,11 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
                 [{"title": x} for x in offered.get("titles") or []], transcript)
             wo["n_offered"] = offered.get("n_offered", 0)
             mech["worker_outcome"] = wo
+            # HOW MANY WORKERS SURVIVED, and WHAT THE SEARCH BROUGHT BACK. Both channels were invisible to
+            # this report until 2026-08-21, when an audit found it was reading 490 of 1291 events — and both
+            # were carrying the answer to the round that was failing.
+            mech["worker_health"] = verifymod.worker_health(config.SANDBOX_DB, since=started_at)
+            mech["search_returns"] = verifymod.search_returns(config.SANDBOX_DB, since=started_at)
         except Exception as e:
             mech["worker_outcome_error"] = str(e)[:200]
         mech["memory_language"] = verifymod.memory_language(config.SANDBOX_DB)
