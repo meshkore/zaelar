@@ -123,7 +123,8 @@ def _render(led: dict) -> None:
         "",
         f"Last updated: **{led.get('updated', '—')}**",
         "",
-        "`✅ PASS` = judge overall ≥ 4 · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,",
+        "`✅ PASS` = judge overall ≥ 4 **and** mechanism ≥ 3 (a measured mechanism defect never shows green, "
+        "however good the average) · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,",
         "says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not",
         "the operator's live one.",
         "",
