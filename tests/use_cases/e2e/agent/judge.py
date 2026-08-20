@@ -249,9 +249,15 @@ def mechanism_facts(mech: dict) -> str:
         # criterio. El caso pide pensar las condiciones, buscar UNA vez y entregar.
         if isinstance(n, int):
             if n == 0:
-                lines.append("  → CERO búsquedas: el recurso no se usó. Eso NO es «no encontró»: es que no "
-                             "salió a mirar. No lo puntúes como si la búsqueda hubiera fallado, y desconfía "
-                             "de cualquier dato del mundo que aparezca en esa conversación.")
+                # NO digas «no buscó». Verificado en el árbol el 2026-08-20: la búsqueda del WORKER
+                # (`worker_api` → `websearch.search`) no emite NADA — ni fila, ni evidencia, ni error. Solo
+                # emiten los canales conversacionales. Así que un cero cuenta POR QUÉ PUERTA se buscó, no si
+                # se buscó: un encargo resuelto entero por el worker marca 0 y está sano. Estuve a punto de
+                # reportar «el buscador se apaga solo» sobre esta columna.
+                lines.append("  → Cero FILAS de búsqueda, y eso aquí NO significa que no buscara: la "
+                             "búsqueda que hace el worker por su puente no deja fila (solo la dejan los "
+                             "canales de conversación). Así que no concluyas ni que buscó ni que no buscó. "
+                             "Mira si hubo navegación y extracciones, que ésas sí se registran.")
             elif n > 6:
                 lines.append(f"  → {n} búsquedas para un solo encargo es DAR VUELTAS, no diligencia. Una "
                              f"petición se piensa, se busca UNA vez con las condiciones puestas y se "

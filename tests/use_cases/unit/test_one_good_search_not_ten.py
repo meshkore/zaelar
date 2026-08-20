@@ -13,14 +13,18 @@ def _brief(n):
     return judge.mechanism_facts({"search_health": {"n_search_events": n, "degraded": False}})
 
 
-def test_zero_searches_is_named_as_a_resource_that_was_not_used():
+def test_zero_rows_is_not_reported_as_not_having_searched():
+    """Verified in the tree 2026-08-20: the WORKER's search bridge emits nothing at all, so a zero counts
+    which door searched, not whether a search happened. An errand resolved entirely by the worker reads
+    zero and is healthy. This nearly went out as "the search engine turns itself off"."""
     out = _brief(0)
-    assert "CERO búsquedas" in out and "no salió a mirar" in out
+    assert "no concluyas ni que buscó ni que no buscó" in out
+    assert "no salió a mirar" not in out
 
 
 def test_one_search_gets_no_scolding_either_way():
     out = _brief(1)
-    assert "CERO búsquedas" not in out and "DAR VUELTAS" not in out
+    assert "Cero FILAS" not in out and "DAR VUELTAS" not in out
 
 
 def test_many_searches_are_thrashing_not_diligence():
