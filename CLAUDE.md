@@ -1587,6 +1587,26 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     la tarea. Pide que un fallo deje su propio rastro con el sitio dentro — cómo se REGISTRA, no cómo se
     renderiza — y su propia medición.
 
+- **El muro del cuerpo DISPARÓ, y el hecho se borró al re-enrutarse** (`widgets/navegador/tasks.py` +
+  `nucleo/flash/prompt.py`, V2-176, 2026-08-20). Primera medición del detector de V2-167 en
+  `find-theatre-tickets__es`: **funcionó** —el juez nos devuelve nuestra propia cadena, «cuando `phase` indique
+  *el sitio bloqueó el acceso*»— y `mecanismo` subió a 3. Y el caso siguió fallando por lo mismo: diez turnos de
+  «sigo sin novedades… todavía no ha reportado dónde está» hasta que el operador se rindió.
+  - **La causa estaba en el propio arreglo**: `wall` se recalcula en CADA `update_view`, así que describe la
+    página donde está la pestaña AHORA. El worker se comió el bloqueo, se re-enrutó —lo correcto— y con la
+    siguiente captura el hecho desapareció.
+  - **La vuelta de tuerca que conviene no olvidar: el hecho se borró porque el sistema se recuperó BIEN.** Cuanto
+    mejor se adapta el worker, más invisible se vuelve el obstáculo, y el que espera es el único que no se entera.
+  - Ahora un muro golpeado se anota en la tarea con su **SITIO** y sobrevive al re-enrutado («me bloquearon» es un
+    hecho; «me bloqueó entradas.com» es uno con el que el operador puede hacer algo). Acotado a 6: un bucle no
+    puede hacer crecer la tarea.
+  - **La historia va FUERA del `elif` de las caras** —no es una cara alternativa, es historia y compone con
+    cualquiera— y si la tarea sigue ENCIMA del muro manda la cara `MURO` con su salida, porque la historia diría
+    lo mismo más flojo y dos veces. Y la instrucción **nombra la frase que sustituye**: el daño no fue no saberlo,
+    fue que el operador oyó diez turnos algo cierto que no le servía.
+  - Octava vez del mismo patrón en esta tanda (un hecho que solo vive un turno se pierde) y la primera sobre un
+    arreglo propio.
+
 - **«¿Hay algo corriendo?» era la pregunta equivocada** (`nucleo/flash/router_guards.py` + `probe.py` + el
   provider de voz, V2-176, 2026-08-20). El backstop de promesa-sin-acción (V2-132) se gateaba por `_hw`
   —«¿hay algo vivo?»— y lo que decide es **«¿hay algo vivo PARA ESTO?»**. Medido en

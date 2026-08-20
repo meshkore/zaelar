@@ -111,6 +111,20 @@ def body_wall_reason(text: str) -> str:
     return ""
 
 
+_MAX_WALLS = 6          # enough to say «esto pasa en todas partes», bounded so a loop cannot grow the task
+
+
+def host_of(url: str) -> str:
+    """Host of a URL, without `www.` — what the operator recognises. Never the full URL: a query string read out
+    loud is noise, and the site is the part he can act on («pues mira en otra web»)."""
+    try:
+        from urllib.parse import urlparse
+        h = (urlparse((url or "").strip()).netloc or "").lower()
+    except Exception:
+        return ""
+    return h[4:] if h.startswith("www.") else h
+
+
 def wall_reason(url: str) -> str:
     """Short, operator-facing reason why this URL is a WALL, or '' when it is an ordinary page.
 
@@ -419,6 +433,10 @@ def active_progress(limit: int = 3) -> list[dict]:
                  # seconds, which V2-145 already established is not a description of anything.
                  "stalled_s": int(max(0.0, now - float(t.get("last_progress") or t.get("created") or now))),
                  "wall": (t.get("wall") or ""),
+                 # The obstacles this task has ALREADY hit, which `wall` cannot carry (it is recomputed per
+                 # capture). Count + the last one, because that is what a sentence needs.
+                 "walls_hit": len(t.get("walls") or []),
+                 "last_wall": ((t.get("walls") or [{}])[-1] if t.get("walls") else {}),
                  "awaiting_login": bool(t.get("awaiting_login")),
                  # V2-192: si la tarea YA TRAJO algo, eso gana a cualquier medida de atasco. Sin este campo el
                  # turno solo podía elegir entre «sigue viva» y «está bloqueada», y ninguna de las dos es la
@@ -642,6 +660,20 @@ def update_view(task_id: str, url: str = "", page_title: str = "", shot_rev: int
             was, t["wall"] = (t.get("wall") or ""), (wall_reason(url) or body_wall_reason(page_text))
             if t["wall"] and t["wall"] != was:
                 struck = t["wall"]
+                # A WALL THAT WAS STRUCK LEAVES A TRACE. `wall` above is recomputed on every capture, so it
+                # describes the page the tab is standing on RIGHT NOW — and the moment the worker re-routes (which
+                # is the correct thing for it to do) the fact is erased. Measured on `find-theatre-tickets__es`
+                # (2026-08-20 12:39): the body-served wall detector fired in production — the judge quotes its
+                # exact wording back at us, «el sitio bloqueó el acceso» — the worker adapted and moved on to
+                # elcorteingles.es, and zaelar spent TEN turns saying «sigue sin dar señal de dónde está». The
+                # obstacle had happened, nobody could still see it, and the operator was never told.
+                #
+                # Bounded, and it keeps the SITE: «me bloquearon» is a fact, «me bloqueó entradas.com» is one the
+                # operator can act on. Same lesson as V2-150/V2-196/V2-198, now for an obstacle instead of an
+                # ending: a fact that only lives one turn is a fact the conversation loses.
+                _hist = t.setdefault("walls", [])
+                _hist.append({"reason": struck, "site": host_of(url), "at": time.time()})
+                del _hist[:-_MAX_WALLS]
         if page_title:
             t["page_title"] = page_title
         if shot_rev is not None:

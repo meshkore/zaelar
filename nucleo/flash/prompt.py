@@ -613,6 +613,7 @@ def live_state() -> str:
                 _prog = {}
             _bits = []
             _blocked = _login = _has_results = ""       # el GOAL de la tarea que disparó cada cara, o ""
+            _hit_walls = ""                             # y la que YA se comió un bloqueo, aunque siga en otra página
             for _tid, _g in act:
                 _b = f"«{(_g or 'tarea')[:70]}»"
                 _p = _prog.get(_tid) or {}
@@ -691,6 +692,19 @@ def live_state() -> str:
                     elif int(_p.get("stalled_s") or 0) >= _STALLED_S:
                         _b += f" · lleva {int(_p['stalled_s']) // 60} min SIN MOVERSE de esa página"
                         _blocked = _blocked or _who
+                    # LOS MUROS QUE YA SE COMIÓ, aunque ahora esté en otra página. Va FUERA del elif: no es
+                    # una cara alternativa de la tarea, es historia suya, y compone con cualquiera de las de
+                    # arriba. Medido en `find-theatre-tickets__es` (12:39): el detector de muro disparó de
+                    # verdad, el worker se re-enrutó —correcto— y el hecho se borró con el siguiente `update_view`,
+                    # así que zaelar pasó diez turnos diciendo «sigue sin dar señal de dónde está».
+                    if int(_p.get("walls_hit") or 0) and not _p.get("wall"):
+                        _lw = _p.get("last_wall") or {}
+                        _n = int(_p["walls_hit"])
+                        _site_lw = str(_lw.get("site") or "")
+                        _b += (f" · ya se topó con {_n} bloqueo{'s' if _n > 1 else ''}"
+                               + (f" (el último: {_lw.get('reason')}" + (f" en {_site_lw}" if _site_lw else "")
+                                  + ")" if _lw.get("reason") else ""))
+                        _hit_walls = _hit_walls or _who
                 _bits.append(_b)
             # V2-185: the reassuring half of this block used to be UNCONDITIONAL, and that is what kept the
             # operator waiting. Measured on `book-hotel-night-known__es` (2026-08-20 01:01): the wall DID reach
@@ -701,6 +715,15 @@ def live_state() -> str:
             # it must not push the operator to stop it. Both are FALSE in front of a wall, and the model
             # believed the longer, earlier half. So the promise is now conditional on the task being healthy.
             _head = f"NAVEGADOR — YA EN CURSO ({len(act)}): {'; '.join(_bits)}."
+            # Se DICE, no se deja en el estado: el daño medido no fue que el sistema no lo supiera, fue que el
+            # operador esperó diez turnos sin enterarse. Y se dice con el SITIO, que es la parte con la que él
+            # puede hacer algo («pues mira en otra web», «lo compro yo»).
+            _walls_note = ("" if not _hit_walls or _blocked else
+                           f" A {_hit_walls} ya la han BLOQUEADO por el camino (ahí arriba, con qué y dónde): "
+                           "aunque ahora siga en otra página, DÍSELO en cuanto pregunte cómo va, en vez de "
+                           "«sigue sin dar señal» — que es cierto y no le sirve de nada. Un bloqueo es lo único "
+                           "que explica la espera, y con el sitio delante él puede decidir (probar otra web, "
+                           "mirarlo él, o dejarlo).")
             _shared = (" NO abras otra tarea ni reinicies la búsqueda para esto mismo — solo hay UN navegador. "
                        "Y NO describas lo que estaría haciendo («está en la página», «interactuando», "
                        "«rellenando el formulario»). Los segundos que lleva NO son una descripción de lo que hace.")
@@ -709,7 +732,7 @@ def live_state() -> str:
                     _head + f" {_has_results} YA TRAJO ALGO: no está bloqueada ni esperando, tiene resultados en "
                     "la hoja. DÁSELOS en este turno —lo que encontró, no que «ya casi está»— y pregunta si le "
                     "vale o quiere que siga afinando. Decirle que está parada teniendo datos delante es la "
-                    "misma mentira que decirle que sigue buscando cuando ya no busca." + _shared)
+                    "misma mentira que decirle que sigue buscando cuando ya no busca." + _shared + _walls_note)
             elif _login:
                 lines.append(
                     _head + f" {_login} ESTÁ PARADA Y SOLO LA DESBLOQUEA ÉL: no va a avanzar ni un paso "
@@ -717,7 +740,7 @@ def live_state() -> str:
                     "aunque acabe de decir que espera tranquilo, y con las palabras exactas de lo que tiene que "
                     "hacer («tienes una ventana abierta en X, entra con tu cuenta y me lo dices»). NO es un "
                     "fracaso: pararse en su login es lo correcto, y ahora mismo es lo ÚNICO que falta. Callarlo "
-                    "es dejarle esperando a una tarea que está esperándole a él." + _shared)
+                    "es dejarle esperando a una tarea que está esperándole a él." + _shared + _walls_note)
             elif _blocked:
                 lines.append(
                     _head + f" {_blocked} ESTÁ BLOQUEADA: lo que pone arriba de ella (MURO / «sin moverse») es un "
@@ -742,7 +765,7 @@ def live_state() -> str:
                     "un relleno teniendo un dato concreto delante es lo que hace que el operador deje de creerte. "
                     # V2-152: no news is NOT a stall. Intact, and now it only applies where it is TRUE.
                     "Y si el operador se plantea pararla, no le empujes a hacerlo por falta de novedades: dile "
-                    "que sigue viva y que la falta de parte no significa que esté parada." + _shared)
+                    "que sigue viva y que la falta de parte no significa que esté parada." + _shared + _walls_note)
         # V2-150 — una tarea que TERMINA desaparecía del estado, así que no quedaba ningún hecho diciendo que
         # había acabado, y menos aún que había acabado vacía. El informe decía `status=done url=` mientras el
         # turno decía «los procesos siguen en marcha, llevan casi 5 minutos». No es el modelo inventando por

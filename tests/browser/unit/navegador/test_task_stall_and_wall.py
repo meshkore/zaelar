@@ -864,3 +864,114 @@ def test_the_tab_capture_is_the_one_that_reads_the_body():
     src = inspect.getsource(owner.TaskBrowser._capture)
     assert "WALL_BODY_PEEK_CHARS" in src, "la pestaña dejó de leer el cuerpo"
     assert "page_text=" in src, "la pestaña lee el cuerpo pero no lo pasa al registro"
+
+
+# ── un muro GOLPEADO deja rastro, aunque el worker se re-enrute (V2-176, medido 2026-08-20 12:39) ────────────
+#
+# La primera medición del detector de muro del cuerpo salió a medias, y de la mejor manera posible: el juez cita
+# TEXTUALMENTE la cadena que produce este módulo — «cuando `phase` indique *el sitio bloqueó el acceso*» — o sea
+# que disparó en producción. Y aun así zaelar pasó DIEZ turnos diciendo «sigue sin dar señal de dónde está».
+#
+# La causa: `wall` se recalcula en cada `update_view`, así que describe la página donde está la pestaña AHORA. El
+# worker se topó con el bloqueo, se re-enrutó a `elcorteingles.es` —que es lo correcto— y el hecho se borró con
+# la siguiente captura. El obstáculo había ocurrido, ya no lo veía nadie, y al operador no se le dijo.
+#
+# Octava vez del mismo patrón en esta tanda, y la primera sobre un arreglo propio: un hecho que solo vive un
+# turno es un hecho que la conversación pierde.
+ACCESS_DENIED = ("Access Denied\n\nYou don't have permission to access this server.\n\nReference #18.5c7d")
+
+
+def test_the_wall_survives_the_worker_moving_on():
+    tid = tasks.create("conseguir entradas para El Rey León")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url="https://www.entradas.com/el-rey-leon", page_text=ACCESS_DENIED)
+    tasks.update_view(tid, url="https://www.elcorteingles.es/entradas/search/?Ntt=El+Rey+Leon")
+    row = tasks.active_progress()[0]
+    assert row["wall"] == "", "la página actual no es un muro y no debe decir que lo es"
+    assert row["walls_hit"] == 1, "el bloqueo ocurrió y ya no lo sabe nadie"
+
+
+def test_and_it_remembers_WHICH_SITE_blocked_it():
+    """«Me bloquearon» es un hecho; «me bloqueó entradas.com» es uno con el que el operador puede hacer algo."""
+    tid = tasks.create("conseguir entradas")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url="https://www.entradas.com/el-rey-leon", page_text=ACCESS_DENIED)
+    tasks.update_view(tid, url="https://www.elcorteingles.es/x")
+    last = tasks.active_progress()[0]["last_wall"]
+    assert last["site"] == "entradas.com"
+    assert "robot" in last["reason"]
+
+
+def test_the_site_is_a_HOST_not_a_url():
+    """Se lee en voz alta: una query string entera es ruido."""
+    assert tasks.host_of("https://www.entradas.com/teatro/x?Ntt=El+Rey+Le%C3%B3n&p=2") == "entradas.com"
+    assert tasks.host_of("https://elcorteingles.es/") == "elcorteingles.es"
+    assert tasks.host_of("") == ""
+    assert tasks.host_of("no-es-una-url") == ""
+
+
+def test_several_blocks_are_counted_and_bounded():
+    """«Esto me pasa en todas partes» es una conclusión distinta de «me pasó una vez», y el operador la merece.
+    Acotado para que un bucle no haga crecer la tarea sin techo."""
+    tid = tasks.create("conseguir entradas")
+    tasks.set_status(tid, "working")
+    for i in range(tasks._MAX_WALLS + 4):
+        tasks.update_view(tid, url=f"https://sitio{i}.test/x", page_text=ACCESS_DENIED)
+        tasks.update_view(tid, url=f"https://sitio{i}.test/ok", page_text="entradas y horarios")
+    assert tasks.active_progress()[0]["walls_hit"] == tasks._MAX_WALLS
+
+
+def test_a_task_that_never_hit_one_says_nothing():
+    """La otra mitad: sin esto, «recordar los bloqueos» y «decir que hubo bloqueos siempre» pasan el mismo test."""
+    tid = tasks.create("reservar mesa")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url=REAL_PAGE, page_text="Casa Lucio · reserva tu mesa")
+    row = tasks.active_progress()[0]
+    assert row["walls_hit"] == 0 and row["last_wall"] == {}
+
+
+def test_the_same_wall_twice_in_a_row_is_not_two_blocks():
+    """`update_view` se llama en cada captura; sin la comparación con el muro anterior, quedarse mirando la misma
+    página de bloqueo contaría decenas."""
+    tid = tasks.create("conseguir entradas")
+    tasks.set_status(tid, "working")
+    for _ in range(5):
+        tasks.update_view(tid, url="https://www.entradas.com/x", page_text=ACCESS_DENIED)
+    assert tasks.active_progress()[0]["walls_hit"] == 1
+
+
+def test_the_turn_is_told_about_a_block_it_already_left_behind():
+    """Lo que se midió: el estado tiene que DECIRLO, no solo saberlo."""
+    from nucleo.flash import prompt
+    tid = tasks.create("conseguir dos entradas para El Rey León en Madrid")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url="https://www.entradas.com/el-rey-leon", page_text=ACCESS_DENIED)
+    tasks.update_view(tid, url="https://www.elcorteingles.es/entradas/search")
+    st = prompt.live_state()
+    assert "ya se topó con 1 bloqueo" in st
+    assert "entradas.com" in st
+
+
+def test_and_the_instruction_names_the_sentence_it_replaces():
+    """El daño medido no fue que el sistema no lo supiera: fue que el operador esperó diez turnos oyendo «sigue
+    sin dar señal», que es cierto y no le sirve de nada."""
+    from nucleo.flash import prompt
+    tid = tasks.create("conseguir entradas")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url="https://www.entradas.com/x", page_text=ACCESS_DENIED)
+    tasks.update_view(tid, url="https://www.elcorteingles.es/x")
+    st = prompt.live_state()
+    assert "BLOQUEADO por el camino" in st
+    assert "sigue sin dar señal" in st, "no se nombra la frase que hay que dejar de decir"
+
+
+def test_but_a_task_standing_ON_a_wall_keeps_the_more_specific_face():
+    """Si sigue encima del muro, lo que manda es MURO con su salida — la historia sería decir lo mismo dos veces
+    y más flojo."""
+    from nucleo.flash import prompt
+    tid = tasks.create("conseguir entradas")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url="https://www.entradas.com/x", page_text=ACCESS_DENIED)
+    st = prompt.live_state()
+    assert "MURO:" in st
+    assert "BLOQUEADO por el camino" not in st
