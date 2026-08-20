@@ -183,3 +183,45 @@ def test_but_distinct_cases_are_all_kept(monkeypatch):
     monkeypatch.setattr(statusmod, "summary_line", lambda: "x")
 
     assert T._retest_pending()["retested"] == 2
+
+
+def test_run_verify_drives_one_case_ONCE_and_closes_BOTH_of_its_tasks():
+    """La otra mitad del dedup, en `run.py`. El tick colapsaba su CONTABILIDAD, pero el que conduce la
+    conversación es el runner, y ahí el caso duplicado se corría de verdad dos veces.
+
+    Medido el 2026-08-20 10:00: T434 y T438 pedían las dos `find-theatre-tickets__es`, y el paraguas V2-167
+    acabó con las rondas 13 y 15 idénticas — misma medición, ~4 minutos del turno tirados, y la evidencia de
+    la iniciativa contando el doble de intentos de los que hubo. Y como el mapa era `{caso: tarea}`, de las
+    dos tareas solo se cerraba UNA: la otra se quedaba en `next` pidiendo un re-test ya hecho.
+
+    Se afirma sobre el COMPORTAMIENTO de `_verify_batch`, no leyendo el fuente: un test que busca texto en el
+    código ya falló una vez en esta suite encontrando lo que buscaba... dentro del comentario que explicaba
+    por qué no había que hacerlo.
+    """
+    from pathlib import Path
+    from types import SimpleNamespace
+
+    from tests.use_cases.e2e.agent import run as R
+
+    registry = {"find-theatre": SimpleNamespace(id="find-theatre"), "otro": SimpleNamespace(id="otro")}
+    pend = [{"scenario": "find-theatre", "task": Path("T434-verify.md")},
+            {"scenario": "find-theatre", "task": Path("T438-verify.md")},
+            {"scenario": "otro", "task": Path("T440-verify.md")},
+            {"scenario": None, "task": Path("T999-huerfana.md")}]
+
+    chosen, tasks = R._verify_batch(pend, registry)
+    assert [c.id for c in chosen] == ["find-theatre", "otro"], (
+        "el caso se conduciría dos veces: media conversación y media ronda de más")
+    assert [t.name for t in tasks["find-theatre"]] == ["T434-verify.md", "T438-verify.md"], (
+        "las DOS tareas tienen que cerrarse; quedarse una en `next` pide un re-test que ya se hizo")
+
+
+def test_and_a_task_naming_an_unknown_case_never_reaches_the_batch():
+    """La mitad de sensibilidad: colapsar por caso no puede colarse una clave que no está en el catálogo —
+    `registry[sid]` reventaría la tanda entera por una tarea mal nombrada."""
+    from pathlib import Path
+
+    from tests.use_cases.e2e.agent import run as R
+
+    chosen, tasks = R._verify_batch([{"scenario": "no-existe", "task": Path("T1.md")}], {})
+    assert chosen == [] and tasks == {}

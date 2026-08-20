@@ -276,8 +276,10 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
     def _has_verdict(sid: str) -> bool:
         return any(r["scenario"] == sid and (r.get("verdict") or {}).get("overall") is not None for r in results)
 
-    for sid, task in (verify_tasks or {}).items():
-        if any(r["scenario"] == sid for r in results):
+    for sid, tasks in (verify_tasks or {}).items():
+        if not any(r["scenario"] == sid for r in results):
+            continue
+        for task in tasks:
             if not _has_verdict(sid):
                 print(f"  ↩︎ dejo ABIERTA la tarea de verificación {task.name}: la corrida murió sin veredicto "
                       f"(INFRA), así que lo que pedía sigue sin hacerse")
@@ -316,8 +318,15 @@ def run(args: argparse.Namespace) -> int:
         if unresolved:
             print(f"⚠️ tareas de verificación cuyo escenario ya no existe (¿renombrado?): "
                   f"{', '.join(unresolved)}", file=sys.stderr)
-        chosen = [registry[p["scenario"]] for p in pend if p["scenario"]]
-        verify_tasks = {p["scenario"]: p["task"] for p in pend if p["scenario"]}
+        # UN caso, UNA corrida — aunque lo pidan VARIAS tareas. El agente que arregla responde el mismo caso
+        # en dos arreglos distintos (T434 y T438 para `find-theatre-tickets__es`, 2026-08-20), y sin esto la
+        # lista llevaba el caso dos veces: se condujo la conversación entera DOS veces (~4 min del turno
+        # tirados) y se escribió la MISMA ronda dos veces en el paraguas, que hace que la evidencia cuente el
+        # doble de intentos de los que hubo.
+        #
+        # Y el mapa de tareas era `{caso: tarea}`: de las dos, una se cerraba y la otra se quedaba en `next`
+        # para siempre, pidiendo un re-test que ya se hizo. Ahora es {caso: [tareas]} y se cierran TODAS.
+        chosen, verify_tasks = _verify_batch(pend, registry)
         if not chosen:
             print("no hay ninguna tarea de verificación pendiente — nada que re-probar")
             return 0
@@ -420,6 +429,30 @@ def _sandbox_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict
                       f"(generated widget CODE is not workspace-isolated): {', '.join(leaked)}\n"
                       f"   review and remove them if they were only test artifacts.")
             print(f"  sandbox engine log tail:\n{eng.log_tail(12)}")
+
+
+def _verify_batch(pend: list[dict], registry: dict) -> tuple[list, dict]:
+    """One case, ONE run — even when SEVERAL tasks ask for it. Returns (cases_to_run, {case: [tasks]}).
+
+    The fixing agent answers the same case in two separate fixes (T434 and T438 both asked for
+    `find-theatre-tickets__es`, 2026-08-20), and building the batch per TASK put the case in the list twice:
+    the whole conversation was driven twice (~4 minutes of the window thrown away) and the SAME round was
+    written twice into the shared umbrella, which makes the initiative's evidence count twice the attempts
+    that happened.
+
+    The task map used to be `{case: task}`, so of the two only ONE was closed and the other stayed `next` for
+    ever asking for a re-test that had already run. Hence the list per case.
+    """
+    chosen, tasks = [], {}
+    for pv in pend:
+        sid = pv.get("scenario")
+        if not sid or sid not in registry:
+            continue
+        if sid not in tasks:
+            chosen.append(registry[sid])
+            tasks[sid] = []
+        tasks[sid].append(pv["task"])
+    return chosen, tasks
 
 
 def main() -> None:
