@@ -345,6 +345,13 @@ DOMAINS: list[dict] = [
                                     # — pick_filler() mira PRIMERO un pack generado por idioma antes de caer al
                                     # catálogo es/en; este test file nuevo cubre esa ruta de lectura.
                                     "tests/voice/unit/test_lang_fillers_store.py"]},
+        # V2-217 (2026-08-20): la OTRA entrega fuera de banda, y llevaba rota para medio producto. La nota al
+        # cerebro de `proactive.notify` vivía DENTRO del `if speak and _speaker is not None`, así que sin sesión
+        # de voz viva —el canal de TEXTO, que es lo que conduce el arnés y lo que usa un operador en chat— un
+        # aviso proactivo llegaba al panel de observabilidad y se quedaba ahí. Afecta al aviso de atasco del
+        # bucle, al final de un worker, a mensajería y a Architect.
+        {"id": "3.11", "title": "Un aviso proactivo llega a la conversación TAMBIÉN sin sesión de voz",
+            "ch": VOICE, "paths": ["tests/voice/unit/test_proactive_reaches_the_text_channel.py"]},
         # V2-095 (2026-08-14): el límite del turno era SOLO acústico, así que un operador que piensa en voz alta
         # abría un turno por pausa y el siguiente fragmento lo cancelaba — 22 prompts, 18 cancelados y CERO
         # respuestas en 161 s de dictado. El corpus del test son las 89 transcripciones REALES de esa sesión: la

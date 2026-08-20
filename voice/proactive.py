@@ -134,31 +134,48 @@ async def notify(title: str, text: str, *, speak: bool = True, kind: str = "noti
         emit(kind, ("🔔 " + (title or "zaelar"))[:60], text=text, role="assistant", extra={"title": title or ""})
     except Exception as e:
         logger.warning(f"proactive notify (UI) failed: {e}")
+    # NO VOICE SESSION = the conversation never hears about it. V2-217, measured 2026-08-20: `brain_notes.push`
+    # lived INSIDE the speech branch below, so with no live speaker a proactive delivery reached the
+    # observability panel and stopped there. On the TEXT channel — which is what the use-case harness drives,
+    # and what a chat-only operator uses — that is EVERY proactive delivery: the loop's stall notice
+    # (`worker.stuck`), a worker finishing, the messaging connector, Architect. The harness kept measuring
+    # `stuck/nudge` firing in the events while the turn went on saying «sigo con ello», and the two facts were
+    # the same fact.
+    #
+    # The note is an INSTRUCTION, never the bare phrase (V2-214): its reader is the AGENT at a later moment, so
+    # handing it prose reads as something to file rather than something to say.
+    if not (speak and _speaker is not None):
+        try:
+            from voice import brain_notes
+            brain_notes.push(f"[SISTEMA] Aviso para el operador ({title or 'zaelar'}): {text[:400]} "
+                             f"Díselo en ESTE turno con tus palabras — todavía no lo sabe.")
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"proactive notify (nota al cerebro) failed: {e}")
+        return
     # SPEECH GATE: the UI keeps the raw text (debug), but the SPEAKER only ever gets clean operator-facing prose.
     # If nothing speakable survives (pure metadata / markdown / empty), stay silent on voice — the UI already has it.
-    if speak and _speaker is not None:
-        from voice import speech
-        spoken = speech.sanitize(text)
-        if not spoken:
-            return
-        # PREEMPCIÓN (INI-008 F2): la voz del OPERADOR manda. No se le habla encima — ni con un turno de usuario
-        # abierto ni pisando la cola del TTS del bot. Esperamos un hueco de silencio; si la conversación no da
-        # tregua en PROACTIVE_MAX_WAIT, el mensaje NO se pierde: entra como nota [SISTEMA] al siguiente turno
-        # (el cerebro lo dirá él mismo, en contexto). La UI ya lo mostró arriba en cualquier caso.
-        if not await _wait_for_quiet():
-            try:
-                from voice import brain_notes
-                brain_notes.push(f"[SISTEMA] Entrega proactiva pendiente (no hubo silencio para hablarla): {spoken}")
-                logger.info("proactive: conversation busy → delivered as a [SISTEMA] note instead of talking over")
-            except Exception as e:
-                logger.warning(f"proactive fallback note failed: {e}")
-            return
+    from voice import speech
+    spoken = speech.sanitize(text)
+    if not spoken:
+        return
+    # PREEMPCIÓN (INI-008 F2): la voz del OPERADOR manda. No se le habla encima — ni con un turno de usuario
+    # abierto ni pisando la cola del TTS del bot. Esperamos un hueco de silencio; si la conversación no da
+    # tregua en PROACTIVE_MAX_WAIT, el mensaje NO se pierde: entra como nota [SISTEMA] al siguiente turno
+    # (el cerebro lo dirá él mismo, en contexto). La UI ya lo mostró arriba en cualquier caso.
+    if not await _wait_for_quiet():
         try:
-            r = _speaker(spoken)
-            if asyncio.iscoroutine(r):
-                await r
+            from voice import brain_notes
+            brain_notes.push(f"[SISTEMA] Entrega proactiva pendiente (no hubo silencio para hablarla): {spoken}")
+            logger.info("proactive: conversation busy → delivered as a [SISTEMA] note instead of talking over")
         except Exception as e:
-            logger.warning(f"proactive notify (voice) failed: {e}")
+            logger.warning(f"proactive fallback note failed: {e}")
+        return
+    try:
+        r = _speaker(spoken)
+        if asyncio.iscoroutine(r):
+            await r
+    except Exception as e:
+        logger.warning(f"proactive notify (voice) failed: {e}")
 
 
 # Cuánto esperamos un hueco de silencio antes de degradar a nota [SISTEMA]; y el respiro tras la voz del bot.
