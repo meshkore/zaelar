@@ -194,6 +194,13 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             mech["note_coverage"] = verifymod.note_coverage(mech.get("prompt_context") or [], notes)
         except Exception as e:
             mech["proactive_notes_error"] = str(e)[:200]
+        # WHAT THE WORKER ACHIEVED and whether any of it was SAID — the gap this whole case is about.
+        try:
+            wo = verifymod.worker_outcome(config.SANDBOX_DB, since=started_at)
+            wo["delivered"] = verifymod.was_delivered(wo.get("found"), transcript)
+            mech["worker_outcome"] = wo
+        except Exception as e:
+            mech["worker_outcome_error"] = str(e)[:200]
         mech["memory_language"] = verifymod.memory_language(config.SANDBOX_DB)
         # The locale travels with it so the judge can compare: `en` is CORRECT for a US case and a mismatch
         # only for an ES one. Warning on the language alone would cry wolf on half the catalogue.

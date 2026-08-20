@@ -166,6 +166,20 @@ def mechanism_facts(mech: dict) -> str:
                      f"vez/veces (escribió la respuesta del asistente en vez de su propia frase). Si en algún "
                      f"turno el usuario dice cosas absurdas o entrega él los resultados, ESO ES NUESTRO, no de "
                      f"zaelar. No puntúes a zaelar por reaccionar razonablemente a un turno imposible.")
+    wo = mech.get("worker_outcome") or {}
+    if wo.get("found"):
+        listed = "; ".join(f"«{f.get('title')}» {f.get('price')}" for f in wo["found"][:3])
+        if wo.get("delivered") is False:
+            lines.append(f"· ⚠️ EL NAVEGADOR SÍ ENCONTRÓ ({wo.get('n_found')} resultado(s)): {listed}. Y NADA "
+                         f"de eso aparece en lo que zaelar DIJO. Así que «no encontró» es falso: encontró y no "
+                         f"lo entregó, que es un fallo de RESULTADO más grave y hay que describirlo así.")
+        elif wo.get("delivered"):
+            lines.append(f"· El navegador encontró y zaelar lo ENTREGÓ: {listed}. Eso cuenta como resultado "
+                         f"conseguido, aunque la conversación siguiera después.")
+    elif wo.get("navigations"):
+        lines.append(f"· El navegador navegó {wo['navigations']} vez/veces y extrajo {wo.get('extractions', 0)} "
+                     f"vez/veces, y NO sacó ni un resultado con título. Eso es un fallo del mecanismo de "
+                     f"extracción, no de zaelar callándose algo que tenía.")
     cov = mech.get("note_coverage") or {}
     if cov.get("alert_turns"):
         lines.append(

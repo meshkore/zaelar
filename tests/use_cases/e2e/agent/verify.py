@@ -588,3 +588,71 @@ def navegador_task_is_live() -> bool:
         if str(t.get("kind") or "") == "navegador" and str(t.get("status") or "") in ("working", "needs_input"):
             return True
     return False
+
+
+def worker_outcome(db_path, *, since: float = 0.0) -> dict:
+    """WHAT THE WORKER ACHIEVED, and whether any of it reached the user.
+
+    Three rounds of `hotel-under-15-days` scored 2/5 with three different stories underneath: one where the
+    worker probed its own CLI and never searched, one where it navigated Booking with perfect parameters and
+    extracted «Exe Sevilla Macarena, 65 €» with a URL, and one where it spent the round asking permission to
+    clear a Booking filter. Same number, three mechanisms — so a single round cannot validate a fix, and reading
+    three of them by hand was how that got noticed at all.
+
+    `found` is what the browser actually extracted; `delivered` is whether its title ever appears in something
+    zaelar SAID. The gap between those two is the defect the whole CID is about, so it belongs in the report
+    rather than in whoever happens to open the stream.
+    """
+    import sqlite3
+    out: dict = {"navigations": 0, "extractions": 0, "found": [], "n_found": 0}
+    try:
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    except Exception:
+        return out
+    try:
+        rows = con.execute("SELECT label, payload FROM events WHERE topic = 'observer' AND ts_ms >= ? "
+                           "AND kind = 'navegador' ORDER BY ts_ms ASC", (int(since * 1000),)).fetchall()
+    except Exception:
+        return out
+    finally:
+        con.close()
+    for label, raw in rows:
+        lab = label or ""
+        if lab == "navigate":
+            out["navigations"] += 1
+        if "resultados" in lab:
+            out["extractions"] += 1
+        try:
+            txt = str((json.loads(raw) or {}).get("text") or "")
+        except Exception:
+            continue
+        if txt.lstrip().startswith("["):
+            try:
+                items = json.loads(txt)
+            except Exception:
+                continue
+            for it in items if isinstance(items, list) else []:
+                if isinstance(it, dict) and it.get("title"):
+                    out["n_found"] += 1
+                    # ALL of them, capped — not just the first. The first extraction of a Booking search came
+                    # back as an ad («Experiencia Premium en el Teatro Flamenco Sevilla, € 25») and the real
+                    # hotel arrived on the third; keeping only the first would have reported the junk as "what
+                    # the worker found" and hidden that it did eventually get there.
+                    if len(out["found"]) < 4:
+                        out["found"].append({k: str(it.get(k) or "")[:120] for k in ("title", "price", "url")})
+    return out
+
+
+def was_delivered(found: list | None, transcript: list[dict]) -> bool | None:
+    """Did ANY of what the browser found appear in something zaelar SAID? `None` when nothing was found."""
+    if not found:
+        return None
+    said = " ".join((t.get("text") or "") for t in transcript if t.get("who") == "zaelar").lower()
+    for it in found:
+        title = str((it or {}).get("title") or "").lower()
+        # Match on the distinctive head of the title: an extracted title often carries trailing marketing a
+        # human reply would never repeat verbatim.
+        head = " ".join(title.split()[:3])
+        if head and head in said:
+            return True
+    return False
