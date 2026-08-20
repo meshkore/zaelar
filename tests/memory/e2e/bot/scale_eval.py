@@ -59,6 +59,32 @@ def _force_rerank(provider: str) -> None:
     print(f"▶  rerank FORZADO a {provider!r} en este proceso (config del operador intacta)", flush=True)
 
 
+def _embed_status() -> dict:
+    """The embedding SPACE this run measured in — backend, model and the DIMENSION of the vectors actually stored.
+
+    The report stamped the reranker and not this, which is backwards: the reranker only reorders what the vector
+    channel found, while a mismatched space makes the retriever SKIP vectors entirely and quietly turn the whole
+    number into a lexical one. Measured 2026-08-20, the run that prompted this: the log carried warnings about
+    `hash` AND `fastembed` from neighbouring processes, and the only way to know the corpus was really in
+    embeddinggemma was to read the byte length of a stored vector by hand (3072 bytes -> 768 floats). A number
+    whose space is not written down next to it cannot be compared with the previous round, which is the only
+    thing this file exists to do."""
+    info: dict = {}
+    try:
+        from memory import embeddings as _emb
+        info["backend"] = getattr(_emb, "backend_name", lambda: None)() or os.getenv("ZAELAR_EMBED_BACKEND") or "?"
+        info["degraded"] = bool(getattr(_emb, "last_degraded", False))
+    except Exception as e:  # noqa: BLE001
+        info["backend_error"] = str(e)[:120]
+    try:
+        from memory import db as _db
+        row = _db.get_db().query("SELECT embedding FROM vec_memories LIMIT 1")
+        info["stored_dim"] = len(row[0]["embedding"]) // 4 if row else None
+    except Exception as e:  # noqa: BLE001
+        info["stored_dim_error"] = str(e)[:120]
+    return info
+
+
 def _setup_env():
     os.environ.setdefault("ZAELAR_DB", str(REPO / "memory" / "_data" / "zaelar.membot.db"))
     os.environ.setdefault("MEM_PROCESSOR", "1")
@@ -268,7 +294,8 @@ def main():
     print(f"▶ scale_eval [{label}] · corpus {size['durable']} durables / {size['total']} total · rerank={rr}")
     t0 = time.time()
     rep = evaluate(limit=args.limit)
-    rep.update({"label": label, "corpus": size, "rerank": rr, "elapsed_s": round(time.time() - t0, 1)})
+    rep.update({"label": label, "corpus": size, "rerank": rr, "embed": _embed_status(),
+                "elapsed_s": round(time.time() - t0, 1)})
 
     LOGDIR.mkdir(parents=True, exist_ok=True)
     out = LOGDIR / f"scale-{label}.json"
