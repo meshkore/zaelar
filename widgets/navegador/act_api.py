@@ -61,7 +61,7 @@ def _emit_nav(nav_tid: str, label: str, text: str) -> None:
 _STALL_HINT_S = int(__import__("os").environ.get("ZAELAR_NAV_STALLED_S", "120") or 120)
 
 
-def _with_wall(snap: dict) -> dict:
+def _with_wall(snap: dict, task_id: str = "") -> dict:
     """Annotate a snapshot with `wall` when the page it landed on STOPPED us (anti-bot challenge, CAPTCHA, load
     error) — V2-167.
 
@@ -79,6 +79,20 @@ def _with_wall(snap: dict) -> dict:
     if reason:
         snap = dict(snap or {})
         snap["wall"] = reason
+        # V2-213 — «prueba otro sitio» sin decir CUÁL es un deseo, no una instrucción. Medido: trece minutos en
+        # el mismo host en `book-hotel-night-known__es`, y `restaurant-tonight-madrid` acabando en una página de
+        # resultados de DuckDuckGo. El catálogo genético sabe a qué categoría pertenece el encargo y ahora
+        # también dónde ir cuando el sitio de confianza nos cierra la puerta; el host que acaba de bloquearnos se
+        # EXCLUYE, porque ofrecer el sitio donde está atascado se lee como «insiste».
+        try:
+            from nucleo.flash import site_catalog as _sc
+            from widgets.navegador import tasks as _t2
+            goal = str((_t2.get(task_id) or {}).get("goal") or "") if task_id else ""
+            alts = _sc.alternatives_for(goal, _t.host_of(str(snap.get("url") or "")))
+            if alts:
+                snap["wall_alts"] = [{"name": n, "url": u} for n, u in alts[:3]]
+        except Exception:
+            pass
     return snap
 
 
@@ -138,7 +152,7 @@ async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body
 
         if action == "snapshot":
             snap = await tb.snapshot_for_agent()
-            return {"ok": True, "shot": _shot_path(task_id), **_with_stall(task_id, _with_wall(snap))}
+            return {"ok": True, "shot": _shot_path(task_id), **_with_stall(task_id, _with_wall(snap, task_id))}
         if action == "look":
             # V2-049 VISION: fresh viewport capture to disk. The worker reads it with its Read tool, sees the page
             # like a human, and acts by coordinates (click_at/type_at). This is the robust path for forms,
@@ -151,7 +165,7 @@ async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body
                 pass
             _emit_nav(task_id, "🧭 vista", f"captura {snap.get('title') or snap.get('url') or ''}"[:200])
             return {"ok": True, "shot": _shot_path(task_id), "viewport": {"width": 1280, "height": 800},
-                    **_with_stall(task_id, _with_wall(snap))}
+                    **_with_stall(task_id, _with_wall(snap, task_id))}
         if action == "extract":
             items = await tb.extract_listings(int(args.get("limit", 14)))
             _emit_nav(task_id, "🧭 resultados", f"{len(items)} anuncios/resultados en la página")
@@ -170,7 +184,7 @@ async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body
             if page:
                 _emit_nav(task_id, "🧭 página", page)
             # Fresh PNG path; every action calls _capture, so the worker can Read the view after acting.
-            return {"ok": bool(ok), "msg": msg, "shot": _shot_path(task_id), **_with_stall(task_id, _with_wall(snap))}
+            return {"ok": bool(ok), "msg": msg, "shot": _shot_path(task_id), **_with_stall(task_id, _with_wall(snap, task_id))}
         return JSONResponse({"ok": False, "error": f"acción desconocida: {action}"}, status_code=400)
     except Exception as e:  # noqa: BLE001
         return JSONResponse({"ok": False, "error": f"{type(e).__name__}: {str(e).splitlines()[0][:160]}"},

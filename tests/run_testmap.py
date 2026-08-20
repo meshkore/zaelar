@@ -123,6 +123,9 @@ DOMAINS: list[dict] = [
             # las 10:00 y cuesta 15 €» con CERO herramientas, y las cifras casi correctas, que es lo que
             # lo hace peligroso.
             "tests/agent_headless/unit/flash/test_a_fact_about_the_world_is_not_improvised.py",
+            # V2-213: un muro dice ADÓNDE ir. El catálogo tenía UN sitio por categoría, así que ante un
+            # muro no había, literalmente, ningún sitio escrito al que mandar al worker.
+            "tests/agent_headless/unit/flash/test_a_wall_names_where_to_go_next.py",
             # V2-147: preguntó EN QUÉ WEB teniendo el motor la respuesta — el catálogo de sitios llega
             # al worker y nunca ha estado a la vista del prompt que decide si preguntar.
             "tests/agent_headless/unit/flash/test_never_ask_which_website.py",

@@ -41,6 +41,13 @@ class SiteEntry:
     name: str
     url: str
     note: str  # short usage guidance for the worker, in the same language as _web_prompt's own instructions
+    # V2-213 — WHERE TO GO WHEN THIS ONE WALLS US. The catalog had exactly one site per category, so when the
+    # trusted one served an anti-bot page there was, literally, nowhere written down to go next: the worker was
+    # told «prueba otro sitio» and had to invent one. Measured cost — `book-hotel-night-known__es` spent thirteen
+    # minutes on the same host, `restaurant-tonight-madrid` ended on a DuckDuckGo results page after Casa Lucio.
+    # Naming the alternative is the difference between an instruction and a wish, which is the same lesson the
+    # bridges learned today four times over.
+    alts: tuple[tuple[str, str], ...] = ()
 
 
 # locale → category → SiteEntry. Locale matches the same "es"/"us" split already used throughout
@@ -55,20 +62,24 @@ SITE_CATALOG: dict[str, dict[str, SiteEntry]] = {
             "TheFork / ElTenedor", "https://www.thefork.es",
             "reservar mesa en un restaurante — busca el nombre del restaurante ahí dentro si el operador ha "
             "nombrado uno concreto; si no, filtra por zona/tipo de cocina/hora. Cerrar la mesa suele exigir "
-            "cuenta o teléfono: trae las opciones con hora y di qué falta para cerrarla."),
+            "cuenta o teléfono: trae las opciones con hora y di qué falta para cerrarla.",
+            alts=(("ElTenedor (app web)", "https://www.eltenedor.es"), ("Google Maps", "https://www.google.com/maps"))),
         "hotel_booking": SiteEntry(
             "Booking.com", "https://www.booking.com",
             "buscar/reservar alojamiento — filtra por ciudad, fechas, nº de personas, estrellas y precio. Cerrar "
-            "la reserva exige cuenta y tarjeta: trae las opciones con precio y condiciones y di qué falta."),
+            "la reserva exige cuenta y tarjeta: trae las opciones con precio y condiciones y di qué falta.",
+            alts=(("Trivago", "https://www.trivago.es"), ("Google Hotels", "https://www.google.com/travel/hotels"))),
         "flight_search": SiteEntry(
             "Skyscanner", "https://www.skyscanner.es",
             "buscar/comparar vuelos — filtra por origen, destino, fechas y equipaje facturado si se pidió. "
-            "Comprar exige cuenta y tarjeta: trae las opciones con precio y horario y di qué falta."),
+            "Comprar exige cuenta y tarjeta: trae las opciones con precio y horario y di qué falta.",
+            alts=(("Google Flights", "https://www.google.com/travel/flights"), ("Kayak", "https://www.kayak.es"))),
         "event_tickets": SiteEntry(
             "Entradas.com", "https://www.entradas.com",
             "entradas de teatro/musicales/conciertos — busca el espectáculo por nombre y filtra por fecha y "
             "sesión; si el espectáculo no aparece, mira la web del propio teatro. Comprarlas exige cuenta y "
-            "tarjeta: trae las opciones con precio y zona, di qué falta para cerrarlo y PARA ahí."),
+            "tarjeta: trae las opciones con precio y zona, di qué falta para cerrarlo y PARA ahí.",
+            alts=(("Ticketmaster ES", "https://www.ticketmaster.es"), ("El Corte Inglés Entradas", "https://www.elcorteingles.es/entradas"))),
         "local_business": SiteEntry(
             "Google Maps", "https://www.google.com/maps",
             "un negocio LOCAL del operador (peluquería, dentista, taller, farmacia, gimnasio…) — busca por "
@@ -84,27 +95,32 @@ SITE_CATALOG: dict[str, dict[str, SiteEntry]] = {
         "generic_marketplace": SiteEntry(
             "Amazon", "https://www.amazon.es",
             "productos nuevos genéricos (electrónica, libros, etc.) donde no aplica ningún clasificado — "
-            "ordena por relevancia/valoración, no solo por precio."),
+            "ordena por relevancia/valoración, no solo por precio.",
+            alts=(("PcComponentes", "https://www.pccomponentes.com"), ("Google Shopping", "https://www.google.com/search?tbm=shop"))),
     },
     "us": {
         "restaurant_booking": SiteEntry(
             "OpenTable", "https://www.opentable.com",
             "book a table at a restaurant — search the named restaurant inside it if the operator named one; "
             "otherwise filter by area/cuisine/time. Closing the table usually needs an account or a phone "
-            "call: bring the options with times and say what closing it would take."),
+            "call: bring the options with times and say what closing it would take.",
+            alts=(("Yelp", "https://www.yelp.com"), ("Google Maps", "https://www.google.com/maps"))),
         "hotel_booking": SiteEntry(
             "Booking.com", "https://www.booking.com",
             "find/book lodging — filter by city, dates, guest count, star rating and price. Closing the booking "
-            "needs an account and a card: bring the options with price and terms and say what is missing."),
+            "needs an account and a card: bring the options with price and terms and say what is missing.",
+            alts=(("Google Hotels", "https://www.google.com/travel/hotels"), ("Trivago", "https://www.trivago.com"))),
         "flight_search": SiteEntry(
             "Google Flights", "https://www.google.com/travel/flights",
             "search/compare flights — filter by origin, destination, dates and checked baggage if asked. Buying "
-            "needs an account and a card: bring the options with price and times and say what is missing."),
+            "needs an account and a card: bring the options with price and times and say what is missing.",
+            alts=(("Kayak", "https://www.kayak.com"), ("Skyscanner", "https://www.skyscanner.net"))),
         "event_tickets": SiteEntry(
             "Ticketmaster", "https://www.ticketmaster.com",
             "theatre/musical/concert tickets — search the show by name and filter by date and session; if the "
             "show is not listed, try the venue's own site. Buying needs an account and a card: bring back the "
-            "options with price and seating area, say what closing it would take, and STOP there."),
+            "options with price and seating area, say what closing it would take, and STOP there.",
+            alts=(("SeatGeek", "https://seatgeek.com"), ("StubHub", "https://www.stubhub.com"))),
         "local_business": SiteEntry(
             "Google Maps", "https://www.google.com/maps",
             "a LOCAL business of the operator's (hairdresser, dentist, garage, pharmacy, gym…) — search "
@@ -120,7 +136,8 @@ SITE_CATALOG: dict[str, dict[str, SiteEntry]] = {
         "generic_marketplace": SiteEntry(
             "Amazon", "https://www.amazon.com",
             "generic new products (electronics, books, etc.) where no classifieds site applies — sort by "
-            "relevance/rating, not just price."),
+            "relevance/rating, not just price.",
+            alts=(("Best Buy", "https://www.bestbuy.com"), ("Google Shopping", "https://www.google.com/search?tbm=shop"))),
     },
 }
 
@@ -278,3 +295,40 @@ def entry_for(category: str, locale: str | None = None) -> SiteEntry | None:
     """The trusted site for a category in a locale (None if either is unknown)."""
     loc = locale if locale in SITE_CATALOG else resolve_locale(locale)
     return SITE_CATALOG.get(loc, SITE_CATALOG[_DEFAULT_LOCALE]).get(category)
+
+
+def alternatives_for(request: str, exclude_host: str = "", locale: str | None = None) -> list[tuple[str, str]]:
+    """Where to go when the trusted site for this errand has just walled us (V2-213).
+
+    Returns (name, url) pairs, EXCLUDING whatever host already blocked us — offering the site the worker is
+    stuck on is worse than offering nothing, because it reads as «insist». The trusted entry itself is included
+    when the wall came from somewhere else, since that is the one it should have been on.
+
+    Empty list is a legitimate answer: not every category has a written alternative, and inventing one would be
+    the same guessing this exists to stop. The caller says «try another site» without naming one, exactly as
+    before — no worse, and honest about what we know.
+    """
+    cat = category_of(request or "", locale)
+    if not cat:
+        return []
+    entry = entry_for(cat, locale)
+    if entry is None:
+        return []
+    host = (exclude_host or "").strip().lower().removeprefix("www.")
+
+    def _host(url: str) -> str:
+        try:
+            from urllib.parse import urlparse
+            return (urlparse(url).netloc or "").lower().removeprefix("www.")
+        except Exception:
+            return ""
+
+    out: list[tuple[str, str]] = []
+    for name, url in ((entry.name, entry.url), *entry.alts):
+        h = _host(url)
+        if host and h and (h == host or h.endswith("." + host) or host.endswith("." + h)):
+            continue
+        if any(u == url for _, u in out):
+            continue
+        out.append((name, url))
+    return out

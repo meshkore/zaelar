@@ -1275,6 +1275,22 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **«Prueba otro sitio» sin decir CUÁL es un deseo, no una instrucción** (`nucleo/flash/site_catalog.py` +
+  `widgets/navegador/act_api.py` + `nav_cli.py`, V2-213, 2026-08-20). El muro llega YA a todas partes: la tarea lo
+  anota (V2-176), el CLI del worker lo imprime (V2-186) y el turno lo dice en voz alta (V2-185 — el transcript de
+  `book-hotel` lo prueba: «la han bloqueado un par de veces… ¿sigo o paramos?»). Y las corridas seguían moliendo
+  el mismo host: trece minutos en `nh-hotels.com`, y `restaurant-tonight-madrid` acabando en una página de
+  resultados de DuckDuckGo. **Lo que faltaba nunca fue la información: era la ALTERNATIVA.** El catálogo tenía
+  exactamente UN sitio por categoría, así que ante un muro no había, literalmente, ningún sitio escrito al que ir
+  y se le pedía al worker que se lo inventara a mitad de tarea.
+  - El host que acaba de bloquear se **EXCLUYE**: ofrecerle el sitio donde está atascado se lee como «insiste».
+  - **La lista vacía es una respuesta legítima**: no toda categoría tiene alternativa escrita, e inventarla sería
+    justo el adivinar que esto evita — el mensaje queda como antes, ni peor ni mentiroso.
+  - **Límite CONOCIDO y afirmado en un test**: un encargo de COMPRAR no recibe alternativas porque
+    `generic_marketplace` está deliberadamente sin detectar en `category_of` («el verbo pelado *compra* barrería
+    charla normal»). Está escrito ahí para que quien enseñe al catálogo a reconocer la compra —su propio frente,
+    con su propia medición— se entere aquí y no en una corrida.
+
 - **Un `usage` dice la FORMA, no el ERROR** (`nucleo/nav_cli.py`, V2-212, 2026-08-20). Medido en
   `book-hotel-night-known__es` (15:29): `nav_cli type_at: error: argument y: invalid int value: 'Hotel Palacio
   de la Merced Burgos reservas 3'`. **`type` toma un [ref] del snapshot y `type_at` toma COORDENADAS de la

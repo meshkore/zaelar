@@ -66,6 +66,10 @@ def _print_state(res: dict) -> None:
     if res.get("wall"):
         print(f"⛔ MURO: {res['wall']} — esta página NO te va a dejar seguir. No insistas aquí: prueba otro "
               f"sitio, o si ya tienes algo aprovechable, extráelo y cierra.")
+        # V2-213: y CUÁL. «Prueba otro sitio» sin nombrar uno es un deseo; el que se atasca es el que no sabe a
+        # dónde ir. Se listan ya excluido el host que acaba de bloquear.
+        for _a in (res.get("wall_alts") or [])[:3]:
+            print(f"   → prueba en {_a.get('name', '')}: {_a.get('url', '')}")
     if res.get("hint"):
         print(f"⚠️ AVISO: {res['hint']}")
     print(f"URL: {res.get('url', '')}")
