@@ -23,7 +23,6 @@
 //             los widgets de usuario, cuyos alias sí son editables). Un objeto de sistema NUNCA es un "widget":
 //             decir "el widget de X" jamás resuelve a una de estas superficies (ver widgets/runtime.py::identify).
 //             `null` = superficie no dirigible por voz (transitoria/andamiaje); no entra al resolver de nombres.
-import { ActivityStrip } from "../components/ActivityStrip.js?v=2";
 import { Alert } from "../components/Alert.js?v=2";
 import { BenchmarksPanel } from "../components/BenchmarksPanel.js?v=1";
 import { BootOverlay } from "../components/BootOverlay.js?v=2";
@@ -42,10 +41,10 @@ import { WizardModal } from "../components/WizardModal.js?v=1";
 
 // El ORDEN es el de montaje real en el DOM (importa para el apilado). scaffold primero, luego overlay.
 export const SYSTEM_SURFACES = [
-  // ── ANDAMIAJE del escritorio (dentro de #desk; posición load-bearing entre .canvas y #wstage) ──
-  { id: "activity-strip", comp: ActivityStrip, target: "desk", phase: "scaffold", kind: "canvas-bg",
-    toggle: "store.tasks (SSE)", label: "Activity honeycomb (background hexagons)",
-    name: null, aliases: null },
+  // El PANAL DE ACTIVIDAD (hexágonos de fondo, V2-039) se RETIRÓ el 2026-08-20 por decisión del operador
+  // (V2-233 D): el relato de lo que está pasando vive en UN sitio por encargo — la pestaña «Proceso» de la
+  // superficie donde va a aterrizar el resultado, y la pestaña «Procesos» del chat para todo lo demás. Tres
+  // superficies contando el mismo hecho no es redundancia inofensiva: obliga a mantener tres y a mirar tres.
   // ── CHROME del escritorio (dentro de #desk; se desplaza al acoplar el chat) ──
   // NOTA: `name` es DISPLAY (inglés, lo ve el usuario). `aliases` son k-words de RECONOCIMIENTO por voz: se
   // mantienen en castellano Y en inglés porque el asistente es multilingüe con el operador (no son texto visible).

@@ -456,29 +456,9 @@ canvas#orb.frozen{opacity:.32;filter:grayscale(1)}
 .activity:empty{display:none}
 .hb-act{background:var(--hb-bg-a);backdrop-filter:blur(6px);border-radius:14px;padding:12px 14px;
   box-shadow:var(--hb-shadow-1)}
-/* BACKGROUND-ACTIVITY HONEYCOMB (V2-039, operator 2026-07-17) — one dark HEXAGON per in-flight background task,
-   glued into a cluster that grows from the screen centre in random directions (never off-screen; geometry in
-   components/ActivityStrip.js). Each cell holds the current doing-text ("pensando…", "buscando en la web…") in a
-   very dark grey — an ambient "things are happening" lift over the canvas, NOT a notification. The layer mounts
-   right above .canvas and below .wstage (DOM order = paint order), so widgets/orb/everything paint OVER it.
-   Replaces the old liquid blobs flanking the orb (they collided with the orb/ECG and read as clutter).
-   Theme-aware: color-mix over --hb-ink works in dark AND light. */
-.hexbg{position:fixed;inset:0;pointer-events:none;overflow:hidden}
-.hexcell{position:absolute;opacity:0;transform:scale(.6);
-  transition:opacity .5s ease,transform .5s cubic-bezier(.2,.9,.3,1.2)}
-.hexcell.in{opacity:1;transform:scale(1);animation:hexbreathe 5.2s ease-in-out infinite}
-.hexcell.out{opacity:0;transform:scale(.78);animation:none}
-.hexcell svg{position:absolute;inset:0;width:100%;height:100%;display:block}
-.hexcell polygon{fill:color-mix(in srgb,var(--hb-ink) 4%,transparent);
-  stroke:color-mix(in srgb,var(--hb-ink) 10%,transparent);stroke-width:1;vector-effect:non-scaling-stroke}
-.hextext{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:0 17%}
-.hextext .hextxt{font-family:var(--mono);font-size:11px;line-height:1.35;text-align:center;
-  color:var(--hb-muted-2);opacity:.6;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;
-  overflow:hidden}
-/* V2-038: un worker que ESPERA respuesta del operador — la celda se marca en ámbar tenue (el loop lo relata por voz). */
-.hexcell.asking polygon{stroke:color-mix(in srgb,var(--hb-risk) 38%,transparent)}
-.hexcell.asking .hextxt{color:var(--hb-warn-ink,var(--hb-ink));opacity:.85}
-@keyframes hexbreathe{0%,100%{opacity:.72}50%{opacity:1}}
+/* El PANAL DE ACTIVIDAD (hexágonos de fondo, V2-039) se RETIRÓ el 2026-08-20 — decisión del operador,
+   V2-233 D. El relato de una tarea vive en UN sitio: la pestaña «Proceso» de la superficie donde va a
+   aterrizar su resultado, o la pestaña «Procesos» del chat cuando no hay ninguna. Ver system-surfaces.js. */
 /* widget desktop styling lives in app/widgets/desktop.js (the independent canvas module) */
 .conn{position:fixed;left:20px;bottom:14px;z-index:20;font-family:var(--mono);font-size:11px;color:var(--hb-muted-2)}
 .conn b{color:var(--hb-muted)}

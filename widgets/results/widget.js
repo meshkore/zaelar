@@ -143,6 +143,8 @@ function injectStyles(){
     color:var(--hb-accent,#3D6FE0)}
   .hb-results .hr-tab .hr-n.bad{background:color-mix(in srgb,var(--hb-risk,#e5484d) 15%,transparent);
     color:var(--hb-risk,#e5484d)}
+  /* el loader de la PESTAÑA: algo más pequeño que el del panel, porque acompaña a una etiqueta, no la encabeza */
+  .hb-results .hr-tab .hr-tspin{width:.8em;height:.8em;border-width:1.5px}
 
   /* ── GRID AND RECORDS ──────────────────────────────────────────────────────────────────────────────────────
      The accent strip remains ONLY on the featured card. With ten results —the new delivery default— ten vertical
@@ -981,7 +983,13 @@ function tabCount(id, data){
   }
   if(id === "summary") return s.explored ? {n: s.explored} : null;
   if(id === "process"){
-    const n = ((data.progress||{}).phases||[]).length;
+    // Con la tarea VIVA la pestaña lleva un LOADER en vez de un número (operador, 2026-08-20): al llegar el primer
+    // resultado la hoja salta sola a la lista, y desde ahí lo único que dice «sigo trabajando» es este botón — un
+    // contador de fases ahí no distingue «va por doce» de «se quedó en doce». El número vuelve al acabar, que es
+    // cuando SÍ informa: cuántos pasos costó llegar. Gira por CSS (`hr-spin`), nunca por temporizador de JS.
+    const pr = data.progress || {};
+    if(pr.alive) return {spin: true};
+    const n = (pr.phases||[]).length;
     return n ? {n} : null;
   }
   return null;
@@ -1038,7 +1046,8 @@ export function render(el, data, ctx){
     const b=elem("button","hr-tab"); b.type="button"; b.dataset.tab=t.id;
     b.appendChild(document.createTextNode(t.label));
     const c=tabCount(t.id, data);
-    if(c) b.appendChild(elem("span","hr-n"+(c.bad?" bad":""), String(c.n)));
+    if(c && c.spin) b.appendChild(elem("span","hr-spin hr-tspin"));
+    else if(c) b.appendChild(elem("span","hr-n"+(c.bad?" bad":""), String(c.n)));
     b.addEventListener("click", ()=>{
       if(cur===t.id) return;
       cur=t.id;
