@@ -244,6 +244,15 @@ def mechanism_facts(mech: dict) -> str:
             f"observó {over}. La petición se resolvía por un camino ligero y el motor levantó maquinaria "
             f"pesada. Eso es un fallo de MECANISMO aunque la respuesta acabara siendo correcta, y baja "
             f"también EFICIENCIA: el usuario espera minutos por algo que eran segundos.")
+    pg = mech.get("progress") or {}
+    if pg.get("n"):
+        lines.append(
+            f"· LO QUE EL USUARIO VIO MIENTRAS ESPERABA: {pg['n']} avisos de progreso en {pg.get('span_s')}s, "
+            f"y el SILENCIO más largo entre dos fue de {pg.get('gap_max_s')}s. Textos: "
+            f"{[p['text'] for p in (pg.get('phases') or [])][:6]}. Un silencio largo es pantalla en blanco "
+            f"para la persona, aunque la tarea siguiera viva: si pasa de ~45s, cuéntalo en EFICIENCIA. Y si "
+            f"los textos no los entiende una persona (jerga de herramientas en vez de «entrando en "
+            f"booking.com»), dilo, porque emitir no es informar.")
     sh = mech.get("search_health") or {}
     if sh:
         n = sh.get("n_search_events")

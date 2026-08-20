@@ -767,3 +767,52 @@ def was_delivered(found: list | None, transcript: list[dict]) -> bool | None:
         if head and head in said:
             return True
     return False
+
+def progress_phases(db_path, *, since: float = 0.0) -> dict:
+    """WHAT THE USER SAW WHILE WAITING, and — the number that matters — the longest silence.
+
+    The requirement this measures is the operator's, and it is about a person, not a pipeline: "si el
+    worker tarda, el usuario se aburre; no puede mirar una pantalla en blanco siete minutos". So counting
+    phases is not enough: twenty phases in the first ten seconds and then four minutes of nothing is
+    exactly the failure, and it averages out to something that looks healthy.
+
+    `gap_max_s` is therefore the headline, not `n`. `phases` keeps the texts so it can be read whether
+    they are sentences a person understands ("entrando en booking.com") or developer telemetry
+    ("tool_use ok") — B1 and B2 of V2-227 respectively, and they fail independently.
+    """
+    import sqlite3
+    out: dict = {"n": 0, "phases": [], "gap_max_s": 0.0, "span_s": 0.0}
+    try:
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    except Exception:
+        return out
+    try:
+        # `topic = 'worker.phase'`, con el texto en el campo `phase`. NO es `observer/kind='phase'`: eso
+        # devolvía CERO mientras la ronda emitía 71 fases, y estuve a un mensaje de reportar que el
+        # arreglo del otro agente no emitía nada. Cuarta vez en el día que leo un campo en el nivel
+        # equivocado; por eso esto se escribió mirando la BD de una ronda real y no el contrato.
+        rows = con.execute("SELECT ts_ms, payload FROM events WHERE topic = 'worker.phase' "
+                           "AND ts_ms >= ? ORDER BY ts_ms ASC", (int(since * 1000),)).fetchall()
+    except Exception:
+        return out
+    finally:
+        con.close()
+    seen, prev, first = [], None, None
+    for ts_ms, raw in rows:
+        try:
+            p = json.loads(raw) or {}
+            txt = str(p.get("phase") or p.get("text") or "").strip()
+        except Exception:
+            continue
+        if not txt:
+            continue
+        first = first if first is not None else ts_ms
+        if prev is not None:
+            out["gap_max_s"] = max(out["gap_max_s"], round((ts_ms - prev) / 1000.0, 1))
+        prev = ts_ms
+        out["n"] += 1
+        if len(seen) < 12:
+            seen.append({"at_s": round((ts_ms - first) / 1000.0, 1), "text": txt[:120]})
+    out["phases"] = seen
+    out["span_s"] = round(((prev or 0) - (first or 0)) / 1000.0, 1)
+    return out

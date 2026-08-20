@@ -196,6 +196,9 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             # A PROMPT THAT CONTRADICTS ITSELF voids the obedience reading of that turn, so it is measured
             # first and reported apart (see `verify.prompt_contradictions`).
             mech["prompt_contradictions"] = verifymod.prompt_contradictions(mech.get("prompt_context") or [])
+            # WHAT THE USER SAW WHILE WAITING (V2-227 ámbito B). The headline is the longest silence,
+            # not the count: a burst of phases followed by four minutes of nothing is the complaint.
+            mech["progress"] = verifymod.progress_phases(config.SANDBOX_DB, since=started_at)
         except Exception as e:
             mech["proactive_notes_error"] = str(e)[:200]
         # WHAT THE WORKER ACHIEVED and whether any of it was SAID — the gap this whole case is about.
