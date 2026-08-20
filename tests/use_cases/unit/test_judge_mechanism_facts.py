@@ -83,3 +83,38 @@ def test_the_prose_reaches_the_prompt_the_judge_actually_reads():
     src = inspect.getsource(J.judge)
     assert "mechanism_facts(mech)" in src
     assert "no lo contradigas" in src
+
+
+def test_the_judge_is_told_to_answer_in_SPANISH_only():
+    """El juez por defecto es glm-4.6, un modelo chino, y el 2026-08-20 escribió media frase de un hallazgo en
+    chino (ronda 16 de V2-176: «sin提供一个具体的输出或障碍说明»). El hallazgo era CORRECTO —el sistema admitía
+    no tener candidatos e inducía a esperar— y quedó ilegible para su único destinatario, el agente que
+    arregla. Una evidencia que no se puede leer vale lo mismo que no haberla medido.
+    """
+    from tests.use_cases.e2e.agent import judge as J
+
+    assert "IDIOMA" in J._SYS and "CASTELLANO" in J._SYS, (
+        "el prompt del sistema del juez no fija idioma: vuelve a poder colar chino en la evidencia")
+
+
+def test_and_the_system_prompt_is_what_actually_reaches_the_model(monkeypatch):
+    """La mitad de sensibilidad: una constante puede quedarse sin cablear. Se comprueba lo que RECIBE la
+    llamada, no lo que hay escrito en el módulo — que es el error que este mismo test cometía antes,
+    afirmando sobre `inspect.getsource` (donde un comentario cuenta igual que el prompt)."""
+    from types import SimpleNamespace
+
+    from tests.use_cases.e2e.agent import judge as J
+
+    seen = {}
+
+    def _fake(msgs, **kw):
+        seen["msgs"] = msgs
+        return ('{"overall":4,"scores":{},"veredicto":"x","hallazgos":[],"mejoras":[]}', "modelo-falso")
+
+    monkeypatch.setattr(J.llm, "judge_call", _fake)
+    scn = SimpleNamespace(id="x", tier=1, locale="es", opening_line="hola", goal="g",
+                          success_checks=[], expected_signals=[], persona_brief="", turns=4,
+                          channel="probe", no_data_scope=None)
+    J.judge(scn, {"transcript": [], "mechanism_report": {}})
+    system = " ".join(m.get("content", "") for m in seen.get("msgs", []) if m.get("role") == "system")
+    assert "CASTELLANO" in system, "la instrucción de idioma no llega a la llamada"

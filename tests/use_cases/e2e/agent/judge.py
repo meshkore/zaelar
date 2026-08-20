@@ -172,6 +172,17 @@ def mechanism_facts(mech: dict) -> str:
     return "\n".join(lines)
 
 
+_SYS = ("Eres un evaluador senior de asistentes personales, exigente y concreto. Juzgas el comportamiento "
+           "OBSERVABLE de zaelar: lo que dijo (transcript) Y lo que hizo de verdad en el sistema (informe de "
+           "mecanismo, derivado de la observabilidad durable, no de lo que zaelar afirma). No ves su código "
+           "fuente. Propones mejoras accionables.\n\n"
+           "IDIOMA: escribes TODO el JSON —veredicto, hallazgos y mejoras— en CASTELLANO, sin una sola "
+           "palabra en otro idioma. El juez por defecto es un modelo chino y el 2026-08-20 colgó media "
+           "frase en chino en medio de un hallazgo de la ronda 16 de V2-176; el hallazgo era correcto y "
+           "quedó ilegible para quien tiene que arreglarlo, que es su único destinatario. Un texto de "
+           "evidencia que no se puede leer vale lo mismo que no haberlo medido.")
+
+
 def judge(scenario, run: dict, model: str | None = None) -> dict:
     convo = "\n".join(
         f"[{t.get('at', '')}] {t['who'].upper():7} {t.get('text') or '(sin respuesta)'}"
@@ -215,10 +226,7 @@ def judge(scenario, run: dict, model: str | None = None) -> dict:
     if multiflow:
         schema = SCHEMA.replace(
             '"eficiencia":n}', '"eficiencia":n,"atribucion":n,"fluidez":n}')
-    sys = ("Eres un evaluador senior de asistentes personales, exigente y concreto. Juzgas el comportamiento "
-           "OBSERVABLE de zaelar: lo que dijo (transcript) Y lo que hizo de verdad en el sistema (informe de "
-           "mecanismo, derivado de la observabilidad durable, no de lo que zaelar afirma). No ves su código "
-           "fuente. Propones mejoras accionables.")
+    sys = _SYS
     user = f"""Evalúas a zaelar resolviendo un caso de uso real, por texto. Al usuario lo simula otro modelo,
 imitando cómo pide las cosas una persona real (puede ser ambiguo, cambiar de idea, corregir un malentendido).
 
