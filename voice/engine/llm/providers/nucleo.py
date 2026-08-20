@@ -2599,6 +2599,18 @@ class NucleoLLMStream(llm.LLMStream):
         # modelo rápido que el turno ya paga (coste marginal ≈0): 2º pase con los snippets como contexto →
         # respuesta hablada. Proveedor por capas (calidad primero): respuesta-IA (Perplexity/Tavily) → snippets
         # (Brave) → gratis (DDG). Compartido con el SlowBrain. Ver nucleo/websearch.py.
+        # V2-210 — AQUÍ NO. El backstop de «un dato del mundo no se improvisa» vive en el canal de texto
+        # (`probe.py`) y este canal se queda FUERA a propósito, que es lo contrario de lo que pide la regla de
+        # implementación paralela y por eso se escribe.
+        #
+        # La razón es una asimetría real entre los dos canales: la voz EMITE los deltas del modelo según llegan,
+        # así que cuando el turno llega hasta aquí la frase inventada YA SE HA DICHO. Sustituirla es imposible y
+        # añadir la versión con fuente detrás significa hablar dos veces en toda pregunta de horarios o precios
+        # — una regresión en el canal del operador, cambiada por un defecto que en este canal nadie ha medido.
+        #
+        # El arreglo BUENO para la voz es el mismo disparo pero ANTES de generar (si la pregunta es de un dato
+        # del mundo, se busca primero y el modelo compone con los resultados), que es además lo que el modelo
+        # hace cuando acierta. Eso toca `_run_inner` antes del stream y quiere su propia medición de latencia.
         if search_req["v"] is not None and reveal_req["v"] is None:
             query = search_req["v"]
             emit("brain", "🔎 búsqueda web", text=query, role="system")

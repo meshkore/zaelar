@@ -744,6 +744,19 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             action = "recall"
         except Exception:
             pass
+    # V2-210 — UN DATO DEL MUNDO NO SE IMPROVISA (espejo del provider — cablear en AMBOS). Medido en
+    # `quick-fact-opening-hours`: «abre a las 10:00 y cuesta 15 €» con CERO herramientas. Las cifras eran
+    # aproximadamente correctas, que es justo lo que lo hace peligroso — el modelo va seguro y no pide la tool.
+    # Convertir el turno en `search` reusa la maquinaria que ya existe aquí abajo (V2-022 + la composición de
+    # V2-135), así que el dato inventado se SUSTITUYE por el que traiga la fuente, no se adorna.
+    _forced_search = False
+    if action == "chat" and spoken:
+        try:
+            from . import router_guards as _rg_src
+            if _rg_src.answer_needs_a_source(operator_text, spoken):
+                action, _forced_search = "search", True
+        except Exception:
+            pass
     if action == "search":
         _sq = next((t["args"].get("query") for t in tool_calls if t["name"] == "web_search"), "") or text
         try:
@@ -788,7 +801,16 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 _parts.append(_delta)
             spoken = dialog.sanitize_reply(speech.sanitize("".join(_parts), drop_metadata=False))
         except Exception:
-            pass
+            # Con la búsqueda CAÍDA, dejar la respuesta original sería quedarnos justo con el dato improvisado
+            # que este backstop existe para no dar. Un «no lo he podido comprobar» es peor respuesta y mejor
+            # información. Solo aplica al turno FORZADO: uno que el modelo enrutó a búsqueda ya tenía su propia
+            # frase y no hay nada que retirar.
+            if _forced_search:
+                try:
+                    from voice.engine.core import langs as _lg_src
+                    spoken = _lg_src.current_language().unverified_fact
+                except Exception:
+                    spoken = "No he podido comprobarlo ahora mismo, así que prefiero no darte un dato inventado."
 
     # (e-ter) EJECUCIÓN REAL de acciones de worker (V2-049, solo si execute=True) — para el test e2e de gestiones
     # web por TEXTO: la escalada arranca un Brain Worker REAL que conduce el navegador; inyección/respuesta/stop van

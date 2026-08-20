@@ -1275,6 +1275,26 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Un dato del mundo, dicho con una cifra y sin consultar nada** (`nucleo/flash/router_guards.py` +
+  `probe.py`, V2-210, 2026-08-20). Medido en `quick-fact-opening-hours`: «¿A qué hora abre mañana el Museo del
+  Prado y cuánto cuesta la entrada general?» → «Mañana abre a las 10:00 y la entrada general cuesta 15 €», con
+  **cero herramientas** (familias: flash, memory, system; ningún `search`) y la auditoría sin una sola anomalía.
+  **Y las cifras son aproximadamente correctas, que es justo lo que lo hace peligroso**: el modelo va seguro, no
+  pide la tool, y un precio equivocado dicho con seguridad se lee igual que uno correcto. V2-022 fijó que esta
+  clase se contesta en el turno desde una fuente y V2-135 arregló la mitad de composición de este mismo caso; lo
+  que faltaba era el disparo para el turno en que el modelo no pide nada.
+  - **Las dos mitades son obligatorias**: la PREGUNTA de horario/precio/dirección/teléfono de algo de ahí fuera
+    (y no de lo suyo — «¿a qué hora es MI cita?» es la agenda), y la RESPUESTA afirmando una CIFRA comprobable
+    («suele abrir por la mañana» no afirma nada que comprobar). Un «ve a buscar» de más lo pagan turnos que
+    estaban bien; uno de menos cuesta un dato inventado.
+  - **Con la fuente inalcanzable la respuesta original NO se conserva**: quedarnos con ella es quedarnos con el
+    dato improvisado. Se sustituye por «no he podido comprobarlo» — peor respuesta y mejor información.
+  - **La VOZ se queda fuera, y es una decisión argumentada, no un descuido**: ese canal EMITE los deltas del
+    modelo según llegan, así que cuando el turno podría comprobar **la frase inventada ya se ha dicho**;
+    añadir detrás la versión con fuente es hablar dos veces en toda pregunta de precios. El arreglo bueno allí
+    es el mismo disparo **antes** de generar, que toca el camino caliente y quiere su medición de latencia. Hay
+    un test que exige que la exclusión siga siendo explícita en el código.
+
 - **Desde fuera del proceso, «el muro no se anotó» y «se anotó y el turno lo ignoró» se veían IDÉNTICOS**
   (`widgets/navegador/data.py`, V2-207, 2026-08-20). `active_progress()` construye `walls_hit`/`last_wall` desde
   V2-176 y son lo que llega al prompt, pero `_task_view()` —la única vista legible desde fuera,
