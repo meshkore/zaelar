@@ -1587,6 +1587,39 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     la tarea. Pide que un fallo deje su propio rastro con el sitio dentro — cómo se REGISTRA, no cómo se
     renderiza — y su propia medición.
 
+- **«No me habías pedido eso» era VERDAD** (`nucleo/flash/probe.py`, V2-176, 2026-08-20). La ventana
+  conversacional del canal de TEXTO se escribía **solo al final** de `run_turn` (paso (f)), así que la salida
+  temprana del proveedor caído —`ok: False`, sin una palabra— se llevaba por delante la frase que el operador
+  acababa de decir. Medido en `restaurant-tonight-madrid`: «Resérvame mesa en Casa Lucio» → **(sin respuesta)**;
+  cinco turnos después zaelar habla del encargo del caso ANTERIOR (lo único que la memoria le dejaba) y remata
+  con «no tengo constancia de ese encargo **en mi estado**». El juez lo puntuó como alucinación y *gaslighting*.
+  No era ninguna de las dos: era cierto, y la causa era nuestra. Otra vez el 2026-08-20 en
+  `book-hotel-night-known__es` («ignoró la petición real para ejecutar una tarea residual de memoria»).
+  - **El principio ya estaba escrito y la función era la correcta.** `dialog.push_user` dice desde el
+    2026-08-02: «lo que el operador dijo OCURRIÓ; cancelar la RESPUESTA no borra la FRASE». La VOZ lo honra en
+    todas sus fases; el texto llamaba a esa MISMA función en el único punto donde no podía servir de nada.
+  - Ahora se registra **en cuanto el prompt del turno está armado** — punto elegido, no casual: el prompt se
+    compone de la ventana anterior, así que ahí no duplica la frase, y **todo lo que puede fallar queda por
+    debajo**, incluidas las salidas tempranas que alguien añada mañana (así nació este defecto). La única
+    salida que queda por encima es la de la bóveda, y ahí la frase entra **REDACTADA**.
+  - La forma que deja atrás es la correcta: una línea de usuario **sin respuesta detrás**, que se lee como «a
+    esa no contesté». Un marcador inventado diría menos y podría mentir.
+  - **Séptima vez en esta tanda del mismo patrón** (un hecho que solo vive un turno es un hecho que la
+    conversación pierde) y la más grave: el hecho perdido era la petición del operador.
+
+- **Un proveedor roto no se le decía a NADIE en el canal de texto** (`nucleo/flash/probe.py`, V2-176,
+  2026-08-20). La voz clasifica el error, marca el cooldown, registra la salud y degrada con una frase honesta.
+  El texto no hacía ninguna de las cuatro: `return ok: False` y a otra cosa. Eso explica los **tres silencios
+  seguidos** del transcript de arriba — un titular sin saldo seguía siendo el titular turno tras turno, con el
+  semáforo en verde. Cerrado el REPORTE (`note_failure` + `health_state`, contrato intacto); el cooldown es
+  compartido a propósito, así que reportar desde aquí es lo que permite al otro canal relevarse.
+  - **ABIERTO y no tocado hoy: el canal de texto no tiene relevo.** `probe.py` resuelve con
+    `spec_from_config()` directo y nunca consulta `provider_chain.pick()`. Con el titular muerto, todos los
+    turnos de texto salen mudos hasta que alguien cambie la config a mano. Toca coste, identidad de modelo y la
+    trampa de que *el nombre del modelo viaja con su endpoint* — cambio propio, medición propia. Y su segunda
+    mitad es una decisión: igualar a la voz sería responder algo honesto en vez de `ok: False`, y eso cambia un
+    contrato que leen el arnés y el frontend.
+
 - **Un muro puede estar en el CUERPO de la página, con URL normal y status 200** (`widgets/navegador/tasks.py`
   + `owner.py`, V2-167 segunda mitad, 2026-08-20). `wall_reason()` reconoce el muro por la URL y estaba bien
   así; lo que faltaba era el caso medido en una corrida real del teatro: `entradas.com` contestó la página del

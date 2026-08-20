@@ -238,6 +238,14 @@ DOMAINS: list[dict] = [
         # después. No lo dijo el modelo: `confirm_task` compartía rama con `widget_data`.
         {"id": "2.17", "title": "Un «sí» a la confirmación arranca la tarea; no la termina", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_confirm_ack_is_a_start.py"]},
+        # 2026-08-20: el turno que llevaba «Resérvame mesa en Casa Lucio» falló en el proveedor y devolvió
+        # `ok: False` — la ventana se escribía SOLO al final, así que la petición se fue con él. Cinco turnos
+        # después zaelar hablaba del encargo ANTERIOR y decía «no tengo constancia de ese encargo en mi
+        # estado»: el juez lo llamó gaslighting y era verdad. Y el fallo del proveedor no se reportaba a nadie,
+        # así que un titular muerto seguía muerto turno tras turno (tres silencios seguidos, medidos).
+        {"id": "2.19", "title": "Lo que el operador dijo sobrevive a un turno que falla (y el fallo se reporta)",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_what_was_said_survives_a_failed_turn.py"]},
         {"id": "2.9", "title": "Sandbox de ejecución ligero (V2-076)", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/test_sandbox.py"]},
         {"id": "2.10", "title": "Puente git acotado + dev worker (V2-076)", "ch": UNIT, "paths": [
@@ -623,6 +631,15 @@ DOMAINS: list[dict] = [
         # caso en adelante zaelar recuerda los anteriores — y el juez lo estaba puntuando como defecto suyo.
         {"id": "10.9", "title": "Memoria compartida entre casos: se avisa al juez, sin amnistiar el fallo real",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_memory_carryover.py"]},
+        # El tablero se archiva (2026-08-20: 87 iniciativas + 210 tareas a `archive/`). Un número
+        # reutilizado no falla — deja dos trozos de historia respondiendo al mismo nombre.
+        {"id": "10.10", "title": "Un número archivado no se reemite nunca",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_archived_numbers.py"]},
+        # Regla del operador (2026-08-20): un caso no se cierra por sacar buena nota, hay que haber leído la
+        # auditoría entera. Una corrida con las familias esperadas presentes llevaba `is_error` en un paso del
+        # worker y nadie lo veía.
+        {"id": "10.11", "title": "Auditoría del stream completo: un PASS con anomalías NO cierra el caso",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_full_audit.py"]},
     ]},
 ]
 

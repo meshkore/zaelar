@@ -107,6 +107,29 @@ def _show_target(text: str, context: list[dict] | None = None, last_action: str 
         return None
 
 
+def _remember_what_was_said(sess, text: str) -> None:
+    """Record the operator's line in the window NOW, before anything left in the turn can fail.
+
+    V2-167/V2-176, measured on `restaurant-tonight-madrid` and again on `book-hotel-night-known__es`: the window
+    was only written at the very END of the turn (step (f)), so every early exit lost the sentence that had just
+    been said. When the provider call failed, the turn returned `ok: False` — no reply at all — and the request
+    went with it. Five turns later the operator asked how the booking was going and zaelar answered about the
+    PREVIOUS errand it still remembered, then said «no tengo constancia de ese encargo en mi estado — no me
+    habías pedido que reservara una mesa». The judge called that hallucination and gaslighting; it was neither.
+    It was TRUE, and it was our doing.
+
+    `dialog.push_user` already carries this exact principle for the voice channel — «lo que el operador dijo
+    OCURRIÓ; cancelar la RESPUESTA no borra la FRASE» — and the text channel called the very same function at the
+    only point where it could not help. Calling it early also leaves the right shape behind: a user line with no
+    assistant answer after it, which reads as «that one went unanswered», which is what happened.
+
+    Idempotent: `push_user` coalesces an identical trailing line in place, so step (f) can still call it.
+    """
+    from . import dialog as _dialog          # imported lazily like every other flash sibling here
+    _dialog.push_user(sess.window, text)
+    del sess.window[:-_WINDOW_MAX]
+
+
 async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, model: str = "",
                    execute: bool = False) -> dict:
     """Corre UN turno del FlashBrain headless y devuelve un dict evaluable. Reproduce el núcleo de
@@ -181,6 +204,11 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 _sec_line = _L_sec.secret_saved if _has_vault else _L_sec.secret_need_vault
             except Exception:
                 _sec_line = "Guardado." if _has_vault else "Necesito que crees la bóveda primero."
+            # REDACTED, never the raw line: this exit exists precisely because the whole turn was a secret, and
+            # the invariant that a secret never reaches the model is not negotiable. What the window keeps is the
+            # SHAPE of what happened («mi contraseña de X es «secreto guardado»»), so the next turn knows the
+            # operator spoke and what about.
+            _remember_what_was_said(sess, _secrets0.redact(text)[0])
             return {"ok": True, "reply": [_sec_line],
                     "action": "vault_save" if _has_vault else "vault_need_create", "tool_calls": [], "tags": [],
                     "secret": {"n": len(_sec_found), "labels": [d.label for d in _sec_found],
@@ -260,6 +288,9 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     messages = [{"role": "system", "content": system}]
     messages += dialog.prune_window(sess.window)[-_WINDOW_MAX:]
     messages.append({"role": "user", "content": text})
+    # The prompt for THIS turn is now assembled from the window as it was, so the line can go in without
+    # appearing twice — and from here on every exit path, including the ones added later, keeps it.
+    _remember_what_was_said(sess, text)
 
     # (c) captura de tool calls y tags (en vez de ejecutarlos)
     tool_calls: list[dict] = []
@@ -327,7 +358,24 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             _ = out
         out, buf = strip_tags(buf, _tag_emit, True)
     except Exception as e:  # noqa: BLE001
-        return {"ok": False, "error": f"modelo: {str(e).splitlines()[0][:200]}", "spec": f"{spec.provider}/{spec.model}"}
+        # A PROVIDER FAILURE HAS TO BE SAID OUT LOUD, in the same two places the voice channel says it. Until now
+        # this channel swallowed it: no cooldown marked, no health recorded, so a titular with no balance stayed
+        # the titular and every text turn came back silent. Measured on `restaurant-tonight-madrid`: THREE
+        # consecutive turns with no reply at all, which is what a dead provider looks like when nobody reports it.
+        # The cooldown is shared ON PURPOSE (see provider_chain: «si a Z.AI se le acabó la cuota, se le acabó para
+        # todo el mundo»), so reporting here is what lets the OTHER channel relay away from it.
+        _err = str(e).splitlines()[0][:200]
+        try:
+            from nucleo.flash import provider_chain as _pchain_err
+            _pchain_err.note_failure(str(e), role=_pchain_err.ROLE_VOICE)
+        except Exception:
+            pass
+        try:
+            from voice import health_state, llm_health
+            health_state.record("llm", llm_health.classify(_err) or "error", _err or "flash brain down")
+        except Exception:
+            pass
+        return {"ok": False, "error": f"modelo: {_err}", "spec": f"{spec.provider}/{spec.model}"}
 
     spoken = speech.sanitize(strip_tags(raw, lambda *a: None, True)[0], drop_metadata=False)
     degenerate = dialog.looks_degenerate(spoken)

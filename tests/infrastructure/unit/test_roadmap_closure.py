@@ -49,7 +49,11 @@ _ANNEX = "-PROMPT-"
 
 def _initiative_files() -> dict[str, Path]:
     out: dict[str, Path] = {}
-    for f in sorted(ROADMAP.glob("V2-*.md")):
+    # RECURSIVO: una iniciativa ARCHIVADA sigue existiendo. El 2026-08-20 se movieron 110 a
+    # `initiatives/archive/` y este guarda —que solo miraba la raíz— pasó a decir que 55 decisiones citadas en
+    # `CLAUDE.md` no tenían iniciativa. Lo que comprueba es que la decisión tiene su fichero, no dónde está
+    # guardado; archivar no es borrar. Verificado sin ambigüedad: ningún id aparece en los dos sitios.
+    for f in sorted(ROADMAP.rglob("V2-*.md")):
         if _ANNEX in f.name:
             continue
         m = _ID_RE.search(f.name)
