@@ -17,6 +17,10 @@ from tests.voice.e2e.agent import llm as L
 def _no_zai_and_no_sleep(monkeypatch):
     monkeypatch.setattr(L.config, "JUDGE_PROVIDER", "deepseek", raising=False)
     monkeypatch.setattr(L.config, "ZAI_KEY", "", raising=False)
+    # The BROKER leg is what these tests are about, so the vendor leg added later has to be out of the way.
+    # Left in, they passed or failed depending on whether the machine running them happened to have a DeepSeek
+    # key — which is the same "the test depends on the operator's ⚙" smell that bit the language tests today.
+    monkeypatch.setattr(L.config, "DEEPSEEK_KEY", "", raising=False)
     import time
     monkeypatch.setattr(time, "sleep", lambda s: None)
 
