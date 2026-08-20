@@ -1275,6 +1275,20 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Cada cara del bloque del navegador tiene que poder DISPARARSE** (`tests/browser/unit/navegador/test_every_face_is_reachable.py`,
+  V2-201, 2026-08-20). Dos arreglos seguidos pasaron sus tests sin hacer nada en producción (V2-199, V2-200) y
+  los dos se encontraron con la misma pregunta: **¿el estado del que depende llega a existir?** Convertida en
+  test: por cada condición sobre la que el bloque se ramifica, tiene que existir código de PRODUCCIÓN que la
+  escriba. No prueba que la cara sea correcta —para eso están los tests de al lado— sino que **no es código
+  muerto**, que es la diferencia entre «este arreglo está mal» y «este arreglo no existe».
+  - **Verificado que se pone ROJO** (se rompió a propósito el patrón del login), y con un segundo test que
+    exige que los nombres de las caras sigan apareciendo en `prompt.py` — si no, renombrar una dejaría el
+    guarda mirando al vacío sin fallar.
+  - **El repaso de la tanda entera sale limpio**: el único muerto era el ya arreglado. El sospechoso de la
+    ronda, el frente 3 de V2-176, resultó alcanzable — `owner._authenticate` escribe `awaiting_login` al abrir
+    la ventana y deja la tarea en `needs_input`, que es un estado VIVO, así que la cara se renderiza sobre una
+    tarea activa. Un repaso que no encuentra nada es un resultado, siempre que quede la evidencia.
+
 - **El arreglo anterior no estaba roto: estaba MUERTO** (`nucleo/flash/prompt.py`, V2-200, 2026-08-20).
   Aplicando la lección de V2-199 al resto de la tanda, el siguiente sospechoso era V2-192 — y lo era: los
   **tres** sitios que escriben resultados en una tarea de navegador (`owner.py`, `_finalize_web`, `web_cc`)

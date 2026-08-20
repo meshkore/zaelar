@@ -324,6 +324,11 @@ DOMAINS: list[dict] = [
             # que no estaba en ninguno era una tarea que el estado vivo NO MENCIONABA — ni viva ni terminada.
             # Costó `cancelled` (V2-196) y, al unificar, apareció `open` en el mismo hueco desde siempre.
             "tests/browser/unit/navegador/test_task_states_are_enumerated_once.py",
+            # 2026-08-20: dos arreglos seguidos pasaron sus tests sin hacer NADA en producción (V2-199, V2-200).
+            # Los dos se encontraron preguntándole al código si el estado que el test construye llega a
+            # existir. Este fichero es esa pregunta, hecha una vez: cada cara del bloque tiene que tener quien
+            # la escriba fuera de los tests.
+            "tests/browser/unit/navegador/test_every_face_is_reachable.py",
             # 2026-08-17 modularization pass: DOM/human-input primitives split out of owner.py into dom.py
             # (page-parametric, no module-global coupling) -- first standalone coverage for this path, plus a
             # regression lock on `mouse` now being required (the old None-fallback was dead code).
