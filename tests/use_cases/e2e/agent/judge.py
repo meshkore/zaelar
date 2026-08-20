@@ -170,6 +170,21 @@ def judge(scenario, run: dict, model: str | None = None) -> dict:
             why=", ".join(f"{r} ×{n}" for r, n in (sh.get("reasons") or [])) or "motivo no clasificado")
     # La siembra de preferencias cambia lo que cuenta como acierto, y el juez tiene que saberlo ANTES de
     # razonar: con memoria verificada, preguntar «¿qué te gusta?» es un fallo; sin ella, no recordarlo no lo es.
+    # Lo que el motor ARRASTRA de casos anteriores de la misma tanda (ver `run._run_scenario`). Va ANTES de que
+    # el juez razone, no anotado después: la nota tiene que llegar al modelo que está a punto de decidir si
+    # «se acordó de algo de otro tema» es un defecto — y no lo es si se lo pusimos nosotros ahí.
+    carry = run.get("memory_carryover") or []
+    carry_note = ""
+    if carry:
+        carry_note = (
+            f"⚠️ AVISO DE ARNÉS — MEMORIA COMPARTIDA: antes de este caso, en el MISMO motor, se han corrido "
+            f"estos otros casos: {', '.join(carry)}. El reset entre casos mata el trabajo de fondo y limpia la "
+            f"pantalla, pero NO borra la memoria (borrarla exige matar el proceso). Así que zaelar puede "
+            f"recordar temas de esos casos con toda legitimidad: **NO lo penalices como un fallo de memoria ni "
+            f"como 'mezclar dominios'** — es nuestro montaje, no el producto. Un usuario real con una "
+            f"instalación nueva no tendría esos recuerdos. Lo que SÍ es un fallo, y hay que puntuarlo, es que "
+            f"esos recuerdos le hagan CONFUNDIR lo que se le está pidiendo AHORA, o que actúe sobre el tema "
+            f"viejo en vez del nuevo.")
     seed = run.get("memory_seed") or {}
     seed_note = ""
     if seed:
@@ -193,6 +208,7 @@ Petición inicial del usuario: {scenario.opening_line}
 Qué cuenta como éxito: {scenario.success_checks}
 {MULTIFLOW_NOTE if multiflow else ''}
 {search_note}
+{carry_note}
 {seed_note}
 
 === TRANSCRIPT (lo que se DIJO) ===

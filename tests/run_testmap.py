@@ -599,6 +599,10 @@ DOMAINS: list[dict] = [
         # así que 12 minutos de corridas reales (y su gasto de LLM) se perdieron al cortarse la tanda.
         {"id": "10.8", "title": "El marcador se escribe por escenario, no al final de la tanda",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_run_persistence.py"]},
+        # Una tanda comparte UN motor y el reset no borra memoria (exige matar el proceso), así que del tercer
+        # caso en adelante zaelar recuerda los anteriores — y el juez lo estaba puntuando como defecto suyo.
+        {"id": "10.9", "title": "Memoria compartida entre casos: se avisa al juez, sin amnistiar el fallo real",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_memory_carryover.py"]},
     ]},
 ]
 

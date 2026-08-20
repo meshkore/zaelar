@@ -23,7 +23,7 @@ from . import verify as verifymod
 from . import watchdog as watchdogmod
 
 
-def _run_scenario(scenario) -> dict:
+def _run_scenario(scenario, *, ran_before: list[str] | None = None) -> dict:
     scenario_started_ms = time.time() * 1000
     session = f"use-cases-{scenario.id}-{uuid.uuid4().hex[:6]}"
     probe_client.reset(session)
@@ -137,6 +137,15 @@ def _run_scenario(scenario) -> dict:
     mech = verifymod.mechanism_report(all_events, scenario.expected_signals, concurrency, scheduled)
 
     run_data = {"transcript": transcript, "mechanism_report": mech, "watchdog_log": watchdog_log}
+    # WHAT THE ENGINE ALREADY REMEMBERS FROM THIS BATCH. A batch shares ONE sandbox and `hard_reset()`
+    # deliberately does NOT wipe memory (that needs the process to die — SQLite is in use — and would restart
+    # the engine, see its docstring). So from the third case onward the agent legitimately recalls the previous
+    # cases' topics, and the judge was scoring that as a product defect: `renew-gym-membership__es` was marked
+    # down on 2026-08-20 for "mezclando dominios (Netflix/Teatro)" — Netflix and Teatro being exactly the two
+    # cases that ran before it. A fresh install cannot do that, so the finding was about our harness.
+    # Stamped into the evidence rather than left to be discovered case by case, same as `search_health`.
+    if ran_before:
+        run_data["memory_carryover"] = list(ran_before)
     if seed_report:
         run_data["memory_seed"] = seed_report
     print("  judging…")
@@ -180,7 +189,7 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
                 print(f"  ⚠️ no pude resetear el motor entre casos: {e} — este caso puede arrastrar "
                       f"trabajo del anterior")
         try:
-            results.append(_run_scenario(scenario))
+            results.append(_run_scenario(scenario, ran_before=[r["scenario"] for r in results]))
         except Exception as e:  # one scenario's infra hiccup must not lose the whole batch's report
             print(f"  ✗ scenario crashed: {e}")
             results.append({"scenario": scenario.id, "tier": scenario.tier, "channel": scenario.channel,
