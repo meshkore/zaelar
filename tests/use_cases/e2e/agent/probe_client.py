@@ -184,3 +184,14 @@ def scheduled_jobs() -> list[dict]:
     data = _get("/api/cron")
     jobs = (data or {}).get("jobs")
     return jobs if isinstance(jobs, list) else []
+
+
+def memory_map() -> dict:
+    """The memory as the ENGINE sees it (`GET /api/memory/map`): state + pills, already resolved.
+
+    Asking the engine rather than its database is the point. `state.language` is stored as `null` when nobody
+    chose one explicitly and `state.read()` resolves it against the active configuration, so the raw row says
+    "null" while the distiller is happily writing in Spanish. Reading the column and calling that "unknown" is
+    the same mistake as reading any field at the wrong level: it does not fail, it invents.
+    """
+    return _get("/api/memory/map", timeout=20.0)

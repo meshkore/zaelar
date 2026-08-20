@@ -461,30 +461,44 @@ def prompt_context(db_path, *, since: float = 0.0, limit: int = 40) -> list[dict
     return out
 
 
-def memory_language(db_path) -> str:
-    """The CANONICAL language the memory distils pills in — `state.language`, read, not assumed.
+def memory_language(db_path="") -> dict:
+    """The CANONICAL language the memory distils pills in — asked of the engine, not assumed.
 
-    Worth one query because assuming it cost a false finding on 2026-08-20: an ES scenario seeded "me da
+    Worth the query because assuming it cost a false finding on 2026-08-20: an ES scenario seeded "me da
     vértigo la altura", the harness grepped the turn's prompt for "vértigo" and concluded the preference had
     never reached the model. It had — as "The operator has a fear of heights", because the memory is monolingual
-    in the operator's canonical language and that sandbox's was still `en`. The datum was there in the language
+    in the operator's canonical language and that sandbox's was still `en`. The datum was there, in the language
     nobody looked in.
 
-    So the report carries it, and the rule that follows is short: about memory, grep in THIS language, never in
-    the language of the conversation. They coincide once the language hole is fixed; the habit survives the fix.
+    Two levels, and mixing them is the trap: `state.language` is stored `null` when nobody chose explicitly, and
+    `state.read()` resolves that against the active configuration. So the raw row can say null while the
+    distiller writes Spanish. The engine is asked first (`/api/memory/map`, already resolved); the row is only a
+    fallback, and then `explicit=False` says the value was never pinned.
+
+    Returns `{"effective": <code>, "explicit": bool, "source": "engine"|"db"|""}`.
     """
+    try:
+        st = (probe_client.memory_map() or {}).get("state") or {}
+        code = str(st.get("language") or "").strip()
+        if code:
+            return {"effective": code, "explicit": True, "source": "engine"}
+    except Exception:
+        pass
+    if not db_path:
+        return {"effective": "", "explicit": False, "source": ""}
     import sqlite3
     try:
         con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     except Exception:
-        return ""
+        return {"effective": "", "explicit": False, "source": ""}
     try:
         row = con.execute("SELECT data FROM state LIMIT 1").fetchone()
     except Exception:
-        return ""
+        return {"effective": "", "explicit": False, "source": ""}
     finally:
         con.close()
     try:
-        return str((json.loads(row[0]) or {}).get("language") or "") if row else ""
+        code = str((json.loads(row[0]) or {}).get("language") or "").strip() if row else ""
     except Exception:
-        return ""
+        code = ""
+    return {"effective": code, "explicit": bool(code), "source": "db"}

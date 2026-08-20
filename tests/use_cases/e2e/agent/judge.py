@@ -153,7 +153,8 @@ def mechanism_facts(mech: dict) -> str:
     # distinction impossible to blur: a datum that was in front of the model and did not come out is CONDUCT,
     # and a datum that never reached it is PLUMBING. On 2026-08-20 those two were told apart by hand, at the
     # cost of three retracted findings and a full investigation by the memory agent.
-    ml = (mech.get("memory_language") or "").strip().lower()
+    mlang = mech.get("memory_language") or {}
+    ml = str((mlang.get("effective") if isinstance(mlang, dict) else mlang) or "").strip().lower()
     want = {"es": "es", "us": "en"}.get((mech.get("locale") or "").lower(), "")
     if ml and want and not ml.startswith(want):
         lines.append(f"· La memoria de este motor destila en «{ml}», NO en el idioma de la conversación. Así que "
