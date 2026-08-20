@@ -550,3 +550,112 @@ def test_and_the_write_path_actually_consults_it():
 
     from nucleo.flash import probe
     assert "already_in_agenda(" in inspect.getsource(probe.run_turn)
+
+
+# ── V2-167 · la promesa que NO nombra el día, y el día que solo está en la frase del operador ────────────────
+#
+# Ronda 11 de `remember-and-remind-deadline` (2026-08-20 10:26), tres turnos enteros:
+#
+#     TESTER  Apúntame que el jueves tengo que renovar el seguro del coche, y recuérdamelo el miércoles.
+#     ZAELAR  Voy a apuntarlo y programarte el aviso.
+#
+# Veredicto: «confirmó una acción que nunca ejecutó (ni guardó el dato, ni programó el aviso)», `resultado 1`
+# `mecanismo 1`, `scheduled_jobs.created` vacío. El backstop de la NOTA disparaba; el del AVISO devolvía None.
+#
+# La causa: la respuesta promete el aviso sin nombrar día («programarte el aviso»), así que el desempate por
+# POSICIÓN sobre la respuesta no tenía nada que leer, y la frase del operador se le entregaba ENTERA a
+# `parse_when`, que ve dos días y se niega — con razón, como parser general. Pero esa frase no es ambigua para
+# nadie: el día pertenece al verbo al que sigue. El módulo ya sabía la regla y la aplicaba solo a una de las dos
+# voces.
+REPLY_NO_DAY = "Voy a apuntarlo y programarte el aviso."
+
+
+def test_the_day_can_live_only_in_what_the_OPERATOR_said(monkeypatch):
+    monkeypatch.setattr(scheduler.time, "time", lambda: NOW)
+    assert g.promises_a_dated_reminder(REPLY_NO_DAY, ASK) == "2026-08-19 09:00"
+
+
+def test_and_the_notice_actually_gets_scheduled_now(fresh_db, monkeypatch):
+    """Lo que se midió como ausente: el cron. Y su prompt tiene que ser el AVISO, no la petición que lo creó."""
+    monkeypatch.setattr(scheduler.time, "time", lambda: NOW)
+    cron = g.dated_reminder_backstop(REPLY_NO_DAY, ASK)
+    assert cron and cron["schedule"]
+    assert "AVISA" in cron["prompt"]
+    assert "seguro" in _n(cron["prompt"])
+    assert "apuntame" not in _n(cron["prompt"]), "el cron pide programar el aviso otra vez, no darlo"
+
+
+def test_the_other_half_of_the_errand_is_still_written_down(monkeypatch):
+    """El caso pide DOS cosas y el juez puntúa las dos. Arreglar el aviso no puede tapar el apunte."""
+    monkeypatch.setattr(scheduler.time, "time", lambda: NOW)
+    note = g.dated_note_backstop(REPLY_NO_DAY, ASK)
+    assert note and "seguro" in _n(note["title"])
+    assert note["date"] == "2026-08-20", "el apunte va el JUEVES, que es cuando toca renovar"
+
+
+def test_the_notice_lands_before_the_thing_it_announces(monkeypatch):
+    """Los dos días juntos, cada uno en su sitio: aviso el miércoles, renovación el jueves."""
+    monkeypatch.setattr(scheduler.time, "time", lambda: NOW)
+    cron = g.dated_reminder_backstop(REPLY_NO_DAY, ASK)
+    note = g.dated_note_backstop(REPLY_NO_DAY, ASK)
+    assert cron["schedule"][:10] < note["date"]
+
+
+@pytest.mark.parametrize("reply", [
+    "Voy a apuntarlo y programarte el aviso.",
+    "Te programo el aviso.",
+    "Vale, dejo puesto el recordatorio.",
+])
+def test_it_does_not_depend_on_how_the_model_words_the_promise(reply, monkeypatch):
+    monkeypatch.setattr(scheduler.time, "time", lambda: NOW)
+    assert g.promises_a_dated_reminder(reply, ASK) == "2026-08-19 09:00"
+
+
+def test_a_date_BEFORE_the_ask_verb_still_refuses_here(monkeypatch):
+    """El límite, escrito a propósito: leer por posición es leer por posición. «El martes recuérdame lo del
+    seguro» pone la fecha ANTES del verbo, así que este camino no la ve y cae al de siempre (la frase entera),
+    que sí la resuelve porque ahí solo hay un día. Adivinar el orden de las palabras es como un backstop empieza
+    a programar cosas que nadie pidió."""
+    monkeypatch.setattr(scheduler.time, "time", lambda: NOW)
+    assert g._asked_reminder_moment("El martes recuérdame lo del seguro.") == ""
+    assert g.promises_a_dated_reminder("Te lo recuerdo.", "El martes recuérdame lo del seguro.")
+
+
+def test_and_a_reply_that_promises_nothing_resolves_nothing(monkeypatch):
+    """Sin esto, «leer la frase del operador» y «programar siempre que el operador diga una fecha» pasan el
+    mismo test. La promesa sigue siendo el disparador."""
+    monkeypatch.setattr(scheduler.time, "time", lambda: NOW)
+    assert g.promises_a_dated_reminder("Vale, entendido.", ASK) == ""
+    assert g.promises_a_dated_reminder("No te lo puedo recordar, no tengo agenda.", ASK) == ""
+
+
+# ── V2-167 · una fecha sola no es un compromiso ──────────────────────────────────────────────────────────────
+#
+# Encontrado a UNA LÍNEA del arreglo de arriba, probando que no rompía nada: «El martes recuérdame lo del
+# seguro» programaba el aviso PARA ESE INSTANTE. `commitment_clause` corta en el verbo de la petición y la fecha
+# está antes, así que la cláusula queda en «El martes» — y `reminder_before` la lee como el día del EVENTO, ve
+# que el aviso no es anterior, retrocede una semana, cae en el pasado y dispara «pronto». La regla de
+# `reminder_before` es correcta; lo que estaba mal era darle una fecha y llamarla compromiso.
+def test_a_reminder_for_a_named_day_does_not_fire_this_second(fresh_db, monkeypatch):
+    monkeypatch.setattr(scheduler.time, "time", lambda: NOW)
+    cron = g.dated_reminder_backstop("Te lo recuerdo.", "El martes recuérdame lo del seguro.")
+    assert cron and cron["schedule"] == "2026-08-25 09:00"
+
+
+@pytest.mark.parametrize("clause,only_a_date", [
+    ("El martes", True),
+    ("el jueves que viene", True),
+    ("mañana", True),
+    ("Apúntame que el jueves tengo que renovar el seguro del coche", False),
+    ("llamar al taller", False),
+])
+def test_what_counts_as_only_a_date(clause, only_a_date):
+    assert g.clause_is_only_a_date(clause) is only_a_date
+
+
+def test_the_measured_case_is_untouched_by_that_rule(monkeypatch):
+    """La cláusula del caso medido tiene contenido de sobra, así que la corrección de «antes del evento» sigue
+    aplicándose ahí — que es lo único que hace que el aviso caiga el miércoles y no el jueves."""
+    monkeypatch.setattr(scheduler.time, "time", lambda: NOW)
+    assert g.clause_is_only_a_date(g.commitment_clause(ASK)) is False
+    assert g.dated_reminder_backstop(REPLY_NO_DAY, ASK)["schedule"] == "2026-08-19 09:00"

@@ -1587,6 +1587,29 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     la tarea. Pide que un fallo deje su propio rastro con el sitio dentro — cómo se REGISTRA, no cómo se
     renderiza — y su propia medición.
 
+- **El día del aviso podía estar SOLO en la frase del operador** (`nucleo/flash/router_guards.py`, V2-167,
+  2026-08-20). El desempate por POSICIÓN («lo que viene después de *te avisaré* es cuándo va el aviso») se
+  aplicaba solo a la RESPUESTA. Medido en `remember-and-remind-deadline`, tres turnos: «Apúntame que el jueves
+  tengo que renovar el seguro del coche, y recuérdamelo el miércoles» → «Voy a apuntarlo y programarte el
+  aviso», y `scheduled_jobs.created` VACÍO. La respuesta promete sin nombrar día, así que no había nada que
+  desempatar ahí, y la frase del operador se entregaba ENTERA a `parse_when`, que ve dos días y se niega. Se
+  niega con razón como parser general — pero **esa frase no es ambigua para nadie**: el día pertenece al verbo
+  al que sigue. La regla ya estaba escrita en un comentario del módulo y se aplicaba a una sola de las dos voces.
+  - `_asked_reminder_moment()` se consulta **entre** el desempate de la respuesta y la lectura de la frase
+    entera, así que todo lo que ya resolvía sigue igual. Es la pieza COMPARTIDA por los dos canales, así que un
+    arreglo cubre voz y texto.
+  - **Límite a propósito**: una fecha ANTES del verbo de la petición no la ve este camino y cae al de siempre.
+    Adivinar el orden de las palabras es como un backstop empieza a programar cosas que nadie pidió, y un aviso
+    mal fechado no se nota hasta el día que no suena (V2-121).
+
+- **Una fecha sola no es un compromiso** (`nucleo/flash/router_guards.py`, V2-167, 2026-08-20). Encontrado a UNA
+  LÍNEA del arreglo anterior, probando que no rompía nada: «El martes recuérdame lo del seguro» programaba el
+  aviso **para ese instante**. `commitment_clause` corta en el verbo de la petición y la fecha va antes, así que
+  la cláusula quedaba en «El martes»; `reminder_before` la leía como el día del EVENTO, veía que el aviso no era
+  anterior, retrocedía una semana, caía en el pasado y disparaba «pronto». La regla de `reminder_before` es
+  correcta — lo que estaba mal era **darle una fecha y llamarla compromiso**. `clause_is_only_a_date()` responde
+  a la única pregunta que hacía falta: ¿dice algo aparte de CUÁNDO?
+
 - **El muro y el atasco NUNCA llegaron al worker** (`nucleo/nav_cli.py`, V2-167 + V2-186, 2026-08-20). Los dos
   arreglos anotaban su campo en la respuesta de `/api/navegador/act` **para que el worker actuara**, y
   `nav_cli._print_state` —que es la ÚNICA vista que el worker tiene de la página, porque el prompt del worker

@@ -333,8 +333,18 @@ def promises_a_dated_reminder(reply: str, operator_text: str = "") -> str:
     # The reminder day is the one that follows the promise. Both halves of this exchange name TWO weekdays
     # («el JUEVES renuevas el seguro… te avisaré el MIÉRCOLES»), and `parse_when` refuses an ambiguous pair on
     # purpose — but here the position disambiguates it: what comes after «te avisaré» is when the notice goes.
-    # Only if that tail resolves nothing do we look at what the operator said, and there ambiguity stands.
-    return _sched.parse_when(n[m.end():]) or _sched.parse_when(operator_text)
+    #
+    # V2-167, 2026-08-20: that same rule was applied ONLY to the reply, and the operator's sentence — which has
+    # the identical shape — was handed to `parse_when` WHOLE, so it refused. Measured on
+    # `remember-and-remind-deadline`: «Apúntame que el jueves tengo que renovar el seguro del coche, y
+    # recuérdamelo el miércoles» → zaelar answered «Voy a apuntarlo y programarte el aviso», the note half fired
+    # and the notice half resolved to nothing. The verdict read «confirmó una acción que nunca ejecutó», and the
+    # ambiguity it tripped over is not one a person would perceive: the day belongs to whichever verb it follows.
+    # So the operator's own turn gets read positionally too, and only then whole (which is what preserves every
+    # case that already worked — one date anywhere still resolves exactly as before).
+    return (_sched.parse_when(n[m.end():])
+            or _asked_reminder_moment(operator_text)
+            or _sched.parse_when(operator_text))
 
 
 # APUNTE CON FECHA (V2-159). Hermano del backstop del aviso, para la OTRA mitad del mismo encargo. El prompt lo
@@ -463,6 +473,32 @@ def _content_words(text: str) -> set[str]:
 
 _CLAUSE_SPLIT_RE = _re.compile(r"[,;.!?\n]|\sy\s|\sand\s", _re.I)
 
+# The words that only DATE something and never describe it. Needed to answer one question: does this clause say
+# anything BESIDES when?
+_DATE_ONLY_WORDS = frozenset({
+    "lunes", "martes", "miercoles", "jueves", "viernes", "sabado", "domingo",
+    "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+    "manana", "tomorrow", "hoy", "today", "dia", "day", "esta", "este", "proximo", "proxima", "que", "viene",
+})
+
+
+def clause_is_only_a_date(clause: str) -> bool:
+    """True when the «commitment» clause says nothing except WHEN — so there is no event for a notice to precede.
+
+    Found while fixing the measured case, one line away from it: «El martes recuérdame lo del seguro» leaves
+    `commitment_clause` with just «El martes», because the clause is cut at the ask verb and the date sits before
+    it. `reminder_before` then reads that as the event day, sees the notice is not earlier than the event, walks
+    back a week into the past and falls through to «fire promptly» — so a reminder asked for Tuesday goes off
+    THIS SECOND. `reminder_before` is right about its own rule; what was wrong was being handed a date and told
+    it was a commitment.
+
+    A date with nothing around it is not a commitment. When that is what we have, the constraint simply does not
+    apply and the moment the operator named stands.
+    """
+    return not (_content_words(clause) - _DATE_ONLY_WORDS)
+
+
+
 
 def create_widget_request(text: str) -> str:
     """Just the CLAUSE of `text` that asks to build a widget, or "" if none does.
@@ -501,6 +537,29 @@ def create_widget_request(text: str) -> str:
 _REMIND_ASK_RE = _re.compile(
     r"\b(recuerdame\w*|recuerdalo|me\s+lo\s+recuerdas|avisame\w*|me\s+avisas|"
     r"remind\s+me|let\s+me\s+know)\b", _re.I)
+
+
+def _asked_reminder_moment(operator_text: str) -> str:
+    """The moment the OPERATOR attached to his own reminder REQUEST, read by position — or "".
+
+    Sibling of the positional read on the reply: «…y recuérdamelo el miércoles» names the notice day right after
+    the ask, exactly as «te avisaré el miércoles» does. Reading the sentence whole instead makes a two-weekday
+    turn look ambiguous when it is not, which is what left `remember-and-remind-deadline` promising a notice it
+    never scheduled.
+
+    Deliberately positional and nothing more: a date BEFORE the ask verb («el martes recuérdame lo del seguro»)
+    resolves nothing here and falls through to the whole-sentence read, same as today. Guessing at word order is
+    how a backstop starts scheduling things nobody asked for.
+    """
+    n = _norm_txt(operator_text)
+    m = _REMIND_ASK_RE.search(n)
+    if not m:
+        return ""
+    try:
+        from nucleo import scheduler as _sched
+    except Exception:
+        return ""
+    return _sched.parse_when(n[m.end():]) or ""
 
 
 def commitment_clause(operator_text: str) -> str:
@@ -726,7 +785,9 @@ def dated_reminder_backstop(reply: str, operator_text: str = "", window=None) ->
         from nucleo import scheduler as _sched
     except Exception:
         return {"schedule": when, "prompt": _reminder_prompt(clause, operator_text), "name": "aviso"}
-    clause_when = _sched.parse_when(clause) or ""
+    # A clause that is nothing but a date states no event, so there is nothing for the notice to precede
+    # (see `clause_is_only_a_date`). Passing it on would make `reminder_before` fire the notice at once.
+    clause_when = "" if clause_is_only_a_date(clause) else (_sched.parse_when(clause) or "")
     when = reminder_before(when, clause_when)
     if not when:
         return None
