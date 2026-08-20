@@ -146,6 +146,10 @@ def _retest_pending() -> dict:
         return {"retested": 0, "orphan": [p["task"].name for p in orphan]}
 
     before = {p["scenario"]: I.find_initiative(p["scenario"]) for p in ready}
+    # When each case was last MEASURED, read before the batch. What comes back is compared against it below:
+    # a row whose `last_run` did not move was not re-measured, whatever the batch's exit code said.
+    led_before = statusmod.load().get("scenarios") or {}
+    stamp_before = {p["scenario"]: (led_before.get(p["scenario"]) or {}).get("last_run") for p in ready}
     _log(f"paso 1 · re-probando {len(ready)} caso(s) ya arreglado(s): "
          f"{', '.join(p['scenario'] for p in ready)}")
     rc, out = _run(["--verify", "--sandbox"], timeout_s=60 * 60)
@@ -163,10 +167,22 @@ def _retest_pending() -> dict:
     _log(f"paso 1 · terminado rc={rc}")
 
     led = statusmod.load().get("scenarios") or {}
-    passed, rotated, inconclusive, blocked = [], [], [], []
+    passed, rotated, inconclusive, blocked, unrun = [], [], [], [], []
     for p in ready:
         sid = p["scenario"]
         e = led.get(sid) or {}
+        # DID IT ACTUALLY RUN? A batch can exit having measured nothing — the case that taught us this was an
+        # ORPHANED SANDBOX (`python -m server`, PPID 1) left behind by a killed batch: it kept port 43918, so
+        # every later `run.py --verify` died on boot in under a second. `_runner_alive()` does not see it (it
+        # looks for a `…agent.run` process, not the engine the batch spawns), so the tick kept starting batches
+        # that could not work, and then read the ledger's PREVIOUS verdict and acted on it: it logged
+        # "re-probado" for a case nobody re-ran, and worse, `rotate_failure` would file an initiative
+        # describing a run from an hour ago as if it were new evidence. Stale evidence is worse than none —
+        # the fixing agent cannot tell it apart. `last_run` not moving is the proof, and it is a general one:
+        # it holds for any reason a batch fails to measure, not just this one.
+        if e.get("last_run") == stamp_before.get(sid):
+            unrun.append(sid)
+            continue
         if e.get("state") == "PASS":
             I.close_on_pass(sid, verdict=e.get("verdict", ""), overall=e.get("overall"))
             passed.append(sid)
@@ -214,6 +230,10 @@ def _retest_pending() -> dict:
         _log(f"paso 1 · PASAN y se cierran: {', '.join(passed)}")
     if rotated:
         _log(f"paso 1 · siguen fallando → iniciativa NUEVA: {'; '.join(rotated)}")
+    if unrun:
+        _log(f"paso 1 · NO SE MIDIERON (la tanda salió sin medir nada — mira si quedó un sandbox huérfano "
+             f"ocupando el puerto: `lsof -nP -iTCP:43918 -sTCP:LISTEN`). Su tarea de verify sigue pendiente y "
+             f"el próximo tick lo reintenta; NO se toca su iniciativa: {', '.join(unrun)}")
     if blocked:
         _log(f"paso 1 · BLOQUEADOS (su objetivo no se alcanza aquí; solo se mide la HONESTIDAD, y la ronda "
              f"va al paraguas compartido): {'; '.join(blocked)}")
@@ -221,7 +241,7 @@ def _retest_pending() -> dict:
         _log(f"paso 1 · NO CONCLUYENTE (fallo de arnés, ni cierra ni rota; hace falta una tarea de verify NUEVA): "
              f"{', '.join(inconclusive)}")
     return {"retested": len(ready), "passed": passed, "rotated": rotated,
-            "inconclusive": inconclusive, "blocked": blocked,
+            "inconclusive": inconclusive, "blocked": blocked, "unrun": unrun,
             "orphan": [p["task"].name for p in orphan]}
 
 

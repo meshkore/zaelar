@@ -148,10 +148,18 @@ def test_the_tick_does_not_file_a_blocked_case_a_SECOND_time(monkeypatch):
     monkeypatch.setattr(T.I, "scenarios_awaiting_verification",
                         lambda reg: [{"scenario": BLOCKED, "task": "T999"}])
     monkeypatch.setattr(T.I, "find_initiative", lambda sid: None)
-    monkeypatch.setattr(T, "_run", lambda args, timeout_s: (1, "salida de prueba"))
-    monkeypatch.setattr(statusmod, "load",
-                        lambda: {"scenarios": {BLOCKED: {"state": "FAIL", "overall": 2,
-                                                         "verdict": "narró un login que no ocurrió"}}})
+    # El marcador tiene que MOVERSE con la tanda: si `last_run` no cambia, el tick concluye —con razón— que no
+    # se midió nada y no clasifica el caso en absoluto (ver `test_run_persistence.py`). Aquí lo que se prueba es
+    # la rama de BLOQUEADOS, así que la tanda sí mide.
+    ledger = {"scenarios": {BLOCKED: {"state": "FAIL", "overall": 2, "last_run": "2026-08-20 01:00",
+                                      "verdict": "narró un login que no ocurrió"}}}
+
+    def _run(args, timeout_s):
+        ledger["scenarios"][BLOCKED]["last_run"] = "2026-08-20 02:20"
+        return (1, "salida de prueba")
+
+    monkeypatch.setattr(T, "_run", _run)
+    monkeypatch.setattr(statusmod, "load", lambda: ledger)
     monkeypatch.setattr(statusmod, "summary_line", lambda: "x")
 
     out = T._retest_pending()
