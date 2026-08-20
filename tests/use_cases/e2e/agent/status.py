@@ -39,9 +39,16 @@ def load() -> dict:
         return {"scenarios": {}}
 
 
-def record(results: list[dict], *, sandboxed: bool) -> dict:
+def record(results: list[dict], *, sandboxed: bool, provisional: str = "") -> dict:
     """Fold one batch's results into the ledger. Only scenarios that actually ran are touched — a batch of
-    one must never look like it invalidated the other four."""
+    one must never look like it invalidated the other four.
+
+    `provisional` carries WHY a round cannot be banked as a measurement (today: it ran on a moving tree via
+    `--allow-dirty`). The row is still written — the evidence in it is often the point of the round — but it
+    is flagged, because on 2026-08-20 a round measured while another agent was editing
+    `widgets/navegador/act_api.py` wrote its score into the board while the harness operator was, in the same
+    minute, telling the cluster that he was discarding it. A rule that lives only in prose is not a rule.
+    """
     led = load()
     scen = led.setdefault("scenarios", {})
     stamp = time.strftime("%Y-%m-%d %H:%M", time.localtime())
@@ -68,6 +75,8 @@ def record(results: list[dict], *, sandboxed: bool) -> dict:
             # here, even if the judge gives it a 5 — see `tick._retest_pending`.
             "audit_anomalies": ((mech.get("audit") or {}).get("anomalies") or []),
             "sandboxed": sandboxed,
+            # Set => this row is EVIDENCE, not a measurement. Anything that counts cases must skip it.
+            "provisional": provisional or None,
             "tier": r.get("tier"),
             # Recorded so a LATER re-file can rebuild an honest round from the ledger alone. The tick's re-file
             # (`initiative.rotate_failure` from `tick._retest_pending`) runs in the parent process, where the full

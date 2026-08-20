@@ -24,7 +24,8 @@ from . import verify as verifymod
 from . import watchdog as watchdogmod
 
 
-def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: bool = False) -> dict:
+def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: bool = False,
+                  provisional: str = "") -> dict:
     """`sandboxed` says whether the engine under test is a throwaway one. It decides whether the
     conversation is INGESTED into durable memory: in a sandbox there is nothing to protect and half the
     cases (remember/remind) cannot pass without the write happening, so it must be on; against the
@@ -261,7 +262,7 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         # attempts eating a 504. Three driven conversations thrown away for a missing HTTP call.
         # So the run is PARKED on disk and can be judged later without re-driving it (`--judge-pending`).
         # The exception still propagates: the round is honestly INFRA until somebody judges it.
-        _park_for_later(scenario, run_data)
+        _park_for_later(scenario, run_data, provisional=provisional)
         raise
 
     # WHO drove this conversation. Normally the titular model, but DRIVE fails over to another provider when
@@ -276,14 +277,19 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
 PENDING_DIR = config.RUNS_DIR / "pending"
 
 
-def _park_for_later(scenario, run_data: dict) -> None:
-    """Save a driven-but-unjudged round so the conversation is not lost with the judge call."""
+def _park_for_later(scenario, run_data: dict, *, provisional: str = "") -> None:
+    """Save a driven-but-unjudged round so the conversation is not lost with the judge call.
+
+    `provisional` is carried into the file so a round driven on a moving tree is still flagged when its judge
+    finally comes back up, however clean the tree is by then.
+    """
     try:
         PENDING_DIR.mkdir(parents=True, exist_ok=True)
         path = PENDING_DIR / f"{scenario.id}-{time.strftime('%Y%m%d-%H%M%S', time.localtime())}.json"
         path.write_text(json.dumps({"scenario": scenario.id, "tier": scenario.tier,
                                     "channel": scenario.channel, "run": run_data,
-                                    "drive_model": llmmod.drive_model(), "code": config.code_stamp()},
+                                    "drive_model": llmmod.drive_model(), "code": config.code_stamp(),
+                                    "provisional": provisional or None},
                                    ensure_ascii=False, default=str), encoding="utf-8")
         print(f"  ⏸ ronda GUARDADA sin juzgar → {path}\n"
               f"     (los datos están medidos; júzgala luego con --judge-pending, sin volver a conducirla)")
@@ -318,7 +324,9 @@ def _judge_pending() -> int:
             failed.append(f.name)
             continue
         res = {**saved, "verdict": verdict}
-        statusmod.record([res], sandboxed=True)
+        # The flag travels with the SAVED round, not with this invocation's flags: a round parked by a dirty
+        # run stays provisional however clean the tree is by the time its judge comes back up.
+        statusmod.record([res], sandboxed=True, provisional=saved.get("provisional") or "")
         print(f"  ✓ {scn.id}: overall {verdict.get('overall')} — juzgada sin reconducirla")
         f.unlink(missing_ok=True)
         done.append(scn.id)
@@ -328,7 +336,7 @@ def _judge_pending() -> int:
 
 def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
                verify_tasks: dict | None = None, stop_after_failures: int = 0,
-               failures_already: int = 0) -> int:
+               failures_already: int = 0, provisional: str = "") -> int:
     config.RUNS_DIR.mkdir(parents=True, exist_ok=True)
     results = []
     # Stop the walk once there is enough to work on (operator, 2026-08-18: "cuando tengas 10 fallando, para —
@@ -359,7 +367,7 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
                       f"trabajo del anterior")
         try:
             results.append(_run_scenario(scenario, ran_before=[r["scenario"] for r in results],
-                                          sandboxed=sandboxed))
+                                          sandboxed=sandboxed, provisional=provisional))
         except Exception as e:  # one scenario's infra hiccup must not lose the whole batch's report
             print(f"  ✗ scenario crashed: {e}")
             results.append({"scenario": scenario.id, "tier": scenario.tier, "channel": scenario.channel,
@@ -377,7 +385,7 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
         # into the operator's account instead of pretending). In an unattended loop, batches run for tens of
         # minutes and an interruption is not exotic: it is a sleeping laptop, a killed tick, a crash.
         try:
-            statusmod.record(results[-1:], sandboxed=sandboxed)
+            statusmod.record(results[-1:], sandboxed=sandboxed, provisional=provisional)
         except Exception as e:
             print(f"  ⚠️ no pude anotar el veredicto de {scenario.id} en el marcador: {e}")
 
@@ -536,7 +544,7 @@ def run(args: argparse.Namespace) -> int:
         print(f"▲ running against the LIVE engine at {config.ZAELAR_URL} — its memory, widgets and running "
               f"tasks are the operator's. Use --sandbox for an isolated one.")
         return _run_batch(chosen, sandboxed=False, args_no_file=args.no_file,
-                          verify_tasks=verify_tasks,
+                          verify_tasks=verify_tasks, provisional=_provisional(args),
                           stop_after_failures=args.stop_after_failures,
                           failures_already=statusmod.failing_count() if args.stop_after_failures else 0)
 
@@ -627,6 +635,18 @@ def tree_moved_refusal(stamp: dict, head_now: str) -> str:
             f"{now}.")
 
 
+def _provisional(args) -> str:
+    """WHY this round cannot be banked as a measurement, or "" when it can.
+
+    `--allow-dirty` is the deliberate escape hatch for measuring work-in-progress, and it is legitimate. What
+    is not legitimate is the row it leaves behind looking exactly like a clean one: the board then counts a
+    number nobody stands behind. So the flag travels with the score.
+    """
+    if getattr(args, "allow_dirty", False):
+        return "corrida con --allow-dirty: el arbol se movia, el numero no cuenta como medicion"
+    return ""
+
+
 def dirty_tree_refusal(stamp: dict, *, allow_dirty: bool = False) -> str:
     """The message that stops a round from being measured on a MOVING tree, or "" to go ahead.
 
@@ -684,7 +704,7 @@ def _sandbox_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict
         config.SANDBOX_DB = str(eng.workspace / "memory" / "_data" / "sandbox.db")
         try:
             return _run_batch(chosen, sandboxed=True, args_no_file=args.no_file,
-                              verify_tasks=verify_tasks,
+                              verify_tasks=verify_tasks, provisional=_provisional(args),
                               stop_after_failures=args.stop_after_failures,
                               failures_already=statusmod.failing_count() if args.stop_after_failures else 0)
         finally:
