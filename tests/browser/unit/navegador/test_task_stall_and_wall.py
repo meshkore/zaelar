@@ -516,3 +516,60 @@ def test_and_a_login_wait_wins_over_a_wall_on_the_same_task():
     state = _live()
     assert "SOLO LO DESBLOQUEA ÉL" in state
     assert "ESTO ESTÁ BLOQUEADO" not in state
+
+
+# ── V2-192: tener RESULTADOS gana a cualquier medida de atasco ────────────────────────────────────────────
+#
+# REGRESIÓN PROPIA, medida el 2026-08-20 02:22 en `find-theatre-tickets__es`, con mis arreglos de esta noche
+# ya dentro: «Zaelar ocultó al usuario que había encontrado datos reales y afirmó falsamente que la tarea
+# estaba paralizada, resultando en una experiencia de "bla bla bla" sin valor entregado».
+#
+# Un worker que encuentra los datos y hace una pausa —extrayendo, componiendo, esperando— cruza los 120 s sin
+# cambiar de URL, y V2-185 lo declaraba BLOQUEADO. Antes de V2-185 el estado era demasiado OPTIMISTA («te dará
+# el resultado sola»); con V2-185 pasó a ser demasiado PESIMISTA. Las dos son falsas cuando lo cierto es que
+# ya hay algo que entregar, y la segunda es peor: la primera hace esperar, ésta tira a la basura un resultado
+# que ya estaba hecho.
+def test_a_task_that_already_found_something_is_not_blocked():
+    tid = tasks.create("Entradas El Rey León en Madrid")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url=REAL_PAGE)
+    tasks.set_results(tid, {"conclusion": "3 sesiones", "items": [{"t": "sáb 17:00"}]})
+    tasks._tasks[tid]["last_progress"] = time.time() - 400          # y encima lleva 6 min sin moverse
+    state = _live()
+    assert "YA TIENE RESULTADOS" in state
+    assert "ESTO ESTÁ BLOQUEADO" not in state
+    assert "DÁSELOS en este turno" in state
+
+
+def test_and_results_win_over_a_WALL_too():
+    """Un muro con los datos ya en la mano no es un muro: es una entrega pendiente."""
+    tid = tasks.create("Reservar hotel")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url=BOOKING_WALL)
+    tasks.set_results(tid, {"conclusion": "2 hoteles", "items": [{"n": "uno"}]})
+    state = _live()
+    assert "YA TIENE RESULTADOS" in state
+    assert "ESTO ESTÁ BLOQUEADO" not in state
+
+
+def test_but_without_results_a_stall_is_still_a_stall():
+    """La sensibilidad, y es la que impide que este arreglo deshaga V2-185: sin nada que entregar, un atasco
+    medido sigue siendo un hecho que hay que decir."""
+    tid = tasks.create("Reservar mesa")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url=REAL_PAGE)
+    tasks._tasks[tid]["last_progress"] = time.time() - 400
+    state = _live()
+    assert "ESTO ESTÁ BLOQUEADO" in state
+    assert "YA TIENE RESULTADOS" not in state
+
+
+def test_and_the_seam_carries_the_fact():
+    """`active_progress()` es el sitio por el que la tarea le habla al turno; el dato no existía ahí, así que
+    el turno solo podía elegir entre «sigue viva» y «está bloqueada»."""
+    tid = tasks.create("Buscar hotel")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url=REAL_PAGE)
+    assert tasks.active_progress()[0]["has_results"] is False
+    tasks.set_results(tid, {"items": [1]})
+    assert tasks.active_progress()[0]["has_results"] is True

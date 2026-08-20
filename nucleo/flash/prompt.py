@@ -593,7 +593,7 @@ def live_state() -> str:
             except Exception:
                 _prog = {}
             _bits = []
-            _blocked = _login = False
+            _blocked = _login = _has_results = False
             for _tid, _g in act:
                 _b = f"«{(_g or 'tarea')[:70]}»"
                 _p = _prog.get(_tid) or {}
@@ -636,7 +636,17 @@ def live_state() -> str:
                     # y el único que se quita solo… si alguien se lo dice. `active_progress()` lo expone desde
                     # V2-167 y este bloque no lo leía nunca, así que una tarea parada en el login convivía con
                     # «te dará el resultado sola»: el operador esperaba a la tarea y la tarea al operador.
-                    if _p.get("awaiting_login"):
+                    # V2-192 — REGRESIÓN PROPIA, medida el 2026-08-20 02:22 en `find-theatre-tickets__es`:
+                    # «ocultó al usuario que había encontrado datos reales y afirmó falsamente que la tarea
+                    # estaba paralizada». Un worker que encuentra los datos y hace una pausa —extrayendo,
+                    # componiendo, esperando— cruza los 120 s sin cambiar de URL, y V2-185 lo declaraba
+                    # BLOQUEADO. Antes de V2-185 el estado era demasiado OPTIMISTA («te dará el resultado
+                    # sola») y con V2-185 pasó a ser demasiado PESIMISTA; las dos son falsas cuando lo cierto
+                    # es que ya hay algo que entregar. Tener resultados gana a cualquier medida de atasco.
+                    if _p.get("has_results"):
+                        _b += " · YA TIENE RESULTADOS"
+                        _has_results = True
+                    elif _p.get("awaiting_login"):
                         _b += " · PARADA ESPERANDO A QUE ENTRES TÚ (hay una ventana abierta para iniciar sesión)"
                         _blocked = _login = True
                     elif _p.get("wall"):
@@ -658,7 +668,13 @@ def live_state() -> str:
             _shared = (" NO abras otra tarea ni reinicies la búsqueda para esto mismo — solo hay UN navegador. "
                        "Y NO describas lo que estaría haciendo («está en la página», «interactuando», "
                        "«rellenando el formulario»). Los segundos que lleva NO son una descripción de lo que hace.")
-            if _login:
+            if _has_results:
+                lines.append(
+                    _head + " ESA TAREA YA TRAJO ALGO: no está bloqueada ni esperando, tiene resultados en la "
+                    "hoja. DÁSELOS en este turno —lo que encontró, no que «ya casi está»— y pregunta si le "
+                    "vale o quiere que siga afinando. Decirle que está parada teniendo datos delante es la "
+                    "misma mentira que decirle que sigue buscando cuando ya no busca." + _shared)
+            elif _login:
                 lines.append(
                     _head + " ESTO ESTÁ PARADO Y SOLO LO DESBLOQUEA ÉL: la tarea no va a avanzar ni un paso "
                     "hasta que el operador inicie sesión en la ventana que tiene abierta. DÍSELO en este turno, "

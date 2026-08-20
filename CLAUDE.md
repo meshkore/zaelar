@@ -1275,6 +1275,23 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **REGRESIÓN PROPIA: pasé de demasiado optimista a demasiado pesimista** (`nucleo/flash/prompt.py` +
+  `widgets/navegador/tasks.py`, V2-192, 2026-08-20). La primera corrida con los arreglos de la noche dentro dio
+  la vuelta al veredicto de `find-theatre-tickets__es`: «**ocultó al usuario que había encontrado datos reales
+  y afirmó falsamente que la tarea estaba paralizada**». Todas las anteriores decían lo contrario — que zaelar
+  afirmaba que la tarea seguía viva cuando estaba muerta. **Ese giro es la firma de un arreglo pasado de
+  frenada**, y lo era: V2-185. Un worker que encuentra los datos y hace una pausa (extrayendo, componiendo)
+  cruza los 120 s sin cambiar de URL, y `active_progress()` no exponía `has_results`, así que el turno solo
+  podía elegir entre «sigue viva y te dará el resultado sola» y «está bloqueada»: con datos en la hoja las dos
+  son falsas, **y la segunda es peor** — la primera hace esperar, ésta tira a la basura un resultado ya hecho.
+  - **Tener resultados gana al atasco y también al muro**: un muro con los datos en la mano no es un muro, es
+    una entrega pendiente. Cuarta cara del bloque: «DÁSELOS en este turno».
+  - Con test de sensibilidad — **sin** resultados, un atasco medido sigue siendo un atasco. Es lo que impide
+    que este arreglo deshaga V2-185, que se hizo por una razón igual de real.
+  - Y una señal de método: el bloque del navegador ya tiene **cuatro caras** (con resultados · esperando al
+    operador · bloqueada · sana), cada una nacida de una corrida distinta. Quien quiera añadir una quinta
+    debería preguntarse antes si lo que falta es otra cara o una forma distinta de decidir cuál toca.
+
 - **«Sí, adelante» → «Hecho.» → «¿Ya está cancelada del todo?»** (`nucleo/flash/probe.py`, V2-176 frente 1,
   2026-08-20). El frente suponía que la frontera estaba en el PROMPT (narrar en futuro-presente). **Se midió
   antes de tocarlo y la hipótesis era falsa**: sobre las 78 respuestas archivadas del arnés, solo **10 afirman

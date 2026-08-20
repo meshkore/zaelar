@@ -352,7 +352,11 @@ def active_progress(limit: int = 3) -> list[dict]:
                  # seconds, which V2-145 already established is not a description of anything.
                  "stalled_s": int(max(0.0, now - float(t.get("last_progress") or t.get("created") or now))),
                  "wall": (t.get("wall") or ""),
-                 "awaiting_login": bool(t.get("awaiting_login"))}
+                 "awaiting_login": bool(t.get("awaiting_login")),
+                 # V2-192: si la tarea YA TRAJO algo, eso gana a cualquier medida de atasco. Sin este campo el
+                 # turno solo podía elegir entre «sigue viva» y «está bloqueada», y ninguna de las dos es la
+                 # verdad cuando los resultados están ahí.
+                 "has_results": bool(t.get("results"))}
                 for tid, t in _tasks.items() if t.get("status") in ("queued", "working", "needs_input")]
     return list(reversed(rows))[:max(1, limit)]
 
