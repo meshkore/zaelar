@@ -88,10 +88,22 @@ def test_voxtral_omits_language_only_while_detecting(monkeypatch, detecting):
 #    got French speech, French STT and a French UI while their memory was distilled, forever, into the default.
 #    The memory is deliberately MONOLINGUAL in the operator's language; that only holds if detection moves it.
 
-def test_a_brand_new_account_starts_in_english():
-    """The fourth place the bootstrap contract lives — and the one that was out of step, saying "es"."""
+def test_a_brand_new_account_starts_in_english(monkeypatch):
+    """The fourth place the bootstrap contract lives — and the one that was out of step, saying "es".
+
+    Asserts the BEHAVIOUR instead of the literal since 2026-08-20. `memory.state._DEFAULT["language"]` is now None
+    ("not yet chosen", like `mission`/`operator_name` beside it) and the language is RESOLVED at read time from the
+    active configuration, because a frozen literal there was a PIN: the only writer of the field is `lock()` below,
+    on the DETECTION path, and detection is skipped precisely when the operator already HAS a language configured
+    (`should_detect` returns False once `settings.stt_language` is set). Measured in every use_cases sandbox:
+    `ZAELAR_LANGUAGE=es`, Spanish conversation for 27 turns, every pill distilled into English.
+
+    With nothing configured the answer this test was written to protect is unchanged: English."""
     from memory import state as mstate
-    assert mstate._DEFAULT["language"] == langs.DEFAULT_LANG == "en"
+    assert mstate._DEFAULT["language"] is None, "un literal aquí vuelve a ser un PIN que nada mueve"
+    monkeypatch.delenv("ZAELAR_LANGUAGE", raising=False)
+    monkeypatch.setattr(langs, "_default_code", lambda: "en")
+    assert mstate._active_language() == langs.DEFAULT_LANG == "en"
 
 
 def test_locking_the_language_also_moves_the_memory(monkeypatch):

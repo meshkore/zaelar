@@ -25,7 +25,19 @@ from . import db as _db
 _DEFAULT: dict = {
     "assistant_name": "Zaelar",
     "operator_name": None,
-    "language": "en",
+    # None = NOT YET CHOSEN, the same convention `mission`/`operator_name`/`location` already use here. It used to
+    # be the literal "en", and that literal was a PIN nothing could move: no code in the tree ever writes this
+    # field (the i18n lock persists `settings.stt_language`, not the state), and a non-empty value means the two
+    # consumers that were written to fall back to the active language — `mem_processor._render` and
+    # `memllm` — can never reach their fallback. Measured 2026-08-20 in the use_cases sandboxes: `ZAELAR_LANGUAGE=es`,
+    # the i18n detect logging «text channel locked operator language -> 'es'», the whole conversation in Spanish,
+    # and every pill distilled into ENGLISH because this said so. It even made a real finding look false — the
+    # tester grepped the Spanish word for a datum that was in the prompt in English.
+    # Resolved at READ time (see `read`), so it reports the language the operator actually has configured instead
+    # of a guess, which is what the "linguistic start-up" decision of 2026-07-10 asked for in the first place: the
+    # memory starts where everything else starts. What that decision was against is a HARDCODED "es"; "en" turned
+    # out to be the same mistake mirrored.
+    "language": None,
     # MISIÓN/identidad de zaelar (sección A del ESTADO compuesto, `memory.compose_state`). VIVE en la memoria:
     # se SIEMBRA al arrancar desde el catálogo de idioma (`langs.LangSpec.mission`, en el idioma del operador) por
     # `nucleo/flash/memory_cache.prime()`; nunca se hardcodea en un prompt inglés. None = aún sin sembrar (compose
@@ -84,7 +96,27 @@ def read() -> dict:
             base.update(json.loads(row["data"]))
         except Exception:
             pass
+    if not base.get("language"):
+        base["language"] = _active_language()
     return base
+
+
+def _active_language() -> str:
+    """The language the operator ACTUALLY has configured (⚙ / `ZAELAR_LANGUAGE`), for a state that has not been
+    told one yet. Best-effort and env-only (`langs.current_code` reads no disk), so it is safe on the per-turn read
+    path; falls back to English exactly as the frozen default used to.
+
+    NOTE ON WHAT GETS PERSISTED: `patch()` is read→merge→write, so the first patch after this resolution STAMPS the
+    then-active language into the row. That is deliberate and is the "learn it once, then keep it" behaviour the
+    2026-07-10 decision described — a memory whose canonical language flip-flops with an env var would be worse
+    than one that is briefly wrong. It also means an install that already stamped "en" while its operator speaks
+    another language KEEPS it: an explicit stored value is indistinguishable from a real choice, and silently
+    rewriting a persisted user field is a worse bug than the one this fixes."""
+    try:
+        from voice.engine.core import langs
+        return langs.current_code()
+    except Exception:  # noqa: BLE001
+        return "en"
 
 
 def write(data: dict) -> None:
