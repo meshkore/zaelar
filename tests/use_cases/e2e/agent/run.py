@@ -90,11 +90,11 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         res = probe_client.say(utterance, session, execute=(scenario.channel == "probe"),
                                ingest=sandboxed)
         reply_text = llmmod._as_text(res.get("reply")).strip()
-        # UN TURNO MUDO NO ES UN AGENTE QUE NO AYUDA. El canal de texto resuelve su proveedor con
-        # `spec_from_config()` y no consulta la cadena de relevo, así que con el titular sin fondos TODOS los
-        # turnos salen vacíos (lo señaló el equipo del código el 2026-08-20, y explica los «(sin respuesta)»
-        # que ya había visto en `renew-gym`). Sin contarlos, el juez puntúa una avería de proveedor como
-        # desatención del producto — el mismo error que `search_health` existe para evitar.
+        # A MUTE TURN IS NOT AN AGENT REFUSING TO HELP. The text channel resolves its provider through
+        # `spec_from_config()` and never consults the failover chain, so with the titular model out of funds
+        # EVERY turn comes back empty (the engine team pointed this out on 2026-08-20, and it explains the
+        # `(sin respuesta)` lines already seen in `renew-gym`). Uncounted, the judge scores a provider outage as
+        # product inattention — the same mistake `search_health` exists to prevent.
         if not reply_text:
             mute_turns.append(turn)
         note("zaelar", reply_text)
@@ -149,10 +149,11 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         jobs_after = None
     scheduled = verifymod.scheduled_report(jobs_before, jobs_after) if jobs_after is not None else None
     mech = verifymod.mechanism_report(all_events, scenario.expected_signals, concurrency, scheduled)
-    # LO QUE QUEDÓ ESCRITO EN LA AGENDA, leído del motor. Se mira SIEMPRE, incluso si el caso no habla de
-    # citas: el coste es una petición y evita la clase de error que costó dos rondas y una acusación falsa al
-    # equipo del código («cero citas persistidas» sobre una agenda que tenía la cita dentro). `None` significa
-    # «no se pudo mirar» y NO significa «vacía» — el juez recibe esa diferencia explícita.
+    # WHAT ACTUALLY LANDED IN THE AGENDA, read from the engine. Looked up ALWAYS, even when the case says
+    # nothing about appointments: it costs one request and it avoids the class of error that cost two rounds
+    # and a false accusation against the engine team ("zero appointments persisted" about an agenda that had
+    # the appointment inside). `None` means "could not look" and does NOT mean "empty" — the judge is handed
+    # that difference explicitly.
     if mute_turns:
         mech["mute_turns"] = {"turns": mute_turns, "n": len(mute_turns)}
     try:

@@ -26,7 +26,7 @@ def _scn():
 
 
 class _FakeDriver:
-    """Un turno y fuera: lo que se mide aquí es CÓMO se llama al probe, no la conversación."""
+    """One turn and out: what is measured here is HOW the probe is called, not the conversation."""
     def __init__(self, scenario):
         self.done = False
 
@@ -39,9 +39,9 @@ class _FakeDriver:
 
 @pytest.fixture
 def calls(monkeypatch):
-    """Corre `_run_scenario` de verdad con TODO lo que sale a la red parcheado, y devuelve los kwargs con los
-    que se llamó al probe. Nada de leer el código fuente: un comentario satisfaría a un grep, y esa trampa ya
-    se ha caído dos veces en esta suite."""
+    """Runs the real `_run_scenario` with EVERYTHING that goes to the network patched out, and returns the
+    kwargs the probe was called with. No reading the source: a comment would satisfy a grep, and this suite has
+    already fallen into that trap twice."""
     seen: list[dict] = []
 
     def _say(text, session, **kw):
@@ -56,32 +56,33 @@ def calls(monkeypatch):
     monkeypatch.setattr(R.drivermod, "Driver", _FakeDriver)
     monkeypatch.setattr(R.verifymod, "mechanism_report", lambda *a, **k: {})
     monkeypatch.setattr(R.judgemod, "judge", lambda *a, **k: {"overall": 3})
-    monkeypatch.setattr(R.llmmod, "drive_model", lambda: "modelo-de-prueba")
+    monkeypatch.setattr(R.llmmod, "drive_model", lambda: "test-model")
     return seen
 
 
 def test_in_a_sandbox_the_conversation_IS_ingested(calls):
     R._run_scenario(_scn(), sandboxed=True)
-    assert calls, "no se llamó al probe"
+    assert calls, "the probe was never called"
     assert calls[0].get("ingest") is True, \
-        "en sandbox la conversación tiene que escribirse: sin eso, un caso de «acuérdate de esto» no puede pasar"
+        "in a sandbox the conversation must be written: without it, a \"remember this\" case cannot pass"
 
 
 def test_against_the_LIVE_engine_it_is_not(calls):
     R._run_scenario(_scn(), sandboxed=False)
     assert calls[0].get("ingest") is False, \
-        "contra el motor del operador sigue en pie la razón original: no dejar conversaciones de test en su memoria"
+        "against the operator's engine the original reason still stands: no test conversations in their memory"
 
 
 def test_the_default_is_the_SAFE_one(calls):
-    """Si alguien llama a `_run_scenario` sin decir nada, no puede acabar escribiendo en la memoria real."""
+    """If someone calls `_run_scenario` saying nothing, it must not end up writing to the real memory."""
     R._run_scenario(_scn())
     assert calls[0].get("ingest") is False
 
 
 def test_and_the_batch_actually_PASSES_the_flag_down(monkeypatch):
-    """El fallo clásico de este repo: la verdad existe y no llega al sitio donde se decide. `_run_batch` sabe
-    si hay sandbox; si no lo baja, el arreglo de arriba no se aplica nunca en una corrida real."""
+    """This repo's classic failure: the truth exists and never reaches the place where the decision is made.
+    `_run_batch` knows whether there is a sandbox; if it does not pass that down, the fix above never applies
+    in a real run."""
     seen: list[dict] = []
     monkeypatch.setattr(R, "_run_scenario", lambda scn, **kw: seen.append(kw) or {
         "scenario": scn.id, "tier": 1, "channel": "probe", "run": {}, "verdict": {"overall": 3},

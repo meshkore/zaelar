@@ -149,8 +149,9 @@ def mechanism_facts(mech: dict) -> str:
                      f"el titular caído la respuesta sale muda. **No puntúes un turno vacío como que zaelar "
                      f"ignora al usuario, no colabora o abandona**: no llegó a hablar. Juzga solo los turnos "
                      f"que SÍ tienen texto, y no cuentes el silencio como falta de empatía ni de resultado.")
-    # LA AGENDA, LEÍDA. Va antes de search_health porque es la que más falsos positivos ha causado: el juez
-    # escribió «cero citas persistidas» dos rondas seguidas sobre una agenda que tenía la cita dentro.
+    # THE AGENDA, READ. It comes before search_health because it has caused the most false positives: the
+    # judge wrote "zero appointments persisted" on two consecutive rounds about an agenda that had the
+    # appointment inside.
     if "agenda_meetings" in mech:
         rows = mech.get("agenda_meetings")
         if rows is None:
@@ -233,15 +234,15 @@ _DIAS = ["lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domin
 
 
 def _time_note() -> str:
-    """El CALENDARIO de hoy, estampado como hecho antes de que el juez razone.
+    """Today's CALENDAR, stamped as a fact before the judge reasons.
 
-    Nace de un falso positivo medido (2026-08-20, ronda 15 de `remember-and-remind-deadline`): el usuario dijo
-    «el jueves» un JUEVES, zaelar resolvió el jueves SIGUIENTE (27) y puso el aviso el miércoles 26 —
-    coherente, porque no se puede avisar la víspera de algo que es hoy. El juez, que no sabía qué día era,
-    lo marcó como hallazgo [alta]: «el jueves natural es el 20, el recordatorio cae 6 días tarde». Iba camino
-    del developer como fallo del producto.
+    It comes from a measured false positive (2026-08-20, round 15 of `remember-and-remind-deadline`): the user
+    said "el jueves" on a THURSDAY, zaelar resolved the NEXT Thursday (the 27th) and set the reminder for
+    Wednesday the 26th — coherent, because you cannot warn somebody the day before something that is today.
+    The judge, which did not know what day it was, filed it as a [high] finding: "the natural Thursday is the
+    20th, the reminder lands 6 days late". It was on its way to the developer as a product defect.
 
-    Un juez sin calendario no puede evaluar fechas y aun así lo intenta, que es el peor de los dos mundos.
+    A judge with no calendar cannot evaluate dates and tries anyway, which is the worst of the two worlds.
     """
     import datetime as _dt
     hoy = _dt.date.today()

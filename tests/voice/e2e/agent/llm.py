@@ -57,8 +57,8 @@ def glm_call(messages: list[dict], model: str | None = None, max_tokens: int = 2
     return "".join(p.get("text", "") for p in parts if p.get("type") == "text")
 
 
-# Transitorios del proveedor: merecen otro intento. Un 401/402/404 no — eso es configuración o saldo, y
-# reintentarlo solo gasta tiempo.
+# Provider transients: worth another attempt. A 401/402/404 is not — that is configuration or balance, and
+# retrying it only burns time.
 _TRANSIENT = ("429", "500", "502", "503", "504", "timed out", "timeout", "Temporary failure")
 
 
@@ -89,7 +89,7 @@ def judge_call(messages: list[dict], max_tokens: int = 2000) -> tuple[str, str]:
                 raise
             if attempt < 2:
                 wait = 8 * (attempt + 1)
-                print(f"[judge] {config.JUDGE_MODEL} transitorio ({str(e)[:60]}) → reintento en {wait}s "
+                print(f"[judge] {config.JUDGE_MODEL} transient ({str(e)[:60]}) → retrying in {wait}s "
                       f"({attempt + 1}/2)", file=sys.stderr)
                 _t.sleep(wait)
     raise last

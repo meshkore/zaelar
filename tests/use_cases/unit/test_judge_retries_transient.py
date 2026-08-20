@@ -1,10 +1,10 @@
-"""Perder el veredicto pierde la RONDA entera, y eso pasó dos veces seguidas.
+"""Losing the verdict loses the whole ROUND, and that happened twice in a row.
 
-El 2026-08-20 `book-hotel-night-known__es` se midió dos veces —dos conversaciones completas de ocho minutos,
-con su informe de mecanismo ya hecho— y las dos se tiraron porque el juez recibió `429 → 503` y `429 → 504`.
-La pierna de respaldo no reintentaba. Reintentar cuesta una llamada; no reintentar cuesta la corrida.
+On 2026-08-20 `book-hotel-night-known__es` was measured twice — two full eight-minute conversations, with
+their mechanism report already built — and both were thrown away because the judge got `429 → 503` and
+`429 → 504`. The fallback leg did not retry. Retrying costs one call; not retrying costs the run.
 
-Lo que NO se reintenta: 401/402/404. Eso es saldo o configuración, y reintentarlo solo gasta reloj.
+What is NOT retried: 401/402/404. That is balance or configuration, and retrying it only burns the clock.
 """
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ def test_a_503_is_retried_and_the_verdict_survives(monkeypatch):
     monkeypatch.setattr(L, "call", _call)
     txt, model = L.judge_call([{"role": "user", "content": "x"}])
     assert txt == '{"ok":true}'
-    assert calls["n"] == 3, "no reintentó: una ronda entera se pierde por un 503"
+    assert calls["n"] == 3, "it did not retry: a whole round is lost to a 503"
 
 
 def test_a_429_and_a_timeout_count_as_transient(monkeypatch):
@@ -48,11 +48,11 @@ def test_a_429_and_a_timeout_count_as_transient(monkeypatch):
 
         monkeypatch.setattr(L, "call", _call)
         L.judge_call([{"role": "user", "content": "x"}])
-        assert calls["n"] == 2, f"«{err}» debería haberse reintentado"
+        assert calls["n"] == 2, f"\"{err}\" should have been retried"
 
 
 def test_a_402_is_NOT_retried(monkeypatch):
-    """Sin este límite, una cuenta sin saldo cuesta tres llamadas y 24 segundos por cada caso de la tanda."""
+    """Without this limit, an account with no balance costs three calls and 24 seconds for every case in the batch."""
     calls = {"n": 0}
 
     def _call(msgs, **kw):

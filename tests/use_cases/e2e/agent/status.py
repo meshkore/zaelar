@@ -116,9 +116,9 @@ def _state(overall, r: dict) -> str:
     # que un 1-2 en mecanismo NO puede salir en verde aunque la media dé: sigue habiendo un defecto medido, y su
     # sitio es una iniciativa, no un tick verde.
     mech_score = ((r.get("verdict") or {}).get("scores") or {}).get("mecanismo")
-    # CAPPED antes que PASS/FAIL: el tope no depende de lo bien que lo haga, sino de que su otra mitad exige
-    # una credencial del usuario que aquí no existe. La nota se conserva y se muestra — un tope con 5 es «llegó
-    # hasta donde se puede llegar, y perfecto» — pero no cuenta como aprobado ni como fallo.
+    # CAPPED before PASS/FAIL: the cap does not depend on how well it does, but on its other half demanding a
+    # user credential that does not exist here. The score is kept and shown — a capped 5 means "it got as far
+    # as anyone can get, and flawlessly" — but it counts as neither a pass nor a failure.
     try:
         from . import derived as D
         kind, _missing = D.data_scope((r.get("scenario") or "").split("__")[0])
@@ -175,8 +175,8 @@ def _render(led: dict) -> None:
     failed = sum(1 for e in scen.values() if e.get("state") == "FAIL")
     infra = sum(1 for e in scen.values() if e.get("state") == "INFRA")
     capped = [s for s, e in scen.items() if e.get("state") == "CAPPED"]
-    # El denominador son los casos que PODEMOS terminar. Meter los topados dentro convertía el marcador en una
-    # cuenta de deuda perpetua: cada tanda los volvía a medir y volvían a salir en rojo, sin nada que arreglar.
+    # The denominator is the cases we CAN finish. Counting the capped ones in turned the board into a tally of
+    # perpetual debt: every batch measured them again and they came back red, with nothing to fix.
     lines += ["", f"**{passed} passing · {failed} failing · {infra} infra** of "
                   f"{len(scen) - len(capped)} scenarios we can actually finish."]
     if capped:
@@ -250,11 +250,11 @@ def _render(led: dict) -> None:
             lines.append(f"| `{sid}` | {d.get('kind')} | {d.get('missing')} |")
         lines.append("")
 
-    # Un caso TOPADO también aparece aquí si su mitad alcanzable se quedó corta. El tope saca el caso del
-    # marcador, no sus defectos del mapa: «consígueme las entradas» no se puede cerrar sin tarjeta, pero
-    # BUSCARLAS sí, y ahí es donde están los hallazgos más útiles del día (el `cd` bloqueado del teatro, la
-    # salida honesta del restaurante). Si esta tabla solo mirara FAIL, el estado nuevo habría escondido justo
-    # el trabajo que sí se puede hacer.
+    # A CAPPED case also shows up here when its reachable half fell short. The cap takes the case off the
+    # board, not its defects off the map: "get me the tickets" cannot be closed without a card, but FINDING
+    # them can, and that is where the most useful findings of the day live (the theatre's blocked `cd`, the
+    # restaurant's honest exit). If this table only looked at FAIL, the new state would have hidden exactly the
+    # work that can still be done.
     work = {s: e["workspace"] for s, e in scen.items()
             if e.get("workspace") and (e.get("state") == "FAIL"
                                        or (e.get("state") == "CAPPED"

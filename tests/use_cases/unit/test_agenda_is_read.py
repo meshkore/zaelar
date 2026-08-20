@@ -1,13 +1,13 @@
-"""«Cero citas persistidas» era una invención: el arnés nunca había mirado la agenda.
+""""Zero appointments persisted" was an invention: the harness had never looked at the agenda.
 
-Medido el 2026-08-20. El juez escribió eso dos rondas seguidas sobre `remember-and-remind-deadline`, y llegó
-al equipo del código como fallo del producto. Lo reprodujeron y encontraron lo contrario. Los `state.json` de
-los dos sandboxes guardados lo confirman: la ronda de las 14:39 tenía DOS citas (duplicadas) y la de las 14:43
-tenía UNA, «Renovar el seguro del coche» el 2026-08-27. La escritura ocurrió las dos veces.
+Measured on 2026-08-20. The judge wrote that on two consecutive rounds of `remember-and-remind-deadline`, and
+it reached the engine team as a product defect. They reproduced it and found the opposite. The `state.json` of
+the two kept sandboxes confirms it: the 14:39 round had TWO appointments (duplicated) and the 14:43 one had
+ONE, "Renovar el seguro del coche" on 2026-08-27. The write happened both times.
 
-La causa no era el juez: era que el informe de mecanismo no llevaba el dato, así que el modelo rellenaba el
-hueco. Ahora se LEE del motor y las tres situaciones se dicen distintas: hay citas / está vacía y lo he
-comprobado / no he podido mirar.
+The cause was not the judge: the mechanism report simply did not carry the fact, so the model filled the gap.
+Now it is READ from the engine and the three situations are stated differently: there are appointments / it is
+empty and I checked / I could not look.
 """
 from __future__ import annotations
 
@@ -23,7 +23,7 @@ def test_when_there_are_meetings_the_judge_is_told_the_write_HAPPENED():
 
 
 def test_and_still_told_that_DUPLICATES_are_a_real_defect():
-    """Sin esta mitad el aviso sería una amnistía: la ronda de las 14:39 escribió la misma cita dos veces."""
+    """Without this half the notice would be an amnesty: the 14:39 round wrote the same appointment twice."""
     txt = J.mechanism_facts({"agenda_meetings": [{"title": "renovar el seguro", "date": "2026-08-27"},
                                                  {"title": "Renovar el seguro", "date": "2026-08-27"}]})
     assert "2 CITA(S)" in txt
@@ -37,7 +37,7 @@ def test_an_EMPTY_agenda_is_stated_as_verified_empty():
 
 
 def test_but_UNREADABLE_is_not_the_same_as_empty():
-    """La distinción entera: `None` es «no lo he mirado», y de ahí no se puede concluir nada."""
+    """The whole distinction: `None` means "I did not look", and nothing can be concluded from it."""
     txt = J.mechanism_facts({"agenda_meetings": None, "agenda_error": "timeout"})
     assert "NO se pudo leer" in txt and "timeout" in txt
     assert "No afirmes que está vacía" in txt
@@ -45,14 +45,14 @@ def test_but_UNREADABLE_is_not_the_same_as_empty():
 
 
 def test_a_run_that_never_looked_says_NOTHING_about_the_agenda():
-    """Sensibilidad: si la clave no está, no puede aparecer una frase sobre la agenda — ni a favor ni en contra."""
+    """Sensitivity: with the key absent, no sentence about the agenda may appear — neither for nor against."""
     txt = J.mechanism_facts({"families_observed": ["flash"]})
     assert "AGENDA" not in txt.upper().replace("AGENDAS", "")
 
 
 def test_the_runner_actually_READS_it(monkeypatch):
-    """El fallo clásico: el dato existe y no llega al sitio donde se decide. Se comprueba que `_run_scenario`
-    llama al lector y que lo que devuelve acaba DENTRO del informe que ve el juez."""
+    """The classic failure: the fact exists and never reaches the place where the decision is made. This checks
+    that `_run_scenario` calls the reader and that what it returns ends up INSIDE the report the judge sees."""
     from tests.use_cases.e2e.agent import run as R
     from tests.use_cases.e2e.agent import scenarios as SC
 
@@ -77,6 +77,6 @@ def test_the_runner_actually_READS_it(monkeypatch):
 
     R._run_scenario(SC.UseCaseScenario(id="x", locale="es", tier=1, persona_brief="p",
                                        opening_line="o", success_checks="s", turns=1))
-    assert seen.get("asked") == ("agenda", "meetings"), "el runner no lee la agenda del motor"
+    assert seen.get("asked") == ("agenda", "meetings"), "the runner does not read the engine's agenda"
     assert seen["mech"]["agenda_meetings"] == [{"title": "X", "date": "2026-08-27"}], \
-        "lo leído no llega al informe que ve el juez"
+        "what was read never reaches the report the judge sees"

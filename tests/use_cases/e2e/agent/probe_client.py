@@ -156,15 +156,15 @@ def navegador_task(task_id: str) -> dict:
 
 
 def widget_rows(wid: str, key: str) -> list:
-    """Una colección de un widget, LEÍDA del motor: `GET /widgets/<wid>/data`.
+    """One collection of a widget, READ from the engine: `GET /widgets/<wid>/data`.
 
-    Existe por un falso positivo caro (2026-08-20): el juez escribió «cero citas persistidas» sobre
-    `remember-and-remind-deadline` dos rondas seguidas, y eso el arnés no lo había mirado NUNCA — no tenía
-    forma de mirarlo. El equipo del código lo reprodujo y encontró lo contrario: la cita estaba escrita. La
-    fuente de verdad estaba a una petición HTTP de distancia.
+    It exists because of an expensive false positive (2026-08-20): the judge wrote "zero appointments
+    persisted" about `remember-and-remind-deadline` on two consecutive rounds, and the harness had NEVER
+    looked at that — it had no way to look. The engine team reproduced it and found the opposite: the
+    appointment was written. The source of truth was one HTTP request away.
 
-    Regla que sale de ahí: sobre la persistencia de un widget solo se puede afirmar lo que se ha LEÍDO. Una
-    lista vacía y «no lo he mirado» no se parecen en nada, así que el informe distingue las dos.
+    The rule that comes out of it: about a widget's persistence, only what has been READ may be asserted. An
+    empty list and "I did not look" are nothing alike, so the report keeps the two apart.
     """
     d = _get(f"/widgets/{urllib.parse.quote(wid, safe='')}/data", timeout=20.0)
     v = d.get(key) if isinstance(d, dict) else None

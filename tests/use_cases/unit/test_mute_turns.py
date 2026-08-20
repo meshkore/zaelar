@@ -1,10 +1,10 @@
-"""Un turno VACÍO es una avería del canal, no un agente que no ayuda.
+"""An EMPTY turn is a channel breakdown, not an agent refusing to help.
 
-El canal de texto resuelve su proveedor con `spec_from_config()` y nunca consulta la cadena de relevo, así que
-con el titular sin fondos los turnos salen mudos (lo señaló el equipo del código el 2026-08-20). Ya había
-rondas con `(sin respuesta)` — `renew-gym-membership__es` entre ellas — puntuadas como si zaelar hubiera
-ignorado al usuario. Es el mismo error que `search_health` existe para evitar: un confound del entorno pasando
-por defecto del producto.
+The text channel resolves its provider through `spec_from_config()` and never consults the failover chain, so
+with the titular model out of funds the turns come back mute (the engine team pointed this out on 2026-08-20).
+There were already rounds with `(sin respuesta)` — `renew-gym-membership__es` among them — scored as if zaelar
+had ignored the user. It is the same mistake `search_health` exists to prevent: an environment confound passing
+for a product defect.
 """
 from __future__ import annotations
 
@@ -19,13 +19,13 @@ def test_the_judge_is_told_a_mute_turn_is_the_CHANNEL():
 
 
 def test_and_told_what_to_do_INSTEAD():
-    """Sin la instrucción positiva, el aviso solo prohíbe y el modelo se queda sin criterio."""
+    """Without the positive instruction the notice only forbids, and the model is left with no criterion."""
     txt = J.mechanism_facts({"mute_turns": {"n": 1, "turns": [0]}})
     assert "Juzga solo los turnos que SÍ tienen texto" in txt
 
 
 def test_a_run_with_no_mute_turns_gets_no_excuse():
-    """Sensibilidad: si el aviso saliera siempre, el juez perdonaría el silencio genuino del producto."""
+    """Sensitivity: if the notice always appeared, the judge would forgive the product's genuine silence."""
     txt = J.mechanism_facts({"families_observed": ["flash"]})
     assert "AVERÍA DEL CANAL" not in txt
     txt2 = J.mechanism_facts({"mute_turns": {"n": 0, "turns": []}})
@@ -33,8 +33,8 @@ def test_a_run_with_no_mute_turns_gets_no_excuse():
 
 
 def test_the_runner_COUNTS_them(monkeypatch):
-    """Que el aviso exista no sirve si nadie cuenta los turnos vacíos. Se conduce una corrida real con dos
-    respuestas vacías y se comprueba que llegan al informe que ve el juez."""
+    """The notice existing is useless if nobody counts the empty turns. This drives a real run with two empty
+    replies and checks they reach the report the judge sees."""
     from tests.use_cases.e2e.agent import run as R
     from tests.use_cases.e2e.agent import scenarios as SC
 
@@ -64,4 +64,4 @@ def test_the_runner_COUNTS_them(monkeypatch):
     R._run_scenario(SC.UseCaseScenario(id="x", locale="es", tier=1, persona_brief="p",
                                        opening_line="o", success_checks="s", turns=3))
     assert seen["mech"].get("mute_turns", {}).get("n") == 2, \
-        "el runner no está contando los turnos vacíos"
+        "the runner is not counting the empty turns"
