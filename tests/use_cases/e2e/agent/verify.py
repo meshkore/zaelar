@@ -816,3 +816,42 @@ def progress_phases(db_path, *, since: float = 0.0) -> dict:
     out["phases"] = seen
     out["span_s"] = round(((prev or 0) - (first or 0)) / 1000.0, 1)
     return out
+
+def declared_surfaces(db_path, *, since: float = 0.0) -> list[str]:
+    """QUÉ SUPERFICIE declaró el motor al ENCARGAR cada tarea (V2-227 ámbito A), en orden.
+
+    Verificado en una ronda real: el campo viaja sellado desde el encargo con valores del vocabulario
+    cerrado (`lista·item·widget·voz·silenciosa`). Se recoge aquí por dos motivos, y el segundo no es el
+    obvio: la hoja de resultados con su pestaña de proceso SOLO se abre para `lista`/`item`, así que sin
+    esto no se puede saber si una ronda sin pestaña de proceso es un fallo de la pestaña o una tarea que
+    nunca pidió una; y una superficie mal elegida DELATA el mismo defecto que ya perseguimos por otro
+    lado — declarar `lista` para «¿a qué hora abre el Prado?» es la misma sobrerreacción que levantar un
+    navegador para un dato directo, vista un paso antes.
+    """
+    import sqlite3
+    out: list[str] = []
+    try:
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    except Exception:
+        return out
+    try:
+        rows = con.execute("SELECT payload FROM events WHERE ts_ms >= ? AND payload LIKE '%surface%' "
+                           "ORDER BY ts_ms ASC LIMIT 200", (int(since * 1000),)).fetchall()
+    except Exception:
+        return out
+    finally:
+        con.close()
+    for (raw,) in rows:
+        try:
+            d = json.loads(raw)
+        except Exception:
+            continue
+        # En la ronda real vive en `context.surface` de `escalate.requested` — ni arriba del todo ni en
+        # `extra`, que son los dos sitios donde miré primero. Se buscan los tres niveles porque el emisor
+        # puede cambiar y un campo que se lee en un solo sitio desaparece en silencio (hoy, cuarta vez).
+        ctx = d.get("context") if isinstance(d.get("context"), dict) else {}
+        ext = d.get("extra") if isinstance(d.get("extra"), dict) else {}
+        val = str(d.get("surface") or ctx.get("surface") or ext.get("surface") or "").strip()
+        if val and val not in out:
+            out.append(val)
+    return out
