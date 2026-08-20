@@ -1063,7 +1063,16 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 # «¿me lo repites?» a una confirmación.
                 spoken = _lg.data_ack
             elif action.startswith("canvas:"):
-                spoken = _lg.show_ack
+                # V2-206 — abrir una tarjeta NO es entregar un resultado, y este ack lo afirmaba. Medido en
+                # `book-hotel-night-known__es` (13:49): «Aquí lo tienes» sobre la tarjeta del navegador con la
+                # tarea todavía trabajando y nada encontrado → «alucinación de éxito» para el juez. La decide
+                # `router_guards` para que no pueda divergir entre canales, que es justo cómo esta clase de
+                # fallo sobrevive (V2-176 frente 1, la misma historia con «Hecho.»).
+                from . import router_guards as _rg_show
+                # `split(":")[-1]` NO sirve: una tarjeta de INSTANCIA lleva dos puntos dentro
+                #                 (`canvas:show:navegador::t1` → «t1», que no es ningún widget).
+                _parts = action.split(":", 2)
+                spoken = _rg_show.show_ack(_lg, _parts[2] if len(_parts) > 2 else "")
             elif action in ("escalate", "send_to_worker", "stop_worker", "answer_worker", "authenticate_web",
                             "connect_cluster"):
                 # V2-189: nunca la MISMA frase dos veces (espejo del provider — cablear en AMBOS).

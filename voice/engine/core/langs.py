@@ -39,6 +39,10 @@ class LangSpec:
                                     # y se SIEMBRA en la memoria (state.mission) al arrancar; el prompt NUNCA la
                                     # hardcodea en inglés. La usan AMBOS cerebros como parte del estado compartido.
     show_ack: str = "Aquí lo tienes."  # short "here you go" when opening a widget with no spoken content of its own
+    # V2-206: the SAME act over a surface with nothing in it. «Aquí lo tienes» asserts a delivery, and
+    # opening a card is not one — measured on `book-hotel-night-known__es` (2026-08-20 13:49), where the
+    # judge called it «alucinación de éxito» over a browser task that had brought nothing back.
+    show_ack_empty: str = "Te lo abro, pero de momento no hay nada dentro: sigo con ello."
     data_ack: str = "Hecho."       # short "done" when a widget data-op ran with no spoken content of its own (V2-026)
     # variantes del ack de data-op (V2-038, test post-P1/P2): dos data-ops seguidas con el MISMO "Hecho." disparaban
     # el loop-detector (LOOP×2) → un funcional consecutivo se dice distinto. El provider elige una que NO repita la
@@ -199,6 +203,7 @@ LANGUAGES: dict[str, LangSpec] = {
             "\"short/long-term memory\"."
         ),
         show_ack="Here you go.",
+        show_ack_empty="I've opened it, but there's nothing in it yet — still on it.",
         data_ack="Done.",
         data_acks=("Done.", "There you go.", "All set.", "Got it.", "Noted."),
         secret_reveal="Your {label}: {value}",

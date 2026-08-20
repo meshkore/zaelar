@@ -1275,6 +1275,27 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **«Aquí lo tienes» sobre una tarjeta vacía — y la frase es NUESTRA** (`nucleo/flash/router_guards.py` +
+  `voice/engine/core/langs.py`, V2-206, 2026-08-20). Medido en `book-hotel-night-known__es` (13:49): «Resérvame
+  una noche…» → «Voy a mirarlo en su web» → **«Aquí lo tienes.»** con la tarea en `working`, sin habitación ni
+  precio. El juez: «alucinación de éxito». El modelo no escribió esa frase: la escribió `show_ack`, el ack
+  canónico de un turno cuyo único acto fue abrir una superficie. **Segunda vez que una frase enlatada nuestra es
+  la que miente** — V2-176 frente 1 fue «Hecho.» sobre una tarea que acababa de EMPEZAR.
+  - `_surface_is_empty` contesta esa pregunta desde el 2026-08-17 y solo la ESTAMPABA en la fila de
+    observabilidad; el ack seguía afirmando la entrega. Ese era el alcance de entonces («convierte ese acuse
+    falso en un dato consultable»); lo nuevo es tener el coste medido.
+  - **El caso del navegador es el que el chequeo genérico no puede contestar**: el estado guardado de esa
+    tarjeta NO está vacío (lleva la tarea), así que «¿está vacío el estado?» responde «hay algo que enseñar»
+    sobre trabajo en curso. Con una tarea VIVA, una tarjeta es una ventana a algo sin acabar, nunca una entrega.
+  - **No es «no lo digas nunca»**: abrir la agenda CON citas dentro sí es una entrega, y prometer de menos sobre
+    un resultado real es otra forma de estar mal. Con test de sensibilidad por los dos lados y fail-open (nunca
+    afirmar que algo está vacío si no se puede saber).
+  - La decisión vive en `router_guards` y la llaman los dos canales: esta clase de fallo sobrevive precisamente
+    divergiendo entre ellos. Y un detalle que costaría un falso positivo: `action.split(":")[-1]` NO sirve para
+    sacar el id, porque una tarjeta de instancia lleva dos puntos dentro (`canvas:show:navegador::t1` → «t1»).
+  - Nodo 2.x, 7 tests. **Y un test mío que no probaba nada**: usaba `langs.get`, que no existe, dentro de un
+    `if … else None: continue` — o sea que el bucle no miraba ni un idioma y pasaba igual.
+
 - **Le decíamos al worker que mirara una captura que no estaba en disco** (`widgets/navegador/act_api.py` +
   `nucleo/nav_cli.py`, V2-205, 2026-08-20). `_shot_path()` devolvía la ruta del PNG **estuviera o no el fichero**,
   y `nav_cli` convierte cualquier valor no vacío en una ORDEN: «MÍRALA con Read "<ruta>"». Así que toda acción

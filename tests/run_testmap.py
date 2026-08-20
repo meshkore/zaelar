@@ -116,6 +116,9 @@ DOMAINS: list[dict] = [
             # V2-146: «te avisaré el miércoles» con scheduled_jobs vacío — el modelo prometía en prosa
             # y no emitía la tag; el backstop resuelve el día por posición y se niega si es ambiguo.
             "tests/agent_headless/unit/flash/test_promised_reminder_backstop.py",
+            # V2-206: abrir una tarjeta NO es entregar un resultado. «Aquí lo tienes» es un ack NUESTRO y
+            # lo decía sobre una tarea de navegador todavía trabajando (`book-hotel-night-known__es` 13:49).
+            "tests/agent_headless/unit/flash/test_opening_a_card_is_not_delivering.py",
             # V2-147: preguntó EN QUÉ WEB teniendo el motor la respuesta — el catálogo de sitios llega
             # al worker y nunca ha estado a la vista del prompt que decide si preguntar.
             "tests/agent_headless/unit/flash/test_never_ask_which_website.py",

@@ -1654,6 +1654,10 @@ class NucleoLLMStream(llm.LLMStream):
                         _sys = _res.get("system")
                         if _rid:
                             _tag_emit("show", {"id": _rid})
+                            # V2-206: QUÉ se abrió, no solo QUE se abrió. Sin el id, el ack de más abajo no puede
+                            # distinguir «aquí lo tienes» de «te lo abro y sigo con ello», que es la diferencia
+                            # entre informar y afirmar una entrega que no ha ocurrido.
+                            acted["widget_id"] = _rid
                             emit("brain", "🪟 show_widget → canvas", text=_rid, role="system",
                                  extra={"empty": _surface_is_empty(_rid)})
                         elif _sys == "chat":
@@ -2328,8 +2332,12 @@ class NucleoLLMStream(llm.LLMStream):
                      text=f"{_guard_wid} ({'search' if _was_search else 'escalate'}→show)", role="system")
                 if not spoken_text:
                     try:
+                        # V2-206 (impl PARALELA — cablear en AMBOS): abrir una tarjeta no es entregar un
+                        # resultado. La decisión vive en `router_guards` para que los dos canales no puedan
+                        # divergir.
                         from voice.engine.core import langs as _langs
-                        spoken_text = _langs.current_language().show_ack
+                        from nucleo.flash import router_guards as _rg_show
+                        spoken_text = _rg_show.show_ack(_langs.current_language(), _guard_wid)
                     except Exception:
                         spoken_text = "Aquí lo tienes."
                     send(speech.sanitize(spoken_text, drop_metadata=False))
@@ -2857,7 +2865,8 @@ class NucleoLLMStream(llm.LLMStream):
                 and not confirm_state.get("opened") and not clarify["msg"]:
             try:
                 from voice.engine.core import langs as _langs
-                spoken_text = _langs.current_language().show_ack
+                from nucleo.flash import router_guards as _rg_show2
+                spoken_text = _rg_show2.show_ack(_langs.current_language(), str(acted.get("widget_id") or ""))
             except Exception:
                 spoken_text = "Aquí lo tienes."
             send(speech.sanitize(spoken_text, drop_metadata=False))
