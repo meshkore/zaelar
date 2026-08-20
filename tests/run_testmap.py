@@ -477,7 +477,11 @@ DOMAINS: list[dict] = [
         # anota, el CLI lo dice (impreso o renderizado por otro campo que sí se imprime).
         {"id": "4.20", "title": "Al worker se le DICE qué le paró: el muro y el atasco salen por su CLI",
             "ch": UNIT,
-            "paths": ["tests/browser/unit/navegador/test_the_worker_is_told_what_stopped_it.py"]},
+            "paths": ["tests/browser/unit/navegador/test_the_worker_is_told_what_stopped_it.py",
+                      # V2-205: y no se le OFRECE lo que no existe — `_shot_path` devolvía la ruta del PNG
+                      # estuviera o no en disco, y el CLI convierte cualquier valor en la orden «MÍRALA con
+                      # Read». Medido en dos corridas: «File does not exist».
+                      "tests/browser/unit/navegador/test_we_only_offer_a_screenshot_that_exists.py"]},
         # 2026-08-20: el confirm-gate paraba un clic irreversible y no preguntaba a NADIE — la pregunta se
         # escribía en la tarea y nada la sacaba de ahí, y `waiting_id()` no tenía ni un llamador en producción,
         # así que el «sí» del operador tampoco tenía dónde aterrizar. Este nodo cubre las dos mitades: que la
@@ -694,6 +698,10 @@ DOMAINS: list[dict] = [
         # resolución correcta, y ese hallazgo iba camino del equipo del código como fallo del producto.
         {"id": "10.13", "title": "El juez lleva el CALENDARIO de hoy: no inventa fallos de fecha",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_judge_calendar.py"]},
+        # «Cero citas persistidas» era una invención: el arnés no había mirado la agenda nunca. Ahora se LEE
+        # del motor, y «vacía y comprobada» ya no se parece a «no lo he mirado».
+        {"id": "10.14", "title": "La agenda se LEE del motor: la persistencia no se infiere",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_agenda_is_read.py"]},
     ]},
 ]
 

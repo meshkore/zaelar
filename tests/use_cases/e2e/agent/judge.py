@@ -136,6 +136,24 @@ def mechanism_facts(mech: dict) -> str:
                      f"Esto NO es zaelar mintiendo ni olvidándose: eligió la acción correcta y el sistema la "
                      f"tiró. Puntúa el RESULTADO por lo que el usuario recibió (que es peor), pero no acuses a "
                      f"zaelar de no intentarlo ni de inventarse el progreso, y dilo así en los hallazgos.")
+    # LA AGENDA, LEÍDA. Va antes de search_health porque es la que más falsos positivos ha causado: el juez
+    # escribió «cero citas persistidas» dos rondas seguidas sobre una agenda que tenía la cita dentro.
+    if "agenda_meetings" in mech:
+        rows = mech.get("agenda_meetings")
+        if rows is None:
+            lines.append("· La agenda NO se pudo leer" + (f" ({mech.get('agenda_error')})" if mech.get("agenda_error") else "")
+                         + ". **No afirmes que está vacía ni que no se guardó nada**: no se ha mirado.")
+        elif rows:
+            what = "; ".join(f"«{(r or {}).get('title', '?')}» el {(r or {}).get('date', '?')}"
+                             for r in rows[:6] if isinstance(r, dict))
+            lines.append(f"· LA AGENDA DEL MOTOR TIENE {len(rows)} CITA(S) ESCRITA(S) AHORA MISMO: {what}. "
+                         f"Esto está LEÍDO del motor, no inferido. **Si una de ellas es la que pidió el "
+                         f"usuario, la escritura OCURRIÓ: no digas que no se guardó, que la promesa era falsa "
+                         f"ni que el widget no escribió.** Lo que sí se juzga aquí es el CONTENIDO: título, "
+                         f"fecha, y si hay DUPLICADOS de la misma cita (eso sí es un defecto).")
+        else:
+            lines.append("· La agenda del motor está VACÍA — mirada y confirmada, cero citas. Si zaelar dijo "
+                         "que la apuntó, la promesa no tiene nada detrás y eso es un fallo de RESULTADO.")
     sh = mech.get("search_health") or {}
     if sh:
         n = sh.get("n_search_events")

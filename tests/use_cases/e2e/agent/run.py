@@ -141,6 +141,15 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         jobs_after = None
     scheduled = verifymod.scheduled_report(jobs_before, jobs_after) if jobs_after is not None else None
     mech = verifymod.mechanism_report(all_events, scenario.expected_signals, concurrency, scheduled)
+    # LO QUE QUEDÓ ESCRITO EN LA AGENDA, leído del motor. Se mira SIEMPRE, incluso si el caso no habla de
+    # citas: el coste es una petición y evita la clase de error que costó dos rondas y una acusación falsa al
+    # equipo del código («cero citas persistidas» sobre una agenda que tenía la cita dentro). `None` significa
+    # «no se pudo mirar» y NO significa «vacía» — el juez recibe esa diferencia explícita.
+    try:
+        mech["agenda_meetings"] = probe_client.widget_rows("agenda", "meetings")
+    except Exception as e:
+        mech["agenda_meetings"] = None
+        mech["agenda_error"] = str(e)
 
     run_data = {"transcript": transcript, "mechanism_report": mech, "watchdog_log": watchdog_log}
     # WHAT THE ENGINE ALREADY REMEMBERS FROM THIS BATCH. A batch shares ONE sandbox and `hard_reset()`

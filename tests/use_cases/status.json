@@ -1,25 +1,19 @@
 {
   "scenarios": {
     "restaurant-tonight-madrid": {
-      "last_run": "2026-08-20 12:33",
+      "last_run": "2026-08-20 15:01",
       "overall": 2,
       "state": "FAIL",
       "scores": {
-        "naturalidad": 3,
-        "adaptacion": 4,
+        "naturalidad": 2,
+        "adaptacion": 5,
         "resultado": 1,
         "mecanismo": 2,
         "eficiencia": 2
       },
-      "verdict": "No está listo: el agente falla porque alucina acciones en curso que no suceden y se rinde ante la dificultad técnica (formulario lento) en lugar de pivotar a una solución real, dejando al usuario con la tarea sin resolver.",
+      "verdict": "No está listo para producción este caso de uso; el bloqueador nº1 es la incapacidad del navegador para superar filtros anti-robot (CAPTCHA) en los principales agregadores, lo que deriva en un bucle de espera infinita sin ofrecer al usuario una alternativa real ni una salida honesta.",
       "missing_signals": [],
-      "audit_anomalies": [
-        {
-          "clase": "sin_evidencia_externa",
-          "certeza": "hecho",
-          "que": "ni un solo evento con `evidence`: el mundo exterior no trajo nada"
-        }
-      ],
+      "audit_anomalies": [],
       "sandboxed": true,
       "tier": 1,
       "turns_used": 8,
@@ -36,7 +30,7 @@
         "missing": "cerrar la mesa (teléfono o cuenta en la plataforma)"
       },
       "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md",
+        "initiative": ".meshkore/roadmap/initiatives/V2-167-uc-tareas-que-nunca-terminan.md",
         "task": ""
       }
     },
@@ -70,22 +64,22 @@
       }
     },
     "remember-and-remind-deadline": {
-      "last_run": "2026-08-20 14:39",
-      "overall": 1,
+      "last_run": "2026-08-20 14:43",
+      "overall": 3,
       "state": "FAIL",
       "scores": {
-        "naturalidad": 5,
-        "adaptacion": 5,
-        "resultado": 1,
+        "naturalidad": 4,
+        "adaptacion": 3,
+        "resultado": 2,
         "mecanismo": 2,
         "eficiencia": 5
       },
-      "verdict": "No está listo. El caso falla porque no se cumplió la mitad del contrato funcional (la cita en la agenda no se escribió de forma durable) y la fecha propuesta es incorrecta, resultando en un recordatorio que llegará tarde y una cita fantasma.",
+      "verdict": "El caso de uso NO está listo para producción. El bloqueador principal es la incapacidad del sistema para garantizar que el recordatorio se produzca ANTES del evento, resultando en un aviso programado seis días tarde, lo que invalida la funcionalidad esencial.",
       "missing_signals": [],
       "audit_anomalies": [],
       "sandboxed": true,
       "tier": 1,
-      "turns_used": 2,
+      "turns_used": 3,
       "families": [
         "flash",
         "memory",
@@ -134,18 +128,19 @@
       }
     },
     "renew-gym-membership__es": {
-      "last_run": "2026-08-20 03:02",
-      "overall": 3,
+      "last_run": "2026-08-20 14:51",
+      "overall": 4,
       "state": "FAIL",
       "scores": {
         "naturalidad": 5,
-        "adaptacion": 4,
-        "resultado": 2,
-        "mecanismo": 2,
-        "eficiencia": 2
+        "adaptacion": 5,
+        "resultado": 4,
+        "mecanismo": 1,
+        "eficiencia": 4
       },
-      "verdict": "No listo. El bloqueador principal es la desvinculación entre el relato del agente y la realidad del mecanismo: narró un proceso de espera y análisis que nunca ocurrió, y afirmó tener datos que el sistema demostró no tener.",
+      "verdict": "El caso tiene un manejo de conversación excelente y claridad en los límites, pero el navegador no se activó como se prometió; la ejecución técnica está desincronizada del discurso, impidiendo un paso a producción plenamente confiable.",
       "missing_signals": [],
+      "audit_anomalies": [],
       "sandboxed": true,
       "tier": 1,
       "turns_used": 8,
@@ -201,28 +196,28 @@
       }
     },
     "find-theatre-tickets__es": {
-      "last_run": "2026-08-20 13:33",
+      "last_run": "2026-08-20 15:06",
       "overall": 2,
       "state": "FAIL",
       "scores": {
-        "naturalidad": 4,
-        "adaptacion": 3,
+        "naturalidad": 3,
+        "adaptacion": 4,
         "resultado": 1,
         "mecanismo": 2,
         "eficiencia": 1
       },
-      "verdict": "El caso no está listo para producción: zaelar mintió sobre el estado de la búsqueda durante varios minutos mientras el sistema estaba bloqueado esperando una confirmación que nunca se pidió al usuario, resultando en cero entradas encontradas y una conversación basada en falsas promesas de progreso.",
+      "verdict": "El caso NO está listo para producción. El bloqueador nº1 es la incapacidad del sistema para detectar y reportar bloqueos externos (anti-botting) y errores internos, lo que deriva en un bucle de mentiras por omisión y pérdida de control de la sesión.",
       "missing_signals": [],
       "audit_anomalies": [
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: acción «Comprar entradas» NO confirmada por el operador"
+          "que": "worker/task «📄 archivo ⚠️ error»: File does not exist. Note: your current working directory is /private/var/folders/51/mq51gxn13sg84_d8ctz8gm140000gn/T/zaelar-workers/2."
         },
         {
           "clase": "span_con_error",
           "certeza": "hecho",
-          "que": "worker:2: 1 error(es), último paso «🧭 navegador»"
+          "que": "worker:2: 1 error(es), último paso «end»"
         }
       ],
       "sandboxed": true,
@@ -246,7 +241,7 @@
       }
     },
     "cheapest-monitor": {
-      "last_run": "2026-08-20 12:39",
+      "last_run": "2026-08-20 14:57",
       "overall": 1,
       "state": "FAIL",
       "scores": {
@@ -256,13 +251,38 @@
         "mecanismo": 1,
         "eficiencia": 1
       },
-      "verdict": "No está listo para producción: el sistema intenta el trabajo y el navegador llega a la página, pero falla estrepitosamente al extraer los datos (no hay 'evidence') y, lo que es peor, miente al usuario prometiendo resultados que no tiene.",
+      "verdict": "El caso no está listo para producción: el sistema es incapaz de completar una búsqueda básica de productos debido a fallos de red y manejo de errores, resultando en una conversación circular donde el agente miente sobre el progreso y no entrega nada.",
       "missing_signals": [],
       "audit_anomalies": [
         {
-          "clase": "sin_evidencia_externa",
+          "clase": "error_interno",
           "certeza": "hecho",
-          "que": "ni un solo evento con `evidence`: el mundo exterior no trajo nada"
+          "que": "flash/search «🌐 web ⚠️ error»: Too many redirects (exceeded 10)"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "flash/search «🌐 web ⚠️ error»: error:10000438:SSL routines:OPENSSL_internal:TLSV1_ALERT_INTERNAL_ERROR"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "flash/search «🌐 web ⚠️ error»: Too many redirects (exceeded 10)"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: Exit code 2 no puedo leer el payload de informe.json: [Errno 2] No such file or directory: 'informe.json'"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:1: 3 error(es), último paso «end»"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:2: 1 error(es), último paso «✏️ código ↩»"
         }
       ],
       "sandboxed": true,
@@ -280,7 +300,35 @@
         "initiative": ".meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md",
         "task": ""
       }
+    },
+    "quick-fact-opening-hours": {
+      "last_run": "2026-08-20 15:08",
+      "overall": 2,
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 5,
+        "adaptacion": 5,
+        "resultado": 1,
+        "mecanismo": 1,
+        "eficiencia": 5
+      },
+      "verdict": "No está listo para producción. El bloqueador principal es la generación de información fáctica falsa sin consultar fuentes externas; zaelar está inventando datos en lugar de buscarlos.",
+      "missing_signals": [],
+      "audit_anomalies": [],
+      "sandboxed": true,
+      "tier": 1,
+      "turns_used": 2,
+      "families": [
+        "flash",
+        "memory",
+        "system"
+      ],
+      "drive_model": "deepseek-directo",
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-204-uc-quick-fact-opening-hours.md",
+        "task": ".meshkore/modules/nucleo/tasks/T452-uc-quick-fact-opening-hours-fix.md"
+      }
     }
   },
-  "updated": "2026-08-20 14:39"
+  "updated": "2026-08-20 15:08"
 }

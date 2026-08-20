@@ -155,6 +155,22 @@ def navegador_task(task_id: str) -> dict:
     return _get(f"/widgets/navegador/data?q={urllib.parse.quote(task_id, safe='')}")
 
 
+def widget_rows(wid: str, key: str) -> list:
+    """Una colección de un widget, LEÍDA del motor: `GET /widgets/<wid>/data`.
+
+    Existe por un falso positivo caro (2026-08-20): el juez escribió «cero citas persistidas» sobre
+    `remember-and-remind-deadline` dos rondas seguidas, y eso el arnés no lo había mirado NUNCA — no tenía
+    forma de mirarlo. El equipo del código lo reprodujo y encontró lo contrario: la cita estaba escrita. La
+    fuente de verdad estaba a una petición HTTP de distancia.
+
+    Regla que sale de ahí: sobre la persistencia de un widget solo se puede afirmar lo que se ha LEÍDO. Una
+    lista vacía y «no lo he mirado» no se parecen en nada, así que el informe distingue las dos.
+    """
+    d = _get(f"/widgets/{urllib.parse.quote(wid, safe='')}/data", timeout=20.0)
+    v = d.get(key) if isinstance(d, dict) else None
+    return v if isinstance(v, list) else []
+
+
 def scheduled_jobs() -> list[dict]:
     """The engine's ACTIVE scheduled tasks (`GET /api/cron` → `scheduler.list_jobs`).
 
