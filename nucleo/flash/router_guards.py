@@ -1149,7 +1149,7 @@ def login_site(text: str) -> str:
     return ""
 
 
-# ── OPENING A CARD IS NOT DELIVERING A RESULT (V2-206) ────────────────────────────────────────────────────────
+# ── OPENING A CARD IS NOT DELIVERING A RESULT (V2-209) ────────────────────────────────────────────────────────
 def nothing_to_show(widget_id: str) -> bool:
     """Does the surface we just opened have NOTHING in it?
 

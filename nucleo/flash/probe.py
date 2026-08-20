@@ -1063,7 +1063,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 # «¿me lo repites?» a una confirmación.
                 spoken = _lg.data_ack
             elif action.startswith("canvas:"):
-                # V2-206 — abrir una tarjeta NO es entregar un resultado, y este ack lo afirmaba. Medido en
+                # V2-209 — abrir una tarjeta NO es entregar un resultado, y este ack lo afirmaba. Medido en
                 # `book-hotel-night-known__es` (13:49): «Aquí lo tienes» sobre la tarjeta del navegador con la
                 # tarea todavía trabajando y nada encontrado → «alucinación de éxito» para el juez. La decide
                 # `router_guards` para que no pueda divergir entre canales, que es justo cómo esta clase de

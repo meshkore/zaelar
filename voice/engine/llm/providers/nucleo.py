@@ -1654,7 +1654,7 @@ class NucleoLLMStream(llm.LLMStream):
                         _sys = _res.get("system")
                         if _rid:
                             _tag_emit("show", {"id": _rid})
-                            # V2-206: QUÉ se abrió, no solo QUE se abrió. Sin el id, el ack de más abajo no puede
+                            # V2-209: QUÉ se abrió, no solo QUE se abrió. Sin el id, el ack de más abajo no puede
                             # distinguir «aquí lo tienes» de «te lo abro y sigo con ello», que es la diferencia
                             # entre informar y afirmar una entrega que no ha ocurrido.
                             acted["widget_id"] = _rid
@@ -2332,7 +2332,7 @@ class NucleoLLMStream(llm.LLMStream):
                      text=f"{_guard_wid} ({'search' if _was_search else 'escalate'}→show)", role="system")
                 if not spoken_text:
                     try:
-                        # V2-206 (impl PARALELA — cablear en AMBOS): abrir una tarjeta no es entregar un
+                        # V2-209 (impl PARALELA — cablear en AMBOS): abrir una tarjeta no es entregar un
                         # resultado. La decisión vive en `router_guards` para que los dos canales no puedan
                         # divergir.
                         from voice.engine.core import langs as _langs

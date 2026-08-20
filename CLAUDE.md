@@ -1275,8 +1275,31 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Desde fuera del proceso, «el muro no se anotó» y «se anotó y el turno lo ignoró» se veían IDÉNTICOS**
+  (`widgets/navegador/data.py`, V2-207, 2026-08-20). `active_progress()` construye `walls_hit`/`last_wall` desde
+  V2-176 y son lo que llega al prompt, pero `_task_view()` —la única vista legible desde fuera,
+  `GET /widgets/navegador/data?q=<task>`— no los exponía. Así que con «Access Denied» en el stream y la tarjeta
+  sin rastro de muro, **los dos diagnósticos opuestos daban la misma lectura**: `walls_hit == 0` es un fallo de la
+  ANOTACIÓN y `walls_hit > 0` con el turno diciendo «sigo con ello» es un fallo del TURNO. Elegir mal cuesta una
+  ronda entera de medición, que es lo que pasó en `find-theatre-tickets__es`. Dos líneas, pedidas por el arnés
+  con el caso delante. `wall` (la página de AHORA, se recalcula en cada captura) y `walls`/`last_wall` (la
+  historia, que sobrevive al re-enrutado) siguen separados a propósito: mantenerlos distintos ES V2-176.
+
+- **La MISMA cita dos veces, ahora por la data-op del modelo** (`widgets/agenda/data.py`, V2-208, 2026-08-20).
+  Medido en `remember-and-remind-deadline` (14:39), leído del `state.json` del sandbox: `[«renovar el seguro del
+  coche» 2026-08-27, «Renovar el seguro del coche» 2026-08-27]` — un artículo y una mayúscula de diferencia.
+  V2-194 cerró esta forma para el BACKSTOP (`already_in_agenda`, que comprueba antes de despachar) y la data-op
+  del PROPIO modelo no tenía guarda: dos turnos, dos `add_meeting`, nadie comparando.
+  - **La guarda vive junto a la ESCRITURA**, no en el llamante, así que la heredan todos los que escriben —
+    modelo, backstop, puente del worker, el botón de la tarjeta. Es el mismo razonamiento que puso
+    `already_in_agenda` al lado de su escritura y no dentro de la decisión pura.
+  - **La HORA forma parte de la clave, y no solo el día**: dos visitas al mismo piso a las 10:00 y a las 17:00
+    son dos citas. La regla es estrecha a propósito —mismo día, misma hora, mismo título sin artículos ni
+    mayúsculas ni puntuación— porque un duplicado que se traga en silencio es peor que uno que se ve. Y un título
+    que se queda VACÍO al normalizar («el», «la») no casa con nada: colapsar la basura la escondería.
+
 - **«Aquí lo tienes» sobre una tarjeta vacía — y la frase es NUESTRA** (`nucleo/flash/router_guards.py` +
-  `voice/engine/core/langs.py`, V2-206, 2026-08-20). Medido en `book-hotel-night-known__es` (13:49): «Resérvame
+  `voice/engine/core/langs.py`, V2-209, 2026-08-20). Medido en `book-hotel-night-known__es` (13:49): «Resérvame
   una noche…» → «Voy a mirarlo en su web» → **«Aquí lo tienes.»** con la tarea en `working`, sin habitación ni
   precio. El juez: «alucinación de éxito». El modelo no escribió esa frase: la escribió `show_ack`, el ack
   canónico de un turno cuyo único acto fue abrir una superficie. **Segunda vez que una frase enlatada nuestra es

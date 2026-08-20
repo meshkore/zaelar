@@ -116,7 +116,7 @@ DOMAINS: list[dict] = [
             # V2-146: «te avisaré el miércoles» con scheduled_jobs vacío — el modelo prometía en prosa
             # y no emitía la tag; el backstop resuelve el día por posición y se niega si es ambiguo.
             "tests/agent_headless/unit/flash/test_promised_reminder_backstop.py",
-            # V2-206: abrir una tarjeta NO es entregar un resultado. «Aquí lo tienes» es un ack NUESTRO y
+            # V2-209: abrir una tarjeta NO es entregar un resultado. «Aquí lo tienes» es un ack NUESTRO y
             # lo decía sobre una tarea de navegador todavía trabajando (`book-hotel-night-known__es` 13:49).
             "tests/agent_headless/unit/flash/test_opening_a_card_is_not_delivering.py",
             # V2-147: preguntó EN QUÉ WEB teniendo el motor la respuesta — el catálogo de sitios llega
@@ -386,7 +386,11 @@ DOMAINS: list[dict] = [
         {"id": "4.4", "title": "Widget de YouTube", "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_youtube.py"]},
         {"id": "4.5", "title": "Widget de mensajería", "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_owner_v2.py"]},
         {"id": "4.6", "title": "Agenda: contrato XSS del renderer", "ch": UNIT, "paths": [
-            "tests/browser/unit/agenda/test_xss_contract.py"]},
+            "tests/browser/unit/agenda/test_xss_contract.py",
+            # V2-208: la MISMA cita dos veces. V2-194 lo cerró para el BACKSTOP y la data-op del propio modelo no
+            # tenía guarda — dos turnos, dos `add_meeting`, nadie comparando. Ahora vive junto a la ESCRITURA,
+            # que es por donde pasan todos los que escriben.
+            "tests/browser/unit/agenda/test_the_same_meeting_twice.py"]},
         # V2-085 — la garantía de ESCALA: el prompt es O(K) y no O(N) por muchos widgets que haya. Nodo propio (no
         # dentro de 4.1) porque lo que prueba no es el contrato de UN widget sino el del CATÁLOGO: sintéticos de
         # 100/1.000/10.000, promoción del widget nombrado desde la cola, e índice compacto del endpoint.
@@ -484,7 +488,11 @@ DOMAINS: list[dict] = [
                       # V2-205: y no se le OFRECE lo que no existe — `_shot_path` devolvía la ruta del PNG
                       # estuviera o no en disco, y el CLI convierte cualquier valor en la orden «MÍRALA con
                       # Read». Medido en dos corridas: «File does not exist».
-                      "tests/browser/unit/navegador/test_we_only_offer_a_screenshot_that_exists.py"]},
+                      "tests/browser/unit/navegador/test_we_only_offer_a_screenshot_that_exists.py",
+                      # V2-207: y los MUROS salen por la vista de la tarjeta. Desde fuera del proceso «no se
+                      # anotó» y «se anotó y el turno lo ignoró» se veían idénticos, y son diagnósticos
+                      # opuestos.
+                      "tests/browser/unit/navegador/test_the_card_view_carries_the_walls.py"]},
         # 2026-08-20: el confirm-gate paraba un clic irreversible y no preguntaba a NADIE — la pregunta se
         # escribía en la tarea y nada la sacaba de ahí, y `waiting_id()` no tenía ni un llamador en producción,
         # así que el «sí» del operador tampoco tenía dónde aterrizar. Este nodo cubre las dos mitades: que la
@@ -705,6 +713,10 @@ DOMAINS: list[dict] = [
         # del motor, y «vacía y comprobada» ya no se parece a «no lo he mirado».
         {"id": "10.14", "title": "La agenda se LEE del motor: la persistencia no se infiere",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_agenda_is_read.py"]},
+        # El canal de texto no tiene relevo de proveedor: con el titular caído los turnos salen MUDOS, y el
+        # juez lo puntuaba como que el agente ignora al usuario. Confound del entorno, igual que search_health.
+        {"id": "10.15", "title": "Un turno vacío es avería del canal, no desatención del agente",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_mute_turns.py"]},
     ]},
 ]
 

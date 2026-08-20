@@ -15,6 +15,39 @@ from . import planner
 def _strip_accents(s: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFKD", s or "") if not unicodedata.combining(c))
 
+# ── THE SAME COMMITMENT WRITTEN TWICE (V2-208) ────────────────────────────────────────────────────────────────
+# Measured on `remember-and-remind-deadline` (2026-08-20 14:39), from the sandbox's own `state.json`:
+#
+#     meetings = [«renovar el seguro del coche» 2026-08-27, «Renovar el seguro del coche» 2026-08-27]
+#
+# Two rows for one obligation, differing by an article and a capital letter. V2-194 fixed this for the BACKSTOP
+# (`router_guards.already_in_agenda`, which checks before dispatching) and the model's OWN data-op has no such
+# guard: two turns, two `add_meeting`, nobody comparing. The guard belongs HERE, next to the write, so every
+# writer present and future gets it — that is the same reasoning that put `already_in_agenda` next to its write
+# rather than inside the pure decision.
+#
+# Why the TIME is part of the key and not just the day: two viewings of the same flat at 10:00 and 17:00 are two
+# meetings, and a duplicate that is silently dropped is worse than a duplicate that is visible. So the rule is
+# narrow ON PURPOSE — same day, same time, same title once articles/case/punctuation are gone. A legitimate
+# repeat carries a different hour or a different title; what it never carries is the same three.
+_ARTICLES = {"el", "la", "los", "las", "un", "una", "unos", "unas", "lo", "de", "del", "the", "a", "an"}
+
+
+def _title_key(title: str) -> str:
+    """Comparable form of a meeting title: no accents, no case, no punctuation, no articles."""
+    words = re.findall(r"\w+", _strip_accents(str(title or "")).lower())
+    return " ".join(w for w in words if w not in _ARTICLES)
+
+
+def _is_same_meeting(a: dict, b: dict) -> bool:
+    """Same day, same start time and the same title once the noise is gone."""
+    if str(a.get("date") or "") != str(b.get("date") or ""):
+        return False
+    if str(a.get("startTime") or "") != str(b.get("startTime") or ""):
+        return False
+    ka, kb = _title_key(a.get("title")), _title_key(b.get("title"))
+    return bool(ka) and ka == kb
+
 HERE = os.path.dirname(os.path.abspath(__file__))
 WIDGET_ID = "agenda"
 
@@ -198,12 +231,11 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         if not re.match(r"^\d{1,2}[:h]\d{2}$|^\d{2}:\d{2}$", str(end)):
             eh = (int(start[:2]) + 1) % 24                 # no explicit end -> +1h
             end = f"{eh:02d}:{start[3:5]}"
-        db.setdefault("meetings", []).append({
-            "title": title,
-            "date": date,
-            "startTime": start,
-            "endTime": end,
-        })
+        _new = {"title": title, "date": date, "startTime": start, "endTime": end}
+        # V2-208: la MISMA cita dos veces (ver `_is_same_meeting`). Un aviso duplicado se oye una vez; una cita
+        # duplicada se VE, y se queda ahí hasta que alguien la borra a mano.
+        if not any(_is_same_meeting(_new, m) for m in db.get("meetings", [])):
+            db.setdefault("meetings", []).append(_new)
     elif action == "cancel_meeting":
         # Cancel meeting(s) matching title (case-insensitive, accent-insensitive) plus optional date.
         title = _strip_accents((payload.get("title") or "").strip().lower())

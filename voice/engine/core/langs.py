@@ -39,7 +39,7 @@ class LangSpec:
                                     # y se SIEMBRA en la memoria (state.mission) al arrancar; el prompt NUNCA la
                                     # hardcodea en inglés. La usan AMBOS cerebros como parte del estado compartido.
     show_ack: str = "Aquí lo tienes."  # short "here you go" when opening a widget with no spoken content of its own
-    # V2-206: the SAME act over a surface with nothing in it. «Aquí lo tienes» asserts a delivery, and
+    # V2-209: the SAME act over a surface with nothing in it. «Aquí lo tienes» asserts a delivery, and
     # opening a card is not one — measured on `book-hotel-night-known__es` (2026-08-20 13:49), where the
     # judge called it «alucinación de éxito» over a browser task that had brought nothing back.
     show_ack_empty: str = "Te lo abro, pero de momento no hay nada dentro: sigo con ello."
