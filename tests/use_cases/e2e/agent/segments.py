@@ -95,6 +95,11 @@ SEGMENTS: dict[str, Segment] = {
     "cheapest-monitor": _done(),
     "find-best-hotel-city": _done(),
     "hotel-under-15-days": _done(),
+    # maximum complexity, kept for last: several filters that must ALL hold at once, some of them
+    # behind the site's own controls rather than in the text of a query
+    "hotel-many-filters-at-once": _done(),
+    "used-car-search-wallapop": _done(),
+    "house-search-los-angeles": _done(),
     "find-direct-flight-budget": _done(),
     "find-concert-tickets": _done(),
     "best-rated-rental-car": _done(),

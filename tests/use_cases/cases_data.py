@@ -526,4 +526,25 @@ CASES: list[UseCase] = [
             "Ping Taylor's agent on WhatsApp the moment I leave, so they know when I'll arrive.",
             "Taylor's agent is notified over WhatsApp the moment the operator leaves.",
             status="blocked", depends_on=_BLOCKED_DEPENDENCIES),
+    # ── Hard searches: many constraints at once, kept for LAST on purpose (operator, 2026-08-20) ──────
+    # A one-constraint search is the minimum case; these are the maximum. They are here so the ceiling is
+    # written down, not so they get promoted early: the order of work is least complexity first, by tier.
+    # What makes them hard is not the subject but the SHAPE — several filters that must all hold at once,
+    # some of which live behind a site's own controls rather than in the text of a query, and a result that
+    # has to be checked against every one of them before it is offered.
+    UseCase("hotel-many-filters-at-once", "es", 7, "Hotel search where every filter has to hold at once",
+            "Búscame hotel en la costa para el puente, que tenga piscina, parking gratis, wifi decente "
+            "y que acepten perro. Nada de interior.",
+            "Candidates are offered only when ALL constraints hold, each one checked against the page "
+            "rather than assumed, and any constraint that could not be verified is named as such."),
+    UseCase("used-car-search-wallapop", "es", 7, "Second-hand search on a marketplace with its own filters",
+            "Mírame coches de segunda mano en Wallapop, diésel, menos de 120.000 km, cambio manual y "
+            "por debajo de 9.000 €, cerca de casa.",
+            "Real listings are read from the marketplace with every filter applied, and price/mileage "
+            "come from the listing rather than from the model."),
+    UseCase("house-search-los-angeles", "us", 7, "House search on whichever site is popular in that market",
+            "Find me houses to rent in Los Angeles, two bedrooms, under $3,500, pets allowed, and not "
+            "on a main road.",
+            "The agent picks a site people actually use in that market, applies the filters there, and "
+            "reports which constraint each candidate meets."),
 ]

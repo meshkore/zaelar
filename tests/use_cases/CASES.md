@@ -39,10 +39,13 @@ The line the operator drew, and it is the one to hold:
 What this means for this suite, concretely, because a scoreboard that rewards overfitting will get it:
 
 1. A green case proves the mechanism worked ONCE, on one set of data. It is evidence, not a
-   guarantee.
-2. Before a case is marked ✅ it should also hold when a detail is changed — another city, another
-   date shape, another site, a condition added. If it only survives its own fixture, the fix taught
-   the engine the fixture.
+   guarantee — but one concrete case, driven end to end, is what we grade. No variant rounds, no
+   mutation matrix: the operator's call, 2026-08-20.
+2. Coverage grows by COMPLEXITY, not by re-running the same case with the serial numbers filed off.
+   Tiers 1→7 are that ladder, and the board works them in ascending order. The hardest shapes —
+   several filters that must all hold at once (pool AND free parking AND wifi AND pets AND coast, not
+   inland), a marketplace with its own filter controls, a market whose popular site the agent has to
+   pick itself — are deliberately last, and are registered as tier 7 rather than improvised later.
 3. Findings should name the MECHANISM that failed (extraction, delivery, prompt, budget) rather than
    the scenario's subject. "The browser's extraction is dropped when the payload is truncated" travels
    to every case; "it did not find a 4-star hotel" travels nowhere.

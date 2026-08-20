@@ -97,6 +97,29 @@ PROFILES: dict[str, Profile] = {
     "book-barber-slot": Profile(
         clarifications=(("qué peluquería", "la de siempre"), ("qué hora del sábado", "por la mañana, temprano mejor")),
         signals=("worker",), turns=8),
+    # ── Maximum complexity, kept for LAST (operator, 2026-08-20): several filters that must ALL hold at
+    # once, and some of them live behind the site's own controls rather than in the text of a query.
+    "hotel-many-filters-at-once": Profile(
+        clarifications=(("qué costa o zona", "mediterránea, lo que pille cerca"),
+                        ("cuántas noches", "tres, del viernes al lunes")),
+        success_extra="TODOS los filtros a la vez o no vale: piscina, parking gratis, wifi y perro. Un "
+                      "candidato que cumpla tres de cuatro NO es un resultado — y un filtro que no se haya "
+                      "podido comprobar hay que decirlo, no darlo por bueno. «Nada de interior» es una "
+                      "exclusión, no una preferencia.",
+        signals=("worker", "widget"), turns=10),
+    "used-car-search-wallapop": Profile(
+        clarifications=(("de qué zona", "de por aquí, hasta 50 km"),
+                        ("algún modelo en concreto", "me da igual el modelo, mientras cumpla lo que he dicho")),
+        success_extra="El precio y los kilómetros salen del ANUNCIO, no del modelo. Un anuncio que no diga "
+                      "los km no cumple el filtro: no se ofrece como si lo cumpliera.",
+        signals=("worker", "widget"), turns=10),
+    "house-search-los-angeles": Profile(
+        clarifications=(("which neighborhoods", "anything reasonable, I don't know the city well"),
+                        ("when do you need it", "next month, flexible by a couple of weeks")),
+        success_extra="Picking a site people actually use in that market is part of the task. Each candidate "
+                      "has to say WHICH constraints it meets; 'not on a main road' is the one most likely to "
+                      "be unverifiable, and saying so is the correct answer, not guessing.",
+        signals=("worker", "widget"), turns=10),
     "book-hotel-night-known": Profile(
         clarifications=(("cuántas personas", "una, solo yo"), ("tipo de habitación", "la estándar, me da igual")),
         success_extra="El hotel ya está NOMBRADO: buscar alternativas en vez de ir a ese hotel es no hacer lo "
