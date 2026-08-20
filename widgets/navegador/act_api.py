@@ -14,12 +14,26 @@ router = APIRouter()
 
 def _shot_path(task_id: str) -> str:
     """Absolute PNG path for this tab's viewport, written by TaskBrowser._capture after each action, so the worker
-    can read it with Read. Best-effort: if anything fails, return '' and the worker continues with text snapshot."""
+    can read it with Read. Best-effort: if anything fails, return '' and the worker continues with text snapshot.
+
+    V2-205 — it used to return the path whether or not the PNG was THERE, and `nav_cli` turns a non-empty value
+    into an instruction: «MÍRALA con Read "<path>"». So every action taken before the first successful capture
+    —or after one that failed— sent the worker to read a file that does not exist. Measured in two independent
+    runs (`find-theatre-tickets__es` 15:06, and the same family reported on `cheapest-monitor`):
+
+        worker/task «📄 archivo ⚠️ error»: File does not exist.
+        Note: your current working directory is /private/var/.../T/zaelar-workers/2
+
+    The path was never the problem — it is absolute, and V2-117 confirmed the CLI already allows reading outside
+    the working directory. What was wrong is ADVERTISING it. The text snapshot is the documented fallback right
+    here in this docstring; an empty return takes it, and `nav_cli` simply prints no VISTA line.
+    """
     try:
         import os
         from widgets import store
         from widgets.navegador import owner
-        return os.path.abspath(f"{store.data_dir(owner.WID)}/shot-{task_id}.png")
+        p = os.path.abspath(f"{store.data_dir(owner.WID)}/shot-{task_id}.png")
+        return p if os.path.isfile(p) else ""
     except Exception:
         return ""
 

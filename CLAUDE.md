@@ -1275,6 +1275,23 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Le decíamos al worker que mirara una captura que no estaba en disco** (`widgets/navegador/act_api.py` +
+  `nucleo/nav_cli.py`, V2-205, 2026-08-20). `_shot_path()` devolvía la ruta del PNG **estuviera o no el fichero**,
+  y `nav_cli` convierte cualquier valor no vacío en una ORDEN: «MÍRALA con Read "<ruta>"». Así que toda acción
+  anterior a la primera captura buena —o posterior a una que falló— mandaba al worker a leer nada. Medido en
+  `find-theatre-tickets__es` (15:06): `worker/task «📄 archivo ⚠️ error»: File does not exist. Note: your current
+  working directory is /private/var/…/T/zaelar-workers/2`.
+  - **La nota del cwd es lo que lo hacía parecer un problema de ruta, y no lo es**: la ruta es ABSOLUTA y V2-117
+    ya verificó que el CLI permite leer fuera del directorio de trabajo. El fallo era ANUNCIARLA sin comprobar.
+    El snapshot de texto es el fallback que el propio docstring de `_shot_path` documentaba desde siempre.
+  - **Un `look` sin captura SÍ lo dice.** Ese comando existe para producir una, así que volver sin ella no es
+    «nada que contar»: es el fallo de justo lo que se pidió. Con `ok` y silencio el worker lee éxito y pierde el
+    camino de visión sin enterarse. La marca de que la respuesta viene de `look` es `viewport`, así que un
+    `snapshot` normal no dice nada — con test de sensibilidad por los dos lados.
+  - **NO es el mismo defecto que el `informe.json` de V2-203**, aunque los dos se lean como «el worker no
+    encuentra un fichero»: allí no ocurrió la escritura del PROPIO worker, aquí le apuntamos a la nuestra. Mismo
+    síntoma, dos raíces — y las dos aparecieron en corridas independientes el mismo día.
+
 - **El puente del payload contestaba con el OSError pelado, y el worker lo leía como un callejón sin salida**
   (`nucleo/widget_cli.py`, V2-203, 2026-08-20). Medido en `cheapest-monitor` (ronda 21):
   `Exit code 2 no puedo leer el payload de informe.json: [Errno 2] No such file or directory` — nada entregado

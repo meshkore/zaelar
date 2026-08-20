@@ -76,6 +76,13 @@ def _print_state(res: dict) -> None:
         vp = res.get("viewport") or {"width": 1280, "height": 800}
         print(f"VISTA (captura {vp['width']}×{vp['height']} px — MÍRALA con Read \"{shot}\" y actúa con "
               f"click_at/type_at usando las coordenadas en píxeles): {shot}")
+    elif res.get("viewport"):
+        # V2-205 — `look` EXISTS to produce a capture, so a `look` that returns none is not «nothing to say»: it
+        # is a failure of the very thing that was asked for. `viewport` is what marks the answer as coming from
+        # that command, so this cannot fire on a plain `snapshot`. Without the line the worker gets `ok` and
+        # silence, which reads as success, and it loses the vision path without ever knowing.
+        print("⚠️ AVISO: la captura no llegó a escribirse, así que NO hay vista que mirar en este paso. "
+              "Sigue con los ELEMENTOS de abajo (camino de texto) o vuelve a intentar `look` tras navegar.")
     els = res.get("elements") or ""
     print("ELEMENTOS INTERACTIVOS (usa el número [ref] con click/type):\n" + (els or "(ninguno)"))
 
