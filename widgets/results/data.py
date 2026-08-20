@@ -85,8 +85,13 @@ _MAX_IMAGES = 12         # the detail page's photo gallery
 _MAX_FACTS = 30          # label→value sheet (check-in, port, cancellation policy...)
 _MAX_FACT_CHARS = 200
 
-# ── THE OTHER THREE TABS ─────────────────────────────────────────────────────────────────────────────────────
-_TABS = ("results", "summary", "sources", "criteria")
+# ── THE TABS THAT ARE NOT THE LIST ───────────────────────────────────────────────────────────────────────────
+# «process» ES una pestaña como las demás: si el operador la elige, su elección se PERSISTE igual que las
+# otras. Faltaba de esta tupla y el clic volvía `{"ok": false, "error": "pestaña «process» desconocida"}` —
+# la pestaña se pintaba (el widget la conmuta en el acto) y al siguiente refresco de datos, que durante un
+# encargo vivo llega con cada fase, el derivado se lo llevaba de vuelta a Resultados. Un clic que no se
+# guarda no falla con ruido: falla arrancándole al operador de donde había decidido mirar (V2-227 C).
+_TABS = ("process", "results", "summary", "sources", "criteria")
 
 # A SOURCE is a website/origin that was attempted, with what HAPPENED there. Status is a closed vocabulary because
 # color depends on it and, above all, reading does: "could not enter" and "entered but was capped at 50" are VERY
@@ -487,6 +492,46 @@ def _empty() -> dict:
     return {"title": "Resultados", "subtitle": "", "items": []}
 
 
+_MAX_PHASES = 40           # el mismo anillo que guarda el registro vivo (`dispatch.PHASES_KEPT`)
+_MAX_PHASE_CHARS = 160
+
+
+def _clean_phases(raw) -> list:
+    """Frases de proceso, acotadas. Vienen ya legibles de `nucleo/workers/progress.py`; aquí no se interpreta
+    ninguna — se recortan y se filtran las vacías, que es todo lo que una superficie de presentación puede hacer
+    con el relato de otro."""
+    if isinstance(raw, str):
+        raw = [raw]
+    if not isinstance(raw, (list, tuple)):
+        return []
+    return [str(x)[:_MAX_PHASE_CHARS] for x in raw if str(x or "").strip()][-_MAX_PHASES:]
+
+
+def _progress(data: dict) -> dict:
+    """`{alive, phases}` — DERIVADO en cada lectura, nunca guardado, igual que `counts` (V2-227 ámbito C).
+
+    El dueño de «qué está pasando» es el registro vivo del dispatcher: la hoja lo LEE. Guardarlo aquí sería
+    tener el mismo estado en dos sitios, y el que se queda en pantalla siempre es el rancio.
+
+    Con el encargo TERMINADO el registro ya no existe, así que se cae al historial que la propia hoja guardó al
+    cerrarse (`process`). Esa es la única parte persistida y tiene su razón: el informe sobrevive a un reinicio,
+    y un informe cuya explicación de cómo se llegó a él ha desaparecido cuenta la mitad de lo que pasó.
+
+    Fail-soft: sin dispatcher (un test de la hoja sola, el widget montado fuera del motor) esto es la historia
+    guardada y `alive: False`, que es exactamente lo que se ve — no un error.
+    """
+    live = {}
+    try:
+        from nucleo import dispatch as _disp
+        live = _disp.sheet_progress() or {}
+    except Exception:  # noqa: BLE001
+        live = {}
+    if live.get("alive"):
+        return {"alive": True, "phases": _clean_phases(live.get("phases"))}
+    stored = _clean_phases(data.get("process"))
+    return {"alive": False, "phases": _clean_phases(live.get("phases")) or stored}
+
+
 def _counts(data: dict) -> dict:
     """DERIVED counts, intentionally separate from reported ones. "How many were explored" is only known by the
     worker (reported in summary); "how many are on screen" and "how many sources" are known by the sheet. Mixing them
@@ -525,7 +570,13 @@ def view_data(q: str = "") -> dict:
         data.setdefault("note", "Sin resultados todavía.")
         data.pop("view", None)                   # no items ⇒ there is nothing to be showing the detail OF
         data.pop("focus", None)
+    stored = _clean_phases(data.get("process"))
+    if stored:
+        data["process"] = stored
+    else:
+        data.pop("process", None)            # sin historial, la hoja en blanco sigue en blanco
     data["counts"] = _counts(data)
+    data["progress"] = _progress(data)
     return data
 
 
@@ -534,6 +585,7 @@ def _save(data: dict) -> None:
     anything else changes (an old number on screen is worse than no number)."""
     d = dict(data)
     d.pop("counts", None)
+    d.pop("progress", None)                  # derivado del registro vivo: guardarlo es congelar un «Trabajando…»
     for k in ("sources", "summary", "criteria"):
         if not d.get(k):
             d.pop(k, None)                       # remove empty sections: the blank sheet remains blank
@@ -558,6 +610,55 @@ def _find(items: list[dict], title: str = "", index=None) -> dict | None:
         if t in (it.get("title") or "").strip().lower():
             return it
     return None
+
+
+# ── EL ENCARGO ABRE Y CIERRA LA HOJA (V2-227 ámbito C) ───────────────────────────────────────────────────────
+# Las dos únicas puertas que el dispatcher usa para que el operador VEA el trabajo mientras pasa. No son acciones
+# del vocabulario de `apply_action`: nadie las pide desde un prompt, las dispara el ciclo de vida del encargo —
+# meterlas ahí las pondría al alcance de un worker, que es justo quien no debe decidir cuándo se estrena la hoja.
+
+def begin_task(title: str = "", fresh: bool = True) -> dict:
+    """El encargo acaba de salir: la hoja se abre en PROCESO, sin nada dentro todavía.
+
+    `fresh` ESTRENA la hoja (título = lo que pidió el operador, sin resultados ni historial de la búsqueda
+    anterior). Se apaga cuando otro encargo sigue escribiendo aquí: vaciarla entonces le borraría a ése lo que ya
+    había entregado, y la hoja es única mientras C4 («dos búsquedas = dos hojas») no exista.
+
+    En los dos casos se quita la pestaña PERSISTIDA. Es lo que hace que la hoja se abra en Proceso: `data.tab`
+    manda sobre el derivado —y debe mandar, es donde el operador decidió mirar— pero esa decisión era del encargo
+    ANTERIOR, y arrastrarla dejaría al operador mirando una lista vacía mientras el relato pasa en la de al lado.
+    """
+    data = _empty() if fresh else view_data()
+    if fresh:
+        t = " ".join(str(title or "").split())
+        if t:
+            data["title"] = _clip(t, "sheet_title")
+    else:
+        data = {k: v for k, v in data.items() if k not in ("counts", "progress")}
+    data.pop("tab", None)
+    data.pop("view", None)                   # el detalle abierto era de un resultado del encargo anterior
+    data.pop("focus", None)
+    data.pop("process", None)                # el relato que viene es el de ESTE encargo
+    _save(data)
+    return {"ok": True, "fresh": bool(fresh), "title": data.get("title", "")}
+
+
+def end_task(phases) -> dict:
+    """El encargo terminó: se guarda su relato con el informe y se para el loader.
+
+    Se PERSISTE porque la hoja lo es: un informe sobrevive a un reinicio y su explicación de cómo se llegó a él
+    tiene que sobrevivir con él. Y la escritura es además lo que APAGA el loader — el emisor de fases solo dispara
+    al CAMBIAR una fase, así que sin este guardado la tarjeta seguiría diciendo «Trabajando…» sobre un worker que
+    ya no existe.
+    """
+    lines = _clean_phases(phases)
+    data = {k: v for k, v in view_data().items() if k not in ("counts", "progress")}
+    if lines:
+        data["process"] = lines
+    else:
+        data.pop("process", None)            # sin una sola fase no hay historia que contar; no se inventa una
+    _save(data)
+    return {"ok": True, "phases": len(lines)}
 
 
 def ref_index() -> list[dict]:
@@ -716,6 +817,7 @@ _TAB_ALIASES = {
     "sumario": "summary", "resumen": "summary", "estado": "summary", "progreso": "summary",
     "fuentes": "sources", "fuente": "sources", "webs": "sources", "paginas": "sources", "páginas": "sources",
     "criterios": "criteria", "criterio": "criteria", "brief": "criteria", "encargo": "criteria",
+    "proceso": "process", "process": "process", "curso": "process", "avance": "process",
 }
 
 
@@ -849,7 +951,8 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         tab = str(payload.get("tab") or payload.get("name") or "").strip().lower()
         tab = _TAB_ALIASES.get(tab, tab)
         if tab not in _TABS:
-            return {"ok": False, "error": f"pestaña «{tab}» desconocida (results · summary · sources · criteria)"}
+            return {"ok": False,
+                    "error": f"pestaña «{tab}» desconocida (process · results · summary · sources · criteria)"}
         data = view_data()
         data["tab"] = tab
         if tab != "results":

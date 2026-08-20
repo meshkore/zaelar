@@ -881,3 +881,67 @@ def test_the_stall_threshold_has_ONE_definition():
     from nucleo import dispatch as d
     from nucleo.loop import OrchestratorLoop
     assert OrchestratorLoop()._stuck_secs == d.STUCK_SECS
+
+
+# ── V2-227 ámbito C: encargar con superficie de HOJA la ABRE, por el camino REAL ────────────────────────────────
+# El contrato de pantalla se prueba renderizando (`tests/browser/e2e/results/render_process_tab.py`) y el cableado
+# de `progress` en `tests/browser/unit/widgets/test_sheet_is_the_live_process_surface.py`. Lo que solo se puede
+# probar AQUÍ es que alguien llame a `_sheet_open` cuando de verdad entra una escalada: llamarla a mano en el test
+# de la hoja pasaría igual con la línea de `run_listener` borrada — la lección de V2-199, que un test que no
+# recorre el camino real prueba que el código compila.
+def test_listener_opens_the_sheet_when_the_errand_lands_on_it(fresh_db, fake_backend, monkeypatch):
+    from nucleo.flash import escalate
+
+    monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
+    opened: list = []
+    begun: list = []
+
+    def _fake_emit(kind, label, **kw):
+        if kind == "widget" and label == "show":
+            opened.append(kw.get("extra", {}).get("id"))
+    monkeypatch.setattr("voice.observer.emit", _fake_emit)
+    monkeypatch.setattr("widgets.results.data.begin_task",
+                        lambda title="", fresh=True: begun.append((title, fresh)))
+
+    async def run():
+        bus.reset(); escalate.reset()
+        stop = asyncio.Event()
+        task = asyncio.create_task(dispatch.run_listener(stop))
+        await asyncio.sleep(0.05)
+        escalate.escalate_to_slowbrain("Busca hoteles de 4 estrellas en Sevilla",
+                                       context={"kind": "web", "surface": "lista"})
+        await asyncio.sleep(0.2)
+        stop.set(); await asyncio.sleep(0.05); task.cancel()
+
+    asyncio.run(run())
+    assert "results" in opened, "una escalada con superficie de hoja tiene que ABRIRLA al encargar"
+    assert begun and begun[0][0] == "Busca hoteles de 4 estrellas en Sevilla"
+    assert begun[0][1] is True, "sin otro encargo vivo en la hoja, se estrena"
+
+
+def test_listener_does_not_touch_the_sheet_for_an_errand_that_is_only_spoken(fresh_db, fake_backend, monkeypatch):
+    """La otra dirección: un encargo que se cuenta por voz no abre ni vacía una hoja que el operador puede tener
+    delante con otra cosa."""
+    from nucleo.flash import escalate
+
+    monkeypatch.setattr(dispatch, "_SESSIONS", {}, raising=False)
+    opened: list = []
+    begun: list = []
+    monkeypatch.setattr("voice.observer.emit",
+                        lambda kind, label, **kw: opened.append(kw.get("extra", {}).get("id"))
+                        if (kind, label) == ("widget", "show") else None)
+    monkeypatch.setattr("widgets.results.data.begin_task",
+                        lambda title="", fresh=True: begun.append(title))
+
+    async def run():
+        bus.reset(); escalate.reset()
+        stop = asyncio.Event()
+        task = asyncio.create_task(dispatch.run_listener(stop))
+        await asyncio.sleep(0.05)
+        escalate.escalate_to_slowbrain("Cuéntame qué tiempo hace", context={"surface": "voz"})
+        await asyncio.sleep(0.2)
+        stop.set(); await asyncio.sleep(0.05); task.cancel()
+
+    asyncio.run(run())
+    assert "results" not in opened
+    assert begun == []

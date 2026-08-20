@@ -586,6 +586,88 @@ def record_by_nav_task(nav_tid) -> "SessionRecord | None":
 PHASES_KEPT = 40          # lo que cabe en una pestaña sin convertirse en un log
 
 
+# ── la HOJA de resultados como superficie del progreso (V2-227 ámbito C) ──────────────────────────────────────
+# El registro vivo es el ÚNICO dueño de «qué está pasando». La hoja no lo guarda: lo LEE en cada `view_data`,
+# igual que `counts`. Guardarlo sería reproducir el estado en dos sitios y quedarse con la copia rancia en
+# pantalla — que es exactamente el fallo que este ámbito existe para quitar.
+def _sheet_sessions() -> list:
+    """Las sesiones VIVAS cuya superficie es la hoja (`lista`/`item`). El resto de encargos no pintan aquí."""
+    return [r for r in list(_SESSIONS.values())
+            if r.status in LIVE_SESSION_STATES and surfaces.opens_sheet(getattr(r, "surface", ""))]
+
+
+def _phrases(rec) -> list:
+    """Las fases de un registro, ya legibles y en orden, sin el andamio `{t, s}`."""
+    out = []
+    for p in list(getattr(rec, "phases", None) or []):
+        s = str((p.get("s") if isinstance(p, dict) else p) or "").strip()
+        if s:
+            out.append(s)
+    return out
+
+
+def sheet_progress() -> dict:
+    """`{alive, phases}` — lo que la pestaña de PROCESO de la hoja tiene que pintar AHORA MISMO.
+
+    `alive` es «hay un encargo en marcha», no «ha dicho algo»: la hoja se abre antes de la primera fase, y ese
+    hueco de unos segundos es justo cuando el operador está mirando la pantalla en blanco que pidió quitar.
+
+    Con DOS encargos vivos hacia la hoja las fases se mezclan EN ORDEN DE TIEMPO en vez de enseñar solo uno.
+    Es la respuesta honesta mientras la hoja sea única (C4, «dos búsquedas = dos hojas», es una pieza aparte):
+    quedarse con un encargo escondería en silencio que hay otro trabajando, y el módulo de evidencia ya dejó
+    escrito por qué eso es peor que un relato entrelazado.
+    """
+    rows = _sheet_sessions()
+    if not rows:
+        return {"alive": False, "phases": []}
+    seq = []
+    for r in rows:
+        for p in list(getattr(r, "phases", None) or []):
+            s = str((p.get("s") if isinstance(p, dict) else p) or "").strip()
+            if s:
+                seq.append((float(p.get("t") or 0.0) if isinstance(p, dict) else 0.0, s))
+    seq.sort(key=lambda x: x[0])
+    return {"alive": True, "phases": [s for _, s in seq][-PHASES_KEPT:]}
+
+
+def _sheet_open(rec) -> None:
+    """ABRIR la hoja al ENCARGAR, que es el gesto entero del ámbito C: sin esto el operador no ve nada hasta que
+    hay respuesta, y el contrato de pantalla se queda cumplido en un test y ausente en el producto.
+
+    La hoja se ESTRENA (título = lo que pidió, sin la pestaña que eligió para el encargo anterior) solo si no hay
+    ya otro encargo vivo pintando en ella: reutilizarla sin vaciarla enseñaría los resultados de la búsqueda
+    anterior como si fueran los de ésta, y vaciarla con otro worker escribiendo dentro le borraría a ése lo que
+    ya había entregado. Todo fail-soft: un fallo aquí no puede tumbar una escalada.
+    """
+    fresh = not _sheet_sessions()          # se llama ANTES de registrar la nueva: aquí solo hay OTRAS sesiones
+    try:
+        from widgets.results import data as _sheet
+        _sheet.begin_task((rec.goal or "").strip(), fresh=fresh)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        from voice.observer import emit
+        emit("widget", "show", extra={"id": "results", "src": f"worker:{rec.task_id}"})
+    except Exception:
+        pass
+
+
+def _sheet_close(rec) -> None:
+    """El encargo ACABÓ: se para el loader y la historia se queda con el informe.
+
+    Dos cosas que solo se pueden hacer aquí. (1) Nadie más avisa del final: el emisor de fases solo dispara al
+    CAMBIAR una fase, así que sin esta escritura la tarjeta seguiría diciendo «Trabajando…» sobre un worker que
+    ya no existe. (2) El registro vivo se tira al terminar, y con él las frases; la hoja SÍ es persistente —un
+    informe que sobrevive a un reinicio con la explicación de cómo se llegó a él borrada cuenta la mitad.
+    """
+    try:
+        from widgets.results import data as _sheet
+        _sheet.end_task(_phrases(rec))
+    except Exception:  # noqa: BLE001
+        pass
+
+
+
 def session_phase(tid, phase: str) -> None:
     """Compat V2-036: reporte de fase EXPLÍCITO del worker (hbnote). Actualiza el registro RAM."""
     r = _SESSIONS.get(str(tid))
@@ -1521,6 +1603,10 @@ async def _run_session(task: "Task") -> None:
                     pass
             _remember_ended(rec, resuming=_will_resume)   # V2-199: el final es un HECHO — antes de tirar el registro
             _SESSIONS.pop(key, None)
+            # V2-227 ámbito C — DESPUÉS del pop, nunca antes: la hoja lee el registro vivo, así que mientras esta
+            # sesión siguiera dentro `alive` seguiría diciendo que sí. Y no al reanudar: el encargo continúa.
+            if not _will_resume and surfaces.opens_sheet(getattr(rec, "surface", "")):
+                _sheet_close(rec)
             try:
                 from nucleo import worker_api
                 worker_api.purge_task(key)   # §v3·L: sin asks pendientes de una sesión terminada
@@ -1805,6 +1891,10 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
             # vocabulario— se deriva del kind. Sellar tarde significaría abrir la hoja cuando ya hay respuesta,
             # que es exactamente lo que este cambio existe para no hacer.
             surfaces.set_once(rec, ctx.get("surface"))
+            # …y si esa superficie es la hoja, se ABRE YA, vacía y con la pestaña de proceso. Aquí, y no en la
+            # entrega, es donde el operador deja de mirar una pantalla en blanco.
+            if surfaces.opens_sheet(getattr(rec, "surface", "")):
+                _sheet_open(rec)
             _SESSIONS[key] = rec
             rec.task = asyncio.create_task(_run_session(task), name=f"worker-session-{key}")
             sync_state()

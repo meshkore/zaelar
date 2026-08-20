@@ -578,6 +578,23 @@ DOMAINS: list[dict] = [
         {"id": "4.27", "title": "El compositor REPORTA el proveedor muerto y releva (no solo lo lee)",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_the_composer_reports_a_dead_provider.py"]},
+        # V2-227 ámbito C — el contrato de PANTALLA (4.29) monta `widget.js` en una página en blanco y le pasa a
+        # mano tres cargas útiles: prueba que la hoja se COMPORTA cuando le llegan los datos, no que alguien los
+        # produzca. Faltaba justo eso — `view_data()` no devolvía `progress` y nadie abría la hoja al encargar —,
+        # o sea un contrato cumplido en un test y ausente en el producto. Este nodo es el CABLEADO: el progreso
+        # derivado del registro vivo (nunca guardado), la hoja abierta al ENCARGAR, el clic del operador en
+        # «Proceso» persistido, y el final que para el loader y deja la historia con el informe.
+        {"id": "4.28", "title": "La hoja es la superficie del PROGRESO EN VIVO: se abre al encargar, deriva las "
+                                "fases del registro vivo y al acabar conserva la historia",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/widgets/test_sheet_is_the_live_process_surface.py"]},
+        # Del arnés (`arnes-use-cases`), no se toca desde el motor: es la especificación EJECUTABLE de lo que ve
+        # una persona esperando. RENDERIZA a propósito — un test de fuente puede dar por buena una pestaña que no
+        # pinta nada o un loader que está en el DOM y no anima (la lección del orbe del móvil, nodo 4.19).
+        {"id": "4.29", "title": "Contrato de PANTALLA de la hoja de proceso RENDERIZADO (pestaña activa, fases en "
+                                "orden, loader ANIMANDO, salto al primer resultado, historia al acabar)",
+            "ch": UNIT, "live": True,
+            "cmd": "./.venv/bin/python tests/browser/e2e/results/render_process_tab.py"},
         {"id": "4.19", "title": "Shell MÓVIL RENDERIZADO: el orbe centrado y PINTADO, la barra alcanzable",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/mobile/render_dock.py"},
