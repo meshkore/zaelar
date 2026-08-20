@@ -1275,6 +1275,30 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Una tarea de fondo MUERTA no es una pregunta pendiente** (`nucleo/flash/prompt.py`, V2-221, 2026-08-20). El
+  arnés leyó el system prompt de CADA turno de `hotel-under-15-days` (19:12): turnos 2 al 8, **ocho seguidos**,
+  con «TAREAS DE FONDO — YA ACABADAS: «Reservar una noche…» **FALLÓ**» delante, contestando «sigo con ello, te
+  aviso». Sin muro y sin pregunta de por medio. Eso **parte el problema en dos mitades que se venían
+  confundiendo**: la ENTREGA ya estaba (V2-198 pone el hecho en el prompt, V2-220 hace que un aviso proactivo
+  llegue por el canal de texto — el teatro lo demuestra cronometrado, 7 s del muro a la boca) y lo que queda es
+  la **OBEDIENCIA**.
+  - **Causa**: la instrucción de V2-198 era CONDICIONAL —«si el operador pregunta por ello»— y una tarea muerta
+    no es una pregunta pendiente, es una persona esperando algo que ya no va a llegar. Mismo corte que V2-185
+    con el muro y por lo mismo: **mientras la mitad tranquilizadora sea la que dice qué HACER, el modelo cree a
+    esa**. No es pereza del modelo: se le daba una instrucción que no aplicaba y ninguna que sí.
+  - La cara nueva trae las cuatro cosas que las anteriores ya enseñaron que hacen falta: **nombra la tarea**
+    (V2-193), se dice en ESE turno aunque no pregunte, **nombra la frase que sustituye** (sin la frase dentro, el
+    modelo no tiene con qué contrastarse) y ofrece salida.
+  - Y una cláusula que no es adorno: el registro tiene TTL de 5 min, así que la línea viaja en varios turnos —
+    sin **«si ya se lo dijiste, no lo repitas»** el arreglo del silencio se convierte en el disco rayado que
+    V2-189 midió.
+  - **Es un PARTIR, no un reescribir**: una tarea que acabó BIEN conserva la redacción condicional (ahí «si
+    pregunta» es verdad, y gritarlo empujaría a relatar contabilidad que nadie pidió) y una CANCELADA no cuenta
+    como fallo (V2-196: pararse no es fallar).
+  - Nodo 4.23, 9 tests. **Lo que NO arregla**: que el prompt lo diga mejor no garantiza que el turno lo diga —
+    misma frontera que dejé escrita en V2-213. Si la próxima ronda enseña esta cara y el turno calla igual, lo
+    que falta ya no es información ni redacción: es que la decisión salga del prompt y pase a mecanismo.
+
 - **El aviso proactivo existía y no tenía dónde llegar** (`voice/proactive.py`, V2-220, 2026-08-20). El arnés
   pidió «si el muro merece un system note, un worker que muere en sus argumentos también». El mecanismo YA
   existía —el bucle avisa del atasco desde V2-073, por `proactive.notify()`— y lo roto era esa función:
