@@ -950,7 +950,12 @@ def worker_deaths(db_path, *, since: float = 0.0) -> dict:
                 d = json.loads(raw) or {}
             except Exception:
                 continue
-            if not d.get("ok") and str(d.get("status") or "") not in ("cancelled",):
+            # Same exclusions as `worker_health`, and they have to agree: on 2026-08-21 this listed a
+            # provider handoff as dead while `worker_health` had already learned to call it `relayed`, so
+            # one round reported both «0 errored» and «dead: [1]». Two columns disagreeing about the same
+            # worker is worse than either being wrong — the reader has to decide which to believe.
+            if (not d.get("ok") and str(d.get("status") or "") not in ("cancelled", "relevada")
+                    and not d.get("handoff")):
                 out["dead"].append(str(d.get("id")))
         for ts, label, span in con.execute(
                 "SELECT ts_ms, label, span FROM events WHERE topic = 'observer' AND kind = 'task' "

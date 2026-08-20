@@ -199,3 +199,15 @@ def test_a_provider_relay_is_not_a_death(tmp_path):
     got = verify.worker_health(db)
     assert got["relayed"] == 1 and got["errored"] == 1, got
     assert got["still_running"] == 0, "a relay is accounted for, not left hanging"
+
+
+def test_the_two_columns_agree_about_a_relay(tmp_path):
+    """Two columns disagreeing about the same worker is worse than either being wrong: the reader has to
+    decide which to believe. A round reported «0 errored» and «dead: [1]» for the same handoff."""
+    rows = [("worker.spawned", None, None, '{"id":"1"}'),
+            ("worker.done", None, None, '{"id":"1","ok":false,"status":"relevada","handoff":"deepseek"}')]
+    db = _db(tmp_path, rows)
+    health = verify.worker_health(db)
+    deaths = verify.worker_deaths(db)
+    assert health["relayed"] == 1 and health["errored"] == 0
+    assert deaths["dead"] == [], "a relay is not a corpse in either column"
