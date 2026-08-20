@@ -1275,6 +1275,23 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Una sesión de WORKER que acaba desaparecía del estado** (`nucleo/dispatch.py` + `prompt.py`, V2-198,
+  2026-08-20). Medido: con `status=running` el estado dice «TAREAS DE FONDO EN CURSO»; con `status=done`
+  **no dice NADA** — ni que acabó, ni cómo, ni con qué. Es literalmente lo que V2-150 cerró para las tareas de
+  navegador («se le había quitado de delante lo único que podía contradecirle») **un nivel por encima, y
+  peor**: una tarea de navegador solo existe con `kind=web`, mientras que **toda** escalada abre una sesión de
+  worker — así que los casos que se resuelven por BÚSQUEDA (`cheapest-monitor`) o por MEMORIA
+  (`remember-and-remind-deadline`) no tienen tarea de navegador y para ellos V2-150 nunca se aplicó. Son justo
+  los que el arnés mide con «el usuario esperando sin feedback» y «espera infinita».
+  - Misma forma que V2-197: **cuatro filtros** escribiendo `("queued","running")` a mano y ninguno para el otro
+    lado. Unificados en `LIVE_SESSION_STATES`/`ENDED_SESSION_STATES`, con un test que falla si aparece un
+    estado sin clasificar y otro que prohíbe volver a enumerarlos a mano.
+  - `recently_ended_sessions()` (TTL 5 min) y **cada final sonando a lo que fue** — TERMINÓ / se PARÓ / FALLÓ:
+    «terminó» invita a pedir el resultado, «se paró» a preguntar si se retoma, «falló» a intentar otra cosa. Si
+    trajo algo, la línea manda DÁRSELO.
+  - **Sexto de la serie de «hechos que desaparecen» y el primero encontrado por ANALOGÍA, no por veredicto**:
+    no había corrida que lo señalara — había un patrón con cinco instancias y un registro hermano sin revisar.
+
 - **Dos listas de estados que había que mantener sincronizadas — y `open` llevaba en el hueco desde siempre**
   (`widgets/navegador/tasks.py`, V2-197, 2026-08-20). Había **tres** copias a mano de subconjuntos del mismo
   conjunto cerrado: `active_summaries()`, `recently_finished()` y el sello de `set_status()`. Un estado que no

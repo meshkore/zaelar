@@ -220,6 +220,11 @@ DOMAINS: list[dict] = [
         # asumía 4 chars/token (inglés) cuando el input real va a 3,36 y cobraba un 16% de menos.
         {"id": "2.14", "title": "Un turno CANCELADO también se factura (y con el estimado bien calibrado)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_cancelled_turn_billing.py"]},
+        # 2026-08-20: una SESIÓN de worker que acaba desaparecía del estado sin dejar rastro — el mismo hueco
+        # que V2-150 cerró para las tareas de navegador, un nivel por encima y peor: una tarea de navegador
+        # solo existe con kind=web, y TODA escalada abre una sesión.
+        {"id": "2.18", "title": "El final de una sesión de worker es un HECHO (y sus estados, una sola lista)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_ended_session_is_a_fact.py"]},
         {"id": "2.15", "title": "Idioma del operador en un canal SIN voz (primera ejecución)", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_first_run_language.py"]},
         # 2026-08-20: el relleno de nunca-mudo decía CUATRO veces la misma frase («Vale, dame un momento que lo

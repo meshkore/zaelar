@@ -789,6 +789,34 @@ def live_state() -> str:
             _fc_drop.clear_drops()
     except Exception:
         pass
+    # V2-198 — una SESIÓN de worker que acabó también es un hecho. `pending_summaries()` solo trae las vivas,
+    # así que al terminar desaparecía del estado sin dejar rastro y el turno se quedaba con su propia memoria de
+    # haberla arrancado. Es lo que V2-150 cerró para las tareas de navegador… un nivel por encima, y peor: una
+    # tarea de navegador solo existe con `kind=web`, mientras que TODA escalada abre una sesión de worker.
+    try:
+        from nucleo import dispatch as _disp_end
+        _ended = _disp_end.recently_ended_sessions()
+        if _ended:
+            _eb = []
+            for _e in _ended:
+                _st = str(_e.get("status") or "")
+                _w = f"«{(_e.get('goal') or 'tarea')[:60]}»"
+                if _st == "cancelled":
+                    _w += " se PARÓ (cancelada)"
+                elif _st == "error" or not _e.get("ok"):
+                    _w += " FALLÓ"
+                else:
+                    _w += " TERMINÓ"
+                if _e.get("summary"):
+                    _w += f" — {_e['summary'][:110]}"
+                _eb.append(_w)
+            lines.append(
+                "TAREAS DE FONDO — YA ACABADAS: " + "; ".join(_eb) + ". Eso YA NO está en marcha: si el "
+                "operador pregunta por ello, di cómo acabó y con qué —y si trajo algo, DÁSELO— en vez de "
+                "«sigo con ello», que es contar algo que el sistema da por acabado. Si acabó sin nada útil, "
+                "dilo y ofrece el siguiente paso.")
+    except Exception:
+        pass
     try:
         # Hermana de la de arriba, para una TAREA irreversible parada por el confirm-gate (V2-126). Sin ella el
         # cerebro no tenía forma de saber que hay algo esperando su sí: la tarea desaparece del registro al

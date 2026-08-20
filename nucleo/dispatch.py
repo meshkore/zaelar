@@ -390,7 +390,7 @@ def active_sessions() -> list[dict]:
     now = time.time()
     out = []
     for r in _SESSIONS.values():
-        if r.status not in ("queued", "running"):
+        if r.status not in LIVE_SESSION_STATES:
             continue
         out.append({
             "id": r.task_id, "kind": r.kind, "backend": r.backend, "goal": r.goal[:120],
@@ -408,7 +408,7 @@ def active_sessions() -> list[dict]:
 
 
 def has_active() -> bool:
-    return any(r.status in ("queued", "running") for r in _SESSIONS.values())
+    return any(r.status in LIVE_SESSION_STATES for r in _SESSIONS.values())
 
 
 # How long a live worker may go WITHOUT emitting anything before we call it stalled. One definition, read by
@@ -416,6 +416,36 @@ def has_active() -> bool:
 # (which puts it in front of the brain). Two copies of this number is how the operator gets told one thing by
 # the proactive notice and another by the agent he just asked.
 STUCK_SECS = float(os.getenv("WORKER_STUCK_SECS", "180"))
+
+
+# V2-198 — los estados de una SESIÓN de worker, enumerados UNA vez. Había CUATRO filtros escribiendo
+# `("queued", "running")` a mano y ninguno para el otro lado: una sesión que termina, se cancela o falla
+# desaparecía del registro sin dejar NINGÚN hecho en el estado vivo. Es el mismo hueco que V2-150 cerró para
+# las tareas de navegador y V2-196/197 para sus estados… un nivel por encima, y peor: una tarea de navegador
+# solo existe con `kind=web`, mientras que **toda** escalada abre una sesión de worker. Los casos que se
+# resuelven por búsqueda (`cheapest-monitor`) o por memoria (`remember-and-remind-deadline`) no tienen tarea de
+# navegador en absoluto, así que para ellos el arreglo de V2-150 nunca se aplicó.
+LIVE_SESSION_STATES = frozenset({"queued", "running"})
+ENDED_SESSION_STATES = frozenset({"done", "error", "cancelled"})
+JUST_ENDED_S = 300.0     # cinco minutos: lo que dura la conversación en la que el operador todavía pregunta
+
+
+def recently_ended_sessions(now: float | None = None, limit: int = 3) -> list[dict]:
+    """Sesiones de worker que ACABARON hace poco, y CÓMO acabaron.
+
+    Espejo de `widgets/navegador/tasks.recently_finished()` (V2-150), cuya lección era: un final es un HECHO, y
+    una tarea que desaparece del estado al terminar deja al turno con su propia memoria de haberla arrancado.
+    Aquí faltaba entero.
+    """
+    now = time.time() if now is None else now
+    rows = [{"id": r.task_id, "goal": (r.goal or "").strip(), "status": r.status,
+             "ok": bool(r.ok), "summary": (r.result_summary or "").strip(),
+             "ago_s": int(now - float(r.last_event_at or r.started))}
+            for r in _SESSIONS.values()
+            if r.status in ENDED_SESSION_STATES
+            and (now - float(r.last_event_at or r.started)) <= JUST_ENDED_S]
+    rows.sort(key=lambda r: r["ago_s"])
+    return rows[:max(1, limit)]
 
 
 def pending_summaries() -> list[dict]:
@@ -432,7 +462,7 @@ def pending_summaries() -> list[dict]:
              "pct": _progress_pct(r), "done": r.done, "total": len(r.plan), "note": r.note,
              # Amplitud en curso: deja al cerebro contestar «va por 30 candidatos» y, al acabar, ofrecer seguir.
              "considered": r.considered, "kept": r.kept}
-            for r in _SESSIONS.values() if r.status in ("queued", "running")]
+            for r in _SESSIONS.values() if r.status in LIVE_SESSION_STATES]
 
 
 def get_record(tid) -> "SessionRecord | None":
@@ -568,7 +598,7 @@ def sync_state() -> None:
         from memory import api as memory
         sess = active_sessions()
         labels = [(r.phase or _default_label(r.kind)) for r in _SESSIONS.values()
-                  if r.status in ("queued", "running")]
+                  if r.status in LIVE_SESSION_STATES]
         # Detección de cambio SIN campos volátiles: `age_s` (y cualquier tiempo transcurrido) SUBE cada segundo →
         # si se incluye, con una sesión viva el snapshot difiere SIEMPRE y se reescribe el estado cada tick
         # (flood de MEMORY·state, el bug 2026-07-16). Comparo solo los campos ESTABLES; el estado escrito sí
@@ -609,7 +639,7 @@ _KIND_HINTS = {
 
 
 def _live_keys() -> list[str]:
-    return [k for k, r in _SESSIONS.items() if r.status in ("queued", "running")]
+    return [k for k, r in _SESSIONS.items() if r.status in LIVE_SESSION_STATES]
 
 
 def live_traces() -> list[str]:
@@ -681,7 +711,7 @@ def find_duplicate(request: str, kind: str) -> str | None:
         return None
     tgt = _target_widget(request) if kind in ("code", "generic") else ""
     for k, r in _SESSIONS.items():
-        if r.status not in ("queued", "running"):
+        if r.status not in LIVE_SESSION_STATES:
             continue
         if tgt and _target_widget(r.goal) == tgt:
             return k
@@ -867,7 +897,7 @@ def cancel_all(*, reason: str = "reset") -> int:
 def pause_all() -> int:
     n = 0
     for r in _SESSIONS.values():
-        if r.status not in ("queued", "running") or not r.session:
+        if r.status not in LIVE_SESSION_STATES or not r.session:
             continue
         try:
             if r.session.pause():
