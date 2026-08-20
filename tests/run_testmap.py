@@ -658,6 +658,14 @@ DOMAINS: list[dict] = [
         # `web/` no se puede vigilar desde aquí (vive en el repo privado) → `zaelar-initiative-closure.md`.
         {"id": "7.12", "title": "Cierre de iniciativa: toda decisión tiene iniciativa y al revés (trinquete)",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_roadmap_closure.py"]},
+        # 2026-08-20: hermano del anterior por el otro lado. El trinquete vigila que una decisión tenga
+        # iniciativa; esto vigila que los PUNTEROS de `CLAUDE.md` lleven a un fichero que existe. Un puntero roto
+        # no falla: el siguiente agente abre un fichero que no está y trabaja sin el contexto que lo justificaba.
+        # En su primera corrida cazó uno real —una doc de la nube (privada) citada como si fuera del motor—, y
+        # protege en particular que la DOCTRINA de los Brain Workers siga alcanzable desde la puerta de entrada:
+        # si deja de citarse, deja de aplicarse.
+        {"id": "7.13", "title": "Los punteros de CLAUDE.md llevan a docs que existen (y la doctrina, alcanzable)",
+            "ch": UNIT, "paths": ["tests/infrastructure/unit/test_context_points_at_real_docs.py"]},
         # 2026-08-10: un guarda SOBRE LOS GUARDAS. Aparecieron tests verdes por la MÁQUINA y no por el código (la
         # config del operador —idioma, proveedores, atención, perfil— pisaba el entorno de la suite vía
         # `settings.load_into_env`). No es que fallaran: es que no se podía confiar en el verde.

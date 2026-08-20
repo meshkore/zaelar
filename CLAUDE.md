@@ -35,6 +35,42 @@ rules rather than this comment-language rule.
 > CATÁLOGO de qué se prueba es público y útil; el DIARIO de lo que se probó es nuestro. Igual con el roadmap —
 > saber cómo está construido el motor le sirve a quien lo clona; saber qué pensamos construir, no.
 
+## ⭐ Cómo se orienta CUALQUIER arreglo del agente (norma del operador, 2026-08-20)
+
+El agente debe ser capaz de resolver **cualquier** encargo: reservar un hotel o un restaurante, montar una
+investigación sobre la cultura griega del siglo II a.C., sacar los planos o la lista de tareas para construir un
+cohete, inventar un libro, buscar un vehículo en Wallapop, o buscar casas en la zona de Los Ángeles usando las
+webs que sean populares **allí**, empezando por la más popular. **No hay lista de encargos soportados y no puede
+haberla.**
+
+De ahí sale la regla que gobierna todo cambio en el lado del worker, y son DOS MITADES con tratamientos opuestos:
+
+- **RECURSOS (el core) → clavados, completos y probados.** El manejo del navegador, que el worker reciba EN
+  TIEMPO REAL todo lo que tiene que recibir, el parseo de los datos, las capturas de pantalla cuando hagan falta,
+  los puentes, la evidencia y la entrega. Aquí un fallo es un bug.
+- **RAZONAMIENTO (el encargo) → abierto y general.** La lógica, la investigación y la ejecución no se cablean:
+  se construye un sistema capaz de **encontrar la fórmula** que llega al resultado que espera el operador. Los
+  prompts de los Brain Workers llevan **fórmulas, recursos y maneras de resolver**, nunca un guion.
+
+**Lo prohibido es adaptarse al caso de uso.** Un arreglo que hace pasar ESE escenario y se cae cuando cambian un
+dato, una coma o una condición no es un arreglo: es andamio. La prueba, antes de escribir nada: *cambia una
+palabra del encargo —hotel→restaurante, Sevilla→Los Ángeles, «4 estrellas»→«menos de 80 €»— ¿sigue en pie?* Y:
+*¿sirve para un encargo que nadie ha escrito todavía?* Si la respuesta es no, está apuntando a la mitad
+equivocada.
+
+Un conocimiento cableado del mundo (el catálogo de sitios) puede decir **«empieza por aquí»**; nunca **«solo
+aquí»**. En cuanto un encargo fuera del catálogo tiene MENOS capacidad que uno de dentro, el catálogo dejó de ser
+un atajo y es una valla.
+
+**Duda razonable → es un problema de RECURSOS hasta que se demuestre lo contrario.** Ha sido cierto todas las
+veces hasta hoy: el worker muriendo aprendiendo su propio CLI a tientas (V2-219), el compositor que leía la
+cadena de proveedores y nunca la escribía —y dejaba a ciegas TODA investigación— (V2-225), lo que el navegador
+encontraba sin llegar a nadie (V2-223), y la nota empujada 3/3 contra la línea de prompt 0/13 (V2-222). Ninguno
+tenía forma de escenario, y el arreglo con forma de escenario los habría tapado a los cuatro.
+
+Doctrina completa, con el contrato de recursos y el procedimiento al recibir una ronda fallida:
+**`.meshkore/docs/architecture/zaelar-brain-worker-doctrine.md`**.
+
 Asistente personal por voz **multidioma** (**inglés por defecto**, y se pasa SOLO al idioma del operador en
 cuanto lo detecta — ver «Arranque idiomático» abajo), siempre activo. Arquitectura: STT →
 **cerebro propio «Colmena»** → TTS, sobre **LiveKit Agents**. El cerebro (`nucleo/`), la memoria (`memory/`) y la
@@ -60,6 +96,7 @@ Los agentes DEBEN trabajar dentro de esta estructura — no crear `docs/` ni car
 | **¿Por qué ESTOS modelos en la memoria?** (respuesta canónica) | `zaelar-memory.md §Modelos de la memoria` · denso: `zaelar-model-benchmarks.md §12.3/§12.4` · crudo: `tests/memory/e2e/bot/resultados/` |
 | **Canal de cluster — algoritmo de punta a punta** | `.meshkore/docs/architecture/zaelar-cluster-channel.md` |
 | **Red MeshKore — agentes vivos (oráculo) + clusters, y en qué estado está cada pieza** | `.meshkore/docs/architecture/zaelar-meshkore-network.md` |
+| **⭐ Doctrina de los Brain Workers — endurecer los RECURSOS, abrir el RAZONAMIENTO (orienta CUALQUIER fix)** | `.meshkore/docs/architecture/zaelar-brain-worker-doctrine.md` |
 | **Multidioma / i18n (arranque idiomático, generación de bundles)** | `.meshkore/docs/architecture/zaelar-i18n.md` |
 | Product / Context | `.meshkore/docs/product/zaelar-product.md` |
 | Deploy | `.meshkore/docs/deploy/zaelar-deploy.md` |
@@ -2476,7 +2513,8 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     cuadra al microdólar (0,0% de desvío en las dos muestras). Sigue SIN modelarse el tramo de contexto largo de
     `grok-4.5` y el `cache_creation_input_tokens`.
     **La equivalencia, el margen y el precio de venta son decisiones de NEGOCIO y NO se documentan aquí** (este
-    repo es público): viven en `.meshkore/docs/ops/zaelar-energy-accounting.md` de la RAÍZ del workspace, junto a
+    repo es público): viven en `../.meshkore/docs/ops/zaelar-energy-accounting.md` (el `.meshkore/` de la RAÍZ del workspace, repo
+    PRIVADO — quien clone ESTE repo no lo tiene, y es deliberado), junto a
     la tabla de Energy por millón de tokens y la lista de lo que sigue sin cobrarse. Aquí solo el mecanismo.
   - **QUINTO agujero, misma familia: el turno CANCELADO se cobraba un 16% de menos (2026-08-14).** Un turno cortado
     por barge-in ya se le pidió al proveedor y ya se pagó — en una sesión de dictado son **38 de 54**. Sí se
