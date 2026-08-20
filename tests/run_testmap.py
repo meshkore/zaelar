@@ -542,6 +542,17 @@ DOMAINS: list[dict] = [
         {"id": "4.23", "title": "Una tarea de fondo MUERTA se dice sin que él pregunte",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_a_dead_task_is_not_a_pending_question.py"]},
+        # V2-222 — y por qué 4.23 midió 0 de 7 en la ronda que lo llevaba: el mismo prompt decía la tarea VIVA al
+        # 40 % y MUERTA, con la misma cadena de objetivo, en siete de los ocho turnos. El turno no desobedecía —
+        # elegía la mitad cierta. Un encargo que se reintenta solo no es un encargo que acabó.
+        {"id": "4.24", "title": "Una tarea que se reintenta sola no se declara muerta (y la muerta se EMPUJA)",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_a_retried_task_is_not_a_dead_task.py"]},
+        # V2-223 — el bloqueador de verdad del caso: el navegador SACÓ «Exe Sevilla Macarena, 65 €» con enlace y
+        # dieciséis segundos después el turno dijo «sigo pendiente». No estaba en el prompt ni en la hoja.
+        {"id": "4.25", "title": "Lo que el navegador ENCUENTRA llega a la hoja y a la conversación",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/navegador/test_what_the_browser_finds_reaches_someone.py"]},
         {"id": "4.19", "title": "Shell MÓVIL RENDERIZADO: el orbe centrado y PINTADO, la barra alcanzable",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/mobile/render_dock.py"},

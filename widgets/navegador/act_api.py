@@ -130,6 +130,65 @@ def _with_stall(task_id: str, snap: dict) -> dict:
     return snap
 
 
+_HANDED: dict[str, str] = {}          # V2-223: última extracción entregada por tarea (no repetir la misma)
+
+
+def _hand_over(task_id: str, items: list) -> None:
+    """What the browser EXTRACTED goes to the results sheet AND to the conversation — not only to the worker.
+
+    V2-223. Measured by the harness on `hotel-under-15-days` (sandbox `20260820-194231`), and this is the whole
+    case in five lines of its stream:
+
+        19:44:00  navigate → booking.com/searchresults?ss=Sevilla&checkin=…&group_adults=2   (parameters PERFECT)
+        19:44:39  extract  → one result, and it was an ad: «Experiencia Premium en el Teatro Flamenco», € 25
+        19:44:47  pivoted to Google Hotels on its own
+        19:45:29  extract  → «Exe Sevilla Macarena», «65 €», with a URL          ← THE ANSWER EXISTED
+        19:45:45  turn 7   → «¡De nada! Sigo pendiente y te digo en cuanto tenga algo.»
+
+    Sixteen seconds. The prompt of that turn contains neither «Exe Sevilla» nor «Macarena» nor «65 €», and the
+    run reported `missing_signals: ['widget']` — so it was not in the sheet either. The result went to the
+    worker's stdout and died there: `set_results` was only ever called by `dispatch._finalize_web`, at the END of
+    the session, re-extracting whatever page happened to be on screen by then. Here the round ran out of turns
+    first, so nobody was ever told about a hotel we had actually found.
+
+    It travels as a PUSHED note rather than a prompt line for the reason the harness measured with a
+    side-by-side counter in this same case: pushed system notes are said in the next turn 3 out of 3, prompt
+    status lines 0 out of 13 (see `nucleo/dispatch.recently_ended_sessions` for why that 0/13 was not simple
+    disobedience).
+
+    JUDGEMENT stays with the brain, deliberately: the FIRST extraction here was an ad, so a note that ordered
+    «announce this» would have had it offering a €25 flamenco show as the hotel. The note hands over the facts
+    and names the test.
+    """
+    if not items:
+        return
+    try:
+        sig = "|".join(f"{(i or {}).get('title', '')}~{(i or {}).get('price', '')}" for i in items[:5])
+        if _HANDED.get(task_id) == sig:      # re-extracting the same page is not a new finding
+            return
+        _HANDED[task_id] = sig
+        from widgets.navegador import tasks as _t
+        prev = (_t.get(task_id) or {}).get("results") or {}
+        _t.set_results(task_id, {"conclusion": (prev or {}).get("conclusion") or "", "items": items[:5]})
+        goal = str((_t.get(task_id) or {}).get("goal") or "la tarea del navegador")[:70]
+
+        def _one(i: dict) -> str:
+            bits = [str(i.get("title") or "").strip()[:80], str(i.get("price") or "").strip()[:24],
+                    str(i.get("url") or "").strip()[:120]]
+            return " — ".join(b for b in bits if b)
+
+        listing = "; ".join(_one(i) for i in items[:3] if isinstance(i, dict))
+        from voice import brain_notes
+        brain_notes.push(
+            f"[SISTEMA] El navegador ha SACADO esto de la página, trabajando en «{goal}»: {listing}. Nadie más "
+            f"lo sabe todavía: no está en la conversación hasta que tú lo digas. Si responde a lo que pidió el "
+            f"operador, DÁSELO EN ESTE TURNO con nombre, precio y enlace. Si no es lo que pedía —un anuncio, "
+            f"otra cosa—, no lo ofrezcas como resultado; pero entonces tampoco digas que sigues buscando sin "
+            f"más: di qué ha salido y por qué no sirve.")
+    except Exception:  # noqa: BLE001
+        pass
+
+
 @router.post("/api/navegador/act")
 async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body(..., embed=True),
                         args: dict = Body(default_factory=dict, embed=True)):
@@ -169,6 +228,7 @@ async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body
         if action == "extract":
             items = await tb.extract_listings(int(args.get("limit", 14)))
             _emit_nav(task_id, "🧭 resultados", f"{len(items)} anuncios/resultados en la página")
+            _hand_over(task_id, items)      # V2-223: a la hoja y a la conversación, no solo al worker
             return {"ok": True, "listings": items, "n": len(items)}
         if action in ("navigate", "click", "type", "select_option", "scroll", "press", "click_at", "type_at"):
             ok, msg = await tb.agent_act(action, args)
