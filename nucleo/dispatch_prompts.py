@@ -189,10 +189,34 @@ def _with_interpreter(prompt: str) -> str:
     if not py or py == "python":
         return prompt
     out = prompt.replace("python -m nucleo.", f"{py} -m nucleo.")
+    # V2-211 — LAS TRES FORMAS MEDIDAS de morir en nuestra propia puerta, el mismo día y en tres casos distintos:
+    #   `find-theatre-tickets__es` 15:24  cd in '…/zaelar/engine' was blocked. For security, Claude Code may only
+    #                                     change directories to the allowed working directory
+    #   `cheapest-monitor`         15:35  This Bash command contains multiple operations. The following part
+    #                                     requires approval: curl -s "https://www.pccomponentes.com/monitores"
+    #   `remember-and-remind`      15:38  …requires approval: cd /Users/…
+    # En headless NADIE aprueba, así que una petición de aprobación es un callejón sin salida: el worker muere ahí,
+    # callado, y el turno sigue contando que avanza. Es el confirm-gate una capa más abajo — un gate que para el
+    # trabajo y no tiene camino de vuelta.
+    #
+    # Se ataca por delante, que es lo que ya funcionó con el intérprete el 2026-08-02 (el worker se pasaba minutos
+    # probando `python`, `python3`, `.venv/bin/python`… porque el prompt no le decía cuál). Las reglas del cajón
+    # donde corre no las puede deducir: o se las damos, o las descubre chocando, y chocar aquí cuesta la tarea.
     return (f"INTÉRPRETE: para CUALQUIER puente (`-m nucleo.…`) usa EXACTAMENTE `{py}`, tal cual, siempre. Está "
-            f"permitido y funciona. NO uses `python` a secas ni `python3` ni rutas relativas: si un comando te pide "
-            f"aprobación es que lo escribiste distinto — corrige el intérprete, no busques otra vía ni escribas un "
-            f"script propio para llamar a la API.\n\n") + out
+            f"permitido y funciona. NO uses `python` a secas ni `python3` ni rutas relativas.\n"
+            f"TU CAJÓN (reglas del shell donde corres; romperlas NO da error, pide una aprobación que aquí no va a "
+            f"llegar nunca):\n"
+            f"  · NUNCA `cd`. Ya estás en tu directorio de trabajo y los puentes funcionan desde él tal cual — "
+            f"`{py}` es absoluto y el resto ya está en el entorno. Un `cd` al repo está BLOQUEADO por seguridad.\n"
+            f"  · UN comando por llamada. Nada de `&&`, `;`, `|`, `$(…)` ni varias cosas en la misma línea: se "
+            f"lee como varias operaciones y se para en la primera que no esté permitida.\n"
+            f"  · Solo los puentes. Ni `curl`, ni `wget`, ni scripts propios: para ABRIR una página usa "
+            f"`{py} -m nucleo.nav_cli`, y para BUSCAR pídelo por `{py} -m nucleo.worker_bridge`. Lo que traigas "
+            f"con `curl` además no pasa por el navegador del operador, así que ni ve las cookies ni cuenta como "
+            f"evidencia.\n"
+            f"  · Si un comando te pide aprobación, lo escribiste mal: REESCRÍBELO en la forma de arriba. No lo "
+            f"reintentes igual, no busques otra vía y no te calles — si de verdad no hay forma, DILO como "
+            f"resultado (`hbnote`/tu entrega) en vez de terminar en silencio.\n\n") + out
 
 
 # Guía de COMPORTAMIENTO HUMANO en la web (regla del operador 2026-07-21: "que parezcan humanos, orientar el uso

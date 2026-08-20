@@ -112,6 +112,7 @@ class WorkerSession:
         self._base_url = ""                # endpoint real del escalón que sirvió la sesión (energy_meter, 2026-08-05)
         self._started_at = time.time()     # para medir el PRIMER output del worker (su TTFT) — ver _emit_note
         self._first_output_at = 0.0
+        self._perm_warned = False          # V2-211: el turno correctivo del permiso también va UNA vez
         self._ctx_warned = False           # the wrap-up turn is injected ONCE (incident 2026-08-18): repeating it
                                             # every message past the budget would spend the little room that is left
 
@@ -172,6 +173,7 @@ class WorkerSession:
                 pass
         elif ev.type == "step_result":
             self._emit_step_result(d)                          # 2026-08-10: qué le CONTESTARON a ese paso
+            self._maybe_unstick_permission(d)                  # V2-211: ¿ha chocado con NUESTRA propia puerta?
         elif ev.type == "note":
             self._emit_note(str(d.get("text") or ""))          # narración del worker → observabilidad, no voz
         elif ev.type == "context_full":
@@ -463,6 +465,53 @@ class WorkerSession:
         except Exception:
             pass
         asyncio.create_task(self._ask_for_delivery())
+
+    # V2-211 — LA PUERTA ES NUESTRA, y el worker se muere en ella sin decirlo. Tres casos medidos el mismo día,
+    # tres comandos distintos, la misma forma: `cd … was blocked`, `requires approval: curl -s …`, `requires
+    # approval: cd /Users/…`. En headless nadie aprueba, así que la petición de aprobación es un callejón sin
+    # salida; el worker lo lee como un no y para, y el turno sigue contando que avanza.
+    #
+    # `dispatch_prompts` lo ataca por delante (las reglas del cajón, igual que el intérprete en 2026-08-02); esto
+    # es la RED: si aun así choca, se le dice EN EL MOMENTO qué ha pasado y cómo se reescribe. La misma forma que
+    # la entrega anticipada de arriba —un turno inyectado, UNA vez— porque la sesión sigue viva y su propio
+    # razonamiento es el camino más corto de vuelta.
+    _DENIED_NEEDLES = ("requires approval", "was blocked", "permission to use", "requested permissions",
+                       "may only change directories")
+
+    def _maybe_unstick_permission(self, d: dict) -> None:
+        if self._perm_warned:
+            return
+        txt = " ".join(str(d.get(k) or "") for k in ("text", "result", "output", "target")).lower()
+        if not txt or not any(n in txt for n in self._DENIED_NEEDLES):
+            return
+        self._perm_warned = True
+        self._emit_chip("comando no permitido", "le digo cómo reescribirlo", ok=False)
+        try:
+            from voice.observer import emit
+            emit("task", "⚠️ el worker chocó con una puerta de permiso",
+                 text=txt[:200], extra={"id": self._rec.task_id, "src": f"worker:{self._rec.task_id}"})
+        except Exception:
+            pass
+        asyncio.create_task(self._explain_permissions())
+
+    async def _explain_permissions(self) -> None:
+        """Injects the corrective turn. Separate coroutine because `_on_event` is synchronous."""
+        try:
+            from nucleo.workers.claude_session import bridge_python
+            py = bridge_python()
+        except Exception:
+            py = "python"
+        try:
+            await self._b.send(
+                "AVISO DEL SISTEMA: ese comando no lo ha rechazado ninguna persona — lo ha parado el cajón donde "
+                "corres, y aquí NADIE puede aprobarlo, así que reintentarlo igual no va a funcionar nunca. "
+                f"Reescríbelo: UN solo comando por llamada (sin `&&`, `;`, `|` ni `$(…)`), NUNCA `cd` (ya estás "
+                f"en tu directorio y los puentes funcionan desde él), y solo los puentes `{py} -m nucleo.…` — "
+                "para abrir una página `nav_cli`, para buscar `worker_bridge`, nada de `curl` ni scripts propios. "
+                "Si lo que necesitabas no se puede hacer así, DILO en tu entrega en vez de terminar en silencio."
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.warning(f"worker[{self._rec.task_id}]: no pude explicar el permiso: {e}")
 
     async def _ask_for_delivery(self) -> None:
         """Injects the wrap-up turn. Separate coroutine because `_on_event` is synchronous."""

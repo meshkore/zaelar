@@ -1275,6 +1275,27 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **La puerta es NUESTRA: el worker se muere en ella y en silencio** (`nucleo/dispatch_prompts.py` +
+  `nucleo/workers/session.py`, V2-211, 2026-08-20). Tres casos medidos el mismo día, tres comandos distintos, la
+  misma forma: `cd in '…/zaelar/engine' was blocked` (find-theatre 15:24), `requires approval: curl -s "…"`
+  (cheapest-monitor 15:35) y `requires approval: cd /Users/…` (remember-and-remind 15:38). **En headless nadie
+  aprueba**, así que una petición de aprobación es un callejón sin salida: el worker la lee como un no, para, y
+  el turno sigue contando que avanza. Es el confirm-gate de V2-202 una capa más abajo.
+  - **Se ataca por delante**, que es lo que ya funcionó con el intérprete el 2026-08-02 (el worker quemaba
+    minutos probando `python`/`python3`/`.venv/bin/python` porque nada le decía cuál estaba permitido). Las
+    reglas del cajón donde corre **no las puede deducir**: o se las damos, o las descubre chocando, y chocar aquí
+    cuesta la tarea. Nunca `cd` (ya está en su directorio y `PYTHONPATH` viaja en el entorno desde V2-117), UN
+    comando por llamada (nada de `&&`, `;`, `|`, `$(…)`: se lee como varias operaciones y para en la primera no
+    permitida), y solo los puentes — con la ALTERNATIVA nombrada, porque «no uses curl» a secas es como un worker
+    empieza a escribirse su propio script.
+  - **Y una red por detrás**: si aun así choca, se le dice EN EL MOMENTO que no le ha rechazado ninguna persona y
+    cómo se reescribe — un turno inyectado, UNA vez, la misma forma que la entrega anticipada de V2-117. Con test
+    de sensibilidad: ese hook lee TODOS los `step_result`, así que una coincidencia ancha metería avisos de
+    sistema en corridas sanas.
+  - **Lo que el arnés no descarta y queda escrito**: su sandbox puede amplificarlo (el motor corre desde el repo,
+    así que el worker alcanza rutas del repo más a menudo). El modo de fallo —morir callado en nuestra propia
+    puerta— no depende de eso.
+
 - **Un dato del mundo, dicho con una cifra y sin consultar nada** (`nucleo/flash/router_guards.py` +
   `probe.py`, V2-210, 2026-08-20). Medido en `quick-fact-opening-hours`: «¿A qué hora abre mañana el Museo del
   Prado y cuánto cuesta la entrada general?» → «Mañana abre a las 10:00 y la entrada general cuesta 15 €», con

@@ -159,6 +159,10 @@ DOMAINS: list[dict] = [
             # Mismo contrato que el nodo 4.20 para `nav_cli`: lo que el puente sabe, lo DICE — y un fallo dice
             # además cómo se sale de él.
             "tests/agent_headless/unit/workers/test_the_bridge_says_how_to_fix_it.py",
+            # V2-211: la puerta es NUESTRA. Tres casos el mismo día murieron en un permiso del propio
+            # cajón del worker (`cd` bloqueado, comando compuesto, `curl`) sin decirlo. Reglas por delante
+            # + un turno correctivo si aun así choca.
+            "tests/agent_headless/unit/workers/test_the_gate_is_ours.py",
             # V2-158: este fichero NUNCA estuvo en el testmap, así que `tests run all` no lo corría y sus
             # afirmaciones llevaban desde V2-132/V2-144/V2-148 contradiciendo el comportamiento buscado en
             # silencio. Un test que ninguna suite ejecuta es un test que deja de ser verdad sin avisar.
