@@ -1312,6 +1312,26 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **UN ENCARGO, UNA SUPERFICIE: el panal de hexágonos se RETIRA** (`frontend/app/components/ActivityStrip.js`
+  BORRADO, V2-233 ámbito D, 2026-08-20). El encargo era agrandarlos y hacerlos legibles. Construyéndolo salió que
+  el mismo hecho se contaba en **tres** sitios —el panal, la pestaña «Proceso» de la hoja y la pestaña «Procesos»
+  del chat— porque los hexágonos pintaban TODA tarea viva **sin mirar la superficie que el ámbito A ya había
+  decidido**. Puesto delante del operador, no arbitró entre las tres: quitó una. *«Retiramos los hexágonos… solo
+  en el widget del chat/procesos, y en el widget de visualización la primera tab es la de proceso… Simplifiquemos,
+  borra lo innecesario.»*
+  - **La regla que deja**: la superficie se decide al ENCARGAR y ahí, y solo ahí, se cuenta lo que pasa. Lo que no
+    tenga superficie propia se cuenta en «Procesos» del chat, que es una **LISTA** (qué corre, qué acabó) y no un
+    segundo relato. Tres superficies contando el mismo hecho no es redundancia inofensiva: obliga a mantener tres
+    y a mirar tres, y las tres se desincronizan.
+  - **El loader pasa al BOTÓN de la pestaña** mientras la tarea vive: al primer resultado la hoja salta sola a la
+    lista, y desde ahí lo único que puede decir «sigo trabajando» es ese botón. El contador de fases vuelve al
+    acabar, que es cuando ese número informa (cuántos pasos costó) en vez de confundir «va por doce» con «se quedó
+    en doce». Medido: 14 px, animando de verdad por CSS.
+  - **Lo que se tiró, dicho entero**: los hexágonos al doble con su contraste medido, el hover y su nodo. Un
+    hallazgo de esa tanda conviene no volver a pagarlo — la capa era `pointer-events:none`, así que **cualquier
+    `:hover` de CSS allí habría estado muerto sin fallar**, y un test que comprobara que la regla existe habría
+    pasado igual. Por eso el hover se resolvía por geometría y se medía renderizando.
+
 - **El contrato de pantalla estaba en verde y el operador seguía sin ver nada** (`nucleo/dispatch.py` +
   `widgets/results/data.py`, V2-233 ámbito C, 2026-08-20). La hoja de resultados es la superficie del progreso en
   vivo, y su contrato ejecutable daba 6 de 6 renderizando — porque monta `widget.js` en una página en blanco y le
