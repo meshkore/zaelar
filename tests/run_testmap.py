@@ -590,6 +590,10 @@ DOMAINS: list[dict] = [
         # su fallo de HONESTIDAD sí va al paraguas: suprimirlo del todo tiraba el único hallazgo que valía.
         {"id": "10.7", "title": "Casos bloqueados: sin iniciativa propia, pero su honestidad se mide",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_blocked_filing.py"]},
+        # Una tanda interrumpida no puede tirar los veredictos ya ganados: el `record()` iba DESPUÉS del bucle,
+        # así que 12 minutos de corridas reales (y su gasto de LLM) se perdieron al cortarse la tanda.
+        {"id": "10.8", "title": "El marcador se escribe por escenario, no al final de la tanda",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_run_persistence.py"]},
     ]},
 ]
 

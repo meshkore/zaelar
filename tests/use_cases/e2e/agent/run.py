@@ -188,6 +188,20 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
                                     "crashed": str(e)},
                             "verdict": {"scores": {}, "overall": None, "findings": [], "improvements": [],
                                        "veredicto": f"INFRA: {e}"}})
+        # PERSIST THIS SCENARIO NOW, not at the end of the batch. `record()` folds one batch into the ledger
+        # and only touches the scenarios in it ("a batch of one must never look like it invalidated the other
+        # four"), so a call per scenario is safe and it is what makes a batch INTERRUPTIBLE. Measured the hard
+        # way on 2026-08-20: a 6-case verify batch was cut off after ~12 minutes, having already driven and
+        # JUDGED `cancel-subscription-before-charge__es` — and the ledger still showed the previous run,
+        # because the single `record()` at the end never happened. Every verdict the batch had earned was
+        # thrown away, including the one that finally showed the CORRECT behaviour (admitting it cannot log
+        # into the operator's account instead of pretending). In an unattended loop, batches run for tens of
+        # minutes and an interruption is not exotic: it is a sleeping laptop, a killed tick, a crash.
+        try:
+            statusmod.record(results[-1:], sandboxed=sandboxed)
+        except Exception as e:
+            print(f"  ⚠️ no pude anotar el veredicto de {scenario.id} en el marcador: {e}")
+
         last = (results[-1].get("verdict") or {}).get("overall")
         if last is not None and last < statusmod.PASS_THRESHOLD:
             failures += 1
@@ -197,7 +211,11 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
     stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime())
     report_path = reportmod.build(results, stamp, config.RUNS_DIR)
     print(f"\n✓ report → {report_path}")
-    statusmod.record(results, sandboxed=sandboxed)
+    # NO second `record()` here: every scenario already wrote its own row as it finished (see the call inside
+    # the loop). Re-recording the whole batch would rewrite each row's `last_run` to the batch's END time,
+    # which is not when that case ran — and that field is load-bearing: it is what tells a later reader which
+    # verdicts predate an environment change (used on 2026-08-20 to retire the six measured against an engine
+    # in the wrong language). A summary line is still printed, from the ledger.
     print(f"✓ scoreboard → {statusmod.BOARD_PATH} ({statusmod.summary_line()})")
 
     # FILE each real failure as a MeshKore initiative + task (one workspace per use case, appended to on
