@@ -89,15 +89,34 @@ def test_attach_is_idempotent(log):
 
 def test_the_sink_never_blocks_the_publisher(log):
     """El CONTRATO nuevo: `_write` encola y vuelve. Es lo que permite tener el log durable encendido sin que un
-    INSERT por evento se interponga en el hilo de la voz (el motivo por el que estuvo apagado desde V2-001)."""
+    INSERT por evento se interponga en el hilo de la voz (el motivo por el que estuvo apagado desde V2-001).
+
+    2026-08-20: medía un UMBRAL ABSOLUTO (`< 200 ms`) y eso lo hacía rojo por la MÁQUINA y no por el código —
+    exactamente lo que `test_suite_isolation.py` existe para evitar. Encolar 2000 eventos cuesta ~2 ms medidos
+    aisladamente, así que el techo llevaba 100x de margen… y aun así saltó en 206 ms corriendo la suite entera,
+    con todo en un proceso. El número no estaba mal elegido: la FORMA de la prueba estaba mal elegida.
+
+    Ahora se mide la PROPIEDAD, que es relativa y por tanto inmune a la carga: encolar tiene que ser
+    drásticamente más barato que la escritura que sustituye, y las dos sufren la misma máquina en el mismo
+    momento. El techo absoluto se queda solo como red de seguridad, holgadísimo: si alguien devuelve el sink a
+    síncrono, encolar y escribir pasan a ser la MISMA operación y el cociente se va a 1.
+    """
     import time
     t0 = time.perf_counter()
     for i in range(2000):
         log._write({"topic": "x", "ts_ms": float(i), "payload": {"i": i}})
-    encolar_ms = (time.perf_counter() - t0) * 1000
-    assert encolar_ms < 200, f"encolar 2000 eventos tardó {encolar_ms:.0f}ms — eso ya no es 'no bloquea'"
-    log.drain(timeout=5.0)
+    encolar = time.perf_counter() - t0
+    t1 = time.perf_counter()
+    log.drain(timeout=10.0)
+    escribir = time.perf_counter() - t1
     assert log.count() == 2000
+    # Medido en esta máquina: encolar ~2 ms, escribir ~116 ms (58x). Se exige 5x — deja un factor 10 de holgura
+    # y sigue siendo inalcanzable para un sink síncrono.
+    assert encolar * 5 < escribir, (
+        f"encolar 2000 eventos costó {encolar * 1000:.0f}ms y escribirlos {escribir * 1000:.0f}ms — encolar ya "
+        f"no es dramáticamente más barato que escribir, así que `_write` está pagando el INSERT en el hilo que "
+        f"publica (que muchas veces es el de la voz)")
+    assert encolar < 2.0, f"encolar 2000 eventos tardó {encolar:.1f}s — eso no es «no bloquea» en ninguna máquina"
 
 
 def test_retention_caps_the_table(log, monkeypatch):
