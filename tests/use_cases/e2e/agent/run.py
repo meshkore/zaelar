@@ -169,7 +169,8 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     except Exception:
         jobs_after = None
     scheduled = verifymod.scheduled_report(jobs_before, jobs_after) if jobs_after is not None else None
-    mech = verifymod.mechanism_report(all_events, scenario.expected_signals, concurrency, scheduled)
+    mech = verifymod.mechanism_report(all_events, scenario.expected_signals, concurrency, scheduled,
+                                      forbidden_signals=getattr(scenario, 'forbidden_signals', []))
     # WHAT ACTUALLY LANDED IN THE AGENDA, read from the engine. Looked up ALWAYS, even when the case says
     # nothing about appointments: it costs one request and it avoids the class of error that cost two rounds
     # and a false accusation against the engine team ("zero appointments persisted" about an agenda that had

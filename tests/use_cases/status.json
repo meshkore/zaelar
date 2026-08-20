@@ -322,25 +322,43 @@
       }
     },
     "cheapest-monitor": {
-      "last_run": "2026-08-20 16:16",
-      "overall": 1,
+      "last_run": "2026-08-20 21:43",
+      "overall": 2,
       "state": "FAIL",
       "scores": {
-        "naturalidad": 3,
-        "adaptacion": 2,
+        "naturalidad": 4,
+        "adaptacion": 4,
         "resultado": 1,
-        "mecanismo": 2,
-        "eficiencia": 1
+        "mecanismo": 3,
+        "eficiencia": 2
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real (cero búsquedas web, cero opciones en pantalla), y encima se narró un avance que el sistema no respalda.",
-      "missing_signals": [
-        "widget"
-      ],
+      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar encontró 3 monitores reales a 99€ y no los entregó al usuario, ignorando tres avisos explícitos del sistema de que ya tenía resultados en la hoja.",
+      "missing_signals": [],
       "audit_anomalies": [
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "worker/task «↩ zaelar ⚠️ error»: Exit code 2 usage: worker_bridge [-h] {ask,wait,act,say} ... worker_bridge: error: argument cmd: invalid choice: 'help' (choose from ask, wait, act, say)"
+          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "memory/memory «🧠 memoria ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "memory/memory «🧠 memoria ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
         },
         {
           "clase": "error_interno",
@@ -348,14 +366,19 @@
           "que": "worker/task «· paso ⚠️ error»: This command requires approval"
         },
         {
-          "clase": "span_con_error",
+          "clase": "error_interno",
           "certeza": "hecho",
-          "que": "worker:1: 1 error(es), último paso «end»"
+          "que": "worker/task «📄 archivo ⚠️ error»: Image file is empty: /Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/tests/runs/use_cases/sandbox/20260820-212912/widgets/_data/navegador/shot-t2.p"
         },
         {
           "clase": "span_con_error",
           "certeza": "hecho",
-          "que": "worker:2: 1 error(es), último paso «end»"
+          "que": "worker:2: 3 error(es), último paso «🧭 página»"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:4: 4 error(es), último paso «🧭 navegador ↩»"
         }
       ],
       "sandboxed": true,
@@ -365,31 +388,51 @@
         "flash",
         "memory",
         "system",
+        "widget",
         "worker"
       ],
       "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "60280c5",
+        "n_dirty": 0,
+        "dirty": []
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "43 GB"
+          },
+          {
+            "name": "embeddinggemma:latest",
+            "size": "673 MB"
+          }
+        ],
+        "n": 2
+      },
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md",
         "task": ""
       }
     },
     "quick-fact-opening-hours": {
-      "last_run": "2026-08-20 16:00",
+      "last_run": "2026-08-20 22:31",
       "overall": 3,
+      "judge": "deepseek-v4-flash",
       "state": "FAIL",
       "scores": {
-        "naturalidad": 3,
+        "naturalidad": 4,
         "adaptacion": 4,
-        "resultado": 4,
+        "resultado": 3,
         "mecanismo": 2,
-        "eficiencia": 3
+        "eficiencia": 2
       },
-      "verdict": "No está listo para producción: aunque dio la hora y el precio en el mismo turno, la respuesta se contradice sobre el precio y el mecanismo escaló a un worker innecesario; el bloqueador número uno es hacer que zaelar confíe en la búsqueda directa y entregue la síntesis sin vacilar ni escalar.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar escaló a un Brain Worker un caso que se resuelve con búsqueda directa y, además, dio un precio no verificado que contradice su propia búsqueda, incumpliendo el requisito de dar ambos datos en el mismo turno.",
       "missing_signals": [],
       "audit_anomalies": [],
       "sandboxed": true,
       "tier": 1,
-      "turns_used": 4,
+      "turns_used": 3,
       "families": [
         "flash",
         "memory",
@@ -397,6 +440,24 @@
         "worker"
       ],
       "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "b211331",
+        "n_dirty": 0,
+        "dirty": []
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "41 GB"
+          },
+          {
+            "name": "embeddinggemma:latest",
+            "size": "673 MB"
+          }
+        ],
+        "n": 2
+      },
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-204-uc-quick-fact-opening-hours.md",
         "task": ""
@@ -649,23 +710,360 @@
       }
     },
     "hotel-under-15-days": {
-      "last_run": "2026-08-20 20:49",
-      "overall": 3,
+      "last_run": "2026-08-20 21:34",
+      "overall": 2,
       "state": "FAIL",
       "scores": {
         "naturalidad": 4,
         "adaptacion": 5,
-        "resultado": 2,
+        "resultado": 1,
+        "mecanismo": 2,
+        "eficiencia": 2
+      },
+      "verdict": "No está listo para producción: el bloqueador nº1 es que no se entregó ningún hotel real (solo un resultado de flamenco descartado), y las promesas de seguir buscando no tienen respaldo en el sistema (sin búsquedas web ni widget de resultados).",
+      "missing_signals": [
+        "widget"
+      ],
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 usage: nav_cli [-h] {snapshot,look,navigate,click,type,select_option,click_at,type_at,scroll,press,extract} ... nav_cli: error: argument cmd: invali"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 usage: nav_cli [-h] {snapshot,look,navigate,click,type,select_option,click_at,type_at,scroll,press,extract} ... nav_cli: error: argument cmd: invali"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:3: 1 error(es), último paso «🧭 navegador ↩»"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:4: 1 error(es), último paso «🧭 navegador ↩»"
+        }
+      ],
+      "sandboxed": true,
+      "tier": 2,
+      "turns_used": 10,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "60280c5",
+        "n_dirty": 0,
+        "dirty": []
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "43 GB"
+          },
+          {
+            "name": "embeddinggemma:latest",
+            "size": "673 MB"
+          }
+        ],
+        "n": 2
+      },
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-218-uc-hotel-under-15-days.md",
+        "task": ""
+      }
+    },
+    "search-buy-used-car": {
+      "last_run": "2026-08-20 21:38",
+      "overall": 2,
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 4,
+        "adaptacion": 4,
+        "resultado": 1,
         "mecanismo": 3,
         "eficiencia": 2
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar presenta como resultados confirmados datos que el sistema no respalda (precios sueltos y nombres sin verificar), lo que incumple el requisito de opciones reales con nombre, precio y enlace.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar encontró 6 anuncios reales y no entregó ninguno, dejando al usuario sin resultado pese a tener los datos en el sistema.",
       "missing_signals": [],
       "audit_anomalies": [
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: This command uses the `&` background operator, which defers execution past approval-time safety checks. Approve only if you trust it."
+          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "memory/memory «🧠 memoria ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:1: 3 error(es), último paso «📄 archivo ↩»"
+        }
+      ],
+      "sandboxed": true,
+      "tier": 2,
+      "turns_used": 6,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "60280c5",
+        "n_dirty": 0,
+        "dirty": []
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "43 GB"
+          },
+          {
+            "name": "embeddinggemma:latest",
+            "size": "673 MB"
+          }
+        ],
+        "n": 2
+      },
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-227-uc-search-buy-used-car.md",
+        "task": ".meshkore/modules/nucleo/tasks/T464-uc-search-buy-used-car-fix.md"
+      }
+    },
+    "best-plumber-same-day__es": {
+      "last_run": "2026-08-20 21:48",
+      "overall": 2,
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 4,
+        "adaptacion": 5,
+        "resultado": 1,
+        "mecanismo": 2,
+        "eficiencia": 2
+      },
+      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar prometió un resultado (fontaneros para hoy) que el mecanismo nunca produjo —el worker navegó 15 veces sin extraer ni un solo resultado— y en lugar de comunicar el fallo honestamente, mantuvo al usuario esperando con respuestas genéricas hasta el final de la conversación.",
+      "missing_signals": [],
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "memory/memory «🧠 memoria ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "memory/memory «🧠 memoria ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: Error: ElementHandle.scroll_into_view_if_needed: Element is not attached to the DOM"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: Error: ElementHandle.scroll_into_view_if_needed: Element is not attached to the DOM"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:1: 1 error(es), último paso «🧭 página»"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:2: 3 error(es), último paso «🧭 navegador»"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:3: 2 error(es), último paso «🧭 navegador»"
+        }
+      ],
+      "sandboxed": true,
+      "tier": 2,
+      "turns_used": 10,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "60280c5",
+        "n_dirty": 0,
+        "dirty": []
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "43 GB"
+          },
+          {
+            "name": "embeddinggemma:latest",
+            "size": "673 MB"
+          }
+        ],
+        "n": 2
+      },
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-228-uc-best-plumber-same-day-es.md",
+        "task": ".meshkore/modules/nucleo/tasks/T465-uc-best-plumber-same-day-es-fix.md"
+      }
+    },
+    "compare-insurance-quotes__es": {
+      "last_run": "2026-08-20 21:55",
+      "overall": 2,
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 3,
+        "adaptacion": 4,
+        "resultado": 1,
+        "mecanismo": 2,
+        "eficiencia": 2
+      },
+      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar afirmó haber entregado una comparativa con precios y recomendación cuando el mecanismo no muestra ningún resultado real extraído, un éxito falso que invalida el caso de uso.",
+      "missing_signals": [],
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «↩ zaelar ⚠️ error»: Contains brace with quote character (expansion obfuscation)"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «↩ zaelar ⚠️ error»: Exit code 1 payload JSON inválido"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «↩ zaelar ⚠️ error»: Exit code 1 payload JSON inválido"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «↩ zaelar ⚠️ error»: Exit code 2 usage: worker_bridge [-h] {ask,wait,act,say} ... worker_bridge: error: unrecognized arguments: comparativa seguros coche todo riesgo 2026 Mapfre Mut"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "memory/memory «🧠 memoria ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:1: 4 error(es), último paso «end»"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:3: 3 error(es), último paso «🧭 navegador»"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:5: 1 error(es), último paso «🌐 web ↩»"
+        }
+      ],
+      "sandboxed": true,
+      "tier": 2,
+      "turns_used": 9,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "60280c5",
+        "n_dirty": 0,
+        "dirty": []
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "43 GB"
+          },
+          {
+            "name": "embeddinggemma:latest",
+            "size": "673 MB"
+          }
+        ],
+        "n": 2
+      },
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-229-uc-compare-insurance-quotes-es.md",
+        "task": ".meshkore/modules/nucleo/tasks/T466-uc-compare-insurance-quotes-es-fix.md"
+      }
+    },
+    "best-rated-rental-car__es": {
+      "last_run": "2026-08-20 22:01",
+      "overall": 2,
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 3,
+        "adaptacion": 2,
+        "resultado": 1,
+        "mecanismo": 2,
+        "eficiencia": 1
+      },
+      "verdict": "No está listo para producción: el bloqueador nº1 es que la búsqueda falló por errores internos del worker y zaelar nunca informó del fallo, dejando al usuario esperando 5 minutos sin resultado ni explicación.",
+      "missing_signals": [],
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «↩ zaelar ⚠️ error»: Exit code 2 usage: worker_bridge [-h] {ask,wait,act,say} ... worker_bridge: error: argument cmd: invalid choice: 'help' (choose from ask, wait, act, say)"
         },
         {
           "clase": "error_interno",
@@ -690,28 +1088,152 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "39e4b1a",
+        "sha": "60280c5",
         "n_dirty": 0,
         "dirty": []
       },
       "machine": {
         "gpu_models": [
           {
-            "name": "embeddinggemma:latest",
-            "size": "673 MB"
+            "name": "qwen3.6:27b-mlx",
+            "size": "43 GB"
           },
           {
-            "name": "qwen3.6:27b-mlx",
-            "size": "42 GB"
+            "name": "embeddinggemma:latest",
+            "size": "673 MB"
           }
         ],
         "n": 2
       },
       "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-218-uc-hotel-under-15-days.md",
-        "task": ""
+        "initiative": ".meshkore/roadmap/initiatives/V2-230-uc-best-rated-rental-car-es.md",
+        "task": ".meshkore/modules/nucleo/tasks/T467-uc-best-rated-rental-car-es-fix.md"
+      }
+    },
+    "compare-broadband-plans__es": {
+      "last_run": "2026-08-20 22:08",
+      "overall": 2,
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 3,
+        "adaptacion": 3,
+        "resultado": 1,
+        "mecanismo": 2,
+        "eficiencia": 2
+      },
+      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar nunca entregó el resultado real (la comparativa de tarifas) y, peor aún, siguió afirmando que trabajaba en ello cuando el sistema ya había fallado, sin ser honesto sobre el error ni ofrecer una alternativa viable.",
+      "missing_signals": [
+        "widget"
+      ],
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «↩ zaelar ⚠️ error»: Exit code 2 usage: worker_bridge [-h] {ask,wait,act,say} ... worker_bridge: error: unrecognized arguments: tarifas fibra movil combinadas 2026 comparativa movis"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:1: 1 error(es), último paso «end»"
+        }
+      ],
+      "sandboxed": true,
+      "tier": 2,
+      "turns_used": 10,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "60280c5",
+        "n_dirty": 0,
+        "dirty": []
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "43 GB"
+          },
+          {
+            "name": "embeddinggemma:latest",
+            "size": "673 MB"
+          }
+        ],
+        "n": 2
+      },
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-231-uc-compare-broadband-plans-es.md",
+        "task": ".meshkore/modules/nucleo/tasks/T468-uc-compare-broadband-plans-es-fix.md"
+      }
+    },
+    "weekend-barber-availability__es": {
+      "last_run": "2026-08-20 22:15",
+      "overall": 2,
+      "state": "FAIL",
+      "scores": {
+        "naturalidad": 4,
+        "adaptacion": 4,
+        "resultado": 1,
+        "mecanismo": 2,
+        "eficiencia": 2
+      },
+      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar inventó la ubicación del usuario ('centro de Madrid') en lugar de preguntarla, y encima el worker no entregó ni un solo resultado real — la conversación fue una promesa vacía de 'te aviso' repetida cinco veces sin nada detrás.",
+      "missing_signals": [],
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "memory/memory «🧠 memoria ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:1: 2 error(es), último paso «🧭 navegador ↩»"
+        }
+      ],
+      "sandboxed": true,
+      "tier": 2,
+      "turns_used": 10,
+      "families": [
+        "flash",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "60280c5",
+        "n_dirty": 0,
+        "dirty": []
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "43 GB"
+          },
+          {
+            "name": "embeddinggemma:latest",
+            "size": "673 MB"
+          }
+        ],
+        "n": 2
+      },
+      "workspace": {
+        "initiative": ".meshkore/roadmap/initiatives/V2-232-uc-weekend-barber-availability-es.md",
+        "task": ".meshkore/modules/nucleo/tasks/T469-uc-weekend-barber-availability-es-fix.md"
       }
     }
   },
-  "updated": "2026-08-20 20:49"
+  "updated": "2026-08-20 22:31"
 }

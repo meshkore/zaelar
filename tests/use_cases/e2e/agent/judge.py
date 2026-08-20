@@ -237,6 +237,13 @@ def mechanism_facts(mech: dict) -> str:
         else:
             lines.append("· La agenda del motor está VACÍA — mirada y confirmada, cero citas. Si zaelar dijo "
                          "que la apuntó, la promesa no tiene nada detrás y eso es un fallo de RESULTADO.")
+    over = mech.get("overreach_signals") or []
+    if over:
+        lines.append(
+            f"· SE PASÓ DE MECANISMO (hecho medido): este caso prohíbe {mech.get('forbidden_signals')} y se "
+            f"observó {over}. La petición se resolvía por un camino ligero y el motor levantó maquinaria "
+            f"pesada. Eso es un fallo de MECANISMO aunque la respuesta acabara siendo correcta, y baja "
+            f"también EFICIENCIA: el usuario espera minutos por algo que eran segundos.")
     sh = mech.get("search_health") or {}
     if sh:
         n = sh.get("n_search_events")

@@ -376,10 +376,13 @@ def audit(all_events: list[dict], expected_signals: list[str] | None = None) -> 
 
 def mechanism_report(all_events: list[dict], expected_signals: list[str],
                      concurrency: ConcurrencyTracker | None = None,
-                     scheduled: dict | None = None) -> dict:
+                     scheduled: dict | None = None, forbidden_signals: list[str] | None = None) -> dict:
     """Structured, transcript-independent record of what actually happened this scenario."""
     families = families_in(all_events)
     missing = [f for f in expected_signals if f not in families]
+    # Doing TOO MUCH is a mechanism failure too, and it needs to be a measured fact rather than a line of
+    # prose the judge may or may not weigh.
+    overreach = [f for f in (forbidden_signals or []) if f in families]
     task_id = find_navegador_task_id(all_events)
     task_view: dict = {}
     if task_id:
@@ -388,6 +391,8 @@ def mechanism_report(all_events: list[dict], expected_signals: list[str],
         "families_observed": sorted(families),
         "expected_signals": expected_signals,
         "missing_signals": missing,
+        "forbidden_signals": list(forbidden_signals or []),
+        "overreach_signals": overreach,
         "navegador_task_id": task_id,
         "navegador_task": task_view,
         "n_events": len(all_events),

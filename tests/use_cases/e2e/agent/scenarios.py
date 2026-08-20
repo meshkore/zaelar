@@ -18,6 +18,11 @@ class UseCaseScenario:
     opening_line: str                    # the natural, imperfect first thing the tester says
     success_checks: str                  # what the judge verifies as the real-world outcome
     expected_signals: list[str] = field(default_factory=list)  # observability families (cat) that MUST fire
+    # ...and the ones that must NOT. A case can fail by doing TOO MUCH: `quick-fact-opening-hours` asks
+    # for an opening time and the engine spawns a browser Brain Worker, which is the very defect that case
+    # exists to catch. Until now the bar lived only in prose the judge read, so whether it counted depended
+    # on the judge; a family that must be ABSENT is as measurable as one that must be present.
+    forbidden_signals: list[str] = field(default_factory=list)
     turns: int = 8
     channel: str = "probe"               # probe (text/flash) | voice — probe is the default for this suite
     # MULTI-FLOW scenarios only (0 = single-task, the normal case): how many genuinely DIFFERENT tasks the
@@ -225,6 +230,9 @@ SCENARIOS: list[UseCaseScenario] = [
             "aunque acabe dando la respuesta correcta — penalízalo en 'mecanismo' y en 'eficiencia'. "
             "Inventarse un precio o una hora sin haber buscado también es fallo."
         ),
+        # El fallo que este caso existe para cazar, como HECHO medido y no como prosa que el juez pueda
+        # pesar o no: levantar un Brain Worker con navegador para una pregunta de dato directo.
+        forbidden_signals=["worker"],
         expected_signals=[],   # a propósito: `worker`/`widget` aquí serían la SEÑAL DE FALLO, no de éxito
         turns=4,
         channel="probe",
