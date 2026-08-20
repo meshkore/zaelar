@@ -165,6 +165,16 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             mech["prompt_context"] = verifymod.prompt_context(config.SANDBOX_DB, since=started_at)
         except Exception as e:
             mech["prompt_context_error"] = str(e)[:200]
+    # THE TESTER LEAVING ITS OWN ROLE is a harness fault, and the round has to say so. Measured 2026-08-20 in
+    # `weekend-adventure-sports-bilbao__es`: the "tester" turn delivered the assistant's answer — surf schools
+    # with prices and URLs — and zaelar sensibly replied that the message looked cut off. Grading that as a
+    # product defect grades the harness. `driver.reply` retries once; a flip that survives makes this INFRA,
+    # because zaelar's reaction to a nonsense turn says nothing about zaelar.
+    if getattr(driver, "role_flips", 0):
+        mech["role_flips"] = driver.role_flips
+        if driver.role_flips > 1:
+            run_data["crashed"] = (f"el DRIVE se salió de su papel {driver.role_flips} vez/veces y no volvió "
+                                   f"ni tras reintentarlo: la ronda no mide al producto")
     if mute_turns:
         mech["mute_turns"] = {"turns": mute_turns, "n": len(mute_turns)}
     try:
