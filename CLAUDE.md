@@ -1587,6 +1587,28 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     la tarea. Pide que un fallo deje su propio rastro con el sitio dentro — cómo se REGISTRA, no cómo se
     renderiza — y su propia medición.
 
+- **Un muro puede estar en el CUERPO de la página, con URL normal y status 200** (`widgets/navegador/tasks.py`
+  + `owner.py`, V2-167 segunda mitad, 2026-08-20). `wall_reason()` reconoce el muro por la URL y estaba bien
+  así; lo que faltaba era el caso medido en una corrida real del teatro: `entradas.com` contestó la página del
+  evento con un «Access Denied» de Akamai. El worker lo leyó del snapshot y se re-enrutó solo —así que la tarea
+  NO se atascó— y por eso el agujero llevaba invisible: **la única prueba de que existía era que el operador no
+  vio nada.** Ni `wall`, ni tarjeta abierta, ni una palabra.
+  - **NO se ensanchó `wall_reason()`.** El módulo tenía escrito por qué era URL-only —«un predicado que leyera
+    dos entradas distintas mentiría a la mitad de sus llamantes»— y sigue valiendo. Hay un predicado HERMANO,
+    `body_wall_reason(text)`, y quien decide cuál aplicar es el que tiene los datos: **solo la pestaña de la
+    tarea tiene la URL y el texto a la vez**, así que `TaskBrowser._capture()` es el único llamante que pasa
+    `page_text`. Quien no lo tiene lo omite y conserva el comportamiento de antes, fijado por un test — «arreglar
+    el muro del cuerpo» y «romper el muro de la URL» caben en el mismo commit.
+  - **La defensa contra el falso positivo es la LONGITUD, no una lista de agujas mejor.** Un muro de bots es una
+    página casi vacía (la de Akamai medida: **214 caracteres**); un artículo que habla de bloqueos tiene miles.
+    La aguja solo cuenta dentro de una página demasiado corta para ser contenido.
+  - **La trampa que INVIERTE esa defensa**, y no falla con ruido: si quien lee el cuerpo corta justo en el
+    límite del gate, un artículo de 50k llega «corto» y la puerta pasa TODAS las páginas — el detector se vuelve
+    un declarador de muros, en silencio. Por eso el tamaño de lectura (`WALL_BODY_PEEK_CHARS`) es público, vive
+    en el módulo del predicado y no en el llamante, y tiene test propio.
+  - **V2-167 sigue abierta** por su frente (e), la admisión que pierde peticiones (`three-tasks-at-once`).
+    Verificación en vivo pendiente: **T441**.
+
 - **El atasco llegaba al TURNO y no al WORKER** (`widgets/navegador/act_api.py`, V2-186, 2026-08-20). V2-167
   hizo viajar el MURO hasta el worker y dejó el ATASCO solo en el prompt del FlashBrain, así que las dos
   mitades del mismo hecho acabaron en sitios distintos: **el turno se enteraba de que la tarea había dejado de

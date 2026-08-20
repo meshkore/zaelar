@@ -54,6 +54,62 @@ _WALL_URL_NEEDLES = (
 _ERROR_PATH_SEGMENTS = frozenset({"notfound", "not-found", "404", "page-not-found", "pagenotfound",
                                   "errorpage", "error-404", "404.html", "not_found"})
 
+# A wall served in the BODY, with a perfectly ordinary URL and a 200 status. V2-167 left this half open on purpose
+# after measuring it on a REAL run of the theatre case: `entradas.com` answered the event page with an Akamai
+# «Access Denied» bot-detection page. The URL said nothing, `wall_reason()` saw nothing, the card never opened and
+# the operator was never told — the worker read it off the snapshot and re-routed by itself, which is why the task
+# did not get stuck and why the hole stayed invisible.
+#
+# This is a SECOND predicate over a DIFFERENT input, not a widening of the first one — `wall_reason` still answers
+# only about URLs. The caller decides which inputs it holds; the owner's tab holds both.
+#
+# The fragility the initiative warned about is «declaring a wall on any page that happens to mention the word», and
+# the guard against it is LENGTH, not a longer needle list: a bot wall is a nearly empty page (Akamai's is ~200
+# chars, Cloudflare's interstitial ~400), while an article that talks about access being denied is thousands. So a
+# needle only counts inside a page too short to be content. Measured on the run above: the wall page was 214 chars.
+_WALL_BODY_MAX_CHARS = 1200
+
+# How much text a caller must read before asking. It is deliberately LARGER than the gate above, and single-sourced
+# here because getting it wrong is silent and inverts the guard: read exactly 1200 chars of a 50k-char article and
+# the text arrives «short», so the length gate — the whole defence against false positives — passes every page.
+WALL_BODY_PEEK_CHARS = _WALL_BODY_MAX_CHARS + 400
+_WALL_BODY_NEEDLES = (
+    ("access denied", "el sitio bloqueó el acceso (te tomó por un robot)"),
+    ("acceso denegado", "el sitio bloqueó el acceso (te tomó por un robot)"),
+    ("permission to access", "el sitio bloqueó el acceso (te tomó por un robot)"),
+    ("you have been blocked", "el sitio bloqueó el acceso (te tomó por un robot)"),
+    ("request blocked", "el sitio bloqueó el acceso (te tomó por un robot)"),
+    ("unusual traffic", "el sitio pidió verificación anti-robot"),
+    ("tráfico inusual", "el sitio pidió verificación anti-robot"),
+    ("trafico inusual", "el sitio pidió verificación anti-robot"),
+    ("are you a robot", "el sitio pidió verificación anti-robot"),
+    ("not a robot", "el sitio pidió verificación anti-robot"),
+    ("no soy un robot", "el sitio pidió verificación anti-robot"),
+    ("verify you are human", "el sitio pidió verificación anti-robot"),
+    ("verifica que eres humano", "el sitio pidió verificación anti-robot"),
+    ("checking your browser", "el sitio pidió verificación anti-robot"),
+    ("captcha", "la página pidió resolver un captcha"),
+    ("enable javascript and cookies", "el sitio exigió javascript y cookies para dejarnos pasar"),
+    ("too many requests", "el sitio cortó por exceso de peticiones"),
+    ("demasiadas peticiones", "el sitio cortó por exceso de peticiones"),
+)
+
+
+def body_wall_reason(text: str) -> str:
+    """Short, operator-facing reason why this PAGE TEXT is a WALL, or '' when it is an ordinary page.
+
+    Sibling of `wall_reason()`, never a replacement: that one answers about a URL, this one about the text the tab
+    is showing. Only pages too short to be content are considered at all (see `_WALL_BODY_MAX_CHARS`) — the needles
+    alone would fire on any article that discusses bot detection.
+    """
+    t = " ".join((text or "").split()).lower()
+    if not t or len(t) > _WALL_BODY_MAX_CHARS:
+        return ""
+    for needle, reason in _WALL_BODY_NEEDLES:
+        if needle in t:
+            return reason
+    return ""
+
 
 def wall_reason(url: str) -> str:
     """Short, operator-facing reason why this URL is a WALL, or '' when it is an ordinary page.
@@ -563,8 +619,14 @@ def _announce_wall(task_id: str, reason: str) -> None:
         pass
 
 
-def update_view(task_id: str, url: str = "", page_title: str = "", shot_rev: int | None = None) -> None:
-    """This task's browser changed view (new capture) → refresh its card."""
+def update_view(task_id: str, url: str = "", page_title: str = "", shot_rev: int | None = None,
+                page_text: str = "") -> None:
+    """This task's browser changed view (new capture) → refresh its card.
+
+    `page_text` is what the tab is SHOWING (bounded, best-effort). It is the only input that can catch a wall served
+    in the body with an ordinary URL — see `body_wall_reason`. Callers that do not hold the text simply omit it and
+    get exactly the URL-only behaviour they had before.
+    """
     struck = ""
     with _lock:
         t = _tasks.get(task_id)
@@ -577,7 +639,7 @@ def update_view(task_id: str, url: str = "", page_title: str = "", shot_rev: int
             if url != t.get("url"):
                 t["last_progress"] = time.time()
             t["url"] = url
-            was, t["wall"] = (t.get("wall") or ""), wall_reason(url)
+            was, t["wall"] = (t.get("wall") or ""), (wall_reason(url) or body_wall_reason(page_text))
             if t["wall"] and t["wall"] != was:
                 struck = t["wall"]
         if page_title:

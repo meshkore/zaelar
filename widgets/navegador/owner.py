@@ -1290,8 +1290,18 @@ class TaskBrowser:
             title = await page.title()
         except Exception:
             pass
+        # V2-167 (second half): the tab is the ONLY place that holds both the URL and the text, so it is the only
+        # place that can spot a wall served in the BODY with an ordinary URL (measured: entradas.com answering an
+        # event page with an Akamai «Access Denied»). Bounded and best-effort — a capture must never fail because
+        # the text could not be read, and the predicate that judges it only looks at short pages anyway.
         from . import tasks
-        tasks.update_view(self.task_id, url=page.url, page_title=title or page.url, shot_rev=self.rev)
+        body = ""
+        try:
+            body = (await page.inner_text("body"))[:tasks.WALL_BODY_PEEK_CHARS]
+        except Exception:
+            pass
+        tasks.update_view(self.task_id, url=page.url, page_title=title or page.url, shot_rev=self.rev,
+                          page_text=body)
         self._emit("screenshot", page.url)
 
     async def _goto(self, url: str) -> None:

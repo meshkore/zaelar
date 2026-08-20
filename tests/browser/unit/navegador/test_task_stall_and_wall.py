@@ -759,3 +759,108 @@ def test_and_with_no_worker_at_all_nothing_changes():
     tasks.update_view(tid, url=REAL_PAGE)
     tasks._tasks[tid]["last_progress"] = time.time() - 400
     assert "ESTÁ BLOQUEADA: lo que pone arriba de ella" in _live()
+
+
+# ── el muro que vive en el CUERPO, no en la URL (V2-167, segunda mitad) ────────────────────────────────────
+# Medido en una corrida REAL del caso del teatro el 2026-08-19: `entradas.com` contestó la página del evento
+# con un «Access Denied» de detección de bots de Akamai. URL normal, status normal, `wall_reason()` ciego. El
+# worker lo leyó del snapshot y se re-enrutó solo —así que la tarea NO se atascó— y por eso el agujero llevaba
+# invisible: la única prueba de que existía era que el operador no vio nada.
+#
+# El texto de abajo es la forma de esa página (214 caracteres), no un ejemplo inventado.
+AKAMAI_DENIED = ("Access Denied\n\nYou don't have permission to access \"http://www.entradas.com/teatro-musical/"
+                 "el-rey-leon-t3328\" on this server.\n\nReference #18.5c7d4f17.1787159442.2b1e9c3\n\n"
+                 "https://errors.edgesuite.net/18.5c7d4f17.1787159442.2b1e9c3")
+CLOUDFLARE_WAIT = ("Just a moment...\n\nChecking your browser before accessing entradas.com.\n\n"
+                   "Please enable JavaScript and cookies to continue.\n\nRay ID: 8f2a1c9d4e7b")
+
+
+def test_the_body_served_wall_that_was_measured_is_recognised():
+    assert tasks.body_wall_reason(AKAMAI_DENIED)
+    assert tasks.body_wall_reason(CLOUDFLARE_WAIT)
+
+
+def test_the_url_of_that_same_page_says_nothing():
+    """Es la razón de existir de esta mitad: la URL del muro medido es una URL perfectamente buena, y el
+    predicado de URL tiene razón en callarse. Si algún día `wall_reason` empezara a acertar aquí, sería porque
+    alguien la ensanchó para leer texto — que es justo lo que este módulo decidió no hacer."""
+    assert tasks.wall_reason("https://www.entradas.com/teatro-musical/el-rey-leon-t3328") == ""
+
+
+def test_a_long_page_that_merely_TALKS_about_being_blocked_is_not_a_wall():
+    """El riesgo que V2-167 dejó escrito: «no declarar muro sobre cualquier página que mencione la palabra».
+    La defensa es la LONGITUD, así que hay que probarla con un artículo de verdad, largo y con la aguja
+    dentro."""
+    article = ("Cómo evitar que te bloqueen al comprar entradas online. " * 40
+               + " Muchos usuarios reciben un Access Denied o un mensaje de unusual traffic al intentar "
+                 "comprar, y algunas webs piden resolver un captcha. " + "Sigue leyendo. " * 40)
+    assert len(article) > tasks._WALL_BODY_MAX_CHARS
+    assert tasks.body_wall_reason(article) == ""
+
+
+def test_an_ordinary_short_page_is_not_a_wall_either():
+    assert tasks.body_wall_reason("") == ""
+    assert tasks.body_wall_reason("El Rey León · Teatro Lope de Vega, Madrid · Sábado 20:30 · Desde 39 €") == ""
+    assert tasks.body_wall_reason("Casa Lucio. Reserva tu mesa. Cava Baja 35, Madrid.") == ""
+
+
+def test_the_body_reason_is_also_said_in_words_the_operator_can_hear():
+    for text in (AKAMAI_DENIED, CLOUDFLARE_WAIT):
+        reason = tasks.body_wall_reason(text)
+        assert "Reference #" not in reason and "Ray ID" not in reason and "http" not in reason
+        assert len(reason.split()) >= 3
+
+
+def test_the_task_carries_a_body_served_wall_like_any_other():
+    """La prueba que importa: el estado del turno tiene que enterarse. Antes de esto la tarjeta no se abría y
+    el operador no veía nada, aunque el worker sí lo supiera."""
+    tid = tasks.create("conseguir entradas para El Rey León")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url="https://www.entradas.com/teatro-musical/el-rey-leon-t3328",
+                      page_title="Access Denied", page_text=AKAMAI_DENIED)
+    assert tasks.active_progress()[0]["wall"]
+
+
+def test_and_it_drops_the_wall_when_the_next_page_is_real():
+    tid = tasks.create("conseguir entradas")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url="https://www.entradas.com/teatro-musical/el-rey-leon-t3328",
+                      page_text=AKAMAI_DENIED)
+    assert tasks.active_progress()[0]["wall"]
+    tasks.update_view(tid, url="https://www.ticketmaster.es/artist/el-rey-leon-entradas/4043",
+                      page_text="El Rey León. Teatro Lope de Vega. Entradas desde 39 €.")
+    assert tasks.active_progress()[0]["wall"] == ""
+
+
+def test_a_caller_that_has_no_text_keeps_the_url_only_behaviour():
+    """Nadie más que la pestaña tiene el cuerpo. Omitir el texto no puede cambiar nada de lo que ya funcionaba,
+    ni borrar un muro que la URL sí ve."""
+    tid = tasks.create("reservar hotel")
+    tasks.set_status(tid, "working")
+    tasks.update_view(tid, url=BOOKING_WALL)
+    tid2 = tasks.create("otra")
+    tasks.set_status(tid2, "working")
+    tasks.update_view(tid2, url=REAL_PAGE)
+    walls = {r["id"]: r["wall"] for r in tasks.active_progress(limit=9)}
+    assert walls[tid], "un muro que la URL ve no puede depender de que le pasen texto"
+    assert walls[tid2] == ""
+
+
+def test_the_peek_size_is_bigger_than_the_gate_that_judges_it():
+    """El trampa silenciosa de este arreglo, y la única que invierte la defensa: si quien lee el cuerpo corta
+    justo en el límite, un artículo de 50k llega «corto» y la puerta de longitud pasa TODAS las páginas. Por eso
+    el tamaño de lectura vive aquí y no en el llamante."""
+    assert tasks.WALL_BODY_PEEK_CHARS > tasks._WALL_BODY_MAX_CHARS
+    long_article = "Access Denied. " + ("texto de relleno de un artículo real. " * 400)
+    truncated_correctly = long_article[:tasks.WALL_BODY_PEEK_CHARS]
+    assert tasks.body_wall_reason(truncated_correctly) == ""
+
+
+def test_the_tab_capture_is_the_one_that_reads_the_body():
+    """Guarda de nivel de fuente: el muro del cuerpo solo llega al registro si la pestaña se lo pasa. Un
+    predicado nuevo que nadie llama es un arreglo muerto — esta noche ya han aparecido dos."""
+    import inspect
+    from widgets.navegador import owner
+    src = inspect.getsource(owner.TaskBrowser._capture)
+    assert "WALL_BODY_PEEK_CHARS" in src, "la pestaña dejó de leer el cuerpo"
+    assert "page_text=" in src, "la pestaña lee el cuerpo pero no lo pasa al registro"
