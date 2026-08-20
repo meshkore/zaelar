@@ -1587,6 +1587,27 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     la tarea. Pide que un fallo deje su propio rastro con el sitio dentro — cómo se REGISTRA, no cómo se
     renderiza — y su propia medición.
 
+- **El operador pidió el aviso en SUBJUNTIVO y el backstop no lo reconoció** (`nucleo/flash/router_guards.py`,
+  V2-167 ronda 12, 2026-08-20). `_REMIND_ASK_RE` solo conocía el indicativo (`me avisas`); la corrida dijo «Que
+  me **avises** el miércoles 26 por la mañana». Sin reconocer la petición, el día del aviso no se podía leer por
+  posición, la frase entera iba a `parse_when` —que ve «jueves 27» y «miércoles 26» y se niega, con razón— y
+  `scheduled_jobs.created` salió vacío mientras zaelar decía «lo dejo apuntado y programo el aviso» y remataba
+  con «Ya lo tienes todo listo».
+  - **Pedir algo tras «que» pide subjuntivo en español**: no es una variante rara, es la forma natural. Por eso
+    el ensanche es MORFOLÓGICO (raíz + terminación) y no una frase más en una lista — es literalmente el fallo
+    que V2-151 ya pagó en este mismo módulo («medido sobre siete formas naturales, cinco se escapaban»).
+  - La auditoría del stream salió **limpia** (cero `is_error`), y eso ahorró la búsqueda en falso: sin excepción
+    de por medio, el fallo estaba en la lógica. Un dato en negativo también es un dato.
+
+- **Una respuesta que aún PREGUNTA archivaba una cita hecha con su propia pregunta** (`nucleo/flash/router_guards.py`,
+  V2-167, 2026-08-20). «Perfecto, lo anoto. ¿A qué hora del jueves te viene bien la renovación?» metía en la
+  agenda una cita titulada **«¿a que hora del»**. La regla que lo impide ya existía en el módulo —«a question
+  mark means it is still asking, and nothing gets filed on a date it has not settled»— pero solo en la rama que
+  lee la obligación de la ventana; a la rama de la PROMESA nunca se le aplicó.
+  - **Esperar cuesta un turno y nada más**: el backstop se reevalúa en cada turno y la cita entra en cuanto la
+    respuesta deja de preguntar (medido en la reproducción: entra en el turno donde la fecha queda cerrada, con
+    el título correcto). Archivar antes de tiempo cuesta una entrada equivocada que nadie va a ir a borrar.
+
 - **El muro del cuerpo DISPARÓ, y el hecho se borró al re-enrutarse** (`widgets/navegador/tasks.py` +
   `nucleo/flash/prompt.py`, V2-176, 2026-08-20). Primera medición del detector de V2-167 en
   `find-theatre-tickets__es`: **funcionó** —el juez nos devuelve nuestra propia cadena, «cuando `phase` indique

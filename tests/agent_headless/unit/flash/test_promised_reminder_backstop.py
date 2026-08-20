@@ -659,3 +659,117 @@ def test_the_measured_case_is_untouched_by_that_rule(monkeypatch):
     monkeypatch.setattr(scheduler.time, "time", lambda: NOW)
     assert g.clause_is_only_a_date(g.commitment_clause(ASK)) is False
     assert g.dated_reminder_backstop(REPLY_NO_DAY, ASK)["schedule"] == "2026-08-19 09:00"
+
+
+# ── V2-167 ronda 12 (2026-08-20 12:39) · el operador pide el aviso en SUBJUNTIVO ─────────────────────────────
+#
+# Conversación medida, cuatro turnos, `mecanismo 1` y `scheduled_jobs.created` VACÍO — con la auditoría del
+# stream LIMPIA (cero `is_error`), o sea que no había ninguna excepción comiéndose nada: fallaba la lógica.
+#
+#   TESTER  Apúntame que el jueves tengo que renovar el seguro del coche, y recuérdamelo el miércoles.
+#   ZAELAR  Perfecto, lo anoto. ¿A qué hora del jueves te viene bien la renovación?
+#   TESTER  El jueves de esta semana, por la mañana me vale para el aviso del miércoles.
+#   ZAELAR  ¿el jueves al que te refieres es mañana? Hoy es jueves 20. ¿Quieres la cita para el jueves 27?
+#   TESTER  Me refería al próximo jueves, el 27. Que me AVISES el miércoles 26 por la mañana.
+#   ZAELAR  Claro, lo dejo apuntado y programo el aviso.
+#   ZAELAR  ¡Hablamos! Ya lo tienes todo listo. 👋
+#
+# La causa: `_REMIND_ASK_RE` solo conocía el INDICATIVO («me avisas»). Pedir algo tras «que» pide subjuntivo en
+# español —«que me avises», «que me lo recuerdes»— y esa no es una variante rara: es la forma natural de pedirlo.
+# Sin reconocerla, el día del aviso no se podía leer por posición, la frase entera iba a `parse_when` (que ve
+# «jueves 27» y «miércoles 26» y se niega, con razón) y no se programaba nada.
+#
+# Es el mismo fallo que V2-151 ya pagó en este módulo, por eso el ensanche es MORFOLÓGICO y no una frase más
+# en una lista.
+ASK_SUBJ = ("Perdona, me lié con el día. Me refería al próximo jueves, el 27. Que me avises el miércoles 26 "
+            "por la mañana. ¿Me lo dejas apuntado y me mandas el recordatorio ese día?")
+REPLY_R12 = "Claro, lo dejo apuntado y programo el aviso."
+# Jueves 20 ago 2026, 09:00 — el día en que se midió la corrida.
+NOW_R12 = time.mktime((2026, 8, 20, 9, 0, 0, 0, 1, -1))
+
+WIN_R12 = [
+    {"role": "user", "content": ASK},
+    {"role": "assistant", "content": "Perfecto, lo anoto. ¿A qué hora del jueves te viene bien la renovación?"},
+    {"role": "user", "content": "El jueves de esta semana, por la mañana me vale para el aviso del miércoles."},
+    {"role": "assistant", "content": "¿el jueves al que te refieres es mañana? ¿Quieres la cita para el 27?"},
+    {"role": "user", "content": ASK_SUBJ},
+]
+
+
+@pytest.mark.parametrize("text", [
+    "Que me avises el miércoles 26 por la mañana.",
+    "que me lo recuerdes el miércoles",
+    "que me recuerdes lo del seguro el miércoles",
+    "¿me mandas el recordatorio ese día?",
+])
+def test_the_operator_can_ask_in_the_subjunctive(text):
+    assert g._REMIND_ASK_RE.search(g._norm_txt(text)), "pedirlo tras «que» es la forma natural en español"
+
+
+@pytest.mark.parametrize("text", [
+    "recuérdamelo el miércoles",
+    "me avisas el martes",
+    "avísame mañana",
+    "remind me tomorrow",
+])
+def test_and_the_forms_that_already_worked_still_do(text):
+    assert g._REMIND_ASK_RE.search(g._norm_txt(text))
+
+
+def test_the_notice_day_now_resolves_from_the_subjunctive_ask(monkeypatch):
+    monkeypatch.setattr(scheduler.time, "time", lambda: NOW_R12)
+    assert g._asked_reminder_moment(ASK_SUBJ) == "2026-08-26 09:00"
+
+
+def test_the_measured_exchange_schedules_the_notice(monkeypatch):
+    """Lo que salió vacío en la corrida: el cron, el miércoles 26, con el aviso —no la petición— dentro."""
+    monkeypatch.setattr(scheduler.time, "time", lambda: NOW_R12)
+    cron = g.dated_reminder_backstop(REPLY_R12, ASK_SUBJ, window=WIN_R12)
+    assert cron and cron["schedule"] == "2026-08-26 09:00"
+    assert "AVISA" in cron["prompt"] and "seguro" in _n(cron["prompt"])
+
+
+def test_and_the_OTHER_half_lands_on_the_thursday(monkeypatch):
+    """El caso exige las dos mitades y el juez puntúa las dos: la cita va el 27, el aviso el 26."""
+    monkeypatch.setattr(scheduler.time, "time", lambda: NOW_R12)
+    note = g.dated_note_backstop(REPLY_R12, ASK_SUBJ, window=WIN_R12)
+    assert note and note["date"] == "2026-08-27"
+    assert "seguro" in _n(note["title"])
+    assert note["date"] > g.dated_reminder_backstop(REPLY_R12, ASK_SUBJ, window=WIN_R12)["schedule"][:10]
+
+
+def test_the_ask_pattern_is_not_a_negation_detector(monkeypatch):
+    """Dicho en vez de escondido: «no me avises» también casa con el patrón. No importa, y el motivo es el
+    DISEÑO — el disparador del backstop es la PROMESA DEL AGENTE (`_REMIND_VERB_RE` sobre la respuesta); la
+    petición del operador solo sirve para fechar. Sin promesa no se programa nada, diga él lo que diga."""
+    monkeypatch.setattr(scheduler.time, "time", lambda: NOW_R12)
+    assert g.dated_reminder_backstop("Vale, entendido.", "no me avises de nada el miércoles") is None
+
+
+# ── seguir PREGUNTANDO no es haber cerrado nada (las DOS ramas) ──────────────────────────────────────────────
+#
+# La regla ya estaba escrita para la rama que lee la obligación de la ventana —«a question mark means it is
+# still asking, and nothing gets filed on a date it has not settled»— y a la rama de la PROMESA nunca se le
+# aplicó. Reproducido: «Perfecto, lo anoto. ¿A qué hora del jueves te viene bien la renovación?» metía en la
+# agenda una cita titulada «¿a que hora del», construida con su propia pregunta.
+def test_a_reply_that_promises_AND_asks_files_nothing(monkeypatch):
+    monkeypatch.setattr(scheduler.time, "time", lambda: NOW_R12)
+    assert g.dated_note_backstop("Perfecto, lo anoto. ¿A qué hora del jueves te viene bien?", ASK) is None
+
+
+def test_and_it_lands_as_soon_as_the_reply_stops_asking(monkeypatch):
+    """Esperar cuesta UN turno y nada más: el backstop se reevalúa en cada turno. Archivar antes de tiempo
+    cuesta una entrada equivocada que nadie va a ir a borrar."""
+    monkeypatch.setattr(scheduler.time, "time", lambda: NOW_R12)
+    assert g.dated_note_backstop("Perfecto, lo anoto. ¿A qué hora?", ASK) is None
+    settled = g.dated_note_backstop("Vale, lo anoto para el jueves.", ASK)
+    assert settled and "seguro" in _n(settled["title"])
+
+
+def test_the_junk_title_that_was_reproduced_can_no_longer_be_built(monkeypatch):
+    """La forma exacta del defecto, fijada por su síntoma: una cita cuyo título es un trozo de pregunta."""
+    monkeypatch.setattr(scheduler.time, "time", lambda: NOW_R12)
+    for reply in ("Perfecto, lo anoto. ¿A qué hora del jueves te viene bien la renovación?",
+                  "Te lo apunto. ¿Te parece bien el jueves?"):
+        note = g.dated_note_backstop(reply, ASK)
+        assert note is None or not note["title"].strip().startswith("¿")

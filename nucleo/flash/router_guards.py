@@ -384,6 +384,19 @@ def dated_note_backstop(reply: str, operator_text: str = "", window=None) -> dic
     n = _norm_txt(reply)
     m = _NOTE_VERB_RE.search(n)
     if m:
+        # STILL ASKING IS NOT SETTLED, and that rule belongs to BOTH branches. It was written for the one below
+        # («a question mark means it is still asking, and nothing gets filed on a date it has not settled») and
+        # the promise branch never got it — so a reply that promises AND asks in the same breath filed an entry
+        # built out of its own question. Reproduced from round 12 of `remember-and-remind-deadline`: «Perfecto,
+        # lo anoto. ¿A qué hora del jueves te viene bien la renovación?» put a meeting in the agenda titled
+        # «¿a que hora del».
+        #
+        # Waiting costs one turn and nothing else: this backstop is re-evaluated every turn, so the entry lands
+        # as soon as the reply stops asking — measured in the same reproduction, it lands on the turn where the
+        # date is finally settled, with the right title. Filing early costs a wrong entry that nobody will go
+        # and delete.
+        if "?" in (reply or ""):
+            return None
         tail = n[m.end():]
         cut = _REMIND_VERB_RE.search(tail)
         if cut:
@@ -589,8 +602,23 @@ def create_widget_request(text: str) -> str:
 # The operator's OWN ask, which is not the same vocabulary as the agent's promise (`_REMIND_VERB_RE`, above):
 # he says «recuérdamelo», the agent says «te aviso». Both halves live in the same sentence and telling them
 # apart is what lets the commitment be read separately from the notice.
+# V2-167 ronda 12 (2026-08-20 12:39) — el operador pidió el aviso en SUBJUNTIVO: «Que me AVISES el miércoles
+# 26 por la mañana». Este patrón sólo conocía el indicativo (`me avisas`), así que no reconoció la petición, el
+# día del aviso no se pudo leer por posición, la frase entera se fue a `parse_when` —que ve «jueves 27» y
+# «miércoles 26» y se niega, con razón— y `scheduled_jobs.created` salió VACÍO mientras zaelar decía «lo dejo
+# apuntado y programo el aviso» y remataba con «Ya lo tienes todo listo».
+#
+# Es EXACTAMENTE el fallo que este módulo ya se comió en V2-151 y que dejó escrito ahí arriba: la primera forma
+# del patrón deletreaba una variante concreta y la corrida real dijo la de al lado. Por eso esto se ensancha por
+# MORFOLOGÍA (la raíz del verbo + su terminación) y no añadiendo la frase de hoy a una lista: pedir un aviso
+# tras «que» pide subjuntivo en español, y eso no es una variante rara sino la forma natural de pedirlo.
+#
+# El pronombre opcional (`me lo avises` / `me la recuerdes`) va dentro por lo mismo. La raíz sigue emparejada
+# con su terminación en vez de un `\w*` suelto, para que una NEGACIÓN («no me avises») no arrastre el patrón.
 _REMIND_ASK_RE = _re.compile(
-    r"\b(recuerdame\w*|recuerdalo|me\s+lo\s+recuerdas|avisame\w*|me\s+avisas|"
+    r"\b(recuerdame\w*|recuerdalo|avisame\w*|"
+    r"me\s+(?:lo\s+|la\s+)?(?:avis|recuerd)[ae]s|"
+    r"me\s+(?:lo\s+)?mand[ae]s\s+(?:el|un)\s+(?:recordatorio|aviso)|"
     r"remind\s+me|let\s+me\s+know)\b", _re.I)
 
 
