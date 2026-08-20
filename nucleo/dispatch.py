@@ -154,14 +154,28 @@ def _goal_key(req: str) -> str:
     return " ".join(sorted(_content_words(req)))
 
 
-def _find_resume(req: str) -> dict | None:
+def _find_resume(req: str, *, take: bool = False) -> dict | None:
     """Entrada de reanudación reciente que casa esta petición ('' → None): solape de palabras ≥0.5 con una gestión
-    web INCOMPLETA dentro del TTL. Poda de paso las caducadas."""
+    web INCOMPLETA dentro del TTL. Poda de paso las caducadas.
+
+    `take=True` la CONSUME, y eso es lo que impide que varios workers reanuden la misma sesión del CLI.
+
+    Medido por el arnés el 2026-08-21 en `best-plumber-same-day` (1/5, cero filas extraídas), con la correlación
+    perfecta: tres workers distintos arrancaron con «REANUDA sesión nativa c5ad1d9e-ad0…» —**la misma**— y los
+    tres murieron a los 371, 401 y 374 ms; los dos que abrieron sesión propia sobrevivieron. **3 de 3 contra 0 de
+    3.** Una sesión del CLI no se puede reanudar dos veces a la vez: el segundo `--resume` del mismo id muere en
+    el arranque, antes de hacer nada. Y como esto se leía sin consumirse, cada escalada de la misma petición
+    —incluidas las que dispara el auto-resume— se llevaba el MISMO `native_sid`.
+
+    Consumirla es seguro porque el ciclo de vida ya la devuelve: al cerrar una gestión web incompleta,
+    `_run_session` reescribe la entrada con el `native_sid` ACTUAL. Y si el worker muere antes de llegar ahí, la
+    reanudación se pierde y el siguiente encargo empieza de cero — que es estrictamente mejor que morir en 400 ms.
+    """
     now = time.time()
     req_w = _content_words(req)
     if not req_w:
         return None
-    best, best_score = None, 0.0
+    best, best_key, best_score = None, "", 0.0
     for key, ent in list(_WEB_RESUME.items()):
         if now - ent.get("ts", 0) > _RESUME_TTL:
             _WEB_RESUME.pop(key, None)
@@ -170,7 +184,10 @@ def _find_resume(req: str) -> dict | None:
         union = len(req_w | o)
         score = (len(req_w & o) / union) if union else 0.0
         if score >= 0.5 and score > best_score:
-            best, best_score = ent, score
+            best, best_key, best_score = ent, key, score
+    if best is not None and take:
+        _WEB_RESUME.pop(best_key, None)
+        _resume_persist()          # …y que el rastro durable no se la sirva otra vez tras un reinicio
     return best
 
 
@@ -1873,7 +1890,9 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
             # misma pestaña + razonamiento en vez de arrancar de cero.
             _k = kind if kind != "generic" else _classify_kind(request)
             if _k == "web":
-                _res = _find_resume(request)
+                # take=True: la reanudación se CONSUME al entregarla. Sin eso, dos escaladas de la misma
+                # petición se llevan el mismo id de sesión del CLI y la segunda muere en el arranque.
+                _res = _find_resume(request, take=True)
                 if _res and (_res.get("nav_task") or _res.get("native_sid")):
                     ctx = dict(ctx)
                     ctx["resume"] = _res

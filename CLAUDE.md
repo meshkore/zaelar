@@ -552,6 +552,33 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   estado, memoria, datos de los widgets, config de modelos y credenciales** — solo los checkboxes MEMORIA/CREDENCIALES
   (opt-in, V2-063) borran esas capas. Piezas one-shot **parkeadas** (revertibles): `nucleo/agentes/
   {worker,web,web_cc,otros}.py`.
+- **UN BRAIN WORKER HACE CASI DE TODO — la seguridad es un FILTRO, no una lista corta de permisos** (norma del
+  operador, 2026-08-21). Conviene tenerlo escrito porque la lectura contraria —«un worker apenas puede hacer
+  nada, así que ampliarle la superficie es peligroso»— lleva a diagnosticar mal: ante una capacidad que falta, la
+  pregunta correcta es **cuál es su filtro**, no si debería tenerla. Lo que un worker puede hacer HOY, comprobado
+  en el código y no de memoria:
+  - **WIDGETS**: leer uno (`read_widget`), **operar sus datos** (`widget_data` con cualquier acción DECLARADA en
+    su manifest), abrirlo y cerrarlo — por `nucleo/widget_cli.py` y por el plano `act`. Y **crear o modificar el
+    CÓDIGO** de un widget escalando (`spawn`, ALLOW) a una sesión `kind="code"`, que pasa por el gate de
+    validación del generador.
+  - **NAVEGADOR**: conducir un Chromium real (`nucleo/nav_cli.py`), con el confirm-gate de `nucleo/danger.py`
+    delante de lo irreversible.
+  - **RED MeshKore**: preguntar al oráculo y encargar a agentes vivos (`nucleo/mesh_cli.py`), solo gratis y
+    aplicado en código.
+  - **MEMORIA**: leer y escribir (`nucleo/mem_cli.py`) por `remember_external`, con sus gates de precisión.
+  - **CONECTORES y MENSAJERÍA**: `push_channel` (CONFIRM) y las tools prestadas del FlashBrain.
+  - **MCP**: sus tools se reconocen en el stream (`mcp__*`) y cuentan como pasos normales.
+  - **EL FILTRO, que es lo que hace que esto sea seguro y no temerario**: solo acciones DECLARADAS (un widget
+    expone su vocabulario, no su interior) · **CONFIRM** delante de lo irreversible · **DENY** para lo que es
+    operator-only por semántica (`_DENY_TOOLS`) · Bash acotado a los puentes, nunca pelado (el invariante del
+    escritor único de la memoria) · cwd confinado (V2-117) · y el catálogo de tools prestadas crece **con marca
+    explícita, nunca por accidente**.
+  - **Lo que falta hoy y es un hueco, no una decisión**: no hay forma de **programar un cron/recordatorio** — ni
+    puente, ni acción en `_KNOWN_ACTS`, ni tool prestable. Un worker al que se le encarga «recuérdaselo el
+    miércoles» no puede, **y lo que hizo fue decir que lo había hecho y escribirlo durable en memoria** (medido
+    2026-08-21: `sys_kv` sin ninguna entrada de scheduler y una píldora diciendo «Recordatorio PROGRAMADO … a las
+    09:00»). Se cierra como todo lo demás: dándole la capacidad **con su filtro**, no dejándosela fuera. Ver
+    `V2-236`.
 - **Gate de ATENCIÓN — el micro abierto no actúa sobre voz ambiente** (`voice/attention.py`, V2-015, 2026-07-09):
   con el micro SIEMPRE abierto, zaelar trataba TODO lo oído como órdenes — en una reunión capturó voz ambiente,
   alucinó, abrió widgets, escaló tareas al SlowBrain y enterró un "cierra los widgets" dentro de un turno gigante

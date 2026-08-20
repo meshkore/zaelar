@@ -338,6 +338,19 @@ class WorkerSession:
                     lbl = f"${float(self._cost):.4f}"
             except (TypeError, ValueError):
                 pass
+            # UN FINAL DICE POR QUÉ (V2-237, 2026-08-21). La fila del final salía con el coste y nada más, así que
+            # un worker MUERTO dejaba `text:""` y el motivo había que ir a buscarlo cruzando el log del motor por
+            # `span=worker:N`. Medido por el arnés en `best-plumber-same-day`: los únicos eventos de error de la
+            # ronda eran del worker que NO murió, y los cuatro que sí murieron no dijeron nada. Un final sin causa
+            # se lee igual que un final normal.
+            #
+            # Va el texto CRUDO a propósito: esta fila es del registro, no de la boca del operador. De que un error
+            # de proveedor no se le lea en voz alta ya se encarga `operator_safe_summary` en la entrega, y su
+            # propio docstring dice que el texto completo se queda en el log — que es justo esto.
+            extra["status"] = str(rec.status or "")
+            if not rec.ok:
+                why = " ".join(str(rec.result_summary or "").split())[:200]
+                lbl = f"{lbl} · {why}".strip(" ·") if why else (lbl or str(rec.status or "sin completar"))
             self._emit_chip("end", label=lbl, ok=rec.ok, extra=extra)
         # LEAK FIX (marathon 2026-07-22/23): `run()` sale del bucle en el PRIMER "done" (= primer `result` de
         # stream-json), pero el proceso `claude --print` sigue vivo (modo multi-turno, espera más stdin). dispatch

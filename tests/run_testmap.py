@@ -154,6 +154,9 @@ DOMAINS: list[dict] = [
             "tests/agent_headless/unit/flash/test_voice_failover.py"]},
         {"id": "2.5", "title": "Escalado / dispatch / workers", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_escalate.py", "tests/agent_headless/unit/test_dispatch.py",
+            # V2-237: tres workers reanudando LA MISMA sesión del CLI y los tres muertos a los ~400 ms (3 de 3,
+            # contra 0 de 3 entre los que abrieron sesión propia). `_find_resume` leía la entrada sin consumirla.
+            "tests/agent_headless/unit/test_a_native_session_is_resumed_once.py",
             # V2-152: a worker resolved its bridges against a HARDCODED localhost:43917 that nobody ever set,
             # so an engine on any other port spawned workers that drove a DIFFERENT engine.
             "tests/agent_headless/unit/test_worker_own_engine.py",
@@ -199,7 +202,10 @@ DOMAINS: list[dict] = [
             # el contexto del worker: cwd propio (el motor no le mete su CLAUDE.md), vigía que le pide entregar antes
             # del techo, «compactar y continuar» al desbordarse, y NUNCA un error crudo del proveedor como informe
             "tests/agent_headless/unit/workers/test_context_budget.py",
-                                  "tests/agent_headless/unit/workers/test_the_search_answer_reaches_the_conversation.py",
+            # V2-236: lo que devuelve una BÚSQUEDA WEB moría dentro del worker (7 búsquedas, 5 respuestas con el
+            # dato exacto que pidió el operador, 0 notas al cerebro). Se empuja en cuanto existe, el JUICIO se
+            # queda en el cerebro, y un `is_error` no es un hallazgo.
+            "tests/agent_headless/unit/workers/test_the_search_answer_reaches_the_conversation.py",
             # el OTRO backend (Codex): traducción de su JSONL a WorkerEvent con trazas REALES del CLI + la postura
             # FAIL-CLOSED — Codex no sabe acotar sus tools, así que rechaza justo las tareas que existen acotadas
             # (entrada no confiable, dev worker de cluster) en vez de correr con menos contención de la pedida
