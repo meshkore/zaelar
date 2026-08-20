@@ -134,6 +134,26 @@ def _run(port):
         painted = page.evaluate("""() => (document.querySelector('.hr-panel')||{}).innerText || ''""")
         check("4b · y el resultado se ve de verdad en el panel", "Bécquer" in painted, f"panel: {painted[:120]!r}")
 
+        # 7 · THE ONE THE OPERATOR ACTUALLY SEES. After the jump the reader is looking at the results
+        # list, so the process panel's spinner (check 5) is off-screen: the only thing left saying "still
+        # working" is the marker on the process TAB BUTTON. Measured on the button, from the results tab,
+        # and by animation — a static dot in the DOM would pass an existence check and tell the reader
+        # nothing.
+        onbtn = page.evaluate("""() => {
+            const t = [...document.querySelectorAll('.hr-tab')].find(b =>
+                (b.dataset.tab||'').startsWith('proc') || /proceso/i.test(b.textContent));
+            if (!t) return {found: false};
+            const el = t.querySelector('[class*=spin], [class*=load]');
+            const a = el && el.getAnimations ? el.getAnimations() : [];
+            const r = el ? el.getBoundingClientRect() : null;
+            return {found: true, marker: !!el, w: r ? Math.round(r.width) : 0,
+                    running: a.some(x => x.playState === 'running'),
+                    active: (document.querySelector('.hr-tab.on')||{}).dataset ?
+                            (document.querySelector('.hr-tab.on').dataset.tab||'') : ''}; }""")
+        check("7 · con la tarea viva y mirando la LISTA, el botón de proceso sigue diciendo que trabaja",
+              bool(onbtn.get("running")) and onbtn.get("w", 0) > 0 and onbtn.get("active") == "results",
+              json.dumps(onbtn))
+
         # 5 · the process tab is still spinning underneath
         still = page.evaluate("""() => {
             const t = [...document.querySelectorAll('.hr-tab')].find(b =>
@@ -160,13 +180,26 @@ def _run(port):
               (not done.get("spinning")) and "entrando en booking.com" in (done.get("text") or ""),
               json.dumps(done)[:200])
 
+        # 7b · and the button stops claiming work that finished. A marker that never clears is worse than
+        # none: it teaches the reader to ignore it.
+        offbtn = page.evaluate("""() => {
+            const t = [...document.querySelectorAll('.hr-tab')].find(b =>
+                (b.dataset.tab||'').startsWith('proc') || /proceso/i.test(b.textContent));
+            if (!t) return {found: false};
+            const el = t.querySelector('[class*=spin], [class*=load]');
+            const a = el && el.getAnimations ? el.getAnimations() : [];
+            return {found: true, marker: !!el, running: a.some(x => x.playState === 'running'),
+                    label: t.textContent.trim()}; }""")
+        check("7b · y al acabar el botón deja de girar",
+              not offbtn.get("running"), json.dumps(offbtn))
+
         browser.close()
 
     print()
     if fails:
-        print(f"✗ {len(fails)} de 6 sin cumplir — ámbito C todavía no está: {', '.join(fails)}")
+        print(f"✗ {len(fails)} de 8 sin cumplir — ámbito C todavía no está: {', '.join(fails)}")
         return 1
-    print("✓ ámbito C cumple el contrato de las 6 comprobaciones")
+    print("✓ ámbito C cumple el contrato de las 8 comprobaciones")
     return 0
 
 
