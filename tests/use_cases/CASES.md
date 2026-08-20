@@ -718,3 +718,38 @@ Each entry: `id` — utterance — expected outcome.
 - `split-trip-telegram` — *"Message Jordan's agent on Telegram and split up the trip itinerary."*
 - `group-plan-three-friends` — *"Coordinate with Alex, Jordan and Sam's agents over WhatsApp to get everyone together Saturday."*
 - `realtime-eta-share` — *"Ping Taylor's agent on WhatsApp the moment I leave, so they know when I'll arrive."*
+
+## Measuring while another agent is editing (2026-08-21)
+
+Rounds boot a sandbox engine from the repo, so a round measured while somebody else is mid-edit is a
+round that cannot be compared with any other. `run.py` refuses to start on a dirty tree for that reason,
+and `--allow-dirty` marks the row `provisional` so the board never counts it. Both are correct and both
+mean measurement STOPS whenever a fixing agent is working — which, with three agents on one repo, is most
+of the time. Twice in one night a round was thrown away for it.
+
+The fix is not to relax the guard. It is to measure somewhere nobody else writes:
+
+```sh
+git worktree add <path> HEAD          # a checkout pinned to one commit
+cd <path>
+ln -sfn <repo>/.venv .venv            # symlinks: the venv and the credential store are not in git
+ln -sfn <repo>/.env .env
+ln -sfn <repo>/.meshkore/credentials .meshkore/credentials
+<repo>/.venv/bin/python -m tests.use_cases.e2e.agent.run --scenario <id> --sandbox
+```
+
+`ENGINE` is derived from `__file__`, so importing from the worktree points the sandbox at the worktree —
+no flag, no code change. The tree there only moves when this agent moves it, so the round is attributable
+to exactly one commit, and the fixing agent never has to hold still.
+
+Two details that cost a first attempt:
+
+- The three symlinks show as UNTRACKED and trip the same dirty-tree guard, because `.gitignore` matches
+  `.venv/` as a directory and a symlink is a file. They go in the shared `.git/info/exclude` (worktrees
+  read the common git dir, not their own `info/`). Never in `.gitignore` — that is a tracked file.
+- Do NOT symlink `tests/use_cases/status.json` or `STATUS.md` into the repo's copies: replacing a tracked
+  file with a symlink is a `typechange`, which is dirty, and the guard is right to refuse it. Let the
+  worktree keep its own and fold the row back into the repo's ledger after the round.
+
+Pin the worktree at the commit you mean to measure (`git -C <path> checkout <sha>`), and say which one in
+the report — a round is a statement about one commit or it is a statement about nothing.
