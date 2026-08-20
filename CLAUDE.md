@@ -1587,6 +1587,28 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     la tarea. Pide que un fallo deje su propio rastro con el sitio dentro — cómo se REGISTRA, no cómo se
     renderiza — y su propia medición.
 
+- **El traspaso de inicio de sesión no estaba cableado en el canal de TEXTO** (`nucleo/flash/web_auth.py` NUEVO
+  + `probe.py` + el provider de voz, V2-176, 2026-08-20). `authenticate_web` y `login_done` se resolvían en
+  `probe.py` a una ETIQUETA y nada más —ni con `execute=True`: dentro de ese bloque no había una sola mención a
+  auth o login— mientras la voz llamaba a sus dos closures. Medido en `cancel-subscription-before-charge__es`
+  con el mejor diálogo de la tanda (`naturalidad 5`, `adaptacion 5`: se negó a fingir que tenía la cuenta y
+  ofreció el traspaso) y `navegador_task` VACÍO: «Aquí lo tienes» sin abrir nada, así que «ya he entrado» no
+  tenía tarea que reanudar y «dame un momento que lo miro» no tenía nada que mirar. El juez lo llamó «una
+  fachada vacía» — **las palabras eran ciertas y lo que faltaba era el cableado.**
+  - Es el MISMO agujero que el bloque de cron de ese fichero ya tenía escrito («el canal `probe` es el que usan
+    los casos de uso, así que el aviso NO PODÍA existir en una corrida»). Y aquí el alcance es mayor: **los 54
+    escenarios del segmento `credentials` pasan por este traspaso**, así que su mitad más importante era
+    inmedible.
+  - **Una decisión, dos canales — no dos copias.** Duplicar las closures era la vía rápida y es la que este repo
+    ya pagó (V2-153). `web_auth.py` es el único cuerpo de `start`/`finish` y la voz delega.
+  - Hacía falta más que mover código: `authenticate_web` cubre CUATRO caminos y solo uno abre navegador (música
+    → tarjeta de `musica`, mensajería → QR en `mensajeria`, login+tarea → escalada). Esa cadena vivía solo en la
+    voz, así que cablear el texto sin ella habría roto dos invariantes en su primer turno. `web_auth.decide()`
+    la comparte.
+  - **Detalle que costó encontrar**: las ramas tienen que ir DENTRO de la cadena de despacho de `if execute:`,
+    porque su `else` reinicia `return_extra_exec`. Puestas antes, la ejecución ocurría y la corrida no lo
+    reportaba — el peor sitio donde dejar un arreglo.
+
 - **El día del aviso podía estar SOLO en la frase del operador** (`nucleo/flash/router_guards.py`, V2-167,
   2026-08-20). El desempate por POSICIÓN («lo que viene después de *te avisaré* es cuándo va el aviso») se
   aplicaba solo a la RESPUESTA. Medido en `remember-and-remind-deadline`, tres turnos: «Apúntame que el jueves

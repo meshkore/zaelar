@@ -243,6 +243,13 @@ DOMAINS: list[dict] = [
         # después zaelar hablaba del encargo ANTERIOR y decía «no tengo constancia de ese encargo en mi
         # estado»: el juez lo llamó gaslighting y era verdad. Y el fallo del proveedor no se reportaba a nadie,
         # así que un titular muerto seguía muerto turno tras turno (tres silencios seguidos, medidos).
+        # 2026-08-20: `authenticate_web` y `login_done` se resolvían en el canal de TEXTO —el que usan los casos
+        # de uso— a una ETIQUETA y nada más; la voz llamaba a sus dos closures. Medido: «Aquí lo tienes» con
+        # `navegador_task` vacío, así que «ya he entrado» no tenía tarea que reanudar. Los 54 escenarios del
+        # segmento `credentials` pasan por ese traspaso.
+        {"id": "2.20", "title": "El traspaso de inicio de sesión OCURRE en el canal de texto (una decisión, dos "
+                                "canales)", "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/flash/test_login_handoff_actually_happens.py"]},
         {"id": "2.19", "title": "Lo que el operador dijo sobrevive a un turno que falla (y el fallo se reporta)",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/flash/test_what_was_said_survives_a_failed_turn.py"]},

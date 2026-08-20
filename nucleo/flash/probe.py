@@ -938,6 +938,42 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                 _which = next((t["args"].get("which") for t in tool_calls if t["name"] == "stop_worker"), None)
                 _disp.cancel_soon(str(_which) if _which else text)   # resuelve which del modelo, o del texto (bulk→todas)
                 return_extra_exec = {"executed": "stop"}
+            # EL TRASPASO DE INICIO DE SESIÓN (V2-176, 2026-08-20 — mismo agujero que describe el bloque de cron de
+            # abajo, y por la misma razón). `authenticate_web` y `login_done` se resolvían aquí a una ETIQUETA y nada
+            # más: la voz llamaba a sus dos closures y este canal —el que usan los casos de uso— no ejecutaba nada.
+            # Medido en `cancel-subscription-before-charge__es`: naturalidad 5, adaptación 5 (el diálogo era honesto:
+            # se negó a fingir que tenía la cuenta y ofreció el traspaso) y luego «Aquí lo tienes» con
+            # `navegador_task` VACÍO — no se abrió nada, así que «ya he entrado» no tenía tarea que reanudar y «dame
+            # un momento que lo miro» no tenía nada que mirar. El juez lo llamó «una fachada vacía»: las palabras
+            # eran ciertas y lo que faltaba era el cableado. Los 54 escenarios del segmento `credentials` pasan por
+            # aquí, así que su mitad más importante era INMEDIBLE.
+            #
+            # La DECISIÓN vive en `web_auth.decide` (compartida con la voz), no aquí: música se conecta en su tarjeta
+            # y mensajería por QR, nunca conduciendo un Chromium a spotify.com. Sin esa guarda, este cableado habría
+            # roto dos invariantes en su primer turno.
+            elif action == "authenticate_web":
+                try:
+                    from . import web_auth as _wa
+                    _aw = next((t for t in tool_calls if t["name"] == "authenticate_web"), None)
+                    _kind, _site = _wa.decide((_aw or {}).get("args", {}).get("site", ""), text)
+                    if _kind == _wa.KIND_LOGIN:
+                        _opened = _wa.start(_site)
+                        return_extra_exec = {"executed": "authenticate_web", "site": _site, "task": _opened}
+                    else:
+                        # No se ejecuta, y se DICE cuál era: un `authenticate_web` que no abre navegador no es un
+                        # fallo, es otro camino — y el que lee la corrida necesita distinguirlos.
+                        return_extra_exec = {"executed": "", "authenticate_kind": _kind, "site": _site}
+                except Exception as e:  # noqa: BLE001
+                    return_extra_exec = {"execute_error": str(e)[:200]}
+            elif action == "login_done":
+                try:
+                    from . import web_auth as _wa2
+                    _resumed = _wa2.finish("texto")
+                    # Un "" honesto: dijo que ya entró y no había ningún login esperando. Se reporta como tal en vez
+                    # de dar el turno por bueno — es el mismo criterio que la confirmación caducada de V2-190.
+                    return_extra_exec = {"executed": "login_done", "resumed": _resumed}
+                except Exception as e:  # noqa: BLE001
+                    return_extra_exec = {"execute_error": str(e)[:200]}
             elif action == "widget_data":
                 # EJECUCIÓN REAL de una data-op (2026-07-25): sin esto el probe validaba el ROUTING pero nunca
                 # ENVIABA — imposible reproducir e2e "manda a zalo …". Ahora, si la acción es FAST, se despacha por

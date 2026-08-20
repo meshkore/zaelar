@@ -1783,25 +1783,31 @@ class NucleoLLMStream(llm.LLMStream):
                 # Guard DETERMINISTA (V2-022): si además de entrar hay una TAREA ("entra en mi Gmail y BÓRRAME…"),
                 # no es un login → es una tarea con sesión → escala al navegador (que resuelve el login como parte
                 # de la tarea). authenticate_web es SOLO para login puro ("conéctame a Wallapop").
+                # V2-176: la DECISIÓN (cuál de los cuatro caminos es) vive en `nucleo/flash/web_auth.decide`,
+                # compartida con el canal de texto — la cadena estaba solo aquí, así que el otro canal no tenía
+                # ninguna. Los EFECTOS se quedan donde estaban: cada canal emite lo suyo y este además es el que
+                # tiene `escalate_req`.
+                from nucleo.flash import web_auth as _wa_v
                 _site = (args.get("site") or "").strip()
-                if _router.is_music_service(_site, text):
+                _kind_v, _site_resolved = _wa_v.decide(_site, text)
+                if _kind_v == _wa_v.KIND_MUSIC:
                     # INVARIANTE (2026-07-16): un servicio de MÚSICA (Spotify) se conecta en el widget `musica`
                     # (su tarjeta OAuth), NUNCA por el navegador. El routing del titular anterior insistía en authenticate_web
                     # para "conéctame a mi cuenta de Spotify" pese a la descripción → el guard lo redirige aquí.
                     emit("widget", "show", extra={"id": "musica", "src": "flash"})
                     emit("brain", "🎵 conectar música → tarjeta del widget musica (no navegador)", text=_site or text[:60], role="system")
-                elif _router.is_messaging_service(_site, text):
+                elif _kind_v == _wa_v.KIND_MESSAGING:
                     # INVARIANTE (V2-045, espejo del guard de música): WhatsApp/Telegram se VINCULAN por QR DENTRO
                     # del widget `mensajeria`, NUNCA por login de navegador. 'conéctame/abre WhatsApp' → mostrar el
                     # widget (ahí está el QR), no abrir un Chromium en whatsapp.com.
                     emit("widget", "show", extra={"id": "mensajeria", "src": "flash"})
                     emit("brain", "💬 conectar mensajería → QR del widget mensajeria (no navegador)", text=_site or text[:60], role="system")
-                elif _router.looks_like_web_task(text):
+                elif _kind_v == _wa_v.KIND_TASK:
                     if escalate_req["v"] is None:
                         escalate_req["v"] = text
                     emit("brain", "🔐→🧭 login+tarea → escalado (no solo auth)", role="system")
                 else:
-                    _start_web_auth(_site or _router.login_site(text))
+                    _start_web_auth(_site_resolved)
             elif name == "login_done":
                 _finish_web_auth()
             elif name == "connect_cluster":
@@ -1978,17 +1984,8 @@ class NucleoLLMStream(llm.LLMStream):
         def _finish_web_auth() -> None:
             """El operador dijo por voz que ya inició sesión → encola `auth_done` a la tarea que esperaba login
             (mismo desenlace que el botón «Ya he iniciado sesión» de la tarjeta). Operator-only por construcción."""
-            try:
-                from nucleo.flash import procs
-                from widgets.navegador import tasks as navtasks
-                tid = navtasks.login_waiting_id()
-                if not tid:
-                    emit("brain", "⚠️ login_done sin login pendiente", role="system")
-                    return
-                procs.dispatch("navegador", "auth_done", {"task_id": tid})
-                emit("brain", "🔓 login confirmado por voz", text=tid, role="system")
-            except Exception as e:  # noqa: BLE001
-                logger.warning(f"login_done falló: {e}")
+            from nucleo.flash import web_auth as _wa_f
+            _wa_f.finish("voz")     # V2-176: un solo cuerpo, compartido con el canal de texto
 
         def _start_web_auth(site: str) -> bool:
             """Abre la ventana REAL del navegador para que el operador inicie sesión en `site` (operator-only por
@@ -1999,21 +1996,8 @@ class NucleoLLMStream(llm.LLMStream):
             wallapop.com por defecto — un login a un sitio que nadie pidió. Sin sitio reconocido, no hay NADA que
             abrir: no adivinamos. Devuelve False (no se abrió nada) para que el llamador no cante "login por
             fallback" sobre una acción que no ocurrió."""
-            if not site:
-                return False
-            try:
-                from nucleo.flash import procs
-                from widgets.navegador import tasks as navtasks
-                s = site
-                nav_url = s if s.startswith("http") else f"https://{s.lstrip('/')}"
-                task_id = navtasks.create(f"Iniciar sesión · {s}", title=f"Login · {s}")
-                emit("widget", "show", extra={"id": navtasks.inst_id(task_id), "src": "flash"})
-                procs.dispatch("navegador", "authenticate", {"task_id": task_id, "url": nav_url})
-                emit("brain", "🔐 abriendo ventana de inicio de sesión", text=s, role="system")
-                return True
-            except Exception as e:  # noqa: BLE001
-                logger.warning(f"authenticate_web falló: {e}")
-                return False
+            from nucleo.flash import web_auth as _wa_s
+            return bool(_wa_s.start(site))   # V2-176: un solo cuerpo, compartido con el canal de texto
 
         def take(final: bool) -> str:
             nonlocal buf
