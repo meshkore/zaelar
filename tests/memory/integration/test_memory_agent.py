@@ -45,6 +45,42 @@ def test_compose_context_includes_state_and_recall(fresh_db):
     assert "LO QUE SABES DEL OPERADOR" in ctx        # dossier v2 (V2-056): cabecera del bloque de recuerdos
 
 
+def test_the_agenda_follows_the_memorys_clock_not_the_wall(tmp_path, monkeypatch, fresh_db):
+    """Un replay del timeline cree que es marzo; `date.today()` contesta con el hoy REAL.
+
+    Medido el 2026-08-21: con el reloj en 2026-03-10 y una cita seis días simulados por delante,
+    `_agenda_lines()` devolvía NADA — toda fecha futura se lee como pasada. El dossier del worker planifica a
+    ciegas, que es justo el fallo por el que existe la función (auditoría 2026-07-19 P1-2), y falla VACÍO: un
+    replay parece un operador sin agenda, no un filtro roto. Misma regla que el ancla del destilador.
+    """
+    import datetime
+
+    from memory import clock
+    from widgets import store as wstore
+
+    monkeypatch.setenv("ZAELAR_WORKSPACE", str(tmp_path))       # jamás los widgets reales del operador
+    wstore.save("agenda", {"events": [{"date": "2026-03-16", "time": "09:00", "title": "Revisión"}]})
+    with clock.travel(int(datetime.datetime(2026, 3, 10, 9, 0).timestamp())):
+        lineas = memory_agent._agenda_lines()
+    assert lineas and "2026-03-16" in lineas[0]
+
+
+def test_the_agenda_still_drops_what_is_already_past(tmp_path, monkeypatch, fresh_db):
+    """La otra dirección: seguir tirando lo pasado. Un filtro que deja pasar todo no es un arreglo."""
+    import datetime
+
+    from memory import clock
+    from widgets import store as wstore
+
+    monkeypatch.setenv("ZAELAR_WORKSPACE", str(tmp_path))
+    wstore.save("agenda", {"events": [{"date": "2026-03-01", "title": "Ya pasó"},
+                                      {"date": "2026-03-16", "title": "Aún no"}]})
+    with clock.travel(int(datetime.datetime(2026, 3, 10, 9, 0).timestamp())):
+        lineas = memory_agent._agenda_lines()
+    texto = " ".join(lineas)
+    assert "Aún no" in texto and "Ya pasó" not in texto
+
+
 def test_background_widget_pill_does_not_decide_an_unrelated_errand(fresh_db):
     """Un volcado de widget de fondo NO puede presentarse al worker como «lo que sabes del operador».
 

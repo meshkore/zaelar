@@ -768,10 +768,18 @@ def _agenda_lines(limit: int = 6) -> list[str]:
     try:
         import datetime as _dt
 
+        from memory.api import now as _now
         from widgets import store as _wstore
         data = _wstore.load("agenda") or {}
         items = data.get("events") or data.get("items") or data.get("meetings") or []
-        today = _dt.date.today().isoformat()
+        # The memory's clock, NOT the wall clock. Same rule the distiller's temporal anchor states
+        # (`mem_processor._now_line`): the timeline corpus replays 270 simulated days under `clock.travel()`,
+        # and `date.today()` answers with the real today throughout. Measured 2026-08-21 — replaying at
+        # 2026-03-10 with an appointment six simulated days ahead, this returned NOTHING: every upcoming date
+        # reads as past, so the dossier plans blind, which is the exact failure this function was added to
+        # prevent (audit 2026-07-19 P1-2). It fails EMPTY, so a replay looks like an operator with no agenda
+        # rather than like a broken filter.
+        today = _dt.datetime.fromtimestamp(_now()).date().isoformat()
         out = []
         for it in items:
             if not isinstance(it, dict):
