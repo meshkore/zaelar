@@ -144,6 +144,11 @@ def _mechanism_numbers(mech: dict) -> list[str]:
         if wh.get("cancelled"):
             bits.append(f"{wh['cancelled']} cancelado(s) al cerrar la ronda")
         out.append("workers: " + " · ".join(bits))
+    dup = mech.get("duplicate_errands") or {}
+    for g in (dup.get("groups") or [])[:3]:
+        _how = "IDÉNTICO carácter por carácter" if g.get("identical") else "el mismo encargo reformulado"
+        out.append(f"⚠️ **{g.get('n')} workers para UN encargo** ({_how}): «{g.get('goal')}» — "
+                   f"se paga entero cada vez y cada uno abre su propia hoja")
     wdz = mech.get("worker_deaths") or {}
     if wdz.get("shared_sessions"):
         for sid, who in list(wdz["shared_sessions"].items())[:2]:

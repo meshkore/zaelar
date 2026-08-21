@@ -11,6 +11,7 @@ what a worker does when it needs one"), memory, widget, system, pulse.
 from __future__ import annotations
 
 import json
+import unicodedata
 import re
 import time
 
@@ -1084,6 +1085,103 @@ def worker_health(db_path, *, since: float = 0.0) -> dict:
             con.close()
         except Exception:
             pass
+    return out
+
+
+def duplicate_errands(db_path, *, since: float = 0.0, floor: float = 0.45) -> dict:
+    """HOW MANY WORKERS RAN THE SAME ERRAND, and how alike their goals were.
+
+    Measured live on 2026-08-21 with the operator's screenshot in hand: `kid-friendly-activity-nearby__es`
+    is a SINGLE search and the lab had FOUR workers on it, each opening its own sheet — five cards on
+    screen for one request, which is what he read as "five jobs at once". The two that finished cost $3.78
+    and $3.93: one errand billed four times. `worker_health` said "4 spawned", and four spawns read as
+    healthy concurrency.
+
+    Grouped by OVERLAP, not by equality, and that is the whole point. The four goals share a long prefix
+    and differ in the tail, so an exact-match count reports zero and the round comes out clean. The measured
+    similarity is REPORTED so it can be compared against the engine's own dedup bar (`find_duplicate`,
+    Jaccard >= 0.60 of content words, V2-123): a pair that sits just under it names the defect precisely
+    instead of describing the symptom.
+
+    The floor is DELIBERATELY lower than the engine's. Sharing its predicate would make the harness agree
+    with it by construction — and the disagreement IS the finding. This over-reports on purpose: it prints
+    the number so a human can dismiss a pair, which is the safe direction. Silence is not.
+    """
+    import sqlite3
+    out: dict = {"read": False, "n_spawned": 0, "groups": [], "worst": 0, "identical_repeats": 0}
+    try:
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+    except Exception:
+        return out
+    try:
+        rows = con.execute("SELECT payload FROM events WHERE topic = 'worker.spawned' AND ts_ms >= ? "
+                           "ORDER BY ts_ms", (int(since * 1000),)).fetchall()
+    except Exception:
+        return out
+    finally:
+        try:
+            con.close()
+        except Exception:
+            pass
+    goals: list[str] = []
+    for (raw,) in rows:
+        try:
+            g = str((json.loads(raw) or {}).get("goal") or "").strip()
+        except Exception:
+            continue
+        if g:
+            goals.append(g)
+    out["read"] = True
+    out["n_spawned"] = len(goals)
+    if len(goals) < 2:
+        return out
+
+    def _words(g: str) -> set:
+        g = unicodedata.normalize("NFKD", g.lower())
+        g = "".join(c for c in g if not unicodedata.combining(c))
+        return {w for w in re.findall(r"[a-z0-9]+", g) if len(w) >= 4}
+
+    ws = [_words(g) for g in goals]
+    # Single-linkage: A with B and B with C puts the three together even when A and C alone fall short —
+    # four reformulations of one errand drift apart at the ends, and pairwise-only would split them into
+    # pairs and under-report the cost.
+    parent = list(range(len(goals)))
+
+    def _find(i: int) -> int:
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    sims: dict = {}
+    for i in range(len(goals)):
+        for j in range(i + 1, len(goals)):
+            a, b = ws[i], ws[j]
+            if not a or not b:
+                continue
+            sim = len(a & b) / max(1, len(a | b))
+            if sim >= floor:
+                sims[(i, j)] = round(sim, 3)
+                parent[_find(i)] = _find(j)
+    clusters: dict = {}
+    for i in range(len(goals)):
+        clusters.setdefault(_find(i), []).append(i)
+    for members in clusters.values():
+        if len(members) < 2:
+            continue
+        pair_sims = [v for (i, j), v in sims.items() if i in members and j in members]
+        texts = [goals[i] for i in members]
+        out["groups"].append({
+            "n": len(members),
+            "goal": texts[0][:110],
+            "identical": len(set(texts)) == 1,
+            "min_sim": min(pair_sims) if pair_sims else None,
+            "max_sim": max(pair_sims) if pair_sims else None,
+        })
+        if len(set(texts)) == 1:
+            out["identical_repeats"] += len(members) - 1
+    out["groups"].sort(key=lambda g: -g["n"])
+    out["worst"] = max((g["n"] for g in out["groups"]), default=0)
     return out
 
 

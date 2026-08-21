@@ -224,6 +224,9 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             # this report until 2026-08-21, when an audit found it was reading 490 of 1291 events — and both
             # were carrying the answer to the round that was failing.
             mech["worker_health"] = verifymod.worker_health(config.SANDBOX_DB, since=started_at)
+            # …Y CUÁNTOS DE ELLOS HACÍAN LO MISMO. «4 lanzados» se lee como concurrencia sana; cuatro
+            # workers sobre el MISMO encargo es una factura por cuatro y una pantalla llena de tarjetas.
+            mech["duplicate_errands"] = verifymod.duplicate_errands(config.SANDBOX_DB, since=started_at)
             mech["search_returns"] = verifymod.search_returns(config.SANDBOX_DB, since=started_at)
             # WHY the dead ones died. A worker that errors emits nothing saying why, so this crosses the
             # store with the engine's own log — the cross-reference that found the cause of a whole family.
