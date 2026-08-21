@@ -1403,7 +1403,14 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - ⚠️ **Un bug que este cambio iba a introducir**: `desktop.js::close` cancelaba la tarea de CUALQUIER tarjeta
     con `::`, con `w.base||"navegador"` de reserva — daba por hecho que la única pieza instanciada era el
     navegador. **Cerrar una vista no cancela un encargo.** Nodo **4.36**, 15 casos, sensibilidad en siete
-    direcciones. **F3 («cierra los resultados» con dos abiertas PREGUNTA cuál) NO está construida.**
+    direcciones. **F3 construida aparte** (`widgets/instances.py`, nodo **4.38**): «cierra los
+    resultados» con dos abiertas PREGUNTA cuál, **nombrando los encargos y no los ids** — y la pregunta tiene que
+    poder contestarse, así que dos hojas que se titulan igual se desambiguan en vez de repetirse. Es una
+    ambigüedad de OTRO EJE que la de `runtime.identify()`: aquella decide qué PIEZA, ésta cuál de sus TARJETAS.
+    La regla vive UNA vez aunque `nucleo.py` cierre desde TRES puntos, y **preguntar cuenta como actuar**: si el
+    fallback devolviera False, el login-fallback se llevaría el turno como si nadie hubiera hecho nada. La fontanería que faltaba:
+    `open_widgets` guarda las BASES —correcto, el estado del cerebro habla de piezas— así que hizo falta
+    `voice_api.open_instances()`; vacío significa «no lo sé» y se cae al comportamiento de siempre.
 
 - **El navegador MUESTRA y la hoja GUARDA** (`widgets/results/intake.py`, V2-257, 2026-08-21). Petición del
   operador con su captura delante: la tarjeta del navegador pintaba cinco «resultados» que eran los botones del

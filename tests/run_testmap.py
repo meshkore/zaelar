@@ -714,6 +714,14 @@ DOMAINS: list[dict] = [
             "ch": UNIT,
             "paths": ["tests/browser/unit/frontera/test_the_browser_shows_the_sheet_keeps.py",
                       "tests/browser/unit/frontera/test_the_card_paints_a_monitor.py"]},
+        # V2-259 F3 — el operador: «si hay 2 widgets de results y el usuario dice "cierra los resultados", la
+        # orden debería generar una pregunta de: ¿cuál de las 2 búsquedas cierro, la del coche o la del
+        # fontanero?». Es una ambigüedad de OTRO EJE que la de `runtime.identify()`: aquella decide qué PIEZA y
+        # ésta llega después, con la pieza clara y sin saber cuál de sus TARJETAS. Antes no podía existir.
+        {"id": "4.38", "title": "«Cierra los resultados» con dos abiertas PREGUNTA cuál —nombrando los encargos, "
+                                "no los ids— y con una sigue cerrando",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/frontera/test_closing_one_of_two_is_a_question.py"]},
         # V2-261 — el operador lo vio en pantalla: dos segundos después de la tarjeta buena aparecía otra de
         # navegador, BASE y vacía, encima. No la abría nadie: `desktop._persist()` informa del canvas, la ruta
         # NORMALIZA `navegador::t2` a su base, el diff dice «se ha abierto navegador» y esa AUDITORÍA (V2-039)

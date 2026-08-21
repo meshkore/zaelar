@@ -1259,7 +1259,13 @@ class NucleoLLMStream(llm.LLMStream):
                 # NO dice borrar, es un CLOSE → no abrir confirmación de borrado. Determinista (no depende del LLM).
                 from nucleo.flash import router as _router
                 if _router.looks_like_close(turn_text):
-                    emit("widget", "close", extra={"id": wid, "src": "flash"})
+                    _t = _close_target(wid)
+                    if _t["ask"]:                       # V2-259 F3: varias tarjetas de esa pieza → se PREGUNTA
+                        clarify["msg"] = _t["ask"]
+                        emit("brain", "❓ cerrar: varias tarjetas abiertas", text=wid, role="system",
+                             extra={"options": _t["options"]})
+                        return
+                    emit("widget", "close", extra={"id": _t["id"] or wid, "src": "flash"})
                     emit("brain", "🙈 cerrar (no borrar) — guard cerrar≠borrar", text=wid, role="system")
                     acted["widget"] = True
                     acted["closed"] = True
@@ -2532,9 +2538,18 @@ class NucleoLLMStream(llm.LLMStream):
             if not _cw and len(text.split()) <= 5 and len(_openw) == 1:
                 _cw = _openw[0]
             if _cw:
+                _t = _close_target(_cw)
+                if _t["ask"]:                           # V2-259 F3
+                    clarify["msg"] = _t["ask"]
+                    emit("brain", "❓ cerrar: varias tarjetas abiertas", text=_cw, role="system",
+                         extra={"options": _t["options"]})
+                    if escalate_req["v"] is not None:
+                        escalate_req["v"] = None
+                    _cw = None
+            if _cw:
                 acted["widget"] = True
                 acted["closed"] = True
-                emit("widget", "close", extra={"id": _cw, "src": "flash"})
+                emit("widget", "close", extra={"id": _t["id"] or _cw, "src": "flash"})
                 emit("brain", "🙈 close por backstop (cerrar widget nombrado sin [[close]])",
                      text=_cw, role="system")
                 # cerrar un widget NO es tarea de worker → cancela la escalada espuria (evita el bucle de 3 min)
@@ -2977,7 +2992,7 @@ class NucleoLLMStream(llm.LLMStream):
         # nosotros. Va ANTES del login-fallback a propósito (V2-023): "abre mensajería y dime si WhatsApp está
         # conectado" es un SHOW de widget, NUNCA un login — así el login-fallback no roba un turno de widget.
         if not _tool_handled:
-            if _widget_fallback(text, emit):
+            if _widget_fallback(text, emit, ask=lambda m: clarify.__setitem__("msg", m)):
                 acted["widget"] = True
 
         # LOGIN FALLBACK (V2-022): "conéctame a X" / "inicia sesión en mi Y" que el modelo NO accionó (se despistó
@@ -3279,10 +3294,29 @@ def _is_meta_widget_question(n: str) -> bool:
         r"mostraste|ensenaste|cerraste|cerro|se abrio|se cerro|has mostrado|has cerrado|se ha abierto)\b", n))
 
 
-def _widget_fallback(text: str, emit) -> bool:
+def _close_target(wid: str) -> dict:
+    """A QUÉ tarjeta va este cierre (V2-259 F3). Una sola decisión para los TRES puntos de este fichero que
+    emiten `widget/close` con id — escribir la regla tres veces es cómo se llega a que falte en uno.
+
+    Fail-soft hacia el comportamiento de SIEMPRE: si no se puede saber qué hay abierto, cierra como antes. Una
+    pregunta espuria en cada cierre sería peor que el fallo que esto quita.
+    """
+    try:
+        from server.voice_api import open_instances
+        from widgets import instances as _inst
+        return _inst.resolve_close(wid, open_instances())
+    except Exception:  # noqa: BLE001
+        return {"id": wid, "ask": "", "options": []}
+
+
+def _widget_fallback(text: str, emit, ask=None) -> bool:
     """Si la frase es una orden clara de mostrar/cerrar un widget conocido y el modelo no emitió la tag, la
     emitimos nosotros (idempotente). Reutiliza el identificador de `widgets/runtime`. Devuelve True si ACTUÓ
-    (para que el llamante marque acted["widget"] y el login-fallback no robe el turno — V2-023)."""
+    (para que el llamante marque acted["widget"] y el login-fallback no robe el turno — V2-023).
+
+    `ask` es por dónde se PREGUNTA (V2-259 F3). Preguntar TAMBIÉN es haber actuado: el turno se resuelve con la
+    pregunta, y devolver False aquí dejaría que el login-fallback se llevara el turno como si nadie hubiera
+    hecho nada — que es el fallo que el comentario de arriba existe para evitar."""
     import re as _re
     import unicodedata as _ud
     n = "".join(c for c in _ud.normalize("NFKD", text or "") if not _ud.combining(c)).lower()
@@ -3297,7 +3331,15 @@ def _widget_fallback(text: str, emit) -> bool:
                 return True
             wid = _identify(text)
             if wid:
-                emit("widget", "close", extra={"id": wid, "src": "flash"})
+                _t = _close_target(wid)
+                if _t["ask"]:
+                    if ask:
+                        ask(_t["ask"])
+                        emit("brain", "❓ cerrar: varias tarjetas abiertas", text=wid, role="system",
+                             extra={"options": _t["options"]})
+                        return True
+                    return False        # sin canal para preguntar, mejor no cerrar a ciegas
+                emit("widget", "close", extra={"id": _t["id"] or wid, "src": "flash"})
                 return True
         elif _re.search(r"\b(abr|muestr|ensen|pon|saca|sube)|quiero ver|ver mi", n):
             wid = _identify(text)

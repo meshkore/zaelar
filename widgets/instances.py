@@ -1,0 +1,110 @@
+"""widgets/instances.py — QUÉ TARJETA quiere decir el operador cuando una pieza tiene varias abiertas (V2-259 F3).
+
+Petición del operador, literal: «si hay 2 widgets de results y el usuario dice "cierra los resultados", la orden
+debería generar una pregunta de: ¿cuál de las 2 búsquedas cierro, la del coche o la del fontanero?».
+
+Es una AMBIGÜEDAD NUEVA, de otro eje que la que ya resolvía `runtime.identify()`. Aquella decide QUÉ PIEZA
+(«resultados» → `results`) y pregunta cuando no hay match de nombre o alias (V2-082). Ésta llega después: la
+pieza está clara y lo que no se sabe es CUÁL DE SUS TARJETAS. Antes no podía existir, porque la única pieza
+instanciada era el navegador y sus tarjetas se cierran solas al terminar la tarea; desde que la hoja se instancia
+(V2-259) el operador tiene dos cajas idénticas de nombre delante.
+
+TRES DECISIONES, y cada una tiene su contraria obvia:
+
+  · **Preguntar, no elegir.** Con dos hojas, cerrar «la primera» o «la última» acierta la mitad de las veces y la
+    otra mitad le borra al operador la búsqueda que estaba mirando — sin decírselo. Es la misma regla de V2-082,
+    que ya está escrita: sin certeza, se PREGUNTA.
+  · **La pregunta nombra los ENCARGOS, no los ids.** «¿results::t1 o results::t2?» no es una pregunta, es un
+    volcado. El título de cada hoja ya es lo que pidió el operador («Fontaneros en Madrid centro»), así que la
+    pregunta se escribe sola con lo que él mismo dijo.
+  · **Una sola decisión para los TRES sitios que cierran.** `voice/engine/llm/providers/nucleo.py` emite
+    `widget/close` con id desde tres puntos distintos (el guard cerrar≠borrar, el backstop del turno y el
+    fallback de canvas). Escribir la regla tres veces es exactamente cómo se llega a que falte en uno — cuarta
+    vez esta semana, y en V2-256 la copia que faltaba costó que un envío fallara en silencio.
+
+Puro y sin estado: recibe lo que hay abierto y devuelve la decisión. Fail-soft en el sentido que importa aquí —
+ante la duda sobre si hay ambigüedad, NO pregunta: una pregunta espuria en cada cierre sería peor que el fallo
+que esto quita.
+"""
+from __future__ import annotations
+
+SEP = "::"
+
+
+def base_of(widget_id) -> str:
+    """`results::t7` → `results`. Un id sin instancia es su propia base."""
+    return str(widget_id or "").split(SEP, 1)[0].strip().lower()
+
+
+def instances_of(base: str, open_ids) -> list[str]:
+    """Las tarjetas ABIERTAS de esta pieza, con su id completo y en el orden en que las reportó el canvas."""
+    b = base_of(base)
+    out: list[str] = []
+    for wid in (open_ids or []):
+        w = str(wid or "").strip()
+        if w and base_of(w) == b and w not in out:
+            out.append(w)
+    return out
+
+
+def _label(widget_id: str) -> str:
+    """Cómo se llama ESTA tarjeta para el operador: el encargo que pintó, no su id.
+
+    Solo la hoja sabe titularse hoy; para cualquier otra pieza se cae al sufijo, que al menos distingue. Nunca
+    revienta: esto se llama en mitad de un turno de voz.
+    """
+    inst = str(widget_id or "").split(SEP, 1)[1] if SEP in str(widget_id or "") else ""
+    if base_of(widget_id) == "results":
+        try:
+            from widgets.results import data as _sheet
+            t = str((_sheet.view_data(inst) or {}).get("title") or "").strip()
+            # «Resultados» es el relleno que `view_data` pone cuando no hay título (setdefault), no un nombre:
+            # devolverlo haría que dos hojas sin encargo se llamaran igual y la pregunta no distinguiera nada.
+            if t and t.lower() != "resultados":
+                return t
+        except Exception:  # noqa: BLE001
+            pass
+    return inst or str(widget_id or "")
+
+
+def _distinguibles(etiquetas: list[str], ids: list[str]) -> list[str]:
+    """Una pregunta que no se puede contestar no es una pregunta.
+
+    Dos hojas sin título, o con el mismo, producirían «¿cuál cierro, «Resultados» o «Resultados»?», que es peor
+    que no preguntar: obliga al operador a contestar algo que no distingue nada. Cuando las etiquetas colisionan
+    se les añade lo único que seguro es distinto — su instancia.
+    """
+    if len(set(etiquetas)) == len(etiquetas):
+        return etiquetas
+    out = []
+    for et, wid in zip(etiquetas, ids):
+        inst = str(wid).split(SEP, 1)[1] if SEP in str(wid) else str(wid)
+        out.append(f"{et} ({inst})" if et and et != inst else inst)
+    return out
+
+
+def resolve_close(target, open_ids) -> dict:
+    """A QUÉ tarjeta va un «ciérralo».
+
+    Devuelve `{"id": <id a cerrar> | None, "ask": <pregunta> | "", "options": [...]}`:
+
+      · el operador ya nombró una instancia (`results::t7`)          → esa, sin preguntar
+      · la pieza tiene 0 o 1 tarjetas abiertas                       → el id tal cual (cerrar una ya cerrada es
+                                                                        un no-op inofensivo, y ese era el
+                                                                        comportamiento de siempre)
+      · dos o más                                                    → `ask`, y `id` a None
+    """
+    tid = str(target or "").strip()
+    if not tid:
+        return {"id": None, "ask": "", "options": []}
+    if SEP in tid:
+        return {"id": tid, "ask": "", "options": []}          # ya vino desambiguado; no hay nada que preguntar
+    abiertas = instances_of(tid, open_ids)
+    if len(abiertas) <= 1:
+        return {"id": abiertas[0] if abiertas else tid, "ask": "", "options": abiertas}
+    etiquetas = _distinguibles([_label(w) for w in abiertas], abiertas)
+    if len(etiquetas) == 2:
+        cuales = f"«{etiquetas[0]}» o «{etiquetas[1]}»"
+    else:
+        cuales = ", ".join(f"«{e}»" for e in etiquetas[:-1]) + f" o «{etiquetas[-1]}»"
+    return {"id": None, "ask": f"Tienes {len(abiertas)} abiertas: ¿cuál cierro, {cuales}?", "options": abiertas}
