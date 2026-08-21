@@ -16,6 +16,7 @@ Ciclo de vida: `start()`/`stop()` arrancan/paran el consumidor de la cola en el 
 V2-003 en el lifespan). Sin `start()`, las escrituras se aplican en línea (standalone/tests) — nunca se pierden.
 """
 import asyncio
+import re
 
 from . import consolidator as _consolidator
 from . import db as _db  # noqa: F401  (asegura import del paquete; get_db perezoso)
@@ -909,6 +910,38 @@ def critical_facts(limit: int = 8) -> list[str]:
         if len(out) >= limit:
             break
     return out
+
+
+_SLOT_WORD_MIN = 4
+
+
+def background_slot_off_topic(slot: str | None, prompt: str) -> bool:
+    """True when `slot` is a BACKGROUND slot and the request never named it — the ONE rule, for every surface
+    that renders pills to a model.
+
+    Background/widget/cluster pills carry a namespaced slot (`<widget>:<key>`); the operator's own facts use
+    dots (`operator.location`). Three surfaces show pills to a model and each must apply this, because to the
+    model they all read as «what you know about this person»:
+
+      1. the PASSIVE block  — `salient_long()` below, in SQL, since the 2026-07-14 audit;
+      2. the WORKER DOSSIER — `nucleo/memory_agent.compose_context`, since 2026-08-21;
+      3. the ACTIVE RECALL  — `nucleo/flash/prompt.compose_recall`, the one that runs EVERY turn.
+
+    The rule lived in surface 1 for five weeks and in prose everywhere else, so 2 and 3 each had to be found by
+    a live failure. Measured 2026-08-21 with V2-242 and the dossier fix already in the tree: surface 3 still put
+    `Weather in Soria now…` ABOVE «Vive en el centro de Madrid» under the header «Puede que venga a cuento (de
+    tu memoria)». A convention repeated in three places is not a rule — this function is.
+
+    CONDITIONAL, not a ban: the 2026-07-14 note promises these stay reachable on an EXPLICIT question, so a
+    namespaced pill still passes when the request names its namespace or its key («el tiempo en Soria»).
+    """
+    if ":" not in (slot or ""):
+        return False
+    low = (prompt or "").lower()
+    for part in re.split(r"[:._\-]+", str(slot).lower()):
+        if len(part) >= _SLOT_WORD_MIN and re.search(rf"\b{re.escape(part)}\b", low):
+            return False
+    return True
 
 
 def salient_long(limit: int = 8, max_chars: int = 800) -> list[dict]:
