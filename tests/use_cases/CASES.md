@@ -762,6 +762,14 @@ FAIL does not read as a false FAIL. It reads as a damning one. Two reached the f
 caught. The pattern is always one of two roots: **reading a state while the system is still writing it**,
 or **reading a field at the wrong level**.
 
+A seventh, on 2026-08-21, has a third root worth naming on its own: **the instrument had the diagnosis and
+printed a suggestion to go look for it.** Every one of the 46 refusals was holding
+`error: 402 Insufficient Balance` and the `spec` of the rung that had refused, and the refusal it printed
+said «mira el log del sandbox». Eight hours of measuring window were spent on a retry loop waiting for a
+balance to come back — a balance that never had to come back, because the failover behind it was alive and
+the only thing missing was one channel's relay. Nobody was misled by a wrong fact; they were misled by a
+fact withheld. **If the answer is in the response you are holding, print it.**
+
 | what it reported | what was true | the fix |
 |---|---|---|
 | «hid three real 99 EUR monitors» | the note carried `items[:3]` in DOM order; rows 4-6 were never in it | judge delivery on what the BRAIN was handed |
@@ -770,6 +778,7 @@ or **reading a field at the wrong level**.
 | a death at ~1450 ms | a provider handoff working | `relayed` is its own bucket, in BOTH columns |
 | «0 notes from search» with 12 answers | the notes were queued 6 s after the read | same quiescence wait |
 | the same hotel in six unrelated cases | read `worker_outcome` per REPORT instead of per scenario | iterate `results[]` |
+| «the whole provider chain is out; nothing can be measured» | AIMLAPI was alive all night, both models answering in ~3 s. The TEXT channel does not relay: it catches the provider error and returns it, while the voice channel in the same log relayed past the same rung | the preflight PRINTS what the engine said; the harness seeds a rung that answers at the head |
 
 Four rules came out of it, and they are code now, not intentions:
 
