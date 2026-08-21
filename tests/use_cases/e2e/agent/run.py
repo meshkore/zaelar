@@ -630,7 +630,8 @@ def _sandbox_groups(chosen: list, args: argparse.Namespace, *, verify_tasks: dic
                 return rc | 3
             print(f"↻ ronda {n + 1} de {rounds} (mismo código: {first_stamp.get('sha')})")
         for g in groups:
-            rc |= _sandbox_batch(g, args, verify_tasks=verify_tasks)
+            rc |= (_lab_batch(g, args, verify_tasks=verify_tasks) if getattr(args, "lab", "")
+                   else _sandbox_batch(g, args, verify_tasks=verify_tasks))
         first_stamp = first_stamp or config.code_stamp()
     return rc
 
@@ -940,6 +941,60 @@ def dirty_tree_refusal(stamp: dict, *, allow_dirty: bool = False) -> str:
             f"que el arbol este limpio, o pasa --allow-dirty si mides tu propio cambio a posta.")
 
 
+def _lab_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict | None = None) -> int:
+    """Drive the round against a LAB agent (`tests/use_cases/lab/`) instead of a throwaway sandbox.
+
+    Same harness, same judge, same ledger — the only thing that changes is which engine answers. It
+    exists because a sandbox dies with the round: the operator can watch it while it runs and has
+    nothing left to open afterwards. A lab agent stays, on a port they already have bookmarked, with its
+    memory and its widgets exactly as the round left them.
+
+    IT DOES NOT WIPE THE AGENT. A reset reseeds the profile and is a good idea before a measured round,
+    but doing it here would silently erase whatever the operator was looking at. It is one explicit
+    command (`python -m tests.use_cases.lab reset es`) and it stays theirs to give.
+
+    The clean-tree refusal still applies: a round measured mid-edit compares with nothing, and that is
+    true whichever engine served it.
+    """
+    from tests.use_cases.lab import profiles as labp
+    from tests.use_cases.lab import stage as labs
+
+    prof = labp.get(args.lab)
+    st = labs.status(prof)
+    if not st.running:
+        print(f"✗ el agente de plató «{prof.key}» no está en marcha.\n"
+              f"   Arráncalo:  python -m tests.use_cases.lab up {prof.key}")
+        raise SystemExit(4)
+    wrong = [c for c in chosen if c.locale != prof.key]
+    if wrong:
+        # A US scenario on the Spanish agent measures the wrong country and looks like a product failure:
+        # `operator.location` says Madrid, so the errand goes to Madrid and the judge marks it wrong.
+        print(f"✗ el agente «{prof.key}» no puede medir escenarios de otro locale: "
+              f"{', '.join(c.id for c in wrong[:4])}")
+        raise SystemExit(3)
+
+    stamp = config.code_stamp()
+    config.machine_stamp()
+    refusal = dirty_tree_refusal(stamp, allow_dirty=getattr(args, "allow_dirty", False))
+    if refusal:
+        print(refusal)
+        raise SystemExit(3)
+
+    config.ZAELAR_URL = st.base_url
+    config.SANDBOX_DB = str(labs.workspace_of(prof) / "memory" / "_data" / "sandbox.db")
+    print(f"▶ midiendo contra el agente de plató «{prof.key}» — {prof.title}")
+    print(f"  ▸ MÍRALO EN VIVO: {st.base_url}")
+    print(f"  ▸ cadena sembrada: {st.chain or '(desconocida)'}")
+    for _refusal in (brain_preflight(), bridge_allowlist_refusal()):
+        if _refusal:
+            print(_refusal)
+            raise SystemExit(4)
+    return _run_batch(chosen, sandboxed=True, args_no_file=args.no_file,
+                      verify_tasks=verify_tasks, provisional=_provisional(args),
+                      stop_after_failures=args.stop_after_failures,
+                      failures_already=statusmod.failing_count() if args.stop_after_failures else 0)
+
+
 def _sandbox_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict | None = None) -> int:
     from tests.platform.sandbox_engine import preferred_port, sandbox_engine
     # The workspace is KEPT, under a timestamped dir, and the port is a stable-by-preference one — both so
@@ -1056,6 +1111,9 @@ def main() -> None:
     ap.add_argument("--rounds", type=int, default=1, metavar="N",
                     help="run the selection N times as ONE batch; stops if the engine's HEAD moves between "
                          "rounds, because two rounds of different code are not a pair")
+    ap.add_argument("--lab", choices=["es", "us"], default="",
+                    help="medir contra el agente PERSISTENTE de tests/use_cases/lab/ (que el operador "
+                         "puede mirar) en vez de contra un sandbox de usar y tirar")
     ap.add_argument("--allow-dirty", action="store_true",
                     help="measure even with uncommitted engine files (for the fixing agent's own work-in-progress)")
     ap.add_argument("--judge-pending", action="store_true",
