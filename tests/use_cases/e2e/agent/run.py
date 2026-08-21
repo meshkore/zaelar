@@ -682,6 +682,20 @@ def seed_provider_chain(ws) -> str:
         chain = ((_json.loads(src.read_text(encoding="utf-8")) or {}).get("fast") or {}).get("providers")
         if not chain:
             return ""
+        # UN ESCALÓN MÁS, con el modelo del TITULAR sobre el endpoint del failover. No es un apaño para
+        # medir a toda costa: es lo más fiel. El titular del operador es `deepseek-v4-pro` y su failover
+        # salta a `deepseek-v4-flash`, o sea que en cuanto releva **cambia el cerebro bajo medición** —
+        # y una ronda contra flash no es comparable con las de ayer contra pro. Medido el 2026-08-21,
+        # además, flash daba timeout a los 75 s en AIMLAPI mientras pro contestaba en 18: el escalón
+        # configurado apuntaba justo al que no servía. Este va DETRÁS de los suyos, así que no les quita
+        # el turno: solo evita que una noche entera se pierda cuando los dos primeros caen.
+        chain = list(chain)
+        titular_model = str((chain[0] or {}).get("model") or "")
+        broker = next((x for x in chain[1:] if "aimlapi" in str(x.get("base_url") or "")), None)
+        if titular_model and broker and titular_model not in str(broker.get("model") or ""):
+            chain.append({**broker, "name": "arnes-mismo-modelo",
+                          "model": f"deepseek/{titular_model}",
+                          "plan": "el arnés: mismo cerebro que el titular, sobre el broker"})
         dst = _P(ws) / "config"
         dst.mkdir(parents=True, exist_ok=True)
         (dst / "v2.json").write_text(_json.dumps({"fast": {"providers": chain}}, ensure_ascii=False, indent=2),
