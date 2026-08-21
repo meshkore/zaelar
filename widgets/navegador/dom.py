@@ -251,8 +251,20 @@ async def _human_move(page, tx: float, ty: float, mouse: dict) -> None:
 
 
 async def _human_click_handle(page, h, mouse: dict) -> None:
-    await h.scroll_into_view_if_needed(timeout=5000)
-    box = await h.bounding_box()
+    # V2-247 — SCROLL INTO VIEW ES UNA CORTESÍA, NO EL CLIC. Traer el elemento a la vista existe para que el clic
+    # humano caiga donde el usuario lo vería; si no se puede (elemento tapado, dentro de un acordeón cerrado, sin
+    # layout, o despegado a mitad), el clic sigue siendo posible: `h.click()` de Playwright hace su propio scroll
+    # y su propia espera. Sin este `try`, un fallo de la CORTESÍA se llevaba por delante la acción entera y el
+    # worker lo leía como un callejón sin salida — medido por el arnés el 2026-08-21: tres
+    # `ElementHandle.scroll_into_view_if_needed` con Exit code 1 en un mismo worker, y ese worker muerto.
+    try:
+        await h.scroll_into_view_if_needed(timeout=5000)
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        box = await h.bounding_box()
+    except Exception:  # noqa: BLE001
+        box = None                                     # despegado del DOM: que lo diga el `click` de abajo
     if box:
         tx = box["x"] + box["width"] / 2 + random.uniform(-4, 4)
         ty = box["y"] + box["height"] / 2 + random.uniform(-3, 3)

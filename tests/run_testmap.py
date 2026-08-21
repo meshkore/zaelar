@@ -446,6 +446,10 @@ DOMAINS: list[dict] = [
             "tests/browser/unit/widgets/test_resolver_certainty.py", "tests/browser/unit/widgets/test_system_surfaces_sync.py",
             "tests/browser/unit/widgets/test_paths_workspace.py"]},
         {"id": "4.2", "title": "Navegador (browser)", "ch": UNIT, "paths": [
+            # V2-247: traer el elemento a la vista es una CORTESÍA, no el clic. Iba SIN proteger, así que un
+            # elemento tapado o despegado tumbaba la acción entera — tres `scroll_into_view_if_needed` con Exit
+            # code 1 en un mismo worker, y ese worker muerto (arnés, 2026-08-21).
+            "tests/browser/unit/navegador/test_the_courtesy_does_not_kill_the_click.py",
             # sin mapear hasta el 2026-08-21: el muro de login en la NUBE cierra en limpio en vez de dar vueltas
             "tests/browser/unit/navegador/test_cloud_login_bailout.py",
             "tests/browser/unit/navegador/test_auth.py", "tests/browser/unit/navegador/test_tasks_dedup.py",

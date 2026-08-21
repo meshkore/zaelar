@@ -1339,6 +1339,19 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Traer el elemento a la vista es una CORTESÍA, no el clic** (`widgets/navegador/dom.py`, V2-247, 2026-08-21).
+  De las causas de muerte que V2-236 dejó abiertas: **tres `scroll_into_view_if_needed` con Exit code 1 en un
+  mismo worker**, y ese worker muerto. La llamada iba **sin proteger** al principio de `_human_click_handle`, así
+  que un elemento tapado, dentro de un acordeón cerrado, sin layout o despegado a mitad se llevaba por delante la
+  acción ENTERA — aunque el clic siguiera siendo posible, porque `h.click()` de Playwright hace su propio scroll
+  y su propia espera.
+  - **Por qué existe la cortesía** (y por qué no se borra): el clic humano se da en COORDENADAS —curva de Bézier
+    con jitter—, así que el elemento tiene que estar en pantalla para que el ratón caiga donde el usuario lo
+    vería. Cuando no se puede, se clica por la vía normal: **se pierde el disfraz, no la tarea.**
+  - `bounding_box()` igual (sobre un handle despegado revienta), y `_human_type_handle` hereda la protección: no
+    poder traer a la vista dejaba sin escribir un campo que se podía rellenar. Nodo 4.2, 6 casos, sensibilidad en
+    dos direcciones —una de ellas comprueba que el camino bueno SIGUE siendo humano.
+
 - **Un escalón que se atasca SIEMPRE no se penalizaba nunca** (`nucleo/flash/provider_chain.py`, V2-246,
   2026-08-21). El arnés sembró la cadena real en su sandbox (cerrando V2-244) y el relevo **entró**: «SIN SALDO →
   relevo a aimlapi-failover». Y el turno seguía mudo. Probado contra AIMLAPI con la clave del operador:
