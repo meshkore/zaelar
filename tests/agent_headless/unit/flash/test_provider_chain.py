@@ -101,10 +101,54 @@ def test_exhaustion_hands_over_and_respects_the_providers_own_reset_date(monkeyp
 
 
 def test_without_a_reset_date_it_retries_in_a_while(monkeypatch):
+    """Una CUOTA que no dice cuándo vuelve: media hora y se reintenta.
+
+    El ejemplo era «insufficient credit» y V2-243 lo convirtió en el OTRO caso —un saldo, que no vuelve solo—,
+    así que aquí va un agotamiento de cuota de verdad. La intención del test no cambia; lo que tenía dos
+    significados era el ejemplo."""
     _cfg(monkeypatch)
     monkeypatch.setenv("Z_AI_API_KEY", "k")
-    pc.note_failure("insufficient credit", {"name": "z.ai", "base_url": "x"})
+    pc.note_failure("quota exceeded", {"name": "z.ai", "base_url": "x"})
     assert time.time() < pc._store._cooldown["z.ai"] <= time.time() + pc._DEFAULT_COOLDOWN_S + 1
+
+
+# ── V2-243: un SALDO agotado no es una cuota ────────────────────────────────────────────────────────────────
+# Medido en producción el 2026-08-21: `Insufficient Balance` de DeepSeek (HTTP 402) dos veces, anunciado como
+# «sin cuota hasta el 21 Aug 03:02 · SIN RELEVO disponible». A las 03:02 no iba a pasar nada — un saldo no se
+# repone solo—, y con la cadena entera seca el arnés tuvo que parar de medir. Una cuota le dice al operador
+# «espera»; un saldo le dice «recarga», y de eso depende lo que HAGA.
+
+def test_un_saldo_agotado_se_reintenta_MUCHO_mas_tarde(monkeypatch):
+    _cfg(monkeypatch)
+    monkeypatch.setenv("Z_AI_API_KEY", "k")
+    pc.note_failure("API Error 402 Insufficient Balance", {"name": "z.ai", "base_url": "x"})
+    until = pc._store._cooldown["z.ai"]
+    assert until > time.time() + pc._DEFAULT_COOLDOWN_S, \
+        "reintentar cada media hora contra una cuenta vacía quema un turno por ronda"
+    assert until <= time.time() + pc._DEPLETED_COOLDOWN_S + 1
+
+
+def test_un_saldo_CON_fecha_de_reset_sigue_siendo_una_cuota(monkeypatch):
+    """Sensibilidad, y no es teórico: un plan con forfait puede decir «insufficient credit … reset at …». Si
+    anuncia cuándo vuelve, vuelve solo, y apagarlo seis horas de más es perder el escalón preferido."""
+    _cfg(monkeypatch)
+    monkeypatch.setenv("Z_AI_API_KEY", "k")
+    pc.note_failure("insufficient credit, quota will reset at 2026-08-30", {"name": "z.ai", "base_url": "x"})
+    assert pc._store._cooldown["z.ai"] == time.mktime(time.strptime("2026-08-30", "%Y-%m-%d")), \
+        "con fecha anunciada manda la fecha: es el camino de la CUOTA, no el del saldo"
+
+
+def test_el_aviso_DICE_recargar_y_no_una_hora_que_no_significa_nada(monkeypatch):
+    """Lo que se escribe aquí es lo que el operador lee en el panel, y de ello depende lo que haga."""
+    from voice import health_state
+    dichos = []
+    monkeypatch.setattr(health_state, "record", lambda *a, **k: dichos.append(a), raising=False)
+    _cfg(monkeypatch)
+    monkeypatch.setenv("Z_AI_API_KEY", "k")
+    pc.note_failure("Insufficient Balance", {"name": "z.ai", "base_url": "x"})
+    detalle = " ".join(str(x) for a in dichos for x in a)
+    assert "SIN SALDO" in detalle and "recargar" in detalle
+    assert "sin cuota hasta" not in detalle
 
 
 def test_no_tier_left_returns_none(monkeypatch):
@@ -213,3 +257,30 @@ def test_a_voice_failure_does_not_burn_the_cluster_chain(monkeypatch):
                      role=pc.ROLE_VOICE)
     assert health_state.get("llm") is not None
     assert health_state.get("cluster_brain") is None
+
+
+# ── V2-243: quedarse sin proveedor no es un tropiezo ─────────────────────────────────────────────────────────
+# «Uf, se me ha ido un momento. ¿Me lo repites?» es la frase correcta ante un tropiezo: el siguiente intento
+# puede ir bien. Con la cadena entera seca el siguiente intento falla igual, y el operador se queda
+# repitiéndose a una máquina que no puede contestarle, sin enterarse de lo único que lo arregla — que es suyo y
+# no del motor. Medido en producción el 2026-08-21: `Insufficient Balance` (DeepSeek, 402) dos veces, «SIN
+# RELEVO disponible», y el canario del arnés MUDO en todos los turnos hasta que paró de medir.
+
+def test_con_el_ultimo_escalon_seco_NO_queda_a_quien_preguntar(monkeypatch):
+    _cfg(monkeypatch)
+    monkeypatch.setenv("Z_AI_API_KEY", "k")
+    assert pc.pick() is not None
+    pc.note_failure("Insufficient Balance", {"name": "z.ai", "base_url": "x"})
+    assert pc.pick() is None, "sin este hecho, el turno no puede distinguir un tropiezo de una cadena seca"
+
+
+def test_el_turno_de_VOZ_lo_pregunta_y_cambia_lo_que_dice():
+    """GUARDA DE CABLEADO (V2-199): el hecho puede estar perfecto y el turno seguir diciendo «¿me lo repites?».
+    Es lo que el operador OYE, así que es la parte que no puede quedarse sin probar."""
+    import inspect
+    import pathlib
+    src = pathlib.Path(inspect.getfile(pc)).parent.parent.parent / "voice/engine/llm/providers/nucleo.py"
+    txt = src.read_text(encoding="utf-8")
+    assert "_dry = _pchain1.pick(_pchain1.ROLE_VOICE) is None" in txt
+    assert "sin proveedor de modelo" in txt
+    assert 'send("Uf, se me ha ido un momento. ¿Me lo repites?" if not _dry else' in txt

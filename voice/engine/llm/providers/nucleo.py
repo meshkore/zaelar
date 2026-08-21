@@ -2275,18 +2275,32 @@ class NucleoLLMStream(llm.LLMStream):
             # credential, an outage — used to just repeat against the same broken tier turn after turn, because
             # `note_failure` was hardcoded to the CLUSTER role. Cooldown is sticky (`pick()` is O(1)), so this
             # only needs to fire once per failure — the NEXT turn already starts on the relay.
+            _dry = False          # V2-243: ¿ha quedado la cadena SIN ningún escalón sano?
             if not stalled:
                 try:
                     from nucleo.flash import provider_chain as _pchain1
                     _pchain1.note_failure(err_text, role=_pchain1.ROLE_VOICE)
+                    _dry = _pchain1.pick(_pchain1.ROLE_VOICE) is None
                 except Exception:
                     pass
             if stalled:
                 emit("alert", "Un turno se atascó y lo corté — sigo operativo.", text="flash turn stalled")
+            elif _dry:
+                emit("alert", "Sin proveedor de modelo — no es un tropiezo, no hay a quién preguntar.",
+                     text=err_text[:200] or "provider chain exhausted")
             else:
                 emit("alert", "Cerebro rápido caído — turno degradado.", text="flash layer error")
             emit("error", "nucleo flash brain error")
-            send("Uf, se me ha ido un momento. ¿Me lo repites?")
+            # V2-243 — «¿ME LO REPITES?» ES UNA MENTIRA CUANDO NO QUEDA NINGÚN PROVEEDOR. Esa frase es la
+            # correcta ante un tropiezo: el siguiente intento puede ir bien. Con la cadena entera seca, el
+            # siguiente intento falla igual, y el operador se queda repitiéndose a una máquina que no puede
+            # contestarle — sin enterarse de lo único que lo arregla, que es suyo y no del motor.
+            # Medido en producción el 2026-08-21: `Insufficient Balance` (DeepSeek, 402) dos veces, «SIN RELEVO
+            # disponible», y el canario del arnés MUDO en todos los turnos hasta que él paró de medir.
+            send("Uf, se me ha ido un momento. ¿Me lo repites?" if not _dry else
+                 "Me he quedado sin proveedor de modelo: no me queda ninguno al que preguntar, así que "
+                 "repetírmelo no va a servir. Lo tienes en el panel de estado — hay que recargar o cambiar de "
+                 "proveedor, y en cuanto lo hagas sigo.")
             return
 
         # SEGUNDO VIAJE de la selección progresiva (V2-096 F2), y SOLO aquí: la recuperación se equivocó y el modelo

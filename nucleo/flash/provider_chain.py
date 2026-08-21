@@ -35,13 +35,14 @@ from loguru import logger
 # este módulo tenía su propio `_RESET_RE` que solo leía la FECHA, así que un reset del mismo día («reset at
 # 23:15:37») se resolvía a medianoche pasada y el cooldown nacía vencido — el bug que el hermano ya arregló y que
 # aquí seguía vivo. Dos copias de la misma lectura garantizan que una de ellas se quede atrás.
-from nucleo.workers.providers import _reset_epoch, classify_failure
+from nucleo.workers.providers import _reset_epoch, classify_failure, is_depleted
 # Cooldown mechanics shared with the sibling module (V2-098) — the STATE stays separate on purpose (its own KV
 # namespace: a MODEL tier being down says nothing about a CLI endpoint being down), only load/save/token/available.
 from nucleo.provider_health import CooldownStore, token_for as _token_for
 
 
 _DEFAULT_COOLDOWN_S = 30 * 60          # sin fecha de reset explícita: media hora y se reintenta
+_DEPLETED_COOLDOWN_S = 6 * 3600        # V2-243: un SALDO no se repone solo — se reintenta poco y se avisa mucho
 _AUTH_COOLDOWN_S = 5 * 60              # credencial mal: puede ser un despiste, no castigues una semana
 _KV = "cluster_provider_cooldown"      # nombre histórico: el cooldown es COMPARTIDO (ver `role` abajo)
 
@@ -270,13 +271,16 @@ def note_failure(text: str, tier: dict | None = None, *, role: str = ROLE_CLUSTE
     if not t or not t.get("base_url"):
         return None
 
+    dry = is_depleted(text)
     if kind == "exhausted":
         # La fecha de reset que da el proveedor manda… salvo que ya haya PASADO. Un mensaje con una fecha vencida
         # (respuesta cacheada, reloj desfasado, texto de error reutilizado) dejaba `until` en el pasado → el
         # escalón quedaba disponible en el acto → se relevaba a SÍ MISMO y volvía a fallar: exactamente el bucle
         # de 429 que este módulo existe para cortar. Suelo de media hora: si la cuota de verdad ya se repuso, se
         # pierde media hora de tier preferido; sin suelo se pierde el turno entero, en bucle. (2026-08-09)
-        until = max(_reset_epoch(text), time.time() + _DEFAULT_COOLDOWN_S)
+        # V2-243: si es SALDO y no cuota, no hay nada que esperar (ver `providers.is_depleted`).
+        until = (time.time() + _DEPLETED_COOLDOWN_S) if dry \
+            else max(_reset_epoch(text), time.time() + _DEFAULT_COOLDOWN_S)
     elif kind == "auth":
         until = time.time() + _AUTH_COOLDOWN_S
     else:
@@ -287,7 +291,11 @@ def note_failure(text: str, tier: dict | None = None, *, role: str = ROLE_CLUSTE
     nxt = pick(role)
     when = time.strftime("%d %b %H:%M", time.localtime(until))
     label = _ROLE_LABEL.get(role, "cerebro de cluster")
-    detail = (f"«{t['name']}» ({t.get('plan', '')}) sin cuota hasta el {when}"
+    # V2-243: una cuota le dice al operador «espera»; un saldo le dice «recarga». Escribir una hora en la que no
+    # va a pasar nada es peor que no escribir ninguna — medido el 2026-08-21 con «sin cuota hasta el 21 Aug 03:02»
+    # sobre un `Insufficient Balance` de DeepSeek, con el cerebro ya sin ningún proveedor.
+    estado = "SIN SALDO — no vuelve solo, hay que recargar" if dry else f"sin cuota hasta el {when}"
+    detail = (f"«{t['name']}» ({t.get('plan', '')}) {estado}"
               + (f" → relevo a «{nxt['name']}»" if nxt else " · SIN RELEVO disponible"))
     logger.warning(f"{label}: {detail}")
 

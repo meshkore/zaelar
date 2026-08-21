@@ -68,6 +68,7 @@ LICENSE_TIER = {"name": "licencia-claude", "base_url": "", "env": [], "plan": "l
 from nucleo.provider_health import CooldownStore, token_for as _token_for
 
 _DEFAULT_COOLDOWN_S = 30 * 60          # sin fecha de reset explícita: media hora y se reintenta
+_DEPLETED_COOLDOWN_S = 6 * 3600        # V2-243: un SALDO no se repone solo — se reintenta poco y se avisa mucho
 _AUTH_COOLDOWN_S = 5 * 60              # credencial mal: puede ser un despiste, no castigues una semana
 _KV = "worker_provider_cooldown"
 
@@ -220,6 +221,32 @@ def is_context_overflow(text: str) -> bool:
     return classify_failure(t) == ""
 
 
+# V2-243 — UN SALDO AGOTADO NO ES UNA CUOTA, y decirlo mal es el defecto, no un matiz de redacción. Una CUOTA
+# anuncia cuándo vuelve y vuelve sola; un SALDO no vuelve hasta que el operador recargue. Los dos caen hoy en
+# `exhausted`, así que el saldo heredaba el suelo de media hora y el panel escribía «sin cuota hasta las 03:02»
+# — una fecha en la que no va a pasar nada. Medido en producción el 2026-08-21: `Insufficient Balance` de
+# DeepSeek (HTTP 402) dos veces, con «sin cuota hasta el 21 Aug 03:02 · SIN RELEVO disponible», y el arnés paró
+# de medir porque el cerebro se quedó sin proveedor.
+#
+# Predicado APARTE y no un valor nuevo de `classify_failure` a propósito: esa función la comparte
+# `nucleo/flash/provider_chain.py`, que ramifica sobre sus tres valores y devolvería None (ni cooldown ni relevo)
+# ante uno desconocido. Misma razón por la que `is_context_overflow` vive aparte, escrita ahí arriba.
+_DEPLETED_RE = re.compile(
+    r"insufficient (?:balance|credit|funds)|out of credit|no credit|balance is insufficient|"
+    r"saldo insuficiente|sin saldo|recharge|top ?[- ]?up", re.I)
+
+
+def is_depleted(text: str) -> bool:
+    """True si el proveedor dice que se quedó SIN SALDO y NO anuncia cuándo vuelve.
+
+    La ausencia de fecha es parte del predicado: un plan con forfait que dice «reset at …» sí vuelve solo, y
+    tratarlo como saldo lo apagaría durante horas de más."""
+    t = str(text or "")
+    if not _DEPLETED_RE.search(t):
+        return False
+    return not _RESET_RE.search(t)
+
+
 def classify_failure(text: str) -> str:
     """'exhausted' (plan/cuota agotada, hay que relevar) · 'auth' · 'rate' (pasajero) · '' (no es de proveedor)."""
     t = (text or "")
@@ -339,10 +366,14 @@ def note_failure(text: str, tier: dict | None = None) -> dict | None:
     if not t or not t.get("base_url"):
         return None                                  # la licencia local no se pone en cooldown por esto
 
+    dry = is_depleted(text)
     if kind == "exhausted":
         # Mismo suelo que en el hermano `nucleo/flash/provider_chain.py` (2026-08-09): una fecha de reset ya
         # VENCIDA en el texto del error dejaba el escalón disponible en el acto → relevo a sí mismo → bucle.
-        until = max(_reset_epoch(text), time.time() + _DEFAULT_COOLDOWN_S)
+        # V2-243: si es SALDO y no cuota, no hay nada que esperar — reintentar cada media hora es quemar un
+        # worker por ronda contra una cuenta vacía.
+        until = (time.time() + _DEPLETED_COOLDOWN_S) if dry \
+            else max(_reset_epoch(text), time.time() + _DEFAULT_COOLDOWN_S)
     elif kind == "auth":
         until = time.time() + _AUTH_COOLDOWN_S
     else:
@@ -352,7 +383,12 @@ def note_failure(text: str, tier: dict | None = None) -> dict | None:
 
     nxt = pick()
     when = time.strftime("%d %b %H:%M", time.localtime(until))
-    detail = (f"«{t['name']}» ({t.get('plan', '')}) sin cuota hasta el {when}"
+    # V2-243: lo que se escribe aquí es lo que el operador lee en el panel, y de ello depende lo que HAGA. Una
+    # cuota le dice «espera»; un saldo le dice «recarga». Poner una hora donde no va a pasar nada es peor que no
+    # poner ninguna.
+    estado = (f"SIN SALDO — no vuelve solo, hay que recargar" if dry
+              else f"sin cuota hasta el {when}")
+    detail = (f"«{t['name']}» ({t.get('plan', '')}) {estado}"
               + (f" → relevo a «{nxt['name']}»" if nxt else " · SIN RELEVO disponible"))
     logger.warning(f"brain worker: {detail}")
 

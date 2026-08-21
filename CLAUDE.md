@@ -1339,6 +1339,27 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Un SALDO agotado no es una cuota, y quedarse sin proveedor no es un tropiezo** (`nucleo/workers/providers.py`
+  + `flash/provider_chain.py` + `voice/engine/llm/providers/nucleo.py`, V2-243, 2026-08-21). Medido en
+  PRODUCCIÓN, no en un banco: el arnés paró de medir a las 02:28 con `Insufficient Balance` (DeepSeek, HTTP 402)
+  ×2, anunciado como **«sin cuota hasta el 21 Aug 03:02 · SIN RELEVO disponible»**, y su canario —que había
+  pasado dos veces una hora antes— **mudo en todos los turnos**. Dos defectos de redacción, los dos caros porque
+  cambian lo que el operador HACE:
+  - **«Sin cuota hasta las 03:02» es falso.** Una cuota anuncia cuándo vuelve y vuelve sola; un saldo no vuelve
+    hasta que alguien recargue. Y heredaba el suelo de 30 min, así que cada media hora se gasta un turno (o un
+    worker) redescubriendo que la cuenta está vacía. Ahora: predicado `is_depleted` **aparte** de
+    `classify_failure` (que comparten las dos cadenas y devolvería `None` ante un valor nuevo — misma razón que
+    `is_context_overflow`), cooldown de 6 h, y el aviso dice **«SIN SALDO — no vuelve solo, hay que recargar»**.
+    **La ausencia de fecha es parte del predicado**: un forfait que dice «insufficient credit … reset at …»
+    vuelve solo, y apagarlo de más es perder el escalón preferido.
+  - **«¿Me lo repites?» es una mentira cuando no queda ningún proveedor.** Es la frase correcta ante un tropiezo;
+    con la cadena seca el operador se queda repitiéndose a una máquina que no puede contestarle, sin enterarse de
+    lo único que lo arregla. El turno pregunta `pick(ROLE_VOICE) is None` y lo dice.
+  - ⚠️ Un test existente usaba «insufficient credit» como ejemplo de «cuota sin fecha» y este cambio lo convierte
+    en el OTRO caso: se le cambió el ejemplo, no la intención. Nodos 2.4/2.5, sensibilidad en tres direcciones.
+  - **Ojo**: 3 tests de `tests/cluster/unit/test_brain_relay.py` están ROTOS y **no están en el testmap** desde el
+    refactor de V2-098 (`pc._cooldown` ya no existe). Fallan igual sin este cambio. Es V2-158 otra vez.
+
 - **Una píldora de fondo no es un hecho sobre la persona** (`widgets/background.py`, V2-242, 2026-08-21). El
   arnés midió en `best-plumber-same-day` que `weather:soria` (`mid/note`, importancia 0,3) le ganaba a
   `operator.location` (`long/profile`, «Vive en el centro de Madrid») y el worker buscó **«fontanero Soria»** tres
