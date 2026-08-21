@@ -102,20 +102,32 @@ def test_the_sink_never_blocks_the_publisher(log):
     síncrono, encolar y escribir pasan a ser la MISMA operación y el cociente se va a 1.
     """
     import time
-    t0 = time.perf_counter()
-    for i in range(2000):
-        log._write({"topic": "x", "ts_ms": float(i), "payload": {"i": i}})
-    encolar = time.perf_counter() - t0
-    t1 = time.perf_counter()
-    log.drain(timeout=10.0)
-    escribir = time.perf_counter() - t1
-    assert log.count() == 2000
-    # Medido en esta máquina: encolar ~2 ms, escribir ~116 ms (58x). Se exige 5x — deja un factor 10 de holgura
-    # y sigue siendo inalcanzable para un sink síncrono.
-    assert encolar * 5 < escribir, (
-        f"encolar 2000 eventos costó {encolar * 1000:.0f}ms y escribirlos {escribir * 1000:.0f}ms — encolar ya "
-        f"no es dramáticamente más barato que escribir, así que `_write` está pagando el INSERT en el hilo que "
-        f"publica (que muchas veces es el de la voz)")
+
+    # 2026-08-21, SEGUNDA reincidencia: el cociente relativo arregló la dependencia del MODELO de máquina, pero no
+    # la del INSTANTE. Con la suite entera en un proceso —esa noche pasó de 3.284 a 3.923 tests— una sola
+    # preempción del planificador durante los ~2 ms de encolado basta para hundir el cociente, y el test se pone
+    # rojo por el reloj y no por el código. Una medida de tiempo tomada UNA vez mide la máquina; tomada varias y
+    # quedándose con la MEJOR, mide el camino. La propiedad sigue siendo inalcanzable para un sink síncrono: ahí
+    # encolar y escribir son la MISMA operación, así que el cociente se va a 1 en las tres rondas.
+    mejor, escritos, encolar = 0.0, 0, 0.0
+    for _ in range(3):
+        t0 = time.perf_counter()
+        for i in range(2000):
+            log._write({"topic": "x", "ts_ms": float(i), "payload": {"i": i}})
+        encolar = time.perf_counter() - t0
+        t1 = time.perf_counter()
+        log.drain(timeout=10.0)
+        escribir = time.perf_counter() - t1
+        escritos += 2000
+        assert log.count() == escritos, "encolar rápido no vale de nada si los eventos no acaban en la tabla"
+        mejor = max(mejor, (escribir / encolar) if encolar > 0 else float("inf"))
+        if mejor >= 5:
+            break
+    # Medido en esta máquina: encolar ~2 ms, escribir ~116 ms (58x). Se exige 5x — deja un factor 10 de holgura.
+    assert mejor >= 5, (
+        f"la mejor de 3 rondas dio escribir/encolar = {mejor:.1f}x — encolar ya no es dramáticamente más barato "
+        f"que escribir, así que `_write` está pagando el INSERT en el hilo que publica (que muchas veces es el "
+        f"de la voz)")
     assert encolar < 2.0, f"encolar 2000 eventos tardó {encolar:.1f}s — eso no es «no bloquea» en ninguna máquina"
 
 

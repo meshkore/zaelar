@@ -31,12 +31,11 @@ from tests.platform.catalog import DOMAINS, SUITES, deterministic_paths  # noqa:
 #: Árboles que este trinquete NO vigila, con su motivo. Un guarda que su dueño no espera es un guarda que se salta
 #: a la primera, así que esto solo crece con el OK del dueño — y el objetivo es que esté VACÍO.
 #:
-#: `tests/use_cases/` es del arnés y sigue aquí, pero por un motivo DISTINTO al de esta mañana. El primero —su
-#: `suite.json` con `"domain_ids": []`, que dejaba sus 36 ficheros declarados y sin correr— lo cerró él en
-#: `f0096c9` (rutas deterministas 277 → 313). Al quitar la excepción salió el segundo: **15 ficheros suyos que no
-#: están declarados en ningún nodo**, todos de las últimas tandas. Entregados medidos; sale de aquí cuando los
-#: cierre. La lista existe para quedarse VACÍA.
-FUERA_DEL_TRINQUETE = ("tests/use_cases/",)
+#: **Hoy está vacía, y ese es su estado correcto.** `tests/use_cases/` estuvo aquí unas horas del 2026-08-21, dos
+#: veces y por dos motivos distintos: primero su `suite.json` con `"domain_ids": []` —36 ficheros declarados y sin
+#: correr, rutas deterministas 277 → 313 al arreglarlo (`f0096c9`)—, y al vaciarla salieron 15 ficheros suyos sin
+#: declarar en ningún nodo. Las dos las cerró su dueño; los quince nodos los escribió él, con sus títulos.
+FUERA_DEL_TRINQUETE: tuple[str, ...] = ()
 
 
 def _ficheros_de_test() -> list[str]:
