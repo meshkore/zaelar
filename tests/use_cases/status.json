@@ -1,30 +1,52 @@
 {
   "scenarios": {
     "restaurant-tonight-madrid": {
-      "last_run": "2026-08-20 15:01",
-      "overall": 2,
-      "state": "CAPPED",
+      "last_run": "2026-08-21 03:27",
+      "overall": 1,
+      "judge": "deepseek-v4-flash",
+      "state": "INFRA",
       "scores": {
         "naturalidad": 2,
-        "adaptacion": 5,
+        "adaptacion": 2,
         "resultado": 1,
-        "mecanismo": 2,
-        "eficiencia": 2
+        "mecanismo": 1,
+        "eficiencia": 1
       },
-      "verdict": "No está listo para producción este caso de uso; el bloqueador nº1 es la incapacidad del navegador para superar filtros anti-robot (CAPTCHA) en los principales agregadores, lo que deriva en un bucle de espera infinita sin ofrecer al usuario una alternativa real ni una salida honesta.",
-      "missing_signals": [],
-      "audit_anomalies": [],
-      "sandboxed": true,
-      "tier": 1,
-      "turns_used": 8,
-      "families": [
-        "flash",
-        "memory",
-        "system",
-        "widget",
+      "verdict": "No está listo para producción: el caso no se resolvió y el bloqueador número 1 es la falta de respuesta del canal (7 turnos mudos), agravada por la ausencia del worker esperado que tendría que haber dejado un intento real de reserva.",
+      "missing_signals": [
         "worker"
       ],
-      "drive_model": "deepseek-directo",
+      "audit_anomalies": [
+        {
+          "clase": "sin_evidencia_externa",
+          "certeza": "hecho",
+          "que": "ni un solo evento con `evidence`: el mundo exterior no trajo nada"
+        }
+      ],
+      "sandboxed": false,
+      "provisional": null,
+      "tier": 1,
+      "turns_used": 7,
+      "families": [],
+      "drive_model": "aimlapi",
+      "code": {
+        "sha": "d7c66d0",
+        "n_dirty": 0,
+        "dirty": []
+      },
+      "machine": {
+        "gpu_models": [
+          {
+            "name": "qwen3.6:27b-mlx",
+            "size": "42 GB"
+          },
+          {
+            "name": "embeddinggemma:latest",
+            "size": "673 MB"
+          }
+        ],
+        "n": 2
+      },
       "data_limit": {
         "kind": "no_booking",
         "missing": "cerrar la mesa (teléfono o cuenta en la plataforma)"
@@ -806,66 +828,33 @@
       }
     },
     "best-plumber-same-day__es": {
-      "last_run": "2026-08-20 21:48",
+      "last_run": "2026-08-21 10:47",
       "overall": 2,
+      "judge": "deepseek-v4-flash",
       "state": "FAIL",
       "scores": {
-        "naturalidad": 4,
-        "adaptacion": 5,
+        "naturalidad": 3,
+        "adaptacion": 2,
         "resultado": 1,
         "mecanismo": 2,
-        "eficiencia": 2
+        "eficiencia": 1
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar prometió un resultado (fontaneros para hoy) que el mecanismo nunca produjo —el worker navegó 15 veces sin extraer ni un solo resultado— y en lugar de comunicar el fallo honestamente, mantuvo al usuario esperando con respuestas genéricas hasta el final de la conversación.",
+      "verdict": "No está listo para producción: el bloqueador número uno es que no se entregó ningún fontanero real y la conversación se cerró sosteniendo una búsqueda activa que el mecanismo no respaldaba, cuando lo correcto era confesar el fallo del intento y ofrecer una salida concreta.",
       "missing_signals": [],
       "audit_anomalies": [
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "memory/memory «🧠 memoria ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "memory/memory «🧠 memoria ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: Error: ElementHandle.scroll_into_view_if_needed: Element is not attached to the DOM"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: Error: ElementHandle.scroll_into_view_if_needed: Element is not attached to the DOM"
+          "que": "worker/task «↩ zaelar ⚠️ error»: Exit code 2 usage: worker_bridge [-h] {ask,wait,act,say} ... worker_bridge: error: argument cmd: invalid choice: 'search' (choose from ask, wait, act, say)"
         },
         {
           "clase": "span_con_error",
           "certeza": "hecho",
-          "que": "worker:1: 1 error(es), último paso «🧭 página»"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:2: 3 error(es), último paso «🧭 navegador»"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:3: 2 error(es), último paso «🧭 navegador»"
+          "que": "worker:6: 1 error(es), último paso «data»"
         }
       ],
       "sandboxed": true,
+      "provisional": "corrida con --allow-dirty: el arbol se movia, el numero no cuenta como medicion",
       "tier": 2,
       "turns_used": 10,
       "families": [
@@ -875,17 +864,19 @@
         "widget",
         "worker"
       ],
-      "drive_model": "deepseek-directo",
+      "drive_model": "aimlapi",
       "code": {
-        "sha": "60280c5",
-        "n_dirty": 0,
-        "dirty": []
+        "sha": "10d8363",
+        "n_dirty": 1,
+        "dirty": [
+          "widgets/navegador/agent.py"
+        ]
       },
       "machine": {
         "gpu_models": [
           {
             "name": "qwen3.6:27b-mlx",
-            "size": "43 GB"
+            "size": "42 GB"
           },
           {
             "name": "embeddinggemma:latest",
@@ -896,9 +887,8 @@
       },
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-228-uc-best-plumber-same-day-es.md",
-        "task": ".meshkore/modules/nucleo/tasks/T465-uc-best-plumber-same-day-es-fix.md"
-      },
-      "measured_in": "worktree fijado (measure-wt)"
+        "task": ""
+      }
     },
     "compare-insurance-quotes__es": {
       "last_run": "2026-08-21 02:03",
@@ -1257,5 +1247,5 @@
       "measured_in": "worktree fijado en 05dd79f"
     }
   },
-  "updated": "2026-08-21 01:18"
+  "updated": "2026-08-21 10:47"
 }
