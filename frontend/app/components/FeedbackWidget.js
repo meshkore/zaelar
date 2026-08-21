@@ -17,6 +17,7 @@ import { t } from "../core/i18n.js?v=1";
 import { makeDraggable } from "../lib/draggable.js?v=2";
 import { CLOSE_ICON, MIC_ICON, MESSAGE_SQUARE_ICON, SEND_ICON } from "../lib/icons.js?v=1";
 import * as feedbackApi from "../services/feedback-api.js?v=1";
+import { sendOutcome, listOutcome, lineFor } from "../services/feedback-state.js?v=1";
 import * as dictation from "../services/feedback-dictation.js?v=1";
 
 function _fmtDate(iso) {
@@ -38,10 +39,19 @@ export function FeedbackWidget() {
   let recHandle = null, base = "", finalSoFar = "", pollTimer = null;
   const [listening, setListening] = createSignal(false);
   const [justSent, setJustSent] = createSignal(false);
+  // The two states this panel used to keep to itself. `sendLine` is whatever the last submit
+  // ACTUALLY answered; `listReachable` separates "you have sent nothing" from "we cannot look".
+  const [sendLine, setSendLine] = createSignal("");
+  const [listReachable, setListReachable] = createSignal(true);
+  // The KEY comes from the shared reading, not from a second `if` here. Re-deriving it locally is
+  // how the rule ended up living in two places to begin with.
+  const [emptyKey, setEmptyKey] = createSignal("feedback.emptyState");
 
   const refresh = async () => {
-    const res = await feedbackApi.listFeedback();
-    store.setFeedbackItems(Array.isArray(res.items) ? res.items : []);
+    const out = listOutcome(await feedbackApi.listFeedback());
+    setListReachable(out.reachable);
+    setEmptyKey(out.emptyKey);
+    store.setFeedbackItems(out.items);
   };
 
   const renderDictated = (interim) => {
@@ -72,15 +82,18 @@ export function FeedbackWidget() {
       message, email: emailEl?.value || "", includeSessionEvidence: !!evidenceEl?.checked,
     });
     store.setFeedbackSending(false);
-    if (res && res.ok) {
-      if (textareaEl) textareaEl.value = "";
-      if (emailEl) emailEl.value = "";
-      if (evidenceEl) evidenceEl.checked = false;
-      setJustSent(true);
-      setTimeout(() => setJustSent(false), 4000);
-      store.setFeedbackTab("sent");
-      refresh();
-    }
+    const out = sendOutcome(res);
+    // The failure branch is the whole point of V2-256: the message stays in the box (so a retry costs
+    // nothing) and the panel SAYS what happened. It used to end here with no `else` at all.
+    if (!out.ok) { setSendLine(lineFor(out, t)); return; }
+    setSendLine("");
+    if (textareaEl) textareaEl.value = "";
+    if (emailEl) emailEl.value = "";
+    if (evidenceEl) evidenceEl.checked = false;
+    setJustSent(true);
+    setTimeout(() => setJustSent(false), 4000);
+    store.setFeedbackTab("sent");
+    refresh();
   };
 
   const statusBadge = (item) => h("span", { class: "fw-badge fw-badge-" + item.status },
@@ -108,10 +121,19 @@ export function FeedbackWidget() {
         h("button", { class: () => "fw-tab" + (store.feedbackTab() === "new" ? " on" : ""), onClick: () => store.setFeedbackTab("new") }, () => t("feedback.tabNew")),
         h("button", { class: () => "fw-tab" + (store.feedbackTab() === "sent" ? " on" : ""), onClick: () => store.setFeedbackTab("sent") }, () => t("feedback.tabSent")),
       ),
-      h("div", { class: "fw-new" },
-        justSent()
+      // THE STATUS STRIP — outside both tab panes on purpose (V2-256). The thank-you used to live
+      // inside `.fw-new`, and a successful send switches to the Sent tab, which sets `.fw-panel` to
+      // `tab-sent` and puts `display:none` on `.fw-new`: the confirmation was hidden by layout at the
+      // exact moment it was meant to appear. That was the SECOND independent reason nothing showed —
+      // the first is the bare ternary below, which read the signal once while the tree was being
+      // built and appended nothing, no error anywhere (V2-124's detached-canvas lesson again).
+      h("div", { class: "fw-status" },
+        () => (justSent()
           ? h("div", { class: "fw-thanks" }, () => t("feedback.thanks"))
-          : null,
+          : null),
+        () => (sendLine() ? h("div", { class: "fw-error" }, sendLine()) : null),
+      ),
+      h("div", { class: "fw-new" },
         h("textarea", { class: "fw-textarea", ref: el => (textareaEl = el), rows: 4, placeholder: () => t("feedback.placeholder") }),
         h("div", { class: "fw-row" },
           h("label", { class: "fw-check" },
@@ -139,7 +161,8 @@ export function FeedbackWidget() {
       h("div", { class: "fw-sent" },
         () => (store.feedbackItems().length
           ? store.feedbackItems().map(sentItem)
-          : h("div", { class: "fw-empty" }, () => t("feedback.emptyState"))),
+          : h("div", { class: () => (listReachable() ? "fw-empty" : "fw-empty fw-empty-unreachable") },
+              () => t(emptyKey()))),
       ),
     ),
   );

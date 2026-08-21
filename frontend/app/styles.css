@@ -1086,7 +1086,17 @@ body.dbg-open .orbwrap{left:calc(50% - var(--dbg-w) / 2)}
 .fw-send[disabled]{opacity:.55;cursor:default;filter:none}
 .fw-thanks{font-size:12.5px;color:var(--hb-accent2);background:color-mix(in srgb,var(--hb-accent2) 12%,transparent);
   border-radius:9px;padding:7px 10px}
+/* V2-256 — the failure has to occupy the same slot, and the same visual weight, as the thank-you.
+   A send that fails used to paint nothing at all: same box, same silence, whether it worked or not. */
+/* The status strip sits OUTSIDE the two tab panes: a confirmation that only exists in the tab the
+   user is being navigated AWAY from is not a confirmation. Empty by default, so it costs no height. */
+.fw-status{display:flex;flex-direction:column;gap:8px;padding:0 14px}
+.fw-status:empty{display:none}
+.fw-error{font-size:12.5px;color:var(--hb-warn-ink);background:var(--hb-warn-bg);
+  border:1px solid var(--hb-warn-border);border-radius:9px;padding:7px 10px;line-height:1.4}
 .fw-empty{color:var(--hb-muted-2);font-size:12.5px;text-align:center;padding:18px 0}
+/* "Nothing sent yet" and "we cannot see the list" are not the same sentence and must not look alike. */
+.fw-empty-unreachable{color:var(--hb-warn-ink)}
 .fw-item{border:1px solid var(--hb-line);border-radius:10px;padding:9px 11px;font-size:12.5px}
 .fw-item-msg{color:var(--hb-ink);line-height:1.4;white-space:pre-wrap;word-break:break-word}
 .fw-item-meta{color:var(--hb-muted-2);font-size:11px;margin-top:5px;display:flex;align-items:center;gap:5px}

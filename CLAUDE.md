@@ -1363,6 +1363,32 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - Nodo 2.15, 9 casos rojos con el parseo viejo. **Sin verificar en vivo.** Lo cogió memoria-dev fuera de su
     territorio por decisión del orquestador: **el dueño de un arreglo es quien tiene la evidencia**.
 
+- **Un formulario que calla no se distingue de uno que funciona** (`frontend/app/services/feedback-state.js`,
+  V2-256, 2026-08-21). El operador mandó una sugerencia y la pantalla no dijo NADA. La respuesta existía y era
+  precisa —`{"ok":false,"error":"send_failed","status":401}`, reproducido en su motor vivo— y `send()` la tiraba:
+  era `if (res && res.ok) { … }` sin `else`. La clave `feedback.sendError` YA estaba traducida a los dos idiomas
+  **y no la usaba nadie**.
+  - **El gracias tampoco se veía nunca, por DOS causas independientes** (desarmadas por separado; cada una pone
+    rojo un check distinto). Una: `justSent() ? h(…) : null` como HIJO — en este hyperscript un hijo reactivo
+    tiene que ser una FUNCIÓN, así que el ternario se evaluó UNA vez al construir el árbol, leyó `false` y no
+    añadió nada; ningún `setJustSent(true)` posterior podía poner un nodo ahí, sin error en ninguna parte (el
+    canvas desconectado de V2-124, otra vez). Dos: **el gracias vivía en la pestaña de la que te sacan** — un
+    envío correcto salta a «Enviadas», que pone `display:none` sobre `.fw-new`. Arreglar solo una de las dos
+    seguía enviando un formulario que no confirma nada.
+  - **Una lista inalcanzable no es una lista vacía.** `listFeedback()` degrada a `{ok:false, items:[]}` y la
+    pestaña pintaba «todavía no has enviado nada»: no es una verdad más pequeña, es otra y falsa.
+  - **Cuarta regla duplicada de la semana**, y esta vez la copia buena era la del MÓVIL: `MenuSheet.js` sí tenía
+    la rama de fallo. Ahora las dos superficies leen la respuesta por el mismo módulo y hay un test que falla si
+    alguna vuelve a mirar `.ok` por su cuenta. Ojo con la recaída: la primera versión de este parche volvía a
+    derivar la clave del estado vacío dentro del widget, y salió VERDE hasta el desarme D — **reintroducir la
+    duplicación dentro del arreglo que la elimina es fácil**.
+  - **La línea visible nombra el hecho**: la frase traducida más «(401)». Un paréntesis, nunca una traza; el
+    `send_failed` genérico no se muestra y un `status:"received"` de un cuerpo de ÉXITO no es un código HTTP.
+  - Nodos **4.33** (decisión + cableado) y **4.34** (RENDERIZADO en Chromium: conectado, con caja, no
+    transparente, y texto traducido — `t()` devolviendo la clave es truthy y pasa cualquier test de fuente).
+    Sensibilidad en ocho direcciones. **Esto NO hace que el envío LLEGUE**: cierra la ceguera del motor, no el 401 que devolvió el extremo
+    de ingesta. Por qué lo devolvió no es asunto de este repo.
+
 - **Para vigilar el ARTEFACTO, el artefacto tiene que contener lo que se comprueba** (`voice/observer.py` +
   `widgets/navegador/agent.py`, V2-255, 2026-08-21). V2-254 dejó abierto que nada impide una CUARTA copia de la
   regla de las píldoras, y el arnés propuso la señal buena: **no vigiles a los ESCRITORES, vigila el ARTEFACTO**
@@ -3883,8 +3909,10 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     Detail: `V2-112-modularizacion-flashbrain-audit.md`.
 - **Floating feedback widget — a self-hosted engine's first outbound call, and the control-plane's first
   PUBLIC route that accepts real data** (V2-100, 2026-08-16; full detail in
-  `.meshkore/roadmap/initiatives/V2-100-feedback-widget.md`, local; the cloud/business side is INI-023 in
-  the workspace root's private repo). One native surface (`frontend/app/components/FeedbackWidget.js`,
+  `.meshkore/roadmap/initiatives/archive/V2-100-feedback-widget.md`, local; the cloud/business side is
+  INI-023 in the workspace root's private repo). ⚠️ **Read V2-256 before trusting this section**: the
+  engine had no failure branch at all, so a refused submission was invisible on both surfaces.
+  One native surface (`frontend/app/components/FeedbackWidget.js`,
   registered in `system-surfaces.js` + mirrored in `widgets/system_surfaces.py`): a draggable launcher
   (default bottom-right, `lib/draggable.js` mode `"bl"` — same call as the Orb, no new snap logic) opening
   a two-tab panel (New: textarea + mic dictation + opt-in session-evidence checkbox, default OFF; Sent: a

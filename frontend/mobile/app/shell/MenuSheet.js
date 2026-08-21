@@ -23,6 +23,7 @@ import * as store from "../../../app/core/store.js?v=2";
 import * as session from "../../../app/services/session.js?v=3";
 import * as api from "../../../app/services/api.js?v=2";
 import { listFeedback, sendFeedback } from "../../../app/services/feedback-api.js?v=1";
+import { sendOutcome, listOutcome, lineFor } from "../../../app/services/feedback-state.js?v=1";
 import { t } from "../../../app/core/i18n.js?v=1";
 
 const CHEV = `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>`;
@@ -57,8 +58,13 @@ export function MenuSheet() {
     // is the default, and the row says so out loud rather than attaching it silently.
     const r = await sendFeedback({ message: msg, includeSessionEvidence: true });
     store.setFeedbackSending(false);
-    if (r && r.ok) { fbInput.value = ""; setFbDone(t("feedback.sent")); listFeedback().then((d) => store.setFeedbackItems((d && d.items) || [])); }
-    else setFbDone(t("feedback.failed"));
+    // Same reading as the desktop panel, from the same module (V2-256). This surface HAD the failure
+    // branch and the desktop did not — one rule in two places is how that happens, so now there is one.
+    const out = sendOutcome(r);
+    if (!out.ok) { setFbDone(lineFor(out, t)); return; }
+    fbInput.value = "";
+    setFbDone(t("feedback.sent"));
+    listFeedback().then((d) => store.setFeedbackItems(listOutcome(d).items));
   };
 
   return h("section", {

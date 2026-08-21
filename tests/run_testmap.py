@@ -701,6 +701,23 @@ DOMAINS: list[dict] = [
                                 "nombre de la tarjeta, y sin inventarlo cuando no lo hay",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/navegador/extract_shapes.py"},
+        # V2-256 — a feedback submission was refused and the panel said NOTHING. Measured on a live engine:
+        # `POST /api/feedback` answered `{"ok":false,"error":"send_failed","status":401}` and `send()` was an
+        # `if (res && res.ok) {…}` with no else. The thank-you was invisible too, for TWO independent reasons
+        # (a bare ternary read once while the tree was built, and its home inside `.fw-new`, which a successful
+        # send hides by switching tabs). And an unreachable list was painted as "nothing sent yet" — not a
+        # smaller truth, a different and false one.
+        {"id": "4.33", "title": "Un envío de feedback que falla lo DICE (y una lista inalcanzable no es una "
+                                "lista vacía) · una sola lectura para móvil y escritorio",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/feedback/test_a_send_that_fails_says_so.py"]},
+        # RENDERS on purpose: 4.33 proves the decision and the wiring, and would still pass with the node in
+        # the DOM and zero pixels — which is exactly how the thank-you shipped. This measures box, opacity and
+        # that the text is the translation and not the key (a key is truthy and passes any source-level test).
+        {"id": "4.34", "title": "El aviso de fallo del feedback RENDERIZADO: conectado, con caja, traducido y "
+                                "nombrando el 401 · y el gracias visible en la pestaña a la que se salta",
+            "ch": UNIT, "live": True,
+            "cmd": "./.venv/bin/python tests/browser/e2e/feedback/render_send_failure.py"},
         {"id": "4.19", "title": "Shell MÓVIL RENDERIZADO: el orbe centrado y PINTADO, la barra alcanzable",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/mobile/render_dock.py"},
