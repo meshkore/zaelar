@@ -668,8 +668,16 @@ def seed_provider_chain(ws) -> str:
     try:
         import json as _json
         from pathlib import Path as _P
-        src = _P(__file__).resolve().parents[3].parent / "config" / "v2.json"
-        if not src.exists():
+        # `config/v2.json` está GITIGNORADO, así que un worktree de medición no lo tiene: buscar relativo a
+        # `__file__` devolvía vacío y la siembra no ocurría en silencio — el mismo fallo mudo que esto
+        # arregla. Se acepta una ruta explícita al motor de verdad, y si no, la de al lado del código.
+        import os as _os
+        cands = []
+        if _os.getenv("ZAELAR_REAL_ENGINE"):
+            cands.append(_P(_os.environ["ZAELAR_REAL_ENGINE"]) / "config" / "v2.json")
+        cands.append(_P(__file__).resolve().parents[3].parent / "config" / "v2.json")
+        src = next((c for c in cands if c.exists()), None)
+        if src is None:
             return ""
         chain = ((_json.loads(src.read_text(encoding="utf-8")) or {}).get("fast") or {}).get("providers")
         if not chain:
