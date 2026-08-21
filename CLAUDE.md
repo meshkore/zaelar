@@ -1353,9 +1353,12 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     donde ponerlo es el único que SABE que el autor es un trabajo de fondo.
   - **En la CLAVE y no en `meta['widget']`**, por medida de memoria-dev: el retriever **no devuelve meta**. Probó
     la forma exacta — `meteo-soria:weather:soria` fuera de «busca un fontanero», DENTRO de «el tiempo en Soria».
-  - **Abierto**: las píldoras ya escritas quedan huérfanas (el supersede es por clave), y eso se limpia en el lado
-    de memoria. Y sigue pendiente de decisión del OPERADOR si esos widgets personales —dos de ellos dicen dónde
-    vive— deben viajar en un repo público. Nodo 4.1, 9 casos, sensibilidad en dos direcciones.
+  - **Las píldoras ya escritas** las migró memoria-dev (`6945496`, v5→v6). Su trampa era más concreta que la
+    sospecha: cambiar la clave sin migrar deja **DOS linajes VIVOS** (`weather:soria` 14,5 °C y
+    `meteo-soria:weather:soria` 21,0 °C, las dos `valid=1`) y la vieja sigue compitiendo en recall. Y el espejo de
+    `_own_slot` en la migración **no es deriva**: una migración congela la regla de SU versión.
+  - **Sigue pendiente de decisión del OPERADOR** si esos widgets personales —dos de ellos dicen dónde vive—
+    deben viajar en un repo público. Nodo 4.1, 9 casos, sensibilidad en dos direcciones.
 
 - **La puerta avisaba UNA vez y el worker chocó TRES** (`nucleo/workers/session.py`, V2-241, 2026-08-21). De la
   evidencia abierta de V2-236: uno de los workers muertos chocó **tres veces** con nuestra propia puerta de
