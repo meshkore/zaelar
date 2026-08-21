@@ -166,12 +166,18 @@ def widget_rows(wid: str, key: str) -> list:
     The rule that comes out of it: about a widget's persistence, only what has been READ may be asserted. An
     empty list and "I did not look" are nothing alike, so the report keeps the two apart.
     """
-    d = _get(f"/widgets/{urllib.parse.quote(wid, safe='')}/data", timeout=20.0)
+    # `q` is how an INSTANCE is asked for: since V2-259 a results sheet is keyed per errand, and the widget
+    # route takes the suffix as a query argument (`results` + `q=2` is the box of task 2). Without it every
+    # read lands on the un-instanced box, which after V2-259 is a DIFFERENT box from the one the errand wrote.
+    _path = f"/widgets/{urllib.parse.quote(wid, safe='')}/data"
+    if q:
+        _path += f"?q={urllib.parse.quote(q, safe='')}"
+    d = _get(_path, timeout=20.0)
     v = d.get(key) if isinstance(d, dict) else None
     return v if isinstance(v, list) else []
 
 
-def widget_data(wid: str) -> dict | None:
+def widget_data(wid: str, q: str = "") -> dict | None:
     """A widget's WHOLE state, or `None` when the engine could not be asked.
 
     `widget_rows` above collapses both failures into `[]`, which is right for its caller (it wants a

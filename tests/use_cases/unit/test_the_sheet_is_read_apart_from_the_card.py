@@ -35,7 +35,11 @@ SHEET = {
 def sheet(monkeypatch):
     """Patch the ONE seam the reader uses, so the test exercises the real assembly and not a copy of it."""
     def _install(payload):
-        monkeypatch.setattr(probe_client, "widget_data", lambda wid: payload if wid == "results" else None)
+        # `q` es el sufijo de instancia (V2-259): este fichero mide la caja PELADA, así que el doble solo
+        # contesta cuando no se pide ninguna instancia — si contestara a todas, taparía justo el defecto
+        # que el nodo 10.61 existe para cazar (leer la caja equivocada).
+        monkeypatch.setattr(probe_client, "widget_data",
+                            lambda wid, q="": payload if (wid == "results" and not q) else None)
     return _install
 
 

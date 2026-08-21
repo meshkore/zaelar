@@ -89,7 +89,7 @@ def test_a_stream_with_no_widget_events_says_nothing():
 
 # ── el lector viaja en el informe de mecanismo, que es lo que lee el juez ───────────────────────────────
 def test_the_reader_reaches_the_mechanism_report(monkeypatch):
-    monkeypatch.setattr(V, "results_sheet", lambda: {"read": False, "n_items": 0, "titles": [],
+    monkeypatch.setattr(V, "results_sheet", lambda ids=None: {"read": False, "n_items": 0, "titles": [],
                                                      "n_sources": 0})
     monkeypatch.setattr(V, "find_navegador_task_id", lambda _e: "")
     mech = V.mechanism_report([_ev("results", src="worker:t1"), _ev("results", src="worker:t2")], [])

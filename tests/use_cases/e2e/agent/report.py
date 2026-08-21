@@ -65,9 +65,18 @@ def build(results: list[dict], stamp: str, out_dir: Path) -> Path:
         if not sh.get("read"):
             lines.append("hoja de resultados: NO se pudo leer (no es lo mismo que vacía)")
         else:
+            _boxes = sh.get("boxes") or []
             lines.append(f"hoja de resultados: {sh.get('n_named', 0)} candidato(s) con nombre "
                          f"de {sh.get('n_items', 0)} fila(s) · {sh.get('n_sources', 0)} fuente(s)"
+                         + (f" · leída en {', '.join(_boxes)}" if _boxes and _boxes != ["results"] else "")
                          + (f" · {', '.join(sh.get('titles') or [])}" if sh.get("titles") else ""))
+            # CADA CAJA POR SEPARADO cuando hay más de una: el total no dice si ESTE encargo fue servido —
+            # la caja de al lado puede llevar lo suyo. Es la línea que separa «no entregó» de «entregó en
+            # su sitio y el lector miraba en otro».
+            _pb = sh.get("per_box") or []
+            if len(_pb) > 1:
+                lines.append("   por encargo: " + " · ".join(
+                    f"{b.get('id')}: {b.get('n_items', 0)} fila(s) «{b.get('title') or ''}»" for b in _pb))
         # UNA CAJA POR ENCARGO. Solo se imprime si hubo alguna apertura: en un caso de un solo encargo no
         # dice nada que no diga ya la línea de arriba, y en uno de dos es la línea que decide el veredicto.
         si = mech.get("sheet_instances") or {}

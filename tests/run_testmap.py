@@ -1112,6 +1112,9 @@ DOMAINS: list[dict] = [
         {"id": "10.60", "title": "The engine under test is running the code we have: a clean tree is not an "
                                  "up-to-date process, and a stale lab agent refuses the round",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_engine_under_test_is_the_code_we_have.py"]},
+        {"id": "10.61", "title": "The sheet is read where the errand WROTE it: instanced boxes, never the bare "
+                                 "one that nobody owns since V2-259",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_sheet_is_read_where_the_errand_wrote_it.py"]},
     ]},
 ]
 

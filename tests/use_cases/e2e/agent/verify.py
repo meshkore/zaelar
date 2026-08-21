@@ -488,7 +488,7 @@ def ghost_widgets(all_events: list[dict]) -> dict:
     }
 
 
-def results_sheet() -> dict:
+def results_sheet(ids: list[str] | None = None) -> dict:
     """What the RESULTS SHEET holds at the end of the round, read from the engine.
 
     Kept as a fact of its own next to `navegador_task`, and it is not redundancy: today the browser CARD is
@@ -501,13 +501,41 @@ def results_sheet() -> dict:
     Measured on `best-plumber-same-day__es` (2026-08-21): the sheet finished with FIVE candidates carrying
     phone, rating and source while the conversation had already closed — which also makes the case for
     `read`: an unread sheet is not an empty one, and `0` must never stand for "nobody looked".
+
+    READ THE BOXES THAT WERE ACTUALLY OPENED, not the bare id. Since V2-259 a sheet is keyed per errand
+    (`results::<task>`), and the un-instanced `results` is a DIFFERENT box that an errand no longer writes to.
+    Reading it after that landed measured, on `two-searches-two-sheets` (2026-08-21), a sheet holding fifteen
+    rows of hotels and cars left over from earlier rounds while the errand under measurement wrote elsewhere —
+    and the judge, reading that, concluded the agent "claims to have found plumbers with no mechanism backing
+    it". A reader pointed at the wrong box does not fail: it INVENTS facts, and they read exactly as credible
+    as real ones. `ids` comes from `sheet_instances`, so the two readers cannot drift apart; with none (no
+    sheet opened, or an engine from before V2-259) it falls back to the bare box, which is then the only one.
     """
-    d = probe_client.widget_data("results")
-    if d is None:
-        return {"read": False, "n_items": 0, "titles": [], "n_sources": 0}
-    items = [it for it in (d.get("items") or []) if isinstance(it, dict)]
-    counts = d.get("counts") if isinstance(d.get("counts"), dict) else {}
+    boxes = [i for i in (ids or []) if str(i).split("::", 1)[0] == "results"] or ["results"]
+    reads = []
+    for box in boxes:
+        suffix = box.split("::", 1)[1] if "::" in box else ""
+        got = probe_client.widget_data("results", suffix)
+        if got is not None:
+            reads.append((box, got))
+    if not reads:
+        return {"read": False, "n_items": 0, "titles": [], "n_sources": 0, "boxes": boxes}
+    items: list[dict] = []
+    counts: dict = {}
+    per_box: list[dict] = []
+    for box, got in reads:
+        got_items = [it for it in (got.get("items") or []) if isinstance(it, dict)]
+        items.extend(got_items)
+        if isinstance(got.get("counts"), dict):
+            counts = got["counts"]
+        per_box.append({"id": box, "n_items": len(got_items),
+                        "title": str(got.get("title") or "")[:70]})
+    d = reads[-1][1]
     return {
+        "boxes": [b for b, _ in reads],
+        # WHAT EACH BOX HOLDS, not just the total: with one errand per box, a total says nothing about whether
+        # THIS errand was served — the box next door could be carrying it.
+        "per_box": per_box,
         "read": True,
         "n_items": len(items),
         # Only what carries a real name counts as a candidate — the same rule the browser note applies
@@ -540,7 +568,8 @@ def mechanism_report(all_events: list[dict], expected_signals: list[str],
         "overreach_signals": overreach,
         "navegador_task_id": task_id,
         "navegador_task": task_view,
-        "results_sheet": results_sheet(),
+        # Los ids salen de `sheet_instances` para que los dos lectores no puedan apuntar a cajas distintas.
+        "results_sheet": results_sheet((sheet_instances(all_events) or {}).get("ids")),
         # CUÁNTAS hojas, no solo qué había en la hoja. La regla del operador es una caja por encargo, y con la
         # hoja única de hoy el informe no podía siquiera enseñar que dos búsquedas compartían una.
         "sheet_instances": sheet_instances(all_events),
