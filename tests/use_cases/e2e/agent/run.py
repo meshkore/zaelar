@@ -696,13 +696,128 @@ def seed_provider_chain(ws) -> str:
             chain.append({**broker, "name": "arnes-mismo-modelo",
                           "model": f"deepseek/{titular_model}",
                           "plan": "el arnés: mismo cerebro que el titular, sobre el broker"})
+        chain, moved = _live_rung_first(chain)
+        # THE LADDER IS NOT THE TITULAR. `config.v2.fast_model_spec()` reads `fast.model` / `fast.base_url`,
+        # NOT `fast.providers[0]`, so seeding only the ladder left the sandbox on the hardcoded fallback and
+        # the reorder above changed nothing that the turn actually used: the probe still went to the rung
+        # with no balance and came back 402 with `spec: deepseek/deepseek-v4-pro`. Measured 2026-08-21, on
+        # the fix for this very problem. The head travels with the ladder, and when a rung is promoted the
+        # head is repointed at it — otherwise the promotion is decoration.
+        head = _fast_head(src) or {}
+        if moved and chain:
+            head = {**head, "model": chain[0].get("model"), "base_url": chain[0].get("base_url"),
+                    "provider": chain[0].get("provider") or head.get("provider")}
         dst = _P(ws) / "config"
         dst.mkdir(parents=True, exist_ok=True)
-        (dst / "v2.json").write_text(_json.dumps({"fast": {"providers": chain}}, ensure_ascii=False, indent=2),
-                                     encoding="utf-8")
-        return " → ".join(str(x.get("name") or "?") for x in chain)
+        (dst / "v2.json").write_text(
+            _json.dumps({"fast": {**head, "providers": chain}}, ensure_ascii=False, indent=2),
+            encoding="utf-8")
+        return " → ".join(str(x.get("name") or "?") for x in chain) + (f"  [{moved}]" if moved else "")
     except Exception:
         return ""
+
+
+
+
+def _fast_head(src) -> dict:
+    """The operator's `fast` head — provider/model/base_url and nothing else.
+
+    `api_key` is deliberately NOT copied: the engine resolves the key by endpoint from the credential store,
+    so the sandbox needs no secret written into a file under `tests/runs/` that nothing ever cleans up.
+    """
+    import json as _json
+    try:
+        fast = ((_json.loads(src.read_text(encoding="utf-8")) or {}).get("fast") or {})
+    except Exception:
+        return {}
+    return {k: fast[k] for k in ("provider", "model", "base_url") if fast.get(k)}
+
+
+def rung_answers(rung: dict, *, timeout: float = 25.0) -> tuple[bool, str]:
+    """Does THIS rung of the chain answer, right now? Returns (answers, what it said).
+
+    One tiny OpenAI-compatible call, four tokens. Not a health system: a single question asked once, at
+    seed time, whose only job is to keep a refusing provider out of the FIRST position.
+    """
+    import json as _json
+    import urllib.error as _ue
+    import urllib.request as _ur
+    try:
+        from config import credentials as _cred
+        key = next((_cred.get(k) for k in (rung.get("env") or []) if _cred.get(k)), "")
+    except Exception:
+        import os as _os
+        key = next((_os.getenv(k) or "" for k in (rung.get("env") or []) if _os.getenv(k)), "")
+    if not key:
+        return False, "sin credencial"
+    url = str(rung.get("base_url") or "").rstrip("/") + "/chat/completions"
+    body = _json.dumps({"model": rung.get("model"), "max_tokens": 4,
+                        "messages": [{"role": "user", "content": "di solo: ok"}]}).encode()
+    # A bare urllib request has NO User-Agent and Cloudflare answers 1010 to it. Measured on 2026-08-21: a
+    # first probe declared two live providers dead for exactly this reason, and I was one message away from
+    # telling the operator there were none left.
+    req = _ur.Request(url, data=body, method="POST", headers={
+        "Authorization": f"Bearer {key}", "Content-Type": "application/json",
+        "User-Agent": "zaelar-use-cases-harness/1.0"})
+    try:
+        with _ur.urlopen(req, timeout=timeout) as r:
+            return (200 <= r.status < 300), f"HTTP {r.status}"
+    except _ue.HTTPError as e:
+        try:
+            detail = (e.read() or b"")[:160].decode("utf-8", "replace")
+        except Exception:
+            detail = ""
+        return False, f"HTTP {e.code} {detail}".strip()
+    except Exception as e:
+        return False, f"{type(e).__name__}: {str(e)[:100]}"
+
+
+def _live_rung_first(chain: list) -> tuple[list, str]:
+    """Put a rung that ANSWERS at the head of the chain. Returns (chain, what was done — "" if nothing).
+
+    Why the harness has to do this at all: **the text channel does not relay.** Measured 2026-08-21 —
+    `POST /api/flash/say` came back `{"ok": false, "error": "402 Insufficient Balance"}` while, in the same
+    second of the same log, the voice channel said «SIN SALDO → relevo a aimlapi-failover» and i18n relayed
+    too. `nucleo/flash/probe.py` catches the provider error, records the cooldown, and returns it: it never
+    tries the next rung. So for THIS channel the chain is not a chain — only rung one exists. Eight hours of
+    window were spent retrying a preflight that could never pass with a live failover sitting behind a dead
+    titular. Reported to the engine agent; until it lands, the harness hands the channel a head that talks.
+
+    Nothing is dropped and the operator's relative order is kept: the first rung that answers is moved to
+    the front, everyone else follows in their original order. Reordering the ROUTE is infrastructure and
+    legitimate; the model measured stays whatever that rung declares, which is why `seed_provider_chain`
+    already appends a broker rung carrying the TITULAR's model — so a reorder does not silently swap the
+    brain under measurement for a smaller one.
+
+    If nobody answers, the chain is left exactly as the operator wrote it: the preflight then refuses with
+    the real reason, which is the correct outcome. Faking a head that cannot talk would only move the
+    failure later and make it look like the product's.
+    """
+    if not chain:
+        return chain, ""
+    ok0, why0 = rung_answers(chain[0])
+    if ok0:
+        return chain, ""
+    # SAME BRAIN FIRST, other route. The operator's failover carries a SMALLER model (`deepseek-v4-flash`
+    # behind a `deepseek-v4-pro` titular), so promoting it by position would quietly swap the brain under
+    # measurement — and a round against flash is not comparable with yesterday's against pro. Rungs whose
+    # model matches the titular's are asked first; only if none of those answers does a different brain get
+    # the head, and the caller says so out loud.
+    titular_model = str(chain[0].get("model") or "").split("/")[-1]
+    rest_idx = list(range(1, len(chain)))
+    same = [i for i in rest_idx if str(chain[i].get("model") or "").split("/")[-1] == titular_model]
+    other = [i for i in rest_idx if i not in same]
+    for i in same + other:
+        ok, _why = rung_answers(chain[i])
+        if ok:
+            head = chain[i]
+            rest = [x for j, x in enumerate(chain) if j != i]
+            note = (f"«{chain[0].get('name')}» no contesta ({why0[:60]}) → "
+                    f"al frente «{head.get('name')}»")
+            if i in other:
+                note += f" · ⚠️ OTRO CEREBRO ({head.get('model')} en vez de {titular_model})"
+            return [head] + rest, note
+    return chain, f"NINGÚN escalón contesta; se deja el orden del operador ({why0[:60]})"
 
 
 def brain_preflight(*, timeout: float = 210.0) -> str:
@@ -732,7 +847,19 @@ def brain_preflight(*, timeout: float = 210.0) -> str:
     reply = str((out or {}).get("reply") or "").strip()
     if reply:
         return ""
+    # THE ANSWER WAS IN THE BOX ALL ALONG. For eight hours this refusal said «look at the sandbox log» while
+    # the very response it was holding carried `error: 402 Insufficient Balance` and the `spec` of the rung
+    # that refused. A retry loop read «no se puede medir» 46 times and never once learned which provider or
+    # why. An instrument that has the diagnosis and prints a suggestion to go find it is hiding it.
+    why = str((out or {}).get("error") or "").strip()
+    spec = str((out or {}).get("spec") or "").strip()
+    said = ""
+    if why:
+        said = f"   LO QUE DIJO EL MOTOR: {why[:300]}\n"
+        if spec:
+            said += f"   ESCALÓN QUE SE INTENTÓ: {spec}\n"
     return ("✗ EL CEREBRO NO PUEDE HABLAR: un turno de prueba ha vuelto VACÍO antes de empezar.\n"
+            + said +
             "   Casi siempre es la cadena de proveedores agotada (saldo o cuota). Mira el log del sandbox:\n"
             "   «Insufficient Balance», «sin cuota hasta …», «SIN RELEVO disponible».\n"
             "   NO se mide: una ronda así apunta un fallo de producto que en realidad es una factura.")
