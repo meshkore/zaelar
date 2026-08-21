@@ -463,6 +463,17 @@ DOMAINS: list[dict] = [
             "ch": VOICE, "paths": ["tests/voice/unit/test_tool_selection.py"]},
         {"id": "3.9", "title": "Frase partida en dos tiempos = UNA petición (el fragmento no genera nada)",
             "ch": VOICE, "paths": ["tests/voice/unit/test_accumulator.py"]},
+        # 2026-08-21, encargo del operador: «seteamos un punto en el tiempo y le pasamos ese texto a partir de ahí
+        # al modelo». Actuar era TODO-O-NADA (`clear()` en las cuatro salidas), así que un fragmento que cerraba la
+        # frase A y empezaba la B mandaba las DOS dentro de la petición de A — B no se borraba, VIAJABA dentro, y
+        # solo A se contestaba. Por eso el test afirma «B no viajó en la petición de A y sigue en el buffer» y no
+        # «B no se perdió»: lo segundo pasa en verde sobre el código roto. Solo se pela una cola COLGANDO (resto
+        # incompleto por capa 1); dos frases completas de un tirón son UNA petición y viajan juntas. Incluye la
+        # otra mitad de «nada se pierde»: el rescate de lo descartado por hueco largo vivía detrás del guarda de
+        # «¿hay altavoz?», así que en el canal de prueba —o hablando encima— desaparecía sin nota ni juez.
+        {"id": "3.12", "title": "Marca de agua: se entrega la frase cerrada, el principio de la siguiente SIGUE "
+                                "vivo, y lo descartado se rescata aunque no haya boca para decirlo",
+            "ch": VOICE, "paths": ["tests/voice/unit/test_the_watermark_leaves_the_tail_alive.py"]},
     ]},
     {"id": "4", "name": "WIDGETS", "nodes": [
         {"id": "4.1", "title": "Ciclo de vida / acciones / refs / generador / background", "ch": UNIT, "paths": [

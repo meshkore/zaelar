@@ -59,6 +59,7 @@ why the bounded layer-1 wait was kept instead of always resolving on the first j
 from __future__ import annotations
 
 import os
+import re
 import time
 from dataclasses import dataclass, field
 
@@ -76,6 +77,15 @@ from dataclasses import dataclass, field
 #
 # Topes duros contra el caso patológico (STT picando una parrafada en trozos que nunca cierran).
 MAX_FRAGMENTS = int(os.getenv("ZAELAR_ACC_MAX_FRAGMENTS", "6"))
+# The operator asked for the buffer to be measured in WORDS, not characters — «no hace falta más de 10-15 palabras
+# de buffer» — and the unit is right: 1200 chars is ~200 words, a valve that never fired. The NUMBER is not his,
+# and deliberately so: measured over his own 129 session logs replayed through this accumulator, buffers on hold
+# run to a median of 10 words and a p90 of 31, so a 15-word cap would have fired on 21 of 64 legitimate holds —
+# a third of them — forcing an act on text that really was mid-sentence. At 40 it fires on 3 of 64, which is the
+# pathological tail this valve exists for. Reported to him with the numbers rather than applied literally.
+MAX_WORDS = int(os.getenv("ZAELAR_ACC_MAX_WORDS", "40"))
+# Kept as an ABSOLUTE backstop for the degenerate single fragment (a dictation glitch that arrives as one huge
+# string): the word valve counts across fragments, this one bounds any single pathological one.
 MAX_CHARS = int(os.getenv("ZAELAR_ACC_MAX_CHARS", "1200"))
 # Un hueco ENORME no es una continuación, es un tema nuevo: por encima de esto el buffer viejo se descarta en vez de
 # pegarse (pegarlo daría una petición Frankenstein de dos intenciones distintas). El máximo medido fue 19,5 s.
@@ -102,6 +112,39 @@ def _grows(prev: str, cur: str) -> bool:
     return bool(p) and len(c) > len(p) and c.startswith(p)
 
 
+# ── LA MARCA DE AGUA ───────────────────────────────────────────────────────────────────────────────────────────
+# Operator, 2026-08-21: «si de esas últimas tres palabras una era para concluir la frase anterior y otras dos para
+# empezar una nueva, no pasa nada: seteamos un punto en el tiempo y le pasamos ese texto a partir de ahí al
+# modelo». Until now acting was ALL-OR-NOTHING — `clear()` on every act — so a fragment that closed sentence A and
+# began sentence B shipped BOTH inside A's request. Measured, not assumed:
+#     offer("pon música de jazz y")                        -> hold
+#     offer("luego apágala. Oye, ¿qué tiempo hace mañana") -> act("pon música … apágala. Oye, ¿qué tiempo hace mañana")
+# B is not deleted (it is in the text) — it TRAVELS INSIDE A's request and only A gets answered. That is what this
+# fixes, and it is the shape the tests must assert: «B did not travel in A's request and is still buffered».
+#
+# ONLY A DANGLING TAIL IS PEELED. The cut requires the remainder to be INCOMPLETE by layer 1, and the constraint
+# is the whole safety of this feature: two complete sentences said in one breath («pon música. sube el volumen»)
+# are ONE multi-intent request and must ship together — splitting them would answer half and leave the other half
+# held forever, since nothing more is coming to complete it. So this peels beginnings, never instructions.
+_SENTENCE_END_RE = re.compile(r"[.!?…]+[\"')\]]*(?:\s+|$)")
+
+
+def dangling_tail(text: str) -> tuple[str, str]:
+    """`(head, tail)` — everything through the last sentence end that leaves an INCOMPLETE remainder, or `("", "")`.
+
+    The LAST such split, not the first: the head should be as long as it can be, or a three-sentence buffer would
+    ship one sentence per turn and drip-feed the brain."""
+    t = (text or "").strip()
+    if not t:
+        return "", ""
+    best = ("", "")
+    for m in _SENTENCE_END_RE.finditer(t):
+        head, tail = t[:m.end()].strip(), t[m.end():].strip()
+        if head and tail and not _complete(tail):
+            best = (head, tail)
+    return best
+
+
 @dataclass
 class Accumulator:
     """Estado por sesión. Sin I/O y sin reloj propio (el `now` se inyecta) → se prueba entero sin motor ni voz."""
@@ -109,6 +152,10 @@ class Accumulator:
     fragments: list[str] = field(default_factory=list)
     first_at: float = 0.0
     last_at: float = 0.0
+    #: WATERMARK — the instant at which the last complete sentence was consumed. Deliberately NOT reset by
+    #: `clear()`: it is a fact about the timeline, not part of the buffer. It is what lets a caller say «lo de
+    #: antes de aquí ya se contestó» instead of guessing from the text.
+    consumed_at: float = 0.0
 
     # ── consulta ────────────────────────────────────────────────────────────────────────────────────────────
     def pending(self) -> bool:
@@ -120,6 +167,24 @@ class Accumulator:
     def clear(self) -> None:
         self.fragments.clear()
         self.first_at = self.last_at = 0.0
+
+    # ── la entrega ──────────────────────────────────────────────────────────────────────────────────────────
+    def _deliver(self, candidate: str, now: float, reason: str, dropped: str) -> tuple[str, str, str, str]:
+        """The ONE exit for every `act`, so the watermark and the peel cannot be forgotten by one path.
+
+        There were FOUR places that acted (layer 1, the judge, and the two valves) and all four did the same
+        `clear()`. Four copies of a rule is four chances to fix three of them — the shape this repo already has a
+        name for — so they all come through here now."""
+        head, tail = dangling_tail(candidate)
+        self.consumed_at = now
+        if not head:
+            self.clear()
+            return "act", candidate, reason, dropped
+        # The tail SURVIVES as the next buffer, and its clock restarts here: it was said just now, so the gap
+        # valve must measure from this instant and not from whenever the sentence it trailed had begun.
+        self.fragments[:] = [tail]
+        self.first_at = self.last_at = now
+        return "act", head, reason, dropped
 
     # ── la decisión ─────────────────────────────────────────────────────────────────────────────────────────
     async def offer(self, incoming: str, *, now: float | None = None) -> tuple[str, str, str, str]:
@@ -169,8 +234,7 @@ class Accumulator:
             candidate = (self.text() + " " + incoming).strip()
 
         if _complete(candidate):
-            self.clear()
-            return "act", candidate, "", dropped
+            return self._deliver(candidate, now, "", dropped)
 
         # LAYER 2 (V2-102): layer 1 says incomplete — don't just trust a word list. `segmenter.judge` (the
         # default `_judge`) is already internally fail-open, but `set_judge` accepts ANY injected callable
@@ -181,8 +245,7 @@ class Accumulator:
         except Exception:
             verdict, extra = "incomplete", ""
         if verdict == "complete":
-            self.clear()
-            return "act", candidate, "", dropped
+            return self._deliver(candidate, now, "", dropped)
         if verdict == "ask" and extra:
             self.clear()
             return "ask", candidate, extra, dropped
@@ -197,14 +260,15 @@ class Accumulator:
             self.fragments.append(incoming)
         self.last_at = now
 
+        # Las válvulas también pasan por `_deliver`: forzar la entrega no es motivo para tirar la cola. Antes
+        # entregaban el buffer ENTERO y lo vaciaban, así que justo en el caso patológico —el que hace saltar la
+        # válvula— es donde más texto se pegaba de golpe.
         if len(self.fragments) >= MAX_FRAGMENTS:
-            out = self.text()
-            self.clear()
-            return "act", out, f"válvula: {MAX_FRAGMENTS} trozos", dropped
+            return self._deliver(self.text(), now, f"válvula: {MAX_FRAGMENTS} trozos", dropped)
+        if len(self.text().split()) >= MAX_WORDS:
+            return self._deliver(self.text(), now, f"válvula: {MAX_WORDS} palabras", dropped)
         if len(self.text()) >= MAX_CHARS:
-            out = self.text()
-            self.clear()
-            return "act", out, f"válvula: {MAX_CHARS} chars", dropped
+            return self._deliver(self.text(), now, f"válvula: {MAX_CHARS} chars", dropped)
 
         return "hold", "", _why(candidate), dropped
 

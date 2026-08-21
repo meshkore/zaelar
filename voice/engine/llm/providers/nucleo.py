@@ -192,28 +192,39 @@ async def _speak_acc_drop(dropped: str) -> None:
     a `[SISTEMA]` note (`voice/brain_notes.py`) so the content itself surfaces on the NEXT turn instead of
     vanishing — never spoken unprompted, since nothing was just asked. Only a genuine `INCOMPLETE` verdict (the
     judge agrees there's nothing worth resurrecting) keeps today's plain behavior."""
+    # PRESERVING COMES FIRST, SPEAKING SECOND — and the order is the fix (2026-08-21, operator's rule: nothing he
+    # says may be lost). Everything below used to sit AFTER `if speak is None or user_speaking(): return`, so the
+    # judge call and the `[SISTEMA]` note that rescue the content only ran when a live speaker happened to be
+    # available and the operator happened to be quiet. In the probe/text channel there is never a speaker, and
+    # mid-sentence there never is either: in both cases the discarded text vanished completely — no note, no
+    # judge, no trace — which is exactly the loss this function was written to prevent. Rescuing the CONTENT and
+    # acknowledging it OUT LOUD are two different jobs; only the second one needs a mouth.
+    text = ""
+    try:
+        from voice.engine.core import langs
+        text = langs.current_language().acc_fragment_dropped
+    except Exception:
+        pass
+    try:
+        from nucleo.flash import segmenter
+        verdict, extra = await segmenter.judge(dropped)
+        if verdict == "ask" and extra:
+            text = extra
+        elif verdict == "complete":
+            try:
+                from voice import brain_notes
+                brain_notes.push(
+                    f'[SISTEMA] El operador dijo esto antes de una pausa larga y no llegó a procesarse: '
+                    f'"{dropped}". Si sigue vigente, atiéndelo en tu próxima respuesta.')
+            except Exception:
+                pass
+    except Exception:
+        pass          # judge unavailable → fall back to the plain generic notice, same as before V2-102
     try:
         from voice import proactive
         speak = proactive.speaker()
-        if speak is None or proactive.user_speaking():
-            return
-        from voice.engine.core import langs
-        text = langs.current_language().acc_fragment_dropped
-        try:
-            from nucleo.flash import segmenter
-            verdict, extra = await segmenter.judge(dropped)
-            if verdict == "ask" and extra:
-                text = extra
-            elif verdict == "complete":
-                try:
-                    from voice import brain_notes
-                    brain_notes.push(
-                        f'[SISTEMA] El operador dijo esto antes de una pausa larga y no llegó a procesarse: '
-                        f'"{dropped}". Si sigue vigente, atiéndelo en tu próxima respuesta.')
-                except Exception:
-                    pass
-        except Exception:
-            pass          # judge unavailable → fall back to the plain generic notice, same as before V2-102
+        if speak is None or proactive.user_speaking() or not text:
+            return        # nothing to say it WITH; the content is already safe above
         r = speak(text)
         if asyncio.iscoroutine(r):
             await r
