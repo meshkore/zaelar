@@ -885,6 +885,45 @@ identidad deja de estar hardcodeada en `voice/prompt.py` (esa persona inglesa ya
 (`nucleo/flash/prompt._flash_layer`) y el SlowBrain la suya; el "cuándo usar cada tool" vive en la descripción de la
 tool (`router.TOOLS`), no duplicado en prosa.
 
+### La FORMA DE LA CLAVE decide si una píldora es un hecho sobre la PERSONA (V2-240/V2-242, 2026-08-21)
+
+Los slots del operador usan **punto** (`operator.location`, `goal.current`); los volcados de fondo —widget, cron,
+cluster— usan **namespace con dos puntos** (`<widget>:<clave>`). No es cosmética: es lo único que distingue «un
+hecho sobre la persona» de «lo que escupió un trabajo automático», y **los dos lectores que sirven al modelo lo
+aplican**:
+
+| Lector | Qué pinta | Dónde se filtra |
+|---|---|---|
+| Bloque PASIVO (cada turno) | «[Lo que sabes de él]» | `memory/api.py::salient_long` — `slot NOT LIKE '%:%'`, desde la auditoría 2026-07-14 |
+| DOSSIER del worker (por tarea) | «LO QUE SABES DEL OPERADOR (relevante a la tarea)» | `nucleo/memory_agent.py::compose_context` — desde 2026-08-21 |
+
+**El dossier era la mitad sin blindar y es la peor donde fallar.** Medido en `best-plumber-same-day`: una píldora
+`weather:soria` (`mid/note`, importancia 0,3) que escribe cada hora `widgets/meteo-soria` salía **por encima** de
+`operator.location` = «Vive en el centro de Madrid», bajo esa cabecera, y el worker hizo tres búsquedas de
+«fontanero Soria». Ese widget **viaja tracked en el repo público**, así que no era suciedad de un test: le pasa a
+cualquiera que se autohospede.
+
+Tres decisiones que conviene no reabrir:
+
+1. **La exclusión es CONDICIONAL, no un veto.** La nota de 2026-07-14 prometió que estas píldoras siguieran siendo
+   alcanzables ante una pregunta EXPLÍCITA, y la tarea de un worker puede ser legítimamente sobre esa ciudad. Una
+   píldora namespaced entra si la tarea nombra su namespace o su clave («el tiempo en Soria» sí; «busca un
+   fontanero» no).
+2. **El origen va en la CLAVE, no en `meta`.** El retriever **no devuelve `meta`** (sí `slot`, añadido en
+   `39e68a7` para esto): resolverlo por `meta['widget']` obligaría a sacar otra columna y a que cada consumidor
+   parseara JSON. El candado de escritura vive en `widgets/background.py::TickCtx._own_slot` (V2-242) — el único
+   sitio que SABE que el autor es un trabajo de fondo.
+3. **Renombrar un slot SIN migrar deja dos linajes vivos.** El supersede es por slot EXACTO, así que
+   `weather:soria` y `meteo-soria:weather:soria` quedan los dos `valid=1` y —sin TTL— el viejo compite en el
+   recall para siempre. Lo cierra la migración **v5→v6** (`memory/db.py::_namespace_widget_slots`, `6945496`):
+   espeja `_own_slot`, colapsa duplicados quedándose con la MÁS RECIENTE y **no toca ninguna fila sin
+   `meta.widget`** (un slot sin `:` y sin widget es del operador y no se mueve). El escritor viejo ya sellaba
+   `meta.widget`, así que el autor se sabe fila a fila. Una migración **congela la regla de SU versión**: si
+   `_own_slot` cambia, toca una v6→v7, no que la migración persiga al escritor.
+
+Tests: nodo **1.1** — `tests/memory/unit/test_widget_slot_migration.py` (5 casos; 3 se ponen rojos si se quita la
+migración) y `tests/memory/integration/test_memory_agent.py` (el filtro del dossier, en las dos direcciones).
+
 ## El CORAZÓN de escritura — el LLM que DESTILA cada dato en una píldora (V2-013)
 
 **Invariante de oro (aclaración del operador 2026-07-10, REAFIRMADO 2026-07-14): ESCRIBIR puede ser LENTO; LEER
