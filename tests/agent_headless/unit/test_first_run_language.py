@@ -127,3 +127,43 @@ def test_the_locale_of_the_site_catalog_follows_the_language():
     es, us = sc.directive_block("es"), sc.directive_block("us")
     assert "thefork.es" in es and "thefork.es" not in us
     assert "opentable.com" in us and "opentable.com" not in es
+
+
+# ── The classifier's REPLY is parsed, and that parse was the bug (2026-08-21) ─────────────────────────────
+# `_by_llm` used to take the first two lowercase letters found ANYWHERE in the reply, so a preamble became the
+# answer — and every wrong answer it produced is a valid ISO code, which is why nothing downstream ever caught
+# it. Seen live once in 66 saved rounds, on the run whose providers were down: the classifier only replies with
+# a sentence when the model is degraded or relaying. `es` -> `it` locks the operator into Italian, silently and
+# for good (`should_detect()` goes False), and points `site_catalog` at the wrong country.
+
+@pytest.mark.parametrize("reply, expected", [
+    # The healthy path — 65 of those 66 rounds. Must keep working: a parse too strict trades one bug for another.
+    ("es", "es"), ("ES", "es"), ("'es'", "es"), ("es.", "es"), ("  es  ", "es"), ("es (Spanish)", "es"),
+    # Recoverable: exactly ONE two-letter word, so there is nothing to be wrong about.
+    ("Language: es", "es"), ("Sure, es", "es"),
+    # The six measured failures. Each USED to yield a real ISO code for a language nobody speaks here.
+    ("It is Spanish (es)", None),      # was 'it'  — Italian, the one seen live
+    ("It's 'es'", None),               # was 'it'
+    ("The language is es.", None),     # was 'th'  — Thai
+    ("Spanish", None),                 # was 'sp'  — not even a code
+    ("It is", None),                   # was 'it'  — the degraded reply truncated by max_tokens=4
+    # Nothing to read.
+    ("", None), (None, None), ("   ", None),
+])
+def test_a_reply_yields_a_code_only_when_it_is_unambiguous(reply, expected):
+    assert detect.extract_code(reply) == expected
+
+
+def test_a_refusal_is_not_a_dead_end():
+    """Refusing costs a retry; a wrong lock is silent and permanent. Nothing is persisted when we refuse, so
+    `should_detect()` stays True and the next utterance tries again."""
+    assert detect.extract_code("It is Spanish (es)") is None
+    assert detect.should_detect() is True
+
+
+def test_validating_against_a_list_of_iso_codes_would_not_have_caught_it():
+    """Guards the REASONING, so nobody 'improves' this later by adding an ISO whitelist and calls it fixed:
+    every wrong answer the old parse produced is a real, spoken language."""
+    for code in ("it", "th", "la", "su"):
+        assert len(code) == 2 and code.isalpha()     # all four are valid ISO-639-1 — the whitelist lets them in
+    assert detect.extract_code("The language is es.") is None   # only the ANCHOR rejects them

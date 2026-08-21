@@ -60,6 +60,48 @@ def _by_script(text: str) -> str | None:
     return None
 
 
+_BARE_CODE = re.compile(r"^[a-z]{2}$")
+_WORD_CODE = re.compile(r"\b[a-z]{2}\b")
+
+
+def extract_code(raw: str | None) -> str | None:
+    """The ISO-639-1 code the classifier MEANT, or None when the reply does not unambiguously carry one.
+
+    The old parse was `re.search(r"[a-z]{2}", raw.lower())` — the first two lowercase letters ANYWHERE. That
+    reads a preamble as the answer, and every wrong answer it produces is itself a valid ISO code, so nothing
+    downstream can tell. Measured 2026-08-21:
+
+        "It is Spanish (es)"   -> 'it'  (Italian)     "The language is es." -> 'th'  (Thai)
+        "Language: es"         -> 'la'  (Latin)       "Sure, es"            -> 'su'  (Sundanese)
+
+    It then gets PERSISTED as the operator's deliberate choice, `should_detect()` goes False, and the run never
+    retries. The cost is not cosmetic: the same code resolves `nucleo/flash/site_catalog.py`'s locale, so the
+    errand goes to the wrong country's sites on turn 1 — the exact failure this module blocks the turn to avoid.
+
+    Seen live once in 66 saved rounds (2026-08-21 02:39), and the arnés placed it: the classifier only answers
+    with a SENTENCE when the model is degraded or relaying. So the rule is «unambiguous or nothing»:
+
+      1. the cleaned reply IS a code -> take it (the healthy path, 65 of those 66 rounds);
+      2. otherwise, whole-word two-letter tokens, and accept ONLY if there is exactly one — "Language: es" has
+         one, "It is Spanish (es)" has three (it/is/es) and is refused;
+      3. anything else -> None.
+
+    Refusing is the safe side and not a dead end: nothing is persisted, `should_detect()` stays True, and the
+    next utterance tries again. A wrong lock is silent and permanent; a refused one costs a retry.
+
+    Validating against a list of ISO codes would NOT have caught any of this — `it`, `th`, `la` and `su` are all
+    real codes. The defect is in the EXTRACTION, so that is where the fix goes.
+    """
+    text = (raw or "").strip().lower()
+    if not text:
+        return None
+    cleaned = text.strip("\"'`.,:;!?()[]{} \t\n")
+    if _BARE_CODE.match(cleaned):
+        return cleaned
+    found = list(dict.fromkeys(_WORD_CODE.findall(text)))
+    return found[0] if len(found) == 1 else None
+
+
 def _by_llm(text: str) -> str | None:
     """Constrained classify: return the ISO-639-1 code of the text, nothing else. Fail-open → None."""
     try:
@@ -69,8 +111,7 @@ def _by_llm(text: str) -> str | None:
             "Identify the language of the user's text. Reply with ONLY its ISO 639-1 two-letter code "
             "(lowercase, e.g. 'en', 'es', 'fr', 'de', 'pt'). No other text.",
             text[:500], max_tokens=4, temperature=0.0, timeout=20.0)
-        m = re.search(r"[a-z]{2}", (raw or "").strip().lower())
-        return m.group(0) if m else None
+        return extract_code(raw)
     except Exception:
         return None
 
