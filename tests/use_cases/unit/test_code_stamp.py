@@ -122,6 +122,9 @@ def test_the_stamp_is_taken_BEFORE_the_engine_boots(monkeypatch, tmp_path):
     monkeypatch.setattr(SE, "sandbox_engine", _fake_engine)
     monkeypatch.setattr(SE, "preferred_port", lambda p: p)
     monkeypatch.setattr(R, "_run_batch", lambda *a, **k: order.append("run") or 0)
+    # The batch now spends one throwaway turn checking the brain can speak (`brain_preflight`); this test
+    # is about WHEN the stamp is taken, and a fake engine has nothing to answer with.
+    monkeypatch.setattr(R, "brain_preflight", lambda **kw: "")
 
     R._sandbox_batch([_scn()], argparse.Namespace(no_file=True, stop_after_failures=0))
     assert order[0] == "stamp", f"el sello se tomó después de arrancar: {order}"

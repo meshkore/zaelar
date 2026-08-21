@@ -648,6 +648,34 @@ def tree_moved_refusal(stamp: dict, head_now: str) -> str:
             f"{now}.")
 
 
+def brain_preflight(*, timeout: float = 60.0) -> str:
+    """CAN THE BRAIN SPEAK AT ALL? Returns "" when it can, or the refusal to print when it cannot.
+
+    On 2026-08-21 the whole provider chain ran out at once — DeepSeek answered HTTP 402 «Insufficient
+    Balance» and the log said «sin cuota hasta el 21 Aug 03:02 · SIN RELEVO disponible» — and every zaelar
+    turn came back EMPTY. Two full rounds were driven and judged before anyone noticed: the first was filed
+    1/1/1/1/1 FAIL on a case nobody had exercised, and the second was a case that had PASSED twice an hour
+    earlier. Roughly fifteen minutes of machine time to learn something one turn answers.
+
+    So one throwaway turn is spent before the batch. It costs a couple of seconds against the sandbox that
+    is booting anyway, and it separates «the product failed» from «nothing could think» before a single
+    score is written — which is the same distinction INFRA exists for, moved earlier so it costs nothing.
+    """
+    try:
+        out = probe_client.say("di solo: ok", session=f"preflight-{int(time.time())}",
+                               execute=False, ingest=False, timeout=timeout)
+    except Exception as e:
+        return (f"✗ el motor no contesta al canal de prueba ({type(e).__name__}: {str(e)[:120]}).\n"
+                f"   No es un fallo del caso: no se ha medido nada.")
+    reply = str((out or {}).get("reply") or "").strip()
+    if reply:
+        return ""
+    return ("✗ EL CEREBRO NO PUEDE HABLAR: un turno de prueba ha vuelto VACÍO antes de empezar.\n"
+            "   Casi siempre es la cadena de proveedores agotada (saldo o cuota). Mira el log del sandbox:\n"
+            "   «Insufficient Balance», «sin cuota hasta …», «SIN RELEVO disponible».\n"
+            "   NO se mide: una ronda así apunta un fallo de producto que en realidad es una factura.")
+
+
 def _provisional(args) -> str:
     """WHY this round cannot be banked as a measurement, or "" when it can.
 
@@ -715,6 +743,12 @@ def _sandbox_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict
         # `topic = 'observer'`), so the prompt read goes to the sandbox's own DB. Only set in sandbox mode: a
         # live-engine run has no business poking at the operator's database.
         config.SANDBOX_DB = str(eng.workspace / "memory" / "_data" / "sandbox.db")
+        # ONE THROWAWAY TURN before the batch: see `brain_preflight`. Exit 4 keeps it apart from the
+        # dirty-tree refusal (3) so a caller can tell «I must not measure» from «I cannot measure».
+        _pf = brain_preflight()
+        if _pf:
+            print(_pf)
+            raise SystemExit(4)
         try:
             return _run_batch(chosen, sandboxed=True, args_no_file=args.no_file,
                               verify_tasks=verify_tasks, provisional=_provisional(args),
