@@ -183,31 +183,19 @@ def preferred_port(want: int) -> int:
         return free_port()
 
 
-@contextmanager
-def sandbox_engine(*, boot_timeout: float = 90.0, keep_workspace: Path | None = None,
-                   port: int | None = None, extra_env: dict | None = None,
-                   log_path: Path | None = None):
-    """Boot an isolated engine, yield a `SandboxEngine`, and tear it down (process + workspace) on exit.
+def spawn_engine(*, workspace: Path, port: int, log_path: Path | None = None,
+                 extra_env: dict | None = None, boot_timeout: float = 90.0,
+                 wait: bool = True) -> SandboxEngine:
+    """Boot an isolated engine and RETURN it, alive. The caller owns the teardown (`stop_engine`).
 
-    `boot_timeout` defaults higher than journey's old 35s: this engine cold-starts a reranker and an embedding
-    backend on a machine that may already be running the operator's engine, and a flaky timeout would look
-    exactly like a real failure. `keep_workspace` writes into a caller-owned directory instead of a temp one
-    (so a failed run's DB/logs survive for inspection); `extra_env` overrides any var for one-off needs.
+    Split out of `sandbox_engine()` (which is this plus a `finally`) so a caller can keep one running past
+    the end of its own process — the `tests/use_cases/lab/` agents the operator watches in a browser are
+    exactly that: an engine that must outlive the CLI that started it.
 
-    `log_path` puts the engine's stdout/stderr somewhere the CALLER owns. It matters when the workspace is a
-    throwaway: the log is the evidence of a boot crash, and with the default path it dies with the workspace
-    at exactly the moment it is most needed. `journey` passes its run's `artifacts/` so a failure survives
-    the run (and so the terminal can print a path that still exists when the operator reads it).
+    `wait=False` returns as soon as the process exists, for a caller that wants to print something and poll
+    readiness itself (a 60-90s boot with no output reads as a hang).
     """
-    tmp = None
-    if keep_workspace is None:
-        tmp = tempfile.TemporaryDirectory(prefix="zaelar-sandbox-")
-        workspace = Path(tmp.name)
-    else:
-        workspace = keep_workspace
-        workspace.mkdir(parents=True, exist_ok=True)
-
-    port = port or free_port()
+    workspace.mkdir(parents=True, exist_ok=True)
     logs = workspace / "logs"
     logs.mkdir(parents=True, exist_ok=True)
     if log_path is None:
@@ -233,33 +221,80 @@ def sandbox_engine(*, boot_timeout: float = 90.0, keep_workspace: Path | None = 
 
     (workspace / "memory" / "_data").mkdir(parents=True, exist_ok=True)
 
-    with log_path.open("wb") as log:
+    # NOT a `with`: the child inherits the descriptor, so closing the parent's copy right away is correct and
+    # keeps the log writable for as long as the engine lives — including after this process is gone.
+    log = log_path.open("ab")
+    try:
         process = subprocess.Popen([sys.executable, "-m", "server"], cwd=str(ENGINE), env=env,
                                    stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
-        eng = SandboxEngine(base_url=f"http://127.0.0.1:{port}", workspace=workspace,
-                            log_path=log_path, process=process,
-                            widgets_before=frozenset(_widget_dirs()))
+    finally:
+        log.close()
+    eng = SandboxEngine(base_url=f"http://127.0.0.1:{port}", workspace=workspace,
+                        log_path=log_path, process=process,
+                        widgets_before=frozenset(_widget_dirs()))
+    if wait:
+        _wait_ready(eng, boot_timeout)
+    return eng
+
+
+def stop_engine(eng: SandboxEngine, *, clean_widgets: bool = True) -> None:
+    """Terminate the engine and (by default) remove the widget CODE it generated — see the leak note above."""
+    proc = eng.process
+    if proc is not None:
+        proc.terminate()
         try:
-            _wait_ready(eng, boot_timeout)
-            yield eng
-        finally:
-            process.terminate()
-            try:
-                process.wait(12)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait(5)
-            # Remove the widget CODE this sandbox generated. Not doing so was measured to CORRUPT later runs,
-            # not just litter the repo: `build-workout-tracker-widget` passed on the run that created its
-            # widget and then failed twice, because every later sandbox found the folder already there and
-            # answered "ya lo tienes — es el widget que ves en pantalla" about a widget that was in no
-            # workspace and on no screen. A `MODIFY` where a `CREATE` was expected is the signature.
-            # Scoped to what THIS sandbox created (`own_generated_widgets`), never a sweep of everything new.
-            for wid in eng.own_generated_widgets():
-                try:
-                    shutil.rmtree(ENGINE / "widgets" / wid)
-                    print(f"  ✓ sandbox limpió el widget que generó: widgets/{wid}")
-                except Exception as exc:
-                    print(f"  ⚠️ no pude limpiar widgets/{wid}: {exc}")
-            if tmp is not None:
-                tmp.cleanup()
+            proc.wait(12)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(5)
+    if not clean_widgets:
+        return
+    # Remove the widget CODE this sandbox generated. Not doing so was measured to CORRUPT later runs, not just
+    # litter the repo: `build-workout-tracker-widget` passed on the run that created its widget and then failed
+    # twice, because every later sandbox found the folder already there and answered "ya lo tienes — es el
+    # widget que ves en pantalla" about a widget that was in no workspace and on no screen. A `MODIFY` where a
+    # `CREATE` was expected is the signature. Scoped to what THIS sandbox created (`own_generated_widgets`),
+    # never a sweep of everything new: the operator's live engine writes to the same directory in the same
+    # window and a sweep cannot tell whose widget is whose.
+    for wid in eng.own_generated_widgets():
+        try:
+            shutil.rmtree(ENGINE / "widgets" / wid)
+            print(f"  ✓ sandbox limpió el widget que generó: widgets/{wid}")
+        except Exception as exc:
+            print(f"  ⚠️ no pude limpiar widgets/{wid}: {exc}")
+
+
+@contextmanager
+def sandbox_engine(*, boot_timeout: float = 90.0, keep_workspace: Path | None = None,
+                   port: int | None = None, extra_env: dict | None = None,
+                   log_path: Path | None = None):
+    """Boot an isolated engine, yield a `SandboxEngine`, and tear it down (process + workspace) on exit.
+
+    `boot_timeout` defaults higher than journey's old 35s: this engine cold-starts a reranker and an embedding
+    backend on a machine that may already be running the operator's engine, and a flaky timeout would look
+    exactly like a real failure. `keep_workspace` writes into a caller-owned directory instead of a temp one
+    (so a failed run's DB/logs survive for inspection); `extra_env` overrides any var for one-off needs.
+
+    `log_path` puts the engine's stdout/stderr somewhere the CALLER owns. It matters when the workspace is a
+    throwaway: the log is the evidence of a boot crash, and with the default path it dies with the workspace
+    at exactly the moment it is most needed. `journey` passes its run's `artifacts/` so a failure survives
+    the run (and so the terminal can print a path that still exists when the operator reads it).
+
+    This is `spawn_engine` + a guaranteed `stop_engine`. A caller that needs the engine to OUTLIVE it (the
+    `tests/use_cases/lab/` agents) uses those two directly.
+    """
+    tmp = None
+    if keep_workspace is None:
+        tmp = tempfile.TemporaryDirectory(prefix="zaelar-sandbox-")
+        workspace = Path(tmp.name)
+    else:
+        workspace = keep_workspace
+
+    eng = spawn_engine(workspace=workspace, port=port or free_port(), log_path=log_path,
+                       extra_env=extra_env, boot_timeout=boot_timeout)
+    try:
+        yield eng
+    finally:
+        stop_engine(eng)
+        if tmp is not None:
+            tmp.cleanup()
