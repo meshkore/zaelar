@@ -56,3 +56,69 @@ def test_the_lab_path_actually_calls_the_guard():
     assert "stale_engine_refusal" in src, "la guarda no está cableada en la ruta de plató"
     assert src.index("stale_engine_refusal") < src.index("config.ZAELAR_URL"), \
         "la guarda tiene que correr ANTES de apuntar el arnés al motor"
+
+
+# ── Un commit del ARNÉS no es un motor distinto ───────────────────────────────────────────────────────
+# La guarda refusaba ante CUALQUIER sha distinto, y en este árbol viven el motor y el arnés: el arnés
+# commitea varias veces por hora, así que el paseo se paraba a pedir un reinicio del plató que habría
+# medido exactamente el mismo código. Lo que decide es si se movió el PRODUCTO.
+
+
+def test_a_tests_only_commit_is_the_same_engine(monkeypatch):
+    monkeypatch.setattr(run, "running_engine_sha", lambda url: "aaaaaaa")
+    monkeypatch.setattr(run, "engine_code_changed_between", lambda a, b: False)
+    assert run.stale_engine_refusal("http://x", {"sha": "bbbbbbb"}) == ""
+
+
+def test_a_tests_only_commit_still_SAYS_the_shas_differ(monkeypatch, capsys):
+    """Seguir no es callarse. Sin la línea, el informe de la ronda se lee como que el plató corre justo el
+    árbol que hay — y la próxima vez que un sha desencaje de verdad nadie tendrá con qué compararlo."""
+    monkeypatch.setattr(run, "running_engine_sha", lambda url: "aaaaaaa")
+    monkeypatch.setattr(run, "engine_code_changed_between", lambda a, b: False)
+    run.stale_engine_refusal("http://x", {"sha": "bbbbbbb"})
+    out = capsys.readouterr().out
+    assert "aaaaaaa" in out and "bbbbbbb" in out and "tests/" in out
+
+
+def test_an_engine_commit_still_REFUSES(monkeypatch):
+    """Sensibilidad. Sin este caso, «no refuses por tests» y «no refuses nunca» pasan igual de verdes."""
+    monkeypatch.setattr(run, "running_engine_sha", lambda url: "aaaaaaa")
+    monkeypatch.setattr(run, "engine_code_changed_between", lambda a, b: True)
+    assert "no es el mismo codigo" in run.stale_engine_refusal("http://x", {"sha": "bbbbbbb"})
+
+
+def test_an_UNANSWERABLE_diff_refuses(monkeypatch):
+    """`None` no es «no cambió nada»: es un sha que este árbol no tiene (clon superficial, commit sin
+    traer). Ante eso se conserva la respuesta que era segura antes de existir esta función."""
+    monkeypatch.setattr(run, "running_engine_sha", lambda url: "aaaaaaa")
+    monkeypatch.setattr(run, "engine_code_changed_between", lambda a, b: None)
+    assert "no es el mismo codigo" in run.stale_engine_refusal("http://x", {"sha": "bbbbbbb"})
+
+
+def test_the_diff_is_read_from_git_and_a_doc_counts_as_engine(tmp_path):
+    """Contra un repo git REAL, no contra un mock: lo que se comprueba es que la lectura del árbol
+    funciona. Y un cambio fuera de `tests/` cuenta AUNQUE sea documentación — adivinar qué rutas son
+    inertes es como se cuela un cambio real."""
+    import subprocess
+    g = lambda *a: subprocess.run(["git", *a], cwd=tmp_path, capture_output=True, text=True, check=True)
+    g("init", "-q")
+    g("config", "user.email", "t@t"); g("config", "user.name", "t")
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "a.py").write_text("x")
+    g("add", "-A"); g("commit", "-qm", "one")
+    base = g("rev-parse", "--short", "HEAD").stdout.strip()
+    (tmp_path / "tests" / "a.py").write_text("y")
+    g("add", "-A"); g("commit", "-qm", "solo tests")
+    only_tests = g("rev-parse", "--short", "HEAD").stdout.strip()
+    (tmp_path / "README.md").write_text("z")
+    g("add", "-A"); g("commit", "-qm", "un doc")
+    with_doc = g("rev-parse", "--short", "HEAD").stdout.strip()
+
+    from tests.use_cases.e2e.agent import run as _R
+    real = _R.__file__
+    try:
+        _R.__file__ = str(tmp_path / "a" / "b" / "c" / "d" / "run.py")   # parents[4] == tmp_path
+        assert _R.engine_code_changed_between(base, only_tests) is False
+        assert _R.engine_code_changed_between(only_tests, with_doc) is True
+    finally:
+        _R.__file__ = real

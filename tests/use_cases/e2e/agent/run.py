@@ -1002,6 +1002,36 @@ def running_engine_sha(base_url: str) -> str:
     return ""
 
 
+def engine_code_changed_between(running: str, head: str) -> bool | None:
+    """Did anything the ENGINE runs change between these two commits? `None` when it cannot be answered.
+
+    A sha mismatch is not by itself a reason to refuse a round: this tree carries the harness AND the
+    engine, and the harness commits several times an hour. Restarting the lab agent for a commit that only
+    touched `tests/` costs the operator the session they are watching and measures exactly the same code.
+
+    What matters is whether the PRODUCT moved. Anything outside `tests/` counts, including docs — a doc-only
+    commit does not change behaviour, but guessing which paths are inert is how a real change gets waved
+    through, and the cost of being wrong here is a whole round measured against code that no longer exists.
+
+    `None` (a sha the local tree does not have, no git) is NOT "nothing changed": the caller keeps refusing,
+    which is the answer that was safe before this function existed.
+    """
+    import pathlib
+    import subprocess
+    try:
+        out = subprocess.run(["git", "diff", "--name-only", f"{running}..{head}"],
+                             cwd=str(pathlib.Path(__file__).resolve().parents[4]),
+                             capture_output=True, text=True, timeout=15)
+    except Exception:
+        return None
+    if out.returncode != 0:
+        return None                      # unknown sha (shallow clone, commit not fetched) — cannot answer
+    paths = [ln.strip() for ln in out.stdout.splitlines() if ln.strip()]
+    if not paths:
+        return False
+    return any(not p.startswith("tests/") for p in paths)
+
+
 def stale_engine_refusal(base_url: str, stamp: dict) -> str:
     """Refuse when the engine SERVING the round is running code older than the tree, or "" to go ahead.
 
@@ -1025,6 +1055,13 @@ def stale_engine_refusal(base_url: str, stamp: dict) -> str:
     if not running or not head:
         return ""
     if running.startswith(head) or head.startswith(running):
+        return ""
+    if engine_code_changed_between(running, head) is False:
+        # Los shas no cuadran y el MOTOR no se ha movido: lo que cambió es el arnés. Se dice —callarlo
+        # dejaría la ronda pareciendo que corre justo el árbol que hay— y se sigue: reiniciar el plató por
+        # un commit de `tests/` le cuesta al operador la sesión que está mirando y mide el mismo código.
+        print(f"⚠  el plató corre {running} y el arbol esta en {head}, pero entre los dos solo cambian tests/:\n"
+              f"   es el MISMO motor. Sigo sin reiniciar.")
         return ""
     return (f"\u2717 el motor que va a contestar corre {running} y el arbol esta en {head}: no es el mismo codigo.\n"
             f"   Un arbol limpio dice que NADIE esta editando, no que el proceso lleve los ultimos commits — un\n"
