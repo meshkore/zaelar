@@ -923,9 +923,15 @@ def background_slot_off_topic(slot: str | None, prompt: str) -> bool:
     dots (`operator.location`). Three surfaces show pills to a model and each must apply this, because to the
     model they all read as «what you know about this person»:
 
-      1. the PASSIVE block  — `salient_long()` below, in SQL, since the 2026-07-14 audit;
+      1. the PASSIVE block  — `salient_long()` below, since the 2026-07-14 audit;
       2. the WORKER DOSSIER — `nucleo/memory_agent.compose_context`, since 2026-08-21;
       3. the ACTIVE RECALL  — `nucleo/flash/prompt.compose_recall`, the one that runs EVERY turn.
+
+    Surface 1 expresses it in SQL (`slot NOT LIKE '%:%'`) rather than calling this, and that is on purpose but
+    NOT a semantic difference: the passive block has no request to check a slot against, and this predicate with
+    an empty prompt returns exactly the same verdict (checked — with no words to match, every namespaced slot is
+    off-topic). SQL keeps it because filtering before the ranking is cheaper than filtering after, not because
+    the rule differs. If you ever move it here, that equivalence is what makes it safe.
 
     The rule lived in surface 1 for five weeks and in prose everywhere else, so 2 and 3 each had to be found by
     a live failure. Measured 2026-08-21 with V2-242 and the dossier fix already in the tree: surface 3 still put
