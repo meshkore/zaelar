@@ -1250,6 +1250,21 @@ from widgets.navegador.dom import (  # noqa: F401 — re-export
 # (snapshot_for_agent / agent_act / screenshot_b64 / _emit), so it can drive ITS tab without touching the main tab
 # state (browse_web). 1:1 mapping: task ↔ tab ↔ canvas card. All tabs live in the SAME window (shared persistent
 # context). Reuses page-parametric helpers (_human_*, _dismiss_overlays, _describe_el).
+def _stale_ref_reason(ref: int, refs: dict, snap_url: str, now_url: str) -> str:
+    """Por qué ese `ref` no vale y QUÉ hacer, en una línea que el worker pueda usar sin adivinar."""
+    nums = sorted(int(k) for k in (refs or {}))
+    if not nums:
+        return (f"ref {ref}: todavía no has mirado esta página, así que no hay refs. Haz `look` y usa uno de los "
+                f"que salgan.")
+    rango = f"{nums[0]}..{nums[-1]}" if len(nums) > 1 else str(nums[0])
+    if snap_url and now_url and snap_url != now_url:
+        return (f"ref {ref} es de otra página: miraste «{snap_url[:80]}» y ahora estás en «{now_url[:80]}». Haz "
+                f"`look` y usa un ref del listado NUEVO — los números se reparten al mirar, así que el {ref} de "
+                f"antes no es el {ref} de ahora.")
+    return (f"ref {ref} no está en la mirada actual, que tiene {rango}. Haz `look` para verla otra vez y usa uno "
+            f"de esos números; no inventes refs ni reintentes el mismo.")
+
+
 class TaskBrowser:
     def __init__(self, task_id: str):
         self.task_id = task_id
@@ -1387,6 +1402,9 @@ class TaskBrowser:
         page = await self.ensure()
         await _dismiss_overlays(page)
         self.refs = {}
+        # V2-248 — DÓNDE se tomó esta mirada. Se guarda para que un `ref` caducado pueda decir por qué caducó: si
+        # la página ya no es la misma, el motivo no es que el número esté mal escrito.
+        self.refs_url = getattr(page, "url", "") or ""
         try:
             handles = await page.query_selector_all(_INTERACTIVE)
         except Exception:
@@ -1452,7 +1470,15 @@ class TaskBrowser:
             ref = int(args.get("ref", 0))
             h = self.refs.get(ref)
             if h is None:
-                return False, f"ref {ref} no existe en el snapshot actual"
+                # V2-248 — UN REF CADUCADO DECÍA QUÉ PASABA Y NO CÓMO SALIR. Mismo contrato que el nodo 4.20 y que
+                # V2-203: lo que el puente sabe, lo DICE, y un fallo dice además cómo se sale de él. Medido por el
+                # arnés el 2026-08-21 (`ref 26 no existe`, la forma de V2-212): es una de las tres causas por las
+                # que un worker se moría por su cuenta, y la salida —volver a mirar— estaba a un comando.
+                #
+                # NO se reintenta solo con el snapshot nuevo, y es deliberado: los números se REPARTEN al mirar,
+                # así que el 26 de la mirada nueva es otro elemento. Reintentar sería clicar otra cosa.
+                return False, _stale_ref_reason(ref, self.refs, getattr(self, "refs_url", ""),
+                                                getattr(page, "url", "") or "")
             if action == "click":
                 # CONFIRM-GATE (safety): if the button looks IRREVERSIBLE (buy/pay/publish/delete...), STOP and ask
                 # the operator for OK BEFORE clicking. The automator never buys/publishes/deletes blindly.

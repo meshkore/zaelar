@@ -450,6 +450,10 @@ DOMAINS: list[dict] = [
             # elemento tapado o despegado tumbaba la acción entera — tres `scroll_into_view_if_needed` con Exit
             # code 1 en un mismo worker, y ese worker muerto (arnés, 2026-08-21).
             "tests/browser/unit/navegador/test_the_courtesy_does_not_kill_the_click.py",
+            # V2-248: un `ref` caducado decía QUÉ pasaba y no CÓMO salir (`ref 26 no existe`, la forma de
+            # V2-212). Mismo contrato que el nodo 4.20 — y NO se reintenta con la mirada nueva: los números se
+            # reparten al mirar, así que el mismo número es otro elemento.
+            "tests/browser/unit/navegador/test_a_stale_ref_says_how_to_get_out.py",
             # sin mapear hasta el 2026-08-21: el muro de login en la NUBE cierra en limpio en vez de dar vueltas
             "tests/browser/unit/navegador/test_cloud_login_bailout.py",
             "tests/browser/unit/navegador/test_auth.py", "tests/browser/unit/navegador/test_tasks_dedup.py",

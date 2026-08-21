@@ -1339,6 +1339,20 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Un `ref` caducado decía QUÉ pasaba y no CÓMO salir** (`widgets/navegador/owner.py`, V2-248, 2026-08-21).
+  **Tercera y última** causa de muerte por cuenta propia de las que dejó abiertas V2-236 (las otras: V2-241 y
+  V2-247). Medido: `ref 26 no existe`, la forma de V2-212. El mensaje era `ref 26 no existe en el snapshot
+  actual` — **verdad y no sirve**: no dice cuántos refs hay, ni que la página haya cambiado, ni que la salida
+  está a un comando (`look`). Mismo contrato del nodo 4.20 y de V2-203.
+  - Tres mensajes según lo que pasó: **no has mirado nunca** · **la página CAMBIÓ** (se guarda la URL de la
+    mirada; ahí el motivo no es que el número esté mal escrito) · **ref fuera de rango** (con el rango real). Y
+    en los tres, la prohibición explícita de repetir: la reacción natural del modelo ante un fallo es repetir, y
+    aquí repetir no puede funcionar nunca.
+  - ⚠️ **NO se reintenta solo con la mirada nueva.** Parece la mejora obvia y es un fallo de SEGURIDAD: los
+    números se REPARTEN al mirar, así que el mismo número es otro elemento — en una página con botón de pagar,
+    clicar otra cosa. Clavado por una guarda de fuente porque es la clase de «optimización» que alguien añade de
+    buena fe. Nodo 4.2, 9 casos, sensibilidad en dos direcciones.
+
 - **Traer el elemento a la vista es una CORTESÍA, no el clic** (`widgets/navegador/dom.py`, V2-247, 2026-08-21).
   De las causas de muerte que V2-236 dejó abiertas: **tres `scroll_into_view_if_needed` con Exit code 1 en un
   mismo worker**, y ese worker muerto. La llamada iba **sin proteger** al principio de `_human_click_handle`, así
