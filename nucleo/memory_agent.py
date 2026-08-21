@@ -789,6 +789,34 @@ def _agenda_lines(limit: int = 6) -> list[str]:
         return []
 
 
+_SLOT_WORD_MIN = 4
+
+
+def _background_slot_off_topic(slot: str, prompt: str) -> bool:
+    """True when `slot` is a BACKGROUND slot and the task never named it.
+
+    Background/widget/cluster pills use a namespaced slot (`weather:soria`, `<widget>:<key>`); the operator's own
+    facts use dots (`operator.location`). The passive block already excludes the namespaced ones (`memory/api.py`,
+    audit 2026-07-14) because a widget dump was hijacking "what's the weather today?". The WORKER DOSSIER had no
+    such guard, and it is the worse place to miss it: those pills land under the header "LO QUE SABES DEL
+    OPERADOR (relevante a la tarea)", i.e. a background weather report is handed to the worker as a fact about
+    the person. Measured 2026-08-21 on `best-plumber-same-day`: `weather:soria` (mid/note, importance 0.3, written
+    hourly by the shipped `widgets/meteo-soria`) ranked ABOVE `operator.location` = "Vive en el centro de Madrid",
+    and the worker ran three searches for "fontanero Soria".
+
+    The exclusion is CONDITIONAL, not blanket: the 2026-07-14 note promises these stay reachable on an EXPLICIT
+    question, and a worker task can legitimately be about that city ("dime el tiempo en Soria"). So a namespaced
+    pill still enters when the task text names its namespace or its key.
+    """
+    if ":" not in (slot or ""):
+        return False
+    low = (prompt or "").lower()
+    for part in re.split(r"[:._\-]+", slot.lower()):
+        if len(part) >= _SLOT_WORD_MIN and re.search(rf"\b{re.escape(part)}\b", low):
+            return False
+    return True
+
+
 def _dossier_sync(prompt: str, budget: int) -> tuple[dict, dict, list, list, list, list]:
     """Parte SÍNCRONA del dossier (todo el I/O de memoria) — pensada para `asyncio.to_thread`."""
     from memory import api as memory
@@ -856,6 +884,8 @@ async def compose_context(prompt: str, *, budget: int = 2000) -> str:
     lines: list[str] = []
     for m in (res.get("memories") or []) + by_c:
         if (m.get("kind") or "") == "conv" or (m.get("level") or "mid") == "short":
+            continue
+        if _background_slot_off_topic(m.get("slot") or "", prompt):
             continue
         txt = (m.get("text") or "").strip().replace("\n", " ")
         key = txt.lower()[:120]

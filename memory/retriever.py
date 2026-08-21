@@ -209,7 +209,7 @@ def graph_expand(results: list[dict], top: int = 6, max_add: int = 8, discount: 
                         ex["via"] = f"edge:{parent['id']}"
                 continue
             row = db.query_one(
-                "SELECT id, level, kind, text, importance, weight, last_access, pinned "
+                "SELECT id, level, kind, text, importance, weight, last_access, pinned, slot "
                 "FROM memories WHERE id=? AND valid=1 "
                 # CUARENTENA: el contenido de peers/agentes no confiables (trust='untrusted') NUNCA aflora por
                 # recall semántico (ni por el grafo de conceptos) — solo por consulta explícita `recent_by_source`.
@@ -257,7 +257,7 @@ def _ppr_expand(parents: list[dict], present_map: dict, max_add: int, discount: 
         if len(added) >= max_add:
             break
         row = db.query_one(
-            "SELECT id, level, kind, text, importance, weight, last_access, pinned FROM memories "
+            "SELECT id, level, kind, text, importance, weight, last_access, pinned, slot FROM memories "
             "WHERE id=? AND valid=1 AND kind != 'concept' "
             "AND (json_extract(meta,'$.trust') IS NULL OR json_extract(meta,'$.trust') != 'untrusted')",
             (nid,),
@@ -355,7 +355,7 @@ def search(
     ids = list(fused.keys())
     placeholders = ",".join("?" * len(ids))
     rows = db.query(
-        f"SELECT id, level, kind, text, importance, weight, last_access, pinned "
+        f"SELECT id, level, kind, text, importance, weight, last_access, pinned, slot "
         f"FROM memories WHERE valid=1 AND id IN ({placeholders}) "
         # CUARENTENA (multi-fuente): el contenido trust='untrusted' (peers de cluster/agentes ajenos) NUNCA se
         # devuelve por el recall semántico — anti prompt-injection. Solo aflora por `memory.recent_by_source`.

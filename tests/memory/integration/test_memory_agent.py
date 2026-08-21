@@ -45,6 +45,41 @@ def test_compose_context_includes_state_and_recall(fresh_db):
     assert "LO QUE SABES DEL OPERADOR" in ctx        # dossier v2 (V2-056): cabecera del bloque de recuerdos
 
 
+def test_background_widget_pill_does_not_decide_an_unrelated_errand(fresh_db):
+    """Un volcado de widget de fondo NO puede presentarse al worker como «lo que sabes del operador».
+
+    Caso medido el 2026-08-21 en `best-plumber-same-day`: `widgets/meteo-soria` (que VIAJA en el repo) escribe
+    cada hora una píldora `weather:soria`; en el dossier del worker salía POR ENCIMA de `operator.location` =
+    "Vive en el centro de Madrid", y el worker hizo tres búsquedas de "fontanero Soria". El bloque pasivo ya
+    excluía los slots namespaced desde la auditoría 2026-07-14; el dossier no.
+    """
+    memapi.set_state({"operator_name": "Ricart", "location": "el centro de Madrid"})
+    memapi.write_now("Vive en el centro de Madrid.", level="long", kind="profile",
+                     importance=0.95, weight=1.0, pinned=True, slot="operator.location")
+    memapi.write_now("Weather in Soria now: 14.5C, parcialmente nublado.",
+                     level="mid", kind="note", importance=0.6, weight=0.8, slot="weather:soria")
+    ctx = asyncio.run(memory_agent.compose_context(
+        "Encuentra un fontanero que pueda venir hoy mismo, urgente", budget=2000))
+    assert "Soria" not in ctx                        # el encargo no habla de Soria → la nota de fondo NO entra
+    assert "Madrid" in ctx                           # y el hecho del operador SÍ sigue ahí
+
+
+def test_background_pill_still_reachable_when_the_task_names_it(fresh_db):
+    """La exclusión es CONDICIONAL: la promesa de 2026-07-14 es que sigan siendo recuperables ante una pregunta
+    EXPLÍCITA. Un `weather:soria` tiene que entrar cuando la tarea del worker habla de Soria."""
+    memapi.write_now("Weather in Soria now: 14.5C, parcialmente nublado.",
+                     level="mid", kind="note", importance=0.6, weight=0.8, slot="weather:soria")
+    ctx = asyncio.run(memory_agent.compose_context("Dime qué tiempo hace en Soria ahora", budget=2000))
+    assert "Soria" in ctx
+
+
+def test_operator_dot_slots_are_never_treated_as_background(fresh_db):
+    """Los slots del operador usan `.` y no `:` — el filtro no puede rozarlos ni cuando la tarea no los nombra."""
+    assert memory_agent._background_slot_off_topic("operator.location", "cualquier cosa") is False
+    assert memory_agent._background_slot_off_topic("", "cualquier cosa") is False
+    assert memory_agent._background_slot_off_topic("weather:soria", "busca un fontanero") is True
+
+
 def test_compose_context_empty_db_is_safe(fresh_db):
     ctx = asyncio.run(memory_agent.compose_context("cualquier cosa", budget=500))
     assert isinstance(ctx, str)                      # nunca lanza; string (posiblemente vacío o solo estado)
