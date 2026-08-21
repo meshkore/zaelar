@@ -48,6 +48,7 @@ def _live(tid: str, goal: str, surface: str = "lista", phases=()) -> SessionReco
     """Una sesión VIVA en el registro, sellada por la misma puerta que la sella en producción."""
     rec = SessionRecord(task_id=tid, goal=goal, kind="web")
     surfaces.set_once(rec, surface)
+    rec.sheet = dispatch.sheet_id_for(tid)      # lo sella `_sheet_open` en producción; aquí igual
     rec.status = "running"
     dispatch._SESSIONS[tid] = rec
     for ph in phases:
@@ -79,10 +80,10 @@ def test_encargar_abre_SU_hoja_y_la_anterior_no_se_toca(monkeypatch):
     surfaces.set_once(rec, "lista")
     dispatch._sheet_open(rec)
 
-    assert ("widget", "show", "results::t1") in shown, (
+    assert ("widget", "show", "results::" + dispatch.sheet_id_for("t1")) in shown, (
         "la hoja tiene que ABRIRSE al encargar, no al entregar — y con el id de SU instancia, que es lo que hace "
         "que el canvas pinte una tarjeta nueva en vez de reusar la de la búsqueda anterior")
-    nueva = sheet.view_data("t1")
+    nueva = sheet.view_data(dispatch.sheet_id_for("t1"))
     assert nueva["items"] == [], "la hoja del encargo nuevo empieza en blanco"
     assert nueva["title"] == "Busca hoteles de 4 estrellas en Sevilla"
     assert nueva.get("tab") is None, "la pestaña elegida era del encargo ANTERIOR; arrastrarla tapa el proceso"
@@ -99,18 +100,18 @@ def test_dos_encargos_a_la_vez_son_dos_hojas_y_ninguno_pisa_al_otro():
     el segundo encargo la reutilizaba sin vaciarla para no borrarle al primero— y el precio era que el operador
     veía los resultados de una búsqueda bajo el título de la otra."""
     _live("t1", "Busca hoteles en Sevilla")
-    sheet.apply_action("present", {"sheet": "t1", "title": "Hoteles en Sevilla",
+    sheet.apply_action("present", {"sheet": dispatch.sheet_id_for("t1"), "title": "Hoteles en Sevilla",
                                    "items": [{"title": "Bécquer"}]})
 
     rec2 = SessionRecord(task_id="t2", goal="Busca restaurantes en Madrid", kind="web")
     surfaces.set_once(rec2, "lista")
     dispatch._sheet_open(rec2)
 
-    a, b = sheet.view_data("t1"), sheet.view_data("t2")
+    a, b = sheet.view_data(dispatch.sheet_id_for("t1")), sheet.view_data(dispatch.sheet_id_for("t2"))
     assert [i["title"] for i in a["items"]] == ["Bécquer"], "al primero no se le toca nada"
     assert a["title"] == "Hoteles en Sevilla"
     assert b["items"] == [] and b["title"] == "Busca restaurantes en Madrid"
-    assert sheet.sheet_key("t1") != sheet.sheet_key("t2"), "dos encargos, dos claves"
+    assert sheet.sheet_key(dispatch.sheet_id_for("t1")) != sheet.sheet_key("t2"), "dos encargos, dos claves"
 
 
 # ── 3) viva ANTES de la primera fase ─────────────────────────────────────────────────────────────────────────
@@ -176,7 +177,7 @@ def test_al_terminar_el_loader_para_y_la_historia_se_queda():
     dispatch._SESSIONS.pop("t1", None)
     dispatch._sheet_close(rec)
 
-    pr = sheet.view_data("t1")["progress"]
+    pr = sheet.view_data(dispatch.sheet_id_for("t1"))["progress"]
     assert pr["alive"] is False, "nadie más avisa del final: sin esta escritura la tarjeta sigue «Trabajando…»"
     assert pr["phases"] == ["entrando en booking.com…", "lanzando la búsqueda…"]
 
@@ -187,16 +188,16 @@ def test_la_historia_sobrevive_al_informe_porque_se_PERSISTE():
     rec = _live("t1", "Busca hoteles en Sevilla", phases=["entrando en booking.com…"])
     dispatch._SESSIONS.pop("t1", None)
     dispatch._sheet_close(rec)
-    assert store.load(sheet.sheet_key("t1"), {}).get("process") == ["entrando en booking.com…"]
-    assert sheet.view_data("t1")["progress"]["phases"] == ["entrando en booking.com…"]
+    assert store.load(sheet.sheet_key(dispatch.sheet_id_for("t1")), {}).get("process") == ["entrando en booking.com…"]
+    assert sheet.view_data(dispatch.sheet_id_for("t1"))["progress"]["phases"] == ["entrando en booking.com…"]
 
 
 def test_un_encargo_que_no_dijo_una_sola_fase_no_inventa_historia():
     rec = _live("t1", "Busca hoteles en Sevilla")
     dispatch._SESSIONS.pop("t1", None)
     dispatch._sheet_close(rec)
-    assert sheet.view_data("t1")["progress"] == {"alive": False, "phases": []}
-    assert "process" not in store.load(sheet.sheet_key("t1"), {})
+    assert sheet.view_data(dispatch.sheet_id_for("t1"))["progress"] == {"alive": False, "phases": []}
+    assert "process" not in store.load(sheet.sheet_key(dispatch.sheet_id_for("t1")), {})
 
 
 def test_el_encargo_siguiente_estrena_su_historia_y_la_del_anterior_SIGUE():
@@ -210,8 +211,8 @@ def test_el_encargo_siguiente_estrena_su_historia_y_la_del_anterior_SIGUE():
     rec2 = SessionRecord(task_id="t2", goal="Busca restaurantes en Madrid", kind="web")
     surfaces.set_once(rec2, "lista")
     dispatch._sheet_open(rec2)
-    assert sheet.view_data("t2")["progress"]["phases"] == [], "el encargo nuevo no hereda el relato del viejo"
-    assert sheet.view_data("t1")["progress"]["phases"] == ["entrando en booking.com…"], (
+    assert sheet.view_data(dispatch.sheet_id_for("t2"))["progress"]["phases"] == [], "el encargo nuevo no hereda el relato del viejo"
+    assert sheet.view_data(dispatch.sheet_id_for("t1"))["progress"]["phases"] == ["entrando en booking.com…"], (
         "…y el viejo conserva el suyo: estrenar dejó de significar borrar")
 
 
@@ -244,7 +245,7 @@ def test_sin_dispatcher_la_hoja_ensena_lo_guardado_y_no_revienta(monkeypatch):
         raise RuntimeError("sin dispatcher")
 
     monkeypatch.setattr(dispatch, "sheet_progress", _boom)
-    assert sheet.view_data("t1")["progress"] == {"alive": False, "phases": ["entrando en booking.com…"]}
+    assert sheet.view_data(dispatch.sheet_id_for("t1"))["progress"] == {"alive": False, "phases": ["entrando en booking.com…"]}
 
 
 # ── guarda de ORDEN: la hoja lee el registro vivo, así que el final se escribe DESPUÉS del pop ───────────────

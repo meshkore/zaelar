@@ -1400,6 +1400,12 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     de equivocarse.
   - **El cerebro ve TODAS las hojas** y cada bloque dice de cuál es: «la número dos» con dos búsquedas en
     pantalla son dos cosas distintas, y leer una sola habría hecho contestar con seguridad sobre la que no era.
+  - ⚠️ **Y un defecto que ESTE cambio sí introdujo, cazado en la primera medida en vivo**: la clave de la hoja
+    era el `task_id`, y `escalate._seq` **arranca en 0 en cada proceso**. Tras un reinicio, el primer encargo caía
+    en `results--1` —la hoja de la sesión anterior— y `begin_task(fresh=True)` la estrena, o sea **la borra**: el
+    «error de borrar búsquedas» reintroducido por la puerta de atrás. El id lleva ya un sello de PROCESO
+    (`dispatch.sheet_id_for`) y se guarda UNA vez en el record, como la superficie. `sheet_of()` NO lo reconstruye
+    desde el `task_id`: un encargo cuya hoja nunca se abrió no tiene hoja.
   - ⚠️ **Un bug que este cambio iba a introducir**: `desktop.js::close` cancelaba la tarea de CUALQUIER tarjeta
     con `::`, con `w.base||"navegador"` de reserva — daba por hecho que la única pieza instanciada era el
     navegador. **Cerrar una vista no cancela un encargo.** Nodo **4.36**, 15 casos, sensibilidad en siete

@@ -18,6 +18,7 @@ import asyncio
 import json
 import os
 import re
+import secrets as _secrets
 import secrets
 import time
 import unicodedata
@@ -652,6 +653,25 @@ def _phrases(rec) -> list:
     return out
 
 
+#: Sello de ESTE proceso. `escalate._seq` vuelve a 0 en cada arranque, así que un `task_id` no identifica un
+#: encargo más allá de la vida del motor; un id de hoja SÍ tiene que hacerlo, porque la hoja se guarda en disco y
+#: sobrevive al reinicio (V2-233). Aleatorio y corto: no hace falta que sea legible, hace falta que no choque.
+_BOOT = _secrets.token_hex(3)
+
+
+def sheet_id_for(task_id) -> str:
+    """El id de la HOJA de un encargo. UNA definición: la usan el sellado del record y cualquiera que necesite
+    reconstruirlo, para que no haya dos formas de nombrar la misma caja."""
+    return f"{_BOOT}-{str(task_id or '').strip()}"
+
+
+def sheet_of(rec) -> str:
+    """La hoja de un encargo, sellada UNA vez (mismo criterio que `surfaces.set_once`: cambiarla a mitad mueve lo
+    que el operador ya está mirando). Devuelve "" si este encargo no tiene hoja — entonces se escribe la de
+    siempre, que es lo correcto para un navegador sin encargo detrás."""
+    return str(getattr(rec, "sheet", "") or "")
+
+
 def sheet_for_nav_task(nav_task: str) -> str:
     """La hoja del ENCARGO al que pertenece esta tarea de navegador ("" si no cuelga de ninguno).
 
@@ -665,7 +685,7 @@ def sheet_for_nav_task(nav_task: str) -> str:
         return ""
     for r in list(_SESSIONS.values()):
         if str(getattr(r, "nav_task", "") or "") == tid:
-            return str(getattr(r, "task_id", "") or "")
+            return sheet_of(r)
     return ""
 
 
@@ -687,7 +707,7 @@ def sheet_progress(sheet: str = "") -> dict:
     # cada uno tiene dónde contarse, y mezclarlos sería contar dos veces lo mismo en dos sitios.
     want = str(sheet or "").strip()
     if want:
-        rows = [r for r in rows if str(getattr(r, "task_id", "")) == want]
+        rows = [r for r in rows if sheet_of(r) == want]
     if not rows:
         return {"alive": False, "phases": []}
     seq = []
@@ -712,11 +732,18 @@ def _sheet_open(rec) -> None:
 
     Todo fail-soft: un fallo aquí no puede tumbar una escalada.
     """
+    # El SELLO, una vez y antes de nada: todo lo que escriba en esta hoja tiene que nombrarla igual.
+    if not getattr(rec, "sheet", ""):
+        try:
+            rec.sheet = sheet_id_for(rec.task_id)
+        except Exception:  # noqa: BLE001
+            pass
+    _sid = sheet_of(rec)
     try:
         from widgets.results import data as _sheet
         # V2-259 — SU hoja. `fresh` deja de ser una decisión difícil: una hoja nueva es una CLAVE nueva, así que
         # estrenar ya no puede borrarle a nadie lo suyo (que es literalmente lo que el operador pidió evitar).
-        _sheet.begin_task((rec.goal or "").strip(), fresh=True, sheet=str(rec.task_id))
+        _sheet.begin_task((rec.goal or "").strip(), fresh=True, sheet=_sid)
         _sheet.prune_sheets()          # la hoja persiste a propósito; N instancias no pueden crecer sin techo
     except Exception:  # noqa: BLE001
         pass
@@ -724,7 +751,7 @@ def _sheet_open(rec) -> None:
         from voice.observer import emit
         from widgets.results import data as _sheet2
         emit("widget", "show",
-             extra={"id": _sheet2.instance_id(str(rec.task_id)), "src": f"worker:{rec.task_id}"})
+             extra={"id": _sheet2.instance_id(_sid), "src": f"worker:{rec.task_id}"})
     except Exception:
         pass
 
@@ -739,7 +766,7 @@ def _sheet_close(rec) -> None:
     """
     try:
         from widgets.results import data as _sheet
-        _sheet.end_task(_phrases(rec), sheet=str(rec.task_id))
+        _sheet.end_task(_phrases(rec), sheet=sheet_of(rec))
     except Exception:  # noqa: BLE001
         pass
 
@@ -768,7 +795,7 @@ def session_phase(tid, phase: str) -> None:
                     from voice.observer import emit as _emit_w
                     from widgets.results import data as _sheet3
                     _emit_w("widget", "data",
-                            extra={"id": _sheet3.instance_id(str(tid)), "src": "worker"})
+                            extra={"id": _sheet3.instance_id(sheet_of(r)), "src": "worker"})
                 except Exception:
                     pass
     try:
@@ -1411,7 +1438,7 @@ async def _finalize_web(rec: "SessionRecord", keep_open: bool = False) -> None:
         if items and rec.status != "cancelled":
             try:
                 from widgets.results import intake as _intake
-                _intake.push(items, sheet=str(getattr(rec, "task_id", "") or ""),
+                _intake.push(items, sheet=sheet_of(rec),
                              source_url=str((navtasks.get(tid) or {}).get("url") or ""))
             except Exception:  # noqa: BLE001
                 pass

@@ -59,6 +59,12 @@ class SessionRecord:
     depth: int = 0
     trace_id: str = ""            # V2-044: trace de la frase que originó la sesión (encadena todos sus eventos)
     nav_task: str = ""            # kind=web: id de la tarea del navegador (tarjeta) asociada — la fija dispatch
+    # V2-259 — la HOJA de este encargo (`results::<sheet>`), sellada UNA vez por `dispatch._sheet_open`. No es
+    # `task_id` a secas y ese fue un defecto real: `escalate._seq` arranca en 0 en cada proceso, así que los ids
+    # se REPITEN entre reinicios y el primer encargo de un arranque nuevo caía en la hoja `results--1` de la
+    # sesión anterior — que `begin_task(fresh=True)` estrena, o sea BORRA. Justo el «error de borrar búsquedas»
+    # que esta iniciativa existe para quitar, reintroducido por la puerta de atrás.
+    sheet: str = ""
     # V2-227 — DÓNDE va a ver el operador el resultado, decidido al ENCARGAR y no al entregar. Vocabulario
     # CERRADO (`nucleo/surfaces.py`): lista | item | widget | voz | silenciosa. Se sella UNA vez (`set_once`) y
     # no se re-decide a mitad: cambiar de superficie cuando el operador ya está mirando la primera es peor que

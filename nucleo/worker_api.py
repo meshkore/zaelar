@@ -210,7 +210,11 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
         # un worker no debería conocer ids de instancia, y pedírselos sería una forma nueva de equivocarse. Se
         # respeta un `sheet` explícito por si algún día hace falta, pero nadie se lo enseña.
         if wid == "results" and not str(data_payload.get("sheet") or "").strip():
-            _own = str(getattr(rec, "task_id", "") or "").strip()
+            try:
+                from nucleo.dispatch import sheet_of as _sheet_of_rec
+                _own = _sheet_of_rec(rec)
+            except Exception:  # noqa: BLE001
+                _own = ""
             if _own:
                 data_payload = {**data_payload, "sheet": _own}
         try:

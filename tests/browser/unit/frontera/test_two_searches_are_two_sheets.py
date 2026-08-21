@@ -40,6 +40,7 @@ def _aislado(tmp_path, monkeypatch):
 def _encargo(tid: str, goal: str, nav: str = "") -> SessionRecord:
     rec = SessionRecord(task_id=tid, goal=goal, kind="web")
     surfaces.set_once(rec, "lista")
+    rec.sheet = dispatch.sheet_id_for(tid)      # lo sella `_sheet_open` en producción; aquí igual
     rec.status = "running"
     if nav:
         rec.nav_task = nav
@@ -67,27 +68,27 @@ def test_a_hostile_correlation_id_cannot_escape_its_directory():
 
 def test_two_errands_do_not_overwrite_each_other():
     _encargo("t1", "Busca fontaneros en Madrid")
-    sheet.apply_action("present", {"sheet": "t1", "title": "Fontaneros", "items": [{"title": "Relatores"}]})
+    sheet.apply_action("present", {"sheet": dispatch.sheet_id_for("t1"), "title": "Fontaneros", "items": [{"title": "Relatores"}]})
 
     rec2 = _encargo("t2", "Busca un coche de segunda mano")
     dispatch._sheet_open(rec2)
 
-    assert [i["title"] for i in sheet.view_data("t1")["items"]] == ["Relatores"]
-    assert sheet.view_data("t2")["items"] == []
-    assert sheet.view_data("t1")["title"] == "Fontaneros"
-    assert sheet.view_data("t2")["title"] == "Busca un coche de segunda mano"
+    assert [i["title"] for i in sheet.view_data(dispatch.sheet_id_for("t1"))["items"]] == ["Relatores"]
+    assert sheet.view_data(dispatch.sheet_id_for("t2"))["items"] == []
+    assert sheet.view_data(dispatch.sheet_id_for("t1"))["title"] == "Fontaneros"
+    assert sheet.view_data(dispatch.sheet_id_for("t2"))["title"] == "Busca un coche de segunda mano"
 
 
 def test_the_next_errand_no_longer_wipes_the_finished_one():
     """El caso EXACTO del operador: búsqueda terminada, llega otra. Antes esto borraba la primera."""
     rec1 = _encargo("t1", "Busca fontaneros en Madrid")
-    sheet.apply_action("present", {"sheet": "t1", "title": "Fontaneros", "items": [{"title": "Relatores"}]})
+    sheet.apply_action("present", {"sheet": dispatch.sheet_id_for("t1"), "title": "Fontaneros", "items": [{"title": "Relatores"}]})
     rec1.status = "done"
     dispatch._SESSIONS.pop("t1")
     dispatch._sheet_close(rec1)
 
     dispatch._sheet_open(_encargo("t2", "Busca un coche"))
-    assert [i["title"] for i in sheet.view_data("t1")["items"]] == ["Relatores"], (
+    assert [i["title"] for i in sheet.view_data(dispatch.sheet_id_for("t1"))["items"]] == ["Relatores"], (
         "la búsqueda TERMINADA se borraba al llegar la siguiente — es el «error de borrar búsquedas» que el "
         "operador pidió quitar")
 
@@ -98,8 +99,8 @@ def test_each_card_tells_ITS_own_story():
     a, b = _encargo("t1", "hoteles"), _encargo("t2", "restaurantes")
     a.phases.append({"t": 100.0, "s": "entrando en booking.com…"})
     b.phases.append({"t": 101.0, "s": "entrando en thefork.es…"})
-    assert sheet.view_data("t1")["progress"]["phases"] == ["entrando en booking.com…"]
-    assert sheet.view_data("t2")["progress"]["phases"] == ["entrando en thefork.es…"]
+    assert sheet.view_data(dispatch.sheet_id_for("t1"))["progress"]["phases"] == ["entrando en booking.com…"]
+    assert sheet.view_data(dispatch.sheet_id_for("t2"))["progress"]["phases"] == ["entrando en thefork.es…"]
     assert sheet.view_data()["progress"]["phases"] == ["entrando en booking.com…", "entrando en thefork.es…"], (
         "la hoja SIN encargo detrás —la que el operador abre a mano— sigue mereciendo el relato completo")
 
@@ -109,12 +110,12 @@ def test_each_card_tells_ITS_own_story():
 def test_two_browsers_of_the_SAME_errand_land_in_the_SAME_sheet():
     """La frontera de V2-257 sigue en pie: la hoja es del ENCARGO, no del navegador."""
     _encargo("t1", "Busca fontaneros", nav="nav-A")
-    assert dispatch.sheet_for_nav_task("nav-A") == "t1"
+    assert dispatch.sheet_for_nav_task("nav-A") == dispatch.sheet_id_for("t1")
     intake.push([{"title": "Relatores", "tel": "910"}], sheet=dispatch.sheet_for_nav_task("nav-A"))
     _encargo("t1b", "otro navegador del mismo encargo")     # ruido: no cuelga de nav-A
     dispatch._SESSIONS["t1"].nav_task = "nav-A"
     intake.push([{"title": "GASFONCLIMA", "tel": "911"}], sheet=dispatch.sheet_for_nav_task("nav-A"))
-    assert [i["title"] for i in sheet.view_data("t1")["items"]] == ["Relatores", "GASFONCLIMA"]
+    assert [i["title"] for i in sheet.view_data(dispatch.sheet_id_for("t1"))["items"]] == ["Relatores", "GASFONCLIMA"]
 
 
 def test_a_browser_with_no_errand_behind_it_writes_the_bare_sheet():
@@ -149,8 +150,8 @@ def test_the_worker_bridge_resolves_the_sheet_so_the_worker_never_has_to():
 def test_the_brain_sees_every_open_sheet_and_says_which_is_which():
     """Leer solo una no avisa de nada: el turno contestaría con seguridad sobre la búsqueda que no era. «La
     número dos» con dos hojas en pantalla son dos cosas distintas."""
-    sheet.apply_action("present", {"sheet": "t1", "title": "Fontaneros", "items": [{"title": "Relatores"}]})
-    sheet.apply_action("present", {"sheet": "t2", "title": "Coches", "items": [{"title": "Ibiza 2019"}]})
+    sheet.apply_action("present", {"sheet": dispatch.sheet_id_for("t1"), "title": "Fontaneros", "items": [{"title": "Relatores"}]})
+    sheet.apply_action("present", {"sheet": dispatch.sheet_id_for("t2"), "title": "Coches", "items": [{"title": "Ibiza 2019"}]})
 
     refs = sheet.ref_index()
     assert {r["id"] for r in refs} == {"Relatores", "Ibiza 2019"}
@@ -160,14 +161,14 @@ def test_the_brain_sees_every_open_sheet_and_says_which_is_which():
     assert "Fontaneros" in dig and "Coches" in dig
     assert "Relatores" in dig and "Ibiza 2019" in dig
 
-    solo = sheet.prompt_digest("t1")
+    solo = sheet.prompt_digest(dispatch.sheet_id_for("t1"))
     assert "Relatores" in solo and "Ibiza 2019" not in solo, "y se puede pedir UNA cuando se sabe cuál"
 
 
 def test_with_one_sheet_the_digest_says_nothing_about_sheets():
     """Sin dos búsquedas no hay ambigüedad que desambiguar, y meter la cabecera igualmente sería ruido en cada
     prompt de cada turno."""
-    sheet.apply_action("present", {"sheet": "t1", "title": "Fontaneros", "items": [{"title": "Relatores"}]})
+    sheet.apply_action("present", {"sheet": dispatch.sheet_id_for("t1"), "title": "Fontaneros", "items": [{"title": "Relatores"}]})
     assert "── HOJA" not in sheet.prompt_digest()
     assert all("de «" not in r["hint"] for r in sheet.ref_index())
 
@@ -195,3 +196,40 @@ def test_pruning_never_touches_the_bare_sheet():
         sheet.apply_action("present", {"sheet": f"t{n}", "items": [{"title": f"r{n}"}]})
     sheet.prune_sheets()
     assert [i["title"] for i in sheet.view_data()["items"]] == ["x"]
+
+
+# ── 6) el id de hoja tiene que sobrevivir a un REINICIO ──────────────────────────────────────────────────────
+
+def test_the_sheet_id_does_not_repeat_across_restarts():
+    """Lo cazó el arnés sobre esta misma iniciativa recién construida, y es el defecto que V2-259 existe para
+    quitar, reintroducido por la puerta de atrás: `escalate._seq` arranca en 0 en CADA proceso, así que los
+    `task_id` se repiten entre reinicios. Con la hoja nombrada por el `task_id` a secas, el primer encargo de un
+    arranque nuevo caía en `results--1` —la hoja de la sesión anterior— y `begin_task(fresh=True)` la ESTRENA,
+    o sea la borra. Un informe que el operador quería conservar, destruido en silencio.
+
+    Así que el id lleva un sello del PROCESO. La hoja se guarda en disco y sobrevive al reinicio (V2-233): su
+    nombre tiene que sobrevivir igual de bien.
+    """
+    assert dispatch.sheet_id_for("1") != "1", "el id de hoja no puede ser el task_id a pelo"
+    assert dispatch.sheet_id_for("1").endswith("-1")
+    assert dispatch._BOOT and dispatch._BOOT in dispatch.sheet_id_for("1")
+    # dos «arranques» distintos, el mismo task_id, dos hojas
+    otro = "otroboot"
+    assert sheet.sheet_key(dispatch.sheet_id_for("1")) != sheet.sheet_key(f"{otro}-1")
+
+
+def test_the_sheet_is_stamped_ONCE_like_the_surface():
+    """Mismo criterio que `surfaces.set_once`: cambiar de hoja a mitad no es corregir, es mover lo que el
+    operador ya está mirando."""
+    rec = _encargo("t1", "Busca fontaneros")
+    primero = dispatch.sheet_of(rec)
+    dispatch._sheet_open(rec)
+    assert dispatch.sheet_of(rec) == primero
+
+
+def test_an_errand_with_no_sheet_writes_the_bare_one():
+    """`sheet_of` NO reconstruye el id desde el task_id: un encargo cuya hoja nunca se abrió no tiene hoja, y
+    fabricarle una haría que un encargo de voz —sin superficie— escribiera en una caja que nadie abrió."""
+    from nucleo.workers.session import SessionRecord
+    rec = SessionRecord(task_id="t9", goal="dime la hora", kind="generic")
+    assert dispatch.sheet_of(rec) == ""
