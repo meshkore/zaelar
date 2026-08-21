@@ -557,7 +557,10 @@ def run(args: argparse.Namespace) -> int:
         print("no scenarios selected", file=sys.stderr)
         return 2
 
-    if not args.sandbox:
+    # `--lab` is checked HERE and not only at the routing loop below, because this branch RETURNS: without it a
+    # `--lab es` round fell straight through to the operator's own engine and measured THEIR memory, widgets and
+    # running tasks — with the banner cheerfully saying so while the lab agent sat idle on its bookmarked port.
+    if not args.sandbox and not getattr(args, "lab", ""):
         print(f"▲ running against the LIVE engine at {config.ZAELAR_URL} — its memory, widgets and running "
               f"tasks are the operator's. Use --sandbox for an isolated one.")
         return _run_batch(chosen, sandboxed=False, args_no_file=args.no_file,
