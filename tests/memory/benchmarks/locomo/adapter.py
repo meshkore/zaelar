@@ -235,3 +235,27 @@ def declarations(ingest_mode: str, limit: int) -> dict:
         "reranker": {k: rr.get(k) for k in ("provider", "model", "enabled", "available", "top_n")} if rr else None,
         "ts": int(time.time()),
     }
+
+
+#: repo root, four levels up from tests/memory/benchmarks/locomo/adapter.py
+_REPO_ROOT = pathlib.Path(__file__).resolve().parents[4]
+
+
+# ── where the dataset lives ───────────────────────────────────────────────────────────────────────────────────
+#: LoCoMo-10 is NOT committed (2.8 MB), so both the runner and the guard test have to find it on disk. Until
+#: 2026-08-21 both hardcoded `/private/tmp/claude-501/locomo10.json` — a per-SESSION scratchpad that is wiped
+#: between sessions. The consequence was not a red test: the guard for the 96% claim skipped, and it would have
+#: skipped forever on every machine including the one that wrote it. A test whose stated purpose is «so a future
+#: reader does not have to take my word for it» was structurally guaranteed never to check anything again.
+#: A stable, gitignored path fixes it; `LOCOMO10` overrides for a copy kept elsewhere.
+def dataset_path() -> pathlib.Path:
+    """The LoCoMo-10 JSON: `$LOCOMO10`, else `memory/_data/locomo10.json` (gitignored, next to the other corpora)."""
+    env = (os.environ.get("LOCOMO10") or "").strip()
+    if env:
+        return pathlib.Path(env).expanduser()
+    return _REPO_ROOT / "memory" / "_data" / "locomo10.json"
+
+
+#: Printed by the skip so whoever sees it knows how to WAKE it instead of assuming it is meant to sleep.
+FETCH_HINT = ("download it to `memory/_data/locomo10.json` (gitignored) or point $LOCOMO10 at your copy — "
+              "HF dataset `snap-research/locomo`, file `locomo10.json`")

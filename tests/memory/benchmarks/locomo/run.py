@@ -51,7 +51,9 @@ def _fresh_db(root: pathlib.Path, tag: str) -> None:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--data", default="/private/tmp/claude-501/locomo10.json")
+    ap.add_argument("--data", default="",
+                    help="LoCoMo-10 JSON; defaults to $LOCOMO10, else memory/_data/locomo10.json (gitignored). "
+                         "Resolved after the adapter import, which is what owns where the corpus lives.")
     ap.add_argument("--conversations", type=int, default=1, help="how many conversations (10 = full set)")
     ap.add_argument("--ingest", choices=["verbatim", "distill"], default="verbatim")
     ap.add_argument("--qa-limit", type=int, default=0, help="cap questions per conversation (0 = all)")
@@ -66,7 +68,7 @@ def main() -> int:
     _pin_language(args.lang)          # MUST come after the import above — it overrides ZAELAR_LANGUAGE
     from tests.memory.benchmarks.locomo import adapter as A
 
-    data = A.load(args.data)[: args.conversations]
+    data = A.load(args.data or str(A.dataset_path()))[: args.conversations]
     cats = {int(c) for c in args.categories.split(",") if c.strip()} or None
     root = pathlib.Path(tempfile.mkdtemp(prefix="locomo-"))
 

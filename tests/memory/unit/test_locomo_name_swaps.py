@@ -26,7 +26,7 @@ import pytest
 
 from tests.memory.benchmarks.locomo import adapter as A
 
-_DATA = pathlib.Path("/private/tmp/claude-501/locomo10.json")
+_DATA = A.dataset_path()
 
 
 # ── the logic, on a fixture: deterministic, no dataset, no network ─────────────────────────────────────────────
@@ -80,7 +80,8 @@ def test_an_empty_conversation_is_handled():
 
 
 # ── the CLAIM, against the real dataset when it is on this machine ─────────────────────────────────────────────
-@pytest.mark.skipif(not _DATA.exists(), reason="LoCoMo-10 no está en esta máquina (no se commitea: 2,8 MB)")
+@pytest.mark.skipif(not _DATA.exists(),
+                    reason=f"LoCoMo-10 no está en esta máquina: {A.FETCH_HINT}")
 def test_the_96_percent_claim_holds_against_the_real_dataset():
     """The number this whole finding rests on. It is asserted rather than remembered so that a future reader does
     not have to take my word for it — and so that a change to the matcher that quietly stops matching announces
