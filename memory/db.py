@@ -15,6 +15,7 @@ serialized by a `threading.RLock`: at our scale (one user, tens of thousands of 
 it avoids traps from sharing a `sqlite3.Connection` across threads. WAL also lets a future reader/writer split avoid
 schema changes.
 """
+import logging
 import os
 import sqlite3
 import threading
@@ -23,6 +24,8 @@ from pathlib import Path
 
 from . import schema as _schema
 from nucleo import workspace as _workspace
+
+logger = logging.getLogger("zaelar.memory.db")
 
 
 def db_path() -> Path:
@@ -131,9 +134,54 @@ class Database:
                 self.conn.execute("UPDATE memories SET valid_at = created WHERE valid_at IS NULL")
             for stmt in _schema.MEMORIES_V5_INDEXES:
                 self.conn.execute(stmt)
+            # v5->v6 (V2-242): give background pills their author in the KEY. Runs ONCE, gated on the version.
+            if version < 6:
+                self._namespace_widget_slots()
             if version < _schema.SCHEMA_VERSION:
                 self.conn.execute(f"PRAGMA user_version={_schema.SCHEMA_VERSION}")
             self.conn.commit()
+
+    def _namespace_widget_slots(self):
+        """Rename pills a widget tick wrote so their slot carries the author (`<widget-id>:<key>`).
+
+        Mirror of `widgets/background.py::TickCtx._own_slot`, applied to what is already on disk. Both readers
+        that separate «the operator's own facts» from «a background dump» key on the SHAPE of the slot — the
+        passive block since the 2026-07-14 audit, the worker dossier since 2026-08-21 — and a tick can no longer
+        write an un-namespaced slot (V2-242). Without this the old rows stay in the old shape forever: supersede
+        is by EXACT slot, so `weather:soria` is never replaced by `meteo-soria:weather:soria`, and an
+        installation that has been running for months keeps a frozen copy competing in recall.
+
+        `meta.widget` was stamped by the OLD writer too, so the author is known for every affected row. Rows
+        without it are left alone: an un-namespaced slot with no widget is the operator's own and must not move.
+        Collapsing is by (new slot): the NEWEST row wins and the rest are invalidated, which is what supersede
+        would have done had the keys matched all along.
+        """
+        rows = self.conn.execute(
+            "SELECT id, slot, json_extract(meta,'$.widget') AS w, updated FROM memories "
+            "WHERE valid=1 AND json_extract(meta,'$.widget') IS NOT NULL"
+        ).fetchall()
+        renamed, collapsed = 0, 0
+        winners: dict[str, tuple] = {}
+        for r in rows:
+            base = str(r["w"] or "").strip() or "widget"
+            raw = " ".join(str(r["slot"] or "").split()).strip()
+            new = f"{base}:note" if not raw else (raw if raw.startswith(f"{base}:") else f"{base}:{raw}")
+            if new != (r["slot"] or ""):
+                self.conn.execute("UPDATE memories SET slot=? WHERE id=?", (new, r["id"]))
+                renamed += 1
+            prev = winners.get(new)
+            # Newest wins; `updated` ties break by id (monotonic), same rule the writer's supersede uses.
+            if prev is None or (r["updated"] or 0, r["id"]) > (prev[0], prev[1]):
+                if prev is not None:
+                    self.conn.execute("UPDATE memories SET valid=0 WHERE id=?", (prev[1],))
+                    collapsed += 1
+                winners[new] = (r["updated"] or 0, r["id"])
+            else:
+                self.conn.execute("UPDATE memories SET valid=0 WHERE id=?", (r["id"],))
+                collapsed += 1
+        if renamed or collapsed:
+            logger.info(f"memory v5->v6: namespaced {renamed} widget slots, "
+                        f"invalidated {collapsed} duplicates of the old key")
 
     def schema_version(self) -> int:
         with self._lock:

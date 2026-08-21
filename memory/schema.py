@@ -30,7 +30,14 @@ EMBED_DIM = 768
 #   fila ya inválida no garantiza que `updated` sea el momento de su invalidación. `valid_at` (cuándo el hecho
 #   pasó a ser cierto, por defecto = `created`) e `invalidated_at` (NULL mientras `valid=1`, fijado UNA VEZ,
 #   nunca vuelto a tocar) permiten reconstruir "qué estaba vigente en la fecha X" (`memory/api.py::as_of()`).
-SCHEMA_VERSION = 5
+#   v5 → v6 (V2-242, 2026-08-21): background pills written by a widget tick get their author into the KEY.
+#   Readers separate «the operator's own facts» from «a background job's dump» by the SHAPE of the slot (dots
+#   for the person, a namespace for background). `TickCtx.remember` now enforces that on write, but the pills
+#   already on disk keep the old shape — and supersede is by EXACT slot, so a `weather:soria` written for months
+#   would never be replaced by the new `meteo-soria:weather:soria`: two live lineages of the same fact, the old
+#   one frozen forever and still competing in recall. This renames them in place, using `meta.widget` (which the
+#   old writer already stamped, so the author is known for every one of them).
+SCHEMA_VERSION = 6
 
 
 # ── Tablas base (siempre) ──────────────────────────────────────────────────────────────────────────────────
