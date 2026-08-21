@@ -714,6 +714,14 @@ DOMAINS: list[dict] = [
             "ch": UNIT,
             "paths": ["tests/browser/unit/frontera/test_the_browser_shows_the_sheet_keeps.py",
                       "tests/browser/unit/frontera/test_the_card_paints_a_monitor.py"]},
+        # V2-261 — el operador lo vio en pantalla: dos segundos después de la tarjeta buena aparecía otra de
+        # navegador, BASE y vacía, encima. No la abría nadie: `desktop._persist()` informa del canvas, la ruta
+        # NORMALIZA `navegador::t2` a su base, el diff dice «se ha abierto navegador» y esa AUDITORÍA (V2-039)
+        # viajaba por el mismo canal que las órdenes. Visto desde V2-047 F9 y solo instrumentado.
+        {"id": "4.37", "title": "El canvas no obedece su propio informe: la auditoría de lo que el operador abre "
+                                "a mano deja de pintar una tarjeta fantasma",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/frontera/test_the_canvas_does_not_obey_its_own_echo.py"]},
         # V2-259 — el operador: «si tenemos un widget de results abierto, búsqueda terminada, y lanzamos otra, se
         # abre un widget nuevo. Con esta regla no cometeremos errores de borrar búsquedas». El borrado ESTABA en
         # el código: la hoja era una sola clave y `begin_task(fresh=True)` la estrenaba —sin resultados ni

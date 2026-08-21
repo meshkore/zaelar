@@ -31,7 +31,24 @@ export function openSSE(desktop) {
       console.warn("voice error:", d.label || "");              // clean screen: log only, no banner
       refreshStatus();                                          // but do reflect it in the ◉ status icon
     } else if (d.kind === "widget" && desktop) {
-      if (d.label === "show" && d.id) desktop.show(d.id, { data: d.data });       // brain shows it (with pushed data, if any)
+      // EL CANVAS NUNCA OBEDECE SU PROPIO INFORME (V2-261). `src:"user"` marca los eventos que NACEN del canvas:
+      // `desktop._persist()` reporta el conjunto abierto a `/api/canvas/state`, y esa ruta compara con el anterior
+      // y emite `widget/show|close` con procedencia «user» para dejar la acción manual del operador en la línea de
+      // tiempo (auditoría V2-039 — antes eran acciones SILENCIOSAS). Pero esa auditoría viaja por el MISMO canal
+      // que las ÓRDENES, así que volvía aquí y se ejecutaba.
+      //
+      // Consecuencia medida, y el operador la vio en pantalla: la tarea abre `navegador::t2`, el canvas lo
+      // reporta, la ruta NORMALIZA la instancia a su base (`navegador`), el diff dice «se ha abierto navegador» y
+      // dos segundos después aparecía una tarjeta de navegador BASE vacía («abriendo pestaña…») encima de la real.
+      // Evidencia: `['navegador::t1'] → ['navegador::t1','navegador']`, siempre 2 s después. Estaba visto desde
+      // V2-047 F9 («two browsers, one blank») y solo INSTRUMENTADO, nunca cerrado.
+      //
+      // Se corta aquí, en el ÚNICO sitio por el que los dos hosts (escritorio y móvil) reciben esto, y no en la
+      // ruta: la auditoría necesita seguir emitiendo con su etiqueta para que la observabilidad y el Master la
+      // sigan contando igual. La regla es la que faltaba, no el evento: **un informe de lo que ya pasó no es una
+      // orden**, y el que lo mandó es justamente quien no tiene nada que hacer con él.
+      const _eco = d.src === "user";
+      if (d.label === "show" && d.id && !_eco) desktop.show(d.id, { data: d.data });       // brain shows it (with pushed data, if any)
       else if (d.label === "create" && d.id) desktop.createWidget(d.id, d.spec);  // brain asked to BUILD a new widget
       else if (d.label === "modify" && d.id) desktop.modifyWidget(d.id, d.change);// brain asked to EDIT an existing widget
       else if (d.label === "delete" && d.id) desktop.onDeleted(d.id);             // backend ALREADY deleted (lifecycle) → close the card + drop the cached catalog
@@ -41,7 +58,7 @@ export function openSSE(desktop) {
       else if (d.label === "confirm-cancel" && d.id === "clusters") store.setClusterConfirm(null);
       else if (d.label === "confirm" && d.id) desktop.showConfirm(d.id, { question: d.question, action: d.action });      // irreversible action (delete/data) → Sí/No overlay ON the card
       else if (d.label === "confirm-cancel" && d.id) desktop.hideConfirm(d.id);   // confirmation resolved/cancelled elsewhere (voice/timeout)
-      else if (d.label === "close") d.id ? desktop.close(d.id) : desktop.closeAll();
+      else if (d.label === "close" && !_eco) d.id ? desktop.close(d.id) : desktop.closeAll();
       else if (d.label === "move" && d.id) desktop.move(d.id, d.where);            // reposition on the canvas (izquierda/derecha/…)
       else if (d.label === "resize" && d.id) desktop.resize(d.id, d.data);          // resize a widget (HERMES-ONLY)
       else if (d.label === "fullscreen" && d.id) desktop.fullscreen(d.id);          // toggle native fullscreen

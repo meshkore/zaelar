@@ -1363,6 +1363,23 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - Nodo 2.15, 9 casos rojos con el parseo viejo. **Sin verificar en vivo.** Lo cogió memoria-dev fuera de su
     territorio por decisión del orquestador: **el dueño de un arreglo es quien tiene la evidencia**.
 
+- **Un informe de lo que ya pasó no es una orden** (`frontend/app/services/sse.js`, V2-261, 2026-08-21). El
+  operador vio en pantalla una tarjeta de navegador BASE y vacía apareciendo ENCIMA de la real, dos segundos
+  después. No la abría nadie: era un **eco del propio canvas**. `desktop._persist()` informa del conjunto
+  abierto, `voice_api.canvas_state` NORMALIZA `navegador::t2` a `navegador`, el diff dice «se ha abierto
+  navegador» y emite `widget/show src=user` — la auditoría de V2-039 — **por el mismo canal que las órdenes**.
+  Evidencia: `['navegador::t1'] → ['navegador::t1','navegador']`, siempre 2 s después.
+  - **Estaba VISTO y solo instrumentado**: el comentario de `voice_api.py` cita «V2-047 F9 (two browsers, one
+    blank)». Se añadió el evento para poder mirarlo y nunca se cerró.
+  - La regla: **el canvas nunca obedece su propio informe**; `src:"user"` marca lo que NACE del canvas, y quien
+    lo mandó es quien no tiene nada que hacer con ello. Se corta en `sse.js` —único punto por el que pasan
+    escritorio y móvil (contrato del nodo 4.18)— y NO en la ruta: la auditoría tiene que seguir emitiendo con su
+    etiqueta o se mueve la taxonomía de familias con la que se está midiendo.
+  - **Filtra `show` y `close`, no `data`**: `data` es un aviso de repintado, y filtrarlo dejaría una hoja
+    abierta sin refrescarse — un fallo mudo. Hay un desarme que separa filtrar de menos de filtrar de más.
+  - Era mío además de del navegador: V2-259 acababa de instanciar la hoja, así que sin esto habría heredado el
+    mismo fantasma. Nodo **4.37**, que MONTA el manejador en vez de leer la fuente.
+
 - **Dos búsquedas son dos hojas, y estrenar deja de significar borrar** (`widgets/results/data.sheet_key`,
   V2-259, 2026-08-21). Petición del operador: *«si tenemos un widget de results abierto, búsqueda terminada, y
   lanzamos otra, se abre un widget nuevo. Con esta regla no cometeremos errores de borrar búsquedas.»* Y **el
