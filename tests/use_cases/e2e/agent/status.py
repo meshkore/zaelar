@@ -137,6 +137,16 @@ def _state(overall, r: dict) -> str:
     run = r.get("run") or {}
     if run.get("crashed") or (r.get("verdict") or {}).get("veredicto", "").startswith("INFRA"):
         return "INFRA"
+    # AN AGENT THAT SAID NOTHING WAS NOT MEASURED, whatever the cause. Measured 2026-08-21 on
+    # `compare-broadband-plans__es`: DeepSeek answered HTTP 402 «Insufficient Balance» and z.ai had been out
+    # of quota since the previous day, so every single zaelar turn came back EMPTY — and the round was filed
+    # as 1/1/1/1/1 FAIL, a permanent red row about a case nobody had actually exercised. The scoreboard would
+    # then have carried a product verdict earned by an unpaid invoice.
+    mech_ = (run.get("mechanism_report") or {})
+    mute = (mech_.get("mute_turns") or {}).get("n") or 0
+    turns = max(1, len((run.get("transcript") or [])) // 2)
+    if mute and mute >= max(2, turns // 2):
+        return "INFRA"
     if overall is None:
         return "INFRA"
     # El MECANISMO manda sobre la nota agregada. Medido el 2026-08-19: `reorder-prescription__es` sacó overall 4

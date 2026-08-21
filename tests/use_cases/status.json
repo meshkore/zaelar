@@ -901,78 +901,145 @@
       "measured_in": "worktree fijado (measure-wt)"
     },
     "compare-insurance-quotes__es": {
-      "last_run": "2026-08-20 21:55",
-      "overall": 2,
+      "last_run": "2026-08-21 02:03",
+      "overall": 3,
+      "judge": "deepseek-v4-flash",
       "state": "FAIL",
       "scores": {
-        "naturalidad": 3,
+        "naturalidad": 4,
         "adaptacion": 4,
-        "resultado": 1,
+        "resultado": 2,
         "mecanismo": 2,
         "eficiencia": 2
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar afirmó haber entregado una comparativa con precios y recomendación cuando el mecanismo no muestra ningún resultado real extraído, un éxito falso que invalida el caso de uso.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es que se entregó un precio (250-350 €/año para Línea Directa) sin respaldo del mecanismo —ninguna extracción ni resultado real del worker—, lo que constituye un dato inventado con forma de resultado, el fallo más grave de este caso; además, la comparativa quedó incompleta (solo una cifra de tres) y se narró normalidad sobre 21 errores internos de a",
       "missing_signals": [],
       "audit_anomalies": [
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "worker/task «↩ zaelar ⚠️ error»: Contains brace with quote character (expansion obfuscation)"
+          "que": "worker/task «· paso ⚠️ error»: This command requires approval"
         },
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "worker/task «↩ zaelar ⚠️ error»: Exit code 1 payload JSON inválido"
+          "que": "memory/memory «🧠 memoria ⚠️ error»: This command requires approval"
         },
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "worker/task «↩ zaelar ⚠️ error»: Exit code 1 payload JSON inválido"
+          "que": "memory/memory «🧠 memoria ⚠️ error»: This command requires approval"
         },
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "worker/task «↩ zaelar ⚠️ error»: Exit code 2 usage: worker_bridge [-h] {ask,wait,act,say} ... worker_bridge: error: unrecognized arguments: comparativa seguros coche todo riesgo 2026 Mapfre Mut"
+          "que": "memory/memory «🧠 memoria ⚠️ error»: This command requires approval"
         },
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+          "que": "memory/memory «🧠 memoria ⚠️ error»: This command requires approval"
         },
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+          "que": "worker/task «· paso ⚠️ error»: This command requires approval"
         },
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "memory/memory «🧠 memoria ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+          "que": "worker/task «· paso ⚠️ error»: This command requires approval"
         },
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
+          "que": "worker/task «· paso ⚠️ error»: This command requires approval"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "memory/memory «🧠 memoria ⚠️ error»: This command requires approval"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "memory/memory «🧠 memoria ⚠️ error»: This command requires approval"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "memory/memory «🧠 memoria ⚠️ error»: This command requires approval"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "memory/memory «🧠 memoria ⚠️ error»: This command requires approval"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: This command requires approval"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: This command requires approval"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «↩ zaelar ⚠️ error»: This command requires approval"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «📄 archivo ⚠️ error»: EISDIR: illegal operation on a directory, read '/private/tmp/claude-501/-Users-ricartjuncadella-Documents-Prj-asimovia-zaelar/5ce88b85-1017-4c74-86ac-bef007ef7e"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: This Bash command contains multiple operations. The following part requires approval: echo \"grep-exit:$?\""
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: This command requires approval"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "memory/memory «🧠 memoria ⚠️ error»: This command requires approval"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "memory/memory «🧠 memoria ⚠️ error»: This command requires approval"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "memory/memory «🧠 memoria ⚠️ error»: This command requires approval"
         },
         {
           "clase": "span_con_error",
           "certeza": "hecho",
-          "que": "worker:1: 4 error(es), último paso «end»"
+          "que": "worker:2: 7 error(es), último paso «data»"
         },
         {
           "clase": "span_con_error",
           "certeza": "hecho",
-          "que": "worker:3: 3 error(es), último paso «🧭 navegador»"
+          "que": "worker:3: 10 error(es), último paso «end»"
         },
         {
           "clase": "span_con_error",
           "certeza": "hecho",
-          "que": "worker:5: 1 error(es), último paso «🌐 web ↩»"
+          "que": "worker:4: 4 error(es), último paso «🧠 memoria ⚠️ error»"
         }
       ],
       "sandboxed": true,
+      "provisional": null,
       "tier": 2,
-      "turns_used": 9,
+      "turns_used": 10,
       "families": [
         "flash",
         "memory",
@@ -982,7 +1049,7 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "60280c5",
+        "sha": "1416bbf",
         "n_dirty": 0,
         "dirty": []
       },
@@ -1000,9 +1067,10 @@
         "n": 2
       },
       "workspace": {
-        "initiative": ".meshkore/roadmap/initiatives/V2-229-uc-compare-insurance-quotes-es.md",
-        "task": ".meshkore/modules/nucleo/tasks/T466-uc-compare-insurance-quotes-es-fix.md"
-      }
+        "initiative": ".meshkore/roadmap/initiatives/V2-004-uc-compare-insurance-quotes-es.md",
+        "task": ".meshkore/modules/nucleo/tasks/T312-uc-compare-insurance-quotes-es-fix.md"
+      },
+      "measured_in": "worktree fijado"
     },
     "best-rated-rental-car__es": {
       "last_run": "2026-08-20 22:01",
@@ -1069,17 +1137,11 @@
       }
     },
     "compare-broadband-plans__es": {
-      "last_run": "2026-08-20 22:08",
-      "overall": 2,
-      "state": "FAIL",
-      "scores": {
-        "naturalidad": 3,
-        "adaptacion": 3,
-        "resultado": 1,
-        "mecanismo": 2,
-        "eficiencia": 2
-      },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar nunca entregó el resultado real (la comparativa de tarifas) y, peor aún, siguió afirmando que trabajaba en ello cuando el sistema ya había fallado, sin ser honesto sobre el error ni ofrecer una alternativa viable.",
+      "last_run": "2026-08-21 02:28",
+      "overall": null,
+      "state": "INFRA",
+      "scores": {},
+      "verdict": "INFRA: la cadena de proveedores estaba agotada (DeepSeek HTTP 402 Insufficient Balance x4, z.ai sin cuota hasta el 25 Aug). Los CUATRO turnos de zaelar salieron VACIOS. La ronda no midio el caso.",
       "missing_signals": [
         "widget"
       ],
@@ -1126,7 +1188,8 @@
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-231-uc-compare-broadband-plans-es.md",
         "task": ".meshkore/modules/nucleo/tasks/T468-uc-compare-broadband-plans-es-fix.md"
-      }
+      },
+      "measured_in": "worktree fijado en 39e68a7"
     },
     "weekend-barber-availability__es": {
       "last_run": "2026-08-20 22:15",
