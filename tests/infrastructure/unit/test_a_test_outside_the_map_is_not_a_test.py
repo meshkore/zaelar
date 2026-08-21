@@ -28,11 +28,14 @@ if ROOT not in sys.path:
 
 from tests.platform.catalog import DOMAINS, SUITES, deterministic_paths  # noqa: E402
 
-#: Árboles que este trinquete todavía NO vigila, con su motivo. Un guarda que su dueño no espera es un guarda que
-#: se salta a la primera, así que esto solo crece con el OK del dueño — y el objetivo es que ADELGACE.
-#: · `tests/use_cases/` es del arnés. El 2026-08-21 se le entregó medido que su `suite.json` lleva
-#:   `"domain_ids": []`, así que sus 36 tests están declarados en el capítulo 10 y aun así no los corre nadie.
-#:   Entra aquí en cuanto lo cierre y dé el OK.
+#: Árboles que este trinquete NO vigila, con su motivo. Un guarda que su dueño no espera es un guarda que se salta
+#: a la primera, así que esto solo crece con el OK del dueño — y el objetivo es que esté VACÍO.
+#:
+#: `tests/use_cases/` es del arnés y sigue aquí, pero por un motivo DISTINTO al de esta mañana. El primero —su
+#: `suite.json` con `"domain_ids": []`, que dejaba sus 36 ficheros declarados y sin correr— lo cerró él en
+#: `f0096c9` (rutas deterministas 277 → 313). Al quitar la excepción salió el segundo: **15 ficheros suyos que no
+#: están declarados en ningún nodo**, todos de las últimas tandas. Entregados medidos; sale de aquí cuando los
+#: cierre. La lista existe para quedarse VACÍA.
 FUERA_DEL_TRINQUETE = ("tests/use_cases/",)
 
 
@@ -80,10 +83,9 @@ def test_y_ADEMAS_lo_ejecuta_la_corrida_determinista():
 
 def test_TODO_capitulo_del_mapa_lo_reclama_alguna_suite():
     """La tercera forma, vigilada donde se origina. Sin esto, un capítulo entero desaparece de la corrida y sus
-    nodos siguen pareciendo perfectos — que es exactamente lo que le pasa hoy al capítulo 10."""
+    nodos siguen pareciendo perfectos — que es exactamente lo que le pasaba al capítulo 10 hasta `f0096c9`."""
     reclamados = {d for s in SUITES.values() for d in s.domain_ids}
-    huerfanos = sorted((d["id"], d["name"]) for d in DOMAINS
-                       if d["id"] not in reclamados and d["id"] not in ("10",))
+    huerfanos = sorted((d["id"], d["name"]) for d in DOMAINS if d["id"] not in reclamados)
     assert not huerfanos, (
         f"capítulos del testmap que ninguna suite reclama (sus ficheros no los corre nadie): {huerfanos}")
 
