@@ -1339,6 +1339,21 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Un solo reloj para el «hoy» que se le DICE al worker** (`nucleo/dispatch_prompts.py`, V2-250, 2026-08-21).
+  Salió de un aviso de método a memoria-dev: él auditó su lado y encontró que la agenda del dosier filtraba con
+  `date.today()` (`75f2a34` — replay a 2026-03-10, cita a 6 días por delante, **agenda VACÍA** porque
+  `date.today()` decía 2026-08-21 y toda fecha futura se leía como pasada). La misma forma estaba aquí, y en el
+  peor sitio: **`_today_block()` es el bloque que le dice al worker qué día es**, y leía el reloj de PARED
+  mientras todo lo que resuelve un momento en este motor pasa por `scheduler.time.time()` (`parse_when`,
+  `next_cron`, y por eso `router_guards` lo lee explícitamente: «ONE clock»).
+  - Con los dos relojes de acuerdo —producción— no se nota. Al medir sí, y aquí es **peor que en el dosier**: no
+    filtra datos, **le dice al modelo la fecha equivocada**, y todo lo que razone con «hoy» sale mal sin que nada
+    falle. Nodo 2.5, 5 casos con las DOS direcciones (sin reloj fijado tiene que ser el de pared — si no,
+    «seguir al reloj del motor» se satisface con cualquier fecha fija) + guarda de fuente contra el `strftime()`
+    sin argumento.
+  - **Queda por mirar** `widgets/agenda/planner.py` (`datetime.now()` para el día de la semana): en producción
+    acierta y al medir no, pero es del widget y quiere su propia medida.
+
 - **La píldora que se auto-avala: un aviso PROGRAMADO existe de verdad, o no se dice** (`worker_policy.py` +
   `worker_api.py` + `dispatch_prompts.py`, V2-249, 2026-08-21). El hallazgo más viejo de los que seguían
   abiertos: el worker escribía en memoria, de forma durable, «Recordatorio PROGRAMADO … a las 09:00» **sin

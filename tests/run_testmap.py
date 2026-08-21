@@ -182,6 +182,10 @@ DOMAINS: list[dict] = [
             # V2-237: tres workers reanudando LA MISMA sesión del CLI y los tres muertos a los ~400 ms (3 de 3,
             # contra 0 de 3 entre los que abrieron sesión propia). `_find_resume` leía la entrada sin consumirla.
             "tests/agent_headless/unit/test_a_native_session_is_resumed_once.py",
+            # V2-250: al worker se le DICE qué día es, y ese bloque leía el reloj de PARED mientras el resto del
+            # razonamiento con fechas va por `scheduler.time.time()` («ONE clock»). Invisible en producción,
+            # letal al medir — la forma gemela la midió memoria-dev en el dosier (75f2a34).
+            "tests/agent_headless/unit/test_the_worker_is_told_the_same_today.py",
             # V2-249: la «píldora que se auto-avala». Un worker al que se le encargaba «recuérdaselo el
             # miércoles» decía que lo había programado y NO existía ninguna entrada — porque la capacidad no
             # existía. Ahora existe, con su filtro (tope por tarea, atribución, y lo ambiguo NO se adivina).

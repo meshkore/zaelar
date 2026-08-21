@@ -36,9 +36,21 @@ def _today_block() -> str:
     """La fecha/hora REAL de hoy, para anclar toda restricción temporal (V2-057): «el último», «el de hoy»,
     «el tiempo actual» solo tienen sentido contra la fecha real — sin esto el worker no puede certificar que un
     resultado sea el vigente. El FlashBrain ya la lleva (live_state); el worker NO la recibía."""
+    # V2-250 — UN SOLO RELOJ, el mismo que el resto del razonamiento con fechas. Todo lo que resuelve un momento
+    # en este motor pasa por `scheduler.time.time()` (`parse_when`, `next_cron`, y por eso `router_guards` lo lee
+    # explícitamente: «ONE clock»). Este bloque —que es justo el que le DICE al worker qué día es— leía el reloj
+    # de PARED, así que con el reloj fijado se quedaba en la fecha real mientras las fechas que él mismo manda
+    # anclar venían de la otra. Invisible en producción, donde los dos coinciden, y letal al medir: memoria-dev
+    # midió la forma gemela en el dosier (`75f2a34`) — replay a 2026-03-10, cita a 6 días por delante, agenda
+    # VACÍA porque `date.today()` decía 2026-08-21 y toda fecha futura se leía como pasada.
     import time as _t
-    return (f"FECHA/HORA REAL DE HOY: {_t.strftime('%A %d %b %Y')} ({_t.strftime('%Y-%m-%d')}), "
-            f"{_t.strftime('%H:%M')} hora local. Ancla a esto cualquier restricción temporal de la petición "
+    try:
+        from nucleo import scheduler as _sched
+        _ahora = _t.localtime(_sched.time.time())
+    except Exception:  # noqa: BLE001
+        _ahora = _t.localtime()
+    return (f"FECHA/HORA REAL DE HOY: {_t.strftime('%A %d %b %Y', _ahora)} ({_t.strftime('%Y-%m-%d', _ahora)}), "
+            f"{_t.strftime('%H:%M', _ahora)} hora local. Ancla a esto cualquier restricción temporal de la petición "
             f"(«el último» = el más reciente respecto a HOY; «de hoy»/«ahora» = esta fecha y de aquí en adelante; "
             f"«el de tal día» = esa fecha exacta). NUNCA des un dato caducado como si fuera vigente.")
 
