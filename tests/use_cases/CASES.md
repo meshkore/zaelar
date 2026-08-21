@@ -754,6 +754,23 @@ Two details that cost a first attempt:
 Pin the worktree at the commit you mean to measure (`git -C <path> checkout <sha>`), and say which one in
 the report — a round is a statement about one commit or it is a statement about nothing.
 
+**And the third detail, which is not a detail: this method CANNOT measure a case that escalates to a
+worker.** A worker reaches the browser, memory and the network through `python -m nucleo.<bridge>`, and
+those commands are permitted only because `claude_session._BRIDGE_TOOLS` lists the exact interpreter — a
+list built from `_ZAELAR` (`__file__`, so the WORKTREE) while the prompt hands the worker
+`bridge_python()` (`sys.executable`, so the REAL venv, because Python resolves the symlinked `.venv`
+above). The interpreter the prompt DICTATES is therefore not in the list that permits it, and every
+bridge call comes back «This command requires approval» in a headless run where nobody approves.
+
+It does not fail loudly. The worker says, correctly, that its environment has blocked every tool; the
+round scores 1/5 on `resultado`; and the judge writes it as the agent claiming results it never had.
+Measured 2026-08-21: **every worktree round that spawned a worker at all shows 18-27 denials** (six
+rounds); the ones that died at preflight, with zero workers, are clean. `run.py::bridge_allowlist_refusal`
+now asks this BEFORE driving anything and exits 4, so the failure costs a second instead of fifteen
+minutes — but the refusal is the honest outcome, not a fix. **Until the interpreter matches, measure a
+worker case on the real tree** (with `--allow-dirty` if a fixing agent is mid-edit, and let the row carry
+`provisional`), and keep the worktree for cases the FlashBrain answers by itself.
+
 ## What this harness got wrong about the product, and how each was caught (2026-08-21)
 
 Six times in one night this harness reported a defect that was its own, in the exact shape of a finding —
@@ -778,6 +795,7 @@ fact withheld. **If the answer is in the response you are holding, print it.**
 | a death at ~1450 ms | a provider handoff working | `relayed` is its own bucket, in BOTH columns |
 | «0 notes from search» with 12 answers | the notes were queued 6 s after the read | same quiescence wait |
 | the same hotel in six unrelated cases | read `worker_outcome` per REPORT instead of per scenario | iterate `results[]` |
+| «claimed results while its environment blocked every tool» | the blockade was the harness's: the worktree's interpreter was not in the bridge allowlist, so all 19 calls were denied | ask before driving (`bridge_allowlist_refusal`) |
 | «the whole provider chain is out; nothing can be measured» | AIMLAPI was alive all night, both models answering in ~3 s. The TEXT channel does not relay: it catches the provider error and returns it, while the voice channel in the same log relayed past the same rung | the preflight PRINTS what the engine said; the harness seeds a rung that answers at the head |
 
 Four rules came out of it, and they are code now, not intentions:
