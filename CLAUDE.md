@@ -1339,6 +1339,30 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Un código de idioma inventado no falla: es un idioma** (`i18n/init/detect.py`, V2-251, 2026-08-21). El
+  arnés soltó de pasada `i18n.detect: ... locked operator language -> 'it'` — italiano, caso en español. No era
+  el clasificador: `_by_llm` leía su respuesta con `re.search(r"[a-z]{2}", …)`, o sea **las dos primeras
+  minúsculas de cualquier sitio**. Medido: `It is Spanish (es)` → `it`, `The language is es.` → `th` (tailandés),
+  `Language: es` → `la`, `Sure, es` → `su`. **Lo que lo hacía invisible es que todos son códigos ISO válidos**:
+  no parece roto, parece otro idioma — y se persiste como elección deliberada, así que `should_detect()` pasa a
+  False y no se reintenta jamás. Con `max_tokens=4` el preámbulo se trunca justo en `It is`, así que la forma que
+  más falla es la más probable (familia de V2-171). Duele porque el mismo código resuelve el locale de
+  `site_catalog`: el encargo sale al país equivocado en el turno 1, que es lo que este módulo bloquea el turno
+  para evitar. Regla nueva, **«inequívoco o nada»**: la respuesta limpia ES un código, o hay EXACTAMENTE un token
+  de dos letras como palabra entera, o `None`. **Rechazar es el lado seguro y no es callejón sin salida** — no
+  persiste nada, `should_detect()` sigue True, el turno siguiente reintenta; un bloqueo erróneo es mudo y
+  permanente, uno rechazado cuesta un reintento (mismo criterio que V2-248 con el `ref` y V2-249 con las fechas
+  ambiguas).
+  - **Descartada la vía obvia**: validar contra una lista NO habría cazado nada — `it`/`th`/`la`/`su` son códigos
+    reales, y `langs.supported()` da solo `en`/`es` mientras el sistema genera bundles bajo demanda, así que la
+    validación habría roto el multi-idioma legítimo. Hay un test que guarda ese razonamiento para que nadie lo
+    «mejore» metiendo un whitelist.
+  - **Alcance acotado por el arnés ANTES del arreglo**: 65 de 66 rondas guardadas bloquearon `es` bien; la única
+    `it` fue la que corrió con los proveedores caídos. El clasificador solo contesta con una FRASE cuando el
+    modelo está degradado o relevando → **ninguna medida del tablero quedó contaminada**.
+  - Nodo 2.15, 9 casos rojos con el parseo viejo. **Sin verificar en vivo.** Lo cogió memoria-dev fuera de su
+    territorio por decisión del orquestador: **el dueño de un arreglo es quien tiene la evidencia**.
+
 - **Un solo reloj para el «hoy» que se le DICE al worker** (`nucleo/dispatch_prompts.py`, V2-250, 2026-08-21).
   Salió de un aviso de método a memoria-dev: él auditó su lado y encontró que la agenda del dosier filtraba con
   `date.today()` (`75f2a34` — replay a 2026-03-10, cita a 6 días por delante, **agenda VACÍA** porque
