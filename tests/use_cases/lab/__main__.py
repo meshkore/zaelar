@@ -18,7 +18,7 @@ import time
 import urllib.error
 import urllib.request
 
-from tests.use_cases.lab import stage
+from tests.use_cases.lab import screen, shot, stage
 from tests.use_cases.lab.profiles import PROFILES, LabProfile, get
 
 _UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
@@ -158,6 +158,42 @@ def cmd_say(args) -> int:
     return 0
 
 
+def cmd_screen(args) -> int:
+    """What is on screen and what is inside it — read from the engine, no browser involved."""
+    p = get(args.agent)
+    st = stage.status(p)
+    if not st.running:
+        print(f"  ✗ {p.key} no está en marcha")
+        return 1
+    snap = screen.read(st.base_url, with_data=not args.no_data)
+    print(screen.render(snap))
+    if args.trail:
+        print("TRAZA de widgets (en orden):")
+        for e in snap["widget_trail"][-args.trail:]:
+            print(f"   {e['id']:>6}  {e['label']:<9} {e['widget']:<22} ← {e['src'] or '?'}")
+    return 0
+
+
+def cmd_shot(args) -> int:
+    """A screenshot, as reinforcement for a VISUAL claim. See lab/shot.py on what it cannot tell you."""
+    p = get(args.agent)
+    st = stage.status(p)
+    if not st.running:
+        print(f"  ✗ {p.key} no está en marcha")
+        return 1
+    out = stage.workspace_of(p) / "shots" / f"{args.name}.png"
+    try:
+        facts = shot.grab(st.base_url, out, settle_ms=int(args.settle * 1000))
+    except Exception as e:
+        print(f"  ✗ no pude capturar: {e}")
+        return 1
+    print(f"  ✓ {facts['path']}")
+    print(f"    velo puesto: {facts['veil']} · orbe: {facts['orb']} · tarjetas: {facts['cards']}")
+    if facts["errors"]:
+        print(f"    errores de página: {facts['errors']}")
+    return 0
+
+
 def cmd_logs(args) -> int:
     p = get(args.agent)
     path = stage._log_path(p)
@@ -203,6 +239,18 @@ def main(argv=None) -> int:
     sy.add_argument("--session", default="lab")
     sy.add_argument("--timeout", type=float, default=180.0)
     sy.set_defaults(fn=cmd_say)
+
+    sc = sub.add_parser("screen", help="qué hay en pantalla y qué lleva dentro (sin navegador)")
+    sc.add_argument("agent", choices=sorted(PROFILES))
+    sc.add_argument("--no-data", action="store_true", help="solo la lista, sin abrir el contenido")
+    sc.add_argument("--trail", type=int, default=0, help="además, las N últimas órdenes de widget")
+    sc.set_defaults(fn=cmd_screen)
+
+    sh = sub.add_parser("shot", help="captura (REFUERZO de una afirmación visual, no la vía normal)")
+    sh.add_argument("agent", choices=sorted(PROFILES))
+    sh.add_argument("--name", default="now")
+    sh.add_argument("--settle", type=float, default=20.0, help="segundos de espera antes de disparar")
+    sh.set_defaults(fn=cmd_shot)
 
     lg = sub.add_parser("logs", help="cola del log del motor")
     lg.add_argument("agent", choices=sorted(PROFILES))
