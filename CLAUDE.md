@@ -1339,6 +1339,25 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **La puerta avisaba UNA vez y el worker chocó TRES** (`nucleo/workers/session.py`, V2-241, 2026-08-21). De la
+  evidencia abierta de V2-236: uno de los workers muertos chocó **tres veces** con nuestra propia puerta de
+  permiso. V2-211 puso la red —si choca, se le explica cómo reescribirlo— pero se disparaba **una vez por
+  sesión**: del segundo choque en adelante nadie le decía nada y murió en silencio, justo lo que la red existía
+  para evitar. Y la corrección **no nombraba el comando**, solo repetía las reglas del cajón — una regla general
+  no le dice CUÁL de sus comandos sobra.
+  - Ahora se corrige **cada** choque hasta un tope de 3 (los medidos), la corrección **nombra el trozo que la
+    puerta paró** (`denied_fragment`, las tres formas del CLI) y **no se inventa ninguno** si el texto no lo dice.
+  - **El tercer aviso cambia de mensaje**: deja de corregir y pide ENTREGAR lo que tenga — la diferencia entre
+    una tarea incompleta y una tarea muda. Y luego se calla: un bucle de avisos se come el contexto que le queda.
+  - **Un final sin entrega tras chocar lo DICE**, nombrando el comando: no es un fallo de la tarea, es que la vía
+    está cerrada aquí, y eso el operador sí puede resolverlo. Sin pisar una entrega real ni disfrazar un relevo.
+  - ⚠️ **Cambia el contrato de V2-211** a propósito (de «una corrección por sesión» a «cada choque, con tope»), y
+    el test que lo fijaba se reescribió explicando por qué. Nodo 2.5, sensibilidad en cuatro direcciones.
+  - **Sigue siendo prompt, no mecanismo**: mejora la información y el final, no impide el choque. El mecanismo
+    sería reescribir el comando (quitar el `cd <ruta> &&` y ejecutar el resto **si ya está en nuestro allowlist**,
+    o sea sin ampliar un permiso), y hoy no se puede porque el evento `step` solo conserva `{where, action,
+    target}` resumido y el comando crudo no llega. Eso quiere su propia decisión.
+
 - **El extractor exigía PRECIO, así que un fontanero devolvía CERO filas** (`widgets/navegador/dom.py` +
   `act_api.py`, V2-240, 2026-08-21). Con las muertes de worker ya cerradas, el arnés dejó
   `best-plumber-same-day` en 1/5 con un diagnóstico honesto —*«pide un fontanero CONCRETO y le dan un directorio;

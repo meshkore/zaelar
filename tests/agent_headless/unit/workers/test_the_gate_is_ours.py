@@ -91,9 +91,9 @@ class _FakeBackend:
 def _session():
     from nucleo.workers import session as S
     s = S.WorkerSession.__new__(S.WorkerSession)
-    s._perm_warned = False
+    s._perm_hits = 0
     s._b = _FakeBackend()
-    s._rec = type("R", (), {"task_id": "7"})()
+    s._rec = S.SessionRecord(task_id="7", goal="una gestión de fondo", kind="web")
     s._emit_chip = lambda *a, **k: None
     return s
 
@@ -103,7 +103,10 @@ def _session():
     "allowed working directory",
     'This Bash command contains multiple operations. The following part requires approval: curl -s "https://x"',
 ])
-def test_a_denial_gets_ONE_corrective_turn(text):
+def test_a_denial_gets_a_corrective_turn(text):
+    """V2-241 CHANGES V2-211's contract on purpose. It was ONE correction per session; the worker the harness
+    measured hit the gate THREE times, so from the second collision on nobody said anything to it and it died in
+    silence — the very outcome the net exists to prevent. Now every collision is answered, up to a cap."""
     async def go():
         s = _session()
         s._maybe_unstick_permission({"text": text})
@@ -112,11 +115,61 @@ def test_a_denial_gets_ONE_corrective_turn(text):
         assert len(s._b.sent) == 1
         msg = s._b.sent[0]
         assert "NADIE puede aprobarlo" in msg and "nav_cli" in msg
-        # …and only once: a second crash must not turn into a loop of system notices.
+        # …and the SECOND collision is answered too, instead of dying unheard.
         s._maybe_unstick_permission({"text": text})
         await asyncio.sleep(0)
-        assert len(s._b.sent) == 1
+        await asyncio.sleep(0)
+        assert len(s._b.sent) == 2
     asyncio.run(go())
+
+
+def test_the_correction_NAMES_the_command_that_was_stopped(text="This Bash command contains multiple operations."
+                                                                " The following part requires approval: curl -s"
+                                                                ' "https://x.invalid/p"'):
+    """Repetir las reglas generales no le dice CUÁL de sus comandos sobra. El CLI sí lo nombra; se le devuelve."""
+    async def go():
+        s = _session()
+        s._maybe_unstick_permission({"text": text})
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+        assert "curl -s" in s._b.sent[0] and "x.invalid" in s._b.sent[0]
+        assert s._rec.perm_denied.startswith("curl -s")
+    asyncio.run(go())
+
+
+def test_el_TERCER_choque_pide_ENTREGAR_en_vez_de_reescribir(
+        text="cd in '/Users/x/zaelar/engine' was blocked. For security, Claude Code may only change directories"
+             " to the allowed working directory"):
+    """Si tres reescrituras no han bastado, seguir corrigiendo es pedirle lo mismo por cuarta vez. Lo que hace
+    falta es que ENTREGUE lo que tiene: es la diferencia entre una tarea incompleta y una tarea muda."""
+    async def go():
+        s = _session()
+        for _ in range(3):
+            s._maybe_unstick_permission({"text": text})
+            await asyncio.sleep(0)
+            await asyncio.sleep(0)
+        assert len(s._b.sent) == 3
+        assert "DEJA esa vía" in s._b.sent[-1] and "Entrega AHORA" in s._b.sent[-1]
+        # …y a partir de ahí se calla: un bucle de avisos se come el contexto que le queda para entregar.
+        s._maybe_unstick_permission({"text": text})
+        await asyncio.sleep(0)
+        await asyncio.sleep(0)
+        assert len(s._b.sent) == 3
+    asyncio.run(go())
+
+
+@pytest.mark.parametrize("crudo,esperado", [
+    ('This Bash command contains multiple operations. The following part requires approval: curl -s "https://x"',
+     'curl -s "https://x"'),
+    ("cd in '/Users/x/zaelar/engine' was blocked. For security, Claude Code may only change directories",
+     "/Users/x/zaelar/engine"),
+    ("todo ha ido bien, 12 resultados", ""),
+])
+def test_el_trozo_parado_se_LEE_y_no_se_inventa(crudo, esperado):
+    """Sensibilidad: sin el último caso, inventar un fragmento mandaría al worker a reescribir un comando que no
+    escribió — peor que no nombrar ninguno."""
+    from nucleo.workers.session import denied_fragment
+    assert denied_fragment(crudo) == esperado
 
 
 def test_an_ordinary_step_result_is_left_alone():

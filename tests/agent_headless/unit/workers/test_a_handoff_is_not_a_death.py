@@ -195,3 +195,46 @@ def test_un_fallo_ANUNCIADO_no_se_entrega_como_tarea_completada(sesion, monkeypa
     _run(sesion._finish())
     assert rec.ok is False, "una frase que ANUNCIA un fallo salía entregada como «Tarea completada: …»"
     assert rec.status == "error"
+
+
+# ── V2-241: un final MUDO tras chocar con nuestra propia puerta ──────────────────────────────────────────────
+# Los tres casos medidos murieron sin decir nada y la causa solo aparecía cruzando el log del motor por
+# `span=worker:N`. Si la sesión se acaba sin entrega y sin relevo pero chocó con la puerta, ESO es lo que le
+# pasó — y no es un fallo de la tarea, es que la vía que eligió está cerrada aquí.
+
+def test_un_final_sin_entrega_tras_la_puerta_DICE_que_comando_paro(sesion):
+    rec = sesion._rec
+    rec.ok = False
+    rec.perm_denied = 'curl -s "https://x.invalid/p"'
+    _run(sesion._finish())
+    assert "curl -s" in rec.result_summary, "moría sin decir por qué se quedó a medias"
+    assert rec.status == "error"
+
+
+def test_si_YA_entrego_algo_no_se_le_pisa_la_entrega(sesion):
+    """Sensibilidad: el informe del worker manda. Sustituirlo por el aviso de la puerta cambiaría un resultado
+    parcial REAL por una excusa."""
+    rec = sesion._rec
+    rec.ok = False
+    rec.perm_denied = "cd /Users/x/zaelar/engine"
+    rec.result_summary = "He encontrado dos fontaneros con guardia de 24 h."
+    _run(sesion._finish())
+    assert rec.result_summary.startswith("He encontrado dos")
+
+
+def test_un_RELEVO_no_se_convierte_en_excusa_de_permiso(sesion):
+    """La otra dirección: si pasó el testigo, la entrega se vacía a propósito y meter aquí el aviso de la puerta
+    le contaría al operador un final que no ha ocurrido."""
+    rec = sesion._rec
+    rec.perm_denied = "cd /Users/x/zaelar/engine"
+    rec.provider_down = {"provider": "z.ai", "next": "deepseek", "text": "insufficient balance"}
+    _run(sesion._finish())
+    assert rec.status == "relevada" and not rec.result_summary.strip()
+
+
+def test_sin_choque_de_permiso_no_se_inventa_ninguno(sesion):
+    rec = sesion._rec
+    rec.ok = False
+    rec.result_summary = ""
+    _run(sesion._finish())
+    assert "no está permitido" not in rec.result_summary

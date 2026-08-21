@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 import time
 from dataclasses import dataclass, field
 
@@ -105,11 +106,38 @@ class SessionRecord:
     # corriendo. Sin este hecho, `ok=False` la dejaba indistinguible de un worker muerto, y el motor le decía al
     # operador que su tarea «ha MUERTO sin resultado y no se va a reintentar sola» mientras el relevo trabajaba.
     handoff: str = ""             # "" = final de verdad · si no, a dónde pasó el testigo, en legible
+    # V2-241 — el TROZO exacto que la puerta paró (`cd /Users/…`, `curl -s https://…`). Se guarda para poder
+    # nombrarlo en la corrección —una regla general no le dice cuál de sus comandos sobra— y para que un final
+    # sin entrega pueda decir por qué se quedó a medias en vez de callarse.
+    perm_denied: str = ""
     ctx_tokens: int = 0             # context size of the last message (for the panel and the watchdog)
     real_model: str = ""            # the model that ACTUALLY ran, when the provider says so (≠ requested alias)
     # handles runtime (NO serializar):
     session: "WorkerSession | None" = None
     task: "asyncio.Task | None" = None
+
+
+# V2-241 — QUÉ trozo paró la puerta. Una corrección que repite las reglas generales no le dice CUÁL de sus
+# comandos sobra; el CLI sí lo nombra, en tres formas distintas y medidas. Devuelve "" si el texto no lo dice —
+# nunca se inventa un fragmento, que sería mandarle a reescribir un comando que no escribió.
+_DENIED_RE = (
+    re.compile(r"following part requires approval:\s*(.+?)(?:\.\s|$)", re.I | re.S),
+    re.compile(r"\bcd in ['\"](.+?)['\"] was blocked", re.I),
+    re.compile(r"requires approval:\s*(.+?)(?:\.\s|$)", re.I | re.S),
+    re.compile(r"permissions? to use\s+(\S+)", re.I),
+)
+
+
+def denied_fragment(text: str) -> str:
+    """El comando (o la ruta) que la puerta nombró, recortado y en una línea."""
+    t = str(text or "")
+    for rx in _DENIED_RE:
+        m = rx.search(t)
+        if m:
+            frag = " ".join((m.group(1) or "").split()).strip(" .,:;")
+            if frag:
+                return frag[:160]
+    return ""
 
 
 class WorkerSession:
@@ -126,7 +154,10 @@ class WorkerSession:
         self._base_url = ""                # endpoint real del escalón que sirvió la sesión (energy_meter, 2026-08-05)
         self._started_at = time.time()     # para medir el PRIMER output del worker (su TTFT) — ver _emit_note
         self._first_output_at = 0.0
-        self._perm_warned = False          # V2-211: el turno correctivo del permiso también va UNA vez
+        # V2-241 — la corrección del permiso iba UNA vez por sesión (V2-211), y el worker medido chocó TRES.
+        # Del segundo choque en adelante nadie le decía nada y moría en silencio, que es exactamente lo que la
+        # red pretendía evitar. Ahora se corrige cada choque hasta un tope, y el ÚLTIMO cambia de mensaje.
+        self._perm_hits = 0
         self._ctx_warned = False           # the wrap-up turn is injected ONCE (incident 2026-08-18): repeating it
                                             # every message past the budget would spend the little room that is left
 
@@ -299,6 +330,16 @@ class WorkerSession:
                 rec.result_summary = ("Me he quedado sin cuota en el proveedor que mueve mis procesos de fondo y "
                                       "no tengo otro configurado, así que esta tarea se queda parada. Lo tienes "
                                       "en el panel de estado.")
+        # V2-241 — UN FINAL MUDO TRAS CHOCAR CON LA PUERTA. Los tres casos medidos murieron sin decir nada, y la
+        # causa solo aparecía cruzando el log del motor. Si la sesión se acaba sin entrega y sin relevo pero
+        # chocó con nuestra propia puerta, ESO es lo que le pasó, y es lo que el operador tiene que oír: no es un
+        # fallo de la tarea, es que la vía que eligió está cerrada aquí.
+        if (not rec.ok and not rec.handoff and rec.perm_denied and rec.status != "cancelled"
+                and not rec.result_summary.strip()):
+            rec.result_summary = (
+                f"Me he quedado a medias: el comando `{rec.perm_denied}` no está permitido en el cajón donde "
+                f"corren mis procesos de fondo, y no hay forma de aprobarlo desde aquí. Si me dices por dónde "
+                f"seguir, lo retomo por otra vía.")
         if rec.status not in ("cancelled",):
             rec.status = "done" if rec.ok else ("relevada" if rec.handoff else "error")
         if rec.ok:
@@ -540,32 +581,58 @@ class WorkerSession:
         except Exception:  # noqa: BLE001
             pass
 
+    _PERM_MAX = 3          # los que midió el arnés en un solo worker antes de morir callado
+
     def _maybe_unstick_permission(self, d: dict) -> None:
-        if self._perm_warned:
-            return
-        txt = " ".join(str(d.get(k) or "") for k in ("text", "result", "output", "target")).lower()
+        raw = " ".join(str(d.get(k) or "") for k in ("text", "result", "output", "target"))
+        txt = raw.lower()
         if not txt or not any(n in txt for n in self._DENIED_NEEDLES):
             return
-        self._perm_warned = True
-        self._emit_chip("comando no permitido", "le digo cómo reescribirlo", ok=False)
+        if self._perm_hits >= self._PERM_MAX:
+            return
+        self._perm_hits += 1
+        last = self._perm_hits >= self._PERM_MAX
+        self._rec.perm_denied = denied_fragment(raw) or self._rec.perm_denied
+        self._emit_chip("comando no permitido",
+                        (f"{self._perm_hits}º choque · " if self._perm_hits > 1 else "")
+                        + ("le pido que entregue lo que tenga" if last else "le digo cómo reescribirlo"),
+                        ok=False)
         try:
             from voice.observer import emit
             emit("task", "⚠️ el worker chocó con una puerta de permiso",
-                 text=txt[:200], extra={"id": self._rec.task_id, "src": f"worker:{self._rec.task_id}"})
+                 text=raw[:200], extra={"id": self._rec.task_id, "src": f"worker:{self._rec.task_id}",
+                                        "hit": self._perm_hits, "denied": self._rec.perm_denied})
         except Exception:
             pass
-        asyncio.create_task(self._explain_permissions())
+        asyncio.create_task(self._explain_permissions(last=last))
 
-    async def _explain_permissions(self) -> None:
+    async def _explain_permissions(self, *, last: bool = False) -> None:
         """Injects the corrective turn. Separate coroutine because `_on_event` is synchronous."""
         try:
             from nucleo.workers.claude_session import bridge_python
             py = bridge_python()
         except Exception:
             py = "python"
+        # V2-241 — el ÚLTIMO aviso no repite las reglas: si tres reescrituras no han bastado, seguir corrigiendo
+        # es pedirle lo mismo por cuarta vez. Lo que hace falta es que ENTREGUE lo que tiene antes de morir, que
+        # es la diferencia entre una tarea incompleta y una tarea muda.
+        if last:
+            try:
+                await self._b.send(
+                    "AVISO DEL SISTEMA: van tres comandos parados por el cajón donde corres, y aquí nadie los va a "
+                    "aprobar nunca. DEJA esa vía: no la reintentes. Entrega AHORA lo que ya tengas por el camino "
+                    "de entrega habitual, y di explícitamente qué te ha faltado y por qué —«el comando X no está "
+                    "permitido aquí»— para que se pueda retomar. Terminar en silencio es el único desenlace que "
+                    "no vale.")
+            except Exception as e:  # noqa: BLE001
+                logger.warning(f"worker[{self._rec.task_id}]: no pude pedir la entrega tras el permiso: {e}")
+            return
+        fragmento = (self._rec.perm_denied or "").strip()
+        detalle = (f"El trozo que ha parado es: `{fragmento}`. " if fragmento else "")
         try:
             await self._b.send(
-                "AVISO DEL SISTEMA: ese comando no lo ha rechazado ninguna persona — lo ha parado el cajón donde "
+                f"AVISO DEL SISTEMA: {detalle}Ese comando no lo ha rechazado ninguna persona — lo ha parado el "
+                "cajón donde "
                 "corres, y aquí NADIE puede aprobarlo, así que reintentarlo igual no va a funcionar nunca. "
                 f"Reescríbelo: UN solo comando por llamada (sin `&&`, `;`, `|` ni `$(…)`), sin SALIR de tu "
                 f"directorio (no solo `cd`: tampoco `ls`/`find`/`cat` de carpetas del repo — los puentes "
