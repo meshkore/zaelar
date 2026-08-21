@@ -142,8 +142,22 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
             if not out.get("ok"):
                 # La forma la sabe él; que la diga (mismo contrato que V2-203).
                 return {"ok": False, "error": f"{out.get('error') or 'no se pudo programar'}. " + _CUANDO_VALE}
+            # V2-249 — Y QUE SE VEA. Un aviso que va a sonar dentro de tres días lo puso una tarea de fondo que
+            # para entonces ya no existe: sin fila, el operador se lo encuentra sin saber de dónde salió. La fila
+            # lleva el ID REAL, que es lo que permite comprobar una píldora contra el scheduler — memoria-dev
+            # señaló que hoy nada verifica una afirmación del sistema sobre sus propios efectos, y esto es la
+            # mitad que puede aportar quien ejecuta la acción: dejar la prueba.
+            try:
+                from voice.observer import emit
+                emit("task", "⏰ aviso programado",
+                     text=f"{out.get('display') or when} — {what[:120]}",
+                     extra={"id": tid, "src": f"worker:{tid}", "cron_id": out.get("id"),
+                            "when": out.get("display") or when})
+            except Exception:  # noqa: BLE001
+                pass
             return {"ok": True, "result": {"id": out.get("id"), "cuando": out.get("display") or when,
-                                           "que": what}}
+                                           "que": what,
+                                           "ref": f"cron:{out.get('id')}"}}
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": f"no pude programarlo: {e}"}
     if action == "read_widget":

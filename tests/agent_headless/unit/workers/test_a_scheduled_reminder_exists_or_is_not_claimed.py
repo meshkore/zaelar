@@ -177,3 +177,37 @@ def test_lo_AMBIGUO_no_se_adivina(agenda):
         assert not out["ok"], f"«{vago}» no puede convertirse en una fecha"
         assert "no lo adivino" in out["error"]
     assert not agenda.entries
+
+
+# ── y que se VEA, con su prueba ──────────────────────────────────────────────────────────────────────────────
+# memoria-dev señaló que esto cierra UNA instancia y no la clase: la memoria guarda como hecho durable una
+# afirmación del SISTEMA sobre sus propios efectos, y mañana el recall la confirma. Hoy `remember_external` veta
+# lo que dice un TERCERO y el gate de REM verifica un insight contra sus píldoras; **nada verifica una píldora
+# contra el mundo**. La mitad que puede poner quien EJECUTA la acción es dejar la prueba: un ref comprobable.
+
+def test_el_aviso_devuelve_un_REF_comprobable(agenda):
+    out = _act({"when": "mañana a las 9", "prompt": "llamar al fontanero"})
+    assert out["result"]["ref"] == f"cron:{out['result']['id']}", \
+        "sin un ref, una píldora que diga «programado» no se puede contrastar con nada"
+
+
+def test_programar_DEJA_FILA_en_la_observabilidad(agenda, monkeypatch):
+    """Un aviso que suena dentro de tres días lo puso una tarea de fondo que para entonces ya no existe. Sin
+    fila, el operador se lo encuentra sin saber de dónde salió."""
+    vistos = []
+    from voice import observer
+    monkeypatch.setattr(observer, "emit", lambda *a, **k: vistos.append((a, k)), raising=False)
+    _act({"when": "mañana a las 9", "prompt": "llamar al fontanero"})
+    assert vistos, "programar en silencio es la mitad del problema que esto cierra"
+    _, kw = vistos[0]
+    assert kw.get("extra", {}).get("cron_id"), "la fila lleva el ID real, que es lo que permite comprobarlo"
+
+
+def test_un_aviso_que_NO_se_pudo_poner_no_deja_fila(agenda, monkeypatch):
+    """Sensibilidad: una fila «⏰ aviso programado» sobre algo que no se programó es la misma mentira, en otro
+    sitio y con más autoridad."""
+    vistos = []
+    from voice import observer
+    monkeypatch.setattr(observer, "emit", lambda *a, **k: vistos.append((a, k)), raising=False)
+    _act({"when": "esta tarde", "prompt": "x"})
+    assert not vistos

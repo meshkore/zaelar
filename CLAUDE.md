@@ -1358,6 +1358,12 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     V2-219 otra vez, así que ahora un caso comprueba **cada ejemplo que se enseña contra el parser** y otro exige
     que la lista del prompt y la del error sean la MISMA. Nodo 2.5, 17 casos, sensibilidad en cuatro direcciones
     —una de ellas: **una capacidad que el modelo no sabe que tiene no existe**.
+  - **Cierra UNA instancia, no la CLASE** (lo señaló memoria-dev): la memoria guarda como hecho durable una
+    afirmación del SISTEMA sobre sus propios efectos, y mañana el recall la confirma. `remember_external` veta lo
+    que dice un TERCERO y el gate de REM contrasta un insight con sus píldoras; **nada contrasta una píldora con
+    el mundo**. La mitad que pone quien EJECUTA es dejar la PRUEBA: la respuesta trae `ref: "cron:<id>"` y se
+    emite una fila `⏰ aviso programado` con el id real — y un aviso que NO se pudo poner **no deja fila**, porque
+    esa línea sobre algo que no ocurrió es la misma mentira con más autoridad.
   - **Abierto**: no hay `cancel` — un worker pone un aviso y no lo quita.
 
 - **Un `ref` caducado decía QUÉ pasaba y no CÓMO salir** (`widgets/navegador/owner.py`, V2-248, 2026-08-21).
