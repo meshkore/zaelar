@@ -2297,10 +2297,22 @@ class NucleoLLMStream(llm.LLMStream):
             # contestarle — sin enterarse de lo único que lo arregla, que es suyo y no del motor.
             # Medido en producción el 2026-08-21: `Insufficient Balance` (DeepSeek, 402) dos veces, «SIN RELEVO
             # disponible», y el canario del arnés MUDO en todos los turnos hasta que él paró de medir.
+            _callados = []
+            if _dry:
+                try:
+                    from nucleo.flash import provider_chain as _pchain2
+                    _callados = _pchain2.suppressed_relays()
+                except Exception:
+                    _callados = []
+            # V2-244: si HAY escalones con credencial y sanos que la regla de self-host está callando, el operador
+            # tiene que oírlo — es la diferencia entre «no puedo seguir» y «no puedo seguir, y esto lo arregla».
             send("Uf, se me ha ido un momento. ¿Me lo repites?" if not _dry else
-                 "Me he quedado sin proveedor de modelo: no me queda ninguno al que preguntar, así que "
-                 "repetírmelo no va a servir. Lo tienes en el panel de estado — hay que recargar o cambiar de "
-                 "proveedor, y en cuanto lo hagas sigo.")
+                 ("Me he quedado sin proveedor de modelo: no me queda ninguno al que preguntar, así que "
+                  "repetírmelo no va a servir. Lo tienes en el panel de estado — hay que recargar o cambiar de "
+                  "proveedor, y en cuanto lo hagas sigo." if not _callados else
+                  f"Me he quedado sin proveedor de modelo. Tengo credencial de {', '.join(_callados)}, pero en "
+                  f"self-host mi cadena de voz es solo el titular y no me paso sola a un proveedor que no hayas "
+                  f"elegido. Si quieres que lo use, ponlo en `fast.providers`; si no, hay que recargar el titular."))
             return
 
         # SEGUNDO VIAJE de la selección progresiva (V2-096 F2), y SOLO aquí: la recuperación se equivocó y el modelo

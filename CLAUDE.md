@@ -1339,6 +1339,35 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Callar un escalón es legítimo; callar QUE LO CALLAS, no** (`nucleo/flash/provider_chain.py`, V2-244,
+  2026-08-21). El arnés midió dos líneas seguidas —`memllm[i18n]` relevando a AIMLAPI y el cerebro de voz
+  diciendo «SIN RELEVO disponible» en el mismo segundo— y concluyó que el cerebro es el único componente sin
+  relevo. **Es falso en la máquina del operador**: su `fast.providers` tiene DOS escalones (`deepseek-directo` +
+  `aimlapi-failover`). La pista estaba en su propia línea: el escalón que falló se llama **«titular»**, y ese
+  nombre solo lo genera `_voice_chain()` **cuando no hay lista explícita** — el sandbox pone `ZAELAR_WORKSPACE`
+  nuevo, así que `config/v2` va vacía. **Forma inversa a la de `meteo-soria`**: aquello parecía sandbox y era
+  producto; esto parecía producto y era sandbox.
+  - **Lo real**: un self-host recién clonado tiene la cadena de voz = solo el titular, así que un titular muerto
+    deja el producto mudo con «SIN RELEVO disponible» a secas. **La regla no se toca** (es del operador y su razón
+    está escrita); lo que se añade es NOMBRAR lo callado, con la frase que lo activa (`fast.providers`). Dos
+    frenos: un escalón **sin credencial** no está callado, no existe; y uno **ya en cooldown** no es una salida —
+    `deepseek-directo` usa la MISMA cuenta que se quedó seca.
+  - ⚠️ Un test de esto falló al escribirlo **por leer la config REAL de la máquina** y habría quedado verde por el
+    motivo equivocado: de ahí `_sin_lista_explicita()`. La misma trampa, dos veces en una hora.
+  - **Decisión del OPERADOR**: si AIMLAPI entra en la cadena de voz POR DEFECTO. Los relevos de fábrica se
+    eligieron por LATENCIA y **ninguno sirve para SOBREVIVIR a un titular muerto**.
+
+- **183 tests verdes que ninguna suite ejecutaba** (`tests/run_testmap.py`, V2-245, 2026-08-21). Mencioné de
+  pasada que `test_brain_relay.py` estaba fuera del mapa; memoria-dev auditó la suya (37 sin mapear), los cerró y
+  **me devolvió la trampa**: colgar un fichero de un nodo `live` lo SACA de CI (`deterministic_paths()` los
+  salta), así que mapear al nodo equivocado se parece mucho a no mapear. En mi área: **14 ficheros, 183 tests**,
+  todos verdes e invisibles — **incluidos los que acababa de escribir para V2-243**, o sea que no estaban
+  cubiertos por el «suite verde» que reporté. Y uno llevaba **ROTO desde V2-098** (`pc._cooldown` dejó de existir
+  al pasar a `CooldownStore`): sus tres casos reventaban en el `setup` sin que nadie lo viera. La suite pasa de
+  **3.284 a 3.467**.
+  - **Abierto**: no hay trinquete que lo impida. Cabe en diez líneas, pero alcanza también a memoria-dev, así que
+    hay que acordarlo con él — un guarda que otro no espera es un guarda que se salta a la primera.
+
 - **Un SALDO agotado no es una cuota, y quedarse sin proveedor no es un tropiezo** (`nucleo/workers/providers.py`
   + `flash/provider_chain.py` + `voice/engine/llm/providers/nucleo.py`, V2-243, 2026-08-21). Medido en
   PRODUCCIÓN, no en un banco: el arnés paró de medir a las 02:28 con `Insufficient Balance` (DeepSeek, HTTP 402)

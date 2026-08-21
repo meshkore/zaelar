@@ -20,9 +20,14 @@ REAL_429_EXHAUSTED = ("429 Too Many Requests — {\"error\":{\"message\":"
 
 @pytest.fixture(autouse=True)
 def _clean(monkeypatch):
-    monkeypatch.setattr(pc, "_cooldown", {})
-    monkeypatch.setattr(pc, "_loaded", True)
-    monkeypatch.setattr(pc, "_save", lambda: None)
+    # El estado del cooldown dejó de ser un dict del MÓDULO y pasó a `CooldownStore` (V2-098), que es lo que
+    # comparten esta cadena y la de los workers. Este fichero siguió aislando `pc._store._cooldown`, un atributo que ya
+    # no existe, así que sus tres casos llevaban desde entonces reventando en el `setup` — y no se veía porque
+    # **el fichero no estaba en el testmap**: `tests run all` no lo ejecutaba. Es la avería de V2-158 otra vez
+    # (2026-08-21). Se aísla el store REAL, que es lo que hoy hay que aislar para no tocar el `sys_kv` de nadie.
+    monkeypatch.setattr(pc._store, "_cooldown", {})
+    monkeypatch.setattr(pc._store, "_loaded", True)
+    monkeypatch.setattr(pc._store, "_save", lambda: None)
     yield
 
 
@@ -46,7 +51,7 @@ def test_a_provider_failure_relays_and_retries_the_same_turn(monkeypatch):
 
     assert out == "hola desde el relevo"
     assert calls == [Z_AI["base_url"], AIMLAPI["base_url"]]      # un intento, un relevo, un reintento — no más
-    assert pc._cooldown.get("z.ai", 0) > 0                        # z.ai queda en cooldown (STICKY para el próximo turno)
+    assert pc._store._cooldown.get("z.ai", 0) > 0                        # z.ai queda en cooldown (STICKY para el próximo turno)
 
 
 def test_a_passing_rate_limit_is_not_relayed(monkeypatch):
@@ -61,7 +66,7 @@ def test_a_passing_rate_limit_is_not_relayed(monkeypatch):
     b = brain.make_brain()
     with pytest.raises(RuntimeError):
         asyncio.run(b("hola"))
-    assert pc._cooldown == {}                                     # no se penaliza un blip pasajero
+    assert pc._store._cooldown == {}                                     # no se penaliza un blip pasajero
 
 
 def test_no_tier_available_raises_before_calling_the_engine(monkeypatch):

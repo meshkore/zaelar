@@ -102,6 +102,52 @@ def _known_chain() -> list[dict]:
     return [aimlapi, zai, xai, groq] if explicit else [zai, aimlapi, xai, groq]
 
 
+def _VOICE_RELAYS() -> list[dict]:
+    """Los escalones de relevo de la cadena de voz, aparte para poder NOMBRARLOS cuando la regla de
+    self-host los calla (V2-244). La lista y sus razones no cambian: ver `_voice_chain`."""
+    return [
+    # PRIMER escalón desde 2026-08-14, y es el MISMO MODELO que el titular por OTRO endpoint — que suena raro
+    # hasta que se ve el número. El titular va por el broker AIMLAPI, que ACEPTA `thinking:{"type":"disabled"}`
+    # y razona igual; `api.deepseek.com` lo OBEDECE. Medido con el prompt real de voz, 6 turnos por brazo:
+    #
+    #   AIMLAPI → TTFT p50 4,24 s · peor 14,71 s · 2.138 tokens de razonamiento
+    #   DIRECTO → TTFT p50 1,01 s · peor  1,30 s ·     0
+    #
+    # O sea que el relevo por LATENCIA ideal no es un modelo distinto: es el mismo sin el razonamiento oculto
+    # que el broker no deja apagar. Y encaja con el criterio de esta cadena mejor que nada: **no encarece** (es
+    # la misma tarifa por token, sin el ×1,4 de Grok Fast ni el ×4,2 de Groq) y es el más rápido al primer token.
+    #
+    # **El modelo del escalón es V4 PRO, no Flash, y eso se decidió MIDIENDO** (2026-08-15, nodo 2.13 a 3
+    # rondas × 14 casos = 42 turnos por brazo, que es lo que hacía falta para distinguir defecto de ruido):
+    #
+    #   brazo                        enrutado  graves   TTFT p50   peor turno
+    #   AIMLAPI deepseek-v4-flash      41/42       0     8.659 ms   12.025 ms   ← titular
+    #   DIRECTO deepseek-v4-PRO        41/42       1     1.158 ms    5.582 ms   ← este escalón
+    #   DIRECTO deepseek-v4-flash      38/42       1       934 ms    2.344 ms   ← lo que había aquí
+    #   AIMLAPI (titular anterior)     31/42       0     1.297 ms    2.352 ms
+    #
+    # Flash DIRECTO fallaba `mostrar widget` **3 de 3** — o sea un defecto de enrutado reproducible, no mala
+    # suerte. Pro iguala el enrutado del titular (41/42) por 224 ms más de TTFT, así que el relevo deja de
+    # costar precisión: el intercambio que este comentario declaraba antes («enrutado algo peor a cambio de
+    # que el turno llegue») ya no hay que pagarlo. Cuesta ×2 el input, y por eso es RELEVO y no titular — un
+    # relevo tiene techo de turnos y solo actúa tras dos turnos lentos seguidos.
+    #
+    # Sigue sin ser TITULAR: el broker marca 0 graves en 42 turnos y los dos brazos directos marcan 1. El
+    # grave es `pregunta memoria → widget_data`, exactamente el fallo que baneó a grok del FlashBrain, y con
+    # el razonamiento apagado se pierde justo esa discriminación pregunta/orden. Promoverlo es decisión del
+    # operador porque además dobla el coste de CADA turno de voz (V2-097 §1).
+    {"name": "deepseek-directo", "base_url": "https://api.deepseek.com", "env": ["DEEPSEEK_API_KEY"],
+     "model": os.getenv("ZAELAR_VOICE_RELAY_DEEPSEEK_MODEL", "deepseek-v4-pro"), "provider": "aimlapi",
+     "plan": "DeepSeek directo V4 Pro (enrutado del titular, TTFT ×7,5 mejor)"},
+    {"name": "xai-fast", "base_url": "https://api.x.ai/v1", "env": ["XAI_API_KEY"],
+     "model": os.getenv("ZAELAR_VOICE_RELAY_XAI_MODEL", "grok-4-fast"), "provider": "aimlapi",
+     "plan": "xAI Grok Fast (1,4× el titular)"},
+    {"name": "groq", "base_url": "https://api.groq.com/openai/v1", "env": ["GROQ_API_KEY"],
+     "model": os.getenv("ZAELAR_VOICE_RELAY_GROQ_MODEL", "llama-3.3-70b-versatile"), "provider": "aimlapi",
+     "plan": "Groq LPU (TTFT sub-segundo, 4,2× el titular)"},
+]
+
+
 def _voice_chain() -> list[dict]:
     """Cadena por defecto del cerebro de VOZ. Empieza SIEMPRE por el titular configurado (`config §fast`) — la
     verdad del FlashBrain no la decide este módulo — y sigue por escalones elegidos por dos criterios, en este
@@ -128,55 +174,56 @@ def _voice_chain() -> list[dict]:
     except Exception as e:  # noqa: BLE001
         logger.warning(f"provider_chain(voice): no pude resolver el titular: {e!r}")
 
-    relevos = [
-        # PRIMER escalón desde 2026-08-14, y es el MISMO MODELO que el titular por OTRO endpoint — que suena raro
-        # hasta que se ve el número. El titular va por el broker AIMLAPI, que ACEPTA `thinking:{"type":"disabled"}`
-        # y razona igual; `api.deepseek.com` lo OBEDECE. Medido con el prompt real de voz, 6 turnos por brazo:
-        #
-        #   AIMLAPI → TTFT p50 4,24 s · peor 14,71 s · 2.138 tokens de razonamiento
-        #   DIRECTO → TTFT p50 1,01 s · peor  1,30 s ·     0
-        #
-        # O sea que el relevo por LATENCIA ideal no es un modelo distinto: es el mismo sin el razonamiento oculto
-        # que el broker no deja apagar. Y encaja con el criterio de esta cadena mejor que nada: **no encarece** (es
-        # la misma tarifa por token, sin el ×1,4 de Grok Fast ni el ×4,2 de Groq) y es el más rápido al primer token.
-        #
-        # **El modelo del escalón es V4 PRO, no Flash, y eso se decidió MIDIENDO** (2026-08-15, nodo 2.13 a 3
-        # rondas × 14 casos = 42 turnos por brazo, que es lo que hacía falta para distinguir defecto de ruido):
-        #
-        #   brazo                        enrutado  graves   TTFT p50   peor turno
-        #   AIMLAPI deepseek-v4-flash      41/42       0     8.659 ms   12.025 ms   ← titular
-        #   DIRECTO deepseek-v4-PRO        41/42       1     1.158 ms    5.582 ms   ← este escalón
-        #   DIRECTO deepseek-v4-flash      38/42       1       934 ms    2.344 ms   ← lo que había aquí
-        #   AIMLAPI (titular anterior)     31/42       0     1.297 ms    2.352 ms
-        #
-        # Flash DIRECTO fallaba `mostrar widget` **3 de 3** — o sea un defecto de enrutado reproducible, no mala
-        # suerte. Pro iguala el enrutado del titular (41/42) por 224 ms más de TTFT, así que el relevo deja de
-        # costar precisión: el intercambio que este comentario declaraba antes («enrutado algo peor a cambio de
-        # que el turno llegue») ya no hay que pagarlo. Cuesta ×2 el input, y por eso es RELEVO y no titular — un
-        # relevo tiene techo de turnos y solo actúa tras dos turnos lentos seguidos.
-        #
-        # Sigue sin ser TITULAR: el broker marca 0 graves en 42 turnos y los dos brazos directos marcan 1. El
-        # grave es `pregunta memoria → widget_data`, exactamente el fallo que baneó a grok del FlashBrain, y con
-        # el razonamiento apagado se pierde justo esa discriminación pregunta/orden. Promoverlo es decisión del
-        # operador porque además dobla el coste de CADA turno de voz (V2-097 §1).
-        {"name": "deepseek-directo", "base_url": "https://api.deepseek.com", "env": ["DEEPSEEK_API_KEY"],
-         "model": os.getenv("ZAELAR_VOICE_RELAY_DEEPSEEK_MODEL", "deepseek-v4-pro"), "provider": "aimlapi",
-         "plan": "DeepSeek directo V4 Pro (enrutado del titular, TTFT ×7,5 mejor)"},
-        {"name": "xai-fast", "base_url": "https://api.x.ai/v1", "env": ["XAI_API_KEY"],
-         "model": os.getenv("ZAELAR_VOICE_RELAY_XAI_MODEL", "grok-4-fast"), "provider": "aimlapi",
-         "plan": "xAI Grok Fast (1,4× el titular)"},
-        {"name": "groq", "base_url": "https://api.groq.com/openai/v1", "env": ["GROQ_API_KEY"],
-         "model": os.getenv("ZAELAR_VOICE_RELAY_GROQ_MODEL", "llama-3.3-70b-versatile"), "provider": "aimlapi",
-         "plan": "Groq LPU (TTFT sub-segundo, 4,2× el titular)"},
-    ]
+    relevos = _VOICE_RELAYS()
     # SOLO EN LA NUBE hay relevo por defecto (ver el docstring). `is_cloud_account` es el mismo gate de siempre.
-    try:
-        from nucleo import cloud_account
-        if not cloud_account.is_cloud_account():
-            relevos = []
-    except Exception:
+    if _relays_suppressed():
         relevos = []
     return ([titular] if titular else []) + relevos
+
+
+def _relays_suppressed() -> bool:
+    """True en self-host, donde la cadena de voz es SOLO el titular (regla del operador, ver `_voice_chain`)."""
+    try:
+        from nucleo import cloud_account
+        return not cloud_account.is_cloud_account()
+    except Exception:
+        return True
+
+
+def suppressed_relays() -> list[str]:
+    """Escalones de voz que la regla de self-host está callando **y para los que SÍ hay credencial**.
+
+    V2-244 — la regla es del operador y no se toca: quien se autohospeda paga sus APIs y no puede llevarse la
+    sorpresa de que el agente se pase solo a un proveedor que él no eligió. Pero esa regla se escribió sobre el
+    relevo por LATENCIA (todo el docstring de `_voice_chain` habla de TTFT y de coste), y lo que se midió el
+    2026-08-21 es otra cosa: el titular MUERTO (402) deja el producto entero mudo **con una clave viva sin usar**.
+    El arnés lo aisló en dos líneas seguidas del log — `memllm[i18n]` relevó a AIMLAPI y siguió; el cerebro de voz
+    dijo «SIN RELEVO disponible» en el mismo segundo.
+    Callar un escalón es legítimo; callar QUE LO ESTÁS CALLANDO deja al operador sin la única frase que le habría
+    dicho qué hacer. Esto no releva: solo permite NOMBRARLO.
+    """
+    if not _relays_suppressed():
+        return []
+    try:
+        from config import v2
+        if (v2.get("fast") or {}).get("providers"):
+            return []                      # el operador ya puso su lista explícita: no hay nada callado
+    except Exception:
+        pass
+    out = []
+    for t in _VOICE_RELAYS():
+        name = str(t.get("name") or "")
+        if not name:
+            continue
+        if not ((t.get("api_key") or "").strip() or _token_for(t)):
+            continue                       # sin credencial no es un escalón callado, es un escalón inexistente
+        if not _store.available(name):
+            continue                       # y uno YA en cooldown no es una salida: nombrarlo mandaría al
+            #                                operador a mirar un proveedor que también está caído. El caso real
+            #                                del 2026-08-21: `deepseek-directo` usa la MISMA cuenta que se quedó
+            #                                sin saldo, así que ofrecerlo como remedio sería mentirle.
+        out.append(name)
+    return out
 
 
 def _config_key(role: str) -> str:
@@ -295,8 +342,14 @@ def note_failure(text: str, tier: dict | None = None, *, role: str = ROLE_CLUSTE
     # va a pasar nada es peor que no escribir ninguna — medido el 2026-08-21 con «sin cuota hasta el 21 Aug 03:02»
     # sobre un `Insufficient Balance` de DeepSeek, con el cerebro ya sin ningún proveedor.
     estado = "SIN SALDO — no vuelve solo, hay que recargar" if dry else f"sin cuota hasta el {when}"
+    # V2-244 — y si NO hay relevo, decir si es que no hay ninguno o que la regla de self-host lo está callando.
+    # «SIN RELEVO disponible» a secas manda al operador a buscar un proveedor que a lo mejor ya tiene puesto.
+    _callados = suppressed_relays() if role == ROLE_VOICE else []
+    _sin = (f" · SIN RELEVO: tengo credencial de {', '.join(_callados)} pero en self-host la cadena de voz es "
+            f"solo el titular — ponlos en `fast.providers` para permitirlo") if _callados else \
+        " · SIN RELEVO disponible"
     detail = (f"«{t['name']}» ({t.get('plan', '')}) {estado}"
-              + (f" → relevo a «{nxt['name']}»" if nxt else " · SIN RELEVO disponible"))
+              + (f" → relevo a «{nxt['name']}»" if nxt else _sin))
     logger.warning(f"{label}: {detail}")
 
     # (1) al panel de ALERTAS, mismo canal reactivo que el resto de proveedores (config/balances.py)

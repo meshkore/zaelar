@@ -156,6 +156,15 @@ DOMAINS: list[dict] = [
             "tests/agent_headless/unit/flash/test_finished_browser_task_is_a_fact.py",
             "tests/agent_headless/unit/test_skeleton.py", "tests/agent_headless/unit/test_sparks.py"]},
         {"id": "2.4", "title": "Cliente LLM rápido, reintento y RELEVO por latencia", "ch": UNIT, "paths": [
+            # ⚠️ ESTE FICHERO NO ESTABA EN EL MAPA (2026-08-21). 22 casos verdes e INVISIBLES para `tests run all`,
+            # incluidos los de V2-243. Es la avería de V2-158: un test que ninguna suite ejecuta deja de ser
+            # verdad sin avisar. Lo mismo con `test_brain_relay.py`, que además llevaba ROTO desde el refactor de
+            # V2-098 (`pc._cooldown` dejó de existir) sin que nadie lo viera.
+            "tests/agent_headless/unit/flash/test_provider_chain.py",
+            "tests/cluster/unit/test_brain_relay.py",
+            # V2-243/244: un saldo agotado no es una cuota, y un escalón CALLADO por la regla de self-host se
+            # nombra en vez de decir «SIN RELEVO disponible» a secas.
+            "tests/agent_headless/unit/workers/test_deepseek_rung.py",
             "tests/agent_headless/unit/flash/test_fast_client.py", "tests/agent_headless/unit/flash/test_fast_client_retry.py",
             "tests/agent_headless/unit/flash/test_procs.py",
             # V2-094 (2026-08-14): la cadena de proveedores existía desde agosto pero solo para el cerebro de
@@ -369,7 +378,9 @@ DOMAINS: list[dict] = [
         # AUTO — sin eso la autodetección de la 1ª frase clasificaba texto ya transcrito por el modelo equivocado
         # (y en el perfil de NUBE, el de producción, no funcionaba en absoluto).
         {"id": "3.6", "title": "Arranque idiomático: defecto inglés + STT en auto en primera ejecución",
-            "ch": VOICE, "paths": ["tests/voice/unit/test_language_bootstrap.py"]},
+            "ch": VOICE, "paths": [
+            # sin mapear hasta el 2026-08-21: el backend del modal bloqueante de primera ejecución (V2-101)
+            "tests/infrastructure/unit/core/test_language_onboarding.py","tests/voice/unit/test_language_bootstrap.py"]},
         # V2-093 (2026-08-14): el relleno de espera («Mmm…», «A ver…») llevaba desde julio SIN SONAR NUNCA. Viajaba
         # por el stream del modelo, y el tokenizador de frases de LiveKit solo entrega un segmento cuando tiene DOS
         # → un relleno suelto (sin punto y de menos de 20 chars) se quedaba en el buffer y salía PEGADO a la
@@ -413,6 +424,8 @@ DOMAINS: list[dict] = [
     ]},
     {"id": "4", "name": "WIDGETS", "nodes": [
         {"id": "4.1", "title": "Ciclo de vida / acciones / refs / generador / background", "ch": UNIT, "paths": [
+            # sin mapear hasta el 2026-08-21 (V2-158 otra vez): todo `widget.js` del catálogo tiene que PARSEAR
+            "tests/browser/unit/widgets/test_widget_js_parses.py",
             "tests/browser/unit/widgets/test_lifecycle_confirm.py", "tests/browser/unit/widgets/test_actions.py", "tests/browser/unit/widgets/test_refs.py",
             "tests/browser/unit/widgets/test_generator_sync.py", "tests/browser/unit/widgets/test_background.py",
             # V2-242: una píldora escrita por un cron de widget no es un hecho sobre la persona. Los lectores
@@ -424,6 +437,8 @@ DOMAINS: list[dict] = [
             "tests/browser/unit/widgets/test_resolver_certainty.py", "tests/browser/unit/widgets/test_system_surfaces_sync.py",
             "tests/browser/unit/widgets/test_paths_workspace.py"]},
         {"id": "4.2", "title": "Navegador (browser)", "ch": UNIT, "paths": [
+            # sin mapear hasta el 2026-08-21: el muro de login en la NUBE cierra en limpio en vez de dar vueltas
+            "tests/browser/unit/navegador/test_cloud_login_bailout.py",
             "tests/browser/unit/navegador/test_auth.py", "tests/browser/unit/navegador/test_tasks_dedup.py",
             # 2026-08-20: dos filtros enumeraban a mano subconjuntos de los estados de una tarea, y un estado
             # que no estaba en ninguno era una tarea que el estado vivo NO MENCIONABA — ni viva ni terminada.
@@ -454,6 +469,10 @@ DOMAINS: list[dict] = [
         {"id": "4.4", "title": "Widget de YouTube", "ch": UNIT, "paths": ["tests/browser/unit/youtube/test_youtube.py"]},
         {"id": "4.5", "title": "Widget de mensajería", "ch": UNIT, "paths": ["tests/browser/unit/mensajeria/test_owner_v2.py"]},
         {"id": "4.6", "title": "Agenda: contrato XSS del renderer", "ch": UNIT, "paths": [
+            # sin mapear hasta el 2026-08-21: vaciar la agenda en UNA acción, y que un «sí» a una data-op
+            # irreversible la EJECUTE (por voz y por botón) — el «no funciona el borrado» del operador
+            "tests/browser/unit/agenda/test_agenda_clear_all.py",
+            "tests/browser/unit/agenda/test_confirm_data_op.py",
             "tests/browser/unit/agenda/test_xss_contract.py",
             # V2-208: la MISMA cita dos veces. V2-194 lo cerró para el BACKSTOP y la data-op del propio modelo no
             # tenía guarda — dos turnos, dos `add_meeting`, nadie comparando. Ahora vive junto a la ESCRITURA,
@@ -713,7 +732,9 @@ DOMAINS: list[dict] = [
         # lo que desencadena comparten CORRELATION ID; cada evento dice de qué instalación y de qué sesión de
         # trabajo salió; y todo eso es consultable por columnas indexadas, no escaneando JSON.
         {"id": "7.7", "title": "Flujos por correlation ID + identidad de instalación + sesión de trabajo",
-            "ch": UNIT, "paths": ["tests/infrastructure/unit/core/test_observability_flows.py"]},
+            "ch": UNIT, "paths": [
+            # sin mapear hasta el 2026-08-21 (V2-158): un flujo SOLO nace de cuatro fuentes legítimas
+            "tests/cluster/unit/test_flow_origin.py","tests/infrastructure/unit/core/test_observability_flows.py"]},
         # 2026-08-12: por la RAÍZ del repo se escapó información personal del operador a un repo PÚBLICO — un
         # borrador de Brain Worker (`informe.json`) acabó versionado dos veces. El guarda no mira nombres: mira que
         # en la raíz no se versione nada que no sea del proyecto, se llame como se llame.
@@ -755,6 +776,10 @@ DOMAINS: list[dict] = [
                                   "tests/agent_headless/unit/test_account_routing.py"]},
         {"id": "7.3", "title": "Chat por transporte LiveKit REAL", "ch": CHAT, "live": True,
             "cmd": "./.venv/bin/python tests/infrastructure/e2e/smoke/run_chat_over_livekit.py"},
+        {"id": "7.15", "title": "El botón de sugerencias llega a alguien (y en self-host no habla con la nube)",
+         "ch": HTTP, "paths": ["tests/infrastructure/unit/core/test_feedback_api.py"]},
+        {"id": "7.16", "title": "La imagen de la nube trae TODO lo que el motor importa al arrancar", "ch": UNIT,
+         "paths": ["tests/infrastructure/unit/test_docker_boot_copy.py"]},
         {"id": "7.4", "title": "Smoke INTEGRAL de salud", "ch": HTTP, "live": True,
             "cmd": "./.venv/bin/python tests/infrastructure/e2e/smoke/run_full_smoke.py"},
         # 2026-08-15 (V2-092 addenda): la sesión de trabajo se cierra por techo de INACTIVIDAD REAL (el ruido de
@@ -769,6 +794,8 @@ DOMAINS: list[dict] = [
     ]},
     {"id": "8", "name": "ENERGÍA / CONFIG", "nodes": [
         {"id": "8.1", "title": "Medidor de energía y límites de cuenta", "ch": UNIT, "paths": [
+            # sin mapear hasta el 2026-08-21: el agente headless del GENERADOR de widgets también se factura
+            "tests/browser/unit/widgets/test_generator_energy.py",
             "tests/infrastructure/unit/core/test_energy_meter.py", "tests/infrastructure/unit/core/test_account_limits.py", "tests/infrastructure/unit/config/test_balances.py"]},
         {"id": "8.1b", "title": "Cobertura de Energy: nadie gasta fuera del contador", "ch": UNIT, "paths": [
             "tests/infrastructure/unit/core/test_energy_coverage.py"]},
@@ -786,6 +813,10 @@ DOMAINS: list[dict] = [
         {"id": "8.3", "title": "Política de modelos: un solo titular, sin proveedores retirados",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/config/test_model_policy.py"]},
         {"id": "8.2", "title": "Perfiles / v2 / doctor / credenciales", "ch": UNIT, "paths": [
+            # sin mapear hasta el 2026-08-21: la cuenta de nube y el candado de proveedor/modelo del perfil cloud
+            # (self-host, sin ZAELAR_USER_ID, tiene que quedar COMPLETAMENTE igual)
+            "tests/infrastructure/unit/core/test_cloud_account.py",
+            "tests/infrastructure/unit/core/test_config_api_cloud_gate.py",
             "tests/infrastructure/unit/config/test_profiles.py", "tests/infrastructure/unit/config/test_v2.py",
             "tests/infrastructure/unit/config/test_doctor.py", "tests/infrastructure/unit/config/test_credentials.py"]},
     ]},

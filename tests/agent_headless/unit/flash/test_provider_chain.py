@@ -284,3 +284,96 @@ def test_el_turno_de_VOZ_lo_pregunta_y_cambia_lo_que_dice():
     assert "_dry = _pchain1.pick(_pchain1.ROLE_VOICE) is None" in txt
     assert "sin proveedor de modelo" in txt
     assert 'send("Uf, se me ha ido un momento. ¿Me lo repites?" if not _dry else' in txt
+
+
+# ── V2-244: callar un escalón es legítimo; callar QUE LO CALLAS, no ──────────────────────────────────────────
+# El arnés lo aisló en dos líneas seguidas del log del 2026-08-21, con los proveedores reales:
+#
+#   02:39:41  memllm[i18n]: relevo a deepseek/deepseek-v4-pro @ aimlapi tras HTTP 402   ← i18n RELEVA y sigue
+#   02:39:42  cerebro de voz: «titular» … sin cuota … · SIN RELEVO disponible           ← el cerebro NO
+#
+# La regla es del operador y NO se toca: en self-host la cadena de voz es solo el titular, porque quien se
+# autohospeda paga sus APIs y no puede llevarse la sorpresa de que el agente se pase a un proveedor que él no
+# eligió. Pero esa regla se escribió sobre el relevo por LATENCIA —todo el docstring habla de TTFT y de coste— y
+# lo medido es otra cosa: el titular MUERTO deja el producto mudo con una clave viva sin usar. Esto no releva:
+# hace que se pueda NOMBRAR, que es la diferencia entre «no puedo seguir» y «no puedo seguir, y esto lo arregla».
+
+def _sin_lista_explicita(monkeypatch):
+    """Self-host y SIN `fast.providers` — o sea, una instalación recién clonada.
+
+    ⚠️ Sin este ayudante estos casos leen la config REAL de la máquina que corre la suite, y en la del operador
+    `fast.providers` SÍ está puesta (titular directo + failover a AIMLAPI): el resultado sería vacío y el test
+    verde por el motivo equivocado. Es la misma trampa que hizo leer como defecto de producto lo que era la
+    config vacía de un sandbox (2026-08-21)."""
+    from config import v2
+
+    from nucleo import cloud_account
+    monkeypatch.setattr(cloud_account, "is_cloud_account", lambda: False, raising=False)
+    monkeypatch.setattr(v2, "get", lambda k: {}, raising=False)
+
+
+def test_en_self_host_la_cadena_de_voz_es_SOLO_el_titular(monkeypatch):
+    """La regla, tal cual, y sin ella el resto de este bloque no significa nada."""
+    from nucleo import cloud_account
+    monkeypatch.setattr(cloud_account, "is_cloud_account", lambda: False, raising=False)
+    monkeypatch.setenv("XAI_API_KEY", "k")
+    assert all(t["name"] != "xai-fast" for t in pc._voice_chain())
+
+
+def test_un_escalon_CALLADO_con_credencial_y_sano_se_puede_nombrar(monkeypatch):
+    _sin_lista_explicita(monkeypatch)
+    monkeypatch.setattr(pc._store, "_cooldown", {})
+    monkeypatch.setattr(pc._store, "_loaded", True)
+    monkeypatch.setenv("XAI_API_KEY", "k")
+    assert "xai-fast" in pc.suppressed_relays()
+
+
+def test_un_escalon_SIN_credencial_no_esta_callado_sino_que_NO_EXISTE(monkeypatch):
+    """Nombrarlo mandaría al operador a activar algo para lo que no tiene cuenta."""
+    _sin_lista_explicita(monkeypatch)
+    monkeypatch.setattr(pc._store, "_cooldown", {})
+    monkeypatch.setattr(pc._store, "_loaded", True)
+    for var in ("XAI_API_KEY", "GROQ_API_KEY", "DEEPSEEK_API_KEY"):
+        monkeypatch.delenv(var, raising=False)
+    assert pc.suppressed_relays() == []
+
+
+def test_un_escalon_YA_EN_COOLDOWN_no_se_ofrece_como_salida(monkeypatch):
+    """El caso REAL del 2026-08-21: `deepseek-directo` usa la MISMA cuenta que se quedó sin saldo. Ofrecerlo como
+    remedio manda al operador a mirar un proveedor que también está caído."""
+    _sin_lista_explicita(monkeypatch)
+    monkeypatch.setattr(pc._store, "_loaded", True)
+    monkeypatch.setattr(pc._store, "_cooldown", {"deepseek-directo": time.time() + 3600})
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "k")
+    for var in ("XAI_API_KEY", "GROQ_API_KEY"):
+        monkeypatch.delenv(var, raising=False)
+    assert pc.suppressed_relays() == []
+
+
+def test_en_la_NUBE_no_hay_nada_callado(monkeypatch):
+    """Allí la cadena sí trae relevos, así que un «escalón callado» sería una frase falsa."""
+    from nucleo import cloud_account
+    monkeypatch.setattr(cloud_account, "is_cloud_account", lambda: True, raising=False)
+    monkeypatch.setenv("XAI_API_KEY", "k")
+    assert pc.suppressed_relays() == []
+
+
+def test_si_el_operador_YA_puso_su_lista_no_hay_nada_callado(monkeypatch):
+    """Con `fast.providers` explícito manda él: decirle que le callamos algo sería mentira."""
+    from config import v2
+
+    from nucleo import cloud_account
+    monkeypatch.setattr(cloud_account, "is_cloud_account", lambda: False, raising=False)
+    monkeypatch.setattr(v2, "get", lambda k: {"providers": [{"name": "x"}]} if k == "fast" else {}, raising=False)
+    monkeypatch.setenv("XAI_API_KEY", "k")
+    assert pc.suppressed_relays() == []
+
+
+def test_el_turno_de_voz_NOMBRA_lo_que_esta_callado():
+    """GUARDA DE CABLEADO: es lo que el operador OYE. Sin esto, el hecho existe y no sale por ninguna boca."""
+    import inspect
+    import pathlib
+    src = pathlib.Path(inspect.getfile(pc)).parent.parent.parent / "voice/engine/llm/providers/nucleo.py"
+    txt = src.read_text(encoding="utf-8")
+    assert "_pchain2.suppressed_relays()" in txt
+    assert "fast.providers" in txt
