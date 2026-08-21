@@ -231,6 +231,10 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         except Exception as e:
             mech["worker_outcome_error"] = str(e)[:200]
         mech["memory_language"] = verifymod.memory_language(config.SANDBOX_DB)
+        # WHICH backend served the recalls. `hash`/`fastembed` means semantic recall was off for the
+        # whole round — a confound on every memory-dependent case, and one that fails QUIET: it looks
+        # like an agent that did not remember, not like an instrument that could not.
+        mech["embeddings"] = verifymod.embeddings_backend(config.SANDBOX_DB)
         # The locale travels with it so the judge can compare: `en` is CORRECT for a US case and a mismatch
         # only for an ES one. Warning on the language alone would cry wolf on half the catalogue.
         mech["locale"] = scenario.locale

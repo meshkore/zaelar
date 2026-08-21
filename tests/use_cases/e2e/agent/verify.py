@@ -1256,3 +1256,37 @@ def sheet_timing(db_path, *, since: float = 0.0) -> dict:
         out["lead_s"] = round((out["first_result_ms"] - out["sheet_ms"]) / 1000.0, 1)
         out["opened_before"] = out["lead_s"] > 0
     return out
+
+
+def embeddings_backend(db_path) -> dict:
+    """WHICH embeddings backend served this round's recalls — `{backend, line, degraded}`.
+
+    A sandbox boot can log BOTH «⚠️ memoria: embeddings en 'hash' (Ollama/embeddinggemma NO disponible) —
+    recall SEMÁNTICO prácticamente DESACTIVADO» and, fifteen seconds later, «prewarm embeddings OK (ollama)».
+    They contradict each other and only one describes the process that answers the turns.
+
+    Measured by the memory agent on 2026-08-21: inside ONE process a degraded backend stays pinned for
+    `_BACKEND_RECHECK_S` (300 s) and nothing calls `reset()` in production, so a process that reports
+    `ollama` at prewarm CANNOT have resolved `hash` earlier — the two lines are different processes, and
+    the `⚠️` one (stdlib logging, no timestamp, inherited stderr) is not the one serving recalls. Once on
+    `ollama` the resolver returns without re-probing, so it cannot degrade mid-round either.
+
+    Hence the guard is READ THE LINE, not sleep five minutes: `prewarm embeddings OK (<backend>)` is the
+    only statement about the process under measurement. `hash` there means lexical-only recall for the
+    whole round, which is a confound on every memory-dependent case — a round to throw away, not a score
+    to file. Returns `{}` when the log has no such line (nothing claimed, nothing assumed).
+    """
+    from pathlib import Path
+    try:
+        log = Path(db_path).resolve().parents[2] / "logs" / "sandbox-engine.log"
+        text = log.read_text(encoding="utf-8", errors="replace")
+    except Exception:
+        return {}
+    m = None
+    for m in re.finditer(r"prewarm embeddings OK \(([a-z]+),", text):
+        pass                      # the LAST one: a re-boot inside the same workspace wins
+    if not m:
+        return {}
+    backend = m.group(1)
+    return {"backend": backend, "degraded": backend != "ollama",
+            "line": text[max(0, m.start() - 30):m.end() + 40].strip()[:160]}

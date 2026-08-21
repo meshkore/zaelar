@@ -147,6 +147,13 @@ def _state(overall, r: dict) -> str:
     turns = max(1, len((run.get("transcript") or [])) // 2)
     if mute and mute >= max(2, turns // 2):
         return "INFRA"
+    # SEMANTIC RECALL OFF IS NOT A PRODUCT VERDICT. If the round's own process resolved its embeddings to
+    # `hash` (lexical only) or `fastembed` (collapses at scale, T176), every memory-dependent check was
+    # graded against a memory that could not answer by meaning — and it fails QUIET, looking exactly like an
+    # agent that forgot. The memory agent established (2026-08-21) that a process reporting `ollama` at
+    # prewarm cannot degrade later, so this line is a reliable statement about the round that ran.
+    if ((mech_.get("embeddings") or {}).get("degraded")):
+        return "INFRA"
     if overall is None:
         return "INFRA"
     # El MECANISMO manda sobre la nota agregada. Medido el 2026-08-19: `reorder-prescription__es` sacó overall 4
