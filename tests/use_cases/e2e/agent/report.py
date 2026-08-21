@@ -59,6 +59,12 @@ def build(results: list[dict], stamp: str, out_dir: Path) -> Path:
             lines.append(f"tarea de navegador {mech['navegador_task_id']}: status={nt.get('status','?')}, "
                          f"awaiting_login={nt.get('awaiting_login', False)}, "
                          f"resultados={len((nt.get('results') or {}).get('items', []) or [])}")
+        # LOS NÚMEROS DEL MECANISMO, en el informe que se LEE y no solo en el JSON. Hasta 2026-08-21 cada
+        # uno de éstos se sacaba a mano con un script suelto y se pegaba en un mensaje: servía mientras
+        # hubiera alguien delante haciéndolo, y no sobrevivía a un relevo. El agente que arregla abre este
+        # fichero, así que aquí es donde tienen que estar.
+        for line in _mechanism_numbers(mech):
+            lines.append(line)
         wd = run.get("watchdog_log", [])
         if wd:
             lines.append(f"watchdog: {len(wd)} veredicto(s) — " +
@@ -75,3 +81,53 @@ def build(results: list[dict], stamp: str, out_dir: Path) -> Path:
     js.write_text(json.dumps({"stamp": stamp, "results": results, "improvements": improvements},
                              ensure_ascii=False, indent=2), encoding="utf-8")
     return md
+
+
+def _mechanism_numbers(mech: dict) -> list[str]:
+    """Las cifras que deciden a QUIÉN pertenece un fallo, en una línea cada una y solo si hay algo que decir.
+
+    Cada una nació de un defecto que este arnés atribuyó mal antes de tenerla: `worker_health` porque
+    «4 lanzados, 0 ok» se leía como cuatro fallos cuando tres seguían trabajando; `worker_deaths` porque la
+    causa de una familia entera de casos estaba en cruzar el almacén con el log y nadie la veía;
+    `search_returns` porque la búsqueda contestaba bien y no llegaba a nadie; `quiescence` porque leer
+    demasiado pronto convierte «no ha terminado» en «ha fallado».
+    """
+    out: list[str] = []
+    wh = mech.get("worker_health") or {}
+    if wh.get("spawned"):
+        bits = [f"{wh['spawned']} lanzado(s)", f"{wh.get('ok', 0)} ok"]
+        if wh.get("errored"):
+            bits.append(f"**{wh['errored']} con ERROR**")
+        if wh.get("relayed"):
+            bits.append(f"{wh['relayed']} relevado(s) de proveedor (NO es una muerte)")
+        if wh.get("still_running"):
+            bits.append(f"{wh['still_running']} seguía(n) trabajando al acabar la conversación")
+        if wh.get("cancelled"):
+            bits.append(f"{wh['cancelled']} cancelado(s) al cerrar la ronda")
+        out.append("workers: " + " · ".join(bits))
+    wdz = mech.get("worker_deaths") or {}
+    if wdz.get("shared_sessions"):
+        for sid, who in list(wdz["shared_sessions"].items())[:2]:
+            out.append(f"⚠️ sesión nativa COMPARTIDA «{sid}» por los workers {', '.join(who)} — "
+                       f"murieron {wdz.get('dead_resuming')} de {wdz.get('resuming')} de los que reanudaron, "
+                       f"frente a {wdz.get('dead_fresh')} de {wdz.get('fresh')} de los que abrieron sesión propia")
+    if wdz.get("lifetimes_ms"):
+        quick = {w: round(ms) for w, ms in wdz["lifetimes_ms"].items() if ms and ms < 2000}
+        if quick:
+            out.append(f"murieron en menos de 2 s: {quick} (ms) — una búsqueda no dura eso")
+    sr = mech.get("search_returns") or {}
+    if sr.get("queries"):
+        tail = "" if sr.get("notes_from_search") else "  ⚠️ y NINGUNA se le empujó al cerebro"
+        out.append(f"búsqueda web: {sr['queries']} consulta(s), {sr.get('returns', 0)} respuesta(s), "
+                   f"{sr.get('notes_from_search', 0)} nota(s) al cerebro{tail}")
+    off = mech.get("offered") or {}
+    if off.get("notes"):
+        out.append(f"lo que el navegador le OFRECIÓ al cerebro: {off.get('n_offered', 0)} fila(s), "
+                   f"{off.get('n_named', 0)} con nombre de verdad "
+                   f"(una fila sin nombre, o llamada «169», no es un resultado)")
+    q = mech.get("quiescence") or {}
+    if q.get("settled") is False:
+        out.append(f"⚠️ el motor SEGUÍA trabajando al medir ({q.get('waited_s')}s de espera, "
+                   f"{q.get('pending_workers', 0)} worker(s) sin cerrar): lo que falte puede ser "
+                   f"«todavía no», no «nunca»")
+    return out
