@@ -665,14 +665,23 @@ async def _automate(goal: str, plan: str = "", task_id: str = "") -> None:
             summary = results.get("conclusion") or f"{len(results['items'])} resultados"
     if results:
         tasks.set_results(task_id, results)
+        # V2-257 — la tarjeta guarda el HECHO, la hoja guarda los HALLAZGOS. Este camino nunca había tenido
+        # forma de llegar a la hoja: el bucle propio del motor no habla con `widget_cli`, así que lo que
+        # encontraba moría en la tarjeta.
+        try:
+            from widgets.results import intake as _intake
+            _intake.push(results.get("items") or [], source_url=str((tasks.get(task_id) or {}).get("url") or ""))
+        except Exception:  # noqa: BLE001
+            pass
     tasks.set_phase(task_id, "listo" if (ok and success) else ("terminado" if ok else "no pude completarlo"), False)
     tasks.finish(task_id, "done" if (ok and success) else ("done" if ok else "failed"),
                  ("✅ " if (ok and success) else "") + (summary or "sin resumen"))
     try:
         from voice import brain_notes
         head = "completé" if (ok and success) else "no pude completar del todo"
-        brain_notes.push(f"[SISTEMA] Navegador (tarea {task_id}): {head} «{goal}». {summary} Está en su tarjeta "
-                         f"'{tasks.inst_id(task_id)}'.")
+        brain_notes.push(f"[SISTEMA] Navegador (tarea {task_id}): {head} «{goal}». {summary} Lo encontrado está "
+                         f"en la hoja de resultados; la tarjeta '{tasks.inst_id(task_id)}' solo enseña por dónde "
+                         f"fue el navegador.")
     except Exception:
         pass
     try:
@@ -684,10 +693,10 @@ async def _automate(goal: str, plan: str = "", task_id: str = "") -> None:
         # [SYSTEM] note (brain context), not in voice.
         tail_ = (summary or "").strip()
         if (ok and success):
-            msg = f"Listo. {tail_}" if tail_ and tail_ != "sin resumen" else "Listo, lo tienes en su tarjeta."
+            msg = f"Listo. {tail_}" if tail_ and tail_ != "sin resumen" else "Listo, lo tienes en la hoja de resultados."
         else:
             msg = (f"No pude terminarla del todo. {tail_}" if tail_ and tail_ != "sin resumen"
-                   else "No pude terminarla del todo; lo dejé en su tarjeta por si quieres verlo.")
+                   else "No pude terminarla del todo; lo que saqué está en la hoja de resultados.")
         await proactive.notify("navegador", msg, kind="notify")
     except Exception:
         pass

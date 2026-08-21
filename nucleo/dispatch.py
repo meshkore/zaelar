@@ -1350,6 +1350,7 @@ async def _finalize_web(rec: "SessionRecord", keep_open: bool = False) -> None:
     tid = getattr(rec, "nav_task", "")
     if not tid:
         return
+    items: list = []
     try:
         from widgets.navegador import tasks as navtasks
         try:
@@ -1370,6 +1371,16 @@ async def _finalize_web(rec: "SessionRecord", keep_open: bool = False) -> None:
             navtasks.finish(tid, "done" if rec.ok else "failed",
                             ("✅ " if rec.ok else "") + ((rec.result_summary or "").strip()[:200]
                                                         or "sin resultado"))
+        # V2-257 — tercer y último camino por el que el navegador encuentra algo; los tres pasan ya por la misma
+        # puerta (`widgets/results/intake`). Va DESPUÉS del cierre por dos razones: mantiene pegados el
+        # `set_results` y el final que exige el invariante de V2-192 (una tarea VIVA no puede tener resultados),
+        # y deja fuera el caso `cancelled` — el operador dijo que parásemos, así que no le llenamos la hoja.
+        if items and rec.status != "cancelled":
+            try:
+                from widgets.results import intake as _intake
+                _intake.push(items, source_url=str((navtasks.get(tid) or {}).get("url") or ""))
+            except Exception:  # noqa: BLE001
+                pass
     except Exception:
         pass
 

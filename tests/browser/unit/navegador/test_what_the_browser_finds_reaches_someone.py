@@ -9,7 +9,8 @@
     19:45:45  turn 7   → «¡De nada! Sigo pendiente y te digo en cuanto tenga algo.»
 
 Sixteen seconds between finding it and denying it. The turn's system prompt contains none of «Exe Sevilla»,
-«Macarena» or «65 €», and the run reported `missing_signals: ['widget']`, so the results sheet was empty too.
+«Macarena» or «65 €», and the run reported `missing_signals: ['widget']`, so the results sheet was empty too —
+and V2-257 later found out WHY it was empty: nothing in the engine ever wrote to it from a browser errand.
 The listing existed only in the worker's stdout: `set_results` was called exclusively by
 `dispatch._finalize_web`, at the END of the session, re-scraping whatever page was on screen by then.
 
@@ -36,8 +37,13 @@ def task():
     brain_notes.drain()
 
 
-def test_what_was_extracted_lands_in_the_results_sheet(task):
-    """`missing_signals: ['widget']`: there was nowhere for the answer to land."""
+def test_what_was_extracted_becomes_a_FACT_on_the_task(task):
+    """Renamed in V2-257, because the old name (`..._lands_in_the_results_sheet`) promised a surface this
+    assertion never touched: `tasks.get()` is the browser TASK, not the sheet. The mismatch was not cosmetic —
+    it is exactly how `missing_signals: ['widget']` kept being read as an extraction failure while the sheet had
+    no door at all. What this still guards is the FACT: `has_results` is what lets a turn say «it already
+    brought something» instead of choosing between «alive» and «stuck» (V2-192/V2-200). The delivery to the
+    sheet is node 4.35."""
     act_api._hand_over(task, HOTEL)
     assert (tasks.get(task) or {}).get("results", {}).get("items") == HOTEL
 

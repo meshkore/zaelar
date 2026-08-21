@@ -1363,6 +1363,34 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - Nodo 2.15, 9 casos rojos con el parseo viejo. **Sin verificar en vivo.** Lo cogió memoria-dev fuera de su
     territorio por decisión del orquestador: **el dueño de un arreglo es quien tiene la evidencia**.
 
+- **El navegador MUESTRA y la hoja GUARDA** (`widgets/results/intake.py`, V2-257, 2026-08-21). Petición del
+  operador con su captura delante: la tarjeta del navegador pintaba cinco «resultados» que eran los botones del
+  pack local de Google («Sitio web», «Cómo llegar») y un log de dieciséis eventos, bajo una cabecera que decía
+  «Navegador» y no identificaba nada. Al mirarlo salió el fallo estructural que hay debajo: un encargo
+  `kind:"web"` resuelve `surface = LIST`, así que `dispatch._sheet_open()` **le abre la hoja de resultados
+  delante en cuanto encarga** — y nadie escribía en ella. Los TRES caminos por los que el navegador encuentra
+  algo (`act_api._hand_over`, `owner._automate`, `dispatch._finalize_web`) terminaban en `tasks.set_results()`,
+  que escribe la TARJETA.
+  - **La asimetría que lo explica**: `_METHOD_BLOCK` enseña la hoja —con su contrato y sus dos pasos— al worker
+    GENÉRICO desde siempre; el prompt del worker WEB no la nombraba **ni una vez** (contado sobre el texto
+    renderizado: `widget_cli` 0, `results` 0). La misma petición llenaba la hoja o no según a qué worker se
+    enrutara, y las que abren un navegador caen justo en el que no lo sabía.
+  - Así que el `missing_signals: ['widget']` de V2-223 **nunca fue un fallo de extracción: no había puerta**. Y
+    el test de entonces se llamaba `..._lands_in_the_results_sheet` mientras assertaba `tasks.get()["results"]`
+    — el nombre decía la intención y el código medía otra cosa. Renombrado.
+  - **La frontera**: `navegador` = MONITOR de UN navegador (título de la TAREA en la cabecera vía `live_title`,
+    la captura, y el estado en 3 líneas deduplicadas), **N tarjetas**; `results` = los hallazgos de todos,
+    **UNA hoja**. Es la única que escala: por tarjeta, dos navegadores parten los resultados en dos cajas que no
+    se pueden comparar; todo junto acaba en un widget único e imposible.
+  - **Una puerta, tres caminos** (`widgets/results/intake.push`), y `append` nunca `present` —el segundo
+    navegador borraría al primero—, con la FUENTE viajando con la fila y el `tel` a `facts` (V2-240: en un
+    encargo de servicio es el dato que resuelve). El HECHO se queda en la tarea: `has_results` es lo que el
+    prompt lee (V2-192/V2-200) y quitarlo habría sido la regresión.
+  - **El test rojo mejoró el arreglo**: el invariante de V2-192 («un `set_results` tiene su final a menos de 700
+    caracteres») se puso rojo al meter la entrega EN MEDIO. En vez de ensanchar la ventana, la entrega pasó
+    DESPUÉS del cierre — y de paso quedó fuera el caso `cancelled`: si el operador dijo que parásemos, no le
+    llenamos la hoja. Nodo **4.35**, 16 casos, sensibilidad en ocho direcciones. **Sin verificar en vivo.**
+
 - **Un formulario que calla no se distingue de uno que funciona** (`frontend/app/services/feedback-state.js`,
   V2-256, 2026-08-21). El operador mandó una sugerencia y la pantalla no dijo NADA. La respuesta existía y era
   precisa —`{"ok":false,"error":"send_failed","status":401}`, reproducido en su motor vivo— y `send()` la tiraba:

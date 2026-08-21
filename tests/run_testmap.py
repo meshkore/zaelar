@@ -701,6 +701,19 @@ DOMAINS: list[dict] = [
                                 "nombre de la tarjeta, y sin inventarlo cuando no lo hay",
             "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python tests/browser/e2e/navegador/extract_shapes.py"},
+        # V2-257 — the browser card was showing findings and the results sheet was opening EMPTY, in the same
+        # errand. A `kind:"web"` errand resolves `surface = LIST`, so the sheet opens the moment it is placed —
+        # and the three paths that find things (`act_api._hand_over`, `owner._automate`,
+        # `dispatch._finalize_web`) all ended at `navegador.tasks.set_results`, which writes the CARD. The WEB
+        # worker prompt named `widget_cli` zero times, while the GENERIC one had known about the sheet all
+        # along: the same request filled the sheet or did not, depending on which worker it was routed to.
+        # That is the `missing_signals: ['widget']` of V2-223, and it was never an extraction failure.
+        {"id": "4.35", "title": "El navegador MUESTRA y la hoja GUARDA: una puerta para los tres caminos, la "
+                                "tarjeta con título de TAREA y estado en 3 líneas, y el worker sabe que la hoja "
+                                "existe",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/frontera/test_the_browser_shows_the_sheet_keeps.py",
+                      "tests/browser/unit/frontera/test_the_card_paints_a_monitor.py"]},
         # V2-256 — a feedback submission was refused and the panel said NOTHING. Measured on a live engine:
         # `POST /api/feedback` answered `{"ok":false,"error":"send_failed","status":401}` and `send()` was an
         # `if (res && res.ok) {…}` with no else. The thank-you was invisible too, for TWO independent reasons
@@ -1056,6 +1069,9 @@ DOMAINS: list[dict] = [
         {"id": "10.54", "title": "The screen is read from the ENGINE, and an unwatched canvas is not an "
                                  "empty one",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_screen_is_read_from_the_engine.py"]},
+        {"id": "10.55", "title": "The results SHEET is read apart from the browser card, and an unread sheet "
+                                 "is never reported as an empty one",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_sheet_is_read_apart_from_the_card.py"]},
     ]},
 ]
 

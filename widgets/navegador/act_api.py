@@ -252,7 +252,17 @@ def _hand_over(task_id: str, items: list) -> None:
         _HANDED[task_id] = sig
         from widgets.navegador import tasks as _t
         prev = (_t.get(task_id) or {}).get("results") or {}
+        # El HECHO se queda en la tarea: `has_results` es lo que deja al turno decir «ya trajo algo» en vez de
+        # elegir entre «sigue viva» y «está bloqueada» (V2-192/V2-200). Lo que cambia en V2-257 es que la tarjeta
+        # ya no lo PINTA — el hecho no es una superficie.
         _t.set_results(task_id, {"conclusion": (prev or {}).get("conclusion") or "", "items": ordered[:5]})
+        # …y los HALLAZGOS van a la hoja, que es donde el operador los está esperando desde que se abrió sola al
+        # encargar. Una sola puerta para los tres caminos (V2-257).
+        try:
+            from widgets.results import intake as _intake
+            _intake.push(ordered, source_url=str((_t.get(task_id) or {}).get("url") or ""))
+        except Exception:  # noqa: BLE001
+            pass
         goal = str((_t.get(task_id) or {}).get("goal") or "la tarea del navegador")[:70]
 
         def _one(i: dict) -> str:

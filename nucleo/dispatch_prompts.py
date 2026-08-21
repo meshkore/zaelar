@@ -401,6 +401,20 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None) -> str:
         "EXACTAMENTE lo pedido, no algo parecido. Si no cumple, ITERA (ordena por fecha, afina el filtro, otra "
         "fuente) hasta que cumpla; si no se puede certificar, dilo con honestidad. No des por bueno un resultado sin "
         "confirmarlo.\n"
+        # V2-257 — DÓNDE se ve lo que encuentra. Este prompt no nombraba la hoja ni una sola vez (medido:
+        # 0 ocurrencias de `widget_cli` y 0 de `results`), así que el worker no tenía forma de saber que existe —
+        # mientras `dispatch._sheet_open` se la abría al operador delante, vacía, en cuanto encargaba. Nombrarla
+        # tiene además un efecto colateral buscado: `_with_presentation` engancha sola los presupuestos de campo
+        # de esa superficie al ver su id en el texto.
+        # UNA instrucción con su bifurcación DENTRO (V2-226): «escribe el informe y no las filas», no dos órdenes.
+        "DÓNDE SE VE LO QUE ENCUENTRAS — son DOS superficies y no son intercambiables: la TARJETA del navegador "
+        "es el monitor (enseña por dónde vas y nada más), y la HOJA `results` es donde el operador mira los "
+        "hallazgos; se le abrió delante en cuanto te encargó esto. ESCRIBE en esa hoja el INFORME de cierre "
+        "—conclusión, criterios y en qué sitios entraste y qué pasó en cada uno— y NO las filas que ya sacaste "
+        "con `extract`: cada extracción viaja sola a la hoja, y repetirla solo la ensucia.\n"
+        f"   {py} -m nucleo.widget_cli data results present @informe.json\n"
+        "   · SIEMPRE desde fichero con `@`: pegar un JSON de verdad en la línea de comandos se rompe con el "
+        "quoting del shell y se queda esperando una aprobación que nadie va a dar.\n\n"
         "8) CIERRE: cuando la gestión esté HECHA y VERIFICADA (cita confirmada, formulario enviado, dato certificado) "
         "o de verdad necesites algo del operador, ESCRIBE tu conclusión/estado final en " + native + ", natural y "
         "humana, SIN jerga interna (nada de refs, comandos, coordenadas ni ids). Tu ÚLTIMA salida de texto es lo que "

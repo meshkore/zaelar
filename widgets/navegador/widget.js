@@ -1,4 +1,12 @@
 // Navegador — client render. Contract: render(el, data, ctx).
+//
+// V2-257 — THIS CARD IS A MONITOR, NOT A RESULTS SURFACE. It answers one question: what is THIS browser doing
+// right now. Capture of its tab, and up to three lines of state. Findings — the listings, the prices, the phone
+// numbers — go to the `results` sheet, which is ONE per errand while browsers are N: with two tabs open, results
+// rendered per-card would be split across two boxes nobody can compare, and everything in one card ends as a
+// single impossible widget. What used to live here and does not any more: the results block (five rows that in
+// the operator's own capture were Google's local-pack buttons, «Sitio web» / «Cómo llegar», taken for listings)
+// and the sixteen-event log, which is a log and not a state.
 //   data = GET /widgets/navegador/data (written by backend owner.py). NO polling: desktop.js repaints when
 //   store.save emits the SSE notice. The page is shown as a live CAPTURE (GET /widgets/navegador/asset/shot.png,
 //   cache-busted by data.rev); YouTube plays EMBEDDED (youtube-nocookie iframe) because a capture does not provide
@@ -34,7 +42,7 @@ function injectStyles(){
   .hb-nav-scroll{position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;gap:6px}
   .hb-nav-scroll button{width:30px;height:30px;border-radius:8px;border:1px solid var(--hb-line,#e3e8f0);background:var(--hb-bg,#fff);color:var(--hb-muted,#3a4757);cursor:pointer;font-size:13px;opacity:.85}
   .hb-nav-scroll button:hover{border-color:var(--hb-accent,#3D6FE0);color:var(--hb-accent,#3D6FE0);opacity:1}
-  /* ── TASK CARD (kind:"task"): vertical, mini-browser above + feed below. One per task/tab. ── */
+  /* ── TASK CARD (kind:"task"): capture above, state below. One per task/tab (V2-257). ── */
   .hb-navt{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;color:var(--hb-ink,#0d1622);width:560px;max-width:92vw}
   .hb-navt-head{display:flex;align-items:center;gap:7px;margin-bottom:7px}
   .hb-navt-status{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;padding:2px 7px;border-radius:999px;background:var(--hb-bubble,#f1f4f9);color:var(--hb-muted,#5b6b82);flex:0 0 auto}
@@ -47,7 +55,7 @@ function injectStyles(){
   .hb-navt-img{display:block;width:100%;height:100%;object-fit:cover;object-position:top}
   .hb-navt-ph{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--hb-muted-2,#7d8a9c);font-size:12px}
   /* PHASE line with spinner (process state: searching/collecting/investigating/ready) */
-  .hb-navt-phase{display:flex;align-items:center;gap:8px;margin-top:8px;font-size:12.5px;color:var(--hb-ink,#0d1622);font-weight:600}
+  .hb-navt-phase{display:flex;align-items:center;gap:8px;margin-top:9px;font-size:12.5px;color:var(--hb-ink,#0d1622);font-weight:600}
   .hb-navt-phase.active{color:var(--hb-accent,#3D6FE0)}
   .hb-navt-spin{width:14px;height:14px;border-radius:50%;flex:0 0 auto;border:2px solid var(--hb-line,#e3e8f0);border-top-color:var(--hb-accent,#3D6FE0);animation:hbnavspin .8s linear infinite}
   @keyframes hbnavspin{to{transform:rotate(360deg)}}
@@ -59,19 +67,11 @@ function injectStyles(){
   .hb-navt-urlline{font-size:10.5px;color:var(--hb-muted-2,#7d8a9c);margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .hb-navt-q{margin-top:8px;padding:8px 10px;border-radius:9px;background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4)}
   .hb-navt-q-t{font-size:12.5px;color:var(--hb-ink,#0d1622)} .hb-navt-q-h{font-size:11px;color:var(--hb-muted,#5b6b82);margin-top:2px}
-  .hb-navt-results{margin-top:8px;display:flex;flex-direction:column;gap:6px}
-  .hb-navt-concl{font-size:12px;color:var(--hb-ink,#0d1622);font-weight:600;line-height:1.35}
-  .hb-navt-item{display:flex;gap:10px;text-decoration:none;color:inherit;border:1px solid var(--hb-line,#e3e8f0);border-radius:10px;padding:8px;align-items:center}
-  .hb-navt-item:hover{border-color:var(--hb-accent,#3D6FE0);background:var(--hb-bubble,#f1f4f9)}
-  .hb-navt-thumb{width:84px;height:84px;object-fit:cover;border-radius:8px;flex:0 0 auto;background:var(--hb-bg-soft,#f5f7fb)}
-  .hb-navt-meta{min-width:0}
-  .hb-navt-it-title{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .hb-navt-price{font-size:12px;color:var(--hb-accent2,#16B8A6);font-weight:700}
-  .hb-navt-sub{font-size:11px;color:var(--hb-muted-2,#7d8a9c);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .hb-navt-feed{margin-top:8px;max-height:180px;overflow:auto;border-top:1px solid var(--hb-line,#e3e8f0);padding-top:6px;display:flex;flex-direction:column;gap:3px}
-  .hb-navt-ev{font-size:11.5px;line-height:1.35;color:var(--hb-muted,#5b6b82);display:flex;gap:6px}
-  .hb-navt-tt{color:var(--hb-muted-2,#9aa7b8);flex:0 0 auto;font-variant-numeric:tabular-nums}
-  .hb-navt-xx{min-width:0;word-break:break-word}
+  /* STATE box: the two or three lines that say where this browser is. Bounded on purpose — it cannot grow
+     into the log it replaced. */
+  .hb-navt-state{margin-top:6px;padding-left:22px;display:flex;flex-direction:column;gap:3px}
+  .hb-navt-ln{font-size:11.5px;line-height:1.35;color:var(--hb-muted,#5b6b82);word-break:break-word}
+  .hb-navt-ln:last-child{color:var(--hb-ink,#0d1622)}
   `; document.head.appendChild(s);
 }
 
@@ -86,9 +86,11 @@ const STATUS_LABEL = {queued:"en cola", working:"trabajando", needs_input:"pregu
 function renderTask(root, data, ctx){
   root.className = "hb-navt";
   root.textContent = "";
+  // Only the STATUS chip. The card's title is the TASK's, and it is painted by the chrome header
+  // (`live_title` in the manifest, desktop.js::_applyLiveTitle) — repeating it here is what left the operator
+  // reading the same sentence twice, once under a header that said «Navegador» and told him nothing.
   const head = el("div", "hb-navt-head");
   head.appendChild(el("span", "hb-navt-status s-" + (data.status || ""), STATUS_LABEL[data.status] || data.status || ""));
-  head.appendChild(el("div", "hb-navt-title", data.goal_summary || data.title || data.page_title || data.url || "Navegador"));
   root.appendChild(head);
 
   const view = el("div", "hb-navt-view");
@@ -102,25 +104,28 @@ function renderTask(root, data, ctx){
   root.appendChild(view);
   if(data.url || data.page_title) root.appendChild(el("div", "hb-navt-urlline", data.page_title || data.url));
 
-  // MAIN TASK always VISIBLE below the capture (V2-035): synthesized ESSENCE of the objective (objective + criteria,
-  // compressed by LLM) — falls back to the raw goal if not computed yet. Thus, if the brain drifts from the request
-  // (e.g. "enduro motorcycle" → "trial/road"), the operator SEES it and can correct it by voice ("I said enduro"),
-  // and the brain refines this SAME task (continuity V2-032). NO hover tooltip (it duplicated the text).
-  const _goalText = data.goal_summary || data.goal;
-  if(_goalText){
-    const g = el("div", "hb-navt-goal", "🎯 " + _goalText);
-    g.style.cssText = "font-size:12px;color:var(--hb-ink,#0d1622);background:var(--hb-accent-soft,rgba(61,111,224,.08));"
-      + "border:1px solid var(--hb-line,#e3e8f0);border-radius:8px;padding:6px 9px;margin-top:8px;line-height:1.35;white-space:normal";
-    root.appendChild(g);
-  }
+  // The OBJECTIVE used to be repeated here in a 🎯 box. It is now the card's HEADER (`live_title`), which is
+  // where the operator's eye already goes and which keeps V2-035's property intact: if the brain drifted from
+  // what was asked («enduro» → «trial»), he SEES it and corrects it by voice on this same task.
 
-  // Process PHASE + spinner: WHAT we are doing now (searching / collecting / investigating / ready).
+  // Process PHASE + spinner: WHAT we are doing now (searching / collecting / investigating / ready). It heads the
+  // state box below — same question, one answer, so they are not read as two competing narrations.
   if(data.phase){
     const ph = el("div", "hb-navt-phase" + (data.phase_active ? " active" : ""));
     if(data.phase_active){ ph.appendChild(el("span", "hb-navt-spin")); }
     else { const d = el("span", "hb-navt-done"); d.textContent = "✓"; ph.appendChild(d); }
     ph.appendChild(el("span", null, data.phase + (data.phase_active ? "…" : "")));
     root.appendChild(ph);
+  }
+
+  // STATE: the last two or three things this browser did — «navegando a…», «leyendo la página», «extrayendo».
+  // No timestamps and no scroll: a bounded box cannot drift back into being the event log it replaced. The full
+  // history is not lost, it goes to observability with its trace (tasks.milestone), where an audit belongs.
+  const lines = Array.isArray(data.state) ? data.state : [];
+  if(lines.length){
+    const box = el("div", "hb-navt-state");
+    lines.forEach(txt => box.appendChild(el("div", "hb-navt-ln", txt)));
+    root.appendChild(box);
   }
 
   // LOGIN: the task waits for the operator to sign in in the real window → confirmation button.
@@ -134,24 +139,6 @@ function renderTask(root, data, ctx){
     root.appendChild(box);
   }
 
-  // Rich results (Phase 4): conclusion + listings with photo/price/link.
-  const res = data.results;
-  if(res && Array.isArray(res.items) && res.items.length){
-    const rz = el("div", "hb-navt-results");
-    if(res.conclusion) rz.appendChild(el("div", "hb-navt-concl", res.conclusion));
-    res.items.slice(0, 5).forEach(it => {
-      const row = el(it.url ? "a" : "div", "hb-navt-item");
-      if(it.url){ row.href = it.url; row.target = "_blank"; row.rel = "noopener noreferrer"; }
-      if(it.image){ const im = el("img", "hb-navt-thumb"); im.src = it.image; im.referrerPolicy = "no-referrer"; row.appendChild(im); }
-      const meta = el("div", "hb-navt-meta");
-      meta.appendChild(el("div", "hb-navt-it-title", it.title || ""));
-      if(it.price) meta.appendChild(el("div", "hb-navt-price", it.price));
-      if(it.subtitle) meta.appendChild(el("div", "hb-navt-sub", it.subtitle));
-      row.appendChild(meta); rz.appendChild(row);
-    });
-    root.appendChild(rz);
-  }
-
   // Pending question for the operator (answered BY VOICE; the orchestrator routes it to this task).
   if(data.question){
     const q = el("div", "hb-navt-q");
@@ -160,16 +147,6 @@ function renderTask(root, data, ctx){
     root.appendChild(q);
   }
 
-  // Live task feed (progress). Autoscroll to the last event.
-  const feed = el("div", "hb-navt-feed");
-  (data.events || []).slice(-16).forEach(ev => {
-    const line = el("div", "hb-navt-ev");
-    line.appendChild(el("span", "hb-navt-tt", ev.t || ""));
-    line.appendChild(el("span", "hb-navt-xx", ev.text || ""));
-    feed.appendChild(line);
-  });
-  root.appendChild(feed);
-  requestAnimationFrame(() => { feed.scrollTop = feed.scrollHeight; });
 }
 
 // SINGLE FORMAT: vertical card (mini-browser + feed), one per tab/task. There is no large view anymore — if you want
