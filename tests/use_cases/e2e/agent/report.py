@@ -68,6 +68,16 @@ def build(results: list[dict], stamp: str, out_dir: Path) -> Path:
             lines.append(f"hoja de resultados: {sh.get('n_named', 0)} candidato(s) con nombre "
                          f"de {sh.get('n_items', 0)} fila(s) · {sh.get('n_sources', 0)} fuente(s)"
                          + (f" · {', '.join(sh.get('titles') or [])}" if sh.get("titles") else ""))
+        # UNA CAJA POR ENCARGO. Solo se imprime si hubo alguna apertura: en un caso de un solo encargo no
+        # dice nada que no diga ya la línea de arriba, y en uno de dos es la línea que decide el veredicto.
+        si = mech.get("sheet_instances") or {}
+        if si.get("n_opens"):
+            line = (f"hojas de resultados ABIERTAS: {si.get('n_sheets', 0)} caja(s) para "
+                    f"{si.get('n_errands', 0)} encargo(s) · {si.get('n_opens', 0)} apertura(s)"
+                    + (f" · {', '.join(si.get('ids') or [])}" if si.get("ids") else ""))
+            if si.get("shared"):
+                line += "  ⚠️ DOS ENCARGOS COMPARTIERON CAJA (la regla es una hoja por búsqueda)"
+            lines.append(line)
         # LOS NÚMEROS DEL MECANISMO, en el informe que se LEE y no solo en el JSON. Hasta 2026-08-21 cada
         # uno de éstos se sacaba a mano con un script suelto y se pegaba en un mensaje: servía mientras
         # hubiera alguien delante haciéndolo, y no sobrevivía a un relevo. El agente que arregla abre este

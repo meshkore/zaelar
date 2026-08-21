@@ -374,6 +374,67 @@ def audit(all_events: list[dict], expected_signals: list[str] | None = None) -> 
     }
 
 
+def sheet_instances(all_events: list[dict]) -> dict:
+    """CUÁNTAS hojas de resultados se abrieron y CON QUÉ ENCARGO cada una.
+
+    `widget_ops` no sirve para esto y no es un descuido suyo: colapsa la instancia a propósito
+    (`raw.split("::")[0]`), porque la pregunta que contesta es «qué widget se tocó». Aquí la pregunta es la
+    contraria — **cuántas CAJAS distintas** hubo del mismo widget— y colapsar la instancia la borra. Un lector
+    que mira donde no está no falla, responde: diría «widget results tocado 9 veces» tanto con una hoja como
+    con tres, y esa respuesta es exactamente igual de creíble en los dos casos.
+
+    Regla del operador (2026-08-21): **dos búsquedas = dos hojas**, cada una con su correlation_id, y una hoja
+    terminada NUNCA se reutiliza para el encargo siguiente — se abre una nueva. La razón es que reutilizarla
+    borra una búsqueda, y una búsqueda borrada no se recupera.
+
+    Hoy el motor NO hace eso: `dispatch._sheet_open()` emite `widget/show` con el id pelado `"results"` y
+    `widgets/results/data.py` guarda en UNA clave (`store.load(WIDGET_ID, …)`), así que N encargos comparten
+    una hoja y se acumulan con dedup. Este lector existe para MEDIRLO, no para suponerlo: con la pieza sin
+    construir devuelve `n_sheets: 1` y varias fuentes distintas apuntando a la misma caja, que es la firma
+    exacta del defecto. El día que V2-259 aterrice, el mismo lector devuelve 2 sin tocar una línea.
+
+    Se lee del flujo de eventos y no del canvas a propósito: en una corrida sin nadie mirando no hay navegador
+    pintando nada, y `GET /api/desktop` solo tiene lo que el frontend le haya persistido. El evento SÍ ocurre.
+
+    Forma real del evento (medida): `cat="widget"`, `label="show"`, `id="results"` o `"results::<algo>"`, y
+    `src="worker:<task_id>"` — que es lo que hoy ATA una apertura a su encargo aunque la caja sea única.
+    """
+    shows: list[dict] = []
+    closes: list[dict] = []
+    for e in all_events:
+        if not isinstance(e, dict):
+            continue
+        f = _fields(e)
+        cat = f.get("cat") if f.get("cat") is not None else e.get("cat")
+        if cat != "widget":
+            continue
+        raw = str((f.get("id") if f.get("id") is not None else e.get("id")) or "")
+        if raw.split("::", 1)[0] != "results":
+            continue
+        label = str((f.get("label") if f.get("label") is not None else e.get("label")) or "")
+        row = {"id": raw,
+               "instance": (raw.split("::", 1)[1] if "::" in raw else ""),
+               "src": str(f.get("src") or e.get("src") or "")}
+        if label == "show":
+            shows.append(row)
+        elif label == "close":
+            closes.append(row)
+    ids = sorted({r["id"] for r in shows})
+    srcs = sorted({r["src"] for r in shows if r["src"]})
+    return {
+        # LO QUE SE MIDE: cajas distintas, no aperturas. Volver a mostrar la misma hoja no es una hoja nueva.
+        "n_sheets": len(ids),
+        "ids": ids,
+        "n_opens": len(shows),
+        # Encargos distintos que pidieron hoja. Si esto es >1 y `n_sheets` es 1, DOS búsquedas compartieron
+        # caja — el defecto que V2-259 arregla, dicho con la cifra que lo prueba.
+        "n_errands": len(srcs),
+        "srcs": srcs,
+        "shared": len(srcs) > 1 and len(ids) <= 1,
+        "n_closes": len(closes),
+    }
+
+
 def results_sheet() -> dict:
     """What the RESULTS SHEET holds at the end of the round, read from the engine.
 
@@ -427,6 +488,9 @@ def mechanism_report(all_events: list[dict], expected_signals: list[str],
         "navegador_task_id": task_id,
         "navegador_task": task_view,
         "results_sheet": results_sheet(),
+        # CUÁNTAS hojas, no solo qué había en la hoja. La regla del operador es una caja por encargo, y con la
+        # hoja única de hoy el informe no podía siquiera enseñar que dos búsquedas compartían una.
+        "sheet_instances": sheet_instances(all_events),
         "n_events": len(all_events),
         "search_health": search_health(all_events),
         "dropped_actions": dropped_actions(all_events),

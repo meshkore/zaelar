@@ -401,6 +401,217 @@ SCENARIOS: list[UseCaseScenario] = [
         channel="probe",
         concurrent_tasks=3,
     ),
+
+    # UNA HOJA POR ENCARGO — y «cierra los resultados» con dos abiertas es una PREGUNTA, no una orden.
+    #
+    # Regla del operador (2026-08-21): dos búsquedas a la vez son dos navegadores y DOS hojas de resultados,
+    # cada una con su correlation_id; y una hoja TERMINADA no se reutiliza para el encargo siguiente — se abre
+    # una nueva. El motivo no es estético: reutilizar la caja BORRA una búsqueda, y una búsqueda borrada no se
+    # recupera. La otra cara de la misma regla es que, con dos cajas abiertas, «cierra los resultados» deja de
+    # ser inequívoco — y este repo ya tiene escrito qué se hace ante la duda (V2-082: se PREGUNTA, nunca se
+    # adivina). Cerrar la que no era es exactamente el borrado que la regla existe para evitar.
+    #
+    # ⚠️ HOY EL MOTOR NO HACE ESTO, y el caso se escribe igual A PROPÓSITO. `dispatch._sheet_open()` emite
+    # `widget/show` con el id pelado `"results"` y `widgets/results/data.py` guarda en UNA clave, así que dos
+    # encargos comparten hoja y se acumulan con dedup — está dicho en la sección «Abierto» de V2-257. Lo que
+    # este caso aporta HOY es la MEDIDA (`sheet_instances`: 1 caja para 2 encargos ⇒ `shared: true`), que es
+    # lo que convierte una regla de producto en un hecho comprobable. El día que V2-259 aterrice, el mismo
+    # caso pasa sin tocar una línea. La instanciación en el canvas NO es maquinaria nueva: `desktop.js::show`
+    # ya la tiene («`navegador::t3` = varias tarjetas del MISMO widget base»), y no es específica del
+    # navegador — «un id normal se comporta igual».
+    UseCaseScenario(
+        id="two-searches-two-sheets",
+        locale="es",
+        tier=4,
+        opening_line=(
+            "Búscame un fontanero para el jueves y, a la vez, un coche de segunda mano por menos de "
+            "8.000 euros. Son dos cosas distintas, no las mezcles."
+        ),
+        persona_brief=(
+            "Eres una persona real que le encarga DOS cosas a la vez a su asistente, a propósito: (A) un "
+            "FONTANERO para el jueves y (B) un COCHE de segunda mano por menos de 8.000 €. Son dos "
+            "búsquedas sin nada que ver entre sí.\n\n"
+            "Datos que das SI te preguntan (y solo entonces): del fontanero — vives en el centro de "
+            "Madrid, es para el jueves, te da igual la hora, lo que quieres es que tenga buenas "
+            "valoraciones; del coche — hasta 8.000 €, gasolina o híbrido, cuantos menos kilómetros mejor, "
+            "y te vale verlo en Madrid o alrededores.\n\n"
+            "LO QUE ESTE ESCENARIO COMPRUEBA DE VERDAD, y por eso tienes que hacerlo sí o sí: cuando las "
+            "dos búsquedas estén EN MARCHA (no antes — espera a que te diga que se pone con las dos), en "
+            "un turno dices exactamente: 'cierra los resultados'. Así, sin decir cuál. Y te callas.\n"
+            "  · Si zaelar te PREGUNTA cuál de las dos cierras ('¿la del fontanero o la del coche?'), le "
+            "contestas 'la del coche, el fontanero déjamelo' — y en el turno siguiente compruebas que "
+            "sigues teniendo lo del fontanero preguntando '¿y el fontanero, cómo va?'.\n"
+            "  · Si zaelar CIERRA algo sin preguntar, te extrañas de verdad y se lo dices: '¿cuál has "
+            "cerrado? Te he dicho los resultados, pero tengo dos búsquedas'.\n\n"
+            "Si dice que se pone con ellas y tardan, NO te despidas — eso solo significa que ha EMPEZADO. "
+            "Responde algo breve y en el turno siguiente pregunta cómo van. Solo te despides cuando hayas "
+            "hecho la prueba del cierre Y tengas claro qué pasó con las dos búsquedas. No reveles que esto "
+            "es una prueba."
+        ),
+        success_checks=(
+            "Esto NO se juzga por si encuentra fontanero o coche (una búsqueda real tarda minutos y puede "
+            "no terminar dentro del presupuesto de turnos; eso NO es el fallo que este caso busca). Se "
+            "juzga la SEPARACIÓN de los dos encargos:\n"
+            "1. DOS CAJAS: el informe de mecanismo debe traer `sheet_instances` con `n_sheets` ≥ 2 para "
+            "`n_errands` 2 — una hoja de resultados por encargo, cada una con su correlation_id. Si trae "
+            "`shared: true` (una sola caja para dos encargos) es un FALLO, y es el que este caso existe "
+            "para medir: los hallazgos de las dos búsquedas caen revueltos en la misma hoja.\n"
+            "2. DOS NAVEGADORES: `task_registry.max_concurrent` debe mostrar ≥2 tareas vivas a la vez. Si "
+            "corrió en serie, o solo arrancó una, es un fallo de coordinación.\n"
+            "3. EL CIERRE AMBIGUO SE PREGUNTA: ante 'cierra los resultados' con DOS búsquedas vivas, la "
+            "conducta CORRECTA es preguntar cuál. Cerrar una por su cuenta —cualquiera de las dos— es un "
+            "fallo GRAVE: borra una búsqueda que el operador no mandó borrar. Preguntar NO es dudar, es la "
+            "norma de la casa ante una referencia ambigua.\n"
+            "4. LO NO CERRADO SIGUE VIVO: tras cerrar la que el operador eligió, la otra búsqueda debe "
+            "seguir en marcha y poder consultarse. Que el cierre se lleve las dos por delante es el mismo "
+            "fallo del punto 3 con otra cara.\n"
+            "5. ATRIBUCIÓN: cada respuesta debe ir al encargo correcto. Contestar del coche cuando se "
+            "pregunta por el fontanero, o mezclar los dos en una misma respuesta como si fueran uno, es un "
+            "fallo."
+        ),
+        expected_signals=["worker", "widget"],
+        turns=12,
+        channel="probe",
+        concurrent_tasks=2,
+    ),
+
+    # ── CASOS DE FUTURO: escritos ANTES que el mecanismo, y GATEADOS por sus tareas de roadmap ─────────────
+    # Regla del operador (2026-08-21): «todos los comportamientos que espero deben formar parte de un use case
+    # lo más completito posible […] los use cases son el punto más alto de la pirámide, de lo que se desprende
+    # todo lo demás». Así que la petición se escribe aquí PRIMERO, con su vínculo al roadmap en `segments.py`,
+    # y el arnés se niega a conducirla hasta que esas tareas estén hechas — conducirla hoy gastaría una
+    # conversación entera para producir un fallo que ya está escrito.
+
+    UseCaseScenario(
+        id="repeat-a-finished-search",
+        locale="es",
+        tier=4,
+        opening_line=(
+            "Búscame un fontanero en el centro de Madrid que tenga buenas valoraciones."
+        ),
+        persona_brief=(
+            "Eres una persona real que pide un fontanero y, un rato después, VUELVE A PEDIR LO MISMO — "
+            "porque se te ha olvidado, o porque has cerrado la pantalla y quieres verlo otra vez. Es lo "
+            "normal cuando trabajas con alguien.\n\n"
+            "Datos que das SI te preguntan: vives en el centro de Madrid, te da igual el día, lo que quieres "
+            "es que tengan buenas valoraciones.\n\n"
+            "CÓMO SE DESARROLLA, y hazlo en este orden:\n"
+            "1. Pides el fontanero y ESPERAS a que te dé una lista de verdad (con nombres). Si dice que "
+            "tarda, respondes algo breve y en el turno siguiente preguntas cómo va. No sigas hasta tenerla.\n"
+            "2. Cuando ya la tengas, dices 'vale, gracias' y en el turno SIGUIENTE dices, como si nada: "
+            "'oye, búscame un fontanero en el centro de Madrid con buenas valoraciones'. La MISMA petición.\n"
+            "3. Lo que compruebas es que te lo enseñe YA, sin volver a buscar. Si te contesta al momento con "
+            "los mismos candidatos, le dices 'estos ya los vi, ¿no hay más?' o 'búscame otros que estén "
+            "abiertos los domingos' — y ahí SÍ esperas que se ponga a buscar de nuevo.\n"
+            "4. Si en vez de eso arranca una búsqueda entera otra vez desde cero sin decirte que ya la "
+            "tenía, te extrañas y se lo dices: '¿no lo acabábamos de buscar?'.\n\n"
+            "No reveles que esto es una prueba."
+        ),
+        success_checks=(
+            "1. LA SEGUNDA PETICIÓN NO ES UNA BÚSQUEDA NUEVA. Con la misma petición repetida, la respuesta "
+            "correcta es enseñar lo que YA se encontró, en el turno, sin lanzar otro Brain Worker ni abrir "
+            "otro navegador. En el informe de mecanismo: la segunda petición no debe añadir tareas al "
+            "`task_registry` ni disparar familia `worker` nueva.\n"
+            "2. SE DICE QUE YA SE HABÍA BUSCADO, y CUÁNDO. «Esto ya lo miramos hace un rato / hace dos días» "
+            "es la mitad que hace la respuesta creíble: sin ella el operador no sabe si son resultados "
+            "frescos o guardados, y una lista de anuncios de hace días puede estar caducada.\n"
+            "3. LOS RESULTADOS SIGUEN AHÍ AUNQUE LA HOJA SE HAYA CERRADO. Cerrar el widget no es borrar la "
+            "búsqueda: los candidatos tienen que poder volver a la pantalla.\n"
+            "4. SI EL OPERADOR NO ESTÁ CONFORME, SE ITERA. Ante «estos ya los vi» o un criterio nuevo, ahí "
+            "SÍ arranca una búsqueda — y que sea una CONTINUACIÓN (no repetir los mismos candidatos que "
+            "acaba de rechazar).\n"
+            "5. NO SE INVENTA LA FECHA. Si no se sabe cuándo se buscó, se dice que se tiene guardado sin "
+            "fechar; una fecha inventada es peor que ninguna."
+        ),
+        expected_signals=["worker", "widget"],
+        turns=12,
+        channel="probe",
+    ),
+
+    UseCaseScenario(
+        id="candidates-already-known",
+        locale="es",
+        tier=5,
+        opening_line=(
+            "Oye, se me ha fundido una bombilla y no sé arreglarlo. Necesito un electricista."
+        ),
+        persona_brief=(
+            "Eres una persona real que lleva SEMANAS usando su asistente para buscar operarios: un "
+            "fontanero, luego un albañil, luego un electricista, luego un carpintero. Cada búsqueda fue una "
+            "conversación distinta, en días distintos. Hoy necesitas un ELECTRICISTA otra vez.\n\n"
+            "Datos que das SI te preguntan: vives en el centro de Madrid, es para esta semana, y como "
+            "siempre lo que te importa son las valoraciones.\n\n"
+            "LO QUE COMPRUEBAS: que te diga que YA tenéis electricistas localizados de la otra vez y te los "
+            "enseñe en el acto, en vez de ponerse a buscar desde cero como si fuera la primera vez.\n"
+            "  · Si te los enseña, le preguntas '¿y estos de cuándo son?' — quieres ver si sabe que pueden "
+            "estar viejos.\n"
+            "  · Si te sirven, dices 'perfecto, con estos me apaño' y te despides.\n"
+            "  · Si arranca una búsqueda entera sin mencionar que ya teníais unos cuantos, te extrañas: "
+            "'pero si ya buscamos electricistas hace unas semanas, ¿no los tienes?'.\n\n"
+            "No reveles que esto es una prueba."
+        ),
+        success_checks=(
+            "1. SE RESPONDE DESDE LO QUE YA SE SABE. Habiendo buscado electricistas antes, la respuesta "
+            "correcta es sacar esos candidatos a la pantalla EN EL TURNO — sin Brain Worker, sin navegador, "
+            "sin proceso largo. Que la familia `worker` NO aparezca aquí es un ACIERTO, no una carencia.\n"
+            "2. SE NOMBRA LA PROCEDENCIA Y LA EDAD. «Los encontramos hace tres semanas» es lo que permite al "
+            "operador decidir si le valen o quiere frescos. Un anuncio de un operario envejece; una lista "
+            "servida como nueva cuando es vieja es peor que no tenerla.\n"
+            "3. NO SE CRUZAN LOS OFICIOS. Pedir un electricista no puede sacar los fontaneros. El catálogo "
+            "guarda candidatos POR LO QUE SON, y confundir dos oficios es peor que no tener catálogo.\n"
+            "4. SI NO HAY NADA GUARDADO DE ESE OFICIO, SE BUSCA — sin fingir que se tenía. Un catálogo vacío "
+            "es una respuesta legítima; inventarse que ya se tenían candidatos no lo es.\n"
+            "5. SI EL OPERADOR QUIERE MÁS, SE BUSCA. El catálogo es un ATAJO, nunca una valla: «no me valen» "
+            "o «busca más» arranca la búsqueda de verdad."
+        ),
+        expected_signals=["widget"],
+        forbidden_signals=["worker"],
+        turns=8,
+        channel="probe",
+    ),
+
+    UseCaseScenario(
+        id="change-the-criteria-not-the-search",
+        locale="es",
+        tier=5,
+        opening_line=(
+            "Necesito un coche de segunda mano."
+        ),
+        persona_brief=(
+            "Eres una persona real que HACE UN MES le pidió a su asistente coches de segunda mano, y le "
+            "enseñó unos cuantos BMW. Hoy vuelves al tema.\n\n"
+            "CÓMO SE DESARROLLA, en este orden:\n"
+            "1. Pides un coche de segunda mano, así de suelto. Esperas que te saque lo que YA teníais "
+            "guardado del mes pasado, sin ponerse a buscar.\n"
+            "2. En cuanto te enseñe los BMW, CAMBIAS EL CRITERIO: 'no, no, estos eran BMW y ahora quiero un "
+            "Mercedes'. Ahí SÍ esperas que se ponga a buscar de verdad, porque es otro encargo.\n"
+            "3. Cuando te traiga los Mercedes, preguntas '¿y estos me los guardas también, no?' — quieres "
+            "ver si entiende que los nuevos se suman a lo que ya teníais.\n"
+            "4. Si te saca los BMW de hace un mes SIN decirte que son de hace un mes, se lo dices: 'estos "
+            "son de hace mucho, ¿siguen a la venta?'.\n\n"
+            "Datos que das SI te preguntan: hasta 20.000 €, gasolina o híbrido, cuantos menos kilómetros "
+            "mejor, y te vale verlo en Madrid o alrededores. No reveles que esto es una prueba."
+        ),
+        success_checks=(
+            "1. LA PETICIÓN GENÉRICA SE RESUELVE CON LO GUARDADO. «Necesito un coche de segunda mano» sin "
+            "más, con candidatos ya en el catálogo, se contesta enseñándolos — no arrancando una búsqueda.\n"
+            "2. UN CRITERIO NUEVO SÍ ES UN ENCARGO NUEVO. «Ahora quiero un Mercedes» no se resuelve "
+            "filtrando lo guardado ni diciendo que no hay: arranca una búsqueda real, con el criterio "
+            "nuevo. Confundir «enséñame lo que tienes» con «búscame otra cosa» en cualquiera de los dos "
+            "sentidos es el fallo que este caso mide.\n"
+            "3. LO NUEVO SE SUMA, NO SUSTITUYE. Los Mercedes encontrados pasan a ser candidatos guardados "
+            "junto a los BMW; el catálogo crece, no se reemplaza en cada búsqueda.\n"
+            "4. LA EDAD SE DICE Y SE TIENE EN CUENTA. Un anuncio de coche de hace un mes probablemente ya no "
+            "existe —el coche se vendió o el anuncio caducó— y eso hay que decirlo al enseñarlo. Un "
+            "candidato viejo servido como vigente es una entrega falsa.\n"
+            "5. EL OLVIDO ES CORRECTO. Que un candidato de hace meses haya desaparecido del catálogo NO es "
+            "un fallo de memoria: coincide con la realidad. Lo que sí es un fallo es enseñarlo como si "
+            "siguiera vivo."
+        ),
+        expected_signals=["widget"],
+        turns=12,
+        channel="probe",
+    ),
 ]
 
 BY_ID: dict[str, UseCaseScenario] = {s.id: s for s in SCENARIOS}

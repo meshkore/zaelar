@@ -1072,6 +1072,15 @@ DOMAINS: list[dict] = [
         {"id": "10.55", "title": "The results SHEET is read apart from the browser card, and an unread sheet "
                                  "is never reported as an empty one",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_sheet_is_read_apart_from_the_card.py"]},
+        {"id": "10.56", "title": "The stage is cleared before EVERY case — including the first — and the "
+                                 "reset that runs is the one that keeps memory",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_stage_is_cleared_before_every_case.py"]},
+        {"id": "10.57", "title": "Two searches are two sheets: the harness COUNTS the boxes, and one box "
+                                 "for two errands is reported as shared",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_two_searches_are_two_sheets.py"]},
+        {"id": "10.58", "title": "A FUTURE use case is written today and not driven until the roadmap tasks "
+                                 "that unblock it are done — and skipping it is announced, never silent",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_future_use_case_is_not_driven.py"]},
     ]},
 ]
 

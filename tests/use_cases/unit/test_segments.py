@@ -52,6 +52,13 @@ def test_every_blocked_case_says_what_is_missing():
         if seg.group == G.COMPLETABLE:
             continue
         assert seg.missing, scn.id
+        if seg.blocked_by:
+            # UN CASO DE FUTURO NO LLEVA REBAJA, y es deliberado. La rebaja existe para no puntuar a la baja
+            # a un agente al que le falta algo del OPERADOR (una cuenta, una tarjeta). Aquí no falta nada
+            # suyo: falta CÓDIGO NUESTRO, y el arnés directamente no conduce el caso (`run.py` lo salta
+            # nombrando las tareas que lo gatean). El día que esas tareas estén hechas, el caso se juzga
+            # ENTERO — dejarle una nota de rebaja lo condenaría a puntuar bajo justo cuando por fin funcione.
+            continue
         assert seg.grade in ("no_account", "no_booking"), scn.id
         assert ("LÍMITE DE DATOS REALES" in scn.success_checks
                 or "CAPACIDAD QUE NO EXISTE" in scn.success_checks), scn.id

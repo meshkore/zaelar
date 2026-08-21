@@ -153,8 +153,13 @@ def test_multiflow_scenario_is_registered_and_declares_its_task_count():
 def test_every_other_scenario_stays_single_task():
     """Guard: `concurrent_tasks` changes the runner's behavior (live registry sampling) and the judge's
     rubric, so it must never get set by accident on a single-task scenario."""
-    multi = [s.id for s in scenarios.SCENARIOS if s.concurrent_tasks]
-    assert multi == ["three-tasks-at-once"]
+    multi = sorted(s.id for s in scenarios.SCENARIOS if s.concurrent_tasks)
+    # Inventario CERRADO, y cada uno con su motivo:
+    #   · three-tasks-at-once      → se JUZGA por la coordinación de tres encargos a la vez.
+    #   · two-searches-two-sheets  → mide que dos búsquedas simultáneas abran DOS hojas, y «simultáneas» es
+    #     justo lo que el muestreo del registro vivo prueba: un volcado posterior enseña que existieron dos
+    #     tareas, nunca que se solaparan en el tiempo.
+    assert multi == ["three-tasks-at-once", "two-searches-two-sheets"]
 
 
 # ── derivation engine (derived.py) ────────────────────────────────────────────────────────────────────────

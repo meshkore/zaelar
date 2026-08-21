@@ -57,6 +57,20 @@ class Segment:
     group: str      # completable | credentials | capability
     grade: str      # "" = grade the whole outcome · "no_account" · "no_booking" (see derived.py for the notes)
     missing: str    # what is missing, concretely — it is quoted verbatim into the judge's note
+    # LAS TAREAS DEL ROADMAP que, resueltas, permiten probar este caso. Petición del operador (2026-08-21):
+    # «puedes vincular el use case a las tareas del roadmap […] y así ahora mismo jamás lo ejecutarías, porque
+    # sabrías que esas tareas están pendientes».
+    #
+    # `missing` ya decía en prosa qué falta; esto lo hace ACCIONABLE en dos direcciones: el arnés se NIEGA a
+    # conducir el caso (conducirlo sería gastar una conversación entera para producir un fallo que ya está
+    # escrito, y encima archivar una iniciativa duplicada de la que lo explica), y quien cierre esas tareas
+    # tiene delante el caso que las prueba. Es la regla del operador de que los use cases son la punta de la
+    # pirámide: primero se escribe lo que se espera, y el desarrollo va detrás.
+    #
+    # Deliberadamente MÁS ESTRECHO que el grupo `capability` entero: hay casos de ese grupo que ya se han
+    # medido y están en el marcador, y gatearlos por grupo encogería el paseo en silencio e invalidaría
+    # medidas que existen. Solo se gatea lo que lo declara.
+    blocked_by: tuple[str, ...] = ()
 
 
 def _done() -> Segment:
@@ -77,6 +91,16 @@ def _cap(missing: str) -> Segment:
     return Segment(CAPABILITY, "no_account", missing)
 
 
+def _future(missing: str, *refs: str) -> Segment:
+    """Un caso ESCRITO ANTES que el mecanismo que lo hace posible, con las tareas que lo desbloquean.
+
+    `grade` se queda VACÍO —no `no_account`— porque cuando estas tareas estén hechas el caso se juzga ENTERO:
+    no le falta una credencial del operador, le falta código nuestro. Poner una nota de rebaja aquí dejaría el
+    caso permanentemente juzgado a la baja el día que por fin funcione.
+    """
+    return Segment(CAPABILITY, "", missing, tuple(refs))
+
+
 SEGMENTS: dict[str, Segment] = {
     # ── COMPLETABLE ────────────────────────────────────────────────────────────────────────────────────────
     # Information, a comparison, a plan, a widget, a reminder: the deliverable IS the answer, so there is no
@@ -85,6 +109,27 @@ SEGMENTS: dict[str, Segment] = {
     "remember-and-remind-deadline": _done(),
     "build-workout-tracker-widget": _done(),
     "three-tasks-at-once": _done(),
+    # ── CASOS DE FUTURO: escritos antes que su mecanismo, y GATEADOS por él ────────────────────────────
+    # No es «capability» en el sentido viejo (una capacidad que nadie ha planificado): es una capacidad con
+    # su iniciativa abierta y su fase concreta. Por eso llevan `blocked_by` y el arnés se niega a
+    # conducirlos — el veredicto ya está escrito en la iniciativa, y gastar la conversación solo añadiría
+    # una ronda duplicada al paraguas.
+    "two-searches-two-sheets": _future(
+        "una hoja de resultados por encargo (hoy la hoja es ÚNICA y dos búsquedas la comparten), y la "
+        "desambiguación al cerrar «los resultados» con dos abiertas",
+        "V2-259 F1", "V2-259 F2", "V2-259 F3"),
+    "repeat-a-finished-search": _future(
+        "los candidatos de una búsqueda terminada no sobreviven al encargo siguiente: la hoja se ESTRENA "
+        "y nada los guarda, así que repetir la misma petición no puede resolverse con lo que ya se tenía",
+        "V2-260 F1", "V2-260 F2"),
+    "candidates-already-known": _future(
+        "no existe catálogo de candidatos por categoría: lo único que sobrevive a una investigación es su "
+        "BRIEF (`research.remember_round`, TTL 6 h) y no sus resultados",
+        "V2-260 F2", "V2-260 F3"),
+    "change-the-criteria-not-the-search": _future(
+        "sin catálogo no hay nada que enseñar ante una petición genérica, ni forma de distinguir «enséñame "
+        "lo que tienes» de «búscame otra cosa», ni de que lo nuevo se sume a lo viejo",
+        "V2-260 F2", "V2-260 F3", "V2-260 F4"),
     # searches — the user asked to FIND, never to buy
     "search-buy-used-car": _done(),
     "search-buy-motorcycle": _done(),
@@ -198,6 +243,12 @@ def group_of(scenario_id: str) -> str:
 
 def is_completable(scenario_id: str) -> bool:
     return group_of(scenario_id) == COMPLETABLE
+
+
+def blocked_by(scenario_id: str) -> tuple[str, ...]:
+    """Las tareas de roadmap pendientes que gatean este caso. Vacío = se puede conducir hoy."""
+    seg = segment_of(scenario_id)
+    return seg.blocked_by if seg else ()
 
 
 # A `completable` case whose deliverable is NOT findings-on-screen. Everything else in that segment ends in a

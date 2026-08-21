@@ -147,6 +147,19 @@ def mechanism_facts(mech: dict) -> str:
     else:
         lines.append("· La hoja de resultados se leyó y acabó SIN candidatos con nombre. Si el encargo era "
                      "buscar y comparar, eso sí es entrega ausente en la única superficie que la guarda.")
+    # CUÁNTAS cajas, que es otra pregunta que «qué había en la caja». Solo se dice si hubo apertura: en un
+    # encargo único no aporta nada, y en dos es lo que decide el veredicto.
+    si = mech.get("sheet_instances") or {}
+    if si.get("shared"):
+        lines.append(f"· ⚠️ DOS ENCARGOS COMPARTIERON UNA SOLA HOJA de resultados "
+                     f"({si.get('n_errands', 0)} encargos → {si.get('n_sheets', 0)} caja). La regla es una "
+                     f"hoja por búsqueda, con su correlation_id: compartirla mezcla los hallazgos de dos "
+                     f"búsquedas distintas en la misma lista y hace que cerrar «los resultados» borre las "
+                     f"dos. Es un hecho del MECANISMO, no del agente — no lo cuentes como que zaelar se "
+                     f"confunde de tarea si sus respuestas sí distinguen los dos encargos.")
+    elif si.get("n_sheets", 0) > 1:
+        lines.append(f"· Se abrieron {si['n_sheets']} hojas de resultados para "
+                     f"{si.get('n_errands', 0)} encargo(s): una caja por búsqueda, que es la regla.")
     dropped = mech.get("dropped_actions") or []
     if dropped:
         which = ", ".join(f"{d.get('tool') or '?'} ({d.get('reason') or 'motivo no dicho'})" for d in dropped)

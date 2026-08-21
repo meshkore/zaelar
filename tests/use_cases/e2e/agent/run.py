@@ -374,14 +374,19 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
         # restaurante irrelevante» — era la tarea viva de `restaurant-tonight-madrid`, el caso anterior del
         # mismo lote. Ese caso no se midió a sí mismo. `probe_client.reset()` no bastaba: limpia la ventana
         # conversacional y deja vivos los workers, las tareas y el canvas.
-        if results:
-            try:
-                probe_client.hard_reset()
-                time.sleep(2.0)          # el kill de grupo y el cierre del canvas no son instantáneos
-                print("  ▸ motor reseteado (sin trabajo ni canvas del caso anterior)")
-            except Exception as e:
-                print(f"  ⚠️ no pude resetear el motor entre casos: {e} — este caso puede arrastrar "
-                      f"trabajo del anterior")
+        # Y ANTES DEL PRIMERO TAMBIÉN. Hasta 2026-08-21 esto era `if results:` — o sea, se limpiaba ENTRE casos
+        # y nunca al empezar. El plató es persistente a propósito (mismo puerto, se mira en vivo), así que el
+        # primer caso de cada tanda heredaba el canvas, las tareas y los workers de la RONDA ANTERIOR: el
+        # operador cargó el test ES y lo primero que vio fue pantalla sucia de la corrida de antes. La regla que
+        # pidió es exactamente lo que `hard_reset()` hace y lo que NO hace: mata el trabajo vivo y borra el
+        # canvas, y deja en pie la memoria y el estado (`/reset/hard`, no `/api/reset/full` con `wipe_memory`).
+        try:
+            probe_client.hard_reset()
+            time.sleep(2.0)          # el kill de grupo y el cierre del canvas no son instantáneos
+            print("  ▸ motor reseteado (sin trabajo ni canvas anterior; memoria y estado intactos)")
+        except Exception as e:
+            print(f"  ⚠️ no pude resetear el motor antes del caso: {e} — este caso puede arrastrar "
+                  f"trabajo de antes")
         try:
             results.append(_run_scenario(scenario, ran_before=[r["scenario"] for r in results],
                                           sandboxed=sandboxed, provisional=provisional))
@@ -545,6 +550,23 @@ def run(args: argparse.Namespace) -> int:
     if args.segment:
         from . import segments as G
         chosen = [s for s in chosen if G.group_of(s.id) == args.segment]
+    # CASOS DE FUTURO: no se conducen hasta que sus tareas de roadmap estén hechas (operador, 2026-08-21:
+    # «y así ahora mismo jamás lo ejecutarías, porque sabrías que esas tareas están pendientes»). Conducir uno
+    # hoy costaría una conversación entera para producir un fallo que ya está escrito en su iniciativa, y
+    # encima archivaría una ronda duplicada. Se DICEN, nunca se saltan en silencio: un caso que desaparece de
+    # la selección sin explicación se lee como que no existe.
+    if not getattr(args, "include_blocked", False):
+        from . import segments as _G
+        gated = [(s_, _G.blocked_by(s_.id)) for s_ in chosen]
+        blocked = [(s_, refs) for s_, refs in gated if refs]
+        if blocked:
+            chosen = [s_ for s_, refs in gated if not refs]
+            print(f"⏳ {len(blocked)} caso(s) de FUTURO, no se conducen (usa --include-blocked para forzarlo):")
+            for s_, refs in blocked:
+                print(f"   · {s_.id} ← pendiente de {', '.join(refs)}")
+        if not chosen:
+            print("no queda ningún caso conducible en esta selección")
+            return 0
     if args.limit:
         chosen = chosen[:args.limit]
     if args.start_at:
@@ -563,6 +585,23 @@ def run(args: argparse.Namespace) -> int:
     if not args.sandbox and not getattr(args, "lab", ""):
         print(f"▲ running against the LIVE engine at {config.ZAELAR_URL} — its memory, widgets and running "
               f"tasks are the operator's. Use --sandbox for an isolated one.")
+        # Y DECIR LO QUE ESTA RONDA SE VA A LLEVAR POR DELANTE. Desde 2026-08-21 cada caso empieza con un
+        # `hard_reset()` (el plató tiene que verse limpio en cada test, petición del operador): eso mata el
+        # trabajo de fondo y borra el canvas. En un sandbox no hay nada que perder; en el motor del operador
+        # lo que se mata es SUYO. La memoria y el estado se quedan — es `/reset/hard`, no un borrado.
+        print("  ▲ y ADEMÁS lo va a RESETEAR antes de empezar: mata el trabajo de fondo y borra el canvas "
+              "(la memoria y el estado se quedan). Si el operador tiene algo en marcha, se pierde.")
+        # LA MISMA GUARDA DE ÁRBOL SUCIO QUE LAS OTRAS DOS RUTAS. Vivía solo en `_sandbox_batch` y
+        # `_lab_batch`, y eso no es un descuido menor: una ronda es una MEDIDA se corra donde se corra, y
+        # una que no se puede atribuir a un commit ensucia el marcador COMPARTIDO igual desde aquí.
+        # Encontrado tropezando con ello (2026-08-21): un `tests run use_cases` con el árbol sucio escribió
+        # su veredicto en el marcador sin que nada lo parase.
+        _stamp = config.code_stamp()
+        config.machine_stamp()
+        _refusal = dirty_tree_refusal(_stamp, allow_dirty=getattr(args, "allow_dirty", False))
+        if _refusal:
+            print(_refusal)
+            return 3
         return _run_batch(chosen, sandboxed=False, args_no_file=args.no_file,
                           verify_tasks=verify_tasks, provisional=_provisional(args),
                           stop_after_failures=args.stop_after_failures,
@@ -1117,6 +1156,9 @@ def main() -> None:
     ap.add_argument("--lab", choices=["es", "us"], default="",
                     help="medir contra el agente PERSISTENTE de tests/use_cases/lab/ (que el operador "
                          "puede mirar) en vez de contra un sandbox de usar y tirar")
+    ap.add_argument("--include-blocked", action="store_true",
+                    help="conducir TAMBIÉN los casos de futuro (los que declaran tareas de roadmap "
+                         "pendientes en segments.py). Por defecto se saltan: su fallo ya está escrito")
     ap.add_argument("--allow-dirty", action="store_true",
                     help="measure even with uncommitted engine files (for the fixing agent's own work-in-progress)")
     ap.add_argument("--judge-pending", action="store_true",
@@ -1143,6 +1185,9 @@ def main() -> None:
             mark = {G.COMPLETABLE: "✅", G.CREDENTIALS: "🔑", G.CAPABILITY: "🚧"}.get(seg.group if seg else "", "❓")
             hand = " (hand-written)" if s.id in hand_ids else ""
             why = f"  ← {seg.missing}" if seg and seg.missing else ""
+            if seg and seg.blocked_by:
+                mark = "⏳"
+                why = f"  ← pendiente de {', '.join(seg.blocked_by)} · {seg.missing}"
             print(f"{mark} t{s.tier}  {s.locale}  {s.id}{hand}{why}")
         print(f"\n{len(rows)} de {len(SC.all_scenarios())} escenarios"
               + (f" · segmento {args.segment}" if args.segment else ""))

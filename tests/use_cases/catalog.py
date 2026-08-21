@@ -49,7 +49,14 @@ def _case_dict(case: UseCase, ordinal: int) -> dict[str, Any]:
                                    "watchdog", "judge"]
         entry["execution"] = {
             "kind": "command",
-            "argv": ["{python}", "-m", "tests.use_cases.e2e.agent.run", "--scenario", case.id],
+            # `--sandbox` NO es opcional aquí. Sin él, `python -m tests run use_cases` —la entrada que el
+            # CLAUDE.md del proyecto le manda usar a CUALQUIER agente— conduce el caso primario contra el
+            # motor VIVO del operador: su memoria, sus widgets y sus tareas en marcha, gastando sus
+            # proveedores. Medido tropezando con ello el 2026-08-21 (16 turnos reales contra el 43917, y el
+            # veredicto escrito en el marcador compartido como si fuera una medida). Es la MISMA forma que el
+            # fallo del `--lab` que se arregló horas antes: el aislamiento no puede depender de que quien
+            # lanza se acuerde de pedirlo.
+            "argv": ["{python}", "-m", "tests.use_cases.e2e.agent.run", "--scenario", case.id, "--sandbox"],
             "nested_events": False,
             "requires_live": True,
         }

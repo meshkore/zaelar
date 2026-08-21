@@ -484,6 +484,50 @@ Runs over the **text/probe channel** (`POST /api/flash/say`, `execute=true`, `in
 not voice — it exercises the identical FlashBrain/worker/browser/memory mechanism without STT/TTS
 overhead, noise, or writing test conversations into the operator's real memory.
 
+## Future use cases: written first, driven later (operator's rule, 2026-08-21)
+
+> *«todos los comportamientos que espero deben formar parte de un use case lo más completito posible […]
+> puedes vincular el use case a las tareas del roadmap, que son las que una vez resueltas permitirán probar
+> ese use case. Y así ahora mismo jamás lo ejecutarías, porque sabrías que esas tareas están pendientes […]
+> los use cases son el punto más alto de la pirámide, de lo que se desprende todo lo demás.»*
+
+So a request the operator makes does not wait for its mechanism to exist before it becomes a case. It is
+written NOW, in full — opening line, persona, success checks — and **linked to the roadmap tasks that unblock
+it** via `blocked_by` in `segments.py`. The runner then refuses to drive it: driving it today would spend a
+whole conversation producing a failure that is already written down in its initiative, and would file a
+duplicate round into that initiative's umbrella.
+
+Three properties, and all three are tested (node 10.58):
+
+1. **It is written.** The request is not lost, and whoever closes the roadmap task has the case that proves
+   it sitting right there.
+2. **It is not driven.** `run.py` filters it out of every selection path.
+3. **The skip is ANNOUNCED, with the tasks that gate it.** A case that vanishes from the selection with no
+   explanation reads as a case that does not exist — the opposite of the rule.
+
+```
+⏳ 4 caso(s) de FUTURO, no se conducen (usa --include-blocked para forzarlo):
+   · two-searches-two-sheets ← pendiente de V2-259 F1, V2-259 F2, V2-259 F3
+```
+
+`--include-blocked` forces them in. That escape hatch is how the EVIDENCE for the initiative gets produced:
+the case is perfectly drivable, we just already know it fails.
+
+The gate is deliberately NARROWER than the `capability` segment as a whole — some cases in that group have
+already been measured and sit on the scoreboard, and gating by group would silently shrink the walk and
+invalidate measurements that exist. Only a case that declares `blocked_by` is gated. A test also checks every
+reference points at an initiative file that EXISTS, so renaming one cannot leave a case blocked forever by a
+task nobody can find.
+
+Currently gated:
+
+| case | blocked by | what it measures |
+|---|---|---|
+| `two-searches-two-sheets` | V2-259 F1-F3 | two errands = two results sheets, each with its corr_id; and «cierra los resultados» with two open must ASK which |
+| `repeat-a-finished-search` | V2-260 F1-F2 | the same request repeated is answered from what we already found, saying when |
+| `candidates-already-known` | V2-260 F2-F3 | asking for a trade already searched shows the saved candidates and starts NO worker |
+| `change-the-criteria-not-the-search` | V2-260 F2-F4 | generic ask → show what we have; new criteria → real search; new findings join the catalogue |
+
 ## Difficulty tiers
 
 1. **Bounded single-site action** — the target is already named, no comparison needed. Buildable on
