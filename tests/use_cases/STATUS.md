@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-21 10:47**
+Last updated: **2026-08-21 11:56**
 
 `✅ PASS` = judge overall ≥ 4 **and** mechanism ≥ 3 (a measured mechanism defect never shows green, however good the average) · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -26,7 +26,7 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | ❌ | `remember-and-remind-deadline` | 1 | 3 | 2026-08-20 15:49 | yes | No está listo para producción: el bloqueador nº1 es que el `prompt` del cron lleva la frase cruda del usuario, así que el recordatorio hará que el agente vue… |
 | 🔒 | `renew-gym-membership__es` | 1 | 4 | 2026-08-20 14:51 | yes | El caso tiene un manejo de conversación excelente y claridad en los límites, pero el navegador no se activó como se prometió; la ejecución técnica está desin… |
 | ⚠️ | `restaurant-tonight-madrid` | 1 | 1 | 2026-08-21 03:27 | no | No está listo para producción: el caso no se resolvió y el bloqueador número 1 es la falta de respuesta del canal (7 turnos mudos), agravada por la ausencia … |
-| ❌ | `best-plumber-same-day__es` | 2 | 2 | 2026-08-21 10:47 | yes | No está listo para producción: el bloqueador número uno es que no se entregó ningún fontanero real y la conversación se cerró sosteniendo una búsqueda activa… |
+| ❌ | `best-plumber-same-day__es` | 2 | 3 | 2026-08-21 11:56 | yes | No está listo para producción: el bloqueador nº1 es que se entregó un resultado parcial (2 de 13 candidatos) con una valoración inventada (4,7 sobre 5) sin r… |
 | ❌ | `best-rated-rental-car__es` | 2 | 2 | 2026-08-20 22:01 | yes | No está listo para producción: el bloqueador nº1 es que la búsqueda falló por errores internos del worker y zaelar nunca informó del fallo, dejando al usuari… |
 | ❌ | `cheapest-monitor` | 2 | 3 | 2026-08-21 00:36 | yes | El caso se resolvió parcialmente: hay 3 monitores reales con precio y tienda, pero no se cumplió el criterio central de '27" bien valorado cerca de 300€' (so… |
 | ⚠️ | `compare-broadband-plans__es` | 2 | — | 2026-08-21 02:28 | yes | INFRA: la cadena de proveedores estaba agotada (DeepSeek HTTP 402 Insufficient Balance x4, z.ai sin cuota hasta el 25 Aug). Los CUATRO turnos de zaelar salie… |
