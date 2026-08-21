@@ -1351,6 +1351,11 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     falle. Nodo 2.5, 5 casos con las DOS direcciones (sin reloj fijado tiene que ser el de pared — si no,
     «seguir al reloj del motor» se satisface con cualquier fecha fija) + guarda de fuente contra el `strftime()`
     sin argumento.
+  - ⚠️ **Impacto real, acotado por el arnés y corrigiendo lo que escribí**: dije que sus medidas sobre «el
+    último / de hoy» estaban tomadas contra una fecha equivocada, y **no le afecta** — su arnés NO usa replay ni
+    congela el reloj, así que sus rondas corren en tiempo real, que es justo el caso en que los dos coinciden.
+    Hoy esto **no arregla ningún fallo en producción ni ninguna medida ya tomada**: cierra una divergencia de
+    relojes que paga quien FIJE el reloj (los tests de memoria) y pagaría entero un replay el día que exista.
   - **Queda por mirar** `widgets/agenda/planner.py` (`datetime.now()` para el día de la semana): en producción
     acierta y al medir no, pero es del widget y quiere su propia medida.
 
