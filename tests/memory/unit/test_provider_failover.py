@@ -36,14 +36,23 @@ def test_a_cloud_endpoint_resolving_to_the_sentinel_has_NO_credential():
 
 
 # ── the order, and who gets dropped ───────────────────────────────────────────────────────────────────────────
-def test_the_chain_is_titular_then_broker_then_openai(monkeypatch):
+def test_the_chain_is_titular_then_broker(monkeypatch):
+    """El ORDEN es lo que se fija aquí: primero el endpoint directo (titular) y detrás el broker.
+
+    Se llamaba `..._then_openai` y afirmaba `models[-1] == "openai/gpt-4.1-mini"`. El 2026-08-21 la norma del
+    operador —ningún modelo de OpenAI puede ser lo que CORRE sin que nadie lo elija; en el catálogo sí— sacó ese
+    escalón, así que la aserción pasó a fijar una política derogada. Se cambia por lo que la norma sí garantiza y
+    por lo que este fichero existe para vigilar: que el último recurso NO sea de OpenAI. Fijar el nombre exacto
+    del último modelo volvería a atar el test a una elección de catálogo que puede cambiar mañana."""
     monkeypatch.setattr(memllm, "_endpoint_key", lambda url: "k")
     monkeypatch.setattr(memllm, "resolve", lambda t: (_DS, "deepseek-v4-flash", "k", False))
     hosts = [u for u, _m, _k, _dt in memllm.chain("rem")]
     assert hosts[0] == _DS, "el directo es el titular, no un escalón de relevo"
     assert hosts[1:] == [_AIML, _AIML]
     models = [m for _u, m, _k, _dt in memllm.chain("rem")]
-    assert models[-1] == "openai/gpt-4.1-mini", "OpenAI es el ÚLTIMO recurso, no el segundo"
+    assert len(models) == 3, models
+    assert not any(m.lower().startswith("openai/") for m in models), \
+        f"un escalón de relevo corre SIN que nadie lo elija: {models}"
 
 
 def test_a_rung_the_config_already_promoted_is_not_tried_twice(monkeypatch):

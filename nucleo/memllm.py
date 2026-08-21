@@ -113,8 +113,11 @@ _AIML = "https://api.aimlapi.com/v1"
 _DS = "https://api.deepseek.com"
 
 _FAILOVER: dict[str, tuple[tuple[str, str], ...]] = {
-    # rem — §12.2 measured `gpt-4.1-mini` at 100% on THIS task, so the last rung is evidence, not hope.
-    "rem": ((_DS, "deepseek-v4-flash"), (_AIML, "deepseek/deepseek-v4-flash"), (_AIML, "openai/gpt-4.1-mini")),
+    # rem — §12.2 measured `gpt-4.1-mini` at 100% on THIS task. That result stands and is why the model is still
+    # OFFERED in the catalogue; what it stopped being (2026-08-21) is a rung that RUNS without anyone choosing it,
+    # per the operator's standing no-OpenAI norm — the same norm already written at the i18n rung below. The seat
+    # goes to the model `distill` already trusts for its own third rung, so this is not a new bet.
+    "rem": ((_DS, "deepseek-v4-flash"), (_AIML, "deepseek/deepseek-v4-flash"), (_AIML, "google/gemini-2.5-flash")),
     # distill — the WRITE HEART. `nucleo/mem_processor.py` makes the call AND resolves its own TITULAR (its config
     # keys are the historical `mem_processor_*`, with env fallbacks, and that name is synchronized across three
     # deploy sites — `config/v2.py`, `fly.accounts.toml`, the cloud provisioner). What lives HERE is only its
@@ -122,15 +125,23 @@ _FAILOVER: dict[str, tuple[tuple[str, str], ...]] = {
     # The rungs are the ones §12.3 already named after sweeping 21 candidates × 34 cases. ⛔ NOT `gpt-4o-mini`:
     # cheaper and VETOED (puts an allergy stated in English into `slot=operator.diet`, which a later diet change
     # would erase).
+    # 2026-08-21: the fourth rung (`openai/gpt-4.1-mini`) is gone — no-OpenAI norm. Three rungs remain, two of
+    # them from the §12.3 sweep, so nothing here is running on an unmeasured model.
     "distill": ((_DS, "deepseek-v4-flash"), (_AIML, "deepseek/deepseek-v4-flash"),
-                (_AIML, "google/gemini-2.5-flash"), (_AIML, "openai/gpt-4.1-mini")),
+                (_AIML, "google/gemini-2.5-flash")),
     # paraphrase — NO DeepSeek rung on the broker, deliberately. This task only works with reasoning OFF (measured
     # 2026-08-18: with it on the entire budget goes to reasoning and `content` comes back EMPTY at every budget
     # tried) and the broker ACCEPTS `thinking:disabled` while ignoring it. That rung would answer 200 with nothing
     # in it, and a rung that reports success while delivering silence is worse than no rung. Non-reasoners only.
     # ⚠️ DeepSeek DIRECT is the FIRST rung here and the broker's DeepSeek is absent, which is the opposite of the
     # other tasks — because this one needs reasoning OFF and only the direct endpoint obeys the flag (see below).
-    "paraphrase": ((_DS, "deepseek-v4-flash"), (_AIML, "openai/gpt-4.1-mini")),
+    # 2026-08-21 — this one PAYS for the no-OpenAI norm and it is worth stating plainly: `openai/gpt-4.1-mini`
+    # was the ONLY broker rung that satisfied the constraint above (reasoning genuinely off), so removing it
+    # leaves paraphrase with a single rung and no failover. The alternative was worse: any reasoning model on the
+    # broker answers 200 with EMPTY content here, and a rung that reports success while delivering silence is not
+    # a fallback. Tolerable because this task is OFFLINE — it runs inside the REM cycle (`memory/rem.py`), so a
+    # lost run costs paraphrase coverage until the next cycle, never a turn the operator is waiting on.
+    "paraphrase": ((_DS, "deepseek-v4-flash"),),
     # i18n — titular DeepSeek DIRECT like everything else, so its rung is the SAME model on the broker. One is
     # enough to stop a lost batch from meaning 50 English strings in the UI. It used to be `openai/gpt-4.1`, and
     # that is out on two counts: the operator's standing norm (no OpenAI models) and the fact that it was never

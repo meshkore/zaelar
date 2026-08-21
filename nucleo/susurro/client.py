@@ -46,9 +46,11 @@ async def audit_llm(window_text: str) -> tuple[str | None, dict]:
     meta["request"] para la observabilidad total (regla del operador: registrar envío Y respuesta)."""
     from . import catalog
     c = cfg()
-    # Último recurso si §susurro no se puede leer: debe coincidir con el default de `config/v2.py` (broker
-    # AIMLAPI), no con OpenAI directo — en la nube no hay OPENAI_API_KEY y esto se caería en silencio.
-    model = str(c.get("model") or "openai/gpt-4.1-mini")
+    # Last resort when §susurro cannot be read: it must MATCH the default in `config/v2.py` (AIMLAPI broker),
+    # never a direct OpenAI endpoint — there is no OPENAI_API_KEY in the cloud and this would fail in silence.
+    # 2026-08-21: both moved off OpenAI together, which is the point — a literal here that drifts from the config
+    # default is a fallback that only runs when something is already wrong, so nobody would notice it drifted.
+    model = str(c.get("model") or "deepseek/deepseek-v4-flash")
     base = str(c.get("base_url") or "https://api.aimlapi.com/v1").rstrip("/")
     key = resolved_api_key(base, str(c.get("api_key") or "").strip())
     messages = [

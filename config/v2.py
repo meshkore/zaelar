@@ -186,12 +186,17 @@ _DEFAULTS: dict[str, dict] = {
     "susurro": {
         "enabled": True,
         "provider": "aimlapi",
-        # 2026-08-09 — through the BROKER, not direct OpenAI. Operator rule: one API account to manage (AIMLAPI);
-        # Z.AI and Groq are separate and only where needed. The MODEL does not change (gpt-4.1-mini, same as before),
-        # only the path — so there is no quality regression to measure. Extra reason: the direct OpenAI account is
-        # heavily rate-limited (429 with few calls in flight, 20s p50 measured in the §12.3 sweep), which disguised
-        # an endpoint issue as a "bad model". Benchmark §10 (choosing the Susurro model with data) is still pending.
-        "model": "openai/gpt-4.1-mini",
+        # 2026-08-09 — through the BROKER, not a direct account. Operator rule: one API account to manage
+        # (AIMLAPI); Z.AI and Groq are separate and only where needed. The direct OpenAI account was also heavily
+        # rate-limited (429 with few calls in flight, 20s p50 measured in the §12.3 sweep), which disguised an
+        # endpoint issue as a "bad model" — that measurement stands and is why `openai/gpt-4.1-mini` remains
+        # OFFERED in the catalogue (`server/config_api.py`) for whoever self-hosts and wants it.
+        # 2026-08-21 — it stops being the DEFAULT. Operator's standing norm, already written into this tree at
+        # the i18n rung of `memllm._FAILOVER`: no OpenAI model may be what RUNS unless someone chose it. The
+        # distinction is deliberate and is the whole rule — catalogues keep it, defaults and relay chains do not.
+        # Nothing is lost by the swap here: benchmark §10 (choosing the Susurro model with data) was never run,
+        # so `gpt-4.1-mini` was inherited rather than measured for THIS task.
+        "model": "deepseek/deepseek-v4-flash",
         "base_url": "https://api.aimlapi.com/v1",
         "api_key": "",                          # secret (redacted); empty = resolved by endpoint (OPENAI_API_KEY…)
         "pulse_turns": 0,                       # 0 = friction only; N = also light audit every N turns

@@ -84,14 +84,23 @@ def test_the_fast_layer_defaults_to_the_titular_ON_ITS_OWN_ENDPOINT():
 
 def test_the_emergency_fallback_is_the_SAME_brain_as_the_config():
     """A fallback pointing at a different model is a SILENT brain swap at the worst possible moment — the one
-    where the config cannot be read. It shows up in answer quality and in the bill, never as an error."""
+    where the config cannot be read. It shows up in answer quality and in the bill, never as an error.
+
+    Se compara contra el default QUE SE ENVÍA (`config/v2.py`), no contra `config/v2.json`. Ese fichero está
+    gitignoreado: es la config LOCAL de cada máquina, así que la versión anterior de este test afirmaba que una
+    constante del código coincide con un fichero privado — y por tanto se ponía roja en cuanto alguien elegía
+    otro titular, que es su derecho y no una avería. Pasó el 2026-08-21: bastó cambiar el titular del operador a
+    `deepseek-v4-flash` para que este guarda acusara al código. Misma familia que el suelo absoluto de
+    `test_accumulator` calibrado contra los logs vivos: un test unitario no puede depender de un artefacto vivo.
+    Lo que sí es un defecto del PRODUCTO —y es lo que el docstring de arriba quiere cazar— es que el fallback de
+    emergencia del código no coincida con el titular que el producto declara por defecto."""
     import config.v2 as v2
     from nucleo.flash import model_spec as M
-    real = v2.fast_model_spec()
-    if not real.get("model"):
-        pytest.skip("config/v2.json sin modelo (instalación fresca): el fallback ES la respuesta")
-    assert M._FALLBACK_MODEL in real["model"], (
-        f"el fallback ({M._FALLBACK_MODEL}) no es el titular de config/v2.json ({real['model']})")
+    shipped = str((v2._DEFAULTS.get("fast") or {}).get("model") or "")
+    if not shipped:
+        pytest.skip("el default enviado no nombra modelo: el fallback ES la respuesta")
+    assert M._FALLBACK_MODEL in shipped, (
+        f"el fallback ({M._FALLBACK_MODEL}) no es el titular que el producto envía por defecto ({shipped})")
 
 
 def test_no_task_of_memllm_routes_to_a_banned_provider():
@@ -110,3 +119,65 @@ def test_the_browser_loop_defaults_to_the_titular():
     assert A.DEFAULT_BASE_URL == "https://api.deepseek.com"
     # The judge rides the SAME endpoint, so it must use the native (unprefixed) catalog too.
     assert not re.match(r"^deepseek/", A._judge_model()), "nombre del broker sobre el endpoint nativo → 400"
+
+
+# ── OpenAI: en el CATÁLOGO sí, corriendo solo no (norma del operador, 2026-08-21) ─────────────────────────────
+#
+# La norma ya estaba escrita en el árbol —el escalón i18n de `memllm._FAILOVER` la cita como «the operator's
+# standing norm (no OpenAI models)»— pero se aplicaba en un sitio y no en los otros cuatro, que es la forma en que
+# una norma en prosa vuelve. El operador la acotó: «por defecto no los usamos —ni la config de pruebas, ni su
+# instancia local, ni la nube— pero si un usuario quiere cambiarlo, que lo haga».
+#
+# Así que NO es un barrido del árbol como el de arriba: la línea está entre lo que se OFRECE y lo que CORRE sin
+# que nadie lo elija. Por eso el test tiene dos filos, y el segundo importa tanto como el primero — un barrido a
+# secas habría "limpiado" también el catálogo y roto el principio de auto-hospedaje del repo.
+_OPENAI_RE = re.compile(r"\bopenai/|\bgpt-[0-9]", re.I)
+
+
+def test_no_relay_rung_runs_an_openai_model():
+    """Los escalones corren SOLOS: nadie los elige, se llega a ellos porque el anterior falló."""
+    from nucleo import memllm
+
+    culpables = []
+    for tarea, escalones in memllm._FAILOVER.items():
+        for url, modelo in escalones:
+            if _OPENAI_RE.search(str(modelo)):
+                culpables.append(f"{tarea} → {modelo}")
+    assert not culpables, f"escalones de relevo con modelo de OpenAI: {culpables}"
+
+
+def test_no_config_default_runs_an_openai_model():
+    """Y los DEFAULTS igual: son lo que corre en una instalación que nadie ha tocado."""
+    from config import v2
+
+    culpables = []
+    for seccion, cuerpo in v2._DEFAULTS.items():
+        if not isinstance(cuerpo, dict):
+            continue
+        for clave, valor in cuerpo.items():
+            if clave in ("model", "fast_model", "slow_model") and _OPENAI_RE.search(str(valor or "")):
+                culpables.append(f"{seccion}.{clave} = {valor}")
+    assert not culpables, f"defaults con modelo de OpenAI: {culpables}"
+
+
+def test_the_susurro_fallback_literal_matches_its_config_default():
+    """El último recurso del susurro solo se usa cuando la config NO se puede leer — o sea, cuando algo ya va mal.
+    Un literal que se separe del default es una deriva que por definición nadie ve hasta ese momento, y así fue
+    como este quedó apuntando a OpenAI después de que la config se moviera al broker."""
+    import inspect
+
+    from config import v2
+    from nucleo.susurro import client
+
+    literal = re.search(r'c\.get\("model"\)\s*or\s*"([^"]+)"', inspect.getsource(client.audit_llm))
+    assert literal, "el último recurso del susurro dejó de ser un literal legible"
+    assert literal.group(1) == v2._DEFAULTS["susurro"]["model"], \
+        "el último recurso del susurro no coincide con su default de config"
+
+
+def test_but_the_CATALOGUE_still_offers_one():
+    """El otro filo, y no es simetría de adorno: `engine/` es OSS y quien se autohospeda tiene que poder poner
+    OpenAI en su motor. Si un barrido futuro «limpia» también el catálogo, este test lo para."""
+    fuente = (ENGINE / "server" / "config_api.py").read_text()
+    assert _OPENAI_RE.search(fuente), \
+        "el catálogo dejó de ofrecer OpenAI: la norma prohíbe que CORRA solo, no que exista"
