@@ -155,7 +155,21 @@ def navegador_task(task_id: str) -> dict:
     return _get(f"/widgets/navegador/data?q={urllib.parse.quote(task_id, safe='')}")
 
 
-def widget_rows(wid: str, key: str) -> list:
+def _widget_path(wid: str, q: str = "") -> str:
+    """The read route of ONE widget box. `q` is how an INSTANCE is asked for: since V2-259 a results sheet is
+    keyed per errand and the route takes the suffix as a query argument (`results` + `q=2` is the box of task
+    2). Without it every read lands on the un-instanced box, which after V2-259 is a DIFFERENT box from the
+    one the errand wrote to — a reader pointed there does not fail, it invents (see `verify.results_sheet`).
+
+    It is a shared helper and not a line inside one reader on purpose: the two readers below are the same
+    request seen at two shapes, and when only one of them learned about `q` the other went on quietly reading
+    the wrong box.
+    """
+    path = f"/widgets/{urllib.parse.quote(wid, safe='')}/data"
+    return path + (f"?q={urllib.parse.quote(q, safe='')}" if q else "")
+
+
+def widget_rows(wid: str, key: str, q: str = "") -> list:
     """One collection of a widget, READ from the engine: `GET /widgets/<wid>/data`.
 
     It exists because of an expensive false positive (2026-08-20): the judge wrote "zero appointments
@@ -166,13 +180,7 @@ def widget_rows(wid: str, key: str) -> list:
     The rule that comes out of it: about a widget's persistence, only what has been READ may be asserted. An
     empty list and "I did not look" are nothing alike, so the report keeps the two apart.
     """
-    # `q` is how an INSTANCE is asked for: since V2-259 a results sheet is keyed per errand, and the widget
-    # route takes the suffix as a query argument (`results` + `q=2` is the box of task 2). Without it every
-    # read lands on the un-instanced box, which after V2-259 is a DIFFERENT box from the one the errand wrote.
-    _path = f"/widgets/{urllib.parse.quote(wid, safe='')}/data"
-    if q:
-        _path += f"?q={urllib.parse.quote(q, safe='')}"
-    d = _get(_path, timeout=20.0)
+    d = _get(_widget_path(wid, q), timeout=20.0)
     v = d.get(key) if isinstance(d, dict) else None
     return v if isinstance(v, list) else []
 
@@ -185,7 +193,7 @@ def widget_data(wid: str, q: str = "") -> dict | None:
     distinction its own docstring says the report must keep. This returns the raw dict so that call sites can
     keep the two apart instead of inferring absence from a shape.
     """
-    d = _get(f"/widgets/{urllib.parse.quote(wid, safe='')}/data", timeout=20.0)
+    d = _get(_widget_path(wid, q), timeout=20.0)
     if not isinstance(d, dict) or not d or "error" in d:
         return None       # `_get` reports a failed request as `{"error": ...}`, never as an empty payload
     return d

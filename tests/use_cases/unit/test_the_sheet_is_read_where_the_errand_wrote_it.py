@@ -81,3 +81,44 @@ def test_the_two_readers_cannot_point_at_different_boxes():
     assert "results_sheet(" in src
     line = next(l for l in src.splitlines() if '"results_sheet"' in l)
     assert "sheet_instances(" in line, f"results_sheet no recibe los ids de sheet_instances: {line.strip()}"
+
+
+# ── The suffix has to reach the REQUEST, not just the call ────────────────────────────────────────────
+# The two cases above mock `widget_data` itself, so they prove `results_sheet` ASKS for the right box and
+# nothing more. They passed while `widget_data` was dropping `q` on the floor and reading the bare box on
+# every call — the fix had landed in the neighbouring function. A mock placed above the defect cannot see
+# it, so these two go under it, at the HTTP boundary.
+
+
+def _path_seen(monkeypatch) -> list:
+    from tests.use_cases.e2e.agent import probe_client
+    seen: list[str] = []
+    monkeypatch.setattr(probe_client, "_get", lambda path, timeout=20.0: seen.append(path) or {"items": []})
+    return seen
+
+
+def test_the_suffix_reaches_the_request(monkeypatch):
+    from tests.use_cases.e2e.agent import probe_client
+    seen = _path_seen(monkeypatch)
+    probe_client.widget_data("results", "2")
+    assert seen == ["/widgets/results/data?q=2"]
+
+
+def test_no_suffix_asks_for_the_bare_box(monkeypatch):
+    """Sensitivity: a `?q=` glued on unconditionally would ask for a box that does not exist, and the reader
+    would report every un-instanced widget as unreadable."""
+    from tests.use_cases.e2e.agent import probe_client
+    seen = _path_seen(monkeypatch)
+    probe_client.widget_data("agenda")
+    assert seen == ["/widgets/agenda/data"]
+
+
+def test_the_row_reader_builds_the_same_path(monkeypatch):
+    """`widget_rows` is the same request seen at another shape. It is in this test because it spent a commit
+    referring to a `q` it did not take as an argument — a `NameError` waiting for the first round whose
+    scenario reads the agenda, which is a crash and not a finding."""
+    from tests.use_cases.e2e.agent import probe_client
+    seen = _path_seen(monkeypatch)
+    probe_client.widget_rows("agenda", "meetings")
+    probe_client.widget_rows("results", "items", "2")
+    assert seen == ["/widgets/agenda/data", "/widgets/results/data?q=2"]
