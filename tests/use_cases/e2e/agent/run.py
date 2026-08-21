@@ -705,7 +705,7 @@ def seed_provider_chain(ws) -> str:
         return ""
 
 
-def brain_preflight(*, timeout: float = 60.0) -> str:
+def brain_preflight(*, timeout: float = 210.0) -> str:
     """CAN THE BRAIN SPEAK AT ALL? Returns "" when it can, or the refusal to print when it cannot.
 
     On 2026-08-21 the whole provider chain ran out at once — DeepSeek answered HTTP 402 «Insufficient
@@ -713,6 +713,11 @@ def brain_preflight(*, timeout: float = 60.0) -> str:
     turn came back EMPTY. Two full rounds were driven and judged before anyone noticed: the first was filed
     1/1/1/1/1 FAIL on a case nobody had exercised, and the second was a case that had PASSED twice an hour
     earlier. Roughly fifteen minutes of machine time to learn something one turn answers.
+
+    El plazo es LARGO a propósito (210 s). Con la cadena tocada, un turno puede gastar 75 s solo en agotar
+    un escalón que da timeout antes de llegar al que sí contesta, y un canario impaciente declara muerto un
+    cerebro que estaba a un escalón de hablar — que es exactamente el error que este canario existe para no
+    cometer, cometido por el canario.
 
     So one throwaway turn is spent before the batch. It costs a couple of seconds against the sandbox that
     is booting anyway, and it separates «the product failed» from «nothing could think» before a single
