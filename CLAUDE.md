@@ -1339,6 +1339,24 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Una píldora de fondo no es un hecho sobre la persona** (`widgets/background.py`, V2-242, 2026-08-21). El
+  arnés midió en `best-plumber-same-day` que `weather:soria` (`mid/note`, importancia 0,3) le ganaba a
+  `operator.location` (`long/profile`, «Vive en el centro de Madrid») y el worker buscó **«fontanero Soria»** tres
+  veces seguidas. La píldora la escribe cada hora `widgets/meteo-soria`, que **viaja TRACKED en el repo público**:
+  no es memoria sucia de un test, es la que tiene cualquiera que clone.
+  - **La LECTURA la cerró memoria-dev** (`memory_agent.compose_context`, `39e68a7`): un slot con namespace no
+    entra en el dosier del worker salvo que la tarea lo nombre.
+  - **Esto cierra la ESCRITURA.** Los lectores separan «hechos del operador» de «píldoras de fondo» **por la
+    FORMA DE LA CLAVE** —puntos para la persona, namespace para el fondo— y nada impedía que un tick escribiera
+    `operator.location`, ni que una nota **SIN slot** cayera bajo «LO QUE SABES DEL OPERADOR» (sin `:` no la
+    filtra nadie) acumulándose además sin sustituir. **Una convención sin candado es una promesa**, y el sitio
+    donde ponerlo es el único que SABE que el autor es un trabajo de fondo.
+  - **En la CLAVE y no en `meta['widget']`**, por medida de memoria-dev: el retriever **no devuelve meta**. Probó
+    la forma exacta — `meteo-soria:weather:soria` fuera de «busca un fontanero», DENTRO de «el tiempo en Soria».
+  - **Abierto**: las píldoras ya escritas quedan huérfanas (el supersede es por clave), y eso se limpia en el lado
+    de memoria. Y sigue pendiente de decisión del OPERADOR si esos widgets personales —dos de ellos dicen dónde
+    vive— deben viajar en un repo público. Nodo 4.1, 9 casos, sensibilidad en dos direcciones.
+
 - **La puerta avisaba UNA vez y el worker chocó TRES** (`nucleo/workers/session.py`, V2-241, 2026-08-21). De la
   evidencia abierta de V2-236: uno de los workers muertos chocó **tres veces** con nuestra propia puerta de
   permiso. V2-211 puso la red —si choca, se le explica cómo reescribirlo— pero se disparaba **una vez por

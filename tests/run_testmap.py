@@ -403,6 +403,11 @@ DOMAINS: list[dict] = [
         {"id": "4.1", "title": "Ciclo de vida / acciones / refs / generador / background", "ch": UNIT, "paths": [
             "tests/browser/unit/widgets/test_lifecycle_confirm.py", "tests/browser/unit/widgets/test_actions.py", "tests/browser/unit/widgets/test_refs.py",
             "tests/browser/unit/widgets/test_generator_sync.py", "tests/browser/unit/widgets/test_background.py",
+            # V2-242: una píldora escrita por un cron de widget no es un hecho sobre la persona. Los lectores
+            # separan «hechos del operador» de «píldoras de fondo» POR LA FORMA DE LA CLAVE, y nada impedía que
+            # un tick escribiera `operator.location` — ni que una nota sin slot cayera bajo «LO QUE SABES DEL
+            # OPERADOR». El candado va en la escritura, que es lo único que sabe quién es el autor.
+            "tests/browser/unit/widgets/test_a_background_pill_is_not_an_operator_fact.py",
             "tests/browser/unit/widgets/test_aliases.py", "tests/browser/unit/widgets/test_identify_context.py",
             "tests/browser/unit/widgets/test_resolver_certainty.py", "tests/browser/unit/widgets/test_system_surfaces_sync.py",
             "tests/browser/unit/widgets/test_paths_workspace.py"]},

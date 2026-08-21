@@ -88,14 +88,37 @@ class TickCtx:
 
     def remember(self, text: str, *, slot: str | None = None, kind: str = "note",
                  importance: float = 0.4, level: str = "mid", **extra) -> None:
-        """Write data to central memory. Use `slot` (for example 'weather:soria') for supersede: the latest value
-        wins instead of accumulating. Text becomes available to recall/state so voice questions answer fresh data."""
+        """Write data to central memory. `slot` gives supersede: the latest value wins instead of accumulating.
+
+        The slot is ALWAYS namespaced with this widget's id (V2-242). Memory's readers separate «the operator's
+        own facts» from «pills written by a background job» BY THE SHAPE OF THE KEY — dots for the person
+        (`operator.location`), a namespace for background (`<widget>:<key>`); the passive block has excluded the
+        namespaced ones since the 2026-07-14 audit, and the worker dossier since `memory_agent` (2026-08-21). That
+        convention was a PROMISE with no lock: nothing stopped a tick from writing `operator.location` and minting
+        a fact about the person, and nothing stopped an unslotted note from landing under the header «LO QUE SABES
+        DEL OPERADOR». Here the lock is put on the write side, which is the only place that KNOWS a background job
+        is the author.
+
+        It is not a blanket ban: a namespaced pill still reaches the reader when the task names it («el tiempo en
+        Soria»), which is the promise the 2026-07-14 note made and this keeps.
+        """
         try:
             from memory import api as memory
             meta = {"widget": self.widget_id, **(extra.pop("meta", None) or {})}
-            memory.write(text, kind=kind, level=level, importance=importance, slot=slot, meta=meta, **extra)
+            memory.write(text, kind=kind, level=level, importance=importance, slot=self._own_slot(slot),
+                         meta=meta, **extra)
         except Exception as e:  # noqa: BLE001
             logger.warning(f"background[{self.widget_id}] ctx.remember failed: {e}")
+
+    def _own_slot(self, slot) -> str:
+        """`<widget-id>:<lo que pidiera>`. Sin slot, `<widget-id>:note` — porque una nota SIN slot tampoco la
+        filtra nadie: la convención se lee en la clave, así que una píldora sin clave entra en el dosier del
+        operador como si fuera suya, y encima se acumula sin sustituir a la anterior."""
+        raw = " ".join(str(slot or "").split()).strip()
+        base = str(self.widget_id or "widget").strip()
+        if not raw:
+            return f"{base}:note"
+        return raw if raw.startswith(f"{base}:") else f"{base}:{raw}"
 
     def ingest(self, source: str, entity: str, text: str, **kw):
         """Write incoming data from a source (messaging/feed...) through the typed memory path."""
