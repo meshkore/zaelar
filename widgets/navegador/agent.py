@@ -328,7 +328,9 @@ async def run_task(goal: str, owner, plan: str = "", max_steps: int = _MAX_STEPS
                 messages.append({"role": "user", "content": user})
                 action, args = await _next_action(messages, _TOOLS, strong=strong_mode)
             if action is None:
-                steps.append("(el modelo no emitió acción)")
+                # V2-253: si el paso murió por argumentos ilegibles o por el tope, eso es lo que se apunta — no
+                # «no emitió acción», que es otra cosa y manda a mirar al modelo cuando el tope es nuestro.
+                steps.append(args.get("_error") or "(el modelo no emitió acción)")
                 break
             if action == "need_vision":
                 owner._emit("task_need_vision", args.get("why", ""))
@@ -411,12 +413,27 @@ async def _next_action(messages: list[dict], tools: list[dict], strong: bool = F
         else:
             raise
     choice = resp.choices[0].message
+    # V2-253 — UNOS ARGUMENTOS ILEGIBLES NO SON UNA ACCIÓN SIN ARGUMENTOS. Esto devolvía el NOMBRE de la acción
+    # con `{}` cuando su JSON no parseaba, así que el bucle ejecutaba `click` sin ref, `type` sin texto o
+    # `navigate` sin url — una acción plausible con lo que el modelo dijo BORRADO. Es la familia de V2-171 («una
+    # tool call truncada se descarta en silencio»), y aquí es peor porque no se descarta: se actúa.
+    #
+    # La regla que lo ordena la adoptó el cluster el 2026-08-21: **un techo solo es peligroso si el lector acepta
+    # PREFIJOS**. Los otros lectores del motor exigen el JSON entero y caen a un default seguro; este aceptaba
+    # el prefijo vacío como si fuera lo pedido.
+    _cortado = str(getattr(resp.choices[0], "finish_reason", "") or "") == "length"
     for tc in (choice.tool_calls or []):
+        _crudo = tc.function.arguments or "{}"
         try:
-            return tc.function.name, json.loads(tc.function.arguments or "{}")
-        except Exception:
-            return tc.function.name, {}
-    return None, {}
+            return tc.function.name, json.loads(_crudo)
+        except Exception:  # noqa: BLE001
+            # Se distingue quién lo rompió: el tope es NUESTRO y se arregla subiéndolo; unos argumentos
+            # inválidos son del modelo y se arreglan reintentando. Decir «no emitió acción» tapa las dos.
+            _por = ("se cortó por el tope de tokens" if _cortado else "devolvió argumentos ilegibles")
+            logger.warning(f"navegador agent: «{tc.function.name}» {_por} ({len(_crudo)} chars) — no se ejecuta")
+            return None, {"_error": f"«{tc.function.name}» {_por}; no la ejecuto con los argumentos a medias"}
+    return None, {"_error": "el modelo no emitió ninguna acción"
+                            + (" (cortada por el tope de tokens)" if _cortado else "")}
 
 
 async def summarize_results(goal: str, items: list) -> dict | None:

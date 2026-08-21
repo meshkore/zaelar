@@ -463,6 +463,10 @@ DOMAINS: list[dict] = [
             # elemento tapado o despegado tumbaba la acción entera — tres `scroll_into_view_if_needed` con Exit
             # code 1 en un mismo worker, y ese worker muerto (arnés, 2026-08-21).
             "tests/browser/unit/navegador/test_the_courtesy_does_not_kill_the_click.py",
+            # V2-253: unos argumentos ILEGIBLES no son una acción sin argumentos. `_next_action` devolvía el
+            # nombre con `{}` y el bucle ejecutaba `click` sin ref o `type` sin texto — la familia de V2-171, y
+            # peor, porque no se descartaba: se actuaba. Sale del barrido de topes del cluster (2026-08-21).
+            "tests/browser/unit/navegador/test_illegible_args_are_not_an_action.py",
             # V2-248: un `ref` caducado decía QUÉ pasaba y no CÓMO salir (`ref 26 no existe`, la forma de
             # V2-212). Mismo contrato que el nodo 4.20 — y NO se reintenta con la mirada nueva: los números se
             # reparten al mirar, así que el mismo número es otro elemento.
@@ -1019,6 +1023,10 @@ DOMAINS: list[dict] = [
         # fichero llegó en `97fd92f` sin nodo y la suite se puso roja el mismo día en vez de dentro de un mes.
         {"id": "10.51", "title": "The chain must have a HEAD that talks: the text channel does not relay",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_chain_needs_a_head_that_talks.py"]},
+        {"id": "10.52", "title": "Which memory answered the round: a degraded embeddings backend is INFRA, not FAIL",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_which_memory_answered_the_round.py"]},
+        {"id": "10.53", "title": "A worker whose bridges are DENIED is not a product failure",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_worker_can_reach_its_bridges.py"]},
     ]},
 ]
 

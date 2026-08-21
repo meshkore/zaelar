@@ -1363,6 +1363,19 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - Nodo 2.15, 9 casos rojos con el parseo viejo. **Sin verificar en vivo.** Lo cogió memoria-dev fuera de su
     territorio por decisión del orquestador: **el dueño de un arreglo es quien tiene la evidencia**.
 
+- **Unos argumentos ILEGIBLES no son una acción sin argumentos** (`widgets/navegador/agent.py`, V2-253,
+  2026-08-21). Sale de la regla que el cluster adoptó ese día (propuesta de memoria-dev): **un techo solo es
+  peligroso si el lector acepta PREFIJOS**. Barridos los del motor con ese criterio, los lectores son seguros
+  —`attention._parse_directed` y `segmenter._parse_judge` exigen el objeto entero y caen a un default— **menos el
+  que conduce el navegador**: `_next_action` devolvía el NOMBRE de la acción con `{}` cuando su JSON no parseaba,
+  y el bucle ejecutaba `click` sin ref, `type` sin texto o `navigate` sin url. Es la familia de V2-171 y **peor,
+  porque no se descarta: se ACTÚA**, sobre una página real y con el argumento inventado por omisión.
+  - Ahora no se ejecuta, y **se distingue quién lo rompió**: el TOPE es nuestro (se sube) y unos argumentos
+    inválidos son del modelo (se reintenta) — «no emitió acción» tapaba las dos y mandaba a mirar al modelo
+    cuando el culpable era nuestro. Un `{}` legítimo (`snapshot`, `back`) sigue valiendo.
+  - Nodo 4.2, 9 casos, **con el barrido clavado**: dos comprueban que los otros lectores siguen exigiendo el
+    objeto entero — si alguno se relaja, su techo se vuelve peligroso sin que nada falle.
+
 - **El canal de TEXTO no relevaba — y era la TERCERA vez que `probe.py` se separaba del provider de voz**
   (`nucleo/flash/provider_failure.py` NUEVO, V2-252, 2026-08-21). Tuvo al arnés **ocho horas sin poder medir**:
   con la cadena real sembrada, un turno devolvía `402 Insufficient Balance` **en el mismo segundo** en que el log
