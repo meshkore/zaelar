@@ -379,6 +379,13 @@ def test_sobre_las_sesiones_REALES_recompone_frases_y_no_se_atasca():
         # (b) ninguna cadena puede dejar el acumulador retenido más allá de sus válvulas
         assert len(a.fragments) < acc.MAX_FRAGMENTS, f"cadena atascada con {len(a.fragments)} trozos: {c[:3]}"
 
-    assert recompuestas >= 50, (
-        f"solo {recompuestas} frases recompuestas sobre {len(chains)} cadenas reales — medido: 141. "
-        f"Si ha bajado tanto, el predicado de completitud cambió de comportamiento.")
+    # El suelo es una PROPORCIÓN, no un recuento. Estaba escrito como `>= 50` contra las 141 medidas el día que
+    # se calibró, sobre la premisa que dice el docstring: «el registro crece cada sesión». La premisa es falsa —
+    # el registro se vació el 2026-08-15 al sacar del repo público el diario del operador— así que el test se
+    # quedó DORMIDO bajo el `skip` de «menos de 10 cadenas», y el 2026-08-21, al reiniciar el motor y generarse
+    # sesiones nuevas, despertó y se puso rojo con 16 sobre 17 cadenas: un 94% de acierto denunciado como avería.
+    # Un recuento absoluto sobre datos vivos mide el TAMAÑO DEL CORPUS; la proporción mide el predicado, que es lo
+    # único que este fichero puede afirmar. Sin esto, la próxima limpieza de logs vuelve a acusar al producto.
+    assert recompuestas >= max(5, len(chains) // 2), (
+        f"solo {recompuestas} frases recompuestas sobre {len(chains)} cadenas reales (menos de la mitad). "
+        f"El predicado de completitud cambió de comportamiento.")

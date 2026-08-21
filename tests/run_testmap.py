@@ -722,6 +722,18 @@ DOMAINS: list[dict] = [
                                 "no los ids— y con una sigue cerrando",
             "ch": UNIT,
             "paths": ["tests/browser/unit/frontera/test_closing_one_of_two_is_a_question.py"]},
+        # 2026-08-21, medido en vivo por el arnés: TRES workers conduciendo la MISMA pestaña (46+27+7 acciones
+        # entrelazadas), y uno pulsando `click [29]` sobre una página que otro acababa de cambiar. Las refs se
+        # reparten al MIRAR (V2-248), así que el mismo número es otro elemento: en una página con botón de pagar
+        # eso es una ACCIÓN equivocada, no un resultado sucio. La causa son DOS jueces de parecido que se
+        # contradicen sobre el mismo par de textos —`find_duplicate` (Jaccard ≥0.60) dice «distintos» y abre tres
+        # workers; `tasks._similar` (≥2 raíces o Jaccard ≥0.40) dice «misma navegación» y les da una pestaña— con
+        # los textos reales cayendo en el hueco entre las dos varas (0.333-0.375). Unificar la vara es otro
+        # trabajo; esto resuelve la contradicción donde se vuelve física.
+        {"id": "4.39", "title": "Una pestaña, un conductor: un worker nunca hereda la pestaña que otro está "
+                                "conduciendo, y la continuación sigue reabriendo la de quien ya terminó",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/frontera/test_one_tab_one_driver.py"]},
         # V2-261 — el operador lo vio en pantalla: dos segundos después de la tarjeta buena aparecía otra de
         # navegador, BASE y vacía, encima. No la abría nadie: `desktop._persist()` informa del canvas, la ruta
         # NORMALIZA `navegador::t2` a su base, el diff dice «se ha abierto navegador» y esa AUDITORÍA (V2-039)
