@@ -2261,13 +2261,16 @@ class NucleoLLMStream(llm.LLMStream):
             # rojo con «no responde» y gritaba «Cerebro rápido caído». Visto en vivo: el modelo contestaba bien antes y
             # después, y el operador se queda mirando un LLM en rojo que funciona. Se distingue el HECHO (este turno no
             # salió, y eso hay que decirlo) del DIAGNÓSTICO (el proveedor está caído, que es otra cosa y más grave).
+            # V2-252 — la DECISIÓN (¿atasco o fallo duro? ¿a qué escalón se releva? ¿queda alguno?) vive ahora en
+            # `nucleo/flash/provider_failure.py`, compartida con el canal de TEXTO. Estaba escrita dos veces y esa
+            # duplicación mordió tres veces: la última dejó al arnés ocho horas sin poder medir, con el texto
+            # devolviendo un 402 en el mismo segundo en que el log decía «relevo a aimlapi-failover». Lo que NO se
+            # comparte, a propósito, es lo que cada canal DICE: esta habla, el otro devuelve un objeto.
+            _v = {}
             try:
-                from voice import health_state, llm_health
-                if stalled:
-                    health_state.record("llm", "slow", f"un turno se atascó ({_quiet_ms} ms sin respuesta) y lo corté")
-                else:
-                    kind = llm_health.classify(err_text) or "error"
-                    health_state.record("llm", kind, err_text[:200] or "flash brain down")
+                from nucleo.flash import provider_chain as _pchain1
+                from nucleo.flash import provider_failure as _pfail
+                _v = _pfail.handle(err_text, role=_pchain1.ROLE_VOICE, stalled=bool(stalled), spec=spec)
             except Exception:
                 pass
             # RELAY on a HARD failure, not just a slow one (2026-08-15 addendum to V2-094): `note_slow` below
@@ -2275,20 +2278,9 @@ class NucleoLLMStream(llm.LLMStream):
             # credential, an outage — used to just repeat against the same broken tier turn after turn, because
             # `note_failure` was hardcoded to the CLUSTER role. Cooldown is sticky (`pick()` is O(1)), so this
             # only needs to fire once per failure — the NEXT turn already starts on the relay.
-            _dry = False          # V2-243: ¿ha quedado la cadena SIN ningún escalón sano?
-            try:
-                from nucleo.flash import provider_chain as _pchain1
-                if stalled:
-                    # V2-246 — UN ATASCO REPETIDO SÍ CUENTA. `note_slow` vive en el camino de la respuesta, así
-                    # que solo ve turnos que ACABARON; y `note_failure` se salta aquí a propósito porque un
-                    # atasco suele ser pasajero. Entre las dos, un escalón que se atasca SIEMPRE no se penalizaba
-                    # nunca y el turno siguiente volvía al mismo sitio. Para siempre.
-                    _pchain1.note_stall(role=_pchain1.ROLE_VOICE)
-                else:
-                    _pchain1.note_failure(err_text, role=_pchain1.ROLE_VOICE)
-                    _dry = _pchain1.pick(_pchain1.ROLE_VOICE) is None
-            except Exception:
-                pass
+            # V2-243/246: el cooldown, el relevo y el «¿queda alguien?» los acaba de resolver `provider_failure`
+            # (un atasco REPETIDO cuenta —`note_stall`—; uno aislado es ruido). Aquí solo se lee el veredicto.
+            _dry = bool(_v.get("dry")) and not stalled
             if stalled:
                 emit("alert", "Un turno se atascó y lo corté — sigo operativo.", text="flash turn stalled")
             elif _dry:

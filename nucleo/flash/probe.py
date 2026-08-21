@@ -361,35 +361,47 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
                                                      has_workers=_hw, ask_pending=_akp,
                                                      cluster_widget_open=True, cluster_connected=_cl_conn_p))
     llm_metrics["n_tools_offered"] = len(_turn_tools)
-    try:
-        async for delta in FastClient().stream(messages, spec=spec, tools=_turn_tools,
-                                                on_tool_call=_on_tool_call, metrics=llm_metrics):
-            if _ttft is None:
-                _ttft = round((time.time() - t0) * 1000, 1)
-            buf += delta
-            raw += delta
-            out, buf = strip_tags(buf, _tag_emit, False)
-            _ = out
-        out, buf = strip_tags(buf, _tag_emit, True)
-    except Exception as e:  # noqa: BLE001
-        # A PROVIDER FAILURE HAS TO BE SAID OUT LOUD, in the same two places the voice channel says it. Until now
-        # this channel swallowed it: no cooldown marked, no health recorded, so a titular with no balance stayed
-        # the titular and every text turn came back silent. Measured on `restaurant-tonight-madrid`: THREE
-        # consecutive turns with no reply at all, which is what a dead provider looks like when nobody reports it.
-        # The cooldown is shared ON PURPOSE (see provider_chain: «si a Z.AI se le acabó la cuota, se le acabó para
-        # todo el mundo»), so reporting here is what lets the OTHER channel relay away from it.
-        _err = str(e).splitlines()[0][:200]
+    # UN FALLO DE PROVEEDOR SE DICE, Y ADEMÁS SE RELEVA — ESTE MISMO TURNO (V2-252). Reportarlo ya se hacía
+    # (2026-08-15); relevar, no: el turno moría con un escalón sano esperando al lado. Medido por el arnés el
+    # 2026-08-21 y es lo que le tuvo OCHO HORAS sin poder medir — con la cadena real sembrada, un turno devolvía
+    # `{"ok":false,"error":"modelo: 402 Insufficient Balance"}` en el MISMO SEGUNDO en que el log decía
+    # «`deepseek-directo` SIN SALDO → relevo a `aimlapi-failover`». La voz relevaba, i18n relevaba, el texto no.
+    #
+    # Mismo patrón que el canal de CLUSTER, que lleva haciéndolo desde 2026-08-03 (`connectors/meshkore/brain.py`):
+    # un intento, un relevo, un reintento — y no más, para que un proveedor roto no se convierta en un bucle.
+    #
+    # SOLO se reintenta si el turno no había dicho NADA todavía. Con un 402 el stream muere antes del primer
+    # delta, que es el caso real; pero si ya había salido texto o una tool, repetir el turno lo diría dos veces.
+    _relay_done = False
+    while True:
         try:
+            async for delta in FastClient().stream(messages, spec=spec, tools=_turn_tools,
+                                                    on_tool_call=_on_tool_call, metrics=llm_metrics):
+                if _ttft is None:
+                    _ttft = round((time.time() - t0) * 1000, 1)
+                buf += delta
+                raw += delta
+                out, buf = strip_tags(buf, _tag_emit, False)
+                _ = out
+            out, buf = strip_tags(buf, _tag_emit, True)
+            break
+        except Exception as e:  # noqa: BLE001
+            _err = str(e).splitlines()[0][:200]
+            from loguru import logger as _log
+
             from nucleo.flash import provider_chain as _pchain_err
-            _pchain_err.note_failure(str(e), role=_pchain_err.ROLE_VOICE)
-        except Exception:
-            pass
-        try:
-            from voice import health_state, llm_health
-            health_state.record("llm", llm_health.classify(_err) or "error", _err or "flash brain down")
-        except Exception:
-            pass
-        return {"ok": False, "error": f"modelo: {_err}", "spec": f"{spec.provider}/{spec.model}"}
+            from nucleo.flash import provider_failure as _pfail
+            _v = _pfail.handle(str(e), role=_pchain_err.ROLE_VOICE, spec=spec)
+            _nxt = _v.get("relay")
+            _virgen = not raw and not buf and not tool_calls
+            if _nxt and not _relay_done and _virgen:
+                _relay_done = True
+                _log.warning(f"probe: relevo a «{_nxt['name']}» a mitad de turno tras «{_err}» — reintento")
+                spec = _pchain_err.spec_for(_nxt)
+                _ttft = None
+                continue
+            return {"ok": False, "error": f"modelo: {_err}", "spec": f"{spec.provider}/{spec.model}",
+                    "sin_relevo": bool(_v.get("dry"))}
 
     spoken = speech.sanitize(strip_tags(raw, lambda *a: None, True)[0], drop_metadata=False)
     degenerate = dialog.looks_degenerate(spoken)

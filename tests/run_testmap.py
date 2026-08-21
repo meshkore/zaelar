@@ -161,6 +161,11 @@ DOMAINS: list[dict] = [
             # verdad sin avisar. Lo mismo con `test_brain_relay.py`, que además llevaba ROTO desde el refactor de
             # V2-098 (`pc._cooldown` dejó de existir) sin que nadie lo viera.
             "tests/agent_headless/unit/flash/test_provider_chain.py",
+            # V2-252: el canal de TEXTO capturaba el fallo, apuntaba el cooldown… y devolvía, con un escalón sano
+            # esperando. Ocho horas del arnés sin poder medir. Es la TERCERA vez que muerde la misma forma —
+            # `probe.py` es la implementación PARALELA del provider de voz—, así que la DECISIÓN pasa a
+            # `provider_failure.py` y la leen los dos canales.
+            "tests/agent_headless/unit/flash/test_the_text_channel_relays_too.py",
             "tests/cluster/unit/test_brain_relay.py",
             # V2-243/244: un saldo agotado no es una cuota, y un escalón CALLADO por la regla de self-host se
             # nombra en vez de decir «SIN RELEVO disponible» a secas.
@@ -1010,6 +1015,10 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_brain_can_speak_before_measuring.py"]},
         {"id": "10.50", "title": "The mechanism numbers reach the report the fixing agent opens",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_numbers_reach_the_report.py"]},
+        # V2-252 — declarado por el ARNÉS (título suyo), y es la PRIMERA caza del trinquete del testmap: su
+        # fichero llegó en `97fd92f` sin nodo y la suite se puso roja el mismo día en vez de dentro de un mes.
+        {"id": "10.51", "title": "The chain must have a HEAD that talks: the text channel does not relay",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_chain_needs_a_head_that_talks.py"]},
     ]},
 ]
 

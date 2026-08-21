@@ -281,9 +281,12 @@ def test_el_turno_de_VOZ_lo_pregunta_y_cambia_lo_que_dice():
     import pathlib
     src = pathlib.Path(inspect.getfile(pc)).parent.parent.parent / "voice/engine/llm/providers/nucleo.py"
     txt = src.read_text(encoding="utf-8")
-    assert "_dry = _pchain1.pick(_pchain1.ROLE_VOICE) is None" in txt
+    # V2-252: el «¿queda alguien?» lo resuelve el módulo compartido y este turno LEE el veredicto.
+    assert '_dry = bool(_v.get("dry"))' in txt
     assert "sin proveedor de modelo" in txt
     assert 'send("Uf, se me ha ido un momento. ¿Me lo repites?" if not _dry else' in txt
+    from nucleo.flash import provider_failure as _pf
+    assert "pc.pick(role) is None" in inspect.getsource(_pf.handle)
 
 
 # ── V2-244: callar un escalón es legítimo; callar QUE LO CALLAS, no ──────────────────────────────────────────
@@ -445,5 +448,8 @@ def test_el_turno_de_voz_LO_LLAMA_cuando_se_atasca():
     import pathlib
     src = pathlib.Path(inspect.getfile(pc)).parent.parent.parent / "voice/engine/llm/providers/nucleo.py"
     txt = src.read_text(encoding="utf-8")
-    assert "_pchain1.note_stall(role=_pchain1.ROLE_VOICE)" in txt
-    assert "if stalled:" in txt
+    # V2-252: el turno pasa el HECHO (`stalled=`) y el módulo compartido decide `note_stall` vs `note_failure`.
+    # Se comprueban las dos mitades: sin la primera el atasco no llega, sin la segunda no se penaliza.
+    assert "stalled=bool(stalled)" in txt
+    from nucleo.flash import provider_failure as _pf
+    assert "pc.note_stall(role=role, tier=culpable)" in inspect.getsource(_pf.handle)

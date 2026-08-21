@@ -1363,6 +1363,31 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - Nodo 2.15, 9 casos rojos con el parseo viejo. **Sin verificar en vivo.** Lo cogió memoria-dev fuera de su
     territorio por decisión del orquestador: **el dueño de un arreglo es quien tiene la evidencia**.
 
+- **El canal de TEXTO no relevaba — y era la TERCERA vez que `probe.py` se separaba del provider de voz**
+  (`nucleo/flash/provider_failure.py` NUEVO, V2-252, 2026-08-21). Tuvo al arnés **ocho horas sin poder medir**:
+  con la cadena real sembrada, un turno devolvía `402 Insufficient Balance` **en el mismo segundo** en que el log
+  decía «`deepseek-directo` SIN SALDO → relevo a `aimlapi-failover`». La voz relevaba, i18n relevaba, el texto
+  no. No faltaba la política: faltaba aplicarla.
+  - **Lo estructural lo trajo memoria-dev**: `probe.py` es la implementación PARALELA del provider de voz y el
+    arnés corre por ese canal. Ya mordió el 2026-08-18 (`22f3674`: las tags `[[cron.create]]` se capturaban y no
+    se ejecutaban → mecanismo INALCANZABLE para lo que se midiera) y el 2026-08-15 (el relevo por fallo duro se
+    añadió a la voz y no aquí). **Dos copias de una decisión se separan sin avisar, y el aviso llega cuando
+    alguien mide algo que sale mal por un motivo que no es el que mide.** Así que la decisión —atasco vs fallo
+    duro, a qué escalón, si queda alguno— vive en UN sitio y la leen los dos; lo que NO se comparte es qué dice
+    cada canal.
+  - **El reintento con sus dos frenos**: un intento, un relevo, un reintento (como el canal de cluster desde
+    2026-08-03), y **solo si el turno no había dicho nada** — repetirlo tras haber hablado lo diría dos veces.
+  - **Segunda trampa, del arnés**: hay DOS fuentes de «quién es el titular» — el turno usa `spec_from_config()`
+    (`fast.model`/`fast.base_url`) y la cadena se ordena por `fast.providers`; reordenó la escalera y no cambió
+    nada. Como `note_failure` sin `tier` pregunta a `pick()`, **el cooldown podía caer sobre un proveedor SANO
+    dejando elegido al roto**. Ahora se pasa el `spec` y el culpable se resuelve por su `base_url`; si el
+    endpoint no está en la cadena **no se inventa un culpable**.
+  - **VERIFICADO EN VIVO** por el arnés (desbloqueado, midiendo). Nodo 2.4, 16 casos, sensibilidad en cinco
+    direcciones. Las guardas de cableado son el corazón: un test sobre el predicado habría pasado en verde las
+    tres veces.
+  - **Abierto**: `fast.model` y `fast.providers[0]` pueden discrepar y nadie avisa — unificarlas toca la config
+    del operador.
+
 - **Un solo reloj para el «hoy» que se le DICE al worker** (`nucleo/dispatch_prompts.py`, V2-250, 2026-08-21).
   Salió de un aviso de método a memoria-dev: él auditó su lado y encontró que la agenda del dosier filtraba con
   `date.today()` (`75f2a34` — replay a 2026-03-10, cita a 6 días por delante, **agenda VACÍA** porque

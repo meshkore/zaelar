@@ -406,5 +406,12 @@ def test_the_stall_path_says_stalled_not_dead():
     stall = src[src.index("_quiet_ms = _turn_budget_ms()"):]
     stall = stall[stall.index("except asyncio.TimeoutError:"):]
     assert "stalled = True" in stall[:700]
-    assert 'health_state.record("llm", "slow"' in src
+    # V2-252: la clasificación (atasco vs caída) se comparte con el canal de TEXTO en
+    # `nucleo/flash/provider_failure.py`, porque escrita dos veces se separó tres veces. Aquí se comprueba que
+    # este turno le PASA el hecho —`stalled=`— y que el módulo compartido lo traduce a «slow» y no a «caído».
+    assert "stalled=bool(stalled)" in src
+    import inspect as _i
+
+    from nucleo.flash import provider_failure as _pf
+    assert 'health_state.record("llm", "slow"' in _i.getsource(_pf.handle)
     assert "Un turno se atascó y lo corté" in src
