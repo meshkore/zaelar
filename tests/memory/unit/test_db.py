@@ -124,3 +124,50 @@ def test_vec_search_smoke(fresh_db):
         (blob([0.1] * dim),),
     )
     assert rows and rows[0]["memory_id"] == 1
+
+
+# ── by_slot_prefix: leer un CATÁLOGO por clave, sin pagar el recall semántico (V2-260, 2026-08-21) ──────────
+# Pedida por el arnés para que «¿qué electricistas tenemos?» sea un SELECT por prefijo y no un embedding + RRF
+# + reranker. El caso de uso que sirve tiene como criterio de éxito que la familia `worker` NO aparezca, así
+# que un recall semántico aquí sería justamente el proceso caro que el catálogo existe para evitar.
+
+def test_by_slot_prefix_reads_a_catalogue_by_key(fresh_db):
+    from memory import api as memapi
+    memapi.write_now("Electricistas Ruiz — 24h — 91 555 00 11", level="mid", kind="note",
+                     slot="candidato:electricista:a1", importance=0.5)
+    memapi.write_now("ElectroMadrid — urgencias — 91 555 22 33", level="mid", kind="note",
+                     slot="candidato:electricista:b2", importance=0.5)
+    memapi.write_now("Fontanería Gómez", level="mid", kind="note",
+                     slot="candidato:fontanero:c3", importance=0.5)
+    memapi.write_now("Vive en el centro de Madrid.", level="long", kind="profile",
+                     slot="operator.location", importance=0.9)
+
+    got = memapi.by_slot_prefix("candidato:electricista:")
+    assert {m["slot"] for m in got} == {"candidato:electricista:a1", "candidato:electricista:b2"}
+    assert memapi.by_slot_prefix("candidato:") and len(memapi.by_slot_prefix("candidato:")) == 3
+    assert memapi.by_slot_prefix("") == []
+
+
+def test_by_slot_prefix_escapes_the_LIKE_wildcards(fresh_db):
+    """`_` y `%` son comodines de SQL y los slots llevan guiones bajos con naturalidad. Sin escapar,
+    `candidato:aire_acondicionado:` devuelve TAMBIÉN `candidato:aireXacondicionado:` — comprobado en sqlite
+    antes de escribir la función. Un catálogo que arrastra fichas de otra categoría no falla: contesta de más."""
+    from memory import api as memapi
+    memapi.write_now("Clima Sur — instalación", level="mid", kind="note",
+                     slot="candidato:aire_acondicionado:a1", importance=0.5)
+    memapi.write_now("IMPOSTOR — otra categoría", level="mid", kind="note",
+                     slot="candidato:aireXacondicionado:zz", importance=0.5)
+
+    got = memapi.by_slot_prefix("candidato:aire_acondicionado:")
+    assert [m["slot"] for m in got] == ["candidato:aire_acondicionado:a1"]
+
+
+def test_by_slot_prefix_hides_what_the_writer_invalidated(fresh_db):
+    """La caducidad de un candidato es `ttl_days` + consolidador (`created + ttl_days`), no el decay. Aquí se
+    fija la mitad de la lectura: lo invalidado NO sale, pase lo que pase con su peso."""
+    from memory import api as memapi
+    from memory import db as memdb
+    memapi.write_now("Caducado S.L.", level="mid", kind="note", slot="candidato:electricista:old",
+                     importance=0.5)
+    memdb.get_db().execute("UPDATE memories SET valid=0 WHERE slot='candidato:electricista:old'")
+    assert memapi.by_slot_prefix("candidato:electricista:") == []

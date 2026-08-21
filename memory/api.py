@@ -1002,6 +1002,37 @@ def salient_long(limit: int = 8, max_chars: int = 800) -> list[dict]:
     return out
 
 
+def by_slot_prefix(prefix: str, *, limit: int = 20, newest_first: bool = True) -> list[dict]:
+    """Las píldoras cuyo SLOT empieza por `prefix` — lectura DIRECTA por clave (µs, sin embeddings ni reranker).
+
+    Existe para leer un CATÁLOGO namespaced sin pagar el recall semántico: «¿qué electricistas tenemos?» sobre
+    `candidato:electricista:` es un SELECT por prefijo, no una consulta por significado (V2-260). Pasar por
+    `query()` costaría embedding + RRF + reranker —cientos de ms— para responder algo que la clave ya ordena, y
+    en el caso de uso que esto sirve el criterio de éxito es justamente que NO se dispare el proceso caro.
+
+    El prefijo se ESCAPA antes de entrar en el `LIKE`: `_` y `%` son comodines de SQL y los slots llevan
+    guiones bajos con naturalidad, así que sin escapar `candidato:aire_acondicionado:` devuelve también
+    `candidato:aireXacondicionado:` — comprobado. El separador del prefijo lo pone el llamador (terminar en
+    `:` es lo que evita que `candidato:electricista:` arrastre `candidato:electricista_industrial:`).
+
+    Solo `valid=1`: la caducidad es de `ttl_days` y la aplica el consolidador (`created + ttl_days`), no el
+    decay — el decay baja el PESO con vida media de 693 días, que para un catálogo no es caducar. Y misma
+    CUARENTENA por confianza que el resto de lecturas que pueden acabar en un prompt: lo `untrusted` no sale.
+    """
+    pref = (prefix or "").strip()
+    if not pref:
+        return []
+    esc = pref.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    db = _db.get_db()
+    order = "updated DESC, id DESC" if newest_first else "updated ASC, id ASC"
+    rows = db.query(
+        "SELECT id, level, kind, text, slot, importance, weight, created, updated FROM memories "
+        "WHERE valid=1 AND slot LIKE ? ESCAPE '\\' "
+        "AND (json_extract(meta,'$.trust') IS NULL OR json_extract(meta,'$.trust') != 'untrusted') "
+        f"ORDER BY {order} LIMIT ?", (esc + "%", max(1, int(limit))))
+    return [dict(r) for r in rows if (r["text"] or "").strip()]
+
+
 def load_episode(episode_id: int, as_text: bool = True):
     """Carga LAZY del binario/texto de un episodio (bajo orden). Directo."""
     return _episodic.load_text(episode_id) if as_text else _episodic.load_bytes(episode_id)
