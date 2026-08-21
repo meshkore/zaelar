@@ -17,7 +17,7 @@ _DENY_TOOLS = {"authenticate_web", "login_done", "confirm_widget_delete", "set_s
 # Acciones que el plano request/response entiende. Se declara AQUÍ, junto a la política, para que el mensaje de
 # denegación no pueda quedarse desactualizado respecto a lo que `classify_act` admite de verdad.
 _KNOWN_ACTS = ("ask_user", "use_tool", "read_widget", "show_widget", "close_widget", "widget_data",
-               "spawn", "push_channel")
+               "spawn", "push_channel", "schedule")
 
 def deny_reason(action: str, payload: dict) -> str:
     """Por qué se deniega, EN TÉRMINOS QUE EL WORKER PUEDA CORREGIR.
@@ -84,6 +84,18 @@ def classify_act(action: str, payload: dict) -> str:
         return ALLOW           # la cuota/profundidad se comprueba aparte
     if a == "push_channel":
         return CONFIRM
+    if a == "schedule":
+        # V2-249 — PROGRAMAR UN AVISO. Un worker al que se le encarga «recuérdaselo el miércoles» no podía
+        # hacerlo: la capacidad no existía, y lo que hacía era DECIR que lo había hecho y escribirlo en memoria
+        # de forma durable (la «píldora que se auto-avala» que el arnés lleva midiendo varias tandas). Era un
+        # hueco, no una decisión pendiente: un Brain Worker ya opera widgets, conduce el navegador y escribe en
+        # memoria — la seguridad de este sistema es un FILTRO, no una lista corta de permisos.
+        #
+        # ALLOW y no CONFIRM, y el motivo es la comparación con sus vecinas: `push_channel` pregunta porque sale
+        # HACIA FUERA y no se puede deshacer; un aviso programado es interno, se ve en su panel y se cancela con
+        # un gesto. Su filtro es el de `spawn`: la capacidad se concede y el LÍMITE se aplica al ejecutarla
+        # (tope por tarea, el `schedule` tiene que parsear, y el aviso queda atribuido a quien lo puso).
+        return ALLOW
     return DENY                # desconocido → denegar (fail-safe)
 
 

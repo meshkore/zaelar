@@ -182,6 +182,10 @@ DOMAINS: list[dict] = [
             # V2-237: tres workers reanudando LA MISMA sesión del CLI y los tres muertos a los ~400 ms (3 de 3,
             # contra 0 de 3 entre los que abrieron sesión propia). `_find_resume` leía la entrada sin consumirla.
             "tests/agent_headless/unit/test_a_native_session_is_resumed_once.py",
+            # V2-249: la «píldora que se auto-avala». Un worker al que se le encargaba «recuérdaselo el
+            # miércoles» decía que lo había programado y NO existía ninguna entrada — porque la capacidad no
+            # existía. Ahora existe, con su filtro (tope por tarea, atribución, y lo ambiguo NO se adivina).
+            "tests/agent_headless/unit/workers/test_a_scheduled_reminder_exists_or_is_not_claimed.py",
             # V2-152: a worker resolved its bridges against a HARDCODED localhost:43917 that nobody ever set,
             # so an engine on any other port spawned workers that drove a DIFFERENT engine.
             "tests/agent_headless/unit/test_worker_own_engine.py",

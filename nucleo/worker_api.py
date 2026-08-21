@@ -76,6 +76,16 @@ def _verify(task_id: str, token: str):
 
 
 # ── ejecución inmediata de acciones ALLOW ────────────────────────────────────────────────────────────────
+#: Cuántos avisos puede programar UNA tarea de fondo. Es el filtro de la capacidad, no un número decorativo: sin
+#: tope, un worker en bucle le llena la agenda al operador y cada entrada dispara luego un turno.
+_SCHEDULE_CAP = 3
+
+#: Las formas que el parser acepta DE VERDAD, en una frase. Escrito aquí una vez porque va en los tres errores, y
+#: porque una lista de ejemplos que no parsean es peor que ninguna: manda al worker a reintentar lo mismo.
+_CUANDO_VALE = ('Vale «mañana a las 9», «el miércoles a las 18:00», un día del mes («el 3 a las 10»), '
+                '«every 30m» para algo que se repite, o un cron de 5 campos «0 9 * * 3».')
+
+
 async def _exec_allow(action: str, payload: dict, rec) -> dict:
     payload = payload or {}
     if action == "use_tool" and payload.get("tool") == "web_search":
@@ -95,6 +105,47 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
             return {"ok": True, "result": res}
         except Exception as e:  # noqa: BLE001
             return {"ok": False, "error": f"web_search falló: {e}"}
+    if action == "schedule":
+        # V2-249 — el aviso PROGRAMADO existe de verdad, o no se dice. Un worker al que se le encargaba
+        # «recuérdaselo el miércoles» no podía hacerlo (la capacidad no existía) y escribía en memoria, de forma
+        # durable, que lo había programado. El arnés puso el listón: **que la entrada exista, o que la píldora no
+        # diga «programado»**. Esto hace lo primero.
+        when = str(payload.get("when") or payload.get("schedule") or "").strip()
+        what = str(payload.get("prompt") or payload.get("text") or payload.get("what") or "").strip()
+        tid = str(getattr(rec, "task_id", "") or "")
+        if not what:
+            return {"ok": False, "error": "falta `prompt`: qué tiene que decir o hacer zaelar cuando llegue el "
+                                          "momento, escrito como se lo dirías a él."}
+        if not when:
+            return {"ok": False, "error": "falta `when`: cuándo. " + _CUANDO_VALE}
+        try:
+            from nucleo import scheduler
+            # DOS parsers, y en este orden: `parse_schedule` entiende las formas de máquina («every 30m», un cron
+            # de 5 campos, `YYYY-MM-DD HH:MM`) y `parse_when` traduce las habladas («mañana a las 9», «el
+            # miércoles a las 18:00»). El worker escribe como habla, así que sin el segundo casi todo lo suyo se
+            # rechazaría; y sin el primero se perdería la recurrencia.
+            spec = when if scheduler.parse_schedule(when) else (scheduler.parse_when(when) or "")
+            if not spec:
+                # `parse_when` devuelve "" ADREDE ante lo ambiguo («esta tarde», «pronto»): un aviso puesto sobre
+                # una fecha adivinada es peor que ninguno, porque el operador se queda creyendo que está puesto.
+                return {"ok": False, "error": f"«{when}» no me dice un momento exacto y no lo adivino: un aviso "
+                                              f"sobre una fecha inventada es peor que ninguno. " + _CUANDO_VALE}
+            # EL TOPE, que es el filtro de esta capacidad (mismo patrón que la cuota de `spawn`): un worker en
+            # bucle no puede llenarle la agenda al operador. Se cuenta sobre las tareas VIVAS y por atribución,
+            # así que no hace falta estado nuevo ni sobrevive a un reinicio como una cifra rancia.
+            mias = [j for j in scheduler.list_jobs() if f"[worker:{tid}]" in str(j.get("name") or "")]
+            if len(mias) >= _SCHEDULE_CAP:
+                return {"ok": False, "error": f"ya has programado {len(mias)} avisos en esta tarea, que es el "
+                                              f"tope. Si necesitas otro, cancela uno o dilo en tu entrega."}
+            name = f"{(payload.get('name') or what)[:80]} [worker:{tid}]"
+            out = await asyncio.to_thread(scheduler.create, what, spec, name)
+            if not out.get("ok"):
+                # La forma la sabe él; que la diga (mismo contrato que V2-203).
+                return {"ok": False, "error": f"{out.get('error') or 'no se pudo programar'}. " + _CUANDO_VALE}
+            return {"ok": True, "result": {"id": out.get("id"), "cuando": out.get("display") or when,
+                                           "que": what}}
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": f"no pude programarlo: {e}"}
     if action == "read_widget":
         wid = str(payload.get("id") or payload.get("widget_id") or "")
         try:

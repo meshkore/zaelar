@@ -1339,6 +1339,27 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **La píldora que se auto-avala: un aviso PROGRAMADO existe de verdad, o no se dice** (`worker_policy.py` +
+  `worker_api.py` + `dispatch_prompts.py`, V2-249, 2026-08-21). El hallazgo más viejo de los que seguían
+  abiertos: el worker escribía en memoria, de forma durable, «Recordatorio PROGRAMADO … a las 09:00» **sin
+  ninguna entrada de scheduler**. No era desobediencia — probado en el CÓDIGO: `_KNOWN_ACTS` no tenía ninguna
+  acción de agenda, así que le era IMPOSIBLE. El camino del FlashBrain sí funcionaba; el agujero se abría solo al
+  ESCALAR a un worker.
+  - **El encuadre es del operador y corrige el que puse yo**: escribí que era una decisión de seguridad
+    pendiente, y no: **un Brain Worker ya hace casi de todo** y la seguridad aquí **es un FILTRO**, no una lista
+    corta de permisos. La pregunta no era «¿debería poder?» sino **«¿cuál es su filtro?»**.
+  - El filtro: **ALLOW** (a diferencia de `push_channel`, que sale HACIA FUERA y no se deshace; un aviso es
+    interno, visible y cancelable) · **tope de 3 POR TAREA**, contado por atribución sobre las tareas vivas ·
+    **atribuido** (`[worker:<task_id>]` en el nombre) · y **lo ambiguo NO se adivina**: `parse_when` devuelve ""
+    adrede ante «esta tarde», y *un aviso sobre una fecha inventada es peor que ninguno*.
+  - **Dos parsers y en ese orden**: `parse_schedule` para las formas de máquina y `parse_when` para las habladas
+    — el worker escribe como habla.
+  - ⚠️ **La primera versión enseñaba «in 2 hours» en el prompt y NO parsea**; lo cazó el test al escribirlo. Es
+    V2-219 otra vez, así que ahora un caso comprueba **cada ejemplo que se enseña contra el parser** y otro exige
+    que la lista del prompt y la del error sean la MISMA. Nodo 2.5, 17 casos, sensibilidad en cuatro direcciones
+    —una de ellas: **una capacidad que el modelo no sabe que tiene no existe**.
+  - **Abierto**: no hay `cancel` — un worker pone un aviso y no lo quita.
+
 - **Un `ref` caducado decía QUÉ pasaba y no CÓMO salir** (`widgets/navegador/owner.py`, V2-248, 2026-08-21).
   **Tercera y última** causa de muerte por cuenta propia de las que dejó abiertas V2-236 (las otras: V2-241 y
   V2-247). Medido: `ref 26 no existe`, la forma de V2-212. El mensaje era `ref 26 no existe en el snapshot
