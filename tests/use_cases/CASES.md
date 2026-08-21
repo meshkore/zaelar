@@ -753,3 +753,37 @@ Two details that cost a first attempt:
 
 Pin the worktree at the commit you mean to measure (`git -C <path> checkout <sha>`), and say which one in
 the report — a round is a statement about one commit or it is a statement about nothing.
+
+## What this harness got wrong about the product, and how each was caught (2026-08-21)
+
+Six times in one night this harness reported a defect that was its own, in the exact shape of a finding —
+and the judge writes those in the language of conduct («it hid», «it lied», «it was vague»), so a false
+FAIL does not read as a false FAIL. It reads as a damning one. Two reached the fixing agent before being
+caught. The pattern is always one of two roots: **reading a state while the system is still writing it**,
+or **reading a field at the wrong level**.
+
+| what it reported | what was true | the fix |
+|---|---|---|
+| «hid three real 99 EUR monitors» | the note carried `items[:3]` in DOM order; rows 4-6 were never in it | judge delivery on what the BRAIN was handed |
+| «5 of 8 workers died» | 3 died; 2 were cancelled by the harness's own shutdown | read `worker.done`'s status, not `ok` alone |
+| «4 spawned, 0 ok» | 1 errored, 3 were still working; their rows landed 434 s later | wait for the store to go quiet AND for every worker to close |
+| a death at ~1450 ms | a provider handoff working | `relayed` is its own bucket, in BOTH columns |
+| «0 notes from search» with 12 answers | the notes were queued 6 s after the read | same quiescence wait |
+| the same hotel in six unrelated cases | read `worker_outcome` per REPORT instead of per scenario | iterate `results[]` |
+
+Four rules came out of it, and they are code now, not intentions:
+
+1. **Read after the round, and ask about the WORK, not the clock.** Silence alone is ambiguous: a store
+   quiet because nothing has started looks exactly like one quiet because everything finished.
+2. **Spend one throwaway turn before driving.** If the brain cannot speak, nothing is measured — that is
+   INFRA, never FAIL. A whole night's provider outage filed a case 1/1/1/1/1 before this existed.
+3. **Two columns about the same fact must agree.** One saying «0 errored» while another lists «dead: [1]»
+   is worse than either being wrong: the reader has to pick which to believe.
+4. **A number that fits another one too well is the signal to go back to the raw event.** That is what
+   caught the hotel attributed to six cases: it fit far too well.
+
+And the rule that governs reporting any of it: **the scope is measured the same way the bug is.** The
+natural way to report a finding is the worst imaginable case rather than the measured one, and it sounds
+like rigour while being the opposite. Before saying who it affects, grep for who exercises it TODAY and
+count. If nothing live does, say so in those words — otherwise a preventive fix goes into the record as a
+fire that was put out, and a month later nobody can tell what actually broke.
