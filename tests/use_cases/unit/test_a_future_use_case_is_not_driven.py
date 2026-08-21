@@ -40,10 +40,19 @@ def _selected(monkeypatch, **kw) -> list[str]:
 
 def test_a_blocked_case_is_not_in_the_batch(monkeypatch):
     got = _selected(monkeypatch)
-    assert "two-searches-two-sheets" not in got
     assert "repeat-a-finished-search" not in got
     assert "candidates-already-known" not in got
     assert "change-the-criteria-not-the-search" not in got
+
+
+def test_a_gate_LIFTS_when_its_mechanism_lands(monkeypatch):
+    """El otro lado del trinquete, y es el que se olvida. `two-searches-two-sheets` estuvo gateado por
+    V2-259 y dejó de estarlo el 2026-08-21 al aterrizar la iniciativa completa (`b8a1415` + `f3052f9`).
+    Un gate que nadie retira convierte un caso construido en un caso que no se mide NUNCA, y el marcador
+    no lo dice: la fila simplemente no aparece, igual que si no existiera."""
+    got = _selected(monkeypatch)
+    assert "two-searches-two-sheets" in got
+    assert not G.blocked_by("two-searches-two-sheets")
 
 
 def test_the_rest_of_the_catalog_is_untouched(monkeypatch):
@@ -61,8 +70,7 @@ def test_skipping_is_announced_with_the_tasks_that_gate_it(monkeypatch, capsys):
     _selected(monkeypatch)
     out = capsys.readouterr().out
     assert "caso(s) de FUTURO" in out
-    assert "two-searches-two-sheets" in out
-    assert "V2-259" in out
+    assert "repeat-a-finished-search" in out
     assert "V2-260" in out
 
 
@@ -70,7 +78,7 @@ def test_include_blocked_forces_them_in(monkeypatch):
     """La escotilla existe porque el caso ES conducible — solo se sabe que va a fallar. Forzarlo es como se
     produce la evidencia que va en la iniciativa."""
     got = _selected(monkeypatch, include_blocked=True)
-    assert "two-searches-two-sheets" in got
+    assert "repeat-a-finished-search" in got
 
 
 def test_every_gate_points_at_an_initiative_that_EXISTS():

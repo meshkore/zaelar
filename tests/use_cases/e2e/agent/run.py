@@ -983,6 +983,56 @@ def dirty_tree_refusal(stamp: dict, *, allow_dirty: bool = False) -> str:
             f"que el arbol este limpio, o pasa --allow-dirty si mides tu propio cambio a posta.")
 
 
+def running_engine_sha(base_url: str) -> str:
+    """The sha of the code the engine that will ANSWER is actually running, or "" if it cannot be read.
+
+    Read from `/api/status`, whose `version` item carries `extra.sha` — the same stamp the product shows
+    the operator.
+    """
+    try:
+        import json as _json
+        import urllib.request
+        with urllib.request.urlopen(base_url.rstrip("/") + "/api/status", timeout=6) as r:
+            data = _json.loads(r.read().decode("utf-8", "replace"))
+        for item in (data.get("items") or []):
+            if item.get("key") == "version":
+                return str(((item.get("extra") or {}).get("sha")) or "").strip()
+    except Exception:
+        return ""
+    return ""
+
+
+def stale_engine_refusal(base_url: str, stamp: dict) -> str:
+    """Refuse when the engine SERVING the round is running code older than the tree, or "" to go ahead.
+
+    2026-08-21, and it cost a whole batch: the lab agent had been up since 12:47 on `3.15+4abaf9c` while
+    four commits landed on top of it. The tree was clean, so `dirty_tree_refusal` said yes, and every round
+    of the afternoon measured code that no longer existed. The verdicts were not merely stale — one of them
+    was about to be reported to the engine agent as a regression in a feature he had just shipped and that
+    the running process had never loaded.
+
+    A clean tree and an up-to-date process are DIFFERENT questions, and the second one is the one that
+    decides what the round measured. A lab agent is persistent on purpose (that is the whole point: the
+    operator watches it on a fixed port), so nothing restarts it when a commit lands — the staleness grows
+    in silence and looks exactly like a healthy setup.
+
+    Unreadable version = a WARNING and not a refusal, and the difference is deliberate: refusing on "I could
+    not ask" would block every round the moment `/api/status` changes shape, and the round is still worth
+    something. What is not acceptable is silence, which is what let this happen.
+    """
+    running = running_engine_sha(base_url)
+    head = str((stamp or {}).get("sha") or "")
+    if not running or not head:
+        return ""
+    if running.startswith(head) or head.startswith(running):
+        return ""
+    return (f"\u2717 el motor que va a contestar corre {running} y el arbol esta en {head}: no es el mismo codigo.\n"
+            f"   Un arbol limpio dice que NADIE esta editando, no que el proceso lleve los ultimos commits — un\n"
+            f"   plato es persistente a proposito y nada lo reinicia cuando aterriza un commit.\n"
+            f"   Reinicialo (conserva puerto, memoria y perfil):  python -m tests.use_cases.lab down <k> && "
+            f"python -m tests.use_cases.lab up <k>")
+
+
 def _lab_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict | None = None) -> int:
     """Drive the round against a LAB agent (`tests/use_cases/lab/`) instead of a throwaway sandbox.
 
@@ -1020,6 +1070,11 @@ def _lab_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict | N
     refusal = dirty_tree_refusal(stamp, allow_dirty=getattr(args, "allow_dirty", False))
     if refusal:
         print(refusal)
+        raise SystemExit(3)
+
+    _stale = stale_engine_refusal(st.base_url, stamp)
+    if _stale:
+        print(_stale.replace("<k>", prof.key))
         raise SystemExit(3)
 
     config.ZAELAR_URL = st.base_url

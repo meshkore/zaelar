@@ -114,10 +114,10 @@ SEGMENTS: dict[str, Segment] = {
     # su iniciativa abierta y su fase concreta. Por eso llevan `blocked_by` y el arnés se niega a
     # conducirlos — el veredicto ya está escrito en la iniciativa, y gastar la conversación solo añadiría
     # una ronda duplicada al paraguas.
-    "two-searches-two-sheets": _future(
-        "una hoja de resultados por encargo (hoy la hoja es ÚNICA y dos búsquedas la comparten), y la "
-        "desambiguación al cerrar «los resultados» con dos abiertas",
-        "V2-259 F1", "V2-259 F2", "V2-259 F3"),
+    # DESGATEADO 2026-08-21: V2-259 completa (F1+F2+F3+F4, `b8a1415` + `f3052f9`). El caso deja de ser de
+    # futuro y pasa a conducirse en cada paseo como cualquier otro — que es el punto entero de haberlo escrito
+    # antes que el mecanismo: el listón se fijó cuando todavía no se sabía qué iba a hacer el código.
+    "two-searches-two-sheets": _done(),
     "repeat-a-finished-search": _future(
         "los candidatos de una búsqueda terminada no sobreviven al encargo siguiente: la hoja se ESTRENA "
         "y nada los guarda, así que repetir la misma petición no puede resolverse con lo que ya se tenía",

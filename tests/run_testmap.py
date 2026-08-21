@@ -1109,6 +1109,9 @@ DOMAINS: list[dict] = [
         {"id": "10.59", "title": "Only what was asked for is opened: a base card sitting on top of its own "
                                  "instance is reported as a ghost, and an unattended canvas is never called clean",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_only_what_was_asked_for_is_opened.py"]},
+        {"id": "10.60", "title": "The engine under test is running the code we have: a clean tree is not an "
+                                 "up-to-date process, and a stale lab agent refuses the round",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_engine_under_test_is_the_code_we_have.py"]},
     ]},
 ]
 
