@@ -78,6 +78,17 @@ def build(results: list[dict], stamp: str, out_dir: Path) -> Path:
             if si.get("shared"):
                 line += "  ⚠️ DOS ENCARGOS COMPARTIERON CAJA (la regla es una hoja por búsqueda)"
             lines.append(line)
+        # CARDS THAT ARE LEFT OVER. `observed=False` stays silent on purpose: with no canvas attached there
+        # was nothing to look at, and printing "0 ghosts" there would assert a check that never ran.
+        gw = mech.get("ghost_widgets") or {}
+        if gw.get("observed"):
+            if gw.get("ghosts"):
+                which = ", ".join(f"{g['id']} (junto a {', '.join(g.get('alongside') or [])})"
+                                  for g in gw["ghosts"])
+                lines.append(f"⚠️ TARJETA(S) FANTASMA en el canvas: {which} — se abrió la pieza BASE encima de "
+                             f"su propia instancia, vacía. Último canvas: {', '.join(gw.get('last') or [])}")
+            else:
+                lines.append(f"canvas limpio: {gw.get('max_cards', 0)} tarjeta(s) como mucho, ninguna sin dueño")
         # LOS NÚMEROS DEL MECANISMO, en el informe que se LEE y no solo en el JSON. Hasta 2026-08-21 cada
         # uno de éstos se sacaba a mano con un script suelto y se pegaba en un mensaje: servía mientras
         # hubiera alguien delante haciéndolo, y no sobrevivía a un relevo. El agente que arregla abre este

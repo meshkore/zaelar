@@ -160,6 +160,13 @@ def mechanism_facts(mech: dict) -> str:
     elif si.get("n_sheets", 0) > 1:
         lines.append(f"· Se abrieron {si['n_sheets']} hojas de resultados para "
                      f"{si.get('n_errands', 0)} encargo(s): una caja por búsqueda, que es la regla.")
+    gw = mech.get("ghost_widgets") or {}
+    if gw.get("ghosts"):
+        which = ", ".join(g["id"] for g in gw["ghosts"])
+        lines.append(f"· ⚠️ SE ABRIÓ UNA TARJETA QUE NADIE PIDIÓ: {which} — la pieza BASE apareció encima de su "
+                     f"propia instancia, vacía, tapando a la que estaba trabajando de verdad. Cuéntalo en "
+                     f"MECANISMO: la pantalla enseñó una ventana en blanco sobre el trabajo real. No lo "
+                     f"cuentes contra las respuestas de zaelar, que no lo abrió él.")
     dropped = mech.get("dropped_actions") or []
     if dropped:
         which = ", ".join(f"{d.get('tool') or '?'} ({d.get('reason') or 'motivo no dicho'})" for d in dropped)

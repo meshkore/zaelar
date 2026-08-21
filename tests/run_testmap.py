@@ -1090,6 +1090,9 @@ DOMAINS: list[dict] = [
         {"id": "10.58", "title": "A FUTURE use case is written today and not driven until the roadmap tasks "
                                  "that unblock it are done — and skipping it is announced, never silent",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_future_use_case_is_not_driven.py"]},
+        {"id": "10.59", "title": "Only what was asked for is opened: a base card sitting on top of its own "
+                                 "instance is reported as a ghost, and an unattended canvas is never called clean",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_only_what_was_asked_for_is_opened.py"]},
     ]},
 ]
 

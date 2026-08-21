@@ -435,6 +435,59 @@ def sheet_instances(all_events: list[dict]) -> dict:
     }
 
 
+def ghost_widgets(all_events: list[dict]) -> dict:
+    """Cards that opened WITHOUT anyone asking for them — "only what has to open, opens".
+
+    The case behind it (operator, 2026-08-21, with a screenshot): on top of the browser card that was really
+    working, ANOTHER empty «Navegador» card appeared, blank, covering it. No errand opens it — it is the
+    canvas ECHOING ITSELF. The frontend reports its open set (`desktop._reportOpen` →
+    `POST /api/canvas/state`), the server NORMALISES it for the prompt (`navegador::t2` → `navegador`,
+    `server/voice_api.py`), and on seeing an id that is new with respect to the previous set it emits
+    `widget/show id="navegador"` as an AUDIT (V2-039, `src="user"`). But that emit travels on the SAME SSE bus
+    as the ORDERS, and `sse.js` turns it into `desktop.show("navegador")`. The canvas ends up obeying its own
+    report.
+
+    WHAT IS READ, and why this event and not another: `canvas (instancias)` carries the RAW list of cards
+    (`instances`), unnormalised. It exists precisely because the normalised set makes the defect invisible —
+    the comment that added it cites «V2-047 F9 (two browsers, one blank)», so this was already seen once and
+    left INSTRUMENTED, never closed. The signature is a BASE id and an instance of the SAME widget open at the
+    same time: `["navegador::t1", "navegador"]`. Measured in the lab: `13:47:00 ["navegador::t1"]` →
+    `13:47:02 [..., "navegador"]`, and again at 13:59. Always a few seconds later, never before.
+
+    CONDITIONAL OBSERVABILITY, and it has to be said out loud: the echo needs a REAL frontend reporting its
+    canvas. In a round with nobody watching, nobody makes that POST, so there is no event, no echo and no
+    ghost — which is why the automated batches went days without seeing this and the operator caught it by
+    looking at the screen. Hence `observed`: with no canvas attached this returns `observed=False`, which is
+    NOT "clean". A reader that returned "0 ghosts" without having been able to look would be asserting a check
+    it never ran — the failure shape this harness has already paid for several times.
+    """
+    snaps: list[list[str]] = []
+    for e in all_events:
+        if not isinstance(e, dict):
+            continue
+        f = _fields(e)
+        if str(f.get("label") or e.get("label") or "") != "canvas (instancias)":
+            continue
+        inst = f.get("instances")
+        if isinstance(inst, list):
+            snaps.append([str(x) for x in inst])
+
+    ghosts: list[dict] = []
+    for inst in snaps:
+        bases = {i.split("::", 1)[0] for i in inst if "::" in i}
+        for wid in inst:
+            if "::" not in wid and wid in bases and not any(g["id"] == wid for g in ghosts):
+                ghosts.append({"id": wid,
+                               "alongside": sorted(i for i in inst if i.startswith(wid + "::"))})
+    return {
+        "observed": bool(snaps),          # False = no canvas was attached; it does NOT mean "clean"
+        "n_snapshots": len(snaps),
+        "max_cards": max((len(s) for s in snaps), default=0),
+        "ghosts": ghosts,
+        "last": snaps[-1] if snaps else [],
+    }
+
+
 def results_sheet() -> dict:
     """What the RESULTS SHEET holds at the end of the round, read from the engine.
 
@@ -491,6 +544,10 @@ def mechanism_report(all_events: list[dict], expected_signals: list[str],
         # CUÁNTAS hojas, no solo qué había en la hoja. La regla del operador es una caja por encargo, y con la
         # hoja única de hoy el informe no podía siquiera enseñar que dos búsquedas compartían una.
         "sheet_instances": sheet_instances(all_events),
+        # ONLY WHAT HAS TO OPEN, OPENS (operator, 2026-08-21): cards that appeared without any errand asking
+        # for them. Measured apart from `sheet_instances` because the question is the opposite one: there
+        # boxes are MISSING, here one is LEFT OVER.
+        "ghost_widgets": ghost_widgets(all_events),
         "n_events": len(all_events),
         "search_health": search_health(all_events),
         "dropped_actions": dropped_actions(all_events),
