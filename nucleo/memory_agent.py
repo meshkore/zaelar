@@ -779,6 +779,10 @@ def _agenda_lines(limit: int = 6) -> list[str]:
         # reads as past, so the dossier plans blind, which is the exact failure this function was added to
         # prevent (audit 2026-07-19 P1-2). It fails EMPTY, so a replay looks like an operator with no agenda
         # rather than like a broken filter.
+        # Scope, stated honestly so nobody reads this as a fire that was put out: NO corpus exercises the
+        # dossier under `travel()` today (the timeline runner never calls `compose_context`), and production is
+        # unaffected because both clocks agree there. This is PREVENTIVE — it pays off for whoever measures the
+        # dossier with the clock pinned, which is the only way to measure it honestly.
         today = _dt.datetime.fromtimestamp(_now()).date().isoformat()
         out = []
         for it in items:
