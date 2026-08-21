@@ -122,3 +122,35 @@ def test_the_diff_is_read_from_git_and_a_doc_counts_as_engine(tmp_path):
         assert _R.engine_code_changed_between(only_tests, with_doc) is True
     finally:
         _R.__file__ = real
+
+
+# ── Un árbol sucio no contamina un PLATÓ ──────────────────────────────────────────────────────────────
+# Costó 23 minutos de paseo parado el 2026-08-21: otro agente tenía `server/voice_api.py` sin commitear y
+# la ronda se negaba a correr, cuando el plató llevaba desde su arranque con el código ya cargado en
+# memoria y no iba a leer ese fichero. Las dos preguntas son distintas y solo una decide qué se mide.
+
+
+def test_the_lab_path_does_NOT_refuse_on_a_dirty_tree():
+    """Guarda de CABLEADO: se mira el fuente porque el camino real necesita un plató vivo. Un test de
+    conducta aquí exigiría levantar un motor, y sin él la comprobación no existe."""
+    import inspect
+    src = inspect.getsource(run._lab_batch)
+    assert "dirty_tree_refusal" not in src, "el camino del plató volvió a esperar por un árbol sucio"
+
+
+def test_the_sandbox_path_STILL_refuses_on_a_dirty_tree():
+    """Sensibilidad, y es el lado que importa: en el sandbox el motor se levanta DEL ÁRBOL en ese momento,
+    así que ahí medir a mitad de una edición sí mide código a medias. Sin este caso, «no esperes en el
+    plató» y «no esperes nunca» pasan igual de verdes."""
+    import inspect
+    assert "dirty_tree_refusal" in inspect.getsource(run._sandbox_batch)
+
+
+def test_a_stale_lab_exits_with_its_OWN_code():
+    """El 5 existe para que quien llama pueda distinguir «reinicia el plató» de cualquier otra negativa.
+    Compartir el 3 hizo que el paseo anunciara «plató rancio» durante 23 minutos mientras pasaba otra
+    cosa — un diagnóstico equivocado, y encima verosímil."""
+    import inspect
+    src = inspect.getsource(run._lab_batch)
+    i = src.index("stale_engine_refusal(")
+    assert "SystemExit(5)" in src[i:i + 700], "la negativa por motor rancio ya no sale con su propio código"

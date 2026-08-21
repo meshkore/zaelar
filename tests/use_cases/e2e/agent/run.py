@@ -1107,15 +1107,20 @@ def _lab_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict | N
 
     stamp = config.code_stamp()
     config.machine_stamp()
-    refusal = dirty_tree_refusal(stamp, allow_dirty=getattr(args, "allow_dirty", False))
-    if refusal:
-        print(refusal)
-        raise SystemExit(3)
-
+    # NO HAY NEGATIVA POR ÁRBOL SUCIO EN EL CAMINO DEL PLATÓ, y es deliberado (2026-08-21, tras perder 23
+    # minutos de paseo por ella). Un plató es un proceso PERSISTENTE: corre el código que cargó al arrancar,
+    # así que una edición sin commitear que otro agente haga AHORA no puede entrar en esta ronda — no hay
+    # nada que contaminar. La pregunta que sí decide qué se está midiendo es qué código lleva el plató
+    # DENTRO, y de eso se ocupa la guarda de abajo. Esperar a que el árbol esté limpio sería esperar por un
+    # fichero que este proceso no va a leer, y en un árbol compartido por varios agentes eso es esperar
+    # indefinidamente. (En el sandbox SÍ se aplica: allí el motor se levanta del árbol en ese momento.)
     _stale = stale_engine_refusal(st.base_url, stamp)
     if _stale:
         print(_stale.replace("<k>", prof.key))
-        raise SystemExit(3)
+        # Código PROPIO: el que llama tiene que poder distinguir «reinicia el plató» de cualquier otra
+        # negativa. Compartir el 3 hizo que el paseo anunciara «plató rancio» durante 23 minutos mientras
+        # lo que pasaba era otra cosa — un diagnóstico equivocado que además parecía correcto.
+        raise SystemExit(5)
 
     config.ZAELAR_URL = st.base_url
     config.SANDBOX_DB = str(labs.workspace_of(prof) / "memory" / "_data" / "sandbox.db")
