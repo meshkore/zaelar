@@ -1339,6 +1339,21 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     **`.meshkore/docs/architecture/zaelar-meshkore-network.md`**, y lo que se va midiendo o queda abierto en
     **`V2-169`**, que es una iniciativa PERMANENTE y no un ticket que se cierra.
 
+- **Un escalón que se atasca SIEMPRE no se penalizaba nunca** (`nucleo/flash/provider_chain.py`, V2-246,
+  2026-08-21). El arnés sembró la cadena real en su sandbox (cerrando V2-244) y el relevo **entró**: «SIN SALDO →
+  relevo a aimlapi-failover». Y el turno seguía mudo. Probado contra AIMLAPI con la clave del operador:
+  `deepseek/deepseek-v4-flash` **TIMEOUT a los 75 s** —el modelo del escalón de failover— y
+  `deepseek/deepseek-v4-pro` en 18,3 s. El escalón de socorro apuntaba al modelo que el broker no servía.
+  - **El agujero es nuestro y lo dejan dos mecanismos entre medias**: `note_slow` vive en el camino de la
+    RESPUESTA (solo ve turnos que acabaron) y `note_failure` **se salta a propósito** cuando el turno se atascó
+    (un atasco suele ser pasajero). Entre las dos, el turno se corta, se dice «se atascó y lo corté», y el
+    siguiente vuelve al MISMO escalón. Para siempre.
+  - `note_stall()` con la MISMA política que los lentos: dos atascos SEGUIDOS, racha compartida con `note_slow`
+    (un turno bueno la rompe), mismo cooldown corto y mismo techo de turnos. Si el atascado es el último escalón
+    no se castiga — quedarnos sin proveedor es peor. Nodo 2.4, sensibilidad en tres direcciones.
+  - **No arregla la config del operador**: su failover sigue apuntando a `-flash`. Esto hace que se releve en vez
+    de quedarse mudo.
+
 - **Callar un escalón es legítimo; callar QUE LO CALLAS, no** (`nucleo/flash/provider_chain.py`, V2-244,
   2026-08-21). El arnés midió dos líneas seguidas —`memllm[i18n]` relevando a AIMLAPI y el cerebro de voz
   diciendo «SIN RELEVO disponible» en el mismo segundo— y concluyó que el cerebro es el único componente sin

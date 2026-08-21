@@ -377,3 +377,73 @@ def test_el_turno_de_voz_NOMBRA_lo_que_esta_callado():
     txt = src.read_text(encoding="utf-8")
     assert "_pchain2.suppressed_relays()" in txt
     assert "fast.providers" in txt
+
+
+# ── V2-246: un escalón que se atasca SIEMPRE no se penalizaba nunca ──────────────────────────────────────────
+# `note_slow` vive en el camino de la RESPUESTA, así que solo ve turnos que acabaron; y `note_failure` se salta
+# cuando el turno se atascó, porque un atasco suele ser pasajero. Entre las dos, un escalón que se atasca siempre
+# no entraba nunca en cooldown y el turno siguiente volvía al MISMO sitio. Para siempre.
+#
+# Medido por el arnés el 2026-08-21 contra AIMLAPI con la clave del operador, con la cadena real ya sembrada en
+# su sandbox: `deepseek/deepseek-v4-flash` —el modelo del escalón de failover— TIMEOUT a los 75 s, mientras
+# `deepseek/deepseek-v4-pro` contestaba en 18,3 s. El relevo existía, entró, y se quedó mudo igual.
+
+_UNO = {"name": "z.ai", "base_url": "https://api.z.ai/api/anthropic", "model": "glm", "env": ["Z_AI_API_KEY"]}
+_DOS = {"name": "aimlapi", "base_url": "https://api.aimlapi.com/v1", "model": "", "env": ["AIMLAPI_KEY"]}
+
+
+def _dos_escalones(monkeypatch):
+    monkeypatch.setattr(pc, "chain", lambda *a, **k: [dict(_UNO), dict(_DOS)])
+    monkeypatch.setattr(pc._store, "_cooldown", {})
+    monkeypatch.setattr(pc._store, "_loaded", True)
+    monkeypatch.setattr(pc._store, "_save", lambda: None)
+    monkeypatch.setattr(pc, "_slow_streak", {})
+    monkeypatch.setenv("Z_AI_API_KEY", "k")
+    monkeypatch.setenv("AIMLAPI_KEY", "k")
+
+
+def test_UN_atasco_suelto_no_releva(monkeypatch):
+    """Relevar por una hipo de red sería cambiar de proveedor por ruido."""
+    _dos_escalones(monkeypatch)
+    assert pc.note_stall(role=pc.ROLE_VOICE) is None
+    assert pc.pick(pc.ROLE_VOICE)["name"] == "z.ai"
+
+
+def test_DOS_atascos_seguidos_SI_relevan(monkeypatch):
+    _dos_escalones(monkeypatch)
+    pc.note_stall(role=pc.ROLE_VOICE)
+    nxt = pc.note_stall(role=pc.ROLE_VOICE)
+    assert nxt and nxt["name"] == "aimlapi", "el escalón atascado se quedaba elegido para siempre"
+    assert pc._store._cooldown.get("z.ai", 0) > time.time()
+
+
+def test_un_turno_BUENO_rompe_la_racha(monkeypatch):
+    """Comparte racha con `note_slow` a propósito: dos atascos con un turno sano en medio no son una racha."""
+    _dos_escalones(monkeypatch)
+    pc.note_stall(role=pc.ROLE_VOICE)
+    pc.note_slow({"cause": "ok"}, role=pc.ROLE_VOICE)
+    assert pc.note_stall(role=pc.ROLE_VOICE) is None
+
+
+def test_el_ULTIMO_escalon_atascado_no_se_castiga(monkeypatch):
+    """Castigarlo nos dejaría sin proveedor, que es peor que uno lento."""
+    monkeypatch.setattr(pc, "chain", lambda *a, **k: [dict(_UNO)])
+    monkeypatch.setattr(pc._store, "_cooldown", {})
+    monkeypatch.setattr(pc._store, "_loaded", True)
+    monkeypatch.setattr(pc._store, "_save", lambda: None)
+    monkeypatch.setattr(pc, "_slow_streak", {})
+    monkeypatch.setenv("Z_AI_API_KEY", "k")
+    pc.note_stall(role=pc.ROLE_VOICE)
+    assert pc.note_stall(role=pc.ROLE_VOICE) is None
+    assert pc._store._cooldown.get("z.ai", 0) == 0
+
+
+def test_el_turno_de_voz_LO_LLAMA_cuando_se_atasca():
+    """GUARDA DE CABLEADO (V2-199): el predicado puede estar perfecto y el turno seguir sin llamarlo — que es
+    exactamente lo que pasaba, porque la rama del atasco se saltaba a propósito TODO el circuito de proveedores."""
+    import inspect
+    import pathlib
+    src = pathlib.Path(inspect.getfile(pc)).parent.parent.parent / "voice/engine/llm/providers/nucleo.py"
+    txt = src.read_text(encoding="utf-8")
+    assert "_pchain1.note_stall(role=_pchain1.ROLE_VOICE)" in txt
+    assert "if stalled:" in txt

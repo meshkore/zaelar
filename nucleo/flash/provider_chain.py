@@ -432,6 +432,63 @@ def note_slow(verdict: dict, *, role: str = ROLE_VOICE, tier: dict | None = None
     return nxt if (nxt and nxt["name"] != name) else None
 
 
+def note_stall(*, role: str = ROLE_VOICE, tier: dict | None = None) -> dict | None:
+    """Un turno se ATASCÓ (se cortó por silencio del proveedor). Devuelve el relevo si toca relevar, o None.
+
+    V2-246 — EL AGUJERO: un escalón que se atasca SIEMPRE no se penalizaba nunca. `note_slow` vive en el camino
+    de la respuesta, así que solo ve turnos que ACABARON; y `note_failure` se salta a propósito cuando el turno se
+    atascó, porque un atasco suele ser pasajero. Resultado: el turno se corta, se dice «un turno se atascó y lo
+    corté — sigo operativo», y el siguiente turno vuelve al MISMO escalón. Para siempre.
+
+    Medido por el arnés el 2026-08-21 contra AIMLAPI con la clave del operador, ya con la cadena real sembrada en
+    su sandbox: `deepseek/deepseek-v4-flash` —el modelo que tiene puesto el escalón de failover— **TIMEOUT a los
+    75 s**, mientras `deepseek/deepseek-v4-pro` contestaba en 18,3 s. O sea que el relevo existía, entró, y se
+    quedó mudo igual: el escalón de socorro apuntaba justo al modelo que ese broker no estaba sirviendo.
+
+    La política es la MISMA que la de los lentos y por la misma razón: hacen falta `_SLOW_STREAK` atascos
+    SEGUIDOS —un atasco aislado es ruido y relevar por él sería cambiar de proveedor por una hipo de red— y
+    comparte la racha con `note_slow`, así que un turno bueno la rompe. Comparte también el cooldown corto y el
+    techo de turnos del relevo: un proveedor atascado no puede convertirse en una factura sorpresa.
+    """
+    t = tier or pick(role)
+    if not t:
+        return None
+    name = t["name"]
+    _slow_streak[name] = _slow_streak.get(name, 0) + 1
+    streak = _slow_streak[name]
+    if streak < _SLOW_STREAK:
+        return None
+
+    ch = chain(role)
+    if not ch or ch[-1]["name"] == name:
+        # Sin sitio a donde ir, castigarlo nos deja sin proveedor: se avisa y se deja donde está.
+        logger.info(f"provider_chain({role}): «{name}» atascado x{streak} pero es el último escalón — sin relevo")
+        return None
+
+    until = time.time() + _SLOW_COOLDOWN_S
+    _store.set(name, until)
+    _slow_streak.pop(name, None)
+
+    nxt = pick(role)
+    detail = (f"«{name}» se atascó {streak} turnos seguidos (sin respuesta, cortado por silencio)"
+              + (f" → relevo a «{nxt['name']}» durante {_SLOW_COOLDOWN_S // 60} min "
+                 f"o {_RELAY_TURN_BUDGET} turnos" if nxt and nxt["name"] != name else " · SIN RELEVO disponible"))
+    logger.warning(f"cerebro de {role}: {detail}")
+    try:
+        from voice.observer import emit
+        emit("perf", f"🔌 relevo por ATASCO: {detail}", role="system",
+             extra={"provider": name, "kind": "stall", "until": until, "role": role,
+                    "next": (nxt or {}).get("name", ""), "streak": streak})
+    except Exception:
+        pass
+    try:
+        from voice import health_state
+        health_state.record(f"{role}_brain", "slow", detail)
+    except Exception:
+        pass
+    return nxt if (nxt and nxt["name"] != name) else None
+
+
 def status(role: str = ROLE_CLUSTER) -> list[dict]:
     """Estado de cada escalón para el panel: `[{name, plan, state, detail, active}]`."""
     now = time.time()

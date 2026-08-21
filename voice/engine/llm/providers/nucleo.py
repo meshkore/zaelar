@@ -2276,13 +2276,19 @@ class NucleoLLMStream(llm.LLMStream):
             # `note_failure` was hardcoded to the CLUSTER role. Cooldown is sticky (`pick()` is O(1)), so this
             # only needs to fire once per failure — the NEXT turn already starts on the relay.
             _dry = False          # V2-243: ¿ha quedado la cadena SIN ningún escalón sano?
-            if not stalled:
-                try:
-                    from nucleo.flash import provider_chain as _pchain1
+            try:
+                from nucleo.flash import provider_chain as _pchain1
+                if stalled:
+                    # V2-246 — UN ATASCO REPETIDO SÍ CUENTA. `note_slow` vive en el camino de la respuesta, así
+                    # que solo ve turnos que ACABARON; y `note_failure` se salta aquí a propósito porque un
+                    # atasco suele ser pasajero. Entre las dos, un escalón que se atasca SIEMPRE no se penalizaba
+                    # nunca y el turno siguiente volvía al mismo sitio. Para siempre.
+                    _pchain1.note_stall(role=_pchain1.ROLE_VOICE)
+                else:
                     _pchain1.note_failure(err_text, role=_pchain1.ROLE_VOICE)
                     _dry = _pchain1.pick(_pchain1.ROLE_VOICE) is None
-                except Exception:
-                    pass
+            except Exception:
+                pass
             if stalled:
                 emit("alert", "Un turno se atascó y lo corté — sigo operativo.", text="flash turn stalled")
             elif _dry:
