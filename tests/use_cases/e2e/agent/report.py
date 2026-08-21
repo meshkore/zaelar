@@ -146,9 +146,12 @@ def _mechanism_numbers(mech: dict) -> list[str]:
         out.append("workers: " + " · ".join(bits))
     dup = mech.get("duplicate_errands") or {}
     for g in (dup.get("groups") or [])[:3]:
-        _how = "IDÉNTICO carácter por carácter" if g.get("identical") else "el mismo encargo reformulado"
-        out.append(f"⚠️ **{g.get('n')} workers para UN encargo** ({_how}): «{g.get('goal')}» — "
-                   f"se paga entero cada vez y cada uno abre su propia hoja")
+        _how = ("el dedup NO disparó (jaccard del motor "
+                f"{g.get('engine_jaccard_max')} ≥ 0,60)" if g.get("over_engine_bar")
+                else f"reformulado — el motor lo ve a {g.get('engine_jaccard_max')}, por debajo de su 0,60")
+        out.append(f"⚠️ **{g.get('n')} workers para UN encargo** · contención {g.get('min_sim')}–"
+                   f"{g.get('max_sim')} · {_how}: «{g.get('goal')}» — se paga entero cada vez y cada uno "
+                   f"abre su propia hoja")
     wdz = mech.get("worker_deaths") or {}
     if wdz.get("shared_sessions"):
         for sid, who in list(wdz["shared_sessions"].items())[:2]:

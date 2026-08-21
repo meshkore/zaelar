@@ -143,6 +143,80 @@ def test_the_report_SAYS_it_when_an_errand_ran_twice():
     joined = "\n".join(reportmod._mechanism_numbers({
         "worker_health": {"spawned": 4, "ok": 2},
         "duplicate_errands": {"groups": [{"n": 4, "goal": "Busca planes con ninos", "identical": False,
-                                          "min_sim": 0.647, "max_sim": 0.8}], "worst": 4},
+                                          "min_sim": 0.571, "max_sim": 0.893,
+                                          "engine_jaccard_max": 0.45, "over_engine_bar": False}],
+                              "worst": 4},
     }))
     assert "4 workers para UN encargo" in joined and "Busca planes con ninos" in joined
+    # …y a CUÁL de los dos defectos apunta. Sin esto el informe describe el síntoma y señala mal.
+    assert "por debajo de su 0,60" in joined
+
+
+def _rounds(tmp_path, spawns: list[str], asked: list[str] | None = None) -> str:
+    """Los DOS eventos que existen de verdad: la escalada (texto completo) y el nacimiento (goal recortado)."""
+    db = tmp_path / "r.db"
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE events (topic TEXT, payload TEXT, ts_ms INTEGER)")
+    for i, g in enumerate(asked or []):
+        con.execute("INSERT INTO events VALUES (?,?,?)",
+                    ("escalate.requested", json.dumps({"request": g}), 1000 + i * 1000))
+    for i, g in enumerate(spawns):
+        con.execute("INSERT INTO events VALUES (?,?,?)",
+                    ("worker.spawned", json.dumps({"id": str(i + 1), "goal": g}), 1500 + i * 1000))
+    con.commit()
+    con.close()
+    return str(db)
+
+
+def test_the_full_request_wins_over_the_truncated_goal(tmp_path):
+    """La lección que costó una acusación falsa. Los `goal` de un mismo encargo comparten un prefijo largo,
+    así que comparar prefijos mide lo que tienen en común y lo llama parecido: los cuatro de
+    `kid-friendly` daban 0.647-0.80 leídos así y 0.319-0.450 sobre el texto entero. Un lector apuntado al
+    campo recortado no falla — FABRICA el hallazgo."""
+    largo_a = ("Busca planes con ninos el domingo en el centro de Madrid. Quiero opciones concretas con "
+               "horarios, precios, reservas, transporte publico, alternativas de interior por si llueve")
+    largo_b = "Busca planes con ninos el domingo en el centro de Madrid. Prefiero museos y talleres"
+    prefijo = "Busca planes con ninos el domingo en el centro de Madrid. "
+    db = _rounds(tmp_path, spawns=[prefijo + "aaaa", prefijo + "bbbb"], asked=[largo_a, largo_b])
+    r = verify.duplicate_errands(db, since=0)
+    assert r["text_source"].startswith("escalate.requested"), r["text_source"]
+    assert r["truncated_source"] is False
+
+
+def test_with_only_the_truncated_field_it_SAYS_the_number_is_a_ceiling(tmp_path):
+    """Callarlo sería lo peligroso: una similitud leída sobre un prefijo es un TECHO, y quien la lea sin
+    ese aviso la usará para acusar a un dedup que hizo su trabajo."""
+    r = verify.duplicate_errands(_rounds(tmp_path, spawns=["Busca un hotel en Sevilla para el lunes",
+                                                           "Busca un hotel en Sevilla para el martes"]), since=0)
+    assert r["truncated_source"] is True and "TRUNCADO" in r["text_source"]
+
+
+def test_a_DEDUPED_escalation_is_not_counted(tmp_path):
+    """La escalada que el motor SÍ paró deja su `escalate.requested` y ningún worker. Contarla acusaría al
+    dedup justo de los casos en los que funcionó — el mismo error, por el otro lado."""
+    g = "Cancelar la suscripcion de Netflix del operador antes de la proxima renovacion del dia quince"
+    db = tmp_path / "d.db"
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE events (topic TEXT, payload TEXT, ts_ms INTEGER)")
+    con.execute("INSERT INTO events VALUES (?,?,?)", ("escalate.requested", json.dumps({"request": g}), 1000))
+    con.execute("INSERT INTO events VALUES (?,?,?)", ("worker.spawned", json.dumps({"id": "1", "goal": g}), 2000))
+    con.execute("INSERT INTO events VALUES (?,?,?)", ("escalate.requested", json.dumps({"request": g}), 60000))
+    con.commit(); con.close()
+    r = verify.duplicate_errands(str(db), since=0)
+    assert r["groups"] == [], r          # la segunda no nació: el dedup funcionó y no se le acusa
+
+
+def test_containment_survives_a_reformulation_that_jaccard_dismisses(tmp_path):
+    """El cambio de métrica, con los números medidos. El cerebro reformula con distinto nivel de detalle
+    (668 vs 298 caracteres en el caso real) y Jaccard divide por la UNIÓN, así que cuanto más elabora menos
+    se parece un encargo a sí mismo. Y el informe tiene que llevar el número del MOTOR al lado para saber a
+    cuál de los dos defectos apunta."""
+    largo = ("Busca planes con ninos el domingo en el centro de Madrid con horarios precios reservas "
+             "transporte publico alternativas interiores museos talleres espectaculos parques")
+    corto = "Busca planes con ninos el domingo en el centro de Madrid"
+    r = verify.duplicate_errands(_rounds(tmp_path, spawns=[largo, corto], asked=[largo, corto]), since=0)
+    assert r["worst"] == 2, r
+    g = r["groups"][0]
+    assert g["min_sim"] >= 0.9                      # contención: el corto está casi entero dentro del largo
+    assert g["engine_jaccard_max"] < 0.6            # …y el motor lo descartaría
+    assert g["over_engine_bar"] is False            # → paráfrasis, no «el dedup no disparó»

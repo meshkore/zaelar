@@ -1088,7 +1088,7 @@ def worker_health(db_path, *, since: float = 0.0) -> dict:
     return out
 
 
-def duplicate_errands(db_path, *, since: float = 0.0, floor: float = 0.45) -> dict:
+def duplicate_errands(db_path, *, since: float = 0.0, floor: float = 0.5) -> dict:
     """HOW MANY WORKERS RAN THE SAME ERRAND, and how alike their goals were.
 
     Measured live on 2026-08-21 with the operator's screenshot in hand: `kid-friendly-activity-nearby__es`
@@ -1097,44 +1097,93 @@ def duplicate_errands(db_path, *, since: float = 0.0, floor: float = 0.45) -> di
     and $3.93: one errand billed four times. `worker_health` said "4 spawned", and four spawns read as
     healthy concurrency.
 
-    Grouped by OVERLAP, not by equality, and that is the whole point. The four goals share a long prefix
-    and differ in the tail, so an exact-match count reports zero and the round comes out clean. The measured
-    similarity is REPORTED so it can be compared against the engine's own dedup bar (`find_duplicate`,
-    Jaccard >= 0.60 of content words, V2-123): a pair that sits just under it names the defect precisely
-    instead of describing the symptom.
+    Grouped by CONTAINMENT (shared words over the SHORTER request), not by Jaccard, and that is the whole
+    point. The brain REFORMULATES the errand on each escalation with a different amount of detail — the four
+    kid-friendly requests are 668, 437, 342 and 298 characters — and Jaccard divides by the UNION, so the
+    more the brain elaborates the less alike one errand looks to itself. Measured on those same four:
+    Jaccard 0.319-0.450 (would be dismissed), containment 0.571-0.893. Against unrelated errands
+    (plumber/hotel, flight/second-hand cars, Netflix/kids' plans) containment stays at 0.062-0.227, so the
+    two populations do not overlap — it is not a looser bar, it is a bar that survives length.
 
-    The floor is DELIBERATELY lower than the engine's. Sharing its predicate would make the harness agree
-    with it by construction — and the disagreement IS the finding. This over-reports on purpose: it prints
-    the number so a human can dismiss a pair, which is the safe direction. Silence is not.
+    The Jaccard value is REPORTED alongside because that is the engine's own dedup metric (`find_duplicate`,
+    >= 0.60 of content words, V2-123), and the report has to be able to say WHICH of the two defects this
+    is: a pair above 0.60 that still spawned is a dedup that did not fire, a pair below it is a dedup that
+    could not tell. Reporting only the harness number describes the symptom and names the wrong culprit.
+
+    ⚠️ IT READS `escalate.requested`, NOT `worker.spawned`, AND THAT IS THE WHOLE ACCURACY OF THE NUMBER.
+    The spawn event stores its `goal` TRUNCATED TO 120 CHARACTERS, and reformulations of one errand share a
+    long opening — so a prefix comparison measures the part they have in common and calls it similarity.
+    Read that way the four kid-friendly requests scored 0.647-0.80 and were reported to the engine agent as
+    "above your 0.60 bar, your dedup is not firing". On the FULL text they are 0.319-0.450: the dedup had
+    behaved correctly and the real defect was the paraphrase gap. Reading a truncated field does not fail —
+    it manufactures a finding, and this one had already been sent. When only the truncated field exists the
+    result says so (`text_source`), because a similarity read off a prefix is a CEILING, never a measurement.
     """
     import sqlite3
-    out: dict = {"read": False, "n_spawned": 0, "groups": [], "worst": 0, "identical_repeats": 0}
+    out: dict = {"read": False, "n_spawned": 0, "groups": [], "worst": 0, "identical_repeats": 0,
+                 "text_source": "", "truncated_source": False}
     try:
         con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     except Exception:
         return out
+    def _texts(topic: str, field: str) -> list:
+        try:
+            rows = con.execute(f"SELECT payload FROM events WHERE topic = '{topic}' AND ts_ms >= ? "
+                               "ORDER BY ts_ms", (int(since * 1000),)).fetchall()
+        except Exception:
+            return []
+        got = []
+        for (raw,) in rows:
+            try:
+                t = str((json.loads(raw) or {}).get(field) or "").strip()
+            except Exception:
+                continue
+            if t:
+                got.append(t)
+        return got
+
+    def _stamped(topic: str, field: str) -> list:
+        try:
+            rows = con.execute(f"SELECT payload, ts_ms FROM events WHERE topic = '{topic}' AND ts_ms >= ? "
+                               "ORDER BY ts_ms", (int(since * 1000),)).fetchall()
+        except Exception:
+            return []
+        got = []
+        for raw, ts in rows:
+            try:
+                t = str((json.loads(raw) or {}).get(field) or "").strip()
+            except Exception:
+                continue
+            if t:
+                got.append((ts, t))
+        return got
+
     try:
-        rows = con.execute("SELECT payload FROM events WHERE topic = 'worker.spawned' AND ts_ms >= ? "
-                           "ORDER BY ts_ms", (int(since * 1000),)).fetchall()
-    except Exception:
-        return out
+        spawned = _texts("worker.spawned", "goal")
+        spawn_ts = [ts for ts, _t in _stamped("worker.spawned", "goal")]
+        # SOLO las escaladas que llegaron a NACER. Una escalada DEDUPLICADA deja su `escalate.requested` y
+        # ningún worker: contarla acusaría al dedup justo de los casos en los que funcionó — la forma exacta
+        # del error anterior, un lector apuntado al sitio equivocado que fabrica el hallazgo en vez de fallar.
+        asked = [t for ts, t in _stamped("escalate.requested", "request")
+                 if any(0 <= s_ts - ts < 25000 for s_ts in spawn_ts)]
     finally:
         try:
             con.close()
         except Exception:
             pass
-    goals: list[str] = []
-    for (raw,) in rows:
-        try:
-            g = str((json.loads(raw) or {}).get("goal") or "").strip()
-        except Exception:
-            continue
-        if g:
-            goals.append(g)
     out["read"] = True
-    out["n_spawned"] = len(goals)
+    out["n_spawned"] = len(spawned)
+    # The full request when it exists; the truncated goal only as a fallback, and labelled as such.
+    goals = asked or spawned
+    out["text_source"] = ("escalate.requested (solo las que nacieron)" if asked
+                          else "worker.spawned.goal (TRUNCADO a 120 · techo)")
+    out["truncated_source"] = not asked
     if len(goals) < 2:
         return out
+
+    def _jac(a: set, b: set) -> float:
+        u = len(a | b)
+        return (len(a & b) / u) if u else 0.0
 
     def _words(g: str) -> set:
         g = unicodedata.normalize("NFKD", g.lower())
@@ -1159,9 +1208,9 @@ def duplicate_errands(db_path, *, since: float = 0.0, floor: float = 0.45) -> di
             a, b = ws[i], ws[j]
             if not a or not b:
                 continue
-            sim = len(a & b) / max(1, len(a | b))
+            sim = len(a & b) / max(1, min(len(a), len(b)))     # CONTENCIÓN, no Jaccard
             if sim >= floor:
-                sims[(i, j)] = round(sim, 3)
+                sims[(i, j)] = (round(sim, 3), round(_jac(a, b), 3))
                 parent[_find(i)] = _find(j)
     clusters: dict = {}
     for i in range(len(goals)):
@@ -1169,14 +1218,18 @@ def duplicate_errands(db_path, *, since: float = 0.0, floor: float = 0.45) -> di
     for members in clusters.values():
         if len(members) < 2:
             continue
-        pair_sims = [v for (i, j), v in sims.items() if i in members and j in members]
+        pair = [v for (i, j), v in sims.items() if i in members and j in members]
         texts = [goals[i] for i in members]
+        jacs = [j for _c, j in pair]
         out["groups"].append({
             "n": len(members),
             "goal": texts[0][:110],
             "identical": len(set(texts)) == 1,
-            "min_sim": min(pair_sims) if pair_sims else None,
-            "max_sim": max(pair_sims) if pair_sims else None,
+            "min_sim": min((c for c, _j in pair), default=None),
+            "max_sim": max((c for c, _j in pair), default=None),
+            # El número del MOTOR, para saber a cuál de los dos defectos apunta el grupo.
+            "engine_jaccard_max": max(jacs, default=None),
+            "over_engine_bar": bool(jacs and max(jacs) >= 0.6),
         })
         if len(set(texts)) == 1:
             out["identical_repeats"] += len(members) - 1
