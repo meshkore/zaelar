@@ -74,6 +74,22 @@ def compose_recall(recall_query: str = "", timings: dict | None = None) -> tuple
         mems = res.get("memories") or []
         used_ids = res.get("ids") or []
         durable = [m for m in mems if m.get("level") in ("mid", "long")]
+        # V2-254 — LA TERCERA SUPERFICIE. Una píldora que escribió un cron de widget no es un hecho sobre la
+        # persona, y este bloque —que corre CADA TURNO— las mezclaba: medido el 2026-08-21, «Weather in Soria
+        # now: 14.5C» salía POR ENCIMA de «Vive en el centro de Madrid» bajo «puede que venga a cuento (de tu
+        # memoria)», y el turno acabó buscando un fontanero en Soria.
+        #
+        # La regla tiene UNA casa (`memory.api.background_slot_off_topic`) y aquí se APLICA, no se reescribe: es
+        # el mismo defecto que V2-252 —una decisión repetida en dos sitios se separa sin avisar— y el propio
+        # docstring de la regla enumera las tres superficies que deben aplicarla. Vivió cinco semanas en una sola
+        # y las otras dos hubo que descubrirlas con un fallo en vivo CADA UNA.
+        #
+        # Condicional a propósito: si el operador NOMBRA el tema («¿qué tiempo hace en Soria?»), la píldora entra.
+        try:
+            from memory.api import background_slot_off_topic as _off_topic
+            durable = [m for m in durable if not _off_topic(m.get("slot"), recall_query)]
+        except Exception:  # noqa: BLE001
+            pass                     # sin la regla se enseña de más, nunca de menos: no se pierde memoria
         for m in durable[:8]:
             txt = (m.get("text") or "").strip().replace("\n", " ")
             if txt:

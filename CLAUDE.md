@@ -1363,6 +1363,22 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - Nodo 2.15, 9 casos rojos con el parseo viejo. **Sin verificar en vivo.** Lo cogió memoria-dev fuera de su
     territorio por decisión del orquestador: **el dueño de un arreglo es quien tiene la evidencia**.
 
+- **La regla estaba escrita en TRES sitios y aplicada en UNO** (`nucleo/flash/prompt.py`, V2-254, 2026-08-21).
+  El arnés mandó un dato suelto —el agente buscó «fontanero **Soria**» con `operator.location` = «Vive en el
+  centro de Madrid»— y de ahí salieron tres arreglos en cadena: V2-242 cerró la ESCRITURA, memoria-dev cerró el
+  DOSIER… y seguía saliendo, porque faltaba la tercera superficie: **el recall activo, el que corre CADA TURNO**.
+  Medido con los dos anteriores dentro: «Weather in Soria now: 14.5C» **por encima** de «Vive en el centro de
+  Madrid», bajo «puede que venga a cuento (de tu memoria)».
+  - **La lección no es el arreglo**: es la misma forma que V2-252 y V2-253 — **el fallo no fue la regla, fue
+    tenerla repetida**. Aquí se APLICA la que ya existe (`memory.api.background_slot_off_topic`, con UNA casa
+    desde `a2b791c`) en vez de escribir una cuarta copia.
+  - **Condicional, no censura**: si el operador nombra el tema, la píldora entra (promesa de la auditoría de
+    2026-07-14), y hay un caso que se pone rojo si alguien lo convierte en un filtro ciego. Y **fail-soft con
+    dirección**: si la regla no se pudiera importar se enseña de MÁS, nunca de menos — quedarse sin recall es
+    peor que enseñar de sobra. Nodo 2.4, 10 casos, sensibilidad en dos direcciones.
+  - **Abierto**: nada impide una CUARTA copia. Un trinquete tendría que saber qué superficies renderizan
+    píldoras a un modelo, y esa lista es justo la que se demostró incompleta tres veces.
+
 - **Unos argumentos ILEGIBLES no son una acción sin argumentos** (`widgets/navegador/agent.py`, V2-253,
   2026-08-21). Sale de la regla que el cluster adoptó ese día (propuesta de memoria-dev): **un techo solo es
   peligroso si el lector acepta PREFIJOS**. Barridos los del motor con ese criterio, los lectores son seguros

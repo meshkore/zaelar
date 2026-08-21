@@ -166,6 +166,11 @@ DOMAINS: list[dict] = [
             # `probe.py` es la implementación PARALELA del provider de voz—, así que la DECISIÓN pasa a
             # `provider_failure.py` y la leen los dos canales.
             "tests/agent_headless/unit/flash/test_the_text_channel_relays_too.py",
+            # V2-254: la TERCERA superficie que enseña píldoras a un modelo, y la que corre CADA TURNO. La regla
+            # («una píldora de fondo no es un hecho sobre la persona») estaba escrita en tres sitios y aplicada
+            # en uno; las otras dos hubo que descubrirlas con un fallo en vivo cada una. Aquí se APLICA la que ya
+            # existe (`memory.api.background_slot_off_topic`), no se escribe una cuarta copia.
+            "tests/agent_headless/unit/flash/test_the_third_surface_shows_pills_too.py",
             "tests/cluster/unit/test_brain_relay.py",
             # V2-243/244: un saldo agotado no es una cuota, y un escalón CALLADO por la regla de self-host se
             # nombra en vez de decir «SIN RELEVO disponible» a secas.
