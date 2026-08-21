@@ -1128,6 +1128,10 @@ DOMAINS: list[dict] = [
         {"id": "10.61", "title": "The sheet is read where the errand WROTE it: instanced boxes, never the bare "
                                  "one that nobody owns since V2-259",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_sheet_is_read_where_the_errand_wrote_it.py"]},
+        {"id": "10.62", "title": "The TESTER never runs out of rungs: the local Claude Code licence is the "
+                                 "net under DRIVE and JUDGE, and it cannot inherit the redirect that sends "
+                                 "the same CLI back to the rung that just fell",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_tester_never_runs_out_of_rungs.py"]},
     ]},
 ]
 
