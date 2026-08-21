@@ -154,6 +154,23 @@ def test_a_reply_yields_a_code_only_when_it_is_unambiguous(reply, expected):
     assert detect.extract_code(reply) == expected
 
 
+def test_the_token_ceiling_is_high_enough_that_a_sentence_stays_a_sentence():
+    """El agujero que dejó abierto el primer arreglo (2026-08-21, visto EN VIVO a las 10:12 con `extract_code`
+    ya en el árbol: el sandbox persistió `stt_language: "it"` en una corrida en español).
+
+    `extract_code` refuta una FRASE («It is Spanish (es)» tiene tres palabras de dos letras → ambiguo). Pero con
+    `max_tokens=4` esa frase no llega entera: llega **«It»**, una sola palabra que el ancla acepta porque `it`
+    ES el código de italiano. O sea que el recorte convertía una respuesta rechazable en una aceptada y
+    equivocada. El techo es parte del arreglo, no un parámetro de coste — por eso se vigila aquí.
+    """
+    import inspect
+
+    fuente = inspect.getsource(detect._by_llm)
+    assert "max_tokens=4," not in fuente, "un techo de 4 trunca la frase a «It» y eso se bloquea como italiano"
+    assert detect.extract_code("It") == "it"          # el ancla NO puede distinguirlo: `it` es un idioma real
+    assert detect.extract_code("It is Spanish (es)") is None   # entera, sí se refuta — de ahí que el techo importe
+
+
 def test_a_refusal_is_not_a_dead_end():
     """Refusing costs a retry; a wrong lock is silent and permanent. Nothing is persisted when we refuse, so
     `should_detect()` stays True and the next utterance tries again."""

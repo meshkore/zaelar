@@ -110,8 +110,20 @@ def _by_llm(text: str) -> str | None:
             "i18n",
             "Identify the language of the user's text. Reply with ONLY its ISO 639-1 two-letter code "
             "(lowercase, e.g. 'en', 'es', 'fr', 'de', 'pt'). No other text.",
-            text[:500], max_tokens=4, temperature=0.0, timeout=20.0)
-        return extract_code(raw)
+            # 16, not 4 (2026-08-21). The cap is what turned this from a refusable answer into an accepted
+            # WRONG one: a classifier that replies with a sentence gets cut to its first word, and "It is
+            # Spanish" becomes "It" — which `extract_code` accepts, because `it` IS Italian's code. Seen live
+            # at 10:12 with the fix already in the tree: the sandbox persisted `stt_language: "it"` on a Spanish
+            # run. Uncut, the same reply arrives as "It is Spanish (es)" — three two-letter words, ambiguous,
+            # refused. The ceiling costs a handful of tokens on ONE call at first run.
+            text[:500], max_tokens=16, temperature=0.0, timeout=20.0)
+        code = extract_code(raw)
+        if code is None and (raw or "").strip():
+            # What the model actually SAID, once, when we refuse it. Without this the only evidence of a bad
+            # detection is the locked code itself, which is indistinguishable from a correct one — answering
+            # "was it the parse or the model?" took a measurement instead of a grep.
+            logger.info("i18n.detect: reply not an unambiguous code, not locking: %r", (raw or "")[:120])
+        return code
     except Exception:
         return None
 
