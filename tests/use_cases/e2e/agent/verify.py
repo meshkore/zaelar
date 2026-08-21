@@ -1258,35 +1258,57 @@ def sheet_timing(db_path, *, since: float = 0.0) -> dict:
     return out
 
 
-def embeddings_backend(db_path) -> dict:
-    """WHICH embeddings backend served this round's recalls — `{backend, line, degraded}`.
+def embeddings_backend(db_path, *, since: float = 0.0) -> dict:
+    """WHICH embeddings backend served this round's recalls — `{backend, degraded, skipped}`.
 
-    A sandbox boot can log BOTH «⚠️ memoria: embeddings en 'hash' (Ollama/embeddinggemma NO disponible) —
-    recall SEMÁNTICO prácticamente DESACTIVADO» and, fifteen seconds later, «prewarm embeddings OK (ollama)».
-    They contradict each other and only one describes the process that answers the turns.
+    A sandbox boot can log BOTH «⚠️ memoria: embeddings en 'hash' — recall SEMÁNTICO prácticamente
+    DESACTIVADO» and, fifteen seconds later, «prewarm embeddings OK (ollama)». They contradict each other
+    and only one describes the process that answers the turns.
 
     Measured by the memory agent on 2026-08-21: inside ONE process a degraded backend stays pinned for
-    `_BACKEND_RECHECK_S` (300 s) and nothing calls `reset()` in production, so a process that reports
-    `ollama` at prewarm CANNOT have resolved `hash` earlier — the two lines are different processes, and
-    the `⚠️` one (stdlib logging, no timestamp, inherited stderr) is not the one serving recalls. Once on
-    `ollama` the resolver returns without re-probing, so it cannot degrade mid-round either.
+    `_BACKEND_RECHECK_S` (300 s) and nothing calls `reset()` in production, so a process reporting `ollama`
+    at prewarm CANNOT have resolved `hash` earlier — the two lines are different processes, and the `⚠️`
+    one (stdlib logging, no timestamp, inherited stderr) is not the one serving recalls. Once on `ollama`
+    the resolver returns without re-probing, so it cannot degrade mid-round either.
 
-    Hence the guard is READ THE LINE, not sleep five minutes: `prewarm embeddings OK (<backend>)` is the
-    only statement about the process under measurement. `hash` there means lexical-only recall for the
-    whole round, which is a confound on every memory-dependent case — a round to throw away, not a score
-    to file. Returns `{}` when the log has no such line (nothing claimed, nothing assumed).
+    So the guard is READ THE PREWARM, not sleep five minutes. And it is read from the EVENT, not from the
+    log text: `prewarm._emit_prewarm` emits `perf` with `extra {"warm": "embed", "model": <backend>}`, which
+    carries the backend in a FIELD instead of inside a sentence and survives a change of log format. Same
+    store every other reading here comes from.
+
+    `skipped` is the case that matters most and the one a first version got wrong. If the prewarm THREW
+    there is no OK line at all — and without a prewarm the backend is resolved by the first recall, which is
+    exactly when `hash` is likeliest. An absent OK therefore cannot be read as health; only the absence of
+    BOTH signals claims nothing, and then the round is graded normally.
     """
-    from pathlib import Path
+    import sqlite3
     try:
-        log = Path(db_path).resolve().parents[2] / "logs" / "sandbox-engine.log"
-        text = log.read_text(encoding="utf-8", errors="replace")
+        con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     except Exception:
         return {}
-    m = None
-    for m in re.finditer(r"prewarm embeddings OK \(([a-z]+),", text):
-        pass                      # the LAST one: a re-boot inside the same workspace wins
-    if not m:
+    try:
+        rows = con.execute("SELECT label, payload FROM events WHERE kind = 'perf' AND ts_ms >= ? "
+                           "ORDER BY ts_ms", (int(since * 1000),)).fetchall()
+    except Exception:
         return {}
-    backend = m.group(1)
-    return {"backend": backend, "degraded": backend != "ollama",
-            "line": text[max(0, m.start() - 30):m.end() + 40].strip()[:160]}
+    finally:
+        try:
+            con.close()
+        except Exception:
+            pass
+    out: dict = {}
+    for label, raw in rows:
+        try:
+            d = json.loads(raw) or {}
+        except Exception:
+            continue
+        extra = d.get("extra") or d
+        if str(extra.get("warm") or "") != "embed":
+            continue
+        backend = str(extra.get("model") or "").strip()
+        # `_warm_embed` reports the exception in the label («prewarm embed 0ms — saltado: …») and passes
+        # model="?" when it failed. Either shape is a prewarm that did not happen.
+        skipped = ("saltado" in str(label or "")) or backend in ("", "?")
+        out = {"backend": backend, "skipped": skipped,
+               "degraded": bool(skipped or backend != "ollama")}
+    return out

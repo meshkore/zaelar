@@ -869,6 +869,45 @@ def brain_preflight(*, timeout: float = 210.0) -> str:
             "   NO se mide: una ronda así apunta un fallo de producto que en realidad es una factura.")
 
 
+
+def bridge_allowlist_refusal() -> str:
+    """CAN A WORKER REACH ITS OWN BRIDGES? Returns "" when yes, or the refusal to print.
+
+    The worker drives the browser, reads memory and asks the network through `python -m nucleo.<bridge>`, and
+    those commands are only permitted because `claude_session._BRIDGE_TOOLS` lists the exact interpreter. That
+    list is built from `_ZAELAR` (derived from `__file__`) while the prompt hands the worker `bridge_python()`
+    (`sys.executable`). In the engine's own tree the two are the same path and nobody notices.
+
+    MEASURED 2026-08-21, on a pinned measuring worktree: `_ZAELAR` was the WORKTREE and `sys.executable` the
+    real engine's venv — because a worktree's `.venv` is a symlink and Python resolves it — so the interpreter
+    the prompt DICTATES was not in the allowlist and EVERY bridge call came back «This command requires
+    approval». In headless nobody approves. The worker narrated it exactly right («el entorno donde estoy
+    corriendo ha bloqueado todas las herramientas… aquí nadie puede aprobarlas»), the round scored 1/5 on
+    resultado, and the judge's headline finding was that zaelar claimed results while its environment blocked
+    every tool. The blockade was the measuring rig's. Five earlier rounds carried the same defect: every
+    worktree round that spawned a worker at all shows 18-27 denials.
+
+    So this is asked BEFORE a round rather than diagnosed after one. It reads the same two values production
+    reads — never a copy of the rule, which would be a second place to drift.
+    """
+    try:
+        from nucleo.workers import claude_session as _cs
+        py = _cs.bridge_python()
+        if py in _cs._INTERPRETERS:
+            return ""
+        return ("✗ LOS PUENTES DEL WORKER NO ESTÁN PERMITIDOS: el intérprete que el prompt le dicta no está en\n"
+                f"   la allowlist, así que TODA llamada a un puente volverá «requires approval».\n"
+                f"   dicta   (bridge_python) : {py}\n"
+                f"   permite (_INTERPRETERS) : {', '.join(str(i) for i in _cs._INTERPRETERS)}\n"
+                "   Casi siempre es medir desde un worktree: `_ZAELAR` sale de `__file__` (el worktree) y\n"
+                "   `sys.executable` del venv REAL (un `.venv` symlinkeado lo resuelve Python). NO se mide:\n"
+                "   el worker saldría sin navegador, sin memoria y sin red, y eso se lee como un fallo suyo.")
+    except Exception as e:
+        # Fail-open: no poder COMPROBAR el candado no es lo mismo que saber que está cerrado, y una ronda
+        # perdida por una comprobación que se rompió sola es peor que la ronda que quería proteger.
+        return ""
+
+
 def _provisional(args) -> str:
     """WHY this round cannot be banked as a measurement, or "" when it can.
 
@@ -944,6 +983,12 @@ def _sandbox_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict
         _pf = brain_preflight()
         if _pf:
             print(_pf)
+            raise SystemExit(4)
+        # …y si el cerebro habla pero el worker no puede tocar nada, tampoco se mide. Mismo código de salida:
+        # las dos dicen NO SE PUEDE MEDIR, que es distinto de NO SE DEBE (3, árbol sucio).
+        _br = bridge_allowlist_refusal()
+        if _br:
+            print(_br)
             raise SystemExit(4)
         try:
             return _run_batch(chosen, sandboxed=True, args_no_file=args.no_file,
