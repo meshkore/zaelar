@@ -854,6 +854,19 @@ DOMAINS: list[dict] = [
          "paths": ["tests/infrastructure/unit/test_a_test_outside_the_map_is_not_a_test.py"]},
         {"id": "7.12", "title": "Cierre de iniciativa: toda decisión tiene iniciativa y al revés (trinquete)",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_roadmap_closure.py"]},
+        # 2026-08-21: SEGUNDA vez que un helper se cuela ENTRE `@router.<verbo>(ruta)` y el handler que la
+        # ruta servía, así que FastAPI registra el helper y el handler real queda inalcanzable. La primera
+        # (`_with_wall`, 2026-08-20) devolvía el request tal cual y el puente del navegador contestaba 200 a
+        # todo; la segunda (`open_instances`, f3052f9) no recibe payload, así que el informe del canvas se
+        # tragaba con 200 — `open_widgets` dejó de escribirse y `_last_inst` no se sellaba nunca, matando
+        # justo la función para la que el helper se había añadido. Las dos veces la suite entera pasó verde.
+        # Tras la primera se escribió un guarda para UNA ruta; por eso volvió por otra. Esto cierra la CLASE
+        # mirando el SÍNTOMA: un decorador secuestrado siempre deja atrás un `async def` que ninguna ruta
+        # sirve y nadie llama, y un handler inalcanzable nunca es intencionado.
+        {"id": "7.18", "title": "Un decorador no mira lo que viene detrás: ningún módulo de rutas deja un "
+                                "handler que nadie puede alcanzar",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/test_a_decorator_does_not_care_what_follows_it.py"]},
         # 2026-08-20: hermano del anterior por el otro lado. El trinquete vigila que una decisión tenga
         # iniciativa; esto vigila que los PUNTEROS de `CLAUDE.md` lleven a un fichero que existe. Un puntero roto
         # no falla: el siguiente agente abre un fichero que no está y trabaja sin el contexto que lo justificaba.

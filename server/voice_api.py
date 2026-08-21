@@ -376,22 +376,6 @@ async def ui_event(payload: dict):
 
 
 @router.post("/api/canvas/state")
-def open_instances() -> list[str]:
-    """Las tarjetas ABIERTAS con su id COMPLETO (`results::t7`), tal y como las reportó el canvas.
-
-    V2-259 F3 — `memory.state()["open_widgets"]` guarda el conjunto NORMALIZADO (bases), que es lo correcto para
-    lo que hace: el estado del cerebro habla de PIEZAS. Pero «cierra los resultados» con dos hojas abiertas es una
-    pregunta sobre TARJETAS, y ahí la normalización borra justo el dato que hace falta — el mismo colapso que
-    V2-047 F9 anotó y que hasta ahora solo se había instrumentado.
-
-    Es estado de PROCESO, no persistido, y eso está bien: el canvas es la autoridad y reporta en cada cambio, así
-    que esto es lo más fresco que hay del lado del servidor. Tras un reinicio queda vacío hasta el primer informe,
-    y una lista vacía significa «no lo sé» — quien pregunta cae entonces al comportamiento de siempre en vez de
-    inventarse una ambigüedad.
-    """
-    return list(getattr(canvas_state, "_last_inst", None) or [])
-
-
 async def canvas_state(payload: dict):
     """The frontend (authoritative for the canvas) reports which widgets the operator has OPEN → stored in memory
     STATE (`open_widgets`), which ALWAYS travels in the prompt (memory_cache) and appears in the map. This lets the
@@ -472,6 +456,22 @@ async def canvas_state(payload: dict):
     except Exception:  # noqa: BLE001
         pass
     return JSONResponse({"ok": True, "open_widgets": seen})
+
+
+def open_instances() -> list[str]:
+    """Las tarjetas ABIERTAS con su id COMPLETO (`results::t7`), tal y como las reportó el canvas.
+
+    V2-259 F3 — `memory.state()["open_widgets"]` guarda el conjunto NORMALIZADO (bases), que es lo correcto para
+    lo que hace: el estado del cerebro habla de PIEZAS. Pero «cierra los resultados» con dos hojas abiertas es una
+    pregunta sobre TARJETAS, y ahí la normalización borra justo el dato que hace falta — el mismo colapso que
+    V2-047 F9 anotó y que hasta ahora solo se había instrumentado.
+
+    Es estado de PROCESO, no persistido, y eso está bien: el canvas es la autoridad y reporta en cada cambio, así
+    que esto es lo más fresco que hay del lado del servidor. Tras un reinicio queda vacío hasta el primer informe,
+    y una lista vacía significa «no lo sé» — quien pregunta cae entonces al comportamiento de siempre en vez de
+    inventarse una ambigüedad.
+    """
+    return list(getattr(canvas_state, "_last_inst", None) or [])
 
 
 @router.get("/api/canvas/layout")
