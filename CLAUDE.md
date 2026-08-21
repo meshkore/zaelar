@@ -1363,6 +1363,21 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - Nodo 2.15, 9 casos rojos con el parseo viejo. **Sin verificar en vivo.** Lo cogió memoria-dev fuera de su
     territorio por decisión del orquestador: **el dueño de un arreglo es quien tiene la evidencia**.
 
+- **Para vigilar el ARTEFACTO, el artefacto tiene que contener lo que se comprueba** (`voice/observer.py` +
+  `widgets/navegador/agent.py`, V2-255, 2026-08-21). V2-254 dejó abierto que nada impide una CUARTA copia de la
+  regla de las píldoras, y el arnés propuso la señal buena: **no vigiles a los ESCRITORES, vigila el ARTEFACTO**
+  — todas las superficies terminan en un prompt que sale hacia un modelo, y eso ya se graba (`turn_detail`, el
+  único punto que cierran los DOS canales). Faltaba una cosa: **el artefacto no contenía la parte que se
+  comprueba.** Medido: el bloque de recall cae en el carácter **2.896** de un prompt de 16.585, a 104 de la
+  cabeza de 3.000 — y en un turno real van delante el estado cacheado y la conversación reciente, así que se cae
+  siempre. Un verificador diría «limpio» sobre un prompt sucio: **un techo solo es peligroso si el lector acepta
+  prefijos**, aplicado al registro. Cabeza a 6.000, sin tocar la cola (el estado vivo, V2-195), y **el hueco se
+  sigue nombrando** — eso permite decir «no puedo certificar» en vez de «limpio».
+  - Y el suceso de V2-253 sale ya por **`tool_dropped`**, el canal que nació en V2-171 para exactamente eso en el
+    FlashBrain. El navegador tenía el mismo suceso y lo contaba solo en sus pasos: **para un instrumento de
+    fuera, no ocurría**. Misma forma de evento a propósito — quien ya lo consume no cambia nada. Nodos 2.4 y 4.2,
+    sensibilidad en tres direcciones.
+
 - **La regla estaba escrita en TRES sitios y aplicada en UNO** (`nucleo/flash/prompt.py`, V2-254, 2026-08-21).
   El arnés mandó un dato suelto —el agente buscó «fontanero **Soria**» con `operator.location` = «Vive en el
   centro de Madrid»— y de ahí salieron tres arreglos en cadena: V2-242 cerró la ESCRITURA, memoria-dev cerró el

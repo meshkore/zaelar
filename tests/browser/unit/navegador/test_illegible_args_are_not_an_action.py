@@ -119,3 +119,38 @@ def test_los_OTROS_lectores_del_motor_exigen_el_objeto_entero(lector, fuente):
     src = inspect.getsource(getattr(importlib.import_module(fuente), lector))
     assert "json.loads" in src
     assert "except" in src
+
+
+# ── y se cuenta por el canal que YA existe (V2-255) ──────────────────────────────────────────────────────────
+# `tool_dropped` nació en V2-171 para exactamente este suceso en el FlashBrain, y el arnés ya lo lee (su nodo
+# 10.6). El navegador tenía el mismo suceso y lo contaba solo en su lista de pasos: para cualquier instrumento
+# de fuera, no ocurría. Estrenar un kind nuevo habría obligado a cambiar a quien ya lo consume.
+
+def test_una_accion_descartada_SALE_por_tool_dropped(monkeypatch):
+    vistos = []
+    from voice import observer
+    monkeypatch.setattr(observer, "emit", lambda *a, **k: vistos.append((a, k)), raising=False)
+    _decidir(monkeypatch, _Resp([_TC("click", '{"ref": 2')], finish_reason="length"))
+    assert vistos and vistos[0][0][0] == "tool_dropped"
+    extra = vistos[0][1]["extra"]
+    assert extra["tool"] == "click" and extra["where"] == "navegador"
+    assert extra["finish_reason"] == "length", "el instrumento tiene que poder separar nuestro tope del modelo"
+
+
+def test_una_accion_BUENA_no_emite_nada(monkeypatch):
+    """Sensibilidad: si esto se disparara siempre, el contador de acciones descartadas dejaría de significar nada."""
+    vistos = []
+    from voice import observer
+    monkeypatch.setattr(observer, "emit", lambda *a, **k: vistos.append(a), raising=False)
+    _decidir(monkeypatch, _Resp([_TC("click", '{"ref": 2}')], finish_reason="stop"))
+    assert not vistos
+
+
+def test_es_la_MISMA_forma_de_evento_que_la_del_FlashBrain():
+    """GUARDA DE FUENTE: quien ya consume `tool_dropped` no puede tener que cambiar para verlo también aquí."""
+    import inspect
+
+    from nucleo.flash import fast_client
+    for src in (inspect.getsource(fast_client), inspect.getsource(agent)):
+        assert '"tool_dropped", "⚠️ acción descartada"' in src
+        assert '"tool":' in src and '"reason":' in src

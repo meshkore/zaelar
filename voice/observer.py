@@ -97,7 +97,17 @@ _CAT = {
 }
 
 
-_HEAD_CHARS, _TAIL_CHARS = 3000, 7000
+# V2-255 — la CABEZA cubre además la MEMORIA que se le enseñó al modelo. Medido el 2026-08-21 con la sesión
+# vacía: el bloque de recall cae en el carácter **2.896** de un prompt de 16.585, o sea a 104 caracteres de
+# quedarse fuera — y en un turno real van DELANTE el estado cacheado y la conversación reciente, así que se cae
+# siempre. El orden del prompt es lang → memoria → reciente → recall → directiva → recursos → «AHORA MISMO».
+#
+# Importa porque la memoria enseñada es lo que decide conductas como la de V2-254 (un parte meteorológico de
+# otra ciudad eligiendo la ciudad de un encargo), y porque el arnés propuso vigilar el ARTEFACTO en vez de la
+# lista de superficies: *ningún prompt contiene el texto de una píldora de fondo salvo que la petición la nombre*.
+# Un verificador que lea un artefacto con la memoria recortada diría «limpio» sobre un prompt sucio — que es la
+# regla de esta misma noche: **un techo solo es peligroso si el lector acepta prefijos**.
+_HEAD_CHARS, _TAIL_CHARS = 6000, 7000
 
 
 def _prompt_excerpt(system: str) -> str:

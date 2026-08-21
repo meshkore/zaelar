@@ -171,6 +171,10 @@ DOMAINS: list[dict] = [
             # en uno; las otras dos hubo que descubrirlas con un fallo en vivo cada una. Aquí se APLICA la que ya
             # existe (`memory.api.background_slot_off_topic`), no se escribe una cuarta copia.
             "tests/agent_headless/unit/flash/test_the_third_surface_shows_pills_too.py",
+            # V2-255: para poder vigilar el ARTEFACTO en vez de la lista de superficies (propuesta del arnés), el
+            # artefacto tiene que CONTENER lo que se comprueba — y el bloque de memoria caía en el hueco omitido
+            # del prompt guardado. Un verificador habría dicho «limpio» sobre un prompt sucio.
+            "tests/agent_headless/unit/flash/test_the_artifact_shows_the_memory_it_was_given.py",
             "tests/cluster/unit/test_brain_relay.py",
             # V2-243/244: un saldo agotado no es una cuota, y un escalón CALLADO por la regla de self-host se
             # nombra en vez de decir «SIN RELEVO disponible» a secas.

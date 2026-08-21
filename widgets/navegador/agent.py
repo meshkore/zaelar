@@ -431,6 +431,20 @@ async def _next_action(messages: list[dict], tools: list[dict], strong: bool = F
             # inválidos son del modelo y se arreglan reintentando. Decir «no emitió acción» tapa las dos.
             _por = ("se cortó por el tope de tokens" if _cortado else "devolvió argumentos ilegibles")
             logger.warning(f"navegador agent: «{tc.function.name}» {_por} ({len(_crudo)} chars) — no se ejecuta")
+            # V2-255 — Y POR EL CANAL QUE YA EXISTE. `tool_dropped` nació en V2-171 para exactamente esto en el
+            # FlashBrain («la vuelta DECIDIÓ una acción y el sistema no pudo leer sus argumentos»), y el arnés ya
+            # lo lee (su nodo 10.6). El navegador tenía el mismo suceso y lo contaba solo en su lista de pasos,
+            # así que para cualquier instrumento de fuera no ocurría. Misma forma del evento a propósito: quien
+            # ya lo consume no tiene que cambiar nada para verlo también aquí.
+            try:
+                from voice.observer import emit as _emit_obs
+                _emit_obs("tool_dropped", "⚠️ acción descartada",
+                          text=f"{tc.function.name}: {_por}",
+                          extra={"tool": tc.function.name, "reason": _por, "where": "navegador",
+                                 "finish_reason": "length" if _cortado else "",
+                                 "chars": len(_crudo)})
+            except Exception:  # noqa: BLE001
+                pass
             return None, {"_error": f"«{tc.function.name}» {_por}; no la ejecuto con los argumentos a medias"}
     return None, {"_error": "el modelo no emitió ninguna acción"
                             + (" (cortada por el tope de tokens)" if _cortado else "")}
