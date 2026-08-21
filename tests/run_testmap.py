@@ -320,6 +320,17 @@ DOMAINS: list[dict] = [
         # solo existe con kind=web, y TODA escalada abre una sesión.
         {"id": "2.18", "title": "El final de una sesión de worker es un HECHO (y sus estados, una sola lista)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_ended_session_is_a_fact.py"]},
+        # 2026-08-21, medido en el motor del OPERADOR (no en un plató): SEIS workers para una sola búsqueda de
+        # coches. Los dos relevos automáticos de `_finish` —contexto agotado y proveedor sin cuota— dicen
+        # relanzarse «UNA vez», pero el booleano que lo guarda vive en el RECORD y cada relevo estrena uno, así
+        # que el contador vuelve a cero y la cadena no acaba. `depth` viajaba SIN incrementar y tampoco contaba.
+        # Misma forma que el id de hoja que se reiniciaba con el proceso (32c7dc6): un contador de instancia
+        # leído como si fuera global — con el agravante de que aquí el error NO es reintentable, así que el bucle
+        # gasta dinero real ($2,09 el primer worker, cuatro cadáveres de 17 s detrás). Incluye la frase honesta:
+        # sin ella el resumen capado sigue prometiendo «la retomo», que es esperar a nadie.
+        {"id": "2.23", "title": "Una cadena de relevo tiene final: la generación viaja, el tope corta y al cortar "
+                                "dice la verdad (sin prometer una retoma que no va a pasar)",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_relay_chain_has_an_end.py"]},
         {"id": "2.15", "title": "Idioma del operador en un canal SIN voz (primera ejecución)", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_first_run_language.py"]},
         # 2026-08-20: el relleno de nunca-mudo decía CUATRO veces la misma frase («Vale, dame un momento que lo

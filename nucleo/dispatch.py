@@ -2031,6 +2031,9 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
             rec = SessionRecord(task_id=key, goal=request[:200], kind=task.kind,
                                 parent_task_id=str(ctx.get("parent_task_id", "")),
                                 depth=int(ctx.get("depth", 0) or 0),
+                                # La GENERACIÓN de relevo viaja con la cadena. Sin esto el tope de `_finish` no
+                                # existe: cada relevo estrena record y su contador vuelve a cero.
+                                relay_gen=int(ctx.get("relay_gen", 0) or 0),
                                 trace_id=str(ctx.get("trace", "") or ""))   # V2-044: encadena a la frase origen
             # V2-227 — la SUPERFICIE se sella aquí, que es el único punto por el que pasan TODAS las puertas de
             # entrada al dispatcher (el cerebro con su `surface`, el auto-resume, el confirm-gate, el cluster, el

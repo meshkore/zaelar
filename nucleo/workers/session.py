@@ -107,6 +107,15 @@ class SessionRecord:
     # whatever was learned.
     context_full: dict | None = None
     context_retried: bool = False
+    # How many AUTOMATIC relaunches led to THIS worker. `context_retried`/`provider_retried` above read like
+    # they bound the chain ("relaunched ONCE"), and they do not: they live on the RECORD, and every relay builds
+    # a fresh one, so each new worker starts at False and may relay again. Measured on the operator's own engine
+    # (2026-08-17, `zaelar.db`): SIX workers for one car search. The first ran 7m47s and died on a context-window
+    # error after $2.0897 and 138k tokens; the next four were born 3-8s after the previous one ended and died in
+    # ~17s with the SAME error. `depth` was travelling through the relay UNCHANGED, so it could not count it
+    # either. Same shape as the sheet id that reset on every process: a per-instance counter read as if it were
+    # a global one.
+    relay_gen: int = 0
     # V2-238 — UN RELEVO NO ES UNA MUERTE. Cuando una de las dos entregas de `_finish` se completa (relevo de
     # proveedor, compactar-y-continuar), esta sesión no ha fracasado: ha PASADO EL TESTIGO a otra que ya está
     # corriendo. Sin este hecho, `ok=False` la dejaba indistinguible de un worker muerto, y el motor le decía al
@@ -144,6 +153,14 @@ def denied_fragment(text: str) -> str:
             if frag:
                 return frag[:160]
     return ""
+
+
+#: How many AUTOMATIC relaunches an errand gets before we stop and SAY so. Two, because there are two independent
+#: causes (blown context, provider out of quota) and each was written to fire once; what was missing was a bound on
+#: the CHAIN. A cap is not a cure — a relay that keeps failing identically is a symptom, not a hiccup — but an
+#: unbounded retry on a NON-retryable error spends the operator's money in silence, which is how six workers ran
+#: one car search on 2026-08-17.
+_RELAY_CAP_DEFAULT = 2
 
 
 class WorkerSession:
@@ -282,6 +299,8 @@ class WorkerSession:
                 rec.result_summary = "No pude completar la tarea."
             self._bus("worker.error", {"id": rec.task_id, "message": (d.get("message") or "")[:300]})
 
+    _RELAY_CAP = _RELAY_CAP_DEFAULT
+
     async def _finish(self) -> None:
         rec = self._rec
         # COMPACT AND CONTINUE (incident 2026-08-18). The context blew up, which is neither a task failure nor a
@@ -289,13 +308,13 @@ class WorkerSession:
         # would blow up identically) and nothing to report (the operator asked for a guitar, not for an API error).
         # It is relaunched ONCE carrying what was learned, so the fresh worker does not start from zero.
         if (rec.context_full and not rec.context_retried and not rec.provider_down
-                and rec.status != "cancelled"):
+                and rec.status != "cancelled" and rec.relay_gen < self._RELAY_CAP):
             rec.context_retried = True
             try:
                 from nucleo.flash import escalate as _esc
                 _esc.escalate_to_slowbrain(context_handoff(rec), context={
                     "src": "context_handoff", "kind": rec.kind, "trace": rec.trace_id,
-                    "depth": int(rec.depth or 0)})
+                    "depth": int(rec.depth or 0), "relay_gen": int(rec.relay_gen or 0) + 1})
                 rec.result_summary = ""       # sin entrega: la retoma el worker nuevo, sin ruido
                 rec.ok = False
                 rec.handoff = "contexto agotado → sesión nueva con lo aprendido"
@@ -309,7 +328,8 @@ class WorkerSession:
         # RELEVO DE PROVEEDOR: la tarea no fracasó, se quedó sin gasolina. Se relanza UNA vez —el escalón agotado
         # ya está en cooldown, así que el spawn nuevo coge el siguiente— en vez de entregarle al operador el error
         # crudo del proveedor como si fuera el resultado de lo que pidió.
-        if rec.provider_down and not rec.provider_retried and rec.status != "cancelled":
+        if (rec.provider_down and not rec.provider_retried and rec.status != "cancelled"
+                and rec.relay_gen < self._RELAY_CAP):
             rec.provider_retried = True
             nxt = rec.provider_down.get("next") or ""
             if nxt:
@@ -317,7 +337,7 @@ class WorkerSession:
                     from nucleo.flash import escalate as _esc
                     _esc.escalate_to_slowbrain(rec.goal, context={
                         "src": "provider_failover", "kind": rec.kind, "trace": rec.trace_id,
-                        "depth": int(rec.depth or 0)})
+                        "depth": int(rec.depth or 0), "relay_gen": int(rec.relay_gen or 0) + 1})
                     rec.result_summary = ""          # sin entrega: la retoma el worker de relevo, sin ruido
                     rec.ok = False
                     rec.handoff = f"proveedor sin cuota → relevo a «{nxt}»"
@@ -336,6 +356,24 @@ class WorkerSession:
                 rec.result_summary = ("Me he quedado sin cuota en el proveedor que mueve mis procesos de fondo y "
                                       "no tengo otro configurado, así que esta tarea se queda parada. Lo tienes "
                                       "en el panel de estado.")
+        # LA CADENA SE PARÓ: hay que decirlo, y decir la VERDAD. Sin esto, un final capado seguía llevando el error
+        # crudo del proveedor en `result_summary`, y `operator_safe_summary` lo traduce a «me he quedado sin espacio
+        # de contexto… LA RETOMO con lo que llevaba» — una promesa de reintento que ya no va a ocurrir. Una frase
+        # tranquilizadora que miente es peor que el error crudo: el operador se queda esperando algo que nadie está
+        # haciendo, que es la avería de V2-185 en otra puerta.
+        if (rec.relay_gen >= self._RELAY_CAP and not rec.handoff and rec.status != "cancelled"
+                and (rec.context_full or rec.provider_down)):
+            rec.ok = False
+            _veces = int(rec.relay_gen or 0) + 1
+            if rec.context_full:
+                rec.result_summary = (
+                    f"He intentado esa tarea {_veces} veces y las {_veces} me he quedado sin espacio de contexto, "
+                    f"así que paro en vez de seguir gastando. Pídemela por partes y la saco.")
+            else:
+                rec.result_summary = (
+                    f"He intentado esa tarea {_veces} veces y el proveedor que mueve mis procesos de fondo ha "
+                    f"fallado las {_veces}, así que paro. Lo tienes en el panel de estado.")
+
         # V2-241 — UN FINAL MUDO TRAS CHOCAR CON LA PUERTA. Los tres casos medidos murieron sin decir nada, y la
         # causa solo aparecía cruzando el log del motor. Si la sesión se acaba sin entrega y sin relevo pero
         # chocó con nuestra propia puerta, ESO es lo que le pasó, y es lo que el operador tiene que oír: no es un
