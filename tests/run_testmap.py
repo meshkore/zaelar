@@ -1053,6 +1053,9 @@ DOMAINS: list[dict] = [
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_which_memory_answered_the_round.py"]},
         {"id": "10.53", "title": "A worker whose bridges are DENIED is not a product failure",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_worker_can_reach_its_bridges.py"]},
+        {"id": "10.54", "title": "The screen is read from the ENGINE, and an unwatched canvas is not an "
+                                 "empty one",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_screen_is_read_from_the_engine.py"]},
     ]},
 ]
 

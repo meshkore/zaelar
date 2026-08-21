@@ -51,14 +51,18 @@ def _ordered_by_events(base: str, limit: int = 2000) -> tuple[list[str], list[di
         wid, src = _widget_of(e)
         trail.append({"id": e.get("id"), "label": label, "widget": wid, "src": src,
                       "ts": e.get("ts_ms") or e.get("ts"), "corr": e.get("corr_id") or e.get("corr")})
+        # `closeAll` is checked FIRST because it is the one event with NO widget id — it is about all of
+        # them. Behind the `if not wid` guard it was skipped, so "cierra todo" left the screen reading as
+        # if every card were still up. Caught by its own test, not by a round.
+        if label == "closeAll":
+            live.clear()
+            continue
         if not wid:
             continue
         if label == "show" and wid not in live:
             live.append(wid)
         elif label in ("close", "delete") and wid in live:
             live.remove(wid)
-        elif label == "closeAll":
-            live.clear()
     return live, trail
 
 
