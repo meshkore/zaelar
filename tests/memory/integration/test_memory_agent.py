@@ -81,6 +81,34 @@ def test_the_agenda_still_drops_what_is_already_past(tmp_path, monkeypatch, fres
     assert "Aún no" in texto and "Ya pasó" not in texto
 
 
+def test_every_surface_inherits_the_rule_because_it_lives_at_the_source(fresh_db):
+    """El cuello de botella: `memory.query()` aplica la regla, así que una superficie NUEVA la hereda.
+
+    La lista de superficies se demostró incompleta TRES veces en un día (bloque pasivo 2026-07-14, dossier del
+    worker y recall activo 2026-08-21) y una CUARTA —`/api/memory/recall`, el puente de `mem_cli`— apareció
+    justo al buscar cómo dejar de necesitar la lista. `query()` ya recibe la petición que la regla necesita.
+    """
+    memapi.write_now("Vive en el centro de Madrid.", level="long", kind="profile",
+                     importance=0.95, weight=1.0, pinned=True, slot="operator.location")
+    memapi.write_now("Weather in Soria now: 14.5C.", level="mid", kind="note",
+                     importance=0.3, weight=0.5, slot="meteo-soria:weather:soria")
+    textos = " ".join(m["text"] for m in memapi.query("necesito un fontanero urgente")["memories"])
+    assert "Soria" not in textos and "Madrid" in textos
+    # y sigue siendo CONDICIONAL: nombrar la ciudad la trae de vuelta
+    assert "Soria" in " ".join(m["text"] for m in memapi.query("qué tiempo hace en Soria")["memories"])
+
+
+def test_memorys_own_synthesis_is_not_a_background_dump(fresh_db):
+    """`insight:<concepto>` lleva dos puntos y NO es un volcado de fondo: lo escribe REM resumiendo las píldoras
+    del propio operador. Excluirlo rompería el ciclo REM entero — es lo que puso rojo el primer intento."""
+    memapi.write_now("Le gusta la música española clásica.", level="long", kind="fact",
+                     importance=0.8, weight=0.9, slot="insight:musica")
+    textos = " ".join(m["text"] for m in memapi.query("qué música le gusta")["memories"])
+    assert "música española" in textos
+    assert memapi.background_slot_off_topic("insight:musica", "cualquier otra cosa") is False
+    assert memapi.background_slot_off_topic("secret:wallet:seed", "cualquier otra cosa") is True  # la bóveda NO
+
+
 def test_background_widget_pill_does_not_decide_an_unrelated_errand(fresh_db):
     """Un volcado de widget de fondo NO puede presentarse al worker como «lo que sabes del operador».
 

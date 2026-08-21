@@ -669,6 +669,13 @@ def query(prompt: str, budget_tokens: int = DEFAULT_BUDGET_TOKENS, limit: int = 
 
     st = _state.read()
     mems = _retriever.search(prompt, limit=limit, expand=expand, reinforce=False)
+    # THE CHOKEPOINT for the background-slot rule (2026-08-21). Every surface that shows pills to a model gets
+    # them from here, and `query` already has the request the rule needs — so applying it once, at the source,
+    # is what makes a FUTURE surface inherit it instead of re-deriving it. The list-of-surfaces approach was
+    # tried and failed three times in one day: passive block (2026-07-14), worker dossier and active recall
+    # (both 2026-08-21), and `/api/memory/recall` — the bridge `mem_cli` uses — was a FOURTH that nobody had
+    # listed, found while looking for a way to stop needing the list.
+    mems = [m for m in mems if not background_slot_off_topic(m.get("slot"), prompt)]
     mems = _pack(mems, budget_tokens)
     ids = [m["id"] for m in mems]
     if reinforce_used and ids:
@@ -942,6 +949,15 @@ def background_slot_off_topic(slot: str | None, prompt: str) -> bool:
     namespaced pill still passes when the request names its namespace or its key («el tiempo en Soria»).
     """
     if ":" not in (slot or ""):
+        return False
+    # The colon is a PROXY for "written by a background job", not the thing itself — and memory's own synthesis
+    # shares the shape without sharing the nature. `insight:<concept>` is what REM writes when it summarises the
+    # operator's own pills (V2-056); excluding it would mean a question about the topic no longer returns the
+    # insight that summarises it, which is the entire point of the REM cycle and is asserted by
+    # `test_several_turns_then_rem_structurally_improves_memory`. That test is what caught this: the rule went in
+    # at the chokepoint and turned red on first contact.
+    # `secret:*` is deliberately NOT excepted: a vault entry has no business in a model prompt.
+    if str(slot).lower().startswith("insight:"):
         return False
     low = (prompt or "").lower()
     for part in re.split(r"[:._\-]+", str(slot).lower()):

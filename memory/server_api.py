@@ -53,7 +53,10 @@ async def memory_recall(query: str = Body(..., embed=True), k: int = Body(8, emb
         res = await asyncio.to_thread(memapi.query, q, limit=max(1, min(int(k or 8), 20)))
     except Exception as e:  # noqa: BLE001
         raise HTTPException(500, f"recall falló: {e}")
-    mems = [{"text": m.get("text", ""), "kind": m.get("kind", ""), "slot": (m.get("meta") or {}).get("slot", "")}
+    # `slot` is a COLUMN of the row the retriever returns (since 2026-08-21), not a key of `meta` — and `meta`
+    # is not among the columns it selects, so the old read reported an empty slot for EVERY pill. A worker
+    # asking memory what it knows was told nothing about which of those facts were singular.
+    mems = [{"text": m.get("text", ""), "kind": m.get("kind", ""), "slot": m.get("slot") or ""}
             for m in (res.get("memories") or []) if m.get("text")]
     digest = "\n".join(f"- {m['text']}" for m in mems) or "(sin recuerdos relevantes)"
     return {"memories": mems, "text": digest}
