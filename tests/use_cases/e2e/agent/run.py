@@ -648,6 +648,41 @@ def tree_moved_refusal(stamp: dict, head_now: str) -> str:
             f"{now}.")
 
 
+def seed_provider_chain(ws) -> str:
+    """Dale al sandbox la CADENA DE PROVEEDORES del operador, y nada más de su config.
+
+    El sandbox arranca con un workspace nuevo, así que `config/v2.json` sale vacío, así que la cadena cae a
+    la de por defecto — que en self-host es **solo el titular**. El 2026-08-21, con el titular sin saldo,
+    eso salió por el log como «SIN RELEVO disponible» y yo lo reporté como un defecto del motor: el cerebro
+    era el único componente sin red. Era falso. La config real del operador tiene dos escalones
+    (`deepseek-directo` → `aimlapi-failover`) y AIMLAPI estaba vivo. Lo que medí fue mi propio vacío.
+
+    Copiar SOLO `fast.providers` es deliberado: la cadena es infraestructura, y medir el producto con una
+    cadena que el producto no usa mide otra cosa. Todo lo demás de su config se queda fuera —memoria,
+    widgets, preferencias— porque eso sí es del operador y contaminaría la ronda; ya nos costó una noche
+    descubrir que un widget suyo decidía la ciudad de un encargo.
+
+    Devuelve lo que se sembró, para que el informe pueda decirlo. Una ronda medida con otra cadena que la
+    de ayer no es comparable con la de ayer.
+    """
+    try:
+        import json as _json
+        from pathlib import Path as _P
+        src = _P(__file__).resolve().parents[3].parent / "config" / "v2.json"
+        if not src.exists():
+            return ""
+        chain = ((_json.loads(src.read_text(encoding="utf-8")) or {}).get("fast") or {}).get("providers")
+        if not chain:
+            return ""
+        dst = _P(ws) / "config"
+        dst.mkdir(parents=True, exist_ok=True)
+        (dst / "v2.json").write_text(_json.dumps({"fast": {"providers": chain}}, ensure_ascii=False, indent=2),
+                                     encoding="utf-8")
+        return " → ".join(str(x.get("name") or "?") for x in chain)
+    except Exception:
+        return ""
+
+
 def brain_preflight(*, timeout: float = 60.0) -> str:
     """CAN THE BRAIN SPEAK AT ALL? Returns "" when it can, or the refusal to print when it cannot.
 
@@ -730,6 +765,9 @@ def _sandbox_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict
         print(refusal)
         raise SystemExit(3)
     ws = config.RUNS_DIR / "sandbox" / time.strftime("%Y%m%d-%H%M%S", time.localtime())
+    _chain = seed_provider_chain(ws)
+    if _chain:
+        print(f"  ▸ cadena de proveedores sembrada desde la config real: {_chain}")
     print(f"▶ booting an isolated sandbox engine (own DB/port/workspace, fresh user_id, "
           f"ZAELAR_LANGUAGE={lang})…")
     with sandbox_engine(keep_workspace=ws, port=preferred_port(43918),
