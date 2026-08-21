@@ -13,6 +13,7 @@
     {"id": "1.5", "label": "Sueño REM y síntesis", "kind": "unit"},
     {"id": "1.6", "label": "Bóveda, secretos y slots", "kind": "unit"},
     {"id": "1.7", "label": "API HTTP de memoria", "kind": "integration"},
-    {"id": "1.8", "label": "Contexto de UI", "kind": "integration"}
+    {"id": "1.8", "label": "Contexto de UI", "kind": "integration"},
+    {"id": "1.9", "label": "El arnés de evaluación se prueba a sí mismo", "kind": "unit"}
   ]
 }

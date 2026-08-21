@@ -53,11 +53,15 @@ DOMAINS: list[dict] = [
             "tests/memory/unit/test_slot_supersede_guard.py",
             "tests/memory/unit/test_distiller_time_anchor.py",
             "tests/memory/unit/test_provider_failover.py",
-            "tests/memory/unit/test_locomo_name_swaps.py"]},
+            "tests/memory/unit/test_locomo_name_swaps.py",
+            "tests/memory/integration/test_realistic_session.py",
+            "tests/memory/unit/test_writer_dedup.py",
+            "tests/memory/unit/test_writer_paraphrase.py"]},
         {"id": "1.4", "title": "Recall correcto (comportamiento, corpus)", "ch": UNIT, "live": True,
             "cmd": "./.venv/bin/python -m tests.memory.e2e.bot.runner --corpus v1 --next 10",
             "nested_events": True},
-        {"id": "1.5", "title": "Sueño REM / síntesis", "ch": UNIT, "paths": ["tests/memory/unit/test_rem.py"]},
+        {"id": "1.5", "title": "Sueño REM / síntesis", "ch": UNIT, "paths": [
+            "tests/memory/unit/test_rem.py", "tests/memory/unit/test_rem_prompt.py"]},
         {"id": "1.6", "title": "Bóveda y secretos", "ch": UNIT, "paths": [
             "tests/memory/unit/test_vault.py", "tests/memory/unit/test_vault_flow.py",
             "tests/memory/unit/test_vault_ingest.py", "tests/memory/unit/test_vault_rules.py",
@@ -69,6 +73,13 @@ DOMAINS: list[dict] = [
             "tests/memory/e2e/test_server_api.py"]},
         {"id": "1.8", "title": "Contexto de UI en el estado", "ch": UNIT, "paths": [
             "tests/memory/integration/test_ui_context.py"]},
+        # El ARNÉS de evaluación tiene sus PROPIOS tests: mide la memoria, así que un fallo suyo no sale
+        # como error — sale como un número creíble y equivocado (cuatro instrumentos rotos en una sola
+        # noche, 2026-08-20/21). Nodo propio y NO `live`: son deterministas y tienen que correr en CI,
+        # cosa que no pasaría colgados del 1.4, porque `deterministic_paths` salta los nodos live.
+        {"id": "1.9", "title": "El arnés de evaluación se prueba a sí mismo", "ch": UNIT, "paths": [
+            "tests/memory/unit/test_bot_runner_setup.py", "tests/memory/unit/test_judge.py",
+            "tests/memory/unit/test_timeline_cases.py"]},
     ]},
     {"id": "2", "name": "FLASHBRAIN (nucleo)", "nodes": [
         {"id": "2.1", "title": "Enrutado / elección de tool", "ch": UNIT, "paths": [
