@@ -354,6 +354,15 @@ DOMAINS: list[dict] = [
             "tests/voice/unit/test_turn_boundaries.py"]},
         {"id": "3.2", "title": "Puente voz→nucleo + trazas", "ch": VOICE, "paths": [
             "tests/voice/unit/providers/test_nucleo.py", "tests/voice/unit/providers/test_nucleo_guards.py",
+            # ⚠️ SIN MAPEAR hasta el 2026-08-21 (V2-245), los cinco: el acumulador que perdía 64 s del operador en
+            # silencio, su acuse hablado, la corrección que NO puede abrir un flujo nuevo, las guardas de fuente
+            # de quién puede etiquetar con `voice.trace.active()`, y el latido de cluster que se abría una sesión
+            # propia después de que el operador parase el agente. Todos verdes, ninguno corriendo.
+            "tests/voice/unit/providers/test_nucleo_accumulator_notice.py",
+            "tests/voice/unit/providers/test_nucleo_speak_acc_drop.py",
+            "tests/voice/unit/providers/test_nucleo_trace_merge.py",
+            "tests/voice/unit/test_agent_trace_source_guards.py",
+            "tests/voice/unit/test_trace_cluster_session.py",
             # 2026-08-14 (sesión b70a45d0): los dos eslabones que dejaron la agenda sin vaciar. (1) El backstop de
             # promesa escalaba con `kind:"web"` FIJO → una data-op local abrió dos navegadores y pasó a llamarse
             # «la tarea del navegador»; (2) ese nombre hizo que un `stop_worker` arrastrado del turno anterior la
@@ -751,6 +760,9 @@ DOMAINS: list[dict] = [
         # es la mitad AUTOMÁTICA del cierre (ids únicos, frontmatter cuadrado, decisión↔iniciativa en los dos
         # sentidos), como TRINQUETE: la deuda histórica está declarada y solo puede bajar. La mitad que cruza a
         # `web/` no se puede vigilar desde aquí (vive en el repo privado) → `zaelar-initiative-closure.md`.
+        {"id": "7.17", "title": "Un test fuera del mapa no es un test (trinquete de las TRES formas de desaparecer)",
+         "ch": UNIT,
+         "paths": ["tests/infrastructure/unit/test_a_test_outside_the_map_is_not_a_test.py"]},
         {"id": "7.12", "title": "Cierre de iniciativa: toda decisión tiene iniciativa y al revés (trinquete)",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/test_roadmap_closure.py"]},
         # 2026-08-20: hermano del anterior por el otro lado. El trinquete vigila que una decisión tenga

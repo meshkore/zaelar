@@ -1357,7 +1357,8 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - **Decisión del OPERADOR**: si AIMLAPI entra en la cadena de voz POR DEFECTO. Los relevos de fábrica se
     eligieron por LATENCIA y **ninguno sirve para SOBREVIVIR a un titular muerto**.
 
-- **183 tests verdes que ninguna suite ejecutaba** (`tests/run_testmap.py`, V2-245, 2026-08-21). Mencioné de
+- **246 tests verdes que ninguna suite ejecutaba, y TRES formas de desaparecer** (`tests/run_testmap.py` +
+  nodo 7.17, V2-245, 2026-08-21). Mencioné de
   pasada que `test_brain_relay.py` estaba fuera del mapa; memoria-dev auditó la suya (37 sin mapear), los cerró y
   **me devolvió la trampa**: colgar un fichero de un nodo `live` lo SACA de CI (`deterministic_paths()` los
   salta), así que mapear al nodo equivocado se parece mucho a no mapear. En mi área: **14 ficheros, 183 tests**,
@@ -1365,8 +1366,14 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   cubiertos por el «suite verde» que reporté. Y uno llevaba **ROTO desde V2-098** (`pc._cooldown` dejó de existir
   al pasar a `CooldownStore`): sus tres casos reventaban en el `setup` sin que nadie lo viera. La suite pasa de
   **3.284 a 3.467**.
-  - **Abierto**: no hay trinquete que lo impida. Cabe en diez líneas, pero alcanza también a memoria-dev, así que
-    hay que acordarlo con él — un guarda que otro no espera es un guarda que se salta a la primera.
+  - **La TERCERA forma, y es del arnés**: `deterministic_paths()` filtra por la unión de los `domain_ids` de las
+    suites, así que un capítulo que ninguna reclame se cae entero. `tests/use_cases/suite.json` lleva
+    `"domain_ids": []` → **sus 36 tests no los corre nadie**, justo los que garantizan que sus MEDIDAS son de
+    fiar. Entregado medido y **sin tocar**: es su frontera.
+  - **El trinquete existe** (nodo 7.17) y comprueba las TRES: declarado · nodo no-`live` · capítulo reclamado por
+    alguna suite. Uno que solo mirara PRESENCIA certificaría el fallo que existe para evitar. `tests/use_cases/`
+    queda fuera con su motivo escrito hasta que su dueño dé el OK — un guarda que otro no espera es un guarda que
+    se salta a la primera— y la lista de exclusiones existe para ADELGAZAR.
 
 - **Un SALDO agotado no es una cuota, y quedarse sin proveedor no es un tropiezo** (`nucleo/workers/providers.py`
   + `flash/provider_chain.py` + `voice/engine/llm/providers/nucleo.py`, V2-243, 2026-08-21). Medido en
