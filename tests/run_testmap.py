@@ -714,6 +714,15 @@ DOMAINS: list[dict] = [
             "ch": UNIT,
             "paths": ["tests/browser/unit/frontera/test_the_browser_shows_the_sheet_keeps.py",
                       "tests/browser/unit/frontera/test_the_card_paints_a_monitor.py"]},
+        # V2-259 — el operador: «si tenemos un widget de results abierto, búsqueda terminada, y lanzamos otra, se
+        # abre un widget nuevo. Con esta regla no cometeremos errores de borrar búsquedas». El borrado ESTABA en
+        # el código: la hoja era una sola clave y `begin_task(fresh=True)` la estrenaba —sin resultados ni
+        # historial— al llegar el encargo siguiente. La alternativa (reutilizarla) enseñaba los resultados de la
+        # búsqueda anterior bajo el título de ésta. Con una clave por encargo la disyuntiva desaparece.
+        {"id": "4.36", "title": "Dos búsquedas son dos hojas: estrenar deja de significar borrar, cada tarjeta "
+                                "cuenta SU relato, y quien escribe dice en cuál",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/frontera/test_two_searches_are_two_sheets.py"]},
         # V2-256 — a feedback submission was refused and the panel said NOTHING. Measured on a live engine:
         # `POST /api/feedback` answered `{"ok":false,"error":"send_failed","status":401}` and `send()` was an
         # `if (res && res.ok) {…}` with no else. The thank-you was invisible too, for TWO independent reasons

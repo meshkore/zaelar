@@ -203,6 +203,15 @@ def dedupe_by_url(items) -> tuple:
     return out, dropped
 
 
+def _sheet_of(task_id: str) -> str:
+    """La hoja del encargo al que pertenece esta pestaña (V2-259). Fail-soft a "" = la hoja de siempre."""
+    try:
+        from nucleo import dispatch as _disp
+        return _disp.sheet_for_nav_task(task_id)
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 def _hand_over(task_id: str, items: list) -> None:
     """What the browser EXTRACTED goes to the results sheet AND to the conversation — not only to the worker.
 
@@ -260,7 +269,8 @@ def _hand_over(task_id: str, items: list) -> None:
         # encargar. Una sola puerta para los tres caminos (V2-257).
         try:
             from widgets.results import intake as _intake
-            _intake.push(ordered, source_url=str((_t.get(task_id) or {}).get("url") or ""))
+            _intake.push(ordered, sheet=_sheet_of(task_id),
+                         source_url=str((_t.get(task_id) or {}).get("url") or ""))
         except Exception:  # noqa: BLE001
             pass
         goal = str((_t.get(task_id) or {}).get("goal") or "la tarea del navegador")[:70]

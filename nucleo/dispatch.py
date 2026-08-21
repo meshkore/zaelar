@@ -652,18 +652,42 @@ def _phrases(rec) -> list:
     return out
 
 
-def sheet_progress() -> dict:
+def sheet_for_nav_task(nav_task: str) -> str:
+    """La hoja del ENCARGO al que pertenece esta tarea de navegador ("" si no cuelga de ninguno).
+
+    V2-259 — el navegador encuentra cosas y las entrega a la hoja (V2-257), pero la hoja es del ENCARGO y la tarea
+    del navegador tiene su propio id: dos navegadores de la misma búsqueda entregan en la MISMA hoja. `_prepare_web`
+    ya guarda `rec.nav_task`, así que la vuelta existe; lo que faltaba era pedirla. Sin encargo detrás —el operador
+    conduciendo el navegador a mano— devuelve "", que es la hoja de siempre y es lo correcto.
+    """
+    tid = str(nav_task or "").strip()
+    if not tid:
+        return ""
+    for r in list(_SESSIONS.values()):
+        if str(getattr(r, "nav_task", "") or "") == tid:
+            return str(getattr(r, "task_id", "") or "")
+    return ""
+
+
+def sheet_progress(sheet: str = "") -> dict:
     """`{alive, phases}` — lo que la pestaña de PROCESO de la hoja tiene que pintar AHORA MISMO.
 
     `alive` es «hay un encargo en marcha», no «ha dicho algo»: la hoja se abre antes de la primera fase, y ese
     hueco de unos segundos es justo cuando el operador está mirando la pantalla en blanco que pidió quitar.
 
-    Con DOS encargos vivos hacia la hoja las fases se mezclan EN ORDEN DE TIEMPO en vez de enseñar solo uno.
-    Es la respuesta honesta mientras la hoja sea única (C4, «dos búsquedas = dos hojas», es una pieza aparte):
-    quedarse con un encargo escondería en silencio que hay otro trabajando, y el módulo de evidencia ya dejó
-    escrito por qué eso es peor que un relato entrelazado.
+    `sheet` acota a UN encargo (V2-259: una hoja por encargo, y su clave es el `task_id`). Sin él se mantiene el
+    comportamiento viejo —las fases de todos los encargos vivos, entrelazadas EN ORDEN DE TIEMPO—, que era la
+    respuesta honesta cuando la hoja era única: quedarse con un encargo escondía en silencio que había otro
+    trabajando. Con hojas separadas eso deja de hacer falta, pero la hoja SIN instancia sigue existiendo y sigue
+    mereciendo el relato completo.
     """
     rows = _sheet_sessions()
+    # V2-259 — con UNA hoja por encargo, el relato de una caja es el de SU encargo. El entrelazado de abajo era
+    # la respuesta honesta mientras la hoja era única (quedarse con un encargo escondía que había otro); ahora
+    # cada uno tiene dónde contarse, y mezclarlos sería contar dos veces lo mismo en dos sitios.
+    want = str(sheet or "").strip()
+    if want:
+        rows = [r for r in rows if str(getattr(r, "task_id", "")) == want]
     if not rows:
         return {"alive": False, "phases": []}
     seq = []
@@ -680,20 +704,27 @@ def _sheet_open(rec) -> None:
     """ABRIR la hoja al ENCARGAR, que es el gesto entero del ámbito C: sin esto el operador no ve nada hasta que
     hay respuesta, y el contrato de pantalla se queda cumplido en un test y ausente en el producto.
 
-    La hoja se ESTRENA (título = lo que pidió, sin la pestaña que eligió para el encargo anterior) solo si no hay
-    ya otro encargo vivo pintando en ella: reutilizarla sin vaciarla enseñaría los resultados de la búsqueda
-    anterior como si fueran los de ésta, y vaciarla con otro worker escribiendo dentro le borraría a ése lo que
-    ya había entregado. Todo fail-soft: un fallo aquí no puede tumbar una escalada.
+    UNA HOJA POR ENCARGO (V2-259), y su clave es el `task_id`. Antes era única, así que había que elegir entre
+    estrenarla —borrándole lo entregado a otro encargo que siguiera escribiendo— y reutilizarla, que enseñaba los
+    resultados de la búsqueda anterior como si fueran los de ésta. Ninguna de las dos era buena, y la primera es
+    literalmente el «error de borrar búsquedas» que el operador pidió quitar. Con una clave por encargo la
+    disyuntiva desaparece: cada uno estrena la suya y nadie pisa a nadie.
+
+    Todo fail-soft: un fallo aquí no puede tumbar una escalada.
     """
-    fresh = not _sheet_sessions()          # se llama ANTES de registrar la nueva: aquí solo hay OTRAS sesiones
     try:
         from widgets.results import data as _sheet
-        _sheet.begin_task((rec.goal or "").strip(), fresh=fresh)
+        # V2-259 — SU hoja. `fresh` deja de ser una decisión difícil: una hoja nueva es una CLAVE nueva, así que
+        # estrenar ya no puede borrarle a nadie lo suyo (que es literalmente lo que el operador pidió evitar).
+        _sheet.begin_task((rec.goal or "").strip(), fresh=True, sheet=str(rec.task_id))
+        _sheet.prune_sheets()          # la hoja persiste a propósito; N instancias no pueden crecer sin techo
     except Exception:  # noqa: BLE001
         pass
     try:
         from voice.observer import emit
-        emit("widget", "show", extra={"id": "results", "src": f"worker:{rec.task_id}"})
+        from widgets.results import data as _sheet2
+        emit("widget", "show",
+             extra={"id": _sheet2.instance_id(str(rec.task_id)), "src": f"worker:{rec.task_id}"})
     except Exception:
         pass
 
@@ -708,7 +739,7 @@ def _sheet_close(rec) -> None:
     """
     try:
         from widgets.results import data as _sheet
-        _sheet.end_task(_phrases(rec))
+        _sheet.end_task(_phrases(rec), sheet=str(rec.task_id))
     except Exception:  # noqa: BLE001
         pass
 
@@ -735,7 +766,9 @@ def session_phase(tid, phase: str) -> None:
             if surfaces.opens_sheet(getattr(r, "surface", "")):
                 try:
                     from voice.observer import emit as _emit_w
-                    _emit_w("widget", "data", extra={"id": "results", "src": "worker"})
+                    from widgets.results import data as _sheet3
+                    _emit_w("widget", "data",
+                            extra={"id": _sheet3.instance_id(str(tid)), "src": "worker"})
                 except Exception:
                     pass
     try:
@@ -1378,7 +1411,8 @@ async def _finalize_web(rec: "SessionRecord", keep_open: bool = False) -> None:
         if items and rec.status != "cancelled":
             try:
                 from widgets.results import intake as _intake
-                _intake.push(items, source_url=str((navtasks.get(tid) or {}).get("url") or ""))
+                _intake.push(items, sheet=str(getattr(rec, "task_id", "") or ""),
+                             source_url=str((navtasks.get(tid) or {}).get("url") or ""))
             except Exception:  # noqa: BLE001
                 pass
     except Exception:

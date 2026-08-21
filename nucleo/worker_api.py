@@ -204,6 +204,15 @@ async def _exec_allow(action: str, payload: dict, rec) -> dict:
         data_payload = payload.get("payload") if isinstance(payload.get("payload"), dict) else {}
         if not wid or not act:
             return {"ok": False, "error": "widget_data requiere widget_id y action"}
+        # V2-259 — A QUÉ HOJA. El prompt del worker le dice «entrega en la hoja `results`» (V2-257) y con
+        # instancias ese nombre pelado deja de ser una dirección: escribiría en la caja que no mira nadie
+        # mientras el operador tiene delante la de SU encargo. Lo resuelve el PUENTE y no el worker, a propósito:
+        # un worker no debería conocer ids de instancia, y pedírselos sería una forma nueva de equivocarse. Se
+        # respeta un `sheet` explícito por si algún día hace falta, pero nadie se lo enseña.
+        if wid == "results" and not str(data_payload.get("sheet") or "").strip():
+            _own = str(getattr(rec, "task_id", "") or "").strip()
+            if _own:
+                data_payload = {**data_payload, "sheet": _own}
         try:
             from widgets import runtime
             if runtime.get(wid) is None:

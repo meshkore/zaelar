@@ -1363,6 +1363,31 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
   - Nodo 2.15, 9 casos rojos con el parseo viejo. **Sin verificar en vivo.** Lo cogió memoria-dev fuera de su
     territorio por decisión del orquestador: **el dueño de un arreglo es quien tiene la evidencia**.
 
+- **Dos búsquedas son dos hojas, y estrenar deja de significar borrar** (`widgets/results/data.sheet_key`,
+  V2-259, 2026-08-21). Petición del operador: *«si tenemos un widget de results abierto, búsqueda terminada, y
+  lanzamos otra, se abre un widget nuevo. Con esta regla no cometeremos errores de borrar búsquedas.»* Y **el
+  borrado que temía estaba en el código, con su comentario**: la hoja era UNA clave (`store.load(WIDGET_ID)`) y
+  `_sheet_open` llamaba a `begin_task(fresh=True)`, que la estrenaba —sin resultados ni historial— en cuanto
+  llegaba el encargo siguiente. La alternativa, reutilizarla, enseñaba los resultados de la búsqueda anterior
+  bajo el título de ésta. Ninguna de las dos era buena, y las dos estaban medidas.
+  - **La clave es el ENCARGO, no el navegador**: continuación exacta de V2-257 (la tarjeta MUESTRA, N; la hoja
+    GUARDA, una). Dos navegadores de la misma búsqueda siguen cayendo en la misma hoja.
+  - `sheet_key("")` sigue siendo `results` **byte por byte**, así que no hay migración ni queda un linaje
+    huérfano compitiendo (la trampa de V2-242). El disco usa `--` porque `store._safe_id` no admite `::`; el
+    canvas sigue usando `::`, que es lo que `desktop.js` sabe partir. Y `view_data(q)` no cambió de firma: **ya
+    recibía el sufijo y lo ignoraba**.
+  - **`fresh` dejó de ser una decisión difícil**, y el relato pasa a ser de cada uno
+    (`dispatch.sheet_progress(task_id)`); la hoja SIN encargo detrás conserva el entrelazado, que para ella
+    sigue siendo la respuesta honesta. **El puente resuelve la instancia, no el worker**: el prompt le dice
+    «entrega en `results`» y `worker_api` le pone el `sheet` de su encargo — pedirle el id sería una forma nueva
+    de equivocarse.
+  - **El cerebro ve TODAS las hojas** y cada bloque dice de cuál es: «la número dos» con dos búsquedas en
+    pantalla son dos cosas distintas, y leer una sola habría hecho contestar con seguridad sobre la que no era.
+  - ⚠️ **Un bug que este cambio iba a introducir**: `desktop.js::close` cancelaba la tarea de CUALQUIER tarjeta
+    con `::`, con `w.base||"navegador"` de reserva — daba por hecho que la única pieza instanciada era el
+    navegador. **Cerrar una vista no cancela un encargo.** Nodo **4.36**, 15 casos, sensibilidad en siete
+    direcciones. **F3 («cierra los resultados» con dos abiertas PREGUNTA cuál) NO está construida.**
+
 - **El navegador MUESTRA y la hoja GUARDA** (`widgets/results/intake.py`, V2-257, 2026-08-21). Petición del
   operador con su captura delante: la tarjeta del navegador pintaba cinco «resultados» que eran los botones del
   pack local de Google («Sitio web», «Cómo llegar») y un log de dieciséis eventos, bajo una cabecera que decía

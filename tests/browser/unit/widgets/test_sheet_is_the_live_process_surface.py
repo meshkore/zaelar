@@ -63,7 +63,11 @@ def test_sin_encargo_vivo_la_hoja_no_dice_que_trabaja():
 
 # ── 2) al ENCARGAR se abre la hoja ───────────────────────────────────────────────────────────────────────────
 
-def test_encargar_abre_la_hoja_vacia_con_el_encargo_por_titulo(monkeypatch):
+def test_encargar_abre_SU_hoja_y_la_anterior_no_se_toca(monkeypatch):
+    """V2-259 — antes esto se llamaba «abre la hoja VACÍA»: la hoja era única, así que estrenarla significaba
+    BORRAR la búsqueda anterior, que es literalmente el «error de borrar búsquedas» que el operador pidió quitar.
+    Ahora un encargo abre la SUYA (`results::<task_id>`) y la de antes sigue entera donde estaba. La propiedad no
+    se ha relajado: se ha vuelto más fuerte, y por eso se comprueban las dos hojas."""
     shown = []
     monkeypatch.setattr("voice.observer.emit",
                         lambda k, l, **kw: shown.append((k, l, kw.get("extra", {}).get("id"))))
@@ -75,27 +79,38 @@ def test_encargar_abre_la_hoja_vacia_con_el_encargo_por_titulo(monkeypatch):
     surfaces.set_once(rec, "lista")
     dispatch._sheet_open(rec)
 
-    d = sheet.view_data()
-    assert ("widget", "show", "results") in shown, "la hoja tiene que ABRIRSE al encargar, no al entregar"
-    assert d["items"] == [], "estrenar la hoja: los resultados del encargo anterior no son los de éste"
-    assert d["title"] == "Busca hoteles de 4 estrellas en Sevilla"
-    assert d.get("tab") is None, "la pestaña elegida era del encargo ANTERIOR; arrastrarla tapa el proceso"
+    assert ("widget", "show", "results::t1") in shown, (
+        "la hoja tiene que ABRIRSE al encargar, no al entregar — y con el id de SU instancia, que es lo que hace "
+        "que el canvas pinte una tarjeta nueva en vez de reusar la de la búsqueda anterior")
+    nueva = sheet.view_data("t1")
+    assert nueva["items"] == [], "la hoja del encargo nuevo empieza en blanco"
+    assert nueva["title"] == "Busca hoteles de 4 estrellas en Sevilla"
+    assert nueva.get("tab") is None, "la pestaña elegida era del encargo ANTERIOR; arrastrarla tapa el proceso"
+
+    vieja = sheet.view_data()
+    assert [i["title"] for i in vieja["items"]] == ["de la búsqueda ANTERIOR"], (
+        "estrenar dejó de significar borrar: la búsqueda anterior sigue en SU hoja")
+    assert vieja["title"] == "Coches en Levante"
 
 
-def test_encargar_con_OTRO_encargo_vivo_no_le_borra_lo_ya_entregado():
-    """La otra dirección. La hoja es única (C4 sigue abierto), así que reutilizarla es lo que hay — pero vaciarla
-    con otro worker escribiendo dentro le borraría al operador un resultado que ya tenía delante."""
+def test_dos_encargos_a_la_vez_son_dos_hojas_y_ninguno_pisa_al_otro():
+    """La petición del operador, palabra por palabra: «si hacemos 2 búsquedas a la vez, se abrirán 2 browsers y 2
+    widgets de results, cada uno con su correlation_id». Antes esto era un compromiso —la hoja era única, así que
+    el segundo encargo la reutilizaba sin vaciarla para no borrarle al primero— y el precio era que el operador
+    veía los resultados de una búsqueda bajo el título de la otra."""
     _live("t1", "Busca hoteles en Sevilla")
-    sheet.apply_action("present", {"title": "Hoteles en Sevilla", "items": [{"title": "Bécquer"}]})
+    sheet.apply_action("present", {"sheet": "t1", "title": "Hoteles en Sevilla",
+                                   "items": [{"title": "Bécquer"}]})
 
     rec2 = SessionRecord(task_id="t2", goal="Busca restaurantes en Madrid", kind="web")
     surfaces.set_once(rec2, "lista")
     dispatch._sheet_open(rec2)
 
-    d = sheet.view_data()
-    assert [i["title"] for i in d["items"]] == ["Bécquer"]
-    assert d["title"] == "Hoteles en Sevilla"
-    assert d.get("tab") is None, "la pestaña sí se suelta: el relato nuevo tiene que poder verse"
+    a, b = sheet.view_data("t1"), sheet.view_data("t2")
+    assert [i["title"] for i in a["items"]] == ["Bécquer"], "al primero no se le toca nada"
+    assert a["title"] == "Hoteles en Sevilla"
+    assert b["items"] == [] and b["title"] == "Busca restaurantes en Madrid"
+    assert sheet.sheet_key("t1") != sheet.sheet_key("t2"), "dos encargos, dos claves"
 
 
 # ── 3) viva ANTES de la primera fase ─────────────────────────────────────────────────────────────────────────
@@ -137,8 +152,10 @@ def test_el_progreso_es_DERIVADO_y_no_se_guarda_en_la_hoja():
     assert "counts" not in guardado
 
 
-def test_con_DOS_encargos_vivos_las_fases_se_mezclan_en_orden_de_tiempo():
-    """Mientras la hoja sea única, quedarse con uno escondería en silencio que hay otro trabajando."""
+def test_la_hoja_SIN_instancia_sigue_entrelazando_los_encargos_vivos():
+    """V2-259 le da a cada encargo su hoja, y ahí `sheet_progress(task_id)` cuenta solo lo suyo. Pero la hoja SIN
+    instancia sigue existiendo —es la que el operador abre a mano, sin encargo detrás— y para ELLA el entrelazado
+    en orden de tiempo sigue siendo la respuesta honesta: quedarse con un encargo escondería que hay otro."""
     a = _live("t1", "Busca hoteles en Sevilla")
     b = _live("t2", "Busca restaurantes en Madrid")
     a.phases.append({"t": 100.0, "s": "entrando en booking.com…"})
@@ -159,7 +176,7 @@ def test_al_terminar_el_loader_para_y_la_historia_se_queda():
     dispatch._SESSIONS.pop("t1", None)
     dispatch._sheet_close(rec)
 
-    pr = sheet.view_data()["progress"]
+    pr = sheet.view_data("t1")["progress"]
     assert pr["alive"] is False, "nadie más avisa del final: sin esta escritura la tarjeta sigue «Trabajando…»"
     assert pr["phases"] == ["entrando en booking.com…", "lanzando la búsqueda…"]
 
@@ -170,20 +187,22 @@ def test_la_historia_sobrevive_al_informe_porque_se_PERSISTE():
     rec = _live("t1", "Busca hoteles en Sevilla", phases=["entrando en booking.com…"])
     dispatch._SESSIONS.pop("t1", None)
     dispatch._sheet_close(rec)
-    assert store.load("results", {}).get("process") == ["entrando en booking.com…"]
-    assert sheet.view_data()["progress"]["phases"] == ["entrando en booking.com…"]
+    assert store.load(sheet.sheet_key("t1"), {}).get("process") == ["entrando en booking.com…"]
+    assert sheet.view_data("t1")["progress"]["phases"] == ["entrando en booking.com…"]
 
 
 def test_un_encargo_que_no_dijo_una_sola_fase_no_inventa_historia():
     rec = _live("t1", "Busca hoteles en Sevilla")
     dispatch._SESSIONS.pop("t1", None)
     dispatch._sheet_close(rec)
-    assert sheet.view_data()["progress"] == {"alive": False, "phases": []}
-    assert "process" not in store.load("results", {})
+    assert sheet.view_data("t1")["progress"] == {"alive": False, "phases": []}
+    assert "process" not in store.load(sheet.sheet_key("t1"), {})
 
 
-def test_el_encargo_siguiente_estrena_tambien_la_historia():
-    """Un relato viejo debajo de un encargo nuevo es peor que ninguno: explica un resultado que ya no está."""
+def test_el_encargo_siguiente_estrena_su_historia_y_la_del_anterior_SIGUE():
+    """Un relato viejo debajo de un encargo nuevo es peor que ninguno: explica un resultado que ya no está. Con
+    hojas separadas eso se cumple sin borrar nada — y la comprobación tiene que mirar LAS DOS, porque después de
+    V2-259 preguntarle a la hoja pelada da vacío siempre y el caso pasaría sin probar nada."""
     rec = _live("t1", "Busca hoteles en Sevilla", phases=["entrando en booking.com…"])
     dispatch._SESSIONS.pop("t1", None)
     dispatch._sheet_close(rec)
@@ -191,7 +210,9 @@ def test_el_encargo_siguiente_estrena_tambien_la_historia():
     rec2 = SessionRecord(task_id="t2", goal="Busca restaurantes en Madrid", kind="web")
     surfaces.set_once(rec2, "lista")
     dispatch._sheet_open(rec2)
-    assert sheet.view_data()["progress"]["phases"] == []
+    assert sheet.view_data("t2")["progress"]["phases"] == [], "el encargo nuevo no hereda el relato del viejo"
+    assert sheet.view_data("t1")["progress"]["phases"] == ["entrando en booking.com…"], (
+        "…y el viejo conserva el suyo: estrenar dejó de significar borrar")
 
 
 # ── el clic del operador en «Proceso» tiene que PERSISTIR ────────────────────────────────────────────────────
@@ -223,7 +244,7 @@ def test_sin_dispatcher_la_hoja_ensena_lo_guardado_y_no_revienta(monkeypatch):
         raise RuntimeError("sin dispatcher")
 
     monkeypatch.setattr(dispatch, "sheet_progress", _boom)
-    assert sheet.view_data()["progress"] == {"alive": False, "phases": ["entrando en booking.com…"]}
+    assert sheet.view_data("t1")["progress"] == {"alive": False, "phases": ["entrando en booking.com…"]}
 
 
 # ── guarda de ORDEN: la hoja lee el registro vivo, así que el final se escribe DESPUÉS del pop ───────────────

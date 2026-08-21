@@ -634,11 +634,17 @@ export class Desktop {
       if(orphan){ orphan.classList.remove("in"); setTimeout(()=>orphan.remove(),220); this._persist(); }
       return;
     }
-    // Cerrar la tarjeta de una TAREA (navegador::<taskid>) cierra también su PESTAÑA en el navegador real y cancela
-    // la tarea si seguía viva — así no se acumulan pestañas ni tareas huérfanas.
-    if(id.includes("::")){
+    // Cerrar la tarjeta de una TAREA de NAVEGADOR (navegador::<taskid>) cierra también su PESTAÑA en el navegador
+    // real y cancela la tarea si seguía viva — así no se acumulan pestañas ni tareas huérfanas.
+    //
+    // V2-259 — la condición era `id.includes("::")` con `w.base||"navegador"` de reserva, o sea que daba por
+    // hecho que la ÚNICA pieza instanciada era el navegador. Desde que la hoja de resultados también lo está
+    // (results::<corr_id>), cerrar una hoja mandaba un `cancel_task` a `results`: una acción que ese widget no
+    // declara, y por tanto una llamada que solo puede acabar en nada o en un DENY. Cerrar una vista no cancela
+    // un encargo, así que se comprueba la pieza en vez de asumirla.
+    if(id.includes("::") && (w.base||"")==="navegador"){
       const taskId=id.split("::")[1];
-      try{ fetch(`/widgets/${w.base||"navegador"}/action`,{method:"POST",headers:{"Content-Type":"application/json"},
+      try{ fetch(`/widgets/navegador/action`,{method:"POST",headers:{"Content-Type":"application/json"},
         body:JSON.stringify({action:"cancel_task",payload:{task_id:taskId}})}); }catch(_){}
     }
     w.card.classList.remove("in");

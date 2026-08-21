@@ -52,6 +52,79 @@ from .. import store
 
 WIDGET_ID = "results"
 
+# ── UNA HOJA POR ENCARGO (V2-259) ─────────────────────────────────────────────────────────────────────────────
+# Petición del operador, literal: «si tenemos un widget de results abierto, búsqueda terminada, y lanzamos otra,
+# se abre un widget nuevo. Con esta regla no cometeremos errores de borrar búsquedas». El borrado que teme estaba
+# EN EL CÓDIGO: `begin_task(fresh=True)` estrenaba la hoja —título nuevo, sin resultados ni historial— en cuanto
+# llegaba el encargo siguiente. Con instancias, ESTRENAR deja de significar BORRAR: una hoja nueva es una clave
+# nueva y la anterior sigue donde estaba.
+#
+# La instancia es el ENCARGO, no el navegador. Dos navegadores del mismo encargo caen en la misma hoja (V2-257:
+# la hoja guarda los hallazgos vengan del navegador que vengan); dos encargos son dos hojas.
+#
+# La clave VACÍA sigue siendo `results` a pelo, y eso es deliberado: es la hoja que ya existe en disco, así que no
+# hay que migrar nada ni queda un linaje huérfano compitiendo con otro (la trampa de V2-242, donde `weather:soria`
+# y `meteo-soria:weather:soria` convivieron los dos con `valid=1`). Lo que sí hay que vigilar —y tiene su test— es
+# que ningún ESCRITOR se quede sin saber su hoja: escribiría en la de nadie mientras el operador mira la suya.
+_INSTANCE_SEP = "--"          # `widgets/store._safe_id` solo deja [A-Za-z0-9_-]: «::» no sobreviviría al disco
+_MAX_SHEETS = 8               # techo de hojas instanciadas guardadas; ver `prune_sheets()`
+
+
+def _safe_sheet(sheet) -> str:
+    return "".join(c for c in str(sheet or "").strip() if c.isalnum() or c in "-_")[:64]
+
+
+def sheet_key(sheet: str = "") -> str:
+    """Clave de almacén de UNA hoja. Sin instancia → la hoja de siempre, byte por byte."""
+    s = _safe_sheet(sheet)
+    return WIDGET_ID if not s else f"{WIDGET_ID}{_INSTANCE_SEP}{s}"
+
+
+def sheets() -> list[str]:
+    """Las hojas que EXISTEN en disco, la de siempre primero y las instanciadas por orden de escritura (la más
+    reciente al final). Se lee del almacén y no de una lista en memoria a propósito: la hoja persiste entre
+    reinicios (V2-233) y una lista en RAM diría «no hay ninguna» justo después de arrancar."""
+    out: list[str] = []
+    try:
+        import os
+        base = store.DATA_DIR
+        pref = WIDGET_ID + _INSTANCE_SEP
+        rows = []
+        for name in os.listdir(base):
+            if not name.startswith(pref):
+                continue
+            f = os.path.join(base, name, "state.json")
+            if os.path.exists(f):
+                rows.append((os.path.getmtime(f), name[len(pref):]))
+        rows.sort()
+        out = [sid for _, sid in rows]
+    except Exception:  # noqa: BLE001
+        return [""] if store.exists(WIDGET_ID) else []
+    if store.exists(WIDGET_ID):
+        out.insert(0, "")
+    return out
+
+
+def prune_sheets(keep: int = _MAX_SHEETS) -> int:
+    """Techo de hojas guardadas. La hoja PERSISTE a propósito, así que N instancias crecen sin fin; se conservan
+    las `keep` más recientes y la de siempre (que no es de ningún encargo y no le toca a nadie borrarla).
+    Devuelve cuántas se tiraron, para que el recorte se pueda CONTAR en vez de descubrirse."""
+    inst = [s for s in sheets() if s]
+    dropped = 0
+    for sid in inst[:max(0, len(inst) - max(1, keep))]:
+        try:
+            if store.delete(sheet_key(sid)):
+                dropped += 1
+        except Exception:  # noqa: BLE001
+            pass
+    return dropped
+
+
+def instance_id(sheet: str = "") -> str:
+    """Id de TARJETA en el canvas (`results::<corr>`), que usa «::» — el separador del canvas, no el del disco."""
+    s = _safe_sheet(sheet)
+    return WIDGET_ID if not s else f"{WIDGET_ID}::{s}"
+
 # Fields an item may carry. Anything else pushed is dropped — the payload comes from a worker that read the open
 # web, so we never let arbitrary keys through to the renderer (widget.js paints with textContent only, but the
 # schema is the contract and it stays closed).
@@ -507,7 +580,7 @@ def _clean_phases(raw) -> list:
     return [str(x)[:_MAX_PHASE_CHARS] for x in raw if str(x or "").strip()][-_MAX_PHASES:]
 
 
-def _progress(data: dict) -> dict:
+def _progress(data: dict, sheet: str = "") -> dict:
     """`{alive, phases}` — DERIVADO en cada lectura, nunca guardado, igual que `counts` (V2-227 ámbito C).
 
     El dueño de «qué está pasando» es el registro vivo del dispatcher: la hoja lo LEE. Guardarlo aquí sería
@@ -523,7 +596,11 @@ def _progress(data: dict) -> dict:
     live = {}
     try:
         from nucleo import dispatch as _disp
-        live = _disp.sheet_progress() or {}
+        # V2-259 — el relato de SU encargo. `dispatch._phrases` entrelazaba las fases de todos los encargos vivos
+        # EN ORDEN DE TIEMPO, y eso era «la respuesta honesta mientras la hoja sea única»; con una hoja por
+        # encargo deja de serlo: dos cajas contando las dos la misma historia mezclada es mentir con más
+        # superficie, que es justo lo que V2-259 existe para no hacer.
+        live = _disp.sheet_progress(sheet) or {}
     except Exception:  # noqa: BLE001
         live = {}
     if live.get("alive"):
@@ -554,8 +631,12 @@ def _counts(data: dict) -> dict:
 
 
 def view_data(q: str = "") -> dict:
-    """The LAST result set pushed here, verbatim. Nothing pushed yet → an empty sheet (never invented content)."""
-    db = store.load(WIDGET_ID, _empty())
+    """The LAST result set pushed here, verbatim. Nothing pushed yet → an empty sheet (never invented content).
+
+    `q` is the INSTANCE (V2-259): the canvas already splits `results::<corr>` and hands the suffix over as `q`
+    (`desktop.js::show`), so this signature did not have to change — it just stopped ignoring the argument.
+    """
+    db = store.load(sheet_key(q), _empty())
     if not isinstance(db, dict):
         db = _empty()
     data = dict(db)
@@ -576,11 +657,11 @@ def view_data(q: str = "") -> dict:
     else:
         data.pop("process", None)            # sin historial, la hoja en blanco sigue en blanco
     data["counts"] = _counts(data)
-    data["progress"] = _progress(data)
+    data["progress"] = _progress(data, _safe_sheet(q))
     return data
 
 
-def _save(data: dict) -> None:
+def _save(data: dict, sheet: str = "") -> None:
     """Persist WITHOUT derived fields: `counts` is recalculated on read, and storing it would make it stale as soon as
     anything else changes (an old number on screen is worse than no number)."""
     d = dict(data)
@@ -589,7 +670,7 @@ def _save(data: dict) -> None:
     for k in ("sources", "summary", "criteria"):
         if not d.get(k):
             d.pop(k, None)                       # remove empty sections: the blank sheet remains blank
-    store.save(WIDGET_ID, d)
+    store.save(sheet_key(sheet), d)
 
 
 def _find(items: list[dict], title: str = "", index=None) -> dict | None:
@@ -617,7 +698,7 @@ def _find(items: list[dict], title: str = "", index=None) -> dict | None:
 # del vocabulario de `apply_action`: nadie las pide desde un prompt, las dispara el ciclo de vida del encargo —
 # meterlas ahí las pondría al alcance de un worker, que es justo quien no debe decidir cuándo se estrena la hoja.
 
-def begin_task(title: str = "", fresh: bool = True) -> dict:
+def begin_task(title: str = "", fresh: bool = True, sheet: str = "") -> dict:
     """El encargo acaba de salir: la hoja se abre en PROCESO, sin nada dentro todavía.
 
     `fresh` ESTRENA la hoja (título = lo que pidió el operador, sin resultados ni historial de la búsqueda
@@ -628,7 +709,7 @@ def begin_task(title: str = "", fresh: bool = True) -> dict:
     manda sobre el derivado —y debe mandar, es donde el operador decidió mirar— pero esa decisión era del encargo
     ANTERIOR, y arrastrarla dejaría al operador mirando una lista vacía mientras el relato pasa en la de al lado.
     """
-    data = _empty() if fresh else view_data()
+    data = _empty() if fresh else view_data(sheet)
     if fresh:
         t = " ".join(str(title or "").split())
         if t:
@@ -639,11 +720,11 @@ def begin_task(title: str = "", fresh: bool = True) -> dict:
     data.pop("view", None)                   # el detalle abierto era de un resultado del encargo anterior
     data.pop("focus", None)
     data.pop("process", None)                # el relato que viene es el de ESTE encargo
-    _save(data)
+    _save(data, sheet)
     return {"ok": True, "fresh": bool(fresh), "title": data.get("title", "")}
 
 
-def end_task(phases) -> dict:
+def end_task(phases, sheet: str = "") -> dict:
     """El encargo terminó: se guarda su relato con el informe y se para el loader.
 
     Se PERSISTE porque la hoja lo es: un informe sobrevive a un reinicio y su explicación de cómo se llegó a él
@@ -652,34 +733,62 @@ def end_task(phases) -> dict:
     ya no existe.
     """
     lines = _clean_phases(phases)
-    data = {k: v for k, v in view_data().items() if k not in ("counts", "progress")}
+    data = {k: v for k, v in view_data(sheet).items() if k not in ("counts", "progress")}
     if lines:
         data["process"] = lines
     else:
         data.pop("process", None)            # sin una sola fase no hay historia que contar; no se inventa una
-    _save(data)
+    _save(data, sheet)
     return {"ok": True, "phases": len(lines)}
 
 
-def ref_index() -> list[dict]:
+def _sheets_for_brain(sheet) -> list[str]:
+    """QUÉ hojas ve el cerebro. Con `sheet` dado, esa; sin él, TODAS las que existen.
+
+    Que el defecto sea «todas» es la decisión, y su contraria es la que falla callando: con dos encargos vivos,
+    leer solo una dejaría al turno contestando con seguridad sobre la hoja equivocada —«¿el hotel de la
+    propuesta 2 tiene wifi?» resuelto contra la búsqueda del fontanero— sin que nada indicara que había otra.
+    Es la misma clase de mentira que V2-257 quitó de la tarjeta: no una verdad más pequeña, otra y falsa.
+    """
+    if sheet is not None and _safe_sheet(sheet):
+        return [_safe_sheet(sheet)]
+    if sheet == "":
+        return [""]
+    found = sheets()
+    return found or [""]
+
+
+def ref_index(sheet=None) -> list[dict]:
     """The items currently ON SCREEN, so the brain can (a) let the operator pick one by talking about it ("keep
     the beach club one") and (b) — just as important — SEE that the sheet is empty. Before this, an open but
     blank results card was indistinguishable from a card that simply doesn't publish its items, and the brain
     answered "here it is" over an empty screen (real session, 12:57:57).
 
     The hint leads with the ORDINAL because that is how the operator refers to a proposal out loud ("number two");
-    without it the brain had to guess which card "the second one" was."""
+    without it the brain had to guess which card "the second one" was.
+
+    V2-259 — con varias hojas abiertas cada referencia dice DE CUÁL es. El ordinal solo desambigua dentro de una
+    hoja: «la número dos» con dos búsquedas en pantalla son dos cosas distintas, y sin el encargo delante el turno
+    elegiría una en silencio.
+    """
     out = []
-    for n, it in enumerate(view_data().get("items", []), 1):
-        bits = [f"#{n}"]
-        if it.get("price"):
-            bits.append(it["price"])
-        if it.get("parts"):
-            bits.append(" + ".join(p.get("kind") or p.get("title") or "" for p in it["parts"]))
-        elif it.get("subtitle"):
-            bits.append(it["subtitle"])
-        out.append({"id": it["title"], "label": it["title"], "field": "title",
-                    "hint": " · ".join(b for b in bits if b)})
+    todas = _sheets_for_brain(sheet)
+    varias = len(todas) > 1
+    for sid in todas:
+        data = view_data(sid)
+        titulo = str(data.get("title") or "").strip()
+        for n, it in enumerate(data.get("items", []), 1):
+            bits = [f"#{n}"]
+            if varias and titulo:
+                bits.append(f"de «{titulo}»")
+            if it.get("price"):
+                bits.append(it["price"])
+            if it.get("parts"):
+                bits.append(" + ".join(p.get("kind") or p.get("title") or "" for p in it["parts"]))
+            elif it.get("subtitle"):
+                bits.append(it["subtitle"])
+            out.append({"id": it["title"], "label": it["title"], "field": "title",
+                        "sheet": sid, "hint": " · ".join(b for b in bits if b)})
     return out
 
 
@@ -766,15 +875,32 @@ def _digest_head(data: dict) -> str:
     return out
 
 
-def prompt_digest() -> str:
+def prompt_digest(sheet=None) -> str:
     """What is ACTUALLY on screen, compact enough to ride in every prompt while this widget is open.
 
     Why this exists: `ref_index()` only publishes title+hint, so the brain could name the items but knew nothing
     about them. Asked "does the hotel in proposal 2 have wifi?" — about a result already on screen, whose own
     card says so — it had to either guess or escalate a whole new search for a fact it was already holding. That
     is the difference between a screen the agent can SEE and one it merely painted. Bounded on purpose: this is
-    a digest for reasoning over, not the full dossier (that lives in the detail view)."""
-    data = view_data()
+    a digest for reasoning over, not the full dossier (that lives in the detail view).
+
+    V2-259 — con varias hojas se recorren TODAS y cada bloque se abre con el encargo al que pertenece. La
+    alternativa (quedarse con una) no avisa de nada: el turno contestaría con seguridad sobre la búsqueda que no
+    era, que es la misma clase de mentira que V2-257 quitó de la tarjeta. El techo de items es POR HOJA.
+    """
+    todas = _sheets_for_brain(sheet)
+    if len(todas) > 1:
+        bloques = []
+        for sid in todas:
+            d = view_data(sid)
+            t = str(d.get("title") or "").strip() or "(sin título)"
+            bloques.append(f"── HOJA «{t}» ──\n" + _digest_one(d))
+        return "\n".join(bloques)
+    return _digest_one(view_data(todas[0]))
+
+
+def _digest_one(data: dict) -> str:
+    """El digest de UNA hoja. Extraído tal cual para que N hojas no signifiquen N copias de estas reglas."""
     items = data.get("items") or []
     head = _digest_head(data)
     if not items:
@@ -859,11 +985,15 @@ def _merge_sections(data: dict, payload: dict) -> None:
 # the persisted payload (not in the browser) so the operator's voice drives it: the widget has no state of its own.
 def apply_action(action: str, payload: dict | None = None) -> dict:
     payload = payload or {}
+    # V2-259 — a QUÉ hoja. Viaja en el payload y no en la URL por la misma razón que `task_id` en el navegador:
+    # el canvas manda las acciones al widget BASE y mete la instancia dentro (`desktop.js`). Sin `sheet` esto
+    # sigue operando la hoja de siempre, que es lo que hace que el cambio no rompa a nadie.
+    sheet = _safe_sheet(payload.get("sheet"))
 
     if action == "present":
         issues = _audit(payload)
         items = _clean_items(payload.get("items"))
-        prev = view_data()
+        prev = view_data(sheet)
         data = {
             "title": _clip(payload.get("title") or "Resultados", "sheet_title"),
             "subtitle": _clip(payload.get("subtitle"), "sheet_subtitle"),
@@ -890,7 +1020,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         # A `present` may also deliver the other sections (delivering everything at once is one less round trip for
         # the worker). They are MERGED over existing data, not blindly replaced.
         _merge_sections(data, payload)
-        _save(data)
+        _save(data, sheet)
         return {"ok": True, "shown": len(items), "presentation": issues}
 
     if action == "append":
@@ -898,7 +1028,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         add = _clean_items(payload.get("items"))
         if not add:
             return {"ok": False, "error": "append sin items válidos (cada item necesita al menos title)"}
-        data = view_data()
+        data = view_data(sheet)
         data.pop("note", None)
         seen = {(i.get("title"), i.get("url")) for i in data["items"]}
         for it in add:
@@ -912,38 +1042,38 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         if payload.get("subtitle"):
             data["subtitle"] = _clip(payload["subtitle"], "sheet_subtitle")
         _merge_sections(data, payload)
-        _save(data)
+        _save(data, sheet)
         return {"ok": True, "shown": len(data["items"]), "presentation": issues}
 
     if action == "clear":
-        store.save(WIDGET_ID, _empty())
+        store.save(sheet_key(sheet), _empty())
         return {"ok": True, "shown": 0}
 
     if action == "choose":
         title = str(payload.get("title", "")).strip()
         if not title:
             return {"ok": False, "error": "choose necesita el title EXACTO del item"}
-        data = view_data()
+        data = view_data(sheet)
         data["chosen"] = title
-        _save(data)
+        _save(data, sheet)
         return {"ok": True, "chosen": title}
 
     if action == "detail":
-        data = view_data()
+        data = view_data(sheet)
         it = _find(data.get("items") or [], str(payload.get("title", "")), payload.get("index"))
         if not it:
             return {"ok": False, "error": "no encuentro ese resultado en la hoja (pasa el title o index 1-based)"}
         data["view"] = "detail"
         data["focus"] = it["title"]
         data["tab"] = "results"                  # opening a record means returning to the list, not staying on sources
-        _save(data)
+        _save(data, sheet)
         return {"ok": True, "detail": it["title"]}
 
     if action == "list":
-        data = view_data()
+        data = view_data(sheet)
         data.pop("view", None)
         data.pop("focus", None)
-        _save(data)
+        _save(data, sheet)
         return {"ok": True, "view": "list"}
 
     # ── THE OTHER THREE TABS ─────────────────────────────────────────────────────────────────────────────────
@@ -953,19 +1083,19 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         if tab not in _TABS:
             return {"ok": False,
                     "error": f"pestaña «{tab}» desconocida (process · results · summary · sources · criteria)"}
-        data = view_data()
+        data = view_data(sheet)
         data["tab"] = tab
         if tab != "results":
             data.pop("view", None)               # detail is a RESULTS page: leaving the tab closes it
             data.pop("focus", None)
-        _save(data)
+        _save(data, sheet)
         return {"ok": True, "tab": tab}
 
     if action == "sources":
         add = _clean_sources(payload.get("sources") if payload.get("sources") is not None else payload)
         if not add:
             return {"ok": False, "error": "sources necesita al menos {name|url} por fuente"}
-        data = view_data()
+        data = view_data(sheet)
         cur = data.get("sources") or []
         for s in add:
             # UPSERT: a source is reported several times during work ("entering..." → "50 results, capped there").
@@ -979,14 +1109,14 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
             else:
                 cur.append(s)
         data["sources"] = cur[:_MAX_SOURCES]
-        _save(data)
+        _save(data, sheet)
         return {"ok": True, "sources": len(data["sources"])}
 
     if action == "progress":
         upd = _clean_summary(payload.get("summary") if isinstance(payload.get("summary"), dict) else payload)
         if not upd:
             return {"ok": False, "error": "progress necesita al menos state, explored, selected, note o steps"}
-        data = view_data()
+        data = view_data(sheet)
         cur = dict(data.get("summary") or {})
         steps = list(cur.get("steps") or [])
         new_steps = upd.pop("steps", [])
@@ -997,14 +1127,14 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
         if steps:
             cur["steps"] = steps[-_MAX_STEPS:]
         data["summary"] = cur
-        _save(data)
+        _save(data, sheet)
         return {"ok": True, "summary": cur}
 
     if action == "criteria":
         upd = _clean_criteria(payload.get("criteria") if isinstance(payload.get("criteria"), dict) else payload)
         if not upd:
             return {"ok": False, "error": "criteria necesita goal y/o listas hard/soft/assumed/quality_bar/changes"}
-        data = view_data()
+        data = view_data(sheet)
         cur = dict(data.get("criteria") or {})
         # Is this ANOTHER investigation? The objective is the task signature: if it changes, what is on screen belongs
         # to the previous search and misleads (the operator already got a stale sheet once). ROUND 2 keeps the
@@ -1034,7 +1164,7 @@ def apply_action(action: str, payload: dict | None = None) -> dict:
                     acc.append(ch)
             cur["changes"] = acc[-_MAX_CRIT:]
         data["criteria"] = cur
-        _save(data)
+        _save(data, sheet)
         return {"ok": True, "criteria": cur, "reset": fresh}
 
     return {"ok": False, "error": f"acción «{action}» no soportada (present · append · clear · choose · detail · "

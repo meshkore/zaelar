@@ -901,7 +901,7 @@ def test_listener_opens_the_sheet_when_the_errand_lands_on_it(fresh_db, fake_bac
             opened.append(kw.get("extra", {}).get("id"))
     monkeypatch.setattr("voice.observer.emit", _fake_emit)
     monkeypatch.setattr("widgets.results.data.begin_task",
-                        lambda title="", fresh=True: begun.append((title, fresh)))
+                        lambda title="", fresh=True, sheet="": begun.append((title, fresh, sheet)))
 
     async def run():
         bus.reset(); escalate.reset()
@@ -914,9 +914,15 @@ def test_listener_opens_the_sheet_when_the_errand_lands_on_it(fresh_db, fake_bac
         stop.set(); await asyncio.sleep(0.05); task.cancel()
 
     asyncio.run(run())
-    assert "results" in opened, "una escalada con superficie de hoja tiene que ABRIRLA al encargar"
+    # V2-259 — la hoja que se abre es la del ENCARGO (`results::<task_id>`), no la caja compartida. Se comprueba
+    # el prefijo y NO la igualdad con «results»: el id pelado volviendo aquí significaría que dos búsquedas
+    # a la vez se pintan en la misma tarjeta, que es el defecto que esta iniciativa quita.
+    hojas = [i for i in opened if str(i or "").startswith("results")]
+    assert hojas, "una escalada con superficie de hoja tiene que ABRIRLA al encargar"
+    assert hojas[0].startswith("results::"), f"la hoja se abrió sin instancia ({hojas[0]})"
     assert begun and begun[0][0] == "Busca hoteles de 4 estrellas en Sevilla"
-    assert begun[0][1] is True, "sin otro encargo vivo en la hoja, se estrena"
+    assert begun[0][2], "…y `begin_task` tiene que saber en QUÉ hoja estrena, o escribe en la de nadie"
+    assert hojas[0] == f"results::{begun[0][2]}", "la tarjeta que se abre y la hoja que se estrena son la misma"
 
 
 def test_listener_does_not_touch_the_sheet_for_an_errand_that_is_only_spoken(fresh_db, fake_backend, monkeypatch):

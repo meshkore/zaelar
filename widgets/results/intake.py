@@ -53,7 +53,8 @@ def _to_item(row: dict) -> dict | None:
     return item
 
 
-def push(rows, *, source_url: str = "", source_name: str = "", status: str = "ok") -> int:
+def push(rows, *, sheet: str = "", source_url: str = "", source_name: str = "",
+         status: str = "ok") -> int:
     """Put what a browser just found into the sheet. Returns how many rows were handed over (0 if none/failed).
 
     The count is what LANDED in the payload, not what the sheet decided to keep after deduplication: this
@@ -62,7 +63,12 @@ def push(rows, *, source_url: str = "", source_name: str = "", status: str = "ok
     items = [i for i in (_to_item(r) for r in (rows or [])) if i][:_MAX_PER_PUSH]
     if not items:
         return 0
+    # V2-259 — a qué hoja. Es el ENCARGO, no el navegador: dos navegadores del mismo encargo entregan en la
+    # misma hoja (V2-257), dos encargos son dos hojas. Sin `sheet` esto entrega en la hoja de siempre, que es lo
+    # correcto para un navegador que el operador conduce a mano, sin encargo detrás.
     payload: dict = {"items": items}
+    if str(sheet or "").strip():
+        payload["sheet"] = str(sheet).strip()
     if source_url or source_name:
         payload["sources"] = [{"name": source_name or "", "url": source_url or "",
                                "status": status, "found": len(items)}]
@@ -76,8 +82,11 @@ def push(rows, *, source_url: str = "", source_name: str = "", status: str = "ok
         logger.warning("results.intake: no pude entregar a la hoja (%s)", e)
         return 0
     try:
+        # El aviso de repintado va a SU tarjeta: con varias hojas abiertas, avisar a «results» a pelo despierta
+        # a la que no ha cambiado y deja quieta a la que sí.
         from voice.observer import emit
-        emit("widget", "data", extra={"id": "results", "src": "navegador"})
+        from widgets.results import data as _d
+        emit("widget", "data", extra={"id": _d.instance_id(str(sheet or "")), "src": "navegador"})
     except Exception:
         pass
     return len(items)

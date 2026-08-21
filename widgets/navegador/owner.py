@@ -665,17 +665,21 @@ async def _automate(goal: str, plan: str = "", task_id: str = "") -> None:
             summary = results.get("conclusion") or f"{len(results['items'])} resultados"
     if results:
         tasks.set_results(task_id, results)
-        # V2-257 — la tarjeta guarda el HECHO, la hoja guarda los HALLAZGOS. Este camino nunca había tenido
-        # forma de llegar a la hoja: el bucle propio del motor no habla con `widget_cli`, así que lo que
-        # encontraba moría en la tarjeta.
-        try:
-            from widgets.results import intake as _intake
-            _intake.push(results.get("items") or [], source_url=str((tasks.get(task_id) or {}).get("url") or ""))
-        except Exception:  # noqa: BLE001
-            pass
     tasks.set_phase(task_id, "listo" if (ok and success) else ("terminado" if ok else "no pude completarlo"), False)
     tasks.finish(task_id, "done" if (ok and success) else ("done" if ok else "failed"),
                  ("✅ " if (ok and success) else "") + (summary or "sin resumen"))
+    # V2-257 — la tarjeta guarda el HECHO, la hoja guarda los HALLAZGOS. Este camino nunca había tenido forma de
+    # llegar a la hoja: el bucle propio del motor no habla con `widget_cli`, así que lo que encontraba moría en la
+    # tarjeta. Va DESPUÉS del cierre, como en `dispatch._finalize_web` y por la misma razón: deja pegados el
+    # `set_results` y el final que exige el invariante de V2-192 (una tarea VIVA no puede tener resultados).
+    if results:
+        try:
+            from widgets.results import intake as _intake
+            from .act_api import _sheet_of as _sheet_for
+            _intake.push(results.get("items") or [], sheet=_sheet_for(task_id),
+                         source_url=str((tasks.get(task_id) or {}).get("url") or ""))
+        except Exception:  # noqa: BLE001
+            pass
     try:
         from voice import brain_notes
         head = "completé" if (ok and success) else "no pude completar del todo"
