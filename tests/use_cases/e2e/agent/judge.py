@@ -135,6 +135,18 @@ def mechanism_facts(mech: dict) -> str:
         lines.append("· NO hubo tarea de navegador en esta corrida. Para un caso que se resuelve buscando y "
                      "comparando, eso NO es automáticamente un fallo: la búsqueda web y el worker pueden "
                      "bastar. Solo es un fallo si el objetivo exigía entrar en un sitio concreto y operar.")
+    sh = mech.get("results_sheet") or {}
+    if not sh.get("read"):
+        lines.append("· NO se pudo leer la hoja de resultados. No concluyas que estaba vacía: no se miró.")
+    elif sh.get("n_named"):
+        lines.append(f"· La HOJA de resultados acabó con {sh['n_named']} candidato(s) con nombre "
+                     f"({', '.join(sh.get('titles') or [])}) de {sh.get('n_sources', 0)} fuente(s). Es la "
+                     f"superficie que el operador mira, y lo que hay ahí ES entrega. Ojo con el MOMENTO: "
+                     f"puede haberse llenado DESPUÉS del último turno, y entonces el fallo no es que no se "
+                     f"encontrara nada — es que llegó tarde y el turno rellenó el hueco mientras tanto.")
+    else:
+        lines.append("· La hoja de resultados se leyó y acabó SIN candidatos con nombre. Si el encargo era "
+                     "buscar y comparar, eso sí es entrega ausente en la única superficie que la guarda.")
     dropped = mech.get("dropped_actions") or []
     if dropped:
         which = ", ".join(f"{d.get('tool') or '?'} ({d.get('reason') or 'motivo no dicho'})" for d in dropped)

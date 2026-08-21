@@ -374,6 +374,37 @@ def audit(all_events: list[dict], expected_signals: list[str] | None = None) -> 
     }
 
 
+def results_sheet() -> dict:
+    """What the RESULTS SHEET holds at the end of the round, read from the engine.
+
+    Kept as a fact of its own next to `navegador_task`, and it is not redundancy: today the browser CARD is
+    what publishes `results`, and V2-257 moves that boundary — the card becomes a monitor and stops publishing
+    them, while the sheet becomes the single place every finding lands, whichever browser found it. A report
+    that only reads the card would start printing `resultados=0` the day that ships, and a judge reading it
+    would conclude "the browser found nothing". That is a false defect of the exact class this harness has
+    already paid for twice, so both surfaces get read and reported apart until the boundary settles.
+
+    Measured on `best-plumber-same-day__es` (2026-08-21): the sheet finished with FIVE candidates carrying
+    phone, rating and source while the conversation had already closed — which also makes the case for
+    `read`: an unread sheet is not an empty one, and `0` must never stand for "nobody looked".
+    """
+    d = probe_client.widget_data("results")
+    if d is None:
+        return {"read": False, "n_items": 0, "titles": [], "n_sources": 0}
+    items = [it for it in (d.get("items") or []) if isinstance(it, dict)]
+    counts = d.get("counts") if isinstance(d.get("counts"), dict) else {}
+    return {
+        "read": True,
+        "n_items": len(items),
+        # Only what carries a real name counts as a candidate — the same rule the browser note applies
+        # (V2-234): a row without a name is not a result, it is a link that happened to be on the page.
+        "n_named": sum(1 for it in items if str(it.get("title") or "").strip()),
+        "titles": [str(it.get("title") or "")[:90] for it in items[:8]],
+        "n_sources": int(counts.get("sources") or 0),
+        "note": str(d.get("note") or "")[:120],
+    }
+
+
 def mechanism_report(all_events: list[dict], expected_signals: list[str],
                      concurrency: ConcurrencyTracker | None = None,
                      scheduled: dict | None = None, forbidden_signals: list[str] | None = None) -> dict:
@@ -395,6 +426,7 @@ def mechanism_report(all_events: list[dict], expected_signals: list[str],
         "overreach_signals": overreach,
         "navegador_task_id": task_id,
         "navegador_task": task_view,
+        "results_sheet": results_sheet(),
         "n_events": len(all_events),
         "search_health": search_health(all_events),
         "dropped_actions": dropped_actions(all_events),

@@ -59,6 +59,15 @@ def build(results: list[dict], stamp: str, out_dir: Path) -> Path:
             lines.append(f"tarea de navegador {mech['navegador_task_id']}: status={nt.get('status','?')}, "
                          f"awaiting_login={nt.get('awaiting_login', False)}, "
                          f"resultados={len((nt.get('results') or {}).get('items', []) or [])}")
+        # La HOJA, aparte de la tarjeta y SIEMPRE — es la superficie que el operador mira, y con V2-257 pasa a
+        # ser la única que guarda hallazgos. «no la miré» no puede leerse igual que «estaba vacía».
+        sh = mech.get("results_sheet") or {}
+        if not sh.get("read"):
+            lines.append("hoja de resultados: NO se pudo leer (no es lo mismo que vacía)")
+        else:
+            lines.append(f"hoja de resultados: {sh.get('n_named', 0)} candidato(s) con nombre "
+                         f"de {sh.get('n_items', 0)} fila(s) · {sh.get('n_sources', 0)} fuente(s)"
+                         + (f" · {', '.join(sh.get('titles') or [])}" if sh.get("titles") else ""))
         # LOS NÚMEROS DEL MECANISMO, en el informe que se LEE y no solo en el JSON. Hasta 2026-08-21 cada
         # uno de éstos se sacaba a mano con un script suelto y se pegaba en un mensaje: servía mientras
         # hubiera alguien delante haciéndolo, y no sobrevivía a un relevo. El agente que arregla abre este

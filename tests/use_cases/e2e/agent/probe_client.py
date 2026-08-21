@@ -171,6 +171,20 @@ def widget_rows(wid: str, key: str) -> list:
     return v if isinstance(v, list) else []
 
 
+def widget_data(wid: str) -> dict | None:
+    """A widget's WHOLE state, or `None` when the engine could not be asked.
+
+    `widget_rows` above collapses both failures into `[]`, which is right for its caller (it wants a
+    collection) and wrong for anything that has to tell "the widget is empty" from "nobody looked" — the very
+    distinction its own docstring says the report must keep. This returns the raw dict so that call sites can
+    keep the two apart instead of inferring absence from a shape.
+    """
+    d = _get(f"/widgets/{urllib.parse.quote(wid, safe='')}/data", timeout=20.0)
+    if not isinstance(d, dict) or not d or "error" in d:
+        return None       # `_get` reports a failed request as `{"error": ...}`, never as an empty payload
+    return d
+
+
 def scheduled_jobs() -> list[dict]:
     """The engine's ACTIVE scheduled tasks (`GET /api/cron` → `scheduler.list_jobs`).
 
