@@ -212,7 +212,11 @@ def test_the_sheet_id_does_not_repeat_across_restarts():
     """
     assert dispatch.sheet_id_for("1") != "1", "el id de hoja no puede ser el task_id a pelo"
     assert dispatch.sheet_id_for("1").endswith("-1")
-    assert dispatch._BOOT and dispatch._BOOT in dispatch.sheet_id_for("1")
+    # F5 (2026-08-23): el sello ya no es un `_BOOT` privado de este módulo — lo emite el DUEÑO de la identidad
+    # de proceso (`nucleo/runtime_ids.py`), que es lo que impide que nazca el siguiente contador suelto. Lo que
+    # este caso afirma no cambia: el id de hoja compone un sello que es distinto en cada arranque.
+    from nucleo import runtime_ids
+    assert runtime_ids.boot_id() and runtime_ids.boot_id() in dispatch.sheet_id_for("1")
     # dos «arranques» distintos, el mismo task_id, dos hojas
     otro = "otroboot"
     assert sheet.sheet_key(dispatch.sheet_id_for("1")) != sheet.sheet_key(f"{otro}-1")

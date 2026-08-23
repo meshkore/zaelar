@@ -23,7 +23,10 @@ from nucleo import matching
 WID = "navegador"
 _lock = threading.RLock()
 _tasks: dict[str, dict] = {}          # task_id -> state
-_counter = itertools.count(1)
+# Task ids come from the process-identity owner (F5). Per-process is CORRECT here, unlike the results sheet
+# (32c7dc6): this registry is RAM, a task dies with its process, and its canvas card is ephemeral by design —
+# nothing durable is keyed on `tN`, so a repeated id after a restart has nothing left to collide with.
+from nucleo.runtime_ids import next_seq as _next_seq
 _MAX_EVENTS = 60
 
 # A WALL is a page that STOPPED us — an anti-bot challenge, a CAPTCHA, a load error. V2-167 measured three runs that
@@ -217,7 +220,7 @@ def create(goal: str, title: str = "", *, trace: str = "") -> str:
     escalation's own tool-call events prove it); passing it explicitly is a fix, not a fallback."""
     goal = (goal or "").strip()
     with _lock:
-        tid = f"t{next(_counter)}"
+        tid = f"t{_next_seq('navegador.task')}"
         _tasks[tid] = {
             "id": tid, "goal": goal, "goal_summary": "", "title": (title or goal)[:60] or "Tarea",
             "status": "queued", "phase": "", "phase_active": False, "events": [], "results": None,

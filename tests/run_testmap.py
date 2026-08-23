@@ -923,6 +923,16 @@ DOMAINS: list[dict] = [
                                 "bajan, y ningún gigante nace fuera de la tabla",
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/test_architecture_ratchet.py"]},
+        # F5 (2026-08-23): tres incidentes en 48 h con la misma forma — un contador de instancia leído como
+        # global (el id de hoja que repetía tras reinicio, la cadena de relevo sin tope, el clear() por
+        # cuadruplicado). nucleo/runtime_ids.py es el DUEÑO: boot_id() por proceso + next_seq(name); escalate,
+        # worker_api, voice.trace y navegador.tasks enrutan por él (cada uno conserva su contrato — trace
+        # renumera por sesión, los tN del navegador son efímeros a propósito). El trinquete de la clase vive en
+        # 7.22: un contador de módulo nacido fuera del dueño sale rojo con nombre.
+        {"id": "7.23", "title": "La identidad de proceso tiene UN dueño: sello de arranque + secuencias con "
+                                "nombre, y cada consumidor conserva su contrato",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/core/test_runtime_ids.py"]},
         # 2026-08-20: hermano del anterior por el otro lado. El trinquete vigila que una decisión tenga
         # iniciativa; esto vigila que los PUNTEROS de `CLAUDE.md` lleven a un fichero que existe. Un puntero roto
         # no falla: el siguiente agente abre un fichero que no está y trabaja sin el contexto que lo justificaba.

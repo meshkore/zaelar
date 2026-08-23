@@ -41,15 +41,14 @@ _MAX_DEPTH = 2
 
 # ── registro de peticiones en vuelo (corr_id → estado) ──────────────────────────────────────────────────────
 _ACTS: dict[str, dict] = {}
-_seq = 0
+
+from nucleo.runtime_ids import next_seq as _next_seq
 
 
 def _new_corr(task_id: str, action: str) -> str:
     """corr_id IMPREDECIBLE: el re-poll (`GET /act/{corr_id}`) no lleva token — el corr ES la capability. Uno
     secuencial sería adivinable (leer la respuesta del operador + robar el piggyback de inyecciones, §v2·D)."""
-    global _seq
-    _seq += 1
-    return f"{task_id}:{action}:{_seq}:{secrets.token_urlsafe(8)}"
+    return f"{task_id}:{action}:{_next_seq('worker_api.corr')}:{secrets.token_urlsafe(8)}"
 
 
 def _piggyback(task_id: str) -> list[str]:

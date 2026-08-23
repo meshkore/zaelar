@@ -30,7 +30,10 @@ from contextlib import contextmanager
 # (trace_id, span) del contexto de ejecución actual. "" = sin traza (eventos de arranque, ruido de fondo).
 _ctx: contextvars.ContextVar[tuple[str, str]] = contextvars.ContextVar("zaelar_trace", default=("", ""))
 
-_seq = itertools.count(1)
+# The counter is routed through the process-identity owner (F5, 2026-08-23) but keeps THIS module's contract
+# untouched: per-SESSION numbering (reset by `observer.rotate_session`) with a random suffix so two sessions'
+# T1 never collide. No boot stamp composed on purpose — the suffix already carries the uniqueness.
+from nucleo.runtime_ids import next_seq as _next_seq, reset_seq as _reset_named_seq
 
 # ── `active()` — el trace vigente para quien NO PUEDE heredarlo del ContextVar (2026-08-16) ──────────────────────
 # Auditoría de fuente (operador: "arréglalo en el flash brain... donde se generan los eventos"): varios handlers
@@ -75,8 +78,7 @@ def reset_seq() -> None:
     si el contador siguiera subiendo, una sesión que empieza en blanco abriría en «T34», que le dice al operador que
     está mirando la continuación de algo — justo lo contrario de lo que es. El id sigue llevando su sufijo
     aleatorio, así que dos sesiones distintas nunca colisionan aunque las dos tengan un T1."""
-    global _seq
-    _seq = itertools.count(1)
+    _reset_named_seq("voice.trace")
 
 
 def begin(text: str, origin: str = "turno") -> str:
@@ -84,7 +86,7 @@ def begin(text: str, origin: str = "turno") -> str:
     (kind="trace", root=True) con la frase/motivo que lo inicia — es la raíz del árbol en la vista Trazas.
     Llamar en el punto de ENTRADA del estímulo (turno de voz/chat, probe, cron, proactivo). Devuelve el id."""
     global _active, _active_at, _general
-    tid = f"T{next(_seq)}·{uuid.uuid4().hex[:4]}"
+    tid = f"T{_next_seq('voice.trace')}·{uuid.uuid4().hex[:4]}"
     _ctx.set((tid, ""))
     # `cluster`/`pulso` son OTRO subsistema (el puente MeshKore, connectors/meshkore/bridge.py) corriendo en el
     # mismo proceso — dejarlos tocar `_active` colgaría eventos del pipeline de VOZ (VAD, TTS, estado) del trace

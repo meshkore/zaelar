@@ -13,7 +13,10 @@ from __future__ import annotations
 import time
 
 _tasks: dict[int, dict] = {}      # id → {request, started_at, done, summary}
-_seq = 0
+# Task ids come from the process-identity owner (F5, 2026-08-23). The counter itself is still per-process —
+# that is fine for a RAM registry — but anything DURABLE keyed on these ids must compose `runtime_ids.boot_id()`
+# in, or it collides with the previous run's ids (the sheet-wipe defect of `32c7dc6`).
+from nucleo.runtime_ids import next_seq as _next_seq, reset_seq as _reset_seq
 _MAX = 12                          # mantén los más recientes; descarta los viejos (nunca crece sin límite)
 
 
@@ -54,14 +57,12 @@ def strip_system_notes(text: str) -> str:
 def escalate_to_slowbrain(request: str, *, context: dict | None = None) -> int:
     """Encola la INTENCIÓN de un turno de SlowBrain para `request`. Devuelve un id de tarea. STUB en V2-004:
     registra + publica `escalate.requested`; el SlowBrain lo ejecuta async a partir de V2-006/V2-007."""
-    global _seq
     req = strip_system_notes(request)
     if not req:
         # Solo había notas del sistema: no hay nada que el operador haya pedido, así que no hay tarea. Antes
         # esto era precisamente el worker-que-persigue-al-worker.
         return 0
-    _seq += 1
-    tid = _seq
+    tid = _next_seq("escalate.task")
     _tasks[tid] = {"request": req[:200], "started_at": time.time(), "done": False, "summary": ""}
     if len(_tasks) > _MAX:
         for k in sorted(_tasks)[: len(_tasks) - _MAX]:
@@ -109,6 +110,5 @@ def summary_line() -> str:
 
 def reset() -> None:
     """Limpia el registro (tests)."""
-    global _seq
     _tasks.clear()
-    _seq = 0
+    _reset_seq("escalate.task")

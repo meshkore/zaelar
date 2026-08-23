@@ -40,7 +40,6 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     "voice/engine/llm/providers/nucleo.py": (3496, 156),
     "nucleo/dispatch.py": (2113, 61),
     "widgets/navegador/owner.py": (1579, 43),
-    "nucleo/memory_agent.py": (1487, 25),
     "nucleo/flash/router_guards.py": (1282, 15),
     "nucleo/flash/probe.py": (1210, 87),
     "widgets/results/data.py": (1172, 5),
@@ -134,3 +133,26 @@ def test_every_testmap_node_id_is_unique():
                 dups.append(f"{nid}: «{seen[nid][:50]}» vs «{node['title'][:50]}»")
             seen[nid] = node["title"]
     assert not dups, "ids de nodo duplicados en el testmap:\n  " + "\n  ".join(dups)
+
+
+def test_process_identity_has_ONE_owner():
+    """F5. Three incidents in 48h had the same shape — a per-instance counter read as global: `escalate._seq`
+    keyed the sheet and a restart wiped the previous session's results (32c7dc6); the relay booleans lived on a
+    record every relay renews, so six workers ran one errand (0399a1d). The fixes landed where they hurt; this
+    closes the CLASS: a module-level sequence counter born anywhere but `nucleo/runtime_ids.py` goes red with a
+    name. `itertools.count()` at module level counts too — it is the same pattern wearing a nicer coat."""
+    import re
+    pat = re.compile(r"^_?[a-z_]*(?:seq|counter)[a-z_]*\s*=\s*(?:0|itertools\.count)", re.M)
+    born = []
+    for rel, p in _engine_py_files():
+        if rel == "nucleo/runtime_ids.py":
+            continue
+        try:
+            src = p.read_text()
+        except Exception:
+            continue
+        for m in pat.finditer(src):
+            line = src[:m.start()].count("\n") + 1
+            born.append(f"{rel}:{line}: {m.group(0).strip()}")
+    assert not born, ("un contador de módulo nació fuera del dueño — usa runtime_ids.next_seq(name), y si el id "
+                      "debe sobrevivir a un reinicio, compón boot_id():\n  " + "\n  ".join(born))

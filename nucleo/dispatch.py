@@ -658,13 +658,13 @@ def _phrases(rec) -> list:
 #: Sello de ESTE proceso. `escalate._seq` vuelve a 0 en cada arranque, así que un `task_id` no identifica un
 #: encargo más allá de la vida del motor; un id de hoja SÍ tiene que hacerlo, porque la hoja se guarda en disco y
 #: sobrevive al reinicio (V2-233). Aleatorio y corto: no hace falta que sea legible, hace falta que no choque.
-_BOOT = _secrets.token_hex(3)
+from nucleo.runtime_ids import boot_id as _boot_id
 
 
 def sheet_id_for(task_id) -> str:
     """El id de la HOJA de un encargo. UNA definición: la usan el sellado del record y cualquiera que necesite
     reconstruirlo, para que no haya dos formas de nombrar la misma caja."""
-    return f"{_BOOT}-{str(task_id or '').strip()}"
+    return f"{_boot_id()}-{str(task_id or '').strip()}"
 
 
 def sheet_of(rec) -> str:
