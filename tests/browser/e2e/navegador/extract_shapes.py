@@ -95,6 +95,40 @@ SOLO_NAVEGACION = """<nav><a href="https://guia.invalid/madrid">Madrid</a>
 FALSOS_NUMEROS = """<div class="card"><h3><a href="https://tienda.invalid/p/ean">Cable HDMI 2.1</a></h3>
   <p>EAN 8412345678905 · publicado 21/08/2026</p></div>"""
 
+# ── V2-2xx: a LABEL is not a NAME (measured 2026-08-23, `cheapest-monitor`) ─────────────────────────────────
+# The round delivered «MSI PRO MP273U — 164 €» and no extraction ever paired that name with that price. What the
+# browser really returned, verbatim from the report:
+#
+#     {"title": "Nuevos (26) desde", "price": "164,00€", "url": ".../gp/offer-listing/B0DJ9KZG6P/..."}
+#     {"title": "Mediano:",          "price": "379,99 €"}
+#
+# Eight of the thirteen rows on the sheet were called «Recomendado:», «Mediano:» (four times) or «Más bajo:» —
+# the captions of a carousel, sitting where a monitor's name belongs. Two independent faults:
+#   · Amazon's product URL is `/dp/<ASIN>`, which `ITEM` did not know, so NOTHING scored as a real listing and
+#     the fallback handed back every price-bearing link on the page, chrome included;
+#   · a caption that introduces a price was accepted as the thing's name.
+
+# 10 · the offers box and a carousel caption, next to a REAL product link. This is the shape that produced the
+# «164,00€ with no name» row: the offer-listing link carries the price, the caption carries the words.
+AMAZON_CHROME = """<div class="s-result"><h2><a href="https://tienda.invalid/MSI-PRO-MP273U/dp/B0DJ9KZG6P">MSI PRO MP273U 27" 4K</a></h2>
+  <a href="https://tienda.invalid/MSI-PRO-MP273U/dp/B0DJ9KZG6P"><span>164,00&nbsp;€</span></a></div>
+<div class="offers"><a href="https://tienda.invalid/gp/offer-listing/B0DJ9KZG6P/ref=dp_olp_NEW_mbc">
+  <div>Nuevos (26) desde</div><div>164,00&nbsp;€</div></a></div>
+<div class="carousel">
+  <a href="https://tienda.invalid/sspa/aaa"><div>Mediano:</div><div>379,99 €</div></a>
+  <a href="https://tienda.invalid/sspa/bbb"><div>Mediano:</div><div>289,99 €</div></a>
+  <a href="https://tienda.invalid/sspa/ccc"><div>Recomendado:</div><div>297,99 €</div></a></div>"""
+
+# 11 · the caption WITHOUT any real product link on the page — the fallback branch, where `cands` is handed back
+# whole. A caption must not become a name there either, and blanking it must not delete the ROW: the price and
+# the link are real and the brain can still describe it by its link.
+# Distinct PATHS on purpose: the dedup key is origin+pathname, so two sponsored links differing only in their
+# query collapse into one row — correct, and not what this shape is about. A real carousel points at real
+# products, and the caption repeating across them is exactly the second tell.
+SOLO_CROMO = """<div class="carousel">
+  <a href="https://tienda.invalid/sspa/aaa"><div>Mediano:</div><div>379,99 €</div></a>
+  <a href="https://tienda.invalid/sspa/bbb"><div>Mediano:</div><div>289,99 €</div></a></div>"""
+
 fails = []
 
 
@@ -177,6 +211,29 @@ def main():
         # ── 9 · números que no son teléfonos ──
         got = extract(page, FALSOS_NUMEROS)
         check("9 · un EAN y una fecha no son un número al que llamar", not got, str(got))
+
+        # ── 10 · a real listing next to the offers box and a carousel ──
+        got = extract(page, AMAZON_CHROME)
+        titles = [i.get("title") or "" for i in got]
+        check("10 · «/dp/» scores as a real listing, so the chrome is discarded",
+              len(got) == 1, f"{len(got)} filas: {titles}")
+        if got:
+            check("10a · and the row kept is the PRODUCT, with its price",
+                  got[0]["title"].startswith("MSI PRO MP273U") and got[0]["price"].startswith("164,00"),
+                  str(got[0]))
+        check("10b · «Nuevos (26) desde» never reaches the sheet",
+              not any("Nuevos" in t for t in titles), str(titles))
+        check("10c · nor does a carousel caption",
+              not any(t.rstrip().endswith(":") for t in titles), str(titles))
+
+        # ── 11 · the same chrome with NO real listing to filter it out ──
+        got = extract(page, SOLO_CROMO)
+        titles = [i.get("title") or "" for i in got]
+        check("11 · the rows survive (price and link are real)", len(got) == 2, str(got))
+        check("11a · but a caption is not a name: blank, never guessed",
+              all(not t for t in titles), str(titles))
+        check("11b · and the price is still there to describe them by",
+              all((i.get("price") or "") for i in got), str([i.get("price") for i in got]))
 
         browser.close()
 

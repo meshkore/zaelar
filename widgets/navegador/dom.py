@@ -100,7 +100,13 @@ _JS_EXTRACT = r"""
     });
   };
   const AD=/(doubleclick|googlead|googlesyndication|adservice|adnxs|criteo|taboola|outbrain|\/ads?\/|utm_source=|banner)/i;
-  const ITEM=/(\/item\/|\/p\/|\/producto|\/anuncio|\/product|\/listing|\/ad\/)/i;
+  // `\/dp\/` measured 2026-08-23 (`cheapest-monitor`). Amazon's product URL is `/dp/<ASIN>`, which none of the
+  // shapes above matched — so on the biggest shop in the market NOTHING scored as a real listing, `items` came
+  // out empty, and the fallback handed back `cands` whole: the chrome of the offers box («Nuevos (26) desde —
+  // 164,00€»), the carousel labels («Mediano: — 379,99 €», «Recomendado:»). The filter was not wrong, it simply
+  // never engaged. `\/product` already covers `/gp/product/`; `/gp/offer-listing/` stays OUT on purpose — an
+  // offers page is a price for a product, not the product.
+  const ITEM=/(\/item\/|\/p\/|\/producto|\/anuncio|\/product|\/listing|\/dp\/|\/ad\/)/i;
   const cands=[];
   for(const a of document.querySelectorAll('a[href]')){
     let href; try{ href=a.href; }catch(_){ continue; }
@@ -136,6 +142,23 @@ _JS_EXTRACT = r"""
   // If there are real LISTING links, keep only those (discard the remaining price-bearing noise).
   const items = cands.filter(c=>c._item);
   const list = (items.length ? items : cands).map(({_item, ...c})=>c);
+  // A LABEL IS NOT A NAME, and the page will hand you one whenever the price has a caption. Measured
+  // 2026-08-23 on `cheapest-monitor`: eight of thirteen rows on the sheet were called «Recomendado:»,
+  // «Mediano:» (four times) or «Más bajo:» — the captions of a carousel, sitting where a monitor's name
+  // belongs. Two structural tells, no site named and no language assumed:
+  //   · it ends in a colon — a colon is a word announcing what comes NEXT, so it cannot be the thing itself;
+  //   · it repeats across separate listings — this file already holds that «un dato que nombra a todas no
+  //     nombra a ninguna» (see `cardWalk`, which stops climbing once an ancestor spans several cards). The
+  //     rule was applied to the card walk and not to the title that finally shipped.
+  // Blanked rather than guessed, which is shape 3's rule: with no name it stays WITHOUT one. An empty title
+  // is a row the brain has to describe by its link; a wrong one is a row it will describe confidently.
+  const times = {};
+  for(const c of list){ const t=(c.title||'').trim(); if(t) times[t]=(times[t]||0)+1; }
+  for(const c of list){
+    const t=(c.title||'').trim();
+    if(!t) continue;
+    if(/:\s*$/.test(t) || times[t]>1) c.title='';
+  }
   return list.slice(0, limit);
 }
 """
