@@ -130,7 +130,43 @@ _FLIP_STANDBY = re.compile(r"(dame\s+un\s+momento|te\s+aviso|en\s+cuanto\s+(lo\s
 _FLIP_OWN = re.compile(r"\b(mi|mis)\s+(calendario|agenda|fechas|correo|email|cuenta|banco|móvil|notas)\b", re.I)
 
 
-def looks_like_the_assistant(txt: str) -> bool:
+def _vocative_re(name: str) -> "re.Pattern | None":
+    """Does the line ADDRESS the persona by their own name?
+
+    Face 5, measured 2026-08-23 (`cheapest-monitor`, round 6). The driver wrote
+
+        «Sí, Marc, le he mirado las reseñas y están muy bien en general. La gente destaca la nitidez del
+        4K… aunque algunos mencionan que los altavoces son justitos.»
+
+    and every one of the first four faces let it through: no offer, no link, no bullet, no bold, and
+    `he mirado` alone is deliberately not enough because people do look things up themselves. The judge
+    then read it — correctly, from the content — as zaelar's voice and filed it as one of the round's
+    three [alta] blockers: «el resumen de reseñas es inventado». The harness had manufactured the defect
+    it was measuring.
+
+    The tell the shape signals cannot see is who the sentence is spoken TO. The persona IS Marc, and
+    nobody addresses themselves by name. That makes the vocative decisive on its own, which none of the
+    other faces are — so it needs no second signal.
+
+    Narrow on purpose: only the name set off as an ADDRESS — comma-delimited, or alone at the start or the
+    end of the line. A person naming themselves is ordinary and must not trip this, and none of those forms
+    reaches the pattern: «soy Marc», «me llamo Marc», «a nombre de Marc», «resérvalo para Marc» all carry the
+    name as an OBJECT with no comma in front of it. Requiring the comma is what separates the two, so no
+    exclusion list is needed — and an exclusion list would not have worked anyway, since a lookbehind here
+    lands before the comma rather than before the name.
+    """
+    n = (name or "").strip()
+    if len(n) < 2:
+        return None
+    esc = re.escape(n)
+    return re.compile(
+        r",\s*" + esc + r"\b[\s,.!?]"          # «Sí, Marc, le he mirado…»  ·  «vale, Marc.»
+        r"|^\s*" + esc + r"\s*,"                # «Marc, te he dejado…»
+        r"|,\s*" + esc + r"\s*[.!?]?\s*$",     # «…te lo dejo listo, Marc.»
+        re.I | re.M)
+
+
+def looks_like_the_assistant(txt: str, persona_name: str = "") -> bool:
     """Is this line the ASSISTANT's job rather than the person's?
 
     Four readings, because the flip has more faces than the first version saw — and shape was the tidy
@@ -143,6 +179,9 @@ def looks_like_the_assistant(txt: str) -> bool:
     Announcing a find is not enough on its own (people do look things up themselves), and neither is
     going off to check something — as long as what they check is their OWN calendar, inbox or dates.
     """
+    voc = _vocative_re(persona_name)
+    if voc is not None and voc.search(txt or ""):
+        return True
     if _FLIP_OFFERS.search(txt) and _FLIP_FOUND.search(txt):
         return True
     if _FLIP_TAKES_OVER.search(txt) and _FLIP_STANDBY.search(txt) and not _FLIP_OWN.search(txt):
@@ -189,11 +228,15 @@ _ANCHOR_EN = (
 
 
 class Driver:
-    def __init__(self, scenario) -> None:
+    def __init__(self, scenario, persona_name: str = "") -> None:
         self.scenario = scenario
         self.turns = 0
         self.done = False
         self.role_flips = 0
+        # The name the AGENT calls this person by (the lab profile's `operator_name`). Only used to catch the
+        # vocative flip — see `_vocative_re`. Empty against a sandbox with no seeded identity, and then face 5
+        # is simply off rather than guessing a name.
+        self.persona_name = (persona_name or "").strip()
         locale = getattr(scenario, "locale", "es") or "es"
         if locale == "us":
             sys = (
@@ -228,7 +271,7 @@ class Driver:
         if nudge:
             msgs.append({"role": "system", "content": f"Nota para tu próxima frase (no la reveles): {nudge}"})
         txt = llm.call(msgs, model=config.DRIVE_MODEL, temperature=0.7, max_tokens=200).strip()
-        if looks_like_the_assistant(txt):
+        if looks_like_the_assistant(txt, self.persona_name):
             # ONE retry with the identity said out loud again. Not silent: a flip that survives makes the
             # round an INFRA, because zaelar's reply to a nonsense turn says nothing about zaelar.
             self.role_flips += 1
@@ -243,7 +286,7 @@ class Driver:
                              "precios, una lista de opciones). Tú eres la PERSONA que pide. Escribe otra vez, "
                              "en una o dos frases, lo que TÚ le dirías a zaelar ahora."})
             txt = llm.call(msgs, model=config.DRIVE_MODEL, temperature=0.7, max_tokens=200).strip()
-            if looks_like_the_assistant(txt):
+            if looks_like_the_assistant(txt, self.persona_name):
                 self.role_flips += 1
         self.history.append({"role": "assistant", "content": txt})
         if is_closing(txt):

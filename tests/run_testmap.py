@@ -43,7 +43,8 @@ DOMAINS: list[dict] = [
             "tests/memory/unit/test_embeddings.py", "tests/memory/unit/test_retriever.py",
             "tests/memory/integration/test_rerank.py", "tests/memory/unit/test_graph_ppr.py",
             "tests/memory/unit/test_rerank_abs.py",
-            "tests/memory/unit/test_rerank_local_load_budget.py"]},
+            "tests/memory/unit/test_rerank_local_load_budget.py",
+            "tests/memory/unit/test_model_cache.py"]},
         {"id": "1.3", "title": "Escritura / ingest / destilador", "ch": UNIT, "paths": [
             "tests/memory/integration/test_memory_agent.py", "tests/memory/integration/test_writer_queue.py",
             "tests/memory/integration/test_write_precision_v2033.py",
@@ -507,6 +508,15 @@ DOMAINS: list[dict] = [
         {"id": "3.12", "title": "Marca de agua: se entrega la frase cerrada, el principio de la siguiente SIGUE "
                                 "vivo, y lo descartado se rescata aunque no haya boca para decirlo",
             "ch": VOICE, "paths": ["tests/voice/unit/test_the_watermark_leaves_the_tail_alive.py"]},
+        # 2026-08-23 — la MISMA sesión que motivó la marca de agua, pero una capa antes: el segmentador solo pegó
+        # basura porque el STT se la dio. Deepgram partió «Calatayud» en «cal»+«a» y el destilador acabó
+        # escribiendo que el operador vive donde no vive. El refuerzo de términos actúa ANTES del daño; todo lo
+        # demás es reparar una frase que ya nació mal. Medido contra la API viva: el tope es de 500 SUB-TOKENS
+        # (≈114 nombres reales), y pasarse es un 400 en la petición de escucha — o sea el motor SORDO, que es peor
+        # que el fallo que arregla. De ahí que la mitad de los tests sean el sobre y no la función.
+        {"id": "3.13", "title": "Refuerzo de términos del STT: los topónimos que nova-3 destroza, y una lista que "
+                                "no puede crecer hasta dejar el motor sordo",
+            "ch": VOICE, "paths": ["tests/voice/unit/test_stt_gazetteer.py"]},
     ]},
     {"id": "4", "name": "WIDGETS", "nodes": [
         {"id": "4.1", "title": "Ciclo de vida / acciones / refs / generador / background", "ch": UNIT, "paths": [
@@ -1249,6 +1259,12 @@ DOMAINS: list[dict] = [
                                  "because a running agent rewrites its own config and drops the key — and "
                                  "the code default downloads 1.1 GB on the event loop",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_lab_keeps_its_memory_setting.py"]},
+        {"id": "10.66", "title": "Face 5 of the role flip: a tester line that ADDRESSES the persona by their "
+                                 "own name was written by the assistant — nobody calls themselves by name",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_driver_flip_by_vocative.py"]},
+        {"id": "10.67", "title": "A line the HARNESS wrote is never charged to zaelar: the flipped turns "
+                                 "reach the judge quoted, not merely counted",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_harness_line_is_never_charged_to_zaelar.py"]},
     ]},
 ]
 

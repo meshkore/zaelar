@@ -111,7 +111,7 @@ def test_the_runner_puts_it_in_the_report(monkeypatch, tmp_path):
     monkeypatch.setattr(R.llmmod, "drive_model", lambda: "m")
 
     class _D:
-        def __init__(self, scn): self.done = True
+        def __init__(self, scn, persona_name=""): self.done = True
         def opening(self): return "hola"
         def hears(self, t): self.done = True
     monkeypatch.setattr(R.drivermod, "Driver", _D)

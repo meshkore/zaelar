@@ -98,7 +98,7 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     scenario_started_ms = time.time() * 1000
     session = f"use-cases-{scenario.id}-{uuid.uuid4().hex[:6]}"
     probe_client.reset(session)
-    driver = drivermod.Driver(scenario)
+    driver = drivermod.Driver(scenario, persona_name=config.PERSONA_NAME)
     transcript: list[dict] = []
     mute_turns: list[int] = []
     watchdog_log: list[dict] = []
@@ -321,6 +321,22 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         if driver.role_flips > 1:
             run_data["crashed"] = (f"el DRIVE se salió de su papel {driver.role_flips} vez/veces y no volvió "
                                    f"ni tras reintentarlo: la ronda no mide al producto")
+    # …and a SWEEP of what actually ended up in the transcript, which is not the same question. The counter
+    # above only sees flips the live guard caught; a line that slipped every face, or one the retry accepted
+    # on the second attempt, reaches the judge with nothing marking it. Measured 2026-08-23 in round 6 of
+    # `cheapest-monitor`: an assistant-voiced tester line («Sí, Marc, le he mirado las reseñas…») was read by
+    # the judge — reasonably, from the content — as zaelar's, and filed as one of the round's three [alta]
+    # blockers. The `TESTER`/`ZAELAR` labels were right there in the prompt and the content overrode them.
+    # So the flip is named line by line rather than left for the judge to infer from a label.
+    try:
+        flipped = [{"turn": i + 1, "text": (t.get("text") or "")[:400]}
+                   for i, t in enumerate(transcript)
+                   if t.get("who") == "tester"
+                   and drivermod.looks_like_the_assistant(t.get("text") or "", config.PERSONA_NAME)]
+    except Exception:  # noqa: BLE001
+        flipped = []
+    if flipped:
+        mech["role_flip_lines"] = flipped
     if mute_turns:
         mech["mute_turns"] = {"turns": mute_turns, "n": len(mute_turns)}
     try:
@@ -1218,6 +1234,8 @@ def _lab_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict | N
 
     config.ZAELAR_URL = st.base_url
     config.SANDBOX_DB = str(labs.workspace_of(prof) / "memory" / "_data" / "sandbox.db")
+    # The persona's own name, so the DRIVE model can be caught addressing itself by it (driver face 5).
+    config.PERSONA_NAME = str((prof.state or {}).get("operator_name") or "")
     print(f"▶ midiendo contra el agente de plató «{prof.key}» — {prof.title}")
     print(f"  ▸ MÍRALO EN VIVO: {st.base_url}")
     print(f"  ▸ cadena sembrada: {st.chain or '(desconocida)'}")

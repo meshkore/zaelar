@@ -55,7 +55,7 @@ def test_the_runner_COUNTS_them(monkeypatch):
     monkeypatch.setattr(R.llmmod, "drive_model", lambda: "m")
 
     class _D:
-        def __init__(self, scn): self.done = False
+        def __init__(self, scn, persona_name=""): self.done = False
         def opening(self): return "hola"
         def hears(self, t): pass
         def reply(self, nudge=""): return "sigo"

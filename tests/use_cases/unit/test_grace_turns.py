@@ -31,7 +31,7 @@ def _wire(monkeypatch, *, live: bool, replies=None):
     turns = {"n": 0}
 
     class _D:
-        def __init__(self, scn): self.done = False
+        def __init__(self, scn, persona_name=""): self.done = False
         def opening(self): return "hola"
         def hears(self, t): pass
         def reply(self, nudge=""):

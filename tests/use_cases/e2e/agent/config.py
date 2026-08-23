@@ -28,6 +28,11 @@ def _env(name: str, default: str = "") -> str:
 # live engine — the harness reads a database it created, never theirs.
 SANDBOX_DB = ""
 
+# The name the engine under test calls the person by (the lab profile's `operator_name`), set by
+# `run._lab_batch`. The DRIVE model needs it to catch the vocative role-flip: the persona never addresses
+# itself by name, so a tester line that does was written by the assistant. Empty outside the lab.
+PERSONA_NAME = ""
+
 _CODE_STAMP: dict | None = None
 
 

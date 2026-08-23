@@ -27,7 +27,7 @@ def _scn():
 
 class _FakeDriver:
     """One turn and out: what is measured here is HOW the probe is called, not the conversation."""
-    def __init__(self, scenario):
+    def __init__(self, scenario, persona_name=""):
         self.done = False
 
     def opening(self) -> str:

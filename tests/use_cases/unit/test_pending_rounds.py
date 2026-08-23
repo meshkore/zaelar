@@ -54,7 +54,7 @@ def test_the_run_still_FAILS_after_parking(monkeypatch):
     monkeypatch.setattr(R.llmmod, "drive_model", lambda: "m")
 
     class _D:
-        def __init__(self, scn): self.done = True
+        def __init__(self, scn, persona_name=""): self.done = True
         def opening(self): return "hola"
         def hears(self, t): self.done = True
     monkeypatch.setattr(R.drivermod, "Driver", _D)
