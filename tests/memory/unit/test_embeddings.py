@@ -1,6 +1,7 @@
 """Tests de memory/embeddings.py (V2-002 · T46) — dimensión + señal de similitud en castellano."""
 import math
 import time
+from unittest import mock
 
 import pytest
 
@@ -229,3 +230,25 @@ def test_the_busy_flag_never_leaks_from_a_previous_probe(monkeypatch):
     emb.reset()
     assert emb.active_backend() == "fastembed", "decidió con el veredicto de otra llamada"
     assert emb._ollama_busy is False
+
+
+# ── el degradado se VE, no solo se loguea (auditoría de arquitectura 2026-08-23, H7) ──────────────────────────
+@pytest.mark.parametrize("backend, forzado, hay_ambar, por_que", [
+    ("hash",      False, True,  "Ollama caído: el recall por significado queda APAGADO y nada lo decía"),
+    ("fastembed", False, True,  "degradado a escala (T176), misma clase de pérdida silenciosa"),
+    ("hash",      True,  False, "FORZADO por la suite en cada corrida — el ámbar permanente se aprende a ignorar"),
+    ("ollama",    False, False, "sano: no hay nada que reportar"),
+])
+def test_un_backend_degradado_que_nadie_pidio_pone_la_salud_en_ambar(backend, forzado, hay_ambar, por_que):
+    """La regla que este módulo tenía a medias: avisaba, pero solo por `logging` de la stdlib — sin marca de
+    tiempo y en medio del ruido del arranque. El gemelo es el canal de paráfrasis mudo desde 2026-08-18."""
+    with mock.patch("voice.health_state.record") as rec:
+        emb._warn_if_degraded(backend, forzado)
+        assert rec.called is hay_ambar, por_que
+
+
+def test_y_un_fallo_de_observabilidad_JAMAS_rompe_la_memoria():
+    """Sin esto, añadir un aviso convierte un recall degradado en un recall que revienta — peor que el fallo
+    que se quería hacer visible."""
+    with mock.patch("voice.health_state.record", side_effect=RuntimeError("bus caído")):
+        emb._warn_if_degraded("hash", False)   # no debe lanzar

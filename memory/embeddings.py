@@ -44,6 +44,32 @@ def _warn_if_degraded(backend: str, forced: bool) -> None:
     else:  # fastembed u otro
         logger.warning("⚠️ memoria: embeddings en '%s' (%s) — recall semántico DEGRADADO a escala (colapsa con "
                        "miles de recuerdos, T176). Recomendado: Ollama + embeddinggemma.", backend, src)
+    _report_degraded(backend, forced)
+
+
+def _report_degraded(backend: str, forced: bool) -> None:
+    """Y ADEMÁS del log, ÁMBAR — porque este módulo escribe con `logging` de la stdlib, no con loguru, así que
+    sus líneas salen sin marca de tiempo y en medio del ruido del arranque (auditoría 2026-08-23, H7).
+
+    La regla ya está pagada tres veces en esta casa: *un fallo de la memoria nunca puede quedarse en un
+    `logger.warning`*. El gemelo es el canal de paráfrasis mudo, que desde el 2026-08-18 pone la salud en ámbar
+    cuando hubo candidatos y no salió ni uno. Aquí la pérdida es MAYOR y más silenciosa: con `hash` el recall
+    por significado queda prácticamente apagado —solo FTS léxico— y nada en pantalla lo dice, así que la memoria
+    parece funcionar y simplemente deja de encontrar lo que no coincide literalmente.
+
+    **Un backend FORZADO no es una avería**: `ZAELAR_EMBED_BACKEND` lo pone la suite en cada corrida y ponerlo
+    ámbar dejaría el semáforo permanentemente sucio, que es como se aprende a ignorarlo. Solo se reporta el
+    degradado que NADIE pidió.
+    """
+    if forced:
+        return
+    try:
+        from voice import health_state
+        health_state.record("memory", "degraded",
+                            f"embeddings en '{backend}': Ollama/embeddinggemma no disponible — "
+                            f"recall por significado {'DESACTIVADO' if backend == 'hash' else 'degradado'}")
+    except Exception:  # noqa: BLE001
+        pass  # la observabilidad NUNCA rompe la memoria
 
 
 # ── backend activo (resuelto una vez, con re-intento si quedó DEGRADADO) ──────────────────────────────────────
