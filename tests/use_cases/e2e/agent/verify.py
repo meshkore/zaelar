@@ -701,8 +701,45 @@ def prompt_contradictions(prompt_rows: list[dict]) -> list[dict]:
         done = _objectives(row.get("failed_task_line") or "")
         clash = [a for a in live for b in done if _same_objective(a, b)]
         if clash:
-            out.append({"turn": row.get("turn"), "objective": clash[0][:120], "n": len(clash)})
+            out.append({"turn": row.get("turn"), "objective": clash[0][:120], "n": len(clash),
+                        "kind": "alive_and_finished"})
+        found = _found_vs_empty(row)
+        if found:
+            out.append({"turn": row.get("turn"), "objective": found[:120], "n": 1,
+                        "kind": "found_and_empty"})
     return out
+
+
+#: What the browser block writes when the worker has already kept candidates (`prompt.py`, V2-200).
+_HAS_RESULTS_MARK = "YA TIENE RESULTADOS"
+#: What the live block writes when it knows the errand has brought something in (V2-222, third face).
+_FOUND_MARK = "YA HA ENCONTRADO"
+
+
+def _found_vs_empty(row: dict) -> str:
+    """The SECOND contradiction family, measured on `search-secondhand-monitor__es` (2026-08-23 23:24).
+
+    Same errand, two registries, opposite claims IN ONE PROMPT: the browser block said «YA TIENE
+    RESULTADOS … DÁSELOS en este turno» while the live block said «en cola (llevas 23s)» and «la respuesta
+    es que TODAVÍA NO LO SABES». The turn answered "I'll tell you when I have results" with 35 real
+    listings on the sheet — and was graded as three [alta] acts of disobedience.
+
+    It was not disobedience. Same reasoning as the family above: a self-contradicting prompt has no
+    obedient answer, so the obedience reading of that turn is void and this has to be reported apart.
+
+    Fires only when the live block carries NEITHER of the two things that would make it agree: the
+    found-marker (V2-222's third face) or a step note saying something already landed. Its absence is the
+    whole defect — a live block that mentions the candidates is not contradicting anything.
+    """
+    task = row.get("task_line") or ""
+    live = row.get("live_line") or ""
+    if _HAS_RESULTS_MARK not in task or _FOUND_MARK in live:
+        return ""
+    for a in _objectives(task):
+        for b in _objectives(live):
+            if _same_objective(a, b):
+                return a
+    return ""
 
 
 def memory_language(db_path="") -> dict:

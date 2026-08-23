@@ -603,6 +603,18 @@ def live_state() -> str:
                 _silent = int(t.get("silent_s", 0) or 0)
                 if _silent >= _disp.STUCK_SECS:
                     bit += f" — ENCALLADA: {_silent // 60} min SIN DAR NINGUNA SEÑAL"
+                # V2-222, third face — measured on `search-secondhand-monitor__es` (2026-08-23 23:24). The
+                # browser block said, in the same prompt, «YA TIENE RESULTADOS … DÁSELOS en este turno», and
+                # this one said «en cola (llevas 23s)». Two registries describing ONE errand, disagreeing:
+                # the finalists live in the worker record (`kept`, written by `hbnote considered --kept N`),
+                # and this block never read it, so the queue phase — which the worker had simply never
+                # updated — was the only thing here. The turn answered «te aviso en cuanto tenga
+                # resultados» with 35 real listings on the sheet, twice, and the round was scored as
+                # disobedience. It was not: a self-contradicting prompt has no obedient answer. The datum
+                # is already on the summary; the same signal the browser face reads (V2-200) is read here.
+                _kept = int(t.get("kept", 0) or 0)
+                if _kept > 0:
+                    bit += f" — YA HA ENCONTRADO {_kept} candidato(s), están en la hoja"
                 bits.append(bit + f' (llevas {t.get("secs", 0)}s)')
             lines.append("TAREAS DE FONDO EN CURSO (los brain workers las están resolviendo; NO reinicies ni digas "
                          "que ya está): " + "; ".join(bits) + ". Si el operador pregunta el estado, di el PASO "
@@ -628,7 +640,8 @@ def live_state() -> str:
                          # delivery that was on screen. The fork goes INSIDE the imperative rather than in a
                          # separate sentence: two orders in one paragraph come out heads-or-tails.
                          "PERO lee el PASO antes de decir eso: si dice que algo ya está ENTREGADO, ESCRITO o "
-                         "EN PANTALLA, entonces la tarea SÍ ha traído eso — cuéntalo en este turno, di qué "
+                         "EN PANTALLA, o que YA HA ENCONTRADO candidatos, entonces la tarea SÍ ha traído "
+                         "eso — cuéntalo en este turno, di qué "
                          "hay y qué falta todavía, y NO contestes «sigo con ello». Lo que sigue EN CURSO es "
                          "la tarea, no lo que ya está entregado; negar una entrega que el operador tiene "
                          "delante en la pantalla es peor que no haberla hecho. "
