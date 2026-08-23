@@ -1,0 +1,146 @@
+# Spanish place names that Deepgram nova-3 mis-transcribes — measured, not guessed.
+#
+# THE SWEEP (2026-08-23). 941 Spanish municipalities over 8.000 inhabitants, each spoken by macOS
+# `say -v Mónica` inside a carrier sentence («Estoy en X, ¿qué tiempo hace?») and sent to nova-3 with
+# language=es. 342 of the 941 came back wrong — 36%. The list below is the worst of those by population.
+# Ranking by population ALONE was tried first and does not work: it spends the budget on Madrid and
+# Barcelona, which nova-3 already gets right, and never reaches Calatayud (#429 nationally) — the name
+# that caused the incident this exists for.
+#
+# ONE WORD ONLY, and that is a budget decision with a cost. Deepgram caps keyterm at 500 sub-word tokens,
+# so «Sanlúcar de Barrameda» eats several slots at once; dropping multi-word names moved the measured
+# capacity from 99 entries to 121, and that is the only reason Calatayud fits at all. The ones left out
+# fail just as badly — a sample is at the bottom. Boosting only their distinctive word («Cornellá»,
+# «Castelldefels») would recover them, but it needs a stop-word filter first or «Santa», «Nueva» and
+# «Villa» get boosted across the whole language.
+#
+# Each line records what came back, so the next person can re-judge a call without re-running the sweep.
+# Some of these are not garble but a DIFFERENT REAL CITY, which is the dangerous kind: «Badalona» heard
+# as «Barcelona» is wrong in a way that reads perfectly.
+Vigo                      # heard as: vivo
+Vitoria                   # heard as: Victoria
+Elche                     # heard as: el
+Tarrasa                   # heard as: Terraza
+Badalona                  # heard as: Barcelona
+Salamanca                 # heard as: Salamaca
+Reus                      # heard as: Rewards
+Rivas-Vaciamadrid         # heard as: Rivas Vacia Madrid
+Vélez-Málaga              # heard as: Vélez Málaga
+Fuengirola                # heard as: Fuegirola
+Manresa                   # heard as: Mandesa
+Palencia                  # heard as: Valencia
+Guecho                    # heard as: (desapareció)
+Avilés                    # heard as: hábiles
+Majadahonda               # heard as: Mahadahonda
+Castelldefels             # heard as: Castell de Fels
+Viladecans                # heard as: Vila de Cannes
+Ponferrada                # heard as: Conferrada
+Aranjuez                  # heard as: Arajuez
+Alcoy                     # heard as: alcohol
+Cuenca                    # heard as: cueca
+Siero                     # heard as: (desapareció)
+Torrelavega               # heard as: Torre La Vega
+Vic                       # heard as: Big
+Adeje                     # heard as: ADG
+Figueras                  # heard as: Fiberas
+Gavá                      # heard as: (desapareció)
+Puertollano               # heard as: Puerto Llano
+Blanes                    # heard as: planes
+Torre-Pacheco             # heard as: Torre Pacheco
+Burjasot                  # heard as: (desapareció)
+Llucmajor                 # heard as: York
+Basauri                   # heard as: (desapareció)
+Langreo                   # heard as: la Greo
+Arroyomolinos             # heard as: Arroyo Molinos
+Burriana                  # heard as: Gurriana
+Villajoyosa               # heard as: Villa Joyosa
+Onteniente                # heard as: un Teniente,
+Yecla                     # heard as: (desapareció)
+Inca                      # heard as: (desapareció)
+Villena                   # heard as: Guillena
+Salt                      # heard as: sol
+Arteijo                   # heard as: Artelfo
+Castro-Urdiales           # heard as: Castraurdiales,
+Navalcarnero              # heard as: Naval Carnero
+Ingenio                   # heard as: Higenio
+Lejona                    # heard as: Lezona
+Calafell                  # heard as: Calafel
+Sitges                    # heard as: Sigues
+Carballo                  # heard as: Carvallo
+Chirivella                # heard as: Chiribella
+Salou                     # heard as: salón
+Culleredo                 # heard as: Tulleredo
+Játiva                    # heard as: (desapareció)
+Crevillente               # heard as: Crevigente
+Hellín                    # heard as: el gym
+Vinaroz                   # heard as: Dinaroth
+Durango                   # heard as: Durago
+Lepe                      # heard as: leve
+Cártama                   # heard as: Kartama
+Rota                      # heard as: ruta
+Muchamiel                 # heard as: mucha miel
+Bétera                    # heard as: (desapareció)
+Sestao                    # heard as: cestado
+Éibar                     # heard as: el bar
+Ciempozuelos              # heard as: cien pozuelos
+Alboraya                  # heard as: Alboralla
+Valls                     # heard as: (desapareció)
+Liria                     # heard as: línea
+Almonte                   # heard as: Al Monte
+Cullera                   # heard as: Tullera
+Palafrugell               # heard as: Palafrugel
+Ibi                       # heard as: IVI
+Moguer                    # heard as: (desapareció)
+Teguise                   # heard as: (desapareció)
+Vilaseca                  # heard as: Vila Seca
+Zarauz                    # heard as: Zaráwest
+Puenteareas               # heard as: Puente Areas
+Moncada                   # heard as: Estoy embocada
+Nerja                     # heard as: ERCA
+Torrox                    # heard as: dos Rocs
+Güímar                    # heard as: Guaymar
+Puzol                     # heard as: Buzón
+Tías                      # heard as: días
+Cartaya                   # heard as: Cartagena
+Manlleu                   # heard as: Manyeur
+Calella                   # heard as: Caleya
+Huércal-Overa             # heard as: Huerca Lobera
+Benicasim                 # heard as: Benicasín
+Lalín                     # heard as: la LIN
+Calatayud                 # heard as: Calata Jude
+Amorebieta-Echano         # heard as: amorebieta eczano
+Barañáin                  # heard as: (desapareció)
+Arahal                    # heard as: Araal
+Lasarte-Oria              # heard as: la SAR teoría
+Moaña                     # heard as: Modaña,
+Tárrega                   # heard as: Tarregga
+Cardedeu                  # heard as: Cardedeo
+Teo                       # heard as: TO
+Boiro                     # heard as: (desapareció)
+
+# --- LEFT OUT BY BUDGET (they fail too, but they are multi-word) ---
+# Hospitalet de Llobregat       ->  de Llobregat
+# Torrejón de Ardoz             ->  Torrejón de Ardos
+# Santa Coloma de Gramanet      ->  Santa Coloma de
+# Cornellá de Llobregat         ->  Corneya de Llobregat
+# Villanueva y Geltrú           ->  Villanueva y Heltro
+# Sanlúcar de Barrameda         ->  San Lucas de Barrameda
+# Boadilla del Monte            ->  Goadilla del Monte
+# El Prat de Llobregat          ->  el Prac de Llobregat
+# San Vicente del Raspeig       ->  San Vicente del Raspé y,
+# Sardañola del Vallés          ->  Sargañola del Valles
+# Alhaurín de la Torre          ->  Alaurín de la Torre
+# Lloret de Mar                 ->  de Mar
+# Villafranca del Panadés       ->  Villafraca del Panadés
+# La Rinconada                  ->  la arrinconada
+# Los Palacios y Villafranca    ->  los Palacios y Villafraca
+# Villagarcía de Arosa          ->  Villa García de Arosa
+# Moncada y Reixach             ->  Estoy embocada y
+# San Juan Despí                ->  San Juan de Espí
+# Azuqueca de Henares           ->  Azuque Cadenares
+# San Pedro de Ribas            ->  San Pedro de Rivas,
+# Vall de Uxó                   ->  balde UXO
+# El Campello                   ->  el camello
+# Villaviciosa de Odón          ->  Villa Viciosa de Odón
+# Pineda de Mar                 ->  Pinela de Mar
+# Puente Genil                  ->  Puente Geniel
