@@ -68,7 +68,11 @@ def _load_into(model: str) -> None:
     """Body of the loader thread: build the encoder, or record why it will never work."""
     try:
         from fastembed.rerank.cross_encoder import TextCrossEncoder
-        enc = TextCrossEncoder(model_name=model)
+        from . import model_cache
+        cache = model_cache.models_dir()
+        # `cache_dir=None` deja el default de la librería (el TEMP del sistema). Se pasa explícito porque ahí
+        # el modelo se PURGA y la descarga vuelve; ver `model_cache.py`.
+        enc = TextCrossEncoder(model_name=model, **({"cache_dir": cache} if cache else {}))
     except Exception as e:                     # missing dep, unknown model, corrupt cache, no disk...
         with _lock:
             _gave_up[model] = f"{type(e).__name__}: {e}"

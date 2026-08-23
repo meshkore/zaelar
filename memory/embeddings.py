@@ -195,7 +195,12 @@ def _fastembed_embed(texts: list[str]) -> list[list[float]] | None:
         if _fastembed_model is None:
             from fastembed import TextEmbedding  # type: ignore
 
-            _fastembed_model = TextEmbedding()
+            from . import model_cache
+            # Mismo motivo que en `rerank_local.py`: sin `cache_dir` el modelo cae en el TEMP del sistema, que
+            # se purga — y este es el fallback de embeddings, o sea el recall por SIGNIFICADO volviendo a frío
+            # sin que nadie lo relacione con una caché. Ver `model_cache.py`.
+            cache = model_cache.models_dir()
+            _fastembed_model = TextEmbedding(**({"cache_dir": cache} if cache else {}))
         return [list(map(float, v)) for v in _fastembed_model.embed(texts)]
     except Exception:
         return None
