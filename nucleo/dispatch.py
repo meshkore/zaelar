@@ -735,17 +735,35 @@ def _sheet_open(rec) -> None:
     Todo fail-soft: un fallo aquí no puede tumbar una escalada.
     """
     # El SELLO, una vez y antes de nada: todo lo que escriba en esta hoja tiene que nombrarla igual.
+    #
+    # UN RELEVO NO ES UN ENCARGO NUEVO (medido 2026-08-23, `cheapest-monitor`). Cuando el proveedor se queda sin
+    # cuota, `session._finish` relanza el MISMO objetivo con el escalón siguiente — y ese relanzamiento estrenaba
+    # `task_id`, así que estrenaba HOJA: el operador acabó con `results::…-1` vacía y `results::…-2` con los 13
+    # hallazgos, dos cajas para un solo encargo, y el turno diciendo «los tienes en tu widget de resultados»
+    # sobre la que no era. Lo mismo con la retoma por contexto agotado (V2-117). Si la escalada trae la hoja de
+    # su predecesora, se HEREDA — es la continuación de lo mismo, no otra cosa.
+    # HEREDADA se pregunta comparando con la MÍA, no mirando si el campo está lleno. La primera versión decía
+    # «ya tiene hoja ⇒ viene de otro» y puso rojo un test de V2-259 que sella la hoja del propio encargo antes de
+    # abrirla — con razón: un encargo puede llegar con SU hoja ya puesta, y eso no lo convierte en un relevo.
+    # La hoja de un relevo es la de su PREDECESORA, así que no deriva de este `task_id`.
+    _mine = ""
+    try:
+        _mine = sheet_id_for(rec.task_id)
+    except Exception:  # noqa: BLE001
+        pass
+    _inherited = bool(getattr(rec, "sheet", "")) and str(rec.sheet) != _mine
     if not getattr(rec, "sheet", ""):
-        try:
-            rec.sheet = sheet_id_for(rec.task_id)
-        except Exception:  # noqa: BLE001
-            pass
+        rec.sheet = _mine
     _sid = sheet_of(rec)
     try:
         from widgets.results import data as _sheet
         # V2-259 — SU hoja. `fresh` deja de ser una decisión difícil: una hoja nueva es una CLAVE nueva, así que
         # estrenar ya no puede borrarle a nadie lo suyo (que es literalmente lo que el operador pidió evitar).
-        _sheet.begin_task((rec.goal or "").strip(), fresh=True, sheet=_sid)
+        #
+        # …salvo cuando la hoja viene HEREDADA, y ahí `fresh` es justo el daño: `present` reemplaza los items, así
+        # que estrenar la hoja de la predecesora borra lo que ella ya había entregado antes de quedarse sin cuota.
+        # Heredar sin esto convierte «dos cajas» en «una caja vacía», que es peor.
+        _sheet.begin_task((rec.goal or "").strip(), fresh=not _inherited, sheet=_sid)
         _sheet.prune_sheets()          # la hoja persiste a propósito; N instancias no pueden crecer sin techo
     except Exception:  # noqa: BLE001
         pass
@@ -1963,6 +1981,9 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
                                 # La GENERACIÓN de relevo viaja con la cadena. Sin esto el tope de `_finish` no
                                 # existe: cada relevo estrena record y su contador vuelve a cero.
                                 relay_gen=int(ctx.get("relay_gen", 0) or 0),
+                                # …y la HOJA con ella, por lo mismo: un relevo continúa el encargo, así que sigue
+                                # escribiendo donde el operador ya está mirando en vez de abrirle una caja al lado.
+                                sheet=str(ctx.get("sheet", "") or ""),
                                 trace_id=str(ctx.get("trace", "") or ""))   # V2-044: encadena a la frase origen
             # V2-227 — la SUPERFICIE se sella aquí, que es el único punto por el que pasan TODAS las puertas de
             # entrada al dispatcher (el cerebro con su `surface`, el auto-resume, el confirm-gate, el cluster, el

@@ -806,6 +806,14 @@ DOMAINS: list[dict] = [
                                 "cuenta SU relato, y quien escribe dice en cuál",
             "ch": UNIT,
             "paths": ["tests/browser/unit/frontera/test_two_searches_are_two_sheets.py"]},
+        # La otra cara de 4.36, medida el 2026-08-23: si dos búsquedas son dos hojas, un RELEVO de proveedor no
+        # puede ser una búsqueda nueva. `session._finish` relanza el mismo objetivo con el escalón siguiente y ese
+        # relanzamiento estrenaba `task_id` → hoja nueva: dos cajas para un encargo, una vacía y otra con los 13
+        # hallazgos, con el turno señalando la que no era. Heredar la clave y NO estrenarla son la misma decisión.
+        {"id": "4.39", "title": "Un RELEVO no es un encargo nuevo: hereda la hoja del encargo y no la estrena "
+                                "(estrenarla borra lo que la predecesora ya había entregado)",
+            "ch": UNIT,
+            "paths": ["tests/agent_headless/unit/test_a_relay_is_not_a_new_errand.py"]},
         # V2-256 — a feedback submission was refused and the panel said NOTHING. Measured on a live engine:
         # `POST /api/feedback` answered `{"ok":false,"error":"send_failed","status":401}` and `send()` was an
         # `if (res && res.ok) {…}` with no else. The thank-you was invisible too, for TWO independent reasons
