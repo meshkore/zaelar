@@ -20,14 +20,23 @@ from observability import identity
 from voice import observer, trace
 
 
+#: The REAL closer, captured at import. Two tests in this file monkeypatch `identity.end_session` to raise on
+#: purpose (that is their subject: a reset must survive a failing close), and the autouse fixture below cleans up
+#: with the same function — so whether the fixture exploded came down to pytest's teardown ORDER between it and
+#: the `monkeypatch` fixture, which a change anywhere in the conftest chain can flip. It flipped on 2026-08-23 and
+#: turned a passing test into a suite-wide red with `RuntimeError: simulado` raised from teardown. A fixture's job
+#: is to clean up; it must not be defeatable by what the test under it patches.
+_END_SESSION = identity.end_session
+
+
 @pytest.fixture(autouse=True)
 def _clean():
     busmod.reset()
-    identity.end_session("test")
+    _END_SESSION("test")
     observer.clear_log()
     yield
     busmod.reset()
-    identity.end_session("test")
+    _END_SESSION("test")
     observer.clear_log()
 
 

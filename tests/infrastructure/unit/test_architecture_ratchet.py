@@ -38,7 +38,7 @@ def _lazy_imports(p: Path) -> int:
 # ratchet is telling you to extract a module — which is the entire point of the audit this was born from.
 _CEILINGS: dict[str, tuple[int, int]] = {
     "voice/engine/llm/providers/nucleo.py": (3496, 156),
-    "nucleo/dispatch.py": (2113, 61),
+    "nucleo/dispatch.py": (2023, 57),
     "widgets/navegador/owner.py": (1579, 43),
     "nucleo/flash/router_guards.py": (1282, 15),
     "nucleo/flash/probe.py": (1210, 87),
