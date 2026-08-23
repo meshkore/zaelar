@@ -1159,9 +1159,22 @@ def _lab_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict | N
     nothing left to open afterwards. A lab agent stays, on a port they already have bookmarked, with its
     memory and its widgets exactly as the round left them.
 
-    IT DOES NOT WIPE THE AGENT. A reset reseeds the profile and is a good idea before a measured round,
-    but doing it here would silently erase whatever the operator was looking at. It is one explicit
-    command (`python -m tests.use_cases.lab reset es`) and it stays theirs to give.
+    IT DOES NOT WIPE THE AGENT BY DEFAULT. A reset reseeds the profile and is a good idea before a measured
+    round, but doing it here on its own would silently erase whatever the operator was looking at. It stays
+    theirs to give — either as the standalone command (`python -m tests.use_cases.lab reset es`) or, now,
+    as `--fresh` on the round itself.
+
+    WHAT `--fresh` IS FOR, measured 2026-08-23 on `cheapest-monitor`. A lab agent is persistent, so it holds
+    the memory of every round ever driven against it. The third attempt at that case opened with zaelar
+    saying «tú antes hablabas de un 27" 4K por unos 300 euros» — a preference from the attempt that had died
+    two hours earlier. The agent was not solving today's errand; it was finishing the old one, and a judge
+    reading that transcript would have graded the wrong conversation.
+
+    The harness already stamps `memory_carryover` for cases sharing a batch, but that list is built from the
+    cases THIS invocation ran. A single-case round against a long-lived lab therefore reported an EMPTY
+    carryover while the agent demonstrably remembered — evidence that was not wrong so much as blind. Hence
+    the warning below: a non-fresh lab round now says out loud that prior memory is in play, because the
+    failure mode is not a red round, it is a green one nobody questions.
 
     The clean-tree refusal still applies: a round measured mid-edit compares with nothing, and that is
     true whichever engine served it.
@@ -1170,6 +1183,9 @@ def _lab_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict | N
     from tests.use_cases.lab import stage as labs
 
     prof = labp.get(args.lab)
+    if getattr(args, "fresh", False):
+        print(f"▶ reseteando el plató «{prof.key}» antes de medir (memoria borrada, perfil resembrado)…")
+        labs.reset(prof)
     st = labs.status(prof)
     if not st.running:
         print(f"✗ el agente de plató «{prof.key}» no está en marcha.\n"
@@ -1205,6 +1221,12 @@ def _lab_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict | N
     print(f"▶ midiendo contra el agente de plató «{prof.key}» — {prof.title}")
     print(f"  ▸ MÍRALO EN VIVO: {st.base_url}")
     print(f"  ▸ cadena sembrada: {st.chain or '(desconocida)'}")
+    if not getattr(args, "fresh", False):
+        # Said EVERY time rather than only when contamination is detected, because detecting it would mean
+        # knowing what the agent remembers, and the round that proved this necessary is exactly the one where
+        # the harness believed nothing had carried over.
+        print("  ⚠️ memoria del plató NO borrada: este agente recuerda las rondas anteriores y puede "
+              "responder desde ellas. Usa --fresh para medir en limpio.")
     for _refusal in (brain_preflight(), bridge_allowlist_refusal()):
         if _refusal:
             print(_refusal)
@@ -1331,6 +1353,9 @@ def main() -> None:
     ap.add_argument("--rounds", type=int, default=1, metavar="N",
                     help="run the selection N times as ONE batch; stops if the engine's HEAD moves between "
                          "rounds, because two rounds of different code are not a pair")
+    ap.add_argument("--fresh", action="store_true",
+                    help="con --lab: borrar la memoria del agente y resembrar su perfil ANTES de medir, para "
+                         "que la ronda no se conteste con lo que quedó de la anterior")
     ap.add_argument("--lab", choices=["es", "us"], default="",
                     help="medir contra el agente PERSISTENTE de tests/use_cases/lab/ (que el operador "
                          "puede mirar) en vez de contra un sandbox de usar y tirar")

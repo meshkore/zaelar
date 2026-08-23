@@ -16,20 +16,59 @@ from . import config, llm
 # at the very end of the line, or an explicit sign-off word — never just the word floating anywhere in an
 # otherwise ordinary sentence. This is why the scenario's own system prompt already said "gracias' o
 # 'perfecto' SEGUIDA de un cierre" — the code just hadn't matched that until now.
-_CLOSING_RE = re.compile(
-    r"(muchas\s+)?gracias[.!,]?\s*$|"                       # ends the message: "...gracias." / "muchas gracias"
-    r"\bperfecto,?\s+(muchas\s+)?gracias\b|"                # "perfecto, gracias" / "perfecto, muchas gracias"
-    r"\b(eso es todo|nada m[aá]s|hasta luego|adi[oó]s)\b|"  # explicit sign-off words
+# TWO regexes, because "gracias" and "adiós" are not the same kind of word.
+#
+# MEASURED 2026-08-23, `cheapest-monitor`: the persona answered the agent's clarifying question with
+#
+#     «Sí, eso me vale: 27 pulgadas 4K y por debajo de 300 si se puede. Gracias.»
+#
+# …and the round ENDED, on turn 2 of a 10-turn budget, before a single search had run. The case has now
+# failed to produce a verdict three times in a row and this was the third distinct cause.
+#
+# A single regex could not tell those apart because it asked the wrong question. It asked "does a farewell
+# word appear near the end?", and the answer is yes for any polite Spanish sentence — courtesy is a SUFFIX
+# here, not a message. The right question is whether the courtesy is the WHOLE message: «Gracias.» on its
+# own is a goodbye; the same word welded to an answer that carries new constraints is manners.
+#
+# So: an explicit sign-off (`adiós`, `eso es todo`, `goodbye`) still matches ANYWHERE — those words have no
+# second job, nobody says «adiós» in the middle of placing an order. A bare courtesy only closes when
+# nothing else survives stripping it.
+_SIGNOFF_RE = re.compile(
+    r"\b(eso es todo|nada m[aá]s|hasta luego|adi[oó]s)\b|"      # explicit sign-off words, ES
     # …and the SAME closings in English. Until 2026-08-23 this regex was Spanish-only while 60 of the 133
     # scenarios are the US locale, whose personas speak English — so a US driver could never end by saying
     # goodbye, burned its full turn budget every round by construction, and ate an efficiency penalty the ES
     # twin never faced. The market-twins guard (same signals, same turns) missed it because the bias lived in
     # the driver, not the scenario.
-    r"(many\s+)?thanks[.!,]?\s*$|thank\s+you[.!,]?\s*$|"    # ends the message: "...thanks." / "thank you"
-    r"\bperfect,?\s+thanks?\b|\bgreat,?\s+thanks?\b|"       # "perfect, thanks" / "great, thanks"
     # `take care(?!\s+of)`: "take care of the booking" is an ERRAND, not a goodbye.
-    r"\b(that'?s\s+(all|everything)|nothing\s+else|good\s*bye|bye\s+for\s+now|see\s+you|take\s+care(?!\s+of))\b",
+    r"\b(that'?s\s+(all|everything)|nothing\s+else|good\s*bye|bye\s+for\s+now|see\s+you|"
+    r"take\s+care(?!\s+of))\b",
     re.I)
+
+# Anchored at BOTH ends on purpose: this is the "and nothing else" test. Leading fillers that carry no
+# information of their own (vale/ok/genial/perfecto · ok/great/perfect) are allowed in front, because
+# «Vale, gracias» is as much a goodbye as «Gracias» — they are the same message.
+_COURTESY_ONLY_RE = re.compile(
+    r"^\W*"
+    r"(?:(?:vale|ok(?:ay)?|genial|perfecto|estupendo|great|perfect|awesome|cool|alright)\b[\s,.!]*)*"
+    r"(?:muchas\s+|muy\s+|many\s+)?"
+    r"(?:gracias|thanks|thank\s+you|thx)"
+    r"[\s,.!]*$",
+    re.I)
+
+
+def is_closing(txt: str) -> bool:
+    """Did the person just say goodbye — as opposed to saying something and being polite about it?
+
+    Kept as a function rather than a regex so the two rules have ONE home; `run.py` and the tests both ask
+    this question and neither should have to know there are two patterns."""
+    t = (txt or "").strip()
+    if not t or "?" in t or "¿" in t:      # a message still asking for something is not a farewell
+        return False
+    if _COURTESY_ONLY_RE.match(t):
+        return True
+    return bool(_SIGNOFF_RE.search(t)) and len(t) < 200
+
 
 def _today_note(locale: str = "es") -> str:
     """The DRIVE model needs the calendar as badly as the judge did, and for the same reason.
@@ -207,9 +246,6 @@ class Driver:
             if looks_like_the_assistant(txt):
                 self.role_flips += 1
         self.history.append({"role": "assistant", "content": txt})
-        # A closing line never ends in a question — still actively waiting for something if it just asked
-        # one, no matter which other word it also contains (belt-and-suspenders on top of _CLOSING_RE).
-        still_asking = "?" in txt or "¿" in txt
-        if _CLOSING_RE.search(txt) and len(txt) < 200 and not still_asking:
+        if is_closing(txt):
             self.done = True
         return txt

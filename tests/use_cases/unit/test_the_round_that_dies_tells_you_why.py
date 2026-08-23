@@ -48,7 +48,7 @@ class _Scn:
     "Ok thanks, bye for now",
 ])
 def test_a_closing_line_closes_in_both_languages(line):
-    assert drivermod._CLOSING_RE.search(line), line
+    assert drivermod.is_closing(line), line
 
 
 @pytest.mark.parametrize("line", [
@@ -56,9 +56,15 @@ def test_a_closing_line_closes_in_both_languages(line):
     "Gracias por avisar, ¿y el precio?",         # gracias mid-sentence, still asking
     "Please take care of the booking and let me know.",   # an ERRAND, not a farewell
     "Thanks to that filter it should be cheaper, can you rerun it",  # thanks mid-sentence
+    # THE line that ended `cheapest-monitor` on turn 2 of 10, measured 2026-08-23. It answers the agent's
+    # clarifying question — three new constraints — and signs off politely. Courtesy is a SUFFIX in Spanish,
+    # not a message, and reading it as a farewell killed the round before a single search ran.
+    "Sí, eso me vale: 27 pulgadas 4K y por debajo de 300 si se puede. Gracias.",
+    "Vale, pues busca por debajo de 300 euros. Gracias.",
+    "Sure, that works for me, under 300 and 27 inches. Thanks.",
 ])
 def test_an_errand_or_acknowledgment_is_not_a_goodbye(line):
-    assert not drivermod._CLOSING_RE.search(line), line
+    assert not drivermod.is_closing(line), line
 
 
 def test_the_us_driver_speaks_english_to_its_own_persona():
@@ -172,3 +178,45 @@ def test_the_batch_handler_reads_the_crash_not_an_empty_record():
     assert 'getattr(e, "autopsy"' in window, "el handler ya no adjunta la autopsia del motor"
     assert "engine_autopsy" in window, "un crash sin autopsia propia ya no recibe una"
     assert "⚕" in window, "la autopsia ya no se imprime en el momento"
+
+
+# ── a lab round says whether it is measuring on top of an old one ─────────────────────────────────────────
+
+def test_a_lab_round_can_start_from_clean_memory():
+    """`--fresh` exists because a lab agent is PERSISTENT: it holds the memory of every round ever driven
+    against it. Measured 2026-08-23 — the third attempt at `cheapest-monitor` opened with zaelar saying «tú
+    antes hablabas de un 27" 4K por unos 300 euros», a preference from the attempt that died two hours
+    earlier. Without the flag the only way to measure clean was to remember to reset by hand first."""
+    from tests.use_cases.e2e.agent import run as runmod
+    ap = runmod._parser() if hasattr(runmod, "_parser") else None
+    if ap is None:                       # the parser is built inline in main(); fall back to the source
+        import inspect
+        src = inspect.getsource(runmod)
+        assert '"--fresh"' in src
+        return
+    assert ap.parse_args(["--scenario", "x", "--lab", "es", "--fresh"]).fresh is True
+    assert ap.parse_args(["--scenario", "x", "--lab", "es"]).fresh is False
+
+
+def test_a_lab_round_that_did_not_reset_says_so():
+    """The failure mode this guards is not a red round — it is a GREEN one nobody questions. The harness
+    stamps `memory_carryover` from the cases THIS invocation ran, so a single-case round against a
+    long-lived lab reported an empty carryover while the agent demonstrably remembered. Evidence that was
+    not wrong, just blind. So the round says it out loud instead."""
+    import inspect
+    from tests.use_cases.e2e.agent import run as runmod
+    src = inspect.getsource(runmod._lab_batch)
+    assert "memoria del plató NO borrada" in src
+    assert "--fresh" in src
+
+
+def test_the_reset_is_never_silent():
+    """The operator's own rule, and it survives the new flag: a lab agent is what they have open in a
+    bookmark, so wiping it is theirs to ask for. `--fresh` is opt-in and announces itself; the default path
+    still touches nothing."""
+    import inspect
+    from tests.use_cases.e2e.agent import run as runmod
+    src = inspect.getsource(runmod._lab_batch)
+    i_reset = src.index("labs.reset(prof)")
+    assert "getattr(args, \"fresh\", False)" in src[:i_reset], "el reset no está detrás del opt-in"
+    assert "reseteando el plató" in src[:i_reset], "el reset no se anuncia antes de borrar"
