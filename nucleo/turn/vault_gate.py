@@ -110,3 +110,82 @@ async def inspect(text: str, *, enabled: bool = True, store: bool = True) -> Vau
                             text=redacted, line=_secret_line(has_vault),
                             labels=labels, has_vault=has_vault)
     return VaultVerdict(kind="carried", consumed=False, text=redacted, labels=labels, has_vault=has_vault)
+
+
+# ── REVELAR un secreto guardado (V2-060 F1b) ─────────────────────────────────────────────────────────────────
+# El tercero de la terna, y el que más cuidado pide: aquí SÍ existe un valor descifrado, y la frontera entre los
+# dos canales no es de estilo sino de INVARIANTE. La voz puede decirlo (modo cómodo, decisión del operador, con
+# la regla dura `secrets_voice` para apagarlo); el probe NO PUEDE NI VERLO — su respuesta viaja al arnés y a los
+# logs de casos de uso, así que el valor lo sirve `/api/vault/reveal` al frontend y nunca esta ruta.
+#
+# Por eso lo compartido llega hasta el DESENLACE y sus filas de observabilidad, y la frase se queda en la voz:
+# devolver una línea ya compuesta obligaría al probe a recibir el valor dentro para tirarlo después, que es
+# justo la forma en que un invariante se convierte en una convención.
+
+
+@dataclass
+class RevealOutcome:
+    """El desenlace de un `reveal_secret`. `events` son las filas que el llamante emite en su propio canal."""
+
+    status: str = "error"          # ok | locked | no_vault | not_found | empty | error
+    label: str = ""
+    memory_id: object = None
+    candidates: list = field(default_factory=list)
+    value: str = ""                # SOLO para la voz. El probe nunca lo lee (hay un guarda que lo exige).
+    events: list = field(default_factory=list)   # [(kind, label, extra_dict)]
+
+    def as_probe_payload(self) -> dict:
+        """Lo que el canal de texto puede devolver, por construcción sin el valor."""
+        return {"status": self.status, "label": self.label,
+                "memory_id": self.memory_id, "candidates": self.candidates}
+
+
+async def reveal(label: str) -> RevealOutcome:
+    """Resuelve la petición de un secreto guardado. Nunca lanza: cualquier fallo sale como `status="error"`,
+    que los dos canales ya tratan como «no lo encuentro» — un reveal roto no puede tumbar el turno."""
+    try:
+        from nucleo.flash import vault_flow
+        rv = await asyncio.to_thread(vault_flow.reveal, str(label or ""))
+    except Exception as e:  # noqa: BLE001
+        _LOG.warning(f"reveal_secret falló (el turno sigue): {e}")
+        rv = {"status": "error"}
+
+    st = rv.get("status") or "error"
+    out = RevealOutcome(status=st, label=rv.get("label") or "", memory_id=rv.get("memory_id"),
+                        candidates=list(rv.get("candidates") or []), value=rv.get("value") or "")
+    # Las claves son `slabel`/`mid` y NO `label`/`id` a propósito: `label` pisaría el label del propio evento en
+    # `observer.emit`. Es un detalle que ya costó una fila ilegible una vez.
+    if st == "ok":
+        out.events.append(("secret", "reveal", {"slabel": out.label, "mid": out.memory_id}))
+    elif st == "locked":
+        out.events.append(("secret", "locked", {"slabel": out.label, "mid": out.memory_id}))
+    elif st == "no_vault":
+        out.events.append(("secret", "no_vault", {}))
+    return out
+
+
+def voice_line(out: RevealOutcome) -> str:
+    """La frase HABLADA. Vive aquí y no en el provider porque la decide el mismo desenlace, pero solo la llama
+    quien tiene boca: es la única función de este módulo que puede devolver un valor descifrado, y lo hace solo
+    cuando la regla dura del operador (`secrets_voice`, V2-060 F2) lo permite. Con ella apagada se nombra el
+    secreto y se enseña en pantalla, nunca se dice."""
+    try:
+        from voice.engine.core import langs
+        L = langs.current_language()
+    except Exception:
+        return "No he podido recuperarlo."
+    if out.status == "ok":
+        try:
+            from memory import state as mstate
+            speak_it = bool(mstate.security_flag("secrets_voice", True))
+        except Exception:
+            speak_it = True
+        return (L.secret_reveal.format(label=out.label, value=out.value) if speak_it
+                else L.secret_shown.format(label=out.label))
+    if out.status == "locked":
+        return L.secret_locked
+    if out.status == "no_vault":
+        return L.secret_no_vault
+    if out.status == "not_found" and out.candidates:
+        return L.secret_not_found + f" Tengo: {', '.join(out.candidates)}."
+    return L.secret_not_found          # not_found sin candidatos, empty, error

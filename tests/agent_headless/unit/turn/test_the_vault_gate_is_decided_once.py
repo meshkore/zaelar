@@ -132,3 +132,77 @@ def test_both_channels_go_through_the_gate_and_neither_keeps_a_copy():
         assert "vault_gate" in src, f"{name} ya no pasa por la puerta compartida"
         assert "secret_is_the_whole_turn" not in src, f"{name} recuperó su propia decisión de V2-141"
         assert "_vr.detect" not in src, f"{name} volvió a detectar la config por su cuenta"
+        assert "vault_flow" not in src, f"{name} volvió a resolver el reveal por su cuenta"
+
+    # Y el filo que de verdad importa del reveal: el canal de TEXTO no puede ni mencionar el valor.
+    probe_src = inspect.getsource(probe)
+    assert ".value" not in probe_src.split("reveal_secret")[1][:600], "probe.py alcanza el valor descifrado"
+
+
+# ── REVELAR un secreto: mismo desenlace, y una frontera que NO es de estilo ──────────────────────────────────
+
+class _Rev:
+    """Sustituye a `vault_flow.reveal`, que descifra de verdad."""
+
+    def __init__(self, **kw):
+        self.kw = {"status": "ok", "label": "Netflix", "memory_id": 7, "value": "hunter2", **kw}
+
+    def __call__(self, label):
+        return dict(self.kw)
+
+
+def test_the_text_channel_CANNOT_carry_the_value(monkeypatch):
+    """El invariante que separa los dos canales, y es el motivo de que `as_probe_payload()` exista en vez de
+    componer el dict a mano en `probe.py`: esa respuesta viaja al arnés y a los logs de casos de uso. Con la
+    frase compartida, el probe tendría que RECIBIR el valor para tirarlo después — que es exactamente cómo un
+    invariante se degrada a convención."""
+    from nucleo.flash import vault_flow
+    monkeypatch.setattr(vault_flow, "reveal", _Rev())
+    out = _run(vault_gate.reveal("Netflix"))
+    payload = out.as_probe_payload()
+    assert out.value == "hunter2", "el desenlace sí lo lleva: la voz lo necesita"
+    assert "hunter2" not in repr(payload), "el valor se escapó por el canal de texto"
+    assert payload["status"] == "ok" and payload["label"] == "Netflix"
+
+
+def test_the_observability_rows_come_with_the_outcome(monkeypatch):
+    """Cada canal emite en su propio bus, pero QUÉ se emite lo decide el desenlace — si no, una rama nueva se
+    cablea en uno y no en el otro, que es la avería que este paquete existe para cerrar."""
+    from nucleo.flash import vault_flow
+    for status, expected in (("ok", "reveal"), ("locked", "locked"), ("no_vault", "no_vault")):
+        monkeypatch.setattr(vault_flow, "reveal", _Rev(status=status))
+        out = _run(vault_gate.reveal("Netflix"))
+        assert [e[1] for e in out.events] == [expected], status
+    monkeypatch.setattr(vault_flow, "reveal", _Rev(status="not_found", candidates=["Gmail"]))
+    assert _run(vault_gate.reveal("Netflix")).events == [], "un no-encontrado no es una fila de seguridad"
+
+
+def test_the_event_keys_avoid_the_one_that_collides(monkeypatch):
+    """`label` pisaría el label del propio evento en `observer.emit`. Ya costó una fila ilegible una vez."""
+    from nucleo.flash import vault_flow
+    monkeypatch.setattr(vault_flow, "reveal", _Rev())
+    extra = _run(vault_gate.reveal("Netflix")).events[0][2]
+    assert "slabel" in extra and "label" not in extra
+
+
+def test_a_broken_reveal_never_takes_the_turn_down(monkeypatch):
+    from nucleo.flash import vault_flow
+
+    def _boom(_l):
+        raise RuntimeError("simulado")
+    monkeypatch.setattr(vault_flow, "reveal", _boom)
+    out = _run(vault_gate.reveal("Netflix"))
+    assert out.status == "error" and out.events == []
+
+
+def test_the_hard_rule_decides_whether_the_value_is_SPOKEN(monkeypatch):
+    """V2-060 F2: modo cómodo lo dice; «no me digas los secretos por voz» lo enseña y lo nombra, sin decirlo."""
+    from memory import state as mstate
+    out = vault_gate.RevealOutcome(status="ok", label="Netflix", value="hunter2")
+
+    monkeypatch.setattr(mstate, "security_flag", lambda k, d=True: True)
+    assert "hunter2" in vault_gate.voice_line(out)
+
+    monkeypatch.setattr(mstate, "security_flag", lambda k, d=True: False)
+    said = vault_gate.voice_line(out)
+    assert "hunter2" not in said and "Netflix" in said
