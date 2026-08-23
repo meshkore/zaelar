@@ -140,7 +140,7 @@ def dangling_tail(text: str) -> tuple[str, str]:
     best = ("", "")
     for m in _SENTENCE_END_RE.finditer(t):
         head, tail = t[:m.end()].strip(), t[m.end():].strip()
-        if head and tail and not _complete(tail):
+        if head and tail and _complete(head) and not _complete(tail):
             best = (head, tail)
     return best
 
@@ -269,6 +269,24 @@ class Accumulator:
             return self._deliver(self.text(), now, f"válvula: {MAX_WORDS} palabras", dropped)
         if len(self.text()) >= MAX_CHARS:
             return self._deliver(self.text(), now, f"válvula: {MAX_CHARS} chars", dropped)
+
+        # …Y AQUÍ ES DONDE VIVE DE VERDAD (corregido el 2026-08-21, mismo día, con la medida del arnés). El pelado
+        # se cableó solo en las cuatro salidas de `act`, y esa rama casi nunca lo necesita: para que capa 1 o el
+        # juez digan «completa», el texto no puede acabar colgando, o sea que la cola a pelar apenas existe allí.
+        # La forma que describió el operador —«una de esas tres palabras cierra la anterior y dos empiezan otra»—
+        # aterriza JUSTO AQUÍ: el conjunto cuelga, así que se retiene… y con él se retiene una frase ya cerrada.
+        # Medido antes de tocar nada:
+        #     offer("pon música de jazz y")                      -> hold
+        #     offer("luego apágala. Oye, qué tiempo hace en")    -> hold del buffer ENTERO, consumed_at = 0.0
+        # «pon música … apágala.» estaba lista y esperando detrás de un principio de frase.
+        #
+        # RIESGO ASUMIDO, y conviene tenerlo escrito: el STT pone los puntos donde le parece (este repo ya lo
+        # documenta en `looks_incomplete`), así que un punto espurio puede partir una petición que era una sola.
+        # Se acepta porque el coste cambió de signo con la marca de agua: antes partir era PERDER la mitad, y
+        # ahora la cola sobrevive y se contesta en el turno siguiente. Dos turnos en vez de uno, nunca un silencio.
+        head, _tail = dangling_tail(self.text())
+        if head:
+            return self._deliver(self.text(), now, "frase cerrada; sigue el principio de la siguiente", dropped)
 
         return "hold", "", _why(candidate), dropped
 

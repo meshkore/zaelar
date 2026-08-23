@@ -54,6 +54,43 @@ def test_the_next_sentence_does_NOT_travel_inside_this_ones_request():
     assert a.text() == "Y después", "y además tiene que seguir VIVO, no solo fuera de la petición"
 
 
+def test_a_CLOSED_sentence_is_not_held_behind_a_beginning():
+    """LA FORMA QUE DESCRIBIÓ EL OPERADOR, y la que la primera versión de esto NO cubría.
+
+    El pelado se cableó solo en las cuatro salidas de `act`, y esa rama casi nunca lo necesita: para que capa 1 o
+    el juez digan «completa», el texto no puede acabar colgando, así que la cola a pelar apenas existe allí. Su
+    caso —«una de esas tres palabras cierra la anterior y dos empiezan otra»— cae en RETENER. Medido sobre el
+    primer commit (3b316b4), con la capa 2 diciendo incompleto, que es lo que un juez real diría de algo que
+    cuelga:
+
+        offer("pon música de jazz y")                    -> hold
+        offer("luego apágala. Oye, qué tiempo hace en")  -> hold del buffer ENTERO, consumed_at = 0.0
+
+    «pon música … apágala.» estaba cerrada, puntuada y lista, esperando detrás de un principio de frase. Mis
+    nueve tests pasaban en verde: medían el modelo que yo tenía en la cabeza, no el que el operador describió."""
+    a = acc.Accumulator()
+    assert _ofrecer(a, "pon música de jazz y", 0.0)[0] == "hold"
+    action, entregado, motivo, _d = _ofrecer(a, "luego apágala. Oye, qué tiempo hace en", 2.0)
+
+    assert action == "act", f"la frase cerrada se quedó retenida detrás del principio de otra ({motivo})"
+    assert entregado == "pon música de jazz y luego apágala."
+    assert a.text() == "Oye, qué tiempo hace en", "y el principio de la siguiente sigue vivo"
+    assert a.consumed_at == 2.0
+
+
+def test_an_incomplete_head_is_NOT_shipped_early():
+    """El otro filo del mismo cambio. Al evaluar el pelado en la rama de RETENER ya no vale apoyarse en que el
+    conjunto cerraba —no cierra, por eso se retiene— así que hay que exigir que la CABEZA cierre por su cuenta.
+
+    LÍMITE CONOCIDO, y se deja escrito en vez de taparlo: la cabeza se juzga con la MISMA capa 1 que todo este
+    módulo, y esa capa da por buena una cabeza puntuada aunque empiece por palabra de continuación («y luego.»
+    sale completa, porque la regla de «empieza por…» se salta cuando el STT cerró la frase — ver `looks_incomplete`
+    §2c). Escribir aquí un segundo predicado para afinarlo sería mantener dos jueces del mismo hecho, que es la
+    avería que este repo ya se ha comido dos veces esta semana. Lo que el guarda sí garantiza es que una cabeza
+    que la capa 1 ve a medias NO se entrega."""
+    assert acc.dangling_tail("dame el informe de. y") == ("", ""), "«dame el informe de.» está a medias"
+
+
 def test_the_surviving_tail_is_continued_by_what_comes_next():
     """La cola no es un resto guardado por si acaso: es el principio de la frase siguiente y se completa sola.
 
@@ -115,14 +152,17 @@ def test_a_valve_firing_is_not_a_reason_to_throw_the_tail():
     """Las cuatro salidas de `act` hacían el mismo `clear()` por su cuenta. Justo en el caso patológico —el que
     hace saltar la válvula— es donde más texto se entregaba de golpe y se vaciaba entero."""
     a = acc.Accumulator()
-    assert _ofrecer(a, "esto ya es una frase entera. y", 0.0)[0] == "hold"
+    # SIN final de frase en los trozos: con uno, el pelado de la rama de retener entregaría antes de que la
+    # válvula llegue a saltar — que es justo lo que se arregló arriba.
+    assert _ofrecer(a, "quiero que me busques una cosa y", 0.0)[0] == "hold"
     for i in range(acc.MAX_FRAGMENTS - 1):
         act, _t, motivo, _d = _ofrecer(a, f"otra cosa número {i} y", float(i + 1))
         if act == "act":
             break
     assert act == "act" and "válvula" in motivo, f"no saltó la válvula (motivo: {motivo!r})"
-    assert a.pending(), "la válvula entregó y vació: la cola colgando se fue con ella"
-    assert a.text().startswith("y otra cosa"), a.text()
+    # Sin final de frase no hay dónde cortar, así que la válvula entrega el buffer entero — y eso es correcto.
+    # Lo que se fija es que la válvula pasa por `_deliver` y no por un `clear()` propio: sella la marca de agua.
+    assert a.consumed_at > 0.0, "la válvula entregó sin sellar la marca de agua"
 
 
 def test_the_word_valve_is_sized_from_the_operators_own_sessions():
