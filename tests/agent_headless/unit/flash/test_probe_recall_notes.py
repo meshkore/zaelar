@@ -7,6 +7,11 @@ trading dominaba el vector semántico y enterraba los hechos de familia/coche qu
 plazo. El modelo respondió sin datos delante y alucinó un familiar que ninguna píldora menciona. Mismo fix
 espejado en `voice/engine/llm/providers/nucleo.py` (el proveedor de voz real); este test cubre la ruta del
 canal de prueba (`probe.py`), que es la que se puede invocar sin sesión LiveKit.
+
+2026-08-23 (F1): la query ya no viaja como `recall_query=` a `build_flash_system` —esa era la ruta de
+COMPATIBILIDAD PARA TESTS, que compone el recall EN LÍNEA y con la memoria lenta bloqueaba el proceso entero—
+sino a `nucleo/turn/recall_budget.compose()`, fuera del event loop y acotada. El invariante es el mismo y se
+vigila en la costura nueva: lo que se BUSCA son las palabras del operador, nunca la nota antepuesta.
 """
 from __future__ import annotations
 
@@ -65,10 +70,21 @@ def test_recall_query_excludes_prepended_system_note(fresh_db, probe_session, mo
     _orig_build = prompt_mod.build_flash_system
 
     def _spy_build(**kwargs):
-        captured["recall_query"] = kwargs.get("recall_query", "")
         captured["turn_text"] = kwargs.get("turn_text", "")
+        # `recall_query` tiene que quedar VACÍO: usarlo es volver a componer dentro del loop.
+        captured["recall_query_legacy"] = kwargs.get("recall_query", "")
         return _orig_build(**kwargs)
 
+    # La query se vigila DONDE AHORA VIAJA: la guarda con presupuesto. Espiar `build_flash_system` seguiría
+    # pasando en verde con la contaminación de vuelta, porque ahí ya solo llega el bloque compuesto.
+    from nucleo.turn import recall_budget as _recall
+    _orig_compose = _recall.compose
+
+    async def _spy_compose(query, timings=None):
+        captured["recall_query"] = query or ""
+        return await _orig_compose(query, timings)
+
+    monkeypatch.setattr(_recall, "compose", _spy_compose)
     monkeypatch.setattr(prompt_mod, "build_flash_system", _spy_build)
     monkeypatch.setattr("nucleo.flash.fast_client.FastClient", _NoNetworkFastClient)
 
@@ -87,6 +103,9 @@ def test_recall_query_excludes_prepended_system_note(fresh_db, probe_session, mo
     # el TURNO completo (lo que ve el modelo) SÍ sigue llevando la nota — no se ha perdido información, solo
     # se ha sacado del vector de búsqueda.
     assert "Telegram" in captured["turn_text"]
+    # y la ruta de compatibilidad se queda VACÍA: usarla es componer el recall dentro del event loop, que es
+    # lo que tumbó el motor entero el 2026-08-23 con la memoria lenta.
+    assert captured["recall_query_legacy"] == ""
 
     # con la query limpia, el hecho real SÍ se recupera (antes se enterraba bajo el ruido de trading).
     system, ids = prompt_mod.build_flash_system(recall_query=captured["recall_query"])

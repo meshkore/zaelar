@@ -961,15 +961,11 @@ class NucleoLLMStream(llm.LLMStream):
             # timeout SIEMPRE a 2000ms → +2s tirados por turno. Con 800ms, caliente entra (round-trip ~50-150ms) y
             # en frío corta rápido (pierde 0.8s, no 2s). El fix DE RAÍZ (residencia de embeddinggemma) va por el
             # workflow de memoria.
-            _budget = float(os.getenv("ZAELAR_RECALL_BUDGET_MS", "800")) / 1000.0
-            try:
-                recall_block, recall_ids = await asyncio.wait_for(
-                    asyncio.to_thread(_prompt_mod.compose_recall, operator_text, timings), timeout=_budget)
-            except asyncio.TimeoutError:
-                timings["recall_timeout"] = True
-                logger.info(f"nucleo recall over budget ({_budget:.1f}s) — turno sigue sin recall durable")
-            except Exception as e:  # noqa: BLE001
-                logger.warning(f"nucleo recall skipped (voice continues): {e}")
+            # La guarda vive en `nucleo/turn/recall_budget` desde F1: era la protección que ESTE canal tenía y
+            # el de texto no, y una protección que existe en un canal y no en el otro no se distingue de no
+            # tenerla — el fallo sale por el canal que nadie recordó.
+            from nucleo.turn import recall_budget as _recall
+            recall_block, recall_ids = await _recall.compose(operator_text, timings)
         # 2º PASE DE CORTO PLAZO (C, 2026-07-14): si el turno referencia la interacción RECIENTE ("de qué
         # hablábamos", "lo que te dije antes", "repite eso"), inyectamos el buffer conversacional AMPLIADO
         # (verbatim, más turnos que la ventana normal). Lectura DIRECTA µs, pero la corremos igualmente en un
@@ -2575,43 +2571,12 @@ class NucleoLLMStream(llm.LLMStream):
         if reveal_req["v"] is not None and escalate_req["v"] is None:
             _lblq = reveal_req["v"]
             emit("brain", "🔐 reveal_secret", text=_lblq, role="system")
-            try:
-                from nucleo.flash import vault_flow as _vf
-                rv = await asyncio.to_thread(_vf.reveal, _lblq)
-            except Exception as e:  # noqa: BLE001
-                logger.warning(f"reveal_secret falló (voz sigue): {e}")
-                rv = {"status": "error"}
-            from voice.engine.core import langs as _lgv
-            _L = _lgv.current_language()
-            _st = rv.get("status")
-            if _st == "ok":
-                # UI: muestra el valor (el frontend lo pide a /api/vault/reveal). El observer NO lleva el valor.
-                # (claves `slabel`/`mid` — NO `label`, que pisaría el label del evento en observer.emit)
-                emit("secret", "reveal", role="system",
-                     extra={"slabel": rv["label"], "mid": rv.get("memory_id")})
-                # F2: modo cómodo (default, el operador lo pidió) → lo DICE por voz; user rule dura
-                # `secrets_voice=False` («no me digas los secretos por voz») → solo pantalla.
-                try:
-                    from memory import state as _stsec
-                    _voice_ok = bool(_stsec.security_flag("secrets_voice", True))
-                except Exception:
-                    _voice_ok = True
-                _line = (_L.secret_reveal.format(label=rv["label"], value=rv["value"]) if _voice_ok
-                         else _L.secret_shown.format(label=rv["label"]))
-            elif _st == "locked":
-                emit("secret", "locked", role="system",
-                     extra={"slabel": rv.get("label"), "mid": rv.get("memory_id")})   # → el frontend abre el modal
-                _line = _L.secret_locked
-            elif _st == "no_vault":
-                emit("secret", "no_vault", role="system")
-                _line = _L.secret_no_vault
-            elif _st == "not_found":
-                _cands = rv.get("candidates") or []
-                _line = _L.secret_not_found + (f" Tengo: {', '.join(_cands)}." if _cands else "")
-            else:   # empty | error
-                _line = _L.secret_not_found
+            from nucleo.turn import vault_gate as _vgate
+            _rv = await _vgate.reveal(_lblq)
+            for _k, _lb, _ex in _rv.events:
+                emit(_k, _lb, role="system", extra=_ex)
             buf = ""   # descarta restos de tags del 1er pase
-            send(speech.sanitize(_line, drop_metadata=False))
+            send(speech.sanitize(_vgate.voice_line(_rv), drop_metadata=False))
             spoken_text = "".join(spoken).strip()
 
         # RECALL DE MEMORIA por tool (V2-056): ruta LIGERA hermana de web_search — memory.query FUERA del event

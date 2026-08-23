@@ -41,9 +41,13 @@ async def say(text: str = Body(..., embed=True), session: str = Body("default", 
     res = await run_turn(text, sid=session, ingest=ingest, model=model, execute=execute)
     if prompt and res.get("ok"):
         # opcional: incluye el prompt compuesto (para inspeccionar qué estado/memoria vio el modelo)
+        # Misma guarda que el turno: esto corre en el loop del server, así que un recall lento aquí congela el
+        # motor igual — y encima por una opción de INSPECCIÓN, que es el peor sitio donde perder el proceso.
         from nucleo.flash.prompt import build_flash_system, needs_recall
+        from nucleo.turn import recall_budget as _recall
+        _rb, _ = await _recall.compose(text if needs_recall(text) else "")
         sys_txt, _ = build_flash_system(directive=_session(session).directive,
-                                        recall_query=text if needs_recall(text) else "", turn_text=text)
+                                        recall_block=_rb, turn_text=text)
         res["prompt"] = sys_txt
     return res
 

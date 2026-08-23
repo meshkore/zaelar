@@ -29,6 +29,7 @@ import asyncio
 import os
 import time
 from dataclasses import dataclass, field
+from nucleo.errors import brief as _brief
 
 _WINDOW_MAX = 10
 
@@ -245,10 +246,17 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
 
     # (b) PROMPT real: estado+memoria+recall (bajo demanda) + 2º pase de CORTO (contexto reciente ampliado si el
     #     turno lo referencia) + BREAK-LOOP si el asistente se estaba repitiendo.
-    recall_q = operator_text if needs_recall(operator_text) else ""
+    # El recall DURABLE se compone FUERA del event loop y con presupuesto (`nucleo/turn/recall_budget`), igual
+    # que en la voz. Antes se pasaba `recall_query=`, que es la ruta de COMPATIBILIDAD PARA TESTS —lo dice el
+    # docstring de `build_flash_system`— y compone en línea: con la memoria lenta (medido el 2026-08-23 durante
+    # una descarga de 1,1 GB) bloqueaba el proceso ENTERO y la tanda moría como «INFRA: timed out», sin nombrar
+    # a la memoria por ningún sitio. Pasado el presupuesto el turno sigue SIN recall durable, que es peor
+    # respuesta y no un agente muerto.
+    from nucleo.turn import recall_budget as _recall
+    recall_block, _rc_ids = await _recall.compose(operator_text if needs_recall(operator_text) else "", timings)
     recent_block = compose_recent_block() if needs_recent(text) else ""
     timings["recent_fired"] = bool(recent_block)
-    system, _used = build_flash_system(directive=sess.directive, recall_query=recall_q,
+    system, _used = build_flash_system(directive=sess.directive, recall_block=recall_block,
                                        recent_block=recent_block, timings=timings, turn_text=text)
     nudge = dialog.loop_nudge(sess.window)
     if nudge:
@@ -341,7 +349,7 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             out, buf = strip_tags(buf, _tag_emit, True)
             break
         except Exception as e:  # noqa: BLE001
-            _err = str(e).splitlines()[0][:200]
+            _err = _brief(e, 200)
             from loguru import logger as _log
 
             from nucleo.flash import provider_chain as _pchain_err
@@ -388,18 +396,13 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     elif "web_search" in names:
         action = "search"
     elif "reveal_secret" in names:
-        # V2-060 (espejo del provider — impl PARALELA, cablear en AMBOS): el operador pide un secreto guardado.
-        # Resolvemos el DESENLACE (no_vault/empty/locked/not_found/ok) SIN exponer el valor en la respuesta del
-        # probe (invariante). El valor lo sirve /api/vault/reveal; el tester lo conduce con la passphrase.
+        # V2-060: el operador pide un secreto guardado. El DESENLACE lo resuelve la puerta compartida (F1); lo
+        # que es de ESTE canal es que la respuesta viaje SIN el valor — va al arnés y a los logs de casos de uso,
+        # así que `as_probe_payload()` lo deja fuera por construcción en vez de por acordarse de tirarlo.
         action = "reveal_secret"
         _rl = next((t["args"].get("label") for t in tool_calls if t["name"] == "reveal_secret"), "") or text
-        try:
-            from . import vault_flow as _vf
-            _rv = await asyncio.to_thread(_vf.reveal, str(_rl))
-        except Exception:
-            _rv = {"status": "error"}
-        reveal_out = {"status": _rv.get("status"), "label": _rv.get("label"),
-                      "memory_id": _rv.get("memory_id"), "candidates": _rv.get("candidates")}
+        from nucleo.turn import vault_gate as _vault_gate
+        reveal_out = (await _vault_gate.reveal(str(_rl))).as_probe_payload()
     elif "play_music" in names:
         action = "music"                     # V2-041: ruta ligera; el turno real lo resuelve por el conector activo
     elif "play_video" in names:
