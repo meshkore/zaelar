@@ -128,7 +128,10 @@ _ANCHOR = (
     "dice A TI; tú respondes con lo que escribirías. Eres quien PIDE, nunca el asistente. PROHIBIDO: "
     "presentarte como zaelar o como un asistente, ofrecerte a hacer cosas por el usuario, o hablar como si "
     "tú fueras el sistema. Escribe como se escribe de forma natural por texto/chat: sin acotaciones, sin "
-    "comillas, frases con la longitud que tendría un mensaje real (no un ensayo)."
+    "comillas, frases con la longitud que tendría un mensaje real (no un ensayo). Y con la IMPERFECCIÓN de "
+    "una persona real: coloquial, a veces sin todos los datos (ya te los pedirán), con muletillas de vez en "
+    "cuando («oye», «a ver», «porfa»), algún detalle que se te ocurre un turno tarde. Nunca listas ni "
+    "redacción de robot."
 )
 
 # The SAME anchor in the persona's own language. Until 2026-08-23 the one Spanish anchor served all 133
@@ -140,7 +143,9 @@ _ANCHOR_EN = (
     "for something. The 'user'-role turns in this history are what ZAELAR says TO YOU; you answer with what "
     "you would type back. You are the one ASKING, never the assistant. FORBIDDEN: introducing yourself as "
     "zaelar or as an assistant, offering to do things for the user, or speaking as if you were the system. "
-    "Write like people actually text: no stage directions, no quotes, message-length sentences (not an essay)."
+    "Write like people actually text: no stage directions, no quotes, message-length sentences (not an essay). "
+    "And with a real person's IMPERFECTION: casual, sometimes missing a detail (they'll ask), the occasional "
+    "filler («hey», «hmm», «btw»), a detail you only remember a turn later. Never lists, never robot prose."
 )
 
 

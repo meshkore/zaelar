@@ -1203,6 +1203,10 @@ DOMAINS: list[dict] = [
                                  "an INFRA), and the US driver can finally say goodbye — the closing regex "
                                  "and the persona prompt speak the persona's own language",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_round_that_dies_tells_you_why.py"]},
+        {"id": "10.64", "title": "The BAR is per case — one valid result is the whole delivery for an errand "
+                                 "that wants one, a comparison is held to a stricter one — and the opening "
+                                 "line sounds like a person asking, not a command line",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_bar_is_per_case.py"]},
     ]},
 ]
 

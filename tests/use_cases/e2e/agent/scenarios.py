@@ -643,7 +643,7 @@ def all_scenarios() -> list[UseCaseScenario]:
     # Se resuelve AQUÍ, en el único punto por el que pasan todos los escenarios —a mano y derivados—: hacerlo
     # en cada constructor garantiza que el siguiente constructor nuevo se olvide.
     from . import dates as DT
-    return [_with_dates(D.apply_findings_contract(D.apply_data_note(s)), DT) for s in out]
+    return [_with_dates(D.apply_human_opening(D.apply_findings_contract(D.apply_data_note(s))), DT) for s in out]
 
 
 def _with_dates(scn: UseCaseScenario, DT) -> UseCaseScenario:

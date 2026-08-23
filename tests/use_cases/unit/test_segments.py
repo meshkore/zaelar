@@ -157,6 +157,7 @@ def test_every_findings_case_states_what_a_good_answer_must_carry():
     `cheapest-monitor`) never pass through `derive()` and would otherwise have been graded more loosely than
     their own US twins.
     """
+    from tests.use_cases.e2e.agent import derived as D2
     from tests.use_cases.e2e.agent import scenarios as SC
     from tests.use_cases.e2e.agent import segments as G
     for scn in SC.all_scenarios():
@@ -165,7 +166,19 @@ def test_every_findings_case_states_what_a_good_answer_must_carry():
             assert "SE PUEDE COMPLETAR DE INICIO A FIN" in checks, scn.id
             assert "HOJA DE RESULTADOS" in checks, scn.id          # V2-115: the generic sheet…
             assert "widget NUEVO" in checks, scn.id                # …and a new widget is a FAILURE
-            assert "al menos 3 candidatos" in checks, scn.id       # real options, not a vague "found some"
+            # The BAR is per-case since 2026-08-23 (operator: "usando varios criterios de test a test"):
+            # a person with a leaking bathroom wants ONE plumber today, a person comparing insurers wants a
+            # real comparison. Each case carries exactly the clause of ITS declared bar, never two at once.
+            bar = D2.bar_of(G.bare(scn.id))
+            if bar == "primero_valido":
+                assert "UNO BUENO BASTA" in checks, scn.id
+                assert "al menos 3 candidatos" not in checks, scn.id
+            elif bar == "afinar":
+                assert "MODO EXIGENTE" in checks, scn.id
+                assert "al menos 3 candidatos" in checks, scn.id
+            else:
+                assert "al menos 3 candidatos" in checks, scn.id   # real options, not a vague "found some"
+                assert "MODO EXIGENTE" not in checks, scn.id
             assert checks.count("SE PUEDE COMPLETAR DE INICIO A FIN") == 1, scn.id
         else:
             assert "SE PUEDE COMPLETAR DE INICIO A FIN" not in checks, scn.id

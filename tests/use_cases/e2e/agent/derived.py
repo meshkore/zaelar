@@ -59,6 +59,28 @@ class Profile:
     # Un caso puede EXIGIR que algo NO pase (p.ej. una consulta rápida no debe abrir un navegador). Se
     # declara aparte porque es la clase de aserción que un template genérico jamás inferiría.
     must_not: str = ""
+    # LA VARA de este caso (operador, 2026-08-23): no todo encargo espera lo mismo. Una persona con una fuga
+    # en el baño quiere UN fontanero que venga hoy — el primero válido basta y la velocidad es la virtud; una
+    # persona comparando seguros pide exactamente una COMPARACIÓN y hay que ser exigente con ella. Hasta hoy
+    # las tres varas eran una sola («al menos 3 candidatos» para todos), y eso puntuaba mal al agente que
+    # entregaba rápido lo que la persona realmente quería. Vocabulario CERRADO — ver `BARS`.
+    bar: str = "comparar"
+    # Apertura HUMANA por locale, si se quiere sustituir la del catálogo (que tiende al imperativo limpio:
+    # 42 de 133 empiezan por «Búscame/Find/Encuéntrame»). Una persona real titubea, mete contexto y no da
+    # todos los datos a la primera. Vacía = se usa la `utterance` del catálogo tal cual.
+    opening_es: str = ""
+    opening_us: str = ""
+
+
+# Las tres varas, cerradas. `primero_valido` y `afinar` se asignan caso a caso en su Profile;
+# `comparar` es el defecto y es la vara con la que se midieron las 32 rondas históricas.
+BARS = ("primero_valido", "comparar", "afinar")
+
+
+def bar_of(bare_id: str) -> str:
+    """La vara del caso, por id pelado. Sin perfil (o sin vara declarada) → `comparar`, el defecto medido."""
+    prof = PROFILES.get(bare_id)
+    return prof.bar if prof is not None and prof.bar in BARS else "comparar"
 
 
 # ── Per-case profiles ─────────────────────────────────────────────────────────────────────────────────────
@@ -106,6 +128,7 @@ PROFILES: dict[str, Profile] = {
                       "candidato que cumpla tres de cuatro NO es un resultado — y un filtro que no se haya "
                       "podido comprobar hay que decirlo, no darlo por bueno. «Nada de interior» es una "
                       "exclusión, no una preferencia.",
+        bar="afinar",
         signals=("worker", "widget"), turns=10),
     "used-car-search-wallapop": Profile(
         clarifications=(("de qué zona", "de por aquí, hasta 50 km"),
@@ -146,12 +169,24 @@ PROFILES: dict[str, Profile] = {
     "best-plumber-same-day": Profile(
         clarifications=(("qué avería", "una fuga en el baño, gotea"), ("zona", "Madrid centro")),
         persona_extra="Tiene urgencia real: hoy mismo. Un fontanero para la semana que viene no te sirve.",
+        # Con agua cayendo nadie quiere un catálogo: quiere UNO que venga hoy y que no sea un desastre.
+        bar="primero_valido",
+        opening_es="Tengo una fuga en el baño y necesito un fontanero hoy sí o sí… uno que esté bien "
+                   "valorado porfa, que la última vez me clavaron",
+        opening_us="I've got a leak in the bathroom and I need a plumber TODAY… someone with good reviews "
+                   "please, last time I got ripped off",
         signals=("worker", "widget"), turns=10),
     "compare-insurance-quotes": Profile(
         clarifications=(("datos del coche", "un utilitario de hace unos años, nada especial"),
                         ("tipo de cobertura", "a terceros ampliado me vale")),
         success_extra="Se piden TRES presupuestos Y una recomendación razonada; una lista sin recomendación "
                       "está a medias.",
+        # Comparar ES el encargo: aquí se afina — cada candidato contra cada criterio, y el mejor con su porqué.
+        bar="afinar",
+        opening_es="Oye, que se me acaba el seguro del coche el mes que viene y no quiero renovar a ciegas… "
+                   "¿me comparas unas cuantas aseguradoras a ver cuál me compensa?",
+        opening_us="Hey, my car insurance is up next month and I don't want to just auto-renew… can you "
+                   "compare a few insurers and see which one's actually worth it?",
         signals=("worker", "widget"), turns=10),
     "best-rated-rental-car": Profile(
         clarifications=(("qué fechas", "este fin de semana, viernes a domingo"),
@@ -168,6 +203,12 @@ PROFILES: dict[str, Profile] = {
         signals=("worker", "widget"), turns=10),
     "weekend-barber-availability": Profile(
         clarifications=(("zona", "cerca de casa, en el centro"), ("qué día", "sábado o domingo, me da igual")),
+        # Un corte de pelo: la primera peluquería decente CON hueco este finde es la entrega, no una lista.
+        bar="primero_valido",
+        opening_es="A ver si me pillas cita para cortarme el pelo este finde… algún sitio decente por el "
+                   "centro, no hace falta nada del otro mundo",
+        opening_us="Can you get me a haircut appointment this weekend? somewhere decent downtown, nothing "
+                   "fancy",
         signals=("worker", "widget"), turns=10),
     "search-buy-motorcycle": Profile(
         clarifications=(("zona o si acepta envío", "cerca, para poder ir a verla"),
@@ -206,11 +247,19 @@ PROFILES: dict[str, Profile] = {
         clarifications=(("qué días", "me da flexibilidad, cualquier fin de semana {EN_UNAS_SEMANAS}"),
                         ("equipaje", "con equipaje de mano me vale")),
         success_extra="Se pide DIRECTO: proponer un vuelo con escala sin avisar de que tiene escala es fallo.",
+        # «El más barato» es un superlativo: sin comparar varios y justificar el elegido, no está respondido.
+        bar="afinar",
+        opening_es="Quiero escaparme a Roma un finde de estos… ¿me miras vuelos? directo eh, que no me "
+                   "apetece nada hacer escala, y cuanto más barato mejor",
+        opening_us="I want a weekend getaway to Rome one of these weekends… can you look up flights? "
+                   "nonstop though, I really can't deal with layovers, and the cheaper the better",
         signals=("worker", "widget"), turns=10),
     "rental-car-automatic-airport": Profile(
         clarifications=(("fechas exactas", "la semana que viene, de lunes a viernes"),
                         ("tamaño", "pequeño o mediano")),
         success_extra="AUTOMÁTICO es un requisito duro, no una preferencia.",
+        # Un coche que cumpla (automático, en el aeropuerto, esas fechas) resuelve el viaje: el primero vale.
+        bar="primero_valido",
         signals=("worker", "widget"), turns=10),
     "find-concert-tickets": Profile(
         clarifications=(("cuántas entradas", "dos"), ("si hay varias fechas", "la más barata de las que haya")),
@@ -463,10 +512,20 @@ PROFILES["driving-time-with-traffic"] = Profile(
     success_extra="La cifra tiene que venir de una fuente de mapas real con tráfico en vivo (el mecanismo "
                   "lo delata: worker + navegador), no del modelo. Decir «unas 2 horas» sin que la hoja "
                   "tenga nada es EXACTAMENTE el fallo medido que originó este caso.",
+    # La cifra correcta ES la respuesta: no hay tres candidatos que valorar, hay UN dato bien leído.
+    bar="primero_valido",
+    opening_es="Me voy ahora mismo en coche de Zaragoza a Valls… ¿cuánto se tarda con el tráfico que hay? "
+               "míralo en el Google Maps, no me lo digas de cabeza",
     signals=("worker", "widget"), turns=10)
 PROFILES["cheapest-monitor"] = Profile(
     clarifications=(("presupuesto", "hasta 250€, y si hay algo bueno un poco por debajo mejor"),
                     ("para qué lo quieres", "para trabajar todo el día, ofimática y algo de código")),
+    # «El más barato que esté bien» obliga a comparar de verdad y a justificar el elegido.
+    bar="afinar",
+    opening_es="Oye, se me está muriendo el monitor del curro y necesito otro… algo decente sin gastarme "
+               "un dineral, ¿me miras qué hay y cuál me compensa?",
+    opening_us="Hey, my work monitor is dying and I need a new one… something decent without spending a "
+               "fortune, can you look around and tell me which one's actually worth it?",
     signals=("worker", "widget"), turns=10)
 PROFILES["search-buy-used-car"] = Profile(
     clarifications=(("zona", "Madrid o alrededores, hasta una hora en coche"),
@@ -536,14 +595,39 @@ def _brief(case: CD.UseCase, prof: Profile) -> str:
 # identified») with nothing about what a real answer must contain — so «encontré varias opciones interesantes»
 # with no name, no price and nothing on screen could read as success. This is the other half of the operator's
 # request: leave each runnable case as COMPLETE as possible before the next batch.
-_DELIVERABLE_FINDINGS = (
-    "✅ ESTE CASO SE PUEDE COMPLETAR DE INICIO A FIN. No hay ningún muro de cuenta, tarjeta ni teléfono: lo que "
-    "el operador pide se entrega entero, así que **se juzga el RESULTADO COMPLETO** y no hay nada que "
-    "descontar. Lo que tiene que traer una respuesta buena:\n"
-    "(a) **OPCIONES REALES**: al menos 3 candidatos —menos solo si de verdad no existen más, y entonces hay que "
-    "decirlo—, cada uno con nombre, precio y de dónde sale (sitio o enlace), LEÍDOS de la página real. Un "
-    "precio, una valoración o una disponibilidad que salga del conocimiento del modelo en vez de una página es "
-    "el fallo MÁS GRAVE de este caso: tiene la forma de un resultado y no lo es.\n"
+# La cláusula (a) es LA VARA y varía por caso; (b)-(e) son el suelo común de cualquier entrega con hallazgos.
+_FINDINGS_BAR_A = {
+    "primero_valido": (
+        "(a) **UNO BUENO BASTA**: la persona no ha pedido un catálogo — el PRIMER candidato que cumpla DE "
+        "VERDAD lo pedido, con nombre, el dato clave (precio, hora, cifra) y de dónde sale (sitio o enlace), "
+        "LEÍDO de la página real, ya es la entrega completa. Más opciones no suben la nota; la RAPIDEZ sí: "
+        "uno válido pronto puntúa mejor que tres tarde. Un dato que salga del conocimiento del modelo en vez "
+        "de una página sigue siendo el fallo MÁS GRAVE: tiene la forma de un resultado y no lo es.\n"),
+    "comparar": (
+        "(a) **OPCIONES REALES**: al menos 3 candidatos —menos solo si de verdad no existen más, y entonces hay que "
+        "decirlo—, cada uno con nombre, precio y de dónde sale (sitio o enlace), LEÍDOS de la página real. Un "
+        "precio, una valoración o una disponibilidad que salga del conocimiento del modelo en vez de una página es "
+        "el fallo MÁS GRAVE de este caso: tiene la forma de un resultado y no lo es.\n"),
+    "afinar": (
+        "(a) **OPCIONES REALES, EN MODO EXIGENTE**: al menos 3 candidatos —menos solo si de verdad no existen "
+        "más, y entonces hay que decirlo—, cada uno con nombre, precio y de dónde sale, LEÍDOS de la página "
+        "real. Este caso pide COMPARAR Y ELEGIR: cada candidato tiene que decir cómo queda en CADA criterio "
+        "pedido, el mejor tiene que venir señalado CON el porqué, y un criterio que no se pudo comprobar se "
+        "declara, no se da por bueno. Ser rápido no compensa una comparación floja aquí. Un dato inventado en "
+        "vez de leído sigue siendo el fallo MÁS GRAVE.\n"),
+}
+
+
+def deliverable_findings(bar: str = "comparar") -> str:
+    return (
+        "✅ ESTE CASO SE PUEDE COMPLETAR DE INICIO A FIN. No hay ningún muro de cuenta, tarjeta ni teléfono: lo que "
+        "el operador pide se entrega entero, así que **se juzga el RESULTADO COMPLETO** y no hay nada que "
+        "descontar. Lo que tiene que traer una respuesta buena:\n"
+        + _FINDINGS_BAR_A.get(bar, _FINDINGS_BAR_A["comparar"])
+        + _FINDINGS_COMMON)
+
+
+_FINDINGS_COMMON = (
     "(b) **LOS CRITERIOS SE RESPETAN**: el tope de precio, el tamaño, la fecha, la zona, el «directo», el «de "
     "segunda mano». Una opción que se sale del criterio puede entrar, pero DICIENDO en qué se sale; colarla "
     "como si cumpliera es un fallo.\n"
@@ -565,7 +649,7 @@ def _checks(case: CD.UseCase, prof: Profile) -> str:
     if note := data_note(case.id):
         parts.append(note)
     elif G.delivers_findings(case.id):
-        parts.append(_DELIVERABLE_FINDINGS)
+        parts.append(deliverable_findings(prof.bar))
     if case.tier in _HORIZON:
         parts.append(_HORIZON[case.tier])
     if prof.success_extra:
@@ -585,11 +669,15 @@ def _checks(case: CD.UseCase, prof: Profile) -> str:
 
 def derive(case: CD.UseCase) -> UseCaseScenario:
     prof = PROFILES.get(case.id, _NO_PROFILE)
+    # La apertura HUMANA del perfil (por locale) manda sobre la `utterance` del catálogo, que tiende al
+    # imperativo de laboratorio. El brief sigue anclando el objetivo en la utterance canónica, así que el
+    # DRIVE sabe QUÉ quiere aunque lo diga torcido — como una persona.
+    opening = (prof.opening_es if case.locale == "es" else prof.opening_us) or case.utterance
     return UseCaseScenario(
         id=f"{case.id}__{case.locale}",
         locale=case.locale,
         tier=case.tier,
-        opening_line=case.utterance,
+        opening_line=opening,
         persona_brief=_brief(case, prof),
         success_checks=_checks(case, prof),
         expected_signals=list(prof.signals),
@@ -707,6 +795,34 @@ def data_note(case_id: str) -> str:
     return ""
 
 
+def apply_human_opening(scn: UseCaseScenario) -> UseCaseScenario:
+    """Swap in the profile's HUMAN opening line, for a scenario built ANY way.
+
+    Applied at the same single point as `apply_data_note` and `apply_findings_contract`, so the ES and US
+    twins of one case cannot drift apart — a template applied in `derive()` alone reaches only half of them.
+
+    Why it exists at all: 42 of the 133 openings began with «Búscame»/«Find»/«Encuéntrame», a clean imperative
+    nobody actually types. A real person hedges, drops a detail they only remember later, and explains why
+    they are asking. Idempotent by construction — replacing a line with itself is a no-op — and the persona
+    brief still anchors the GOAL in the catalog's canonical `utterance`, so the DRIVE model knows what it
+    wants even when it asks for it crookedly.
+
+    A HAND-WRITTEN scenario is exempt, and that exemption is the design rather than a carve-out: its
+    `opening_line` is already authored, in its own file, so a profile opening would be a SECOND authored
+    version of the same sentence — two homes for one decision, which is the shape this codebase keeps paying
+    for. Its guard (`test_handwritten_scenarios_are_never_shadowed_by_a_derived_one`) is what caught it. To
+    soften a hand-written opening, edit the scenario; the profile serves its DERIVED twins.
+    """
+    from . import scenarios as _SC
+    if scn.id in _SC.BY_ID:
+        return scn
+    prof = PROFILES.get(scn.id.split("__")[0])
+    if prof is None:
+        return scn
+    line = (prof.opening_es if scn.locale == "es" else prof.opening_us) or ""
+    return replace(scn, opening_line=line) if line else scn
+
+
 def apply_findings_contract(scn: UseCaseScenario) -> UseCaseScenario:
     """Attach the findings contract to a completable case built ANY way (hand-written or derived), once.
 
@@ -718,7 +834,7 @@ def apply_findings_contract(scn: UseCaseScenario) -> UseCaseScenario:
     from . import segments as G
     if not G.delivers_findings(scn.id) or "SE PUEDE COMPLETAR DE INICIO A FIN" in scn.success_checks:
         return scn
-    return replace(scn, success_checks=scn.success_checks + "\n\n" + _DELIVERABLE_FINDINGS)
+    return replace(scn, success_checks=scn.success_checks + "\n\n" + deliverable_findings(bar_of(scn.id.split("__")[0])))
 
 
 def apply_data_note(scn: UseCaseScenario) -> UseCaseScenario:
