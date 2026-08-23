@@ -6,7 +6,8 @@ guards the other two ways the structure can rot while every functional test stay
   1. **memory/ importing nucleo/.** The memory package should be autonomous ("memory does not import brains" —
      the rule `rem.py` already lives by, taking its LLM hooks by injection). Measured 2026-08-23: SIX inverse
      imports; F3 took it to FOUR by moving `server_api.py` out (it was transport, not memory — see below).
-     Of the four left, THREE are blessed with their reason written and one still has a planned exit. A closed
+     Then to THREE by injecting the workers-ledger cleanup, and all three left are BLESSED with their
+     reason written in the row. A closed
      inventory, ratcheted: a new inverse import breaks with a name, and the list only shrinks.
 
      The bar for blessing one is deliberately high and stated per row: `db.py -> workspace` is a filesystem
@@ -40,8 +41,6 @@ INVERSE_IMPORTS_DEBT: dict[tuple[str, str], str] = {
     ("memory/db.py", "nucleo.workspace"):
         "infra, not a brain: resolves the workspace root (a filesystem path, no reasoning anywhere near it). "
         "BLESSED permanently on 2026-08-23 — moving it would mean a shared-infra package for one function.",
-    ("memory/consolidator.py", "nucleo.workers"):
-        "reads the workers ledger during sleep. Exit: loop.py injects a ledger_reader (the rem.py pattern).",
     ("memory/rerank.py", "nucleo.llm_egress"):
         "remote rerank egress, deferred import inside the opt-in remote path. STAYS: see energy_meter below — "
         "the two travel together and splitting them would route egress without metering it.",

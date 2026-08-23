@@ -17,12 +17,15 @@ del SlowBrain en V2-006 vía el hook `summarize_fn`):
                        de sobra no borra nada. NUNCA borra pinned.
   - `consolidate()`  — orquesta promote → dedup → decay → evict y devuelve un informe.
 """
+import logging
 import math
 import re
 import time
 
 from . import db as _db
 from . import writer as _writer
+
+_log = logging.getLogger("zaelar.memory.consolidator")
 
 DECAY_LAMBDA_PER_DAY = 0.001     # vida media ≈ 693 días a este λ; el consolidador lo puede subir por tipo
 DEFAULT_LIMIT = 50_000           # techo de recuerdos antes de empezar a olvidar por peso
@@ -271,7 +274,7 @@ def expire_ttl(now: int | None = None) -> int:
 
 
 def consolidate(limit: int = DEFAULT_LIMIT, lam: float = DECAY_LAMBDA_PER_DAY, summarize_fn=None,
-                now: int | None = None) -> dict:
+                now: int | None = None, prune_workers_fn=None) -> dict:
     """Un ciclo de "sueño" LIGERO: heal_slots → promote → dedup → decay → prune → evict. Devuelve el informe.
     No es hot path. (El sueño PROFUNDO —dedup semántico + síntesis/insights, la fase REM— vive en
     `memory/rem.py` y lo dispara el loop con su propia cadencia.)"""
@@ -285,13 +288,23 @@ def consolidate(limit: int = DEFAULT_LIMIT, lam: float = DECAY_LAMBDA_PER_DAY, s
     evicted = evict(limit=limit)
     # V2-079: el mismo barrido del sueño limpia el LEDGER de Brain Workers — borra ejecuciones terminadas viejas
     # (>7d por defecto), como el decay/evict de la memoria; las ligadas a un cron activo (recurrentes) no caducan.
-    # La memoria no importa `nucleo/*` → import perezoso y fail-open (nunca tumba el ciclo de consolidación).
-    workers_pruned = 0
-    try:
-        from nucleo.workers import ledger as _wledger
-        workers_pruned = _wledger.prune(now=now)
-    except Exception:
-        pass
+    #
+    # INYECTADO (auditoría de arquitectura 2026-08-23), no importado. El comentario que había aquí decía «la
+    # memoria no importa `nucleo/*`» y a la línea siguiente importaba `nucleo.workers.ledger` — perezoso y
+    # fail-open, pero un import inverso igual: el paquete dejaba de ser autónomo por una tarea de higiene que ni
+    # siquiera es suya. Es el patrón que `rem.py` ya vive con sus hooks de LLM, y el llamante que lo inyecta
+    # (`nucleo/loop.py`) es el mismo que inyecta aquéllos.
+    #
+    # **Sin hook, `workers_pruned` es None y NO 0**: cero dice «miré y no había nada que limpiar», None dice
+    # «nadie me dio con qué mirar». Son hechos distintos y confundirlos es cómo una función se pierde en
+    # silencio — un llamante que olvide inyectar vería un informe perfectamente normal mientras el ledger crece
+    # sin límite. Fail-open se mantiene: un hook que reviente no tumba el ciclo de consolidación.
+    workers_pruned = None
+    if prune_workers_fn is not None:
+        try:
+            workers_pruned = prune_workers_fn(now=now)
+        except Exception as e:  # noqa: BLE001
+            _log.debug("consolidate: el hook de limpieza del ledger falló (%s)", e)
     return {
         "healed_slots": healed,
         "promoted": promoted,

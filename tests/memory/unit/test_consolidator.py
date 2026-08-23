@@ -148,7 +148,12 @@ def test_consolidate_reports(fresh_db):
     assert set(rep) == {
         "healed_slots", "promoted", "deduped", "decayed", "expired", "pruned", "evicted", "workers_pruned", "count"
     }
-    assert rep["workers_pruned"] == 0
+    # NONE, no 0 (auditoría 2026-08-23). La limpieza del ledger de workers pasó a INYECTARSE, y este informe
+    # distingue dos hechos que antes se veían iguales: `0` es «miré y no había nada que limpiar», `None` es
+    # «nadie me dio con qué mirar». Un llamante que olvide inyectar el hook vería un informe perfectamente
+    # normal mientras el ledger crece sin límite — que es como una función se pierde en silencio. Este assert
+    # decía `== 0` porque capturaba el import perezoso fail-open que había antes.
+    assert rep["workers_pruned"] is None
     assert rep["count"] == 2
 
 
@@ -176,3 +181,26 @@ def test_evict_can_delete_an_already_pruned_invalid_row_without_fts_corruption(f
     assert memcons.evict(limit=0) == 1
     assert memdb.get_db().query_one("SELECT id FROM memories WHERE id=?", (mid,)) is None
     assert memdb.get_db().query_one("SELECT COUNT(*) c FROM fts_memories")["c"] == 0
+
+
+def test_con_hook_inyectado_el_informe_trae_el_NUMERO(fresh_db):
+    """La otra mitad: sin ella, «devuelve None» se satisface no llamando nunca al hook."""
+    llamadas = []
+
+    def _prune(now=None):
+        llamadas.append(now)
+        return 7
+
+    rep = memcons.consolidate(limit=1000, prune_workers_fn=_prune)
+    assert rep["workers_pruned"] == 7
+    assert len(llamadas) == 1, "el hook tiene que llamarse UNA vez, con el reloj del ciclo"
+
+
+def test_y_un_hook_que_revienta_NO_tumba_el_ciclo(fresh_db):
+    """Fail-open, igual que el import perezoso que sustituye: la higiene del ledger no es la memoria."""
+    def _boom(now=None):
+        raise RuntimeError("ledger inalcanzable")
+
+    rep = memcons.consolidate(limit=1000, prune_workers_fn=_boom)
+    assert rep["workers_pruned"] is None
+    assert "count" in rep, "el informe tiene que seguir completo"

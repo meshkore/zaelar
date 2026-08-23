@@ -421,7 +421,13 @@ class OrchestratorLoop:
         self._last_consolidate = now
         try:
             from memory import api as memory
-            rep = await asyncio.to_thread(memory.consolidate)   # sqlite síncrono → fuera del hot path
+            # La limpieza del ledger de Brain Workers va INYECTADA (auditoría 2026-08-23): es higiene del
+            # NÚCLEO que aprovecha el mismo barrido del sueño, no una tarea de la memoria — y hasta hoy la
+            # memoria la alcanzaba importando `nucleo.workers`, o sea dejando de ser autónoma por esto. Mismo
+            # patrón y mismo llamante que los hooks de `rem.run(...)` unas líneas más abajo.
+            from nucleo.workers import ledger as _wledger
+            rep = await asyncio.to_thread(                       # sqlite síncrono → fuera del hot path
+                lambda: memory.consolidate(prune_workers_fn=_wledger.prune))
             _emit("loop.consolidated", {k: rep.get(k) for k in ("deduped", "evicted", "promoted")})
             logger.info(f"consolidación (sueño): {rep}")
         except Exception as e:  # noqa: BLE001
