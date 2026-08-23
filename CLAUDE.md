@@ -4767,6 +4767,43 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     wide window and re-fitting it is its own work), the 35 KB ConfigPanel (delegated to the desktop with a row that
     says so — a phone is for USING an installation, not setting one up), and the Processes/Crons/Clusters tabs.
 
+- **La memoria estaba sana; la deuda era ESTRUCTURAL — y tres imports inversos se BENDICEN, no se arreglan**
+  (V2-273, 2026-08-23, auditoría pedida por el operador: *«código elegante, muy modular, escalable, n
+  componentes»*). Medido antes de tocar nada: found@10 **94,7 %** (objetivo ≥92 cumplido), gate de fidelidad de
+  REM, corpus longitudinal de 270 días y frontera con trinquete — nada funcional que arreglar. Lo que sí:
+  `nucleo/memory_agent.py` eran **1.486 líneas con seis responsabilidades**, y lo estructural no es el tamaño
+  sino que era **la política de escritura de la memoria viviendo FUERA de `memory/`**, o sea fuera del contrato
+  que V2-114 promete reimplementable. Pasa a paquete (`lang_marks · gates · classify · dossier · external ·
+  ingest`, ninguno >450 líneas) con `__init__` re-exportando la superficie completa: cero cambios en llamadores
+  y en tests. La fachada adelgaza igual (1.075 → 758, con `memory/_prompt.py` llevándose lo que PINTA).
+  - **Trinquetes ANTES de mover**, que es lo que hizo el resto seguro: inventario CERRADO de imports inversos
+    (solo puede bajar) + la superficie de la fachada CONGELADA. Un nombre perdido en la mudanza rompe ahí y no
+    en un llamador tres semanas después.
+  - **6 → 3 imports inversos**, y los tres que quedan son la RESPUESTA, no trabajo a medias: `db → workspace`
+    es una ruta de fichero, y los dos de `rerank.py` compran una **garantía de facturación** — su comentario
+    dice que se metra estando DORMIDO para que encender el reranker remoto no salga gratis por descuido, y un
+    callback registrado reabre ese agujero para cualquier proceso que olvide registrarse. **Pureza que cuesta
+    dinero sin facturar es mal negocio.** El router HTTP sí sale (`server/memory_routes.py`): era transporte.
+  - **`workers_pruned` pasa a None y no 0** al inyectar la limpieza del ledger: `0` es «miré y no había nada»,
+    `None` es «nadie me dio con qué mirar». Confundirlos es cómo una función se pierde en silencio.
+  - **La suite decía «sin red» sin serlo**: `config/v2.json` (GITIGNOREADO, de cada máquina) pisa al entorno,
+    así que `MEMORY_RERANK=off` no apagaba nada y el reranker local se ponía a DESCARGAR — de 34 s a colgada
+    sin tocar un test. Ahora la suite declara su entorno y ese gana DENTRO de la suite; la precedencia de
+    producción intacta. Y un embedding degradado que nadie pidió pone la salud en **ámbar**, gemelo del canal
+    de paráfrasis mudo: este módulo escribe con `logging` de la stdlib, así que su aviso salía sin marca de
+    tiempo en medio del ruido del arranque.
+  - **Tres cosas las cazó el método, no la lectura**: un fixture del conftest RAÍZ pidiendo `monkeypatch`
+    reordena el teardown de TODA la suite (puso en ERROR un test que nadie tocó); un verde que no probaba nada
+    porque la config había cambiado entre la medida y el arreglo; y un `except Exception` convirtiendo un
+    TypeError en warning, o sea la consolidación entera dejando de correr en silencio.
+  - **Abierto**: recall@1 a 7,7 pp del objetivo —T3 cerró NEGATIVA, no hay reranker mejor en nuestro runtime, y
+    el candidato es el `concept_discount` aparcado con su A/B— y **el p50 real de `query()` en el turno vivo
+    sigue SIN MEDIR** (el 589 ms que circula es del harness frío). Nada del retriever debería tocarse sin ese
+    número. Sin verificar en vivo.
+  - ⚠️ **Y un dato de contexto**: este `CLAUDE.md` ha pasado de 304 KB (V2-117, 2026-08-18) a **508 KB**. V2-117
+    quitó el daño confinando el cwd del worker, pero el fichero sigue creciendo ~40 KB/día y es el contexto que
+    lee cualquier agente que trabaje aquí.
+
 ## Testing y rueda de mejora (INI-013)
 
 zaelar se prueba **solo, sin micrófono humano**, con un agente tester independiente que HABLA con zaelar y un
