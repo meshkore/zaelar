@@ -520,15 +520,19 @@ def results_sheet(ids: list[str] | None = None) -> dict:
         if got is not None:
             reads.append((box, got))
     if not reads:
-        return {"read": False, "n_items": 0, "titles": [], "n_sources": 0, "boxes": boxes}
+        return {"read": False, "n_items": 0, "titles": [], "n_backed": 0, "n_sites_reported": 0,
+                "boxes": boxes}
     items: list[dict] = []
-    counts: dict = {}
+    n_sites = 0
     per_box: list[dict] = []
     for box, got in reads:
         got_items = [it for it in (got.get("items") or []) if isinstance(it, dict)]
         items.extend(got_items)
+        # SUMADO por caja, no el de la ÚLTIMA. Antes `counts` se sobrescribía en cada vuelta mientras `items`
+        # se acumulaba, así que numerador y denominador venían de cajas distintas — la forma exacta de medir
+        # contra el sitio equivocado que este mismo fichero documenta dos veces más arriba.
         if isinstance(got.get("counts"), dict):
-            counts = got["counts"]
+            n_sites += int((got["counts"] or {}).get("sources") or 0)
         per_box.append({"id": box, "n_items": len(got_items),
                         "title": str(got.get("title") or "")[:70]})
     d = reads[-1][1]
@@ -543,7 +547,23 @@ def results_sheet(ids: list[str] | None = None) -> dict:
         # (V2-234): a row without a name is not a result, it is a link that happened to be on the page.
         "n_named": sum(1 for it in items if str(it.get("title") or "").strip()),
         "titles": [str(it.get("title") or "")[:90] for it in items[:8]],
-        "n_sources": int(counts.get("sources") or 0),
+        # RESPALDO POR FILA — «¿de dónde salió ESTE candidato?». Medido en `search-secondhand-monitor__es`
+        # (2026-08-24 01:35): la hoja acabó con SEIS anuncios reales, cada uno con su enlace vivo a
+        # milanuncios.com o es.wallapop.com, su precio y su ubicación… y este informe dijo «6 candidatos de
+        # 0 fuentes». El juez lo leyó como tenía que leerlo y fichó DOS [alta] por inventarse resultados,
+        # contra una entrega correcta. La causa: se contaba `counts.sources`, que es `len(data["sources"])`
+        # — la PESTAÑA «Fuentes», donde el worker declara qué sitios probó y cómo le fue. Es otra pregunta.
+        # Que esa pestaña esté vacía no dice nada del respaldo de las filas, y confundirlas convierte «no
+        # rellenó un apartado opcional» en «se lo inventó todo».
+        #
+        # Tercera vez la misma clase en dos días (`results: null`, `duplicate_errands`) y la más cara: las
+        # otras dos exageraban un defecto, ésta FABRICA uno sobre un acierto.
+        "n_backed": sum(1 for it in items
+                        if str(it.get("url") or "").strip() or str(it.get("badge") or "").strip()
+                        or str(it.get("source") or "").strip()),
+        # Y la pestaña, con su nombre de verdad: sigue siendo señal (un worker que declara sus sitios cuenta
+        # también los que le fallaron), solo que de otra cosa.
+        "n_sites_reported": n_sites,
         "note": str(d.get("note") or "")[:120],
     }
 

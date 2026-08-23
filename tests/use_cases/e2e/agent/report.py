@@ -67,7 +67,9 @@ def build(results: list[dict], stamp: str, out_dir: Path) -> Path:
         else:
             _boxes = sh.get("boxes") or []
             lines.append(f"hoja de resultados: {sh.get('n_named', 0)} candidato(s) con nombre "
-                         f"de {sh.get('n_items', 0)} fila(s) · {sh.get('n_sources', 0)} fuente(s)"
+                         f"de {sh.get('n_items', 0)} fila(s) · {sh.get('n_backed', 0)} con enlace/fuente"
+                         + (f" · pestaña Fuentes: {sh['n_sites_reported']} sitio(s)"
+                            if sh.get("n_sites_reported") else "")
                          + (f" · leída en {', '.join(_boxes)}" if _boxes and _boxes != ["results"] else "")
                          + (f" · {', '.join(sh.get('titles') or [])}" if sh.get("titles") else ""))
             # CADA CAJA POR SEPARADO cuando hay más de una: el total no dice si ESTE encargo fue servido —

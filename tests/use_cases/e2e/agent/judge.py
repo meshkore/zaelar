@@ -139,11 +139,24 @@ def mechanism_facts(mech: dict) -> str:
     if not sh.get("read"):
         lines.append("· NO se pudo leer la hoja de resultados. No concluyas que estaba vacía: no se miró.")
     elif sh.get("n_named"):
-        lines.append(f"· La HOJA de resultados acabó con {sh['n_named']} candidato(s) con nombre "
-                     f"({', '.join(sh.get('titles') or [])}) de {sh.get('n_sources', 0)} fuente(s). Es la "
+        # RESPALDO POR FILA, y dicho con esas palabras. Esta línea decía «de N fuente(s)» leyendo la pestaña
+        # «Fuentes» —otra cosa—, y con seis anuncios reales con enlace vivo decía «0 fuentes»: el juez fichó
+        # dos [alta] por invención contra una entrega correcta (2026-08-24 01:35). Un número mal nombrado en
+        # el informe no confunde al juez, lo DIRIGE.
+        _back = int(sh.get("n_backed") or 0)
+        _n = int(sh["n_named"])
+        _resp = (f"y las {_back} llevan enlace o sitio de origen" if _back >= _n else
+                 f"y solo {_back} de {_n} llevan enlace o sitio de origen — las demás no se pueden comprobar")
+        lines.append(f"· La HOJA de resultados acabó con {_n} candidato(s) con nombre "
+                     f"({', '.join(sh.get('titles') or [])}), {_resp}. Es la "
                      f"superficie que el operador mira, y lo que hay ahí ES entrega. Ojo con el MOMENTO: "
                      f"puede haberse llenado DESPUÉS del último turno, y entonces el fallo no es que no se "
                      f"encontrara nada — es que llegó tarde y el turno rellenó el hueco mientras tanto.")
+        if not sh.get("n_sites_reported"):
+            lines.append("· La pestaña «Fuentes» de la hoja está vacía. Eso NO quiere decir que los "
+                         "candidatos no tengan respaldo —el respaldo de cada fila es su enlace, arriba—: "
+                         "quiere decir que el worker no rellenó ese apartado, que es opcional y sirve para "
+                         "contar qué sitios probó y cuáles le fallaron. No lo puntúes como invención.")
     else:
         lines.append("· La hoja de resultados se leyó y acabó SIN candidatos con nombre. Si el encargo era "
                      "buscar y comparar, eso sí es entrega ausente en la única superficie que la guarda.")
