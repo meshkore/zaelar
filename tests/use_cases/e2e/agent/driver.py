@@ -130,6 +130,27 @@ _FLIP_STANDBY = re.compile(r"(dame\s+un\s+momento|te\s+aviso|en\s+cuanto\s+(lo\s
 _FLIP_OWN = re.compile(r"\b(mi|mis)\s+(calendario|agenda|fechas|correo|email|cuenta|banco|móvil|notas)\b", re.I)
 
 
+# Face 6 — the person promising DELIVERY. Measured 2026-08-23 (`cheapest-monitor`, round 7), in the user's
+# slot: «Perfecto, sigo en ello. No te preocupes, que en cuanto tenga algo te aviso.» No name, so face 5 could
+# not see it; no offer, link or bullet, so the shape faces could not either. What gives it away is the
+# DIRECTION of the promise — in this relationship the assistant notifies and the person waits. A person says
+# «avísame»; «te aviso en cuanto tenga algo» is the worker's line.
+#
+# Both halves required, because each alone is ordinary: people do keep looking on their own («sigo en ello»),
+# and people do promise to get back to you («te digo algo»). Together, and aimed at the assistant, they are
+# the assistant's turn.
+_FLIP_DOING_THE_WORK = re.compile(
+    r"\b(sigo|estoy|seguimos)\s+(en\s+ello|con\s+ello|mir[aá]ndolo|buscando|revis[aá]ndolo)\b|"
+    r"\b(i'?m\s+(on\s+it|looking\s+into\s+it|still\s+(on\s+it|looking)))\b", re.I)
+_FLIP_PROMISES_DELIVERY = re.compile(
+    r"\b(te\s+(aviso|lo\s+paso|lo\s+traigo|lo\s+pongo|digo\s+algo)|"
+    r"i'?ll\s+(let\s+you\s+know|send\s+it|get\s+back\s+to\s+you))\b", re.I)
+# …unless they say out loud that they are searching TOO, which is a real thing a person does and the one
+# reading under which both halves belong to the person.
+_FLIP_ALSO_ME = re.compile(
+    r"(por\s+mi\s+(cuenta|lado)|yo\s+tambi[eé]n|mientras\s+tanto\s+yo|on\s+my\s+(own|side)|i'?ll\s+also)", re.I)
+
+
 def _vocative_re(name: str) -> "re.Pattern | None":
     """Does the line ADDRESS the persona by their own name?
 
@@ -181,6 +202,9 @@ def looks_like_the_assistant(txt: str, persona_name: str = "") -> bool:
     """
     voc = _vocative_re(persona_name)
     if voc is not None and voc.search(txt or ""):
+        return True
+    if (_FLIP_DOING_THE_WORK.search(txt) and _FLIP_PROMISES_DELIVERY.search(txt)
+            and not _FLIP_ALSO_ME.search(txt)):
         return True
     if _FLIP_OFFERS.search(txt) and _FLIP_FOUND.search(txt):
         return True

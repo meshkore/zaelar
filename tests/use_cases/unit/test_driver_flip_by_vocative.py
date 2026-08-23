@@ -66,6 +66,42 @@ def test_the_ordinary_turns_of_the_same_round_still_pass():
         assert looks_like_the_assistant(legit, "Marc") is False, legit
 
 
+# ── cara 6: el que promete la ENTREGA ──────────────────────────────────────────────────────────────────
+_PROMISES = "Perfecto, sigo en ello. No te preocupes, que en cuanto tenga algo te aviso."
+
+
+def test_the_person_who_PROMISES_delivery_is_the_assistant():
+    """Misma ronda 7, y sin nombre por medio: la cara 5 no podía verlo.
+
+    Lo que lo delata es la DIRECCIÓN de la promesa. En esta relación el asistente avisa y la persona espera;
+    la persona dice «avísame». «Te aviso en cuanto tenga algo» es la frase del que hace el trabajo."""
+    assert looks_like_the_assistant(_PROMISES) is True
+    # …y sin nombre, para que quede claro que no se está apoyando en la cara 5.
+    assert looks_like_the_assistant(_PROMISES, "Marc") is True
+
+
+def test_cada_mitad_POR_SEPARADO_es_una_frase_normal():
+    """La sensibilidad: exigir las dos es lo que hace la cara segura, así que hay que probar que cada una
+    sola NO dispara. La gente sí sigue buscando por su cuenta, y sí promete volver con algo."""
+    assert looks_like_the_assistant("Vale, sigo en ello por si acaso.") is False
+    assert looks_like_the_assistant("Si cambio de idea te digo algo, ¿vale?") is False
+
+
+def test_y_si_dice_que_busca_EL_TAMBIEN_las_dos_mitades_son_suyas():
+    """La lectura bajo la cual las dos mitades sí son de la persona, dicha en voz alta por ella misma."""
+    assert looks_like_the_assistant("Vale, yo sigo mirando por mi cuenta y te digo si encuentro algo.") is False
+    assert looks_like_the_assistant("Yo también sigo buscando, y te aviso si veo algo.") is False
+
+
+def test_las_esperas_normales_de_la_ronda_7_siguen_pasando():
+    """Verbatim de la misma ronda — los turnos que sí eran de la persona esperando."""
+    for legit in ("Vale, aquí sigo. Si no aparece nada me dices, que lo necesito ya.",
+                  "Ok, me quedo esperando aquí.",
+                  "Vale, gracias, me avisas cuando tengas algo.",
+                  "Vale, no te preocupes. Si ves que se alarga mucho me dices y miro por mi cuenta, ¿vale?"):
+        assert looks_like_the_assistant(legit, "Marc") is False, legit
+
+
 def test_without_a_persona_name_the_face_is_OFF_rather_than_guessing():
     """A sandbox with no seeded identity has no name to check, and a guessed one would be worse than none."""
     assert looks_like_the_assistant("Ya está listo, Marc.", "") is False
