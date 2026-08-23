@@ -43,7 +43,6 @@ def _finished_task(status: str = "done") -> str:
     return tid
 
 
-@pytest.mark.xfail(reason=_OPEN, strict=False)
 @pytest.mark.parametrize("status", ["done", "failed", "cancelled"])
 def test_a_terminal_status_stops_the_phase(status):
     """MEASURED: `status=done` with `phase_active=True` and «conduciendo el navegador» still in `phase`.
@@ -51,10 +50,16 @@ def test_a_terminal_status_stops_the_phase(status):
     Parametrised over the three terminal states because the bug is in `set_status`, not in the happy path: a fix
     that only cleared it for `done` would leave a cancelled or failed task claiming to be driving a browser,
     which is the same lie with a different label.
+
+    CLOSED 2026-08-23 (`set_status` now clears `phase_active` when it enters a terminal state), so the `xfail`
+    marker is gone — which is exactly the cue this file's header describes. The measurement that finally forced
+    it came from `search-secondhand-monitor__es`: a task read `status="cancelled"` while still carrying
+    `phase="en pausa — reanudando la gestión"` and `phase_active=True`, and the round's watchdog fired twice on
+    the gap between what the mechanism said and what the state advertised.
     """
     t = tasks.get(_finished_task(status))
     assert t["status"] == status
-    assert t["phase_active"] is False, "una tarea terminada no puede seguir marcada como activa"
+    assert t["phase_active"] is False, "a finished task cannot still be marked active"
 
 
 def test_and_what_the_brain_READS_does_not_contradict_itself():

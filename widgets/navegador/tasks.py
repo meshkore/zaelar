@@ -583,6 +583,15 @@ def set_status(task_id: str, status: str) -> None:
             # `recently_finished()` lo descartaba igual por su ventana de tiempo. Un estado terminal que no
             # sella su hora es un final que nadie puede fechar.
             t["finished"] = time.time()   # mark the CONTINUITY window (find_continuation)
+            # …and the SPINNER goes off with it, for the same reason the line above exists. Measured
+            # 2026-08-23 (`search-secondhand-monitor__es`): a task read `status="cancelled"` while still
+            # carrying `phase="en pausa — reanudando la gestión"` and `phase_active=True` — a resume that was
+            # never going to happen, announced by a task that had already ended. The card kept spinning and
+            # every reader of the phase saw work in flight; the round's watchdog fired on exactly that gap
+            # between what the mechanism said and what the state advertised.
+            # The phase TEXT is left alone on purpose: it is the last true thing that happened and it dates
+            # the ending. What cannot survive the ending is the claim that it is still going.
+            t["phase_active"] = False
     _notify(task_id)
 
 
