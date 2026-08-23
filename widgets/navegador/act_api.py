@@ -8,6 +8,7 @@ the `nucleo/nav_cli.py` CLI (`hbweb`). Local/loopback: same trust model as the r
 """
 from fastapi import APIRouter, Body
 from fastapi.responses import JSONResponse
+from nucleo.errors import brief as _brief
 
 router = APIRouter()
 
@@ -380,5 +381,5 @@ async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body
             return {"ok": bool(ok), "msg": msg, "shot": _shot_path(task_id), **_with_stall(task_id, _with_wall(snap, task_id))}
         return JSONResponse({"ok": False, "error": f"acción desconocida: {action}"}, status_code=400)
     except Exception as e:  # noqa: BLE001
-        return JSONResponse({"ok": False, "error": f"{type(e).__name__}: {str(e).splitlines()[0][:160]}"},
+        return JSONResponse({"ok": False, "error": f"{type(e).__name__}: {_brief(e, 160)}"},
                             status_code=500)

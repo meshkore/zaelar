@@ -42,7 +42,8 @@ DOMAINS: list[dict] = [
         {"id": "1.2", "title": "Embeddings y recuperación (retriever+reranker)", "ch": UNIT, "paths": [
             "tests/memory/unit/test_embeddings.py", "tests/memory/unit/test_retriever.py",
             "tests/memory/integration/test_rerank.py", "tests/memory/unit/test_graph_ppr.py",
-            "tests/memory/unit/test_rerank_abs.py"]},
+            "tests/memory/unit/test_rerank_abs.py",
+            "tests/memory/unit/test_rerank_local_load_budget.py"]},
         {"id": "1.3", "title": "Escritura / ingest / destilador", "ch": UNIT, "paths": [
             "tests/memory/integration/test_memory_agent.py", "tests/memory/integration/test_writer_queue.py",
             "tests/memory/integration/test_write_precision_v2033.py",
@@ -354,6 +355,15 @@ DOMAINS: list[dict] = [
         {"id": "2.27", "title": "Una puerta de bóveda, dos bocas: la decisión se toma UNA vez y ningún canal "
                                 "conserva su copia",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_the_vault_gate_is_decided_once.py"]},
+        # F1 paso 2 (2026-08-23), reportado por el arnés con el coste medido: con la memoria lenta (descarga de
+        # 1,1 GB) `probe.py` componía el recall DENTRO del event loop y bloqueaba el motor ENTERO — todos los
+        # endpoints en timeout y la tanda muerta como «INFRA: timed out», sin nombrar a la memoria. La voz ya
+        # tenía la guarda. Y el defecto lo decía el docstring de `build_flash_system`: `recall_query=` es la
+        # ruta de COMPATIBILIDAD PARA TESTS y compone en línea. Una PROTECCIÓN que existe en un canal y no en
+        # el otro no se distingue de no tenerla.
+        {"id": "2.28", "title": "El recall se compone fuera del loop y acotado en LOS DOS canales: el turno "
+                                "queda libre en su presupuesto y nadie vuelve a la ruta de compatibilidad",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_the_recall_budget_is_shared.py"]},
         {"id": "2.15", "title": "Idioma del operador en un canal SIN voz (primera ejecución)", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_first_run_language.py"]},
         # 2026-08-20: el relleno de nunca-mudo decía CUATRO veces la misma frase («Vale, dame un momento que lo
@@ -944,6 +954,16 @@ DOMAINS: list[dict] = [
                                 "nombre, y cada consumidor conserva su contrato",
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/core/test_runtime_ids.py"]},
+        # 2026-08-23, reportado por el arnés con la ronda que le mató: `cheapest-monitor` murió en el turno 10
+        # con un 500 y el log traía `IndexError` desde `str(e).splitlines()[0][:200]` — `"".splitlines()` es
+        # `[]`, así que cualquier excepción SIN MENSAJE hace reventar la propia línea. Las quince copias vivían
+        # dentro de un `except`, y la de `probe.py` es la que clasifica el fallo de proveedor y decide el
+        # RELEVO: un proveedor cayendo en silencio se llevaba por delante al manejador del fallo, el turno
+        # devolvía 500 y el relevo NO OCURRÍA. Un camino de error que puede lanzar no es un camino de error.
+        {"id": "7.24", "title": "Un manejador de error no puede reventar: una sola forma de resumir una "
+                                "excepción, y ninguna copia que se caiga con el mensaje vacío",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/core/test_an_error_path_that_can_raise.py"]},
         # 2026-08-20: hermano del anterior por el otro lado. El trinquete vigila que una decisión tenga
         # iniciativa; esto vigila que los PUNTEROS de `CLAUDE.md` lleven a un fichero que existe. Un puntero roto
         # no falla: el siguiente agente abre un fichero que no está y trabaja sin el contexto que lo justificaba.

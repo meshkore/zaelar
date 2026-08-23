@@ -32,6 +32,7 @@ import time as _time
 from urllib.parse import parse_qs, unquote, urlparse
 
 from loguru import logger
+from nucleo.errors import brief as _brief
 
 _UA = ("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
        "(KHTML, like Gecko) Chrome/120.0 Safari/537.36")
@@ -175,7 +176,7 @@ def search(query: str, k: int = _MAX_RESULTS) -> dict:
             _why.append(f"{src}: sin resultados")
         except Exception as e:  # noqa: BLE001
             logger.warning(f"websearch backend '{src}' falló, siguiente: {e}")
-            _why.append(f"{src}: {str(e).splitlines()[0][:120]}")
+            _why.append(f"{src}: {_brief(e, 120)}")
     # THE CHAIN COLLAPSED. Recorded, not just logged — see `note_failure`. An empty result on its own cannot tell
     # the brain whether the world has nothing or our searching is broken, and those two deserve opposite replies.
     note_failure(" · ".join(_why))

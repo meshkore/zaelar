@@ -28,6 +28,7 @@ from urllib.parse import quote_plus
 from loguru import logger
 
 from .. import store
+from nucleo.errors import brief as _brief
 
 WID = "navegador"
 VIEWPORT = {"width": 1280, "height": 800}
@@ -335,12 +336,12 @@ async def _ensure_page():
                 break
             except Exception as e:
                 logger.warning(f"navegador: launch channel={_ch or 'chromium'} falló "
-                               f"({str(e).splitlines()[0][:100]})")
+                               f"({_brief(e, 100)})")
         if _context is None:
             try:
                 _context = await _launch(True, None)      # last resort: headless chromium
             except Exception as e:
-                logger.warning(f"navegador: headless también falló ({str(e).splitlines()[0][:100]})")
+                logger.warning(f"navegador: headless también falló ({_brief(e, 100)})")
                 raise
         _browser = None                               # the persistent context IS the browser (no separate object)
         try:
@@ -456,7 +457,7 @@ async def _goto(url: str, push: bool = True) -> None:
         await _dismiss_overlays(page)                    # close cookie banners that block the website
         await asyncio.sleep(0.35)                     # let the above-the-fold render before the screenshot
     except Exception as e:
-        _write(loading=False, error=f"No pude abrir la página: {str(e).splitlines()[0][:200]}")
+        _write(loading=False, error=f"No pude abrir la página: {_brief(e, 200)}")
         _emit("nav_error", url, error=str(e)[:200])
         return
     if push:
@@ -607,7 +608,7 @@ async def _automate(goal: str, plan: str = "", task_id: str = "") -> None:
     try:
         res = await agent.run_task(goal, tb, plan=plan)
     except Exception as e:  # noqa: BLE001
-        res = {"ok": False, "summary": f"error del automatizador: {str(e).splitlines()[0][:160]}"}
+        res = {"ok": False, "summary": f"error del automatizador: {_brief(e, 160)}"}
     # LOGIN WALL: the loop hit a sign-in page and did NOT type credentials. Open the real window so the operator can
     # sign in manually; the task is NOT closed — it remains paused and resumes by itself after auth_done.
     if res.get("needs_login"):
@@ -724,7 +725,7 @@ async def _browse(task_id: str, mode: str, url: str, q: str) -> None:
         else:
             await tb.open_target(url or q)
     except Exception as e:  # noqa: BLE001
-        tasks.milestone(task_id, f"⚠️ {str(e).splitlines()[0][:120]}")
+        tasks.milestone(task_id, f"⚠️ {_brief(e, 120)}")
     tasks.set_status(task_id, "open")
     tasks.set_phase(task_id, "abierto", False)
 
@@ -877,7 +878,7 @@ async def _authenticate(task_id: str, url: str, *, site: str = "", goal: str = "
         else:                                                     # site/domain → RESOLVE login (versatile)
             await _reach_login(tb, site or url)
     except Exception as e:  # noqa: BLE001
-        tasks.milestone(task_id, f"⚠️ {str(e).splitlines()[0][:100]}")
+        tasks.milestone(task_id, f"⚠️ {_brief(e, 100)}")
     _auth_baseline_cookies[task_id] = await _cookie_fingerprint(tb)
     tasks.milestone(task_id, "🔓 Inicia sesión en la ventana; lo detecto solo cuando entres — no tienes que hacer nada más")
     try:
@@ -1183,7 +1184,7 @@ async def _click(x: float, y: float) -> None:
         await page.mouse.click(x, y)
         await asyncio.sleep(0.6)                       # let a navigating click settle
     except Exception as e:
-        _write(loading=False, error=f"No pude hacer clic: {str(e).splitlines()[0][:160]}")
+        _write(loading=False, error=f"No pude hacer clic: {_brief(e, 160)}")
         return
     if page.url and (not _hist or page.url != _hist[_idx if 0 <= _idx < len(_hist) else -1]):
         _hist = _hist[:_idx + 1] + [page.url]          # a click that navigated pushes to history
@@ -1347,7 +1348,7 @@ class TaskBrowser:
             await _dismiss_overlays(page)
             await asyncio.sleep(0.35)
         except Exception as e:
-            self._emit("nav_error", str(e).splitlines()[0][:160])
+            self._emit("nav_error", _brief(e, 160))
             return
         await self._capture()
 
@@ -1527,12 +1528,12 @@ class TaskBrowser:
                         except Exception:
                             await h.select_option(val)   # value or generic label (fallback)
                 except Exception as e:  # noqa: BLE001
-                    return False, f"no pude seleccionar «{val or idx}» en el desplegable: {str(e).splitlines()[0][:80]}"
+                    return False, f"no pude seleccionar «{val or idx}» en el desplegable: {_brief(e, 80)}"
                 await asyncio.sleep(0.4)
                 await self._capture()
                 return True, f"opción «{val or idx}» seleccionada"
         except Exception as e:
-            return False, f"{type(e).__name__}: {str(e).splitlines()[0][:120]}"
+            return False, f"{type(e).__name__}: {_brief(e, 120)}"
         return False, f"acción desconocida: {action}"
 
     async def _confirm(self, label: str) -> bool:
