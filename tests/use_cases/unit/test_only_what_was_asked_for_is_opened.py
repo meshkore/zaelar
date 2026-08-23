@@ -143,13 +143,16 @@ def test_the_report_SAYS_it_when_an_errand_ran_twice():
     joined = "\n".join(reportmod._mechanism_numbers({
         "worker_health": {"spawned": 4, "ok": 2},
         "duplicate_errands": {"groups": [{"n": 4, "goal": "Busca planes con ninos", "identical": False,
-                                          "min_sim": 0.571, "max_sim": 0.893,
-                                          "engine_jaccard_max": 0.45, "over_engine_bar": False}],
-                              "worst": 4},
+                                          "min_sim": 0.30, "max_sim": 0.40, "jaccard_max": 0.31,
+                                          "engine_metric": "contención", "engine_bar": 0.45,
+                                          "over_engine_bar": False}],
+                              "worst": 4, "continuations_visible": True},
     }))
     assert "4 workers para UN encargo" in joined and "Busca planes con ninos" in joined
-    # …y a CUÁL de los dos defectos apunta. Sin esto el informe describe el síntoma y señala mal.
-    assert "por debajo de su 0,60" in joined
+    # …y a CUÁL de los dos defectos apunta, con la vara REAL del motor. El informe decía «por debajo de su
+    # 0,60» y las dos mitades eran falsas desde el 2026-08-23: ni la métrica era Jaccard ni la vara 0,60.
+    assert "por debajo de su 0.45" in joined
+    assert "0,60" not in joined, "el informe sigue citando la vara vieja del motor"
 
 
 def _rounds(tmp_path, spawns: list[str], asked: list[str] | None = None) -> str:
@@ -218,5 +221,94 @@ def test_containment_survives_a_reformulation_that_jaccard_dismisses(tmp_path):
     assert r["worst"] == 2, r
     g = r["groups"][0]
     assert g["min_sim"] >= 0.9                      # contención: el corto está casi entero dentro del largo
-    assert g["engine_jaccard_max"] < 0.6            # …y el motor lo descartaría
-    assert g["over_engine_bar"] is False            # → paráfrasis, no «el dedup no disparó»
+    assert g["jaccard_max"] < 0.6                   # Jaccard lo habría descartado…
+    # …y el MOTOR ya no usa Jaccard. Este assert decía `over_engine_bar is False` con el comentario «el motor
+    # lo descartaría», y era una afirmación sobre el motor que dejó de ser cierta el mismo día que se
+    # escribió: F4 movió `find_duplicate` a contención con la vara en 0,45, así que este par —contención
+    # ≥0,9— SÍ lo para el dedup de hoy. El informe estaba señalando una paráfrasis que el motor ya resuelve.
+    assert g["engine_metric"] == "contención"
+    assert g["over_engine_bar"] is True
+
+
+# ── un RELEVO no es un duplicado, y su parecido es 1,0 POR CONSTRUCCIÓN ────────────────────────────────
+# Medido en `search-secondhand-monitor__es` (2026-08-23 23:24). El informe decía «2 workers para UN encargo
+# · contención 1,0 · se paga entero cada vez», y el segundo worker era el RELEVO por proveedor sin cuota que
+# V2-238 construyó a propósito — el mismo que la columna de al lado del MISMO informe (`worker_health.
+# relayed`) ya sabía llamar por su nombre. Dos lecturas del mismo hecho, una acusando al producto.
+#
+# Y no es un falso positivo que se arregle afinando la vara: el relevo relanza `rec.goal` LITERAL, así que
+# la contención es 1,0 siempre. Ninguna vara puede distinguirlo. Lo que sí lo distingue es de dónde viene, y
+# eso viaja en el evento: `context.src`. Payloads copiados de la corrida real.
+
+_REQ = ("Busca un monitor de segunda mano (usado) de al menos 27 pulgadas por menos de 150€, "
+        "preferiblemente en Wallapop. Encuentra varias opciones reales que cumplan")
+
+
+def _relay_round(tmp_path, src: str = "provider_failover") -> str:
+    db = tmp_path / "relay.db"
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE events (topic TEXT, payload TEXT, ts_ms INTEGER)")
+    con.execute("INSERT INTO events VALUES (?,?,?)", ("escalate.requested", json.dumps(
+        {"id": 1, "request": _REQ, "context": {"src": "probe", "trace": "T1·a4c3", "surface": "lista"}}), 1000))
+    con.execute("INSERT INTO events VALUES (?,?,?)", ("worker.spawned", json.dumps(
+        {"id": "1", "kind": "web", "goal": _REQ[:120]}), 2000))
+    con.execute("INSERT INTO events VALUES (?,?,?)", ("worker.done", json.dumps(
+        {"id": "1", "ok": False, "status": "relevada"}), 32000))
+    con.execute("INSERT INTO events VALUES (?,?,?)", ("escalate.requested", json.dumps(
+        {"id": 2, "request": _REQ, "context": {"src": src, "kind": "web", "trace": "T1·a4c3",
+                                               "relay_gen": 1}}), 33000))
+    con.execute("INSERT INTO events VALUES (?,?,?)", ("worker.spawned", json.dumps(
+        {"id": "2", "kind": "web", "goal": _REQ[:120]}), 34000))
+    con.commit(); con.close()
+    return str(db)
+
+
+def test_a_provider_relay_is_not_reported_as_a_duplicate(tmp_path):
+    r = verify.duplicate_errands(_relay_round(tmp_path), since=0)
+    assert r["groups"] == [], r
+    assert r["n_spawned"] == 2, "el segundo worker existió: no se esconde, se explica"
+
+
+def test_but_the_cost_of_the_relay_STAYS_visible(tmp_path):
+    """Esconderlo sería el error contrario: un relevo paga tokens dos veces y eso es real."""
+    r = verify.duplicate_errands(_relay_round(tmp_path), since=0)
+    assert len(r["continuations"]) == 1
+    assert r["continuations"][0]["src"] == "provider_failover"
+    assert "relevo" in r["continuations"][0]["why"].lower()
+
+
+def test_the_context_handoff_gets_the_same_treatment(tmp_path):
+    """V2-117 relanza el MISMO encargo al agotarse el contexto. Misma forma, mismo trato."""
+    r = verify.duplicate_errands(_relay_round(tmp_path, src="context_handoff"), since=0)
+    assert r["groups"] == []
+    assert r["continuations"][0]["src"] == "context_handoff"
+
+
+def test_a_REAL_duplicate_is_still_reported(tmp_path):
+    """Sensibilidad, y es la mitad que importa: quitar el falso positivo no puede quitar el verdadero."""
+    db = tmp_path / "dup.db"
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE events (topic TEXT, payload TEXT, ts_ms INTEGER)")
+    for i, ts in ((1, 1000), (2, 33000)):
+        con.execute("INSERT INTO events VALUES (?,?,?)", ("escalate.requested", json.dumps(
+            {"id": i, "request": _REQ, "context": {"src": "probe"}}), ts))
+        con.execute("INSERT INTO events VALUES (?,?,?)", ("worker.spawned", json.dumps(
+            {"id": str(i), "goal": _REQ[:120]}), ts + 1000))
+    con.commit(); con.close()
+    r = verify.duplicate_errands(str(db), since=0)
+    assert r["worst"] == 2, r
+    assert r["continuations"] == []
+
+
+def test_reading_only_the_spawn_SAYS_it_cannot_tell(tmp_path):
+    """El `goal` del spawn no dice de dónde viene, así que por esa vía un relevo es indistinguible.
+
+    Callarlo devuelve el falso positivo con otra cara: el informe diría «duplicado» con la misma seguridad
+    que cuando sí puede saberlo.
+    """
+    r = verify.duplicate_errands(_rounds(tmp_path, spawns=[_REQ[:120], _REQ[:120]]), since=0)
+    assert r["worst"] == 2
+    assert r["continuations_visible"] is False
+    from tests.use_cases.e2e.agent import report as reportmod
+    joined = "\n".join(reportmod._mechanism_numbers({"duplicate_errands": r}))
+    assert "no se puede distinguir" in joined

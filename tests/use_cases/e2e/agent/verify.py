@@ -1155,10 +1155,18 @@ def duplicate_errands(db_path, *, since: float = 0.0, floor: float = 0.5) -> dic
     behaved correctly and the real defect was the paraphrase gap. Reading a truncated field does not fail —
     it manufactures a finding, and this one had already been sent. When only the truncated field exists the
     result says so (`text_source`), because a similarity read off a prefix is a CEILING, never a measurement.
+
+    ⚠️ AND IT DROPS THE CONTINUATIONS OF ONE ERRAND — a provider relay (V2-238) and a context handoff
+    (V2-117) relaunch the SAME goal on purpose, so their containment is 1.0 BY CONSTRUCTION and no bar can
+    ever tell them apart from a real duplicate. They are reported apart in `continuations`, with their
+    reason: the token cost is real and stays visible, but calling it a dedup failure sends whoever reads it
+    to a mechanism that behaved correctly — the same reading `worker_health.relayed` already had, in a
+    column of the same report.
     """
     import sqlite3
     out: dict = {"read": False, "n_spawned": 0, "groups": [], "worst": 0, "identical_repeats": 0,
-                 "text_source": "", "truncated_source": False}
+                 "text_source": "", "truncated_source": False, "continuations": [],
+                 "continuations_visible": False}
     try:
         con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     except Exception:
@@ -1188,21 +1196,23 @@ def duplicate_errands(db_path, *, since: float = 0.0, floor: float = 0.5) -> dic
         got = []
         for raw, ts in rows:
             try:
-                t = str((json.loads(raw) or {}).get(field) or "").strip()
+                d = json.loads(raw) or {}
+                t = str(d.get(field) or "").strip()
+                src = str(((d.get("context") or {}) if isinstance(d.get("context"), dict) else {}).get("src") or "")
             except Exception:
                 continue
             if t:
-                got.append((ts, t))
+                got.append((ts, t, src))
         return got
 
     try:
         spawned = _texts("worker.spawned", "goal")
-        spawn_ts = [ts for ts, _t in _stamped("worker.spawned", "goal")]
+        spawn_ts = [ts for ts, _t, _s in _stamped("worker.spawned", "goal")]
         # SOLO las escaladas que llegaron a NACER. Una escalada DEDUPLICADA deja su `escalate.requested` y
         # ningún worker: contarla acusaría al dedup justo de los casos en los que funcionó — la forma exacta
         # del error anterior, un lector apuntado al sitio equivocado que fabrica el hallazgo en vez de fallar.
-        asked = [t for ts, t in _stamped("escalate.requested", "request")
-                 if any(0 <= s_ts - ts < 25000 for s_ts in spawn_ts)]
+        born = [(t, src) for ts, t, src in _stamped("escalate.requested", "request")
+                if any(0 <= s_ts - ts < 25000 for s_ts in spawn_ts)]
     finally:
         try:
             con.close()
@@ -1210,11 +1220,34 @@ def duplicate_errands(db_path, *, since: float = 0.0, floor: float = 0.5) -> dic
             pass
     out["read"] = True
     out["n_spawned"] = len(spawned)
+    # UNA CONTINUACIÓN NO ES UN DUPLICADO, y su goal es IDÉNTICO POR CONSTRUCCIÓN. Medido en
+    # `search-secondhand-monitor__es` (2026-08-23 23:24): dos workers, contención 1,0, reportados como «2
+    # workers para UN encargo · se paga entero cada vez» — y el segundo era el RELEVO por proveedor sin cuota
+    # que V2-238 construyó a propósito, el mismo que la columna de al lado (`worker_health.relayed`) ya sabía
+    # llamar por su nombre. Dos lecturas del mismo hecho en el mismo informe, una acusando al producto.
+    #
+    # Peor que un falso positivo suelto: el relevo RELANZA `rec.goal` literal, así que la contención es 1,0
+    # SIEMPRE — este detector no puede dejar de disparar sobre un relevo por mucho que se afine la vara. Y el
+    # dedup del motor tampoco es el culpable: `find_duplicate` corre en `run_listener` sobre las sesiones
+    # VIVAS, y quien releva ya se está muriendo.
+    #
+    # El coste NO se esconde: un relevo sí paga dos veces en tokens (el primer worker trabajó antes de
+    # quedarse sin gasolina). Se cuenta aparte, con su motivo, para que siga siendo visible sin leerse como
+    # un fallo de dedup — que manda a mirar el sitio equivocado.
+    _CONTINUATIONS = {"provider_failover": "relevo de proveedor (V2-238)",
+                      "context_handoff": "contexto agotado → sesión nueva (V2-117)"}
+    cont = [(t, src) for t, src in born if src in _CONTINUATIONS]
+    asked = [t for t, src in born if src not in _CONTINUATIONS]
+    out["continuations"] = [{"src": src, "why": _CONTINUATIONS[src]} for _t, src in cont]
     # The full request when it exists; the truncated goal only as a fallback, and labelled as such.
     goals = asked or spawned
-    out["text_source"] = ("escalate.requested (solo las que nacieron)" if asked
+    out["text_source"] = ("escalate.requested (solo las que nacieron, sin continuaciones)" if born
                           else "worker.spawned.goal (TRUNCADO a 120 · techo)")
-    out["truncated_source"] = not asked
+    out["truncated_source"] = not born
+    # El `goal` del spawn NO dice de dónde viene, así que por esa vía un relevo es indistinguible de un
+    # duplicado. Decirlo es la diferencia entre un número y un número con su margen: callarlo devuelve el
+    # falso positivo con otra cara.
+    out["continuations_visible"] = bool(born)
     if len(goals) < 2:
         return out
 
@@ -1238,6 +1271,19 @@ def duplicate_errands(db_path, *, since: float = 0.0, floor: float = 0.5) -> dic
             parent[i] = parent[parent[i]]
             i = parent[i]
         return i
+
+    # LA VARA DEL MOTOR SE LE PREGUNTA AL MOTOR. Este informe llevaba escrito «jaccard del motor ≥ 0,60» y
+    # las dos mitades eran falsas desde el mismo 2026-08-23: `find_duplicate` dejó de usar Jaccard (divide por
+    # la UNIÓN, así que una reformulación más larga se ve distinta por ser más larga) y pasó a CONTENCIÓN con
+    # la vara en 0,45. O sea que el informe podía tener razón en que había un duplicado y aun así mandar a
+    # mirar una métrica que ya no gobierna nada. Un número copiado a mano deriva en silencio; leído de su
+    # fuente, no puede.
+    try:
+        from nucleo import matching as _m
+        _engine_bar = float(_m.SAME_ERRAND)
+        _engine_metric = "contención"
+    except Exception:
+        _engine_bar, _engine_metric = 0.0, ""
 
     sims: dict = {}
     for i in range(len(goals)):
@@ -1264,9 +1310,13 @@ def duplicate_errands(db_path, *, since: float = 0.0, floor: float = 0.5) -> dic
             "identical": len(set(texts)) == 1,
             "min_sim": min((c for c, _j in pair), default=None),
             "max_sim": max((c for c, _j in pair), default=None),
-            # El número del MOTOR, para saber a cuál de los dos defectos apunta el grupo.
-            "engine_jaccard_max": max(jacs, default=None),
-            "over_engine_bar": bool(jacs and max(jacs) >= 0.6),
+            # Jaccard se sigue reportando porque separa las dos poblaciones al mirarlas (mismo encargo
+            # 0,319-0,450 · distintos 0,062-0,227) — pero YA NO es la vara del motor y no decide nada aquí.
+            "jaccard_max": max(jacs, default=None),
+            # A cuál de los dos defectos apunta el grupo, medido contra la vara REAL del motor.
+            "engine_metric": _engine_metric,
+            "engine_bar": _engine_bar or None,
+            "over_engine_bar": bool(_engine_bar and max((c for c, _j in pair), default=0.0) >= _engine_bar),
         })
         if len(set(texts)) == 1:
             out["identical_repeats"] += len(members) - 1

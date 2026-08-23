@@ -145,13 +145,22 @@ def _mechanism_numbers(mech: dict) -> list[str]:
             bits.append(f"{wh['cancelled']} cancelado(s) al cerrar la ronda")
         out.append("workers: " + " · ".join(bits))
     dup = mech.get("duplicate_errands") or {}
+    # Una CONTINUACIÓN se cuenta, con su motivo, y NO como un fallo de dedup: el coste en tokens es real y
+    # tiene que verse, pero llamarlo duplicado manda a mirar un mecanismo que se portó bien (V2-238/V2-117).
+    for c in (dup.get("continuations") or [])[:3]:
+        out.append(f"· un worker MÁS por continuación del mismo encargo — {c.get('why')}: paga tokens dos "
+                   f"veces, pero NO es un duplicado ni un fallo del dedup")
     for g in (dup.get("groups") or [])[:3]:
-        _how = ("el dedup NO disparó (jaccard del motor "
-                f"{g.get('engine_jaccard_max')} ≥ 0,60)" if g.get("over_engine_bar")
-                else f"reformulado — el motor lo ve a {g.get('engine_jaccard_max')}, por debajo de su 0,60")
+        _bar, _met = g.get("engine_bar"), g.get("engine_metric") or "contención"
+        _bar_txt = f"{_met} del motor {g.get('max_sim')} ≥ {_bar}" if _bar else "sin poder leer la vara del motor"
+        _how = (f"el dedup NO disparó ({_bar_txt})" if g.get("over_engine_bar")
+                else f"reformulado — el motor lo ve a {g.get('max_sim')}, por debajo de su {_bar}")
         out.append(f"⚠️ **{g.get('n')} workers para UN encargo** · contención {g.get('min_sim')}–"
                    f"{g.get('max_sim')} · {_how}: «{g.get('goal')}» — se paga entero cada vez y cada uno "
                    f"abre su propia hoja")
+    if (dup.get("groups") or []) and not dup.get("continuations_visible"):
+        out.append("  ⚠️ leído del `goal` del spawn, que NO dice de dónde viene: un RELEVO de proveedor sale "
+                   "aquí como duplicado y no se puede distinguir")
     wdz = mech.get("worker_deaths") or {}
     if wdz.get("shared_sessions"):
         for sid, who in list(wdz["shared_sessions"].items())[:2]:
