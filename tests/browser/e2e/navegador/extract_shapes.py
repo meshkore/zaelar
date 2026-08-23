@@ -129,6 +129,59 @@ SOLO_CROMO = """<div class="carousel">
   <a href="https://tienda.invalid/sspa/aaa"><div>Mediano:</div><div>379,99 €</div></a>
   <a href="https://tienda.invalid/sspa/bbb"><div>Mediano:</div><div>289,99 €</div></a></div>"""
 
+# ── 12 · EL PRECIO VIVE EN LA TARJETA, NO EN EL ENLACE ────────────────────────────────────────────────────
+# Verbatim from `es.wallapop.com/search?keywords=monitor`, measured 2026-08-23: 78 real listing anchors on
+# screen and the extractor returned ZERO rows. Every listing is TWO anchors at the SAME item — one wrapping the
+# photo, one wrapping the `<h3>` — and neither carries the price; it is a sibling inside the card. The
+# price-or-phone gate therefore dropped all 78, which is the shape behind several rounds reporting «0 filas
+# extraídas» on second-hand marketplaces.
+#
+# Rendered rather than parsed, for the reason at the top of this file: the price is read off `innerText`, which
+# is what the BROWSER composes, not the HTML. Two cards on purpose — one card alone cannot show that the walk
+# stops before it reaches the neighbour's price.
+TARJETA_CON_PRECIO_FUERA = """<div class="grid">
+  <div class="card">
+    <a href="https://2mano.invalid/item/lg-ultragear-1"><img src="x.jpg" alt="Monitor Gaming LG UltraGear 32GN600B"></a>
+    <a href="https://2mano.invalid/item/lg-ultragear-1"><h3>Monitor Gaming LG UltraGear 32GN600B</h3></a>
+    <div class="precio">150 €</div><div class="badge">Destacado</div>
+  </div>
+  <div class="card">
+    <a href="https://2mano.invalid/item/samsung-22-2"><img src="y.jpg" alt="2 Monitores LG y Samsung 22 pulgadas"></a>
+    <a href="https://2mano.invalid/item/samsung-22-2"><h3>2 Monitores LG y Samsung 22 pulgadas</h3></a>
+    <div class="precio">50 €</div>
+  </div></div>"""
+
+# ── 13 · EL PRECIO DE LA VECINA ───────────────────────────────────────────────────────────────────────────
+# La otra mitad de la 12, y la que de verdad puede hacer daño. Una ficha SIN precio publicado junto a una que sí
+# lo lleva: si el paseo se sube a la rejilla se trae el importe de al lado. Medido mientras se construía la 12 —
+# con el margen que usan el nombre y el teléfono (4 listados) las DOS filas salían con «24 50 €», o sea el precio
+# de la vecina Y mal leído (el grupo de céntimos saltó de «Samsung 24» a «50 €»).
+#
+# Un nombre equivocado se ve; un precio equivocado se lee como un hallazgo. Así que sin precio propio la ficha se
+# queda fuera, que es lo que ya dice el contrato de V2-240: hace falta un nombre y algo con lo que actuar.
+PRECIO_DE_LA_VECINA = """<div class="grid">
+  <div class="card">
+    <a href="https://2mano.invalid/item/sin-precio-1"><h3>Monitor sin precio publicado</h3></a>
+    <div>Consultar</div>
+  </div>
+  <div class="card">
+    <a href="https://2mano.invalid/item/con-precio-2"><h3>Monitor Samsung 24</h3></a>
+    <div class="precio">50 €</div>
+  </div></div>"""
+
+# ── 14 · EL NOMBRE Y EL PRECIO EN EL MISMO NODO ───────────────────────────────────────────────────────────
+# El tercer modo de fabricar un precio, y el más caro de los tres. Con el nombre y el importe dentro del mismo
+# elemento —separados solo por un `<br>`— el texto del nodo es «Monitor Samsung 2450 €» sin separador ninguno,
+# porque `textContent` no inserta el salto que el navegador PINTA. Medido: sin la guarda de longitud, un monitor
+# de 50 € se entrega como **2450 €**, 49 veces su precio, con su nombre y su enlace correctos al lado.
+#
+# La guarda exige que el texto del nodo sea CASI SOLO el importe, así que aquí no encuentra precio y la ficha se
+# cae — se pierde un anuncio real, y esa es la dirección segura: una fila de menos se nota, un precio inventado
+# con nombre y enlace de verdad no.
+NOMBRE_Y_PRECIO_JUNTOS = """<div class="card">
+  <a href="https://2mano.invalid/item/samsung-24-9"><img src="x.jpg" alt="Monitor Samsung 24"></a>
+  <div class="info">Monitor Samsung 24<br>50 €</div></div>"""
+
 fails = []
 
 
@@ -234,6 +287,31 @@ def main():
               all(not t for t in titles), str(titles))
         check("11b · and the price is still there to describe them by",
               all((i.get("price") or "") for i in got), str([i.get("price") for i in got]))
+
+        # ── 12 · el precio vive en la TARJETA, no en el enlace ──
+        got = extract(page, TARJETA_CON_PRECIO_FUERA)
+        check("12 · dos fichas, dos filas (los dos enlaces de una ficha colapsan en una)", len(got) == 2, str(got))
+        by_title = {(i.get("title") or ""): (i.get("price") or "") for i in got}
+        check("12a · cada ficha se lleva SU precio, no el de la vecina",
+              by_title.get("Monitor Gaming LG UltraGear 32GN600B") == "150 €"
+              and by_title.get("2 Monitores LG y Samsung 22 pulgadas") == "50 €",
+              str(by_title))
+        check("12b · y conserva su nombre y su enlace",
+              all((i.get("title") or "") and "/item/" in (i.get("url") or "") for i in got), str(got))
+
+        # ── 13 · el precio de la vecina ──
+        got = extract(page, PRECIO_DE_LA_VECINA)
+        check("13 · la ficha sin precio propio no se queda con el de al lado", len(got) == 1, str(got))
+        if got:
+            check("13a · y la que sí lo tiene conserva el SUYO, sin mezclar con el nombre",
+                  got[0]["title"] == "Monitor Samsung 24" and got[0]["price"] == "50 €",
+                  f"{got[0]['title']!r} / {got[0]['price']!r} (era «24 50 €» en las dos filas)")
+
+        # ── 14 · el nombre y el precio en el mismo nodo ──
+        got = extract(page, NOMBRE_Y_PRECIO_JUNTOS)
+        malos = [i for i in got if (i.get("price") or "") and "2450" in i["price"]]
+        check("14 · un nombre acabado en número no se pega al importe", not malos,
+              f"precio fabricado: {[i.get('price') for i in got]} (el anuncio son 50 €)")
 
         browser.close()
 

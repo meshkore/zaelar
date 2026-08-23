@@ -53,13 +53,21 @@ _JS_EXTRACT = r"""
   // como mucho cinco niveles y solo mientras el ancestro siga siendo UNA ficha: en cuanto abarca varias es la
   // REJILLA, y lo que hay ahí vale para todas — un dato que nombra a todas no nombra a ninguna. Tenerlo en dos
   // sitios sería tener dos definiciones de «tarjeta» que se separan sin avisar.
-  const cardWalk=(a, read)=>{
+  // `maxPaths` — cuántos listados DISTINTOS puede abarcar el ancestro y seguir contando como la tarjeta. El
+  // nombre y el teléfono admiten 4 (una tarjeta puede enlazar al vendedor, a su tienda, a una categoría) y el
+  // encabezado se desempata además por el enlace que apunta a ESTA misma ficha. El PRECIO no tiene ese
+  // desempate y no puede permitirse el error, así que pide 1: solo el nivel en el que todos los enlaces son de
+  // este mismo listado. Medido 2026-08-23 con dos tarjetas: con el margen de 4, una ficha SIN precio se subía a
+  // la rejilla y se traía el de la vecina. Un nombre de la vecina se ve; un precio de la vecina se lee como un
+  // hallazgo.
+  const cardWalk=(a, read, maxPaths)=>{
+    const cap=(maxPaths===undefined?4:maxPaths);
     let n=a;
     for(let i=0;i<5&&n&&n.parentElement;i++){
       n=n.parentElement;
       const paths=new Set();
       for(const l of n.querySelectorAll('a[href]')){ try{ paths.add(new URL(l.href).pathname); }catch(_){} }
-      if(paths.size>4) break;
+      if(paths.size>cap) break;
       const got=read(n);
       if(got) return got;
     }
@@ -92,6 +100,35 @@ _JS_EXTRACT = r"""
     }
     return '';
   };
+  // EL IMPORTE, when the link itself does not carry it. Measured 2026-08-23 against the real
+  // `es.wallapop.com/search` page: 78 real listing anchors on screen and the extractor returned ZERO rows.
+  // That marketplace splits every listing into TWO anchors pointing at the SAME item — one wrapping the photo,
+  // one wrapping the `<h3>` — and the price sits in NEITHER of them; it is a sibling inside the card
+  // («Monitor Gaming LG UltraGear 32GN600B 165Hz\n150 €\nDestacado»). So the price-or-phone gate dropped every
+  // single listing and the round delivered nothing, which is the shape behind several rounds reporting
+  // «0 filas extraídas».
+  //
+  // Same reasoning V2-235 already applied to the NAME, and the same walk: a listing is a grid of CARDS, and the
+  // price of each thing lives in its own card. `cardWalk` stops climbing the moment an ancestor spans several
+  // listings, which is what keeps this from reading the neighbour's price — a price attached to the wrong name
+  // is far worse than no price, because it reads as a finding.
+  //
+  // The FIRST price in the card wins on purpose: a discounted card shows the old and the new one, and the new
+  // one comes first in reading order. Choosing by size would be guessing which of the two the operator pays.
+  // Se lee de UN NODO, nunca del texto concatenado de la tarjeta, y esa es la mitad que no se ve venir: el
+  // grupo opcional de céntimos («169\n00 €») también salta un salto de línea entre DOS datos distintos, así que
+  // sobre «Monitor Samsung 24⏎50 €» el patrón devuelve «24 50 €» — un precio inventado a partir del final del
+  // nombre. Medido. Por eso el texto del nodo tiene que ser casi solo el importe: un nodo que dice «150 €» es un
+  // precio, uno que dice el nombre y el precio es una tarjeta.
+  const cardPrice=(a)=>cardWalk(a, (n)=>{
+    for(const el of n.querySelectorAll('*')){
+      const t=(el.textContent||'').replace(/\s+/g,' ').trim();
+      if(!t || t.length>40) continue;
+      const m=t.match(priceRe);
+      if(m && t.length<=m[0].length+12) return m[0].replace(/\s+/g,' ').trim();
+    }
+    return '';
+  }, 1);
   const cardTel=(a)=>{
     return cardWalk(a, (n)=>{
       const t=n.querySelector('a[href^="tel:"]');
@@ -126,8 +163,12 @@ _JS_EXTRACT = r"""
     // barbero, un cerrajero o un dentista no publican precio, así que la página devolvía CERO filas y el turno
     // se quedaba con lo único que le llegaba: el enlace del directorio. Medido por el arnés: `best-plumber-same-day`
     // y `weekend-barber`, los dos 1/5 con «0 filas extraídas».
-    const tel = pm ? '' : cardTel(a);
-    if(!pm && !tel) continue;                           // ni importe que pagar ni número al que llamar → no es una ficha
+    // The price may live in the CARD rather than in the link (see `cardPrice`), so the link's own text is only
+    // the first place to look, never the only one.
+    let price = pm ? pm[0].replace(/\s+/g,' ').trim() : '';
+    if(!price) price = cardPrice(a);
+    const tel = price ? '' : cardTel(a);
+    if(!price && !tel) continue;                        // ni importe que pagar ni número al que llamar → no es una ficha
     // Un trozo de precio NO es un nombre: se exige al menos una letra. Sin eso, «169» pasaba por título de un
     // monitor de 169,00 € y la nota al cerebro decía «169 — 00 € — …», que es lo que el turno describió.
     let title=((img&&(img.alt||''))
@@ -135,7 +176,7 @@ _JS_EXTRACT = r"""
                ||cardName(a, path)||'').slice(0,90);
     if(seen.has(key)) continue;
     let image=''; if(img){ try{ image=img.currentSrc||img.src||''; }catch(_){} }
-    cands.push({title, price: pm ? pm[0].replace(/\s+/g,' ').trim() : '', tel, url:href, image,
+    cands.push({title, price, tel, url:href, image,
                 _item: ITEM.test(href)});
     seen.add(key);
   }
