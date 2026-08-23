@@ -114,13 +114,26 @@ _FLIP_BULLETS = re.compile(r"^\s*[-*·]\s+\S", re.M)
 # driver wrote plain prose — "He encontrado una opción que encaja: Hotel Silken Al-Andalus Palace, 560 €"
 # — and the agent then agreed with a hotel the TESTER had invented. A round like that reads as the case
 # finally delivering, which is the most expensive way this harness can be wrong.
+# `traer` earns its place here on 2026-08-23 (`search-secondhand-monitor__es`, round 2): «llevo ya un rato
+# dándote largas y no te he traído nada». It is the DELIVERY verb of this relationship and it only runs one
+# way — a person GIVES a datum the assistant asked for, the assistant BRINGS the results. So «no te he dado la
+# ciudad» is the person answering and stays out, while «no te he traído nada» is the worker apologising.
+# Negated on purpose too («NO te he traído»): admitting the delivery failed is as much the worker's line as
+# announcing it succeeded, and the round that measured this had the tester apologise for its own agent's work.
 _FLIP_FOUND = re.compile(
     r"\b(he\s+encontrado|he\s+mirado|he\s+buscado|encontré|te\s+propongo|te\s+paso|aquí\s+tienes|"
+    r"te\s+he\s+tra[ií]do|te\s+traigo|"
     r"i\s+found|here\s+are)\b", re.I)
 # Face 2 — offering to ACT FOR the other party.
+# The verb list grew on 2026-08-23: «¿Quieres que lo deje ya y miras tú, o le doy una última vuelta más
+# abierta?» is a worker asking the requester which way to take the ERRAND, and none of `mire|busque|reserve|
+# siga` covered it. Offering to STOP the work is as much the worker's move as offering to do it — the person
+# does not hold the errand, so they have nothing to offer to drop.
 _FLIP_OFFERS = re.compile(
-    r"(¿\s*te\s+lo\s+(dejo|reservo)|¿\s*quieres\s+que\s+(lo\s+)?(mire|busque|reserve|siga)|"
-    r"te\s+lo\s+dejo\s+reservado|¿\s*(te\s+)?lo\s+reservo|shall\s+i\s+book)", re.I)
+    r"(¿\s*te\s+lo\s+(dejo|reservo)|"
+    r"¿\s*quieres\s+que\s+(lo\s+)?(mire|busque|reserve|siga|deje|pare|contin[uú]e|intente|d[eé])|"
+    r"te\s+lo\s+dejo\s+reservado|¿\s*(te\s+)?lo\s+reservo|shall\s+i\s+book|"
+    r"do\s+you\s+want\s+me\s+to\s+(keep|stop|drop|try))", re.I)
 # Face 3 — TAKING OVER the errand: announcing the work and asking the other to wait. Same round, one turn
 # later: "Entendido, voy a filtrar solo hoteles de 4 estrellas... Dame un momento." Nobody is the user
 # there either, and it is the half the first two faces do not see.

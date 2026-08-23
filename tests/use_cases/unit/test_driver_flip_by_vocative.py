@@ -102,6 +102,54 @@ def test_las_esperas_normales_de_la_ronda_7_siguen_pasando():
         assert looks_like_the_assistant(legit, "Marc") is False, legit
 
 
+# ── el que se DISCULPA por no haber entregado ──────────────────────────────────────────────────────────
+_APOLOGISES = ("Perdona, llevo ya un rato dándote largas y no te he traído nada. Te soy claro: la búsqueda "
+               "con lo que me pediste (27 pulgadas, menos de 150€, segunda mano) no está dando resultados. "
+               "No quiero seguir mareándote con «te aviso» y que no llegue nada.\n\n"
+               "¿Quieres que lo deje ya y miras tú, o le doy una última vuelta más abierta un rato más?")
+
+
+def test_el_que_se_disculpa_por_no_haber_ENTREGADO_es_el_asistente():
+    """Verbatim de `search-secondhand-monitor__es` (ronda 2, 2026-08-23), y se coló por TODAS las caras.
+
+    Fue la peor de las medidas: el conductor escribió el turno entero del asistente —disculpa por no haber
+    traído nada y oferta de parar o seguir— y zaelar le contestó COMO USUARIO («dale una última vuelta»).
+    Dos turnos con los papeles invertidos del todo."""
+    assert looks_like_the_assistant(_APOLOGISES, "Marc") is True
+    assert looks_like_the_assistant(_APOLOGISES) is True     # sin apoyarse en la cara 5
+
+
+def test_dar_un_DATO_no_es_traer_un_RESULTADO():
+    """El verbo es lo que separa los dos papeles, y va en una sola dirección.
+
+    La persona DA lo que el asistente le pide; el asistente TRAE resultados. Sin esta distinción, “perdona,
+    no te he dado la ciudad” —una persona contestando a una pregunta— se leería como una inversión de papel
+    y tiraría la ronda."""
+    for legit in ("perdona, no te he dado la ciudad: Madrid",
+                  "uy, no te he dicho el presupuesto: 300 €",
+                  "perdona, no te he pasado las fechas todavía",
+                  # Con oferta INCLUIDA, que es donde la distinción se juega de verdad: sin ella, la primera
+                  # tanda de este test era verde por el motivo equivocado —las frases de arriba no llevan
+                  # oferta, así que la pareja FOUND+OFFERS no llegaba a evaluarse y meter «dar» en los verbos
+                  # de entrega no rompía nada. Lo cazó el desarme.
+                  "Perdona, no te he dado el presupuesto. ¿Quieres que lo deje en 300 y ya está?"):
+        assert looks_like_the_assistant(legit, "Marc") is False, legit
+
+
+def test_ofrecer_PARAR_sigue_necesitando_la_otra_mitad():
+    """La oferta se ensanchó a los verbos de continuar/parar el encargo, y sola no puede bastar: una persona
+    sí dice «¿lo dejamos?». Lo que no dice es eso Y haber traído (o no) los resultados."""
+    assert looks_like_the_assistant("¿lo dejamos y miro yo?", "Marc") is False
+    assert looks_like_the_assistant("¿Quieres que lo deje?", "Marc") is False
+
+
+def test_las_quejas_reales_de_esa_ronda_siguen_siendo_de_la_persona():
+    for legit in ("Oye, ya van varios avísame pero no me has dado ni un dato; quiero saber si puedes hacerlo.",
+                  "Vale, gracias por ser claro. Pero necesito resultados ya, no más «te aviso» sin datos.",
+                  "Búscame un monitor de segunda mano de al menos 27 pulgadas por menos de 150€."):
+        assert looks_like_the_assistant(legit, "Marc") is False, legit
+
+
 def test_without_a_persona_name_the_face_is_OFF_rather_than_guessing():
     """A sandbox with no seeded identity has no name to check, and a guessed one would be worse than none."""
     assert looks_like_the_assistant("Ya está listo, Marc.", "") is False
