@@ -138,6 +138,10 @@ SEGMENTS: dict[str, Segment] = {
     "search-buy-guitar": _done(),
     "search-secondhand-monitor": _done(),
     "cheapest-monitor": _done(),
+    # Un dato del mundo con FUENTE: la entrega ES la respuesta (tiempo y distancia reales, con tráfico), así que
+    # no hay muro que la pare — ni cuenta, ni tarjeta, ni capacidad que falte. Se puntúa el resultado ENTERO, y
+    # ahí está su gracia: si el agente contesta «unas 2 horas» de memoria y la hoja está vacía, el caso FALLA.
+    "driving-time-with-traffic": _done(),
     "find-best-hotel-city": _done(),
     "hotel-under-15-days": _done(),
     # maximum complexity, kept for last: several filters that must ALL hold at once, some of them

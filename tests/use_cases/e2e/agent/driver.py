@@ -19,10 +19,19 @@ from . import config, llm
 _CLOSING_RE = re.compile(
     r"(muchas\s+)?gracias[.!,]?\s*$|"                       # ends the message: "...gracias." / "muchas gracias"
     r"\bperfecto,?\s+(muchas\s+)?gracias\b|"                # "perfecto, gracias" / "perfecto, muchas gracias"
-    r"\b(eso es todo|nada m[aá]s|hasta luego|adi[oó]s)\b",  # explicit sign-off words
+    r"\b(eso es todo|nada m[aá]s|hasta luego|adi[oó]s)\b|"  # explicit sign-off words
+    # …and the SAME closings in English. Until 2026-08-23 this regex was Spanish-only while 60 of the 133
+    # scenarios are the US locale, whose personas speak English — so a US driver could never end by saying
+    # goodbye, burned its full turn budget every round by construction, and ate an efficiency penalty the ES
+    # twin never faced. The market-twins guard (same signals, same turns) missed it because the bias lived in
+    # the driver, not the scenario.
+    r"(many\s+)?thanks[.!,]?\s*$|thank\s+you[.!,]?\s*$|"    # ends the message: "...thanks." / "thank you"
+    r"\bperfect,?\s+thanks?\b|\bgreat,?\s+thanks?\b|"       # "perfect, thanks" / "great, thanks"
+    # `take care(?!\s+of)`: "take care of the booking" is an ERRAND, not a goodbye.
+    r"\b(that'?s\s+(all|everything)|nothing\s+else|good\s*bye|bye\s+for\s+now|see\s+you|take\s+care(?!\s+of))\b",
     re.I)
 
-def _today_note() -> str:
+def _today_note(locale: str = "es") -> str:
     """The DRIVE model needs the calendar as badly as the judge did, and for the same reason.
 
     Measured on 2026-08-20 (`weekend-adventure-sports-bilbao__es`): the persona asked for "this weekend,
@@ -32,9 +41,20 @@ def _today_note() -> str:
 
     The judge got its calendar this same morning for the mirror-image bug. Giving it to one side and not the
     other just moves which participant is confidently wrong about the date.
+
+    In the persona's OWN language (see `_ANCHOR_EN`'s note): a US persona whose system prompt names the day
+    as «miércoles» is being primed to answer in Spanish.
     """
     import datetime as _dt
     hoy = _dt.date.today()
+    if (locale or "es") == "us":
+        days = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+        return (f"## What day is TODAY (fact, not opinion)\n"
+                f"Today is {days[hoy.weekday()]} {hoy.isoformat()}. The current year is {hoy.year}: a "
+                f"{hoy.year} date is THIS year, never next year. When you say 'this weekend' or 'on "
+                f"Saturday', count from today. If zaelar gives you a date consistent with this calendar, do "
+                f"NOT correct it — correcting a correct date is the most expensive mistake you can make in "
+                f"this test.")
     dias = ("lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo")
     return (f"## Qué día es HOY (hecho, no opinión)\n"
             f"Hoy es {dias[hoy.weekday()]} {hoy.isoformat()}. El año en curso es {hoy.year}: una fecha de "
@@ -111,6 +131,18 @@ _ANCHOR = (
     "comillas, frases con la longitud que tendría un mensaje real (no un ensayo)."
 )
 
+# The SAME anchor in the persona's own language. Until 2026-08-23 the one Spanish anchor served all 133
+# scenarios — including the 60 US ones, whose personas are written in English and talk to an agent living in
+# San Francisco. A persona instructed in Spanish to close with «gracias» is being steered out of character on
+# every turn, and its sign-off could then never match the (Spanish-only) closing regex either.
+_ANCHOR_EN = (
+    "FIXED IDENTITY — NEVER BREAK IT: you are a real PERSON texting your personal assistant 'zaelar' to ask "
+    "for something. The 'user'-role turns in this history are what ZAELAR says TO YOU; you answer with what "
+    "you would type back. You are the one ASKING, never the assistant. FORBIDDEN: introducing yourself as "
+    "zaelar or as an assistant, offering to do things for the user, or speaking as if you were the system. "
+    "Write like people actually text: no stage directions, no quotes, message-length sentences (not an essay)."
+)
+
 
 class Driver:
     def __init__(self, scenario) -> None:
@@ -118,12 +150,21 @@ class Driver:
         self.turns = 0
         self.done = False
         self.role_flips = 0
-        sys = (
-            f"{_ANCHOR}\n\n{_today_note()}\n\n## Lo que quieres conseguir\n{scenario.persona_brief}\n\n"
-            "## Cuándo terminar\nCuando tu petición esté CLARAMENTE resuelta (o claramente fallada tras "
-            "varios intentos razonables), despídete corto y natural incluyendo la palabra 'gracias' o "
-            "'perfecto' seguida de un cierre — nunca sigas insistiendo sobre algo ya resuelto."
-        )
+        locale = getattr(scenario, "locale", "es") or "es"
+        if locale == "us":
+            sys = (
+                f"{_ANCHOR_EN}\n\n{_today_note(locale)}\n\n## What you want\n{scenario.persona_brief}\n\n"
+                "## When to stop\nOnce your request is CLEARLY resolved (or clearly failed after a few "
+                "reasonable attempts), sign off short and natural — end your message with 'thanks' or say "
+                "'that's all' — and never keep pushing on something already settled."
+            )
+        else:
+            sys = (
+                f"{_ANCHOR}\n\n{_today_note(locale)}\n\n## Lo que quieres conseguir\n{scenario.persona_brief}\n\n"
+                "## Cuándo terminar\nCuando tu petición esté CLARAMENTE resuelta (o claramente fallada tras "
+                "varios intentos razonables), despídete corto y natural incluyendo la palabra 'gracias' o "
+                "'perfecto' seguida de un cierre — nunca sigas insistiendo sobre algo ya resuelto."
+            )
         self.history: list[dict] = [{"role": "system", "content": sys}]
 
     def opening(self) -> str:
@@ -147,10 +188,16 @@ class Driver:
             # ONE retry with the identity said out loud again. Not silent: a flip that survives makes the
             # round an INFRA, because zaelar's reply to a nonsense turn says nothing about zaelar.
             self.role_flips += 1
-            msgs.append({"role": "system", "content":
-                         "Te has salido del papel: acabas de escribir la RESPUESTA del asistente (enlaces, "
-                         "precios, una lista de opciones). Tú eres la PERSONA que pide. Escribe otra vez, "
-                         "en una o dos frases, lo que TÚ le dirías a zaelar ahora."})
+            if (getattr(self.scenario, "locale", "es") or "es") == "us":
+                msgs.append({"role": "system", "content":
+                             "You broke character: you just wrote the ASSISTANT's reply (links, prices, a "
+                             "list of options). You are the PERSON asking. Write again, in one or two "
+                             "sentences, what YOU would say to zaelar now."})
+            else:
+                msgs.append({"role": "system", "content":
+                             "Te has salido del papel: acabas de escribir la RESPUESTA del asistente (enlaces, "
+                             "precios, una lista de opciones). Tú eres la PERSONA que pide. Escribe otra vez, "
+                             "en una o dos frases, lo que TÚ le dirías a zaelar ahora."})
             txt = llm.call(msgs, model=config.DRIVE_MODEL, temperature=0.7, max_tokens=200).strip()
             if looks_like_the_assistant(txt):
                 self.role_flips += 1

@@ -249,6 +249,7 @@ DOMAINS: list[dict] = [
             # el contexto del worker: cwd propio (el motor no le mete su CLAUDE.md), vigía que le pide entregar antes
             # del techo, «compactar y continuar» al desbordarse, y NUNCA un error crudo del proveedor como informe
             "tests/agent_headless/unit/workers/test_context_budget.py",
+            "tests/agent_headless/unit/workers/test_the_process_tab_gets_the_steps.py",
             # V2-236: lo que devuelve una BÚSQUEDA WEB moría dentro del worker (7 búsquedas, 5 respuestas con el
             # dato exacto que pidió el operador, 0 notas al cerebro). Se empuja en cuanto existe, el JUICIO se
             # queda en el cerebro, y un `is_error` no es un hallazgo.
@@ -1166,6 +1167,10 @@ DOMAINS: list[dict] = [
                                  "net under DRIVE and JUDGE, and it cannot inherit the redirect that sends "
                                  "the same CLI back to the rung that just fell",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_tester_never_runs_out_of_rungs.py"]},
+        {"id": "10.63", "title": "The round that dies tells you why (engine autopsy + partial transcript on "
+                                 "an INFRA), and the US driver can finally say goodbye — the closing regex "
+                                 "and the persona prompt speak the persona's own language",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_round_that_dies_tells_you_why.py"]},
     ]},
 ]
 

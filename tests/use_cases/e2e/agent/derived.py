@@ -450,6 +450,20 @@ PROFILES["coordinate-dinner-whatsapp"] = Profile(
 # derived. Without a profile the US twin fell back to the defaults — `('worker',)` and 8 turns — while its ES
 # sibling asked for `worker`+`widget` and 10. Same case, two different bars, decided by which side happened to
 # be hand-written: the exact asymmetry the real-data limit already had between markets.
+PROFILES["driving-time-with-traffic"] = Profile(
+    # Born from a failed LIVE session (`ed9df756`, 2026-08-21): the mechanism ran end to end and the operator
+    # still got nothing — two empty sheets, a mute process tab, and figures that were never spoken. So the
+    # scenario requires the SHEET (`widget`), and the case's own notes tell the judge a number said in chat
+    # with an empty sheet is a FAIL, because that is exactly what happened.
+    clarifications=(("cuándo sales o para cuándo lo quieres", "ahora mismo, salgo ya"),
+                    ("confirmar origen y destino", "de Zaragoza a Valls, tal cual te lo he dicho")),
+    persona_extra="Estás a punto de coger el coche: quieres la cifra (horas y km) CON tráfico de ahora, no "
+                  "una estimación de memoria. Si te da un número redondo sin fuente, pídele que lo mire de "
+                  "verdad en el mapa.",
+    success_extra="La cifra tiene que venir de una fuente de mapas real con tráfico en vivo (el mecanismo "
+                  "lo delata: worker + navegador), no del modelo. Decir «unas 2 horas» sin que la hoja "
+                  "tenga nada es EXACTAMENTE el fallo medido que originó este caso.",
+    signals=("worker", "widget"), turns=10)
 PROFILES["cheapest-monitor"] = Profile(
     clarifications=(("presupuesto", "hasta 250€, y si hay algo bueno un poco por debajo mejor"),
                     ("para qué lo quieres", "para trabajar todo el día, ofimática y algo de código")),

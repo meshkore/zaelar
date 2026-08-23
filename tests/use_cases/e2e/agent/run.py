@@ -24,6 +24,70 @@ from . import verify as verifymod
 from . import watchdog as watchdogmod
 
 
+class ScenarioCrash(RuntimeError):
+    """A scenario died mid-conversation — but the turns that DID happen are already paid for.
+
+    Until 2026-08-23 the crash handler in `_run_batch` recorded `transcript: []`: a run that timed out on
+    turn 6 lost all five real turns from the record, and the INFRA row said nothing about what the engine
+    was doing when it died. This carries both up to the handler."""
+
+    def __init__(self, err: str, *, transcript: list | None = None, autopsy: dict | None = None) -> None:
+        super().__init__(err)
+        self.transcript = list(transcript or [])
+        self.autopsy = dict(autopsy or {})
+
+
+def engine_autopsy(err: str) -> dict:
+    """Answer the operator's first three questions BEFORE giving up, instead of leaving them to a human.
+
+    Measured the omission on 2026-08-23, `cheapest-monitor`: the verdict said «INFRA: timed out» and nothing
+    else, while the engine's own log ended in `Fetching 5 files… jina-reranker` — the whole diagnosis (the
+    memory reranker downloading 1.1 GB on the event loop) sat one `tail` away and took half an hour of manual
+    process-sampling to rediscover. The harness holds the answer at crash time; it must print it.
+
+    Three cheap probes, all fail-soft — an autopsy error must never mask the original crash:
+      · is the engine ALIVE (answers /api/status), WEDGED (listens but never answers), or DEAD (refused)?
+      · the last lines of the engine's own log (lab: `logs/engine.log` · sandbox: `logs/sandbox-engine.log`),
+        derived from `config.SANDBOX_DB` the same way `verify.py` already does.
+    """
+    out: dict = {"error": (err or "")[:300]}
+    import urllib.request
+    try:
+        req = urllib.request.Request(config.ZAELAR_URL.rstrip("/") + "/api/status",
+                                     headers={"User-Agent": "zaelar-uc-autopsy"})
+        with urllib.request.urlopen(req, timeout=5.0) as r:
+            r.read(200)
+        out["engine"] = "VIVO (/api/status responde) — el fallo fue del turno o del tester, no del motor"
+    except Exception as e2:
+        s = str(e2).lower()
+        if "refused" in s or "errno 61" in s:
+            out["engine"] = "MUERTO (conexión rechazada) — el proceso del motor no está escuchando"
+        elif "timed out" in s or "timeout" in s:
+            out["engine"] = ("CLAVADO (escucha pero /api/status no contesta en 5 s) — event loop bloqueado; "
+                             "la última línea del log suele decir en qué")
+        else:
+            out["engine"] = f"ilocalizable ({str(e2)[:120]})"
+    try:
+        from pathlib import Path
+        if config.SANDBOX_DB:
+            logs = Path(config.SANDBOX_DB).resolve().parents[2] / "logs"
+            for name in ("engine.log", "sandbox-engine.log"):
+                p = logs / name
+                if not p.exists():
+                    continue
+                with p.open("rb") as f:            # tail, never the whole file: engine logs grow to MBs
+                    f.seek(0, 2)
+                    f.seek(max(0, f.tell() - 65536))
+                    chunk = f.read().decode("utf-8", "replace")
+                lines = [ln.strip() for ln in chunk.splitlines() if ln.strip()]
+                out["log"] = str(p)
+                out["log_tail"] = lines[-5:]
+                break
+    except Exception as e3:
+        out["log_error"] = str(e3)[:120]
+    return out
+
+
 def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: bool = False,
                   provisional: str = "") -> dict:
     """`sandboxed` says whether the engine under test is a throwaway one. It decides whether the
@@ -94,8 +158,14 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     # Extra turns granted only to keep a LIVE browser task's result reachable — see the grace block below.
     grace_left = 3
     for turn in range(max(1, scenario.turns)):
-        res = probe_client.say(utterance, session, execute=(scenario.channel == "probe"),
-                               ingest=sandboxed)
+        try:
+            res = probe_client.say(utterance, session, execute=(scenario.channel == "probe"),
+                                   ingest=sandboxed)
+        except Exception as e:
+            # The engine-side turn died. Autopsy NOW, while the state that killed it is still there, and
+            # carry the turns already driven — see ScenarioCrash/engine_autopsy.
+            raise ScenarioCrash(f"turno {turn + 1}: {e}", transcript=transcript,
+                                autopsy=engine_autopsy(str(e))) from e
         reply_text = llmmod._as_text(res.get("reply")).strip()
         # A MUTE TURN IS NOT AN AGENT REFUSING TO HELP. The text channel resolves its provider through
         # `spec_from_config()` and never consults the failover chain, so with the titular model out of funds
@@ -395,11 +465,19 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
                                           sandboxed=sandboxed, provisional=provisional))
         except Exception as e:  # one scenario's infra hiccup must not lose the whole batch's report
             print(f"  ✗ scenario crashed: {e}")
+            # Say WHAT STATE the engine was in and WHAT ITS LOG SAYS, right here — the answer exists at this
+            # moment and «INFRA: timed out» alone already cost half an hour of manual diagnosis (2026-08-23).
+            # A ScenarioCrash arrives with its autopsy taken at death; anything else gets one now.
+            autop = getattr(e, "autopsy", None) or engine_autopsy(str(e))
+            print(f"    ⚕ motor: {autop.get('engine', '?')}")
+            for ln in (autop.get("log_tail") or [])[-3:]:
+                print(f"    ⚕ log: {ln[:160]}")
             results.append({"scenario": scenario.id, "tier": scenario.tier, "channel": scenario.channel,
-                            "run": {"transcript": [], "mechanism_report": {}, "watchdog_log": [],
-                                    "crashed": str(e)},
+                            "run": {"transcript": list(getattr(e, "transcript", []) or []),
+                                    "mechanism_report": {}, "watchdog_log": [],
+                                    "crashed": str(e), "autopsy": autop},
                             "verdict": {"scores": {}, "overall": None, "findings": [], "improvements": [],
-                                       "veredicto": f"INFRA: {e}"}})
+                                       "veredicto": f"INFRA: {e} · motor: {autop.get('engine', '?')}"}})
         # PERSIST THIS SCENARIO NOW, not at the end of the batch. `record()` folds one batch into the ledger
         # and only touches the scenarios in it ("a batch of one must never look like it invalidated the other
         # four"), so a call per scenario is safe and it is what makes a batch INTERRUPTIBLE. Measured the hard

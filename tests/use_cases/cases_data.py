@@ -197,6 +197,35 @@ CASES: list[UseCase] = [
             "tests/use_cases/e2e/agent/scenarios.py for the full dynamic, non-deterministic harness.",
             status="promoted"),
 
+    # --- ES / tier 3: a REAL measurement from the outside world, shown while it happens ----
+    # Escrito DESPUÉS de verlo fallar en vivo (sesión `ed9df756`, 2026-08-21 17:21-17:30, motor del
+    # operador). El caso no es «que sepa la distancia»: un modelo la estima de memoria y eso es justo lo
+    # que el operador rechazó dos veces («no me lo creo», «te he dicho que me des los tiempos con
+    # precisión, utilizando Google Maps»). El caso es que el dato venga de FUERA y con tráfico, y que el
+    # operador PUEDA VER que está pasando mientras pasa.
+    #
+    # LO QUE YA FUNCIONA y no hay que rehacer, medido en esa sesión: escaló a los 17:26:10, abrió Google
+    # Maps Directions, cerró el overlay, hizo captura y snapshot, extrajo «2h08 / 210 km por AP-2» más una
+    # alternativa de 2h10, escribió el informe y lo presentó (`present`, `shown: 2`). Coste 0,9818 $.
+    # El mecanismo entero corrió y terminó `done`.
+    #
+    # LO QUE FALLÓ es lo que el operador VE, y son tres cosas distintas:
+    #   1. Salieron DOS hojas de resultados y las dos vacías. La hoja instanciada (V2-259) lleva el dato;
+    #      la tarjeta base se queda encima y en blanco — el fantasma del canvas.
+    #   2. La pestaña de proceso decía «trabajando» y nada más, durante dos minutos y medio. Los pasos
+    #      reales existen en observabilidad (`navigate`, `dismiss_overlay`, `screenshot`, `🏁 hito`,
+    #      `click [29]`…): lo que falta es servirlos ahí, en orden cronológico inverso y en vivo.
+    #   3. El resultado llegó por `🔔 zaelar` a las 17:28:47 y el operador nunca oyó las cifras.
+    UseCase("driving-time-with-traffic", "es", 3, "Real driving time between two cities, with traffic",
+            "Dame la distancia y el tiempo en coche de Zaragoza a Valls, con tráfico, usando Google Maps.",
+            "The time and distance come from a real maps source with live traffic — not a model estimate — "
+            "and land in ONE results sheet the operator can read, while the process tab shows the steps as "
+            "they happen.",
+            notes="Medido fallando en `ed9df756` (2026-08-21). El mecanismo corrió entero; lo que falla es "
+            "la superficie: dos hojas vacías, la pestaña de proceso muda («trabajando» y nada más) y las "
+            "cifras que nunca llegaron a oírse. Un veredicto aquí NO puede leer solo el transcript: si el "
+            "agente dice «2h08» y la hoja está vacía, el caso FALLA — es exactamente lo que pasó."),
+
     # --- ES / tier 3: multi-step single-domain task with a deadline -----------------------
     UseCase("itv-before-deadline", "es", 3, "Book vehicle inspection before deadline",
             "Tengo que pasar la ITV antes del día 30 — búscame cita y avísame el día antes.",
