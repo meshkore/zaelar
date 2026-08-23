@@ -1,5 +1,14 @@
 #
-# memory/server_api.py — HTTP para la memoria episódica (V2-003 · T54). Reemplaza a files/server_api.py: el
+# server/memory_routes.py — HTTP para la memoria episódica (V2-003 · T54).
+#
+# ⚠️ VIVÍA EN `memory/server_api.py` hasta la auditoría de arquitectura del 2026-08-23, y desde ahí importaba
+# `nucleo.dispatch` y `nucleo.memory_agent`: los DOS imports inversos más graves del paquete de memoria (dispatch
+# arrastra medio motor). No eran una fuga que tapar, eran la señal de que este fichero no es memoria — es
+# TRANSPORTE. Un router de FastAPI que verifica el token de un worker contra el registro del dispatcher está en
+# la capa de servidor por definición, y ahí esos imports son la dirección NORMAL. El paquete de memoria queda
+# autónomo sin perder nada: la memoria sigue siendo quien resuelve, esto solo la expone por HTTP.
+#
+# Reemplaza a files/server_api.py: el
 # operador pega una imagen o arrastra un fichero al frontend (frontend/app/main.js) y aterriza aquí. En vez de
 # la vieja bandeja plana files/uploads/ + una nota [SISTEMA] con la ruta (que era para las tools de fichero de
 # Hermes), ahora el binario va a la memoria EPISÓDICA (bytes en el data-dir, resumen buscable embebido) →
@@ -12,7 +21,7 @@ import os
 from fastapi import APIRouter, Body, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 
-from . import api as memapi
+from memory import api as memapi
 
 router = APIRouter()
 

@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from memory import db as memdb
 from memory import embeddings as mememb
 from memory import retriever as memret
-from memory.server_api import router
+from server.memory_routes import router
 
 
 @pytest.fixture(autouse=True)

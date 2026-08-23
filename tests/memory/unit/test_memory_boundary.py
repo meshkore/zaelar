@@ -133,8 +133,10 @@ def test_blessed_list_has_no_dead_entries():
     """A blessed entry nobody uses any more is documentation debt: it makes the boundary look more porous than
     it is. It gets cleaned up."""
     used = {sub for sub, _ in _internal_imports()}
-    # `vault_api`/`server_api` are mounted by chain in the server and may not appear as `from memory.x`
-    exempt = {"memory.vault_api", "memory.server_api"}
+    # `vault_api` is mounted by chain in the server and may not appear as `from memory.x`.
+    # `server_api` USED to be exempt here too; it moved to `server/memory_routes.py` on 2026-08-23
+    # (it was transport, not memory), so it is no longer a memory submodule at all.
+    exempt = {"memory.vault_api"}
     dead = [s for s in BLESSED_INTERNAL_IMPORTS if s not in used and s not in exempt]
     assert not dead, (
         f"blessed entries nobody imports any more (remove them from BLESSED_INTERNAL_IMPORTS): {sorted(dead)}"

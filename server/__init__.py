@@ -31,7 +31,7 @@ from .voice_api import router as voice_router
 from widgets.server_api import router as widgets_router  # isolated widget layer (does not touch the voice core)
 from connectors.meshkore.server_api import router as meshkore_router  # native cluster I/O channel (always on)
 from connectors.messaging.server_api import router as messaging_router  # UI-managed connect/disconnect of connectors
-from memory.server_api import router as files_router  # paste/drop uploads → EPISODIC memory (V2-003; absorbs files/)
+from server.memory_routes import router as files_router  # paste/drop uploads → EPISODIC memory (V2-003; absorbs files/)
 from memory.vault_api import router as vault_router    # operator encrypted-secrets vault (V2-060)
 from bus.sse import publish as _sse_publish   # ONLY gate into the observer topic: stamps install+session
 from observability.api import router as obs_router    # flows/sessions/identity (correlation id, 2026-08-09)

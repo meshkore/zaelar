@@ -122,7 +122,6 @@ BLESSED_INTERNAL_IMPORTS: dict[str, str] = {
     "memory.vault": "secret vault — its own subsystem (V2-060), not memory",
     "memory.vault_api": "the vault's FastAPI router",
     # ── server wiring: a router has to be imported to be mounted ──
-    "memory.server_api": "FastAPI router for memory/episodic",
     # ── the SLEEP axis: orchestrated by nucleo/loop.py (~1 Hz), never by the turn ──
     "memory.rem": "daily REM phase, orchestrated by the loop",
     "memory.reembed": "vector-space migration, verified at boot",

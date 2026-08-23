@@ -5,8 +5,14 @@ guards the other two ways the structure can rot while every functional test stay
 
   1. **memory/ importing nucleo/.** The memory package should be autonomous ("memory does not import brains" —
      the rule `rem.py` already lives by, taking its LLM hooks by injection). Measured 2026-08-23: SIX inverse
-     imports, each listed below with its reason and its planned exit. A closed inventory, ratcheted: a new
-     inverse import breaks with a name, and the list only shrinks.
+     imports; F3 took it to FOUR by moving `server_api.py` out (it was transport, not memory — see below).
+     Of the four left, THREE are blessed with their reason written and one still has a planned exit. A closed
+     inventory, ratcheted: a new inverse import breaks with a name, and the list only shrinks.
+
+     The bar for blessing one is deliberately high and stated per row: `db.py -> workspace` is a filesystem
+     path with no reasoning near it, and the two in `rerank.py` buy a BILLING guarantee that a
+     registered-callback design would quietly reopen. Purity that costs unbilled money is a bad trade, and
+     saying so beats leaving a row that reads like unfinished work.
 
   2. **The facade's surface drifting during the split.** The refactor's contract is "move without changing
      semantics — zero caller changes". That is only checkable if the surface is frozen first: `__all__` and the
@@ -32,17 +38,18 @@ REPO = pathlib.Path(__file__).resolve().parents[3]
 #: this down to the single blessed one. Adding a row needs the reason written; removing rows is the goal.
 INVERSE_IMPORTS_DEBT: dict[tuple[str, str], str] = {
     ("memory/db.py", "nucleo.workspace"):
-        "infra, not a brain: resolves the workspace root. Candidate to stay BLESSED permanently (F3 decides).",
+        "infra, not a brain: resolves the workspace root (a filesystem path, no reasoning anywhere near it). "
+        "BLESSED permanently on 2026-08-23 — moving it would mean a shared-infra package for one function.",
     ("memory/consolidator.py", "nucleo.workers"):
         "reads the workers ledger during sleep. Exit: loop.py injects a ledger_reader (the rem.py pattern).",
     ("memory/rerank.py", "nucleo.llm_egress"):
-        "remote rerank egress. Exit: metering/egress callback registered by nucleo at startup.",
+        "remote rerank egress, deferred import inside the opt-in remote path. STAYS: see energy_meter below — "
+        "the two travel together and splitting them would route egress without metering it.",
     ("memory/rerank.py", "nucleo.energy_meter"):
-        "meters the remote rerank call. Exit: same callback as llm_egress.",
-    ("memory/server_api.py", "nucleo.dispatch"):
-        "HTTP layer inside the memory package. Exit: the router moves to server/ (it is transport, not memory).",
-    ("memory/server_api.py", "nucleo.memory_agent"):
-        "same file, same reason. Exit: moves to server/ together with the route.",
+        "meters the remote rerank call. STAYS, deliberately (2026-08-23): its own comment says it is metered "
+        "while DORMANT so that turning the remote reranker on is never free by accident. A registered-callback "
+        "design reopens exactly that hole for any process that forgets to register — real money going unbilled, "
+        "silently, in exchange for layer purity. Deferred import inside an opt-in branch is the cheaper trade.",
 }
 
 _FROM_DOTTED_RE = re.compile(r"^[ \t]*from[ \t]+nucleo\.([a-z_]+)")           # from nucleo.workers import ledger
