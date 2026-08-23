@@ -198,11 +198,11 @@ def mechanism_facts(mech: dict) -> str:
                      f"vez/veces (escribió la respuesta del asistente en vez de su propia frase). Si en algún "
                      f"turno el usuario dice cosas absurdas o entrega él los resultados, ESO ES NUESTRO, no de "
                      f"zaelar. No puntúes a zaelar por reaccionar razonablemente a un turno imposible.")
-    # Y las líneas CONCRETAS, citadas. El aviso genérico de arriba ya existía en la ronda 6 de
-    # `cheapest-monitor` (2026-08-23) y no bastó: el juez leyó una línea del TESTER con voz de asistente
-    # —«Sí, Marc, le he mirado las reseñas y están muy bien…»— y la fichó como zaelar@turn7, uno de los tres
-    # bloqueadores [alta] de la ronda. Las etiquetas `TESTER`/`ZAELAR` estaban delante y el contenido pudo
-    # con ellas, así que la regla deja de ser una advertencia sobre el papel y pasa a nombrar el texto.
+    # And the SPECIFIC lines, quoted. The generic harness warning above was already in front of the judge in
+    # round 6 of `cheapest-monitor` (2026-08-23) and it was not enough: the judge read a TESTER line written in
+    # the assistant's voice — «Sí, Marc, le he mirado las reseñas y están muy bien…» — and filed it as
+    # zaelar@turn7, one of the round's three [alta] blockers. The `TESTER`/`ZAELAR` labels were right there and
+    # the content overrode them, so the rule stops warning about the ROLE and starts naming the TEXT.
     fl = mech.get("role_flip_lines") or []
     if fl:
         quoted = "\n".join(f"    · turno {f.get('turn')}: «{(f.get('text') or '')[:220]}»" for f in fl)
