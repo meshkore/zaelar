@@ -165,6 +165,11 @@ DOMAINS: list[dict] = [
             # verdad sin avisar. Lo mismo con `test_brain_relay.py`, que además llevaba ROTO desde el refactor de
             # V2-098 (`pc._cooldown` dejó de existir) sin que nadie lo viera.
             "tests/agent_headless/unit/flash/test_provider_chain.py",
+            # V2-275: el techo del relevo por LATENCIA levantaba el cooldown del titular fuera cual fuera su
+            # motivo — y en la ronda medida se lo quitó a un «z.ai» sin cuota semanal, 260 s después de
+            # ponérselo. El techo no tenía ni un test, que es por lo que vivió. Las DOS direcciones: no
+            # resucitar a un roto, y seguir resucitando a un lento (o el agente se clava en el escalón caro).
+            "tests/agent_headless/unit/flash/test_the_relay_ceiling_does_not_revive_a_dead_tier.py",
             # V2-252: el canal de TEXTO capturaba el fallo, apuntaba el cooldown… y devolvía, con un escalón sano
             # esperando. Ocho horas del arnés sin poder medir. Es la TERCERA vez que muerde la misma forma —
             # `probe.py` es la implementación PARALELA del provider de voz—, así que la DECISIÓN pasa a

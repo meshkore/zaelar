@@ -38,6 +38,7 @@ from loguru import logger
 from nucleo.workers.providers import _reset_epoch, classify_failure, is_depleted
 # Cooldown mechanics shared with the sibling module (V2-098) — the STATE stays separate on purpose (its own KV
 # namespace: a MODEL tier being down says nothing about a CLI endpoint being down), only load/save/token/available.
+from nucleo import provider_health as _health
 from nucleo.provider_health import CooldownStore, token_for as _token_for
 
 
@@ -269,7 +270,19 @@ def pick(role: str = ROLE_CLUSTER) -> dict | None:
                 _relay_turns.pop(t["name"], None)
                 titular = ch[0]["name"]
                 if _store.until(titular) > time.time():
-                    _store.lift(titular)             # devuélvele el turno al titular aunque siga lento
+                    # …AUNQUE SIGA LENTO, que es lo que dice la línea de al lado — y solo eso. Medido en
+                    # `search-secondhand-monitor__es` (2026-08-24 00:56): este mismo proceso puso a «z.ai» en
+                    # cooldown hasta el 25 Aug 01:39 por quedarse sin cuota SEMANAL, y 260 s después este
+                    # `lift` se lo quitó porque el presupuesto del relevo se había agotado — devolviéndole el
+                    # turno a un proveedor que sabíamos que iba a contestar 429. La intención de esta línea
+                    # siempre fue la latencia; lo que faltaba era poder decirlo.
+                    _store.lift(titular, only=_health.REASON_LATENCY)
+                    if not _store.available(titular):
+                        # Sigue castigado por SALUD: el techo del relevo no tiene nada que decir ahí. Se
+                        # queda donde está y se recuerda que este escalón acaba de renovar su turno, o el
+                        # siguiente `pick` vuelve a entrar aquí y a emitir el mismo aviso en bucle.
+                        _relay_turns[t["name"]] = 1
+                        return t
                     logger.info(f"provider_chain({role}): agotado el techo de relevo de «{t['name']}» "
                                 f"({_RELAY_TURN_BUDGET} turnos) → vuelve «{titular}»")
                     try:
@@ -333,7 +346,7 @@ def note_failure(text: str, tier: dict | None = None, *, role: str = ROLE_CLUSTE
     else:
         return None                                  # rate-limit pasajero: no releves, se reintenta solo
 
-    _store.set(t["name"], until)
+    _store.set(t["name"], until, _health.REASON_HEALTH)
 
     nxt = pick(role)
     when = time.strftime("%d %b %H:%M", time.localtime(until))
@@ -404,7 +417,7 @@ def note_slow(verdict: dict, *, role: str = ROLE_VOICE, tier: dict | None = None
         return None
 
     until = time.time() + _SLOW_COOLDOWN_S
-    _store.set(name, until)
+    _store.set(name, until, _health.REASON_LATENCY)
     _slow_streak.pop(name, None)
 
     nxt = pick(role)
@@ -466,7 +479,7 @@ def note_stall(*, role: str = ROLE_VOICE, tier: dict | None = None) -> dict | No
         return None
 
     until = time.time() + _SLOW_COOLDOWN_S
-    _store.set(name, until)
+    _store.set(name, until, _health.REASON_LATENCY)
     _slow_streak.pop(name, None)
 
     nxt = pick(role)
