@@ -219,24 +219,43 @@ def _with_interpreter(prompt: str) -> str:
     # Se ataca por delante, que es lo que ya funcionó con el intérprete el 2026-08-02 (el worker se pasaba minutos
     # probando `python`, `python3`, `.venv/bin/python`… porque el prompt no le decía cuál). Las reglas del cajón
     # donde corre no las puede deducir: o se las damos, o las descubre chocando, y chocar aquí cuesta la tarea.
-    return (f"INTÉRPRETE: para CUALQUIER puente (`-m nucleo.…`) usa EXACTAMENTE `{py}`, tal cual, siempre. Está "
-            f"permitido y funciona. NO uses `python` a secas ni `python3` ni rutas relativas.\n"
-            f"TU CAJÓN (reglas del shell donde corres; romperlas NO da error, pide una aprobación que aquí no va a "
-            f"llegar nunca):\n"
-            f"  · NO SALGAS DE TU DIRECTORIO, y no es solo el `cd`: el cajón bloquea CUALQUIER comando que "
-            f"navegue o liste carpetas del repo del motor (`cd`, `ls`, `find`, `cat` de rutas del repo…). No "
-            f"hace falta: los puentes funcionan desde donde estás — `{py}` es absoluto y el resto ya viaja en "
-            f"el entorno. Lo que SÍ puedes es ABRIR con Read un fichero concreto cuya ruta absoluta te hayamos "
-            f"dado nosotros (la captura del navegador); eso está permitido y probado.\n"
-            f"  · UN comando por llamada. Nada de `&&`, `;`, `|`, `$(…)` ni varias cosas en la misma línea: se "
-            f"lee como varias operaciones y se para en la primera que no esté permitida.\n"
-            f"  · Solo los puentes. Ni `curl`, ni `wget`, ni scripts propios: para ABRIR una página usa "
-            f"`{py} -m nucleo.nav_cli`, y para BUSCAR pídelo por `{py} -m nucleo.worker_bridge`. Lo que traigas "
-            f"con `curl` además no pasa por el navegador del operador, así que ni ve las cookies ni cuenta como "
-            f"evidencia.\n"
-            f"  · Si un comando te pide aprobación, lo escribiste mal: REESCRÍBELO en la forma de arriba. No lo "
-            f"reintentes igual, no busques otra vía y no te calles — si de verdad no hay forma, DILO como "
-            f"resultado (`hbnote`/tu entrega) en vez de terminar en silencio.\n\n") + out
+    return _drawer_rules(py) + out
+
+
+def _drawer_rules(py: str = "") -> str:
+    """Las reglas del cajón donde corre el worker, en UN solo sitio.
+
+    Estaban dentro de `_with_interpreter`, al que solo llama `_build_prompt` — así que el worker WEB, que es el
+    que más shell compone porque conduce un navegador, era el único que NUNCA las recibía. Medido en
+    `search-secondhand-monitor__es` (2026-08-24 00:56): tres `cd in '<engine>' was blocked` seguidos, a los
+    42 s, en una ronda que entregó cero. Misma asimetría que V2-257 y con el mismo perjudicado.
+
+    Sin `py` no se nombra el intérprete: la lista de fuera del cajón es la misma con o sin él, y el builder web
+    ya escribe la ruta absoluta en cada línea de comando.
+    """
+    _py = (py or "").strip()
+    cab = (f"INTÉRPRETE: para CUALQUIER puente (`-m nucleo.…`) usa EXACTAMENTE `{_py}`, tal cual, siempre. Está "
+           f"permitido y funciona. NO uses `python` a secas ni `python3` ni rutas relativas.\n") if _py else ""
+    _puente = f"`{_py} -m nucleo.nav_cli`" if _py else "`nucleo.nav_cli`"
+    _busca = f"`{_py} -m nucleo.worker_bridge`" if _py else "`nucleo.worker_bridge`"
+    _abs = f"`{_py}` es absoluto" if _py else "el intérprete es absoluto"
+    return (cab +
+            "TU CAJÓN (reglas del shell donde corres; romperlas NO da error, pide una aprobación que aquí no va a "
+            "llegar nunca):\n"
+            "  · NO SALGAS DE TU DIRECTORIO, y no es solo el `cd`: el cajón bloquea CUALQUIER comando que "
+            "navegue o liste carpetas del repo del motor (`cd`, `ls`, `find`, `cat` de rutas del repo…). No "
+            f"hace falta: los puentes funcionan desde donde estás — {_abs} y el resto ya viaja en "
+            "el entorno. Lo que SÍ puedes es ABRIR con Read un fichero concreto cuya ruta absoluta te hayamos "
+            "dado nosotros (la captura del navegador); eso está permitido y probado.\n"
+            "  · UN comando por llamada. Nada de `&&`, `;`, `|`, `$(…)` ni varias cosas en la misma línea: se "
+            "lee como varias operaciones y se para en la primera que no esté permitida.\n"
+            "  · Solo los puentes. Ni `curl`, ni `wget`, ni scripts propios: para ABRIR una página usa "
+            f"{_puente}, y para BUSCAR pídelo por {_busca}. Lo que traigas "
+            "con `curl` además no pasa por el navegador del operador, así que ni ve las cookies ni cuenta como "
+            "evidencia.\n"
+            "  · Si un comando te pide aprobación, lo escribiste mal: REESCRÍBELO en la forma de arriba. No lo "
+            "reintentes igual, no busques otra vía y no te calles — si de verdad no hay forma, DILO como "
+            "resultado (`hbnote`/tu entrega) en vez de terminar en silencio.\n\n")
 
 
 # Guía de COMPORTAMIENTO HUMANO en la web (regla del operador 2026-07-21: "que parezcan humanos, orientar el uso
@@ -316,7 +335,13 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None) -> str:
         _category_lead(goal, lang_code) +
         site_catalog.directive_block(site_catalog.resolve_locale(lang_code)) + "\n\n" +
         _HUMAN_NAV_GUIDE +
-        "CÓMO CONDUCIR (desde la raíz del repo; el navegador ya tiene su pestaña asignada):\n"
+        # V2-277 — esta línea decía «desde la raíz del repo», y desde V2-117 es FALSA: el worker corre con el
+        # cwd CONFINADO a su propio directorio temporal. Así que le estábamos DICIENDO dónde estaba, mal, y
+        # luego bloqueando el `cd` con el que iba a llegar. Medido en `search-secondhand-monitor__es`
+        # (2026-08-24 00:56): TRES `cd in '<engine>' was blocked` seguidos en el worker web, a los 42 s, y una
+        # ronda que acabó entregando cero. No era el modelo cabezota: hacía lo que aquí ponía.
+        "CÓMO CONDUCIR (los comandos funcionan DESDE DONDE ESTÁS —el intérprete es absoluto y el resto viaja en "
+        "el entorno—; el navegador ya tiene su pestaña asignada):\n"
         f"• VER la página como un humano (VISIÓN): {py} -m nucleo.nav_cli look\n"
         "     → imprime la ruta de un PNG; ÁBRELO con tu tool Read para VER la página, y actúa por coordenadas:\n"
         f"• Click por coordenadas (visión):  {py} -m nucleo.nav_cli click_at <x> <y>\n"
@@ -427,4 +452,10 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None) -> str:
         block = research.to_prompt_block(brief)
         if block:
             p += "\n\n" + block
-    return _with_presentation(p)
+    # V2-277 — y las REGLAS DEL CAJÓN, que hasta hoy solo llegaban al worker GENÉRICO: `_with_interpreter` se
+    # llama desde `_build_prompt` y este builder no pasa por ahí. Es la asimetría de V2-257 otra vez, en el
+    # mismo sitio y con el mismo perjudicado — el worker que abre un navegador es justo el que más shell
+    # compone, y era el único que no sabía qué le está permitido. Se le añaden aquí, no moviendo la llamada:
+    # `_with_interpreter` además SUSTITUYE `python -m nucleo.` en el texto, y este prompt ya escribe la ruta
+    # absoluta en cada línea, así que pasarlo por ahí no haría nada y taparía el motivo.
+    return _with_presentation(_drawer_rules() + p)

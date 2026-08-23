@@ -239,6 +239,11 @@ DOMAINS: list[dict] = [
             # cajón del worker (`cd` bloqueado, comando compuesto, `curl`) sin decirlo. Reglas por delante
             # + un turno correctivo si aun así choca.
             "tests/agent_headless/unit/workers/test_the_gate_is_ours.py",
+            # V2-277: le decíamos al worker WEB que corría «desde la raíz del repo» —falso desde V2-117— y
+            # luego le bloqueábamos el `cd` con el que iba a llegar; y las reglas del cajón de V2-211 solo se
+            # las dábamos al worker GENÉRICO, o sea a todos menos al que más shell compone. El guarda es de la
+            # FORMA: todo prompt que ofrezca un puente lleva las reglas, y ninguno afirma dónde no está.
+            "tests/agent_headless/unit/workers/test_the_drawer_rules_reach_every_bridge_prompt.py",
             # V2-158: este fichero NUNCA estuvo en el testmap, así que `tests run all` no lo corría y sus
             # afirmaciones llevaban desde V2-132/V2-144/V2-148 contradiciendo el comportamiento buscado en
             # silencio. Un test que ninguna suite ejecuta es un test que deja de ser verdad sin avisar.
