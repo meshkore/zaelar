@@ -287,7 +287,7 @@ DOMAINS: list[dict] = [
         # V2-227 ámbito B — el CAUDAL: fases que lee una persona («entrando en booking.com», «12 resultados»),
         # con latido para que una fase de 90 s no parezca un worker muerto. La materia prima ya existía desde
         # V2-048 (`{where,action,target}`); lo que faltaba era decirla, y por el carril que ya existe.
-        {"id": "2.15", "title": "El progreso se lee como una frase, y una fase larga dice que sigue viva",
+        {"id": "2.25", "title": "El progreso se lee como una frase, y una fase larga dice que sigue viva",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/workers/test_the_progress_reads_like_a_sentence.py"]},
         {"id": "2.6", "title": "Scheduler / rails / workspace / frontend-glue", "ch": UNIT, "paths": [
@@ -314,7 +314,7 @@ DOMAINS: list[dict] = [
         # pero su `usage` real viaja en el ÚLTIMO chunk del stream y nunca llega → lo factura un ESTIMADO. Este nodo
         # fija las dos ramas (cancelado→estimado, completo→verdad del proveedor) y la DENSIDAD del estimado, que
         # asumía 4 chars/token (inglés) cuando el input real va a 3,36 y cobraba un 16% de menos.
-        {"id": "2.14", "title": "Un turno CANCELADO también se factura (y con el estimado bien calibrado)",
+        {"id": "2.24", "title": "Un turno CANCELADO también se factura (y con el estimado bien calibrado)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/flash/test_cancelled_turn_billing.py"]},
         # 2026-08-20: una SESIÓN de worker que acaba desaparecía del estado sin dejar rastro — el mismo hueco
         # que V2-150 cerró para las tareas de navegador, un nivel por encima y peor: una tarea de navegador
@@ -859,7 +859,7 @@ DOMAINS: list[dict] = [
         # estado vivo se compone al FINAL — o sea que tiraba justo la mitad que responde «¿qué vio el modelo?».
         # Casi cuesta un diagnóstico falso: cinco turnos parecían no tener el bloque del navegador con el
         # navegador emitiendo 74 eventos en esa misma corrida.
-        {"id": "7.11", "title": "La captura forense de un turno guarda el ESTADO, no solo la persona",
+        {"id": "7.20", "title": "La captura forense de un turno guarda el ESTADO, no solo la persona",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/core/test_turn_capture_keeps_the_state.py"]},
         # INI-021 (2026-08-09): la observabilidad pasa de «ver líneas» a «analizar procesos». Un estímulo y todo
         # lo que desencadena comparten CORRELATION ID; cada evento dice de qué instalación y de qué sesión de
@@ -877,7 +877,7 @@ DOMAINS: list[dict] = [
         # de trabajo sin que nadie commiteara el borrado, y la suite ENTERA pasaba igual: nada afirmaba que un
         # widget de sistema declarado exista. Lo que queda no es «un widget menos», es un registro que promete
         # algo que el disco no tiene.
-        {"id": "7.10", "title": "Un widget de SISTEMA declarado existe en disco", "ch": UNIT,
+        {"id": "7.19", "title": "Un widget de SISTEMA declarado existe en disco", "ch": UNIT,
             "paths": ["tests/infrastructure/unit/test_builtin_widgets_exist.py"]},
         # 2026-08-14: que el CONTEXTO no se quede atrás del código. La deriva era medible — el log de alineación de
         # contenido iba por la 2.88 con el motor en la 2.94, y 21 decisiones de CLAUDE.md sin iniciativa. Este nodo
@@ -902,6 +902,16 @@ DOMAINS: list[dict] = [
                                 "handler que nadie puede alcanzar",
             "ch": UNIT,
             "paths": ["tests/infrastructure/unit/test_a_decorator_does_not_care_what_follows_it.py"]},
+        # 2026-08-23 — F0 de la auditoría de arquitectura. La complejidad medida no está repartida: 4 ficheros-dios
+        # y el turno implementado DOS veces (21 marcas «impl PARALELA», `_run_inner` 2.603 líneas, `run_turn`
+        # 1.051). Este nodo no arregla nada de eso: lo CONGELA para que solo pueda bajar — techos de LOC e imports
+        # lazy por fichero (editarlos a la baja es la celebración), veto a espejos nuevos, veto a que nazca un
+        # fichero-dios fuera de la tabla, y unicidad de ids del testmap (había CINCO pares duplicados y el sexto
+        # casi entra sin que nadie lo viera). Mismo mecanismo que la deuda declarada de `test_roadmap_closure`.
+        {"id": "7.22", "title": "Trinquete de arquitectura: los ficheros-dios solo encogen, los espejos solo "
+                                "bajan, y ningún gigante nace fuera de la tabla",
+            "ch": UNIT,
+            "paths": ["tests/infrastructure/unit/test_architecture_ratchet.py"]},
         # 2026-08-20: hermano del anterior por el otro lado. El trinquete vigila que una decisión tenga
         # iniciativa; esto vigila que los PUNTEROS de `CLAUDE.md` lleven a un fichero que existe. Un puntero roto
         # no falla: el siguiente agente abre un fichero que no está y trabaja sin el contexto que lo justificaba.
@@ -937,7 +947,7 @@ DOMAINS: list[dict] = [
         # control-plane con un LATIDO periódico mientras siga abierta (reemplaza la adivinanza-por-ruido de la
         # nube por una señal pensada para esto). Este nodo faltaba del mapa — ninguno de los dos ficheros estaba
         # registrado — así que "tests run infrastructure" nunca los ejecutaba pese a existir.
-        {"id": "7.13", "title": "Sesión de trabajo: cierre por inactividad real + latido hacia el control-plane",
+        {"id": "7.21", "title": "Sesión de trabajo: cierre por inactividad real + latido hacia el control-plane",
             "ch": UNIT, "paths": ["tests/infrastructure/unit/core/test_session_idle_rollover.py",
                                   "tests/infrastructure/unit/core/test_session_heartbeat.py"]},
     ]},

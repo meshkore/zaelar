@@ -3132,7 +3132,7 @@ No crear `.meshkore/daemon.py`, ni targets `make meshkore`, ni bindear el puerto
     abajo a propósito: estima de MÁS, el lado seguro, igual que la tarifa de seguridad). Y `turn_perf` emite ahora
     `usage_source`/`prompt_tokens_est`/`prompt_chars`/`tools_chars`, porque **un número que se factura tiene que
     poder compararse con la verdad en su propia fila**: reconstruir este sesgo exigió cruzar campos que solo
-    coincidían en 114 de 1.070 eventos. Nodo 2.14, con las dos ramas (cancelado→estimado, completo→verdad del
+    coincidían en 114 de 1.070 eventos. Nodo 2.24, con las dos ramas (cancelado→estimado, completo→verdad del
     proveedor, y que la verdad GANE) — sin la segunda, la primera la aprobaría un medidor que siempre adivina.
   - **SEXTO: la VOZ facturaba a la tarifa de otro proveedor, y el precio dejó de vivir en el código
     (2026-08-16, `nucleo/energy_tariffs.py`).** El STT y el TTS SÍ se metraban desde julio (hook
