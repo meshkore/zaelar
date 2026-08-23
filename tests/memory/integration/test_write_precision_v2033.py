@@ -146,3 +146,108 @@ def test_brief_three_turns_only_allergen(fresh_db):
     assert any("marisco" in t.lower() for t in dur), f"falta el alérgeno: {dur}"
     assert all("marisco" in t.lower() for t in dur), f"hay basura además del alérgeno: {dur}"
     assert "mostr" not in _state_blob() and "muestr" not in _state_blob(), f"state con pref 'sin mostrar': {memapi.state()}"
+
+
+# ── [P0b·2026-08-21] el `change` que el MODELO SE FIRMA SOLO no basta para pisar una identidad ────────────────
+#
+# El incidente, en la máquina del operador y no en un laboratorio: Deepgram destrozó «Calatayud» (`cal a`,
+# `Kalatayut`, `valch`), zaelar no entendía y preguntaba, y el operador aclaró el nombre — «que se llama
+# Calatayut,, ciudad de Calatayut», dentro de un encargo de RUTAS. El destilador escribió `operator.location` =
+# «Vive en Calatayud.» con importancia 0,95 e invalidó la anterior. `state.location` se quedó en Calatayud.
+#
+# Lo que hace este caso digno de un guarda propio es que la puerta EXISTÍA: P0b se construyó, literalmente, para
+# el «típico garble del STT». Reproducida con los valores reales, cierra con `is_correction=False` y deja pasar
+# con `True` — y a `True` no lo puso ninguno de los detectores deterministas (los tres dan `False` sobre esa
+# frase, y aciertan), sino el propio destilador declarando `change=update`. La guarda anti-garble la apagaba una
+# señal que firma quien la provoca.
+def _atom_processor(monkeypatch, atom: dict):
+    """Suplanta al CORAZÓN para ejercitar la ruta del ÁTOMO LLM (la heurística de MEM_PROCESSOR=0 no la toca)."""
+    from nucleo import mem_processor as mp
+
+    async def _process(_t, state=None):
+        return [dict(atom)]
+
+    monkeypatch.setattr(mp, "process", _process)
+    monkeypatch.setattr(mp, "enabled", lambda: True)
+
+
+_CALATAYUD_ATOM = {
+    "text": "Vive en Calatayud.", "level": "long", "kind": "profile", "importance": 0.95, "pinned": True,
+    "dest": "state", "slot": "operator.location", "state_patch": {"location": "Calatayud"},
+    "value": "Calatayud", "change": "update",       # ← la autodeclaración, tal como vino
+}
+
+
+def test_a_self_declared_update_cannot_overwrite_identity_when_the_turn_is_not_about_the_operator(
+        fresh_db, monkeypatch):
+    """El turno REAL que corrompió el perfil. La frase nombra un sitio, no dice nada del operador."""
+    _run("me he mudado a Soria")
+    assert memapi.state().get("location") == "Soria", "el montaje falla: la identidad de partida no quedó puesta"
+
+    _atom_processor(monkeypatch, _CALATAYUD_ATOM)
+    _run("que se llama Calatayut,, ciudad de Calatayut.")
+
+    assert memapi.state().get("location") == "Soria", \
+        f"un `change` autodeclarado pisó la identidad: {memapi.state().get('location')!r}"
+
+
+def test_and_the_garbled_value_is_QUARANTINED_not_just_kept_out_of_state(fresh_db, monkeypatch):
+    """No basta con salvar el `state`: la píldora sigue en la BD y el cerebro la leería igual. Se comprueba lo
+    que P0b promete — cuarentena (`meta.trust='untrusted'`), NO borrado: fuera del bloque pasivo que se pinta
+    cada turno, y todavía alcanzable por una pregunta explícita.
+
+    Se afirma por SQL y por `salient_long` (lectura directa) a propósito, sin pasar por el retriever: `_cfg()` de
+    `memory/rerank.py` da prioridad a `config/v2.json` sobre `MEMORY_RERANK`, y ese fichero está GITIGNOREADO —
+    en la máquina del operador el reranker local se pone a DESCARGAR de HuggingFace y este test dejaría de ser
+    determinista sin decirlo. Misma familia que el suelo absoluto contra un corpus vivo."""
+    _run("me he mudado a Soria")
+    _atom_processor(monkeypatch, _CALATAYUD_ATOM)
+    _run("que se llama Calatayut,, ciudad de Calatayut.")
+
+    rows = memdb.get_db().query(
+        "SELECT text, slot, json_extract(meta,'$.trust') AS trust FROM memories "
+        "WHERE valid=1 AND lower(text) LIKE '%calatayud%'")
+    assert rows, "la píldora desapareció: P0b degrada y aparta, no borra"
+    assert all((r["trust"] or "") == "untrusted" for r in rows), \
+        f"el valor garbleado quedó como hecho de confianza: {[dict(r) for r in rows]}"
+    assert all(not (r["slot"] or "") for r in rows), \
+        f"el garble conservó el slot de identidad: {[dict(r) for r in rows]}"
+
+    pasivo = " ".join(m["text"].lower() for m in memapi.salient_long())
+    assert "calatayud" not in pasivo, f"el garble se pinta en «lo que sabes del operador»: {pasivo!r}"
+
+
+def test_a_REAL_move_still_goes_through_on_the_self_declared_signal(fresh_db, monkeypatch):
+    """El control que impide que el arreglo sea un candado. Una mudanza dicha en primera persona SIGUE pasando
+    por `change`, que es exactamente lo que el comentario anti-inyección protege para los demás idiomas: aquí la
+    frase es catalana, así que las expresiones deterministas (castellanas) NO la ven y el único apoyo es la
+    autodeclaración. Si este caso se pusiera rojo, el arreglo habría roto las mudanzas multilingües."""
+    _run("me he mudado a Soria")
+    _atom_processor(monkeypatch, dict(
+        _CALATAYUD_ATOM, text="Viu a Girona.", state_patch={"location": "Girona"}, value="Girona"))
+    _run("ara visc a Girona")
+
+    assert memapi.state().get("location") == "Girona", \
+        f"una mudanza legítima quedó bloqueada por el arreglo: {memapi.state().get('location')!r}"
+
+
+@pytest.mark.parametrize("frase, habla_del_operador, por_que", [
+    ("que se llama Calatayut,, ciudad de Calatayut.", False, "EL turno del incidente"),
+    ("ciudad de Valls, la de Tarragona",              False, "aclarar un tercero"),
+    ("es Valls, con uve",                             False, "deletrear un nombre"),
+    ("me he mudado a Girona",                         True,  "es"),
+    ("m'acabo de traslladar a València, saps?",       True,  "ca con clítico ELIDIDO"),
+    ("m'he mudat a Girona",                           True,  "ca, la misma categoría"),
+    ("acabo de mudarme a Girona",                     True,  "es con enclítico"),
+    ("je viens de déménager à Lyon",                  True,  "fr"),
+    ("mi sono trasferito a Roma",                     True,  "it"),
+    ("I live in Berlin now",                          True,  "en"),
+    ("a mi casa en Soria",                            True,  "el que SÍ era legítimo (id=95 del operador)"),
+])
+def test_the_discriminator_separates_talking_about_oneself_from_naming_a_place(frase, habla_del_operador, por_que):
+    """La tabla del discriminador, explícita. Es una ENUMERACIÓN y conviene que se lea como tal: no pretende ser
+    una gramática, y su hueco lo encontró un contrato que ya existía — `m'acabo de traslladar` (catalán, clítico
+    elidido con apóstrofo) caía fuera porque un `\\b` delante de `m'` no casa. Por eso los elididos se buscan
+    aparte: es una CATEGORÍA románica, no un caso suelto. Lo que la lista no cubra deja rastro en observabilidad
+    (`_report_self_declared_change_ignored`) en vez de perderse en silencio."""
+    assert memory_agent._talks_about_the_operator(frase) is habla_del_operador, por_que

@@ -85,6 +85,45 @@ def _looks_like_injection(t: str) -> bool:
     return bool(_INJECTION_RE.search(t or ""))
 
 
+# A turn that CHANGES an identity fact is a turn where the operator talks about HIMSELF. First-person markers in
+# the languages this product speaks; deliberately NOT a full grammar — the point is a cheap anchor, not parsing.
+#: Los clíticos ELIDIDOS van FUERA del `\b…\b` de abajo: en «m'acabo de traslladar» el apóstrofo ya es la
+#: frontera, y un `\b` delante de `m'` no casa. Es una CATEGORÍA de las lenguas románicas (ca/fr/it), no un caso
+#: suelto — lo descubrió `test_llm_change_signal_updates_state_and_supersedes`, que es justo el contrato
+#: multilingüe que este arreglo no puede romper.
+_SELF_REF_ELIDED_RE = re.compile(r"(?:^|[\s(¿¡\"'])[mjt]['’]", re.I)
+
+_SELF_REF_RE = re.compile(
+    r"\b(?:"
+    r"yo|me|mi|mis|m[ií]o|m[ií]a|conmigo|vivo|estoy|soy|tengo|me\s+mud|me\s+llamo|me\s+he\s+mudado|"          # es
+    r"jo|meu|meva|visc|s[oó]c|tinc|em\s+dic|em|acabo|"                                                           # ca
+    r"i|i'm|im|my|mine|me|myself|i've|i\s+live|i\s+am|"                                                          # en
+    r"je|mon|ma|mes|moi|"                                                                                         # fr
+    r"io|mio|mia|abito|sono|"                                                                                     # it
+    r"eu|meu|minha|moro|"                                                                                         # pt
+    r"ich|mein|meine|wohne"                                                                                       # de
+    r")\b", re.I)
+
+
+def _talks_about_the_operator(t: str) -> bool:
+    """Does this utterance predicate something of the OPERATOR, or does it merely NAME a value?
+
+    The discriminator behind P0b's self-declared-`change` gate (2026-08-21). Measured on the operator's own
+    machine: Deepgram mangled «Calatayud» into `cal a` / `Kalatayut` / `valch`, zaelar kept asking, and the
+    operator clarified — «que se llama Calatayut,, ciudad de Calatayut». The distiller read that fragment of an
+    ERRAND about routes as a fact about where he lives, self-declared `change=update`, and that self-declaration
+    alone switched OFF the guard whose own docstring names «típico garble del STT». `state.location` went from
+    Soria to Calatayud and stayed there.
+
+    The utterance that legitimately moves an identity ALWAYS speaks in the first person — «me he mudado a X»,
+    «ara visc a Girona», «I live in X» — while a clarification of a third-party entity does not. That is the
+    difference the deterministic detectors were missing, and it holds across languages, which the Spanish-only
+    `_RELOCATION_RE` does not.
+    """
+    t = t or ""
+    return bool(_SELF_REF_RE.search(t) or _SELF_REF_ELIDED_RE.search(t))
+
+
 _PROFILE_TREATMENT_RE = re.compile(
     r"\b(tut[eé]ame|tr[aá]tame\s+de\s+t[uú]|tr[aá]tame\s+de\s+usted|"
     r"s[eé]\s+(?:breve|conciso|directo)|h[aá]blame\s+en\s+(?:corto|breve)|"
@@ -573,6 +612,26 @@ def _established_slot_value(slot: str) -> str:
         return str(v or "").strip().lower()
     except Exception:  # noqa: BLE001
         return ""                        # never block a write because the lookup failed
+
+
+def _report_self_declared_change_ignored(slot: str, raw: str) -> None:
+    """VISIBLE por la misma razón que `_report_slot_guard`, y aquí hace además un segundo trabajo.
+
+    `_talks_about_the_operator` es una ENUMERACIÓN de marcas de primera persona, y una enumeración por idiomas
+    nunca está completa: el hueco que deja no es escribir de más, es NO aprender una mudanza legítima dicha en
+    una lengua que la lista no cubre. Ese fallo sería mudo —el operador diría «me he mudado» y la memoria no se
+    enteraría, sin nada en ninguna pantalla— así que cada vez que la puerta calla una autodeclaración deja
+    RASTRO con la frase entera. Si aparece aquí una mudanza de verdad, la lista tiene un agujero con nombre y
+    apellidos en vez de una queja de que «no se acuerda».
+    """
+    detail = f"slot {slot}: `change` autodeclarado IGNORADO — el turno no habla del operador: {raw[:160]!r}"
+    try:
+        from voice.observer import emit
+        emit("memory", "identidad protegida de una autodeclaración", text=detail,
+             extra={"module": "memory_agent.P0b", "slot": slot, "raw": raw[:200]})
+    except Exception:  # noqa: BLE001
+        pass
+    logger.info(f"memory_agent P0b: {detail}")
 
 
 def _report_slot_guard(slot: str, cur: str, new: str, text: str) -> None:
@@ -1245,6 +1304,19 @@ async def _ingest_utterance_locked(text: str, *, role: str = "operator") -> dict
             # gate anti-garble. Una corrección/mudanza LEGÍTIMA (incl. otro idioma, p. ej. catalán vía `change`) no
             # lleva ese preámbulo → sigue funcionando. Quirúrgico: NO desactiva la señal multilingüe en el caso sano.
             if a.get("slot") in _IDENTITY_SLOTS and _looks_like_injection(t):
+                a_corr = _is_corr
+            # (2026-08-21) …y la MISMA pregunta sin inyección de por medio: `change` lo firma el propio modelo, así
+            # que un slot de identidad puede sobrescribirse con la única prueba de que el destilador dijo que sí.
+            # Eso apagó el gate anti-garble justo en el turno para el que se construyó — el operador repitiendo un
+            # nombre propio que el STT destrozaba («que se llama Calatayut,, ciudad de Calatayut») acabó de
+            # `operator.location`, borrando el valor real. Ninguno de los detectores DETERMINISTAS veía corrección
+            # ahí, y tenían razón: la frase no habla del operador, nombra un sitio. Así que la autodeclaración solo
+            # vale si el turno habla de él — que es lo que hace toda mudanza legítima, en cualquier idioma, y lo
+            # que NO hace una aclaración de tercero. No toca el caso sano: «ara visc a Girona» sigue pasando por
+            # `change` como antes, que es justo lo que el comentario de arriba protege.
+            if a.get("slot") in _IDENTITY_SLOTS and not _talks_about_the_operator(t):
+                if a_corr and not _is_corr:          # solo cuando la autodeclaración era la ÚNICA prueba
+                    _report_self_declared_change_ignored(str(a.get("slot")), t)
                 a_corr = _is_corr
             a = _plausibility_demote(a, state=st, is_correction=a_corr)
             # (P0d) …and the same question one layer down: P0b guards the `state`, this guards the SLOT supersede,
