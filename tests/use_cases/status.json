@@ -405,28 +405,30 @@
       }
     },
     "cheapest-monitor": {
-      "last_run": "2026-08-23 12:04",
+      "last_run": "2026-08-23 18:19",
       "overall": null,
       "judge": "",
       "state": "INFRA",
       "scores": {},
-      "verdict": "INFRA: timed out",
+      "verdict": "INFRA: turno 10: HTTP Error 500: Internal Server Error · motor: VIVO (/api/status responde) — el fallo fue del turno o del tester, no del motor",
       "missing_signals": [],
       "audit_anomalies": [],
       "sandboxed": true,
       "provisional": "corrida con --allow-dirty: el arbol se movia, el numero no cuenta como medicion",
       "tier": 2,
-      "turns_used": 0,
+      "turns_used": 9,
       "families": [],
       "drive_model": "",
       "code": {
-        "sha": "3b316b4",
-        "n_dirty": 4,
+        "sha": "c52e02d",
+        "n_dirty": 6,
         "dirty": [
-          "nucleo/dispatch.py",
-          "nucleo/flash/accumulator.py",
-          "nucleo/memory_agent.py",
-          "nucleo/workers/session.py"
+          "memory/rerank_local.py",
+          "nucleo/flash/probe.py",
+          "nucleo/flash/probe_api.py",
+          "nucleo/turn/recall_budget.py",
+          "nucleo/turn/vault_gate.py",
+          "voice/engine/llm/providers/nucleo.py"
         ]
       },
       "machine": {},
@@ -2236,5 +2238,5 @@
       }
     }
   },
-  "updated": "2026-08-23 12:04"
+  "updated": "2026-08-23 18:19"
 }
