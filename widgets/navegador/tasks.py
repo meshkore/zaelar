@@ -14,6 +14,12 @@ import itertools
 import threading
 import time
 
+# F4 (2026-08-23): the set-comparison arithmetic comes from THE yardstick module. `nucleo.matching` is pure
+# stdlib (no engine import, no cycle): this file keeps its own stemming and clarification contract — those are
+# browser-specific and measured — but the primitive underneath is the shared one, so the two judges of «same
+# errand?» can no longer drift apart silently (they did: 2026-08-21, three workers driving one tab).
+from nucleo import matching
+
 WID = "navegador"
 _lock = threading.RLock()
 _tasks: dict[str, dict] = {}          # task_id -> state
@@ -325,8 +331,7 @@ def _similar(g: set, other_goal: str) -> bool:
     content = {w for w in gs if len(w) >= 4 and w not in _STOP_STEMMED}
     if subject and (len(content) <= 3 or len(subject) >= 2):
         return True
-    union = len(gs | os_)
-    return (len(shared) / union if union else 0) >= 0.4
+    return matching.jaccard(gs, os_) >= 0.4
 
 
 # An ACTIVE browser task is "what we are doing RIGHT NOW": while it lives, any similar request is routed to IT — never

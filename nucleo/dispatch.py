@@ -23,6 +23,8 @@ import secrets
 import time
 import unicodedata
 from dataclasses import dataclass, field
+
+from nucleo import matching
 from typing import Any
 
 from loguru import logger
@@ -988,8 +990,7 @@ def sync_state() -> None:
 
 # ── resolución de "cuál" para inject / stop (determinista, §v2·B/§v3·M) ──────────────────────────────────────
 def _norm(text: str) -> str:
-    n = unicodedata.normalize("NFKD", text or "")
-    return "".join(c for c in n if not unicodedata.combining(c)).lower()
+    return matching.norm_text(text)
 
 
 _ALL_RE = re.compile(r"\b(todo|todos|todas|all|everything|cualquier|lo que estas haciendo|lo que haces)\b")
@@ -1018,20 +1019,12 @@ def live_traces() -> list[str]:
     return out
 
 
-# Tokens for the dedup matcher. `.split()` was leaving PUNCTUATION stuck to the word, so `zurdo` and `zurdo,` —
-# and `guitarra` and `(guitarra` — counted as different words. Found live (2026-08-18): two escalations of the same
-# search scored Jaccard 0.556 against `find_duplicate`'s 0.60 threshold and BOTH workers ran, doing the same job
-# twice on real money. Punctuation only ever moves that ratio DOWN (it shrinks the intersection and grows the
-# union), so the bias was one-directional: miss duplicates, never over-merge. `\w+` rather than `[a-z0-9]+` on
-# purpose — `_norm` strips accents but a goal in another alphabet would tokenize to NOTHING under a latin-only
-# class, which would silently turn dedup off for that language instead of fixing it. CJK is a separate matter and
-# unchanged either way: its tokens are 2-3 characters, so the `len(w) >= 4` filter below already dropped them —
-# a pre-existing limit of this matcher, not something introduced here.
-_WORD_RE = re.compile(r"\w+", re.UNICODE)
-
-
+# The tokenizer moved to `nucleo/matching.py` (F4, 2026-08-23) with its history — the punctuation lesson of
+# V2-123, the non-latin-alphabet note — because it stopped being this module's private business the day it turned
+# out `widgets/navegador/tasks._similar` was judging the SAME question with its own copy and the two disagreed
+# about the same pair of texts. One yardstick, imported; the local names survive for the callers.
 def _content_words(text: str) -> set:
-    return {w for w in _WORD_RE.findall(_norm(text)) if len(w) >= 4}
+    return matching.content_words(text)
 
 
 def _target_widget(request: str) -> str:
@@ -1068,7 +1061,16 @@ def find_duplicate(request: str, kind: str) -> str | None:
     fuente de verdad (registro RAM), NO en el snapshot de inicio de turno del provider de voz (que falló la
     sesión 2026-07-15: la re-escalada llegó en un turno ambiente por contaminación de ventana y `_similar_pending`
     no la vio). Dos señales: (1) MISMO widget destino (tareas de código sobre el mismo widget) → dedup fuerte;
-    (2) solape de palabras de contenido ≥0.6 con el goal de una sesión viva (re-escalada casi idéntica)."""
+    (2) CONTENCIÓN de palabras de contenido con el goal de una sesión viva.
+
+    F4 (2026-08-23) — la vara es `matching.containment`, no Jaccard, y el porqué está medido: el cerebro
+    REFORMULA el encargo en cada escalada (668/437/342/298 chars el mismo caso), Jaccard divide por la UNIÓN y
+    una reformulación más larga se ve distinta *por ser más larga* — cuatro workers para un encargo el
+    2026-08-21, Jaccard entre pares 0,319-0,450, todos bajo el 0,60 de entonces. La contención divide por el
+    conjunto PEQUEÑO, que es la pregunta real («¿la versión corta está dentro de la larga?»), y separa sin
+    solape (mismo encargo 0,571-0,893 · distintos 0,062-0,227). De propina neutraliza el recorte de
+    `goal=request[:200]`: el lado truncado es el `min` por el que se divide, así que recortar el goal guardado
+    apenas mueve la medida — con Jaccard lo hundía siempre."""
     req_w = _content_words(request)
     if not req_w:
         return None
@@ -1078,9 +1080,7 @@ def find_duplicate(request: str, kind: str) -> str | None:
             continue
         if tgt and _target_widget(r.goal) == tgt:
             return k
-        o = _content_words(r.goal)
-        union = len(req_w | o)
-        if union and len(req_w & o) / union >= 0.6:
+        if matching.containment(req_w, _content_words(r.goal)) >= matching.SAME_ERRAND:
             return k
     return None
 

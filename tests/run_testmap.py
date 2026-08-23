@@ -333,6 +333,16 @@ DOMAINS: list[dict] = [
         {"id": "2.23", "title": "Una cadena de relevo tiene final: la generación viaja, el tope corta y al cortar "
                                 "dice la verdad (sin prometer una retoma que no va a pasar)",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_a_relay_chain_has_an_end.py"]},
+        # F4 de la auditoría de arquitectura (2026-08-23). El hallazgo H3, medido en vivo el 2026-08-21: DOS
+        # jueces de «¿es el mismo encargo?» se contradijeron sobre el MISMO par de textos — find_duplicate
+        # (Jaccard ≥0.60) abrió tres workers y tasks._similar (≥0.40) les dio UNA pestaña, con el Jaccard real
+        # (0.333-0.375) cayendo en el hueco entre las dos varas. El primitivo vive ahora UNA vez en
+        # nucleo/matching.py y ambos jueces lo importan; el del dispatcher pasa a CONTENCIÓN (mismo encargo
+        # 0.571-0.893 vs distintos 0.062-0.227, poblaciones sin solape donde Jaccard no separa), lo que además
+        # disuelve el bug del goal truncado a 200 (el lado recortado es el min por el que se divide).
+        {"id": "2.26", "title": "UNA vara de parecido: contención en el dispatcher, el primitivo compartido por "
+                                "los dos jueces, y ninguna copia privada de la aritmética",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/test_one_yardstick_of_similarity.py"]},
         {"id": "2.15", "title": "Idioma del operador en un canal SIN voz (primera ejecución)", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_first_run_language.py"]},
         # 2026-08-20: el relleno de nunca-mudo decía CUATRO veces la misma frase («Vale, dame un momento que lo
