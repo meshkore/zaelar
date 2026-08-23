@@ -514,6 +514,28 @@ def _site_of(url: str) -> str:
     return host[4:] if host.startswith("www.") else host
 
 
+def _short_note(note: str, limit: int = 110) -> str:
+    """A worker's step note, shortened WITHOUT cutting a word in half — and saying so when it was cut.
+
+    Measured 2026-08-23 (`cheapest-monitor`, round 7): a hard `[:60]` turned
+
+        «Comparativa entregada en pantalla (hoja de resultados con los 3 finalistas)»
+
+    into «…con lo», dropping exactly the words that said results existed. The brain, asked four times
+    whether it had anything, answered «sigo pendiente» over a sheet already holding three candidates.
+
+    Two rules, and the second matters as much as the first: cut on whitespace, and mark the cut with an
+    ellipsis. A truncated note that ends cleanly reads as a COMPLETE one, which is how «con lo» became a
+    sentence the model was entitled to treat as the whole message.
+    """
+    n = " ".join((note or "").split())
+    if len(n) <= limit:
+        return n
+    head = n[:limit]
+    cut = head.rfind(" ")
+    return (head[:cut] if cut > limit // 2 else head).rstrip(" ,;:.") + "…"
+
+
 def live_state() -> str:
     """Lecturas baratas, sin tools, que el FlashBrain responde al instante."""
     import time as _t
@@ -554,7 +576,16 @@ def live_state() -> str:
                 elif pct >= 0:
                     bit += f' [{pct}%]'
                 if t.get("note"):
-                    bit += f' — {t["note"][:60]}'
+                    # 60 chars used to CUT THE PAYLOAD OUT of the note, and measured 2026-08-23 on
+                    # `cheapest-monitor` (round 7) that cost the round. The worker reported
+                    #     «Comparativa entregada en pantalla (hoja de resultados con los 3 finalistas)»
+                    # and the prompt carried
+                    #     «Comparativa entregada en pantalla (hoja de resultados con lo»
+                    # — severed mid-word at exactly the point where it said results EXIST and how many. The
+                    # brain then spent five turns answering «sigo pendiente» over a sheet that already held
+                    # Dell, LG and MSI. A note is written to be read whole; cut it on a WORD boundary and say
+                    # out loud when it was cut, so a truncated note can never read as a complete one.
+                    bit += f' — {_short_note(str(t["note"]))}'
                 if not ph and pct < 0 and not total and not t.get("note"):
                     # SIN PASO REPORTADO. Se dice con esas letras (V2-133): el bloque pedía «di el PASO concreto»
                     # a secas, y cuando no había ninguno el modelo rellenaba el hueco NARRANDO uno. La tanda del
@@ -589,6 +620,18 @@ def live_state() -> str:
                          "otra vez. Si el operador te pide un resultado CONCRETO (¿hay o no hay?, ¿cuánto "
                          "cuesta?, ¿está reservado?) y la tarea no lo ha traído, la respuesta es que TODAVÍA NO "
                          "LO SABES y desde cuándo lleva sin dar señal — nunca una vuelta más de proceso. "
+                         # V2-222 again, and the same lesson as `recently_ended_sessions`: the block had a
+                         # prohibition («NO … digas que ya está») and an instruction for the empty case
+                         # («TODAVÍA NO LO SABES»), and NOTHING for the case in between — a step note saying
+                         # something already landed while the errand keeps running. With no branch licensing
+                         # it, the model resolved the collision the only way the block allowed and denied a
+                         # delivery that was on screen. The fork goes INSIDE the imperative rather than in a
+                         # separate sentence: two orders in one paragraph come out heads-or-tails.
+                         "PERO lee el PASO antes de decir eso: si dice que algo ya está ENTREGADO, ESCRITO o "
+                         "EN PANTALLA, entonces la tarea SÍ ha traído eso — cuéntalo en este turno, di qué "
+                         "hay y qué falta todavía, y NO contestes «sigo con ello». Lo que sigue EN CURSO es "
+                         "la tarea, no lo que ya está entregado; negar una entrega que el operador tiene "
+                         "delante en la pantalla es peor que no haberla hecho. "
                          # V2-130 — the list had no stated SCOPE, and a list in context becomes an answer
                          # when the model has a hole. Asked which barber he always goes to, the brain had
                          # nothing on barbers and offered these instead: «tengo varias tareas tuyas
