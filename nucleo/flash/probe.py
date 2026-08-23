@@ -165,71 +165,26 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
     if not text:
         return {"ok": False, "error": "texto vacío"}
 
-    # COMANDO DE CONFIG DE SEGURIDAD (V2-060 F2, espejo del provider — impl PARALELA): «no me digas los secretos
-    # por voz» / «modo máxima seguridad» = user rule DURA aplicada DETERMINISTA (sin modelo). Short-circuit.
-    try:
-        from . import vault_rules as _vr
-        _cfg = _vr.detect(text)
-    except Exception:
-        _cfg = None
-    if _cfg is not None:
-        _line = _vr.apply(_cfg) if ingest else "(config no aplicada: ingest=false)"
-        return {"ok": True, "reply": [_line], "action": "vault_config", "tool_calls": [], "tags": [],
-                "security": {_cfg[0]: _cfg[1]}}
-
-    # GUARDAR UN SECRETO (V2-060, fix 2026-07-21, espejo del provider — impl PARALELA): el operador DICE un secreto
-    # → se intercepta DETERMINISTA (el valor no pasa por el modelo). Se cifra si hay bóveda; si no, se pide crearla.
-    try:
-        from memory import secrets as _secrets0
-        _sec_found = _secrets0.detect(text)
-    except Exception:
-        _sec_found = []
-    if _sec_found:
-        from memory import vault as _vault0
-        _has_vault = False
-        try:
-            _has_vault = _vault0.exists()
-        except Exception:
-            pass
-        if _has_vault and ingest:
-            for _d in _sec_found:
-                try:
-                    await asyncio.to_thread(_vault0.store_secret, _d.label, _d.value,
-                                            slot=_d.slot, sensitivity=_d.sensitivity)
-                except Exception:
-                    pass
-        # V2-141 — espejo del provider (impl PARALELA, cablear en AMBOS). Dos cosas estaban mal aquí, y este es
-        # el canal por el que corren los casos de uso, así que las dos eran invisibles desde la voz:
-        #
-        # (1) el turno se consumía SIEMPRE. Cuando el secreto viaja DENTRO de una petición —que es lo normal:
-        #     nadie recita un IBAN por gusto, lo recita para pagar algo— se pierde justo la mitad que importa.
-        #     Medido en `pay-known-bill`: el operador entregó nº de factura, importe e IBAN (los tres que zaelar
-        #     le había pedido) y no recibió NADA; el juez lo anotó como «(sin respuesta)» justo detrás de sus
-        #     datos bancarios. Y el confirm-gate vive más abajo en el turno, así que una orden de pago que trae
-        #     su propio IBAN no podía llegar al gate que existe para pararla.
-        # (2) lo que devolvía era una ACOTACIÓN, no una frase: «(secreto cifrado)». El provider dice una frase
-        #     de verdad y localizada (`langs.secret_saved`/`secret_need_vault`); aquí salía un paréntesis que
-        #     nadie puede decir en voz alta y que el arnés lee como turno vacío.
-        from nucleo.flash import vault_carrier as _vc
-        if _vc.secret_is_the_whole_turn(text, _sec_found):
-            try:
-                from voice.engine.core import langs as _lg_sec
-                _L_sec = _lg_sec.current_language()
-                _sec_line = _L_sec.secret_saved if _has_vault else _L_sec.secret_need_vault
-            except Exception:
-                _sec_line = "Guardado." if _has_vault else "Necesito que crees la bóveda primero."
-            # REDACTED, never the raw line: this exit exists precisely because the whole turn was a secret, and
-            # the invariant that a secret never reaches the model is not negotiable. What the window keeps is the
-            # SHAPE of what happened («mi contraseña de X es «secreto guardado»»), so the next turn knows the
-            # operator spoke and what about.
-            _remember_what_was_said(sess, _secrets0.redact(text)[0])
-            return {"ok": True, "reply": [_sec_line],
-                    "action": "vault_save" if _has_vault else "vault_need_create", "tool_calls": [], "tags": [],
-                    "secret": {"n": len(_sec_found), "labels": [d.label for d in _sec_found],
-                               "vault": _has_vault}}
-        # El valor NO sobrevive al texto con el que sigue el turno — el invariante (un secreto jamás llega al
-        # modelo) queda intacto; lo que cambia es que la petición que lo acompañaba sí se atiende.
-        text, _ = _secrets0.redact(text)
+    # BÓVEDA: config de seguridad + secreto hablado, decididos por la puerta COMPARTIDA (F1, 2026-08-23).
+    # Eran tres marcas de espejo y ya habían derivado: esta copia devolvía la acotación
+    # «(secreto cifrado)» donde la voz decía una frase localizada, y V2-141 hubo que arreglarlo dos veces. La
+    # DECISIÓN vive ahora en `nucleo/turn/vault_gate.py`; lo que sigue siendo de este canal es la ENTREGA (un
+    # dict, no una voz) y el `ingest`, que es la razón real por la que aquí no siempre se cifra: una corrida en
+    # seco no puede escribir los secretos de verdad del operador en la bóveda de verdad.
+    from nucleo.turn import vault_gate as _vault_gate
+    _vg = await _vault_gate.inspect(text, store=bool(ingest))
+    if _vg.kind == "config":
+        return {"ok": True, "reply": [_vg.line], "action": "vault_config", "tool_calls": [], "tags": [],
+                "security": {_vg.config[0]: _vg.config[1]}}
+    if _vg.consumed:
+        # REDACTADO, nunca la línea cruda: esta salida existe justo porque el turno ENTERO era un secreto. Lo
+        # que la ventana conserva es la FORMA de lo que pasó, para que el turno siguiente sepa que el operador
+        # habló y de qué.
+        _remember_what_was_said(sess, _vg.text)
+        return {"ok": True, "reply": [_vg.line],
+                "action": "vault_save" if _vg.has_vault else "vault_need_create", "tool_calls": [], "tags": [],
+                "secret": {"n": len(_vg.labels), "labels": _vg.labels, "vault": _vg.has_vault}}
+    text = _vg.text          # el valor NO sobrevive; la petición que lo acompañaba sí se atiende
 
     # TRAZABILIDAD (V2-044, espejo de nucleo.py::_run): el turno del probe también nace con trace id — el canal
     # de PRUEBA valida la cadena texto→acción→eventos igual que la voz. El id vuelve en la respuesta (evaluable).

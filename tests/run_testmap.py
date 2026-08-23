@@ -344,6 +344,16 @@ DOMAINS: list[dict] = [
         {"id": "2.26", "title": "UNA vara de parecido: contención en el dispatcher, el primitivo compartido por "
                                 "los dos jueces, y ninguna copia privada de la aritmética",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/test_one_yardstick_of_similarity.py"]},
+        # F1 paso 1 de la auditoría (2026-08-23). El TURNO está implementado dos veces —`_run_inner` 2.603
+        # líneas para voz, `run_turn` 1.051 para texto— cosidas por 21 marcas de espejo. La primera que se
+        # retira es la puerta de la bóveda, y ya había derivado: la copia del probe contestaba con la acotación
+        # «(secreto cifrado)» donde la voz decía una frase localizada, y V2-141 hubo que arreglarlo dos veces.
+        # La DECISIÓN vive en `nucleo/turn/vault_gate.py`; la ENTREGA sigue siendo de cada canal (voz habla y
+        # emite, probe devuelve un dict) porque esa diferencia es real. El guarda de cableado es el corazón: sin
+        # él la puerta puede estar perfecta mientras un canal decide por su cuenta en silencio. 21 → 18 espejos.
+        {"id": "2.27", "title": "Una puerta de bóveda, dos bocas: la decisión se toma UNA vez y ningún canal "
+                                "conserva su copia",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_the_vault_gate_is_decided_once.py"]},
         {"id": "2.15", "title": "Idioma del operador en un canal SIN voz (primera ejecución)", "ch": UNIT,
             "paths": ["tests/agent_headless/unit/test_first_run_language.py"]},
         # 2026-08-20: el relleno de nunca-mudo decía CUATRO veces la misma frase («Vale, dame un momento que lo

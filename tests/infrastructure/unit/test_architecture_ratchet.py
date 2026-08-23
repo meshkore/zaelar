@@ -53,10 +53,16 @@ _CEILINGS: dict[str, tuple[int, int]] = {
 #: file today is `connectors/meshkore/bridge.py` at 863, so 900 bounds the whole rest of the tree with margin.
 _UNLISTED_MAX = 900
 
-#: «impl PARALELA — cablear en AMBOS»: the turn's decisions copied between the voice provider and probe.
-#: 21 on the day of the audit. F1 of the plan retires them one by one; each retirement lowers this number,
-#: and once it reaches 0 a NEW mirror is a red test — two channels needing the same rule means extract first.
-_MIRROR_MAX = 21
+#: The mirror annotation: the turn's decisions copied between the voice provider and probe, each marked «this
+#: block lives in both, keep them in sync». 21 on the day of the audit, 18 after F1's first extraction (the
+#: vault gate). Each retirement lowers this number; at 0 a NEW mirror is a red test — two channels needing the
+#: same rule means extract first.
+#:
+#: ⚠️ The marker is a CODE ANNOTATION, not narration vocabulary, and the ratchet counts the literal string —
+#: so prose ABOUT the pattern counts as the pattern. Caught the first time it mattered: the docstrings written
+#: to explain a retired mirror pushed the count from 19 back to 22, i.e. the celebration read as a regression.
+#: When you retire one, describe it without quoting the marker.
+_MIRROR_MAX = 18
 
 _SKIP_DIRS = {".venv", "tests", "node_modules", "__pycache__", ".git", "frontend/vendor"}
 
