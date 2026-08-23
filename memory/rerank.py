@@ -91,9 +91,28 @@ def enabled() -> bool:
 
 
 def status() -> dict:
+    """What the reranker IS doing, not merely what it could do.
+
+    `available` answers "is this provider wired up at all"; it says nothing about whether a query gets reranked.
+    On the local provider those two drifted apart badly (2026-08-23): `import fastembed` succeeds on a machine
+    that has never pulled the 1.1 GB model, so `available` read True while every recall went out unranked and
+    a measurement reading this dict would have credited the reranker for the retriever's own ordering.
+    `ready`/`loading` are the ones that answer the real question. `None` on a provider that cannot report them
+    means no verdict — never False."""
     p = provider()
-    return {"provider": p, "model": _model() if p != "off" else None,
-            "enabled": enabled(), "available": _available(p), "top_n": _top_n()}
+    st = {"provider": p, "model": _model() if p != "off" else None,
+          "enabled": enabled(), "available": _available(p), "top_n": _top_n(),
+          "ready": None, "loading": None, "gave_up": None}
+    if p == "local":
+        try:
+            from . import rerank_local
+            mdl = _model()
+            st["ready"] = rerank_local.ready(mdl)
+            st["loading"] = rerank_local.loading(mdl)
+            st["gave_up"] = rerank_local.gave_up(mdl)
+        except Exception:
+            pass
+    return st
 
 
 def _available(p: str) -> bool:
@@ -102,11 +121,14 @@ def _available(p: str) -> bool:
     if p == "openai":
         return bool(_api_key())
     if p == "local":
+        # The dependency being importable is all this claims. Whether the MODEL can serve is `rerank_local.ready`,
+        # published separately in `status()` — see the note there.
         try:
             import fastembed  # noqa: F401
-            return True
         except Exception:
             return False
+        from . import rerank_local
+        return rerank_local.gave_up(_model()) is None
     return False
 
 

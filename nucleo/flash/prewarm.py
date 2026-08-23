@@ -99,6 +99,16 @@ async def _warm_rerank() -> None:
         if ok is not None:
             logger.info(f"prewarm reranker OK ({rerank._model()}, {ms}ms) — recall listo")
             _emit_prewarm("rerank", ms, rerank._model())
+        else:
+            # No es un error: desde 2026-08-23 la PRIMERA carga tiene presupuesto de reloj, así que en una máquina
+            # que nunca ha bajado el modelo (~1.1 GB) esto vuelve sin él y la descarga sigue por detrás. Se DICE:
+            # el silencio se leería como que el reranker está caliente mientras cada recall sale sin reordenar.
+            # Se pregunta por `status()` y NO por `memory.rerank_local`: el estado ya viaja ahí y meter la mano en
+            # un interno de memoria desde el motor es justo lo que el trinquete de frontera existe para impedir.
+            st = rerank.status()
+            nota = st.get("gave_up") or ("descargando en segundo plano" if st.get("loading") else "no listo")
+            logger.info(f"prewarm reranker aún no disponible ({rerank._model()}, {ms}ms): {nota}")
+            _emit_prewarm("rerank", ms, rerank._model(), note=nota)
     except Exception as e:  # noqa: BLE001
         logger.warning(f"prewarm reranker saltado (recall caerá al orden del retriever): {e}")
         _emit_prewarm("rerank", 0, "?", note=f"saltado: {e}")
