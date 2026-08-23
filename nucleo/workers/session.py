@@ -224,8 +224,22 @@ class WorkerSession:
             self._model = d.get("model") or self._model
             self._emit_meta_row()                              # V2-048: fila "worker · <backend>" con modelo + capa
         elif ev.type == "phase":
-            rec.phase = (d.get("label") or "").strip() or rec.phase
+            _lbl = (d.get("label") or "").strip()
+            rec.phase = _lbl or rec.phase
             self._bus("worker.phase", {"id": rec.task_id, "phase": rec.phase})
+            # EL DIARIO QUE MIRA EL OPERADOR. Esta línea faltaba, y su ausencia no se parecía a un fallo: la
+            # pestaña de PROCESO leía un anillo (`rec.phases`) que solo llenaba `hbnote`, o sea lo que el worker
+            # se molestara en narrar. Todo lo que traduce SUS PASOS a una frase —`progress.phrase`, que es la
+            # pieza escrita justo para esto— se quedaba en `rec.phase` (una sola línea, la de AHORA) y moría ahí.
+            # Medido en la sesión `ed9df756`: catorce pasos de navegador reales y dos entradas en el diario, las
+            # dos al final. El operador vio «trabajando» dos minutos y medio.
+            try:
+                from nucleo import dispatch as _d
+                _d.record_phase(rec.task_id, _lbl)   # LA ETIQUETA QUE LLEGA, no `rec.phase`: vacía significa
+                #  «la fase la pone otro» (hbnote, más rica), y apuntar la anterior repetiría en el diario un paso
+                #  que no ha vuelto a ocurrir.
+            except Exception:  # noqa: BLE001
+                pass
             if not d.get("quiet"):                             # quiet = acompaña a un `step` rico → no duplicar fila
                 self._emit_chip("phase", rec.phase)
         elif ev.type == "step":
