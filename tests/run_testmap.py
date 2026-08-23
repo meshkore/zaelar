@@ -1217,6 +1217,10 @@ DOMAINS: list[dict] = [
                                  "that wants one, a comparison is held to a stricter one — and the opening "
                                  "line sounds like a person asking, not a command line",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_bar_is_per_case.py"]},
+        {"id": "10.65", "title": "The lab keeps its memory setting: the reranker is pinned OFF in the ENV, "
+                                 "because a running agent rewrites its own config and drops the key — and "
+                                 "the code default downloads 1.1 GB on the event loop",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_lab_keeps_its_memory_setting.py"]},
     ]},
 ]
 

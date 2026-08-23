@@ -215,7 +215,17 @@ def env_for(profile: LabProfile, *, voice: bool) -> dict:
     So a quiet agent is a HEADLESS agent: fine for a batch nobody watches, useless for the one thing this
     lab exists for. Hence `voice=True` is the default and `--quiet` is the opt-out that says so.
     """
-    env = {"ZAELAR_LANGUAGE": profile.language}
+    # MEMORY_RERANK: pinned OFF in the ENV, not in the agent's `config/v2.json`, and the distinction is the
+    # whole point. It WAS pinned in that file on 2026-08-22; by 13:08 the next day the ES agent had rewritten
+    # its own config and the `memory` block came back EMPTY — a running engine rewrites that file and does not
+    # preserve keys it considers defaults. With the key gone the lab falls back to the CODE default
+    # (`config/v2.py`: "local"), which downloads a 1.1 GB cross-encoder ONNX blob and — because the probe path
+    # still builds its prompt synchronously on the event loop (`nucleo/flash/probe.py:251`) — takes the WHOLE
+    # engine down with it: every endpoint times out, and the round dies reporting `INFRA: timed out` with no
+    # hint that memory was the cause. `config.v2.get()` reads stored > env > default, so an env var is the one
+    # place the agent cannot erase from under us. It also matches what the operator's own engine runs, so the
+    # lab is not measuring a memory path the product does not use.
+    env = {"ZAELAR_LANGUAGE": profile.language, "MEMORY_RERANK": "off"}
     if voice:
         # The engine's own default. Its room prefix is deliberately NOT derived from "zaelar": the voice
         # worker admits any room whose name STARTS WITH its prefix (`voice/engine/pipeline/agent.py`), so
