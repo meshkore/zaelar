@@ -81,7 +81,17 @@ def test_tick_emits_loop_tick_on_bus(fresh_db):
 def test_consolidation_triggers_off_hot_path(fresh_db, monkeypatch):
     calls = []
     from memory import api as memapi
-    monkeypatch.setattr(memapi, "consolidate", lambda: calls.append(1) or {"deduped": 0, "evicted": 0, "promoted": 0})
+
+    # **kwargs, y no es cosmético: desde la auditoría del 2026-08-23 el loop INYECTA la limpieza del ledger de
+    # workers (`prune_workers_fn`) en vez de que la memoria importe `nucleo.workers`. Un stub de aridad fija
+    # revienta con TypeError… que el `except Exception` de `_maybe_consolidate` convierte en un warning, así que
+    # el síntoma no es un error sino que la consolidación entera DEJA DE CORRER en silencio. Se captura el hook
+    # para exigir que la inyección llegue de verdad: sin eso, este test pasaría con el loop llamando a pelo.
+    def _fake(**kw):
+        calls.append(kw)
+        return {"deduped": 0, "evicted": 0, "promoted": 0}
+
+    monkeypatch.setattr(memapi, "consolidate", _fake)
 
     lp = nloop.OrchestratorLoop(spark_gate=_never_spark(), deliver=_noop, consolidate_every_s=0)
     lp._last_consolidate = 0.0
@@ -90,7 +100,10 @@ def test_consolidation_triggers_off_hot_path(fresh_db, monkeypatch):
         await lp.tick()
 
     asyncio.run(run())
-    assert calls == [1]
+    assert len(calls) == 1, "la consolidación tiene que dispararse una vez por ciclo vencido"
+    assert callable(calls[0].get("prune_workers_fn")), (
+        "el loop dejó de inyectar la limpieza del ledger: la memoria no la hace por su cuenta desde 2026-08-23, "
+        "así que el ledger de Brain Workers crecería sin límite y sin que nada fallara")
 
 
 def test_spark_fires_when_gate_allows(fresh_db, monkeypatch):
