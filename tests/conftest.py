@@ -27,7 +27,7 @@ def _agente_en_marcha():
 
 
 @pytest.fixture(autouse=True)
-def _reranker_deja_de_depender_de_la_maquina(monkeypatch):
+def _reranker_deja_de_depender_de_la_maquina():
     """El reranker LOCAL descarga su modelo de HuggingFace, y la suite decía «sin red» sin serlo (2026-08-23).
 
     `memory/rerank.py::_cfg()` lee `config/v2.py` PRIMERO y solo cae al entorno si no hay config. Eso es la norma
@@ -42,15 +42,29 @@ def _reranker_deja_de_depender_de_la_maquina(monkeypatch):
     apagado. Un test que quiera medirlo de verdad pone `MEMORY_RERANK` y manda él.
 
     La precedencia de PRODUCCIÓN queda exactamente como estaba: esto solo vive en el conftest.
+
+    ⚠️ NO usa `monkeypatch`, y no es preferencia de estilo: pedirlo aquí instancia ese fixture en el nivel MÁS
+    EXTERNO de toda la suite, así que sus parches se deshacen DESPUÉS del teardown de cualquier fixture de
+    módulo. Medido al introducirlo: `test_session_rotation.py` se puso en ERROR porque su propio `_clean`
+    llamaba, al salir, a la función que el test había parcheado para que reventara — un fixture del conftest
+    raíz no puede reordenar el ciclo de vida de los demás. Guardar y restaurar a mano no toca ese orden.
     """
     import os
-    monkeypatch.setenv("MEMORY_RERANK", os.environ.get("MEMORY_RERANK", "off"))
     from memory import rerank
+
+    previo_env = os.environ.get("MEMORY_RERANK")
+    os.environ["MEMORY_RERANK"] = previo_env if previo_env is not None else "off"
     real_cfg = rerank._cfg
 
     def _el_entorno_manda_en_la_suite() -> dict:
-        cfg = dict(real_cfg())
-        cfg["rerank_provider"] = os.environ["MEMORY_RERANK"]
-        return cfg
+        return {**real_cfg(), "rerank_provider": os.environ["MEMORY_RERANK"]}
 
-    monkeypatch.setattr(rerank, "_cfg", _el_entorno_manda_en_la_suite)
+    rerank._cfg = _el_entorno_manda_en_la_suite
+    try:
+        yield
+    finally:
+        rerank._cfg = real_cfg
+        if previo_env is None:
+            os.environ.pop("MEMORY_RERANK", None)
+        else:
+            os.environ["MEMORY_RERANK"] = previo_env
