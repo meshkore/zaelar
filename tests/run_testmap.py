@@ -225,6 +225,11 @@ DOMAINS: list[dict] = [
             # Mismo contrato que el nodo 4.20 para `nav_cli`: lo que el puente sabe, lo DICE — y un fallo dice
             # además cómo se sale de él.
             "tests/agent_headless/unit/workers/test_the_bridge_says_how_to_fix_it.py",
+            # V2-274: `ERROR: timed out` — las dos palabras que devuelve `str(socket.timeout())`— era todo lo
+            # que el worker sabía cuando el navegador tardaba más de 90 s. Misma familia, con un agravante: la
+            # reacción natural (repetir) es la única que no puede funcionar, porque el plazo agotado es el
+            # NUESTRO y la pestaña puede seguir trabajando.
+            "tests/agent_headless/unit/workers/test_a_bridge_timeout_says_what_to_do.py",
             # V2-211: la puerta es NUESTRA. Tres casos el mismo día murieron en un permiso del propio
             # cajón del worker (`cd` bloqueado, comando compuesto, `curl`) sin decirlo. Reglas por delante
             # + un turno correctivo si aun así choca.

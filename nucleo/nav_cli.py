@@ -31,6 +31,11 @@ from nucleo import bridge_usage
 _BASE = os.getenv("ZAELAR_BASE", "http://localhost:43917").rstrip("/")
 
 
+#: How long we wait for one browser action before giving up on the ANSWER (not on the action). The error
+#: message NAMES this number, so it lives once: two literals drift and then the hint states a wrong figure.
+_ACT_TIMEOUT_S = 90
+
+
 def _act(action: str, args: dict) -> dict:
     # el navegador se keyea por el id del NAVTASK (la pestaña/tarjeta), no por el id de la escalada del dispatcher.
     tid = (os.getenv("ZAELAR_NAV_TASK") or os.getenv("ZAELAR_TASK_ID") or "").strip()
@@ -41,10 +46,45 @@ def _act(action: str, args: dict) -> dict:
         req = urllib.request.Request(
             _BASE + "/api/navegador/act", data=json.dumps(payload).encode("utf-8"),
             headers={"Content-Type": "application/json", "User-Agent": "zaelar-hbweb/1.0"}, method="POST")
-        with urllib.request.urlopen(req, timeout=90) as r:
+        with urllib.request.urlopen(req, timeout=_ACT_TIMEOUT_S) as r:
             return json.loads(r.read().decode("utf-8") or "{}")
     except Exception as e:  # noqa: BLE001
-        return {"ok": False, "error": str(e)}
+        return {"ok": False, "error": _transport_error(e, action)}
+
+
+def _transport_error(e: Exception, action: str) -> str:
+    """What went wrong AND how to get out of it — because this CLI is the worker's whole view of this side.
+
+    Measured on `search-secondhand-monitor__es` (2026-08-24 00:56): two `🧭 navegador ⚠️ error` reading
+    «Exit code 1 ERROR: timed out», ninety seconds apart, and the round delivered zero results after having
+    reached the right page. `str(socket.timeout())` is literally the two words «timed out» — true, and it
+    says nothing about what to do. Same family as V2-203/V2-212/V2-248 and the same contract as node 4.20:
+    what the bridge knows, it SAYS, and a failure also says how to get out of it.
+
+    The distinction that changes what the worker does next, and it is the whole point of splitting these:
+
+      · TIMEOUT — we gave up on the ANSWER; the action may well still be RUNNING in the browser. The
+        natural reaction is to repeat it, and repeating is the one thing that cannot work: it queues a
+        second action on a browser that is already busy. The way out is to LOOK at where the page actually
+        ended up.
+      · UNREACHABLE — the engine is not answering at all. Nothing in the browser will move, so retrying the
+        same command forever is what a worker does when nobody tells it otherwise.
+
+    Anything else keeps its own text: inventing a diagnosis for a failure we did not anticipate is how a
+    hint stops being information (V2-248's lesson — reject rather than guess).
+    """
+    txt = str(e) or e.__class__.__name__
+    low = txt.lower()
+    if isinstance(e, TimeoutError) or "timed out" in low or "timeout" in low:
+        return (f"el navegador no ha contestado a «{action}» en {_ACT_TIMEOUT_S}s. OJO: eso NO quiere decir "
+                f"que no se haya hecho — la acción puede seguir corriendo en la pestaña. NO la repitas (se "
+                f"encolaría encima de una pestaña ocupada): espera un poco y haz `look` para ver dónde ha "
+                f"acabado la página de verdad, y sigue desde ahí.")
+    if isinstance(e, (ConnectionError, OSError)) and (
+            "refused" in low or "connection" in low or "not known" in low or "unreachable" in low):
+        return (f"no puedo hablar con el motor ({txt}), así que el navegador no se va a mover con ningún "
+                f"comando. No insistas con esto: entrega lo que ya tengas y dilo.")
+    return txt
 
 
 def _print_state(res: dict) -> None:
