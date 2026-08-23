@@ -43,16 +43,37 @@ def _lazy_imports(p: Path) -> int:
 # retiró y CUÁNTAS copias, está subiendo el techo, que es justo lo que la tabla existe para impedir.
 # Measured 2026-08-23. Only ever edit DOWNWARD. If a change you are making pushes a file over its ceiling, the
 # ratchet is telling you to extract a module — which is the entire point of the audit this was born from.
+#
+# ── 2026-08-24: TRES techos BAJAN, y conviene decir por qué se subieron primero ────────────────────────────
+# El trinquete llevaba rojo desde la noche del 23 y lo rompí yo, en tres commits seguidos (`41355d9`,
+# `195a77a`, `58aba18`) — y no me enteré porque corrí las suites que creía tocadas (`agent_headless`,
+# `browser`, `use_cases`) y este guarda vive en `infrastructure`. Lección aparte del arreglo: un trinquete
+# COMPARTIDO no lo ve quien corre solo su vecindario.
+#
+# La tentación era invocar el precedente de `owner.py`/`probe.py` de arriba, y no se puede: ese exige poder
+# decir QUÉ duplicación se retiró y CUÁNTAS copias, y yo no había retirado ninguna — solo había escrito la
+# evidencia de tres arreglos, que en este repo se guarda a propósito y que LOC cuenta como si fuera
+# complejidad. Así que se extrae, que es lo que la tabla pide:
+#
+#   nucleo/flash/prompt.py     1104 → 843   el bloque del NAVEGADOR (5 caras + 3 ayudantes) → flash/live_blocks.py
+#   nucleo/dispatch.py         2045 → 1910  la HOJA como superficie del progreso            → nucleo/sheets.py
+#   nucleo/workers/session.py   879 → 825   los dos constructores de texto del fallo        → workers/handoff.py
+#
+# Los tres eran fronteras que YA estaban dibujadas —el bloque del navegador tenía su `try` propio, la sección
+# de la hoja su banner desde V2-227, y las dos funciones de texto son puras sobre el record— y en dos de los
+# tres había además una capa pidiéndole al vecino lo que no es suyo (`widgets/results/data.py` importando de
+# `dispatch` cómo se llama su caja). `sheets.py` nace HOJA: recibe el registro como argumento en vez de
+# importarlo, que es el ciclo que V2-112 ya pagó.
 _CEILINGS: dict[str, tuple[int, int]] = {
     "voice/engine/llm/providers/nucleo.py": (3461, 155),
-    "nucleo/dispatch.py": (2023, 57),
+    "nucleo/dispatch.py": (1910, 57),
     "widgets/navegador/owner.py": (1580, 43),
     "nucleo/flash/router_guards.py": (1282, 15),
     "nucleo/flash/probe.py": (1168, 84),
     "widgets/results/data.py": (1172, 5),
     "memory/api.py": (1076, 19),
-    "nucleo/flash/prompt.py": (1048, 30),
-    "nucleo/workers/session.py": (877, 19),
+    "nucleo/flash/prompt.py": (843, 30),
+    "nucleo/workers/session.py": (825, 19),
     "nucleo/flash/router.py": (928, 1),
 }
 

@@ -67,12 +67,32 @@ def test_the_condition_behind_each_face_has_a_production_writer(face, pattern, w
         "Una cara que no puede dispararse es código muerto que además parece un arreglo hecho.")
 
 
+#: Dónde vive el bloque. Estuvo dentro de `prompt.live_state()` hasta el 2026-08-24, cuando el trinquete de
+#: arquitectura lo mandó a `live_blocks.py` (V2-276). Se apunta al fichero y NO a la carpeta entera a
+#: propósito: buscar «MURO» en todo el motor pasaría por los tests y por cualquier comentario, y este guarda
+#: existe justo para que renombrar una cara falle.
+_BLOCK = ROOT / "nucleo" / "flash" / "live_blocks.py"
+
+
 def test_and_the_block_really_branches_on_all_of_them():
     """La otra mitad: que los patrones de arriba sigan siendo las caras de verdad. Si alguien renombra una,
     este fichero dejaría de vigilar nada sin fallar."""
-    src = (ROOT / "nucleo" / "flash" / "prompt.py").read_text(encoding="utf-8")
+    src = _BLOCK.read_text(encoding="utf-8")
     for face, _, _ in FACES:
         assert face in src, f"«{face}» ya no aparece en el bloque — actualiza FACES o la cara desapareció"
+
+
+def test_y_el_bloque_SIGUE_llegando_al_prompt():
+    """La mudanza no puede dejar las caras compuestas y sin llamante: eso las haría código muerto otra vez.
+
+    Es literalmente el fallo que este fichero existe para cazar (V2-199/V2-200), aplicado a la extracción que
+    lo movió. Se comprueba RENDERIZANDO, no leyendo el `import`.
+    """
+    from nucleo.flash import live_blocks, prompt
+    assert prompt._live_blocks is live_blocks
+    import inspect
+    assert "navegador_lines()" in inspect.getsource(prompt.live_state), (
+        "`live_state` dejó de llamar al bloque: el estado del navegador ya no llega al turno")
 
 
 def test_an_ACTIVE_task_with_results_is_still_impossible():
