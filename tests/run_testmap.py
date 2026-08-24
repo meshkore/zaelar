@@ -606,6 +606,11 @@ DOMAINS: list[dict] = [
             # salió NI UNA VEZ mientras el navegador extraía resultados reales, y el veredicto de los tres fue
             # «tuvo resultados y no los entregó». Las filas de la hoja no dependen de que nadie se acuerde.
             "tests/browser/unit/navegador/test_the_found_signal_does_not_wait_to_be_told.py",
+            # V2-298: la cara ORDENABA contar «QUÉ ha encontrado, con nombre y precio» y el bloque solo
+            # llevaba el CUÁNTO — la hoja tenía 27 candidatas 250 s antes del último turno y el modelo
+            # contestó «déjame ver» (guitarra, ronda 21). Las filas van en el bloque; el DÓNDE (pantalla/
+            # hoja) sigue prohibido de afirmar, que es la frontera de V2-278.
+            "tests/browser/unit/navegador/test_the_face_carries_the_rows_it_orders_to_tell.py",
                                   # V2-293: el worker pidió precio MÁXIMO 150 € y la página aplicó
                                   # `min_sale_price=750`. La URL venía entera y el parámetro nuevo no se
                                   # ve dentro de una línea larga; lo que faltaba era el DELTA.

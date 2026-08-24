@@ -270,6 +270,7 @@ class Driver:
         self.turns = 0
         self.done = False
         self.role_flips = 0
+        self.empty_retries = 0    # empty DRIVE completions retried — a provider hiccup, not a persona line
         # The name the AGENT calls this person by (the lab profile's `operator_name`). Only used to catch the
         # vocative flip — see `_vocative_re`. Empty against a sandbox with no seeded identity, and then face 5
         # is simply off rather than guessing a name.
@@ -315,6 +316,14 @@ class Driver:
         if nudge:
             msgs.append({"role": "system", "content": f"Nota para tu próxima frase (no la reveles): {nudge}"})
         txt = llm.call(msgs, model=config.DRIVE_MODEL, temperature=0.7, max_tokens=200).strip()
+        if not txt:
+            # An empty DRIVE completion is a provider hiccup, not a line the persona chose to say. Sent as-is
+            # it burns TWO budgeted turns (tester «», zaelar «») and the judge reads the pair as product
+            # silence — measured on `find-direct-flight-budget__es` (2026-08-24, three empty pairs in one
+            # round, eficiencia 1). One retry; if the provider is truly down the empty line still goes out,
+            # and `mute_turns` on the engine side keeps the accounting honest.
+            self.empty_retries += 1
+            txt = llm.call(msgs, model=config.DRIVE_MODEL, temperature=0.7, max_tokens=200).strip()
         if looks_like_the_assistant(txt, self.persona_name):
             # ONE retry with the identity said out loud again. Not silent: a flip that survives makes the
             # round an INFRA, because zaelar's reply to a nonsense turn says nothing about zaelar.

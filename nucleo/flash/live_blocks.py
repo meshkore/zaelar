@@ -92,6 +92,40 @@ def _sheet_has_rows(nav_task_id: str) -> bool:
         return False
 
 
+def _sheet_top_rows(nav_task_id: str, n: int = 5) -> list[str]:
+    """The first few NAMED rows already delivered for this errand, as «title — price» strings.
+
+    Measured on `search-buy-guitar__es` (2026-08-24, round 21): the face below ORDERS the turn to say WHAT was
+    found «con nombre y precio» — and this block only ever carried the COUNT. The rows had reached the brain
+    once, as a note four turns earlier, and notes do not persist; so when the operator pressed («enséñame lo
+    que tengas»), the model answered «déjame mirar» over a sheet holding 27 named candidates. The judge filed
+    it [alta]: «El usuario no puede elegir lo que no ve.» An instruction the prompt makes impossible to follow
+    is not an instruction — it is a trap for the model AND for whoever reads the transcript.
+
+    Same read as `_sheet_has_rows` (the sheet is durable and does not depend on anyone remembering to report);
+    NAMED rows only; bounded hard, because this lands in a prompt, not on a screen. It carries WHAT the rows
+    are, never WHERE they live — V2-278's boundary (never claim the screen) stays exactly where it was.
+    """
+    try:
+        from widgets.navegador import tasks as _t
+        from widgets.results import data as _sheet
+        sheet = str(((_t.get(str(nav_task_id)) or {}).get("sheet")) or "").strip()
+        if not sheet:
+            return []
+        out: list[str] = []
+        for i in (_sheet.view_data(sheet) or {}).get("items") or []:
+            title = str((i or {}).get("title") or "").strip()
+            if not title:
+                continue
+            price = str((i or {}).get("price") or "").strip()
+            out.append("«" + title[:70] + (" — " + price[:20] if price else "") + "»")
+            if len(out) >= max(1, int(n)):
+                break
+        return out
+    except Exception:
+        return []
+
+
 def _site_of(url: str) -> str:
     """The site as a person would name it: `thefork.es`, not the whole URL.
 
@@ -140,6 +174,7 @@ def navegador_lines() -> list[str]:
                 _prog = {}
             _bits = []
             _blocked = _login = _has_results = ""       # el GOAL de la tarea que disparó cada cara, o ""
+            _rows: list[str] = []                       # …y las FILAS ya entregadas de esa misma tarea
             _asked: tuple | None = None                 # (goal, pregunta) de la tarea parada en el confirm-gate
             _hit_walls = ""                             # y la que YA se comió un bloqueo, aunque siga en otra página
             for _tid, _g in act:
@@ -215,7 +250,9 @@ def navegador_lines() -> list[str]:
                         _asked = _asked or (_who, _p["question"])
                     elif _p.get("has_results") or _found_candidates(_tid):
                         _b += " · YA HA ENCONTRADO ALGO"
-                        _has_results = _has_results or _who
+                        if not _has_results:
+                            _has_results = _who
+                            _rows = _sheet_top_rows(_tid)
                     elif _p.get("awaiting_login"):
                         _b += " · PARADA ESPERANDO A QUE ENTRES TÚ (hay una ventana abierta para iniciar sesión)"
                         _blocked = True
@@ -280,10 +317,21 @@ def navegador_lines() -> list[str]:
                 # afirmación falsa sobre lo que el operador tiene delante, que es justo la familia que V2-209
                 # cerró para el ack de «Aquí lo tienes».
                 # Lo que el cerebro SÍ sabe es qué encontró. Dónde está eso es otro hecho, y no lo tiene.
+                # Y las FILAS van AQUÍ MISMO, porque sin ellas el imperativo de abajo es incumplible: la nota
+                # que las llevó al cerebro fue de UN turno, y en el siguiente ya no está. Medido en
+                # `search-buy-guitar__es` (ronda 21): 27 candidatas en la hoja 250 s antes del último turno y
+                # el modelo contestando «déjame ver» porque no tenía delante ni una.
+                _rows_bit = ""
+                if _rows:
+                    _rows_bit = (" LO QUE YA HA ENTREGADO (dilo de aquí, tal cual): " + "; ".join(_rows) +
+                                 ". Si el operador pregunta por un dato que estas líneas no traen (zona, "
+                                 "estado, año), di honestamente que ese dato no ha llegado y ofrécele el que "
+                                 "sí tienes — nunca contestes «déjame mirar» teniendo esto delante.")
                 lines.append(
                     _head + f" {_has_results} YA HA ENCONTRADO algo: no está bloqueada ni esperando. CUÉNTASELO "
                     "en este turno —QUÉ ha encontrado, con nombre y precio, no que «ya casi está»— y pregunta "
-                    "si le vale o quiere que siga afinando. NO digas que «lo tiene en pantalla» ni «en la "
+                    "si le vale o quiere que siga afinando." + _rows_bit +
+                    " NO digas que «lo tiene en pantalla» ni «en la "
                     "hoja»: eso es otra cosa y puede tardar unos segundos más en escribirse; di lo que hay, "
                     "que es lo que sabes. Decirle que está parada teniendo datos delante es la "
                     "misma mentira que decirle que sigue buscando cuando ya no busca." + _shared + _walls_note)
