@@ -1158,6 +1158,56 @@ async def _compose_brief(request: str, context: str, trusted: bool, resume: dict
     return await research.compose(request, context)
 
 
+#: Referencias vivas a compositores en segundo plano (V2-301): un Task sin referencia puede ser recolectado a
+#: mitad, y este muere en silencio — la clase de fallo que deja al worker sin dirección sin que nada avise.
+_BRIEF_BG_TASKS: set = set()
+
+
+def _attach_brief_followup(task: "asyncio.Task", *, key: str, rec: "SessionRecord", req: str,
+                           kind0: str) -> None:
+    """V2-301 — the second half of the parallel brief. When the composer finishes AFTER the worker already
+    spawned, its direction still has to do everything the serial path did: persist/seed the brief, promote a
+    `generic` task to the research budget (direction proves it IS an investigation), and reach the RUNNING
+    worker — as an injected turn, through the same channel every mid-task refinement already uses (V2-038).
+
+    The callback runs in the owner loop (the composer task was created there), so `ensure_future` is safe.
+    A composer that dies here changes nothing for the worker — it is already running, which is exactly the
+    fail-open the serial path promised («el worker arranca SIN brief»); only the budget promotion is still
+    honoured, same as the serial ComposerUnavailable branch.
+    """
+    _BRIEF_BG_TASKS.add(task)
+
+    def _done(t: "asyncio.Task") -> None:
+        _BRIEF_BG_TASKS.discard(t)
+        b, unavailable = None, False
+        try:
+            b = t.result()
+        except (research.ComposerUnavailable, asyncio.CancelledError):
+            unavailable = True
+        except Exception:  # noqa: BLE001
+            unavailable = True
+        try:
+            if b:
+                research.save(key, b)
+                research.remember_round(_goal_key(req), b)
+                asyncio.ensure_future(_seed_research_criteria(b))
+                block = research.to_prompt_block(b)
+                if block and rec.status in LIVE_SESSION_STATES:
+                    inject_soon(key, ("Ya está compuesta la DIRECCIÓN de tu investigación — aplícala DESDE "
+                                      "AHORA a lo que estás haciendo, sin reempezar lo ya andado:\n\n" + block))
+            # La promoción de presupuesto va con brief O con compositor caído (mismas dos ramas que el camino
+            # serial); un compose que devuelve None a secas dijo «esto no es una investigación» y no promociona.
+            if (b or unavailable) and kind0 == "generic" and rec.kind == "generic":
+                rec.kind = "research"
+                rec.label = _default_label("research", req)
+                logger.info(f"dispatch: tarea {key} promocionada a research por el brief tardío")
+                sync_state()
+        except Exception:  # noqa: BLE001
+            pass
+
+    task.add_done_callback(_done)
+
+
 # ── contrato WEB restaurado (demo 2026-07-14: la búsqueda corrió INVISIBLE) ────────────────────────────────
 # En el refactor V2-038 (P2) el flujo `kind=web` se unificó bajo el WorkerSession genérico y se PERDIÓ el paso
 # de `web_cc` que creaba la tarea+TARJETA del navegador y daba al worker el contrato de cierre → el worker de la
@@ -1432,9 +1482,27 @@ async def _run_session(task: "Task") -> None:
         # forma del entregable) en vez de dejar que el worker se autoimponga el criterio mínimo. Un dev-worker de
         # código no pasa por aquí: su dirección es el repo, no un espacio de candidatos.
         brief = None
+        _brief_bg: asyncio.Task | None = None
         if not _dev:
             try:
-                brief = await _compose_brief(req, ctx, trusted, resume)
+                # V2-301 — the composer is a REASONING call (15-30 s) and it ran IN SERIES before the spawn:
+                # measured across the guitar rounds (2026-08-24), the worker sat «en cola» 20-32 s doing
+                # nothing while the composer thought, and then spent its OWN first ~20 s on preamble (mesh
+                # PASO 0 + memory reads) — two stretches that overlap perfectly. A short head start keeps the
+                # instant paths fully-directed (a resumed/round-2 brief returns without any LLM); past it the
+                # worker spawns NOW and the brief arrives as an injected turn, through the same channel every
+                # refinement already uses. Fail-open unchanged: a composer that dies just means no injection.
+                _brief_bg = asyncio.ensure_future(_compose_brief(req, ctx, trusted, resume))
+                _head = float(os.environ.get("ZAELAR_BRIEF_HEAD_START_S", "2.0") or 2.0)
+                if _head <= 0:      # kill-switch: serial, exactly as before
+                    brief = await _brief_bg
+                    _brief_bg = None
+                else:
+                    try:
+                        brief = await asyncio.wait_for(asyncio.shield(_brief_bg), timeout=_head)
+                        _brief_bg = None
+                    except asyncio.TimeoutError:
+                        brief = None            # still thinking → spawn now, inject when ready
             except research.ComposerUnavailable:
                 # El compositor no pudo contestar. El fail-open (arrancar sin dirigir) es correcto, pero NO puede
                 # arrastrar consigo la mitad del presupuesto: que esto sea una investigación no depende de que el
@@ -1443,6 +1511,7 @@ async def _run_session(task: "Task") -> None:
                 # worker murió a los 704 s con el navegador a medias, el mismo «agotó su tiempo» que la promoción
                 # de abajo existe para cerrar.
                 brief = None
+                _brief_bg = None    # falló DENTRO del head start: ya está manejado aquí, nada que inyectar luego
                 if kind == "generic":
                     rec.kind = "research"
                     rec.label = _default_label("research", req)
@@ -1485,6 +1554,13 @@ async def _run_session(task: "Task") -> None:
             prompt = ("REANUDAS una gestión que YA empezaste (no arranques de cero): la pestaña sigue donde la "
                       "dejaste y los datos que ya reuniste están en memoria (consúltalos con mem_cli recall). Haz "
                       "`look` PRIMERO para ver dónde te quedaste y CONTINÚA desde ahí hasta terminar.\n\n") + prompt
+        if _brief_bg is not None:
+            # V2-301 — el compositor sigue pensando: el worker arranca YA y la dirección le llega inyectada.
+            prompt += ("\n\nNOTA (dirección en camino): la DIRECCIÓN detallada de esta investigación — criterios "
+                       "duros y blandos, amplitud mínima y baremo — se está componiendo y te llegará como "
+                       "instrucción nueva en un momento. NO la esperes parado: haz ya los primeros pasos (PASO 0, "
+                       "abrir el sitio, la primera búsqueda) y aplícala en cuanto llegue.")
+            _attach_brief_followup(_brief_bg, key=key, rec=rec, req=req, kind0=kind)
         try:
             await session.run(prompt)
         except asyncio.CancelledError:
