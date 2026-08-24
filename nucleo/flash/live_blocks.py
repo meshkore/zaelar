@@ -323,10 +323,18 @@ def navegador_lines() -> list[str]:
                 # el modelo contestando «déjame ver» porque no tenía delante ni una.
                 _rows_bit = ""
                 if _rows:
-                    _rows_bit = (" LO QUE YA HA ENTREGADO (dilo de aquí, tal cual): " + "; ".join(_rows) +
-                                 ". Si el operador pregunta por un dato que estas líneas no traen (zona, "
-                                 "estado, año), di honestamente que ese dato no ha llegado y ofrécele el que "
-                                 "sí tienes — nunca contestes «déjame mirar» teniendo esto delante.")
+                    # Round 22 (2026-08-24) taught the second half: «dilo tal cual» made the turn recite a
+                    # 2.490 € Gibson and a case+humidifier against a «menos de 150 €» errand — the sheet holds
+                    # everything the page gave, and the JUDGING of what answers the errand belongs to the
+                    # turn, not to the recital. Same rule as the V2-223 note: hand over the facts AND name
+                    # the test.
+                    _rows_bit = (" LO QUE YA HA ENTREGADO (nombre y precio, de la hoja): " + "; ".join(_rows) +
+                                 ". OJO: la hoja guarda TODO lo que dio la página — di solo lo que RESPONDE "
+                                 "a lo que pidió (precio dentro del tope, la cosa pedida y no un accesorio); "
+                                 "lo que no encaje no lo ofrezcas como resultado. Si pregunta por un dato que "
+                                 "estas líneas no traen (zona, estado, año), di honestamente que ese dato aún "
+                                 "no ha llegado y ofrece el que sí tienes — nunca contestes «déjame mirar» "
+                                 "teniendo esto delante.")
                 lines.append(
                     _head + f" {_has_results} YA HA ENCONTRADO algo: no está bloqueada ni esperando. CUÉNTASELO "
                     "en este turno —QUÉ ha encontrado, con nombre y precio, no que «ya casi está»— y pregunta "
@@ -391,13 +399,28 @@ def navegador_lines() -> list[str]:
                 elif _st == "cancelled":
                     _t += " se PARÓ (cancelada) sin llegar a terminar"
                 else:
-                    _t += " terminó CON resultado" if _f.get("has_results") else " terminó SIN traer nada"
+                    # V2-299 — «terminó SIN traer nada» se decidía por el registro de la TAREA (`has_results`,
+                    # que solo existe si alguien llamó a `set_results`), y la hoja es de quien fía: measured
+                    # 2026-08-24 with 21 named rows in the sheet, this line still read «SIN traer nada» — an
+                    # active lie in the prompt, one step worse than the vanishing act V2-150 fixed. The SHEET
+                    # rows win. And FINISHED may say «en la hoja»: the write already happened, which is exactly
+                    # what V2-278 forbids claiming while the task is alive. Freshness is `recently_finished`'s
+                    # own window — this branch only runs inside it.
+                    _rows_f = _sheet_top_rows(_f.get("id") or "", 3)
+                    if _rows_f:
+                        _t += (" terminó CON resultado — en la hoja de resultados tiene: "
+                               + "; ".join(_rows_f))
+                    elif _f.get("has_results"):
+                        _t += " terminó CON resultado"
+                    else:
+                        _t += " terminó SIN traer nada"
                 if _f.get("last_event"):
                     _t += f" (lo último que vio: {_f['last_event'][:90]})"
                 _fb.append(_t)
             lines.append(
                 "NAVEGADOR — YA TERMINADO: " + "; ".join(_fb) + ". Eso YA NO está en marcha: si el operador "
-                "pregunta, dilo —terminó, y con qué— y ofrece el siguiente paso; decir que «sigue procesando» "
+                "pregunta, dilo —terminó, y con qué, NOMBRANDO lo de arriba con nombre y precio— y ofrece el "
+                "siguiente paso; decir que «sigue procesando» o que «no hay nada» teniendo filas ahí arriba "
                 "es contar algo que el sistema da por acabado. Y si lo último que vio responde a lo que te "
                 "pidió (un teléfono, un horario, que solo se reserva llamando), DÁSELO: es el resultado, "
                 "aunque no sea el que esperabas.")

@@ -100,3 +100,65 @@ def test_an_old_ending_stops_being_reported():
     assert [r for r in nt.recently_finished() if r["id"] == tid]
     later = _t.time() + nt.JUST_FINISHED_S + 60
     assert not [r for r in nt.recently_finished(now=later) if r["id"] == tid]
+
+
+# ── V2-299: «SIN traer nada» se decidía por el registro de la TAREA, y la hoja es quien fía ─────────────────
+#
+# Medido el 2026-08-24 (segunda familia del arnés: 7 rondas con las filas en la hoja 42-209 s antes del último
+# turno): la tarea terminaba, `has_results` era False porque nadie llegó a llamar a `set_results` —worker
+# muerto, relevo—, y esta cara decía «terminó SIN traer nada» con 21 filas CON NOMBRE en la hoja. Un paso peor
+# que la desaparición que arregló V2-150: aquello era un hueco, esto es una mentira activa en el prompt.
+#
+# Estos tests montan la CADENA REAL (tarea en el registro + filas por `intake.push` + `recently_finished` de
+# verdad) en vez de parchear `_sheet_top_rows`: el cableado es lo que se mide, y parchear la costura bajo test
+# dejaría verde un desarme que la quitara.
+
+@pytest.fixture
+def _isolated_sheet(tmp_path, monkeypatch):
+    from widgets import store
+    monkeypatch.setattr(store, "DATA_DIR", str(tmp_path))
+    monkeypatch.setattr(nt, "_tasks", {})
+    store._last_hash.clear()
+    yield
+    store._last_hash.clear()
+
+
+def _done_task_with_sheet(rows, status="done", **over):
+    import time as _time
+
+    from widgets.results import intake
+    t = {"id": "t1", "goal": "una guitarra acústica de segunda mano", "sheet": "hoja-x",
+         "url": "https://es.wallapop.com", "status": status, "finished": _time.time() - 30, "events": []}
+    t.update(over)
+    nt._tasks["t1"] = t
+    if rows:
+        intake.push(rows, sheet="hoja-x")
+
+
+def test_rows_in_the_sheet_beat_an_empty_task_record(_isolated_sheet):
+    """El caso medido: `set_results` nunca corrió, la hoja tiene las filas. La hoja gana — y como la tarea ya
+    TERMINÓ, decir «en la hoja» es un hecho, no la afirmación de pantalla que V2-278 prohíbe en vuelo."""
+    _done_task_with_sheet([{"title": "Fender CD-60", "price": "120 €", "url": "https://x/1"},
+                           {"title": "Crafter FX 550", "price": "140 €", "url": "https://x/2"}])
+    line = _line("NAVEGADOR — YA TERMINADO")
+    assert "terminó SIN traer nada" not in line, \
+        "con filas con nombre en la hoja, «SIN traer nada» es una mentira activa en el prompt"
+    assert "Fender CD-60" in line and "120 €" in line, \
+        "la orden de nombrarlo sin las filas delante es la trampa de V2-298 otra vez"
+    assert "en la hoja de resultados" in line
+
+
+def test_a_task_that_ended_empty_STILL_says_so(_isolated_sheet):
+    """La otra mitad de V2-150 no se pierde: sin filas y sin resultado, «terminó SIN traer nada» sigue siendo
+    el hecho más útil de los tres."""
+    _done_task_with_sheet([])
+    assert "terminó SIN traer nada" in _line("NAVEGADOR — YA TERMINADO")
+
+
+def test_a_CANCELLED_task_does_not_get_rows_pinned_on_it(_isolated_sheet):
+    """Pararse no es acabar (V2-196): el operador dijo que parásemos, y colgarle filas a la cancelada invita a
+    tratarlas como un final que no ocurrió. El alcance del arreglo es la TERMINADA, y solo ella."""
+    _done_task_with_sheet([{"title": "Fender CD-60", "price": "120 €"}], status="cancelled")
+    line = _line("NAVEGADOR — YA TERMINADO")
+    assert "se PARÓ (cancelada)" in line
+    assert "Fender CD-60" not in line
