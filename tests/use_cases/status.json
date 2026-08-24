@@ -405,33 +405,42 @@
       }
     },
     "cheapest-monitor": {
-      "last_run": "2026-08-23 18:19",
-      "overall": null,
-      "judge": "",
+      "last_run": "2026-08-23 22:48",
+      "overall": 3,
+      "judge": "deepseek-v4-flash",
       "state": "INFRA",
-      "scores": {},
-      "verdict": "INFRA: turno 10: HTTP Error 500: Internal Server Error · motor: VIVO (/api/status responde) — el fallo fue del turno o del tester, no del motor",
+      "scores": {
+        "naturalidad": 3,
+        "adaptacion": 4,
+        "resultado": 4,
+        "mecanismo": 3,
+        "eficiencia": 2
+      },
+      "verdict": "El caso se completó con 4 candidatos reales en la hoja de resultados, pero el anuncio prematuro en el turno 10 (antes de que el worker escribiera) y la falta de verificación de especificaciones son los bloqueadores principales para producción.",
       "missing_signals": [],
       "audit_anomalies": [],
       "sandboxed": true,
-      "provisional": "corrida con --allow-dirty: el arbol se movia, el numero no cuenta como medicion",
+      "provisional": null,
       "tier": 2,
-      "turns_used": 9,
-      "families": [],
-      "drive_model": "",
+      "turns_used": 10,
+      "families": [
+        "flash",
+        "main",
+        "memory",
+        "system",
+        "widget",
+        "worker"
+      ],
+      "drive_model": "deepseek-directo",
       "code": {
-        "sha": "c52e02d",
-        "n_dirty": 6,
-        "dirty": [
-          "memory/rerank_local.py",
-          "nucleo/flash/probe.py",
-          "nucleo/flash/probe_api.py",
-          "nucleo/turn/recall_budget.py",
-          "nucleo/turn/vault_gate.py",
-          "voice/engine/llm/providers/nucleo.py"
-        ]
+        "sha": "195a77a",
+        "n_dirty": 0,
+        "dirty": []
       },
-      "machine": {},
+      "machine": {
+        "gpu_models": [],
+        "n": 0
+      },
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-176-uc-narrar-trabajo-que-no-ocurre.md",
         "task": ""
@@ -487,44 +496,56 @@
       "measured_in": "worktree fijado en 05dd79f"
     },
     "search-buy-camera__es": {
-      "last_run": "2026-08-20 15:16",
-      "overall": 1,
-      "state": "FAIL",
+      "last_run": "2026-08-24 03:41",
+      "overall": 2,
+      "judge": "deepseek-v4-flash",
+      "state": "INFRA",
       "scores": {
-        "naturalidad": 4,
-        "adaptacion": 5,
-        "resultado": 1,
-        "mecanismo": 2,
-        "eficiencia": 1
+        "naturalidad": 3,
+        "adaptacion": 2,
+        "resultado": 2,
+        "mecanismo": 4,
+        "eficiencia": 2
       },
-      "verdict": "No está listo para producción. El bloqueador principal es la estabilidad del Worker de navegador: el sistema agotó el tiempo de espera (timeout) sin generar datos reales y, en lugar de recuperarse o reportar el error claramente, el asistente lo disimuló hasta que el usuario forzó un cierre manual.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar tenía resultados reales delante (3 candidatos con precio y enlace) y no los entregó, inventó un presupuesto que el usuario no dio, y dejó al usuario sin información útil durante más de 2 minutos; la entrega final llegó tarde y sin que zaelar la comunicara.",
       "missing_signals": [],
       "audit_anomalies": [
         {
           "clase": "error_interno",
           "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: timed out"
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 usage: nav_cli [-h] {snapshot,look,navigate,click,type,select_option,click_at,type_at,scroll,press,extract} ... nav_cli: error: argument cmd: invali"
         },
         {
           "clase": "span_con_error",
           "certeza": "hecho",
-          "que": "worker:1: 1 error(es), último paso «🧭 vista»"
+          "que": "worker:2: 1 error(es), último paso «🧭 navegador»"
         }
       ],
       "sandboxed": true,
+      "provisional": null,
       "tier": 2,
       "turns_used": 10,
       "families": [
         "flash",
+        "main",
         "memory",
         "system",
         "widget",
         "worker"
       ],
       "drive_model": "deepseek-directo",
+      "code": {
+        "sha": "dfebd0d",
+        "n_dirty": 0,
+        "dirty": []
+      },
+      "machine": {
+        "gpu_models": [],
+        "n": 0
+      },
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-206-uc-search-buy-camera-es.md",
-        "task": ".meshkore/modules/nucleo/tasks/T454-uc-search-buy-camera-es-fix.md"
+        "task": ""
       }
     },
     "three-tasks-at-once": {
@@ -1841,42 +1862,27 @@
       }
     },
     "search-buy-bicycle__es": {
-      "last_run": "2026-08-21 15:25",
+      "last_run": "2026-08-24 03:28",
       "overall": 2,
       "judge": "deepseek-v4-flash",
-      "state": "FAIL",
+      "state": "INFRA",
       "scores": {
-        "naturalidad": 4,
-        "adaptacion": 4,
+        "naturalidad": 3,
+        "adaptacion": 3,
         "resultado": 1,
-        "mecanismo": 2,
+        "mecanismo": 3,
         "eficiencia": 2
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real (la hoja de resultados quedó vacía y el navegador no extrajo ni un candidato), y el agente mantuvo una espera falsa sin detectar el atasco del sistema.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real (la hoja de resultados quedó vacía) y zaelar se limitó a repetir 'sigo en ello' sin ser transparente sobre la falta de avance ni ofrecer alternativas al usuario.",
       "missing_signals": [],
-      "audit_anomalies": [
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "memory/memory «🧠 memoria ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:1: 2 error(es), último paso «data»"
-        }
-      ],
+      "audit_anomalies": [],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
       "turns_used": 10,
       "families": [
         "flash",
+        "main",
         "memory",
         "system",
         "widget",
@@ -1884,85 +1890,41 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "3be56c1",
+        "sha": "dfebd0d",
         "n_dirty": 0,
         "dirty": []
       },
       "machine": {
-        "gpu_models": [
-          {
-            "name": "qwen3.6:27b-mlx",
-            "size": "41 GB"
-          },
-          {
-            "name": "embeddinggemma:latest",
-            "size": "673 MB"
-          }
-        ],
-        "n": 2
+        "gpu_models": [],
+        "n": 0
       },
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-268-uc-search-buy-bicycle-es.md",
-        "task": ".meshkore/modules/nucleo/tasks/T476-uc-search-buy-bicycle-es-fix.md"
+        "task": ""
       }
     },
     "search-buy-guitar__es": {
-      "last_run": "2026-08-21 15:35",
-      "overall": 2,
+      "last_run": "2026-08-24 03:48",
+      "overall": 3,
       "judge": "deepseek-v4-flash",
-      "state": "FAIL",
+      "state": "INFRA",
       "scores": {
         "naturalidad": 4,
         "adaptacion": 4,
-        "resultado": 1,
-        "mecanismo": 2,
+        "resultado": 2,
+        "mecanismo": 4,
         "eficiencia": 2
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real (cero candidatos con nombre en la hoja de resultados) y el agente no supo comunicar el fallo ni ofrecer alternativas viables.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar ignora los avisos del sistema con resultados ya entregados y no los traslada al usuario, dejándole esperando 270 segundos por algo que ya existía en la hoja.",
       "missing_signals": [],
-      "audit_anomalies": [
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: timed out"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: timed out"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: timed out"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: timed out"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:1: 1 error(es), último paso «alive»"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:2: 1 error(es), último paso «alive»"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:3: 2 error(es), último paso «alive»"
-        }
-      ],
+      "audit_anomalies": [],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
       "turns_used": 10,
       "families": [
         "flash",
+        "main",
         "memory",
         "system",
         "widget",
@@ -1970,26 +1932,17 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "c6b429a",
+        "sha": "dfebd0d",
         "n_dirty": 0,
         "dirty": []
       },
       "machine": {
-        "gpu_models": [
-          {
-            "name": "qwen3.6:27b-mlx",
-            "size": "41 GB"
-          },
-          {
-            "name": "embeddinggemma:latest",
-            "size": "673 MB"
-          }
-        ],
-        "n": 2
+        "gpu_models": [],
+        "n": 0
       },
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-269-uc-search-buy-guitar-es.md",
-        "task": ".meshkore/modules/nucleo/tasks/T477-uc-search-buy-guitar-es-fix.md"
+        "task": ""
       }
     },
     "search-buy-motorcycle__es": {
@@ -2054,52 +2007,27 @@
       }
     },
     "search-secondhand-monitor__es": {
-      "last_run": "2026-08-21 15:49",
-      "overall": 2,
+      "last_run": "2026-08-24 03:34",
+      "overall": 4,
       "judge": "deepseek-v4-flash",
-      "state": "FAIL",
+      "state": "INFRA",
       "scores": {
-        "naturalidad": 3,
+        "naturalidad": 4,
         "adaptacion": 4,
-        "resultado": 1,
-        "mecanismo": 3,
-        "eficiencia": 2
+        "resultado": 4,
+        "mecanismo": 5,
+        "eficiencia": 3
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que el resultado real (6 artículos encontrados por el worker) nunca se entregó al usuario ni en la hoja de resultados ni en el texto, y además zaelar afirmó que las búsquedas estaban canceladas cuando el sistema las tenía activas.",
+      "verdict": "Sí, está listo para producción: el resultado llegó entero a la hoja con 12 candidatos reales de Wallapop, el mecanismo funcionó sin anomalías, y los fallos son de matiz (cifra sin respaldo, opción en el borde del tope, entrega parcial en el último turno), no de fondo.",
       "missing_signals": [],
-      "audit_anomalies": [
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «· paso ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "memory/memory «🧠 memoria ⚠️ error»: cd in '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine' was blocked. For security, Claude Code may only change directories to the allowed working d"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: Error: ElementHandle.click: Element is not attached to the DOM"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:2: 4 error(es), último paso «🧭 navegador ↩»"
-        }
-      ],
+      "audit_anomalies": [],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
       "turns_used": 10,
       "families": [
         "flash",
+        "main",
         "memory",
         "system",
         "widget",
@@ -2107,26 +2035,17 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "c6b429a",
+        "sha": "dfebd0d",
         "n_dirty": 0,
         "dirty": []
       },
       "machine": {
-        "gpu_models": [
-          {
-            "name": "qwen3.6:27b-mlx",
-            "size": "41 GB"
-          },
-          {
-            "name": "embeddinggemma:latest",
-            "size": "673 MB"
-          }
-        ],
-        "n": 2
+        "gpu_models": [],
+        "n": 0
       },
       "workspace": {
         "initiative": ".meshkore/roadmap/initiatives/V2-271-uc-search-secondhand-monitor-es.md",
-        "task": ".meshkore/modules/nucleo/tasks/T479-uc-search-secondhand-monitor-es-fix.md"
+        "task": ""
       }
     },
     "things-to-do-nearby-weekend__es": {
@@ -2238,5 +2157,5 @@
       }
     }
   },
-  "updated": "2026-08-23 18:19"
+  "updated": "2026-08-24 03:48"
 }
