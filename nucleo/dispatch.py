@@ -821,6 +821,69 @@ def find_duplicate(request: str, kind: str) -> str | None:
     return None
 
 
+_SCOPE_SYSTEM = (
+    "Decides ONE thing about an assistant's background work: the operator has errands ALREADY RUNNING, and a "
+    "new request just arrived. Is it a SEPARATE errand, or is it ABOUT one of the running ones?\n\n"
+    "ABOUT a running one (answer its number): asking how it is going, whether there is anything yet, telling it "
+    "to hurry, thanking, acknowledging, adding a detail or a correction to it, narrowing or widening it, asking "
+    "it to try another site — anything the running errand's own worker could act on.\n"
+    "SEPARATE (answer 0): a different thing to find, book, build or investigate — even in the same domain. "
+    "Looking for a guitar and looking for a camera are two errands.\n\n"
+    'Reply ONLY with JSON: {"about": <number of the running errand, or 0>}. Nothing else.\n'
+    "If you cannot tell, answer 0."
+)
+
+
+def about_a_live_errand(request: str, live: list[tuple[str, str]]) -> str:
+    """The tid of the live errand this request is ABOUT, or "" when it is a genuinely NEW one.
+
+    THE SECOND HALF OF THE DEDUP, and the one `find_duplicate` structurally cannot do. That one answers «is
+    this a reformulation of the same request», by containment over content words, and it is right to: it was
+    built for a brain that rewrites the errand every time it escalates. What it cannot see is a turn that is
+    not a request at all. Measured 2026-08-24, goals straight out of the lab's durable log — ONE guitar
+    search:
+
+        16:14:30  web       «Busca en marketplaces de segunda mano … una guitarra acústica…»   <- the errand
+        16:15:48  research  «¿Alguna novedad ya?»                                              <- a worker
+        16:16:20  research  «Perfecto, dale. ¿Tienes algo ya?»                                 <- another
+
+    Four cards on the operator's screen for one errand, three workers competing for the same turn, and a
+    fourth-case worker reporting on «the four searches» because its own errand WAS a follow-up question.
+    Containment reads 0 between «¿alguna novedad?» and «busca una guitarra» — correctly. There is no word
+    list that fixes this either: the ways of asking how something is going are unbounded, and a list would
+    be the hardcoding this codebase keeps paying for. So a MODEL judges it, exactly like V2-075's
+    conversational-health criterion, and for the same reason.
+
+    Runs ONLY with something already live, which is what keeps it cheap: the first errand of a conversation —
+    the common case — never pays for it. It is off the voice turn (the dispatcher already answered) though
+    still in front of a worker the operator is waiting on, hence the direct reasoning-OFF endpoint.
+
+    FAIL-OPEN, and the direction is deliberate: anything unreadable answers "" and the errand spawns, which is
+    exactly today's conduct. Refusing to spawn on a failed model call would silently swallow real errands —
+    an operator whose request vanished has no way to even see what happened, while a spurious extra worker is
+    visible on screen, which is how this defect got found in the first place.
+    """
+    if not request.strip() or not live:
+        return ""
+    menu = "\n".join(f"{i + 1}. {str(goal or '')[:160]}" for i, (_tid, goal) in enumerate(live))
+    try:
+        from nucleo import memllm
+        raw = memllm.chat_sync("errand_scope", _SCOPE_SYSTEM,
+                               f"RUNNING ERRANDS:\n{menu}\n\nNEW REQUEST:\n{request[:400]}",
+                               max_tokens=32, temperature=0.0, timeout=12.0)
+    except Exception:  # noqa: BLE001
+        return ""
+    if not raw:
+        return ""
+    m = re.search(r'"about"\s*:\s*(\d+)', raw)
+    if not m:
+        return ""
+    n = int(m.group(1))
+    # Out of range is NOT "the last one": a number nobody offered is a model that did not answer the question,
+    # and picking a neighbour would attach the operator's request to an errand chosen at random.
+    return live[n - 1][0] if 1 <= n <= len(live) else ""
+
+
 # ATRIBUCIÓN: qué palabras de una alusión sirven para reconocer una tarea, y cuándo dos son LA MISMA cosa.
 #
 # V2-140 — criterio 2 del caso `three-tasks-at-once` («cada mensaje por alusión debe ir a la tarea CORRECTA»).
@@ -1653,11 +1716,30 @@ async def run_listener(stop: "asyncio.Event | None" = None) -> None:
             # petición, NO abrimos un 2º worker (el bug de los dos «creando un widget…»). Se INYECTA como
             # refinamiento (el generador de widgets, build atómico, lo ignora con gracia; un worker vivo lo aprovecha).
             dup = find_duplicate(request, kind if kind != "generic" else _classify_kind(request))
+            _dup_by = "containment" if dup else ""
+            if not dup:
+                # SEGUNDA MITAD DEL DEDUP, off-loop. `find_duplicate` responde «¿es una reformulación de lo
+                # mismo?» y no puede responder «¿es esto un encargo siquiera?» — ver `about_a_live_errand`.
+                # Solo corre con algo vivo, así que el primer encargo de una conversación no lo paga; y va en
+                # un hilo porque `chat_sync` es síncrono y este bucle es el del servidor.
+                _live = [(k, r.goal) for k, r in _SESSIONS.items() if r.status in LIVE_SESSION_STATES]
+                if _live:
+                    try:
+                        dup = await asyncio.to_thread(about_a_live_errand, request, _live)
+                        _dup_by = "model" if dup else ""
+                    except Exception:  # noqa: BLE001
+                        dup = ""
             if dup:
                 try:
                     from voice.observer import emit
+                    # `by` separa las DOS mitades del dedup, y sin él no se pueden medir por separado:
+                    # `containment` es una reformulación del mismo encargo, `model` es un turno que no era un
+                    # encargo (una pregunta por cómo va). Contarlas juntas esconde cuál de las dos falla.
                     emit("task", "dedup", role="system", text=request[:120],
-                         extra={"id": dup, "dropped_id": key, "reason": "escalada duplicada de una tarea viva"})
+                         extra={"id": dup, "dropped_id": key, "by": _dup_by,
+                                "reason": ("no es un encargo nuevo: va sobre una tarea viva"
+                                           if _dup_by == "model" else
+                                           "escalada duplicada de una tarea viva")})
                 except Exception:
                     pass
                 try:

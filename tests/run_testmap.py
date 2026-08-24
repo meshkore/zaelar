@@ -198,6 +198,7 @@ DOMAINS: list[dict] = [
             # en el escalón caro, y self-host SIN relevo de fábrica.
             "tests/agent_headless/unit/flash/test_voice_failover.py"]},
         {"id": "2.5", "title": "Escalado / dispatch / workers", "ch": UNIT, "paths": [
+            "tests/agent_headless/unit/test_one_errand_at_a_time.py",
             "tests/agent_headless/unit/flash/test_escalate.py", "tests/agent_headless/unit/test_dispatch.py",
             # V2-290: el navegador extraía filas reales y caían en la caja PELADA, que no es de nadie desde
             # V2-259. Solo `kind="web"` reserva pestaña, así que el resto la nombra como su TAREA — y esa

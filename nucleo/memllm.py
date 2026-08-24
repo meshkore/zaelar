@@ -67,6 +67,14 @@ _DEFAULTS = {
     # profile as `turn_complete`: fires on every non-wake-word turn in the hot path, needs the DIRECT DeepSeek
     # endpoint's ~1s TTFT and the same reasoning-OFF choice.
     "directed": ("https://api.deepseek.com", "deepseek-v4-flash", True),
+    # errand_scope (2026-08-24): with an errand already live, is a NEW escalation a SEPARATE errand or is it
+    # ABOUT the live one? `dispatch.find_duplicate` answers the direct half (a reformulation of the same
+    # request) and structurally cannot answer this one: «¿alguna novedad ya?» shares no content word with
+    # «busca una guitarra acústica», so containment reads 0 and it spawns a second worker with its own sheet.
+    # Measured that day — ONE guitar search produced THREE errands and four cards on the operator's screen.
+    # OFF the voice turn (the dispatcher already answered) but still in front of a worker the operator is
+    # waiting on, so the same reasoning-OFF direct endpoint as its two neighbours above.
+    "errand_scope": ("https://api.deepseek.com", "deepseek-v4-flash", True),
     # paraphrase (V2-031 T2, 2026-08-17): 1-2 reformulaciones de una píldora durable, generadas off-hot-path
     # desde REM (nunca en el turno) para indexar vectores extra que cierren el vocab-gap en la lectura. Mismo
     # profile as `rem`: no latency pressure → DIRECT per the routing policy.
