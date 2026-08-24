@@ -442,7 +442,7 @@ def _judge_pending() -> int:
 
 def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
                verify_tasks: dict | None = None, stop_after_failures: int = 0,
-               failures_already: int = 0, provisional: str = "") -> int:
+               failures_already: int = 0, provisional: str = "", allow_dirty: bool = False) -> int:
     config.RUNS_DIR.mkdir(parents=True, exist_ok=True)
     results = []
     # Stop the walk once there is enough to work on (operator, 2026-08-18: "cuando tengas 10 fallando, para —
@@ -450,7 +450,28 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
     # use-case failure and must not consume the budget. `failures_already` carries the count from earlier
     # batches, since the whole point is a budget over the WALK, not per batch.
     failures = failures_already
+    # EL ÁRBOL SE COMPRUEBA EN CADA CASO, no solo al arrancar la tanda. Las dos guardas —árbol sucio y motor
+    # rancio— corren UNA vez, antes del primer caso, y eso bastaba cuando una corrida era un caso. Una TANDA
+    # dura horas: medido el 2026-08-24, arranqué cuatro casos con el árbol limpio y edité el motor mientras
+    # corrían, así que del segundo en adelante se midió código que ya no existía en disco — con el marcador
+    # escribiéndose por escenario, o sea que la basura entra en el tablero compartido caso a caso.
+    #
+    # Es exactamente el daño que `dirty_tree_refusal` existe para impedir («una ronda medida a mitad de una
+    # edición no se puede comparar con ninguna otra»), y la guarda no podía verlo porque solo mira al empezar.
+    # Se PARA la tanda en vez de saltar el caso: lo que ha cambiado es el sujeto de la medida, así que los
+    # casos que quedan tampoco valen — y se dice con qué `--start-at` se retoman, como el tope de fallos.
+    _tree_at_start = str((config.code_stamp() or {}).get("sha") or "")
     for scenario in chosen:
+        if results and not allow_dirty:
+            _now = config.code_stamp() or {}
+            _moved = str(_now.get("sha") or "") != _tree_at_start or bool(_now.get("dirty"))
+            if _moved:
+                print(f"\n■ parando el walk: el MOTOR se ha movido desde que arrancó la tanda "
+                      f"({_tree_at_start[:9] or '?'} → {str(_now.get('sha') or '?')[:9]}"
+                      f"{', con ' + str(_now.get('n_dirty')) + ' fichero(s) sin commitear' if _now.get('dirty') else ''}). "
+                      f"Lo que queda mediría código distinto del de los casos ya corridos, así que no se "
+                      f"podrían comparar. Se retoma con --start-at {scenario.id}")
+                break
         if stop_after_failures and failures >= stop_after_failures:
             print(f"\n■ parando el walk: {failures} casos fallando (tope --stop-after-failures "
                   f"{stop_after_failures}). Quedan {len(chosen) - len(results)} escenarios de esta tanda sin "
@@ -721,6 +742,7 @@ def run(args: argparse.Namespace) -> int:
             print(_refusal)
             return 3
         return _run_batch(chosen, sandboxed=False, args_no_file=args.no_file,
+                          allow_dirty=getattr(args, "allow_dirty", False),
                           verify_tasks=verify_tasks, provisional=_provisional(args),
                           stop_after_failures=args.stop_after_failures,
                           failures_already=statusmod.failing_count() if args.stop_after_failures else 0)
@@ -1271,6 +1293,7 @@ def _lab_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict | N
             print(_refusal)
             raise SystemExit(4)
     return _run_batch(chosen, sandboxed=True, args_no_file=args.no_file,
+                      allow_dirty=getattr(args, "allow_dirty", False),
                       verify_tasks=verify_tasks, provisional=_provisional(args),
                       stop_after_failures=args.stop_after_failures,
                       failures_already=statusmod.failing_count() if args.stop_after_failures else 0)
@@ -1328,6 +1351,7 @@ def _sandbox_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict
             raise SystemExit(4)
         try:
             return _run_batch(chosen, sandboxed=True, args_no_file=args.no_file,
+                      allow_dirty=getattr(args, "allow_dirty", False),
                               verify_tasks=verify_tasks, provisional=_provisional(args),
                               stop_after_failures=args.stop_after_failures,
                               failures_already=statusmod.failing_count() if args.stop_after_failures else 0)

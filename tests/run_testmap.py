@@ -1123,7 +1123,12 @@ DOMAINS: list[dict] = [
                                   # composición natural no seleccionaba nada) y `--list` los ignoraba. Y los
                                   # dos caminos ni siquiera veían el mismo ORDEN, así que arreglar el listado
                                   # por su cuenta habría previsualizado una tanda distinta de la que corre.
-                                  "tests/use_cases/unit/test_the_batch_window_is_one_decision.py"]},
+                                  "tests/use_cases/unit/test_the_batch_window_is_one_decision.py",
+                                  # V2-282: las dos guardas de árbol corren UNA vez, y una tanda dura horas.
+                                  # Medido editando el motor con cuatro casos en marcha: del segundo en
+                                  # adelante se midió código que ya no existía, y el marcador se escribe POR
+                                  # ESCENARIO, así que esa basura entra en el tablero caso a caso.
+                                  "tests/use_cases/unit/test_a_batch_notices_the_tree_moving.py"]},
         # Una tanda comparte UN motor y el reset no borra memoria (exige matar el proceso), así que del tercer
         # caso en adelante zaelar recuerda los anteriores — y el juez lo estaba puntuando como defecto suyo.
         {"id": "10.9", "title": "Memoria compartida entre casos: se avisa al juez, sin amnistiar el fallo real",
