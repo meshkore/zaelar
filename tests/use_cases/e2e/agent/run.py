@@ -157,7 +157,13 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
 
     # Extra turns granted only to keep a LIVE browser task's result reachable — see the grace block below.
     grace_left = 3
-    for turn in range(max(1, scenario.turns)):
+    # A while-loop ON PURPOSE (V2-300): the grace block used to `continue` inside a `for turn in range(...)`,
+    # which ADVANCES the counter — so the range was exhausted after ONE grace turn and `grace_left = 3` could
+    # never be consumed. Measured on round 23: rows landed 13 s after the last turn, one grace turn fired, and
+    # the other two — which would have caught the delivery — did not exist. Here a grace turn REPEATS the last
+    # turn index instead of spending a new one; the normal path advances `turn` at the bottom.
+    turn = 0
+    while True:
         try:
             res = probe_client.say(utterance, session, execute=(scenario.channel == "probe"),
                                    ingest=sandboxed)
@@ -223,6 +229,7 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         utterance = driver.reply(nudge=pending_nudge)
         note("tester", utterance)
         print(f"  tester  · {utterance}")
+        turn += 1
 
     if scenario.expected_signals:
         print("  verifying mechanism (this may wait for a background worker/browser task)…")

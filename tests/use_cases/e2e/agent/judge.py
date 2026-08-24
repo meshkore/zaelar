@@ -554,6 +554,19 @@ def judge(scenario, run: dict, model: str | None = None) -> dict:
         seed_note = (SEED_NOTE_OK.format(n=seed.get("sown"), probe=seed.get("probe", ""))
                      if seed.get("landed") else
                      SEED_NOTE_FAIL.format(n=seed.get("sown"), waited=seed.get("waited_s")))
+    # QUIÉN ES la persona del plató — la misma verdad que ya reciben el DRIVE y el watchdog, y por la misma
+    # razón (V2-300). Medido en la ronda 23: el juez archivó [media] «buscó en Madrid sin que el usuario lo
+    # especificara… preguntar, nunca adivinar» — y Madrid es el perfil SEMBRADO del plató, o sea la memoria
+    # FUNCIONANDO. Un juez sin el perfil delante puntúa el acierto como asunción indebida.
+    ground = (config.PERSONA_PROFILE or "").strip()
+    persona_note = ""
+    if ground:
+        persona_note = (
+            "⚠️ QUIÉN ES la persona (el motor lo tiene en MEMORIA, sembrado y verificado por el arnés):\n"
+            + ground +
+            "\nQue zaelar dé por sabido un dato de ese perfil (su ciudad, su nombre) SIN preguntar es la "
+            "memoria funcionando — NO lo puntúes como asunción indebida ni como falta de transparencia. Solo "
+            "es fallo si CONTRADICE el perfil, o si la persona lo corrige y zaelar insiste.")
     rubric = RUBRIC + (MULTIFLOW_RUBRIC if multiflow else "")
     schema = SCHEMA
     if multiflow:
@@ -572,6 +585,7 @@ Qué cuenta como éxito: {scenario.success_checks}
 {search_note}
 {carry_note}
 {seed_note}
+{persona_note}
 
 === TRANSCRIPT (lo que se DIJO) ===
 {convo or '(sin diálogo)'}

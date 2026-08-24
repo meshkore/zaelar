@@ -45,10 +45,16 @@ def _db(tmp_path, events):
     return str(p)
 
 
-REAL = [   # la ronda de las 18:02, tal cual salió del registro
+# La ronda de las 18:02 tal cual salió del registro — CORREGIDA el 2026-08-24 (V2-300) con lo que enseñó la
+# ronda 23: un `data src=worker` SIN `op` es el repintado de FASE (`sheets.record_phase`, «no hay nada que
+# guardar»), no una fila. En la 23 ese repintado adelantó el reloj 104 s y el juez archivó [alta] una «hoja
+# llena» que estaba VACÍA — el turno decía la verdad y el instrumento acusó al producto. La entrega real es
+# el intake (`src=navegador`) o una data-op del worker por el puente, que viaja CON su `op`.
+REAL = [
     (1000.0, "widget", "data",  "results--c30db3-1", "system"),
     (1000.0, "widget", "show",  "results::c30db3-1", "worker:1"),
-    (39000.0, "widget", "data", "results::c30db3-1", "worker"),
+    (20000.0, "widget", "data", "results::c30db3-1", "worker"),      # repintado de fase — NO es una fila
+    (39000.0, "widget", "data", "results::c30db3-1", "navegador"),   # el intake: aquí caen filas de verdad
     (60000.0, "widget", "data", "results::c30db3-1", "worker"),
 ]
 
@@ -73,6 +79,35 @@ def test_ESTRENAR_no_es_llenar(tmp_path):
     out = verify.sheet_timing(_db(tmp_path, REAL))
     assert out["sheet_rows_ms"] == 39000.0
     assert out["sheet_rows_ms"] != out["sheet_ms"]
+
+
+def test_un_REPINTADO_DE_FASE_no_es_una_fila(tmp_path):
+    """El caso de la ronda 23: `record_phase` emite `data src=worker` para que la pestaña de proceso avance,
+    con la hoja aún VACÍA. Contarlo adelantó el reloj 104 s y el juez acusó al turno de callar una entrega
+    que no existía."""
+    ev = [(1000.0, "widget", "show", "results::r23-1", "worker:1"),
+          (5000.0, "widget", "data", "results::r23-1", "worker"),     # fase, sin op
+          (9000.0, "widget", "data", "results::r23-1", "worker")]     # fase, sin op
+    out = verify.sheet_timing(_db(tmp_path, ev))
+    assert out["sheet_rows_ms"] is None, "solo fases: la hoja nunca recibió una fila"
+
+
+def test_una_DATA_OP_del_worker_si_cuenta(tmp_path):
+    """La otra dirección: un worker que escribe filas por el puente (`hbwidget data results append`) emite
+    `src=worker` CON su `op` — eso sí es una entrega, y perderla sería el hueco contrario."""
+    p = tmp_path / "op.db"
+    import sqlite3 as _sq
+    con = _sq.connect(str(p))
+    con.execute("CREATE TABLE events (ts_ms REAL, topic TEXT, kind TEXT, label TEXT, payload TEXT)")
+    con.execute("INSERT INTO events VALUES (?,?,?,?,?)",
+                (1000.0, "observer", "widget", "show",
+                 json.dumps({"id": "results::op-1", "label": "show", "src": "worker:1"})))
+    con.execute("INSERT INTO events VALUES (?,?,?,?,?)",
+                (7000.0, "observer", "widget", "data",
+                 json.dumps({"id": "results::op-1", "label": "data", "src": "worker", "op": "append"})))
+    con.commit(); con.close()
+    out = verify.sheet_timing(str(p))
+    assert out["sheet_rows_ms"] == 7000.0
 
 
 def test_un_VACIADO_tampoco_es_llenar(tmp_path):

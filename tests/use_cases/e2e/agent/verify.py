@@ -1857,7 +1857,14 @@ def sheet_timing(db_path, *, since: float = 0.0) -> dict:
                 # es como el test lo cazó.
                 out["sheet_ms"], out["sheet_box"] = ts_ms, _sfx
             elif (label == "data" and out["sheet_rows_ms"] is None
-                    and src not in ("system", "user", "")):
+                    and src not in ("system", "user", "")
+                    # V2-300 — el REPINTADO DE FASE también dice `src:"worker"`: `sheets.record_phase` emite
+                    # un `data` para que la pestaña de proceso avance, y su propio comentario dice «no hay
+                    # nada que guardar». Contarlo aquí adelantó el reloj 104 s en la ronda 23 y el juez
+                    # archivó [alta] una «hoja llena» que estaba VACÍA — el instrumento acusando al producto.
+                    # Una ENTREGA real es la del intake (`src:"navegador"`) o una data-op del worker por el
+                    # puente (`server_api` la emite CON su `op`); el repintado no lleva `op`.
+                    and (src == "navegador" or d.get("op"))):
                 out["sheet_rows_ms"] = ts_ms
                 if not out["sheet_box"]:
                     out["sheet_box"] = _sfx
