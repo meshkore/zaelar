@@ -592,6 +592,31 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
     return 0 if passed == len(results) else 1
 
 
+def window_of(rows: list, start_at: str = "", limit: int = 0) -> tuple[list, str]:
+    """La VENTANA de la tanda: desde `start_at`, como mucho `limit`. Devuelve `(filas, error)`.
+
+    UNA sola casa para los dos flags que acotan el walk, porque tenerlo en dos costó las dos formas del mismo
+    fallo el 2026-08-24:
+
+      · el ORDEN de aplicación estaba invertido en el camino de correr — `--limit` recortaba a los N PRIMEROS
+        y luego se buscaba el id ahí dentro, así que «cuatro casos empezando por la bicicleta» no seleccionaba
+        nada y fallaba con «is not in the selected set», que apunta a la selección y no a la aridad.
+      · y `--list` ignoraba los dos, así que se usó para comprobar qué iba a correr una tanda y contestó por
+        la selección ENTERA. Su propio comentario ya arreglaba esto mismo para `--segment`.
+
+    Y arreglar `--list` por su cuenta habría sido PEOR que el fallo: ese camino ordena por (tier, locale, id)
+    y el de correr respeta el orden de `all_scenarios()`, que NO es el mismo — comprobado, difieren desde el
+    primer elemento. El listado habría previsualizado una tanda distinta de la que corre, con toda la
+    seguridad de un listado correcto.
+    """
+    ids = [s.id for s in rows]
+    if start_at:
+        if start_at not in ids:
+            return rows, f"--start-at {start_at!r} is not in the selected set"
+        rows = rows[ids.index(start_at):]
+    return (rows[:limit] if limit else rows), ""
+
+
 def run(args: argparse.Namespace) -> int:
     # LINE-buffer stdout. A batch of these scenarios runs for the better part of an hour and the operator is
     # meant to be able to follow it (that is why the sandbox prints its WATCH IT LIVE urls at all) — but the
@@ -664,14 +689,10 @@ def run(args: argparse.Namespace) -> int:
         if not chosen:
             print("no queda ningún caso conducible en esta selección")
             return 0
-    if args.limit:
-        chosen = chosen[:args.limit]
-    if args.start_at:
-        ids = [s.id for s in chosen]
-        if args.start_at not in ids:
-            print(f"--start-at {args.start_at!r} is not in the selected set", file=sys.stderr)
-            return 2
-        chosen = chosen[ids.index(args.start_at):]
+    chosen, _err = window_of(chosen, args.start_at, args.limit)
+    if _err:
+        print(_err, file=sys.stderr)
+        return 2
     if not chosen:
         print("no scenarios selected", file=sys.stderr)
         return 2
@@ -1400,8 +1421,16 @@ def main() -> None:
             rows = [s for s in rows if s.tier in args.tier]
         if args.locale:
             rows = [s for s in rows if s.locale == args.locale]
+        # …Y TAMBIÉN los dos que ACOTAN LA TANDA, por la MISMA función que los aplica al correr y sobre el
+        # MISMO orden. Ordenar aquí y no allí es lo que haría del listado una mentira con forma de listado:
+        # `all_scenarios()` no viene en orden (tier, locale, id) — comprobado, difieren desde el primero.
+        rows, _err = window_of(rows, args.start_at, args.limit)
+        if _err:
+            print(_err, file=sys.stderr)
+            sys.exit(2)
+        _pretty = not (args.start_at or args.limit)     # solo se reordena cuando no hay ventana que respetar
         hand_ids = {x.id for x in SC.SCENARIOS}
-        for s in sorted(rows, key=lambda x: (x.tier, x.locale, x.id)):
+        for s in (sorted(rows, key=lambda x: (x.tier, x.locale, x.id)) if _pretty else rows):
             seg = G.segment_of(s.id)
             mark = {G.COMPLETABLE: "✅", G.CREDENTIALS: "🔑", G.CAPABILITY: "🚧"}.get(seg.group if seg else "", "❓")
             hand = " (hand-written)" if s.id in hand_ids else ""

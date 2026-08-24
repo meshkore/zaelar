@@ -1112,7 +1112,13 @@ DOMAINS: list[dict] = [
         # Una tanda interrumpida no puede tirar los veredictos ya ganados: el `record()` iba DESPUÉS del bucle,
         # así que 12 minutos de corridas reales (y su gasto de LLM) se perdieron al cortarse la tanda.
         {"id": "10.8", "title": "El marcador se escribe por escenario, no al final de la tanda",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_run_persistence.py"]},
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_run_persistence.py",
+                                  # V2-280: `--start-at` + `--limit` son los mandos del walk, y estaban en dos
+                                  # sitios con dos comportamientos — el de correr los aplicaba al revés (la
+                                  # composición natural no seleccionaba nada) y `--list` los ignoraba. Y los
+                                  # dos caminos ni siquiera veían el mismo ORDEN, así que arreglar el listado
+                                  # por su cuenta habría previsualizado una tanda distinta de la que corre.
+                                  "tests/use_cases/unit/test_the_batch_window_is_one_decision.py"]},
         # Una tanda comparte UN motor y el reset no borra memoria (exige matar el proceso), así que del tercer
         # caso en adelante zaelar recuerda los anteriores — y el juez lo estaba puntuando como defecto suyo.
         {"id": "10.9", "title": "Memoria compartida entre casos: se avisa al juez, sin amnistiar el fallo real",
