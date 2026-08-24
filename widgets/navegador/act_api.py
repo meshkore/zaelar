@@ -469,6 +469,15 @@ async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body
             _emit_nav(task_id, "🧭 vista", f"captura {snap.get('title') or snap.get('url') or ''}"[:200])
             return {"ok": True, "shot": _shot_path(task_id), "viewport": {"width": 1280, "height": 800},
                     **_with_stall(task_id, _with_wall(snap, task_id))}
+        if action == "visit":
+            # LEER UNA FICHA SIN PERDER EL LISTADO. Va antes de `extract` porque comparten la idea de «lo que
+            # hay en esta página», pero no la pestaña: `visit` abre la suya y la cierra.
+            got = await tb.visit(str(args.get("url", "")), int(args.get("chars", 2500)))
+            if got.get("ok"):
+                _emit_nav(task_id, "🧭 ficha", f"{str(got.get('title') or got.get('url'))[:150]}")
+            else:
+                _emit_nav(task_id, "🧭 ficha ⚠️ error", str(got.get("error"))[:150])
+            return got
         if action == "extract":
             _limit = int(args.get("limit", 14))
             items = await tb.extract_listings(_limit)

@@ -357,6 +357,14 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None, *, vision: b
         f"• (alternativa DOM) elementos:     {py} -m nucleo.nav_cli snapshot   → luego click <ref> / type <ref> \"<txt>\"\n"
         f"• Ir a una URL:                    {py} -m nucleo.nav_cli navigate \"<url>\"\n"
         f"• Desplazar / extraer:             {py} -m nucleo.nav_cli scroll 800   ·   {py} -m nucleo.nav_cli extract\n"
+        # VALORAR FICHA A FICHA sin perder el listado. Antes había que `navigate` a la ficha —que se lleva la
+        # ÚNICA pestaña— y volver a buscar el listado: dos navegaciones por ficha, con los filtros de por
+        # medio. `visit` abre la suya, la lee y la cierra. Se le dice PARA QUÉ sirve porque un verbo que el
+        # prompt no explica se queda sin usar (misma lección que V2-219).
+        f"• MIRAR UNA FICHA sin perder el listado: {py} -m nucleo.nav_cli visit \"<url del anuncio>\"\n"
+        "  → devuelve título + descripción de ESA ficha. Es como abrirla en otra pestaña y cerrarla: el\n"
+        "    listado y tus filtros siguen donde estaban. Úsalo para COMPARAR candidatos uno a uno en vez de\n"
+        "    decidir con el título de la lista; `navigate` a un anuncio te deja sin listado.\n"
         f"• Progreso ESTRUCTURADO (el operador lo VE y zaelar responde '¿cómo va?'): al empezar "
         f"{py} -m nucleo.agent_report plan \"paso1|paso2|paso3\"  y al terminar cada paso "
         f"{py} -m nucleo.agent_report progress \"<hecho>\" --done <n>\n"
@@ -365,7 +373,7 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None, *, vision: b
         f"• Leer un dato que zaelar ya sepa:  {py} -m nucleo.mem_cli recall \"<consulta>\"\n"
         f"• GUARDAR un dato que reúnas (para no volver a pedirlo): {py} -m nucleo.mem_cli remember \"<dato>\" --slot task.<algo>\n\n"
         "⚠️ ESOS son TODOS los subcomandos de `nav_cli` que existen — snapshot, look, navigate, click, type, "
-        "select_option, click_at, type_at, scroll, press, extract. NO existen `automate`, `act` ni ningún otro; "
+        "select_option, click_at, type_at, scroll, press, extract, visit. NO existen `automate`, `act` ni otro; "
         "invocarlos falla con «invalid choice» y quema un turno entero sin avanzar. `extract` NO lleva texto "
         "de argumento (solo `--limit N` opcional) y `scroll` lleva un número de píxeles, nunca la palabra "
         "'down'/'up'. Usa la sintaxis exacta de arriba, no la que te parezca natural.\n\n"

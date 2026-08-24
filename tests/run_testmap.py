@@ -836,6 +836,12 @@ DOMAINS: list[dict] = [
         # en 90 — veinte veces. Y lo caro no era esperar: `page.evaluate` no tiene timeout en Playwright, así
         # que una página navegando colgaba la mirada POSTERIOR a una acción que YA había funcionado, y el
         # worker recibía un fallo y la repetía. Norma del operador: ni noventa segundos bajo ningún concepto.
+        # LEER UNA FICHA SIN PERDER EL LISTADO (petición del operador: «abrir bastantes pestañas para
+        # investigar y valorar cada una de las fichas»). Antes solo existía `navigate`, que se lleva la
+        # ÚNICA pestaña: mirar un anuncio costaba perder el listado y volver a buscarlo, dos navegaciones
+        # por ficha. Medido: navigate al listado 8,24 s · extract 0,02 s · visit 0,85 s con el listado intacto.
+        {"id": "4.46", "title": "Una ficha se lee en SU pestaña y el listado no se pierde (visit)",
+            "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_a_card_is_read_in_its_own_tab.py"]},
         {"id": "4.45", "title": "Ninguna espera del navegador llega a 90 s, y una lectura lenta no falsea un fallo",
             "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_the_browser_never_waits_ninety_seconds.py"]},
         {"id": "4.44", "title": "La pestaña expone su hoja (el sello que lee _sheet_has_rows)",

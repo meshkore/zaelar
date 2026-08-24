@@ -101,3 +101,21 @@ def test_el_barrido_de_BANNERS_es_por_navegacion_no_por_mirada():
     assert "_overlays_url" in src[:i], (
         "el barrido tiene que ir detrás de una comprobación de URL, no correr en cada mirada")
     assert "self._overlays_url = " in src[i:], "y hay que recordar para qué página se hizo"
+
+
+def test_el_barrido_NO_se_paga_DOS_VECES_por_navegacion():
+    """`_goto` barre y, acto seguido, la mirada que viene detrás volvía a barrer — porque la URL acababa de
+    cambiar, que es justo la condición que dispara el barrido. El mismo peaje, cobrado por la otra puerta.
+
+    Medido contra el plató vivo (es.wallapop.com), antes y después de apuntar la URL barrida en `_goto`:
+
+        navigate #1  36,6 s → 7,2 s
+        navigate #2  24,7 s → 11,4 s
+        look          15,5 s → 0,35 s
+    """
+    src = "\n".join(l for l in inspect.getsource(owner.TaskBrowser._goto).splitlines()
+                    if not l.strip().startswith("#"))
+    i = src.find("_dismiss_overlays")
+    assert i > 0, "una navegación sí tiene que barrer: es cuando puede haber banner nuevo"
+    assert "self._overlays_url" in src[i:], (
+        "hay que apuntar para qué página se barrió, o la mirada siguiente lo repite entero")

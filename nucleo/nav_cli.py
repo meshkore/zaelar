@@ -251,6 +251,8 @@ def main(argv: list[str] | None = None) -> int:
     s.add_argument("dy", type=_scroll_amount, nargs="?", default=_SCROLL_STEP)
     p = sub.add_parser("press", help="pulsar una tecla"); p.add_argument("key", nargs="?", default="Enter")
     e = sub.add_parser("extract", help="raspar anuncios/resultados"); e.add_argument("--limit", type=int, default=14)
+    v = sub.add_parser("visit", help="abrir UNA ficha en otra pestaña, leerla y cerrarla (NO pierdes el listado)")
+    v.add_argument("url"); v.add_argument("--chars", type=int, default=2500)
     a = ap.parse_args(argv)
     if a.cmd == "snapshot":
         res = _act("snapshot", {})
@@ -271,6 +273,8 @@ def main(argv: list[str] | None = None) -> int:
         res = _act("click_at", {"x": a.x, "y": a.y})
     elif a.cmd == "type_at":
         res = _act("type_at", {"x": a.x, "y": a.y, "text": a.text, "submit": bool(a.submit)})
+    elif a.cmd == "visit":
+        res = _act("visit", {"url": a.url, "chars": a.chars})
     elif a.cmd == "scroll":
         res = _act("scroll", {"dy": a.dy})
     elif a.cmd == "press":

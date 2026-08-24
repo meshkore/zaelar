@@ -1355,6 +1355,11 @@ class TaskBrowser:
         try:
             await page.goto(url, wait_until="domcontentloaded")
             await _dismiss_overlays(page)
+            # Y SE APUNTA PARA QUÉ PÁGINA SE HIZO. Sin esto el barrido corre DOS VECES por navegación: aquí y
+            # otra vez en la mirada que viene detrás, porque la URL acaba de cambiar y esa es justamente la
+            # condición que dispara el barrido. Es el mismo peaje que se acaba de quitar de `look`, cobrado
+            # por la otra puerta.
+            self._overlays_url = getattr(page, "url", "") or url
             await asyncio.sleep(0.35)
         except Exception as e:
             self._emit("nav_error", _brief(e, 160))
@@ -1606,6 +1611,69 @@ class TaskBrowser:
             return await self.page.evaluate(_JS_EXTRACT, limit) or []
         except Exception:
             return []
+
+    async def visit(self, url: str, chars: int = 2500) -> dict:
+        """Abre una ficha en OTRA pestaña, la lee y la cierra — sin mover la pestaña del listado.
+
+        Petición del operador (2026-08-24): «el propio brain worker tiene que encargarse de extraer datos,
+        modelar las diferentes fichas, abrir bastantes pestañas para investigar y valorar cada una de las
+        fichas de resultados». Hoy no podía: el puente solo sabía `navigate`, que se lleva la ÚNICA pestaña
+        —así que mirar un anuncio costaba perder el listado y volver a buscarlo, dos navegaciones de 7-11 s
+        por ficha, con el buscador y los filtros que hubiera puesto por medio.
+
+        Lo que devuelve es lo que hace falta para VALORAR: el título, el texto de la ficha recortado, y los
+        listados que la propia página declare (precio, imagen). No una captura: valorar diez fichas por
+        visión son diez lecturas de PNG, y esto tiene que poder hacerse muchas veces.
+
+        La pestaña se cierra SIEMPRE, también si la lectura falla — una pestaña huérfana por ficha es cómo
+        se llega a las treinta que ya midió `_reap_popups`. Y `self.page` no se toca en ningún camino: el
+        listado sigue donde estaba, que es la razón de existir de este verbo.
+        """
+        page = await self.ensure()
+        try:
+            ctx = page.context
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": _brief(e, 120)}
+        tab = None
+        try:
+            tab = await ctx.new_page()
+            await tab.goto(_normalize_url(url), wait_until="domcontentloaded")
+            # Sin barrido de banners: la ficha se lee, no se conduce, y el barrido es el peaje que se acaba
+            # de quitar del camino caliente. Un banner tapa la vista, no el texto.
+            title, body, items = "", "", []
+            try:
+                title = await asyncio.wait_for(tab.title(), _DOM_TIMEOUT_S)
+            except Exception:  # noqa: BLE001
+                pass
+            try:
+                # EL CONTENIDO, NO EL MENÚ. `body.innerText` empieza por el cromo de navegación —medido en la
+                # primera prueba: «Todas las categorías Coches Motos Motor y accesorios…»— y con el texto
+                # recortado eso deja al worker valorando una ficha por el menú del sitio. Es la misma forma
+                # que V2-234 midió en la extracción, por la otra puerta.
+                #
+                # La regla es ESTRUCTURAL, no una lista de sitios: si la página declara su contenido
+                # principal (`main`, `article`, `[role=main]`) se lee eso; si no, el cuerpo entero, que es lo
+                # que había. No se recorta por posición ni se adivina dónde acaba el menú.
+                body = await asyncio.wait_for(tab.evaluate(
+                    "() => { const m = document.querySelector('main, article, [role=main]');"
+                    "        return ((m || document.body || {}).innerText) || ''; }"), _DOM_TIMEOUT_S)
+            except Exception:  # noqa: BLE001
+                pass
+            try:
+                items = await asyncio.wait_for(tab.evaluate(_JS_EXTRACT, 6), _DOM_TIMEOUT_S) or []
+            except Exception:  # noqa: BLE001
+                items = []
+            return {"ok": True, "url": tab.url, "title": title or "",
+                    "text": " ".join((body or "").split())[:max(200, int(chars))],
+                    "listings": items}
+        except Exception as e:  # noqa: BLE001
+            return {"ok": False, "error": _brief(e, 140), "url": url}
+        finally:
+            try:
+                if tab and not tab.is_closed():
+                    await tab.close()
+            except Exception:  # noqa: BLE001
+                pass
 
     async def close(self) -> None:
         try:
