@@ -135,3 +135,46 @@ def test_the_raw_instances_are_readable_because_the_state_normalizes_them_away()
     assert voice_api.open_instances() == [], "sin informe del canvas es «no lo sé», no una ambigüedad inventada"
     voice_api.canvas_state._last_inst = ["results::t1", "results::t2", "agenda"]
     assert instances.instances_of("results", voice_api.open_instances()) == ["results::t1", "results::t2"]
+
+
+# ── V2-300: el ESPEJO — «enséñamelo» tampoco abre la caja pelada teniendo la hoja del encargo delante ────────
+#
+# Ronda 24 de `search-buy-guitar__es` (2026-08-24): la hoja del encargo (`results::58c1af-1`) ABIERTA con 20
+# filas, el operador pide ver un resultado, el modelo muestra `results` a secas y el canvas abre la caja
+# PELADA — «Te lo abro, aunque de momento está vacío» con la entrega al lado. El guard de V2-209 dijo la
+# verdad sobre la caja equivocada; lo que faltaba era abrir la correcta.
+
+def test_showing_the_base_with_ONE_instance_open_resolves_to_the_instance():
+    out = instances.resolve_show("results", ["results::58c1af-1", "agenda"])
+    assert out["id"] == "results::58c1af-1" and not out["ask"]
+
+
+def test_showing_with_TWO_instances_open_asks_naming_the_errands():
+    out = instances.resolve_show("results", ["results::t1", "results::t2"])
+    assert out["id"] is None and "¿cuál te enseño" in out["ask"]
+
+
+def test_showing_with_NO_instance_open_keeps_the_base_as_always():
+    """Sensibilidad: sin hojas de encargo delante, la base es la única que hay y abrirla es lo de siempre."""
+    out = instances.resolve_show("results", ["agenda"])
+    assert out["id"] == "results" and not out["ask"]
+
+
+def test_a_named_instance_passes_through_untouched():
+    out = instances.resolve_show("results::t7", ["results::t1", "results::t7"])
+    assert out["id"] == "results::t7" and not out["ask"]
+
+
+def test_the_show_decision_is_wired_in_BOTH_channels():
+    """La decisión vive UNA vez (`instances.resolve_show`) y la llaman los dos canales — la clase de fallo que
+    sobrevive divergiendo entre voz y probe (V2-252, tres veces). Se comprueba sobre el fuente SIN comentarios:
+    dos guardas de esta suite ya pasaron con la llamada borrada porque el comentario la nombraba."""
+    def _code(p):
+        lines = Path(p).read_text(encoding="utf-8", errors="replace").splitlines()
+        return "\n".join(ln for ln in lines if not ln.strip().startswith("#"))
+
+    voz = _code("voice/engine/llm/providers/nucleo.py")
+    assert voz.count("def _show_target_instance(") == 1
+    assert "_show_target_instance(_rid)" in voz, "la voz no consulta la instancia al mostrar"
+    probe = _code("nucleo/flash/probe.py")
+    assert "resolve_show(_rid" in probe, "el probe no consulta la instancia al mostrar"

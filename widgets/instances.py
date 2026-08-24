@@ -108,3 +108,32 @@ def resolve_close(target, open_ids) -> dict:
     else:
         cuales = ", ".join(f"«{e}»" for e in etiquetas[:-1]) + f" o «{etiquetas[-1]}»"
     return {"id": None, "ask": f"Tienes {len(abiertas)} abiertas: ¿cuál cierro, {cuales}?", "options": abiertas}
+
+
+def resolve_show(target, open_ids) -> dict:
+    """A QUÉ tarjeta va un «enséñamelo» — el espejo de `resolve_close`, medido por el lado contrario (V2-300).
+
+    Ronda 24 de `search-buy-guitar__es` (2026-08-24): la hoja del encargo (`results::58c1af-1`) estaba ABIERTA
+    con 20 filas, el operador pidió ver un resultado, el modelo mostró `results` a secas… y el canvas abrió la
+    caja PELADA, vacía — «Te lo abro, aunque de momento está vacío» sobre una pantalla con la entrega al lado.
+    El guard de V2-209 hizo su parte (dijo la verdad sobre la caja equivocada); lo que faltaba era abrir la
+    caja CORRECTA. Mismo contrato que el cierre: la base con UNA instancia viva delante resuelve a esa
+    instancia; con varias se PREGUNTA nombrando encargos; sin ninguna, la base de siempre.
+    """
+    tid = str(target or "").strip()
+    if not tid:
+        return {"id": None, "ask": "", "options": []}
+    if SEP in tid:
+        return {"id": tid, "ask": "", "options": []}          # ya vino desambiguado
+    abiertas = instances_of(tid, open_ids)
+    if not abiertas:
+        return {"id": tid, "ask": "", "options": []}          # sin instancias: la base, como siempre
+    if len(abiertas) == 1:
+        return {"id": abiertas[0], "ask": "", "options": abiertas}
+    etiquetas = _distinguibles([_label(w) for w in abiertas], abiertas)
+    if len(etiquetas) == 2:
+        cuales = f"«{etiquetas[0]}» o «{etiquetas[1]}»"
+    else:
+        cuales = ", ".join(f"«{e}»" for e in etiquetas[:-1]) + f" o «{etiquetas[-1]}»"
+    return {"id": None, "ask": f"Tienes {len(abiertas)} abiertas: ¿cuál te enseño, {cuales}?",
+            "options": abiertas}

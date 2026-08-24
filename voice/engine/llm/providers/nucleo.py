@@ -1675,13 +1675,24 @@ class NucleoLLMStream(llm.LLMStream):
                         _rid = _rid if (_rid and runtime.get(_rid) is not None) else ""
                         _sys = _res.get("system")
                         if _rid:
-                            _tag_emit("show", {"id": _rid})
-                            # V2-209: QUÉ se abrió, no solo QUE se abrió. Sin el id, el ack de más abajo no puede
-                            # distinguir «aquí lo tienes» de «te lo abro y sigo con ello», que es la diferencia
-                            # entre informar y afirmar una entrega que no ha ocurrido.
-                            acted["widget_id"] = _rid
-                            emit("brain", "🪟 show_widget → canvas", text=_rid, role="system",
-                                 extra={"empty": _surface_is_empty(_rid)})
+                            # V2-300 — la BASE con una instancia viva delante resuelve a la INSTANCIA: en la
+                            # ronda 24 el modelo mostró `results` con la hoja del encargo abierta al lado y el
+                            # canvas abrió la caja PELADA, vacía. Misma decisión y mismo dueño que el cierre
+                            # (`_close_target` → `instances.resolve_close`); con varias abiertas se pregunta.
+                            _r2 = _show_target_instance(_rid)
+                            if _r2.get("ask"):
+                                clarify["msg"] = _r2["ask"]
+                                emit("brain", "🤔 show_widget con varias hojas → pregunto", text=_rid,
+                                     role="system")
+                            else:
+                                _rid = _r2.get("id") or _rid
+                                _tag_emit("show", {"id": _rid})
+                                # V2-209: QUÉ se abrió, no solo QUE se abrió. Sin el id, el ack de más abajo no
+                                # puede distinguir «aquí lo tienes» de «te lo abro y sigo con ello», que es la
+                                # diferencia entre informar y afirmar una entrega que no ha ocurrido.
+                                acted["widget_id"] = _rid
+                                emit("brain", "🪟 show_widget → canvas", text=_rid, role="system",
+                                     extra={"empty": _surface_is_empty(_rid)})
                         elif _sys == "chat":
                             # nombró el CHAT (superficie de sistema, no un widget) → abre el panel nativo.
                             emit("panel", "open", extra={"tab": "chat", "src": "flash"})
@@ -3260,6 +3271,17 @@ def _is_meta_widget_question(n: str) -> bool:
     return bool(_re.search(
         r"\b(abriste|abrio|abrido|abierto|has abierto|habias abierto|deberias haber (abierto|mostrado)|"
         r"mostraste|ensenaste|cerraste|cerro|se abrio|se cerro|has mostrado|has cerrado|se ha abierto)\b", n))
+
+
+def _show_target_instance(wid: str) -> dict:
+    """A QUÉ tarjeta va este «enséñamelo» (V2-300) — hermana de `_close_target`, mismo fail-soft: si no se
+    puede saber qué hay abierto, se muestra la base como siempre."""
+    try:
+        from server.voice_api import open_instances
+        from widgets import instances as _inst
+        return _inst.resolve_show(wid, open_instances())
+    except Exception:  # noqa: BLE001
+        return {"id": wid, "ask": "", "options": []}
 
 
 def _close_target(wid: str) -> dict:

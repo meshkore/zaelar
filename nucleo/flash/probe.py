@@ -449,7 +449,23 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             _rid = _res.get("match") or ""
             _rid = _rid if (_rid and _rt.get(_rid) is not None) else ""
             _sys = _res.get("system")
+            _show_ask = ""
+            if _rid:
+                # V2-300 — espejo del provider (`_show_target_instance`): la BASE con una instancia viva
+                # delante resuelve a la INSTANCIA; con varias se pregunta. Sin esto el canvas abre la caja
+                # PELADA, vacía, con la hoja del encargo llena al lado (medido en la ronda 24 de la guitarra).
+                try:
+                    from server.voice_api import open_instances as _oi
+                    from widgets import instances as _inst2
+                    _r2 = _inst2.resolve_show(_rid, _oi())
+                    if _r2.get("ask"):
+                        _show_ask, _rid = _r2["ask"], ""
+                    else:
+                        _rid = _r2.get("id") or _rid
+                except Exception:  # noqa: BLE001
+                    pass
             action = (f"canvas:show:{_rid}" if _rid else
+                      "clarify" if _show_ask else
                       "panel:chat" if _sys == "chat" else "clarify")
     elif "fullscreen_widget" in names:
         # BUG real 2026-07-23 — espejo del provider: pone/quita pantalla completa de verdad. Resuelve el id por
