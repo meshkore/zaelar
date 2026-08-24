@@ -443,6 +443,29 @@ def test_widget_data_says_that_writing_it_down_is_not_warning():
     assert "cron.create" in d
 
 
+def test_escalate_says_that_asking_about_a_live_task_is_not_ordering_one():
+    """Medido el 2026-08-24 en `search-buy-guitar__es`: UNA búsqueda de guitarra abrió TRES encargos.
+
+    Los goals, sacados del registro durable del plató:
+
+      16:14:30  web       «Busca en marketplaces de segunda mano … una guitarra acústica…»   ← el encargo
+      16:15:48  research  «¿Alguna novedad ya?»                                              ← un worker
+      16:16:20  research  «Perfecto, dale. ¿Tienes algo ya?»                                 ← otro worker
+
+    Cada uno con su hoja: cuatro tarjetas en pantalla para un solo encargo, que es lo que el operador vio y
+    reportó («I see a lot of processes in screen»). Y no son DUPLICADOS —el detector de duplicados los da por
+    buenos, y tiene razón: «¿alguna novedad?» no se parece a «busca una guitarra»— son turnos de conversación
+    convertidos en encargos.
+
+    La descripción ya decía «si ya hay una tarea EN CURSO no la repitas», y ahí está el hueco: preguntar por
+    ella no se LEE como repetirla. La respuesta vive en el ESTADO, que ya viaja en el prompt — el mismo turno
+    tenía delante «NAVEGADOR — YA EN CURSO (1)».
+    """
+    d = _desc("escalate_to_slowbrain").lower()
+    assert "no es encargarla" in d, "la frontera tiene que estar dicha, no deducible de «no la repitas»"
+    assert "estado" in d
+
+
 def test_escalate_says_several_tasks_mean_several_calls():
     """V2-118 · `three-tasks-at-once`: tres encargos en un turno, UNA tarea viva. La mitad de mecanismo está
     arreglada en el provider (antes solo ejecutaba la primera llamada); sin decírselo también al modelo, la

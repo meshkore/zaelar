@@ -86,18 +86,20 @@ TOOLS: list[dict] = [
             #    negó a montar el juego: un widget que no existe es justo el que se construye.
             "description": (
                 "Delega: lanza un worker de fondo (memoria, código, navegador, razonamiento). "
-                "SÍ: investigar/informe/comparativa a fondo; navegar u operar una web o marketplace (buscar "
-                "anuncios en Wallapop/Amazon…); crear, modificar o arreglar el CÓDIGO de un widget; conseguir una "
+                "SÍ: investigar/informe/comparativa a fondo; navegar u operar una web o marketplace; "
+                "crear, modificar o arreglar el CÓDIGO de un widget; conseguir una "
                 "foto REAL para ENSEÑARLA (no la describas: búscala); recordar algo de OTRAS sesiones "
-                "que no está en tu ESTADO; y HACER, cambiar o DESHACER un compromiso del mundo real (reservar "
-                "mesa/hora, cancelar una cita, dar de baja, pedir, pagar) — el widget es solo su espejo. NO: charla; un dato puntual del mundo (web_search); un aviso a una hora "
+                "fuera de tu ESTADO; y HACER, cambiar o DESHACER un compromiso real "
+                "(reservar, cancelar, dar de baja, pagar) — el widget es solo su espejo. "
+                "NO: charla; un dato puntual del mundo (web_search); un aviso a una hora "
                 "o día ([[cron.create]]); tocar la LISTA de un widget (widget_data); MOSTRAR contenido que YA "
                 "existe en un widget, aunque digas «el mensaje nuevo» (show_widget); cambiar el vídeo de un widget "
                 "`youtube` (play_video). VARIAS tareas distintas en un turno = una llamada por CADA UNA (corren a "
                 "la vez). Y no estar en el catálogo NO es motivo para negarte: es justo lo que se construye. "
-                "Si dudas entre retoque "
-                "local y acción real, escala. Si ya hay una tarea EN CURSO no la repitas: di que sigues "
-                "con ello. Llámala YA en este turno; tu frase acompaña la llamada, no la sustituye."
+                "Ante la duda, escala. "
+                "Si ya hay una tarea EN CURSO no la repitas: di que sigues "
+                "con ello; y PREGUNTAR POR ELLA («¿alguna novedad?») NO es encargarla: eso se lee de tu "
+                "ESTADO, nunca se escala. Llámala YA en este turno; tu frase acompaña la llamada, no la sustituye."
             ),
             "parameters": {
                 "type": "object",
