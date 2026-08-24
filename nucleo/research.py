@@ -42,11 +42,16 @@ import time
 
 logger = logging.getLogger("zaelar.research")
 
-# El compositor corre ANTES de que el worker arranque, así que su latencia la paga el arranque de la tarea (no la
-# voz: el operador ya sabe que esto tarda, y la escalada es asíncrona). Aun así va con TECHO DURO: si el proveedor
-# se atasca, más vale un worker sin dirigir —que es como salía antes— que una tarea que no arranca. Vencido el
-# plazo se sigue sin brief, con aviso.
-_COMPOSE_TIMEOUT = 30.0
+# V2-301 cambió lo que este techo protege. El compositor corría ANTES del spawn, así que su latencia la pagaba
+# el arranque de la tarea y 30 s era el máximo tolerable — y NO bastaba: medido el 2026-08-24 en el blindaje de
+# la guitarra, el compositor (tier razonador, 1600 tokens) venció ese plazo en 3 de 7 rondas, y LAS DOS rondas
+# que fallaron son exactamente las que corrieron sin brief. Desde V2-301 compone EN PARALELO con el worker (el
+# spawn ya no espera; el brief tardío llega inyectado), así que el plazo ya no compra arranque — solo decide
+# cuánto se persiste en conseguir dirección para una búsqueda que sigue en marcha. Un brief a los 60-90 s
+# todavía llega ANTES de que el worker evalúe candidatos, que es donde la dirección importa. El techo duro se
+# conserva (un proveedor colgado no puede retener la referencia para siempre); solo cambia el número.
+# ⚠️ Con el kill-switch serial (ZAELAR_BRIEF_HEAD_START_S=0) este plazo vuelve a pagarse en el arranque.
+_COMPOSE_TIMEOUT = float(os.environ.get("ZAELAR_COMPOSE_TIMEOUT_S", "90") or 90)
 
 # Suelo de amplitud. Existe porque el sesgo del modelo, si le dejas el número, es pedir "10 candidatos" — que es
 # otra vez la búsqueda superficial con otro nombre. Una SELECCIÓN («la mejor», «las 3 mejores») solo significa
