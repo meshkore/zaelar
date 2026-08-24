@@ -96,6 +96,48 @@ def hard_reset() -> dict:
     return _post("/reset/hard", {}, timeout=60.0)
 
 
+def canvas_items() -> list:
+    """Las tarjetas que el SERVIDOR tiene guardadas del escritorio (`GET /api/canvas/layout`).
+
+    NO es lo mismo que lo que se ve en pantalla —el navegador es el dueño del canvas (V2-124)— pero es lo
+    único observable desde aquí, y una tarjeta que sigue en esta lista reaparece en cuanto alguien recargue.
+    """
+    data = _get("/api/canvas/layout")
+    return list((data or {}).get("items") or []) if isinstance(data, dict) else []
+
+
+def settle_after_reset(*, budget_s: float = 25.0, poll_s: float = 1.0) -> dict:
+    """Espera a que el motor quede REALMENTE limpio y devuelve lo que encontró, se haya limpiado o no.
+
+    Sustituye a un `time.sleep(2.0)` seguido de imprimir «motor reseteado (sin trabajo ni canvas anterior)»
+    pasara lo que pasara — una afirmación que nadie comprobaba, en el sitio donde el operador la lee para
+    fiarse de que el caso siguiente se mide solo. Dos segundos era además un número inventado: en la tanda
+    del 2026-08-24 un worker de investigación seguía escribiendo en la hoja del caso ANTERIOR casi un
+    segundo después del reset, y su tarjeta se quedaba en pantalla.
+
+    El presupuesto es un TOPE, no una espera: en cuanto las dos señales están a cero se vuelve. Y si se
+    agota, se vuelve igual **diciendo qué quedó vivo** — parar la tanda porque un worker tarda en morir
+    costaría más que medir un caso con una advertencia encima.
+    """
+    import time as _t
+
+    def _still_working() -> list[dict]:
+        # El filtro de estado se aplica AQUÍ y no se le delega al motor. `active_sessions()` estuvo sin
+        # filtrar hasta V2-115 —y ese hueco pintó como «en curso» tareas ya terminadas—, así que esperar a
+        # que la lista se vacíe sin mirar el estado ataría el arranque del caso siguiente a un registro que
+        # ya ha fallado una vez de esa forma exacta.
+        return [x for x in live_tasks() if str(x.get("status") or "") in ("queued", "running", "needs_input")]
+
+    t0 = _t.monotonic()
+    tasks, items = _still_working(), canvas_items()
+    while (tasks or items) and (_t.monotonic() - t0) < budget_s:
+        _t.sleep(poll_s)
+        tasks, items = _still_working(), canvas_items()
+    return {"clean": not (tasks or items), "waited_s": round(_t.monotonic() - t0, 1),
+            "tasks": [str(s.get("goal") or s.get("id") or "?")[:60] for s in tasks],
+            "items": [str(i.get("id") or i)[:40] for i in items]}
+
+
 def flow(corr_id: str) -> list[dict]:
     """The full durable event sequence for one trace id, in order — the ground truth for "what actually
     fired", independent of anything the agent claimed in its reply text."""

@@ -524,10 +524,25 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
         # operador cargó el test ES y lo primero que vio fue pantalla sucia de la corrida de antes. La regla que
         # pidió es exactamente lo que `hard_reset()` hace y lo que NO hace: mata el trabajo vivo y borra el
         # canvas, y deja en pie la memoria y el estado (`/reset/hard`, no `/api/reset/full` con `wipe_memory`).
+        # UN CASO CADA VEZ, Y SE COMPRUEBA (norma del operador, 2026-08-24, con cuatro hojas de casos
+        # distintos apiladas en su pantalla: «we do one, we close, we continue with another»). Pedir el
+        # reset no es haberlo conseguido: aquí había una espera FIJA de dos segundos y detrás la línea «motor reseteado
+        # (sin trabajo ni canvas anterior)» impresa PASARA LO QUE PASARA. Los dos segundos eran un número
+        # inventado —medido ese mismo día, un worker de investigación seguía escribiendo en la hoja del caso
+        # anterior después del reset— y la línea era una afirmación que nadie comprobaba, justo donde el
+        # operador la lee para fiarse de que el caso siguiente se mide solo.
         try:
             probe_client.hard_reset()
-            time.sleep(2.0)          # el kill de grupo y el cierre del canvas no son instantáneos
-            print("  ▸ motor reseteado (sin trabajo ni canvas anterior; memoria y estado intactos)")
+            st = probe_client.settle_after_reset()
+            if st["clean"]:
+                print(f"  ▸ motor limpio en {st['waited_s']}s: sin trabajo vivo ni tarjetas "
+                      f"(memoria y estado intactos)")
+            else:
+                # No se para la tanda: un worker que tarda en morir cuesta menos que perder la medida. Pero
+                # se DICE lo que quedó vivo, con su nombre, para que el veredicto se pueda leer sabiéndolo.
+                print(f"  ⚠️ el motor NO quedó limpio tras {st['waited_s']}s — este caso arrastra: "
+                      f"{'trabajo ' + str(st['tasks']) if st['tasks'] else ''}"
+                      f"{' tarjetas ' + str(st['items']) if st['items'] else ''}")
         except Exception as e:
             print(f"  ⚠️ no pude resetear el motor antes del caso: {e} — este caso puede arrastrar "
                   f"trabajo de antes")

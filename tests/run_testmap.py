@@ -1406,6 +1406,12 @@ DOMAINS: list[dict] = [
         # `operator.location` decía «Marc no ha confirmado que viva en Madrid», y esa memoria la comparten
         # todos los casos de la tanda. La frontera que fijan estos casos: recordar no es inventar, pero un
         # dato que el agente NO puede saber sigue siendo off_track.
+        # UN CASO CADA VEZ, y comprobado. El arnés reseteaba entre casos y después esperaba dos segundos fijos
+        # e imprimía «motor reseteado (sin trabajo ni canvas anterior)» pasara lo que pasara — una afirmación
+        # que nadie comprobaba, justo donde el operador la lee para fiarse de que el caso siguiente se mide
+        # solo. El operador lo vio antes que nadie: cuatro hojas de casos distintos apiladas en su pantalla.
+        {"id": "10.73", "title": "El motor queda limpio entre casos y se COMPRUEBA (un caso cada vez)",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_one_case_at_a_time_is_verified.py"]},
         {"id": "10.72", "title": "El conductor y el vigilante saben qué recuerda ya el agente (perfil del plató)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_driver_knows_who_it_is_playing.py"]},
         {"id": "10.71", "title": "Una hoja escrita que nadie abrió se cuenta, se nombra y se atribuye al "
