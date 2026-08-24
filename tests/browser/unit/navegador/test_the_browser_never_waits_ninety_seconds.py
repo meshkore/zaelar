@@ -78,3 +78,26 @@ def test_la_vista_a_medias_se_NOMBRA_y_dice_como_salir():
     nada» sobre un listado lleno. Mismo contrato que el nodo 4.20."""
     src = inspect.getsource(owner.TaskBrowser.snapshot_for_agent)
     assert "seguía cargando" in src and "look" in src
+
+
+def test_el_barrido_de_BANNERS_es_por_navegacion_no_por_mirada():
+    """El peaje fijo que hacía imposible «abrir pestañas y valorar fichas una a una».
+
+    `_dismiss_overlays` espera 2,5 s a que aparezca un CMP conocido y, si no, barre TODOS los frames × TODOS
+    los selectores — y una web con iframes de anuncios tiene muchos frames. Se pagaba ENTERO en cada `look`.
+    Medido contra el plató vivo sobre es.wallapop.com, misma página y sin banner:
+
+        antes:  look 11,17 s · 11,23 s · 11,45 s   (tres miradas seguidas)
+        ahora:  look  0,42 s ·  0,42 s ·  0,41 s   con los MISMOS 60 elementos
+
+    No era el coste de aceptar cookies una vez: era un peaje por acción. Se barre al CAMBIAR de página, que
+    es cuando puede haber banner nuevo; si aparece tarde en la misma URL sale en la captura y el worker
+    puede clicarlo — se pierde un automatismo, no la salida.
+    """
+    src = "\n".join(l for l in inspect.getsource(owner.TaskBrowser.snapshot_for_agent).splitlines()
+                    if not l.strip().startswith("#"))
+    i = src.find("_dismiss_overlays")
+    assert i > 0, "el barrido sigue haciendo falta al cambiar de página"
+    assert "_overlays_url" in src[:i], (
+        "el barrido tiene que ir detrás de una comprobación de URL, no correr en cada mirada")
+    assert "self._overlays_url = " in src[i:], "y hay que recordar para qué página se hizo"

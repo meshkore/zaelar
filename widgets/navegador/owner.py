@@ -1423,7 +1423,18 @@ class TaskBrowser:
 
     async def snapshot_for_agent(self) -> dict:
         page = await self.ensure()
-        await _dismiss_overlays(page)
+        # EL BANNER ES COSA DE LA NAVEGACIÓN, NO DE CADA MIRADA. `_dismiss_overlays` espera 2,5 s a que
+        # aparezca un CMP conocido y, si no, barre TODOS los frames × TODOS los selectores — y una web con
+        # iframes de anuncios tiene muchos frames. Se pagaba entero en cada `look`. Medido contra el plató
+        # vivo sobre es.wallapop.com, misma página y sin banner: 11,17 · 11,23 · 11,45 s, tres miradas
+        # seguidas. No es el coste de aceptar cookies una vez, es un peaje fijo por acción — y con el
+        # operador pidiendo que el worker abra pestañas y valore fichas una a una, ese peaje es el techo.
+        # Se barre al CAMBIAR de página, que es cuando puede haber banner nuevo. Si uno aparece tarde en la
+        # misma URL, sale en la captura y el worker puede clicarlo: se pierde un automatismo, no la salida.
+        _u = getattr(page, "url", "") or ""
+        if _u != getattr(self, "_overlays_url", None):
+            await _dismiss_overlays(page)
+            self._overlays_url = _u
         self.refs = {}
         # V2-248 — DÓNDE se tomó esta mirada. Se guarda para que un `ref` caducado pueda decir por qué caducó: si
         # la página ya no es la misma, el motivo no es que el número esté mal escrito.
