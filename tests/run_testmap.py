@@ -1317,6 +1317,12 @@ DOMAINS: list[dict] = [
         {"id": "10.68", "title": "La persona no puede saber cómo se llama un anuncio: si lo recita, la línea "
                                  "la escribió el asistente",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_person_cannot_know_our_candidates.py"]},
+        # V2-286: `sheet_timing` se medía desde V2-227 y NO LO LEÍA NADIE. Es el número que separa «no entregó
+        # nunca» de «llegó tarde», y el juez llevaba escribiendo la primera sobre casos que eran la segunda —
+        # su propio bloque le advertía de la POSIBILIDAD y nunca le daba el HECHO.
+        {"id": "10.69", "title": "«Llegó tarde» no es «no entregó nunca»: al juez se le da el instante de la "
+                                 "primera fila contra el último turno",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_late_is_not_never.py"]},
     ]},
 ]
 

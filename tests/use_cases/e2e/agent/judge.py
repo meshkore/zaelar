@@ -152,6 +152,24 @@ def mechanism_facts(mech: dict) -> str:
                      f"superficie que el operador mira, y lo que hay ahí ES entrega. Ojo con el MOMENTO: "
                      f"puede haberse llenado DESPUÉS del último turno, y entonces el fallo no es que no se "
                      f"encontrara nada — es que llegó tarde y el turno rellenó el hueco mientras tanto.")
+        # CUÁNDO llegó la primera fila, contra el último turno. Es lo que separa «no entregó nunca» de «llegó
+        # tarde», y el juez llevaba escribiendo la primera sobre casos que eran la segunda porque este número
+        # se medía y no se le daba a nadie.
+        _st = mech.get("sheet_timing") or {}
+        _after = _st.get("after_last_turn_s")
+        if isinstance(_after, (int, float)):
+            if _after > 0:
+                lines.append(
+                    f"· ⏱ LA PRIMERA FILA de esa hoja se escribió {_after:.0f} s DESPUÉS del último turno. Así "
+                    f"que en la conversación NO había nada que entregar: eso NO es ocultación ni éxito falso, "
+                    f"es LATENCIA. Puntúa `resultado` por lo que el operador se llevó (poco) y `eficiencia` "
+                    f"bajo, y di que el defecto es que la búsqueda tarda más que la conversación — no que "
+                    f"zaelar se callara algo que tenía.")
+            else:
+                lines.append(
+                    f"· ⏱ La primera fila de esa hoja estaba escrita {abs(_after):.0f} s ANTES del último "
+                    f"turno, así que SÍ había algo que entregar mientras se hablaba. Si no se entregó, es "
+                    f"fallo de conducta y no de latencia.")
         if not sh.get("n_sites_reported"):
             lines.append("· La pestaña «Fuentes» de la hoja está vacía. Eso NO quiere decir que los "
                          "candidatos no tengan respaldo —el respaldo de cada fila es su enlace, arriba—: "

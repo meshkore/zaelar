@@ -277,6 +277,15 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             mech["progress"] = verifymod.progress_phases(config.SANDBOX_DB, since=started_at)
             mech["surfaces"] = verifymod.declared_surfaces(config.SANDBOX_DB, since=started_at)
             mech["sheet_timing"] = verifymod.sheet_timing(config.SANDBOX_DB, since=started_at)
+            # …Y CONTRA EL ÚLTIMO TURNO, que es lo que separa «no entregó nunca» de «llegó tarde». `sheet_timing`
+            # se medía desde V2-227 y NO LO LEÍA NADIE — ni el juez ni el informe. Medido en la tanda del
+            # 2026-08-24: tres casos entregaron en el turno 9 de 10 porque la hoja se llena a los 130-220 s y la
+            # conversación dura ~120; el juez, sin este dato, escribió «tuvo resultados y no los entregó» en dos
+            # de ellos. La distinción no es de matiz: una manda a arreglar la conducta y la otra la LATENCIA.
+            mech["sheet_timing"]["last_turn_ms"] = (transcript[-1].get("at") or 0) * 1000 if transcript else None
+            _fr, _lt = mech["sheet_timing"].get("first_result_ms"), mech["sheet_timing"].get("last_turn_ms")
+            mech["sheet_timing"]["after_last_turn_s"] = (
+                round((_fr - _lt) / 1000.0, 1) if (_fr and _lt) else None)
         except Exception as e:
             mech["proactive_notes_error"] = str(e)[:200]
         # WHAT THE WORKER ACHIEVED and whether any of it was SAID — the gap this whole case is about.
