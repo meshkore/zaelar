@@ -819,6 +819,11 @@ DOMAINS: list[dict] = [
         # …y el CABLEADO: tally → sheet_harvest → view_data → persistido por end_task. El eslabón que de verdad
         # cubre es el último: cuando el encargo muere no hay registro vivo del que leer, y sin persistir la rejilla
         # se apaga justo cuando el operador va a leer el informe.
+        # La pestaña DICE de qué hoja es. El sello existe desde V2-281 y vivía solo dentro del proceso, así
+        # que desde fuera «nunca se selló» y «se selló y algo lo ignoró» se leían igual — y por ese sello
+        # resuelve `_sheet_has_rows` si el encargo ya tiene filas. Mismo hueco que cerró V2-207 con `wall`.
+        {"id": "4.44", "title": "La pestaña expone su hoja (el sello que lee _sheet_has_rows)",
+            "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_the_tab_says_which_sheet_it_belongs_to.py"]},
         {"id": "4.43", "title": "La cosecha LLEGA a la hoja y sobrevive a que el encargo muera (y la de otra "
                                 "hoja no se cuela)",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_the_harvest_reaches_the_sheet.py"]},
