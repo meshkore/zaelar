@@ -496,41 +496,20 @@
       "measured_in": "worktree fijado en 05dd79f"
     },
     "search-buy-camera__es": {
-      "last_run": "2026-08-24 13:03",
-      "overall": 2,
+      "last_run": "2026-08-24 13:39",
+      "overall": 3,
       "judge": "deepseek-v4-flash",
       "state": "INFRA",
       "scores": {
-        "naturalidad": 3,
-        "adaptacion": 2,
+        "naturalidad": 4,
+        "adaptacion": 4,
         "resultado": 2,
         "mecanismo": 4,
-        "eficiencia": 2
+        "eficiencia": 3
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar no entrega los resultados que ya tiene en la hoja (30 candidatos) ni los que le ofrece el sistema por nota, dejando al usuario sin respuesta útil y desviándose a temas de otros casos.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar no entrega la hoja de resultados en pantalla ni valida el criterio de 'pocos disparos', dejando la entrega incompleta a pesar de tener los datos disponibles.",
       "missing_signals": [],
-      "audit_anomalies": [
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 usage: nav_cli [-h] {snapshot,look,navigate,click,type,select_option,click_at,type_at,scroll,press,extract} ... nav_cli: error: argument cmd: invali"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/task «📄 archivo ⚠️ error»: EISDIR: illegal operation on a directory, read '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/tests/runs/use_cases/lab/es/widgets/_data/navegador"
-        },
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 usage: nav_cli [-h] {snapshot,look,navigate,click,type,select_option,click_at,type_at,scroll,press,extract} ... nav_cli: error: unrecognized argumen"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:3: 3 error(es), último paso «alive»"
-        }
-      ],
+      "audit_anomalies": [],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
@@ -545,7 +524,7 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "be14e26",
+        "sha": "d09c897",
         "n_dirty": 0,
         "dirty": []
       },
@@ -1872,18 +1851,18 @@
       }
     },
     "search-buy-bicycle__es": {
-      "last_run": "2026-08-24 12:51",
+      "last_run": "2026-08-24 13:27",
       "overall": 2,
       "judge": "deepseek-v4-flash",
       "state": "INFRA",
       "scores": {
-        "naturalidad": 3,
-        "adaptacion": 2,
-        "resultado": 2,
-        "mecanismo": 4,
+        "naturalidad": 4,
+        "adaptacion": 4,
+        "resultado": 1,
+        "mecanismo": 3,
         "eficiencia": 2
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar no entrega los resultados reales que el sistema ya tiene (36 candidatos en la hoja, 3 ofrecidos por nota) y en su lugar repite frases genéricas, ignorando lo que el usuario ya sabe y dejándole sin la información que pidió.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real (la hoja de resultados quedó vacía y el worker no extrajo nada), y zaelar no comunicó con claridad la falta de resultados ni ofreció alternativas efectivas.",
       "missing_signals": [],
       "audit_anomalies": [],
       "sandboxed": true,
@@ -1900,7 +1879,7 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "be14e26",
+        "sha": "d09c897",
         "n_dirty": 0,
         "dirty": []
       },
@@ -1914,35 +1893,24 @@
       }
     },
     "search-buy-guitar__es": {
-      "last_run": "2026-08-24 13:11",
-      "overall": 3,
+      "last_run": "2026-08-24 13:42",
+      "overall": 2,
       "judge": "deepseek-v4-flash",
       "state": "INFRA",
       "scores": {
         "naturalidad": 4,
-        "adaptacion": 3,
-        "resultado": 3,
-        "mecanismo": 4,
+        "adaptacion": 4,
+        "resultado": 1,
+        "mecanismo": 2,
         "eficiencia": 2
       },
-      "verdict": "El caso no está listo para producción: el bloqueador nº1 es que zaelar prometió filtrar por Madrid sin respaldo en el mecanismo y no entregó los resultados ya disponibles en la hoja, dejando al usuario esperando sin novedades reales.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es que el worker no extrajo ni un solo candidato (0 resultados con nombre) y zaelar se despidió sin entregar nada ni explicar el fallo, dejando al usuario sin respuesta y con una promesa de aviso que nunca se materializó.",
       "missing_signals": [],
-      "audit_anomalies": [
-        {
-          "clase": "error_interno",
-          "certeza": "hecho",
-          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 2 usage: nav_cli [-h] {snapshot,look,navigate,click,type,select_option,click_at,type_at,scroll,press,extract} ... nav_cli: error: the following argume"
-        },
-        {
-          "clase": "span_con_error",
-          "certeza": "hecho",
-          "que": "worker:4: 1 error(es), último paso «alive»"
-        }
-      ],
+      "audit_anomalies": [],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
-      "turns_used": 10,
+      "turns_used": 8,
       "families": [
         "flash",
         "main",
@@ -1953,7 +1921,7 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "be14e26",
+        "sha": "d09c897",
         "n_dirty": 0,
         "dirty": []
       },
@@ -2028,18 +1996,18 @@
       }
     },
     "search-secondhand-monitor__es": {
-      "last_run": "2026-08-24 12:57",
-      "overall": 4,
+      "last_run": "2026-08-24 13:31",
+      "overall": 2,
       "judge": "deepseek-v4-flash",
       "state": "INFRA",
       "scores": {
         "naturalidad": 4,
         "adaptacion": 4,
-        "resultado": 4,
-        "mecanismo": 5,
-        "eficiencia": 3
+        "resultado": 1,
+        "mecanismo": 3,
+        "eficiencia": 2
       },
-      "verdict": "El caso se completó con éxito: se encontraron 12 monitores de segunda mano de 27 pulgadas por menos de 150€, se entregaron 3 en pantalla con enlaces y la hoja de resultados se llenó correctamente; el bloqueador nº1 es la demora en entregar los resultados cuando ya estaban disponibles, que hizo que el usuario esperara más de lo necesario.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real — la hoja de resultados quedó vacía y zaelar se limitó a informar de que 'no hay novedades' durante toda la sesión sin diagnosticar el atasco ni ofrecer un plan B, y además prometió un aviso que no programó en ningún sitio.",
       "missing_signals": [],
       "audit_anomalies": [],
       "sandboxed": true,
@@ -2056,7 +2024,7 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "be14e26",
+        "sha": "d09c897",
         "n_dirty": 0,
         "dirty": []
       },
@@ -2178,5 +2146,5 @@
       }
     }
   },
-  "updated": "2026-08-24 13:11"
+  "updated": "2026-08-24 13:42"
 }

@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-24 13:11**
+Last updated: **2026-08-24 13:42**
 
 `✅ PASS` = judge overall ≥ 4 **and** mechanism ≥ 3 (a measured mechanism defect never shows green, however good the average) · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -37,12 +37,12 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | ❌ | `hotel-under-15-days` | 2 | 3 | 2026-08-21 13:59 | yes | El caso se resolvió parcialmente: hay dos hoteles reales de 4 estrellas con precio y enlace en la hoja, pero la entrega se ensucia con una experiencia duplic… |
 | ❌ | `kid-friendly-activity-nearby__es` | 2 | 2 | 2026-08-21 14:57 | yes | No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real (la hoja quedó vacía) y zaelar narró un éxito falso prometiendo u… |
 | ❌ | `rental-car-automatic-airport__es` | 2 | 2 | 2026-08-21 15:19 | yes | No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real —la hoja quedó vacía y la tarea que se ejecutó (fontanero en Madr… |
-| ⚠️ | `search-buy-bicycle__es` | 2 | 2 | 2026-08-24 12:51 | yes | No está listo para producción: el bloqueador nº1 es que zaelar no entrega los resultados reales que el sistema ya tiene (36 candidatos en la hoja, 3 ofrecido… |
-| ⚠️ | `search-buy-camera__es` | 2 | 2 | 2026-08-24 13:03 | yes | No está listo para producción: el bloqueador nº1 es que zaelar no entrega los resultados que ya tiene en la hoja (30 candidatos) ni los que le ofrece el sist… |
-| ⚠️ | `search-buy-guitar__es` | 2 | 3 | 2026-08-24 13:11 | yes | El caso no está listo para producción: el bloqueador nº1 es que zaelar prometió filtrar por Madrid sin respaldo en el mecanismo y no entregó los resultados y… |
+| ⚠️ | `search-buy-bicycle__es` | 2 | 2 | 2026-08-24 13:27 | yes | No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real (la hoja de resultados quedó vacía y el worker no extrajo nada), … |
+| ⚠️ | `search-buy-camera__es` | 2 | 3 | 2026-08-24 13:39 | yes | No está listo para producción: el bloqueador nº1 es que zaelar no entrega la hoja de resultados en pantalla ni valida el criterio de 'pocos disparos', dejand… |
+| ⚠️ | `search-buy-guitar__es` | 2 | 2 | 2026-08-24 13:42 | yes | No está listo para producción: el bloqueador nº1 es que el worker no extrajo ni un solo candidato (0 resultados con nombre) y zaelar se despidió sin entregar… |
 | ❌ | `search-buy-motorcycle__es` | 2 | 2 | 2026-08-21 15:42 | yes | No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real (la hoja quedó vacía) y zaelar narró normalidad sobre una tarea c… |
 | ❌ | `search-buy-used-car` | 2 | 2 | 2026-08-20 21:38 | yes | No está listo para producción: el bloqueador nº1 es que zaelar encontró 6 anuncios reales y no entregó ninguno, dejando al usuario sin resultado pese a tener… |
-| ⚠️ | `search-secondhand-monitor__es` | 2 | 4 | 2026-08-24 12:57 | yes | El caso se completó con éxito: se encontraron 12 monitores de segunda mano de 27 pulgadas por menos de 150€, se entregaron 3 en pantalla con enlaces y la hoj… |
+| ⚠️ | `search-secondhand-monitor__es` | 2 | 2 | 2026-08-24 13:31 | yes | No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real — la hoja de resultados quedó vacía y zaelar se limitó a informar… |
 | ⚠️ | `things-to-do-nearby-weekend__es` | 2 | — | 2026-08-21 16:19 | yes | INFRA: <urlopen error [Errno 8] nodename nor servname provided, or not known> |
 | ❌ | `weekend-barber-availability__es` | 2 | 2 | 2026-08-20 22:15 | yes | No está listo para producción: el bloqueador nº1 es que zaelar inventó la ubicación del usuario ('centro de Madrid') en lugar de preguntarla, y encima el wor… |
 | ❌ | `weekend-adventure-sports-bilbao__es` | 3 | 1 | 2026-08-20 18:13 | yes | No está listo para producción: ignoró la memoria sembrada al proponer actividades con altura a una persona con vértigo, confundió la fecha del fin de semana … |
