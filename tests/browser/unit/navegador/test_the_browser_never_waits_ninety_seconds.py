@@ -98,9 +98,11 @@ def test_el_barrido_de_BANNERS_es_por_navegacion_no_por_mirada():
                     if not l.strip().startswith("#"))
     i = src.find("_dismiss_overlays")
     assert i > 0, "el barrido sigue haciendo falta al cambiar de página"
-    assert "_overlays_url" in src[:i], (
-        "el barrido tiene que ir detrás de una comprobación de URL, no correr en cada mirada")
-    assert "self._overlays_url = " in src[i:], "y hay que recordar para qué página se hizo"
+    # La comprobación pasó de URL a DOMINIO al medir que un `type --submit` cambia la URL y volvía a barrer
+    # entero; la intención de este caso —que no se barra en cada mirada— es la misma.
+    assert "_overlays_host" in src[:i], (
+        "el barrido tiene que ir detrás de una comprobación, no correr en cada mirada")
+    assert "self._overlays_host = " in src[i:], "y hay que recordar para qué sitio se hizo"
 
 
 def test_el_barrido_NO_se_paga_DOS_VECES_por_navegacion():
@@ -117,5 +119,43 @@ def test_el_barrido_NO_se_paga_DOS_VECES_por_navegacion():
                     if not l.strip().startswith("#"))
     i = src.find("_dismiss_overlays")
     assert i > 0, "una navegación sí tiene que barrer: es cuando puede haber banner nuevo"
-    assert "self._overlays_url" in src[i:], (
-        "hay que apuntar para qué página se barrió, o la mirada siguiente lo repite entero")
+    assert "self._overlays_host" in src[i:], (
+        "hay que apuntar para qué sitio se barrió, o la mirada siguiente lo repite entero")
+
+
+def test_el_consentimiento_es_por_DOMINIO_no_por_URL():
+    """Un `type --submit` en un buscador CAMBIA la URL, y con la guarda por URL la mirada de detrás volvía a
+    barrer entero. Medido en la tanda de las 19:39 sobre `search-buy-guitar__es`: el `type` funcionó —a las
+    19:39:07 la captura ya era de `/search?keywords=guitarra+acustica`— y el puente reportó timeout a los
+    25 s igualmente, tres veces seguidas. Un CMP es por dominio: aceptado en wallapop.com, no reaparece al
+    moverse dentro de él.
+
+        type --submit   25 s (timeout) → 3,84 s
+        navigate                       → 4,85 s
+        snapshot                       → 0,38 s
+    """
+    src = "\n".join(l for l in inspect.getsource(owner.TaskBrowser.snapshot_for_agent).splitlines()
+                    if not l.strip().startswith("#"))
+    assert "_host_of" in src, "por URL vuelve a barrer en cada página del mismo sitio"
+    assert "_overlays_host" in src
+    assert owner._host_of("https://es.wallapop.com/search?keywords=x") == "es.wallapop.com"
+    assert owner._host_of("https://es.wallapop.com/") == owner._host_of("https://es.wallapop.com/app/search?k=1")
+
+
+def test_OTRO_dominio_si_vuelve_a_barrer():
+    """Sensibilidad por el lado contrario: recordar el dominio no puede convertirse en no barrer nunca — el
+    worker cambia de sitio constantemente y cada uno trae su propio banner."""
+    assert owner._host_of("https://www.milanuncios.com/x") != owner._host_of("https://es.wallapop.com/x")
+
+
+def test_el_barrido_hace_UNA_consulta_por_frame_no_una_por_selector():
+    """Eran N frames × M selectores de ida y vuelta, y una página de resultados con iframes de anuncios tiene
+    muchos frames: el barrido entero costaba ~15-20 s. Los selectores se combinan, igual que ya hacía el paso
+    de arriba de la misma función."""
+    src = "\n".join(l for l in inspect.getsource(owner._dismiss_overlays).splitlines()
+                    if not l.strip().startswith("#"))
+    i = src.find("for fr in page.frames")
+    assert i > 0
+    tramo = src[i:]
+    assert "for sel in" not in tramo, "un bucle por selector dentro del bucle de frames es el coste que se quitó"
+    assert "_combined" in tramo

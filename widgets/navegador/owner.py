@@ -144,6 +144,22 @@ _CMP_ACCEPT = (".cmpboxbtnyes", "#onetrust-accept-btn-handler", "#didomi-notice-
                ".didomi-components-button--accept")
 
 
+def _host_of(url: str) -> str:
+    """El DOMINIO de una URL — la granularidad a la que existe el consentimiento de cookies.
+
+    Se guardaba por URL, y un `type --submit` en un buscador CAMBIA la URL: la mirada de detrás volvía a
+    barrer entero. Medido en la tanda de las 19:39, sobre `search-buy-guitar__es`: el `type` funcionó (a las
+    19:39:07 la captura ya era de `/search?keywords=guitarra+acustica`) y el puente reportó timeout a los
+    25 s igualmente, tres veces seguidas. Un CMP es por dominio: aceptado en wallapop.com, no reaparece al
+    moverse dentro de él.
+    """
+    try:
+        from urllib.parse import urlparse
+        return (urlparse(url).netloc or "").lower()
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 async def _dismiss_overlays(page) -> None:
     """Accept the cookie/consent banner that COVERS the website. CMPs inject the banner through JS after load → we
     wait for the accept button to appear (bounded) and click it; otherwise, do a quick text sweep across all frames.
@@ -165,17 +181,22 @@ async def _dismiss_overlays(page) -> None:
     except Exception:
         pass
     # 2) Text/generic-selector fallback, in ALL frames (some CMPs live in an iframe), without waits.
+    #
+    # UNA consulta por frame, no una POR SELECTOR. Eran N frames × M selectores de ida y vuelta, y una página
+    # de resultados con iframes de anuncios tiene muchos frames: medido, el barrido entero costaba ~15-20 s
+    # en la búsqueda de Wallapop. Los selectores se combinan en uno solo —que es lo que ya hace el paso (1)
+    # justo encima— así que el navegador resuelve la lista de una vez.
+    _combined = ", ".join(_COOKIE_SELECTORS)
     for fr in page.frames:
-        for sel in _COOKIE_SELECTORS:
-            try:
-                btn = await fr.query_selector(sel)
-                if btn and await btn.is_visible():
-                    await btn.click(timeout=2000)
-                    await asyncio.sleep(0.3)
-                    _emit("dismiss_overlay", sel)
-                    return
-            except Exception:
-                continue
+        try:
+            btn = await fr.query_selector(_combined)
+            if btn and await btn.is_visible():
+                await btn.click(timeout=2000)
+                await asyncio.sleep(0.3)
+                _emit("dismiss_overlay", "fallback")
+                return
+        except Exception:
+            continue
 
 
 # ── lifecycle ────────────────────────────────────────────────────────────────────────────────────────────────
@@ -1359,7 +1380,7 @@ class TaskBrowser:
             # otra vez en la mirada que viene detrás, porque la URL acaba de cambiar y esa es justamente la
             # condición que dispara el barrido. Es el mismo peaje que se acaba de quitar de `look`, cobrado
             # por la otra puerta.
-            self._overlays_url = getattr(page, "url", "") or url
+            self._overlays_host = _host_of(getattr(page, "url", "") or url)
             await asyncio.sleep(0.35)
         except Exception as e:
             self._emit("nav_error", _brief(e, 160))
@@ -1436,10 +1457,10 @@ class TaskBrowser:
         # operador pidiendo que el worker abra pestañas y valore fichas una a una, ese peaje es el techo.
         # Se barre al CAMBIAR de página, que es cuando puede haber banner nuevo. Si uno aparece tarde en la
         # misma URL, sale en la captura y el worker puede clicarlo: se pierde un automatismo, no la salida.
-        _u = getattr(page, "url", "") or ""
-        if _u != getattr(self, "_overlays_url", None):
+        _h = _host_of(getattr(page, "url", "") or "")
+        if _h != getattr(self, "_overlays_host", None):
             await _dismiss_overlays(page)
-            self._overlays_url = _u
+            self._overlays_host = _h
         self.refs = {}
         # V2-248 — DÓNDE se tomó esta mirada. Se guarda para que un `ref` caducado pueda decir por qué caducó: si
         # la página ya no es la misma, el motivo no es que el número esté mal escrito.
