@@ -325,11 +325,19 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     # with prices and URLs — and zaelar sensibly replied that the message looked cut off. Grading that as a
     # product defect grades the harness. `driver.reply` retries once; a flip that survives makes this INFRA,
     # because zaelar's reaction to a nonsense turn says nothing about zaelar.
+    # ⚠️ EL AVISO SE ANOTA APARTE Y SE PLIEGA ABAJO, y no es un detalle de estilo: esto escribía en `run_data`
+    # TREINTA Y SIETE LÍNEAS ANTES de que `run_data` existiera, así que la única rama que existe para decir «la
+    # ronda no mide al producto» reventaba con un `UnboundLocalError` — y la ronda salía INFRA con el texto de
+    # una excepción de Python en lugar del motivo. Medido el 2026-08-24 12:35 en `search-buy-camera__es`:
+    # «INFRA: cannot access local variable 'run_data' where it is not associated with a value», 0 turnos, sin
+    # transcript y sin informe de mecanismo. O sea que el camino escrito para reconocer una avería del arnés
+    # era, él mismo, una avería del arnés — y no había corrido nunca.
+    crashed = ""
     if getattr(driver, "role_flips", 0):
         mech["role_flips"] = driver.role_flips
         if driver.role_flips > 1:
-            run_data["crashed"] = (f"el DRIVE se salió de su papel {driver.role_flips} vez/veces y no volvió "
-                                   f"ni tras reintentarlo: la ronda no mide al producto")
+            crashed = (f"el DRIVE se salió de su papel {driver.role_flips} vez/veces y no volvió "
+                       f"ni tras reintentarlo: la ronda no mide al producto")
     # …and a SWEEP of what actually ended up in the transcript, which is not the same question. The counter
     # above only sees flips the live guard caught; a line that slipped every face, or one the retry accepted
     # on the second attempt, reaches the judge with nothing marking it. Measured 2026-08-23 in round 6 of
@@ -366,6 +374,8 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
         mech["agenda_error"] = str(e)
 
     run_data = {"transcript": transcript, "mechanism_report": mech, "watchdog_log": watchdog_log}
+    if crashed:
+        run_data["crashed"] = crashed
     # WHAT THE ENGINE ALREADY REMEMBERS FROM THIS BATCH. A batch shares ONE sandbox and `hard_reset()`
     # deliberately does NOT wipe memory (that needs the process to die — SQLite is in use — and would restart
     # the engine, see its docstring). So from the third case onward the agent legitimately recalls the previous

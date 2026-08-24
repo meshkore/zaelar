@@ -1339,6 +1339,13 @@ DOMAINS: list[dict] = [
         {"id": "10.69", "title": "«Llegó tarde» no es «no entregó nunca»: al juez se le da el instante de la "
                                  "primera fila contra el último turno",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_late_is_not_never.py"]},
+        # V2-291: la ÚNICA rama que existe para decir «esta ronda no mide al producto» escribía en `run_data`
+        # treinta y siete líneas antes de que `run_data` existiera. `search-buy-camera__es` salió con el texto
+        # de un UnboundLocalError por veredicto, 0 turnos y sin evidencia — el camino para reconocer una avería
+        # del arnés era él mismo una avería del arnés, y no había corrido nunca.
+        {"id": "10.70", "title": "El arnés puede reportar su propia avería: el marcador llega a `run_data`, con "
+                                 "su evidencia, y es el que lee el marcador",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_harness_can_report_its_own_breakage.py"]},
     ]},
 ]
 
