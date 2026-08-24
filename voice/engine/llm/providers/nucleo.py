@@ -2776,38 +2776,30 @@ class NucleoLLMStream(llm.LLMStream):
         # DESPUÉS y solo si no había confirmación de widget, para que un único «sí» no resuelva dos cosas.
         # Sin esto el gate era un callejón sin salida: nadie ponía nunca `context["confirmed"]`, así que el sí
         # del operador no tenía a qué volver y la acción quedaba parada para siempre sin decirlo.
+        # …y la TERCERA puerta con la misma llave (V2-202): el navegador parado en un clic irreversible. Aquélla
+        # re-lanza una tarea; ésta desbloquea un clic que está esperando AHORA MISMO dentro del navegador.
+        #
+        # LAS DOS SE DECIDEN JUNTAS, y ahí estaba el defecto (medido 2026-08-24). Eran dos bloques con el MISMO
+        # guarda —`not had_pending_confirm and not worker_acted["v"]`, que mira la puerta de WIDGET—, así que
+        # nada registraba que la de tarea acabase de resolverse: con las dos abiertas, un solo «sí» hablado
+        # autorizaba LAS DOS. El comentario que había aquí decía «solo si el «sí» no ha resuelto ya otra cosa» y
+        # el código no lo hacía; el `probe` sí, o sea que el espejo derivó y la prosa lo tapó. Ahora la
+        # precedencia la decide `nucleo/turn/confirm_gates.py`, una vez y para los dos canales.
         if not had_pending_confirm and not worker_acted["v"]:
-            try:
-                from nucleo import dispatch as _disp_cc
-                if _disp_cc.pending_confirm():
-                    from widgets import confirm as _confirm_mod2
-                    _v = _confirm_mod2.classify_reply(text)
-                    if _v:
-                        _r = _disp_cc.resolve_confirm(_v == "yes")
-                        if _r:
-                            escalate_req["v"] = None      # el sí NO abre una tarea nueva: reanuda la parada
-                            escalate_req["more"] = []
-                            emit("brain", "✅ confirmación de tarea resuelta" if _r.get("ok")
-                                 else "🚫 tarea irreversible descartada por el operador",
-                                 text=_r.get("request", "")[:120], role="system", extra={"cat": "flash"})
-            except Exception:
-                pass
-
-        # …y la TERCERA puerta con la misma llave (V2-202): el navegador parado en un clic irreversible. Aquel
-        # re-lanza una tarea; este desbloquea un clic que está esperando AHORA MISMO dentro del navegador. Mismo
-        # orden y misma razón: solo si el «sí» no ha resuelto ya otra cosa.
-        if not had_pending_confirm and not worker_acted["v"]:
-            try:
-                from widgets.navegador import tasks as _nt_cc
-                _ra = _nt_cc.answer_from_turn(text)
-                if _ra:
-                    escalate_req["v"] = None          # contesta a lo parado; no abre nada nuevo
-                    escalate_req["more"] = []
-                    emit("brain", "✅ clic confirmado por el operador" if _ra["ok"]
+            from nucleo.turn import confirm_gates as _gates
+            _ans = _gates.resolve_all(text)
+            if _ans:
+                escalate_req["v"] = None      # contesta a lo PARADO; ni abre tarea nueva ni pide nada más
+                escalate_req["more"] = []
+                _r = _ans.result if isinstance(_ans.result, dict) else {}
+                if _ans.gate == "task":
+                    emit("brain", "✅ confirmación de tarea resuelta" if _ans.yes
+                         else "🚫 tarea irreversible descartada por el operador",
+                         text=str(_r.get("request", ""))[:120], role="system", extra={"cat": "flash"})
+                else:
+                    emit("brain", "✅ clic confirmado por el operador" if _ans.yes
                          else "🚫 clic descartado por el operador",
-                         text=_ra["task_id"], role="system", extra={"cat": "flash"})
-            except Exception:
-                pass
+                         text=str(_r.get("task_id", "")), role="system", extra={"cat": "flash"})
 
         # RED DETERMINISTA V2-038 (§v3·M): precedencia confirm > ask-activo > stop-worker. Si un worker ESPERABA
         # respuesta y el modelo NO llamó answer_worker → enruta el turno como la respuesta (el estado ya lo marcaba).
