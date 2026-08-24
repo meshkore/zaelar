@@ -3,7 +3,7 @@
 **Generated** by `tests/use_cases/e2e/agent/status.py`; do not edit by hand — it is rewritten by
 every run of `python -m tests.use_cases.e2e.agent.run`. Source of truth: `status.json` next to it.
 
-Last updated: **2026-08-24 11:11**
+Last updated: **2026-08-24 11:23**
 
 `✅ PASS` = judge overall ≥ 4 **and** mechanism ≥ 3 (a measured mechanism defect never shows green, however good the average) · `❌ FAIL` = ran and fell short · `⚠️ INFRA` = harness/network problem,
 says nothing about the use case itself. `sandbox` = ran against an isolated engine (own DB/port), not
@@ -39,7 +39,7 @@ the improvement loop work it can never close. Operator's rule, 2026-08-20.
 | ❌ | `rental-car-automatic-airport__es` | 2 | 2 | 2026-08-21 15:19 | yes | No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real —la hoja quedó vacía y la tarea que se ejecutó (fontanero en Madr… |
 | ⚠️ | `search-buy-bicycle__es` | 2 | 2 | 2026-08-24 10:52 | yes | No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real (la hoja de resultados quedó vacía) y zaelar no fue honesto sobre… |
 | ⚠️ | `search-buy-camera__es` | 2 | 3 | 2026-08-24 11:05 | yes | No está listo para producción: el bloqueador nº1 es que zaelar no entregó los resultados reales que el sistema le ofreció por nota, improvisó una lista disti… |
-| ⚠️ | `search-buy-guitar__es` | 2 | 3 | 2026-08-24 11:11 | yes | No está listo para producción: el bloqueador nº1 es que el agente presentó 6 opciones como reales sin que el mecanismo respalde navegación ni extracción, y p… |
+| ⚠️ | `search-buy-guitar__es` | 2 | 2 | 2026-08-24 11:23 | yes | No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real (0 candidatos en la hoja), y la conversación terminó sin cerrar e… |
 | ❌ | `search-buy-motorcycle__es` | 2 | 2 | 2026-08-21 15:42 | yes | No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real (la hoja quedó vacía) y zaelar narró normalidad sobre una tarea c… |
 | ❌ | `search-buy-used-car` | 2 | 2 | 2026-08-20 21:38 | yes | No está listo para producción: el bloqueador nº1 es que zaelar encontró 6 anuncios reales y no entregó ninguno, dejando al usuario sin resultado pese a tener… |
 | ⚠️ | `search-secondhand-monitor__es` | 2 | 3 | 2026-08-24 10:58 | yes | El caso se resolvió con resultados reales y la hoja se llenó correctamente, pero la entrega fue tardía y no se aprovechó la superficie visible; el bloqueador… |
