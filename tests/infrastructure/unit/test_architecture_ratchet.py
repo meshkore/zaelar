@@ -65,6 +65,14 @@ def _lazy_imports(p: Path) -> int:
 # comentarios para cuadrar un número es exactamente el instinto que esta tabla existe para corregir.
 #   nucleo/workers/session.py   879 → 825   los dos constructores de texto del fallo        → workers/handoff.py
 #
+# ── 2026-08-24, V2-287: 1172 → 1062 ────────────────────────────────────────────────────────────────────────
+# `widgets/results/data.py` se pasó del techo por VEINTE líneas al añadir un hecho al digest del prompt (que la
+# fila lleva su enlace) con su evidencia detrás. Se extrae en vez de subir, y el corte estaba dado: el digest
+# es una función PURA de un dict de hoja —no lee el almacén ni escribe nada—, así que se lleva entero a
+# `widgets/results/digest.py` y `data.py` se queda con `prompt_digest()`, que es el único que necesita saber
+# QUÉ hojas existen y es el nombre que `widgets/refs.py` busca por convención.
+#   widgets/results/data.py    1172 → 1061  el digest del prompt (cabecera + hoja)        → widgets/results/digest.py
+#
 # Los tres eran fronteras que YA estaban dibujadas —el bloque del navegador tenía su `try` propio, la sección
 # de la hoja su banner desde V2-227, y las dos funciones de texto son puras sobre el record— y en dos de los
 # tres había además una capa pidiéndole al vecino lo que no es suyo (`widgets/results/data.py` importando de
@@ -76,7 +84,7 @@ _CEILINGS: dict[str, tuple[int, int]] = {
     "widgets/navegador/owner.py": (1580, 43),
     "nucleo/flash/router_guards.py": (1282, 15),
     "nucleo/flash/probe.py": (1168, 84),
-    "widgets/results/data.py": (1172, 5),
+    "widgets/results/data.py": (1062, 5),
     "memory/api.py": (1076, 19),
     "nucleo/flash/prompt.py": (843, 30),
     "nucleo/workers/session.py": (825, 19),

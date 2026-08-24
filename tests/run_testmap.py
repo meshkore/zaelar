@@ -635,7 +635,11 @@ DOMAINS: list[dict] = [
                                 "+ propuestas compuestas + detalle + refresco en vivo sin voz)",
             "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_results_presentation.py",
                                   "tests/browser/unit/widgets/test_live_updates_independent_of_voice.py",
-                                  "tests/browser/unit/widgets/test_presentation_quality.py"]},
+                                  "tests/browser/unit/widgets/test_presentation_quality.py",
+                                  # 2026-08-24: la hoja llevaba 42 anuncios con su enlace y el digest del prompt
+                                  # cargaba todos los campos del item MENOS ése, así que un «pásame el enlace»
+                                  # se contestaba relanzando la búsqueda.
+                                  "tests/browser/unit/widgets/test_the_link_is_on_the_card.py"]},
         # 2026-08-12: el operador recargó con una búsqueda en marcha y el escritorio se quedó EN BLANCO. La tarjeta
         # del navegador estaba excluida del guardado por nombre —la única, y justo la que se ve durante una tarea
         # web— y el único almacén era el localStorage, que es per-origen y per-navegador. El escritorio ahora se

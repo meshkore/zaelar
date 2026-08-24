@@ -792,87 +792,12 @@ def ref_index(sheet=None) -> list[dict]:
     return out
 
 
-_STATUS_ES = {"ok": "entró", "partial": "entró con límite", "auth": "pedía autenticación",
-              "blocked": "bloqueó el acceso", "error": "dio error", "pending": "pendiente"}
-
-
-_MAX_HEAD_CHARS = 620      # techo del encabezado: los RESULTADOS no pueden quedarse sin sitio (ver _digest_head)
-_MAX_HEAD_LIST = 4         # criterios/fuentes que se enumeran; el resto se cuenta
-_MAX_HEAD_ITEM = 90
-
-
-def _head_list(items, label: str) -> str:
-    """A header list, bounded AND counted. Enumerating 14 hard criteria at 220 chars each is 3 KB in EVERY turn prompt
-    — and would also consume the digest budget, leaving out the actual results. Show the first ones and SAY how many
-    remain (silencing the rest would imply there are no more)."""
-    xs = [str(x)[:_MAX_HEAD_ITEM] for x in (items or [])]
-    if not xs:
-        return ""
-    out = f"  {label}: " + " · ".join(xs[:_MAX_HEAD_LIST])
-    if len(xs) > _MAX_HEAD_LIST:
-        out += f" (+{len(xs) - _MAX_HEAD_LIST})"
-    return out
-
-
-def _digest_head(data: dict) -> str:
-    """The THREE tabs that are not the list, compressed for the prompt. This enables answering "why is nothing coming
-    from that website?" or "what criterion did you discard by?" WITHOUT searching again: the data is already on screen,
-    the brain only needed it in front of it.
-
-    BOUNDED WITH ITS OWN CEILING, not only by the global digest cap: this header goes FIRST, so without its own limit
-    long criteria would push results out of the clipping — the brain would know what is being searched for but not
-    what was found, which is exactly the opposite of useful."""
-    L: list[str] = []
-    tab = data.get("tab") or "results"
-    if tab != "results":
-        L.append(f"[el operador está viendo la pestaña «{tab}»]")
-    s, c = data.get("summary") or {}, data.get("counts") or {}
-    # Only REPORTED data opens the summary line. How many cards are on screen is already visible in the list right
-    # below: announcing it separately bloated EVERY turn prompt while the sheet was open without saying anything new.
-    bits = []
-    if s.get("state"):
-        bits.append(str(s["state"]))
-    if s.get("explored"):
-        bits.append(f"{s['explored']} explorados")
-    if s.get("discarded"):
-        bits.append(f"{s['discarded']} descartados")
-    if bits:
-        if c.get("shown"):
-            bits.append(f"{c['shown']} en pantalla")
-        L.append("SUMARIO: " + " · ".join(bits))
-    if s.get("note"):
-        L.append(f"  {s['note'][:_MAX_HEAD_ITEM * 2]}")
-    # ORDER BY IRREPLACEABILITY, not by abstract importance: first comes what exists NOWHERE else. A source's status
-    # ("Wallapop required login") is only known by this screen; criteria, by contrast, were said aloud and the brain
-    # has them in recent conversation. So if the ceiling forces clipping, criteria are clipped and sources survive —
-    # not the reverse, which was the old order.
-    src = data.get("sources") or []
-    if src:
-        # And within sources, FAILED ones first: they are the ones that change an answer. Yachtworld going well adds
-        # nothing to reasoning.
-        order = sorted(src, key=lambda s0: 0 if s0.get("status") in ("auth", "blocked", "error", "partial") else 1)
-        L.append(f"FUENTES ({len(src)}):")
-        for s0 in order[:6]:
-            bit = f"  · {s0.get('name','')}: {_STATUS_ES.get(s0.get('status'), s0.get('status', ''))}"
-            if s0.get("found"):
-                bit += f", {s0['found']} resultados"
-            if s0.get("detail"):
-                bit += f" — {s0['detail'][:_MAX_HEAD_ITEM]}"
-            L.append(bit)
-        if len(src) > 6:
-            L.append(f"  (+{len(src) - 6} fuentes más)")
-    crit = data.get("criteria") or {}
-    if crit.get("goal"):
-        L.append(f"CRITERIOS · objetivo: {crit['goal'][:140]}")
-    for key, label in (("hard", "duros"), ("changes", "correcciones del operador")):
-        row = _head_list(crit.get(key), label)
-        if row:
-            L.append(row)
-    out = "\n".join(L)
-    if len(out) > _MAX_HEAD_CHARS:
-        tail = "\n  (…el resto, en la tarjeta)"
-        out = out[:_MAX_HEAD_CHARS - len(tail)].rsplit("\n", 1)[0] + tail
-    return out
+# V2-287 — el digest del prompt vive en su propio módulo (`digest.py`): son funciones puras de un dict de
+# hoja, sin store y sin escrituras. Aquí se quedan los dos nombres que SÍ necesitan el almacén —qué hojas
+# existen y qué hay dentro—, y `_digest_head`/`_digest_one` siguen re-exportados porque son el contrato que
+# ya usan los tests de la superficie.
+from . import digest as _digest                                                              # noqa: E402
+from .digest import head as _digest_head, one as _digest_one, _MAX_HEAD_CHARS, _MAX_HEAD_ITEM  # noqa: E402,F401
 
 
 def prompt_digest(sheet=None) -> str:
@@ -894,45 +819,9 @@ def prompt_digest(sheet=None) -> str:
         for sid in todas:
             d = view_data(sid)
             t = str(d.get("title") or "").strip() or "(sin título)"
-            bloques.append(f"── HOJA «{t}» ──\n" + _digest_one(d))
+            bloques.append(f"── HOJA «{t}» ──\n" + _digest.one(d))
         return "\n".join(bloques)
-    return _digest_one(view_data(todas[0]))
-
-
-def _digest_one(data: dict) -> str:
-    """El digest de UNA hoja. Extraído tal cual para que N hojas no signifiquen N copias de estas reglas."""
-    items = data.get("items") or []
-    head = _digest_head(data)
-    if not items:
-        return (head + "\n" if head else "") + "hoja VACÍA — no hay ningún resultado en pantalla todavía"
-    lines = []
-    if head:
-        lines.append(head)
-    if data.get("view") == "detail" and data.get("focus"):
-        lines.append(f"[viendo el DETALLE de «{data['focus']}»]")
-    for n, it in enumerate(items[:12], 1):
-        head = f"#{n} {it.get('title','')}"
-        if it.get("price"):
-            head += f" — {it['price']}"
-        if it.get("badge"):
-            head += f" [{it['badge']}]"
-        lines.append(head)
-        if it.get("subtitle"):
-            lines.append(f"   {it['subtitle']}")
-        for p in (it.get("parts") or []):
-            bit = f"   · {p.get('kind') or 'pieza'}: {p.get('title','')}"
-            if p.get("price"):
-                bit += f" ({p['price']})"
-            lines.append(bit)
-            for f in (p.get("facts") or [])[:6]:
-                lines.append(f"     - {f['label']}: {f['value']}")
-        for f in (it.get("facts") or [])[:8]:
-            lines.append(f"   - {f['label']}: {f['value']}")
-        for ln in (it.get("lines") or [])[:3]:
-            lines.append(f"   {ln}")
-    if len(items) > 12:
-        lines.append(f"(+{len(items) - 12} resultados más en la hoja)")
-    return "\n".join(lines)
+    return _digest.one(view_data(todas[0]))
 
 
 # The tab arrives by VOICE ("show me the sources", "how is it going?"), so the name comes in the operator's language
