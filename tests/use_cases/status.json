@@ -496,7 +496,7 @@
       "measured_in": "worktree fijado en 05dd79f"
     },
     "search-buy-camera__es": {
-      "last_run": "2026-08-24 13:39",
+      "last_run": "2026-08-24 14:05",
       "overall": 3,
       "judge": "deepseek-v4-flash",
       "state": "INFRA",
@@ -505,9 +505,9 @@
         "adaptacion": 4,
         "resultado": 2,
         "mecanismo": 4,
-        "eficiencia": 3
+        "eficiencia": 2
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar no entrega la hoja de resultados en pantalla ni valida el criterio de 'pocos disparos', dejando la entrega incompleta a pesar de tener los datos disponibles.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es que la búsqueda tarda más que la conversación y el operador se fue sin recibir ningún resultado, aunque el mecanismo funcionó y la hoja se llenó correctamente 10 segundos tarde.",
       "missing_signals": [],
       "audit_anomalies": [],
       "sandboxed": true,
@@ -524,7 +524,7 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "d09c897",
+        "sha": "f5115b2",
         "n_dirty": 0,
         "dirty": []
       },
@@ -1851,7 +1851,7 @@
       }
     },
     "search-buy-bicycle__es": {
-      "last_run": "2026-08-24 13:27",
+      "last_run": "2026-08-24 13:53",
       "overall": 2,
       "judge": "deepseek-v4-flash",
       "state": "INFRA",
@@ -1859,10 +1859,10 @@
         "naturalidad": 4,
         "adaptacion": 4,
         "resultado": 1,
-        "mecanismo": 3,
+        "mecanismo": 2,
         "eficiencia": 2
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real (la hoja de resultados quedó vacía y el worker no extrajo nada), y zaelar no comunicó con claridad la falta de resultados ni ofreció alternativas efectivas.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real — la hoja de resultados quedó vacía y el agente mantuvo al usuario esperando con promesas sin respaldo, en lugar de ser honesto sobre la falta de progreso y ofrecer alternativas.",
       "missing_signals": [],
       "audit_anomalies": [],
       "sandboxed": true,
@@ -1879,7 +1879,7 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "d09c897",
+        "sha": "f5115b2",
         "n_dirty": 0,
         "dirty": []
       },
@@ -1893,24 +1893,24 @@
       }
     },
     "search-buy-guitar__es": {
-      "last_run": "2026-08-24 13:42",
+      "last_run": "2026-08-24 14:10",
       "overall": 2,
       "judge": "deepseek-v4-flash",
       "state": "INFRA",
       "scores": {
-        "naturalidad": 4,
-        "adaptacion": 4,
+        "naturalidad": 3,
+        "adaptacion": 2,
         "resultado": 1,
-        "mecanismo": 2,
-        "eficiencia": 2
+        "mecanismo": 3,
+        "eficiencia": 1
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que el worker no extrajo ni un solo candidato (0 resultados con nombre) y zaelar se despidió sin entregar nada ni explicar el fallo, dejando al usuario sin respuesta y con una promesa de aviso que nunca se materializó.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es que la búsqueda nunca entregó ningún resultado real y el agente no supo gestionar el atasco del worker, dejando al usuario sin respuesta tras más de 4 minutos de espera.",
       "missing_signals": [],
       "audit_anomalies": [],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
-      "turns_used": 8,
+      "turns_used": 10,
       "families": [
         "flash",
         "main",
@@ -1921,7 +1921,7 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "d09c897",
+        "sha": "f5115b2",
         "n_dirty": 0,
         "dirty": []
       },
@@ -1996,18 +1996,18 @@
       }
     },
     "search-secondhand-monitor__es": {
-      "last_run": "2026-08-24 13:31",
-      "overall": 2,
+      "last_run": "2026-08-24 13:59",
+      "overall": 3,
       "judge": "deepseek-v4-flash",
       "state": "INFRA",
       "scores": {
         "naturalidad": 4,
         "adaptacion": 4,
-        "resultado": 1,
-        "mecanismo": 3,
-        "eficiencia": 2
+        "resultado": 3,
+        "mecanismo": 4,
+        "eficiencia": 3
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real — la hoja de resultados quedó vacía y zaelar se limitó a informar de que 'no hay novedades' durante toda la sesión sin diagnosticar el atasco ni ofrecer un plan B, y además prometió un aviso que no programó en ningún sitio.",
+      "verdict": "El caso no está listo para producción: el sistema encontró resultados reales pero zaelar no los entregó a tiempo ni con la claridad necesaria, dejando al usuario sin la comparativa que ya estaba disponible en la hoja de resultados.",
       "missing_signals": [],
       "audit_anomalies": [],
       "sandboxed": true,
@@ -2024,7 +2024,7 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "d09c897",
+        "sha": "f5115b2",
         "n_dirty": 0,
         "dirty": []
       },
@@ -2146,5 +2146,5 @@
       }
     }
   },
-  "updated": "2026-08-24 13:42"
+  "updated": "2026-08-24 14:10"
 }
