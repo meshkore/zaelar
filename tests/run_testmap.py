@@ -793,6 +793,21 @@ DOMAINS: list[dict] = [
                                 "fases del registro vivo y al acabar conserva la historia",
             "ch": UNIT,
             "paths": ["tests/browser/unit/widgets/test_sheet_is_the_live_process_surface.py"]},
+        # V2-296 (encargo del operador, 2026-08-24). La pestaña contaba QUÉ hacía y no CUÁNTO llevaba hecho. Dos
+        # nodos porque son dos averías distintas: la rejilla puede pintar perfecto cifras que nadie produce, y la
+        # cadena puede producirlas y no llegar a pantalla. El de PANTALLA fija sobre todo cuándo CALLARSE —`{}`
+        # no es cero— y que el embudo se lea como una resta: eso salió de RENDERIZARLO, porque la geometría estaba
+        # bien a los cinco anchos y la captura seguía leyéndose mal (siete cajas iguales convierten una resta en
+        # cinco cifras sueltas, y a 360 px «22 candidatos» cae al lado de «5 sin precio» como si fuera su par).
+        {"id": "4.30", "title": "La cosecha en pantalla: «no lo sabemos» no es cero, un pilar en cero SÍ se "
+                                "pinta, un descarte en cero no, y el embudo se lee como una resta",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_harvest_grid.py"]},
+        # …y el CABLEADO: tally → sheet_harvest → view_data → persistido por end_task. El eslabón que de verdad
+        # cubre es el último: cuando el encargo muere no hay registro vivo del que leer, y sin persistir la rejilla
+        # se apaga justo cuando el operador va a leer el informe.
+        {"id": "4.43", "title": "La cosecha LLEGA a la hoja y sobrevive a que el encargo muera (y la de otra "
+                                "hoja no se cuela)",
+            "ch": UNIT, "paths": ["tests/browser/unit/widgets/test_the_harvest_reaches_the_sheet.py"]},
         # Del arnés (`arnes-use-cases`), no se toca desde el motor: es la especificación EJECUTABLE de lo que ve
         # una persona esperando. RENDERIZA a propósito — un test de fuente puede dar por buena una pestaña que no
         # pinta nada o un loader que está en el DOM y no anima (la lección del orbe del móvil, nodo 4.19).

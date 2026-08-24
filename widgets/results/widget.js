@@ -321,6 +321,8 @@ function injectStyles(){
     color:var(--hb-ink,#0d1622)}
   .hb-results .hr-stat span{display:block;margin-top:var(--s1);line-height:1.35;letter-spacing:.04em}
   .hb-results .hr-stat.dim b{color:var(--hb-muted-2,#9aa7b8)}
+  .hb-results .hr-stat.cut{background:color-mix(in srgb,var(--hb-line,#e3e8f0) 22%,transparent)}
+  .hb-results .hr-stat.cut b{color:var(--hb-muted,#6b7a90);font-weight:600}
   .hb-results .hr-stat.warn{border-color:color-mix(in srgb,var(--hb-warn,#c98a00) 34%,var(--hb-line,#e3e8f0))}
   .hb-results .hr-stat.warn b{color:var(--hb-warn-ink,#9a5b1b)}
   /* Logbook: a timeline with the CURRENT milestone marked — reading "where it is" should not require counting. */
@@ -930,12 +932,19 @@ function paintCriteria(panel, data){
 // porque «0 fichas leídas» es información y es justo lo que distingue una página que no dio nada de una que nadie
 // leyó — la misma razón por la que `progress.found(0)` no se calla. Los descartes solo aparecen cuando los hay:
 // una fila «0 repetidas» ocupa el mismo sitio que una que dice algo.
+// `sub` = this one SUBTRACTS. Found by RENDERING it (2026-08-24), which is the only way it was going to show
+// up: every geometry check passed — nothing clipped, nothing overflowing, clean reflow 6→3→2 columns — and the
+// screenshot still read wrong. Seven identical boxes turn one subtraction into five independent-looking stats:
+// «40 fichas · 9 repetidas · 4 sin nombre · 5 sin precio · 22 candidatos» gives no hint that the last number is
+// what the others left behind. The ORDER was carrying that meaning, and the order does not survive the reflow —
+// at 360px the grid wraps to two columns and «22 candidatos» lands beside «5 sin precio» looking like its peer.
+// A leading minus restores the arithmetic in one character, whatever the grid does with the boxes.
 const TALLY = [
   {k:"pages",    label:"páginas miradas", always:true},
   {k:"rows",     label:"fichas leídas",   always:true},
-  {k:"repeated", label:"repetidas"},
-  {k:"unnamed",  label:"sin nombre"},
-  {k:"hollow",   label:"sin precio ni tel."},
+  {k:"repeated", label:"repetidas",       sub:true},
+  {k:"unnamed",  label:"sin nombre",      sub:true},
+  {k:"hollow",   label:"sin precio ni tel.", sub:true},
   {k:"kept",     label:"candidatos",      always:true},
   {k:"offered",  label:"en la conversación"},
 ];
@@ -944,11 +953,12 @@ function paintHarvest(panel, harvest){
   // `{}` es «no lo sabemos» y no se pinta nada: una rejilla de ceros afirmaría que se miró y no había.
   if(!harvest || !Object.keys(harvest).length) return;
   const grid = elem("div","hr-stats");
-  TALLY.forEach(({k, label, always})=>{
+  TALLY.forEach(({k, label, always, sub})=>{
     const n = Number(harvest[k] || 0);
     if(!n && !always) return;
-    const box = elem("div","hr-stat" + (!n ? " dim" : ""));
-    box.appendChild(elem("b","", String(n)));
+    const box = elem("div","hr-stat" + (!n ? " dim" : "") + (sub ? " cut" : ""));
+    // U+2212 MINUS SIGN, not a hyphen: it aligns with the digits and reads as arithmetic, not as a dash.
+    box.appendChild(elem("b","", (sub ? "\u2212" : "") + String(n)));
     box.appendChild(elem("span","", label));
     grid.appendChild(box);
   });
