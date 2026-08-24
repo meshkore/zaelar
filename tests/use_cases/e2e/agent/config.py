@@ -33,6 +33,12 @@ SANDBOX_DB = ""
 # itself by name, so a tester line that does was written by the assistant. Empty outside the lab.
 PERSONA_NAME = ""
 
+# What the AGENT already knows about this person (`LabProfile.persona_ground()`), set by the same call.
+# The DRIVE model needs it for the opposite reason to `PERSONA_NAME`: without it, an agent RESOLVING the
+# errand from its seeded memory looks like an agent inventing facts, and the driver argues with it. Empty
+# outside the lab, and then the driver simply says nothing about who the person is — same as before.
+PERSONA_PROFILE = ""
+
 _CODE_STAMP: dict | None = None
 
 

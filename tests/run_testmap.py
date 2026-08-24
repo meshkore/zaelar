@@ -1398,6 +1398,16 @@ DOMAINS: list[dict] = [
         # V2-292: una caja ESCRITA y nunca abierta no la ve el operador, y este informe tampoco la veía —
         # contaba solo los `show`. `search-buy-guitar__es` acabó con tres cajas (19+45+12 filas) y una sola
         # abierta: el informe dijo «18 candidatos» sobre 76 que existían.
+        # El conductor y el vigilante tienen que saber lo que el AGENTE ya sabe de la persona. Medido en la
+        # ronda 12 de `search-buy-guitar__es`: el plató siembra «Marc, vive en Madrid» —cuya razón de ser,
+        # escrita en `lab/profiles.py`, es que un encargo resuelva al país correcto SIN que nadie diga la
+        # ciudad— y ni el conductor ni el vigilante lo sabían, así que castigaron al agente por usarlo. Cinco
+        # de diez turnos en una discusión fabricada, y el agente acabó ESCRIBIENDO la corrección en memoria:
+        # `operator.location` decía «Marc no ha confirmado que viva en Madrid», y esa memoria la comparten
+        # todos los casos de la tanda. La frontera que fijan estos casos: recordar no es inventar, pero un
+        # dato que el agente NO puede saber sigue siendo off_track.
+        {"id": "10.72", "title": "El conductor y el vigilante saben qué recuerda ya el agente (perfil del plató)",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_driver_knows_who_it_is_playing.py"]},
         {"id": "10.71", "title": "Una hoja escrita que nadie abrió se cuenta, se nombra y se atribuye al "
                                  "mecanismo (no a las respuestas)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_written_sheet_nobody_opened.py"]},

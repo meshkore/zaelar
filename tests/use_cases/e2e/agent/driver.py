@@ -274,17 +274,24 @@ class Driver:
         # vocative flip — see `_vocative_re`. Empty against a sandbox with no seeded identity, and then face 5
         # is simply off rather than guessing a name.
         self.persona_name = (persona_name or "").strip()
+        # QUIÉN ES esta persona, y por tanto qué puede el agente dar por sabido sin preguntar. Va ANTES del
+        # encargo a propósito: el conductor lee de arriba abajo, y la instrucción general de «corrige lo que
+        # entienda mal» está más abajo — sin este bloque delante, el conductor la aplica a un dato que el
+        # agente recordó y monta una discusión que no existe. Ver `LabProfile.persona_ground()` para la ronda
+        # que lo midió. Vacío fuera del plató: entonces no se dice nada de quién es y todo queda como estaba.
+        ground = (config.PERSONA_PROFILE or "").strip()
+        _ground = f"{ground}\n\n" if ground else ""
         locale = getattr(scenario, "locale", "es") or "es"
         if locale == "us":
             sys = (
-                f"{_ANCHOR_EN}\n\n{_today_note(locale)}\n\n## What you want\n{scenario.persona_brief}\n\n"
+                f"{_ANCHOR_EN}\n\n{_today_note(locale)}\n\n{_ground}## What you want\n{scenario.persona_brief}\n\n"
                 "## When to stop\nOnce your request is CLEARLY resolved (or clearly failed after a few "
                 "reasonable attempts), sign off short and natural — end your message with 'thanks' or say "
                 "'that's all' — and never keep pushing on something already settled."
             )
         else:
             sys = (
-                f"{_ANCHOR}\n\n{_today_note(locale)}\n\n## Lo que quieres conseguir\n{scenario.persona_brief}\n\n"
+                f"{_ANCHOR}\n\n{_today_note(locale)}\n\n{_ground}## Lo que quieres conseguir\n{scenario.persona_brief}\n\n"
                 "## Cuándo terminar\nCuando tu petición esté CLARAMENTE resuelta (o claramente fallada tras "
                 "varios intentos razonables), despídete corto y natural incluyendo la palabra 'gracias' o "
                 "'perfecto' seguida de un cierre — nunca sigas insistiendo sobre algo ya resuelto."

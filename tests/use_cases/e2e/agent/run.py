@@ -1313,6 +1313,7 @@ def _lab_batch(chosen: list, args: argparse.Namespace, *, verify_tasks: dict | N
     config.SANDBOX_DB = str(labs.workspace_of(prof) / "memory" / "_data" / "sandbox.db")
     # The persona's own name, so the DRIVE model can be caught addressing itself by it (driver face 5).
     config.PERSONA_NAME = str((prof.state or {}).get("operator_name") or "")
+    config.PERSONA_PROFILE = prof.persona_ground()
     print(f"▶ midiendo contra el agente de plató «{prof.key}» — {prof.title}")
     print(f"  ▸ MÍRALO EN VIVO: {st.base_url}")
     print(f"  ▸ cadena sembrada: {st.chain or '(desconocida)'}")
