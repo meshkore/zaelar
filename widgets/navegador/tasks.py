@@ -540,6 +540,40 @@ def add_event(task_id: str, text: str) -> None:
     _notify(task_id)
 
 
+#: The COSECHA of a browser task, key by key. Cumulative and monotonic — a page already counted never
+#: un-counts itself, which is what lets the operator read the tab as a running total instead of a snapshot.
+TALLY_KEYS = ("pages", "rows", "repeated", "unnamed", "hollow", "kept", "offered")
+
+
+def tally(task_id: str, **deltas) -> None:
+    """Add to this task's harvest counters: how much was looked at, and what survived each cut.
+
+    The narrative already answered «what is it doing» («entrando en es.wallapop.com…»); this answers «how much
+    of it is there», which the operator asked for by name and which nothing on screen could say. Every number
+    here is one the pipeline ALREADY computes and used to spend on a sentence and throw away — `dedupe_by_url`
+    knows how many repeats it collapsed, `by_identity` how many rows had no name, `by_amount` how many had no
+    amount, and `_hand_over` how many of them fit in the note. Counting them is not new work, it is keeping the
+    arithmetic that was being done anyway.
+
+    Written from ONE place on purpose (`act_api._hand_over`), where all of those halves are in scope at once.
+    Spreading the increments over the pipeline would make double counting a matter of luck: `_hand_over` is
+    already guarded against re-extracting the same page (`_HANDED`), so the same page cannot inflate the total
+    by being read twice.
+
+    Unknown keys are dropped rather than stored: a typo must not quietly invent a counter that no surface reads
+    and no test covers.
+    """
+    with _lock:
+        t = _tasks.get(str(task_id))
+        if not t:
+            return
+        cur = t.setdefault("tally", {k: 0 for k in TALLY_KEYS})
+        for k, v in deltas.items():
+            if k in TALLY_KEYS:
+                cur[k] = int(cur.get(k, 0)) + max(0, int(v or 0))
+    _notify(task_id)
+
+
 def set_phase(task_id: str, phase: str, active: bool = True) -> None:
     """Process PHASE (what the operator wants to see, not every click): 'searching...', 'collecting results',
     'investigating the best', 'ready'. `active`=True → spinner in the card. Refreshes the card."""

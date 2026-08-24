@@ -159,6 +159,44 @@ def sheet_progress(sheet: str = "", sessions=(), live_states=()) -> dict:
     return {"alive": True, "phases": [s for _, s in seq][-PHASES_KEPT:]}
 
 
+def sheet_harvest(sheet: str = "", sessions=(), live_states=()) -> dict:
+    """La COSECHA de esta hoja: cuánto se ha mirado y qué ha sobrevivido a cada corte (V2-296).
+
+    Hermana de `sheet_progress` y con el mismo reparto: aquélla cuenta QUÉ está haciendo, ésta CUÁNTO lleva
+    hecho. Se mantienen separadas porque una es un relato y la otra aritmética, y porque el relato se recorta a
+    las últimas `PHASES_KEPT` líneas mientras que los totales no pueden recortarse sin mentir.
+
+    DERIVADA en cada lectura, igual que las fases: la dueña de los números es la pestaña del navegador
+    (`widgets.navegador.tasks`), y la hoja los LEE. Guardar aquí una copia sería el defecto que `_progress` ya
+    documenta —el mismo estado en dos sitios, y el que se queda en pantalla siempre es el rancio—.
+
+    Se SUMA sobre los encargos de la hoja porque un encargo puede abrir más de una pestaña (buscar en dos
+    sitios): dos páginas miradas son dos, vengan de donde vengan. Sin encargo vivo devuelve `{}`, que es lo que
+    deja a la hoja caer a lo que guardó al cerrarse en vez de pintar ceros — un cero dice «se miró y no había»,
+    y eso no es lo mismo que «ya no lo sabemos».
+    """
+    rows = sheet_sessions(sessions, live_states)
+    want = str(sheet or "").strip()
+    if want:
+        rows = [r for r in rows if sheet_of(r) == want]
+    if not rows:
+        return {}
+    try:
+        from widgets.navegador import tasks as _nav
+    except Exception:  # noqa: BLE001
+        return {}
+    total, seen = {}, set()
+    for r in rows:
+        tid = str(getattr(r, "nav_task", "") or "").strip()
+        if not tid or tid in seen:
+            continue
+        seen.add(tid)
+        for k, v in ((_nav.get(tid) or {}).get("tally") or {}).items():
+            if k in _nav.TALLY_KEYS:
+                total[k] = int(total.get(k, 0)) + int(v or 0)
+    return total if any(total.values()) else {}
+
+
 def _sheet_open(rec) -> None:
     """ABRIR la hoja al ENCARGAR, que es el gesto entero del ámbito C: sin esto el operador no ve nada hasta que
     hay respuesta, y el contrato de pantalla se queda cumplido en un test y ausente en el producto.

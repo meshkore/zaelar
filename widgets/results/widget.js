@@ -921,12 +921,47 @@ function paintCriteria(panel, data){
 // segundo plano y sobrevive a un render que la desconecte, y las dos cosas dejan un loader que está en el DOM y
 // miente. Es la lección del orbe del móvil (18/08): 741 frames dentro de un canvas desconectado, cero píxeles, y
 // un test verde que solo contaba que el elemento existiera.
+// LA COSECHA en números (V2-296). El relato de abajo cuenta QUÉ está haciendo; esto, CUÁNTO lleva hecho — y era
+// lo único que la pestaña no podía decir. Todas estas cifras las calcula ya el navegador en cada extracción
+// (`widgets/navegador/act_api._hand_over`) y se gastaban en una frase.
+//
+// Es un EMBUDO y se lee en ese orden: cuánto se ha mirado → qué se recogió → qué se cayó en cada corte → qué queda
+// → qué llegó a la conversación. Los tres pilares (páginas, fichas, candidatos) se pintan SIEMPRE, cero incluido,
+// porque «0 fichas leídas» es información y es justo lo que distingue una página que no dio nada de una que nadie
+// leyó — la misma razón por la que `progress.found(0)` no se calla. Los descartes solo aparecen cuando los hay:
+// una fila «0 repetidas» ocupa el mismo sitio que una que dice algo.
+const TALLY = [
+  {k:"pages",    label:"páginas miradas", always:true},
+  {k:"rows",     label:"fichas leídas",   always:true},
+  {k:"repeated", label:"repetidas"},
+  {k:"unnamed",  label:"sin nombre"},
+  {k:"hollow",   label:"sin precio ni tel."},
+  {k:"kept",     label:"candidatos",      always:true},
+  {k:"offered",  label:"en la conversación"},
+];
+
+function paintHarvest(panel, harvest){
+  // `{}` es «no lo sabemos» y no se pinta nada: una rejilla de ceros afirmaría que se miró y no había.
+  if(!harvest || !Object.keys(harvest).length) return;
+  const grid = elem("div","hr-stats");
+  TALLY.forEach(({k, label, always})=>{
+    const n = Number(harvest[k] || 0);
+    if(!n && !always) return;
+    const box = elem("div","hr-stat" + (!n ? " dim" : ""));
+    box.appendChild(elem("b","", String(n)));
+    box.appendChild(elem("span","", label));
+    grid.appendChild(box);
+  });
+  if(grid.childNodes.length) panel.appendChild(grid);
+}
+
 function paintProcess(panel, data){
   const pr = data.progress || {};
+  const harvest = data.harvest || {};
   const lines = Array.isArray(pr.phases) ? pr.phases.filter(x=>String(x||"").trim()) : [];
   const alive = !!pr.alive;
 
-  if(!lines.length && !alive){
+  if(!lines.length && !alive && !Object.keys(harvest).length){
     panel.appendChild(elem("div","hr-empty",
       "Aquí se ve lo que va haciendo mientras trabaja: en qué web entra, qué filtro aplica, cuántos resultados "
       + "encuentra. Todavía no hay ninguna tarea en marcha."));
@@ -937,6 +972,8 @@ function paintProcess(panel, data){
   head.appendChild(elem("span", alive ? "hr-spin" : "hr-dot ok"));
   head.appendChild(elem("span","", alive ? (pr.label || "Trabajando…") : "Terminado"));
   panel.appendChild(head);
+
+  paintHarvest(panel, harvest);
 
   const list = elem("div","hr-steps");
   lines.forEach((text, i)=>{

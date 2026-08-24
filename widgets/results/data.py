@@ -565,48 +565,11 @@ def _empty() -> dict:
     return {"title": "Resultados", "subtitle": "", "items": []}
 
 
-_MAX_PHASES = 40           # el mismo anillo que guarda el registro vivo (`dispatch.PHASES_KEPT`)
-_MAX_PHASE_CHARS = 160
-
-
-def _clean_phases(raw) -> list:
-    """Frases de proceso, acotadas. Vienen ya legibles de `nucleo/workers/progress.py`; aquí no se interpreta
-    ninguna — se recortan y se filtran las vacías, que es todo lo que una superficie de presentación puede hacer
-    con el relato de otro."""
-    if isinstance(raw, str):
-        raw = [raw]
-    if not isinstance(raw, (list, tuple)):
-        return []
-    return [str(x)[:_MAX_PHASE_CHARS] for x in raw if str(x or "").strip()][-_MAX_PHASES:]
-
-
-def _progress(data: dict, sheet: str = "") -> dict:
-    """`{alive, phases}` — DERIVADO en cada lectura, nunca guardado, igual que `counts` (V2-227 ámbito C).
-
-    El dueño de «qué está pasando» es el registro vivo del dispatcher: la hoja lo LEE. Guardarlo aquí sería
-    tener el mismo estado en dos sitios, y el que se queda en pantalla siempre es el rancio.
-
-    Con el encargo TERMINADO el registro ya no existe, así que se cae al historial que la propia hoja guardó al
-    cerrarse (`process`). Esa es la única parte persistida y tiene su razón: el informe sobrevive a un reinicio,
-    y un informe cuya explicación de cómo se llegó a él ha desaparecido cuenta la mitad de lo que pasó.
-
-    Fail-soft: sin dispatcher (un test de la hoja sola, el widget montado fuera del motor) esto es la historia
-    guardada y `alive: False`, que es exactamente lo que se ve — no un error.
-    """
-    live = {}
-    try:
-        from nucleo import dispatch as _disp
-        # V2-259 — el relato de SU encargo. `dispatch._phrases` entrelazaba las fases de todos los encargos vivos
-        # EN ORDEN DE TIEMPO, y eso era «la respuesta honesta mientras la hoja sea única»; con una hoja por
-        # encargo deja de serlo: dos cajas contando las dos la misma historia mezclada es mentir con más
-        # superficie, que es justo lo que V2-259 existe para no hacer.
-        live = _disp.sheet_progress(sheet) or {}
-    except Exception:  # noqa: BLE001
-        live = {}
-    if live.get("alive"):
-        return {"alive": True, "phases": _clean_phases(live.get("phases"))}
-    stored = _clean_phases(data.get("process"))
-    return {"alive": False, "phases": _clean_phases(live.get("phases")) or stored}
+# El PROCESO en vivo vive en `widgets/results/live.py` (V2-296): todo lo de allí es derivado del registro del
+# dispatcher, y lo de aquí es el contenido que la hoja posee. Se re-exporta porque es una mudanza, no un cambio
+# de interfaz — los tests y `view_data` siguen llamándolos por su nombre de siempre.
+from widgets.results.live import (  # noqa: E402,F401 — re-export
+    _MAX_PHASES, _MAX_PHASE_CHARS, _clean_phases, _harvest, _progress)
 
 
 def _counts(data: dict) -> dict:
@@ -658,6 +621,7 @@ def view_data(q: str = "") -> dict:
         data.pop("process", None)            # sin historial, la hoja en blanco sigue en blanco
     data["counts"] = _counts(data)
     data["progress"] = _progress(data, _safe_sheet(q))
+    data["harvest"] = _harvest(data, _safe_sheet(q))
     return data
 
 
@@ -720,6 +684,7 @@ def begin_task(title: str = "", fresh: bool = True, sheet: str = "") -> dict:
     data.pop("view", None)                   # el detalle abierto era de un resultado del encargo anterior
     data.pop("focus", None)
     data.pop("process", None)                # el relato que viene es el de ESTE encargo
+    data.pop("harvest", None)                # …y sus números también (V2-296)
     _save(data, sheet)
     return {"ok": True, "fresh": bool(fresh), "title": data.get("title", "")}
 
@@ -738,6 +703,10 @@ def end_task(phases, sheet: str = "") -> dict:
         data["process"] = lines
     else:
         data.pop("process", None)            # sin una sola fase no hay historia que contar; no se inventa una
+    # …y sus NÚMEROS con él (V2-296). `view_data` acaba de derivarlos del registro vivo, que en un instante deja de
+    # existir: si no se guardan aquí, el informe queda sin la cuenta de lo que costó llegar a él.
+    if not isinstance(data.get("harvest"), dict) or not any((data.get("harvest") or {}).values()):
+        data.pop("harvest", None)            # sin un solo número no hay cuenta que dar; no se guardan ceros
     _save(data, sheet)
     return {"ok": True, "phases": len(lines)}
 

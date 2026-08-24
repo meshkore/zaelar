@@ -405,6 +405,14 @@ def _hand_over(task_id: str, items: list) -> None:
         if repeated:
             bits.append(f"{repeated} repetida{'s' if repeated != 1 else ''}")
         tail = f" (y {' y '.join(bits)} de la misma página)" if bits else ""
+        # LA COSECHA, en números (V2-296). Todas estas cifras ya estaban calculadas aquí arriba y se gastaban en
+        # una frase; el operador pidió verlas. UN solo sitio para contarlas —aquí, donde las dos mitades de cada
+        # corte están vivas a la vez— y protegido de contar dos veces la misma página por `_HANDED`.
+        try:
+            _t.tally(task_id, pages=1, rows=len(items), repeated=repeated, unnamed=len(unnamed),
+                     hollow=len(hollow), kept=len(priced), offered=len(head))
+        except Exception:  # noqa: BLE001
+            pass
         if named:
             body = (f"El navegador ha SACADO esto de la página, trabajando en «{goal}»: {listing}{tail}. Nadie "
                     f"más lo sabe: no está en la conversación hasta que tú lo digas, así que NO puedes decir "

@@ -72,6 +72,8 @@ def _lazy_imports(p: Path) -> int:
 # `widgets/results/digest.py` y `data.py` se queda con `prompt_digest()`, que es el único que necesita saber
 # QUÉ hojas existen y es el nombre que `widgets/refs.py` busca por convención.
 #   widgets/results/data.py    1172 → 1061  el digest del prompt (cabecera + hoja)        → widgets/results/digest.py
+#   widgets/results/data.py    1094 → 1030  el proceso EN VIVO (relato + números)         → widgets/results/live.py
+#   nucleo/dispatch.py         1768 → 1759  la dirección de este motor (función pura)     → nucleo/engine_url.py
 #
 # ── 2026-08-24, V2-289: 1879 → 1763 ────────────────────────────────────────────────────────────────────────
 # `dispatch.py` se pasó del techo por CINCO líneas al resolver si el modelo que conduce lee imágenes. Se extrae, y
@@ -86,11 +88,11 @@ def _lazy_imports(p: Path) -> int:
 # importarlo, que es el ciclo que V2-112 ya pagó.
 _CEILINGS: dict[str, tuple[int, int]] = {
     "voice/engine/llm/providers/nucleo.py": (3461, 155),
-    "nucleo/dispatch.py": (1763, 57),
+    "nucleo/dispatch.py": (1759, 57),
     "widgets/navegador/owner.py": (1580, 43),
     "nucleo/flash/router_guards.py": (1282, 15),
     "nucleo/flash/probe.py": (1168, 84),
-    "widgets/results/data.py": (1062, 5),
+    "widgets/results/data.py": (1030, 5),
     "memory/api.py": (1076, 19),
     "nucleo/flash/prompt.py": (843, 30),
     "nucleo/workers/session.py": (825, 19),
