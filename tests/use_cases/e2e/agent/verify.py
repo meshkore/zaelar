@@ -1164,7 +1164,7 @@ def offered_to_brain(db_path, *, since: float = 0.0) -> dict:
     somewhere), and delivery is judged against this: the titles the brain was actually offered.
     """
     import sqlite3
-    out: dict = {"notes": 0, "titles": [], "named": [], "n_offered": 0}
+    out: dict = {"notes": 0, "titles": [], "named": [], "n_offered": 0, "with_price": []}
     try:
         con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     except Exception:
@@ -1172,6 +1172,15 @@ def offered_to_brain(db_path, *, since: float = 0.0) -> dict:
     try:
         rows = con.execute("SELECT payload FROM events WHERE topic = 'observer' AND ts_ms >= ? "
                            "AND kind = 'brain' ORDER BY ts_ms ASC", (int(since * 1000),)).fetchall()
+        # …and the FACE (V2-298/V2-300): since bb1ab45 the live-task block carries the sheet's top rows in
+        # EVERY turn's prompt («LO QUE YA HA ENTREGADO … «title — price»; …»). Round 24 measured why this
+        # matters here: zaelar named «Harley Benton — 50 €» straight from that block, the note never carried
+        # it, and the END-of-round sheet had already displaced the row — so the judge, seeing neither, filed
+        # [alta] «está inventando datos». What the prompt carried IS what the brain was offered.
+        prompt_rows = con.execute(
+            "SELECT payload FROM events WHERE topic = 'observer' AND ts_ms >= ? "
+            "AND payload LIKE '%LO QUE YA HA ENTREGADO%' ORDER BY ts_ms ASC",
+            (int(since * 1000),)).fetchall()
     except Exception:
         return out
     finally:
@@ -1202,10 +1211,31 @@ def offered_to_brain(db_path, *, since: float = 0.0) -> dict:
             if key not in seen:
                 seen.add(key)
                 out["titles"].append(head[:120])
+                parts = [q.strip() for q in chunk.strip().split(" — ")]
+                out["with_price"].append(" — ".join(parts[:2])[:150])
                 # A row whose "title" is a bare number has no identity either: on 2026-08-21 the extractor
                 # split «169,00 €» across the two fields, so the note read «169 — 00 € — <url>». Counting
                 # that as a named result would report the note as carrying three findings when it carried
                 # three price fragments — and would hide the extractor defect behind a healthy-looking count.
+                if not _NUMERIC_HEAD.match(head):
+                    out["named"].append(head[:120])
+    for (raw,) in prompt_rows:
+        try:
+            sp = str((json.loads(raw) or {}).get("system_prompt") or "")
+        except Exception:
+            continue
+        m = re.search(r"LO QUE YA HA ENTREGADO[^:]*:\s*(.+?)\.\s*OJO", sp, re.S)
+        if not m:
+            continue
+        for chunk in re.findall(r"«([^»]+)»", m.group(1)):
+            head = chunk.strip().split(" — ")[0].strip()
+            if not head or head.startswith("http"):
+                continue
+            key = head.lower()
+            if key not in seen:
+                seen.add(key)
+                out["titles"].append(head[:120])
+                out["with_price"].append(chunk.strip()[:150])
                 if not _NUMERIC_HEAD.match(head):
                     out["named"].append(head[:120])
     out["n_offered"] = len(out["titles"])

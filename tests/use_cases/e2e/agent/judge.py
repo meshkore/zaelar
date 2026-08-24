@@ -286,6 +286,16 @@ def mechanism_facts(mech: dict) -> str:
         elif wo.get("delivered"):
             lines.append(f"· El navegador encontró y zaelar lo ENTREGÓ: {listed}. Eso cuenta como resultado "
                          f"conseguido, aunque la conversación siguiera después.")
+    if offered.get("titles"):
+        # V2-300 — la ronda 24 midió el coste de callarse esta lista: zaelar recitó «Harley Benton — 50 €»
+        # LEYÉNDOLO de su prompt (la hoja viaja en el estado desde bb1ab45), la hoja del final ya no tenía esa
+        # fila, y el juez archivó [alta] «está inventando datos» contra un recitado literal. El juez no puede
+        # ver el prompt de cada turno; esta lista es lo que el sistema le PUSO delante al cerebro.
+        _entregado = offered.get("with_price") or offered["titles"]
+        lines.append(f"· TODO ESTO le fue ENTREGADO al cerebro por el sistema (notas empujadas + las filas de "
+                     f"la hoja que viajan en su prompt): {'; '.join(str(x) for x in _entregado[:12])}. Si "
+                     f"zaelar nombra un candidato o un precio de esta lista, NO es invención — lo leyó de lo "
+                     f"que se le dio; solo cuenta como dato inventado lo que no esté ni aquí ni en la hoja.")
     elif wo.get("navigations"):
         lines.append(f"· El navegador navegó {wo['navigations']} vez/veces y extrajo {wo.get('extractions', 0)} "
                      f"vez/veces, y NO sacó ni un resultado con título. Eso es un fallo del mecanismo de "
