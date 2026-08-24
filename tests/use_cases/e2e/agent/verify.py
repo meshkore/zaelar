@@ -402,6 +402,7 @@ def sheet_instances(all_events: list[dict]) -> dict:
     """
     shows: list[dict] = []
     closes: list[dict] = []
+    written: set = set()
     for e in all_events:
         if not isinstance(e, dict):
             continue
@@ -420,7 +421,21 @@ def sheet_instances(all_events: list[dict]) -> dict:
             shows.append(row)
         elif label == "close":
             closes.append(row)
+        elif label == "data":
+            # UNA CAJA ESCRITA Y NUNCA ABIERTA ES UNA CAJA QUE NADIE VE — ni el operador ni este lector.
+            #
+            # `show` contesta «qué cajas se abrieron» y esa era toda la pregunta hasta que dejó de serlo. Medido
+            # en la tanda de las 13:11, `search-buy-guitar__es`: en disco quedaron TRES cajas de ese caso —19,
+            # 45 y 12 filas— y solo la primera tenía `show`, así que este informe dijo «18 candidatos» sobre 76
+            # que existían. La caja se escribe con el sello de su encargo (`worker_api` lo estampa, V2-259) sin
+            # que nadie la muestre, y entonces no está en la pantalla del operador ni en la cuenta de nadie.
+            #
+            # Se recoge APARTE y no se mezcla con `ids`: son dos hechos distintos —abierta y escrita— y el que
+            # importa es el HUECO entre los dos. Sumarlas sin más convertiría un defecto en un número más alto,
+            # que es la manera de esconderlo.
+            written.add(raw)
     ids = sorted({r["id"] for r in shows})
+    unseen = sorted(w for w in written if w not in set(ids))
     srcs = sorted({r["src"] for r in shows if r["src"]})
     return {
         # LO QUE SE MIDE: cajas distintas, no aperturas. Volver a mostrar la misma hoja no es una hoja nueva.
@@ -433,6 +448,11 @@ def sheet_instances(all_events: list[dict]) -> dict:
         "srcs": srcs,
         "shared": len(srcs) > 1 and len(ids) <= 1,
         "n_closes": len(closes),
+        # Cajas ESCRITAS que nadie abrió: invisibles en la pantalla del operador, y hasta hoy invisibles también
+        # en este informe. `written_ids` va entero para que el lector de la hoja pueda ir a buscarlas.
+        "written_ids": sorted(written),
+        "unseen_ids": unseen,
+        "n_unseen": len(unseen),
     }
 
 
@@ -675,8 +695,13 @@ def mechanism_report(all_events: list[dict], expected_signals: list[str],
         "overreach_signals": overreach,
         "navegador_task_id": task_id,
         "navegador_task": task_view,
-        # Los ids salen de `sheet_instances` para que los dos lectores no puedan apuntar a cajas distintas.
-        "results_sheet": results_sheet((sheet_instances(all_events) or {}).get("ids")),
+        # Los ids salen de `sheet_instances` para que los dos lectores no puedan apuntar a cajas distintas — y
+        # desde 2026-08-24 se leen TODAS las que se ESCRIBIERON, no solo las que alguien abrió: una caja escrita
+        # y nunca mostrada no está en la pantalla del operador, pero SUS FILAS EXISTEN y son de este encargo.
+        # Contarlas es lo que separa «entregó 18» de «entregó 76 repartidas en tres cajas, dos invisibles», que
+        # son dos veredictos distintos sobre el mismo caso.
+        "results_sheet": results_sheet((sheet_instances(all_events) or {}).get("written_ids")
+                                       or (sheet_instances(all_events) or {}).get("ids")),
         # CUÁNTAS hojas, no solo qué había en la hoja. La regla del operador es una caja por encargo, y con la
         # hoja única de hoy el informe no podía siquiera enseñar que dos búsquedas compartían una.
         "sheet_instances": sheet_instances(all_events),

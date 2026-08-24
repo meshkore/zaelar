@@ -191,6 +191,17 @@ def mechanism_facts(mech: dict) -> str:
     elif si.get("n_sheets", 0) > 1:
         lines.append(f"· Se abrieron {si['n_sheets']} hojas de resultados para "
                      f"{si.get('n_errands', 0)} encargo(s): una caja por búsqueda, que es la regla.")
+    if si.get("n_unseen"):
+        # HAY FILAS QUE EL OPERADOR NO PUEDE VER, y no es lo mismo que no haberlas encontrado. Medido en la
+        # tanda de las 13:11: `search-buy-guitar__es` acabó con TRES cajas en disco (19, 45 y 12 filas) y solo
+        # la primera se había abierto — 57 de 76 candidatos reales escritos en cajas que nadie mostró. Contarlas
+        # en el total sin decir esto convertiría el defecto en una cifra más alta, que es como se esconde.
+        lines.append(f"· ⚠️ {si['n_unseen']} HOJA(S) SE ESCRIBIERON Y NADIE LAS ABRIÓ ({', '.join(si.get('unseen_ids') or [])}). "
+                     f"Sus filas SÍ cuentan como encontradas —están en el informe de la hoja— pero el operador "
+                     f"NO LAS TIENE DELANTE: su pantalla solo enseña las que se abrieron. Es un defecto del "
+                     f"MECANISMO, no de las respuestas: si zaelar nombró candidatos que están en una de esas "
+                     f"cajas, los tenía y los dijo bien. Y si el encargo acabó repartido en varias cajas cuando "
+                     f"la conversación era UNA búsqueda, eso es lo que hay que contar en «mecanismo».")
     gw = mech.get("ghost_widgets") or {}
     if gw.get("ghosts"):
         which = ", ".join(g["id"] for g in gw["ghosts"])

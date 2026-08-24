@@ -1346,6 +1346,12 @@ DOMAINS: list[dict] = [
         {"id": "10.70", "title": "El arnés puede reportar su propia avería: el marcador llega a `run_data`, con "
                                  "su evidencia, y es el que lee el marcador",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_harness_can_report_its_own_breakage.py"]},
+        # V2-292: una caja ESCRITA y nunca abierta no la ve el operador, y este informe tampoco la veía —
+        # contaba solo los `show`. `search-buy-guitar__es` acabó con tres cajas (19+45+12 filas) y una sola
+        # abierta: el informe dijo «18 candidatos» sobre 76 que existían.
+        {"id": "10.71", "title": "Una hoja escrita que nadie abrió se cuenta, se nombra y se atribuye al "
+                                 "mecanismo (no a las respuestas)",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_written_sheet_nobody_opened.py"]},
     ]},
 ]
 

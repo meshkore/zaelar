@@ -83,8 +83,11 @@ def test_an_errand_with_no_src_does_not_invent_one():
 
 def test_a_stream_with_no_widget_events_says_nothing():
     got = V.sheet_instances([{"payload": '{"cat": "worker", "label": "start"}'}, "no soy un dict"])
+    # La FORMA entera a propósito: si aparece una clave nueva, este caso lo dice en vez de dejar que un lector
+    # la lea como `None`. V2-292 añadió las tres de «escrita pero nunca abierta», y su vacío tiene que seguir
+    # significando «no había nada que contar», no «no lo miré».
     assert got == {"n_sheets": 0, "ids": [], "n_opens": 0, "n_errands": 0, "srcs": [], "shared": False,
-                   "n_closes": 0}
+                   "n_closes": 0, "written_ids": [], "unseen_ids": [], "n_unseen": 0}
 
 
 # ── el lector viaja en el informe de mecanismo, que es lo que lee el juez ───────────────────────────────
