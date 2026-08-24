@@ -529,7 +529,8 @@ def _sheet_sessions() -> list:
 
 
 def sheet_for_nav_task(nav_task: str) -> str:
-    return _sheets.sheet_for_nav_task(nav_task, _SESSIONS.values())
+    """La hoja donde entregar lo que ESTA pestaña encuentre, abriéndola si su encargo aún no tiene (V2-290)."""
+    return _sheets.sheet_for_delivery(nav_task, _SESSIONS.values(), LIVE_SESSION_STATES)
 
 
 def sheet_progress(sheet: str = "") -> dict:

@@ -198,6 +198,10 @@ DOMAINS: list[dict] = [
             "tests/agent_headless/unit/flash/test_voice_failover.py"]},
         {"id": "2.5", "title": "Escalado / dispatch / workers", "ch": UNIT, "paths": [
             "tests/agent_headless/unit/flash/test_escalate.py", "tests/agent_headless/unit/test_dispatch.py",
+            # V2-290: el navegador extraía filas reales y caían en la caja PELADA, que no es de nadie desde
+            # V2-259. Solo `kind="web"` reserva pestaña, así que el resto la nombra como su TAREA — y esa
+            # vuelta no existía en la resolución de la hoja.
+            "tests/agent_headless/unit/test_a_finding_always_has_a_box.py",
             # V2-238: un RELEVO no es una muerte. `_finish` releva de proveedor (o compacta el contexto), relanza
             # el encargo y deja `ok=False` a propósito — y con eso la sesión quedaba indistinguible de un worker
             # muerto: aviso falso de muerte al operador, DOS escaladas para una, y una muerte contada de más.

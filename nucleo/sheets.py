@@ -80,6 +80,51 @@ def sheet_for_nav_task(nav_task: str, sessions=()) -> str:
     for r in list(sessions):
         if str(getattr(r, "nav_task", "") or "") == tid:
             return sheet_of(r)
+    # V2-290 — Y POR EL ID DEL PROPIO ENCARGO, porque no todo el que conduce el navegador tiene una pestaña
+    # reservada. `_prepare_web` crea la pestaña y guarda `rec.nav_task` SOLO para `kind="web"`; cualquier otro
+    # encargo que abra el navegador cae al fallback de `nucleo/nav_cli.py` — «`ZAELAR_NAV_TASK` o, si no,
+    # `ZAELAR_TASK_ID`» — así que su pestaña se llama como la TAREA. Esa vuelta no existía aquí, y sin ella los
+    # hallazgos de esa pestaña no encontraban su caja.
+    #
+    # Medido en la tanda de las 12:03, `search-buy-bicycle__es`: el worker de investigación abrió la pestaña «3»,
+    # extrajo SIETE bicis reales con precio y enlace, y las siete se escribieron en `results` PELADO mientras
+    # `results::3fc631-1` —la hoja del encargo, abierta y con su título— se quedaba vacía. Lo mismo en la cámara,
+    # con catorce. La caja pelada no es de nadie desde V2-259, así que aquello era invisible por construcción:
+    # el operador con una tarjeta en blanco delante y los resultados en una caja que nadie le abrió.
+    #
+    # La regla que aplica es la misma que resuelve el id en el puente, y por eso se escribe igual: la pestaña se
+    # llama por su tarea de navegador si la tiene, y si no por su encargo. Dos formas de nombrar lo mismo en dos
+    # sitios distintos es como nació esta grieta.
+    for r in list(sessions):
+        if str(getattr(r, "task_id", "") or "") == tid:
+            return sheet_of(r)
+    return ""
+
+
+def sheet_for_delivery(nav_task: str, sessions=(), live_states=()) -> str:
+    """La hoja donde ENTREGAR lo que esta pestaña acaba de encontrar, ABRIÉNDOLA si su encargo aún no tiene.
+
+    V2-290 — la hoja se abre al ENCARGAR solo cuando el cerebro declaró la hoja como superficie
+    (`surfaces.opens_sheet`), y eso es correcto: no se le abre una caja vacía a quien no va a llenarla. Pero un
+    encargo que NO la declaró puede acabar conduciendo el navegador y extrayendo filas, y entonces la premisa ya
+    no se sostiene: hay hallazgos y no hay dónde ponerlos. Medido en la tanda de las 12:03: el worker de
+    INVESTIGACIÓN de `search-buy-bicycle__es` sacó SIETE bicis con precio y enlace y las siete cayeron en el
+    `results` PELADO, que no es de nadie desde V2-259; la cámara igual, con catorce. Invisible por construcción.
+
+    Abrirla AQUÍ y no al encargar es la diferencia entre una caja vacía que nadie pidió y una que aparece con el
+    primer resultado dentro. Y solo para un encargo VIVO: un hallazgo que llega después de que el suyo muriera no
+    estrena una tarjeta en la pantalla de alguien que ya pasó a otra cosa.
+    """
+    sheet = sheet_for_nav_task(nav_task, sessions)
+    if sheet:
+        return sheet
+    tid = str(nav_task or "").strip()
+    for r in list(sessions):
+        if r.status not in live_states:
+            continue
+        if tid in (str(getattr(r, "nav_task", "") or ""), str(getattr(r, "task_id", "") or "")):
+            _sheet_open(r)
+            return sheet_of(r)
     return ""
 
 
