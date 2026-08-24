@@ -73,6 +73,12 @@ def _lazy_imports(p: Path) -> int:
 # QUÉ hojas existen y es el nombre que `widgets/refs.py` busca por convención.
 #   widgets/results/data.py    1172 → 1061  el digest del prompt (cabecera + hoja)        → widgets/results/digest.py
 #
+# ── 2026-08-24, V2-289: 1879 → 1763 ────────────────────────────────────────────────────────────────────────
+# `dispatch.py` se pasó del techo por CINCO líneas al resolver si el modelo que conduce lee imágenes. Se extrae, y
+# el corte llevaba tiempo dado: la CLASIFICACIÓN del encargo (`_classify_kind` + sus cinco regex + el rótulo) es
+# una función PURA sobre el TEXTO de la petición — no mira el registro de sesiones, no toca el pool, no escribe.
+#   nucleo/dispatch.py         1879 → 1762  qué CLASE de encargo es esto              → nucleo/errand_kind.py
+#
 # Los tres eran fronteras que YA estaban dibujadas —el bloque del navegador tenía su `try` propio, la sección
 # de la hoja su banner desde V2-227, y las dos funciones de texto son puras sobre el record— y en dos de los
 # tres había además una capa pidiéndole al vecino lo que no es suyo (`widgets/results/data.py` importando de
@@ -80,7 +86,7 @@ def _lazy_imports(p: Path) -> int:
 # importarlo, que es el ciclo que V2-112 ya pagó.
 _CEILINGS: dict[str, tuple[int, int]] = {
     "voice/engine/llm/providers/nucleo.py": (3461, 155),
-    "nucleo/dispatch.py": (1879, 57),
+    "nucleo/dispatch.py": (1763, 57),
     "widgets/navegador/owner.py": (1580, 43),
     "nucleo/flash/router_guards.py": (1282, 15),
     "nucleo/flash/probe.py": (1168, 84),

@@ -302,13 +302,21 @@ def _category_lead(goal: str, lang_code: str | None) -> str:
             f"Solo si el objetivo genuinamente NO aparece ahí, ve a otro sitio, y DILO al entregar.\n\n")
 
 
-def _web_prompt(goal: str, context: str, brief: dict | None = None) -> str:
+def _web_prompt(goal: str, context: str, brief: dict | None = None, *, vision: bool = True) -> str:
     """Prompt del worker WEB (portado de web_cc/V2-036 al sustrato V2-038): conduce el navegador por hbweb con
     criterio de CIERRE (extraer → concluir → entregar) e hitos visibles. Sin él, el worker deambula.
 
     Con `brief` (nucleo/research.py) la BÚSQUEDA deja de ser «filtra y coge los 2-3 primeros»: el atajo de cierre
     rápido que este prompto lleva de serie —correcto para «tráeme el precio de X», ruinoso para «elige lo mejor»—
-    se sustituye por el embudo del brief (reunir ancho → filtrar → puntuar → verificar finalistas)."""
+    se sustituye por el embudo del brief (reunir ancho → filtrar → puntuar → verificar finalistas).
+
+    `vision=False` (V2-289) cuando el modelo que conduce NO lee imágenes. El paso 1 le decía que la VISIÓN es su
+    camino PRINCIPAL, y a un modelo de texto eso es una orden que no puede cumplir — la misma clase que ordenar
+    «cuéntale QUÉ has encontrado» a un turno que no sostiene nada (V2-284). Medido con el relevo a DeepSeek
+    puesto: `Read` de la PNG → «formato no soportado» → «sigo por DOM», dos veces en la misma corrida. La
+    alternativa (dejar el prompt igual y que lo descubra chocando) es la que estaba costando la corrida.
+
+    Por DEFECTO hay visión, que es lo de siempre: un «no ve» equivocado deja ciego a un worker que veía."""
     try:
         from nucleo.workers.claude_session import bridge_python
         py = bridge_python()          # absoluto y permitido; `.venv/bin/python` relativo pedía aprobación
@@ -382,11 +390,19 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None) -> str:
         "agentes vivos de hoteles, vuelos y entradas/eventos, y para lo demás el navegador sigue siendo el "
         "camino.\n\n"
         "MÉTODO — como lo haría una persona competente; entiende la página y AVANZA (no des vueltas):\n"
-        "1) MIRA con `look` (VISIÓN) antes de actuar: abre el PNG con Read y ubica los campos/botones por su posición "
-        "en píxeles. La visión es tu camino PRINCIPAL para rellenar formularios, elegir en un calendario/desplegable "
-        "o pulsar el botón correcto — el snapshot de texto es solo apoyo cuando los nombres son claros. Tras CADA "
-        "acción importante vuelve a `look` para confirmar qué cambió (las coordenadas cambian al hacer scroll/navegar).\n"
-        "2) DESBLOQUEA lo que tape la página: banner de cookies/consentimiento o aviso modal → ACÉPTALO/ciérralo "
+        + (
+            "1) MIRA con `look` (VISIÓN) antes de actuar: abre el PNG con Read y ubica los campos/botones por su "
+            "posición en píxeles. La visión es tu camino PRINCIPAL para rellenar formularios, elegir en un "
+            "calendario/desplegable o pulsar el botón correcto — el snapshot de texto es solo apoyo cuando los "
+            "nombres son claros. Tras CADA acción importante vuelve a `look` para confirmar qué cambió (las "
+            "coordenadas cambian al hacer scroll/navegar).\n" if vision else
+            "1) MIRA con `look` antes de actuar y trabaja con los ELEMENTOS que te devuelve: tu modelo NO LEE "
+            "IMÁGENES, así que la captura no te sirve de nada — no la abras con Read ni uses click_at/type_at, "
+            "que piden coordenadas de algo que no puedes ver. Tu camino es el snapshot de texto: `click <ref>` y "
+            "`type <ref> «texto»` con el número que sale al lado de cada elemento. Tras CADA acción importante "
+            "vuelve a `look` para confirmar qué cambió (los números se REPARTEN de nuevo en cada mirada, así que "
+            "un [ref] de antes puede ser ahora otro elemento).\n")
+        + "2) DESBLOQUEA lo que tape la página: banner de cookies/consentimiento o aviso modal → ACÉPTALO/ciérralo "
         "(«Aceptar», «Acepto», «Entendido», «Continuar»…) para poder seguir. Si reaparece un par de veces, sigue igual.\n"
         "3) RECONOCE primero, pregunta UNA vez, ejecuta después (para una GESTIÓN: reservar/pedir cita, rellenar y "
         "enviar un formulario, tramitar, contratar):\n"

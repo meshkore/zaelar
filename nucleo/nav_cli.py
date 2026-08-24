@@ -87,6 +87,15 @@ def _transport_error(e: Exception, action: str) -> str:
     return txt
 
 
+def _sees() -> bool:
+    """¿El modelo que conduce esta sesión lee imágenes? Lo declara el escalón que la sirve
+    (`nucleo/workers/providers.vision_env`) y llega por entorno, que es lo que este CLI hereda del worker.
+
+    **Ausente = sí**, la conducta de siempre: un «no ve» equivocado deja ciego a un worker que veía, y eso es un
+    fallo mudo; un «sí ve» equivocado cuesta un `Read` fallido y se sigue por el DOM."""
+    return (os.environ.get("ZAELAR_NAV_VISION") or "").strip().lower() not in ("0", "false", "no")
+
+
 def _print_state(res: dict) -> None:
     if not res.get("ok"):
         print("ERROR: " + str(res.get("error") or res.get("msg") or "desconocido"))
@@ -119,7 +128,21 @@ def _print_state(res: dict) -> None:
     # V2-049 VISIÓN: si hay captura, dile al worker que la MIRE con Read (la página como la ve un humano) y actúe
     # por coordenadas con click_at/type_at — el camino robusto para formularios/date-pickers/selects.
     shot = res.get("shot")
-    if shot:
+    if shot and not _sees():
+        # V2-289 — el modelo que conduce esta sesión NO lee imágenes, así que ofrecerle la captura es mandarle a
+        # un sitio del que solo puede volver con las manos vacías. Medido con el relevo a DeepSeek puesto
+        # (`search-buy-guitar__es`, 2026-08-24 11:23): hizo `Read` de la PNG y contestó «La captura no se pudo
+        # leer (formato no soportado). Sigo por DOM», y otra vez cuatro pasos después — un `Read` de ~300-530 KB
+        # por acción para redescubrir lo mismo, más la narración del fallo al operador, que no tiene qué hacer
+        # con ella. La captura SE SIGUE ESCRIBIENDO: es lo que el operador ve en la tarjeta del navegador, y esa
+        # superficie no depende de quién conduzca.
+        #
+        # Y se DICE que no la hay en vez de callar, porque el camino de texto es el que queda y una ausencia sin
+        # nombre se lee como que la captura falló (que es otra cosa, y tiene su propio aviso justo abajo).
+        print("VISTA: no disponible para este modelo (no lee imágenes). Trabaja con los ELEMENTOS de abajo y "
+              "usa click/type con su número [ref] — click_at/type_at piden coordenadas de una captura que no "
+              "puedes mirar.")
+    elif shot:
         vp = res.get("viewport") or {"width": 1280, "height": 800}
         print(f"VISTA (captura {vp['width']}×{vp['height']} px — MÍRALA con Read \"{shot}\" y actúa con "
               f"click_at/type_at usando las coordenadas en píxeles): {shot}")

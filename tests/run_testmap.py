@@ -206,6 +206,10 @@ DOMAINS: list[dict] = [
             # que el primer encargo tras un reinicio caía en el mismo directorio que el primero del arranque
             # anterior y heredaba su `informe.json`. Medido: 6 guitarras entregadas en 27 s con CERO navegaciones.
             "tests/agent_headless/unit/workers/test_a_restart_does_not_inherit_a_report.py",
+            # V2-289: al worker se le mandaba mirar una captura que su modelo no puede leer. Con el relevo a
+            # DeepSeek puesto: `Read` de la PNG → «formato no soportado» → «sigo por DOM», dos veces en una
+            # corrida. La PNG estaba perfecta; el que no ve es el modelo.
+            "tests/agent_headless/unit/workers/test_a_blind_model_is_not_sent_to_look.py",
             # V2-237: tres workers reanudando LA MISMA sesión del CLI y los tres muertos a los ~400 ms (3 de 3,
             # contra 0 de 3 entre los que abrieron sesión propia). `_find_resume` leía la entrada sin consumirla.
             "tests/agent_headless/unit/test_a_native_session_is_resumed_once.py",

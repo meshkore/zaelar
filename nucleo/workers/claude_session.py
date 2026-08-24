@@ -194,6 +194,16 @@ class ClaudeCodeSession(WorkerBackend):
                     "name": _url.split("//")[-1].split("/")[0] or "preconfigurado", "base_url": _url}
             except Exception:
                 pass
+        # V2-289 — y si el escalón que sirve esta sesión NO lee imágenes, que el puente del navegador deje de
+        # ofrecerle la captura. Va después de las DOS ramas de arriba a propósito: las dos resuelven `self._tier`
+        # (una eligiendo, la otra atribuyendo un endpoint preconfigurado) y el aviso hace falta igual por las dos.
+        # `spec.env` sigue mandando: un llamante que lo declare no se pisa.
+        try:
+            from nucleo.workers import providers as _prov
+            for _k, _v in _prov.vision_env(self._tier).items():
+                env.setdefault(_k, _v)
+        except Exception:
+            pass
         # marcadores para el barrido de huérfanos al arrancar (§v2·D) + auth de bridges por-tarea (§v2·D).
         env["ZAELAR_WORKER"] = "1"
         env["ZAELAR_TASK_ID"] = spec.task_id or ""

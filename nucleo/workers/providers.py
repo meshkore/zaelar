@@ -54,8 +54,16 @@ KNOWN: list[dict] = [
     #
     # Es pago por token (no suscripción), así que rompe la regla del operador de «forfait, nunca por token» — va
     # DESPUÉS de los planes y existe como red de seguridad barata.
+    #
+    # ⚠️ `vision: False` — V4 NO LEE IMÁGENES, y el camino de VISIÓN del navegador (V2-049) le manda una captura
+    # en CADA acción. Medido en `search-buy-guitar__es` (2026-08-24 11:23), con el relevo puesto («z.ai → relevo a
+    # deepseek»): el worker abrió Wallapop, hizo `Read` de la PNG y contestó **«La captura no se pudo leer (formato
+    # no soportado). Sigo por DOM»** — y otra vez cuatro pasos después. La PNG estaba perfecta (1280×800, 8-bit RGB
+    # en disco); el que no puede verla es el modelo. Así que cada acción le costaba un `Read` de ~300-530 KB para
+    # descubrir lo mismo, y encima lo narró al operador, que no tiene qué hacer con eso.
     {"name": "deepseek", "base_url": "https://api.deepseek.com/anthropic",
-     "env": ["DEEPSEEK_API_KEY"], "plan": "DeepSeek (pago por token)", "model": "deepseek-v4-flash"},
+     "env": ["DEEPSEEK_API_KEY"], "plan": "DeepSeek (pago por token)", "model": "deepseek-v4-flash",
+     "vision": False},
 ]
 # Escalón final SOLO LOCAL: sin base_url el CLI usa la licencia con la que el operador ya está logueado. No
 # necesita credencial y por eso no puede fallar por cuota de API — pero consume su licencia, así que va el último.
@@ -165,7 +173,39 @@ def env_for_worker() -> dict:
     tok = (t.get("api_key") or "").strip() or _token_for(t)
     if not tok:
         return {}
-    return {"ANTHROPIC_BASE_URL": t["base_url"], "ANTHROPIC_AUTH_TOKEN": tok}
+    out = {"ANTHROPIC_BASE_URL": t["base_url"], "ANTHROPIC_AUTH_TOKEN": tok}
+    out.update(vision_env(t))
+    return out
+
+
+def worker_sees() -> bool:
+    """¿El escalón que serviría un worker AHORA lee imágenes? La otra cara de `vision_env`, para quien necesita
+    la respuesta como bandera y no como entorno (el prompt del worker web). Vive aquí y no en el llamante para
+    que la capacidad se resuelva en UN sitio: dos lecturas del catálogo derivan, y derivar aquí significa un
+    prompt que manda mirar mientras el puente dice que no hay nada que ver."""
+    try:
+        return not vision_env(pick())
+    except Exception:
+        return True
+
+
+def vision_env(tier: dict | None) -> dict:
+    """`ZAELAR_NAV_VISION=0` SOLO si este escalón declara que su modelo no lee imágenes.
+
+    Va por env porque el que necesita saberlo es `nucleo/nav_cli.py`, que corre como SUBPROCESO del worker y por
+    tanto hereda su entorno — el mismo canal por el que ya viajan `ZAELAR_TASK_ID` y el token de los puentes. Y se
+    resuelve AQUÍ, que es el único sitio donde ya se sabe qué escalón sirve la sesión: preguntárselo al CLI o
+    deducirlo del nombre del modelo serían dos sitios más donde equivocarse.
+
+    **Ausente = hay visión**, que es la conducta de siempre, y la dirección del fail-open no es indiferente: un
+    «no ve» equivocado deja al worker CIEGO en un modelo que sí veía, y un worker ciego es el fallo más difícil de
+    atribuir que tiene este módulo (lo dice `workers/workdir.py` sobre `read_dirs`). Un «sí ve» equivocado cuesta
+    un `Read` fallido y el worker sigue por el DOM, que es lo que ya pasaba.
+
+    Por eso solo se declara donde está MEDIDO. Un escalón nuevo no hereda un veredicto que nadie ha comprobado."""
+    if isinstance(tier, dict) and tier.get("vision") is False:
+        return {"ZAELAR_NAV_VISION": "0"}
+    return {}
 
 
 # ── detección de agotamiento y relevo ─────────────────────────────────────────────────────────────────────
