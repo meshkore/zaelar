@@ -808,6 +808,14 @@ DOMAINS: list[dict] = [
                                 "es un resultado) · y lo que queda fuera se cuenta, no se calla",
             "ch": UNIT,
             "paths": ["tests/browser/unit/navegador/test_the_junk_row_does_not_win_the_turn.py"]},
+        # V2-295 — el mismo corte una capa más adentro. Las cuatro filas de cabeza llevaban NOMBRE, así que
+        # `by_identity` las dejaba pasar, pero ninguna llevaba precio: lo que se le ofreció a quien pidió «un
+        # monitor de 27 pulgadas por menos de 150 €» fueron «Monitores», «Monitor SAMSUNG» y «Monitor de Hípica»
+        # a 0 €, con dos MSI de 27" a 100 € justo debajo del corte. Un cero no es un precio.
+        {"id": "4.42", "title": "Una fila con nombre pero sin importe ni teléfono no ocupa la cabecera · y el "
+                                "directorio sin precios conserva su orden",
+            "ch": UNIT,
+            "paths": ["tests/browser/unit/navegador/test_a_row_without_a_price_is_not_a_candidate.py"]},
         # V2-235 — el extractor partía el precio («169,00 €» → «00 €»: la coma decimal faltaba de la clase de
         # caracteres) y no cogía el nombre, porque en una rejilla el importe vive en su propio enlace y el nombre
         # en el encabezado de la tarjeta. RENDERIZA a propósito: el fallo solo existe cuando el navegador compone

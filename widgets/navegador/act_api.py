@@ -231,6 +231,41 @@ def by_identity(items) -> tuple:
     return named, unnamed
 
 
+def by_amount(items) -> tuple:
+    """Split NAMED rows into (rows you can act on, hollow ones), keeping the relative order inside each half.
+
+    Sibling of `by_identity`, one layer deeper and for the same reason. That one asked «does this row have a
+    name?»; this one asks «does it carry anything to act on?» — a real amount, or a number to call. A row with a
+    name, no amount and no phone is a listing whose price never painted, or one that publishes none: it is not a
+    candidate for «un monitor de 27 pulgadas por menos de 150 €», and it must not take one of the three slots the
+    note offers.
+
+    Measured on the batch of 2026-08-24 14:10, `search-secondhand-monitor__es`: the browser found ten rows, the
+    first four priced `0 €` («Monitores», «Monitor SAMSUNG», «Monitor de Hípica», «Baby monitor») and below them
+    two real `Monitor MSI MAG 27" 280Hz` at 100 € — both under the cap, both the right size. `head` took the
+    first three in DOM order, so what reached the operator was the three without a price, one of them a
+    horse-riding monitor, while the two that answered the errand sat under the cut. Same shape in
+    `search-buy-bicycle__es` at 14:40: `Bicicleta Orbea 0 €` ranked third, ahead of bikes at 190/180/150 €.
+
+    A ZERO IS NOT A PRICE HERE and that is the whole test: any digit other than zero counts as an amount, which
+    needs no locale and survives the decimal separator this extractor deliberately does not reconstruct
+    («169 00 €» → digits `16900` → an amount). It is a PARTITION, not a ranking — nothing is dropped, and the
+    hollow rows keep their order and still reach the sheet.
+
+    It cannot hurt the class it does not apply to: on a directory of plumbers or barbers no row carries a price,
+    so one half comes out empty and the order is exactly what it was. V2-240 stands — a result is a name and a
+    way to act on it, never a price — which is why a phone counts as much as an amount.
+    """
+    withs, hollow = [], []
+    for it in (items or []):
+        if not isinstance(it, dict):
+            continue
+        digits = "".join(c for c in str(it.get("price") or "") if c.isdigit())
+        actionable = any(c != "0" for c in digits) or bool(str(it.get("tel") or "").strip())
+        (withs if actionable else hollow).append(it)
+    return withs, hollow
+
+
 def dedupe_by_url(items) -> tuple:
     """La MISMA url no es dos hallazgos. Devuelve (lista sin repetidos, cuántos se colapsaron).
 
@@ -323,6 +358,10 @@ def _hand_over(task_id: str, items: list) -> None:
     try:
         fresh, repeated = dedupe_by_url(items)
         named, unnamed = by_identity(fresh)
+        # V2-295 — con nombre e IMPORTE delante de con nombre y sin nada. Ver `by_amount`: `head` ofrecía las
+        # tres primeras en orden de DOM, y ahí es donde caen las fichas cuyo precio no llegó a pintar.
+        priced, hollow = by_amount(named)
+        named = priced + hollow
         ordered = named + unnamed          # lo que TIENE identidad va delante; nada se descarta
         sig = "|".join(f"{(i or {}).get('title', '')}~{(i or {}).get('price', '')}~{(i or {}).get('tel', '')}"
                        for i in ordered[:5])
