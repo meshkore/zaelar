@@ -1,0 +1,119 @@
+"""La persona NO PUEDE saber cómo se llama un anuncio: si lo recita, la línea la escribió el asistente (V2-285).
+
+Medido en `search-buy-guitar__es` (2026-08-24 03:48), turno 18 — en el slot del USUARIO:
+
+    «He estado mirando y tengo un par de opciones de cuerdas de metal que encajan con lo que pides: la
+     Yamaha F370BL por 100 € y la Fender CD-60 por 120 €.»
+
+y el turno siguiente de zaelar contestando como usuario: «Perfecto, me quedo con la Yamaha F370 a 100 €… Me
+pasas el enlace cuando puedas». Las SEIS caras del conductor no la vieron: no lleva el nombre de la persona,
+no ofrece nada, y «he estado mirando» no es «he mirado».
+
+Ensanchar la séptima regex es la cinta de correr — van cuatro. Esto no es una regla de redacción: **«Yamaha
+F370BL Negra» lo produjo nuestro worker leyendo una página y vive en NUESTRA hoja.** Que aparezca en una línea
+del tester es un hecho del sistema, no un parecido.
+
+Corre en el barrido POSTERIOR a la ronda y no en el guarda vivo del conductor, porque ahí ya está el informe
+de mecanismo con los títulos: el guarda vivo no puede pagar una lectura de la hoja en cada turno.
+"""
+from tests.use_cases.e2e.agent import verify as V
+
+# Los títulos REALES de esa ronda, tal como los devolvió la hoja.
+_KNOWN = ["Yamaha F370BL Negra", "Fender CD-60", "Yamaha F310P + funda", "Acústica con funda",
+          "Greg Bennett Sunburst", "Clásica acústica nylon"]
+_FLIP = ("He estado mirando y tengo un par de opciones de cuerdas de metal que encajan con lo que pides: "
+         "la Yamaha F370BL por 100 € y la Fender CD-60 por 120 €.")
+
+
+def test_la_linea_medida_se_reconoce():
+    assert V.recites_our_candidates(_FLIP, _KNOWN), "la línea del turno 18 sigue pasando por línea de persona"
+
+
+def test_y_ese_era_el_agujero_las_seis_caras_no_la_ven():
+    """La sensibilidad del de arriba: sin esta señal, esa línea es indistinguible de una del usuario."""
+    from tests.use_cases.e2e.agent import driver as D
+    assert D.looks_like_the_assistant(_FLIP, "Marc") is False
+
+
+def test_lo_que_la_persona_SI_puede_decir_no_dispara():
+    for linea in ("quiero una guitarra acústica de segunda mano por menos de 150€",
+                  "prefiero cuerdas de metal, no clásica",
+                  "vale, avísame cuando tengas algo",
+                  "¿tienes alguna Yamaha?"):
+        assert V.recites_our_candidates(linea, _KNOWN) == [], linea
+
+
+def test_un_titulo_GENERICO_no_identifica_nada():
+    """«Monitor 27» es lo que la persona dice al pedir: contarlo como recital acusaría al tester de existir."""
+    assert V.recites_our_candidates("busco un monitor 27 barato", ["Monitor 27", "Monitor"]) == []
+    assert V.recites_our_candidates("quiero una guitarra acústica", ["Guitarra acústica"]) == []
+
+
+def test_la_cabecera_generica_del_titulo_se_descarta():
+    """Los títulos reales empiezan por el tipo de cosa («Guitarra Acústica Yamaha F370BL»); la identidad es lo
+    que viene DESPUÉS. Sin quitarla, el título casaría con la propia petición del usuario."""
+    assert V.recites_our_candidates("la Yamaha F370BL por 100 €",
+                                    ["Guitarra Acústica Yamaha F370BL Negra"])
+
+
+def test_se_casa_por_PREFIJO_porque_nadie_recita_el_anuncio_entero():
+    assert V.recites_our_candidates("me quedo con la Fender CD-60",
+                                    ["Fender CD-60 acústica con funda y púas, muy poco uso"])
+
+
+def test_sin_titulos_conocidos_no_se_inventa_nada():
+    assert V.recites_our_candidates(_FLIP, []) == []
+    assert V.recites_our_candidates("", _KNOWN) == []
+
+
+def test_el_barrido_de_la_ronda_LO_USA():
+    """La mitad de cableado: el predicado puede acertar y no llegar al informe (V2-199)."""
+    import inspect
+
+    from tests.use_cases.e2e.agent import run as R
+    src = inspect.getsource(R)
+    assert "recites_our_candidates(" in src, "el barrido de role-flip dejó de consultar la señal"
+    i_known = src.find("_known = [str(t) for t in")
+    i_use = src.find("verifymod.recites_our_candidates")
+    assert 0 <= i_known < i_use, "los títulos se componen después de usarlos"
+
+
+def test_un_CODIGO_DE_MODELO_identifica_aunque_sea_corto():
+    """`fender cd60` mide once caracteres y es lo más reconocible del catálogo: el corte por longitud lo tiraba
+    por UNO. La longitud es un proxy de identidad; el modelo ES la identidad."""
+    assert V.recites_our_candidates("me quedo con la Fender CD-60", ["Fender CD-60 acústica con funda"])
+
+
+def test_el_guion_va_DENTRO_del_modelo():
+    """`CD-60` es una palabra para quien la lee y la dice; partirla dejaba «fender cd», que no identifica."""
+    assert V._norm_title("Fender CD-60") == "fender cd60"
+    assert V._norm_title("Yamaha F310P + funda") == "yamaha f310p funda"
+
+
+def test_sin_modelo_y_corto_NO_identifica():
+    """Sensibilidad de la regla nueva: dos palabras sueltas sin código no bastan."""
+    assert V.recites_our_candidates("una silla roja", ["Silla roja"]) == []
+
+
+def test_medido_contra_TODAS_las_rondas_guardadas_no_hay_falsos_positivos():
+    """El número que importa de un detector así no es que cace el caso, es a cuántos inocentes acusa.
+
+    Barrido sobre las líneas del TESTER de todos los informes de la noche: UNA marcada, la del turno 18. Se
+    deja escrito porque la tentación al ensanchar esto es mirar solo si el caso conocido sale.
+    """
+    import glob
+    import json
+    marcadas = 0
+    for f in glob.glob("tests/runs/use_cases/report_2026082*.json"):
+        try:
+            rondas = json.load(open(f))["results"]
+        except Exception:
+            continue
+        for r in rondas:
+            m = r.get("run", {}).get("mechanism_report", {}) or {}
+            known = [str(t) for t in ((m.get("results_sheet") or {}).get("titles") or [])]
+            known += [str(t) for t in ((m.get("offered") or {}).get("named") or [])]
+            for t in r.get("run", {}).get("transcript", []) or []:
+                if t.get("who") == "tester" and V.recites_our_candidates(t.get("text") or "", known):
+                    marcadas += 1
+    assert marcadas <= 3, f"{marcadas} líneas del tester marcadas: el detector se ha vuelto ancho"

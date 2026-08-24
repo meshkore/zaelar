@@ -1310,6 +1310,13 @@ DOMAINS: list[dict] = [
         {"id": "10.67", "title": "A line the HARNESS wrote is never charged to zaelar: the flipped turns "
                                  "reach the judge quoted, not merely counted",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_a_harness_line_is_never_charged_to_zaelar.py"]},
+        # V2-285: la SÉPTIMA cara del role-flip no es otra regex — es un hecho. La persona no puede saber cómo
+        # se llama un anuncio: lo produjo nuestro worker y vive en nuestra hoja. Medido en `search-buy-guitar`
+        # (turno 18, «la Yamaha F370BL por 100 € y la Fender CD-60 por 120 €» en el slot del USUARIO, con las
+        # seis caras mirando). Cero falsos positivos sobre las líneas del tester de todos los informes.
+        {"id": "10.68", "title": "La persona no puede saber cómo se llama un anuncio: si lo recita, la línea "
+                                 "la escribió el asistente",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_person_cannot_know_our_candidates.py"]},
     ]},
 ]
 

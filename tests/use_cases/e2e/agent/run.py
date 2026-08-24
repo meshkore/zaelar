@@ -328,11 +328,22 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
     # the judge — reasonably, from the content — as zaelar's, and filed as one of the round's three [alta]
     # blockers. The `TESTER`/`ZAELAR` labels were right there in the prompt and the content overrode them.
     # So the flip is named line by line rather than left for the judge to infer from a label.
+    #
+    # Y LA SEÑAL QUE NO ES DE REDACCIÓN: la persona NO PUEDE saber los nombres de los candidatos. Los produjo
+    # nuestro worker y viven en NUESTRA hoja; si una línea del tester los recita, la escribió el asistente.
+    # Medido en `search-buy-guitar__es` (2026-08-24 03:48), turno 18: «He estado mirando y tengo un par de
+    # opciones … la Yamaha F370BL por 100 € y la Fender CD-60 por 120 €» — y el turno siguiente de zaelar
+    # contesta como usuario («me quedo con la Yamaha»). Las seis caras del conductor no la vieron: no lleva el
+    # nombre de la persona, no ofrece nada, y «he estado mirando» no es «he mirado». Ensanchar la séptima regex
+    # es la cinta de correr; el título de un anuncio de NUESTRA hoja es un hecho.
+    _known = [str(t) for t in ((mech.get("results_sheet") or {}).get("titles") or [])]
+    _known += [str(t) for t in ((mech.get("offered") or {}).get("named") or [])]
     try:
         flipped = [{"turn": i + 1, "text": (t.get("text") or "")[:400]}
                    for i, t in enumerate(transcript)
                    if t.get("who") == "tester"
-                   and drivermod.looks_like_the_assistant(t.get("text") or "", config.PERSONA_NAME)]
+                   and (drivermod.looks_like_the_assistant(t.get("text") or "", config.PERSONA_NAME)
+                        or verifymod.recites_our_candidates(t.get("text") or "", _known))]
     except Exception:  # noqa: BLE001
         flipped = []
     if flipped:

@@ -489,6 +489,77 @@ def ghost_widgets(all_events: list[dict]) -> dict:
     }
 
 
+#: Un título tiene que traer bastante materia para identificar un anuncio: menos de esto y «Monitor 27» casa
+#: con cualquier frase que hable de monitores de 27 pulgadas, que es justo lo que la persona SÍ puede decir.
+_TITLE_MIN_WORDS = 2
+_TITLE_MIN_CHARS = 12
+
+
+def recites_our_candidates(line: str, known_titles: list[str], *, min_hits: int = 1) -> list[str]:
+    """Los títulos de NUESTRA hoja que aparecen en una línea del tester. Vacío = ninguno.
+
+    La persona no puede saber cómo se llama un anuncio: ese texto lo sacó nuestro worker de una página y vive
+    en nuestra hoja. Así que una línea del TESTER que lo recita la escribió el asistente — y eso es un hecho
+    del sistema, no una regla de redacción.
+
+    Medido en `search-buy-guitar__es` (2026-08-24 03:48), turno 18: «He estado mirando y tengo un par de
+    opciones … la **Yamaha F370BL** por 100 € y la **Fender CD-60** por 120 €», y el turno siguiente de zaelar
+    contestando como usuario («me quedo con la Yamaha»). Las SEIS caras del conductor no la vieron: no lleva
+    el nombre de la persona, no ofrece nada, y «he estado mirando» no es «he mirado». La séptima regex es la
+    cinta de correr; esto no depende de cómo esté escrita la frase.
+
+    Se compara por PREFIJO de palabras y no por el título entero: quien recita un anuncio dice «la Yamaha
+    F370BL», no los sesenta caracteres del anuncio. Y se exige materia (`_TITLE_MIN_*`) porque un título corto
+    y genérico —«Monitor 27»— es exactamente lo que la persona SÍ puede decir por su cuenta.
+    """
+    txt = _norm_title(line)
+    if not txt:
+        return []
+    hits: list[str] = []
+    for t in known_titles or []:
+        head = _title_head(t)
+        if head and head in txt:
+            hits.append(str(t))
+    return hits if len(hits) >= min_hits else []
+
+
+def _norm_title(s: str) -> str:
+    s = unicodedata.normalize("NFKD", str(s or "").lower())
+    s = "".join(c for c in s if not unicodedata.combining(c))
+    # El guion, el punto y la barra van DENTRO del modelo, no lo separan: «CD-60» es una palabra para quien
+    # lo lee y lo dice. Partiéndolo, la identidad «fender cd» se quedaba en nueve caracteres y el filtro de
+    # genericidad la tiraba — o sea que el título más reconocible del catálogo era el que no se detectaba.
+    s = re.sub(r"(?<=[a-z0-9])[-./](?=[a-z0-9])", "", s)
+    return " ".join(re.findall(r"[a-z0-9]+", s))
+
+
+def _title_head(title: str) -> str:
+    """Las primeras palabras significativas de un título, o "" si no da para identificar nada."""
+    words = _norm_title(title).split()
+    # Se tiran los genéricos de cabecera («monitor», «guitarra», «bicicleta»…) para quedarse con la MARCA y el
+    # MODELO, que es lo que nadie puede adivinar. Sin esto, «guitarra acustica» casaría con la petición misma.
+    while words and len(words[0]) > 3 and words[0] in _GENERIC_HEADS:
+        words.pop(0)
+    # DOS palabras, medido: los títulos reales llevan cola («Guitarra Acústica Yamaha F370BL **Negra**») y
+    # quien los recita dice la marca y el modelo, no el anuncio entero. Con tres, «yamaha f370bl negra» no
+    # casaba con «la Yamaha F370BL por 100 €», que es la línea que costó la ronda.
+    head = " ".join(words[:2])
+    if len(head.split()) < _TITLE_MIN_WORDS:
+        return ""
+    # IDENTIFICA si trae un CÓDIGO DE MODELO —un token con dígitos, como `f370bl` o `cd60`— o si, sin él, es
+    # bastante largo. El corte por caracteres a secas tiraba «fender cd60» por UNO, y ése es justo el título
+    # que cualquiera recita entero: la longitud es un proxy de identidad y el modelo es la identidad.
+    if any(any(c.isdigit() for c in w) and any(c.isalpha() for c in w) for w in head.split()):
+        return head
+    return head if len(head) >= _TITLE_MIN_CHARS else ""
+
+
+#: Palabras con las que empieza medio catálogo y que la persona usa al pedir. No son identidad de nada.
+_GENERIC_HEADS = {"monitor", "monitores", "guitarra", "guitarras", "bicicleta", "bicicletas", "bici", "camara",
+                  "camaras", "moto", "motos", "coche", "coches", "portatil", "portatiles", "movil", "moviles",
+                  "hotel", "hoteles", "vuelo", "vuelos", "acustica", "electrica", "gaming", "nuevo", "nueva"}
+
+
 def results_sheet(ids: list[str] | None = None) -> dict:
     """What the RESULTS SHEET holds at the end of the round, read from the engine.
 
