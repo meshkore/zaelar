@@ -342,12 +342,17 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             try:
                 _rows_at = (mech.get("sheet_timing") or {}).get("sheet_rows_ms")
                 _said_at = None
-                _heads = [str(t).lower()[:24] for t in (offered.get("titles") or []) if t]
+                # The SAME identity `recites_our_candidates` uses (normalized head), not a raw 24-char prefix:
+                # round 33 measured the difference — zaelar said «Harley Benton CLGS 10S» against a sheet title
+                # of «Guitarra Acústica Harley Benton…», the literal prefix never matched, the lag came out
+                # None, and the judge — without the clock line — filed «retención artificial» again. A clock
+                # that only ticks when the model recites the title verbatim is a clock that mostly doesn't run.
+                _heads = [h for h in (verifymod._title_head(t) for t in (offered.get("titles") or []) if t) if h]
                 for t in transcript:
                     if t.get("who") != "zaelar":
                         continue
-                    low = (t.get("text") or "").lower()
-                    if any(h and h in low for h in _heads):
+                    low = verifymod._norm_title(t.get("text") or "")
+                    if any(h in low for h in _heads):
                         _said_at = (t.get("at") or 0) * 1000
                         break
                 mech["sheet_timing"]["delivery_lag_s"] = (
