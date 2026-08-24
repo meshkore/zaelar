@@ -50,7 +50,44 @@ def _found_candidates(nav_task_id: str) -> bool:
     try:
         from nucleo import dispatch as _d
         rec = _d.record_by_nav_task(str(nav_task_id))
-        return bool(rec) and int(getattr(rec, "kept", 0) or 0) > 0
+        if rec and int(getattr(rec, "kept", 0) or 0) > 0:
+            return True
+    except Exception:
+        pass
+    return _sheet_has_rows(nav_task_id)
+
+
+def _sheet_has_rows(nav_task_id: str) -> bool:
+    """¿Hay ya filas CON NOMBRE en la hoja de este encargo?
+
+    V2-284 — la señal de arriba es un REPORTE VOLUNTARIO: solo existe si el worker se acordó de llamar a
+    `hbnote considered --kept N`. Medido en la tanda del 2026-08-24 03:02, con los prompts de los diez turnos
+    delante: en `search-secondhand-monitor__es` la cara NO salió ni una vez —la línea decía «en es.wallapop.com,
+    1 pasos dados» y nada más— mientras el mecanismo registraba 11 navegaciones, 5 extracciones y monitores
+    reales con precio y enlace. El mismo silencio en tres de los cuatro casos de la tanda, y el veredicto de los
+    tres fue el mismo: «tuvo resultados reales y no los entregó». Tenía razón, y la culpa no era del turno: a su
+    prompt no llegó nunca que hubiera algo.
+
+    Las filas de la hoja son un hecho que NO depende de que nadie se acuerde: las escribe `results.intake.push`
+    cuando el navegador extrae (V2-257). Y se lee por la PESTAÑA, no por el registro de sesiones vivas, porque
+    es justo cuando el worker ya no está —relevado, muerto— cuando esto más falta hace (V2-281).
+
+    Solo cuentan las filas con NOMBRE, la misma regla que la nota del navegador (V2-234): una fila sin nombre es
+    un enlace que estaba en la página, no un resultado. ⚠️ Hoy ese filtro es un cinturón sobre unos tirantes —
+    `results.apply_action` ya descarta la fila sin título al ENTRAR, medido— y se deja escrito porque un test
+    que lo comprobara sin decirlo estaría afirmando una cobertura que tiene la capa de al lado. Su caso
+    comprueba la garantía de la HOJA, así que se pone rojo el día que deje de darla.
+
+    Best-effort: no poder leerlo significa «no», que deja las caras de atasco y muro exactamente como estaban.
+    """
+    try:
+        from widgets.navegador import tasks as _t
+        from widgets.results import data as _sheet
+        sheet = str(((_t.get(str(nav_task_id)) or {}).get("sheet")) or "").strip()
+        if not sheet:
+            return False
+        items = (_sheet.view_data(sheet) or {}).get("items") or []
+        return any(str((i or {}).get("title") or "").strip() for i in items)
     except Exception:
         return False
 

@@ -565,6 +565,11 @@ DOMAINS: list[dict] = [
             # en la hoja PELADA, la que no es de nadie: 24 filas ahí contra 12 en la del encargo, y esa caja
             # huérfana es la «tarjeta fantasma» del canvas. Se sella al nacer, como el `trace` de V2-108.
             "tests/browser/unit/navegador/test_the_tab_remembers_its_errand.py",
+            # V2-284: la señal de «ya encontró algo» era un REPORTE VOLUNTARIO (`hbnote considered --kept N`) y
+            # el worker no siempre lo hace: en tres de los cuatro casos de la tanda del 2026-08-24 la cara no
+            # salió NI UNA VEZ mientras el navegador extraía resultados reales, y el veredicto de los tres fue
+            # «tuvo resultados y no los entregó». Las filas de la hoja no dependen de que nadie se acuerde.
+            "tests/browser/unit/navegador/test_the_found_signal_does_not_wait_to_be_told.py",
             # sin mapear hasta el 2026-08-21: el muro de login en la NUBE cierra en limpio en vez de dar vueltas
             "tests/browser/unit/navegador/test_cloud_login_bailout.py",
             "tests/browser/unit/navegador/test_auth.py", "tests/browser/unit/navegador/test_tasks_dedup.py",
