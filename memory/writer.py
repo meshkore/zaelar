@@ -248,7 +248,11 @@ def insert_memory(
     # ENFORCEMENT de espacio vectorial (auditoría 2026-07-19 P0-1): jamás insertar en el índice un vector de OTRO
     # espacio — ni de firma discordante (embedsig ≠ backend activo: pasó 2 días con fastembed/bge-EN sobre índice
     # embeddinggemma, misma dim → cero errores, recall corrompido) ni de degradación a hash en caliente. En esos
-    # casos la píldora queda SIN vector + `meta.embed_pending=1` (recuperable por FTS; el sueño la re-embebe).
+    # casos la píldora queda SIN vector y se marca `meta.embed_pending` (recuperable por FTS; el sueño la
+    # re-embebe). ⚠️ El valor del marcador es el MOTIVO, una cadena — hoy `"sig_mismatch"` o `"degraded"` —
+    # NUNCA un 1. Este comentario decía `=1` y esa mentira costó un diagnóstico el 2026-08-24: una consulta
+    # `embed_pending = 1` devuelve CERO sobre una base contaminada, o sea que informa de «limpio» justo
+    # cuando hay daño. Se consulta como lo hace el producto: `IS NOT NULL` (`rem.py::report`).
     if db.vec_available and kind != "conv":
         pending_reason = None
         if not _embed_sig_ok():
