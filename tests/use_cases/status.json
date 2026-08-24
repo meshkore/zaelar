@@ -496,24 +496,24 @@
       "measured_in": "worktree fijado en 05dd79f"
     },
     "search-buy-camera__es": {
-      "last_run": "2026-08-24 11:05",
-      "overall": 3,
+      "last_run": "2026-08-24 11:56",
+      "overall": 2,
       "judge": "deepseek-v4-flash",
       "state": "INFRA",
       "scores": {
-        "naturalidad": 4,
-        "adaptacion": 4,
-        "resultado": 2,
+        "naturalidad": 3,
+        "adaptacion": 3,
+        "resultado": 1,
         "mecanismo": 4,
-        "eficiencia": 3
+        "eficiencia": 2
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar no entregó los resultados reales que el sistema le ofreció por nota, improvisó una lista distinta y prometió verificaciones que no ejecutó, dejando al usuario sin la información que pidió.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es que el worker encontró 6 candidatos reales que cumplían los criterios y zaelar no los entregó — la hoja de resultados quedó vacía y el usuario se fue sin ninguna opción con nombre, precio y fuente.",
       "missing_signals": [],
       "audit_anomalies": [],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
-      "turns_used": 9,
+      "turns_used": 10,
       "families": [
         "flash",
         "main",
@@ -524,7 +524,7 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "d0796a7",
+        "sha": "4df64fd",
         "n_dirty": 0,
         "dirty": []
       },
@@ -1851,18 +1851,18 @@
       }
     },
     "search-buy-bicycle__es": {
-      "last_run": "2026-08-24 10:52",
+      "last_run": "2026-08-24 11:41",
       "overall": 2,
       "judge": "deepseek-v4-flash",
       "state": "INFRA",
       "scores": {
-        "naturalidad": 4,
-        "adaptacion": 4,
+        "naturalidad": 3,
+        "adaptacion": 3,
         "resultado": 1,
         "mecanismo": 3,
         "eficiencia": 2
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real (la hoja de resultados quedó vacía) y zaelar no fue honesto sobre el atasco, limitándose a repetir 'sigo con ello' sin ofrecer alternativas concretas.",
+      "verdict": "Este caso de uso no está listo para producción: el bloqueador nº1 es que el agente no entregó ningún resultado real al usuario a pesar de tener candidatos encontrados, y además eligió la zona de búsqueda sin preguntar, incumpliendo las reglas del caso.",
       "missing_signals": [],
       "audit_anomalies": [],
       "sandboxed": true,
@@ -1879,7 +1879,7 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "d0796a7",
+        "sha": "4df64fd",
         "n_dirty": 0,
         "dirty": []
       },
@@ -1893,18 +1893,18 @@
       }
     },
     "search-buy-guitar__es": {
-      "last_run": "2026-08-24 11:23",
-      "overall": 2,
+      "last_run": "2026-08-24 12:03",
+      "overall": 3,
       "judge": "deepseek-v4-flash",
       "state": "INFRA",
       "scores": {
         "naturalidad": 4,
         "adaptacion": 4,
-        "resultado": 1,
-        "mecanismo": 2,
-        "eficiencia": 2
+        "resultado": 3,
+        "mecanismo": 4,
+        "eficiencia": 3
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real (0 candidatos en la hoja), y la conversación terminó sin cerrar el encargo ni explicar el fallo de extracción.",
+      "verdict": "El caso se completó con resultados reales en la hoja (21 candidatos con enlace), pero la entrega fue tardía y parcial en el último turno; el bloqueador principal es la falta de proactividad al informar resultados cuando ya estaban disponibles.",
       "missing_signals": [],
       "audit_anomalies": [],
       "sandboxed": true,
@@ -1921,7 +1921,7 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "45c9115",
+        "sha": "4df64fd",
         "n_dirty": 0,
         "dirty": []
       },
@@ -1996,20 +1996,31 @@
       }
     },
     "search-secondhand-monitor__es": {
-      "last_run": "2026-08-24 10:58",
-      "overall": 3,
+      "last_run": "2026-08-24 11:49",
+      "overall": 2,
       "judge": "deepseek-v4-flash",
       "state": "INFRA",
       "scores": {
         "naturalidad": 4,
-        "adaptacion": 4,
-        "resultado": 3,
-        "mecanismo": 4,
-        "eficiencia": 3
+        "adaptacion": 3,
+        "resultado": 1,
+        "mecanismo": 3,
+        "eficiencia": 2
       },
-      "verdict": "El caso se resolvió con resultados reales y la hoja se llenó correctamente, pero la entrega fue tardía y no se aprovechó la superficie visible; el bloqueador principal es la demora en comunicar resultados que ya estaban disponibles.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es que el resultado correcto (monitor LG UltraGear a 150€) existía en el sistema y nunca se entregó al usuario, que se quedó esperando un monitor mientras la hoja de resultados se llenaba de guitarras.",
       "missing_signals": [],
-      "audit_anomalies": [],
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/navegador «🧭 navegador ⚠️ error»: Exit code 1 ERROR: Error: ElementHandle.click: Element is not attached to the DOM"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:1: 1 error(es), último paso «alive»"
+        }
+      ],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
@@ -2024,7 +2035,7 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "d0796a7",
+        "sha": "4df64fd",
         "n_dirty": 0,
         "dirty": []
       },
@@ -2146,5 +2157,5 @@
       }
     }
   },
-  "updated": "2026-08-24 11:23"
+  "updated": "2026-08-24 12:03"
 }
