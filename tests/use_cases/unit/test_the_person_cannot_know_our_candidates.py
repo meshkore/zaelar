@@ -113,7 +113,14 @@ def test_medido_contra_TODAS_las_rondas_guardadas_no_hay_falsos_positivos():
             m = r.get("run", {}).get("mechanism_report", {}) or {}
             known = [str(t) for t in ((m.get("results_sheet") or {}).get("titles") or [])]
             known += [str(t) for t in ((m.get("offered") or {}).get("named") or [])]
-            for t in r.get("run", {}).get("transcript", []) or []:
-                if t.get("who") == "tester" and V.recites_our_candidates(t.get("text") or "", known):
+            tr = r.get("run", {}).get("transcript", []) or []
+            for i, t in enumerate(tr):
+                # `heard` igual que en `run.py`: repetir UN nombre que zaelar acaba de decir es elegir, no
+                # hacer de asistente. Medido 2026-08-24: 3 de las 4 marcadas eran esos ecos («la Fender esa
+                # suena bien», «la valoración de la Casa Boutique»), y la única REAL —el turno 18 del 03:48,
+                # que recita DOS títulos con precios— sigue cazada, como exige el test de al lado.
+                heard = " ".join((x.get("text") or "") for x in tr[:i] if x.get("who") == "zaelar")
+                if t.get("who") == "tester" and V.recites_our_candidates(t.get("text") or "", known,
+                                                                        heard=heard):
                     marcadas += 1
-    assert marcadas <= 3, f"{marcadas} líneas del tester marcadas: el detector se ha vuelto ancho"
+    assert marcadas <= 1, f"{marcadas} líneas del tester marcadas: el detector se ha vuelto ancho"

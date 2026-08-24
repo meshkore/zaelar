@@ -370,7 +370,12 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
                    for i, t in enumerate(transcript)
                    if t.get("who") == "tester"
                    and (drivermod.looks_like_the_assistant(t.get("text") or "", config.PERSONA_NAME)
-                        or verifymod.recites_our_candidates(t.get("text") or "", _known))]
+                        or verifymod.recites_our_candidates(
+                            t.get("text") or "", _known,
+                            # what zaelar already said BEFORE this line: repeating one heard name back is
+                            # choosing, not playing the assistant (V2-300 — 3 of 4 flagged lines were echoes)
+                            heard=" ".join((x.get("text") or "") for x in transcript[:i]
+                                           if x.get("who") == "zaelar")))]
     except Exception:  # noqa: BLE001
         flipped = []
     if flipped:

@@ -515,7 +515,8 @@ _TITLE_MIN_WORDS = 2
 _TITLE_MIN_CHARS = 12
 
 
-def recites_our_candidates(line: str, known_titles: list[str], *, min_hits: int = 1) -> list[str]:
+def recites_our_candidates(line: str, known_titles: list[str], *, min_hits: int = 1,
+                           heard: str = "") -> list[str]:
     """Los títulos de NUESTRA hoja que aparecen en una línea del tester. Vacío = ninguno.
 
     La persona no puede saber cómo se llama un anuncio: ese texto lo sacó nuestro worker de una página y vive
@@ -531,16 +532,32 @@ def recites_our_candidates(line: str, known_titles: list[str], *, min_hits: int 
     Se compara por PREFIJO de palabras y no por el título entero: quien recita un anuncio dice «la Yamaha
     F370BL», no los sesenta caracteres del anuncio. Y se exige materia (`_TITLE_MIN_*`) porque un título corto
     y genérico —«Monitor 27»— es exactamente lo que la persona SÍ puede decir por su cuenta.
+
+    `heard` = lo que ZAELAR ya dijo antes de esta línea. Medido el 2026-08-24 sobre las rondas guardadas: 3 de
+    las 4 líneas marcadas eran ECOS legítimos — «perfecto, la Fender esa suena bien», «la valoración de la
+    Casa Boutique» — la persona repitiendo UN nombre que acababa de oír, que es exactamente lo que hace
+    cualquiera al elegir. La distinción no es el nombre sino la POSTURA: un título que zaelar nunca dijo
+    delata con UNO (la persona no podía saberlo); los ya oídos solo delatan a partir de DOS en la misma línea
+    (recitar una lista con precios es conducta de asistente aunque los nombres se hayan oído — el caso
+    original del 03:48 llevaba dos, y sigue cazado).
     """
     txt = _norm_title(line)
     if not txt:
         return []
-    hits: list[str] = []
+    heard_txt = _norm_title(heard)
+    fresh: dict[str, str] = {}
+    echoed: dict[str, str] = {}
     for t in known_titles or []:
         head = _title_head(t)
         if head and head in txt:
-            hits.append(str(t))
-    return hits if len(hits) >= min_hits else []
+            # keyed by the normalized HEAD: the same listing arrives twice in `known_titles` (once from the
+            # sheet, once from the offered note) and counting it twice would turn one echoed mention into a
+            # "recited list" — exactly the false positive the echo rule exists to remove.
+            (echoed if heard_txt and head in heard_txt else fresh).setdefault(head, str(t))
+    hits = list(fresh.values()) + list(echoed.values())
+    if len(fresh) >= max(1, min_hits) or len(echoed) >= 2:
+        return hits
+    return []
 
 
 def _norm_title(s: str) -> str:
@@ -988,7 +1005,14 @@ def navegador_task_is_live() -> bool:
     except Exception:
         return False
     for t in tasks or []:
-        if str(t.get("kind") or "") == "navegador" and str(t.get("status") or "") in ("working", "needs_input"):
+        # `/api/tasks` is the WORKER-session registry (`dispatch.active_sessions()`), and a browser errand's
+        # session kind there is "web" — never "navegador", which is the WIDGET's id one layer down. Measured
+        # on round 22 (2026-08-24): worker alive at the turn cap, sheet filling up, and the grace block never
+        # fired ONCE in any recorded round — this predicate could not match, so every round ended as the
+        # budget-vs-browser race the grace exists to remove. "navegador" stays accepted in case a future
+        # registry exposes it, but "web" is the value production actually emits.
+        if (str(t.get("kind") or "") in ("web", "navegador")
+                and str(t.get("status") or "") in ("queued", "running", "working", "needs_input")):
             return True
     return False
 

@@ -1450,7 +1450,11 @@ DOMAINS: list[dict] = [
         {"id": "10.74", "title": "El reloj de la entrega mide la HOJA del encargo, no la narración",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_sheet_clock_is_the_sheet.py"]},
         {"id": "10.73", "title": "El motor queda limpio entre casos y se COMPRUEBA (un caso cada vez)",
-            "ch": UNIT, "paths": ["tests/use_cases/unit/test_one_case_at_a_time_is_verified.py"]},
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_one_case_at_a_time_is_verified.py",
+                                  # V2-300: la gracia buscaba kind='navegador' y /api/tasks emite 'web' —
+                                  # el predicado no casó NUNCA y todas las rondas corrieron la carrera
+                                  # presupuesto-vs-navegador que la gracia existía para quitar.
+                                  "tests/use_cases/unit/test_grace_sees_the_web_worker.py"]},
         {"id": "10.72", "title": "El conductor y el vigilante saben qué recuerda ya el agente (perfil del plató)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_driver_knows_who_it_is_playing.py"]},
         {"id": "10.71", "title": "Una hoja escrita que nadie abrió se cuenta, se nombra y se atribuye al "
