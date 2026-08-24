@@ -202,6 +202,10 @@ DOMAINS: list[dict] = [
             # el encargo y deja `ok=False` a propósito — y con eso la sesión quedaba indistinguible de un worker
             # muerto: aviso falso de muerte al operador, DOS escaladas para una, y una muerte contada de más.
             "tests/agent_headless/unit/workers/test_a_handoff_is_not_a_death.py",
+            # V2-288: el cajón privado del worker no lo era — `escalate._seq` arranca en 0 en cada proceso, así
+            # que el primer encargo tras un reinicio caía en el mismo directorio que el primero del arranque
+            # anterior y heredaba su `informe.json`. Medido: 6 guitarras entregadas en 27 s con CERO navegaciones.
+            "tests/agent_headless/unit/workers/test_a_restart_does_not_inherit_a_report.py",
             # V2-237: tres workers reanudando LA MISMA sesión del CLI y los tres muertos a los ~400 ms (3 de 3,
             # contra 0 de 3 entre los que abrieron sesión propia). `_find_resume` leía la entrada sin consumirla.
             "tests/agent_headless/unit/test_a_native_session_is_resumed_once.py",

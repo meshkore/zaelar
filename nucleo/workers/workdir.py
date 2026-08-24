@@ -16,7 +16,10 @@ Three separate problems collapse into that one `cwd`, and one scratch directory 
   - **Collision.** The delivery recipe tells every worker to write its report to a RELATIVE path in its working
     directory (`informe.json`, plain). Sharing the repo root means every worker shares that one file — the guitar
     worker started with the PREVIOUS day's report auto-attached to its prompt. One directory per task makes the
-    relative path private again, with no change to the recipe.
+    relative path private again, with no change to the recipe. ⚠️ **One directory per task id was NOT enough and
+    this bullet claimed the fix for six days**: ids restart at 0 in every process, so the collision came straight
+    back through the restart door and served a stale report as fresh work — see `for_task` for the measurement and
+    the boot stamp that closes it.
   - **Privacy.** Walking up from `engine/` also picks up the ROOT `CLAUDE.md`, which is the PRIVATE business/cloud
     one, and ships it to whichever provider serves the worker. Confining the cwd is what stops that at the source.
 
@@ -40,6 +43,8 @@ import tempfile
 import time
 
 from loguru import logger
+
+from nucleo.runtime_ids import boot_id
 
 # THREE levels, not two: this module lives in `nucleo/workers/`, one level deeper than `dispatch_devworker.py`
 # (`nucleo/`), whose pattern it copied. With two, `PYTHONPATH` pointed at `nucleo/` and `-m nucleo.nav_cli` stopped
@@ -66,9 +71,32 @@ def for_task(task_id: str) -> str:
     """This task's private scratch directory, created if needed.
 
     Stable per `task_id` (not a fresh `mkdtemp`) so a RESUMED worker of the same management lands back in its own
-    directory and still finds what it wrote — V2-049 continuity depends on not starting from zero."""
+    directory and still finds what it wrote — V2-049 continuity depends on not starting from zero.
+
+    ⚠️ AND COMPOSED WITH THE BOOT STAMP (V2-288), because `task_id` alone did NOT make the path private and the
+    COLLISION this module claims to have fixed was still open — through the door `runtime_ids` exists to close.
+    `escalate._seq` restarts at 0 in every process, so the first errand after a restart is `1` again, lands on the
+    directory the previous run's first errand used, and inherits its `informe.json` while `_TTL_S` keeps it for
+    48 hours.
+
+    Measured on the batch of 2026-08-24 11:11, `search-buy-guitar__es`: the worker planned «3 pasos: entregar
+    informe de guitarras en la hoja results» and delivered SIX guitars with real Wallapop urls **27 seconds after
+    starting, with zero navigations, zero extractions and zero searches** — reading them out of
+    `zaelar-workers/1/informe.json`, written by another run at 03:02. It then told the operator «Entré en Wallapop
+    y revisé 14 anuncios», which is the report's own narration, not something the model made up. Cost $0.31 for a
+    delivery that never happened.
+
+    The damage is worse in production than on the bench: the operator's next search after a restart can be served
+    the PREVIOUS session's report as freshly browsed, complete with prices and working links. It is not a plausible
+    lie — it is a real one from another day, which is exactly the kind nobody checks.
+
+    Same class and same remedy as V2-259's addendum on the results sheet (`dispatch.sheet_id_for`): anything that
+    must not collide across a restart is composed with `boot_id()`, which also ROLLS on a reset (V2-287), so
+    «empezamos de cero» gets a genuinely empty directory. Resuming inside one process is untouched — same stamp,
+    same id, same directory."""
     _reap()
-    safe = "".join(c if (c.isalnum() or c in "-_") else "-" for c in (task_id or ""))[:64] or "task"
+    raw = f"{boot_id()}-{task_id or 'task'}"
+    safe = "".join(c if (c.isalnum() or c in "-_") else "-" for c in raw)[:64] or "task"
     path = os.path.join(_ROOT, safe)
     try:
         os.makedirs(path, exist_ok=True)
