@@ -47,6 +47,7 @@ DOMAINS: list[dict] = [
             "tests/memory/unit/test_model_cache.py"]},
         {"id": "1.3", "title": "Escritura / ingest / destilador", "ch": UNIT, "paths": [
             "tests/memory/integration/test_memory_agent.py", "tests/memory/integration/test_writer_queue.py",
+            "tests/memory/unit/test_embed_pending_marker.py",
             "tests/memory/integration/test_write_precision_v2033.py",
             "tests/memory/integration/test_write_precision_v2050.py",
             "tests/memory/integration/test_write_changes_20260712.py",
@@ -383,6 +384,18 @@ DOMAINS: list[dict] = [
         {"id": "2.27", "title": "Una puerta de bóveda, dos bocas: la decisión se toma UNA vez y ningún canal "
                                 "conserva su copia",
             "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_the_vault_gate_is_decided_once.py"]},
+        # F1 (2026-08-24) — el espejo que DERIVÓ, y el defecto que escondía. Hay TRES puertas de confirmación
+        # (widget · tarea parada por el confirm-gate · clic irreversible del navegador) y pueden estar abiertas a
+        # la vez. En VOZ las dos últimas se resolvían con el MISMO guarda, que mira la de widget, así que nada
+        # registraba que la de tarea acabara de resolverse: un solo «sí» hablado autorizaba LAS DOS. El comentario
+        # de ese bloque afirmaba justo lo contrario —«solo si el sí no ha resuelto ya otra cosa»— y eso es lo que
+        # hizo que nadie mirara: un invariante en prosa, cero tests. El `probe` lo tenía bien.
+        # El guarda de cableado se comprueba por AST y sobre la propiedad correcta: que las dos puertas viajen en
+        # la MISMA llamada. La primera versión contaba llamadas sueltas y se quedó VERDE al reintroducir el
+        # defecto — contaba el arreglo, no la propiedad.
+        {"id": "2.29", "title": "Un «sí» contesta a UNA pregunta: la precedencia de las tres puertas de "
+                                "confirmación se decide una vez, y los dos canales la usan",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/turn/test_one_yes_answers_one_question.py"]},
         # F1 paso 2 (2026-08-23), reportado por el arnés con el coste medido: con la memoria lenta (descarga de
         # 1,1 GB) `probe.py` componía el recall DENTRO del event loop y bloqueaba el motor ENTERO — todos los
         # endpoints en timeout y la tanda muerta como «INFRA: timed out», sin nombrar a la memoria. La voz ya
@@ -1186,7 +1199,11 @@ DOMAINS: list[dict] = [
                                   # Medido editando el motor con cuatro casos en marcha: del segundo en
                                   # adelante se midió código que ya no existía, y el marcador se escribe POR
                                   # ESCENARIO, así que esa basura entra en el tablero caso a caso.
-                                  "tests/use_cases/unit/test_a_batch_notices_the_tree_moving.py"]},
+                                  "tests/use_cases/unit/test_a_batch_notices_the_tree_moving.py",
+                                  # V2-297: `--fresh` borraba también el cooldown de proveedores, así que cada
+                                  # ronda volvía a estrellarse contra un escalón que ya sabíamos muerto. Medido
+                                  # en la bici del 15:16: 67 de los 150 s de la ronda antes del primer paso.
+                                  "tests/use_cases/unit/test_a_dead_tier_is_not_rediscovered_every_round.py"]},
         # Una tanda comparte UN motor y el reset no borra memoria (exige matar el proceso), así que del tercer
         # caso en adelante zaelar recuerda los anteriores — y el juez lo estaba puntuando como defecto suyo.
         {"id": "10.9", "title": "Memoria compartida entre casos: se avisa al juez, sin amnistiar el fallo real",

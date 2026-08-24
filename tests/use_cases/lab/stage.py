@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import json
 import os
+import pathlib
 import shutil
 import signal
 import subprocess
@@ -191,12 +192,76 @@ def seed_profile(profile: LabProfile) -> dict:
         return {}
 
 
-def wipe(profile: LabProfile) -> None:
+#: The `sys_kv` keys that survive a wipe. A provider cooldown is a fact about the OUTSIDE WORLD — «this
+#: endpoint has no quota left until Monday» — not something this agent learned about its operator, so wiping
+#: it is wiping the wrong thing.
+_KEEP_KV = ("worker_provider_cooldown", "cluster_provider_cooldown")
+
+
+def _read_kv(ws: pathlib.Path, names) -> dict:
+    """Read those keys straight from the sandbox DB, BEFORE it is deleted. Best-effort by design: on a first
+    boot there is no database to read and that is the normal case, not an error."""
+    db = ws / "memory" / "_data" / "sandbox.db"
+    if not db.exists():
+        return {}
+    out = {}
+    try:
+        import sqlite3
+        con = sqlite3.connect(f"file:{db}?mode=ro", uri=True, timeout=2.0)
+        try:
+            for n in names:
+                row = con.execute("SELECT value FROM sys_kv WHERE key = ?", (n,)).fetchone()
+                if row and row[0]:
+                    out[n] = row[0]
+        finally:
+            con.close()
+    except Exception:  # noqa: BLE001
+        return {}
+    return out
+
+
+def _restore_kv(ws: pathlib.Path, saved: dict) -> None:
+    """Put them back after the seed. Runs BEFORE the engine boots, so the chain reads them on its first pick
+    instead of rediscovering a dead tier with a real request."""
+    if not saved:
+        return
+    db = ws / "memory" / "_data" / "sandbox.db"
+    if not db.exists():
+        return
+    try:
+        import sqlite3
+        con = sqlite3.connect(str(db), timeout=5.0)
+        try:
+            for k, v in saved.items():
+                con.execute("INSERT INTO sys_kv (key, value) VALUES (?, ?) "
+                            "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (k, v))
+            con.commit()
+        finally:
+            con.close()
+    except Exception:  # noqa: BLE001
+        pass
+
+
+def wipe(profile: LabProfile) -> dict:
     """Empty this agent's memory and widget data. The workspace directory itself stays (the operator may
-    have the log open, and the path is in the terminal scrollback of every run)."""
+    have the log open, and the path is in the terminal scrollback of every run).
+
+    Returns the `sys_kv` entries worth carrying over — see `_KEEP_KV`. Measured on the round of 2026-08-24
+    15:16, `search-buy-bicycle__es`: the round is 150 s long and the FIRST 67 of them produced nothing,
+    because `--fresh` had wiped the cooldown store and the first worker went straight at `z.ai`, which has
+    had no weekly quota since the day before (`sin cuota hasta el 25 Aug 01:39`). It died in half a second,
+    the relay took over, and the browsing that the case actually measures got 83 s instead of 150. **21 % of
+    every round spent rediscovering a fact we already knew**, once per case, all day.
+
+    In PRODUCTION this does not happen: `sys_kv` persists, so the cooldown is discovered once and held for
+    hours. It is an artefact of measuring against a brand-new install — which is why the fix belongs here and
+    not in the engine.
+    """
     ws = workspace_of(profile)
+    saved = _read_kv(ws, _KEEP_KV)
     for sub in ("memory", "widgets", "config"):
         shutil.rmtree(ws / sub, ignore_errors=True)
+    return saved
 
 
 # ── lifecycle ────────────────────────────────────────────────────────────────────────────────────────
@@ -248,10 +313,10 @@ def up(profile: LabProfile, *, voice: bool = True, fresh: bool = False,
     ws = workspace_of(profile)
     ws.mkdir(parents=True, exist_ok=True)
     seeded = fresh or not (ws / "memory" / "_data" / "sandbox.db").exists()
-    if fresh:
-        wipe(profile)
+    carried = wipe(profile) if fresh else {}
     if seeded:
         seed_profile(profile)
+    _restore_kv(ws, carried)
     # EVERY boot, not only a fresh one: the chain is infrastructure, and it is the operator's live config
     # that decides it. Seeding it once at creation would freeze whatever ladder existed that day.
     chain = seed_provider_chain(ws)
