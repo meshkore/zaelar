@@ -832,6 +832,12 @@ DOMAINS: list[dict] = [
         # La pestaña DICE de qué hoja es. El sello existe desde V2-281 y vivía solo dentro del proceso, así
         # que desde fuera «nunca se selló» y «se selló y algo lo ignoró» se leían igual — y por ese sello
         # resuelve `_sheet_has_rows` si el encargo ya tiene filas. Mismo hueco que cerró V2-207 con `wall`.
+        # El navegador es conexión DIRECTA y no espera. Medido: una acción real cuesta ~4 s y el tope estaba
+        # en 90 — veinte veces. Y lo caro no era esperar: `page.evaluate` no tiene timeout en Playwright, así
+        # que una página navegando colgaba la mirada POSTERIOR a una acción que YA había funcionado, y el
+        # worker recibía un fallo y la repetía. Norma del operador: ni noventa segundos bajo ningún concepto.
+        {"id": "4.45", "title": "Ninguna espera del navegador llega a 90 s, y una lectura lenta no falsea un fallo",
+            "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_the_browser_never_waits_ninety_seconds.py"]},
         {"id": "4.44", "title": "La pestaña expone su hoja (el sello que lee _sheet_has_rows)",
             "ch": UNIT, "paths": ["tests/browser/unit/navegador/test_the_tab_says_which_sheet_it_belongs_to.py"]},
         {"id": "4.43", "title": "La cosecha LLEGA a la hoja y sobrevive a que el encargo muera (y la de otra "

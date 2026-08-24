@@ -33,7 +33,14 @@ _BASE = os.getenv("ZAELAR_BASE", "http://localhost:43917").rstrip("/")
 
 #: How long we wait for one browser action before giving up on the ANSWER (not on the action). The error
 #: message NAMES this number, so it lives once: two literals drift and then the hint states a wrong figure.
-_ACT_TIMEOUT_S = 90
+# El navegador es una CONEXIÓN DIRECTA: una acción que funciona, funciona en segundos. Medido contra el
+# plató vivo sobre un sitio real: `navigate` 4,2 s · `look` 4,2 s · `extract` 0,05 s. Estaba en 90 —veinte
+# veces el coste real— y eso no es «margen de sobra»: es que un cuelgue se lleva un tercio de la ronda antes
+# de que nadie se entere. Medido el 2026-08-24 en `search-buy-guitar__es`: 90 de 250 segundos en un `type`
+# que YA HABÍA ESCRITO el texto. Norma del operador el mismo día: «no tiene tiempos de espera de noventa
+# segundos bajo ningún concepto». 25 s sigue siendo seis veces el coste real; lo que no da es para esconder
+# un cuelgue.
+_ACT_TIMEOUT_S = 25
 
 
 def _act(action: str, args: dict) -> dict:

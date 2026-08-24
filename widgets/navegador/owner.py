@@ -33,7 +33,16 @@ from nucleo.errors import brief as _brief
 WID = "navegador"
 VIEWPORT = {"width": 1280, "height": 800}
 HOME = {"mode": "blank", "url": "", "title": "Nuevo navegador"}
-_NAV_TIMEOUT = 20_000   # ms — goto cap; a slow website must not block the mailbox
+_NAV_TIMEOUT = 15_000   # ms — goto cap; a slow website must not block the mailbox
+#: Cap for a DOM READ after an action. The browser is a DIRECT connection: an action that works, works in
+#: seconds — measured against the live lab on a real site, `navigate` 4.2 s, `look` 4.2 s, `extract` 0.05 s.
+#: What is NOT bounded by anything is `page.evaluate`: Playwright gives it no timeout, so it waits for an
+#: execution context, and a page NAVIGATING (the Enter after typing in a search box) has none until the new
+#: document is ready. Measured 2026-08-24 on `search-buy-guitar__es`: the text WAS typed and the screenshot
+#: WAS taken at 18:03:48, then silence until the CLI gave up at 18:05:15 — 90 s of a 250 s round spent on an
+#: action that had already succeeded. Operator's rule, same day: «no tiene tiempos de espera de noventa
+#: segundos bajo ningún concepto». Generous against the 4 s measured, brutal against the 90 that was there.
+_DOM_TIMEOUT_S = 8.0
 
 # Cookie/consent banner selectors for auto-dismiss after navigation (best effort).
 # Any failing selector is a quick no-op. Ordered from most specific to most generic.
@@ -1419,18 +1428,35 @@ class TaskBrowser:
         # V2-248 — DÓNDE se tomó esta mirada. Se guarda para que un `ref` caducado pueda decir por qué caducó: si
         # la página ya no es la misma, el motivo no es que el número esté mal escrito.
         self.refs_url = getattr(page, "url", "") or ""
+        # CADA LECTURA DEL DOM, ACOTADA. Ninguna de las tres lo estaba: `query_selector_all` y `title()` caen
+        # en el timeout por defecto del contexto y `evaluate` NO TIENE NINGUNO. Y lo caro no es esperar, es lo
+        # que la espera CONVIERTE: la acción ya había funcionado —el texto estaba escrito— y el worker recibía
+        # «el navegador no ha contestado a type», o sea un fallo, y la repetía. Aquí se devuelve lo que se
+        # tenga, DICIENDO que la vista está a medias, en vez de tirar abajo una acción que salió bien.
+        _slow = []
         try:
-            handles = await page.query_selector_all(_INTERACTIVE)
+            handles = await asyncio.wait_for(page.query_selector_all(_INTERACTIVE), _DOM_TIMEOUT_S)
         except Exception:
-            handles = []
-        metas = await _bulk_metas(page)          # ONE call (not ~7×N) → does not starve voice through the GIL (V2-036 fix #1)
+            handles, _ = [], _slow.append("elementos")
+        try:
+            metas = await asyncio.wait_for(_bulk_metas(page), _DOM_TIMEOUT_S)
+        except Exception:
+            metas, _ = {}, _slow.append("etiquetas")
         lines = _snapshot_lines(handles, metas, self.refs)
         title = ""
         try:
-            title = await page.title()
+            title = await asyncio.wait_for(page.title(), _DOM_TIMEOUT_S)
         except Exception:
-            pass
-        return {"url": page.url, "title": title or "", "elements": "\n".join(lines)}
+            _slow.append("título")
+        out = {"url": page.url, "title": title or "", "elements": "\n".join(lines)}
+        if _slow:
+            # Se NOMBRA lo que no dio tiempo a leer y se dice qué hacer, en vez de entregar una vista a medias
+            # como si fuera la página entera — que es cómo un worker concluye «aquí no hay nada» sobre un
+            # listado lleno. Mismo contrato que el nodo 4.20: lo que el puente sabe, lo dice.
+            out["partial"] = ", ".join(_slow)
+            out["note"] = (f"la página seguía cargando y no dio tiempo a leer: {out['partial']}. "
+                           f"La acción SÍ se hizo. Vuelve a mirar con «look» antes de decidir nada.")
+        return out
 
     async def screenshot_b64(self) -> str:
         import base64
