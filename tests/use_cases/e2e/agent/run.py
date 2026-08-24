@@ -191,6 +191,25 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
                   f"(máx {concurrency.max_concurrent}, {len(concurrency.seen)} distintas)")
 
         if driver.done:
+            # V2-304 — the farewell is the grace block's blind spot: `driver.done` broke the loop BEFORE the
+            # last-turn grace check ever ran. Measured on round 32 (2026-08-25 01:43): the persona said thanks
+            # at turn 4 and the sheet filled 0.9 SECONDS after the goodbye — the round scored the clock, not
+            # the product (in production the delivery reaches the operator by proactive note/voice after the
+            # chat ends; the probe harness has no next turn to see it). Same budget, same condition: a real
+            # person who just said «avísame cuando lo tengas» does hang around a beat when told it is about
+            # to land.
+            if grace_left and scenario.expected_signals and verifymod.navegador_task_is_live():
+                grace_left -= 1
+                print(f"  ⏳ turno de gracia tras despedida ({grace_left} más): la tarea de navegador sigue "
+                      f"viva, la despedida no cierra con el resultado en vuelo")
+                time.sleep(15.0)
+                driver.done = False
+                utterance = driver.reply(
+                    nudge="(la búsqueda que pediste sigue en marcha y está a punto de traer resultados: "
+                          "quédate un momento más antes de cerrar, como harías de verdad)")
+                note("tester", utterance)
+                print(f"  tester  · {utterance}")
+                continue
             break
 
         # The watchdog's grounding: for a multi-flow run the live TASK REGISTRY is the right truth (three

@@ -46,3 +46,18 @@ def test_an_unreadable_engine_reads_as_not_live(monkeypatch):
         raise RuntimeError("down")
     monkeypatch.setattr(probe_client, "live_tasks", _boom)
     assert verify.navegador_task_is_live() is False
+
+
+def test_a_farewell_does_not_outrun_a_live_browser_either():
+    """V2-304 — la despedida era el punto ciego de la gracia: `driver.done` rompía el bucle ANTES del chequeo
+    del último turno. Ronda 32 (2026-08-25): el tester dio las gracias en el turno 4 y la hoja se llenó 0,9
+    SEGUNDOS después del adiós — la ronda midió el reloj. Guarda de cableado sobre fuente sin comentarios."""
+    import inspect
+
+    from tests.use_cases.e2e.agent import run as runmod
+    src = "\n".join(ln for ln in inspect.getsource(runmod._run_scenario).splitlines()
+                    if not ln.strip().startswith("#"))
+    assert "turno de gracia tras despedida" in src
+    assert src.index("if driver.done:") < src.index("turno de gracia tras despedida"), \
+        "la gracia de despedida tiene que vivir dentro del corte de driver.done"
+    assert "driver.done = False" in src, "sin resetear done, el turno de gracia se despide igual en el acto"
