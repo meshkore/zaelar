@@ -496,7 +496,7 @@
       "measured_in": "worktree fijado en 05dd79f"
     },
     "search-buy-camera__es": {
-      "last_run": "2026-08-24 14:05",
+      "last_run": "2026-08-24 14:34",
       "overall": 3,
       "judge": "deepseek-v4-flash",
       "state": "INFRA",
@@ -505,9 +505,9 @@
         "adaptacion": 4,
         "resultado": 2,
         "mecanismo": 4,
-        "eficiencia": 2
+        "eficiencia": 3
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que la búsqueda tarda más que la conversación y el operador se fue sin recibir ningún resultado, aunque el mecanismo funcionó y la hoja se llenó correctamente 10 segundos tarde.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es que zaelar presentó resultados que no coinciden con lo que el sistema realmente extrajo (inventó una Nikon D3200 y omitió los datos ofrecidos por nota), lo que invalida la confianza en el resultado aunque la infraestructura funcionara correctamente.",
       "missing_signals": [],
       "audit_anomalies": [],
       "sandboxed": true,
@@ -524,7 +524,7 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "f5115b2",
+        "sha": "0ecd61b",
         "n_dirty": 0,
         "dirty": []
       },
@@ -1851,7 +1851,7 @@
       }
     },
     "search-buy-bicycle__es": {
-      "last_run": "2026-08-24 13:53",
+      "last_run": "2026-08-24 14:21",
       "overall": 2,
       "judge": "deepseek-v4-flash",
       "state": "INFRA",
@@ -1859,10 +1859,10 @@
         "naturalidad": 4,
         "adaptacion": 4,
         "resultado": 1,
-        "mecanismo": 2,
+        "mecanismo": 3,
         "eficiencia": 2
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real — la hoja de resultados quedó vacía y el agente mantuvo al usuario esperando con promesas sin respaldo, en lugar de ser honesto sobre la falta de progreso y ofrecer alternativas.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es que el agente no entregó los resultados que el worker ya había encontrado (18 candidatos), dejando la hoja de resultados vacía y al usuario sin respuesta real.",
       "missing_signals": [],
       "audit_anomalies": [],
       "sandboxed": true,
@@ -1879,7 +1879,7 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "f5115b2",
+        "sha": "0ecd61b",
         "n_dirty": 0,
         "dirty": []
       },
@@ -1893,18 +1893,18 @@
       }
     },
     "search-buy-guitar__es": {
-      "last_run": "2026-08-24 14:10",
+      "last_run": "2026-08-24 14:40",
       "overall": 2,
       "judge": "deepseek-v4-flash",
       "state": "INFRA",
       "scores": {
-        "naturalidad": 3,
-        "adaptacion": 2,
+        "naturalidad": 4,
+        "adaptacion": 4,
         "resultado": 1,
-        "mecanismo": 3,
-        "eficiencia": 1
+        "mecanismo": 2,
+        "eficiencia": 2
       },
-      "verdict": "No está listo para producción: el bloqueador nº1 es que la búsqueda nunca entregó ningún resultado real y el agente no supo gestionar el atasco del worker, dejando al usuario sin respuesta tras más de 4 minutos de espera.",
+      "verdict": "No está listo para producción: el bloqueador nº1 es que no se entregó ningún resultado real (cero candidatos en la hoja) y zaelar no supo gestionar el fallo del worker ni comunicar honestamente que no pudo encontrar nada, dejando al usuario esperando sin opciones.",
       "missing_signals": [],
       "audit_anomalies": [],
       "sandboxed": true,
@@ -1921,7 +1921,7 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "f5115b2",
+        "sha": "0ecd61b",
         "n_dirty": 0,
         "dirty": []
       },
@@ -1996,20 +1996,41 @@
       }
     },
     "search-secondhand-monitor__es": {
-      "last_run": "2026-08-24 13:59",
-      "overall": 3,
+      "last_run": "2026-08-24 14:28",
+      "overall": 4,
       "judge": "deepseek-v4-flash",
       "state": "INFRA",
       "scores": {
         "naturalidad": 4,
         "adaptacion": 4,
-        "resultado": 3,
+        "resultado": 4,
         "mecanismo": 4,
         "eficiencia": 3
       },
-      "verdict": "El caso no está listo para producción: el sistema encontró resultados reales pero zaelar no los entregó a tiempo ni con la claridad necesaria, dejando al usuario sin la comparativa que ya estaba disponible en la hoja de resultados.",
+      "verdict": "El caso está listo para producción: se encontraron y entregaron resultados reales (MSI, Samsung, BenQ, Dell) con precios y enlaces verificados en la hoja de resultados, cumpliendo los criterios de 27\" y <150€; el bloqueador nº1 es la demora en entregar resultados ya disponibles (la hoja llevaba 109s escrita antes del último turno) y la afirmación errónea de que un enlace válido estaba vacío.",
       "missing_signals": [],
-      "audit_anomalies": [],
+      "audit_anomalies": [
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «· paso ⚠️ error»: Exit code 2 no puedo leer el payload de /Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/tests/runs/use_cases/lab/es/widgets/_data/navegador/fuentes"
+        },
+        {
+          "clase": "error_interno",
+          "certeza": "hecho",
+          "que": "worker/task «📄 archivo ⚠️ error»: EISDIR: illegal operation on a directory, read '/Users/ricartjuncadella/Documents/Prj/asimovia/zaelar/engine/tests/runs/use_cases/lab/es/widgets/_data/navegador"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:1: 1 error(es), último paso «alive»"
+        },
+        {
+          "clase": "span_con_error",
+          "certeza": "hecho",
+          "que": "worker:3: 1 error(es), último paso «alive»"
+        }
+      ],
       "sandboxed": true,
       "provisional": null,
       "tier": 2,
@@ -2024,7 +2045,7 @@
       ],
       "drive_model": "deepseek-directo",
       "code": {
-        "sha": "f5115b2",
+        "sha": "0ecd61b",
         "n_dirty": 0,
         "dirty": []
       },
@@ -2146,5 +2167,5 @@
       }
     }
   },
-  "updated": "2026-08-24 14:10"
+  "updated": "2026-08-24 14:40"
 }
