@@ -307,6 +307,15 @@ def mechanism_facts(mech: dict) -> str:
                      f"{_sh2['n_named']} candidato(s) dentro: la presentación VISUAL sí ocurrió. No escribas "
                      f"que faltó «usar el widget» o «presentarlo visualmente» — el texto del turno y la hoja "
                      f"en pantalla son las dos mitades de la misma entrega.")
+    # Y el reloj que NO vale para acusar: `first_result_ms` es cuándo el NAVEGADOR narró una extracción en su
+    # propio registro — no cuándo el cerebro pudo saberlo (la nota y las filas del prompt llegan al turno
+    # SIGUIENTE, hasta ~30 s después). En la ronda de las 22:21 el juez cruzó `first_result_ms` con un turno y
+    # archivó [alta] «contradicción entre estado interno y mensaje» sobre una ventana de 21 s que el cerebro
+    # aún no había visto.
+    if (mech.get("sheet_timing") or {}).get("first_result_ms"):
+        lines.append("· NO uses `first_result_ms` para acusar de retener u ocultar: mide cuándo el NAVEGADOR "
+                     "narró una extracción, y esa información tarda hasta ~30 s en llegar al prompt del "
+                     "cerebro (turno siguiente). Para retención, el único reloj válido es `delivery_lag_s`.")
     _lag = (mech.get("sheet_timing") or {}).get("delivery_lag_s")
     if _lag is not None:
         if _lag <= 60:
