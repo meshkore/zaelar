@@ -205,7 +205,25 @@ def dedupe_by_url(items) -> tuple:
 
 
 def _sheet_of(task_id: str) -> str:
-    """La hoja del encargo al que pertenece esta pestaña (V2-259). Fail-soft a "" = la hoja de siempre."""
+    """La hoja del encargo al que pertenece esta pestaña (V2-259). Fail-soft a "" = la hoja de siempre.
+
+    V2-281 — se le pregunta a la PESTAÑA primero, porque es la que sobrevive. Esto resolvía SOLO por el
+    registro de sesiones vivas, y una pestaña dura más que el worker que la abrió: el record se saca en el
+    `finally` de `_run_session` y un relevo abre otro. Así que un hallazgo que llega después resolvía a "" y
+    caía en la hoja PELADA — 24 filas ahí contra 12 en la del encargo, para UN encargo (medido en
+    `search-secondhand-monitor__es`, 2026-08-24 01:47), y esa caja huérfana es además la «tarjeta fantasma»
+    que el canvas lleva rondas reportando.
+
+    El registro se conserva como respaldo, no por simetría: una pestaña creada antes de este cambio no lleva
+    sello, y mientras su worker viva el registro sí sabe contestar.
+    """
+    try:
+        from widgets.navegador import tasks as _t
+        own = str(((_t.get(task_id) or {}).get("sheet")) or "").strip()
+        if own:
+            return own
+    except Exception:  # noqa: BLE001
+        pass
     try:
         from nucleo import dispatch as _disp
         return _disp.sheet_for_nav_task(task_id)

@@ -57,6 +57,12 @@ def _lazy_imports(p: Path) -> int:
 #
 #   nucleo/flash/prompt.py     1104 → 843   el bloque del NAVEGADOR (5 caras + 3 ayudantes) → flash/live_blocks.py
 #   nucleo/dispatch.py         2045 → 1910  la HOJA como superficie del progreso            → nucleo/sheets.py
+#
+# ── 2026-08-24, más tarde: 1910 → 1879 ────────────────────────────────────────────────────────────────────
+# `record_phase` se va con la hoja (V2-281). Es el mismo concern —lo que la pestaña de PROCESO pinta— y su
+# cuerpo es puro sobre el registro, así que `dispatch` se queda solo con resolverlo, que es lo único que él
+# tiene. Se extrae en vez de subir el techo por UNA línea (un campo nuevo en la pestaña del navegador): shavear
+# comentarios para cuadrar un número es exactamente el instinto que esta tabla existe para corregir.
 #   nucleo/workers/session.py   879 → 825   los dos constructores de texto del fallo        → workers/handoff.py
 #
 # Los tres eran fronteras que YA estaban dibujadas —el bloque del navegador tenía su `try` propio, la sección
@@ -66,7 +72,7 @@ def _lazy_imports(p: Path) -> int:
 # importarlo, que es el ciclo que V2-112 ya pagó.
 _CEILINGS: dict[str, tuple[int, int]] = {
     "voice/engine/llm/providers/nucleo.py": (3461, 155),
-    "nucleo/dispatch.py": (1910, 57),
+    "nucleo/dispatch.py": (1879, 57),
     "widgets/navegador/owner.py": (1580, 43),
     "nucleo/flash/router_guards.py": (1282, 15),
     "nucleo/flash/probe.py": (1168, 84),

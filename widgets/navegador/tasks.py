@@ -209,7 +209,7 @@ def _current_trace() -> str:
         return ""
 
 
-def create(goal: str, title: str = "", *, trace: str = "") -> str:
+def create(goal: str, title: str = "", *, trace: str = "", sheet: str = "") -> str:
     """`trace`: pass it explicitly when the caller already knows it (V2-108, 2026-08-17) — `_current_trace()`
     reads the AMBIENT context (`voice.trace.current()`), which is only reliable when creation happens inline in
     a turn. `nucleo/dispatch.py::_prepare_web()` creates the task from inside the worker's OWN async execution,
@@ -232,6 +232,16 @@ def create(goal: str, title: str = "", *, trace: str = "") -> str:
             "last_progress": time.time(), "wall": "",
             # V2-044: the task is born from the phrase context (or adopted session) — explicit trace wins.
             "trace": trace or _current_trace(),
+            # V2-281 — THE ERRAND'S SHEET, stamped at birth for exactly the same reason as `trace` above: it is
+            # a fact the caller holds and the registry cannot answer later. `act_api` resolved it by walking the
+            # LIVE session registry (`dispatch.sheet_for_nav_task`), and a browser TAB OUTLIVES the worker
+            # record that opened it — the record is popped in `_run_session`'s finally, and a relay opens a
+            # fresh one. So findings arriving after that point resolved to "" and landed in the BARE `results`
+            # box, the one that belongs to nobody. Measured on `search-secondhand-monitor__es`
+            # (2026-08-24 01:47): 24 rows in the bare sheet against 12 in the errand's own, for ONE errand —
+            # and that stray box is also the «ghost card» the canvas keeps reporting. Empty stays empty, which
+            # is correct for a tab the operator drives by hand: no errand, no sheet, the sheet of always.
+            "sheet": str(sheet or "").strip(),
         }
     return tid
 

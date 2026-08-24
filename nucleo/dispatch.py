@@ -658,41 +658,9 @@ def sheet_progress(sheet: str = "") -> dict:
 
 
 def record_phase(tid, phase: str) -> bool:
-    """Apunta UNA línea en el diario que lee la pestaña de PROCESO. Devuelve si entró.
-
-    Es la ÚNICA casa de esa regla, y lo es porque tiene DOS puertas que no se parecen: lo que el worker narra de
-    su parte (`hbnote`, vía `session_phase`) y lo que hacemos nosotros al traducir sus pasos de herramienta a una
-    frase (`nucleo/workers/progress.phrase`, vía el stream del backend). Hasta el 2026-08-21 la segunda no pasaba
-    por aquí, y el efecto no era una línea peor: era que **no había línea**. La sesión `ed9df756` del operador es
-    la prueba — el worker abrió Google Maps, cerró el overlay, hizo captura, snapshot y dos clics, extrajo la
-    ruta con tráfico, y la pestaña dijo «trabajando» durante dos minutos y medio porque las únicas dos entradas
-    que llegaron a este anillo fueron las que el propio worker se molestó en narrar, y llegaron al final.
-
-    Se DEDUPLICA contra la última: tres `scroll` seguidos producen tres veces «recorriendo la página», y tres
-    líneas idénticas no informan de nada — parecen progreso sin serlo. El anillo es corto a propósito: esto es lo
-    que el operador MIRA, no la auditoría (que ya vive en observabilidad, entera y con su evidencia).
-    """
-    r = _SESSIONS.get(str(tid))
-    _p = (phase or "").strip()
-    if r is None or not _p:
-        return False
-    if r.phases and r.phases[-1].get("s") == _p:
-        return False
-    r.phases.append({"t": time.time(), "s": _p})
-    del r.phases[:-PHASES_KEPT]
-    # …y que la tarjeta abierta se entere. `widgets/store.py` emite esto al GUARDAR, y aquí no hay nada
-    # que guardar: el proceso es una vista del registro vivo, no un dato de la hoja. Sin este aviso la
-    # pestaña se quedaría quieta hasta el siguiente cambio de datos — un panel de progreso que no avanza.
-    if surfaces.opens_sheet(getattr(r, "surface", "")):
-        try:
-            from voice.observer import emit as _emit_w
-            from widgets.results import data as _sheet3
-            _emit_w("widget", "data",
-                    extra={"id": _sheet3.instance_id(sheet_of(r)), "src": "worker"})
-        except Exception:
-            pass
-    return True
-
+    """Apunta una línea en el diario de PROCESO de `tid`. El cuerpo vive en `nucleo/sheets.py` (V2-281):
+    aquí solo se resuelve el registro, que es lo único que este módulo tiene y aquél no."""
+    return _sheets.record_phase(_SESSIONS.get(str(tid)), phase, PHASES_KEPT)
 
 def session_phase(tid, phase: str) -> None:
     """Compat V2-036: reporte de fase EXPLÍCITO del worker (hbnote). Actualiza el registro RAM."""
@@ -1296,7 +1264,8 @@ async def _prepare_web(rec: "SessionRecord", req: str, reuse_tid: str = "") -> s
             except Exception:
                 pass
         else:
-            tid = str(navtasks.create(req, trace=str(getattr(rec, "trace_id", "") or "")))
+            _tr = str(getattr(rec, "trace_id", "") or "")   # V2-281: la HOJA viaja con la pestaña, como el trace
+            tid = str(navtasks.create(req, trace=_tr, sheet=sheet_of(rec)))
         try:
             from voice.observer import emit
             emit("widget", "show", extra={"id": navtasks.inst_id(tid), "src": f"worker:{tid}"})

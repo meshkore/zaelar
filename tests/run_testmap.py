@@ -560,6 +560,11 @@ DOMAINS: list[dict] = [
             # V2-212). Mismo contrato que el nodo 4.20 — y NO se reintenta con la mirada nueva: los números se
             # reparten al mirar, así que el mismo número es otro elemento.
             "tests/browser/unit/navegador/test_a_stale_ref_says_how_to_get_out.py",
+            # V2-281: una PESTAÑA sobrevive al worker que la abrió, y su hoja se resolvía por el registro de
+            # sesiones VIVAS — así que un hallazgo que llega tras la muerte del record (o tras un relevo) caía
+            # en la hoja PELADA, la que no es de nadie: 24 filas ahí contra 12 en la del encargo, y esa caja
+            # huérfana es la «tarjeta fantasma» del canvas. Se sella al nacer, como el `trace` de V2-108.
+            "tests/browser/unit/navegador/test_the_tab_remembers_its_errand.py",
             # sin mapear hasta el 2026-08-21: el muro de login en la NUBE cierra en limpio en vez de dar vueltas
             "tests/browser/unit/navegador/test_cloud_login_bailout.py",
             "tests/browser/unit/navegador/test_auth.py", "tests/browser/unit/navegador/test_tasks_dedup.py",
