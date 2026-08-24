@@ -58,8 +58,19 @@ def test_but_a_NO_still_gets_it_because_a_NO_really_did_resolve():
 
 
 def test_and_the_yes_no_split_happens_where_the_reply_is_classified():
+    """La propiedad: el nombre de acción lo decide el SÍ/NO del operador, nunca el éxito del re-lanzamiento.
+
+    F1 (2026-08-24) movió la clasificación a `nucleo/turn/confirm_gates.py` (la precedencia de las tres puertas
+    se decide una vez, nodo 2.29), así que el sitio donde se parte ya no es este fichero: el probe recibe
+    `_ans.yes` —que ES la respuesta clasificada; para la puerta de tarea, `resolve_confirm` devuelve `ok` igual
+    al veredicto del operador— y solo le pone nombre. La primera versión de este guarda casaba el literal viejo
+    y se puso rojo sobre el arreglo, no sobre el defecto."""
     src = _probe_ack_source()
-    assert '"confirm_task" if _v == "yes" else "confirm_task_no"' in src
+    assert '"confirm_task" if _ans.yes else "confirm_task_no"' in src
+    from nucleo.turn import confirm_gates as _g
+    import inspect as _i
+    assert "classify_reply" in _i.getsource(_g._task_gate), \
+        "la clasificación del sí/no ya no vive en la puerta de tarea: ¿quién decide ahora el veredicto?"
 
 
 def test_the_holding_line_never_asserts_completion():

@@ -87,16 +87,28 @@ def _lazy_imports(p: Path) -> int:
 # `dispatch` cómo se llama su caja). `sheets.py` nace HOJA: recibe el registro como argumento en vez de
 # importarlo, que es el ciclo que V2-112 ya pagó.
 _CEILINGS: dict[str, tuple[int, int]] = {
-    "voice/engine/llm/providers/nucleo.py": (3461, 155),
-    "nucleo/dispatch.py": (1759, 57),
-    "widgets/navegador/owner.py": (1580, 43),
+    # nucleo.py 3461→3475: 246007a («enséñamelo» resolves to the ERRAND's sheet — round 24 opened the bare
+    # box beside a 20-row delivery) net of dde26a2's shared confirm gate (−9). F1/F2 still own this file's debt.
+    "voice/engine/llm/providers/nucleo.py": (3475, 155),
+    # 2026-08-24 — raised WITH the audit the rule demands, after sitting red for hours with nobody's name on it.
+    # dispatch.py 1759→1851: 41355d9 (a relay inherits its sheet, +31), 7e3c144 (live errand absorbs non-errands),
+    # 1a98f80 (the tab says which sheet it belongs to), 6e3d4d4 (the last sweep tells the conversation, +11).
+    # All behaviour fixes measured on live rounds; none extractable alone. The DEBT stands: dispatch is F3's
+    # remaining seam list and these lines are candidates when its `_SESSIONS` design question is answered.
+    "nucleo/dispatch.py": (1851, 57),
+    # owner.py 1580→1706 · lazy 43→44: 3884cb8 (banner sweep per NAVIGATION, look 11,2 s→0,42 s), f25e2a3
+    # (`visit` — read a card in its own tab), a1cb398 (consent per DOMAIN, submit 25 s→3,84 s). Three measured
+    # perf/feature fixes from the same tuning day. owner.py remains F6's split candidate (by resource).
+    "widgets/navegador/owner.py": (1706, 44),
     "nucleo/flash/router_guards.py": (1282, 15),
-    "nucleo/flash/probe.py": (1168, 84),
+    # probe.py 1168→1176 net: V2-300's grace/latency growth minus F1's confirm-gate retirement (−2 mirrors,
+    # 2026-08-24). Still F2's split target (`run_turn` into named phases).
+    "nucleo/flash/probe.py": (1176, 84),
     "widgets/results/data.py": (1030, 5),
     "memory/api.py": (1076, 19),
     "nucleo/flash/prompt.py": (843, 30),
     "nucleo/workers/session.py": (825, 19),
-    "nucleo/flash/router.py": (928, 1),
+    "nucleo/flash/router.py": (930, 1),   # +2 (V2-300 wiring)
 }
 
 #: No god file may be BORN either: any engine module NOT in the table stays under this. The largest unlisted
@@ -112,7 +124,7 @@ _UNLISTED_MAX = 900
 #: so prose ABOUT the pattern counts as the pattern. Caught the first time it mattered: the docstrings written
 #: to explain a retired mirror pushed the count from 19 back to 22, i.e. the celebration read as a regression.
 #: When you retire one, describe it without quoting the marker.
-_MIRROR_MAX = 17
+_MIRROR_MAX = 15
 
 _SKIP_DIRS = {".venv", "tests", "node_modules", "__pycache__", ".git", "frontend/vendor"}
 

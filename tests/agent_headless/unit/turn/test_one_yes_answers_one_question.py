@@ -187,12 +187,22 @@ def test_resolve_all_decide_TODAS_las_puertas_en_UNA_llamada():
         f"un clic autorizados con una sola palabra. Puertas tocadas: {tocadas}")
 
 
-def test_la_voz_no_se_escribe_su_propia_precedencia():
+import pytest as _pt
+
+
+@_pt.mark.parametrize("ruta, funcion", [
+    ("voice/engine/llm/providers/nucleo.py", "_run_inner"),
+    # F1 (2026-08-24): el probe era las dos copias hermanas de las de la voz — la voz derivó, el probe no, y
+    # aun así las dos se retiran: dos implementaciones correctas hoy son la deriva de mañana con la nota de
+    # paridad encima tapándola. Desde aquí los DOS canales pasan por la misma llamada.
+    ("nucleo/flash/probe.py", "run_turn"),
+])
+def test_ningun_canal_se_escribe_su_propia_precedencia(ruta, funcion):
     """Guarda de CABLEADO por AST (no por texto: contar una cadena cuenta también la prosa que la nombra, y este
     fichero está lleno de prosa que la nombra). Dos formas de volver al defecto, las dos vetadas: dejar de usar
     la puerta compartida, o llamar a una puerta concreta por libre al lado."""
-    llamadas = _llamadas("voice/engine/llm/providers/nucleo.py", "_run_inner")
+    llamadas = _llamadas(ruta, funcion)
     assert "resolve_all" in llamadas, \
-        "la voz dejó de usar la puerta compartida: la precedencia vuelve a ser suya y vuelve a poder derivar"
-    assert llamadas.count("answer_from_turn") == 0, "llamada suelta a la puerta del NAVEGADOR"
-    assert llamadas.count("resolve_confirm") == 0, "llamada suelta a la puerta de TAREA"
+        f"{ruta} dejó de usar la puerta compartida: la precedencia vuelve a ser suya y vuelve a poder derivar"
+    assert llamadas.count("answer_from_turn") == 0, f"{ruta}: llamada suelta a la puerta del NAVEGADOR"
+    assert llamadas.count("resolve_confirm") == 0, f"{ruta}: llamada suelta a la puerta de TAREA"

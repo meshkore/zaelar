@@ -816,32 +816,24 @@ async def run_turn(text: str, *, sid: str = "default", ingest: bool = True, mode
             pass
 
     if execute:
-        # CONFIRMACIÓN de una TAREA irreversible parada por el confirm-gate (V2-126) — espejo del provider de
-        # voz (impl PARALELA, cablear en AMBOS). Va ANTES que el resto: un «sí» reanuda la tarea PARADA, no abre
-        # una nueva, así que tiene que poder anular la escalada de este turno.
+        # CONFIRMACIÓN de una TAREA irreversible parada por el confirm-gate (V2-126) y del navegador parado en
+        # un clic (V2-202). Va ANTES que el resto: un «sí» reanuda lo PARADO, no abre nada nuevo, así que tiene
+        # que poder anular la escalada de este turno. La PRECEDENCIA entre puertas —un «sí» contesta a UNA
+        # pregunta— la decide `nucleo/turn/confirm_gates.py` en una sola llamada, para este canal y para la voz:
+        # este bloque eran dos copias hermanas de la de la voz, y la de la voz DERIVÓ (el guarda del segundo
+        # bloque miraba la puerta equivocada y un «sí» autorizaba las dos cosas; medido 2026-08-24, nodo 2.29).
+        # Aquí solo queda la BOCA: convertir la respuesta en el nombre de acción que el probe reporta.
         try:
-            from nucleo import dispatch as _disp_cc
-            if _disp_cc.pending_confirm():
-                from widgets import confirm as _confirm_cc
-                _v = _confirm_cc.classify_reply(text)
-                if _v:
-                    _r = _disp_cc.resolve_confirm(_v == "yes")
-                    if _r:
-                        action = "confirm_task" if _v == "yes" else "confirm_task_no"
-                        return_extra_exec = {"executed": "confirm_task", "ok": bool(_r.get("ok"))}
-        except Exception:
-            pass
-        # V2-202 — el mismo «sí», para la OTRA puerta: la del navegador parado en un clic irreversible. Espejo
-        # del provider de voz (impl PARALELA, cablear en AMBOS). Va junto al de arriba y por la misma razón:
-        # contesta a algo YA parado, así que no puede tratarse como una petición nueva. Y SOLO si el de arriba no
-        # lo ha resuelto ya: un único «sí» contesta a UNA pregunta, no a las dos que hubiera abiertas.
-        try:
-            from widgets.navegador import tasks as _nt_cc
-            _ra = None if action.startswith("confirm_task") else _nt_cc.answer_from_turn(text)
-            if _ra:
-                action = "confirm_task" if _ra["ok"] else "confirm_task_no"
-                return_extra_exec = {"executed": "confirm_nav_task", "ok": bool(_ra["ok"]),
-                                     "task_id": _ra["task_id"]}
+            from nucleo.turn import confirm_gates as _gates
+            _ans = _gates.resolve_all(text)
+            if _ans:
+                action = "confirm_task" if _ans.yes else "confirm_task_no"
+                _res = _ans.result if isinstance(_ans.result, dict) else {}
+                if _ans.gate == "browser":
+                    return_extra_exec = {"executed": "confirm_nav_task", "ok": _ans.yes,
+                                         "task_id": str(_res.get("task_id") or "")}
+                else:
+                    return_extra_exec = {"executed": "confirm_task", "ok": bool(_res.get("ok"))}
         except Exception:
             pass
         # PROACTIVIDAD REAL (V2-121, 2026-08-18): las tags de cron se EJECUTAN, no solo se capturan. Va aparte del
