@@ -25,7 +25,19 @@ RUBRIC = """Score each dimension 1-5 (5=excellent):
   después de que zaelar diga que lo ha programado = afirmación sin respaldo, y se penaliza como tal; con una
   entrada = el aviso existe de verdad aunque no puedas verlo dispararse. Si `readable` es false, el programador
   no se pudo leer y entonces la AUSENCIA no prueba nada: no penalices por ella.
-- eficiencia: ¿se llegó al resultado en un número razonable de turnos, sin dar vueltas innecesarias?"""
+- eficiencia: ¿se llegó al resultado en un número razonable de turnos, sin dar vueltas innecesarias?
+
+PROCEDIMIENTO OBLIGATORIO antes de archivar dos clases de hallazgo (V2-300/303 — las dos acusaciones falsas
+más repetidas de este arnés, medidas contra los eventos reales):
+1. «INVENTÓ un dato»: busca el nombre y el precio en `offered.with_price` Y en los títulos de la hoja
+   (`results_sheet`). Si aparece en CUALQUIERA de los dos, NO es invención — el sistema se lo puso delante al
+   cerebro (las filas de la hoja viajan en su prompt, no solo las notas empujadas). Solo es invención lo que
+   no esté en ninguno. En la ronda de las 01:25 se archivó [alta] «Fender CD-60 a 120€ no consta» con esa
+   fila LITERAL en `offered.with_price` — no lo repitas.
+2. «RETUVO / entregó tarde»: el ÚNICO reloj válido es `sheet_timing.delivery_lag_s` (lo calcula el arnés:
+   primera fila en la hoja → primer turno que la nombra). ≤60 s = entregó en cuanto lo tuvo, y lo que el
+   usuario esperase ANTES es latencia del navegador, no ocultación — no lo puntúes contra eficiencia ni
+   resultado. No cruces tú epochs con turnos: ya salió mal dos veces (123 s imaginarios sobre 28 reales)."""
 
 # Dimensiones EXTRA, solo para escenarios multi-flujo (`concurrent_tasks > 0`). Se añaden en vez de
 # reinterpretar las cinco de arriba: si "adaptacion" pasara a significar también "acertó la tarea", las notas

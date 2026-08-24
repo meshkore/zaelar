@@ -443,6 +443,17 @@ def _web_prompt(goal: str, context: str, brief: dict | None = None, *, vision: b
         "botón, `look` de nuevo por si la coordenada cambió). Nunca gires en bucle en silencio. Reporta tu fase en "
         "CADA cambio de etapa. Si te REANUDAN una tarea ya empezada, haz `look` primero para ver dónde te quedaste y "
         "continúa desde ahí — NO reinicies desde cero.\n"
+        # V2-303 — the price-filter widget trap, hit in ~half of the measured rounds: typing «150» into a
+        # site's price control produced `min_sale_price=750` once and `max_sale_price=850`/`=800` twice — the
+        # page's dual-slider binds the typed digits to whichever bound it pleases. The recovery that WORKED in
+        # every round that passed is generic (edit the URL parameter), so it stops being a discovery the worker
+        # has to make mid-task and becomes part of the recipe.\n
+        "5b) LOS FILTROS SE VERIFICAN EN LA URL: la respuesta de cada acción trae la URL y su DELTA (qué "
+        "parámetro cambió). Tras aplicar un filtro numérico (precio, año, km), LEE ese delta: si el parámetro "
+        "quedó con un número DISTINTO del que pediste (escribes 150 y aparece `max_sale_price=850` o "
+        "`min_sale_price=750`), el control de la página te ha traicionado — NO vuelvas a pelearte con él: "
+        "corrige la URL directamente con `navigate` cambiando ese parámetro al valor pedido, y sigue. Un "
+        "filtro mal puesto no falla con ruido: te llena la hoja de resultados fuera de rango.\n"
         "6) Si una respuesta de un puente trae ⟦NUEVAS INSTRUCCIONES DEL OPERADOR⟧, incorpóralas al objetivo.\n"
         "7) VERIFICA antes de cerrar (V2-057): comprueba de VERDAD que lo que vas a entregar cumple la restricción del "
         "objetivo — si pedía «el último/más reciente», confirma su FECHA (que sea el más nuevo, no uno cualquiera); "
