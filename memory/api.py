@@ -379,6 +379,13 @@ def note_widgets_used(ids) -> list:
 # conciencia del operador) ni crear una tabla nueva. Reusa `sys_kv` (ya lo usan consolidator/rem). Es scope-partido:
 # la clave lleva el scope (`capsule:<cluster>:<peer>`), así el estado de una conversación con un agente vive junto a
 # todo lo demás pero AISLADO — nunca se mezcla con el estado del operador. Valor = JSON. µs, directo.
+#
+# ⚠️ FORMA CONSUMIDA DESDE FUERA (2026-08-24). `sys_kv` es `(key, value)` y el plató de los casos de uso lo
+# lee y escribe con SQL DIRECTO sobre el fichero, no por aquí — legítimo, porque corre con el motor APAGADO
+# (acarrea los cooldowns de proveedor a través de su `--fresh`, que si no se queman ~20 % del presupuesto de
+# cada ronda redescubriendo un escalón ya muerto). Consecuencia para quien toque el schema: cambiar los
+# nombres de esas dos columnas NO le falla con ruido — su lectura es fail-open y silenciosa, así que dejaría
+# de acarrearlos y la única señal sería que sus tandas vuelven a ir lentas. Avisar antes de tocarlo.
 def kv_get(key: str, default=None):
     """Lee un valor JSON de sys_kv por clave scopeada. Tolera BD vacía/JSON corrupto → default."""
     import json
