@@ -1278,6 +1278,16 @@ async def _finalize_web(rec: "SessionRecord", keep_open: bool = False) -> None:
                              source_url=str((navtasks.get(tid) or {}).get("url") or ""))
             except Exception:  # noqa: BLE001
                 pass
+            # …y el HECHO a la conversación. Escribir las filas y no contarlo es lo que medía el arnés el
+            # 2026-08-24: llegaban a la hoja 42-113 s antes del último turno y el agente seguía diciendo
+            # «todavía no tengo nada». `intake.push` no lleva nota a propósito —es la puerta compartida de los
+            # tres caminos y la nota la empuja el llamante— y de los tres éste era el único que no la empujaba.
+            # La condición de «solo si nadie lo ha contado ya» vive con el resto en `workers/findings.py`.
+            try:
+                from nucleo.workers import findings as _find
+                _find.hand_sheet_finding(tid, items, rec.goal)
+            except Exception:  # noqa: BLE001
+                pass
     except Exception:
         pass
 

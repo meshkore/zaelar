@@ -96,3 +96,50 @@ def hand_web_finding(task_id, text: str, goal: str = "") -> bool:
         return True
     except Exception:  # noqa: BLE001
         return False
+
+
+def _row(i: dict) -> str:
+    """One extracted row as the conversation needs it. The PHONE travels with it: in a service errand it is the
+    datum that RESOLVES («call this number») and the one that separates a business card from a directory link."""
+    bits = [str(i.get("title") or "").strip()[:80], str(i.get("price") or "").strip()[:24],
+            str(i.get("tel") or "").strip()[:24], str(i.get("url") or "").strip()[:120]]
+    return " — ".join(b for b in bits if b)
+
+
+def hand_sheet_finding(task_id, items, goal: str = "") -> bool:
+    """The FINAL sweep's rows → the conversation. Returns whether it pushed.
+
+    WHY THIS EXISTS. `results.intake.push` is the one door for the rows (V2-257) but it has no note path — the
+    note is the caller's job, and of the three callers only two do it (`act_api._hand_over`, `owner.py`). The
+    third, `dispatch._finalize_web`, does its own `extract_listings()` when the worker finishes or dies and
+    writes those rows to the sheet with nobody telling the conversation. Measured 2026-08-24: rows landed in the
+    sheet 42-113 s before the last turn and the agent still said «todavía no tengo nada».
+
+    ONLY IF NOBODY HAS TOLD IT YET, and the condition is deliberately about the TAB and not about these rows:
+    `act_api._HANDED` holds the tabs whose extraction already went out as a note. If the tab is in there the
+    conversation has been told, and the final sweep is mostly the same page again — a second note would be the
+    same findings twice, which reads as «it found more» when it found the same.
+    """
+    rows = [_row(i) for i in (items or []) if isinstance(i, dict)]
+    rows = [r for r in rows if r][:3]
+    if not rows:
+        return False
+    try:
+        from widgets.navegador.act_api import _HANDED as _already
+        if str(task_id) in _already:
+            return False
+    except Exception:  # noqa: BLE001
+        pass                                  # cannot tell → tell the conversation; silence is the worse failure
+    what = str(goal or "").strip()[:70] or "la tarea del navegador"
+    tail = f" (y {len(items) - len(rows)} más)" if len(items or []) > len(rows) else ""
+    try:
+        from voice import brain_notes
+        brain_notes.push(
+            f"[SISTEMA] La tarea del navegador ha terminado y esto es lo que quedó en la página, trabajando en "
+            f"«{what}»: {'; '.join(rows)}{tail}. Ya está en la hoja de resultados, pero NADIE se lo ha dicho al "
+            f"operador todavía. NÓMBRALO EN ESTE TURNO y di si sirve: si responde a lo que pidió, dáselo con "
+            f"nombre, precio o dato y enlace; si no responde, dilo y di qué haces ahora. No digas que no hay "
+            f"resultados.")
+        return True
+    except Exception:  # noqa: BLE001
+        return False

@@ -320,6 +320,16 @@ DOMAINS: list[dict] = [
         # V2-227 ámbito B — el CAUDAL: fases que lee una persona («entrando en booking.com», «12 resultados»),
         # con latido para que una fase de 90 s no parezca un worker muerto. La materia prima ya existía desde
         # V2-048 (`{where,action,target}`); lo que faltaba era decirla, y por el carril que ya existe.
+        # 2026-08-24, medido por el arnés en tres casos (guitarra 49 s, hotel 42 s, vuelos 113 s): las filas
+        # entraban en la hoja DECENAS DE SEGUNDOS antes del último turno y el agente seguía diciendo «todavía no
+        # tengo nada». No era un olvido: `results.intake.push` es la puerta única de las FILAS (V2-257) pero no
+        # lleva nota —la empuja el llamante— y de los tres llamantes el único que no la empujaba era
+        # `dispatch._finalize_web`, que hace su propia extracción final cuando el worker termina o muere. La otra
+        # mitad pesa igual: si la extracción de esa pestaña YA salió por `_hand_over`, la barrida final es casi la
+        # misma página, y una segunda nota se lee como «ha encontrado más» cuando ha encontrado lo mismo.
+        {"id": "2.30", "title": "Lo que la última barrida deja en la hoja llega a la conversación — y NO se "
+                                "cuenta dos veces",
+            "ch": UNIT, "paths": ["tests/agent_headless/unit/workers/test_the_last_sweep_tells_someone.py"]},
         {"id": "2.25", "title": "El progreso se lee como una frase, y una fase larga dice que sigue viva",
             "ch": UNIT,
             "paths": ["tests/agent_headless/unit/workers/test_the_progress_reads_like_a_sentence.py"]},
