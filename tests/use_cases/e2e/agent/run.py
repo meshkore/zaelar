@@ -283,8 +283,18 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
             # conversación dura ~120; el juez, sin este dato, escribió «tuvo resultados y no los entregó» en dos
             # de ellos. La distinción no es de matiz: una manda a arreglar la conducta y la otra la LATENCIA.
             mech["sheet_timing"]["last_turn_ms"] = (transcript[-1].get("at") or 0) * 1000 if transcript else None
-            _fr, _lt = mech["sheet_timing"].get("first_result_ms"), mech["sheet_timing"].get("last_turn_ms")
+            _lt = mech["sheet_timing"].get("last_turn_ms")
+            # CONTRA LA HOJA, no contra la narración del navegador. `first_result_ms` mide cuándo el navegador
+            # CONTÓ una extracción; lo que decide si el operador pudo enterarse es cuándo la HOJA empezó a
+            # recibir filas. Medido en la ronda de las 18:02 sobre la misma hoja: filas a las 18:02:39 y
+            # narración a las 18:14:36 — DOCE MINUTOS de diferencia, y todo lo que se decidió con este campo
+            # («llegó antes» / «llegó tarde») se decidió contra el reloj equivocado. Se conserva el viejo con
+            # su propio nombre porque contesta otra pregunta que también interesa.
+            _rows = mech["sheet_timing"].get("sheet_rows_ms")
             mech["sheet_timing"]["after_last_turn_s"] = (
+                round((_rows - _lt) / 1000.0, 1) if (_rows and _lt) else None)
+            _fr = mech["sheet_timing"].get("first_result_ms")
+            mech["sheet_timing"]["narrated_after_last_turn_s"] = (
                 round((_fr - _lt) / 1000.0, 1) if (_fr and _lt) else None)
         except Exception as e:
             mech["proactive_notes_error"] = str(e)[:200]

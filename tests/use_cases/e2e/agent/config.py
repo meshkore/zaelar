@@ -129,7 +129,14 @@ def engine_fingerprint() -> str:
 
     try:
         h = hashlib.sha256()
-        h.update(_git("rev-parse", "HEAD").strip().encode())
+        # EL ÁRBOL DEL MOTOR, no el sha. Usar `rev-parse HEAD` fue mi propio defecto y es el MISMO que este
+        # fichero vino a arreglar: allí «sucio» no era «movido», y aquí «hay un commit nuevo» tampoco lo es.
+        # Un commit que solo toca `tests/` deja el motor exactamente igual, y aun así paraba la tanda — la
+        # pagué dos veces la misma tarde, una por un commit mío del arnés y otra por uno de un agente. Se
+        # hashea la lista de blobs de HEAD sin `tests/`: dos commits distintos con el mismo motor dan la
+        # misma huella, que es justo lo que se quiere decir.
+        h.update("".join(sorted(l for l in _git("ls-tree", "-r", "HEAD").splitlines()
+                                if l and "\ttests/" not in l)).encode())
         paths = sorted(l[2:].strip() for l in _git("status", "--porcelain").splitlines() if l[2:].strip())
         for rel in paths:
             if rel.startswith("tests/"):

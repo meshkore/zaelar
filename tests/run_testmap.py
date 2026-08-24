@@ -1426,6 +1426,12 @@ DOMAINS: list[dict] = [
         # e imprimía «motor reseteado (sin trabajo ni canvas anterior)» pasara lo que pasara — una afirmación
         # que nadie comprobaba, justo donde el operador la lee para fiarse de que el caso siguiente se mide
         # solo. El operador lo vio antes que nadie: cuatro hojas de casos distintos apiladas en su pantalla.
+        # El reloj de la ENTREGA. Es el campo que separa «tuvo resultados y no los dijo» (conducta) de «el
+        # navegador acabó después de los turnos» (latencia), y mandan a arreglar mitades opuestas. Medía dos
+        # cosas equivocadas: la apertura, el ECO de la caja pelada (un id de antes de V2-259), y las filas,
+        # la NARRACIÓN del navegador — doce minutos de diferencia sobre la misma hoja.
+        {"id": "10.74", "title": "El reloj de la entrega mide la HOJA del encargo, no la narración",
+            "ch": UNIT, "paths": ["tests/use_cases/unit/test_the_sheet_clock_is_the_sheet.py"]},
         {"id": "10.73", "title": "El motor queda limpio entre casos y se COMPRUEBA (un caso cada vez)",
             "ch": UNIT, "paths": ["tests/use_cases/unit/test_one_case_at_a_time_is_verified.py"]},
         {"id": "10.72", "title": "El conductor y el vigilante saben qué recuerda ya el agente (perfil del plató)",

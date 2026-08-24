@@ -1772,7 +1772,7 @@ def sheet_timing(db_path, *, since: float = 0.0) -> dict:
     """
     import sqlite3
     out: dict = {"sheet_ms": None, "sheet_any_ms": None, "first_result_ms": None,
-                 "opened_before": None, "lead_s": None}
+                 "opened_before": None, "lead_s": None, "sheet_rows_ms": None, "sheet_box": ""}
     try:
         con = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     except Exception:
@@ -1785,12 +1785,64 @@ def sheet_timing(db_path, *, since: float = 0.0) -> dict:
         return out
     finally:
         con.close()
+    # LA HOJA DEL ENCARGO, NO LA CAJA PELADA. `== "results"` es una comparación exacta contra el id de antes
+    # de V2-259, cuando la hoja era UNA; desde entonces cada encargo abre la suya (`results::<id>`) y ese
+    # `show` no casaba con nada. Lo único que casaba era el `show` de la caja pelada… que lo emite el ECO del
+    # canvas (`src="user"`), o sea el fantasma que V2-261 filtra en el frontend: `sheet_ms` medía cuándo
+    # apareció una tarjeta que nadie abrió. Medido en la ronda de las 18:17 — `results::602da7-1 src=worker:1`
+    # tres segundos ANTES del `results src=user` que era el único que se leía.
+    #
+    # Y el id viaja en DOS formas a la vez, las dos vistas en el mismo segundo de esa ronda: `results::<x>`
+    # (la del canvas, la que emite quien produce) y `results--<x>` (la del disco, `store.save`). Mirar solo
+    # una pierde la mitad de las escrituras.
+    def _sheet_of(i: str) -> str:
+        i = str(i or "")
+        if i.startswith("results::"):
+            return i.split("::", 1)[1]
+        if i.startswith("results--"):
+            return i.split("--", 1)[1]
+        return "" if i == "results" else None      # None = no es una hoja
+
+    # ESTRENAR una hoja no es llenarla, y quien lo separa es `src` — medido siguiendo una hoja entera
+    # (`c30db3-1`, ronda de las 18:02):
+    #
+    #   18:02:00  data   results--c30db3-1  src=system     ← la apertura (espejo de disco)
+    #   18:02:00  show   results::c30db3-1  src=worker:1   ← la hoja se abre
+    #   18:02:39  data   results::c30db3-1  src=worker     ← AQUÍ empiezan a caer filas
+    #   18:09:26  blank  results--c30db3-1  src=system     ← un vaciado
+    #
+    # Sin esa distinción `sheet_rows_ms` cae en el MISMO instante que la apertura y toda ronda parece haber
+    # entregado al principio, que es la mentira más cómoda que podría contar este campo.
+    #
+    # ⚠️ Un `data` de un productor no PRUEBA que la fila tenga nombre — eso lo dice `results_sheet.n_items`,
+    # que se lee del contenido. Aquí se responde CUÁNDO empezó a escribir quien produce, que es la mitad que
+    # separa «llegó tarde» de «no llegó», y se dice para que nadie lo lea como una garantía de entrega.
+    _bare_show: list = [None]
     for ts_ms, kind, raw in rows:
         try:
             d = json.loads(raw)
         except Exception:
             continue
+        _sfx = _sheet_of(d.get("id")) if kind == "widget" else None
+        if _sfx is not None and _sfx != "":
+            label, src = str(d.get("label") or ""), str(d.get("src") or "")
+            if label == "show" and out["sheet_box"] == "":
+                # La hoja del ENCARGO gana siempre, aunque el eco de la caja pelada llegue antes — y llega:
+                # el canvas informa de lo que ya se abrió, así que su `show` puede adelantarse por medio
+                # segundo. Sin esta preferencia, `sheet_ms` seguía midiendo el fantasma pese al arreglo, que
+                # es como el test lo cazó.
+                out["sheet_ms"], out["sheet_box"] = ts_ms, _sfx
+            elif (label == "data" and out["sheet_rows_ms"] is None
+                    and src not in ("system", "user", "")):
+                out["sheet_rows_ms"] = ts_ms
+                if not out["sheet_box"]:
+                    out["sheet_box"] = _sfx
+            continue
         if kind == "widget" and str(d.get("id") or "") == "results":
+            # La caja pelada es RESERVA, no medida: un motor anterior a V2-259 no instancia y entonces es la
+            # única que hay. Se anota en `_bare_show` y solo se usa al final si ninguna instancia apareció.
+            if str(d.get("label") or "") == "show" and _bare_show[0] is None:
+                _bare_show[0] = ts_ms
             # SOLO `show`, y esto es lo que hace que la medida DISCRIMINE. La primera versión aceptaba
             # cualquier operación sobre la hoja y daba «abrió 51 s antes» en una ronda ANTERIOR al
             # cableado: un `data` de fondo existía desde siempre. Una comprobación que sale verde con la
@@ -1803,6 +1855,8 @@ def sheet_timing(db_path, *, since: float = 0.0) -> dict:
         elif kind == "navegador" and out["first_result_ms"] is None:
             if any(it.get("title") for it in _items_in(str(d.get("text") or ""))):
                 out["first_result_ms"] = ts_ms
+    if out["sheet_ms"] is None and _bare_show[0] is not None:
+        out["sheet_ms"] = _bare_show[0]          # motor sin hojas por encargo: la pelada es la única que hay
     if out["sheet_ms"] is not None and out["first_result_ms"] is not None:
         out["lead_s"] = round((out["first_result_ms"] - out["sheet_ms"]) / 1000.0, 1)
         out["opened_before"] = out["lead_s"] > 0

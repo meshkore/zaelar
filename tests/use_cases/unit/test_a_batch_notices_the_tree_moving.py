@@ -107,12 +107,33 @@ def test_tocar_tests_NO_es_mover_el_motor(tmp_path, monkeypatch):
     assert not cfgmod.engine_moved(a, _fingerprint_at(monkeypatch, root))
 
 
-def test_commitear_el_mismo_contenido_SI_mueve_la_huella(tmp_path, monkeypatch):
-    """El HEAD entra en la huella: la tanda mediría un árbol con otro historial detrás."""
+def test_commitear_un_cambio_del_MOTOR_si_mueve_la_huella(tmp_path, monkeypatch):
+    """Un cambio del motor mueve la huella lo commitees o no: lo que se compara es el CONTENIDO."""
     root, git = _repo(tmp_path)
     (root / "nucleo.py").write_text("x = 3\n")
     a = _fingerprint_at(monkeypatch, root)
     git("add", "-A"); git("commit", "-qm", "otro")
+    assert cfgmod.engine_moved(a, _fingerprint_at(monkeypatch, root))
+
+
+def test_commitear_SOLO_tests_NO_mueve_el_motor(tmp_path, monkeypatch):
+    """Mi propio defecto, y el MISMO que este fichero vino a arreglar: allí «sucio» no era «movido», y aquí
+    «hay un commit nuevo» tampoco lo es. Se pagó dos veces la misma tarde — un commit del arnés y otro de un
+    agente— cortando una tanda a mitad cada uno, con el motor idéntico a los dos lados."""
+    root, git = _repo(tmp_path)
+    a = _fingerprint_at(monkeypatch, root)
+    (root / "tests" / "t.py").write_text("y = 3\n")
+    git("add", "-A"); git("commit", "-qm", "solo tests")
+    assert not cfgmod.engine_moved(a, _fingerprint_at(monkeypatch, root))
+
+
+def test_un_fichero_del_motor_BORRADO_si_mueve_la_huella(tmp_path, monkeypatch):
+    """Sensibilidad por el lado contrario: hashear la lista de blobs tiene que notar una ausencia, no solo
+    un cambio de contenido."""
+    root, git = _repo(tmp_path)
+    a = _fingerprint_at(monkeypatch, root)
+    (root / "nucleo.py").unlink()
+    git("add", "-A"); git("commit", "-qm", "fuera")
     assert cfgmod.engine_moved(a, _fingerprint_at(monkeypatch, root))
 
 
