@@ -578,7 +578,7 @@ def live_state() -> str:
                 # is already on the summary; the same signal the browser face reads (V2-200) is read here.
                 _kept = int(t.get("kept", 0) or 0)
                 if _kept > 0:
-                    bit += f" — YA HA ENCONTRADO {_kept} candidato(s), están en la hoja"
+                    bit += f" — YA HA ENCONTRADO {_kept} candidato(s)"   # V2-278: cuántos, nunca DÓNDE
                 bits.append(bit + f' (llevas {t.get("secs", 0)}s)')
             lines.append("TAREAS DE FONDO EN CURSO (los brain workers las están resolviendo; NO reinicies ni digas "
                          "que ya está): " + "; ".join(bits) + ". Si el operador pregunta el estado, di el PASO "

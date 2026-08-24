@@ -36,6 +36,16 @@ def _found_candidates(nav_task_id: str) -> bool:
 
     Read through the seam that already links the two registries (`dispatch.record_by_nav_task`, V2-048) rather
     than a new one. Best-effort: not knowing means «no», which keeps the stall/wall faces exactly as they were.
+
+    ⚠️ AND IT SAYS HOW MANY, NEVER WHERE (V2-278). `kept` is BREADTH — the worker's own count of finalists — and
+    says nothing about the sheet having been written. Measured on `search-secondhand-monitor__es`
+    (2026-08-24 01:47), the round that PASSED: turn 6 said «Ya tengo resultados EN PANTALLA» at 130 s and the
+    first row landed at 142. Twelve seconds of a false claim about what the operator has in front of them, and
+    the judge filed it [alta] as an unbacked claim — which is what it looks like from outside. The names were
+    not invented: we had handed them over by note (V2-223). What was false was the PLACE, and we were the ones
+    saying it — in this block's bit and in the browser face's imperative, both of which claimed the sheet off
+    this signal. Same family as V2-209 («Aquí lo tienes» over an empty card) and V2-176 («Hecho.» over a task
+    that had just started): one of OUR canned phrases is where a false claim slips in with nobody writing it.
     """
     try:
         from nucleo import dispatch as _d
@@ -167,7 +177,7 @@ def navegador_lines() -> list[str]:
                         _blocked = True
                         _asked = _asked or (_who, _p["question"])
                     elif _p.get("has_results") or _found_candidates(_tid):
-                        _b += " · YA TIENE RESULTADOS"
+                        _b += " · YA HA ENCONTRADO ALGO"
                         _has_results = _has_results or _who
                     elif _p.get("awaiting_login"):
                         _b += " · PARADA ESPERANDO A QUE ENTRES TÚ (hay una ventana abierta para iniciar sesión)"
@@ -225,10 +235,20 @@ def navegador_lines() -> list[str]:
                     "respuesta la tarea se cae sola dentro de unos minutos. Cuando conteste, su sí o su no ES "
                     "la respuesta a esto: no lo trates como una petición nueva." + _shared)
             elif _has_results:
+                # V2-278 — «tiene resultados EN LA HOJA» es una afirmación sobre la PANTALLA, y esta cara
+                # dispara con dos señales que no dicen lo mismo: `has_results` (la tarea acabó y se escribió) y
+                # la amplitud viva del worker (`kept`, V2-200), que solo dice que ha ENCONTRADO. Medido en
+                # `search-secondhand-monitor__es` (2026-08-24 01:47): el turno dijo «Ya tengo resultados EN
+                # PANTALLA» a los 130 s y la primera fila se escribió a los 142 — doce segundos de una
+                # afirmación falsa sobre lo que el operador tiene delante, que es justo la familia que V2-209
+                # cerró para el ack de «Aquí lo tienes».
+                # Lo que el cerebro SÍ sabe es qué encontró. Dónde está eso es otro hecho, y no lo tiene.
                 lines.append(
-                    _head + f" {_has_results} YA TRAJO ALGO: no está bloqueada ni esperando, tiene resultados en "
-                    "la hoja. DÁSELOS en este turno —lo que encontró, no que «ya casi está»— y pregunta si le "
-                    "vale o quiere que siga afinando. Decirle que está parada teniendo datos delante es la "
+                    _head + f" {_has_results} YA HA ENCONTRADO algo: no está bloqueada ni esperando. CUÉNTASELO "
+                    "en este turno —QUÉ ha encontrado, con nombre y precio, no que «ya casi está»— y pregunta "
+                    "si le vale o quiere que siga afinando. NO digas que «lo tiene en pantalla» ni «en la "
+                    "hoja»: eso es otra cosa y puede tardar unos segundos más en escribirse; di lo que hay, "
+                    "que es lo que sabes. Decirle que está parada teniendo datos delante es la "
                     "misma mentira que decirle que sigue buscando cuando ya no busca." + _shared + _walls_note)
             elif _login:
                 lines.append(

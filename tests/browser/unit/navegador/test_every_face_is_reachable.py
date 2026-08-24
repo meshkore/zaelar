@@ -4,7 +4,7 @@ Dos veces la misma noche un arreglo pasó sus tests sin hacer nada:
 
   · **V2-199** — `recently_ended_sessions()` leía `_SESSIONS` para las sesiones acabadas, y `_run_session`
     saca el registro en su `finally`. Los tests colocaban el registro y no lo sacaban nunca.
-  · **V2-200** — la cara «YA TIENE RESULTADOS» leía `results` de la tarea, y los tres sitios que lo escriben
+  · **V2-200** — la cara «ya encontró algo» leía `results` de la tarea, y los tres sitios que lo escriben
     llaman a `finish()` acto seguido: una tarea ACTIVA con resultados no existe. Los tests la fabricaban.
 
 Los dos se encontraron preguntándole al CÓDIGO si el estado que el test construye llega a existir. Este
@@ -55,7 +55,7 @@ FACES = [
     ("SIN MOVERSE", r"add_event\(|update_view\(", "el atasco se mide contra `last_progress`, que mueven ambos"),
     ("PARADA ESPERANDO A QUE ENTRES TÚ", r"set_login_wait\([^)]*,\s*True\)",
      "lo escribe `owner._authenticate` al abrir la ventana de login"),
-    ("YA TIENE RESULTADOS", r"session_considered\(|hbnote|considered",
+    ("YA HA ENCONTRADO", r"session_considered\(|hbnote|considered",
      "la señal VIVA es la amplitud que reporta el worker; `results` de la tarea llega con el final (V2-200)"),
 ]
 

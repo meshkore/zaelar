@@ -536,9 +536,9 @@ def test_a_task_that_already_found_something_is_not_blocked():
     tasks.set_results(tid, {"conclusion": "3 sesiones", "items": [{"t": "sáb 17:00"}]})
     tasks._tasks[tid]["last_progress"] = time.time() - 400          # y encima lleva 6 min sin moverse
     state = _live()
-    assert "YA TIENE RESULTADOS" in state
+    assert "YA HA ENCONTRADO ALGO" in state
     assert "ESTÁ BLOQUEADA: lo que pone arriba de ella" not in state
-    assert "DÁSELOS en este turno" in state
+    assert "CUÉNTASELO en este turno" in state
 
 
 def test_and_results_win_over_a_WALL_too():
@@ -548,7 +548,7 @@ def test_and_results_win_over_a_WALL_too():
     tasks.update_view(tid, url=BOOKING_WALL)
     tasks.set_results(tid, {"conclusion": "2 hoteles", "items": [{"n": "uno"}]})
     state = _live()
-    assert "YA TIENE RESULTADOS" in state
+    assert "YA HA ENCONTRADO ALGO" in state
     assert "ESTÁ BLOQUEADA: lo que pone arriba de ella" not in state
 
 
@@ -561,7 +561,7 @@ def test_but_without_results_a_stall_is_still_a_stall():
     tasks._tasks[tid]["last_progress"] = time.time() - 400
     state = _live()
     assert "ESTÁ BLOQUEADA: lo que pone arriba de ella" in state
-    assert "YA TIENE RESULTADOS" not in state
+    assert "YA HA ENCONTRADO ALGO" not in state
 
 
 def test_and_the_seam_carries_the_fact():
@@ -601,8 +601,8 @@ def _three_live():
 def test_the_imperative_names_the_task_it_is_about():
     _three_live()
     state = _live()
-    assert "«Entradas El Rey León» YA TRAJO ALGO" in state
-    assert "ESA TAREA YA TRAJO ALGO" not in state       # la forma ambigua que medía el veredicto
+    assert "«Entradas El Rey León» YA HA ENCONTRADO algo" in state
+    assert "ESA TAREA YA HA ENCONTRADO" not in state       # la forma ambigua que medía el veredicto
 
 
 def test_and_the_other_tasks_keep_their_FACTS_without_a_second_order():
@@ -611,7 +611,7 @@ def test_and_the_other_tasks_keep_their_FACTS_without_a_second_order():
     _three_live()
     state = _live()
     assert "PARADA ESPERANDO A QUE ENTRES TÚ" in state          # el hecho del Netflix, listado
-    assert state.count("DÁSELOS en este turno") == 1
+    assert state.count("CUÉNTASELO en este turno") == 1
     assert "SOLO LA DESBLOQUEA ÉL" not in state                 # …pero sin su propio imperativo
 
 
@@ -686,7 +686,7 @@ def test_and_one_that_finished_WITH_results_too():
     assert "terminó CON resultado" in _live()
 
 
-# ── V2-200: la cara «YA TIENE RESULTADOS» estaba atada a un campo que nunca es cierto en vivo ─────────────
+# ── V2-200: la cara «ya encontró algo» estaba atada a un campo que nunca es cierto en vivo ────────────────
 #
 # V2-192 la ató a `results` de la propia tarea. Pero los TRES sitios que llaman a `set_results()` llaman a
 # `finish()` acto seguido —`owner.py:660`, `dispatch._finalize_web`, `web_cc`— así que **una tarea ACTIVA con
@@ -722,7 +722,7 @@ def test_no_production_path_leaves_an_ACTIVE_task_with_results():
             after = src[m.end():m.end() + 700]
             assert re.search(r"\.finish\(|set_status\([^)]*\"(done|failed|cancelled)\"", after), (
                 f"{rel}: un `set_results()` que NO termina la tarea a continuación. Si eso pasa a ser posible, "
-                "la cara «YA TIENE RESULTADOS» puede volver a leer `has_results` en vez de la amplitud viva.")
+                "la cara «ya encontró algo» puede volver a leer `has_results` en vez de la amplitud viva.")
 
 
 def test_the_face_now_fires_on_the_LIVE_signal(monkeypatch):
@@ -733,7 +733,7 @@ def test_the_face_now_fires_on_the_LIVE_signal(monkeypatch):
     d = _worker_on(tid, kept=3)
     try:
         state = _live()
-        assert "YA TIENE RESULTADOS" in state
+        assert "YA HA ENCONTRADO ALGO" in state
         assert "ESTÁ BLOQUEADA: lo que pone arriba de ella" not in state
     finally:
         d._SESSIONS.clear()

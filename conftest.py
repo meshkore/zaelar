@@ -73,3 +73,36 @@ try:
     _wstore.DATA_DIR = _Path(tempfile.mkdtemp(prefix="zaelar-test-widgets-"))
 except Exception:                                  # sin `widgets` importable, la suite sigue como antes
     pass
+
+
+# V2-279 — UN TRACE ABIERTO SE LLEVA POR DELANTE LOS TESTS DE DESPUÉS (2026-08-24).
+#
+# `voice/trace.begin()` fija un ContextVar y NO tiene teardown: pytest corre toda la suite en un solo contexto,
+# así que un test que abre un trace y no lo cierra se lo deja puesto a todos los siguientes. Medido: correr
+# `tests/infrastructure/unit` antes que `tests/agent_headless/unit` pone rojo
+# `test_escalate_registers_and_emits_bus`, que compara el `context` de la escalada con `{"src": "voice"}` y
+# recibe `{"src": "voice", "trace": "T1·7d5a"}` — el trace de OTRO test, sellado por `escalate_to_slowbrain`
+# haciendo exactamente lo que debe. Corriendo la suite sola, verde.
+#
+# La clase es peor que ese caso: el trace lo lee `observer.emit` en CADA evento, así que un test cualquiera
+# puede quedar atribuido a la traza de otro. Y es order-dependent, o sea que aparece y desaparece según qué
+# nodos del testmap se corran juntos — la forma más cara de fallo, porque no se reproduce cuando lo buscas.
+#
+# Se resetea el ContextVar en el teardown de CADA test. Deliberadamente SIN `monkeypatch`: un fixture del
+# conftest RAÍZ que lo pida reordena el teardown de toda la suite (ya costó un ERROR en un test que nadie
+# había tocado). Quien PRUEBE el trace lo abre él dentro de su caso, que es lo que ya hacen los dos ficheros
+# que lo usan.
+try:
+    import pytest as _pytest
+
+    from voice import trace as _trace
+
+    @_pytest.fixture(autouse=True)
+    def _no_trace_leaks_between_tests():
+        yield
+        try:
+            _trace._ctx.set(("", ""))
+        except Exception:
+            pass
+except Exception:                                  # sin `voice` importable, la suite sigue como antes
+    pass

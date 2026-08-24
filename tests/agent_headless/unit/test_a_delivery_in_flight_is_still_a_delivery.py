@@ -190,3 +190,48 @@ def test_no_pisa_la_nota_entregada_las_dos_caras_conviven():
     st = P.live_state()
     assert "los 3 finalistas" in st
     assert "35 candidato" in st
+
+
+# ── 4. «encontrado» NO es «en pantalla» — la cara dice lo que la señal dice ────────────────────────────
+# Medido en `search-secondhand-monitor__es` (2026-08-24 01:47), en la ronda que APROBÓ. El turno 6 dijo
+#
+#     «Ya tengo resultados EN PANTALLA, Marc. …el MSI MAG a 70 €, …»
+#
+# a los 130 s, y la primera fila de la hoja se escribió a los 142. Doce segundos de una afirmación falsa
+# sobre lo que el operador tiene delante — y el juez la fichó como [alta] «afirmación sin respaldo», que es
+# lo que parece desde fuera.
+#
+# Los nombres NO se los inventó: se los habíamos dado nosotros por nota (V2-223, `offered: 6 filas`). Lo
+# falso era el SITIO. Y el sitio se lo decíamos nosotros por dos caminos, los dos escritos hoy:
+#
+#   · el bit de este bloque, que yo cerré esta misma noche diciendo «están en la hoja»
+#   · la cara del navegador, cuyo imperativo decía «tiene resultados en la hoja. DÁSELOS»
+#
+# `kept` lo escribe el worker con `hbnote considered --kept N` para reportar su AMPLITUD: dice cuántos ha
+# encontrado, nunca dónde están. Es la familia de V2-209 («Aquí lo tienes» sobre una tarjeta vacía) y la de
+# V2-176 («Hecho.» sobre una tarea que acababa de empezar): una frase NUESTRA es donde una afirmación falsa
+# se cuela sin que nadie la escriba.
+
+
+def test_el_bloque_dice_CUANTOS_ha_encontrado_y_no_donde_estan():
+    _con_candidatos()
+    st = P.live_state()
+    assert "YA HA ENCONTRADO 35 candidato(s)" in st
+    assert "en la hoja" not in st, "el bloque vuelve a afirmar la PANTALLA desde una señal de amplitud"
+
+
+def test_y_el_imperativo_PROHIBE_decir_que_lo_tiene_delante():
+    """Nombrar la frase que se sustituye es lo que hace que el modelo pueda contrastarse (V2-221)."""
+    from nucleo.flash import live_blocks
+    import inspect
+    src = inspect.getsource(live_blocks.navegador_lines)
+    assert "NO digas que «lo tiene en pantalla»" in src
+    assert "puede tardar unos segundos más en escribirse" in src
+
+
+def test_pero_SIGUE_mandando_contar_lo_que_encontro():
+    """La mitad que no se puede perder: callar por prudencia es el fallo que V2-222 lleva tres caras cerrando."""
+    _con_candidatos()
+    low = P.live_state().lower()
+    assert "cuéntalo en este turno" in low
+    assert "sigo con ello" in low       # la frase prohibida, nombrada
