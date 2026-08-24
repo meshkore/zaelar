@@ -512,7 +512,17 @@ def results_sheet(ids: list[str] | None = None) -> dict:
     as real ones. `ids` comes from `sheet_instances`, so the two readers cannot drift apart; with none (no
     sheet opened, or an engine from before V2-259) it falls back to the bare box, which is then the only one.
     """
-    boxes = [i for i in (ids or []) if str(i).split("::", 1)[0] == "results"] or ["results"]
+    # LA CAJA PELADA ES UN CEMENTERIO, y sumarla atribuye a este caso lo que dejaron los anteriores. Medido en
+    # la tanda del 2026-08-24 03:02: el caso del MONITOR salió con seis títulos de GUITARRA, y el de la
+    # GUITARRA con títulos de BICICLETA — cada uno leyendo, en la caja de nadie, lo que había quedado ahí.
+    # 38 filas acumuladas al acabar la tanda, con mtime posterior al último caso.
+    #
+    # No es basura de test: desde V2-281 la caja pelada es donde cae lo que no resuelve un encargo, y NADIE la
+    # vacía. Así que se lee, se cuenta APARTE, y no entra en los candidatos de este caso — que es la pregunta
+    # que este informe contesta. Sumarla no exagera un defecto: FABRICA hallazgos de invención sobre títulos
+    # reales de otro encargo, que es la forma más cara de todas (la misma que costó `n_sources`).
+    _inst = [i for i in (ids or []) if str(i).startswith("results::")]
+    boxes = _inst or ["results"]
     reads = []
     for box in boxes:
         suffix = box.split("::", 1)[1] if "::" in box else ""
@@ -521,7 +531,7 @@ def results_sheet(ids: list[str] | None = None) -> dict:
             reads.append((box, got))
     if not reads:
         return {"read": False, "n_items": 0, "titles": [], "n_backed": 0, "n_sites_reported": 0,
-                "boxes": boxes}
+                "boxes": boxes, "bare_box": None}
     items: list[dict] = []
     n_sites = 0
     per_box: list[dict] = []
@@ -564,6 +574,11 @@ def results_sheet(ids: list[str] | None = None) -> dict:
         # Y la pestaña, con su nombre de verdad: sigue siendo señal (un worker que declara sus sitios cuenta
         # también los que le fallaron), solo que de otra cosa.
         "n_sites_reported": n_sites,
+        # LA CAJA DE NADIE. Solo se sabe cuando ES la única que hay: con instancias abiertas NO se lee, porque
+        # el nodo 10.61 lo prohíbe con razón —tocarla es cómo sus restos acaban contados como de este caso— y
+        # abrir un read que un guarda prohíbe, para luego relajar el guarda, es cómo muere un guarda. `None`
+        # es «no lo sé», que no es lo mismo que «vacía».
+        "bare_box": None if _inst else len(items),
         "note": str(d.get("note") or "")[:120],
     }
 

@@ -122,3 +122,39 @@ def test_the_row_reader_builds_the_same_path(monkeypatch):
     probe_client.widget_rows("agenda", "meetings")
     probe_client.widget_rows("results", "items", "2")
     assert seen == ["/widgets/agenda/data", "/widgets/results/data?q=2"]
+
+
+# ── la forma REAL que entrega `sheet_instances`: la pelada Y la instancia ──────────────────────────────
+# El guarda de arriba se escribió con `ids=["results::1"]`, y con eso el filtro viejo ya excluía la pelada
+# «sola». Pero `sheet_instances` la incluye en cuanto el canvas la abrió, y la tanda del 2026-08-24 03:02
+# entregó exactamente `["results", "results::c2567e-1"]`: el filtro partía por `::` y se quedaba con las dos,
+# así que las 38 filas acumuladas en la caja de nadie se sumaron a CADA caso. El del monitor salió con seis
+# títulos de guitarra; el de la guitarra, con bicicletas.
+#
+# Este caso no es una variante del de arriba: es la entrada que producción produce, que es la que hay que
+# probar (la lección de V2-199/V2-200 aplicada a un lector).
+
+_MEDIDO = ["results", "results::c2567e-1"]
+
+
+def test_con_la_pelada_EN_la_lista_tampoco_se_lee(monkeypatch):
+    seen = _fake(monkeypatch, {"c2567e-1": {"items": [{"title": "Monitor Dell 27"}], "title": "monitor"},
+                               "": {"items": [{"title": "Guitarra Yamaha F370BS"}] * 18}})
+    r = verify.results_sheet(_MEDIDO)
+    assert ("results", "") not in seen, "la caja de nadie vuelve a entrar en la medida del caso"
+    assert r["n_items"] == 1
+    assert "Guitarra Yamaha F370BS" not in (r["titles"] or [])
+    assert [b["id"] for b in r["per_box"]] == ["results::c2567e-1"]
+
+
+def test_y_lo_que_NO_se_pudo_mirar_se_dice_None_no_cero(monkeypatch):
+    """«No lo sé» y «vacía» no pueden verse igual — con instancias abiertas la pelada no se lee a propósito."""
+    _fake(monkeypatch, {"c2567e-1": {"items": [{"title": "Monitor Dell 27"}]},
+                        "": {"items": [{"title": "Guitarra"}] * 18}})
+    assert verify.results_sheet(_MEDIDO)["bare_box"] is None
+
+
+def test_sin_instancias_la_pelada_ES_la_medida_y_se_cuenta(monkeypatch):
+    _fake(monkeypatch, {"": {"items": [{"title": "Algo"}, {"title": "Otro"}]}})
+    r = verify.results_sheet(None)
+    assert r["n_items"] == 2 and r["bare_box"] == 2

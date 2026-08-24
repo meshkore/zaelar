@@ -43,6 +43,11 @@ def _batch(monkeypatch, tmp_path, ids: list[str]) -> list[str]:
     monkeypatch.setattr(statusmod, "attach_workspaces", lambda *a, **k: None)
     monkeypatch.setattr(statusmod, "summary_line", lambda: "")
     monkeypatch.setattr(reportmod, "build", lambda *a, **k: tmp_path / "r.md")
+    # EL SELLO DEL ÁRBOL, FIJADO. `_run_batch` lo relee entre casos desde V2-282 (una tanda dura horas y las
+    # guardas de arranque no ven lo que pasa durante), así que sin fijarlo estos tests preguntan por el estado
+    # de git de la máquina que los corre: verdes con el árbol limpio, rojos con una edición en curso. Es el
+    # «un test verde por el ENTORNO» que el conftest raíz ya persigue por el idioma y por la config.
+    monkeypatch.setattr(config, "code_stamp", lambda: {"sha": "fijo", "dirty": [], "n_dirty": 0})
     R._run_batch([_s(i) for i in ids], sandboxed=True, args_no_file=True)
     return order
 
@@ -71,6 +76,7 @@ def test_a_failed_reset_does_not_lose_the_batch(monkeypatch, tmp_path):
     monkeypatch.setattr(statusmod, "attach_workspaces", lambda *a, **k: None)
     monkeypatch.setattr(statusmod, "summary_line", lambda: "")
     monkeypatch.setattr(reportmod, "build", lambda *a, **k: tmp_path / "r.md")
+    monkeypatch.setattr(config, "code_stamp", lambda: {"sha": "fijo", "dirty": [], "n_dirty": 0})
     R._run_batch([_s("a"), _s("b")], sandboxed=True, args_no_file=True)
     assert ran == ["a", "b"]
 

@@ -995,7 +995,12 @@ DOMAINS: list[dict] = [
         {"id": "7.23", "title": "La identidad de proceso tiene UN dueño: sello de arranque + secuencias con "
                                 "nombre, y cada consumidor conserva su contrato",
             "ch": UNIT,
-            "paths": ["tests/infrastructure/unit/core/test_runtime_ids.py"]},
+            "paths": ["tests/infrastructure/unit/core/test_runtime_ids.py",
+                      # V2-283: el sello sobrevivía al REBOBINADO del contador, así que sello estable ×
+                      # contador rebobinado = mismo id — y `reset_all` (el ⏻ del operador) rebobina. Cuatro
+                      # casos de una tanda cayeron en la MISMA hoja, borrándose unos a otros. La docstring del
+                      # módulo afirmaba «production never rewinds a sequence», falsa desde el primer día.
+                      "tests/agent_headless/unit/test_a_reset_does_not_reuse_the_sheet.py"]},
         # 2026-08-23, reportado por el arnés con la ronda que le mató: `cheapest-monitor` murió en el turno 10
         # con un 500 y el log traía `IndexError` desde `str(e).splitlines()[0][:200]` — `"".splitlines()` es
         # `[]`, así que cualquier excepción SIN MENSAJE hace reventar la propia línea. Las quince copias vivían

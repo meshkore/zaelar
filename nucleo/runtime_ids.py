@@ -17,8 +17,10 @@ counter born elsewhere goes red with a name.
 
 Two primitives, deliberately small:
 
-  · `boot_id()` — a short random stamp minted ONCE per process. Compose it into any id that must not collide
-    with the previous run's (`dispatch.sheet_id_for` → `f"{boot_id()}-{task_id}"`).
+  · `boot_id()` — a short random stamp for this RUN. Compose it into any id that must not collide with the
+    previous run's (`dispatch.sheet_id_for` → `f"{boot_id()}-{task_id}"`). Minted once per process AND rolled
+    whenever a counter is rewound (see `reset_seq`): a stamp that survives a rewind does not buy uniqueness,
+    it only looks like it does.
   · `next_seq(name)` — a named, thread-safe, monotonic counter. Per PROCESS by design: callers that need
     cross-restart uniqueness compose with `boot_id()` rather than persisting counters — a persisted counter is
     shared mutable state on disk, and the boot stamp buys the same property for free.
@@ -46,8 +48,26 @@ def next_seq(name: str) -> int:
 
 
 def reset_seq(name: str) -> None:
-    """Restart one named counter. For TESTS (and the test-only reset paths that already existed, like
-    `escalate.reset()`): production never rewinds a sequence — a rewound sequence is exactly the repeated-id
-    class this module exists to end."""
+    """Restart one named counter — AND roll the boot stamp with it, because that is what keeps the promise.
+
+    ⚠️ This docstring used to say «for TESTS … production never rewinds a sequence», and that was FALSE the
+    day it was written: `escalate.reset()` is called by `nucleo/reset.py::reset_all()`, which is the operator's
+    ⏻ «empezamos de cero» and the harness's reset between cases. So the exact repeated-id class this module
+    exists to end was happening in production, through the door its author believed was test-only.
+
+    Measured on the batch of 2026-08-24 03:02: FOUR cases in one lab process, and all four errands got the
+    sheet `results--c2567e-1` — the same box, each one striking the previous case's findings with
+    `begin_task(fresh=True)`. That is literally the defect the operator asked to remove when he asked for one
+    sheet per errand: «con esta regla no cometeremos errores de borrar búsquedas». V2-259's addendum closed
+    the PROCESS-restart door with `boot_id()`; this is the same bug through the reset door, and `boot_id` could
+    not see it because it only rolls on a new process.
+
+    Rolling the stamp fixes the CLASS and not the instance: any durable id composed with `boot_id()` — present
+    or future — stops colliding across a rewind by construction, which is the property the stamp was sold as
+    having. The cost is intended: sheets from before the reset become unreachable by id, and they belong to
+    the session the operator just said to forget.
+    """
+    global _BOOT
     with _lock:
         _seqs.pop(name, None)
+        _BOOT = secrets.token_hex(3)
