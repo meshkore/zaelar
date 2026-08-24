@@ -6,6 +6,8 @@ This replaces the cheap DOM->vision loop. It runs in the uvicorn loop, the same 
 owner, so it can call `TaskBrowser` methods directly rather than through the fire-and-forget mailbox. Invoked by
 the `nucleo/nav_cli.py` CLI (`hbweb`). Local/loopback: same trust model as the rest of the API.
 """
+import asyncio
+
 from fastapi import APIRouter, Body
 from fastapi.responses import JSONResponse
 from nucleo.errors import brief as _brief
@@ -60,6 +62,11 @@ def _emit_nav(nav_tid: str, label: str, text: str) -> None:
 # Same threshold the FlashBrain turn uses for «sin moverse» (`nucleo/flash/prompt.py`), read from the same env
 # var so the two halves of one fact can never drift apart.
 _STALL_HINT_S = int(__import__("os").environ.get("ZAELAR_NAV_STALLED_S", "120") or 120)
+
+# Lo que se espera antes de volver a mirar una página que devolvió solo filas huecas (V2-294). Corto a propósito:
+# es el tiempo de hidratación de un listado, no una espera de red — si en eso no ha pintado, mirar más no arregla
+# nada y el worker tiene sus propias salidas (cambiar de búsqueda, de sitio).
+_HYDRATE_WAIT_S = float(__import__("os").environ.get("ZAELAR_NAV_HYDRATE_S", "2") or 2)
 
 
 def _with_wall(snap: dict, task_id: str = "") -> dict:
@@ -416,7 +423,27 @@ async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body
             return {"ok": True, "shot": _shot_path(task_id), "viewport": {"width": 1280, "height": 800},
                     **_with_stall(task_id, _with_wall(snap, task_id))}
         if action == "extract":
-            items = await tb.extract_listings(int(args.get("limit", 14)))
+            _limit = int(args.get("limit", 14))
+            items = await tb.extract_listings(_limit)
+            # V2-294 — UNA PÁGINA A MEDIO CARGAR DEVUELVE FILAS HUECAS, Y ESO NO ES «SIN RESULTADOS».
+            #
+            # Medido en la tanda de las 13:57, `search-secondhand-monitor__es`: 3 s después de navegar al listado
+            # con el filtro puesto, la extracción devolvió `{"title": "", "price": "0 €", "url": ".../item/…"}` —
+            # las tarjetas ESQUELETO que un listado pinta mientras hidrata, con su enlace ya puesto y el resto en
+            # blanco. El worker lo diagnosticó él solo («la extracción devuelve datos pobres, títulos vacíos y
+            # precios en 0») y gastó dos vueltas en recuperarse; la siguiente extracción, sobre la misma página,
+            # trajo monitores reales con precio. En la bici y la guitarra la ronda se acabó antes de recuperarse.
+            #
+            # Se mira UNA vez más porque la señal es inequívoca: hay filas, y NINGUNA tiene identidad. Con cero
+            # filas no se reintenta —eso sí puede ser una página sin resultados, y hacerle esperar dos segundos a
+            # cada búsqueda vacía es pagar por todas para arreglar unas pocas—; y un solo reintento, porque a la
+            # segunda ya no es que esté cargando.
+            if items and not by_identity(items)[0]:
+                await asyncio.sleep(_HYDRATE_WAIT_S)
+                _retry = await tb.extract_listings(_limit)
+                if by_identity(_retry)[0]:
+                    _emit_nav(task_id, "🧭 resultados", "la página estaba a medio cargar; mirada otra vez")
+                    items = _retry
             # Se CUENTAN los que tienen nombre. Decir «12 resultados» cuando nueve son enlaces de categoría es
             # una cifra que el operador lee y se cree; y `found(0)` no calla —dice «sin resultados en esta
             # página»—, que es justo lo que hace falta para que el worker cambie de sitio en vez de insistir.

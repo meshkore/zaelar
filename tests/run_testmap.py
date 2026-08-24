@@ -586,6 +586,11 @@ DOMAINS: list[dict] = [
                                   # `min_sale_price=750`. La URL venía entera y el parámetro nuevo no se
                                   # ve dentro de una línea larga; lo que faltaba era el DELTA.
                                   "tests/browser/unit/navegador/test_the_url_says_what_changed.py",
+                                  # V2-294: una página a medio hidratar devuelve filas HUECAS (enlace
+                                  # puesto, título vacío, «0 €») y eso no es «sin resultados». El worker lo
+                                  # diagnosticaba él solo y gastaba dos vueltas; en dos casos la ronda se
+                                  # acabó antes de que se recuperara.
+                                  "tests/browser/unit/navegador/test_a_half_loaded_page_is_not_empty.py",
             # sin mapear hasta el 2026-08-21: el muro de login en la NUBE cierra en limpio en vez de dar vueltas
             "tests/browser/unit/navegador/test_cloud_login_bailout.py",
             "tests/browser/unit/navegador/test_auth.py", "tests/browser/unit/navegador/test_tasks_dedup.py",
