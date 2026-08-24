@@ -450,6 +450,13 @@ def active_progress(limit: int = 3) -> list[dict]:
                  # working" and "stuck" is exactly this, and without it the turn could only offer elapsed
                  # seconds, which V2-145 already established is not a description of anything.
                  "stalled_s": int(max(0.0, now - float(t.get("last_progress") or t.get("created") or now))),
+                 # V2-302 — the task's AGE, as a fact. Measured on round 29 (2026-08-24 23:07): at 21 seconds
+                 # of task life the turn said «lleva un rato sin reportar nada… ¿prefieres que la pare?» —
+                 # offering to kill a task that had barely spawned, and priming the operator to abort (which
+                 # he did). The model had no age fact, so it filled the hole with «un rato». This is NOT the
+                 # V2-145 regression: that incident was the brain having ONLY seconds and inventing detail
+                 # from them; age alongside the real facts grounds the wording instead of replacing it.
+                 "age_s": int(max(0.0, now - float(t.get("created") or now))),
                  "wall": (t.get("wall") or ""),
                  # The obstacles this task has ALREADY hit, which `wall` cannot carry (it is recomputed per
                  # capture). Count + the last one, because that is what a sentence needs.

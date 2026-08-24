@@ -180,6 +180,13 @@ def navegador_lines() -> list[str]:
             for _tid, _g in act:
                 _b = f"«{(_g or 'tarea')[:70]}»"
                 _p = _prog.get(_tid) or {}
+                # V2-302 — la EDAD como hecho, siempre que se sepa. A los 21 s de vida el turno dijo «lleva un
+                # rato sin reportar nada… ¿prefieres que la pare?» (ronda 29): sin la edad delante, el modelo
+                # rellenó el hueco con «un rato» y le ofreció al operador matar una tarea recién nacida.
+                _age = int(_p.get("age_s") or 0) if _p else 0
+                if _age > 0:
+                    _b += (f" (arrancó hace {_age} s)" if _age < 90 else
+                           f" (arrancó hace {_age // 60} min)")
                 if _p:
                     if _p.get("url"):
                         # V2-187: the SITE, not the raw URL. What the state handed the turn was
@@ -362,7 +369,13 @@ def navegador_lines() -> list[str]:
                     "Nunca esperes callado sobre un muro." + _shared)
             else:
                 lines.append(
-                    _head + " Esa tarea sigue viva y te dará el resultado sola. Si el operador "
+                    _head + " Esa tarea sigue viva y te dará el resultado sola. "
+                    # V2-302: la edad va arriba entre paréntesis y se usa TAL CUAL — el daño medido fue el
+                    # relleno («lleva un rato») y la oferta de matar una tarea de 21 segundos.
+                    "La EDAD de la tarea está arriba («arrancó hace…»): úsala tal cual si hablas de tiempo. "
+                    "Una tarea de menos de un minuto está ARRANCANDO: no digas que «lleva un rato», no "
+                    "sugieras que «puede que esté costando» y NO ofrezcas pararla o relanzarla — una búsqueda "
+                    "normal tarda 2-3 minutos en traer sus primeros candidatos. Si el operador "
                     "añade un matiz (precio, zona, «analízalas una por una»), reconócelo («sigo con ello, lo "
                     "tengo en cuenta») — NO escalas de nuevo. "
                     "Lo que ves AQUÍ es TODO lo que sabes de ella, y no saber NO es saber que no hace nada: si "

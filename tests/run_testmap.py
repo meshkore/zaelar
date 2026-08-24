@@ -615,6 +615,9 @@ DOMAINS: list[dict] = [
             # contestó «déjame ver» (guitarra, ronda 21). Las filas van en el bloque; el DÓNDE (pantalla/
             # hoja) sigue prohibido de afirmar, que es la frontera de V2-278.
             "tests/browser/unit/navegador/test_the_face_carries_the_rows_it_orders_to_tell.py",
+            # V2-302: a los 21 s de tarea el turno dijo «lleva un rato… ¿la paro?» — sin la EDAD delante, el
+            # modelo rellena el hueco con «un rato» y ofrece matar una tarea recién nacida (ronda 29).
+            "tests/browser/unit/navegador/test_a_young_task_says_its_age.py",
                                   # V2-293: el worker pidió precio MÁXIMO 150 € y la página aplicó
                                   # `min_sale_price=750`. La URL venía entera y el parámetro nuevo no se
                                   # ve dentro de una línea larga; lo que faltaba era el DELTA.
