@@ -97,6 +97,50 @@ def _with_wall(snap: dict, task_id: str = "") -> dict:
     return snap
 
 
+def _query_of(url: str) -> dict:
+    """Los PARÁMETROS de la dirección, tal cual. Un listado codifica sus filtros ahí — cualquiera, no uno."""
+    try:
+        from urllib.parse import parse_qsl, urlsplit
+        return {k: v for k, v in parse_qsl(urlsplit(str(url or "")).query, keep_blank_values=True)}
+    except Exception:
+        return {}
+
+
+def _with_url_change(before: str, snap: dict) -> dict:
+    """Decirle al worker QUÉ cambió en la dirección de la página, no solo cuál es ahora.
+
+    V2-293 — medido en la tanda de las 13:42, `search-buy-guitar__es`, con el modelo conduciendo a ciegas (el
+    escalón que servía la sesión no lee imágenes, V2-289). El worker quería precio MÁXIMO 150 €: pulsó el filtro,
+    escribió «150»… y la página se fue a `?min_sale_price=750`. Precio MÍNIMO, y de 750. La ronda acabó ahí con
+    CERO extracciones, y nada en la respuesta del puente decía que el filtro hubiera caído en otro sitio: la URL
+    entera viaja en una línea larga entre el título y los elementos, y un parámetro nuevo dentro de ella no se ve.
+
+    Lo que se añade es el DELTA, que es lo único que el worker no puede deducir: la URL de ahora la tiene, la de
+    antes no. Y es genérico por construcción — se comparan los parámetros que haya, sin saber de qué sitio son ni
+    qué significan; el mismo mecanismo sirve para un filtro de precio, uno de talla o una página siguiente.
+
+    Deliberadamente NO se juzga si el cambio es el que quería: eso es del worker, que es quien sabe qué pidió.
+    Aquí se dice lo que la página afirma de sí misma.
+    """
+    a, b = _query_of(before), _query_of(str((snap or {}).get("url") or ""))
+    if not before or a == b:
+        return snap
+    bits = []
+    for k, v in b.items():
+        if k not in a:
+            bits.append(f"{k}={v} (nuevo)")
+        elif a[k] != v:
+            bits.append(f"{k}: {a[k]} → {v}")
+    for k in a:
+        if k not in b:
+            bits.append(f"{k} ya no está")
+    if not bits:
+        return snap
+    snap = dict(snap or {})
+    snap["url_change"] = "; ".join(bits[:6])
+    return snap
+
+
 def _with_stall(task_id: str, snap: dict) -> dict:
     """Tell the worker how long its own task has gone WITHOUT MOVING — the half of V2-167 that never reached it.
 
@@ -383,6 +427,14 @@ async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body
             _hand_over(task_id, items)      # V2-223: a la hoja y a la conversación, no solo al worker
             return {"ok": True, "listings": items, "n": len(items)}
         if action in ("navigate", "click", "type", "select_option", "scroll", "press", "click_at", "type_at"):
+            # La dirección de ANTES, para poder contar qué cambió (V2-293). Se lee del registro de la pestaña
+            # porque es lo único que sobrevive entre invocaciones del puente: `nav_cli` es un proceso por acción.
+            _before = ""
+            try:
+                from widgets.navegador import tasks as _t0
+                _before = str((_t0.get(task_id) or {}).get("url") or "")
+            except Exception:
+                pass
             ok, msg = await tb.agent_act(action, args)
             # Return fresh state after the action so the agent sees the result and decides the next step.
             snap = {}
@@ -396,7 +448,8 @@ async def navegador_act(task_id: str = Body(..., embed=True), action: str = Body
             if page:
                 _emit_nav(task_id, "🧭 página", page)
             # Fresh PNG path; every action calls _capture, so the worker can Read the view after acting.
-            return {"ok": bool(ok), "msg": msg, "shot": _shot_path(task_id), **_with_stall(task_id, _with_wall(snap, task_id))}
+            return {"ok": bool(ok), "msg": msg, "shot": _shot_path(task_id),
+                    **_with_stall(task_id, _with_wall(_with_url_change(_before, snap), task_id))}
         return JSONResponse({"ok": False, "error": f"acción desconocida: {action}"}, status_code=400)
     except Exception as e:  # noqa: BLE001
         return JSONResponse({"ok": False, "error": f"{type(e).__name__}: {_brief(e, 160)}"},

@@ -582,6 +582,10 @@ DOMAINS: list[dict] = [
             # salió NI UNA VEZ mientras el navegador extraía resultados reales, y el veredicto de los tres fue
             # «tuvo resultados y no los entregó». Las filas de la hoja no dependen de que nadie se acuerde.
             "tests/browser/unit/navegador/test_the_found_signal_does_not_wait_to_be_told.py",
+                                  # V2-293: el worker pidió precio MÁXIMO 150 € y la página aplicó
+                                  # `min_sale_price=750`. La URL venía entera y el parámetro nuevo no se
+                                  # ve dentro de una línea larga; lo que faltaba era el DELTA.
+                                  "tests/browser/unit/navegador/test_the_url_says_what_changed.py",
             # sin mapear hasta el 2026-08-21: el muro de login en la NUBE cierra en limpio en vez de dar vueltas
             "tests/browser/unit/navegador/test_cloud_login_bailout.py",
             "tests/browser/unit/navegador/test_auth.py", "tests/browser/unit/navegador/test_tasks_dedup.py",

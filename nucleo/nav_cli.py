@@ -124,6 +124,13 @@ def _print_state(res: dict) -> None:
     if res.get("hint"):
         print(f"⚠️ AVISO: {res['hint']}")
     print(f"URL: {res.get('url', '')}")
+    if res.get("url_change"):
+        # V2-293 — el DELTA, que es lo único que el worker no puede deducir: la dirección de ahora la tiene, la
+        # de antes no. Va JUNTO a la URL y antes de los elementos porque es una consecuencia de la acción que
+        # acaba de hacer, y el worker lee de arriba abajo. Medido: quiso precio MÁXIMO 150 € y la página se fue
+        # a `min_sale_price=750` — el filtro cayó en otro campo y en otro sentido, sin que nada lo dijera.
+        print(f"CAMBIÓ EN LA DIRECCIÓN: {res['url_change']} — es el filtro que la página ha aplicado DE VERDAD. "
+              f"Si no es el que querías, deshazlo o vuelve a intentarlo; no sigas contando con el que pediste.")
     print(f"TÍTULO: {res.get('title', '')}")
     # V2-049 VISIÓN: si hay captura, dile al worker que la MIRE con Read (la página como la ve un humano) y actúe
     # por coordenadas con click_at/type_at — el camino robusto para formularios/date-pickers/selects.
