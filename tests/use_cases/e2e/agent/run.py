@@ -316,6 +316,25 @@ def _run_scenario(scenario, *, ran_before: list[str] | None = None, sandboxed: b
                 [{"title": x} for x in offered.get("titles") or []], transcript)
             wo["n_offered"] = offered.get("n_offered", 0)
             mech["worker_outcome"] = wo
+            # DELIVERY LAG, computed HERE and not left for the judge to infer (V2-300). Round 25: rows landed
+            # 21:37:08, zaelar named them 21:37:36 — 28 s, the very next turn — and the judge, holding a raw
+            # epoch it cannot cross with turn numbers, wrote «lo tuvo 123 segundos y calló» [alta]. A number
+            # the harness can compute exactly must never be estimated by the model reading the report.
+            try:
+                _rows_at = (mech.get("sheet_timing") or {}).get("sheet_rows_ms")
+                _said_at = None
+                _heads = [str(t).lower()[:24] for t in (offered.get("titles") or []) if t]
+                for t in transcript:
+                    if t.get("who") != "zaelar":
+                        continue
+                    low = (t.get("text") or "").lower()
+                    if any(h and h in low for h in _heads):
+                        _said_at = (t.get("at") or 0) * 1000
+                        break
+                mech["sheet_timing"]["delivery_lag_s"] = (
+                    round((_said_at - _rows_at) / 1000.0, 1) if (_said_at and _rows_at) else None)
+            except Exception:  # noqa: BLE001
+                pass
             # HOW MANY WORKERS SURVIVED, and WHAT THE SEARCH BROUGHT BACK. Both channels were invisible to
             # this report until 2026-08-21, when an audit found it was reading 490 of 1291 events — and both
             # were carrying the answer to the round that was failing.

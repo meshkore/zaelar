@@ -296,6 +296,27 @@ def mechanism_facts(mech: dict) -> str:
                      f"la hoja que viajan en su prompt): {'; '.join(str(x) for x in _entregado[:12])}. Si "
                      f"zaelar nombra un candidato o un precio de esta lista, NO es invención — lo leyó de lo "
                      f"que se le dio; solo cuenta como dato inventado lo que no esté ni aquí ni en la hoja.")
+    # LA LATENCIA DE ENTREGA VIENE CALCULADA — no la estimes tú (V2-300). Ronda 25: filas 21:37:08, dichas
+    # 21:37:36 (28 s, el turno siguiente), y el juez —con un epoch crudo que no puede cruzar con los turnos—
+    # escribió «lo tuvo 123 segundos y calló» [alta]. Un número que el arnés puede calcular exacto no se deja
+    # a la lectura del modelo.
+    _si = mech.get("sheet_instances") or {}
+    _sh2 = mech.get("results_sheet") or {}
+    if _si.get("n_opens") and _sh2.get("n_named"):
+        lines.append(f"· La hoja de resultados del encargo estaba ABIERTA EN PANTALLA y acabó con "
+                     f"{_sh2['n_named']} candidato(s) dentro: la presentación VISUAL sí ocurrió. No escribas "
+                     f"que faltó «usar el widget» o «presentarlo visualmente» — el texto del turno y la hoja "
+                     f"en pantalla son las dos mitades de la misma entrega.")
+    _lag = (mech.get("sheet_timing") or {}).get("delivery_lag_s")
+    if _lag is not None:
+        if _lag <= 60:
+            lines.append(f"· Entre la PRIMERA fila en la hoja y zaelar NOMBRÁNDOLA pasaron {_lag} s (calculado "
+                         f"por el arnés, exacto). Eso es entregar en cuanto lo tuvo: NO escribas que retuvo o "
+                         f"calló resultados, y no infieras otra latencia tú — este número es el bueno. Lo que "
+                         f"el usuario esperase ANTES de ese instante es latencia del NAVEGADOR, no ocultación.")
+        else:
+            lines.append(f"· Entre la primera fila en la hoja y zaelar nombrándola pasaron {_lag} s (calculado "
+                         f"por el arnés). Por encima de un minuto eso SÍ es retener una entrega: puntúalo.")
     elif wo.get("navigations"):
         lines.append(f"· El navegador navegó {wo['navigations']} vez/veces y extrajo {wo.get('extractions', 0)} "
                      f"vez/veces, y NO sacó ni un resultado con título. Eso es un fallo del mecanismo de "
