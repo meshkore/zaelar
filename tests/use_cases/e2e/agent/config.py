@@ -93,6 +93,65 @@ def current_head() -> str:
         return ""
 
 
+def engine_fingerprint() -> str:
+    """WHAT THE ENGINE IS RIGHT NOW, as one string — HEAD plus the CONTENT of every dirty non-test file.
+
+    UNCACHED on purpose, unlike `code_stamp()`: this exists to be called again later and compared with itself,
+    so a memoised answer would report "nothing moved" forever.
+
+    It hashes CONTENT, not the mere fact of being dirty, and that is the whole point. The walk's mid-batch
+    guard used to reason "the tree is dirty, therefore it moved", which is two different claims welded into
+    one — and on 2026-08-24 the wrong half fired: another agent had two files in flight *before* the batch
+    booted, so from the second case onward every batch stopped itself after exactly one case and reported the
+    engine as having moved when nothing had. Four-case batches became one-case batches for an afternoon.
+    A tree that was already dirty and has not changed since is perfectly comparable with itself; a tree whose
+    files changed is not, whether or not anything got committed. Comparing fingerprints says exactly that and
+    nothing else.
+
+    `tests/` is excluded for the same reason `code_stamp()` excludes it: the harness editing itself does not
+    change the engine under test. Fails soft to "" — and a caller must read "" as UNKNOWN, never as "equal",
+    which is why the comparison below refuses to conclude anything from an empty pair.
+    """
+    import hashlib
+    import subprocess
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[4]
+
+    def _git(*a: str) -> str:
+        return subprocess.run(["git", *a], cwd=str(root), capture_output=True, text=True,
+                              timeout=20).stdout
+
+    try:
+        h = hashlib.sha256()
+        h.update(_git("rev-parse", "HEAD").strip().encode())
+        paths = sorted(l[2:].strip() for l in _git("status", "--porcelain").splitlines() if l[2:].strip())
+        for rel in paths:
+            if rel.startswith("tests/"):
+                continue
+            h.update(b"\x00" + rel.encode())
+            f = root / rel
+            try:
+                h.update(hashlib.sha256(f.read_bytes()).digest() if f.is_file() else b"-")
+            except Exception:                    # noqa: BLE001 — unreadable is a state too, and a stable one
+                h.update(b"?")
+        return h.hexdigest()[:16]
+    except Exception:
+        return ""
+
+
+def engine_moved(before: str, now: str) -> bool:
+    """Did the engine change between these two fingerprints? UNKNOWN ("" on either side) is NOT movement.
+
+    Deliberately the opposite default from `stale_engine_refusal`'s: there, not knowing means refusing,
+    because the failure it guards against (measuring code that no longer exists) is silent and expensive.
+    Here the failure mode of a false alarm is a batch that stops itself, and a fingerprint we could not read
+    is not evidence of anything. Refusing to answer must not be dressed up as an answer.
+    """
+    if not before or not now:
+        return False
+    return before != now
+
+
 # Reasoning-capable tier, not voice's low-latency flash default — negotiating an open-ended request and
 # noticing when it's gone off track needs real reasoning, and this suite runs far less often than every
 # voice turn so the extra cost/latency per call is the right trade.

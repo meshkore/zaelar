@@ -490,15 +490,19 @@ def _run_batch(chosen: list, *, sandboxed: bool, args_no_file: bool = False,
     # edición no se puede comparar con ninguna otra»), y la guarda no podía verlo porque solo mira al empezar.
     # Se PARA la tanda en vez de saltar el caso: lo que ha cambiado es el sujeto de la medida, así que los
     # casos que quedan tampoco valen — y se dice con qué `--start-at` se retoman, como el tope de fallos.
-    _tree_at_start = str((config.code_stamp() or {}).get("sha") or "")
+    # Se compara una HUELLA del árbol contra sí misma, no «¿está sucio?». Escrito así el 2026-08-24 después de
+    # medir el coste de la versión anterior: preguntaba `code_stamp()` —que MEMOIZA— y declaraba movimiento con
+    # `or bool(dirty)`, o sea que (a) no podía ver una edición a mitad de tanda, que es justo lo que venía a
+    # cazar, y (b) paraba la tanda tras el primer caso siempre que el árbol ya estuviera sucio al arrancar.
+    # Un árbol sucio y QUIETO —otro agente con dos ficheros en vuelo desde antes— es perfectamente comparable
+    # consigo mismo; lo que rompe la comparación es que el contenido CAMBIE, con commit o sin él.
+    _tree_at_start = config.engine_fingerprint()
+    _head_at_start = config.current_head()
     for scenario in chosen:
         if results and not allow_dirty:
-            _now = config.code_stamp() or {}
-            _moved = str(_now.get("sha") or "") != _tree_at_start or bool(_now.get("dirty"))
-            if _moved:
+            if config.engine_moved(_tree_at_start, config.engine_fingerprint()):
                 print(f"\n■ parando el walk: el MOTOR se ha movido desde que arrancó la tanda "
-                      f"({_tree_at_start[:9] or '?'} → {str(_now.get('sha') or '?')[:9]}"
-                      f"{', con ' + str(_now.get('n_dirty')) + ' fichero(s) sin commitear' if _now.get('dirty') else ''}). "
+                      f"({_head_at_start[:9] or '?'} → {config.current_head()[:9] or '?'}). "
                       f"Lo que queda mediría código distinto del de los casos ya corridos, así que no se "
                       f"podrían comparar. Se retoma con --start-at {scenario.id}")
                 break
